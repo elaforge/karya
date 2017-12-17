@@ -236,7 +236,7 @@ normalize_speed tala flattened =
     expand (FGroup tempo count g : notes) =
         FGroup new_tempo (length expanded) g : expanded ++ expand post
         where
-        new_tempo = tempo { speed = max_speed }
+        new_tempo = tempo { _speed = max_speed }
         expanded = expand pre
         (pre, post) = splitAt count notes
     expand (FNote tempo note : notes) = expanded ++ expand notes
@@ -244,15 +244,15 @@ normalize_speed tala flattened =
         expanded = map (FNote new_tempo) $
             Attack note : replicate (spaces - 1)
                 (if has_duration note then Sustain note else Rest)
-        new_tempo = tempo { speed = max_speed }
-        spaces = stride tempo * matras_of note * 2 ^ (max_speed - speed tempo)
-    max_speed = maximum $ 0 : map speed (mapMaybe tempo_of flattened)
+        new_tempo = tempo { _speed = max_speed }
+        spaces = _stride tempo * matras_of note * 2 ^ (max_speed - _speed tempo)
+    max_speed = maximum $ 0 : map _speed (mapMaybe tempo_of flattened)
     tempo_of (FNote tempo _) = Just tempo
     tempo_of _ = Nothing
 
 -- ** Tempo
 
-data Tempo = Tempo { speed :: !Speed, nadai :: !Nadai, stride :: !Stride }
+data Tempo = Tempo { _speed :: !Speed, _nadai :: !Nadai, _stride :: !Stride }
     deriving (Eq, Show)
 
 instance Pretty Tempo where
@@ -261,15 +261,15 @@ instance Pretty Tempo where
         <> (if stride == 1 then "" else "t" <> pretty stride)
 
 default_tempo :: Tempo
-default_tempo = Tempo { speed = 0, nadai = default_nadai, stride = 1 }
+default_tempo = Tempo { _speed = 0, _nadai = default_nadai, _stride = 1 }
 
 default_nadai :: Nadai
 default_nadai = 4
 
 change_tempo :: TempoChange -> Tempo -> Tempo
-change_tempo (ChangeSpeed s) tempo = tempo { speed = s + speed tempo }
-change_tempo (Nadai n) tempo = tempo { nadai = n }
-change_tempo (Stride s) tempo = tempo { stride = s }
+change_tempo (ChangeSpeed s) tempo = tempo { _speed = s + _speed tempo }
+change_tempo (Nadai n) tempo = tempo { _nadai = n }
+change_tempo (Stride s) tempo = tempo { _stride = s }
 
 -- | Given a duration, return the speeds of 1 duration notes needed to add up
 -- to that duration.  Error if the speed went past 4, which means the duration
@@ -336,24 +336,24 @@ note_duration tempo n = case n of
 
 duration_of :: HasMatras a => Tempo -> a -> Duration
 duration_of tempo n = matra_duration tempo * fromIntegral (matras_of n)
-    * fromIntegral (stride tempo)
+    * fromIntegral (_stride tempo)
 
 note_fmatra :: HasMatras a => Tempo -> Note g a -> FMatra
 note_fmatra tempo n =
-    realToFrac $ note_duration tempo n * fromIntegral (nadai tempo)
+    realToFrac $ note_duration tempo n * fromIntegral (_nadai tempo)
 
 fmatra_duration :: Tempo -> FMatra -> Duration
 fmatra_duration tempo (FMatra matra) = Duration matra * matra_duration tempo
 
 normalize_fmatra :: Tempo -> FMatra -> FMatra
-normalize_fmatra tempo = (/ realToFrac (speed_factor (speed tempo)))
+normalize_fmatra tempo = (/ realToFrac (speed_factor (_speed tempo)))
 
--- | Duration of one matra in the given tempo.  This doesn't include 'stride',
+-- | Duration of one matra in the given tempo.  This doesn't include '_stride',
 -- because stride adds matras to the note duration, it doesn't change the
 -- duration of a matra itself.
 matra_duration :: Tempo -> Duration
 matra_duration tempo =
-    1 / speed_factor (speed tempo) / fromIntegral (nadai tempo)
+    1 / speed_factor (_speed tempo) / fromIntegral (_nadai tempo)
 
 advance_state_by :: Tala.Tala -> Duration -> State -> State
 advance_state_by tala duration state = state

@@ -445,8 +445,8 @@ make_space :: S.Tempo -> Solkattu.Space -> S.Duration
     -> Either Error [(S.Tempo, Note stroke)]
 make_space tempo space dur = map make <$> S.decompose s0_matras
     where
-    make speed = (tempo { S.speed = speed }, Space space)
-    s0_matras = dur * fromIntegral (S.nadai tempo)
+    make speed = (tempo { S._speed = speed }, Space space)
+    s0_matras = dur * fromIntegral (S._nadai tempo)
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.

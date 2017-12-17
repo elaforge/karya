@@ -269,8 +269,8 @@ infer_tags korvai = Tags $ Util.Map.multimap $ concat
         Mridangam seqs -> map (map_sollu (const ())) seqs
     tempos = map (map fst . S.tempo_notes . Solkattu.cancel_karvai . S.flatten)
         seqs
-    nadais = Seq.unique_sort $ concatMap (map S.nadai) tempos
-    speeds = Seq.unique_sort $ concatMap (map S.speed) tempos
+    nadais = Seq.unique_sort $ concatMap (map S._nadai) tempos
+    speeds = Seq.unique_sort $ concatMap (map S._speed) tempos
 
     instruments =
         [ ("mridangam", has_instrument korvai inst_mridangam)

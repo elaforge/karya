@@ -2494,7 +2494,7 @@ solkattu:
       note should turn into a call with duration, which in turn is because it
       has other strokes inside of it.  I'm not sure what to call that, but
       duration is definitely confusing because of the local usage of Duration.
-  - Sequence.Tempo fields don't have a leading _, make them all consistent.
+  * Sequence.Tempo fields don't have a leading _, make them all consistent.
   - Can't I have a shorter name for dropM?
   - What if I just renamed Sequence to S?
   What would a web UI look like?

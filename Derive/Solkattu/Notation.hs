@@ -137,7 +137,8 @@ splitM_either matras =
     spaces tempo space matras = do
         speeds <- S.decomposeM matras
         return $ concatMap make speeds
-        where make s = speed (s - S.speed tempo) [S.Note (Solkattu.Space space)]
+        where
+        make s = speed (s - S._speed tempo) [S.Note (Solkattu.Space space)]
 
 rdropM, rdropM_ :: (CallStack.Stack, Pretty sollu) =>
     FMatra -> SequenceT sollu -> SequenceT sollu
@@ -158,9 +159,9 @@ spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
 spaceD space tempo dur =
     concatMap make $ Solkattu.check $ S.decompose s0_matras
     where
-    make s = speed (s - S.speed tempo) [S.Note (Solkattu.Space space)]
+    make s = speed (s - S._speed tempo) [S.Note (Solkattu.Space space)]
     -- Cancel out the nadai.  So d is now in s0 matras.
-    s0_matras = dur * fromIntegral (S.nadai tempo)
+    s0_matras = dur * fromIntegral (S._nadai tempo)
 
 spaceM :: CallStack.Stack => Solkattu.Space -> FMatra -> SequenceT sollu
 spaceM space matras =
