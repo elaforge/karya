@@ -649,3 +649,22 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
         , (tat.tat.tam.tam, [pk, pk, a, a])
         , (tat.tat.tam, [pk, pk, a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+
+c_17_12_11 :: Korvai
+c_17_12_11 = date 2017 12 11 $ ganesh $ korvai adi mridangam
+    [ __sam adi $ su theme
+    ]
+    where
+    theme = kita.kita.taka.na.ta
+        . kita.kita.gu.gu.na.na
+        . taka.na.ta.kita.__.ki.na.thom
+        . tri (din.__.ta.__.ka.dinga)
+        . tat.__.dit
+    mridangam = make_mridangam
+        [ (kita.kita.taka.na.ta, [k, t, k, t, p, k, n, p])
+        , (kita.kita.gu.gu.na.na, [k, t, k, t, o, o, n, n])
+        , (taka.na.ta, [p, k, t, p])
+        , (ki.ta.ki.na.thom, [k, t, k, n, o])
+        , (din.ta.ka.dinga, [on, k, o, d, o])
+        , (tat.dit, [on, u])
+        ]

@@ -10,7 +10,7 @@
 -- type is polymorphic, so this is purely rhythmic.
 module Derive.Solkattu.Sequence (
     Note(..), TempoChange(..)
-    , Duration, Matra, Speed, Nadai, Stride, speed_factor
+    , Duration(..), Matra, Speed, Nadai, Stride, speed_factor
     , change_speed
     , HasMatras(..)
     -- * transform

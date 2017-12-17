@@ -2485,6 +2485,9 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - Move Solkattu directory to the top level, it's not really part of Derive
+    . At some point it might be a completely separate package.
+    . I could also switch over to camelCase.
   transcribe:
     - after 2014-06-17
   - html output for realized strokes
