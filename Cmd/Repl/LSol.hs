@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities for solkattu.  This re-exports "Derive.Solkattu.Db" so I can
+-- | Utilities for solkattu.  This re-exports "Solkattu.Db" so I can
 -- find pre-defined korvais.
 --
 -- E.g.:
@@ -12,7 +12,7 @@
 -- > LSol.insert_k1 True 1 (LSol.korvais !! 59) 0
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
-    , module Derive.Solkattu.Db
+    , module Solkattu.Db
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -37,15 +37,16 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.Solkattu.Db as Db
-import Derive.Solkattu.Db hiding (realize)
-import qualified Derive.Solkattu.Instrument.ToScore as ToScore
-import qualified Derive.Solkattu.Korvai as Korvai
-import qualified Derive.Solkattu.Metadata as Metadata
-import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Sequence as Sequence
-import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Stack as Stack
+
+import qualified Solkattu.Db as Db
+import Solkattu.Db hiding (realize)
+import qualified Solkattu.Instrument.ToScore as ToScore
+import qualified Solkattu.Korvai as Korvai
+import qualified Solkattu.Metadata as Metadata
+import qualified Solkattu.Realize as Realize
+import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.Solkattu as Solkattu
 
 import qualified Perform.Pitch as Pitch
 import qualified App.ReplProtocol as ReplProtocol

@@ -28,11 +28,12 @@ import qualified Data.Set as Set
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Ruler.Meter as Meter
 import Cmd.Ruler.Meter (AbstractMeter(..))
-import qualified Derive.Solkattu.Tala as Tala
-import Derive.Solkattu.Tala
+import qualified Solkattu.Tala as Tala
+import Solkattu.Tala
        (Tala(..), adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala,
         triputa_tala, ata_tala, eka_tala, misra_chapu, khanda_chapu,
         rupaka_fast)
+
 import Global
 
 

@@ -2485,9 +2485,9 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  - Move Solkattu directory to the top level, it's not really part of Derive
+  * Move Solkattu directory to the top level, it's not really part of Derive
     . At some point it might be a completely separate package.
-    . I could also switch over to camelCase.
+    - I could also switch over to camelCase.
   - Sequence.has_duration should be has_sustain
     . Otherwise it's confusing because obviously it does have a Duration.
     . Well, it doesn't actually mean has sustain though.  It means this
@@ -2607,7 +2607,19 @@ solkattu:
   ? rename tri to tir, for tirmanam?
   groups:
     This whole groups stuff is still a bit of a mess.
-      . Mridangam2013.dinnagina_sequence is broken.
+      ? Mridangam2013.dinnagina_sequence is broken.
+        . It's because replaceEnd uses rdropM_, which directly modifies the
+          sequence.  That makes the _split from takeD no longer valid.
+        . One way is to get rid of the _ variants, but I need them when
+          I explicitly don't want to make a group.
+        . I think the _ variants could just flatten out any groups in there.
+          In practice, replaceStart and replaceEnd are used only in
+          Score.Mridangam*, so I could avoid all of this by moving the
+          _ variants from Notation to MridangamGlobal, and using them to
+          replace the non-_ versions.  Then replaceStart,End are only in
+          MridangamGlobal.
+        . Mridangam scores don't need groups for realization, just for
+          highlighting.
       . Having to keep group count up to date in 'Realize.realize'.  I could
         fix this with a nested FGroup, but of course introducing other
         problems.
@@ -2625,6 +2637,8 @@ solkattu:
       . Do some tests to make sure I understand Solkattu.duration_of and
         Solkattu.matras_of.
       - Realize.realize should interleave the cancel group thing.
+        . But try switching to a proper recursive implementation before doing
+          all this work.
 
     - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
       the unexpanded form.  I think this does need named groups.

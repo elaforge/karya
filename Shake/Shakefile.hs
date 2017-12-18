@@ -260,7 +260,7 @@ hsBinaries =
     -- having to link in all that stuff anyway.
     , (plain "extract_doc" "App/ExtractDoc.hs") { hsDeps = ["fltk/fltk.a"] }
     , plain "generate_run_tests" "Util/GenerateRunTests.hs"
-    , plain "extract_korvais" "Derive/Solkattu/ExtractKorvais.hs"
+    , plain "extract_korvais" "Solkattu/ExtractKorvais.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"]
@@ -1073,13 +1073,13 @@ binaryWithPrefix prefix fn = prefix `List.isPrefixOf` fn
 
 generateKorvais :: Shake.Rules ()
 generateKorvais = generatedKorvais %> \_ -> do
-    inputs <- Shake.getDirectoryFiles "" ["Derive/Solkattu/Score/*.hs"]
+    inputs <- Shake.getDirectoryFiles "" ["Solkattu/Score/*.hs"]
     let generate = modeToDir Opt </> "extract_korvais"
     need $ generate : inputs
     Util.system generate (generatedKorvais : inputs)
 
 generatedKorvais :: FilePath
-generatedKorvais = "Derive/Solkattu/All.hs"
+generatedKorvais = "Solkattu/All.hs"
 
 -- * faust
 

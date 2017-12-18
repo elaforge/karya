@@ -27,11 +27,12 @@ import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.Solkattu.Instrument.Mridangam as Mridangam
-import qualified Derive.Solkattu.Realize as Realize
-import qualified Derive.Solkattu.Sequence as Sequence
-import qualified Derive.Solkattu.Solkattu as Solkattu
 import qualified Derive.Typecheck as Typecheck
+
+import qualified Solkattu.Instrument.Mridangam as Mridangam
+import qualified Solkattu.Realize as Realize
+import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.Solkattu as Solkattu
 
 import Global
 import Types
