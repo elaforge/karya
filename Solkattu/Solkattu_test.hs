@@ -16,17 +16,17 @@ import Global
 
 
 
-test_matras_of = do
-    let f = Solkattu.matras_of
+test_matrasOf = do
+    let f = Solkattu.matrasOf
         t s n = Sequence.Tempo s n 1
     equal (f (t 0 4) ta) 1
     equal (f (t 0 6) ta) 1
     equal (f (t 1 4) ta) (1/2)
     equal (f (t 1 6) ta) (1/2)
 
-test_cancel_karvai = do
-    let f = Text.unwords . map pretty . Sequence.flattened_notes
-            . Solkattu.cancel_karvai
+test_cancelKarvai = do
+    let f = Text.unwords . map pretty . Sequence.flattenedNotes
+            . Solkattu.cancelKarvai
             . Sequence.flatten
     equal (f (ta <> thom)) "ta thom"
     equal (f (ta <> Dsl.karvai thom)) "ta"
@@ -48,8 +48,8 @@ test_vary = do
 
 -- * utils
 
-test_apply_modifications = do
-    let f = Solkattu.apply_modifications (+)
+test_applyModifications = do
+    let f = Solkattu.applyModifications (+)
     equal (f [] [1]) [1]
     let mods = [(0, 10), (2, 20)]
     equal (f mods [1]) [11]
@@ -57,8 +57,8 @@ test_apply_modifications = do
     equal (f mods [1..3]) [11, 2, 23]
     equal (f mods [1..4]) [11, 2, 23, 4]
 
-test_permute_fst = do
-    let f = Solkattu.permute_fst (\x -> [x, x+1])
+test_permuteFst = do
+    let f = Solkattu.permuteFst (\x -> [x, x+1])
     equal (f ([] :: [(Int, Char)])) []
     equal (f [(0, 'a')]) [[(0, 'a')], [(1, 'a')]]
     equal (f [(0, 'a'), (10, 'b')])

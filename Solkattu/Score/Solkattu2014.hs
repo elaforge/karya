@@ -31,7 +31,7 @@ c_14_01_01 = date 2014 1 1 $ ganesh $ korvai adi mridangam
          .tk.theme . gap . fill
        .tktu.theme . gap . tri fill
     theme = ta.dit.__.ta.din.__.ta.__.din.__.ta.__
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (ta.din, [k, od])
         , (ta.dit, [k, t])
         , (ta, [k])
@@ -69,7 +69,7 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvai adi mridangam
     reduce1 karv = prefixes (reduceToL 1 1 theme) karv
     expand1 karv = prefixes (List.reverse (reduceToL 1 1 theme)) karv
 
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (theme, [p, k, t, k, k, t, o])
         , (tat.di, [k, t])
         , (tam, [u])
@@ -104,7 +104,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvai adi mridangam $
         join karv $ zipWith (.) [ø, su tk, su tktu] seqs
     theme = tha.ki.ta.ta . su kita . thom
     ta_kitathom = dropM 3 theme
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (theme, [p, k, t, k, k, t, o])
         , (tat.din, [k, od])
         , (ta.di, [k ,t])
@@ -135,7 +135,7 @@ c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvai adi mridangam $
     sarva = tanga.takita
     dhomdhom = din.__3.dhodhoka
     dhodhoka = dhom.dhom.ka
-    mridangam = make_mridangam $
+    mridangam = makeMridangam $
         [ (sarva, [d, lt p, k, t, k])
         , (dhomdhom, [d, o, o, k])
         , (dhodhoka, [o, o, k])
@@ -160,7 +160,7 @@ c_14_02_27 = date 2014 2 27 $ ganesh $ korvai adi mridangam $
     where
     p123 p sep = trin sep p (p.p) (p.p.p)
     purvangam = tri (ta_katakita.takadinna . din.__6)
-    mridangam = make_mridangam $
+    mridangam = makeMridangam $
         [ (ta.din.gin.na.thom, [k, t, k, n, o])
         , (ta.din, [k, od])
         , (dheem, [u])
@@ -193,7 +193,7 @@ c_14_03_13 = date 2014 3 13 $ ganesh $ korvai adi mridangam
 
     -- sarva = d.__.n.d.l.d.n.k .t.k.n.d.l.d.n.l
     --         o.__.o.o._.o.o._ .o._.o.o._.o.o._
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (t1, [od, p, k, n, o])
         , (t2, [p, k, t, k, n, o])
         , (t3, [k, o, o, k, o, k])
@@ -201,7 +201,7 @@ c_14_03_13 = date 2014 3 13 $ ganesh $ korvai adi mridangam
         ]
 
 c_14_03_26 :: Korvai
-c_14_03_26 = date 2014 3 26 $ ganesh $ similar_to "Solkattu2014" "c_14_03_13" $
+c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
         korvai adi mridangam $
     [ t1 . sarvaD 7 . repeat 2 (t1 . sarvaD 3)
         . repeat 2 (t1 . sarvaD 1) . t1 . sarvaD 3
@@ -217,7 +217,7 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similar_to "Solkattu2014" "c_14_03_13" $
     t4 = group $ su $ takadinna.taka.din.__
     t5 = group $ su $ dhom.tdgnt.din.__
     -- 2014-04-02 has transition from c_14_03_12 to this
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (t1, [on, on, on, od])
         , (t2, [o, k, o, k, o, od])
         , (t3, [on, p, k, n, o, od])
@@ -237,7 +237,7 @@ c_14_04_21 = date 2014 4 21 $ ganesh $ korvai adi mridangam $
     -- a specific five.
     p5_1 = ta.__. su (taka.taka).din
     p5_2 = ta.__. ta . su taka.din
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (din, [od])
         , (ta.taka.taka.din, [k, k, t, k, t, o])
         , (tam, [u])
@@ -267,7 +267,7 @@ c_14_04_29 = date 2014 4 29 $ ganesh $ korvai adi mridangam $
     theme xx = group $ nang . su kitataka . xx . nang . su kitataka
     theme_m xx = [on, k, t, o, k] ++ xx ++ [n, k, t, o, k]
                                            -- khali: p
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (t1,   [on, k, t, o, k, od, n, od, k])
         , (1^t1, [on, k, t, o, k, od, n, p&d, k])
         , (t2, theme_m [o&t, k])
@@ -313,7 +313,7 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
         where t = spread 3 (tat.din.din) . tat.__.din.__6
 
     nadin4 = repeat 4 (na.din.__)
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (na.din, [on, d])
         , (din, [od])
         , (dinga, [od, k])

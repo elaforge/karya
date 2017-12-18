@@ -18,8 +18,8 @@ note :: Sollu -> Realize.SNote Sollu
 note NoSollu = Realize.rest
 note sollu = Sequence.Note (Realize.Note (Realize.stroke sollu))
 
-default_patterns :: Realize.Patterns Sollu
-default_patterns = Solkattu.check $ patterns
+defaultPatterns :: Realize.Patterns Sollu
+defaultPatterns = Solkattu.check $ patterns
     [ (5, [Ta, Din, Gin, Na, Thom])
     , (6, [Ta, Din, __, Gin, Na, Thom])
     , (7, [Ta, __, Din, __, Gin, Na, Thom])
@@ -27,8 +27,8 @@ default_patterns = Solkattu.check $ patterns
     , (9, [Ta, __, Din, __, Gin, __, Na, __, Thom])
     ]
 
-alternate_patterns :: Realize.Patterns Sollu
-alternate_patterns = Solkattu.check $ patterns
+alternatePatterns :: Realize.Patterns Sollu
+alternatePatterns = Solkattu.check $ patterns
     [ (5, [Ta, Di, Ki, Tha, Thom])
     , (6, [Ta, Di, __, Ki, Tha, Thom])
     , (7, [Ta, __, Di, __, Ki, Tha, Thom])
@@ -40,15 +40,15 @@ __ :: Sollu
 __ = NoSollu
 
 patterns :: [(Sequence.Matra, [Sollu])] -> Either Text (Realize.Patterns Sollu)
-patterns = Realize.patterns . map (second (map note)) . (default_nakatiku++)
+patterns = Realize.patterns . map (second (map note)) . (defaultNakatiku++)
     . map (first Solkattu.PatternM)
 
-default_nakatiku :: [(Solkattu.Pattern, [Sollu])]
-default_nakatiku =
+defaultNakatiku :: [(Solkattu.Pattern, [Sollu])]
+defaultNakatiku =
     [ (Solkattu.Nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
     ]
 
 instance Expr.ToExpr Sollu where
     to_expr = Expr.generator0 . Expr.Symbol . pretty
 instance Expr.ToExpr (Realize.Stroke Sollu) where
-    to_expr = Realize.to_expr
+    to_expr = Realize.toExpr

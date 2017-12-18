@@ -12,7 +12,7 @@ import Solkattu.SolkattuGlobal
 
 c_16_09_28 :: Korvai
 c_16_09_28 = date 2016 9 28 $ ganesh $
-    similar_to "Solkattu2016" "c_16_12_06_sriram1" $
+    similarTo "Solkattu2016" "c_16_12_06_sriram1" $
     korvai1 adi mridangam $ su $
         group tat_dit_ . tri_ __   (group nakataka) . __6
     . dropM 2 tat_dit_ . tri_ __ (dropM 2 nakataka) . __6
@@ -30,7 +30,7 @@ c_16_09_28 = date 2016 9 28 $ ganesh $
     nakataka = na.ka.takadinna.dheem
 
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (tat.dit, [p&k, p&t])
         , (kitakina, [k, t, k, n, o, k, t&o, k])
         , (nakataka, [n, p, k, o, o, k, od])
@@ -57,7 +57,7 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
     kitakina = group $ ki.ta.ki.na.ta.ki.ta.ka
 
     ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su taka . din)
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (1^tat, [p&k])
         , (1^dit, [p&t])
         , (kitakina, [k, t, k, n, o, k, o&t, k])

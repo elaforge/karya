@@ -31,8 +31,8 @@ import Global
 
 
 test_realize = do
-    let f = e_words . realize_n smap . mconcat
-        smap = expect_right $ Realize.stroke_map
+    let f = eWords . realizeN smap . mconcat
+        smap = expect_right $ Realize.strokeMap
             [ (ta <> din, [k, od])
             , (na <> din, [n, od])
             , (ta, [t])
@@ -47,9 +47,9 @@ test_realize = do
     equal (f [din, __, ga]) (Right "D _ _")
     left_like (f [din, din]) "sequence not found"
 
-test_realize_groups = do
-    let f = e_words . realize_n smap
-        smap = expect_right $ Realize.stroke_map
+test_realizeGroups = do
+    let f = eWords . realizeN smap
+        smap = expect_right $ Realize.strokeMap
             [ (taka, [k, t])
             , (din, [od])
             ]
@@ -82,11 +82,11 @@ test_realize_groups = do
     -- With a Pattern.
     equal (f $ dropM 1 $ taka <> Dsl.p5) (Right "t p5")
 
-test_realize_groups_output = do
+test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
     -- with strokes.
     let f = extract . realize smap
-        smap = expect_right $ Realize.stroke_map [(taka, [k, t])]
+        smap = expect_right $ Realize.strokeMap [(taka, [k, t])]
             where M.Strokes {..} = M.notes
         taka = ta <> ka
         extract = fmap $ Text.unwords . map fmt
@@ -96,9 +96,9 @@ test_realize_groups_output = do
     equal (f $ dropM 1 taka) (Right "([k], Before) t")
     equal (f $ rdropM 1 taka) (Right "([t], After) k")
 
-test_realize_groups_nested = do
-    let f = fmap (mconcatMap pretty) . realize_n smap
-        smap = expect_right $ Realize.stroke_map [(nakita, [n, k, t])]
+test_realizeGroupsNested = do
+    let f = fmap (mconcatMap pretty) . realizeN smap
+        smap = expect_right $ Realize.strokeMap [(nakita, [n, k, t])]
             where M.Strokes {..} = M.notes
         nakita = na <> ki <> ta
     equal (f $ Notation.reduceTo 1 1 nakita) $ Right $ mconcat
@@ -156,22 +156,22 @@ test_realize_groups_nested = do
     equal (f $ dropM 2 $ dropM 1 nakita <> nakita) $ Right "nkt"
     equal (f $ dropM 1 $ nakita <> dropM 1 nakita) $ Right "ktkt"
 
-e_words :: Pretty b => Either a [b] -> Either a Text
-e_words = fmap (Text.unwords . map pretty)
+eWords :: Pretty b => Either a [b] -> Either a Text
+eWords = fmap (Text.unwords . map pretty)
 
-test_realize_emphasis = do
-    let f = second (map (fmap pretty)) . realize_n smap . mconcat
+test_realizeEmphasis = do
+    let f = second (map (fmap pretty)) . realizeN smap . mconcat
         smap = expect_right $
-            Realize.stroke_map [(ta <> di, [Dsl.hv k, Dsl.lt t])]
+            Realize.strokeMap [(ta <> di, [Dsl.hv k, Dsl.lt t])]
             where M.Strokes {..} = M.notes
     equal (f [ta, di]) $ Right
         [ Realize.Note $ Realize.Stroke Realize.Heavy "k"
         , Realize.Note $ Realize.Stroke Realize.Light "t"
         ]
 
-test_realize_tag = do
-    let f = e_words . realize_n smap
-        smap = expect_right $ Realize.stroke_map
+test_realizeTag = do
+    let f = eWords . realizeN smap
+        smap = expect_right $ Realize.strokeMap
             [ (ta <> ta, [p, p])
             , (ta, [k])
             , (1^ta, [t])
@@ -191,25 +191,25 @@ pattern = Solkattu.Pattern . Solkattu.PatternM
 rpattern :: Sequence.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.PatternM
 
-test_realize_patterns = do
+test_realizePatterns = do
     let f pmap =
-            Realize.realize (Realize.realize_pattern pmap)
-                (Realize.realize_sollu stroke_map)
+            Realize.realize (Realize.realizePattern pmap)
+                (Realize.realizeSollu strokeMap)
             . Sequence.flatten
-    let e_strokes = e_words . fmap Sequence.flattened_notes
-    equal (e_strokes $ f (M.families567 !! 0) Dsl.p5)
+    let eStrokes = eWords . fmap Sequence.flattenedNotes
+    equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
         (Right "k t k n o")
-    equal (e_strokes $ f (M.families567 !! 1) Dsl.p5)
+    equal (eStrokes $ f (M.families567 !! 1) Dsl.p5)
         (Right "k _ t _ k _ k t o _")
     -- This ensures that 'Realize.realize' fixes the FGroup count if
-    -- realize_patterns changes it.
-    equal (e_strokes $ f M.default_patterns $ rdropM 0 $ sd Dsl.p5)
+    -- realizePatterns changes it.
+    equal (eStrokes $ f M.defaultPatterns $ rdropM 0 $ sd Dsl.p5)
         (Right "k t k n o")
     left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for p3"
 
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
-    equal (e_format $ format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
-    equal (e_format $ format 15 Tala.adi_tala p) "K t k kto"
+    equal (eFormat $ format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
+    equal (eFormat $ format 15 Tala.adi_tala p) "K t k kto"
 
 test_patterns = do
     let f = second (const ()) . Realize.patterns . map (first Solkattu.PatternM)
@@ -219,9 +219,9 @@ test_patterns = do
     equal (f [(2, su [k, t, k, t])]) (Right ())
     equal (f [(2, [k, t])]) (Right ())
 
-test_stroke_map = do
+test_strokeMap = do
     let f = fmap (\(Realize.StrokeMap smap) -> Map.toList smap)
-            . Realize.stroke_map
+            . Realize.strokeMap
         M.Strokes {..} = M.notes
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])]) $ Right
@@ -240,8 +240,8 @@ test_stroke_map = do
         "only have plain sollus"
 
 test_format = do
-    let f tala = e_format . format 80 tala
-            . map (Sequence.FNote Sequence.default_tempo)
+    let f tala = eFormat . format 80 tala
+            . map (Sequence.FNote Sequence.defaultTempo)
         n4 = [k, t, Realize.Space Solkattu.Rest, n]
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Tala.rupaka_fast
@@ -263,28 +263,28 @@ test_format = do
 tala4 :: Tala.Tala
 tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 
-test_format_ruler = do
-    let run = fmap (first (capitalize_emphasis . format 80 tala4))
-            . k_realize False tala4
+test_formatRuler = do
+    let run = fmap (first (capitalizeEmphasis . format 80 tala4))
+            . kRealize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
-    equal_t (run (tas 2 8)) $ Right
+    equalT (run (tas 2 8)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k"
         , ""
         )
-    equal_t (run (tas 2 16)) $ Right
+    equalT (run (tas 2 16)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k\n\
           \K k k k K k k k"
         , ""
         )
-    equal_t (run (tas 3 12)) $ Right
+    equalT (run (tas 3 12)) $ Right
         ( "X     O     X     O     |\n\
           \K k k k k k K k k k k k"
         , ""
         )
 
-    equal_t (run (tas 2 12 <> tas 3 6)) $ Right
+    equalT (run (tas 2 12 <> tas 3 6)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k\n\
           \X   O   X     O     |\n\
@@ -292,21 +292,21 @@ test_format_ruler = do
         , ""
         )
     -- A final stroke won't cause the ruler to reappear.
-    equal_t (run (tas 2 16 <> ta)) $ Right
+    equalT (run (tas 2 16 <> ta)) $ Right
         ( "X   O   X   O   |\n\
           \K k k k K k k k\n\
           \K k k k K k k k K"
         , ""
         )
 
-equal_t :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
+equalT :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
     -> Either Text (Text, a) -> IO Bool
-equal_t = equal_fmt (either id fst)
+equalT = equal_fmt (either id fst)
 
-test_format_lines = do
-    let f stroke_width width tala =
-            fmap (extract . Realize.format_lines stroke_width width tala . fst)
-            . k_realize False tala
+test_formatLines = do
+    let f strokeWidth width tala =
+            fmap (extract . Realize.formatLines strokeWidth width tala . fst)
+            . kRealize False tala
         extract = map $ map $ Text.strip . mconcat . map (Realize._text . snd)
     let tas n = Dsl.repeat n ta
 
@@ -339,9 +339,9 @@ test_format_lines = do
     equal (f 1 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4--"]]
     equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4------"]]
 
-test_format_symbol = do
-    let f = fmap (extract . Realize.format_lines 2 80 tala . fst)
-            . k_realize False tala
+test_formatSymbol = do
+    let f = fmap (extract . Realize.formatLines 2 80 tala . fst)
+            . kRealize False tala
         extract = map ((\(Realize.Symbol _ b c) -> (b, c)) . snd)
             . head . head
         tala = Tala.rupaka_fast
@@ -352,10 +352,10 @@ test_format_symbol = do
         , (True, [Start]), (False, []), (False, []), (False, [End, End])
         ]
 
-test_annotate_groups = do
+test_annotateGroups = do
     let f = map (second (pretty . snd))
-            . Realize.annotate_groups
-            . Sequence.normalize_speed Tala.adi_tala
+            . Realize.annotateGroups
+            . Sequence.normalizeSpeed Tala.adi_tala
             . Sequence.flatten
     equal (f (ta <> ki)) [([], "ta"), ([], "ki")]
     equal (f (Notation.group ta <> ki)) [([Start, End], "ta"), ([], "ki")]
@@ -365,9 +365,9 @@ test_annotate_groups = do
     equal (f (Notation.group (Notation.group (ta <> ki))))
         [([Start, Start], "ta"), ([End, End], "ki")]
 
-test_format_break_lines = do
-    let run width = fmap (capitalize_emphasis . format width tala4 . fst)
-            . k_realize False tala4
+test_formatBreakLines = do
+    let run width = fmap (capitalizeEmphasis . format width tala4 . fst)
+            . kRealize False tala4
     let tas n = Dsl.repeat n ta
     equal (run 80 (tas 16)) $ Right
         "X       O       X       O       |\n\
@@ -377,10 +377,10 @@ test_format_break_lines = do
         \Kkkkkkkk\n\
         \Kkkkkkkk"
 
-test_format_nadai_change = do
-    let f tala realize_patterns =
-            fmap (first (capitalize_emphasis . format 50 tala))
-            . k_realize realize_patterns tala
+test_formatNadaiChange = do
+    let f tala realizePatterns =
+            fmap (first (capitalizeEmphasis . format 50 tala))
+            . kRealize realizePatterns tala
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
@@ -395,9 +395,9 @@ test_format_nadai_change = do
     -- 0       1       2       3       4   |  5     6     7     8
     -- _k_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_kno
 
-test_format_speed = do
-    let f width = fmap (e_format . format width Tala.rupaka_fast)
-            . realize stroke_map
+test_formatSpeed = do
+    let f width = fmap (eFormat . format width Tala.rupaka_fast)
+            . realize strokeMap
         thoms n = mconcat (replicate n thom)
     equal (f 80 []) (Right "")
     equal (f 80 (thoms 8)) (Right "O o o o O o o o")
@@ -413,10 +413,10 @@ test_format_speed = do
     -- '-'.
     equal (f 10 (Dsl.p5 <> Dsl.p5)) (Right "P5--=p5-=-")
 
--- * verify_alignment
+-- * verifyAlignment
 
-test_verify_alignment = do
-    let f = verify_alignment tdkt_smap Tala.adi_tala
+test_verifyAlignment = do
+    let f = verifyAlignment tdktSmap Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
     equal (f (take 4 tdkt)) $ Right $ Just
@@ -435,8 +435,8 @@ test_verify_alignment = do
     equal (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt)) $ Right
         (Just (3, "expected akshara 4, but at avartanam 1, akshara 0 + 3/4"))
 
-test_verify_alignment_nadai_change = do
-    let f = verify_alignment tdkt_smap Tala.adi_tala
+test_verifyAlignmentNadaiChange = do
+    let f = verifyAlignment tdktSmap Tala.adi_tala
         tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
     equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt))) $
@@ -459,8 +459,8 @@ test_verify_alignment_nadai_change = do
         (Right Nothing)
     equal (f (sequence Dsl.p7)) (Right Nothing)
 
-tdkt_smap :: Realize.StrokeMap M.Stroke
-tdkt_smap = expect_right $ Realize.stroke_map
+tdktSmap :: Realize.StrokeMap M.Stroke
+tdktSmap = expect_right $ Realize.strokeMap
     [ (ta, [k])
     , (di, [t])
     , (ki, [p])
@@ -469,71 +469,71 @@ tdkt_smap = expect_right $ Realize.stroke_map
     ]
     where M.Strokes {..} = M.notes
 
-verify_alignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> Tala.Tala -> Korvai.Sequence -> Either Text (Maybe (Int, Text))
-verify_alignment smap tala =
-    fmap (Realize.verify_alignment tala . Sequence.tempo_notes) . realize smap
+verifyAlignment smap tala =
+    fmap (Realize.verifyAlignment tala . Sequence.tempoNotes) . realize smap
 
 -- * util
 
-realize_n :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+realizeN :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> [Sequence.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Note stroke]
-realize_n smap = fmap Sequence.flattened_notes . realize smap
+realizeN smap = fmap Sequence.flattenedNotes . realize smap
 
 realize :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> [Sequence.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
 realize smap =
-    Realize.realize Realize.keep_pattern (Realize.realize_sollu smap)
+    Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
     . Sequence.flatten
 
-k_realize :: Bool -> Tala.Tala -> Korvai.Sequence
+kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
     -> Either Text ([Korvai.Flat M.Stroke], Text)
-k_realize realize_patterns tala =
-    head . Korvai.realize Korvai.mridangam realize_patterns
+kRealize realizePatterns tala =
+    head . Korvai.realize Korvai.mridangam realizePatterns
     . Korvai.korvai tala mridangam
     . (:[])
 
-stroke_map :: Realize.StrokeMap M.Stroke
-stroke_map = expect_right $ Realize.stroke_map
+strokeMap :: Realize.StrokeMap M.Stroke
+strokeMap = expect_right $ Realize.strokeMap
     [ (thom, [o])
     ]
     where M.Strokes {..} = M.notes
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.inst_mridangam = Dsl.check $
-        Realize.instrument [(ta, [M.k M.notes])] M.default_patterns
+    { Korvai.instMridangam = Dsl.check $
+        Realize.instrument [(ta, [M.k M.notes])] M.defaultPatterns
     }
 
 sd, su :: [Sequence.Note g a] -> [Sequence.Note g a]
-sd = (:[]) . Sequence.change_speed (-1)
-su = (:[]) . Sequence.change_speed 1
+sd = (:[]) . Sequence.changeSpeed (-1)
+su = (:[]) . Sequence.changeSpeed 1
 
 nadai :: Sequence.Nadai -> [Sequence.Note g a] -> Sequence.Note g a
 nadai n = Sequence.TempoChange (Sequence.Nadai n)
 
-e_format :: Text -> Text
-e_format = capitalize_emphasis . drop_rulers
+eFormat :: Text -> Text
+eFormat = capitalizeEmphasis . dropRulers
 
-drop_rulers :: Text -> Text
-drop_rulers = Text.strip . Text.unlines . filter (not . is_ruler) . Text.lines
+dropRulers :: Text -> Text
+dropRulers = Text.strip . Text.unlines . filter (not . isRuler) . Text.lines
     where
-    is_ruler t = Text.all Char.isDigit (Text.take 1 t)
+    isRuler t = Text.all Char.isDigit (Text.take 1 t)
         || "X" `Text.isPrefixOf` t
 
 -- | Replace emphasis with capitals, so spacing is preserved.
-capitalize_emphasis :: Text -> Text
-capitalize_emphasis =
+capitalizeEmphasis :: Text -> Text
+capitalizeEmphasis =
     TextUtil.mapDelimited True '!' (Text.replace "-" "=" . Text.toUpper)
     . Text.replace "\ESC[0m" "!" . Text.replace "\ESC[1m" "!"
 
-state_pos :: Sequence.State -> (Int, Tala.Akshara, Sequence.Duration)
-state_pos state =
-    ( Sequence.state_avartanam state
-    , Sequence.state_akshara state
-    , Sequence.state_matra state
+statePos :: Sequence.State -> (Int, Tala.Akshara, Sequence.Duration)
+statePos state =
+    ( Sequence.stateAvartanam state
+    , Sequence.stateAkshara state
+    , Sequence.stateMatra state
     )
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala

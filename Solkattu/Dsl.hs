@@ -19,7 +19,7 @@ module Solkattu.Dsl (
     , module Solkattu.Korvai
     , module Solkattu.Metadata
     , module Solkattu.Sequence
-    , check, duration_of
+    , check, durationOf
     , module Solkattu.Notation
     , module Solkattu.Tala
     -- * mridangam
@@ -29,7 +29,7 @@ module Solkattu.Dsl (
     -- * realize
     , index
     , realize, realizep
-    , realize_m, realize_k1, realize_r, realize_sargam
+    , realizeM, realizeK1, realizeR, realizeSargam
     -- * conveniences
     , ganesh, janahan, sriram, sudhindra
     , adi
@@ -42,14 +42,14 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai, print_konnakol, write_konnakol_html)
+import Solkattu.Korvai (Korvai, printKonnakol, writeKonnakolHtml)
 import Solkattu.Metadata
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import Solkattu.Sequence (Duration, Matra, Nadai)
 import qualified Solkattu.Solkattu as Solkattu
-import Solkattu.Solkattu (check, duration_of)
+import Solkattu.Solkattu (check, durationOf)
 import qualified Solkattu.Tala as Tala
 import Solkattu.Tala (Akshara)
 
@@ -70,20 +70,20 @@ infixr 6 . -- same as <>
 ø :: Monoid a => a
 ø = mempty
 
-make_note :: a -> [S.Note g a]
-make_note a = [S.Note a]
+makeNote :: a -> [S.Note g a]
+makeNote a = [S.Note a]
 
 -- ** sollus
 
 -- | Make a single sollu 'Solkattu.Karvai'.
 karvai :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
-karvai = modify_single_note $ Solkattu.modify_note $
+karvai = modifySingleNote $ Solkattu.modifyNote $
     \note -> note { Solkattu._karvai = True }
 
 -- ** directives
 
 akshara :: Akshara -> SequenceT sollu
-akshara n = make_note (Solkattu.Alignment n)
+akshara n = makeNote (Solkattu.Alignment n)
 
 -- | Align at sam.
 sam :: SequenceT sollu
@@ -92,20 +92,20 @@ sam = akshara 0
 -- | Align at the given akshara.  I use § because I don't use it so often,
 -- and it's opt-6 on OS X.
 (§) :: SequenceT sollu -> Akshara -> SequenceT sollu
-seq § n = make_note (Solkattu.Alignment n) <> seq
+seq § n = makeNote (Solkattu.Alignment n) <> seq
 infix 9 §
 
 -- * modify sollus
 
-modify_single_note :: (CallStack.Stack, Pretty sollu) =>
+modifySingleNote :: (CallStack.Stack, Pretty sollu) =>
     (Solkattu.Note sollu -> Solkattu.Note sollu)
     -> SequenceT sollu -> SequenceT sollu
-modify_single_note modify (n:ns) = case n of
+modifySingleNote modify (n:ns) = case n of
     S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
     S.TempoChange change sub ->
-        S.TempoChange change (modify_single_note modify sub) : ns
+        S.TempoChange change (modifySingleNote modify sub) : ns
     _ -> errorStack $ "expected a single note: " <> pretty n
-modify_single_note _ [] = errorStack "expected a single note, but got []"
+modifySingleNote _ [] = errorStack "expected a single note, but got []"
 
 -- ** strokes
 
@@ -122,7 +122,7 @@ lt n = errorStack $ "expected stroke: " <> pretty n
 -- * patterns
 
 pat :: Matra -> SequenceT sollu
-pat d = make_note $ Solkattu.Pattern (Solkattu.PatternM d)
+pat d = makeNote $ Solkattu.Pattern (Solkattu.PatternM d)
 
 p5, p6, p7, p8, p9 :: SequenceT sollu
 p5 = pat 5
@@ -137,33 +137,33 @@ p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
 nakatiku :: SequenceT sollu
-nakatiku = make_note $ Solkattu.Pattern Solkattu.Nakatiku
+nakatiku = makeNote $ Solkattu.Pattern Solkattu.Nakatiku
 
 
 -- * realize util
 
 index :: Int -> Korvai -> Korvai
-index i korvai = case Korvai.korvai_sequences korvai of
+index i korvai = case Korvai.korvaiSequences korvai of
     Korvai.Mridangam seqs ->
-        korvai { Korvai.korvai_sequences = Korvai.Mridangam [seqs !! i] }
+        korvai { Korvai.korvaiSequences = Korvai.Mridangam [seqs !! i] }
     Korvai.Sollu seqs ->
-        korvai { Korvai.korvai_sequences = Korvai.Sollu [seqs !! i] }
+        korvai { Korvai.korvaiSequences = Korvai.Sollu [seqs !! i] }
 
 realize, realizep :: Korvai.Korvai -> IO ()
-realize = realize_m True
-realizep = realize_m False
+realize = realizeM True
+realizep = realizeM False
 
-realize_m :: Bool -> Korvai.Korvai -> IO ()
-realize_m = Korvai.print_instrument Korvai.mridangam
+realizeM :: Bool -> Korvai.Korvai -> IO ()
+realizeM = Korvai.printInstrument Korvai.mridangam
 
-realize_k1 :: Bool -> Korvai.Korvai -> IO ()
-realize_k1 = Korvai.print_instrument Korvai.kendang_tunggal
+realizeK1 :: Bool -> Korvai.Korvai -> IO ()
+realizeK1 = Korvai.printInstrument Korvai.kendangTunggal
 
-realize_r :: Bool -> Korvai.Korvai -> IO ()
-realize_r = Korvai.print_instrument Korvai.reyong
+realizeR :: Bool -> Korvai.Korvai -> IO ()
+realizeR = Korvai.printInstrument Korvai.reyong
 
-realize_sargam :: Bool -> Korvai.Korvai -> IO ()
-realize_sargam = Korvai.print_instrument Korvai.sargam
+realizeSargam :: Bool -> Korvai.Korvai -> IO ()
+realizeSargam = Korvai.printInstrument Korvai.sargam
 
 
 -- * conveniences

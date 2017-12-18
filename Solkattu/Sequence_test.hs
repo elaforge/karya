@@ -6,14 +6,14 @@
 module Solkattu.Sequence_test where
 import Util.Test
 import qualified Solkattu.Sequence as Sequence
-import Solkattu.Sequence (Note(..), Flat(..), default_tempo)
+import Solkattu.Sequence (Note(..), Flat(..), defaultTempo)
 import qualified Solkattu.Tala as Tala
 
 import Global
 
 
-test_flatten_with = do
-    let f = map extract . Sequence.flatten_with default_tempo
+test_flattenWith = do
+    let f = map extract . Sequence.flattenWith defaultTempo
         extract n = n -- fmap (const ()) n
         -- extract (Meta g (Sequence.Tempo speed nadai _)) = (g, (speed, nadai))
     equal (f [su [note]]) [FNote (tempo 1 4) 1]
@@ -31,10 +31,10 @@ test_flatten_with = do
         , FNote (tempo 0 4) 1
         ]
 
-test_tempo_to_state = do
-    let f = map (e_state . fst) . snd
-            . Sequence.tempo_to_state Tala.adi_tala
-            . Sequence.tempo_notes . Sequence.flatten
+test_tempoToState = do
+    let f = map (eState . fst) . snd
+            . Sequence.tempoToState Tala.adi_tala
+            . Sequence.tempoNotes . Sequence.flatten
     equal (f [note, note, note, note, note])
         [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0)]
 
@@ -52,10 +52,10 @@ test_tempo_to_state = do
     equal (f [stride 3 [speed 1 (replicate 4 note)]])
         [(0, 0), (0, 3/8), (0, 6/8), (1, 1/8)]
 
-test_normalize_speed = do
-    let f = map (e_state *** pretty_stroke)
-            . Sequence.flattened_notes
-            . Sequence.normalize_speed Tala.adi_tala
+test_normalizeSpeed = do
+    let f = map (eState *** prettyStroke)
+            . Sequence.flattenedNotes
+            . Sequence.normalizeSpeed Tala.adi_tala
             . Sequence.flatten
         n matras = Sequence.Note (matras :: Sequence.Matra)
     equal (f [n 1, n 1]) [((0, 0), '+'), ((0, 1/4), '+')]
@@ -82,8 +82,8 @@ test_normalize_speed = do
         [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0), (1, 1/4)]
     equal (map snd $ f [stride 3 [note, su [note, note]]]) "+_____+__+__"
 
-test_normalize_speed_groups = do
-    let f = map (fmap extract) . Sequence.normalize_speed Tala.adi_tala
+test_normalizeSpeedGroups = do
+    let f = map (fmap extract) . Sequence.normalizeSpeed Tala.adi_tala
             . Sequence.flatten
         n = Note (1 :: Sequence.Matra)
         extract = pretty . snd
@@ -126,8 +126,8 @@ test_simplify = do
     equal (f [speed (-2) [speed 1 [note], speed 2 [note]]])
         [speed (-1) [note], note]
 
-test_note_fmatra = do
-    let f = Sequence.note_fmatra
+test_noteFmatra = do
+    let f = Sequence.noteFmatra
     equal (f (tempo 0 4) note) 1
     equal (f (tempo 0 6) note) 1
     equal (f (tempo 1 4) note) (1/2)
@@ -136,27 +136,27 @@ test_note_fmatra = do
     equal (f (tempo 1 4) $ su [note, note]) (1/2)
     equal (f (tempo 0 4) $ speed 0 [note, nadai 6 [note, note, note]]) 3
 
-pretty_stroke :: Sequence.Stroke a -> Char
-pretty_stroke s = case s of
+prettyStroke :: Sequence.Stroke a -> Char
+prettyStroke s = case s of
     Sequence.Attack _ -> '+'
     Sequence.Sustain {} -> '-'
     Sequence.Rest -> '_'
 
-e_state :: Sequence.State -> (Tala.Akshara, Sequence.Duration)
-e_state state = (Sequence.state_akshara state, Sequence.state_matra state)
+eState :: Sequence.State -> (Tala.Akshara, Sequence.Duration)
+eState state = (Sequence.stateAkshara state, Sequence.stateMatra state)
 
 note :: Note Char Int
 note = Sequence.Note 1
 
 instance Sequence.HasMatras Sequence.Matra where
-    matras_of = id
-    has_duration n = n > 1
+    matrasOf = id
+    hasDuration n = n > 1
 
 nadai :: Sequence.Nadai -> [Note g a] -> Note g a
 nadai = TempoChange . Sequence.Nadai
 
 speed :: Sequence.Speed -> [Note g a] -> Note g a
-speed = Sequence.change_speed
+speed = Sequence.changeSpeed
 
 stride :: Sequence.Stride -> [Note g a] -> Note g a
 stride = TempoChange . Sequence.Stride

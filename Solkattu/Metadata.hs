@@ -6,11 +6,11 @@
 -- defined in "Solkattu.Korvai" to avoid a circular import.
 module Solkattu.Metadata (
     -- * query
-    get, get_location, set_location, show_location, get_module_variable
+    get, getLocation, setLocation, showLocation, getModuleVariable
     -- * add
-    , comment, date, source, similar_to, t_similar_to
-    , korvai_t, koraippu, mohra, sarvalaghu, tirmanam
-    , sequence_t, faran, exercise, trikalam
+    , comment, date, source, similarTo, tSimilarTo
+    , korvaiT, koraippu, mohra, sarvalaghu, tirmanam
+    , sequenceT, faran, exercise, trikalam
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -25,82 +25,82 @@ import Global
 
 get :: Text -> Korvai -> [Text]
 get tag = Map.findWithDefault [] tag . untags . Korvai._tags
-    . Korvai.korvai_metadata
+    . Korvai.korvaiMetadata
     where untags (Korvai.Tags tags) = tags
 
-get_location :: Korvai -> Korvai.Location
-get_location = Korvai._location . Korvai.korvai_metadata
+getLocation :: Korvai -> Korvai.Location
+getLocation = Korvai._location . Korvai.korvaiMetadata
 
-show_location :: Korvai.Location -> Text
-show_location (module_, line, name) =
+showLocation :: Korvai.Location -> Text
+showLocation (module_, line, name) =
     name <> " (" <> module_ <> ":" <> showt line <> ")"
 
-set_location :: Korvai.Location -> Korvai -> Korvai
-set_location loc korvai = korvai
-    { Korvai.korvai_metadata = (Korvai.korvai_metadata korvai)
+setLocation :: Korvai.Location -> Korvai -> Korvai
+setLocation loc korvai = korvai
+    { Korvai.korvaiMetadata = (Korvai.korvaiMetadata korvai)
         { Korvai._location = loc
         }
     }
 
-get_module_variable :: Korvai -> Text
-get_module_variable korvai = last (Text.splitOn "." module_) <> "." <> name
-    where (module_, _, name) = get_location korvai
+getModuleVariable :: Korvai -> Text
+getModuleVariable korvai = last (Text.splitOn "." module_) <> "." <> name
+    where (module_, _, name) = getLocation korvai
 
 -- * add
 
 -- | Attach a generic comment.
 comment :: Text -> Korvai -> Korvai
-comment = with_tag "comment"
+comment = withTag "comment"
 
 date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
-date y m d = Korvai.with_metadata $ mempty { Korvai._date = Just date }
+date y m d = Korvai.withMetadata $ mempty { Korvai._date = Just date }
     where !date = Korvai.date y m d
 
 -- | Where or from who I learned it.
 source :: Text -> Korvai -> Korvai
-source = with_tag "source"
+source = withTag "source"
 
 -- | This could be considered a variant of the other.  Takes "Module"
--- "variable_name", since the location is added later in "Solkattu.All".
+-- "variableName", since the location is added later in "Solkattu.All".
 -- The link is verified in Db_test.
-similar_to :: Text -> Text -> Korvai -> Korvai
-similar_to module_ variable_name =
-    with_tag t_similar_to (module_ <> "." <> variable_name)
+similarTo :: Text -> Text -> Korvai -> Korvai
+similarTo module_ variableName =
+    withTag tSimilarTo (module_ <> "." <> variableName)
 
-t_similar_to :: Text
-t_similar_to = "similar_to"
+tSimilarTo :: Text
+tSimilarTo = "similar_to"
 
-korvai_t :: Korvai -> Korvai
-korvai_t = with_type "korvai"
+korvaiT :: Korvai -> Korvai
+korvaiT = withType "korvai"
 
 koraippu :: Korvai -> Korvai
-koraippu = with_type "koraippu"
+koraippu = withType "koraippu"
 
 mohra :: Korvai -> Korvai
-mohra = with_type "mohra"
+mohra = withType "mohra"
 
 sarvalaghu :: Korvai -> Korvai
-sarvalaghu = with_type "sarvalaghu"
+sarvalaghu = withType "sarvalaghu"
 
 tirmanam :: Korvai -> Korvai
-tirmanam = with_type "tirmanam"
+tirmanam = withType "tirmanam"
 
 -- | A development sequence, possibly leading to a korvai.
-sequence_t :: Korvai -> Korvai
-sequence_t = with_type "sequence"
+sequenceT :: Korvai -> Korvai
+sequenceT = withType "sequence"
 
 faran :: Korvai -> Korvai
-faran = with_type "faran"
+faran = withType "faran"
 
 exercise :: Korvai -> Korvai
-exercise = with_type "exercise"
+exercise = withType "exercise"
 
 trikalam :: Korvai -> Korvai
-trikalam = with_type "trikalam"
+trikalam = withType "trikalam"
 
-with_type :: Text -> Korvai -> Korvai
-with_type = with_tag "type"
+withType :: Text -> Korvai -> Korvai
+withType = withTag "type"
 
-with_tag :: Text -> Text -> Korvai -> Korvai
-with_tag k v = Korvai.with_metadata $
+withTag :: Text -> Text -> Korvai -> Korvai
+withTag k v = Korvai.withMetadata $
     mempty { Korvai._tags = Korvai.Tags (Map.singleton k [v]) }

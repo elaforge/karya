@@ -2487,7 +2487,7 @@ REPL: repl:
 solkattu:
   * Move Solkattu directory to the top level, it's not really part of Derive
     . At some point it might be a completely separate package.
-    - I could also switch over to camelCase.
+    * I could also switch over to camelCase.
   - Sequence.has_duration should be has_sustain
     . Otherwise it's confusing because obviously it does have a Duration.
     . Well, it doesn't actually mean has sustain though.  It means this

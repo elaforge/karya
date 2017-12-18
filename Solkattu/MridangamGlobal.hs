@@ -14,7 +14,7 @@ module Solkattu.MridangamGlobal (
     , korvai, korvai1
     , k, t, n, d, u, v, i, y, j, p, o, od
     , on, l
-    , closed, thom_lh, o1
+    , closed, thomLH, o1
     , lt, hv
     , module Solkattu.Dsl
     -- * fragments
@@ -56,48 +56,48 @@ merge as bs
         | otherwise = errorStack $ "differing tempos: " <> pretty t1 <> " /= "
             <> pretty t2
     merge1 (a, b)
-        | is_rest a = b
-        | is_rest b = a
-        | otherwise = make_note1 $
-            Mridangam.both_rstrokes (to_stroke1 a) (to_stroke1 b)
+        | isRest a = b
+        | isRest b = a
+        | otherwise = makeNote1 $
+            Mridangam.bothRStrokes (toStroke1 a) (toStroke1 b)
     (pairs, trailing) = second (either id id) $ Seq.zip_remainder as bs
-    is_rest (Sequence.Note (Solkattu.Space Solkattu.Rest)) = True
-    is_rest _ = False
+    isRest (Sequence.Note (Solkattu.Space Solkattu.Rest)) = True
+    isRest _ = False
 
-to_stroke1 :: (CallStack.Stack, Pretty a, Pretty g) =>
+toStroke1 :: (CallStack.Stack, Pretty a, Pretty g) =>
     Sequence.Note g (Solkattu.Note a) -> a
-to_stroke1 (Sequence.Note (Solkattu.Note note)) = Solkattu._sollu note
-to_stroke1 note = errorStack $ "expected sollu: " <> pretty note
+toStroke1 (Sequence.Note (Solkattu.Note note)) = Solkattu._sollu note
+toStroke1 note = errorStack $ "expected sollu: " <> pretty note
 
 korvai :: Tala.Tala -> [Sequence] -> Korvai.Korvai
-korvai tala = Korvai.mridangam_korvai tala Mridangam.default_patterns
+korvai tala = Korvai.mridangamKorvai tala Mridangam.defaultPatterns
 
 korvai1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvai1 tala sequence = korvai tala [sequence]
 
-make_note1 :: stroke -> Sequence.Note g (Solkattu.Note stroke)
-make_note1 stroke = Sequence.Note $ Solkattu.Note $ Solkattu.note stroke
+makeNote1 :: stroke -> Sequence.Note g (Solkattu.Note stroke)
+makeNote1 stroke = Sequence.Note $ Solkattu.Note $ Solkattu.note stroke
 
-make_note :: Stroke -> Sequence
-make_note stroke = [make_note1 stroke]
+makeNote :: Stroke -> Sequence
+makeNote stroke = [makeNote1 stroke]
 
-mridangam_strokes :: Mridangam.Strokes Sequence
-mridangam_strokes = make_note • Realize.stroke <$> Mridangam.strokes
+mridangamStrokes :: Mridangam.Strokes Sequence
+mridangamStrokes = makeNote • Realize.stroke <$> Mridangam.strokes
 
-Mridangam.Strokes {..} = mridangam_strokes
+Mridangam.Strokes {..} = mridangamStrokes
 
 on :: Sequence
 on = o&n
 
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
-closed = map_mstroke $ \s -> case s of
+closed = mapMStroke $ \s -> case s of
     Mridangam.Thoppi Mridangam.Thom -> Mridangam.Thoppi Mridangam.Tha
     Mridangam.Both Mridangam.Thom a -> Mridangam.Both Mridangam.Tha a
     _ -> s
 
-thom_lh :: Sequence -> Sequence
-thom_lh = map_note $ \note -> if note `elem` [n, d] then o else __
+thomLH :: Sequence -> Sequence
+thomLH = mapNote $ \note -> if note `elem` [n, d] then o else __
     where
     Mridangam.Strokes {..} = Solkattu.Note • Solkattu.note • Realize.stroke <$>
         Mridangam.strokes
@@ -105,21 +105,21 @@ thom_lh = map_note $ \note -> if note `elem` [n, d] then o else __
 -- | Add a 'o' to the first stroke.
 o1 :: Sequence -> Sequence
 o1 = Seq.map_head $ Sequence.map1 $ fmap $ fmap $
-    Mridangam.add_thoppi Mridangam.Thom
+    Mridangam.addThoppi Mridangam.Thom
 
 lt, hv :: Sequence -> Sequence
-lt = map_stroke (\stroke -> stroke { Realize._emphasis = Realize.Light })
-hv = map_stroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
+lt = mapStroke (\stroke -> stroke { Realize._emphasis = Realize.Light })
+hv = mapStroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
 
-map_mstroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
-map_mstroke = fmap • fmap • fmap • fmap
+mapMStroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
+mapMStroke = fmap • fmap • fmap • fmap
 
-map_stroke :: (Stroke -> Stroke) -> Sequence -> Sequence
-map_stroke = fmap • fmap • fmap
+mapStroke :: (Stroke -> Stroke) -> Sequence -> Sequence
+mapStroke = fmap • fmap • fmap
 
-map_note :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
+mapNote :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
     -> Sequence -> Sequence
-map_note = fmap • fmap
+mapNote = fmap • fmap
 
 -- * fragments
 

@@ -34,7 +34,7 @@ test_splitM = do
 
 test_splitM_ = do
     let f matras = fmap (extract *** extract) . splitM_either matras
-        extract = map pretty . flatten_groups
+        extract = map pretty . flattenGroups
     equal (f 1 (su taka <> di)) $ Right (["s+1(ta ka)"], ["di"])
     equal (f 1 (su (ta <> di <> ki <> ta) <> di)) $
         Right (["s+1(ta di)"], ["s+1(ki ta)", "di"])
@@ -45,7 +45,7 @@ test_splitM_ = do
     equal (f 3 (sd (sd __) <> ka)) $ Right (["s-1(__)", "__"], ["__", "ka"])
 
 test_spaceM = do
-    let f = sum . map (S.note_fmatra S.default_tempo) . spaceM Solkattu.Rest
+    let f = sum . map (S.noteFmatra S.defaultTempo) . spaceM Solkattu.Rest
     equal (f 0) 0
     equal (f 1) 1
     equal (f 3) 3
@@ -63,25 +63,25 @@ test_align = do
     let f dur = map pretty . __a dur
     equal (f 1 ta) ["s-1(__)", "__", "ta"]
 
-flatten_groups :: [S.Note g a] -> [S.Note () a]
-flatten_groups = S.flatten_groups
+flattenGroups :: [S.Note g a] -> [S.Note () a]
+flattenGroups = S.flattenGroups
 
-realize_korvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
+realizeKorvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
     -> SolkattuGlobal.Sequence -> Either Text [(Text, S.Duration)]
-realize_korvai strokes = realize . make_korvai strokes
+realizeKorvai strokes = realize . makeKorvai strokes
 
-make_korvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
+makeKorvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
     -> SolkattuGlobal.Sequence -> SolkattuGlobal.Korvai
-make_korvai strokes seq = korvai
+makeKorvai strokes seq = korvai
     where
     korvai = SolkattuGlobal.korvai1 Tala.adi_tala
-        (SolkattuGlobal.make_mridangam0 strokes)
+        (SolkattuGlobal.makeMridangam0 strokes)
         seq
 
 realize :: SolkattuGlobal.Korvai -> Either Text [(Text, S.Duration)]
 realize = extract . head . Korvai.realize Korvai.mridangam False
     where
     extract (Left err) = Left err
-    extract (Right (strokes, _err)) = Right $ extract_strokes strokes
-    extract_strokes = map (Tuple.swap . second pretty) . S.flattened_notes
-        . S.with_durations
+    extract (Right (strokes, _err)) = Right $ extractStrokes strokes
+    extractStrokes = map (Tuple.swap . second pretty) . S.flattenedNotes
+        . S.withDurations

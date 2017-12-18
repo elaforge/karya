@@ -24,28 +24,28 @@ type Technique stroke = [stroke] -- ^ dropped strokes
 
 postprocess :: Technique (Realize.Stroke stroke)
     -> [Flat stroke] -> [Flat stroke]
-postprocess technique = map process . zip_neighbors
+postprocess technique = map process . zipNeighbors
     where
     -- TODO I just pick the innermost group, but maybe I should try for each
     -- nested group.
     process (Just (S.FGroup _ _ g), S.FNote tempo note, notes)
-        | Just stroke <- Realize.note_of note,
+        | Just stroke <- Realize.noteOf note,
                 Just out <- technique prevs stroke nexts =
-            S.FNote tempo $ set_note out note
+            S.FNote tempo $ setNote out note
         where
         prevs = Realize._dropped g
-        nexts = mapMaybe Realize.note_of (S.flattened_notes notes)
+        nexts = mapMaybe Realize.noteOf (S.flattenedNotes notes)
     process (_, note, _) = note
-    set_note n (Realize.Note _) = Realize.Note n
-    set_note _ n = n
+    setNote n (Realize.Note _) = Realize.Note n
+    setNote _ n = n
 
-zip_neighbors :: [a] -> [(Maybe a, a, [a])]
-zip_neighbors = map merge . Seq.zip_nexts . Seq.zip_prev
+zipNeighbors :: [a] -> [(Maybe a, a, [a])]
+zipNeighbors = map merge . Seq.zip_nexts . Seq.zip_prev
     where merge ((prev, cur), nexts) = (prev, cur, map snd nexts)
 
 -- | Techinque that ignores Realize.Stroke details.
-plain_technique :: Technique stroke -> Technique (Realize.Stroke stroke)
-plain_technique technique prevs cur nexts = do
+plainTechnique :: Technique stroke -> Technique (Realize.Stroke stroke)
+plainTechnique technique prevs cur nexts = do
     s <- technique (map Realize._stroke prevs) (Realize._stroke cur)
         (map Realize._stroke nexts)
     return $ cur { Realize._stroke = s }

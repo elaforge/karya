@@ -11,9 +11,9 @@ import qualified Solkattu.Korvai as Korvai
 import Solkattu.SolkattuGlobal
 
 
-make_mohra :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
+makeMohra :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-make_mohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $ su $
+makeMohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $ su $
       a123.b1 . a123.b1
     . a123.b2
     . a1.b2
@@ -21,9 +21,9 @@ make_mohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $ su $
     where a123 = a1.a2.a3
 
 -- | Alternate melkalam and kirkalam.
-make_mohra2 :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
+makeMohra2 :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-make_mohra2 smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $
+makeMohra2 smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $
       a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
     . a123.b2 . su (a123.b2)
     . a1.b2 . su (a1.b2)
@@ -31,14 +31,14 @@ make_mohra2 smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $
     where a123 = a1.a2.a3
 
 c_mohra :: Korvai
-c_mohra = ganesh $ make_mohra2 mridangam (a1, a2, a1) (b1, b2, b3)
+c_mohra = ganesh $ makeMohra2 mridangam (a1, a2, a1) (b1, b2, b3)
     where
     a1 = dit.__4      .tang.__.kita.nakatiku
     a2 = na.ka.dit.__2.tang.__.kita.nakatiku
     b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
     b2 = ta.langa.dheem.__4
     b3 = tri_ (dheem.__4) (ta.langa.din.__.tat.__)
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (dit, [k])
         , (tang.kita, [u, p, k])
         , (ta.langa, [p, u, k])
@@ -48,7 +48,7 @@ c_mohra = ganesh $ make_mohra2 mridangam (a1, a2, a1) (b1, b2, b3)
         ]
 
 c_mohra2 :: Korvai
-c_mohra2 = janahan $ make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
+c_mohra2 = janahan $ makeMohra2 mridangam (a1, a2, a3) (b1, b2, b3)
     where
     a_ = kitataka.nakatiku
     a1 = dit.__4.tang.__ . a_
@@ -57,7 +57,7 @@ c_mohra2 = janahan $ make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
     b1 = repeat 3 (ta.ga.ta.ga) . dhom.__4
     b2 = ta.ga.ta.ga . dhom.__4
     b3 = tri_ (dhom.__4) $ repeat 2 (ta.ga.ta.ga)
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (dit, [t])
         , (tang, [o])
         , (kitataka, [k, t, p, k])
@@ -67,7 +67,7 @@ c_mohra2 = janahan $ make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
 
 c_mohra_youtube :: Korvai
 c_mohra_youtube = source "Melakkaveri Balaji" $ source url $
-    make_mohra2 mridangam (a1, a2, a3) (b1, b2, b3)
+    makeMohra2 mridangam (a1, a2, a3) (b1, b2, b3)
     where
     url = "https://www.youtube.com/watch?v=eq-DZeJi8Sk"
     -- he says "tikutaka tarikita" instead of "nakatiku tarikita"
@@ -77,7 +77,7 @@ c_mohra_youtube = source "Melakkaveri Balaji" $ source url $
     b1 = taka . tang.__3.ga . tang.__3.ga . tang.__3.ga . tang.__
     b2 = taka . tang.__3.ga.tang.__
     b3 = taka . tri_ (tang.__.kitataka) (tang.__3.ga.din.__)
-    mridangam = make_mridangam
+    mridangam = makeMridangam
         [ (dhom.ta.ka.ta, [o, k, p, u])
         , (ki.ta, [p, k])
         , (ka.din.din, [p, i, i])

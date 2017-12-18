@@ -22,26 +22,26 @@ import Global
 
 test_all = do
     forM_ All.korvais $ \korvai ->
-        realize_catch korvai >>= \x -> case x of
+        realizeCatch korvai >>= \x -> case x of
             Right _ -> return True
             Left errs -> failure $ location korvai <> ": " <> Text.unlines errs
 
 test_metadata = do
     forM_ All.korvais $ \korvai ->
-        forM_ (Metadata.get Metadata.t_similar_to korvai) $ \tag -> do
-            unless (referent_exists tag) $
+        forM_ (Metadata.get Metadata.tSimilarTo korvai) $ \tag -> do
+            unless (referentExists tag) $
                 void $ failure $
                     location korvai <> ": can't find similar-to " <> showt tag
 
 location :: Korvai.Korvai -> Text
-location = Metadata.show_location . Metadata.get_location
+location = Metadata.showLocation . Metadata.getLocation
 
-referent_exists :: Text -> Bool
-referent_exists = (`elem` map Metadata.get_module_variable All.korvais)
+referentExists :: Text -> Bool
+referentExists = (`elem` map Metadata.getModuleVariable All.korvais)
 
-realize_catch :: Korvai.Korvai
+realizeCatch :: Korvai.Korvai
     -> IO (Either [Text] [[Realize.Note Mridangam.Stroke]])
-realize_catch korvai =
+realizeCatch korvai =
     Exception.handle (\(Solkattu.Exception msg) -> return (Left [msg])) $ do
         let result = realize korvai
         Testing.force result
@@ -51,7 +51,7 @@ realize :: Korvai.Korvai -> Either [Text] [[Realize.Note Mridangam.Stroke]]
 realize korvai
     | not (null errors) = Left errors
     | not (null warnings) = Left warnings
-    | otherwise = Right $ map Sequence.flattened_notes notes
+    | otherwise = Right $ map Sequence.flattenedNotes notes
     where
     (errors, results) = Either.partitionEithers $
         Korvai.realize Korvai.mridangam True korvai

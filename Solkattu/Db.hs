@@ -16,7 +16,7 @@ import qualified Data.Time.Calendar as Calendar
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Solkattu.All as All -- generated
-import Solkattu.Dsl (index, realize, realizep, realize_m, realize_k1, realize_r)
+import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (date)
 import qualified Solkattu.Metadata as Metadata
@@ -29,18 +29,18 @@ korvais = All.korvais
 
 -- * predicates
 
-around_date :: Calendar.Day -> Integer -> Korvai.Korvai -> Bool
-around_date date days =
-    maybe False in_range . Korvai._date . Korvai.korvai_metadata
+aroundDate :: Calendar.Day -> Integer -> Korvai.Korvai -> Bool
+aroundDate date days =
+    maybe False inRange . Korvai._date . Korvai.korvaiMetadata
     where
-    in_range = Num.inRange (Calendar.addDays (-days) date)
+    inRange = Num.inRange (Calendar.addDays (-days) date)
         (Calendar.addDays days date)
 
-of_type :: Text -> Korvai.Korvai -> Bool
-of_type type_ = (type_ `elem`) . Metadata.get "type"
+ofType :: Text -> Korvai.Korvai -> Bool
+ofType type_ = (type_ `elem`) . Metadata.get "type"
 
-has_instrument :: Text -> Korvai.Korvai -> Bool
-has_instrument inst = (inst `elem`) . Metadata.get "instrument"
+hasInstrument :: Text -> Korvai.Korvai -> Bool
+hasInstrument inst = (inst `elem`) . Metadata.get "instrument"
 
 -- * search
 
@@ -53,10 +53,10 @@ search predicate = Text.stripEnd $
 
 format :: (Int, Korvai.Korvai) -> Text
 format (i, korvai) =
-    showt i <> ": " <> Metadata.show_location (Metadata.get_location korvai)
-        <> "\n" <> tags_text
+    showt i <> ": " <> Metadata.showLocation (Metadata.getLocation korvai)
+        <> "\n" <> tagsText
     where
-    tags_text = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
+    tagsText = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
         Seq.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
         Map.toAscList tags
-    Korvai.Tags tags = Korvai._tags $ Korvai.korvai_metadata korvai
+    Korvai.Tags tags = Korvai._tags $ Korvai.korvaiMetadata korvai

@@ -18,10 +18,10 @@ type Sequence = [Sequence.Note Solkattu.Group (Solkattu.Note Solkattu.Sollu)]
     -- This is the same as in Korvai.
 
 sollu :: Solkattu.Sollu -> Sequence
-sollu s = make_note (Solkattu.Note (Solkattu.note s))
+sollu s = makeNote (Solkattu.Note (Solkattu.note s))
 
-make_note :: a -> [Sequence.Note g a]
-make_note a = [Sequence.Note a]
+makeNote :: a -> [Sequence.Note g a]
+makeNote a = [Sequence.Note a]
 
 dheem = sollu Dheem
 dhom = sollu Dhom
@@ -51,4 +51,4 @@ tang = sollu Tang
 lang = sollu Lang
 
 __ :: Sequence
-__ = make_note (Solkattu.Space Solkattu.Rest)
+__ = makeNote (Solkattu.Space Solkattu.Rest)

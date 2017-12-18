@@ -19,22 +19,22 @@ import Global
 --
 -- This is specific to iTerm, so if I want to support other terminals I might
 -- need a more general purpose fix.
-fix_for_iterm :: Text -> Text
-fix_for_iterm = mconcat . snd . List.mapAccumL go "" . split
+fixForIterm :: Text -> Text
+fixForIterm = mconcat . snd . List.mapAccumL go "" . split
     where
     go bg (code, text)
-        | code `Set.member` all_set_bgs = (code, code <> fix code text)
-        | code == bold_off = (bg, normal <> bg <> fix bg text)
-        | code == bg_default = ("", code <> text)
+        | code `Set.member` allSetBgs = (code, code <> fix code text)
+        | code == boldOff = (bg, normal <> bg <> fix bg text)
+        | code == bgDefault = ("", code <> text)
         | otherwise = (bg, code <> fix bg text)
-        where fix = fix_newline_bg
+        where fix = fixNewlineBg
 
-fix_newline_bg :: Text -> Text -> Text
-fix_newline_bg bg text
+fixNewlineBg :: Text -> Text -> Text
+fixNewlineBg bg text
     | Text.null bg = text
     | not ("\n" `Text.isInfixOf` text) = text
     | otherwise = Text.intercalate "\n" $ fix $ Text.splitOn "\n" text
-    where fix = Seq.map_tail (bg<>) . Seq.map_init (<>bg_default)
+    where fix = Seq.map_tail (bg<>) . Seq.map_init (<>bgDefault)
 
 split :: Text -> [(Text, Text)]
 split = fix . Text.splitOn "\ESC["
@@ -49,27 +49,27 @@ data Color = Black | Red | Green | Yellow | Blue | Magenta | Cyan | White
 data Bright = Normal | Bright
     deriving (Eq, Show)
 
-all_set_bgs :: Set Text
-all_set_bgs = Set.fromList
-    [set_bg b c | c <- [Black .. White], b <- [Normal, Bright]]
+allSetBgs :: Set Text
+allSetBgs = Set.fromList
+    [setBg b c | c <- [Black .. White], b <- [Normal, Bright]]
 
-set_fg, set_bg :: Bright -> Color -> Text
-set_fg b c = esc (fromEnum c + (if b == Normal then 30 else 90))
-set_bg b c = esc (fromEnum c + (if b == Normal then 40 else 100))
+setFg, setBg :: Bright -> Color -> Text
+setFg b c = esc (fromEnum c + (if b == Normal then 30 else 90))
+setBg b c = esc (fromEnum c + (if b == Normal then 40 else 100))
 
-bg_default :: Text
-bg_default = esc 49
+bgDefault :: Text
+bgDefault = esc 49
 
 normal :: Text
 normal = esc 0
 
-bold_on, bold_off :: Text
-bold_on = esc 1
-bold_off = esc 21
+boldOn, boldOff :: Text
+boldOn = esc 1
+boldOff = esc 21
 
-underline_on, underline_off :: Text
-underline_on = esc 4
-underline_off = esc 24
+underlineOn, underlineOff :: Text
+underlineOn = esc 4
+underlineOff = esc 24
 
 esc :: Int -> Text
 esc n = "\ESC[" <> showt n <> "m"
@@ -77,13 +77,13 @@ esc n = "\ESC[" <> showt n <> "m"
 -- * tests
 
 -- Should look right on iterm.
-test_fix_for_iterm :: IO ()
-test_fix_for_iterm = putStrLn $ untxt $ fix_for_iterm $ Text.unwords
-    [ "before", set_bg Normal Cyan, "w", bold_on, "b", bold_off
-    , "still w", bg_default, "done"
+testFixForIterm :: IO ()
+testFixForIterm = putStrLn $ untxt $ fixForIterm $ Text.unwords
+    [ "before", setBg Normal Cyan, "w", boldOn, "b", boldOff
+    , "still w", bgDefault, "done"
     ]
 
-test_fix_newline_bg :: IO ()
-test_fix_newline_bg = putStrLn $ untxt $ fix_for_iterm $ Text.unwords
-    [ "before", set_bg Normal Cyan, "during\nnewline", bg_default, "last\nline"
+testFixNewlineBg :: IO ()
+testFixNewlineBg = putStrLn $ untxt $ fixForIterm $ Text.unwords
+    [ "before", setBg Normal Cyan, "during\nnewline", bgDefault, "last\nline"
     ]

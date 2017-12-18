@@ -6,8 +6,8 @@
 -- find pre-defined korvais.
 --
 -- E.g.:
--- > return $ LSol.search $ LSol.has_instrument "kendang_tunggal"
--- > return $ LSol.search $ LSol.around_date (LSol.date 2017 7 10) 10
+-- > return $ LSol.search $ LSol.hasInstrument "kendang_tunggal"
+-- > return $ LSol.search $ LSol.aroundDate (LSol.date 2017 7 10) 10
 -- > 59: .... etc
 -- > LSol.insert_k1 True 1 (LSol.korvais !! 59) 0
 module Cmd.Repl.LSol (
@@ -57,7 +57,7 @@ import Types
 -- * search
 
 search_date :: Monad m => Int -> Int -> Int -> Integer -> m Text
-search_date y m d days = return $ search $ around_date (date y m d) days
+search_date y m d days = return $ search $ aroundDate (date y m d) days
 
 -- * realize
 
@@ -67,7 +67,7 @@ insert_m :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
 insert_m = insert Korvai.mridangam
 
 insert_k1 :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
-insert_k1 = insert Korvai.kendang_tunggal
+insert_k1 = insert Korvai.kendangTunggal
 
 insert_r :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
 insert_r = insert Korvai.reyong
@@ -93,7 +93,7 @@ realize instrument realize_patterns korvai index akshara_dur at = do
         <=< Ui.require ("no korvai at index " <> showt index) $
             Seq.at (Korvai.realize instrument realize_patterns korvai) index
     unless (Text.null warning) $ Ui.throw warning
-    return $ to_note_track (Korvai.inst_to_score instrument) akshara_dur at
+    return $ to_note_track (Korvai.instToScore instrument) akshara_dur at
         strokes
 
 to_note_track :: ToScore.ToScore stroke -> TrackTime -> TrackTime
@@ -102,8 +102,8 @@ to_note_track to_score stretch shift strokes =
     ModifyNotes.NoteTrack (mk_events notes) control_tracks
     where
     controls :: [(Text, [ToScore.Event])]
-    (notes, controls) = to_score $ Sequence.flattened_notes $
-        Sequence.with_durations strokes
+    (notes, controls) = to_score $ Sequence.flattenedNotes $
+        Sequence.withDurations strokes
     pitches = fromMaybe [] $ lookup "*" controls
     pitch_track = if null pitches then Nothing
         else Just (ModifyNotes.Pitch Pitch.empty_scale, mk_events pitches)
@@ -129,8 +129,8 @@ strokes_to_events strokes =
     ]
     where
     starts = scanl (+) 0 durs
-    (durs, notes) = unzip $ Sequence.flattened_notes $
-        Sequence.with_durations strokes
+    (durs, notes) = unzip $ Sequence.flattenedNotes $
+        Sequence.withDurations strokes
     to_expr s = case s of
         Realize.Note stroke -> Just (Expr.to_expr stroke, False)
         Realize.Pattern p -> Just (Expr.to_expr p, True)
@@ -158,7 +158,7 @@ edit :: Ui.M m => Block.SourceKey -> m ReplProtocol.Result
 edit key = do
     (korvai, _, _) <- Ui.require ("no korvai for " <> showt key) $
         get_by_key key
-    let (module_, line_number, _) = Metadata.get_location korvai
+    let (module_, line_number, _) = Metadata.getLocation korvai
         fname = module_to_fname module_
     return $ ReplProtocol.Edit $ ReplProtocol.Editor
         { _file = ReplProtocol.FileName fname
@@ -227,7 +227,7 @@ integrate_track korvai index instrument = do
 
 korvai_key :: Korvai.Korvai -> Index -> Text -> Maybe Block.SourceKey
 korvai_key korvai index instrument = do
-    let (module_, _, variable) = Metadata.get_location korvai
+    let (module_, _, variable) = Metadata.getLocation korvai
     return $ Text.intercalate "/" [module_, variable, showt index, instrument]
 
 get_by_key :: Block.SourceKey
@@ -244,4 +244,4 @@ get_by_key key = do
     --     [a, b, c] -> Just (a, b, c)
     --     _ -> Nothing
     matches mod variable korvai = m == mod && v == variable
-        where (m, _, v) = Metadata.get_location korvai
+        where (m, _, v) = Metadata.getLocation korvai

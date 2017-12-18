@@ -48,21 +48,21 @@ instance Solkattu.Notation Stroke where
         Tha -> case v of
             Ki -> "P"
             Ta -> "X"
-            _ -> Solkattu.notation v <> macron_below
+            _ -> Solkattu.notation v <> macronBelow
         Thom -> case v of
-            Kin -> "o" <> cedilla_below
+            Kin -> "o" <> cedillaBelow
             Tan -> "ô"
             _ -> Text.toUpper (Solkattu.notation v)
 
 instance Pretty Stroke where pretty = Solkattu.notation
 
 -- COMBINING MACRON BELOW
-macron_below :: Text
-macron_below = "\x0331"
+macronBelow :: Text
+macronBelow = "\x0331"
 
 -- COMBINING CEDILLA
-cedilla_below :: Text
-cedilla_below = "\x0327"
+cedillaBelow :: Text
+cedillaBelow = "\x0327"
 
 instance Solkattu.Notation Thoppi where
     notation n = case n of
@@ -141,48 +141,48 @@ both a b = note (Both a b)
 
 (&) :: CallStack.Stack => SNote -> SNote -> SNote
 Sequence.Note (Realize.Note s1) & Sequence.Note (Realize.Note s2) =
-    Sequence.Note $ Realize.Note $ both_rstrokes s1 s2
+    Sequence.Note $ Realize.Note $ bothRStrokes s1 s2
 a & b = errorStack $ "requires notes: " <> showt (a, b)
 
-both_rstrokes :: CallStack.Stack => Realize.Stroke Stroke
+bothRStrokes :: CallStack.Stack => Realize.Stroke Stroke
     -> Realize.Stroke Stroke -> Realize.Stroke Stroke
-both_rstrokes (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
-    Realize.Stroke (em1 <> em2) (both_strokes s1 s2)
+bothRStrokes (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
+    Realize.Stroke (em1 <> em2) (bothStrokes s1 s2)
 
-both_strokes :: CallStack.Stack => Stroke -> Stroke -> Stroke
-both_strokes (Thoppi a) (Valantalai b) = Both a b
-both_strokes (Valantalai b) (Thoppi a) = Both a b
-both_strokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
+bothStrokes :: CallStack.Stack => Stroke -> Stroke -> Stroke
+bothStrokes (Thoppi a) (Valantalai b) = Both a b
+bothStrokes (Valantalai b) (Thoppi a) = Both a b
+bothStrokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
 
 val :: Stroke -> Maybe Valantalai
 val (Valantalai s) = Just s
 val (Both _ s) = Just s
 val (Thoppi _) = Nothing
 
-set_val :: Valantalai -> Stroke -> Stroke
-set_val v (Valantalai _) = Valantalai v
-set_val v (Both t _) = Both t v
-set_val _ (Thoppi t) = Thoppi t
+setVal :: Valantalai -> Stroke -> Stroke
+setVal v (Valantalai _) = Valantalai v
+setVal v (Both t _) = Both t v
+setVal _ (Thoppi t) = Thoppi t
 
 thoppi :: Stroke -> Maybe Thoppi
 thoppi (Thoppi s) = Just s
 thoppi (Both s _) = Just s
 thoppi (Valantalai _) = Nothing
 
-set_thoppi :: Thoppi -> Stroke -> Stroke
-set_thoppi _ (Valantalai v) = Valantalai v
-set_thoppi t (Both _ v) = Both t v
-set_thoppi t (Thoppi _) = Thoppi t
+setThoppi :: Thoppi -> Stroke -> Stroke
+setThoppi _ (Valantalai v) = Valantalai v
+setThoppi t (Both _ v) = Both t v
+setThoppi t (Thoppi _) = Thoppi t
 
-add_thoppi :: Thoppi -> Stroke -> Stroke
-add_thoppi t (Valantalai v) = Both t v
-add_thoppi t (Both _ v) = Both t v
-add_thoppi t (Thoppi _) = Thoppi t
+addThoppi :: Thoppi -> Stroke -> Stroke
+addThoppi t (Valantalai v) = Both t v
+addThoppi t (Both _ v) = Both t v
+addThoppi t (Thoppi _) = Thoppi t
 
 -- * postprocess
 
 postprocess :: [Technique.Flat Stroke] -> [Technique.Flat Stroke]
-postprocess = Technique.postprocess $ Technique.plain_technique technique
+postprocess = Technique.postprocess $ Technique.plainTechnique technique
 
 technique :: Technique.Technique Stroke
 technique prevs cur (next:nexts)
@@ -190,7 +190,7 @@ technique prevs cur (next:nexts)
     | (val =<< Seq.last prevs) == Just Ki && val cur == Just Ta
             && val next == Just Ki
             && (val =<< Seq.head nexts) /= Just Ki =
-        Just $ set_val Ki cur
+        Just $ setVal Ki cur
     where
     Strokes {..} = strokes
     val (Valantalai s) = Just s
@@ -203,18 +203,18 @@ technique _ _ _ = Nothing
 __ :: SNote
 __ = Realize.rest
 
-default_nakatiku :: [(Solkattu.Pattern, [SNote])]
-default_nakatiku =
+defaultNakatiku :: [(Solkattu.Pattern, [SNote])]
+defaultNakatiku =
     [ (Solkattu.Nakatiku, [n, p, u, p, k, t, p, k])
     ]
     where Strokes {..} = notes
 
-alternate_nakatiku :: [SNote]
-alternate_nakatiku = [t, p, u, p, k, t, p, k]
+alternateNakatiku :: [SNote]
+alternateNakatiku = [t, p, u, p, k, t, p, k]
     where Strokes {..} = notes
 
-default_patterns :: Patterns
-default_patterns = Solkattu.check $ patterns
+defaultPatterns :: Patterns
+defaultPatterns = Solkattu.check $ patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, __, k, n, o])
     , (7, [k, __, t, __, k, n, o])
@@ -223,9 +223,9 @@ default_patterns = Solkattu.check $ patterns
     ]
     where Strokes {..} = notes
 
-default_patterns_emphasis :: Patterns
-default_patterns_emphasis =
-    Realize.map_patterns (map $ \s -> if s == t then i else s) default_patterns
+defaultPatternsEmphasis :: Patterns
+defaultPatternsEmphasis =
+    Realize.mapPatterns (map $ \s -> if s == t then i else s) defaultPatterns
     where Strokes {..} = notes
 
 -- | Misc patterns I should figure out how to integrate some day.
@@ -298,8 +298,8 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
 
 patterns :: [(Sequence.Matra, [SNote])]
     -> Either Text (Realize.Patterns Stroke)
-patterns = Realize.patterns . (default_nakatiku++)
+patterns = Realize.patterns . (defaultNakatiku++)
     . map (first Solkattu.PatternM)
 
 su :: [Sequence.Note g a] -> [Sequence.Note g a]
-su = (:[]) . Sequence.change_speed 1
+su = (:[]) . Sequence.changeSpeed 1

@@ -46,18 +46,18 @@ instance Expr.ToExpr Stroke where
         foldr Expr.transform0 (Expr.generator0 "")
             (map Expr.Symbol (Set.toList attrs))
 
-instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.to_expr
+instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.toExpr
 
 instance Solkattu.Notation Pitch.Pitch where
     notation (Pitch.Pitch oct degree) = Solkattu.notation degree <> case oct of
-        3 -> dot_below
+        3 -> dotBelow
         4 -> ""
-        5 -> dot_above
+        5 -> dotAbove
         _ -> showt oct
 
 -- | Show pitch as parsed by the raga scales.
-score_pitch :: Pitch.Pitch -> Text
-score_pitch (Pitch.Pitch oct degree) = showt oct <> Solkattu.notation degree
+scorePitch :: Pitch.Pitch -> Text
+scorePitch (Pitch.Pitch oct degree) = showt oct <> Solkattu.notation degree
 
 instance Solkattu.Notation Pitch.Degree where
     notation (Pitch.Degree pc _accs) =
@@ -65,15 +65,15 @@ instance Solkattu.Notation Pitch.Degree where
         where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
 
 -- COMBINING DOT ABOVE
-dot_above :: Text
-dot_above = "\x0307"
+dotAbove :: Text
+dotAbove = "\x0307"
 
 -- COMBINING DOT BELOW
-dot_below :: Text
-dot_below = "\x0323"
+dotBelow :: Text
+dotBelow = "\x0323"
 
-pitch_call :: Pitch.Pitch -> Expr.Call Text
-pitch_call (Pitch.Pitch oct (Pitch.Degree pc acc)) = Expr.call "pitch" $
+pitchCall :: Pitch.Pitch -> Expr.Call Text
+pitchCall (Pitch.Pitch oct (Pitch.Degree pc acc)) = Expr.call "pitch" $
     [ShowVal.show_val oct, ShowVal.show_val pc]
         ++ if acc == 0 then [] else [ShowVal.show_val acc]
 
@@ -100,18 +100,18 @@ stroke oct pc = Stroke (Pitch.pitch oct pc) mempty
 notes :: Strokes SNote
 notes = note <$> strokes
 
-to_score :: ToScore.ToScore Stroke
-to_score dur_strokes = (note_track, [("*", pitch_track)])
+toScore :: ToScore.ToScore Stroke
+toScore durStrokes = (noteTrack, [("*", pitchTrack)])
     where
-    note_track =
+    noteTrack =
         [ (start, dur, ShowVal.show_val expr)
         | (start, dur, Just expr) <- zip3 starts durs (map to_expr strokes)
         ]
-    pitch_track =
-        [ (start, 0, score_pitch (_pitch (Realize._stroke note)))
-        | (start, Just note) <- zip starts (map note_of strokes)
+    pitchTrack =
+        [ (start, 0, scorePitch (_pitch (Realize._stroke note)))
+        | (start, Just note) <- zip starts (map noteOf strokes)
         ]
-    (durs, strokes) = unzip dur_strokes
+    (durs, strokes) = unzip durStrokes
     starts = scanl (+) 0 durs
     to_expr s = case s of
         Realize.Note stroke -> Just $ Expr.to_expr stroke
@@ -119,9 +119,9 @@ to_score dur_strokes = (note_track, [("*", pitch_track)])
         Realize.Space _ -> Nothing
         Realize.Alignment {} -> Nothing
 
-note_of :: Realize.Note a -> Maybe (Realize.Stroke a)
-note_of (Realize.Note s) = Just s
-note_of _ = Nothing
+noteOf :: Realize.Note a -> Maybe (Realize.Stroke a)
+noteOf (Realize.Note s) = Just s
+noteOf _ = Nothing
 
 -- ** transposition
 

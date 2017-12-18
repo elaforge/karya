@@ -20,30 +20,30 @@ main = do
         (extract . ExtractHs.typeDeclarations . ExtractHs.stripComments)
         generate
 
-extract :: [(Int, (Text, Text))] -> [(Int, Text)] -- ^ (lineno, variable_name)
+extract :: [(Int, (Text, Text))] -> [(Int, Text)] -- ^ (lineno, variableName)
 extract = mapMaybe $ \(lineno, (variable, type_)) -> if type_ == "Korvai"
     then Just (lineno, variable) else Nothing
 
 generate :: FilePath -> Map FilePath [(Int, Text)]
     -> Either ExtractHs.Error ([ExtractHs.Warning], Text)
-generate out_fname extracted = fmap (warnings,) $
+generate outFname extracted = fmap (warnings,) $
     TextUtil.interpolate template $ Map.fromList
-        [ ("module", ExtractHs.moduleDeclaration out_fname)
+        [ ("module", ExtractHs.moduleDeclaration outFname)
         , ("imports", Text.unlines $
-            map ExtractHs.makeImport (Map.keys fname_defs))
+            map ExtractHs.makeImport (Map.keys fnameDefs))
         , ("korvais", Text.intercalate "\n    , "
-            [ korvai_def fname def
-            | (fname, defs) <- Map.toList fname_defs, def <- defs
+            [ korvaiDef fname def
+            | (fname, defs) <- Map.toList fnameDefs, def <- defs
             ])
         ]
     where
-    (empty, fname_defs) = Map.partition null extracted
+    (empty, fnameDefs) = Map.partition null extracted
     warnings = map (("Warning: no korvai defs in " <>) . txt) (Map.keys empty)
 
-korvai_def :: FilePath -> (Int, Text) -> Text
-korvai_def fname (lineno, variable_name) = Text.unwords
-    [ "set_location", showt (module_, lineno, variable_name)
-    , module_ <> "." <> variable_name
+korvaiDef :: FilePath -> (Int, Text) -> Text
+korvaiDef fname (lineno, variableName) = Text.unwords
+    [ "setLocation", showt (module_, lineno, variableName)
+    , module_ <> "." <> variableName
     ]
     where module_ = ExtractHs.pathToModule fname
 

@@ -165,48 +165,48 @@ instance Num Tag where
 note :: sollu -> NoteT sollu
 note sollu = NoteT { _sollu = sollu, _karvai = False, _tag = Nothing }
 
-note_of :: Note sollu -> Maybe (NoteT sollu)
-note_of (Note n) = Just n
-note_of _ = Nothing
+noteOf :: Note sollu -> Maybe (NoteT sollu)
+noteOf (Note n) = Just n
+noteOf _ = Nothing
 
-sollu_of :: Note sollu -> Maybe sollu
-sollu_of = fmap _sollu . note_of
+solluOf :: Note sollu -> Maybe sollu
+solluOf = fmap _sollu . noteOf
 
 instance Pretty sollu => Pretty (NoteT sollu) where
     pretty (NoteT sollu karvai tag) = mconcat
-        [ pretty_tag tag
+        [ prettyTag tag
         , pretty sollu
-        , pretty_karvai karvai
+        , prettyKarvai karvai
         ]
         where
-        pretty_karvai k = if k then "(k)" else ""
-        pretty_tag = maybe "" ((<>"^") . pretty)
+        prettyKarvai k = if k then "(k)" else ""
+        prettyTag = maybe "" ((<>"^") . pretty)
 
-modify_note :: (NoteT a -> NoteT b) -> Note a -> Note b
-modify_note f n = case n of
+modifyNote :: (NoteT a -> NoteT b) -> Note a -> Note b
+modifyNote f n = case n of
     Note note -> Note (f note)
     Space space -> Space space
     Pattern p -> Pattern p
     Alignment n -> Alignment n
 
 instance S.HasMatras (Note sollu) where
-    matras_of n = case n of
+    matrasOf n = case n of
         -- Karvai notes are cancelled out, so they logically have 0 duration.
         Note note -> if _karvai note then 0 else 1
         Space {} -> 1
-        Pattern p -> S.matras_of p
+        Pattern p -> S.matrasOf p
         Alignment {} -> 0
-    has_duration n = case n of
+    hasDuration n = case n of
         Note {} -> False
         Space {} -> True
         Pattern {} -> True
         Alignment {} -> False
 
 instance S.HasMatras Pattern where
-    matras_of p = case p of
+    matrasOf p = case p of
         PatternM m -> m
         Nakatiku -> 8
-    has_duration _ = True
+    hasDuration _ = True
 
 data Pattern =
     PatternM !S.Matra
@@ -243,20 +243,20 @@ instance Pretty Sollu where pretty = notation
 
 -- * durations
 
-duration_of :: S.Tempo -> [S.Note Group (Note sollu)] -> S.Duration
-duration_of tempo = S.fmatra_duration tempo . matras_of tempo
+durationOf :: S.Tempo -> [S.Note Group (Note sollu)] -> S.Duration
+durationOf tempo = S.fmatraDuration tempo . matrasOf tempo
 
-matras_of :: S.HasMatras note => S.Tempo -> [S.Note Group note] -> S.FMatra
-matras_of tempo notes =
-    sum (map (S.note_fmatra tempo) notes) - dropped_matras tempo notes
+matrasOf :: S.HasMatras note => S.Tempo -> [S.Note Group note] -> S.FMatra
+matrasOf tempo notes =
+    sum (map (S.noteFmatra tempo) notes) - droppedMatras tempo notes
 
-dropped_matras :: S.Tempo -> [S.Note Group note] -> S.FMatra
-dropped_matras tempo = sum . map get
+droppedMatras :: S.Tempo -> [S.Note Group note] -> S.FMatra
+droppedMatras tempo = sum . map get
     where
     get n = case n of
-        S.Group g ns -> S.normalize_fmatra tempo (_split g) + sum (map get ns)
+        S.Group g ns -> S.normalizeFmatra tempo (_split g) + sum (map get ns)
         S.TempoChange change ns ->
-            dropped_matras (S.change_tempo change tempo) ns
+            droppedMatras (S.changeTempo change tempo) ns
         _ -> 0
 
 -- * functions
@@ -265,27 +265,27 @@ dropped_matras tempo = sum . map get
 -- a Note or Pattern, the Karvai will be dropped.  Since a 'Karvai' note
 -- logically has no duration, if it's the last note it will be dropped
 -- entirely.
-cancel_karvai :: [S.Flat g (Note sollu)] -> [S.Flat g (Note sollu)]
-cancel_karvai = go
+cancelKarvai :: [S.Flat g (Note sollu)] -> [S.Flat g (Note sollu)]
+cancelKarvai = go
     where
     go (S.FNote tempo (Note note) : notes)
-        | _karvai note = case drop_next_rest notes of
+        | _karvai note = case dropNextRest notes of
             (True, remain) -> S.FNote tempo (Note (note { _karvai = False}))
                 : go remain
             (False, remain) -> go remain
     go (note : notes) = note : go notes
     go [] = []
 
-drop_next_rest :: [S.Flat g (Note sollu)] -> (Bool, [S.Flat g (Note sollu)])
-drop_next_rest (note@(S.FNote _ n) : notes) = case n of
+dropNextRest :: [S.Flat g (Note sollu)] -> (Bool, [S.Flat g (Note sollu)])
+dropNextRest (note@(S.FNote _ n) : notes) = case n of
     Space Rest -> (True, notes)
     Space Sarva -> (False, note : notes)
     Note {} -> (False, note : notes)
     Pattern {} -> (False, note : notes)
-    Alignment {} -> second (note:) $ drop_next_rest notes
-drop_next_rest (note@(S.FGroup {}) : notes) =
-    second (note:) $ drop_next_rest notes
-drop_next_rest [] = (False, [])
+    Alignment {} -> second (note:) $ dropNextRest notes
+dropNextRest (note@(S.FGroup {}) : notes) =
+    second (note:) $ dropNextRest notes
+dropNextRest [] = (False, [])
 
 -- * vary
 
@@ -303,20 +303,20 @@ type Variations = [(S.Matra, S.Matra, S.Matra)]
 -- orthogonal and could get a different function.
 vary :: (S.Matra -> Variations) -- ^ variations allowed for this duration
     -> [S.Note g (Note sollu)] -> [[S.Note g (Note sollu)]]
-vary allowed_variations notes
-    | null modification_groups = [notes]
-    | otherwise = map apply modification_groups
+vary allowedVariations notes
+    | null modificationGroups = [notes]
+    | otherwise = map apply modificationGroups
     where
     -- List of sets of permutations.
-    modification_groups = permute_fst allowed_variations (find_triads notes)
+    modificationGroups = permuteFst allowedVariations (findTriads notes)
     -- Apply a set of permutations to the original input.
-    apply mods = apply_modifications
+    apply mods = applyModifications
         (\_ matras -> S.Note (Pattern (PatternM matras)))
         (concatMap extract mods) notes
     extract ((m1, m2, m3), (i1, i2, i3)) = [(i1, m1), (i2, m2), (i3, m3)]
 
 variations :: [(S.Matra, S.Matra, S.Matra) -> Bool] -> (S.Matra -> Variations)
-variations filters = filter (\v -> all ($v) filters) . all_variations
+variations filters = filter (\v -> all ($v) filters) . allVariations
 
 ascending, descending, standard :: (S.Matra, S.Matra, S.Matra) -> Bool
 ascending (m1, m2, m3) = m1 < m2 && m2 < m3
@@ -325,8 +325,8 @@ standard (m1, m2, m3) =
     m1 == m2 && m2 == m3
     || List.sort [m1, m2, m3] `elem` [[5, 6, 7], [6, 7, 8], [5, 7, 9]]
 
-all_variations :: S.Matra -> Variations
-all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
+allVariations :: S.Matra -> Variations
+allVariations matras = concatMap vars [0 .. max 1 (matras - minDuration)]
     where
     vars d
         | d == 0 = [(matras, matras, matras)]
@@ -334,12 +334,12 @@ all_variations matras = concatMap vars [0 .. max 1 (matras - min_duration)]
             [ (matras - d, matras, matras + d)
             , (matras + d, matras, matras - d)
             ]
-    min_duration = 3
+    minDuration = 3
 
 -- | Find triples of Patterns with the same length and return their indices.
 -- The indices are in ascending order.
-find_triads :: [S.Note g (Note sollu)] -> [(S.Matra, (Int, Int, Int))]
-find_triads notes =
+findTriads :: [S.Note g (Note sollu)] -> [(S.Matra, (Int, Int, Int))]
+findTriads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst
         [ (matras, i)
@@ -369,10 +369,10 @@ throw = CallStack.throw Exception
 
 -- * util
 
-apply_modifications :: (a -> mod -> a) -> [(Int, mod)]
+applyModifications :: (a -> mod -> a) -> [(Int, mod)]
     -- ^ modifications along with their indices, in ascending order
     -> [a] -> [a]
-apply_modifications apply mods = go mods . zip [0..]
+applyModifications apply mods = go mods . zip [0..]
     where
     go [] xs = map snd xs
     go _ [] = []
@@ -381,16 +381,16 @@ apply_modifications apply mods = go mods . zip [0..]
         | i1 == i2 = apply x mod : go mods xs
         | otherwise = x : go ((i1, mod) : mods) xs
 
-permute_fst :: (a -> [b]) -> [(a, x)] -> [[(b, x)]]
-permute_fst _ [] = []
-permute_fst permutations ((k, x) : xs)
+permuteFst :: (a -> [b]) -> [(a, x)] -> [[(b, x)]]
+permuteFst _ [] = []
+permuteFst permutations ((k, x) : xs)
     | null xs = [[(p, x)] | p <- permutations k]
     | otherwise =
         [(p, x) : rest | p <- permutations k, rest <- go xs]
-    where go = permute_fst permutations
+    where go = permuteFst permutations
 
 check :: CallStack.Stack => Either Error a -> a
 check = either errorStack id
 
-check_msg :: CallStack.Stack => Text -> Either Error a -> a
-check_msg msg = either (errorStack . ((msg <> ": ") <>)) id
+checkMsg :: CallStack.Stack => Text -> Either Error a -> a
+checkMsg msg = either (errorStack . ((msg <> ": ") <>)) id

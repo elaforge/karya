@@ -49,7 +49,7 @@ instance Expr.ToExpr Stroke where
         CekC -> "X"
         CekO -> "/"
 
-instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.to_expr
+instance Expr.ToExpr (Realize.Stroke Stroke) where to_expr = Realize.toExpr
 
 data Strokes a = Strokes {
     r1 :: a, r2 :: a, r3 :: a, r4 :: a, i :: a
@@ -79,12 +79,12 @@ type Patterns = Realize.Patterns Stroke
 __ :: SNote
 __ = Realize.rest
 
-melodic_nakatiku :: (Solkattu.Pattern, [SNote])
-melodic_nakatiku = (Solkattu.Nakatiku, [i, r3, i, r2, r3, i, r3, r2])
+melodicNakatiku :: (Solkattu.Pattern, [SNote])
+melodicNakatiku = (Solkattu.Nakatiku, [i, r3, i, r2, r3, i, r3, r2])
     where Strokes {..} = notes
 
-melodic_patterns :: Patterns
-melodic_patterns = Solkattu.check $ patterns
+melodicPatterns :: Patterns
+melodicPatterns = Solkattu.check $ patterns
     [ (5, [r3, r2, r3, i, r2])
     , (6, [r3, r2, __, r3, i, r2])
     , (7, [r3, __, r2, __, r3, i, r2])
@@ -92,8 +92,8 @@ melodic_patterns = Solkattu.check $ patterns
     , (9, [r3, __, r2, __, r3, __, i, __, r2])
     ] where Strokes {..} = notes
 
-rhythmic_patterns :: Patterns
-rhythmic_patterns = Solkattu.check $ patterns
+rhythmicPatterns :: Patterns
+rhythmicPatterns = Solkattu.check $ patterns
     [ (5, [b, __, o, __, __])
     , (6, [o, __, b, o, __, __])
     , (7, [x, __, x, __, o, __, __])
@@ -103,5 +103,5 @@ rhythmic_patterns = Solkattu.check $ patterns
 
 patterns :: [(Sequence.Matra, [Realize.SNote Stroke])]
     -> Either Text (Realize.Patterns Stroke)
-patterns = Realize.patterns . (melodic_nakatiku:)
+patterns = Realize.patterns . (melodicNakatiku:)
     . map (first Solkattu.PatternM)

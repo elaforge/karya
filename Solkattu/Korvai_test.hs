@@ -20,12 +20,12 @@ import Global
 
 
 test_realize = do
-    let f realize_patterns = fmap (first extract) . head
-            . Korvai.realize Korvai.mridangam realize_patterns
+    let f realizePatterns = fmap (first extract) . head
+            . Korvai.realize Korvai.mridangam realizePatterns
             . korvai (Tala.Tala "eka" Tala.eka 2) . (:[])
         extract notes =
             [ pretty tempo <> ":" <> pretty stroke
-            | (tempo, stroke) <- Sequence.tempo_notes notes
+            | (tempo, stroke) <- Sequence.tempoNotes notes
             ]
         tkdn = cycle $ mconcat [ta, ka, din, na]
         p4s = cycle $ Dsl.pat 4
@@ -40,11 +40,11 @@ test_realize = do
     equal (f True (Dsl.nadai 2 (take 1 p4s))) $
         Right (map ("s0n2:"<>) (chars "pkon"), "")
 
-test_realize_technique = do
+test_realizeTechnique = do
     let f = fmap extract . head
             . Korvai.realize Korvai.mridangam False
             . korvai Tala.adi_tala . (:[])
-        extract = Text.unwords . map pretty . Sequence.flattened_notes . fst
+        extract = Text.unwords . map pretty . Sequence.flattenedNotes . fst
         takatakadinna = mconcat [ta, ka, ta, ka, din, na]
     equal (f takatakadinna) (Right "k t k o o k")
     equal (f (Dsl.dropM 1 takatakadinna)) (Right "k k o o k")
@@ -58,7 +58,7 @@ korvai tala = Korvai.korvai tala mridangam
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.inst_mridangam = Dsl.check $ Realize.instrument strokes patterns }
+    { Korvai.instMridangam = Dsl.check $ Realize.instrument strokes patterns }
     where
     strokes =
         [ (ta <> ka <> din <> na, [k, o, o, k])

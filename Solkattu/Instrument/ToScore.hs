@@ -20,7 +20,7 @@ import Global
 -- types.
 type ToScore stroke =
     [(Sequence.Duration, Realize.Note stroke)] -> ([Event], [(Text, [Event])])
-    -- ^ (note_events, [(control, control_events)]).  A control named "*"
+    -- ^ (noteEvents, [(control, controlEvents)]).  A control named "*"
     -- becomes a pitch track.
 
 type Event = (Sequence.Duration, Sequence.Duration, Text)
@@ -28,17 +28,17 @@ type Event = (Sequence.Duration, Sequence.Duration, Text)
 
 -- | A standard ToScore for simple percussion, with 0 duration and no control
 -- tracks.
-to_score :: Expr.ToExpr (Realize.Stroke stroke) => ToScore stroke
-to_score strokes = (events, [])
+toScore :: Expr.ToExpr (Realize.Stroke stroke) => ToScore stroke
+toScore strokes = (events, [])
     where
     events = do
         (start, dur, note) <- zip3 starts durs notes
-        Just expr <- [to_expr note]
-        let d = if Sequence.has_duration note then dur else 0
+        Just expr <- [toExpr note]
+        let d = if Sequence.hasDuration note then dur else 0
         return (start, d, ShowVal.show_val expr)
     starts = scanl (+) 0 durs
     (durs, notes) = unzip strokes
-    to_expr s = case s of
+    toExpr s = case s of
         Realize.Note stroke -> Just $ Expr.to_expr stroke
         Realize.Pattern p -> Just $ Expr.to_expr p
         Realize.Space Solkattu.Rest -> Nothing

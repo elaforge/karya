@@ -13,7 +13,7 @@ import Solkattu.MridangamGlobal
 
 -- TODO use this as a template to fill in various themes
 dinnagina_sequence :: Korvai
-dinnagina_sequence = date 2013 9 11 $ ganesh $ sequence_t $ korvai1 adi $
+dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvai1 adi $
     su $ mconcat $ map (sam.)
     [ sarva `replaceEnd` ptheme
     , takeD 8 sarva `replaceEnd` ptheme
