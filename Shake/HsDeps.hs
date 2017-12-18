@@ -44,12 +44,12 @@ type Generated = Set.Set FilePath
 importsOf :: Generated -> Maybe [String] -> FilePath -> Shake.Action [FilePath]
 importsOf generated cppFlags fn = do
     Shake.need [fn]
-    Trans.liftIO (importsOf_ generated cppFlags fn)
+    Trans.liftIO (importsOfIO generated cppFlags fn)
 
-importsOf_ :: Generated
+importsOfIO :: Generated
     -> Maybe [String] -- ^ If Just, first run CPP with these flags.
     -> FilePath -> IO [FilePath]
-importsOf_ generated cppFlags fn = do
+importsOfIO generated cppFlags fn = do
     -- TODO get CcDeps.includesOf so I can need them too.
     mods <- parseImports <$> preprocess cppFlags fn
     Maybe.catMaybes <$> mapM (fileOf generated) mods
@@ -116,19 +116,15 @@ transitiveImportsOf :: Generated -> (FilePath -> Maybe [String])
     -> FilePath -> Shake.Action [FilePath]
 transitiveImportsOf generated cppFlagsOf fn = do
     Shake.need [fn]
-    Trans.liftIO $ transitiveImportsOf_ generated cppFlagsOf fn
-
-transitiveImportsOf_ :: Generated -> (FilePath -> Maybe [String])
-    -> FilePath -> IO [FilePath]
-transitiveImportsOf_ generated cppFlagsOf fn = go Set.empty [fn]
+    go Set.empty [fn]
     where
     go checked (fn:fns)
         | fn `Set.member` checked = go checked fns
         | otherwise = do
-            imports <- importsOf_ generated (cppFlagsOf fn) fn
+            imports <- importsOf generated (cppFlagsOf fn) fn
             let checked' = Set.insert fn checked
             go checked' (fns ++ filter (`Set.notMember` checked') imports)
-    go checked [] = return (Set.toList checked)
+    go checked [] = return $ Set.toList checked
 
 fileOf :: Generated -> ModuleName -> IO (Maybe FilePath)
 fileOf generated mod
