@@ -25,11 +25,12 @@ import qualified Util.UF as UF
 
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
-import Global
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 import qualified Solkattu.Terminal as Terminal
+
+import Global
 
 
 type Error = Text

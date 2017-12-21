@@ -2607,19 +2607,6 @@ solkattu:
   ? rename tri to tir, for tirmanam?
   groups:
     This whole groups stuff is still a bit of a mess.
-      ? Mridangam2013.dinnagina_sequence is broken.
-        . It's because replaceEnd uses rdropM_, which directly modifies the
-          sequence.  That makes the _split from takeD no longer valid.
-        . One way is to get rid of the _ variants, but I need them when
-          I explicitly don't want to make a group.
-        . I think the _ variants could just flatten out any groups in there.
-          In practice, replaceStart and replaceEnd are used only in
-          Score.Mridangam*, so I could avoid all of this by moving the
-          _ variants from Notation to MridangamGlobal, and using them to
-          replace the non-_ versions.  Then replaceStart,End are only in
-          MridangamGlobal.
-        . Mridangam scores don't need groups for realization, just for
-          highlighting.
       . Having to keep group count up to date in 'Realize.realize'.  I could
         fix this with a nested FGroup, but of course introducing other
         problems.
@@ -2639,8 +2626,25 @@ solkattu:
       * Realize.realize should interleave the cancel group thing.
         . But try switching to a proper recursive implementation before doing
           all this work.
-    - Move replaceStart and replaceEnd to MridangamGlobal, along with takeM_
-      variants.
+
+    - Mridangam2013.dinnagina_sequence is broken.
+      . It's because replaceEnd uses rdropM_, which directly modifies the
+        sequence.  That makes the _split from takeD no longer valid.
+      . One way is to get rid of the _ variants, but I need them when
+        I explicitly don't want to make a group.
+      . I think the _ variants could just flatten out any groups in there.
+        In practice, replaceStart and replaceEnd are used only in
+        Score.Mridangam*, so I could avoid all of this by moving the
+        _ variants from Notation to MridangamGlobal, and using them to
+        replace the non-_ versions.  Then replaceStart,End are only in
+        MridangamGlobal.
+      . Mridangam scores don't need groups for realization, just for
+        highlighting.
+
+      - Move replaceStart and replaceEnd to MridangamGlobal, along with takeM_
+        variants.
+      . Well no, actually Solkattu2017. c_17_09_25 uses it, and it seems
+        legit.
     * Make FGroup recursive.
       . This means the consumers will have to become recursive too.  This may
         not be convenient since they are rendering to flat text.

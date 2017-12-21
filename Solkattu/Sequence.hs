@@ -41,8 +41,8 @@ import qualified Data.Ratio as Ratio
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import Global
 import qualified Solkattu.Tala as Tala
+import Global
 
 
 data Note g a = Note !a
