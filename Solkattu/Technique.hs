@@ -5,7 +5,6 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | Functions to write performance postprocess functions.
 module Solkattu.Technique where
-import qualified Util.Seq as Seq
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import Global
@@ -24,28 +23,24 @@ type Technique stroke = [stroke] -- ^ dropped strokes
 
 postprocess :: Technique (Realize.Stroke stroke)
     -> [Flat stroke] -> [Flat stroke]
-postprocess technique = map process . zipNeighbors
+postprocess technique = map process
     where
     -- TODO I just pick the innermost group, but maybe I should try for each
     -- nested group.
-    process (Just (S.FGroup _ _ g), S.FNote tempo note, notes)
-        | Just stroke <- Realize.noteOf note,
-                Just out <- technique prevs stroke nexts =
-            S.FNote tempo $ setNote out note
-        where
-        prevs = Realize._dropped g
-        nexts = mapMaybe Realize.noteOf (S.flattenedNotes notes)
-    process (_, note, _) = note
-    setNote n (Realize.Note _) = Realize.Note n
-    setNote _ n = n
-
-zipNeighbors :: [a] -> [(Maybe a, a, [a])]
-zipNeighbors = map merge . Seq.zip_nexts . Seq.zip_prev
-    where merge ((prev, cur), nexts) = (prev, cur, map snd nexts)
+    process (S.FGroup tempo g children) = case children of
+        S.FNote tempo note : notes
+            | Just newNote <- group (Realize._dropped g) note notes ->
+                S.FGroup tempo g (S.FNote tempo newNote : notes)
+        _ -> S.FGroup tempo g (map process children)
+    process note@(S.FNote {}) = note
+    group prevs note notes = do
+        stroke <- Realize.noteOf note
+        let nexts = mapMaybe Realize.noteOf (S.flattenedNotes notes)
+        Realize.Note <$> technique prevs stroke nexts
 
 -- | Techinque that ignores Realize.Stroke details.
-plainTechnique :: Technique stroke -> Technique (Realize.Stroke stroke)
-plainTechnique technique prevs cur nexts = do
+plain :: Technique stroke -> Technique (Realize.Stroke stroke)
+plain technique prevs cur nexts = do
     s <- technique (map Realize._stroke prevs) (Realize._stroke cur)
         (map Realize._stroke nexts)
     return $ cur { Realize._stroke = s }

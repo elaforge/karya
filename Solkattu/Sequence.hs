@@ -35,13 +35,14 @@ module Solkattu.Sequence (
     , module Solkattu.Sequence
 #endif
 ) where
+import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Ratio as Ratio
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Solkattu.Tala as Tala
 import Global
+import qualified Solkattu.Tala as Tala
 
 
 data Note g a = Note !a
@@ -162,11 +163,27 @@ map1 f n = case n of
 
 -- * flatten
 
-data Flat g a = FGroup !Tempo !Int !g | FNote !Tempo !a
+{- | This is an intermediate structure where TempoChange has been flattened
+    out.  A flat list is easier to deal with, especially since I need to match
+    and replace sections of notes, which may overlap tempo groups arbitrarily.
+
+    However, 'FGroup' is actually nested, not flat.  Oops.  Originally it was
+    flat too, with a count to indicate the scope, with Tempo in a Meta type.
+    I still needed to express the tempo and group order, so I added a separate
+    FGroup, and then it got complicated to keep the count up to date when the
+    children changed size, and process things recursively and it seemed like
+    recursive data would make that simpler again.  I only replace sections of
+    notes within group boundaries, so it doesn't need to be flat like
+    TempoChange does.
+
+    It turns out it's still annoying to modify trees though, evidence in
+    'Solkattu.Solkattu.cancelKarvai'.
+-}
+data Flat g a = FGroup !Tempo !g ![Flat g a] | FNote !Tempo !a
     deriving (Eq, Show, Functor)
 
 instance (Pretty g, Pretty a) => Pretty (Flat g a) where
-    pretty (FGroup tempo count g) = pretty (tempo, count, g)
+    pretty (FGroup tempo g notes) = pretty (tempo, g, notes)
     pretty (FNote tempo note) = pretty (tempo, note)
 
 notes :: [Note g a] -> [a]
@@ -182,16 +199,17 @@ flattenWith tempo = concat . snd . List.mapAccumL go tempo
         Note note -> (tempo, [FNote tempo note])
         TempoChange change notes ->
             (tempo, flattenWith (changeTempo change tempo) notes)
-        Group g notes -> (tempo, FGroup tempo (length children) g : children)
-            where children = flattenWith tempo notes
+        Group g notes -> (tempo, [FGroup tempo g (flattenWith tempo notes)])
 
 flattenedNotes :: [Flat g a] -> [a]
-flattenedNotes = map snd . tempoNotes
+flattenedNotes = concatMap $ \n -> case n of
+    FGroup _ _ children -> flattenedNotes children
+    FNote _ note -> [note]
 
 tempoNotes :: [Flat g a] -> [(Tempo, a)]
-tempoNotes = mapMaybe $ \n -> case n of
-    FGroup {} -> Nothing
-    FNote tempo note -> Just (tempo, note)
+tempoNotes = concatMap $ \n -> case n of
+    FGroup _ _ children  -> tempoNotes children
+    FNote tempo note -> [(tempo, note)]
 
 tempoToState :: HasMatras a => Tala.Tala -> [(Tempo, a)]
     -> (State, [(State, a)])
@@ -204,7 +222,7 @@ tempoToState tala = List.mapAccumL toState initialState
 -- | Calculate Duration for each note.
 withDurations :: HasMatras a => [Flat g a] -> [Flat g (Duration, a)]
 withDurations = map $ \n -> case n of
-    FGroup tempo count g -> FGroup tempo count g
+    FGroup tempo g children -> FGroup tempo g (withDurations children)
     FNote tempo note -> FNote tempo (durationOf tempo note, note)
 
 data Stroke a = Attack a | Sustain a | Rest
@@ -223,32 +241,27 @@ instance Pretty a => Pretty (Stroke a) where
 -- by nadai, not in absolute time.
 normalizeSpeed :: HasMatras a => Tala.Tala -> [Flat g a]
     -> [Flat g (State, (Stroke a))]
-normalizeSpeed tala flattened =
-    snd $ List.mapAccumL withState initialState $ expand flattened
+normalizeSpeed tala flattened = fst $
+    State.runState (mapM addState (concatMap expand flattened)) initialState
     where
-    withState state (FNote tempo stroke) =
-        ( advanceStateBy tala (matraDuration tempo) state
-        , FNote tempo (state, stroke)
-        )
-    withState state (FGroup tempo count g) = (state, FGroup tempo count g)
-
-    expand [] = []
-    expand (FGroup tempo count g : notes) =
-        FGroup newTempo (length expanded) g : expanded ++ expand post
-        where
-        newTempo = tempo { _speed = maxSpeed }
-        expanded = expand pre
-        (pre, post) = splitAt count notes
-    expand (FNote tempo note : notes) = expanded ++ expand notes
-        where
-        expanded = map (FNote newTempo) $
+    addState (FNote tempo stroke) = do
+        state <- State.get
+        State.modify' $ advanceStateBy tala (matraDuration tempo)
+        return $ FNote tempo (state, stroke)
+    addState (FGroup tempo g children) =
+        FGroup tempo g <$> mapM addState children
+    expand (FGroup tempo g children) =
+        [FGroup (tempo { _speed = maxSpeed }) g (concatMap expand children)]
+    expand (FNote tempo note) =
+        map (FNote (tempo { _speed = maxSpeed })) $
             Attack note : replicate (spaces - 1)
                 (if hasDuration note then Sustain note else Rest)
-        newTempo = tempo { _speed = maxSpeed }
+        where
         spaces = _stride tempo * matrasOf note * 2 ^ (maxSpeed - _speed tempo)
-    maxSpeed = maximum $ 0 : map _speed (mapMaybe tempoOf flattened)
-    tempoOf (FNote tempo _) = Just tempo
-    tempoOf _ = Nothing
+    maxSpeed = maximum $ 0 : map _speed (tempoOf flattened)
+    tempoOf = concatMap $ \n -> case n of
+        FNote tempo _ -> [tempo]
+        FGroup tempo _ children -> tempo : tempoOf children
 
 -- ** Tempo
 

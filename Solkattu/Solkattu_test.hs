@@ -6,13 +6,13 @@ module Solkattu.Solkattu_test where
 import qualified Data.Text as Text
 
 import Util.Test
+import Global
 import qualified Solkattu.Dsl as Dsl
 import Solkattu.Dsl (__)
 import Solkattu.DslSollu (ta, di, ki, thom)
+import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Sequence as Sequence
 import qualified Solkattu.Solkattu as Solkattu
-
-import Global
 
 
 
@@ -26,12 +26,17 @@ test_matrasOf = do
 
 test_cancelKarvai = do
     let f = Text.unwords . map pretty . Sequence.flattenedNotes
-            . Solkattu.cancelKarvai
-            . Sequence.flatten
+            . Solkattu.cancelKarvai . Sequence.flatten
+        k = Dsl.karvai
+        group = Notation.group
     equal (f (ta <> thom)) "ta thom"
-    equal (f (ta <> Dsl.karvai thom)) "ta"
-    equal (f (ta <> Dsl.karvai thom <> __)) "ta thom"
-    equal (f (ta <> Dsl.karvai thom <> di)) "ta di"
+    equal (f (ta <> k thom)) "ta"
+    equal (f (ta <> thom <> __)) "ta thom __"
+    equal (f (ta <> k thom <> __)) "ta thom"
+    equal (f (ta <> k thom <> di)) "ta di"
+    equal (f (ta <> k thom <> group di)) "ta di"
+    equal (f (ta <> k thom <> group __)) "ta thom"
+    equal (f (ta <> group (k thom) <> __)) "ta thom"
 
 test_vary = do
     let f notes = map (Text.unwords . map pretty) $

@@ -13,22 +13,24 @@ import Global
 
 
 test_flattenWith = do
-    let f = map extract . Sequence.flattenWith defaultTempo
-        extract n = n -- fmap (const ()) n
+    let f = Sequence.flattenWith defaultTempo
+        -- extract n = n -- fmap (const ()) n
         -- extract (Meta g (Sequence.Tempo speed nadai _)) = (g, (speed, nadai))
     equal (f [su [note]]) [FNote (tempo 1 4) 1]
     equal (f [Group 'a' [note, su [Group 'b' [note]], note]])
-        [ FGroup (tempo 0 4) 4 'a'
-        , FNote (tempo 0 4) 1
-        , FGroup (tempo 1 4) 1 'b'
-        , FNote (tempo 1 4) 1
-        , FNote (tempo 0 4) 1
+        [ FGroup (tempo 0 4) 'a'
+            [ FNote (tempo 0 4) 1
+            , FGroup (tempo 1 4) 'b'
+                [ FNote (tempo 1 4) 1 ]
+            , FNote (tempo 0 4) 1
+            ]
         ]
     equal (f [Group 'a' [Group 'b' [note], note]])
-        [ FGroup (tempo 0 4) 3 'a'
-        , FGroup (tempo 0 4) 1 'b'
-        , FNote (tempo 0 4) 1
-        , FNote (tempo 0 4) 1
+        [ FGroup (tempo 0 4) 'a'
+            [ FGroup (tempo 0 4) 'b'
+                [ FNote (tempo 0 4) 1 ]
+            , FNote (tempo 0 4) 1
+            ]
         ]
 
 test_tempoToState = do
@@ -91,23 +93,25 @@ test_normalizeSpeedGroups = do
         t1 = tempo 1 4
     -- Make sure groups are expanded correctly.
     equal (f [Group 'a' [n, n], n])
-        [ FGroup t0 2 'a'
-        , FNote t0 "1", FNote t0 "1"
+        [ FGroup t0 'a'
+            [ FNote t0 "1", FNote t0 "1" ]
         , FNote t0 "1"
         ]
     equal (f [sd [Group 'a' [n, n]], n])
-        [ FGroup t0 4 'a'
-        , FNote t0 "1", FNote t0 "_", FNote t0 "1", FNote t0 "_"
+        [ FGroup t0 'a'
+            [ FNote t0 "1", FNote t0 "_", FNote t0 "1", FNote t0 "_" ]
         , FNote t0 "1"
         ]
     equal (f [su [Group 'a' [n, n]], n])
-        [ FGroup t1 2 'a'
-        , FNote t1 "1", FNote t1 "1"
+        [ FGroup t1 'a'
+            [ FNote t1 "1", FNote t1 "1" ]
         , FNote t1 "1", FNote t1 "_"
         ]
     equal (f [Group 'a' [n, Group 'b' [n]]])
-        [ FGroup t0 3 'a'
-        , FNote t0 "1", FGroup t0 1 'b', FNote t0 "1"
+        [ FGroup t0 'a'
+            [ FNote t0 "1"
+            , FGroup t0 'b' [ FNote t0 "1" ]
+            ]
         ]
 
 test_simplify = do

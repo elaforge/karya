@@ -62,6 +62,7 @@
 {-# LANGUAGE DeriveFunctor, DeriveTraversable #-}
 module Solkattu.Solkattu where
 import qualified Control.Exception as Exception
+import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
 
@@ -264,28 +265,36 @@ droppedMatras tempo = sum . map get
 -- | A Karvai Note followed by a Space will replace the rest, if followed by
 -- a Note or Pattern, the Karvai will be dropped.  Since a 'Karvai' note
 -- logically has no duration, if it's the last note it will be dropped
--- entirely.
 cancelKarvai :: [S.Flat g (Note sollu)] -> [S.Flat g (Note sollu)]
-cancelKarvai = go
+cancelKarvai ns = fst $ State.runState (go ns []) False
     where
-    go (S.FNote tempo (Note note) : notes)
-        | _karvai note = case dropNextRest notes of
-            (True, remain) -> S.FNote tempo (Note (note { _karvai = False}))
-                : go remain
-            (False, remain) -> go remain
-    go (note : notes) = note : go notes
-    go [] = []
+    -- This is way too complicated because Groups are nested.  The problem is
+    -- that I want to look at and possibly modify a future note.  If Flat were
+    -- really flat, then I could just look down the list and modify.  Future is
+    -- so the last note of a group can still see future notes.  If I see a
+    -- rest in the future, I emit the karvai note and turn on a "suppress next
+    -- rest" bit.
+    go (S.FGroup tempo g children : notes) future = do
+        children <- go children (notes ++ future)
+        (S.FGroup tempo g children :) <$> go notes future
+    go (S.FNote tempo (Note note) : notes) future | _karvai note =
+        if nextRest (S.flattenedNotes (notes ++ future))
+            then suppress
+                >> (S.FNote tempo (Note (note { _karvai = False })) :)
+                    <$> go notes future
+            else go notes future
+    go (note@(S.FNote _ (Space Rest)) : notes) future = ifM isSuppressed
+        (go notes future) ((note:) <$> go notes future)
+    go (n : ns) future = (n:) <$> go ns future
+    go [] _ = return []
 
-dropNextRest :: [S.Flat g (Note sollu)] -> (Bool, [S.Flat g (Note sollu)])
-dropNextRest (note@(S.FNote _ n) : notes) = case n of
-    Space Rest -> (True, notes)
-    Space Sarva -> (False, note : notes)
-    Note {} -> (False, note : notes)
-    Pattern {} -> (False, note : notes)
-    Alignment {} -> second (note:) $ dropNextRest notes
-dropNextRest (note@(S.FGroup {}) : notes) =
-    second (note:) $ dropNextRest notes
-dropNextRest [] = (False, [])
+    suppress = State.put True
+    isSuppressed = State.get <* State.put False
+    nextRest [] = False
+    nextRest (n : ns) = case n of
+        Space Rest -> True
+        Alignment {} -> nextRest ns
+        _ -> False
 
 -- * vary
 

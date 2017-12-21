@@ -8,10 +8,6 @@
 
     This is meant to have just Sequence manipulation, without
     instrument-specific functions.
-
-    Unlike everywhere else except some Utils, I use camelCase in here.  Since
-    this is for a DSL, I try to save horizontal space.  Also this seems like it
-    might eventually be an independant library.
 -}
 module Solkattu.Notation where
 import Prelude hiding ((^), repeat)

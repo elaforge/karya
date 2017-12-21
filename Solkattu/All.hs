@@ -72,8 +72,9 @@ korvais =
     , setLocation ("Solkattu.Score.Solkattu2013",358,"t4s2") Solkattu.Score.Solkattu2013.t4s2
     , setLocation ("Solkattu.Score.Solkattu2013",383,"t4s3") Solkattu.Score.Solkattu2013.t4s3
     , setLocation ("Solkattu.Score.Solkattu2013",406,"t5s") Solkattu.Score.Solkattu2013.t5s
-    , setLocation ("Solkattu.Score.Solkattu2013",462,"koraippu_misra") Solkattu.Score.Solkattu2013.koraippu_misra
-    , setLocation ("Solkattu.Score.Solkattu2013",501,"tir_18") Solkattu.Score.Solkattu2013.tir_18
+    , setLocation ("Solkattu.Score.Solkattu2013",462,"koraippu_misra_no_karvai") Solkattu.Score.Solkattu2013.koraippu_misra_no_karvai
+    , setLocation ("Solkattu.Score.Solkattu2013",505,"koraippu_misra") Solkattu.Score.Solkattu2013.koraippu_misra
+    , setLocation ("Solkattu.Score.Solkattu2013",543,"tir_18") Solkattu.Score.Solkattu2013.tir_18
     , setLocation ("Solkattu.Score.Solkattu2014",17,"c_14_01_01") Solkattu.Score.Solkattu2014.c_14_01_01
     , setLocation ("Solkattu.Score.Solkattu2014",42,"c_14_01_14") Solkattu.Score.Solkattu2014.c_14_01_14
     , setLocation ("Solkattu.Score.Solkattu2014",78,"c_14_02_05") Solkattu.Score.Solkattu2014.c_14_02_05

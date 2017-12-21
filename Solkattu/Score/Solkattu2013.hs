@@ -459,23 +459,65 @@ misra_lead = korvai1 adi mridangam $ su $
        , (tam, [od])
        ]
 
-koraippu_misra :: Korvai
-koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $
-    map su $ concat
-    [ map long [1..7] -- 2 avartanam
-    , map (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avartanam
+koraippu_misra_no_karvai :: Korvai
+koraippu_misra_no_karvai = koraippu $ ganesh $ korvai adi mridangam $ map su
+    [ mconcatMap long [1..7] -- 2 avartanam
+    , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
-    , [ repeat 8 (__.p7) ]
-    , [ __ . repeat 5 p7 . nadai 3 (tri p7) ]
+    , repeat 8 (__.p7)
+    , __ . repeat 5 p7 . nadai 3 (tri p7)
     -- to mohra korvai sequence
     ]
     where
-    group2 seq = map mconcat (Seq.chunked 2 seq)
+    group2 seq = concatMap mconcat (Seq.chunked 2 seq)
     -- 8 + 8*7 (3+2 + 3)
-    long n = restM 8 . tan7 . fill n . tan7 . fill n . tan7 . tri (fill n)
+    long n = din.__8 . tri_ (gap n . fill n) tan7
+        . gap n . tri_ (karvai n) (fill n)
+    -- 4 + 4*7 (1 + 3)
+    short n = din.__4 . tan7 . gap n . tri_ (karvai n) (fill n)
+    half n = din.__2 . tan7 . gap n . fill n
+
+    gap n = __n (7-n+1)
+    fill n = (!! (n-1))
+        [ ta
+        , taka
+        , ta.din.na
+        , takadinna
+        , p5
+        , p6
+        , p7
+        ]
+    karvai n_
+        | n > 1 = din . __n n
+        | otherwise = __n (n+1)
+        where n = 7 - n_
+
+    tan7 = tang.__.ga.din.__.ga.din
+    mridangam = makeMridangam
+        [ (tang.ga, [on, k])
+        , (din.ga, [od, k])
+        , (din, [od])
+        , (ta, [k])
+        , (taka, [p, k])
+        , (ta.din.na, [on, on, k])
+        ]
+
+koraippu_misra :: Korvai
+koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $ map su
+    [ mconcatMap long [1..7] -- 2 avartanam
+    , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
+    , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
+    , repeat 8 (__.p7)
+    , __ . repeat 5 p7 . nadai 3 (tri p7)
+    -- to mohra korvai sequence
+    ]
+    where
+    -- 8 + 8*7 (3+2 + 3)
+    long n = restM 8 . tri_ (fill n) tan7 . tri (fill n)
     -- 4 + 4*7 (1 + 3)
     short n = restM 4 . tan7 . tri (fill n)
     half n = restM 2 . tan7 . fill n
+    group2 seq = mconcatMap mconcat (Seq.chunked 2 seq)
     fill n = fills !! (n-1) . karvai din
     fills = zipWith (\n p -> __n (n+1) . p) [6, 5..]
         [ ta

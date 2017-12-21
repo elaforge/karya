@@ -2488,7 +2488,7 @@ solkattu:
   * Move Solkattu directory to the top level, it's not really part of Derive
     . At some point it might be a completely separate package.
     * I could also switch over to camelCase.
-  - Sequence.has_duration should be has_sustain
+  - Sequence.hasDuration should be hasSustain
     . Otherwise it's confusing because obviously it does have a Duration.
     . Well, it doesn't actually mean has sustain though.  It means this
       note should turn into a call with duration, which in turn is because it
@@ -2626,19 +2626,47 @@ solkattu:
       . I think the group _split compensation for After in
         Realize.split_strokes is incorrect.  I think split_strokes or the
         whole collect group thing should be recursive.  Making FGroup nested
-        might by good for this.
+        might be good for this.
       . I *still* don't really understand Duration vs. Matra vs. FMatra.
         I think the notion of local FMatra is required.  Duration is useful
         at the DSL level but it only makes sense at the toplevel which means
         it's actually error-prone.  Maybe I should get rid of it entirely,
         except at the global level where I can be sure it's right, which
         basically means after 'Realize.realize'.
-      . Can I do quickcheck tests for various duration_of and matras_of?
-      . Do some tests to make sure I understand Solkattu.duration_of and
-        Solkattu.matras_of.
-      - Realize.realize should interleave the cancel group thing.
+      . Can I do quickcheck tests for various durationOf and matrasOf?
+      . Do some tests to make sure I understand Solkattu.durationOf and
+        Solkattu.matrasOf.
+      * Realize.realize should interleave the cancel group thing.
         . But try switching to a proper recursive implementation before doing
           all this work.
+    - Move replaceStart and replaceEnd to MridangamGlobal, along with takeM_
+      variants.
+    * Make FGroup recursive.
+      . This means the consumers will have to become recursive too.  This may
+        not be convenient since they are rendering to flat text.
+      . Recursive makes it harder to collect output before failing.
+      . Also splitStrokes has to split a group.
+      * Realize Flat2 versions.
+      * Put UntilFail in its own Util module.
+      - Solkattu.cancelKarvai
+        . This is a pain to do with nested FGroup because I want to look at
+          and modify a future stroke.  Karvai is likely to happen acros group
+          boundaries.
+        . However it turns out I don't use karvai at all anymore, so I can
+          remove it.
+        . But it seems bad in general if this kind of modification is too
+          hard.  The totally flat format has that advantage at least.
+        . E.g. what if I want to do the same in a technique?
+        . Maybe worry about that when it happens.  I can still flatten out
+          groups after realize.
+        . That's wrong, I do use karvai, in one spot.
+        . I can get rid of it, but it does seem to better express things, and
+          it seems a shame to lose it just because the implementation seems
+          annoying.
+      * Korvai realize2, has to process UntilFail.
+      * Realize.format
+      * technique, and instPostprocess
+      * tests
 
     - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
       the unexpanded form.  I think this does need named groups.
@@ -2761,9 +2789,9 @@ solkattu:
         currently implemented, let's just do that.  But:
         * Change Sequence._marks from Maybe (GroupMark g) to [GroupMark g] so
           I can represent directly nested groups at least.
-        - realize looks for suffix if prefix++suffix doesn't match.
+        . realize looks for suffix if prefix++suffix doesn't match.
           . This should fix the sandi examples.
-        - splitD implements the directly nested hack.
+        . splitD implements the directly nested hack.
       . Actually it turns out the sandi situation is not what I thought:
         . Given (dropM 3 $ dropM 1 nakita <> nakita)
         . The dropM 3 drops the first group with the leading Na, so the
@@ -2898,8 +2926,8 @@ solkattu:
           dropped matras.
 
         * Implement Realize.format_table.
-        - Clean out the Pretty etc. gunk and commented out code.
-        + compile build/debug/seq, fix exports
+        * Clean out the Pretty etc. gunk and commented out code.
+        * compile build/debug/seq, fix exports
 
       - Another side-effect is that "can't split" errors are only detected
         on realization.  But if it's important to get them earlier, I could

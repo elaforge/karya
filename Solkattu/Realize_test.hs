@@ -76,7 +76,13 @@ test_realizeGroups = do
     equal (f $ rdropM 1 taka) (Right "k")
     equal (f $ Notation.rtakeM 1 taka) (Right "t")
     equal (f $ mconcat $ replicate 2 $ takeM 1 taka) (Right "k k")
+
+    left_like (f $ ka <> ka) "sequence not found"
     left_like (f $ dropM 1 (ka <> ka)) "sequence not found"
+    -- I leave the extra 'k' in the output, otherwise 'sequence not found' will
+    -- be suppressed by 'group split too long' error.
+    left_like (f $ dropM 1 $ taka <> dropM 1 (ka<>ka)) "k  t*sequence not found"
+
     -- With rests.
     equal (f $ dropM 1 $ ta <> __ <> ka <> __) (Right "_ t _")
     -- With a Pattern.
@@ -90,11 +96,12 @@ test_realizeGroupsOutput = do
             where M.Strokes {..} = M.notes
         taka = ta <> ka
         extract = fmap $ Text.unwords . map fmt
-        fmt (Sequence.FGroup _ _ g) = pretty g
+        fmt (Sequence.FGroup _ g children) =
+            pretty g <> "(" <> Text.unwords (map fmt children) <> ")"
         fmt (Sequence.FNote _ n) = pretty n
     equal (f taka) (Right "k t")
-    equal (f $ dropM 1 taka) (Right "([k], Before) t")
-    equal (f $ rdropM 1 taka) (Right "([t], After) k")
+    equal (f $ dropM 1 taka) (Right "([k], Before)(t)")
+    equal (f $ rdropM 1 taka) (Right "([t], After)(k)")
 
 test_realizeGroupsNested = do
     let f = fmap (mconcatMap pretty) . realizeN smap
@@ -192,8 +199,8 @@ rpattern :: Sequence.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.PatternM
 
 test_realizePatterns = do
-    let f pmap =
-            Realize.realize (Realize.realizePattern pmap)
+    let f pmap = Realize.formatError
+            . Realize.realize (Realize.realizePattern pmap)
                 (Realize.realizeSollu strokeMap)
             . Sequence.flatten
     let eStrokes = eWords . fmap Sequence.flattenedNotes
@@ -484,8 +491,8 @@ realizeN smap = fmap Sequence.flattenedNotes . realize smap
 realize :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> [Sequence.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realize smap =
-    Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
+realize smap = Realize.formatError
+    . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
     . Sequence.flatten
 
 kRealize :: Bool -> Tala.Tala -> Korvai.Sequence

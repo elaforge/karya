@@ -182,7 +182,7 @@ addThoppi t (Thoppi _) = Thoppi t
 -- * postprocess
 
 postprocess :: [Technique.Flat Stroke] -> [Technique.Flat Stroke]
-postprocess = Technique.postprocess $ Technique.plainTechnique technique
+postprocess = Technique.postprocess $ Technique.plain technique
 
 technique :: Technique.Technique Stroke
 technique prevs cur (next:nexts)

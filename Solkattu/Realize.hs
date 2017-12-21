@@ -21,15 +21,15 @@ import qualified Util.Doc as Doc
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+import qualified Util.UF as UF
 
 import qualified Derive.Expr as Expr
+import qualified Derive.Symbols as Symbols
+import Global
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 import qualified Solkattu.Terminal as Terminal
-import qualified Derive.Symbols as Symbols
-
-import Global
 
 
 type Error = Text
@@ -290,8 +290,6 @@ realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
     Nothing -> Left $ "no pattern for " <> pretty pattern
     Just notes -> Right $ S.tempoNotes $ S.flattenWith tempo notes
 
-type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
-
 -- | This is the realized version of 'Solkattu.Group'.  I retain the dropped
 -- strokes so "Solkattu.Technique" can use them.
 data Group stroke = Group { _dropped :: ![stroke], _side :: !Solkattu.Side }
@@ -300,144 +298,108 @@ data Group stroke = Group { _dropped :: ![stroke], _side :: !Solkattu.Side }
 instance Pretty stroke => Pretty (Group stroke) where
     pretty (Group dropped side) = pretty (dropped, side)
 
-realize :: forall stroke sollu. (Pretty sollu, Solkattu.Notation stroke)
-    => RealizePattern S.Tempo stroke -> GetStroke sollu stroke
-    -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
-    -> Either Error [Realized stroke]
+type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
+
+realize :: Pretty sollu => RealizePattern S.Tempo stroke
+    -> GetStroke sollu stroke -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> UF.UntilFail Error (Realized stroke)
 realize realizePattern getStroke =
-    collectGroups <=< formatError . first concat . mapUntilLeft realize1
+    UF.concatMap convertGroups . UF.process realize1
     where
     realize1 note@(S.FNote tempo n) notes = case n of
-        Solkattu.Alignment n -> Right ([S.FNote tempo (Alignment n)], notes)
-        Solkattu.Space space -> Right ([S.FNote tempo (Space space)], notes)
-        Solkattu.Pattern p -> do
-            tempoNotes <- realizePattern tempo p
-            return (map (uncurry S.FNote) tempoNotes, notes)
-        Solkattu.Note {} -> findSequence getStroke (note : notes)
-    realize1 (S.FGroup tempo count g) notes = do
-        let (pre, post) = splitAt count notes
-        -- realizePattern can change the length of the output, so I have to
-        -- recompute the group count.  TODO this is error-prone, making FGroup
-        -- not-flat would fix it, but likely make other things more
-        -- complicated.
-        realized <- formatError $ first concat $ mapUntilLeft realize1 pre
-        return (S.FGroup tempo (length realized) g : realized, post)
+        Solkattu.Alignment n -> (,notes) $
+            UF.singleton $ S.FNote tempo (Alignment n)
+        Solkattu.Space space -> (,notes) $
+            UF.singleton $ S.FNote tempo (Space space)
+        Solkattu.Pattern p -> (,notes) $ case realizePattern tempo p of
+            Left err -> UF.Fail err
+            Right tempoNotes -> UF.fromList $ map (uncurry S.FNote) tempoNotes
+        Solkattu.Note {} -> case findSequence getStroke (note : notes) of
+            Left err -> (UF.Fail err, notes)
+            Right (realized, remain) -> (UF.fromList realized, remain)
+    realize1 (S.FGroup tempo g children) notes =
+        (,notes) $ case UF.toList $ UF.process realize1 children of
+            -- I drop the group, so there will be extra notes in the output.
+            -- But if I emit a partial group, then convertGroup may get an
+            -- error, which will conceal the real one here.
+            (children, Just err) -> UF.fromListFail children err
+            (children, Nothing) -> UF.singleton $ S.FGroup tempo g children
 
-    formatError :: ([S.Flat g (Note stroke)], Maybe Text)
-        -> Either Error [S.Flat g (Note stroke)]
-    formatError (result, Nothing) = Right result
-    formatError (pre, Just err) = Left $
+formatError :: Solkattu.Notation a => UF.UntilFail Error (S.Flat g a)
+    -> Either Error [S.Flat g a]
+formatError = format . UF.toList
+    where
+    format (result, Nothing) = Right result
+    format (pre, Just err) = Left $
         TextUtil.joinWith "\n" (errorNotation (S.flattenedNotes pre)) err
     errorNotation = Text.unwords . map (justifyLeft 2 ' ' . Solkattu.notation)
 
 {- | Given a group like
 
-    > [S.FGroup 2 (Solkatttu.Group 1 Before), a, b, c]
+    > [S.FGroup (Solkatttu.Group 1 Before) [a, b], c]
 
     collect dropped strokes into a 'Group':
 
-    > [S.FGroup 1 (Group [a] Before), b, c]
+    > [S.FGroup (Group [a] Before) [b], c]
 -}
-collectGroups :: [S.Flat Solkattu.Group (Note stroke)]
-    -> Either Error [Realized stroke]
-collectGroups = go
+convertGroups :: S.Flat Solkattu.Group (Note stroke)
+    -> UF.UntilFail Error (S.Flat (Group (Stroke stroke)) (Note stroke))
+convertGroups (S.FNote tempo note) = UF.singleton $ S.FNote tempo note
+convertGroups (S.FGroup tempo g children) =
+    case UF.toList $ UF.concatMap convertGroups (UF.fromList children) of
+        -- The convertGroup is unlikely to succeed if the children aren't
+        -- complete, and even if it did it would probably be confusing.
+        -- So flatten this group and append an error.
+        (children, Just err) -> UF.fromListFail children err
+        (children, Nothing) -> convertGroup tempo g children
     where
-    go (S.FGroup tempo count g : notes) = do
-        (group, rest) <- collectGroup tempo g pre
-        (group:) <$> go (rest ++ post)
-        where (pre, post) = splitAt count notes
-    go (S.FNote tempo note : notes) = (S.FNote tempo note :) <$> go notes
-    go [] = Right []
+    convertGroup tempo (Solkattu.Group split side) children =
+        case splitStrokes (S.fmatraDuration tempo split) children of
+            Left err -> UF.Fail err
+            Right (left, (pre, post))
+                | left > 0 -> UF.Fail $ "group split too long, duration left: "
+                    <> pretty left
+                | otherwise -> UF.singleton $ S.FGroup tempo group kept
+                    where
+                    group = Group
+                        { _dropped = mapMaybe noteOf $ S.flattenedNotes dropped
+                        , _side = side
+                        }
+                    (kept, dropped) = case side of
+                        Solkattu.Before -> (post, pre)
+                        Solkattu.After -> (pre, post)
 
-collectGroup :: S.Tempo -> Solkattu.Group
-    -> [S.Flat Solkattu.Group (Note stroke)]
-    -> Either Error (Realized stroke, [S.Flat Solkattu.Group (Note stroke)])
-    -- ^ The updated Group, and the rest of the notes.  The rest are returned
-    -- unmodified because there might be nested groups inside, and I'll need to
-    -- call 'collectGroup' on them too.
-collectGroup tempo g@(Solkattu.Group split side) notes = do
-    -- Since 'splitStrokes' will add the 'dropped' durations, 0 makes it split
-    -- after all dropped strokes.
-    -- Debug.tracepM "split" $ (split, S.fmatraDuration tempo split)
-    (left, (pre, post)) <- first (("dropping group " <> pretty g <> ": ") <>) $
-        splitStrokes (S.fmatraDuration tempo split) notes
-    unless (left == 0) $
-        Left $ "split at " <> pretty split <> " is longer than the sequence, "
-            <> pretty left <> " aksharas left over"
-    let (kept, dropped) = case side of
-            Solkattu.Before -> (post, pre)
-            Solkattu.After -> (pre, post)
-    let group = Group
-            { _dropped = mapMaybe noteOf $ S.flattenedNotes dropped
-            , _side = side
-            }
-    return (S.FGroup tempo (length kept) group, kept)
-
--- splitStrokes2 :: S.Duration -> [S.Flat Solkattu.Group (Note stroke)]
---     -> Either Error (S.Duration,
---         ( [S.Flat Solkattu.Group (Note stroke)]
---         , [S.Flat Solkattu.Group (Note stroke)]
---         ))
--- splitStrokes2 dur (note : notes) = case note of
---     S.FGroup tempo count (Solkattu.Group split side) -> do
---         (left, (before, after)) <-
---             splitStrokes2 (S.fmatraDuration tempo split) pre
---         unless (left == 0) $
---             Left $ "split at " <> pretty split <> " is longer than the group, "
---                 <> pretty left <> " aksharas left over"
---         let (kept, dropped) = case side of
---                 Solkattu.Before -> (after, before)
---                 Solkattu.After -> (before, after)
---         let group = Group
---                 { _dropped = mapMaybe noteOf $ S.flattenedNotes dropped
---                 , _side = side
---                 }
---         return (S.FGroup tempo (length kept) group, kept)
---         where (pre, post) = splitAt count notes
-
-
-splitStrokes :: S.Duration -> [S.Flat Solkattu.Group (Note stroke)]
-    -> Either Error (S.Duration,
-        ( [S.Flat Solkattu.Group (Note stroke)]
-        , [S.Flat Solkattu.Group (Note stroke)]
-        ))
+splitStrokes :: S.Duration -> [S.Flat g (Note stroke)]
+    -> Either Error
+        ( S.Duration
+        , ([S.Flat g (Note stroke)], [S.Flat g (Note stroke)])
+        )
 splitStrokes dur [] = Right (dur, ([], []))
-splitStrokes dur (grp@(S.FGroup tempo _ (Solkattu.Group split side)) : notes) =
-    add (grp:) $ case side of
-        Solkattu.Before -> do
-            -- Debug.tracepM "add Before" (dur*4, droppedDur*4)
-            splitStrokes (dur + droppedDur) notes
-        Solkattu.After -> do
-            (left, (pre, post)) <- splitStrokes dur notes
-            -- TODO I think this is wrong
-            -- Debug.tracepM "add After" (left*4, droppedDur*4)
-            if left > 0
-                then add (pre++) $ splitStrokes (left + droppedDur) post
-                else return (left, (pre, post))
-            -- dur=2
-            -- split 2
-            -- g (ta ka | din) na
+splitStrokes dur notes | dur <= 0 = Right (dur, ([], notes))
+splitStrokes dur (note : notes) = case note of
+    S.FGroup tempo g children -> case splitStrokes dur children of
+        Left err -> Left err
+        Right (left, (_pre, [])) -> add (note:) $ splitStrokes left notes
+        Right (left, (pre, post)) -> Right
+            ( left
+            , ( [S.FGroup tempo g pre]
+              , S.FGroup tempo g post : notes
+              )
+            )
+    S.FNote tempo n
+        | noteDur <= dur -> add (note:) $ splitStrokes (dur - noteDur) notes
+        | otherwise -> case n of
+            Note _ -> Left "can't split a stroke"
+            Pattern p -> Left $ "can't split a pattern: " <> pretty p
+            Alignment _ -> Left $ "not reached: alignment should have 0 dur"
+            Space space -> do
+                let make = fmap (map (uncurry S.FNote)) . makeSpace tempo space
+                pre <- make dur
+                post <- make (dur - noteDur)
+                return (0, (pre, post ++ notes))
+        where
+        noteDur = noteDuration tempo n
     where
-    droppedDur = S.fmatraDuration tempo split
-    add = fmap . second . first
-
-splitStrokes dur (note@(S.FNote tempo n) : notes)
-    | dur <= 0 = Right (0, ([], note : notes))
-    | noteDur <= dur = do
-        -- Debug.tracepM "<=" (tempo, noteDur * 4, dur * 4)
-        add (note:) $ splitStrokes (dur - noteDur) notes
-    | otherwise = case n of
-        Note _ -> Left "can't split a stroke"
-        Pattern p -> Left $ "can't split a pattern: " <> pretty p
-        Alignment _ -> Left "can't split 0 duration alignment"
-        Space space -> do
-            let make = fmap (map (uncurry S.FNote)) . makeSpace tempo space
-            pre <- make dur
-            post <- make (dur - noteDur)
-            return (0, (pre, post ++ notes))
-    where
-    noteDur = -- Debug.traceRetp "noteDur" (tempo, n, notes) $
-        noteDuration tempo n
     add = fmap . second . first
 
 -- | Try to produce Spaces of the given Duration.  Based on Notation.spaceD.
@@ -452,21 +414,23 @@ makeSpace tempo space dur = map make <$> S.decompose s0_matras
 -- notes.
 findSequence :: Pretty sollu => GetStroke sollu stroke
     -> [S.Flat g (Solkattu.Note sollu)]
-    -> Either Error ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
+    -> Either Error
+        ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
 findSequence getStroke notes =
     case bestMatch tag sollus getStroke of
         Nothing -> Left $ "sequence not found: " <> pretty sollus
         Just strokes -> Right $ replaceSollus strokes notes
     where
-    -- Collect only sollus and rests, and strip the rests.
-    sollus = Maybe.catMaybes $ fst $
-        Seq.span_while isSollu (S.flattenedNotes notes)
-    isSollu (Solkattu.Note n) = Just $ Just $ Solkattu._sollu n
-    isSollu (Solkattu.Space {}) = Just Nothing
-    isSollu (Solkattu.Alignment {}) = Just Nothing
-    isSollu _ = Nothing
-    tag = Solkattu._tag
-        =<< Seq.head (mapMaybe Solkattu.noteOf (S.flattenedNotes notes))
+    -- Collect only sollus and rests.  This stops at a group boundary.
+    pre = fst $ Seq.span_while noteOf notes
+    sollus = map Solkattu._sollu $ mapMaybe snd pre
+    noteOf (S.FNote tempo n) = (tempo,) <$> case n of
+        Solkattu.Note n -> Just $ Just n
+        Solkattu.Space {} -> Just Nothing
+        Solkattu.Alignment {} -> Just Nothing
+        Solkattu.Pattern {} -> Nothing
+    noteOf (S.FGroup {}) = Nothing
+    tag = Solkattu._tag =<< Seq.head (mapMaybe snd pre)
 
 -- | Match each stroke to a Sollu, copying over Rests without consuming
 -- a stroke.
@@ -474,17 +438,20 @@ replaceSollus :: [Maybe (Stroke stroke)]
     -> [S.Flat g (Solkattu.Note sollu)]
     -> ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
 replaceSollus [] ns = ([], ns)
-replaceSollus (stroke : strokes) (n : ns) = case n of
-    S.FGroup tempo count g -> first (S.FGroup tempo count g :) next
-    S.FNote tempo note -> case note of
-        Solkattu.Note _ ->
-            first (S.FNote tempo rnote :) $ replaceSollus strokes ns
-            where rnote = maybe (Space Solkattu.Rest) Note stroke
-        Solkattu.Space space -> first (S.FNote tempo (Space space) :) next
-        Solkattu.Alignment {} -> next
-        -- This shouldn't happen because Seq.spanWhile isSollu should have
-        -- stopped when it saw this.
-        Solkattu.Pattern {} -> next
+    -- I should be out of strokes before I get here, so this shouldn't happen.
+    -- I could pass [(S.Tempo, Solkattu.Note sollu)], but then I have to
+    -- recreate a S.FGroup for everything in the tail, which is potentially
+    -- quadratic.
+replaceSollus (_ : _) ns@(S.FGroup {} : _) = ([], ns)
+replaceSollus (stroke : strokes) (S.FNote tempo n : ns) = case n of
+    Solkattu.Note _ ->
+        first (S.FNote tempo rnote :) $ replaceSollus strokes ns
+        where rnote = maybe (Space Solkattu.Rest) Note stroke
+    Solkattu.Space space -> first (S.FNote tempo (Space space) :) next
+    Solkattu.Alignment {} -> next
+    -- This shouldn't happen because Seq.spanWhile isSollu should have
+    -- stopped when it saw this.
+    Solkattu.Pattern {} -> next
     where
     -- Continue without consuming this stroke.
     next = replaceSollus (stroke : strokes) ns
@@ -527,7 +494,6 @@ exactMatch tag sollus (_, getStroke) =
 
 
 -- * format text
-
 
 -- | Format the notes according to the tala.
 --
@@ -610,14 +576,18 @@ formatLines strokeWidth width tala =
 annotateGroups :: [S.Flat g a] -> [([StartEnd], a)]
 annotateGroups =
     Maybe.catMaybes . snd . List.mapAccumL go (mempty, 0) . zip [0..]
+        . concatMap flatten
     where
-    go (groups, starts) (i, S.FGroup _ count _) =
+    go (groups, starts) (i, Left count) =
         ((MultiSet.insert (i + count) groups, starts + 1), Nothing)
-    go (groups, starts) (i, S.FNote _ note) =
+    go (groups, starts) (i, Right note) =
         ( (groups, 0)
         , Just (replicate starts Start ++ replicate ends End, note)
         )
         where ends = MultiSet.occur i groups
+    flatten (S.FGroup _ _ children) = Left (length flat) : flat
+        where flat = concatMap flatten children
+    flatten (S.FNote _ note) = [Right note]
 
 -- TODO these don't distinguish between different groups, but I'll probably
 -- want to do that once I have fancier formatting.
@@ -794,20 +764,3 @@ toTable colWidth header rows = mconcatMap (<>"\n") $
     th col = Doc.tag_attrs "th" [("width", showt colWidth), ("align", "left")]
         (Just col)
     row cols = "<tr>" <> mconcatMap (Doc.tag "td") cols <> "</tr>"
-
--- * util
-
-spanUntilJust :: [(Maybe a, b)] -> ([b], [(Maybe a, b)])
-spanUntilJust [] = ([], [])
-spanUntilJust ((Nothing, b) : abs) = first (b:) (spanUntilJust abs)
-spanUntilJust abs@((Just _, _) : _) = ([], abs)
-
--- | Apply the function until it returns Left.  The function can consume a
--- variable number of elements, ultimately because 'findSequence' does.
-mapUntilLeft :: (a -> [a] -> Either err (b, [a])) -> [a] -> ([b], Maybe err)
-mapUntilLeft f = go
-    where
-    go [] = ([], Nothing)
-    go (x:xs) = case f x xs of
-        Left err -> ([], Just err)
-        Right (val, rest) -> first (val:) (go rest)

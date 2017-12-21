@@ -161,7 +161,9 @@ instruments = Map.fromList
     , ("sargam", GInstrument sargam)
     ]
 
--- | A note with associated S.Meta.
+-- * realize
+
+-- | Fully realized notes.
 type Flat stroke =
     S.Flat (Realize.Group (Realize.Stroke stroke)) (Realize.Note stroke)
 
@@ -181,21 +183,20 @@ realize instrument realizePatterns korvai = case korvaiSequences korvai of
     tala = korvaiTala korvai
     inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
 
-realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke) =>
-    Bool -> Realize.GetStroke sollu stroke -> Realize.Instrument stroke
-    -> Tala.Tala -> SequenceT sollu
+realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke)
+    => Bool -> Realize.GetStroke sollu stroke
+    -> Realize.Instrument stroke -> Tala.Tala -> SequenceT sollu
     -> Either Error ([Flat stroke], Error)
 realizeInstrument realizePatterns getStroke inst tala sequence = do
-    let pattern = if realizePatterns
-            then Realize.realizePattern (Realize.instPatterns inst)
-            else Realize.keepPattern
-    realized <- Realize.realize pattern getStroke $ flatten sequence
-    let alignError = Realize.verifyAlignment tala (S.tempoNotes realized)
+    realized <- Realize.formatError $
+        Realize.realize pattern getStroke $ flatten sequence
+    let alignError = Realize.verifyAlignment tala $ S.tempoNotes realized
+    return (realized, maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError)
     -- TODO maybe put a carat in the output where the error index is
-    return
-        ( realized
-        , maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError
-        )
+    where
+    pattern
+        | realizePatterns = Realize.realizePattern (Realize.instPatterns inst)
+        | otherwise = Realize.keepPattern
 
 flatten :: [S.Note g (Solkattu.Note sollu)] -> [S.Flat g (Solkattu.Note sollu)]
 flatten = Solkattu.cancelKarvai . S.flatten
@@ -267,8 +268,7 @@ inferTags korvai = Tags $ Util.Map.multimap $ concat
     seqs = case korvaiSequences korvai of
         Sollu seqs -> map (mapSollu (const ())) seqs
         Mridangam seqs -> map (mapSollu (const ())) seqs
-    tempos = map (map fst . S.tempoNotes . Solkattu.cancelKarvai . S.flatten)
-        seqs
+    tempos = map (map fst . S.tempoNotes . flatten) seqs
     nadais = Seq.unique_sort $ concatMap (map S._nadai) tempos
     speeds = Seq.unique_sort $ concatMap (map S._speed) tempos
 
