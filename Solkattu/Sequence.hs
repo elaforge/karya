@@ -186,6 +186,17 @@ instance (Pretty g, Pretty a) => Pretty (Flat g a) where
     pretty (FGroup tempo g notes) = pretty (tempo, g, notes)
     pretty (FNote tempo note) = pretty (tempo, note)
 
+
+filterFlat :: (a -> Bool) -> [Flat g a] -> [Flat g a]
+filterFlat f = go
+    where
+    go (n : ns) = case n of
+        FGroup tempo g children -> FGroup tempo g (go children) : go ns
+        FNote tempo n
+            | f n -> FNote tempo n : go ns
+            | otherwise -> go ns
+    go [] = []
+
 notes :: [Note g a] -> [a]
 notes = flattenedNotes . flatten
 

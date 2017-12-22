@@ -254,6 +254,8 @@ test_format = do
         rupaka = Tala.rupaka_fast
     -- Emphasize every 4.
     equal (f rupaka n4) "K t _ n"
+    -- Alignment should be ignored.
+    equal (f rupaka ([Realize.Alignment 0] <> n4)) "K t _ n"
     equal (f rupaka (n4 <> n4)) "K t _ n K t _ n"
     -- Emphasis works in patterns.
     equal (f rupaka (n4 <> [rpattern 5] <> n4))

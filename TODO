@@ -2577,7 +2577,7 @@ solkattu:
           previous previous Korvai or realize output someplace that
           survives a reload, like write a file.  Then add a function to
           do a text diff with the file contents.
-  - Final notes should be cancellable, so e.g. tri will cancel for the
+  / Final notes should be cancellable, so e.g. tri will cancel for the
     first two.
     . E.g. tri (taka.tam.__) is ok when it's at the end, but when I nest
       it: tri (tri (taka.tam.__)) I need to rewrite as
@@ -2674,13 +2674,12 @@ solkattu:
         _ variants from Notation to MridangamGlobal, and using them to
         replace the non-_ versions.  Then replaceStart,End are only in
         MridangamGlobal.
-      . Mridangam scores don't need groups for realization, just for
-        highlighting.
-
-      - Move replaceStart and replaceEnd to MridangamGlobal, along with takeM_
-        variants.
       . Well no, actually Solkattu2017. c_17_09_25 uses it, and it seems
         legit.
+      . Mridangam scores don't need groups for realization, just for
+        highlighting.
+      - Move replaceStart and replaceEnd to MridangamGlobal, along with takeM_
+        variants.
     * Make FGroup recursive.
       . This means the consumers will have to become recursive too.  This may
         not be convenient since they are rendering to flat text.
@@ -2711,6 +2710,10 @@ solkattu:
     - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
       the unexpanded form.  I think this does need named groups.
     - Don't make tk and tktu groups, or at least don't highlight them.
+    unify patterns and groups:
+      . Groups have an optional name and highlight :: Bool.
+      . Then a realizeByDefault :: Bool, which says if realizePatterns :: Bool
+        will replace it.  Otherwise it can use name or "p" <> matras.
     / dropM shouldn't make a new group if there already is one
       . E.g.  dropM n (group x . y) puts both x and y into a group, instead of
         leaving y out.

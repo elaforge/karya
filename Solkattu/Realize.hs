@@ -553,10 +553,7 @@ formatLines :: Solkattu.Notation stroke => Int -> Int -> Tala.Tala
     -> [S.Flat g (Note stroke)] -> [[[(S.State, Symbol)]]]
 formatLines strokeWidth width tala =
     formatFinalAvartanam . map (breakLine width) . breakAvartanams
-        . map combine . Seq.zip_prev
-        . map makeSymbol
-        . annotateGroups
-        . S.normalizeSpeed tala
+        . map combine . Seq.zip_prev . map makeSymbol . flattenGroups tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
         where
@@ -571,6 +568,15 @@ formatLines strokeWidth width tala =
         where
         make text = Symbol text (shouldEmphasize aksharas state) startEnds
     aksharas = aksharaSet tala
+
+flattenGroups :: Tala.Tala -> [S.Flat g (Note a)]
+    -> [([StartEnd], (S.State, S.Stroke (Note a)))]
+flattenGroups tala = annotateGroups
+    . S.normalizeSpeed tala
+    . S.filterFlat (not . isAlignment)
+    where
+    isAlignment (Alignment {}) = True
+    isAlignment _ = False
 
 -- | Put StartEnd on the strokes to mark group boundaries.  This discards all
 -- other group data.
@@ -735,11 +741,8 @@ formatHtml tala notes = toTable 30 (map Doc.html ruler) body
 formatTable :: Solkattu.Notation stroke => Tala.Tala
     -> [S.Flat g (Note stroke)] -> [[(S.State, Doc.Html)]]
 formatTable tala =
-    breakAvartanams
-        . map emphasizeAkshara
-        . map showStroke
-        . annotateGroups
-        . S.normalizeSpeed tala
+    breakAvartanams . map emphasizeAkshara . map showStroke
+        . flattenGroups tala
     where
     -- TODO use startEnd to colorize groups
     showStroke (startEnd, (state, s)) = (state,) $ case s of
