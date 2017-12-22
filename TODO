@@ -1162,6 +1162,119 @@ documentation:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 
+Util.Linear: linear piecewise signal: signal-discontinuities:
+  . Problems I'm trying to solve:
+    . Need to remember to use Signal.set, and provide previous y.  Signals
+      should be implicitly flat in both directions, and merging them should
+      respect that.
+    . Transpose signal resampling should "just work", without needing special
+      'at_before' stuff.  Why does it require that now?
+      . Because it gets raw samples, without treating them as segments.  So I
+        could make unsignal return segments: [((X, Y), (X, Y)]
+    . Awkward rules where the sample at 0 sets values before.  Or at least the
+      part where it leads to errors when asking for the value at <0.
+    . Include shift so I can get rid of Score.Event 'untransformed' nonsense.
+      I think the problem before is having to use the shift on all signal
+      operations even when it's 0 for everyone except Event seemed over
+      complex.  Also that I just want a per-event offset, not one for each
+      signal inside.  Though if I extend this to stretch as well, then I don't
+      need a separate Warp type.  I don't think anyone except warp would use
+      it though.
+      . Ideally I could optionally layer it on a signal, but then I have to
+        reproduce all the functions.  But I could try to make a minimal API
+        in a typeclass, and have the functions be generic.
+      . Could I use this to unify pitch and control signals?
+    . How much would I solve just be changing (<>)?
+  . If I want to replace Environ with Val signals, then I'm back to
+    non-interpolated.
+  TODO:
+    * remove Signal.interleave
+    - make it generic on Y type
+    - implement concat
+    - implement linear and scalar transformations
+    - implement compose and integrate
+
+    - Get rid of srate.
+    - Midi performer has to use a sampling rate.
+    - Get rid of infer linear in the fltk drawing code.
+
+  . Emit signal discontinuities explicitly.
+  . If I say signals are now have linear interpolation by default, then
+    the linear interpolator can just emit one sample, but now MIDI needs
+    interpolation.  I'd have to put srate in the event so it can be
+    configured.
+  . Leaving as nominally non-interpolated, but with explicit discontinuities
+    since im actually is interpolated is not so pretty, but doesn't seem
+    so bad in practice.
+  . This breaks '* interleave', which was always fragile anyway.
+    . Can I save it with a hack?  It could get more clever, and move the
+      end sample: [(0, y1), (n, y1)] -> [(0, y1), (x, y1), (x, y2), ...]
+    . Or I could get rid of it entirely, if I can fill the same need another
+      way.  That's where I want to have swarams and gamakam separately, so
+      I interleave with the swaram track.
+      . I could have the gamakams read from the swaram track, but then
+        I want to get the pitch even when there is no gamakam, so I don't
+        have to put a dummy call on each note.
+      . The most direct way might be a track preprocessor that copies over
+        swarams, or maybe adds a "!^".  I worry about how this obscures
+        the usual rules of evaluation, but ! notation is already sort of
+        its own language.  I'd need some special track-level macro call.
+      . What if ! in a track call was a macro symbol.
+        Control.d_control_track separates those out, and calls them from
+        a special namespace.  I think they have to go at the front.
+      . Why is gamakam not emitting a transpose signal?  I can transpose
+        to another pitch with scale_read and scale_show.  But then what kind
+        of transposition?  t-dia is obvious, but some gamakams are below
+        diatonic.  Actually it can emit multiple signals via the
+        ControlMod hack.  I can try to do everything with diatonic, but
+        I do need absolute pitch deviations.
+        . Speaking of ControlMod, what would it take to have a control track
+          actually emit multiple control signals?
+          . I guess it would have to be a new type of track, with a
+            [(Control, Signal)] return value.  It's actually similar to
+            ControlMod except without biased towards any particular Control.
+        . So try a Gamakam5: build fragments of transpose signals.
+      . But can I really use t-dia?  How do I represent alternate ga or
+        something?  I think the most straightforward way is treat them as
+        chromatic notes.  Then it become t-chrom.  But I think I can do
+        t-dia for now, until I have that.
+      . But now if I have different types of transposition, I can't go from
+        one to the other, e.g. +1nn move to -2d.  I would have to flatten to
+        an absolute measure like nn, but scales don't give me that.
+      . I could get it though, by reducing to NN and doing a diff.
+        I think I do need transposed pitches, though.
+      . From would always be NN, to would be (Transposition, Step).
+      . This all makes it dependent on the scale, it seems nicer to have
+        all those functions just emit signals. I guess I can still do that
+        if I supply a Transposition -> NN function.  The output gets kind of
+        unreadable though, unless I want to emit (Transposition, Step)
+        breakpoints, and assume everything will fit into that.  Might as
+        well be (Transition, (Transposition, Step)), but now PCalls don't
+        really do much.
+      . I still need a value for discontinuities though.  It's code vs. data
+        again.
+      . Oh yes, and prev pitch doesn't work if I'm a control track.  But
+        I can get the prev transpose.
+      . Another problem is that I have to make it a t-nn track, which
+        doesn't make much sense, and any other control calls wind up being
+        in t-nn, which doesn't seem that useful.
+      . If pitch gamakam is also in a cantrol track, I can't tell it from
+        dyn controls.  Really what I want is to be able to write "gamakam"
+        for the transpose, and it can set the interpretation of !.  Or even
+        use a lookup so I don't need to use !.
+      . Maybe this is how to do macros: track title is a lookup in
+        a track-macros namespace.  If 'name' isn't found, then it defaults
+        to '%name' ala LookupPattern.  Track call namespace should also be
+        in the CallMaps and Library so it can be imported with modules.
+        Also I think it needs note, pitch, and control variants in the same
+        way.
+      . As long as I'm doing this I can go back to using pitches for
+        gamakam, and just copy over from the pitch track.  Not sure if
+        I should though.
+
+      . Which of these would be best for possible future kinds of notation,
+        or further extension?
+
 synth: im:
   - If I delete an instrument and rerender, the old one is left around.
     This is because the cache won't delete existing files.  This will be fixed
@@ -1230,83 +1343,6 @@ synth: im:
   * if notes start >0, rendering starts at 0 anyway
   * no sample match when guit.wav is muted?
 
-  signal-discontinuities:
-    . Emit signal discontinuities explicitly.
-    . If I say signals are now have linear interpolation by default, then
-      the linear interpolator can just emit one sample, but now MIDI needs
-      interpolation.  I'd have to put srate in the event so it can be
-      configured.
-    . Leaving as nominally non-interpolated, but with explicit discontinuities
-      since im actually is interpolated is not so pretty, but doesn't seem
-      so bad in practice.
-    . This breaks '* interleave', which was always fragile anyway.
-      . Can I save it with a hack?  It could get more clever, and move the
-        end sample: [(0, y1), (n, y1)] -> [(0, y1), (x, y1), (x, y2), ...]
-      . Or I could get rid of it entirely, if I can fill the same need another
-        way.  That's where I want to have swarams and gamakam separately, so
-        I interleave with the swaram track.
-        . I could have the gamakams read from the swaram track, but then
-          I want to get the pitch even when there is no gamakam, so I don't
-          have to put a dummy call on each note.
-        . The most direct way might be a track preprocessor that copies over
-          swarams, or maybe adds a "!^".  I worry about how this obscures
-          the usual rules of evaluation, but ! notation is already sort of
-          its own language.  I'd need some special track-level macro call.
-        . What if ! in a track call was a macro symbol.
-          Control.d_control_track separates those out, and calls them from
-          a special namespace.  I think they have to go at the front.
-        . Why is gamakam not emitting a transpose signal?  I can transpose
-          to another pitch with scale_read and scale_show.  But then what kind
-          of transposition?  t-dia is obvious, but some gamakams are below
-          diatonic.  Actually it can emit multiple signals via the
-          ControlMod hack.  I can try to do everything with diatonic, but
-          I do need absolute pitch deviations.
-          . Speaking of ControlMod, what would it take to have a control track
-            actually emit multiple control signals?
-            . I guess it would have to be a new type of track, with a
-              [(Control, Signal)] return value.  It's actually similar to
-              ControlMod except without biased towards any particular Control.
-          . So try a Gamakam5: build fragments of transpose signals.
-        . But can I really use t-dia?  How do I reresent alternate ga or
-          something?  I think the most straightforward way is treat them as
-          chromatic notes.  Then it become t-chrom.  But I think I can do
-          t-dia for now, until I have that.
-        . But now if I have different types of transposition, I can't go from
-          one to the other, e.g. +1nn move to -2d.  I would have to flatten to
-          an absolute measure like nn, but scales don't give me that.
-        . I could get it though, by reducing to NN and doing a diff.
-          I think I do need transposed pitches, though.
-        . From would always be NN, to would be (Transposition, Step).
-        . This all makes it dependent on the scale, it seems nicer to have
-          all those functions just emit signals. I guess I can still do that
-          if I supply a Transposition -> NN function.  The output gets kind of
-          unreadable though, unless I want to emit (Transposition, Step)
-          breakpoints, and assume everything will fit into that.  Might as
-          well be (Transition, (Transposition, Step)), but now PCalls don't
-          really do much.
-        . I still need a value for discontinuities though.  It's code vs. data
-          again.
-        . Oh yes, and prev pitch doesn't work if I'm a control track.  But
-          I can get the prev transpose.
-        . Another problem is that I have to make it a t-nn track, which
-          doesn't make much sense, and any other control calls wind up being
-          in t-nn, which doesn't seem that useful.
-        . If pitch gamakam is also in a cantrol track, I can't tell it from
-          dyn controls.  Really what I want is to be able to write "gamakam"
-          for the transpose, and it can set the interpretation of !.  Or even
-          use a lookup so I don't need to use !.
-        . Maybe this is how to do macros: track title is a lookup in
-          a track-macros namespace.  If 'name' isn't found, then it defaults
-          to '%name' ala LookupPattern.  Track call namespace should also be
-          in the CallMaps and Library so it can be imported with modules.
-          Also I think it needs note, pitch, and control variants in the same
-          way.
-        . As long as I'm doing this I can go back to using pitches for
-          gamakam, and just copy over from the pitch track.  Not sure if
-          I should though.
-
-        . Which of these would be best for possible future kinds of notation,
-          or further extension?
   efficient conduit-audio:
     . Currently I mix [(RealTime, Audio)] by padding all to their start time,
       and mixing them all.  This is inefficient because it generates and adds

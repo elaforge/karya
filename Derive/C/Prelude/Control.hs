@@ -87,8 +87,7 @@ pattern_transformer = pattern_call $ \val ->
     \ e.g. interpolate to a value and then jump to another one."
     $ Sig.call0t $ \args deriver -> do
         pos <- Args.real_start args
-        let sig = Signal.signal [(pos, val)]
-        Post.signal (Signal.interleave sig) deriver
+        Post.signal (<> Signal.signal [(pos, val)]) deriver
 
 pattern_call :: (Signal.Y -> Derive.Call d)
     -> Derive.PatternCall (Derive.Call d)

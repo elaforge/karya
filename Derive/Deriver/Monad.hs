@@ -1036,8 +1036,6 @@ mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
     , Merger "max" Signal.sig_max (Signal.constant (-2^32))
     , Merger "min" Signal.sig_min (Signal.constant (2^32))
-    -- flip ensures that when samples collide, the later track wins.
-    , Merger "interleave" (flip Signal.interleave) mempty
     ]
     where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
 

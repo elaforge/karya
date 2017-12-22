@@ -38,7 +38,7 @@ module Perform.Signal (
     , minimum, maximum
 
     -- * transformation
-    , merge, merge_extend, concat, interleave, prepend
+    , merge, merge_extend, concat, prepend
     , sig_add, sig_subtract, sig_multiply, sig_scale
     , scale, scale_invert
     -- ** scalar transformation
@@ -357,10 +357,6 @@ merge_extend = Signal . TimeVector.merge_right_extend . map sig_vec
 -- more efficient when you know the signals don't overlap.
 concat :: [Signal y] -> Signal y
 concat = Signal . Vector.concat . map sig_vec
-
-interleave :: Signal y -> Signal y -> Signal y
-interleave sig1 sig2 = Signal $
-    TimeVector.interleave (sig_vec sig1) (sig_vec sig2)
 
 prepend :: Signal y -> Signal y -> Signal y
 prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)

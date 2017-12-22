@@ -74,8 +74,7 @@ c_set_transformer = Derive.transformer Module.prelude "set" mempty
     $ \pitch_ args deriver -> do
         let pitch = either PSignal.nn_pitch id pitch_
         pos <- Args.real_start args
-        let sig = PSignal.signal [(pos, pitch)]
-        Post.signal (PSignal.interleave sig) deriver
+        Post.signal (<> PSignal.signal [(pos, pitch)]) deriver
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
 c_set_prev :: Derive.Generator Derive.Pitch
