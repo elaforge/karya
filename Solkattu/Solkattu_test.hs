@@ -24,6 +24,19 @@ test_matrasOf = do
     equal (f (t 1 4) ta) (1/2)
     equal (f (t 1 6) ta) (1/2)
 
+    let ta4 = ta <> ta <> ta <> ta
+    let f2 = f Sequence.defaultTempo
+    equal (f2 (Notation.takeM 0 ta4)) 0
+    equal (f2 (Notation.takeM 1 ta4)) 1
+    equal (f2 (Notation.takeM 4 ta4)) 4
+    equal (f2 (Notation.takeM 5 ta4)) 4
+    equal (f2 (Dsl.su (Notation.takeM 2 ta4))) 1
+
+    equal (f2 (Notation.dropM 0 ta4)) 4
+    equal (f2 (Notation.dropM 1 ta4)) 3
+    equal (f2 (Notation.dropM 4 ta4)) 0
+    equal (f2 (Notation.dropM 5 ta4)) 0
+
 test_cancelKarvai = do
     let f = Text.unwords . map pretty . Sequence.flattenedNotes
             . Solkattu.cancelKarvai . Sequence.flatten

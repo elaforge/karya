@@ -248,17 +248,18 @@ durationOf :: S.Tempo -> [S.Note Group (Note sollu)] -> S.Duration
 durationOf tempo = S.fmatraDuration tempo . matrasOf tempo
 
 matrasOf :: S.HasMatras note => S.Tempo -> [S.Note Group note] -> S.FMatra
-matrasOf tempo notes =
-    sum (map (S.noteFmatra tempo) notes) - droppedMatras tempo notes
-
-droppedMatras :: S.Tempo -> [S.Note Group note] -> S.FMatra
-droppedMatras tempo = sum . map get
+matrasOf tempo = sum . map (get tempo)
     where
-    get n = case n of
-        S.Group g ns -> S.normalizeFmatra tempo (_split g) + sum (map get ns)
-        S.TempoChange change ns ->
-            droppedMatras (S.changeTempo change tempo) ns
-        _ -> 0
+    get tempo n = case n of
+        S.Note n -> toMatras tempo $ S.durationOf tempo n
+        S.TempoChange change notes ->
+            matrasOf (S.changeTempo change tempo) notes
+        S.Group g notes -> case _side g of
+            Before -> max 0 (matrasOf tempo notes - split)
+            After -> min split (matrasOf tempo notes)
+            where
+            split = S.normalizeFmatra tempo (_split g)
+    toMatras tempo dur = realToFrac $ dur * fromIntegral (S._nadai tempo)
 
 -- * functions
 
