@@ -2663,7 +2663,7 @@ solkattu:
         . But try switching to a proper recursive implementation before doing
           all this work.
 
-    - Mridangam2013.dinnagina_sequence is broken.
+    * Mridangam2013.dinnagina_sequence is broken.
       . It's because replaceEnd uses rdropM_, which directly modifies the
         sequence.  That makes the _split from takeD no longer valid.
       . One way is to get rid of the _ variants, but I need them when
@@ -2678,8 +2678,12 @@ solkattu:
         legit.
       . Mridangam scores don't need groups for realization, just for
         highlighting.
-      - Move replaceStart and replaceEnd to MridangamGlobal, along with takeM_
+      / Move replaceStart and replaceEnd to MridangamGlobal, along with takeM_
         variants.
+      * Make splitM_ flatten a group it splits.  It doesn't makes ense to
+        leave partial groups anyway.
+      * But it's still broken with eg.. takeM_, because matrasOf understands
+        group Solkattu._split, while the splitM_ doesn't.
     * Make FGroup recursive.
       . This means the consumers will have to become recursive too.  This may
         not be convenient since they are rendering to flat text.

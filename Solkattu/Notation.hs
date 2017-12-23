@@ -91,7 +91,7 @@ splitM_ :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
 splitM_ matras = Solkattu.check . splitM_either matras
 
-splitM_either :: (Pretty sollu) => FMatra -> SequenceT sollu
+splitM_either :: Pretty sollu => FMatra -> SequenceT sollu
     -> Either Text (SequenceT sollu, SequenceT sollu)
 splitM_either matras =
     fmap ((S.simplify *** S.simplify) . snd) . go S.defaultTempo matras
@@ -108,10 +108,12 @@ splitM_either matras =
             S.TempoChange change subs ->
                 group (S.TempoChange change) (S.changeTempo change tempo)
                     matras subs ns
-            -- TODO actually this is wrong.  I would have to add extra the
-            -- split off sollus to the group, but no need to bother until it
-            -- becomes a problem.
-            S.Group g subs -> group (S.Group g) tempo matras subs ns
+            -- The group is destroyed if it gets split.
+            S.Group g children -> do
+                (pre, post) <- splitM_either (Solkattu._split g) children
+                case Solkattu._side g of
+                    Solkattu.Before -> go tempo matras (post ++ ns)
+                    Solkattu.After -> go tempo matras (pre ++ ns)
             S.Note (Solkattu.Space space) -> do
                 pre <- spaces tempo space matras
                 post <- spaces tempo space (noteMatras - matras)

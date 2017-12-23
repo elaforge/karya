@@ -186,7 +186,6 @@ instance (Pretty g, Pretty a) => Pretty (Flat g a) where
     pretty (FGroup tempo g notes) = pretty (tempo, g, notes)
     pretty (FNote tempo note) = pretty (tempo, note)
 
-
 filterFlat :: (a -> Bool) -> [Flat g a] -> [Flat g a]
 filterFlat f = go
     where

@@ -44,6 +44,14 @@ test_splitM_ = do
     equal (f 1 (sd __ <> ka)) $ Right (["__"], ["__", "ka"])
     equal (f 3 (sd (sd __) <> ka)) $ Right (["s-1(__)", "__"], ["__", "ka"])
 
+test_takeDrop = do
+    let tdgn = mconcat [ta, DslSollu.din, DslSollu.gin, DslSollu.na]
+    let extract = map pretty
+    equal (extract $ dropM_ 0 (takeM 2 tdgn)) ["(2, After)(ta din gin na)"]
+    equal (extract $ dropM_ 1 (takeM 2 tdgn)) ["din"]
+    equal (extract $ dropM_ 2 (takeM 3 tdgn)) ["gin"]
+    equal (extract $ dropM_ 2 (takeM 2 tdgn)) []
+
 test_spaceM = do
     let f = sum . map (S.noteFmatra S.defaultTempo) . spaceM Solkattu.Rest
     equal (f 0) 0

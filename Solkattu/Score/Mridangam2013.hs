@@ -15,9 +15,9 @@ import Solkattu.MridangamGlobal
 dinnagina_sequence :: Korvai
 dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvai1 adi $
     su $ mconcat $ map (sam.)
-    [ sarva `replaceEnd` ptheme
-    , takeD 8 sarva `replaceEnd` ptheme
-        . rtakeD 8 sarva `replaceEnd` ptheme
+    [ sarvaA 16 ptheme
+    , sarvaA 8 ptheme . sarvaA 8 ptheme
+
     -- start sarvalaghu with o k D D ...
     -- o k oktkoktkpktkt k oktkoktkoktk     x2
     , theme . ptheme . theme . ptheme
@@ -45,9 +45,6 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvai1 adi $
     , tri_ (o.__4) (theme . pme3b' . eme3b' . pme3b' . eme3b')
     ]
     where
-    sarva = sd $ sd $
-          on.od.od.on. su (on.on) .od.od.on
-        . p&n.d.d.n  . n          .od.od.on
     -- dhom ka dinnagina takataka talang ga
     theme = o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k
     -- TODO not quite right, this has to be ptheme when not on an sam or arudi
