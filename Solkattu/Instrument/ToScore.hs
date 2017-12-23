@@ -34,7 +34,7 @@ toScore strokes = (events, [])
     events = do
         (start, dur, note) <- zip3 starts durs notes
         Just expr <- [toExpr note]
-        let d = if Sequence.hasDuration note then dur else 0
+        let d = if Sequence.hasSustain note then dur else 0
         return (start, d, ShowVal.show_val expr)
     starts = scanl (+) 0 durs
     (durs, notes) = unzip strokes

@@ -2524,7 +2524,7 @@ solkattu:
   * Move Solkattu directory to the top level, it's not really part of Derive
     . At some point it might be a completely separate package.
     * I could also switch over to camelCase.
-  - Sequence.hasDuration should be hasSustain
+  * Sequence.hasDuration should be hasSustain
     . Otherwise it's confusing because obviously it does have a Duration.
     . Well, it doesn't actually mean has sustain though.  It means this
       note should turn into a call with duration, which in turn is because it

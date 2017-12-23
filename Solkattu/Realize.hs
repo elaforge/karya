@@ -114,7 +114,7 @@ instance S.HasMatras (Note stroke) where
         Space {} -> 1
         Pattern p -> S.matrasOf p
         Alignment {} -> 0
-    hasDuration n = case n of
+    hasSustain n = case n of
         Note {} -> False
         Space {} -> True
         Pattern {} -> True

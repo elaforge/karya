@@ -197,7 +197,7 @@ instance S.HasMatras (Note sollu) where
         Space {} -> 1
         Pattern p -> S.matrasOf p
         Alignment {} -> 0
-    hasDuration n = case n of
+    hasSustain n = case n of
         Note {} -> False
         Space {} -> True
         Pattern {} -> True
@@ -207,7 +207,7 @@ instance S.HasMatras Pattern where
     matrasOf p = case p of
         PatternM m -> m
         Nakatiku -> 8
-    hasDuration _ = True
+    hasSustain _ = True
 
 data Pattern =
     PatternM !S.Matra

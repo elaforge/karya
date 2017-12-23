@@ -23,13 +23,14 @@ module Solkattu.Sequence (
     , decompose, decomposeM
     -- * flatten
     , Flat(..)
+    , filterFlat
     , notes, flatten, flattenWith, flattenedNotes
     , tempoToState, withDurations, tempoNotes
     , Stroke(..), normalizeSpeed
     -- * State
     , State(..), statePosition, showPosition
     -- * functions
-    , noteDuration, noteFmatra, fmatraDuration, normalizeFmatra
+    , noteDuration, durationOf, noteFmatra, fmatraDuration, normalizeFmatra
     , matraDuration
 #ifdef TESTING
     , module Solkattu.Sequence
@@ -104,10 +105,9 @@ changeSpeed = TempoChange . ChangeSpeed
 class HasMatras a where
     matrasOf :: a -> Matra
     -- | True if this note has a duration in time.  Otherwise, it's a single
-    -- stroke, which logically has zero duration.  So far, this only affects
-    -- how the note is drawn.
-    -- TODO this should be hasSustain
-    hasDuration :: a -> Bool
+    -- stroke, which logically has zero duration.  This only affects how the
+    -- note is drawn and whether it becomes a tracklang event with duration.
+    hasSustain :: a -> Bool
 
 -- * transform
 
@@ -265,7 +265,7 @@ normalizeSpeed tala flattened = fst $
     expand (FNote tempo note) =
         map (FNote (tempo { _speed = maxSpeed })) $
             Attack note : replicate (spaces - 1)
-                (if hasDuration note then Sustain note else Rest)
+                (if hasSustain note then Sustain note else Rest)
         where
         spaces = _stride tempo * matrasOf note * 2 ^ (maxSpeed - _speed tempo)
     maxSpeed = maximum $ 0 : map _speed (tempoOf flattened)

@@ -154,7 +154,7 @@ note = Sequence.Note 1
 
 instance Sequence.HasMatras Sequence.Matra where
     matrasOf = id
-    hasDuration n = n > 1
+    hasSustain n = n > 1
 
 nadai :: Sequence.Nadai -> [Note g a] -> Note g a
 nadai = TempoChange . Sequence.Nadai
