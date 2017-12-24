@@ -191,6 +191,9 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - generic deriving Monoid?
+    . How about monoid is_empty that doesn't use Eq?
+
   - Attributes are not necessarily suited to fundamentally exclusive
     articulations, like striking technique.  For NESS strings I use the
     'element' field, maybe I should be using environ for that at the score
@@ -2525,7 +2528,9 @@ solkattu:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   format: output:
-    - html output for realized strokes
+    * html output for realized strokes
+      - I don't have to scale the font down.
+    - html: extend double line instead of = for sarvalaghu
     * figure out how to get even spacing for the html output
       . style="table-layout: fixed" doesn't seem to work, or at least I don't
         understand how it works.

@@ -15,7 +15,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.MultiSet as MultiSet
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Doc as Doc
 import qualified Util.Pretty as Pretty
@@ -256,6 +255,10 @@ data Instrument stroke = Instrument {
     instStrokeMap :: StrokeMap stroke
     , instPatterns :: Patterns stroke
     } deriving (Eq, Show)
+
+isInstrumentEmpty :: Instrument stroke -> Bool
+isInstrumentEmpty (Instrument (StrokeMap strokeMap) (Patterns patterns)) =
+    Map.null strokeMap && Map.null patterns
 
 instance Monoid (Instrument stroke) where
     mempty = Instrument mempty mempty
@@ -726,12 +729,11 @@ textLength = sum . map len . untxt
 
 -- * format html
 
-renderHtml :: Solkattu.Notation stroke => Text -> Doc.Html -> Tala.Tala
-    -> [[S.Flat g (Note stroke)]] -> Doc.Html
-renderHtml title meta tala rows = mconcat
+htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
+htmlPage title meta body = mconcat
     [ htmlHeader title
     , meta
-    , TextUtil.join "\n\n" $ map (formatHtml tala) rows
+    , body
     , htmlFooter
     ]
 
@@ -813,7 +815,7 @@ toTable tala header rows = mconcatMap (<>"\n") $
         depth = (prevDepth+) $ sum $ flip map startEnds $ \n -> case n of
             Start -> 1
             End -> -1
-    groupSustains = List.groupBy $ \(state1, (_, note1)) (state2, (_, note2)) ->
+    groupSustains = List.groupBy $ \(_, (_, note1)) (state2, (_, note2)) ->
         note1 == Nothing && note2 == Nothing && not (hasLine state2)
     td [] = "" -- not reached, List.groupBy shouldn't return empty groups
     td ((state, ((depth :: Int, start, end), note)) : ns) =

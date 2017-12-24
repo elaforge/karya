@@ -137,8 +137,7 @@ konnakol = defaultInstrument
     }
 
 kendangTunggal :: Instrument KendangTunggal.Stroke
-kendangTunggal =
-    defaultInstrument { instFromStrokes = instKendangTunggal }
+kendangTunggal = defaultInstrument { instFromStrokes = instKendangTunggal }
 
 reyong :: Instrument Reyong.Stroke
 reyong = defaultInstrument { instFromStrokes = instReyong }
@@ -149,7 +148,7 @@ sargam = defaultInstrument
     , instToScore = Sargam.toScore
     }
 
--- | An existential type to capture the Pretty instance.
+-- | An existential type to capture the Notation instance.
 data GInstrument =
     forall stroke. Solkattu.Notation stroke => GInstrument (Instrument stroke)
 
@@ -260,7 +259,7 @@ inferTags korvai = Tags $ Util.Map.multimap $ concat
         . Solkattu.durationOf S.defaultTempo) seqs
     , map ("nadai",) (map showt nadais)
     , map ("speed",) (map showt speeds)
-    , map ("instrument",) [name | (name, True) <- instruments]
+    , map ("instrument",) instruments
     ]
     where
     tala = korvaiTala korvai
@@ -273,13 +272,15 @@ inferTags korvai = Tags $ Util.Map.multimap $ concat
     nadais = Seq.unique_sort $ concatMap (map S._nadai) tempos
     speeds = Seq.unique_sort $ concatMap (map S._speed) tempos
 
-    instruments =
-        [ ("mridangam", hasInstrument korvai instMridangam)
-        , ("kendangTunggal", hasInstrument korvai instKendangTunggal)
-        , ("reyong", hasInstrument korvai instReyong)
-        , ("sargam", hasInstrument korvai instSargam)
+    -- TODO use the names from GInstrument
+    instruments = concat
+        [ ["mridangam" | hasInstrument korvai instMridangam]
+        , ["kendangTunggal" | hasInstrument korvai instKendangTunggal]
+        , ["reyong" | hasInstrument korvai instReyong]
+        , ["sargam" | hasInstrument korvai instSargam]
         ]
-    hasInstrument korvai get = get (korvaiStrokeMaps korvai) /= mempty
+    hasInstrument korvai get = not $ Realize.isInstrumentEmpty $
+        get (korvaiStrokeMaps korvai)
 
 withMetadata :: Metadata -> Korvai -> Korvai
 withMetadata meta korvai =
@@ -327,12 +328,44 @@ writeKonnakolHtml realizePatterns korvai =
         Right results
             | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
             | otherwise -> do
-                let (_, _, name) = _location (korvaiMetadata korvai)
+                let (_, _, title) = _location (korvaiMetadata korvai)
                 Text.IO.writeFile "konnakol.html" $ Doc.un_html $
-                    Realize.renderHtml name (metadataHtml korvai)
-                        (korvaiTala korvai) notes
+                    Realize.htmlPage title (metadataHtml korvai) body
                 putStrLn "wrote konnakol.html"
-            where (notes, warnings) = unzip results
+            where
+            body = TextUtil.join "\n\n" $
+                map (Realize.formatHtml (korvaiTala korvai)) notes
+            (notes, warnings) = unzip results
+
+-- | Write HTML with all the instrument realizations.
+writeHtmlKorvai :: Bool -> Korvai -> IO ()
+writeHtmlKorvai realizePatterns korvai = do
+    Text.IO.writeFile "korvai.html" $ Doc.un_html $
+        htmlInstruments realizePatterns korvai
+    putStrLn "wrote korvai.html"
+
+-- ** implementation
+
+htmlInstruments :: Bool -> Korvai -> Doc.Html
+htmlInstruments realizePatterns korvai =
+    Realize.htmlPage title (metadataHtml korvai) body
+    where
+    (_, _, title) = _location (korvaiMetadata korvai)
+    body = mconcat $ mapMaybe htmlInstrument (Map.toAscList instruments)
+    htmlInstrument (name, GInstrument inst)
+        | Realize.isInstrumentEmpty strokeMap = Nothing
+        | otherwise = Just $ "<h3>" <> Doc.html name <> "</h3>\n"
+            <> TextUtil.join "\n\n" sections
+        where
+        strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
+        sections = map (htmlResult (korvaiTala korvai)) $
+            realize inst realizePatterns korvai
+
+htmlResult :: Solkattu.Notation stroke => Tala.Tala
+    -> Either Text ([S.Flat g (Realize.Note stroke)], Error) -> Doc.Html
+htmlResult _ (Left err) = "<p> ERROR: " <> Doc.html err
+htmlResult tala (Right (notes, warn)) = Realize.formatHtml tala notes
+    <> if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
 
 metadataHtml :: Korvai -> Doc.Html
 metadataHtml korvai = TextUtil.join "<br>\n" $ concat $

@@ -42,7 +42,8 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai, printKonnakol, writeKonnakolHtml)
+import Solkattu.Korvai
+    (Korvai, printKonnakol, writeKonnakolHtml, writeHtmlKorvai)
 import Solkattu.Metadata
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
