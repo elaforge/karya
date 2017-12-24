@@ -2528,23 +2528,29 @@ solkattu:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   format: output:
-    * html output for realized strokes
-      - I don't have to scale the font down.
-    - html: extend double line instead of = for sarvalaghu
-    * figure out how to get even spacing for the html output
-      . style="table-layout: fixed" doesn't seem to work, or at least I don't
-        understand how it works.
-    * draw a vertical line on aksharas, maybe double for angas
+    html:
+      - write html for everything in the db
+      * html output for realized strokes
+      * I don't have to scale the font down.
+      - extend double line instead of = for sarvalaghu
+      - Replace a double rest that starts on an even matra with a double
+        underline, or something.  This is effectively rhythmic spelling.
+      - Could I do a formatted realized or konnakol output?
+        . E.g. reductions or tri would line up vertically.
+      - gray letters for light strokes
+      * Highlight groups in konnakol html.
+      * draw a vertical line on aksharas, maybe double for angas
+      * figure out how to get even spacing for the html output
+        . style="table-layout: fixed" doesn't seem to work, or at least I don't
+          understand how it works.
+    ascii:
+      - Colors stop right before the last note, not on it.
+        . It's probably because I need to highlight the end of the group.  Can
+          I use lighter gray?
+      - If groups touch each other then I can't tell them apart.  Maybe
+        I should alternate two colors.
     - Solkattu.notation should output an abstract formatted output, which can
       be rendered to HTML or ASCII.
-    - Could I do a formatted realized or konnakol output?
-      . E.g. reductions or tri would line up vertically.
-    * Highlight groups in konnakol html.
-    - in ascii, colors stop right before the last note, not on it.
-      . It's probably because I need to highlight the end of the group.  Can
-        I use lighter gray?
-    - If groups touch each other then I can't tell them apart.  Maybe
-      I should alternate two colors.
     - format: if the ruler changes after an avartanam line break, show the
       partial ruler, e.g. Realize_test.test_format_nadai_change
   * Move Solkattu directory to the top level, it's not really part of Derive

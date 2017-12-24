@@ -6,6 +6,7 @@
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Solkattu.Korvai where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -156,7 +157,7 @@ instruments :: Map Text GInstrument
 instruments = Map.fromList
     [ ("mridangam", GInstrument mridangam)
     , ("konnakol", GInstrument konnakol)
-    , ("kendangTunggal", GInstrument kendangTunggal)
+    , ("kendang tunggal", GInstrument kendangTunggal)
     , ("reyong", GInstrument reyong)
     , ("sargam", GInstrument sargam)
     ]
@@ -275,7 +276,7 @@ inferTags korvai = Tags $ Util.Map.multimap $ concat
     -- TODO use the names from GInstrument
     instruments = concat
         [ ["mridangam" | hasInstrument korvai instMridangam]
-        , ["kendangTunggal" | hasInstrument korvai instKendangTunggal]
+        , ["kendang tunggal" | hasInstrument korvai instKendangTunggal]
         , ["reyong" | hasInstrument korvai instReyong]
         , ["sargam" | hasInstrument korvai instSargam]
         ]
@@ -334,7 +335,7 @@ writeKonnakolHtml realizePatterns korvai =
                 putStrLn "wrote konnakol.html"
             where
             body = TextUtil.join "\n\n" $
-                map (Realize.formatHtml (korvaiTala korvai)) notes
+                map (Realize.formatHtml (korvaiTala korvai) 75) notes
             (notes, warnings) = unzip results
 
 -- | Write HTML with all the instrument realizations.
@@ -351,20 +352,27 @@ htmlInstruments realizePatterns korvai =
     Realize.htmlPage title (metadataHtml korvai) body
     where
     (_, _, title) = _location (korvaiMetadata korvai)
-    body = mconcat $ mapMaybe htmlInstrument (Map.toAscList instruments)
+    body = mconcat $ mapMaybe htmlInstrument $ Seq.sort_on (order . fst) $
+        Map.toList instruments
     htmlInstrument (name, GInstrument inst)
         | Realize.isInstrumentEmpty strokeMap = Nothing
         | otherwise = Just $ "<h3>" <> Doc.html name <> "</h3>\n"
             <> TextUtil.join "\n\n" sections
         where
         strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
-        sections = map (htmlResult (korvaiTala korvai)) $
+        sections = map (htmlResult (korvaiTala korvai) (fontPercent name)) $
             realize inst realizePatterns korvai
+    order name = (fromMaybe 999 $ List.elemIndex name prio, name)
+        where prio = ["konnakol", "mridangam"]
+    fontPercent name
+        | name == "konnakol" = 75
+        | otherwise = 125
 
-htmlResult :: Solkattu.Notation stroke => Tala.Tala
+htmlResult :: Solkattu.Notation stroke => Tala.Tala -> Int
     -> Either Text ([S.Flat g (Realize.Note stroke)], Error) -> Doc.Html
-htmlResult _ (Left err) = "<p> ERROR: " <> Doc.html err
-htmlResult tala (Right (notes, warn)) = Realize.formatHtml tala notes
+htmlResult _ _ (Left err) = "<p> ERROR: " <> Doc.html err
+htmlResult tala fontPercent (Right (notes, warn)) =
+    Realize.formatHtml tala fontPercent notes
     <> if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
 
 metadataHtml :: Korvai -> Doc.Html
@@ -377,7 +385,7 @@ metadataHtml korvai = TextUtil.join "<br>\n" $ concat $
     meta = korvaiMetadata korvai
     Tags tags = _tags meta
     showTag (k, []) = Doc.html k
-    showTag (k, vs) = Doc.html k <> ": " <> Doc.html (Text.unwords vs)
+    showTag (k, vs) = Doc.html k <> ": " <> Doc.html (Text.intercalate ", " vs)
     showDate = txt . Calendar.showGregorian
 
 printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai
