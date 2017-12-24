@@ -327,15 +327,12 @@ writeKonnakolHtml realizePatterns korvai =
         Right results
             | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
             | otherwise -> do
+                let (_, _, name) = _location (korvaiMetadata korvai)
                 Text.IO.writeFile "konnakol.html" $ Doc.un_html $
-                    konnakolHtml korvai notes
+                    Realize.renderHtml name (metadataHtml korvai)
+                        (korvaiTala korvai) notes
                 putStrLn "wrote konnakol.html"
             where (notes, warnings) = unzip results
-
-konnakolHtml :: Korvai -> [[S.Flat g (Realize.Note Solkattu.Sollu)]] -> Doc.Html
-konnakolHtml korvai notes =
-    metadataHtml korvai <> "<br>\n"
-    <> Realize.renderHtml (korvaiTala korvai) notes
 
 metadataHtml :: Korvai -> Doc.Html
 metadataHtml korvai = TextUtil.join "<br>\n" $ concat $

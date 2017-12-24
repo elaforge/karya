@@ -2536,8 +2536,8 @@ solkattu:
       . E.g. reductions or tri would line up vertically.
     * Highlight groups in konnakol html.
     - in ascii, colors stop right before the last note, not on it.
-      . It's because I need to highlight the end of the group.  Can I use
-        lighter gray?
+      . It's probably because I need to highlight the end of the group.  Can
+        I use lighter gray?
     - If groups touch each other then I can't tell them apart.  Maybe
       I should alternate two colors.
     - format: if the ruler changes after an avartanam line break, show the

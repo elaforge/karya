@@ -600,6 +600,8 @@ annotateGroups =
 -- want to do that once I have fancier formatting.
 data StartEnd = Start | End deriving (Eq, Show)
 
+instance Pretty StartEnd where pretty = showt
+
 shouldEmphasize :: Set Tala.Akshara -> S.State -> Bool
 shouldEmphasize angas state =
     S.stateMatra state == 0 && Set.member (S.stateAkshara state) angas
@@ -724,37 +726,28 @@ textLength = sum . map len . untxt
 
 -- * format html
 
-writeHtml :: Solkattu.Notation stroke => FilePath -> Tala.Tala
-    -> [[S.Flat g (Note stroke)]] -> IO ()
-writeHtml fname tala =
-    Text.IO.writeFile fname . Text.intercalate "\n<hr>\n"
-    . map (Doc.un_html . formatHtml tala)
-
-renderHtml :: Solkattu.Notation stroke => Tala.Tala
+renderHtml :: Solkattu.Notation stroke => Text -> Doc.Html -> Tala.Tala
     -> [[S.Flat g (Note stroke)]] -> Doc.Html
-renderHtml tala = TextUtil.join "\n<hr>\n" . map (formatHtml tala)
+renderHtml title meta tala rows = mconcat
+    [ htmlHeader title
+    , meta
+    , TextUtil.join "\n\n" $ map (formatHtml tala) rows
+    , htmlFooter
+    ]
 
-formatHtml :: Solkattu.Notation stroke => Tala.Tala
-    -> [S.Flat g (Note stroke)] -> Doc.Html
-formatHtml tala notes = toTable tala (map Doc.html ruler) avartanams
-    where
-    ruler = maybe [] (concatMap akshara . inferRuler tala)
-        (Seq.head avartanams)
-    akshara (n, spaces) = n : replicate (spaces-1) ""
-    -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
-    -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
-    avartanams = formatTable tala notes
+htmlHeader :: Text -> Doc.Html
+htmlHeader title = TextUtil.join "\n"
+    [ "<html><head><title>" <> Doc.html title <> "</title></head>"
+    , "<body>"
+    , ""
+    , "<style type=\"text/css\">"
+    , tableCss
+    , "</style>"
+    , ""
+    ]
 
-formatTable :: Solkattu.Notation stroke => Tala.Tala
-    -> [S.Flat g (Note stroke)] -> [[(S.State, ([StartEnd], Doc.Html))]]
-formatTable tala = breakAvartanams . map showStroke . flattenGroups tala
-    where
-    showStroke (startEnd, (state, s)) = (state,) $ (startEnd,) $ case s of
-        S.Attack a -> Doc.html (Solkattu.notation a)
-        S.Sustain a -> case a of
-            Pattern {} -> "&mdash;"
-            _ -> Doc.html $ Solkattu.notation a
-        S.Rest -> "_"
+htmlFooter :: Doc.Html
+htmlFooter = "</body></html>\n"
 
 tableCss :: Doc.Html
 tableCss =
@@ -775,36 +768,65 @@ tableCss =
     \.endG { background:\
         \ linear-gradient(to right, lightgray, lightgray, white) }"
 
-toTable :: Tala.Tala -> [Doc.Html] -> [[(S.State, ([StartEnd], Doc.Html))]]
+formatHtml :: Solkattu.Notation stroke => Tala.Tala
+    -> [S.Flat g (Note stroke)] -> Doc.Html
+formatHtml tala notes = toTable tala (map Doc.html ruler) avartanams
+    where
+    ruler = maybe [] (concatMap akshara . inferRuler tala)
+        (Seq.head avartanams)
+    akshara (n, spaces) = n : replicate (spaces-1) ""
+    -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
+    -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
+    avartanams = formatTable tala notes
+
+formatTable :: Solkattu.Notation stroke => Tala.Tala
+    -> [S.Flat g (Note stroke)] -> [[(S.State, ([StartEnd], Maybe Doc.Html))]]
+formatTable tala = breakAvartanams . map showStroke . flattenGroups tala
+    where
+    showStroke (startEnd, (state, s)) = (state,) $ (startEnd,) $ case s of
+        S.Attack a -> Just $ Doc.html (Solkattu.notation a)
+        S.Sustain a -> case a of
+            Pattern {} -> Nothing
+            _ -> Just $ Doc.html $ Solkattu.notation a
+        S.Rest -> Just "_"
+
+toTable :: Tala.Tala -> [Doc.Html]
+    -> [[(S.State, ([StartEnd], Maybe Doc.Html))]]
     -> Doc.Html
 toTable tala header rows = mconcatMap (<>"\n") $
-    [ "<style type=\"text/css\">"
-    , tableCss
-    , "</style>"
-    , ""
-    , "<table class=konnakol cellpadding=0 cellspacing=0>"
+    [ "<p> <table class=konnakol cellpadding=0 cellspacing=0>"
     , "<tr>" <> mconcatMap th header <> "</tr>\n"
-    ] ++ map row (snd $ mapAccumL2 groupDepths 0 rows)
+    ] ++ map row (snd $ mapAccumL2 addGroups 0 rows)
     ++ ["</table>"]
     where
     th col = Doc.tag_attrs "th" [] (Just col)
     row cells = TextUtil.join ("\n" :: Doc.Html)
         [ "<tr>"
-        , TextUtil.join "\n" $ map td cells
+        , TextUtil.join "\n" $ map td (groupSustains cells)
         , "</tr>"
         , ""
         ]
-    groupDepths prevDepth (state, (startEnds, a)) =
+    addGroups prevDepth (state, (startEnds, a)) =
         (depth, (state,
-            (depth, Start `elem` startEnds, End `elem` startEnds, a)))
+            ((depth, Start `elem` startEnds, End `elem` startEnds), a)))
         where
         depth = (prevDepth+) $ sum $ flip map startEnds $ \n -> case n of
             Start -> 1
             End -> -1
-    td (state, (depth :: Int, start, end, word)) = Doc.tag_attrs "td"
-        (if null classes then [] else [("class", Text.unwords classes)])
-        (Just $ if onAkshara state then "<b>" <> word <> "</b>" else word)
+    groupSustains = List.groupBy $ \(state1, (_, note1)) (state2, (_, note2)) ->
+        note1 == Nothing && note2 == Nothing && not (hasLine state2)
+    td [] = "" -- not reached, List.groupBy shouldn't return empty groups
+    td ((state, ((depth :: Int, start, end), note)) : ns) =
+        Doc.tag_attrs "td" tags $ Just $ case note of
+            Nothing -> "<hr noshade>"
+            Just word
+                | onAkshara state -> "<b>" <> word <> "</b>"
+                | otherwise -> word
         where
+        tags = concat
+            [ [("class", Text.unwords classes) | not (null classes)]
+            , [("colspan", showt (length ns + 1)) | not (null ns)]
+            ]
         classes = concat
             [ if
                 | shouldEmphasize angas state -> ["onAnga"]
@@ -816,6 +838,7 @@ toTable tala header rows = mconcatMap (<>"\n") $
                 | depth > 0 -> ["inG"]
                 | otherwise -> []
             ]
+    hasLine = onAkshara
     angas = angaSet tala
 
 mapAccumL2 :: (state -> a -> (state, b)) -> state -> [[a]] -> (state, [[b]])
