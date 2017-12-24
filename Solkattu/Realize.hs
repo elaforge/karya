@@ -764,11 +764,12 @@ toTable :: Int -> [Doc.Html] -> [[Doc.Html]] -> Doc.Html
 toTable colWidth header rows = mconcatMap (<>"\n") $
     -- TODO the idea is that the cell widths should all be fixed, but it
     -- doesn't work, because I don't understand HTML.  Fix this some day.
-    [ "<table cellpadding=0 cellspacing=0 style=\"table-layout: fixed\">"
+    [ "<table cellpadding=0 cellspacing=0\
+        \ style=\"table-layout: fixed; width: 100%\">"
     , "<tr>" <> mconcatMap th header <> "</tr>\n"
     ] ++ map row rows
     ++ ["</table>"]
     where
-    th col = Doc.tag_attrs "th" [("width", showt colWidth), ("align", "left")]
+    th col = Doc.tag_attrs "th" [("align", "left")]
         (Just col)
     row cols = "<tr>" <> mconcatMap (Doc.tag "td") cols <> "</tr>"

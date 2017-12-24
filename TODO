@@ -2526,9 +2526,10 @@ solkattu:
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   format: output:
     - html output for realized strokes
-    - figure out how to get even spacing for the html output
+    * figure out how to get even spacing for the html output
       . style="table-layout: fixed" doesn't seem to work, or at least I don't
         understand how it works.
+    - draw a vertical line on aksharas, maybe double for angas
     - Solkattu.notation should output an abstract formatted output, which can
       be rendered to HTML or ASCII.
     - Could I do a formatted realized or konnakol output?
