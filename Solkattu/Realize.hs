@@ -727,6 +727,10 @@ writeHtml fname tala =
     Text.IO.writeFile fname . Text.intercalate "\n<hr>\n"
     . map (Doc.un_html . formatHtml tala)
 
+renderHtml :: Solkattu.Notation stroke => Tala.Tala
+    -> [[S.Flat g (Note stroke)]] -> Doc.Html
+renderHtml tala = TextUtil.join "\n<hr>\n" . map (formatHtml tala)
+
 formatHtml :: Solkattu.Notation stroke => Tala.Tala
     -> [S.Flat g (Note stroke)] -> Doc.Html
 formatHtml tala notes = toTable 30 (map Doc.html ruler) body

@@ -12,6 +12,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Doc as Doc
 import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -326,9 +327,28 @@ writeKonnakolHtml realizePatterns korvai =
         Right results
             | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
             | otherwise -> do
-                Realize.writeHtml "konnakol.html" (korvaiTala korvai) notes
+                Text.IO.writeFile "konnakol.html" $ Doc.un_html $
+                    konnakolHtml korvai notes
                 putStrLn "wrote konnakol.html"
             where (notes, warnings) = unzip results
+
+konnakolHtml :: Korvai -> [[S.Flat g (Realize.Note Solkattu.Sollu)]] -> Doc.Html
+konnakolHtml korvai notes =
+    metadataHtml korvai <> "<br>\n"
+    <> Realize.renderHtml (korvaiTala korvai) notes
+
+metadataHtml :: Korvai -> Doc.Html
+metadataHtml korvai = TextUtil.join "<br>\n" $ concat $
+    [ ["Tala: " <> Doc.html (Tala._name (korvaiTala korvai))]
+    , ["Date: " <> Doc.html (showDate date) | Just date <- [_date meta]]
+    , map showTag (Map.toAscList (Map.delete "tala" tags))
+    ]
+    where
+    meta = korvaiMetadata korvai
+    Tags tags = _tags meta
+    showTag (k, []) = Doc.html k
+    showTag (k, vs) = Doc.html k <> ": " <> Doc.html (Text.unwords vs)
+    showDate = txt . Calendar.showGregorian
 
 printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai
     -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]

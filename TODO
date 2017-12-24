@@ -2521,6 +2521,24 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  transcribe:
+    - after 2014-06-17
+    - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
+  format: output:
+    - html output for realized strokes
+    - figure out how to get even spacing for the html output
+      . style="table-layout: fixed" doesn't seem to work, or at least I don't
+        understand how it works.
+    - Solkattu.notation should output an abstract formatted output, which can
+      be rendered to HTML or ASCII.
+    - Could I do a formatted realized or konnakol output?
+      . E.g. reductions or tri would line up vertically.
+    - Highlight groups in konnakol html.
+    - colors stop right before the last note, not on it.
+    - If groups touch each other then I can't tell them apart.  Maybe
+      I should alternate two colors.
+    - format: if the ruler changes after an avartanam line break, show the
+      partial ruler, e.g. Realize_test.test_format_nadai_change
   * Move Solkattu directory to the top level, it's not really part of Derive
     . At some point it might be a completely separate package.
     * I could also switch over to camelCase.
@@ -2531,7 +2549,8 @@ solkattu:
       has other strokes inside of it.  I'm not sure what to call that, but
       duration is definitely confusing because of the local usage of Duration.
   * Sequence.Tempo fields don't have a leading _, make them all consistent.
-  - Can't I have a shorter name for dropM?
+  - Can't I have a shorter name for dropM?  dr?  dp?
+    . Is it really so common?
   - What if I just renamed Sequence to S?
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
@@ -2548,11 +2567,6 @@ solkattu:
       automatically.  If I have my own sampler it's easy though.  I can either
       run karya headless, or just bypass and generate im notes directly via
       the solkattu library.
-  transcribe:
-    - after 2014-06-17
-  - html output for realized strokes
-  - Could I do a formatted realized or konnakol output?
-    . E.g. reductions or tri would line up vertically.
   - How can I do a reduction with irregular bits?  E.g. replace the
     4 matra version tat.__.din.__ with ta.ka.din.__.
   . Solkattu2017.c_17_07_13 is showing the difficulty of the
@@ -2640,7 +2654,8 @@ solkattu:
       take duration from the previous note, e.g.
         d.d.n.n . su (n.d) .d.n.n
       should be ' d d n nnd d n n'
-  ? rename tri to tir, for tirmanam?
+  / rename tri to tir, for tirmanam?
+    . Nah, a bunch of changes for no big gain.
   groups:
     This whole groups stuff is still a bit of a mess.
       . Having to keep group count up to date in 'Realize.realize'.  I could
@@ -2722,10 +2737,6 @@ solkattu:
       . E.g.  dropM n (group x . y) puts both x and y into a group, instead of
         leaving y out.
       . This breaks 'sandi'
-    - Highlight groups in konnakol html.
-    - colors stop right before the last note, not on it.
-    - If groups touch each other then I can't tell them apart.  Maybe
-      I should alternate two colors.
     * I have a problem with nested groups, e.g. dropM 1 . dropM 1.
       . I could try to simplify away nested groups.  That means making
         each one absolute, so the outer one loses its sollus, and they go
@@ -2997,7 +3008,7 @@ solkattu:
   - I should be able to add multiple realizations of the same
     instrument, keyed by string, e.g. for different mridangists
     realizations.
-  - Duration assertions, e.g. dur 4 (ta.ka.din.na)
+  - Duration assertions, e.g. matra 4 (ta.ka.din.na)
   pakhawaj:
     - integrate pakhawaj bols
       . I think I need "kre" support.
@@ -3019,8 +3030,6 @@ solkattu:
     a group of three can be higher intensity.
     . It can also be a variant pattern, e.g.
       k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
-  - format: if the ruler changes after an avartanam line break, show the
-    partial ruler, e.g. Realize_test.test_format_nadai_change
   * Notation {take,drop}M functions get matras via duration_of and
     divide, while matras_of counts matras directly.  I'm not totally
     sure what the difference is and which one is correct.

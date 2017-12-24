@@ -55,6 +55,10 @@ newtype Html = Html Text
     -- TODO doesn't IsString defeat the purpose of using Html in the first
     -- place?
 
+instance TextUtil.Textlike Html where
+    toText (Html t) = t
+    fromText = Html
+
 html :: Text -> Html
 html = Html . Text.replace "<" "&lt;" . Text.replace ">" "&gt;"
     . Text.replace "&" "&amp;"
