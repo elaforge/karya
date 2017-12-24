@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE LambdaCase, DeriveFunctor #-}
+{-# LANGUAGE LambdaCase, MultiWayIf, DeriveFunctor #-}
 {-# LANGUAGE NamedFieldPuns #-}
 -- | Realize abstract solkattu 'S.Note's to concrete instrument-dependent
 -- 'Note's.
@@ -746,11 +746,10 @@ formatHtml tala notes = toTable tala (map Doc.html ruler) avartanams
     avartanams = formatTable tala notes
 
 formatTable :: Solkattu.Notation stroke => Tala.Tala
-    -> [S.Flat g (Note stroke)] -> [[(S.State, Doc.Html)]]
+    -> [S.Flat g (Note stroke)] -> [[(S.State, ([StartEnd], Doc.Html))]]
 formatTable tala = breakAvartanams . map showStroke . flattenGroups tala
     where
-    -- TODO use startEnd to colorize groups
-    showStroke (startEnd, (state, s)) = (state,) $ case s of
+    showStroke (startEnd, (state, s)) = (state,) $ (startEnd,) $ case s of
         S.Attack a -> Doc.html (Solkattu.notation a)
         S.Sustain a -> case a of
             Pattern {} -> "&mdash;"
@@ -767,9 +766,17 @@ tableCss =
     \table.konnakol th {\n\
     \   text-align: left;\n\
     \   border-bottom: 1px solid;\n\
-    \}"
+    \}\n\
+    \.onAnga { border-left: 3px double }\n\
+    \.onAkshara { border-left: 1px solid }\n\
+    \.inG { background-color: lightgray }\n\
+    \.startG { background:\
+        \ linear-gradient(to right, lightgreen, lightgray, lightgray) }\n\
+    \.endG { background:\
+        \ linear-gradient(to right, lightgray, lightgray, white) }"
 
-toTable :: Tala.Tala -> [Doc.Html] -> [[(S.State, Doc.Html)]] -> Doc.Html
+toTable :: Tala.Tala -> [Doc.Html] -> [[(S.State, ([StartEnd], Doc.Html))]]
+    -> Doc.Html
 toTable tala header rows = mconcatMap (<>"\n") $
     [ "<style type=\"text/css\">"
     , tableCss
@@ -777,21 +784,39 @@ toTable tala header rows = mconcatMap (<>"\n") $
     , ""
     , "<table class=konnakol cellpadding=0 cellspacing=0>"
     , "<tr>" <> mconcatMap th header <> "</tr>\n"
-    ] ++ map row rows
+    ] ++ map row (snd $ mapAccumL2 groupDepths 0 rows)
     ++ ["</table>"]
     where
     th col = Doc.tag_attrs "th" [] (Just col)
-    row cells = mconcat
+    row cells = TextUtil.join ("\n" :: Doc.Html)
         [ "<tr>"
-        , mconcatMap td cells
+        , TextUtil.join "\n" $ map td cells
         , "</tr>"
+        , ""
         ]
-    td (state, word) = Doc.tag_attrs "td"
-        (if Text.null style then [] else [("style", style)])
+    groupDepths prevDepth (state, (startEnds, a)) =
+        (depth, (state,
+            (depth, Start `elem` startEnds, End `elem` startEnds, a)))
+        where
+        depth = (prevDepth+) $ sum $ flip map startEnds $ \n -> case n of
+            Start -> 1
+            End -> -1
+    td (state, (depth :: Int, start, end, word)) = Doc.tag_attrs "td"
+        (if null classes then [] else [("class", Text.unwords classes)])
         (Just $ if onAkshara state then "<b>" <> word <> "</b>" else word)
         where
-        style
-            | shouldEmphasize angas state = "border-left:3px double"
-            | onAkshara state = "border-left:1px solid"
-            | otherwise = ""
+        classes = concat
+            [ if
+                | shouldEmphasize angas state -> ["onAnga"]
+                | onAkshara state -> ["onAkshara"]
+                | otherwise -> []
+            , if
+                | start -> ["startG"]
+                | end -> ["endG"]
+                | depth > 0 -> ["inG"]
+                | otherwise -> []
+            ]
     angas = angaSet tala
+
+mapAccumL2 :: (state -> a -> (state, b)) -> state -> [[a]] -> (state, [[b]])
+mapAccumL2 f = List.mapAccumL (List.mapAccumL f)

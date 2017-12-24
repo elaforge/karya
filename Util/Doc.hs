@@ -51,7 +51,7 @@ commas = TextUtil.join ", "
 -- * HTML
 
 newtype Html = Html Text
-    deriving (Monoid, String.IsString, Show, Eq, Ord)
+    deriving (Monoid, String.IsString, Pretty.Pretty, Show, Eq, Ord)
     -- TODO doesn't IsString defeat the purpose of using Html in the first
     -- place?
 
