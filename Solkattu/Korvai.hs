@@ -264,7 +264,7 @@ inferTags korvai = Tags $ Util.Map.multimap $ concat
     ]
     where
     tala = korvaiTala korvai
-    aksharas = fromIntegral (sum (Tala.tala_aksharas tala))
+    aksharas = fromIntegral (Tala.tala_aksharas tala)
 
     seqs = case korvaiSequences korvai of
         Sollu seqs -> map (mapSollu (const ())) seqs

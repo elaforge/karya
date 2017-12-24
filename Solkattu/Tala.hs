@@ -26,8 +26,11 @@ anga_labels jati anga = case anga of
     O -> ["X", "O"]
     U -> ["X"]
 
-tala_aksharas :: Tala -> [Akshara]
-tala_aksharas tala = map (anga_aksharas (_jati tala)) (_angas tala)
+tala_angas :: Tala -> [Akshara]
+tala_angas tala = map (anga_aksharas (_jati tala)) (_angas tala)
+
+tala_aksharas :: Tala -> Akshara
+tala_aksharas = sum . tala_angas
 
 tala_labels :: Tala -> [Text]
 tala_labels tala = concatMap (anga_labels (_jati tala)) (_angas tala)

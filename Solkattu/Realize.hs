@@ -566,8 +566,8 @@ formatLines strokeWidth width tala =
             _ -> Solkattu.notation a
         S.Rest -> justifyLeft strokeWidth ' ' "_"
         where
-        make text = Symbol text (shouldEmphasize aksharas state) startEnds
-    aksharas = aksharaSet tala
+        make text = Symbol text (shouldEmphasize angas state) startEnds
+    angas = angaSet tala
 
 flattenGroups :: Tala.Tala -> [S.Flat g (Note a)]
     -> [([StartEnd], (S.State, S.Stroke (Note a)))]
@@ -601,11 +601,14 @@ annotateGroups =
 data StartEnd = Start | End deriving (Eq, Show)
 
 shouldEmphasize :: Set Tala.Akshara -> S.State -> Bool
-shouldEmphasize aksharas state =
-    S.stateMatra state == 0 && Set.member (S.stateAkshara state) aksharas
+shouldEmphasize angas state =
+    S.stateMatra state == 0 && Set.member (S.stateAkshara state) angas
 
-aksharaSet :: Tala.Tala -> Set Tala.Akshara
-aksharaSet = Set.fromList . scanl (+) 0 . Tala.tala_aksharas
+onAkshara :: S.State -> Bool
+onAkshara state = S.stateMatra state == 0
+
+angaSet :: Tala.Tala -> Set Tala.Akshara
+angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
 
 breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
 breakAvartanams = dropWhile null . Seq.split_with (isSam . fst)
@@ -733,20 +736,18 @@ renderHtml tala = TextUtil.join "\n<hr>\n" . map (formatHtml tala)
 
 formatHtml :: Solkattu.Notation stroke => Tala.Tala
     -> [S.Flat g (Note stroke)] -> Doc.Html
-formatHtml tala notes = toTable 30 (map Doc.html ruler) body
+formatHtml tala notes = toTable tala (map Doc.html ruler) avartanams
     where
     ruler = maybe [] (concatMap akshara . inferRuler tala)
         (Seq.head avartanams)
     akshara (n, spaces) = n : replicate (spaces-1) ""
-    body = map (thin . map snd) avartanams
-    thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
+    -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
+    -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
     avartanams = formatTable tala notes
 
 formatTable :: Solkattu.Notation stroke => Tala.Tala
     -> [S.Flat g (Note stroke)] -> [[(S.State, Doc.Html)]]
-formatTable tala =
-    breakAvartanams . map emphasizeAkshara . map showStroke
-        . flattenGroups tala
+formatTable tala = breakAvartanams . map showStroke . flattenGroups tala
     where
     -- TODO use startEnd to colorize groups
     showStroke (startEnd, (state, s)) = (state,) $ case s of
@@ -755,21 +756,42 @@ formatTable tala =
             Pattern {} -> "&mdash;"
             _ -> Doc.html $ Solkattu.notation a
         S.Rest -> "_"
-    emphasizeAkshara (state, word)
-        | shouldEmphasize aksharas state = (state, "<b>" <> word <> "</b>")
-        | otherwise = (state, word)
-    aksharas = aksharaSet tala
 
-toTable :: Int -> [Doc.Html] -> [[Doc.Html]] -> Doc.Html
-toTable colWidth header rows = mconcatMap (<>"\n") $
-    -- TODO the idea is that the cell widths should all be fixed, but it
-    -- doesn't work, because I don't understand HTML.  Fix this some day.
-    [ "<table cellpadding=0 cellspacing=0\
-        \ style=\"table-layout: fixed; width: 100%\">"
+tableCss :: Doc.Html
+tableCss =
+    "table.konnakol {\n\
+    \   table-layout: fixed;\n\
+    \   width: 100%;\n\
+    \   font-size: 75%;\n\
+    \}\n\
+    \table.konnakol th {\n\
+    \   text-align: left;\n\
+    \   border-bottom: 1px solid;\n\
+    \}"
+
+toTable :: Tala.Tala -> [Doc.Html] -> [[(S.State, Doc.Html)]] -> Doc.Html
+toTable tala header rows = mconcatMap (<>"\n") $
+    [ "<style type=\"text/css\">"
+    , tableCss
+    , "</style>"
+    , ""
+    , "<table class=konnakol cellpadding=0 cellspacing=0>"
     , "<tr>" <> mconcatMap th header <> "</tr>\n"
     ] ++ map row rows
     ++ ["</table>"]
     where
-    th col = Doc.tag_attrs "th" [("align", "left")]
-        (Just col)
-    row cols = "<tr>" <> mconcatMap (Doc.tag "td") cols <> "</tr>"
+    th col = Doc.tag_attrs "th" [] (Just col)
+    row cells = mconcat
+        [ "<tr>"
+        , mconcatMap td cells
+        , "</tr>"
+        ]
+    td (state, word) = Doc.tag_attrs "td"
+        (if Text.null style then [] else [("style", style)])
+        (Just $ if onAkshara state then "<b>" <> word <> "</b>" else word)
+        where
+        style
+            | shouldEmphasize angas state = "border-left:3px double"
+            | onAkshara state = "border-left:1px solid"
+            | otherwise = ""
+    angas = angaSet tala
