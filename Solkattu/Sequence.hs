@@ -347,7 +347,7 @@ showPosition :: State -> Text
 showPosition state =
     "avartanam " <> showt (stateAvartanam state + 1)
     <> ", akshara " <> showt (stateAkshara state)
-    <> " + " <> pretty (stateMatra state)
+    <> if stateMatra state == 0 then "" else " + " <> pretty (stateMatra state)
 
 -- * functions
 

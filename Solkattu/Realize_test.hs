@@ -429,7 +429,7 @@ test_verifyAlignment = do
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
     equal (f (take 4 tdkt)) $ Right $ Just
-        (4, "korvai should end on or before sam: avartanam 1, akshara 1 + 0")
+        (4, "korvai should end on or before sam: avartanam 1, akshara 1")
     equal (f (take 6 tdkt)) $ Right (Just (6,
         "korvai should end on or before sam: avartanam 1, akshara 1 + 1/2"))
     equal (f (take (8*4) tdkt)) (Right Nothing)
@@ -450,7 +450,7 @@ test_verifyAlignmentNadaiChange = do
     -- Change nadai in the middle of an akshara.
     equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt))) $
         Right (Just (5,
-            "korvai should end on or before sam: avartanam 1, akshara 1 + 0"))
+            "korvai should end on or before sam: avartanam 1, akshara 1"))
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm

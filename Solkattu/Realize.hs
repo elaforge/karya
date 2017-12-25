@@ -828,10 +828,14 @@ formatTable tala font header rows = mconcatMap (<>"\n") $
             S.Attack (Space Solkattu.Sarva) -> sarva
             S.Sustain (Space Solkattu.Sarva) -> sarva
             S.Sustain (Pattern {}) -> "<hr noshade>"
-            S.Sustain a -> Doc.html (Solkattu.notation a)
-            S.Attack a -> Doc.html (Solkattu.notation a)
+            S.Sustain a -> notation a
+            S.Attack a -> notation a
             S.Rest -> Doc.html "_"
         where
+        notation a
+            | onAkshara state =
+                "<b>" <> Doc.html (Solkattu.notation a) <> "</b>"
+            | otherwise = Doc.html (Solkattu.notation a)
         sarva = "<hr style=\"border: 4px dotted\">"
         tags = concat
             [ [("class", Text.unwords classes) | not (null classes)]
