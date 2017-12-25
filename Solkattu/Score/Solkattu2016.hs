@@ -69,3 +69,44 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
         , (dheem, [u])
         , (thom, [od])
         ]
+
+c_16_12_06_sriram2 :: Korvai
+c_16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai1 adi mridangam $ nadai 7 $
+      repeat 2 takadinnanakita . f1       . din.__7
+    . repeat 2 takadinnanakita . f1.f2    . din.__7
+    . repeat 2 takadinnanakita . f1.f2.f3 . 2^din.__7
+    . tri (p5.tam.__ . p5.tam.__.tam.__ . p5)
+    where
+    takadinnanakita = group $ takadinna.na.kita
+    f1 = group $ din.__.ta.din.__.tat.__
+    f2 = group $ takita.din.__.tat.__
+    f3 = group $ gu.gu.ta.din.__.tat.__
+    mridangam = makeMridangam
+        [ (na.kita, [n, p, k])
+        , (f1, [od, k, d, k])
+        , (f2, [n, p, k, d, k])
+        , (f3, [o, o, k, d, k])
+        , (din, [od])
+        , (2^din, [p&u])
+        , (tam, [u])
+        ]
+
+c_16_12_06_janahan1 :: Korvai
+c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai1 adi mridangam $ su $
+    tri (mconcat (expand 3 2 theme)) . trin __ (tri p5) (tri p6) (tri p7)
+    where
+    theme = takadinna.takita.din.__.na
+    mridangam = makeMridangam
+        [ (theme, [on, k, o&t, k, on, p, k, od, o])
+        ]
+
+c_16_12_06_janahan2 :: Korvai
+c_16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi mridangam $ su $
+    tri theme . tri (dropM 2 theme) . tri (dropM 4 theme)
+        . spread 2 tdgnt . p6
+        . spread 2 tdgnt . p6 . tk.p6
+        . spread 2 tdgnt . p6 . tk.p6 . tktu.p6
+    where
+    theme = group $ tat.__.dit.__.takadinna
+    mridangam = makeMridangam
+        [(theme, [k, t, k, o, o, k])]

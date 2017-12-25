@@ -43,17 +43,3 @@ e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $
     t_sarva = o.k.n.o.k.d.o.k . repeat 3 (pk.n.pk.d.pk)
     tk = t.k
 
-
--- Speaking exercises: tadinginathom, taka tadinginathom
-e_3 = ganesh $ korvai (beats 15) $
-    [ repeat 4 $ tdgnt.tdgnt . su (tdgnt.tdgnt)
-    , repeat 4 $ nadai 6 (k.__.t.k.__.n.o.__ . k.t.__.k.n.__.o)
-        . su (tdgnt.tdgnt)
-    ]
-e_4 = ganesh $ korvai (beats 21) $
-    [ repeat 4 $ tktdgnt.tktdgnt . su (tktdgnt.tktdgnt)
-    , repeat 4 $ nadai 6 (k.__.p.k.__.t.k.__.n.o.__ . k.p.__.k.t.__.k.n.__.o)
-        . su (tktdgnt.tktdgnt)
-    ]
-    where
-    tktdgnt = k.p.tdgnt

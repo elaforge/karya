@@ -669,3 +669,32 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvai adi mridangam
         , (din.ta.ka.dinga, [on, k, o, d, o])
         , (tat.dit, [on, u])
         ]
+
+speaking1 :: Korvai
+speaking1 = ganesh $ exercise $ korvai Tala.any_beats mridangam $
+    -- 5s, 15 beats
+    [ repeat 4 $ tdgnt.tdgnt . su (tdgnt.tdgnt)
+    , repeat 4 $
+        nadai 6 (ta.__.din.gin.__.na.thom.__ . ta.din.__.gin.na.__.thom)
+        . su (tdgnt.tdgnt)
+
+    -- 7s, 21 beats
+    , repeat 4 $ taka.tdgnt.taka.tdgnt . su (taka.tdgnt.taka.tdgnt)
+    , repeat 4 $ nadai 6
+        (ta.__.ka.ta.__.din.gin.__.na.thom.__
+            . ta.ka.__.ta.din.__.gin.na.__.thom)
+        . su (taka.tdgnt.taka.tdgnt)
+    -- 9s, 27 beats
+    , repeat 4 $ taka.tiku.tdgnt.taka.tiku.tdgnt
+        . su (taka.tiku.tdgnt.taka.tiku.tdgnt)
+    , repeat 4 $ nadai 6
+        (ta.__.ka.ti.__.ku.ta.__.din.gin.__.na.thom.__
+            . ta.ka.__.ti.ku.__.ta.din.__.gin.na.__.thom)
+        . su (taka.tiku.tdgnt.taka.tiku.tdgnt)
+    ]
+    where
+    tiku = ti.ku
+    mridangam = makeMridangam
+        [ (taka, [k, p])
+        , (tiku, [n, p])
+        ]

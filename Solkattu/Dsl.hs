@@ -30,9 +30,11 @@ module Solkattu.Dsl (
     , index
     , realize, realizep
     , realizeM, realizeK1, realizeR, realizeSargam
+    -- * talam
+    , beats
+    , adi
     -- * conveniences
     , ganesh, janahan, sriram, sudhindra
-    , adi
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
@@ -167,6 +169,15 @@ realizeSargam :: Bool -> Korvai.Korvai -> IO ()
 realizeSargam = Korvai.printInstrument Korvai.sargam
 
 
+-- * talam
+
+-- | For a fragment which fits a certain number of beats.
+beats :: Akshara -> Tala.Tala
+beats aksharas = Tala.Tala "beats" [Tala.I] aksharas
+
+adi :: Tala.Tala
+adi = Tala.adi_tala
+
 -- * conveniences
 
 ganesh, janahan, sriram, sudhindra :: Korvai -> Korvai
@@ -174,6 +185,3 @@ ganesh = source "ganesh"
 janahan = source "janahan"
 sriram = source "sriram"
 sudhindra = source "sudhindra"
-
-adi :: Tala.Tala
-adi = Tala.adi_tala
