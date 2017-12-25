@@ -2528,6 +2528,10 @@ solkattu:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   format: output:
+    - nadai changes are invisible, I should put something in the ruler for it
+    - avartanams tag is often wrong
+    - Solkattu2013.k3s has <hr> in odd places
+    - underline for tha+x looks weird.
     html:
       - Decrease font size for higher speed.
       - For high speed split avartanam.
@@ -2543,7 +2547,7 @@ solkattu:
       - Replace a double rest that starts on an even matra with a double
         underline, or something.  This is effectively rhythmic spelling.
         . Alternately, I could put in a number for matra count.
-      - Could I do a formatted realized or konnakol output?
+      - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
       - gray letters for light strokes
       * Highlight groups in konnakol html.

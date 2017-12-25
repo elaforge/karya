@@ -99,12 +99,14 @@ htmlSummary korvais = TextUtil.join "\n" $
         , mconcat ["<td>" <> cell <> "</td>" | cell <- cells korvai]
         , "</tr>"
         ]
-    columns = ["", "type", "tala", "date"]
+    columns = ["", "type", "tala", "nadai", "date", "instruments"]
     cells korvai = Doc.link variableName (txt (korvaiFname korvai))
         : map Doc.html
         [ Text.unwords $ Metadata.get "type" korvai
         , Tala._name $ Korvai.korvaiTala korvai
+        , Text.intercalate ", " $ Metadata.get "nadai" korvai
         , maybe "" (txt . Calendar.showGregorian) $ Korvai._date meta
+        , Text.intercalate ", " $ Metadata.get "instrument" korvai
         ]
         where
         meta = Korvai.korvaiMetadata korvai
