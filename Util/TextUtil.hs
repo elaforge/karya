@@ -51,13 +51,13 @@ replaceMany replace = mconcat . go
         | otherwise = pre : to : go (Text.drop (Text.length from) post)
 
 -- | Join the two pieces with a space, if they are non-empty.
-join2 :: (Textlike a, Textlike b) => a -> a -> b
+join2 :: Textlike a => a -> a -> a
 join2 = joinWith (fromText " ")
 
-joinWith :: (Textlike a, Textlike b) => a -> a -> a -> b
+joinWith :: Textlike a => a -> a -> a -> a
 joinWith sep a b = join sep $ filter (not . Text.null . toText) [a, b]
 
-join :: (Textlike a, Textlike b) => a -> [a] -> b
+join :: Textlike a => a -> [a] -> a
 join sep = fromText . Text.intercalate (toText sep) . map toText
 
 split1 :: Text -> Text -> (Text, Text)
