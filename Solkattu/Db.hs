@@ -13,13 +13,19 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
+import System.FilePath ((</>))
+
+import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
+
 import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (date)
 import qualified Solkattu.Metadata as Metadata
+import qualified Solkattu.Tala as Tala
 
 import Global
 
@@ -60,3 +66,46 @@ format (i, korvai) =
         Seq.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
         Map.toAscList tags
     Korvai.Tags tags = Korvai._tags $ Korvai.korvaiMetadata korvai
+
+-- * write
+
+-- | Write all Korvais as HTML into the given directory.
+writeHtml :: FilePath -> Bool -> IO ()
+writeHtml dir realizePatterns = do
+    mapM_ write All.korvais
+    Text.IO.writeFile (dir </> "index.html") $
+        Doc.un_html $ htmlSummary All.korvais
+    where
+    write korvai = Korvai.writeHtmlKorvai (dir </> korvaiFname korvai)
+        realizePatterns korvai
+
+korvaiFname :: Korvai.Korvai -> FilePath
+korvaiFname korvai = untxt $ mod <> "." <> variableName <> ".html"
+    where
+    (mod, _, variableName) = Korvai._location $ Korvai.korvaiMetadata korvai
+
+htmlSummary :: [Korvai.Korvai] -> Doc.Html
+htmlSummary korvais = TextUtil.join "\n" $
+    [ "<html><body>"
+    , "<table>"
+    , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | c <- columns] <> "</tr>"
+    ] ++ map row korvais ++
+    [ "</table>"
+    , "</body></html>"
+    ]
+    where
+    row korvai = mconcat
+        [ "<tr>"
+        , mconcat ["<td>" <> cell <> "</td>" | cell <- cells korvai]
+        , "</tr>"
+        ]
+    columns = ["", "type", "tala", "date"]
+    cells korvai = Doc.link variableName (txt (korvaiFname korvai))
+        : map Doc.html
+        [ Text.unwords $ Metadata.get "type" korvai
+        , Tala._name $ Korvai.korvaiTala korvai
+        , maybe "" (txt . Calendar.showGregorian) $ Korvai._date meta
+        ]
+        where
+        meta = Korvai.korvaiMetadata korvai
+        (_, _, variableName) = Korvai._location meta

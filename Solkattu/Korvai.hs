@@ -330,20 +330,21 @@ writeKonnakolHtml realizePatterns korvai =
             | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
             | otherwise -> do
                 let (_, _, title) = _location (korvaiMetadata korvai)
-                Text.IO.writeFile "konnakol.html" $ Doc.un_html $
+                Text.IO.writeFile fname $ Doc.un_html $
                     Realize.htmlPage title (metadataHtml korvai) body
-                putStrLn "wrote konnakol.html"
+                putStrLn $ "wrote " <> fname
             where
             body = TextUtil.join "\n\n" $
                 map (Realize.formatHtml (korvaiTala korvai) konnakolFont) notes
             (notes, warnings) = unzip results
+    where fname = "konnakol.html"
 
 -- | Write HTML with all the instrument realizations.
-writeHtmlKorvai :: Bool -> Korvai -> IO ()
-writeHtmlKorvai realizePatterns korvai = do
-    Text.IO.writeFile "korvai.html" $ Doc.un_html $
+writeHtmlKorvai :: FilePath -> Bool -> Korvai -> IO ()
+writeHtmlKorvai fname realizePatterns korvai = do
+    Text.IO.writeFile fname $ Doc.un_html $
         htmlInstruments realizePatterns korvai
-    putStrLn "wrote korvai.html"
+    putStrLn $ "wrote " <> fname
 
 -- ** implementation
 

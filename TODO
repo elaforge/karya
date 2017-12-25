@@ -2529,7 +2529,9 @@ solkattu:
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   format: output:
     html:
-      - write html for everything in the db
+      - Decrease font size for higher speed.
+      - For high speed split avartanam.
+      * write html for everything in the db
       db ideas:
         - similar_to should be a link
         - source should be a list, click on it to see everything from that
@@ -2559,6 +2561,7 @@ solkattu:
       be rendered to HTML or ASCII.
     - format: if the ruler changes after an avartanam line break, show the
       partial ruler, e.g. Realize_test.test_format_nadai_change
+  - It seems technique is not working for Solkattu2016.c_16_12_06_sriram1
   * Move Solkattu directory to the top level, it's not really part of Derive
     . At some point it might be a completely separate package.
     * I could also switch over to camelCase.
