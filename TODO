@@ -2529,7 +2529,7 @@ solkattu:
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   format: output:
     - nadai changes are invisible, I should put something in the ruler for it
-    - avartanams tag is often wrong
+    * avartanams tag is often wrong
     * Solkattu2013.k3s has <hr> in odd places
     - underline for tha+x looks weird.
     html:

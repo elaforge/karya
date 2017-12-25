@@ -193,8 +193,7 @@ patterns pairs
         | otherwise = Nothing
         where
         notesMatras = notesDuration / S.matraDuration S.defaultTempo
-        notesDuration = sum $ map (S.noteDuration S.defaultTempo)
-            notes
+        notesDuration = sum $ map (S.durationOf S.defaultTempo) notes
 
 lookupPattern :: Solkattu.Pattern -> Patterns stroke -> Maybe [SNote stroke]
 lookupPattern p (Patterns pmap) = Map.lookup p pmap

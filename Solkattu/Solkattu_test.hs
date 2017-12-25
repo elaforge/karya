@@ -37,6 +37,13 @@ test_matrasOf = do
     equal (f2 (Notation.dropM 4 ta4)) 0
     equal (f2 (Notation.dropM 5 ta4)) 0
 
+test_durationOf = do
+    let f = Solkattu.durationOf Sequence.defaultTempo
+    let tas n = mconcat $ replicate n ta
+    equal (f (tas 4)) 1
+    equal (f (Dsl.nadai 7 (tas 7))) 1
+    equal (f (Dsl.nadai 7 $ Notation.dropM 2 (tas 9))) 1
+
 test_cancelKarvai = do
     let f = Text.unwords . map pretty . Sequence.flattenedNotes
             . Solkattu.cancelKarvai . Sequence.flatten

@@ -617,7 +617,7 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
     ]
     where
     sequence t = mconcatMap (sarvaA 8)
-        [t, kitataka.t, kitakita.kitakita.t]
+        [t, kitataka.t, kitakita.kitataka.t]
     theme = ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
     theme2a_ = su $ dit.__.taka.na.ka.ta.na.ka
     theme2a = theme2a_ . su tdgnt

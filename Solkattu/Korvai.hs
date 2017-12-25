@@ -259,7 +259,7 @@ inferTags korvai = Tags $ Util.Map.multimap $ concat
     , map (("avartanams",) . pretty . (/aksharas)
         . Solkattu.durationOf S.defaultTempo) seqs
     , map ("nadai",) (map showt nadais)
-    , map ("speed",) (map showt speeds)
+    , [("speed", showt $ maximum (0 : speeds))]
     , map ("instrument",) instruments
     ]
     where

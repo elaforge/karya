@@ -30,7 +30,7 @@ module Solkattu.Sequence (
     -- * State
     , State(..), statePosition, showPosition
     -- * functions
-    , noteDuration, durationOf, noteFmatra, fmatraDuration, normalizeFmatra
+    , durationOf, noteDuration, noteFmatra, fmatraDuration, normalizeFmatra
     , matraDuration
 #ifdef TESTING
     , module Solkattu.Sequence
@@ -229,13 +229,13 @@ tempoToState tala = List.mapAccumL toState initialState
     where
     toState state (tempo, note) =
         (advanceStateBy tala dur state, (state, note))
-        where dur = durationOf tempo note
+        where dur = noteDuration tempo note
 
 -- | Calculate Duration for each note.
 withDurations :: HasMatras a => [Flat g a] -> [Flat g (Duration, a)]
 withDurations = map $ \n -> case n of
     FGroup tempo g children -> FGroup tempo g (withDurations children)
-    FNote tempo note -> FNote tempo (durationOf tempo note, note)
+    FNote tempo note -> FNote tempo (noteDuration tempo note, note)
 
 data Stroke a = Attack a | Sustain a | Rest
     deriving (Show, Eq)
@@ -352,20 +352,20 @@ showPosition state =
 -- * functions
 
 -- | Flatten the note and return its Duration.
-noteDuration :: HasMatras a => Tempo -> Note g a -> Duration
-noteDuration tempo n = case n of
+durationOf :: HasMatras a => Tempo -> Note g a -> Duration
+durationOf tempo n = case n of
     TempoChange change notes ->
-        sum $ map (noteDuration (changeTempo change tempo)) notes
-    Note n -> durationOf tempo n
-    Group _ notes -> sum $ map (noteDuration tempo) notes
+        sum $ map (durationOf (changeTempo change tempo)) notes
+    Note n -> noteDuration tempo n
+    Group _ notes -> sum $ map (durationOf tempo) notes
 
-durationOf :: HasMatras a => Tempo -> a -> Duration
-durationOf tempo n = matraDuration tempo * fromIntegral (matrasOf n)
+noteDuration :: HasMatras a => Tempo -> a -> Duration
+noteDuration tempo n = matraDuration tempo * fromIntegral (matrasOf n)
     * fromIntegral (_stride tempo)
 
 noteFmatra :: HasMatras a => Tempo -> Note g a -> FMatra
 noteFmatra tempo n =
-    realToFrac $ noteDuration tempo n * fromIntegral (_nadai tempo)
+    realToFrac $ durationOf tempo n * fromIntegral (_nadai tempo)
 
 fmatraDuration :: Tempo -> FMatra -> Duration
 fmatraDuration tempo (FMatra matra) = Duration matra * matraDuration tempo

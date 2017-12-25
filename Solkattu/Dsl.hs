@@ -48,7 +48,7 @@ import Solkattu.Metadata
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
-import Solkattu.Sequence (Duration, Matra, Nadai)
+import Solkattu.Sequence (Duration, Matra, Nadai, defaultTempo)
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (check, durationOf)
 import qualified Solkattu.Tala as Tala

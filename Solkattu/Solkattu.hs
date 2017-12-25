@@ -238,28 +238,30 @@ data Sollu =
     | Ta | Tam | Tang | Tat | Tha | Thom | Ti
     deriving (Eq, Ord, Show)
 
-instance Notation Sollu where
-    notation = Text.toLower . showt
+instance Notation Sollu where notation = Text.toLower . showt
 instance Pretty Sollu where pretty = notation
 
 -- * durations
 
-durationOf :: S.Tempo -> [S.Note Group (Note sollu)] -> S.Duration
-durationOf tempo = S.fmatraDuration tempo . matrasOf tempo
+durationOf :: S.HasMatras a => S.Tempo -> [S.Note Group a] -> S.Duration
+durationOf = _durationOf (\_ -> id)
 
-matrasOf :: S.HasMatras note => S.Tempo -> [S.Note Group note] -> S.FMatra
-matrasOf tempo = sum . map (get tempo)
+matrasOf :: S.HasMatras a => S.Tempo -> [S.Note Group a] -> S.FMatra
+matrasOf = _durationOf toMatras
+    where toMatras tempo dur = realToFrac $ dur * fromIntegral (S._nadai tempo)
+
+_durationOf :: (S.HasMatras a, Num dur, Ord dur)
+    => (S.Tempo -> S.Duration -> dur) -> S.Tempo -> [S.Note Group a] -> dur
+_durationOf convert = go
     where
+    go tempo = sum . map (get tempo)
     get tempo n = case n of
-        S.Note n -> toMatras tempo $ S.durationOf tempo n
-        S.TempoChange change notes ->
-            matrasOf (S.changeTempo change tempo) notes
+        S.Note n -> convert tempo $ S.noteDuration tempo n
+        S.TempoChange change notes -> go (S.changeTempo change tempo) notes
         S.Group g notes -> case _side g of
-            Before -> max 0 (matrasOf tempo notes - split)
-            After -> min split (matrasOf tempo notes)
-            where
-            split = S.normalizeFmatra tempo (_split g)
-    toMatras tempo dur = realToFrac $ dur * fromIntegral (S._nadai tempo)
+            Before -> max 0 (go tempo notes - split)
+            After -> min split (go tempo notes)
+            where split = convert tempo $ S.fmatraDuration tempo (_split g)
 
 -- * functions
 

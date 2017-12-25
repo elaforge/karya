@@ -11,6 +11,7 @@ module Solkattu.All where
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Metadata
 import qualified Solkattu.Score.Mridangam2013
+import qualified Solkattu.Score.Mridangam2016
 import qualified Solkattu.Score.Mridangam2017
 import qualified Solkattu.Score.MridangamSarva
 import qualified Solkattu.Score.Solkattu2013
@@ -23,21 +24,21 @@ import qualified Solkattu.Score.SolkattuMohra
 korvais :: [Korvai.Korvai]
 korvais =
     [ setLocation ("Solkattu.Score.Mridangam2013",15,"dinnagina_sequence") Solkattu.Score.Mridangam2013.dinnagina_sequence
-    , setLocation ("Solkattu.Score.Mridangam2013",85,"t_16_11_14") Solkattu.Score.Mridangam2013.t_16_11_14
-    , setLocation ("Solkattu.Score.Mridangam2013",91,"t_17_02_13") Solkattu.Score.Mridangam2013.t_17_02_13
-    , setLocation ("Solkattu.Score.Mridangam2013",104,"din_nadin") Solkattu.Score.Mridangam2013.din_nadin
-    , setLocation ("Solkattu.Score.Mridangam2013",111,"nadin_ka") Solkattu.Score.Mridangam2013.nadin_ka
-    , setLocation ("Solkattu.Score.Mridangam2013",116,"nadindin") Solkattu.Score.Mridangam2013.nadindin
-    , setLocation ("Solkattu.Score.Mridangam2013",133,"nadindin_negative") Solkattu.Score.Mridangam2013.nadindin_negative
-    , setLocation ("Solkattu.Score.Mridangam2013",146,"namita_dimita") Solkattu.Score.Mridangam2013.namita_dimita
-    , setLocation ("Solkattu.Score.Mridangam2013",163,"janahan_exercise") Solkattu.Score.Mridangam2013.janahan_exercise
-    , setLocation ("Solkattu.Score.Mridangam2013",167,"nakanadin") Solkattu.Score.Mridangam2013.nakanadin
-    , setLocation ("Solkattu.Score.Mridangam2013",173,"p16_12_06_sriram2") Solkattu.Score.Mridangam2013.p16_12_06_sriram2
-    , setLocation ("Solkattu.Score.Mridangam2013",181,"p16_12_06_janahan1") Solkattu.Score.Mridangam2013.p16_12_06_janahan1
-    , setLocation ("Solkattu.Score.Mridangam2013",188,"p16_12_06_janahan2") Solkattu.Score.Mridangam2013.p16_12_06_janahan2
-    , setLocation ("Solkattu.Score.Mridangam2013",198,"farans") Solkattu.Score.Mridangam2013.farans
-    , setLocation ("Solkattu.Score.Mridangam2013",244,"eddupu6") Solkattu.Score.Mridangam2013.eddupu6
-    , setLocation ("Solkattu.Score.Mridangam2013",255,"eddupu10") Solkattu.Score.Mridangam2013.eddupu10
+    , setLocation ("Solkattu.Score.Mridangam2013",85,"t_17_02_13") Solkattu.Score.Mridangam2013.t_17_02_13
+    , setLocation ("Solkattu.Score.Mridangam2013",98,"din_nadin") Solkattu.Score.Mridangam2013.din_nadin
+    , setLocation ("Solkattu.Score.Mridangam2013",105,"nadin_ka") Solkattu.Score.Mridangam2013.nadin_ka
+    , setLocation ("Solkattu.Score.Mridangam2013",110,"nadindin") Solkattu.Score.Mridangam2013.nadindin
+    , setLocation ("Solkattu.Score.Mridangam2013",127,"nadindin_negative") Solkattu.Score.Mridangam2013.nadindin_negative
+    , setLocation ("Solkattu.Score.Mridangam2013",140,"namita_dimita") Solkattu.Score.Mridangam2013.namita_dimita
+    , setLocation ("Solkattu.Score.Mridangam2013",157,"janahan_exercise") Solkattu.Score.Mridangam2013.janahan_exercise
+    , setLocation ("Solkattu.Score.Mridangam2013",161,"nakanadin") Solkattu.Score.Mridangam2013.nakanadin
+    , setLocation ("Solkattu.Score.Mridangam2013",168,"farans") Solkattu.Score.Mridangam2013.farans
+    , setLocation ("Solkattu.Score.Mridangam2013",214,"eddupu6") Solkattu.Score.Mridangam2013.eddupu6
+    , setLocation ("Solkattu.Score.Mridangam2013",225,"eddupu10") Solkattu.Score.Mridangam2013.eddupu10
+    , setLocation ("Solkattu.Score.Mridangam2016",13,"t_16_11_14") Solkattu.Score.Mridangam2016.t_16_11_14
+    , setLocation ("Solkattu.Score.Mridangam2016",19,"p16_12_06_sriram2") Solkattu.Score.Mridangam2016.p16_12_06_sriram2
+    , setLocation ("Solkattu.Score.Mridangam2016",27,"p16_12_06_janahan1") Solkattu.Score.Mridangam2016.p16_12_06_janahan1
+    , setLocation ("Solkattu.Score.Mridangam2016",34,"p16_12_06_janahan2") Solkattu.Score.Mridangam2016.p16_12_06_janahan2
     , setLocation ("Solkattu.Score.Mridangam2017",11,"c_17_07_10") Solkattu.Score.Mridangam2017.c_17_07_10
     , setLocation ("Solkattu.Score.Mridangam2017",15,"e_1") Solkattu.Score.Mridangam2017.e_1
     , setLocation ("Solkattu.Score.Mridangam2017",24,"e_2") Solkattu.Score.Mridangam2017.e_2
