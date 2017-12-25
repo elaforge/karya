@@ -756,7 +756,6 @@ tableCss =
     "table.konnakol {\n\
     \   table-layout: fixed;\n\
     \   width: 100%;\n\
-    \   font-size: 75%;\n\
     \}\n\
     \table.konnakol th {\n\
     \   text-align: left;\n\
@@ -770,10 +769,11 @@ tableCss =
     \.endG { background:\
         \ linear-gradient(to right, lightgray, lightgray, white) }"
 
-formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Int
+data Font = Font { _sizePercent :: Int, _monospace :: Bool } deriving (Show)
+
+formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
     -> [S.Flat g (Note stroke)] -> Doc.Html
-formatHtml tala fontPercent notes =
-    toTable tala fontPercent (map Doc.html ruler) avartanams
+formatHtml tala font notes = toTable tala font (map Doc.html ruler) avartanams
     where
     ruler = maybe [] (concatMap akshara . inferRuler tala)
         (Seq.head avartanams)
@@ -793,17 +793,18 @@ formatTable tala = breakAvartanams . map showStroke . flattenGroups tala
             _ -> Just $ Doc.html $ Solkattu.notation a
         S.Rest -> Just "_"
 
-toTable :: Tala.Tala -> Int -> [Doc.Html]
+toTable :: Tala.Tala -> Font -> [Doc.Html]
     -> [[(S.State, ([StartEnd], Maybe Doc.Html))]]
     -> Doc.Html
-toTable tala fontPercent header rows = mconcatMap (<>"\n") $
-    [ "<p> <table style=\"" <> fontSize
+toTable tala font header rows = mconcatMap (<>"\n") $
+    [ "<p> <table style=\"" <> fontStyle
         <> "\" class=konnakol cellpadding=0 cellspacing=0>"
     , "<tr>" <> mconcatMap th header <> "</tr>\n"
     ] ++ map row (snd $ mapAccumL2 addGroups 0 rows)
     ++ ["</table>"]
     where
-    fontSize = "font-size: " <> Doc.html (showt fontPercent) <> "%"
+    fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
+        <> if _monospace font then "; font-family: Monaco, monospace" else ""
     th col = Doc.tag_attrs "th" [] (Just col)
     row cells = TextUtil.join ("\n" :: Doc.Html)
         [ "<tr>"

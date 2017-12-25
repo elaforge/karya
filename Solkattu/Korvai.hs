@@ -335,7 +335,7 @@ writeKonnakolHtml realizePatterns korvai =
                 putStrLn "wrote konnakol.html"
             where
             body = TextUtil.join "\n\n" $
-                map (Realize.formatHtml (korvaiTala korvai) 75) notes
+                map (Realize.formatHtml (korvaiTala korvai) konnakolFont) notes
             (notes, warnings) = unzip results
 
 -- | Write HTML with all the instrument realizations.
@@ -360,19 +360,29 @@ htmlInstruments realizePatterns korvai =
             <> TextUtil.join "\n\n" sections
         where
         strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
-        sections = map (htmlResult (korvaiTala korvai) (fontPercent name)) $
+        sections = map (htmlResult (korvaiTala korvai) (font name)) $
             realize inst realizePatterns korvai
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
-    fontPercent name
-        | name == "konnakol" = 75
-        | otherwise = 125
+    font name
+        | name == "konnakol" = konnakolFont
+        | otherwise = instrumentFont
 
-htmlResult :: Solkattu.Notation stroke => Tala.Tala -> Int
+konnakolFont, instrumentFont :: Realize.Font
+konnakolFont = Realize.Font
+    { _sizePercent = 75
+    , _monospace = False
+    }
+instrumentFont = Realize.Font
+    { _sizePercent = 125
+    , _monospace = True
+    }
+
+htmlResult :: Solkattu.Notation stroke => Tala.Tala -> Realize.Font
     -> Either Text ([S.Flat g (Realize.Note stroke)], Error) -> Doc.Html
 htmlResult _ _ (Left err) = "<p> ERROR: " <> Doc.html err
-htmlResult tala fontPercent (Right (notes, warn)) =
-    Realize.formatHtml tala fontPercent notes
+htmlResult tala font (Right (notes, warn)) =
+    Realize.formatHtml tala font notes
     <> if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
 
 metadataHtml :: Korvai -> Doc.Html
