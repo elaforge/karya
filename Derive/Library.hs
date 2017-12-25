@@ -127,6 +127,13 @@ instance ToLibrary (Derive.Transformer Derive.Control) where
 instance ToLibrary (Derive.Transformer Derive.Pitch) where
     to_library = (Derive.s_transformer#Derive.s_pitch #=)
 
+instance ToLibrary (Derive.TrackCall Derive.Note) where
+    to_library = (Derive.s_track#Derive.s_note #=)
+instance ToLibrary (Derive.TrackCall Derive.Control) where
+    to_library = (Derive.s_track#Derive.s_control #=)
+instance ToLibrary (Derive.TrackCall Derive.Pitch) where
+    to_library = (Derive.s_track#Derive.s_pitch #=)
+
 instance ToLibrary Derive.ValCall where
     to_library = (Derive.s_val #=)
 
