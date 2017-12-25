@@ -771,7 +771,7 @@ tableCss =
 
 data Font = Font { _sizePercent :: Int, _monospace :: Bool } deriving (Show)
 
-formatHtml :: (Eq stroke, Solkattu.Notation stroke) => Tala.Tala -> Font
+formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
     -> [S.Flat g (Note stroke)] -> Doc.Html
 formatHtml tala font notes =
     formatTable tala font (map Doc.html ruler) avartanams
@@ -785,7 +785,7 @@ formatHtml tala font notes =
         map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
         flattenGroups tala notes
 
-formatTable :: (Eq stroke, Solkattu.Notation stroke) => Tala.Tala -> Font
+formatTable :: Solkattu.Notation stroke => Tala.Tala -> Font
     -> [Doc.Html] -> [[(S.State, ([StartEnd], S.Stroke (Note stroke)))]]
     -> Doc.Html
 formatTable tala font header rows = mconcatMap (<>"\n") $
@@ -812,14 +812,16 @@ formatTable tala font header rows = mconcatMap (<>"\n") $
             Start -> 1
             End -> -1
     groupSustains (_, (_, note1)) (state2, (_, note2)) =
-        not (hasLine state2) && sameSustain note1 note2
+        not (hasLine state2) && merge note1 note2
         where
         -- For Pattern, the first cell gets the p# notation, the rest get <hr>.
         -- For Sarva, there's no notation, so they all get the <hr>.
-        sameSustain (S.Attack (Space Solkattu.Sarva))
+        merge (S.Attack (Space Solkattu.Sarva))
             (S.Sustain (Space Solkattu.Sarva)) = True
-        sameSustain (S.Sustain a) (S.Sustain b) = a == b
-        sameSustain _ _ = False
+        merge (S.Sustain (Space Solkattu.Sarva))
+            (S.Sustain (Space Solkattu.Sarva)) = True
+        merge (S.Sustain (Pattern {})) (S.Sustain (Pattern {})) = True
+        merge _ _ = False
 
     td [] = "" -- not reached, List.groupBy shouldn't return empty groups
     td ((state, ((depth :: Int, start, end), note)) : ns) =
@@ -827,8 +829,7 @@ formatTable tala font header rows = mconcatMap (<>"\n") $
             S.Attack (Space Solkattu.Sarva) -> sarva
             S.Sustain (Space Solkattu.Sarva) -> sarva
             S.Sustain (Pattern {}) -> "<hr noshade>"
-            -- Note and Rest don't have hasSustain, so I shouldn't see this
-            S.Sustain {} -> "<hr>"
+            S.Sustain a -> Doc.html (Solkattu.notation a)
             S.Attack a -> Doc.html (Solkattu.notation a)
             S.Rest -> Doc.html "_"
         where

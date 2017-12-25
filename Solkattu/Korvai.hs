@@ -150,8 +150,8 @@ sargam = defaultInstrument
     }
 
 -- | An existential type to capture the Notation instance.
-data GInstrument = forall stroke. (Eq stroke, Solkattu.Notation stroke)
-    => GInstrument (Instrument stroke)
+data GInstrument =
+    forall stroke. Solkattu.Notation stroke => GInstrument (Instrument stroke)
 
 instruments :: Map Text GInstrument
 instruments = Map.fromList
@@ -379,7 +379,7 @@ instrumentFont = Realize.Font
     , _monospace = True
     }
 
-htmlResult :: (Eq stroke, Solkattu.Notation stroke) => Tala.Tala -> Realize.Font
+htmlResult :: Solkattu.Notation stroke => Tala.Tala -> Realize.Font
     -> Either Text ([S.Flat g (Realize.Note stroke)], Error) -> Doc.Html
 htmlResult _ _ (Left err) = "<p> ERROR: " <> Doc.html err
 htmlResult tala font (Right (notes, warn)) =
