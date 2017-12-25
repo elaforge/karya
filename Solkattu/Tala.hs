@@ -84,3 +84,9 @@ khanda_chapu = Tala "khanda chapu" [Clap 2, Clap 1, Clap 2] 0
 
 rupaka_fast :: Tala
 rupaka_fast = Tala "rupaka" [Clap 1, Clap 1, Wave 1] 0
+
+-- | A special "tala" that just counts beats and turns off alignment checking.
+-- I use 4 beats just to get a nice wrapping, but I should do wrapping
+-- automatically.
+any_beats :: Tala
+any_beats = Tala "any beats" [I] 4

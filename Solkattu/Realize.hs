@@ -144,8 +144,9 @@ noteDuration tempo = (* S.matraDuration tempo) . fromIntegral . S.matrasOf
 -- fall where expected.
 verifyAlignment :: Tala.Tala -> [(S.Tempo, Note stroke)] -> Maybe (Int, Error)
     -- ^ (index where the error occured, error)
-verifyAlignment tala notes =
-    msum (map verify (zip [0..] states)) <|> appendEndsOnSam
+verifyAlignment tala notes
+    | tala == Tala.any_beats = Nothing
+    | otherwise = msum (map verify (zip [0..] states)) <|> appendEndsOnSam
     where
     (finalState, states) = S.tempoToState tala notes
     -- Either finalState one is at 0, or the last non-rest note is.

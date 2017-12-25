@@ -388,5 +388,7 @@ advanceStateBy tala duration state = state
     }
     where
     (durCarry, dur) = properFraction $ stateMatra state + duration
-    (aksharaCarry, akshara) = (stateAkshara state + durCarry)
-        `divMod` Tala.tala_aksharas tala
+    (aksharaCarry, akshara)
+        | avartanam == 0 = (0, stateAkshara state + durCarry)
+        | otherwise = (stateAkshara state + durCarry) `divMod` avartanam
+        where avartanam = Tala.tala_aksharas tala
