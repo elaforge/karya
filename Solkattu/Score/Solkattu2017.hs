@@ -657,13 +657,14 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvai adi mridangam
     where
     theme = kita.kita.taka.na.ta
         . kita.kita.gu.gu.na.na
-        . taka.na.ta.kita.__.ki.na.thom
+        . taka.ti.ku.kita.__.ki.na.thom
         . tri (din.__.ta.__.ka.dinga)
         . tat.__.dit
     mridangam = makeMridangam
-        [ (kita.kita.taka.na.ta, [k, t, k, t, p, k, n, p])
-        , (kita.kita.gu.gu.na.na, [k, t, k, t, o, o, n, n])
-        , (taka.na.ta, [p, k, t, p])
+        [ (kita, [k, t])
+        , (taka.na.ta, [p, k, n, p])
+        , (gu.gu.na.na, [o, o, n, n])
+        , (taka.ti.ku, [p, k, t, p])
         , (ki.ta.ki.na.thom, [k, t, k, n, o])
         , (din.ta.ka.dinga, [on, k, o, d, o])
         , (tat.dit, [on, u])

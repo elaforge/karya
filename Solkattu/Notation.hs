@@ -61,7 +61,7 @@ restM n = repeat n __
 sarvaM :: S.Matra -> SequenceT sollu
 sarvaM n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
 
--- * by Duration
+-- * by FMatra
 
 dropM, dropM_ :: (CallStack.Stack, Pretty sollu) =>
     FMatra -> SequenceT sollu -> SequenceT sollu
@@ -146,6 +146,13 @@ rtakeM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> SequenceT sollu
 rtakeM dur seq = dropM (matrasOf seq - dur) seq
 
+spaceM :: CallStack.Stack => Solkattu.Space -> FMatra -> SequenceT sollu
+spaceM space matras =
+    concatMap make $ Solkattu.check $ S.decomposeM matras
+    where make s = speed s [S.Note (Solkattu.Space space)]
+
+-- * by Duration
+
 restD, sarvaD :: CallStack.Stack => Duration -> SequenceT sollu
 restD = spaceD Solkattu.Rest S.defaultTempo
 sarvaD = spaceD Solkattu.Sarva S.defaultTempo
@@ -159,13 +166,6 @@ spaceD space tempo dur =
     -- Cancel out the nadai.  So d is now in s0 matras.
     s0_matras = dur * fromIntegral (S._nadai tempo)
 
-spaceM :: CallStack.Stack => Solkattu.Space -> FMatra -> SequenceT sollu
-spaceM space matras =
-    concatMap make $ Solkattu.check $ S.decomposeM matras
-    where make s = speed s [S.Note (Solkattu.Space space)]
-
--- * by Duration
-
 -- | Duration-using variants of the matra functions.  These are only valid
 -- at the top level, in 'S.defaultTempo'.  TODO require Tempo arg?
 dropD, rdropD, takeD, rtakeD :: (CallStack.Stack, Pretty sollu) =>
@@ -175,8 +175,7 @@ rdropD = rdropM . dToM
 takeD = takeM . dToM
 rtakeD = rtakeM . dToM
 
-dToM :: Duration -> FMatra
-dToM d = realToFrac $ d / S.matraDuration S.defaultTempo
+-- * structures
 
 -- | Drop sollus equal in length to some others.  This is intenedd for
 -- repeated sequences that get elided away, e.g. @tri p7 . sandi p7 (p7.p6.p5)@.
@@ -187,20 +186,6 @@ dToM d = realToFrac $ d / S.matraDuration S.defaultTempo
 sandi :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
 sandi dropped = dropM (matrasOf dropped)
-
-matrasOf :: SequenceT sollu -> FMatra
-matrasOf = Solkattu.matrasOf S.defaultTempo
-
--- | Like 'matrasOf', but throw an error if it's not integral.
-matrasOfI :: CallStack.Stack => SequenceT sollu -> S.Matra
-matrasOfI seq
-    | frac == 0 = matras
-    | otherwise = errorStack $ "non-integral matras: " <> pretty fmatras
-    where
-    (matras, frac) = properFraction fmatras
-    fmatras = matrasOf seq
-
--- * structures
 
 -- | Repeat thrice, with no karvai.
 tri :: SequenceT sollu -> SequenceT sollu
@@ -304,9 +289,26 @@ replaceStart, replaceEnd :: (CallStack.Stack, Pretty sollu) => SequenceT sollu
 replaceStart prefix seq = prefix <> dropM_ (matrasOf prefix) seq
 replaceEnd seq suffix = rdropM_ (matrasOf suffix) seq <> suffix
 
+-- * measurement
+
+matrasOf :: SequenceT sollu -> FMatra
+matrasOf = Solkattu.matrasOf S.defaultTempo
+
+-- | Like 'matrasOf', but throw an error if it's not integral.
+matrasOfI :: CallStack.Stack => SequenceT sollu -> S.Matra
+matrasOfI seq
+    | frac == 0 = matras
+    | otherwise = errorStack $ "non-integral matras: " <> pretty fmatras
+    where
+    (matras, frac) = properFraction fmatras
+    fmatras = matrasOf seq
+
 -- | I think defaultTempo is ok because these functions are used on fragments.
 matraDuration :: S.Duration
 matraDuration = S.matraDuration S.defaultTempo
+
+dToM :: Duration -> FMatra
+dToM d = realToFrac $ d / S.matraDuration S.defaultTempo
 
 -- * generic notation
 
@@ -344,6 +346,7 @@ groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side)
 (^) = setTag
 infix 9 ^
 
+-- | 'Solkattu.Middle'.
 mid :: Solkattu.Tag
 mid = Solkattu.Middle
 

@@ -22,11 +22,11 @@ e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi
     pkt = p.kt.p.kt.pk
 
 e_2 :: Korvai
-e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $ concat
-    [ map pattern [s1, s2, s3, s4]
-    , [cmap fast [p, k, o, n]]
-    , map pattern [t1, t2]
-    , [t_sarva]
+e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $
+    [ cmap pattern [s1, s2, s3, s4, s5]
+    , cmap fast [p, k, o, n]
+    , concatMap pattern [t1, t2]
+    , t_sarva
     ]
     where
     pattern s = cmap s [p, k, o, n]
@@ -34,12 +34,14 @@ e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $ concat
     s2 x = x.__.ktkt.pk.n.n.pk.kt.pk
     s3 x = x.x .ktkt.pk.n.n.pk.kt.pk
     s4 x = x.x .ktkt.pk.n.n.pk.d.d.pk
+    s5 x = x.__.ktkt.pk.tk.tk.d.n.pk
     fast x = x.__.ktkt.pk.n.__.pk.d.__.pk
 
     t1 x = x.__.ktkt.pk.pk.n.pk.d.pk
     t2 x = x.__.ktkt.pk . repeat 3 (pk.n.pk.d.pk)
 
     t_sarva = o.k.n.o.k.d.o.k . repeat 3 (pk.n.pk.d.pk)
+    tk = t.k
 
 
 -- Speaking exercises: tadinginathom, taka tadinginathom

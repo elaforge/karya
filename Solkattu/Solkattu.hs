@@ -4,11 +4,11 @@
 
 {- | Notation for Carnatic solkattu.
 
-    This is actually a separate library that's independent of Derive.  The only
-    connection is that its final output can be stroke names for some instrument
-    and thus easily inserted into a track.
+    This is actually a separate library that's independent of the rest of the
+    sequencer.  The only connection is that its final output can be stroke
+    names for some instrument and thus easily inserted into a track.
 
-    Salkattu is a general form of rhythmic notation.  Since the syllables
+    Solkattu is a general form of rhythmic notation.  Since the syllables
     (sollus) are independent of any particular instrument, they can express
     general rhythmic structures, which can then be realized in a form idiomatic
     to different instruments.

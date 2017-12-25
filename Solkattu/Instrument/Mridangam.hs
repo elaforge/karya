@@ -30,8 +30,8 @@ data Thoppi = Tha | Thom
 data Valantalai = Ki | Ta
     | Mi -- ^ light Ki, played with middle finger
     | Nam | Din
-    | AraiChapu -- ^ whole-hand chapu
-    | MuruChapu -- ^ pinky chapu
+    | AraiChapu -- ^ "half chapu", played covering half the valantalai
+    | MuruChapu -- ^ "full chapu", played with just the pinky touching saddam
     | Dheem
     | Kin -- ^ ki on meetu
     | Tan -- ^ ta on meetu

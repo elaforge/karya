@@ -63,7 +63,9 @@ instance (Pretty a, Pretty g) => Pretty (Note g a) where
                 <> Pretty.wrapWords (map Pretty.format notes)
                 <> ")"
 
--- | A single Duration unit is equivalent to 1 Akshara.
+-- | A single Duration unit is equivalent to 1 Akshara.  Unlike 'FMatra' and
+-- 'Matra', this is an absolute duration, so it doesn't depend on '_nadai' or
+-- '_speed'.
 newtype Duration = Duration Ratio.Rational
     deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty)
 
