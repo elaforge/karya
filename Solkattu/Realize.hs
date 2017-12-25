@@ -72,6 +72,13 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Stroke stroke) where
         Heavy -> Text.toUpper $ Solkattu.notation stroke
         Normal -> Solkattu.notation stroke
         Light -> Solkattu.notation stroke
+    notationHtml (Stroke emphasis stroke) =
+        emphasize $ Solkattu.notationHtml stroke
+        where
+        emphasize = case emphasis of
+            Light -> Doc.tag_attrs "font" [("color", "gray")] . Just
+            Normal -> id
+            Heavy -> Doc.tag_attrs "font" [("color", "darkred")] . Just
 
 instance Pretty stroke => Pretty (Stroke stroke) where
     pretty (Stroke emphasis stroke) = (<> pretty stroke) $ case emphasis of
@@ -126,6 +133,10 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
         Note s -> Solkattu.notation s
         Pattern p -> Solkattu.notation p
         Alignment _ -> "" -- this should be filtered out prior to render
+    notationHtml n = case n of
+        Note s -> Solkattu.notationHtml s
+        Pattern p -> Solkattu.notationHtml p
+        _ -> Doc.html $ Solkattu.notation n
 
 instance Pretty stroke => Pretty (Note stroke) where
     pretty n = case n of
@@ -833,10 +844,8 @@ formatTable tala font header rows = mconcatMap (<>"\n") $
             S.Attack a -> notation a
             S.Rest -> Doc.html "_"
         where
-        notation a
-            | onAkshara state =
-                "<b>" <> Doc.html (Solkattu.notation a) <> "</b>"
-            | otherwise = Doc.html (Solkattu.notation a)
+        notation = bold . Solkattu.notationHtml
+            where bold = if onAkshara state then Doc.tag "b" else id
         sarva = "<hr style=\"border: 4px dotted\">"
         tags = concat
             [ [("class", Text.unwords classes) | not (null classes)]

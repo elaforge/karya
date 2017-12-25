@@ -2549,7 +2549,7 @@ solkattu:
         . Alternately, I could put in a number for matra count.
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
-      - gray letters for light strokes
+      * gray letters for light strokes
       * Highlight groups in konnakol html.
       * draw a vertical line on aksharas, maybe double for angas
       * figure out how to get even spacing for the html output
@@ -2561,8 +2561,9 @@ solkattu:
           I use lighter gray?
       - If groups touch each other then I can't tell them apart.  Maybe
         I should alternate two colors.
-    - Solkattu.notation should output an abstract formatted output, which can
+    / Solkattu.notation should output an abstract formatted output, which can
       be rendered to HTML or ASCII.
+      . I added notationHtml, which is more error-prone, but simpler.
     - format: if the ruler changes after an avartanam line break, show the
       partial ruler, e.g. Realize_test.test_format_nadai_change
   - It seems technique is not working for Solkattu2016.c_16_12_06_sriram1

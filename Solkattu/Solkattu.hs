@@ -67,12 +67,13 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
+
 import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Tala as Tala
-
 import Global
 
 
@@ -84,8 +85,10 @@ import Global
     TODO I could extend it with an html method for non-ASCII output, or some
     type that can be rendered to both ASCII and terminal escape codes.
 -}
-class Notation a where
+class Show a => Notation a where -- Show makes debugging more convenient
     notation :: a -> Text
+    notationHtml :: a -> Doc.Html
+    notationHtml = Doc.html . notation
 
 type Error = Text
 
