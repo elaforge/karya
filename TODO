@@ -2539,7 +2539,7 @@ solkattu:
         - link to a specific spot in a recording
       * html output for realized strokes
       * I don't have to scale the font down.
-      - extend double line instead of = for sarvalaghu
+      * extend double line instead of = for sarvalaghu
       - Replace a double rest that starts on an even matra with a double
         underline, or something.  This is effectively rhythmic spelling.
         . Alternately, I could put in a number for matra count.

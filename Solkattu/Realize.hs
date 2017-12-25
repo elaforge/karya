@@ -771,32 +771,24 @@ tableCss =
 
 data Font = Font { _sizePercent :: Int, _monospace :: Bool } deriving (Show)
 
-formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
+formatHtml :: (Eq stroke, Solkattu.Notation stroke) => Tala.Tala -> Font
     -> [S.Flat g (Note stroke)] -> Doc.Html
-formatHtml tala font notes = toTable tala font (map Doc.html ruler) avartanams
+formatHtml tala font notes =
+    formatTable tala font (map Doc.html ruler) avartanams
     where
     ruler = maybe [] (concatMap akshara . inferRuler tala)
         (Seq.head avartanams)
     akshara (n, spaces) = n : replicate (spaces-1) ""
     -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
     -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
-    avartanams = formatTable tala notes
+    avartanams = breakAvartanams $
+        map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
+        flattenGroups tala notes
 
-formatTable :: Solkattu.Notation stroke => Tala.Tala
-    -> [S.Flat g (Note stroke)] -> [[(S.State, ([StartEnd], Maybe Doc.Html))]]
-formatTable tala = breakAvartanams . map showStroke . flattenGroups tala
-    where
-    showStroke (startEnd, (state, s)) = (state,) $ (startEnd,) $ case s of
-        S.Attack a -> Just $ Doc.html (Solkattu.notation a)
-        S.Sustain a -> case a of
-            Pattern {} -> Nothing
-            _ -> Just $ Doc.html $ Solkattu.notation a
-        S.Rest -> Just "_"
-
-toTable :: Tala.Tala -> Font -> [Doc.Html]
-    -> [[(S.State, ([StartEnd], Maybe Doc.Html))]]
+formatTable :: (Eq stroke, Solkattu.Notation stroke) => Tala.Tala -> Font
+    -> [Doc.Html] -> [[(S.State, ([StartEnd], S.Stroke (Note stroke)))]]
     -> Doc.Html
-toTable tala font header rows = mconcatMap (<>"\n") $
+formatTable tala font header rows = mconcatMap (<>"\n") $
     [ "<p> <table style=\"" <> fontStyle
         <> "\" class=konnakol cellpadding=0 cellspacing=0>"
     , "<tr>" <> mconcatMap th header <> "</tr>\n"
@@ -808,7 +800,7 @@ toTable tala font header rows = mconcatMap (<>"\n") $
     th col = Doc.tag_attrs "th" [] (Just col)
     row cells = TextUtil.join ("\n" :: Doc.Html)
         [ "<tr>"
-        , TextUtil.join "\n" $ map td (groupSustains cells)
+        , TextUtil.join "\n" $ map td (List.groupBy groupSustains cells)
         , "</tr>"
         , ""
         ]
@@ -819,16 +811,28 @@ toTable tala font header rows = mconcatMap (<>"\n") $
         depth = (prevDepth+) $ sum $ flip map startEnds $ \n -> case n of
             Start -> 1
             End -> -1
-    groupSustains = List.groupBy $ \(_, (_, note1)) (state2, (_, note2)) ->
-        note1 == Nothing && note2 == Nothing && not (hasLine state2)
+    groupSustains (_, (_, note1)) (state2, (_, note2)) =
+        not (hasLine state2) && sameSustain note1 note2
+        where
+        -- For Pattern, the first cell gets the p# notation, the rest get <hr>.
+        -- For Sarva, there's no notation, so they all get the <hr>.
+        sameSustain (S.Attack (Space Solkattu.Sarva))
+            (S.Sustain (Space Solkattu.Sarva)) = True
+        sameSustain (S.Sustain a) (S.Sustain b) = a == b
+        sameSustain _ _ = False
+
     td [] = "" -- not reached, List.groupBy shouldn't return empty groups
     td ((state, ((depth :: Int, start, end), note)) : ns) =
         Doc.tag_attrs "td" tags $ Just $ case note of
-            Nothing -> "<hr noshade>"
-            Just word
-                | onAkshara state -> "<b>" <> word <> "</b>"
-                | otherwise -> word
+            S.Attack (Space Solkattu.Sarva) -> sarva
+            S.Sustain (Space Solkattu.Sarva) -> sarva
+            S.Sustain (Pattern {}) -> "<hr noshade>"
+            -- Note and Rest don't have hasSustain, so I shouldn't see this
+            S.Sustain {} -> "<hr>"
+            S.Attack a -> Doc.html (Solkattu.notation a)
+            S.Rest -> Doc.html "_"
         where
+        sarva = "<hr style=\"border: 4px dotted\">"
         tags = concat
             [ [("class", Text.unwords classes) | not (null classes)]
             , [("colspan", showt (length ns + 1)) | not (null ns)]

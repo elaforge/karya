@@ -82,6 +82,9 @@ instance Solkattu.Notation Valantalai where
         Kin -> ","
         Tan -> "^"
 
+instance Pretty Thoppi where pretty = Solkattu.notation
+instance Pretty Valantalai where pretty = Solkattu.notation
+
 -- | Pretty reproduces the "Derive.Solkattu.Dsl" syntax, which has to be
 -- haskell syntax, so it can't use +, and I have to put thoppi first to avoid
 -- the keyword @do@.  It would be nice if I could make the tracklang syntax
