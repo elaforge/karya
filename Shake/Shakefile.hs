@@ -815,6 +815,11 @@ dispatch modeConfig targets = do
             Util.system "mkdir" ["-p", build </> "verify"]
             Util.shell $ opt "verify_performance --out=build/verify\
                 \ save/complete/*"
+        "verify" -> action $ do
+            let opt = (modeToDir Opt </>)
+            need [opt "verify_performance"]
+            Util.shell $ opt "verify_performance --out=build/verify\
+                \ save/complete/*"
         -- Compile everything, like validate but when I don't want to test.
         "typecheck" -> action $ needEverything []
         "binaries" -> do
