@@ -191,9 +191,34 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  * Why does verify_performance give a bunch of "%breath clipped" warnings?
+    . 'd' call is going below 0, but it doesn't look like 0 in the track signal
+    . I got rid of the 'd' and 'u' limits because stopping at 1 doesn't make
+      sense for the tempo track.  Stopping at 0 does, though it should be >0.
+    . How can a track tell if it's 0-1 or not?  I could put a normalized-value
+      key in the environment.  Cmd could also use it instead of inferring
+      based on other 0x events.
+    . Most controls are 0-1.  But if I use scale it can be -1 to 1.  Tempo is
+      >0.  I think it's ok to limit to 0..1 for -1..1 tracks, because it's
+      clear what's going on and it can be overridden.  limit at 1 for tempo is
+      confusing though, so I can have it put a key in the environ.
+  - fltk: track signal should put a line at 0
+    . Why does track signal not look like 0?  Oh, because the draw code
+      assumes it's -1..1 and scales accordingly.
+  - It seems there's no way to explicitly pass Nothing if the default is Just,
+    because _ turns into set the default.
+    . Ultimately I think because VNotGiven is special-cased in Derive.Sig.  I
+      would need some way to distinguish between "give me the default" and
+      "pass Nothing".
+    . I could change the default to "pass Nothing" by having Sig check the
+      type against VNotGiven and only default if it fails.  But of course
+      now there is no way to indicate "use the default" for a Maybe argument.
+      This might be more likely to be what I want, but it's inconsistent in
+      that the type of the arg influences the process and nothing else does
+      that.
+    . Meanwhile, there's never a point to defaulting to (Just x) instead of x.
   - generic deriving Monoid?
     . How about monoid is_empty that doesn't use Eq?
-
   - Attributes are not necessarily suited to fundamentally exclusive
     articulations, like striking technique.  For NESS strings I use the
     'element' field, maybe I should be using environ for that at the score
@@ -203,12 +228,6 @@ UNSORTED
     . But the next one has control 0, shouldn't it know to cancel?
     . It only cancels keyswitches because all notes explicitly have one.  So
       I need to say if you're not 'o', then %harmonic=0.
-  - Shift-play plays im cache even when the instruments are gone, but not
-    enter-play?
-    . Properly I should clear out the cache when instruments go away, but
-      meanwhile I should be noticing that there are no im events and not
-      starting play_cache.
-    . Proper MIDI fallback would also fix this.
   - Switching to Symbols.default_note means any event created via Call.note
     winds up with event_text="NOTE", which is not as informative as the
     original text.
@@ -1279,6 +1298,12 @@ Util.Linear: linear piecewise signal: signal-discontinuities:
         or further extension?
 
 synth: im:
+  - Shift-play plays im cache even when the instruments are gone, but not
+    enter-play?
+    . Properly I should clear out the cache when instruments go away, but
+      meanwhile I should be noticing that there are no im events and not
+      starting play_cache.
+    . Proper MIDI fallback would also fix this.
   - If I delete an instrument and rerender, the old one is left around.
     This is because the cache won't delete existing files.  This will be fixed
     by making a new cache dir instead of just copying into the existing one.

@@ -160,7 +160,7 @@ tempo_call :: Config -> Maybe Expr.Symbol -> TrackTree.Track
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 tempo_call config sym track sig_deriver deriver = do
     (signal, logs) <- Internal.in_real_time $ do
-        (signal, logs) <- sig_deriver
+        (signal, logs) <- Derive.with_val EnvKey.control_gt_0 True sig_deriver
         -- Do this in real time, so 'stash_if_wanted' knows it can directly
         -- reuse the signal.
         stash_if_wanted track signal

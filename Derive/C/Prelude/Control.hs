@@ -213,22 +213,29 @@ c_neighbor = generator1 "neighbor" mempty
 
 c_up :: Derive.Generator Derive.Control
 c_up = generator1 "u" Tags.prev
-    "Ascend at the given speed until the value reaches 1 or the next event."
-    $ Sig.call ((,,)
+    "Ascend at the given speed until the value reaches a limit or the next\
+    \ event."
+    $ Sig.call ((,,,)
     <$> Sig.defaulted "speed" 1 "Ascend this amount per second."
     <*> Sig.defaulted "limit" Nothing "Stop at this value."
     <*> ControlUtil.from_env
-    ) $ \(speed, limit, from) args -> make_slope args Nothing limit from speed
+    <*> Sig.environ_key EnvKey.control_gt_0 False
+        "Whether or not to limit to 1 by default."
+    ) $ \(speed, limit, from, gt0) args ->
+        make_slope args Nothing
+            (if gt0 then limit else Just $ fromMaybe 1 limit)
+            from speed
 
 c_down :: Derive.Generator Derive.Control
 c_down = generator1 "d" Tags.prev
-    "Descend at the given speed until the value reaches 0 or the next event."
+    "Descend at the given speed until the value reaches a limit or the next\
+    \ event."
     $ Sig.call ((,,)
     <$> Sig.defaulted "speed" 1 "Descend this amount per second."
-    <*> Sig.defaulted "limit" Nothing "Stop at this value."
+    <*> Sig.defaulted "limit" 0 "Stop at this value."
     <*> ControlUtil.from_env
     ) $ \(speed, limit, from) args ->
-        make_slope args limit Nothing from (-speed)
+        make_slope args (Just limit) Nothing from (-speed)
 
 c_down_from :: Derive.Generator Derive.Control
 c_down_from = generator1 "df" mempty
@@ -237,9 +244,9 @@ c_down_from = generator1 "df" mempty
     $ Sig.call ((,,)
     <$> Sig.defaulted "from" 1 "Start at this value."
     <*> Sig.defaulted "speed" 1 "Descend this amount per second."
-    <*> Sig.defaulted "limit" Nothing "Stop at this value."
+    <*> Sig.defaulted "limit" 0 "Stop at this value."
     ) $ \(from, speed, limit) args ->
-        make_slope args limit Nothing (Just from) (-speed)
+        make_slope args (Just limit) Nothing (Just from) (-speed)
 
 make_slope :: Derive.ControlArgs -> Maybe Signal.Y -> Maybe Signal.Y
     -> Maybe Signal.Y -> Double -> Derive.Deriver Signal.Control

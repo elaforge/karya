@@ -128,6 +128,11 @@ attack_val = "attack-val"
 start_offset_val :: Key
 start_offset_val = "start-offset-val"
 
+-- | Bool: Control tracks normally range from 0 to 1, or -1 to 1.  This is set
+-- for control tracks which range >0.  That's just the tempo track for now.
+control_gt_0 :: Key
+control_gt_0 = "control-gt-0"
+
 -- * supported by not so core derivers
 
 -- | VNotePitch or VNum (NN): The top of the instrument's range.
