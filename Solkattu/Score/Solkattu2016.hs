@@ -41,7 +41,7 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
     map su $ map (purvangam.)
     [ tri_ (dheem.__4) ta_takadin
     , tri_ (dheem.__4) (su $ p6 . tk.p6 . tktu.p6)
-    -- All variations can get taka and takanaka in the karvai, and
+    -- All variations can get tk and tktu in the karvai, and
     -- 345 345 345 can become 345 345 3333
     ]
     where
@@ -54,19 +54,21 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
             . din.tat.thom.__
 
     dinnaka = group $ din.na.ka.din.na.ka.ta.ka
-    kitakina = group $ ki.ta.ki.na.ta.ki.ta.ka
+    kitakina = group $ kita.ki.na.ta.kita.ka
 
-    ta_takadin = mconcat $ expand 3 1 (tat.dit.ta . su taka . din)
+    ta_takadin = mconcat $ expand 3 1 tat_dit
+    tat_dit = tat.dit.ta . su taka . din
     mridangam = makeMridangam
         [ (1^tat, [p&k])
         , (1^dit, [p&t])
         , (kitakina, [k, t, k, n, o, k, o&t, k])
         , (dinnaka, [o, k, t, o, hv k, t, o, k])
+        , (takadinna, [n, o, o, k])
         , (din, [o])
         , (tat, [k])
-
-        , (tat.dit.ta.taka.din, [k, t, k, k, t, o])
+        , (tat_dit, [k, t, k, k, t, o])
         , (dheem, [u])
+        , (mid^dheem, [i])
         , (thom, [od])
         ]
 

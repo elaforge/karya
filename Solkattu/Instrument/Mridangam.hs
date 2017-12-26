@@ -8,14 +8,14 @@ module Solkattu.Instrument.Mridangam where
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
-import Global
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as Sequence
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Technique as Technique
+
+import Global
 
 
 type SNote = Realize.SNote Stroke
@@ -187,13 +187,14 @@ addThoppi t (Thoppi _) = Thoppi t
 postprocess :: [Technique.Flat Stroke] -> [Technique.Flat Stroke]
 postprocess = Technique.postprocess $ Technique.plain technique
 
+-- There are extended analogues of this, e.g.:
+-- [on, k] ot [k, on, k] -> on [k, on, ..]
+-- But to apply it I'd have to extend from ktk to ntn, and also to apply
+-- across intervening 'k's, so no need until I see more examples.
 technique :: Technique.Technique Stroke
-technique prevs cur (next:nexts)
-    -- (k, t, [k, !k, ..]) -> k, [k, ..]
-    | (val =<< Seq.last prevs) == Just Ki && val cur == Just Ta
-            && val next == Just Ki
-            && (val =<< Seq.head nexts) /= Just Ki =
-        Just $ setVal Ki cur
+technique (prev:_) cur (next:_)
+    -- (k, t, [k, ..]) -> k, [k, ..]
+    | map val [prev, cur, next] == map Just [Ki, Ta, Ki] = Just $ setVal Ki cur
     where
     Strokes {..} = strokes
     val (Valantalai s) = Just s
