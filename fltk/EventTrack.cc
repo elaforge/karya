@@ -712,6 +712,19 @@ EventTrack::draw_signal(int min_y, int max_y, ScoreTime start)
     // Account for both the 1 pixel track border and the width of the line.
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
+
+    if (tsig.val_min < 0) {
+        // Draw thin line at 0 to give some sense of the absolute value.
+        // Without this, it can be hard to notice if the value goes <0, since
+        // it will be automatically normalized to -1..1.
+        fl_line_style(FL_SOLID, 1);
+        fl_color(FL_GRAY);
+        double val = util::normalize(tsig.val_min, tsig.val_max, 0.0);
+        int xpos = floor(util::scale(double(min_x), double(max_x),
+            util::clamp(0.0, 1.0, val)));
+        fl_line(xpos, min_y, xpos, max_y);
+    }
+
     int next_i;
     int offset = 0;
     int prev_xpos = -1;

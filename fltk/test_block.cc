@@ -234,7 +234,7 @@ control_track_signal()
         calloc(length, sizeof(ControlSample));
     for (int i = 0; i < length; i++) {
         samples[i].time = ScoreTime(i).to_real();
-        samples[i].val = fmod(i / 20.0, 5);
+        samples[i].val = fmod(i / 20.0, 5) - 0.15;
     }
 
     // // flat steps

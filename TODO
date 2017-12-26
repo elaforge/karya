@@ -202,7 +202,7 @@ UNSORTED
       >0.  I think it's ok to limit to 0..1 for -1..1 tracks, because it's
       clear what's going on and it can be overridden.  limit at 1 for tempo is
       confusing though, so I can have it put a key in the environ.
-  - fltk: track signal should put a line at 0
+  * fltk: track signal should put a line at 0
     . Why does track signal not look like 0?  Oh, because the draw code
       assumes it's -1..1 and scales accordingly.
   - It seems there's no way to explicitly pass Nothing if the default is Just,
