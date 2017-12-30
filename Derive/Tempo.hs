@@ -11,9 +11,6 @@ module Derive.Tempo (
     , tempo_to_warp
 #endif
 ) where
-import qualified Data.Vector.Storable as Vector
-
-import qualified Util.TimeVector as TimeVector
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
@@ -190,7 +187,7 @@ with_hybrid toplevel range maybe_track_id signal deriver = do
         start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
         let block_dur = block_end - block_start
-        let absolute = flat_duration (Score.warp_signal warp)
+        let absolute = Signal.flat_duration (Score.warp_signal warp)
             real_dur = max (RealTime.score absolute)
                 (Score.warp_pos warp block_dur)
             -- If the block's absolute time is greater than the time allotted,
@@ -225,14 +222,3 @@ with_hybrid toplevel range maybe_track_id signal deriver = do
         where
         s1 = Score.warp_to_signal w1
         s2 = Score.warp_to_signal w2
-
--- | Total duration of horizontal segments in the warp signal.  These are
--- the places where 'Signal.compose_hybrid' will emit a 1\/1 line.
-flat_duration :: Signal.Warp -> ScoreTime
-flat_duration =
-    RealTime.to_score . fst . Vector.foldl' go (0, TimeVector.Sample 0 0)
-        . Signal.sig_vec
-    where
-    go (!acc, TimeVector.Sample x0 y0) sample@(TimeVector.Sample x y)
-        | y == y0 = (acc + (x - x0), sample)
-        | otherwise = (acc, sample)

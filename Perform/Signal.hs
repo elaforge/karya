@@ -17,7 +17,7 @@ module Perform.Signal (
     , tempo_srate
 
     -- * constants
-    , invalid_pitch, empty, zero
+    , empty
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construction / deconstruction
@@ -25,8 +25,6 @@ module Perform.Signal (
     , length, null
     , coerce
     , with_ptr
-    -- * check
-    , check, check_warp
 
     -- * access
     , at, sample_at, before
@@ -49,10 +47,11 @@ module Perform.Signal (
     , drop_at_after, drop_after, drop_before, drop_before_strict, drop_before_at
     , map_x, map_y, map_err
 
-    -- ** special functions
+    -- * special functions
     , compose, compose_hybrid, integrate
     , unwarp, unwarp_fused, invert
     , pitches_share
+    , flat_duration
 ) where
 import qualified Prelude
 import Prelude
@@ -153,19 +152,8 @@ nn_to_y (Pitch.NoteNumber nn) = nn
 
 -- * constants
 
--- | A pitch that shouldn't be played.  Used for a non-existent pitch or one
--- that goes out of the range of its scale.
---
--- This actually has to be 0 because that's also what 'at' returns before the
--- first sample.
-invalid_pitch :: Y
-invalid_pitch = 0
-
 empty :: Signal y
 empty = signal []
-
-zero :: Signal y
-zero = signal [(0, 0)]
 
 -- | Signal composition, used by warps, is really tricky without a constant
 -- srate.  Since 'integrate' is the way to generate 'Warp's, ensure they are
@@ -481,7 +469,7 @@ sig_op (Just identity) _ sig1 sig2
 sig_op _ op sig1 sig2 =
     Signal $ TimeVector.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 
--- ** special functions
+-- * special functions
 
 index_above_y :: Y -> TimeVector.Unboxed -> Int
 index_above_y y vec = go 0 (TimeVector.length vec)
@@ -623,8 +611,6 @@ unwarp_fused w shift stretch = coerce . modify (TimeVector.map_x unwarp)
 invert :: Warp -> Warp
 invert = modify $ Vector.map $ \(Sample x y) -> Sample (y_to_x y) (x_to_y x)
 
---- * comparison
-
 -- | Can the pitch signals share a channel within the given range?
 --
 -- Pitch is complicated.  Like other controls, if the pitch curves are
@@ -673,3 +659,14 @@ nns_share :: Midi.Key -> Midi.Key -> Y -> Y -> Bool
 nns_share initial1 initial2 nn1 nn2 =
     floor ((nn1 - Midi.from_key initial1) * 1000)
         == floor ((nn2 - Midi.from_key initial2) * 1000)
+
+-- | Total duration of horizontal segments in the warp signal.  These are
+-- the places where 'compose_hybrid' will emit a 1\/1 line.
+flat_duration :: Warp -> ScoreTime
+flat_duration =
+    RealTime.to_score . fst . Vector.foldl' go (0, TimeVector.Sample 0 0)
+        . sig_vec
+    where
+    go (!acc, TimeVector.Sample x0 y0) sample@(TimeVector.Sample x y)
+        | y == y0 = (acc + (x - x0), sample)
+        | otherwise = (acc, sample)

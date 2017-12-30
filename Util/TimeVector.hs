@@ -84,10 +84,6 @@ type Boxed y = Vector.Vector (Sample y)
 -- I tried making newtypes for Boxed and Unboxed, but couldn't then figure
 -- out how to get the generic functions to apply to them.  So clients have to
 -- implement Monoid themselves, using 'merge'.
---
--- Actually it's not really a monoid because merge isn't commutative if both
--- signals start at the same time.  But then, Data.Map's mappend isn't
--- commutative either.
 
 type Unboxed = Storable.Vector (Sample UnboxedY)
 type UnboxedY = Double
@@ -471,6 +467,7 @@ lowest_index x vec = go 0 (V.length vec)
         | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
 
+-- | 'lowest_index' + 1, which means the first value after the given X.
 {-# SPECIALIZE lowest_index_1 :: X -> Unboxed -> Int #-}
 {-# INLINEABLE lowest_index_1 #-}
 lowest_index_1 :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
@@ -529,9 +526,6 @@ concat_map_accum zero f final accum vec = V.fromList (DList.toList result)
 merge_segments :: [(X, Unboxed)] -> Unboxed
 merge_segments segments =
     merge_right_extend [clip_to start v | (start, v) <- segments]
-
--- let pitch = Signal.merge_right_extend
---         [Signal.clip_to (_start n) (_pitch n) | n <- notes]
 
 -- | This is like 'at', but if there is a discontinuity, this is the value
 -- before the discontinuity.  So if you have (1, 0), (1, 1) and ask for 1,

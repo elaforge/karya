@@ -24,7 +24,7 @@ import qualified Perform.RealTime as RealTime
 data Sample y = Sample {
     sx :: {-# UNPACK #-} !X
     , sy :: !y
-    } deriving (Read, Show, Eq)
+    } deriving (Show, Eq)
 
 type X = RealTime.RealTime
 

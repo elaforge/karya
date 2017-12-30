@@ -191,6 +191,8 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - If I use cpphs I might be able to use \ string continuation for CPP
+    modules.  It would add another dependency though... worth it?
   * Why does verify_performance give a bunch of "%breath clipped" warnings?
     . 'd' call is going below 0, but it doesn't look like 0 in the track signal
     . I got rid of the 'd' and 'u' limits because stopping at 1 doesn't make
@@ -218,6 +220,8 @@ UNSORTED
       that.
     . Meanwhile, there's never a point to defaulting to (Just x) instead of x.
   - generic deriving Monoid?
+    . Probably not hard with generics-sop, but what about stories of
+      GHC.Generics hurting compile and runtime?
     . How about monoid is_empty that doesn't use Eq?
   - Attributes are not necessarily suited to fundamentally exclusive
     articulations, like striking technique.  For NESS strings I use the
@@ -1184,7 +1188,7 @@ documentation:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 
-Util.Linear: linear piecewise signal: signal-discontinuities:
+Util.Linear: linear: linear piecewise signal: signal-discontinuities:
   . Problems I'm trying to solve:
     . Need to remember to use Signal.set, and provide previous y.  Signals
       should be implicitly flat in both directions, and merging them should
@@ -1209,6 +1213,38 @@ Util.Linear: linear piecewise signal: signal-discontinuities:
     . How much would I solve just be changing (<>)?
   . If I want to replace Environ with Val signals, then I'm back to
     non-interpolated.
+  . What would a typeclass + associated type actually look like?
+    . It would be like Vector.Generic, only with more specialized access
+      functions.
+    . Maybe in general, I can give a Segment y type, and an interpolation
+      function.
+    . But a polymorphic interface is only as useful as the number of functions
+      that can be polymorphic with it.  So what could be polymorphic?
+  Unify Environ and ControlMap:
+    . I can get most of the benefit by unifying the syntax: x=y becomes set
+      a control or env depending on the type of the rhs.
+    . However, they're still separate which means I can make an "invisible"
+      numeric env in haskell.
+    . Also, I would need Derive.Sig to default from numeric controls.
+    . I guess it would then be better to have a single
+      Map Key (NumSignal | ValSignal | PitchSignal)
+    . This means I can also get rid of the separate pitch and named pitches,
+      and just have a signal named "pitch".
+  . If I can make signal a typeclass, I should be able to make offset (and
+    maybe stretch) a wrapper.  This only works if I can reduce the interface
+    to a few things like 'at'.  But I feel like all the various transformation
+    functions won't allow that.  They are type specific too.
+
+  Signal functions:
+    . at
+    . sample_at - Prelude.Block.trim_controls hack: remove sample at end time
+      Derive.Note.extract_track_signal: merge event signals
+      . Shouldn't I be able to do this with time slicing?
+    . before - Gamakam5: for get prev pitch
+    . at_linear, at_linear_extend: tempo warp
+    . inverse_at, inverse_at_extend: warp
+    . constant_val: various optimizations
+
   TODO:
     * remove Signal.interleave
     - make it generic on Y type
@@ -1220,11 +1256,16 @@ Util.Linear: linear piecewise signal: signal-discontinuities:
     - Midi performer has to use a sampling rate.
     - Get rid of infer linear in the fltk drawing code.
 
-  . Emit signal discontinuities explicitly.
+    . Slicing a signal will require changing the vector, to add a new sample
+      on the beginning or end.  I could eliminate this with _start and _extend
+      fields.  Not sure if it's worth it.
+
   . If I say signals are now have linear interpolation by default, then
     the linear interpolator can just emit one sample, but now MIDI needs
     interpolation.  I'd have to put srate in the event so it can be
     configured.
+    . Or just pick something high enough.  If I need sample and hold, I can
+      write a signal transformer for it.
   . Leaving as nominally non-interpolated, but with explicit discontinuities
     since im actually is interpolated is not so pretty, but doesn't seem
     so bad in practice.

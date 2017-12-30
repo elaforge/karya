@@ -381,7 +381,7 @@ test_perform_lazy = do
 
 test_no_pitch = do
     let event = (mkevent (patch1, "a", 0, 2, []))
-            { Types.event_pitch = Signal.constant Signal.invalid_pitch }
+            { Types.event_pitch = Signal.constant 0 }
     let (midi, logs) = perform config1 [event]
     equal (map Midi.wmsg_msg midi) []
     equal logs ["no pitch signal"]

@@ -308,10 +308,6 @@ c_attr_slur first_attr rest_attr = Derive.generator Module.instrument "legato"
             . map (Seq.map_tail (fmap (Call.add_attributes rest_attr)))
                 =<< Sub.sub_events args
 
-vsl_attrs :: [Sub.Event] -> [Sub.Event]
-vsl_attrs = Seq.map_head (fmap (Call.add_attributes (Attrs.attr "fa")))
-    . Seq.map_tail (fmap (Call.add_attributes Attrs.legato))
-
 apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
 apply_detach detach = Seq.map_last (fmap (set_sustain (-detach)))
 
