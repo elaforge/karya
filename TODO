@@ -1247,8 +1247,8 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
 
   TODO:
     * remove Signal.interleave
-    - make it generic on Y type
-    - implement concat
+    * make it generic on Y type
+    * implement concat
     - implement linear and scalar transformations
     - implement compose and integrate
 
