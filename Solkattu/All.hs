@@ -85,9 +85,9 @@ korvais =
     , setLocation ("Solkattu.Score.Solkattu2014",284,"c_14_06_06") Solkattu.Score.Solkattu2014.c_14_06_06
     , setLocation ("Solkattu.Score.Solkattu2016",13,"c_16_09_28") Solkattu.Score.Solkattu2016.c_16_09_28
     , setLocation ("Solkattu.Score.Solkattu2016",39,"c_16_12_06_sriram1") Solkattu.Score.Solkattu2016.c_16_12_06_sriram1
-    , setLocation ("Solkattu.Score.Solkattu2016",73,"c_16_12_06_sriram2") Solkattu.Score.Solkattu2016.c_16_12_06_sriram2
-    , setLocation ("Solkattu.Score.Solkattu2016",94,"c_16_12_06_janahan1") Solkattu.Score.Solkattu2016.c_16_12_06_janahan1
-    , setLocation ("Solkattu.Score.Solkattu2016",103,"c_16_12_06_janahan2") Solkattu.Score.Solkattu2016.c_16_12_06_janahan2
+    , setLocation ("Solkattu.Score.Solkattu2016",75,"c_16_12_06_sriram2") Solkattu.Score.Solkattu2016.c_16_12_06_sriram2
+    , setLocation ("Solkattu.Score.Solkattu2016",96,"c_16_12_06_janahan1") Solkattu.Score.Solkattu2016.c_16_12_06_janahan1
+    , setLocation ("Solkattu.Score.Solkattu2016",105,"c_16_12_06_janahan2") Solkattu.Score.Solkattu2016.c_16_12_06_janahan2
     , setLocation ("Solkattu.Score.Solkattu2017",20,"koraippu_janahan") Solkattu.Score.Solkattu2017.koraippu_janahan
     , setLocation ("Solkattu.Score.Solkattu2017",79,"e_spacing") Solkattu.Score.Solkattu2017.e_spacing
     , setLocation ("Solkattu.Score.Solkattu2017",94,"c_17_02_06") Solkattu.Score.Solkattu2017.c_17_02_06

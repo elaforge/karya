@@ -311,8 +311,14 @@ shift offset vec
 {-# INLINEABLE drop_at_after #-}
 drop_at_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_at_after x vec
+    -- TODO remove magic
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
+
+{-# SPECIALIZE drop_after2 :: X -> Unboxed -> Unboxed #-}
+{-# INLINEABLE drop_after2 #-}
+drop_after2 :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
+drop_after2 x vec = V.take (lowest_index (x + RealTime.eta) vec) vec
 
 drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_after x = drop_at_after (x + RealTime.eta + RealTime.eta)
@@ -369,7 +375,8 @@ map_err f vec = second reverse $ State.runState (V.mapM go vec) []
 -- | Combine two vectors with the given function.  They will be resampled so
 -- they have samples at the same time.
 sig_op :: V.Vector v (Sample y) =>
-    y -- ^ the implicit y value of a vector before its first sample
+    y -- ^ The implicit y value of a vector before its first sample.  It should
+    -- probably be the identity for the operator.
     -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
 sig_op initial combine vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
     where

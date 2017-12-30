@@ -1250,18 +1250,20 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
     * make it generic on Y type
     * implement concat
     implement a Perform.Signal that uses Linear instead of TimeVector
-      - linear transformations
+      * linear transformations
       / non-linear transformations (max, min, ...)
         . The scalar versions were already a hassle, and I don't really use
           min and max so maybe just remove them for now.
       - inverse_at
         . If I replace Warp with (f, f-1) then I don't need this.
-      - scalar transformations
-      - slice, to replace all the drop_before drop_after stuff
+      * scalar transformations
+      + slice, to replace all the drop_before drop_after stuff
         . Slicing a signal will require changing the vector, to add a new
           sample on the beginning or end.  I could eliminate this with _start
           and _extend fields.  Not sure if it's worth it.
         . Do it the simple way first, and profile.
+        . I have 'before' and 'after', but wait to see what I'll need before
+          implementing the versions that add a sample.
       - compose
         . If I can reduce to an interface like 'at', then I could make this
           real composition.  As well as get shift and stretch for free.
@@ -1271,7 +1273,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         . What about compose_hybrid?  That's kind of weird.
       - pitches_share
       - flat_duration
-      - integrate
+      * integrate
     - Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
     - clean up TimeVector, remove unneeded functions
