@@ -85,19 +85,19 @@ import Types
 -- are just Doubles.  It takes a phantom type parameter to make the signal's
 -- intended uses a little clearer.  There are type aliases for the various
 -- flavors of signal below, but it really is just documentation and anyone who
--- wants to operate on a generic signal can take a @Signal y@.
-newtype Signal y = Signal { sig_vec :: TimeVector.Unboxed }
+-- wants to operate on a generic signal can take a @Signal kind@.
+newtype Signal kind = Signal { sig_vec :: TimeVector.Unboxed }
     deriving (DeepSeq.NFData, Pretty, Eq, Serialize.Serialize)
 
-instance Show (Signal y) where
+instance Show (Signal kind) where
     show (Signal vec) = "Signal " ++ show (TimeVector.unsignal vec)
-instance Read.Read (Signal y) where
+instance Read.Read (Signal kind) where
     readPrec = do
         Pretty.readWord
         vec <- Read.readPrec
         return $ Signal (TimeVector.signal vec)
 
-instance Monoid (Signal y) where
+instance Monoid (Signal kind) where
     mempty = empty
     mappend s1 s2
         | null s1 = s2
@@ -107,7 +107,8 @@ instance Monoid (Signal y) where
 
 type Y = Double
 
-modify :: (TimeVector.Unboxed -> TimeVector.Unboxed) -> Signal y -> Signal y
+modify :: (TimeVector.Unboxed -> TimeVector.Unboxed) -> Signal kind
+    -> Signal kind
 modify f = Signal . f . sig_vec
 
 -- | This is the type of performer-interpreted controls that go into the
@@ -152,7 +153,7 @@ nn_to_y (Pitch.NoteNumber nn) = nn
 
 -- * constants
 
-empty :: Signal y
+empty :: Signal kind
 empty = signal []
 
 -- | Signal composition, used by warps, is really tricky without a constant
@@ -167,34 +168,34 @@ tempo_srate = RealTime.seconds 0.1
 
 -- * construction / deconstruction
 
-signal :: [(X, Y)] -> Signal y
+signal :: [(X, Y)] -> Signal kind
 signal = Signal . TimeVector.signal
 
 -- | The inverse of the 'signal' function.
-unsignal :: Signal y -> [(X, Y)]
+unsignal :: Signal kind -> [(X, Y)]
 unsignal = TimeVector.unsignal . sig_vec
 
-unsignal_unique :: Signal y -> [(X, Y)]
+unsignal_unique :: Signal kind -> [(X, Y)]
 unsignal_unique = TimeVector.unsignal_unique . sig_vec
 
 -- | Set the signal value, with a discontinuity.
-set :: Maybe Y -> X -> Y -> Signal y
+set :: Maybe Y -> X -> Y -> Signal kind
 set prev_y x y = Signal $ TimeVector.set prev_y x y
 
-constant :: Y -> Signal y
+constant :: Y -> Signal kind
 constant = Signal . TimeVector.constant
 
-unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal y
+unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
 unfoldr f st = Signal $ TimeVector.unfoldr f st
 
-length :: Signal y -> Int
+length :: Signal kind -> Int
 length = TimeVector.length . sig_vec
 
-null :: Signal y -> Bool
+null :: Signal kind -> Bool
 null = TimeVector.null . sig_vec
 
 -- | Sometimes signal types need to be converted.
-coerce :: Signal y1 -> Signal y2
+coerce :: Signal kind1 -> Signal kind2
 coerce (Signal vec) = Signal vec
 
 with_ptr :: Display -> (Foreign.Ptr (Sample Double) -> Int -> IO a) -> IO a
@@ -203,7 +204,7 @@ with_ptr sig f = TimeVector.with_ptr (sig_vec sig) $ \sigp ->
 
 -- * check
 
-check :: Signal y -> [String]
+check :: Signal kind -> [String]
 check = TimeVector.check . sig_vec
 
 -- | Find places where the Warp is non monotonically nondecreasing.
@@ -220,17 +221,17 @@ check_warp = reverse . fst . Vector.foldl' check ([], (0, 0, 0)) . sig_vec
 
 -- * access
 
-at :: X -> Signal y -> Y
+at :: X -> Signal kind -> Y
 at x = fromMaybe 0 . TimeVector.at x . sig_vec
 
-sample_at :: X -> Signal y -> Maybe (X, Y)
+sample_at :: X -> Signal kind -> Maybe (X, Y)
 sample_at x = TimeVector.sample_at x . sig_vec
 
 -- | Find the value immediately before the point.
-before :: RealTime -> Signal y -> Y
+before :: RealTime -> Signal kind -> Y
 before x = maybe 0 sy . TimeVector.before x . sig_vec
 
-at_linear :: X -> Signal y -> Y
+at_linear :: X -> Signal kind -> Y
 at_linear x sig = interpolate vec (TimeVector.highest_index x vec)
     where
     vec = sig_vec sig
@@ -318,16 +319,16 @@ inverse_at_extend y (Signal vec)
     index = TimeVector.index vec
 
 -- | Just if the signal is constant.
-constant_val :: Signal y -> Maybe Y
+constant_val :: Signal kind -> Maybe Y
 constant_val = TimeVector.constant_val . sig_vec
 
-head :: Signal y -> Maybe (X, Y)
+head :: Signal kind -> Maybe (X, Y)
 head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
 
-last :: Signal y -> Maybe (X, Y)
+last :: Signal kind -> Maybe (X, Y)
 last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
 
-uncons :: Signal y -> Maybe ((X, Y), Signal y)
+uncons :: Signal kind -> Maybe ((X, Y), Signal kind)
 uncons sig = case TimeVector.uncons (sig_vec sig) of
     Nothing -> Nothing
     Just (Sample x y, vec) -> Just ((x, y), Signal vec)
@@ -335,18 +336,18 @@ uncons sig = case TimeVector.uncons (sig_vec sig) of
 
 -- * transformation
 
-merge :: [Signal y] -> Signal y
+merge :: [Signal kind] -> Signal kind
 merge = Signal . TimeVector.merge . map sig_vec
 
-merge_extend :: [Signal y] -> Signal y
+merge_extend :: [Signal kind] -> Signal kind
 merge_extend = Signal . TimeVector.merge_right_extend . map sig_vec
 
 -- | This is like 'merge', but directly concatenates the signals.  It should be
 -- more efficient when you know the signals don't overlap.
-concat :: [Signal y] -> Signal y
+concat :: [Signal kind] -> Signal kind
 concat = Signal . Vector.concat . map sig_vec
 
-prepend :: Signal y -> Signal y -> Signal y
+prepend :: Signal kind -> Signal kind -> Signal kind
 prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 sig_add, sig_multiply :: Control -> Control -> Control
@@ -380,7 +381,7 @@ sig_min = sig_op Nothing min
 -- ** scalar transformation
 
 scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
-    Y -> Signal y -> Signal y
+    Y -> Signal kind -> Signal kind
 scalar_add n = map_y (+n)
 scalar_subtract n = map_y (subtract n)
 scalar_multiply n = map_y (*n)
@@ -388,11 +389,11 @@ scalar_divide n = map_y (/n)
 
 -- | Clip signal to never go above or below the given value.  Like 'sig_max'
 -- and 'sig_min' except the value is scalar.
-scalar_max, scalar_min :: Y -> Signal y -> Signal y
+scalar_max, scalar_min :: Y -> Signal kind -> Signal kind
 scalar_max val = map_y (min val)
 scalar_min val = map_y (max val)
 
-minimum, maximum :: Signal y -> Maybe (X, Y)
+minimum, maximum :: Signal kind -> Maybe (X, Y)
 minimum sig
     | null sig = Nothing
     | otherwise = Just $ TimeVector.to_pair $
@@ -404,7 +405,7 @@ maximum sig
 
 -- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
 -- half-open ranges during which the Y was out of range, if any.
-clip_bounds :: Y -> Y -> Signal y -> (Signal y, [(X, X)])
+clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, X)])
 clip_bounds low high sig = (clipped, reverse out_of_range)
     where
     clipped = if Prelude.null out_of_range then sig
@@ -420,49 +421,50 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
         | y < low || y > high = state
         | otherwise = ((start, x) : accum, Nothing)
 
-shift :: X -> Signal y -> Signal y
+shift :: X -> Signal kind -> Signal kind
 shift 0 = id
 shift x = modify (TimeVector.shift x)
 
-take :: Int -> Signal y -> Signal y
+take :: Int -> Signal kind -> Signal kind
 take = modify . TimeVector.take
 
-drop :: Int -> Signal y -> Signal y
+drop :: Int -> Signal kind -> Signal kind
 drop = modify . TimeVector.drop
 
-drop_while :: (Sample Y -> Bool) -> Signal y -> Signal y
+drop_while :: (Sample Y -> Bool) -> Signal kind -> Signal kind
 drop_while = modify . Vector.dropWhile
 
-within :: X -> X -> Signal y -> Signal y
+within :: X -> X -> Signal kind -> Signal kind
 within start end = modify $ TimeVector.within start end
 
-drop_at_after :: X -> Signal y -> Signal y
+drop_at_after :: X -> Signal kind -> Signal kind
 drop_at_after = modify . TimeVector.drop_at_after
 
-drop_after :: X -> Signal y -> Signal y
+drop_after :: X -> Signal kind -> Signal kind
 drop_after = modify . TimeVector.drop_after
 
-drop_before :: X -> Signal y -> Signal y
+drop_before :: X -> Signal kind -> Signal kind
 drop_before = modify . TimeVector.drop_before
 
-drop_before_strict :: X -> Signal y -> Signal y
+drop_before_strict :: X -> Signal kind -> Signal kind
 drop_before_strict = modify . TimeVector.drop_before_strict
 
-drop_before_at :: X -> Signal y -> Signal y
+drop_before_at :: X -> Signal kind -> Signal kind
 drop_before_at = modify . TimeVector.drop_before_at
 
-map_x :: (X -> X) -> Signal y -> Signal y
+map_x :: (X -> X) -> Signal kind -> Signal kind
 map_x = modify . TimeVector.map_x
 
-map_y :: (Y -> Y) -> Signal y -> Signal y
+map_y :: (Y -> Y) -> Signal kind -> Signal kind
 map_y = modify . TimeVector.map_y
 
-map_err :: (Sample Y -> Either err (Sample Y)) -> Signal y -> (Signal y, [err])
+map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind
+    -> (Signal kind, [err])
 map_err f = first Signal . TimeVector.map_err f . sig_vec
 
 sig_op :: Maybe Y -- ^ If an identity value is given, I can avoid copying the
     -- whole signal if the other one is a constant identity.
-    -> (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
+    -> (Y -> Y -> Y) -> Signal kind -> Signal kind -> Signal kind
 sig_op (Just identity) _ sig1 sig2
     | Just v <- constant_val sig1, v == identity = sig2
     | Just v <- constant_val sig2, v == identity = sig1
