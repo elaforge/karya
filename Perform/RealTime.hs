@@ -117,10 +117,13 @@ mul :: RealTime -> Double -> RealTime
 mul a b = seconds (to_seconds a * b)
 infixl 7 `mul`
 
--- | A large RealTime that is also not the max bound so it won't overflow
--- too easily, and will also fit in a Signal.Y.
+-- | A large RealTime as a stand-in for "forever" in signals.  This is actually
+-- a bit of a short forever compared to the full Double range, but it should
+-- still be well past any time I'll actually use, and still small enough to
+-- not worry about overflow to infinity.  Also, e100 is pretty recognizable,
+-- which will hopefully reduce confusion about where it came from.
 large :: RealTime
-large = RealTime (2^32)
+large = RealTime 1e100
 
 suffix :: Char
 suffix = 's'
