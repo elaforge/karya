@@ -1249,16 +1249,38 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
     * remove Signal.interleave
     * make it generic on Y type
     * implement concat
-    - implement linear and scalar transformations
-    - implement compose and integrate
+    implement a Perform.Signal that uses Linear instead of TimeVector
+      - linear transformations
+      / non-linear transformations (max, min, ...)
+        . The scalar versions were already a hassle, and I don't really use
+          min and max so maybe just remove them for now.
+      - inverse_at
+        . If I replace Warp with (f, f-1) then I don't need this.
+      - scalar transformations
+      - slice, to replace all the drop_before drop_after stuff
+        . Slicing a signal will require changing the vector, to add a new
+          sample on the beginning or end.  I could eliminate this with _start
+          and _extend fields.  Not sure if it's worth it.
+        . Do it the simple way first, and profile.
+      - compose
+        . If I can reduce to an interface like 'at', then I could make this
+          real composition.  As well as get shift and stretch for free.
+        . In fact maybe I can just make Warp into a real function, what will
+          that break?
+        . I need inverse I think, but maybe it can just be (f, f-1).
+        . What about compose_hybrid?  That's kind of weird.
+      - pitches_share
+      - flat_duration
+      - integrate
+    - Rename Util.Linear to Util.Segment
+      . There's nothing inherently linear in the module.
+    - clean up TimeVector, remove unneeded functions
+      . also remove magic x<=0 behaviour
 
+    - Remove Derive.Tempo.extend_signal
     - Get rid of srate.
     - Midi performer has to use a sampling rate.
     - Get rid of infer linear in the fltk drawing code.
-
-    . Slicing a signal will require changing the vector, to add a new sample
-      on the beginning or end.  I could eliminate this with _start and _extend
-      fields.  Not sure if it's worth it.
 
   . If I say signals are now have linear interpolation by default, then
     the linear interpolator can just emit one sample, but now MIDI needs

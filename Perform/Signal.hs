@@ -29,9 +29,9 @@ module Perform.Signal (
     -- * access
     , at, sample_at, before
     , at_linear, at_linear_extend
-    , inverse_at, inverse_at_extend
+    , inverse_at_extend
     , constant_val
-    , head, last, uncons
+    , head, last
     , Sample(..)
     , minimum, maximum
 
@@ -40,22 +40,21 @@ module Perform.Signal (
     , sig_add, sig_subtract, sig_multiply, sig_scale
     , scale, scale_invert
     -- ** scalar transformation
-    , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
+    , scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift
-    , take, drop, drop_while, within
+    , drop, drop_while, within
     , drop_at_after, drop_after, drop_before, drop_before_strict, drop_before_at
     , map_x, map_y, map_err
 
     -- * special functions
     , compose, compose_hybrid, integrate
-    , unwarp, unwarp_fused, invert
+    , unwarp_fused
     , pitches_share
     , flat_duration
 ) where
 import qualified Prelude
-import Prelude
-       hiding (concat, head, last, length, maximum, minimum, null, take, drop)
+import Prelude hiding (concat, head, last, length, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as Monad.State
@@ -270,26 +269,6 @@ at_linear_extend x (Signal vec) = interpolate (TimeVector.highest_index x vec)
         Sample x1 y1 = index (i+1)
     index = TimeVector.index vec
 
--- | Find the X at which the signal will attain the given Y.  Assumes Y is
--- non-decreasing.  This should be the inverse of 'at_linear'.
---
--- Unlike the other signal functions, this takes a single Y instead of
--- a signal, and as a RealTime.  This is because it's used by the play monitor
--- for the inverse tempo map, and the play monitor polls on intervals defined
--- by IO latency, so even when signals are lazy it would be impossible to
--- generate the input signal without unsafeInterleaveIO.  If I really want to
--- pass a signal, I could pass regular samples and let the monitor interpolate.
-inverse_at :: Y -> Warp -> Maybe X
-inverse_at y sig
-    | i >= TimeVector.length vec || i < 0 = Nothing
-    | y1 == y = Just x1
-    | otherwise = TimeVector.x_at x0 y0 x1 y1 y
-    where
-    vec = sig_vec sig
-    i = lowest_index_y y vec
-    Sample x0 y0 = if i <= 0 then Sample 0 0 else TimeVector.index vec (i-1)
-    Sample x1 y1 = TimeVector.index vec i
-
 -- | This is like 'inverse_at', except that if the Y value is past the end
 -- of the signal, it extends the signal as far as necessary.  When used for
 -- warp composition or unwarping, this means that the parent warp is too small
@@ -327,12 +306,6 @@ head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
 
 last :: Signal kind -> Maybe (X, Y)
 last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
-
-uncons :: Signal kind -> Maybe ((X, Y), Signal kind)
-uncons sig = case TimeVector.uncons (sig_vec sig) of
-    Nothing -> Nothing
-    Just (Sample x y, vec) -> Just ((x, y), Signal vec)
-
 
 -- * transformation
 
@@ -374,10 +347,6 @@ scale_invert old new
     | new >= old = Num.normalize old 1 new
     | otherwise = Num.normalize 0 old new - 1
 
-sig_max, sig_min :: Control -> Control -> Control
-sig_max = sig_op Nothing max
-sig_min = sig_op Nothing min
-
 -- ** scalar transformation
 
 scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
@@ -387,20 +356,19 @@ scalar_subtract n = map_y (subtract n)
 scalar_multiply n = map_y (*n)
 scalar_divide n = map_y (/n)
 
--- | Clip signal to never go above or below the given value.  Like 'sig_max'
--- and 'sig_min' except the value is scalar.
+-- | Clip signal to never go above or below the given value.
 scalar_max, scalar_min :: Y -> Signal kind -> Signal kind
 scalar_max val = map_y (min val)
 scalar_min val = map_y (max val)
 
-minimum, maximum :: Signal kind -> Maybe (X, Y)
+minimum, maximum :: Signal kind -> Maybe Y
 minimum sig
     | null sig = Nothing
-    | otherwise = Just $ TimeVector.to_pair $
+    | otherwise = Just $ TimeVector.sy $
         Vector.minimumBy (\a b -> compare (sy a) (sy b)) $ sig_vec sig
 maximum sig
     | null sig = Nothing
-    | otherwise = Just $ TimeVector.to_pair $
+    | otherwise = Just $ TimeVector.sy $
         Vector.maximumBy (\a b -> compare (sy a) (sy b)) $ sig_vec sig
 
 -- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
@@ -424,9 +392,6 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
 shift :: X -> Signal kind -> Signal kind
 shift 0 = id
 shift x = modify (TimeVector.shift x)
-
-take :: Int -> Signal kind -> Signal kind
-take = modify . TimeVector.take
 
 drop :: Int -> Signal kind -> Signal kind
 drop = modify . TimeVector.drop
@@ -480,15 +445,6 @@ index_above_y y vec = go 0 (TimeVector.length vec)
         | low == high = low
         | y >= sy (TimeVector.unsafeIndex vec mid) = go (mid+1) high
         | otherwise = go low mid
-        where mid = (low + high) `div` 2
-
-lowest_index_y :: Y -> TimeVector.Unboxed -> Int
-lowest_index_y y vec = go 0 (TimeVector.length vec)
-    where
-    go low high
-        | low == high = low
-        | y <= sy (TimeVector.unsafeIndex vec mid) = go low mid
-        | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
 
 
@@ -589,14 +545,6 @@ integrate_segment srate accum x0 y0 x1 _y1
     xs = Seq.range' x0 x1 srate
     y_at x = accum + x_to_y (x-x0) * y0
 
-warp :: Warp -> Control -> Control
-warp w = modify $ TimeVector.map_x $ \x -> y_to_x (at_linear x w)
-
--- | Take a Control in RealTime and unwarp it back to ScoreTime.  The only
--- reason to do this is to display in the UI, so the return type is Display.
-unwarp :: Warp -> Control -> Display
-unwarp w = coerce . warp (invert w)
-
 -- | Previously, 'unwarp' was called as
 -- @Signal.unwarp (Score.warp_to_signal warp) control@.  This converts the
 -- entire @warp@, which is often large thanks to the sampling rate required by
@@ -609,9 +557,6 @@ unwarp w = coerce . warp (invert w)
 unwarp_fused :: Warp -> RealTime -> RealTime -> Control -> Display
 unwarp_fused w shift stretch = coerce . modify (TimeVector.map_x unwarp)
     where unwarp x = (inverse_at_extend (x_to_y x) w - shift) / stretch
-
-invert :: Warp -> Warp
-invert = modify $ Vector.map $ \(Sample x y) -> Sample (y_to_x y) (x_to_y x)
 
 -- | Can the pitch signals share a channel within the given range?
 --

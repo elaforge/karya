@@ -160,8 +160,7 @@ string_idiom config = do
     where
     assign event = do
         let (nns, _warns) = Score.nn_signal event
-        lowest <- Derive.require "no pitch" $
-            Pitch.nn . snd <$> Signal.minimum nns
+        lowest <- Derive.require "no pitch" $ Pitch.nn <$> Signal.minimum nns
         string <- Derive.require ("below lowest string: " <> pretty lowest) $
             snd <$> Util.Map.lookup_below lowest (_open_strings config)
         return

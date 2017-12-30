@@ -67,23 +67,6 @@ test_scale = do
     let invert = Signal.scale 0.5 . Signal.scale_invert 0.5
     equal (map invert [-1, -0.5, 0, 0.5, 1]) [-1, -0.5, 0, 0.5, 1]
 
-test_inverse_at = do
-    let f sig pos = Signal.inverse_at pos (signal sig)
-    equal (map (f [(0, 0), (2, 2)]) (Seq.range 0 3 1))
-        [Just 0, Just 1, Just 2, Nothing]
-    equal (map (f [(1, 1), (2, 2)]) (Seq.range 0 3 1))
-        [Just 0, Just 1, Just 2, Nothing]
-    -- Flat curve.
-    equal (map (f [(1, 1), (2, 1), (3, 2)]) (Seq.range 0 3 1))
-        [Just 0, Just 1, Just 3, Nothing]
-    -- Vertical discontinuity.  Signals shouldn't have those but it doesn't
-    -- hurt to handle them correctly anyway.
-    equal (map (f [(1, 1), (1, 2), (2, 3)]) (Seq.range 0 4 1))
-        [Just 0, Just 1, Just 1, Just 2, Nothing]
-
-    equal (f [(0, 0), (1, 1)] 5) Nothing
-    equal (f [(0, 0), (1, 1)] (-1)) Nothing
-
 test_compose = do
     let f s1 s2 = unsignal $ Signal.compose (signal s1) (signal s2)
     -- They cancel each other out.
@@ -145,19 +128,6 @@ test_integrate = do
         [(0, 0), (1, 0), (2, 1), (3, 3), (4, 5)]
     equal (f [(0, 0), (1, -1), (2, -2), (3, -3)])
         [(0, 0), (1, 0), (2, -1), (3, -3)]
-
-test_unwarp = do
-    let f w = unsignal . Signal.unwarp w . signal
-    -- warp is score -> real
-    let lin = [(0, 0), (1, 1), (2, 2), (3, 3)]
-        slow = make_warp 10 0.5
-        fast = make_warp 10 2
-    equal (f (signal lin) lin) lin
-    -- If the tempo is fast, then the control will be too compressed, so it
-    -- should be stretched out.
-    equal (f fast lin) [(0, 0), (2, 1), (4, 2), (6, 3)]
-    -- Conversely...
-    equal (f slow lin) [(0, 0), (0.5, 1), (1, 2), (1.5, 3)]
 
 test_unwarp_fused = do
     let f (Score.Warp sig shift stretch) = Signal.unsignal

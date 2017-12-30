@@ -1034,8 +1034,6 @@ instance DeepSeq.NFData (Merger a) where
 mergers :: Map Expr.Symbol (Merger Signal.Control)
 mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
-    , Merger "max" Signal.sig_max (Signal.constant (-2^32))
-    , Merger "min" Signal.sig_min (Signal.constant (2^32))
     ]
     where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
 
