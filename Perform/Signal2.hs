@@ -64,8 +64,8 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Foreign
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Linear as Linear
-import Util.Linear (X, Sample(..), Segment(..))
+import qualified Util.Segment as Segment
+import Util.Segment (X, Sample(..), Segment(..))
 import qualified Util.Num as Num
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
@@ -79,29 +79,29 @@ import Types
 
 -- * types
 
--- | A Signal is a 'Linear.Signal' of 'Y' values, which are just Doubles.  It
+-- | A Signal is a 'Segment.Signal' of 'Y' values, which are just Doubles.  It
 -- takes a phantom type parameter to make the signal's intended uses a little
 -- clearer.  There are type aliases for the various flavors of signal below,
 -- but it really is just documentation and anyone who wants to operate on
 -- a generic signal can take a @Signal kind@.
-newtype Signal kind = Signal Linear.NumSignal
+newtype Signal kind = Signal Segment.NumSignal
     deriving (DeepSeq.NFData, Pretty, Eq, Serialize.Serialize)
 
-_signal :: Signal kind -> Linear.NumSignal
+_signal :: Signal kind -> Segment.NumSignal
 _signal (Signal sig) = sig
 
-modify :: (Linear.NumSignal -> Linear.NumSignal) -> Signal kind -> Signal kind
+modify :: (Segment.NumSignal -> Segment.NumSignal) -> Signal kind -> Signal kind
 modify f = Signal . f . _signal
 
 type Y = Double
 
 instance Monoid (Signal kind) where
-    mempty = Signal Linear.empty
+    mempty = Signal Segment.empty
     mappend s1 s2
         | null s1 = s2
         | null s2 = s1
-        | otherwise = Signal $ Linear.concat [_signal s1, _signal s2]
-    mconcat = Signal . Linear.concat . map _signal
+        | otherwise = Signal $ Segment.concat [_signal s1, _signal s2]
+    mconcat = Signal . Segment.concat . map _signal
 
 -- | This is the type of performer-interpreted controls that go into the
 -- event's control map.
@@ -148,23 +148,23 @@ nn_to_y (Pitch.NoteNumber nn) = nn
 -- * construct / destruct
 
 from_pairs :: [(X, Y)] -> Signal kind
-from_pairs = Signal . Linear.from_pairs
+from_pairs = Signal . Segment.from_pairs
 
 from_segments :: [Segment Y] -> Signal kind
-from_segments = Signal . Linear.from_segments
+from_segments = Signal . Segment.from_segments
 
 to_pairs :: Signal kind -> [(X, Y)]
-to_pairs = Linear.to_pairs . _signal
+to_pairs = Segment.to_pairs . _signal
 
 to_segments :: Signal kind -> [Segment Y]
-to_segments = Linear.to_segments . _signal
+to_segments = Segment.to_segments . _signal
 
 constant :: Y -> Signal kind
-constant = Signal . Linear.constant
+constant = Signal . Segment.constant
 
 -- | Just if the signal is constant.
 constant_val :: Signal kind -> Maybe Y
-constant_val = Linear.constant_val . _signal
+constant_val = Segment.constant_val . _signal
 
 -- unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
 -- unfoldr f st = Signal $ TimeVector.unfoldr f st
@@ -176,17 +176,17 @@ constant_val = Linear.constant_val . _signal
 coerce :: Signal kind1 -> Signal kind2
 coerce (Signal vec) = Signal vec
 
--- | 'Linear.with_ptr'.
+-- | 'Segment.with_ptr'.
 with_ptr :: Display -> (X -> Foreign.Ptr (Sample Y) -> Int -> IO a) -> IO a
-with_ptr sig = Linear.with_ptr (_signal sig)
+with_ptr sig = Segment.with_ptr (_signal sig)
 
 -- * query
 
 null :: Signal kind -> Bool
-null = Linear.null . _signal
+null = Segment.null . _signal
 
 at :: X -> Signal kind -> Y
-at x = fromMaybe 0 . Linear.at_interpolate linear_interpolate x . _signal
+at x = fromMaybe 0 . Segment.at_interpolate linear_interpolate x . _signal
 
 linear_interpolate :: CallStack.Stack => X -> Y -> X -> Y -> X -> Y
 linear_interpolate x1 y1 x2 y2 x
@@ -197,10 +197,10 @@ linear_interpolate x1 y1 x2 y2 x
 -- * transformation
 
 shift :: X -> Signal kind -> Signal kind
-shift x = modify (Linear.shift x)
+shift x = modify (Segment.shift x)
 
 invert :: Signal kind -> Signal kind
-invert = modify Linear.invert
+invert = modify Segment.invert
 
 -- prepend :: Signal kind -> Signal kind -> Signal kind
 -- prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
@@ -235,7 +235,7 @@ linear_operator (Just identity) _ sig1 sig2
     | Just v <- constant_val sig1, v == identity = sig2
     | Just v <- constant_val sig2, v == identity = sig1
 linear_operator _ op sig1 sig2 =
-    Signal $ Linear.linear_operator 0 op (_signal sig1) (_signal sig2)
+    Signal $ Segment.linear_operator 0 op (_signal sig1) (_signal sig2)
 
 -- ** scalar transformation
 
@@ -250,7 +250,7 @@ scalar_divide n = map_y (/n)
 scalar_max, scalar_min :: Y -> Signal kind -> Signal kind
 scalar_max val sig
     | Just y <- minimum sig, y >= val = sig
-    | otherwise = modify (Linear.transform_samples go) sig
+    | otherwise = modify (Segment.transform_samples go) sig
     where
     go [] = []
     go [Sample x y] = [Sample x (max val y)]
@@ -264,7 +264,7 @@ scalar_max val sig
                 | otherwise -> s1 : go (Sample x_val val : sn)
 scalar_min val sig
     | Just y <- maximum sig, y <= val = sig
-    | otherwise = modify (Linear.transform_samples go) sig
+    | otherwise = modify (Segment.transform_samples go) sig
     where
     go [] = []
     go [Sample x y] = [Sample x (min val y)]
@@ -278,8 +278,8 @@ scalar_min val sig
                 | otherwise -> s1 : go (Sample x_val val : sn)
 
 minimum, maximum :: Signal kind -> Maybe Y
-minimum = Linear.minimum . _signal
-maximum = Linear.maximum . _signal
+minimum = Segment.minimum . _signal
+maximum = Segment.maximum . _signal
 
 {-
 -- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
@@ -303,8 +303,8 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
 
 
 before, after :: X -> Signal kind -> Signal kind
-before x = modify $ Linear.before x
-after x = modify $ Linear.after x
+before x = modify $ Segment.before x
+after x = modify $ Segment.after x
 
 -- TODO used by?
 {-
@@ -338,11 +338,11 @@ drop_before_at = modify . TimeVector.drop_before_at
 -}
 
 map_y :: (Y -> Y) -> Signal kind -> Signal kind
-map_y = modify . Linear.linear_map_y
+map_y = modify . Segment.linear_map_y
 
 map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind
     -> (Signal kind, [err])
-map_err f = first Signal . Linear.map_err f . _signal
+map_err f = first Signal . Segment.map_err f . _signal
 
 -- * special functions
 
@@ -481,7 +481,7 @@ integrate_segment srate accum x0 y0 x1 _y1
 -- track.  So it can probably be fairly low resolution before having
 -- a noticeable impact.
 integrate :: Tempo -> Warp
-integrate = Signal . Linear.integrate tempo_srate . _signal
+integrate = Signal . Segment.integrate tempo_srate . _signal
 
 tempo_srate :: X
 tempo_srate = RealTime.seconds 0.1

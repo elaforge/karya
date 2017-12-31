@@ -1281,7 +1281,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         I should keep it in a separate field.
       . Tempo.with_hybrid uses warp_to_signal so it can use
         Signal.compose_hybrid on them.
-    - Rename Util.Linear to Util.Segment
+    * Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
     - clean up TimeVector, remove unneeded functions
       . also remove magic x<=0 behaviour

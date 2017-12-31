@@ -1,5 +1,9 @@
--- | A signal modeled as linear segments.
-module Util.Linear (
+-- Copyright 2017 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
+-- | The 'Signal' type and functions.
+module Util.Segment (
     Signal, Segment(..)
     , X, Sample(..)
     -- * construct / destrect
@@ -47,6 +51,11 @@ import qualified Perform.RealTime as RealTime
 import Global
 
 
+-- | A signal modeled as segments.  Presumably the segments are linear.
+-- Nothing in this module enforces that, though there are some transformations
+-- that are only valid for linear segments.
+--
+-- This comes with a built-in X offset, so translation is cheap.
 data Signal v = Signal {
     _offset :: !X
     , _vector :: !v

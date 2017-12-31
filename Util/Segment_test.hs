@@ -1,6 +1,10 @@
-module Util.Linear_test where
-import qualified Util.Linear as Linear
-import Util.Linear (X)
+-- Copyright 2017 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
+module Util.Segment_test where
+import qualified Util.Segment as Segment
+import Util.Segment (X)
 import Util.Test
 
 import qualified Perform.RealTime as RealTime
@@ -21,7 +25,7 @@ test_from_pairs = do
         [((0, 0), (2, 2)), ((2, 2), (4, 0)), ((4, 0), (large, 0))]
 
 test_concat = do
-    let f = to_segments . Linear.concat . map from_pairs
+    let f = to_segments . Segment.concat . map from_pairs
     equal (f [[(0, 1)], [(4, 2)]]) [((0, 1), (4, 1)), ((4, 2), (large, 2))]
     equal (f [[(4, 2)], [(0, 1)]]) [((0, 1), (large, 1))]
     -- Replace the flat line afterwards.
@@ -38,7 +42,7 @@ large_y :: Y
 large_y = RealTime.to_seconds large
 
 test_integrate = do
-    let f = Linear.to_pairs . Linear.integrate 1 . from_pairs
+    let f = Segment.to_pairs . Segment.integrate 1 . from_pairs
     equal (f []) []
     equal (f [(0, 1)]) [(0, 0), (large, large_y)]
     equal (f [(0, 0), (4, 4)])
@@ -54,9 +58,9 @@ test_integrate = do
         , (large, 6 + 2 * (large_y - 4))
         ]
 
-to_segments :: Linear.NumSignal -> [((X, Y), (X, Y))]
-to_segments = map (\(Linear.Segment x1 y1 x2 y2) -> ((x1, y1), (x2, y2)))
-    . Linear.to_segments
+to_segments :: Segment.NumSignal -> [((X, Y), (X, Y))]
+to_segments = map (\(Segment.Segment x1 y1 x2 y2) -> ((x1, y1), (x2, y2)))
+    . Segment.to_segments
 
-from_pairs :: [(X, Y)] -> Linear.NumSignal
-from_pairs = Linear.from_pairs
+from_pairs :: [(X, Y)] -> Segment.NumSignal
+from_pairs = Segment.from_pairs
