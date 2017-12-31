@@ -334,6 +334,7 @@ distribute start end vals = case vals of
 modify :: Score.Control -> RealTime -> Signal.Control -> Derive.Deriver ()
 modify = modify_with Derive.DefaultMerge
 
+-- | Modify the signal only in the given range.
 modify_with :: Derive.Merge Signal.Control -> Score.Control -> RealTime
     -> Signal.Control -> Derive.Deriver ()
 modify_with merge control end sig = do
@@ -341,8 +342,10 @@ modify_with merge control end sig = do
     Derive.modify_control merger control $
         mconcat [initial identity, sig, id_signal identity end]
     where
+    -- TODO this is confusing, but I think I can get rid of it by using
+    -- signal linear segment slicing
     id_signal identity x = case Signal.head identity of
-        Just (_, y) | y /= 0 -> Signal.signal [(x, y)]
+        Just (_, y) -> Signal.signal [(x, y)]
         _ -> mempty
     initial identity = case Signal.head sig of
         Just (x, _) | x > 0 -> id_signal identity 0

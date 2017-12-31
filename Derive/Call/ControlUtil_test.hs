@@ -33,11 +33,13 @@ test_modify = do
             , ("dyn", [(0, 0, dyn)])
             , ("c", [(4, 2, "g")])
             ]
+    -- *0.5 for the range only.
     equal (run Derive.DefaultMerge (tracks ".5"))
         ([[(0, 0.5), (4, 0.25), (6, 0.5)]], [])
-    let Just merge_max = Map.lookup "max" Derive.mergers
-    equal (run (Derive.Merge merge_max) (tracks ".25"))
-        ([[(0, 0.25), (4, 0.5), (6, 0.25)]], [])
+    let Just merge_add = Map.lookup "add" Derive.mergers
+    -- +0.5 for the range only.
+    equal (run (Derive.Merge merge_add) (tracks ".25"))
+        ([[(0, 0.25), (4, 0.75), (6, 0.25)]], [])
     where
     c_gen :: Derive.Merge Signal.Control -> Derive.Generator Derive.Control
     c_gen merge = CallTest.generator1 $ \args -> do
