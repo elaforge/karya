@@ -1254,7 +1254,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       / non-linear transformations (max, min, ...)
         . The scalar versions were already a hassle, and I don't really use
           min and max so maybe just remove them for now.
-      - inverse_at
+      / inverse_at
         . If I replace Warp with (f, f-1) then I don't need this.
       * scalar transformations
       + slice, to replace all the drop_before drop_after stuff
@@ -1264,7 +1264,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         . Do it the simple way first, and profile.
         . I have 'before' and 'after', but wait to see what I'll need before
           implementing the versions that add a sample.
-      - compose
+      / compose
         . If I can reduce to an interface like 'at', then I could make this
           real composition.  As well as get shift and stretch for free.
         . In fact maybe I can just make Warp into a real function, what will
@@ -1274,6 +1274,13 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       - pitches_share
       - flat_duration
       * integrate
+    * implement Warp as functions:
+      . I need to distinguish id warp, for optimization.
+        Or not... if composition is now efficient, maybe no need.
+      . Access to the signal has been useful for debugging in the past, maybe
+        I should keep it in a separate field.
+      . Tempo.with_hybrid uses warp_to_signal so it can use
+        Signal.compose_hybrid on them.
     - Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
     - clean up TimeVector, remove unneeded functions
@@ -1284,10 +1291,9 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
     - Midi performer has to use a sampling rate.
     - Get rid of infer linear in the fltk drawing code.
 
-  . If I say signals are now have linear interpolation by default, then
-    the linear interpolator can just emit one sample, but now MIDI needs
-    interpolation.  I'd have to put srate in the event so it can be
-    configured.
+  . If I say signals now have linear interpolation by default, then the linear
+    interpolator can just emit one sample, but now MIDI needs interpolation.
+    I'd have to put srate in the event so it can be configured.
     . Or just pick something high enough.  If I need sample and hold, I can
       write a signal transformer for it.
   . Leaving as nominally non-interpolated, but with explicit discontinuities

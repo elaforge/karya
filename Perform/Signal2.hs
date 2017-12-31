@@ -32,13 +32,12 @@ module Perform.Signal2 (
 
     , null
     , at
-    , inverse_at
     -- , inverse_at_extend
     -- , head, last
     , minimum, maximum
 
     -- * transformation
-    , shift
+    , shift, invert
     , sig_add, sig_subtract, sig_multiply, sig_scale
     , scale, scale_invert
 
@@ -51,12 +50,11 @@ module Perform.Signal2 (
 
     -- , drop, drop_while, within
     -- , drop_at_after, drop_after, drop_before, drop_before_strict, drop_before_at
-    -- , map_x, map_y, map_err
+    , map_y, map_err
 
     -- -- * special functions
-    -- , compose, compose_hybrid
+    -- , compose_hybrid
     , integrate
-    -- , unwarp_fused
     -- , pitches_share
     -- , flat_duration
 ) where
@@ -196,77 +194,13 @@ linear_interpolate x1 y1 x2 y2 x
         <> showt ((x1, y1), (x2, y2), x)
     | otherwise = (y2 - y1) / x_to_y (x2 - x1) * x_to_y (x - x1) + y1
 
--- | Find the X at which the signal will attain the given Y.  Assumes Y is
--- non-decreasing.  This should be the inverse of 'at'.
---
--- This might be cleaner as an inverse function followed by plain 'at', but
--- since it's sampled periodically by the play monitor, I'll sacrifice some
--- CPU to save some memory.
-inverse_at :: Y -> Warp -> Maybe X
-inverse_at _y _sig = undefined
-
--- inverse_at :: Y -> Warp -> Maybe X
--- inverse_at y sig
---     | i >= TimeVector.length vec || i < 0 = Nothing
---     | y1 == y = Just x1
---     | otherwise = TimeVector.x_at x0 y0 x1 y1 y
---     where
---     vec = sig_vec sig
---     i = lowest_index_y y vec
---     Sample x0 y0 = if i <= 0 then Sample 0 0 else TimeVector.index vec (i-1)
---     Sample x1 y1 = TimeVector.index vec i
-
--- lowest_index_y :: Y -> TimeVector.Unboxed -> Int
--- lowest_index_y y vec = go 0 (TimeVector.length vec)
---     where
---     go low high
---         | low == high = low
---         | y <= sy (TimeVector.unsafeIndex vec mid) = go low mid
---         | otherwise = go (mid+1) high
---         where mid = (low + high) `div` 2
-
--- -- | This is like 'inverse_at', except that if the Y value is past the end
--- -- of the signal, it extends the signal as far as necessary.  When used for
--- -- warp composition or unwarping, this means that the parent warp is too small
--- -- for the child.  Normally this shouldn't happen, but if it does it's
--- -- sometimes better to make something up than crash.
--- --
--- -- The rules for extension are the same as 'at_linear_extend', and this
--- -- function should be the inverse of that one.  This ensures that if you warp
--- -- and then unwarp a time, you get your original time back.
--- inverse_at_extend :: Y -> Warp -> X
--- inverse_at_extend y (Signal vec)
---     | TimeVector.null vec = y_to_x y
---     -- Nothing means the line is flat and will never reach Y.  I pick a big
---     -- X instead of crashing.
---     | otherwise = fromMaybe RealTime.large $ TimeVector.x_at x0 y0 x1 y1 y
---     where
---     -- Has to be the highest index, or it gets hung up on a flat segment.
---     i = index_above_y y vec
---     (Sample x0 y0, Sample x1 y1)
---         | len == 1 =
---             let at0@(Sample x0 y0) = index 0
---             in (at0, Sample (x0+1) (y0+1))
---         | i >= TimeVector.length vec = (index (i-2), index (i-1))
---         | i == 0 = (index 0, index 1)
---         | otherwise = (index (i-1), index i)
---         where len = TimeVector.length vec
---     index = TimeVector.index vec
---
--- index_above_y :: Y -> TimeVector.Unboxed -> Int
--- index_above_y y vec = go 0 (TimeVector.length vec)
---     where
---     go low high
---         | low == high = low
---         | y >= sy (TimeVector.unsafeIndex vec mid) = go (mid+1) high
---         | otherwise = go low mid
---         where mid = (low + high) `div` 2
---
-
 -- * transformation
 
 shift :: X -> Signal kind -> Signal kind
 shift x = modify (Linear.shift x)
+
+invert :: Signal kind -> Signal kind
+invert = modify Linear.invert
 
 -- prepend :: Signal kind -> Signal kind -> Signal kind
 -- prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
@@ -368,12 +302,11 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
 -}
 
 
--- TODO used by?
-
 before, after :: X -> Signal kind -> Signal kind
 before x = modify $ Linear.before x
 after x = modify $ Linear.after x
 
+-- TODO used by?
 {-
 drop :: Int -> Signal kind -> Signal kind
 drop = modify . TimeVector.drop
@@ -404,45 +337,16 @@ drop_before_at :: X -> Signal kind -> Signal kind
 drop_before_at = modify . TimeVector.drop_before_at
 -}
 
--- -- TODO Used for warp shift and stretch
--- -- if Warp becomes a function I can get rid of it
--- map_x :: (X -> X) -> Signal kind -> Signal kind
--- map_x = modify . Linear.linear_map_x
-
 map_y :: (Y -> Y) -> Signal kind -> Signal kind
 map_y = modify . Linear.linear_map_y
 
--- TODO used by Midi.Convert.convert_scale
--- map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind -> (Signal kind, [err])
--- map_err f = first Signal . TimeVector.map_err f . sig_vec
+map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind
+    -> (Signal kind, [err])
+map_err f = first Signal . Linear.map_err f . _signal
 
 -- * special functions
 
 {-
--- | Compose the first signal with the second.
---
--- Actually, only the X points from the first warp are used in the output, so
--- the input signals must be at a constant sample rate.  This is different
--- from the variable sampling used all the other signals, but is compatible
--- with the output of 'integrate'.
---
--- It also means that the output will have length equal to that of the first
--- argument.  Since the second argument is likely the warp of a sub-block,
--- it will be shorter, and hence not result in a warp that is too short for
--- its score.
---
--- TODO That also implies there's wasted work when warp outside of the
--- sub-block's range is calculated.  Solutions to that are either to clip the
--- output to the length of the second argument (but this will cause incorrect
--- results if the sub-block wants RealTime outside its range), or, once again,
--- to make signals lazy.
---
--- TODO Wait, what if the warps don't line up at 0?  Does that happen?
-compose :: Warp -> Warp -> Warp
-compose f = modify $ TimeVector.map_y $ \y -> at_linear (y_to_x y) f
-    -- TODO Walking down f would be more efficient, especially once Signal is
-    -- lazy.
-
 -- | This is like 'compose', but implements a kind of \"semi-absolute\"
 -- composition.  The idea is that it's normal composition until the second
 -- signal has a slope of zero.  Normally this would be a discontinuity, but
@@ -498,6 +402,44 @@ flat_duration =
     go (!acc, TimeVector.Sample x0 y0) sample@(TimeVector.Sample x y)
         | y == y0 = (acc + (x - x0), sample)
         | otherwise = (acc, sample)
+
+-- | This is like 'inverse_at', except that if the Y value is past the end
+-- of the signal, it extends the signal as far as necessary.  When used for
+-- warp composition or unwarping, this means that the parent warp is too small
+-- for the child.  Normally this shouldn't happen, but if it does it's
+-- sometimes better to make something up than crash.
+--
+-- The rules for extension are the same as 'at_linear_extend', and this
+-- function should be the inverse of that one.  This ensures that if you warp
+-- and then unwarp a time, you get your original time back.
+inverse_at_extend :: Y -> Warp -> X
+inverse_at_extend y (Signal vec)
+    | TimeVector.null vec = y_to_x y
+    -- Nothing means the line is flat and will never reach Y.  I pick a big
+    -- X instead of crashing.
+    | otherwise = fromMaybe RealTime.large $ TimeVector.x_at x0 y0 x1 y1 y
+    where
+    -- Has to be the highest index, or it gets hung up on a flat segment.
+    i = index_above_y y vec
+    (Sample x0 y0, Sample x1 y1)
+        | len == 1 =
+            let at0@(Sample x0 y0) = index 0
+            in (at0, Sample (x0+1) (y0+1))
+        | i >= TimeVector.length vec = (index (i-2), index (i-1))
+        | i == 0 = (index 0, index 1)
+        | otherwise = (index (i-1), index i)
+        where len = TimeVector.length vec
+    index = TimeVector.index vec
+
+index_above_y :: Y -> TimeVector.Unboxed -> Int
+index_above_y y vec = go 0 (TimeVector.length vec)
+    where
+    go low high
+        | low == high = low
+        | y >= sy (TimeVector.unsafeIndex vec mid) = go (mid+1) high
+        | otherwise = go low mid
+        where mid = (low + high) `div` 2
+
 -}
 
 -- ** integrate
@@ -541,29 +483,8 @@ integrate_segment srate accum x0 y0 x1 _y1
 integrate :: Tempo -> Warp
 integrate = Signal . Linear.integrate tempo_srate . _signal
 
--- | Signal composition, used by warps, is really tricky without a constant
--- srate.  Since 'integrate' is the way to generate 'Warp's, ensure they are
--- at this srate by passing this to integrate.
---
--- 0.05 = 50 Hz = 800b\/sec = 47kb\/min
--- 0.01 = 100 Hz = 1600b\/sec = 94kb\/min
 tempo_srate :: X
 tempo_srate = RealTime.seconds 0.1
-
-{-
--- | Previously, 'unwarp' was called as
--- @Signal.unwarp (Score.warp_to_signal warp) control@.  This converts the
--- entire @warp@, which is often large thanks to the sampling rate required by
--- 'integrate', for the sake of unwarping @control@, which is often very small,
--- thanks to track slicing, and does so again and again.  Fusion should
--- take care of making the warp conversion just as efficient as manually
--- applying the shift and stretch, but presumably can't handle only inverting
--- the part of the warp needed to unwarp the control, becasue the signal is
--- strict.
-unwarp_fused :: Warp -> RealTime -> RealTime -> Control -> Display
-unwarp_fused w shift stretch = coerce . modify (TimeVector.map_x unwarp)
-    where unwarp x = (inverse_at_extend (x_to_y x) w - shift) / stretch
--}
 
 -- ** pitches_share
 

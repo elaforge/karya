@@ -1,13 +1,14 @@
 -- | A signal modeled as linear segments.
 module Util.Linear (
-    NumSignal
-    , Signal, Segment(..)
+    Signal, Segment(..)
     , X, Sample(..)
     -- * construct / destrect
     , empty
     , constant, constant_val
-    , from_vector, from_samples, from_pairs, from_segments
-    , to_pairs, to_vector, to_segments
+    , from_vector, to_vector
+    , from_samples, to_samples
+    , from_pairs, to_pairs
+    , from_segments, to_segments
     , with_ptr
     -- * query
     , null
@@ -22,8 +23,10 @@ module Util.Linear (
     , shift
     , linear_operator, linear_map_y, linear_map_x
     -- , map_segments
-    , transform_samples
-    -- ** integrate
+    , transform_samples, map_err
+    -- * NumSignal
+    , NumSignal
+    , invert
     , integrate
 ) where
 import Prelude hiding (concat, null, maximum, minimum)
@@ -34,7 +37,6 @@ import qualified Data.Vector.Storable as Vector.Storable
 
 import qualified Foreign
 
-import qualified Util.Debug as Debug
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -44,8 +46,6 @@ import Util.TimeVector (X, Sample(..))
 import qualified Perform.RealTime as RealTime
 import Global
 
-
-type NumSignal = Signal TimeVector.Unboxed
 
 data Signal v = Signal {
     _offset :: !X
@@ -69,6 +69,9 @@ instance Serialize.Serialize v => Serialize.Serialize (Signal v) where
 
 instance DeepSeq.NFData v => DeepSeq.NFData (Signal v) where
     rnf (Signal offset vec) = DeepSeq.rnf offset `seq` DeepSeq.rnf vec `seq` ()
+
+modify_vector :: (a -> b) -> Signal a -> Signal b
+modify_vector modify sig = sig { _vector = modify (_vector sig) }
 
 -- * construct / destruct
 
@@ -111,11 +114,14 @@ from_samples = from_vector . V.fromList . strip
     strip (s1:sn) = s1 : strip sn
     strip [] = []
 
+to_samples :: V.Vector v (Sample y) => SignalS v y -> [Sample y]
+to_samples = V.toList . to_vector
+
 from_pairs :: V.Vector v (Sample y) => [(X, y)] -> SignalS v y
 from_pairs = from_samples . map (uncurry Sample)
 
 to_pairs :: V.Vector v (Sample y) => SignalS v y -> [(X, y)]
-to_pairs = map TimeVector.to_pair . V.toList . to_vector
+to_pairs = map TimeVector.to_pair . to_samples
 
 from_segments :: V.Vector v (Sample y) => [Segment y] -> SignalS v y
 from_segments = from_samples . to_list
@@ -125,7 +131,7 @@ from_segments = from_samples . to_list
     to_list [] = []
 
 to_segments :: V.Vector v (Sample y) => SignalS v y -> [Segment y]
-to_segments = samples_to_segments . V.toList . to_vector
+to_segments = samples_to_segments . to_samples
 
 samples_to_segments :: [Sample y] -> [Segment y]
 samples_to_segments = go
@@ -248,10 +254,10 @@ linear_operator initial combine sig1 sig2 = from_vector $
 
 -- | Map across Ys.  Only valid if the function is linear.
 linear_map_y :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
-linear_map_y f sig = sig { _vector = TimeVector.map_y f (_vector sig) }
+linear_map_y f = modify_vector $ TimeVector.map_y f
 
 linear_map_x :: V.Vector v (Sample y) => (X -> X) -> SignalS v y -> SignalS v y
-linear_map_x f sig = sig { _vector = TimeVector.map_x f (_vector sig) }
+linear_map_x f = modify_vector $ TimeVector.map_x f
 
 -- -- | Transform Segments.  Only valid if the function is linear.
 -- map_segments :: V.Vector v (Sample y) => (Segment y -> [Segment y])
@@ -262,11 +268,20 @@ linear_map_x f sig = sig { _vector = TimeVector.map_x f (_vector sig) }
 
 transform_samples :: V.Vector v (Sample y) => ([Sample y] -> [Sample y])
     -> SignalS v y -> SignalS v y
-transform_samples f sig =
-    (from_samples $ f $ V.toList $ _vector sig) { _offset = _offset sig }
+transform_samples f = modify_vector $ _vector . from_samples . f . V.toList
 
+map_err :: V.Vector v (Sample y) => (Sample y -> Either err (Sample y))
+    -> SignalS v y -> (SignalS v y, [err])
+map_err f = first from_vector . TimeVector.map_err f . to_vector
 
--- ** integrate
+-- * NumSignal
+
+type NumSignal = Signal TimeVector.Unboxed
+
+invert :: NumSignal -> NumSignal
+invert sig = sig { _vector = V.map swap (_vector sig) }
+    where
+    swap (Sample x y) = Sample (RealTime.seconds y) (RealTime.to_seconds x)
 
 -- | Integrate the signal.
 --
