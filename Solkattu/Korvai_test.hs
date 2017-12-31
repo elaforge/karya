@@ -55,7 +55,6 @@ test_realizeTechnique = do
         takatataka = mconcat [ta, ka, ta, ta, ka]
     equal (f strokes1 takatakadinna) (Right "k t k o o k")
     equal (f strokes1 (Dsl.dropM 1 takatakadinna)) (Right "k k o o k")
-    equal (f strokes1 (Dsl.dropM 1 takatataka)) (Right "t k k o")
 
     let strokes2 = [(ta_din, [k, t, k, k, t, o])]
             where Mridangam.Strokes {..} = Mridangam.notes

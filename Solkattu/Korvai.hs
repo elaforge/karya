@@ -322,23 +322,6 @@ printKonnakol :: Bool -> Korvai -> IO ()
 printKonnakol realizePatterns korvai =
     printResults (Just 4) korvai $ realize konnakol realizePatterns korvai
 
-writeKonnakolHtml :: Bool -> Korvai -> IO ()
-writeKonnakolHtml realizePatterns korvai =
-    case sequence (realize konnakol realizePatterns korvai) of
-        Left err -> Text.IO.putStrLn $ "ERROR:\n" <> err
-        Right results
-            | any (not . Text.null) warnings -> mapM_ Text.IO.putStrLn warnings
-            | otherwise -> do
-                let (_, _, title) = _location (korvaiMetadata korvai)
-                Text.IO.writeFile fname $ Doc.un_html $
-                    Realize.htmlPage title (metadataHtml korvai) body
-                putStrLn $ "wrote " <> fname
-            where
-            body = TextUtil.join "\n\n" $
-                map (Realize.formatHtml (korvaiTala korvai) konnakolFont) notes
-            (notes, warnings) = unzip results
-    where fname = "konnakol.html"
-
 -- | Write HTML with all the instrument realizations.
 writeHtmlKorvai :: FilePath -> Bool -> Korvai -> IO ()
 writeHtmlKorvai fname realizePatterns korvai = do
