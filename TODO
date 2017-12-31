@@ -1281,6 +1281,8 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         I should keep it in a separate field.
       . Tempo.with_hybrid uses warp_to_signal so it can use
         Signal.compose_hybrid on them.
+    - port Signal_test to Signal2_test
+    - port PSignal to PSignal2
     * Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
     - clean up TimeVector, remove unneeded functions
@@ -1290,6 +1292,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
     - Get rid of srate.
     - Midi performer has to use a sampling rate.
     - Get rid of infer linear in the fltk drawing code.
+    - remove Derive.Deriver.Monad.state_pitch_mergers
 
   . If I say signals now have linear interpolation by default, then the linear
     interpolator can just emit one sample, but now MIDI needs interpolation.

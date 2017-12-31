@@ -1046,11 +1046,10 @@ merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
 merge_scale :: Merger Signal.Control
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
+-- | Once upon a time I had the interleave merger, but now there are none.
+-- TODO remove the mergers for PSignals
 pitch_mergers :: Map Expr.Symbol (Merger PSignal.PSignal)
-pitch_mergers = Map.fromList $ map to_pair
-    [ Set, Merger "interleave" (flip PSignal.interleave) mempty
-    ]
-    where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
+pitch_mergers = Map.empty
 
 
 -- * Collect

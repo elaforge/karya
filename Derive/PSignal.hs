@@ -15,7 +15,7 @@ module Derive.PSignal (
     , take, drop, drop_while, drop_after, drop_at_after
     , drop_before, drop_before_strict, drop_before_at, within
     , map_y
-    , interleave, prepend
+    , prepend
     , Sample(..)
     -- * Pitch
     , Transposed, Pitch
@@ -107,7 +107,7 @@ to_nn = extract . Either.partitionEithers . map eval . unsignal
         Right (Pitch.NoteNumber nn) -> Right (x, nn)
 
 unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal
-unfoldr f st = PSignal $ TimeVector.unfoldr f st
+unfoldr gen state = PSignal $ TimeVector.unfoldr gen state
 
 type ControlMap = Map Score.Control Score.TypedControl
 
@@ -217,9 +217,6 @@ within start end = modify $ TimeVector.within start end
 
 map_y :: (Pitch -> Pitch) -> PSignal -> PSignal
 map_y = modify . TimeVector.map_y
-
-interleave :: PSignal -> PSignal -> PSignal
-interleave s1 s2 = PSignal $ TimeVector.interleave (sig_vec s1) (sig_vec s2)
 
 prepend :: PSignal -> PSignal -> PSignal
 prepend s1 s2 = PSignal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
