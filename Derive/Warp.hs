@@ -23,6 +23,8 @@ data Warp = Warp {
     -- , _signal :: !Signal.Warp
     }
 
+instance Show Warp where show w = "((Warp " ++ show (_warp w 0) ++ "))"
+
 warp :: Warp -> ScoreTime -> RealTime
 warp = _warp
 

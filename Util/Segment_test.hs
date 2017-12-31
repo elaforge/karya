@@ -24,6 +24,14 @@ test_from_pairs = do
     equal (f [(0, 0), (2, 2), (1, 1), (0, 1), (4, 0)])
         [((0, 0), (2, 2)), ((2, 2), (4, 0)), ((4, 0), (large, 0))]
 
+test_constant_val = do
+    let f = Segment.constant_val
+    equal (f $ constant 1) (Just 1)
+    equal (f $ Segment.shift 10 $ constant 1) (Just 1)
+    equal (f $ from_pairs []) Nothing
+    equal (f $ from_pairs [(0, 0)]) Nothing
+    equal (f $ from_pairs [(3, 2)]) Nothing
+
 test_concat = do
     let f = to_segments . Segment.concat . map from_pairs
     equal (f [[(0, 1)], [(4, 2)]]) [((0, 1), (4, 1)), ((4, 2), (large, 2))]
@@ -58,9 +66,25 @@ test_integrate = do
         , (large, 6 + 2 * (large_y - 4))
         ]
 
+-- TODO
+-- test_linear_operator = do
+--     let f s1 s2 = to_segments $
+--             Segment.linear_operator 0 (+) (from_pairs s1) (from_pairs s2)
+--     equal (f [(0, 1)] [(0, 2)]) [((0, 3), (large, 3))]
+--     equal (f [(0, 1), (1, 1), (1, 2)] [(0, 2), (1, 2), (1, 4)])
+--         [((0, 3), (1, 3)), ((1, 6), (large, 6))]
+--     -- Discontinuities handled.
+--     equal (f [(0, 1)] [(1, 2)]) [((0, 1), (1, 1)), ((1, 3), (large, 3))]
+--     -- Linear interpolation between the segments.
+--     equal (f [(0, 0), (4, 4)] [(2, 1)])
+--         [((0, 0), (2, 2)), ((2, 3), (4, 5)), ((4, 5), (large, 5))]
+
 to_segments :: Segment.NumSignal -> [((X, Y), (X, Y))]
 to_segments = map (\(Segment.Segment x1 y1 x2 y2) -> ((x1, y1), (x2, y2)))
     . Segment.to_segments
 
 from_pairs :: [(X, Y)] -> Segment.NumSignal
 from_pairs = Segment.from_pairs
+
+constant :: Y -> Segment.NumSignal
+constant = Segment.constant

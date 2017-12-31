@@ -13,21 +13,29 @@ module Util.Segment (
     , from_samples, to_samples
     , from_pairs, to_pairs
     , from_segments, to_segments
+    , unfoldr
     , with_ptr
+
     -- * query
     , null
     , at_interpolate
     , maximum, minimum
     -- , segment_at
+
     -- * concat
     , concat
     -- * slice
     , before, after
     -- * transform
     , shift
-    , linear_operator, linear_map_y, linear_map_x
+    , linear_map_y, linear_map_x
     -- , map_segments
     , transform_samples, map_err
+    -- ** resampling transform
+    , linear_operator
+
+    -- * Boxed
+    , Boxed
     -- * NumSignal
     , NumSignal
     , invert
@@ -92,7 +100,9 @@ constant a = from_vector $ V.fromList [Sample (-RealTime.large) a]
 
 constant_val :: V.Vector v (Sample a) => SignalS v a -> Maybe a
 constant_val sig = case TimeVector.uncons (_vector sig) of
-    Just (Sample x1 y1, rest) | x1 <= RealTime.large && V.null rest ->
+    -- This will naturally disregard 'shift's, which is as it should be for
+    -- so-called constant signals.
+    Just (Sample x1 y1, rest) | x1 <= -RealTime.large && V.null rest ->
         Just y1
     _ -> Nothing
 
@@ -153,6 +163,10 @@ samples_to_segments = go
         | x1 == x2 = go xs
         | otherwise = Segment x1 y1 x2 y2 : go xs
 
+unfoldr :: V.Vector v (Sample y) => (state -> Maybe ((X, y), state)) -> state
+    -> SignalS v y
+unfoldr gen state = from_vector $ TimeVector.unfoldr gen state
+
 -- | Get a Ptr to the vector.  This is 'Vector.Storable.unsafeWith'.
 with_ptr :: Foreign.Storable a =>
     Signal (Vector.Storable.Vector a) -> (X -> Foreign.Ptr a -> Int-> IO b)
@@ -172,7 +186,7 @@ at_interpolate :: V.Vector v (Sample y) => (X -> y -> X -> y -> X -> y) -> X
 at_interpolate interpolate x (Signal offset vec)
     | V.null vec = Nothing
     | i + 1 >= V.length vec = Just y0
-    | i == -1 = Just y1
+    | i == -1 = Nothing
     | otherwise = Just $ interpolate x0 y0 x1 y1 (x + offset)
     where
     i = TimeVector.highest_index (x + offset) vec
@@ -251,16 +265,6 @@ after x sig = Signal
 shift :: X -> Signal v -> Signal v
 shift offset sig = sig { _offset = _offset sig + offset }
 
--- | Combine two vectors with the given function, via 'TimeVector.sig_op'.
--- Since the samples are directly transformed, this only works for linear
--- transformations.
-linear_operator :: V.Vector v (Sample y) =>
-    y -- ^ The implicit y value of a vector before its first sample.  It should
-    -- probably be the identity for the operator.
-    -> (y -> y -> y) -> SignalS v y -> SignalS v y -> SignalS v y
-linear_operator initial combine sig1 sig2 = from_vector $
-    TimeVector.sig_op initial combine (to_vector sig1) (to_vector sig2)
-
 -- | Map across Ys.  Only valid if the function is linear.
 linear_map_y :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
 linear_map_y f = modify_vector $ TimeVector.map_y f
@@ -282,6 +286,22 @@ transform_samples f = modify_vector $ _vector . from_samples . f . V.toList
 map_err :: V.Vector v (Sample y) => (Sample y -> Either err (Sample y))
     -> SignalS v y -> (SignalS v y, [err])
 map_err f = first from_vector . TimeVector.map_err f . to_vector
+
+-- ** resampling tranform
+
+-- | Combine two vectors with the given function, via 'TimeVector.sig_op'.
+-- Since the samples are directly transformed, this only works for linear
+-- transformations.
+linear_operator :: V.Vector v (Sample y) =>
+    y -- ^ The implicit y value of a vector before its first sample.  It should
+    -- probably be the identity for the operator.
+    -> (y -> y -> y) -> SignalS v y -> SignalS v y -> SignalS v y
+linear_operator initial combine sig1 sig2 = from_vector $
+    TimeVector.sig_op initial combine (to_vector sig1) (to_vector sig2)
+
+-- * Boxed
+
+type Boxed y = Signal (TimeVector.Boxed y)
 
 -- * NumSignal
 

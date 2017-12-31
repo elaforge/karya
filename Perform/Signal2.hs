@@ -1,4 +1,4 @@
--- Copyright 2013 Evan Laforge
+-- Copyright 2017 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -14,18 +14,16 @@ module Perform.Signal2 (
     -- * types
     Signal, Sample(..)
     , X, Y, x_to_y, y_to_x, y_to_score, y_to_nn, nn_to_y
-
-    -- * constants
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construct / destruct
     , from_pairs, from_segments
     , to_pairs, to_segments
     , constant, constant_val
+    , unfoldr
     , coerce
     , with_ptr
 
-    -- , unfoldr
     -- , length
 
     -- * query
@@ -85,7 +83,7 @@ import Types
 -- but it really is just documentation and anyone who wants to operate on
 -- a generic signal can take a @Signal kind@.
 newtype Signal kind = Signal Segment.NumSignal
-    deriving (DeepSeq.NFData, Pretty, Eq, Serialize.Serialize)
+    deriving (Show, Pretty, Eq, DeepSeq.NFData, Serialize.Serialize)
 
 _signal :: Signal kind -> Segment.NumSignal
 _signal (Signal sig) = sig
@@ -143,8 +141,6 @@ y_to_nn = Pitch.NoteNumber
 nn_to_y :: Pitch.NoteNumber -> Y
 nn_to_y (Pitch.NoteNumber nn) = nn
 
--- * constants
-
 -- * construct / destruct
 
 from_pairs :: [(X, Y)] -> Signal kind
@@ -166,9 +162,9 @@ constant = Signal . Segment.constant
 constant_val :: Signal kind -> Maybe Y
 constant_val = Segment.constant_val . _signal
 
--- unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
--- unfoldr f st = Signal $ TimeVector.unfoldr f st
---
+unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
+unfoldr gen state = Signal $ Segment.unfoldr gen state
+
 -- length :: Signal kind -> Int
 -- length = TimeVector.length . sig_vec
 
@@ -185,14 +181,8 @@ with_ptr sig = Segment.with_ptr (_signal sig)
 null :: Signal kind -> Bool
 null = Segment.null . _signal
 
-at :: X -> Signal kind -> Y
-at x = fromMaybe 0 . Segment.at_interpolate linear_interpolate x . _signal
-
-linear_interpolate :: CallStack.Stack => X -> Y -> X -> Y -> X -> Y
-linear_interpolate x1 y1 x2 y2 x
-    | x1 == x2 = errorStack $ "linear_interpolate on vertical line: "
-        <> showt ((x1, y1), (x2, y2), x)
-    | otherwise = (y2 - y1) / x_to_y (x2 - x1) * x_to_y (x - x1) + y1
+at :: CallStack.Stack => X -> Signal kind -> Y
+at x = fromMaybe 0 . Segment.at_interpolate TimeVector.y_at x . _signal
 
 -- * transformation
 
