@@ -1289,10 +1289,15 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         initial value is ok.
       . It seems like doing the general polymorphic case is really hard.  Can
         I do the NumSignal one first?
-    - Fix PSignal.apply_controls
+    - implement PSignal.apply_controls
       . How about union Xs from the controls, then iterate over them and the
         PSignal?
+      . Maybe I need a 'at_interpolate' that can return before and after?
     - port PSignal to PSignal2
+    switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
+      - drop, drop_while, within etc. functions replaced by before and after
+      - Derive.Score.Warp replaced by Derive.Warp.
+      - profile before and after
     * Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
     - clean up TimeVector, remove unneeded functions

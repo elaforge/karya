@@ -24,30 +24,28 @@ module Perform.Signal2 (
     , coerce
     , with_ptr
 
-    -- , length
-
     -- * query
-
+    -- , length
     , null
     , at
-    -- , inverse_at_extend
     -- , head, last
     , minimum, maximum
 
-    -- * transformation
-    , shift, invert
-    , sig_add, sig_subtract, sig_multiply, sig_scale
+    -- * transform
+
+    , before, after
+    -- , drop, drop_while, within
+    -- , drop_at_after, drop_after, drop_before, drop_before_strict
+    -- , drop_before_at
+    , shift
+
+    , invert, sig_add, sig_subtract, sig_multiply, sig_scale
     , scale, scale_invert
 
     -- ** scalar transformation
     , scalar_max, scalar_min
     -- , clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
-
-    , before, after
-
-    -- , drop, drop_while, within
-    -- , drop_at_after, drop_after, drop_before, drop_before_strict, drop_before_at
     , map_y, map_err
 
     -- -- * special functions
@@ -165,9 +163,6 @@ constant_val = Segment.constant_val . _signal
 unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
 unfoldr gen state = Signal $ Segment.unfoldr gen state
 
--- length :: Signal kind -> Int
--- length = TimeVector.length . sig_vec
-
 -- | Sometimes signal types need to be converted.
 coerce :: Signal kind1 -> Signal kind2
 coerce (Signal vec) = Signal vec
@@ -178,13 +173,51 @@ with_ptr sig = Segment.with_ptr (_signal sig)
 
 -- * query
 
+-- length :: Signal kind -> Int
+-- length = TimeVector.length . sig_vec
+
 null :: Signal kind -> Bool
 null = Segment.null . _signal
 
 at :: CallStack.Stack => X -> Signal kind -> Y
 at x = fromMaybe 0 . Segment.at_interpolate TimeVector.y_at x . _signal
 
--- * transformation
+-- * transform
+
+before, after :: X -> Signal kind -> Signal kind
+before x = modify $ Segment.before x
+after x = modify $ Segment.after x
+
+-- TODO used by?
+{-
+drop :: Int -> Signal kind -> Signal kind
+drop = modify . TimeVector.drop
+
+-- slice in Midi.Perform
+drop_while :: (Sample Y -> Bool) -> Signal kind -> Signal kind
+drop_while = modify . Vector.dropWhile
+
+-- Midi.Perform.controls_equal
+within :: X -> X -> Signal kind -> Signal kind
+within start end = modify $ TimeVector.within start end
+
+-- Block.trim_controls, trill xcut, Derive.Control.trim_signal
+drop_at_after :: X -> Signal kind -> Signal kind
+drop_at_after = modify . TimeVector.drop_at_after
+
+-- trim_signal
+drop_after :: X -> Signal kind -> Signal kind
+drop_after = modify . TimeVector.drop_after
+
+drop_before :: X -> Signal kind -> Signal kind
+drop_before = modify . TimeVector.drop_before
+
+drop_before_strict :: X -> Signal kind -> Signal kind
+drop_before_strict = modify . TimeVector.drop_before_strict
+
+drop_before_at :: X -> Signal kind -> Signal kind
+drop_before_at = modify . TimeVector.drop_before_at
+-}
 
 shift :: X -> Signal kind -> Signal kind
 shift x = modify (Segment.shift x)
@@ -292,43 +325,8 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
 -}
 
 
-before, after :: X -> Signal kind -> Signal kind
-before x = modify $ Segment.before x
-after x = modify $ Segment.after x
-
--- TODO used by?
-{-
-drop :: Int -> Signal kind -> Signal kind
-drop = modify . TimeVector.drop
-
--- slice in Midi.Perform
-drop_while :: (Sample Y -> Bool) -> Signal kind -> Signal kind
-drop_while = modify . Vector.dropWhile
-
--- Midi.Perform.controls_equal
-within :: X -> X -> Signal kind -> Signal kind
-within start end = modify $ TimeVector.within start end
-
--- Block.trim_controls, trill xcut, Derive.Control.trim_signal
-drop_at_after :: X -> Signal kind -> Signal kind
-drop_at_after = modify . TimeVector.drop_at_after
-
--- trim_signal
-drop_after :: X -> Signal kind -> Signal kind
-drop_after = modify . TimeVector.drop_after
-
-drop_before :: X -> Signal kind -> Signal kind
-drop_before = modify . TimeVector.drop_before
-
-drop_before_strict :: X -> Signal kind -> Signal kind
-drop_before_strict = modify . TimeVector.drop_before_strict
-
-drop_before_at :: X -> Signal kind -> Signal kind
-drop_before_at = modify . TimeVector.drop_before_at
--}
-
 map_y :: (Y -> Y) -> Signal kind -> Signal kind
-map_y = modify . Segment.linear_map_y
+map_y = modify . Segment.map_y
 
 map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind
     -> (Signal kind, [err])
@@ -433,36 +431,6 @@ index_above_y y vec = go 0 (TimeVector.length vec)
 -}
 
 -- ** integrate
-
-{-
--- | Integrate the signal.
---
--- Since the output will have more samples than the input, this needs
--- a sampling rate.  The sampling rate determines the resolution of the tempo
--- track.  So it can probably be fairly low resolution before having
--- a noticeable impact.
---
--- The last sample of a signal is supposed to extend indefinitely, which
--- means that the output of 'integrate' should extend indefinitely at
--- a constant slope.  But since signals are strict, I can't have infinite
--- signals.  So this integrate will only be accurate up until the final sample
--- of the tempo given, and it's up to the caller to ensure that this range
--- is enough.  To this end, 'Derive.Tempo.extend_signal' will ensure there's
--- a sample at the end of the track.
-integrate :: X -> Tempo -> Warp
-integrate srate = coerce . modify (TimeVector.concat_map_accum 0 go final 0)
-    where
-    go = integrate_segment srate
-    final accum (Sample x _) = [Sample x accum]
-
-integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [Sample Y])
-integrate_segment srate accum x0 y0 x1 _y1
-    | x0 >= x1 = (accum, [])
-    | otherwise = (y_at x1, [Sample x (y_at x) | x <- xs])
-    where
-    xs = Seq.range' x0 x1 srate
-    y_at x = accum + x_to_y (x-x0) * y0
--}
 
 -- | Integrate the signal.
 --

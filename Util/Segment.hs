@@ -29,7 +29,7 @@ module Util.Segment (
     , before, after
     -- * transform
     , shift
-    , linear_map_y, linear_map_x
+    , map_y, map_x
     -- , map_segments
     , transform_samples, map_err
 
@@ -268,12 +268,13 @@ after x sig = Signal
 shift :: X -> Signal v -> Signal v
 shift offset sig = sig { _offset = _offset sig + offset }
 
--- | Map across Ys.  Only valid if the function is linear.
-linear_map_y :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
-linear_map_y f = modify_vector $ TimeVector.map_y f
+-- | Map Ys.  Only valid if the function is linear.
+map_y :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
+map_y f = modify_vector $ TimeVector.map_y f
 
-linear_map_x :: V.Vector v (Sample y) => (X -> X) -> SignalS v y -> SignalS v y
-linear_map_x f = modify_vector $ TimeVector.map_x f
+-- | Map Xs.  Only valid if the function is linear.
+map_x :: V.Vector v (Sample y) => (X -> X) -> SignalS v y -> SignalS v y
+map_x f = modify_vector $ TimeVector.map_x f
 
 -- -- | Transform Segments.  Only valid if the function is linear.
 -- map_segments :: V.Vector v (Sample y) => (Segment y -> [Segment y])
