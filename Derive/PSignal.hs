@@ -5,18 +5,21 @@
 module Derive.PSignal (
     PSignal, sig_scale_id
     , Scale(Scale), no_scale
-    -- * construct and convert
+
+    -- * construct  / destruct
     , constant, signal, unsignal, unsignal_unique, set, append, to_nn
     , unfoldr
-    -- * apply controls
-    , apply_controls, apply_control, apply_environ
-    -- * signal functions
+
+    -- * query
     , null, at, sample_at, before, shift, head, last
     , take, drop, drop_while, drop_after, drop_at_after
     , drop_before, drop_before_strict, drop_before_at, within
+
+    -- * transform
+    , apply_controls, apply_control, apply_environ
     , map_y
     , prepend
-    , Sample(..)
+
     -- * Pitch
     , Transposed, Pitch
     , RawPitch, PitchConfig(..)
@@ -78,6 +81,8 @@ modify f sig = sig { sig_vec = f (sig_vec sig) }
 no_scale :: Scale
 no_scale = Scale "no-scale" mempty
 
+-- * construct / destruct
+
 constant :: Pitch -> PSignal
 constant  = PSignal . TimeVector.constant
 
@@ -108,6 +113,59 @@ to_nn = extract . Either.partitionEithers . map eval . unsignal
 
 unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal
 unfoldr gen state = PSignal $ TimeVector.unfoldr gen state
+
+-- * query
+
+null :: PSignal -> Bool
+null = TimeVector.null . sig_vec
+
+at :: RealTime -> PSignal -> Maybe Pitch
+at x = TimeVector.at x . sig_vec
+
+sample_at :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
+sample_at x = TimeVector.sample_at x . sig_vec
+
+-- | Find the last pitch before the point.
+before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
+before x = fmap TimeVector.to_pair . TimeVector.before x . sig_vec
+
+shift :: RealTime -> PSignal -> PSignal
+shift x = modify (TimeVector.shift x)
+
+head :: PSignal -> Maybe (RealTime, Pitch)
+head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
+
+last :: PSignal -> Maybe (RealTime, Pitch)
+last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
+
+take :: Int -> PSignal -> PSignal
+take = modify . TimeVector.take
+
+drop :: Int -> PSignal -> PSignal
+drop = modify . TimeVector.drop
+
+drop_while :: (Sample Pitch -> Bool) -> PSignal -> PSignal
+drop_while f = modify (V.dropWhile f)
+
+drop_after :: RealTime -> PSignal -> PSignal
+drop_after = modify . TimeVector.drop_after
+
+drop_at_after :: RealTime -> PSignal -> PSignal
+drop_at_after = modify . TimeVector.drop_at_after
+
+drop_before :: RealTime -> PSignal -> PSignal
+drop_before = modify . TimeVector.drop_before
+
+drop_before_strict :: RealTime -> PSignal -> PSignal
+drop_before_strict = modify . TimeVector.drop_before_strict
+
+drop_before_at :: RealTime -> PSignal -> PSignal
+drop_before_at = modify . TimeVector.drop_before_at
+
+within :: RealTime -> RealTime -> PSignal -> PSignal
+within start end = modify $ TimeVector.within start end
+
+-- * transform
 
 type ControlMap = Map Score.Control Score.TypedControl
 
@@ -163,57 +221,6 @@ apply_environ env = modify $ TimeVector.map_y $ config (PitchConfig env mempty)
 -- | Not exported, use the one in Derive.Score instead.
 controls_at :: RealTime -> ControlMap -> Score.ControlValMap
 controls_at t = Map.map (Signal.at t . Score.typed_val)
-
--- * signal functions
-
-null :: PSignal -> Bool
-null = TimeVector.null . sig_vec
-
-at :: RealTime -> PSignal -> Maybe Pitch
-at x = TimeVector.at x . sig_vec
-
-sample_at :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
-sample_at x = TimeVector.sample_at x . sig_vec
-
--- | Find the last pitch before the point.
-before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
-before x = fmap TimeVector.to_pair . TimeVector.before x . sig_vec
-
-shift :: RealTime -> PSignal -> PSignal
-shift x = modify (TimeVector.shift x)
-
-head :: PSignal -> Maybe (RealTime, Pitch)
-head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
-
-last :: PSignal -> Maybe (RealTime, Pitch)
-last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
-
-take :: Int -> PSignal -> PSignal
-take = modify . TimeVector.take
-
-drop :: Int -> PSignal -> PSignal
-drop = modify . TimeVector.drop
-
-drop_while :: (Sample Pitch -> Bool) -> PSignal -> PSignal
-drop_while f = modify (V.dropWhile f)
-
-drop_after :: RealTime -> PSignal -> PSignal
-drop_after = modify . TimeVector.drop_after
-
-drop_at_after :: RealTime -> PSignal -> PSignal
-drop_at_after = modify . TimeVector.drop_at_after
-
-drop_before :: RealTime -> PSignal -> PSignal
-drop_before = modify . TimeVector.drop_before
-
-drop_before_strict :: RealTime -> PSignal -> PSignal
-drop_before_strict = modify . TimeVector.drop_before_strict
-
-drop_before_at :: RealTime -> PSignal -> PSignal
-drop_before_at = modify . TimeVector.drop_before_at
-
-within :: RealTime -> RealTime -> PSignal -> PSignal
-within start end = modify $ TimeVector.within start end
 
 map_y :: (Pitch -> Pitch) -> PSignal -> PSignal
 map_y = modify . TimeVector.map_y
