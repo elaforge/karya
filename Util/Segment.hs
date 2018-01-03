@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | The 'Signal' type and functions.
 module Util.Segment (
     Signal, Segment(..)
@@ -31,8 +32,6 @@ module Util.Segment (
     , linear_map_y, linear_map_x
     -- , map_segments
     , transform_samples, map_err
-    -- ** resampling transform
-    , linear_operator
 
     -- * Boxed
     , Boxed
@@ -40,6 +39,10 @@ module Util.Segment (
     , NumSignal
     , invert
     , integrate
+    , linear_operator
+#ifdef TESTING
+    , module Util.Segment
+#endif
 ) where
 import Prelude hiding (concat, null, maximum, minimum)
 import qualified Control.DeepSeq as DeepSeq
@@ -287,17 +290,6 @@ map_err :: V.Vector v (Sample y) => (Sample y -> Either err (Sample y))
     -> SignalS v y -> (SignalS v y, [err])
 map_err f = first from_vector . TimeVector.map_err f . to_vector
 
--- ** resampling tranform
-
--- | Combine two vectors with the given function, via 'TimeVector.sig_op'.
--- Since the samples are directly transformed, this only works for linear
--- transformations.
-linear_operator :: V.Vector v (Sample y) =>
-    y -- ^ The implicit y value of a vector before its first sample.  It should
-    -- probably be the identity for the operator.
-    -> (y -> y -> y) -> SignalS v y -> SignalS v y -> SignalS v y
-linear_operator initial combine sig1 sig2 = from_vector $
-    TimeVector.sig_op initial combine (to_vector sig1) (to_vector sig2)
 
 -- * Boxed
 
@@ -306,6 +298,7 @@ type Boxed y = Signal (TimeVector.Boxed y)
 -- * NumSignal
 
 type NumSignal = Signal TimeVector.Unboxed
+type Y = TimeVector.UnboxedY
 
 invert :: NumSignal -> NumSignal
 invert sig = sig { _vector = V.map swap (_vector sig) }
@@ -323,11 +316,11 @@ integrate srate_x =
     from_samples . List.concat . snd
         . List.mapAccumL segment 0 . map to_double . to_segments
     where
-    -- Integral of nx + y -> nx^2 / 2 + yx
+    -- Integral of nx + y = nx^2 / 2 + yx
     to_double (Segment x1 y1 x2 y2) = (s x1, y1, s x2, y2)
         where s = RealTime.to_seconds
     to_sample x y = Sample (RealTime.seconds x) y
-    segment accum (x1, y1, x2, y2) = -- Debug.trace_ret "seg" ((x1, y1), (x2, y2))
+    segment accum (x1, y1, x2, y2) =
         ( f (x2 - x1)
         , if y1 == y2
             then [to_sample x1 (f 0), to_sample x2 (f (x2 - x1))]
@@ -337,3 +330,60 @@ integrate srate_x =
         f x = n * x^2 / 2 + y1*x + accum
         n = (y2 - y1) / (x2 - x1)
     srate = RealTime.to_seconds srate_x
+
+-- | Combine two vectors with the given function.  The signals are resampled
+-- to have coincident samples, assuming linear interpolation.  This only works
+-- for linear functions, so the result can also be represented with linear
+-- segments.
+linear_operator :: (Y -> Y -> Y) -> NumSignal -> NumSignal -> NumSignal
+linear_operator merge asig bsig =
+    from_samples $ zipWith3 make (get_xs ()) as2 bs2
+    where
+    make x ay by = Sample x (merge ay by)
+    as2 = resample (get_xs ()) as
+    bs2 = resample (get_xs ()) bs
+    (as, bs) = to_samples2 0 asig bsig
+    -- The () is to prevent memoization, which should hopefully allow the
+    -- intermediate list to fuse away.  Or maybe I should try to use vectors
+    -- instead of lists?
+    -- TODO profile
+    get_xs () = sample_xs (map sx as) (map sx bs)
+
+-- | Like 'to_samples', except the signal that starts later gets an extra
+-- sample to transition from zero.
+to_samples2 :: V.Vector v (Sample y) => y -> SignalS v y -> SignalS v y
+    -> ([Sample y], [Sample y])
+to_samples2 zero asig bsig = case (to_samples asig, to_samples bsig) of
+    (as@(Sample ax _ : _), bs@(Sample bx _ : _))
+        | ax < bx -> (as, Sample bx zero : bs)
+        | bx < ax -> (Sample ax zero : as, bs)
+    (as, bs) -> (as, bs)
+
+-- | The output has the union of the Xs in the inputs, except where they match
+-- exactly.
+sample_xs :: [X] -> [X] -> [X]
+sample_xs = go
+    where
+    go [] bs = bs
+    go as [] = as
+    go (a:as) (b:bs)
+        | a == b = a : go as bs
+        | a < b = a : go as (b:bs)
+        | otherwise = b : go (a:as) bs
+
+resample :: [X] -> [Sample Y] -> [Y]
+resample xs samples = snd $ List.mapAccumL get samples xs
+    where
+    get ss@(Sample x1 y1 : s2s@(Sample x2 y2 : _)) x
+        -- If it's a discontinuity, I want to consume the sample, or I won't
+        -- see the after Y.  Each discontinuity should have 2 Xs, one for
+        -- before and one for after.  This is brittle and depends on
+        -- 'sample_xs' and 'to_samples2'.
+        | x == x1 = if x1 == x2 then (s2s, y1) else (ss, y1)
+        | x >= x2 = get s2s x
+        | x > x1 = (ss, TimeVector.y_at x1 y1 x2 y2 x)
+        | otherwise = (ss, 0)
+    get ss@[Sample x1 y1] x
+        | x >= x1 = (ss, y1)
+        | otherwise = (ss, 0)
+    get [] _ = ([], 0)

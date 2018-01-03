@@ -225,7 +225,7 @@ linear_operator (Just identity) _ sig1 sig2
     | Just v <- constant_val sig1, v == identity = sig2
     | Just v <- constant_val sig2, v == identity = sig1
 linear_operator _ op sig1 sig2 =
-    Signal $ Segment.linear_operator 0 op (_signal sig1) (_signal sig2)
+    Signal $ Segment.linear_operator op (_signal sig1) (_signal sig2)
 
 -- ** scalar transformation
 

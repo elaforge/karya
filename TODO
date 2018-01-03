@@ -1282,6 +1282,16 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       . Tempo.with_hybrid uses warp_to_signal so it can use
         Signal.compose_hybrid on them.
     * port Signal_test to Signal2_test
+    * Fix linear_operator
+      . apply_controls currently works by resampling all the controls, and
+        then zipping pointwise.
+      . The others are Y -> Y -> Y operators that have an identity, so an
+        initial value is ok.
+      . It seems like doing the general polymorphic case is really hard.  Can
+        I do the NumSignal one first?
+    - Fix PSignal.apply_controls
+      . How about union Xs from the controls, then iterate over them and the
+        PSignal?
     - port PSignal to PSignal2
     * Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.

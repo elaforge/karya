@@ -66,18 +66,22 @@ test_integrate = do
         , (large, 6 + 2 * (large_y - 4))
         ]
 
--- TODO
--- test_linear_operator = do
---     let f s1 s2 = to_segments $
---             Segment.linear_operator 0 (+) (from_pairs s1) (from_pairs s2)
---     equal (f [(0, 1)] [(0, 2)]) [((0, 3), (large, 3))]
---     equal (f [(0, 1), (1, 1), (1, 2)] [(0, 2), (1, 2), (1, 4)])
---         [((0, 3), (1, 3)), ((1, 6), (large, 6))]
---     -- Discontinuities handled.
---     equal (f [(0, 1)] [(1, 2)]) [((0, 1), (1, 1)), ((1, 3), (large, 3))]
---     -- Linear interpolation between the segments.
---     equal (f [(0, 0), (4, 4)] [(2, 1)])
---         [((0, 0), (2, 2)), ((2, 3), (4, 5)), ((4, 5), (large, 5))]
+test_linear_operator = do
+    let f s1 s2 = to_segments $
+            Segment.linear_operator 0 (+) (from_pairs s1) (from_pairs s2)
+    -- Degenerate.
+    equal (f [] []) []
+    equal (f [(0, 1)] []) [((0, 1), (large, 1))]
+    -- Simultaneous start.
+    equal (f [(0, 1)] [(0, 2)]) [((0, 3), (large, 3))]
+    -- Discontinuities.
+    equal (f [(0, 1), (1, 1), (1, 2)] [(0, 2), (1, 2), (1, 4)])
+        [((0, 3), (1, 3)), ((1, 6), (large, 6))]
+    equal (f [(0, 1)] [(1, 2)]) [((0, 1), (1, 1)), ((1, 3), (large, 3))]
+    -- Linear interpolation between the segments.
+    equal (f [(0, 0), (4, 4)] [(2, 1)])
+        [((0, 0), (2, 2)), ((2, 3), (4, 5)), ((4, 5), (large, 5))]
+
 
 to_segments :: Segment.NumSignal -> [((X, Y), (X, Y))]
 to_segments = map (\(Segment.Segment x1 y1 x2 y2) -> ((x1, y1), (x2, y2)))
