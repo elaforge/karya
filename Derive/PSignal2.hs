@@ -260,8 +260,8 @@ apply_controls cmap psig = case Seq.head (to_pairs psig) of
         pitch_resamples =
             Segment.resample_maybe interpolate_s xs $ to_samples psig
         control_samples =
-            map (Segment.add_zero_transition 0 . Segment.to_samples
-                    . Signal._signal . Signal.at_after start)
+            map (Segment.add_zero_transition 0 . Signal.to_samples
+                    . Signal.at_after start)
                 control_signals
         ((control_names, control_signals), non_transposers) =
             unzip_controls psig cmap

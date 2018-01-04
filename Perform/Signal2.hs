@@ -13,13 +13,12 @@
 module Perform.Signal2 (
     -- * types
     Signal, Sample(..)
-    , _signal -- TODO remove
     , X, Y, x_to_y, y_to_x, y_to_score, y_to_nn, nn_to_y
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construct / destruct
     , from_pairs, from_segments
-    , to_pairs, to_segments
+    , to_samples, to_pairs, to_segments
     , constant, constant_val
     , unfoldr
     , coerce
@@ -147,6 +146,9 @@ from_pairs = Signal . Segment.from_pairs
 
 from_segments :: [Segment Y] -> Signal kind
 from_segments = Signal . Segment.from_segments
+
+to_samples :: Signal kind -> [Sample Y]
+to_samples = Segment.to_samples . _signal
 
 to_pairs :: Signal kind -> [(X, Y)]
 to_pairs = Segment.to_pairs . _signal
