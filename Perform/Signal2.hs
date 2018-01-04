@@ -48,24 +48,25 @@ module Perform.Signal2 (
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , map_y, map_err
 
-    -- -- * special functions
-    -- , compose_hybrid
+    -- * special functions
     , integrate
-    -- , pitches_share
-    -- , flat_duration
+    , flat_duration
+    , pitches_share
 ) where
 import qualified Prelude
 import Prelude hiding (concat, head, last, length, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Vector.Storable as Vector.Storable
 import qualified Foreign
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import Util.Segment (X, Sample(..), Segment(..))
-import qualified Util.Num as Num
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
+import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -314,6 +315,27 @@ clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, X)])
 clip_bounds low high sig = (clipped, reverse out_of_range)
     where
     clipped = if Prelude.null out_of_range then sig
+        else scalar_min high $ scalar_max low sig
+        -- else map_y (Num.clamp low high) sig
+    out_of_range = []
+
+    -- (ranges, in_clip) = TimeVector.foldl' go ([], Nothing) (sig_vec sig)
+    -- out_of_range = case (in_clip, last sig) of
+    --     (Just start, Just (end, _)) -> (start, end) : ranges
+    --     _ -> ranges
+    -- go state@(accum, Nothing) (Sample x y)
+    --     | y < low || y > high = (accum, Just x)
+    --     | otherwise = state
+    -- go state@(accum, Just start) (Sample x y)
+    --     | y < low || y > high = state
+    --     | otherwise = ((start, x) : accum, Nothing)
+
+-- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
+-- half-open ranges during which the Y was out of range, if any.
+clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, X)])
+clip_bounds low high sig = (clipped, reverse out_of_range)
+    where
+    clipped = if Prelude.null out_of_range then sig
         else map_y (Num.clamp low high) sig
     (ranges, in_clip) = TimeVector.foldl' go ([], Nothing) (sig_vec sig)
     out_of_range = case (in_clip, last sig) of
@@ -337,104 +359,6 @@ map_err f = first Signal . Segment.map_err f . _signal
 
 -- * special functions
 
-{-
--- | This is like 'compose', but implements a kind of \"semi-absolute\"
--- composition.  The idea is that it's normal composition until the second
--- signal has a slope of zero.  Normally this would be a discontinuity, but
--- is special cased to force the output to a 1\/1 line.  In effect, it's as
--- if the flat segment were whatever slope is necessary to to generate a slope
--- of 1 when composed with the first signal.
-compose_hybrid :: Warp -> Warp -> Warp
-compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
-    where
-    -- If 'g' starts with a flat segment, I need to start the linear bit in the
-    -- right place.
-    initial = (at_linear (y_to_x y) f, 0)
-        where y = maybe 0 snd (head g)
-    run state m = Identity.runIdentity $ Monad.State.evalStateT m state
-    -- Where h = f•g:
-    -- If g(x_t) == g(x_t-1), then this is a flat segment.
-    -- h(x) is simply h(x_t-1) + (x_t - x_t-1), but I have to store an
-    -- offset that represents where the signal would be were just right to
-    -- produce a slope of 1, so I work backwards:
-    -- offset = f-1(h(x)) - g(x_t-1)
-    --
-    -- If g(x_t) > g(x_t-1), then this is a normal positive slope, and I
-    -- have to add the offset: h(x) = f(g(x + offset)).
-    --
-    -- So the state is (h(x_t-1), offset).
-    gen i
-        | gy0 == gy = gen_flat gx gx0 gy0
-        | otherwise = gen_normal gx gy
-        where
-        Sample gx gy = Vector.unsafeIndex (sig_vec g) i
-        Sample gx0 gy0
-            | i == 0 = Sample 0 0
-            | otherwise = Vector.unsafeIndex (sig_vec g) (i-1)
-    gen_flat gx gx0 gy0 = do
-        (y0, _) <- Monad.State.get
-        let y = y0 + x_to_y (gx - gx0)
-            offset = inverse_at_extend y f - y_to_x gy0
-        Monad.State.put (y, offset)
-        return $ Sample gx y
-    gen_normal gx gy = do
-        (_, offset) <- Monad.State.get
-        let y = at_linear (y_to_x gy + offset) f
-        Monad.State.put (y, offset)
-        return $ Sample gx y
-
--- | Total duration of horizontal segments in the warp signal.  These are
--- the places where 'compose_hybrid' will emit a 1\/1 line.
-flat_duration :: Warp -> ScoreTime
-flat_duration =
-    RealTime.to_score . fst . Vector.foldl' go (0, TimeVector.Sample 0 0)
-        . sig_vec
-    where
-    go (!acc, TimeVector.Sample x0 y0) sample@(TimeVector.Sample x y)
-        | y == y0 = (acc + (x - x0), sample)
-        | otherwise = (acc, sample)
-
--- | This is like 'inverse_at', except that if the Y value is past the end
--- of the signal, it extends the signal as far as necessary.  When used for
--- warp composition or unwarping, this means that the parent warp is too small
--- for the child.  Normally this shouldn't happen, but if it does it's
--- sometimes better to make something up than crash.
---
--- The rules for extension are the same as 'at_linear_extend', and this
--- function should be the inverse of that one.  This ensures that if you warp
--- and then unwarp a time, you get your original time back.
-inverse_at_extend :: Y -> Warp -> X
-inverse_at_extend y (Signal vec)
-    | TimeVector.null vec = y_to_x y
-    -- Nothing means the line is flat and will never reach Y.  I pick a big
-    -- X instead of crashing.
-    | otherwise = fromMaybe RealTime.large $ TimeVector.x_at x0 y0 x1 y1 y
-    where
-    -- Has to be the highest index, or it gets hung up on a flat segment.
-    i = index_above_y y vec
-    (Sample x0 y0, Sample x1 y1)
-        | len == 1 =
-            let at0@(Sample x0 y0) = index 0
-            in (at0, Sample (x0+1) (y0+1))
-        | i >= TimeVector.length vec = (index (i-2), index (i-1))
-        | i == 0 = (index 0, index 1)
-        | otherwise = (index (i-1), index i)
-        where len = TimeVector.length vec
-    index = TimeVector.index vec
-
-index_above_y :: Y -> TimeVector.Unboxed -> Int
-index_above_y y vec = go 0 (TimeVector.length vec)
-    where
-    go low high
-        | low == high = low
-        | y >= sy (TimeVector.unsafeIndex vec mid) = go (mid+1) high
-        | otherwise = go low mid
-        where mid = (low + high) `div` 2
-
--}
-
--- ** integrate
-
 -- | Integrate the signal.
 --
 -- Since the output will have more samples than the input, this needs
@@ -447,9 +371,20 @@ integrate = Signal . Segment.integrate tempo_srate . _signal
 tempo_srate :: X
 tempo_srate = RealTime.seconds 0.1
 
+
+-- | Total duration of horizontal segments in the warp signal.  These are
+-- the places where 'Warp.compose_hybrid' will emit a 1\/1 line.
+flat_duration :: Warp -> ScoreTime
+flat_duration =
+    RealTime.to_score . fst . Vector.Storable.foldl' go (0, Segment.Sample 0 0)
+        . Segment.to_vector . _signal
+    where
+    go (!acc, Segment.Sample x0 y0) sample@(Segment.Sample x y)
+        | y == y0 = (acc + (x - x0), sample)
+        | otherwise = (acc, sample)
+
 -- ** pitches_share
 
-{-
 -- | Can the pitch signals share a channel within the given range?
 --
 -- Pitch is complicated.  Like other controls, if the pitch curves are
@@ -460,26 +395,29 @@ tempo_srate = RealTime.seconds 0.1
 --
 -- This is actually a MIDI notion, so it should normally go in Perform.Midi,
 -- but it fusses around with signal internals for efficiency.
+-- TODO move to Perform.Midi
 --
--- This function will be confused by multiple samples at the same time, so
--- don't do that.
+-- This function takes 'TimeVector.Unboxed's instead of Signals because it
+-- operates on low level samples, not linear segments.  It will be confused by
+-- multiple samples at the same time, so don't do that.
 pitches_share :: Bool -> X -> X
-    -> Midi.Key -> NoteNumber -> Midi.Key -> NoteNumber -> Bool
+    -> Midi.Key -> TimeVector.Unboxed -> Midi.Key -> TimeVector.Unboxed -> Bool
 pitches_share in_decay start end initial1 sig1 initial2 sig2
     | not in_decay && initial1 == initial2 = False
-    | otherwise = pitch_eq (at start sig1) (at start sig2)
-        && pitch_eq (at end sig1) (at end sig2)
+    | otherwise = pitch_eq (sig1 ! start) (sig2 ! start)
+        && pitch_eq (sig1 ! end) (sig2 ! end)
         && signals_share pitch_eq start in1 in2
     where
-    in1 = TimeVector.within start end (sig_vec sig1)
-    in2 = TimeVector.within start end (sig_vec sig2)
+    in1 = TimeVector.within start end sig1
+    in2 = TimeVector.within start end sig2
     pitch_eq = nns_share initial1 initial2
+    (!) sig x = fromMaybe 0 $ TimeVector.at x sig
 
 -- | I need to sample points from start to end, including the start and the
 -- end.  Unfortunately it's not as simple as it seems it should be, especially
 -- since this function is a hotspot and must be efficient.
 --
--- TimeVector.within may return samples before start to get the proper value so
+-- Segment.within may return samples before start to get the proper value so
 -- I ignore samples before the start.  Start itself is tested explicitly above.
 {-# INLINE signals_share #-}
 signals_share :: (Y -> Y -> Bool) -> X -> TimeVector.Unboxed
@@ -498,4 +436,3 @@ nns_share :: Midi.Key -> Midi.Key -> Y -> Y -> Bool
 nns_share initial1 initial2 nn1 nn2 =
     floor ((nn1 - Midi.from_key initial1) * 1000)
         == floor ((nn2 - Midi.from_key initial2) * 1000)
--}
