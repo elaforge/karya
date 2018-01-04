@@ -51,3 +51,10 @@ test_equal_pairs = do
         [First 'a', Both 'b' 'b', Both 'c' 'c']
     equal (f "abc" "xyz")
         [First 'a', First 'b', First 'c', Second 'x', Second 'y', Second 'z']
+
+test_drop_dups = do
+    let f = Seq.drop_dups id
+    equal (f "abc") "abc"
+    equal (f "abbc") "abc"
+    equal (f "abbbc") "abc"
+    equal (f "abbbcccca") "abca"

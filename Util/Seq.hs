@@ -480,14 +480,15 @@ chunked n xs = case splitAt n xs of
     (pre, []) -> [pre]
     (pre, post) -> pre : chunked n post
 
--- | Take a list of rows to a list of columns.  Similar to zip, the result is
--- trimmed to the length of the shortest row.
+-- | Take a list of rows to a list of columns.  This is like a zip except
+-- for variable-length lists.  Similar to zip, the result is trimmed to the
+-- length of the shortest row.
 rotate :: [[a]] -> [[a]]
 rotate [] = []
 rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM head xs)
 
 -- | Similar to 'rotate', except that the result is the length of the longest
--- row and missing columns are Nothing.
+-- row and missing columns are Nothing.  Analogous to 'zip_padded'.
 rotate2 :: [[a]] -> [[Maybe a]]
 rotate2 xs
     | all Maybe.isNothing heads = []

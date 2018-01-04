@@ -191,6 +191,7 @@ NESS:
     . can I hand damp metal percussion?
 
 UNSORTED
+  - Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
   - If I use cpphs I might be able to use \ string continuation for CPP
     modules.  It would add another dependency though... worth it?
   * Why does verify_performance give a bunch of "%breath clipped" warnings?
@@ -1289,11 +1290,12 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         initial value is ok.
       . It seems like doing the general polymorphic case is really hard.  Can
         I do the NumSignal one first?
-    - implement PSignal.apply_controls
+    * implement PSignal.apply_controls
       . How about union Xs from the controls, then iterate over them and the
         PSignal?
       . Maybe I need a 'at_interpolate' that can return before and after?
-    - port PSignal to PSignal2
+      . Or union Xs, resample all controls and psignal, then zip.
+    + port PSignal to PSignal2
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
       - drop, drop_while, within etc. functions replaced by before and after
       - Derive.Score.Warp replaced by Derive.Warp.
@@ -1385,6 +1387,12 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
 
       . Which of these would be best for possible future kinds of notation,
         or further extension?
+
+vector performance:
+  . fromList doesn't measure the list, it does exponential resizing
+  ? Segment.to_samples:
+    . Does 'V.toList . V.map f' fuse the map into toList?  It should, so
+      'head . V.toList . V.map f' should be efficient.
 
 synth: im:
   - Shift-play plays im cache even when the instruments are gone, but not

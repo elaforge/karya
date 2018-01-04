@@ -26,7 +26,7 @@ module Util.Segment (
     -- * concat
     , concat
     -- * slice
-    , before, after
+    , before, at_after
     -- * transform
     , shift
     , map_y, map_x
@@ -39,7 +39,10 @@ module Util.Segment (
     , NumSignal
     , invert
     , integrate
+    -- * resample
     , linear_operator
+    , resample_num, resample_maybe
+    , sample_xs, add_zero_transition
 #ifdef TESTING
     , module Util.Segment
 #endif
@@ -116,8 +119,7 @@ to_vector :: V.Vector v (Sample y) => SignalS v y -> v (Sample y)
 to_vector sig
     | offset == 0 = _vector sig
     | otherwise = TimeVector.map_x (+offset) (_vector sig)
-    where
-    offset = _offset sig
+    where offset = _offset sig
 
 -- | The final sample extends for "all time".  However, there's no value before
 -- the first sample.  The reason is that I'd have to have a zero value for y,
@@ -137,7 +139,13 @@ from_samples = from_vector . V.fromList . strip
     strip [] = []
 
 to_samples :: V.Vector v (Sample y) => SignalS v y -> [Sample y]
-to_samples = V.toList . to_vector
+to_samples sig = (if _offset sig == 0 then id else map (plus (_offset sig))) $
+        V.toList (_vector sig)
+    where
+    plus n (Sample x y) = Sample (n+x) y
+-- to_samples = V.toList . to_vector
+-- TODO verify that TimeVector.map_x fuses with V.toList so there is no extra
+-- vector.
 
 from_pairs :: V.Vector v (Sample y) => [(X, y)] -> SignalS v y
 from_pairs = from_samples . map (uncurry Sample)
@@ -206,7 +214,6 @@ maximum sig
     | otherwise = Just $ sy $ V.maximumBy (\a b -> compare (sy a) (sy b)) $
         _vector sig
 
-
 -- segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
 -- segment_at x (Signal offset vec)
 --     | i < 0 = Nothing
@@ -256,8 +263,8 @@ before x sig = Signal
     , _vector = TimeVector.drop_after ( x + _offset sig) (_vector sig)
     }
 
-after :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-after x sig = Signal
+at_after :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
+at_after x sig = Signal
     { _offset = _offset sig
     , _vector = TimeVector.drop_before (x + _offset sig) (_vector sig)
     }
@@ -332,6 +339,8 @@ integrate srate_x =
         n = (y2 - y1) / (x2 - x1)
     srate = RealTime.to_seconds srate_x
 
+-- * resample
+
 -- | Combine two vectors with the given function.  The signals are resampled
 -- to have coincident samples, assuming linear interpolation.  This only works
 -- for linear functions, so the result can also be represented with linear
@@ -341,14 +350,18 @@ linear_operator merge asig bsig =
     from_samples $ zipWith3 make (get_xs ()) as2 bs2
     where
     make x ay by = Sample x (merge ay by)
-    as2 = resample (get_xs ()) as
-    bs2 = resample (get_xs ()) bs
+    as2 = resample_num (get_xs ()) as
+    bs2 = resample_num (get_xs ()) bs
     (as, bs) = to_samples2 0 asig bsig
     -- The () is to prevent memoization, which should hopefully allow the
     -- intermediate list to fuse away.  Or maybe I should try to use vectors
     -- instead of lists?
     -- TODO profile
-    get_xs () = sample_xs (map sx as) (map sx bs)
+    get_xs () = sample_xs2 (map sx as) (map sx bs)
+
+resample_num :: [X] -> [Sample Y] -> [Y]
+resample_num = resample 0
+    (\(Sample x1 y1) (Sample x2 y2) -> TimeVector.y_at x1 y1 x2 y2)
 
 -- | Like 'to_samples', except the signal that starts later gets an extra
 -- sample to transition from zero.
@@ -361,9 +374,9 @@ to_samples2 zero asig bsig = case (to_samples asig, to_samples bsig) of
     (as, bs) -> (as, bs)
 
 -- | The output has the union of the Xs in the inputs, except where they match
--- exactly.
-sample_xs :: [X] -> [X] -> [X]
-sample_xs = go
+-- exactly.  Discontinuities should get two Xs.
+sample_xs2 :: [X] -> [X] -> [X]
+sample_xs2 = go
     where
     go [] bs = bs
     go as [] = as
@@ -372,19 +385,69 @@ sample_xs = go
         | a < b = a : go as (b:bs)
         | otherwise = b : go (a:as) bs
 
-resample :: [X] -> [Sample Y] -> [Y]
-resample xs samples = snd $ List.mapAccumL get samples xs
+-- ** polymorphic implementation
+
+-- | This should be the same as 'linear_operator', except using the
+-- variable length functions.  I could replace linear_operator with this, but
+-- I worry that it's less efficient.
+_linear_operator2 :: ([Y] -> Y) -> NumSignal -> NumSignal -> NumSignal
+_linear_operator2 merge asig bsig =
+    -- Seq.rotate zips up the samples from each signal.
+    from_samples $ zipWith make xs $ Seq.rotate $ map (resample_num xs) samples
+    where
+    make x ys = Sample x (merge ys)
+    xs = sample_xs $ map (map sx) samples
+    samples = map (add_zero_transition 0 . to_samples) [asig, bsig]
+
+type Interpolate y = Sample y -> Sample y -> X -> y
+
+resample :: y -> Interpolate y -> [X] -> [Sample y] -> [y]
+resample = resample_ id
+
+-- | This is the same as 'resample', only for ys without a zero.
+resample_maybe :: Interpolate y -> [X] -> [Sample y] -> [Maybe y]
+resample_maybe = resample_ Just Nothing
+
+{-# INLINE resample_ #-}
+resample_ :: (y1 -> y2) -> y2 -> Interpolate y1 -> [X] -> [Sample y1] -> [y2]
+resample_ present absent interpolate xs samples =
+    snd $ List.mapAccumL get samples xs
     where
     get ss@(Sample x1 y1 : s2s@(Sample x2 y2 : _)) x
         -- If it's a discontinuity, I want to consume the sample, or I won't
         -- see the after Y.  Each discontinuity should have 2 Xs, one for
         -- before and one for after.  This is brittle and depends on
-        -- 'sample_xs' and 'to_samples2'.
-        | x == x1 = if x1 == x2 then (s2s, y1) else (ss, y1)
+        -- 'sample_xs2' emitting two Xs for a discontinuity and 'to_samples2'
+        -- adding a "from zero" discontinuity to the first sample.  But
+        -- otherwise I'd have to recognize a discontinuity here and emit one,
+        -- which means this would have to be concatMap, which seems
+        -- inefficient.  Of course maybe the whole thing is already so
+        -- inefficient it doesn't matter.
+        | x == x1 = if x1 == x2 then (s2s, present y1) else (ss, present y1)
         | x >= x2 = get s2s x
-        | x > x1 = (ss, TimeVector.y_at x1 y1 x2 y2 x)
-        | otherwise = (ss, 0)
+        | x > x1 = (ss, present $ interpolate (Sample x1 y1) (Sample x2 y2) x)
+        | otherwise = (ss, absent)
     get ss@[Sample x1 y1] x
-        | x >= x1 = (ss, y1)
-        | otherwise = (ss, 0)
-    get [] _ = ([], 0)
+        | x >= x1 = (ss, present y1)
+        | otherwise = (ss, absent)
+    get [] _ = ([], absent)
+
+add_zero_transition :: y -> [Sample y] -> [Sample y]
+add_zero_transition zero ss@(Sample x _ : _) = Sample x zero : ss
+add_zero_transition _ [] = []
+
+-- | The output has the union of the Xs in the inputs, except where they match
+-- exactly.  Discontinuities should get two Xs.  This is the list version of
+-- 'sample_xs2'.
+sample_xs :: [[X]] -> [X]
+sample_xs = go
+    where
+    go [] = []
+    go xss_ = case Seq.minimum xs of
+        Nothing -> go (map tail xss)
+        Just x -> x : go (map (drop1 (==x)) xss)
+        where
+        xs = map head xss
+        xss = filter (not . List.null) xss_
+    drop1 f (x:xs) | f x = xs
+    drop1 _ xs = xs

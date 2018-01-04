@@ -13,6 +13,7 @@
 module Perform.Signal2 (
     -- * types
     Signal, Sample(..)
+    , _signal -- TODO remove
     , X, Y, x_to_y, y_to_x, y_to_score, y_to_nn, nn_to_y
     , Tempo, Warp, Control, NoteNumber, Display
 
@@ -33,7 +34,7 @@ module Perform.Signal2 (
 
     -- * transform
 
-    , before, after
+    , before, at_after
     -- , drop, drop_while, within
     -- , drop_at_after, drop_after, drop_before, drop_before_strict
     -- , drop_before_at
@@ -184,9 +185,9 @@ at x = fromMaybe 0 . Segment.at_interpolate TimeVector.y_at x . _signal
 
 -- * transform
 
-before, after :: X -> Signal kind -> Signal kind
+before, at_after :: X -> Signal kind -> Signal kind
 before x = modify $ Segment.before x
-after x = modify $ Segment.after x
+at_after x = modify $ Segment.at_after x
 
 -- TODO used by?
 {-
