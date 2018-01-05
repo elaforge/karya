@@ -38,8 +38,8 @@ data Linear = Linear { _shift :: !RealTime, _stretch :: !RealTime }
 
 instance Show Warp where show = prettys
 instance Pretty Warp where
-    pretty (WarpFunction f) = "((Warp " <> showt (_warp f 0) <> "--"
-        <> showt (_warp f 1) <> "))"
+    pretty (WarpFunction f) = "((Warp " <> pretty (_warp f 0) <> "--"
+        <> pretty (_warp f 1) <> "))"
     pretty (WarpLinear (Linear shift stretch)) =
         "((Warp *" <> pretty stretch <> "+" <> pretty shift <> "))"
 
@@ -84,7 +84,7 @@ compose (WarpFunction (Function warp1 unwarp1))
         (WarpFunction (Function warp2 unwarp2)) =
     WarpFunction $ Function
         { _warp = warp1 . to_score . warp2
-        , _unwarp = unwarp1 . to_real . unwarp2
+        , _unwarp = unwarp2 . to_real . unwarp1
         }
 compose (WarpLinear linear) (WarpFunction f) =
     compose (to_function linear) (WarpFunction f)

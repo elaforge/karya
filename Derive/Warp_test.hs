@@ -14,9 +14,11 @@ import qualified Perform.Signal2 as Signal
 import Types
 
 
+signal_identity :: Warp.Warp
+signal_identity = Warp.from_signal $ Signal.from_pairs
+    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
+
 test_shift_stretch_linear = do
-    let signal_identity = Warp.from_signal $ Signal.from_pairs
-            [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
     let with :: CallStack.Stack => (Warp.Warp -> Warp.Warp) -> [RealTime]
             -> IO Bool
         with transform expected = do
@@ -47,27 +49,33 @@ test_shift_stretch_signal = do
     with (stretch 2 . shift 1) [2, 3, 4, 8]
 
 test_compose = do
+    let with :: CallStack.Stack => Warp.Warp -> Warp.Warp -> [RealTime]
+            -> IO Bool
+        with w1 w2 expected = do
+        let w = Warp.compose w1 w2
+        equal (map (Warp.warp w) t03) expected
+        uncurry equal (trip w)
     let ident = Warp.identity
-    let f w1 w2 = warps $ Warp.compose w1 w2
-
-    equal (f ident ident) [0, 1, 2, 3]
-    equal (f ident (shift 2 ident)) [2, 3, 4, 5]
-    equal (f ident (shift 1 (stretch 2 ident))) [1, 3, 5, 7]
-
+    let slow = make [(RealTime.seconds n, n*2) | n <- Seq.range 0 100 1]
     let curve = make $
             [(0, 0), (1, 0.5), (2, 1), (3, 3), (4, 5), (5, 7), (6, 9)]
-    equal (f curve ident) [0, 0.5, 1, 3]
-    equal (f curve (shift 2 ident)) [1, 3, 5, 7]
-    equal (f curve (stretch 2 ident)) [0, 1, 5, 9]
 
-    let slow = make [(RealTime.seconds n, n*2) | n <- Seq.range 0 100 1]
-    equal (f slow ident) [0, 2, 4, 6]
-    equal (f slow (stretch 2 ident)) [0, 4, 8, 12]
-    equal (f (stretch 2 ident) slow) [0, 4, 8, 12]
+    with ident ident [0, 1, 2, 3]
+    with ident (shift 2 ident) [2, 3, 4, 5]
+    with ident (shift 1 (stretch 2 ident)) [1, 3, 5, 7]
 
-    equal (f slow slow) [0, 4, 8, 12]
-    equal (f slow (stretch 2 slow)) [0, 8, 16, 24]
-    equal (f slow (stretch 2 (shift 1 slow))) [4, 12, 20, 28]
+    with curve ident [0, 0.5, 1, 3]
+    with curve (shift 2 ident) [1, 3, 5, 7]
+    with curve (stretch 2 ident) [0, 1, 5, 9]
+
+    with slow ident [0, 2, 4, 6]
+    with slow (shift 1 ident) [2, 4, 6, 8]
+    with slow (stretch 2 ident) [0, 4, 8, 12]
+    with (stretch 2 ident) slow [0, 4, 8, 12]
+
+    with slow slow [0, 4, 8, 12]
+    with slow (stretch 2 slow) [0, 8, 16, 24]
+    with slow (stretch 2 (shift 1 slow)) [4, 12, 20, 28]
 
 -- * util
 
@@ -76,9 +84,6 @@ t03 = [0, 1, 2, 3]
 
 trip :: Warp.Warp -> ([ScoreTime], [ScoreTime])
 trip w = (t03, map (Warp.unwarp w . Warp.warp w) t03)
-
-warps :: Warp.Warp -> [RealTime]
-warps w = map (Warp.warp w) t03
 
 make :: [(RealTime, Signal.Y)] -> Warp.Warp
 make = Warp.from_signal . Signal.from_pairs
