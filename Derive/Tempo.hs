@@ -207,7 +207,7 @@ with_hybrid toplevel range maybe_track_id signal deriver = do
         Internal.add_new_track_warp maybe_track_id
         deriver
     where
-    hybrid_warp warp = Internal.modify_warp (\w -> compose w warp)
+    hybrid_warp warp = Internal.with_warp (\w -> compose w warp)
     -- This is like 'tempo_to_warp', but replaces zero tempo with
     -- zeroes instead of a minimum, as is expected by 'Signal.compose_hybrid'.
     tempo_to_score_warp :: Signal.Tempo -> Score.Warp

@@ -285,17 +285,6 @@ add_stack_frame frame st = st
 get_stack :: Deriver Stack.Stack
 get_stack = get_dynamic state_stack
 
--- * warp
-
-in_real_time :: Deriver a -> Deriver a
-in_real_time = with_warp (const Score.id_warp)
-
-with_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
-with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
-
-get_warp :: Deriver Score.Warp
-get_warp = get_dynamic state_warp
-
 -- ** time and duration
 
 -- | Times are types that can be converted to RealTime and ScoreTime.
@@ -321,7 +310,16 @@ instance Time BaseTypes.Duration where
     score (BaseTypes.ScoreDuration t) = score t
     to_duration = id
 
--- ** warp
+-- * warp
+
+in_real_time :: Deriver a -> Deriver a
+in_real_time = with_warp (const Score.id_warp)
+
+with_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
+with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
+
+get_warp :: Deriver Score.Warp
+get_warp = get_dynamic state_warp
 
 at :: ScoreTime -> Deriver a -> Deriver a
 at shift = warp (Score.id_warp { Score.warp_shift = RealTime.score shift })
@@ -346,20 +344,7 @@ place shift stretch = warp $ Score.id_warp
 warp :: Score.Warp -> Deriver a -> Deriver a
 warp score_warp deriver
     | Score.is_id_warp score_warp = deriver
-    | otherwise = modify_warp (\w -> Score.compose_warps w score_warp) deriver
-
-modify_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
-modify_warp modify = local $ \st -> st { state_warp = modify (state_warp st) }
-
--- | Am I deriving the toplevel block?
-is_root_block :: Deriver Bool
-is_root_block = do
-    stack <- get_stack
-    let blocks = [bid | Stack.Block bid <- Stack.outermost stack]
-    return $ case blocks of
-        [] -> True
-        [_] -> True
-        _ -> False
+    | otherwise = with_warp (\w -> Score.compose_warps w score_warp) deriver
 
 -- ** track warp
 
@@ -454,3 +439,16 @@ modify_threaded f = modify $ \state -> state
 increment_event_serial :: Deriver ()
 increment_event_serial = modify_threaded $ \threaded -> threaded
     { state_event_serial = state_event_serial threaded + 1 }
+
+
+-- * misc
+
+-- | Am I deriving the toplevel block?
+is_root_block :: Deriver Bool
+is_root_block = do
+    stack <- get_stack
+    let blocks = [bid | Stack.Block bid <- Stack.outermost stack]
+    return $ case blocks of
+        [] -> True
+        [_] -> True
+        _ -> False
