@@ -6,87 +6,129 @@
 module Derive.Warp (
     Warp, warp, unwarp
     , identity, from_signal, compose
-    , shift, stretch, place
+    , shift, stretch
+    , compose_hybrid
 ) where
+import qualified Control.DeepSeq as DeepSeq
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
+import Perform.RealTime (to_score)
 import qualified Perform.Signal2 as Signal
+import Global
 import Types
 
 
 -- | The 'Warp' keeps track of the ScoreTime -> RealTime function, as well
 -- as its inverse.
-data Warp = Warp {
+--
+-- This treats linear warps specially, since they're common and allow some
+-- optimizations.
+data Warp = WarpFunction !Function | WarpLinear !Linear
+
+data Function = Function {
     _warp :: !(ScoreTime -> RealTime)
     , _unwarp :: !(RealTime -> ScoreTime)
     -- | For debugging.  TODO keep all of them?  Or is it a memory leak?
     -- , _signal :: !Signal.Warp
     }
 
-instance Show Warp where show w = "((Warp " ++ show (_warp w 0) ++ "))"
+data Linear = Linear { _shift :: !RealTime, _stretch :: !RealTime }
+    deriving (Show)
+
+instance Show Warp where show = prettys
+instance Pretty Warp where
+    pretty (WarpFunction f) = "((Warp " <> showt (_warp f 0) <> "--"
+        <> showt (_warp f 1) <> "))"
+    pretty (WarpLinear (Linear shift stretch)) =
+        "((Warp *" <> pretty stretch <> "+" <> pretty shift <> "))"
+
+-- | I can't really rnf functions, but maybe there will be data in here someday.
+instance DeepSeq.NFData Warp where rnf _ = ()
 
 warp :: Warp -> ScoreTime -> RealTime
-warp = _warp
+warp (WarpFunction f) = _warp f
+warp (WarpLinear w) = (+ _shift w) . (* _stretch w) . to_real
 
 -- | The inverse of 'warp'.  I originally would fail when the RealTime
 -- doesn't occur in the Warp, but now I extend it in the same way as
 -- 'warp'.  Failing caused awkwardness with events at the end of the score.
 unwarp :: Warp -> RealTime -> ScoreTime
-unwarp = _unwarp
+unwarp (WarpFunction f) = _unwarp f
+unwarp (WarpLinear w) = to_score . (/ _stretch w) . subtract (_shift w)
 
 -- | 1:1 identity warp.  Previously I could detect this to optimize it away,
 -- but since 'compose' is cheap now, I might not need that anymore.
 identity :: Warp
-identity = Warp
-    { _warp = RealTime.score
-    , _unwarp = RealTime.to_score
-    -- , _signal = mempty
-    }
+identity = WarpLinear (Linear 0 1)
+
+signal_identity :: Warp
+signal_identity = from_signal $ Signal.from_pairs
+    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
 
 -- | Create a Warp from a signal and its inverse.  This assumes the signal
 -- is monotonically increasing.
+-- TODO error on empty signal?
 from_signal :: Signal.Warp -> Warp
-from_signal signal = Warp
-    { _warp = RealTime.seconds . flip Signal.at signal . RealTime.score
+from_signal signal = WarpFunction $ Function
+    { _warp = RealTime.seconds . flip Signal.at signal . to_real
     , _unwarp = ScoreTime.double . flip Signal.at inverted
-    -- , _signal = signal
     }
-    where
-    inverted = Signal.invert signal
+    where inverted = Signal.invert signal
 
 compose :: Warp -> Warp -> Warp
-compose (Warp warp1 unwarp1) (Warp warp2 unwarp2) = Warp
-    { _warp = warp1 . RealTime.to_score . warp2
-    , _unwarp = unwarp1 . RealTime.score . unwarp2
-    }
+compose (WarpLinear (Linear shift1 stretch1))
+        (WarpLinear (Linear shift2 stretch2)) =
+    WarpLinear $ Linear (shift1 + shift2 * stretch1) (stretch1 * stretch2)
+compose (WarpFunction (Function warp1 unwarp1))
+        (WarpFunction (Function warp2 unwarp2)) =
+    WarpFunction $ Function
+        { _warp = warp1 . to_score . warp2
+        , _unwarp = unwarp1 . to_real . unwarp2
+        }
+compose (WarpLinear linear) (WarpFunction f) =
+    compose (to_function linear) (WarpFunction f)
+compose (WarpFunction f) (WarpLinear linear) =
+    compose (WarpFunction f) (to_function linear)
+
+to_function :: Linear -> Warp
+to_function w = shift (to_score (_shift w)) $
+    stretch (to_score (_stretch w)) signal_identity
 
 shift :: ScoreTime -> Warp -> Warp
-shift x warp = Warp
-    -- { _warp = \val -> _warp warp . Debug.trace_ret ("+"<>pretty x) val . (+x) $ val
-    { _warp = _warp warp . (+x)
-    , _unwarp = subtract x . _unwarp warp
+shift 0 w = w
+shift x (WarpFunction (Function warp unwarp)) = WarpFunction $ Function
+    { _warp = (+ to_real x) . warp
+    , _unwarp = unwarp . subtract (to_real x)
+    }
+shift x (WarpLinear linear) = WarpLinear $ Linear
+    { _shift = to_real x + _stretch linear * _shift linear
+    , _stretch = _stretch linear
     }
 
+-- | Previously, this would disallow <=0 stretch, but it turns out to be useful
+-- to stretch events to 0, and to negative durations.
 stretch :: ScoreTime -> Warp -> Warp
-stretch factor warp = Warp
-    -- { _warp = \val -> _warp warp . Debug.trace_ret ("*" <> pretty factor) val . (*factor) $ val
-    { _warp = _warp warp . (*factor)
-    , _unwarp = (/factor) . _unwarp warp
+stretch 1 w = w
+stretch factor (WarpFunction (Function warp unwarp)) = WarpFunction $ Function
+    { _warp = (* to_real factor) . warp
+    , _unwarp = unwarp . (/ to_real factor)
     }
-
--- | 'shift' and 'stretch' in one.  It might be a bit more efficient than using
--- them separately, but at least is shorter to write.  The order is stretch,
--- then shift.
-place :: ScoreTime -- ^ shift
-    -> ScoreTime -- ^ stretch
-    -> Warp -> Warp
-place x factor warp = warp
-    { _warp = _warp warp . (+x) . (*factor)
-    , _unwarp = (/factor) . subtract x . _unwarp warp
-    }
+stretch factor (WarpLinear linear)
+    | _shift linear == 0 = WarpLinear $ Linear
+        { _shift = 0
+        , _stretch = to_real factor * _stretch linear
+        }
+    | otherwise = stretch factor $ to_function linear
 
 -- TODO I'll need a different approach.  Can't I modify the signal and then
 -- compose normally?
+compose_hybrid :: Warp -> Warp -> Warp
+compose_hybrid _ _ = identity
+
+to_real :: ScoreTime -> RealTime
+to_real = RealTime.score
+
 {-
 -- | This is like 'compose', but implements a kind of \"semi-absolute\"
 -- composition.  The idea is that it's normal composition until the second

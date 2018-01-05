@@ -3,49 +3,48 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Warp_test where
+import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Derive.Warp as Warp
-import Derive.Warp (shift, stretch, place)
+import Derive.Warp (shift, stretch)
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal2 as Signal
 import Types
 
 
-test_shift_stretch_id = do
-    let warps w = map (Warp.warp w)
-    let ident = Warp.identity
-
-    equal (warps ident t03) [0, 1, 2, 3]
-    uncurry equal $ trip ident
-
-    equal (warps (shift 2 ident) t03) [2, 3, 4, 5]
-    uncurry equal $ trip (shift 2 ident)
-
-    equal (warps (stretch 2 ident) t03) [0, 2, 4, 6]
-    uncurry equal $ trip (stretch 2 ident)
-
-    equal (warps (place 1 2 ident) t03) [1, 3, 5, 7]
-    uncurry equal $ trip (place 1 2 ident)
-
-    equal (warps (shift 1 (stretch 2 ident)) t03) [2, 4, 6, 8]
-    uncurry equal $ trip (shift 1 (stretch 2 ident))
-
-    equal (warps (stretch 2 (shift 1 ident)) t03) [1, 3, 5, 7]
-    uncurry equal $ trip (stretch 2 (shift 1 ident))
+test_shift_stretch_linear = do
+    let signal_identity = Warp.from_signal $ Signal.from_pairs
+            [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
+    let with :: CallStack.Stack => (Warp.Warp -> Warp.Warp) -> [RealTime]
+            -> IO Bool
+        with transform expected = do
+            equal (map (Warp.warp (transform Warp.identity)) t03) expected
+            uncurry equal (trip (transform Warp.identity))
+            equal (map (Warp.warp (transform signal_identity)) t03) expected
+            uncurry equal (trip (transform signal_identity))
+    with id [0, 1, 2, 3]
+    with (shift 2) [2, 3, 4, 5]
+    with (stretch 2) [0, 2, 4, 6]
+    with (shift 1 . stretch 2) [1, 3, 5, 7]
+    with (stretch 2 . shift 1) [2, 4, 6, 8]
+    with (shift 1 . stretch 2 . shift 1) [3, 5, 7, 9]
+    with (stretch 2 . shift 1 . stretch 2) [2, 6, 10, 14]
 
 test_shift_stretch_signal = do
-    let warps w = map (Warp.warp w) t03
-
-    -- Should be the same as the identity.
-    equal (warps (make [(0, 0), (10, 10)])) [0, 1, 2, 3]
-    uncurry equal $ trip (make [(0, 0), (10, 10)])
-
-    let curve = make $
-            [(0, 0), (1, 0.5), (2, 1), (3, 3), (4, 5), (5, 7), (6, 9)]
-    equal (warps curve) [0, 0.5, 1, 3]
-    equal (warps (shift 2 curve)) [1, 3, 5, 7]
-    equal (warps (stretch 2 curve)) [0, 1, 5, 9]
+    let with :: CallStack.Stack => (Warp.Warp -> Warp.Warp) -> [RealTime]
+            -> IO Bool
+        with transform expected = do
+            let w = transform curve
+            equal (map (Warp.warp w) t03) expected
+            uncurry equal (trip w)
+        curve = make [(0, 0), (1, 0.5), (2, 1), (3, 3), (4, 5), (5, 7), (6, 9)]
+    with id [0, 0.5, 1, 3]
+    with (shift 2) [2, 2.5, 3, 5]
+    with (stretch 2) [0, 1, 2, 6]
+    with (shift 1 . stretch 2) [1, 2, 3, 7]
+    with (stretch 2 . shift 1) [2, 3, 4, 8]
 
 test_compose = do
     let ident = Warp.identity
@@ -53,7 +52,7 @@ test_compose = do
 
     equal (f ident ident) [0, 1, 2, 3]
     equal (f ident (shift 2 ident)) [2, 3, 4, 5]
-    equal (f ident (shift 1 (stretch 2 ident))) [2, 4, 6, 8]
+    equal (f ident (shift 1 (stretch 2 ident))) [1, 3, 5, 7]
 
     let curve = make $
             [(0, 0), (1, 0.5), (2, 1), (3, 3), (4, 5), (5, 7), (6, 9)]

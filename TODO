@@ -1272,8 +1272,8 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
           that break?
         . I need inverse I think, but maybe it can just be (f, f-1).
         . What about compose_hybrid?  That's kind of weird.
-      - pitches_share
-      - flat_duration
+      * pitches_share
+      * flat_duration
       * integrate
     * implement Warp as functions:
       . I need to distinguish id warp, for optimization.
@@ -1295,21 +1295,22 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         PSignal?
       . Maybe I need a 'at_interpolate' that can return before and after?
       . Or union Xs, resample all controls and psignal, then zip.
-    + port PSignal to PSignal2
+    * port PSignal to PSignal2
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
       - drop, drop_while, within etc. functions replaced by before and after
       - Derive.Score.Warp replaced by Derive.Warp.
+      - 'i' calls no longer need srate
+      - Remove Derive.Tempo.extend_signal
+      - Midi performer has to use a sampling rate.
+      - Get rid of infer linear in the fltk drawing code.
       - profile before and after
     * Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
     - clean up TimeVector, remove unneeded functions
       . also remove magic x<=0 behaviour
 
-    - Remove Derive.Tempo.extend_signal
-    - Get rid of srate.
-    - Midi performer has to use a sampling rate.
-    - Get rid of infer linear in the fltk drawing code.
     - remove Derive.Deriver.Monad.state_pitch_mergers
+    - implement Warp.compose_hybrid
 
   . If I say signals now have linear interpolation by default, then the linear
     interpolator can just emit one sample, but now MIDI needs interpolation.
