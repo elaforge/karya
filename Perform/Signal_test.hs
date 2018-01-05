@@ -8,10 +8,8 @@ import Util.Test
 import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Perform.Signal (signal, unsignal)
 
-
-signal = Signal.signal
-unsignal = Signal.unsignal
 
 test_constant_val = do
     let f = Signal.constant_val . signal
@@ -85,7 +83,7 @@ test_compose = do
         [(0, 2), (1, 3), (2, 4), (3, 5), (4, 6)]
 
 test_compose_hybrid = do
-    let f start1 sig1 start2 sig2 = map snd $ Signal.unsignal $
+    let f start1 sig1 start2 sig2 = map snd $ unsignal $
             Signal.compose_hybrid (Signal.signal (segments start1 sig1))
                 (Signal.signal (segments start2 sig2))
 
@@ -130,7 +128,7 @@ test_integrate = do
         [(0, 0), (1, 0), (2, -1), (3, -3)]
 
 test_unwarp_fused = do
-    let f (Score.Warp sig shift stretch) = Signal.unsignal
+    let f (Score.Warp sig shift stretch) = unsignal
             . Signal.unwarp_fused sig shift stretch
             . Signal.signal
         trip warp p = f warp [(Score.warp_pos warp p, 0)]
@@ -162,16 +160,16 @@ test_sig_subtract = do
 
 test_pitches_share = do
     let sample0 sig = fromIntegral (floor y)
-            where Just (_, y) = Signal.head sig
+            where Just (_, y) = Seq.head sig
     let f start end sig0 sig1 = Signal.pitches_share False start end
-            (sample0 sig0) sig0 (sample0 sig1) sig1
+            (sample0 sig0) (signal sig0) (sample0 sig1) (signal sig1)
 
     -- Different signals.
-    equal (f 0 1 (signal [(0, 0), (1, 1)]) (signal [(0, 1), (1, 0)])) False
+    equal (f 0 1 [(0, 0), (1, 1)] [(0, 1), (1, 0)]) False
     -- Separated by an integer can share.
-    equal (f 0 1 (signal [(0, 0), (1, 1)]) (signal [(0, 1), (1, 2)])) True
+    equal (f 0 1 [(0, 0), (1, 1)] [(0, 1), (1, 2)]) True
     -- Separated by 0 can't share.
-    equal (f 0 1 (signal [(0, 0), (1, 1)]) (signal [(0, 0), (1, 1)])) False
+    equal (f 0 1 [(0, 0), (1, 1)] [(0, 0), (1, 1)]) False
     equal (Signal.pitches_share False 1 2 1 (signal [(0, 1)]) 1
             (signal [(1, 1)]))
         False
@@ -181,14 +179,13 @@ test_pitches_share = do
         True
 
     -- Not an integral difference.
-    equal (f 1 3 (signal [(1, 60.01)]) (signal [(1, 61)])) False
+    equal (f 1 3 [(1, 60.01)] [(1, 61)]) False
     -- But this difference is inaudible.
-    equal (f 1 3 (signal [(1, 60.001)]) (signal [(1, 61)])) True
+    equal (f 1 3 [(1, 60.001)] [(1, 61)]) True
 
     -- Signals with different starting times.
-    equal (f 1 3 (signal [(1, 61), (10, 61)]) (signal [(0, 60), (10, 60)]))
-        True
+    equal (f 1 3 [(1, 61), (10, 61)] [(0, 60), (10, 60)]) True
 
     -- one pitch changes but the other doesn't, so they can't share
-    equal (f 0 3 (signal [(0, 0), (1, 1)]) (signal [(0, 2)])) False
-    equal (f 1 5 (signal [(1, 74), (2, 76), (3, 74)]) (signal [(0, 48)])) False
+    equal (f 0 3 [(0, 0), (1, 1)] [(0, 2)]) False
+    equal (f 1 5 [(1, 74), (2, 76), (3, 74)] [(0, 48)]) False
