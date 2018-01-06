@@ -4,9 +4,12 @@
 
 -- | Functions for the 'Warp'.
 module Derive.Warp (
-    Warp, warp, unwarp
+    Warp, Linear(..), is_linear, is_identity, warp, unwarp
     , identity, from_signal, compose
     , shift, stretch
+    -- * utils
+    , unwarp_signal
+    -- * compose_hybrid
     , compose_hybrid
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -19,11 +22,33 @@ import Global
 import Types
 
 
--- | The 'Warp' keeps track of the ScoreTime -> RealTime function, as well
--- as its inverse.
---
--- This treats linear warps specially, since they're common and allow some
--- optimizations.
+{- | The 'Warp' keeps track of the ScoreTime -> RealTime function, as well
+    as its inverse.
+
+    This treats linear warps specially, since they're common and allow some
+    optimizations.
+
+    The main transformation is 'compose', but 'shift' and 'stretch' are
+    shortcuts for composing with @f(x) = y + shift@ or @f(x) = y * stretch@,
+    respectively.
+
+    The confusing thing is that shift and stretch compose with the *input* of
+    the function, so @shift n@ is @(`compose` shift n identity)@.  This means
+    that @shift 1 . stretch 2@ is actually @(*2) . (+1)@, which makes
+    compositions look backwards.  It turns out this is more convenient since
+    Deriver level shift and stretch go in left-to-right order since monadic
+    effects go left to right:
+    reason that
+
+    > Reader.runReader (Reader.local (+1) . Reader.local (*2) $ Reader.ask) 0
+
+    is 2, not 1.
+
+    There is probably some kind of theory to do with positive position or
+    negative position or some such thing, but my tiny brain can't quite get a
+    handle on it, so all I can say is that this is the way that makes things
+    work out right.
+-}
 data Warp = WarpFunction !Function | WarpLinear !Linear
 
 data Function = Function {
@@ -46,9 +71,17 @@ instance Pretty Warp where
 -- | I can't really rnf functions, but maybe there will be data in here someday.
 instance DeepSeq.NFData Warp where rnf _ = ()
 
+is_linear :: Warp -> Maybe Linear
+is_linear (WarpLinear linear) = Just linear
+is_linear _ = Nothing
+
+is_identity :: Warp -> Bool
+is_identity (WarpLinear (Linear shift stretch)) = shift == 0 && stretch == 1
+is_identity _ = False
+
 warp :: Warp -> ScoreTime -> RealTime
-warp (WarpFunction f) = _warp f
-warp (WarpLinear w) = (+ _shift w) . (* _stretch w) . to_real
+warp (WarpFunction f) t = _warp f t
+warp (WarpLinear w) t = to_real t * _stretch w + _shift w
 
 -- | The inverse of 'warp'.  I originally would fail when the RealTime
 -- doesn't occur in the Warp, but now I extend it in the same way as
@@ -92,34 +125,43 @@ compose (WarpFunction f) (WarpLinear linear) =
     compose (WarpFunction f) (to_function linear)
 
 to_function :: Linear -> Warp
-to_function w = shift (to_score (_shift w)) $
-    stretch (to_score (_stretch w)) signal_identity
+to_function w = stretch (to_score (_stretch w)) $
+    shift (to_score (_shift w)) signal_identity
 
+-- | "See 'Warp'.
 shift :: ScoreTime -> Warp -> Warp
 shift 0 w = w
 shift x (WarpFunction (Function warp unwarp)) = WarpFunction $ Function
-    { _warp = (+ to_real x) . warp
-    , _unwarp = unwarp . subtract (to_real x)
+    { _warp = warp . (+x)
+    , _unwarp = subtract x . unwarp
     }
 shift x (WarpLinear linear) = WarpLinear $ Linear
-    { _shift = to_real x + _stretch linear * _shift linear
+    { _shift = _shift linear + _stretch linear * to_real x
     , _stretch = _stretch linear
     }
 
--- | Previously, this would disallow <=0 stretch, but it turns out to be useful
+-- | See 'Warp'.
+--
+-- Previously, this would disallow <=0 stretch, but it turns out to be useful
 -- to stretch events to 0, and to negative durations.
 stretch :: ScoreTime -> Warp -> Warp
 stretch 1 w = w
 stretch factor (WarpFunction (Function warp unwarp)) = WarpFunction $ Function
-    { _warp = (* to_real factor) . warp
-    , _unwarp = unwarp . (/ to_real factor)
+    { _warp = warp . (*factor)
+    , _unwarp = (/factor) . unwarp
     }
-stretch factor (WarpLinear linear)
-    | _shift linear == 0 = WarpLinear $ Linear
-        { _shift = 0
-        , _stretch = to_real factor * _stretch linear
-        }
-    | otherwise = stretch factor $ to_function linear
+stretch factor (WarpLinear linear) = WarpLinear $ Linear
+    { _shift = _shift linear
+    , _stretch = to_real factor * _stretch linear
+    }
+
+-- * utils
+
+unwarp_signal :: Warp -> Signal.Control -> Signal.Display
+unwarp_signal w = Signal.coerce . Signal.map_x (warp w . to_score)
+
+
+-- * compose_hybrid
 
 -- TODO I'll need a different approach.  Can't I modify the signal and then
 -- compose normally?

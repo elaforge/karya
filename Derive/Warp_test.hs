@@ -29,10 +29,23 @@ test_shift_stretch_linear = do
     with id [0, 1, 2, 3]
     with (shift 2) [2, 3, 4, 5]
     with (stretch 2) [0, 2, 4, 6]
-    with (shift 1 . stretch 2) [1, 3, 5, 7]
-    with (stretch 2 . shift 1) [2, 4, 6, 8]
+    with (shift 1 . stretch 2) [2, 4, 6, 8]
+    with (stretch 2 . shift 1) [1, 3, 5, 7]
     with (shift 1 . stretch 2 . shift 1) [3, 5, 7, 9]
     with (stretch 2 . shift 1 . stretch 2) [2, 6, 10, 14]
+
+test_shift_stretch_compose_equivalence = do
+    let shift_c x w = Warp.compose w (shift x Warp.identity)
+        stretch_c factor w = Warp.compose w (stretch factor Warp.identity)
+    let with :: CallStack.Stack => Warp.Warp -> Warp.Warp -> IO Bool
+        with w1 w2 = equal (map (Warp.warp w1) t03) (map (Warp.warp w2) t03)
+    with (shift 1 Warp.identity) (shift_c 1 Warp.identity)
+    with (stretch 2 Warp.identity) (stretch_c 2 Warp.identity)
+    with (shift 1 $ stretch 2 Warp.identity)
+        (shift_c 1 $ stretch_c 2 Warp.identity)
+    with (stretch 2 $ shift 1 Warp.identity)
+        (stretch_c 2 $ shift_c 1 Warp.identity)
+
 
 test_shift_stretch_signal = do
     let with :: CallStack.Stack => (Warp.Warp -> Warp.Warp) -> [RealTime]
@@ -41,12 +54,12 @@ test_shift_stretch_signal = do
             let w = transform curve
             equal (map (Warp.warp w) t03) expected
             uncurry equal (trip w)
-        curve = make [(0, 0), (1, 0.5), (2, 1), (3, 3), (4, 5), (5, 7), (6, 9)]
+        curve = make [(0, 0), (1, 0.5), (2, 1), (100, (100-1) * 2 - 1)]
     with id [0, 0.5, 1, 3]
-    with (shift 2) [2, 2.5, 3, 5]
-    with (stretch 2) [0, 1, 2, 6]
-    with (shift 1 . stretch 2) [1, 2, 3, 7]
-    with (stretch 2 . shift 1) [2, 3, 4, 8]
+    with (shift 2) [1, 3, 5, 7]
+    with (stretch 2) [0, 1, 5, 9]
+    with (shift 1 . stretch 2) [1, 5, 9, 13]
+    with (stretch 2 . shift 1) [0.5, 3, 7, 11]
 
 test_compose = do
     let with :: CallStack.Stack => Warp.Warp -> Warp.Warp -> [RealTime]
@@ -62,7 +75,7 @@ test_compose = do
 
     with ident ident [0, 1, 2, 3]
     with ident (shift 2 ident) [2, 3, 4, 5]
-    with ident (shift 1 (stretch 2 ident)) [1, 3, 5, 7]
+    with ident (shift 1 (stretch 2 ident)) [2, 4, 6, 8]
 
     with curve ident [0, 0.5, 1, 3]
     with curve (shift 2 ident) [1, 3, 5, 7]

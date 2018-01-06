@@ -46,7 +46,7 @@ module Perform.Signal2 (
     , scalar_max, scalar_min
     -- , clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
-    , map_y, map_err
+    , map_x, map_y, map_err
 
     -- * special functions
     , integrate
@@ -349,6 +349,8 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
         | otherwise = ((start, x) : accum, Nothing)
 -}
 
+map_x :: (X -> X) -> Signal kind -> Signal kind
+map_x = modify . Segment.map_x
 
 map_y :: (Y -> Y) -> Signal kind -> Signal kind
 map_y = modify . Segment.map_y
