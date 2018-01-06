@@ -196,7 +196,7 @@ test_call_errors = do
     equal (run_evt "test-t 2 | test-t 1 |")
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
-    trans = Derive.transformer module_ "trans" mempty "doc" $ Sig.callt
+    trans = CallTest.transformer_args $ Sig.callt
         (Sig.defaulted "arg1" (Sig.required_control "test") "doc") $
         \c _args deriver -> do
             Call.control_at c 0

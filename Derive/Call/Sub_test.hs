@@ -89,8 +89,7 @@ test_under_invert = do
         -- Well, except the transformer gets lost, see 'Sub.under_invert'.
         -- ([[(0, 1)]], [])
     where
-    trans under_invert =
-        Derive.transformer "mod" "trans" mempty "doc" $ Sig.call0t $
+    trans under_invert = CallTest.transformer $
         (if under_invert then Sub.under_invert else ($)) $
         \args deriver -> do
             val <- Derive.untyped_control_at "c" =<< Args.real_start args

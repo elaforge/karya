@@ -10,7 +10,6 @@ import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
@@ -22,8 +21,7 @@ test_note_track_call = do
             . DeriveTest.derive_tracks_setup
                 (CallTest.with_note_transformer ">i1" trans) ""
         extract e = DeriveTest.e_environ_val "x" e :: Maybe Int
-        trans = Derive.transformer "module" "trans" mempty "doc" $ Sig.call0t
-            $ \_ -> Derive.with_val "x" (42 :: Int)
+        trans = CallTest.transformer $ \_ -> Derive.with_val "x" (42 :: Int)
     equal (run [(">i1", [(0, 1, "")])]) ([Just 42], [])
     equal (run [(">i2", [(0, 1, "")])]) ([Nothing], [])
 

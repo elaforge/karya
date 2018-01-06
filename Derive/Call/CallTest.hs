@@ -143,6 +143,15 @@ generator1 :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.Deriver d)
     -> Derive.Generator d
 generator1 = Derive.generator1 module_ "test" mempty "test doc" . Sig.call0
 
+transformer :: Derive.Taggable d
+    => (Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d)
+        -> Derive.Deriver (Stream.Stream d))
+    -> Derive.Transformer d
+transformer = transformer_args . Sig.call0t
+
+transformer_args :: Derive.WithArgDoc (Derive.TransformerF d)
+    -> Derive.Transformer d
+transformer_args = Derive.transformer module_ "test" mempty "test doc"
 
 -- * PassedArgs
 

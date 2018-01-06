@@ -14,7 +14,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
-import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
 import Global
@@ -134,10 +133,9 @@ test_score_duration = do
     let run = snd . DeriveTest.extract Score.event_start
             . DeriveTest.derive_blocks_setup
                 (CallTest.with_note_transformer "t" trans)
-        trans = Derive.transformer "module" "trans" mempty "doc" $
-            Sig.call0t $ \_ deriver -> do
-                Log.warn . showt =<< Derive.get_score_duration deriver
-                return Stream.empty
+        trans = CallTest.transformer $ \_ deriver -> do
+            Log.warn . showt =<< Derive.get_score_duration deriver
+            return Stream.empty
     equal (run [("top", [(">", [(0, 1, "t |")])])])
         ["CallDuration 1.0"]
     equal (run
@@ -150,10 +148,9 @@ test_real_duration = do
     let run = DeriveTest.r_log_strings
             . DeriveTest.derive_blocks_setup
                 (CallTest.with_note_transformer "t" trans)
-        trans = Derive.transformer "module" "trans" mempty "doc" $
-            Sig.call0t $ \_ deriver -> do
-                Log.warn . showt =<< Derive.get_real_duration deriver
-                return Stream.empty
+        trans = CallTest.transformer $ \_ deriver -> do
+            Log.warn . showt =<< Derive.get_real_duration deriver
+            return Stream.empty
     equal (run [("top", [(">", [(0, 1, "t |")])])]) ["CallDuration 1.0"]
     equal (run [("top", [(">", [(0, 2, "t |")])])]) ["CallDuration 2.0"]
     equal (run [("top", [("tempo", [(0, 0, "2")]), (">", [(0, 2, "t |")])])])
