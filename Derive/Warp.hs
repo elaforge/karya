@@ -39,7 +39,6 @@ import Types
     compositions look backwards.  It turns out this is more convenient since
     Deriver level shift and stretch go in left-to-right order since monadic
     effects go left to right:
-    reason that
 
     > Reader.runReader (Reader.local (+1) . Reader.local (*2) $ Reader.ask) 0
 
@@ -55,7 +54,7 @@ data Warp = WarpFunction !Function | WarpLinear !Linear
 data Function = Function {
     _warp :: !(ScoreTime -> RealTime)
     , _unwarp :: !(RealTime -> ScoreTime)
-    -- | For debugging.  TODO keep all of them?  Or is it a memory leak?
+    -- -- | For debugging.  TODO keep all of them?  Or is it a memory leak?
     -- , _signal :: !Signal.Warp
     }
 

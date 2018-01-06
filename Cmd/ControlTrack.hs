@@ -184,6 +184,10 @@ val_edit_at pos val = modify_event_at pos $ \event ->
     like @e 0 3@, where 0 is the destination and 3 is the exponent.
     Or @e (4c) 3@ in the case of pitches.  If I press a MIDI key I want to
     replace just the @4c@.
+
+    The "method" terminology dates from back before calls existed.  Nowadays
+    it's just a call, but for that matter so are numeric literals, so I need
+    something to differentiate @1@ from @i 1@.
 -}
 data Event = Event {
     event_method :: !Text

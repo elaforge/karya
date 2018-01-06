@@ -865,7 +865,7 @@ dispatch modeConfig targets = do
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
-    (hs, hscs) <- getAllHaddock config
+    (hs, hscs) <- getAllHaddock (midiConfig config)
     need $ map (hscToHs (hscDir config)) hscs
     Util.staunchSystem "hlint" $
         [ "--report=" <> build </> "hlint.html"
@@ -878,7 +878,7 @@ hlint config = do
 -- | Make all documentation.
 makeAllDocumentation :: Config -> Shake.Action ()
 makeAllDocumentation config = do
-    (hs, hscs) <- getAllHaddock config
+    (hs, hscs) <- getAllHaddock (midiConfig config)
     docs <- getMarkdown
     need $ extractableDocs
         ++ map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
@@ -902,10 +902,13 @@ extractDoc config fn = do
 getMarkdown :: Shake.Action [FilePath]
 getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 
+-- TODO This always generates haddock, even if no input files have changed.
+-- I used to use Util.findHs in 'getAllHaddock', but it always generated then
+-- too, so using command all_hs.py is not the problem.
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
     let packages = allPackages
-    (hs, hscs) <- getAllHaddock config
+    (hs, hscs) <- getAllHaddock (midiConfig config)
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces packages
@@ -941,12 +944,15 @@ getHaddockInterfaces packages = do
     return $ map extract interfaces
     where extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
 
-getAllHaddock :: Config -> Shake.Action ([FilePath], [FilePath])
-getAllHaddock config = do
-    hs <- filter (wantsHaddock (midiConfig config)) <$> Util.findHs "*.hs" "."
-    hscs <- filter (wantsHaddock (midiConfig config)) <$>
-        Util.findHs "*.hsc" "."
-    return (hs, hscs)
+getAllHaddock :: MidiConfig -> Shake.Action ([FilePath], [FilePath])
+getAllHaddock midi = do
+    Shake.Stdout out <- Shake.command [] "tools/all_hs.py" ["in_repo"]
+    let files = words out
+    let wanted = filter $ wantsHaddock midi
+    return
+        ( wanted $ filter ((==".hs") . FilePath.takeExtension) files
+        , wanted $ filter ((==".hsc") . FilePath.takeExtension) files
+        )
 
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: MidiConfig -> FilePath -> Bool
@@ -956,11 +962,10 @@ wantsHaddock midi hs = not $ or
     -- This will crash haddock on OS X since jack.h is likely not present.
     -- TODO NOTE [no-package]
     , midi /= JackMidi && hs == "Midi/JackMidi.hsc"
-    -- Temporary scratch files.
-    , Char.isLower $ head hs
     -- Synth/* modules have deps that might not be installed.
     -- TODO NOTE [no-package]
     , not Config.enableIm && "Synth/" `List.isPrefixOf` hs
+    , not Config.enableIm && "Ness/" `List.isPrefixOf` hs
     ]
 
 -- ** packages
