@@ -50,7 +50,7 @@ convert_event :: Score.Event -> Patch.Patch -> InstTypes.Name
     -> [LEvent.LEvent Note.Note]
 convert_event event patch name = run $ do
     let supported = Patch.patch_controls patch
-    let controls = Score.event_transformed_controls event
+    let controls = Score.event_controls event
     pitch <- if Map.member Control.pitch supported
         then Just . convert_signal <$> convert_pitch event
         else return Nothing

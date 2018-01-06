@@ -268,7 +268,7 @@ derive_pitch_map state pitch_track = case result of
             Control.d_control_track config pitch_track capture
         mapM_ Log.write logs
         Derive.require "get_pitch_map: no event" $
-            Score.event_untransformed_pitch <$> (Seq.head events)
+            Score.event_pitch <$> (Seq.head events)
     config = Control.Config
         { config_toplevel_tempo = False
         , config_use_cache = False
@@ -276,8 +276,8 @@ derive_pitch_map state pitch_track = case result of
     capture :: Derive.NoteDeriver
     capture = do
         pitch <- Internal.get_dynamic Derive.state_pitch
-        return $ Stream.from_event $ Score.empty_event
-            { Score.event_untransformed_pitch = pitch }
+        return $ Stream.from_event $
+            Score.empty_event { Score.event_pitch = pitch }
 
 pitch_map_track :: TrackTree.EventsTree -> Maybe TrackTree.Track
 pitch_map_track = fmap Tree.rootLabel . Util.Tree.find is_pitch

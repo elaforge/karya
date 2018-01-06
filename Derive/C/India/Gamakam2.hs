@@ -208,9 +208,7 @@ with_sequence args deriver = do
 
 pitch_context :: Derive.Context Score.Event -> Derive.Context Derive.Pitch
 pitch_context ctx = ctx
-    { Derive.ctx_prev_val = Score.event_untransformed_pitch <$>
-        Derive.ctx_prev_val ctx
-    }
+    { Derive.ctx_prev_val = Score.event_pitch <$> Derive.ctx_prev_val ctx }
 
 type Signals = (PSignal.PSignal, [Derive.ControlMod])
 

@@ -137,8 +137,8 @@ derive_note_track state blocks (notes, samples) =
     event state start dur = Score.empty_event
         { Score.event_start = start
         , Score.event_duration = dur
-        , Score.event_untransformed_controls = state_control_map state
-        , Score.event_untransformed_pitch = state_psignal state
+        , Score.event_controls = state_control_map state
+        , Score.event_pitch = state_psignal state
         }
 
 data Sample = Sample {

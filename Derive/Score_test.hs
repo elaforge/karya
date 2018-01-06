@@ -14,10 +14,9 @@ import qualified Perform.Signal as Signal
 test_move = do
     let event = Score.empty_event
             { Score.event_start = 2
-            , Score.event_untransformed_controls =
+            , Score.event_controls =
                 Map.fromList [("c", Score.untyped $ Signal.signal [(2, 2)])]
-            , Score.event_untransformed_pitch =
-                PSignal.signal [(2, PSignal.nn_pitch 42)]
+            , Score.event_pitch = PSignal.signal [(2, PSignal.nn_pitch 42)]
             }
         signal = Score.untyped . Signal.signal
     let moved = Score.move (+2) event

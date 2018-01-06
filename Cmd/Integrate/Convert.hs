@@ -97,7 +97,7 @@ allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_sort group_key
     group_key :: Score.Event -> TrackKey
     group_key event =
         (tracknum_of =<< track_of event, Score.event_instrument event,
-            PSignal.sig_scale_id (Score.event_untransformed_pitch event),
+            PSignal.sig_scale_id (Score.event_pitch event),
             event_voice event)
     tracknum_of tid = Map.lookup tid tracknums
 
@@ -169,7 +169,7 @@ pitch_events default_scale_id scale_id events =
     tidy_pitches = clip_to_zero . clip_concat . map drop_dups
 
 no_pitch_signals :: [Score.Event] -> Bool
-no_pitch_signals = all (PSignal.null . Score.event_untransformed_pitch)
+no_pitch_signals = all (PSignal.null . Score.event_pitch)
 
 -- | Convert an event's pitch signal to symbolic note names.  This uses
 -- 'PSignal.pitch_note', which handles a constant transposition, but not
@@ -180,8 +180,7 @@ pitch_signal_events :: Score.Event -> ([Event.Event], [Text])
 pitch_signal_events event = (ui_events, pitch_errs)
     where
     start = Score.event_start event
-    (xs, ys) = unzip $ align_pitch_signal start $
-        Score.event_transformed_pitch event
+    (xs, ys) = unzip $ align_pitch_signal start $ Score.event_pitch event
     pitches = zip3 xs ys
         (map (PSignal.pitch_note . Score.apply_controls event start) ys)
     pitch_errs =
@@ -201,7 +200,7 @@ control_events events =
     filter (not . empty_track) $ map (control_track events) controls
     where
     controls = List.sort $ Seq.unique $ concatMap
-        (map typed_control . Map.toList . Score.event_transformed_controls)
+        (map typed_control . Map.toList . Score.event_controls)
         events
     typed_control (control, sig) = Score.Typed (Score.type_of sig) control
 

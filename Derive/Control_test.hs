@@ -150,7 +150,7 @@ test_control_merge = do
             ]
         extract = DeriveTest.extract $
             (\(Score.Typed typ sig) -> (typ, map (at sig) [0..5]))
-                . (Map.! "cont") . Score.event_transformed_controls
+                . (Map.! "cont") . Score.event_controls
         at sig t = Signal.at (RealTime.seconds t) sig
     equal (run "" "") ([(Score.Untyped, [1, 2, 3, 2, 1, 1])], [])
     -- No type on the relative signal means it gets the absolute signal's

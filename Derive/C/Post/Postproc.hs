@@ -220,19 +220,19 @@ suppress_notes =
 replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event = event
     { Score.event_duration = Score.event_end next - start
-    , Score.event_untransformed_pitch = pitch event
-        <> PSignal.drop_before_at start (pitch next)
-    , Score.event_untransformed_pitches = Util.Map.mappend
+    , Score.event_pitch =
+        pitch event <> PSignal.drop_before_at start (pitch next)
+    , Score.event_pitches = Util.Map.mappend
         (pitches event)
         (PSignal.drop_before_at start <$> pitches next)
-    , Score.event_untransformed_controls = Util.Map.mappend
+    , Score.event_controls = Util.Map.mappend
         (controls event)
         (fmap (Signal.drop_before_at start) <$> controls next)
     }
     where
-    pitch = Score.event_transformed_pitch
-    pitches = Score.event_transformed_pitches
-    controls = Score.event_transformed_controls
+    pitch = Score.event_pitch
+    pitches = Score.event_pitches
+    controls = Score.event_controls
     start = Score.event_start event
 
 -- * apply start offset

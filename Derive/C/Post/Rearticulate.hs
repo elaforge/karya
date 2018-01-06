@@ -56,7 +56,7 @@ slur_n srate group curve = Stream.from_sorted_list . go . Stream.to_list
 slur :: RealTime -> Curve -> Score.Event -> [Score.Event] -> Score.Event
 slur srate curve event events = event
     { Score.event_duration = dur
-    , Score.event_untransformed_pitch = pitch
+    , Score.event_pitch = pitch
     }
     where
     pitch = slur_pitch srate curve (bracket_pitch event)
@@ -89,7 +89,7 @@ slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
 bracket_pitch :: Score.Event -> PSignal.PSignal
 bracket_pitch event =
     bracket (Score.event_start event) (Score.event_end event) $
-        Score.event_transformed_pitch event
+        Score.event_pitch event
 
 -- | Ensure there are samples at the start and end times.
 -- TODO move to Util.TimeVector?

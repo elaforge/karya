@@ -15,8 +15,6 @@ module Derive.Score (
     , Event(..)
     , short_event, short_events
     , empty_event, event_end, event_min, event_max, event_scale_id
-    , event_transformed_controls, event_transformed_pitch
-    , event_transformed_pitches
     , copy, normalize
     -- ** flags
     , has_flags, add_flags, remove_flags
@@ -40,7 +38,7 @@ module Derive.Score (
     , set_control, event_controls_at
     -- *** pitch
     , PControl, pcontrol_name
-    , default_pitch, set_pitch, set_named_pitch, event_pitch, event_named_pitch
+    , default_pitch, set_pitch, set_named_pitch, event_named_pitch
     , transposed_at, pitch_at, pitch_sample_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
     , nn_signal
@@ -103,14 +101,10 @@ data Event = Event {
     -- | This is the text of the call that created the event.  It's basically
     -- just for debugging.
     , event_text :: !Text
-    -- | See NOTE [event_control_offset] for what the untransformed is about.
-    , event_untransformed_controls :: !ControlMap
-    , event_untransformed_pitch :: !PSignal.PSignal
+    , event_controls :: !ControlMap
+    , event_pitch :: !PSignal.PSignal
     -- | Named pitch signals.
-    , event_untransformed_pitches :: !PitchMap
-    -- | This is added to the untransformed controls on access, so you can move
-    -- an event without having to move all the samples in all the controls.
-    , event_control_offset :: !RealTime
+    , event_pitches :: !PitchMap
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
@@ -158,34 +152,14 @@ short_events :: [Event] -> Text
 short_events =
     pretty . Pretty.formattedList '[' ']' . map (Pretty.text . short_event)
 
--- NOTE [event_control_offset]
--- event_control_offset is a hack to make moving Events cheap.  Unfortunately
--- it could be error prone because you don't want to look at the untransformed
--- signals by accident.  I try to reduce the error-prone-ness by giving the
--- fields big ugly names to encourage the access functions which apply the
--- offset.
---
--- It might be better to provide a wrapper around a TimeVector with an offset
--- built-in, then the untransformed signal could never leak out.  But I don't
--- quite want to duplicate every signal function four times, and it seems silly
--- to give every single signal an offset when only the ones in Event use it,
--- and it's the same for all of them.  Also it turns out to be a bit of
--- a hassle to mess with the signals on events since every time you have to
--- decide if you need transformed on untransformed.
---
--- TODO Actually I kind of hate this, because of the ugly long names and the
--- constant need to decide if I need to deal with transformed or untransformed
--- controls.
-
 empty_event :: Event
 empty_event = Event
     { event_start = 0
     , event_duration = 0
     , event_text = mempty
-    , event_untransformed_controls = mempty
-    , event_untransformed_pitch = mempty
-    , event_untransformed_pitches = mempty
-    , event_control_offset = 0
+    , event_controls = mempty
+    , event_pitch = mempty
+    , event_pitches = mempty
     , event_stack = Stack.empty
     , event_highlight = Color.NoHighlight
     , event_instrument = empty_instrument
@@ -205,29 +179,15 @@ event_min event = min (event_start event) (event_end event)
 event_max event = max (event_start event) (event_end event)
 
 event_scale_id :: Event -> Pitch.ScaleId
-event_scale_id = PSignal.sig_scale_id . event_untransformed_pitch
-
-event_transformed_controls :: Event -> ControlMap
-event_transformed_controls event =
-    Map.map (fmap (Signal.shift (event_control_offset event)))
-        (event_untransformed_controls event)
-
-event_transformed_pitch :: Event -> PSignal.PSignal
-event_transformed_pitch event =
-    PSignal.shift (event_control_offset event)
-        (event_untransformed_pitch event)
-
-event_transformed_pitches :: Event -> PitchMap
-event_transformed_pitches event =
-    Map.map (PSignal.shift (event_control_offset event))
-        (event_untransformed_pitches event)
+event_scale_id = PSignal.sig_scale_id . event_pitch
 
 -- | If you use an event to create another event, call this to clear out
 -- data that shouldn't go with the copy.
 copy :: Event -> Event
 copy event = event { event_flags = mempty, event_logs = [] }
 
--- | Apply 'event_control_offset' and apply environ and controls to pitches.
+-- | Apply environ and controls to pitches.
+--
 -- Normally this is done by Convert, but if you want to see an event for
 -- debugging it can be nicer to see the normalized version.
 --
@@ -235,15 +195,13 @@ copy event = event { event_flags = mempty, event_logs = [] }
 -- out-of-range transpositions.
 normalize :: Event -> Event
 normalize event = event
-    { event_untransformed_pitch = apply $ event_transformed_pitch event
-    , event_untransformed_pitches = apply <$> event_transformed_pitches event
-    , event_untransformed_controls = controls
-    , event_control_offset = 0
+    { event_pitch = apply $ event_pitch event
+    , event_pitches = apply <$> event_pitches event
     }
     where
     apply = PSignal.apply_controls controls
         . PSignal.apply_environ (event_environ event)
-    controls = event_transformed_controls event
+    controls = event_controls event
 
 -- ** flags
 
@@ -304,13 +262,13 @@ remove_attributes attrs event
     | otherwise = modify_attributes (Attrs.remove attrs) event
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls pitch pitches _ _ _ _ _
+    rnf (Event start dur text controls pitch pitches _ _ _ _
             flags _delayed_args logs) =
         -- I can't force Dynamic, so leave off _delayed_args.
         rnf (start, dur, text, controls, pitch, pitches, flags, logs)
 
 instance Pretty Event where
-    format (Event start dur text controls pitch pitches coffset
+    format (Event start dur text controls pitch pitches
             stack highlight inst env flags delayed_args logs) =
         Pretty.record ("Event"
                 Pretty.<+> Pretty.format (start, dur)
@@ -319,7 +277,6 @@ instance Pretty Event where
             , ("pitch", Pretty.format pitch)
             , ("pitches", Pretty.format pitches)
             , ("controls", Pretty.format controls)
-            , ("control_offset", Pretty.format coffset)
             , ("stack", Pretty.format stack)
             , ("highlight", Pretty.text $ showt highlight)
             , ("environ", Pretty.format env)
@@ -361,9 +318,13 @@ move modify event
     | pos == event_start event = event
     | otherwise = event
         { event_start = pos
-        , event_control_offset = pos - event_start event
+        , event_controls = fmap (Signal.shift delta) <$> event_controls event
+        , event_pitch = PSignal.shift delta $ event_pitch event
+        , event_pitches = PSignal.shift delta <$> event_pitches event
         }
-    where pos = modify (event_start event)
+    where
+    pos = modify (event_start event)
+    delta = pos - event_start event
 
 place :: RealTime -> RealTime -> Event -> Event
 place start dur event = (move (const start) event) { event_duration = dur }
@@ -393,18 +354,14 @@ set_instrument score_inst inst_environ event = event
 
 -- *** control
 
-control_val_at :: Event -> RealTime -> TypedControl -> TypedVal
-control_val_at event t = fmap (Signal.at (t - event_control_offset event))
-
 -- | Get a control value from the event, or Nothing if that control isn't
 -- present.
 control_at :: RealTime -> Control -> Event -> Maybe TypedVal
 control_at pos control event =
-    control_val_at event pos <$>
-        Map.lookup control (event_untransformed_controls event)
+    fmap (Signal.at pos) <$> Map.lookup control (event_controls event)
 
 event_control :: Control -> Event -> Maybe (Typed Signal.Control)
-event_control control = Map.lookup control . event_transformed_controls
+event_control control = Map.lookup control . event_controls
 
 initial_dynamic :: Event -> Signal.Y
 initial_dynamic event = maybe 0 typed_val $
@@ -431,9 +388,8 @@ set_dynamic dyn =
 
 modify_control_vals :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
 modify_control_vals control modify event = event
-    { event_untransformed_controls =
-        Map.adjust (fmap (Signal.map_y modify)) control
-            (event_untransformed_controls event)
+    { event_controls =
+        Map.adjust (fmap (Signal.map_y modify)) control (event_controls event)
     }
 
 -- | Modify a control.  If there is no existing control, the modify function
@@ -441,21 +397,19 @@ modify_control_vals control modify event = event
 modify_control :: Control -> (Signal.Control -> Signal.Control) -> Event
     -> Event
 modify_control control modify event = event
-    { event_untransformed_controls =
-        Map.alter (Just . alter) control (event_untransformed_controls event)
+    { event_controls =
+        Map.alter (Just . alter) control (event_controls event)
     }
     where alter old = modify <$> fromMaybe mempty old
 
 set_control :: Control -> Typed Signal.Control -> Event -> Event
 set_control control signal event = event
-    { event_untransformed_controls = Map.insert control
-        (Signal.shift (- event_control_offset event) <$> signal)
-        (event_untransformed_controls event)
+    { event_controls = Map.insert control signal (event_controls event)
     }
 
 event_controls_at :: RealTime -> Event -> ControlValMap
-event_controls_at t event = Map.map (typed_val . control_val_at event t)
-    (event_untransformed_controls event)
+event_controls_at t event =
+    typed_val . fmap (Signal.at t) <$> event_controls event
 
 -- *** pitch
 
@@ -467,23 +421,14 @@ set_pitch = set_named_pitch default_pitch
 
 set_named_pitch :: PControl -> PSignal.PSignal -> Event -> Event
 set_named_pitch pcontrol signal event
-    | pcontrol == default_pitch = event
-        { event_untransformed_pitch =
-            PSignal.shift (- event_control_offset event) signal
-        }
+    | pcontrol == default_pitch = event { event_pitch = signal }
     | otherwise = event
-        { event_untransformed_pitches = Map.insert pcontrol
-            (PSignal.shift (- event_control_offset event) signal)
-            (event_untransformed_pitches event)
-        }
-
-event_pitch :: Event -> PSignal.PSignal
-event_pitch = event_transformed_pitch
+        { event_pitches = Map.insert pcontrol signal (event_pitches event) }
 
 event_named_pitch :: PControl -> Event -> Maybe PSignal.PSignal
 event_named_pitch pcontrol
-    | pcontrol == default_pitch = Just . event_transformed_pitch
-    | otherwise = Map.lookup pcontrol . event_transformed_pitches
+    | pcontrol == default_pitch = Just . event_pitch
+    | otherwise = Map.lookup pcontrol . event_pitches
 
 -- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
 -- applied.  This is because callers expect to get the actual pitch, not the
@@ -500,8 +445,7 @@ pitch_at :: RealTime -> Event -> Maybe PSignal.Pitch
 pitch_at pos event = snd <$> pitch_sample_at pos event
 
 pitch_sample_at :: RealTime -> Event -> Maybe (RealTime, PSignal.Pitch)
-pitch_sample_at pos event = PSignal.sample_at (pos - event_control_offset event)
-    (event_untransformed_pitch event)
+pitch_sample_at pos = PSignal.sample_at pos . event_pitch
 
 apply_controls :: Event -> RealTime -> PSignal.Pitch -> PSignal.Transposed
 apply_controls event pos = PSignal.apply (event_controls_at pos event)
@@ -525,9 +469,9 @@ initial_note event = note_at (event_start event) event
 
 nn_signal :: Event -> (Signal.NoteNumber, [PSignal.PitchError])
 nn_signal event =
-    PSignal.to_nn $ PSignal.apply_controls (event_transformed_controls event) $
+    PSignal.to_nn $ PSignal.apply_controls (event_controls event) $
         PSignal.apply_environ (event_environ event) $
-        event_transformed_pitch event
+        event_pitch event
 
 
 -- * util

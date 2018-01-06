@@ -230,7 +230,7 @@ merge_curve :: PitchUtil.Interpolate -> RealTime -> PSignal.Pitch
 merge_curve interpolate x0 y0 x1 y1 event = Score.set_pitch new_pitch event
     where
     curve = interpolate True x0 y0 x1 y1
-    new_pitch = PSignal.append (Score.event_transformed_pitch event) curve
+    new_pitch = PSignal.append (Score.event_pitch event) curve
 
 
 -- * mute end

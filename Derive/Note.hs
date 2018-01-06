@@ -71,7 +71,7 @@ extract_track_signal source events = mconcat $ case source of
         -- Since these signals will be mconcatted into one signal, I don't
         -- want one event's control at 0 to wipe out the previous events.
         trim_pitch (Score.event_min event) $
-        PSignal.apply_controls (Score.event_transformed_controls event) psig
+        PSignal.apply_controls (Score.event_controls event) psig
 
     trim_control start sig = case Signal.sample_at start sig of
         Just (x, y)

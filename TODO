@@ -1300,6 +1300,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       . It should be possible to do this while still using the old Signal.
         This way I can isolate the change for profiling as well as bugs.
       - profile before and after
+    * remove Score.event_untransformed_* nonsense
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
       - drop, drop_while, within etc. functions replaced by before and after
       - 'i' calls no longer need srate.  The others do though.
@@ -1314,6 +1315,15 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
 
     - remove Derive.Deriver.Monad.state_pitch_mergers
     - implement Warp.compose_hybrid
+
+  - Another way to make moving events cheap is to make event controls relative
+    to event_start.
+    . Surely I thought of that before, but I don't remember why I didn't do it.
+    . People looking at controls presumably use Score.control_at, which can
+      apply the offset for me.
+    . Plain references to Score.event_controls could be error-prone though.
+      I'd need a Score.event_absolute_controls, which is effectively
+      event_transformed_controls.
 
   . If I say signals now have linear interpolation by default, then the linear
     interpolator can just emit one sample, but now MIDI needs interpolation.

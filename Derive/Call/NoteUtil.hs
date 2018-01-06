@@ -49,12 +49,11 @@ make_event_control_vals control_vals args dyn start dur flags = do
         { event_start = start
         , event_duration = dur
         , event_text = Event.text (Args.event args)
-        , event_untransformed_controls = controls
-        , event_untransformed_pitch = trim_pitch start (Derive.state_pitch dyn)
-        , event_control_offset = 0
+        , event_controls = controls
+        , event_pitch = trim_pitch start (Derive.state_pitch dyn)
         -- I don't have to trim these because the performer doesn't use them,
         -- they're only there for any possible postproc.
-        , event_untransformed_pitches = Derive.state_pitches dyn
+        , event_pitches = Derive.state_pitches dyn
         , event_stack = Derive.state_stack dyn
         , event_highlight = Color.NoHighlight
         , event_instrument = fromMaybe Score.empty_instrument $

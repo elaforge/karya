@@ -57,8 +57,7 @@ run_control_dur events = extract $
     -- Slicing implementation details can make dups, but they don't matter for
     -- performance.
     extract = Seq.drop_dups snd . head . DeriveTest.extract_events
-        (Signal.unsignal . Score.typed_val . get
-            . Score.event_transformed_controls)
+        (Signal.unsignal . Score.typed_val . get . Score.event_controls)
     get fm = case Map.lookup "cont" fm of
         Nothing -> errorStack "expected a 'cont' control"
         Just c -> c

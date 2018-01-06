@@ -653,7 +653,7 @@ e_instrument = Score.instrument_name . Score.event_instrument
 
 e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
 e_control control event = maybe [] (Signal.unsignal_unique . Score.typed_val) $
-    Map.lookup control (Score.event_transformed_controls event)
+    Map.lookup control (Score.event_controls event)
 
 e_start_control :: Score.Control -> Score.Event -> Maybe Signal.Y
 e_start_control control event =
@@ -686,7 +686,7 @@ e_nn_rounded = maybe 0 (Num.roundDigits 2) . Score.initial_nn
 e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
 e_nns_errors =
     (map (second Pitch.nn) . Signal.unsignal *** map pretty)
-    . PSignal.to_nn . Score.event_transformed_pitch . Score.normalize
+    . PSignal.to_nn . Score.event_pitch . Score.normalize
 
 e_pitch :: Score.Event -> Text
 e_pitch e = maybe "?" Pitch.note_text (Score.initial_note e)
@@ -812,9 +812,9 @@ c_note s_start dur = do
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"
-        , Score.event_untransformed_controls = controls
-        , Score.event_untransformed_pitch = pitch_sig
-        , Score.event_untransformed_pitches = Derive.state_pitches st
+        , Score.event_controls = controls
+        , Score.event_pitch = pitch_sig
+        , Score.event_pitches = Derive.state_pitches st
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }
@@ -853,9 +853,8 @@ mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
         { Score.event_start = start
         , Score.event_duration = dur
         , Score.event_text = pitch
-        , Score.event_untransformed_controls = mkcontrols controls
-        , Score.event_untransformed_pitch =
-            PSignal.signal [(start, mkpitch scale pitch)]
+        , Score.event_controls = mkcontrols controls
+        , Score.event_pitch = PSignal.signal [(start, mkpitch scale pitch)]
         , Score.event_stack = fake_stack
         , Score.event_instrument = inst
         }

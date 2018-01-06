@@ -253,9 +253,9 @@ only_controls :: [Score.Control] -> [LEvent.LEvent Score.Event] -> [Score.Event]
 only_controls controls = map strip . LEvent.events_of
     where
     strip e = e
-        { Score.event_untransformed_controls =
+        { Score.event_controls =
             Map.filterWithKey (\c _ -> c `elem` controls)
-                (Score.event_untransformed_controls e)
+                (Score.event_controls e)
         }
 
 with_insts :: [Text] -> [Score.Event] -> [Score.Event]
@@ -269,8 +269,7 @@ strip_env :: [Score.Event] -> [Score.Event]
 strip_env = map $ \event -> event { Score.event_environ = mempty }
 
 strip_controls :: [Score.Event] -> [Score.Event]
-strip_controls = map $ \event ->
-    event { Score.event_untransformed_controls = mempty }
+strip_controls = map $ \event -> event { Score.event_controls = mempty }
 
 -- | Pretty-print events, presumably from 'sel_events'.  Extract the given
 -- fields, and format them in columns.

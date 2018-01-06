@@ -79,7 +79,7 @@ prev_event = prev_val
 
 prev_event_pitch :: PassedArgs Score.Event -> Maybe PSignal.Pitch
 prev_event_pitch args =
-    fmap snd . PSignal.last . Score.event_untransformed_pitch =<< prev_val args
+    fmap snd . PSignal.last . Score.event_pitch =<< prev_val args
 
 -- | Polymorphic version of 'prev_control' or 'prev_pitch'.
 prev_val_end :: Derive.Taggable a => PassedArgs a -> Maybe RealTime
@@ -100,7 +100,7 @@ prev_val = Derive.ctx_prev_val . context
 prev_note_pitch :: Derive.Deriver (Maybe (RealTime, PSignal.Pitch))
 prev_note_pitch = do
     prev <- prev_note
-    return $ PSignal.last . Score.event_untransformed_pitch =<< prev
+    return $ PSignal.last . Score.event_pitch =<< prev
 
 -- | Get the previous note.  Unlike 'prev_val', this always gets the previous
 -- Score.Event, even if you're evaluating a control track under the note track.

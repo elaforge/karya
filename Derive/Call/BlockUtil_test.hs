@@ -20,7 +20,7 @@ import qualified Perform.Signal as Signal
 
 
 test_compile = do
-    let controls = map Score.event_transformed_controls
+    let controls = map Score.event_controls
         pitches = map DeriveTest.e_nns
 
     let derive tracks = DeriveTest.extract id $ DeriveTest.derive_tracks "" $

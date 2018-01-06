@@ -1142,9 +1142,9 @@ c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
         | otherwise = transposed
         where
         transposed = event
-            { Score.event_untransformed_pitch =
+            { Score.event_pitch =
                 PSignal.map_y (Pitches.transpose (Pitch.Diatonic 3))
-                    (Score.event_untransformed_pitch event)
+                    (Score.event_pitch event)
             }
 
 c_nyogcag :: Library.Calls Derive.Note

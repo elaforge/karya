@@ -56,7 +56,7 @@ convert_event :: Lookup -> Score.Event -> Patch.Patch -> Patch.Config
     -> [LEvent.LEvent Types.Event]
 convert_event lookup event patch config = run $ do
     let inst = Score.event_instrument event
-    let event_controls = Score.event_transformed_controls event
+    let event_controls = Score.event_controls event
     (perf_patch, pitch) <-
         convert_midi_pitch inst patch config event_controls event
     let controls = convert_controls (Types.patch_control_map perf_patch) $
@@ -141,7 +141,7 @@ convert_event_pitch :: Log.LogMonad m => Types.Patch -> Bool -> Score.ControlMap
 convert_event_pitch patch constant_pitch controls event
     | constant_pitch = convert constant_vals $ maybe mempty PSignal.constant $
         Score.pitch_at (Score.event_start event) event
-    | otherwise = convert trimmed_vals $ Score.event_transformed_pitch event
+    | otherwise = convert trimmed_vals $ Score.event_pitch event
     where
     convert = convert_pitch (Score.event_environ event)
     -- An optimization to avoid fiddling with controls unnecessarily.

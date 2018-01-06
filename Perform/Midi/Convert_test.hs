@@ -83,7 +83,7 @@ test_convert_pitch = do
 
     -- Convert applies the environ to pitches.
     let event = (DeriveTest.mkevent (0, 1, "4i", [], UiTest.i1))
-            { Score.event_untransformed_pitch =
+            { Score.event_pitch =
                 PSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
             }
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
