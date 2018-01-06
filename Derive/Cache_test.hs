@@ -16,9 +16,9 @@ import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
-import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -379,14 +379,14 @@ test_collect = do
         Just collect = maybe_collect
     equal root_key "top * *"
 
-    let e_warp_maps = Seq.sort_on fst . map (first Stack.pretty_ui_)
+    let e_warp_maps = Seq.sort_on fst . map (Stack.pretty_ui_ *** e_track)
             . Map.toAscList . Derive.collect_warp_map
+        e_track (TrackWarp.Track start end _warp block_id track_id) =
+            (start, end, block_id, track_id)
 
-    let tw start end bid = TrackWarp.Track
-            start end Score.id_warp (UiTest.bid bid) Nothing
     equal (e_warp_maps collect)
-        [ ("top * *", tw 0 2 "top")
-        , ("top top.t1 0-1 / sub * *", tw 0 1 "sub")
+        [ ("top * *", (0, 2, UiTest.bid "top", Nothing))
+        , ("top top.t1 0-1 / sub * *", (0, 1, UiTest.bid "sub", Nothing))
         ]
 
     -- TrackSignals are only collected for the topmost block.

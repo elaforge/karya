@@ -32,9 +32,9 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
+import qualified Derive.Warp as Warp
 
 import qualified Perform.Midi.Types as Types
 import Global
@@ -112,7 +112,7 @@ get_warps block_id track_id = do
     let track_warps = Cmd.perf_warps perf
         warps = [tw | tw <- track_warps, TrackWarp.tw_block tw == block_id,
             Set.member track_id (TrackWarp.tw_tracks tw)]
-    return $ map (\w -> w { TrackWarp.tw_warp = Score.id_warp }) warps
+    return $ map (\w -> w { TrackWarp.tw_warp = Warp.identity }) warps
 
 -- | Get all raw uncollected TrackWarps from the root, and strip out the
 -- signals so they don't take up tons of space.
@@ -122,7 +122,7 @@ get_track_warps = do
     let wmap = Derive.collect_warp_map $ Derive.state_collect $
             Derive.r_state result
     let strip (TrackWarp.Track s e _warp bid tid) =
-            TrackWarp.Track s e Score.id_warp bid tid
+            TrackWarp.Track s e Warp.identity bid tid
     return $ strip <$> wmap
 
 -- ** cache

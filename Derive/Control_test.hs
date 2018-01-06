@@ -225,13 +225,13 @@ test_stash_signal = do
     let run tracks = e_tsigs $ DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
     let tsig samples p x = (samples, p, x)
+    let end = RealTime.score UiTest.default_block_end
 
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
     -- Constant tempo stretches track sig.
     -- Tempo track itself is unstretched.
     -- Extra sample at the end of the tempo track due to the
     -- 'Tempo.extend_signal' hack.
-    let end = RealTime.score UiTest.default_block_end
     equal (run [("tempo", [(0, 0, "2")]), ctrack, itrack]) $
         [ tsig [(0, 2), (end, 2)] 0 1
         , tsig [(0, 1), (0.5, 0)] 0 0.5

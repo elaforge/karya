@@ -40,7 +40,7 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
+import qualified Derive.Warp as Warp
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
@@ -739,7 +739,7 @@ relative_realtime root_id = do
     let root_pos = point_to_real (Cmd.perf_tempo perf) maybe_root_sel
     let warp = Cmd.perf_closest_warp perf block_id track_id root_pos
     let (start, end) = Sel.range sel
-    return (Score.warp_pos warp start, Score.warp_pos warp end)
+    return (Warp.warp warp start, Warp.warp warp end)
 
 -- | Get the RealTime range of the current selection, as derived from current
 -- selection's block.  This means that the top should be 0.
@@ -751,13 +751,13 @@ local_realtime = do
     perf <- Cmd.get_performance block_id
     let (start, end) = Sel.range sel
     let warp = Cmd.perf_closest_warp perf block_id track_id 0
-    return (block_id, Score.warp_pos warp start, Score.warp_pos warp end)
+    return (block_id, Warp.warp warp start, Warp.warp warp end)
 
 -- | This is like 'relative_realtime' but gets a RealTime relative to a Point,
 -- not a range.
 relative_realtime_point :: Cmd.Performance -> Maybe Point -> Point -> RealTime
 relative_realtime_point perf maybe_root_sel (block_id, _, track_id, pos) =
-    Score.warp_pos warp pos
+    Warp.warp warp pos
     where
     root_pos = point_to_real (Cmd.perf_tempo perf) maybe_root_sel
     warp = Cmd.perf_closest_warp perf block_id track_id root_pos

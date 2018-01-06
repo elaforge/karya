@@ -5,7 +5,6 @@
 module Perform.Signal_test where
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Perform.Signal (signal, unsignal)
@@ -126,24 +125,6 @@ test_integrate = do
         [(0, 0), (1, 0), (2, 1), (3, 3), (4, 5)]
     equal (f [(0, 0), (1, -1), (2, -2), (3, -3)])
         [(0, 0), (1, 0), (2, -1), (3, -3)]
-
-test_unwarp_fused = do
-    let f (Score.Warp sig shift stretch) = unsignal
-            . Signal.unwarp_fused sig shift stretch
-            . Signal.signal
-        trip warp p = f warp [(Score.warp_pos warp p, 0)]
-    let warp = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 2 1
-    equal (Score.unwarp_pos warp (Score.warp_pos warp 0)) 0
-    equal (trip warp 0) [(0, 0)]
-    let warp2 = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 0 2
-    equal (trip warp2 1) [(1, 0)]
-
-make_warp :: Signal.X -> Signal.Y -> Signal.Warp
-make_warp end tempo = tempo_to_warp (signal [(0, tempo), (end, tempo)])
-
-tempo_to_warp :: Signal.Tempo -> Signal.Warp
-tempo_to_warp = Signal.integrate 1 . Signal.map_y (1/)
-
 
 test_sig_add = do
     let f s1 s2 = unsignal $ Signal.sig_add (signal s1) (signal s2)

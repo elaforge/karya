@@ -11,8 +11,8 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.TrackWarp as TrackWarp
+import qualified Derive.Warp as Warp
 
 import Global
 import Types
@@ -23,8 +23,11 @@ test_collect_track_warps = do
         extract = sort . map extract1
             where
             extract1 (TrackWarp.TrackWarp s e block tracks warp) =
-                ((s, e), block, Foldable.toList tracks,
-                    ScoreTypes.warp_stretch warp)
+                ( (s, e)
+                , block
+                , Foldable.toList tracks
+                , Warp._stretch <$> Warp.is_linear warp
+                )
             sort = Seq.sort_on (\(range, block, _, _) -> (block, range))
     let bid = UiTest.bid
         tids name = map (UiTest.mk_tid_name name)
@@ -33,12 +36,12 @@ test_collect_track_warps = do
     let (tracks, wmap, logs) =
             run_warps [("b1", UiTest.note_track [(0, 1, "4c")])]
     equal logs []
-    equal (f tracks wmap) [((0, 1), bid "b1", tids "b1" [1, 2], 1)]
+    equal (f tracks wmap) [((0, 1), bid "b1", tids "b1" [1, 2], Just 1)]
 
     let (tracks, wmap, logs) = run_warps
             [("b1", tempo 2 : UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])]
     equal logs []
-    equal (f tracks wmap) [((0, 1), bid "b1", tids "b1" [1, 2, 3], 0.5)]
+    equal (f tracks wmap) [((0, 1), bid "b1", tids "b1" [1, 2, 3], Just 0.5)]
 
     -- Sub-block.
     let (tracks, wmap, logs) = run_warps
@@ -47,9 +50,9 @@ test_collect_track_warps = do
             ]
     equal logs []
     equal (f tracks wmap)
-        [ ((0, 2), bid "sub", tids "sub" [1, 2], 1)
-        , ((2, 4), bid "sub", tids "sub" [1, 2], 1)
-        , ((0, 4), bid "top", tids "top" [1], 1)
+        [ ((0, 2), bid "sub", tids "sub" [1, 2], Just 1)
+        , ((2, 4), bid "sub", tids "sub" [1, 2], Just 1)
+        , ((0, 4), bid "top", tids "top" [1], Just 1)
         ]
 
     -- Sub-block with different tempos.
@@ -60,9 +63,9 @@ test_collect_track_warps = do
             ]
     equal logs []
     equal (f tracks wmap)
-        [ ((0, 1), bid "sub", tids "sub" [1, 2, 3], 0.5)
-        , ((1, 2), bid "sub", tids "sub" [1, 2, 3], 0.5)
-        , ((0, 2), bid "top", tids "top" [1, 2], 0.5)
+        [ ((0, 1), bid "sub", tids "sub" [1, 2, 3], Just 0.5)
+        , ((1, 2), bid "sub", tids "sub" [1, 2, 3], Just 0.5)
+        , ((0, 2), bid "top", tids "top" [1, 2], Just 0.5)
         ]
 
     -- Two toplevel tempos.
@@ -71,8 +74,8 @@ test_collect_track_warps = do
             ++ tempo 2 : UiTest.note_track [(0, 1, "4e"), (1, 1, "4f")]
     equal logs []
     equal (f tracks wmap)
-        [ ((0, 1), bid "b1", tids "b1" [4, 5, 6], 0.5)
-        , ((0, 2), bid "b1", tids "b1" [1, 2, 3], 1)
+        [ ((0, 1), bid "b1", tids "b1" [4, 5, 6], Just 0.5)
+        , ((0, 2), bid "b1", tids "b1" [1, 2, 3], Just 1)
         ]
 
 

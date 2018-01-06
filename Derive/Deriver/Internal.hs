@@ -24,8 +24,8 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
+import qualified Derive.Warp as Warp
 
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Global
 import Types
@@ -313,38 +313,33 @@ instance Time BaseTypes.Duration where
 -- * warp
 
 in_real_time :: Deriver a -> Deriver a
-in_real_time = with_warp (const Score.id_warp)
+in_real_time = with_warp (const Warp.identity)
 
-with_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
+with_warp :: (Warp.Warp -> Warp.Warp) -> Deriver a -> Deriver a
 with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
 
-get_warp :: Deriver Score.Warp
+get_warp :: Deriver Warp.Warp
 get_warp = get_dynamic state_warp
 
 at :: ScoreTime -> Deriver a -> Deriver a
-at shift = warp (Score.id_warp { Score.warp_shift = RealTime.score shift })
+at shift = with_warp $ Warp.shift shift
+
 
 stretch :: ScoreTime -> Deriver a -> Deriver a
-stretch factor =
-    warp $ Score.id_warp { Score.warp_stretch = RealTime.score factor }
+stretch factor = with_warp $ Warp.stretch factor
 
--- | 'at' and 'stretch' in one.  It's a little faster than using them
--- separately.  The order is stretch, then shift, as documented by
--- 'Score.Warp'.  TODO shouldn't the arguments go in the other order then?
+-- | 'at' and 'stretch' in one.  It's a little more efficient than using them
+-- separately.  The order is stretch, then shift.
 place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
-place shift stretch = warp $ Score.id_warp
-    { Score.warp_stretch = RealTime.score stretch
-    , Score.warp_shift = RealTime.score shift
-    }
+place shift stretch = with_warp $ Warp.stretch stretch . Warp.shift shift
+    -- Warp.stretch and Warp.shift look like they're in the wrong order here,
+    -- but they're not.  "Derive.Warp" for details.
 
--- | Low level warp function.
---
--- Previously, this would disallow <=0 stretch, but it turns out to be useful
--- to stretch events to 0, and to negative durations.
-warp :: Score.Warp -> Deriver a -> Deriver a
-warp score_warp deriver
-    | Score.is_id_warp score_warp = deriver
-    | otherwise = with_warp (\w -> Score.compose_warps w score_warp) deriver
+-- | Compose warps.
+warp :: Warp.Warp -> Deriver a -> Deriver a
+warp w
+    | Warp.is_identity w = id
+    | otherwise = with_warp (`Warp.compose` w)
 
 -- ** track warp
 

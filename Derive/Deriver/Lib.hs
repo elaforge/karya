@@ -38,6 +38,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Typecheck as Typecheck
+import qualified Derive.Warp as Warp
 
 import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
@@ -150,10 +151,10 @@ get_stack :: Deriver Stack.Stack
 get_stack = gets (state_stack . state_dynamic)
 
 real_function :: Deriver (ScoreTime -> RealTime)
-real_function = Score.warp_pos <$> Internal.get_dynamic state_warp
+real_function = Warp.warp <$> Internal.get_dynamic state_warp
 
 score_function :: Deriver (RealTime -> ScoreTime)
-score_function = Score.unwarp_pos <$> Internal.get_dynamic state_warp
+score_function = Warp.unwarp <$> Internal.get_dynamic state_warp
 
 -- ** import
 

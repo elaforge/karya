@@ -17,7 +17,8 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (to_score)
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -96,7 +97,7 @@ identity :: Warp
 identity = WarpLinear (Linear 0 1)
 
 signal_identity :: Warp
-signal_identity = from_signal $ Signal.from_pairs
+signal_identity = from_signal $ Signal.signal
     [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
 
 -- | Create a Warp from a signal and its inverse.  This assumes the signal
@@ -104,8 +105,8 @@ signal_identity = from_signal $ Signal.from_pairs
 -- TODO error on empty signal?
 from_signal :: Signal.Warp -> Warp
 from_signal signal = WarpFunction $ Function
-    { _warp = RealTime.seconds . flip Signal.at signal . to_real
-    , _unwarp = ScoreTime.double . flip Signal.at inverted
+    { _warp = RealTime.seconds . flip Signal.at_linear_extend signal . to_real
+    , _unwarp = ScoreTime.double . flip Signal.at_linear_extend inverted
     }
     where inverted = Signal.invert signal
 
@@ -158,7 +159,7 @@ stretch factor (WarpLinear linear) = WarpLinear $ Linear
 -- * utils
 
 unwarp_signal :: Warp -> Signal.Control -> Signal.Display
-unwarp_signal w = Signal.coerce . Signal.map_x (warp w . to_score)
+unwarp_signal w = Signal.coerce . Signal.map_x (to_real . unwarp w)
 
 
 -- * compose_hybrid

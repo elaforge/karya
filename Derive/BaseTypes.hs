@@ -45,6 +45,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Warp as Warp
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -653,7 +654,7 @@ data Dynamic = Dynamic {
     , dyn_environ :: !Environ
     -- | This is from 'Derive.Deriver.Monad.state_event_serial'.
     , dyn_event_serial :: !Int
-    , dyn_warp :: !ScoreTypes.Warp
+    , dyn_warp :: !Warp.Warp
     , dyn_ruler :: Ruler.Marklists -- intentionally lazy
     } deriving (Show)
 
@@ -665,7 +666,7 @@ empty_dynamic = Dynamic
     , dyn_pitch = mempty
     , dyn_environ = mempty
     , dyn_event_serial = 0
-    , dyn_warp = ScoreTypes.id_warp
+    , dyn_warp = Warp.identity
     , dyn_ruler = mempty
     }
 

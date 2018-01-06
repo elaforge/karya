@@ -113,6 +113,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
+import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -386,7 +387,7 @@ record_track_dynamic track state =
                 { Derive.collect_track_dynamic_inverted = track_dyn }
             | otherwise -> mempty { Derive.collect_track_dynamic = track_dyn }
 
-defragment_track_signals :: Score.Warp -> Derive.Collect -> Derive.Collect
+defragment_track_signals :: Warp.Warp -> Derive.Collect -> Derive.Collect
 defragment_track_signals warp collect
     | Map.null fragments = collect
     | otherwise = collect
@@ -398,24 +399,18 @@ defragment_track_signals warp collect
     fragments = Derive.collect_signal_fragments collect
     defragment = unwarp warp . Signal.merge . Map.elems
 
-unwarp :: Score.Warp -> Signal.Control -> Track.TrackSignal
-unwarp warp control = case is_linear_warp warp of
-    Just (shift, stretch) ->
-        Track.TrackSignal (Signal.coerce control) (RealTime.to_score shift)
-            (RealTime.to_score stretch)
-    Nothing -> Track.TrackSignal unwarped 0 1
-        where
-        Score.Warp warp_sig shift stretch = warp
-        unwarped = Signal.unwarp_fused warp_sig shift stretch control
-
--- | Return (shift, stretch) if the tempo is linear.  This relies on an
--- optimization in 'Tempo.with_tempo' to notice when the tempo is constant and
--- give it 'Score.id_warp_signal'.
-is_linear_warp :: Score.Warp -> Maybe (RealTime, RealTime)
-is_linear_warp warp
-    | Score.warp_signal warp == Score.id_warp_signal =
-        Just (Score.warp_shift warp, Score.warp_stretch warp)
-    | otherwise = Nothing
+unwarp :: Warp.Warp -> Signal.Control -> Track.TrackSignal
+unwarp warp control = case Warp.is_linear warp of
+    Just linear -> Track.TrackSignal
+        { ts_signal = Signal.coerce control
+        , ts_shift = RealTime.to_score (Warp._shift linear)
+        , ts_stretch = RealTime.to_score (Warp._stretch linear)
+        }
+    Nothing -> Track.TrackSignal
+        { ts_signal = Warp.unwarp_signal warp control
+        , ts_shift = 0
+        , ts_stretch = 1
+        }
 
 derive_event :: Derive.CallableExpr d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)

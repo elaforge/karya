@@ -39,6 +39,7 @@ module Perform.Signal (
     , merge, merge_extend, concat, prepend
     , sig_add, sig_subtract, sig_multiply, sig_scale
     , scale, scale_invert
+    , invert
     -- ** scalar transformation
     , scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
@@ -346,6 +347,9 @@ scale_invert :: Y -> Y -> Y
 scale_invert old new
     | new >= old = Num.normalize old 1 new
     | otherwise = Num.normalize 0 old new - 1
+
+invert :: Warp -> Warp
+invert = modify $ Vector.map $ \(Sample x y) -> Sample (y_to_x y) (x_to_y x)
 
 -- ** scalar transformation
 

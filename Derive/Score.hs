@@ -45,12 +45,6 @@ module Derive.Score (
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
     , nn_signal
 
-    -- ** warp
-    , Warp(..), id_warp, id_warp_signal
-    , warp, is_id_warp
-    , warp_pos, unwarp_pos, compose_warps
-    , warp_to_signal
-
     -- * Type
     , Type(..), Typed(..)
     , untyped, merge_typed, type_to_code, code_to_type
@@ -90,16 +84,13 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as ScoreTypes
 import Derive.ScoreTypes
        (Instrument(..), instrument_name, empty_instrument, Control,
-        control_name, PControl, pcontrol_name, Warp(..), id_warp,
-        id_warp_signal, Type(..), Typed(..), ControlValMap, TypedControlValMap,
-        untyped, merge_typed, type_to_code, code_to_type, TypedControl,
-        TypedVal)
+        control_name, PControl, pcontrol_name, Type(..), Typed(..),
+        ControlValMap, TypedControlValMap, untyped, merge_typed, type_to_code,
+        code_to_type, TypedControl, TypedVal)
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
 import Global
 import Types
 
@@ -539,70 +530,6 @@ nn_signal event =
         event_transformed_pitch event
 
 
--- ** warp
-
--- | Convert a Signal to a Warp.
-warp :: Signal.Warp -> Warp
-warp sig = Warp sig 0 1
-
-is_id_warp :: Warp -> Bool
-is_id_warp = (== id_warp)
-
--- | Warp a ScoreTime to a RealTime.
---
--- The warp signal is extended linearly in either direction infinitely, with
--- its last slope, or 1:1 if there are no samples at all.  Previously, the warp
--- signal was flat before zero and after its end, which effectively made the
--- tempo infinitely fast at those points.  But that made the optimization for
--- 'id_warp_signal' produce inconsistent results with a warp that was linear
--- but not not equal to id_warp_signal, which in turn led to inconsistent
--- results from ornaments that placed notes before ScoreTime 0.
-warp_pos :: Warp -> ScoreTime -> RealTime
-warp_pos (Warp sig shift stretch) pos
-    | sig == id_warp_signal = warp pos
-    | otherwise = Signal.y_to_x $ Signal.at_linear_extend (warp pos) sig
-    where warp p = to_real p * stretch + shift
-
--- | The inverse of 'warp_pos'.  I originally would fail when the RealTime
--- doesn't occur in the Warp, but now I extend it in the same way as
--- 'warp_pos'.  Failing caused awkwardness with events at the end of the score.
-unwarp_pos :: Warp -> RealTime -> ScoreTime
-unwarp_pos (Warp sig shift stretch) pos
-    | sig == id_warp_signal = unwarp pos
-    | otherwise = unwarp $ Signal.inverse_at_extend (Signal.x_to_y pos) sig
-    where unwarp p = to_score $ (p - shift) / stretch
-
--- | Compose two warps.  Warps with id signals are optimized.
--- This is standard right to left composition
-compose_warps :: Warp -> Warp -> Warp
-compose_warps
-        warp1@(Warp sig1 shift1 stretch1) warp2@(Warp sig2 shift2 stretch2)
-    | is_id_warp warp1 = warp2
-    | is_id_warp warp2 = warp1
-    | sig2 == id_warp_signal =
-        Warp sig1 (shift1 + shift2 * stretch1) (stretch1 * stretch2)
-    -- A sig==id_warp_signal optimization isn't possible because shift and
-    -- stretch are applied before indexing the signal, not after.
-    | otherwise = compose warp1 warp2
-    where
-    -- Shift and stretch are applied before the signal, so map the shift and
-    -- stretch of the first signal across the output of the second signal
-    -- before composing them.
-    --
-    -- f(g(t*sg + og)*sf + of)
-    -- f((warp_to_signal g sf of)*sf + of)
-    -- compose f (warp_to_signal g sf of)
-    compose warp1 (Warp sig2 shift2 stretch2) = Warp fg shift2 stretch2
-        where fg = Signal.compose (warp_to_signal warp1) sig2
-
--- | Flatten a 'Warp' to a 'Signal.Warp'.
-warp_to_signal :: Warp -> Signal.Warp
-warp_to_signal (Warp sig shift stretch)
-    | stretch == 1 && shift == 0 = sig
-    | stretch == 1 = Signal.map_x (subtract shift) sig
-    | otherwise = Signal.map_x ((`RealTime.div` factor) . subtract shift) sig
-    where factor = RealTime.to_seconds stretch
-
 -- * util
 
 -- | Use this constructor when making a Control from user input.  Literals
@@ -629,12 +556,6 @@ unchecked_pcontrol = ScoreTypes.PControl
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control
 c_dynamic = "dyn"
-
-to_real :: ScoreTime -> RealTime
-to_real = RealTime.score
-
-to_score :: RealTime -> ScoreTime
-to_score = RealTime.to_score
 
 -- | Parse either a Control or PControl.
 parse_generic_control :: Text -> Either Text (Either Control PControl)

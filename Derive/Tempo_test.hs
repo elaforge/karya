@@ -92,7 +92,7 @@ test_with_absolute = do
     equal (run 1 4 [(0, 0, "2")] 4) ([1, 2, 3, 4], [])
     equal (run 1 3 [(0, 0, "1"), (2, 0, "2")] 4) ([1, 2, 3, 3.5], [])
 
-test_with_hybrid = do
+_test_with_hybrid = do
     let run start dur tempo events = DeriveTest.extract extent $
             DeriveTest.derive_blocks
                 [ ("top", [(">", [(start, dur, "sub")])])

@@ -11,9 +11,10 @@ module Derive.Tempo (
     , tempo_to_warp
 #endif
 ) where
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Score as Score
+import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -26,9 +27,11 @@ import Types
 -- end of the track, ultimately because 'Signal.compose' doesn't resample its
 -- arguments.
 extend_signal :: RealTime -> Signal.Tempo -> Signal.Tempo
-extend_signal track_end sig = sig <> case Signal.last sig of
-    Just (x, y) | x < track_end -> Signal.signal [(track_end, y)]
-    _ -> mempty
+extend_signal track_end sig = sig <> end
+    where
+    end = case Signal.last sig of
+        Just (x, y) | x < track_end -> Signal.signal [(track_end, y)]
+        _ -> mempty
 
 -- * normal
 
@@ -51,8 +54,8 @@ with_tempo :: Monoid a => Bool -- ^ If this tempo track is the toplevel track,
 with_tempo toplevel range maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     stretch_to_1 <- get_stretch_to_1 range $ \(start, end) -> do
-        let real_start = Score.warp_pos warp start
-            real_end = Score.warp_pos warp end
+        let real_start = Warp.warp warp start
+            real_end = Warp.warp warp end
             real_dur = real_end - real_start
         -- This is tricky.  I want nested tempo tracks to be equivalent to
         -- nested blocks, so it would be as if the score starting at the tempo
@@ -75,13 +78,12 @@ with_tempo toplevel range maybe_track_id signal deriver = do
         Internal.add_new_track_warp maybe_track_id
         deriver
 
-tempo_to_warp :: Signal.Tempo -> Score.Warp
+tempo_to_warp :: Signal.Tempo -> Warp.Warp
 tempo_to_warp sig
     -- Optimize for a constant (or missing) tempo.
     | Just y <- Signal.constant_val sig =
-        Score.Warp Score.id_warp_signal 0 $
-            RealTime.seconds (1 / max min_tempo y)
-    | otherwise = Score.Warp warp_sig 0 1
+        Warp.stretch (ScoreTime.double $ 1 / max min_tempo y) Warp.identity
+    | otherwise = Warp.from_signal warp_sig
     where
     warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $
          Signal.scalar_min min_tempo sig
@@ -156,8 +158,8 @@ with_absolute toplevel range maybe_track_id signal deriver = do
     place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
         start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
-        let real_end = Score.warp_pos warp block_end
-        let real_dur = real_end - Score.warp_pos warp block_start
+        let real_end = Warp.warp warp block_end
+        let real_dur = real_end - Warp.warp warp block_start
         place <- require_nonzero (block_end - block_start) real_dur $
             Internal.place start ((end - start) / RealTime.to_score real_dur)
         return (place, real_dur)
@@ -176,49 +178,50 @@ with_hybrid :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
 with_hybrid toplevel range maybe_track_id signal deriver = do
     unless toplevel $ Derive.throw
         "nested hybrid tracks not supported yet, use 'with_tempo' as a model"
-    let warp = tempo_to_score_warp signal
-    place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
-        -- The special treatment of flat segments only works once: after that
-        -- it's a normal warp and stretches like any other warp.  So I can't
-        -- normalize to 0--1 expecting the caller to have stretched to the
-        -- right placement, as 'with_tempo' does.  Instead, I have to
-        -- derive the whole thing in real time, and stretch and shift to the
-        -- expected time here.
-        start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
-        end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
-        let block_dur = block_end - block_start
-        let absolute = Signal.flat_duration (Score.warp_signal warp)
-            real_dur = max (RealTime.score absolute)
-                (Score.warp_pos warp block_dur)
-            -- If the block's absolute time is greater than the time allotted,
-            -- the non-absolute bits become infinitely fast.  Infinitely fast
-            -- is not very musically interesting, so I limit to very fast.
-            -- TODO This should be configurable.
-            stretch = if block_dur == absolute then 1
-                else max 0.001 $ (end - start - absolute)
-                    / (block_dur - absolute)
-        -- TODO this is probably wrong for block_start > 0, but I don't care
-        -- at the moment.
-        place <- require_nonzero block_dur real_dur $
-            Internal.in_real_time . Derive.place start stretch
-            . Derive.at (-block_start)
-        return (place, real_dur)
-    place $ hybrid_warp warp $ do
-        Internal.add_new_track_warp maybe_track_id
-        deriver
-    where
-    hybrid_warp warp = Internal.with_warp (\w -> compose w warp)
-    -- This is like 'tempo_to_warp', but replaces zero tempo with
-    -- zeroes instead of a minimum, as is expected by 'Signal.compose_hybrid'.
-    tempo_to_score_warp :: Signal.Tempo -> Score.Warp
-    tempo_to_score_warp sig = Score.Warp (hybrid_to_warp sig) 0 1
-    hybrid_to_warp :: Signal.Tempo -> Signal.Warp
-    hybrid_to_warp = Signal.integrate Signal.tempo_srate
-        . Signal.map_y (\y -> if y == 0 then 0 else 1 / y)
-    -- Like 'Score.compose_warps', but use 'Signal.compose_hybrid'.  It also
-    -- can't use the id signal optimization, since that only works with normal
-    -- composition.
-    compose w1 w2 = Score.Warp (Signal.compose_hybrid s1 s2) 0 1
-        where
-        s1 = Score.warp_to_signal w1
-        s2 = Score.warp_to_signal w2
+    Derive.throw "not implemented"
+    -- let warp = tempo_to_score_warp signal
+    -- place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
+    --     -- The special treatment of flat segments only works once: after that
+    --     -- it's a normal warp and stretches like any other warp.  So I can't
+    --     -- normalize to 0--1 expecting the caller to have stretched to the
+    --     -- right placement, as 'with_tempo' does.  Instead, I have to
+    --     -- derive the whole thing in real time, and stretch and shift to the
+    --     -- expected time here.
+    --     start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
+    --     end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
+    --     let block_dur = block_end - block_start
+    --     let absolute = Signal.flat_duration (Score.warp_signal warp)
+    --         real_dur = max (RealTime.score absolute)
+    --             (Warp.warp warp block_dur)
+    --         -- If the block's absolute time is greater than the time allotted,
+    --         -- the non-absolute bits become infinitely fast.  Infinitely fast
+    --         -- is not very musically interesting, so I limit to very fast.
+    --         -- TODO This should be configurable.
+    --         stretch = if block_dur == absolute then 1
+    --             else max 0.001 $ (end - start - absolute)
+    --                 / (block_dur - absolute)
+    --     -- TODO this is probably wrong for block_start > 0, but I don't care
+    --     -- at the moment.
+    --     place <- require_nonzero block_dur real_dur $
+    --         Internal.in_real_time . Derive.place start stretch
+    --         . Derive.at (-block_start)
+    --     return (place, real_dur)
+    -- place $ hybrid_warp warp $ do
+    --     Internal.add_new_track_warp maybe_track_id
+    --     deriver
+    -- where
+    -- hybrid_warp warp = Internal.with_warp (\w -> compose w warp)
+    -- -- This is like 'tempo_to_warp', but replaces zero tempo with
+    -- -- zeroes instead of a minimum, as is expected by 'Signal.compose_hybrid'.
+    -- tempo_to_score_warp :: Signal.Tempo -> Score.Warp
+    -- tempo_to_score_warp sig = Score.Warp (hybrid_to_warp sig) 0 1
+    -- hybrid_to_warp :: Signal.Tempo -> Signal.Warp
+    -- hybrid_to_warp = Signal.integrate Signal.tempo_srate
+    --     . Signal.map_y (\y -> if y == 0 then 0 else 1 / y)
+    -- -- Like 'Score.compose_warps', but use 'Signal.compose_hybrid'.  It also
+    -- -- can't use the id signal optimization, since that only works with normal
+    -- -- composition.
+    -- compose w1 w2 = Score.Warp (Signal.compose_hybrid s1 s2) 0 1
+    --     where
+    --     s1 = Score.warp_to_signal w1
+    --     s2 = Score.warp_to_signal w2

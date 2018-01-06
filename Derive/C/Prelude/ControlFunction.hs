@@ -29,6 +29,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
+import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -228,10 +229,10 @@ dyn_control dyn control pos = maybe 0 (Signal.at pos . Score.typed_val) $
     Map.lookup control $ BaseTypes.dyn_controls dyn
 
 real :: BaseTypes.Dynamic -> ScoreTime -> RealTime
-real dyn = Score.warp_pos (BaseTypes.dyn_warp dyn)
+real dyn = Warp.warp (BaseTypes.dyn_warp dyn)
 
 score :: BaseTypes.Dynamic -> RealTime -> ScoreTime
-score dyn = Score.unwarp_pos (BaseTypes.dyn_warp dyn)
+score dyn = Warp.unwarp (BaseTypes.dyn_warp dyn)
 
 -- ** ControlRef
 

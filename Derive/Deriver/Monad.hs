@@ -176,6 +176,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.ValType as ValType
+import qualified Derive.Warp as Warp
 
 import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
@@ -475,7 +476,7 @@ data Dynamic = Dynamic {
     -- always present.
     , state_pitch :: !PSignal.PSignal
     , state_environ :: !BaseTypes.Environ
-    , state_warp :: !Score.Warp
+    , state_warp :: !Warp.Warp
     -- | Calls currently in scope.
     , state_scopes :: !Scopes
     , state_instrument_aliases :: !InstrumentAliases
@@ -552,7 +553,7 @@ initial_dynamic environ = Dynamic
     , state_pitches = Map.empty
     , state_pitch = mempty
     , state_environ = environ
-    , state_warp = Score.id_warp
+    , state_warp = Warp.identity
     , state_scopes = mempty
     , state_instrument_aliases = mempty
     , state_control_damage = mempty
@@ -1703,12 +1704,12 @@ newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- gets (state_warp . state_dynamic)
-    return $ Score.warp_pos warp pos
+    return $ Warp.warp warp pos
 
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
     warp <- gets (state_warp . state_dynamic)
-    return $ Score.unwarp_pos warp pos
+    return $ Warp.unwarp warp pos
 
 
 -- * scale

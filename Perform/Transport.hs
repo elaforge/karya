@@ -22,7 +22,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Util.Thread as Thread
 import qualified Midi.Interface as Interface
 import qualified Ui.Ui as Ui
-import qualified Derive.Score as Score
+import qualified Derive.Warp as Warp
 import Types
 
 
@@ -102,7 +102,7 @@ type TempoFunction = BlockId -> TrackId -> ScoreTime -> [RealTime]
 --
 -- 'TempoFunction' simply returns all real times for a given score time, with
 -- no control over whether they come from the same block or not.
-type ClosestWarpFunction = BlockId -> TrackId -> RealTime -> Score.Warp
+type ClosestWarpFunction = BlockId -> TrackId -> RealTime -> Warp.Warp
 
 -- | Return the ScoreTime play position in the various playing blocks at the
 -- given physical time.  If the RealTime is past the end of all playing blocks,

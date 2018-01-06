@@ -15,6 +15,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
+import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -114,7 +115,7 @@ convert_score_signal :: Typecheck.Function
     -> Derive.Deriver (ScoreTime -> ScoreTime)
 convert_score_signal f = do
     warp <- Internal.get_warp
-    return $ ScoreTime.double . (1/) . f . Score.warp_pos warp
+    return $ ScoreTime.double . (1/) . f . Warp.warp warp
 
 duration_starts :: (Num a, Ord a, Show a) => (a -> a) -> a -> a
     -> Either Text [a]

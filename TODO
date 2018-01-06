@@ -1296,10 +1296,13 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       . Maybe I need a 'at_interpolate' that can return before and after?
       . Or union Xs, resample all controls and psignal, then zip.
     * port PSignal to PSignal2
+    * Switch to Derive.Warp
+      . It should be possible to do this while still using the old Signal.
+        This way I can isolate the change for profiling as well as bugs.
+      - profile before and after
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
       - drop, drop_while, within etc. functions replaced by before and after
-      - Derive.Score.Warp replaced by Derive.Warp.
-      - 'i' calls no longer need srate
+      - 'i' calls no longer need srate.  The others do though.
       - Remove Derive.Tempo.extend_signal
       - Midi performer has to use a sampling rate.
       - Get rid of infer linear in the fltk drawing code.

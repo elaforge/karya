@@ -35,6 +35,7 @@ test_ngoret = do
         ([(-0.5, 1, "4c"), (0, 1, "4d")], [])
 
     -- Negative start time works when tempo is non-trivial.
+    -- This relies on the warp implicitly being linear < 0.
     equal (run $ ("tempo", [(0, 0, "1"), (8, 0, "2")])
             : UiTest.note_track [(0, 1, "'^ .5 .5 -- 4d")])
         ([(-0.5, 1, "4c"), (0, 1, "4d")], [])

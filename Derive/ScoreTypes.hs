@@ -19,7 +19,6 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import Global
-import Types
 
 
 -- | An Instrument is identified by a plain string.  This will be looked up in
@@ -75,40 +74,6 @@ pcontrol_name (PControl name) = name
 instance Pretty PControl where pretty = ShowVal.show_val
 instance ShowVal.ShowVal PControl where show_val (PControl c) = Text.cons '#' c
 
--- ** Warp
-
--- | A tempo warp signal.  The shift and stretch are an optimization hack
--- stolen from nyquist.  The idea is to make composed shifts and stretches more
--- efficient if only the shift and stretch are changed.  The necessary magic
--- is in 'compose_warps'.
---
--- The order of operation is: stretch -> shift -> signal.  That is, if the
--- signal is \"f\": f(t*stretch + shift).
-data Warp = Warp {
-    warp_signal :: !Signal.Warp
-    , warp_shift :: !RealTime
-    , warp_stretch :: !RealTime
-    } deriving (Eq, Show)
-
-id_warp :: Warp
-id_warp = Warp id_warp_signal 0 1
-
-id_warp_signal :: Signal.Warp
-id_warp_signal = Signal.signal
-    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
-    -- This could be Signal.empty and 'warp_pos' would still treat it as 1:1,
-    -- but then I'd need complicated special cases for 'warp_to_signal' and
-    -- 'compose_warps', so don't bother.
-
-instance Pretty Warp where
-    format (Warp sig shift stretch) =
-        Pretty.record (Pretty.text "Warp"
-                Pretty.<+> Pretty.format (shift, stretch))
-            [("signal", Pretty.format sig)]
-
-instance DeepSeq.NFData Warp where
-    rnf (Warp sig shift stretch) =
-        DeepSeq.rnf sig `seq` DeepSeq.rnf shift `seq` DeepSeq.rnf stretch
 
 -- ** Type
 

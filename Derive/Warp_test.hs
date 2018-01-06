@@ -10,12 +10,12 @@ import Util.Test
 import qualified Derive.Warp as Warp
 import Derive.Warp (shift, stretch)
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal2 as Signal
+import qualified Perform.Signal as Signal
 import Types
 
 
 signal_identity :: Warp.Warp
-signal_identity = Warp.from_signal $ Signal.from_pairs
+signal_identity = Warp.from_signal $ Signal.signal
     [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
 
 test_shift_stretch_linear = do
@@ -99,4 +99,4 @@ trip :: Warp.Warp -> ([ScoreTime], [ScoreTime])
 trip w = (t03, map (Warp.unwarp w . Warp.warp w) t03)
 
 make :: [(RealTime, Signal.Y)] -> Warp.Warp
-make = Warp.from_signal . Signal.from_pairs
+make = Warp.from_signal . Signal.signal

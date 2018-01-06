@@ -37,6 +37,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
+import qualified Derive.Warp as Warp
 
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.Perform as Perform
@@ -92,7 +93,7 @@ raw_control_vals from_root = do
 aliases :: Cmd.M m => m (Map Score.Instrument Score.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic True
 
-warp :: Cmd.M m => Bool -> m Score.Warp
+warp :: Cmd.M m => Bool -> m Warp.Warp
 warp from_root = Derive.state_warp <$> dynamic from_root
 
 dynamic :: Cmd.M m => Bool -> m Derive.Dynamic

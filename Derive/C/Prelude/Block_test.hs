@@ -39,6 +39,20 @@ test_block = do
         , (1, 2, "", "i", ["a"])
         ]
 
+test_subblock_placement = do
+    let run transform = run_sub (with transform) DeriveTest.e_start_dur
+            [(">", [(1, 4, "trans | sub")])]
+            [(">", [(0, 1, ""), (1, 1, "")])]
+        with transform = CallTest.with_note_transformer "trans" $
+            CallTest.transformer $ \_args -> transform
+    equal (run id) ([(1, 2), (3, 2)], [])
+    equal (run (Derive.at 1)) ([(2, 2), (4, 2)], [])
+    equal (run (Derive.at (-1))) ([(0, 2), (2, 2)], [])
+    equal (run (Derive.stretch 2)) ([(2, 4), (6, 4)], [])
+    equal (run (Derive.stretch 2 .Derive.at (-1))) ([(0, 4), (4, 4)], [])
+    equal (run (Derive.at 1 . Derive.stretch 2 .Derive.at (-1)))
+        ([(1, 4), (5, 4)], [])
+
 test_block_call_overrides_other_calls = do
     let run sub_name evts = DeriveTest.extract extract $
             DeriveTest.derive_blocks
@@ -95,7 +109,7 @@ test_relative_block = do
     strings_like (snd (run "-bub")) ["note generator not found"]
 
 test_control_scope = do
-    let (result, logs) = run_sub extract
+    let (result, logs) = run_sub mempty extract
             [ ("pedal", [(1, 0, "1"), (3, 0, "0")])
             , ("dia", [(2, 0, "1")])
             , (">", [(0, 2, "sub")])
@@ -124,10 +138,10 @@ test_trim_controls_problem = do
         -- ([[(1, 1)]], []) -- should be this
         ([[]], [])
 
-run_sub :: (Score.Event -> a) -> [UiTest.TrackSpec] -> [UiTest.TrackSpec]
-    -> ([a], [Text])
-run_sub extract top sub = DeriveTest.extract extract $ DeriveTest.derive_blocks
-    [("top", top), ("sub=ruler", sub)]
+run_sub :: DeriveTest.Setup -> (Score.Event -> a) -> [UiTest.TrackSpec]
+    -> [UiTest.TrackSpec] -> ([a], [Text])
+run_sub setup extract top sub = DeriveTest.extract extract $
+    DeriveTest.derive_blocks_setup setup [("top", top), ("sub=ruler", sub)]
 
 test_score_duration = do
     let run = snd . DeriveTest.extract Score.event_start

@@ -21,10 +21,10 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
-import qualified Derive.Score as Score
+import qualified Ui.Ui as Ui
 import qualified Derive.Stack as Stack
+import qualified Derive.Warp as Warp
 import qualified Perform.Transport as Transport
 import Global
 import Types
@@ -32,8 +32,8 @@ import Types
 
 -- | Collected warp for a single track.
 -- start end warp block_id (tempo track if there is one)
-data Track = Track !RealTime !RealTime !Score.Warp !BlockId !(Maybe TrackId)
-    deriving (Eq, Show)
+data Track = Track !RealTime !RealTime !Warp.Warp !BlockId !(Maybe TrackId)
+    deriving (Show)
 
 instance Pretty Track where
     format (Track start end warp block_id track_id) =
@@ -56,8 +56,8 @@ data TrackWarp = TrackWarp {
     , tw_end :: !RealTime
     , tw_block :: !BlockId
     , tw_tracks :: !(Set TrackId)
-    , tw_warp :: !Score.Warp
-    } deriving (Eq, Show)
+    , tw_warp :: !Warp.Warp
+    } deriving (Show)
 
 instance Pretty TrackWarp where
     format (TrackWarp start end block tracks warp) = Pretty.record "TrackWarp"
@@ -140,8 +140,7 @@ collect_warps blocks wmap =
 -- * functions on TrackWarp
 
 tempo_func :: [TrackWarp] -> Transport.TempoFunction
-tempo_func track_warps block_id track_id pos =
-    map (flip Score.warp_pos pos) warps
+tempo_func track_warps block_id track_id pos = map (flip Warp.warp pos) warps
     where
     warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
         Set.member track_id (tw_tracks tw)]
@@ -160,7 +159,7 @@ tempo_func track_warps block_id track_id pos =
 -- appropriate Warp and then look up multiple ScoreTimes in it.
 closest_warp :: [TrackWarp] -> Transport.ClosestWarpFunction
 closest_warp track_warps block_id track_id pos =
-    maybe Score.id_warp (tw_warp . snd) $
+    maybe Warp.identity (tw_warp . snd) $
         Seq.minimum_on (abs . subtract pos . fst) annotated
     where
     annotated = zip (map tw_start warps) warps
@@ -181,5 +180,5 @@ inverse_tempo_func track_warps realtime = do
     -- ts <= tw_end means that you can get the ScoreTime for the end of
     -- a block.  This is useful because then "Cmd.StepPlay" can step to the
     -- very end.
-    track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos (tw_warp tw) ts)
+    track_pos = [(tw_block tw, tw_tracks tw, Warp.unwarp (tw_warp tw) ts)
         | tw <- track_warps, tw_start tw <= ts && ts <= tw_end tw]
