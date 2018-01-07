@@ -14,13 +14,14 @@ module Derive.PSignal2 (
     , unfoldr
 
     -- * query
-    , null, at
-    -- , sample_at, before, head, last
+    , null, at, segment_at
+    -- , before, head, last
     -- , take, drop, drop_while, drop_after, drop_at_after
     -- , drop_before, drop_before_strict, drop_before_at, within
 
     -- * transform
-    , before, at_after
+    , drop_after, clip_after
+    , drop_before, clip_before
     , shift
     , apply_controls, apply_control, apply_environ
     , map_y
@@ -158,8 +159,8 @@ at :: RealTime -> PSignal -> Maybe Pitch
 at x = Segment.at_interpolate interpolate x . _signal
 
 -- | A pitch interpolated a certain distance between two other pitches.
-interpolate :: RealTime -> Pitch -> RealTime -> Pitch -> RealTime -> Pitch
-interpolate x1 p1 x2 p2 x
+interpolate :: Segment.Interpolate Pitch
+interpolate (Sample x1 p1) (Sample x2 p2) x
     | x <= x1 = p1
     | x >= x2 = p2
     | otherwise = Pitch
@@ -176,10 +177,10 @@ interpolate x1 p1 x2 p2 x
             Pitch.NoteNumber $ RealTime.to_seconds $ Num.normalize x1 x2 x
     note = pitch_eval_note $ coerce $ if x < x2 then p1 else p2
 
-{-
-sample_at :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
-sample_at x = Segment.sample_at x . _signal
+segment_at :: RealTime -> PSignal -> Maybe (Segment.Segment Pitch)
+segment_at x = Segment.segment_at x . _signal
 
+{-
 -- | Find the last pitch before the point.
 before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
 before x = fmap Segment.to_pair . Segment.before x . _signal
@@ -220,9 +221,13 @@ within start end = modify $ Segment.within start end
 
 -- * transform
 
-before, at_after :: RealTime -> PSignal -> PSignal
-before x = modify $ Segment.before x
-at_after x = modify $ Segment.at_after x
+drop_after, drop_before :: RealTime -> PSignal -> PSignal
+drop_after x = modify $ Segment.drop_after x
+drop_before x = modify $ Segment.drop_before x
+
+clip_after, clip_before :: RealTime -> PSignal -> PSignal
+clip_after x = modify $ Segment.clip_after interpolate x
+clip_before x = modify $ Segment.clip_before interpolate x
 
 shift :: RealTime -> PSignal -> PSignal
 shift x = modify (Segment.shift x)
@@ -258,10 +263,10 @@ apply_controls cmap psig = case Seq.head (to_pairs psig) of
             | otherwise = Seq.rotate $
                 map (Segment.resample_num xs) control_samples
         pitch_resamples =
-            Segment.resample_maybe interpolate_s xs $ to_samples psig
+            Segment.resample_maybe interpolate xs $ to_samples psig
         control_samples =
             map (Segment.add_zero_transition 0 . Signal.to_samples
-                    . Signal.at_after start)
+                    . Signal.drop_before start)
                 control_signals
         ((control_names, control_signals), non_transposers) =
             unzip_controls psig cmap
@@ -269,8 +274,6 @@ apply_controls cmap psig = case Seq.head (to_pairs psig) of
         xs = Segment.sample_xs (pitch_xs : control_xs)
         pitch_xs = map Segment.sx $ to_samples psig
         control_xs = map (map Signal.sx) control_samples
-    interpolate_s (Segment.Sample x1 y1) (Segment.Sample x2 y2) x =
-        interpolate x1 y1 x2 y2 x
 
 -- | Separate transposing from non-transposing controls.
 --

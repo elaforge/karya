@@ -27,7 +27,7 @@ module Perform.Signal (
     , with_ptr
 
     -- * access
-    , at, sample_at, before
+    , at, sample_at, segment_at, before
     , at_linear, at_linear_extend
     , inverse_at_extend
     , constant_val
@@ -48,6 +48,8 @@ module Perform.Signal (
     , drop_at_after, drop_after, drop_before, drop_before_strict, drop_before_at
     , map_x, map_y, map_err
 
+    -- * backported
+    , clip_after, clip_before
     -- * special functions
     , compose, compose_hybrid, integrate
     , unwarp_fused
@@ -66,6 +68,7 @@ import qualified Text.Read as Read
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
@@ -226,6 +229,9 @@ at x = fromMaybe 0 . TimeVector.at x . sig_vec
 
 sample_at :: X -> Signal kind -> Maybe (X, Y)
 sample_at x = TimeVector.sample_at x . sig_vec
+
+segment_at :: X -> Signal kind -> Maybe (Segment.Segment Y)
+segment_at x = Segment.segment_at x . Segment.from_vector . sig_vec
 
 -- | Find the value immediately before the point.
 before :: RealTime -> Signal kind -> Y
@@ -439,6 +445,27 @@ sig_op (Just identity) _ sig1 sig2
     | Just v <- constant_val sig2, v == identity = sig1
 sig_op _ op sig1 sig2 =
     Signal $ TimeVector.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
+
+-- * backported
+
+use_segment :: (Segment.NumSignal -> Segment.NumSignal)
+    -> Signal kind -> Signal kind
+use_segment modify = Signal . Segment.to_vector . modify
+    . Segment.from_vector . sig_vec
+
+-- drop_after, drop_before :: RealTime -> PSignal -> PSignal
+-- drop_after x = use_segment $ Segment.drop_after x
+-- drop_before x = use_segment $ Segment.drop_before x
+
+clip_after, clip_before :: RealTime -> Signal kind -> Signal kind
+clip_after x = use_segment $ Segment.clip_after flat_interpolate x
+clip_before x = use_segment $ Segment.clip_before flat_interpolate x
+
+-- | A pitch interpolated a certain distance between two other pitches.
+flat_interpolate :: Segment.Interpolate y
+flat_interpolate (Sample _ p1) (Sample x2 p2) x
+    | x < x2 = p1
+    | otherwise = p2
 
 -- * special functions
 

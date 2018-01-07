@@ -11,8 +11,9 @@ module Derive.PSignal (
     , unfoldr
 
     -- * query
-    , null, at, sample_at, before, shift, head, last
+    , null, at, sample_at, segment_at, before, shift, head, last
     , take, drop, drop_while, drop_after, drop_at_after
+    , clip_before, clip_after
     , drop_before, drop_before_strict, drop_before_at, within
 
     -- * transform
@@ -38,6 +39,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as V
 
+import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 import Util.TimeVector (Sample(..))
@@ -125,6 +127,9 @@ at x = TimeVector.at x . sig_vec
 sample_at :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
 sample_at x = TimeVector.sample_at x . sig_vec
 
+segment_at :: RealTime -> PSignal -> Maybe (Segment.Segment Pitch)
+segment_at x = Segment.segment_at x . Segment.from_vector . sig_vec
+
 -- | Find the last pitch before the point.
 before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
 before x = fmap TimeVector.to_pair . TimeVector.before x . sig_vec
@@ -164,6 +169,28 @@ drop_before_at = modify . TimeVector.drop_before_at
 
 within :: RealTime -> RealTime -> PSignal -> PSignal
 within start end = modify $ TimeVector.within start end
+
+-- * backported
+
+use_segment ::
+    (Segment.SignalS V.Vector Pitch -> Segment.SignalS V.Vector Pitch)
+    -> PSignal -> PSignal
+use_segment modify = PSignal . Segment.to_vector . modify
+    . Segment.from_vector . sig_vec
+
+-- drop_after, drop_before :: RealTime -> PSignal -> PSignal
+-- drop_after x = use_segment $ Segment.drop_after x
+-- drop_before x = use_segment $ Segment.drop_before x
+
+clip_after, clip_before :: RealTime -> PSignal -> PSignal
+clip_after x = use_segment $ Segment.clip_after flat_interpolate x
+clip_before x = use_segment $ Segment.clip_before flat_interpolate x
+
+-- | A pitch interpolated a certain distance between two other pitches.
+flat_interpolate :: Segment.Interpolate y
+flat_interpolate (Sample _ p1) (Sample x2 p2) x
+    | x < x2 = p1
+    | otherwise = p2
 
 -- * transform
 

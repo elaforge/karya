@@ -1302,6 +1302,8 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       - profile before and after
     * remove Score.event_untransformed_* nonsense
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
+      - fix instances of PSignal.sample_at and Signal.sample_at first
+        . Score.pitch_sample_at, used by Retune
       - drop, drop_while, within etc. functions replaced by before and after
       - 'i' calls no longer need srate.  The others do though.
       - Remove Derive.Tempo.extend_signal

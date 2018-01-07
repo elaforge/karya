@@ -315,11 +315,6 @@ drop_at_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
 
-{-# SPECIALIZE drop_after2 :: X -> Unboxed -> Unboxed #-}
-{-# INLINEABLE drop_after2 #-}
-drop_after2 :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
-drop_after2 x vec = V.take (lowest_index (x + RealTime.eta) vec) vec
-
 drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_after x = drop_at_after (x + RealTime.eta + RealTime.eta)
 

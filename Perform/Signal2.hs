@@ -27,13 +27,14 @@ module Perform.Signal2 (
     -- * query
     -- , length
     , null
-    , at
+    , at, segment_at
     -- , head, last
     , minimum, maximum
 
     -- * transform
 
-    , before, at_after
+    , drop_after, drop_before
+    , clip_after, clip_before
     -- , drop, drop_while, within
     -- , drop_at_after, drop_after, drop_before, drop_before_strict
     -- , drop_before_at
@@ -59,10 +60,9 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Vector.Storable as Vector.Storable
 import qualified Foreign
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
-import Util.Segment (X, Sample(..), Segment(..))
+import Util.Segment (X, Sample(..))
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
@@ -145,7 +145,7 @@ nn_to_y (Pitch.NoteNumber nn) = nn
 from_pairs :: [(X, Y)] -> Signal kind
 from_pairs = Signal . Segment.from_pairs
 
-from_segments :: [Segment Y] -> Signal kind
+from_segments :: [Segment.Segment Y] -> Signal kind
 from_segments = Signal . Segment.from_segments
 
 to_samples :: Signal kind -> [Sample Y]
@@ -154,7 +154,7 @@ to_samples = Segment.to_samples . _signal
 to_pairs :: Signal kind -> [(X, Y)]
 to_pairs = Segment.to_pairs . _signal
 
-to_segments :: Signal kind -> [Segment Y]
+to_segments :: Signal kind -> [Segment.Segment Y]
 to_segments = Segment.to_segments . _signal
 
 constant :: Y -> Signal kind
@@ -183,14 +183,21 @@ with_ptr sig = Segment.with_ptr (_signal sig)
 null :: Signal kind -> Bool
 null = Segment.null . _signal
 
-at :: CallStack.Stack => X -> Signal kind -> Y
-at x = fromMaybe 0 . Segment.at_interpolate TimeVector.y_at x . _signal
+at :: X -> Signal kind -> Y
+at x = fromMaybe 0 . Segment.at_interpolate Segment.num_interpolate x . _signal
+
+segment_at :: X -> Signal kind -> Maybe (Segment.Segment Y)
+segment_at x = Segment.segment_at x . _signal
 
 -- * transform
 
-before, at_after :: X -> Signal kind -> Signal kind
-before x = modify $ Segment.before x
-at_after x = modify $ Segment.at_after x
+drop_after, drop_before :: X -> Signal kind -> Signal kind
+drop_after x = modify $ Segment.drop_after x
+drop_before x = modify $ Segment.drop_before x
+
+clip_after, clip_before :: X -> Signal kind -> Signal kind
+clip_after x = modify $ Segment.clip_after Segment.num_interpolate x
+clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
 
 -- TODO used by?
 {-

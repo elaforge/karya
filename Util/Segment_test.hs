@@ -46,11 +46,33 @@ test_concat = do
     equal (f [[(0, 0)], [(2, 2)], [(1, 1)]])
         [((0, 0), (1, 0)), ((1, 1), (large, 1))]
 
-large_y :: Y
-large_y = RealTime.to_seconds large
+test_drop_after_clip_after = do
+    let f x =
+            ( to_pairs $ Segment.drop_after x sig
+            , to_pairs $ Segment.clip_after Segment.num_interpolate x sig
+            )
+            where sig = from_pairs [(1, 1), (2, 2), (4, 4)]
+    equal (f 4) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
+    equal (f 3) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (3, 3)])
+    equal (f 2) ([(1, 1), (2, 2)], [(1, 1), (2, 2)])
+    equal (f 1) ([(1, 1)], [(1, 1)])
+    equal (f 0) ([], [])
+
+test_drop_before_clip_before = do
+    let f x =
+            ( to_pairs $ Segment.drop_before x sig
+            , to_pairs $ Segment.clip_before Segment.num_interpolate x sig
+            )
+            where sig = from_pairs [(1, 1), (2, 2), (4, 4)]
+    equal (f 5) ([(4, 4)], [(5, 4)])
+    equal (f 4) ([(4, 4)], [(4, 4)])
+    equal (f 3) ([(2, 2), (4, 4)], [(3, 3), (4, 4)])
+    equal (f 2) ([(2, 2), (4, 4)], [(2, 2), (4, 4)])
+    equal (f 1) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
+    equal (f 0) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
 
 test_integrate = do
-    let f = Segment.to_pairs . Segment.integrate 1 . from_pairs
+    let f = to_pairs . Segment.integrate 1 . from_pairs
     equal (f []) []
     equal (f [(0, 1)]) [(0, 0), (large, large_y)]
     equal (f [(0, 0), (4, 4)])
@@ -99,12 +121,18 @@ test_linear_operator2 = do
         [((0, 0), (2, 2)), ((2, 3), (4, 5)), ((4, 5), (large, 5))]
 
 
+large_y :: Y
+large_y = RealTime.to_seconds large
+
 to_segments :: Segment.NumSignal -> [((X, Y), (X, Y))]
 to_segments = map (\(Segment.Segment x1 y1 x2 y2) -> ((x1, y1), (x2, y2)))
     . Segment.to_segments
 
 from_pairs :: [(X, Y)] -> Segment.NumSignal
 from_pairs = Segment.from_pairs
+
+to_pairs :: Segment.NumSignal -> [(X, Y)]
+to_pairs = Segment.to_pairs
 
 constant :: Y -> Segment.NumSignal
 constant = Segment.constant

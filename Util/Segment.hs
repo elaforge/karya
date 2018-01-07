@@ -20,13 +20,14 @@ module Util.Segment (
     -- * query
     , null
     , at_interpolate
+    , segment_at
     , maximum, minimum
-    -- , segment_at
 
     -- * concat
     , concat
     -- * slice
-    , before, at_after
+    , drop_after, clip_after
+    , drop_before, clip_before
     -- * transform
     , shift
     , map_y, map_x
@@ -47,7 +48,7 @@ module Util.Segment (
     , module Util.Segment
 #endif
 ) where
-import Prelude hiding (concat, null, maximum, minimum)
+import Prelude hiding (concat, head, last, maximum, minimum, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Vector.Generic as V
@@ -187,22 +188,35 @@ with_ptr (Signal offset vec) f = TimeVector.with_ptr vec $
 
 -- * query
 
+type Interpolate y = Sample y -> Sample y -> X -> y
+
 null :: V.Vector v (Sample y) => SignalS v y -> Bool
 null = V.null . _vector
 
 -- | The arguments may seem backwards, but I've always done it this way, and it
 -- seems to be more convenient in practice.
-at_interpolate :: V.Vector v (Sample y) => (X -> y -> X -> y -> X -> y) -> X
+at_interpolate :: V.Vector v (Sample y) => Interpolate y -> X
     -> SignalS v y -> Maybe y
 at_interpolate interpolate x (Signal offset vec)
     | V.null vec = Nothing
     | i + 1 >= V.length vec = Just y0
     | i == -1 = Nothing
-    | otherwise = Just $ interpolate x0 y0 x1 y1 (x + offset)
+    | otherwise = Just $ interpolate (Sample x0 y0) (Sample x1 y1) (x + offset)
     where
     i = TimeVector.highest_index (x + offset) vec
     TimeVector.Sample x0 y0 = V.unsafeIndex vec i
     TimeVector.Sample x1 y1 = V.unsafeIndex vec (i+1)
+
+segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
+segment_at x (Signal offset vec)
+    | i < 0 = Nothing
+    | i + 1 >= TimeVector.length vec = Nothing
+    | otherwise =
+        let Sample x1 y1 = V.unsafeIndex vec i
+            Sample x2 y2 = V.unsafeIndex vec (i+1)
+        in Just $ Segment x1 y1 x2 y2
+    where
+    i = TimeVector.highest_index (x + offset) vec
 
 minimum, maximum :: (V.Vector v (Sample a), Ord a) => SignalS v a -> Maybe a
 minimum sig
@@ -213,17 +227,6 @@ maximum sig
     | null sig = Nothing
     | otherwise = Just $ sy $ V.maximumBy (\a b -> compare (sy a) (sy b)) $
         _vector sig
-
--- segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
--- segment_at x (Signal offset vec)
---     | i < 0 = Nothing
---     | i + 1 >= TimeVector.length vec = Nothing
---     | otherwise =
---         let Sample x1 y1 = V.unsafeIndex vec i
---             Sample x2 y2 = V.unsafeIndex vec (i+1)
---         in Just $ Segment x1 y1 x2 y2
---     where
---     i = TimeVector.highest_index (x + offset) vec
 
 
 -- * concat
@@ -257,17 +260,60 @@ concat xs =
 
 -- * slice
 
-before :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-before x sig = Signal
+-- | Drop the segments after the given time.  The last segment may overlap it.
+drop_after :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
+drop_after x sig = Signal
     { _offset = _offset sig
-    , _vector = TimeVector.drop_after ( x + _offset sig) (_vector sig)
+    , _vector = case _vector sig V.!? i of
+        Nothing -> V.empty -- -1 means before the first element
+        Just (Sample x1 _) ->
+            V.take (if x1 >= x then i+1 else i+2) (_vector sig)
     }
+    where
+    i = TimeVector.highest_index (x + _offset sig) (_vector sig)
 
-at_after :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-at_after x sig = Signal
+clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
+    -> SignalS v y
+clip_after interpolate x sig = case last clipped of
+    Nothing -> empty
+    Just (Sample x2 _)
+        | x2 > x, Just y <- at_interpolate interpolate x sig ->
+            let v = to_vector clipped
+            in from_vector $ V.snoc (V.take (V.length v - 1) v) (Sample x y)
+        | otherwise -> clipped
+    where
+    clipped = drop_after x sig
+
+-- | Drop the segments before the given time.  The first segment will start at
+-- or before the given time.
+drop_before :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
+drop_before x sig = Signal
     { _offset = _offset sig
     , _vector = TimeVector.drop_before (x + _offset sig) (_vector sig)
     }
+
+-- | Like 'drop_before', but ensure that the signal starts exactly at the given
+-- time by splitting a segment that crosses it.
+clip_before :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
+    -> SignalS v y
+clip_before interpolate x sig = case head clipped of
+    Nothing -> empty
+    Just (Sample x1 _)
+        | x1 < x, Just y <- at_interpolate interpolate x sig ->
+            from_vector $ V.cons (Sample x y) (V.drop 1 (to_vector clipped))
+        | otherwise -> clipped
+    where
+    clipped = drop_before x sig
+
+head :: V.Vector v (Sample y) => SignalS v y -> Maybe (Sample y)
+head sig = case TimeVector.head (_vector sig) of
+    Nothing -> Nothing
+    Just (Sample x y) -> Just (Sample (_offset sig + x) y)
+
+last :: V.Vector v (Sample y) => SignalS v y -> Maybe (Sample y)
+last sig = case TimeVector.last (_vector sig) of
+    Nothing -> Nothing
+    Just (Sample x y) -> Just (Sample (_offset sig + x) y)
 
 -- * transform
 
@@ -307,6 +353,9 @@ type Boxed y = Signal (TimeVector.Boxed y)
 
 type NumSignal = Signal TimeVector.Unboxed
 type Y = TimeVector.UnboxedY
+
+num_interpolate :: Interpolate Y
+num_interpolate (Sample x1 y1) (Sample x2 y2) = TimeVector.y_at x1 y1 x2 y2
 
 invert :: NumSignal -> NumSignal
 invert sig = sig { _vector = V.map swap (_vector sig) }
@@ -360,8 +409,7 @@ linear_operator merge asig bsig =
     get_xs () = sample_xs2 (map sx as) (map sx bs)
 
 resample_num :: [X] -> [Sample Y] -> [Y]
-resample_num = resample 0
-    (\(Sample x1 y1) (Sample x2 y2) -> TimeVector.y_at x1 y1 x2 y2)
+resample_num = resample 0 num_interpolate
 
 -- | Like 'to_samples', except the signal that starts later gets an extra
 -- sample to transition from zero.
@@ -398,8 +446,6 @@ _linear_operator2 merge asig bsig =
     make x ys = Sample x (merge ys)
     xs = sample_xs $ map (map sx) samples
     samples = map (add_zero_transition 0 . to_samples) [asig, bsig]
-
-type Interpolate y = Sample y -> Sample y -> X -> y
 
 resample :: y -> Interpolate y -> [X] -> [Sample y] -> [y]
 resample = resample_ id
@@ -447,7 +493,7 @@ sample_xs = go
         Nothing -> go (map tail xss)
         Just x -> x : go (map (drop1 (==x)) xss)
         where
-        xs = map head xss
+        xs = map List.head xss
         xss = filter (not . List.null) xss_
     drop1 f (x:xs) | f x = xs
     drop1 _ xs = xs
