@@ -1301,8 +1301,23 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         This way I can isolate the change for profiling as well as bugs.
       - profile before and after
     * remove Score.event_untransformed_* nonsense
+    - Block.trim_controls relies on samples, I don't think it can work with
+      segments.
+      . What exactly is it doing, and why does it work with samples?
+      . According to the comment, it's so a block final note doesn't pick up
+        controls from the start of the next block.  But it seems like for many
+        controls it should.
+      . I think the problem is that in an arrival context, a "transpose +1"
+        for the whole block is meant to include the final note and exclude the
+        first one.  But since controls are always t0<=t<t1, they can't make
+        that distinction.
+      . But can't I solve the problem more directly?  E.g. final notes are
+        effectively -0 dur, so they should get controls from <t.
+      . I might even be able to solve the t0<=t<t1 problem with segments:
+        have negative duration calls generate negative segments.  Then 'at'
+        defaults to before the discontinuity, rather than after.
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
-      - fix instances of PSignal.sample_at and Signal.sample_at first
+      + fix instances of PSignal.sample_at and Signal.sample_at first
         . Score.pitch_sample_at, used by Retune
       - drop, drop_while, within etc. functions replaced by before and after
       - 'i' calls no longer need srate.  The others do though.

@@ -4,6 +4,7 @@
 
 module Util.Segment_test where
 import qualified Util.Segment as Segment
+import Util.Segment (Segment(Segment))
 import Util.Segment (X)
 import Util.Test
 
@@ -45,6 +46,15 @@ test_concat = do
     -- The rightmost one wins.
     equal (f [[(0, 0)], [(2, 2)], [(1, 1)]])
         [((0, 0), (1, 0)), ((1, 1), (large, 1))]
+
+test_segment_at = do
+    let f x = Segment.segment_at x . from_pairs
+    equal (f 0 []) Nothing
+    equal (f 0 [(1, 1)]) Nothing
+    equal (f 1 [(1, 1)]) $ Just (Segment 1 1 large 1)
+    equal (f 2 [(1, 1)]) $ Just (Segment 1 1 large 1)
+    equal (f 2 [(1, 1), (2, 2), (3, 3)]) $ Just (Segment 2 2 3 3)
+    equal (f 2 [(1, 1), (3, 3)]) $ Just (Segment 1 1 3 3)
 
 test_drop_after_clip_after = do
     let f x =

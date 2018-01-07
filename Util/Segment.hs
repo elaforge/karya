@@ -76,11 +76,6 @@ data Signal v = Signal {
     , _vector :: !v
     } deriving (Eq, Show)
 
-data Segment y = Segment {
-    _x1 :: !X, _y1 :: !y
-    , _x2 :: !X, _y2 :: !y
-    } deriving (Eq, Show)
-
 type SignalS v y = Signal (v (Sample y))
 
 instance Pretty v => Pretty (Signal v) where
@@ -96,6 +91,15 @@ instance DeepSeq.NFData v => DeepSeq.NFData (Signal v) where
 
 modify_vector :: (a -> b) -> Signal a -> Signal b
 modify_vector modify sig = sig { _vector = modify (_vector sig) }
+
+data Segment y = Segment {
+    _x1 :: !X, _y1 :: !y
+    , _x2 :: !X, _y2 :: !y
+    } deriving (Eq, Show)
+
+instance Pretty y => Pretty (Segment y) where
+    pretty (Segment x1 y1 x2 y2) = "(" <> pretty x1 <> ", " <> pretty y1
+        <> ")--(" <> pretty x2 <> ", " <> pretty y2 <> ")"
 
 -- * construct / destruct
 
@@ -210,10 +214,11 @@ at_interpolate interpolate x (Signal offset vec)
 segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
 segment_at x (Signal offset vec)
     | i < 0 = Nothing
-    | i + 1 >= TimeVector.length vec = Nothing
     | otherwise =
         let Sample x1 y1 = V.unsafeIndex vec i
-            Sample x2 y2 = V.unsafeIndex vec (i+1)
+            Sample x2 y2 = if i + 1 >= V.length vec
+                then Sample RealTime.large y1
+                else V.unsafeIndex vec (i+1)
         in Just $ Segment x1 y1 x2 y2
     where
     i = TimeVector.highest_index (x + offset) vec

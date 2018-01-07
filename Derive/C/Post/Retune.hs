@@ -5,6 +5,7 @@
 -- | Calls to do with intonation and tuning.
 module Derive.C.Post.Retune (library) where
 import qualified Util.Num as Num
+import qualified Util.Segment as Segment
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -99,6 +100,11 @@ retune_curve srate time dist start end =
     -- Adjust quickly at first, then slow down.
     curve = ControlUtil.expon (-4)
 
+-- | Get the pitch and the time ago it was established.
+-- TODO this gets the start of the segment, so if it's sloped, this isn't the
+-- current pitch.  What should happen with notes that already have some pitch
+-- variation is dependent on how I want this to work, but for now start of the
+-- segment still seems reasonable.
 pitch_distance :: Maybe Score.Event -> Score.Event
     -> (RealTime, Pitch.NoteNumber)
 pitch_distance prev cur = fromMaybe (0, 0) $
@@ -107,10 +113,10 @@ pitch_distance prev cur = fromMaybe (0, 0) $
     x2 = Score.event_start cur
     distance (x1, y1) y2 = (x2 - x1, y2 - y1)
     get_last x event = do
-        (pos, pitch) <- Score.pitch_sample_at x event
+        segment <- PSignal.segment_at x (Score.event_pitch event)
         nn <- either (const Nothing) Just $ PSignal.pitch_nn $
-            Score.apply_controls event x pitch
-        Just (pos, nn)
+            Score.apply_controls event x $ Segment._y1 segment
+        Just (Segment._x1 segment, nn)
 
 calculate_retune :: (RealTime, Pitch.NoteNumber)
     -> Pitch.NoteNumber -> Pitch.NoteNumber
