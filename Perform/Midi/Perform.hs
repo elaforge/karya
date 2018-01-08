@@ -588,8 +588,10 @@ perform_note :: RealTime -> Maybe RealTime -- ^ next note with the same addr
     -> T.Event -> Patch.Addr -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
 perform_note prev_note_off next_note_on event addr =
     case event_midi_key event of
-        Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],
-            prev_note_off)
+        Nothing ->
+            ( [LEvent.Log $ event_warning event "no pitch signal"]
+            , prev_note_off
+            )
         Just midi_key -> (merge_events control_msgs note_msgs, note_off)
             where
             (note_msgs, note_off) = _note_msgs midi_key

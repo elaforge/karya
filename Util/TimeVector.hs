@@ -139,8 +139,7 @@ set prev_y x y = signal $ maybe id ((:) . (x,)) prev_y [(x, y)]
 {-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}
 constant :: V.Vector v (Sample y) => y -> v (Sample y)
-constant y = V.singleton (Sample 0 y)
-    -- Constant starts at 0, as documented in the module haddock.
+constant y = V.singleton (Sample (-RealTime.large) y)
 
 constant_val :: Unboxed -> Maybe UnboxedY
 constant_val vec = case uncons vec of
@@ -258,18 +257,12 @@ at x = fmap snd . sample_at x
 
 -- | Find the sample at or before X.  Nothing if the X is before the first
 -- sample.
---
--- There is a special rule that says a sample at <=0 is considered to extend
--- backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but
--- @at (-1) [(0, 1)]@ is 1.  More documentation in the module haddock.
 {-# SPECIALIZE sample_at :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
 {-# INLINEABLE sample_at #-}
 sample_at :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)
 sample_at x vec
     | i >= 0 = Just $ to_pair $ V.unsafeIndex vec i
-    | otherwise = case uncons vec of
-        Just (Sample x y, _) | x <= 0 -> Just (x, y)
-        _ -> Nothing
+    | otherwise = Nothing
     where i = highest_index x vec
 
 -- | Find the sample before the given X.
