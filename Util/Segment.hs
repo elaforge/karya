@@ -5,9 +5,10 @@
 {-# LANGUAGE CPP #-}
 -- | The 'Signal' type and functions.
 module Util.Segment (
-    Signal, Segment(..)
+    Signal, SignalS, Interpolate
+    , Segment(..)
     , X, Sample(..)
-    -- * construct / destrect
+    -- * construct / destruct
     , empty
     , constant, constant_val
     , from_vector, to_vector
@@ -77,6 +78,8 @@ data Signal v = Signal {
     } deriving (Eq, Show)
 
 type SignalS v y = Signal (v (Sample y))
+
+type Interpolate y = Sample y -> Sample y -> X -> y
 
 instance Pretty v => Pretty (Signal v) where
     format (Signal offset vector) = "Signal" Pretty.<+> Pretty.format offset
@@ -191,8 +194,6 @@ with_ptr (Signal offset vec) f = TimeVector.with_ptr vec $
     \ptr -> f offset ptr (V.length vec)
 
 -- * query
-
-type Interpolate y = Sample y -> Sample y -> X -> y
 
 null :: V.Vector v (Sample y) => SignalS v y -> Bool
 null = V.null . _vector
