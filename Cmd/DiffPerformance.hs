@@ -20,6 +20,7 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
@@ -80,6 +81,7 @@ diff_lines :: String -> FilePath -> [Text] -> [Text]
     -> IO (Maybe Text, [FilePath])
     -- ^ (abbreviated_diff, wrote_files)
 diff_lines name dir expected got = do
+    Directory.createDirectoryIfMissing True dir
     File.writeLines expected_fn expected
     File.writeLines got_fn got
     (_code, diff, stderr) <- Process.readProcessWithExitCode
