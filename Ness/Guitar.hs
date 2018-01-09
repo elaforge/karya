@@ -42,9 +42,9 @@ data String = String {
     , sMaterial :: Material
     , sRadius :: Meters
     , sT60 :: (Double, Double) -- -60db at 0hz and 1k
-    -- | This can be derived from the others, but I can't figure out a formula
-    -- that works.  But even if I could, this is the logical pitch, in order to
-    -- select a string, which is different from the actual pitch.
+    -- | This is the logical pitch, in order to select a string, which is
+    -- different from the actual pitch.  The actual pitch is calculated with
+    -- 'sActualNn'.
     , sNn :: Pitch.NoteNumber
     , sName :: StringName
     , sOutputs :: [Output]
@@ -304,3 +304,50 @@ makeFrets height open nns =
 
 pitchLocation :: Pitch.NoteNumber -> Pitch.NoteNumber -> Location
 pitchLocation f0 f = 1 - 1 / (Pitch.nn_to_hz f / Pitch.nn_to_hz f0)
+
+sActualNn :: String -> Pitch.NoteNumber
+sActualNn s = Pitch.hz_to_nn $ sqrt (sTension s / mu) / (2 * sLength s)
+    where mu = pi * sRadius s ^ 2 * mDensity (sMaterial s)
+
+freq harmonic = sqrt (tension / (density * area)) * (harmonic / (2 * length))
+    where
+    length = 0.648 -- about the same
+    tension = tensionKgToN 7.36 -- 72.13 n, but model uses 49.2
+    density = 7500
+    area = hexArea (guage / 2)
+    guage = 0.254 / 1000 -- about the same
+
+tensionKgToN = (*g)
+    where g = 9.8
+
+hexArea r = (3 * sqrt 3) / 2 * r^2
+
+-- I get 155, which is much lower than freq 1, at 369.
+freqStiffness harmonic = sqrt $
+    (tension / (density * area)) * (harmonic / 2 * length)^2
+    + ((young * moi) / (density * area))
+        * ((harmonic^2 * pi) / (2 * length^2))^2
+    where
+    young = steelYoung
+    steelYoung = 200e9
+    -- cross-sectional moment of inertia
+    moi = moiHex radius
+
+    length = 0.648 -- about the same
+    tension = tensionKgToN 7.36 -- 72.13 n, but model uses 49.2
+    density = 7500
+    area = hexArea radius
+    radius = guage / 2
+    guage = 0.254 / 1000 -- about the same
+
+moiCircle :: Double -> Double
+moiCircle r = (pi / 4) * r^4
+
+moiHex :: Double -> Double
+moiHex r = (5 * sqrt 3) / 16 * r^4
+
+-- rho = density
+
+-- massOf len radius density = pi * radius^2 * len * density
+--
+-- fOf t mass len = sqrt (t / (mass / len)) / (2 * len)
