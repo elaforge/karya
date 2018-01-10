@@ -21,7 +21,6 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Derive.BaseTypes as BaseTypes

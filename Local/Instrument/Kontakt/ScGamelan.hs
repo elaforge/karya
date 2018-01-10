@@ -17,6 +17,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
@@ -48,21 +49,23 @@ patches = map add_doc $
     where
     pasang wrap_octaves range name =
         tunggal wrap_octaves range name ++
-        [ MidiInst.code #= (Bali.pasang_code <> Bali.gangsa_note wrap) $
-            ranged_patch range (name <> "-pasang")
+        [ MidiInst.code #= code $ ranged_patch range (name <> "-pasang")
         ]
-        where wrap = if wrap_octaves then Just range else Nothing
+        where
+        wrap = if wrap_octaves then Just range else Nothing
+        code = Bali.gangsa_note wrap <> MidiInst.null_call DUtil.constant_pitch
+            <> Bali.pasang_code
     tunggal wrap_octaves range name =
-        [ MidiInst.code #= Bali.gangsa_note wrap $
-            gangsa_ks $ ranged_patch range name
+        [ MidiInst.code #= code $ gangsa_ks $ ranged_patch range name
         ]
-        where wrap = if wrap_octaves then Just range else Nothing
+        where
+        wrap = if wrap_octaves then Just range else Nothing
+        code = Bali.gangsa_note wrap <> MidiInst.null_call DUtil.constant_pitch
 
     range_of = BaliScales.instrument_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name =
-        MidiInst.patch
-            %= MidiInst.add_flags [Patch.ConstantPitch, Patch.UseFinalNoteOff] $
+        MidiInst.patch %= MidiInst.add_flags [Patch.UseFinalNoteOff] $
         MidiInst.named_patch (-2, 2) ("sc-" <> name) []
     add_doc = MidiInst.doc
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)

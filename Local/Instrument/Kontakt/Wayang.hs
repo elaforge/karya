@@ -60,6 +60,7 @@ patches = map (MidiInst.code #= code <> with_weak)
     ]
     where
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
+        <> MidiInst.null_call DUtil.constant_pitch
     with_weak = MidiInst.null_call $ DUtil.zero_duration "note"
         "This a normal note with non-zero duration, but when the duration is\
         \ zero, it uses the `weak` call."
@@ -70,7 +71,7 @@ patches = map (MidiInst.code #= code <> with_weak)
         where dur = Args.next args - Args.start args
     patch name = set_params $ MidiInst.named_patch (-24, 24) name []
     set_params = MidiInst.patch
-        %= MidiInst.add_flags [Patch.ConstantPitch, Patch.UseFinalNoteOff]
+        %= MidiInst.add_flags [Patch.UseFinalNoteOff]
             . (Patch.defaults#Patch.decay #= Just 0)
             . (Patch.attribute_map #= attribute_map)
     set_scale tuning =

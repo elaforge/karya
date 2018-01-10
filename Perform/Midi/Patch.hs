@@ -385,16 +385,6 @@ data Flag =
     -- continuous instruments like winds always have maximum velocity and map
     -- @dyn@ to breath.
     | Pressure
-    -- | Notes on this instrument don't change their pitch after they start.
-    -- This suppresses all pitch bending for each note.  It's useful because
-    -- it can be difficult to prevent pitch leakage.  E.g. if a transpose
-    -- signal starts after the note and the note is moved, it winds up at the
-    -- end of the note.
-    --
-    -- It's a hack, but it's useful in practice.  It could also go in the note
-    -- generator, but it's convenient to apply it in convert because that's
-    -- where the transpose signals are applied.
-    | ConstantPitch
     -- | If set, a keysitch has to be held while its note is playing.
     -- Otherwise, it will just be tapped before the note starts.
     | HoldKeyswitch

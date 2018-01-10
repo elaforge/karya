@@ -119,13 +119,12 @@ convert_midi_pitch inst patch config controls event =
     set_keymap (Patch.UnpitchedKeymap key) =
         return $ Signal.constant (Midi.from_key key)
     get_signal = apply_patch_scale scale
-        =<< convert_event_pitch perf_patch constant_pitch controls event
+        =<< convert_event_pitch perf_patch controls event
     scale = Patch.config_scale (Patch.config_settings config)
     round_sig = Signal.map_y round_pitch
 
     perf_patch = Types.patch inst config patch
     attr_map = Patch.patch_attribute_map patch
-    constant_pitch = Patch.has_flag config Patch.ConstantPitch
 
 convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
     -> Signal.NoteNumber -> Signal.NoteNumber
@@ -136,17 +135,12 @@ convert_pitched_keymap low high low_pitch sig = clipped
         Signal.scalar_add (low - Midi.from_key low_pitch) sig
 
 -- | Get the flattened Signal.NoteNumber from an event.
-convert_event_pitch :: Log.LogMonad m => Types.Patch -> Bool -> Score.ControlMap
+convert_event_pitch :: Log.LogMonad m => Types.Patch -> Score.ControlMap
     -> Score.Event -> m Signal.NoteNumber
-convert_event_pitch patch constant_pitch controls event
-    | constant_pitch = convert constant_vals $ maybe mempty PSignal.constant $
-        Score.pitch_at (Score.event_start event) event
-    | otherwise = convert trimmed_vals $ Score.event_pitch event
+convert_event_pitch patch controls event =
+    convert trimmed_vals $ Score.event_pitch event
     where
     convert = convert_pitch (Score.event_environ event)
-    -- An optimization to avoid fiddling with controls unnecessarily.
-    constant_vals = Score.untyped . Signal.constant <$>
-        Score.event_controls_at (Score.event_start event) event
     -- Trim controls to avoid applying out of range transpositions.
     -- TODO should I also trim the pitch signal to avoid doing extra work?
     trimmed_vals = fmap (fmap (Signal.drop_at_after note_end)) controls

@@ -9,6 +9,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Reyong as Reyong
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Selisir as Selisir
 
@@ -22,10 +23,11 @@ patches =
     , patch "reyong12"
     ]
     where
-    patch name = MidiInst.code #= Bali.zero_dur_mute $ set_params $
+    patch name = MidiInst.code #= code $ set_params $
         MidiInst.named_patch (-24, 24) name []
+    code = Bali.zero_dur_mute <> MidiInst.null_call DUtil.constant_pitch
     set_params = MidiInst.patch
-        %= MidiInst.add_flags [Patch.ConstantPitch, Patch.UseFinalNoteOff]
+        %= MidiInst.add_flags [Patch.UseFinalNoteOff]
             . (Patch.defaults#Patch.decay #= Just 0)
             . (Patch.attribute_map #= attribute_map)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned

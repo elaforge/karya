@@ -1337,6 +1337,11 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
         controls?  I already have this in DUtil.attack_sample_note.
       . For pitch I need this to apply to transpose as well, but the set of
         transpose signals depends on the pitch.
+      * ConstantPitch vs. DUtil.attack_sample_note or constant_note.
+        . ConstantPitch solves the transposer problem by making all controls
+          constant for the purposes of applying the transposers.
+        . The advantage of a call is that the flag is MIDI-only, so I couldn't
+          use it for Im.
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
       + fix instances of PSignal.sample_at and Signal.sample_at first
         . Score.pitch_sample_at, used by Retune

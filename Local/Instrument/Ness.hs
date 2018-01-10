@@ -63,7 +63,7 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
     code = note <> postproc
     postproc = ImInst.postproc $
         DUtil.move_val EnvKey.string EnvKey.patch_element show_string
-    note = ImInst.null_call $ DUtil.attack_sample_note id $
+    note = ImInst.null_call $ DUtil.constant_controls False $
         Set.fromList $ map control [Guitar.Patch.c_location, Control.dynamic]
 
 show_string :: PSignal.Pitch -> Either Log.Msg Text

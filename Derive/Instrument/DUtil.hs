@@ -28,6 +28,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -256,24 +257,45 @@ composite_call args composites = mconcatMap (split args) composites
 
 -- * control vals
 
-attack_sample_note :: (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> Set Score.Control -> Derive.Generator Derive.Note
-attack_sample_note transform controls =
-    Note.transformed_note doc mempty $
-        \args -> transform . attack_sample controls args
+constant_pitch :: Derive.Generator Derive.Note
+constant_pitch = constant_controls True mempty
+
+constant_controls :: Bool -> Set Score.Control -> Derive.Generator Derive.Note
+constant_controls constant_pitch controls =
+    Note.transformed_note doc mempty $ \args ->
+        (if constant_pitch then set_constant_pitch args else id)
+        . set_constant_controls controls args
     where
-    doc = "These controls are sampled at attack time, which means they work\
-        \ with ControlFunctions: "
-        <> Doc.commas (map Doc.pretty (Set.toList controls)) <> ".\n"
+    doc = mconcat $ concat
+        [ ["Notes have a constant pitch, sampled at attack time."
+            | constant_pitch]
+        , [ "These controls are sampled at attack time, which means they work\
+                \ with ControlFunctions: "
+                <> Doc.commas (map Doc.pretty (Set.toList controls)) <> ".\n"
+            | not (Set.null controls)
+          ]
+        ]
 
-attack_sample :: Set Score.Control -> Derive.PassedArgs b -> Derive.Deriver a
+set_constant_controls :: Set Score.Control -> Derive.PassedArgs b
+    -> Derive.Deriver a -> Derive.Deriver a
+set_constant_controls controls args deriver
+    | Set.null controls = deriver
+    | otherwise = do
+        vals <- Derive.controls_at =<< Args.real_start args
+        let sampled = Score.untyped . Signal.constant <$>
+                Map.filterWithKey (\k _ -> k `Set.member` controls) vals
+        Derive.with_controls (Map.toList sampled) deriver
+
+set_constant_pitch :: Derive.PassedArgs b -> Derive.Deriver a
     -> Derive.Deriver a
-attack_sample controls args deriver = do
-    vals <- Derive.controls_at =<< Args.real_start args
-    let sampled = Score.untyped . Signal.constant <$>
-            Map.filterWithKey (\k _ -> k `Set.member` controls) vals
-    Derive.with_controls (Map.toList sampled) deriver
-
+set_constant_pitch args deriver = do
+    pitch <- Derive.pitch_at =<< Args.real_start args
+    case pitch of
+        Nothing -> deriver
+        Just pitch -> Derive.with_constant_pitch pitch $
+            set_constant_controls transposers args deriver
+            where
+            transposers = PSignal.pscale_transposers (PSignal.pitch_scale pitch)
 
 -- * postproc
 

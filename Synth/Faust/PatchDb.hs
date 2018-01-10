@@ -46,12 +46,15 @@ makePatch :: Doc.Doc -> Map Control.Control DriverC.ControlConfig
 makePatch doc controls = do
     let constantControls = map fst $ filter (DriverC._constant . snd) $
             Map.toList $ Map.delete Control.pitch controls
-    return $ ImInst.doc #= doc $ code constantControls $
+    let constantPitch = maybe False DriverC._constant $
+            Map.lookup Control.pitch controls
+    return $ ImInst.doc #= doc $ code constantPitch constantControls $
         ImInst.make_patch $
         Patch.patch { Patch.patch_controls = DriverC._description <$> controls }
     where
-    code constantControls = (ImInst.code #=) $ ImInst.null_call $
-        DUtil.attack_sample_note id
+    code False [] = id
+    code constantPitch constantControls = (ImInst.code #=) $ ImInst.null_call $
+        DUtil.constant_controls constantPitch
             (Set.fromList (map control constantControls))
 
 control :: Control.Control -> ScoreTypes.Control

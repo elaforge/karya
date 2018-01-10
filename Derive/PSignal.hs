@@ -4,7 +4,7 @@
 
 module Derive.PSignal (
     PSignal, sig_scale_id
-    , Scale(Scale), no_scale
+    , Scale(..), no_scale
 
     -- * construct  / destruct
     , constant, signal, unsignal, unsignal_unique, set, append, to_nn
