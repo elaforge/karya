@@ -261,7 +261,7 @@ concat xs =
                 | sx end < sx start -> v1 : extension end : chunks (clipped:vs)
                 | otherwise -> v1 : chunks (clipped:vs)
             where
-            clipped = V.take (TimeVector.lowest_index_1 (sx start) v2) v2
+            clipped = V.take (TimeVector.bsearch_below_1 (sx start) v2) v2
             extension end = V.singleton (Sample (sx start) (sy end))
 
 -- * slice

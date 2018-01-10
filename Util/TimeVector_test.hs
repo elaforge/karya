@@ -67,6 +67,14 @@ test_within = do
     equal (f 3 3 [(0, 0)]) [(0, 0)]
     equal (f 3 3 [(0, 0), (3, 3), (4, 4)]) [(3, 3)]
 
+test_bsearch = do
+    let run f = map (flip f sig) [0, 1, 2, 3, 4]
+        sig = signal [(1, 1), (2, 2), (2, 3), (3, 3)]
+    equal (run V.bsearch_above) [ 0, 1, 3, 4, 4]
+    equal (run V.highest_index) [-1, 0, 2, 3, 3]
+    equal (run V.bsearch_below)    [ 0, 0, 1, 3, 4]
+    equal (run V.bsearch_below_1)  [ 0, 1, 2, 4, 4]
+
 -- * transformation
 
 test_merge_right_extend = do

@@ -188,7 +188,7 @@ merge_right vs = case next_start (reverse vs) of
     -- I don't really like the double reverse, but it's easiest this way.
     trim prev_start (v : vs) =
         clipped : trim (maybe prev_start sx (head clipped)) vs
-        where clipped = V.take (lowest_index prev_start v) v
+        where clipped = V.take (bsearch_below prev_start v) v
     trim _ [] = []
     next_start [] = Nothing
     next_start (v:vs) = maybe (next_start vs) (\s -> (Just (v, vs, sx s)))
@@ -272,19 +272,19 @@ before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (Sample y)
 before x vec
     | i > 0 = Just $ V.unsafeIndex vec (i-1)
     | otherwise = Nothing
-    where i = lowest_index x vec
+    where i = bsearch_below x vec
 
 -- | Samples at and above the given time.
 ascending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 ascending x vec =
     [ V.unsafeIndex vec i
-    | i <- Seq.range' (lowest_index x vec) (V.length vec) 1
+    | i <- Seq.range' (bsearch_below x vec) (V.length vec) 1
     ]
 
 -- | Descending samples, starting below the time.
 descending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 descending x vec =
-    [V.unsafeIndex vec i | i <- Seq.range (lowest_index x vec - 1) 0 (-1)]
+    [V.unsafeIndex vec i | i <- Seq.range (bsearch_below x vec - 1) 0 (-1)]
 
 -- * transform
 
@@ -306,7 +306,7 @@ drop_at_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_at_after x vec
     -- TODO remove magic
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
-    | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
+    | otherwise = V.take (bsearch_below (x - RealTime.eta) vec) vec
 
 drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_after x = drop_at_after (x + RealTime.eta + RealTime.eta)
@@ -328,7 +328,7 @@ drop_before x vec
 -- | The reverse of 'drop_at_after': trim a signal's head up until, but not
 -- including, the given X.
 drop_before_strict :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
-drop_before_strict x vec = V.drop (lowest_index x vec) vec
+drop_before_strict x vec = V.drop (bsearch_below x vec) vec
 
 -- | Like 'drop_before_strict', but also drop samples at the X.
 drop_before_at :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
@@ -448,29 +448,6 @@ x_at x0 y0 x1 y1 y
     | otherwise = Just $
         double_to_x (y - y0) / (double_to_x (y1 - y0) / (x1 - x0)) + x0
 
--- | Binary search for the lowest index of the given X, or where it would be if
--- it were present.  So the next value is guaranteed to be >=X.
-{-# SPECIALIZE lowest_index :: X -> Unboxed -> Int #-}
-{-# SPECIALIZE lowest_index :: X -> Boxed y -> Int #-}
-{-# INLINEABLE lowest_index #-}
-lowest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
-lowest_index x vec = go 0 (V.length vec)
-    where
-    go low high
-        | low == high = low
-        | x <= sx (V.unsafeIndex vec mid) = go low mid
-        | otherwise = go (mid+1) high
-        where mid = (low + high) `div` 2
-
--- | 'lowest_index' + 1, which means the first value after the given X.
-{-# SPECIALIZE lowest_index_1 :: X -> Unboxed -> Int #-}
-{-# INLINEABLE lowest_index_1 #-}
-lowest_index_1 :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
-lowest_index_1 x vec = case vec V.!? i of
-    Just vi | sx vi == x -> i + 1
-    _ -> i
-    where i = lowest_index x vec
-
 -- | Binary search for the highest index of the given X.  So the next value is
 -- guaranteed to be >X, if it exists.  Return -1 if @x@ is before
 -- the first element.  'RealTime.eta' is added to @x@, so a sample that's
@@ -484,7 +461,8 @@ highest_index x vec
     | otherwise = i - 1
     where i = bsearch_above (x + RealTime.eta) vec
 
--- | This gets the index of the value *after* @x@.
+-- | Binary search for the index of the first element that is >x, or one past
+-- the end of the vector.
 {-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE bsearch_above :: X -> Boxed y -> Int #-}
 {-# INLINEABLE bsearch_above #-}
@@ -495,6 +473,31 @@ bsearch_above x vec = go 0 (V.length vec)
         | low == high = low
         | x >= sx (V.unsafeIndex vec mid) = go (mid+1) high
         | otherwise = go low mid
+        where mid = (low + high) `div` 2
+
+-- | 'bsearch_below', but if you use it with take, it includes the first
+-- element ==x.
+{-# SPECIALIZE bsearch_below_1 :: X -> Unboxed -> Int #-}
+{-# INLINEABLE bsearch_below_1 #-}
+bsearch_below_1 :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+bsearch_below_1 x vec = case vec V.!? i of
+    Just vi | sx vi == x -> i + 1
+    _ -> i
+    where i = bsearch_below x vec
+
+-- | Binary search for the index of the first element ==x, or the last one <x.
+-- So it will be <=x, or one past the end of the vector.  If you ues it with
+-- take, it's everything <x.
+{-# SPECIALIZE bsearch_below :: X -> Unboxed -> Int #-}
+{-# SPECIALIZE bsearch_below :: X -> Boxed y -> Int #-}
+{-# INLINEABLE bsearch_below #-}
+bsearch_below :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+bsearch_below x vec = go 0 (V.length vec)
+    where
+    go low high
+        | low == high = low
+        | x <= sx (V.unsafeIndex vec mid) = go low mid
+        | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
 
 concat_map_accum :: UnboxedY
@@ -538,7 +541,7 @@ sample_at_before x vec
     | otherwise = case uncons vec of
         Just (Sample x y, _) | x <= 0 -> Just (x, y)
         _ -> Nothing
-    where i = lowest_index x vec
+    where i = bsearch_below x vec
 
 clip_to :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 clip_to x vec = case head clipped of
@@ -578,7 +581,7 @@ merge_right_extend = V.concat . reverse . chunks . reverse
                 | sx end < sx start -> v1 : extension end : chunks (clipped:vs)
                 | otherwise -> v1 : chunks (clipped:vs)
             where
-            clipped = V.take (lowest_index_1 (sx start) v2) v2
+            clipped = V.take (bsearch_below_1 (sx start) v2) v2
             extension end = V.singleton (Sample (sx start) (sy end))
 
 -- | Strip out samples that don't have any effect.
