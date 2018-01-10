@@ -156,7 +156,7 @@ null :: PSignal -> Bool
 null = Segment.null . _signal
 
 at :: RealTime -> PSignal -> Maybe Pitch
-at x = Segment.at_interpolate interpolate x . _signal
+at x = Segment.at interpolate x . _signal
 
 -- | A pitch interpolated a certain distance between two other pitches.
 interpolate :: Segment.Interpolate Pitch

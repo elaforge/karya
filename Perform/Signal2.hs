@@ -184,7 +184,7 @@ null :: Signal kind -> Bool
 null = Segment.null . _signal
 
 at :: X -> Signal kind -> Y
-at x = fromMaybe 0 . Segment.at_interpolate Segment.num_interpolate x . _signal
+at x = fromMaybe 0 . Segment.at Segment.num_interpolate x . _signal
 
 segment_at :: X -> Signal kind -> Maybe (Segment.Segment Y)
 segment_at x = Segment.segment_at x . _signal

@@ -68,6 +68,7 @@ test_bsearch = do
     equal (run V.highest_index) [-1, 0, 2, 3, 3]
     equal (run V.bsearch_below)    [ 0, 0, 1, 3, 4]
     equal (run V.bsearch_below_1)  [ 0, 1, 2, 4, 4]
+    equal (run V.index_below)  [-1, 0, 0, 2, 3]
 
 -- * transformation
 

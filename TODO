@@ -1328,6 +1328,15 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       . I might even be able to solve the t0<=t<t1 problem with segments:
         have negative duration calls generate negative segments.  Then 'at'
         defaults to before the discontinuity, rather than after.
+      . It seems simpler to do a hack for final notes first:
+        . Note call trim controls notices when it's block-final, and gets
+          constant values from Signal.at_before.
+        . Really I do want the controls following the block, but just not at
+          t0, though the call may just sample at t0.  E.g. pitch for gangsa.
+      . Could I replace ConstantPitch with a general notion of note-constant
+        controls?  I already have this in DUtil.attack_sample_note.
+      . For pitch I need this to apply to transpose as well, but the set of
+        transpose signals depends on the pitch.
     switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
       + fix instances of PSignal.sample_at and Signal.sample_at first
         . Score.pitch_sample_at, used by Retune

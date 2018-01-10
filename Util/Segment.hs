@@ -20,8 +20,8 @@ module Util.Segment (
 
     -- * query
     , null
-    , at_interpolate
-    , segment_at
+    , at, at_orientation
+    , segment_at, segment_at_orientation
     , maximum, minimum
 
     -- * concat
@@ -212,20 +212,23 @@ null = V.null . _vector
 
 -- | The arguments may seem backwards, but I've always done it this way, and it
 -- seems to be more convenient in practice.
-at_interpolate :: V.Vector v (Sample y) => Interpolate y -> X
+at :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y -> Maybe y
+at = at_orientation Positive
+
+at_orientation :: V.Vector v (Sample y) => Orientation -> Interpolate y -> X
     -> SignalS v y -> Maybe y
-at_interpolate interpolate x (Signal offset vec)
-    | V.null vec = Nothing
-    | i + 1 >= V.length vec = Just y0
-    | i == -1 = Nothing
-    | otherwise = Just $ interpolate (Sample x0 y0) (Sample x1 y1) (x + offset)
-    where
-    i = TimeVector.highest_index (x + offset) vec
-    TimeVector.Sample x0 y0 = V.unsafeIndex vec i
-    TimeVector.Sample x1 y1 = V.unsafeIndex vec (i+1)
+at_orientation orient interpolate x sig =
+    case segment_at_orientation orient x sig of
+        Nothing -> Nothing
+        Just (Segment x1 y1 x2 y2) ->
+            Just $ interpolate (Sample x1 y1) (Sample x2 y2) (x + _offset sig)
 
 segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
-segment_at x (Signal offset vec)
+segment_at  = segment_at_orientation Positive
+
+segment_at_orientation :: V.Vector v (Sample y) => Orientation -> X
+    -> SignalS v y -> Maybe (Segment y)
+segment_at_orientation orient x (Signal offset vec)
     | i < 0 = Nothing
     | otherwise =
         let Sample x1 y1 = V.unsafeIndex vec i
@@ -234,7 +237,13 @@ segment_at x (Signal offset vec)
                 else V.unsafeIndex vec (i+1)
         in Just $ Segment x1 y1 x2 y2
     where
-    i = TimeVector.highest_index (x + offset) vec
+    i = get (x + offset) vec
+    get = case orient of
+        Negative -> TimeVector.index_below
+        Positive -> TimeVector.highest_index
+
+data Orientation = Negative | Positive
+    deriving (Eq, Show)
 
 minimum, maximum :: (V.Vector v (Sample a), Ord a) => SignalS v a -> Maybe a
 minimum sig
@@ -295,7 +304,7 @@ clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
 clip_after interpolate x sig = case last clipped of
     Nothing -> empty
     Just (Sample x2 _)
-        | x2 > x, Just y <- at_interpolate interpolate x sig ->
+        | x2 > x, Just y <- at interpolate x sig ->
             let v = to_vector clipped
             in from_vector $ V.snoc (V.take (V.length v - 1) v) (Sample x y)
         | otherwise -> clipped
@@ -317,7 +326,7 @@ clip_before :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
 clip_before interpolate x sig = case head clipped of
     Nothing -> empty
     Just (Sample x1 _)
-        | x1 < x, Just y <- at_interpolate interpolate x sig ->
+        | x1 < x, Just y <- at interpolate x sig ->
             from_vector $ V.cons (Sample x y) (V.drop 1 (to_vector clipped))
         | otherwise -> clipped
     where

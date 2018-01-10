@@ -463,6 +463,27 @@ highest_index x vec
     | otherwise = i - 1
     where i = bsearch_above (x + RealTime.eta) vec
 
+-- | 'bsearch_below', but if you use it with take, it includes the first
+-- element ==x.  TODO not sure how to explain it.
+{-# SPECIALIZE bsearch_below_1 :: X -> Unboxed -> Int #-}
+{-# INLINEABLE bsearch_below_1 #-}
+bsearch_below_1 :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+bsearch_below_1 x vec = case vec V.!? i of
+    Just vi | sx vi == x -> i + 1
+    _ -> i
+    where i = bsearch_below x vec
+
+-- | Search for the last index <x, or -1 if the first sample is already >x.
+{-# SPECIALIZE index_below :: X -> Unboxed -> Int #-}
+{-# INLINEABLE index_below #-}
+index_below :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
+index_below x vec
+    | i == 0 = case vec V.!? i of
+        Just (Sample x1 _) | x1 == x -> 0
+        _ -> -1
+    | otherwise = i - 1
+    where i = bsearch_below x vec
+
 -- | Binary search for the index of the first element that is >x, or one past
 -- the end of the vector.
 {-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
@@ -476,16 +497,6 @@ bsearch_above x vec = go 0 (V.length vec)
         | x >= sx (V.unsafeIndex vec mid) = go (mid+1) high
         | otherwise = go low mid
         where mid = (low + high) `div` 2
-
--- | 'bsearch_below', but if you use it with take, it includes the first
--- element ==x.
-{-# SPECIALIZE bsearch_below_1 :: X -> Unboxed -> Int #-}
-{-# INLINEABLE bsearch_below_1 #-}
-bsearch_below_1 :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
-bsearch_below_1 x vec = case vec V.!? i of
-    Just vi | sx vi == x -> i + 1
-    _ -> i
-    where i = bsearch_below x vec
 
 -- | Binary search for the index of the first element ==x, or the last one <x.
 -- So it will be <=x, or one past the end of the vector.  If you ues it with
