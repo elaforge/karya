@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
+import qualified Ui.Types as Types
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -223,12 +223,12 @@ make_cycle name default_strokes default_dur =
                 (Args.orientation args) strokes dur
 
 call_cycle :: Derive.Context Score.Event -> (TrackTime, TrackTime)
-    -> Event.Orientation -> [BaseTypes.Quoted]
+    -> Types.Orientation -> [BaseTypes.Quoted]
     -> ScoreTime -> Derive.NoteDeriver
 call_cycle ctx (start, end) orient calls dur =
     mconcat [Derive.at t $ Eval.eval_quoted ctx call | (t, call) <- ts]
     where
     ts = case orient of
-        Event.Positive -> zip (Seq.range' start end dur) (cycle calls)
-        Event.Negative ->
+        Types.Positive -> zip (Seq.range' start end dur) (cycle calls)
+        Types.Negative ->
             reverse $ zip (Seq.range' end start (-dur)) (cycle (reverse calls))

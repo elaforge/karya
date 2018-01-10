@@ -57,6 +57,7 @@ import qualified Util.Tree
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
@@ -108,7 +109,7 @@ note_min n = min (note_start n) (note_end n)
 note_max :: Note -> TrackTime
 note_max n = max (note_start n) (note_end n)
 
-note_orientation :: Note -> Event.Orientation
+note_orientation :: Note -> Types.Orientation
 note_orientation = Event.orientation_of . note_duration
 
 -- | Each note has an Index, which indicates which of the selected note tracks

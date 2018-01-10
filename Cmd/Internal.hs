@@ -30,6 +30,7 @@ import qualified Ui.Key as Key
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
@@ -425,8 +426,8 @@ sync_step_status st = do
         dur_status =
             orient <> TimeStep.show_time_step (Cmd.state_note_duration st)
         orient = case Cmd.state_note_orientation st of
-            Event.Positive -> "+"
-            Event.Negative -> "-"
+            Types.Positive -> "+"
+            Types.Negative -> "-"
     Cmd.set_status Config.status_step $ Just $ step_status <> dur_status
 
 sync_octave_status :: Cmd.M m => Cmd.EditState -> m ()

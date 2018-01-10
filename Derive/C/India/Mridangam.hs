@@ -13,7 +13,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
+import qualified Ui.Types as Types
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -80,11 +80,11 @@ dur_arg = Typecheck.non_negative <$> Sig.defaulted_env "dur" Sig.Both 0
     \ stretch to the event's duration."
 
 m_sequence :: [(Sequence.Duration, Maybe Derive.NoteDeriver)] -> ScoreTime
-    -> (TrackTime, TrackTime) -> Event.Orientation -> Derive.NoteDeriver
+    -> (TrackTime, TrackTime) -> Types.Orientation -> Derive.NoteDeriver
 m_sequence notes dur (start, end) orientation = realize $ case orientation of
     _ | dur == 0 -> stretch_to_range (start, end) notes
-    Event.Positive -> takeWhile ((<end) . fst) $ place start dur (cycle notes)
-    Event.Negative -> reverse $ takeWhile ((>=start) . fst) $
+    Types.Positive -> takeWhile ((<end) . fst) $ place start dur (cycle notes)
+    Types.Negative -> reverse $ takeWhile ((>=start) . fst) $
         place end (-dur) $ cycle (reverse notes)
     where
     place from step = Seq.map_maybe_snd id . snd . List.mapAccumL note from

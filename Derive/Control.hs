@@ -35,9 +35,9 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Ui.Block as Block
-import qualified Ui.Event as Event
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
@@ -325,7 +325,7 @@ trim_signal drop_after drop_at_after track signal =
             start <- Derive.real $ TrackTree.track_start track
             end <- Derive.real $ TrackTree.track_end track
             let trim
-                    | start == end || orientation == Event.Negative = drop_after
+                    | start == end || orientation == Types.Negative = drop_after
                     | otherwise = drop_at_after
             return $ trim end signal
 

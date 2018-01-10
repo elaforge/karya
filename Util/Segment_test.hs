@@ -8,6 +8,7 @@ import Util.Segment (Segment(Segment))
 import Util.Segment (X)
 import Util.Test
 
+import qualified Ui.Types as Types
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (large)
 
@@ -50,7 +51,7 @@ test_concat = do
         [((0, 0), (1, 0)), ((1, 1), (large, 1))]
 
 test_segment_at = do
-    let f x = Segment.segment_at_orientation Segment.Positive x . from_pairs
+    let f x = Segment.segment_at_orientation Types.Positive x . from_pairs
     equal (f 0 []) Nothing
     equal (f 0 [(1, 1)]) Nothing
     equal (f 1 [(1, 1)]) $ Just (Segment 1 1 large 1)
@@ -61,7 +62,7 @@ test_segment_at = do
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) $ Just (Segment 2 2 large 2)
 
 test_segment_at_negative = do
-    let f x = Segment.segment_at_orientation Segment.Negative x . from_pairs
+    let f x = Segment.segment_at_orientation Types.Negative x . from_pairs
     equal (f 0 []) Nothing
     equal (f 0 [(1, 1)]) Nothing
     equal (f 1 [(1, 1)]) $ Just (Segment 1 1 large 1)
@@ -74,9 +75,9 @@ test_segment_at_negative = do
 test_at = do
     let f orient x = Segment.at_orientation orient Segment.num_interpolate x
             (from_pairs [(1, 1), (2, 2), (2, 3)])
-    equal (map (f Segment.Positive) [0, 1, 1.5, 2, 3, 4])
+    equal (map (f Types.Positive) [0, 1, 1.5, 2, 3, 4])
         [Nothing, Just 1, Just 1.5, Just 3, Just 3, Just 3]
-    equal (map (f Segment.Negative) [0, 1, 1.5, 2, 3, 4])
+    equal (map (f Types.Negative) [0, 1, 1.5, 2, 3, 4])
         [Nothing, Just 1, Just 1.5, Just 2, Just 3, Just 3]
 
 test_drop_after_clip_after = do

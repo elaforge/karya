@@ -14,6 +14,7 @@ import qualified Util.Testing as Testing
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import Ui.Events (Range(..))
+import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import Global
@@ -36,13 +37,13 @@ test_split_range = do
     equal (f (Range 1 1) [(1, 1)]) ([], [], [1])
     equal (f (Range 1 1) [(1, -1)]) ([1], [], [])
 
-    equal (f (Point 1 Event.Positive) [(0, 1), (1, 1), (2, 1)])
+    equal (f (Point 1 Types.Positive) [(0, 1), (1, 1), (2, 1)])
         ([0], [1], [2])
-    equal (f (Point 1 Event.Positive) [(1, -1), (1, 1), (2, 1)])
+    equal (f (Point 1 Types.Positive) [(1, -1), (1, 1), (2, 1)])
         ([1], [1], [2])
-    equal (f (Point 1 Event.Negative) [(1, -1), (1, 1), (2, 1)])
+    equal (f (Point 1 Types.Negative) [(1, -1), (1, 1), (2, 1)])
         ([], [1], [1, 2])
-    equal (f (Point 0.5 Event.Positive) [(1, -1), (1, 1), (2, 1)])
+    equal (f (Point 0.5 Types.Positive) [(1, -1), (1, 1), (2, 1)])
         ([], [], [1, 1, 2])
 
 test_split = do
@@ -159,10 +160,10 @@ test_clip_events = do
 test_remove = do
     let f range = e_start_dur . Events.remove range . from_start_dur
     -- able to remove 0 dur events
-    equal (f (Point 0 Event.Positive) [(0, 0), (1, 1)]) [(1, 1)]
-    equal (f (Point 1 Event.Negative) [(0, 0), (1, -0), (1, 0), (2, 0)])
+    equal (f (Point 0 Types.Positive) [(0, 0), (1, 1)]) [(1, 1)]
+    equal (f (Point 1 Types.Negative) [(0, 0), (1, -0), (1, 0), (2, 0)])
         [(0, 0), (1, 0), (2, 0)]
-    equal (f (Point 1 Event.Positive) [(0, 0), (1, -0), (1, 0), (2, 0)])
+    equal (f (Point 1 Types.Positive) [(0, 0), (1, -0), (1, 0), (2, 0)])
         [(0, 0), (1, -0), (2, 0)]
 
     equal (f (Range 0 1) [(0, 0), (1, 0)]) [(1, 0)]
@@ -172,7 +173,7 @@ test_remove = do
 
 test_round_events = do
     let move events = Events.insert [next] $
-            Events.remove (Point (Event.start e) Event.Positive) events
+            Events.remove (Point (Event.start e) Types.Positive) events
             where
             e = Maybe.fromJust $ Events.head events
             next = Event.start_ %= (+ 1/3) $ e

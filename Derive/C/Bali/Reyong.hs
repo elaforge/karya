@@ -20,7 +20,7 @@ import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
+import qualified Ui.Types as Types
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -399,7 +399,7 @@ realize_notes_args args initial_final =
     realize_notes (Args.range args) (Args.orientation args)
         (Gangsa.infer_initial args initial_final)
 
-realize_notes :: (ScoreTime, ScoreTime) -> Event.Orientation -> (Bool, Bool)
+realize_notes :: (ScoreTime, ScoreTime) -> Types.Orientation -> (Bool, Bool)
     -> (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat -> ScoreTime
     -> (Voice, [[Note]]) -> Derive.NoteDeriver
 realize_notes (start, end) orientation initial_final show_pitch repeat dur

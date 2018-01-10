@@ -46,6 +46,7 @@ import qualified Util.Then as Then
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Derive.ParseTitle as ParseTitle
@@ -59,7 +60,7 @@ data InsertEvent = InsertEvent {
     event_duration :: !ScoreTime
     -- | A Negative orientation means that the controls at the Event.end time
     -- are not trimmed off.
-    , event_orientation :: !Event.Orientation
+    , event_orientation :: !Types.Orientation
     , event_around :: !([Event.Event], [Event.Event])
     -- | The TrackId for the track created for this event.  This is required
     -- so it can collect a TrackDynamic and when the Cmd level looks at at
@@ -117,7 +118,7 @@ slice exclude_start start end insert_event (Tree.Node track subs) =
             -- slicing, so make sure to update the orientation for both
             -- Sliced and NotSliced.
             _ -> TrackTree.Sliced
-                (maybe Event.Positive event_orientation insert_event)
+                (maybe Types.Positive event_orientation insert_event)
         , TrackTree.track_around = (before, after)
         }
         where (before, within, after) = extract_events track
@@ -140,14 +141,14 @@ extract_note_events exclude_start start end events =
     -- TODO pass Events.Range instead of (start, end) so I can get -0 slices
     -- right.
     range
-        | start == end = Events.Point start Event.Positive
+        | start == end = Events.Point start Types.Positive
         | otherwise = Events.Range start end
     (pre, within, post) = Events.split_range range events
     exclude_s (pre, within, post) =
-        case Events.at start Event.Positive within of
+        case Events.at start Types.Positive within of
             Just event ->
                 ( event : pre
-                , Events.remove (Events.Point start Event.Positive) within
+                , Events.remove (Events.Point start Types.Positive) within
                 , post
                 )
             Nothing -> (pre, within, post)
@@ -259,13 +260,13 @@ events_in_range :: Bool -> TrackTime -> TrackTime -> Events.Events
     -> Events.Events
 events_in_range include_end start end events
     | include_end = maybe within (\e -> Events.insert [e] within)
-        (Events.at end Event.Positive post)
+        (Events.at end Types.Positive post)
     | otherwise = within
     where
     (_, within, post) = Events.split_range range events
     -- TODO since this is Positive I think it doesn't treat -0 events
     -- correctly.  I could pass Events.Range from the caller.
-    range = if start == end then Events.Point start Event.Positive
+    range = if start == end then Events.Point start Types.Positive
         else Events.Range start end
 
 strip_note :: Note -> Maybe Note

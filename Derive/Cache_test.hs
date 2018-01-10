@@ -17,6 +17,7 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
@@ -120,7 +121,7 @@ test_add_remove = do
             ]
     let (_, cached, uncached) = compare_cached create $
             Ui.remove_events_range (UiTest.tid "top.t1")
-                (Events.Point 1 Event.Positive)
+                (Events.Point 1 Types.Positive)
     equal (diff_events cached uncached) []
 
     let (_, cached, uncached) = compare_cached create $

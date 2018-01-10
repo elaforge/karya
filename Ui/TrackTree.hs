@@ -17,6 +17,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
@@ -200,7 +201,7 @@ data Sliced =
     NotSliced
     -- | A "Derive.Slice"d fragment, and certain track-level things should be
     -- skipped.
-    | Sliced !Event.Orientation
+    | Sliced !Types.Orientation
     -- | Set on the fake track created by inversion.
     | Inversion
     deriving (Eq, Show)

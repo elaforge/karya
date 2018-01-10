@@ -31,7 +31,6 @@ module Ui.Event (
     , start_, duration_, text_, style_, stack_, end_
     , end, range, overlaps, min, max
     -- ** Orientation
-    , Orientation(..), invert
     , orientation, orientation_of
     , is_negative, is_positive
     -- * modify
@@ -56,6 +55,7 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Style as Style
+import qualified Ui.Types as Types
 
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
@@ -218,25 +218,13 @@ modified event = event { _style = Config.modified_style (style event) }
 
 -- ** Orientation
 
--- | Whether the event is front-weighted or back-weighted.  In the event this
--- is represented with positive or negative duration.
-data Orientation = Negative | Positive
-    deriving (Eq, Ord, Read, Show, Enum, Bounded)
-    -- The Negative to Positive order is important, because that affects the
-    -- EventMap's sort order, which functions in "Ui.Events" rely on.
-instance Pretty Orientation where pretty = showt
-
-invert :: Orientation -> Orientation
-invert Positive = Negative
-invert Negative = Positive
-
-orientation :: Event -> Orientation
+orientation :: Event -> Types.Orientation
 orientation = orientation_of . duration
 
-orientation_of :: TrackTime -> Orientation
+orientation_of :: TrackTime -> Types.Orientation
 orientation_of t
-    | ScoreTime.is_negative t = Negative
-    | otherwise = Positive
+    | ScoreTime.is_negative t = Types.Negative
+    | otherwise = Types.Positive
 
 is_negative :: Event -> Bool
 is_negative = ScoreTime.is_negative . duration
@@ -303,10 +291,6 @@ instance Serialize.Serialize Stack where
         stack :: Stack.Stack <- get
         key :: IndexKey <- get
         return $ Stack stack key
-
-instance Serialize.Serialize Orientation where
-    put = Serialize.put_enum
-    get = Serialize.get_enum
 
 -- * storable
 

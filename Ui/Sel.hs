@@ -9,7 +9,7 @@ import Prelude hiding (min, max)
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
-import qualified Ui.Event as Event
+import qualified Ui.Types as Types
 import Global
 import Types
 
@@ -99,10 +99,10 @@ max sel = Prelude.max (start_pos sel) (cur_pos sel)
 range :: Selection -> (TrackTime, TrackTime)
 range sel = (min sel, max sel)
 
-event_orientation :: Selection -> Event.Orientation
+event_orientation :: Selection -> Types.Orientation
 event_orientation sel = case orientation sel of
-    Negative -> Event.Negative
-    _ -> Event.Positive
+    Negative -> Types.Negative
+    _ -> Types.Positive
 
 duration :: Selection -> TrackTime
 duration sel = abs (start_pos sel - cur_pos sel)

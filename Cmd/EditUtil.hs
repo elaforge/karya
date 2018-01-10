@@ -13,6 +13,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
@@ -94,7 +95,7 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
     where
     infer_duration dur
         | dur /= 0 = return dur
-        | zero_dur = ifM ((==Event.Positive) <$> get_orientation)
+        | zero_dur = ifM ((==Types.Positive) <$> get_orientation)
             (return 0) (return (-0))
         | otherwise = get_duration tracknum start
 
@@ -103,10 +104,10 @@ get_duration tracknum start = do
     orient <- get_orientation
     step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
     end <- Selection.step_from tracknum start
-        (if orient == Event.Positive then 1 else -1) step
+        (if orient == Types.Positive then 1 else -1) step
     return (end - start)
 
-get_orientation :: Cmd.M m => m Event.Orientation
+get_orientation :: Cmd.M m => m Types.Orientation
 get_orientation = Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
 
 remove_event :: Cmd.M m => Bool -> m ()

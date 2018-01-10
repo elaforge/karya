@@ -39,6 +39,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
+import qualified Ui.Types as Types
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -341,7 +342,7 @@ c_norot start_prepare prepare =
         let sustain_cycle = gangsa_norot style pasang . get_steps
             prepare_cycle = gangsa_norot_prepare style pasang . get_steps
         let initial_final =
-                ( fromMaybe (Args.orientation args == Event.Positive) initial
+                ( fromMaybe (Args.orientation args == Types.Positive) initial
                 , final
                 )
         norot start_prepare sustain_cycle prepare_cycle under_threshold
@@ -498,7 +499,7 @@ data PitchedCycle = PitchedCycle !PSignal.Pitch !Cycle
 -- TODO this is still used by Reyong.  If I can simplify reyong norot too
 -- then I can get rid of it.
 prepare_sustain :: Bool -> ScoreTime -> (Maybe Bool, Bool)
-    -> Event.Orientation -> (ScoreTime, ScoreTime)
+    -> Types.Orientation -> (ScoreTime, ScoreTime)
     -> (Maybe ((Bool, Bool), (ScoreTime, ScoreTime)),
         Maybe ((Bool, Bool), (ScoreTime, ScoreTime)))
 prepare_sustain has_prepare note_dur (maybe_initial, final) orient
@@ -511,7 +512,7 @@ prepare_sustain has_prepare note_dur (maybe_initial, final) orient
                 (start, sustain_end))
         | otherwise = Nothing
         where
-        initial = fromMaybe (orient == Event.Positive) maybe_initial
+        initial = fromMaybe (orient == Types.Positive) maybe_initial
         sustain_end = end - if has_prepare then prepare_dur else 0
     prepare
         | has_prepare =
@@ -771,7 +772,7 @@ realize_kotekan_pattern_args args initial_final =
 -- | Take a Cycle, which is an abstract description of a pattern via
 -- 'KotekanNote's, to real notes in a NoteDeriver.
 realize_kotekan_pattern :: (Bool, Bool) -- ^ include (initial, final)
-    -> (ScoreTime, ScoreTime) -> Event.Orientation -> ScoreTime -> PSignal.Pitch
+    -> (ScoreTime, ScoreTime) -> Types.Orientation -> ScoreTime -> PSignal.Pitch
     -> (ScoreTime -> Bool) -> Repeat -> Cycle -> Derive.NoteDeriver
 realize_kotekan_pattern initial_final (start, end) orientation dur pitch
         under_threshold repeat cycle =
@@ -1003,7 +1004,7 @@ under_threshold_function kotekan dur = do
 realize_pattern :: Repeat -- ^ Once will just call get_cycle at the start
     -- time.  Repeat will start the cycle at t+1 because t is the initial, so
     -- it's the end of the cycle.
-    -> Event.Orientation -- ^ align to start or end
+    -> Types.Orientation -- ^ align to start or end
     -> (Bool, Bool)
     -> ScoreTime -> ScoreTime -> ScoreTime
     -> (ScoreTime -> [[a]]) -- ^ Get one cycle of notes, starting at the time.
@@ -1011,13 +1012,13 @@ realize_pattern :: Repeat -- ^ Once will just call get_cycle at the start
 realize_pattern repeat orientation (initial, final) start end dur get_cycle =
     case repeat of
         Once -> concatMap realize $
-            (if orientation == Event.Positive then zip else zip_end)
+            (if orientation == Types.Positive then zip else zip_end)
                 (Seq.range start end dur) (get_cycle start)
         Repeat -> concatMap realize pairs
     where
     pairs = case orientation of
-        Event.Positive -> cycles wrapped ts
-        Event.Negative -> cycles_end get_cycle ts
+        Types.Positive -> cycles wrapped ts
+        Types.Negative -> cycles_end get_cycle ts
         where ts = Seq.range start end dur
     -- Since cycles are end-weighted, I have to get the end of a cycle if an
     -- initial note is wanted.

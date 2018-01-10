@@ -59,6 +59,7 @@ import qualified Util.Serialize as Serialize
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
 
 import Global
 import Types
@@ -73,22 +74,22 @@ data Range =
     -- for Negative ones.
     Range !TrackTime !TrackTime
     -- | Select an event at exactly the given time and orientation.
-    | Point !TrackTime !Event.Orientation
+    | Point !TrackTime !Types.Orientation
     deriving (Eq, Show)
 
 instance Pretty Range where
     pretty r = case r of
         Range s e -> pretty s <> "--" <> pretty e
         Point p orient ->
-            "@" <> pretty p <> (if orient == Event.Positive then "+" else "-")
+            "@" <> pretty p <> (if orient == Types.Positive then "+" else "-")
 
 selection_range :: Sel.Selection -> Range
 selection_range sel
     | start == end = Point start $ case Sel.orientation sel of
-        Sel.Positive -> Event.Positive
-        Sel.Negative -> Event.Negative
+        Sel.Positive -> Types.Positive
+        Sel.Negative -> Types.Negative
         -- The event selection shouldn't be None so this shouldn't happen.
-        Sel.None -> Event.Positive
+        Sel.None -> Types.Positive
     | otherwise = Range start end
     where (start, end) = Sel.range sel
 
@@ -203,7 +204,7 @@ remove range events = emap (`Map.difference` within) events
 
 -- | An event exactly at the given pos, or Nothing.
 -- TODO this is just in_range (Point ...), merge them?
-at :: ScoreTime -> Event.Orientation -> Events -> Maybe Event.Event
+at :: ScoreTime -> Types.Orientation -> Events -> Maybe Event.Event
 at pos orient = Map.lookup (Key pos orient) . get
 
 -- | Like 'at', but return an event that overlaps the given pos.
@@ -234,20 +235,20 @@ split_range (Range start end) (Events events) =
     (Events pre, Events within, Events post)
     where
     (pre, within, post) =
-        Map.split3 (Key start Event.Positive) (Key end Event.Positive) events
+        Map.split3 (Key start Types.Positive) (Key end Types.Positive) events
 
 -- | Split at the given time.  A positive event that starts at the given time
 -- will appear in the after events, a negative event in the previous events.
 split :: ScoreTime -> Events -> (Events, Events)
 split pos (Events events) = (Events pre, Events post)
-    where (pre, post) = Map.split2 (Key pos Event.Positive) events
+    where (pre, post) = Map.split2 (Key pos Types.Positive) events
 
 -- | Like 'split', but a positive event that matches exactly is excluded from
 -- the result.
 split_exclude :: ScoreTime -> Events -> (Events, Events)
 split_exclude pos (Events events) =
-    (Events (Map.delete (Key pos Event.Negative) pre), Events post)
-    where (pre, post) = Map.split (Key pos Event.Positive) events
+    (Events (Map.delete (Key pos Types.Negative) pre), Events post)
+    where (pre, post) = Map.split (Key pos Types.Positive) events
 
 -- | Like 'split_range', but only return the middle part.
 in_range :: Range -> Events -> Events
@@ -312,15 +313,15 @@ type EventMap = Map Key Event.Event
 -- Technically, since 'Event.start' is in here, it doesn't have to be in
 -- 'Event.Event'.  I used to have them separate, but it was a pain to pass
 -- (ScoreTime, Event) pairs around everywhere.
-data Key = Key !TrackTime !Event.Orientation
+data Key = Key !TrackTime !Types.Orientation
     deriving (Eq, Ord, Show, Read)
 
 instance DeepSeq.NFData Key where rnf _ = ()
 
 instance Pretty Key where
     pretty (Key t o) = pretty t <> case o of
-        Event.Negative -> "-"
-        Event.Positive -> "+"
+        Types.Negative -> "-"
+        Types.Positive -> "+"
 
 event_key :: Event.Event -> Key
 event_key event = Key (Event.start event) (Event.orientation event)

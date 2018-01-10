@@ -18,6 +18,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Zoom as Zoom
@@ -107,7 +108,7 @@ set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
 
 cmd_toggle_note_orientation :: Cmd.M m => m ()
 cmd_toggle_note_orientation = Cmd.modify_edit_state $ \st -> st
-    { Cmd.state_note_orientation = Event.invert (Cmd.state_note_orientation st)
+    { Cmd.state_note_orientation = Types.invert (Cmd.state_note_orientation st)
     }
 
 cmd_modify_octave :: Cmd.M m => (Pitch.Octave -> Pitch.Octave) -> m ()
@@ -184,7 +185,7 @@ move_event modify = do
 -- the beginning of the next note, whichever is shorter.
 --
 -- If the selection is on an event, the previous or next one (depending on
--- 'Event.Orientation') is extended instead.  This is more useful than reducing
+-- 'Types.Orientation') is extended instead.  This is more useful than reducing
 -- the event to 0, which has its own cmd anyway.  If the selection is between
 -- a positive and negative event, the one corresponding to 'Sel.orientation' is
 -- selected.
@@ -564,8 +565,8 @@ invert_notes = ModifyNotes.selection $ ModifyNotes.note invert
         _ -> events
         where
         dur = case ModifyNotes.note_orientation note of
-            Event.Positive -> -0
-            Event.Negative -> 0
+            Types.Positive -> -0
+            Types.Negative -> 0
         start = ModifyNotes.note_start note
 
 -- * modify text
@@ -670,16 +671,16 @@ open_floating selection = do
     -- If I'm editing or opening a negative event, move the input up since
     -- the text will also be above the trigger.
     let open_pos = pos - case orient of
-            Event.Negative -> Zoom.to_time zoom Config.track_title_height
-            Event.Positive -> 0
+            Types.Negative -> Zoom.to_time zoom Config.track_title_height
+            Types.Positive -> 0
     return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum open_pos text
         (selection text)
 
-event_text_at :: Ui.M m => TrackId -> TrackTime -> Event.Orientation
+event_text_at :: Ui.M m => TrackId -> TrackTime -> Types.Orientation
     -> m (Maybe Text)
 event_text_at track_id pos = fmap (fmap Event.text) . event_at track_id pos
 
-event_at :: Ui.M m => TrackId -> TrackTime -> Event.Orientation
+event_at :: Ui.M m => TrackId -> TrackTime -> Types.Orientation
     -> m (Maybe Event.Event)
 event_at track_id pos orient = Events.at pos orient <$> Ui.get_events track_id
 
@@ -711,7 +712,7 @@ handle_floating_input always_zero_dur msg = do
 
 -- | Set the event's duration to its CallDuration, if it has one.
 try_set_call_duration :: Cmd.M m => BlockId -> TrackId -> TrackTime
-    -> Event.Orientation -> m ()
+    -> Types.Orientation -> m ()
 try_set_call_duration block_id track_id pos orient =
     whenJustM (event_at track_id pos orient) $ \event ->
         whenJustM (lookup_call_duration block_id track_id event) $ \dur ->

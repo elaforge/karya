@@ -23,6 +23,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
@@ -115,7 +116,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
         associate_note_id block_id (track_control ctrack) note_id
         orient <- Cmd.gets (Cmd.state_note_orientation . Cmd.state_edit)
         let pitch_pos = EditUtil.Pos block_id (track_control ctrack)
-                pos (if orient == Event.Positive then 0 else -0)
+                pos (if orient == Types.Positive then 0 else -0)
         PitchTrack.val_edit_at pitch_pos note
         -- Dyn track.
         whenM (get_state Cmd.state_record_velocity) $ do

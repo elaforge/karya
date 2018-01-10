@@ -63,6 +63,7 @@ import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 import Util.TimeVector (X, Sample(..))
 
+import qualified Ui.Types as Types
 import qualified Perform.RealTime as RealTime
 import Global
 
@@ -213,10 +214,10 @@ null = V.null . _vector
 -- | The arguments may seem backwards, but I've always done it this way, and it
 -- seems to be more convenient in practice.
 at :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y -> Maybe y
-at = at_orientation Positive
+at = at_orientation Types.Positive
 
-at_orientation :: V.Vector v (Sample y) => Orientation -> Interpolate y -> X
-    -> SignalS v y -> Maybe y
+at_orientation :: V.Vector v (Sample y) => Types.Orientation -> Interpolate y
+    -> X -> SignalS v y -> Maybe y
 at_orientation orient interpolate x sig =
     case segment_at_orientation orient x sig of
         Nothing -> Nothing
@@ -224,9 +225,9 @@ at_orientation orient interpolate x sig =
             Just $ interpolate (Sample x1 y1) (Sample x2 y2) (x + _offset sig)
 
 segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
-segment_at  = segment_at_orientation Positive
+segment_at  = segment_at_orientation Types.Positive
 
-segment_at_orientation :: V.Vector v (Sample y) => Orientation -> X
+segment_at_orientation :: V.Vector v (Sample y) => Types.Orientation -> X
     -> SignalS v y -> Maybe (Segment y)
 segment_at_orientation orient x (Signal offset vec)
     | i < 0 = Nothing
@@ -239,11 +240,8 @@ segment_at_orientation orient x (Signal offset vec)
     where
     i = get (x + offset) vec
     get = case orient of
-        Negative -> TimeVector.index_below
-        Positive -> TimeVector.highest_index
-
-data Orientation = Negative | Positive
-    deriving (Eq, Show)
+        Types.Negative -> TimeVector.index_below
+        Types.Positive -> TimeVector.highest_index
 
 minimum, maximum :: (V.Vector v (Sample a), Ord a) => SignalS v a -> Maybe a
 minimum sig

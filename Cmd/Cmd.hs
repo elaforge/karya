@@ -683,7 +683,7 @@ data EditState = EditState {
     -- the next note or the end of the block.
     , state_note_duration :: !TimeStep.TimeStep
     -- | If this is Rewind, create notes with negative durations.
-    , state_note_orientation :: !Event.Orientation
+    , state_note_orientation :: !Types.Orientation
     -- | New notes get this text by default.  This way, you can enter a series
     -- of notes with the same attributes, or whatever.
     , state_note_text :: !Text
@@ -708,7 +708,7 @@ initial_edit_state = EditState {
     , state_time_step =
         TimeStep.time_step $ TimeStep.AbsoluteMark TimeStep.AllMarklists 0
     , state_note_duration = TimeStep.event_edge
-    , state_note_orientation = Event.Positive
+    , state_note_orientation = Types.Positive
     , state_note_text = ""
     -- This should put middle C in the center of the kbd entry keys.
     , state_kbd_entry_octave = 3

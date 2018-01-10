@@ -20,6 +20,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Midi.Midi as Midi
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance

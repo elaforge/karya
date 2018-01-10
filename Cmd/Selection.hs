@@ -79,11 +79,11 @@ set_selnum view_id selnum maybe_sel
                     return $ sel { Sel.orientation = o }
                 Sel.Positive -> do
                     Cmd.modify_edit_state $ \state ->
-                        state { Cmd.state_note_orientation = Event.Positive }
+                        state { Cmd.state_note_orientation = Types.Positive }
                     return sel
                 Sel.Negative -> do
                     Cmd.modify_edit_state $ \state ->
-                        state { Cmd.state_note_orientation = Event.Negative }
+                        state { Cmd.state_note_orientation = Types.Negative }
                     return sel
         Ui.set_selection view_id selnum maybe_sel
         whenJust maybe_sel $ \sel -> when (Sel.is_point sel) $ do
@@ -96,8 +96,8 @@ get_orientation :: Cmd.M m => m Sel.Orientation
 get_orientation = do
     o <- Cmd.gets $ Cmd.state_note_orientation . Cmd.state_edit
     return $ case o of
-        Event.Positive -> Sel.Positive
-        Event.Negative -> Sel.Negative
+        Types.Positive -> Sel.Positive
+        Types.Negative -> Sel.Negative
 
 mmc_goto_sel :: Cmd.M m => ViewId -> Sel.Selection -> Cmd.SyncConfig -> m ()
 mmc_goto_sel view_id sel sync = do
@@ -807,8 +807,8 @@ events_at_point = do
     fmap (filter (not . null . snd)) $ forM track_ids $ \track_id -> do
         events <- Ui.get_events track_id
         return $ (track_id,) $
-            maybe [] (:[]) (Events.at pos Event.Negative events)
-            ++ maybe [] (:[]) (Events.at pos Event.Positive events)
+            maybe [] (:[]) (Events.at pos Types.Negative events)
+            ++ maybe [] (:[]) (Events.at pos Types.Positive events)
 
 -- | Like 'event_around', but select as if the selection were a point.
 -- Suitable for cmds that logically only work on a single event per-track.
@@ -866,8 +866,8 @@ select_neighbor sel pair = case pair of
     --  |--->    <---| => take based on orientation
     (pre:pres, post:posts)
         | Event.is_positive pre && Event.is_negative post -> case orient of
-            Event.Positive -> (pres, [pre], post:posts)
-            Event.Negative -> (pre:pres, [post], posts)
+            Types.Positive -> (pres, [pre], post:posts)
+            Types.Negative -> (pre:pres, [post], posts)
     --  |--->          => take pre
     (pre:pres, posts) | Event.is_positive pre -> (pres, [pre], posts)
     --           <---| => take post
@@ -890,7 +890,7 @@ opposite_neighbor = do
             Ui.get_events track_id
     return [(track_id, event) | (track_id, Just event) <- zip tids events]
 
-select_opposite_neighbor :: ScoreTime -> Event.Orientation -> Events.Events
+select_opposite_neighbor :: ScoreTime -> Types.Orientation -> Events.Events
     -> Maybe Event.Event
 select_opposite_neighbor pos orient events =
     case Events.split_lists pos events of
@@ -901,8 +901,8 @@ select_opposite_neighbor pos orient events =
         -- (_, post:_) | Event.overlaps pos post -> Just post
         (pre:_, post:_)
             | Event.is_positive post && Event.is_negative pre -> case orient of
-                Event.Positive -> Just post
-                Event.Negative -> Just pre
+                Types.Positive -> Just post
+                Types.Negative -> Just pre
         (_, post:_) | Event.is_positive post -> Just post
         (pre:_, _) | Event.is_negative pre -> Just pre
         _ -> Nothing

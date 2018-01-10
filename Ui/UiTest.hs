@@ -31,6 +31,7 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
 import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
@@ -361,7 +362,7 @@ insert_event = insert_event_in default_block_name
 remove_event_in :: Ui.M m => Text -> TrackNum -> ScoreTime -> m ()
 remove_event_in name tracknum pos =
     Ui.remove_events_range (mk_tid_name name tracknum)
-        (Events.Point pos Event.Positive)
+        (Events.Point pos Types.Positive)
 
 remove_event :: Ui.M m => TrackNum -> ScoreTime -> m ()
 remove_event = remove_event_in default_block_name
