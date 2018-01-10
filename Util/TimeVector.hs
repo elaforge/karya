@@ -549,12 +549,12 @@ at_before x = fmap snd . sample_at_before x
 {-# SPECIALIZE sample_at_before :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
 {-# INLINEABLE sample_at_before #-}
 sample_at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)
-sample_at_before x vec
-    | i >= 0 = Just $ to_pair $ V.unsafeIndex vec i
-    | otherwise = case uncons vec of
-        Just (Sample x y, _) | x <= 0 -> Just (x, y)
-        _ -> Nothing
-    where i = bsearch_below x vec
+sample_at_before x vec = case vec V.!? (i+1) of
+    Just (Sample x2 y2) | x == x2 && (fst <$> s1) /= Just x -> Just (x2, y2)
+    _ -> s1
+    where
+    s1 = to_pair <$> vec V.!? i
+    i = index_below x vec
 
 clip_to :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 clip_to x vec = case head clipped of

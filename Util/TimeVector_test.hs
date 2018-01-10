@@ -35,9 +35,11 @@ test_at = do
     equal (range 0 4 [(0, 1), (3, 1)]) (map Just [1, 1, 1, 1])
 
 test_at_before = do
-    let sig = signal [(0, 0), (1, 0), (1, 1), (2, 1)]
-    equal (V.at 1 sig) (Just 1)
-    equal (V.at_before 1 sig) (Just 0)
+    let sig = signal [(1, 1), (1, 2), (3, 3)]
+    equal (map (flip V.at sig) (Seq.range' 0 5 1))
+        [Nothing, Just 2, Just 2, Just 3, Just 3]
+    equal (map (flip V.sample_at_before sig) (Seq.range' 0 5 1))
+        [Nothing, Just (1, 1), Just (1, 2), Just (3, 3), Just (3, 3)]
 
 test_at_eta = do
     let f x sig = V.at x (signal sig)
