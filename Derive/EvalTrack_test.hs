@@ -34,7 +34,9 @@ import qualified Derive.Symbols as Symbols
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Patch as Patch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -142,9 +144,11 @@ test_assign_controls = do
     equal (run ">i | %cont = %gont" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- set a constant signal
-    equal (run ">i | %cont = 42" "gont" "1") ([("4c", [(0, 42)])], [])
+    equal (run ">i | %cont = 42" "gont" "1")
+        ([("4c", [(-RealTime.larger, 42)])], [])
     -- set constant signal with a default
-    equal (run ">i | %cont = %gont,42" "bonk" "1") ([("4c", [(0, 42)])], [])
+    equal (run ">i | %cont = %gont,42" "bonk" "1")
+        ([("4c", [(-RealTime.larger, 42)])], [])
     equal (run ">i | %cont = %gont,42" "gont" "1") ([("4c", [(0, 1)])], [])
 
     -- named pitch doesn't show up
@@ -295,7 +299,7 @@ test_track_dynamic = do
         (zip all_tracks ("twelve" : repeat "legong"))
     equal (e_track_dynamic e_dyn res)
         (zip all_tracks
-            [ Just [(0, 1)]
+            [ Just [(-RealTime.larger, 1)] -- because of initial dyn
             , Just [(0, 0.5)]
             , Just [(0, 0.5)]
             , Just [(0, 0.5)]

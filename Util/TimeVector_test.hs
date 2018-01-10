@@ -34,12 +34,6 @@ test_at = do
     equal (range 0 4 [(2, 1)]) [Nothing, Nothing, Just 1, Just 1]
     equal (range 0 4 [(0, 1), (3, 1)]) (map Just [1, 1, 1, 1])
 
-    -- A sample at <=0 implies that the sample extends back indefinitely.
-    let f p sig = V.at p (signal sig)
-    equal (f (-1) [(0, 2)]) (Just 2)
-    equal (f (-1) [(1, 2)]) Nothing
-    equal (f 0 [(1, 2)]) Nothing
-
 test_at_before = do
     let sig = signal [(0, 0), (1, 0), (1, 1), (2, 1)]
     equal (V.at 1 sig) (Just 1)

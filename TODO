@@ -190,7 +190,19 @@ NESS:
     . solkattu for metal percussion thing
     . can I hand damp metal percussion?
 
+STATUS
+  . Currently working on linear segment signals.
+    . Entails switching warps from being signal based to being function-based.
+    . I also got rid of the Score.event_untransformed_* hack.
+    . Also entails getting rid of the Block.trim_controls hack, which means
+      I need a less hacky way to handle notes at the end of blocks.
+      . So I need verify to pass so I can evaluate what happens when I remove
+        trim_controls.
+  . Next, I should set up organized profiling, especially so I can profile
+    before and after warp as function, and linear segments.
+
 UNSORTED
+  - pnovla @pno1 32.25t mordent broken, probably too much note overlap
   - Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
   - If I use cpphs I might be able to use \ string continuation for CPP
     modules.  It would add another dependency though... worth it?
@@ -1333,6 +1345,18 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
     - remove Derive.Deriver.Monad.state_pitch_mergers
     - implement Warp.compose_hybrid
 
+  / Could I use -Infinity for constant rather than -RealTime.large?  That
+    way I don't have to worry about any amount of translation.
+    . -Infinity == -Infinity, but I can also do isInfinite && <0.
+    . The problem is that the integral of a constant signal starting at
+      -Infinity winds up at (Infinity, Infinity), at which point I've lost the
+      slope.  In practice it's (Infinity, NaN).
+  - If I get rid of constant signals starting at 0, then Tempo.tempo_to_warp's
+    constant_val doesn't work, because tracks start at 0.
+    . I could move tempo track's first sample to -large, but no I can't
+      because it makes integrate take forever.
+    - However, with segments I probably could, and maybe I want to make all
+      controls implicitly start at -large?
   - Another way to make moving events cheap is to make event controls relative
     to event_start.
     . Surely I thought of that before, but I don't remember why I didn't do it.
@@ -2170,8 +2194,40 @@ performance:
   - profiling for complete scores is broken since I removed them
     . Derive_profile.profile_file etc.
     . Use the the verify score stuff instead.
-  - Bring back profiling, and do it regularly.  Look into that graphing stuff,
-    I have the links around here somewhere.
+  - Bring back profiling, and do it regularly.
+    . Look into that graphing stuff, I have the links around here somewhere.
+    . I can get historical data with a script to step through darcs history.
+    . I don't have historical scores.  Well, I have backup/y-m-d, but they're
+      done irregularly and don't line up to commits.  Still, I should be able
+      to do ok by looking for the closest match.  Outright failures should be
+      visible as outliers.
+    . For the future I should have a more organized way to backup scores.
+      . One way is to trigger a save-backup/backup after every patch that
+        requires that score to be updated.
+        . This is actually uncommon, less common than ones requiring an update
+          for the the saved realization.
+        . Also the backup needs the commit date, not current date.
+      . Or put the saves in source control.
+        . Not the same one as the source, I don't want to have tons of giant
+          binary diffs.
+        . So I need some way to link them... is commit date enough?
+        . Other people have surely created solutions for this, e.g. git-annex.
+        . This would be weird for git saves, I don't want nested source
+          control!  git saves have their own history and could be rewinded
+          their own.
+      . Or use git saves for everything, now each score has its own history.
+        . For some reason I don't really like to use git saves though.
+        . If I extend the .last mechanism to make dated versions, it's
+          essentially a simple homemade version.  It would be too cluttered
+          if I did it on every save though, it would still need some trigger
+          to notice when an incompatible change happened.
+    . Ideally I have a separate set of scores that don't change other than
+      compatibility updates and are just for profiling, like the old data/*.
+      . In fact, maybe I should go back to that, except keep data/ in
+        a separate repo.
+      . The problem is I have to update twice as much stuff, but I don't need
+        that many "reference" scores.
+    . Profile MIDI and ly generation separately?
   - When I'm using ghc 8.2, try compact regions for inst db, especially vsl.
     . 'compact' package
     . Maybe even serialize it to disk?  Probably not worth it though, since

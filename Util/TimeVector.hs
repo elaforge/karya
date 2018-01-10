@@ -139,13 +139,15 @@ set prev_y x y = signal $ maybe id ((:) . (x,)) prev_y [(x, y)]
 {-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}
 constant :: V.Vector v (Sample y) => y -> v (Sample y)
-constant y = V.singleton (Sample (-RealTime.large) y)
+constant y = V.singleton (Sample (-RealTime.larger) y)
 
 constant_val :: Unboxed -> Maybe UnboxedY
 constant_val vec = case uncons vec of
     Nothing -> Just 0
     Just (Sample x0 y0, rest)
-        | x0 <= 0 -> if V.all ((==y0) . sy) rest then Just y0 else Nothing
+        -- I compare multiple samples because a track might have redundant
+        -- values, but I still want to detect if it's constant.
+        | x0 <= -RealTime.large && V.all ((==y0) . sy) rest -> Just y0
         | V.all ((==0) . sy) vec -> Just 0
         | otherwise -> Nothing
 

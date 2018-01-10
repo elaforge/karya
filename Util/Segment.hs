@@ -10,7 +10,7 @@ module Util.Segment (
     , X, Sample(..)
     -- * construct / destruct
     , empty
-    , constant, constant_val
+    , constant, constant_val, constant_val_num
     , from_vector, to_vector
     , from_samples, to_samples
     , from_pairs, to_pairs
@@ -110,7 +110,7 @@ empty :: V.Vector v a => Signal (v a)
 empty = Signal 0 V.empty
 
 constant :: V.Vector v (Sample y) => y -> SignalS v y
-constant a = from_vector $ V.fromList [Sample (-RealTime.large) a]
+constant a = from_vector $ V.fromList [Sample (-RealTime.larger) a]
 
 constant_val :: V.Vector v (Sample a) => SignalS v a -> Maybe a
 constant_val sig = case TimeVector.uncons (_vector sig) of
@@ -119,6 +119,18 @@ constant_val sig = case TimeVector.uncons (_vector sig) of
     Just (Sample x1 y1, rest) | x1 <= -RealTime.large && V.null rest ->
         Just y1
     _ -> Nothing
+
+-- | 'constant_val' for 'NumSignal's can be more clever, because it can compare
+-- Ys.  Also NumSignals are implicitly 0 before the first sample.
+constant_val_num :: NumSignal -> Maybe Y
+constant_val_num sig = case TimeVector.uncons (_vector sig) of
+    -- I compare multiple samples because a track might have redundant
+    -- values, but I still want to detect if it's constant.
+    Just (Sample x y, rest)
+        | x <= -RealTime.large && V.all ((==y) . sy) rest -> Just y
+        | V.all ((==0) . sy) (_vector sig) -> Just 0
+        | otherwise -> Nothing
+    Nothing -> Just 0
 
 from_vector :: v -> Signal v
 from_vector = Signal 0
@@ -326,6 +338,10 @@ last sig = case TimeVector.last (_vector sig) of
 -- | Shift the signal in time.
 shift :: X -> Signal v -> Signal v
 shift offset sig = sig { _offset = _offset sig + offset }
+
+-- | Apply the _offset, and set it to 0.  Just for tests.
+_flatten_shift :: V.Vector v (Sample y) => SignalS v y -> SignalS v y
+_flatten_shift = from_vector . to_vector
 
 -- | Map Ys.  Only valid if the function is linear.
 map_y :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y

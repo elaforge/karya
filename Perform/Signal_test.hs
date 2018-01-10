@@ -8,6 +8,7 @@ import Util.Test
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Perform.Signal (signal, unsignal)
+import Global
 
 
 test_constant_val = do
@@ -16,7 +17,8 @@ test_constant_val = do
     equal (f [(0, 0)]) (Just 0)
     equal (f [(3, 0)]) (Just 0)
     equal (f [(3, 2)]) Nothing
-    equal (f [(0, 1), (3, 1)]) (Just 1)
+    equal (Signal.constant_val $ Signal.constant 1 <> signal [(3, 1)]) (Just 1)
+    equal (Signal.constant_val $ Signal.shift 10 $ Signal.constant 1) (Just 1)
 
 test_before = do
     let f x = Signal.before x . signal

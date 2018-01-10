@@ -36,7 +36,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Global hiding (first)
 import Types
@@ -201,9 +200,7 @@ merge_asc_lists streams = from_sorted_list $
 -- | This will make logs always merge ahead of score events, but that should
 -- be ok.
 levent_key :: LEvent.LEvent Score.Event -> RealTime
-    -- Yeah it's a hack and I could use a pair, but RealTime should never go
-    -- far negative.
-levent_key (LEvent.Log _) = -RealTime.large
+levent_key (LEvent.Log _) = -1/0 -- -Infinity
 levent_key (LEvent.Event event) = Score.event_start event
 
 merge_log :: Log.Msg -> Stream a -> Stream a

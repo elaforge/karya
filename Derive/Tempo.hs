@@ -81,12 +81,24 @@ with_tempo toplevel range maybe_track_id signal deriver = do
 tempo_to_warp :: Signal.Tempo -> Warp.Warp
 tempo_to_warp sig
     -- Optimize for a constant (or missing) tempo.
-    | Just y <- Signal.constant_val sig =
+    | Just y <- constant_val sig =
         Warp.stretch (ScoreTime.double $ 1 / max min_tempo y) Warp.identity
     | otherwise = Warp.from_signal warp_sig
     where
     warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $
          Signal.scalar_min min_tempo sig
+
+-- TODO This is analogous to Signal.constant_val, except it takes a sample at
+-- 0 as a constant.  This is a temporary hack, when I switch to segments and
+-- don't have to integrate flat lines with a sampling rate, I can have all
+-- signals implicitly extend to -large, and then the standard constant_val
+-- should work.
+constant_val :: Signal.Tempo -> Maybe Signal.Y
+constant_val sig = case Signal.head sig of
+    Nothing -> Just 0
+    Just (x, y)
+        | x <= 0 && all ((==y) . snd) (Signal.unsignal sig) -> Just y
+        | otherwise -> Nothing
 
 min_tempo :: Signal.Y
 min_tempo = 0.001

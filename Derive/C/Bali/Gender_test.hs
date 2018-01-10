@@ -149,11 +149,11 @@ test_realize_damp = do
         ([(0, 1, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])
 
 test_weak = do
-    let run = DeriveTest.extract (DeriveTest.e_control "mute")
+    let run = DeriveTest.extract (DeriveTest.e_control_vals "mute")
             . DeriveTest.derive_tracks transform
         strength = zip (Seq.range_ 0 1) ["0", "0.25", "0.5", "0.75", "1"]
     equal (run
             [ ("strength", [(n, 0, s) | (n, s) <- strength])
             , (">", [(n, 1, "weak") | (n, _) <- strength])
             ])
-        ([[(0, 0.25)], [(0, 0)], [(0, 0)]], [])
+        ([[0.25], [0], [0]], [])

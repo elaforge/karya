@@ -47,26 +47,26 @@ test_equal_merge_env = do
     -- Types are preserved.
     equal (run "k=1c | k=+1 |") (["2c"], [])
 
-
 test_equal_merge_control = do
-    let run control evts = DeriveTest.extract (DeriveTest.e_control control) $
+    let run control evts =
+            DeriveTest.extract (DeriveTest.e_control_constant control) $
             DeriveTest.derive_tracks "" [(">", evts)]
-    equal (run "c" [(0, 1, "%c = .5 | %c = .5 add |")]) ([[(0, 1)]], [])
+    equal (run "c" [(0, 1, "%c = .5 | %c = .5 add |")]) ([Just 1], [])
     -- Default is multiply.
     equal (run "c" [(0, 1, "%c = .5 | %c = .25 default |")])
-        ([[(0, 0.5 * 0.25)]], [])
-    equal (run "c" [(0, 1, "%c = .5 | %c =+ .5 |")]) ([[(0, 1)]], [])
-    equal (run "c" [(0, 1, "%c = .5 | %c =* .5 |")]) ([[(0, 0.25)]], [])
-    equal (run "c" [(0, 1, "%c=5 | %c =- 2 |")]) ([[(0, 3)]], [])
-    equal (run "c" [(0, 1, "%c =- 2 |")]) ([[(0, -2)]], [])
+        ([Just (0.5 * 0.25)], [])
+    equal (run "c" [(0, 1, "%c = .5 | %c =+ .5 |")]) ([Just 1], [])
+    equal (run "c" [(0, 1, "%c = .5 | %c =* .5 |")]) ([Just 0.25], [])
+    equal (run "c" [(0, 1, "%c=5 | %c =- 2 |")]) ([Just 3], [])
+    equal (run "c" [(0, 1, "%c =- 2 |")]) ([Just (-2)], [])
 
-    equal (run "c" [(0, 1, "%c = 2 sub |")]) ([[(0, -2)]], [])
+    equal (run "c" [(0, 1, "%c = 2 sub |")]) ([Just (-2)], [])
     -- =-1 is parsed as =- 1.
-    equal (run "c" [(0, 1, "%c = 2 | %c=-1 |")]) ([[(0, 1)]], [])
+    equal (run "c" [(0, 1, "%c = 2 | %c=-1 |")]) ([Just 1], [])
 
     -- Transposers default to add.
     equal (run "t-dia" [(0, 1, "%t-dia = 1 | %t-dia = 1 default |")])
-        ([[(0, 2)]], [])
+        ([Just 2], [])
 
 test_equal_inst_alias = do
     let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $

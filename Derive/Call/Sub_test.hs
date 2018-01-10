@@ -51,7 +51,7 @@ test_inverting_block = do
         ([(0, 1, "3c")], [])
 
 test_under_invert = do
-    let run under_invert = DeriveTest.extract (DeriveTest.e_control "out")
+    let run under_invert = DeriveTest.extract (DeriveTest.e_control_vals "out")
             . DeriveTest.derive_tracks_setup (call under_invert) ""
         call under_invert =
             CallTest.with_note_transformer "t" (trans under_invert)
@@ -63,21 +63,21 @@ test_under_invert = do
             , (">", [(0, 1, "t |")])
             , ("c", [(0, 0, ".5")])
             ])
-        ([[(0, 1)]], [])
+        ([[1]], [])
     -- under_invert sees the inner "c".
     equal (run True
             [ ("c", [(0, 0, "1")])
             , (">", [(0, 1, "t |")])
             , ("c", [(0, 0, ".5")])
             ])
-        ([[(0, 0.5)]], [])
+        ([[0.5]], [])
 
     -- under_invert works even with no inversion.
     equal (run True
             [ ("c", [(0, 0, "1")])
             , (">", [(0, 1, "t |")])
             ])
-        ([[(0, 1)]], [])
+        ([[1]], [])
 
     -- And for a generator with subs that still doesn't want to invert.
     equal (run True

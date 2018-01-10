@@ -41,7 +41,7 @@
     care about it and eventually be removed from the final result.
 -}
 module Perform.RealTime (
-    RealTime, div, mul, large, suffix
+    RealTime, div, mul, large, larger, suffix
     , show_units
     -- * convert from
     , seconds, milliseconds, microseconds, score
@@ -117,13 +117,24 @@ mul :: RealTime -> Double -> RealTime
 mul a b = seconds (to_seconds a * b)
 infixl 7 `mul`
 
--- | A large RealTime as a stand-in for "forever" in signals.  This is actually
--- a bit of a short forever compared to the full Double range, but it should
--- still be well past any time I'll actually use, and still small enough to
--- not worry about overflow to infinity.  Also, e100 is pretty recognizable,
--- which will hopefully reduce confusion about where it came from.
+-- | A large RealTime as a stand-in for "forever" in signals.
+--
+-- I tried Infinity, but a constant signal starting at -Infinity will have
+-- an integral ending at (Infinity, Infinity) (or (Infinity, NaN) in practice),
+-- at which point I lost the slope.
+--
+-- 1e10 is recognizable in debugging output as a special value, and still quite
+-- far away from 2^53 (9e15), which is where integers can no longer be
+-- represented exactly in a 64 bit Double.  This means I can take the integral
+-- at a steep slope and I should still be in the realm of exact integers, which
+-- means the slope should stay accurate.
 large :: RealTime
-large = RealTime 1e100
+large = 1e10
+
+-- | Comfortably bigger than 'large', so it won't cross large given normal
+-- amonuts of time shift.
+larger :: RealTime
+larger = 1e11
 
 suffix :: Char
 suffix = 's'

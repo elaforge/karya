@@ -17,14 +17,14 @@ test_kendang = do
             control ++ [(">k", mknotes notes)]
         extract e =
             ( DeriveTest.e_attributes e
-            , DeriveTest.e_control KendangSunda.pitch_control e
+            , DeriveTest.e_control_vals KendangSunda.pitch_control e
             )
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
     equal (run [] ["o", "e_", "e-", "e^"])
-        ([("+dong", [(0, 0)]), ("+det+low", [(0, 0.25)]),
-            ("+det+middle", [(0, 0.5)]), ("+det+high", [(0, 0.75)])], [])
+        ([("+dong", [0]), ("+det+low", [0.25]),
+            ("+det+middle", [0.5]), ("+det+high", [0.75])], [])
     equal (run [("pitch", [(0, 0, ".45")])] ["o", "e"])
-        ([("+dong", [(0, 0)]), ("+det", [(0, 0.45)])], [])
+        ([("+dong", [0]), ("+det", [0.45])], [])
 
 test_resolve = do
     equal KendangSunda.resolve_errors []

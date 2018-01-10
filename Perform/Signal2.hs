@@ -162,7 +162,7 @@ constant = Signal . Segment.constant
 
 -- | Just if the signal is constant.
 constant_val :: Signal kind -> Maybe Y
-constant_val = Segment.constant_val . _signal
+constant_val = Segment.constant_val_num . _signal
 
 unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
 unfoldr gen state = Signal $ Segment.unfoldr gen state

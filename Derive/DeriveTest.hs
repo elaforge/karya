@@ -655,6 +655,13 @@ e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
 e_control control event = maybe [] (Signal.unsignal_unique . Score.typed_val) $
     Map.lookup control (Score.event_controls event)
 
+e_control_vals :: Score.Control -> Score.Event -> [Signal.Y]
+e_control_vals control = map snd . e_control control
+
+e_control_constant :: Score.Control -> Score.Event -> Maybe Signal.Y
+e_control_constant control = Signal.constant_val . Score.typed_val
+    <=< Map.lookup control . Score.event_controls
+
 e_start_control :: Score.Control -> Score.Event -> Maybe Signal.Y
 e_start_control control event =
     Score.typed_val <$> Score.control_at (Score.event_start event) control event

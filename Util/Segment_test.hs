@@ -28,7 +28,9 @@ test_from_pairs = do
 test_constant_val = do
     let f = Segment.constant_val
     equal (f $ constant 1) (Just 1)
-    equal (f $ Segment.shift 10 $ constant 1) (Just 1)
+    equal (f $ Segment.shift 100 $ constant 1) (Just 1)
+    -- Not thrown off by shifts, as long as they're not too large.
+    equal (f $ Segment._flatten_shift $ Segment.shift 100 $ constant 1) (Just 1)
     equal (f $ from_pairs []) Nothing
     equal (f $ from_pairs [(0, 0)]) Nothing
     equal (f $ from_pairs [(3, 2)]) Nothing

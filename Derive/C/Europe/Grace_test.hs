@@ -17,6 +17,8 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.NN as NN
+import qualified Perform.RealTime as RealTime
+
 import Global
 
 
@@ -163,13 +165,13 @@ test_roll = do
         ([(1, 0.5, "4c"), (1.5, 0.5, "4c"), (2, 1, "4c")], [])
     -- The final note should not lose whatever pitch it has.
     let extract e = (Score.event_start e, DeriveTest.e_nns e)
-    equal (run extract [(">", [(0, 2, "roll 1 .5")]),
-            ("*", [(0, 0, "4c"), (1, 0, "4d")])])
-        ([(-0.5, [(0, NN.c4)]), (0, [(0, NN.c4), (1, NN.d4)])], [])
-    -- The first NN.c4 should be at -0.5 I think, but goes at 0 due to the
-    -- awkward signal semantics where I start constant at 0.  TODO using
-    -- explicit line segments or a continuous signal or whatever would fix
-    -- this.
+    equal (run extract
+            [(">", [(0, 2, "roll 1 .5")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
+        ( [ (-0.5, [(-RealTime.larger, NN.c4)])
+          , (0, [(0, NN.c4), (1, NN.d4)])
+          ]
+        , []
+        )
 
 -- * pitch calls
 
