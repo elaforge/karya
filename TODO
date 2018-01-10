@@ -1551,6 +1551,11 @@ synth: im:
       have to do it manually via some kind of VST GUI, and save in the VST
       preset mechanism, and it sounds like a lot of hassle.
   faust:
+    * Configure constant controls in faust.
+      . Faust should have a way to attach metadata to function parameters.
+      . Meanwhile I have to invent my own hack, so
+        constant:Doc doc doc.
+        [key=val val val; key=val val val] Doc doc doc
     - Extend the guitar single string model into a multi-string instrument.
     * Write separate files for each instrument
       * Concatenate signals for all notes, and synthesize a gate signal to mark

@@ -5,7 +5,6 @@
 -- | Export a 'synth' with all the supported patches.
 module Synth.Faust.PatchDb (synth, warnings) where
 import qualified Data.Either as Either
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -20,7 +19,6 @@ import qualified Instrument.InstTypes as InstTypes
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Note as Note
 
 import Global
 
@@ -40,28 +38,21 @@ warnings :: [Text]
         result <- DriverC.getParsedMetadata patch
         return $ first (("faust/" <> name <> ": ") <>) $ do
             (doc, controls) <- result
-            patch <- makePatch doc controls name
+            patch <- makePatch doc controls
             return (name, patch)
 
-makePatch :: Doc.Doc -> [(Control.Control, Text)] -> Note.PatchName
+makePatch :: Doc.Doc -> Map Control.Control DriverC.ControlConfig
     -> Either Text ImInst.Patch
-makePatch doc controls name = do
-    let attackSampled = Map.findWithDefault [] name controlConfigs
-    let unused = attackSampled List.\\ map fst controls
-    unless (null unused) $
-        Left $ "attack sampled controls don't exist: " <> pretty unused
-    return $ ImInst.doc #= doc $ code attackSampled $
+makePatch doc controls = do
+    let constantControls = map fst $ filter (DriverC._constant . snd) $
+            Map.toList $ Map.delete Control.pitch controls
+    return $ ImInst.doc #= doc $ code constantControls $
         ImInst.make_patch $
-        Patch.patch { Patch.patch_controls = Map.fromList controls }
+        Patch.patch { Patch.patch_controls = DriverC._description <$> controls }
     where
-    code [] = id
-    code attackSampled = (ImInst.code #=) $ ImInst.null_call $
-        DUtil.attack_sample_note id (Set.fromList (map control attackSampled))
+    code constantControls = (ImInst.code #=) $ ImInst.null_call $
+        DUtil.attack_sample_note id
+            (Set.fromList (map control constantControls))
 
 control :: Control.Control -> ScoreTypes.Control
 control (Control.Control c) = ScoreTypes.Control c
-
-controlConfigs :: Map Note.PatchName [Control.Control]
-controlConfigs = Map.fromList
-    [ ("guitar", [Control.dynamic, "pos"])
-    ]

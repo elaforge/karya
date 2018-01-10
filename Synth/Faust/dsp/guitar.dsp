@@ -3,8 +3,8 @@ import("stdfaust.lib");
 declare description "Guitar model.";
 declare control0_gate "Gate.";
 declare control1_pitch "Pitch signal.";
-declare control2_dyn "Dynamic signal.";
-declare control3_pos "Pluck position.";
+declare control2_dyn "constant:Dynamic signal.";
+declare control3_pos "constant:Pluck position.";
 
 process(gate, pitch, dyn, pluckPosition) =
     pm.nylonGuitar(stringLength, pluckPosition, gain, gate) * outGain
