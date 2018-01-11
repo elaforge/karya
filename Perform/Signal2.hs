@@ -25,19 +25,13 @@ module Perform.Signal2 (
     , with_ptr
 
     -- * query
-    -- , length
     , null
     , at, segment_at
-    -- , head, last
     , minimum, maximum
 
     -- * transform
-
     , drop_after, drop_before
     , clip_after, clip_before
-    -- , drop, drop_while, within
-    -- , drop_at_after, drop_after, drop_before, drop_before_strict
-    -- , drop_before_at
     , shift
 
     , invert, sig_add, sig_subtract, sig_multiply, sig_scale

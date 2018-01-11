@@ -12,7 +12,7 @@ module Derive.PSignal (
 
     -- * query
     , null, at, sample_at, segment_at, before, shift, head, last
-    , take, drop, drop_while, drop_after, drop_at_after
+    , drop_after, drop_at_after
     , drop_before, drop_before_strict, drop_before_at, within
 
     -- * backported
@@ -36,7 +36,7 @@ module Derive.PSignal (
     -- ** create
     , constant_pitch, nn_pitch
 ) where
-import Prelude hiding (head, take, drop, last, null)
+import Prelude hiding (head, last, null)
 import qualified Data.Either as Either
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -145,15 +145,6 @@ head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
 
 last :: PSignal -> Maybe (RealTime, Pitch)
 last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
-
-take :: Int -> PSignal -> PSignal
-take = modify . TimeVector.take
-
-drop :: Int -> PSignal -> PSignal
-drop = modify . TimeVector.drop
-
-drop_while :: (Sample Pitch -> Bool) -> PSignal -> PSignal
-drop_while f = modify (V.dropWhile f)
 
 drop_after :: RealTime -> PSignal -> PSignal
 drop_after = modify . TimeVector.drop_after

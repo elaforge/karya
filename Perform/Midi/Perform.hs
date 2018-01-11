@@ -734,9 +734,9 @@ perform_signal prev_note_off start end sig = initial : pairs
         -- the constant signal.  TODO hacks like this should go away once
         -- I have a higher level signal interface.
         | Just _ <- Signal.constant_val sig = []
-        | otherwise = Seq.drop_initial_dups fst $ Signal.unsignal $
-            Signal.drop_while ((<= start) . Signal.sx) $
-            maybe id Signal.drop_at_after end sig
+        | otherwise = Seq.drop_initial_dups fst $
+            dropWhile ((<=start) . fst) $ Signal.to_pairs $
+            Signal.drop_before start $ maybe id Signal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
     tweaked_start = min (start - min_control_lead_time) $

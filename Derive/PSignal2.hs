@@ -15,9 +15,9 @@ module Derive.PSignal2 (
 
     -- * query
     , null, at, segment_at
-    -- , before, head, last
-    -- , take, drop, drop_while, drop_after, drop_at_after
-    -- , drop_before, drop_before_strict, drop_before_at, within
+    -- , before
+    -- , drop_at_after
+    -- , drop_before_strict, drop_before_at, within
 
     -- * transform
     , drop_after, clip_after
@@ -200,17 +200,8 @@ take = modify . Segment.take
 drop :: Int -> PSignal -> PSignal
 drop = modify . Segment.drop
 
-drop_while :: (Sample Pitch -> Bool) -> PSignal -> PSignal
-drop_while f = modify (V.dropWhile f)
-
-drop_after :: RealTime -> PSignal -> PSignal
-drop_after = modify . Segment.drop_after
-
 drop_at_after :: RealTime -> PSignal -> PSignal
 drop_at_after = modify . Segment.drop_at_after
-
-drop_before :: RealTime -> PSignal -> PSignal
-drop_before = modify . Segment.drop_before
 
 drop_before_strict :: RealTime -> PSignal -> PSignal
 drop_before_strict = modify . Segment.drop_before_strict

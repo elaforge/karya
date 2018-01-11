@@ -44,11 +44,12 @@ module Perform.Signal (
     , scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift
-    , drop, drop_while, within
+    , drop, within
     , drop_at_after, drop_after, drop_before, drop_before_strict, drop_before_at
     , map_x, map_y, map_err
 
     -- * backported
+    , from_pairs, to_pairs
     , clip_after, clip_before
     , drop_discontinuity_at
     -- * special functions
@@ -407,9 +408,6 @@ shift x = modify (TimeVector.shift x)
 drop :: Int -> Signal kind -> Signal kind
 drop = modify . TimeVector.drop
 
-drop_while :: (Sample Y -> Bool) -> Signal kind -> Signal kind
-drop_while = modify . Vector.dropWhile
-
 within :: X -> X -> Signal kind -> Signal kind
 within start end = modify $ TimeVector.within start end
 
@@ -448,6 +446,12 @@ sig_op _ op sig1 sig2 =
     Signal $ TimeVector.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 
 -- * backported
+
+from_pairs :: [(X, Y)] -> Signal kind
+from_pairs = signal
+
+to_pairs :: Signal kind -> [(X, Y)]
+to_pairs = unsignal
 
 use_segment :: (Segment.NumSignal -> Segment.NumSignal)
     -> Signal kind -> Signal kind
