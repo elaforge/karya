@@ -9,7 +9,6 @@ module Derive.C.Prelude.Block (
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -104,7 +103,7 @@ c_block block_id = Derive.with_score_duration get_score_duration $
         -- on the stack.
         Internal.with_stack_block block_id $ Cache.block run args
     where
-    run args = Derive.place start (end - start) $ trim args (d_block block_id)
+    run args = Derive.place start (end - start) $ trim args $ d_block block_id
         where (start, end) = Args.range args
     trim args deriver = do
         end <- Derive.real (1 :: ScoreTime)
@@ -136,19 +135,13 @@ c_block block_id = Derive.with_score_duration get_score_duration $
 -- Not to mention it's inefficient.
 trim_controls :: RealTime -> Derive.Deriver a -> Derive.Deriver a
 trim_controls end = Internal.local $ \dyn -> dyn
-    { Derive.state_controls = fmap trim_c <$> Derive.state_controls dyn
-    , Derive.state_pitch = trim_p (Derive.state_pitch dyn)
-    , Derive.state_pitches = trim_p <$> Derive.state_pitches dyn
+    { Derive.state_controls = fmap (Signal.drop_discontinuity_at end) <$>
+        Derive.state_controls dyn
+    , Derive.state_pitch =
+        PSignal.drop_discontinuity_at end (Derive.state_pitch dyn)
+    , Derive.state_pitches = PSignal.drop_discontinuity_at end <$>
+        Derive.state_pitches dyn
     }
-    where
-    trim_c sig
-        | Maybe.isNothing (Signal.sample_at end sig) = sig
-        | otherwise = Signal.drop_at_after end sig
-            <> Signal.drop_before_at end sig
-    trim_p sig
-        | Maybe.isNothing (PSignal.sample_at end sig) = sig
-        | otherwise = PSignal.drop_at_after end sig
-            <> PSignal.drop_before_at end sig
 
 -- | Replace all controls and pitches with constants from ScoreTime 1.
 -- This is to support arrival notes.  If a block call has negative duration,

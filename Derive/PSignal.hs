@@ -13,8 +13,11 @@ module Derive.PSignal (
     -- * query
     , null, at, sample_at, segment_at, before, shift, head, last
     , take, drop, drop_while, drop_after, drop_at_after
-    , clip_before, clip_after
     , drop_before, drop_before_strict, drop_before_at, within
+
+    -- * backported
+    , clip_before, clip_after
+    , drop_discontinuity_at
 
     -- * transform
     , apply_controls, apply_control, apply_environ
@@ -191,6 +194,11 @@ flat_interpolate :: Segment.Interpolate y
 flat_interpolate (Sample _ p1) (Sample x2 p2) x
     | x < x2 = p1
     | otherwise = p2
+
+drop_discontinuity_at :: RealTime -> PSignal -> PSignal
+drop_discontinuity_at x sig
+    | Nothing <- sample_at x sig = sig
+    | otherwise = drop_at_after x sig <> drop_before_at x sig
 
 -- * transform
 

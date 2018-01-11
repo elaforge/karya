@@ -549,10 +549,9 @@ state_controls_at :: RealTime -> Ruler.Marklists
 state_controls_at pos ruler dyn serial = Map.fromList $
     map (resolve (Internal.convert_dynamic ruler dyn serial) pos) $
     Seq.equal_pairs (\a b -> fst a == fst b)
-        (Map.toAscList fs) (Map.toAscList controls)
+        (Map.toAscList (state_control_functions dyn))
+        (Map.toAscList (state_controls dyn))
     where
-    fs = state_control_functions dyn
-    controls = state_controls dyn
     resolve cf_dyn pos p = case p of
         Seq.Both (k, f) _ -> (k, call k f)
         Seq.First (k, f) -> (k, call k f)

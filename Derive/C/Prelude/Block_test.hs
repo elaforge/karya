@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Block_test where
+import qualified Data.Map as Map
+
 import qualified Util.Log as Log
 import Util.Test
 import qualified Ui.Ruler as Ruler
@@ -16,6 +18,7 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
+import qualified Perform.Signal as Signal
 import Global
 
 
@@ -117,16 +120,67 @@ test_control_scope = do
             [ (">", [(0, 2, ""), (2, 0, "")])
             , ("local", [(0, 0, "2"), (2, 0, "3")])
             ]
-        extract event = (c "pedal", c "dia", c "local")
-            where c = flip DeriveTest.e_control event
+        extract = map (second (Signal.unsignal . Score.typed_val))
+                . filter ((`elem` wanted) . fst) . Map.toList
+                . Score.event_controls
+            where wanted = ["pedal", "dia", "local"]
     equal logs []
+    -- dia is omitted, since it falls after the call to sub.
     equal result
-        -- pedal is visible to both
-        -- dia is omitted, since it belongs to the call after "sub"
-        -- local is visible since it's local
-        [ ([(1, 1), (3, 0)],    [], [(0, 2)])
-        , ([(1, 1), (3, 0)],    [], [(2, 3)])
+        [ [("dia", []), ("local", [(0, 2)]), ("pedal", [(1, 1), (3, 0)])]
+        , [("dia", []), ("local", [(2, 3)]), ("pedal", [(1, 1), (3, 0)])]
         ]
+
+-- TODO this test is probably only relevant if I wind up replacing
+-- Block.c_block.trim with oriented signals, or something else.
+test_control_scope_negative_orientation = do
+    let run t_dia sub = DeriveTest.extract extract $
+            DeriveTest.derive_blocks
+            [ ("top -- cancel 4",
+                [ ("t-dia" <> t_dia, [(0, 0, "0"), (2, 0, "1")])
+                , (">", [(0, 2, "sub"), (2, 2, "sub")])
+                ])
+            , ("sub=ruler", UiTest.note_track sub)
+            ]
+        extract = DeriveTest.e_note
+
+    equal (run "" [(0, 1, "4c"), (1, 1, "5c")])
+        ([(0, 1, "4c"), (1, 1, "5c"), (2, 1, "4d"), (3, 1, "5d")], [])
+
+    -- The trailing 6c is implicitly negative duration, so it should get the
+    -- transpose signal >2, not >=2, so we get 6c, not 6d.
+    equal (run "" [(0, 1, "4c"), (1, 1, "5c"), (2, 0, "6c")])
+        ( [ (0, 1, "4c"), (1, 1, "5c"), (2, 1, "6c")
+          ,               (3, 1, "5d"), (4, 4, "6d")
+          ]
+        , []
+        )
+
+    -- TODO with theoretical negative oriented signals
+    -- equal (run ":-" [(0, 1, "4c"), (1, 1, "5c"), (2, 0, "6c")])
+    --     ( [ (0, 1, "4c"), (1, 1, "5c"), (2, 1, "6c")
+    --       ,               (3, 1, "5d"), (4, 4, "6d")
+    --       ]
+    --     , []
+    --     )
+
+    -- 0 4c pitch, 0d
+    -- 1 5c, 1d
+    -- 2 should get 6c pitch, and 0 t-dia
+
+    -- positive:
+    --   0  1  2
+    --  4c  5c 6c
+    -- (4d) 5d 6d
+
+    -- negative:
+    --   0  1  2
+    --  4c  5c 5d
+    -- (4d) 5d 5d
+
+    where
+    with = CallTest.with_note_generator "" DUtil.constant_pitch
+
 
 test_trim_controls_problem = do
     let run = DeriveTest.extract (DeriveTest.e_control "c")

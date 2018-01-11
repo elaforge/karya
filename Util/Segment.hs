@@ -35,6 +35,9 @@ module Util.Segment (
     -- , map_segments
     , transform_samples, map_err
 
+    -- ** hacks
+    , drop_discontinuity_at
+
     -- * Boxed
     , Boxed
     -- * NumSignal
@@ -373,6 +376,18 @@ map_err :: V.Vector v (Sample y) => (Sample y -> Either err (Sample y))
     -> SignalS v y -> (SignalS v y, [err])
 map_err f = first from_vector . TimeVector.map_err f . to_vector
 
+-- ** hacks
+
+drop_discontinuity_at :: V.Vector v (Sample y) => X -> SignalS v y
+    -> SignalS v y
+drop_discontinuity_at x sig = case V.toList clipped of
+    Sample x1 _ : Sample x2 _ : _ | x == x1 && x1 == x2 ->
+        from_vector $ TimeVector.drop_at_after x vector
+            V.++ TimeVector.drop_before_at x vector
+    _ -> sig
+    where
+    vector = to_vector sig
+    clipped = TimeVector.drop_before_strict (x + _offset sig) (_vector sig)
 
 -- * Boxed
 

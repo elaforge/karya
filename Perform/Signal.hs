@@ -50,6 +50,7 @@ module Perform.Signal (
 
     -- * backported
     , clip_after, clip_before
+    , drop_discontinuity_at
     -- * special functions
     , compose, compose_hybrid, integrate
     , unwarp_fused
@@ -466,6 +467,11 @@ flat_interpolate :: Segment.Interpolate y
 flat_interpolate (Sample _ p1) (Sample x2 p2) x
     | x < x2 = p1
     | otherwise = p2
+
+drop_discontinuity_at :: X -> Control -> Control
+drop_discontinuity_at x sig
+    | Nothing <- sample_at x sig = sig
+    | otherwise = drop_at_after x sig <> drop_before_at x sig
 
 -- * special functions
 

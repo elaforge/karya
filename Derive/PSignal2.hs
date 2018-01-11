@@ -27,6 +27,9 @@ module Derive.PSignal2 (
     , map_y
     -- , prepend
 
+    -- ** hacks
+    , drop_discontinuity_at
+
     -- * Pitch
     , Transposed, Pitch
     , RawPitch, PitchConfig(..)
@@ -311,6 +314,11 @@ map_y = modify . Segment.map_y
 
 -- prepend :: PSignal -> PSignal -> PSignal
 -- prepend s1 s2 = PSignal $ Segment.prepend (_signal s1) (_signal s2)
+
+-- ** hacks
+
+drop_discontinuity_at :: RealTime -> PSignal -> PSignal
+drop_discontinuity_at x = modify $ Segment.drop_discontinuity_at x
 
 
 -- * Pitch

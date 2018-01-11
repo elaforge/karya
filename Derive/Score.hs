@@ -39,7 +39,7 @@ module Derive.Score (
     -- *** pitch
     , PControl, pcontrol_name
     , default_pitch, set_pitch, set_named_pitch, event_named_pitch
-    , transposed_at, pitch_at, pitch_sample_at, apply_controls
+    , transposed_at, pitch_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
     , nn_signal
 
@@ -442,10 +442,7 @@ transposed_at pos event = PSignal.config config <$> pitch_at pos event
         (event_controls_at pos event)
 
 pitch_at :: RealTime -> Event -> Maybe PSignal.Pitch
-pitch_at pos event = snd <$> pitch_sample_at pos event
-
-pitch_sample_at :: RealTime -> Event -> Maybe (RealTime, PSignal.Pitch)
-pitch_sample_at pos = PSignal.sample_at pos . event_pitch
+pitch_at pos event = PSignal.at pos $ event_pitch event
 
 apply_controls :: Event -> RealTime -> PSignal.Pitch -> PSignal.Transposed
 apply_controls event pos = PSignal.apply (event_controls_at pos event)

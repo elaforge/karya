@@ -43,6 +43,9 @@ module Perform.Signal2 (
     , invert, sig_add, sig_subtract, sig_multiply, sig_scale
     , scale, scale_invert
 
+    -- ** hacks
+    , drop_discontinuity_at
+
     -- ** scalar transformation
     , scalar_max, scalar_min
     -- , clip_bounds
@@ -270,6 +273,11 @@ linear_operator (Just identity) _ sig1 sig2
     | Just v <- constant_val sig2, v == identity = sig1
 linear_operator _ op sig1 sig2 =
     Signal $ Segment.linear_operator op (_signal sig1) (_signal sig2)
+
+-- ** hacks
+
+drop_discontinuity_at :: X -> Control -> Control
+drop_discontinuity_at x = modify $ Segment.drop_discontinuity_at x
 
 -- ** scalar transformation
 

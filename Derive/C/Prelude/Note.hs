@@ -210,9 +210,11 @@ note_flags zero_dur stack environ
     -- Note that I can't use Args.duration or Args.range_on_track, because
     -- this may be invoked via e.g. Call.note, which fakes up an event with
     -- range (0, 1), and sets the duration via the warp.
-    infer_dur = track_end && zero_dur
+    infer_dur = block_end && zero_dur
     track_start = start == Just 0
-    track_end = start == Env.maybe_val EnvKey.block_end environ
+    block_end = start == Env.maybe_val EnvKey.block_end environ
+    -- This is the start time on the track, which, due to slicing, is not
+    -- necessarily the same as Args.start.
     start = fst <$> Seq.head (mapMaybe Stack.region_of (Stack.innermost stack))
 
 -- ** adjust start and duration
