@@ -54,37 +54,26 @@ stash_signal_if_wanted events track =
 stash_signal :: BlockId -> TrackId -> Track.RenderSource
     -> Stream.Stream Score.Event -> Derive.Deriver ()
 stash_signal block_id track_id source events =
-    Control.stash_signal block_id track_id signal
-    where signal = extract_track_signal source (Stream.events_of events)
+    Control.stash_signal block_id track_id $
+        extract_track_signal source (Stream.events_of events)
 
+-- | Extract the signals that 'Track.RenderSource' wants, trim them, and concat
+-- into a single unwarped signal that can be stashed away for later display.
 extract_track_signal :: Track.RenderSource -> [Score.Event] -> Signal.Control
 extract_track_signal source events = mconcat $ case source of
     Track.Control control -> mapMaybe (extract_control control) events
     Track.Pitch control -> mapMaybe (extract_pitch control) events
     where
+    -- Since these signals will be concatenated into one signal, I don't
+    -- want one event's control at 0 to wipe out the previous events.
     extract_control control event =
-        trim_control (Score.event_min event) . Score.typed_val <$>
+        Signal.clip_before (Score.event_min event) . Score.typed_val <$>
             Score.event_control control event
     extract_pitch pcontrol event =
         convert event <$> Score.event_named_pitch pcontrol event
     convert event psig = Signal.coerce $ fst $ PSignal.to_nn $
-        -- Since these signals will be mconcatted into one signal, I don't
-        -- want one event's control at 0 to wipe out the previous events.
-        trim_pitch (Score.event_min event) $
+        PSignal.clip_before (Score.event_min event) $
         PSignal.apply_controls (Score.event_controls event) psig
-
-    trim_control start sig = case Signal.sample_at start sig of
-        Just (x, y)
-            | x >= start -> Signal.drop_before_strict start sig
-            | otherwise -> Signal.signal [(start, y)]
-                <> Signal.drop_before_strict start sig
-        _ -> sig
-    trim_pitch start sig = case PSignal.sample_at start sig of
-        Just (x, y)
-            | x >= start -> PSignal.drop_before_strict start sig
-            | otherwise -> PSignal.signal [(start, y)]
-                <> PSignal.drop_before_strict start sig
-        _ -> sig
 
 with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
     -> Derive.NoteDeriver
