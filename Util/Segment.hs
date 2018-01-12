@@ -545,3 +545,19 @@ sample_xs = go
         xss = filter (not . List.null) xss_
     drop1 f (x:xs) | f x = xs
     drop1 _ xs = xs
+
+
+-- * piece-wise constant
+
+to_piecewise_constant :: X -> NumSignal -> TimeVector.Unboxed
+to_piecewise_constant srate =
+    V.fromList . List.concat . List.unfoldr make . to_samples
+    where
+    make [] = Nothing
+    make [Sample x y] = Just ([Sample x y], [])
+    make (Sample x1 y1 : s2s@(Sample x2 y2 : _))
+        | y1 == y2 = Just ([Sample x1 y1], s2s)
+        | x1 >= x2 = make s2s
+        | otherwise = Just (segment x1 y1 x2 y2, s2s)
+    segment x1 y1 x2 y2 =
+        [Sample x (TimeVector.y_at x1 y1 x2 y2 x)| x <- Seq.range' x1 x2 srate]

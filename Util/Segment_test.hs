@@ -7,6 +7,7 @@ import qualified Util.Segment as Segment
 import Util.Segment (Segment(Segment))
 import Util.Segment (X)
 import Util.Test
+import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Types as Types
 import qualified Perform.RealTime as RealTime
@@ -171,6 +172,13 @@ test_linear_operator2 = do
     -- Linear interpolation between the segments.
     equal (f [(0, 0), (4, 4)] [(2, 1)])
         [((0, 0), (2, 2)), ((2, 3), (4, 5)), ((4, 5), (large, 5))]
+
+test_to_piecewise_constant = do
+    let f = TimeVector.unsignal . Segment.to_piecewise_constant 1 . from_pairs
+    equal (f []) []
+    equal (f [(4, 2)]) [(4, 2)]
+    equal (f [(2, 2), (4, 2), (4, 4)]) [(2, 2), (4, 4)]
+    equal (f [(2, 2), (4, 4)]) [(2, 2), (3, 3), (4, 4)]
 
 
 large_y :: Y
