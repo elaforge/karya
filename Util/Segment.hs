@@ -229,7 +229,7 @@ at_orientation orient interpolate x sig =
     case segment_at_orientation orient x sig of
         Nothing -> Nothing
         Just (Segment x1 y1 x2 y2) ->
-            Just $ interpolate (Sample x1 y1) (Sample x2 y2) (x + _offset sig)
+            Just $ interpolate (Sample x1 y1) (Sample x2 y2) x
 
 segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
 segment_at  = segment_at_orientation Types.Positive
@@ -245,7 +245,7 @@ segment_at_orientation orient x (Signal offset vec)
                 else V.unsafeIndex vec (i+1)
         in Just $ Segment x1 y1 x2 y2
     where
-    i = get (x + offset) vec
+    i = get (x - offset) vec
     get = case orient of
         Types.Negative -> TimeVector.index_below
         Types.Positive -> TimeVector.highest_index
@@ -277,11 +277,12 @@ maximum sig
 -- left where they overlap.
 concat :: V.Vector v (Sample y) => [SignalS v y] -> SignalS v y
 concat [] = empty
-concat [x] = x
-concat (x : xs) | _offset x /= 0 && all (== _offset x) (map _offset xs) =
-    (concat [sig { _offset = 0 } | sig <- x : xs]) { _offset = _offset x }
-concat xs =
-    from_vector . V.concat . reverse . chunks . reverse . map to_vector $ xs
+concat [sig] = sig
+concat (sig : sigs)
+    | _offset sig /= 0 && all (== _offset sig) (map _offset sigs) =
+        (concat [s { _offset = 0 } | s <- sig:sigs]) { _offset = _offset sig }
+concat sigs =
+    from_vector . V.concat . reverse . chunks . reverse . map to_vector $ sigs
     where
     chunks [] = []
     chunks [v] = [v]
@@ -304,15 +305,14 @@ concat xs =
 
 -- | Drop the segments after the given time.  The last segment may overlap it.
 drop_after :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-drop_after x sig = Signal
-    { _offset = _offset sig
-    , _vector = case _vector sig V.!? i of
-        Nothing -> V.empty -- -1 means before the first element
-        Just (Sample x1 _) ->
-            V.take (if x1 >= x then i+1 else i+2) (_vector sig)
-    }
+drop_after x sig = case _vector sig V.!? i of
+    Nothing -> empty
+    Just (Sample x1 _)
+        | V.null v -> empty
+        | otherwise -> Signal { _offset = _offset sig, _vector = v }
+        where v = V.take (if x1 >= x then i+1 else i+2) (_vector sig)
     where
-    i = TimeVector.highest_index (x + _offset sig) (_vector sig)
+    i = TimeVector.highest_index (x - _offset sig) (_vector sig)
 
 clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
     -> SignalS v y
@@ -329,10 +329,10 @@ clip_after interpolate x sig = case last clipped of
 -- | Drop the segments before the given time.  The first segment will start at
 -- or before the given time.
 drop_before :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-drop_before x sig = Signal
-    { _offset = _offset sig
-    , _vector = TimeVector.drop_before (x + _offset sig) (_vector sig)
-    }
+drop_before x sig
+    | V.null clipped = empty
+    | otherwise = Signal { _offset = _offset sig, _vector = clipped }
+    where clipped = TimeVector.drop_before (x - _offset sig) (_vector sig)
 
 -- | Like 'drop_before', but ensure that the signal starts exactly at the given
 -- time by splitting a segment that crosses it.
@@ -391,7 +391,7 @@ drop_discontinuity_at x sig = case V.toList clipped of
     _ -> sig
     where
     vector = to_vector sig
-    clipped = TimeVector.drop_before_strict (x + _offset sig) (_vector sig)
+    clipped = TimeVector.drop_before_strict (x - _offset sig) (_vector sig)
 
 -- * Boxed
 

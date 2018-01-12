@@ -80,6 +80,24 @@ test_at = do
     equal (map (f Types.Negative) [0, 1, 1.5, 2, 3, 4])
         [Nothing, Just 1, Just 1.5, Just 2, Just 3, Just 3]
 
+test_shift = do
+    let shift = Segment.shift
+    let at x = Segment.at Segment.num_interpolate x
+    equal (at 2 (from_pairs [(2, 2)])) (Just 2)
+    equal (at 2 (shift 2 (from_pairs [(2, 2)]))) Nothing
+    equal (at 0 (shift (-2) (from_pairs [(2, 2)]))) (Just 2)
+
+    let shifted = shift 2 (from_pairs [(2, 2)])
+    equal (to_pairs shifted) [(4, 2)]
+    equal (Segment.head shifted) (Just (4, 2))
+    equal (Segment.last shifted) (Just (4, 2))
+    equal (Segment.drop_after 3 shifted) Segment.empty
+    equal (Segment.drop_after 4 shifted) shifted
+
+    let shifted2 = shift 2 (from_pairs [(2, 2), (3, 3)])
+    equal (to_pairs $ Segment.drop_before 5 shifted2) [(5, 3)]
+    equal (Segment.drop_before 4 shifted2) shifted2
+
 test_drop_after_clip_after = do
     let f x =
             ( to_pairs $ Segment.drop_after x sig
