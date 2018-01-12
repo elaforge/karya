@@ -123,18 +123,6 @@ test_merge_left = do
     equal (f [[(0, 1), (4, 1)], [(2, 2), (6, 2)], [(0, 3), (4, 3)]])
         [(0, 1), (4, 1), (6, 2)]
 
-test_interleave = do
-    let f v1 v2 = unsignal $ V.interleave (signal v1) (signal v2)
-    equal (f [] []) []
-    equal (f [(0, 0)] []) [(0, 0)]
-    -- If samples coincide, the one from the first signal wins.
-    equal (f [(0, 0)] [(0, 1)]) [(0, 0)]
-    equal (f [(0, 0)] [(1, 1)]) [(0, 0), (1, 1)]
-    equal (f [(0, 0), (2, 2)] [(1, 1)]) [(0, 0), (1, 1), (2, 2)]
-
-    -- This would be if I made interleave understand discontinuities.
-    -- equal (f [(0, 0), (2, 0)] [(1, 1)]) [(0, 0), (1, 0), (1, 1)]
-
 test_prepend = do
     let f v1 v2 = unsignal $ V.prepend (signal v1) (signal v2)
     equal (f [] []) []
