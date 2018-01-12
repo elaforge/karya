@@ -86,8 +86,12 @@ type SignalS v y = Signal (v (Sample y))
 type Interpolate y = Sample y -> Sample y -> X -> y
 
 instance Pretty v => Pretty (Signal v) where
-    format (Signal offset vector) = "Signal" Pretty.<+> Pretty.format offset
+    format (Signal offset vector) = "Signal" Pretty.<+> Pretty.text offset_s
         Pretty.<+> Pretty.format vector
+        where
+        offset_s
+            | offset > 0 = "+" <> pretty offset
+            | otherwise = pretty offset
 
 instance Serialize.Serialize v => Serialize.Serialize (Signal v) where
     put (Signal offset vec) = Serialize.put offset >> Serialize.put vec
