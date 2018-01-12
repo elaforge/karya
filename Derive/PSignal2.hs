@@ -14,7 +14,9 @@ module Derive.PSignal2 (
     , unfoldr
 
     -- * query
-    , null, at, segment_at
+    , null
+    , at, segment_at
+    , head, last
     -- , before
     -- , drop_at_after
     -- , drop_before_strict, drop_before_at, within
@@ -42,7 +44,7 @@ module Derive.PSignal2 (
     -- ** create
     , constant_pitch, nn_pitch
 ) where
-import Prelude hiding (head, take, drop, last, null)
+import Prelude hiding (head, last, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -183,22 +185,14 @@ interpolate (Sample x1 p1) (Sample x2 p2) x
 segment_at :: RealTime -> PSignal -> Maybe (Segment.Segment Pitch)
 segment_at x = Segment.segment_at x . _signal
 
+head, last :: PSignal -> Maybe (RealTime, Pitch)
+head = Segment.head . _signal
+last = Segment.last . _signal
+
 {-
 -- | Find the last pitch before the point.
 before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
 before x = fmap Segment.to_pair . Segment.before x . _signal
-
-head :: PSignal -> Maybe (RealTime, Pitch)
-head = fmap Segment.to_pair . Segment.head . _signal
-
-last :: PSignal -> Maybe (RealTime, Pitch)
-last = fmap Segment.to_pair . Segment.last . _signal
-
-take :: Int -> PSignal -> PSignal
-take = modify . Segment.take
-
-drop :: Int -> PSignal -> PSignal
-drop = modify . Segment.drop
 
 drop_at_after :: RealTime -> PSignal -> PSignal
 drop_at_after = modify . Segment.drop_at_after

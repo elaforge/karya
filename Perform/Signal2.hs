@@ -27,6 +27,7 @@ module Perform.Signal2 (
     -- * query
     , null
     , at, segment_at
+    , head, last
     , minimum, maximum
 
     -- * transform
@@ -42,7 +43,7 @@ module Perform.Signal2 (
 
     -- ** scalar transformation
     , scalar_max, scalar_min
-    -- , clip_bounds
+    , clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , map_x, map_y, map_err
 
@@ -52,9 +53,10 @@ module Perform.Signal2 (
     , pitches_share
 ) where
 import qualified Prelude
-import Prelude hiding (concat, head, last, length, maximum, minimum, null, drop)
+import Prelude hiding (head, last, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Vector.Storable as Vector.Storable
+import qualified Data.List as List
+import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 
 import qualified Util.Num as Num
@@ -174,9 +176,6 @@ with_ptr sig = Segment.with_ptr (_signal sig)
 
 -- * query
 
--- length :: Signal kind -> Int
--- length = TimeVector.length . sig_vec
-
 null :: Signal kind -> Bool
 null = Segment.null . _signal
 
@@ -185,6 +184,10 @@ at x = fromMaybe 0 . Segment.at Segment.num_interpolate x . _signal
 
 segment_at :: X -> Signal kind -> Maybe (Segment.Segment Y)
 segment_at x = Segment.segment_at x . _signal
+
+head, last :: Signal kind -> Maybe (X, Y)
+head = Segment.head . _signal
+last = Segment.last . _signal
 
 -- * transform
 
@@ -198,12 +201,6 @@ clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
 
 -- TODO used by?
 {-
-drop :: Int -> Signal kind -> Signal kind
-drop = modify . TimeVector.drop
-
--- slice in Midi.Perform
-drop_while :: (Sample Y -> Bool) -> Signal kind -> Signal kind
-drop_while = modify . Vector.dropWhile
 
 -- Midi.Perform.controls_equal
 within :: X -> X -> Signal kind -> Signal kind
@@ -212,13 +209,6 @@ within start end = modify $ TimeVector.within start end
 -- Block.trim_controls, trill xcut, Derive.Control.trim_signal
 drop_at_after :: X -> Signal kind -> Signal kind
 drop_at_after = modify . TimeVector.drop_at_after
-
--- trim_signal
-drop_after :: X -> Signal kind -> Signal kind
-drop_after = modify . TimeVector.drop_after
-
-drop_before :: X -> Signal kind -> Signal kind
-drop_before = modify . TimeVector.drop_before
 
 drop_before_strict :: X -> Signal kind -> Signal kind
 drop_before_strict = modify . TimeVector.drop_before_strict
@@ -317,46 +307,16 @@ minimum, maximum :: Signal kind -> Maybe Y
 minimum = Segment.minimum . _signal
 maximum = Segment.maximum . _signal
 
-{-
--- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
--- half-open ranges during which the Y was out of range, if any.
-clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, X)])
-clip_bounds low high sig = (clipped, reverse out_of_range)
+-- | Clip the signal's Y values to lie between the given bounds, inclusive.
+-- Return the out of range samples.
+clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, Y)])
+clip_bounds low high sig
+    | List.null outs = (sig, [])
+    | otherwise = (scalar_min high (scalar_max low sig), outs)
     where
-    clipped = if Prelude.null out_of_range then sig
-        else scalar_min high $ scalar_max low sig
-        -- else map_y (Num.clamp low high) sig
-    out_of_range = []
-
-    -- (ranges, in_clip) = TimeVector.foldl' go ([], Nothing) (sig_vec sig)
-    -- out_of_range = case (in_clip, last sig) of
-    --     (Just start, Just (end, _)) -> (start, end) : ranges
-    --     _ -> ranges
-    -- go state@(accum, Nothing) (Sample x y)
-    --     | y < low || y > high = (accum, Just x)
-    --     | otherwise = state
-    -- go state@(accum, Just start) (Sample x y)
-    --     | y < low || y > high = state
-    --     | otherwise = ((start, x) : accum, Nothing)
-
--- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
--- half-open ranges during which the Y was out of range, if any.
-clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, X)])
-clip_bounds low high sig = (clipped, reverse out_of_range)
-    where
-    clipped = if Prelude.null out_of_range then sig
-        else map_y (Num.clamp low high) sig
-    (ranges, in_clip) = TimeVector.foldl' go ([], Nothing) (sig_vec sig)
-    out_of_range = case (in_clip, last sig) of
-        (Just start, Just (end, _)) -> (start, end) : ranges
-        _ -> ranges
-    go state@(accum, Nothing) (Sample x y)
-        | y < low || y > high = (accum, Just x)
-        | otherwise = state
-    go state@(accum, Just start) (Sample x y)
-        | y < low || y > high = state
-        | otherwise = ((start, x) : accum, Nothing)
--}
+    outs = map TimeVector.to_pair $ Vector.toList $
+        Vector.filter out_of_range (Segment.to_vector (_signal sig))
+    out_of_range (Sample _ y) = y < low || y > high
 
 map_x :: (X -> X) -> Signal kind -> Signal kind
 map_x = modify . Segment.map_x
@@ -387,7 +347,7 @@ tempo_srate = RealTime.seconds 0.1
 -- the places where 'Warp.compose_hybrid' will emit a 1\/1 line.
 flat_duration :: Warp -> ScoreTime
 flat_duration =
-    RealTime.to_score . fst . Vector.Storable.foldl' go (0, Segment.Sample 0 0)
+    RealTime.to_score . fst . Vector.foldl' go (0, Segment.Sample 0 0)
         . Segment.to_vector . _signal
     where
     go (!acc, Segment.Sample x0 y0) sample@(Segment.Sample x y)

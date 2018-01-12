@@ -8,7 +8,9 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -67,7 +69,7 @@ test_fade = do
     let run = run_note_track_dyn ""
     equal (run [(0, 4, "@;; -> 2 -- 4c")])
         ([( [(0, 60), (4, 60)]
-          , [(0, 1), (2, 1), (3, 0.5), (4, 1)]
+          , [(-RealTime.larger, 1), (2, 1), (3, 0.5), (4, 1)]
           )], [])
     equal (run [(0, 4, "@ -< 2;; -- 4c")])
         ([([(0, 60), (4, 60)], [(0, 1), (1, 0.5), (2, 1)])], [])

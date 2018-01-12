@@ -20,8 +20,8 @@ module Util.Segment (
 
     -- * query
     , null
-    , at, at_orientation
-    , segment_at, segment_at_orientation
+    , at, segment_at
+    , head, last
     , maximum, minimum
 
     -- * concat
@@ -246,6 +246,16 @@ segment_at_orientation orient x (Signal offset vec)
         Types.Negative -> TimeVector.index_below
         Types.Positive -> TimeVector.highest_index
 
+head :: V.Vector v (Sample y) => SignalS v y -> Maybe (X, y)
+head sig = case TimeVector.head (_vector sig) of
+    Nothing -> Nothing
+    Just (Sample x y) -> Just (_offset sig + x, y)
+
+last :: V.Vector v (Sample y) => SignalS v y -> Maybe (X, y)
+last sig = case TimeVector.last (_vector sig) of
+    Nothing -> Nothing
+    Just (Sample x y) -> Just (_offset sig + x, y)
+
 minimum, maximum :: (V.Vector v (Sample a), Ord a) => SignalS v a -> Maybe a
 minimum sig
     | null sig = Nothing
@@ -304,7 +314,7 @@ clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
     -> SignalS v y
 clip_after interpolate x sig = case last clipped of
     Nothing -> empty
-    Just (Sample x2 _)
+    Just (x2, _)
         | x2 > x, Just y <- at interpolate x sig ->
             let v = to_vector clipped
             in from_vector $ V.snoc (V.take (V.length v - 1) v) (Sample x y)
@@ -326,22 +336,12 @@ clip_before :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
     -> SignalS v y
 clip_before interpolate x sig = case head clipped of
     Nothing -> empty
-    Just (Sample x1 _)
+    Just (x1, _)
         | x1 < x, Just y <- at interpolate x sig ->
             from_vector $ V.cons (Sample x y) (V.drop 1 (to_vector clipped))
         | otherwise -> clipped
     where
     clipped = drop_before x sig
-
-head :: V.Vector v (Sample y) => SignalS v y -> Maybe (Sample y)
-head sig = case TimeVector.head (_vector sig) of
-    Nothing -> Nothing
-    Just (Sample x y) -> Just (Sample (_offset sig + x) y)
-
-last :: V.Vector v (Sample y) => SignalS v y -> Maybe (Sample y)
-last sig = case TimeVector.last (_vector sig) of
-    Nothing -> Nothing
-    Just (Sample x y) -> Just (Sample (_offset sig + x) y)
 
 -- * transform
 

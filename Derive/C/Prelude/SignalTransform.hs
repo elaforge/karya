@@ -164,8 +164,6 @@ curve_function curve = case untxt curve of
     [n, 'e'] | Just d <- digit n -> Just $ ControlUtil.expon (fromIntegral d)
     [n1, 'e', n2] | Just d1 <- digit n1, Just d2 <- digit n2 ->
         Just $ ControlUtil.expon2 (fromIntegral d1) (fromIntegral d2)
-    -- Overshoot the destination by a certain amount.
-    -- ['o', 'v', 'e', 'r', n] | Just d <- digit n -> undefined
     _ -> Nothing
     where
     digit = Num.readDigit

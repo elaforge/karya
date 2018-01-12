@@ -1385,15 +1385,20 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       Replace various drop_* functions:
         . drop_after, drop_before are ok.
         * Signal.drop_while
-        - Signal.drop
-        - Signal.length
-        - Signal.head, last, PSignal.head, last
+        - Signal.drop, Signal.length
+          . Only used by SignalTransform.c_smooth, which will need to be
+            redone for segments anyway.
+        * Signal.head, last, PSignal.head, last
+          . LPerf - ok to use
+          . Gamakam2
+          . Rearticulate.slur - redo this for segments
         - Signal.within, PSignal.within
-          . I could provide within.
+          . I could provide within, but maybe inline drop_before drop_after
+            would be clearer.
         - Signal.drop_at_after, drop_before_strict, drop_before_at
           . The problem is that they assume samples, so they can split
             segments.  I might have to replace them with clip_before,after
-        - Signal.clip_bounds
+        * Signal.clip_bounds
         - Signal.prepend, PSignal.prepend
       - 'i' calls no longer need srate.  The others do though.
         . Also update Control.c_set and Pitch.c_set.
@@ -1401,6 +1406,12 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
       - Midi performer has to use a sampling rate.
       - Get rid of infer linear in the fltk drawing code.
       - profile before and after
+    ? Segments have start time, but no end time.  Would it be more useful to
+      have an explicit end time too?  I'd get rid of the implicit large last
+      sample, and just stop on the last sample.
+      . That way I don't need to separately track end time when splicing
+        signals.  But I have to fill in the undefined sections between merged
+        signals, so it winds up being like extend forever.
     * Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
     - clean up TimeVector, remove unneeded functions
@@ -1512,6 +1523,10 @@ vector performance:
   ? Segment.to_samples:
     . Does 'V.toList . V.map f' fuse the map into toList?  It should, so
       'head . V.toList . V.map f' should be efficient.
+  ? Do these have the same performance?
+    . map TimeVector.to_pair . Vector.toList
+        . Vector.filter out_of_range . Segment.to_vector
+    . filter out_of_range . Segment.to_pairs
 
 synth: im:
   - Shift-play plays im cache even when the instruments are gone, but not

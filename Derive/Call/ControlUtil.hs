@@ -339,17 +339,16 @@ modify_with :: Derive.Merge Signal.Control -> Score.Control -> RealTime
     -> Signal.Control -> Derive.Deriver ()
 modify_with merge control end sig = do
     merger@(Derive.Merger _ _ identity) <- Derive.resolve_merge merge control
-    Derive.modify_control merger control $
-        mconcat [initial identity, sig, id_signal identity end]
-    where
-    -- TODO this is confusing, but I think I can get rid of it by using
-    -- signal linear segment slicing
-    id_signal identity x = case Signal.head identity of
-        Just (_, y) -> Signal.signal [(x, y)]
-        _ -> mempty
-    initial identity = case Signal.head sig of
-        Just (x, _) | x > 0 -> id_signal identity 0
-        _ -> mempty
+    -- TODO should just be Y, not a signal.  I can fix that when I make Merger
+    -- monomorphic.
+    identity <- snd <$> Derive.require "identity" (Signal.head identity)
+    -- Since signals are implicitly 0 before the first sample, I prepend
+    -- a segment with the identity value, in case the identity isn't 0.
+    Derive.modify_control merger control $ mconcat
+        [ if identity == 0 then mempty else Signal.constant identity
+        , sig
+        , Signal.signal [(end, identity)]
+        ]
 
 multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
 multiply_dyn = modify_with (Derive.Merge Derive.merge_mul) Controls.dynamic

@@ -42,9 +42,9 @@ c_slur_n = Derive.transformer Module.prelude "slur-n" Tags.postproc
         srate <- Call.get_srate
         slur_n srate group curve <$> deriver
 
-type Curve = (ControlUtil.Curve, RealTime)
+type CurveTime = (ControlUtil.Curve, RealTime)
 
-slur_n :: RealTime -> Int -> Curve -> Stream.Stream Score.Event
+slur_n :: RealTime -> Int -> CurveTime -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
 slur_n srate group curve = Stream.from_sorted_list . go . Stream.to_list
     where
@@ -53,7 +53,7 @@ slur_n srate group curve = Stream.from_sorted_list . go . Stream.to_list
         ((e : es, logs), post) -> map LEvent.Log logs
             ++ LEvent.Event (slur srate curve e es) : go post
 
-slur :: RealTime -> Curve -> Score.Event -> [Score.Event] -> Score.Event
+slur :: RealTime -> CurveTime -> Score.Event -> [Score.Event] -> Score.Event
 slur srate curve event events = event
     { Score.event_duration = dur
     , Score.event_pitch = pitch
@@ -64,7 +64,7 @@ slur srate curve event events = event
     dur = Score.event_end (fromMaybe event (Seq.last events))
         - Score.event_start event
 
-slur_pitch :: RealTime -> Curve -> PSignal.PSignal -> [PSignal.PSignal]
+slur_pitch :: RealTime -> CurveTime -> PSignal.PSignal -> [PSignal.PSignal]
     -> PSignal.PSignal
 slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
     where
@@ -130,7 +130,7 @@ c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
         srate <- Call.get_srate
         slur_dur srate dur offset curve <$> deriver
 
-slur_dur :: RealTime -> RealTime -> RealTime -> Curve
+slur_dur :: RealTime -> RealTime -> RealTime -> CurveTime
     -> Stream.Stream Score.Event -> Stream.Stream Score.Event
 slur_dur srate dur offset curve stream =
     Stream.merge_logs logs $ Stream.from_sorted_events $

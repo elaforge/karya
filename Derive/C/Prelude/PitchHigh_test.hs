@@ -102,11 +102,11 @@ test_drop_lift_note = do
     equal logs []
 
 test_approach_dyn = do
-    let run pitches = extract $ DeriveTest.derive_tracks ""
+    let run pitches = extract $ DeriveTest.derive_tracks "%dyn=.5"
             [(">", [(0, 10, "")]), ("*", pitches)]
         extract = head . (DeriveTest.extract_events $ \e ->
             (DeriveTest.e_nns e, DeriveTest.e_dyn e))
     equal (run [(0, 0, "4c"), (2, 0, "ad 2 .5"), (4, 0, "4d")])
         ( [(0, 60), (2, 60), (3, 61), (4, 62)]
-        , [(0, 1), (2, 1), (3, 0.75), (4, 1)]
+        , [(-RealTime.larger, 0.5), (2, 0.5), (3, 0.5*0.75), (4, 0.5)]
         )
