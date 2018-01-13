@@ -48,6 +48,8 @@ module Util.Segment (
     , linear_operator
     , resample_num, resample_maybe
     , sample_xs, add_zero_transition
+    -- * piecewise constant
+    , to_piecewise_constant
 #ifdef TESTING
     , module Util.Segment
 #endif
@@ -311,8 +313,7 @@ drop_after x sig = case _vector sig V.!? i of
         | V.null v -> empty
         | otherwise -> Signal { _offset = _offset sig, _vector = v }
         where v = V.take (if x1 >= x then i+1 else i+2) (_vector sig)
-    where
-    i = TimeVector.highest_index (x - _offset sig) (_vector sig)
+    where i = TimeVector.index_below (x - _offset sig) (_vector sig)
 
 clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
     -> SignalS v y
@@ -323,8 +324,7 @@ clip_after interpolate x sig = case last clipped of
             let v = to_vector clipped
             in from_vector $ V.snoc (V.take (V.length v - 1) v) (Sample x y)
         | otherwise -> clipped
-    where
-    clipped = drop_after x sig
+    where clipped = drop_after x sig
 
 -- | Drop the segments before the given time.  The first segment will start at
 -- or before the given time.
@@ -344,8 +344,7 @@ clip_before interpolate x sig = case head clipped of
         | x1 < x, Just y <- at interpolate x sig ->
             from_vector $ V.cons (Sample x y) (V.drop 1 (to_vector clipped))
         | otherwise -> clipped
-    where
-    clipped = drop_before x sig
+    where clipped = drop_before x sig
 
 -- * transform
 

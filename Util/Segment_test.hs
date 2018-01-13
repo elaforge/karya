@@ -100,29 +100,33 @@ test_shift = do
     equal (Segment.drop_before 4 shifted2) shifted2
 
 test_drop_after_clip_after = do
-    let f x =
-            ( to_pairs $ Segment.drop_after x sig
-            , to_pairs $ Segment.clip_after Segment.num_interpolate x sig
+    let f x sig =
+            ( to_pairs $ Segment.drop_after x $ from_pairs sig
+            , to_pairs $ Segment.clip_after Segment.num_interpolate x $
+                from_pairs sig
             )
-            where sig = from_pairs [(1, 1), (2, 2), (4, 4)]
-    equal (f 4) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
-    equal (f 3) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (3, 3)])
-    equal (f 2) ([(1, 1), (2, 2)], [(1, 1), (2, 2)])
-    equal (f 1) ([(1, 1)], [(1, 1)])
-    equal (f 0) ([], [])
+    let s124 = [(1, 1), (2, 2), (4, 4)]
+    equal (f 4 s124) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
+    equal (f 3 s124) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (3, 3)])
+    equal (f 2 s124) ([(1, 1), (2, 2)], [(1, 1), (2, 2)])
+    equal (f 1 s124) ([(1, 1)], [(1, 1)])
+    equal (f 0 s124) ([], [])
+    equal (f 2 [(0, 0), (2, 0), (2, 2)]) ([(0, 0), (2, 0)], [(0, 0), (2, 0)])
 
 test_drop_before_clip_before = do
-    let f x =
-            ( to_pairs $ Segment.drop_before x sig
-            , to_pairs $ Segment.clip_before Segment.num_interpolate x sig
+    let f x sig =
+            ( to_pairs $ Segment.drop_before x $ from_pairs sig
+            , to_pairs $ Segment.clip_before Segment.num_interpolate x $
+                from_pairs sig
             )
-            where sig = from_pairs [(1, 1), (2, 2), (4, 4)]
-    equal (f 5) ([(4, 4)], [(5, 4)])
-    equal (f 4) ([(4, 4)], [(4, 4)])
-    equal (f 3) ([(2, 2), (4, 4)], [(3, 3), (4, 4)])
-    equal (f 2) ([(2, 2), (4, 4)], [(2, 2), (4, 4)])
-    equal (f 1) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
-    equal (f 0) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
+    let s124 = [(1, 1), (2, 2), (4, 4)]
+    equal (f 5 s124) ([(4, 4)], [(5, 4)])
+    equal (f 4 s124) ([(4, 4)], [(4, 4)])
+    equal (f 3 s124) ([(2, 2), (4, 4)], [(3, 3), (4, 4)])
+    equal (f 2 s124) ([(2, 2), (4, 4)], [(2, 2), (4, 4)])
+    equal (f 1 s124) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
+    equal (f 0 s124) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
+    equal (f 2 [(0, 0), (2, 0), (2, 2)]) ([(2, 2)], [(2, 2)])
 
 test_integrate = do
     let f = to_pairs . Segment.integrate 1 . from_pairs
