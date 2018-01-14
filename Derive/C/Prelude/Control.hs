@@ -56,8 +56,7 @@ library = mconcat
         , ("`ped`", c_pedal)
         , ("ped", c_pedal)
         , ("swell", c_swell)
-        ] ++
-        ControlUtil.standard_interpolators ControlUtil.interpolator_variations
+        ] ++ ControlUtil.interpolator_variations
     , Library.pattern pattern_generator
     , Library.pattern pattern_transformer
     ]

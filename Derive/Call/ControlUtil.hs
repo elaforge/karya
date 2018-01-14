@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ExistentialQuantification #-}
 -- | Utilities that emit 'Signal.Control's and 'Derive.ControlMod's.
 module Derive.Call.ControlUtil where
 import qualified Util.ApproxEq as ApproxEq
@@ -31,9 +31,22 @@ import Types
 -- | Sampling rate.
 type SRate = RealTime
 
+-- | Package up a curve name along with arguments.
+data CurveD = forall arg. CurveD !Text !(Sig.Parser arg) !(arg -> Curve)
+
+curve_name :: CurveD -> Text
+curve_name (CurveD name _ _) = name
+
 -- | Interpolation function.  This maps 0--1 to the desired curve, which is
 -- also normalized to 0--1.
 type Curve = Double -> Double
+
+standard_curves :: [(Expr.Symbol, CurveD)]
+standard_curves =
+    [ ("i", CurveD "linear" (pure ()) (const id))
+    , ("e", exponential_curve)
+    , ("s", sigmoid_curve)
+    ]
 
 -- * interpolator call
 
@@ -43,12 +56,11 @@ type InterpolatorTime a =
     Either (Sig.Parser BaseTypes.Duration) (GetTime a, Text)
 type GetTime a = Derive.PassedArgs a -> Derive.Deriver BaseTypes.Duration
 
-interpolator_call :: Derive.CallName
-    -> (Sig.Parser arg, arg -> Curve)
-    -- ^ get args for the function and the interpolating function
+interpolator_call :: Text -> CurveD
     -> InterpolatorTime Derive.Control -> Derive.Generator Derive.Control
-interpolator_call name (get_arg, curve) interpolator_time =
-    Derive.generator1 Module.prelude name Tags.prev doc
+interpolator_call name_suffix (CurveD name get_arg curve) interpolator_time =
+    Derive.generator1 Module.prelude (Derive.CallName (name <> name_suffix))
+        Tags.prev doc
     $ Sig.call ((,,,)
     <$> Sig.required "to" "Destination value."
     <*> either id (const $ pure $ BaseTypes.RealDuration 0) interpolator_time
@@ -75,31 +87,16 @@ from_env = Sig.environ "from" Sig.Both Nothing
 prev_val :: Maybe Signal.Y -> Derive.ControlArgs -> Maybe Signal.Y
 prev_val from args = from <|> (snd <$> Args.prev_control args)
 
--- | For calls whose curve can be configured.
-curve_env :: Sig.Parser Curve
-curve_env = cf_to_curve <$>
-    Sig.environ "curve" Sig.Both cf_linear "Curve function."
-
-curve_time_env :: Sig.Parser (Curve, RealTime)
-curve_time_env = (,) <$> curve_env <*> time
-    where time = Sig.environ "curve-time" Sig.Both 0 "Curve transition time."
-
 -- | Create the standard set of interpolator calls.  Generic so it can
 -- be used by PitchUtil as well.
 interpolator_variations_ :: Derive.Taggable a =>
-    (Derive.CallName -> get_arg -> InterpolatorTime a -> call)
-    -> Expr.Symbol -> Derive.CallName -> get_arg -> [(Expr.Symbol, call)]
-interpolator_variations_ make (Expr.Symbol sym) (Derive.CallName name)
-        get_arg =
-    [ (mksym sym, make (Derive.CallName name) get_arg prev)
-    , (mksym $ sym <> "<<",
-        make (Derive.CallName (name <> "-prev-const")) get_arg
-            (Left prev_time_arg))
-    , (mksym $ sym <> ">",
-        make (Derive.CallName (name <> "-next")) get_arg next)
-    , (mksym $ sym <> ">>",
-        make (Derive.CallName (name <> "-next-const")) get_arg
-            (Left next_time_arg))
+    (Text -> CurveD -> InterpolatorTime a -> call)
+    -> Expr.Symbol -> CurveD -> [(Expr.Symbol, call)]
+interpolator_variations_ make (Expr.Symbol sym) curve =
+    [ (mksym sym, make "" curve prev)
+    , (mksym $ sym <> "<<", make "-prev-const" curve (Left prev_time_arg))
+    , (mksym $ sym <> ">", make "-next" curve next)
+    , (mksym $ sym <> ">>", make "-next-const" curve (Left next_time_arg))
     ]
     where
     mksym = Expr.Symbol
@@ -134,39 +131,33 @@ get_prev_val args = do
         Nothing -> 0
         Just prev -> prev - start
 
-interpolator_variations :: Expr.Symbol -> Derive.CallName
-    -> (Sig.Parser arg, arg -> Curve)
-    -> [(Expr.Symbol, Derive.Generator Derive.Control)]
-interpolator_variations = interpolator_variations_ interpolator_call
-
-standard_interpolators ::
-    (forall arg. Expr.Symbol -> Derive.CallName
-        -> (Sig.Parser arg, arg -> Curve)
-        -> [(Expr.Symbol, Derive.Generator d)])
-    -> [(Expr.Symbol, Derive.Generator d)]
-standard_interpolators make = concat
-    [ make "i" "linear" (pure (), const id)
-    , make "e" "exp" exponential_curve
-    , make "s" "sigmoid" sigmoid_curve
+interpolator_variations :: [(Expr.Symbol, Derive.Generator Derive.Control)]
+interpolator_variations = concat
+    [ interpolator_variations_ interpolator_call sym curve
+    | (sym, curve) <- standard_curves
     ]
 
-exponential_curve :: (Sig.Parser Double, Double -> Curve)
-exponential_curve = (args, expon)
-    where args = Sig.defaulted "exp" 2 exp_doc
+-- * curve as argument
 
-sigmoid_curve :: (Sig.Parser (Double, Double), (Double, Double) -> Curve)
-sigmoid_curve = (args, curve)
-    where
-    curve (w1, w2) = guess_x $ sigmoid w1 w2
-    args = (,)
-        <$> Sig.defaulted "w1" 0.5 "Start weight."
-        <*> Sig.defaulted "w2" 0.5 "End weight."
+-- | For calls whose curve can be configured.
+curve_env :: Sig.Parser Curve
+curve_env = cf_to_curve <$>
+    Sig.environ "curve" Sig.Both cf_linear "Curve function."
 
--- * control functions
+curve_time_env :: Sig.Parser (Curve, RealTime)
+curve_time_env = (,) <$> curve_env <*> time
+    where time = Sig.environ "curve-time" Sig.Both 0 "Curve transition time."
+
+make_curve_call :: CurveD -> Derive.ValCall
+make_curve_call (CurveD name get_arg curve) =
+    Derive.val_call Module.prelude (Derive.CallName ("cf-" <> name)) Tags.curve
+    ("Interpolation function: " <> Doc.Doc name)
+    $ Sig.call get_arg $ \arg _args ->
+        return $ curve_to_cf name (curve arg)
 
 -- | Stuff a curve function into a ControlFunction.
-cf_interpolater :: Text -> Curve -> BaseTypes.ControlFunction
-cf_interpolater name curve = BaseTypes.ControlFunction name $
+curve_to_cf :: Text -> Curve -> BaseTypes.ControlFunction
+curve_to_cf name curve = BaseTypes.ControlFunction name $
     \_ _ -> Score.untyped . curve . RealTime.to_seconds
 
 -- | Convert a ControlFunction back into a curve function.
@@ -177,7 +168,7 @@ cf_to_curve cf =
     . RealTime.seconds
 
 cf_linear :: BaseTypes.ControlFunction
-cf_linear = cf_interpolater "cf-linear" id
+cf_linear = curve_to_cf "cf-linear" id
 
 -- * interpolate
 
@@ -252,6 +243,10 @@ limited_slope srate low high from slope start end
 
 -- * exponential
 
+exponential_curve :: CurveD
+exponential_curve = CurveD "expon" args expon
+    where args = Sig.defaulted "expon" 2 exp_doc
+
 exp_doc :: Doc.Doc
 exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ and will generate a slowly departing and rapidly approaching\
@@ -276,6 +271,14 @@ expon2 a b x
 
 -- * bezier
 
+sigmoid_curve :: CurveD
+sigmoid_curve = CurveD "sigmoid" args curve
+    where
+    curve (w1, w2) = sigmoid w1 w2
+    args = (,)
+        <$> Sig.defaulted "w1" 0.5 "Start weight."
+        <*> Sig.defaulted "w2" 0.5 "End weight."
+
 type Point = (Double, Double)
 
 -- | As far as I can tell, there's no direct way to know what value to give to
@@ -295,8 +298,8 @@ guess_x f x1 = go 0 1
 
 -- | Generate a sigmoid curve.  The first weight is the flatness at the start,
 -- and the second is the flatness at the end.  Both should range from 0--1.
-sigmoid :: Double -> Double -> Double -> Point
-sigmoid w1 w2 = bezier3 (0, 0) (w1, 0) (1-w2, 1) (1, 1)
+sigmoid :: Double -> Double -> Curve
+sigmoid w1 w2 = guess_x $ bezier3 (0, 0) (w1, 0) (1-w2, 1) (1, 1)
 
 -- | Cubic bezier curve.
 bezier3 :: Point -> Point -> Point -> Point -> (Double -> Point)

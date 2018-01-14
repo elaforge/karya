@@ -49,8 +49,7 @@ library = mconcat
         , ("u", c_up)
         , ("d", c_down)
         , ("p", c_porta)
-        ] ++
-        ControlUtil.standard_interpolators PitchUtil.interpolator_variations
+        ] ++ PitchUtil.interpolator_variations
     , Library.transformers [("set", c_set_transformer)]
     ]
 

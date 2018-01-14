@@ -64,6 +64,12 @@ newtype Symbol = Symbol Text
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
 
+-- | Append two Symbols.  I could just put Symbol in Monoid, but since Symbols
+-- become tracklang call names, I still want to be a bit careful about
+-- costructing them.
+make_sym :: Symbol -> Symbol -> Symbol
+make_sym (Symbol sym1) (Symbol sym2) = Symbol (sym1 <> sym2)
+
 instance ShowVal.ShowVal Symbol where
     show_val (Symbol sym) = sym
 

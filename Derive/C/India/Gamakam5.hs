@@ -497,7 +497,7 @@ make_dyn_curve curve from to ctx = do
     lift $ ControlUtil.make_segment curve start from end to
 
 dyn_curve :: Double -> Double -> ControlUtil.Curve
-dyn_curve w1 w2 = snd ControlUtil.sigmoid_curve (w1, w2)
+dyn_curve = ControlUtil.sigmoid
 
 dc_set_dyn :: DynCall
 dc_set_dyn = DynCall "Set from dyn." required_dyn_arg $ \to _ctx -> do
@@ -664,7 +664,7 @@ move_pitch :: RealTime -> PSignal.Transposed -> RealTime -> PSignal.Transposed
     -> M PitchState Signal.Control
 move_pitch start from end to = do
     Typecheck.Normalized transition <- State.gets _transition
-    let curve = snd ControlUtil.sigmoid_curve (1-transition, 1-transition)
+    let curve = ControlUtil.sigmoid (1-transition) (1-transition)
     set_pitch to
     swaram <- State.gets _swaram
     from <- lift $ step_difference from swaram

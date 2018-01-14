@@ -24,6 +24,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -38,7 +39,7 @@ import Types
 
 
 library :: Library.Library
-library = Library.vals
+library = Library.vals $
     [ ("cf-rnd", c_cf_rnd const)
     , ("cf-rnd+", c_cf_rnd (+))
     , ("cf-rnd*", c_cf_rnd (*))
@@ -50,9 +51,10 @@ library = Library.vals
     , ("cf-clamp", c_cf_clamp)
     -- curves
     , ("cf-jump", c_cf_jump)
-    , ("cf-linear", c_cf_linear)
-    , ("cf-expon", c_cf_expon)
-    , ("cf-sigmoid", c_cf_sigmoid)
+    ] ++
+    [ (Expr.make_sym "cf-" (Expr.Symbol $ ControlUtil.curve_name curve),
+        ControlUtil.make_curve_call curve)
+    | (_, curve) <- ControlUtil.standard_curves
     ]
 
 data Distribution =
@@ -192,30 +194,8 @@ cf_compose name f (BaseTypes.ControlFunction cf_name cf) =
 c_cf_jump :: Derive.ValCall
 c_cf_jump = val_call "cf-jump" Tags.curve
     "No interpolation. Jump to the destination at 0.5."
-    $ Sig.call0 $ \_args -> return $ ControlUtil.cf_interpolater "cf-jump" jump
+    $ Sig.call0 $ \_args -> return $ ControlUtil.curve_to_cf "cf-jump" jump
     where jump n = if n < 0.5 then 0 else 1
-
-c_cf_linear :: Derive.ValCall
-c_cf_linear = val_call "cf-linear" Tags.curve
-    "Linear interpolation function. It's just `id`."
-    $ Sig.call0 $ \_args -> return ControlUtil.cf_linear
-
-c_cf_expon :: Derive.ValCall
-c_cf_expon = val_call "cf-expon" Tags.curve
-    "Exponential interpolation function."
-    $ Sig.call (Sig.defaulted "expon" 2 ControlUtil.exp_doc)
-    $ \n _args -> return $
-        ControlUtil.cf_interpolater "cf-expon" (ControlUtil.expon n)
-
-c_cf_sigmoid :: Derive.ValCall
-c_cf_sigmoid = val_call "cf-sigmoid" Tags.curve
-    "Sigmoid interpolation function."
-    $ Sig.call ((,)
-    <$> Sig.defaulted "w1" 0.5 "Weight of start."
-    <*> Sig.defaulted "w2" 0.5 "Weight of end."
-    ) $ \(w1, w2) _args ->
-        return $ ControlUtil.cf_interpolater "cf-isgmoid" $
-            ControlUtil.guess_x $ ControlUtil.sigmoid w1 w2
 
 -- * BaseTypes.Dynamic
 

@@ -34,12 +34,13 @@ resolve_pitch_transpose pitch = either id (flip Pitches.transpose pitch)
 
 -- * interpolator call
 
-interpolator_call :: Derive.CallName
-    -> (Sig.Parser arg, (arg -> Curve))
+interpolator_call :: Text -> ControlUtil.CurveD
     -> ControlUtil.InterpolatorTime Derive.Pitch
     -> Derive.Generator Derive.Pitch
-interpolator_call name (get_arg, curve) interpolator_time =
-    Derive.generator1 Module.prelude name Tags.prev doc
+interpolator_call name_suffix (ControlUtil.CurveD name get_arg curve)
+        interpolator_time =
+    Derive.generator1 Module.prelude (Derive.CallName (name <> name_suffix))
+        Tags.prev doc
     $ Sig.call ((,,,)
     <$> pitch_arg
     <*> either id (const $ pure $ BaseTypes.RealDuration 0) interpolator_time
@@ -73,10 +74,11 @@ prev_val :: Maybe PSignal.Pitch -> Derive.PitchArgs -> Maybe PSignal.Pitch
 prev_val from args = from <|> (snd <$> Args.prev_pitch args)
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
-interpolator_variations :: Expr.Symbol -> Derive.CallName
-    -> (Sig.Parser arg, arg -> Curve)
-    -> [(Expr.Symbol, Derive.Generator Derive.Pitch)]
-interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
+interpolator_variations :: [(Expr.Symbol, Derive.Generator Derive.Pitch)]
+interpolator_variations = concat
+    [ ControlUtil.interpolator_variations_ interpolator_call sym curve
+    | (sym, curve) <- ControlUtil.standard_curves
+    ]
 
 
 -- * interpolate

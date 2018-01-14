@@ -202,6 +202,7 @@ STATUS
     before and after warp as function, and linear segments.
 
 UNSORTED
+  - Maybe put Expr.Symbol into Monoid after all.
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
   - Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
   - If I use cpphs I might be able to use \ string continuation for CPP
@@ -1259,6 +1260,21 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuities:
     . constant_val: various optimizations
 
   TODO:
+    Clean up interpolators in ControlUtil so I can special case linear
+      . Constant too.
+      . The reason for ControlFunction is that I can pass arguments:
+        (cf... 1 2 3).  If I had a ADT-esque feature where Typecheck Symbol
+        can take arguments, then I could get rid of this.  But it's probably
+        only worth it if I have a plan to get rid of the randomize use for
+        ControlFunctions and hence get rid of ControlFunctions entirely.
+        . I guess effectively this would be a Dynamic Val, and then a way to
+          automatically create val calls to construct it.
+      * Generate interpolators from standard_curves.
+      * Generate cf curves from CurveDs
+      * Can I untangle the functions?  I just need to be polymorphic on Signal
+        vs.  PSignal.
+      - Once I have this, I can special case based on name.
+        . Or can I give Curve alternatives like Linear and Constant?
     * remove Signal.interleave
     * make it generic on Y type
     * implement concat
@@ -1626,6 +1642,12 @@ synth: im:
       . Meanwhile I have to invent my own hack, so
         constant:Doc doc doc.
         [key=val val val; key=val val val] Doc doc doc
+    - Add defaults: default=x:Doc doc doc.
+      . Use this when no signal is present.
+    - Maybe constant controls could use UI controls, then I don't need to fill
+      up the buffer.
+      . But then I have to deal with two kinds of controls.
+      . And I can just set constant buffers and leave them.
     - Extend the guitar single string model into a multi-string instrument.
     * Write separate files for each instrument
       * Concatenate signals for all notes, and synthesize a gate signal to mark
