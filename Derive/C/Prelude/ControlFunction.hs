@@ -49,13 +49,15 @@ library = Library.vals $
     , ("cf-rnd01", c_cf_rnd01)
     , ("cf-swing", c_cf_swing)
     , ("cf-clamp", c_cf_clamp)
-    -- curves
-    , ("cf-jump", c_cf_jump)
-    ] ++
-    [ (Expr.make_sym "cf-" (Expr.Symbol $ ControlUtil.curve_name curve),
-        ControlUtil.make_curve_call curve)
-    | (_, curve) <- ControlUtil.standard_curves
-    ]
+    ] ++ map (make_call Nothing . snd) ControlUtil.standard_curves
+    ++ map (uncurry make_call . first Just) curves
+
+make_call :: Maybe Doc.Doc -> ControlUtil.CurveD
+    -> (Expr.Symbol, Derive.ValCall)
+make_call doc curve =
+    ( Expr.make_sym "cf-" (Expr.Symbol $ ControlUtil.curve_name curve)
+    , ControlUtil.make_curve_call doc curve
+    )
 
 data Distribution =
     Uniform
@@ -191,11 +193,13 @@ cf_compose name f (BaseTypes.ControlFunction cf_name cf) =
 
 -- * curve interpolators
 
-c_cf_jump :: Derive.ValCall
-c_cf_jump = val_call "cf-jump" Tags.curve
-    "No interpolation. Jump to the destination at 0.5."
-    $ Sig.call0 $ \_args -> return $ ControlUtil.curve_to_cf "cf-jump" jump
-    where jump n = if n < 0.5 then 0 else 1
+curves :: [(Doc.Doc, ControlUtil.CurveD)]
+curves =
+    [ ( "Jump to the destination at 0.5."
+      , ControlUtil.CurveD "jump" (pure ()) (\() n -> if n < 0.5 then 0 else 1)
+      )
+    , ("No interpolation.", ControlUtil.CurveD "const" (pure ()) (\() _ -> 0))
+    ]
 
 -- * BaseTypes.Dynamic
 

@@ -148,10 +148,10 @@ curve_time_env :: Sig.Parser (Curve, RealTime)
 curve_time_env = (,) <$> curve_env <*> time
     where time = Sig.environ "curve-time" Sig.Both 0 "Curve transition time."
 
-make_curve_call :: CurveD -> Derive.ValCall
-make_curve_call (CurveD name get_arg curve) =
+make_curve_call :: Maybe Doc.Doc -> CurveD -> Derive.ValCall
+make_curve_call doc (CurveD name get_arg curve) =
     Derive.val_call Module.prelude (Derive.CallName ("cf-" <> name)) Tags.curve
-    ("Interpolation function: " <> Doc.Doc name)
+    (fromMaybe ("Interpolation function: " <> Doc.Doc name) doc)
     $ Sig.call get_arg $ \arg _args ->
         return $ curve_to_cf name (curve arg)
 
