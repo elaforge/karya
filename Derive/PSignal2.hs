@@ -88,7 +88,7 @@ instance Monoid PSignal where
         | Segment.null (_signal s2) = s1
         | otherwise = mconcat [s1, s2]
     mconcat [] = mempty
-    mconcat sigs = PSignal $ Segment.concat (map _signal sigs)
+    mconcat sigs = PSignal $ Segment.concat interpolate (map _signal sigs)
 
 instance DeepSeq.NFData PSignal where
     rnf (PSignal vec) = vec `seq` ()

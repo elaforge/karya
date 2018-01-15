@@ -26,6 +26,8 @@ test_from_pairs = do
         [((0, 0), (1, 0)), ((1, 2), (large, 2))]
     equal (f [(0, 0), (2, 2), (1, 1), (0, 1), (4, 0)])
         [((0, 0), (2, 2)), ((2, 2), (4, 0)), ((4, 0), (large, 0))]
+    equal (f [(0, 0), (1, 0), (1, 0), (1, 1)])
+        [((0, 0), (1, 0)), ((1, 1), (large, 1))]
 
 test_constant_val = do
     let f = Segment.constant_val
@@ -38,18 +40,33 @@ test_constant_val = do
     equal (f $ from_pairs [(3, 2)]) Nothing
 
 test_concat = do
-    let f = to_segments . Segment.concat . map from_pairs
-    equal (f [[(0, 1)], [(4, 2)]]) [((0, 1), (4, 1)), ((4, 2), (large, 2))]
-    equal (f [[(4, 2)], [(0, 1)]]) [((0, 1), (large, 1))]
-    -- Replace the flat line afterwards.
-    equal (f [[(0, 1), (1, 2)], [(1, 4)]])
-        [((0, 1), (1, 2)), ((1, 4), (large, 4))]
-    -- Extend a flat line.
-    equal (f [[(0, 1), (1, 2)], [(4, 4)]])
-        [((0, 1), (1, 2)), ((1, 2), (4, 2)), ((4, 4), (large, 4))]
+    let f = to_pairs . Segment.concat Segment.num_interpolate . map from_pairs
+    equal (f []) []
+    -- Extend final segment.
+    equal (f [[(0, 1)], [(4, 2)]]) [(0, 1), (4, 1), (4, 2)]
+    -- Coincident samples.
+    equal (f [[(0, 0), (1, 1)], [(1, 1), (2, 2)]])
+        [(0, 0), (1, 1), (1, 1), (2, 2)]
+    -- interpolate
+    equal (f [[(0, 0), (4, 4)], [(2, 8)]]) [(0, 0), (2, 2), (2, 8)]
     -- The rightmost one wins.
-    equal (f [[(0, 0)], [(2, 2)], [(1, 1)]])
-        [((0, 0), (1, 0)), ((1, 1), (large, 1))]
+    equal (f [[(0, 0)], [(2, 2)], [(1, 1)]]) [(0, 0), (1, 0), (1, 1)]
+    -- Suppress duplicates.
+    equal (f [[(1, 1)], [(1, 1)], [(1, 1)]]) [(1, 1), (1, 1)]
+    equal (f [[(0, 1), (1, 1)], [(1, 2)], [(1, 1)]]) [(0, 1), (1, 1), (1, 1)]
+    -- But not legit ones.
+    equal (f [[(0, 1), (1, 1)], [(1, 2)]]) [(0, 1), (1, 1), (1, 2)]
+
+
+test_prepend = do
+    let f sig1 sig2 = to_pairs $ Segment.prepend Segment.num_interpolate
+            (from_pairs sig1) (from_pairs sig2)
+    equal (f [] []) []
+    equal (f [] [(0, 0), (1, 1)]) [(0, 0), (1, 1)]
+    equal (f [(0, 10), (1, 1)] [(0, 0), (1, 1), (2, 2)])
+        [(0, 10), (1, 1), (1, 1), (2, 2)]
+    equal (f [(1, 42)] [(0, 0), (1, 1), (2, 2)]) [(1, 42), (1, 1), (2, 2)]
+    equal (f [(1, 42)] [(0, 0), (2, 2)]) [(1, 42), (1, 1), (2, 2)]
 
 test_segment_at = do
     let f x = Segment.segment_at_orientation Types.Positive x . from_pairs

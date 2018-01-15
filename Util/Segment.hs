@@ -25,7 +25,7 @@ module Util.Segment (
     , maximum, minimum
 
     -- * concat
-    , concat
+    , concat, prepend
     -- * slice
     , drop_after, clip_after
     , drop_before, clip_before
@@ -73,11 +73,26 @@ import qualified Perform.RealTime as RealTime
 import Global
 
 
--- | A signal modeled as segments.  Presumably the segments are linear.
--- Nothing in this module enforces that, though there are some transformations
--- that are only valid for linear segments.
---
--- This comes with a built-in X offset, so translation is cheap.
+{- | A signal modeled as segments.  Presumably the segments are linear, but
+    since you pass your own 'Interpolate', nothing in this module enforces
+    that, though there are some transformations that are only valid for linear
+    segments.
+
+    A signal has no value before its first sample, and maintains a constant
+    value of the last sample "forever."
+
+    This comes with a built-in X offset, so translation is cheap.
+
+    Each X should be >= the previous X, and there shouldn't be more than two
+    equal Xs in a row.  The first ensures that binary search works, and the
+    second insures that I don't try to interpolate a zero length segment.  All
+    the functions in here should maintain these invariants.
+    TODO make sure this is true
+
+    There may be redundant segments, e.g. [(0, 1), (1, 1), (2, 1] or
+    [(0, 1), (1, 1), (1, 1)].  These can't be eliminated because the @y@ value
+    may not have an Eq instance.
+-}
 data Signal v = Signal {
     _offset :: !X
     , _vector :: !v
@@ -277,14 +292,12 @@ maximum sig
 
 -- | Concatenate signals, where signals to the right replace the ones to the
 -- left where they overlap.
-concat :: V.Vector v (Sample y) => [SignalS v y] -> SignalS v y
-concat [] = empty
-concat [sig] = sig
-concat (sig : sigs)
-    | _offset sig /= 0 && all (== _offset sig) (map _offset sigs) =
-        (concat [s { _offset = 0 } | s <- sig:sigs]) { _offset = _offset sig }
-concat sigs =
-    from_vector . V.concat . reverse . chunks . reverse . map to_vector $ sigs
+concat :: V.Vector v (Sample y) => Interpolate y -> [SignalS v y] -> SignalS v y
+concat _ [] = empty
+concat _ [sig] = sig
+concat interpolate sigs =
+    from_vector . V.concat . strip_duplicates . reverse . chunks . reverse
+        . map to_vector $ sigs
     where
     chunks [] = []
     chunks [v] = [v]
@@ -292,39 +305,67 @@ concat sigs =
     -- v1:     |--->        |--->
     -- v2:   |--->        |->
     -- vs: |--->     => |->
-    chunks (v1:v2:vs) = case TimeVector.head v1 of
+    chunks (v1:v2:vs) = case sx <$> TimeVector.head v1 of
         Nothing -> chunks (v2:vs)
-        Just start -> case TimeVector.last clipped of
+        Just x1 -> case TimeVector.last clipped of
             Nothing -> chunks (v1:vs)
             Just end
-                | sx end < sx start -> v1 : extension end : chunks (clipped:vs)
+                | sx end < x1 -> v1 : extension end : chunks (clipped:vs)
                 | otherwise -> v1 : chunks (clipped:vs)
             where
-            clipped = V.take (TimeVector.bsearch_below_1 (sx start) v2) v2
-            extension end = V.singleton (Sample (sx start) (sy end))
+            clipped = clip_after_v interpolate x1 v2
+            extension end = V.singleton (Sample x1 (sy end))
+    -- Maintain the invariant that there are no greater than two Xs with the
+    -- same value.  Since I don't have Eq y, I can remove complete duplicates
+    -- like (1, 1), (1, 1).
+    strip_duplicates (v1 : _ : v3 : vs)
+        | Just x1 <- sx <$> TimeVector.last v1
+        , Just x3 <- sx <$> TimeVector.head v3
+        , x1 == x3 =
+            strip_duplicates (v1 : v3 : vs)
+    strip_duplicates (v1 : vs) = v1 : strip_duplicates vs
+    strip_duplicates [] = []
+
+-- | With 'concat', each signal start clips the signal to its left.  This is
+-- the other way around, the final sample in the first signal is taken as its
+-- end, and it replaces the start of the second signal.
+prepend :: V.Vector v (Sample y) => Interpolate y -> SignalS v y
+    -> SignalS v y -> SignalS v y
+prepend interpolate sig1 sig2 = case last sig1 of
+    Nothing -> sig2
+    Just (x, _) -> concat interpolate [sig1, clip_before interpolate x sig2]
 
 -- * slice
 
 -- | Drop the segments after the given time.  The last segment may overlap it.
 drop_after :: V.Vector v (Sample y) => X -> SignalS v y -> SignalS v y
-drop_after x sig = case _vector sig V.!? i of
-    Nothing -> empty
-    Just (Sample x1 _)
-        | V.null v -> empty
-        | otherwise -> Signal { _offset = _offset sig, _vector = v }
-        where v = V.take (if x1 >= x then i+1 else i+2) (_vector sig)
-    where i = TimeVector.index_below (x - _offset sig) (_vector sig)
+drop_after x sig
+    | V.null v = empty
+    | otherwise = Signal { _offset = _offset sig, _vector = v }
+    where v = drop_after_v (x - _offset sig) (_vector sig)
+
+drop_after_v :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
+drop_after_v x vec = case vec V.!? i of
+    Nothing -> V.empty
+    Just (Sample x1 _) -> V.take (if x1 >= x then i+1 else i+2) vec
+    where i = TimeVector.index_below x vec
 
 clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
     -> SignalS v y
-clip_after interpolate x sig = case last clipped of
-    Nothing -> empty
-    Just (x2, _)
-        | x2 > x, Just y <- at interpolate x sig ->
-            let v = to_vector clipped
-            in from_vector $ V.snoc (V.take (V.length v - 1) v) (Sample x y)
+clip_after interpolate x sig
+    | V.null v = empty
+    | otherwise = Signal { _offset = _offset sig, _vector = v }
+    where v = clip_after_v interpolate (x - _offset sig) (_vector sig)
+
+clip_after_v :: V.Vector v (Sample y) => Interpolate y -> X
+    -> v (Sample y) -> v (Sample y)
+clip_after_v interpolate x vec = case TimeVector.last clipped of
+    Nothing -> V.empty
+    Just (Sample x2 _)
+        | x < x2, Just y <- at interpolate x (from_vector vec) ->
+            V.snoc (V.take (V.length clipped - 1) clipped) (Sample x y)
         | otherwise -> clipped
-    where clipped = drop_after x sig
+    where clipped = drop_after_v x vec
 
 -- | Drop the segments before the given time.  The first segment will start at
 -- or before the given time.

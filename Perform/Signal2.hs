@@ -96,8 +96,8 @@ instance Monoid (Signal kind) where
     mappend s1 s2
         | null s1 = s2
         | null s2 = s1
-        | otherwise = Signal $ Segment.concat [_signal s1, _signal s2]
-    mconcat = Signal . Segment.concat . map _signal
+        | otherwise = mconcat [s1, s2]
+    mconcat = Signal . Segment.concat Segment.num_interpolate . map _signal
 
 -- | This is the type of performer-interpreted controls that go into the
 -- event's control map.
