@@ -17,16 +17,18 @@ module Perform.Signal2 (
     , Tempo, Warp, Control, NoteNumber, Display
 
     -- * construct / destruct
-    , from_pairs, from_segments
-    , to_samples, to_pairs, to_segments
+    , from_sample, from_pairs, from_segments
+    , to_samples, to_pairs, to_pairs_unique, to_segments
     , constant, constant_val
+    , prepend
     , unfoldr
     , coerce
+    , to_piecewise_constant
     , with_ptr
 
     -- * query
     , null
-    , at, segment_at
+    , at, at_maybe, segment_at
     , head, last
     , minimum, maximum
 
@@ -62,6 +64,7 @@ import qualified Foreign
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import Util.Segment (X, Sample(..))
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
@@ -141,6 +144,9 @@ nn_to_y (Pitch.NoteNumber nn) = nn
 
 -- * construct / destruct
 
+from_sample :: X -> Y -> Signal kind
+from_sample x y = from_pairs [(x, y)]
+
 from_pairs :: [(X, Y)] -> Signal kind
 from_pairs = Signal . Segment.from_pairs
 
@@ -153,6 +159,12 @@ to_samples = Segment.to_samples . _signal
 to_pairs :: Signal kind -> [(X, Y)]
 to_pairs = Segment.to_pairs . _signal
 
+-- | Like 'to_pairs', but filter out explicit discontinuities.  This is because
+-- tests were written before they existed, so a lot will break.
+-- TODO update the tests
+to_pairs_unique :: Signal kind -> [(X, Y)]
+to_pairs_unique = Seq.drop_initial_dups fst . to_pairs
+
 to_segments :: Signal kind -> [Segment.Segment Y]
 to_segments = Segment.to_segments . _signal
 
@@ -163,12 +175,19 @@ constant = Signal . Segment.constant
 constant_val :: Signal kind -> Maybe Y
 constant_val = Segment.constant_val_num . _signal
 
+prepend :: Signal kind -> Signal kind -> Signal kind
+prepend sig1 sig2 = Signal $
+    Segment.prepend Segment.num_interpolate (_signal sig1) (_signal sig2)
+
 unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
 unfoldr gen state = Signal $ Segment.unfoldr gen state
 
 -- | Sometimes signal types need to be converted.
 coerce :: Signal kind1 -> Signal kind2
 coerce (Signal vec) = Signal vec
+
+to_piecewise_constant :: X -> Signal kind -> TimeVector.Unboxed
+to_piecewise_constant srate = Segment.to_piecewise_constant srate . _signal
 
 -- | 'Segment.with_ptr'.
 with_ptr :: Display -> (X -> Foreign.Ptr (Sample Y) -> Int -> IO a) -> IO a
@@ -180,7 +199,10 @@ null :: Signal kind -> Bool
 null = Segment.null . _signal
 
 at :: X -> Signal kind -> Y
-at x = fromMaybe 0 . Segment.at Segment.num_interpolate x . _signal
+at x = fromMaybe 0 . at_maybe x
+
+at_maybe :: X -> Signal kind -> Maybe Y
+at_maybe x = Segment.at Segment.num_interpolate x . _signal
 
 segment_at :: X -> Signal kind -> Maybe (Segment.Segment Y)
 segment_at x = Segment.segment_at x . _signal
@@ -199,32 +221,11 @@ clip_after, clip_before :: X -> Signal kind -> Signal kind
 clip_after x = modify $ Segment.clip_after Segment.num_interpolate x
 clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
 
--- TODO used by?
-{-
-
--- Midi.Perform.controls_equal
-within :: X -> X -> Signal kind -> Signal kind
-within start end = modify $ TimeVector.within start end
-
--- Block.trim_controls, trill xcut, Derive.Control.trim_signal
-drop_at_after :: X -> Signal kind -> Signal kind
-drop_at_after = modify . TimeVector.drop_at_after
-
-drop_before_strict :: X -> Signal kind -> Signal kind
-drop_before_strict = modify . TimeVector.drop_before_strict
-
-drop_before_at :: X -> Signal kind -> Signal kind
-drop_before_at = modify . TimeVector.drop_before_at
--}
-
 shift :: X -> Signal kind -> Signal kind
 shift x = modify (Segment.shift x)
 
 invert :: Signal kind -> Signal kind
 invert = modify Segment.invert
-
--- prepend :: Signal kind -> Signal kind -> Signal kind
--- prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 sig_add, sig_multiply :: Control -> Control -> Control
 sig_add = linear_operator (Just 0) (+)
