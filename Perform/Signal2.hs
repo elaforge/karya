@@ -44,8 +44,7 @@ module Perform.Signal2 (
     , drop_discontinuity_at
 
     -- ** scalar transformation
-    , scalar_max, scalar_min
-    , clip_bounds
+    , scalar_max
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , map_x, map_y, map_y_linear, map_err
 
@@ -273,52 +272,43 @@ scalar_subtract n = map_y_linear (subtract n)
 scalar_multiply n = map_y_linear (*n)
 scalar_divide n = map_y_linear (/n)
 
--- | Clip signal to never go above or below the given value.
-scalar_max, scalar_min :: Y -> Signal kind -> Signal kind
+-- | Clip signal to never go below the given value.
+--
+-- This is way more complicated than the piecewise constant version.
+scalar_max :: Y -> Signal kind -> Signal kind
 scalar_max val sig
-    | Just y <- minimum sig, y >= val = sig
+    | minimum sig >= val = sig
     | otherwise = modify (Segment.transform_samples go) sig
     where
     go [] = []
     go [Sample x y] = [Sample x (max val y)]
-    go (s1@(Sample x1 y1) : s2@(Sample x2 y2 : sn)) =
-        case TimeVector.x_at x1 y1 x2 y2 val of
+    go (s1@(Sample x1 y1) : s2s@(Sample x2 y2 : sn))
+        | y1 < val && y2 < val = Sample x1 val : below (s1 : s2s)
+        | y1 >= val && y2 >= val = s1 : go s2s
+        | otherwise = case TimeVector.x_at x1 y1 x2 y2 val of
             Nothing
                 | y1 < val -> Sample x1 val : go (Sample x2 val : sn)
-                | otherwise -> s1 : go s2
+                | otherwise -> s1 : go s2s
             Just x_val
-                | y1 < val -> go (Sample x_val val : s2)
-                | otherwise -> s1 : go (Sample x_val val : sn)
-scalar_min val sig
-    | Just y <- maximum sig, y <= val = sig
-    | otherwise = modify (Segment.transform_samples go) sig
-    where
-    go [] = []
-    go [Sample x y] = [Sample x (min val y)]
-    go (s1@(Sample x1 y1) : s2@(Sample x2 y2 : sn)) =
-        case TimeVector.x_at x1 y1 x2 y2 val of
-            Nothing
-                | y1 > val -> Sample x1 val : go (Sample x2 val : sn)
-                | otherwise -> s1 : go s2
-            Just x_val
-                | y1 > val -> go (Sample x_val val : s2)
-                | otherwise -> s1 : go (Sample x_val val : sn)
+                | y1 < val -> Sample x1 val : go (Sample x_val val : s2s)
+                | otherwise -> s1 : Sample x_val val : below s2s
+    -- The first sample is below val, discard until it comes back up again.
+    below (Sample x1 y1 : s2s@(Sample x2 y2 : _))
+        | y2 < val = below s2s
+        | y2 == val = go s2s
+        | otherwise = case TimeVector.x_at x1 y1 x2 y2 val of
+            -- y1 and y2 are both below, should have been caught above.
+            Nothing -> below s2s
+            Just x_val -> go (Sample x_val val : s2s)
+    below [_] = []
+    below [] = []
 
-minimum, maximum :: Signal kind -> Maybe Y
-minimum = Segment.minimum . _signal
-maximum = Segment.maximum . _signal
+minimum, maximum :: Signal kind -> Y
+minimum = fromMaybe 0 . Segment.minimum . _signal
+maximum = fromMaybe 0 . Segment.maximum . _signal
 
--- | Clip the signal's Y values to lie between the given bounds, inclusive.
--- Return the out of range samples.
-clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, Y)])
-clip_bounds low high sig
-    | List.null outs = (sig, [])
-    | otherwise = (scalar_min high (scalar_max low sig), outs)
-    where
-    outs = map TimeVector.to_pair $ Vector.toList $
-        Vector.filter out_of_range (Segment.to_vector (_signal sig))
-    out_of_range (Sample _ y) = y < low || y > high
-
+-- | Map Xs.  The slopes will definitely change unless the function is adding
+-- a constant, but presumably that's what you want.
 map_x :: (X -> X) -> Signal kind -> Signal kind
 map_x = modify . Segment.map_x
 

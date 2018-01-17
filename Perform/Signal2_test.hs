@@ -8,7 +8,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Perform.Signal2 as Signal
-import Perform.Signal2 (X, Y, from_pairs)
+import Perform.Signal2 (X, Y, from_pairs, to_pairs)
 
 
 test_at = do
@@ -56,6 +56,16 @@ test_scale = do
 --     -- one pitch changes but the other doesn't, so they can't share
 --     equal (f 0 3 (signal [(0, 0), (1, 1)]) (signal [(0, 2)])) False
 --     equal (f 1 5 (signal [(1, 74), (2, 76), (3, 74)]) (signal [(0, 48)])) False
+
+test_scalar_max = do
+    let f v = to_pairs . Signal.scalar_max v . from_pairs
+    equal (f 1 [(1, 1), (4, 4)]) [(1, 1), (4, 4)]
+    equal (f 1 [(0, 0), (4, 4)]) [(0, 1), (1, 1), (4, 4)]
+    equal (f 1 [(0, 0), (0, 0), (4, 4)]) [(0, 1), (1, 1), (4, 4)]
+    equal (f 1 [(0, 0), (4, 4), (8, 0)]) [(0, 1), (1, 1), (4, 4), (7, 1)]
+    equal (f 1 [(0, 4), (4, 0)]) [(0, 4), (3, 1)]
+    equal (f 1 [(0, 4), (4, 0), (5, 0.5)]) [(0, 4), (3, 1)]
+    equal (f 1 [(0, 4), (4, 0), (8, 4)]) [(0, 4), (3, 1), (5, 1), (8, 4)]
 
 -- * utilities
 
