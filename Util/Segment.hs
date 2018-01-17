@@ -31,7 +31,7 @@ module Util.Segment (
     , drop_before, clip_before
     -- * transform
     , shift
-    , map_y, map_x
+    , map_y, map_y_linear, map_x
     -- , map_segments
     , transform_samples, map_err
 
@@ -42,6 +42,7 @@ module Util.Segment (
     , Boxed
     -- * NumSignal
     , NumSignal
+    , num_interpolate
     , invert
     , integrate
     -- * resample
@@ -397,24 +398,23 @@ shift offset sig = sig { _offset = _offset sig + offset }
 _flatten_shift :: V.Vector v (Sample y) => SignalS v y -> SignalS v y
 _flatten_shift = from_vector . to_vector
 
--- | Map Ys.  Only valid if the function is linear.
-map_y :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
-map_y f = modify_vector $ TimeVector.map_y f
+-- | Map Ys.  This resamples the signal, so it's valid for a nonlinear
+-- function.
+map_y :: X -> (Y -> Y) -> NumSignal -> NumSignal
+map_y srate f = from_vector . TimeVector.map_y f . to_piecewise_constant srate
 
--- | Map Xs.  Only valid if the function is linear.
+-- | Map Ys.  Only valid if the function is linear.
+map_y_linear :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
+map_y_linear f = modify_vector $ TimeVector.map_y f
+
+-- | Map Xs.  The slopes will definitely change unless the function is adding
+-- a constant, but presumably that's what you want.
 map_x :: V.Vector v (Sample y) => (X -> X) -> SignalS v y -> SignalS v y
 map_x f = modify_vector $ TimeVector.map_x f
 
--- -- | Transform Segments.  Only valid if the function is linear.
--- map_segments :: V.Vector v (Sample y) => (Segment y -> [Segment y])
---     -> SignalS v y -> SignalS v y
--- map_segments f sig =
---     (from_segments $ concatMap f $ samples_to_segments $ V.toList $ _vector sig)
---         { _offset = _offset sig }
-
 transform_samples :: V.Vector v (Sample y) => ([Sample y] -> [Sample y])
     -> SignalS v y -> SignalS v y
-transform_samples f = modify_vector $ _vector . from_samples . f . V.toList
+transform_samples f = from_samples . f . to_samples
 
 map_err :: V.Vector v (Sample y) => (Sample y -> Either err (Sample y))
     -> SignalS v y -> (SignalS v y, [err])

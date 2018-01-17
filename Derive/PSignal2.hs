@@ -4,7 +4,7 @@
 
 module Derive.PSignal2 (
     PSignal, sig_scale_id
-    , Scale(Scale), no_scale
+    , Scale(..), no_scale
 
     -- * construct / destruct
     , from_pairs, from_segments
@@ -26,8 +26,7 @@ module Derive.PSignal2 (
     , drop_before, clip_before
     , shift
     , apply_controls, apply_control, apply_environ
-    , map_y
-    -- , prepend
+    , map_y_linear
 
     -- ** hacks
     , drop_discontinuity_at
@@ -189,23 +188,6 @@ head, last :: PSignal -> Maybe (RealTime, Pitch)
 head = Segment.head . _signal
 last = Segment.last . _signal
 
-{-
--- | Find the last pitch before the point.
-before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
-before x = fmap Segment.to_pair . Segment.before x . _signal
-
-drop_at_after :: RealTime -> PSignal -> PSignal
-drop_at_after = modify . Segment.drop_at_after
-
-drop_before_strict :: RealTime -> PSignal -> PSignal
-drop_before_strict = modify . Segment.drop_before_strict
-
-drop_before_at :: RealTime -> PSignal -> PSignal
-drop_before_at = modify . Segment.drop_before_at
-
-within :: RealTime -> RealTime -> PSignal -> PSignal
-within start end = modify $ Segment.within start end
--}
 
 -- * transform
 
@@ -292,13 +274,10 @@ apply_control cont sig = apply_controls (Map.singleton cont sig)
 -- 'apply_controls', this doesn't have to resample the signal.
 apply_environ :: BaseTypes.Environ -> PSignal -> PSignal
 apply_environ env =
-    modify $ Segment.map_y $ apply_config (PitchConfig env mempty)
+    modify $ Segment.map_y_linear $ apply_config (PitchConfig env mempty)
 
-map_y :: (Pitch -> Pitch) -> PSignal -> PSignal
-map_y = modify . Segment.map_y
-
--- prepend :: PSignal -> PSignal -> PSignal
--- prepend s1 s2 = PSignal $ Segment.prepend (_signal s1) (_signal s2)
+map_y_linear :: (Pitch -> Pitch) -> PSignal -> PSignal
+map_y_linear = modify . Segment.map_y_linear
 
 -- ** hacks
 

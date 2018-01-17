@@ -47,7 +47,7 @@ module Perform.Signal2 (
     , scalar_max, scalar_min
     , clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
-    , map_x, map_y, map_err
+    , map_x, map_y, map_y_linear, map_err
 
     -- * special functions
     , integrate
@@ -268,10 +268,10 @@ drop_discontinuity_at x = modify $ Segment.drop_discontinuity_at x
 
 scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
     Y -> Signal kind -> Signal kind
-scalar_add n = map_y (+n)
-scalar_subtract n = map_y (subtract n)
-scalar_multiply n = map_y (*n)
-scalar_divide n = map_y (/n)
+scalar_add n = map_y_linear (+n)
+scalar_subtract n = map_y_linear (subtract n)
+scalar_multiply n = map_y_linear (*n)
+scalar_divide n = map_y_linear (/n)
 
 -- | Clip signal to never go above or below the given value.
 scalar_max, scalar_min :: Y -> Signal kind -> Signal kind
@@ -322,8 +322,14 @@ clip_bounds low high sig
 map_x :: (X -> X) -> Signal kind -> Signal kind
 map_x = modify . Segment.map_x
 
-map_y :: (Y -> Y) -> Signal kind -> Signal kind
-map_y = modify . Segment.map_y
+-- | Map Ys.  This resamples the signal, so it's valid for a nonlinear
+-- function.
+map_y :: X -> (Y -> Y) -> Signal kind -> Signal kind
+map_y srate = modify . Segment.map_y srate
+
+-- | If the function is linear, there's no need to resample.
+map_y_linear :: (Y -> Y) -> Signal kind -> Signal kind
+map_y_linear = modify . Segment.map_y_linear
 
 map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind
     -> (Signal kind, [err])
