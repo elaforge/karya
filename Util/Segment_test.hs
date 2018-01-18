@@ -129,6 +129,12 @@ test_drop_after_clip_after = do
     equal (f 0 s124) ([], [])
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) ([(0, 0), (2, 0)], [(0, 0), (2, 0)])
 
+test_num_clip_after = do
+    let f x = to_pairs . Segment.num_clip_after x . from_pairs
+    equal (f 2 [(0, 0), (1, 1), (4, 1)]) [(0, 0), (1, 1)]
+    equal (f 2 [(0, 0), (2, 0), (2, 2)]) [(0, 0)]
+    equal (f 2 [(0, 0), (4, 4)]) [(0, 0), (2, 2)]
+
 test_drop_before_clip_before = do
     let f x sig =
             ( to_pairs $ Segment.drop_before x $ from_pairs sig

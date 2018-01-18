@@ -217,7 +217,7 @@ drop_after x = modify $ Segment.drop_after x
 drop_before x = modify $ Segment.drop_before x
 
 clip_after, clip_before :: X -> Signal kind -> Signal kind
-clip_after x = modify $ Segment.clip_after Segment.num_interpolate x
+clip_after x = modify $ Segment.num_clip_after x
 clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
 
 shift :: X -> Signal kind -> Signal kind

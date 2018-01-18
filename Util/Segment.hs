@@ -27,7 +27,7 @@ module Util.Segment (
     -- * concat
     , concat, prepend
     -- * slice
-    , drop_after, clip_after
+    , drop_after, clip_after, num_clip_after
     , drop_before, clip_before
     -- * transform
     , shift
@@ -268,6 +268,23 @@ segment_at_orientation orient x (Signal offset vec)
         Types.Negative -> TimeVector.index_below
         Types.Positive -> TimeVector.highest_index
 
+-- TODO what can I do about this proliferation of _v variants?
+segment_at_v :: V.Vector v (Sample y) => Types.Orientation -> X -> v (Sample y)
+    -> Maybe (Int, Segment y)
+segment_at_v orient x vec
+    | i < 0 = Nothing
+    | otherwise =
+        let Sample x1 y1 = V.unsafeIndex vec i
+            Sample x2 y2 = if i + 1 >= V.length vec
+                then Sample RealTime.large y1
+                else V.unsafeIndex vec (i+1)
+        in Just (i, Segment x1 y1 x2 y2)
+    where
+    i = get x vec
+    get = case orient of
+        Types.Negative -> TimeVector.index_below
+        Types.Positive -> TimeVector.highest_index
+
 head :: V.Vector v (Sample y) => SignalS v y -> Maybe (X, y)
 head sig = case TimeVector.head (_vector sig) of
     Nothing -> Nothing
@@ -367,6 +384,22 @@ clip_after_v interpolate x vec = case TimeVector.last clipped of
             V.snoc (V.take (V.length clipped - 1) clipped) (Sample x y)
         | otherwise -> clipped
     where clipped = drop_after_v x vec
+
+num_clip_after :: X -> NumSignal -> NumSignal
+num_clip_after x sig
+    | V.null v = empty
+    | otherwise = Signal { _offset = _offset sig, _vector = v }
+    where v = num_clip_after_v (x - _offset sig) (_vector sig)
+
+-- | 'clip_after' specialized for 'Y'.  Since it has Eq, it can do an
+-- additional optimization.
+num_clip_after_v :: X -> TimeVector.Unboxed -> TimeVector.Unboxed
+num_clip_after_v x vec = case segment_at_v Types.Negative x vec of
+    Nothing -> vec
+    Just (i, Segment x1 y1 x2 y2)
+        | y1 == y2 -> prefix
+        | otherwise -> V.snoc prefix (Sample x (TimeVector.y_at x1 y1 x2 y2 x))
+        where prefix = V.take (i+1) vec
 
 -- | Drop the segments before the given time.  The first segment will start at
 -- or before the given time.
