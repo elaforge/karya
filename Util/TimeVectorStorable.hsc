@@ -39,6 +39,20 @@ instance Storable (Sample Double) where
         val <- (#peek ControlSample, val) sp
         return $ Sample time (CUtil.hs_double val)
 
+-- TODO I think this is necessary all-vector implementations in Util.Segment
+-- instance (Storable a, Storable b) => Storable (a, b) where
+--     -- vector uses undefined internally, so I can't look at the arguments.
+--     -- Proxy or explicit type arguments wouldn't have this problem!
+--     sizeOf _ = sizeOf (undefined :: a) + sizeOf (undefined :: b)
+--     alignment _ = alignment (undefined :: a)
+--     poke p (a, b) = do
+--         poke (castPtr p) a
+--         poke (castPtr (p `plusPtr` sizeOf a)) b
+--     peek p = do
+--         a <- peek (castPtr p)
+--         b <- peek (castPtr (p `plusPtr` sizeOf a))
+--         return (a, b)
+
 instance C.CStorable (Sample Double) where
     sizeOf = sizeOf
     alignment = alignment

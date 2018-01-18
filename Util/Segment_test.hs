@@ -57,7 +57,6 @@ test_concat = do
     -- But not legit ones.
     equal (f [[(0, 1), (1, 1)], [(1, 2)]]) [(0, 1), (1, 1), (1, 2)]
 
-
 test_prepend = do
     let f sig1 sig2 = to_pairs $ Segment.prepend Segment.num_interpolate
             (from_pairs sig1) (from_pairs sig2)
@@ -162,6 +161,18 @@ test_integrate = do
         , (large, 6 + 2 * (large_y - 4))
         ]
 
+test_resample_rate = do
+    let f = to_pairs . Segment.resample_rate 1 . from_pairs
+    equal (f [(0, 2), (4, 2), (4, 1)]) [(0, 2), (4, 2), (4, 1)]
+    equal (f [(0, 0), (4, 4)]) [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+    equal (f [(0, 0), (2, 2), (2, 0), (4, 2)])
+        [(0, 0), (1, 1), (2, 2), (2, 0), (3, 1), (4, 2)]
+
+test_map_y = do
+    let f = to_pairs . Segment.map_y 1 (1/) . from_pairs
+    equal (f [(0, 5), (4, 1)]) [(0, 1/5), (1, 1/4), (2, 1/3), (3, 1/2), (4, 1)]
+    equal (f [(0, 2), (4, 2), (4, 1)]) [(0, 1/2), (4, 1/2), (4, 1)]
+
 test_linear_operator = do
     let f s1 s2 = to_segments $
             Segment.linear_operator (+) (from_pairs s1) (from_pairs s2)
@@ -200,6 +211,7 @@ test_to_piecewise_constant = do
     equal (f [(4, 2)]) [(4, 2)]
     equal (f [(2, 2), (4, 2), (4, 4)]) [(2, 2), (4, 4)]
     equal (f [(2, 2), (4, 4)]) [(2, 2), (3, 3), (4, 4)]
+    equal (f [(2, 2), (2, 2), (2, 2)]) [(2, 2)]
 
 
 large_y :: Y

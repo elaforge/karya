@@ -401,7 +401,8 @@ _flatten_shift = from_vector . to_vector
 -- | Map Ys.  This resamples the signal, so it's valid for a nonlinear
 -- function.
 map_y :: X -> (Y -> Y) -> NumSignal -> NumSignal
-map_y srate f = from_vector . TimeVector.map_y f . to_piecewise_constant srate
+map_y srate f =
+    from_vector . TimeVector.map_y f . to_vector . resample_rate srate
 
 -- | Map Ys.  Only valid if the function is linear.
 map_y_linear :: V.Vector v (Sample y) => (y -> y) -> SignalS v y -> SignalS v y
@@ -587,11 +588,38 @@ sample_xs = go
     drop1 _ xs = xs
 
 
--- * piece-wise constant
+-- ** constant rate resamples
+
+-- | This is like 'to_piecewise_constant', except it retains discontinuities,
+-- which is important since it's used for 'map_y', which is still operating on
+-- linear segments.  Or it's like 'resample', except it uses a constant rate
+-- instead of [X].
+resample_rate :: X -> NumSignal -> NumSignal
+resample_rate srate =
+    from_samples . concatMap resample . Seq.zip_next . to_samples
+    where
+    resample (Sample x1 y1, Nothing) = [Sample x1 y1]
+    resample (Sample x1 y1, Just (Sample x2 y2))
+        | y1 == y2 || x1 == x2 = [Sample x1 y1]
+        | otherwise =
+            [ Sample x (TimeVector.y_at x1 y1 x2 y2 x)
+            | x <- Seq.range' x1 x2 srate
+            ]
+
+-- TODO possible vector implementation that might fuse.  But this
+-- requires Storable (a, b).
+-- resample_rate :: X -> NumSignal -> NumSignal
+-- resample_rate srate =
+--     from_vector . V.concatMap resample . zip_next . to_vector
+--     where
+--     zip_next xs = V.zip xs (V.drop 1 xs)
+--     resample (Sample x1 y1, Sample x2 y2) = V.fromList
+--         [Sample x1 y1, Sample x2 y2]
 
 to_piecewise_constant :: X -> NumSignal -> TimeVector.Unboxed
 to_piecewise_constant srate =
-    V.fromList . List.concat . List.unfoldr make . to_samples
+    V.fromList . Seq.drop_dups sy . Seq.drop_initial_dups sx . List.concat
+        . List.unfoldr make . to_samples
     where
     make [] = Nothing
     make [Sample x y] = Just ([Sample x y], [])
