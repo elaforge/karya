@@ -5,8 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | Functions to handle tempo tracks.
 module Derive.Tempo (
-    extend_signal
-    , with_tempo, with_absolute, with_hybrid
+    with_tempo, with_absolute, with_hybrid
 #ifdef TESTING
     , tempo_to_warp
 #endif
@@ -21,17 +20,6 @@ import qualified Perform.Signal as Signal
 import Global
 import Types
 
-
--- | Extend the last sample of a tempo track signal to the end of the track.
--- This is required because 'Signal.integrate' needs to generate samples to the
--- end of the track, ultimately because 'Signal.compose' doesn't resample its
--- arguments.
-extend_signal :: RealTime -> Signal.Tempo -> Signal.Tempo
-extend_signal track_end sig = sig <> end
-    where
-    end = case Signal.last sig of
-        Just (x, y) | x < track_end -> Signal.signal [(track_end, y)]
-        _ -> mempty
 
 -- * normal
 
@@ -85,19 +73,17 @@ tempo_to_warp sig
         Warp.stretch (ScoreTime.double $ 1 / max min_tempo y) Warp.identity
     | otherwise = Warp.from_signal warp_sig
     where
-    warp_sig = Signal.integrate Signal.tempo_srate $ Signal.map_y (1/) $
-         Signal.scalar_min min_tempo sig
+    warp_sig = Signal.integrate_inverse $ Signal.scalar_max min_tempo sig
 
--- TODO This is analogous to Signal.constant_val, except it takes a sample at
--- 0 as a constant.  This is a temporary hack, when I switch to segments and
--- don't have to integrate flat lines with a sampling rate, I can have all
--- signals implicitly extend to -large, and then the standard constant_val
--- should work.
+-- | This is analogous to Signal.constant_val, except it takes a sample at
+-- 0 as a constant.  Other control tracks can extend their initial sample back
+-- to -RealTime.large, but tempo tracks are integrated, which means they have
+-- to start at 0.
 constant_val :: Signal.Tempo -> Maybe Signal.Y
 constant_val sig = case Signal.head sig of
     Nothing -> Just 0
     Just (x, y)
-        | x <= 0 && all ((==y) . snd) (Signal.unsignal sig) -> Just y
+        | x <= 0 && all ((==y) . snd) (Signal.to_pairs sig) -> Just y
         | otherwise -> Nothing
 
 min_tempo :: Signal.Y

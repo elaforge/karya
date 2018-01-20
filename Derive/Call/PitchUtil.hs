@@ -87,54 +87,60 @@ make_segment_from :: Curve -> RealTime -> Maybe PSignal.Pitch -> RealTime
     -> PitchOrTranspose -> Derive.Deriver PSignal.PSignal
 make_segment_from curve start maybe_from end to = case maybe_from of
     Nothing -> return $ case to of
-        Left to -> PSignal.signal [(start, to)]
+        Left to -> PSignal.from_sample start to
         Right _ -> mempty
     Just from -> make_segment curve start from end
         (resolve_pitch_transpose from to)
 
 make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
     -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
-make_segment = make_segment_ True True
-    -- I always set include_initial.  It might be redundant, but if the
-    -- previous call was sliced off, it won't be.
+make_segment = make_segment_ True
 
-make_segment_ :: Bool -> Bool -> Curve -> RealTime -> PSignal.Pitch
+make_segment_ :: Bool -> Curve -> RealTime -> PSignal.Pitch
     -> RealTime -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
-make_segment_ include_initial include_end f x1 y1 x2 y2 = do
+make_segment_ include_end f x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate include_initial include_end f x1 y1 x2 y2
+    return $ segment srate include_end f x1 y1 x2 y2
 
-type Interpolate = Bool -- ^ include the initial sample or not
-    -> RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
+type Interpolate = RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -- ^ start -> starty -> end -> endy
     -> PSignal.PSignal
 
 -- | This defaults some arguments to 'segment' so its more convenient to pass
 -- around as a standalone creator of segments.
 interpolate_segment :: SRate -> Curve -> Interpolate
-interpolate_segment srate f include_initial =
-    segment srate include_initial True f
+interpolate_segment srate f = segment srate True f
 
 -- | Interpolate between the given points.
-segment :: SRate -> Bool -- ^ include the initial sample
-    -> Bool -- ^ add a sample at end time if one doesn't naturally land there
+-- TODO(polymorphic-signals) same as ControlUtil.segment
+segment :: SRate -> Bool -- ^ omit the final sample, for chaining these
+    -- TODO it's an error-prone micro-optimization, and if it matters, I could
+    -- have a Signal's mconcat drop the duplicates
     -> Curve -> RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -> PSignal.PSignal
-segment srate include_initial include_end f x1 y1 x2 y2 =
-    PSignal.unfoldr go $
-        (if include_initial then id else drop 1) (Seq.range_ x1 srate)
+segment srate include_end curve x1 y1 x2 y2
+    | x1 > x2 = mempty -- if x1 == x2 I still need to make a vertical segment
+    -- TODO I can't do this optimization, which means flat breakpoints get
+    -- redundant samples.  I could make Eq Pitch though... or make
+    -- 'breakpoints' take [(RealTime, Maybe Pitch)]
+    -- | y1 == y2 = PSignal.from_pairs [(x1, y1), (x2, y2)]
+    | otherwise = case curve of
+        ControlUtil.Linear -> PSignal.from_pairs [(x1, y1), (x2, y2)]
+        ControlUtil.Function curvef ->
+            PSignal.unfoldr (make curvef) (Seq.range_ x1 srate)
     where
-    go [] = Nothing
-    go (x:xs)
+    -- TODO use Seq.range_end and map
+    make _ [] = Nothing
+    make curvef (x:xs)
         | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
-        | otherwise = Just ((x, y_of x), xs)
-    y_of = Pitches.interpolated y1 y2
-        . f . Num.normalize (secs x1) (secs x2) . secs
-    secs = RealTime.to_seconds
+        | otherwise = Just ((x, y_at curvef x), xs)
+    y_at curvef = Pitches.interpolated y1 y2
+        . curvef . Num.normalize (secs x1) (secs x2) . secs
+        where secs = RealTime.to_seconds
 
 -- * breakpoints
 
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, PSignal.Pitch)] -> PSignal.PSignal
 breakpoints srate f =
-    ControlUtil.signal_breakpoints PSignal.signal (segment srate True False f)
+    ControlUtil.signal_breakpoints PSignal.from_sample (segment srate False f)

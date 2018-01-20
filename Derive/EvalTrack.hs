@@ -397,7 +397,7 @@ defragment_track_signals warp collect
         }
     where
     fragments = Derive.collect_signal_fragments collect
-    defragment = unwarp warp . Signal.merge . Map.elems
+    defragment = unwarp warp . mconcat . Map.elems
 
 unwarp :: Warp.Warp -> Signal.Control -> Track.TrackSignal
 unwarp warp control = case Warp.is_linear warp of

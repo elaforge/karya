@@ -77,7 +77,7 @@ note patch instrument start duration = Note
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
 initialPitch note =
-    maybe 0 Pitch.nn . Signal.at (start note) <$>
+    Pitch.nn . Signal.at (start note) <$>
         Map.lookup Control.pitch (controls note)
 
 

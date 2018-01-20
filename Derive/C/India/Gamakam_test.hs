@@ -43,8 +43,7 @@ test_kampita_c = do
     equal (run "kam_ -1 1 1" 2) ([[60, 59]], [])
 
     -- Transition time.
-    equal (run2 "kam 1 .5 2" 4)
-        ([[(0, 60), (1, 61), (2, 62), (3, 61), (4, 60)]], [])
+    equal (run2 "kam 1 .5 2" 4) ([[(0, 60), (2, 62), (4, 60)]], [])
     -- Lilt.
     equal (run2 "kam-lilt = .5 | kam 1 1 1" 4)
         ([[(0, 60), (1.5, 62), (2, 60), (3.5, 62), (4, 60)]], [])
@@ -61,7 +60,7 @@ test_nkampita_c = do
     equal (run "nkam 1 1" 3) ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run "nkam 1 1" 6) ([[(0, 60), (2, 62), (4, 60)]], [])
     equal (run "transition = 2 | nkam 1 1" 9)
-        ([[(0, 60), (2, 61), (3, 62), (5, 61), (6, 60)]], [])
+        ([[(0, 60), (3, 62), (6, 60)]], [])
     equal (run "nkam 1 2" 5)
         ([[(0, 60), (1, 62), (2, 60), (3, 62), (4, 60)]], [])
     equal (run "nkam_ 1 2" 5)
@@ -73,14 +72,18 @@ test_dip = do
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
     equal (run DeriveTest.e_nns "dip (4c) 1 -1 1" 4)
         ([[(0, NN.d4), (1, NN.b3), (2, NN.d4), (3, NN.b3), (4, NN.c3)]], [])
-    equal (run DeriveTest.e_dyn "dip (4c) 1 -1 1 .5" 4)
-        ([[(0, 1), (1, 0.5), (2, 1), (3, 0.5), (4, 1)]], [])
+    equal (run DeriveTest.e_dyn_literal "dip (4c) 1 -1 1 .5" 4)
+        ( [ [ (0, 1), (0.96, 1), (1, 0.5), (1.96, 0.5), (2, 1)
+            , (2.96, 1), (3, 0.5), (4, 0.5), (4, 1)
+            ]
+          ]
+        , []
+        )
 
 test_jaru = do
-    let run call = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
-            [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
-    equal (run "sgr (3c) 2")
-        ([[(0, 47), (1, 48), (2, 50), (3, 49), (4, 48)]], [])
+    let run call = DeriveTest.extract DeriveTest.e_nns_literal $
+            derive_tracks [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
+    equal (run "sgr (3c) 2") ([[(0, 47), (2, 50), (4, 48)]], [])
 
 run_diatonic :: (Score.Event -> a) -> Text -> ScoreTime -> ([a], [Text])
 run_diatonic extract call end =

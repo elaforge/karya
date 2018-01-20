@@ -16,6 +16,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Types
 import Global
@@ -82,14 +83,15 @@ instance CStorable Track.TrackSignal where
 -- enough.
 poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
 poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
-    (#poke TrackSignal, shift) tsigp shift
-    (#poke TrackSignal, stretch) tsigp stretch
     initialize_track_signal tsigp
-    (destp, len) <- if Signal.null sig then return (nullPtr, 0)
-        else Signal.with_ptr sig $ \sigp len -> do
+    (offset, destp, len) <- if Signal.null sig then return (0, nullPtr, 0)
+        else Signal.with_ptr sig $ \offset sigp len -> do
             destp <- mallocArray len
             copyArray destp sigp len
-            return (destp, len)
+            return (offset, destp, len)
+    -- This TrackSignal's signal is actually in ScoreTime.
+    (#poke TrackSignal, shift) tsigp (shift + RealTime.to_score offset)
+    (#poke TrackSignal, stretch) tsigp stretch
     (#poke TrackSignal, signal) tsigp destp
     (#poke TrackSignal, length) tsigp (CUtil.c_int len)
 

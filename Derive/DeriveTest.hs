@@ -155,7 +155,7 @@ perform_stream :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
 perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
     where
-    perf_events = Convert.convert lookup lookup_inst (Stream.events_of stream)
+    perf_events = Convert.convert 1 lookup lookup_inst (Stream.events_of stream)
     (midi, _) = Perform.perform Perform.initial_state midi_allocs perf_events
     midi_allocs = Perform.config <$> PlayUtil.midi_configs allocations
 
@@ -652,7 +652,12 @@ e_instrument :: Score.Event -> Text
 e_instrument = Score.instrument_name . Score.event_instrument
 
 e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control control event = maybe [] (Signal.unsignal_unique . Score.typed_val) $
+e_control control event = maybe [] (Signal.to_pairs_unique . Score.typed_val) $
+    Map.lookup control (Score.event_controls event)
+
+e_control_literal :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
+e_control_literal control event = Seq.drop_dups id $
+    maybe [] (Signal.to_pairs . Score.typed_val) $
     Map.lookup control (Score.event_controls event)
 
 e_control_vals :: Score.Control -> Score.Event -> [Signal.Y]
@@ -669,17 +674,28 @@ e_start_control control event =
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control Score.c_dynamic
 
+e_dyn_literal :: Score.Event -> [(RealTime, Signal.Y)]
+e_dyn_literal = Seq.drop_dups id . map (second (Num.roundDigits 2))
+    . e_control_literal Score.c_dynamic
+
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn_rounded = map (second (Num.roundDigits 2)) . e_dyn
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.  Also
--- drops duplicate samples for reasons described in
--- 'Util.TimeVector.unsignal_unique'.
+-- drops duplicate samples for reasons described in 'Signal.to_pairs_unique'.
 e_nns :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
     | not (null errs) = errorStack $
         "DeriveTest.e_nns: errors flattening signal: " <> showt errs
-    | otherwise = Seq.drop_initial_dups fst sig
+    | otherwise = Seq.drop_dups snd $ Seq.drop_initial_dups fst sig
+    where (sig, errs) = e_nns_errors e
+
+e_nns_literal :: CallStack.Stack => Score.Event
+    -> [(RealTime, Pitch.NoteNumber)]
+e_nns_literal e
+    | not (null errs) = errorStack $
+        "DeriveTest.e_nns: errors flattening signal: " <> showt errs
+    | otherwise = Seq.drop_dups id $ map (second (Num.roundDigits 2)) sig
     where (sig, errs) = e_nns_errors e
 
 -- | Like 'e_nns', but round to cents to make comparison easier.
@@ -692,7 +708,7 @@ e_nn_rounded = maybe 0 (Num.roundDigits 2) . Score.initial_nn
 -- | Extract pitch signal and any errors flattening it.
 e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
 e_nns_errors =
-    (map (second Pitch.nn) . Signal.unsignal *** map pretty)
+    (map (second Pitch.nn) . Signal.to_pairs *** map pretty)
     . PSignal.to_nn . Score.event_pitch . Score.normalize
 
 e_pitch :: Score.Event -> Text
@@ -724,7 +740,7 @@ e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
 e_tsigs =
     filter (not . null . snd) . Map.toList . Map.map tsig
         . Derive.r_track_signals
-    where tsig t = Signal.unsignal_unique $ Track.ts_signal t
+    where tsig t = Signal.to_pairs_unique $ Track.ts_signal t
 
 e_tsig_logs :: Derive.Result -> [Text]
 e_tsig_logs = filter ("Track signal: " `Text.isPrefixOf`) . map show_log
@@ -842,7 +858,7 @@ type EventSpec = (RealTime, RealTime, Text, Controls, Score.Instrument)
 type Controls = [(Score.Control, [(RealTime, Signal.Y)])]
 type ControlVals = [(Score.Control, Signal.Y)]
 
-mkevent :: EventSpec -> Score.Event
+mkevent :: CallStack.Stack => EventSpec -> Score.Event
 mkevent = mkevent_scale Twelve.scale
 
 -- | Make an event with a non-twelve scale.
@@ -861,17 +877,17 @@ mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
         , Score.event_duration = dur
         , Score.event_text = pitch
         , Score.event_controls = mkcontrols controls
-        , Score.event_pitch = PSignal.signal [(start, mkpitch scale pitch)]
+        , Score.event_pitch = PSignal.from_sample start (mkpitch scale pitch)
         , Score.event_stack = fake_stack
         , Score.event_instrument = inst
         }
 
 psignal :: [(RealTime, Text)] -> PSignal.PSignal
-psignal = PSignal.signal . map (second mkpitch12)
+psignal = PSignal.from_pairs . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap
 mkcontrols cs = Map.fromList
-    [(c, Score.untyped (Signal.signal sig)) | (c, sig) <- cs]
+    [(c, Score.untyped (Signal.from_pairs sig)) | (c, sig) <- cs]
 
 mkcontrols_const :: ControlVals -> Score.ControlMap
 mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]

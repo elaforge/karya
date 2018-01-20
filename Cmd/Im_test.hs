@@ -49,10 +49,10 @@ test_respond = do
     notes <- Note.unserialize $ Config.notesFilename (Config.rootDir config)
         synth_config UiTest.default_block_id
     right_equal (map Note.start <$> notes) [0, 1]
-    right_equal (map (Map.toAscList . fmap Signal.unsignal . Note.controls)
+    right_equal (map (Map.toAscList . fmap Signal.to_pairs . Note.controls)
             <$> notes)
         [ [ (Control.dynamic, [(0, 0.5)])
-          , (Control.pitch, [(0, realToFrac NN.c4)])
+          , (Control.pitch, [(0, realToFrac NN.c4), (1, realToFrac NN.c4)])
           ]
         , [ (Control.dynamic, [(0, 0.5)])
           , (Control.pitch, [(1, realToFrac NN.d4)])

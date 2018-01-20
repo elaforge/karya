@@ -279,18 +279,8 @@ derive_control is_tempo track transform = do
             | otherwise = ParseTitle.ControlTrack
     (signal, logs) <- derive_track (track_info track track_type)
         (Cache.track track mempty . transform)
-    signal <- extend
-        =<< trim_signal Signal.drop_after Signal.drop_at_after track signal
+    signal <- trim_signal Signal.drop_after Signal.clip_after track signal
     return (signal, logs)
-    where
-    -- This is a special hack just for tempo tracks, documented by
-    -- 'Tempo.extend_signal'.
-    extend signal
-        | is_tempo = do
-            end <- Derive.real (TrackTree.track_end track)
-            return $ Signal.coerce $ Tempo.extend_signal end $
-                Signal.coerce signal
-        | otherwise = return signal
 
 derive_pitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
@@ -299,7 +289,7 @@ derive_pitch use_cache track transform = do
     let cache_track = if use_cache then Cache.track track mempty else id
     (psignal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
         (cache_track . transform)
-    signal <- trim_signal PSignal.drop_after PSignal.drop_at_after track psignal
+    signal <- trim_signal PSignal.drop_after PSignal.clip_after track psignal
     return (signal, logs)
 
 {- | The controls under a note track are intended to apply only to the note
@@ -314,9 +304,10 @@ derive_pitch use_cache track transform = do
     controls.  This also applies to non-zero slices which are nonetheless made
     zero by stretching to 0.
 -}
-trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
-    -> TrackTree.Track -> sig -> Derive.Deriver sig
-trim_signal drop_after drop_at_after track signal =
+trim_signal :: (RealTime -> sig -> sig)
+    -> (RealTime -> sig -> sig) -> TrackTree.Track -> sig
+    -> Derive.Deriver sig
+trim_signal drop_after clip_after track signal =
     case TrackTree.track_sliced track of
         TrackTree.NotSliced -> return signal
         TrackTree.Inversion ->
@@ -324,10 +315,12 @@ trim_signal drop_after drop_at_after track signal =
         TrackTree.Sliced orientation -> do
             start <- Derive.real $ TrackTree.track_start track
             end <- Derive.real $ TrackTree.track_end track
+            -- Sometimes I want to keep a signal exactly at end.
             let trim
                     | start == end || orientation == Types.Negative = drop_after
-                    | otherwise = drop_at_after
+                    | otherwise = clip_after
             return $ trim end signal
+    -- TODO(polymorphic-signals)
 
 derive_track :: (Monoid d, Derive.CallableExpr d) => EvalTrack.TrackInfo d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
@@ -451,7 +444,7 @@ get_block_track block_id track_id = do
 -- | Reduce a 'PSignal.PSignal' to raw note numbers, taking the current
 -- transposition environment into account.
 psignal_to_nn :: PSignal.PSignal
-    -> Derive.Deriver (Signal.NoteNumber, [PSignal.PitchError])
+    -> Derive.Deriver (Signal.NoteNumber, [(RealTime, PSignal.PitchError)])
 psignal_to_nn sig = do
     controls <- Internal.get_dynamic Derive.state_controls
     return $ PSignal.to_nn $ PSignal.apply_controls controls sig

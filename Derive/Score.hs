@@ -34,7 +34,7 @@ module Derive.Score (
     , Control, control_name
     , ControlValMap, TypedControlValMap
     , control_at, event_control, initial_dynamic, modify_dynamic, set_dynamic
-    , modify_control_vals, modify_control
+    , modify_control
     , set_control, event_controls_at
     -- *** pitch
     , PControl, pcontrol_name
@@ -369,7 +369,8 @@ initial_dynamic event = maybe 0 typed_val $
     control_at (event_start event) c_dynamic event
 
 -- | Use this instead of 'modify_control_vals' because it also sets
--- 'EnvKey.dynamic_val'.
+-- 'EnvKey.dynamic_val'.  This is only valid for linear functions like (+) or
+-- (*).
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
     modify_environ_key EnvKey.dynamic_val
@@ -388,8 +389,8 @@ set_dynamic dyn =
 
 modify_control_vals :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
 modify_control_vals control modify event = event
-    { event_controls =
-        Map.adjust (fmap (Signal.map_y modify)) control (event_controls event)
+    { event_controls = Map.adjust (fmap (Signal.map_y_linear modify)) control
+        (event_controls event)
     }
 
 -- | Modify a control.  If there is no existing control, the modify function
@@ -436,7 +437,7 @@ event_named_pitch pcontrol
 -- another pitch you proabbly need the raw pitch, but so far everyone doing
 -- that is at the Derive level, not postproc, so they use Derive.pitch_at.
 transposed_at :: RealTime -> Event -> Maybe PSignal.Transposed
-transposed_at pos event = PSignal.config config <$> pitch_at pos event
+transposed_at pos event = PSignal.apply_config config <$> pitch_at pos event
     where
     config = PSignal.PitchConfig (event_environ event)
         (event_controls_at pos event)
@@ -464,7 +465,7 @@ note_at pos event = either (const Nothing) Just . PSignal.pitch_note
 initial_note :: Event -> Maybe Pitch.Note
 initial_note event = note_at (event_start event) event
 
-nn_signal :: Event -> (Signal.NoteNumber, [PSignal.PitchError])
+nn_signal :: Event -> (Signal.NoteNumber, [(RealTime, PSignal.PitchError)])
 nn_signal event =
     PSignal.to_nn $ PSignal.apply_controls (event_controls event) $
         PSignal.apply_environ (event_environ event) $

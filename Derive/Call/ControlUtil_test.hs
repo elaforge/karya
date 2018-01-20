@@ -17,12 +17,12 @@ import qualified Perform.Signal as Signal
 
 
 test_breakpoints = do
-    let make start end = ControlUtil.breakpoints 1 id
+    let make start end = ControlUtil.breakpoints 1 ControlUtil.Linear
             . ControlUtil.distribute start end
-    let f start end = Signal.unsignal . make start end
+    let f start end = Signal.to_pairs . make start end
     equal (f 4 8  []) []
     equal (f 4 8  [1]) [(4, 1)]
-    equal (f 4 8  [0, 1, 0]) [(4, 0), (5, 0.5), (6, 1), (7, 0.5), (8, 0)]
+    equal (f 4 8  [0, 1, 0]) [(4, 0), (6, 1), (8, 0)]
 
 test_modify = do
     let run merge = DeriveTest.extract DeriveTest.e_dyn_rounded
@@ -44,22 +44,49 @@ test_modify = do
     c_gen :: Derive.Merge Signal.Control -> Derive.Generator Derive.Control
     c_gen merge = CallTest.generator1 $ \args -> do
         (start, end) <- Args.real_range args
-        let signal = Signal.signal [(start, 0.5)]
+        let signal = Signal.from_sample start 0.5
         ControlUtil.modify_with merge Controls.dynamic end signal
         return mempty
 
-test_limited_slope = do
-    let f low high from slope = Signal.unsignal $
-            ControlUtil.limited_slope 1 low high from slope 4 8
-    equal (f Nothing Nothing 0 1) [(4, 0), (5, 1), (6, 2), (7, 3), (8, 4)]
-    equal (f (Just 0) (Just 2) 0 1) [(4, 0), (5, 1), (6, 2)]
-    equal (f (Just 0) (Just 8) 0 1) [(4, 0), (5, 1), (6, 2), (7, 3), (8, 4)]
-    equal (f (Just 0) (Just 2) 2 1) [(4, 2)]
-    equal (f (Just 0) (Just 2) 4 1) [(4, 2)]
+test_slope_to_limit = do
+    let f low high from slope = Signal.to_pairs $
+            ControlUtil.slope_to_limit low high from slope 4 8
+    equal (f Nothing Nothing 0 1) [(4, 0), (8, 4)]
+    equal (f (Just 0) (Just 2) 0 1) [(4, 0), (6, 2)]
+    equal (f (Just 0) (Just 8) 0 1) [(4, 0), (8, 4)]
+    equal (f (Just 0) (Just 2) 2 1) []
+    -- TODO not sure this makes sense
+    equal (f (Just 0) (Just 2) 4 1) [(4, 4), (4, 2)]
 
-    equal (f Nothing Nothing 2 (-1)) [(4, 2), (5, 1), (6, 0), (7, -1), (8, -2)]
-    equal (f (Just 0) (Just 2) 2 (-1)) [(4, 2), (5, 1), (6, 0)]
-    equal (f (Just (-8)) (Just 2) 2 (-1))
-        [(4, 2), (5, 1), (6, 0), (7, -1), (8, -2)]
-    equal (f (Just 0) (Just 2) 0 (-1)) [(4, 0)]
-    equal (f (Just 0) (Just 2) (-1) (-1)) [(4, 0)]
+    equal (f Nothing Nothing 2 (-1)) [(4, 2), (8, -2)]
+    equal (f (Just 0) (Just 2) 2 (-1)) [(4, 2), (6, 0)]
+    equal (f (Just (-8)) (Just 2) 2 (-1)) [(4, 2), (8, -2)]
+    equal (f (Just 0) (Just 2) 0 (-1)) []
+    -- TODO not sure this makes sense
+    equal (f (Just 0) (Just 2) (-1) (-1)) [(4, -1), (4, 0)]
+
+test_smooth = do
+    let f time = Signal.to_pairs
+            . ControlUtil.smooth ControlUtil.Linear 1 time
+        s020 = [(0, 0), (2, 2), (4, 0)]
+    equal (f 2 [(0, 0), (2, 2)]) [(0, 0), (2, 0), (4, 2)]
+    equal (f 2 s020) [(0, 0), (2, 0), (4, 2), (6, 0)]
+    equal (f (-1) s020) [(0, 0), (1, 0), (2, 2), (3, 2), (4, 0)]
+    equal (f (-0.75) s020) [(0, 0), (1.25, 0), (2, 2), (3.25, 2), (4, 0)]
+    equal (f 0.75 s020) [(0, 0), (2, 0), (2.75, 2), (4, 2), (4.75, 0)]
+    equal (f (-2) s020) [(0, 0), (2, 2), (4, 0)]
+    -- Not enough room.
+    equal (f 4 s020) [(0, 0), (2, 0), (4, 2), (8, 0)]
+    equal (f (-4) s020) [(0, 0), (2, 2), (4, 0)]
+    -- Zero duration.
+    equal (f 0 s020) [(0, 0), (2, 0), (2, 2), (4, 2), (4, 0)]
+
+test_smooth_relative = do
+    let f time = Signal.to_pairs
+            . ControlUtil.smooth_relative ControlUtil.Linear 1 (const time)
+    equal (f 0 [(0, 0), (4, 4), (8, 0)])
+        [(0, 0), (4, 0), (4, 4), (8, 4), (8, 0)]
+    equal (f 0.5 [(0, 0), (4, 4), (8, 0)])
+        [(0, 0), (2, 0), (4, 4), (6, 4), (8, 0)]
+    equal (f 1 [(0, 0), (4, 4), (8, 0)])
+        [(0, 0), (4, 4), (8, 0)]

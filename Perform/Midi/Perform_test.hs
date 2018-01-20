@@ -28,6 +28,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
@@ -151,7 +152,7 @@ test_aftertouch = do
                 . Seq.sort_on Types.event_start . map event
         event (pitch, start, dur, aftertouch) = mkevent
             (patch1, pitch, start, dur,
-                [(Controls.aftertouch, Signal.signal aftertouch)])
+                [(Controls.aftertouch, MSignal.from_pairs aftertouch)])
     equal (f [("a", 0, 1, [(0, 1)]), ("b", 0, 1, [(0, 0)])])
         [ (-min_cc_lead, 0, Aftertouch Key.c4 127)
         , (-min_cc_lead, 0, Aftertouch Key.cs4 0)
@@ -183,7 +184,7 @@ test_controls_after_note_off = do
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
     let f = fst . perform config2 . map mkevent
         e_ts_cmsg = PerformTest.extract_msg_ts PerformTest.e_cmsg
-        sig xs = [(Controls.vol, Signal.signal xs)]
+        sig xs = [(Controls.vol, MSignal.from_pairs xs)]
 
     let msgs = f
             [ (patch2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
@@ -240,7 +241,7 @@ test_control_lead_time = do
         run_inst1 = extract . perform config2 . mkevents_patch
         extract = first e_ts_chan_msg
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
-        mkvol sig = (Controls.vol, Signal.signal sig)
+        mkvol sig = (Controls.vol, MSignal.from_pairs sig)
 
     -- Even overlapping notes get a 'min_cc_lead' lead time.
     equal (run
@@ -314,7 +315,7 @@ test_control_lead_time = do
 test_pedal = do
     let f = extract . perform config1 . mkevents
         extract = first $ PerformTest.extract_msg $ PerformTest.e_cc 64
-    let pedal sig = (Controls.pedal, Signal.signal sig)
+    let pedal sig = (Controls.pedal, MSignal.from_pairs sig)
     -- The pedal extends note duration, so I get the pedal-off even though it's
     -- a long ways past the supposed end of the note.
     equal (f [(patch1, "a", 0, 2, [pedal [(0, 1), (40, 0)]])]) ([127, 0], [])
@@ -335,7 +336,7 @@ test_msgs_sorted = do
     -- pprint msgs
 
 -- Bad signal that goes over 1 at 1 and 3.
-badsig :: Score.Control -> (Score.Control, Signal.Control)
+badsig :: Score.Control -> (Score.Control, MSignal.Signal)
 badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
@@ -381,7 +382,7 @@ test_perform_lazy = do
 
 test_no_pitch = do
     let event = (mkevent (patch1, "a", 0, 2, []))
-            { Types.event_pitch = Signal.constant 0 }
+            { Types.event_pitch = MSignal.constant 0 }
     let (midi, logs) = perform config1 [event]
     equal (map Midi.wmsg_msg midi) []
     equal logs ["no pitch signal"]
@@ -683,7 +684,8 @@ test_control_overlap = do
     -- mess up the next note.
     let events =
             [ (mkevent (patch2, "a", 0, 1, []))
-                { Types.event_pitch = Signal.signal [(0.0, 81.0), (0.9999, 79)]
+                { Types.event_pitch =
+                    MSignal.from_pairs [(0.0, 81.0), (0.9999, 79)]
                 }
             , mkevent (patch2, "b", 1, 1, [])
             ]
@@ -880,7 +882,7 @@ secs = RealTime.seconds
 --
 -- (inst, text, start, dur, controls)
 type EventSpec = (Types.Patch, Text, RealTime, RealTime, [Control])
-type Control = (Score.Control, Signal.Control)
+type Control = (Score.Control, MSignal.Signal)
 
 mkevents :: [EventSpec] -> [Types.Event]
 mkevents = map mkevent
@@ -894,7 +896,7 @@ mkevent (patch, pitch, start, dur, controls) = PerformTest.empty_event
     , Types.event_pitch = psig start pitch
     }
     where
-    psig pos p = Signal.signal [(pos, to_pitch p)]
+    psig pos p = MSignal.from_pairs [(pos, to_pitch p)]
     to_pitch p = fromMaybe (errorStack ("no pitch " <> showt p))
         (lookup p pitch_map)
     pitch_map = zip (map Text.singleton ['a'..'z']) [60..]
@@ -909,18 +911,16 @@ mkpevent (start, dur, psig, controls) = PerformTest.empty_event
     { Types.event_start = start
     , Types.event_duration = dur
     , Types.event_controls = Simple.control_map controls
-    , Types.event_pitch = Signal.map_y Convert.round_pitch (Signal.signal psig)
+    , Types.event_pitch =
+        MSignal.map_y Convert.round_pitch (MSignal.from_pairs psig)
     }
 
 mkevents_patch :: [(Text, RealTime, RealTime, [Control])] -> [Types.Event]
 mkevents_patch = map (\(a, b, c, d) -> mkevent (patch1, a, b, c, d))
 
--- set_patch :: Patch.Instrument -> Types.Event -> Types.Event
--- set_patch patch event = event { Types.event_patch = patch }
-
 -- | Make a signal with linear interpolation between the points.
-linear_interp :: [(Signal.X, Signal.Y)] -> Signal.Control
-linear_interp = Signal.signal . interpolate
+linear_interp :: [(Signal.X, Signal.Y)] -> MSignal.Signal
+linear_interp = MSignal.from_pairs . interpolate
     where
     interpolate :: [(RealTime, Signal.Y)] -> [(RealTime, Signal.Y)]
     interpolate ((x0, y0) : rest@((x1, y1) : _))

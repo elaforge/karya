@@ -43,7 +43,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.C.Prelude.SignalTransform as SignalTransform
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -142,8 +141,8 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
         transpose <- kampita start_dir end_dir adjust neighbor speed
             transition hold lilt args
         start <- Args.real_start args
-        return $ PSignal.apply_control control
-            (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control control (Score.untyped transpose) $
+            PSignal.from_sample start pitch
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
     -> BaseTypes.ControlRef -> (ScoreTime, ScoreTime)
@@ -157,8 +156,8 @@ trill_transitions = Trill.adjusted_transitions include_end
 
 -- | Make a trill signal from a list of transition times.
 trill_from_transitions :: Typecheck.Function -> Typecheck.Function
-    -> [RealTime] -> Signal.Control
-trill_from_transitions val1 val2 transitions = Signal.signal
+    -> [RealTime] -> [(RealTime, Signal.Y)]
+trill_from_transitions val1 val2 transitions =
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 -- | Ok, this name is terrible but what else is better?
@@ -181,8 +180,8 @@ c_dip = generator1 "dip" mempty
         transpose <- dip high low speed dyn_scale transition
             (Args.range_or_next args)
         start <- Args.real_start args
-        return $ PSignal.apply_control control
-            (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control control (Score.untyped transpose) $
+            PSignal.from_sample start pitch
 
 c_jaru :: Derive.Generator Derive.Pitch
 c_jaru = generator1 "jaru" mempty
@@ -200,8 +199,8 @@ c_jaru = generator1 "jaru" mempty
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
         let sig = jaru srate start time transition (NonEmpty.toList intervals)
-        return $ PSignal.apply_control control
-            (Score.untyped sig) $ PSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control control (Score.untyped sig) $
+            PSignal.from_sample start pitch
     where
     parse intervals
         | all (==control) controls = return (xs, control)
@@ -226,7 +225,7 @@ c_jaru_intervals transpose intervals = generator1 "jaru" mempty
         let sig = jaru srate start time (fromMaybe time maybe_transition)
                 intervals
         return $ PSignal.apply_control (Typecheck.transpose_control transpose)
-            (Score.untyped sig) $ PSignal.signal [(start, pitch)]
+            (Score.untyped sig) (PSignal.from_sample start pitch)
 
 
 -- * control calls
@@ -267,7 +266,7 @@ smooth_trill :: RealTime -> Typecheck.Function -> Typecheck.Function
     -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill time val1 val2 transitions = do
     srate <- Call.get_srate
-    return $ SignalTransform.smooth id srate time $
+    return $ ControlUtil.smooth ControlUtil.Linear srate time $
         trill_from_transitions val1 val2 transitions
 
 convert_directions :: RealTime -> Typecheck.Function -> Maybe Trill.Direction
@@ -343,7 +342,7 @@ dip :: Double -> Double -> BaseTypes.ControlRef -> Double
 dip high low speed dyn_scale transition (start, end) = do
     srate <- Call.get_srate
     transitions <- Trill.trill_transitions (start, end) False speed
-    let smooth = SignalTransform.smooth id srate (-transition / 2)
+    let smooth = ControlUtil.smooth ControlUtil.Linear srate (-transition / 2)
         transpose = smooth $
             trill_from_transitions (const high) (const low) transitions
         dyn = smooth $
@@ -383,8 +382,8 @@ c_jaru_intervals_c intervals = generator1 "jaru" mempty
 jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
     -> Signal.Control
 jaru srate start time transition intervals =
-    SignalTransform.smooth id srate (-transition) $
-        Signal.signal (zip (Seq.range_ start time) (intervals ++ [0]))
+    ControlUtil.smooth ControlUtil.Linear srate (-transition) $
+        zip (Seq.range_ start time) (intervals ++ [0])
 
 generator1 :: Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)

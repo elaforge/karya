@@ -40,7 +40,9 @@ noteToSample note = do
         , envelope = fromMaybe (Signal.constant 1) $ get Control.dynamic
         , ratio = case (Patch.pitch instSample, get Control.pitch) of
             (Just sampleNn, Just noteNns) ->
-                Signal.map_y (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
+                -- TODO I think I actually have to resample here
+                Signal.map_y_linear
+                    (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
                     noteNns
             _ -> Signal.constant 1
         }

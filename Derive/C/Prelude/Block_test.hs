@@ -120,15 +120,18 @@ test_control_scope = do
             [ (">", [(0, 2, ""), (2, 0, "")])
             , ("local", [(0, 0, "2"), (2, 0, "3")])
             ]
-        extract = map (second (Signal.unsignal . Score.typed_val))
+        extract = map (second (Signal.to_pairs . Score.typed_val))
                 . filter ((`elem` wanted) . fst) . Map.toList
                 . Score.event_controls
             where wanted = ["pedal", "dia", "local"]
     equal logs []
     -- dia is omitted, since it falls after the call to sub.
+    -- TODO not any more, but should it be?
     equal result
-        [ [("dia", []), ("local", [(0, 2)]), ("pedal", [(1, 1), (3, 0)])]
-        , [("dia", []), ("local", [(2, 3)]), ("pedal", [(1, 1), (3, 0)])]
+        [ [("dia", [(2, 1)]), ("local", [(0, 2)]),
+            ("pedal", [(1, 1), (3, 1), (3, 0)])]
+        , [("dia", [(2, 1)]), ("local", [(2, 3)]),
+            ("pedal", [(1, 1), (3, 1), (3, 0)])]
         ]
 
 -- TODO this test is probably only relevant if I wind up replacing
@@ -189,8 +192,10 @@ test_trim_controls_problem = do
             [ ("top", [("c", [(1, 0, "1")]), (">", [(0, 1, "sub")])])
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ])
-        -- ([[(1, 1)]], []) -- should be this
-        ([[]], [])
+        ([[(1, 1)]], []) -- should be this
+        -- ([[]], [])
+    -- I think this works now because I only remove discontinuities, but the
+    -- problem is still present.
 
 run_sub :: DeriveTest.Setup -> (Score.Event -> a) -> [UiTest.TrackSpec]
     -> [UiTest.TrackSpec] -> ([a], [Text])

@@ -152,7 +152,8 @@ test_track_signal = do
     io_human "track without signal" $
         insert_track view 1 (event_track track) 40
 
-    let csig = Signal.signal [(0, 1), (32, 0.5), (64, 0), (500, 0), (510, 1)]
+    let csig = Signal.from_pairs
+            [(0, 1), (32, 0.5), (64, 0), (500, 0), (510, 1)]
     let tsig = Track.TrackSignal csig 0 1
     io_human "track gets signal" $
         send $ BlockC.set_track_signal view 1 tsig

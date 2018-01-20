@@ -21,8 +21,11 @@ import Global
 
 test_sub_tracks = do
     let run = DeriveTest.derive_tracks ""
-    let extract_c e = (DeriveTest.e_event e, DeriveTest.e_control "c1" e,
-            DeriveTest.e_control "c2" e)
+    let extract_c e =
+            ( DeriveTest.e_event e
+            , DeriveTest.e_control "c1" e
+            , DeriveTest.e_control "c2" e
+            )
     let (events, logs) = DeriveTest.extract extract_c $ run
             [ (">", [(0, 2, ""), (2, 2, "")])
             , ("c1", [(0, 0, "0"), (1, 0, "1"), (2, 0, "2")])
@@ -41,8 +44,8 @@ test_sub_tracks = do
             ]
     equal logs []
     equal events
-        [ ((0, 2, ""), [(0, 60)])
-        , ((2, 2, ""), [(2, 62), (3, 64)])
+        [ ((0, 2, ""), [(0, NN.c4)])
+        , ((2, 2, ""), [(2, NN.d4), (3, NN.e4)])
         ]
 
     -- controls that straddle the note are properly sliced and clipped
@@ -51,8 +54,8 @@ test_sub_tracks = do
             , ("*", [(0, 0, "4c"), (4, 0, "i (4d)")])
             ]
     equal events
-        [ ((0, 2, ""), [(0, 60), (1, 60.5)])
-        , ((2, 2, ""), [(2, 61), (3, 61.5), (4, 62)])
+        [ ((0, 2, ""), [(0, NN.c4), (2, NN.cs4)])
+        , ((2, 2, ""), [(0, NN.c4), (4, NN.d4)])
         ]
 
 test_derive_track_signals = do
@@ -61,7 +64,7 @@ test_derive_track_signals = do
                 <> DeriveTest.with_linear)
             ""
         extract = Map.toList
-            . Map.map (Signal.unsignal_unique . Track.ts_signal)
+            . Map.map (Signal.to_pairs_unique . Track.ts_signal)
             . Derive.r_track_signals
         pitch = Just (Track.Pitch Score.default_pitch)
     equal (run 1 pitch $ UiTest.regular_notes 4)

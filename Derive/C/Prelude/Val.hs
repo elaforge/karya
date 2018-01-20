@@ -272,15 +272,17 @@ c_get_pitch = val_call "pitch" mempty "Get the current pitch." $
 c_linear_next :: Derive.ValCall
 c_linear_next = val_call "linear-next" mempty
     "Create straight lines between the given breakpoints."
-    $ Sig.call breakpoints_arg $ \vals args -> breakpoints 0 id vals args
+    $ Sig.call breakpoints_arg $ \vals args ->
+        breakpoints 0 ControlUtil.Linear vals args
 
 c_exp_next :: Derive.ValCall
 c_exp_next = val_call "exp-next" mempty
     "Create curved lines between the given breakpoints."
     $ Sig.call ((,)
-    <$> Sig.defaulted "exp" 2 ControlUtil.exp_doc
+    <$> Sig.defaulted "exp" 2 ControlUtil.exponential_doc
     <*> breakpoints_arg
-    ) $ \(exp, vals) args -> breakpoints 1 (ControlUtil.expon exp) vals args
+    ) $ \(exp, vals) args ->
+        breakpoints 1 (ControlUtil.Function $ ControlUtil.expon exp) vals args
 
 breakpoints_arg :: Sig.Parser (NonEmpty BaseTypes.Val)
 breakpoints_arg = Sig.many1 "bp" "Breakpoints are distributed evenly between\
@@ -294,27 +296,25 @@ c_down_from = val_call "down-from" mempty
     <$> Sig.defaulted "from" 1 "Start at this value."
     <*> Sig.defaulted "speed" 1 "Descend this amount per second."
     ) $ \(from, speed) args -> do
-        srate <- Call.get_srate
         (start, end) <- Args.real_range_or_next args
         return $ BaseTypes.VControlRef $ BaseTypes.ControlSignal $
             Score.untyped $
-            ControlUtil.limited_slope srate (Just 0) Nothing from (-speed)
-                start end
+            ControlUtil.slope_to_limit (Just 0) Nothing from (-speed) start end
 
 -- ** implementation
 
-breakpoints :: Int -> (Double -> Double) -> NonEmpty BaseTypes.Val
+breakpoints :: Int -> ControlUtil.Curve -> NonEmpty BaseTypes.Val
     -> Derive.PassedArgs a -> Derive.Deriver BaseTypes.Val
-breakpoints argnum f vals args = do
+breakpoints argnum curve vals args = do
     (start, end) <- Args.real_range_or_next args
     srate <- Call.get_srate
     vals <- num_or_pitch (Args.start args) argnum vals
     return $ case vals of
         Left nums -> BaseTypes.VControlRef $ BaseTypes.ControlSignal $
-            Score.untyped $ ControlUtil.breakpoints srate f $
+            Score.untyped $ ControlUtil.breakpoints srate curve $
             ControlUtil.distribute start end nums
         Right pitches -> BaseTypes.VPControlRef $ BaseTypes.ControlSignal $
-            PitchUtil.breakpoints srate f $
+            PitchUtil.breakpoints srate curve $
             ControlUtil.distribute start end pitches
 
 -- | Insist that the vals be either all numbers or pitches.

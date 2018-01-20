@@ -239,36 +239,23 @@ null = V.null . _vector
 -- | The arguments may seem backwards, but I've always done it this way, and it
 -- seems to be more convenient in practice.
 at :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y -> Maybe y
-at = at_orientation Types.Positive
-
-at_orientation :: V.Vector v (Sample y) => Types.Orientation -> Interpolate y
-    -> X -> SignalS v y -> Maybe y
-at_orientation orient interpolate x sig =
-    case segment_at_orientation orient x sig of
-        Nothing -> Nothing
-        Just (Segment x1 y1 x2 y2) ->
-            Just $ interpolate (Sample x1 y1) (Sample x2 y2) x
+at interpolate x (Signal offset vec)
+    | i < 0 = Nothing
+    | i + 1 == V.length vec = Just (sy (V.unsafeIndex vec i))
+    | otherwise =
+        Just $ interpolate (V.unsafeIndex vec i) (V.unsafeIndex vec (i+1)) x
+    where
+    i = TimeVector.highest_index (x - offset) vec
 
 segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
 segment_at  = segment_at_orientation Types.Positive
 
 segment_at_orientation :: V.Vector v (Sample y) => Types.Orientation -> X
     -> SignalS v y -> Maybe (Segment y)
-segment_at_orientation orient x (Signal offset vec)
-    | i < 0 = Nothing
-    | otherwise =
-        let Sample x1 y1 = V.unsafeIndex vec i
-            Sample x2 y2 = if i + 1 >= V.length vec
-                then Sample RealTime.large y1
-                else V.unsafeIndex vec (i+1)
-        in Just $ Segment x1 y1 x2 y2
-    where
-    i = get (x - offset) vec
-    get = case orient of
-        Types.Negative -> TimeVector.index_below
-        Types.Positive -> TimeVector.highest_index
+segment_at_orientation orient x (Signal offset vec) =
+    bump . snd <$> segment_at_v orient (x - offset) vec
+    where bump (Segment x1 y1 x2 y2) = Segment (x1+offset) y1 (x2+offset) y2
 
--- TODO what can I do about this proliferation of _v variants?
 segment_at_v :: V.Vector v (Sample y) => Types.Orientation -> X -> v (Sample y)
     -> Maybe (Int, Segment y)
 segment_at_v orient x vec
@@ -368,6 +355,15 @@ drop_after_v x vec = case vec V.!? i of
     Just (Sample x1 _) -> V.take (if x1 >= x then i+1 else i+2) vec
     where i = TimeVector.index_below x vec
 
+-- | This is like 'drop_after', but meant to clip the signal directly on x,
+-- rather than at the first sample >=x.  This means I might have to insert a
+-- new sample, which means copying the signal.  This is intended to be a "drop
+-- at and after", but since signals extend infinitely to the right, I can only
+-- go up to x.  TODO maybe signals should go to Nothing >= the last sample?
+--
+-- If the signal has only a point exactly at x, then return the empty signal.
+-- This is because the first sample is effectively a transition from Nothing,
+-- or 0.
 clip_after :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
     -> SignalS v y
 clip_after interpolate x sig
@@ -377,19 +373,22 @@ clip_after interpolate x sig
 
 clip_after_v :: V.Vector v (Sample y) => Interpolate y -> X
     -> v (Sample y) -> v (Sample y)
-clip_after_v interpolate x vec = case TimeVector.last clipped of
-    Nothing -> V.empty
-    Just (Sample x2 _)
-        | x < x2, Just y <- at interpolate x (from_vector vec) ->
-            V.snoc (V.take (V.length clipped - 1) clipped) (Sample x y)
-        | otherwise -> clipped
+clip_after_v interpolate x vec
+    | [Sample x0 _] <- V.toList clipped, x0 == x = V.empty
+    | otherwise = case TimeVector.last clipped of
+        Nothing -> V.empty
+        Just (Sample x2 _)
+            | x < x2, Just y <- at interpolate x (from_vector vec) ->
+                V.snoc (V.take (V.length clipped - 1) clipped) (Sample x y)
+            | otherwise -> clipped
     where clipped = drop_after_v x vec
 
 num_clip_after :: X -> NumSignal -> NumSignal
 num_clip_after x sig
-    | V.null v = empty
-    | otherwise = Signal { _offset = _offset sig, _vector = v }
-    where v = num_clip_after_v (x - _offset sig) (_vector sig)
+    | V.null clipped = empty
+    | [Sample x0 _] <- V.toList clipped, x0 == x = empty
+    | otherwise = Signal { _offset = _offset sig, _vector = clipped }
+    where clipped = num_clip_after_v (x - _offset sig) (_vector sig)
 
 -- | 'clip_after' specialized for 'Y'.  Since it has Eq, it can do an
 -- additional optimization.

@@ -46,6 +46,11 @@ run_pitch :: Text -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run_pitch title = extract . run_pitch_ title
     where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
+-- | Use proper signal samples.  TODO convert more things to use this
+run_pitch2 :: Text -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
+run_pitch2 title = extract . run_pitch_ title
+    where extract = head . DeriveTest.extract_events DeriveTest.e_nns_literal
+
 -- | Run a control track and extract the control signal it produces.
 run_control :: [(ScoreTime, Text)] -> [(Signal.X, Signal.Y)]
 run_control events = run_control_dur [(p, 0, t) | (p, t) <- events]
@@ -54,10 +59,8 @@ run_control_dur :: [UiTest.EventSpec] -> [(Signal.X, Signal.Y)]
 run_control_dur events = extract $
     DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("cont", events)]
     where
-    -- Slicing implementation details can make dups, but they don't matter for
-    -- performance.
-    extract = Seq.drop_dups snd . head . DeriveTest.extract_events
-        (Signal.unsignal . Score.typed_val . get . Score.event_controls)
+    extract = Seq.drop_dups id . head . DeriveTest.extract_events
+        (Signal.to_pairs . Score.typed_val . get . Score.event_controls)
     get fm = case Map.lookup "cont" fm of
         Nothing -> errorStack "expected a 'cont' control"
         Just c -> c

@@ -354,8 +354,8 @@ test_warp_ops = do
     equal (run (Derive.place 1 2)) $ Right [1, 5]
 
     -- test compose
-    let plain = Warp.from_signal $ Signal.signal [(0, 0), (100, 100)]
-        slow = Warp.from_signal $ Signal.signal [(0, 0), (100, 200)]
+    let plain = Warp.from_signal $ Signal.from_pairs [(0, 0), (100, 100)]
+        slow = Warp.from_signal $ Signal.from_pairs [(0, 0), (100, 200)]
 
     equal (run (Internal.warp plain)) $ Right [0, 2]
     equal (run (Derive.at 2 . Internal.warp plain)) $ Right [2, 4]
@@ -385,7 +385,7 @@ test_warp_ops = do
 test_real_to_score_round_trip = do
     let f do_warp = DeriveTest.eval Ui.empty $
             do_warp (Derive.real_to_score =<< Derive.score_to_real 1)
-    let slow = Warp.from_signal $ Signal.signal [(0, 0), (100, 200)]
+    let slow = Warp.from_signal $ Signal.from_pairs [(0, 0), (100, 200)]
     equal (f id) (Right 1)
     equal (f (Derive.at 5)) (Right 1)
     equal (f (Derive.stretch 5)) (Right 1)
@@ -395,7 +395,8 @@ test_real_to_score_round_trip = do
 
 test_shift_control = do
     let controls = Map.fromList
-            [("cont", Score.untyped $ Signal.signal [(0, 1), (2, 2), (4, 0)])]
+            [("cont", Score.untyped $
+                Signal.from_pairs [(0, 1), (2, 2), (4, 0)])]
         psig = DeriveTest.psignal [(0, "4c")]
     let set_controls = DeriveTest.modify_dynamic $ \st -> st
             { Derive.state_controls = controls
@@ -409,9 +410,9 @@ test_shift_control = do
                 psig <- Internal.get_dynamic Derive.state_pitch
                 return (conts, psig)
             extract (conts, pitch) =
-                (unsignal conts, first Signal.unsignal (PSignal.to_nn pitch))
+                (unsignal conts, first Signal.to_pairs (PSignal.to_nn pitch))
             unsignal =
-                Signal.unsignal . Score.typed_val . snd . head . Map.toList
+                Signal.to_pairs . Score.typed_val . snd . head . Map.toList
     equal (run id) $ Right ([(0, 1), (2, 2), (4, 0)], ([(0, 60)], []))
     equal (run $ Derive.shift_control 2) $
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))

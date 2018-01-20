@@ -78,8 +78,8 @@ trill_signal start_dir pitch neighbor speed hold args = do
     transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor
         speed transition hold lilt args
     start <- Args.real_start args
-    return $ PSignal.apply_control control
-        (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
+    return $ PSignal.apply_control control (Score.untyped transpose) $
+        PSignal.from_sample start pitch
     where
     transition :: RealTime
     transition = 0.08

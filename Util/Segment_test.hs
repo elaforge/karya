@@ -52,7 +52,7 @@ test_concat = do
     -- The rightmost one wins.
     equal (f [[(0, 0)], [(2, 2)], [(1, 1)]]) [(0, 0), (1, 0), (1, 1)]
     -- Suppress duplicates.
-    equal (f [[(1, 1)], [(1, 1)], [(1, 1)]]) [(1, 1), (1, 1)]
+    equal (f [[(1, 1)], [(1, 1)], [(1, 1)]]) [(1, 1)]
     equal (f [[(0, 1), (1, 1)], [(1, 2)], [(1, 1)]]) [(0, 1), (1, 1), (1, 1)]
     -- But not legit ones.
     equal (f [[(0, 1), (1, 1)], [(1, 2)]]) [(0, 1), (1, 1), (1, 2)]
@@ -64,8 +64,6 @@ test_prepend = do
     equal (f [] [(0, 0), (1, 1)]) [(0, 0), (1, 1)]
     equal (f [(0, 10), (1, 1)] [(0, 0), (1, 1), (2, 2)])
         [(0, 10), (1, 1), (1, 1), (2, 2)]
-    equal (f [(1, 42)] [(0, 0), (1, 1), (2, 2)]) [(1, 42), (1, 1), (2, 2)]
-    equal (f [(1, 42)] [(0, 0), (2, 2)]) [(1, 42), (1, 1), (2, 2)]
 
 test_segment_at = do
     let f x = Segment.segment_at_orientation Types.Positive x . from_pairs
@@ -77,6 +75,10 @@ test_segment_at = do
     equal (f 2 [(1, 1), (3, 3)]) $ Just (Segment 1 1 3 3)
     -- Positive bias.
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) $ Just (Segment 2 2 large 2)
+    -- Shift.
+    equal (Segment.segment_at 4 $
+            Segment.shift 3 (from_pairs [(0, 0), (2, 2)])) $
+        Just (Segment 3 0 5 2)
 
 test_segment_at_negative = do
     let f x = Segment.segment_at_orientation Types.Negative x . from_pairs
@@ -90,12 +92,10 @@ test_segment_at_negative = do
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) $ Just (Segment 0 0 2 0)
 
 test_at = do
-    let f orient x = Segment.at_orientation orient Segment.num_interpolate x
+    let f x = Segment.at Segment.num_interpolate x
             (from_pairs [(1, 1), (2, 2), (2, 3)])
-    equal (map (f Types.Positive) [0, 1, 1.5, 2, 3, 4])
+    equal (map f [0, 1, 1.5, 2, 3, 4])
         [Nothing, Just 1, Just 1.5, Just 3, Just 3, Just 3]
-    equal (map (f Types.Negative) [0, 1, 1.5, 2, 3, 4])
-        [Nothing, Just 1, Just 1.5, Just 2, Just 3, Just 3]
 
 test_shift = do
     let shift = Segment.shift
@@ -125,7 +125,7 @@ test_drop_after_clip_after = do
     equal (f 4 s124) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (4, 4)])
     equal (f 3 s124) ([(1, 1), (2, 2), (4, 4)], [(1, 1), (2, 2), (3, 3)])
     equal (f 2 s124) ([(1, 1), (2, 2)], [(1, 1), (2, 2)])
-    equal (f 1 s124) ([(1, 1)], [(1, 1)])
+    equal (f 1 s124) ([(1, 1)], [])
     equal (f 0 s124) ([], [])
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) ([(0, 0), (2, 0)], [(0, 0), (2, 0)])
 
@@ -134,6 +134,7 @@ test_num_clip_after = do
     equal (f 2 [(0, 0), (1, 1), (4, 1)]) [(0, 0), (1, 1)]
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) [(0, 0)]
     equal (f 2 [(0, 0), (4, 4)]) [(0, 0), (2, 2)]
+    equal (f 2 [(2, 1)]) []
 
 test_drop_before_clip_before = do
     let f x sig =

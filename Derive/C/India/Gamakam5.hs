@@ -24,6 +24,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
+import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
@@ -81,8 +82,10 @@ c_import_dyn = Derive.transformer module_ "dyn" mempty
 c_pitch_sequence :: Derive.Generator Derive.Control
 c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
     "sequence" mempty pitch_sequence_doc
-    $ Sig.call ((,) <$> Sig.required "sequence" "Pitch calls." <*> config_env)
-    $ \(text, transition) args -> do
+    $ Sig.call ((,)
+        <$> Sig.required "sequence" "Pitch calls."
+        <*> transition_env
+    ) $ \(text, transition) args -> do
         (start, end) <- Args.range_or_note_end args
         maybe_state <- initial_pitch_state transition args
         case maybe_state of
@@ -92,8 +95,8 @@ c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
                     pitch_sequence (end - start) state text
                 return $ mconcat $ DList.toList signals
     where
-    config_env :: Sig.Parser Typecheck.Normalized
-    config_env =
+    transition_env :: Sig.Parser Typecheck.Normalized
+    transition_env =
         Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5) $
             "Time for each pitch movement, in proportion of the total time"
             <> " available."
@@ -156,10 +159,18 @@ get_prev_pitch start = do
     -- If this is the first call in this note, then I have to look in the
     -- preivous slice.
     prev_event_pitch <- Args.prev_note_pitch
-    pitch_signal <- PSignal.before start <$> Derive.get_pitch
+    -- TODO gives different results for test_prev_pitch, but I don't understand
+    -- which is right.
+    -- pitch_signal <- PSignal.last . PSignal.drop_after start <$> Derive.get_pitch
+    pitch_signal <- before start <$> Derive.get_pitch
     return $ case (prev_event_pitch, pitch_signal) of
         (Just a, Just b) -> Just $ snd $ Seq.max_on fst a b
         (a, b) -> snd <$> (a <|> b)
+
+before :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
+before x sig = case PSignal.segment_at x sig of
+    Just (Segment.Segment x y _ _) -> Just (x, y)
+    Nothing -> Nothing
 
 step_difference :: PSignal.Transposed -> PSignal.Transposed
     -> Derive.Deriver Step
@@ -465,7 +476,7 @@ dc_flat :: DynCall
 dc_flat = DynCall "No movement." Sig.no_args $ \() ctx -> do
     prev <- State.gets state_from_dyn
     start <- lift $ Derive.real (ctx_start ctx)
-    return $ Signal.signal [(start, prev)]
+    return $ Signal.from_sample start prev
 
 dc_attack :: DynCall
 dc_attack = DynCall doc dyn_arg $ \maybe_to ctx ->
@@ -497,7 +508,7 @@ make_dyn_curve curve from to ctx = do
     lift $ ControlUtil.make_segment curve start from end to
 
 dyn_curve :: Double -> Double -> ControlUtil.Curve
-dyn_curve = ControlUtil.sigmoid
+dyn_curve w1 w2 = ControlUtil.Function $ ControlUtil.sigmoid w1 w2
 
 dc_set_dyn :: DynCall
 dc_set_dyn = DynCall "Set from dyn." required_dyn_arg $ \to _ctx -> do
@@ -588,8 +599,8 @@ ctx_range ctx = lift $
 pc_flat :: PCall
 pc_flat = PCall Sig.no_args $ \() ctx -> do
     step <- State.gets _from
-    (start, end) <- ctx_range ctx
-    return $ Signal.signal [(start, step), (end, step)]
+    start <- lift $ Derive.real $ ctx_start ctx
+    return $ Signal.from_sample start step
 
 -- | Move relative to the note's swaram.
 pc_relative :: PCall
@@ -664,7 +675,8 @@ move_pitch :: RealTime -> PSignal.Transposed -> RealTime -> PSignal.Transposed
     -> M PitchState Signal.Control
 move_pitch start from end to = do
     Typecheck.Normalized transition <- State.gets _transition
-    let curve = ControlUtil.sigmoid (1-transition) (1-transition)
+    let curve = ControlUtil.Function $
+            ControlUtil.sigmoid (1-transition) (1-transition)
     set_pitch to
     swaram <- State.gets _swaram
     from <- lift $ step_difference from swaram

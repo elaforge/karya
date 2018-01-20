@@ -138,7 +138,7 @@ data TrackSignal = TrackSignal {
     } deriving (Show, Eq)
 
 empty_track_signal :: TrackSignal
-empty_track_signal = TrackSignal Signal.empty 0 1
+empty_track_signal = TrackSignal mempty 0 1
 
 instance Pretty TrackSignal where
     format (TrackSignal sig shift stretch) =

@@ -202,6 +202,12 @@ STATUS
     before and after warp as function, and linear segments.
 
 UNSORTED
+  - what is (>) in 'i> (>)'?  Looks like next pitch but I forget adding that.
+  - what if I added a 'default-interpolator' argument so Control.c_set and
+    Pitch.c_set could make curves by default?
+  . Couldn't I solve all of the gamakam previous pitch problems by just
+    putting the gamakam track above?  How about some cmd utils to help line up
+    with notes?
   linear cleanups:
     - rename TimeVector.signal and unsignal
     - make ControlUtil.smooth take negative time
@@ -1120,7 +1126,8 @@ IN PROGRESS / branch: branches:
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
     . branch shake-targets
-  - signal-offset:
+  * signal-offset:
+    . This will be solved by signal-discontinuity aka linear.
     . Extend TimeVector with an offset, so I can get rid of
       Score.event_untransformed_controls and the like.
     . After this I'd like to make Score.Event's fields private so e.g.
@@ -1285,7 +1292,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
       * Generate cf curves from CurveDs
       * Can I untangle the functions?  I just need to be polymorphic on Signal
         vs.  PSignal.
-      - Once I have this, I can special case based on name.
+      * Once I have this, I can special case based on name.
         . Or can I give Curve alternatives like Linear and Constant?
     * remove Signal.interleave
     * make it generic on Y type
@@ -1413,27 +1420,84 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
       Replace various drop_* functions:
         . drop_after, drop_before are ok.
         * Signal.drop_while
-        - Signal.drop, Signal.length
+        * Signal.drop, Signal.length
           . Only used by SignalTransform.c_smooth, which will need to be
             redone for segments anyway.
         * Signal.head, last, PSignal.head, last
           . LPerf - ok to use
           . Gamakam2
           . Rearticulate.slur - redo this for segments
-        - Signal.within, PSignal.within
+        / Signal.within, PSignal.within
           . I could provide within, but maybe inline drop_before drop_after
             would be clearer.
-        - Signal.drop_at_after, drop_before_strict, drop_before_at
+        * Signal.drop_at_after, drop_before_strict, drop_before_at
           . The problem is that they assume samples, so they can split
             segments.  I might have to replace them with clip_before, after
         * Signal.clip_bounds
-        - Signal.prepend, PSignal.prepend
-      - 'i' calls no longer need srate.  The others do though.
-        . Also update Control.c_set and Pitch.c_set.
-      - Remove Derive.Tempo.extend_signal
-      - Midi performer has to use a sampling rate.
+        * Signal.prepend, PSignal.prepend
+      Midi.Perform has to use a sampling rate.
+        . Sampling should be done in Midi.Convert
+        . Internally, it should use TimeVector or a wrapper.
+        * First make Midi.Perform use Types.Signal, aka TimeVector
+        * Then update Convert to use Segment.to_piecewise_constant
+      * Synth.Shared.Signal should be linear Segments
+      SignalTransform:
+        * smooth
+          . This has to change its definition since I don't have constant
+            samples any more.
+          . I could apply only to flat segments.
+          . Or I could draw a bezier curve through samples.
+          . Let's do that, but separately, and once I have a hermite curve
+            implementation.  For now disable it.
+          . Actually ControlUtil.breakpoints does this.
+        * smooth_relative
+          . This is used by Trill.
+          . I should put the bezier version in ControlUtil.
+        * Trill
+        * slew_limiter
+      * Gamakam5
+        . But probably broken, especially previous pitch stuff, which was
+          broken anyway.  Tests should turn up problems.
+      * 'i' calls no longer need srate.  The others do though.
+      * Update Control.c_set and Pitch.c_set.
+      + fix tests:
+        . 335 -> 331: fix Segment.concat
+        . 331 -> 328: map_y (1/) is nonlinear
+        . 320 -> 305: map_y bug
+        . 305 -> 296: add Segment.num_clip_after
+        . 296 -> 289: drop_dups in DeriveTest.e_nns
+        . 289 -> 283: use 'e' instead of 'i'
+        . 283 -> 264: track signals don't have explicit linear interpolation
+        . 264 -> 211: fix ControlUtil slope and smooth
+        . 211 -> 101: fix BaseTypes.interpolate bug, Segment.at efficiency
+        . 101 -> 79: fix slew, Pitch_test expecteds
+        . 79 -> 66: PitchHigh_test, fix expecteds and switch to *_literal
+        . 66 -> 45: Control_test, same stuff
+        . 45 -> 37: punt on c_quantize and slur
+        . 37 -> 31: fix gamakam and slur, again
+        . 31 -> 26: modify clip_after
+        . 26 -> 5: fix Gamakam2 by just updating expecteds
+        . 5 -> 9: fix string idiom, but have ControlUtil.segment make vertical
+        . 9 -> 3: misc
+        . 3 -> 0: warp negative time is linear, accept trill change
+      . listen to 1 [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
+      - I should put a final sample on for sampled curves too.  Maybe I do?
+      - I now get pitch signal before note start if there's a transpose
+        starting at event_start, but the pitch is before that.  Maybe
+        Convert should drop_before?
+      - put Seq.drop_dups id on Seq.to_pairs, or better, from_pairs
+      - Always use _rounded for DeriveTest.e_control?
+      - Make Signal.from_pairs drop a redundant final sample
+
+      - Do I need to clip at all?  The performer can clip to the start, but
+        I think it needs to know where the note stops because otherwise this
+        information isn't preserved.
+        . I could do it more efficiently by just sticking an end time in the
+          Score.Event, and leave it to the performer to observe.
+        . Indeed NoteUtil.trim_controls only does drop_before.
+        . E.g. BlockUtil_test.test_compile, final test
+      * Remove Derive.Tempo.extend_signal
       - Get rid of infer linear in the fltk drawing code.
-      - profile before and after
     / Segments have start time, but no end time.  Would it be more useful to
       have an explicit end time too?  I'd get rid of the implicit large last
       sample, and just stop on the last sample.
@@ -1444,14 +1508,22 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
         signals, and I can just use an explicit time then.
     * Rename Util.Linear to Util.Segment
       . There's nothing inherently linear in the module.
+    - Util.Segment winds up with _v vector variants.  Maybe I should make
+      a whole new module with no offset, and then if I really need offset,
+      make a wrapper for it.
     - clean up TimeVector, remove unneeded functions
       . also remove magic x<=0 behaviour
-
+    - Maybe rename Signal.from_sample to constant_from for a higher level
+      emphasis.
+    - profile before and after
     - implement Warp.compose_hybrid
-
     - Util.Segment has an invariant where Xs are ordered, and there are
       a max of two in the same place.  Quickcheck it!
     - Also ensure that MSignal.Signal can't get duplicate Xs.
+    port thigs to segments:
+      - SignalTransform.c_quantize.
+        . It will have to find where segments intersect the quantize multiples.
+      - Rearticulate.slur
 
   / Could I use -Infinity for constant rather than -RealTime.large?  That
     way I don't have to worry about any amount of translation.

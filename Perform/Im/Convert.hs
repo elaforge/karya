@@ -73,7 +73,7 @@ run action = LEvent.Event note : map LEvent.Log logs
     where (note, logs) = Log.run_id action
 
 convert_signal :: Perform.Signal.Signal a -> Signal.Signal
-convert_signal = Perform.Signal.sig_vec
+convert_signal = Perform.Signal.coerce
 
 -- TODO trim controls?
 convert_controls :: Map Control.Control a -> Score.ControlMap

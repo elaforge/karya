@@ -24,7 +24,7 @@ deriving instance {-# OVERLAPPING #-} Eq BaseTypes.Term
 deriving instance Eq BaseTypes.Quoted
 
 instance Eq PSignal.PSignal where
-    sig1 == sig2 = PSignal.unsignal sig1 == PSignal.unsignal sig2
+    sig1 == sig2 = PSignal.to_pairs sig1 == PSignal.to_pairs sig2
 instance Eq (PSignal.RawPitch a) where
     p1 == p2 = PSignal.pitch_nn (PSignal.coerce p1)
         == PSignal.pitch_nn (PSignal.coerce p2)

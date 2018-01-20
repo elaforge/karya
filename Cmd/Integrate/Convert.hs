@@ -180,7 +180,8 @@ pitch_signal_events :: Score.Event -> ([Event.Event], [Text])
 pitch_signal_events event = (ui_events, pitch_errs)
     where
     start = Score.event_start event
-    (xs, ys) = unzip $ align_pitch_signal start $ Score.event_pitch event
+    (xs, ys) = unzip $ PSignal.to_pairs $ PSignal.clip_before start $
+        Score.event_pitch event
     pitches = zip3 xs ys
         (map (PSignal.pitch_note . Score.apply_controls event start) ys)
     pitch_errs =
@@ -222,26 +223,15 @@ control_track events control =
 signal_events :: Score.Control -> Score.Event -> [Event.Event]
 signal_events control event = case Score.event_control control event of
     Nothing -> []
-    Just sig -> [ui_event (Score.event_stack event)
+    Just sig ->
+        [ ui_event (Score.event_stack event)
             (RealTime.to_score x) 0 (ShowVal.show_hex_val y)
-        | (x, y) <- align_signal start (Score.typed_val sig)]
+        | (x, y) <- Signal.to_pairs $
+            Signal.clip_before start (Score.typed_val sig)
+        ]
     where start = Score.event_start event
 
 -- * util
-
--- | Make sure the first sample of the signal lines up with the start.  This
--- is called after 'Signal.drop_before', which may still emit a sample before
--- the start time.
-align_signal :: Signal.X -> Signal.Signal y -> [(Signal.X, Signal.Y)]
-align_signal start sig = case Signal.unsignal (Signal.drop_before start sig) of
-    [] -> []
-    (_, y) : xs -> (start, y) : xs
-
-align_pitch_signal :: Signal.X -> PSignal.PSignal -> [(Signal.X, PSignal.Pitch)]
-align_pitch_signal start sig =
-    case PSignal.unsignal (PSignal.drop_before start sig) of
-        [] -> []
-        (_, y) : xs -> (start, y) : xs
 
 event_stack :: Score.Event -> Event.Stack
 event_stack event = Event.Stack (Score.event_stack event)

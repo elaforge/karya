@@ -94,11 +94,11 @@ add_nn_transpose curve = Score.modify_control Controls.nn (Signal.sig_add curve)
 retune_curve :: ControlUtil.SRate -> RealTime -> Pitch.NoteNumber -> RealTime
      -> RealTime -> Signal.Control
 retune_curve srate time dist start end =
-    ControlUtil.segment srate True True curve
+    ControlUtil.segment srate True curve
         start (Pitch.nn_to_double dist) (min end (start + time)) 0
     where
     -- Adjust quickly at first, then slow down.
-    curve = ControlUtil.expon (-4)
+    curve = ControlUtil.Function $ ControlUtil.expon (-4)
 
 -- | Get the pitch and the time ago it was established.
 -- TODO this gets the start of the segment, so if it's sloped, this isn't the

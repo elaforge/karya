@@ -34,9 +34,10 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Util.Segment as Segment
 import qualified Util.Serialize as Serialize
-import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -66,20 +67,44 @@ import Types
 
 -- | A pitch signal is similar to a 'Signal.Control', except that its values
 -- are 'Pitch'es instead of plain floating point values.
-newtype PSignal = PSignal { sig_vec :: TimeVector.Boxed Pitch }
+newtype PSignal = PSignal (Segment.Boxed Pitch)
     deriving (Show, Pretty)
 
+_signal :: PSignal -> Segment.Boxed Pitch
+_signal (PSignal sig) = sig
+
 instance Monoid PSignal where
-    mempty = PSignal mempty
+    mempty = PSignal Segment.empty
     mappend s1 s2
-        | TimeVector.null (sig_vec s1) = s2
-        | TimeVector.null (sig_vec s2) = s1
+        | Segment.null (_signal s1) = s2
+        | Segment.null (_signal s2) = s1
         | otherwise = mconcat [s1, s2]
     mconcat [] = mempty
-    mconcat sigs = PSignal (TimeVector.merge (map sig_vec sigs))
+    mconcat sigs = PSignal $ Segment.concat interpolate (map _signal sigs)
 
 instance DeepSeq.NFData PSignal where
     rnf (PSignal vec) = vec `seq` ()
+
+-- | A pitch interpolated a certain distance between two other pitches.
+interpolate :: Segment.Interpolate Pitch
+interpolate (Segment.Sample x1 p1) (Segment.Sample x2 p2) x
+    | x <= x1 = p1
+    | x >= x2 = p2
+    | otherwise = Pitch
+        { pitch_eval_nn = nn
+        , pitch_eval_note = note
+        , pitch_scale = pitch_scale p1
+        , pitch_config = mempty
+        }
+    where
+    nn config = do
+        p1_nn <- pitch_nn $ coerce $ apply_config config p1
+        p2_nn <- pitch_nn $ coerce $ apply_config config p2
+        return $ Num.scale p1_nn p2_nn $
+            Pitch.NoteNumber $ RealTime.to_seconds $ Num.normalize x1 x2 x
+    note config = pitch_note $ coerce $ apply_config config $
+        if x < x1 then p1 else p2
+    apply_config c pitch = pitch { pitch_config = c <> pitch_config pitch }
 
 {- | This is an untransposed pitch.  All pitches have transposition signals
     from the dynamic state applied when they are converted to MIDI or whatever
@@ -525,8 +550,8 @@ instance Pretty ControlRef where pretty = ShowVal.show_val
 -- accurately since it doesn't take things like pitch interpolation into
 -- account.
 instance ShowVal.ShowVal PControlRef where
-    show_val = show_control
-        (maybe "<none>" ShowVal.show_val . TimeVector.at 0 . sig_vec)
+    show_val = show_control $
+        maybe "<none>" (ShowVal.show_val . snd) . Segment.head . _signal
 
 instance Pretty PControlRef where pretty = ShowVal.show_val
 

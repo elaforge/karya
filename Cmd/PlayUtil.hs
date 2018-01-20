@@ -239,7 +239,7 @@ perform_events_list events = do
     muted <- get_muted_tracks
     let alloc = Perform.config <$> midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state alloc $
-        Convert.convert lookup lookup_inst $
+        Convert.convert Convert.default_srate lookup lookup_inst $
         filter_track_muted muted $ filter_instrument_muted allocs events
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be

@@ -1144,7 +1144,9 @@ c_kempyung = Make.transform_notes module_ "kempyung" Tags.postproc
         where
         transposed = event
             { Score.event_pitch =
-                PSignal.map_y (Pitches.transpose (Pitch.Diatonic 3))
+                -- TODO it's not really linear, but these pitches should be
+                -- constant anyway.
+                PSignal.map_y_linear (Pitches.transpose (Pitch.Diatonic 3))
                     (Score.event_pitch event)
             }
 

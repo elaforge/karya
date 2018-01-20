@@ -6,23 +6,32 @@ module Derive.PSignal (
     PSignal, sig_scale_id
     , Scale(..), no_scale
 
-    -- * construct  / destruct
-    , constant, signal, unsignal, unsignal_unique, set, append, to_nn
+    -- * construct / destruct
+    , from_pairs, from_sample, from_segments
+    , to_pairs, to_segments
+    , constant
+    , prepend
+    , to_nn
     , unfoldr
 
     -- * query
-    , null, at, sample_at, segment_at, before, shift, head, last
-    , drop_after, drop_at_after
-    , drop_before, drop_before_strict, drop_before_at, within
-
-    -- * backported
-    , clip_before, clip_after
-    , drop_discontinuity_at
+    , null
+    , at, segment_at
+    , interpolate
+    , head, last
+    -- , before
+    -- , drop_at_after
+    -- , drop_before_strict, drop_before_at, within
 
     -- * transform
+    , drop_after, clip_after
+    , drop_before, clip_before
+    , shift
     , apply_controls, apply_control, apply_environ
-    , map_y
-    , prepend
+    , map_y_linear
+
+    -- ** hacks
+    , drop_discontinuity_at
 
     -- * Pitch
     , Transposed, Pitch
@@ -32,25 +41,26 @@ module Derive.PSignal (
     , pitch_scale, pitch_eval_nn, pitch_eval_note, pitch_config, pitch_controls
     , PitchError(..)
     , pitch, coerce
-    , config, apply, add_control, pitch_nn, pitch_note
+    , apply_config, apply, add_control, pitch_nn, pitch_note
     -- ** create
     , constant_pitch, nn_pitch
 ) where
 import Prelude hiding (head, last, null)
 import qualified Data.Either as Either
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import qualified Data.Vector as V
 
 import qualified Util.Segment as Segment
+import Util.Segment (Sample(..))
 import qualified Util.Seq as Seq
-import qualified Util.TimeVector as TimeVector
-import Util.TimeVector (Sample(..))
 
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (PSignal(..), Transposed, Pitch, pitch, coerce, pitch_nn, pitch_note,
-        RawPitch(..), Scale(..), PitchConfig(..), PitchError(..))
+       (PSignal(..), _signal, interpolate, Transposed, Pitch, pitch, coerce,
+        pitch_nn, pitch_note, RawPitch(..), Scale(..), PitchConfig(..),
+        PitchError(..))
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ScoreTypes as Score
 
 import qualified Perform.Pitch as Pitch
@@ -77,182 +87,172 @@ sig_scale_id :: PSignal -> Pitch.ScaleId
 sig_scale_id = pscale_scale_id . sig_scale
 
 sig_scale :: PSignal -> Scale
-sig_scale = maybe no_scale (pitch_scale . sy) . TimeVector.head . sig_vec
+sig_scale = maybe no_scale (pitch_scale . sy) . Seq.head . Segment.to_samples
+    . _signal
 
-modify :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
-    -> PSignal -> PSignal
-modify f sig = sig { sig_vec = f (sig_vec sig) }
+modify :: (Segment.Boxed Pitch -> Segment.Boxed Pitch) -> PSignal -> PSignal
+modify f = PSignal . f . _signal
 
 no_scale :: Scale
 no_scale = Scale "no-scale" mempty
 
 -- * construct / destruct
 
+from_pairs :: [(RealTime, Pitch)] -> PSignal
+from_pairs = PSignal . Segment.from_pairs
+
+from_sample :: RealTime -> Pitch -> PSignal
+from_sample x y = from_pairs [(x, y)]
+
+from_segments :: [Segment.Segment Pitch] -> PSignal
+from_segments = PSignal . Segment.from_segments
+
+to_pairs :: PSignal -> [(RealTime, Pitch)]
+to_pairs = Segment.to_pairs . _signal
+
+to_samples :: PSignal -> [Segment.Sample Pitch]
+to_samples = Segment.to_samples . _signal
+
+to_segments :: PSignal -> [Segment.Segment Pitch]
+to_segments = Segment.to_segments . _signal
+
 constant :: Pitch -> PSignal
-constant  = PSignal . TimeVector.constant
+constant = PSignal . Segment.constant
 
-signal :: [(RealTime, Pitch)] -> PSignal
-signal = PSignal . TimeVector.signal
-
-unsignal :: PSignal -> [(RealTime, Pitch)]
-unsignal = TimeVector.unsignal . sig_vec
-
-unsignal_unique :: PSignal -> [(RealTime, Pitch)]
-unsignal_unique = TimeVector.unsignal_unique . sig_vec
-
--- | Set the signal value, with a discontinuity.
-set :: Maybe Pitch -> RealTime -> Pitch -> PSignal
-set prev_y x y = PSignal $ TimeVector.set prev_y x y
-
-append :: PSignal -> PSignal -> PSignal
-append s1 s2 = PSignal $ TimeVector.append_extend (sig_vec s1) (sig_vec s2)
+prepend :: PSignal -> PSignal -> PSignal
+prepend sig1 sig2 =
+    PSignal $ Segment.prepend interpolate (_signal sig1) (_signal sig2)
 
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
-to_nn :: PSignal -> (Signal.NoteNumber, [PitchError])
-to_nn = extract . Either.partitionEithers . map eval . unsignal
+-- TODO I could probably avoid the intermediate list
+to_nn :: PSignal -> (Signal.NoteNumber, [(RealTime, PitchError)])
+to_nn = extract . Either.partitionEithers . map eval . to_pairs
     where
-    extract (errs, nns) = (Signal.signal nns, Seq.unique_sort errs)
+    extract (errs, nns) = (Signal.from_pairs nns, Seq.unique_sort errs)
     eval (x, pitch) = case pitch_nn (coerce pitch) of
-        Left err -> Left err
+        Left err -> Left (x, err)
         Right (Pitch.NoteNumber nn) -> Right (x, nn)
 
 unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal
-unfoldr gen state = PSignal $ TimeVector.unfoldr gen state
+unfoldr gen state = PSignal $ Segment.unfoldr gen state
 
 -- * query
 
 null :: PSignal -> Bool
-null = TimeVector.null . sig_vec
+null = Segment.null . _signal
 
 at :: RealTime -> PSignal -> Maybe Pitch
-at x = TimeVector.at x . sig_vec
-
-sample_at :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
-sample_at x = TimeVector.sample_at x . sig_vec
+at x = Segment.at interpolate x . _signal
 
 segment_at :: RealTime -> PSignal -> Maybe (Segment.Segment Pitch)
-segment_at x = Segment.segment_at x . Segment.from_vector . sig_vec
+segment_at x = Segment.segment_at x . _signal
 
--- | Find the last pitch before the point.
-before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
-before x = fmap TimeVector.to_pair . TimeVector.before x . sig_vec
+head, last :: PSignal -> Maybe (RealTime, Pitch)
+head = Segment.head . _signal
+last = Segment.last . _signal
 
-shift :: RealTime -> PSignal -> PSignal
-shift x = modify (TimeVector.shift x)
-
-head :: PSignal -> Maybe (RealTime, Pitch)
-head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
-
-last :: PSignal -> Maybe (RealTime, Pitch)
-last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
-
-drop_after :: RealTime -> PSignal -> PSignal
-drop_after = modify . TimeVector.drop_after
-
-drop_at_after :: RealTime -> PSignal -> PSignal
-drop_at_after = modify . TimeVector.drop_at_after
-
-drop_before :: RealTime -> PSignal -> PSignal
-drop_before = modify . TimeVector.drop_before
-
-drop_before_strict :: RealTime -> PSignal -> PSignal
-drop_before_strict = modify . TimeVector.drop_before_strict
-
-drop_before_at :: RealTime -> PSignal -> PSignal
-drop_before_at = modify . TimeVector.drop_before_at
-
-within :: RealTime -> RealTime -> PSignal -> PSignal
-within start end = modify $ TimeVector.within start end
-
--- * backported
-
-use_segment ::
-    (Segment.SignalS V.Vector Pitch -> Segment.SignalS V.Vector Pitch)
-    -> PSignal -> PSignal
-use_segment modify = PSignal . Segment.to_vector . modify
-    . Segment.from_vector . sig_vec
-
--- drop_after, drop_before :: RealTime -> PSignal -> PSignal
--- drop_after x = use_segment $ Segment.drop_after x
--- drop_before x = use_segment $ Segment.drop_before x
-
-clip_after, clip_before :: RealTime -> PSignal -> PSignal
-clip_after x = use_segment $ Segment.clip_after flat_interpolate x
-clip_before x = use_segment $ Segment.clip_before flat_interpolate x
-
--- | A pitch interpolated a certain distance between two other pitches.
-flat_interpolate :: Segment.Interpolate y
-flat_interpolate (Sample _ p1) (Sample x2 p2) x
-    | x < x2 = p1
-    | otherwise = p2
-
-drop_discontinuity_at :: RealTime -> PSignal -> PSignal
-drop_discontinuity_at x sig
-    | Nothing <- sample_at x sig = sig
-    | otherwise = drop_at_after x sig <> drop_before_at x sig
 
 -- * transform
 
-type ControlMap = Map Score.Control Score.TypedControl
+drop_after, drop_before :: RealTime -> PSignal -> PSignal
+drop_after x = modify $ Segment.drop_after x
+drop_before x = modify $ Segment.drop_before x
 
--- | Resample the signal according to the 'sig_transposers' and apply the
--- given controls to the signal.
+clip_after, clip_before :: RealTime -> PSignal -> PSignal
+clip_after x = modify $ Segment.clip_after interpolate x
+clip_before x = modify $ Segment.clip_before interpolate x
+
+shift :: RealTime -> PSignal -> PSignal
+shift x = modify (Segment.shift x)
+
+type ControlMap = Map Score.Control (ScoreTypes.Typed Signal.Control)
+
+-- | Resample the signal according to the 'sig_transposers' and apply the given
+-- controls to the signal.
 --
 -- Controls are /added/ so if this is not correct for a given control then
--- this will do the wrong thing.  Transpose signals are probably mostly
--- additive so it'll be ok as long as you only apply transposing signals
--- and only apply the complete ControlMap once at the end (i.e.
--- "Perform.Midi.Convert").
+-- this will do the wrong thing.  Transpose signals should be additive so it'll
+-- be ok as long as you only apply transposing signals and only apply the
+-- complete ControlMap once at the end (i.e. "Perform.Midi.Convert").
 apply_controls :: ControlMap -> PSignal -> PSignal
-apply_controls controls sig
-    | Just (x, _) <- head sig = sig { sig_vec = resample x }
-    | otherwise = sig
+apply_controls cmap psig = case Seq.head (to_pairs psig) of
+    Nothing -> mempty
+    Just (start, _) -> make1 start
     where
-    resample x = TimeVector.sig_op_poly initial_controls initial_pitch
-        (\vmap -> coerce . apply vmap)
-        (sample_controls x (trim x controls) (sig_transposers sig))
-        (sig_vec sig)
-    trim = fmap . fmap . Signal.drop_before
-    Sample start initial_pitch = V.unsafeHead (sig_vec sig)
-    initial_controls = controls_at start controls
+    make1 start = from_pairs $ drop1 $
+        mapMaybe make $ zip3 xs pitch_resamples control_resamples
+        where
+        -- Discard transpose samples before the pitch starts.  The
+        -- Signal.at_after below should ensure there is at most one of these,
+        -- plus one for the transition from zero added by
+        -- 'Segment.add_zero_transition'.
+        make (_, Nothing, _) = Nothing
+        make (x, Just pitch, controls) = Just $ (x,) $ coerce $ apply cmap pitch
+            where
+            cmap = Map.fromAscList (zip control_names controls)
+                <> controls_at x non_transposers
+        control_resamples
+            | List.null control_samples = replicate (length xs) []
+            | otherwise = Seq.rotate $
+                map (Segment.resample_num xs) control_samples
+        pitch_resamples =
+            Segment.resample_maybe interpolate xs $ to_samples psig
+        control_samples =
+            map (Segment.add_zero_transition 0 . Signal.to_samples
+                    . Signal.drop_before start)
+                control_signals
+        ((control_names, control_signals), non_transposers) =
+            unzip_controls psig cmap
 
--- | Sample the ControlMap on the sample points of the given set of controls.
-sample_controls :: RealTime -> ControlMap -> Set Score.Control
-    -> TimeVector.Boxed Score.ControlValMap
-sample_controls start controls transposers =
-    TimeVector.signal $ zip xs (map (flip controls_at controls) xs)
+        xs = Segment.sample_xs (pitch_xs : control_xs)
+        pitch_xs = map Segment.sx $ to_samples psig
+        control_xs = map (map Signal.sx) control_samples
+    -- If the control and pitch starts at the same place, I'll get an extra
+    -- pre-transposed pitch.  It's just confusing clutter, especially if the
+    -- transpose is invalid, at which point I'm just left with the original
+    -- pitch.
+    drop1 ((x1, _) : xs@((x2, _) : _)) | x1 == x2 = xs
+    drop1 xs = xs
+
+-- | Separate transposing from non-transposing controls.
+--
+-- This discards the ScoreTypes.Type, since 'apply' doesn't use that.  The
+-- usual type distinctions like chromatic or diatonic instead get separate
+-- controls.
+unzip_controls :: PSignal -> ControlMap
+    -> (([Score.Control], [Signal.Control]), ControlMap)
+unzip_controls psig cmap =
+    ( second (map ScoreTypes.typed_val) (unzip transposers)
+    , Map.fromAscList non_transposers
+    )
     where
-    xs = Seq.drop_dups id $ Seq.merge_lists id (map xs_of sigs)
-    sigs = mapMaybe (\c -> Map.lookup c controls) (Set.toList transposers)
-    -- dropWhile (<start) because the xs may start before the start time to
-    -- get initial values, but I don't want to extend the pitch signal to
-    -- before where it originally started.  This would cause a problem when
-    -- flattening a PSignal for the track signal, where a transpose signal
-    -- could cause every pitch signal fragment to start at 0.
-    xs_of = dropWhile (<start) . map fst . Signal.unsignal . Score.typed_val
-    -- If the tsigs are dense, then it's wasteful to keep looking up all
-    -- the values instead of stepping along in order, but if the tsigs are
-    -- sparse then it's probably more efficient to sample.  I expect in many
-    -- cases there will be 0 or 1 transposition values.
+    (transposers, non_transposers) =
+        List.partition ((`Set.member` sig_transposers psig) . fst) $
+        Map.toAscList cmap
+
+-- | Not exported, use the one in Derive.Score instead.
+controls_at :: RealTime -> ControlMap -> Map Score.Control Signal.Y
+controls_at t = Map.map (Signal.at t . Score.typed_val)
 
 -- | 'apply_controls' specialized for a single control.
-apply_control :: Score.Control -> Score.TypedControl -> PSignal -> PSignal
+apply_control :: Score.Control -> ScoreTypes.Typed Signal.Control
+    -> PSignal -> PSignal
 apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 -- | Apply an environ to all the pitches in the signal.  Unlike
 -- 'apply_controls', this doesn't have to resample the signal.
 apply_environ :: BaseTypes.Environ -> PSignal -> PSignal
-apply_environ env = modify $ TimeVector.map_y $ config (PitchConfig env mempty)
+apply_environ env =
+    modify $ Segment.map_y_linear $ apply_config (PitchConfig env mempty)
 
--- | Not exported, use the one in Derive.Score instead.
-controls_at :: RealTime -> ControlMap -> Score.ControlValMap
-controls_at t = Map.map (Signal.at t . Score.typed_val)
+map_y_linear :: (Pitch -> Pitch) -> PSignal -> PSignal
+map_y_linear = modify . Segment.map_y_linear
 
-map_y :: (Pitch -> Pitch) -> PSignal -> PSignal
-map_y = modify . TimeVector.map_y
+-- ** hacks
 
-prepend :: PSignal -> PSignal -> PSignal
-prepend s1 s2 = PSignal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
+drop_discontinuity_at :: RealTime -> PSignal -> PSignal
+drop_discontinuity_at x = modify $ Segment.drop_discontinuity_at x
+
 
 -- * Pitch
 
@@ -266,16 +266,18 @@ pitch_scale_id = pscale_scale_id . pitch_scale
 pitch_transposers :: Pitch -> Set Score.Control
 pitch_transposers = pscale_transposers . pitch_scale
 
-pitch_controls :: PitchConfig -> Score.ControlValMap
+pitch_controls :: PitchConfig -> Map Score.Control Signal.Y
 pitch_controls (PitchConfig _ controls) = controls
 
 -- | Apply a config to a pitch.
-config :: PitchConfig -> RawPitch a -> RawPitch b
-config c pitch = pitch { pitch_config = c <> pitch_config pitch }
+apply_config :: PitchConfig -> RawPitch a -> RawPitch b
+apply_config c pitch = pitch { pitch_config = c <> pitch_config pitch }
 
 -- | Apply just the controls part of a config to a pitch.
-apply :: Score.ControlValMap -> Pitch -> Transposed
-apply controls = config (PitchConfig mempty controls)
+apply :: Map Score.Control Signal.Y -> Pitch -> Transposed
+apply controls
+    | Map.null controls = coerce
+    | otherwise = apply_config (PitchConfig mempty controls)
 
 add_control :: Score.Control -> Double -> RawPitch a -> RawPitch a
 add_control control val pitch =

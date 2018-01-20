@@ -15,7 +15,6 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.C.Prelude.SignalTransform as SignalTransform
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -400,7 +399,7 @@ c_flat_start = generator1 "flat-start" mempty
         start <- Args.real_start args
         end <- get_end start time args
         pitch <- optional_pitch maybe_pitch <$> Call.get_pitch start
-        return $ PSignal.signal [(start, pitch), (end, pitch)]
+        return $ PSignal.from_pairs [(start, pitch), (end, pitch)]
 
 c_set_pitch :: Derive.Generator Derive.Pitch
 c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
@@ -410,7 +409,7 @@ c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
     $ Sig.call0 $ \args -> do
         start <- Args.real_start args
         pitch <- Call.get_pitch start
-        return $ PSignal.signal [(start, pitch)]
+        return $ PSignal.from_sample start pitch
 
 data PitchFrom = PitchFromPrev | PitchFromCurrent deriving (Eq, Show)
 data Fade = Fade | NoFade deriving (Eq, Show)
@@ -436,7 +435,7 @@ c_from pitch_from fade = generator1 "from" mempty
         let from = resolve_pitch args to_pitch from_pitch
         case fade of
             Fade -> ControlUtil.multiply_dyn end
-                =<< ControlUtil.make_segment id start 0 end 1
+                =<< ControlUtil.make_segment ControlUtil.Linear start 0 end 1
             NoFade -> return ()
         PitchUtil.make_segment curve start from end to_pitch
 
@@ -511,7 +510,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         let sig = jaru curve srate start time transition $
                 NonEmpty.toList intervals ++ if append_zero then [0] else []
         return $ PSignal.apply_control control (Score.untyped sig) $
-            PSignal.signal [(start, pitch)]
+            PSignal.from_sample start pitch
     where
     parse intervals
         | all (==control) controls = return (xs, control)
@@ -524,8 +523,8 @@ c_jaru append_zero = generator1 "jaru" mempty
 jaru :: ControlUtil.Curve -> RealTime -> RealTime -> RealTime -> RealTime
     -> [Signal.Y] -> Signal.Control
 jaru curve srate start time transition intervals =
-    SignalTransform.smooth curve srate (-transition) $
-        Signal.signal (zip (Seq.range_ start time) intervals)
+    ControlUtil.smooth curve srate (-transition) $
+        zip (Seq.range_ start time) intervals
 
 -- * middle
 
@@ -541,8 +540,7 @@ c_flat = generator1 "flat" mempty "Emit a flat pitch."
             Just transpose -> do
                 pitch <- Call.get_pitch start
                 return $ PitchUtil.resolve_pitch_transpose pitch transpose
-        return $ PSignal.signal [(start, pitch)]
-            <> PSignal.signal [(end, pitch)]
+        return $ PSignal.from_pairs [(start, pitch), (end, pitch)]
 
 -- ** kampita
 
@@ -651,8 +649,8 @@ kampita :: RealTime -> Derive.PitchArgs -> Score.Control -> Signal.Control
     -> Derive.Deriver PSignal.PSignal
 kampita start args control transpose = do
     pitch <- prev_pitch start args
-    return $ PSignal.apply_control control
-        (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
+    return $ PSignal.apply_control control (Score.untyped transpose) $
+        PSignal.from_sample start pitch
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
@@ -669,13 +667,13 @@ smooth_trill :: ControlUtil.Curve -> RealTime -> Typecheck.Function
     -> Typecheck.Function -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill curve time val1 val2 transitions = do
     srate <- Call.get_srate
-    return $ SignalTransform.smooth curve srate time $
+    return $ ControlUtil.smooth curve srate time $
         trill_from_transitions val1 val2 transitions
 
 -- | Make a trill signal from a list of transition times.
 trill_from_transitions :: Typecheck.Function -> Typecheck.Function
-    -> [RealTime] -> Signal.Control
-trill_from_transitions val1 val2 transitions = Signal.signal
+    -> [RealTime] -> [(RealTime, Signal.Y)]
+trill_from_transitions val1 val2 transitions =
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
@@ -711,7 +709,7 @@ c_flat_end = generator1 "flat-end" mempty
         (start, end) <- Args.real_range args
         start <- align_to_end start end time
         pitch <- optional_pitch maybe_pitch <$> prev_pitch start args
-        return $ PSignal.signal [(start, pitch), (end, pitch)]
+        return $ PSignal.from_pairs [(start, pitch), (end, pitch)]
 
 c_to :: Fade -> Derive.Generator Derive.Pitch
 c_to fade = generator1 "to" mempty "Go to a pitch, and possibly fade out."
@@ -725,9 +723,9 @@ c_to fade = generator1 "to" mempty "Go to a pitch, and possibly fade out."
         pitch <- prev_pitch start args
         case fade of
             Fade -> ControlUtil.multiply_dyn end
-                =<< ControlUtil.make_segment id start 1 end 0
+                =<< ControlUtil.make_segment ControlUtil.Linear start 1 end 0
             NoFade -> return ()
-        PitchUtil.make_segment id start pitch end
+        PitchUtil.make_segment ControlUtil.Linear start pitch end
             (PitchUtil.resolve_pitch_transpose pitch to_pitch)
 
 c_fade :: Bool -> Derive.Generator Derive.Pitch
@@ -742,7 +740,7 @@ c_fade fade_in = generator1 "fade" mempty
             then (,) <$> return start <*> get_end start time args
             else (,) <$> align_to_end start end time <*> return end
         ControlUtil.multiply_dyn end
-            =<< ControlUtil.make_segment id start 1 end 0
+            =<< ControlUtil.make_segment ControlUtil.Linear start 1 end 0
         return mempty
 
 -- | Subtract the duration from the given end time, but don't go past the

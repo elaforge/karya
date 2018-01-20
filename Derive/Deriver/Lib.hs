@@ -411,13 +411,9 @@ val_to_pitch (ValCall name doc vcall) = Call
             -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
             -- you can then override '', but is also less efficient.
             pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
-            return $ Stream.from_event $ PSignal.set (prev_pitch args) pos pitch
+            return $ Stream.from_event $ PSignal.from_sample pos pitch
         _ -> throw $ "scale call " <> pretty name
             <> " returned non-pitch: " <> ShowVal.show_val val
-    -- This is like Args.prev_pitch, but importing Args would make a circular
-    -- import.
-    prev_pitch = fmap snd . PSignal.last <=< from_tagged
-        <=< ctx_prev_val . passed_ctx
 
 -- | Run the a deriver with the given instrument in scope.  In addition to
 -- assigning the instrument to the 'EnvKey.instrument' field where note calls
@@ -696,12 +692,13 @@ eval_control_mods end deriver = do
         with_control_mods mods end deriver
 
 with_control_mods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
-with_control_mods mods end deriver = do
-    foldr ($) deriver (map apply mods)
+with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
     where
     apply (ControlMod control signal merger) =
         with_merged_control merger control $ Score.untyped $
-            Signal.drop_at_after end signal
+            Signal.clip_after end signal
+            -- TODO is clip_after necessary?  Document end better, with
+            -- a reference to a test which demonstrates the issue.
 
 -- ** pitch
 

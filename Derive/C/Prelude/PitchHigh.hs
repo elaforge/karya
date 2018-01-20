@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE LambdaCase #-}
 -- | Library of basic high level pitch calls.
 --
 -- High level calls do something a little more abstract and \"musical\"
@@ -92,7 +93,7 @@ make_note_fade name doc pitch_dir align align_fade =
                 Just (Typecheck.DefaultReal t) -> t
         ranges@((pitch_start, _), _) <- pitch_fade_ranges align align_fade
             fade time (Args.start args) (Args.end args)
-        Derive.pitch_at pitch_start >>= \x -> case x of
+        Derive.pitch_at pitch_start >>= \case
             Nothing -> deriver
             Just pitch -> do
                 (slide, dyn) <-
@@ -159,7 +160,7 @@ c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
     ) $ \(Typecheck.DefaultReal time, dyn, curve) args -> do
         (start, end) <- Call.duration_from_start args time
         ControlUtil.multiply_dyn end
-            =<< ControlUtil.make_segment id start 1 end dyn
+            =<< ControlUtil.make_segment ControlUtil.Linear start 1 end dyn
         Call.Pitch.approach args curve start end
 
 -- * fade implementation
@@ -175,7 +176,7 @@ pitch_fade align curve pitch pitch_dir interval
         ((pitch_start, pitch_end), (fade_start, fade_end)) =
     (,) <$> pitch_segment align curve (min pitch_start fade_start) pitch_start
                 pitch_end pitch interval pitch_dir
-        <*> segment id fade_start dyn1 fade_end dyn2
+        <*> segment ControlUtil.Linear fade_start dyn1 fade_end dyn2
     where
     (dyn1, dyn2) = case align of
         AlignStart -> (0, 1)
@@ -218,11 +219,12 @@ pitch_fade_ranges align align_fade fade_time pitch_time start end = do
                     (fade_start, fade_start + pitch_time)
     return ((pitch_start, pitch_end), (fade_start, fade_end))
 
-segment :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
+segment :: ControlUtil.Curve -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
-segment f x1 y1 x2 y2 = do
-    sig <- ControlUtil.make_segment f x1 y1 x2 y2
-    return $ Signal.signal [(0, y1)] <> sig
+segment curve x1 y1 x2 y2 = do
+    sig <- ControlUtil.make_segment curve x1 y1 x2 y2
+    -- TODO why do I need this leading sample?
+    return $ Signal.from_sample 0 y1 <> sig
 
 pitch_segment :: Align -> ControlUtil.Curve
     -> RealTime -- ^ start pitch at this time
@@ -236,11 +238,10 @@ pitch_segment align curve start0 start end pitch interval pitch_dir =
         -- If the pitch segment is at the start of the note, then I may need to
         -- override its base pitch with a flat segment.
         AlignStart -> (initial dest <>) <$>
-            PitchUtil.make_segment_ False True curve start dest end pitch
-        AlignEnd ->
-            PitchUtil.make_segment_ False True curve start pitch end dest
+            PitchUtil.make_segment_ True curve start dest end pitch
+        AlignEnd -> PitchUtil.make_segment_ True curve start pitch end dest
     where
-    initial p = PSignal.signal [(start0, p)]
+    initial p = PSignal.from_sample start0 p
     dest = case interval of
         Left degrees -> Pitches.transpose (negate_interval degrees) pitch
         Right p -> p

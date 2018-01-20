@@ -30,7 +30,7 @@ test_compile = do
         ["*unknown scale: bogus-scale"]
 
     let mkcont vals = Map.union Derive.initial_controls
-            (Map.singleton "c1" (Score.untyped (Signal.signal vals)))
+            (Map.singleton "c1" (Score.untyped (Signal.from_pairs vals)))
         no_pitch = []
     let (events, logs) = derive
             [ ("*", [(0, 0, ".1")])
@@ -49,9 +49,11 @@ test_compile = do
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay
     -- wants to change pitch.
+    -- TODO well, not any more.  Since segments are continuous now, it's up to
+    -- the performer to clip at the end time.
     equal (pitches events)
         [ [(0, 60)]
-        , [(2, 62), (3, 63)]
+        , [(2, 62), (4, 64)]
         , [(4, 64)]
         ]
 
@@ -91,7 +93,7 @@ test_pitch_map_pitch = do
             then Args.lookup_next_pitch args
             else Args.lookup_prev_pitch args
         start <- Args.real_start args
-        return $ PSignal.signal $ maybe [] (\p -> [(start, p)]) pitch
+        return $ PSignal.from_pairs $ maybe [] (\p -> [(start, p)]) pitch
 
 test_control_call = do
     let run tracks = DeriveTest.extract extract $ DeriveTest.derive_blocks

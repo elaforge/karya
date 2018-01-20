@@ -21,8 +21,8 @@ import qualified Derive.Flags as Flags
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
 
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Types as Types
-import qualified Perform.Signal as Signal
 import qualified Instrument.Common as Common
 import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.Kontakt.ScGamelan as ScGamelan
@@ -369,7 +369,7 @@ test_nyog_instrument_override = do
         extract ((pevents, _), logs) = (map e_event pevents, logs)
         e_event e =
             ( pretty $ Types.patch_name (Types.event_patch e)
-            , head $ Signal.unsignal $ Types.event_pitch e
+            , head $ MSignal.to_pairs $ Types.event_pitch e
             )
     -- The instrument brings tuning along with it, so I match the patch scale
     -- for both polos umbang and sangsih isep.

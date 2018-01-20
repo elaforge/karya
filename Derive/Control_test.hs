@@ -5,7 +5,6 @@
 module Derive.Control_test where
 import qualified Data.Map as Map
 
-import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
@@ -50,18 +49,18 @@ test_back_to_back_controls = do
     let run events = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks ""
                 [(">", [(0, 2, ""), (2, 2, "")]), ("c", events)]
-    equal (run [(0, 0, "0"), (2, 0, "i 2")]) ([[(0, 0), (1, 1)], [(2, 2)]], [])
+    equal (run [(0, 0, "0"), (2, 0, "i 2")]) ([[(0, 0), (2, 2)], [(2, 2)]], [])
     equal (run [(0, 0, "0"), (2, -0, "i 2"), (2, 0, "4")])
-        ([[(0, 0), (1, 1)], [(2, 4)]], [])
+        ([[(0, 0), (2, 2)], [(2, 4)]], [])
 
 test_back_to_back_pitches = do
     let run events = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks ""
                 [(">", [(0, 2, ""), (2, 2, "")]), ("*", events)]
     equal (run [(0, 0, "4c"), (2, 0, "i (4d)")])
-        ([[(0, NN.c4), (1, NN.cs4)], [(2, NN.d4)]], [])
+        ([[(0, NN.c4), (2, NN.d4)], [(2, NN.d4)]], [])
     equal (run [(0, 0, "4c"), (2, -0, "i (4d)"), (2, 0, "4f")])
-        ([[(0, NN.c4), (1, NN.cs4)], [(2, NN.f4)]], [])
+        ([[(0, NN.c4), (2, NN.d4)], [(2, NN.f4)]], [])
 
 test_hex = do
     let run events = derive (DeriveTest.e_control "cont") ("cont", events)
@@ -71,34 +70,32 @@ test_hex = do
 test_track_expression = do
     let run = derive (DeriveTest.e_control "cont")
     equal (run ("cont", [(0, 0, "0"), (4, 0, "i 1")]))
-        ([[(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]], [])
-    equal (run ("cont | srate = 2", [(0, 0, "0"), (4, 0, "i 1")]))
+        ([[(0, 0), (4, 1)]], [])
+    equal (run ("cont | sh .5", [(0, 0, "0"), (4, 0, "i 1")]))
         ([[(0, 0), (2, 0.5), (4, 1)]], [])
 
     let run_pitch = derive DeriveTest.e_nns
-    equal (run_pitch ("*twelve | srate = 2",
-            [(0, 0, "4c"), (4, 0, "i (4d)")]))
-        ([[(0, 60), (2, 61), (4, 62)]], [])
+    equal (run_pitch ("* | sh .5", [(0, 0, "4c"), (4, 0, "i (4d)")]))
+        ([[(0, NN.c4), (2, NN.cs4), (4, NN.d4)]], [])
 
 test_derive_control = do
-    let ex (sig, logs) = (Signal.unsignal sig, map DeriveTest.show_log logs)
+    let ex (sig, logs) = (Signal.to_pairs sig, map DeriveTest.show_log logs)
     let run events = DeriveTest.extract_run ex $
             DeriveTest.run Ui.empty $ Derive.with_default_imported $
             Control.derive_control False (mktrack 10 events) id
     equal (run [(0, 0, "1"), (1, 0, "2")])
-        (Right ([(0, 1), (1, 2)], []))
+        (Right ([(0, 1), (1, 1), (1, 2)], []))
     equal (run [(0, 0, "1"), (2, 0, "i 2")])
-        (Right ([(0, 1), (1, 1.5), (2, 2)], []))
+        (Right ([(0, 1), (2, 2)], []))
     equal (run [(0, 0, "1"), (2, 0, "i 2"), (4, 0, "i 1")])
-        (Right ([(0, 1), (1, 1.5), (2, 2), (3, 1.5), (4, 1)], []))
+        (Right ([(0, 1), (2, 2), (4, 1)], []))
 
     -- evaluation continues after an error
     equal (run [(0, 0, "1"), (1, 0, "def")])
         (Right ([(0, 1)],
             ["Error: control generator not found: def"]))
     equal (run [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
-        (Right ([(0, 1), (1, 1.5), (2, 2)],
-            ["Error: control generator not found: def"]))
+        (Right ([(0, 1), (2, 2)], ["Error: control generator not found: def"]))
 
 mktrack :: ScoreTime -> [UiTest.EventSpec] -> TrackTree.Track
 mktrack events_end events = TrackTree.make_track ">" evts events_end
@@ -121,25 +118,7 @@ test_pitch_track = do
     equal (run ("*twelve", [(0, 0, "4c"), (1, 0, "4d")]))
         ([[(0, 60), (1, 62)]], [])
     equal (run ("*twelve", [(0, 0, "4c"), (2, 0, "i (4d)")]))
-        ([[(0, 60), (1, 61), (2, 62)]], [])
-
--- This is broken by NOTE [signal-discontinuity]
--- test_merge_interleave = do
---     let run ns ps1 ps2 = DeriveTest.extract DeriveTest.e_nns $
---             DeriveTest.derive_tracks ""
---                 [(">", ns), ("*", ps1), ("* interleave", ps2)]
---     -- The second track wins.
---     equal (run [(0, 8, "")] [(0, 0, "4c"), (1, 0, "4d")] [(0, 0, "4e")])
---         ([[(0, NN.e4), (1, NN.d4)]], [])
---     -- No leaking from neighbor pitches.
---     equal (run [(0, 1, ""), (1, 1, "")]
---             [(0, 0, "4c"), (1, 0, "4d")]
---             [(1, 0, "4f")])
---         ([[(0, NN.c4)], [(1, NN.f4)]], [])
---     equal (run [(0, 1, ""), (1, 1, ""), (2, 1, "")]
---             [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
---             [(1, 0, "4f")])
---         ([[(0, NN.c4)], [(1, NN.f4)], [(2, NN.e4)]], [])
+        ([[(0, 60), (2, 62)]], [])
 
 test_control_merge = do
     let run suf add_suf = extract $ DeriveTest.derive_tracks ""
@@ -225,21 +204,18 @@ test_stash_signal = do
     let run tracks = e_tsigs $ DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
     let tsig samples p x = (samples, p, x)
-    let end = RealTime.score UiTest.default_block_end
 
     equal (run [ctrack, itrack]) [(csig, 0, 1)]
     -- Constant tempo stretches track sig.
     -- Tempo track itself is unstretched.
-    -- Extra sample at the end of the tempo track due to the
-    -- 'Tempo.extend_signal' hack.
     equal (run [("tempo", [(0, 0, "2")]), ctrack, itrack]) $
-        [ tsig [(0, 2), (end, 2)] 0 1
+        [ tsig [(0, 2)] 0 1
         , tsig [(0, 1), (0.5, 0)] 0 0.5
         ]
 
     -- But a complicated tempo makes it unwarp so output is still in RealTime.
     equal (run [("tempo", [(0, 0, "2"), (4, 0, "i 1")]), ctrack, itrack])
-        [ tsig [(0, 2), (1, 1.75), (2, 1.5), (3, 1.25), (4, 1), (end, 1)] 0 1
+        [ tsig [(0, 2), (4, 1)] 0 1
         , tsig [(0, 1), (1, 0)] 0 1
         ]
 
@@ -275,7 +251,7 @@ test_signal_fragments = do
             [ (">", [(0, 4, ""), (4, 4, "")])
             , ("dyn", [(0, 0, "0"), (8, 0, "i 1")])
             ])
-        [([(t, RealTime.to_seconds t / 8) | t <- Seq.range 0 8 1], 0, 1)]
+        [([(0, 0), (8, 1)], 0, 1)]
 
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
@@ -297,4 +273,4 @@ e_tsig_tracks :: Derive.Result
 e_tsig_tracks = map (second extract) . Map.toList . Derive.r_track_signals
     where
     extract (Track.TrackSignal sig shift stretch) =
-        (Signal.unsignal_unique sig, shift, stretch)
+        (Signal.to_pairs_unique sig, shift, stretch)

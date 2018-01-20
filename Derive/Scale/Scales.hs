@@ -262,7 +262,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
             controls <- Derive.controls_at =<< Derive.real pos
             nn <- Derive.require_right (("evaluating pitch: "<>) . pretty) $
                 PSignal.pitch_nn $
-                PSignal.config (PSignal.PitchConfig env controls) pitch
+                PSignal.apply_config (PSignal.PitchConfig env controls) pitch
             return $ Right nn
     where
     get_call env = do

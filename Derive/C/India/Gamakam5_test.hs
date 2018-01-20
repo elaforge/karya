@@ -27,29 +27,16 @@ test_call_maps = do
 -- * pitch
 
 test_sequence = do
-    let run c = derive_tracks DeriveTest.e_nns_rounded $
+    let run c = derive_tracks DeriveTest.e_nns_literal $
             make_2notes (4, "--|") (2, c)
-        output nns = ([[(0, NN.c4)], nns, [(6, NN.e4)]], [])
-    let tracks =
-            [ (">", [(0, 4, ""), (4, 2, ""), (6, 2, "")])
-            , ("*", [(0, 0, "4c"), (4, 0, "4d"), (6, 0, "4e")])
-            , ("t-nn | gamak", [(0, 0, "--|"), (4, 0, "!^=")])
-            ]
-    putStrLn $ untxt $ UiTest.fmt_tracks tracks
-    pprint (derive_tracks DeriveTest.e_nns_rounded tracks)
-    -- let out =
-    --         ( [ [(0, 60 nn)]
-    --           , [(4, 62 nn), (4, 62 nn)]
-    --           , [(6, 62 nn), (6, 64 nn)]
-    --           ]
-    --         , []
-    --         )
+        output nns = ([[(0, NN.c4), (4, NN.c4)], nns, [(6, NN.e4)]], [])
+    putStrLn $ untxt $ UiTest.fmt_tracks $ make_2notes (4, "--|") (2, "X")
 
-    equal (run "!^=") (output [(4, 62)])
-    equal (run "!T10") (output [(4, 63), (5, 62.5)])
-    equal (run "!-1") (output [(4, NN.c4), (5, NN.c4)])
-    equal (run "!Ta0") (output [(4, 60), (5, 61)])
-    equal (run "!Ta=") (output [(4, 60)])
+    equal (run "!^=") (output [(4, NN.d4), (6, NN.d4)])
+    equal (run "!T10") (output [(4, 63), (5, 62.5), (6, 62)])
+    equal (run "!-1") (output [(4, NN.c4), (6, NN.c4)])
+    equal (run "!Ta0") (output [(4, 60), (5, 61), (6, 62)])
+    equal (run "!Ta=") (output [(4, NN.c4), (6, NN.c4)])
 
 test_sequence_multiple = do
     -- Test multiple sequence calls under one note.
@@ -77,11 +64,16 @@ test_parse_pitch_sequence = do
         Right [CallArg '1' "", PitchGroup [CallArg '0' "", CallArg '1' ""]]
 
 test_postfix = do
-    let run = derive_tracks DeriveTest.e_nns_rounded . make_2notes (4, "--|")
+    let run = derive_tracks DeriveTest.e_nns_literal . make_2notes (4, "--|")
     strings_like (snd $ run (4, "!_==1_"))
         (replicate 2 "postfix call with no preceding call")
     equal (run (4, "!T0==1_"))
-        ([[(0, 60)], [(4, 62), (5, 62), (6, 62), (7, 63)], [(8, 64)]], [])
+        ( [ [(0, 60), (4, 60)]
+          , [(4, 62), (5, 62), (6, 62), (7, 63), (8, 64)]
+          , [(8, 64)]
+          ]
+        , []
+        )
 
 test_resolve_postfix = do
     let f = fmap (map extract) . Gamakam.resolve_postfix . map make
@@ -96,23 +88,27 @@ test_resolve_postfix = do
     equal (f "x__.") (Right [('x', 1.5)])
 
 test_prev_pitch = do
-    let run = derive_tracks DeriveTest.e_nns_rounded
+    let run = derive_tracks DeriveTest.e_nns_literal
     -- Prev pitch comes from previous call.
     equal (run $ note_pitch_gamakam
             [(0, 2, "")]
             [(0, 0, "4c")]
             [(0, 0, "!T1="), (1, 0, "!=")])
-        ([[(0, NN.cs4), (1, NN.cs4), (2, NN.cs4)]], [])
+        ([[(0, NN.cs4), (1, NN.cs4)]], [])
     -- Prev pitch comes from prev event.
     equal (run (make_2notes (4, "--|") (2, "!-1")))
-        ([[(0, NN.c4)], [(4, NN.c4), (5, NN.c4)], [(6, NN.e4)]], [])
+        ([[(0, NN.c4), (4, NN.c4)], [(4, NN.c4), (6, NN.c4)], [(6, NN.e4)]], [])
     -- Prev pitch comes from the parent pitch track.
     equal (run $ note_pitch_gamakam
             [(0, 1, ""), (1, 2, "")]
             [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
             [(0, 0, "!T1="), (2, 0, "!0")])
         -- T1 is 4c#, then set to 4d, and come from 4d to 4e.
-        ([[(0, NN.cs4)], [(1, NN.d4), (2, NN.d4), (3, NN.e4)]], [])
+        ( [ [(0, NN.cs4), (1, NN.cs4)]
+          , [(1, NN.d4), (2, NN.d4), (2, NN.e4), (3, NN.e4)]
+          ]
+        , []
+        )
 
     -- TODO
     -- equal (run $ note_pitch_gamakam
@@ -151,10 +147,10 @@ test_note_end = do
             , ("t-nn | gamak | transition=1", [(0, 0, "!1"), (8, 0, "--|")])
             , ("dyn | dyn", [(0, 0, "!<")])
             ]
-    -- Transition is up to 4, not 8.
-    equal (DeriveTest.extract DeriveTest.e_nns_rounded result)
-        ( [ [(0, 60), (1, 60.5), (2, 61), (3, 61.5)]
-          , [(0, 60), (4, 62)]
+    -- Transition is up to 4, not 8, because the note ends at 4.
+    equal (DeriveTest.extract DeriveTest.e_nns_literal result)
+        ( [ [(0, 60), (1, 60.5), (2, 61), (3, 61.5), (4, 62)]
+          , [(0, 60), (4, 60), (4, 62)]
           ]
         , []
         )
@@ -185,12 +181,12 @@ test_parse_dyn_sequence = do
     equal (f "T9>") $ Right [Call 'T' "9", Call '>' ""]
 
 test_dyn_sequence = do
-    let run call1 call2 = derive_tracks DeriveTest.e_dyn_rounded $
+    let run call1 call2 = derive_tracks DeriveTest.e_dyn_literal $
             make_dyn_tracks (4, call1) (4, call2)
     equal (run ".5" "!=") ([[(0, 0.5)], [(4, 0.5)], [(4, 0.5)]], [])
     equal (run ".5" "!=>")
         ([ [(0, 0.5)]
-         , [(4, 0.5), (6, 0.5), (7, 0.42)]
+         , [(4, 0.5), (6, 0.5), (7, 0.42), (8, 0)]
          , [(8, 0)]
          ], [])
     equal (run ".5" "!<=")

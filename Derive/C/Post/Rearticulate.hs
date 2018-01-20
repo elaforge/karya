@@ -9,7 +9,6 @@ import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -54,16 +53,23 @@ slur_n srate group curve = Stream.from_sorted_list . go . Stream.to_list
             ++ LEvent.Event (slur srate curve e es) : go post
 
 slur :: RealTime -> CurveTime -> Score.Event -> [Score.Event] -> Score.Event
-slur srate curve event events = event
-    { Score.event_duration = dur
-    , Score.event_pitch = pitch
-    }
-    where
-    pitch = slur_pitch srate curve (bracket_pitch event)
-        (map bracket_pitch events)
-    dur = Score.event_end (fromMaybe event (Seq.last events))
-        - Score.event_start event
+slur _srate _curve event _events = event
+-- slur srate curve event events = event
+--     { Score.event_duration = dur
+--     , Score.event_pitch = pitch
+--     }
+--     where
+--     pitch = slur_pitch srate curve (bracket_pitch event)
+--         (map bracket_pitch events)
+--     dur = Score.event_end (fromMaybe event (Seq.last events))
+--         - Score.event_start event
 
+slur_pitch :: RealTime -> CurveTime -> PSignal.PSignal -> [PSignal.PSignal]
+    -> PSignal.PSignal
+slur_pitch srate (curve, time) sig sigs = undefined
+-- slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
+
+{-
 slur_pitch :: RealTime -> CurveTime -> PSignal.PSignal -> [PSignal.PSignal]
     -> PSignal.PSignal
 slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
@@ -85,7 +91,28 @@ slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
         let start = max (mid x0 x1) (mid x1 x2 - time / 2)
             end = min (mid x2 x3) (mid x1 x2 + time / 2)
         return $ PitchUtil.interpolate_segment srate curve False start y1 end y2
+-}
 
+{-
+    This uses bracket to put samples at event start and end.
+    Then make transition curves from last, limited by the last sample of the
+    next section.
+    Then merge them so the transitions chop off the starts of the pitches.
+
+    With segments:
+    For each event:
+        transition from start (prev.pitch `at` event.start)
+            to end (event.pitch `at` event.start)
+
+        clip_before event.pitch to the end of the transition, and merge with
+        transition (this is instead of prepend)
+    mconcat all
+
+    The difference is I have to keep event boundaries around instead of using
+    samples.  Segments have starts, but no end.
+-}
+
+{-
 bracket_pitch :: Score.Event -> PSignal.PSignal
 bracket_pitch event =
     bracket (Score.event_start event) (Score.event_end event) $
@@ -104,6 +131,7 @@ bracket start end = set_end . set_start . PSignal.within start end
             | x RealTime.== end -> sig
             | otherwise -> sig <> PSignal.signal [(end, y)]
         Nothing -> sig
+-}
 
 -- | 'splitAt' for LEvents.
 split_events :: Int -> [LEvent.LEvent a]

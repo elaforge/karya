@@ -68,7 +68,7 @@ starts speed (start_, end_) include_end = do
 
 -- | Get start times for a changing speed.  The difference with 'starts' is
 -- that the start and end speeds can be different types.
-starts_curve :: ControlUtil.Curve -> Speed -> Speed -> (RealTime, RealTime)
+starts_curve :: ControlUtil.CurveF -> Speed -> Speed -> (RealTime, RealTime)
     -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
 starts_curve curve start_speed end_speed (start, end) include_end = do

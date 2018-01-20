@@ -96,18 +96,30 @@ identity :: Warp
 identity = WarpLinear (Linear 0 1)
 
 signal_identity :: Warp
-signal_identity = from_signal $ Signal.signal
+signal_identity = from_signal $ Signal.from_pairs
     [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
 
 -- | Create a Warp from a signal and its inverse.  This assumes the signal
 -- is monotonically increasing.
--- TODO error on empty signal?
+--
+-- Times <0 always pass through unchanged.  This is because warps start at 0,
+-- since tracks start at 0, but events may be moved before it.  Since there's
+-- no tempo data there, I need to make something up, and I might as well make
+-- up id.
+-- TODO error on empty signal? or id?
 from_signal :: Signal.Warp -> Warp
 from_signal signal = WarpFunction $ Function
-    { _warp = RealTime.seconds . flip Signal.at_linear_extend signal . to_real
-    , _unwarp = ScoreTime.double . flip Signal.at_linear_extend inverted
+    { _warp = forward
+    , _unwarp = backward
     }
-    where inverted = Signal.invert signal
+    where
+    forward t
+        | t < 0 = to_real t
+        | otherwise = RealTime.seconds $ Signal.at (to_real t) signal
+    backward t
+        | t < 0 = to_score t
+        | otherwise = ScoreTime.double $ Signal.at t inverted
+        where inverted = Signal.invert signal
 
 compose :: Warp -> Warp -> Warp
 compose (WarpLinear (Linear shift1 stretch1))

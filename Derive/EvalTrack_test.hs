@@ -80,10 +80,10 @@ test_threaded_last_val = do
                 where events = zip (Seq.range_ 0 1) notes
         with_calls = CallTest.with_control_generator "prev" c_prev
     equal (run ["1", "prev"])
-        ([[(0, 1), (0.75, 0.75)], [(1, 1), (1.25, 1.25)]], [])
+        ([[(0, 1), (0.75, 0.75), (1, 1)], [(1, 1), (1.25, 1.25)]], [])
     equal (run ["1", "prev", "prev"])
-        ( [ [(0, 1), (0.75, 0.75)]
-          , [(1, 1), (1.25, 1.25), (1.75, 1)]
+        ( [ [(0, 1), (0.75, 0.75), (1, 1)]
+          , [(1, 1), (1.25, 1.25), (1.75, 1), (2, 1.25)]
           , [(2, 1.25), (2.25, 1.5)]
           ], [])
     where
@@ -93,7 +93,7 @@ test_threaded_last_val = do
         Just (x, y) -> do
             start <- Args.real_start args
             -- Log.warn $ show (start, (x, y))
-            return $ Signal.signal $ if start > x
+            return $ Signal.from_pairs $ if start > x
                 then [(start - 0.25, y - 0.25), (start, y),
                     (start + 0.25, y + 0.25)]
                 else []
@@ -163,14 +163,14 @@ test_environ_across_tracks = do
             DeriveTest.derive_tracks "" ((">", [(0, 10, "")]) : tracks)
 
     -- first make sure srate works as I expect
-    let interpolated = [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
-    equal (run [("cont", [(0, 0, "0"), (4, 0, "i 1")])])
+    let interpolated = [(0, 0), (1, 0.0625), (2, 0.25), (3, 0.5625), (4, 1)]
+    equal (run [("cont", [(0, 0, "0"), (4, 0, "e 1")])])
         ([interpolated], [])
-    equal (run [("cont set | srate = 2", [(1, 0, "0"), (5, 0, "i 1")])])
-        ([[(1, 0), (3, 0.5), (5, 1)]], [])
+    equal (run [("cont set | srate = 2", [(1, 0, "0"), (5, 0, "e 1")])])
+        ([[(1, 0), (3, 0.25), (5, 1)]], [])
 
     -- now make sure srate in one track doesn't affect another
-    let cont = ("cont", [(0, 0, "0"), (4, 0, "i 1")])
+    let cont = ("cont", [(0, 0, "0"), (4, 0, "e 1")])
     equal (run [("cont2 | srate = 2", []), cont])
         ([interpolated], [])
     equal (run [cont, ("cont2 | srate = 2", [])])
@@ -291,7 +291,7 @@ test_track_dynamic = do
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             ]
-    let e_dyn dyn = Signal.unsignal . Score.typed_val <$>
+    let e_dyn dyn = Signal.to_pairs . Score.typed_val <$>
             Map.lookup Controls.dynamic (Derive.state_controls dyn)
         e_scale = env_lookup EnvKey.scale . Derive.state_environ
         all_tracks = [(block_id, n) | n <- [1..5]]
@@ -318,7 +318,7 @@ test_track_dynamic_consistent = do
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
         e_env = env_lookup "env" . Derive.state_environ
-        e_control = fmap (Signal.unsignal . Score.typed_val) . Map.lookup "c"
+        e_control = fmap (Signal.to_pairs . Score.typed_val) . Map.lookup "c"
             . Derive.state_controls
     -- %c is only set in the env=b branch, so it shouldn't be set when env=a.
     equal (run e_env) (Just "a")
@@ -376,7 +376,7 @@ test_note_end = do
         (start, end) <- Args.range_or_note_end args
         start <- Derive.real start
         end <- Derive.real end
-        return $ Signal.signal [(start, 0), (end, 1)]
+        return $ Signal.from_pairs [(start, 0), (end, 1)]
 
 -- * test orphans
 

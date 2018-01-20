@@ -11,7 +11,6 @@ import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Vector.Storable as Vector
 
 import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
@@ -589,6 +588,6 @@ track_control block_id track_id pos =
     show_val ctype sig = case ctype of
         ParseTitle.Tempo {} -> ShowVal.show_val
         _
-            | Vector.any ((\y -> y < -1 || y > 1) . Signal.sy)
-                (Signal.sig_vec sig) -> ShowVal.show_val
+            | Signal.minimum sig < -1 || Signal.maximum sig > 1 ->
+                ShowVal.show_val
             | otherwise -> ShowVal.show_hex_val

@@ -61,7 +61,7 @@ convertNote :: Guitar.Instrument -> Note.Note -> Either Error Note
 convertNote inst note = first ((pretty note <> ": ")<>) $ do
     let get c = tryJust ("no " <> pretty c) $ Map.lookup c (Note.controls note)
     let getStart c = tryJust ("no value: " <> pretty c)
-            . Signal.at (Note.start note) =<< get c
+            . Signal.at_maybe (Note.start note) =<< get c
     pitch <- get Control.pitch
     finger <- get Patch.c_finger
     dyn <- getStart Control.dynamic
@@ -87,8 +87,7 @@ muteNote :: RealTime.RealTime -> Note -> Note
 muteNote start note = note
     { _start = start
     , _pitch = Signal.constant $
-        fromMaybe 0 (Signal.at (_start note) (_pitch note))
-            + Pitch.nn_to_double muteOffset
+        Signal.at (_start note) (_pitch note) + Pitch.nn_to_double muteOffset
     , _finger = Signal.constant 0.01
     , _dynamic = 0
     , _location = 0
@@ -131,9 +130,8 @@ collectFingers = collect . Seq.keyed_group_stable _string
         let startDur n = (_start n, _duration n)
         unless (null overlaps) $
             Left $ "overlaps: " <> pretty (map (startDur *** startDur) overlaps)
-        let pitch = Signal.merge_segments [(_start n, _pitch n) | n <- notes]
-            fingerWeight =
-                Signal.merge_segments [(_start n, _finger n) | n <- notes]
+        let pitch = merge_segments [(_start n, _pitch n) | n <- notes]
+            fingerWeight = merge_segments [(_start n, _finger n) | n <- notes]
         return
             ( filter ((>0) . Guitar.nAmplitude) $ map (makeNote string) notes
             , makeFinger string notes pitch fingerWeight
@@ -149,8 +147,11 @@ collectFingers = collect . Seq.keyed_group_stable _string
     makeFinger string notes pitch fingerWeight = Guitar.Finger
         { fString = Guitar.sName string
         , fInitial = (0, 0)
-        , fMovement = fingerMovement2 string notes pitch fingerWeight
+        , fMovement = fingerMovement string notes pitch fingerWeight
         }
+
+merge_segments :: [(RealTime.RealTime, Signal.Signal)] -> Signal.Signal
+merge_segments = mconcat . map (uncurry Signal.clip_before)
 
 deoverlap :: [Note] -> [Note]
 deoverlap = map trim . Seq.zip_next
@@ -160,10 +161,10 @@ deoverlap = map trim . Seq.zip_next
         | _end n > _start next = n { _duration = _start next - _start n }
         | otherwise = n
 
-fingerMovement2 :: Guitar.String -> [Note] -> Signal.Signal -> Signal.Signal
+fingerMovement :: Guitar.String -> [Note] -> Signal.Signal -> Signal.Signal
     -> [(Seconds, Location, Newtons)]
-fingerMovement2 string notes pitch fingerWeight =
-    concat $ snd $ List.mapAccumL note (Signal.unsignal pitch)
+fingerMovement string notes pitch fingerWeight =
+    concat $ snd $ List.mapAccumL note (Signal.to_pairs pitch)
         (Seq.zip_next notes)
     where
     note pitches (note, nextNote) =
@@ -181,9 +182,7 @@ fingerMovement2 string notes pitch fingerWeight =
         initial = pitchAt attack
         -- Extend the last sample since karya assumes it's constant after the
         -- end, but the pitch of multiple notes have been joined.
-        -- TODO shouldn't Signal.merge_segments have fixed it?  I guess not,
-        -- if I am filtering samples here.  Signal segment refactor can't come
-        -- soon enough!
+        -- TODO see if this is fixed now
         here = case Seq.viewr pitches of
             Just (ps, (t, p))
                 | t < nextAttack -> ps ++ [(t, p), (nextAttack, p)]
@@ -196,8 +195,8 @@ fingerMovement2 string notes pitch fingerWeight =
             then 0 else weightAt t * maxAmp
         )
         where stringNn = Guitar.sNn string
-    weightAt t = fromMaybe 0 $ Signal.at t fingerWeight
-    pitchAt t = fromMaybe 0 $ Signal.at t pitch
+    weightAt t = Signal.at t fingerWeight
+    pitchAt t = Signal.at t pitch
     -- Time before the note to move the finger.
     prepare = 0.05
 

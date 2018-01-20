@@ -25,18 +25,18 @@ test_set_and_val_to_pitch = do
                 [ (">", [(s, d, "") | (s, d) <- notes])
                 , ("*", [(s, 0, modify p) | (s, p) <- pitches])
                 ]
-        extract = fst . DeriveTest.e_nns_errors
+        extract = DeriveTest.e_nns_literal
     forM_ [id, \p -> "set (" <> p <> ")"] $ \modify -> do
         equal (run modify [(0, 1), (1, 1)] [(0, "4c"), (1, "4d")])
-            ([[(0, NN.c4)], [(1, NN.d4)]], [])
+            ([[(0, NN.c4), (1, NN.c4)], [(1, NN.d4)]], [])
         -- A set emits an explicit discontinuity.
         equal (run modify [(0, 2)] [(0, "4c"), (1, "4d")])
             ([[(0, NN.c4), (1, NN.c4), (1, NN.d4)]], [])
 
 test_set = do
-    equal (run [(0, "set (4c)")]) [(0, 60)]
-    equal (run [(0, "4c"), (2, "set (4c) | i (4d)")])
-        [(0, 60), (1, 61), (2, 60)]
+    equal (run2 [(0, "set (4c)")]) [(0, NN.c4)]
+    equal (run2 [(0, "4c"), (2, "set (4c) | i (4d)")])
+        [(0, NN.c4), (2, NN.d4), (2, NN.c4)]
 
 test_multiply = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""
@@ -55,10 +55,9 @@ test_interpolated_transpose = do
             [ (title, [(0, 5, "")])
             , ("*test", [(0, 0, "A"), (4, 0, "i (B)")])
             ]
-        extract = head . DeriveTest.extract_events DeriveTest.e_nns
-    equal (run ">") [(0, 1), (1, 1.5), (2, 2), (3, 2.5), (4, 3)]
-    equal (run "> | %t-chrom = 1")
-        [(0, 3), (1, 3.25), (2, 3.5), (3, 3.75), (4, 4)]
+        extract = head . DeriveTest.extract_events DeriveTest.e_nns_literal
+    equal (run ">") [(0, 1), (4, 3)]
+    equal (run "> | %t-chrom = 1") [(0, 3), (4, 4)]
 
 test_transpose_out_of_range = do
     equal (run_with_title ">" "twelve" [(0, "4c")])
@@ -79,8 +78,7 @@ test_transpose_out_of_range = do
                 ]
 
 test_neighbor = do
-    equal (CallTest.run_pitch "" [(0, "n (4c) 1 2")])
-        [(0, 61), (1, 60.5), (2, 60)]
+    equal (CallTest.run_pitch "" [(0, "n (4c) 1 2")]) [(0, 61), (2, 60)]
     -- Both chromatic and diatonic literals.
     equal (CallTest.run_pitch "" [(0, "n (4c) 1c 1")]) [(0, 61), (1, 60)]
     equal (CallTest.run_pitch "" [(0, "n (4c) 1d 1")]) [(0, 62), (1, 60)]
@@ -91,47 +89,49 @@ test_neighbor = do
     equal (run_tempo 2 [(0, "n (4c) 1d 1t")]) [(0, 62), (0.5, 60)]
 
 test_approach = do
-    equal (CallTest.run_pitch "" [(0, "4c"), (10, "a 2s"), (20, "4d")])
-        [(0, 60), (10, 60), (11, 61), (12, 62), (20, 62)]
+    equal (run2 [(0, "4c"), (10, "a 2s"), (20, "4d")])
+        [(0, NN.c4), (10, NN.c4), (12, NN.d4), (20, NN.d4)]
 
-    let run = DeriveTest.extract DeriveTest.e_nns
+    let run = DeriveTest.extract_events DeriveTest.e_nns_literal
             . DeriveTest.derive_tracks "" . UiTest.note_spec
     equal (run ("", [(0, 10, "4c"), (10, 10, "a 2s"), (20, 10, "4d")], []))
-        ([[(0, 60)], [(10, 60), (11, 61), (12, 62)], [(20, 62)]], [])
+        [ [(0, NN.c4), (10, NN.c4)]
+        , [(10, NN.c4), (12, NN.d4), (20, NN.d4)]
+        , [(20, NN.d4)]
+        ]
 
 test_linear = do
     equal (run [(0, "4c"), (2, "i (4d)")])
-        [(0, 60), (1, 61), (2, 62)]
-    equal (run [(0, "4c"), (2, "i> (4d)"), (4, "4c")])
-        [(0, 60), (3, 61), (4, 60)]
-    equal (run [(0, "4c"), (2, "i> (>)"), (4, "4d")])
-        [(0, 60), (3, 61), (4, 62)]
+        [(0, NN.c4), (2, 62)]
 
 test_porta = do
-    equal (run [(0, "4c"), (2, "porta-place=1 | p (4d) 2s")])
-        [(0, 60), (3, 61), (4, 62)]
-    equal (run [(0, "4c"), (2, "porta-place=0 | p (4d) 2s")])
-        [(0, 60), (1, 61), (2, 62)]
-    equal (run [(0, "4c"),
+    equal (run2 [(0, "4c"), (2, "porta-place=1 | p (4d) 2s")])
+        [(0, NN.c4), (2, NN.c4), (4, NN.d4)]
+    equal (run2 [(0, "4c"), (2, "porta-place=0 | p (4d) 1s")])
+        [(0, NN.c4), (1, NN.c4), (2, NN.d4)]
+    equal (run2 [(0, "4c"),
             (2, "porta-place=1 | curve=(cf-expon 2) | p (4d) 2s")])
-        [(0, 60), (3, 60.5), (4, 62)]
+        [(0, NN.c4), (2, NN.c4), (3, 60.5), (4, 62)]
 
 test_linear_next = do
-    equal (run [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
-        [(0, 60), (5, 61), (6, 60)]
+    equal (run2 [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
+        [(0, NN.c4), (4, NN.c4), (6, NN.d4), (6, NN.c4)]
     -- A number is interpreted as a transposition of the previous pitch.
-    equal (run [(0, "4c"), (4, "i> 4"), (6, "4c")])
-        [(0, 60), (5, 62), (6, 60)]
-    equal (run [(0, "4c"), (4, "i> -4"), (6, "4c")])
-        [(0, 60), (5, 58), (6, 60)]
+    equal (run2 [(0, "4c"), (4, "i> 4"), (6, "4c")])
+        [(0, NN.c4), (4, NN.c4), (6, NN.c4 + 4), (6, NN.c4)]
+    equal (run2 [(0, "4c"), (2, "i> (>)"), (4, "4d")])
+        [(0, NN.c4), (2, NN.c4), (4, NN.d4)]
     -- Test with slicing.
-    let run2 = DeriveTest.extract_events DeriveTest.e_nns
+    let run3 = DeriveTest.extract_events DeriveTest.e_nns_literal
             . DeriveTest.derive_tracks "" . UiTest.note_track
-    equal (run2 [(0, 1, "4c"), (1, 1, "i> (4d)"), (3, 1, "4e")])
-        [[(0, 60)], [(1, 60), (2, 61)], [(3, 64)]]
+    equal (run3 [(0, 1, "4c"), (1, 1, "i> (4d)"), (3, 1, "4e")])
+        [[(0, NN.c4), (1, NN.c4)], [(1, NN.c4), (3, NN.d4)], [(3, NN.e4)]]
 
 run :: [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run = run_tempo 1
+
+run2 :: [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
+run2 = CallTest.run_pitch2 ""
 
 run_tempo :: Int -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run_tempo tempo pitches = extract $ run_ tempo pitches []

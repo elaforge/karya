@@ -8,12 +8,13 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
+import qualified Util.TimeVector as TimeVector
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 
 import Global
 import Types
@@ -89,14 +90,12 @@ data Event = Event {
     event_start :: !RealTime
     , event_duration :: !RealTime
     , event_patch :: !Patch
-    , event_controls :: !ControlMap
-    , event_pitch :: !Signal.NoteNumber
-    , event_start_velocity :: !Signal.Y
-    , event_end_velocity :: !Signal.Y
+    , event_controls :: !(Map Score.Control MSignal.Signal)
+    , event_pitch :: !MSignal.Signal
+    , event_start_velocity :: !MSignal.Y
+    , event_end_velocity :: !MSignal.Y
     , event_stack :: !Stack.Stack
     } deriving (Eq, Show)
-
-type ControlMap = Map Score.Control Signal.Control
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur inst controls pitch _svel _evel stack) =
@@ -126,7 +125,7 @@ show_short event =
     where
     start = event_start event
     name = patch_name (event_patch event)
-    pitch = Pitch.NoteNumber $ Signal.at start (event_pitch event)
+    pitch = Pitch.NoteNumber <$> TimeVector.at start (event_pitch event)
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event

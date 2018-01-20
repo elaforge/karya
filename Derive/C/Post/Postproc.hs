@@ -9,9 +9,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.ApproxEq as ApproxEq
-import qualified Util.Map
 import qualified Util.Seq as Seq
-
 import qualified Derive.C.Prelude.ControlFunction as ControlFunction
 import qualified Derive.C.Prelude.Equal as Equal
 import qualified Derive.C.Prelude.Note as Note
@@ -27,14 +25,12 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
-import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
 import Global
 import Types
 
@@ -216,24 +212,29 @@ suppress_notes =
     is no room to put them on the final note.  It seems a little ad-hoc and
     grody, but it still makes a kind of sense and I may still want it, so I'll
     leave this function here for now.
+
+    Now that signals are segments, not constant samples, this doesn't really
+    work, becaeuse it's unclear how much time the first sample should get.
+    I could do the same thing and replace the first sample, but I intentionally
+    don't export sample-oriented functions.
 -}
-replace_note :: Score.Event -> Score.Event -> Score.Event
-replace_note next event = event
-    { Score.event_duration = Score.event_end next - start
-    , Score.event_pitch =
-        pitch event <> PSignal.drop_before_at start (pitch next)
-    , Score.event_pitches = Util.Map.mappend
-        (pitches event)
-        (PSignal.drop_before_at start <$> pitches next)
-    , Score.event_controls = Util.Map.mappend
-        (controls event)
-        (fmap (Signal.drop_before_at start) <$> controls next)
-    }
-    where
-    pitch = Score.event_pitch
-    pitches = Score.event_pitches
-    controls = Score.event_controls
-    start = Score.event_start event
+-- replace_note :: Score.Event -> Score.Event -> Score.Event
+-- replace_note next event = event
+--     { Score.event_duration = Score.event_end next - start
+--     , Score.event_pitch =
+--         pitch event <> PSignal.drop_before_at start (pitch next)
+--     , Score.event_pitches = Util.Map.mappend
+--         (pitches event)
+--         (PSignal.drop_before_at start <$> pitches next)
+--     , Score.event_controls = Util.Map.mappend
+--         (controls event)
+--         (fmap (Signal.drop_before_at start) <$> controls next)
+--     }
+--     where
+--     pitch = Score.event_pitch
+--     pitches = Score.event_pitches
+--     controls = Score.event_controls
+--     start = Score.event_start event
 
 -- * apply start offset
 

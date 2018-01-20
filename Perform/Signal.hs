@@ -1,4 +1,4 @@
--- Copyright 2013 Evan Laforge
+-- Copyright 2017 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -12,71 +12,60 @@
 -}
 module Perform.Signal (
     -- * types
-    Signal, sig_vec
+    Signal, Sample(..)
     , X, Y, x_to_y, y_to_x, y_to_score, y_to_nn, nn_to_y
-    , tempo_srate
-
-    -- * constants
-    , empty
     , Tempo, Warp, Control, NoteNumber, Display
 
-    -- * construction / deconstruction
-    , signal, unsignal, unsignal_unique, set, constant, unfoldr
-    , length, null
+    -- * construct / destruct
+    , from_sample, from_pairs, from_segments
+    , to_samples, to_pairs, to_pairs_unique, to_segments
+    , constant, constant_val
+    , prepend
+    , unfoldr
     , coerce
+    , to_piecewise_constant
     , with_ptr
 
-    -- * access
-    , at, sample_at, segment_at, before
-    , at_linear, at_linear_extend
-    , inverse_at_extend
-    , constant_val
+    -- * query
+    , null
+    , at, at_maybe, segment_at
     , head, last
-    , Sample(..)
     , minimum, maximum
 
-    -- * transformation
-    , merge, merge_extend, concat, prepend
-    , sig_add, sig_subtract, sig_multiply, sig_scale
-    , scale, scale_invert
-    , invert
-    -- ** scalar transformation
-    , scalar_max, scalar_min, clip_bounds
-    , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
-    , shift
-    , drop, within
-    , drop_at_after, drop_after, drop_before, drop_before_strict, drop_before_at
-    , map_x, map_y, map_err
-
-    -- * backported
-    , from_pairs, to_pairs
+    -- * transform
+    , drop_after, drop_before
     , clip_after, clip_before
+    , shift
+
+    , invert, sig_add, sig_subtract, sig_multiply, sig_scale
+    , scale, scale_invert
+
+    -- ** hacks
     , drop_discontinuity_at
+
+    -- ** scalar transformation
+    , scalar_max
+    , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
+    , map_x, map_y, map_y_linear, map_err
+
     -- * special functions
-    , compose, compose_hybrid, integrate
-    , unwarp_fused
-    , pitches_share
+    , integrate_inverse
+    , integrate
     , flat_duration
 ) where
 import qualified Prelude
-import Prelude hiding (concat, head, last, length, maximum, minimum, null, drop)
+import Prelude hiding (head, last, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.State.Strict as Monad.State
-
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign
-import qualified Text.Read as Read
 
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
+import Util.Segment (X, Sample(..))
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
-import Util.TimeVector (X, Sample(..))
 
-import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -86,35 +75,29 @@ import Types
 
 -- * types
 
--- | A Signal is a 'TimeVector.Unboxed' "Util.TimeVector" of 'Y' values, which
--- are just Doubles.  It takes a phantom type parameter to make the signal's
--- intended uses a little clearer.  There are type aliases for the various
--- flavors of signal below, but it really is just documentation and anyone who
--- wants to operate on a generic signal can take a @Signal kind@.
-newtype Signal kind = Signal { sig_vec :: TimeVector.Unboxed }
-    deriving (DeepSeq.NFData, Pretty, Eq, Serialize.Serialize)
+-- | A Signal is a 'Segment.Signal' of 'Y' values, which are just Doubles.  It
+-- takes a phantom type parameter to make the signal's intended uses a little
+-- clearer.  There are type aliases for the various flavors of signal below,
+-- but it really is just documentation and anyone who wants to operate on
+-- a generic signal can take a @Signal kind@.
+newtype Signal kind = Signal Segment.NumSignal
+    deriving (Show, Pretty, Eq, DeepSeq.NFData, Serialize.Serialize)
 
-instance Show (Signal kind) where
-    show (Signal vec) = "Signal " ++ show (TimeVector.unsignal vec)
-instance Read.Read (Signal kind) where
-    readPrec = do
-        Pretty.readWord
-        vec <- Read.readPrec
-        return $ Signal (TimeVector.signal vec)
+_signal :: Signal kind -> Segment.NumSignal
+_signal (Signal sig) = sig
+
+modify :: (Segment.NumSignal -> Segment.NumSignal) -> Signal kind -> Signal kind
+modify f = Signal . f . _signal
+
+type Y = Double
 
 instance Monoid (Signal kind) where
-    mempty = empty
+    mempty = Signal Segment.empty
     mappend s1 s2
         | null s1 = s2
         | null s2 = s1
         | otherwise = mconcat [s1, s2]
-    mconcat = merge
-
-type Y = Double
-
-modify :: (TimeVector.Unboxed -> TimeVector.Unboxed) -> Signal kind
-    -> Signal kind
-modify f = Signal . f . sig_vec
+    mconcat = Signal . Segment.concat Segment.num_interpolate . map _signal
 
 -- | This is the type of performer-interpreted controls that go into the
 -- event's control map.
@@ -156,195 +139,105 @@ y_to_nn = Pitch.NoteNumber
 nn_to_y :: Pitch.NoteNumber -> Y
 nn_to_y (Pitch.NoteNumber nn) = nn
 
--- * constants
+-- * construct / destruct
 
-empty :: Signal kind
-empty = signal []
+from_sample :: X -> Y -> Signal kind
+from_sample x y = from_pairs [(x, y)]
 
--- | Signal composition, used by warps, is really tricky without a constant
--- srate.  Since 'integrate' is the way to generate 'Warp's, ensure they are
--- at this srate by passing this to integrate.
---
--- 0.05 = 50 Hz = 800b\/sec = 47kb\/min
--- 0.01 = 100 Hz = 1600b\/sec = 94kb\/min
-tempo_srate :: X
-tempo_srate = RealTime.seconds 0.1
+from_pairs :: [(X, Y)] -> Signal kind
+from_pairs = Signal . Segment.from_pairs
 
+from_segments :: [Segment.Segment Y] -> Signal kind
+from_segments = Signal . Segment.from_segments
 
--- * construction / deconstruction
+to_samples :: Signal kind -> [Sample Y]
+to_samples = Segment.to_samples . _signal
 
-signal :: [(X, Y)] -> Signal kind
-signal = Signal . TimeVector.signal
+to_pairs :: Signal kind -> [(X, Y)]
+to_pairs = Seq.drop_dups id . Segment.to_pairs . _signal
+    -- Since Segment functions don't have Eq y, they can emit duplicate
+    -- samples.  They should be harmless but they clutter tests.
 
--- | The inverse of the 'signal' function.
-unsignal :: Signal kind -> [(X, Y)]
-unsignal = TimeVector.unsignal . sig_vec
+-- | Like 'to_pairs', but filter out explicit discontinuities.  This is because
+-- tests were written before they existed, so a lot will break.
+-- TODO update the tests
+to_pairs_unique :: Signal kind -> [(X, Y)]
+to_pairs_unique = Seq.drop_initial_dups fst . to_pairs
 
-unsignal_unique :: Signal kind -> [(X, Y)]
-unsignal_unique = TimeVector.unsignal_unique . sig_vec
-
--- | Set the signal value, with a discontinuity.
-set :: Maybe Y -> X -> Y -> Signal kind
-set prev_y x y = Signal $ TimeVector.set prev_y x y
+to_segments :: Signal kind -> [Segment.Segment Y]
+to_segments = Segment.to_segments . _signal
 
 constant :: Y -> Signal kind
-constant = Signal . TimeVector.constant
+constant = Signal . Segment.constant
+
+-- | Just if the signal is constant.
+constant_val :: Signal kind -> Maybe Y
+constant_val = Segment.constant_val_num . _signal
+
+prepend :: Signal kind -> Signal kind -> Signal kind
+prepend sig1 sig2 = Signal $
+    Segment.prepend Segment.num_interpolate (_signal sig1) (_signal sig2)
 
 unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
-unfoldr f st = Signal $ TimeVector.unfoldr f st
-
-length :: Signal kind -> Int
-length = TimeVector.length . sig_vec
-
-null :: Signal kind -> Bool
-null = TimeVector.null . sig_vec
+unfoldr gen state = Signal $ Segment.unfoldr gen state
 
 -- | Sometimes signal types need to be converted.
 coerce :: Signal kind1 -> Signal kind2
 coerce (Signal vec) = Signal vec
 
-with_ptr :: Display -> (Foreign.Ptr (Sample Double) -> Int -> IO a) -> IO a
-with_ptr sig f = TimeVector.with_ptr (sig_vec sig) $ \sigp ->
-    f sigp (TimeVector.length (sig_vec sig))
+to_piecewise_constant :: X -> Signal kind -> TimeVector.Unboxed
+to_piecewise_constant srate = Segment.to_piecewise_constant srate . _signal
 
--- * check
+-- | 'Segment.with_ptr'.
+with_ptr :: Display -> (X -> Foreign.Ptr (Sample Y) -> Int -> IO a) -> IO a
+with_ptr sig = Segment.with_ptr (_signal sig)
 
-check :: Signal kind -> [String]
-check = TimeVector.check . sig_vec
+-- * query
 
--- | Find places where the Warp is non monotonically nondecreasing.
-check_warp :: Warp -> [String]
-check_warp = reverse . fst . Vector.foldl' check ([], (0, 0, 0)) . sig_vec
-    where
-    check (warns, (i, prev_x, prev_y)) (Sample x y)
-        | x < prev_x = first ("index " <> show i <> ": x decreased: "
-            <> show x <> " < " <> show prev_x :) next
-        | y < prev_y = first ("index " <> show i <> ": y decreased: "
-            <> show y <> " < " <> show prev_y :) next
-        | otherwise = next
-        where next = (warns, (i + 1, x, y))
-
--- * access
+null :: Signal kind -> Bool
+null = Segment.null . _signal
 
 at :: X -> Signal kind -> Y
-at x = fromMaybe 0 . TimeVector.at x . sig_vec
+at x = fromMaybe 0 . at_maybe x
 
-sample_at :: X -> Signal kind -> Maybe (X, Y)
-sample_at x = TimeVector.sample_at x . sig_vec
+at_maybe :: X -> Signal kind -> Maybe Y
+at_maybe x = Segment.at Segment.num_interpolate x . _signal
 
 segment_at :: X -> Signal kind -> Maybe (Segment.Segment Y)
-segment_at x = Segment.segment_at x . Segment.from_vector . sig_vec
+segment_at x = Segment.segment_at x . _signal
 
--- | Find the value immediately before the point.
-before :: RealTime -> Signal kind -> Y
-before x = maybe 0 sy . TimeVector.before x . sig_vec
+head, last :: Signal kind -> Maybe (X, Y)
+head = Segment.head . _signal
+last = Segment.last . _signal
 
-at_linear :: X -> Signal kind -> Y
-at_linear x sig = interpolate vec (TimeVector.highest_index x vec)
-    where
-    vec = sig_vec sig
-    interpolate vec i
-        | TimeVector.null vec = 0
-        | i + 1 >= TimeVector.length vec = y0
-        | i < 0 = 0
-        | otherwise = TimeVector.y_at x0 y0 x1 y1 x
-        where
-        (x0, y0) = index i
-        (x1, y1) = index (i+1)
-    index = TimeVector.to_pair . TimeVector.index vec
+-- * transform
 
--- | This is a version of 'at_linear' that extends the signal on either side
--- with a straight line.  A signal with no samples is a 1:1 line, one with
--- a single sample is a 1:1 line passing through that point, and one with more
--- samples will be extended according to the slope of the two samples at the
--- beginning and end.
---
--- This is used by 'Derive.Score.warp_pos'.
-at_linear_extend :: X -> Warp -> Y
-at_linear_extend x (Signal vec) = interpolate (TimeVector.highest_index x vec)
-    where
-    interpolate i
-        | TimeVector.null vec = x_to_y x
-        | i + 1 >= TimeVector.length vec = if i - 1 < 0
-            then TimeVector.y_at x0 y0 (x0+1) (y0+1) x
-            else let Sample x_1 y_1 = index (i-1)
-                in TimeVector.y_at x_1 y_1 x0 y0 x
-        | i < 0 = if TimeVector.length vec == 1
-            then TimeVector.y_at x1 y1 (x1+1) (y1+1) x
-            else let Sample x2 y2 = index 1 in TimeVector.y_at x1 y1 x2 y2 x
-        | otherwise = TimeVector.y_at x0 y0 x1 y1 x
-        where
-        Sample x0 y0 = index i
-        Sample x1 y1 = index (i+1)
-    index = TimeVector.index vec
+drop_after, drop_before :: X -> Signal kind -> Signal kind
+drop_after x = modify $ Segment.drop_after x
+drop_before x = modify $ Segment.drop_before x
 
--- | This is like 'inverse_at', except that if the Y value is past the end
--- of the signal, it extends the signal as far as necessary.  When used for
--- warp composition or unwarping, this means that the parent warp is too small
--- for the child.  Normally this shouldn't happen, but if it does it's
--- sometimes better to make something up than crash.
---
--- The rules for extension are the same as 'at_linear_extend', and this
--- function should be the inverse of that one.  This ensures that if you warp
--- and then unwarp a time, you get your original time back.
-inverse_at_extend :: Y -> Warp -> X
-inverse_at_extend y (Signal vec)
-    | TimeVector.null vec = y_to_x y
-    -- Nothing means the line is flat and will never reach Y.  I pick a big
-    -- X instead of crashing.
-    | otherwise = fromMaybe RealTime.large $ TimeVector.x_at x0 y0 x1 y1 y
-    where
-    -- Has to be the highest index, or it gets hung up on a flat segment.
-    i = index_above_y y vec
-    (Sample x0 y0, Sample x1 y1)
-        | len == 1 =
-            let at0@(Sample x0 y0) = index 0
-            in (at0, Sample (x0+1) (y0+1))
-        | i >= TimeVector.length vec = (index (i-2), index (i-1))
-        | i == 0 = (index 0, index 1)
-        | otherwise = (index (i-1), index i)
-        where len = TimeVector.length vec
-    index = TimeVector.index vec
+clip_after, clip_before :: X -> Signal kind -> Signal kind
+clip_after x = modify $ Segment.num_clip_after x
+clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
 
--- | Just if the signal is constant.
-constant_val :: Signal kind -> Maybe Y
-constant_val = TimeVector.constant_val . sig_vec
+shift :: X -> Signal kind -> Signal kind
+shift x = modify (Segment.shift x)
 
-head :: Signal kind -> Maybe (X, Y)
-head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
-
-last :: Signal kind -> Maybe (X, Y)
-last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
-
--- * transformation
-
-merge :: [Signal kind] -> Signal kind
-merge = Signal . TimeVector.merge . map sig_vec
-
-merge_extend :: [Signal kind] -> Signal kind
-merge_extend = Signal . TimeVector.merge_right_extend . map sig_vec
-
--- | This is like 'merge', but directly concatenates the signals.  It should be
--- more efficient when you know the signals don't overlap.
-concat :: [Signal kind] -> Signal kind
-concat = Signal . Vector.concat . map sig_vec
-
-prepend :: Signal kind -> Signal kind -> Signal kind
-prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
+invert :: Signal kind -> Signal kind
+invert = modify Segment.invert
 
 sig_add, sig_multiply :: Control -> Control -> Control
-sig_add = sig_op (Just 0) (+)
-sig_multiply = sig_op (Just 1) (*)
+sig_add = linear_operator (Just 0) (+)
+sig_multiply = linear_operator (Just 1) (*)
 
 sig_subtract :: Control -> Control -> Control
 sig_subtract sig1 sig2
-    -- It turns out subtraction has an identity, but isn't commutative.
-    -- Who knew?
     | Just v <- constant_val sig2, v == 0 = sig1
-    | otherwise = sig_op Nothing (-) sig1 sig2
+    | otherwise = linear_operator Nothing (-) sig1 sig2
 
+-- TODO I think this is linear?
 sig_scale :: Control -> Control -> Control
-sig_scale = sig_op (Just 1) scale
+sig_scale = linear_operator (Just 1) scale
 
 scale :: Y -> Y -> Y
 scale x v
@@ -356,207 +249,86 @@ scale_invert old new
     | new >= old = Num.normalize old 1 new
     | otherwise = Num.normalize 0 old new - 1
 
-invert :: Warp -> Warp
-invert = modify $ Vector.map $ \(Sample x y) -> Sample (y_to_x y) (x_to_y x)
+linear_operator :: Maybe Y -- ^ If an identity value is given, I can avoid
+    -- copying the whole signal if the other one is a constant identity.
+    -> (Y -> Y -> Y) -> Signal kind -> Signal kind -> Signal kind
+linear_operator (Just identity) _ sig1 sig2
+    | Just v <- constant_val sig1, v == identity = sig2
+    | Just v <- constant_val sig2, v == identity = sig1
+linear_operator _ op sig1 sig2 =
+    Signal $ Segment.linear_operator op (_signal sig1) (_signal sig2)
+
+-- ** hacks
+
+drop_discontinuity_at :: X -> Control -> Control
+drop_discontinuity_at x = modify $ Segment.drop_discontinuity_at x
 
 -- ** scalar transformation
 
 scalar_add, scalar_subtract, scalar_multiply, scalar_divide ::
     Y -> Signal kind -> Signal kind
-scalar_add n = map_y (+n)
-scalar_subtract n = map_y (subtract n)
-scalar_multiply n = map_y (*n)
-scalar_divide n = map_y (/n)
+scalar_add n = map_y_linear (+n)
+scalar_subtract n = map_y_linear (subtract n)
+scalar_multiply n = map_y_linear (*n)
+scalar_divide n = map_y_linear (/n)
 
--- | Clip signal to never go above or below the given value.
-scalar_max, scalar_min :: Y -> Signal kind -> Signal kind
-scalar_max val = map_y (min val)
-scalar_min val = map_y (max val)
-
-minimum, maximum :: Signal kind -> Maybe Y
-minimum sig
-    | null sig = Nothing
-    | otherwise = Just $ TimeVector.sy $
-        Vector.minimumBy (\a b -> compare (sy a) (sy b)) $ sig_vec sig
-maximum sig
-    | null sig = Nothing
-    | otherwise = Just $ TimeVector.sy $
-        Vector.maximumBy (\a b -> compare (sy a) (sy b)) $ sig_vec sig
-
--- | Clip the signal's Y values to lie between (0, 1), inclusive.  Return the
--- half-open ranges during which the Y was out of range, if any.
-clip_bounds :: Y -> Y -> Signal kind -> (Signal kind, [(X, X)])
-clip_bounds low high sig = (clipped, reverse out_of_range)
+-- | Clip signal to never go below the given value.
+--
+-- This is way more complicated than the piecewise constant version.
+scalar_max :: Y -> Signal kind -> Signal kind
+scalar_max val sig
+    | minimum sig >= val = sig
+    | otherwise = modify (Segment.transform_samples go) sig
     where
-    clipped = if Prelude.null out_of_range then sig
-        else map_y (Num.clamp low high) sig
-    (ranges, in_clip) = TimeVector.foldl' go ([], Nothing) (sig_vec sig)
-    out_of_range = case (in_clip, last sig) of
-        (Just start, Just (end, _)) -> (start, end) : ranges
-        _ -> ranges
-    go state@(accum, Nothing) (Sample x y)
-        | y < low || y > high = (accum, Just x)
-        | otherwise = state
-    go state@(accum, Just start) (Sample x y)
-        | y < low || y > high = state
-        | otherwise = ((start, x) : accum, Nothing)
+    go [] = []
+    go [Sample x y] = [Sample x (max val y)]
+    go (s1@(Sample x1 y1) : s2s@(Sample x2 y2 : sn))
+        | y1 < val && y2 < val = Sample x1 val : below (s1 : s2s)
+        | y1 >= val && y2 >= val = s1 : go s2s
+        | otherwise = case TimeVector.x_at x1 y1 x2 y2 val of
+            Nothing
+                | y1 < val -> Sample x1 val : go (Sample x2 val : sn)
+                | otherwise -> s1 : go s2s
+            Just x_val
+                | y1 < val -> Sample x1 val : go (Sample x_val val : s2s)
+                | otherwise -> s1 : Sample x_val val : below s2s
+    -- The first sample is below val, discard until it comes back up again.
+    below (Sample x1 y1 : s2s@(Sample x2 y2 : _))
+        | y2 < val = below s2s
+        | y2 == val = go s2s
+        | otherwise = case TimeVector.x_at x1 y1 x2 y2 val of
+            -- y1 and y2 are both below, should have been caught above.
+            Nothing -> below s2s
+            Just x_val -> go (Sample x_val val : s2s)
+    below [_] = []
+    below [] = []
 
-shift :: X -> Signal kind -> Signal kind
-shift 0 = id
-shift x = modify (TimeVector.shift x)
+minimum, maximum :: Signal kind -> Y
+minimum = fromMaybe 0 . Segment.minimum . _signal
+maximum = fromMaybe 0 . Segment.maximum . _signal
 
-drop :: Int -> Signal kind -> Signal kind
-drop = modify . TimeVector.drop
-
-within :: X -> X -> Signal kind -> Signal kind
-within start end = modify $ TimeVector.within start end
-
-drop_at_after :: X -> Signal kind -> Signal kind
-drop_at_after = modify . TimeVector.drop_at_after
-
-drop_after :: X -> Signal kind -> Signal kind
-drop_after = modify . TimeVector.drop_after
-
-drop_before :: X -> Signal kind -> Signal kind
-drop_before = modify . TimeVector.drop_before
-
-drop_before_strict :: X -> Signal kind -> Signal kind
-drop_before_strict = modify . TimeVector.drop_before_strict
-
-drop_before_at :: X -> Signal kind -> Signal kind
-drop_before_at = modify . TimeVector.drop_before_at
-
+-- | Map Xs.  The slopes will definitely change unless the function is adding
+-- a constant, but presumably that's what you want.
 map_x :: (X -> X) -> Signal kind -> Signal kind
-map_x = modify . TimeVector.map_x
+map_x = modify . Segment.map_x
 
-map_y :: (Y -> Y) -> Signal kind -> Signal kind
-map_y = modify . TimeVector.map_y
+-- | Map Ys.  This resamples the signal, so it's valid for a nonlinear
+-- function.
+map_y :: X -> (Y -> Y) -> Signal kind -> Signal kind
+map_y srate = modify . Segment.map_y srate
+
+-- | If the function is linear, there's no need to resample.
+map_y_linear :: (Y -> Y) -> Signal kind -> Signal kind
+map_y_linear = modify . Segment.map_y_linear
 
 map_err :: (Sample Y -> Either err (Sample Y)) -> Signal kind
     -> (Signal kind, [err])
-map_err f = first Signal . TimeVector.map_err f . sig_vec
-
-sig_op :: Maybe Y -- ^ If an identity value is given, I can avoid copying the
-    -- whole signal if the other one is a constant identity.
-    -> (Y -> Y -> Y) -> Signal kind -> Signal kind -> Signal kind
-sig_op (Just identity) _ sig1 sig2
-    | Just v <- constant_val sig1, v == identity = sig2
-    | Just v <- constant_val sig2, v == identity = sig1
-sig_op _ op sig1 sig2 =
-    Signal $ TimeVector.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
-
--- * backported
-
-from_pairs :: [(X, Y)] -> Signal kind
-from_pairs = signal
-
-to_pairs :: Signal kind -> [(X, Y)]
-to_pairs = unsignal
-
-use_segment :: (Segment.NumSignal -> Segment.NumSignal)
-    -> Signal kind -> Signal kind
-use_segment modify = Signal . Segment.to_vector . modify
-    . Segment.from_vector . sig_vec
-
--- drop_after, drop_before :: RealTime -> PSignal -> PSignal
--- drop_after x = use_segment $ Segment.drop_after x
--- drop_before x = use_segment $ Segment.drop_before x
-
-clip_after, clip_before :: RealTime -> Signal kind -> Signal kind
-clip_after x = use_segment $ Segment.clip_after flat_interpolate x
-clip_before x = use_segment $ Segment.clip_before flat_interpolate x
-
--- | A pitch interpolated a certain distance between two other pitches.
-flat_interpolate :: Segment.Interpolate y
-flat_interpolate (Sample _ p1) (Sample x2 p2) x
-    | x < x2 = p1
-    | otherwise = p2
-
-drop_discontinuity_at :: X -> Control -> Control
-drop_discontinuity_at x sig
-    | Nothing <- sample_at x sig = sig
-    | otherwise = drop_at_after x sig <> drop_before_at x sig
+map_err f = first Signal . Segment.map_err f . _signal
 
 -- * special functions
 
-index_above_y :: Y -> TimeVector.Unboxed -> Int
-index_above_y y vec = go 0 (TimeVector.length vec)
-    where
-    go low high
-        | low == high = low
-        | y >= sy (TimeVector.unsafeIndex vec mid) = go (mid+1) high
-        | otherwise = go low mid
-        where mid = (low + high) `div` 2
-
-
--- | Compose the first signal with the second.
---
--- Actually, only the X points from the first warp are used in the output, so
--- the input signals must be at a constant sample rate.  This is different
--- from the variable sampling used all the other signals, but is compatible
--- with the output of 'integrate'.
---
--- It also means that the output will have length equal to that of the first
--- argument.  Since the second argument is likely the warp of a sub-block,
--- it will be shorter, and hence not result in a warp that is too short for
--- its score.
---
--- TODO That also implies there's wasted work when warp outside of the
--- sub-block's range is calculated.  Solutions to that are either to clip the
--- output to the length of the second argument (but this will cause incorrect
--- results if the sub-block wants RealTime outside its range), or, once again,
--- to make signals lazy.
---
--- TODO Wait, what if the warps don't line up at 0?  Does that happen?
-compose :: Warp -> Warp -> Warp
-compose f = modify $ TimeVector.map_y $ \y -> at_linear (y_to_x y) f
-    -- TODO Walking down f would be more efficient, especially once Signal is
-    -- lazy.
-
--- | This is like 'compose', but implements a kind of \"semi-absolute\"
--- composition.  The idea is that it's normal composition until the second
--- signal has a slope of zero.  Normally this would be a discontinuity, but
--- is special cased to force the output to a 1\/1 line.  In effect, it's as
--- if the flat segment were whatever slope is necessary to to generate a slope
--- of 1 when composed with the first signal.
-compose_hybrid :: Warp -> Warp -> Warp
-compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
-    where
-    -- If 'g' starts with a flat segment, I need to start the linear bit in the
-    -- right place.
-    initial = (at_linear (y_to_x y) f, 0)
-        where y = maybe 0 snd (head g)
-    run state m = Identity.runIdentity $ Monad.State.evalStateT m state
-    -- Where h = f•g:
-    -- If g(x_t) == g(x_t-1), then this is a flat segment.
-    -- h(x) is simply h(x_t-1) + (x_t - x_t-1), but I have to store an
-    -- offset that represents where the signal would be were just right to
-    -- produce a slope of 1, so I work backwards:
-    -- offset = f-1(h(x)) - g(x_t-1)
-    --
-    -- If g(x_t) > g(x_t-1), then this is a normal positive slope, and I
-    -- have to add the offset: h(x) = f(g(x + offset)).
-    --
-    -- So the state is (h(x_t-1), offset).
-    gen i
-        | gy0 == gy = gen_flat gx gx0 gy0
-        | otherwise = gen_normal gx gy
-        where
-        Sample gx gy = Vector.unsafeIndex (sig_vec g) i
-        Sample gx0 gy0
-            | i == 0 = Sample 0 0
-            | otherwise = Vector.unsafeIndex (sig_vec g) (i-1)
-    gen_flat gx gx0 gy0 = do
-        (y0, _) <- Monad.State.get
-        let y = y0 + x_to_y (gx - gx0)
-            offset = inverse_at_extend y f - y_to_x gy0
-        Monad.State.put (y, offset)
-        return $ Sample gx y
-    gen_normal gx gy = do
-        (_, offset) <- Monad.State.get
-        let y = at_linear (y_to_x gy + offset) f
-        Monad.State.put (y, offset)
-        return $ Sample gx y
+integrate_inverse :: Tempo -> Warp
+integrate_inverse = integrate . map_y tempo_srate (1/)
 
 -- | Integrate the signal.
 --
@@ -565,96 +337,22 @@ compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
 -- track.  So it can probably be fairly low resolution before having
 -- a noticeable impact.
 --
--- The last sample of a signal is supposed to extend indefinitely, which
--- means that the output of 'integrate' should extend indefinitely at
--- a constant slope.  But since signals are strict, I can't have infinite
--- signals.  So this integrate will only be accurate up until the final sample
--- of the tempo given, and it's up to the caller to ensure that this range
--- is enough.  To this end, 'Derive.Tempo.extend_signal' will ensure there's
--- a sample at the end of the track.
-integrate :: X -> Tempo -> Warp
-integrate srate = coerce . modify (TimeVector.concat_map_accum 0 go final 0)
-    where
-    go = integrate_segment srate
-    final accum (Sample x _) = [Sample x accum]
+-- TODO this is only called after map_y at srate, so it's already been
+-- resampled.  Maybe it would be more efficient to remove srate from
+-- Segment.integrate.
+integrate :: Tempo -> Warp
+integrate = Signal . Segment.integrate tempo_srate . _signal
 
-integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [Sample Y])
-integrate_segment srate accum x0 y0 x1 _y1
-    | x0 >= x1 = (accum, [])
-    | otherwise = (y_at x1, [Sample x (y_at x) | x <- xs])
-    where
-    xs = Seq.range' x0 x1 srate
-    y_at x = accum + x_to_y (x-x0) * y0
-
--- | Previously, 'unwarp' was called as
--- @Signal.unwarp (Score.warp_to_signal warp) control@.  This converts the
--- entire @warp@, which is often large thanks to the sampling rate required by
--- 'integrate', for the sake of unwarping @control@, which is often very small,
--- thanks to track slicing, and does so again and again.  Fusion should
--- take care of making the warp conversion just as efficient as manually
--- applying the shift and stretch, but presumably can't handle only inverting
--- the part of the warp needed to unwarp the control, becasue the signal is
--- strict.
-unwarp_fused :: Warp -> RealTime -> RealTime -> Control -> Display
-unwarp_fused w shift stretch = coerce . modify (TimeVector.map_x unwarp)
-    where unwarp x = (inverse_at_extend (x_to_y x) w - shift) / stretch
-
--- | Can the pitch signals share a channel within the given range?
---
--- Pitch is complicated.  Like other controls, if the pitch curves are
--- different they may not share a channel.  However, if the pitch curves
--- are integral transpositions of each other, and the transposition is not
--- 0, they should share.  Unless the overlap occurs during the decay of one or
--- both notes, at which point 0 transposition is ok.
---
--- This is actually a MIDI notion, so it should normally go in Perform.Midi,
--- but it fusses around with signal internals for efficiency.
---
--- This function will be confused by multiple samples at the same time, so
--- don't do that.
-pitches_share :: Bool -> X -> X
-    -> Midi.Key -> NoteNumber -> Midi.Key -> NoteNumber -> Bool
-pitches_share in_decay start end initial1 sig1 initial2 sig2
-    | not in_decay && initial1 == initial2 = False
-    | otherwise = pitch_eq (at start sig1) (at start sig2)
-        && pitch_eq (at end sig1) (at end sig2)
-        && signals_share pitch_eq start in1 in2
-    where
-    in1 = TimeVector.within start end (sig_vec sig1)
-    in2 = TimeVector.within start end (sig_vec sig2)
-    pitch_eq = nns_share initial1 initial2
-
--- | I need to sample points from start to end, including the start and the
--- end.  Unfortunately it's not as simple as it seems it should be, especially
--- since this function is a hotspot and must be efficient.
---
--- TimeVector.within may return samples before start to get the proper value so
--- I ignore samples before the start.  Start itself is tested explicitly above.
-{-# INLINE signals_share #-}
-signals_share :: (Y -> Y -> Bool) -> X -> TimeVector.Unboxed
-    -> TimeVector.Unboxed -> Bool
-signals_share eq start vec1 vec2 = go 0 0 0 0
-    where
-    go prev_ay prev_by i1 i2 =
-        case TimeVector.resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
-            Nothing -> True
-            Just (x, ay, by, i1, i2) ->
-                (x <= start || eq ay by) && go ay by i1 i2
-    len1 = TimeVector.length vec1
-    len2 = TimeVector.length vec2
-
-nns_share :: Midi.Key -> Midi.Key -> Y -> Y -> Bool
-nns_share initial1 initial2 nn1 nn2 =
-    floor ((nn1 - Midi.from_key initial1) * 1000)
-        == floor ((nn2 - Midi.from_key initial2) * 1000)
+tempo_srate :: X
+tempo_srate = RealTime.seconds 0.1
 
 -- | Total duration of horizontal segments in the warp signal.  These are
--- the places where 'compose_hybrid' will emit a 1\/1 line.
+-- the places where 'Warp.compose_hybrid' will emit a 1\/1 line.
 flat_duration :: Warp -> ScoreTime
 flat_duration =
-    RealTime.to_score . fst . Vector.foldl' go (0, TimeVector.Sample 0 0)
-        . sig_vec
+    RealTime.to_score . fst . Vector.foldl' go (0, Segment.Sample 0 0)
+        . Segment.to_vector . _signal
     where
-    go (!acc, TimeVector.Sample x0 y0) sample@(TimeVector.Sample x y)
+    go (!acc, Segment.Sample x0 y0) sample@(Segment.Sample x y)
         | y == y0 = (acc + (x - x0), sample)
         | otherwise = (acc, sample)

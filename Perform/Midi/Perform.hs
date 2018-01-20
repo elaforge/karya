@@ -33,12 +33,12 @@ import qualified Midi.Midi as Midi
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as T
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (RealTime)
-import qualified Perform.Signal as Signal
 
 import Global
 
@@ -52,7 +52,7 @@ logging = False
 
 -- | This winds up being 100, which is loud but not too loud and
 -- distinctive-looking.
-default_velocity :: Signal.Y
+default_velocity :: MSignal.Y
 default_velocity = 0.79
 
 -- | A keyswitch gets this much lead time before the note it is meant to
@@ -241,7 +241,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     -- channel stealing for pitch bends can be very audible.
     _ | inst_of old /= inst_of new -> Just "instruments differ"
     (Just (initial_old, _), Just (initial_new, _))
-        | not (Signal.pitches_share in_decay start end
+        | not (MSignal.pitches_share in_decay start end
             initial_old (T.event_pitch old) initial_new (T.event_pitch new)) ->
                 Just $ "pitch signals incompatible: "
                     <> pretty (T.event_pitch old) <> " /= "
@@ -256,7 +256,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     start = T.event_start new
     -- Note that I add the control_lead_time to the decay of the old note
     -- rather than subtracting it from the start of the new one.  Subtracting
-    -- would cause 'Signal.pitches_share' to check the pitch signal before
+    -- would cause 'MSignal.pitches_share' to check the pitch signal before
     -- the start of the note, which is going to be 0 and mess up sharing.
     end = min (note_end new) (note_end old) + control_lead_time
     initial_pitch event = event_pitch_at (event_pb_range event)
@@ -295,7 +295,9 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     obvious.  So perhaps there should be a per-control configuration, but I'll
     worry about that only if it ever becomes a problem.
 -}
-controls_equal :: RealTime -> RealTime -> T.ControlMap -> T.ControlMap -> Bool
+controls_equal :: RealTime -> RealTime
+    -> Map Score.Control MSignal.Signal -> Map Score.Control MSignal.Signal
+    -> Bool
 controls_equal start end cs1 cs2 = start >= end || all eq pairs
     where
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
@@ -303,7 +305,7 @@ controls_equal start end cs1 cs2 = start >= end || all eq pairs
     relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
     pairs = Map.pairs (relevant cs1) (relevant cs2)
     eq (_, Seq.Both sig1 sig2) =
-        Signal.within start end sig1 == Signal.within start end sig2
+        MSignal.within start end sig1 == MSignal.within start end sig2
     eq _ = False
 
 
@@ -670,7 +672,7 @@ event_pitch_at :: Control.PbRange -> T.Event -> RealTime
     -> Maybe (Midi.Key, Midi.PitchBendValue)
 event_pitch_at pb_range event pos =
     Control.pitch_to_midi pb_range $
-        Pitch.NoteNumber $ Signal.at pos (T.event_pitch event)
+        Pitch.NoteNumber $ MSignal.at pos (T.event_pitch event)
 
 -- | Get the Midi.Key that will be used for the event, without pitch bend.
 event_midi_key :: T.Event -> Maybe Midi.Key
@@ -685,7 +687,7 @@ make_clip_warnings event (control, clip_warns) =
         <> pretty (s, e)) | (s, e) <- clip_warns]
 
 perform_pitch :: Control.PbRange -> Midi.Key -> RealTime -> RealTime
-    -> Maybe RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
+    -> Maybe RealTime -> MSignal.Signal -> [(RealTime, Midi.ChannelMessage)]
 perform_pitch pb_range nn prev_note_off start end sig =
     [ (x, Midi.PitchBend (Control.pb_from_nn pb_range nn (Pitch.NoteNumber y)))
     | (x, y) <- pos_vals
@@ -695,7 +697,7 @@ perform_pitch pb_range nn prev_note_off start end sig =
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
 perform_control :: Control.ControlMap -> RealTime -> RealTime -> Maybe RealTime
-    -> Midi.Key -> (Score.Control, Signal.Control)
+    -> Midi.Key -> (Score.Control, MSignal.Signal)
     -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
 perform_control cmap prev_note_off start end midi_key (control, sig) =
     case Control.control_constructor cmap control midi_key of
@@ -703,11 +705,11 @@ perform_control cmap prev_note_off start end midi_key (control, sig) =
         Just ctor -> ([(x, ctor y) | (x, y) <- pos_vals], clip_warns)
     where
     -- The signal should already be trimmed to the event range, except that,
-    -- as per the behaviour of Signal.drop_before, it may have a leading
+    -- as per the behaviour of MSignal.drop_before, it may have a leading
     -- sample.  I can drop that since it's handled specially by
     -- 'perform_signal'.
     pos_vals = perform_signal prev_note_off start end clipped
-    (clipped, out_of_bounds) = Signal.clip_bounds 0 1 sig
+    (clipped, out_of_bounds) = MSignal.clip_bounds 0 1 sig
     clip_warns = [(s, e) | (s, e) <- out_of_bounds]
 
 -- | Trim a signal to the proper time range and emit (X, Y) pairs.  The proper
@@ -722,26 +724,20 @@ perform_control cmap prev_note_off start end midi_key (control, sig) =
 --
 -- If the signal has consecutive samples with the same value, this will emit
 -- unnecessary CCs, but they will be eliminated by postprocessing.
-perform_signal :: RealTime -> RealTime -> Maybe RealTime -> Signal.Signal y
-    -> [(Signal.X, Signal.Y)]
+perform_signal :: RealTime -> RealTime -> Maybe RealTime -> MSignal.Signal
+    -> [(RealTime, MSignal.Y)]
 perform_signal prev_note_off start end sig = initial : pairs
     where
     -- The signal should already be trimmed to the event start, except that
-    -- it may have a leading sample, due to 'Signal.drop_before'.
-    pairs
-        -- Constant signals have a single sample at 0.  It it happens that the
-        -- note is <0, I'll get a duplicate control val at 0, so special case
-        -- the constant signal.  TODO hacks like this should go away once
-        -- I have a higher level signal interface.
-        | Just _ <- Signal.constant_val sig = []
-        | otherwise = Seq.drop_initial_dups fst $
-            dropWhile ((<=start) . fst) $ Signal.to_pairs $
-            Signal.drop_before start $ maybe id Signal.drop_at_after end sig
+    -- it may have a leading sample, due to 'MSignal.drop_before'.
+    pairs = Seq.drop_initial_dups fst $
+        dropWhile ((<=start) . fst) $ MSignal.to_pairs $
+        MSignal.drop_before start $ maybe id MSignal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
     tweaked_start = min (start - min_control_lead_time) $
         max (min prev_note_off start) (start - control_lead_time)
-    initial = (tweaked_start, Signal.at start sig)
+    initial = (tweaked_start, MSignal.at start sig)
 
 -- * post process
 

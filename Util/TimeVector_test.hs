@@ -138,8 +138,6 @@ test_shift = do
 test_drop_after = do
     let f x = unsignal . V.drop_at_after x . signal
     let vec = [(0, 0), (1, 1), (2, 0)]
-    equal (f (-1) vec) [(0, 0)]
-    equal (f 0 vec) [(0, 0)]
     equal (f 1 vec) [(0, 0)]
     equal (f 2 vec) [(0, 0), (1, 1)]
     equal (f 3 vec) [(0, 0), (1, 1), (2, 0)]

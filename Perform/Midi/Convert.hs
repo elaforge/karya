@@ -14,8 +14,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.TextUtil as TextUtil
-import qualified Util.TimeVector as TimeVector
-
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Controls as Controls
@@ -28,6 +26,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
@@ -36,7 +35,18 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
 import Global
+import Types
 
+
+-- | This is the sampling rate used to convert linear segments from
+-- 'Signal.Signal' to 'MSignal.Signal'.
+--
+-- Since this is only used to interpolate linear segments, it probably doesn't
+-- need to be as high as one needed to express the nuances of more complicated
+-- curves.  If the tracklang srate is higher, then the MIDI output will be
+-- denser and more accurate.
+default_srate :: RealTime
+default_srate = 0.015
 
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
@@ -45,21 +55,23 @@ data Lookup = Lookup {
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Lookup -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+convert :: RealTime -> Lookup -> (Score.Instrument
+    -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
-convert lookup = ConvertUtil.convert $ \event resolved ->
+convert srate lookup = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
-        Just (Cmd.Midi patch config) -> convert_event lookup event patch config
+        Just (Cmd.Midi patch config) ->
+            convert_event srate lookup event patch config
         _ -> []
 
-convert_event :: Lookup -> Score.Event -> Patch.Patch -> Patch.Config
-    -> [LEvent.LEvent Types.Event]
-convert_event lookup event patch config = run $ do
+convert_event :: RealTime -> Lookup -> Score.Event -> Patch.Patch
+    -> Patch.Config -> [LEvent.LEvent Types.Event]
+convert_event srate lookup event patch config = run $ do
     let inst = Score.event_instrument event
     let event_controls = Score.event_controls event
     (perf_patch, pitch) <-
-        convert_midi_pitch inst patch config event_controls event
-    let controls = convert_controls (Types.patch_control_map perf_patch) $
+        convert_midi_pitch srate inst patch config event_controls event
+    let controls = convert_controls srate (Types.patch_control_map perf_patch) $
             convert_dynamic pressure
                 (event_controls <> lookup_control_defaults lookup inst)
         pressure = Patch.has_flag config Patch.Pressure
@@ -91,16 +103,18 @@ run :: Log.LogId a -> [LEvent.LEvent a]
 run action = LEvent.Event note : map LEvent.Log logs
     where (note, logs) = Log.run_id action
 
+type PitchSignal = MSignal.Signal
+
 -- | If the Event has an attribute matching its keymap, use the pitch from the
 -- keymap.  Otherwise convert the pitch signal.
 --
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Log.LogMonad m => Score.Instrument -> Patch.Patch
-    -> Patch.Config -> Score.ControlMap -> Score.Event
-    -> m (Types.Patch, Signal.NoteNumber)
-convert_midi_pitch inst patch config controls event =
+convert_midi_pitch :: Log.LogMonad m => RealTime -> Score.Instrument
+    -> Patch.Patch -> Patch.Config -> Score.ControlMap -> Score.Event
+    -> m (Types.Patch, PitchSignal)
+convert_midi_pitch srate inst patch config controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
         Nothing -> (perf_patch,) . round_sig <$> get_signal
         Just (_, (keyswitches, maybe_keymap)) -> do
@@ -117,44 +131,45 @@ convert_midi_pitch inst patch config controls event =
             low_pitch <$> get_signal
     -- But UnpitchedKeymap is a constant.
     set_keymap (Patch.UnpitchedKeymap key) =
-        return $ Signal.constant (Midi.from_key key)
+        return $ MSignal.constant (Midi.from_key key)
     get_signal = apply_patch_scale scale
-        =<< convert_event_pitch perf_patch controls event
+        =<< convert_event_pitch srate perf_patch controls event
     scale = Patch.config_scale (Patch.config_settings config)
-    round_sig = Signal.map_y round_pitch
+    round_sig = MSignal.map_y round_pitch
 
     perf_patch = Types.patch inst config patch
     attr_map = Patch.patch_attribute_map patch
 
 convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
-    -> Signal.NoteNumber -> Signal.NoteNumber
+    -> PitchSignal -> PitchSignal
 convert_pitched_keymap low high low_pitch sig = clipped
     where
     -- TODO warn about out_of_range
-    (clipped, out_of_range) = Signal.clip_bounds low high $
-        Signal.scalar_add (low - Midi.from_key low_pitch) sig
+    (clipped, out_of_range) = MSignal.clip_bounds low high $
+        MSignal.scalar_add (low - Midi.from_key low_pitch) sig
 
 -- | Get the flattened Signal.NoteNumber from an event.
-convert_event_pitch :: Log.LogMonad m => Types.Patch -> Score.ControlMap
-    -> Score.Event -> m Signal.NoteNumber
-convert_event_pitch patch controls event =
-    convert trimmed_vals $ Score.event_pitch event
+convert_event_pitch :: Log.LogMonad m => RealTime -> Types.Patch
+    -> Score.ControlMap -> Score.Event -> m PitchSignal
+convert_event_pitch srate patch controls event =
+    fmap (Signal.to_piecewise_constant srate) $
+        convert_pitch (Score.event_environ event) controls note_end $
+        Score.event_pitch event
     where
-    convert = convert_pitch (Score.event_environ event)
-    -- Trim controls to avoid applying out of range transpositions.
-    -- TODO should I also trim the pitch signal to avoid doing extra work?
-    trimmed_vals = fmap (fmap (Signal.drop_at_after note_end)) controls
     note_end = Score.event_end event
         + fromMaybe Types.default_decay (Types.patch_decay patch)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.
-convert_controls :: Control.ControlMap -- ^ Instrument's control map.
+convert_controls :: RealTime
+    -> Control.ControlMap -- ^ Instrument's control map.
     -> Score.ControlMap -- ^ Controls to convert.
-    -> Types.ControlMap
-convert_controls inst_cmap =
-    Map.fromAscList . map (second Score.typed_val) . Map.toAscList
-        . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
+    -> Map Score.Control MSignal.Signal
+convert_controls srate inst_cmap =
+    Map.fromAscList
+        . map (second (Signal.to_piecewise_constant srate . Score.typed_val))
+        . filter (Control.is_midi_control inst_cmap . fst)
+        . Map.toAscList
 
 -- | If it's a 'Patch.Pressure' instrument, move the 'Controls.dynamic'
 -- control to 'Controls.breath'.
@@ -166,16 +181,23 @@ convert_dynamic pressure controls
     | otherwise = controls
 
 convert_pitch :: Log.LogMonad m => Env.Environ
-    -> Score.ControlMap -> PSignal.PSignal -> m Signal.NoteNumber
-convert_pitch env controls psig = do
-    let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
+    -> Score.ControlMap -> RealTime -> PSignal.PSignal -> m Signal.NoteNumber
+convert_pitch env controls note_end psig = do
+    -- Trim controls to avoid applying out of range transpositions.
+    -- TODO was drop_at_after
+    let trimmed = fmap (fmap (Signal.drop_after note_end)) controls
+    let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls trimmed $
             PSignal.apply_environ env psig
     unless (null nn_errs) $ Log.warn $ "convert pitch: "
-        <> Text.intercalate ", " (TextUtil.ellipsisList 4 (map pretty nn_errs))
+        <> Text.intercalate ", " (TextUtil.ellipsisList 4
+            [pretty x <> ": " <> pretty err | (x, err) <- nn_errs])
     return sig
+    where
+    -- TODO should I also trim the pitch signal to avoid doing extra work?
+    -- trimmed_vals = fmap (fmap (Signal.drop_at_after note_end)) controls
 
-apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> Signal.NoteNumber
-    -> m Signal.NoteNumber
+apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> PitchSignal
+    -> m PitchSignal
 apply_patch_scale scale sig = do
     let (nn_sig, scale_errs) = convert_scale scale sig
     unless (null scale_errs) $ Log.warn $
@@ -189,10 +211,10 @@ apply_patch_scale scale sig = do
 round_pitch :: Signal.Y -> Signal.Y
 round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
 
-convert_scale :: Maybe Patch.Scale -> Signal.NoteNumber
-    -> (Signal.NoteNumber, [(Signal.X, Signal.Y)])
+convert_scale :: Maybe Patch.Scale -> PitchSignal
+    -> (PitchSignal, [(Signal.X, Signal.Y)])
 convert_scale Nothing = (, [])
-convert_scale (Just scale) = Signal.map_err $ \(TimeVector.Sample x y) ->
+convert_scale (Just scale) = MSignal.map_err $ \(MSignal.Sample x y) ->
     case Patch.convert_scale scale (Pitch.NoteNumber y) of
-        Just (Pitch.NoteNumber nn) -> Right (TimeVector.Sample x nn)
+        Just (Pitch.NoteNumber nn) -> Right (MSignal.Sample x nn)
         Nothing -> Left (x, y)

@@ -16,6 +16,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.Call as Call
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
@@ -124,7 +125,7 @@ make_config :: Typecheck.TypedFunction -> Typecheck.TypedFunction
     -> Typecheck.TypedFunction -> [StringUtil.String] -> Derive.Deriver Config
 make_config attack_dur release_delay release_dur open_strings = do
     srate <- Call.get_srate
-    let linear = PitchUtil.interpolate_segment srate id
+    let linear = PitchUtil.interpolate_segment srate ControlUtil.Linear
     return $ Config
         { _open_strings =
             Map.fromList $ Seq.key_on StringUtil.str_nn open_strings
@@ -160,7 +161,8 @@ string_idiom config = do
     where
     assign event = do
         let (nns, _warns) = Score.nn_signal event
-        lowest <- Derive.require "no pitch" $ Pitch.nn <$> Signal.minimum nns
+        when (Signal.null nns) $ Derive.throw "no pitch"
+        let lowest = Pitch.nn $ Signal.minimum nns
         string <- Derive.require ("below lowest string: " <> pretty lowest) $
             snd <$> Util.Map.lookup_below lowest (_open_strings config)
         return
@@ -227,10 +229,9 @@ add_attack config dur next_event event
 
 merge_curve :: PitchUtil.Interpolate -> RealTime -> PSignal.Pitch
     -> RealTime -> PSignal.Pitch -> Score.Event -> Score.Event
-merge_curve interpolate x0 y0 x1 y1 event = Score.set_pitch new_pitch event
-    where
-    curve = interpolate True x0 y0 x1 y1
-    new_pitch = PSignal.append (Score.event_pitch event) curve
+merge_curve interpolate x0 y0 x1 y1 event =
+    Score.set_pitch (Score.event_pitch event <> curve) event
+    where curve = interpolate x0 y0 x1 y1
 
 
 -- * mute end

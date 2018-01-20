@@ -20,7 +20,6 @@ import qualified Util.TextUtil as TextUtil
 import qualified Midi.Midi as Midi
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -41,6 +40,7 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Warp as Warp
 
 import qualified Perform.Midi.Convert as Midi.Convert
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
@@ -134,7 +134,7 @@ inst_controls block_id =
             (control_vals (Types.event_controls event))
             insts
     control_vals = Map.mapMaybe $ \sig ->
-        case (Signal.head sig, Signal.last sig) of
+        case (MSignal.head sig, MSignal.last sig) of
             (Just a, Just b) -> Just (a, b)
             _ -> Nothing
     merge1 (start1, end1) (start2, end2) =
@@ -393,7 +393,8 @@ convert :: Cmd.M m => [Score.Event] -> m (Events Types.Event)
 convert events = do
     lookup <- PlayUtil.get_convert_lookup
     lookup_inst <- Cmd.get_lookup_instrument
-    return $ Midi.Convert.convert lookup lookup_inst events
+    return $ Midi.Convert.convert Midi.Convert.default_srate lookup lookup_inst
+        events
 
 -- | Filter on events with a certain instrument.
 midi_event_inst :: Types.Event -> Text

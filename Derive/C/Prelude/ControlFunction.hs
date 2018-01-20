@@ -196,9 +196,11 @@ cf_compose name f (BaseTypes.ControlFunction cf_name cf) =
 curves :: [(Doc.Doc, ControlUtil.CurveD)]
 curves =
     [ ( "Jump to the destination at 0.5."
-      , ControlUtil.CurveD "jump" (pure ()) (\() n -> if n < 0.5 then 0 else 1)
+      , ControlUtil.CurveD "jump" (pure ()) $
+        \() -> ControlUtil.Function $ \n -> if n < 0.5 then 0 else 1
       )
-    , ("No interpolation.", ControlUtil.CurveD "const" (pure ()) (\() _ -> 0))
+    , ("No interpolation.", ControlUtil.CurveD "const" (pure ()) $
+        \() -> ControlUtil.Function (const 0))
     ]
 
 -- * BaseTypes.Dynamic

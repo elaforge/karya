@@ -8,7 +8,7 @@
 -- imports---PSignal is a low level module imported by other low level
 -- modules like "Derive.Score".
 module Derive.Pitches where
-import qualified Util.Num as Num
+import qualified Util.Segment as Segment
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -16,6 +16,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import Global
 
 
@@ -25,17 +26,9 @@ scale scale =
 
 -- | A pitch interpolated a certain distance between two other pitches.
 interpolated :: PSignal.Pitch -> PSignal.Pitch -> Double -> PSignal.Pitch
-interpolated low high dist =
-    PSignal.pitch (PSignal.pitch_scale low) nn note mempty
-    where
-    nn config = do
-        low_nn <- PSignal.pitch_nn $ PSignal.coerce $
-            PSignal.config config low
-        high_nn <- PSignal.pitch_nn $ PSignal.coerce $
-            PSignal.config config high
-        return $ Num.scale low_nn high_nn (Pitch.NoteNumber dist)
-    note = PSignal.pitch_eval_note $ PSignal.coerce $
-        if dist < 1 then low else high
+interpolated p1 p2 =
+    PSignal.interpolate (Segment.Sample 0 p1) (Segment.Sample 1 p2)
+    . RealTime.seconds
 
 -- | Transpose a pitch.
 transpose :: Pitch.Transpose -> PSignal.RawPitch a -> PSignal.RawPitch a
@@ -70,7 +63,8 @@ modify_hz scale modify pitch =
         (PSignal.pitch_eval_note pitch) (PSignal.pitch_config pitch)
     where
     pitch_nn modify pitch = \config -> do
-        nn <- PSignal.pitch_nn $ PSignal.coerce $ PSignal.config config pitch
+        nn <- PSignal.pitch_nn $ PSignal.coerce $
+            PSignal.apply_config config pitch
         return $ Pitch.modify_hz modify nn
 
 equal :: BaseTypes.RawPitch a -> BaseTypes.RawPitch a -> Bool

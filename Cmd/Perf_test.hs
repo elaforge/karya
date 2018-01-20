@@ -27,7 +27,7 @@ test_derive_expr = do
         (Right (Just (Right [(0, "+a+b")], []), []))
 
     let control_call :: Signal.Control -> [(Signal.X, Signal.Y)]
-        control_call = Signal.unsignal :: Signal.Control
+        control_call = Signal.to_pairs :: Signal.Control
             -> [(Signal.X, Signal.Y)]
     io_equal (run control_call [("c", []), (">", [])] (f 1 0 ".5"))
         (Right (Just (Right [[(0, 0.5)]], []), []))

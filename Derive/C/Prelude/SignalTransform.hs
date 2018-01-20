@@ -5,8 +5,7 @@
 -- | Transformers on control and pitch signals.
 module Derive.C.Prelude.SignalTransform (
     library
-    , smooth, smooth_relative
-    , slew_limiter, slope_segment
+    , slew_limiter
 ) where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -62,16 +61,13 @@ c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
         starts <- Speed.starts speed (start, end) True
         return $ Stream.from_event_logs (sample_hold_pitch starts sig) logs
 
+-- TODO(polymorphic-signals): this is the same as 'sample_hold_control'
 sample_hold_pitch :: [RealTime] -> PSignal.PSignal -> PSignal.PSignal
-sample_hold_pitch points sig = PSignal.unfoldr go (Nothing, points, sig)
-    where
-    go (_, [], _) = Nothing
-    go (prev, x : xs, sig_) = case PSignal.head sig of
-            Just (_, y) -> Just ((x, y), (Just y, xs, sig))
-            Nothing -> case prev of
-                Nothing -> go (prev, xs, sig)
-                Just p -> Just ((x, p), (prev, xs, sig))
-        where sig = PSignal.drop_before x sig_
+sample_hold_pitch points sig = PSignal.from_pairs $ do
+    (x1, n) <- Seq.zip_next points
+    Just y <- return $ PSignal.at x1 sig
+    x <- x1 : maybe [] (:[]) n
+    return (x, y)
 
 
 -- * control
@@ -85,61 +81,47 @@ c_sh_control = Derive.transformer Module.prelude "sh" mempty
         return $ Stream.from_event_logs (sample_hold_control starts sig) logs
 
 sample_hold_control :: [RealTime] -> Signal.Control -> Signal.Control
-sample_hold_control points sig = Signal.unfoldr go (0, points, sig)
-    where
-    go (_, [], _) = Nothing
-    go (prev, x : xs, sig_) = case Signal.head sig of
-            Just (_, y) -> Just ((x, y), (y, xs, sig))
-            Nothing -> Just ((x, prev), (prev, xs, sig))
-        where sig = Signal.drop_before x sig_
+sample_hold_control points sig = Signal.from_pairs $ do
+    (x1, n) <- Seq.zip_next points
+    let y = Signal.at x1 sig
+    x <- x1 : maybe [] (:[]) n
+    return (x, y)
 
 c_quantize :: Derive.Transformer Derive.Control
 c_quantize = Derive.transformer Module.prelude "quantize" mempty
     "Quantize a control signal."
     $ Sig.callt (required "val" "Quantize to multiples of this value.") $
-    \val _args -> Post.signal (quantize val)
+    \val _args deriver -> do
+        srate <- Call.get_srate
+        Post.signal (quantize srate val) deriver
 
-quantize :: Signal.Y -> Signal.Control -> Signal.Control
-quantize val
+quantize :: RealTime -> Signal.Y -> Signal.Control -> Signal.Control
+quantize srate val
     | val == 0 = id
-    | otherwise = Signal.map_y $ \y -> fromIntegral (round (y / val)) * val
+    | otherwise = Signal.map_y srate
+        (\y -> fromIntegral (round (y / val)) * val)
 
 c_slew :: Derive.Transformer Derive.Control
 c_slew = Derive.transformer Module.prelude "slew" mempty
     "Smooth a signal by interpolating such that it doesn't exceed the given\
     \ slope."
     $ Sig.callt (required "slope" "Maximum allowed slope, per second.")
-    $ \slope _args deriver -> do
-        srate <- Call.get_srate
-        Post.signal (slew_limiter srate slope) deriver
+    $ \slope _args -> Post.signal (slew_limiter slope)
 
 -- | Smooth the signal by not allowing the signal to change faster than the
 -- given slope.
-slew_limiter :: RealTime -> Signal.Y -> Signal.Control -> Signal.Control
-slew_limiter srate slope =
-    Signal.concat . snd . List.mapAccumL go Nothing . Seq.zip_next
-        . Signal.unsignal
+slew_limiter :: Signal.Y -> Signal.Control -> Signal.Control
+slew_limiter max_slope =
+    Signal.from_pairs . snd . List.mapAccumL limit Nothing . Signal.to_pairs
     where
-    -- TODO I tried to think of a way to do this without converting the signal
-    -- to a list, and allocating a separate vector for each chunk.  But vector
-    -- doesn't have a builder.  unfoldr could do it, but awkwardly because
-    -- of the need to emit multiple samples.
-    go state ((x, y), next) = case state of
-        Nothing -> (Just y, Signal.signal [(x, y)])
-        Just prev_y -> ((snd <$> Signal.last segment) <|> Just y, segment)
-            where
-            segment = slope_segment srate srate_slope prev_y (x, y)
-                (fst <$> next)
-    srate_slope = slope * RealTime.to_seconds srate
-
--- | Produce a segment up to but not including the next sample.
-slope_segment :: RealTime -> Signal.Y -> Signal.Y -> (RealTime, Signal.Y)
-    -> Maybe RealTime -> Signal.Control
-slope_segment srate slope prev_y (x, y) next = Signal.signal $ zip xs ys
-    where
-    xs = maybe id (\n -> takeWhile (<n)) next $ Seq.range_ x srate
-    -- Since the value is already prev_y, I can start moving immediately.
-    ys = drop 1 $ Seq.range_end prev_y y (if y >= prev_y then slope else -slope)
+    limit Nothing (x, y) = (Just (x, y), (x, y))
+    limit (Just (x0, y0)) (x1, y1)
+        | abs slope <= max_slope = (Just (x1, y1), (x1, y1))
+        | otherwise = (Just (x1, y), (x1, y))
+        where
+        y = dx * max_slope
+        slope = (y1 - y0) / dx
+        dx = RealTime.to_seconds (x1 - x0)
 
 c_smooth :: Derive.Transformer Derive.Control
 c_smooth = Derive.transformer Module.prelude "smooth" mempty
@@ -154,57 +136,24 @@ c_smooth = Derive.transformer Module.prelude "smooth" mempty
     ) $ \(Typecheck.DefaultReal time, curve) args deriver -> do
         srate <- Call.get_srate
         time <- Call.real_duration (Args.start args) time
-        f <- Derive.require "curve" (curve_function curve)
-        Post.signal (smooth f srate time) deriver
+        curve <- Derive.require "curve" (parse_curve curve)
+        Post.signal (ControlUtil.smooth curve srate time
+            . Signal.to_pairs_unique) deriver
 
-curve_function :: Text -> Maybe (Double -> Double)
-curve_function curve = case untxt curve of
-    "i" -> Just id
-    ['e', n] | Just d <- digit n -> Just $ ControlUtil.expon (fromIntegral (-d))
-    [n, 'e'] | Just d <- digit n -> Just $ ControlUtil.expon (fromIntegral d)
+-- TODO use ControlFunction curves instead of this ad-hoc thing
+parse_curve :: Text -> Maybe ControlUtil.Curve
+parse_curve curve = case untxt curve of
+    "i" -> Just ControlUtil.Linear
+    ['e', n] | Just d <- digit n -> Just $ ControlUtil.Function $
+        ControlUtil.expon (fromIntegral (-d))
+    [n, 'e'] | Just d <- digit n -> Just $ ControlUtil.Function $
+        ControlUtil.expon (fromIntegral d)
     [n1, 'e', n2] | Just d1 <- digit n1, Just d2 <- digit n2 ->
-        Just $ ControlUtil.expon2 (fromIntegral d1) (fromIntegral d2)
+        Just $ ControlUtil.Function $
+            ControlUtil.expon2 (fromIntegral d1) (fromIntegral d2)
     _ -> Nothing
     where
     digit = Num.readDigit
-
--- | Use the function to create a segment between each point in the signal.
-smooth :: ControlUtil.Curve -> RealTime -> RealTime
-    -- ^ If negative, each segment is from this much before the original sample
-    -- until the sample.  If positive, it starts on the sample.  If samples are
-    -- too close, the segments are shortened correspondingly.
-    -> Signal.Control -> Signal.Control
-smooth curve srate time =
-    Signal.concat . snd . List.mapAccumL go Nothing . Seq.zip_next
-        . Signal.unsignal
-    where
-    go state ((x, y), next) = case state of
-        Nothing -> (Just (x, y), Signal.signal [(x, y)])
-        Just (x0, y0) -> (Signal.last segment <|> Just (x, y), segment)
-            where
-            segment = drop1 $ ControlUtil.segment srate True True curve
-                (max x0 (min x (x+time))) y0
-                (maybe id (min . fst) next (max x (x+time))) y
-    -- If the segment length is non-zero, then the first sample is a duplicate
-    -- of the previous segment's final one.
-    drop1 sig
-        | Signal.length sig > 1 = Signal.drop 1 sig
-        | otherwise = sig
-
--- | Like 'smooth', but the transition time is a 0--1 proportion of the
--- available time, rather than an absolute time.
-smooth_relative :: ControlUtil.Curve -> RealTime -> Typecheck.Function
-    -> Signal.Control -> Signal.Control
-smooth_relative curve srate time_at signal =
-    mconcatMap segment $ Seq.zip_next $ Signal.unsignal signal
-    where
-    segment ((x, y), Nothing) = Signal.signal [(x, y)]
-    segment ((x1, y1), Just (x2, y2)) =
-        Signal.signal [(x1, y1) | offset > 0]
-        <> ControlUtil.segment srate True False curve (x1 + offset) y1 x2 y2
-        where
-        offset = (x2 - x1) * (1 - RealTime.seconds (min 1 time))
-        time = Num.clamp 0 1 (time_at x1)
 
 c_redirect :: Derive.Merge Signal.Control -> Derive.Transformer Derive.Control
 c_redirect merger =

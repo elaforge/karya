@@ -37,13 +37,18 @@ data CurveD = forall arg. CurveD !Text !(Sig.Parser arg) !(arg -> Curve)
 curve_name :: CurveD -> Text
 curve_name (CurveD name _ _) = name
 
+data Curve = Function !(Double -> Double)
+    -- | Signals can represent linear segments directly, so if I keep track of
+    -- them, I can use the efficient direct representation.
+    | Linear
+
 -- | Interpolation function.  This maps 0--1 to the desired curve, which is
 -- also normalized to 0--1.
-type Curve = Double -> Double
+type CurveF = Double -> Double
 
 standard_curves :: [(Expr.Symbol, CurveD)]
 standard_curves =
-    [ ("i", CurveD "linear" (pure ()) (const id))
+    [ ("i", CurveD "linear" (pure ()) (\() -> Linear))
     , ("e", exponential_curve)
     , ("s", sigmoid_curve)
     ]
@@ -144,6 +149,15 @@ curve_env :: Sig.Parser Curve
 curve_env = cf_to_curve <$>
     Sig.environ "curve" Sig.Both cf_linear "Curve function."
 
+cf_linear :: BaseTypes.ControlFunction
+cf_linear = curve_to_cf "" Linear
+
+-- | A ControlFunction is a generic function, so it can't retain the
+-- distinction between Function and Linear.  So I use a grody hack and keep
+-- the distinction in a special name.
+cf_linear_name :: Text
+cf_linear_name = "cf-linear"
+
 curve_time_env :: Sig.Parser (Curve, RealTime)
 curve_time_env = (,) <$> curve_env <*> time
     where time = Sig.environ "curve-time" Sig.Both 0 "Curve transition time."
@@ -157,18 +171,19 @@ make_curve_call doc (CurveD name get_arg curve) =
 
 -- | Stuff a curve function into a ControlFunction.
 curve_to_cf :: Text -> Curve -> BaseTypes.ControlFunction
-curve_to_cf name curve = BaseTypes.ControlFunction name $
-    \_ _ -> Score.untyped . curve . RealTime.to_seconds
+curve_to_cf name (Function curvef) = BaseTypes.ControlFunction name $
+    \_ _ -> Score.untyped . curvef . RealTime.to_seconds
+curve_to_cf _ Linear = BaseTypes.ControlFunction cf_linear_name $
+    \_ _ -> Score.untyped . RealTime.to_seconds
 
 -- | Convert a ControlFunction back into a curve function.
 cf_to_curve :: BaseTypes.ControlFunction -> Curve
-cf_to_curve cf =
-    Score.typed_val
-    . BaseTypes.call_control_function cf Controls.null BaseTypes.empty_dynamic
-    . RealTime.seconds
-
-cf_linear :: BaseTypes.ControlFunction
-cf_linear = curve_to_cf "cf-linear" id
+cf_to_curve cf@(BaseTypes.ControlFunction name _)
+    | name == cf_linear_name = Linear
+    | otherwise = Function $ Score.typed_val
+        . BaseTypes.call_control_function cf Controls.null
+            BaseTypes.empty_dynamic
+        . RealTime.seconds
 
 -- * interpolate
 
@@ -185,70 +200,73 @@ place_range (Typecheck.Normalized place) start dur = do
 make_segment_from :: Curve -> RealTime -> Maybe Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 make_segment_from curve start maybe_from end to = case maybe_from of
-    Nothing -> return $ Signal.signal [(start, to)]
+    Nothing -> return $ Signal.from_sample start to
     Just from -> make_segment curve start from end to
 
 make_segment :: Curve -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
-make_segment = make_segment_ True True
-    -- I always set include_initial.  It might be redundant, but if the
-    -- previous call was sliced off, it won't be.
+make_segment = make_segment_ True
 
-make_segment_ :: Bool -> Bool -> Curve -> RealTime -> Signal.Y
+make_segment_ :: Bool -> Curve -> RealTime -> Signal.Y
     -> RealTime -> Signal.Y -> Derive.Deriver Signal.Control
-make_segment_ include_initial include_end curve x1 y1 x2 y2 = do
+make_segment_ include_end curve x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate include_initial include_end curve x1 y1 x2 y2
+    return $ segment srate include_end curve x1 y1 x2 y2
 
 -- | Interpolate between the given points.
-segment :: SRate -> Bool -- ^ include the initial sample
-    -> Bool -- ^ add a sample at end time if one doesn't naturally land there
-    -> Curve -> RealTime -> Signal.Y -> RealTime -> Signal.Y
-    -> Signal.Control
-segment srate include_initial include_end curve x1 y1 x2 y2 =
-    Signal.unfoldr go $
-        (if include_initial then id else drop 1) (Seq.range_ x1 srate)
+segment :: SRate -> Bool -- ^ omit the final sample, for chaining these
+    -- TODO it's an error-prone micro-optimization, and if it matters, I could
+    -- have a Signal's mconcat drop the duplicates
+    -> Curve -> RealTime -> Signal.Y -> RealTime
+    -> Signal.Y -> Signal.Control
+segment srate include_end curve x1 y1 x2 y2
+    | x1 == x2 && y1 == y2 = mempty
+    -- If x1 == x2 I still need to make a vertical segment
+    | y1 == y2 = Signal.from_pairs [(x1, y1), (x2, y2)]
+    | otherwise = case curve of
+        Linear -> Signal.from_pairs [(x1, y1), (x2, y2)]
+        Function curvef -> Signal.unfoldr (make curvef) (Seq.range_ x1 srate)
     where
-    go [] = Nothing
-    go (x:xs)
+    -- TODO use Seq.range_end and map
+    make _ [] = Nothing
+    make curvef (x:xs)
         | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
         | otherwise = Just ((x, y_at x), xs)
-    y_at = make_function curve x1 y1 x2 y2
+        where y_at = make_function curvef x1 y1 x2 y2
 
-make_function :: Curve -> RealTime -> Signal.Y -> RealTime -> Signal.Y
+make_function :: CurveF -> RealTime -> Signal.Y -> RealTime -> Signal.Y
     -> (RealTime -> Signal.Y)
-make_function curve x1 y1 x2 y2 =
-    Num.scale y1 y2 . curve . Num.normalize (secs x1) (secs x2) . secs
+make_function curvef x1 y1 x2 y2 =
+    Num.scale y1 y2 . curvef . Num.normalize (secs x1) (secs x2) . secs
     where secs = RealTime.to_seconds
 
 -- * slope
 
-slope :: SRate -> Signal.Y -> Double -> RealTime -> RealTime -> Signal.Control
-slope srate = limited_slope srate Nothing Nothing
-
--- | Make a linear sloped line, with optional lower and upper limits.
+-- | Make a line with a certain slope, with optional lower and upper limits.
 -- TODO I could support Curve but it would make the intercept more complicated.
-limited_slope :: SRate -> Maybe Signal.Y -> Maybe Signal.Y
+slope_to_limit :: Maybe Signal.Y -> Maybe Signal.Y
     -> Signal.Y -> Double -> RealTime -> RealTime -> Signal.Control
-limited_slope srate low high from slope start end
-    | slope == 0 = Signal.signal [(start, from)]
-    | Just limit <- maybe_limit =
+slope_to_limit low high from slope start end
+    | slope == 0 = Signal.from_sample start from
+    | Just limit <- if slope < 0 then low else high =
         let intercept = start + max 0 (RealTime.seconds ((limit-from) / slope))
         in if intercept < end then make intercept limit else make end end_y
     | otherwise = make end end_y
     where
-    maybe_limit = if slope < 0 then low else high
-    make = segment srate True True id start from
+    make = segment srate True Linear start from
+    srate = 1 -- not used for Linear
     end_y = from + RealTime.to_seconds (end - start) * slope
 
 -- * exponential
 
 exponential_curve :: CurveD
-exponential_curve = CurveD "expon" args expon
-    where args = Sig.defaulted "expon" 2 exp_doc
+exponential_curve = CurveD "expon" args (Function . expon)
+    where
+    args = Sig.defaulted "expon" 2 exponential_doc
 
-exp_doc :: Doc.Doc
-exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
+exponential_doc :: Doc.Doc
+exponential_doc =
+    "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ and will generate a slowly departing and rapidly approaching\
     \ curve. Negative `-n` is taken as `x^1/n`, which will generate a\
     \ rapidly departing and slowly approaching curve."
@@ -257,13 +275,13 @@ exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
 -- which doesn't seem too useful, so so hijack the negatives as an easier way
 -- to write 1/n.  That way n is smoothly departing, while -n is smoothly
 -- approaching.
-expon :: Double -> Curve
+expon :: Double -> CurveF
 expon n x = x**exp
     where exp = if n >= 0 then n else 1 / abs n
 
 -- | I could probably make a nicer curve of this general shape if I knew more
 -- math.
-expon2 :: Double -> Double -> Curve
+expon2 :: Double -> Double -> CurveF
 expon2 a b x
     | x >= 1 = 1
     | x < 0.5 = expon a (x * 2) / 2
@@ -274,7 +292,7 @@ expon2 a b x
 sigmoid_curve :: CurveD
 sigmoid_curve = CurveD "sigmoid" args curve
     where
-    curve (w1, w2) = sigmoid w1 w2
+    curve (w1, w2) = Function $ sigmoid w1 w2
     args = (,)
         <$> Sig.defaulted "w1" 0.5 "Start weight."
         <*> Sig.defaulted "w2" 0.5 "End weight."
@@ -284,7 +302,7 @@ type Point = (Double, Double)
 -- | As far as I can tell, there's no direct way to know what value to give to
 -- the bezier function in order to get a specific @x@.  So I guess with binary
 -- search.
-guess_x :: (Double -> (Double, Double)) -> Curve
+guess_x :: (Double -> (Double, Double)) -> CurveF
 guess_x f x1 = go 0 1
     where
     go low high = case ApproxEq.compare threshold x x1 of
@@ -298,7 +316,7 @@ guess_x f x1 = go 0 1
 
 -- | Generate a sigmoid curve.  The first weight is the flatness at the start,
 -- and the second is the flatness at the end.  Both should range from 0--1.
-sigmoid :: Double -> Double -> Curve
+sigmoid :: Double -> Double -> CurveF
 sigmoid w1 w2 = guess_x $ bezier3 (0, 0) (w1, 0) (1-w2, 1) (1, 1)
 
 -- | Cubic bezier curve.
@@ -314,14 +332,15 @@ bezier3 (x1, y1) (x2, y2) (x3, y3) (x4, y4) t =
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, Signal.Y)] -> Signal.Control
 breakpoints srate curve =
-    signal_breakpoints Signal.signal (segment srate True False curve)
+    signal_breakpoints Signal.from_sample (segment srate False curve)
+    -- TODO I think if curve==Linear, I can just do Signal.from_samples
 
-signal_breakpoints :: Monoid sig => ([(RealTime, y)] -> sig)
+signal_breakpoints :: Monoid sig => (RealTime -> y -> sig)
     -> (RealTime -> y -> RealTime -> y -> sig) -> [(RealTime, y)] -> sig
 signal_breakpoints make_signal make_segment = mconcatMap line . Seq.zip_next
     where
     line ((x1, y1), Just (x2, y2)) = make_segment x1 y1 x2 y2
-    line ((x1, y2), Nothing) = make_signal [(x1, y2)]
+    line ((x1, y2), Nothing) = make_signal x1 y2
 
 -- | Distribute the values evenly over the given time range.
 distribute :: RealTime -> RealTime -> [a] -> [(RealTime, a)]
@@ -331,6 +350,66 @@ distribute start end vals = case vals of
     _ -> [(Num.scale start end (n / (len - 1)), x)
         | (n, x) <- zip (Seq.range_ 0 1) vals]
     where len = fromIntegral (length vals)
+
+-- * smooth
+
+-- | Use the function to create a segment between each point in the signal.
+--
+-- > 0 1 2 3 4 5 6 7 8
+-- > 0-------1-------0
+-- > 0-----0=1-----1=0      time = -1
+-- > 0-------0=1-----1=0    time = 1
+--
+-- TODO rename to smooth_absolute
+smooth :: Curve -> RealTime -> RealTime
+    -- ^ If negative, each segment is from this much before the original sample
+    -- until the sample.  If positive, it starts on the sample.  If samples are
+    -- too close, the segments are shortened correspondingly.
+    -> [(RealTime, Signal.Y)] -> Signal.Control
+smooth curve srate time = breakpoints srate curve . split_samples_absolute time
+
+-- | Split apart samples to make a flat segment.
+--
+-- TODO if y=Pitch there's no Eq, so breakpoints winds up sampling flat
+-- segments.  I could emit Maybe y where Nothing means same as previous.
+split_samples_absolute :: RealTime -> [(RealTime, y)] -> [(RealTime, y)]
+split_samples_absolute time
+    | time >= 0 = concatMap split_prev . Seq.zip_neighbors
+    | otherwise = concatMap split_next . Seq.zip_next
+    where
+    split_prev (Nothing, (x1, y1), _) = [(x1, y1)]
+    split_prev (Just (_, y0), (x1, y1), next) =
+        (x1, y0) : if is_room then [(x1 + time, y1)] else []
+        where is_room = maybe True ((x1 + time <) . fst) next
+    split_next ((x1, y1), Nothing) = [(x1, y1)]
+    split_next ((x1, y1), Just (x2, _)) =
+        -- (x1, y1) : if x1 - time < x2 then [(x1 - time, y1)] else []
+        (x1, y1) : if x2 + time > x1 then [(x2 + time, y1)] else []
+
+-- | Like 'smooth', but the transition time is a 0--1 proportion of the
+-- available time, rather than an absolute time.
+--
+-- TODO support negative time and make it consistent with
+-- 'split_samples_absolute'.
+--
+-- > 0 1 2 3 4 5 6 7 8
+-- > 0-------1-------0
+-- > 0-----0=1-----1=0 map time_at [0, 4] = [0.25, 0.25]
+smooth_relative :: Curve -> RealTime -> Typecheck.Function
+    -> [(RealTime, Signal.Y)] -> Signal.Control
+smooth_relative curve srate time_at =
+    breakpoints srate curve . split_samples_relative time_at
+
+split_samples_relative :: Typecheck.Function -> [(RealTime, y)]
+    -> [(RealTime, y)]
+split_samples_relative time_at = concatMap split . Seq.zip_next
+    where
+    split ((x1, y1), Nothing) = [(x1, y1)]
+    split ((x1, y1), Just (x2, _)) =
+        (x1, y1) : if offset == 0 then [] else [(x1 + offset, y1)]
+        where
+        offset = (x2 - x1) * (1 - time)
+        time = RealTime.seconds (Num.clamp 0 1 (time_at x1))
 
 -- * control mod
 
@@ -350,7 +429,7 @@ modify_with merge control end sig = do
     Derive.modify_control merger control $ mconcat
         [ if identity == 0 then mempty else Signal.constant identity
         , sig
-        , Signal.signal [(end, identity)]
+        , Signal.from_sample end identity
         ]
 
 multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()

@@ -344,7 +344,14 @@ grace_p grace_dur pitches (start, end) = do
     real_start <- Derive.real start
     real_end <- Derive.real end
     let starts = fit_after real_start real_end (length pitches) real_dur
-    return $ PSignal.signal $ zip starts pitches
+    return $ PSignal.from_pairs $ flat_segments $ zip starts pitches
+
+flat_segments :: [(RealTime, y)] -> [(RealTime, y)]
+flat_segments = concatMap to_pairs . Seq.zip_next
+    where
+    to_pairs ((x, y), next) = case next of
+        Nothing -> [(x, y)]
+        Just (x2, _) -> [(x, y), (x2, y)]
 
 -- * util
 

@@ -64,7 +64,6 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.C.Prelude.SignalTransform as SignalTransform
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Ly as Ly
@@ -170,13 +169,26 @@ note_trill use_attributes neighbor speed (start_dir, end_dir, hold, adjust) args
         (transpose, control) <- get_trill_control
             (Args.range_or_next args) start_dir end_dir adjust hold
             neighbor speed
-        xs <- mapM (Derive.score . fst) (Signal.unsignal transpose)
+        Sub.derive =<< mapM (note control) (Seq.zip_next transpose)
+    note control ((x, transpose), next) = do
+        start <- Derive.score x
         let end = snd $ Args.range args
-        let notes = do
-                (x, maybe_next) <- Seq.zip_next xs
-                let next = fromMaybe end maybe_next
-                return $ Sub.Event x (next-x) Call.note
-        Call.add_control control (Score.untyped transpose) (Sub.derive notes)
+        next <- maybe (return end) (Derive.score . fst) next
+        return $ Sub.Event start (next-start) $
+            Call.add_constant control transpose Call.note
+
+    -- trill_notes = do
+    --     neighbor <- neighbor_to_signal (Args.start args) neighbor
+    --     (transpose, control) <- get_trill_control
+    --         (Args.range_or_next args) start_dir end_dir adjust hold
+    --         neighbor speed
+    --     xs <- mapM (Derive.score . fst) transpose
+    --     let end = snd $ Args.range args
+    --     let notes = do
+    --             (x, maybe_next) <- Seq.zip_next xs
+    --             let next = fromMaybe end maybe_next
+    --             return $ Sub.Event x (next-x) Call.note
+    --     Call.add_control control (Score.untyped transpose) (Sub.derive notes)
 
         -- TODO this is an implementation that directly uses the neighbor pitch
         -- instead of the roundabout signal thing.  But I still need the signal
@@ -381,15 +393,15 @@ tremolo_starts hold speed (start, end) = do
 -- time types, which a signal can't express.  Of course I could make the
 -- signal into duration and then do the reciprocal in the score as a val call,
 -- but that seems too complicated for tracklang.
-tremolo_starts_curve :: ControlUtil.Curve -> BaseTypes.Duration
+tremolo_starts_curve :: ControlUtil.CurveF -> BaseTypes.Duration
     -> Speed.Speed -> Speed.Speed -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [ScoreTime]
     -- ^ start time for each note, and one for the end of the last one
-tremolo_starts_curve curve hold start_speed end_speed (start, end) = do
+tremolo_starts_curve curvef hold start_speed end_speed (start, end) = do
     hold <- Call.score_duration start hold
     real_range <- (,) <$> Derive.real start <*> Derive.real end
     (add_hold (start, end) hold . full_notes end <$>) $ mapM Derive.score
-        =<< Speed.starts_curve curve start_speed end_speed real_range True
+        =<< Speed.starts_curve curvef start_speed end_speed real_range True
         -- include_end=True because the end time is also included.
 
 -- | Add the hold time to the first tremolo note.
@@ -474,7 +486,7 @@ c_pitch_trill hardcoded_start hardcoded_end =
         transpose <- smooth_trill transition transpose
         start <- Args.real_start args
         return $ PSignal.apply_control control (Score.untyped transpose) $
-            PSignal.signal [(start, note)]
+            PSignal.from_sample start note
 
 c_xcut_pitch :: Bool -> Derive.Generator Derive.Pitch
 c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
@@ -493,19 +505,11 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
 
 xcut_pitch :: Bool -> PSignal.PSignal -> PSignal.PSignal -> [RealTime]
     -> PSignal.PSignal
-xcut_pitch hold val1 val2 =
-    mconcat . snd . List.mapAccumL slice (val1, val2) . Seq.zip_next
+xcut_pitch hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
     where
-    slice (val1, val2) (t, next_t)
-        | hold = (next, initial)
-        | otherwise = (next, initial <> chunk)
-        where
-        chopped = PSignal.drop_before_strict t val1
-        chunk = maybe chopped (\n -> PSignal.drop_at_after n chopped) next_t
-        next = (val2, PSignal.drop_before t val1)
-        initial = case PSignal.at t val1 of
-            Nothing -> mempty
-            Just p -> PSignal.signal [(t, p)]
+    slice (val, t)
+        | hold = maybe mempty (PSignal.from_sample t) (PSignal.at t val)
+        | otherwise = PSignal.clip_before t val
 
 
 -- * control calls
@@ -544,7 +548,8 @@ c_saw = Derive.generator1 Module.prelude "saw" mempty
 saw :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
 saw srate starts from to = mconcat $ zipWith saw starts (drop 1 starts)
     where
-    saw t1 t2 = ControlUtil.segment srate True True id t1 from (t2-srate) to
+    saw t1 t2 = ControlUtil.segment srate True ControlUtil.Linear
+        t1 from (t2-srate) to
 
 -- ** sine
 
@@ -572,8 +577,7 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
                 Negative -> -amp
                 Positive -> amp
         (start, end) <- Args.real_range_or_next args
-        -- let samples = Seq.range' start end srate
-        return $ Signal.map_y ((+(offset+sign)) . (*amp)) $
+        return $ Signal.map_y_linear ((+(offset+sign)) . (*amp)) $
             sine srate start end speed_sig
 
 sine :: RealTime -> RealTime -> RealTime -> Typecheck.Function -> Signal.Control
@@ -603,19 +607,14 @@ c_xcut_control hold = Derive.generator1 Module.prelude "xcut" mempty
         val2 <- Call.to_signal val2
         return $ xcut_control hold val1 val2 transitions
 
+-- TODO(polymorphic-signals) This is the same as 'xcut_pitch'
 xcut_control :: Bool -> Signal.Control -> Signal.Control -> [RealTime]
     -> Signal.Control
-xcut_control hold val1 val2 =
-    mconcat . snd . List.mapAccumL slice (val1, val2) . Seq.zip_next
+xcut_control hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
     where
-    slice (val1, val2) (t, next_t)
-        | hold = (next, initial)
-        | otherwise = (next, initial <> chunk)
-        where
-        chopped = Signal.drop_before_strict t val1
-        chunk = maybe chopped (\n -> Signal.drop_at_after n chopped) next_t
-        next = (val2, Signal.drop_before t val1)
-        initial = Signal.signal [(t, Signal.at t val1)]
+    slice (val, t)
+        | hold = Signal.from_sample t (Signal.at t val)
+        | otherwise = Signal.clip_before t val
 
 -- * util
 
@@ -719,9 +718,8 @@ adjust_env = Sig.environ "adjust" Sig.Both Shorten
 get_trill_control :: (ScoreTime, ScoreTime) -> Maybe Direction
     -> Maybe Direction -> Adjust -> BaseTypes.Duration
     -> BaseTypes.ControlRef -> BaseTypes.ControlRef
-    -> Derive.Deriver (Signal.Control, Score.Control)
-get_trill_control (start, end) start_dir end_dir adjust hold neighbor speed
-        = do
+    -> Derive.Deriver ([(RealTime, Signal.Y)], Score.Control)
+get_trill_control (start, end) start_dir end_dir adjust hold neighbor speed = do
     (neighbor_sig, control) <-
         Call.to_transpose_function Typecheck.Diatonic neighbor
     real_start <- Derive.real start
@@ -769,18 +767,23 @@ convert_direction neighbor_low start end = (first, even_transitions)
         Just Low -> Just (not first_low)
         Just High -> Just first_low
 
-smooth_trill :: BaseTypes.ControlRef -> Signal.Control
+-- | Turn transition times into a trill control.
+smooth_trill :: BaseTypes.ControlRef -- ^ time to take make the transition,
+    -- where 0 is instant and 1 is all available time
+    -> [(RealTime, Signal.Y)]
     -> Derive.Deriver Signal.Control
 smooth_trill time transitions = do
     srate <- Call.get_srate
     sig_function <- Typecheck.to_signal_or_function time
     case sig_function of
-        Left sig | Signal.constant_val (Score.typed_val sig) == Just 0 ->
-            return transitions
+        -- Optimize by making a square wave.
+        -- TODO
+        -- Left sig | Signal.constant_val (Score.typed_val sig) == Just 0 ->
+        --     return transitions
         _ -> do
-            f <- Typecheck.convert_to_function time sig_function
-            return $ SignalTransform.smooth_relative id srate
-                (Score.typed_val . f) transitions
+            time_at <- Typecheck.convert_to_function time sig_function
+            return $ ControlUtil.smooth_relative ControlUtil.Linear srate
+                (Score.typed_val . time_at) transitions
 
 -- | Get trill transition times, adjusted for all the various fancy parameters
 -- that trills have.
@@ -830,10 +833,11 @@ add_bias bias (t:ts)
     negative bias (x:y:zs) = x : Num.scale x y bias : negative bias zs
     negative _ xs = xs
 
--- | Make a trill signal from a list of transition times.
+-- | Make a trill signal from a list of transition times.  It will alternate
+-- between values from the given Functions.
 trill_from_transitions :: Typecheck.Function -> Typecheck.Function
-    -> [RealTime] -> Signal.Control
-trill_from_transitions val1 val2 transitions = Signal.signal
+    -> [RealTime] -> [(RealTime, Signal.Y)]
+trill_from_transitions val1 val2 transitions =
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 -- | Create trill transition points from a speed.

@@ -2,44 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleContexts, FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
 {- | Generic functions over vectors of 'Sample's.
 
     The samples should be sorted, though this is currently not enforced by
-    the constructors.
+    the constructors.  TODO fix that
 
-    The meaning of the samples is defined by the 'at' implementation.  Each
-    sample starts at its time and extends up to, but not including, the next
-    sample.  Therefore if there are multiple samples at the same time, only the
-    last one is visible.
-
-    There is a special rule that says a sample at <=0 is considered to extend
-    backwards indefinitely.  So @at (-1) [(1, 1)]@ is 0, but @at (-1) [(0, 1)]@
-    is 1.  This is weird and I've gone back and forth a couple times on the
-    design so I should document how this came up.
-
-    The idea is that some calls will move events back in time (e.g. grace
-    notes).  If the call starts at 0, the events will start at negative time.
-    Controls start at 0, so these events will have no pitch and no controls.
-    Even if the pitch is set explicitly via 'constant', it still starts at 0.
-    I could solve the problem with 'constant' by starting it at -bignum, but
-    that doesn't help for control tracks, which still start at 0.
-
-    Since tracks provide no way to say what the value should be before they
-    start, I have to do something implicit (well, technically they could, but
-    it seems awkward).  So the idea is that a sample at 0 gives the value for
-    negative times as well.  Actually the implementation is <=0, since it seems
-    weird that translating a signal back from 0 would change its meaning.  This
-    still leaves a bit of weirdness where translating a signal back from
-    positive to will change its definition when it crosses 0.  Hopefully this
-    won't be a problem in practice.
-
-    This solves the problem for 'constant' and for tracks in the same way, and
-    doesn't result in any ugly arbitrary -bignum values suddenly showing up in
-    signals.
-
-    NOTE [signal-discontinuity] TODO
+    By default, this defines a piecewise-constant function, where each sample
+    maintains its value until the next one.  However, samples can have
+    coincident Xs, and this is used for a linear segment based implementation
+    built on top of this.
 -}
 module Util.TimeVector (
     module Util.TimeVector
@@ -80,10 +51,9 @@ type Boxed y = Vector.Vector (Sample y)
 -- performance significantly since the functions are heavily used and the
 -- specialization likely enables some unboxing in inner loops.
 
--- (Vector a) already has a monoid instance, so I can't make my own.
--- I tried making newtypes for Boxed and Unboxed, but couldn't then figure
--- out how to get the generic functions to apply to them.  So clients have to
--- implement Monoid themselves, using 'merge'.
+-- There's no monoid instance for Boxed or Unboxed, and I leave it that way.
+-- Implementations should implement their own Monoid with their own rules,
+-- perhaps using 'merge', which is for piecewise-constant signals.
 
 type Unboxed = Storable.Vector (Sample UnboxedY)
 type UnboxedY = Double
@@ -224,8 +194,8 @@ prepend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
     -> v (Sample y)
 prepend vec1 vec2 = case last vec1 of
     Nothing -> vec2
-    Just v ->
-        vec1 V.++ V.dropWhile ((<= sx v) . sx) (drop_before_strict (sx v) vec2)
+    Just (Sample x _) ->
+        vec1 V.++ V.dropWhile ((<=x) . sx) (drop_before_strict x vec2)
 
 -- | Same as 'sample_at', except don't return the X.
 {-# SPECIALIZE at :: X -> Unboxed -> Maybe UnboxedY #-}
@@ -274,17 +244,10 @@ shift offset vec
 
 -- | Truncate a signal so it doesn't include the given X - RealTime.eta.  It's
 -- just a view of the old signal, so it doesn't allocate a new signal.
---
--- If the x<=0 the signal will still contain up to and including 0.  That's
--- because, as per the module haddock, a sample <=0 stands in for all values
--- <=0.
 {-# SPECIALIZE drop_at_after :: X -> Unboxed -> Unboxed #-}
 {-# INLINEABLE drop_at_after #-}
 drop_at_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
-drop_at_after x vec
-    -- TODO remove magic
-    | x <= 0 = V.takeWhile ((<=0) . sx) vec
-    | otherwise = V.take (bsearch_below (x - RealTime.eta) vec) vec
+drop_at_after x vec = V.take (bsearch_below (x - RealTime.eta) vec) vec
 
 drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_after x = drop_at_after (x + RealTime.eta + RealTime.eta)

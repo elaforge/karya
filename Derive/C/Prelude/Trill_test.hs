@@ -23,13 +23,13 @@ import Global
 
 
 test_note_trill = do
-    let run tempo notes pitches = extract $ derive_tracks
+    let run tempo notes pitches = DeriveTest.extract extract $ derive_tracks
             [("tempo", [(0, 0, showt tempo)]), (">", notes), ("*", pitches)]
-        extract = DeriveTest.extract DeriveTest.e_note
+        extract = DeriveTest.e_note
     equal (run 1 [(0, 3, "tr 1 1")] [(0, 0, "4c")])
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c")], [])
     equal (run 1 [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
-        ([(0, 1, "4a"), (1, 1, "5c"), (2, 1, "4b")], [])
+        ([(0, 1, "4a"), (1, 1, "5d"), (2, 1, "4b")], [])
     -- Without the eta argument to 'integral_cycles', I wind up with a super
     -- short note that fell right below the "full cycle" threshold.
     let (notes, logs) = run 1.75
@@ -287,8 +287,7 @@ test_real_trill = do
     let f neighbor speed = fst <$> Trill.get_trill_control (0, 1)
             Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
             (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Real speed)
-        run = extract . DeriveTest.run Ui.empty
-        extract = DeriveTest.extract_run Signal.unsignal
+        run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
         cnst = Signal.constant
     equal (run $ f (cnst 1) (cnst 2)) $ Right [(0, 0), (0.5, 1)]
     equal (run $ f (cnst (-1)) (cnst 2)) $ Right [(0, 0), (0.5, -1)]
@@ -298,17 +297,16 @@ test_real_trill = do
         Right [(0, 0), (0.5, 1), (1, 0), (1.5, 1)]
 
     -- Changing depth signal.
-    equal (run $ f (Signal.signal [(0, 1), (0.5, 2)]) (cnst 4)) $
+    equal (run $ f (Signal.from_pairs [(0, 1), (0.5, 1), (0.5, 2)]) (cnst 4)) $
         Right [(0, 0), (0.25, 1), (0.5, 0), (0.75, 2)]
-    equal (run $ f (cnst 1) (Signal.signal [(0, 2), (0.5, 4)])) $
+    equal (run $ f (cnst 1) (Signal.from_pairs [(0, 2), (0.5, 4)])) $
         Right [(0, 0), (0.5, 1), (0.75, 0)]
 
 test_score_trill = do
     let f dur neighbor speed = fst <$> Trill.get_trill_control (0, dur)
             Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
             (mkcontrol Score.Chromatic neighbor) (mkcontrol Score.Score speed)
-        run = extract . DeriveTest.run Ui.empty
-        extract = DeriveTest.extract_run Signal.unsignal
+        run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
         cnst = Signal.constant
     equal (run $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (0.5, 1)]
@@ -361,18 +359,21 @@ test_control_trill = do
         ["expected time type for 1d but got Diatonic"]
 
 test_xcut_control = do
-    let f hold val1 val2 = Signal.unsignal
-            . Trill.xcut_control hold (Signal.signal val1) (Signal.signal val2)
+    let f hold val1 val2 = Signal.to_pairs
+            . Trill.xcut_control hold (Signal.from_pairs val1)
+                (Signal.from_pairs val2)
     let sig1 = [(0, 0.25), (1, 0.5), (2, 0.75), (3, 1)]
         sig2 = [(0, 0)]
-    equal (f False sig1 sig2 [1, 2]) [(1, 0.5), (2, 0)]
+    equal (f False sig1 sig2 [1, 2]) [(1, 0.5), (2, 0.75), (2, 0)]
     -- You get the rest of the signal after the last transition.
-    equal (f False sig2 sig1 [1, 2]) [(1, 0), (2, 0.75), (3, 1)]
+    equal (f False sig2 sig1 [1, 2]) [(1, 0), (2, 0), (2, 0.75), (3, 1)]
     -- Hold a changing signal.
-    equal (f True sig1 sig2 [0, 2]) [(0, 0.25), (2, 0)]
+    equal (f True sig1 sig2 [0, 2]) [(0, 0.25), (2, 0.25), (2, 0)]
 
     equal (f False [(0, 0)] [(0, 1)] [0, 1, 2, 3, 4])
-        [(0, 0), (1, 1), (2, 0), (3, 1), (4, 0)]
+        [ (0, 0), (1, 0), (1, 1), (2, 1)
+        , (2, 0), (3, 0), (3, 1), (4, 1), (4, 0)
+        ]
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = DeriveTest.derive_tracks "import europe"

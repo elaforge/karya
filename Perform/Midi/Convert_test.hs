@@ -26,6 +26,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as Types
 import qualified Perform.NN as NN
@@ -76,15 +77,17 @@ test_convert_pitch = do
     equal (run [event [(0, 1)]]) [Left (0, [(0, NN.d4)])]
     equal (run [event [(0, 100)]])
         [ Left (0, [])
-        , Right "convert pitch: 232nn is out of range: {%t-dia: 100}"
+        , Right "convert pitch: 0s: 232nn is out of range: {%t-dia: 100}"
         ]
+    equal (run [event [(0, 0), (2, 2)]])
+        [Left (0, [(0, NN.c4), (1, NN.d4), (2, NN.e4)])]
     -- An out of range transposition shouldn't cause a warning.
-    equal (run [event [(0, 0), (100, 100)]]) [Left (0, [(0, NN.c4)])]
+    equal (run [event [(0, 0), (100, 0), (100, 100)]]) [Left (0, [(0, NN.c4)])]
 
     -- Convert applies the environ to pitches.
-    let event = (DeriveTest.mkevent (0, 1, "4i", [], UiTest.i1))
+    let event = (DeriveTest.mkevent (0, 1, "4c", [], UiTest.i1))
             { Score.event_pitch =
-                PSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
+                PSignal.from_sample 0 (DeriveTest.mkpitch legong "4i")
             }
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
     equal (run [event]) [Left (0, [(0, 60.73)])]
@@ -139,7 +142,7 @@ test_convert_dynamic = do
             . (++ [(inst, [(1, 4, "")])])
         extract e =
             ( Types.event_start_velocity e
-            , maybe [] Signal.unsignal $ Map.lookup Controls.breath $
+            , maybe [] MSignal.to_pairs $ Map.lookup Controls.breath $
                 Types.event_controls e
             )
         clookup = DeriveTest.make_convert_lookup allocs UiTest.default_db
@@ -174,12 +177,12 @@ mkevent start pitch inst = DeriveTest.mkevent (start, 1, pitch, [], inst)
 convert :: DeriveTest.Lookup -> (Types.Event -> a) -> [Score.Event]
     -> [Either a Text]
 convert lookup extract =
-    show_logs extract . Convert.convert (snd lookup) (fst lookup)
+    show_logs extract . Convert.convert 1 (snd lookup) (fst lookup)
 
 e_pitch :: Types.Event -> (RealTime, [(RealTime, Pitch.NoteNumber)])
 e_pitch e =
     ( Types.event_start e
-    , map (fmap Pitch.nn) $ Signal.unsignal (Types.event_pitch e)
+    , map (fmap Pitch.nn) $ MSignal.to_pairs (Types.event_pitch e)
     )
 
 show_logs :: (a -> b) -> [LEvent.LEvent a] -> [Either b Text]
@@ -194,7 +197,7 @@ test_instrument_scale = do
             , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
             ]
     equal logs []
-    equal (map (Signal.unsignal . Types.event_pitch) events)
+    equal (map (MSignal.to_pairs . Types.event_pitch) events)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
     where
     patch = Patch.defaults#Patch.scale #= Just scale $ UiTest.make_patch "1"
@@ -224,8 +227,8 @@ test_pitched_keymap = do
 
 -- * implementation
 
-nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
-nn_signal = map (second Pitch.nn) . Signal.unsignal
+nn_signal :: MSignal.Signal -> [(Signal.X, Pitch.NoteNumber)]
+nn_signal = map (second Pitch.nn) . MSignal.to_pairs
 
 perform :: Patch.Patch -> DeriveTest.SimpleAllocations -> [UiTest.TrackSpec]
     -> (([Types.Event], [Midi.WriteMessage]), [Text])

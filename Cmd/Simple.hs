@@ -17,10 +17,10 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -28,6 +28,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Pitch as Pitch
@@ -94,7 +95,7 @@ perf_event evt =
         Midi.Types.event_patch evt
     , from_real start
     , from_real (Midi.Types.event_duration evt)
-    , Pitch.nn (Signal.at start (Midi.Types.event_pitch evt))
+    , Pitch.nn (MSignal.at start (Midi.Types.event_pitch evt))
     )
     where start = Midi.Types.event_start evt
 
@@ -238,8 +239,8 @@ dump_exact_perf_event (Midi.Types.Event start dur patch controls pitch svel evel
         stack) =
     ( Score.instrument_name (Midi.Types.patch_name patch)
     , start, dur
-    , map (Score.control_name *** Signal.unsignal) (Map.toList controls)
-    , Signal.unsignal pitch
+    , map (Score.control_name *** MSignal.to_pairs) (Map.toList controls)
+    , MSignal.to_pairs pitch
     , (svel, evel)
     , stack
     )
@@ -254,12 +255,13 @@ load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
         , event_start = start
         , event_duration = dur
         , event_controls = control_map controls
-        , event_pitch = Signal.signal pitch
+        , event_pitch = MSignal.from_pairs pitch
         , event_start_velocity = svel
         , event_end_velocity = evel
         , event_stack = stack
         }
 
-control_map :: [(Text, [(RealTime, Signal.Y)])] -> Midi.Types.ControlMap
-control_map kvs =
-    Map.fromList [(Score.unchecked_control k, Signal.signal v) | (k, v) <- kvs]
+control_map :: [(Text, [(RealTime, Signal.Y)])]
+    -> Map Score.Control MSignal.Signal
+control_map kvs = Map.fromList
+    [(Score.unchecked_control k, MSignal.from_pairs vs) | (k, vs) <- kvs]

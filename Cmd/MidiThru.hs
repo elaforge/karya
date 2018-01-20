@@ -71,7 +71,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -94,7 +93,6 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import Perform.Midi.Patch (Addr)
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -216,7 +214,7 @@ filter_transposers scale = Derive.with_controls transposers
     transposers = zip
         (filter (`notElem` [Controls.octave, Controls.hz])
             (Set.toList (Scale.scale_transposers scale)))
-        (repeat (Score.untyped Signal.empty))
+        (repeat (Score.untyped mempty))
 
 -- | This is a midi thru version of 'Perform.Midi.Convert.convert_midi_pitch'.
 -- It's different because it works with a scalar NoteNumber instead of

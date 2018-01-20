@@ -34,7 +34,7 @@ mknote (str, start, dur, pitch) = GConvert.Note
         List.find ((==str) . Guitar.sName) $ Guitar.iStrings inst
     , _start = start
     , _duration = dur
-    , _pitch = Signal.signal $ map (second Pitch.nn_to_double) pitch
+    , _pitch = Signal.from_pairs $ map (second Pitch.nn_to_double) pitch
     , _finger = Signal.constant 1
     , _dynamic = 1
     , _location = 0.8
