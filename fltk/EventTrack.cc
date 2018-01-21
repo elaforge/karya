@@ -30,9 +30,6 @@ using std::vector;
 // Hack for debugging.
 #define SHOW_RANGE(r) (r).y << "--" << (r).b()
 
-// Turn this off to see the samples more clearly.
-static const bool smooth_linear = true;
-
 // The color of events at a non-zero rank is scaled by this.  This should be
 // high enough to make them easily distinguishable, but not so high they are
 // too low-contrast to read.
@@ -596,82 +593,13 @@ EventTrack::draw_event_boxes(
 }
 
 
-// Try to find a linear slope of close-placed samples, so they can be drawn
-// as a single line instead of a bunch of separate samples.  This looks a lot
-// nicer, especially on retina displays, where fltk doesn't support subpixel
-// positioning.
-//
-// Return the index of the end of a line starting at the given index.  If
-// there's no line then it just returns the start index.
-// Run along the samples as long as the slope is constant.  When it changes
-// too much, return the last index.  Also stop if the slope is too high, which
-// implies the signal is itended to be discontinuous, or the samples are far
-// apart, which implies the signal is intended to be jagged.
-static int
-find_linear(const TrackSignal &sig, int i)
-{
-    // Samples at this distance are likely intended to sound smooth, so they
-    // should look smooth too.
-    static const double time_threshold = 0.05;
-    static const double eta = 0.0001;
-
-    if (i + 1 >= sig.length)
-        return i;
-    double prev_t = sig.time_at(i);
-    double prev_val = sig.val_at(i);
-    double t = sig.time_at(i+1);
-    double val = sig.val_at(i+1);
-
-    // Avoid divide by zero when two samples occur together.
-    if (t == prev_t) {
-        // DEBUG("coincident samples: " << i << " " << t);
-        return i;
-    }
-    double expected_slope = (val - prev_val) / (t - prev_t);
-    // DEBUG(i << ": slope " << val << "-" << prev_val << " = "
-    //     << expected_slope << " time " << fabs(t-prev_t));
-    if (fabs(t - prev_t) >= time_threshold)
-        return i;
-
-    // DEBUG("expected: " << expected_slope << ": " << val << "-" << prev_val
-    //         << " / " << t << "-" << prev_t);
-    i += 2;
-    for (; i < sig.length; i++) {
-        prev_t = t;
-        t = sig.time_at(i);
-        prev_val = val;
-        val = sig.val_at(i);
-        double slope = (val - prev_val) / (t - prev_t);
-        if (t == prev_t) {
-            if (val == prev_val)
-                slope = 0;
-            else
-                break;
-        }
-        // DEBUG(i << ": slope " << slope);
-        if (fabs(t - prev_t) >= time_threshold
-            || fabs(slope - expected_slope) > eta)
-        {
-            break;
-        }
-    }
-    return i - 1;
-}
-
 static void
 draw_segment(RenderConfig::RenderStyle style, int min_x,
-    int prev_xpos, int xpos, int next_xpos,
-    int offset, int next_offset)
+    int xpos, int next_xpos, int offset, int next_offset)
 {
-    // Draw horizontal jump from prev_xpos if it exists and is far enough from
-    // the xpos.  render_filled doesn't need this.
     switch (style) {
     case RenderConfig::render_line:
         fl_line_style(FL_SOLID | FL_CAP_ROUND, 2);
-        // DEBUG("xpos: " << prev_xpos << " " << xpos << " " << next_xpos);
-        if (prev_xpos != -1 && abs(prev_xpos - xpos) > 2) {
-            fl_line(prev_xpos, offset, xpos, offset);
-        }
         fl_line(xpos, offset, next_xpos, next_offset);
         break;
     case RenderConfig::render_filled:
@@ -725,49 +653,34 @@ EventTrack::draw_signal(int min_y, int max_y, ScoreTime start)
         fl_line(xpos, min_y, xpos, max_y);
     }
 
-    int next_i;
-    int offset = 0;
-    int prev_xpos = -1;
-
-    for (int i = found; i < tsig.length; i = next_i) {
+    for (int i = found; i < tsig.length; i++) {
         // I draw from offset to next_offset.
         // For the first sample, 'found' should be at or before start.
-        if (smooth_linear)
-            next_i = find_linear(tsig, i);
-        else
-            next_i = i + 1;
 
         int xpos = floor(util::scale(double(min_x), double(max_x),
             util::clamp(0.0, 1.0, tsig.val_at(i))));
         int next_xpos, next_offset;
-        if (i + 1 >= tsig.length) {
+        if (i+1 >= tsig.length) {
             // Out of signal, last sample goes to the bottom.
-            next_i = tsig.length;
             next_xpos = xpos;
             next_offset = max_y;
-        } else if (next_i > i + 1) {
-            next_xpos = floor(util::scale(double(min_x), double(max_x),
-                util::clamp(0.0, 1.0, tsig.val_at(next_i))));
-            next_offset = y + tsig.pixel_time_at(zoom, next_i);
         } else {
-            next_i = i + 1;
-            next_xpos = xpos;
-            next_offset = y + tsig.pixel_time_at(zoom, next_i);
+            next_xpos = floor(util::scale(double(min_x), double(max_x),
+                util::clamp(0.0, 1.0, tsig.val_at(i+1))));
+            next_offset = y + tsig.pixel_time_at(zoom, i+1);
         }
 
-        offset = y + tsig.pixel_time_at(zoom, i);
+        int offset = y + tsig.pixel_time_at(zoom, i);
         // If the next sample is too close then don't draw this one.
         if (next_offset <= offset)
             continue;
 
-        // DEBUG("sample " << i << "--" << next_i
+        // DEBUG("sample " << i << "--" << i+1
         //     << " val " << xpos << "--" << next_xpos
         //     << ", " << offset << "--" << next_offset);
         fl_color(signal_color);
         draw_segment(config.render.style, min_x,
-            prev_xpos, xpos, next_xpos,
-            offset, next_offset);
-        prev_xpos = next_xpos;
+            xpos, next_xpos, offset, next_offset);
     }
     // Reset line style to not mess up other draw routines.
     fl_line_style(0);
