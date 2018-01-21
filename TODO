@@ -1497,7 +1497,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
         - Always use _rounded for DeriveTest.e_control?
         - use run2 in Prelude.Pitch_test
       TODOs:
-        - get rid of Postproc.replace_note?
+        * get rid of Postproc.replace_note?
         - replace parse_curve in SignalTransform
         - update ControlUtil.segment
         - Support negative time in ControlUtil.split_samples_absolute

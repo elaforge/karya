@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveDataTypeable #-}
-{- | RealTime represents seconds, as opposed to ScoreTime, which are abstract
+{- | RealTime represents seconds, as opposed to ScoreTime, which is in abstract
     units.  Everything eventually is transformed into RealTime to be
     performed.
 

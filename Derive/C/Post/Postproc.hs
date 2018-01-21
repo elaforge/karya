@@ -201,41 +201,6 @@ suppress_notes =
     suppress_of (_, s, _) = s
     event_of (_, _, e) = e
 
-{- | A note with inferred duration gets its start from the end of the previous
-    block, but its duration and the rest of its controls come from the
-    corresponding note at the beginning of the next block.
-
-    TODO currently this is unused.  Formerly it was used when an infer-duration
-    note replaced a note.  The intent was that the strong note at the end of
-    the block would determine the initial pitch and dynamic of the note, but
-    control curves would still be picked up from the replaced note, since there
-    is no room to put them on the final note.  It seems a little ad-hoc and
-    grody, but it still makes a kind of sense and I may still want it, so I'll
-    leave this function here for now.
-
-    Now that signals are segments, not constant samples, this doesn't really
-    work, becaeuse it's unclear how much time the first sample should get.
-    I could do the same thing and replace the first sample, but I intentionally
-    don't export sample-oriented functions.
--}
--- replace_note :: Score.Event -> Score.Event -> Score.Event
--- replace_note next event = event
---     { Score.event_duration = Score.event_end next - start
---     , Score.event_pitch =
---         pitch event <> PSignal.drop_before_at start (pitch next)
---     , Score.event_pitches = Util.Map.mappend
---         (pitches event)
---         (PSignal.drop_before_at start <$> pitches next)
---     , Score.event_controls = Util.Map.mappend
---         (controls event)
---         (fmap (Signal.drop_before_at start) <$> controls next)
---     }
---     where
---     pitch = Score.event_pitch
---     pitches = Score.event_pitches
---     controls = Score.event_controls
---     start = Score.event_start event
-
 -- * apply start offset
 
 c_randomize_start :: Derive.Transformer Derive.Note
