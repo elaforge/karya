@@ -1476,7 +1476,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
         . Midi Perform already does that.
         . But it looks confusing in tests.
       cleanups:
-        - rename TimeVector.signal and unsignal
+        * rename TimeVector.signal and unsignal
         - make ControlUtil.smooth take negative time
         - make SignalTransform.c_smooth take cf curve
         - rename RealTime.seconds to from_seconds etc.

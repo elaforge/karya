@@ -87,24 +87,24 @@ uncons v
 -- ** TimeVector specific
 
 -- | Construct a TimeVector from a list.
-{-# SPECIALIZE signal :: [(X, UnboxedY)] -> Unboxed #-}
-{-# INLINEABLE signal #-}
-signal :: V.Vector v (Sample y) => [(X, y)] -> v (Sample y)
-signal = V.fromList . map (uncurry Sample)
+{-# SPECIALIZE from_pairs :: [(X, UnboxedY)] -> Unboxed #-}
+{-# INLINEABLE from_pairs #-}
+from_pairs :: V.Vector v (Sample y) => [(X, y)] -> v (Sample y)
+from_pairs = V.fromList . map (uncurry Sample)
 
-unsignal :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
-unsignal = map to_pair . V.toList
+to_pairs :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
+to_pairs = map to_pair . V.toList
 
--- | Like 'unsignal', but filter out explicit discontinuities, so each
+-- | Like 'to_pairs', but filter out explicit discontinuities, so each
 -- X is unique.  This is for tests, where they're just clutter if I'm not
 -- explicitly testing them.  NOTE [signal-discontinuity]
 unsignal_unique :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
-unsignal_unique = Seq.drop_initial_dups fst . unsignal
+unsignal_unique = Seq.drop_initial_dups fst . to_pairs
 
 -- | Set the signal value, with a discontinuity.  See
 -- NOTE [signal-discontinuity].
 set :: V.Vector v (Sample y) => Maybe y -> X -> y -> v (Sample y)
-set prev_y x y = signal $ maybe id ((:) . (x,)) prev_y [(x, y)]
+set prev_y x y = from_pairs $ maybe id ((:) . (x,)) prev_y [(x, y)]
 
 {-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}

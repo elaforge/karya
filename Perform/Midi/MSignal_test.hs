@@ -4,8 +4,8 @@
 
 module Perform.Midi.MSignal_test where
 import Util.Test
-import qualified Util.TimeVector as TimeVector
 import qualified Perform.Midi.MSignal as MSignal
+import Perform.Midi.MSignal (from_pairs)
 
 
 test_pitches_share = do
@@ -14,7 +14,6 @@ test_pitches_share = do
     let f start end sig1 sig2 = MSignal.pitches_share False start end
             (sample0 sig1) (from_pairs sig1)
             (sample0 sig2) (from_pairs sig2)
-        from_pairs = TimeVector.signal
 
     -- Different signals.
     equal (f 0 1 [(0, 0), (1, 1)] [(0, 1), (1, 0)]) False

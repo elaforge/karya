@@ -213,7 +213,7 @@ test_linear_operator2 = do
         [((0, 0), (2, 2)), ((2, 3), (4, 5)), ((4, 5), (large, 5))]
 
 test_to_piecewise_constant = do
-    let f = TimeVector.unsignal . Segment.to_piecewise_constant 1 . from_pairs
+    let f = TimeVector.to_pairs . Segment.to_piecewise_constant 1 . from_pairs
     equal (f []) []
     equal (f [(4, 2)]) [(4, 2)]
     equal (f [(2, 2), (4, 2), (4, 4)]) [(2, 2), (4, 4)]

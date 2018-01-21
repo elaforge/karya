@@ -245,7 +245,8 @@ newtype MarklistPtr = MarklistPtr
 type PosMark = (ScoreTime, Mark)
 
 marklist :: [PosMark] -> Marklist
-marklist = marklist_from_vector . TimeVector.signal . map (first RealTime.score)
+marklist = marklist_from_vector . TimeVector.from_pairs
+    . map (first RealTime.score)
 
 {-# NOINLINE marklist_from_vector #-} -- due to evil unsafePerformIO
 marklist_from_vector :: MarklistVector -> Marklist

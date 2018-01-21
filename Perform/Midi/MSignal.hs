@@ -37,10 +37,10 @@ at :: X -> Signal -> Y
 at x = fromMaybe 0 . TimeVector.at x
 
 from_pairs :: [(X, Y)] -> Signal
-from_pairs = TimeVector.signal
+from_pairs = TimeVector.from_pairs
 
 to_pairs :: Signal -> [(X, Y)]
-to_pairs = TimeVector.unsignal
+to_pairs = TimeVector.to_pairs
 
 scalar_add :: Y -> Signal -> Signal
 scalar_add y = TimeVector.map_y (+y)
