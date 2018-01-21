@@ -9,7 +9,6 @@ import qualified Util.TimeVector as V
 import Util.TimeVector (X)
 
 import qualified Perform.RealTime as RealTime
-import Global
 
 
 type Y = Double
@@ -33,13 +32,6 @@ test_at = do
     -- Values before the first sample are Nothing.
     equal (range 0 4 [(2, 1)]) [Nothing, Nothing, Just 1, Just 1]
     equal (range 0 4 [(0, 1), (3, 1)]) (map Just [1, 1, 1, 1])
-
-test_at_before = do
-    let sig = from_pairs [(1, 1), (1, 2), (3, 3)]
-    equal (map (flip V.at sig) (Seq.range' 0 5 1))
-        [Nothing, Just 2, Just 2, Just 3, Just 3]
-    equal (map (flip V.sample_at_before sig) (Seq.range' 0 5 1))
-        [Nothing, Just (1, 1), Just (1, 2), Just (3, 3), Just (3, 3)]
 
 test_at_eta = do
     let f x sig = V.at x (from_pairs sig)
@@ -74,13 +66,6 @@ test_bsearch = do
     equal (run V.index_below)  [-1, 0, 0, 2, 3]
 
 -- * transformation
-
-test_merge_right_extend = do
-    let f = to_pairs . V.merge_right_extend . map from_pairs
-    equal (f [[(0, 1)], [(4, 2)]]) [(0, 1), (4, 1), (4, 2)]
-    equal (f [[(0, 1), (1, 2)], [(1, 4)]]) [(0, 1), (1, 2), (1, 4)]
-    -- The rightmost one wins.
-    equal (f [[(0, 0)], [(2, 2)], [(1, 1)]]) [(0, 0), (1, 0), (1, 1)]
 
 test_merge_right = do
     let f = to_pairs . V.merge_right . map from_pairs
@@ -155,11 +140,6 @@ test_drop_before = do
     equal (f 1 []) []
     equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1)]) [(1, 1), (2, 1)]
 
-test_clip_to = do
-    let f x = to_pairs . V.clip_to x . from_pairs
-    equal (f 1 [(0, 0), (1, 1), (2, 2)]) [(1, 1), (2, 2)]
-    equal (f 1.5 [(0, 0), (1, 1), (2, 2)]) [(1.5, 1), (2, 2)]
-
 test_drop_before_strict = do
     let f x = to_pairs $ V.drop_before_strict x (from_pairs [(2, 0), (4, 1)])
     equal (f 0) [(2, 0), (4, 1)]
@@ -176,28 +156,3 @@ test_sig_op = do
         [(0, 1), (2, 3), (4, 1)]
     equal (f [(0, 0), (2, 2), (4, 0)] [(1, 1), (3, 0)])
         [(0, 0), (1, 1), (2, 3), (3, 2), (4, 0)]
-
-test_concat_map_accum = do
-    let go accum x0 y0 x1 y1 = (accum+1, [V.Sample x0 y0, V.Sample x1 y1])
-        final accum (V.Sample x y) = [V.Sample (x*10) (y*10+accum)]
-        f vec = to_pairs (V.concat_map_accum 0 go final 0 (from_pairs vec))
-    equal (f []) []
-    equal (f [(0, 0), (1, 1), (2, 2)])
-        [ (0, 0), (0, 0)
-        , (0, 0), (1, 1)
-        , (1, 1), (2, 2)
-        , (20, 23)
-        ]
-
-test_strip = do
-    let f = to_pairs . V.strip . from_pairs
-    equal (f [(0, 0), (1, 0), (1, 1), (2, 1)]) [(0, 0), (1, 0), (1, 1), (2, 1)]
-    equal (f [(0, 0), (1, 1), (1, 1), (2, 1)]) [(0, 0), (1, 1), (2, 1)]
-    equal (f [(0, 0), (1, 1), (1, 2), (1, 1), (2, 1)]) [(0, 0), (1, 1), (2, 1)]
-
-
--- * signal-discontinuity
-
-test_merge_segments = do
-    let f = to_pairs . V.merge_segments . map (second from_pairs)
-    equal (f [(0, [(0, 1)]), (1, [(0, 2)])]) [(0, 1), (1, 1), (1, 2)]

@@ -1528,7 +1528,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     - Util.Segment winds up with _v vector variants.  Maybe I should make
       a whole new module with no offset, and then if I really need offset,
       make a wrapper for it.
-    - clean up TimeVector, remove unneeded functions
+    * clean up TimeVector, remove unneeded functions
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
     - profile before and after

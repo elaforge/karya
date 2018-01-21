@@ -19,7 +19,6 @@ module Util.TimeVector (
 ) where
 import Prelude hiding (head, last, take)
 import qualified Control.Monad.State.Strict as State
-import qualified Data.DList as DList
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as V
 import Data.Vector.Generic
@@ -141,11 +140,6 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
         msg = "index " <> show i <> ": x decreased: " <> show x <> " < "
             <> show prev_x
         next = (warns, (i + 1, x))
-
-{-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
-{-# INLINEABLE merge #-}
-merge :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge = merge_right
 
 -- | This is a merge where the vectors to the right will win in the case of
 -- overlap.
@@ -451,100 +445,3 @@ bsearch_below x vec = go 0 (V.length vec)
         | x <= sx (V.unsafeIndex vec mid) = go low mid
         | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
-
-concat_map_accum :: UnboxedY
-    -> (accum -> X -> UnboxedY -> X -> UnboxedY -> (accum, [Sample UnboxedY]))
-    -- ^ Take the previous accum, previous x and y, and current x and y.
-    -> (accum -> Sample UnboxedY -> [Sample UnboxedY])
-    -- ^ Given the final @(accum, Sample)@, produce samples to append.
-    -> accum -> Unboxed -> Unboxed
-concat_map_accum zero f final accum vec = V.fromList (DList.toList result)
-    where
-    (last_accum, _, dlist) =
-        V.foldl' go (accum, Sample 0 zero, DList.empty) vec
-    end = if V.null vec then [] else final last_accum (V.last vec)
-    result = dlist `DList.append` DList.fromList end
-    go (accum, Sample x0 y0, lst) (Sample x1 y1) =
-        (accum2, Sample x1 y1, lst `DList.append` DList.fromList samples)
-        where (accum2, samples) = f accum x0 y0 x1 y1
-
-
--- * signal-discontinuity
-
--- Functions with ad-hoc signal-discontinuity support.
-
-merge_segments :: [(X, Unboxed)] -> Unboxed
-merge_segments segments =
-    merge_right_extend [clip_to start v | (start, v) <- segments]
-
--- | This is like 'at', but if there is a discontinuity, this is the value
--- before the discontinuity.  So if you have (1, 0), (1, 1) and ask for 1,
--- this will be 0, not 1.
-{-# SPECIALIZE at_before :: X -> Unboxed -> Maybe UnboxedY #-}
-{-# INLINEABLE at_before #-}
-at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
-at_before x = fmap snd . sample_at_before x
-
-{-# SPECIALIZE sample_at_before :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
-{-# INLINEABLE sample_at_before #-}
-sample_at_before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (X, y)
-sample_at_before x vec = case vec V.!? (i+1) of
-    Just (Sample x2 y2) | x == x2 && (fst <$> s1) /= Just x -> Just (x2, y2)
-    _ -> s1
-    where
-    s1 = to_pair <$> vec V.!? i
-    i = index_below x vec
-
-clip_to :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
-clip_to x vec = case head clipped of
-    Nothing -> clipped
-    Just s
-        | sx s < x -> V.cons (s { sx = x}) (V.drop 1 clipped)
-        | otherwise -> clipped
-    where clipped = drop_before x vec
-
-append_extend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
-    -> v (Sample y)
-append_extend v1 v2 = merge_right_extend [v1, v2]
-
--- | This is like 'merge_right' except assuming NOTE [signal-discontinuity].
--- If the first signal is cut off by the second, its last sample will be
--- extended up to the cut-off point.
---
--- TODO this should probably replace 'merge_right'.  But I should really have
--- an organized design around line segments, and not this ad-hoc thing where
--- everyone has to manually remember to treat Samples right.
-{-# SPECIALIZE merge_right_extend :: [Unboxed] -> Unboxed #-}
-{-# INLINEABLE merge_right_extend #-}
-merge_right_extend :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge_right_extend = V.concat . reverse . chunks . reverse
-    where
-    chunks [] = []
-    chunks [v] = [v]
-    -- head of v1 cuts of tail of v2
-    -- v1:     |--->        |--->
-    -- v2:   |--->        |->
-    -- vs: |--->     => |->
-    chunks (v1:v2:vs) = case head v1 of
-        Nothing -> chunks (v2:vs)
-        Just start -> case last clipped of
-            Nothing -> chunks (v1:vs)
-            Just end
-                | sx end < sx start -> v1 : extension end : chunks (clipped:vs)
-                | otherwise -> v1 : chunks (clipped:vs)
-            where
-            clipped = V.take (bsearch_below_1 (sx start) v2) v2
-            extension end = V.singleton (Sample (sx start) (sy end))
-
--- | Strip out samples that don't have any effect.
---
--- TODO verify that the intermediate list is eliminated
-{-# SPECIALIZE strip :: Unboxed -> Unboxed #-}
-{-# INLINEABLE strip #-}
-strip :: Eq y => V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
-strip = V.fromList . go . V.toList
-    where
-    go [] = []
-    go (s1:s2:s3:ss) | sx s1 == sx s2 && sx s2 == sx s3 = go (s1:s3:ss)
-    go (s1:s2:ss) | s1 == s2 = go (s2:ss)
-    go (s1:ss) = s1 : go ss
