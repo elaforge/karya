@@ -202,11 +202,11 @@ farans = faran $ korvai adi $ map su $ concat
     where
     make fill1 fill2 pattern =
         long . long
-        . pattern . pattern . long
+        . group pattern . group pattern . long
         . repeat 2 short . fill1 . long
         . repeat 3 short . fill2 . nakatiku
         where
-        long = pattern . nakatiku
+        long = group pattern . nakatiku
         short = takeM 6 pattern
 
 -- * fragments

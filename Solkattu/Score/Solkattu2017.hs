@@ -559,14 +559,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
         , (mid^tam, [i])
 
         , (theme2, [o, k, o, k, o, n, k, t, o, k])
-        -- TODO sandi breaks groups, fix it and I can delete these
-        , (dhom.ka.din.na . su kitataka, [o, k, o, n, k, t, o, k])
-        , (din.na . su kitataka, [o, n, k, t, o, k])
-
         , (theme3, [k, o, n, o, k, t, p, k, p, t, o])
-        -- TODO as above
-        , (na.ka . su (kita.tarikita) . dhom, [n, o, k, t, p, k, p, t, o])
-        , (su (kita.tarikita) . dhom, [k, t, p, k, p, t, o])
         ]
     kendang1 = makeKendang1
         [ (na, [t])
@@ -580,14 +573,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
         , (mid^tam, [a])
 
         , (theme2, [a, p, a, p, a, o, p, lt a, a, p])
-        -- TODO sandi breaks groups, fix it and I can delete these
-        , (dhom.ka.din.na . su kitataka, [a, p, a, o, p, lt a, a, p])
-        , (din.na . su kitataka, [a, o, p, lt a, a, p])
-
         , (theme3, [p, k, t, p, p, k, p, k, p, lt a, a])
-        -- TODO as above
-        , (na.ka . su (kita.tarikita) . dhom, [t, p, p, k, p, k, p, lt a, a])
-        , (su (kita.tarikita) . dhom, [p, k, p, k, p, lt a, a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_10_23 :: Korvai
@@ -618,13 +604,13 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
     where
     sequence t = mconcatMap (sarvaA 8)
         [t, kitataka.t, kitakita.kitataka.t]
-    theme = ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
+    theme = group $ ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
     theme2a_ = su $ dit.__.taka.na.ka.ta.na.ka
-    theme2a = theme2a_ . su tdgnt
+    theme2a = group $ theme2a_ . su tdgnt
     theme2a_o = 1^theme2a
-    theme2b = ta.__.ka.din.__.ta.__
-    kitataka = su $ kita.taka
-    kitakita = su $ kita.kita
+    theme2b = group $ ta.__.ka.din.__.ta.__
+    kitataka = group $ su $ kita.taka
+    kitakita = group $ su $ kita.kita
     mridangam = makeMridangam
         [ (theme, [k, t, k, t, k, k, o, od, k])
         , (kitataka, [p, k, n, p])

@@ -69,6 +69,9 @@ format (i, korvai) =
 
 -- * write
 
+write :: IO ()
+write = writeHtml "../data/solkattu" False
+
 -- | Write all Korvais as HTML into the given directory.
 writeHtml :: FilePath -> Bool -> IO ()
 writeHtml dir realizePatterns = do

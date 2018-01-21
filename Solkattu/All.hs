@@ -35,7 +35,7 @@ korvais =
     , setLocation ("Solkattu.Score.Mridangam2013",168,"farans") Solkattu.Score.Mridangam2013.farans
     , setLocation ("Solkattu.Score.Mridangam2013",214,"eddupu6") Solkattu.Score.Mridangam2013.eddupu6
     , setLocation ("Solkattu.Score.Mridangam2013",225,"eddupu10") Solkattu.Score.Mridangam2013.eddupu10
-    , setLocation ("Solkattu.Score.Mridangam2016",13,"t_16_11_14") Solkattu.Score.Mridangam2016.t_16_11_14
+    , setLocation ("Solkattu.Score.Mridangam2016",12,"t_16_11_14") Solkattu.Score.Mridangam2016.t_16_11_14
     , setLocation ("Solkattu.Score.Mridangam2017",11,"c_17_07_10") Solkattu.Score.Mridangam2017.c_17_07_10
     , setLocation ("Solkattu.Score.Mridangam2017",15,"e_1") Solkattu.Score.Mridangam2017.e_1
     , setLocation ("Solkattu.Score.Mridangam2017",24,"e_2") Solkattu.Score.Mridangam2017.e_2
@@ -107,9 +107,9 @@ korvais =
     , setLocation ("Solkattu.Score.Solkattu2017",481,"c_17_07_19") Solkattu.Score.Solkattu2017.c_17_07_19
     , setLocation ("Solkattu.Score.Solkattu2017",494,"c_17_08_21") Solkattu.Score.Solkattu2017.c_17_08_21
     , setLocation ("Solkattu.Score.Solkattu2017",516,"c_17_08_29") Solkattu.Score.Solkattu2017.c_17_08_29
-    , setLocation ("Solkattu.Score.Solkattu2017",593,"c_17_10_23") Solkattu.Score.Solkattu2017.c_17_10_23
-    , setLocation ("Solkattu.Score.Solkattu2017",653,"c_17_12_11") Solkattu.Score.Solkattu2017.c_17_12_11
-    , setLocation ("Solkattu.Score.Solkattu2017",673,"speaking1") Solkattu.Score.Solkattu2017.speaking1
+    , setLocation ("Solkattu.Score.Solkattu2017",579,"c_17_10_23") Solkattu.Score.Solkattu2017.c_17_10_23
+    , setLocation ("Solkattu.Score.Solkattu2017",639,"c_17_12_11") Solkattu.Score.Solkattu2017.c_17_12_11
+    , setLocation ("Solkattu.Score.Solkattu2017",659,"speaking1") Solkattu.Score.Solkattu2017.speaking1
     , setLocation ("Solkattu.Score.SolkattuMohra",33,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",50,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",68,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube
