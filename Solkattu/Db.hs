@@ -22,6 +22,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
+import qualified Solkattu.Html as Html
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (date)
 import qualified Solkattu.Metadata as Metadata
@@ -79,7 +80,7 @@ writeHtml dir realizePatterns = do
     Text.IO.writeFile (dir </> "index.html") $
         Doc.un_html $ htmlSummary All.korvais
     where
-    write korvai = Korvai.writeHtmlKorvai (dir </> korvaiFname korvai)
+    write korvai = Html.writeHtmlKorvai (dir </> korvaiFname korvai)
         realizePatterns korvai
 
 korvaiFname :: Korvai.Korvai -> FilePath

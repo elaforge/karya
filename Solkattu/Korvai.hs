@@ -6,14 +6,12 @@
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Solkattu.Korvai where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.CallStack as CallStack
-import qualified Util.Doc as Doc
 import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -331,66 +329,6 @@ printInstrument instrument realizePatterns korvai =
 printKonnakol :: Bool -> Korvai -> IO ()
 printKonnakol realizePatterns korvai =
     printResults (Just 4) korvai $ realize konnakol realizePatterns korvai
-
--- | Write HTML with all the instrument realizations.
-writeHtmlKorvai :: FilePath -> Bool -> Korvai -> IO ()
-writeHtmlKorvai fname realizePatterns korvai = do
-    Text.IO.writeFile fname $ Doc.un_html $
-        htmlInstruments realizePatterns korvai
-    putStrLn $ "wrote " <> fname
-
--- ** implementation
-
-htmlInstruments :: Bool -> Korvai -> Doc.Html
-htmlInstruments realizePatterns korvai =
-    Realize.htmlPage title (metadataHtml korvai) body
-    where
-    (_, _, title) = _location (korvaiMetadata korvai)
-    body = mconcat $ mapMaybe htmlInstrument $ Seq.sort_on (order . fst) $
-        Map.toList instruments
-    htmlInstrument (name, GInstrument inst)
-        | Realize.isInstrumentEmpty strokeMap = Nothing
-        | otherwise = Just $ "<h3>" <> Doc.html name <> "</h3>\n"
-            <> TextUtil.join "\n\n" sections
-        where
-        strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
-        sections = map (htmlResult (korvaiTala korvai) (font name)) $
-            realize inst realizePatterns korvai
-    order name = (fromMaybe 999 $ List.elemIndex name prio, name)
-        where prio = ["konnakol", "mridangam"]
-    font name
-        | name == "konnakol" = konnakolFont
-        | otherwise = instrumentFont
-
-konnakolFont, instrumentFont :: Realize.Font
-konnakolFont = Realize.Font
-    { _sizePercent = 75
-    , _monospace = False
-    }
-instrumentFont = Realize.Font
-    { _sizePercent = 125
-    , _monospace = True
-    }
-
-htmlResult :: Solkattu.Notation stroke => Tala.Tala -> Realize.Font
-    -> Either Text ([S.Flat g (Realize.Note stroke)], Error) -> Doc.Html
-htmlResult _ _ (Left err) = "<p> ERROR: " <> Doc.html err
-htmlResult tala font (Right (notes, warn)) =
-    Realize.formatHtml tala font notes
-    <> if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
-
-metadataHtml :: Korvai -> Doc.Html
-metadataHtml korvai = TextUtil.join "<br>\n" $ concat $
-    [ ["Tala: " <> Doc.html (Tala._name (korvaiTala korvai))]
-    , ["Date: " <> Doc.html (showDate date) | Just date <- [_date meta]]
-    , map showTag (Map.toAscList (Map.delete "tala" tags))
-    ]
-    where
-    meta = korvaiMetadata korvai
-    Tags tags = _tags meta
-    showTag (k, []) = Doc.html k
-    showTag (k, vs) = Doc.html k <> ": " <> Doc.html (Text.intercalate ", " vs)
-    showDate = txt . Calendar.showGregorian
 
 printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai
     -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]

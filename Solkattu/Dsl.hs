@@ -17,6 +17,7 @@ module Solkattu.Dsl (
     , nakatiku
     -- * re-exports
     , module Solkattu.Korvai
+    , module Solkattu.Html
     , module Solkattu.Metadata
     , module Solkattu.Sequence
     , check, durationOf
@@ -44,7 +45,8 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai, eddupu, printKonnakol, writeHtmlKorvai)
+import Solkattu.Korvai (Korvai, eddupu, printKonnakol)
+import Solkattu.Html (writeHtmlKorvai)
 import Solkattu.Metadata
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize

@@ -9,7 +9,7 @@ module Solkattu.Metadata (
     get, getLocation, setLocation, showLocation, getModuleVariable
     -- * add
     , comment, date, source, similarTo, tSimilarTo
-    , recording
+    , recording, tRecording, parseRecording, parseTime, showTime
     , korvaiT, koraippu, mohra, sarvalaghu, tirmanam
     , sequenceT, faran, exercise, trikalam
 ) where
@@ -17,6 +17,9 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Parse as Parse
+import qualified Util.Regex as Regex
+
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Korvai)
 import Global
@@ -79,7 +82,10 @@ recording :: CallStack.Stack => Text -- ^ URL to the recording or video
     -> Maybe (Time, Time)
     -- ^ start and end time of the clip within the recording
     -> Korvai -> Korvai
-recording url maybeRange = withTag "recording" (showRecording url maybeRange)
+recording url maybeRange = withTag tRecording (showRecording url maybeRange)
+
+tRecording :: Text
+tRecording = "recording"
 
 showRecording :: CallStack.Stack => Text -> Maybe (Time, Time) -> Text
 showRecording url maybeRange = Text.unwords $
@@ -87,10 +93,34 @@ showRecording url maybeRange = Text.unwords $
         Nothing -> []
         Just (start, end) -> [showTime start, showTime end]
 
+parseRecording :: Text -> Maybe (Text, Maybe (Time, Time))
+parseRecording s = case Text.words s of
+    url : range -> (url,) <$> parseRange range
+    _ -> Nothing
+    where
+    parseRange [] = Just Nothing
+    parseRange [start, end] = do
+        start <- parseTime start
+        end <- parseTime end
+        return $ Just (start, end)
+    parseRange _ = Nothing
+
+parseTime :: Text -> Maybe Time
+parseTime s = case Regex.groups time s of
+    (_, groups) : _ -> Just (parse h, parse m, parse s)
+        where h : m : s : _ = groups ++ repeat ""
+    _ -> Nothing
+    where
+    Right time = Regex.compile "(\\d+h)?(\\d+m)?(\\d+s)?"
+    parse :: Text -> Int
+    parse = fromMaybe 0 . Parse.parse_maybe Parse.p_nat . Text.dropEnd 1
+
+
 showTime :: CallStack.Stack => Time -> Text
 showTime (h, m, s)
     | any (<0) [h, m, s] || any (>=60) [m, s] =
         errorStack $ "invalid time: " <> showt (h, m, s)
+    | all (==0) [h, m, s] = "0s"
     | otherwise = mconcat $ concat
         [ [showt h <> "h" | h > 0]
         , [showt m <> "m" | m > 0]
