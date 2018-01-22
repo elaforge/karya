@@ -580,8 +580,7 @@ formatLines strokeWidth width tala =
             _ -> Solkattu.notation a
         S.Rest -> justifyLeft strokeWidth ' ' "_"
         where
-        make text = Symbol text (shouldEmphasize angas state) startEnds
-    angas = angaSet tala
+        make text = Symbol text (onAkshara state) startEnds
 
 flattenGroups :: Tala.Tala -> [S.Flat g (Note a)]
     -> [([StartEnd], (S.State, S.Stroke (Note a)))]
@@ -616,8 +615,8 @@ data StartEnd = Start | End deriving (Eq, Show)
 
 instance Pretty StartEnd where pretty = showt
 
-shouldEmphasize :: Set Tala.Akshara -> S.State -> Bool
-shouldEmphasize angas state =
+onAnga :: Set Tala.Akshara -> S.State -> Bool
+onAnga angas state =
     S.stateMatra state == 0 && Set.member (S.stateAkshara state) angas
 
 onAkshara :: S.State -> Bool
@@ -853,7 +852,7 @@ formatTable tala font header rows = mconcatMap (<>"\n") $
             ]
         classes = concat
             [ if
-                | shouldEmphasize angas state -> ["onAnga"]
+                | onAnga angas state -> ["onAnga"]
                 | onAkshara state -> ["onAkshara"]
                 | otherwise -> []
             , if

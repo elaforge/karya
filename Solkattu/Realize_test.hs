@@ -215,8 +215,8 @@ test_realizePatterns = do
     left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for p3"
 
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
-    equal (eFormat $ format 80 Tala.adi_tala p) "K _ t _ k _ k t o _"
-    equal (eFormat $ format 15 Tala.adi_tala p) "K t k kto"
+    equal (eFormat $ format 80 Tala.adi_tala p) "k _ t _ k _ k t o _"
+    equal (eFormat $ format 15 Tala.adi_tala p) "k t k kto"
 
 test_patterns = do
     let f = second (const ()) . Realize.patterns . map (first Solkattu.PatternM)
@@ -253,21 +253,21 @@ test_format = do
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Tala.rupaka_fast
     -- Emphasize every 4.
-    equal (f rupaka n4) "K t _ n"
+    equal (f rupaka n4) "k t _ n"
     -- Alignment should be ignored.
-    equal (f rupaka ([Realize.Alignment 0] <> n4)) "K t _ n"
-    equal (f rupaka (n4 <> n4)) "K t _ n K t _ n"
+    equal (f rupaka ([Realize.Alignment 0] <> n4)) "k t _ n"
+    equal (f rupaka (n4 <> n4)) "k t _ n k t _ n"
     -- Emphasis works in patterns.
     equal (f rupaka (n4 <> [rpattern 5] <> n4))
-        "K t _ n P5------==k t _ N"
+        "k t _ n p5--------k t _ n"
     -- Patterns are wrapped properly.
     equal (f rupaka (n4 <> [rpattern 5] <> n4 <> [rpattern 5]))
-        "K t _ n P5------==k t _\n\
-        \N p5----==--"
+        "k t _ n p5--------k t _\n\
+        \n p5--------"
     -- Emphasize according to the tala.
     let kook = [k, o, o, k]
     equal (f Tala.khanda_chapu (take (5*4) (cycle kook)))
-        "K o o k k o o k K o o k K o o k k o o k"
+        "k o o k k o o k k o o k k o o k k o o k"
 
 tala4 :: Tala.Tala
 tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
@@ -278,33 +278,33 @@ test_formatRuler = do
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
     equalT (run (tas 2 8)) $ Right
         ( "X   O   X   O   |\n\
-          \K k k k K k k k"
+          \K k K k K k K k"
         , ""
         )
     equalT (run (tas 2 16)) $ Right
         ( "X   O   X   O   |\n\
-          \K k k k K k k k\n\
-          \K k k k K k k k"
+          \K k K k K k K k\n\
+          \K k K k K k K k"
         , ""
         )
     equalT (run (tas 3 12)) $ Right
         ( "X     O     X     O     |\n\
-          \K k k k k k K k k k k k"
+          \K k k K k k K k k K k k"
         , ""
         )
 
     equalT (run (tas 2 12 <> tas 3 6)) $ Right
         ( "X   O   X   O   |\n\
-          \K k k k K k k k\n\
+          \K k K k K k K k\n\
           \X   O   X     O     |\n\
-          \K k k k K k k k k k"
+          \K k K k K k k K k k"
         , ""
         )
     -- A final stroke won't cause the ruler to reappear.
     equalT (run (tas 2 16 <> ta)) $ Right
         ( "X   O   X   O   |\n\
-          \K k k k K k k k\n\
-          \K k k k K k k k K"
+          \K k K k K k K k\n\
+          \K k K k K k K k K"
         , ""
         )
 
@@ -375,20 +375,20 @@ test_annotateGroups = do
         [([Start, Start], "ta"), ([End, End], "ki")]
 
 test_formatBreakLines = do
-    let run width = fmap (capitalizeEmphasis . format width tala4 . fst)
+    let run width = fmap (stripEmphasis . format width tala4 . fst)
             . kRealize False tala4
     let tas n = Dsl.repeat n ta
     equal (run 80 (tas 16)) $ Right
         "X       O       X       O       |\n\
-        \K k k k k k k k K k k k k k k k"
+        \k k k k k k k k k k k k k k k k"
     equal (run 10 (tas 16)) $ Right
         "X   O   X\n\
-        \Kkkkkkkk\n\
-        \Kkkkkkkk"
+        \kkkkkkkk\n\
+        \kkkkkkkk"
 
 test_formatNadaiChange = do
     let f tala realizePatterns =
-            fmap (first (capitalizeEmphasis . format 50 tala))
+            fmap (first (stripEmphasis . format 50 tala))
             . kRealize realizePatterns tala
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
@@ -397,7 +397,7 @@ test_formatNadaiChange = do
         [ "0       1       2       3       X"
         , "_k_t_knok t knok_t_knok t knok_t"
         -- TODO should be a ruler here
-        , "_knok _ t _ k n o k _ T _ k n o k _ t _ k n o"
+        , "_knok _ t _ k n o k _ t _ k n o k _ t _ k n o"
         ]
     equal warn ""
     -- 0123456701234567012345670123456701234560123450123450123450
@@ -405,7 +405,8 @@ test_formatNadaiChange = do
     -- _k_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_knok_t_kno
 
 test_formatSpeed = do
-    let f width = fmap (eFormat . format width Tala.rupaka_fast)
+    let f width = fmap (capitalizeEmphasis . dropRulers
+                . format width Tala.rupaka_fast)
             . realize strokeMap
         thoms n = mconcat (replicate n thom)
     equal (f 80 []) (Right "")
@@ -524,7 +525,7 @@ nadai :: Sequence.Nadai -> [Sequence.Note g a] -> Sequence.Note g a
 nadai n = Sequence.TempoChange (Sequence.Nadai n)
 
 eFormat :: Text -> Text
-eFormat = capitalizeEmphasis . dropRulers
+eFormat = stripEmphasis . dropRulers
 
 dropRulers :: Text -> Text
 dropRulers = Text.strip . Text.unlines . filter (not . isRuler) . Text.lines
@@ -537,6 +538,9 @@ capitalizeEmphasis :: Text -> Text
 capitalizeEmphasis =
     TextUtil.mapDelimited True '!' (Text.replace "-" "=" . Text.toUpper)
     . Text.replace "\ESC[0m" "!" . Text.replace "\ESC[1m" "!"
+
+stripEmphasis :: Text -> Text
+stripEmphasis = Text.replace "\ESC[0m" "" . Text.replace "\ESC[1m" ""
 
 statePos :: Sequence.State -> (Int, Tala.Akshara, Sequence.Duration)
 statePos state =
