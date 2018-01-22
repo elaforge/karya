@@ -18,6 +18,7 @@ import qualified Solkattu.Score.Solkattu2013
 import qualified Solkattu.Score.Solkattu2014
 import qualified Solkattu.Score.Solkattu2016
 import qualified Solkattu.Score.Solkattu2017
+import qualified Solkattu.Score.Solkattu2018
 import qualified Solkattu.Score.SolkattuMohra
 
 
@@ -110,6 +111,7 @@ korvais =
     , setLocation ("Solkattu.Score.Solkattu2017",579,"c_17_10_23") Solkattu.Score.Solkattu2017.c_17_10_23
     , setLocation ("Solkattu.Score.Solkattu2017",639,"c_17_12_11") Solkattu.Score.Solkattu2017.c_17_12_11
     , setLocation ("Solkattu.Score.Solkattu2017",659,"speaking1") Solkattu.Score.Solkattu2017.speaking1
+    , setLocation ("Solkattu.Score.Solkattu2018",13,"yt_mannargudi1") Solkattu.Score.Solkattu2018.yt_mannargudi1
     , setLocation ("Solkattu.Score.SolkattuMohra",33,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",50,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",68,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube
