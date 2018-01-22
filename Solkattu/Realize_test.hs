@@ -429,7 +429,7 @@ test_formatSpeed = do
 -- * verifyAlignment
 
 test_verifyAlignment = do
-    let f = verifyAlignment tdktSmap Tala.adi_tala
+    let f = verifyAlignment tdktSmap Tala.adi_tala 0
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
     equal (f (take 4 tdkt)) $ Right $ Just
@@ -448,8 +448,18 @@ test_verifyAlignment = do
     equal (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt)) $ Right
         (Just (3, "expected akshara 4, but at avartanam 1, akshara 0 + 3/4"))
 
-test_verifyAlignmentNadaiChange = do
+test_verifyAlignment_eddupu = do
     let f = verifyAlignment tdktSmap Tala.adi_tala
+        tdkt = cycle $ ta <> di <> ki <> ta
+    equal (f 1 (take 8 tdkt)) $ Right $ Just
+        (8, "korvai should end on or before sam+1: avartanam 1, akshara 2")
+    equal (f 1 (take 4 tdkt)) $ Right Nothing
+    equal (f (-1) (take 4 tdkt)) $ Right $ Just
+        (4, "korvai should end on or before sam-1: avartanam 1, akshara 1")
+    equal (f (-1) (take (4*7) tdkt)) $ Right Nothing
+
+test_verifyAlignmentNadaiChange = do
+    let f = verifyAlignment tdktSmap Tala.adi_tala 0
         tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
     equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt))) $
@@ -483,9 +493,11 @@ tdktSmap = expect_right $ Realize.strokeMap
     where M.Strokes {..} = M.notes
 
 verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> Tala.Tala -> Korvai.Sequence -> Either Text (Maybe (Int, Text))
-verifyAlignment smap tala =
-    fmap (Realize.verifyAlignment tala . Sequence.tempoNotes) . realize smap
+    -> Tala.Tala -> Sequence.Duration -> Korvai.Sequence
+    -> Either Text (Maybe (Int, Text))
+verifyAlignment smap tala eddupu =
+    fmap (Realize.verifyAlignment tala eddupu . Sequence.tempoNotes)
+        . realize smap
 
 -- * util
 

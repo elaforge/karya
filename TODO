@@ -2867,8 +2867,14 @@ solkattu:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   format: output:
-    - understand about eddupu:
+    * understand about eddupu:
       . this means I should be able to treat sam +- something as ok to end on
+    - I might need to do eddupu per-section, since a korvai can start anywhere.
+      . Actually what I think I need is to put section boundaries in arbitrary
+        spots, instead of always sam to sam.
+      . I could have a separate 0-dur type for markers, or use an empty group.
+      . If I do this, I could get rid of Korvai having multiple sequences, in
+        favor of section dividers.
     * don't put ruler junk after strokes that run out early
     - put dots in between distant ruler marks, e.g. in 2 kalai
     * emphasis on aksharas, not angas, like with html

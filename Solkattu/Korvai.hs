@@ -52,6 +52,8 @@ data Korvai = Korvai {
     korvaiSequences :: !KorvaiType
     , korvaiStrokeMaps :: !StrokeMaps
     , korvaiTala :: !Tala.Tala
+    -- | Expect the korvai to end on sam + eddupu.
+    , korvaiEddupu :: !S.Duration
     , korvaiMetadata :: !Metadata
     } deriving (Eq, Show)
 
@@ -68,10 +70,12 @@ instance Pretty KorvaiType where
     pretty (Mridangam a) = pretty a
 
 instance Pretty Korvai where
-    format (Korvai sequence strokeMaps tala metadata) = Pretty.record "Korvai"
+    format (Korvai sequence strokeMaps tala eddupu metadata) =
+        Pretty.record "Korvai"
         [ ("sequence", Pretty.format sequence)
         , ("strokeMaps", Pretty.format strokeMaps)
         , ("tala", Pretty.format tala)
+        , ("eddupu", Pretty.format eddupu)
         , ("metadata", Pretty.format metadata)
         ]
 
@@ -80,6 +84,7 @@ korvai tala strokeMaps sequences = inferMetadata $ Korvai
     { korvaiSequences = Sollu sequences
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
+    , korvaiEddupu = 0
     , korvaiMetadata = mempty
     }
 
@@ -95,8 +100,12 @@ mridangamKorvai tala pmap sequences = inferMetadata $ Korvai
             }
         }
     , korvaiTala = tala
+    , korvaiEddupu = 0
     , korvaiMetadata = mempty
     }
+
+eddupu :: S.Duration -> Korvai -> Korvai
+eddupu dur korvai = korvai { korvaiEddupu = dur }
 
 -- | Tie together everything describing how to realize a single instrument.
 data Instrument stroke = Instrument {
@@ -180,18 +189,19 @@ realize instrument realizePatterns korvai = case korvaiSequences korvai of
     realize1 realizeNote =
         fmap (first (instPostprocess instrument))
         . realizeInstrument realizePatterns realizeNote inst tala
+            (korvaiEddupu korvai)
     smap = Realize.instStrokeMap inst
     tala = korvaiTala korvai
     inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
 
 realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke)
     => Bool -> Realize.GetStroke sollu stroke
-    -> Realize.Instrument stroke -> Tala.Tala -> SequenceT sollu
+    -> Realize.Instrument stroke -> Tala.Tala -> S.Duration -> SequenceT sollu
     -> Either Error ([Flat stroke], Error)
-realizeInstrument realizePatterns getStroke inst tala sequence = do
+realizeInstrument realizePatterns getStroke inst tala eddupu sequence = do
     realized <- Realize.formatError $
         Realize.realize pattern getStroke $ flatten sequence
-    let alignError = Realize.verifyAlignment tala $ S.tempoNotes realized
+    let alignError = Realize.verifyAlignment tala eddupu $ S.tempoNotes realized
     return (realized, maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError)
     -- TODO maybe put a carat in the output where the error index is
     where

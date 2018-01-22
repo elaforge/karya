@@ -13,6 +13,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.MultiSet as MultiSet
+import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -153,21 +154,22 @@ noteDuration tempo = (* S.matraDuration tempo) . fromIntegral . S.matrasOf
 
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-verifyAlignment :: Tala.Tala -> [(S.Tempo, Note stroke)] -> Maybe (Int, Error)
+verifyAlignment :: Tala.Tala -> S.Duration -> [(S.Tempo, Note stroke)]
+    -> Maybe (Int, Error)
     -- ^ (index where the error occured, error)
-verifyAlignment tala notes
+verifyAlignment tala eddupu notes
     | tala == Tala.any_beats = Nothing
-    | otherwise = msum (map verify (zip [0..] states)) <|> appendEndsOnSam
+    | otherwise = msum (map verify (zip [0..] states)) <|> checkEnd
     where
     (finalState, states) = S.tempoToState tala notes
     -- Either finalState one is at 0, or the last non-rest note is.
-    appendEndsOnSam
-        | atAkshara 0 finalState || maybe False (atAkshara 0) finalNote =
-            Nothing
+    checkEnd
+        | atEnd finalState || maybe False atEnd finalNote = Nothing
         | otherwise = Just
             ( length states
-            , "korvai should end on or before sam: "
-                <> S.showPosition finalState
+            , "korvai should end on or before sam"
+                <> (if eddupu == 0 then "" else showImproper eddupu)
+                <> ": " <> S.showPosition finalState
             )
         where
         finalNote = fst <$> List.find (not . isSpace . snd) (reverse states)
@@ -178,8 +180,21 @@ verifyAlignment tala notes
     verify _ = Nothing
     isSpace (Space _) = True
     isSpace _ = False
+    atEnd state
+        | eddupu >= 0 = akshara == eddupu
+        | otherwise = akshara - fromIntegral (Tala.tala_aksharas tala) == eddupu
+        where
+        akshara = fromIntegral (S.stateAkshara state) + S.stateMatra state
     atAkshara akshara state =
         S.stateAkshara state == akshara && S.stateMatra state == 0
+
+showImproper :: S.Duration -> Text
+showImproper (S.Duration dur) = mconcat
+    [ if dur > 0 then "+" else ""
+    , showt (Ratio.numerator dur)
+    , if Ratio.denominator dur == 1 then ""
+        else "/" <> showt (Ratio.denominator dur)
+    ]
 
 -- * Patterns
 
