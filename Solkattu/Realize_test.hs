@@ -310,6 +310,9 @@ test_formatRuler = do
     equal_fmt (either id id) (fst <$> run (tas 4 2)) $ Right
         "X   |\n\
         \K k"
+    equal_fmt (either id id) (fst <$> run (tas 8 8)) $ Right
+        "X       .       |\n\
+        \K k k k k k k k"
 
 equalT :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
     -> Either Text (Text, a) -> IO Bool

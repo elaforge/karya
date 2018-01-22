@@ -695,7 +695,7 @@ breakFst f = (map snd *** map snd) . break (f . fst)
 inferRulerText :: Tala.Tala -> Int -> [(S.State, a)] -> Text
 inferRulerText tala strokeWidth =
     -- A final stroke will cause a trailing space, so stripEnd.
-    Text.stripEnd . mconcatMap fmt . inferRuler tala
+    Text.stripEnd . mconcatMap fmt . inferRuler tala strokeWidth
     where
     fmt (label, spaces) = justifyLeft (spaces * strokeWidth) ' ' label
 
@@ -704,10 +704,17 @@ inferRulerText tala strokeWidth =
 -- even if the nadai changes.  But it does mean I can't generate ruler if I
 -- run out of strokes, which is a bit annoying for incomplete korvais or ones
 -- with eddupu.
-inferRuler :: Tala.Tala -> [(S.State, a)] -> [(Text, Int)]
-inferRuler tala = (++ [("|", 0)]) . zip (Tala.tala_labels tala)
+inferRuler :: Tala.Tala -> Int -> [(S.State, a)] -> [(Text, Int)]
+inferRuler tala strokeWidth = (++ [("|", 0)])
+    . concatMap insertDots
+    . zip (Tala.tala_labels tala)
     . map length . dropWhile null
     . Seq.split_with atAkshara
+    where
+    insertDots (label, spaces)
+        | (spaces * strokeWidth > 8) && spaces `mod` 2 == 0 =
+            [(label, spaces `div` 2), (".", spaces `div` 2)]
+        | otherwise = [(label, spaces)]
 
 atAkshara :: (S.State, a) -> Bool
 atAkshara = (==0) . S.stateMatra . fst
@@ -806,7 +813,7 @@ formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
 formatHtml tala font notes =
     formatTable tala font (map Doc.html ruler) avartanams
     where
-    ruler = maybe [] (concatMap akshara . inferRuler tala)
+    ruler = maybe [] (concatMap akshara . inferRuler tala 1)
         (Seq.head avartanams)
     akshara (n, spaces) = n : replicate (spaces-1) ""
     -- I don't thin rests for HTML, it seems to look ok with all explicit rests.

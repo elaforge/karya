@@ -2875,8 +2875,9 @@ solkattu:
       . I could have a separate 0-dur type for markers, or use an empty group.
       . If I do this, I could get rid of Korvai having multiple sequences, in
         favor of section dividers.
+      . How about named sections, e.g. development, korvai, ...?
     * don't put ruler junk after strokes that run out early
-    - put dots in between distant ruler marks, e.g. in 2 kalai
+    * put dots in between distant ruler marks, e.g. in 2 kalai
     * emphasis on aksharas, not angas, like with html
     - put the ruler up every few avartanams even if it's not a new section
     - nadai changes are invisible, I should put something in the ruler for it
