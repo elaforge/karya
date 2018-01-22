@@ -189,12 +189,14 @@ verifyAlignment tala eddupu notes
         S.stateAkshara state == akshara && S.stateMatra state == 0
 
 showImproper :: S.Duration -> Text
-showImproper (S.Duration dur) = mconcat
+showImproper dur = mconcat
     [ if dur > 0 then "+" else ""
-    , showt (Ratio.numerator dur)
-    , if Ratio.denominator dur == 1 then ""
-        else "/" <> showt (Ratio.denominator dur)
+    , showt num
+    , if denom == 1 then "" else "/" <> showt denom
     ]
+    where
+    (num, denom) =
+        (Ratio.numerator (realToFrac dur), Ratio.denominator (realToFrac dur))
 
 -- * Patterns
 
