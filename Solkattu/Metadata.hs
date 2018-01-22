@@ -9,6 +9,7 @@ module Solkattu.Metadata (
     get, getLocation, setLocation, showLocation, getModuleVariable
     -- * add
     , comment, date, source, similarTo, tSimilarTo
+    , recording
     , korvaiT, koraippu, mohra, sarvalaghu, tirmanam
     , sequenceT, faran, exercise, trikalam
 ) where
@@ -69,6 +70,34 @@ similarTo module_ variableName =
 
 tSimilarTo :: Text
 tSimilarTo = "similar_to"
+
+-- | (hour, minute, second)
+type Time = (Int, Int, Int)
+
+-- | A recording where the clip is played.
+recording :: CallStack.Stack => Text -- ^ URL to the recording or video
+    -> Maybe (Time, Time)
+    -- ^ start and end time of the clip within the recording
+    -> Korvai -> Korvai
+recording url maybeRange = withTag "recording" (showRecording url maybeRange)
+
+showRecording :: CallStack.Stack => Text -> Maybe (Time, Time) -> Text
+showRecording url maybeRange = Text.unwords $
+    url : case maybeRange of
+        Nothing -> []
+        Just (start, end) -> [showTime start, showTime end]
+
+showTime :: CallStack.Stack => Time -> Text
+showTime (h, m, s)
+    | any (<0) [h, m, s] || any (>=60) [m, s] =
+        errorStack $ "invalid time: " <> showt (h, m, s)
+    | otherwise = mconcat $ concat
+        [ [showt h <> "h" | h > 0]
+        , [showt m <> "m" | m > 0]
+        , [showt s <> "s" | s > 0]
+        ]
+
+-- ** types
 
 korvaiT :: Korvai -> Korvai
 korvaiT = withType "korvai"
