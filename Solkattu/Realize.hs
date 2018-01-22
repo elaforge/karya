@@ -684,9 +684,14 @@ inferRulerText tala strokeWidth =
     where
     fmt (label, spaces) = justifyLeft (spaces * strokeWidth) ' ' label
 
+-- | Rather than generating the ruler purely from the Tala, I use the formatted
+-- strokes to figure out the mark spacing.  This should guarantee they line up,
+-- even if the nadai changes.  But it does mean I can't generate ruler if I
+-- run out of strokes, which is a bit annoying for incomplete korvais or ones
+-- with eddupu.
 inferRuler :: Tala.Tala -> [(S.State, a)] -> [(Text, Int)]
-inferRuler tala = zip (Tala.tala_labels tala ++ ["|"])
-    . (++[0]) . map length . dropWhile null
+inferRuler tala = (++ [("|", 0)]) . zip (Tala.tala_labels tala)
+    . map length . dropWhile null
     . Seq.split_with atAkshara
 
 atAkshara :: (S.State, a) -> Bool

@@ -307,6 +307,9 @@ test_formatRuler = do
           \K k K k K k K k K"
         , ""
         )
+    equal_fmt (either id id) (fst <$> run (tas 4 2)) $ Right
+        "X   |\n\
+        \K k"
 
 equalT :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
     -> Either Text (Text, a) -> IO Bool
@@ -382,7 +385,7 @@ test_formatBreakLines = do
         "X       O       X       O       |\n\
         \k k k k k k k k k k k k k k k k"
     equal (run 10 (tas 16)) $ Right
-        "X   O   X\n\
+        "X   O   |\n\
         \kkkkkkkk\n\
         \kkkkkkkk"
 
@@ -394,7 +397,7 @@ test_formatNadaiChange = do
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
     equal (Text.lines out)
-        [ "0       1       2       3       X"
+        [ "0       1       2       3       |"
         , "_k_t_knok t knok_t_knok t knok_t"
         -- TODO should be a ruler here
         , "_knok _ t _ k n o k _ t _ k n o k _ t _ k n o"

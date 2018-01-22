@@ -2869,7 +2869,7 @@ solkattu:
   format: output:
     - understand about eddupu:
       . this means I should be able to treat sam +- something as ok to end on
-    - don't put ruler junk after strokes run out early
+    * don't put ruler junk after strokes that run out early
     - put dots in between distant ruler marks, e.g. in 2 kalai
     * emphasis on aksharas, not angas, like with html
     - put the ruler up every few avartanams even if it's not a new section
