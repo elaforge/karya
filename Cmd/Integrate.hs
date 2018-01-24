@@ -241,15 +241,16 @@ needs_track_score_integrate updates state = Seq.unique $
 -- * manual integrate
 
 -- | Find blocks with the source key, and merge the given tracks into them.
+--
+-- If you are creating a new track, you need to have already done that and put
+-- an empty destination in it.
 manual_integrate :: Ui.M m => Block.SourceKey -> Convert.Track
     -> [Convert.Track] -> m ()
 manual_integrate key note controls = do
-    dests <- manual_destinations key . Map.toList <$> Ui.gets Ui.state_blocks
-    forM_ dests $ \(block_id, dests) -> do
-        new_dests <- forM dests $ \dest -> do
-            -- Integration doesn't change the title.
-            Ui.set_track_title (fst (Block.dest_note dest)) $
-                Convert.track_title note
+    block_dests <- manual_destinations key . Map.toList <$>
+        Ui.gets Ui.state_blocks
+    forM_ block_dests $ \(block_id, dests) -> do
+        new_dests <- forM dests $ \dest ->
             Merge.merge_tracks block_id [(note, controls)] [dest]
         Ui.set_integrated_manual block_id key (Just (concat new_dests))
 

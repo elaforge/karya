@@ -174,15 +174,17 @@ edit key = do
 module_to_fname :: Text -> FilePath
 module_to_fname = untxt . (<>".hs") . Text.replace "." "/"
 
+-- | This can be called manually to reintegrate after a change, but is also
+-- called automatically be 'edit'.
 reintegrate :: Ui.M m => Block.SourceKey -> m ()
 reintegrate key = do
     (korvai, index, inst) <- Ui.require ("no korvai for " <> showt key) $
         get_by_key key
     -- TODO I need to store realize_patterns and akshara_dur somewhere.
-    (notes, controls) <- convert_note_track key <$> case inst of
+    (note, controls) <- convert_note_track key <$> case inst of
         Korvai.GInstrument inst ->
             realize inst True korvai index akshara_dur start
-    Integrate.manual_integrate key notes controls
+    Integrate.manual_integrate key note controls
     where
     akshara_dur = 1
     start = 0
@@ -221,6 +223,9 @@ integrate_track korvai index instrument = do
     key <- Cmd.require "can't get key" $ korvai_key korvai index instrument
     view_id <- Cmd.get_focused_view
     track_id <- Create.track_and_widen False view_id 9999
+    -- This is surely wrong, but I don't know the intended instrument here, and
+    -- it can be fixed by hand, and it only happens the first time.
+    Ui.set_track_title track_id (">" <> instrument)
     block_id <- Ui.block_id_of view_id
     Ui.set_integrated_manual block_id key $
         Just [Block.empty_destination track_id]

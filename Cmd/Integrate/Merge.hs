@@ -198,13 +198,16 @@ add_skeleton block_id tree = do
 -- | Merge together TrackPairs, modifying the underlying tracks, and return
 -- a NoteDestination.  The head of the TrackPairs is assumed to be the note
 -- track, and the rest are its controls.
+--
+-- Control and pitch tracks are matched or created by title, but the note track
+-- title is ignored.
 merge_pairs :: Ui.M m => BlockId -> [TrackPair]
     -> m (Maybe Block.NoteDestination)
 merge_pairs block_id pairs = do
     triples <- mapMaybeM (merge_pair block_id) pairs
     return $ case triples of
         [] -> Nothing
-        (_, note_id, note_index) : controls ->
+        (_title, note_id, note_index) : controls ->
             Just $ Block.NoteDestination (note_id, note_index) $ Map.fromList
                 [ (title, (track_id, index))
                 | (title, track_id, index) <- controls
