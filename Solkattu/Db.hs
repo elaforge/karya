@@ -46,13 +46,16 @@ aroundDate date days =
 ofType :: Text -> Korvai.Korvai -> Bool
 ofType type_ = (type_ `elem`) . Metadata.get "type"
 
+variableName :: Text -> Korvai.Korvai -> Bool
+variableName name = (name `Text.isInfixOf`) . Metadata.getModuleVariable
+
 hasInstrument :: Text -> Korvai.Korvai -> Bool
 hasInstrument inst = (inst `elem`) . Metadata.get "instrument"
 
 -- * search
 
 searchp :: (Korvai.Korvai -> Bool) -> IO ()
-searchp = Text.IO.putStrLn . search
+searchp = liftIO . Text.IO.putStrLn . search
 
 search :: (Korvai.Korvai -> Bool) -> Text
 search predicate = Text.stripEnd $

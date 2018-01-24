@@ -23,7 +23,7 @@ import qualified Solkattu.Score.SolkattuMohra
 
 
 korvais :: [Korvai.Korvai]
-korvais =
+korvais = map Korvai.inferMetadata
     [ setLocation ("Solkattu.Score.Mridangam2013",15,"dinnagina_sequence") Solkattu.Score.Mridangam2013.dinnagina_sequence
     , setLocation ("Solkattu.Score.Mridangam2013",85,"t_17_02_13") Solkattu.Score.Mridangam2013.t_17_02_13
     , setLocation ("Solkattu.Score.Mridangam2013",98,"din_nadin") Solkattu.Score.Mridangam2013.din_nadin

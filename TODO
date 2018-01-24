@@ -2866,6 +2866,23 @@ solkattu:
   transcribe:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
+  * put eddupu in tags
+    . Since it's added after the eddupu, I have to put inferMetadata after
+      that.
+    . That means either another korvai constructor, or put inferMetadata in
+      Solkattu.All.
+    . Could I fix relatedTo to use a direct reference as well?  I don't see
+      how, because still the referenced Korvai still doesn't have location.
+  - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
+    .  I really want to write the sarvalaghu as strokes, not just ===
+      filler.  This is because sometimes it's hard to distinguish in
+      recordings, and also because sometimes it has motives related to the
+      korvai.
+    . This is like the explicit stroke stuff back again.
+  - Can I get a rerender on save?
+    . This is like the ascii version of auto integration.
+    . This would be set up as an interactive korvai editor, and it could
+      do things like display diffs.
   format: output:
     * understand about eddupu:
       . this means I should be able to treat sam +- something as ok to end on

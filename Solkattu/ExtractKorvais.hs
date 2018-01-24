@@ -59,7 +59,7 @@ template =
     \${imports}\n\
     \\n\
     \korvais :: [Korvai.Korvai]\n\
-    \korvais =\n\
+    \korvais = map Korvai.inferMetadata\n\
     \    [ ${korvais}\n\
     \    ]\n"
 

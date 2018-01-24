@@ -78,7 +78,7 @@ instance Pretty Korvai where
         ]
 
 korvai :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
-korvai tala strokeMaps sequences = inferMetadata $ Korvai
+korvai tala strokeMaps sequences = Korvai
     { korvaiSequences = Sollu sequences
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
@@ -89,7 +89,7 @@ korvai tala strokeMaps sequences = inferMetadata $ Korvai
 mridangamKorvai :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
     -> [SequenceT (Realize.Stroke Mridangam.Stroke)]
     -> Korvai
-mridangamKorvai tala pmap sequences = inferMetadata $ Korvai
+mridangamKorvai tala pmap sequences = Korvai
     { korvaiSequences = Mridangam sequences
     , korvaiStrokeMaps = mempty
         { instMridangam = Realize.Instrument
@@ -257,13 +257,20 @@ date y m d
 
 -- ** infer
 
+-- | This is called in "Solkattu.All", thanks to "Solkattu.ExtractKorvais".
+--
+-- It used to be called in the 'korvai' and 'mridangamKorvai' constructors, but
+-- it was confusing how it wouldn't see modifications done after construction.
 inferMetadata :: Korvai -> Korvai
 inferMetadata korvai =
     withMetadata (mempty { _tags = inferTags korvai }) korvai
 
 inferTags :: Korvai -> Tags
 inferTags korvai = Tags $ Util.Map.multimap $ concat
-    [ [("tala", Tala._name tala)]
+    [ [ ("tala", Tala._name tala)
+      , ("sections", showt (length seqs))
+      , ("eddupu", pretty (korvaiEddupu korvai))
+      ]
     , map (("avartanams",) . pretty . (/aksharas)
         . Solkattu.durationOf S.defaultTempo) seqs
     , map ("nadai",) (map showt nadais)
