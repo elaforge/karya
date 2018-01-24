@@ -25,6 +25,9 @@ parse :: Parser () a -> Text -> Either Text a
 parse parser input = either (Left . format1 input) Right $
     P.parse (parser <* P.eof) "" input
 
+parse_maybe :: Parser () a -> Text -> Maybe a
+parse_maybe p = either (const Nothing) Just . parse p
+
 -- | Try to parse a file, or return a default value if the file doesn't exist.
 file :: a -> Parser st a -> st -> FilePath -> IO (Either P.ParseError a)
 file deflt parser state fname = do
