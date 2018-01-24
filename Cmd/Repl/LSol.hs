@@ -40,7 +40,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 
 import qualified Solkattu.Db as Db
-import Solkattu.Db hiding (realize)
+import Solkattu.Db hiding (realize, search, searchp)
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
@@ -56,8 +56,11 @@ import Types
 
 -- * search
 
+search :: Monad m => (Korvai.Korvai -> Bool) -> m Text
+search = return . Db.search
+
 search_date :: Monad m => Int -> Int -> Int -> Integer -> m Text
-search_date y m d days = return $ search $ aroundDate (date y m d) days
+search_date y m d days = search $ aroundDate (date y m d) days
 
 -- * realize
 
@@ -81,20 +84,21 @@ insert :: (Solkattu.Notation stroke, Cmd.M m) => Korvai.Instrument stroke
     -> Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
 insert instrument realize_patterns akshara_dur korvai index = do
     (block_id, _, track_id, at) <- Selection.get_insert
-    note_track <- realize instrument realize_patterns korvai index akshara_dur
-        at
+    note_track <-
+        realize instrument realize_patterns korvai index akshara_dur at
     ModifyNotes.write_tracks block_id [track_id] [note_track]
 
 realize :: (Ui.M m, Solkattu.Notation stroke) => Korvai.Instrument stroke
     -> Bool -> Korvai.Korvai -> Index -> TrackTime -> TrackTime
     -> m ModifyNotes.NoteTrack
 realize instrument realize_patterns korvai index akshara_dur at = do
-    (strokes, warning) <- Ui.require_right id
+    (strokes, _warning) <- Ui.require_right id
         <=< Ui.require ("no korvai at index " <> showt index) $
             Seq.at (Korvai.realize instrument realize_patterns korvai) index
-    unless (Text.null warning) $ Ui.throw warning
-    return $ to_note_track (Korvai.instToScore instrument) akshara_dur at
-        strokes
+    -- _warning is an alignment warning, which I can see well enough on the
+    -- track already.
+    return $
+        to_note_track (Korvai.instToScore instrument) akshara_dur at strokes
 
 to_note_track :: ToScore.ToScore stroke -> TrackTime -> TrackTime
     -> [Sequence.Flat g (Realize.Note stroke)] -> ModifyNotes.NoteTrack

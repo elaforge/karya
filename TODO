@@ -3013,6 +3013,8 @@ solkattu:
   - have a mode to warn about unused StrokeMap entries, and overidden
     ones
   karya integration:
+    * it should still integrate on an alignment warning
+    - it seems to clear out the track title
     - LSol.insert_* doesn't clear and replace existing notes
     - I want to be able to insert all parts of a korvai in sequence.
       . If I make LSol.insert take [Korvai] then I can use take etc.
