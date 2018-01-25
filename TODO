@@ -3013,7 +3013,7 @@ solkattu:
   - have a mode to warn about unused StrokeMap entries, and overidden
     ones
   karya integration:
-    - vim needs a redraw after reintegrate
+    * vim needs a redraw after reintegrate
     * it should still integrate on an alignment warning
     * it seems to clear out the track title
     - LSol.insert_* doesn't clear and replace existing notes
