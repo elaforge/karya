@@ -159,27 +159,6 @@ convert_event_pitch srate patch controls event =
     note_end = Score.event_end event
         + fromMaybe Types.default_decay (Types.patch_decay patch)
 
--- | Convert deriver controls to performance controls.  Drop all non-MIDI
--- controls, since those will inhibit channel sharing later.
-convert_controls :: RealTime
-    -> Control.ControlMap -- ^ Instrument's control map.
-    -> Score.ControlMap -- ^ Controls to convert.
-    -> Map Score.Control MSignal.Signal
-convert_controls srate inst_cmap =
-    Map.fromAscList
-        . map (second (Signal.to_piecewise_constant srate . Score.typed_val))
-        . filter (Control.is_midi_control inst_cmap . fst)
-        . Map.toAscList
-
--- | If it's a 'Patch.Pressure' instrument, move the 'Controls.dynamic'
--- control to 'Controls.breath'.
-convert_dynamic :: Bool -> Score.ControlMap -> Score.ControlMap
-convert_dynamic pressure controls
-    | pressure = maybe controls
-        (\sig -> Map.insert Controls.breath sig controls)
-        (Map.lookup Controls.dynamic controls)
-    | otherwise = controls
-
 convert_pitch :: Log.LogMonad m => Env.Environ
     -> Score.ControlMap -> RealTime -> PSignal.PSignal -> m Signal.NoteNumber
 convert_pitch env controls note_end psig = do
@@ -200,8 +179,10 @@ apply_patch_scale :: Log.LogMonad m => Maybe Patch.Scale -> PitchSignal
     -> m PitchSignal
 apply_patch_scale scale sig = do
     let (nn_sig, scale_errs) = convert_scale scale sig
-    unless (null scale_errs) $ Log.warn $
-        "out of range for patch scale: " <> pretty scale_errs
+    unless (null scale_errs) $ do
+        Log.warn $ "out of range for patch scale: "
+            <> Text.intercalate ", "
+                (TextUtil.ellipsisList 10 (map pretty scale_errs))
     return nn_sig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are
@@ -218,3 +199,24 @@ convert_scale (Just scale) = MSignal.map_err $ \(MSignal.Sample x y) ->
     case Patch.convert_scale scale (Pitch.NoteNumber y) of
         Just (Pitch.NoteNumber nn) -> Right (MSignal.Sample x nn)
         Nothing -> Left (x, y)
+
+-- | Convert deriver controls to performance controls.  Drop all non-MIDI
+-- controls, since those will inhibit channel sharing later.
+convert_controls :: RealTime
+    -> Control.ControlMap -- ^ Instrument's control map.
+    -> Score.ControlMap -- ^ Controls to convert.
+    -> Map Score.Control MSignal.Signal
+convert_controls srate inst_cmap =
+    Map.fromAscList
+        . map (second (Signal.to_piecewise_constant srate . Score.typed_val))
+        . filter (Control.is_midi_control inst_cmap . fst)
+        . Map.toAscList
+
+-- | If it's a 'Patch.Pressure' instrument, move the 'Controls.dynamic'
+-- control to 'Controls.breath'.
+convert_dynamic :: Bool -> Score.ControlMap -> Score.ControlMap
+convert_dynamic pressure controls
+    | pressure = maybe controls
+        (\sig -> Map.insert Controls.breath sig controls)
+        (Map.lookup Controls.dynamic controls)
+    | otherwise = controls

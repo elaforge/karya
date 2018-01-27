@@ -459,12 +459,26 @@ drop_discontinuity_at :: V.Vector v (Sample y) => X -> SignalS v y
     -> SignalS v y
 drop_discontinuity_at x sig = case V.toList clipped of
     Sample x1 _ : Sample x2 _ : _ | x == x1 && x1 == x2 ->
-        from_vector $ TimeVector.drop_at_after x vector
-            V.++ TimeVector.drop_before_at x vector
+        from_vector $ V.concat
+            [ pre
+            -- Insert an extra sample to avoid changing the slope.
+            , case (TimeVector.last pre, TimeVector.head post) of
+                (Just (Sample _ y), Just (Sample x _)) ->
+                    V.singleton (Sample x y)
+                _ -> V.empty
+            , drop1 post
+            ]
+            where
+            pre = TimeVector.drop_at_after x vector
+            post = TimeVector.drop_before_at x vector
     _ -> sig
     where
     vector = to_vector sig
     clipped = TimeVector.drop_before_strict (x - _offset sig) (_vector sig)
+    -- Drop an extra x to avoid >2 samples in the same spot.
+    drop1 v = case V.toList v of
+        Sample x1 _ : Sample x2 _ : _ | x1 == x2 -> V.drop 1 v
+        _ -> v
 
 -- * Boxed
 

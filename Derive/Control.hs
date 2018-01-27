@@ -315,7 +315,7 @@ trim_signal drop_after clip_after track signal =
         TrackTree.Sliced orientation -> do
             start <- Derive.real $ TrackTree.track_start track
             end <- Derive.real $ TrackTree.track_end track
-            -- Sometimes I want to keep a signal exactly at end.
+            -- I need to keep a signal exactly at end for certain blocks.
             let trim
                     | start == end || orientation == Types.Negative = drop_after
                     | otherwise = clip_after

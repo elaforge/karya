@@ -1475,6 +1475,17 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
         Convert should drop_before?
         . Midi Perform already does that.
         . But it looks confusing in tests.
+      * wayang scores derive slowly now
+        . And there are 'out of range for patch scale' errors, with too many
+          samples.
+        ? Why do they only show up for verify_performance?
+        . Constant control has become sloped:
+          %t-dia: Signal 0s <34s:0, 93.2s:-1, 93.2s:0>
+        . In score: <34s:0, 67.6s:0, 67.6s:-1, 93.2s:-1, 93.2s:0>
+        . It's because of Block.trim_controls and drop_discontinuity_at.
+        . Why wasn't this a problem before?
+        . Because dropping later samples couldn't have an effect on earlier
+          ones.
       cleanups:
         * rename TimeVector.signal and unsignal
         - make ControlUtil.smooth take negative time

@@ -220,6 +220,14 @@ test_to_piecewise_constant = do
     equal (f [(2, 2), (4, 4)]) [(2, 2), (3, 3), (4, 4)]
     equal (f [(2, 2), (2, 2), (2, 2)]) [(2, 2)]
 
+test_drop_discontinuity_at = do
+    let f x = to_pairs . Segment.drop_discontinuity_at x . from_pairs
+    equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1)])
+        [(0, 0), (2, 0), (2, 1)]
+    -- Don't get >2 2s in a row.
+    equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1), (2, 0)])
+        [(0, 0), (2, 0), (2, 0)]
+
 
 large_y :: Y
 large_y = RealTime.to_seconds large

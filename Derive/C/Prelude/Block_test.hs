@@ -181,12 +181,11 @@ test_control_scope_negative_orientation = do
     --  4c  5c 5d
     -- (4d) 5d 5d
 
-    where
-    with = CallTest.with_note_generator "" DUtil.constant_pitch
-
+    -- where
+    -- with = CallTest.with_note_generator "" DUtil.constant_pitch
 
 test_trim_controls_problem = do
-    let run = DeriveTest.extract (DeriveTest.e_control "c")
+    let run = DeriveTest.extract (DeriveTest.e_control_literal "c")
             . DeriveTest.derive_blocks
     equal (run
             [ ("top", [("c", [(1, 0, "1")]), (">", [(0, 1, "sub")])])
@@ -196,6 +195,18 @@ test_trim_controls_problem = do
         -- ([[]], [])
     -- I think this works now because I only remove discontinuities, but the
     -- problem is still present.
+
+    equal (run
+            [ ("top",
+                [ ("c", [(0, 0, "0"), (4, 0, "1"), (8, 0, "0")])
+                , (">", [(0, 4, "sub")])
+                ])
+            , ("sub=ruler", [(">", [(0, 4, "")])])
+            ])
+        ([[(0, 0), (8, 0)]], [])
+        -- should be this
+        -- ([[(0, 0), (4, 0), (4, 1), (8, 1), (8, 0)]], [])
+
 
 run_sub :: DeriveTest.Setup -> (Score.Event -> a) -> [UiTest.TrackSpec]
     -> [UiTest.TrackSpec] -> ([a], [Text])
