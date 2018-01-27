@@ -93,7 +93,7 @@ run_multiple :: a -> (a -> IO String) -> IO ()
 run_multiple arg action = forM_ [1..6] $ \n -> do
     putStr $ show n ++ ": "
     IO.hFlush IO.stdout
-    Testing.print_timer (show n) (\_ _ -> id) (action arg)
+    Testing.print_timer (showt n) (\_ _ -> id) (action arg)
 
 mkevent :: Double -> Double -> [(Score.Control, MSignal.Signal)]
     -> MSignal.Signal -> Types.Event

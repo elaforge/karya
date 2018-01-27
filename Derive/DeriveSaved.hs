@@ -53,17 +53,17 @@ perform_file cmd_config fname = do
 
 timed_perform :: Cmd.State -> FilePath -> Ui.State
     -> Vector.Vector Score.Event -> IO ([Midi.WriteMessage], [Log.Msg])
-timed_perform cmd_state msg state events =
-    Testing.print_timer msg (timer_msg (length . fst)) $ do
+timed_perform cmd_state fname state events =
+    Testing.print_timer ("perform " <> txt fname) (timer_msg (length . fst)) $do
         let (msgs, logs) = perform cmd_state state events
         Testing.force (msgs, logs)
         return (msgs, logs)
 
 timed_derive :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO (Vector.Vector Score.Event, [Log.Msg])
-timed_derive name ui_state cmd_state block_id = do
+timed_derive fname ui_state cmd_state block_id = do
     let (perf, logs) = Performance.derive ui_state cmd_state block_id
-    Testing.print_timer name (timer_msg Vector.length) $ do
+    Testing.print_timer ("derive " <> txt fname) (timer_msg Vector.length) $ do
         () <- return $ Msg.force_performance perf
         return $! Cmd.perf_events perf
     let warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
@@ -74,13 +74,13 @@ timed_derive name ui_state cmd_state block_id = do
 -- look at derivation results.
 timed_derive2 :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO (Vector.Vector Score.Event, [Log.Msg])
-timed_derive2 name ui_state cmd_state block_id =
+timed_derive2 fname ui_state cmd_state block_id =
     case derive_block ui_state cmd_state block_id of
         Left err -> return (mempty, [Log.msg Log.Warn Nothing err])
         Right (result, cmd_logs) -> do
             let (events, derive_logs) = first Vector.fromList $
                     Stream.partition $ Derive.r_events result
-                msg = "derive " <> name <> " " <> prettys block_id
+                msg = "derive " <> txt fname <> " " <> pretty block_id
             events <- Testing.print_timer msg (timer_msg Vector.length)
                 (return $! events)
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
@@ -93,12 +93,12 @@ timed_derive2 name ui_state cmd_state block_id =
 
 timed_lilypond :: FilePath -> Ui.State -> Cmd.State -> BlockId
     -> IO (Either Log.Msg Text, [Log.Msg])
-timed_lilypond name ui_state cmd_state block_id = case result of
+timed_lilypond fname ui_state cmd_state block_id = case result of
     Left err -> return (Left $ Log.msg Log.Warn Nothing err, [])
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = Stream.partition levents
-        events <- Testing.print_timer ("lilypond " <> name) (timer_msg length)
-            (return $! events)
+        events <- Testing.print_timer ("lilypond " <> txt fname)
+            (timer_msg length) (return $! events)
         let (result, ly_logs) = Cmd.Lilypond.extract_movements
                 config "title" events
         return (Lazy.toStrict <$> result,
@@ -150,7 +150,7 @@ add_library builtins aliases state =
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: Cmd.InstrumentDb -> FilePath
     -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
-load_score db fname = Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
+load_score db fname = Testing.print_timer ("load " <> txt fname) (\_ _ _ -> "")$
     Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of

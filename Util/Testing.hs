@@ -389,9 +389,9 @@ q_equal a b = QuickCheck.counterexample
 timer :: IO a -> IO (a, Double, Double)
 timer = Log.time_eval
 
-print_timer :: String -> (Double -> Double -> a -> String) -> IO a -> IO a
+print_timer :: Text -> (Double -> Double -> a -> String) -> IO a -> IO a
 print_timer msg show_val op = do
-    Printf.printf "%s - " msg
+    Text.IO.putStr $ msg <> " - "
     IO.hFlush IO.stdout
     result <- Exception.try $ timer $ do
         !val <- op

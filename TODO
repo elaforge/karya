@@ -215,6 +215,12 @@ UNSORTED
     - Maybe put Expr.Symbol into Monoid after all.
     - remove Derive.Deriver.Monad.state_pitch_mergers
       . The identity can become a scalar now.
+    * get rid of Postproc.replace_note?
+    - update ControlUtil.segment
+    - Support negative time in ControlUtil.split_samples_absolute
+    - Deriver.Lib.with_control_mods
+    - GConvert.fingerMovement
+    - Signal.integrate
   - Look for TODO(polymorphic-signals) for places where a signal typeclass
     would help.
   - what is (>) in 'i> (>)'?  Looks like next pitch but I forget adding that.
@@ -326,6 +332,8 @@ UNSORTED
     confusing.
     . I could still have 'dyn' default to mul, if that's not confusing too.
   - decide if the ( call is called slur or legato, not half and half.
+    . I already have something called slur in Rearticulate, so let's go back
+      to legato.  Slur is just how it happens to be realized in lilypond.
   - Use EnvKey.string for string selection in vsl, not attributes.
     . It would be nice to be able to select by name instead of NN, but the
       calls like NNs.  Maybe val calls that emit the right NNs.
@@ -1509,15 +1517,6 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
       clean up tests:
         - Always use _rounded for DeriveTest.e_control?
         - use run2 in Prelude.Pitch_test
-      TODOs:
-        * get rid of Postproc.replace_note?
-        - replace parse_curve in SignalTransform
-        - update ControlUtil.segment
-        - Support negative time in ControlUtil.split_samples_absolute
-        - Deriver.Lib.with_control_mods
-        - GConvert.fingerMovement
-        - Signal.integrate
-        - Synth.Sampler.noteToSample
 
       - Do I need to clip at all?  The performer can clip to the start, but
         I think it needs to know where the note stops because otherwise this
@@ -1545,6 +1544,8 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
     - profile before and after
+      - verify_performance should be able to write timing info
+        . I should fix the interleaved log msgs.  Especially ** is boring.
     - implement Warp.compose_hybrid
     - Util.Segment has an invariant where Xs are ordered, and there are
       a max of two in the same place.  Quickcheck it!

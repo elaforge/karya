@@ -72,7 +72,9 @@ main :: IO ()
 main = Git.initialize $ do
     args <- System.Environment.getArgs
     Log.configure $ \state -> state
-        { Log.state_write_msg = Log.write_formatted IO.stderr }
+        { Log.state_log_level = Log.Warn
+        , Log.state_write_msg = Log.write_formatted IO.stderr
+        }
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
@@ -212,8 +214,8 @@ perform_block fname cmd_state state block_id = do
     (events, logs) <- liftIO $
         DeriveSaved.timed_derive fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
-    (msgs, logs) <- liftIO $ DeriveSaved.timed_perform cmd_state
-        ("perform " <> fname) state events
+    (msgs, logs) <- liftIO $
+        DeriveSaved.timed_perform cmd_state fname state events
     liftIO $ mapM_ Log.write logs
     return msgs
 

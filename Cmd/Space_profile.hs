@@ -12,11 +12,12 @@ import qualified Util.Memory as Memory
 import Util.Test
 import qualified Util.Testing as Testing
 
-import qualified Ui.Ui as Ui
 import qualified Ui.Transform as Transform
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Save as Save
 import qualified Derive.DeriveSaved as DeriveSaved
+import Global
 
 
 profile_load = do
@@ -37,7 +38,7 @@ profile_load = do
 
 load :: Cmd.InstrumentDb -> FilePath -> IO Ui.State
 load db fname = do
-    result <- Testing.print_timer ("unserialize " ++ show fname)
+    result <- Testing.print_timer ("unserialize " <> showt fname)
         (\_ _ _ -> "") (Save.read_state_ db fname)
     return $ expect_right result
 
