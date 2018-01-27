@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import qualified Util.Testing as Testing
+import qualified Util.TimeVector as TimeVector
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
@@ -15,6 +16,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
 import qualified Perform.Midi.Types as Types
@@ -28,15 +30,15 @@ import Global
 total_events :: Int
 total_events = 40 * 1000
 
-signal :: [(Double, Signal.Y)] -> Signal.Signal y
-signal = Signal.signal . map (first RealTime.seconds)
+signal :: [(Double, Signal.Y)] -> MSignal.Signal
+signal = MSignal.from_pairs . map (first RealTime.seconds)
 
 event_count msgs_per_event = floor (fromIntegral total_events / msgs_per_event)
 
 profile_notes = do
     -- simple notes with no controls
     let evts = take (event_count 2) [mkevent n 1 [] pitch | n <- [0..]]
-        pitch = Signal.constant 60
+        pitch = MSignal.constant 60
     run_multiple evts $ \arg -> print_msgs $ perform arg
 
 profile_control = do
@@ -53,7 +55,7 @@ profile_complex = do
     -- notes with pitches and multiple controls, but no multiplexing
     let pitch_at n = signal [(n, fromIntegral (floor n `mod` 64 + 32))]
         mod_sig = signal [(n, n) | n <- [0, 1/16 .. 15/16]]
-        mod_at n = (Controls.mod, Signal.shift (RealTime.seconds n) mod_sig)
+        mod_at n = (Controls.mod, TimeVector.shift (RealTime.seconds n) mod_sig)
         dynamic_at n = fromIntegral (floor n `mod` 64) / 64 + 1/8
         dyn_at n = (Controls.dynamic, signal [(n, dynamic_at n)])
     let event n = mkevent n 1 [mod_at n, dyn_at n] (pitch_at n)
@@ -64,7 +66,7 @@ profile_complex = do
 profile_multiplex = do
     -- notes with non-shareable pitches
     let pitch_sig = signal [(n, n + 64.5) | n <- [0, 1/16 .. 15/16]]
-        pitch_at n = Signal.shift (RealTime.seconds n) pitch_sig
+        pitch_at n = TimeVector.shift (RealTime.seconds n) pitch_sig
     let event n = mkevent n 1 [] (pitch_at n)
     let evts = take (event_count 18) (map event [0..])
     run_multiple evts $ \arg -> print_msgs $ perform arg
@@ -93,8 +95,8 @@ run_multiple arg action = forM_ [1..6] $ \n -> do
     IO.hFlush IO.stdout
     Testing.print_timer (show n) (\_ _ -> id) (action arg)
 
-mkevent :: Double -> Double -> [(Score.Control, Signal.Control)]
-    -> Signal.NoteNumber -> Types.Event
+mkevent :: Double -> Double -> [(Score.Control, MSignal.Signal)]
+    -> MSignal.Signal -> Types.Event
 mkevent start dur controls pitch_sig = PerformTest.empty_event
     { Types.event_start = RealTime.seconds start
     , Types.event_duration = RealTime.seconds dur
