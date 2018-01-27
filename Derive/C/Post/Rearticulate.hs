@@ -4,10 +4,10 @@
 
 -- | Post-proc calls that impose a new kind of articulation.
 module Derive.C.Post.Rearticulate (library) where
+import qualified Util.Map
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -20,6 +20,7 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 import Global
 import Types
 
@@ -34,104 +35,42 @@ c_slur_n :: Derive.Transformer Derive.Note
 c_slur_n = Derive.transformer Module.prelude "slur-n" Tags.postproc
     "Merge groups of notes into one note, where the pitch is taken from each\
     \ merged note. The groups are of a fixed size."
-    $ Sig.callt ((,)
-    <$> Sig.required "group" "How many notes in a group."
-    <*> ControlUtil.curve_time_env
-    ) $ \(group, curve) _args deriver -> do
-        srate <- Call.get_srate
-        slur_n srate group curve <$> deriver
+    $ Sig.callt (Sig.required "group" "How many notes in a group.")
+    $ \group _args deriver -> slur_n group <$> deriver
 
-type CurveTime = (ControlUtil.Curve, RealTime)
-
-slur_n :: RealTime -> Int -> CurveTime -> Stream.Stream Score.Event
-    -> Stream.Stream Score.Event
-slur_n srate group curve = Stream.from_sorted_list . go . Stream.to_list
+slur_n :: Int -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+slur_n group = Stream.from_sorted_list . go . Stream.to_list
     where
     go events = case first LEvent.partition $ split_events group events of
         (([], logs), _) -> map LEvent.Log logs
         ((e : es, logs), post) -> map LEvent.Log logs
-            ++ LEvent.Event (slur srate curve e es) : go post
+            ++ LEvent.Event (slur e es) : go post
 
-slur :: RealTime -> CurveTime -> Score.Event -> [Score.Event] -> Score.Event
-slur _srate _curve event _events = event
--- slur srate curve event events = event
---     { Score.event_duration = dur
---     , Score.event_pitch = pitch
---     }
---     where
---     pitch = slur_pitch srate curve (bracket_pitch event)
---         (map bracket_pitch events)
---     dur = Score.event_end (fromMaybe event (Seq.last events))
---         - Score.event_start event
-
-slur_pitch :: RealTime -> CurveTime -> PSignal.PSignal -> [PSignal.PSignal]
-    -> PSignal.PSignal
-slur_pitch srate (curve, time) sig sigs = undefined
--- slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
-
-{-
-slur_pitch :: RealTime -> CurveTime -> PSignal.PSignal -> [PSignal.PSignal]
-    -> PSignal.PSignal
-slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
+-- | Merge pitch and controls from the given events.
+--
+-- Previously I used a curve and time to merge more gradually.  I can add it
+-- back if it's useful.
+slur :: Score.Event -> [Score.Event] -> Score.Event
+slur event events = event
+    { Score.event_duration = dur
+    , Score.event_pitch = merge_pitch (Score.event_pitch event)
+        [(Score.event_start e, Score.event_pitch e) | e <- events]
+    , Score.event_controls = merge_controls event events
+    }
     where
-    -- The transition should override the neighboring signals.
-    merge (p:ps) (i:is) = p <> i `PSignal.prepend` merge ps is
-    merge ps [] = mconcat ps
-    merge [] is = mconcat is -- Shouldn't happen.
-    transitions = zipWith transition (sig : sigs) sigs
-    transition _ _ | time == 0 = mempty
-    transition prev next = fromMaybe mempty $ do
-        (x0, _) <- PSignal.head prev
-        (x1, y1) <- PSignal.last prev
-        (x2, y2) <- PSignal.head next
-        (x3, _) <- PSignal.last next
-        let mid a b = (a + b) / 2
-        -- Don't allow the curve past the midpoint of the note.  This way the
-        -- transition will become quicker to accomodate shorter notes.
-        let start = max (mid x0 x1) (mid x1 x2 - time / 2)
-            end = min (mid x2 x3) (mid x1 x2 + time / 2)
-        return $ PitchUtil.interpolate_segment srate curve False start y1 end y2
--}
+    dur = Score.event_end (fromMaybe event (Seq.last events))
+        - Score.event_start event
 
-{-
-    This uses bracket to put samples at event start and end.
-    Then make transition curves from last, limited by the last sample of the
-    next section.
-    Then merge them so the transitions chop off the starts of the pitches.
+merge_pitch :: PSignal.PSignal -> [(RealTime, PSignal.PSignal)]
+    -> PSignal.PSignal
+merge_pitch sig sigs =
+    mconcat $ sig : [PSignal.clip_before start sig | (start, sig) <- sigs]
 
-    With segments:
-    For each event:
-        transition from start (prev.pitch `at` event.start)
-            to end (event.pitch `at` event.start)
-
-        clip_before event.pitch to the end of the transition, and merge with
-        transition (this is instead of prepend)
-    mconcat all
-
-    The difference is I have to keep event boundaries around instead of using
-    samples.  Segments have starts, but no end.
--}
-
-{-
-bracket_pitch :: Score.Event -> PSignal.PSignal
-bracket_pitch event =
-    bracket (Score.event_start event) (Score.event_end event) $
-        Score.event_pitch event
-
--- | Ensure there are samples at the start and end times.
--- TODO move to Util.TimeVector?
-bracket :: RealTime -> RealTime -> PSignal.PSignal -> PSignal.PSignal
-bracket start end = set_end . set_start . PSignal.within start end
+merge_controls :: Score.Event -> [Score.Event] -> Score.ControlMap
+merge_controls event events = Util.Map.mconcat $ clip event : map clip events
     where
-    set_start sig = case PSignal.head sig of
-        Just (x, y) | x < start -> PSignal.signal [(start, y)] <> sig
-        _ -> sig
-    set_end sig = case PSignal.last sig of
-        Just (x, y)
-            | x RealTime.== end -> sig
-            | otherwise -> sig <> PSignal.signal [(end, y)]
-        Nothing -> sig
--}
+    clip event = fmap (Signal.clip_before (Score.event_start event)) <$>
+        Score.event_controls event
 
 -- | 'splitAt' for LEvents.
 split_events :: Int -> [LEvent.LEvent a]
@@ -146,25 +85,23 @@ c_slur_dur :: Derive.Transformer Derive.Note
 c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
     "Merge groups of notes into one note, where the pitch is taken from each\
     \ merged note. The groups are by duration."
-    $ Sig.callt ((,,)
+    $ Sig.callt ((,)
     <$> (Typecheck._score <$> Sig.required "dur" "How long each group is.")
     <*> (Typecheck._score <$> Sig.defaulted "offset" (Typecheck.score 0)
         "Groups start at this time.")
-    <*> ControlUtil.curve_time_env
-    ) $ \(dur, offset, curve) args deriver -> do
+    ) $ \(dur, offset) args deriver -> do
         start <- Args.real_start args
         dur <- Call.real_duration start dur
         offset <- Call.real_duration start offset
-        srate <- Call.get_srate
-        slur_dur srate dur offset curve <$> deriver
+        slur_dur dur offset <$> deriver
 
-slur_dur :: RealTime -> RealTime -> RealTime -> CurveTime
-    -> Stream.Stream Score.Event -> Stream.Stream Score.Event
-slur_dur srate dur offset curve stream =
+slur_dur :: RealTime -> RealTime -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
+slur_dur dur offset stream =
     Stream.merge_logs logs $ Stream.from_sorted_events $
         map apply (group_dur dur offset events)
     where
-    apply (e :| es) = slur srate curve e es
+    apply (e :| es) = slur e es
     (events, logs) = Stream.partition stream
 
 group_dur :: RealTime -> RealTime -> [Score.Event] -> [NonEmpty Score.Event]

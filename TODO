@@ -202,6 +202,19 @@ STATUS
     before and after warp as function, and linear segments.
 
 UNSORTED
+  cleanup from linear:
+    - make ControlUtil.smooth take negative time
+    - make SignalTransform.c_smooth take cf curve
+    - rename RealTime.seconds to from_seconds etc.
+      . This is a big change, so put it off for a bit.
+    - Trill.c_control_trill and Trill.c_pitch_trill should take a cf curve
+      to interpolate the points.  Then constant gets hard trill, and some
+      compressed linear for the old behaviour, and bezier for smooth.
+    - srate is misnamed, it's a period.  If it were really a rate it would
+      be 60 or something.
+    - Maybe put Expr.Symbol into Monoid after all.
+    - remove Derive.Deriver.Monad.state_pitch_mergers
+      . The identity can become a scalar now.
   - Look for TODO(polymorphic-signals) for places where a signal typeclass
     would help.
   - what is (>) in 'i> (>)'?  Looks like next pitch but I forget adding that.
@@ -1488,20 +1501,9 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
           ones.
       cleanups:
         * rename TimeVector.signal and unsignal
-        - make ControlUtil.smooth take negative time
-        - make SignalTransform.c_smooth take cf curve
-        - rename RealTime.seconds to from_seconds etc.
-        - Trill.c_control_trill and Trill.c_pitch_trill should take a cf curve
-          to interpolate the points.  Then constant gets hard trill, and some
-          compressed linear for the old behaviour, and bezier for smooth.
-        - srate is misnamed, it's a period.  If it were really a rate it would
-          be 60 or something.
-        - Maybe put Expr.Symbol into Monoid after all.
-        - remove Derive.Deriver.Monad.state_pitch_mergers
-          . The identity can become a scalar now.
       clean up segments:
         - I should put a final sample on for sampled curves too.  Maybe I do?
-        - put Seq.drop_dups id on Seq.to_pairs, or better, from_pairs
+        - put Seq.drop_dups id on Signal.to_pairs, or better, from_pairs
         - Make Signal.from_pairs drop a redundant final sample
         . use String_test.strip_flat
       clean up tests:
@@ -1550,7 +1552,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     port thigs to segments:
       - SignalTransform.c_quantize.
         . It will have to find where segments intersect the quantize multiples.
-      - Rearticulate.slur
+      * Rearticulate.slur
 
   / Could I use -Infinity for constant rather than -RealTime.large?  That
     way I don't have to worry about any amount of translation.
@@ -1572,6 +1574,8 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     . Plain references to Score.event_controls could be error-prone though.
       I'd need a Score.event_absolute_controls, which is effectively
       event_transformed_controls.
+    . I think the reason I added the offset optimization in the first place
+      was that randomize moves every event.
 
   . If I say signals now have linear interpolation by default, then the linear
     interpolator can just emit one sample, but now MIDI needs interpolation.

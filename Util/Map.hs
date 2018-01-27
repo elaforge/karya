@@ -4,14 +4,15 @@
 
 -- | Extra utils for "Data.Map".
 module Util.Map where
-import Control.Arrow (first)
 import Prelude hiding (min, max)
+import Control.Arrow (first)
 import qualified Data.Either as Either
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
+import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
 
@@ -131,3 +132,11 @@ max fm
 mappend :: (Ord k, Monoid.Monoid a) => Map.Map k a -> Map.Map k a
     -> Map.Map k a
 mappend = Map.unionWith Monoid.mappend
+
+-- | Like @Map.unionsWith Monoid.mappend@, but collects the values together,
+-- in case mconcat is more efficient than successive mappends.
+mconcat :: (Ord k, Monoid.Monoid a) => [Map.Map k a] -> Map.Map k a
+mconcat ms = Map.fromList [(k, Monoid.mconcat (get k)) | k <- ks]
+    where
+    ks = Set.toList $ Set.unions $ map Map.keysSet ms
+    get k = Maybe.mapMaybe (Map.lookup k) ms
