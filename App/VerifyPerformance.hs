@@ -6,11 +6,14 @@
 -- msgs or lilypond code as the last saved performance.
 module App.VerifyPerformance (main) where
 import qualified Control.Monad.Except as Except
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified System.Console.GetOpt as GetOpt
@@ -32,6 +35,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
+import qualified Shake.SourceControl as SourceControl
 import Global
 import Types
 
@@ -56,17 +60,23 @@ options =
         \  Perform - Perform to MIDI and write to $input.midi.\n\
         \  Profile - Like Perform, but don't write any output.\n\
         \  DumpMidi - Pretty print binary saved MIDI to stdout."
-    , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output default_out_dir)
-        "write output to this directory"
+    , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output default_out_dir) $
+        "Write output to this directory. JSON-encoded timing is appended to\
+        \ $out/" <> timing_file
     ]
 
+-- | This is intentionally not the same as what the shakefile uses, so I don't
+-- mingle the results.
 default_out_dir :: FilePath
-default_out_dir = "build/test"
+default_out_dir = "build/verify-cmdline"
 
 read_mode :: String -> Flag
 read_mode s =
     Mode $ fromMaybe (error ("unknown mode: " <> show s)) $ Map.lookup s modes
     where modes = Map.fromList [(show m, m) | m <- [minBound .. maxBound]]
+
+timing_file :: FilePath
+timing_file = "timing.json"
 
 main :: IO ()
 main = Git.initialize $ do
@@ -84,10 +94,12 @@ main = Git.initialize $ do
     cmd_config <- DeriveSaved.load_cmd_config
     failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
         Verify -> do
+            run <- get_run
             fnames <- concatMapM expand_verify_me args
             results <- forM fnames $ \fname -> do
                 putStrLn $ "------------------------- verify " <> fname
-                fails <- run $ verify_performance out_dir cmd_config fname
+                fails <- run_error $
+                    verify_performance run out_dir cmd_config fname
                 putStrLn $ if fails == 0
                     then "+++++++++++++++++++++++++ OK!"
                     else "_________________________ FAILED!"
@@ -99,11 +111,11 @@ main = Git.initialize $ do
                 unless (null failed) $
                     putStr $ "    failed:\n" <> unlines (map fst failed)
             return $ sum $ map snd results
-        Save -> run $ concat <$> mapM (save cmd_config out_dir) args
-        Profile -> run $ concat <$> mapM (perform Nothing cmd_config) args
+        Save -> run_error $ concat <$> mapM (save cmd_config out_dir) args
+        Profile -> run_error $ concat <$> mapM (perform Nothing cmd_config) args
         Perform ->
-            run $ concat <$> mapM (perform (Just out_dir) cmd_config) args
-        DumpMidi -> run $ concat <$> mapM dump_midi args
+            run_error $ concat <$> mapM (perform (Just out_dir) cmd_config) args
+        DumpMidi -> run_error $ concat <$> mapM dump_midi args
     Process.exit failures
     where
     usage msg = do
@@ -127,8 +139,8 @@ expand_verify_me fname = do
 
 type Error a = Except.ExceptT Text IO a
 
-run :: Error [Text] -> IO Int
-run m = do
+run_error :: Error [Text] -> IO Int
+run_error m = do
     errors <- either (\err -> return [err]) return =<< Except.runExceptT m
     mapM_ Text.IO.putStrLn errors
     return (length errors)
@@ -167,8 +179,8 @@ perform :: Maybe FilePath -> Cmd.Config -> FilePath -> Error [Text]
 perform maybe_out_dir cmd_config fname = do
     (state, library, aliases, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
-    msgs <- perform_block fname (make_cmd_state library aliases cmd_config)
-        state block_id
+    (msgs, _, _) <- perform_block fname
+        (make_cmd_state library aliases cmd_config) state block_id
     whenJust maybe_out_dir $ \out_dir -> do
         let out = out_dir </> basename fname <> ".midi"
         liftIO $ putStrLn $ "write " <> out
@@ -181,18 +193,27 @@ dump_midi fname = do
     liftIO $ mapM_ Pretty.pprint (Vector.toList msgs)
     return []
 
-verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
-verify_performance out_dir cmd_config fname = do
+type Timings = [(Text, Double)]
+
+verify_performance :: Run -> FilePath -> Cmd.Config -> FilePath -> Error [Text]
+verify_performance run out_dir cmd_config fname = do
     (state, library, aliases, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
     let meta = Ui.config#Ui.meta #$ state
     let cmd_state = make_cmd_state library aliases cmd_config
     let midi_perf = Map.lookup block_id (Ui.meta_midi_performances meta)
         ly_perf = Map.lookup block_id (Ui.meta_lilypond_performances meta)
-    midi_err <- maybe (return Nothing)
+    (midi_err, midi_timings) <- maybe (return (Nothing, []))
         (verify_midi out_dir fname cmd_state state block_id) midi_perf
-    ly_err <- maybe (return Nothing)
+    (ly_err, ly_timings) <- maybe (return (Nothing, []))
         (verify_lilypond out_dir fname cmd_state state block_id) ly_perf
+    case (midi_err, ly_err) of
+        (Nothing, Nothing) ->
+            liftIO $ write_timing (out_dir </> timing_file) run fname
+                (midi_timings ++ ly_timings)
+        _ -> return ()
+    liftIO $ write_timing (out_dir </> timing_file) run fname
+        (midi_timings ++ ly_timings)
     return $ case (midi_perf, ly_perf) of
         (Nothing, Nothing) -> ["no saved performances"]
         _ -> Maybe.catMaybes [midi_err, ly_err]
@@ -200,39 +221,45 @@ verify_performance out_dir cmd_config fname = do
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
 verify_midi :: FilePath -> FilePath -> Cmd.State -> Ui.State -> BlockId
-    -> Ui.MidiPerformance -> Error (Maybe Text)
+    -> Ui.MidiPerformance -> Error (Maybe Text, Timings)
 verify_midi out_dir fname cmd_state state block_id performance = do
-    msgs <- perform_block fname cmd_state state block_id
+    (msgs, derive_cpu, perform_cpu) <-
+        perform_block fname cmd_state state block_id
     (maybe_diff, wrote_files) <- liftIO $
         DiffPerformance.diff_midi_performance (basename fname ++ ".midi")
             out_dir performance msgs
-    return $ (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
+    return
+        ( (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
+        , [("derive", derive_cpu), ("perform", perform_cpu)]
+        )
 
 perform_block :: FilePath -> Cmd.State -> Ui.State -> BlockId
-    -> Error [Midi.WriteMessage]
+    -> Error ([Midi.WriteMessage], DeriveSaved.CPU, DeriveSaved.CPU)
 perform_block fname cmd_state state block_id = do
-    (events, logs) <- liftIO $
+    ((events, logs), derive_cpu) <- liftIO $
         DeriveSaved.timed_derive fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
-    (msgs, logs) <- liftIO $
+    ((msgs, logs), perform_cpu) <- liftIO $
         DeriveSaved.timed_perform cmd_state fname state events
     liftIO $ mapM_ Log.write logs
-    return msgs
+    return (msgs, derive_cpu, perform_cpu)
 
 verify_lilypond :: FilePath -> FilePath -> Cmd.State -> Ui.State
-    -> BlockId -> Ui.LilypondPerformance -> Error (Maybe Text)
+    -> BlockId -> Ui.LilypondPerformance -> Error (Maybe Text, Timings)
 verify_lilypond out_dir fname cmd_state state block_id performance = do
-    (result, logs) <- liftIO $
+    ((result, logs), cpu) <- liftIO $
         DeriveSaved.timed_lilypond fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
     case result of
-        Left err -> return $ Just $ "error deriving: " <> Log.format_msg err
+        Left err -> return (Just $ "error deriving: " <> Log.format_msg err, [])
         Right got -> do
             (maybe_diff, wrote_files) <- liftIO $
                 DiffPerformance.diff_lilypond (basename fname ++ ".ly") out_dir
                     performance got
-            return $ (<> ("\nwrote " <> txt (unwords wrote_files))) <$>
-                maybe_diff
+            return
+                ( (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
+                , [("lilypond", cpu)]
+                )
 
 -- * util
 
@@ -255,3 +282,54 @@ get_root state = justErr "no root block" $ Ui.config#Ui.root #$ state
 
 basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . Seq.rdrop_while (=='/')
+
+
+-- | Metadata for a verify run.
+data Run = Run {
+    _date :: Time.UTCTime
+    , _patch :: SourceControl.Entry
+    } deriving (Show)
+
+get_run :: IO Run
+get_run = Run <$> Time.getCurrentTime
+    <*> (either (errorIO . txt) return =<< SourceControl.currentPatchParsed)
+
+{- | JSON format:
+
+    @
+    { 'score': 'some/score'
+    , 'date': '2018-01-01:9:00'
+    , 'patch':
+        { 'hash': 'ea5c4ba586cd094843b8fe5bc11f5a5f77809f93'
+        , 'name': 'linear: fix build'
+        , 'date': '2018-01-01:00:00'
+        }
+    , 'cpu': {'derive': 4.5, 'perform': 1.5, 'lilypond': 4, ...}
+
+    # This has to be added by a wrapper.
+    , 'prof':
+        { 'time', 1.4
+        , 'total alloc': '1223.59mb'
+        , 'max alloc': '80.86mb'
+        , 'productivity': 56.4
+        }
+    }
+    @
+-}
+write_timing :: FilePath -> Run -> FilePath -> [(Text, Double)]
+    -> IO ()
+write_timing fname (Run date patch) score vals = do
+    ByteString.Lazy.appendFile fname $ (<>"\n") $ Aeson.encode $ dict
+        [ ("score", Aeson.String $ txt score)
+        , ("run_date", Aeson.toJSON date)
+        , ("cpu", Aeson.toJSON (dict vals))
+        , ("patch", Aeson.toJSON $ dict
+            [ ("author", Aeson.toJSON $ SourceControl._author patch)
+            , ("date", Aeson.toJSON $ SourceControl._date patch)
+            , ("hash", Aeson.toJSON $ SourceControl._hash patch)
+            , ("name", Aeson.toJSON $ SourceControl._name patch)
+            ])
+        ]
+    where
+    dict :: [(Text, a)] -> Map Text a
+    dict = Map.fromList

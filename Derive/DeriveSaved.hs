@@ -4,10 +4,14 @@
 
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Vector as Vector
+
 import qualified System.FilePath as FilePath
+import qualified System.IO as IO
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
@@ -24,8 +28,8 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
-import qualified Derive.Cache as Cache
 import qualified Derive.C.All as C.All
+import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -44,46 +48,49 @@ perform_file cmd_config fname = do
     (ui_state, cmd_state) <- load_score_states cmd_config fname
     root_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         Ui.config#Ui.root #$ ui_state
-    (events, logs) <- timed_derive fname ui_state cmd_state root_id
+    ((events, logs), _cpu) <- timed_derive fname ui_state cmd_state root_id
     mapM_ Log.write logs
-    (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) ui_state
-        events
+    ((msgs, logs), _cpu) <- timed_perform cmd_state ("perform " ++ fname)
+        ui_state events
     mapM_ Log.write logs
     return msgs
 
 timed_perform :: Cmd.State -> FilePath -> Ui.State
-    -> Vector.Vector Score.Event -> IO ([Midi.WriteMessage], [Log.Msg])
+    -> Vector.Vector Score.Event -> IO (([Midi.WriteMessage], [Log.Msg]), CPU)
 timed_perform cmd_state fname state events =
-    Testing.print_timer ("perform " <> txt fname) (timer_msg (length . fst)) $do
+    time ("perform " <> txt fname) (timer_msg (length . fst)) $ do
         let (msgs, logs) = perform cmd_state state events
         Testing.force (msgs, logs)
         return (msgs, logs)
 
 timed_derive :: FilePath -> Ui.State -> Cmd.State -> BlockId
-    -> IO (Vector.Vector Score.Event, [Log.Msg])
+    -> IO ((Vector.Vector Score.Event, [Log.Msg]), CPU)
 timed_derive fname ui_state cmd_state block_id = do
     let (perf, logs) = Performance.derive ui_state cmd_state block_id
-    Testing.print_timer ("derive " <> txt fname) (timer_msg Vector.length) $ do
+    (_, cpu) <- time ("derive " <> txt fname) (timer_msg Vector.length) $ do
         () <- return $ Msg.force_performance perf
         return $! Cmd.perf_events perf
     let warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
-    return (Cmd.perf_events perf, warns ++ logs)
+    return ((Cmd.perf_events perf, warns ++ logs), cpu)
 
 -- | This is like 'timed_derive', except that it does more work itself
 -- rather than calling Performance.derive.  This can be more convenient to
 -- look at derivation results.
 timed_derive2 :: FilePath -> Ui.State -> Cmd.State -> BlockId
-    -> IO (Vector.Vector Score.Event, [Log.Msg])
+    -> IO ((Vector.Vector Score.Event, [Log.Msg]), CPU)
 timed_derive2 fname ui_state cmd_state block_id =
     case derive_block ui_state cmd_state block_id of
-        Left err -> return (mempty, [Log.msg Log.Warn Nothing err])
+        Left err -> return ((mempty, [Log.msg Log.Warn Nothing err]), 0)
         Right (result, cmd_logs) -> do
             let (events, derive_logs) = first Vector.fromList $
                     Stream.partition $ Derive.r_events result
                 msg = "derive " <> txt fname <> " " <> pretty block_id
-            events <- Testing.print_timer msg (timer_msg Vector.length)
+            (events, cpu) <- time msg (timer_msg Vector.length)
                 (return $! events)
-            return (events, cmd_logs ++ filter (not . boring) derive_logs)
+            return
+                ( (events, cmd_logs ++ filter (not . boring) derive_logs)
+                , cpu
+                )
     where
     boring = Cache.is_cache_log
     derive_block :: Ui.State -> Cmd.State -> BlockId
@@ -92,17 +99,17 @@ timed_derive2 fname ui_state cmd_state block_id =
         run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
 
 timed_lilypond :: FilePath -> Ui.State -> Cmd.State -> BlockId
-    -> IO (Either Log.Msg Text, [Log.Msg])
+    -> IO ((Either Log.Msg Text, [Log.Msg]), CPU)
 timed_lilypond fname ui_state cmd_state block_id = case result of
-    Left err -> return (Left $ Log.msg Log.Warn Nothing err, [])
+    Left err -> return ((Left $ Log.msg Log.Warn Nothing err, []), 0)
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = Stream.partition levents
-        events <- Testing.print_timer ("lilypond " <> txt fname)
+        (events, cpu) <- time ("lilypond " <> txt fname)
             (timer_msg length) (return $! events)
         let (result, ly_logs) = Cmd.Lilypond.extract_movements
                 config "title" events
-        return (Lazy.toStrict <$> result,
-            cmd_logs ++ filter (not . boring) derive_logs ++ ly_logs)
+        let logs = cmd_logs ++ filter (not . boring) derive_logs ++ ly_logs
+        return ((Lazy.toStrict <$> result, logs), cpu)
     where
     result = run_cmd ui_state cmd_state $
         Derive.r_events <$> Cmd.Lilypond.derive_block block_id
@@ -150,7 +157,7 @@ add_library builtins aliases state =
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: Cmd.InstrumentDb -> FilePath
     -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
-load_score db fname = Testing.print_timer ("load " <> txt fname) (\_ _ _ -> "")$
+load_score db fname = fmap fst $ time ("load " <> txt fname) (\_ _ _ -> "") $
     Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of
@@ -194,3 +201,26 @@ cmd_config inst_db = do
         -- dummy values.
         , config_git_user = SaveGit.User "name" "email"
         }
+
+-- * timer
+
+-- | CPU seconds.
+type CPU = Double
+
+time :: Text -> (Double -> Double -> a -> String) -> IO a -> IO (a, CPU)
+time msg show_val op = do
+    Text.IO.putStr $ msg <> " - "
+    IO.hFlush IO.stdout
+    result <- Exception.try $ Log.time_eval $ do
+        !val <- op
+        return val
+    case result of
+        Right (val, cpu_secs, secs) -> do
+            Printf.printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
+                (show_val cpu_secs secs val)
+            return (val, cpu_secs)
+        Left (exc :: Exception.SomeException) -> do
+            -- Complete the line so the exception doesn't interrupt it.  This
+            -- is important if it's a 'failure' line!
+            putStrLn $ "threw exception: " <> show exc
+            Exception.throwIO exc

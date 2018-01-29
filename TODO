@@ -191,14 +191,14 @@ NESS:
     . can I hand damp metal percussion?
 
 STATUS
-  . Currently working on linear segment signals.
+  * Currently working on linear segment signals.
     . Entails switching warps from being signal based to being function-based.
     . I also got rid of the Score.event_untransformed_* hack.
     . Also entails getting rid of the Block.trim_controls hack, which means
       I need a less hacky way to handle notes at the end of blocks.
       . So I need verify to pass so I can evaluate what happens when I remove
         trim_controls.
-  . Next, I should set up organized profiling, especially so I can profile
+  + Next, I should set up organized profiling, especially so I can profile
     before and after warp as function, and linear segments.
 
 UNSORTED
@@ -1544,8 +1544,6 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
     - profile before and after
-      - verify_performance should be able to write timing info
-        . I should fix the interleaved log msgs.  Especially ** is boring.
     - implement Warp.compose_hybrid
     - Util.Segment has an invariant where Xs are ordered, and there are
       a max of two in the same place.  Quickcheck it!
@@ -2428,6 +2426,20 @@ performance:
   - profiling for complete scores is broken since I removed them
     . Derive_profile.profile_file etc.
     . Use the the verify score stuff instead.
+    * I should fix the interleaved log msgs.  Especially ** is boring.
+    * verify_performance should be able to write timing info
+      . What should I write?
+        . timing for derive, perform, lilypond
+        . prof time, total alloc, max alloc, productivity
+        . date, patch name, patch hash
+        . [(ScoreName, [(Date, [(Key, Double)])])]
+      How to use it?
+        . Probably the main way is just get a list of performance by time.
+        . GHC web interface: https://perf.haskell.org/ghc/
+        . https://hackage.haskell.org/package/gipeda
+        . It just takes csvs and makes graphs, but surely I can just create
+          graphs myself.  It uses canvas in some way I don't understand.
+        . Or: https://developers.google.com/chart/
   - Bring back profiling, and do it regularly.
     . Look into that graphing stuff, I have the links around here somewhere.
     . I can get historical data with a script to step through darcs history.

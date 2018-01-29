@@ -2,17 +2,20 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE OverloadedStrings #-}
 -- | Functions to deal with local source control.
 module Shake.SourceControl (currentPatch, Entry(..), currentPatchParsed) where
 import qualified Data.Char as Char
 import Data.Monoid ((<>))
-import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Text (Text)
+import qualified Data.Time as Time
 
 import qualified System.Exit as Exit
 import qualified System.Process as Process
 
 import qualified Util.Regex as Regex
+import qualified Util.TextUtil as TextUtil
 
 
 -- | Get human-readable darcs log output.
@@ -24,7 +27,9 @@ currentPatch = fmap strip <$> getCurrentPatch False
 data Entry = Entry {
     _author :: !Text
     , _localDate :: !Text
+    , _date :: !Time.UTCTime
     , _hash :: !Text
+    , _name :: !Text
     } deriving (Show)
 
 -- | Newer darcs have a patch hash.
@@ -46,8 +51,29 @@ strip = reverse . dropWhile Char.isSpace . reverse . dropWhile Char.isSpace
     </changelog>
 -}
 parseXml :: Text -> Either String Entry
-parseXml xml = Entry <$> match "author" <*> match "local_date" <*> match "hash"
-    where match field = matchOne (field <> "='([^']*)'") xml
+parseXml xml =
+    Entry <$> attr "author"
+        <*> attr "local_date"
+        <*> (parse_date =<< attr "date")
+        <*> attr "hash"
+        <*> field "name"
+    where
+    attr name = matchOne ("\\b" <> name <> "='([^']*)'") xml
+    field name = unquote <$>
+        matchOne ("<" <> name <> ">([^<]*)</" <> name <> ">") xml
+
+-- | Parse darcs date format, e.g. "20180127222545".
+parse_date :: Text -> Either String Time.UTCTime
+parse_date = Time.parseTimeM False Time.defaultTimeLocale "%Y%m%d%H%M%S"
+    . Text.unpack
+
+unquote :: Text -> Text
+unquote = TextUtil.replaceMany $ map (\(k, v) -> ("&" <> k <> ";", v))
+    [ ("apos", "'")
+    , ("lt", "<")
+    , ("gt", ">")
+    , ("amp", "&")
+    ]
 
 matchOne :: String -> Text -> Either String Text
 matchOne regex text = do

@@ -123,7 +123,7 @@ segment srate include_end curve x1 y1 x2 y2
     -- TODO I can't do this optimization, which means flat breakpoints get
     -- redundant samples.  I could make Eq Pitch though... or make
     -- 'breakpoints' take [(RealTime, Maybe Pitch)]
-    -- | y1 == y2 = PSignal.from_pairs [(x1, y1), (x2, y2)]
+    -- - | y1 == y2 = PSignal.from_pairs [(x1, y1), (x2, y2)]
     | otherwise = case curve of
         ControlUtil.Linear -> PSignal.from_pairs [(x1, y1), (x2, y2)]
         ControlUtil.Function curvef ->

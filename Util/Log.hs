@@ -412,7 +412,7 @@ instance Serialize.Serialize Data where
 -- * util
 
 -- | Run an action and report the time in CPU seconds and wall clock seconds.
-time_eval :: Trans.MonadIO m => m a -> m (a, Double, Double)
+time_eval :: Trans.MonadIO m => m a -> m (a, Double, Double) -- ^ (a, cpu, wall)
 time_eval op = do
     start_cpu <- liftIO CPUTime.getCPUTime
     start <- liftIO Time.getCurrentTime
