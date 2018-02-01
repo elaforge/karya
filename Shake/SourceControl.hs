@@ -54,7 +54,7 @@ parseXml :: Text -> Either String Entry
 parseXml xml =
     Entry <$> attr "author"
         <*> attr "local_date"
-        <*> (parse_date =<< attr "date")
+        <*> (parseDate =<< attr "date")
         <*> attr "hash"
         <*> field "name"
     where
@@ -63,8 +63,8 @@ parseXml xml =
         matchOne ("<" <> name <> ">([^<]*)</" <> name <> ">") xml
 
 -- | Parse darcs date format, e.g. "20180127222545".
-parse_date :: Text -> Either String Time.UTCTime
-parse_date = Time.parseTimeM False Time.defaultTimeLocale "%Y%m%d%H%M%S"
+parseDate :: Text -> Either String Time.UTCTime
+parseDate = Time.parseTimeM False Time.defaultTimeLocale "%Y%m%d%H%M%S"
     . Text.unpack
 
 unquote :: Text -> Text

@@ -1548,6 +1548,10 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     - Util.Segment has an invariant where Xs are ordered, and there are
       a max of two in the same place.  Quickcheck it!
     - Also ensure that MSignal.Signal can't get duplicate Xs.
+    - optimize flat pitch segments in PitchUtil.segment
+    - trills are now too hard-edged, why were they smoother before?
+      . They weren't, it's the Pianoteq version.  Still, trill should take
+        a curve arg, and maybe curve by default.
     port thigs to segments:
       - SignalTransform.c_quantize.
         . It will have to find where segments intersect the quantize multiples.
@@ -2423,11 +2427,19 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  - Can I get a graphical trace of the respond cycle?
+    . xi-editor, what did he use for that?
+      https://www.youtube.com/watch?time_continue=12&v=4FbQre9VQLI
+      . write "chrome tracing" format, chrome://tracing, then load
+    . I probably need to save all cycles, and then search for ones with
+      hiccups.
+    . Libraries for 2d rendering: Skia, WebRender
+      . Or use OpenGL.
   - profiling for complete scores is broken since I removed them
     . Derive_profile.profile_file etc.
     . Use the the verify score stuff instead.
     * I should fix the interleaved log msgs.  Especially ** is boring.
-    * verify_performance should be able to write timing info
+    verify_performance should be able to write timing info
       . What should I write?
         . timing for derive, perform, lilypond
         . prof time, total alloc, max alloc, productivity
@@ -2440,6 +2452,9 @@ performance:
         . It just takes csvs and makes graphs, but surely I can just create
           graphs myself.  It uses canvas in some way I don't understand.
         . Or: https://developers.google.com/chart/
+      * patch data is constant per set of runs, so I think it shouldn't be in
+        verify_performance, do it from tools/verify_profile.py
+      - do multiple runs to get a range for numbers
   - Bring back profiling, and do it regularly.
     . Look into that graphing stuff, I have the links around here somewhere.
     . I can get historical data with a script to step through darcs history.

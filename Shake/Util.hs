@@ -72,6 +72,7 @@ system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
 staunchSystem :: FilePath -> [String] -> Shake.Action ()
 staunchSystem cmd args = doCmdline True (unwords (cmd:args), "", cmd:args)
 
+-- | Run a shell command, and crash if it fails.
 shell :: String -> Shake.Action ()
 shell cmd = do
     Shake.putQuiet cmd

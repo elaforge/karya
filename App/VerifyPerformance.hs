@@ -8,12 +8,12 @@ module App.VerifyPerformance (main) where
 import qualified Control.Monad.Except as Except
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as ByteString.Lazy
+import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified System.Console.GetOpt as GetOpt
@@ -43,7 +43,7 @@ import Types
 data Flag = Help | Mode Mode | Output !FilePath
     deriving (Eq, Show)
 
-data Mode = Verify | Save | Perform | Profile | DumpMidi
+data Mode = Verify | Save | Perform | Profile | DumpMidi | PatchInfo
     deriving (Eq, Show, Bounded, Enum)
 
 options :: [GetOpt.OptDescr Flag]
@@ -59,10 +59,11 @@ options =
         \  Save - Write saved performances to disk as binary.\n\
         \  Perform - Perform to MIDI and write to $input.midi.\n\
         \  Profile - Like Perform, but don't write any output.\n\
-        \  DumpMidi - Pretty print binary saved MIDI to stdout."
+        \  DumpMidi - Pretty print binary saved MIDI to stdout.\n\
+        \  PatchInfo - Dump info on the current patch in JSON. This doesn't\n\
+        \    belong here, but there's no other great place."
     , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output default_out_dir) $
-        "Write output to this directory. JSON-encoded timing is appended to\
-        \ $out/" <> timing_file
+        "Write output to this directory. This is diffs, and timing .json."
     ]
 
 -- | This is intentionally not the same as what the shakefile uses, so I don't
@@ -75,9 +76,6 @@ read_mode s =
     Mode $ fromMaybe (error ("unknown mode: " <> show s)) $ Map.lookup s modes
     where modes = Map.fromList [(show m, m) | m <- [minBound .. maxBound]]
 
-timing_file :: FilePath
-timing_file = "timing.json"
-
 main :: IO ()
 main = Git.initialize $ do
     args <- System.Environment.getArgs
@@ -88,18 +86,16 @@ main = Git.initialize $ do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
-    when (null args) $ usage "no inputs"
     unless (null [Help | Help <- flags]) $ usage ""
     let out_dir = fromMaybe default_out_dir $ Seq.last [d | Output d <- flags]
     cmd_config <- DeriveSaved.load_cmd_config
     failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
         Verify -> do
-            run <- get_run
+            when (null args) $ usage "no inputs"
             fnames <- concatMapM expand_verify_me args
             results <- forM fnames $ \fname -> do
                 putStrLn $ "------------------------- verify " <> fname
-                fails <- run_error $
-                    verify_performance run out_dir cmd_config fname
+                fails <- run_error $ verify_performance out_dir cmd_config fname
                 putStrLn $ if fails == 0
                     then "+++++++++++++++++++++++++ OK!"
                     else "_________________________ FAILED!"
@@ -111,11 +107,27 @@ main = Git.initialize $ do
                 unless (null failed) $
                     putStr $ "    failed:\n" <> unlines (map fst failed)
             return $ sum $ map snd results
-        Save -> run_error $ concat <$> mapM (save cmd_config out_dir) args
-        Profile -> run_error $ concat <$> mapM (perform Nothing cmd_config) args
-        Perform ->
+        Save -> do
+            when (null args) $ usage "no inputs"
+            run_error $ concat <$> mapM (save cmd_config out_dir) args
+        Profile -> do
+            when (null args) $ usage "no inputs"
+            run_error $ concat <$> mapM (perform Nothing cmd_config) args
+        Perform -> do
+            when (null args) $ usage "no inputs"
             run_error $ concat <$> mapM (perform (Just out_dir) cmd_config) args
-        DumpMidi -> run_error $ concat <$> mapM dump_midi args
+        DumpMidi -> do
+            when (null args) $ usage "no inputs"
+            run_error $ concat <$> mapM dump_midi args
+        PatchInfo -> do
+            patch <- either (errorIO . txt) return
+                =<< SourceControl.currentPatchParsed
+            ByteString.Lazy.Char8.putStrLn $ Aeson.encode $ Map.fromList
+                [ ("date" :: Text, Aeson.toJSON $ SourceControl._date patch)
+                , ("hash", Aeson.toJSON $ SourceControl._hash patch)
+                , ("name", Aeson.toJSON $ SourceControl._name patch)
+                ]
+            return 0
     Process.exit failures
     where
     usage msg = do
@@ -195,8 +207,8 @@ dump_midi fname = do
 
 type Timings = [(Text, Double)]
 
-verify_performance :: Run -> FilePath -> Cmd.Config -> FilePath -> Error [Text]
-verify_performance run out_dir cmd_config fname = do
+verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
+verify_performance out_dir cmd_config fname = do
     (state, library, aliases, block_id) <-
         load (Cmd.config_instrument_db cmd_config) fname
     let meta = Ui.config#Ui.meta #$ state
@@ -207,12 +219,7 @@ verify_performance run out_dir cmd_config fname = do
         (verify_midi out_dir fname cmd_state state block_id) midi_perf
     (ly_err, ly_timings) <- maybe (return (Nothing, []))
         (verify_lilypond out_dir fname cmd_state state block_id) ly_perf
-    case (midi_err, ly_err) of
-        (Nothing, Nothing) ->
-            liftIO $ write_timing (out_dir </> timing_file) run fname
-                (midi_timings ++ ly_timings)
-        _ -> return ()
-    liftIO $ write_timing (out_dir </> timing_file) run fname
+    liftIO $ write_timing (out_dir </> basename fname <> ".json") fname
         (midi_timings ++ ly_timings)
     return $ case (midi_perf, ly_perf) of
         (Nothing, Nothing) -> ["no saved performances"]
@@ -284,29 +291,19 @@ basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . Seq.rdrop_while (=='/')
 
 
--- | Metadata for a verify run.
-data Run = Run {
-    _date :: Time.UTCTime
-    , _patch :: SourceControl.Entry
-    } deriving (Show)
-
-get_run :: IO Run
-get_run = Run <$> Time.getCurrentTime
-    <*> (either (errorIO . txt) return =<< SourceControl.currentPatchParsed)
-
 {- | JSON format:
 
     @
     { 'score': 'some/score'
-    , 'date': '2018-01-01:9:00'
+    , 'cpu': {'derive': 4.5, 'perform': 1.5, 'lilypond': 4, ...}
+
+    # This has to be added by a wrapper.
+    , 'run_date': '2018-01-01:9:00'
     , 'patch':
         { 'hash': 'ea5c4ba586cd094843b8fe5bc11f5a5f77809f93'
         , 'name': 'linear: fix build'
         , 'date': '2018-01-01:00:00'
         }
-    , 'cpu': {'derive': 4.5, 'perform': 1.5, 'lilypond': 4, ...}
-
-    # This has to be added by a wrapper.
     , 'prof':
         { 'time', 1.4
         , 'total alloc': '1223.59mb'
@@ -316,19 +313,11 @@ get_run = Run <$> Time.getCurrentTime
     }
     @
 -}
-write_timing :: FilePath -> Run -> FilePath -> [(Text, Double)]
-    -> IO ()
-write_timing fname (Run date patch) score vals = do
-    ByteString.Lazy.appendFile fname $ (<>"\n") $ Aeson.encode $ dict
+write_timing :: FilePath -> FilePath -> [(Text, Double)] -> IO ()
+write_timing fname score vals = do
+    ByteString.Lazy.writeFile fname $ (<>"\n") $ Aeson.encode $ dict
         [ ("score", Aeson.String $ txt score)
-        , ("run_date", Aeson.toJSON date)
         , ("cpu", Aeson.toJSON (dict vals))
-        , ("patch", Aeson.toJSON $ dict
-            [ ("author", Aeson.toJSON $ SourceControl._author patch)
-            , ("date", Aeson.toJSON $ SourceControl._date patch)
-            , ("hash", Aeson.toJSON $ SourceControl._hash patch)
-            , ("name", Aeson.toJSON $ SourceControl._name patch)
-            ])
         ]
     where
     dict :: [(Text, a)] -> Map Text a
