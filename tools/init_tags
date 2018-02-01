@@ -7,7 +7,7 @@
 
 fn=$1
 flags=(
-    --qualified
+    --fully_qualified # I use qualified_tag.py
 )
 if [[ ! -r tags ]]; then
     echo Generating tags from scratch...
