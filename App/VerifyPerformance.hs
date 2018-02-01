@@ -219,7 +219,7 @@ verify_performance out_dir cmd_config fname = do
         (verify_midi out_dir fname cmd_state state block_id) midi_perf
     (ly_err, ly_timings) <- maybe (return (Nothing, []))
         (verify_lilypond out_dir fname cmd_state state block_id) ly_perf
-    liftIO $ write_timing (out_dir </> basename fname <> ".json") fname
+    liftIO $ write_timing (out_dir </> basename fname <> ".json")
         (midi_timings ++ ly_timings)
     return $ case (midi_perf, ly_perf) of
         (Nothing, Nothing) -> ["no saved performances"]
@@ -290,35 +290,6 @@ get_root state = justErr "no root block" $ Ui.config#Ui.root #$ state
 basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . Seq.rdrop_while (=='/')
 
-
-{- | JSON format:
-
-    @
-    { 'score': 'some/score'
-    , 'cpu': {'derive': 4.5, 'perform': 1.5, 'lilypond': 4, ...}
-
-    # This has to be added by a wrapper.
-    , 'run_date': '2018-01-01:9:00'
-    , 'patch':
-        { 'hash': 'ea5c4ba586cd094843b8fe5bc11f5a5f77809f93'
-        , 'name': 'linear: fix build'
-        , 'date': '2018-01-01:00:00'
-        }
-    , 'prof':
-        { 'time', 1.4
-        , 'total alloc': '1223.59mb'
-        , 'max alloc': '80.86mb'
-        , 'productivity': 56.4
-        }
-    }
-    @
--}
-write_timing :: FilePath -> FilePath -> [(Text, Double)] -> IO ()
-write_timing fname score vals = do
-    ByteString.Lazy.writeFile fname $ (<>"\n") $ Aeson.encode $ dict
-        [ ("score", Aeson.String $ txt score)
-        , ("cpu", Aeson.toJSON (dict vals))
-        ]
-    where
-    dict :: [(Text, a)] -> Map Text a
-    dict = Map.fromList
+write_timing :: FilePath -> [(Text, Double)] -> IO ()
+write_timing fname vals = ByteString.Lazy.writeFile fname $ (<>"\n") $
+    Aeson.encode $ Map.fromList vals

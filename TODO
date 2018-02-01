@@ -2456,7 +2456,7 @@ performance:
         . Or: https://developers.google.com/chart/
       * patch data is constant per set of runs, so I think it shouldn't be in
         verify_performance, do it from tools/verify_profile.py
-      - do multiple runs to get a range for numbers
+      * do multiple runs to get a range for numbers
   - Bring back profiling, and do it regularly.
     . Look into that graphing stuff, I have the links around here somewhere.
     . I can get historical data with a script to step through darcs history.
