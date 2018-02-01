@@ -3,10 +3,16 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-import os, subprocess, re, datetime, json
+# Run verify_performance, combine its timing results with per-run metadata,
+# and collect in timing_dir.
 
-# Run verify_performance --out=build/verify-profile score
-# parse .gc and .json
+import datetime
+import json
+import os
+import re
+import socket
+import subprocess
+
 
 verify_binary = 'build/profile/verify_performance'
 scratch_dir = 'build/verify-profile'
@@ -17,9 +23,8 @@ timing_dir = 'prof/timing'
 
 def main():
     run(['bin/mk', verify_binary])
-    os.makedirs(scratch_dir, exist_ok=True)
+    empty_dir(scratch_dir)
     os.makedirs(timing_dir, exist_ok=True)
-    # remove everything inside
     scores = get_scores()
 
     metadata = metadata_json()
@@ -43,6 +48,7 @@ def metadata_json():
             stdout=subprocess.PIPE,
             check=True).stdout)
     return {
+        'system': socket.gethostname().split('.')[0],
         'patch': patch,
         'run_date': datetime.datetime.now().isoformat(),
     }
@@ -97,6 +103,15 @@ def extract(lines, reg):
 def run(cmd):
     print('## ' + ' '.join(cmd))
     subprocess.run(cmd, check=True)
+
+def empty_dir(dir):
+    try:
+        fns = os.listdir(dir)
+    except FileNotFoundError:
+        return
+    for fn in fns:
+        os.remove(os.path.join(dir, fn))
+    os.makedirs(dir, exist_ok=True)
 
 
 if __name__ == '__main__':

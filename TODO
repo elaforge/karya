@@ -2433,8 +2433,10 @@ performance:
       . write "chrome tracing" format, chrome://tracing, then load
     . I probably need to save all cycles, and then search for ones with
       hiccups.
-    . Libraries for 2d rendering: Skia, WebRender
-      . Or use OpenGL.
+    . Use ghc events, then I can get gc events too.  I guess this may turn
+      into using chrome instead of threadscope, but why not?
+  . Libraries for 2d rendering: Skia, WebRender
+    . Or use OpenGL.
   - profiling for complete scores is broken since I removed them
     . Derive_profile.profile_file etc.
     . Use the the verify score stuff instead.
