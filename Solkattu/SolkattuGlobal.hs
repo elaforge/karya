@@ -40,6 +40,7 @@ takadinna = ta.ka.din.na
 takita = ta.ki.ta
 kita = ki.ta
 taka = ta.ka
+naka = na.ka
 diku = di.ku
 kitataka = kita.taka
 tarikita = ta.ri.kita
