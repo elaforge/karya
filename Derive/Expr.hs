@@ -15,6 +15,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
 import Global
@@ -105,7 +106,7 @@ transform0 :: Symbol -> Expr a -> Expr a
 transform0 = transform . call0
 
 -- | Shortcut to transform an Expr.
-with :: ToExpr a => Symbol -> a -> Expr Text
+with :: ToExpr a => Symbol -> a -> Expr MiniVal
 with sym = transform0 sym . to_expr
 
 -- ** transform
@@ -135,7 +136,7 @@ map_generator f (call1 :| calls) = case calls of
 -- For example, drum strokes might have a parsed form which can be turned into
 -- calls.
 class ToExpr a where
-    to_expr :: a -> Expr Text
+    to_expr :: a -> Expr MiniVal
 
 -- * Str
 
@@ -146,3 +147,19 @@ instance Pretty Str where pretty = ShowVal.show_val
 
 unstr :: Str -> Text
 unstr (Str str) = str
+
+-- | Yes, it's yet another Val variant.  This one is even more mini than
+-- RestrictedEnviron.Val.
+-- TODO NOTE [val-and-minival]
+data MiniVal = VNum !ScoreTypes.TypedVal | VStr !Str
+    deriving (Show)
+
+instance String.IsString MiniVal where
+    fromString = VStr. String.fromString
+
+num :: Double -> MiniVal
+num = VNum . ScoreTypes.untyped
+
+instance ShowVal.ShowVal MiniVal where
+    show_val (VNum v) = ShowVal.show_val v
+    show_val (VStr v) = ShowVal.show_val v

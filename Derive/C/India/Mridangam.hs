@@ -155,9 +155,9 @@ infer_pattern dur variation = do
 
 realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
     -> Maybe Derive.NoteDeriver
-realize_mstroke ctx = fmap (Eval.eval_expr_text ctx) . stroke_expr
+realize_mstroke ctx = fmap (Eval.eval_expr_val ctx) . stroke_expr
 
-stroke_expr :: Realize.Note Mridangam.Stroke -> Maybe (Expr.Expr Text)
+stroke_expr :: Realize.Note Mridangam.Stroke -> Maybe (Expr.Expr Expr.MiniVal)
 stroke_expr stroke = case stroke of
     Realize.Note stroke -> Just $ Expr.to_expr stroke
     Realize.Space {} -> Nothing

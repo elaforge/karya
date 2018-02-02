@@ -3021,7 +3021,7 @@ solkattu:
       . If I make LSol.insert take [Korvai] then I can use take etc.
       . But it's easier if I get rid of multiple sequences per Korvai.
       . Or keep multiple sequences but take [Index].
-    - insert for patterns is messed up, I get p '5' with 0 dur.
+    * insert for patterns is messed up, I get p '5'
       . '5' is because I use Expr Text, and it uses ShowVal, which loses
         the type, so everything becomes a Str.
       . It's Text because I want to avoid relying on Val.
@@ -3042,6 +3042,7 @@ solkattu:
         . | VQuoted !Expr
         . | VList ![Val]
       . See NOTE [val-and-minival]
+      . Solved with a quick hack MiniVal, but think about this more later.
   sarvalaghu:
     . Fill it in based on position in the tala.
     . Sometimes there's a final note, e.g. D that replaces the first 1.5

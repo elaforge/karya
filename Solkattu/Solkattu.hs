@@ -71,7 +71,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 
 import qualified Derive.Expr as Expr
-import qualified Derive.ShowVal as ShowVal
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Tala as Tala
 import Global
@@ -228,7 +227,7 @@ instance Notation Pattern where
 instance Expr.ToExpr Pattern where
     to_expr p = case p of
         PatternM matras ->
-            Expr.generator (Expr.call "p" [ShowVal.show_val matras])
+            Expr.generator (Expr.call "p" [Expr.num (fromIntegral matras)])
         Nakatiku -> "na"
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)

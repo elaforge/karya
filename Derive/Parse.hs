@@ -6,7 +6,7 @@
 -- | Tracklang parsers.  Many of the parsers in here should be inverses of
 -- the 'ShowVal.ShowVal' class.
 module Derive.Parse (
-    parse_expr, parse_expr_text
+    parse_expr
     , parse_val, parse_attrs, parse_num, parse_call
     , lex1, lex, split_pipeline, join_pipeline
     , unparsed_call
@@ -58,13 +58,6 @@ import Global
 
 parse_expr :: Text -> Either Text BaseTypes.Expr
 parse_expr = parse (p_expr True)
-
-parse_expr_text :: Expr.Expr Text -> Either Text BaseTypes.Expr
-parse_expr_text = traverse call
-    where
-    call (Expr.Call sym terms) = Expr.Call <$> pure sym <*> traverse term terms
-    term (Expr.Literal val) = Expr.Literal <$> parse_val val
-    term (Expr.ValCall c) = Expr.ValCall <$> call c
 
 -- | Parse a single Val.
 parse_val :: Text -> Either Text BaseTypes.Val

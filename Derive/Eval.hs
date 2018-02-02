@@ -3,10 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE LambdaCase #-}
 -- | Evaluate tracklang expressions.
 module Derive.Eval (
     -- * eval / apply
-    eval_toplevel, eval_quoted, eval_quoted_normalized, eval_expr_text
+    eval_toplevel, eval_quoted, eval_quoted_normalized, eval_expr_val
     -- ** generator
     , apply_generator
     -- ** transformer
@@ -83,12 +84,16 @@ normalize_event ctx = ctx
     , Derive.ctx_next_events = []
     }
 
-eval_expr_text :: Derive.CallableExpr d => Derive.Context d -> Expr.Expr Text
-    -> Derive.Deriver (Stream.Stream d)
-eval_expr_text ctx expr = do
-    expr <- Derive.require_right (("parsing " <> ShowVal.show_val expr)<>) $
-        Parse.parse_expr_text expr
-    eval_toplevel ctx expr
+-- | Eval a Expr MiniVal, which is produced by 'Expr.ToExpr'.
+eval_expr_val :: Derive.CallableExpr d => Derive.Context d
+    -> Expr.Expr Expr.MiniVal -> Derive.Deriver (Stream.Stream d)
+eval_expr_val ctx expr = eval_toplevel ctx (convert_minival expr)
+
+-- TODO find a better place for this, or get rid of MiniVal
+convert_minival :: Expr.Expr Expr.MiniVal -> BaseTypes.Expr
+convert_minival = fmap $ fmap $ \case
+    Expr.VNum v -> BaseTypes.VNum v
+    Expr.VStr v -> BaseTypes.VStr v
 
 -- ** generator
 
