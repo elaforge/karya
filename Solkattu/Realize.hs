@@ -597,7 +597,12 @@ formatLines strokeWidth width tala =
             _ -> Solkattu.notation a
         S.Rest -> justifyLeft strokeWidth ' ' "_"
         where
-        make text = Symbol text (onAkshara state) startEnds
+        make text = Symbol
+            { _text = text
+            , _emphasize = shouldEmphasize tala angas state
+            , _bounds = startEnds
+            }
+    angas = angaSet tala
 
 flattenGroups :: Tala.Tala -> [S.Flat g (Note a)]
     -> [([StartEnd], (S.State, S.Stroke (Note a)))]
@@ -638,6 +643,18 @@ onAnga angas state =
 
 onAkshara :: S.State -> Bool
 onAkshara state = S.stateMatra state == 0
+
+-- | Chapus are generally fast, so only emphasize the angas.  Other talas are
+-- slower, and without such a strong beat, so emphasize every akshara.
+shouldEmphasize :: Tala.Tala -> Set Tala.Akshara -> S.State -> Bool
+shouldEmphasize tala angas state
+    | isChapu = onAnga angas state
+    | otherwise = onAkshara state
+    where
+    isChapu = case Tala._angas tala of
+        Tala.Wave _ : _ -> True
+        Tala.Clap _ : _ -> True
+        _ -> False
 
 angaSet :: Tala.Tala -> Set Tala.Akshara
 angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
