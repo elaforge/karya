@@ -59,7 +59,8 @@ import Types
 initial_environ :: Env.Environ
 initial_environ = Env.from_list
     -- Control interpolators rely on this.
-    [ (EnvKey.srate, BaseTypes.num 0.015)
+    -- TODO 66+2/3, change to a whole number when I'm ready to update verify
+    [ (EnvKey.srate, BaseTypes.num (1/0.015))
     -- Looking up any val call relies on having a scale in scope.
     , (EnvKey.scale, BaseTypes.str Config.default_scale_id)
     , (EnvKey.attributes, BaseTypes.VAttributes mempty)

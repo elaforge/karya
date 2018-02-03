@@ -256,7 +256,7 @@ set_allocations = Ui.config#Ui.allocations #= allocs
 note_track inst = ctrack 1 inst [""]
 make_tempo n = track_take (ceiling (fromIntegral n / 10)) $
     ctrack0 10 "tempo" ["1", "2", "3", "i 1"]
-mod_track = ctrack0 1 "cc1 | srate = .02" ["1", "i 0", "e 1", "i .5", "i 0"]
+mod_track = ctrack0 1 "cc1 | srate = 50" ["1", "i 0", "e 1", "i .5", "i 0"]
 simple_pitch_track =
     ctrack0 1 "*twelve" ["4a", "4b", "4c", "4d", "4e", "4f", "4g", "5c"]
 nontempered_pitch_track =

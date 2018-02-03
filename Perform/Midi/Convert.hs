@@ -46,7 +46,7 @@ import Types
 -- curves.  If the tracklang srate is higher, then the MIDI output will be
 -- denser and more accurate.
 default_srate :: RealTime
-default_srate = 0.015
+default_srate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
 
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale

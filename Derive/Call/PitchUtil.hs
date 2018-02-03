@@ -127,7 +127,7 @@ segment srate include_end curve x1 y1 x2 y2
     | otherwise = case curve of
         ControlUtil.Linear -> PSignal.from_pairs [(x1, y1), (x2, y2)]
         ControlUtil.Function curvef ->
-            PSignal.unfoldr (make curvef) (Seq.range_ x1 srate)
+            PSignal.unfoldr (make curvef) (Seq.range_ x1 (1/srate))
     where
     -- TODO use Seq.range_end and map
     make _ [] = Nothing

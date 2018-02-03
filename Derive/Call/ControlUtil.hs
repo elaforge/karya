@@ -225,7 +225,8 @@ segment srate include_end curve x1 y1 x2 y2
     | y1 == y2 = Signal.from_pairs [(x1, y1), (x2, y2)]
     | otherwise = case curve of
         Linear -> Signal.from_pairs [(x1, y1), (x2, y2)]
-        Function curvef -> Signal.unfoldr (make curvef) (Seq.range_ x1 srate)
+        Function curvef ->
+            Signal.unfoldr (make curvef) (Seq.range_ x1 (1/srate))
     where
     -- TODO use Seq.range_end and map
     make _ [] = Nothing

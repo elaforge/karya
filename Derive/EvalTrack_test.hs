@@ -166,15 +166,13 @@ test_environ_across_tracks = do
     let interpolated = [(0, 0), (1, 0.0625), (2, 0.25), (3, 0.5625), (4, 1)]
     equal (run [("cont", [(0, 0, "0"), (4, 0, "e 1")])])
         ([interpolated], [])
-    equal (run [("cont set | srate = 2", [(1, 0, "0"), (5, 0, "e 1")])])
+    equal (run [("cont set | srate = .5", [(1, 0, "0"), (5, 0, "e 1")])])
         ([[(1, 0), (3, 0.25), (5, 1)]], [])
 
     -- now make sure srate in one track doesn't affect another
     let cont = ("cont", [(0, 0, "0"), (4, 0, "e 1")])
-    equal (run [("cont2 | srate = 2", []), cont])
-        ([interpolated], [])
-    equal (run [cont, ("cont2 | srate = 2", [])])
-        ([interpolated], [])
+    equal (run [("cont2 | srate = .5", []), cont]) ([interpolated], [])
+    equal (run [cont, ("cont2 | srate = .5", [])]) ([interpolated], [])
 
 test_call_errors = do
     let derive = extract . DeriveTest.derive_tracks_setup with_trans ""

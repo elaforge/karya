@@ -516,7 +516,7 @@ integrate srate_x =
         ( f (x2 - x1)
         , if y1 == y2
             then [to_sample x1 (f 0), to_sample x2 (f (x2 - x1))]
-            else [to_sample x (f (x - x1)) | x <- Seq.range' x1 x2 srate]
+            else [to_sample x (f (x - x1)) | x <- Seq.range' x1 x2 (1/srate)]
         )
         where
         f x = n * x^2 / 2 + y1*x + accum
@@ -649,7 +649,7 @@ resample_rate srate =
         | y1 == y2 || x1 == x2 = [Sample x1 y1]
         | otherwise =
             [ Sample x (TimeVector.y_at x1 y1 x2 y2 x)
-            | x <- Seq.range' x1 x2 srate
+            | x <- Seq.range' x1 x2 (1/srate)
             ]
 
 -- TODO possible vector implementation that might fuse.  But this
@@ -674,4 +674,6 @@ to_piecewise_constant srate =
         | x1 >= x2 = make s2s
         | otherwise = Just (segment x1 y1 x2 y2, s2s)
     segment x1 y1 x2 y2 =
-        [Sample x (TimeVector.y_at x1 y1 x2 y2 x)| x <- Seq.range' x1 x2 srate]
+        [ Sample x (TimeVector.y_at x1 y1 x2 y2 x)
+        | x <- Seq.range' x1 x2 (1/srate)
+        ]

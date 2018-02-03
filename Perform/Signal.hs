@@ -344,7 +344,7 @@ integrate :: Tempo -> Warp
 integrate = Signal . Segment.integrate tempo_srate . _signal
 
 tempo_srate :: X
-tempo_srate = RealTime.seconds 0.1
+tempo_srate = RealTime.seconds 10
 
 -- | Total duration of horizontal segments in the warp signal.  These are
 -- the places where 'Warp.compose_hybrid' will emit a 1\/1 line.

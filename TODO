@@ -210,7 +210,7 @@ UNSORTED
     - Trill.c_control_trill and Trill.c_pitch_trill should take a cf curve
       to interpolate the points.  Then constant gets hard trill, and some
       compressed linear for the old behaviour, and bezier for smooth.
-    - srate is misnamed, it's a period.  If it were really a rate it would
+    * srate is misnamed, it's a period.  If it were really a rate it would
       be 60 or something.
     - Maybe put Expr.Symbol into Monoid after all.
     * remove Derive.Deriver.Monad.state_pitch_mergers
