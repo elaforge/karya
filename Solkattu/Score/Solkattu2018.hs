@@ -63,10 +63,11 @@ yt_pmi1 = source "Palakkad Mani Iyer" $
     theme2 = group $ su (ka.tat.__.dit.__.ka.taka) . din.din.na
 
     -- This works, but sounds too slow.
-    -- utarangam = __ . su __ . tri (group $ nadai 3 (tat.dit.tat) . su p5)
+    utarangam = __ . su __
+        . tri (group $ nadai 3 (tat.dit.tat) . su (__.kita.taka.din))
 
-    utarangam = su __
-        . tri (group $ nadai 6 (tat.dit.tat) . su (__ . kita.taka.din))
+    -- utarangam = su __
+    --     . tri (group $ nadai 6 (tat.dit.tat) . su (__ . kita.taka.din))
 
     fill1 = tat.din . su p5
     -- fill1 = tat.dit . su (taka.naka.din.na)
