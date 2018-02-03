@@ -375,5 +375,10 @@ test_xcut_control = do
         , (2, 0), (3, 0), (3, 1), (4, 1), (4, 0)
         ]
 
+test_saw = do
+    let run = CallTest.run_control
+    equal (run [(0, "saw .5"), (4, "--|")]) [(0, 1), (2, 0), (2, 1), (4, 0)]
+    equal (run [(0, "saw .25 .5 .75"), (4, "--|")]) [(0, 0.5), (4, 0.75)]
+
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = DeriveTest.derive_tracks "import europe"
