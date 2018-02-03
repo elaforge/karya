@@ -202,6 +202,16 @@ STATUS
     before and after warp as function, and linear segments.
 
 UNSORTED
+  Unify Environ and ControlMap:
+    . I can get most of the benefit by unifying the syntax: x=y becomes set
+      a control or env depending on the type of the rhs.
+    . However, they're still separate which means I can make an "invisible"
+      numeric env in haskell.
+    . Also, I would need Derive.Sig to default from numeric controls.
+    . I guess it would then be better to have a single
+      Map Key (NumSignal | ValSignal | PitchSignal)
+    . This means I can also get rid of the separate pitch and named pitches,
+      and just have a signal named "pitch".
   cleanup from linear:
     - make ControlUtil.smooth take negative time
     - make SignalTransform.c_smooth take cf curve
@@ -1231,133 +1241,9 @@ documentation:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 
-Util.Linear: linear: linear piecewise signal: signal-discontinuity:
-  . Problems I'm trying to solve:
-    . Need to remember to use Signal.set, and provide previous y.  Signals
-      should be implicitly flat in both directions, and merging them should
-      respect that.
-    . Transpose signal resampling should "just work", without needing special
-      'at_before' stuff.  Why does it require that now?
-      . Because it gets raw samples, without treating them as segments.  So I
-        could make unsignal return segments: [((X, Y), (X, Y)]
-    . Awkward rules where the sample at 0 sets values before.  Or at least the
-      part where it leads to errors when asking for the value at <0.
-    . Include shift so I can get rid of Score.Event 'untransformed' nonsense.
-      I think the problem before is having to use the shift on all signal
-      operations even when it's 0 for everyone except Event seemed over
-      complex.  Also that I just want a per-event offset, not one for each
-      signal inside.  Though if I extend this to stretch as well, then I don't
-      need a separate Warp type.  I don't think anyone except warp would use
-      it though.
-      . Ideally I could optionally layer it on a signal, but then I have to
-        reproduce all the functions.  But I could try to make a minimal API
-        in a typeclass, and have the functions be generic.
-      . Could I use this to unify pitch and control signals?
-    . How much would I solve just be changing (<>)?
-  . If I want to replace Environ with Val signals, then I'm back to
-    non-interpolated.
-  . What would a typeclass + associated type actually look like?
-    . It would be like Vector.Generic, only with more specialized access
-      functions.
-    . Maybe in general, I can give a Segment y type, and an interpolation
-      function.
-    . But a polymorphic interface is only as useful as the number of functions
-      that can be polymorphic with it.  So what could be polymorphic?
-  Unify Environ and ControlMap:
-    . I can get most of the benefit by unifying the syntax: x=y becomes set
-      a control or env depending on the type of the rhs.
-    . However, they're still separate which means I can make an "invisible"
-      numeric env in haskell.
-    . Also, I would need Derive.Sig to default from numeric controls.
-    . I guess it would then be better to have a single
-      Map Key (NumSignal | ValSignal | PitchSignal)
-    . This means I can also get rid of the separate pitch and named pitches,
-      and just have a signal named "pitch".
-  . If I can make signal a typeclass, I should be able to make offset (and
-    maybe stretch) a wrapper.  This only works if I can reduce the interface
-    to a few things like 'at'.  But I feel like all the various transformation
-    functions won't allow that.  They are type specific too.
-
-  Signal functions:
-    . at
-    . sample_at - Prelude.Block.trim_controls hack: remove sample at end time
-      Derive.Note.extract_track_signal: merge event signals
-      . Shouldn't I be able to do this with time slicing?
-    . before - Gamakam5: for get prev pitch
-    . at_linear, at_linear_extend: tempo warp
-    . inverse_at, inverse_at_extend: warp
-    . constant_val: various optimizations
-
-  TODO:
-    Clean up interpolators in ControlUtil so I can special case linear
-      . Constant too.
-      . The reason for ControlFunction is that I can pass arguments:
-        (cf... 1 2 3).  If I had a ADT-esque feature where Typecheck Symbol
-        can take arguments, then I could get rid of this.  But it's probably
-        only worth it if I have a plan to get rid of the randomize use for
-        ControlFunctions and hence get rid of ControlFunctions entirely.
-        . I guess effectively this would be a Dynamic Val, and then a way to
-          automatically create val calls to construct it.
-      * Generate interpolators from standard_curves.
-      * Generate cf curves from CurveDs
-      * Can I untangle the functions?  I just need to be polymorphic on Signal
-        vs.  PSignal.
-      * Once I have this, I can special case based on name.
-        . Or can I give Curve alternatives like Linear and Constant?
-    * remove Signal.interleave
-    * make it generic on Y type
-    * implement concat
-    implement a Perform.Signal that uses Linear instead of TimeVector
-      * linear transformations
-      / non-linear transformations (max, min, ...)
-        . The scalar versions were already a hassle, and I don't really use
-          min and max so maybe just remove them for now.
-      / inverse_at
-        . If I replace Warp with (f, f-1) then I don't need this.
-      * scalar transformations
-      + slice, to replace all the drop_before drop_after stuff
-        . Slicing a signal will require changing the vector, to add a new
-          sample on the beginning or end.  I could eliminate this with _start
-          and _extend fields.  Not sure if it's worth it.
-        . Do it the simple way first, and profile.
-        . I have 'before' and 'after', but wait to see what I'll need before
-          implementing the versions that add a sample.
-      / compose
-        . If I can reduce to an interface like 'at', then I could make this
-          real composition.  As well as get shift and stretch for free.
-        . In fact maybe I can just make Warp into a real function, what will
-          that break?
-        . I need inverse I think, but maybe it can just be (f, f-1).
-        . What about compose_hybrid?  That's kind of weird.
-      * pitches_share
-      * flat_duration
-      * integrate
-    * implement Warp as functions:
-      . I need to distinguish id warp, for optimization.
-        Or not... if composition is now efficient, maybe no need.
-      . Access to the signal has been useful for debugging in the past, maybe
-        I should keep it in a separate field.
-      . Tempo.with_hybrid uses warp_to_signal so it can use
-        Signal.compose_hybrid on them.
-    * port Signal_test to Signal2_test
-    * Fix linear_operator
-      . apply_controls currently works by resampling all the controls, and
-        then zipping pointwise.
-      . The others are Y -> Y -> Y operators that have an identity, so an
-        initial value is ok.
-      . It seems like doing the general polymorphic case is really hard.  Can
-        I do the NumSignal one first?
-    * implement PSignal.apply_controls
-      . How about union Xs from the controls, then iterate over them and the
-        PSignal?
-      . Maybe I need a 'at_interpolate' that can return before and after?
-      . Or union Xs, resample all controls and psignal, then zip.
-    * port PSignal to PSignal2
-    * Switch to Derive.Warp
-      . It should be possible to do this while still using the old Signal.
-        This way I can isolate the change for profiling as well as bugs.
-      * profile before and after
-    * remove Score.event_untransformed_* nonsense
+oriented signals
+  . This is to get rid of the Derive.C.Prelude.Block.trim_controls hack
+  old notes:
     / Block.trim_controls relies on samples, I don't think it can work with
       segments.
       . What exactly is it doing, and why does it work with samples?
@@ -1424,164 +1310,101 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
           constant for the purposes of applying the transposers.
         . The advantage of a call is that the flag is MIDI-only, so I couldn't
           use it for Im.
-    switch to segment implementation: Signal2 -> Signal, PSignal2 -> PSignal
-      * fix instances of PSignal.sample_at and Signal.sample_at first
-        . Score.pitch_sample_at, used by Retune
-      Replace various drop_* functions:
-        . drop_after, drop_before are ok.
-        * Signal.drop_while
-        * Signal.drop, Signal.length
-          . Only used by SignalTransform.c_smooth, which will need to be
-            redone for segments anyway.
-        * Signal.head, last, PSignal.head, last
-          . LPerf - ok to use
-          . Gamakam2
-          . Rearticulate.slur - redo this for segments
-        / Signal.within, PSignal.within
-          . I could provide within, but maybe inline drop_before drop_after
-            would be clearer.
-        * Signal.drop_at_after, drop_before_strict, drop_before_at
-          . The problem is that they assume samples, so they can split
-            segments.  I might have to replace them with clip_before, after
-        * Signal.clip_bounds
-        * Signal.prepend, PSignal.prepend
-      Midi.Perform has to use a sampling rate.
-        . Sampling should be done in Midi.Convert
-        . Internally, it should use TimeVector or a wrapper.
-        * First make Midi.Perform use Types.Signal, aka TimeVector
-        * Then update Convert to use Segment.to_piecewise_constant
-      * Synth.Shared.Signal should be linear Segments
-      SignalTransform:
-        * smooth
-          . This has to change its definition since I don't have constant
-            samples any more.
-          . I could apply only to flat segments.
-          . Or I could draw a bezier curve through samples.
-          . Let's do that, but separately, and once I have a hermite curve
-            implementation.  For now disable it.
-          . Actually ControlUtil.breakpoints does this.
-        * smooth_relative
-          . This is used by Trill.
-          . I should put the bezier version in ControlUtil.
-        * Trill
-        * slew_limiter
-      * Gamakam5
-        . But probably broken, especially previous pitch stuff, which was
-          broken anyway.  Tests should turn up problems.
-      * 'i' calls no longer need srate.  The others do though.
-      * Update Control.c_set and Pitch.c_set.
-      * fix tests:
-        . 335 -> 331: fix Segment.concat
-        . 331 -> 328: map_y (1/) is nonlinear
-        . 320 -> 305: map_y bug
-        . 305 -> 296: add Segment.num_clip_after
-        . 296 -> 289: drop_dups in DeriveTest.e_nns
-        . 289 -> 283: use 'e' instead of 'i'
-        . 283 -> 264: track signals don't have explicit linear interpolation
-        . 264 -> 211: fix ControlUtil slope and smooth
-        . 211 -> 101: fix BaseTypes.interpolate bug, Segment.at efficiency
-        . 101 -> 79: fix slew, Pitch_test expecteds
-        . 79 -> 66: PitchHigh_test, fix expecteds and switch to *_literal
-        . 66 -> 45: Control_test, same stuff
-        . 45 -> 37: punt on c_quantize and slur
-        . 37 -> 31: fix gamakam and slur, again
-        . 31 -> 26: modify clip_after
-        . 26 -> 5: fix Gamakam2 by just updating expecteds
-        . 5 -> 9: fix string idiom, but have ControlUtil.segment make vertical
-        . 9 -> 3: misc
-        . 3 -> 0: warp negative time is linear, accept trill change
-      . listen to 1 [(0, 3, "tr 2 1")] [(0, 0, "4a"), (2, 0, "i (4b)")])
-      - I now get pitch signal before note start if there's a transpose
-        starting at event_start, but the pitch is before that.  Maybe
-        Convert should drop_before?
-        . Midi Perform already does that.
-        . But it looks confusing in tests.
-      * wayang scores derive slowly now
-        . And there are 'out of range for patch scale' errors, with too many
-          samples.
-        ? Why do they only show up for verify_performance?
-        . Constant control has become sloped:
-          %t-dia: Signal 0s <34s:0, 93.2s:-1, 93.2s:0>
-        . In score: <34s:0, 67.6s:0, 67.6s:-1, 93.2s:-1, 93.2s:0>
-        . It's because of Block.trim_controls and drop_discontinuity_at.
-        . Why wasn't this a problem before?
-        . Because dropping later samples couldn't have an effect on earlier
-          ones.
-      cleanups:
-        * rename TimeVector.signal and unsignal
-      clean up segments:
-        - I should put a final sample on for sampled curves too.  Maybe I do?
-        - put Seq.drop_dups id on Signal.to_pairs, or better, from_pairs
-        - Make Signal.from_pairs drop a redundant final sample
-        . use String_test.strip_flat
-      clean up tests:
-        - Always use _rounded for DeriveTest.e_control?
-        - use run2 in Prelude.Pitch_test
-      - Adding linear hurt performance
-        . For cerucuk-punyah:
-                  max mb  total mb  derive     perform
-          before: 142.58  8743.73   5.89~5.98  0.70~0.72
-          after:  139.28  9827.79   6.77~6.83  1.18~1.22
-        . Try to get that back, by doing the constant pitch signal
-          optimization, and get rid of clip.
-        . Then do a SCC profile to see where the time goes.  Maybe do one
-          before to see if something new has come up?
-        . It looks like the Warp change didn't have noticeable performance
-          impact, so that's good.
-        . One candidate is adding clip_before and clip_after now having to add
-          a sample.  I could fix those by adding start and extent to Segment.
 
-      - Do I need to clip at all?  The performer can clip to the start, but
-        I think it needs to know where the note stops because otherwise this
-        information isn't preserved.
-        . I could do it more efficiently by just sticking an end time in the
-          Score.Event, and leave it to the performer to observe.
-        . Indeed NoteUtil.trim_controls only does drop_before.
-        . E.g. BlockUtil_test.test_compile, final test
-      * Remove Derive.Tempo.extend_signal
-      * Get rid of infer linear in the fltk drawing code.
-    / Segments have start time, but no end time.  Would it be more useful to
-      have an explicit end time too?  I'd get rid of the implicit large last
-      sample, and just stop on the last sample.
-      . That way I don't need to separately track end time when splicing
-        signals.  But I have to fill in the undefined sections between merged
-        signals, so it winds up being like extend forever.
-      . I don't think there's any need, end time is only needed when appending
-        signals, and I can just use an explicit time then.
-    * Rename Util.Linear to Util.Segment
-      . There's nothing inherently linear in the module.
+Util.Segment: linear: linear piecewise signal: signal-discontinuity:
+  . Problems I'm trying to solve:
+    . Need to remember to use Signal.set, and provide previous y.  Signals
+      should be implicitly flat in both directions, and merging them should
+      respect that.
+    . Transpose signal resampling should "just work", without needing special
+      'at_before' stuff.  Why does it require that now?
+      . Because it gets raw samples, without treating them as segments.  So I
+        could make unsignal return segments: [((X, Y), (X, Y)]
+    . Awkward rules where the sample at 0 sets values before.  Or at least the
+      part where it leads to errors when asking for the value at <0.
+    . Include shift so I can get rid of Score.Event 'untransformed' nonsense.
+      I think the problem before is having to use the shift on all signal
+      operations even when it's 0 for everyone except Event seemed over
+      complex.  Also that I just want a per-event offset, not one for each
+      signal inside.  Though if I extend this to stretch as well, then I don't
+      need a separate Warp type.  I don't think anyone except warp would use
+      it though.
+      . Ideally I could optionally layer it on a signal, but then I have to
+        reproduce all the functions.  But I could try to make a minimal API
+        in a typeclass, and have the functions be generic.
+      . Could I use this to unify pitch and control signals?
+    . How much would I solve just be changing (<>)?
+  . If I want to replace Environ with Val signals, then I'm back to
+    non-interpolated.
+  . What would a typeclass + associated type actually look like?
+    . It would be like Vector.Generic, only with more specialized access
+      functions.
+    . Maybe in general, I can give a Segment y type, and an interpolation
+      function.
+    . But a polymorphic interface is only as useful as the number of functions
+      that can be polymorphic with it.  So what could be polymorphic?
+  . If I can make signal a typeclass, I should be able to make offset (and
+    maybe stretch) a wrapper.  This only works if I can reduce the interface
+    to a few things like 'at'.  But I feel like all the various transformation
+    functions won't allow that.  They are type specific too.
+
+  - clip_before, clip_after
+    . Slicing a signal will require changing the vector, to add a new
+      sample on the beginning or end.  I could eliminate this with _start
+      and _extend fields.  Not sure if it's worth it.
+    . Do it the simple way first, and profile.
+    . Do I need to clip at all?  The performer can clip to the start, but
+      I think it needs to know where the note stops because otherwise this
+      information isn't preserved.
+      . I could do it more efficiently by just sticking an end time in the
+        Score.Event, and leave it to the performer to observe.
+      . Indeed NoteUtil.trim_controls only does drop_before.
+      . E.g. BlockUtil_test.test_compile, final test
+  Util.Segment:
+    - I should put a final sample on for sampled curves too.  Maybe I do?
+    - put Seq.drop_dups id on Signal.to_pairs, or better, from_pairs
+    - Make Signal.from_pairs drop a redundant final sample
+    . use String_test.strip_flat
     - Util.Segment winds up with _v vector variants.  Maybe I should make
       a whole new module with no offset, and then if I really need offset,
       make a wrapper for it.
-    * clean up TimeVector, remove unneeded functions
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
-    - profile before and after
-    - implement Warp.compose_hybrid
     - Util.Segment has an invariant where Xs are ordered, and there are
       a max of two in the same place.  Quickcheck it!
     - Also ensure that MSignal.Signal can't get duplicate Xs.
-    - optimize flat pitch segments in PitchUtil.segment
-    - trills are now too hard-edged, why were they smoother before?
-      . They weren't, it's the Pianoteq version.  Still, trill should take
-        a curve arg, and maybe curve by default.
-    port thigs to segments:
-      - SignalTransform.c_quantize.
-        . It will have to find where segments intersect the quantize multiples.
-      * Rearticulate.slur
+  tests:
+    - Always use _rounded for DeriveTest.e_control?
+    - use run2 in Prelude.Pitch_test
+  - Adding linear hurt performance
+    . For cerucuk-punyah:
+              max mb  total mb  derive     perform
+      before: 142.58  8743.73   5.89~5.98  0.70~0.72
+      after:  139.28  9827.79   6.77~6.83  1.18~1.22
+    . Try to get that back, by doing the constant pitch signal
+      optimization, and get rid of clip.
+    . Then do a SCC profile to see where the time goes.  Maybe do one
+      before to see if something new has come up?
+    . It looks like the Warp change didn't have noticeable performance
+      impact, so that's good.
+    . One candidate is adding clip_before and clip_after now having to add
+      a sample.  I could fix those by adding start and extent to Segment.
+  - optimize flat pitch segments in PitchUtil.segment
+  - trills are now too hard-edged, why were they smoother before?
+    . They weren't, it's the Pianoteq version.  Still, trill should take
+      a curve arg, and maybe curve by default.
 
-  / Could I use -Infinity for constant rather than -RealTime.large?  That
-    way I don't have to worry about any amount of translation.
-    . -Infinity == -Infinity, but I can also do isInfinite && <0.
-    . The problem is that the integral of a constant signal starting at
-      -Infinity winds up at (Infinity, Infinity), at which point I've lost the
-      slope.  In practice it's (Infinity, NaN).
+  reimplement:
+    - implement Warp.compose_hybrid
+    - SignalTransform.c_quantize.
+      . It will have to find where segments intersect the quantize multiples.
+
   - If I get rid of constant signals starting at 0, then Tempo.tempo_to_warp's
     constant_val doesn't work, because tracks start at 0.
     . I could move tempo track's first sample to -large, but no I can't
       because it makes integrate take forever.
-    - However, with segments I probably could, and maybe I want to make all
-      controls implicitly start at -large?
+    . However, with segments I probably could, but I would have to make all
+      control tracks implicitly start at -large.
   ? Another way to make moving events cheap is to make event controls relative
     to event_start.
     . Surely I thought of that before, but I don't remember why I didn't do it.
@@ -1593,15 +1416,11 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     . I think the reason I added the offset optimization in the first place
       was that randomize moves every event.
 
-  . If I say signals now have linear interpolation by default, then the linear
-    interpolator can just emit one sample, but now MIDI needs interpolation.
-    I'd have to put srate in the event so it can be configured.
-    . Or just pick something high enough.  If I need sample and hold, I can
-      write a signal transformer for it.
-  . Leaving as nominally non-interpolated, but with explicit discontinuities
-    since im actually is interpolated is not so pretty, but doesn't seem
-    so bad in practice.
-  . This breaks '* interleave', which was always fragile anyway.
+gamakam:
+  - Integrate notes from the other gamakam: section in here, and unify it into
+    one document describing the history with gamakam.
+  notes due to linear segments:
+    . This breaks '* interleave', which was always fragile anyway.
     . Can I save it with a hack?  It could get more clever, and move the
       end sample: [(0, y1), (n, y1)] -> [(0, y1), (x, y1), (x, y2), ...]
     . Or I could get rid of it entirely, if I can fill the same need another
