@@ -13,6 +13,8 @@ import sys, os, json
 # Read json results from this directory.
 timing_dir = 'prof/timing'
 
+patch_name_column = True
+
 def main():
     scores = set(sys.argv[1:])
     timings = []
@@ -23,7 +25,11 @@ def main():
     print(format(timings, scores))
 
 def format(timings, scores):
-    cols = ['date']
+    cols = []
+    if patch_name_column:
+        cols.append('patch')
+    else:
+        cols.append('date')
     if not scores:
         cols.append('score')
     cols.extend(['max mb', 'total mb'])
@@ -33,7 +39,11 @@ def format(timings, scores):
     for t in timings:
         if scores and t['score'] not in scores:
             continue
-        row = [t['patch']['date'].split('T')[0]]
+        row = []
+        if patch_name_column:
+            row.append(t['patch']['name'][:64])
+        else:
+            row.append(t['patch']['date'].split('T')[0])
         if not scores:
             row.append(os.path.basename(t['score']))
         row.extend([t['gc']['max alloc'], t['gc']['total alloc']])

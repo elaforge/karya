@@ -18,6 +18,10 @@ import sys
 import subprocess
 
 
+# If true, it's ok if the verify fails.  Otherwise, I abort, because if it's
+# really broken then that might affect timing.
+fail_ok = False
+
 # Run each score this time, to get a range of timing values.
 run_times = 6
 
@@ -67,7 +71,7 @@ def verify(score):
     gc, cmd = cmdline(score)
     timings = []
     for _ in range(run_times):
-        run(cmd)
+        run(cmd, check=not fail_ok)
         timing_fn = os.path.join(scratch_dir, os.path.basename(score) + '.json')
         timings.append(parse_json(open(timing_fn).read()))
     return {
@@ -119,9 +123,9 @@ def merge_dicts(dicts):
         merged[k] = list(filter(None, (d.get(k) for d in dicts)))
     return merged
 
-def run(cmd):
+def run(cmd, check=True):
     print('## ' + ' '.join(cmd))
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=check)
 
 def empty_dir(dir):
     try:
