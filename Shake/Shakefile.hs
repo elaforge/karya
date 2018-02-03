@@ -37,12 +37,12 @@ import qualified System.Process as Process
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
+import qualified Util.SourceControl as SourceControl
 
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.Config as Config
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
-import qualified Shake.SourceControl as SourceControl
 import qualified Shake.Util as Util
 
 

@@ -28,6 +28,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
+import qualified Util.SourceControl as SourceControl
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Ui as Ui
@@ -35,7 +36,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
-import qualified Shake.SourceControl as SourceControl
 import Global
 import Types
 

@@ -4,7 +4,9 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 -- | Functions to deal with local source control.
-module Shake.SourceControl (currentPatch, Entry(..), currentPatchParsed) where
+--
+-- TODO this only works with darcs, extend to work with git too
+module Util.SourceControl (currentPatch, Entry(..), currentPatchParsed) where
 import qualified Data.Char as Char
 import Data.Monoid ((<>))
 import qualified Data.Text as Text

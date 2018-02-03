@@ -19,6 +19,7 @@ import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
+import qualified Util.SourceControl as SourceControl
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
@@ -44,7 +45,6 @@ import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 import Global
-import qualified Shake.SourceControl as SourceControl
 import Types
 
 
