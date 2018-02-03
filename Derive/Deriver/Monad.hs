@@ -466,8 +466,7 @@ data Dynamic = Dynamic {
     -- 'Signal.Control', but could be synthesized as well.  See
     -- 'BaseTypes.ControlFunction' for details.
     , state_control_functions :: !Score.ControlFunctionMap
-    , state_control_merge_defaults ::
-        Map Score.Control (Merger Signal.Control)
+    , state_control_merge_defaults :: !(Map Score.Control Merger)
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -582,7 +581,7 @@ initial_controls = Map.fromList
     [ (Controls.dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
 
-initial_control_merge_defaults :: Map Score.Control (Merger Signal.Control)
+initial_control_merge_defaults :: Map Score.Control Merger
 initial_control_merge_defaults =
     Map.fromList [(c, merge_add) | c <- Controls.additive_controls]
 
@@ -935,8 +934,7 @@ data Constant = Constant {
     state_ui :: !Ui.State
     , state_builtins :: !Builtins
     -- | Global map of signal mergers.  Unlike calls, this is static.
-    , state_mergers :: !(Map Expr.Symbol (Merger Signal.Control))
-    , state_pitch_mergers :: !(Map Expr.Symbol (Merger PSignal.PSignal))
+    , state_mergers :: !(Map Expr.Symbol Merger)
     -- | LookupScale is actually hardcoded to 'Derive.Scale.All.lookup_scale'.
     -- But using this means that if it ever becomes dynamic I hopefully don't
     -- have to change so much code.  Also I think it avoids a circular import.
@@ -957,7 +955,6 @@ initial_constant ui_state builtins lookup_scale lookup_inst cache score_damage =
         { state_ui = ui_state
         , state_builtins = builtins
         , state_mergers = mergers
-        , state_pitch_mergers = pitch_mergers
         , state_lookup_scale = lookup_scale
         , state_lookup_instrument = lookup_inst
         , state_cache = invalidate_damaged score_damage cache
@@ -1002,55 +999,50 @@ instance Show InstrumentCalls where
 -- ** control
 
 -- | How to merge a control into 'Dynamic'.
-data Merge sig = DefaultMerge -- ^ Apply the default merge for this control.
-    | Merge !(Merger sig) -- ^ Merge with a specific operator.
+data Merge = DefaultMerge -- ^ Apply the default merge for this control.
+    | Merge !Merger -- ^ Merge with a specific operator.
     deriving (Show)
 
-instance Pretty (Merge a) where pretty = showt
-instance DeepSeq.NFData (Merge a) where rnf _ = ()
+instance Pretty Merge where pretty = showt
+instance DeepSeq.NFData Merge where rnf _ = ()
 
 -- | Combine two signals.  The element should be an identity, like mempty.
 -- ControlMod uses it to avoid affecting signal outside of the modified range.
 -- The merge function is not obliged to be associative, so this isn't actually
 -- a monoid.  TODO it's all the fault of 'merge_scale'... do I lose something
 -- important with associativity?
-data Merger sig =
-    Merger !Text !(sig -> sig -> sig) !sig -- ^ name merge identity
+data Merger =
+    -- | name merge identity
+    Merger !Text !(Signal.Control -> Signal.Control -> Signal.Control) !Signal.Y
     | Set -- ^ Replace the existing signal.
 
 -- It's not really a 'BaseTypes.Val', so this is a bit wrong for ShowVal.  But
 -- I want to express that this is meant to be valid syntax for the track title.
-instance ShowVal.ShowVal (Merger a) where
+instance ShowVal.ShowVal Merger where
     show_val Set = "set"
     show_val (Merger name _ _) = name
-instance Pretty (Merger a) where pretty = ShowVal.show_val
-instance Show (Merger a) where
+instance Pretty Merger where pretty = ShowVal.show_val
+instance Show Merger where
     show merger = "((Merger " ++ untxt (ShowVal.show_val merger) ++ "))"
-instance DeepSeq.NFData (Merger a) where
-    rnf _ = ()
+instance DeepSeq.NFData Merger where rnf _ = ()
 
 -- *** control ops
 
 -- | The built-in set of control Mergers.
-mergers :: Map Expr.Symbol (Merger Signal.Control)
+mergers :: Map Expr.Symbol Merger
 mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
     ]
     where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
 
-merge_add, merge_sub, merge_mul  :: Merger Signal.Control
-merge_add = Merger "add" Signal.sig_add (Signal.constant 0)
-merge_sub = Merger "sub" Signal.sig_subtract (Signal.constant 0)
-merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
+merge_add, merge_sub, merge_mul  :: Merger
+merge_add = Merger "add" Signal.sig_add 0
+merge_sub = Merger "sub" Signal.sig_subtract 0
+merge_mul = Merger "mul" Signal.sig_multiply 1
 
 -- | Unlike the rest, this one is not associative.
-merge_scale :: Merger Signal.Control
-merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
-
--- | Once upon a time I had the interleave merger, but now there are none.
--- TODO remove the mergers for PSignals
-pitch_mergers :: Map Expr.Symbol (Merger PSignal.PSignal)
-pitch_mergers = Map.empty
+merge_scale :: Merger
+merge_scale = Merger "scale" Signal.sig_scale 0
 
 
 -- * Collect
@@ -1138,8 +1130,7 @@ instance DeepSeq.NFData Collect where
 -- dynamics.  The modifications are a secondary return value from control
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [NOTE control-modification]
-data ControlMod =
-    ControlMod !Score.Control !Signal.Control !(Merger Signal.Control)
+data ControlMod = ControlMod !Score.Control !Signal.Control !Merger
     deriving (Show)
 
 instance Pretty ControlMod where

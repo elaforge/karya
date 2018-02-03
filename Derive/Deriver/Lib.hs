@@ -338,21 +338,22 @@ delete_val key = Internal.local $ \state ->
 
 -- | This is the Env version of with_merged_control.  It only works on numeric
 -- env vals.
-with_merged_numeric_val :: Merger Signal.Control -> Env.Key
-    -> Signal.Y -> Deriver a -> Deriver a
+with_merged_numeric_val :: Merger -> Env.Key -> Signal.Y
+    -> Deriver a -> Deriver a
 with_merged_numeric_val Set key val = with_val key val
 with_merged_numeric_val (Merger name merge ident) key val = Internal.localm $
     \state -> do
         (typ, old) <- case Env.checked_val2 key (state_environ state) of
             Nothing -> return (Score.Untyped, ident)
-            Just (Right (Score.Typed typ old)) ->
-                return (typ, Signal.constant old)
+            Just (Right (Score.Typed typ old)) -> return (typ, old)
             Just (Left err) -> throw err
         -- This is a hack to reuse Merger, which is defined on Signal, not Y.
-        -- TODO it could be defined on Y, but I'd lose interleave... but I only
-        -- use that for pitches and it's kind of sketchy anyway.
+        -- It could be defined on Y, but then I'd have to directly use
+        -- Signal.linear_operator instead of Signal.sig_add, and I don't trust
+        -- that I'll never have a non-linear merger.
         new <- require ("merger " <> name <> " produced an empty signal") $
-            Signal.constant_val (merge old (Signal.constant val))
+            Signal.constant_val $
+            merge (Signal.constant old) (Signal.constant val)
         return $! insert_env key (Score.Typed typ new) state
 
 modify_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
@@ -605,8 +606,8 @@ with_control_maps cmap cfuncs = Internal.local $ \state -> state
 --
 -- As documetned in 'merge', this acts like a Set if there is no existing
 -- control.
-with_merged_control :: Merger Signal.Control -> Score.Control
-    -> Score.TypedControl -> Deriver a -> Deriver a
+with_merged_control :: Merger -> Score.Control -> Score.TypedControl
+    -> Deriver a -> Deriver a
 with_merged_control merger control signal deriver = do
     controls <- get_controls
     let new = merge merger (Map.lookup control controls) signal
@@ -626,19 +627,18 @@ with_merged_controls control_vals deriver
             merged = zipWith3 merge mergers old_vals new_vals
         with_controls (zip controls merged) deriver
 
-resolve_merge :: Merge Signal.Control -> Score.Control
-    -> Deriver (Merger Signal.Control)
+resolve_merge :: Merge -> Score.Control -> Deriver Merger
 resolve_merge DefaultMerge control = get_default_merger control
 resolve_merge (Merge merger) _ = return merger
 
-get_control_merge :: Expr.Symbol -> Deriver (Merger Signal.Control)
+get_control_merge :: Expr.Symbol -> Deriver Merger
 get_control_merge name = do
     mergers <- gets (state_mergers . state_constant)
     require ("unknown control merger: " <> ShowVal.show_val name)
         (Map.lookup name mergers)
 
 -- | Get the default merger for this control, or 'merge_mul' if there is none.
-get_default_merger :: Score.Control -> Deriver (Merger Signal.Control)
+get_default_merger :: Score.Control -> Deriver Merger
 get_default_merger control = do
     defaults <- Internal.get_dynamic state_control_merge_defaults
     return $ Map.findWithDefault default_merge control defaults
@@ -651,17 +651,17 @@ get_default_merger control = do
 -- Since the default merge for control tracks is multiplication, whose identity
 -- is 1, this means the first control track will set the value, instead of
 -- being multiplied to 0.
-merge :: Merger Signal.Control -> Maybe Score.TypedControl
-    -> Score.TypedControl -> Score.TypedControl
+merge :: Merger -> Maybe Score.TypedControl -> Score.TypedControl
+    -> Score.TypedControl
 merge Set _ new = new
 merge (Merger _ merger ident) maybe_old new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (merger (Score.typed_val old) (Score.typed_val new))
-    where old = fromMaybe (Score.untyped ident) maybe_old
+    where old = fromMaybe (Score.untyped (Signal.constant ident)) maybe_old
     -- Using ident is *not* the same as just emitting the 'new' signal for
     -- subtraction!
 
-merge_vals :: Merger Signal.Control -> Signal.Y -> Signal.Y -> Signal.Y
+merge_vals :: Merger -> Signal.Y -> Signal.Y -> Signal.Y
 merge_vals merger old new = case merger of
     Set -> new
     Merger _ merge _ -> maybe new snd $ Signal.head $
@@ -671,8 +671,7 @@ merge_vals merger old new = case merger of
 -- *** ControlMod
 
 -- | Emit a 'ControlMod'.
-modify_control :: Merger Signal.Control -> Score.Control -> Signal.Control
-    -> Deriver ()
+modify_control :: Merger -> Score.Control -> Signal.Control -> Deriver ()
 modify_control merger control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =
         ControlMod control signal merger : collect_control_mods collect }
@@ -758,23 +757,11 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
 
 -- *** with signal
 
--- | Run the deriver in a context with the given pitch signal.
-with_merged_pitch :: Merger PSignal.PSignal -> Score.PControl
-    -> PSignal.PSignal -> Deriver a -> Deriver a
-with_merged_pitch merger name signal deriver = do
-    modify_pitch name (\old -> apply_pitch_merger merger old signal) deriver
-
-resolve_pitch_merge :: Merge PSignal.PSignal -> Merger PSignal.PSignal
-resolve_pitch_merge DefaultMerge = Set
-resolve_pitch_merge (Merge merger) = merger
-
-get_pitch_merger :: Expr.Symbol -> Deriver (Merger PSignal.PSignal)
-get_pitch_merger name = do
-    mergers <- gets (state_pitch_mergers . state_constant)
-    require ("unknown pitch merger: " <> showt name) (Map.lookup name mergers)
-
 with_pitch :: PSignal.PSignal -> Deriver a -> Deriver a
-with_pitch = with_merged_pitch Set Score.default_pitch
+with_pitch = modify_pitch Score.default_pitch . const
+
+with_named_pitch :: Score.PControl -> PSignal.PSignal -> Deriver a -> Deriver a
+with_named_pitch pcontrol = modify_pitch pcontrol . const
 
 with_constant_pitch :: PSignal.Pitch -> Deriver a -> Deriver a
 with_constant_pitch = with_pitch . PSignal.constant
@@ -789,12 +776,6 @@ modify_pitch pcontrol f
         state { state_pitch = f (Just (state_pitch state)) }
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
-
-apply_pitch_merger :: Merger PSignal.PSignal -> Maybe PSignal.PSignal
-    -> PSignal.PSignal -> PSignal.PSignal
-apply_pitch_merger _ Nothing new = new
-apply_pitch_merger Set (Just _) new = new
-apply_pitch_merger (Merger _ merger _) (Just old) new = merger old new
 
 
 -- * 'Mode'

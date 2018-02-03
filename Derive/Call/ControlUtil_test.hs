@@ -41,7 +41,7 @@ test_modify = do
     equal (run (Derive.Merge merge_add) (tracks ".25"))
         ([[(0, 0.25), (4, 0.75), (6, 0.25)]], [])
     where
-    c_gen :: Derive.Merge Signal.Control -> Derive.Generator Derive.Control
+    c_gen :: Derive.Merge -> Derive.Generator Derive.Control
     c_gen merge = CallTest.generator1 $ \args -> do
         (start, end) <- Args.real_range args
         let signal = Signal.from_sample start 0.5

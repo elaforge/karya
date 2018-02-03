@@ -26,7 +26,6 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Warp as Warp
 
-import qualified Perform.Signal as Signal
 import Global
 import Types
 
@@ -144,8 +143,7 @@ record_track_dynamic_for block_id track_id = do
 
 -- * misc Dynamic state
 
-with_default_merge :: Map Score.Control (Merger Signal.Control)
-    -> Deriver a -> Deriver a
+with_default_merge :: Map Score.Control Merger -> Deriver a -> Deriver a
 with_default_merge defaults = local $ \st -> st
     { state_control_merge_defaults =
         defaults <> state_control_merge_defaults st

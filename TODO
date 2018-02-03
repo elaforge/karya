@@ -213,7 +213,7 @@ UNSORTED
     - srate is misnamed, it's a period.  If it were really a rate it would
       be 60 or something.
     - Maybe put Expr.Symbol into Monoid after all.
-    - remove Derive.Deriver.Monad.state_pitch_mergers
+    * remove Derive.Deriver.Monad.state_pitch_mergers
       . The identity can become a scalar now.
     * get rid of Postproc.replace_note?
     - update ControlUtil.segment
@@ -1356,7 +1356,7 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
     * Switch to Derive.Warp
       . It should be possible to do this while still using the old Signal.
         This way I can isolate the change for profiling as well as bugs.
-      - profile before and after
+      * profile before and after
     * remove Score.event_untransformed_* nonsense
     / Block.trim_controls relies on samples, I don't think it can work with
       segments.
@@ -1517,6 +1517,19 @@ Util.Linear: linear: linear piecewise signal: signal-discontinuity:
       clean up tests:
         - Always use _rounded for DeriveTest.e_control?
         - use run2 in Prelude.Pitch_test
+      - Adding linear hurt performance
+        . For cerucuk-punyah:
+                  max mb  total mb  derive     perform
+          before: 142.58  8743.73   5.89~5.98  0.70~0.72
+          after:  139.28  9827.79   6.77~6.83  1.18~1.22
+        . Try to get that back, by doing the constant pitch signal
+          optimization, and get rid of clip.
+        . Then do a SCC profile to see where the time goes.  Maybe do one
+          before to see if something new has come up?
+        . It looks like the Warp change didn't have noticeable performance
+          impact, so that's good.
+        . One candidate is adding clip_before and clip_after now having to add
+          a sample.  I could fix those by adding start and extent to Segment.
 
       - Do I need to clip at all?  The performer can clip to the start, but
         I think it needs to know where the note stops because otherwise this
@@ -2433,8 +2446,10 @@ performance:
       . write "chrome tracing" format, chrome://tracing, then load
     . I probably need to save all cycles, and then search for ones with
       hiccups.
-    . Use ghc events, then I can get gc events too.  I guess this may turn
+    . Use ghc-events, then I can get gc events too.  I guess this may turn
       into using chrome instead of threadscope, but why not?
+    . Could I do this for derivation, e.g. percent of the way thourgh?  Then
+      I can see if some parts are especially expensive.
   . Libraries for 2d rendering: Skia, WebRender
     . Or use OpenGL.
   - profiling for complete scores is broken since I removed them
@@ -3007,11 +3022,12 @@ solkattu:
     . Could I fix relatedTo to use a direct reference as well?  I don't see
       how, because still the referenced Korvai still doesn't have location.
   - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
-    .  I really want to write the sarvalaghu as strokes, not just ===
-      filler.  This is because sometimes it's hard to distinguish in
-      recordings, and also because sometimes it has motives related to the
-      korvai.
+    . I want to write the sarvalaghu as strokes not solkattu, not just ===
+      filler.  This is because sometimes it's hard to distinguish in recordings,
+      and also because sometimes it has motives related to the korvai.
     . This is like the explicit stroke stuff back again.
+    . Solkattu is not appropriate because it's all one-off, so the stroke map
+      is awkward.
   - Can I get a rerender on save?
     . This is like the ascii version of auto integration.
     . This would be set up as an interactive korvai editor, and it could

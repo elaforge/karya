@@ -228,20 +228,16 @@ parse_equal merge lhs rhs
     where
     is_control (BaseTypes.VControlRef (BaseTypes.LiteralControl c)) = Just c
     is_control _ = Nothing
-parse_equal merge lhs rhs
+parse_equal _ lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
-        BaseTypes.VPitch rhs -> Right $ \deriver -> do
-            merger <- get_pitch_merger merge
-            Derive.with_merged_pitch merger control (PSignal.constant rhs)
-                deriver
+        BaseTypes.VPitch rhs -> Right $ \deriver ->
+            Derive.with_named_pitch control (PSignal.constant rhs) deriver
         BaseTypes.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
-            merger <- get_pitch_merger merge
-            Derive.with_merged_pitch merger control sig deriver
-        BaseTypes.VNum (Score.Typed Score.Nn nn) -> Right $ \deriver -> do
-            merger <- get_pitch_merger merge
-            Derive.with_merged_pitch merger control
+            Derive.with_named_pitch control sig deriver
+        BaseTypes.VNum (Score.Typed Score.Nn nn) -> Right $ \deriver ->
+            Derive.with_named_pitch control
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
         _ -> Left $ "binding a pitch signal expected a pitch, pitch"
             <> " control, or nn, but got " <> pretty (ValType.type_of rhs)
@@ -260,18 +256,11 @@ merge_error merge = "merge is only supported when assigning to a control or\
     \ untyped numeric env: " <> ShowVal.show_val merge
 
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
-get_merger :: Score.Control -> Merge
-    -> Derive.Deriver (Derive.Merger Signal.Control)
+get_merger :: Score.Control -> Merge -> Derive.Deriver Derive.Merger
 get_merger control merge = case merge of
     Set -> return Derive.Set
     Default -> Derive.get_default_merger control
     Merge merge -> Derive.get_control_merge merge
-
-get_pitch_merger :: Merge -> Derive.Deriver (Derive.Merger PSignal.PSignal)
-get_pitch_merger merge = case merge of
-    Set -> return Derive.Set
-    Default -> return Derive.Set
-    Merge name -> Derive.get_pitch_merger name
 
 parse_val :: Text -> Maybe BaseTypes.Val
 parse_val = either (const Nothing) Just . Parse.parse_val

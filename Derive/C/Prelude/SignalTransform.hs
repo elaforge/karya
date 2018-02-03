@@ -155,7 +155,7 @@ parse_curve curve = case untxt curve of
     where
     digit = Num.readDigit
 
-c_redirect :: Derive.Merge Signal.Control -> Derive.Transformer Derive.Control
+c_redirect :: Derive.Merge -> Derive.Transformer Derive.Control
 c_redirect merger =
     Derive.transformer Module.prelude "redirect" Tags.cmod
     ("Redirect a signal to another control, using the control modifier hack.\

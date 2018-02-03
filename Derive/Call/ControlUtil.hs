@@ -417,13 +417,10 @@ modify :: Score.Control -> RealTime -> Signal.Control -> Derive.Deriver ()
 modify = modify_with Derive.DefaultMerge
 
 -- | Modify the signal only in the given range.
-modify_with :: Derive.Merge Signal.Control -> Score.Control -> RealTime
-    -> Signal.Control -> Derive.Deriver ()
+modify_with :: Derive.Merge -> Score.Control -> RealTime -> Signal.Control
+    -> Derive.Deriver ()
 modify_with merge control end sig = do
     merger@(Derive.Merger _ _ identity) <- Derive.resolve_merge merge control
-    -- TODO should just be Y, not a signal.  I can fix that when I make Merger
-    -- monomorphic.
-    identity <- snd <$> Derive.require "identity" (Signal.head identity)
     -- Since signals are implicitly 0 before the first sample, I prepend
     -- a segment with the identity value, in case the identity isn't 0.
     Derive.modify_control merger control $ mconcat
