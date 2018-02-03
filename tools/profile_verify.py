@@ -127,9 +127,10 @@ def empty_dir(dir):
     try:
         fns = os.listdir(dir)
     except FileNotFoundError:
-        return
-    for fn in fns:
-        os.remove(os.path.join(dir, fn))
+        pass
+    else:
+        for fn in fns:
+            os.remove(os.path.join(dir, fn))
     os.makedirs(dir, exist_ok=True)
 
 
