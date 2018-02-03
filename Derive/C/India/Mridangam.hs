@@ -48,7 +48,7 @@ library = Library.generators
     -- There are various other ways to play this.
     , ("tari", c_sequence (p "n+u+kt+k")) -- naka tiku tari kita
     -- This is the name I use in Solkattu.
-    , ("na", c_sequence (p "n+u+kt+k"))
+    , ("4n", c_sequence (p "n+u+kt+k"))
     , ("tk", c_sequence (p "k+"))
     , ("tknk", c_sequence (p "k+n+"))
     ]

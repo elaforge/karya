@@ -228,7 +228,7 @@ instance Expr.ToExpr Pattern where
     to_expr p = case p of
         PatternM matras ->
             Expr.generator (Expr.call "p" [Expr.num (fromIntegral matras)])
-        Nakatiku -> "na"
+        Nakatiku -> "4n"
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
