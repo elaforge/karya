@@ -94,13 +94,9 @@ make_segment_from curve start maybe_from end to = case maybe_from of
 
 make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
     -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
-make_segment = make_segment_ True
-
-make_segment_ :: Bool -> Curve -> RealTime -> PSignal.Pitch
-    -> RealTime -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
-make_segment_ include_end f x1 y1 x2 y2 = do
+make_segment f x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate include_end f x1 y1 x2 y2
+    return $ segment srate f x1 y1 x2 y2
 
 type Interpolate = RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -- ^ start -> starty -> end -> endy
@@ -109,21 +105,16 @@ type Interpolate = RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
 -- | This defaults some arguments to 'segment' so its more convenient to pass
 -- around as a standalone creator of segments.
 interpolate_segment :: SRate -> Curve -> Interpolate
-interpolate_segment srate f = segment srate True f
+interpolate_segment srate f = segment srate f
 
 -- | Interpolate between the given points.
--- TODO(polymorphic-signals) same as ControlUtil.segment
-segment :: SRate -> Bool -- ^ omit the final sample, for chaining these
-    -- TODO it's an error-prone micro-optimization, and if it matters, I could
-    -- have a Signal's mconcat drop the duplicates
-    -> Curve -> RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
-    -> PSignal.PSignal
-segment srate include_end curve x1 y1 x2 y2
+-- TODO(polymorphic-signals) same as ControlUtil.segment, well except Eq use
+segment :: SRate -> Curve -> RealTime -> PSignal.Pitch -> RealTime
+    -> PSignal.Pitch -> PSignal.PSignal
+segment srate curve x1 y1 x2 y2
     | x1 > x2 = mempty -- if x1 == x2 I still need to make a vertical segment
-    -- TODO I can't do this optimization, which means flat breakpoints get
-    -- redundant samples.  I could make Eq Pitch though... or make
-    -- 'breakpoints' take [(RealTime, Maybe Pitch)]
-    -- - | y1 == y2 = PSignal.from_pairs [(x1, y1), (x2, y2)]
+    -- I can't optimize y1==y2, which means flat breakpoints on a nonlinear
+    -- curve get redundant samples.
     | otherwise = case curve of
         ControlUtil.Linear -> PSignal.from_pairs [(x1, y1), (x2, y2)]
         ControlUtil.Function curvef ->
@@ -132,7 +123,7 @@ segment srate include_end curve x1 y1 x2 y2
     -- TODO use Seq.range_end and map
     make _ [] = Nothing
     make curvef (x:xs)
-        | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
+        | x >= x2 = Just ((x2, y2), [])
         | otherwise = Just ((x, y_at curvef x), xs)
     y_at curvef = Pitches.interpolated y1 y2
         . curvef . Num.normalize (secs x1) (secs x2) . secs
@@ -143,4 +134,4 @@ segment srate include_end curve x1 y1 x2 y2
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, PSignal.Pitch)] -> PSignal.PSignal
 breakpoints srate f =
-    ControlUtil.signal_breakpoints PSignal.from_sample (segment srate False f)
+    ControlUtil.signal_breakpoints PSignal.from_sample (segment srate f)

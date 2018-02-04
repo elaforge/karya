@@ -238,8 +238,8 @@ pitch_segment align curve start0 start end pitch interval pitch_dir =
         -- If the pitch segment is at the start of the note, then I may need to
         -- override its base pitch with a flat segment.
         AlignStart -> (initial dest <>) <$>
-            PitchUtil.make_segment_ True curve start dest end pitch
-        AlignEnd -> PitchUtil.make_segment_ True curve start pitch end dest
+            PitchUtil.make_segment curve start dest end pitch
+        AlignEnd -> PitchUtil.make_segment curve start pitch end dest
     where
     initial p = PSignal.from_sample start0 p
     dest = case interval of

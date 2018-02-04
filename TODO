@@ -226,7 +226,7 @@ UNSORTED
     * remove Derive.Deriver.Monad.state_pitch_mergers
       . The identity can become a scalar now.
     * get rid of Postproc.replace_note?
-    - update ControlUtil.segment
+    + update ControlUtil.segment
     - Support negative time in ControlUtil.split_samples_absolute
     - Deriver.Lib.with_control_mods
     - GConvert.fingerMovement
@@ -1381,6 +1381,33 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
               max mb  total mb  derive     perform
       before: 142.58  8743.73   5.89~5.98  0.70~0.72
       after:  139.28  9827.79   6.77~6.83  1.18~1.22
+    . Actually the big jump was between:
+      . replace the Patch.ConstantPitch flag with DUtil.constant_control
+      . linear: make Segment.drop_discontinuity_at insert an extra sampl
+    . There are:
+      * update Derive.Note.extract_track_signal to use new clip_before / clip_after
+      * linear: update Block.trim_controls to use drop_discontinuity_at
+      / linear: remove yet more unused functions from Signal and PSignal
+      / linear: implement clip_bounds, export head and last, misc cleanups
+      / linear: in Pretty Signal, put a + in front of positive offsets
+      * linear: fix buggy offset handling in Util.Segment
+      / linear: add Segment.to_piecewise_constant
+      / remove TimeVector.interleave
+      / linear: clean up curves and generate ControlFunctions from curve descriptions
+      / use ControlUtil.make_curve_call with cf-jump, and add cf-const
+      * linear: fix Segment.drop_after to only emit the first sample in a discontinuity
+      / linear: fix buggy Segment.concat
+      / linear: add various small functions to Perform.Signal
+      / linear: rename map_y to map_y_linear and add a map_y that resamples
+      / linear: fix buggy Signal.scalar_max, and remove scalar_min
+      / linear: fix bug in Segment.map_y, where it didn't retain discontinuities
+      / linear: add Segment.num_clip_after
+      / solkattu: ...
+      + switch the signal implementation from piecewise-constant to piecewise-linear
+      / linear: get rid of infer linear in fltk
+        ...
+      ? linear: make Segment.drop_discontinuity_at insert an extra sample to avoid changing the slope
+
     . Try to get that back, by doing the constant pitch signal
       optimization, and get rid of clip.
     . Then do a SCC profile to see where the time goes.  Maybe do one
@@ -1389,7 +1416,7 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       impact, so that's good.
     . One candidate is adding clip_before and clip_after now having to add
       a sample.  I could fix those by adding start and extent to Segment.
-  - optimize flat pitch segments in PitchUtil.segment
+  / optimize flat pitch segments in PitchUtil.segment
   - trills are now too hard-edged, why were they smoother before?
     . They weren't, it's the Pianoteq version.  Still, trill should take
       a curve arg, and maybe curve by default.
@@ -2259,6 +2286,9 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  - I should include the number of events in the verify profile, so I can
+    compare relative event throughput per score.
+    . Clearly the wayang ones are doing something expensive, what is it?
   - Can I get a graphical trace of the respond cycle?
     . xi-editor, what did he use for that?
       https://www.youtube.com/watch?time_continue=12&v=4FbQre9VQLI
@@ -2271,6 +2301,9 @@ performance:
       I can see if some parts are especially expensive.
   . Libraries for 2d rendering: Skia, WebRender
     . Or use OpenGL.
+    . Skia is a 2d library, like cairo, and it has a OpenGL backend.  I guess
+      it provides fancier features on top.  But if I don't need those
+      features, then I should just use OpenGL directly.
   - profiling for complete scores is broken since I removed them
     . Derive_profile.profile_file etc.
     . Use the the verify score stuff instead.
@@ -2981,6 +3014,10 @@ solkattu:
   - have a mode to warn about unused StrokeMap entries, and overidden
     ones
   karya integration:
+    - I could emit groups as blocks with clip or Clip.
+      . But then I lose technique.
+      . Unless I also implement that in karya, I'd need a mridangam-specific
+        clip and Clip.
     * vim needs a redraw after reintegrate
     * it should still integrate on an alignment warning
     * it seems to clear out the track title

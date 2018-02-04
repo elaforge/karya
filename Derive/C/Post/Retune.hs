@@ -94,7 +94,7 @@ add_nn_transpose curve = Score.modify_control Controls.nn (Signal.sig_add curve)
 retune_curve :: ControlUtil.SRate -> RealTime -> Pitch.NoteNumber -> RealTime
      -> RealTime -> Signal.Control
 retune_curve srate time dist start end =
-    ControlUtil.segment srate True curve
+    ControlUtil.segment srate curve
         start (Pitch.nn_to_double dist) (min end (start + time)) 0
     where
     -- Adjust quickly at first, then slow down.

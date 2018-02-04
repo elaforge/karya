@@ -205,21 +205,14 @@ make_segment_from curve start maybe_from end to = case maybe_from of
 
 make_segment :: Curve -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
-make_segment = make_segment_ True
-
-make_segment_ :: Bool -> Curve -> RealTime -> Signal.Y
-    -> RealTime -> Signal.Y -> Derive.Deriver Signal.Control
-make_segment_ include_end curve x1 y1 x2 y2 = do
+make_segment curve x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate include_end curve x1 y1 x2 y2
+    return $ segment srate curve x1 y1 x2 y2
 
 -- | Interpolate between the given points.
-segment :: SRate -> Bool -- ^ omit the final sample, for chaining these
-    -- TODO it's an error-prone micro-optimization, and if it matters, I could
-    -- have a Signal's mconcat drop the duplicates
-    -> Curve -> RealTime -> Signal.Y -> RealTime
+segment :: SRate -> Curve -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Signal.Control
-segment srate include_end curve x1 y1 x2 y2
+segment srate curve x1 y1 x2 y2
     | x1 == x2 && y1 == y2 = mempty
     -- If x1 == x2 I still need to make a vertical segment
     | y1 == y2 = Signal.from_pairs [(x1, y1), (x2, y2)]
@@ -231,7 +224,7 @@ segment srate include_end curve x1 y1 x2 y2
     -- TODO use Seq.range_end and map
     make _ [] = Nothing
     make curvef (x:xs)
-        | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
+        | x >= x2 = Just ((x2, y2), [])
         | otherwise = Just ((x, y_at x), xs)
         where y_at = make_function curvef x1 y1 x2 y2
 
@@ -254,7 +247,7 @@ slope_to_limit low high from slope start end
         in if intercept < end then make intercept limit else make end end_y
     | otherwise = make end end_y
     where
-    make = segment srate True Linear start from
+    make = segment srate Linear start from
     srate = 1 -- not used for Linear
     end_y = from + RealTime.to_seconds (end - start) * slope
 
@@ -333,7 +326,7 @@ bezier3 (x1, y1) (x2, y2) (x3, y3) (x4, y4) t =
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, Signal.Y)] -> Signal.Control
 breakpoints srate curve =
-    signal_breakpoints Signal.from_sample (segment srate False curve)
+    signal_breakpoints Signal.from_sample (segment srate curve)
     -- TODO I think if curve==Linear, I can just do Signal.from_samples
 
 signal_breakpoints :: Monoid sig => (RealTime -> y -> sig)
