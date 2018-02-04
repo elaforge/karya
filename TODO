@@ -1375,7 +1375,7 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
     - Also ensure that MSignal.Signal can't get duplicate Xs.
   tests:
     - Always use _rounded for DeriveTest.e_control?
-    - use run2 in Prelude.Pitch_test
+    * use run2 in Prelude.Pitch_test
   - Adding linear hurt performance
     . For cerucuk-punyah:
               max mb  total mb  derive     perform
