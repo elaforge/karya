@@ -177,14 +177,15 @@ test_roll = do
 
 test_grace_p = do
     let run = CallTest.run_pitch "import europe"
-    equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--")])
-        [(0, 57), (2, 59), (4, 60)]
-    equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--")])
-        [(0, 58), (1, 59), (2, 60)]
+    equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--|")])
+        [(0, NN.a3), (2, NN.a3), (2, NN.b3), (4, NN.b3), (4, NN.c4)]
+    equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--|")])
+        [(0, NN.as3), (1, NN.as3), (1, NN.b3), (2, NN.b3), (2, NN.c4)]
 
 test_mordent_p = do
     let run = CallTest.run_pitch "import europe"
-    equal (run [(0, "dur=2 | `mordent` (4c)")]) [(0, 60), (2, 62), (4, 60)]
+    equal (run [(0, "dur=2 | `mordent` (4c)")])
+        [(0, NN.c4), (2, NN.c4), (2, NN.d4), (4, NN.d4), (4, NN.c4)]
 
 -- * misc
 

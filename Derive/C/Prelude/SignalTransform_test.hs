@@ -4,17 +4,19 @@
 
 module Derive.C.Prelude.SignalTransform_test where
 import Util.Test
-import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.C.Prelude.SignalTransform as SignalTransform
+import qualified Derive.Call.CallTest as CallTest
 import qualified Perform.Signal as Signal
 
 
 test_sh_pitch = do
     let run = CallTest.run_pitch ""
     equal (run [(0, "4c"), (4, "sh .5 | i (5c)")])
-        [(0, 60), (2, 66), (4, 72)]
+        [(0, 60), (2, 60), (2, 66), (4, 66), (4, 72)]
     equal (run [(0, "4c"), (4, "sh 1 | i (5c)")])
-        [(0, 60), (1, 63), (2, 66), (3, 69), (4, 72)]
+        [ (0, 60), (1, 60), (1, 63), (2, 63), (2, 66), (3, 66)
+        , (3, 69), (4, 69), (4, 72)
+        ]
 
 test_sh_control = do
     let run = CallTest.run_control

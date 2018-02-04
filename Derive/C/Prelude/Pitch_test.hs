@@ -125,7 +125,7 @@ test_linear_next = do
         [[(0, NN.c4), (1, NN.c4)], [(1, NN.c4), (3, NN.d4)], [(3, NN.e4)]]
 
 run :: [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
-run = CallTest.run_pitch2 ""
+run = CallTest.run_pitch ""
 
 run_tempo :: Int -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run_tempo tempo pitches = extract $ run_ tempo pitches []

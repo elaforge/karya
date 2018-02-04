@@ -323,8 +323,14 @@ mkcontrol :: Score.Type -> Signal.Control -> BaseTypes.ControlRef
 mkcontrol typ = BaseTypes.ControlSignal . Score.Typed typ
 
 test_pitch_trill = do
-    equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")]) $
-        zip [0, 0.5, 1, 1.5, 2] (cycle [64, 67]) ++ [(2.8, 60)]
+    equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")])
+        [ (0, NN.e4), (0.5, NN.e4)
+        , (0.5, NN.g4), (1, NN.g4)
+        , (1, NN.e4), (1.5, NN.e4)
+        , (1.5, NN.g4), (2, NN.g4)
+        , (2, NN.e4)
+        , (2.8, NN.e4), (2.8, NN.c4)
+        ]
 
 test_xcut_pitch = do
     let f tracks = DeriveTest.extract DeriveTest.e_nns $
