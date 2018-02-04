@@ -108,7 +108,7 @@ c_block block_id = Derive.with_score_duration get_score_duration $
     trim args deriver = do
         end <- Derive.real (1 :: ScoreTime)
         if Event.is_positive (Args.event args) then trim_controls end deriver
-            else constant_controls_at end deriver
+            else deriver
     get_score_duration :: a -> Derive.Deriver (Derive.CallDuration ScoreTime)
     get_score_duration _ = Derive.CallDuration . (\(s, e) -> e-s) <$>
         Derive.block_logical_range block_id
@@ -142,25 +142,6 @@ trim_controls end = Internal.local $ \dyn -> dyn
     , Derive.state_pitches = PSignal.drop_discontinuity_at end <$>
         Derive.state_pitches dyn
     }
-
--- | Replace all controls and pitches with constants from ScoreTime 1.
--- This is to support arrival notes.  If a block call has negative duration,
--- then its controls should be taken from its start time, which is the end of
--- the event, time-wise.  Since 'Derive.place' has already been called, that's
--- ScoreTime 1.
---
--- Details in "Derive.Call.Post.ArrivalNote".  TODO probabbly get rid of this
-constant_controls_at :: RealTime -> Derive.Deriver a -> Derive.Deriver a
-constant_controls_at start = Internal.local $ \dyn -> dyn
-    { Derive.state_controls =
-        Map.map (fmap (Signal.constant . Signal.at start))
-            (Derive.state_controls dyn)
-    , Derive.state_pitch = pitch_at start (Derive.state_pitch dyn)
-    , Derive.state_pitches =
-        Map.map (pitch_at start) (Derive.state_pitches dyn)
-    }
-    where
-    pitch_at p = maybe mempty PSignal.constant . PSignal.at p
 
 d_block :: BlockId -> Derive.NoteDeriver
 d_block block_id = do
