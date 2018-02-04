@@ -226,7 +226,7 @@ UNSORTED
     * remove Derive.Deriver.Monad.state_pitch_mergers
       . The identity can become a scalar now.
     * get rid of Postproc.replace_note?
-    + update ControlUtil.segment
+    * update ControlUtil.segment
     - Support negative time in ControlUtil.split_samples_absolute
     - Deriver.Lib.with_control_mods
     - GConvert.fingerMovement

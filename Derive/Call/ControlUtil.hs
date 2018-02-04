@@ -218,15 +218,13 @@ segment srate curve x1 y1 x2 y2
     | y1 == y2 = Signal.from_pairs [(x1, y1), (x2, y2)]
     | otherwise = case curve of
         Linear -> Signal.from_pairs [(x1, y1), (x2, y2)]
-        Function curvef ->
-            Signal.unfoldr (make curvef) (Seq.range_ x1 (1/srate))
+        Function curvef -> Signal.from_pairs $ map (make curvef) $
+            Seq.range_end x1 x2 (1/srate)
     where
-    -- TODO use Seq.range_end and map
-    make _ [] = Nothing
-    make curvef (x:xs)
-        | x >= x2 = Just ((x2, y2), [])
-        | otherwise = Just ((x, y_at x), xs)
-        where y_at = make_function curvef x1 y1 x2 y2
+    make curvef x
+        -- Otherwise if x1==x2 then I get y1.
+        | x >= x2 = (x2, y2)
+        | otherwise = (x, make_function curvef x1 y1 x2 y2 x)
 
 make_function :: CurveF -> RealTime -> Signal.Y -> RealTime -> Signal.Y
     -> (RealTime -> Signal.Y)

@@ -117,14 +117,13 @@ segment srate curve x1 y1 x2 y2
     -- curve get redundant samples.
     | otherwise = case curve of
         ControlUtil.Linear -> PSignal.from_pairs [(x1, y1), (x2, y2)]
-        ControlUtil.Function curvef ->
-            PSignal.unfoldr (make curvef) (Seq.range_ x1 (1/srate))
+        ControlUtil.Function curvef -> PSignal.from_pairs $ map (make curvef) $
+            Seq.range_end x1 x2 (1/srate)
     where
-    -- TODO use Seq.range_end and map
-    make _ [] = Nothing
-    make curvef (x:xs)
-        | x >= x2 = Just ((x2, y2), [])
-        | otherwise = Just ((x, y_at curvef x), xs)
+    make curvef x
+        -- Otherwise if x1==x2 then I get y1.
+        | x >= x2 = (x2, y2)
+        | otherwise = (x, y_at curvef x)
     y_at curvef = Pitches.interpolated y1 y2
         . curvef . Num.normalize (secs x1) (secs x2) . secs
         where secs = RealTime.to_seconds
