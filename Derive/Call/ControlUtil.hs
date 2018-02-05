@@ -323,9 +323,9 @@ bezier3 (x1, y1) (x2, y2) (x3, y3) (x4, y4) t =
 
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, Signal.Y)] -> Signal.Control
+breakpoints _srate Linear = Signal.from_pairs
 breakpoints srate curve =
     signal_breakpoints Signal.from_sample (segment srate curve)
-    -- TODO I think if curve==Linear, I can just do Signal.from_samples
 
 signal_breakpoints :: Monoid sig => (RealTime -> y -> sig)
     -> (RealTime -> y -> RealTime -> y -> sig) -> [(RealTime, y)] -> sig

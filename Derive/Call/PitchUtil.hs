@@ -132,5 +132,6 @@ segment srate curve x1 y1 x2 y2
 
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, PSignal.Pitch)] -> PSignal.PSignal
-breakpoints srate f =
-    ControlUtil.signal_breakpoints PSignal.from_sample (segment srate f)
+breakpoints _ ControlUtil.Linear = PSignal.from_pairs
+breakpoints srate curve =
+    ControlUtil.signal_breakpoints PSignal.from_sample (segment srate curve)
