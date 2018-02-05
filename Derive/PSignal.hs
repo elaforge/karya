@@ -120,8 +120,8 @@ constant :: Pitch -> PSignal
 constant = PSignal . Segment.constant
 
 prepend :: PSignal -> PSignal -> PSignal
-prepend sig1 sig2 =
-    PSignal $ Segment.prepend interpolate (_signal sig1) (_signal sig2)
+prepend sig1 sig2 = PSignal $
+    Segment.prepend Nothing interpolate (_signal sig1) (_signal sig2)
 
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
 -- TODO I could probably avoid the intermediate list

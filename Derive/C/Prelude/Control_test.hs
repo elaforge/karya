@@ -82,6 +82,33 @@ test_exponential = do
         [(0, 1), (1, 0.5),
             (2, 0.2928932188134524), (3, 0.1339745962155614), (4, 0)]
 
+test_nested = do
+    -- This used to get the wrong result thanks to drop_discontinuity_at
+    -- dropping a non-discontinuity with equal samples.
+    -- TODO remove when I can get rid of drop_discontinuity_at.
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_blocks
+        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_dyn_literal e)
+    let ui = run
+            [ ("top",
+                [ ("dyn", [(0, 0, "1"), (4, 0, "1"), (8, 0, "i .5"),
+                    (12, 0, "i 0")])
+                , (">", [(0, 12, "sub1")])
+                ])
+            , ("sub1=ruler", [(">", [(6, 6, "")])])
+            ]
+    equal ui ([((6, 6), [(4, 1), (8, 0.5), (12, 0)])], [])
+
+    let ui = run
+            [ ("top",
+                [ ("dyn", [(0, 0, "1"), (4, 0, "i> .5"), (8, 0, "i> 0"),
+                    (12, 0, "0")])
+                , (">", [(0, 12, "sub1")])
+                ])
+            , ("sub1=ruler", [(">", [(6, 6, "")])])
+            ]
+    equal ui ([((6, 6), [(4, 1), (8, 0.5), (12, 0)])], [])
+
 -- * misc
 
 test_breakpoint_next = do

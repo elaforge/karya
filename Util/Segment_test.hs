@@ -40,30 +40,32 @@ test_constant_val = do
     equal (f $ from_pairs [(3, 2)]) Nothing
 
 test_concat = do
-    let f = to_pairs . Segment.concat Segment.num_interpolate . map from_pairs
+    let f = to_pairs . Segment.concat (Just (==)) Segment.num_interpolate
+            . map from_pairs
     equal (f []) []
     -- Extend final segment.
     equal (f [[(0, 1)], [(4, 2)]]) [(0, 1), (4, 1), (4, 2)]
-    -- Coincident samples.
-    equal (f [[(0, 0), (1, 1)], [(1, 1), (2, 2)]])
-        [(0, 0), (1, 1), (1, 1), (2, 2)]
     -- interpolate
     equal (f [[(0, 0), (4, 4)], [(2, 8)]]) [(0, 0), (2, 2), (2, 8)]
     -- The rightmost one wins.
     equal (f [[(0, 0)], [(2, 2)], [(1, 1)]]) [(0, 0), (1, 0), (1, 1)]
     -- Suppress duplicates.
     equal (f [[(1, 1)], [(1, 1)], [(1, 1)]]) [(1, 1)]
-    equal (f [[(0, 1), (1, 1)], [(1, 2)], [(1, 1)]]) [(0, 1), (1, 1), (1, 1)]
+    equal (f [[(0, 1), (1, 1)], [(1, 2)], [(1, 1)]]) [(0, 1), (1, 1)]
+    equal (f [[(0, 0), (1, 1)], [(1, 1), (2, 2)]]) [(0, 0), (1, 1), (2, 2)]
+    equal (f [[(0, 0), (2, 0)], [(2, 0), (4, 1)], [(4, 1), (6, 1)]])
+        [(0, 0), (2, 0), (4, 1), (6, 1)]
     -- But not legit ones.
     equal (f [[(0, 1), (1, 1)], [(1, 2)]]) [(0, 1), (1, 1), (1, 2)]
 
 test_prepend = do
-    let f sig1 sig2 = to_pairs $ Segment.prepend Segment.num_interpolate
-            (from_pairs sig1) (from_pairs sig2)
+    let f sig1 sig2 = to_pairs $
+            Segment.prepend (Just (==)) Segment.num_interpolate
+                (from_pairs sig1) (from_pairs sig2)
     equal (f [] []) []
     equal (f [] [(0, 0), (1, 1)]) [(0, 0), (1, 1)]
     equal (f [(0, 10), (1, 1)] [(0, 0), (1, 1), (2, 2)])
-        [(0, 10), (1, 1), (1, 1), (2, 2)]
+        [(0, 10), (1, 1), (2, 2)]
 
 test_segment_at = do
     let f x = Segment.segment_at_orientation Types.Positive x . from_pairs

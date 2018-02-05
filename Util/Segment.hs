@@ -297,10 +297,12 @@ maximum sig
 
 -- | Concatenate signals, where signals to the right replace the ones to the
 -- left where they overlap.
-concat :: V.Vector v (Sample y) => Interpolate y -> [SignalS v y] -> SignalS v y
-concat _ [] = empty
-concat _ [sig] = sig
-concat interpolate sigs =
+concat :: V.Vector v (Sample y) => Maybe (y -> y -> Bool)
+    -- ^ signals with Eq y can drop some redundant samples
+    -> Interpolate y -> [SignalS v y] -> SignalS v y
+concat _ _ [] = empty
+concat _ _ [sig] = sig
+concat maybe_eq interpolate sigs =
     from_vector . V.concat . strip_duplicates . reverse . chunks . reverse
         . map to_vector $ sigs
     where
@@ -328,17 +330,23 @@ concat interpolate sigs =
         , Just x3 <- sx <$> TimeVector.head v3
         , x1 == x3 =
             strip_duplicates (v1 : v3 : vs)
+    strip_duplicates (v1 : v2 : vs)
+        | Just (Sample x1 y1) <- TimeVector.last v1
+        , Just (Sample x2 y2) <- TimeVector.head v2
+        , Just eq <- maybe_eq
+        , x1 == x2 && eq y1 y2 =
+            v1 : strip_duplicates (V.drop 1 v2 : vs)
     strip_duplicates (v1 : vs) = v1 : strip_duplicates vs
     strip_duplicates [] = []
 
 -- | With 'concat', each signal start clips the signal to its left.  This is
 -- the other way around, the final sample in the first signal is taken as its
 -- end, and it replaces the start of the second signal.
-prepend :: V.Vector v (Sample y) => Interpolate y -> SignalS v y
-    -> SignalS v y -> SignalS v y
-prepend interpolate sig1 sig2 = case last sig1 of
+prepend :: V.Vector v (Sample y) => Maybe (y -> y -> Bool) -> Interpolate y
+    -> SignalS v y -> SignalS v y -> SignalS v y
+prepend eq interpolate sig1 sig2 = case last sig1 of
     Nothing -> sig2
-    Just (x, _) -> concat interpolate [sig1, clip_before interpolate x sig2]
+    Just (x, _) -> concat eq interpolate [sig1, clip_before interpolate x sig2]
 
 -- * slice
 

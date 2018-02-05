@@ -97,7 +97,8 @@ instance Monoid (Signal kind) where
         | null s1 = s2
         | null s2 = s1
         | otherwise = mconcat [s1, s2]
-    mconcat = Signal . Segment.concat Segment.num_interpolate . map _signal
+    mconcat = Signal . Segment.concat (Just (==)) Segment.num_interpolate
+        . map _signal
 
 -- | This is the type of performer-interpreted controls that go into the
 -- event's control map.
@@ -176,7 +177,8 @@ constant_val = Segment.constant_val_num . _signal
 
 prepend :: Signal kind -> Signal kind -> Signal kind
 prepend sig1 sig2 = Signal $
-    Segment.prepend Segment.num_interpolate (_signal sig1) (_signal sig2)
+    Segment.prepend (Just (==)) Segment.num_interpolate
+        (_signal sig1) (_signal sig2)
 
 unfoldr :: (state -> Maybe ((X, Y), state)) -> state -> Signal kind
 unfoldr gen state = Signal $ Segment.unfoldr gen state
