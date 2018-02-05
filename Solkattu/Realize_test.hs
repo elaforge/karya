@@ -436,9 +436,14 @@ test_verifyAlignment = do
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
     equal (f (take 4 tdkt)) $ Right $ Just
-        (4, "korvai should end on or before sam: avartanam 1, akshara 1")
-    equal (f (take 6 tdkt)) $ Right (Just (6,
-        "korvai should end on or before sam: avartanam 1, akshara 1 + 1/2"))
+        ( 4
+        , "korvai should end on or before sam: avartanam 1, akshara 1; 7 to sam"
+        )
+    equal (f (take 6 tdkt)) $ Right $ Just
+        (6
+        , "korvai should end on or before sam: avartanam 1, akshara 1 + 1/2;\
+            \ 6+1/2 to sam"
+        )
     equal (f (take (8*4) tdkt)) (Right Nothing)
     equal (f (Dsl.speed (-2) $ take 8 tdkt)) (Right Nothing)
     -- Ok to end on sam, even with trailing rests.
@@ -455,19 +460,21 @@ test_verifyAlignment_eddupu = do
     let f = verifyAlignment tdktSmap Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f 1 (take 8 tdkt)) $ Right $ Just
-        (8, "korvai should end on or before sam+1: avartanam 1, akshara 2")
+        (8, "korvai should end on or before sam+1: avartanam 1, akshara 2;\
+            \ 6 to sam")
     equal (f 1 (take 4 tdkt)) $ Right Nothing
     equal (f (-1) (take 4 tdkt)) $ Right $ Just
-        (4, "korvai should end on or before sam-1: avartanam 1, akshara 1")
+        (4, "korvai should end on or before sam-1: avartanam 1, akshara 1;\
+            \ 7 to sam")
     equal (f (-1) (take (4*7) tdkt)) $ Right Nothing
 
 test_verifyAlignmentNadaiChange = do
     let f = verifyAlignment tdktSmap Tala.adi_tala 0
         tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
-    equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt))) $
-        Right (Just (5,
-            "korvai should end on or before sam: avartanam 1, akshara 1"))
+    equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt))) $ Right $ Just
+        (5, "korvai should end on or before sam: avartanam 1, akshara 1;\
+            \ 7 to sam")
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm

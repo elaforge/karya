@@ -170,9 +170,12 @@ verifyAlignment tala eddupu notes
             , "korvai should end on or before sam"
                 <> (if eddupu == 0 then "" else showImproper eddupu)
                 <> ": " <> S.showPosition finalState
+                <> "; " <> pretty left <> " to sam"
             )
         where
         finalNote = fst <$> List.find (not . isSpace . snd) (reverse states)
+        left = fromIntegral (Tala.tala_aksharas tala)
+            - S.stateMatraPosition finalState
     verify (i, (state, Alignment akshara))
         | atAkshara akshara state = Nothing
         | otherwise = Just (i, "expected akshara " <> showt akshara
@@ -183,8 +186,7 @@ verifyAlignment tala eddupu notes
     atEnd state
         | eddupu >= 0 = akshara == eddupu
         | otherwise = akshara - fromIntegral (Tala.tala_aksharas tala) == eddupu
-        where
-        akshara = fromIntegral (S.stateAkshara state) + S.stateMatra state
+        where akshara = S.stateMatraPosition state
     atAkshara akshara state =
         S.stateAkshara state == akshara && S.stateMatra state == 0
 

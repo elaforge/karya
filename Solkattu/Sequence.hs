@@ -28,7 +28,7 @@ module Solkattu.Sequence (
     , tempoToState, withDurations, tempoNotes
     , Stroke(..), normalizeSpeed
     -- * State
-    , State(..), statePosition, showPosition
+    , State(..), statePosition, stateMatraPosition, showPosition
     -- * functions
     , durationOf, noteDuration, noteFmatra, fmatraDuration, normalizeFmatra
     , matraDuration
@@ -342,6 +342,9 @@ initialState = State
 statePosition :: State -> (Int, Tala.Akshara, Duration)
 statePosition state =
     (stateAvartanam state, stateAkshara state, stateMatra state)
+
+stateMatraPosition :: State -> Duration
+stateMatraPosition state = fromIntegral (stateAkshara state) + stateMatra state
 
 showPosition :: State -> Text
 showPosition state =
