@@ -644,7 +644,7 @@ data AbsoluteMode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 transition_env :: Sig.Parser BaseTypes.ControlRef
 transition_env =
     Sig.environ "tr-transition" Sig.Unprefixed (Sig.control "tr-transition" 0)
-    "Alternate with a pitch at this interval."
+    "Take this long to reach the neighbor, as a proportion of time available."
 
 -- | A bundle of standard configuration for trills.
 trill_env :: Maybe Direction -> Maybe Direction
@@ -773,15 +773,11 @@ smooth_trill :: BaseTypes.ControlRef -- ^ time to take make the transition,
 smooth_trill time transitions = do
     srate <- Call.get_srate
     sig_function <- Typecheck.to_signal_or_function time
-    case sig_function of
-        -- Optimize by making a square wave.
-        -- TODO
-        -- Left sig | Signal.constant_val (Score.typed_val sig) == Just 0 ->
-        --     return transitions
-        _ -> do
-            time_at <- Typecheck.convert_to_function time sig_function
-            return $ ControlUtil.smooth_relative ControlUtil.Linear srate
-                (Score.typed_val . time_at) transitions
+    -- I used to optimize sig_function == const 0, but it probably doesn't make
+    -- much difference.
+    time_at <- Typecheck.convert_to_function time sig_function
+    return $ ControlUtil.smooth_relative ControlUtil.Linear srate
+        (Score.typed_val . time_at) transitions
 
 -- | Get trill transition times, adjusted for all the various fancy parameters
 -- that trills have.

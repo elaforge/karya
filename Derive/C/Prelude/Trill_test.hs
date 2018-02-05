@@ -3,8 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Trill_test where
+import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Derive.BaseTypes as BaseTypes
@@ -17,9 +19,11 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import Global
+import Types
 
 
 test_note_trill = do
@@ -241,6 +245,22 @@ test_trill = do
     equal (run_speed ":t") (trill [0, 0.25, 0.5, 0.75, 1, 1.25], [])
     equal (run_speed ":d") ([[]],
         ["Error: expected time type for %tr-speed,14s but got Diatonic"])
+
+test_trill_transition = do
+    let run text = extract $ derive_tracks
+            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (12, 0, "--|")])]
+        extract = DeriveTest.extract e_nns_exact
+    equal (run "tr (4c) 1 .25")
+        ([[(0, NN.c4), (4, NN.c4), (4, NN.d4), (8, NN.d4), (8, NN.c4)]], [])
+    equal (run "tr-transition=.5 | tr (4c) 1 .25")
+        ([[(0, NN.c4), (2, NN.c4), (4, NN.d4), (6, NN.d4), (8, NN.c4)]], [])
+
+e_nns_exact :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns_exact e
+    | not (null errs) = errorStack $
+        "DeriveTest.e_nns: errors flattening signal: " <> showt errs
+    | otherwise = sig
+    where (sig, errs) = DeriveTest.e_nns_errors e
 
 test_trill_start_end = do
     let run ex text = DeriveTest.extract ex $ derive_tracks

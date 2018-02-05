@@ -213,9 +213,11 @@ UNSORTED
         make the things that require them not accept ScoreTime.  I'd need to
         go review why I made calls non-normalized in the first place, and see
         how much those reasons still hold.
-  - trills are now too hard-edged, why were they smoother before?
+  / trills are now too hard-edged, why were they smoother before?
     . They weren't, it's the Pianoteq version.  Still, trill should take
       a curve arg, and maybe curve by default.
+    . Turns out there is already a tr-transition param, it was just
+      mis-documented.
   Unify Environ and ControlMap:
     . I can get most of the benefit by unifying the syntax: x=y becomes set
       a control or env depending on the type of the rhs.
