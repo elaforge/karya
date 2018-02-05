@@ -20,11 +20,11 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.C.Prelude.Articulation as Articulation
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
+import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -183,7 +183,7 @@ has_attr attr = any (`Attrs.contain` attr) . patch_attributes
 
 grace_call :: [Attrs.Attributes] -> Derive.Generator Derive.Note
 grace_call attrs =
-    Grace.c_attr_grace (Map.filter (`elem` attrs) grace_intervals)
+    GraceUtil.c_attr_grace (Map.filter (`elem` attrs) grace_intervals)
 
 grace_intervals :: Map Int Attrs.Attributes
 grace_intervals = Map.fromList $

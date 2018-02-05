@@ -26,9 +26,9 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.C.Bali.Gender as Gender
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.C.Post.Postproc as Postproc
 import qualified Derive.Call as Call
+import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -176,7 +176,7 @@ realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
         notes =
     mconcatMap realize $ filter ((>0) . note_dyn . fst) $ zip notes extents
     where
-    extents = Grace.fit_grace_durs (RealTime.seconds place)
+    extents = GraceUtil.fit_grace_durs (RealTime.seconds place)
         prev event_start event_end (length notes) dur
     note_dyn (_, _, dyn) = dyn
     realize ((tpitch, attrs, dyn), (real_start, dur)) = do

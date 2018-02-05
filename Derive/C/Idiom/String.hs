@@ -14,9 +14,9 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
+import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
@@ -320,7 +320,7 @@ make_gliss name is_absolute = Derive.generator module_ name mempty
         pitches <- gliss_pitches open_strings dest_pitch gliss_start
         let total_time = if is_absolute then time
                 else time * fromIntegral (length pitches)
-        Ly.when_lilypond (Grace.lily_grace args (end - time) pitches) $
+        Ly.when_lilypond (GraceUtil.lily_grace args (end - time) pitches) $
             gliss pitches total_time start_dyn dest_dyn end
                 <> Call.placed_note args
 

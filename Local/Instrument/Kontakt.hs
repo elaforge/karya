@@ -23,11 +23,11 @@ import qualified Cmd.Msg as Msg
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.C.Prelude.Articulation as Articulation
 import qualified Derive.C.Prelude.Highlight as Highlight
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
+import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
@@ -300,7 +300,7 @@ dio8_patches =
             Make.modify_generator_
                 "Multiply %dyn by .65, since the grace samples are too loud."
                 (Call.multiply_dynamic 0.65) $
-            Grace.c_attr_grace $ Map.fromList $
+            GraceUtil.c_attr_grace $ Map.fromList $
             map Tuple.swap grace_intervals
         , MidiInst.both "o" $
             Make.modify_calls_ "" (Call.add_constant Controls.octave (-1))

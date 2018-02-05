@@ -2,13 +2,10 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.C.Europe.Grace_test where
-import qualified Data.Map as Map
-
+module Derive.C.Prelude.Grace_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.C.Prelude.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
@@ -131,31 +128,6 @@ test_grace_ly = do
         (Right "<< { VoiceOne: c1 } { VoiceTwo: \\acciaccatura { e8 } d1 } >>",
             [])
 
-test_grace_attr = do
-    let run note = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_setup setup_call "import europe"
-                [ ("> | %legato-overlap = .5 | grace-dur = 1", [note])
-                , ("*", [(0, 0, "4c")])
-                ]
-        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_pitch e,
-            DeriveTest.e_attributes e)
-        setup_call =
-            CallTest.with_note_generator "g" (Grace.c_attr_grace graces)
-    -- Attrs when it can.
-    equal (run (0, 1, "g (3bb)"))
-        ([((-1, 2), "4c", "+up+whole")], [])
-    equal (run (0, 1, "g 1c"))
-        ([((-1, 2), "4c", "+down+half")], [])
-    -- Notes when it can't.
-    equal (run (0, 1, "g (4a)"))
-        ([((-1, 1.5), "4a", "+"), ((0, 1), "4c", "+")], [])
-
-graces :: Map Int Attrs.Attributes
-graces = Map.fromList
-    [ (-1, Attrs.attrs ["half", "down"])
-    , (2, Attrs.attrs ["whole", "up"])
-    ]
-
 test_roll = do
     let run extract = DeriveTest.extract extract . derive_tracks
     let tracks call = [(">", [(2, 1, call)]), ("*", [(2, 0, "4c")])]
@@ -188,12 +160,6 @@ test_mordent_p = do
         [(0, NN.c4), (2, NN.c4), (2, NN.d4), (4, NN.d4), (4, NN.c4)]
 
 -- * misc
-
-test_fit_grace = do
-    let f place notes = Grace.fit_grace place (Just 0) 2 4 notes 1
-    equal (f 0 4) [0.5, 1, 1.5, 2]
-    equal (f 1 4) [2, 2.5, 3, 3.5]
-    equal (f 0.5 4) [1.25, 1.75, 2.25, 2.75]
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = DeriveTest.derive_tracks "import europe"

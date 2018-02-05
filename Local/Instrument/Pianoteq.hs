@@ -7,7 +7,7 @@ module Local.Instrument.Pianoteq where
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.C.Europe.Grace as Grace
+import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -81,7 +81,7 @@ gliss :: Score.Control
 gliss = "gliss"
 
 c_grace :: Derive.Generator Derive.Note
-c_grace = Grace.make_grace Module.instrument
+c_grace = GraceUtil.make_grace Module.instrument
     ("This is just like the standard `g` call, except it sets "
         <> ShowVal.doc gliss <> " and doesn't use `(`.")
     (Derive.with_constant_control gliss 1) (\_args events -> Sub.derive events)

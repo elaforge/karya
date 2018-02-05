@@ -11,7 +11,6 @@ import qualified Derive.C.Bali.Reyong as Reyong
 import qualified Derive.C.Bali.Sekar as Sekar
 import qualified Derive.C.China.Zheng as Zheng
 import qualified Derive.C.Europe.Chord as Chord
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.C.Idiom.String as String
 import qualified Derive.C.Idiom.Wind as Wind
 import qualified Derive.C.India.Gamakam as Gamakam
@@ -34,6 +33,7 @@ import qualified Derive.C.Prelude.Control as Control
 import qualified Derive.C.Prelude.ControlFunction as ControlFunction
 import qualified Derive.C.Prelude.Delay as Delay
 import qualified Derive.C.Prelude.Equal as Equal
+import qualified Derive.C.Prelude.Grace as Grace
 import qualified Derive.C.Prelude.Highlight as Highlight
 import qualified Derive.C.Prelude.Import as Import
 import qualified Derive.C.Prelude.InferTrackVoice as InferTrackVoice

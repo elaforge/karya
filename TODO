@@ -202,6 +202,20 @@ STATUS
     before and after warp as function, and linear segments.
 
 UNSORTED
+  . What would I actually need to have a useful TrackTime?
+    . TrackTimes come from Events, and they are absolute measures.  Addition
+      and subtraction yields ScoreTimes:
+        (+) :: RelativeTime -> TrackTime -> ScoreTime
+    . Ui.Event has to be polymorphic on the time type, because I synthesize
+      fake Ui.Events or translate real ones (do I really do that? where?).
+      . An alternative is to put all calls in normalized time, and then have
+        some organized way to get TrackTimes for when I need them.  Or rather,
+        make the things that require them not accept ScoreTime.  I'd need to
+        go review why I made calls non-normalized in the first place, and see
+        how much those reasons still hold.
+  - trills are now too hard-edged, why were they smoother before?
+    . They weren't, it's the Pianoteq version.  Still, trill should take
+      a curve arg, and maybe curve by default.
   Unify Environ and ControlMap:
     . I can get most of the benefit by unifying the syntax: x=y becomes set
       a control or env depending on the type of the rhs.
@@ -1381,9 +1395,10 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
               max mb  total mb  derive     perform
       before: 142.58  8743.73   5.89~5.98  0.70~0.72
       after:  139.28  9827.79   6.77~6.83  1.18~1.22
-    . Actually the big jump was between:
-      . replace the Patch.ConstantPitch flag with DUtil.constant_control
-      . linear: make Segment.drop_discontinuity_at insert an extra sampl
+    . It seems like the big jump as expected was at 'switch the signal
+      implementation from piecewise-constant', but I have to go to 'linear:
+      make Segment.drop_discontinuity_at insert an extra sample', since that
+      fixes a serious bug.
     . There are:
       * update Derive.Note.extract_track_signal to use new clip_before / clip_after
       * linear: update Block.trim_controls to use drop_discontinuity_at
@@ -1417,9 +1432,8 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
     . One candidate is adding clip_before and clip_after now having to add
       a sample.  I could fix those by adding start and extent to Segment.
   / optimize flat pitch segments in PitchUtil.segment
-  - trills are now too hard-edged, why were they smoother before?
-    . They weren't, it's the Pianoteq version.  Still, trill should take
-      a curve arg, and maybe curve by default.
+    . These would only show up in PitchUtil.breakpoints, and I only use that
+      in a single val call, which I don't really use.
 
   reimplement:
     - implement Warp.compose_hybrid

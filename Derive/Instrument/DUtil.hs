@@ -16,9 +16,9 @@ import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.C.Europe.Grace as Grace
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
+import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
@@ -149,7 +149,7 @@ doubled_call callee name place default_time default_dyn_scale = generator name
         dyn <- Call.dynamic =<< Args.real_start args
         let with_dyn = Call.with_dynamic (dyn * dyn_scale)
         let note = Eval.reapply_generator_normalized args callee
-        notes <- Grace.repeat_notes note 2 time
+        notes <- GraceUtil.repeat_notes note 2 time
             (if place == Before then 0 else 1) args
         case notes of
             [first, second]
