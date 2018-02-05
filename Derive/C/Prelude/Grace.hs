@@ -48,8 +48,6 @@ library = mconcat
 
 -- * note calls
 
--- | Grace is in the prelude since it's so commonly used.  Mordent and the
--- other variations are still in 'Module.europe'.
 c_grace :: Derive.Generator Derive.Note
 c_grace = GraceUtil.make_grace Module.prelude
     "Emit grace notes. The grace notes go through the `(` call, so they will\
@@ -94,7 +92,7 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
 -- ** roll
 
 c_roll :: Derive.Generator Derive.Note
-c_roll = Derive.generator Module.europe "roll" Tags.ornament
+c_roll = Derive.generator Module.prelude "roll" Tags.ornament
     "These are like grace notes, but they all have the same pitch.\
     \ The extra notes always fall before the main one, because `trem` covers\
     \ the afterwards case."
@@ -120,7 +118,7 @@ roll times time dyn_scale args = do
 -- ** mordent
 
 c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
-c_mordent default_neighbor = Derive.generator Module.europe "mordent"
+c_mordent default_neighbor = Derive.generator Module.prelude "mordent"
     Tags.ornament
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,)
@@ -144,7 +142,7 @@ lily_mordent args neighbor = do
 -- * pitch calls
 
 c_mordent_p :: Pitch.Transpose -> Derive.Generator Derive.Pitch
-c_mordent_p default_neighbor = Derive.generator1 Module.europe "mordent"
+c_mordent_p default_neighbor = Derive.generator1 Module.prelude "mordent"
     Tags.ornament "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,,)
     <$> Sig.required "pitch" "Base pitch."

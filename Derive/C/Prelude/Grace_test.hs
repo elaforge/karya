@@ -82,7 +82,7 @@ test_grace = do
 
     -- Ensure grace works with attr slur.
     let run_a = DeriveTest.extract DeriveTest.e_attributes
-            . DeriveTest.derive_tracks_setup setup "import europe"
+            . DeriveTest.derive_tracks_setup setup ""
         setup = CallTest.with_note_generator "("
             (Articulation.c_attr_slur Attrs.pizz Attrs.legato)
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
@@ -148,18 +148,18 @@ test_roll = do
 -- * pitch calls
 
 test_grace_p = do
-    let run = CallTest.run_pitch "import europe"
+    let run = CallTest.run_pitch ""
     equal (run [(0, "grace-dur = 2 | g (4c) -2 -1"), (10, "--|")])
         [(0, NN.a3), (2, NN.a3), (2, NN.b3), (4, NN.b3), (4, NN.c4)]
     equal (run [(0, "grace-dur = 2 | g (4c) -2c -1"), (3, "--|")])
         [(0, NN.as3), (1, NN.as3), (1, NN.b3), (2, NN.b3), (2, NN.c4)]
 
 test_mordent_p = do
-    let run = CallTest.run_pitch "import europe"
+    let run = CallTest.run_pitch ""
     equal (run [(0, "dur=2 | `mordent` (4c)")])
         [(0, NN.c4), (2, NN.c4), (2, NN.d4), (4, NN.d4), (4, NN.c4)]
 
 -- * misc
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = DeriveTest.derive_tracks "import europe"
+derive_tracks = DeriveTest.derive_tracks ""
