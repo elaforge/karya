@@ -229,7 +229,8 @@ UNSORTED
     . This means I can also get rid of the separate pitch and named pitches,
       and just have a signal named "pitch".
   cleanup from linear:
-    - make ControlUtil.smooth take negative time
+    / make ControlUtil.smooth take negative time
+      . Actually that doesn't make sense.
     * make SignalTransform.c_smooth take cf curve
     - rename RealTime.seconds to from_seconds etc.
       . This is a big change, so put it off for a bit.

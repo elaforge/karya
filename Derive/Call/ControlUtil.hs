@@ -350,11 +350,7 @@ distribute start end vals = case vals of
 -- * smooth
 
 -- | Use the function to create a segment between each point in the signal.
---
--- > 0 1 2 3 4 5 6 7 8
--- > 0-------1-------0
--- > 0-----0=1-----1=0      time = -1
--- > 0-------0=1-----1=0    time = 1
+-- Smooth with 'split_samples_absolute'.
 smooth_absolute :: Curve -> RealTime -> RealTime
     -- ^ If negative, each segment is from this much before the original sample
     -- until the sample.  If positive, it starts on the sample.  If samples are
@@ -363,10 +359,21 @@ smooth_absolute :: Curve -> RealTime -> RealTime
 smooth_absolute curve srate time =
     breakpoints srate curve . split_samples_absolute time
 
+-- | Smooth with 'split_samples_relative'.
+smooth_relative :: Curve -> RealTime -> Typecheck.Function
+    -> [(RealTime, Signal.Y)] -> Signal.Control
+smooth_relative curve srate time_at =
+    breakpoints srate curve . split_samples_relative time_at
+
 -- | Split apart samples to make a flat segment.
 --
 -- TODO if y=Pitch there's no Eq, so breakpoints winds up sampling flat
 -- segments.  I could emit Maybe y where Nothing means same as previous.
+--
+-- > 0 1 2 3 4 5 6 7 8
+-- > 0-------1-------0
+-- > 0-----0=1-----1=0      time = -1
+-- > 0-------0=1-----1=0    time = 1
 split_samples_absolute :: RealTime -> [(RealTime, y)] -> [(RealTime, y)]
 split_samples_absolute time
     | time >= 0 = concatMap split_prev . Seq.zip_neighbors
@@ -378,23 +385,18 @@ split_samples_absolute time
         where is_room = maybe True ((x1 + time <) . fst) next
     split_next ((x1, y1), Nothing) = [(x1, y1)]
     split_next ((x1, y1), Just (x2, _)) =
-        -- (x1, y1) : if x1 - time < x2 then [(x1 - time, y1)] else []
         (x1, y1) : if x2 + time > x1 then [(x2 + time, y1)] else []
 
 -- | Like 'smooth_absolute', but the transition time is a 0--1 proportion of the
--- available time, rather than an absolute time.
---
--- TODO support negative time and make it consistent with
--- 'split_samples_absolute'.
+-- available time, rather than an absolute time.  Also, the transition is
+-- always before the destination sample, unlike absolute, where it's only
+-- before for a negative transition time.  This is because I can't transition
+-- after the sample, because the last sample has no next sample to take
+-- a proportional time from!
 --
 -- > 0 1 2 3 4 5 6 7 8
 -- > 0-------1-------0
--- > 0-----0=1-----1=0 map time_at [0, 4] = [0.25, 0.25]
-smooth_relative :: Curve -> RealTime -> Typecheck.Function
-    -> [(RealTime, Signal.Y)] -> Signal.Control
-smooth_relative curve srate time_at =
-    breakpoints srate curve . split_samples_relative time_at
-
+-- > 0-----0=1-----1=0 time_at = const 0.25
 split_samples_relative :: Typecheck.Function -> [(RealTime, y)]
     -> [(RealTime, y)]
 split_samples_relative time_at = concatMap split . Seq.zip_next

@@ -48,7 +48,7 @@ convertNote inst note = first ((pretty note <> ": ")<>) $ do
         Left $ "no object: " <> object
     let get c = tryJust ("no " <> pretty c) $ Map.lookup c (Note.controls note)
     let getStart c = tryJust ("no value: " <> pretty c)
-            . Signal.at (Note.start note) =<< get c
+            . Signal.at_maybe (Note.start note) =<< get c
     dyn <- getStart Control.dynamic
     (x, y) <- (,) <$> getStart Patch.c_x <*> getStart Patch.c_y
     dur <- getStart Patch.c_duration
