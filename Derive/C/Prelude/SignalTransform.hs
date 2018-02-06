@@ -10,7 +10,6 @@ module Derive.C.Prelude.SignalTransform (
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -25,7 +24,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
@@ -90,7 +88,7 @@ sample_hold_control points sig = Signal.from_pairs $ do
 c_quantize :: Derive.Transformer Derive.Control
 c_quantize = Derive.transformer Module.prelude "quantize" mempty
     "Quantize a control signal."
-    $ Sig.callt (required "val" "Quantize to multiples of this value.") $
+    $ Sig.callt (Sig.required "val" "Quantize to multiples of this value.") $
     \val _args deriver -> do
         srate <- Call.get_srate
         Post.signal (quantize srate val) deriver
@@ -105,7 +103,7 @@ c_slew :: Derive.Transformer Derive.Control
 c_slew = Derive.transformer Module.prelude "slew" mempty
     "Smooth a signal by interpolating such that it doesn't exceed the given\
     \ slope."
-    $ Sig.callt (required "slope" "Maximum allowed slope, per second.")
+    $ Sig.callt (Sig.required "slope" "Maximum allowed slope, per second.")
     $ \slope _args -> Post.signal (slew_limiter slope)
 
 -- | Smooth the signal by not allowing the signal to change faster than the
@@ -127,40 +125,24 @@ c_smooth :: Derive.Transformer Derive.Control
 c_smooth = Derive.transformer Module.prelude "smooth" mempty
     "Smooth a signal by interpolating between each sample."
     $ Sig.callt ((,)
-    <$> required "time" "Amount of time to reach to the next sample.\
+    <$> Sig.required "time" "Amount of time to reach to the next sample.\
         \ If negative, it will end on the destination sample rather than\
         \ start on it. The time will be compressed if the samples are too\
         \ close, so unlike `slew`, this will always reach the samples in the\
         \ source."
-    <*> defaulted "curve" "i" "Curve."
+    <*> ControlUtil.curve_arg
     ) $ \(Typecheck.DefaultReal time, curve) args deriver -> do
         srate <- Call.get_srate
         time <- Call.real_duration (Args.start args) time
-        curve <- Derive.require "curve" (parse_curve curve)
         Post.signal (ControlUtil.smooth curve srate time
             . Signal.to_pairs_unique) deriver
-
--- TODO use ControlFunction curves instead of this ad-hoc thing
-parse_curve :: Text -> Maybe ControlUtil.Curve
-parse_curve curve = case untxt curve of
-    "i" -> Just ControlUtil.Linear
-    ['e', n] | Just d <- digit n -> Just $ ControlUtil.Function $
-        ControlUtil.expon (fromIntegral (-d))
-    [n, 'e'] | Just d <- digit n -> Just $ ControlUtil.Function $
-        ControlUtil.expon (fromIntegral d)
-    [n1, 'e', n2] | Just d1 <- digit n1, Just d2 <- digit n2 ->
-        Just $ ControlUtil.Function $
-            ControlUtil.expon2 (fromIntegral d1) (fromIntegral d2)
-    _ -> Nothing
-    where
-    digit = Num.readDigit
 
 c_redirect :: Derive.Merge -> Derive.Transformer Derive.Control
 c_redirect merger =
     Derive.transformer Module.prelude "redirect" Tags.cmod
     ("Redirect a signal to another control, using the control modifier hack.\
     \ The control is combined with " <> merge_name merger <> ".")
-    $ Sig.callt (required "control" "Redirect to this control.")
+    $ Sig.callt (Sig.required "control" "Redirect to this control.")
     $ \control _args deriver -> do
         (sig, logs) <- Post.derive_signal deriver
         merger <- Derive.resolve_merge merger control

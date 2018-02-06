@@ -230,7 +230,7 @@ UNSORTED
       and just have a signal named "pitch".
   cleanup from linear:
     - make ControlUtil.smooth take negative time
-    - make SignalTransform.c_smooth take cf curve
+    * make SignalTransform.c_smooth take cf curve
     - rename RealTime.seconds to from_seconds etc.
       . This is a big change, so put it off for a bit.
     - Trill.c_control_trill and Trill.c_pitch_trill should take a cf curve
@@ -1425,14 +1425,12 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
         ...
       ? linear: make Segment.drop_discontinuity_at insert an extra sample to avoid changing the slope
 
-    . Try to get that back, by doing the constant pitch signal
-      optimization, and get rid of clip.
-    . Then do a SCC profile to see where the time goes.  Maybe do one
-      before to see if something new has come up?
+    . Do a SCC profile to see where the time goes.  Maybe do one before to see
+      if something new has come up?
+    . Try to get that back.  Maybe the 'clip_before, clip_after' change above.
+    . Or possibly look into optimizing vector operations.
     . It looks like the Warp change didn't have noticeable performance
       impact, so that's good.
-    . One candidate is adding clip_before and clip_after now having to add
-      a sample.  I could fix those by adding start and extent to Segment.
   / optimize flat pitch segments in PitchUtil.segment
     . These would only show up in PitchUtil.breakpoints, and I only use that
       in a single val call, which I don't really use.

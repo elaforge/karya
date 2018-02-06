@@ -149,6 +149,10 @@ curve_env :: Sig.Parser Curve
 curve_env = cf_to_curve <$>
     Sig.environ "curve" Sig.Both cf_linear "Curve function."
 
+curve_arg :: Sig.Parser Curve
+curve_arg = cf_to_curve <$>
+    Sig.defaulted "curve" cf_linear "Curve function."
+
 cf_linear :: BaseTypes.ControlFunction
 cf_linear = curve_to_cf "" Linear
 
