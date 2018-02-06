@@ -266,7 +266,7 @@ smooth_trill :: RealTime -> Typecheck.Function -> Typecheck.Function
     -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill time val1 val2 transitions = do
     srate <- Call.get_srate
-    return $ ControlUtil.smooth ControlUtil.Linear srate time $
+    return $ ControlUtil.smooth_absolute ControlUtil.Linear srate time $
         trill_from_transitions val1 val2 transitions
 
 convert_directions :: RealTime -> Typecheck.Function -> Maybe Trill.Direction
@@ -342,7 +342,8 @@ dip :: Double -> Double -> BaseTypes.ControlRef -> Double
 dip high low speed dyn_scale transition (start, end) = do
     srate <- Call.get_srate
     transitions <- Trill.trill_transitions (start, end) False speed
-    let smooth = ControlUtil.smooth ControlUtil.Linear srate (-transition / 2)
+    let smooth = ControlUtil.smooth_absolute ControlUtil.Linear srate
+            (-transition / 2)
         transpose = smooth $
             trill_from_transitions (const high) (const low) transitions
         dyn = smooth $
@@ -382,7 +383,7 @@ c_jaru_intervals_c intervals = generator1 "jaru" mempty
 jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
     -> Signal.Control
 jaru srate start time transition intervals =
-    ControlUtil.smooth ControlUtil.Linear srate (-transition) $
+    ControlUtil.smooth_absolute ControlUtil.Linear srate (-transition) $
         zip (Seq.range_ start time) (intervals ++ [0])
 
 generator1 :: Derive.CallName -> Tags.Tags -> Doc.Doc

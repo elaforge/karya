@@ -523,7 +523,7 @@ c_jaru append_zero = generator1 "jaru" mempty
 jaru :: ControlUtil.Curve -> RealTime -> RealTime -> RealTime -> RealTime
     -> [Signal.Y] -> Signal.Control
 jaru curve srate start time transition intervals =
-    ControlUtil.smooth curve srate (-transition) $
+    ControlUtil.smooth_absolute curve srate (-transition) $
         zip (Seq.range_ start time) intervals
 
 -- * middle
@@ -667,7 +667,7 @@ smooth_trill :: ControlUtil.Curve -> RealTime -> Typecheck.Function
     -> Typecheck.Function -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill curve time val1 val2 transitions = do
     srate <- Call.get_srate
-    return $ ControlUtil.smooth curve srate time $
+    return $ ControlUtil.smooth_absolute curve srate time $
         trill_from_transitions val1 val2 transitions
 
 -- | Make a trill signal from a list of transition times.

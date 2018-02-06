@@ -134,7 +134,7 @@ c_smooth = Derive.transformer Module.prelude "smooth" mempty
     ) $ \(Typecheck.DefaultReal time, curve) args deriver -> do
         srate <- Call.get_srate
         time <- Call.real_duration (Args.start args) time
-        Post.signal (ControlUtil.smooth curve srate time
+        Post.signal (ControlUtil.smooth_absolute curve srate time
             . Signal.to_pairs_unique) deriver
 
 c_redirect :: Derive.Merge -> Derive.Transformer Derive.Control

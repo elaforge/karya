@@ -355,14 +355,13 @@ distribute start end vals = case vals of
 -- > 0-------1-------0
 -- > 0-----0=1-----1=0      time = -1
 -- > 0-------0=1-----1=0    time = 1
---
--- TODO rename to smooth_absolute
-smooth :: Curve -> RealTime -> RealTime
+smooth_absolute :: Curve -> RealTime -> RealTime
     -- ^ If negative, each segment is from this much before the original sample
     -- until the sample.  If positive, it starts on the sample.  If samples are
     -- too close, the segments are shortened correspondingly.
     -> [(RealTime, Signal.Y)] -> Signal.Control
-smooth curve srate time = breakpoints srate curve . split_samples_absolute time
+smooth_absolute curve srate time =
+    breakpoints srate curve . split_samples_absolute time
 
 -- | Split apart samples to make a flat segment.
 --
@@ -382,7 +381,7 @@ split_samples_absolute time
         -- (x1, y1) : if x1 - time < x2 then [(x1 - time, y1)] else []
         (x1, y1) : if x2 + time > x1 then [(x2 + time, y1)] else []
 
--- | Like 'smooth', but the transition time is a 0--1 proportion of the
+-- | Like 'smooth_absolute', but the transition time is a 0--1 proportion of the
 -- available time, rather than an absolute time.
 --
 -- TODO support negative time and make it consistent with

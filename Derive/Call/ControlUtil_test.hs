@@ -65,9 +65,9 @@ test_slope_to_limit = do
     -- TODO not sure this makes sense
     equal (f (Just 0) (Just 2) (-1) (-1)) [(4, -1), (4, 0)]
 
-test_smooth = do
+test_smooth_absolute = do
     let f time = Signal.to_pairs
-            . ControlUtil.smooth ControlUtil.Linear 1 time
+            . ControlUtil.smooth_absolute ControlUtil.Linear 1 time
         s020 = [(0, 0), (2, 2), (4, 0)]
     equal (f 2 [(0, 0), (2, 2)]) [(0, 0), (2, 0), (4, 2)]
     equal (f 2 s020) [(0, 0), (2, 0), (4, 2), (6, 0)]
