@@ -62,6 +62,10 @@ data ControlConfig = ControlConfig {
     , _description :: !Text
     } deriving (Eq, Show)
 
+instance Pretty ControlConfig where
+    pretty (ControlConfig constant desc) =
+        (if constant then "(per-note constant): " else "") <> desc
+
 getParsedMetadata :: Patch
     -> IO (Either Text (Doc.Doc, Map Control.Control ControlConfig))
 getParsedMetadata patch = do

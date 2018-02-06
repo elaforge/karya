@@ -18,8 +18,6 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-
 
 -- | Path to a sample, relative to the instrument db root.
 type SamplePath = FilePath
@@ -45,8 +43,7 @@ realize (Sample start filename offset env ratio) = do
     audio <- Sndfile.sourceSndFrom (AUtil.toAudioTime offset)
         (Config.instrumentDbDir </> filename)
     return $ Audio.padStart (AUtil.toAudioTime start) $
-        resample (fromMaybe 0 $ Signal.at start ratio) $
-        applyEnvelope start env audio
+        resample (Signal.at start ratio) $ applyEnvelope start env audio
 
 resample :: Double -> AUtil.Audio -> AUtil.Audio
 resample ratio audio
@@ -66,5 +63,5 @@ applyEnvelope :: RealTime.RealTime -> Signal.Signal -> AUtil.Audio
 applyEnvelope start sig
     | ApproxEq.eq 0.01 val 1 = id
     | otherwise = Audio.gain val
-    where val = Num.d2f (fromMaybe 0 $ Signal.at start sig)
+    where val = Num.d2f (Signal.at start sig)
     -- TODO scale by envelope, and shorten the audio if the 'sig' ends on 0

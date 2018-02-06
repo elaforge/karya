@@ -166,10 +166,11 @@ derive_saved with_perform fname = do
         Ui.config#Ui.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library aliases
             (Cmd.initial_state cmd_config)
-    (events, logs) <- DeriveSaved.timed_derive fname ui_state cmd_state block_id
+    ((events, logs), _cpu) <-
+        DeriveSaved.timed_derive fname ui_state cmd_state block_id
     mapM_ Log.write logs
     when with_perform $ do
-        (_msgs, logs) <- DeriveSaved.timed_perform cmd_state
+        ((_msgs, logs), _cpu) <- DeriveSaved.timed_perform cmd_state
             ("perform " ++ fname) ui_state events
         mapM_ Log.write logs
 

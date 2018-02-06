@@ -27,4 +27,5 @@ type SignalP = Foreign.Ptr (Signal.Sample Double)
 
 signal :: Signal.Signal -> (SignalP -> Int -> IO a) -> IO a
 signal sig process = Foreign.withForeignPtr fptr $ \ptr -> process ptr len
-    where (fptr, len) = Vector.Storable.unsafeToForeignPtr0 sig
+    where
+    (fptr, len) = Vector.Storable.unsafeToForeignPtr0 $ Signal.to_vector sig

@@ -18,7 +18,7 @@ module Perform.Signal (
 
     -- * construct / destruct
     , from_sample, from_pairs, from_segments
-    , to_samples, to_pairs, to_pairs_unique, to_segments
+    , to_samples, to_pairs, to_pairs_unique, to_segments, to_vector
     , constant, constant_val
     , prepend
     , unfoldr
@@ -167,6 +167,9 @@ to_pairs_unique = Seq.drop_initial_dups fst . to_pairs
 
 to_segments :: Signal kind -> [Segment.Segment Y]
 to_segments = Segment.to_segments . _signal
+
+to_vector :: Signal kind -> Vector.Vector (Sample Y)
+to_vector = Segment.to_vector . _signal
 
 constant :: Y -> Signal kind
 constant = Signal . Segment.constant

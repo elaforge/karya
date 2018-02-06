@@ -54,8 +54,8 @@ main = do
                 Left err -> Text.IO.putStrLn $ "ERROR: " <> err
                 Right (doc, controls) -> do
                     Text.IO.putStrLn $ TextUtil.toText doc
-                    forM_ controls $ \(c, cdoc) ->
-                        Text.IO.putStrLn $ pretty c <> ": " <> cdoc
+                    forM_ (Map.toList controls) $ \(c, cdoc) ->
+                        Text.IO.putStrLn $ pretty c <> ": " <> pretty cdoc
                     uiControls <- DriverC.getUiControls patch
                     forM_ uiControls $ \(c, _, cdoc) ->
                         Text.IO.putStrLn $ "UI: " <> pretty c <> ": " <> cdoc
@@ -144,8 +144,8 @@ mergeControls :: [Control.Control] -> [Note.Note]
 mergeControls supported notes =
     Map.fromList $ filter (not . Signal.null . snd) $ map merge supported
     where
-    merge control = (control,) $ Signal.merge_segments
-        [ (Note.start n, signal)
+    merge control = (control,) $ mconcat
+        [ Signal.clip_after(Note.start n) signal
         | n <- notes
         , signal <- maybe [] (:[]) $ Map.lookup control (Note.controls n)
         ]
@@ -154,7 +154,7 @@ mergeControls supported notes =
 -- suitable for percussion, but maybe continuious instruments expect a constant
 -- 1 for as long as the note is sustained?
 makeGate :: [Note.Note] -> Signal.Signal
-makeGate notes = Signal.signal $
+makeGate notes = Signal.from_pairs $
     concat [[(Note.start n, 0), (Note.start n, 1)]  | n <- notes]
 
 audioSource :: Storable.Vector Float -> AUtil.Audio
