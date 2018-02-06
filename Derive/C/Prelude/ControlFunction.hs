@@ -55,7 +55,7 @@ library = Library.vals $
 make_call :: Maybe Doc.Doc -> ControlUtil.CurveD
     -> (Expr.Symbol, Derive.ValCall)
 make_call doc curve =
-    ( Expr.make_sym "cf-" (Expr.Symbol $ ControlUtil.curve_name curve)
+    ( "cf-" <> Expr.Symbol (ControlUtil.curve_name curve)
     , ControlUtil.make_curve_call doc curve
     )
 

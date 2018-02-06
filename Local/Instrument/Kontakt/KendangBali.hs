@@ -230,7 +230,7 @@ c_pasang_stroke sym pstroke = Derive.generator Module.instrument
 both_calls :: [(Expr.Symbol, PasangStroke)]
 both_calls =
     ("PLPL", Both (Note Plak mempty) (Note Plak mempty)) :
-    [ (wadon ^ lanang, Both wnote lnote)
+    [ (wadon <> lanang, Both wnote lnote)
     | (_, wadon, Wadon wnote) <- pasang_calls
     , (_, lanang, Lanang lnote@(Note lstroke _)) <- pasang_calls
     , lstroke /= Plak
@@ -238,7 +238,6 @@ both_calls =
     ]
     where
     already_bound = Set.fromList [stroke | (_, _, stroke) <- pasang_calls]
-    a ^ b = Expr.Symbol (Expr.unsym a <> Expr.unsym b)
 
 pasang_calls :: [(Char, Expr.Symbol, PasangStroke)]
 pasang_calls =
@@ -305,7 +304,7 @@ balinese_pasang_calls =
     open_dug = "᭴"      -- > dug   o tut
     closed_tak = "᭷"    -- ] tek   u kum
     closed_tuk = "᭶"    -- [ tak   U pung
-    quiet (Expr.Symbol s) = Expr.Symbol ("," <> s)
+    quiet = ("," <>)
     wadon stroke = Wadon (Note stroke mempty)
     lanang stroke = Lanang (Note stroke mempty)
 

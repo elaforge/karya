@@ -127,7 +127,7 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
     where
     hardcoded name arg dir =
         [ (name, c_kampita doc arg dir)
-        , (Expr.Symbol $ "n" <> Expr.unsym name, c_nkampita doc arg dir)
+        , ("n" <> name, c_nkampita doc arg dir)
         ]
     doc = Doc.Doc $ Text.unlines
         [ "These are hardcoded `k` variants:"

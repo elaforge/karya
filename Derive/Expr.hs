@@ -59,17 +59,11 @@ instance ShowVal.ShowVal val => Pretty (Term val) where
 -- there's an IsString instance, but if you put in a space you'll get a messed
 -- up expression.
 newtype Symbol = Symbol Text
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
+    deriving (Eq, Ord, Read, Show, Monoid, DeepSeq.NFData, String.IsString,
         Pretty, Serialize.Serialize)
 
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
-
--- | Append two Symbols.  I could just put Symbol in Monoid, but since Symbols
--- become tracklang call names, I still want to be a bit careful about
--- costructing them.
-make_sym :: Symbol -> Symbol -> Symbol
-make_sym (Symbol sym1) (Symbol sym2) = Symbol (sym1 <> sym2)
 
 instance ShowVal.ShowVal Symbol where
     show_val (Symbol sym) = sym

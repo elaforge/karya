@@ -234,17 +234,16 @@ UNSORTED
     * make SignalTransform.c_smooth take cf curve
     - rename RealTime.seconds to from_seconds etc.
       . This is a big change, so put it off for a bit.
-    - Trill.c_control_trill and Trill.c_pitch_trill should take a cf curve
+    / Trill.c_control_trill and Trill.c_pitch_trill should take a cf curve
       to interpolate the points.  Then constant gets hard trill, and some
       compressed linear for the old behaviour, and bezier for smooth.
     * srate is misnamed, it's a period.  If it were really a rate it would
       be 60 or something.
-    - Maybe put Expr.Symbol into Monoid after all.
+    * Maybe put Expr.Symbol into Monoid after all.
     * remove Derive.Deriver.Monad.state_pitch_mergers
       . The identity can become a scalar now.
     * get rid of Postproc.replace_note?
     * update ControlUtil.segment
-    - Support negative time in ControlUtil.split_samples_absolute
     - Deriver.Lib.with_control_mods
     - GConvert.fingerMovement
     - Signal.integrate
