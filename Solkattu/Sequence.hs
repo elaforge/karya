@@ -48,6 +48,7 @@ import Global
 
 data Note g a = Note !a
     | TempoChange !TempoChange ![Note g a]
+    -- See NOTE [nested-groups] for how I arrived at this design.
     | Group !g ![Note g a]
     deriving (Eq, Ord, Show, Functor)
 
