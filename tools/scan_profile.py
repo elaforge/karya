@@ -22,7 +22,9 @@ def main():
         timings.extend(read(os.path.join(timing_dir, fn)))
 
     timings.sort(key=lambda json: json['patch']['date'])
-    print(format(timings, scores))
+    for system in set(t['system'] for t in timings):
+        print('\n' + system + ': ')
+        print(format([t for t in timings if t['system'] == system], scores))
 
 def format(timings, scores):
     cols = []
