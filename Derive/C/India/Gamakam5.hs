@@ -63,7 +63,7 @@ library = mconcat
         , ("dyn", c_import_dyn)
         ]
     , Library.transformers
-        [ ("sahitya", c_sahitya :: Derive.Transformer Derive.Control)
+        [ ("sahitya", c_sahitya :: Derive.Transformer Derive.Note)
         ]
     ]
 
