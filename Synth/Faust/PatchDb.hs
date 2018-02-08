@@ -41,16 +41,19 @@ warnings :: [Text]
             patch <- makePatch doc controls
             return (name, patch)
 
-makePatch :: Doc.Doc -> Map Control.Control DriverC.ControlConfig
+makePatch :: Doc.Doc -> [(Control.Control, DriverC.ControlConfig)]
     -> Either Text ImInst.Patch
 makePatch doc controls = do
     let constantControls = map fst $ filter (DriverC._constant . snd) $
-            Map.toList $ Map.delete Control.pitch controls
+            filter ((/=Control.pitch) . fst) controls
     let constantPitch = maybe False DriverC._constant $
-            Map.lookup Control.pitch controls
+            lookup Control.pitch controls
     return $ ImInst.doc #= doc $ code constantPitch constantControls $
         ImInst.make_patch $
-        Patch.patch { Patch.patch_controls = DriverC._description <$> controls }
+        Patch.patch
+            { Patch.patch_controls =
+                DriverC._description <$> Map.fromList controls
+            }
     where
     code False [] = id
     code constantPitch constantControls = (ImInst.code #=) $ ImInst.null_call $

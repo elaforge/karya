@@ -23,7 +23,7 @@ import qualified Foreign
 import qualified Util.CUtil as CUtil
 import qualified Util.Doc as Doc
 import Util.ForeignC
-import qualified Util.Map
+import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
 import qualified Synth.Shared.Config as Config
@@ -67,7 +67,7 @@ instance Pretty ControlConfig where
         (if constant then "(per-note constant): " else "") <> desc
 
 getParsedMetadata :: Patch
-    -> IO (Either Text (Doc.Doc, Map Control.Control ControlConfig))
+    -> IO (Either Text (Doc.Doc, [(Control.Control, ControlConfig)]))
 getParsedMetadata patch = do
     inputs <- patchInputs patch
     outputs <- patchOutputs patch
@@ -76,14 +76,14 @@ getParsedMetadata patch = do
         (doc, controls) <- parseMetadata meta
         unless (length controls == inputs) $
             Left $ "input count " <> showt inputs
-                <> " doesn't match controls: " <> pretty (Map.keys controls)
+                <> " doesn't match controls: " <> pretty (map fst controls)
         unless (outputs `elem` [1, 2]) $
             Left $ "expected 1 or 2 outputs, got " <> showt outputs
         -- Control.gate is used internally, so don't expose that.
-        return (Doc.Doc doc, Map.delete Control.gate controls)
+        return (Doc.Doc doc, filter ((/=Control.gate) . fst) controls)
 
 parseMetadata :: Map Text Text
-    -> Either Text (Text, Map Control.Control ControlConfig)
+    -> Either Text (Text, [(Control.Control, ControlConfig)])
 parseMetadata meta =
     (Map.findWithDefault "" "description" meta ,) <$> metadataControls meta
 
@@ -97,13 +97,16 @@ parseMetadata meta =
 -- correspond.  If the Doc starts with constant:, this is a constant control,
 -- sampled at the note attack time.
 metadataControls :: Map Text Text
-    -> Either Text (Map Control.Control ControlConfig)
-metadataControls = check . Util.Map.unique2 <=< mapMaybeM parse . Map.toAscList
+    -> Either Text [(Control.Control, ControlConfig)]
+    -- ^ this is in the declaration order, which should be the same as the dsp
+    -- input order
+metadataControls = check <=< mapMaybeM parse . Map.toAscList
     where
-    check (m, dups)
-        | null dups = Right m
+    check controls
+        | null dups = Right controls
         | otherwise = Left $ "duplicate controls: "
             <> Text.intercalate ", " (map (pretty . fst) dups)
+        where (_, dups) = Seq.partition_dups fst controls
     parse (c, desc)
         | c == "description" = Right Nothing
         | Id.valid_symbol stripped =
@@ -121,7 +124,7 @@ parseControlText desc
 -- 'render' expects to see them.
 getControls :: Patch -> IO [Control.Control]
 getControls =
-    fmap (either (const []) Map.keys . metadataControls) . getMetadata
+    fmap (either (const []) (map fst) . metadataControls) . getMetadata
 
 getMetadata :: Patch -> IO (Map Text Text)
 getMetadata patch = alloca $ \keyspp -> alloca $ \valuespp -> do

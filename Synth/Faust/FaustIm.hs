@@ -54,7 +54,7 @@ main = do
                 Left err -> Text.IO.putStrLn $ "ERROR: " <> err
                 Right (doc, controls) -> do
                     Text.IO.putStrLn $ TextUtil.toText doc
-                    forM_ (Map.toList controls) $ \(c, cdoc) ->
+                    forM_ controls $ \(c, cdoc) ->
                         Text.IO.putStrLn $ pretty c <> ": " <> pretty cdoc
                     uiControls <- DriverC.getUiControls patch
                     forM_ uiControls $ \(c, _, cdoc) ->
