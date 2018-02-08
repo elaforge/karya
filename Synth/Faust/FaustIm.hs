@@ -145,7 +145,7 @@ mergeControls supported notes =
     Map.fromList $ filter (not . Signal.null . snd) $ map merge supported
     where
     merge control = (control,) $ mconcat
-        [ Signal.clip_after(Note.start n) signal
+        [ Signal.clip_before (Note.start n) signal
         | n <- notes
         , signal <- maybe [] (:[]) $ Map.lookup control (Note.controls n)
         ]
