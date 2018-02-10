@@ -414,17 +414,27 @@ modify :: Score.Control -> RealTime -> Signal.Control -> Derive.Deriver ()
 modify = modify_with Derive.DefaultMerge
 
 -- | Modify the signal only in the given range.
-modify_with :: Derive.Merge -> Score.Control -> RealTime -> Signal.Control
-    -> Derive.Deriver ()
+modify_with :: Derive.Merge -> Score.Control -> RealTime
+    -- ^ Where the modification should end.  I don't need a start time since
+    -- signals already have an implicit start time.
+    -> Signal.Control -> Derive.Deriver ()
 modify_with merge control end sig = do
-    merger@(Derive.Merger _ _ identity) <- Derive.resolve_merge merge control
+    merger <- Derive.resolve_merge merge control
     -- Since signals are implicitly 0 before the first sample, I prepend
     -- a segment with the identity value, in case the identity isn't 0.
-    Derive.modify_control merger control $ mconcat
-        [ if identity == 0 then mempty else Signal.constant identity
-        , sig
-        , Signal.from_sample end identity
-        ]
+    Derive.modify_control merger control =<< case merger of
+        Derive.Merger _ _ identity -> return $ mconcat
+            [ if identity == 0 then mempty else Signal.constant identity
+            , sig
+            , Signal.from_sample end identity
+            ]
+        Derive.Set -> do
+            -- There's no identity for Set, so I have to slice the signal
+            -- myself.
+            maybe_old <- Derive.get_control_signal control
+            return $ case Score.typed_val <$> maybe_old of
+                Nothing -> sig
+                Just old -> old <> sig <> Signal.clip_before end old
 
 multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
 multiply_dyn = modify_with (Derive.Merge Derive.merge_mul) Controls.dynamic

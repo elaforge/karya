@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.ControlUtil_test where
-import qualified Data.Map as Map
-
 import Util.Test
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
@@ -25,27 +23,29 @@ test_breakpoints = do
     equal (f 4 8  [0, 1, 0]) [(4, 0), (6, 1), (8, 0)]
 
 test_modify = do
-    let run merge = DeriveTest.extract DeriveTest.e_dyn_rounded
-            . DeriveTest.derive_tracks_setup (with_call merge) ""
-        with_call merge = CallTest.with_control_generator "g" (c_gen merge)
+    let run title = DeriveTest.extract DeriveTest.e_dyn_literal
+            . DeriveTest.derive_tracks_setup with_call title
+        with_call = CallTest.with_control_generator "g" c_gen
     let tracks dyn =
             [ (">", [(0, 8, "")])
-            , ("dyn", [(0, 0, dyn)])
+            , ("dyn set", [(0, 0, dyn)])
             , ("c", [(4, 2, "g")])
             ]
     -- *0.5 for the range only.
-    equal (run Derive.DefaultMerge (tracks ".5"))
-        ([[(0, 0.5), (4, 0.25), (6, 0.5)]], [])
-    let Just merge_add = Map.lookup "add" Derive.mergers
+    equal (run "" (tracks ".5"))
+        ([[(0, 0.5), (4, 0.5), (4, 0.25), (6, 0.25), (6, 0.5)]], [])
     -- +0.5 for the range only.
-    equal (run (Derive.Merge merge_add) (tracks ".25"))
-        ([[(0, 0.25), (4, 0.75), (6, 0.25)]], [])
+    equal (run "default-merge add dyn" (tracks ".25"))
+        ([[(0, 0.25), (4, 0.25), (4, 0.75), (6, 0.75), (6, 0.25)]], [])
+
+    equal (run "default-merge set dyn" (tracks ".25"))
+        ([[(0, 0.25), (4, 0.25), (4, 0.5), (6, 0.5), (6, 0.25)]], [])
     where
-    c_gen :: Derive.Merge -> Derive.Generator Derive.Control
-    c_gen merge = CallTest.generator1 $ \args -> do
+    c_gen :: Derive.Generator Derive.Control
+    c_gen = CallTest.generator1 $ \args -> do
         (start, end) <- Args.real_range args
         let signal = Signal.from_sample start 0.5
-        ControlUtil.modify_with merge Controls.dynamic end signal
+        ControlUtil.modify_with Derive.DefaultMerge Controls.dynamic end signal
         return mempty
 
 test_slope_to_limit = do
