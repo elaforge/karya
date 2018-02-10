@@ -34,6 +34,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
@@ -115,7 +116,11 @@ infer_end args
         start <- Args.real_start args
         case next_sample start pitch of
             Nothing -> return $ Args.start args
-            Just (x, _) -> Derive.score x
+            Just (x, _) -> do
+                -- x could be the final sample at RealTime.large, so I need to
+                -- limit it.
+                end <- Derive.get_val EnvKey.block_end
+                min end <$> Derive.score x
 
 initial_pitch_state :: Bool -> Typecheck.Normalized
     -> Derive.PassedArgs Derive.Control

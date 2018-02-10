@@ -6,7 +6,9 @@ module Derive.C.India.Gamakam5_test where
 import qualified Data.Map as Map
 
 import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.UiTest as UiTest
 import qualified Derive.C.India.Gamakam5 as Gamakam
 import Derive.C.India.Gamakam5 (Call(..), ParsedPitch(..))
@@ -113,6 +115,15 @@ from_cur_prev_next pitches notes = (nns, concat logs)
     (sigs, logs) = unzip $ map run_with ["!=", "!^=", "!<=", "!&="]
     run_with call = derive_tracks True DeriveTest.e_nns_literal $
         pitch_gamakam_note pitches [(1, call)] notes
+
+test_sequence_above = do
+    let run pitches gamakams notes =
+            derive_tracks True DeriveTest.e_nns_literal $
+                pitch_gamakam_note pitches gamakams notes
+    -- Final event goes only to block end.
+    equal (first (map (map fst)) $
+            run [(0, "4c"), (1, "4d")] [(1, "!0")] [(0, 2)])
+        ([Seq.range 0 32 1], [])
 
 -- get_state :: Derive.Generator Derive.Control
 -- get_state = CallTest.generator $ \args -> do
