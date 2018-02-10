@@ -8,7 +8,7 @@ module Global (
     Proxy(..), Map, Set
     , (<|>)
     , first, second, (***)
-    , Monoid(..), (<>)
+    , Monoid(..), Semigroup(..)
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
     , allM, anyM
@@ -53,7 +53,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Maybe (mapMaybe, fromMaybe)
-import Data.Monoid ((<>))
+import Data.Semigroup (Semigroup(..))
 import qualified Data.Text as Text
 import Data.Traversable (Traversable, traverse)
 import Data.Foldable (Foldable, foldMap)

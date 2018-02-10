@@ -342,9 +342,10 @@ instance Pretty Events where
         event e = Pretty.text $
             pretty (Event.start e, Event.duration e, Event.text e)
 
+instance Semigroup Events where (<>) = merge
 instance Monoid Events where
     mempty = empty
-    mappend = merge
+    mappend = (<>)
 
 get :: Events -> EventMap
 get (Events evts) = evts

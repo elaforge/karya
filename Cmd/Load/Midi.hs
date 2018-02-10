@@ -126,12 +126,14 @@ data NoteTrack = NoteTrack Track Track (Map Score.Control Track)
 -- | Map start (dur, text)
 type Track = Map ScoreTime (ScoreTime, Text)
 
-instance Monoid NoteTrack where
-    mempty = NoteTrack mempty mempty mempty
-    mappend (NoteTrack notes1 pitches1 controls1)
+instance Semigroup NoteTrack where
+    (<>)    (NoteTrack notes1 pitches1 controls1)
             (NoteTrack notes2 pitches2 controls2) =
         NoteTrack (notes1 <> notes2) (pitches1 <> pitches2)
             (Map.mappend controls1 controls2)
+instance Monoid NoteTrack where
+    mempty = NoteTrack mempty mempty mempty
+    mappend = (<>)
 
 -- | Take flat MIDI msgs to a list of tracks where events don't overlap, and
 -- add pitch and control tracks.

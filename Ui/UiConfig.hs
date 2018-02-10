@@ -9,7 +9,6 @@
 module Ui.UiConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
@@ -163,7 +162,7 @@ verify_backends_match backend alloc =
         Inst.Im {} -> "im"
 
 newtype Allocations = Allocations (Map Score.Instrument Allocation)
-    deriving (Eq, Show, Pretty, Monoid.Monoid)
+    deriving (Eq, Show, Pretty, Semigroup, Monoid)
 
 -- | Make Allocations with no verification.  This should probably only be used
 -- for tests, allocations from user input should use 'allocate'.

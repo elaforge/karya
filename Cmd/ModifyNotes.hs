@@ -328,10 +328,12 @@ annotate prefix = first ((prefix <> ": ") <>)
 data NoteTrack = NoteTrack Events.Events Controls
     deriving (Eq, Show)
 
+instance Semigroup NoteTrack where
+    NoteTrack events1 controls1 <> NoteTrack events2 controls2 =
+        NoteTrack (events1 <> events2) (Map.mappend controls1 controls2)
 instance Monoid NoteTrack where
     mempty = NoteTrack mempty mempty
-    mappend (NoteTrack events1 controls1) (NoteTrack events2 controls2) =
-        NoteTrack (events1 <> events2) (Map.mappend controls1 controls2)
+    mappend = (<>)
 
 merge_notes :: [Note] -> [NoteTrack]
 merge_notes = map make_track . Seq.group_sort note_index

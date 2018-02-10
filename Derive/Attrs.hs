@@ -35,9 +35,10 @@ import Global
 -- arguments to an instrument, and will typically select an articulation, or
 -- a drum from a drumset, or something like that.
 type Attribute = Text
+
 newtype Attributes = Attributes (Set Attribute)
-    deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData,
-        Aeson.ToJSON, Aeson.FromJSON)
+    deriving (Semigroup, Monoid, Eq, Ord, Read, Show, Serialize.Serialize,
+        DeepSeq.NFData, Aeson.ToJSON, Aeson.FromJSON)
 
 instance Pretty Attributes where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Attributes where

@@ -133,11 +133,13 @@ instance Pretty Code where
             , ("thru", Pretty.format thru)
             ]
 
-instance Monoid Code where
-    mempty = Code mempty (,[]) [] Nothing
-    mappend (Code lib1 post1 cmds1 thru1)
+instance Semigroup Code where
+    (<>)    (Code lib1 post1 cmds1 thru1)
             (Code lib2 post2 cmds2 thru2) =
         Code (lib1<>lib2) (merge post1 post2) (cmds1<>cmds2) (thru1<|>thru2)
+instance Monoid Code where
+    mempty = Code mempty (,[]) [] Nothing
+    mappend = (<>)
 
 merge :: (b -> (c, [log])) -> (a -> (b, [log])) -> (a -> (c, [log]))
 merge f1 f2 = (\(b, logs) -> (logs++) <$> f1 b) . f2

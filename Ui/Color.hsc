@@ -30,9 +30,10 @@ data Highlight =
     deriving (Bounded, Eq, Enum, Ord, Show)
 
 -- | This is so more serious highlights can override less serious ones.
+instance Semigroup Highlight where (<>) = max
 instance Monoid Highlight where
     mempty = NoHighlight
-    mappend = max
+    mappend = (<>)
 
 -- r, g, b, alpha, from 0--1
 data Color = Color !Double !Double !Double !Double

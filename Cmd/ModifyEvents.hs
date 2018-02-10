@@ -218,12 +218,14 @@ parse_tokens parser =
 parse :: Parser -> [Token] -> [[Match]]
 parse (Parser p) = map fst . filter (null . snd) . p
 
-instance Monoid Parser where
-    mempty = Parser $ \tokens -> [([], tokens)]
-    mappend (Parser p1) (Parser p2) = Parser $ \tokens -> do
+instance Semigroup Parser where
+    Parser p1 <> Parser p2 = Parser $ \tokens -> do
         (matches1, rest1) <- p1 tokens
         (matches2, rest2) <- p2 rest1
         return (matches1 ++ matches2, rest2)
+instance Monoid Parser where
+    mempty = Parser $ \tokens -> [([], tokens)]
+    mappend = (<>)
 
 instance String.IsString Parser where
     fromString = literal . txt

@@ -110,10 +110,12 @@ code_to_type s = case s of
     "" -> Just Untyped
     _ -> Nothing
 
+instance Semigroup Type where
+    Untyped <> typed = typed
+    typed <> _ = typed
 instance Monoid Type where
     mempty = Untyped
-    mappend Untyped typed = typed
-    mappend typed _ = typed
+    mappend = (<>)
 
 data Typed a = Typed {
     type_of :: !Type
@@ -126,9 +128,11 @@ instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
 instance Functor Typed where
     fmap f (Typed typ val) = Typed typ (f val)
 
-instance Monoid a => Monoid (Typed a) where
+instance Semigroup a => Semigroup (Typed a) where
+    Typed t1 v1 <> Typed t2 v2 = Typed (t1<>t2) (v1<>v2)
+instance (Semigroup a, Monoid a) => Monoid (Typed a) where
     mempty = Typed mempty mempty
-    mappend (Typed t1 v1) (Typed t2 v2) = Typed (t1<>t2) (v1<>v2)
+    mappend = (<>)
 
 instance Pretty a => Pretty (Typed a) where
     format (Typed typ val) =

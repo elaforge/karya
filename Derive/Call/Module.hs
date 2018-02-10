@@ -16,12 +16,15 @@ newtype Module = Module Text.Text
 
 instance Pretty Module where pretty (Module m) = m
 
-instance Monoid Module where
-    mempty = ""
-    mappend (Module m1) (Module m2)
+instance Semigroup Module where
+    Module m1 <> Module m2
         | Text.null m1 = Module m2
         | Text.null m2 = Module m1
         | otherwise = Module $ m1 <> "." <> m2
+
+instance Monoid Module where
+    mempty = ""
+    mappend = (<>)
 
 -- | This marks a standard library of \"fundamental\" calls.  They may also
 -- interact more intimately with the builtin derivation machinery.  Imported

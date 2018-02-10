@@ -400,7 +400,7 @@ get_from = do
 -- * sequence
 
 newtype Result = Result (DList.DList Signal.Control)
-    deriving (Show, Monoid)
+    deriving (Show, Semigroup, Monoid)
 
 -- | Pitch.Transpose, without the value.  TODO probably should split those?
 data Transpose = Diatonic | Chromatic | Nn

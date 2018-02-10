@@ -172,12 +172,14 @@ instance Pretty Settings where
         , ("pitch_bend_range", Pretty.format pb_range)
         ]
 
-instance Monoid Settings where
-    mempty = make_settings no_pb_range
-    mappend (Settings flags1 scale1 decay1 pb_range1)
+instance Semigroup Settings where
+    (<>)    (Settings flags1 scale1 decay1 pb_range1)
             (Settings flags2 scale2 decay2 pb_range2) =
         Settings (flags1 <> flags2) (scale1 <|> scale2) (decay1 <|> decay2)
             (if pb_range1 == no_pb_range then pb_range2 else pb_range1)
+instance Monoid Settings where
+    mempty = make_settings no_pb_range
+    mappend = (<>)
 
 -- | This is a special magic value to indicate an incomplete Settings, which
 -- is what mempty is.  Normally 'Config' should be initialized from Settings in

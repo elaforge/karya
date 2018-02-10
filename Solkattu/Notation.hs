@@ -233,19 +233,19 @@ cfor :: Monoid b => [a] -> (a -> b) -> b
 cfor xs f = mconcatMap f xs
 
 -- | Multiple prefixes on a single suffix.
-prefixes :: Monoid a => [a] -> a -> a
+prefixes :: (Semigroup a, Monoid a) => [a] -> a -> a
 prefixes prefs suffix = mconcatMap (<>suffix) prefs
 
-suffixes :: Monoid a => a -> [a] -> a
+suffixes :: (Semigroup a, Monoid a) => a -> [a] -> a
 suffixes prefix sufs = mconcatMap (prefix<>) sufs
 
-circum :: Monoid a => a -> [a] -> a -> a
+circum :: (Semigroup a, Monoid a) => a -> [a] -> a -> a
 circum prefix mids suffix = mconcatMap (\m -> prefix <> m <> suffix) mids
 
-suffix :: Monoid a => [a] -> a -> a
+suffix :: (Semigroup a, Monoid a) => [a] -> a -> a
 suffix seqs suf = mconcat $ map (<>suf) seqs
 
-prefix :: Monoid a => a -> [a] -> a
+prefix :: (Semigroup a, Monoid a) => a -> [a] -> a
 prefix pref seqs = mconcat $ map (pref<>) seqs
 
 -- | Succesively accumulate suffixes.

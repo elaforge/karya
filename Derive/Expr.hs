@@ -59,8 +59,8 @@ instance ShowVal.ShowVal val => Pretty (Term val) where
 -- there's an IsString instance, but if you put in a space you'll get a messed
 -- up expression.
 newtype Symbol = Symbol Text
-    deriving (Eq, Ord, Read, Show, Monoid, DeepSeq.NFData, String.IsString,
-        Pretty, Serialize.Serialize)
+    deriving (Eq, Ord, Read, Show, Semigroup, Monoid, DeepSeq.NFData,
+        String.IsString, Pretty, Serialize.Serialize)
 
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym

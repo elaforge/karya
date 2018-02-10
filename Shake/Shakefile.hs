@@ -17,8 +17,7 @@ import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
-import Data.Monoid ((<>))
+import Data.Semigroup (Semigroup, (<>))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
@@ -214,12 +213,15 @@ data Flags = Flags {
     , sandboxFlags :: [Flag]
     } deriving (Show)
 
-instance Monoid.Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] [] []
-    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1)
+instance Semigroup Flags where
+    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1)
             (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
             (h1<>h2) (i1<>i2) (j1<>j2)
+
+instance Monoid Flags where
+    mempty = Flags [] [] [] [] [] [] [] [] [] []
+    mappend = (<>)
 
 -- * binaries
 
@@ -511,7 +513,7 @@ data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
 ghcWarnings :: Mode -> [String]
 ghcWarnings mode =
-    "-W" : map ("-fwarn-"++) warns ++ map ("-fno-warn-"++) noWarns
+    "-W" : "-Wcompat" : map ("-fwarn-"++) warns ++ map ("-fno-warn-"++) noWarns
     where
     warns =
         [ "identities"

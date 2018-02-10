@@ -238,9 +238,11 @@ type Formatter = Writer.Writer Builder ()
 
 data Builder = Builder !Builder.Builder !Builder.Builder
 
+instance Semigroup Builder where
+    Builder a1 b1 <> Builder a2 b2 = Builder (a1 <> a2) (b1 <> b2)
 instance Monoid Builder where
     mempty = Builder mempty mempty
-    mappend (Builder a1 b1) (Builder a2 b2) = Builder (a1 <> a2) (b1 <> b2)
+    mappend = (<>)
 
 run_formatter :: Formatter -> StyledText
 run_formatter = build . Writer.execWriter

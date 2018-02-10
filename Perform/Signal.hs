@@ -91,12 +91,15 @@ modify f = Signal . f . _signal
 
 type Y = Double
 
-instance Monoid (Signal kind) where
-    mempty = Signal Segment.empty
-    mappend s1 s2
+instance Semigroup (Signal kind) where
+    s1 <> s2
         | null s1 = s2
         | null s2 = s1
         | otherwise = mconcat [s1, s2]
+
+instance Monoid (Signal kind) where
+    mempty = Signal Segment.empty
+    mappend = (<>)
     mconcat = Signal . Segment.concat (Just (==)) Segment.num_interpolate
         . map _signal
 

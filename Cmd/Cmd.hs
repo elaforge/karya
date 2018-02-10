@@ -432,10 +432,12 @@ data KyCache =
 data Fingerprint = Fingerprint ![FilePath] !Word.Word32
     deriving (Eq, Show)
 
+instance Semigroup Fingerprint where
+    Fingerprint fnames1 fprint1 <> Fingerprint fnames2 fprint2 =
+        Fingerprint (fnames1<>fnames2) (CRC32.crc32Update fprint1 fprint2)
 instance Monoid Fingerprint where
     mempty = Fingerprint [] 0
-    mappend (Fingerprint fnames1 fprint1) (Fingerprint fnames2 fprint2) =
-        Fingerprint (fnames1<>fnames2) (CRC32.crc32Update fprint1 fprint2)
+    mappend = (<>)
 
 fingerprint :: [(FilePath, Text)] -> Fingerprint
 fingerprint files =
@@ -647,9 +649,11 @@ type TrackSelection = (Sel.Selection, BlockId, Maybe TrackId)
 instance Show Hooks where
     show (Hooks sel) = "((Hooks " ++ show (length sel) ++ "))"
 
+instance Semigroup Hooks where
+    Hooks sel1 <> Hooks sel2 = Hooks (sel1 <> sel2)
 instance Monoid Hooks where
     mempty = Hooks []
-    mappend (Hooks sel1) (Hooks sel2) = Hooks (sel1 <> sel2)
+    mappend = (<>)
 
 -- ** EditState
 

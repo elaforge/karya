@@ -478,12 +478,14 @@ data Definitions = Definitions {
     , def_aliases :: ![(Score.Instrument, Score.Instrument)]
     } deriving (Show)
 
-instance Monoid Definitions where
-    mempty = Definitions ([], []) ([], []) ([], []) [] []
-    mappend (Definitions (a1, b1) (c1, d1) (e1, f1) g1 h1)
+instance Semigroup Definitions where
+    (<>)    (Definitions (a1, b1) (c1, d1) (e1, f1) g1 h1)
             (Definitions (a2, b2) (c2, d2) (e2, f2) g2 h2) =
         Definitions (a1<>a2, b1<>b2) (c1<>c2, d1<>d2) (e1<>e2, f1<>f2) (g1<>g2)
             (h1<>h2)
+instance Monoid Definitions where
+    mempty = Definitions ([], []) ([], []) ([], []) [] []
+    mappend = (<>)
 
 -- | (defining_file, (Symbol, Expr))
 type Definition = (FilePath, (Expr.Symbol, Expr))

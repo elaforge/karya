@@ -31,7 +31,7 @@ import Types
 -- * Environ
 
 newtype Environ = Environ (Map EnvKey.Key Val)
-    deriving (Show, Eq, Monoid, Serialize.Serialize)
+    deriving (Show, Eq, Semigroup, Monoid, Serialize.Serialize)
 
 -- Environ keys are always Text, and it's annoying to have quotes on them.
 instance Pretty Environ where

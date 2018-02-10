@@ -106,9 +106,10 @@ rest = S.Note (Space Solkattu.Rest)
 -- | The emphasis will be propagated to the underlying stroke.
 data Emphasis = Light | Normal | Heavy deriving (Eq, Ord, Show)
 
+instance Semigroup Emphasis where (<>) = max
 instance Monoid Emphasis where
     mempty = Normal
-    mappend = max
+    mappend = (<>)
 
 instance Pretty Emphasis where
     pretty Light = "^"
@@ -206,7 +207,7 @@ showImproper dur = mconcat
 -- 'S.Matra's should the same duration as the the list in the default tempo.
 -- This is enforced in the constructor 'patterns'.
 newtype Patterns stroke = Patterns (Map Solkattu.Pattern [SNote stroke])
-    deriving (Eq, Show, Pretty, Monoid)
+    deriving (Eq, Show, Pretty, Semigroup, Monoid)
 
 -- | Make a Patterns while checking that the durations match.
 patterns :: [(Solkattu.Pattern, [SNote stroke])]
@@ -240,7 +241,7 @@ mapPatterns f (Patterns p) = Patterns (f <$> p)
 -- sequences like dinga.
 newtype StrokeMap stroke = StrokeMap
     (Map (Maybe Solkattu.Tag, [Solkattu.Sollu]) [Maybe (Stroke stroke)])
-    deriving (Eq, Show, Pretty, Monoid)
+    deriving (Eq, Show, Pretty, Semigroup, Monoid)
 
 -- | Directly construct a StrokeMap from strokes.
 simpleStrokeMap :: [([Solkattu.Sollu], [Maybe stroke])] -> StrokeMap stroke
@@ -290,9 +291,11 @@ isInstrumentEmpty :: Instrument stroke -> Bool
 isInstrumentEmpty (Instrument (StrokeMap strokeMap) (Patterns patterns)) =
     Map.null strokeMap && Map.null patterns
 
+instance Semigroup (Instrument stroke) where
+    Instrument a1 b1 <> Instrument a2 b2 = Instrument (a1<>a2) (b1<>b2)
 instance Monoid (Instrument stroke) where
     mempty = Instrument mempty mempty
-    mappend (Instrument a1 b1) (Instrument a2 b2) = Instrument (a1<>a2) (b1<>b2)
+    mappend = (<>)
 
 instance Pretty stroke => Pretty (Instrument stroke) where
     format (Instrument strokeMap patterns) = Pretty.record "Instrument"

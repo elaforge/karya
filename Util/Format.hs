@@ -29,9 +29,8 @@ module Util.Format (
 ) where
 import Prelude hiding (unlines)
 import qualified Data.List as List
-import qualified Data.Monoid as Monoid
 import qualified Data.Char.WCWidth as WCWidth
-import Data.Monoid ((<>))
+import Data.Semigroup (Semigroup, (<>))
 import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)
@@ -69,9 +68,10 @@ infixr :+
     (<>) sticking text inside Indent or ShortForm doesn't seem that bad.
 -}
 
-instance Monoid.Monoid Doc where
+instance Semigroup Doc where (<>) = (:+)
+instance Monoid Doc where
     mempty = Text mempty
-    mappend = (:+)
+    mappend = (<>)
 
 instance String.IsString Doc where
     fromString = text . String.fromString
@@ -120,9 +120,11 @@ isEmpty _ = False
 data BreakType = NoSpace | Space | Hard !Int deriving (Eq, Ord, Show)
 
 -- | Hard breaks with more newlines win over those with fewer.
-instance Monoid.Monoid BreakType where
+instance Semigroup BreakType where (<>) = max
+
+instance Monoid BreakType where
     mempty = NoSpace
-    mappend = max
+    mappend = (<>)
 
 -- | Soft break with no space.
 (</>) :: Doc -> Doc -> Doc
@@ -431,7 +433,7 @@ data Output = Output {
     , outputText :: !Builder.Builder
     } deriving (Show)
 
-instance Monoid.Monoid Output where
+instance Monoid Output where
     mempty = Output mempty mempty
     mappend (Output logs1 text1) (Output logs2 text2) =
         Output (logs1<>logs2) (text1<>text2)
@@ -571,9 +573,12 @@ data B = B {
 instance Show B where
     show (B b _) = show b
 
-instance Monoid.Monoid B where
+instance Semigroup B where
+    B b1 len1 <> B b2 len2 = B (b1<>b2) (len1+len2)
+
+instance Monoid B where
     mempty = B mempty 0
-    mappend (B b1 len1) (B b2 len2) = B (b1<>b2) (len1+len2)
+    mappend = (<>)
     mconcat [] = mempty
     mconcat bs = B (mconcat builders) (sum lens)
         where (builders, lens) = unzip [(b, len) | B b len <- bs, len /= 0]

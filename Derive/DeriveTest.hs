@@ -286,10 +286,12 @@ data SetupA a = Setup {
     , setup_deriver :: Derive.Deriver a -> Derive.Deriver a
     }
 
+instance Semigroup (SetupA a) where
+    Setup ui1 cmd1 deriver1 <> Setup ui2 cmd2 deriver2 =
+        Setup (ui1 . ui2) (cmd1 . cmd2) (deriver1 . deriver2)
 instance Monoid (SetupA a) where
     mempty = Setup id id id
-    mappend (Setup ui1 cmd1 deriver1) (Setup ui2 cmd2 deriver2) =
-        Setup (ui1 . ui2) (cmd1 . cmd2) (deriver1 . deriver2)
+    mappend = (<>)
 
 with_ui :: (Ui.State -> Ui.State) -> Setup
 with_ui ui = mempty { setup_ui = ui }

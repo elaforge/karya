@@ -11,8 +11,7 @@ module Util.Ranges (
 import Prelude hiding (fmap)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
-import Data.Monoid ((<>))
-import qualified Data.Monoid as Monoid
+import Data.Semigroup (Semigroup, (<>))
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -21,11 +20,14 @@ import qualified Util.Seq as Seq
 data Ranges n = Ranges [(n, n)] | Everything
     deriving (Eq, Show)
 
-instance Ord n => Monoid.Monoid (Ranges n) where
+instance Ord n => Semigroup (Ranges n) where
+    Everything <> _ = Everything
+    _ <> Everything = Everything
+    Ranges r1 <> Ranges r2 = Ranges (merge r1 r2)
+
+instance Ord n => Monoid (Ranges n) where
     mempty = Ranges []
-    mappend Everything _ = Everything
-    mappend _ Everything = Everything
-    mappend (Ranges r1) (Ranges r2) = Ranges (merge r1 r2)
+    mappend = (<>)
 
 instance Pretty.Pretty n => Pretty.Pretty (Ranges n) where
     format (Ranges rs) = Pretty.textList (map f rs)
@@ -121,7 +123,7 @@ merge r1 r2 = merge_sorted (Seq.merge_on fst r1 r2)
 
 -- | Given a complete range, invert the ranges.
 invert :: Ord n => (n, n) -> Ranges n -> Ranges n
-invert _ Everything = Monoid.mempty
+invert _ Everything = mempty
 invert (start, end) (Ranges pairs) = Ranges $ go start pairs
     where
     go p ((s, e) : rs)

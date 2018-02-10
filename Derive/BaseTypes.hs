@@ -73,12 +73,14 @@ newtype PSignal = PSignal (Segment.Boxed Pitch)
 _signal :: PSignal -> Segment.Boxed Pitch
 _signal (PSignal sig) = sig
 
-instance Monoid PSignal where
-    mempty = PSignal Segment.empty
-    mappend s1 s2
+instance Semigroup PSignal where
+    s1 <> s2
         | Segment.null (_signal s1) = s2
         | Segment.null (_signal s2) = s1
         | otherwise = mconcat [s1, s2]
+instance Monoid PSignal where
+    mempty = PSignal Segment.empty
+    mappend = (<>)
     mconcat [] = mempty
     mconcat sigs = PSignal $
         Segment.concat Nothing interpolate (map _signal sigs)
@@ -191,10 +193,13 @@ annotate_out_of_range _ _ err = err
 data PitchConfig = PitchConfig !Environ !ScoreTypes.ControlValMap
     deriving (Show)
 
+instance Semigroup PitchConfig where
+    PitchConfig env1 c1 <> PitchConfig env2 c2 =
+        PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
+
 instance Monoid PitchConfig where
     mempty = PitchConfig mempty mempty
-    mappend (PitchConfig env1 c1) (PitchConfig env2 c2) =
-        PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
+    mappend = (<>)
 
 -- | PSignal can't take a Scale because that would be a circular import.
 -- Fortunately it only needs a few fields.  However, because of the
@@ -314,7 +319,7 @@ multiply_duration (ScoreDuration t) n = ScoreDuration (t * ScoreTime.double n)
 -- * Environ
 
 newtype Environ = Environ (Map EnvKey.Key Val)
-    deriving (Show, Monoid, DeepSeq.NFData)
+    deriving (Show, Semigroup, Monoid, DeepSeq.NFData)
 
 -- Environ keys are always Text, and it's annoying to have quotes on them.
 instance Pretty Environ where

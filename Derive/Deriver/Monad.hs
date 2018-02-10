@@ -381,9 +381,11 @@ instance Taggable Score.Event where
     from_tagged (TagEvent a) = Just a
     from_tagged _ = Nothing
 
+instance Semigroup NoteDeriver where
+    d1 <> d2 = d_merge [d1, d2]
 instance Monoid NoteDeriver where
     mempty = return mempty
-    mappend d1 d2 = d_merge [d1, d2]
+    mappend = (<>)
     mconcat = d_merge
 
 -- ** control
@@ -650,9 +652,11 @@ data CallMap call = CallMap {
 single_call :: Expr.Symbol -> call -> CallMap call
 single_call sym call = CallMap (Map.singleton sym call) []
 
+instance Semigroup (CallMap call) where
+    CallMap a1 a2 <> CallMap b1 b2 = CallMap (a1<>b1) (a2<>b2)
 instance Monoid (CallMap call) where
     mempty = CallMap mempty mempty
-    mappend (CallMap a1 a2) (CallMap b1 b2) = CallMap (a1<>b1) (a2<>b2)
+    mappend = (<>)
 
 instance Pretty (CallMap call) where
     format (CallMap cmap patterns) = Pretty.record "CallMap"
@@ -723,11 +727,15 @@ instance (Pretty gen, Pretty trans, Pretty track, Pretty val) =>
         , ("val", Pretty.format val)
         ]
 
-instance (Monoid gen, Monoid trans, Monoid track, Monoid val) =>
+instance (Semigroup gen, Semigroup trans, Semigroup track, Semigroup val) =>
+        Semigroup (ScopesT gen trans track val) where
+    Scopes a1 a2 a3 a4 <> Scopes b1 b2 b3 b4 =
+        Scopes (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
+instance (Monoid gen, Monoid trans, Monoid track, Monoid val,
+          Semigroup gen, Semigroup trans, Semigroup track, Semigroup val) =>
         Monoid (ScopesT gen trans track val) where
     mempty = Scopes mempty mempty mempty mempty
-    mappend (Scopes a1 a2 a3 a4) (Scopes b1 b2 b3 b4) =
-        Scopes (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
+    mappend = (<>)
 
 data Scope note control pitch = Scope {
     scope_note :: !note
@@ -750,11 +758,15 @@ instance (Pretty note, Pretty control, Pretty pitch) =>
         , ("pitch", Pretty.format pitch)
         ]
 
-instance (Monoid note, Monoid control, Monoid pitch) =>
+instance (Semigroup note, Semigroup control, Semigroup pitch) =>
+        Semigroup (Scope note control pitch) where
+    Scope a1 a2 a3 <> Scope b1 b2 b3 =
+        Scope (a1<>b1) (a2<>b2) (a3<>b3)
+instance (Monoid note, Monoid control, Monoid pitch,
+          Semigroup note, Semigroup control, Semigroup pitch) =>
         Monoid (Scope note control pitch) where
     mempty = Scope mempty mempty mempty
-    mappend (Scope a1 a2 a3) (Scope b1 b2 b3) =
-        Scope (a1<>b1) (a2<>b2) (a3<>b3)
+    mappend = (<>)
 
 instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
 
@@ -774,10 +786,11 @@ instance DeepSeq.NFData (Scope a b c) where rnf _ = ()
 newtype ScopePriority call = ScopePriority (Map CallPriority (CallMap call))
     deriving (Pretty)
 
+instance Semigroup (ScopePriority call) where
+    ScopePriority a <> ScopePriority b = ScopePriority (Util.Map.mappend a b)
 instance Monoid (ScopePriority call) where
     mempty = ScopePriority mempty
-    mappend (ScopePriority a) (ScopePriority b) =
-        ScopePriority (Util.Map.mappend a b)
+    mappend = (<>)
 
 data CallPriority =
     -- | Override calls shadow all others.  They're useful when you want to
@@ -1105,10 +1118,8 @@ instance Pretty Collect where
             , ("call end", Pretty.format call_end)
             ]
 
-instance Monoid Collect where
-    mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
-        mempty mempty mempty
-    mappend (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1 cache1
+instance Semigroup Collect where
+    (<>)    (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1 cache1
                 integrated1 cmods1 cdur1 cend1)
             (Collect warps2 tsigs2 frags2 trackdyn2 trackdyn_inv2 deps2 cache2
                 integrated2 cmods2 cdur2 cend2) =
@@ -1117,6 +1128,10 @@ instance Monoid Collect where
             (trackdyn1 <> trackdyn2) (trackdyn_inv1 <> trackdyn_inv2)
             (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
             (cmods1 <> cmods2) (cdur1 <> cdur2) (cend1 <> cend2)
+instance Monoid Collect where
+    mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
+        mempty mempty mempty
+    mappend = (<>)
 
 instance DeepSeq.NFData Collect where
     rnf (Collect warp_map frags tsigs track_dyn track_dyn_inv local_dep cache
@@ -1207,11 +1222,13 @@ instance Show a => Pretty (CallDuration a) where pretty = showt
 -- I think it would be more correct to take the stack depth, and pick the one
 -- with the shallower stack, and then the max.  But it's more expensive and
 -- picking the second one seems to work.
+instance Semigroup (CallDuration a) where
+    Unknown <> a = a
+    a <> Unknown = a
+    _ <> a = a
 instance Monoid (CallDuration a) where
     mempty = Unknown
-    mappend Unknown a = a
-    mappend a Unknown = a
-    mappend _ a = a
+    mappend = (<>)
 
 -- ** calls
 
@@ -1563,7 +1580,7 @@ make_val_call module_ name tags doc (call, arg_docs) = ValCall
 
 -- instead of a stack, this could be a tree of frames
 newtype Cache = Cache (Map CacheKey Cached)
-    deriving (Monoid, Pretty, DeepSeq.NFData)
+    deriving (Semigroup, Monoid, Pretty, DeepSeq.NFData)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
 
@@ -1626,7 +1643,7 @@ instance DeepSeq.NFData d => DeepSeq.NFData (CallType d) where
 -- ** deps
 
 newtype BlockDeps = BlockDeps (Set BlockId)
-    deriving (Pretty, Monoid, Show, Eq, DeepSeq.NFData)
+    deriving (Pretty, Semigroup, Monoid, Show, Eq, DeepSeq.NFData)
 
 -- ** damage
 
@@ -1644,12 +1661,14 @@ data ScoreDamage = ScoreDamage {
     , sdamage_blocks :: !(Set BlockId)
     } deriving (Eq, Show)
 
-instance Monoid ScoreDamage where
-    mempty = ScoreDamage Map.empty Set.empty Set.empty
-    mappend (ScoreDamage tracks1 tblocks1 blocks1)
+instance Semigroup ScoreDamage where
+    (<>)    (ScoreDamage tracks1 tblocks1 blocks1)
             (ScoreDamage tracks2 tblocks2 blocks2) =
         ScoreDamage (Map.mappend tracks1 tracks2)
             (tblocks1 <> tblocks2) (blocks1 <> blocks2)
+instance Monoid ScoreDamage where
+    mempty = ScoreDamage Map.empty Set.empty Set.empty
+    mappend = (<>)
 
 instance Pretty ScoreDamage where
     format (ScoreDamage tracks track_blocks blocks) =
@@ -1688,7 +1707,7 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
 -- modified.  It's dynamically scoped over the same range as the control
 -- itself, so that events that depend on it can be rederived.
 newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
-    deriving (Pretty, Monoid, Eq, Show, DeepSeq.NFData)
+    deriving (Pretty, Semigroup, Monoid, Eq, Show, DeepSeq.NFData)
 
 -- * util
 

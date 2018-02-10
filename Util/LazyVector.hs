@@ -11,7 +11,7 @@ module Util.LazyVector (
 ) where
 import qualified Control.Monad.ST as ST
 import qualified Control.Monad.ST.Unsafe as ST.Unsafe
-import qualified Data.Monoid as Monoid
+import Data.Semigroup (Semigroup, (<>))
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Mutable as Mutable
 
@@ -28,7 +28,7 @@ lazyChunks :: Lazy a -> [Vector.Vector a]
 lazyChunks (Lazy chunks) = chunks
 
 toStrict :: Lazy a -> Vector.Vector a
-toStrict = Monoid.mconcat . lazyChunks
+toStrict = mconcat . lazyChunks
 
 -- cons :: Vector.Vector a -> Lazy a -> Lazy a
 -- cons v (Lazy vs)
@@ -49,9 +49,12 @@ instance (Show a) => Show (Builder a) where
 instance (Pretty.Pretty a) => Pretty.Pretty (Builder a) where
     format = Pretty.format . build
 
-instance Monoid.Monoid (Builder a) where
+instance Semigroup (Builder a) where
+    (<>) = append
+
+instance Monoid (Builder a) where
     mempty = empty
-    mappend = append
+    mappend = (<>)
 
 build :: Builder a -> Lazy a
 build builder = Lazy $ ST.runST $ do

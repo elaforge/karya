@@ -13,7 +13,7 @@ module Util.Doc (
     , HtmlState, get_html_state
 ) where
 import qualified Data.Char as Char
-import Data.Monoid ((<>))
+import Data.Semigroup (Semigroup, (<>))
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -30,7 +30,7 @@ import qualified Util.TextUtil as TextUtil
 -- formatting, which may be either be printed directly, or formatted via
 -- 'html_doc'.
 newtype Doc = Doc Text
-    deriving (Eq, Ord, Show, Pretty.Pretty, Monoid, String.IsString,
+    deriving (Eq, Ord, Show, Pretty.Pretty, Semigroup, Monoid, String.IsString,
         Serialize.Serialize)
 
 instance TextUtil.Textlike Doc where
@@ -51,7 +51,7 @@ commas = TextUtil.join ", "
 -- * HTML
 
 newtype Html = Html Text
-    deriving (Monoid, String.IsString, Pretty.Pretty, Show, Eq, Ord)
+    deriving (Semigroup, Monoid, String.IsString, Pretty.Pretty, Show, Eq, Ord)
     -- TODO doesn't IsString defeat the purpose of using Html in the first
     -- place?
 

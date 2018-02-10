@@ -228,12 +228,14 @@ data Metadata = Metadata {
 -- | (module, lineNumber, variableName)
 type Location = (Text, Int, Text)
 
-instance Monoid Metadata where
-    mempty = Metadata Nothing mempty ("", 0, "")
-    mappend (Metadata date1 tags1 loc1@(mod1, _, _))
+instance Semigroup Metadata where
+    (<>)    (Metadata date1 tags1 loc1@(mod1, _, _))
             (Metadata date2 tags2 loc2) =
         Metadata (date1 <|> date2) (tags1 <> tags2)
             (if Text.null mod1 then loc2 else loc1)
+instance Monoid Metadata where
+    mempty = Metadata Nothing mempty ("", 0, "")
+    mappend = (<>)
 
 instance Pretty Metadata where
     format (Metadata date tags loc) = Pretty.record "Metadata"
@@ -245,9 +247,11 @@ instance Pretty Metadata where
 newtype Tags = Tags (Map Text [Text])
     deriving (Eq, Show, Pretty)
 
+instance Semigroup Tags where
+    Tags t1 <> Tags t2 = Tags (Util.Map.mappend t1 t2)
 instance Monoid Tags where
     mempty = Tags mempty
-    mappend (Tags t1) (Tags t2) = Tags (Util.Map.mappend t1 t2)
+    mappend = (<>)
 
 date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
 date y m d
@@ -311,10 +315,12 @@ data StrokeMaps = StrokeMaps {
     , instSargam :: Realize.Instrument Sargam.Stroke
     } deriving (Eq, Show)
 
+instance Semigroup StrokeMaps where
+    StrokeMaps a1 a2 a3 a4 <> StrokeMaps b1 b2 b3 b4 =
+        StrokeMaps (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
 instance Monoid StrokeMaps where
     mempty = StrokeMaps mempty mempty mempty mempty
-    mappend (StrokeMaps a1 a2 a3 a4) (StrokeMaps b1 b2 b3 b4) =
-        StrokeMaps (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
+    mappend = (<>)
 
 instance Pretty StrokeMaps where
     format (StrokeMaps mridangam kendangTunggal reyong sargam) =

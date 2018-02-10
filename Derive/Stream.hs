@@ -73,40 +73,49 @@ newtype Stream a = Stream [LEvent.LEvent a]
 
 data Sorted = Unsorted | Sorted deriving (Show, Eq)
 
+instance Semigroup Sorted where
+    Sorted <> Sorted = Sorted
+    _ <> _ = Unsorted
 instance Monoid Sorted where
     mempty = Sorted
-    mappend Sorted Sorted = Sorted
-    mappend _ _ = Unsorted
+    mappend = (<>)
 
 emap :: ([LEvent.LEvent a] -> [LEvent.LEvent b]) -> Stream a -> Stream b
 emap f = from_sorted_list . f . to_list
 
+instance Semigroup (Stream Score.Event) where
+    s1 <> s2 =
+        from_sorted_list $ Seq.merge_on levent_key (to_list s1) (to_list s2)
+    -- Stream s1 e1 <> Stream s2 e2 = case (s1, s2) of
+    --     (Sorted, Sorted) -> from_sorted_list $ Seq.merge_on levent_key e1 e2
+    --     _ -> from_list (e1 <> e2)
 instance Monoid (Stream Score.Event) where
     mempty = from_sorted_list mempty
-    mappend s1 s2 =
-        from_sorted_list $ Seq.merge_on levent_key (to_list s1) (to_list s2)
+    mappend = (<>)
     mconcat = from_sorted_list . Seq.merge_lists levent_key . map to_list
     -- mconcat streams = from_sorted_list groups
     --     where
     --     groups = Seq.merge_lists levent_key
     --         [events | Stream _ events <- map sort streams]
-    -- mappend (Stream s1 e1) (Stream s2 e2) = case (s1, s2) of
-    --     (Sorted, Sorted) -> from_sorted_list $ Seq.merge_on levent_key e1 e2
-    --     _ -> from_list (e1 <> e2)
 
 -- To my surprise, GHC will accept an overlapping instance Monoid (Stream a).
 -- Maybe it's ok because it's unambiguous, but I still like specific instances.
 -- This means calls have to use Stream.empty instead of mempty, but that's not
 -- such a big deal.
 
+instance Semigroup (Stream Signal.Control) where
+    s1 <> s2 = from_sorted_list (to_list s1 <> to_list s2)
+
 -- | Signal.Control streams don't need sorted order.
 instance Monoid (Stream Signal.Control) where
     mempty = empty
-    mappend s1 s2 = from_sorted_list (to_list s1 <> to_list s2)
+    mappend = (<>)
 
+instance Semigroup (Stream PSignal.PSignal) where
+    s1 <> s2 = from_sorted_list (to_list s1 <> to_list s2)
 instance Monoid (Stream PSignal.PSignal) where
     mempty = empty
-    mappend s1 s2 = from_sorted_list (to_list s1 <> to_list s2)
+    mappend = (<>)
 
 instance DeepSeq.NFData a => DeepSeq.NFData (Stream a) where
     rnf = DeepSeq.rnf . to_list
