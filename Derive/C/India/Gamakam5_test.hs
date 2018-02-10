@@ -15,6 +15,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
 import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
 import Global
 import Types
 
@@ -27,7 +28,7 @@ test_call_maps = do
 -- * pitch
 
 test_sequence = do
-    let run c = derive_tracks DeriveTest.e_nns_literal $
+    let run c = derive_tracks False DeriveTest.e_nns_literal $
             make_2notes (4, "--|") (2, c)
         output nns = ([[(0, NN.c4), (4, NN.c4)], nns, [(6, NN.e4)]], [])
     putStrLn $ untxt $ UiTest.fmt_tracks $ make_2notes (4, "--|") (2, "X")
@@ -38,20 +39,21 @@ test_sequence = do
     equal (run "!Ta0") (output [(4, 60), (5, 61), (6, 62)])
     equal (run "!Ta=") (output [(4, NN.c4), (6, NN.c4)])
 
-test_sequence_multiple = do
-    -- Test multiple sequence calls under one note.
-    let run = derive_tracks
-    let note = [(">", [(0, 4, "")]), ("*", [(0, 0, "4c")])]
-    -- 4c------
-    -- !-1 !0  |
-    -- Prev pitch is from the previous sequence call.
-    equal (run DeriveTest.e_nns_rounded $
-            note ++ [("t-nn | gamak", [(0, 2, "!-1"), (2, 2, "!0")])])
-        ([[(0, 60), (1, 59.5), (2, 59), (3, 59.5), (4, 60)]], [])
-    -- Same for dyn.
-    equal (run DeriveTest.e_dyn_rounded $
-            note ++ [("dyn | dyn", [(0, 2, "!<4"), (2, 0, "!>")])])
-        ([[(0, 0), (1, 0.37), (2, 0.44), (3, 0.37), (4, 0)]], [])
+-- TODO this is just test_prev_pitch
+-- test_sequence_multiple = do
+--     -- Test multiple sequence calls under one note.
+--     let run = derive_tracks False
+--     let note = [(">", [(0, 4, "")]), ("*", [(0, 0, "4c")])]
+--     -- 4c------
+--     -- !-1 !0  |
+--     -- Prev pitch is from the previous sequence call.
+--     equal (run DeriveTest.e_nns_rounded $
+--             note ++ [("t-nn | gamak", [(0, 2, "!-1"), (2, 2, "!0")])])
+--         ([[(0, 60), (1, 59.5), (2, 59), (3, 59.5), (4, 60)]], [])
+--     -- Same for dyn.
+--     equal (run DeriveTest.e_dyn_rounded $
+--             note ++ [("dyn | dyn", [(0, 2, "!<4"), (2, 0, "!>")])])
+--         ([[(0, 0), (1, 0.37), (2, 0.44), (3, 0.37), (4, 0)]], [])
 
 test_parse_pitch_sequence = do
     let f = Gamakam.parse_pitch_sequence
@@ -64,7 +66,8 @@ test_parse_pitch_sequence = do
         Right [CallArg '1' "", PitchGroup [CallArg '0' "", CallArg '1' ""]]
 
 test_postfix = do
-    let run = derive_tracks DeriveTest.e_nns_literal . make_2notes (4, "--|")
+    let run = derive_tracks False DeriveTest.e_nns_literal
+            . make_2notes (4, "--|")
     strings_like (snd $ run (4, "!_==1_"))
         (replicate 2 "postfix call with no preceding call")
     equal (run (4, "!T0==1_"))
@@ -87,28 +90,67 @@ test_resolve_postfix = do
     equal (f "x__") (Right [('x', 3)])
     equal (f "x__.") (Right [('x', 1.5)])
 
-test_prev_pitch = do
-    let run = derive_tracks DeriveTest.e_nns_literal
-    -- Prev pitch comes from previous call.
-    equal (run $ note_pitch_gamakam
-            [(0, 2, "")]
-            [(0, 0, "4c")]
-            [(0, 0, "!T1="), (1, 0, "!=")])
-        ([[(0, NN.cs4), (1, NN.cs4)]], [])
-    -- Prev pitch comes from prev event.
-    equal (run (make_2notes (4, "--|") (2, "!-1")))
-        ([[(0, NN.c4), (4, NN.c4)], [(4, NN.c4), (6, NN.c4)], [(6, NN.e4)]], [])
-    -- Prev pitch comes from the parent pitch track.
-    equal (run $ note_pitch_gamakam
-            [(0, 1, ""), (1, 2, "")]
-            [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
-            [(0, 0, "!T1="), (2, 0, "!0")])
-        -- T1 is 4c#, then set to 4d, and come from 4d to 4e.
-        ( [ [(0, NN.cs4), (1, NN.cs4)]
-          , [(1, NN.d4), (2, NN.d4), (2, NN.e4), (3, NN.e4)]
-          ]
+test_prev_pitch_above = do
+    let run = from_cur_prev_next
+    equal (run [(0, "4c"), (1, "4d")] [(0, 1), (1, 1)])
+        ( [NN.c4, NN.d4, NN.c4, NN.d4]
         , []
         )
+    equal (run [(0, "4c"), (1, "4d")] [(0, 2)])
+        ( [NN.c4, NN.d4, NN.c4, NN.d4]
+        , []
+        )
+    equal (run [(0, "4c"), (1, "4d"), (2, "4e")] [(0, 1), (1, 2)])
+        ( [NN.c4, NN.d4, NN.c4, NN.e4]
+        , []
+        )
+
+from_cur_prev_next :: [(ScoreTime, Text)] -> [(ScoreTime, ScoreTime)]
+    -> ([Pitch.NoteNumber], [Text])
+from_cur_prev_next pitches notes = (nns, concat logs)
+    where
+    nns = map (last . map snd . filter ((==1) . fst) . concat) sigs
+    (sigs, logs) = unzip $ map run_with ["!=", "!^=", "!<=", "!&="]
+    run_with call = derive_tracks True DeriveTest.e_nns_literal $
+        pitch_gamakam_note pitches [(1, call)] notes
+
+-- get_state :: Derive.Generator Derive.Control
+-- get_state = CallTest.generator $ \args -> do
+--     state <- Derive.require "initial_pitch_state" $
+--         Gamakam.initial_pitch_state 0 args
+--     Call.placed_note args
+
+test_prev_pitch2 = do
+    let run ns ps gs = derive_tracks False DeriveTest.e_nns_literal $
+            note_pitch_gamakam0 ns ps gs
+    equal (run [(0, 1), (1, 1)] [(0, "4c"), (1, "4d")] [(1, "!=")])
+        ([[(0, NN.c4), (1, NN.c4)], [(1, NN.c4)]], [])
+    -- broken, but should work
+    -- equal (run [(0, 2)] [(0, "4c"), (1, "4d")] [(1, "!=")])
+    --     ([[(0, NN.c4), (1, NN.c4)], [(1, NN.c4)]], [])
+
+-- test_prev_pitch = do
+--     let run = derive_tracks False DeriveTest.e_nns_literal
+--     -- Prev pitch comes from previous call.
+--     equal (run $ note_pitch_gamakam
+--             [(0, 2, "")]
+--             [(0, 0, "4c")]
+--             [(0, 0, "!T1="), (1, 0, "!=")])
+--         ([[(0, NN.cs4), (1, NN.cs4)]], [])
+--     -- Prev pitch comes from prev event.
+--     equal (run (make_2notes (4, "--|") (2, "!-1")))
+--         ([[(0, NN.c4), (4, NN.c4)], [(4, NN.c4), (6, NN.c4)], [(6, NN.e4)]], [])
+--     -- Prev pitch comes from the parent pitch track.
+--     equal (run $ note_pitch_gamakam
+--             [(0, 1, ""), (1, 2, "")]
+--             [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
+--             [(0, 0, "!T1="), (2, 0, "!0")])
+--         -- T1 is 4c#, then set to 4d, and come from 4d to 4e.
+--         ( [ [(0, NN.cs4), (1, NN.cs4)]
+--           , [(1, NN.d4), (2, NN.d4), (2, NN.e4), (3, NN.e4)]
+--           ]
+--         , []
+--         )
 
     -- TODO
     -- equal (run $ note_pitch_gamakam
@@ -161,12 +203,12 @@ test_note_end = do
             [(0, 0), (1, 0.58), (2, 0.84), (3, 0.96), (4, 1)])]
 
 test_sequence_interleave = do
-    let run c = derive_tracks extract $ make_2notes (4, "--|") (6, c)
+    let run c = derive_tracks False extract $ make_2notes (4, "--|") (6, c)
         extract = DeriveTest.e_nns_rounded
     equal (run "!=") ([[(0, NN.c4)], [(4, NN.c4)], [(10, NN.e4)]], [])
 
 test_alias = do
-    let run dur g = derive_tracks DeriveTest.e_nns_rounded $
+    let run dur g = derive_tracks False DeriveTest.e_nns_rounded $
             make_tracks [(0, dur, "4c", g)]
     equal (run 2 "!0-1") (run 2 "!0a")
     equal (run 2 "!0[e0]") (run 2 "!0n")
@@ -181,7 +223,7 @@ test_parse_dyn_sequence = do
     equal (f "T9>") $ Right [Call 'T' "9", Call '>' ""]
 
 test_dyn_sequence = do
-    let run call1 call2 = derive_tracks DeriveTest.e_dyn_literal $
+    let run call1 call2 = derive_tracks False DeriveTest.e_dyn_literal $
             make_dyn_tracks (4, call1) (4, call2)
     equal (run ".5" "!=") ([[(0, 0.5)], [(4, 0.5)], [(4, 0.5)]], [])
     equal (run ".5" "!=>")
@@ -205,15 +247,33 @@ make_dyn_tracks (dur1, call1) (dur2, call2) =
 
 -- * util
 
-derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [Text])
-derive_tracks extract = DeriveTest.extract extract
+derive_tracks :: Bool -> (Score.Event -> a) -> [UiTest.TrackSpec]
+    -> ([a], [Text])
+derive_tracks pitch_above extract = DeriveTest.extract extract
     . DeriveTest.derive_tracks
-        "import india.gamakam5 | transition=1 | dyn-transition=1"
+        ("import india.gamakam5 | transition=1 | dyn-transition=1"
+            <> if pitch_above then " | gamakam-above=t" else "")
 
 note_pitch_gamakam :: [UiTest.EventSpec] -> [UiTest.EventSpec]
     -> [UiTest.EventSpec] -> [UiTest.TrackSpec]
 note_pitch_gamakam notes pitches gamakams =
     [(">", notes), ("*", pitches), ("t-nn | gamak", gamakams)]
+
+pitch_gamakam_note :: [(ScoreTime, Text)] -> [(ScoreTime, Text)]
+    -> [(ScoreTime, ScoreTime)] -> [UiTest.TrackSpec]
+pitch_gamakam_note pitches gamakams notes =
+    [ ("*", [(s, 0, p) | (s, p) <- pitches])
+    , ("t-nn | gamak", [(s, 0, p) | (s, p) <- gamakams])
+    , (">", [(s, d, "") | (s, d) <- notes])
+    ]
+
+note_pitch_gamakam0 :: [(ScoreTime, ScoreTime)] -> [(ScoreTime, Text)]
+    -> [(ScoreTime, Text)] -> [UiTest.TrackSpec]
+note_pitch_gamakam0 notes pitches gamakams =
+    [ (">", [(s, d, "") | (s, d) <- notes])
+    , ("*", [(s, 0, p) | (s, p) <- pitches])
+    , ("t-nn | gamak", [(s, 0, p) | (s, p) <- gamakams])
+    ]
 
 make_tracks :: [(ScoreTime, ScoreTime, Text, Text)]
     -- ^ (start, dur, pitch, gamakam)

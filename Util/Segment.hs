@@ -20,7 +20,7 @@ module Util.Segment (
 
     -- * query
     , null
-    , at, segment_at
+    , at, at_negative, segment_at
     , head, last
     , maximum, minimum
 
@@ -244,8 +244,15 @@ at interpolate x (Signal offset vec)
     | i + 1 == V.length vec = Just (sy (V.unsafeIndex vec i))
     | otherwise =
         Just $ interpolate (V.unsafeIndex vec i) (V.unsafeIndex vec (i+1)) x
-    where
-    i = TimeVector.highest_index (x - offset) vec
+    where i = TimeVector.highest_index (x - offset) vec
+
+-- | Like 'at', but if the x matches a discontinuity, take the value before
+-- instead of after.
+at_negative :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y
+    -> Maybe y
+at_negative interpolate x signal = do
+    Segment x1 y1 x2 y2 <- segment_at_orientation Types.Negative x signal
+    return $ interpolate (Sample x1 y1) (Sample x2 y2) x
 
 segment_at :: V.Vector v (Sample y) => X -> SignalS v y -> Maybe (Segment y)
 segment_at  = segment_at_orientation Types.Positive

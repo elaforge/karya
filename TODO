@@ -163,6 +163,8 @@ STATUS
       examples, since full scores still seems to be really noisy.
 
 UNSORTED
+  - It's awkward to rearrange tracks and then redo the skeleton.  Since
+    I never really want tangled skeleton anyway, can't I make that implicit?
   . Simplify or unify various types in Derive.ScoreTypes,
     Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
     and move simple types to Derive.T.
@@ -197,9 +199,7 @@ UNSORTED
     would help.
   - what if I added a 'default-interpolator' argument so Control.c_set and
     Pitch.c_set could make curves by default?
-  . Couldn't I solve all of the gamakam previous pitch problems by just
-    putting the gamakam track above?  How about some cmd utils to help line up
-    with notes?
+
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
   - Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
   - If I use cpphs I might be able to use \ string continuation for CPP
@@ -1252,8 +1252,9 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
 
   reimplement:
     - implement Warp.compose_hybrid
-    - SignalTransform.c_quantize.
+    / SignalTransform.c_quantize.
       . It will have to find where segments intersect the quantize multiples.
+      . Don't bother for now.
 
   - If I get rid of constant signals starting at 0, then Tempo.tempo_to_warp's
     constant_val doesn't work, because tracks start at 0.
@@ -1273,6 +1274,31 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       was that randomize moves every event.
 
 gamakam:
+  - !0= on the last pitch makes an endless loop
+    . Should I abort derivation after too long?  Or have some way to do that?
+      Actually it locked the respond thread, I should abort that one if it
+      goes away too long.
+    . Respond probably got wedged because I hit play, and derive is wedged.
+  prev pitch:
+    . Originally somewhat broken, but broken in more cases by linear segments.
+    . Why is prev pitch so hard?
+    . Couldn't I solve all of the gamakam previous pitch problems by just
+      putting the gamakam track above?  How about some cmd utils to help line up
+      with notes?
+      . No, because I need to get previous pitch from the previous swaram.
+        Remember gamakam is now pitch + t-nn.
+    . All I want is the last pitch as it sounds.
+    . Why isn't that just the pitch of the previous note <now?
+      Because it might actually be the pitch of the current note, just the
+      previous swaram.
+    . Could I simplify this by always using one note per gamakam, and then
+      some other means to join them together?
+      . What would that other means be though?  Event duration seems most
+        natural since that's what everyone else uses.
+    . Putting pitch above actually seems to solve these problems.
+    . But it breaks the the until next note hack.  I can get it back by
+      looking for the next pitch instead.
+
   - Integrate notes from the other gamakam: section in here, and unify it into
     one document describing the history with gamakam.
   notes due to linear segments:

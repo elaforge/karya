@@ -16,7 +16,7 @@ module Derive.PSignal (
 
     -- * query
     , null
-    , at, segment_at
+    , at, at_negative, segment_at
     , interpolate
     , head, last
     -- , before
@@ -143,6 +143,9 @@ null = Segment.null . _signal
 
 at :: RealTime -> PSignal -> Maybe Pitch
 at x = Segment.at interpolate x . _signal
+
+at_negative :: RealTime -> PSignal -> Maybe Pitch
+at_negative x = Segment.at_negative interpolate x . _signal
 
 segment_at :: RealTime -> PSignal -> Maybe (Segment.Segment Pitch)
 segment_at x = Segment.segment_at x . _signal

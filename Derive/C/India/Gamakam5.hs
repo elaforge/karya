@@ -82,12 +82,16 @@ c_import_dyn = Derive.transformer module_ "dyn" mempty
 c_pitch_sequence :: Derive.Generator Derive.Control
 c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
     "sequence" mempty pitch_sequence_doc
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
         <$> Sig.required "sequence" "Pitch calls."
         <*> transition_env
-    ) $ \(text, transition) args -> do
-        (start, end) <- Args.range_or_note_end args
-        maybe_state <- initial_pitch_state transition args
+        <*> Sig.environ "gamakam-above" Sig.Unprefixed False
+            "Expect pitch and gamakam tracks above the note track."
+    ) $ \(text, transition, pitch_above) args -> do
+        (start, end) <- if pitch_above
+            then (Args.start args,) <$> infer_end args
+            else Args.range_or_note_end args
+        maybe_state <- initial_pitch_state pitch_above transition args
         case maybe_state of
             Nothing -> return mempty
             Just state -> do
@@ -101,48 +105,37 @@ c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
             "Time for each pitch movement, in proportion of the total time"
             <> " available."
 
-initial_pitch_state :: Typecheck.Normalized -> Derive.PassedArgs Derive.Control
+-- | Infer the end time for the gamakam as the next pitch in the pitch signal,
+-- which should correspond to the next explicit swaram.
+infer_end :: Derive.PassedArgs a -> Derive.Deriver TrackTime
+infer_end args
+    | Args.end args /= Args.start args = return $ Args.end args
+    | otherwise = do
+        pitch <- Derive.get_pitch
+        start <- Args.real_start args
+        case next_sample start pitch of
+            Nothing -> return $ Args.start args
+            Just (x, _) -> Derive.score x
+
+initial_pitch_state :: Bool -> Typecheck.Normalized
+    -> Derive.PassedArgs Derive.Control
     -> Derive.Deriver (Maybe PitchState)
-initial_pitch_state transition args = do
+initial_pitch_state pitch_above transition args = do
     start <- Args.real_start args
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
     justm (lookup_pitch start) $ \current -> do
-        -- Getting the previous pitch is kind of ridiculously complicated.
-        -- First, Args.prev_pitch means there was a preceding pitch call, so
-        -- I take that one if present.  Otherwise, the pitch can come from
-        -- either the previous event, or the previous pitch on the current
-        -- pitch signal, whichever is newer.  The current pitch signal will
-        -- be newer if there is a pitch on the parent pitch track with no
-        -- corresponding gamakam on this one.
-
-        start <- Args.real_start args
-        maybe_prev <- Args.lookup_prev_note_pitch args
-        maybe_next <- Args.lookup_next_note_pitch args
-
-        -- Take the previous transposition and add it to the pitch at < start.
-
-        -- prev_event_pitch <- Args.prev_note_pitch
-        -- pitch_signal <- PSignal.before start <$> Derive.get_pitch
-        -- let context_pitch = case (prev_event_pitch, pitch_signal) of
-        --         (Just a, Just b) -> Just $ snd $ Seq.max_on fst a b
-        --         (a, b) -> snd <$> (a <|> b)
-        -- let prev_pitch = snd <$> Args.prev_pitch args
-
-        -- let minus_current = fmap (fromMaybe 0) . traverse (`minus` current)
-        let steps_from_current = fmap (fromMaybe 0)
-                . traverse
-                    ((`step_difference` current) <=< Derive.resolve_pitch start)
-        prev <- steps_from_current maybe_prev
-        next <- steps_from_current maybe_next
+        (prev, next, from) <- if pitch_above
+            then get_neighbor_pitches_above start
+            else get_neighbor_pitches (Args.start args)
 
         let prev_step = maybe 0 snd $ Args.prev_control args
-        maybe_from <- get_prev_pitch start
+        let steps_from_current = fmap (fromMaybe 0) . traverse
+                ((`step_difference` current) <=< Derive.resolve_pitch start)
+        prev <- steps_from_current prev
         from <- steps_from_current $
-            Pitches.transpose_nn (Pitch.nn prev_step) <$> maybe_from
-        -- Debug.tracepM "SWARAM" (start, current)
-        -- Debug.tracepM "from" (maybe_from, prev_step)
-        -- Debug.tracepM "pitch" =<< Derive.get_pitch
+            Pitches.transpose_nn (Pitch.nn prev_step) <$> from
+        next <- steps_from_current next
 
         return $ Just $ PitchState
             { _swaram = current
@@ -154,18 +147,50 @@ initial_pitch_state transition args = do
     where
     lookup_pitch = Call.transposed
 
+get_neighbor_pitches :: ScoreTime -> Derive.Deriver
+    (Maybe PSignal.Pitch, Maybe PSignal.Pitch, Maybe PSignal.Pitch)
+get_neighbor_pitches start = (,,)
+    <$> Args.lookup_prev_note_pitch start
+    <*> Args.lookup_next_note_pitch start
+    <*> (get_prev_pitch =<< Derive.real start)
+
+get_neighbor_pitches_above :: RealTime -> Derive.Deriver
+    (Maybe PSignal.Pitch, Maybe PSignal.Pitch, Maybe PSignal.Pitch)
+get_neighbor_pitches_above start = do
+    pitch <- Derive.get_pitch
+    let prev = PSignal.at_negative start pitch
+    let next = snd <$> next_sample start pitch
+    return (prev, next, prev)
+
+next_sample :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
+next_sample x pitch = do
+    Segment.Segment _ _ x2 _ <- PSignal.segment_at x pitch
+    (x2,) <$> PSignal.at x2 pitch
+
 get_prev_pitch :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
-get_prev_pitch start = do
-    -- If this is the first call in this note, then I have to look in the
-    -- preivous slice.
-    prev_event_pitch <- Args.prev_note_pitch
-    -- TODO gives different results for test_prev_pitch, but I don't understand
-    -- which is right.
-    -- pitch_signal <- PSignal.last . PSignal.drop_after start <$> Derive.get_pitch
-    pitch_signal <- before start <$> Derive.get_pitch
-    return $ case (prev_event_pitch, pitch_signal) of
-        (Just a, Just b) -> Just $ snd $ Seq.max_on fst a b
-        (a, b) -> snd <$> (a <|> b)
+get_prev_pitch = Args.prev_note_pitch
+
+-- TODO this is how it used to work, which is complicated, and only mostly
+-- worked.  If I move to *_above, then maybe I can get rid of this entirely.
+-- get_prev_pitch_old :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
+-- get_prev_pitch_old start = do
+--     -- If this is the first call in this note, then I have to look in the
+--     -- previous slice.
+--     prev_event_pitch <- Args.prev_note_pitch start
+--     -- TODO gives different results for test_prev_pitch, but I don't understand
+--     -- which is right.
+--     -- pitch_signal <- PSignal.last . PSignal.drop_after start <$> Derive.get_pitch
+--     pitch_signal <- before start <$> Derive.get_pitch
+--     return $ case (prev_event_pitch, pitch_signal) of
+--         (Just a, Just b) -> Just $ snd $ Seq.max_on fst a b
+--         (a, b) -> snd <$> (a <|> b)
+--     -- Getting the previous pitch is kind of ridiculously complicated.
+--     -- First, Args.prev_pitch means there was a preceding pitch call, so
+--     -- I take that one if present.  Otherwise, the pitch can come from
+--     -- either the previous event, or the previous pitch on the current
+--     -- pitch signal, whichever is newer.  The current pitch signal will
+--     -- be newer if there is a pitch on the parent pitch track with no
+--     -- corresponding gamakam on this one.
 
 before :: RealTime -> PSignal.PSignal -> Maybe (RealTime, PSignal.Pitch)
 before x sig = case PSignal.segment_at x sig of
@@ -217,6 +242,7 @@ pitch_call_map = resolve $ Map.unique $ concat
       -- set config
       , config '<' "Set from pitch to previous." (pc_set_pitch_from Previous)
       , config '^' "Set from pitch to current." (pc_set_pitch_from Current)
+      , config '&' "Set from pitch to next." (pc_set_pitch_from Next)
       , config 'T' "Set from pitch relative to swaram." pc_set_pitch
       , config 'F' "Fast transition time." (pc_set_transition_time Fast)
       , config 'M' "Medium transition time." (pc_set_transition_time Medium)
@@ -377,7 +403,7 @@ data Transpose = Diatonic | Chromatic | Nn
 
 pitch_sequence :: ScoreTime -> PitchState -> Text -> Derive.Deriver Result
 pitch_sequence dur state arg = do
-    calls <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
+    calls <- Derive.require_right (("parsing " <> pretty arg <> ": ")<>) $
         resolve_postfix =<< resolve_pitch_calls =<< parse_pitch_sequence arg
     let starts = slice_time dur (call_durations calls)
         ranges = zip starts (drop 1 starts)
@@ -577,7 +603,7 @@ apply_arg call name arg = call
 parse_args :: State.MonadTrans m => Derive.CallName -> Text -> Sig.Parser a
     -> m Derive.Deriver a
 parse_args name arg sig = lift $ do
-    vals <- Derive.require_right (("parsing " <> showt name <> ": ") <>) $
+    vals <- Derive.require_right (("parsing " <> pretty name <> ": ") <>) $
         if Text.null arg then return [] else (:[]) <$> Parse.parse_val arg
     Sig.require_right
         =<< Sig.parse_vals sig (Derive.dummy_context 0 1 (pretty name))

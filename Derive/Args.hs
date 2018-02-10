@@ -98,10 +98,14 @@ prev_val = Derive.ctx_prev_val . context
 -- ** from 'Derive.state_prev_val'
 
 -- TODO do I really need so many ways to get the previous pitch?
-prev_note_pitch :: Derive.Deriver (Maybe (RealTime, PSignal.Pitch))
-prev_note_pitch = do
-    prev <- prev_note
-    return $ PSignal.last . Score.event_pitch =<< prev
+-- prev_note_pitch :: Derive.Deriver (Maybe (RealTime, PSignal.Pitch))
+-- prev_note_pitch = do
+--     prev <- prev_note
+--     return $ PSignal.last . Score.event_pitch =<< prev
+
+prev_note_pitch :: RealTime -> Derive.Deriver (Maybe PSignal.Pitch)
+prev_note_pitch start = justm prev_note $
+    return . PSignal.at_negative start . Score.event_pitch
 
 -- | Get the previous note.  Unlike 'prev_val', this always gets the previous
 -- Score.Event, even if you're evaluating a control track under the note track.
@@ -129,14 +133,14 @@ lookup_prev_pitch =
 
 -- | Pitch at the time of the next note event of this track's
 -- 'Derive.state_note_track'.
-lookup_next_note_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_note_pitch args =
-    justm (note_after (start args) <$> get_note_events) $
+lookup_next_note_pitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_next_note_pitch start =
+    justm (note_after start <$> get_note_events) $
     lookup_pitch_at <=< Derive.real . Event.start
 
-lookup_prev_note_pitch :: PassedArgs a -> Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_note_pitch args =
-    justm (note_before (start args) <$> get_note_events) $
+lookup_prev_note_pitch :: ScoreTime -> Derive.Deriver (Maybe PSignal.Pitch)
+lookup_prev_note_pitch start =
+    justm (note_before start <$> get_note_events) $
     lookup_pitch_at <=< Derive.real . Event.start
 
 note_before :: TrackTime -> Events.Events -> Maybe Event.Event
