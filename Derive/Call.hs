@@ -568,7 +568,7 @@ timestep :: ScoreTime -> TimeStep.TimeStep
 timestep start ts steps = do
     (block_id, tracknum) <- Internal.get_current_tracknum
     Derive.require ("no valid timestep from " <> ShowVal.show_val start)
-        =<< Derive.eval_ui "c_timestep"
+        =<< Derive.eval_ui
             (firstJusts [TimeStep.step_from step ts block_id tracknum start |
                 step <- steps])
 

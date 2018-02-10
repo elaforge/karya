@@ -12,6 +12,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Word as Word
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
@@ -179,10 +180,10 @@ get_block :: BlockId -> Deriver Block.Block
 get_block block_id = lookup_id block_id =<< get_ui_state Ui.state_blocks
 
 -- | Evaluate a Ui.M computation, rethrowing any errors.
-eval_ui :: Text -> Ui.StateId a -> Deriver a
-eval_ui caller action = do
+eval_ui :: CallStack.Stack => Ui.StateId a -> Deriver a
+eval_ui action = do
     ui_state <- get_ui_state id
-    let rethrow exc = throw $ caller <> ": " <> pretty exc
+    let rethrow exc = throw $ pretty exc
     either rethrow return (Ui.eval ui_state action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
@@ -211,8 +212,7 @@ lookup_current_tracknum = do
     case Stack.block_track_of stack of
         Nothing -> return Nothing
         Just (block_id, track_id) -> do
-            tracknum <- eval_ui "lookup_current_tracknum" $
-                Ui.get_tracknum_of block_id track_id
+            tracknum <- eval_ui $ Ui.get_tracknum_of block_id track_id
             return $ Just (block_id, tracknum)
 
 get_current_tracknum :: Deriver (BlockId, TrackNum)
@@ -322,7 +322,6 @@ get_warp = get_dynamic state_warp
 at :: ScoreTime -> Deriver a -> Deriver a
 at shift = with_warp $ Warp.shift shift
 
-
 stretch :: ScoreTime -> Deriver a -> Deriver a
 stretch factor = with_warp $ Warp.stretch factor
 
@@ -363,11 +362,11 @@ add_new_track_warp maybe_track_id = do
 -- duration of the block, which may be shorter or lorger than the end of the
 -- last event, or the ruler.
 block_logical_range :: BlockId -> Deriver (TrackTime, TrackTime)
-block_logical_range = eval_ui "block_logical_range" . Ui.block_logical_range
+block_logical_range = eval_ui . Ui.block_logical_range
 
 -- | Get the duration of the block according to the last event.
 block_event_end :: BlockId -> Deriver ScoreTime
-block_event_end = eval_ui "block_event_end" . Ui.block_event_end
+block_event_end = eval_ui . Ui.block_event_end
 
 
 -- * track

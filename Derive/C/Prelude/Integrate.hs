@@ -49,7 +49,7 @@ block_integrate events = do
     -- one is supposed to be integrated.
     maybe_block_id <- frame_of Stack.block_of <$> Internal.get_stack
     whenJust maybe_block_id $ \block_id -> do
-        events <- Derive.eval_ui "c_block_integrate" $ unwarp block_id events
+        events <- Derive.eval_ui $ unwarp block_id events
         let integrated = Derive.Integrated (Left block_id) events
         Internal.merge_collect $ mempty
             { Derive.collect_integrated = [integrated] }
@@ -113,7 +113,7 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
 track_integrate :: BlockId -> TrackId -> Stream.Stream Score.Event
     -> Derive.Deriver ()
 track_integrate block_id track_id events = do
-    events <- Derive.eval_ui "c_track_integrate" $ unwarp block_id events
+    events <- Derive.eval_ui $ unwarp block_id events
     let integrated = Derive.Integrated (Right track_id) events
     Internal.merge_collect $ mempty
         { Derive.collect_integrated = [integrated] }

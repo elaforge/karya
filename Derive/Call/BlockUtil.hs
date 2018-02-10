@@ -61,7 +61,7 @@ import Types
 
 note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
-    (tree, block_range) <- Derive.eval_ui ("note_deriver " <> showt block_id) $
+    (tree, block_range) <- Derive.eval_ui $
         (,) <$> TrackTree.block_events_tree block_id
             <*> Ui.block_logical_range block_id
     with_per_block_state (snd block_range) $ derive_tree block_range tree

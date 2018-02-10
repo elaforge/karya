@@ -213,8 +213,7 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
     when (Map.lookup block_id blocks == Nothing) $
         Derive.throw "block_id not found"
     Internal.add_block_dep block_id
-    deriver <- Derive.eval_ui ("d_control_block " <> showt block_id)
-        (BlockUtil.control_deriver block_id)
+    deriver <- Derive.eval_ui $ BlockUtil.control_deriver block_id
     deriver
 
 c_capture_null_control :: Derive.Generator Derive.Note
