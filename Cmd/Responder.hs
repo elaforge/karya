@@ -205,17 +205,26 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
 
 -- * respond
 
+-- | Kill the respond if it's taking too long.  This can happen if derive gets
+-- stuck and you hit play, for instance.
+timeout :: Thread.Seconds
+timeout = 2
+
 respond_loop :: State -> MsgReader -> IO ()
 respond_loop rstate msg_reader = do
     msg <- msg_reader
     when (Cmd.state_debug_ui_msgs (state_cmd rstate)) $
         Debug.putp "msg" msg
-    result <- Exception.try $ respond rstate msg
+    result <- Exception.try $ Thread.timeout timeout $ respond rstate msg
     case result of
         Left (exc :: Exception.SomeException) -> do
             Log.error $ "exception caught in respond_loop: " <> showt exc
             respond_loop rstate msg_reader
-        Right (quit, rstate) -> unless quit (respond_loop rstate msg_reader)
+        Right Nothing -> do
+            Log.error "respond timed out, derive might be stuck"
+            respond_loop rstate msg_reader
+        Right (Just (quit, rstate)) -> unless quit $
+            respond_loop rstate msg_reader
 
 -- | State maintained for a single responder cycle.
 data RState = RState {

@@ -1275,7 +1275,7 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
 
 gamakam:
   - !0= on the last pitch makes an endless loop
-    . Should I abort derivation after too long?  Or have some way to do that?
+    * Should I abort derivation after too long?  Or have some way to do that?
       Actually it locked the respond thread, I should abort that one if it
       goes away too long.
     . Respond probably got wedged because I hit play, and derive is wedged.
