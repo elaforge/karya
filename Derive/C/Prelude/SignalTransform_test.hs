@@ -27,13 +27,16 @@ test_sh_control = do
         , (2, 2), (3, 2), (3, 3)
         ]
 
--- TODO fix this
--- test_quantize = do
---     let run = CallTest.run_control
---     equal (run [(0, "0"), (4, "quantize .25 | i 1")])
---         [ (0, 0), (1, 0), (1, 0.25), (2, 0.25)
---         , (2, 0.5), (3, 0.5), (3, 0.75), (4, 0.75), (4, 1)
---         ]
+test_quantize = do
+    let run = CallTest.run_control
+    equal (run [(0, "0"), (4, "quantize .25 | i 1")])
+        [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)]
+
+    -- If I did hard quantization:
+    -- equal (run [(0, "0"), (4, "quantize .25 | i 1")])
+    --     [ (0, 0), (1, 0), (1, 0.25), (2, 0.25)
+    --     , (2, 0.5), (3, 0.5), (3, 0.75), (4, 0.75), (4, 1)
+    --     ]
 
 test_slew_limiter = do
     let f slope = Signal.to_pairs

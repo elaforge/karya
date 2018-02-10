@@ -93,6 +93,11 @@ c_quantize = Derive.transformer Module.prelude "quantize" mempty
         srate <- Call.get_srate
         Post.signal (quantize srate val) deriver
 
+-- This would need to change for linear segments: for each segment, find where
+-- it crosses the threshold between multiples, draw flat segments at each one.
+-- But it may be that I want to do a soft quantize, where I map through
+-- a function which is attracted to the quantize points, and that will need
+-- resampling anyway.  So I'll leave this as-is.
 quantize :: RealTime -> Signal.Y -> Signal.Control -> Signal.Control
 quantize srate val
     | val == 0 = id
