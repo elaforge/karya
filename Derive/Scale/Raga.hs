@@ -132,6 +132,7 @@ data ArohanaAvarohana =
     -- | The arohana is given, the avarohana is the same but reversed.
     Same [Swaram]
     -- | Arohana ascending from low sa, avarohana descending from high sa.
+    -- The first and last Sa are omitted, since they are implicit.
     | Different [Swaram] [Swaram]
     deriving (Show)
 
@@ -147,6 +148,8 @@ janya = map assert_valid_name
         -- hindustani, similar to abheri
         , ("dhanasri", Different [G, M, P, N] down)
         , ("abhogi", Same [R, G, M, D])
+        , ("sri", Different [R, M, P, N] [N, P, M, R, G, R])
+            -- or avarohana = [N, P, D, N, P, M, R, G, R]
         ])
     , ("harikambhoji",
         [ ("mohanam", Same [R, G, P, D])
