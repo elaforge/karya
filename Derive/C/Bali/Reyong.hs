@@ -220,7 +220,8 @@ c_tumpuk_auto :: Derive.Generator Derive.Note
 c_tumpuk_auto = Derive.generator module_ "tumpuk-auto" Tags.inst
     "A variant of `tumpuk` that randomly picks a pattern."
     $ Sig.call place_env $ \place -> Sub.inverting $ \args -> do
-        rnd1 : rnd2 : _ <- Call.randoms
+        randoms <- Call.randoms
+        let rnd1 : rnd2 : _ = randoms -- randoms is infinite
         event_dur <- Args.real_duration args
         (notes, dur) <- Derive.require_right id $
             select_pattern event_dur rnd1 rnd2
