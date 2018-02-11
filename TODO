@@ -1274,6 +1274,14 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       was that randomize moves every event.
 
 gamakam:
+  - complete sami ninne in pitch above
+    . if it works, try converting the other songs
+  * pitch above can get a non-zero t-nn after a note
+    . If I just append 0, it messes up from pitch for the next one.
+  - promote a gamakam score to verify_performance
+  - I want a move to current which is not dependent on the note length, so
+    flat notes can be smoother.
+    . In generality, this suggests a set of constant time movements.
   * !0= on the last pitch makes an endless loop
     * Should I abort derivation after too long?  Or have some way to do that?
       Actually it locked the respond thread, I should abort that one if it

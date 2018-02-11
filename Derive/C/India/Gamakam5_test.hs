@@ -13,6 +13,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.C.India.Gamakam5 as Gamakam
 import Derive.C.India.Gamakam5 (Call(..), ParsedPitch(..))
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
@@ -118,12 +119,32 @@ from_cur_prev_next pitches notes = (nns, concat logs)
 
 test_sequence_above = do
     let run pitches gamakams notes =
-            derive_tracks True DeriveTest.e_nns_literal $
+            derive_tracks True e_clipped_nns $
                 pitch_gamakam_note pitches gamakams notes
-    -- Final event goes only to block end.
-    equal (first (map (map fst)) $
-            run [(0, "4c"), (1, "4d")] [(1, "!0")] [(0, 2)])
-        ([Seq.range 0 32 1], [])
+    -- -- Final event goes only to block end.
+    -- equal (first (map (map fst)) $
+    --         run [(0, "4c"), (1, "4d")] [(1, "!0")] [(0, 2)])
+    --     ([Seq.range 0 32 1], [])
+
+    -- Zero after note.
+    equal (first (drop 1) $
+            run [(0, "4c"), (1, "4d"), (2, "4e")] [(0, "!b")] [(0, 1), (1, 1)])
+        ([[(1, NN.d4), (2, NN.d4), (2, NN.e4)]], [])
+    -- But not if there is a next gamakam.
+    equal (first (drop 1) $
+            run [(0, "4c"), (1, "4d"), (2, "4e")] [(0, "!a"), (1, "!0")]
+                [(0, 1), (1, 1)])
+        ([[(1, NN.b3), (2, NN.d4), (2, NN.e4)]], [])
+
+    -- equal (run [(0, "4c"), (1, "4d")] [(0, "!a"), (1, "!0")] [(0, 2)])
+    --     ([[(1, NN.b3), (2, NN.c4), (2, NN.d4)]], [])
+
+e_clipped_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_clipped_nns e =
+    DeriveTest.e_nns_literal $
+        e { Score.event_pitch = clip (Score.event_pitch e) }
+    where
+    clip = PSignal.clip_before (Score.event_start e)
 
 -- get_state :: Derive.Generator Derive.Control
 -- get_state = CallTest.generator $ \args -> do

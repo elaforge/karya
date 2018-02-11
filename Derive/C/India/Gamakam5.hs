@@ -27,6 +27,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 
+import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -98,13 +99,32 @@ c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
             Just state -> do
                 Result signals <- Derive.at start $
                     pitch_sequence (end - start) state text
-                return $ mconcat $ DList.toList signals
+                real_end <- Derive.real end
+                -- End is the next pitch sample.  So if the next event
+                -- coincides with or precedes it, it will want to come from
+                -- this pitch, so don't append a 0.  Otherwise, the pitch is
+                -- not "attached" to a gamakam, so I add a 0, otherwise it's
+                -- out of tune.
+                --
+                -- I have to subtract ScoreTime.eta because the pitch sample
+                -- has been warped back from RealTime, so it will lose some
+                -- precision.  TODO ugh.
+                let next_gamakam = maybe False
+                        ((<=end) . subtract ScoreTime.eta) (next_event args)
+                return $ mconcat (DList.toList signals)
+                    <> if next_gamakam then mempty
+                        else Signal.from_sample real_end 0
     where
     transition_env :: Sig.Parser Typecheck.Normalized
     transition_env =
         Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5) $
             "Time for each pitch movement, in proportion of the total time"
             <> " available."
+
+-- | Start of the next event.  'Args.next' gets the end of the block if there
+-- is no next event, but I don't want that.
+next_event :: Derive.PassedArgs a -> Maybe TrackTime
+next_event = fmap Event.start . Seq.head . Args.next_events
 
 -- | Infer the end time for the gamakam as the next pitch in the pitch signal,
 -- which should correspond to the next explicit swaram.
