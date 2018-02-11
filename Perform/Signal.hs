@@ -101,7 +101,7 @@ instance Monoid (Signal kind) where
     mempty = Signal Segment.empty
     mappend = (<>)
     mconcat = Signal . Segment.concat (Just (==)) Segment.num_interpolate
-        . map _signal
+        . map _signal . filter (not . null)
 
 -- | This is the type of performer-interpreted controls that go into the
 -- event's control map.
