@@ -411,7 +411,7 @@ convert_dynamic ruler dyn serial = BaseTypes.Dynamic
 -- is called in all contexts, due to 'control_at', so it has to be careful
 -- to not require a ruler.
 get_ruler :: Deriver Ruler.Marklists
-get_ruler = lookup_current_tracknum >>= \x -> case x of
+get_ruler = lookup_current_tracknum >>= \case
     Nothing -> return mempty
     Just (block_id, tracknum) -> do
         state <- get_ui_state id

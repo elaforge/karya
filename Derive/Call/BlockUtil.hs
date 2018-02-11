@@ -156,7 +156,7 @@ derive_tree block_range tree
         Tempo.with_tempo True (Just block_range) Nothing (Signal.constant tempo)
             (derive_tracks tree)
     where
-    get_tempo = Derive.lookup_val EnvKey.tempo >>= \x -> case x of
+    get_tempo = Derive.lookup_val EnvKey.tempo >>= \case
         Nothing -> Derive.get_ui_config (Ui.default_tempo . Ui.config_default)
         Just tempo -> return tempo
 

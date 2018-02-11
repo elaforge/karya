@@ -534,7 +534,7 @@ instance (Serialize.Serialize val, Serialize.Serialize control) =>
         DefaultedControl a b -> Serialize.put_tag 1 >> Serialize.put a
             >> Serialize.put b
         LiteralControl a -> Serialize.put_tag 2 >> Serialize.put a
-    get = Serialize.get_tag >>= \x -> case x of
+    get = Serialize.get_tag >>= \case
         0 -> ControlSignal <$> Serialize.get
         1 -> DefaultedControl <$> Serialize.get <*> Serialize.get
         2 -> LiteralControl <$> Serialize.get

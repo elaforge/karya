@@ -60,7 +60,7 @@ parents_children_of block_id track_id = do
 -- include the given TrackId.
 get_children_of :: Ui.M m => BlockId -> TrackId -> m [Ui.TrackInfo]
 get_children_of block_id track_id =
-    parents_children_of block_id track_id >>= \x -> case x of
+    parents_children_of block_id track_id >>= \case
         Just (_, _ : children) -> return children
         _ -> Ui.throw $ "no children of " <> pretty (block_id, track_id)
 

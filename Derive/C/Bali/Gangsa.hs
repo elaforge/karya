@@ -911,7 +911,7 @@ rotations xs = xs : go xs (reverse xs)
     len = length xs
 
 invert :: Kernel -> Kernel
-invert = map $ \x -> case x of
+invert = map $ \case
     Gap -> Gap
     Rest -> Rest
     High -> Low

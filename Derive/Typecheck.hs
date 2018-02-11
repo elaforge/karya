@@ -100,7 +100,7 @@ diatonic = DefaultDiatonic . Pitch.Diatonic
 -- | Typecheck a single Val, and throw if it's the wrong type.
 typecheck :: forall a. Typecheck a => Text -> ScoreTime -> BaseTypes.Val
     -> Derive.Deriver a
-typecheck msg pos val = from_val_eval pos val >>= \x -> case x of
+typecheck msg pos val = from_val_eval pos val >>= \case
     Just a -> return a
     Nothing -> Derive.throw $
         TextUtil.joinWith ": " msg $ type_error_msg (Proxy :: Proxy a) val
@@ -724,10 +724,10 @@ to_signal_or_function control = case control of
         get_control Score.Untyped (Derive.throw $ "not found: " <> showt cont)
             cont
     where
-    get_control default_type deflt cont = get_function cont >>= \x -> case x of
+    get_control default_type deflt cont = get_function cont >>= \case
         Just f -> return $ Right $
             BaseTypes.modify_control_function (inherit_type default_type .) f
-        Nothing -> get_control_signal cont >>= \x -> case x of
+        Nothing -> get_control_signal cont >>= \case
             Just sig -> return $ Left sig
             Nothing -> deflt
     get_function cont = Internal.get_dynamic $

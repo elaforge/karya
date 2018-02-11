@@ -550,7 +550,7 @@ initialize_nrpn_tuning inst = do
         mapM_ (Cmd.midi dev . Midi.ChannelMessage chan) (Midi.nrpn_tuning keys)
 
 get_tuning_map :: Cmd.M m => Score.Instrument -> m [(Midi.Key, Midi.NoteNumber)]
-get_tuning_map inst = get_scale inst >>= \x -> case x of
+get_tuning_map inst = get_scale inst >>= \case
     Nothing -> return []
     Just scale -> do
         attr_map <- Patch.patch_attribute_map . fst <$>

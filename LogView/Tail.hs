@@ -100,7 +100,7 @@ type TailState = (IO.Handle, Integer)
 read_line :: Handle -> IO (ByteString.ByteString, Handle)
 read_line (Handle filename hdl size) = go (hdl, size)
     where
-    go state@(hdl, size) = IO.hIsEOF hdl >>= \x -> case x of
+    go state@(hdl, size) = IO.hIsEOF hdl >>= \case
         True -> do
             new_size <- IO.hFileSize hdl
             -- Check if the file was truncated.

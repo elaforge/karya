@@ -133,7 +133,7 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
     where invert = if inverted then (not <$>) else id
 
 has_environ :: Env.Key -> Maybe BaseTypes.Val -> Derive.Deriver Bool
-has_environ name maybe_val = Derive.lookup_val name >>= \x -> case x of
+has_environ name maybe_val = Derive.lookup_val name >>= \case
     Nothing -> return False
     Just env_val -> case maybe_val of
         Nothing -> return True

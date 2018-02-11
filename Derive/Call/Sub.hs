@@ -128,7 +128,7 @@ inverting_args = flip inverting
 save_prev_val :: Derive.Taggable a => Derive.PassedArgs a -> Derive.Deriver ()
 save_prev_val args = case Args.prev_val args of
     Nothing -> return ()
-    Just val -> Stack.block_track_of <$> Internal.get_stack >>= \x -> case x of
+    Just val -> Stack.block_track_of <$> Internal.get_stack >>= \case
         Nothing -> return ()
         Just block_track -> modify_threaded $ \th -> th
             { Derive.state_prev_val = Map.insert block_track

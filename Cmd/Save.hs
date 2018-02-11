@@ -71,7 +71,7 @@ import Global
 -- | Save to the current 'Cmd.state_save_file', or create a new git repo if
 -- there is none.
 save :: Cmd.CmdT IO ()
-save = Cmd.gets Cmd.state_save_file >>= \x -> case x of
+save = Cmd.gets Cmd.state_save_file >>= \case
     Nothing -> save_git
     -- Try to override Cmd.Writable on an explicit save.  If it's still
     -- read only, this should throw an exception.

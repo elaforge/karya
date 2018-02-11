@@ -388,11 +388,10 @@ convert :: Ui.M m => (BlockId, [(TrackId, ScoreTime)])
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 convert (block_id, track_pos) = do
     view_ids <- Map.keys <$> Ui.views_of block_id
-    Ui.lookup_block block_id >>= \x -> return $ case x of
-        Nothing -> []
-        Just block ->
-            let tracknum_pos = concatMap (tracknums_of block) track_pos
-            in [(view_id, tracknum_pos) | view_id <- view_ids]
+    Ui.lookup_block block_id >>= \case
+        Nothing -> return []
+        Just block -> return [(view_id, tracknum_pos) | view_id <- view_ids]
+            where tracknum_pos = concatMap (tracknums_of block) track_pos
 
 tracknums_of :: Block.Block -> (TrackId, ScoreTime) -> [(TrackNum, ScoreTime)]
 tracknums_of block (track_id, pos) =

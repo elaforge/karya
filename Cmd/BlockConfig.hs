@@ -93,7 +93,7 @@ mergeable block_id =
 -- tracknum.
 is_control_or_pitch :: Ui.M m => TrackNum -> BlockId -> TrackNum -> m Bool
 is_control_or_pitch parent block_id tracknum =
-    Ui.event_track_at block_id tracknum >>= \x -> case x of
+    Ui.event_track_at block_id tracknum >>= \case
         Nothing -> return False
         Just track_id -> andM
             [ (`elem` [ParseTitle.ControlTrack, ParseTitle.PitchTrack]) <$>

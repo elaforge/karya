@@ -119,7 +119,7 @@ load app_dir = do
     let synths = im_synths ++ loaded ++ midi_synths ++ internal_synths
     let annot_fn = Config.make_path app_dir Config.local_dir
             </> "instrument_annotations"
-    annots <- Parse.parse_annotations annot_fn >>= \x -> case x of
+    annots <- Parse.parse_annotations annot_fn >>= \case
         -- The parsec error already includes the filename.
         Left err -> Log.warn (txt err) >> return mempty
         Right annots -> return annots

@@ -22,7 +22,7 @@ import Global
 
 test_all = do
     forM_ All.korvais $ \korvai ->
-        realizeCatch korvai >>= \x -> case x of
+        realizeCatch korvai >>= \case
             Right _ -> return True
             Left errs -> failure $ location korvai <> ": " <> Text.unlines errs
 

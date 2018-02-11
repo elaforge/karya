@@ -51,7 +51,7 @@ import Global
 cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Config
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
 cmds_with_input kbd_entry maybe_config cmds msg =
-    msg_to_inputs kbd_entry maybe_config msg >>= \x -> case x of
+    msg_to_inputs kbd_entry maybe_config msg >>= \case
         Nothing -> Cmd.sequence_cmds cmds msg
         Just msgs -> foldr Cmd.merge_status Cmd.Done <$> mapM send msgs
     where

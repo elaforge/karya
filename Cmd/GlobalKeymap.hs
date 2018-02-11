@@ -116,7 +116,7 @@ context_stop = unlessM Play.cmd_context_stop (Selection.to_point True)
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
-    [ command_char 'S' "save" $ Cmd.gets Cmd.state_save_file >>= \x -> case x of
+    [ command_char 'S' "save" $ Cmd.gets Cmd.state_save_file >>= \case
         Just (_, Cmd.SaveRepo repo) -> do
             -- Even when using git, write a standalone state as a safeguard.
             Save.write_current_state $ Save.state_path_for_repo repo

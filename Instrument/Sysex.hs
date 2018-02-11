@@ -334,7 +334,7 @@ encode_spec config path rmap (name, spec) = case spec of
         b <- either (uncurry throw_with) return $ encode_byte rmap bits
         Writer.tell (Builder.word8 b)
     Str chars -> do
-        str <- lookup_field name >>= \x -> case x of
+        str <- lookup_field name >>= \case
             RStr str -> return str
             val -> throw $ "expected RStr, but got " <> show val
         let diff = chars - Text.length str
@@ -344,12 +344,12 @@ encode_spec config path rmap (name, spec) = case spec of
                 <> ": " <> show str
         Writer.tell (Builder.string7 $ untxt padded)
     SubSpec specs -> do
-        sub_record <- lookup_field name >>= \x -> case x of
+        sub_record <- lookup_field name >>= \case
             RMap rmap -> return rmap
             rec -> throw $ "non-RMap child of a SubSpec: " <> prettys rec
         mapM_ (encode_spec config (name:path) sub_record) specs
     List elts specs -> do
-        records <- lookup_field name >>= \x -> case x of
+        records <- lookup_field name >>= \case
             RMap rmap
                 | Map.size rmap == elts ->
                     mapM (\k -> lookup_map (show k) rmap) [0..elts-1]
@@ -357,16 +357,16 @@ encode_spec config path rmap (name, spec) = case spec of
                     <> show elts <> " but got length "
                     <> show (Map.size rmap)
             val -> throw $ "expected RMap list, but got " <> prettys val
-        rmaps <- forM records $ \x -> case x of
+        rmaps <- forM records $ \case
             RMap rmap -> return rmap
             rec -> throw $ "non-RMap child of an RMap list: " <> prettys rec
         forM_ (zip [0..] rmaps) $ \(i, rmap) ->
             mapM_ (encode_spec config (name : show i : path) rmap) specs
     Union enum_name nbytes enum_specs -> do
-        union_rmap <- lookup_field name >>= \x -> case x of
+        union_rmap <- lookup_field name >>= \case
             RUnion union_rmap -> return union_rmap
             val -> throw $ "expected RUnion RMap, but got " <> prettys val
-        enum <- lookup_field enum_name >>= \x -> case x of
+        enum <- lookup_field enum_name >>= \case
             RStr enum -> return enum
             val -> throw $ "expeted RStr, but got " <> prettys val
         specs <- case lookup enum enum_specs of
@@ -380,7 +380,7 @@ encode_spec config path rmap (name, spec) = case spec of
     Unparsed nbytes
         | null name -> Writer.tell $ Builder.byteString $ B.replicate nbytes 0
         | otherwise -> do
-            bytes <- lookup_field name >>= \x -> case x of
+            bytes <- lookup_field name >>= \case
                 RUnparsed bytes
                     | B.length bytes /= nbytes -> throw $
                         "Unparsed expected " <> show nbytes

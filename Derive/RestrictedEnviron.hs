@@ -166,7 +166,7 @@ instance Serialize.Serialize Term where
     put term = case term of
         Expr.ValCall v -> Serialize.put_tag 0 >> put v
         Expr.Literal v -> Serialize.put_tag 1 >> put v
-    get = Serialize.get_tag >>= \x -> case x of
+    get = Serialize.get_tag >>= \case
         0 -> Expr.ValCall <$> get
         1 -> Expr.Literal <$> get
         n -> Serialize.bad_tag "RestrictedEnviron.Term" n

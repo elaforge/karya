@@ -361,7 +361,7 @@ load_synth :: (Patch.Patch -> Code) -> InstTypes.SynthName -> Text
     -> FilePath -> IO (Maybe Synth)
 load_synth get_code synth_name doc app_dir = do
     let fname = db_path app_dir (untxt synth_name)
-    Instrument.Serialize.unserialize fname >>= \x -> case x of
+    Instrument.Serialize.unserialize fname >>= \case
         Left err -> do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
                 <> Text.strip (pretty err)

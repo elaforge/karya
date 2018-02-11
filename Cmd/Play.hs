@@ -122,7 +122,7 @@ modify_play_multiplier f = Cmd.modify_play_state $ \st ->
 -- it does the last one, it returns False in case you want to go stop something
 -- else.
 cmd_context_stop :: Cmd.CmdT IO Bool
-cmd_context_stop = gets Cmd.state_play_control >>= \x -> case x of
+cmd_context_stop = gets Cmd.state_play_control >>= \case
     Just ctl -> stop ctl >> return True
     Nothing -> do
         step_playing <- Cmd.gets $
@@ -188,7 +188,7 @@ local_from block_id track_id pos =
 -- | Play the root block from its beginning.
 root_block :: Cmd.M m => m Cmd.PlayMidiArgs
 root_block = do
-    Ui.lookup_root_id >>= \x -> case x of
+    Ui.lookup_root_id >>= \case
         Nothing -> local_block
         Just root_id -> from_score root_id Nothing 0 Nothing
 
@@ -207,7 +207,7 @@ root_selection = do
     let (pos, repeat_at)
             | Sel.is_point sel = (Sel.start_pos sel, Nothing)
             | otherwise = Just <$> Sel.range sel
-    Ui.lookup_root_id >>= \x -> case x of
+    Ui.lookup_root_id >>= \case
         Nothing -> local_selection
         Just root_id -> do
             perf <- get_performance root_id

@@ -190,7 +190,7 @@ set_namespace = Create.rename_project
 rename :: Id.Namespace -> Cmd.CmdL ()
 rename ns = do
     Create.rename_project ns
-    Cmd.gets Cmd.state_save_file >>= \x -> case x of
+    Cmd.gets Cmd.state_save_file >>= \case
         Nothing -> return ()
         Just (_, Cmd.SaveState fn) -> Cmd.modify $ \st -> st
             { Cmd.state_save_file =

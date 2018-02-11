@@ -208,7 +208,7 @@ parse_equal merge lhs rhs
     -- Assign to control.
     | Just control <- is_control =<< parse_val lhs = case rhs of
         BaseTypes.VControlRef rhs -> Right $ \deriver ->
-            Typecheck.to_signal_or_function rhs >>= \x -> case x of
+            Typecheck.to_signal_or_function rhs >>= \case
                 Left sig -> do
                     merger <- get_merger control merge
                     Derive.with_merged_control merger control sig deriver

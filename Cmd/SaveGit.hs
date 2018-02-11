@@ -77,7 +77,7 @@ git_suffix = ".git"
 set_save_tag :: Git.Repo -> Commit -> IO (Either Text SavePoint)
 set_save_tag repo commit = try "set_save_tag" $ do
     Git.gc repo -- Might as well clean things up at this point.
-    read_last_save repo (Just commit) >>= \x -> case x of
+    read_last_save repo (Just commit) >>= \case
         Nothing -> do
             save <- find_next_save repo (SavePoint [])
             write_save_ref repo save commit
@@ -315,9 +315,8 @@ save_views repo =
     void . Serialize.serialize Cmd.Serialize.views_magic (repo </> "views")
 
 load_views :: Git.Repo -> IO (Either Text (Map ViewId Block.View))
-load_views repo = do
-    x <- Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views")
-    case x of
+load_views repo =
+    Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views") >>= \case
         Left (Serialize.IOError exc) | IO.Error.isDoesNotExistError exc ->
             return $ Right mempty
         Left err -> return $ Left (pretty err)
