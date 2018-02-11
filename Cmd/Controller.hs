@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE MultiWayIf #-}
 -- | Cmds to interpret hardware controllers.  This basically means magic MIDI
 -- msgs from a keyboard or something which is intended to do something other
 -- than play a note.

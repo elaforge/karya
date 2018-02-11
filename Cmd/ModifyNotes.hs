@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE LambdaCase #-}
 {- | Support for high level score modifications.  This is companion to
     "Cmd.ModifyEvents", which is for low level transformations.
 

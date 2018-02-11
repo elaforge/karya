@@ -1315,6 +1315,8 @@ ghcLanguageFlags = map ("-X"++)
     , "FlexibleContexts"
     -- Just too useful.
     , "GeneralizedNewtypeDeriving"
+    , "LambdaCase"
+    , "MultiWayIf"
     -- Without this, it becomes really annoying to use Text everywhere.
     , "OverloadedStrings"
     , "ScopedTypeVariables"

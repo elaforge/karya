@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE LambdaCase #-}
 -- | Evaluate tracklang expressions.
 module Derive.Eval (
     -- * eval / apply

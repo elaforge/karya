@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE LambdaCase #-}
 {- | Process a textual language, which may look familiar, to perform UI state
     changes.
 

@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE MultiWayIf #-}
 {- | The 'Events' type contains the events of a track.
 
     This is the largest part of the score and also the part most often
