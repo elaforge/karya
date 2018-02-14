@@ -369,12 +369,14 @@ p_duration = p_longer <|> p_shorter
         n <- A.takeWhile1 (=='.')
         return $ Relative $ 1 / (fromIntegral (Text.length n) + 1)
 
--- | [#<>]? [0-9a-d=]? [+\^v]?
+-- | = | < | > | #?[0-9a-d]? [+\^v]?
 p_pitch :: Parser Pitch
 p_pitch = do
-    (matched, pitch) <- A.match $
-        (A.char '=' *> pure (Pitch From 0 0))
-        <|> (Pitch <$> p_from <*> (p_steps <|> pure 0) <*> p_nn)
+    (matched, pitch) <- A.match $ choose_char
+        [ ('=', Pitch From 0 0)
+        , ('<', Pitch Prev 0 0)
+        , ('>', Pitch Next 0 0)
+        ] <|> (Pitch <$> p_from <*> (p_steps <|> pure 0) <*> p_nn)
     when (Text.null matched) $ fail "empty pitch"
     return pitch
 
@@ -390,11 +392,7 @@ p_nn = choose_char
     ] <|> pure 0
 
 p_from :: Parser From
-p_from = choose_char
-    [ ('#', From)
-    , ('<', Prev)
-    , ('>', Next)
-    ] <|> pure Current
+p_from = A.option Current (A.char '#' *> pure From)
 
 p_number :: Parser Int
 p_number = do

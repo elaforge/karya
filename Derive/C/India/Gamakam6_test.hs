@@ -33,7 +33,7 @@ test_sequence = do
     equal (run "!]^0") (output [(4, 62.5), (5, 62.25), (6, 62)])
     equal (run "!]a0") (output [(4, 60), (5, 61), (6, 62)])
     equal (run "!]a=") (output [(4, NN.c4), (6, NN.c4)])
-    equal (run "!]<00") (output [(4, NN.c4), (5, NN.cs4), (6, NN.d4)])
+    equal (run "!]<0") (output [(4, NN.c4), (5, NN.cs4), (6, NN.d4)])
 
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e = drop_last_dups fst $ takeWhile ((<= Score.event_end e) . fst) $
@@ -52,6 +52,11 @@ test_parse = do
     equal (f "") $ Right []
     equal (f "=") $ Right
         [Right $ Move (Movement (Pitch From 0 0) (Relative 1))]
+    equal (f "<=>") $ Right
+        [ Right $ Move $ Movement (Pitch Prev 0 0) (Relative 1)
+        , Right $ Move $ Movement (Pitch From 0 0) (Relative 1)
+        , Right $ Move $ Movement (Pitch Next 0 0) (Relative 1)
+        ]
     equal (f "]0a+") $ Right
         [ Right $ SetFrom (Pitch Current 0 0)
         , Right $ Move $ Movement (Pitch Current (-1) 1) (Relative 1)
@@ -59,6 +64,10 @@ test_parse = do
     equal (f "]<>") $ Right
         [ Right $ SetFrom (Pitch Prev 0 0)
         , Right $ Move $ Movement (Pitch Next 0 0) (Relative 1)
+        ]
+    equal (f "]<0") $ Right
+        [ Right $ SetFrom (Pitch Prev 0 0)
+        , Right $ Move $ Movement (Pitch Current 0 0) (Relative 1)
         ]
     equal (f "#^.#v.") $ Right
         [ Right $ Move $ Movement (Pitch From 0 0.5) (Relative 0.5)
