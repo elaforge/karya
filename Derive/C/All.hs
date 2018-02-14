@@ -16,6 +16,7 @@ import qualified Derive.C.Idiom.Wind as Wind
 import qualified Derive.C.India.Gamakam as Gamakam
 import qualified Derive.C.India.Gamakam2 as Gamakam2
 import qualified Derive.C.India.Gamakam5 as Gamakam5
+import qualified Derive.C.India.Gamakam6 as Gamakam6
 import qualified Derive.C.India.Mridangam as Mridangam
 import qualified Derive.C.India.Pakhawaj as Pakhawaj
 import qualified Derive.C.Lily as Lily
@@ -65,6 +66,7 @@ shadowed :: [Library.Shadowed]
     , Equal.library
     , Gamakam2.library
     , Gamakam5.library
+    , Gamakam6.library
     , Gamakam.library
     , Gangsa.library
     , Gender.library

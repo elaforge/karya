@@ -422,10 +422,6 @@ get_from = do
 newtype Result = Result (DList.DList Signal.Control)
     deriving (Show, Semigroup, Monoid)
 
--- | Pitch.Transpose, without the value.  TODO probably should split those?
-data Transpose = Diatonic | Chromatic | Nn
-    deriving (Show)
-
 pitch_sequence :: ScoreTime -> PitchState -> Text -> Derive.Deriver Result
 pitch_sequence dur state arg = do
     calls <- Derive.require_right (("parsing " <> pretty arg <> ": ")<>) $
@@ -765,6 +761,7 @@ p_pitch_expr_arg = do
 
 pitch_has_argument :: Char -> Bool
 pitch_has_argument c = Char.isUpper c || c == '-'
+
 
 
 -- * misc

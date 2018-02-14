@@ -1274,14 +1274,46 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       was that randomize moves every event.
 
 gamakam:
-  - complete sami ninne in pitch above
-    . if it works, try converting the other songs
+  gamakam6:
+    - ']>00' is awkward to go from prev pitch to 0.  >0 is prev pitch, but I'm
+      more likely to want just prev pitch +0 rather than +n.  The same goes for
+      next, I only use relative from _current and _from.
+    - Implement suffixes for absolute time: : or ;
+      . I want a move to current which is not dependent on the note length, so
+        flat notes can be smoother.
+      . In generality, this suggests a set of constant time movements.
+    - port other tests from gamakam5 as necessary
+  understand the ragam:
+    . I could attach code strings to raga swarams, e.g. (G, "=0").  Then
+      automatically add a "default" alias per scale degree and direction.
+    . How to make them scale with time?  Something like "=0" can become "=n=n".
+      Actually that's incorrect, it should be an optional transition to the
+      neighbor, then touch G.  E.g. N might be "=0a".
+  - I need some solution for when the beginning depends on the end of the
+    previous section.
+    . I could write notes after a logical stop, and say the replace whatever
+      follows.
+    . But this is no good if the section goes to different places.  Really
+      it's the combination (A, B) that gives rise to the alternate notes.
+    . Sometimes the end of A will be different depending on the following B.
+  * It seems less confusing if I have a pitch notation, and T is always set.
+    . E.g. < would become T<, and you can always use < to move to the previous
+      pitch.
+    . Then I also augment pitch with +\ for +/- 1nn, and /? for +- .5nn.
+    . But it's convenient to write !^, rather than !T^.  And 0 is already move
+      to current.
+    . In fact T is the only thing with an argument.
+    . Maybe I can just do the whole thing as a parser for pitches, that way
+      I can incorporate the various postfixes.
+  * complete sami ninne in pitch above
+    - if it works, try converting the other songs
   * pitch above can get a non-zero t-nn after a note
     . If I just append 0, it messes up from pitch for the next one.
   - promote a gamakam score to verify_performance
-  - I want a move to current which is not dependent on the note length, so
-    flat notes can be smoother.
-    . In generality, this suggests a set of constant time movements.
+  - How to do microtonal tweaks?  E.g. 'r s' should be s--r r+ r__r+__s where
+    r+ is above r but not at g.
+    . I have e f and g h, but they are relative only.  For absolute I could
+      postfix a number, e.g. or 1+ or 1\ to bump by .5nn.
   * !0= on the last pitch makes an endless loop
     * Should I abort derivation after too long?  Or have some way to do that?
       Actually it locked the respond thread, I should abort that one if it
@@ -2674,6 +2706,12 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - I need a way to transform inside a group, e.g.
+    . in3 (a:b:cs) = [a] . __ . [b] . in3 cs
+    . This doesn't work if there's a group
+    . I should be able to just apply the function under the first group, but
+      what about spanning groups?  There must be a general way to map to
+      a list, then map back.
   transcribe:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
@@ -2700,6 +2738,8 @@ solkattu:
     - nadai changes are invisible, I should put something in the ruler for it
     - underline for tha+x looks weird.
     html:
+      - strip trailing rests for final note
+      - set encoding to utf8
       - Decrease font size for higher speed.
       - For high speed split avartanam.
       db ideas:
