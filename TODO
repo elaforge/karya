@@ -1278,11 +1278,18 @@ gamakam:
     * ']>00' is awkward to go from prev pitch to 0.  >0 is prev pitch, but I'm
       more likely to want just prev pitch +0 rather than +n.  The same goes for
       next, I only use relative from _current and _from.
+      . Wait, but I actually do want to say ']<^<='
     - Implement suffixes for absolute time: : or ;
       . I want a move to current which is not dependent on the note length, so
         flat notes can be smoother.
       . In generality, this suggests a set of constant time movements.
     - port other tests from gamakam5 as necessary
+    - When the pitch track is above, I don't hear midi thru.
+      . MidiThru looks above for the instrument, if there is none above, then
+        find the first one below.
+    - It might be nice to collapse the sahitya track into notes.
+      . Maybe just generalize collapse to take the track to the right if there
+        is no pitch track below.
   understand the ragam:
     . I could attach code strings to raga swarams, e.g. (G, "=0").  Then
       automatically add a "default" alias per scale degree and direction.
@@ -1310,10 +1317,11 @@ gamakam:
   * pitch above can get a non-zero t-nn after a note
     . If I just append 0, it messes up from pitch for the next one.
   - promote a gamakam score to verify_performance
-  - How to do microtonal tweaks?  E.g. 'r s' should be s--r r+ r__r+__s where
+  * How to do microtonal tweaks?  E.g. 'r s' should be s--r r+ r__r+__s where
     r+ is above r but not at g.
     . I have e f and g h, but they are relative only.  For absolute I could
       postfix a number, e.g. or 1+ or 1\ to bump by .5nn.
+    . gamakam6 allows this.
   * !0= on the last pitch makes an endless loop
     * Should I abort derivation after too long?  Or have some way to do that?
       Actually it locked the respond thread, I should abort that one if it

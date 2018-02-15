@@ -69,6 +69,10 @@ test_parse = do
         [ Right $ SetFrom (Pitch Prev 0 0)
         , Right $ Move $ Movement (Pitch Current 0 0) (Relative 1)
         ]
+    equal (f "<^<") $ Right
+        [ Right $ Move $ Movement (Pitch Prev 0 0.5) (Relative 1)
+        , Right $ Move $ Movement (Pitch Prev 0 0) (Relative 1)
+        ]
     equal (f "#^.#v.") $ Right
         [ Right $ Move $ Movement (Pitch From 0 0.5) (Relative 0.5)
         , Right $ Move $ Movement (Pitch From 0 (-0.5)) (Relative 0.5)

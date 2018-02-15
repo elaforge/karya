@@ -372,13 +372,19 @@ p_duration = p_longer <|> p_shorter
 -- | = | < | > | #?[0-9a-d]? [+\^v]?
 p_pitch :: Parser Pitch
 p_pitch = do
-    (matched, pitch) <- A.match $ choose_char
-        [ ('=', Pitch From 0 0)
-        , ('<', Pitch Prev 0 0)
-        , ('>', Pitch Next 0 0)
-        ] <|> (Pitch <$> p_from <*> (p_steps <|> pure 0) <*> p_nn)
+    (matched, pitch) <- A.match $ p_pitch_from
+        <|> (Pitch <$> p_from <*> (p_steps <|> pure 0) <*> p_nn)
     when (Text.null matched) $ fail "empty pitch"
     return pitch
+
+p_pitch_from :: Parser Pitch
+p_pitch_from = Pitch <$> from <*> pure 0 <*> p_nn
+    where
+    from = choose_char
+        [ ('=', From)
+        , ('<', Prev)
+        , ('>', Next)
+        ]
 
 p_steps :: Parser Steps
 p_steps = p_number <|> p_letter_negative
