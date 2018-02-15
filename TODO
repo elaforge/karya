@@ -1510,6 +1510,8 @@ synth: im:
     . Author is nonresponsive.  Maybe I should just write my own:
       . Only one sample rate, only one channel, support only Float.
   play_cache: PlayCache:
+    - sami-ninne-faust is starting play at frame 268435280
+    * Why do I get error opening samples: .../g.wav.reapeaks: not found
     - Move resampling to play_cache.
     - Theoretically I should be doing sample loading in a non-audio thread.
       In practice it seems to be fine

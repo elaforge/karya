@@ -47,10 +47,14 @@ Samples::openSamples(std::ofstream &log, int sampleRate, const string &dir,
     while ((ent = readdir(d)) != nullptr) {
         if (ent->d_type != DT_REG)
            continue;
+        string fname(ent->d_name);
+        // Don't try to load random junk, e.g. reaper .repeaks files.
+        if (fname.substr(fname.length() - 4) != ".wav")
+            continue;
 
         if (suffixMatch(mutes, ent->d_name))
             continue;
-        string fname = dir + "/" + string(ent->d_name);
+        fname = dir + "/" + fname;
         if (!openSample(sampleRate, fname)) {
             errors_.push_back(fname + ": not found");
         }
