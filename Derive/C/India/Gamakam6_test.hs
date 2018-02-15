@@ -80,6 +80,9 @@ test_parse = do
     equal (f "-5__") $ Right
         [ Right $ Move $ Movement (Pitch Current (-5) 0) (Relative 3)
         ]
+    equal (f "-5..") $ Right
+        [ Right $ Move $ Movement (Pitch Current (-5) 0) (Relative 0.25)
+        ]
     equal (f "=n=") $ Right
         [ Right $ Move $ Movement (Pitch From 0 0) (Relative 1)
         , Left (Alias 'n')

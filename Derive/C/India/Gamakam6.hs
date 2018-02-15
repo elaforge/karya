@@ -362,7 +362,7 @@ p_duration = p_longer <|> p_shorter
         return $ Relative $ fromIntegral $ Text.length n + 1
     p_shorter = do
         n <- A.takeWhile1 (=='.')
-        return $ Relative $ 1 / (fromIntegral (Text.length n) + 1)
+        return $ Relative $ 1 / 2^(fromIntegral (Text.length n))
 
 -- | = | < | > | #?[0-9a-d]? [+\^v]?
 p_pitch :: Parser Pitch
