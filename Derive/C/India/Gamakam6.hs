@@ -21,7 +21,6 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
-import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
@@ -206,13 +205,9 @@ infer_end args
     | otherwise = do
         pitch <- Derive.get_pitch
         start <- Args.real_start args
-        case next_sample start pitch of
-            Nothing -> return $ Args.start args
-            Just (x, _) -> do
-                -- x could be the final sample at RealTime.large, so I need to
-                -- limit it.
-                end <- Derive.get_val EnvKey.block_end
-                min end <$> Derive.score x
+        next_pitch <- traverse (Derive.score . fst) (next_sample start pitch)
+        let next = Args.next args
+        return $ maybe next (min next) next_pitch
 
 pitch_sequence :: PitchState -> ScoreTime -> Code
     -> Derive.Deriver [Signal.Control]
