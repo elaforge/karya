@@ -1,6 +1,7 @@
 #!/bin/zsh
 # Compile play_cache and move into place.
 
+set -x
 vst=~/Library/Audio/Plug-Ins/VST
 
 bin/mk build/opt/play_cache

@@ -22,7 +22,7 @@ def main():
         timings.extend(read(os.path.join(timing_dir, fn)))
 
     timings.sort(key=lambda json: json['patch']['date'])
-    for system in set(t['system'] for t in timings):
+    for system in sorted(set(t['system'] for t in timings)):
         print('\n' + system + ': ')
         print(format([t for t in timings if t['system'] == system], scores))
 

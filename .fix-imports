@@ -7,5 +7,5 @@ prio-package-low: haskell98 ghc darcs comonad
 prio-module-high: Ui Perform.Pitch
 prio-module-low: GHC Blaze.Text
 language: BangPatterns DisambiguateRecordFields FlexibleContexts
-    GeneralizedNewtypeDeriving OverloadedStrings ScopedTypeVariables
-    TupleSections
+    GeneralizedNewtypeDeriving LambdaCase MultiWayIf OverloadedStrings
+    ScopedTypeVariables TupleSections FlexibleInstances TypeSynonymInstances
