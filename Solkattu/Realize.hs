@@ -800,7 +800,9 @@ htmlPage title meta body = mconcat
 
 htmlHeader :: Text -> Doc.Html
 htmlHeader title = TextUtil.join "\n"
-    [ "<html><head><title>" <> Doc.html title <> "</title></head>"
+    [ "<html><head>"
+    , "<meta charset=utf-8>"
+    , "<title>" <> Doc.html title <> "</title></head>"
     , "<body>"
     , ""
     , "<style type=\"text/css\">"

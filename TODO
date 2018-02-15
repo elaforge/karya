@@ -1313,7 +1313,8 @@ gamakam:
     . Maybe I can just do the whole thing as a parser for pitches, that way
       I can incorporate the various postfixes.
   * complete sami ninne in pitch above
-    - if it works, try converting the other songs
+    / if it works, try converting the other songs
+      . Nah too much bother.
   * pitch above can get a non-zero t-nn after a note
     . If I just append 0, it messes up from pitch for the next one.
   - promote a gamakam score to verify_performance
@@ -2747,7 +2748,7 @@ solkattu:
     - underline for tha+x looks weird.
     html:
       - strip trailing rests for final note
-      - set encoding to utf8
+      * set encoding to utf8
       - Decrease font size for higher speed.
       - For high speed split avartanam.
       db ideas:
