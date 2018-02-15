@@ -1510,7 +1510,8 @@ synth: im:
     . Author is nonresponsive.  Maybe I should just write my own:
       . Only one sample rate, only one channel, support only Float.
   play_cache: PlayCache:
-    - sami-ninne-faust is starting play at frame 268435280
+    * sami-ninne-faust is starting play at frame 268435280
+      . Because the pitch-bend at time -0.004.
     * Why do I get error opening samples: .../g.wav.reapeaks: not found
     - Move resampling to play_cache.
     - Theoretically I should be doing sample loading in a non-audio thread.
@@ -1520,6 +1521,8 @@ synth: im:
       a single path.  It could be theoretically configured, but I'd probably
       have to do it manually via some kind of VST GUI, and save in the VST
       preset mechanism, and it sounds like a lot of hassle.
+      . Or I could send it over via MIDI, but that kind of state always gets
+        out of sync.
   faust:
     - Add defaults: default=x:Doc doc doc.
       . Use this when no signal is present.

@@ -396,9 +396,11 @@ from_realtime block_id repeat_at start_ = do
     -- when starting from 0, and then I have to shift the start time back to
     -- consider the first event the new 0.
     msgs <- PlayUtil.perform_from start perf
-    start <- let mstart = PlayUtil.first_time msgs
-        in return $ if start == 0 && mstart < 0 then mstart else start
-    msgs <- return $ PlayUtil.shift_messages multiplier start msgs
+    let negative_start
+            | start == 0 && fst_msg < 0 = fst_msg
+            | otherwise = start
+            where fst_msg = PlayUtil.first_time msgs
+    msgs <- return $ PlayUtil.shift_messages multiplier negative_start msgs
 
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
     (im_insts, play_cache_addr) <- case lookup_im_config allocs of
@@ -415,7 +417,7 @@ from_realtime block_id repeat_at start_ = do
         , play_name = pretty block_id
         , play_midi = im_msgs ++ merge_midi msgs mtc
         , play_inv_tempo =
-            Just $ Cmd.perf_inv_tempo perf . (+start) . (/multiplier)
+            Just $ Cmd.perf_inv_tempo perf . (+negative_start) . (/multiplier)
         , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
         , play_im_end = if Set.null im_insts then Nothing
             else Score.event_end <$> Util.Vector.find_end
