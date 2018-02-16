@@ -121,11 +121,11 @@ main = Git.initialize $ do
             run_error $ concat <$> mapM dump_midi args
         PatchInfo -> do
             patch <- either (errorIO . txt) return
-                =<< SourceControl.currentPatchParsed
+                =<< SourceControl.current "."
             ByteString.Lazy.Char8.putStrLn $ Aeson.encode $ Map.fromList
                 [ ("date" :: Text, Aeson.toJSON $ SourceControl._date patch)
                 , ("hash", Aeson.toJSON $ SourceControl._hash patch)
-                , ("name", Aeson.toJSON $ SourceControl._name patch)
+                , ("name", Aeson.toJSON $ SourceControl._summary patch)
                 ]
             return 0
     Process.exit failures

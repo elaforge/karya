@@ -914,10 +914,12 @@ makeHaddock config = do
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces packages
-    entry <- liftIO $
-        either Util.errorIO return =<< SourceControl.currentPatchParsed
-    let title = "Karya, built on " <> SourceControl._localDate entry
-            <> " (patch " <> SourceControl._hash entry <> ")"
+    entry <- liftIO $ either Util.errorIO return =<< SourceControl.current "."
+    let title = mconcat
+            [ "Karya, built on "
+            , SourceControl.showDate (SourceControl._date entry)
+            , " (patch ", SourceControl._hash entry, ")"
+            ]
     Util.system "haddock" $ filter (not . null)
         [ "--html", "-B", ghcLib config
         , "--title=" <> Text.unpack title

@@ -150,12 +150,15 @@ perform_midi block_id = do
 make_performance :: a -> Cmd.CmdT IO (Ui.Performance a)
 make_performance perf = do
     time <- liftIO Time.getCurrentTime
-    patch <- either (Cmd.throw . txt) (return . txt)
-        =<< liftIO SourceControl.currentPatch
+    patch <- Cmd.require_right txt =<< liftIO (SourceControl.current ".")
     return $ Ui.Performance
         { perf_performance = perf
         , perf_creation = time
-        , perf_patch = patch
+        , perf_patch = Text.unlines $ map ($patch)
+            [ SourceControl._hash
+            , SourceControl.showDate . SourceControl._date
+            , SourceControl._summary
+            ]
         }
 
 -- *** lilypond performance
