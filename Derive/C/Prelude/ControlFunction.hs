@@ -241,7 +241,7 @@ to_typed_function dyn deflt control =
         BaseTypes.LiteralControl cont -> cont
 
 to_signal_or_function :: BaseTypes.Dynamic -> BaseTypes.ControlRef
-    -> Maybe (Either Score.TypedControl BaseTypes.ControlFunction)
+    -> Maybe (Either (Score.Typed Signal.Control) BaseTypes.ControlFunction)
 to_signal_or_function dyn control = case control of
     BaseTypes.ControlSignal sig -> return $ Left sig
     BaseTypes.DefaultedControl cont deflt ->

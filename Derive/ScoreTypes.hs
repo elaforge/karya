@@ -161,7 +161,6 @@ type_to_transpose (Typed typ val) = case typ of
 
 -- * ControlMap
 
-type TypedControl = Typed Signal.Control
 type TypedVal = Typed Signal.Y
 
 instance ShowVal.ShowVal TypedVal where

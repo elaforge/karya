@@ -46,7 +46,7 @@ module Derive.Score (
     -- * Type
     , Type(..), Typed(..)
     , untyped, merge_typed, type_to_code, code_to_type
-    , TypedVal, TypedControl
+    , TypedVal
 
     -- * instrument
     , Instrument(..)
@@ -84,7 +84,7 @@ import Derive.ScoreTypes
        (Instrument(..), instrument_name, empty_instrument, Control,
         control_name, PControl, pcontrol_name, Type(..), Typed(..),
         ControlValMap, TypedControlValMap, untyped, merge_typed, type_to_code,
-        code_to_type, TypedControl, TypedVal)
+        code_to_type, TypedVal)
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch

@@ -524,7 +524,7 @@ data Ref control val =
     | LiteralControl control
     deriving (Eq, Read, Show)
 
-type ControlRef = Ref ScoreTypes.Control ScoreTypes.TypedControl
+type ControlRef = Ref ScoreTypes.Control (ScoreTypes.Typed Signal.Control)
 type PControlRef = Ref ScoreTypes.PControl PSignal
 
 instance (Serialize.Serialize val, Serialize.Serialize control) =>
@@ -612,7 +612,7 @@ map_str f = call
 
 -- ** ControlMap
 
-type ControlMap = Map ScoreTypes.Control ScoreTypes.TypedControl
+type ControlMap = Map ScoreTypes.Control (ScoreTypes.Typed Signal.Control)
 type ControlFunctionMap = Map ScoreTypes.Control ControlFunction
 type PitchMap = Map ScoreTypes.PControl PSignal
 

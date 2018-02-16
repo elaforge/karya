@@ -701,7 +701,7 @@ to_function :: BaseTypes.ControlRef -> Derive.Deriver Function
 to_function = fmap (Score.typed_val .) . to_typed_function
 
 convert_to_function :: BaseTypes.ControlRef
-    -> Either Score.TypedControl BaseTypes.ControlFunction
+    -> Either (Score.Typed Signal.Control) BaseTypes.ControlFunction
     -> Derive.Deriver TypedFunction
 convert_to_function control =
     either (return . signal_function) from_function
@@ -715,7 +715,8 @@ convert_to_function control =
         BaseTypes.LiteralControl cont -> cont
 
 to_signal_or_function :: BaseTypes.ControlRef
-    -> Derive.Deriver (Either Score.TypedControl BaseTypes.ControlFunction)
+    -> Derive.Deriver (Either (Score.Typed Signal.Control)
+        BaseTypes.ControlFunction)
 to_signal_or_function control = case control of
     BaseTypes.ControlSignal sig -> return $ Left sig
     BaseTypes.DefaultedControl cont deflt ->

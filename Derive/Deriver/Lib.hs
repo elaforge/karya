@@ -495,10 +495,11 @@ get_control control = get_control_function control >>= \case
     Just f -> return $ Just f
     Nothing -> get_control_signal control >>= return . fmap signal_function
 
-signal_function :: Score.TypedControl -> (RealTime -> Score.TypedVal)
+signal_function :: Score.Typed Signal.Control -> (RealTime -> Score.TypedVal)
 signal_function sig t = Signal.at t <$> sig
 
-get_control_signal :: Score.Control -> Deriver (Maybe Score.TypedControl)
+get_control_signal :: Score.Control
+    -> Deriver (Maybe (Score.Typed Signal.Control))
 get_control_signal control = Map.lookup control <$> get_controls
 
 get_controls :: Deriver Score.ControlMap
@@ -559,14 +560,16 @@ state_controls_at pos ruler dyn serial = Map.fromList $
 
 -- *** control signal
 
-with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
+with_control :: Score.Control -> Score.Typed Signal.Control
+    -> Deriver a -> Deriver a
 with_control control signal = with_controls [(control, signal)]
 
 with_constant_control :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
 with_constant_control control val =
     with_control control (Score.untyped (Signal.constant val))
 
-with_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a -> Deriver a
+with_controls :: [(Score.Control, Score.Typed Signal.Control)]
+    -> Deriver a -> Deriver a
 with_controls controls
     | null controls = id
     | otherwise = Internal.local $ \state -> state
@@ -606,7 +609,7 @@ with_control_maps cmap cfuncs = Internal.local $ \state -> state
 --
 -- As documetned in 'merge', this acts like a Set if there is no existing
 -- control.
-with_merged_control :: Merger -> Score.Control -> Score.TypedControl
+with_merged_control :: Merger -> Score.Control -> Score.Typed Signal.Control
     -> Deriver a -> Deriver a
 with_merged_control merger control signal deriver = do
     controls <- get_controls
@@ -615,8 +618,8 @@ with_merged_control merger control signal deriver = do
 
 -- | Like 'with_controls', but merge them with their respective default
 -- 'Merger's.
-with_merged_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a
-    -> Deriver a
+with_merged_controls :: [(Score.Control, Score.Typed Signal.Control)]
+    -> Deriver a -> Deriver a
 with_merged_controls control_vals deriver
     | null control_vals = deriver
     | otherwise = do
@@ -651,8 +654,8 @@ get_default_merger control = do
 -- Since the default merge for control tracks is multiplication, whose identity
 -- is 1, this means the first control track will set the value, instead of
 -- being multiplied to 0.
-merge :: Merger -> Maybe Score.TypedControl -> Score.TypedControl
-    -> Score.TypedControl
+merge :: Merger -> Maybe (Score.Typed Signal.Control)
+    -> Score.Typed Signal.Control -> Score.Typed Signal.Control
 merge Set _ new = new
 merge (Merger _ merger ident) maybe_old new =
     Score.Typed (Score.type_of old <> Score.type_of new)

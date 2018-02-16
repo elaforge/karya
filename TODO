@@ -201,7 +201,7 @@ UNSORTED
     Pitch.c_set could make curves by default?
 
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
-  - Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
+  + Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
   - If I use cpphs I might be able to use \ string continuation for CPP
     modules.  It would add another dependency though... worth it?
   - It seems there's no way to explicitly pass Nothing if the default is Just,

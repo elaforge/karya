@@ -106,7 +106,8 @@ to_function = fmap (Score.typed_val .) . Typecheck.to_typed_function
 
 -- | Convert a ControlRef to a control signal.  If there is
 -- a 'BaseTypes.ControlFunction' it will be ignored.
-to_typed_signal :: BaseTypes.ControlRef -> Derive.Deriver Score.TypedControl
+to_typed_signal :: BaseTypes.ControlRef
+    -> Derive.Deriver (Score.Typed Signal.Control)
 to_typed_signal control =
     either return (const $ Derive.throw $ "not found: " <> pretty control)
         =<< Typecheck.to_signal_or_function control
@@ -121,9 +122,9 @@ to_transpose_function :: Typecheck.TransposeType -> BaseTypes.ControlRef
     -- ^ (signal, appropriate transpose control)
 to_transpose_function default_type control = do
     sig <- Typecheck.to_typed_function control
-    -- Previously, I directly returned 'Score.TypedControl's so I could look at
-    -- their types.  A function is more powerful but I have to actually call
-    -- it to find the type.
+    -- Previously, I directly returned Score.Typed Signal.Control so I could
+    -- look at their types.  A function is more powerful but I have to actually
+    -- call it to find the type.
     let typ = Score.type_of (sig 0)
         untyped = Score.typed_val . sig
     case typ of
@@ -245,7 +246,7 @@ with_constant :: Score.Control -> Signal.Y -> Derive.Deriver a
 with_constant control = Derive.with_control control . Score.untyped
     . Signal.constant
 
-add_control, multiply_control :: Score.Control -> Score.TypedControl
+add_control, multiply_control :: Score.Control -> Score.Typed Signal.Control
     -> Derive.Deriver a -> Derive.Deriver a
 add_control = Derive.with_merged_control Derive.merge_add
 multiply_control = Derive.with_merged_control Derive.merge_mul
