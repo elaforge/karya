@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | Miscellaneous functions on numbers.  Things that could have gone in
 -- Numeric.
 module Util.Num where

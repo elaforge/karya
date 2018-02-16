@@ -163,6 +163,11 @@ STATUS
       examples, since full scores still seems to be really noisy.
 
 UNSORTED
+  - extend gliss so I can gliss on harmonics
+    . Why does eval_quoted give opposite pitches?
+    note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
+  - Since gliss uses a 'n' parameter for note transform, I should use it
+    consistently, e.g. in grace and roll.
   - It's awkward to rearrange tracks and then redo the skeleton.  Since
     I never really want tangled skeleton anyway, can't I make that implicit?
   . Simplify or unify various types in Derive.ScoreTypes,
@@ -631,7 +636,7 @@ UNSORTED
 
 IN PROGRESS / branch: branches:
   . This has longer term projects, which are partially complete.
-  signal-discontinuity:
+  * signal-discontinuity:
     . I need a more systematic solution for signal-discontinuity.
     . A solution here should also be able to solve signal-offset below.
     . As well as docs for the NOTE in Util.TimeVector.
@@ -983,7 +988,8 @@ IN PROGRESS / branch: branches:
           structure.
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
-    . branch shake-targets
+    . I'd like to generalize this to a shake haskell build system, so I can
+      use it with other projects.
   - Complete Util.PrettyGeneric so I don't have to hand-write Pretty
     instances.
     . Maybe I should fix the formatting bugs first.
@@ -1618,7 +1624,7 @@ synth: im:
       a bytestring.
     - Provide access to input signal names so I can get rid of the awkward
       declare thing.
-    - Export metadata as data, not via the complicated visitor pattern thing.
+    / Export metadata as data, not via the complicated visitor pattern thing.
   csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
@@ -1974,6 +1980,7 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - see TODOs: lentil ^build
   - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - visualize module dependencies: https://github.com/yav/graphmod
   . Merge Val and MiniVal (RestrictedEnviron.Val for now).
@@ -2147,6 +2154,9 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  . http://www.tweag.io/posts/2017-09-06-hyperion.html
+  . https://github.com/tobami/codespeed can make a web page with perf graphs
+
   - I should include the number of events in the verify profile, so I can
     compare relative event throughput per score.
     . Clearly the wayang ones are doing something expensive, what is it?
@@ -2428,7 +2438,6 @@ performance:
     I don't need to move parts of the signal that wind up being trimmed.
     Either try to trim the signal earlier again, or delay transformation to
     Perform.
-  - https://github.com/tobami/codespeed can make a web page with perf graphs
   . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
     Derive.with_relative_control -> Perform.sig_multiply
     . So default multiplication for dyn is expensive.
@@ -2688,6 +2697,8 @@ REPL: repl:
   - sometimes vim fails even though the app is open:
     App/Repl.hs:274 - non-zero exit code from ["vi","-c","source vim-functions.vim","-c","source ky-syntax.vim","-c","nmap gz :call Send('LState.set_ky %s')<cr>","+0","repl-NDpIUn"]: 1
   - vim should abort the changes if I quit with :q instead of ZZ
+    . But I don't necessarily want to lose the changes.  Maybe I can save the
+      repl-???? tmp file in that case.
   - :h should put the selected cmd into the history
   - something like :h where I can edit a single line
     . Maybe a control key, so I can edit the contents of the current line.
@@ -3740,6 +3751,9 @@ Util.Format:
   - move format related modules to Util.Format.*
   - don't use 'reverse' in 'flatten'
   - lazy implementation?
+  - generic implementation for records
+    . try generics-sop
+    . https://www.youtube.com/watch?v=sQxH349HOik
 
 Instrument DB / browser:
   - Fl_Help_View supports limited HTML, use it to display formatted text
@@ -3913,6 +3927,10 @@ long term:
   - print scores
 
 planning / research
+  african rhythms
+    . Book: African Polyphony and Polyrhythm
+    . https://github.com/ctford/african-polyphony-and-polyrhythm
+    . kolmogorov music: https://www.youtube.com/watch?v=Qg3XOfioapI
   text score: doc/dev_notes/text-score.md
     . Time problems:
       . I want to say "repeat n times".
