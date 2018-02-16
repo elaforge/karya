@@ -765,9 +765,7 @@ mk_block_deps :: [Text] -> Derive.BlockDeps
 mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
 mkblocks :: Ui.M m => [UiTest.BlockSpec] -> m BlockId
-mkblocks blocks = do
-    bid : _ <- UiTest.mkblocks blocks
-    return bid
+mkblocks blocks = head <$> UiTest.mkblocks blocks
 
 mkblock :: Ui.M m => [UiTest.TrackSpec] -> m BlockId
 mkblock tracks = mkblocks [("top", tracks)]

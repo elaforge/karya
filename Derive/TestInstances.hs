@@ -11,6 +11,9 @@ module Derive.TestInstances where
 -- Eventually that should stop, but meanwhile...
 #ifdef TESTING
 
+import qualified Control.Monad.Fail as Fail
+
+import qualified Ui.Ui as Ui
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Expr as Expr -- needed for standalone deriving
 import qualified Derive.PSignal as PSignal
@@ -38,5 +41,10 @@ instance Eq Cmd.Status where
 
 instance Eq BaseTypes.ControlFunction where
     _ == _ = False
+
+-- I want to leave them out of MonadFail so I don't get unexpected errors,
+-- but it's useful for tests where a pattern match error is just fine.
+instance Monad m => Fail.MonadFail (Ui.StateT m) where fail = error
+instance Monad m => Fail.MonadFail (Cmd.CmdT m) where fail = error
 
 #endif
