@@ -18,6 +18,7 @@ import qualified Util.Serialize as Serialize
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Global
 
 
@@ -145,7 +146,7 @@ unstr (Str str) = str
 -- | Yes, it's yet another Val variant.  This one is even more mini than
 -- RestrictedEnviron.Val.
 -- TODO NOTE [val-and-minival]
-data MiniVal = VNum !ScoreTypes.TypedVal | VStr !Str
+data MiniVal = VNum !(ScoreTypes.Typed Signal.Y) | VStr !Str
     deriving (Show)
 
 instance String.IsString MiniVal where

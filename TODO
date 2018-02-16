@@ -201,7 +201,7 @@ UNSORTED
     Pitch.c_set could make curves by default?
 
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
-  + Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
+  * Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
   - If I use cpphs I might be able to use \ string continuation for CPP
     modules.  It would add another dependency though... worth it?
   - It seems there's no way to explicitly pass Nothing if the default is Just,
@@ -501,14 +501,6 @@ UNSORTED
   - QuickCheck for Midi.Encode_test just for practice
     . Ui.Events_test.test_from_list_qc is an example.
   - Will TimeVectorStorable.Sample Double have both fields unpacked?
-  - I'd like to make a local scale derived from another one but some notes
-    missing, and have input and transposition skip those.
-    . Ideally it could be a modifier to any scale, so it would modify input
-      and transpose accordingly.  Symbols remain the same.
-    . I'm still unhappy with the Scale.Make Make|Simple thing.  Returning
-      Scale from a val call would be better, but I think that runs into the
-      big Derive / Val circular dependency problem.
-    . Do as a Make for now.
   - bug: Track 'mute' status gets increasingly off.  Surely this is due to the
     bug fix in c523680838564ec55752302d1d591482971b9190 where I no longer do
     only absolute updates to the skeleton.
@@ -3597,6 +3589,30 @@ Derive:
         fields in TrackLang.Dynamic in a typeclass.
 
 pitch: scales: scale:
+  - add edo scale, which divides the octave
+    . I could hardcode 2-n, but I'd rather do as an argument
+    . Scale.Make could do this: edo=7 | scale=edo, but what about making Scale
+      into a Val, and then doing scale = (edo 7)?
+  - Think of a way to return scales from val calls
+    . It's hard because of the Val and Derive circular dependency.
+    . Can I put something in Val that will make a Scale without referring to
+      Scale directly?
+    . Or can I move Scale out of Deriver.Monad?  I guess if I could I would
+      have.
+    . I guess no because it has ValCall and Deriver.  Fundamentally it's
+      because scales are implemented as val calls, so Derive must be higher
+      than Val, so Val can't contain a Derive, unless they live in the same
+      module.
+    . At one point is it worth trying hs-boot again?  I remember I really
+      hated it when I had it, because ghci tended to reload tons of stuff.
+  - I'd like to make a local scale derived from another one but some notes
+    missing, and have input and transposition skip those.
+    . Ideally it could be a modifier to any scale, so it would modify input
+      and transpose accordingly.  Symbols remain the same.
+    . I'm still unhappy with the Scale.Make Make|Simple thing.  Returning
+      Scale from a val call would be better, but I think that runs into the
+      big Derive / Val circular dependency problem.
+    . Do as a Make for now.
   - twelve-k doesn't work entirely correctly.
     . The problem is that ChromaticScales.pitch_note doesn't preserve an
       explicit natural, so it gets lost after a pitch->note.  I think

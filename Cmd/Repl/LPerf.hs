@@ -244,7 +244,7 @@ extract_debug block_id tag = do
     where
     stack = maybe "" Stack.pretty_ui . Log.msg_stack
 
-control :: Score.Control -> Score.Event -> Maybe Score.TypedVal
+control :: Score.Control -> Score.Event -> Maybe (Score.Typed Signal.Y)
 control c e = Score.control_at (Score.event_start e) c e
 
 event_controls :: Score.Event -> Score.ControlValMap

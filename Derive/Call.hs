@@ -54,7 +54,7 @@ control_at :: BaseTypes.ControlRef -> RealTime -> Derive.Deriver Signal.Y
 control_at control pos = Score.typed_val <$> typed_control_at control pos
 
 typed_control_at :: BaseTypes.ControlRef -> RealTime
-    -> Derive.Deriver Score.TypedVal
+    -> Derive.Deriver (Score.Typed Signal.Y)
 typed_control_at control pos = case control of
     BaseTypes.ControlSignal sig -> return $ Signal.at pos <$> sig
     BaseTypes.DefaultedControl cont deflt ->
@@ -547,9 +547,9 @@ duration_from_end args t = do
     dur <- real_duration end t
     return (end - dur, end)
 
--- | This is 'real_duration', but takes a TypedVal.
+-- | This is 'real_duration', but takes a Score.Typed Signal.Y.
 typed_real_duration :: Derive.Time t => Typecheck.TimeType -> t
-    -> Score.TypedVal -> Derive.Deriver RealTime
+    -> Score.Typed Signal.Y -> Derive.Deriver RealTime
 typed_real_duration default_type from (Score.Typed typ val)
     | typ == Score.Real
         || typ == Score.Untyped && default_type == Typecheck.Real =

@@ -227,8 +227,8 @@ to_function :: BaseTypes.Dynamic -> Signal.Y -> BaseTypes.ControlRef
 to_function dyn deflt =
     (Score.typed_val .) . to_typed_function dyn (Score.untyped deflt)
 
-to_typed_function :: BaseTypes.Dynamic -> Score.TypedVal -> BaseTypes.ControlRef
-    -> Typecheck.TypedFunction
+to_typed_function :: BaseTypes.Dynamic -> Score.Typed Signal.Y
+    -> BaseTypes.ControlRef -> Typecheck.TypedFunction
 to_typed_function dyn deflt control =
     case to_signal_or_function dyn control of
         Nothing -> const deflt

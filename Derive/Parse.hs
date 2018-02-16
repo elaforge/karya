@@ -252,7 +252,7 @@ p_val =
     <|> (A.char ';' >> return BaseTypes.VSeparator)
     <|> BaseTypes.VStr <$> p_unquoted_str
 
-p_num :: A.Parser Score.TypedVal
+p_num :: A.Parser (Score.Typed Signal.Y)
 p_num = do
     num <- p_untyped_num
     let suffix (typ, suf) = A.string suf >> return typ

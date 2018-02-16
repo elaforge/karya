@@ -34,7 +34,7 @@ import Types
 
 -- * signal functions
 
-type TypedFunction = RealTime -> Score.TypedVal
+type TypedFunction = RealTime -> Score.Typed Signal.Y
 type Function = RealTime -> Signal.Y
 
 -- * type wrappers
@@ -257,9 +257,9 @@ instance (ToVal a, ToVal b) => ToVal (Either a b) where
 
 -- ** numeric types
 
--- | Coerce any numeric value to a TypedVal, and check it against the given
--- function.
-num_to_scalar :: (Score.TypedVal -> Maybe a) -> Val -> Checked a
+-- | Coerce any numeric value to a Score.Typed Signal.Y, and check it against
+-- the given function.
+num_to_scalar :: (Score.Typed Signal.Y -> Maybe a) -> Val -> Checked a
 num_to_scalar check val = case val of
     VNum a -> Val $ check a
     VControlRef cref -> Eval $ \p ->
@@ -352,11 +352,11 @@ type_to_control deflt = fmap transpose_control . transpose_type deflt
 
 -- *** scalar
 
-instance Typecheck Score.TypedVal where
+instance Typecheck (Score.Typed Signal.Y) where
     from_val = num_to_scalar Just
     to_type = num_to_type
-instance ToVal Score.TypedVal where to_val = VNum
-instance TypecheckNum Score.TypedVal where num_type _ = ValType.TUntyped
+instance ToVal (Score.Typed Signal.Y) where to_val = VNum
+instance TypecheckNum (Score.Typed Signal.Y) where num_type _ = ValType.TUntyped
 
 instance Typecheck Double where
     from_val = num_to_scalar (Just . Score.typed_val)

@@ -188,7 +188,7 @@ emap_asc_m_ event_of f =
 
 -- ** unthreaded state
 
-control :: (Score.TypedVal -> a) -> BaseTypes.ControlRef
+control :: (Score.Typed Signal.Y -> a) -> BaseTypes.ControlRef
     -> Stream Score.Event -> Derive.Deriver [a]
 control f c events = do
     sig <- Typecheck.to_typed_function c

@@ -66,7 +66,7 @@ grace_place_doc =
 default_grace_dur :: Typecheck.DefaultReal
 default_grace_dur = Typecheck.real (1/12)
 
-grace_pitches_arg :: Sig.Parser [Either PSignal.Pitch Score.TypedVal]
+grace_pitches_arg :: Sig.Parser [Either PSignal.Pitch (Score.Typed Signal.Y)]
 grace_pitches_arg = Sig.many "pitch" grace_pitches_doc
 
 grace_pitches_doc :: Doc.Doc
@@ -253,11 +253,12 @@ fit_after start end notes dur = take notes $ Seq.range_ start step
         | dur * notes_t >= end - start = (end - start) / notes_t
         | otherwise = dur
 
-resolve_pitches :: PSignal.Pitch -> [Either PSignal.Pitch Score.TypedVal]
+resolve_pitches :: PSignal.Pitch
+    -> [Either PSignal.Pitch (Score.Typed Signal.Y)]
     -> Derive.Deriver [PSignal.Pitch]
 resolve_pitches base = either Derive.throw return . check_pitches base
 
-check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch Score.TypedVal]
+check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch (Score.Typed Signal.Y)]
     -> Either Text [PSignal.Pitch]
 check_pitches base pitches = do
     make <- case types of

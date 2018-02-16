@@ -24,6 +24,8 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -56,7 +58,7 @@ lookup key (Environ env) = Map.lookup key env
 -- Namely: 'BaseTypes.VPitch', 'BaseTypes.VControlFunction'.
 -- NOTE [val-and-minival].
 data Val =
-    VNum !ScoreTypes.TypedVal
+    VNum !(ScoreTypes.Typed Signal.Y)
     | VAttributes !Attrs.Attributes
     | VControlRef !BaseTypes.ControlRef
     | VConstantPitch !ConstantPitch

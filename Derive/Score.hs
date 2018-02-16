@@ -46,7 +46,6 @@ module Derive.Score (
     -- * Type
     , Type(..), Typed(..)
     , untyped, merge_typed, type_to_code, code_to_type
-    , TypedVal
 
     -- * instrument
     , Instrument(..)
@@ -84,7 +83,7 @@ import Derive.ScoreTypes
        (Instrument(..), instrument_name, empty_instrument, Control,
         control_name, PControl, pcontrol_name, Type(..), Typed(..),
         ControlValMap, TypedControlValMap, untyped, merge_typed, type_to_code,
-        code_to_type, TypedVal)
+        code_to_type)
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
@@ -356,7 +355,7 @@ set_instrument score_inst inst_environ event = event
 
 -- | Get a control value from the event, or Nothing if that control isn't
 -- present.
-control_at :: RealTime -> Control -> Event -> Maybe TypedVal
+control_at :: RealTime -> Control -> Event -> Maybe (Typed Signal.Y)
 control_at pos control event =
     fmap (Signal.at pos) <$> Map.lookup control (event_controls event)
 

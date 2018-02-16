@@ -152,7 +152,7 @@ merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
 untyped :: a -> Typed a
 untyped = Typed Untyped
 
-type_to_transpose :: TypedVal -> Maybe Pitch.Transpose
+type_to_transpose :: Typed Signal.Y -> Maybe Pitch.Transpose
 type_to_transpose (Typed typ val) = case typ of
     Diatonic -> Just $ Pitch.Diatonic val
     Chromatic -> Just $ Pitch.Chromatic val
@@ -161,9 +161,7 @@ type_to_transpose (Typed typ val) = case typ of
 
 -- * ControlMap
 
-type TypedVal = Typed Signal.Y
-
-instance ShowVal.ShowVal TypedVal where
+instance ShowVal.ShowVal (Typed Signal.Y) where
     show_val (Typed typ val) = ShowVal.show_val val <> type_to_code typ
 
 -- | This is a snapshot of the control signals at a certain point in time.

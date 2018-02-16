@@ -351,7 +351,7 @@ data Val =
     -- ratio.
     --
     -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
-    VNum !ScoreTypes.TypedVal
+    VNum !(ScoreTypes.Typed Signal.Y)
     -- | A set of Attributes for an instrument.
     --
     -- Literal: @+attr@, @+attr1+attr2@.
@@ -654,7 +654,8 @@ data ControlFunction =
     -- ControlFunctions that represent a control signal, the RealTime is the
     -- desired X value, otherwise it's just some number.
     ControlFunction !Text
-        !(ScoreTypes.Control -> Dynamic -> RealTime -> ScoreTypes.TypedVal)
+        !(ScoreTypes.Control -> Dynamic -> RealTime
+            -> ScoreTypes.Typed Signal.Y)
 
 instance Show ControlFunction where show = untxt . ShowVal.show_val
 instance Pretty ControlFunction where pretty = showt
@@ -665,13 +666,14 @@ instance DeepSeq.NFData ControlFunction where
     rnf (ControlFunction a b) = a `seq` b `seq` ()
 
 call_control_function :: ControlFunction -> ScoreTypes.Control -> Dynamic
-    -> RealTime -> ScoreTypes.TypedVal
+    -> RealTime -> (ScoreTypes.Typed Signal.Y)
 call_control_function (ControlFunction _ f) = f
 
 -- | Modify the underlying function, presumably to compose something onto the
 -- input or output.
 modify_control_function ::
-    ((RealTime -> ScoreTypes.TypedVal) -> (RealTime -> ScoreTypes.TypedVal))
+    ((RealTime -> ScoreTypes.Typed Signal.Y)
+        -> (RealTime -> ScoreTypes.Typed Signal.Y))
     -> ControlFunction -> ControlFunction
 modify_control_function modify (ControlFunction name f) =
     ControlFunction name (\dyn control -> modify (f dyn control))
