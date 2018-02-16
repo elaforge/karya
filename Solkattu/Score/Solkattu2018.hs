@@ -8,6 +8,7 @@ module Solkattu.Score.Solkattu2018 where
 import Prelude hiding ((.), (^), repeat)
 
 import Solkattu.SolkattuGlobal
+import qualified Solkattu.Tala as Tala
 
 
 yt_mannargudi1 :: Korvai
@@ -45,8 +46,8 @@ yt_pmi1 :: Korvai
 yt_pmi1 = source "Palakkad Mani Iyer" $
         recording "https://www.youtube.com/watch?v=J2xgcBY4cXg"
             (Just ((0, 3, 50), (0, 4, 40))) $
-        korvai adi mridangam $
-    [ restD 3 . __.__.sar1.sar2.__.na.na.din.__
+        korvai Tala.triputa_tala mridangam $
+    [ __.__.sar1.sar2.__.na.na.din.__
         . __. theme1 . din.__.na.na
         . din.__7 . sar3 . __.__. theme1.din.__.na.na.din.__
         . su (__.ka).theme1.din.__.na.na.din.__
@@ -62,43 +63,42 @@ yt_pmi1 = source "Palakkad Mani Iyer" $
     theme1 = group $ su (tat.__3.dit.__.ka.taka) . din.din.na
     theme2 = group $ su (ka.tat.__.dit.__.ka.taka) . din.din.na
 
-    -- This works, but sounds too slow.
-    utarangam = __ . su __
-        . tri (group $ nadai 3 (tat.dit.tat) . su (__.kita.taka.din))
-
-    -- utarangam = su __
-    --     . tri (group $ nadai 6 (tat.dit.tat) . su (__ . kita.taka.din))
+    utarangam = su __ . tri (group $ su $ tat.dit.tat . __ . kita.taka.din)
 
     fill1 = tat.din . su p5
-    -- fill1 = tat.dit . su (taka.naka.din.na)
     mridangam = makeMridangam
         [ (sar1, [k, k, t, k, u, o, o, u, k])
         , (sar2, [o, k, o, k, od])
+        , (sar3, [d, d, n, d, n, n, u])
+
         , (tat.dit, [p&k, p&t])
-        , (ka.taka, [p, k, n])
-        , (din.din.na, [o, od, k])
-        -- , (theme3, [p&k, p&t, p&k, k, o, n, n, o])
+        , (ka.taka, [k, n, n])
+        , (din.din.na, [o, o, k])
         , (tat.dit.tat, [k, t, k])
-        , (kita.taka.din, [k, p, k, n, o])
-        -- TODO maybe k p n d o?
+        , (kita.taka.din, [p, k, n, n, o])
         , (na.na.din, [on, on, od])
         , (tat.din, [k, od])
         , (din, [od])
         , (ka, [p])
-
-        , (sar3, [d, d, n, d, n, n, u])
-
-        -- , (fill1, [k, o, k, p, n, n, o, i])
-        -- , (tat.dit, [k, od])
         ]
 
 yt_karaikudi1 :: Korvai
 yt_karaikudi1 = source "Karaikudi Mani" $
-        recording "https://www.youtube.com/watch?v=_33FkETjQoc"
-            (Just ((0, 1, 34), (0, 2, 53))) $
+    recording "https://www.youtube.com/watch?v=_33FkETjQoc"
+        (Just ((0, 1, 34), (0, 2, 53))) $
+    similarTo "Solkattu2016" "c_16_12_06_sriram1" $
     korvai adi mridangam
         [ sarvaD (4+1/2) . theme . tat.__ . sarvaD (1/2)
             . sarvaD (4+1/2) . theme . din.__4
+        -- My own development, not from the recording.
+        , sarvaD 5 . theme.nakadinna
+            . sarvaD 5 . __ . dropM 1 theme.nakadinna
+            . tam.__4 . theme.nakadinna
+            . tam.__4 . __ . dropM 1 theme.nakadinna
+            -- . theme . dropM 1 theme . dropM 2 theme . p5
+            -- . theme . dropM 2 theme . dropM 4 theme . tri_ tam nakadinna
+
+            . theme.nakadinna.tam.__3 . dropM 1 theme . tri_ tam nakadinna
         , theme . tri (repeat 3 nakadinna . din.__3)
             . theme . tri (repeat 2 nakadinna . din.__)
             . theme . tri (nakadinna.din)
@@ -121,5 +121,6 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         , (tat, [k])
         , (din, [od])
         , (nakadinna, [n, o, o, k])
-        , (kitatakatam, [o, k, n, o, u])
+        , (kitatakatam, [o, k, n, p, u])
+        , (tam, [od])
         ]
