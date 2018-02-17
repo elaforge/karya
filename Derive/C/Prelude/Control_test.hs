@@ -88,7 +88,7 @@ test_nested = do
     -- TODO remove when I can get rid of drop_discontinuity_at.
     let run = DeriveTest.extract extract
             . DeriveTest.derive_blocks
-        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_dyn_literal e)
+        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_dyn e)
     let ui = run
             [ ("top",
                 [ ("dyn", [(0, 0, "1"), (4, 0, "1"), (8, 0, "i .5"),

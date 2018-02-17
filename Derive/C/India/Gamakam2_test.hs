@@ -72,10 +72,10 @@ test_fade = do
     let run = run_note_track_dyn ""
     equal (run [(0, 4, "@;; -> 2 -- 4c")])
         ([( [(0, 60)]
-          , [(-RealTime.larger, 1), (2, 1), (4, 1)]
+          , [(-RealTime.larger, 1), (2, 1), (4, 0), (4, 1)]
           )], [])
     equal (run [(0, 4, "@ -< 2;; -- 4c")])
-        ([([(0, 60)], [(0, 1), (2, 1)])], [])
+        ([([(0, 60)], [(0, 1), (2, 0), (2, 1)])], [])
 
 test_jaru = do
     let run = run_note_track "| jaru-time=1 | jaru-transition=1"

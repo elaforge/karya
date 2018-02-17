@@ -674,14 +674,11 @@ e_start_control control event =
     Score.typed_val <$> Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn = e_control Score.c_dynamic
-
-e_dyn_literal :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn_literal = Seq.drop_dups id . map (second (Num.roundDigits 2))
-    . e_control_literal Score.c_dynamic
+e_dyn = Seq.drop_dups id . e_control_literal Score.c_dynamic
 
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn_rounded = map (second (Num.roundDigits 2)) . e_dyn
+e_dyn_rounded = Seq.drop_dups id . map (second (Num.roundDigits 2))
+    . e_control_literal Score.c_dynamic
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.  Also
 -- drops duplicate samples for reasons described in 'Signal.to_pairs_unique'.

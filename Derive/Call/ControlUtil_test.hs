@@ -23,7 +23,7 @@ test_breakpoints = do
     equal (f 4 8  [0, 1, 0]) [(4, 0), (6, 1), (8, 0)]
 
 test_modify = do
-    let run title = DeriveTest.extract DeriveTest.e_dyn_literal
+    let run title = DeriveTest.extract DeriveTest.e_dyn
             . DeriveTest.derive_tracks_setup with_call title
         with_call = CallTest.with_control_generator "g" c_gen
     let tracks dyn =

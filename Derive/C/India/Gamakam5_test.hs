@@ -51,7 +51,7 @@ test_sequence = do
 --             note ++ [("t-nn | gamak", [(0, 2, "!-1"), (2, 2, "!0")])])
 --         ([[(0, 60), (1, 59.5), (2, 59), (3, 59.5), (4, 60)]], [])
 --     -- Same for dyn.
---     equal (run DeriveTest.e_dyn_rounded $
+--     equal (run DeriveTest.e_dyn_literal $
 --             note ++ [("dyn | dyn", [(0, 2, "!<4"), (2, 0, "!>")])])
 --         ([[(0, 0), (1, 0.37), (2, 0.44), (3, 0.37), (4, 0)]], [])
 
@@ -256,7 +256,7 @@ test_parse_dyn_sequence = do
     equal (f "T9>") $ Right [Call 'T' "9", Call '>' ""]
 
 test_dyn_sequence = do
-    let run call1 call2 = derive_tracks False DeriveTest.e_dyn_literal $
+    let run call1 call2 = derive_tracks False DeriveTest.e_dyn_rounded $
             make_dyn_tracks (4, call1) (4, call2)
     equal (run ".5" "!=") ([[(0, 0.5)], [(4, 0.5)], [(4, 0.5)]], [])
     equal (run ".5" "!=>")

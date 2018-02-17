@@ -72,7 +72,7 @@ test_dip = do
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
     equal (run DeriveTest.e_nns "dip (4c) 1 -1 1" 4)
         ([[(0, NN.d4), (1, NN.b3), (2, NN.d4), (3, NN.b3), (4, NN.c3)]], [])
-    equal (run DeriveTest.e_dyn_literal "dip (4c) 1 -1 1 .5" 4)
+    equal (run DeriveTest.e_dyn_rounded "dip (4c) 1 -1 1 .5" 4)
         ( [ [ (0, 1), (0.96, 1), (1, 0.5), (1.96, 0.5), (2, 1)
             , (2.96, 1), (3, 0.5), (4, 0.5), (4, 1)
             ]

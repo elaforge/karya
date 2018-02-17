@@ -12,7 +12,7 @@ test_drop = do
     let run pitches dyn = extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 10, "")]), ("*", pitches), ("dyn", dyn)]
         extract = head . (DeriveTest.extract_events $ \e ->
-            (DeriveTest.e_nns_literal e, DeriveTest.e_dyn_literal e))
+            (DeriveTest.e_nns_literal e, DeriveTest.e_dyn e))
     equal (run [(0, 0, "4c"), (1, 0, "drop 2 2 2")] [(0, 0, "1")])
         ( [(0, 60), (1, 60), (3, 58)]
         , [(0, 1), (1, 1), (3, 0)]
@@ -23,7 +23,7 @@ test_drop = do
         )
 
 test_drop_noninverted = do
-    let run ns ps = DeriveTest.extract DeriveTest.e_dyn_literal $
+    let run ns ps = DeriveTest.extract DeriveTest.e_dyn $
             DeriveTest.derive_tracks "" [(">", ns), ("*", ps)]
     equal (run [(0, 4, ""), (4, 4, "")]
             [(0, 0, "4c"), (1, 0, "drop 2 2 2"), (4, 4, "4c")])
@@ -32,7 +32,7 @@ test_drop_noninverted = do
 test_drop_lift_note_inverted = do
     let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 4, note)]), ("*", [(0, 0, "4c")])]
-        extract e = (DeriveTest.e_nns_literal e, DeriveTest.e_dyn_literal e)
+        extract e = (DeriveTest.e_nns_literal e, DeriveTest.e_dyn e)
     -- This verifies that Tags.under_invert works, so that 'drop' goes under
     -- the inversion, while other calls, such as 'd', go above it.
     let ([event], logs) = run "drop 2 2 |"
@@ -52,7 +52,7 @@ test_drop_lift_note_inverted = do
 test_drop_lift_note = do
     let run note = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
             [("*", [(0, 0, "4c")]), (">", [(0, 4, note)])]
-        extract e = (DeriveTest.e_nns_literal e, DeriveTest.e_dyn_literal e)
+        extract e = (DeriveTest.e_nns_literal e, DeriveTest.e_dyn e)
     -- TODO use DeriveTest.extract_events
 
     let (events, logs) = run "drop 2 2 |"
@@ -114,7 +114,7 @@ test_approach_dyn = do
     let run pitches = extract $ DeriveTest.derive_tracks "%dyn=.5"
             [(">", [(0, 10, "")]), ("*", pitches)]
         extract = head . (DeriveTest.extract_events $ \e ->
-            (DeriveTest.e_nns_literal e, DeriveTest.e_dyn_literal e))
+            (DeriveTest.e_nns_literal e, DeriveTest.e_dyn e))
     equal (run [(0, 0, "4c"), (2, 0, "ad 2 .5"), (4, 0, "4d")])
         ( [(0, 60), (2, 60), (4, 62)]
         , [(-RealTime.larger, 0.5), (2, 0.5), (4, 0.25), (4, 0.5)]
