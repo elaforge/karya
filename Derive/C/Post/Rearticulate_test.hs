@@ -31,5 +31,4 @@ test_slur_dur = do
          ], [])
 
 e_note_nn :: Score.Event -> (RealTime, RealTime, [(RealTime, Pitch.NoteNumber)])
-e_note_nn e =
-    (Score.event_start e, Score.event_duration e, DeriveTest.e_nns_literal e)
+e_note_nn e = (Score.event_start e, Score.event_duration e, DeriveTest.e_nns e)

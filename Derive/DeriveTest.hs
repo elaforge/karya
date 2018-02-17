@@ -680,21 +680,22 @@ e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn_rounded = Seq.drop_dups id . map (second (Num.roundDigits 2))
     . e_control_literal Score.c_dynamic
 
+-- | Like 'e_nns', but drop discontinuities.
+--
+-- TODO don't use this for new tests, this is just left over from pre-linear
+-- segments so I don't have to update a million tests.
+e_nns_old :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns_old e
+    | not (null errs) = errorStack $ "errors flattening signal: " <> showt errs
+    | otherwise = Seq.drop_dups snd $ Seq.drop_initial_dups fst sig
+    where (sig, errs) = e_nns_errors e
+
 -- | Like 'e_nns_errors', but throw an exception if there are errors.  Also
 -- drops duplicate samples for reasons described in 'Signal.to_pairs_unique'.
 e_nns :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
-    | not (null errs) = errorStack $
-        "DeriveTest.e_nns: errors flattening signal: " <> showt errs
-    | otherwise = Seq.drop_dups snd $ Seq.drop_initial_dups fst sig
-    where (sig, errs) = e_nns_errors e
-
-e_nns_literal :: CallStack.Stack => Score.Event
-    -> [(RealTime, Pitch.NoteNumber)]
-e_nns_literal e
-    | not (null errs) = errorStack $
-        "DeriveTest.e_nns: errors flattening signal: " <> showt errs
-    | otherwise = Seq.drop_dups id $ map (second (Num.roundDigits 2)) sig
+    | not (null errs) = errorStack $ "errors flattening signal: " <> showt errs
+    | otherwise = Seq.drop_dups id sig
     where (sig, errs) = e_nns_errors e
 
 -- | Like 'e_nns', but round to cents to make comparison easier.

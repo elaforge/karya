@@ -11,7 +11,7 @@ import Global
 
 
 test_pitches = do
-    let run title = DeriveTest.extract DeriveTest.e_nns
+    let run title = DeriveTest.extract DeriveTest.e_nns_old
             . DeriveTest.derive_tracks ("scale=alpha" <> title)
             . UiTest.note_track
     equal (run "" [(0, 1, "1a"), (1, 1, "1b")])

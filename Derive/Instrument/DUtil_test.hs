@@ -37,7 +37,7 @@ test_constant_controls = do
     let run extract pitch controls tracks = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup (with pitch controls) "" $
                 (">", [(0, 4, "a")]) : tracks
-        e_nn = map snd . DeriveTest.e_nns
+        e_nn = map snd . DeriveTest.e_nns_old
         e_c = DeriveTest.e_control_vals "c"
         with pitch controls = CallTest.with_note_generator "a" $
             DUtil.constant_controls pitch (Set.fromList controls)

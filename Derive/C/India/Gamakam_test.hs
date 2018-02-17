@@ -15,7 +15,7 @@ import Types
 
 
 test_kampita = do
-    let run call end = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
+    let run call end = DeriveTest.extract DeriveTest.e_nns_old $ derive_tracks
             [ (">", [(0, 4, "")])
             , ("*", [(0, 0, call), (end, 0, "3c")])
             ]
@@ -27,8 +27,8 @@ test_kampita = do
         ([[(0, NN.c4), (2, NN.cs4), (3, NN.c3)]], [])
 
 test_kampita_c = do
-    let run = run_diatonic (map snd . DeriveTest.e_nns)
-        run2 = run_diatonic DeriveTest.e_nns
+    let run = run_diatonic (map snd . DeriveTest.e_nns_old)
+        run2 = run_diatonic DeriveTest.e_nns_old
     -- Trill goes to the last time, but won't create a short cycle.
     equal (run2 "kam 1 1 1" 2) ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run2 "kam 1 1 1" 2.5) ([[(0, 60), (1, 62), (2, 60)]], [])
@@ -55,7 +55,7 @@ test_kampita_c = do
     equal (run2 "adjust = stretch | kam^ 1 1 1" 2) ([[(0, 60), (2, 62)]], [])
 
 test_nkampita_c = do
-    let run = run_diatonic DeriveTest.e_nns
+    let run = run_diatonic DeriveTest.e_nns_old
     strings_like (snd (run "nkam 1 0" 2)) ["cycles: expected Num (>0)"]
     equal (run "nkam 1 1" 3) ([[(0, 60), (1, 62), (2, 60)]], [])
     equal (run "nkam 1 1" 6) ([[(0, 60), (2, 62), (4, 60)]], [])
@@ -70,7 +70,7 @@ test_nkampita_c = do
 test_dip = do
     let run ex call end = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 4, "")]), ("*", [(0, 0, call), (end, 0, "3c")])]
-    equal (run DeriveTest.e_nns "dip (4c) 1 -1 1" 4)
+    equal (run DeriveTest.e_nns_old "dip (4c) 1 -1 1" 4)
         ([[(0, NN.d4), (1, NN.b3), (2, NN.d4), (3, NN.b3), (4, NN.c3)]], [])
     equal (run DeriveTest.e_dyn_rounded "dip (4c) 1 -1 1 .5" 4)
         ( [ [ (0, 1), (0.96, 1), (1, 0.5), (1.96, 0.5), (2, 1)
@@ -81,7 +81,7 @@ test_dip = do
         )
 
 test_jaru = do
-    let run call = DeriveTest.extract DeriveTest.e_nns_literal $
+    let run call = DeriveTest.extract DeriveTest.e_nns $
             derive_tracks [(">", [(0, 4, "")]), ("*", [(0, 0, call)])]
     equal (run "sgr (3c) 2") ([[(0, 47), (2, 50), (4, 48)]], [])
 

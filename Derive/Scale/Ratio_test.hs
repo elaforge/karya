@@ -9,7 +9,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 
 test_ratio = do
-    let e_nns = DeriveTest.extract DeriveTest.e_nns
+    let e_nns = DeriveTest.extract DeriveTest.e_nns_old
         e_tsig r =
             ( lookup (UiTest.default_block_id, UiTest.mk_tid 3)
                 (DeriveTest.e_tsigs r)

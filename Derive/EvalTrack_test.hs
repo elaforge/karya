@@ -454,7 +454,7 @@ test_two_level_orphans = do
 test_orphan_ranges = do
     -- These test TrackTree.track_end, indirectly by making sure it clips
     -- or doesn't clip signal correctly.
-    let run = DeriveTest.extract DeriveTest.e_nns
+    let run = DeriveTest.extract DeriveTest.e_nns_old
             . DeriveTest.derive_tracks_linear ""
     -- Each note has only its control.
     equal (run

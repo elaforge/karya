@@ -62,7 +62,7 @@ test_note_to_call = do
         ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
 
 test_transpose_smooth = do
-    let run = DeriveTest.extract DeriveTest.e_nns $
+    let run = DeriveTest.extract DeriveTest.e_nns_old $
             DeriveTest.derive_tracks "scale=raga | key=kharaharapriya"
             [ ("*", [(0, 0, "4g")])
             , ("t-dia",

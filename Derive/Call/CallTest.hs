@@ -44,7 +44,7 @@ run_pitch_ title events = DeriveTest.derive_tracks title
 
 run_pitch :: Text -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run_pitch title = extract . run_pitch_ title
-    where extract = head . DeriveTest.extract_events DeriveTest.e_nns_literal
+    where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
 -- | Run a control track and extract the control signal it produces.
 run_control :: [(ScoreTime, Text)] -> [(Signal.X, Signal.Y)]

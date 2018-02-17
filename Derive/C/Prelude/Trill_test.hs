@@ -209,7 +209,7 @@ test_chord_tremolo_function = do
 test_trill = do
     let run text = extract $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-        extract = DeriveTest.extract DeriveTest.e_nns
+        extract = DeriveTest.extract DeriveTest.e_nns_old
     -- Defaults to diatonic.
     equal (run "tr (4c) 1 1")
         ([[(0, 60), (1, 62), (2, 60)]], [])
@@ -257,15 +257,14 @@ test_trill_transition = do
 
 e_nns_exact :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_exact e
-    | not (null errs) = errorStack $
-        "DeriveTest.e_nns: errors flattening signal: " <> showt errs
+    | not (null errs) = errorStack $ "errors flattening signal: " <> showt errs
     | otherwise = sig
     where (sig, errs) = DeriveTest.e_nns_errors e
 
 test_trill_start_end = do
     let run ex text = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-        nns = map snd . DeriveTest.e_nns
+        nns = map snd . DeriveTest.e_nns_old
     equal (run nns "tr (4c) 1 1") ([[60, 62, 60]], [])
     equal (run nns "tr-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
     -- Default is ignored for high and low variants.
@@ -273,13 +272,13 @@ test_trill_start_end = do
     equal (run nns "tr-mode = high | tr_ (4c) 1 1") ([[60, 62, 60]], [])
 
     -- Start, end, and adjust.
-    equal (run DeriveTest.e_nns "tr-adjust = shorten | tr^_ (4c) 1 1")
+    equal (run DeriveTest.e_nns_old "tr-adjust = shorten | tr^_ (4c) 1 1")
         ([[(0, 62), (1, 60)]], [])
-    equal (run DeriveTest.e_nns "tr-adjust = stretch | tr^_ (4c) 1 1")
+    equal (run DeriveTest.e_nns_old "tr-adjust = stretch | tr^_ (4c) 1 1")
         ([[(0, 62), (3, 60)]], [])
 
 test_trill_hold = do
-    let run text = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
+    let run text = DeriveTest.extract DeriveTest.e_nns_old $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
     equal (run "hold = 1 | tr (4c) 1 1") ([[(0, 60), (2, 62)]], [])
     -- Still respects start and end restrictions.
@@ -290,7 +289,7 @@ test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
     let run tracks = extract $ derive_tracks $
             (">", [(0, 6, "")]) : tracks
-        extract = DeriveTest.extract DeriveTest.e_nns
+        extract = DeriveTest.extract DeriveTest.e_nns_old
     -- Trill transitions from 2 semitones to 1 semitone.
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
@@ -353,7 +352,7 @@ test_pitch_trill = do
         ]
 
 test_xcut_pitch = do
-    let f tracks = DeriveTest.extract DeriveTest.e_nns $
+    let f tracks = DeriveTest.extract DeriveTest.e_nns_old $
             DeriveTest.derive_tracks_linear "" $
             (">", [(0, 4, "")]) : tracks
     equal (f

@@ -28,7 +28,7 @@ test_call_maps = do
 -- * pitch
 
 test_sequence = do
-    let run c = derive_tracks False DeriveTest.e_nns_literal $
+    let run c = derive_tracks False DeriveTest.e_nns_rounded $
             make_2notes (4, "--|") (2, c)
         output nns = ([[(0, NN.c4), (4, NN.c4)], nns, [(6, NN.e4)]], [])
     putStrLn $ untxt $ UiTest.fmt_tracks $ make_2notes (4, "--|") (2, "X")
@@ -47,7 +47,7 @@ test_sequence = do
 --     -- 4c------
 --     -- !-1 !0  |
 --     -- Prev pitch is from the previous sequence call.
---     equal (run DeriveTest.e_nns_rounded $
+--     equal (run DeriveTest.e_nns $
 --             note ++ [("t-nn | gamak", [(0, 2, "!-1"), (2, 2, "!0")])])
 --         ([[(0, 60), (1, 59.5), (2, 59), (3, 59.5), (4, 60)]], [])
 --     -- Same for dyn.
@@ -66,13 +66,13 @@ test_parse_pitch_sequence = do
         Right [CallArg '1' "", PitchGroup [CallArg '0' "", CallArg '1' ""]]
 
 test_postfix = do
-    let run = derive_tracks False DeriveTest.e_nns_literal
+    let run = derive_tracks False DeriveTest.e_nns_rounded
             . make_2notes (4, "--|")
     strings_like (snd $ run (4, "!_==1_"))
         (replicate 2 "postfix call with no preceding call")
     equal (run (4, "!T0==1_"))
         ( [ [(0, 60), (4, 60)]
-          , [(4, 62), (5, 62), (6, 62), (7, 63), (8, 64)]
+          , [(4, 62), (5, 62), (6, 62), (6, 62), (7, 63), (8, 64)]
           , [(8, 64)]
           ]
         , []
@@ -111,7 +111,7 @@ from_cur_prev_next pitches notes = (nns, concat logs)
     where
     nns = map (last . map snd . filter ((==1) . fst) . concat) sigs
     (sigs, logs) = unzip $ map run_with ["!=", "!^=", "!<=", "!&="]
-    run_with call = derive_tracks True DeriveTest.e_nns_literal $
+    run_with call = derive_tracks True DeriveTest.e_nns $
         pitch_gamakam_note pitches [(1, call)] notes
 
 test_sequence_above = do
@@ -138,10 +138,9 @@ test_sequence_above = do
 
 e_clipped_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_clipped_nns e =
-    DeriveTest.e_nns_literal $
+    DeriveTest.e_nns_rounded $
         e { Score.event_pitch = clip (Score.event_pitch e) }
-    where
-    clip = PSignal.clip_before (Score.event_start e)
+    where clip = PSignal.clip_before (Score.event_start e)
 
 -- get_state :: Derive.Generator Derive.Control
 -- get_state = CallTest.generator $ \args -> do
@@ -152,7 +151,7 @@ e_clipped_nns e =
 -- broken by 'gamakam: set t-nn to 0 when there isn't a following gamakam'
 -- But I don't care much.
 -- test_prev_pitch2 = do
---     let run ns ps gs = derive_tracks False DeriveTest.e_nns_literal $
+--     let run ns ps gs = derive_tracks False DeriveTest.e_nns $
 --             note_pitch_gamakam0 ns ps gs
 --     equal (run [(0, 1), (1, 1)] [(0, "4c"), (1, "4d")] [(1, "!=")])
 --         ([[(0, NN.c4), (1, NN.c4)], [(1, NN.c4)]], [])
@@ -161,7 +160,7 @@ e_clipped_nns e =
 --     --     ([[(0, NN.c4), (1, NN.c4)], [(1, NN.c4)]], [])
 
 -- test_prev_pitch = do
---     let run = derive_tracks False DeriveTest.e_nns_literal
+--     let run = derive_tracks False DeriveTest.e_nns
 --     -- Prev pitch comes from previous call.
 --     equal (run $ note_pitch_gamakam
 --             [(0, 2, "")]
@@ -223,7 +222,7 @@ test_resolve_pitch_calls = do
 --             , ("dyn | dyn", [(0, 0, "!<")])
 --             ]
 --     -- Transition is up to 4, not 8, because the note ends at 4.
---     equal (DeriveTest.extract DeriveTest.e_nns_literal result)
+--     equal (DeriveTest.extract DeriveTest.e_nns result)
 --         ( [ [(0, 60), (1, 60.5), (2, 61), (3, 61.5), (4, 62)]
 --           , [(0, 60), (4, 60), (4, 62)]
 --           ]
@@ -237,11 +236,14 @@ test_resolve_pitch_calls = do
 
 test_sequence_interleave = do
     let run c = derive_tracks False extract $ make_2notes (4, "--|") (6, c)
-        extract = DeriveTest.e_nns_rounded
-    equal (run "!=") ([[(0, NN.c4)], [(4, NN.c4)], [(10, NN.e4)]], [])
+        extract = DeriveTest.e_nns
+    equal (run "!=")
+        ( [[(0, NN.c4), (4, NN.c4)], [(4, NN.c4), (10, NN.c4)], [(10, NN.e4)]]
+        , []
+        )
 
 test_alias = do
-    let run dur g = derive_tracks False DeriveTest.e_nns_rounded $
+    let run dur g = derive_tracks False DeriveTest.e_nns $
             make_tracks [(0, dur, "4c", g)]
     equal (run 2 "!0-1") (run 2 "!0a")
     equal (run 2 "!0[e0]") (run 2 "!0n")

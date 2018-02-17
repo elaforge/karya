@@ -21,7 +21,7 @@ import qualified Perform.Signal as Signal
 
 test_compile = do
     let controls = map Score.event_controls
-        pitches = map DeriveTest.e_nns
+        pitches = map DeriveTest.e_nns_old
 
     let derive tracks = DeriveTest.extract id $ DeriveTest.derive_tracks "" $
             ("tempo", [(0, 0, "2")]) : tracks

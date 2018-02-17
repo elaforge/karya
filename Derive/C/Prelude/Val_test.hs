@@ -63,7 +63,7 @@ test_linear_next = do
           ]
         ]
 
-    let (result, logs) = run DeriveTest.e_nns ("*",
+    let (result, logs) = run DeriveTest.e_nns_old ("*",
             [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (4, 0, "2c")])
     equal logs []
     equal result

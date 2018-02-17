@@ -547,7 +547,7 @@ test_named_pitch = do
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end
     -- of the block, since there's no next event for it.
-    let res = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_blocks
+    let res = DeriveTest.extract DeriveTest.e_nns_old $ DeriveTest.derive_blocks
             [ ("p",
                 [ (">i1", [(0, 1, "sub"), (1, 1, "")])
                 , ("*twelve", [(0, 0, "5d"), (1, 0, "5e")])
@@ -588,7 +588,7 @@ test_regress_event_end1 = do
     -- wound up with too much pitch signal.
     let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_nns e)
+                DeriveTest.e_nns_old e)
     equal (DeriveTest.extract extract res)
         ([ (0, 2, [(0, 60)])
         , (2, 2, [(2, 62)])
@@ -604,7 +604,7 @@ test_regress_event_end1 = do
 test_regress_event_end2 = do
     let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_nns e)
+                DeriveTest.e_nns_old e)
     equal (DeriveTest.extract extract res)
         ([ (5, 2, [(5, 60)])
         , (7, 2, [(7, 62)])

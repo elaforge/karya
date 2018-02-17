@@ -60,7 +60,7 @@ test_string_select = do
 -- TODO I have to test this ad-hoc per call until I figure out a better
 -- solution, see NOTE [signal-discontinuity]
 test_signal_discontinuity = do
-    let run = DeriveTest.extract DeriveTest.e_nns_literal
+    let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks (title <> " | bent-string 0 0 1")
     equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
         ([[(0, NN.c4), (1, NN.c4), (1, NN.d4), (3, NN.d4), (3, NN.c4)]], [])
@@ -153,7 +153,7 @@ title :: Text
 title = "import idiom.string | open-strings = (list (4c) (4d) (4e) (4g) (4a))"
 
 e_nns :: Score.Event -> (RealTime, [(RealTime, Pitch.NoteNumber)])
-e_nns e = (Score.event_start e, strip_flat $ DeriveTest.e_nns_literal e)
+e_nns e = (Score.event_start e, strip_flat $ DeriveTest.e_nns e)
     -- 'merge_curve' can't see that pitches are the same, so it can produce
     -- duplicate pitches.
 

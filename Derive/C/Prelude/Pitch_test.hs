@@ -23,7 +23,7 @@ test_set_and_val_to_pitch = do
                 [ (">", [(s, d, "") | (s, d) <- notes])
                 , ("*", [(s, 0, modify p) | (s, p) <- pitches])
                 ]
-        extract = DeriveTest.e_nns_literal
+        extract = DeriveTest.e_nns
     forM_ [id, \p -> "set (" <> p <> ")"] $ \modify -> do
         equal (run modify [(0, 1), (1, 1)] [(0, "4c"), (1, "4d")])
             ([[(0, NN.c4), (1, NN.c4)], [(1, NN.d4)]], [])
@@ -53,7 +53,7 @@ test_interpolated_transpose = do
             [ (title, [(0, 5, "")])
             , ("*test", [(0, 0, "A"), (4, 0, "i (B)")])
             ]
-        extract = head . DeriveTest.extract_events DeriveTest.e_nns_literal
+        extract = head . DeriveTest.extract_events DeriveTest.e_nns
     equal (run ">") [(0, 1), (4, 3)]
     equal (run "> | %t-chrom = 1") [(0, 3), (4, 4)]
 
@@ -90,7 +90,7 @@ test_approach = do
     equal (run [(0, "4c"), (10, "a 2s"), (20, "4d")])
         [(0, NN.c4), (10, NN.c4), (12, NN.d4), (20, NN.d4)]
 
-    let run = DeriveTest.extract_events DeriveTest.e_nns_literal
+    let run = DeriveTest.extract_events DeriveTest.e_nns
             . DeriveTest.derive_tracks "" . UiTest.note_spec
     equal (run ("", [(0, 10, "4c"), (10, 10, "a 2s"), (20, 10, "4d")], []))
         [ [(0, NN.c4), (10, NN.c4)]
@@ -119,7 +119,7 @@ test_linear_next = do
     equal (run [(0, "4c"), (2, "i> (>)"), (4, "4d")])
         [(0, NN.c4), (2, NN.c4), (4, NN.d4)]
     -- Test with slicing.
-    let run3 = DeriveTest.extract_events DeriveTest.e_nns_literal
+    let run3 = DeriveTest.extract_events DeriveTest.e_nns
             . DeriveTest.derive_tracks "" . UiTest.note_track
     equal (run3 [(0, 1, "4c"), (1, 1, "i> (4d)"), (3, 1, "4e")])
         [[(0, NN.c4), (1, NN.c4)], [(1, NN.c4), (3, NN.d4)], [(3, NN.e4)]]
@@ -129,7 +129,7 @@ run = CallTest.run_pitch ""
 
 run_tempo :: Int -> [(ScoreTime, Text)] -> [(RealTime, Pitch.NoteNumber)]
 run_tempo tempo pitches = extract $ run_ tempo pitches []
-    where extract = head . DeriveTest.extract_events DeriveTest.e_nns_literal
+    where extract = head . DeriveTest.extract_events DeriveTest.e_nns
 
 run_ :: Int -> [(ScoreTime, Text)] -> [UiTest.TrackSpec] -> Derive.Result
 run_ tempo pitches tracks = DeriveTest.derive_tracks "" $

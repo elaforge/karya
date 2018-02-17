@@ -23,7 +23,7 @@ test_wind = do
             . UiTest.note_track . mknotes
         extract e =
             ( Score.event_start e
-            , map (second Pitch.nn_to_hz) $ DeriveTest.e_nns e
+            , map (second Pitch.nn_to_hz) $ DeriveTest.e_nns_old e
             )
         mknotes ns = [(t, 1, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
     equalf 0.01 (run ["set (nn 100)"]) ([(0, [(0, 100)])], [])

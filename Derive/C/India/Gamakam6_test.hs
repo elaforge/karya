@@ -37,7 +37,7 @@ test_sequence = do
 
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e = drop_last_dups fst $ takeWhile ((<= Score.event_end e) . fst) $
-    DeriveTest.e_nns_literal e
+    DeriveTest.e_nns_rounded e
 
 drop_last_dups :: Eq k => (a -> k) -> [a] -> [a]
 drop_last_dups key = go

@@ -120,11 +120,11 @@ test_nkampita = do
 
 run_note_track_dyn :: Text -> [UiTest.EventSpec]
     -> ([([(RealTime, Pitch.NoteNumber)], [(RealTime, Signal.Y)])], [Text])
-run_note_track_dyn = run_ $ \e -> (DeriveTest.e_nns e, DeriveTest.e_dyn e)
+run_note_track_dyn = run_ $ \e -> (DeriveTest.e_nns_old e, DeriveTest.e_dyn e)
 
 run_note_track :: Text -> [UiTest.EventSpec]
     -> ([[(RealTime, Pitch.NoteNumber)]], [Text])
-run_note_track = run_ DeriveTest.e_nns
+run_note_track = run_ DeriveTest.e_nns_old
 
 run_ :: (Score.Event -> a) -> Text -> [UiTest.EventSpec] -> ([a], [Text])
 run_ extract transform = DeriveTest.extract extract

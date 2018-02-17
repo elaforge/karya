@@ -101,7 +101,8 @@ test_under_invert = do
         NoteUtil.make_event args dyn 0 1 mempty
 
 test_inverted_control_scope = do
-    let run = DeriveTest.extract DeriveTest.e_nns . DeriveTest.derive_tracks ""
+    let run = DeriveTest.extract DeriveTest.e_nns_old
+            . DeriveTest.derive_tracks ""
     -- Inverted controls are clipped to their note's extent.
     equal (run $ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
         ([[(0, 60)], [(1, 62)]], [])
@@ -109,7 +110,7 @@ test_inverted_control_scope = do
         ([[(0, 60)], [(1, 62)]], [])
 
 test_overlapping_parent_control_scope = do
-    let run = DeriveTest.extract DeriveTest.e_nns
+    let run = DeriveTest.extract DeriveTest.e_nns_old
             . DeriveTest.derive_tracks_linear "import ly"
     --          0 1 2 3 4
     -- >        v=1-----|
