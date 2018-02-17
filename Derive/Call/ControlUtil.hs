@@ -431,7 +431,7 @@ modify_with merge control end sig = do
         Derive.Set -> do
             -- There's no identity for Set, so I have to slice the signal
             -- myself.
-            maybe_old <- Derive.get_control_signal control
+            maybe_old <- Derive.lookup_control_signal control
             return $ case Score.typed_val <$> maybe_old of
                 Nothing -> sig
                 Just old -> old <> sig <> Signal.clip_before end old

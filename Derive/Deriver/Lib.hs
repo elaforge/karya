@@ -490,19 +490,19 @@ lookup_instrument inst = do
 -- ** control
 
 -- | Return an entire signal.
-get_control :: Score.Control
+lookup_control :: Score.Control
     -> Deriver (Maybe (RealTime -> Score.Typed Signal.Y))
-get_control control = get_control_function control >>= \case
+lookup_control control = lookup_control_function control >>= \case
     Just f -> return $ Just f
-    Nothing -> get_control_signal control >>= return . fmap signal_function
+    Nothing -> lookup_control_signal control >>= return . fmap signal_function
 
 signal_function :: Score.Typed Signal.Control
     -> (RealTime -> Score.Typed Signal.Y)
 signal_function sig t = Signal.at t <$> sig
 
-get_control_signal :: Score.Control
+lookup_control_signal :: Score.Control
     -> Deriver (Maybe (Score.Typed Signal.Control))
-get_control_signal control = Map.lookup control <$> get_controls
+lookup_control_signal control = Map.lookup control <$> get_controls
 
 get_controls :: Deriver Score.ControlMap
 get_controls = Internal.get_dynamic state_controls
@@ -514,15 +514,15 @@ get_control_functions = Internal.get_dynamic state_control_functions
 -- into account.
 control_at :: Score.Control -> RealTime
     -> Deriver (Maybe (Score.Typed Signal.Y))
-control_at control pos = get_control_function control >>= \case
+control_at control pos = lookup_control_function control >>= \case
     Just f -> return $ Just $ f pos
     Nothing -> do
         maybe_sig <- Map.lookup control <$> get_controls
         return $ fmap (Signal.at pos) <$> maybe_sig
 
-get_control_function :: Score.Control
+lookup_control_function :: Score.Control
     -> Deriver (Maybe (RealTime -> Score.Typed Signal.Y))
-get_control_function control = do
+lookup_control_function control = do
     functions <- Internal.get_dynamic state_control_functions
     case Map.lookup control functions of
         Nothing -> return Nothing

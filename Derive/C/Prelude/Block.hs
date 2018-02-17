@@ -223,7 +223,7 @@ c_capture_null_control = Derive.generator1 Module.internal
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do
         sig <- Derive.require "no null control to capture"
-            =<< Derive.get_control_signal Controls.null
+            =<< Derive.lookup_control_signal Controls.null
         stack <- Derive.get_stack
         return $! Score.set_control Controls.null sig Score.empty_event
             { Score.event_stack = stack }
