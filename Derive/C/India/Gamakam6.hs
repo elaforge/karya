@@ -171,26 +171,22 @@ c_pitch_sequence = Derive.generator1 (module_ <> "pitch")
             <> " available."
 
 pitch_sequence_doc :: Doc.Doc
-pitch_sequence_doc = Doc.Doc $ mconcat
-    [ "This is a mini-language that describes a transposition curve."
-    , "..."
-    ] -- TODO
-    -- 4, -4, a -- pitch from current
-    -- #pitch -- relative to from
-    -- <, > -- prev or next pitch
-    -- 4_, 4. -- lengthen or shorten the movement
-    -- 4:, 4; -- set to short or long absolute duration
-    -- 4+, 4\ -- plus or minus 1nn
-    -- 4^, 4v -- plus or minus .5nn
-    --
-    -- pitch, pitch modify, dur modify
-    --
-    -- T<pitch> -- set to pitch
-    --
-    -- aliases:
-    -- C -- T0
-    -- n -- [#0+#0\]
-    -- u -- [#0\#0+]
+pitch_sequence_doc = Doc.Doc $
+    "This is a mini-language that describes a transposition curve.\
+    \ The grammar is a sequence of `Pitch Duration | ']' Pitch | Alias`.\
+    \ A plain Pitch moves to that pitch, `]` Pitch sets the From running pitch\
+    \ to the given Pitch, but has zero duration, and Alias is a single letter,\
+    \ which is itself mapped to a sequence.\
+    \\nPitch is `[=<>][+\\^v]? | #?[-9-9a-d]? [+\\^v]?`.  `=<>` are the running\
+    \ From pitch, Prev pitch, or Next pitch, and [+\\^v] add or subtract\
+    \ 1nn, or .5nn, respectively.  A number is steps from the current swaram,\
+    \ and a-d are shorthand for -1 to -4.\
+    \\nDuration is a sequence of `_` or `.`, where each one doubles or halves\
+    \ the duration. `:` and `;` stand for short or long absolute duration.\
+    \\nDefault aliases:\n"
+    <> Text.unlines [char k <> " - " <> v | (k, v) <- Map.toList aliases]
+    where
+    char c = "`" <> Text.singleton c <> "`"
 
 -- | Start of the next event.  'Args.next' gets the end of the block if there
 -- is no next event, but I don't want that.
@@ -364,7 +360,7 @@ p_duration = p_longer <|> p_shorter
         n <- A.takeWhile1 (=='.')
         return $ Relative $ 1 / 2^(fromIntegral (Text.length n))
 
--- | = | < | > | #?[0-9a-d]? [+\^v]?
+-- | [=<>] [+\^v]? | #?[0-9a-d]? [+\^v]?
 p_pitch :: Parser Pitch
 p_pitch = do
     (matched, pitch) <- A.match $ p_pitch_from
@@ -391,6 +387,15 @@ p_nn = choose_char
     , ('^', 0.5)
     , ('v', -0.5)
     ] <|> pure 0
+-- TODO alternately, ^v and ',.  But , looks a lot like .
+-- or maybe {} and []?  No, ] is taken.
+-- +? and ^v?
+-- p_nn = choose_char
+--     [ ('^', 1)
+--     , ('v', -1)
+--     , ('\'', 0.5)
+--     , (',', -0.5)
+--     ] <|> pure 0
 
 p_from :: Parser From
 p_from = A.option Current (A.char '#' *> pure From)
