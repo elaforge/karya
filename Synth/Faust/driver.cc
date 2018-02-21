@@ -221,6 +221,17 @@ interpolate_control(int srate, const ControlSample *samples, int length,
     return out;
 }
 
+
+// For debugging.
+static void
+print_control(const ControlSample *control, int len)
+{
+    for (int i = 0; i < len; i++) {
+        DEBUG(control[i].time << ", " << control[i].val);
+    }
+}
+
+
 void
 faust_render(Instrument inst, int start_frame, int end_frame,
     const ControlSample **controls, const int *control_lengths, float **output)
@@ -231,6 +242,8 @@ faust_render(Instrument inst, int start_frame, int end_frame,
     FAUSTFLOAT **input =
         (FAUSTFLOAT **) calloc(ncontrols, sizeof(FAUSTFLOAT *));
     for (int i = 0; i < ncontrols; i++) {
+        // DEBUG("control " << i);
+        // print_control(controls[i], control_lengths[i]);
         input[i] = interpolate_control(
             inst->getSampleRate(), controls[i], control_lengths[i],
             start_frame, end_frame);
