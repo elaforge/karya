@@ -512,8 +512,16 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
 ghcWarnings :: Mode -> [String]
-ghcWarnings mode =
-    "-W" : "-Wcompat" : map ("-fwarn-"++) warns ++ map ("-fno-warn-"++) noWarns
+ghcWarnings mode = concat
+    [ ["-W"
+      , "-Wcompat"
+      -- TODO GHC >=8.2
+      -- pass -Wundef to CPP for warnings on #if TYPO
+      -- , "-Wcpp-undef"
+      ]
+    , map ("-fwarn-"++) warns
+    , map ("-fno-warn-"++) noWarns
+    ]
     where
     warns =
         [ "identities"
