@@ -38,8 +38,10 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
         , (1^takita.ta, [p&k, p&k, t, k])
         , (din, [od])
         , (tat, [k])
-        , (tarikita, [p, k, t, p])
-        , (kitataka, [k, t, p, k])
+        -- , (tarikita, [p, k, t, p])
+        -- , (kitataka, [k, t, p, k])
+        , (tarikita, [o, k, n, p])
+        , (kitataka, [k, t, k, t])
         ]
 
 yt_pmi1 :: Korvai
@@ -65,7 +67,7 @@ yt_pmi1 = source "Palakkad Mani Iyer" $
 
     utarangam = su __ . tri (group $ su $ tat.dit.tat . __ . kita.taka.din)
 
-    fill1 = tat.din . su p5
+    fill1 = tat.din . su tdgnt
     mridangam = makeMridangam
         [ (sar1, [k, k, t, k, u, o, o, u, k])
         , (sar2, [o, k, o, k, od])
@@ -74,43 +76,44 @@ yt_pmi1 = source "Palakkad Mani Iyer" $
         , (tat.dit, [p&k, p&t])
         , (ka.taka, [k, n, n])
         , (din.din.na, [o, o, k])
-        , (tat.dit.tat, [k, t, k])
+        , (tat.dit.tat, [p&k, p&k, p&k])
         , (kita.taka.din, [p, k, n, n, o])
         , (na.na.din, [on, on, od])
-        , (tat.din, [k, od])
+        , (tat.din, [p&k, od])
         , (din, [od])
-        , (ka, [p])
+        , (ka, [p&k])
+        , (tdgnt, [p&k, t, k, n, o])
         ]
 
 yt_karaikudi1 :: Korvai
 yt_karaikudi1 = source "Karaikudi Mani" $
-    recording "https://www.youtube.com/watch?v=_33FkETjQoc"
-        (Just ((0, 1, 34), (0, 2, 53))) $
-    similarTo "Solkattu2016" "c_16_12_06_sriram1" $
-    korvai adi mridangam
-        [ sarvaD (4+1/2) . theme . tat.__ . sarvaD (1/2)
-            . sarvaD (4+1/2) . theme . din.__4
-        -- My own development, not from the recording.
-        , sarvaD 5 . theme.nakadinna
-            . sarvaD 5 . __ . dropM 1 theme.nakadinna
-            . tam.__4 . theme.nakadinna
-            . tam.__4 . __ . dropM 1 theme.nakadinna
-            -- . theme . dropM 1 theme . dropM 2 theme . p5
-            -- . theme . dropM 2 theme . dropM 4 theme . tri_ tam nakadinna
+        recording "https://www.youtube.com/watch?v=_33FkETjQoc"
+            (Just ((0, 1, 34), (0, 2, 53))) $
+        similarTo "Solkattu2016" "c_16_12_06_sriram1" $
+        korvai adi mridangam
+    [ sarvaD (4+1/2) . theme . tat.__ . sarvaD (1/2)
+        . sarvaD (4+1/2) . theme . din.__4
+    -- My own development, not from the recording.
+    , sarvaD 5 . theme.nakadinna
+        . sarvaD 5 . __ . dropM 1 theme.nakadinna
+        . tam.__4 . theme.nakadinna
+        . tam.__4 . __ . dropM 1 theme.nakadinna
+        -- . theme . dropM 1 theme . dropM 2 theme . p5
+        -- . theme . dropM 2 theme . dropM 4 theme . tri_ tam nakadinna
 
-            . theme.nakadinna.tam.__3 . dropM 1 theme . tri_ tam nakadinna
-        , theme . tri (repeat 3 nakadinna . din.__3)
-            . theme . tri (repeat 2 nakadinna . din.__)
-            . theme . tri (nakadinna.din)
-            . nadai 6 (
-                tri kitatakatam
-                . p5
-                . tri kitatakatam
-                . p5.p5
-                . tri kitatakatam
-                . p5.p5.p5
-            )
-        ]
+        . theme.nakadinna.tam.__3 . dropM 1 theme . tri_ tam nakadinna
+    , theme . tri (repeat 3 nakadinna . din.__3)
+        . theme . tri (repeat 2 nakadinna . din.__)
+        . theme . tri (nakadinna.din)
+        . nadai 6 (
+            tri kitatakatam
+            . p5
+            . tri kitatakatam
+            . p5.p5
+            . tri kitatakatam
+            . p5.p5.p5
+        )
+    ]
     where
     theme = group $ su $ theme1 . nakatiku
     theme1 = tat.__.dit.__.kita.ki.na.ta.ki.taka
@@ -120,6 +123,7 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         [ (theme1, [k, t, k, t, k, n, o, k, o&t, k])
         , (tat, [k])
         , (din, [od])
+        -- TODO technique: if preceded by a rest, play kook
         , (nakadinna, [n, o, o, k])
         , (kitatakatam, [o, k, n, p, u])
         , (tam, [od])

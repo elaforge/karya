@@ -1288,6 +1288,9 @@ gamakam:
     - It might be nice to collapse the sahitya track into notes.
       . Maybe just generalize collapse to take the track to the right if there
         is no pitch track below.
+      . But I don't want to just merge any note track with the track to its
+        right.  If I do that, collapse all will get confusing.
+      . I could maybe exclude those from collapse all.
   understand the ragam:
     . I could attach code strings to raga swarams, e.g. (G, "=0").  Then
       automatically add a "default" alias per scale degree and direction.
@@ -1499,6 +1502,8 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient conduit-audio:
+    . or pipes, or streaming
+    . or streamly?  That one does concurrency too.
     . Currently I mix [(RealTime, Audio)] by padding all to their start time,
       and mixing them all.  This is inefficient because it generates and adds
       tons of 0s.
@@ -1507,6 +1512,25 @@ synth: im:
       emits samples.
     . Author is nonresponsive.  Maybe I should just write my own:
       . Only one sample rate, only one channel, support only Float.
+
+    . I think both streaming and pipes can't embed finalizers inside the way
+      that conduit does, so you can't have them closed when they're exhausted.
+      pipes and streaming can use resourcet, but I think that delays the close
+      until runResourceT, which means I'd need some place to run it.  But
+      I think I never have one, because I might be loading arbitrarily many
+      overlapping samples.
+    . streaming can use streaming-with, which uses bracket.  But I think it
+      still requires a bracket wrapped around the whole thing, and I'm not
+      sure how that even looks.
+    . However, I only need files for the sampler, I think faust and general
+      audio is pure, so no need.
+    . But in that case, I don't need streaming at all, why not a plain list of
+      chunks?
+
+    . Actually, I can release manually with ResourceT.  So I just do that
+      after the last samples, and ResourceT will clean up anything left if
+      there's an exception.  I think I don't care about that though, because
+      I just exit.
   play_cache: PlayCache:
     * sami-ninne-faust is starting play at frame 268435280
       . Because the pitch-bend at time -0.004.
@@ -2154,6 +2178,10 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  . Criterion-like with fewer deps: https://github.com/vincenthz/hs-gauge
+    . Also supposedly --measure-with to run each in a separate process
+      produces more consistent results.  But there's no reason I can't do that
+      on my own.
   . http://www.tweag.io/posts/2017-09-06-hyperion.html
   . https://github.com/tobami/codespeed can make a web page with perf graphs
 
@@ -2381,6 +2409,7 @@ performance:
       events now?
 
   research using pipes for generators and transformers
+    . or streaming, or https://www.reddit.com/r/haskell/comments/7w79q1/what_is_your_take_on_conduits_pipes_and_streams/
     . This would handle the composed transforms thing.
     . What about parallelization?
     . What about the MergeList idea?
@@ -2729,6 +2758,17 @@ solkattu:
     . I should be able to just apply the function under the first group, but
       what about spanning groups?  There must be a general way to map to
       a list, then map back.
+    . Since this is a 1:n transformation, in general it would need to know how
+      to add more to a group
+    . I can't just apply inside the first group, since this wouldn't work:
+      in3 (group as . group bs)
+    . In fact, I don't want to apply in tempo changes, because for that to
+      work I'd have to know more about the transformation.  E.g. ideally
+      a spread 3 would stretch everything by 3, and in fact maybe I can
+      already do that.  But that's not in3.
+    . I could do a concatMapAccumL that only goes down one level, and then
+      do intersperseN 2 __.
+    . This is way too complicated, for something with limited use.
   transcribe:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
@@ -2739,6 +2779,8 @@ solkattu:
     . This is like the explicit stroke stuff back again.
     . Solkattu is not appropriate because it's all one-off, so the stroke map
       is awkward.
+    . Ideally I could write sarva (k.t.n.o...) and it becomes === or strokes
+      for mridangam.  I guess this would become a different kind of group.
   - Can I get a rerender on save?
     . This is like the ascii version of auto integration.
     . This would be set up as an interactive korvai editor, and it could
@@ -2780,7 +2822,7 @@ solkattu:
       . I added notationHtml, which is more error-prone, but simpler.
     - format: if the ruler changes after an avartanam line break, show the
       partial ruler, e.g. Realize_test.test_format_nadai_change
-  - Can't I have a shorter name for dropM?  dr?  dp?
+  / Can't I have a shorter name for dropM?  dr?  dp?
     . Is it really so common?
   - What if I just renamed Sequence to S?
   What would a web UI look like?

@@ -659,26 +659,33 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvai adi mridangam
 speaking1 :: Korvai
 speaking1 = ganesh $ exercise $ korvai Tala.any_beats mridangam $
     -- 5s, 15 beats
-    [ repeat 4 $ tdgnt.tdgnt . su (tdgnt.tdgnt)
-    , repeat 4 $
-        nadai 6 (ta.__.din.gin.__.na.thom.__ . ta.din.__.gin.na.__.thom)
-        . su (tdgnt.tdgnt)
+    [ repeat 4 $ t5.t5 . su (t5.t5)
+    , repeat 4 $ nadai 6 (in3 (g tdgnt.g tdgnt)) . su (t5.t5)
 
     -- 7s, 21 beats
-    , repeat 4 $ taka.tdgnt.taka.tdgnt . su (taka.tdgnt.taka.tdgnt)
-    , repeat 4 $ nadai 6
-        (ta.__.ka.ta.__.din.gin.__.na.thom.__
-            . ta.ka.__.ta.din.__.gin.na.__.thom)
-        . su (taka.tdgnt.taka.tdgnt)
+    , repeat 4 $ t7.t7 . su (t7.t7)
+    , repeat 4 $ nadai 6 (in3 (g (taka.tdgnt) . g (taka.tdgnt))) . su (t7.t7)
     -- 9s, 27 beats
-    , repeat 4 $ taka.tiku.tdgnt.taka.tiku.tdgnt
-        . su (taka.tiku.tdgnt.taka.tiku.tdgnt)
-    , repeat 4 $ nadai 6
-        (ta.__.ka.ti.__.ku.ta.__.din.gin.__.na.thom.__
-            . ta.ka.__.ti.ku.__.ta.din.__.gin.na.__.thom)
-        . su (taka.tiku.tdgnt.taka.tiku.tdgnt)
+    , repeat 4 $ t9.t9 . su (t9.t9)
+    , repeat 4 $ nadai 6 (in3 (g (taka.tiku.tdgnt) . g (taka.tiku.tdgnt)))
+        . su (t9.t9)
     ]
     where
+    -- sequence t =
+    --     [ repeat 4 $ t.t . su (t.t)
+    --     , repeat 4 $ nadai 6 (group (in3 t) . group (in3' t)) . su (t.t)
+    --     ]
+    --     where
+    --     in3' (a:b:cs) = [a, b] . __ . in3 cs
+    --     in3' xs = xs
+
+    g = id -- should be group but then in3 doesn't work
+    -- TODO I need a way to transform inside a group
+    in3 (a:b:cs) = [a] . __ . [b] . in3 cs
+    in3 xs = xs
+    t5 = group tdgnt
+    t7 = group $ taka.tdgnt
+    t9 = group $ taka.tiku.tdgnt
     tiku = ti.ku
     mridangam = makeMridangam
         [ (taka, [k, p])
