@@ -1,8 +1,0 @@
-#!/bin/zsh
-# Darcs doesn't set execute bits, so this fixes that.  Run after a new
-# 'darcs get'.
-
-set extendedglob
-# Really I only care if the first two bytes are #!, but this works in practice
-# and doing it the right way seems complicated.
-chmod 755 $(grep -l '^#!' *(.) */*(.))
