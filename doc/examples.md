@@ -36,6 +36,7 @@ has those pitches.
 
 ### carnatic transcriptions
 
+- [Sami Ninne (sri varnam)](data/music/sami-ninne.mp3)
 - [Evvari Bodhana](data/music/evvari.mp3)
 
 <a href="data/img/screen/evvari.png">

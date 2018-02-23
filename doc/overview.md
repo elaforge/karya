@@ -35,6 +35,8 @@ Calligraphy is by 黃世昌 / Samson Huang.
 
 ## Download
 
+<https://gitlab.com/elaforge/karya>
+
 <http://hub.darcs.net/elaforge/karya/>
 
 It's source-only.  Since it uses a REPL, a binary distribution wouldn't make
