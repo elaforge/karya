@@ -106,7 +106,7 @@ Soundtrack for a short animation:
 - [Velvet and Ratskins sketch 2](data/music/tracker/Velvet and Ratskins, sketch 2.mp3)
 - [Velvet and Ratskins sketch 3](data/music/tracker/Velvet and Ratskins, sketch 3.mp3)
 
-Chip tunes, mostly using hand-drawn waveforms:
+Chip tunes:
 
 - [Green Mold](data/music/tracker/Green Mold.mp3)
 - [Electric Mold](data/music/tracker/Electric Mold.mp3)

@@ -2198,12 +2198,13 @@ performance:
       into using chrome instead of threadscope, but why not?
     . Could I do this for derivation, e.g. percent of the way thourgh?  Then
       I can see if some parts are especially expensive.
+      . Or put block start and end evaluation, I can make a flame graph.
   . Libraries for 2d rendering: Skia, WebRender
     . Or use OpenGL.
     . Skia is a 2d library, like cairo, and it has a OpenGL backend.  I guess
       it provides fancier features on top.  But if I don't need those
       features, then I should just use OpenGL directly.
-  - profiling for complete scores is broken since I removed them
+  * profiling for complete scores is broken since I removed them
     . Derive_profile.profile_file etc.
     . Use the the verify score stuff instead.
     verify_performance should be able to write timing info
@@ -2442,6 +2443,12 @@ performance:
         threading myself, so maybe there's no problem?
       . The way to prove that would be to remove the monadic Post.emap
         functions.
+    . The reason transformers can't interleave is exceptions, and that's
+      an effect, and something like pipes or streaming should be able to
+      interleave that effect, which is what is needed.
+      . Presumably they could also interleave the State effect, but I'd want
+        to take that out.  Though of course keeping the Reader part is fine,
+        and necessary.
   make composed transforms more efficient
     . Composed transforms have to keep the whole event stream in memory since
       they can't interleave.

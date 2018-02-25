@@ -102,19 +102,26 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         -- . theme . dropM 2 theme . dropM 4 theme . tri_ tam nakadinna
 
         . theme.nakadinna.tam.__3 . dropM 1 theme . tri_ tam nakadinna
-    , theme . tri (repeat 3 nakadinna . din.__3)
-        . theme . tri (repeat 2 nakadinna . din.__)
-        . theme . tri (nakadinna.din)
-        . nadai 6 (
-            tri kitatakatam
-            . p5
-            . tri kitatakatam
-            . p5.p5
-            . tri kitatakatam
-            . p5.p5.p5
+    , purvangam . nadai 6 (
+        tri kitatakatam
+        . p5
+        . tri kitatakatam
+        . p5.p5
+        . tri kitatakatam
+        . p5.p5.p5
         )
+    -- simple versions for dummies like me
+    , let t = ta.din.__.p6
+        in purvangam . nadai 6 (trin (ta.__3.din.__3) t (t.t) (t.t.t))
+    , let tadin = repeat 3 (ta.din.__)
+        in purvangam . nadai 6 (
+            tadin . p6 . tadin . p6.__.p6 . tadin . tri_ __ p6)
     ]
     where
+    purvangam = theme . tri (repeat 3 nakadinna . din.__3)
+        . theme . tri (repeat 2 nakadinna . din.__)
+        . theme . tri (nakadinna.din)
+
     theme = group $ su $ theme1 . nakatiku
     theme1 = tat.__.dit.__.kita.ki.na.ta.ki.taka
     nakadinna = group $ su $ na.ka.din.na
@@ -122,6 +129,7 @@ yt_karaikudi1 = source "Karaikudi Mani" $
     mridangam = makeMridangam
         [ (theme1, [k, t, k, t, k, n, o, k, o&t, k])
         , (tat, [k])
+        , (ta, [k])
         , (din, [od])
         -- TODO technique: if preceded by a rest, play kook
         , (nakadinna, [n, o, o, k])
