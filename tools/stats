@@ -3,9 +3,11 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+
 function count { wc -l "$@" | tail -1 }
 function count_files { echo "$@" | wc -w }
-function get { darcs show files | grep '\.'$1'$' }
+# function get { darcs show files | grep '\.'$1'$' }
+function get { git ls-tree --name-only -r HEAD | grep '\.'$1'$' }
 
 hs_files=($(get hs))
 h_files=($(get h))
@@ -20,9 +22,14 @@ py=$(count $py_files)
 total=$(count $hs_files $h_files $cc_files $py_files)
 
 echo
-y-m-d
+date +%y-%m-%d
 echo "${hs/total/*.hs}\t$(count_files $hs_files) files"
 echo "${h/total/*.h}\t$(count_files $h_files) files"
 echo "${cc/total/*.cc}\t$(count_files $cc_files) files"
 echo "${py/total/*.py}\t$(count_files $py_files) files"
 echo "$total\t$(count_files $all_files)"
+
+# echo
+# date +%y-%m-%d
+# tokei --sort files *.hs [A-Z]* bin doc fltk ly test tools \
+#     | grep -v -e '^-' -e SVG -e Cabal
