@@ -2291,6 +2291,7 @@ performance:
       ? Specifically, GCIdle should mark idle GC, but it occurs inside
         StartGC.  Shouldn't it mark the start of a GC?  And what is GCWork?
       - Mark major GCs like threadscope does.
+    . run via +RTS -l-p -RTS # omit spark events
     . JSON event format:
       https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/edit?pli=1
     old notes:

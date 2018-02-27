@@ -37,34 +37,107 @@ write fname events = ByteString.Lazy.writeFile fname $
 convertEvent :: Events.Event -> [Event]
 convertEvent e = do
     capability <- mapMaybe Events.evCap [e]
-    (cats, (phase, name)) <- case Events.evSpec e of
-        Events.UserMessage msg -> map (["user"],) $ case msg of
-            "respond" -> [(async 1 AsyncBegin, "respond")]
-            "wait" -> [(async 1 AsyncEnd, "respond")]
-            _ -> [(PMark, Text.pack msg)]
-        Events.StartGC -> [(["ghc"], (PDuration Begin, "gc"))]
-        Events.EndGC -> [(["ghc"], (PDuration End, "gc"))]
-        _ -> []
+    detail <- maybe [] (:[]) $ msum $
+        map ($ Events.evSpec e) [convertGc, convertUser]
     return $ Event
-        { _categories = cats
-        , _name = name
-        , _args = []
-        , _processId = 1
+        { _processId = 1
         , _threadId = capability
         , _timestamp = Events.evTime e `div` 1000
-        , _phase = phase
+        , _detail = detail
         }
+
+convertUser :: Events.EventInfo -> Maybe Detail
+convertUser spec = do
+    (phase, name) <- case spec of
+        Events.UserMessage msg -> case msg of
+            "respond" -> Just (async 1 AsyncBegin, "respond")
+            "wait" -> Just (async 1 AsyncEnd, "respond")
+            _ -> Just (PMark, Text.pack msg)
+        _ -> Nothing
+    return $ Detail
+        { _categories = ["user"]
+        , _name = name
+        , _phase = phase
+        , _args = []
+        }
+    where
+    async id phase = PAsync $ Async
+        { _asyncId = id
+        , _asyncPhase = phase
+        , _asyncScope = Nothing
+        }
+
+convertGc :: Events.EventInfo -> Maybe Detail
+convertGc spec = do
+    phase <- case spec of
+        Events.StartGC -> Just $ PDuration Begin
+        Events.EndGC -> Just $ PDuration End
+        _ -> Nothing
+    return $ Detail
+        { _categories = [cGhc, "gc"]
+        , _name = "gc"
+        , _phase = phase
+        , _args = []
+        }
+
+{-
+           GCStart     GCWork      GCIdle      GCEnd
+  gc start -----> work -----> idle ------+> done -----> gc end
+                   |                     |
+                   `-------<-------<-----'
+
+    RequestParGC -> GCWork -> {GCIdle, GCDone}
+        -> GlobalSyncGC -> GCStatsGHC -> EndGC
+-}
+
+-- TODO there are too many short-lived threads for this to be useful, since
+-- chrome doesn't collapse them vertically.
+convertThread :: Events.EventInfo -> Maybe Detail
+convertThread spec = do
+    phase <- case spec of
+        Events.CreateThread _tid -> Nothing
+        Events.RunThread tid -> flow tid AsyncBegin
+        Events.StopThread tid _status -> flow tid AsyncEnd
+        Events.ThreadRunnable _tid -> Nothing
+        Events.MigrateThread _tid _newCap -> Nothing
+        Events.WakeupThread _tid _otherCap -> Nothing
+        Events.ThreadLabel _tid _label -> Nothing -- metadata?
+            -- TODO associate with this tid and put it in the _name
+        _ -> Nothing
+    return $ Detail
+        { _categories = [cGhc, "thread"]
+        , _name = "thread " <> showt (_asyncId phase)
+        , _phase = PAsync phase
+        , _args = case spec of
+            Events.StopThread _tid status -> case status of
+                Events.NoStatus -> []
+                _ -> [("stop", showt status)]
+            _ -> []
+        }
+    where
+    flow id phase = Just $ Async
+        { _asyncId = fromIntegral id
+        , _asyncPhase = phase
+        , _asyncScope = Nothing
+        }
+
+cGhc :: Text
+cGhc = "ghc"
 
 -- * Event
 
 data Event = Event {
-    _categories :: ![Text]
-    , _name :: !Text
-    , _args :: ![(Text, Text)]
-    , _processId :: !Int
+    _processId :: !Int
     , _threadId :: !Int
     , _timestamp :: !Microsecond
+    , _detail :: !Detail
+    } deriving (Eq, Show)
+
+data Detail = Detail {
+    _categories :: ![Text]
+    , _name :: !Text
     , _phase :: !Phase
+    , _args :: ![(Text, Text)]
     -- Additional fields:
     -- tts: Optional. The thread clock timestamp of the event. The timestamps
     -- are provided at microsecond granularity.
@@ -76,7 +149,7 @@ data Event = Event {
 type Microsecond = Word.Word64
 
 instance Aeson.ToJSON Event where
-    toEncoding (Event cats name args pid tid ts phase_) =
+    toEncoding (Event pid tid ts (Detail cats name phase_ args)) =
         Aeson.pairs $ mconcat $
             [ "cat" .= Text.intercalate "," cats
             , "name" .= name
@@ -91,8 +164,8 @@ instance Aeson.ToJSON Event where
         -- TODO ensure later fields override earlier ones
 
     -- TODO how to remove the duplication?
-    toJSON (Event cat name args pid tid ts _phase) = Aeson.object
-        [ "cat" .= cat
+    toJSON (Event pid tid ts (Detail cats name _phase args)) = Aeson.object
+        [ "cat" .= Text.intercalate "," cats
         , "name" .= name
         , "args" .= args
         , "pid" .= pid
@@ -169,9 +242,6 @@ data Async = Async {
 data AsyncPhase = AsyncBegin | AsyncInstant | AsyncEnd
     deriving (Eq, Show)
 
-async :: Int -> AsyncPhase -> Phase
-async id phase = PAsync $ Async id phase Nothing
-
 instance Convert Async where
     convert (Async id phase scope) =
         (ph, add "scope" scope [("id", Aeson.toJSON id)])
@@ -181,11 +251,14 @@ instance Convert Async where
             AsyncInstant -> "n"
             AsyncEnd -> "e"
 
--- The flow events are very similar in concept to the Async events, but allow
--- duration to be associated with each other across threads/processes.
--- Visually, think of a flow event as an arrow between two duration events.
--- With flow events, each event will be drawn in the thread it is emitted from.
--- The events will be linked together in Trace Viewer using lines and arrows.
+-- | These only show up if they have enclosing Durations.
+--
+-- Official doc: The flow events are very similar in concept to the Async
+-- events, but allow duration to be associated with each other across
+-- threads/processes.  Visually, think of a flow event as an arrow between two
+-- duration events.  With flow events, each event will be drawn in the thread
+-- it is emitted from.  The events will be linked together in Trace Viewer
+-- using lines and arrows.
 data Flow = Flow {
     _flowId :: !Int
     , _flowPhase :: !AsyncPhase
@@ -521,5 +594,27 @@ data EventInfo
                          , heapProfResidency :: !Word64
                          , heapProfLabel :: !Text
                          }
-    deriving Show
+
+data ThreadStopStatus
+    = NoStatus
+    | HeapOverflow
+    | StackOverflow
+    | ThreadYielding
+    | ThreadBlocked
+    | ThreadFinished
+    | ForeignCall
+    | BlockedOnMVar
+    | BlockedOnMVarRead   -- since GHC-7.8, see [Stop status since GHC-7.7]
+    | BlockedOnBlackHole
+    | BlockedOnRead
+    | BlockedOnWrite
+    | BlockedOnDelay
+    | BlockedOnSTM
+    | BlockedOnDoProc
+    | BlockedOnCCall
+    | BlockedOnCCall_NoUnblockExc
+    | BlockedOnMsgThrowTo
+    | ThreadMigrating
+    | BlockedOnMsgGlobalise
+    | BlockedOnBlackHoleOwnedBy {-# UNPACK #-}!ThreadId
 -}
