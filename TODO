@@ -2268,17 +2268,51 @@ performance:
   - I should include the number of events in the verify profile, so I can
     compare relative event throughput per score.
     . Clearly the wayang ones are doing something expensive, what is it?
-  - Can I get a graphical trace of the respond cycle?
-    . xi-editor, what did he use for that?
-      https://www.youtube.com/watch?time_continue=12&v=4FbQre9VQLI
-      . write "chrome tracing" format, chrome://tracing, then load
-    . I probably need to save all cycles, and then search for ones with
-      hiccups.
-    . Use ghc-events, then I can get gc events too.  I guess this may turn
-      into using chrome instead of threadscope, but why not?
-    . Could I do this for derivation, e.g. percent of the way thourgh?  Then
-      I can see if some parts are especially expensive.
-      . Or put block start and end evaluation, I can make a flame graph.
+  Can I get a graphical trace of the respond cycle?
+    * Convert GHC events to chrome events
+    - convert from by-HEC to by-thread
+      . Also, evCap is capability, which is more-or-less CPU.  But I want to
+        track haskell threads, specifically the respond thread, since it may
+        migrate across caps.
+        . ghc-events-analyze does this.
+        . I think I look for CreateThread, and then associate a HEC with the
+          thread id.  Use ThreadLabel to get a name.
+    - include the cmd name in the trace
+    - put tracing in derive, I can put block calls in.
+      . Can I make the hierarchical?  Get a flame graph kind of thing.
+    - Is trace free-ish when eventlog is off?  Otherwise I could CPP it out.
+    ? chrome uses extra fields, what are they?
+      . "src_func":"SetEnabled"},
+        "dur":7,
+        "tdur":8,
+        "tts":3656336101
+    - include GC
+      . What's major vs. minor gc?
+        GlobalSyncGC is involved, but I don't understand the GC events.
+      ? Specifically, GCIdle should mark idle GC, but it occurs inside
+        StartGC.  Shouldn't it mark the start of a GC?  And what is GCWork?
+    notes:
+      . xi-editor, what did he use for that?
+        https://www.youtube.com/watch?time_continue=12&v=4FbQre9VQLI
+        . write "chrome tracing" format, chrome://tracing, then load
+      . I probably need to save all cycles, and then search for ones with
+        hiccups.
+      . Use ghc-events, then I can get gc events too.  I guess this may turn
+        into using chrome instead of threadscope, but why not?
+      . http://www.yesodweb.com/blog/2012/10/future-work-warp
+      . Can I use custom events to see lags in threadscope?
+        . Yes, but hard to visualize with everything there.
+          I can get labels with View -> Event labels, but often they are jammed
+          together, and draw inconsistently.
+        . What do the numbers in threadscope's green bars mean?  ThreadId?
+        . What I want is for each respond cycle to see where pauses were, and
+          why.  I'd want to bracket the respond cycle outside of waiting for the
+          next msg, get the total duration of each one.  Possibly I can do that
+          by using ghc-events to process the eventlog.
+      GHC's +RTS -v flag writes eventlog to stdout
+        . It's documented but doesn't exist.
+        . It only exists when -debug, but this isn't documented.
+        - Send doc fix to ghc.
   . Libraries for 2d rendering: Skia, WebRender
     . Or use OpenGL.
     . Skia is a 2d library, like cairo, and it has a OpenGL backend.  I guess
@@ -2411,19 +2445,6 @@ performance:
     . Actually it seems like ghci does it all by itself.  So it's either
       inherent to the GHC API or ghc runtime in general.
     . Does it grow with the repl off?  Yes, so apparently not the repl.
-  - Control input lag, debug with Trace.traceEventIO
-    . http://www.yesodweb.com/blog/2012/10/future-work-warp
-    . Can I use custom events to see lags in threadscope?
-      . Yes, but hard to visualize with everything there.
-        I can get labels with View -> Event labels, but often they are jammed
-        together, and draw inconsistently.
-      . What do the numbers in threadscope's green bars mean?  ThreadId?
-      . What I want is for each respond cycle to see where pauses were, and
-        why.  I'd want to bracket the respond cycle outside of waiting for the
-        next msg, get the total duration of each one.  Possibly I can do that
-        by using ghc-events to process the eventlog.
-    - GHC's +RTS -v flag is documented but doesn't exist.
-      It only exists when -debug, but this isn't documented.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
   - Check out score size with 'weigh', ala https://github.com/haskell-perf

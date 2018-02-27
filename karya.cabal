@@ -45,6 +45,7 @@ library
         fclabels >=2,
         filepath,
         ghc >=7.10,
+        ghc-events,
         ghc-paths,
         ghc-prim,
         hashable,

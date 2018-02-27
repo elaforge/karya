@@ -94,6 +94,8 @@ basicPackages = concat
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , [("aeson", ">=1.1.0.0")] -- serialize and unserialize log msgs
     , w "med-module" -- for Cmd.Load.Med
+
+    , w "ghc-events"
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -267,18 +269,20 @@ data GuiType =
 hsBinaries :: [HsBinary]
 hsBinaries =
     [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
+    , plain "convert_event_log" "App/ConvertEventLog.hs"
     , plain "dump" "App/Dump.hs"
     -- ExtractDoc wants the global keymap, which winds up importing cmds that
     -- directly call UI level functions.  Even though it doesn't call the
     -- cmds, they're packaged together with the keybindings, so I wind up
     -- having to link in all that stuff anyway.
     , (plain "extract_doc" "App/ExtractDoc.hs") { hsDeps = ["fltk/fltk.a"] }
-    , plain "generate_run_tests" "Util/GenerateRunTests.hs"
     , plain "extract_korvais" "Solkattu/ExtractKorvais.hs"
+    , plain "generate_run_tests" "Util/GenerateRunTests.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"]
     , plain "make_db" "Instrument/MakeDb.hs"
+    , plain "ness-submit" "Ness/Submit.hs"
     , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
     , (gui "seq" "App/Main.hs" ["fltk/fltk.a"])
@@ -301,7 +305,6 @@ hsBinaries =
     , plain "update" "App/Update.hs"
     , (plain "verify_performance" "App/VerifyPerformance.hs")
         { hsRtsFlags = ["-N", "-A8m"] }
-    , plain "ness-submit" "Ness/Submit.hs"
     ]
     ++ if not Config.enableIm then [] else
         [ plain "sampler-im" "Synth/Sampler/SamplerIm.hs"

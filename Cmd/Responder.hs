@@ -29,9 +29,11 @@ import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.State.Strict as Monad.State
+import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
+import qualified Debug.Trace as Trace
 import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix.IO as Posix.IO
@@ -212,7 +214,9 @@ timeout = 2
 
 respond_loop :: State -> MsgReader -> IO ()
 respond_loop rstate msg_reader = do
+    trace "wait"
     msg <- msg_reader
+    trace "respond"
     when (Cmd.state_debug_ui_msgs (state_cmd rstate)) $
         Debug.putp "msg" msg
     result <- Exception.try $ Thread.timeout timeout $ respond rstate msg
@@ -292,14 +296,17 @@ post_cmd :: State -> Ui.State -> Ui.State -> Cmd.State
 post_cmd state ui_from ui_to cmd_to cmd_updates status = do
     -- Load external definitions and cache them in Cmd.State, so cmds don't
     -- have a dependency on IO.
+    trace "ky"
     cmd_to <- Ky.update_cache ui_to cmd_to
     cmd_to <- handle_special_status (state_ui_channel state) ui_to cmd_to
         (state_transport_info state) status
     cmd_to <- return $ fix_cmd_state ui_to cmd_to
+    trace "sync"
     (updates, ui_to, cmd_to) <- ResponderSync.sync (state_sync state)
         ui_from ui_to cmd_to cmd_updates
         (Transport.info_state (state_transport_info state))
 
+    trace "derive"
     cmd_to <- do
         -- Kick off the background derivation threads.
         let damage = Diff.derive_diff (state_ui state) ui_to updates
@@ -307,6 +314,7 @@ post_cmd state ui_from ui_to cmd_to cmd_updates status = do
             (send_derive_status (state_loopback state)) ui_to cmd_to damage
         return $ cmd_state { Cmd.state_derive_immediately = mempty }
 
+    trace "undo"
     cmd_to <- Undo.maintain_history ui_to cmd_to updates
     when (is_quit status) $
         Save.save_views cmd_to ui_to
@@ -347,10 +355,13 @@ handle_special_status ui_chan ui_state cmd_state transport_info status =
 
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond state msg = run_responder state $ do
+    trace "keys"
     record_keys msg
     -- Normal cmds abort as son as one returns a non-Continue.
     result <- fmap unerror $ Except.runExceptT $ do
+        trace "ui_updates"
         record_ui_updates msg
+        trace "cmds"
         run_core_cmds msg
         return $ Right Cmd.Done
     case result of
@@ -494,3 +505,10 @@ run_cmd cmd = do
 not_continue :: Cmd.Status -> Bool
 not_continue Cmd.Continue = False
 not_continue _ = True
+
+-- * util
+
+-- | Write a trace entry.  This goes in the eventlog, and can be read by
+-- threadscope or chrome, after App.ConvertEventLog
+trace :: Trans.MonadIO m => String -> m ()
+trace = liftIO . Trace.traceEventIO
