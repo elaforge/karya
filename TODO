@@ -2277,21 +2277,23 @@ performance:
         . ghc-events-analyze does this.
         . I think I look for CreateThread, and then associate a HEC with the
           thread id.  Use ThreadLabel to get a name.
+      . Though I could use async events to track thread migrations.
     - include the cmd name in the trace
+      . maybe use args?  Or put it in the name?
     - put tracing in derive, I can put block calls in.
       . Can I make the hierarchical?  Get a flame graph kind of thing.
     - Is trace free-ish when eventlog is off?  Otherwise I could CPP it out.
-    ? chrome uses extra fields, what are they?
-      . "src_func":"SetEnabled"},
-        "dur":7,
-        "tdur":8,
-        "tts":3656336101
-    - include GC
+    - I should put -eventlog on the opt build, since I want to enable it
+      during normal use.
+    * include GC
       . What's major vs. minor gc?
         GlobalSyncGC is involved, but I don't understand the GC events.
       ? Specifically, GCIdle should mark idle GC, but it occurs inside
         StartGC.  Shouldn't it mark the start of a GC?  And what is GCWork?
-    notes:
+      - Mark major GCs like threadscope does.
+    . JSON event format:
+      https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/edit?pli=1
+    old notes:
       . xi-editor, what did he use for that?
         https://www.youtube.com/watch?time_continue=12&v=4FbQre9VQLI
         . write "chrome tracing" format, chrome://tracing, then load
