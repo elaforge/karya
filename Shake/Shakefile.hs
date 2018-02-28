@@ -102,6 +102,13 @@ synthPackages = concat
     , w "hsndfile resourcet"
     -- NESS
     , w "sandi" -- for Codec.Binary.Base64Url
+    ] ++ audioPackages
+    where w = map (\p -> (p, "")) . words
+
+audioPackages :: [(Package, String)]
+audioPackages = concat
+    [ w "hsndfile"
+    , w "streaming"
     ]
     where w = map (\p -> (p, "")) . words
 
