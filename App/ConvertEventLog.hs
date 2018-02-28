@@ -153,7 +153,7 @@ instance Aeson.ToJSON Event where
         Aeson.pairs $ mconcat $
             [ "cat" .= Text.intercalate "," cats
             , "name" .= name
-            , "args" .= args
+            , "args" .= Aeson.object (map (second Aeson.toJSON) args)
             , "pid" .= pid
             , "tid" .= tid
             , "ts" .= ts
