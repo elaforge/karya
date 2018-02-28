@@ -92,8 +92,8 @@ convertGc spec = do
 
 -- TODO there are too many short-lived threads for this to be useful, since
 -- chrome doesn't collapse them vertically.
-convertThread :: Events.EventInfo -> Maybe Detail
-convertThread spec = do
+_convertThread :: Events.EventInfo -> Maybe Detail
+_convertThread spec = do
     phase <- case spec of
         Events.CreateThread _tid -> Nothing
         Events.RunThread tid -> flow tid AsyncBegin
@@ -295,12 +295,27 @@ data Metadata =
     deriving (Eq, Show)
 
 instance Convert Metadata where
-    convert m = ("M",) $ (:[]) . ("args",) . Aeson.object $ case m of
-        ProcessName name -> [("name", Aeson.toJSON name)]
-        ProcessLabels label -> [("labels", Aeson.toJSON label)]
-        ProcessSortIndex index -> [("sort_index", Aeson.toJSON index)]
-        ThreadName name -> [("name", Aeson.toJSON name)]
-        ThreadSortIndex index -> [("sort_index", Aeson.toJSON index)]
+    convert m = ("M",) $ case m of
+        ProcessName name ->
+            [ ("name", "thread_name")
+            , ("args", Aeson.object [("name", Aeson.toJSON name)])
+            ]
+        ThreadName name ->
+            [ ("name", "thread_name")
+            , ("args", Aeson.object [("name", Aeson.toJSON name)])
+            ]
+        ProcessLabels label ->
+            [ ("name", "process_labels")
+            , ("args", Aeson.object [("labels", Aeson.toJSON label)])
+            ]
+        ProcessSortIndex index ->
+            [ ("name", "process_sort_index")
+            , ("args", Aeson.object [("sort_index", Aeson.toJSON index)])
+            ]
+        ThreadSortIndex index ->
+            [ ("name", "thread_sort_index")
+            , ("args", Aeson.object [("sort_index", Aeson.toJSON index)])
+            ]
 
 -- | Memory dump events correspond to memory dumps of (groups of) processes.
 -- There are two types of memory dump events:
