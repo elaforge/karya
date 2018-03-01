@@ -47,6 +47,7 @@ import Control.Monad
         liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
         zipWithM, zipWithM_)
 import Control.Monad.Trans (lift, liftIO)
+import Data.Proxy (Proxy(..))
 
 import Data.List (foldl')
 import Data.List.NonEmpty (NonEmpty(..))
@@ -73,7 +74,3 @@ untxt = Text.unpack
 
 showt :: Show a => a -> Text.Text
 showt = txt . show
-
--- | A value proxy for a type, used for class methods that just want a type,
--- not a value.
-data Proxy a = Proxy
