@@ -5,16 +5,12 @@
 -- | Offline sampler.
 module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Data.Conduit.Audio as Audio
-import qualified Data.Conduit.Audio.Sndfile as Sndfile
-import qualified Data.List as List
-import qualified Data.Maybe as Maybe
-
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 
+import qualified Util.Audio.File as Audio.File
 import qualified Util.Log as Log
-import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Lib.AUtil2 as AUtil
 import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
@@ -42,14 +38,13 @@ process notesFilename notes = do
 realizeSamples :: FilePath -> [Sample.Sample] -> IO ()
 realizeSamples notesFilename samples = do
     put $ "load " <> show (length samples) <> " samples"
-    audios <- mapM realizeSample samples
     put "processing"
     -- TODO divide up output by instrument instead of mixing them here
     let output = Config.outputFilename (Config.rootDir Config.config)
             notesFilename Nothing
     result <- AUtil.catchSndfile $ Resource.runResourceT $
-        Sndfile.sinkSnd output AUtil.outputFormat
-            (mixAll (Maybe.catMaybes audios))
+        Audio.File.write AUtil.outputFormat output $
+            AUtil.mix $ map Sample.realize samples
     case result of
         Left err ->
             Log.error $ "writing to output: " <> showt output <> ": " <> err
@@ -57,15 +52,3 @@ realizeSamples notesFilename samples = do
     put "done"
     where
     put = putStrLn . ((FilePath.takeFileName notesFilename <> ": ")<>)
-
-realizeSample :: Sample.Sample -> IO (Maybe AUtil.Audio)
-realizeSample sample = AUtil.catchSndfile (Sample.realize sample) >>= \case
-    Left err -> do
-        Log.warn $ "sample " <> txt (Sample.filename sample) <> ": " <> err
-        return Nothing
-    Right audio -> return (Just audio)
-
-mixAll :: [AUtil.Audio] -> AUtil.Audio
--- TODO surely there is some better way to do mempty?
-mixAll [] = AUtil.empty
-mixAll audios = List.foldl1' Audio.mix audios

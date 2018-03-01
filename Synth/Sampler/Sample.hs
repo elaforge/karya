@@ -5,16 +5,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- | The 'Sample' type and support.
 module Synth.Sampler.Sample where
-import qualified Data.Conduit.Audio as Audio
-import qualified Data.Conduit.Audio.SampleRate as SampleRate
-import qualified Data.Conduit.Audio.Sndfile as Sndfile
-
 import System.FilePath ((</>))
 
 import qualified Util.ApproxEq as ApproxEq
+import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.File as Audio.File
+import qualified Util.Audio.Resample as Resample
 import qualified Util.Num as Num
-import qualified Perform.RealTime as RealTime
-import qualified Synth.Lib.AUtil as AUtil
+
+import Synth.Lib.Global
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
 
@@ -25,11 +24,11 @@ type SamplePath = FilePath
 -- | Low level representation of a note.  This corresponds to a single sample
 -- played.
 data Sample = Sample {
-    start :: !RealTime.RealTime
+    start :: !RealTime
     -- | Relative to 'Config.instrumentDbDir'.
     , filename :: !SamplePath
     -- | Sample start offset.
-    , offset :: !RealTime.RealTime
+    , offset :: !RealTime
     -- | The sample ends when it runs out of samples, or when envelope ends
     -- on 0.
     , envelope :: !Signal.Signal
@@ -38,28 +37,24 @@ data Sample = Sample {
     } deriving (Show)
 
 -- | Evaluating the Audio could probably produce more exceptions...
-realize :: Sample -> IO AUtil.Audio
-realize (Sample start filename offset env ratio) = do
-    audio <- Sndfile.sourceSndFrom (AUtil.toAudioTime offset)
-        (Config.instrumentDbDir </> filename)
-    return $ Audio.padStart (AUtil.toAudioTime start) $
-        resample (Signal.at start ratio) $ applyEnvelope start env audio
+realize :: Sample -> (RealTime, Audio)
+realize (Sample start filename offset env ratio) = (start,) $
+    resample (Signal.at start ratio) $
+    applyEnvelope start env $
+    Audio.File.read (Config.instrumentDbDir </> filename)
+    -- TODO use offset
 
-resample :: Double -> AUtil.Audio -> AUtil.Audio
+resample :: Double -> Audio -> Audio
 resample ratio audio
     -- Don't do any work if it's close enough to 1.
     | ApproxEq.eq closeEnough ratio 1 = audio
-    | otherwise = (SampleRate.resample ratio SampleRate.SincBestQuality audio)
-        { Audio.rate = Audio.rate audio }
-        -- Since I am changing the pitch I actually do want to retain the old
-        -- sample rate.
+    | otherwise = Resample.resample Resample.SincBestQuality ratio audio
     where
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000
 
-applyEnvelope :: RealTime.RealTime -> Signal.Signal -> AUtil.Audio
-    -> AUtil.Audio
+applyEnvelope :: RealTime -> Signal.Signal -> Audio -> Audio
 applyEnvelope start sig
     | ApproxEq.eq 0.01 val 1 = id
     | otherwise = Audio.gain val

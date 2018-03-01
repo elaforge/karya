@@ -1502,6 +1502,14 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient streaming audio:
+    sampler-im:
+      . pre times:
+        0.93s user 0.17s system 139% cpu 0.781 total
+        0.91s user 0.17s system 141% cpu 0.761 total
+      . post times:
+        0.65s user 0.09s system 116% cpu 0.632 total
+        0.64s user 0.09s system 115% cpu 0.627 total
+
     * get rid of Silence, it's a hassle in resample and only mix uses it.
     - extend Resample.resample to take breakpoints
       . This means convert breakpoints to frames, then keep track of the
@@ -1511,7 +1519,7 @@ synth: im:
         to the destination.
     - if I separate out the libsamplerate binding from
       conduit-audio-samplerate, then I don't need to depend on all of conduit.
-    - convert Synth.Sampler
+    * convert Synth.Sampler
     - convert Ness
     - convert Synth.Faust
     * efficient mix

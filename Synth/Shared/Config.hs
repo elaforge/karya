@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 -- | Shared config to coordinate between the sequencer and im subsystems.
 --
 -- TODO Currently paths rely on you being in the right directory, but should
@@ -85,6 +86,8 @@ cacheDir = "cache"
 -- start time by it.
 samplingRate :: Int
 samplingRate = SAMPLING_RATE
+
+type SamplingRate = SAMPLING_RATE
 
 
 -- * cache files

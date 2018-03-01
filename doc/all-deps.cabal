@@ -57,7 +57,7 @@ library
         haskell-src,
         hlibgit2,
         hsndfile,
-        hsndfile,
+        hsndfile-vector,
         med-module,
         mersenne-random-pure64,
         mtl >=2.2.1,
