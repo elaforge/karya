@@ -56,6 +56,7 @@ import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Internal as Internal
+import Derive.TestInstances ()
 import qualified App.Config as Config
 import qualified App.LoadConfig as LoadConfig
 import Global
