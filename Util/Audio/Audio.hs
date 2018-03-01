@@ -6,8 +6,9 @@
 module Util.Audio.Audio (
     -- * types
     AudioM(..), AudioIO, AudioId
-    , Chunk(..), chunkSamples, chunkCount, chunkSize
+    , Chunk(..), chunkSamples, chunkCount
     , Sample, Frames, Count, Channels
+    , chunkSize, framesCount, countFrames
     -- * construct
     , fromSamples, toSamples
     -- * transform
@@ -66,9 +67,13 @@ type Channels = Int
 chunkSize :: Count
 chunkSize = 5000
 
-frameCount :: TypeLits.KnownNat channels => Proxy channels -> Frames -> Count
-frameCount channels (Frames frames) =
+framesCount :: TypeLits.KnownNat channels => Proxy channels -> Frames -> Count
+framesCount channels (Frames frames) =
     frames * fromIntegral (TypeLits.natVal channels)
+
+countFrames :: TypeLits.KnownNat channels => Proxy channels -> Count -> Frames
+countFrames channels_ count = Frames $
+    count `div` fromIntegral (TypeLits.natVal channels_)
 
 -- * construct
 
@@ -96,7 +101,7 @@ mix :: forall m rate channels. (Monad m, TypeLits.KnownNat channels)
 mix = Audio . S.map merge . synchronize . map pad
     where
     pad (frames, Audio a)
-        | frames > 0 = Audio $ S.cons (Silence (frameCount channels frames)) a
+        | frames > 0 = Audio $ S.cons (Silence (framesCount channels frames)) a
         | otherwise = Audio a
     merge chunks
         | null vs = case [c | Silence c <- chunks] of

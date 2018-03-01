@@ -1502,6 +1502,18 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient streaming audio:
+    - get rid of Silence, it's a hassle in resample and only mix uses it.
+    - extend Resample.resample to take breakpoints
+      . This means convert breakpoints to frames, then keep track of the
+        current frame.
+      . Break up input chunks where ratio breakpoints occur.
+      . Calculate start and end ratio for each chunk, and Binding.setRatio
+        to the destination.
+    - if I separate out the libsamplerate binding from
+      conduit-audio-samplerate, then I don't need to depend on all of conduit.
+    - convert Synth.Sampler
+    - convert Ness
+    - convert Synth.Faust
     * efficient mix
       . I could try to implement mix :: [(Frames, Audio)] -> Audio directly
         or make an Silence Chunk which mixes trivially.
@@ -1511,36 +1523,34 @@ synth: im:
           each to the shortest one
         . emit as a stream of lists
         . Then mix simply filters out the Silence ones and sums the rest
-
-    . or pipes, or streaming
-    . or streamly?  That one does concurrency too.
-    . Currently I mix [(RealTime, Audio)] by padding all to their start time,
-      and mixing them all.  This is inefficient because it generates and adds
-      tons of 0s.
-    . I'd prefer to have a mix that waits until the start time, allocates
-      any resources needed (open source file, allocate synthesizer), and then
-      emits samples.
-    . Author is nonresponsive.  Maybe I should just write my own:
-      . Only one sample rate, only one channel, support only Float.
-
-    . I think both streaming and pipes can't embed finalizers inside the way
-      that conduit does, so you can't have them closed when they're exhausted.
-      pipes and streaming can use resourcet, but I think that delays the close
-      until runResourceT, which means I'd need some place to run it.  But
-      I think I never have one, because I might be loading arbitrarily many
-      overlapping samples.
-    . streaming can use streaming-with, which uses bracket.  But I think it
-      still requires a bracket wrapped around the whole thing, and I'm not
-      sure how that even looks.
-    . However, I only need files for the sampler, I think faust and general
-      audio is pure, so no need.
-    . But in that case, I don't need streaming at all, why not a plain list of
-      chunks?
-
-    . Actually, I can release manually with ResourceT.  So I just do that
-      after the last samples, and ResourceT will clean up anything left if
-      there's an exception.  I think I don't care about that though, because
-      I just exit.
+    notes:
+      . or pipes, or streaming
+      . or streamly?  That one does concurrency too.
+      . Currently I mix [(RealTime, Audio)] by padding all to their start time,
+        and mixing them all.  This is inefficient because it generates and adds
+        tons of 0s.
+      . I'd prefer to have a mix that waits until the start time, allocates
+        any resources needed (open source file, allocate synthesizer), and then
+        emits samples.
+      . Author is nonresponsive.  Maybe I should just write my own:
+        . Only one sample rate, only one channel, support only Float.
+      . I think both streaming and pipes can't embed finalizers inside the way
+        that conduit does, so you can't have them closed when they're exhausted.
+        pipes and streaming can use resourcet, but I think that delays the close
+        until runResourceT, which means I'd need some place to run it.  But
+        I think I never have one, because I might be loading arbitrarily many
+        overlapping samples.
+      . streaming can use streaming-with, which uses bracket.  But I think it
+        still requires a bracket wrapped around the whole thing, and I'm not
+        sure how that even looks.
+      . However, I only need files for the sampler, I think faust and general
+        audio is pure, so no need.
+      . But in that case, I don't need streaming at all, why not a plain list of
+        chunks?
+      . Actually, I can release manually with ResourceT.  So I just do that
+        after the last samples, and ResourceT will clean up anything left if
+        there's an exception.  I think I don't care about that though, because
+        I just exit.
   play_cache: PlayCache:
     * sami-ninne-faust is starting play at frame 268435280
       . Because the pitch-bend at time -0.004.
