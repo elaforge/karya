@@ -78,13 +78,13 @@ checkInfo rate_ channels_ info
     channels = TypeLits.natVal channels_
 
 openRead :: FilePath -> IO Sndfile.Handle
-openRead fname =
+openRead fname = annotate fname $
     Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
-        `Exception.catch` \exc -> Exception.throwIO (make exc)
-    where
-    -- Rethrow with the filename.
-    make exc = IO.Error.mkIOError IO.Error.userErrorType
-        (Sndfile.errorString exc) Nothing (Just fname)
+
+-- Sndfile's errors don't include the filename.
+annotate :: FilePath -> IO a -> IO a
+annotate fname = Exception.handle $ \exc -> Exception.throwIO $
+    exc { Sndfile.errorString = fname <> ": " <> Sndfile.errorString exc }
 
 -- * write
 
@@ -101,7 +101,7 @@ write format fname (Audio.Audio audio) = do
             , Sndfile.format = format
             }
     (key, handle) <- Resource.allocate
-        (Sndfile.openFile fname Sndfile.WriteMode info)
+        (annotate fname $ Sndfile.openFile fname Sndfile.WriteMode info)
         Sndfile.hClose
     S.mapM_ (liftIO . Sndfile.hPutBuffer handle
             . Sndfile.Buffer.Vector.toBuffer)
