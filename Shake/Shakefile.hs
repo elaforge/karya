@@ -98,8 +98,7 @@ basicPackages = concat
 -- | Packages needed only for targets in Synth.
 synthPackages :: [(Package, String)]
 synthPackages = concat
-    [ w "conduit conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
-    , w "hsndfile resourcet"
+    [ w "conduit conduit-audio conduit-audio-sndfile"
     -- NESS
     , w "sandi" -- for Codec.Binary.Base64Url
     ] ++ audioPackages
@@ -107,7 +106,10 @@ synthPackages = concat
 
 audioPackages :: [(Package, String)]
 audioPackages = concat
-    [ w "hsndfile"
+    [ w "hsndfile hsndfile-vector"
+    -- I can get rid of this when I use a direct binding to libsamplerate
+    , w "conduit-audio-samplerate"
+    , w "resourcet"
     , w "streaming"
     ]
     where w = map (\p -> (p, "")) . words
