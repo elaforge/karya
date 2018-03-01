@@ -78,7 +78,13 @@ checkInfo rate_ channels_ info
     channels = TypeLits.natVal channels_
 
 openRead :: FilePath -> IO Sndfile.Handle
-openRead fname = Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
+openRead fname =
+    Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
+        `Exception.catch` \exc -> Exception.throwIO (make exc)
+    where
+    -- Rethrow with the filename.
+    make exc = IO.Error.mkIOError IO.Error.userErrorType
+        (Sndfile.errorString exc) Nothing (Just fname)
 
 -- * write
 
