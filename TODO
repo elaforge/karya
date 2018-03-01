@@ -1501,7 +1501,17 @@ synth: im:
     . So I need to infer muted instruments from tracks.  This is instrument
       level mute and solo, but track level is more convenient to use.
 
-  efficient conduit-audio:
+  efficient streaming audio:
+    * efficient mix
+      . I could try to implement mix :: [(Frames, Audio)] -> Audio directly
+        or make an Silence Chunk which mixes trivially.
+      . The latter would look like:
+        . pad each stream with a leading Silence frames.
+        . synchronize chunks for all streams: pull from each one, then split
+          each to the shortest one
+        . emit as a stream of lists
+        . Then mix simply filters out the Silence ones and sums the rest
+
     . or pipes, or streaming
     . or streamly?  That one does concurrency too.
     . Currently I mix [(RealTime, Audio)] by padding all to their start time,

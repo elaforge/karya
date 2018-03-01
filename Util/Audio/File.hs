@@ -1,132 +1,93 @@
+-- Copyright 2018 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 {-# LANGUAGE DataKinds, KindSignatures #-}
-module Util.Audio.File where
+-- | Functions to read and write audio files.  This should be able to read all
+-- formats supported by libsndfile.
+module Util.Audio.File (
+    -- * read
+    check, checkA, read, read44k
+    -- * write
+    , write, wavFormat
+) where
 import Prelude hiding (read)
 import qualified Control.Exception as Exception
 import Control.Monad.Trans (liftIO, lift)
 import qualified Control.Monad.Trans.Resource as Resource
 
-import qualified System.IO as IO
-import qualified Data.Vector.Storable as V
+import Data.Proxy (Proxy(..))
+import Control.Monad.Extra (whenJust)
 import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile as Sndfile
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
-import qualified Streaming as S
 import qualified Streaming.Prelude as S
 import qualified System.IO.Error as IO.Error
 
-
-{-
-Stream (Of a) m r
-open file and read chunks, close when done
-how to bracket?
-
-data ByteString m r =
-  Empty r
-  | Chunk {-#UNPACK #-} !S.ByteString (ByteString m r )
-  | Go (m (ByteString m r ))
-
-bracketByteString :: (MonadResource m) =>
-       IO a -> (a -> IO ()) -> (a -> ByteString m b) -> ByteString m b
-bracketByteString alloc free inside = do
-        (key, seed) <- lift (Resource.allocate alloc free)
-        clean key (inside seed)
-  where
-    clean key = loop where
-      loop str = case str of
-        Empty r        -> Go (release key >> return (Empty r))
-        Go m           -> Go (liftM loop m)
-        Chunk bs rest  -> Chunk bs (loop rest)
-
-readFile :: MonadResource m => FilePath -> ByteString m ()
-readFile f = bracketByteString (openBinaryFile f ReadMode) hClose hGetContents
-
-hGetContentsN :: MonadIO m => Int -> Handle -> ByteString m ()
-hGetContentsN chunkSize h = loop -- TODO close on exceptions
-  where
---    lazyRead = unsafeInterleaveIO loop
-    loop = do
-        c <- liftIO (S.hGetSome h chunkSize)
-        -- only blocks if there is no data available
-        if S.null c
-          then Empty ()
-          else Chunk c loop
-{-#INLINABLE hGetContentsN #-} -- very effective inline pragma
+import qualified Util.Audio.Audio as Audio
 
 
--}
+-- | Check if rate and channels match the file.
+check :: forall rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
+    Proxy rate -> Proxy channels -> FilePath -> IO (Maybe String)
+check rate channels fname = checkInfo rate channels <$> getInfo fname
 
-newtype Audio (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) = Audio {
-    _stream :: S.Stream (S.Of Chunk) (Resource.ResourceT IO) ()
-    }
+-- | Like 'check', but take AudioM instead of Proxy.
+checkA :: forall m rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
+    Proxy (Audio.AudioM m rate channels) -> FilePath -> IO (Maybe String)
+checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy channels)
 
-newtype Chunk = Chunk { unChunk :: V.Vector Sample }
-    deriving (Show)
+getInfo :: FilePath -> IO Sndfile.Info
+getInfo fname = Exception.bracket (openRead fname) Sndfile.hClose
+    (return . Sndfile.hInfo)
 
-type Sample = Float
--- | Should be >=0.
-type Frames = Int
-
-
-{-
-Make silence from 0 to Frames.
-Then get the earliest audio, and copy through until the next earliest.
-Then get all overlappings, mix them, and emit.
-Tricky because I have to deal with partial overlaps.  I can trust that chunk
-size is always the same though.
-
-or
-
-Can I do merge with silence, but make silence cheap?  Instead of actual
-chunks of 0s, have a distinguished Empty chunk, which trivially mixes.
-I still have to pull elements, but they're cheap.
-
-Since all chunks should be the same size, I should be able to use V.empty.
-
-But then I lose unequal chunks, what is the use for those?
-Will resample create them?  Yes.
--}
-mix :: [(Frames, Audio rate channels)] -> Audio rate channels
-mix audios = undefined
-
-
-read44k :: FilePath -> Audio 44100 2
-read44k = read
-
+-- | Since the file is opened only when samples are demanded, a sample rate or
+-- channels mismatch will turn into an exception then, not when this is called.
 read :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    FilePath -> Audio rate channels
-read fname = Audio $ do
-    (key, handle) <- lift $ Resource.allocate
-        (Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo)
-        Sndfile.hClose
-    liftIO $ check fname (Sndfile.hInfo handle)
-        (TypeLits.natVal (Proxy :: Proxy rate))
-        (TypeLits.natVal (Proxy :: Proxy channels))
-    let loop = liftIO (Sndfile.hGetBuffer handle chunkSize) >>= \case
+    FilePath -> Audio.AudioIO rate channels
+read fname = Audio.Audio $ do
+    (key, handle) <- lift $ Resource.allocate (openRead fname) Sndfile.hClose
+    liftIO $ whenJust (checkInfo (Proxy :: Proxy rate) (Proxy :: Proxy channels)
+            (Sndfile.hInfo handle)) $ \err ->
+        Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType err
+            Nothing (Just fname)
+    let loop = liftIO (Sndfile.hGetBuffer handle Audio.chunkSize) >>= \case
             Nothing -> lift (Resource.release key) >> return ()
             Just buf -> do
-                S.yield $ Chunk $ Sndfile.Buffer.Vector.fromBuffer buf
+                S.yield $ Audio.Chunk $ Sndfile.Buffer.Vector.fromBuffer buf
                 loop
     loop
 
-check :: FilePath -> Sndfile.Info -> Integer -> Integer -> IO ()
-check fname info rate channels
+read44k :: FilePath -> Audio.AudioIO 44100 2
+read44k = read
+
+checkInfo :: forall rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
+    => Proxy rate -> Proxy channels -> Sndfile.Info -> Maybe String
+checkInfo rate_ channels_ info
     | int (Sndfile.samplerate info) == rate
-            && int (Sndfile.channels info) == channels =
-        return ()
-    | otherwise = Exception.throwIO $ IO.Error.mkIOError
-        IO.Error.userErrorType
-        ("(rate, channels) " ++ show (rate, channels) ++ " /= "
-            ++ show (Sndfile.samplerate info, Sndfile.channels info))
-        Nothing (Just fname)
+            && int (Sndfile.channels info) == channels = Nothing
+    | otherwise = Just $
+        "(rate, channels) " ++ show (rate, channels) ++ " /= "
+            ++ show (Sndfile.samplerate info, Sndfile.channels info)
     where
     int = fromIntegral
+    rate = TypeLits.natVal rate_
+    channels = TypeLits.natVal channels_
+
+openRead :: FilePath -> IO Sndfile.Handle
+openRead fname = Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
+
+-- * write
 
 write :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
-    => FilePath -> Sndfile.Format -> Audio rate channels
+    => FilePath -> Sndfile.Format -> Audio.AudioIO rate channels
     -> Resource.ResourceT IO ()
-write fname format (Audio audio) = do
+write fname format (Audio.Audio audio) = do
     let info = Sndfile.defaultInfo
             { Sndfile.samplerate = fromIntegral $
                 TypeLits.natVal (Proxy :: Proxy rate)
@@ -138,7 +99,7 @@ write fname format (Audio audio) = do
         (Sndfile.openFile fname Sndfile.WriteMode info)
         Sndfile.hClose
     S.mapM_ (liftIO . Sndfile.hPutBuffer handle
-            . Sndfile.Buffer.Vector.toBuffer . unChunk)
+            . Sndfile.Buffer.Vector.toBuffer . Audio.chunkSamples)
         audio
     -- loop audio handle
     Resource.release key
@@ -152,12 +113,6 @@ write fname format (Audio audio) = do
 wavFormat :: Sndfile.Format
 wavFormat = Sndfile.Format
     { headerFormat = Sndfile.HeaderFormatWav
-    , sampleFormat = Sndfile.SampleFormatFloat -- Sndfile.SampleFormatPcm16
+    , sampleFormat = Sndfile.SampleFormatFloat
     , endianFormat = Sndfile.EndianFile
     }
-
-
-chunkSize :: Frames
-chunkSize = 5000
-
-data Proxy (a :: TypeLits.Nat) = Proxy
