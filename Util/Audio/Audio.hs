@@ -10,6 +10,8 @@ module Util.Audio.Audio (
     , Sample, Frames, Count, Channels
     -- * construct
     , fromSamples, toSamples
+    -- * transform
+    , gain
     -- * mix
     , mix
 ) where
@@ -49,6 +51,8 @@ chunkCount :: Chunk -> Count
 chunkCount (Chunk v) = V.length v
 chunkCount (Silence c) = c
 
+-- | I hardcode the sample format to Float for now, since I have no need to
+-- work with any other format.
 type Sample = Float
 
 -- | Should be >=0.
@@ -74,32 +78,25 @@ fromSamples = Audio . S.each . map Chunk
 toSamples :: Monad m => AudioM m rate channels -> m [V.Vector Sample]
 toSamples = S.toList_ . S.map chunkSamples . _stream
 
+-- * transform
+
+gain :: Monad m => Float -> AudioM m rate channels -> AudioM m rate channels
+gain n (Audio audio) = Audio $ S.map f audio
+    where
+    f (Chunk v) = Chunk $ V.map (*n) v
+    f (Silence c) = Silence c
+
 -- * mix
 
-{-
-    Make silence from 0 to Frames.
-    Then get the earliest audio, and copy through until the next earliest.
-    Then get all overlappings, mix them, and emit.
-    Tricky because I have to deal with partial overlaps.  I can trust that chunk
-    size is always the same though.
-
-    or
-
-    Can I do merge with silence, but make silence cheap?  Instead of actual
-    chunks of 0s, have a distinguished Empty chunk, which trivially mixes.
-    I still have to pull elements, but they're cheap.
-
-    Since all chunks should be the same size, I should be able to use V.empty.
-
-    But then I lose unequal chunks, what is the use for those?
-    Will resample create them?  Yes.
--}
+-- | Mix together the audio streams at the given start times.
+--
+-- TODO the input could also be a stream, in case it somehow comes from IO.
 mix :: forall m rate channels. (Monad m, TypeLits.KnownNat channels)
     => [(Frames, AudioM m rate channels)] -> AudioM m rate channels
 mix = Audio . S.map merge . synchronize . map pad
     where
     pad (frames, Audio a)
-        | frames > 0 = Audio (S.cons (Silence (frameCount channels frames)) a)
+        | frames > 0 = Audio $ S.cons (Silence (frameCount channels frames)) a
         | otherwise = Audio a
     merge chunks
         | null vs = case [c | Silence c <- chunks] of
@@ -110,6 +107,8 @@ mix = Audio . S.map merge . synchronize . map pad
         | otherwise = Chunk $ zipWithN (+) vs
         where vs = [v | Chunk v <- chunks]
     channels = Proxy :: Proxy channels
+    -- The strategy is to pad the beginning of each audio stream with silence,
+    -- but make mixing silence cheap with a special Silence constructor.
 
 zipWithN :: V.Storable a => (a -> a -> a) -> [V.Vector a] -> V.Vector a
 zipWithN f vs = case vs of

@@ -30,6 +30,10 @@ test_mix2 = do
     equal (f [(0, [[0, 1, 2, 3]]), (1, [[4, 5]])])
         [0, 1, 2+4, 3+5]
 
+test_gain = do
+    let f n = concat . toSamples . Audio.gain n . fromSamples
+    equal (f 0.5 [[1, 2], [3]]) [0.5, 1, 1.5]
+
 fromSamples :: [[Audio.Sample]] -> Audio.AudioId 10 1
 fromSamples = Audio.fromSamples . map V.fromList
 

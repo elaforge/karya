@@ -13,11 +13,8 @@ module Util.Audio.File (
 ) where
 import Prelude hiding (read)
 import qualified Control.Exception as Exception
-import Control.Monad.Trans (liftIO, lift)
 import qualified Control.Monad.Trans.Resource as Resource
 
-import Data.Proxy (Proxy(..))
-import Control.Monad.Extra (whenJust)
 import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile as Sndfile
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
@@ -25,6 +22,7 @@ import qualified Streaming.Prelude as S
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
+import Global
 
 
 -- | Check if rate and channels match the file.
@@ -49,7 +47,8 @@ read :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     FilePath -> Audio.AudioIO rate channels
 read fname = Audio.Audio $ do
-    (key, handle) <- lift $ Resource.allocate (openRead fname) Sndfile.hClose
+    (key, handle) <- lift $
+        Resource.allocate (openRead fname) Sndfile.hClose
     liftIO $ whenJust (checkInfo (Proxy :: Proxy rate) (Proxy :: Proxy channels)
             (Sndfile.hInfo handle)) $ \err ->
         Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType err
@@ -85,9 +84,9 @@ openRead fname = Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
 
 write :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
-    => FilePath -> Sndfile.Format -> Audio.AudioIO rate channels
+    => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
     -> Resource.ResourceT IO ()
-write fname format (Audio.Audio audio) = do
+write format fname (Audio.Audio audio) = do
     let info = Sndfile.defaultInfo
             { Sndfile.samplerate = fromIntegral $
                 TypeLits.natVal (Proxy :: Proxy rate)
