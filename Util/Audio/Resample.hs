@@ -4,7 +4,7 @@
 
 -- | Resample audio signals via libsamplerate.
 module Util.Audio.Resample (
-    resample
+    resample, resampleRate
     , ConverterType(..)
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
@@ -71,3 +71,14 @@ resample ctype ratio audio = Audio.Audio $ do
                 Just next -> loop $ S.cons (left V.++ next) audio
     channels :: Int
     channels = fromIntegral $ TypeLits.natVal (Proxy :: Proxy chan)
+
+resampleRate :: forall rateIn rateOut chan.
+    (TypeLits.KnownNat rateIn, TypeLits.KnownNat rateOut,
+        TypeLits.KnownNat chan)
+    => ConverterType
+    -> Audio.AudioIO rateIn chan -> Audio.AudioIO rateOut chan
+resampleRate ctype =
+    Audio.Audio . Audio._stream . resample ctype (rateOut / rateIn)
+    where
+    rateIn = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rateIn)
+    rateOut = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rateOut)
