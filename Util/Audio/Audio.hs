@@ -6,7 +6,6 @@
 module Util.Audio.Audio (
     -- * types
     AudioM(..), AudioIO, AudioId
-    , Chunk(..), chunkSamples, chunkCount
     , Sample, Frames, Count, Channels
     , chunkSize, framesCount, countFrames
     -- * construct
@@ -24,7 +23,6 @@ import qualified GHC.TypeLits as TypeLits
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Global
 
@@ -32,25 +30,10 @@ import Global
 -- * types
 
 newtype AudioM m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
-    Audio { _stream :: S.Stream (S.Of Chunk) m () }
+    Audio { _stream :: S.Stream (S.Of (V.Vector Sample)) m () }
 
 type AudioIO rate channels = AudioM (Resource.ResourceT IO) rate channels
 type AudioId rate channels = AudioM Identity.Identity rate channels
-
-data Chunk = Chunk (V.Vector Sample) | Silence !Count
-    deriving (Show)
-
-instance Pretty.Pretty Chunk where
-    format (Chunk v) = Pretty.format v
-    format (Silence c) = "silence " <> Pretty.format c
-
-chunkSamples :: Chunk -> V.Vector Sample
-chunkSamples (Chunk v) = v
-chunkSamples (Silence c) = V.replicate c 0
-
-chunkCount :: Chunk -> Count
-chunkCount (Chunk v) = V.length v
-chunkCount (Silence c) = c
 
 -- | I hardcode the sample format to Float for now, since I have no need to
 -- work with any other format.
@@ -78,18 +61,15 @@ countFrames channels_ count = Frames $
 -- * construct
 
 fromSamples :: Monad m => [V.Vector Sample] -> AudioM m rate channels
-fromSamples = Audio . S.each . map Chunk
+fromSamples = Audio . S.each
 
 toSamples :: Monad m => AudioM m rate channels -> m [V.Vector Sample]
-toSamples = S.toList_ . S.map chunkSamples . _stream
+toSamples = S.toList_ . _stream
 
 -- * transform
 
 gain :: Monad m => Float -> AudioM m rate channels -> AudioM m rate channels
-gain n (Audio audio) = Audio $ S.map f audio
-    where
-    f (Chunk v) = Chunk $ V.map (*n) v
-    f (Silence c) = Silence c
+gain n (Audio audio) = Audio $ S.map (V.map (*n)) audio
 
 -- * mix
 
@@ -101,19 +81,31 @@ mix :: forall m rate channels. (Monad m, TypeLits.KnownNat channels)
 mix = Audio . S.map merge . synchronize . map pad
     where
     pad (frames, Audio a)
-        | frames > 0 = Audio $ S.cons (Silence (framesCount channels frames)) a
-        | otherwise = Audio a
+        | frames > 0 =
+            S.cons (Silence (framesCount channels frames)) (S.map Chunk a)
+        | otherwise = S.map Chunk a
     merge chunks
         | null vs = case [c | Silence c <- chunks] of
             -- All Silences should be the same, thanks to 'synchronize'.
-            count : _ -> Silence count
+            count : _ -> V.replicate count 0
             -- 'synchronize' shouldn't emit empty chunks.
-            [] -> Silence 0
-        | otherwise = Chunk $ zipWithN (+) vs
+            [] -> V.empty
+        | otherwise = zipWithN (+) vs
         where vs = [v | Chunk v <- chunks]
     channels = Proxy :: Proxy channels
-    -- The strategy is to pad the beginning of each audio stream with silence,
-    -- but make mixing silence cheap with a special Silence constructor.
+
+-- | The strategy is to pad the beginning of each audio stream with silence,
+-- but make mixing silence cheap with a special Silence constructor.
+--
+-- I used to have Chunk in 'AudioM' so I could process Silence more
+-- efficiently.  But it turns out it's annoying to do that and I only need it
+-- for 'mix' anyway.
+data Chunk = Chunk (V.Vector Sample) | Silence !Count
+    deriving (Show)
+
+chunkCount :: Chunk -> Count
+chunkCount (Chunk v) = V.length v
+chunkCount (Silence c) = c
 
 zipWithN :: V.Storable a => (a -> a -> a) -> [V.Vector a] -> V.Vector a
 zipWithN f vs = case vs of
@@ -127,9 +119,9 @@ zipWithN f vs = case vs of
 
 -- | Synchronize chunk size for all streams: pull from each one, then split
 -- each to the shortest one.
-synchronize :: Monad m => [AudioM m rate channels]
+synchronize :: Monad m => [S.Stream (S.Of Chunk) m ()]
     -> S.Stream (S.Of [Chunk]) m ()
-synchronize = S.unfoldr unfold . map _stream
+synchronize = S.unfoldr unfold
     where
     unfold audios = do
         pairs <- Maybe.catMaybes <$> mapM S.uncons audios

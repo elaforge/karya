@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Resample audio signals via libsamplerate.
 module Util.Audio.Resample (
     resample
     , ConverterType(..)
@@ -22,7 +23,8 @@ import Global
 
 -- TODO I could maybe unsafePerformIO the resampling C.
 
--- | Resample the audio.
+-- | Resample the audio.  This doesn't actually change the sampling rate, since
+-- I just use this to change the pitch.
 resample :: forall rate chan. (TypeLits.KnownNat chan)
     => ConverterType -> Double
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
@@ -31,15 +33,9 @@ resample ctype ratio audio = Audio.Audio $ do
         Resource.allocate (Binding.new ctype channels) Binding.delete
     let loop audio = lift (S.next audio) >>= \case
             Left () -> lift (Resource.release key) >> return ()
-            Right (Audio.Silence count, audio) -> do
-                S.yield $ Audio.Silence count -- TODO
-                loop audio
-            Right (Audio.Chunk chunk, audio) -> handle1 loop state chunk audio
+            Right (chunk, audio) -> handle1 loop state chunk audio
     loop (Audio._stream audio)
     where
-    channels :: Int
-    channels = fromIntegral $ TypeLits.natVal (Proxy :: Proxy chan)
-
     handle1 loop state chunk audio = do
         (next, audio) <- either (const (Nothing, audio)) (first Just) <$>
             lift (S.next audio)
@@ -63,51 +59,15 @@ resample ctype ratio audio = Audio.Audio $ do
                 )
         let out = V.unsafeFromForeignPtr0 outFP $
                 fromIntegral generated * channels
-        S.yield (Audio.Chunk out)
+        S.yield out
         let withNext = maybe audio (`S.cons` audio) next
             left = V.drop (used * channels) chunk
         if  | used >= inputFrames -> loop withNext
             -- Only consumed part of the input.
-            | generated > 0 -> loop $ S.cons (Audio.Chunk left) withNext
+            | generated > 0 -> loop $ S.cons left withNext
             -- It wants more input, so combine with the next chunk.
             | otherwise -> case next of
                 Nothing -> return ()
-                Just (Audio.Silence _) -> return () -- TODO
-                Just (Audio.Chunk next) ->
-                    loop $ S.cons (Audio.Chunk $ left V.++ next) audio
-
-
-{-
-
-inspect :: Monad m => Stream f m r -> m (Either r (f (Stream f m r)))
-next :: Monad m => Stream (Of a) m r -> m (Either r (a, Stream (Of a) m r))
-yield :: Monad m => a -> Stream (Of a) m ()
-
-    Audio { _stream :: S.Stream (S.Of Chunk) m () }
-
-unfoldr :: Monad m => (s -> m (Either r (a, s))) -> s -> Stream (Of a) m r
-unfold :: (Monad m, Functor f) => (s -> m (Either r (f s))) -> s -> Stream f m r
-
-This should take a signal of breakpoints, not a plain number.
-
-
-make a DataIn:
-
-    get this chunk and next chunk
-
-    Binding.process state $ Binding.DataIn
-        { data_in       = castPtr inPtr
-        , data_out      = castPtr outPtr
-        , input_frames  = fromIntegral inLen
-        , output_frames = fromIntegral outLen
-        , src_ratio     = ratio
-        , end_of_input  = isEnd
-        }
-
--- resample ctype ratio = Audio.Audio . S.unfoldr unfold . Audio._stream
---     where
---     unfold audio = do
---         (key, state) <- Resource.allocate (Binding.new ctype channels)
---             Binding.delete
---         undefined
--}
+                Just next -> loop $ S.cons (left V.++ next) audio
+    channels :: Int
+    channels = fromIntegral $ TypeLits.natVal (Proxy :: Proxy chan)

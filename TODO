@@ -1502,7 +1502,7 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient streaming audio:
-    - get rid of Silence, it's a hassle in resample and only mix uses it.
+    * get rid of Silence, it's a hassle in resample and only mix uses it.
     - extend Resample.resample to take breakpoints
       . This means convert breakpoints to frames, then keep track of the
         current frame.

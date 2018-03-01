@@ -56,7 +56,7 @@ read fname = Audio.Audio $ do
     let loop = liftIO (Sndfile.hGetBuffer handle Audio.chunkSize) >>= \case
             Nothing -> lift (Resource.release key) >> return ()
             Just buf -> do
-                S.yield $ Audio.Chunk $ Sndfile.Buffer.Vector.fromBuffer buf
+                S.yield $ Sndfile.Buffer.Vector.fromBuffer buf
                 loop
     loop
 
@@ -104,16 +104,9 @@ write format fname (Audio.Audio audio) = do
         (Sndfile.openFile fname Sndfile.WriteMode info)
         Sndfile.hClose
     S.mapM_ (liftIO . Sndfile.hPutBuffer handle
-            . Sndfile.Buffer.Vector.toBuffer . Audio.chunkSamples)
+            . Sndfile.Buffer.Vector.toBuffer)
         audio
-    -- loop audio handle
     Resource.release key
-    -- where
-    -- loop audio handle = S.next audio >>= \case
-    --     Left () -> return ()
-    --     Right (chunk, audio) -> do
-    --         liftIO $ Sndfile.hPutBuffer handle (Sndfile.Buffer.Vector.toBuffer chunk)
-    --         loop audio handle
 
 wavFormat :: Sndfile.Format
 wavFormat = Sndfile.Format
