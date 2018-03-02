@@ -124,25 +124,20 @@ renderInstrument patch notes = Audio.Audio $ do
     let gate = if Control.gate `elem` supported
             then Map.insert Control.gate (makeGate notes) else id
     let controls = gate $ mergeControls supported notes
-    -- TODO I need to render chunks.  Ideally I can just go chunks of samples,
-    -- but then how habout the notes?  I guess they're already in the merged
-    -- controls.  Merging controls should be streamed too, but it's pure so
-    -- I don't need streaming, just a lazy vector.
     Convert.controls supported controls $ \controlLengths ->
-        loop key inst controlLengths (Audio.Frames 0)
+        Audio.loop1 (Audio.Frames 0) $ \loop start -> do
+            let end = min final (start + Audio.chunkSize)
+            buffers <- liftIO $ DriverC.render inst start end controlLengths
+            case buffers of
+                [left, right] -> S.yield $ Audio.interleave [left, right]
+                [center] -> S.yield $ Audio.interleave [center, center]
+                -- This should have been verified by DriverC.getParsedMetadata.
+                _ -> errorIO $ "expected 1 or 2 outputs, but got "
+                    <> showt (length buffers)
+            if end >= final
+                then Resource.release key >> return ()
+                else loop end
     where
-    loop key inst controlLengths start = do
-        let end = min final (start + Audio.chunkSize)
-        buffers <- liftIO $ DriverC.render inst start end controlLengths
-        case buffers of
-            [left, right] -> S.yield $ Audio.interleave [left, right]
-            [center] -> S.yield $ Audio.interleave [center, center]
-            -- This should have been verified by DriverC.getParsedMetadata.
-            _ -> errorIO $ "expected 1 or 2 outputs, but got "
-                <> showt (length buffers)
-        if end >= final
-            then Resource.release key >> return ()
-            else loop key inst controlLengths end
     final = maybe 0 (AUtil.toFrames . (+decay) . Note.end) (Seq.last notes)
     decay = 2
     -- TODO how can I figure out how long decay actually is?

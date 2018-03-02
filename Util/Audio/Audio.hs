@@ -18,6 +18,8 @@ module Util.Audio.Audio (
     -- * mergeChannels
     , mergeChannels
     , interleave, deinterleave
+    -- * util
+    , loop1
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif
@@ -218,3 +220,11 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
 
 natVal :: KnownNat n => Proxy n -> Int
 natVal = fromIntegral . TypeLits.natVal
+
+-- | A loop with state.  This is like fix, except it has a state argument.
+-- The only reason it's here is that it's convenient for stream loops.
+loop1 :: forall state a. state -> ((state -> a) -> state -> a) -> a
+loop1 state f = f again state
+    where
+    again :: state -> a
+    again = f again
