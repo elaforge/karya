@@ -86,7 +86,7 @@ save_dir = "save"
 
 -- ** per-view
 
--- The block status bar is not very wide, so it's important to control what
+-- | The block status bar is not very wide, so it's important to control what
 -- goes in there, and more importantly, which order.  Items with a high key
 -- are more likely to be cut off.
 type SortKey = Int
@@ -170,7 +170,6 @@ insert_selnum :: SelNum
 temporary_insert_selnum :: SelNum
 -- | Highlight errors.  I use 'insert_selnum' for this nowadays, so it's
 -- probably unused.
--- logview when you click on a stack trace.
 error_selnum :: SelNum
 -- | Display current "Cmd.StepPlay" position.
 step_play_selnum :: SelNum
@@ -187,7 +186,7 @@ max_selnums = 7
 
 -- This must be the same length as 'max_selnums'.
 [ (insert_selnum, _)
-    -- Unused.  Secondary select?
+    -- Unused.  Maybe use this for secondary select someday?
     , _
     , (temporary_insert_selnum, _)
     , (error_selnum, _)
@@ -294,7 +293,7 @@ default_keep_history :: Int
 default_keep_history = 20
 
 -- | Default scale id for new projects.  It's a string so I don't have import
--- anything.
+-- Perform.Pitch.
 default_scale_id :: Text
 default_scale_id = "twelve"
 
