@@ -13,6 +13,7 @@ module Util.Audio.File (
 ) where
 import Prelude hiding (read)
 import qualified Control.Exception as Exception
+import qualified Control.Monad.Fix as Fix
 import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified GHC.TypeLits as TypeLits
@@ -49,16 +50,19 @@ read :: forall rate channels.
 read fname = Audio.Audio $ do
     (key, handle) <- lift $
         Resource.allocate (openRead fname) Sndfile.hClose
-    liftIO $ whenJust (checkInfo (Proxy :: Proxy rate) (Proxy :: Proxy channels)
-            (Sndfile.hInfo handle)) $ \err ->
+    liftIO $ whenJust (checkInfo rate channels (Sndfile.hInfo handle)) $ \err ->
         Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType err
             Nothing (Just fname)
-    let loop = liftIO (Sndfile.hGetBuffer handle Audio.chunkSize) >>= \case
+    Fix.fix $ \loop ->
+        liftIO (Sndfile.hGetBuffer handle size) >>= \case
             Nothing -> lift (Resource.release key) >> return ()
             Just buf -> do
                 S.yield $ Sndfile.Buffer.Vector.fromBuffer buf
                 loop
-    loop
+    where
+    size = Audio.framesCount channels Audio.chunkSize
+    rate = Proxy :: Proxy rate
+    channels = Proxy :: Proxy channels
 
 read44k :: FilePath -> Audio.AudioIO 44100 2
 read44k = read

@@ -57,7 +57,7 @@ frames rate seconds = Frames $ round $ fromIntegral rate * seconds
 type Count = Int
 type Channels = Int
 
-chunkSize :: Count
+chunkSize :: Frames
 chunkSize = 5000
 
 framesCount :: KnownNat channels => Proxy channels -> Frames -> Count
