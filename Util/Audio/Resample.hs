@@ -31,10 +31,10 @@ resample :: forall rate chan. (TypeLits.KnownNat chan)
 resample ctype ratio audio = Audio.Audio $ do
     (key, state) <- lift $
         Resource.allocate (Binding.new ctype channels) Binding.delete
-    let loop audio = lift (S.next audio) >>= \case
+    Audio.loop1 (Audio._stream audio) $ \loop audio ->
+        lift (S.next audio) >>= \case
             Left () -> lift (Resource.release key) >> return ()
             Right (chunk, audio) -> handle1 loop state chunk audio
-    loop (Audio._stream audio)
     where
     handle1 loop state chunk audio = do
         (next, audio) <- either (const (Nothing, audio)) (first Just) <$>
