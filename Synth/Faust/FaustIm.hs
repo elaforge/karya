@@ -65,8 +65,7 @@ main = do
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
             pid <- Posix.Process.getProcessID
-            let prefix = showt pid <> ": "
-                    <> txt (FilePath.takeFileName notesFilename)
+            let prefix = showt pid <> ": " <> txt notesFilename
             process prefix patches notesFilename notes
         _ -> errorIO $ "usage: faust-im [notes | print-patches]"
 
@@ -120,8 +119,8 @@ renderInstrument :: DriverC.Patch -> [Note.Note] -> IO AUtil.Audio
 renderInstrument patch notes = DriverC.withInstrument patch $ \inst -> do
     supported <- DriverC.getControls patch
     let gate = if Control.gate `elem` supported
-            then makeGate notes else mempty
-    let controls = Map.insert Control.gate gate $ mergeControls supported notes
+            then Map.insert Control.gate (makeGate notes) else id
+    let controls = gate $ mergeControls supported notes
     Convert.controls supported controls $ \controlLengths -> do
         let start = 0
             end = maybe 0 (AUtil.toFrames . (+decay) . Note.end)

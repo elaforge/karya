@@ -194,6 +194,9 @@ interpolate(const ControlSample *samples, int length, int index, RealTime time)
     if (index >= length)
         return 0;
     const ControlSample &prev = samples[index];
+    // As a special case, the signal is 0 before the first sample.
+    if (time < prev.time)
+        return 0;
     if (index + 1 >= length)
         return prev.val;
     const ControlSample &next = samples[index + 1];
