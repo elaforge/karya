@@ -1521,7 +1521,7 @@ synth: im:
       conduit-audio-samplerate, then I don't need to depend on all of conduit.
     * convert Synth.Sampler
     - convert Ness
-    - convert Synth.Faust
+    * convert Synth.Faust
     * efficient mix
       . I could try to implement mix :: [(Frames, Audio)] -> Audio directly
         or make an Silence Chunk which mixes trivially.

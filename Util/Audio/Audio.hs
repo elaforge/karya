@@ -48,7 +48,7 @@ type Sample = Float
 
 -- | Should be >=0.
 newtype Frames = Frames Int
-    deriving (Show, Eq, Ord, Num)
+    deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
 
 frames :: Int -> Double -> Frames
 frames rate seconds = Frames $ round $ fromIntegral rate * seconds

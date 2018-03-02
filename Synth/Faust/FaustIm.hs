@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DataKinds #-}
 -- | Offline synthesizer that uses FAUST.
 module Synth.Faust.FaustIm (main) where
 import qualified Control.Concurrent as Concurrent
@@ -10,14 +11,11 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 
-import qualified Data.Conduit as Conduit
-import qualified Data.Conduit.Audio as Audio
-import qualified Data.Conduit.Audio.Sndfile as Sndfile
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Vector.Storable as Storable
+import qualified Data.Vector.Storable as Vector.Storable
 
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
@@ -25,11 +23,14 @@ import qualified System.FilePath as FilePath
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
+import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.File as Audio.File
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Synth.Faust.Convert as Convert
 import qualified Synth.Faust.DriverC as DriverC
-import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Lib.AUtil2 as AUtil
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -92,7 +93,7 @@ process prefix patches notesFilename notes = do
             Directory.createDirectoryIfMissing True
                 (FilePath.takeDirectory output)
             result <- AUtil.catchSndfile $ Resource.runResourceT $
-                Sndfile.sinkSnd output AUtil.outputFormat audio
+                Audio.File.write AUtil.outputFormat output audio
             case result of
                 Left err -> put $ inst <> " writing " <> showt output <> ": "
                     <> err
@@ -129,12 +130,12 @@ renderInstrument patch notes = DriverC.withInstrument patch $ \inst -> do
             -- TODO how can I figure out how long decay actually is?
             -- I probably have to keep rendering until the samples stay below
             -- a threshold.
-        buffers <- DriverC.render inst start end controlLengths
+        buffers <- DriverC.render inst start (fromIntegral end) controlLengths
         case buffers of
             [left, right] -> return $
-                Audio.merge (audioSource left) (audioSource right)
+                Audio.mergeChannels (fromSamples left) (fromSamples right)
             [center] -> return $
-                Audio.merge (audioSource center) (audioSource center)
+                Audio.mergeChannels (fromSamples center) (fromSamples center)
             -- This should have been verified by DriverC.getParsedMetadata.
             _ -> errorIO $ "expected 1 or 2 outputs, but got "
                 <> showt (length buffers)
@@ -157,10 +158,14 @@ makeGate :: [Note.Note] -> Signal.Signal
 makeGate notes = Signal.from_pairs $
     concat [[(Note.start n, 0), (Note.start n, 1)]  | n <- notes]
 
-audioSource :: Storable.Vector Float -> AUtil.Audio
-audioSource samples = Audio.AudioSource
-    { source = Conduit.yield samples
-    , rate = fromIntegral Config.samplingRate
-    , channels = 1
-    , frames = Storable.length samples
-    }
+fromSamples :: Monad m => Vector.Storable.Vector Audio.Sample
+    -> Audio.AudioM m rate 1
+fromSamples = Audio.fromSamples . (:[])
+
+-- audioSource :: Storable.Vector Float -> AUtil.Audio
+-- audioSource samples = Audio.AudioSource
+--     { source = Conduit.yield samples
+--     , rate = fromIntegral Config.samplingRate
+--     , channels = 1
+--     , frames = Storable.length samples
+--     }
