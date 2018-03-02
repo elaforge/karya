@@ -92,7 +92,7 @@ samplingRate = SAMPLING_RATE
 -- | Write serialized notes to this file.
 notesFilename :: FilePath -> Synth -> BlockId -> FilePath
 notesFilename rootDir synth blockId =
-    rootDir </> notesDir synth </> untxt (blockFilename blockId)
+    rootDir </> "notes" </> notesDir synth </> untxt (blockFilename blockId)
 
 -- | Get the filename that should be used for the output of a certain block and
 -- instrument.
