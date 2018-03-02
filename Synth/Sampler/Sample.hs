@@ -37,18 +37,18 @@ data Sample = Sample {
     } deriving (Show)
 
 -- | Evaluating the Audio could probably produce more exceptions...
-realize :: Sample -> (RealTime, Audio)
-realize (Sample start filename offset env ratio) = (start,) $
-    resample (Signal.at start ratio) $
+realize :: Resample.ConverterType -> Sample -> (RealTime, Audio)
+realize quality (Sample start filename offset env ratio) = (start,) $
+    resample quality (Signal.at start ratio) $
     applyEnvelope start env $
     Audio.File.read (Config.instrumentDbDir </> filename)
     -- TODO use offset
 
-resample :: Double -> Audio -> Audio
-resample ratio audio
+resample :: Resample.ConverterType -> Double -> Audio -> Audio
+resample quality ratio audio
     -- Don't do any work if it's close enough to 1.
     | ApproxEq.eq closeEnough ratio 1 = audio
-    | otherwise = Resample.resample Resample.SincBestQuality ratio audio
+    | otherwise = Resample.resample quality ratio audio
     where
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this
     -- probably isn't perceptible.

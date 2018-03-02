@@ -9,7 +9,9 @@ import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 
 import qualified Util.Audio.File as Audio.File
+import qualified Util.Audio.Resample as Resample
 import qualified Util.Log as Log
+
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.Sample as Sample
@@ -22,21 +24,24 @@ import Global
 main :: IO ()
 main = do
     args <- Environment.getArgs
-    case args of
+    let quality
+            | "--fast" `elem` args = Resample.SincFastest
+            | otherwise = Resample.SincBestQuality
+    case filter (/="--fast") args of
         [notesFilename] -> do
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
-            process notesFilename notes
-        _ -> errorIO $ "usage: sampler notes"
+            process quality notesFilename notes
+        _ -> errorIO $ "usage: sampler [ --fast ] notes"
 
-process :: FilePath -> [Note.Note] -> IO ()
-process notesFilename notes = do
+process :: Resample.ConverterType -> FilePath -> [Note.Note] -> IO ()
+process quality notesFilename notes = do
     samples <- either errorIO return $ mapM Convert.noteToSample notes
     mapM_ print samples
-    realizeSamples notesFilename samples
+    realizeSamples quality notesFilename samples
 
-realizeSamples :: FilePath -> [Sample.Sample] -> IO ()
-realizeSamples notesFilename samples = do
+realizeSamples :: Resample.ConverterType -> FilePath -> [Sample.Sample] -> IO ()
+realizeSamples quality notesFilename samples = do
     put $ "load " <> show (length samples) <> " samples"
     put "processing"
     -- TODO divide up output by instrument instead of mixing them here
@@ -44,7 +49,7 @@ realizeSamples notesFilename samples = do
             notesFilename Nothing
     result <- AUtil.catchSndfile $ Resource.runResourceT $
         Audio.File.write AUtil.outputFormat output $
-            AUtil.mix $ map Sample.realize samples
+            AUtil.mix $ map (Sample.realize quality) samples
     case result of
         Left err ->
             Log.error $ "writing to output: " <> showt output <> ": " <> err
