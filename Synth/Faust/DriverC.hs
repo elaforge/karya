@@ -10,7 +10,8 @@ module Synth.Faust.DriverC (
     , getControls
     , getUiControls
     -- * Instrument
-    , withInstrument, patchInputs, patchOutputs
+    , withInstrument, initialize, destroy
+    , patchInputs, patchOutputs
     , render
 ) where
 import qualified Control.Exception as Exception
@@ -20,6 +21,7 @@ import qualified Data.Vector.Storable as Vector.Storable
 
 import qualified Foreign
 
+import qualified Util.Audio.Audio as Audio
 import qualified Util.CUtil as CUtil
 import qualified Util.Doc as Doc
 import Util.ForeignC
@@ -184,14 +186,13 @@ patchOutputs = fmap fromIntegral . c_faust_num_outputs
 foreign import ccall "faust_num_inputs" c_faust_num_inputs :: Patch -> IO CInt
 foreign import ccall "faust_num_outputs" c_faust_num_outputs :: Patch -> IO CInt
 
-type Frames = Int
 type Sample = Signal.Sample Double
 
 -- | Render a note on the instrument, and return samples.
-render :: Instrument  -> Frames -> Frames -> [(Ptr Sample, Int)]
+render :: Instrument  -> Audio.Frames -> Audio.Frames -> [(Ptr Sample, Int)]
     -- ^ (control signal breakpoints, number of Samples)
     -> IO [Vector.Storable.Vector Float]
-render inst start end controlLengths = do
+render inst (Audio.Frames start) (Audio.Frames end) controlLengths = do
     inputs <- patchInputs (asPatch inst)
     unless (length controlLengths == inputs) $
         errorIO $ "instrument has " <> showt inputs

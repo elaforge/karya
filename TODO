@@ -1574,6 +1574,13 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   faust:
+    * render incrementally
+    - let faust instruments take streaming input too
+      . This way I can e.g. pipe multiple instruments through an effect.
+      . This is also what I need to make control inputs incremental, it's pure
+        but the signal looks the same as faust output.
+      . Actually the faust stuff should be ok for unsafePerformIO.
+
     - Add defaults: default=x:Doc doc doc.
       . Use this when no signal is present.
     - Maybe constant controls could use UI controls, then I don't need to fill

@@ -15,8 +15,8 @@ import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Vector.Storable as Vector.Storable
 
+import qualified Streaming.Prelude as S
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -88,11 +88,11 @@ process prefix patches notesFilename notes = do
                     notesFilename (Just inst)
             put $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
-            audio <- renderInstrument patch notes
             Directory.createDirectoryIfMissing True
                 (FilePath.takeDirectory output)
             result <- AUtil.catchSndfile $ Resource.runResourceT $
-                Audio.File.write AUtil.outputFormat output audio
+                Audio.File.write AUtil.outputFormat output $
+                renderInstrument patch notes
             case result of
                 Left err -> put $ inst <> " writing " <> showt output <> ": "
                     <> err
@@ -115,29 +115,39 @@ lookupPatches patches notes =
     where
     find patch = maybe (Left patch) Right $ Map.lookup patch patches
 
-renderInstrument :: DriverC.Patch -> [Note.Note] -> IO AUtil.Audio
-renderInstrument patch notes = DriverC.withInstrument patch $ \inst -> do
-    supported <- DriverC.getControls patch
+-- This renders the instrument incrementally, rather than all at once.
+renderInstrument :: DriverC.Patch -> [Note.Note] -> AUtil.Audio
+renderInstrument patch notes = Audio.Audio $ do
+    (key, inst) <- lift $
+        Resource.allocate (DriverC.initialize patch) DriverC.destroy
+    supported <- liftIO $ DriverC.getControls patch
     let gate = if Control.gate `elem` supported
             then Map.insert Control.gate (makeGate notes) else id
     let controls = gate $ mergeControls supported notes
-    Convert.controls supported controls $ \controlLengths -> do
-        let start = 0
-            end = maybe 0 (AUtil.toFrames . (+decay) . Note.end)
-                (Seq.last notes)
-            decay = 2
-            -- TODO how can I figure out how long decay actually is?
-            -- I probably have to keep rendering until the samples stay below
-            -- a threshold.
-        buffers <- DriverC.render inst start (fromIntegral end) controlLengths
+    -- TODO I need to render chunks.  Ideally I can just go chunks of samples,
+    -- but then how habout the notes?  I guess they're already in the merged
+    -- controls.  Merging controls should be streamed too, but it's pure so
+    -- I don't need streaming, just a lazy vector.
+    Convert.controls supported controls $ \controlLengths ->
+        loop key inst controlLengths (Audio.Frames 0)
+    where
+    loop key inst controlLengths start = do
+        let end = min final (start + Audio.chunkSize)
+        buffers <- liftIO $ DriverC.render inst start end controlLengths
         case buffers of
-            [left, right] -> return $
-                Audio.mergeChannels (fromSamples left) (fromSamples right)
-            [center] -> return $
-                Audio.mergeChannels (fromSamples center) (fromSamples center)
+            [left, right] -> S.yield $ Audio.interleave [left, right]
+            [center] -> S.yield $ Audio.interleave [center, center]
             -- This should have been verified by DriverC.getParsedMetadata.
             _ -> errorIO $ "expected 1 or 2 outputs, but got "
                 <> showt (length buffers)
+        if end >= final
+            then Resource.release key >> return ()
+            else loop key inst controlLengths end
+    final = maybe 0 (AUtil.toFrames . (+decay) . Note.end) (Seq.last notes)
+    decay = 2
+    -- TODO how can I figure out how long decay actually is?
+    -- I probably have to keep rendering until the samples stay below
+    -- a threshold.
 
 mergeControls :: [Control.Control] -> [Note.Note]
     -> Map Control.Control Signal.Signal
@@ -156,15 +166,3 @@ mergeControls supported notes =
 makeGate :: [Note.Note] -> Signal.Signal
 makeGate notes = Signal.from_pairs $
     concat [[(Note.start n, 0), (Note.start n, 1)]  | n <- notes]
-
-fromSamples :: Monad m => Vector.Storable.Vector Audio.Sample
-    -> Audio.AudioM m rate 1
-fromSamples = Audio.fromSamples . (:[])
-
--- audioSource :: Storable.Vector Float -> AUtil.Audio
--- audioSource samples = Audio.AudioSource
---     { source = Conduit.yield samples
---     , rate = fromIntegral Config.samplingRate
---     , channels = 1
---     , frames = Storable.length samples
---     }

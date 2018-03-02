@@ -4,9 +4,11 @@
 
 -- | Convert types to their low-level form.
 module Synth.Faust.Convert (controls, SignalP) where
+import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Vector.Storable as Vector.Storable
 import qualified Foreign
+import qualified Foreign.ForeignPtr.Unsafe as ForeignPtr.Unsafe
 
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
@@ -14,8 +16,9 @@ import Global
 
 
 -- | Get signal pointers for 'DriverC.render'.
-controls :: [Control.Control] -> Map Control.Control Signal.Signal
-    -> ([(SignalP, Int)] -> IO a) -> IO a
+controls :: Trans.MonadIO m => [Control.Control]
+    -> Map Control.Control Signal.Signal
+    -> ([(SignalP, Int)] -> m a) -> m a
 controls patchControls controls process = go [] patchControls
     where
     go accum (c:cs) = case Map.lookup c controls of
@@ -25,7 +28,15 @@ controls patchControls controls process = go [] patchControls
 
 type SignalP = Foreign.Ptr (Signal.Sample Double)
 
-signal :: Signal.Signal -> (SignalP -> Int -> IO a) -> IO a
-signal sig process = Foreign.withForeignPtr fptr $ \ptr -> process ptr len
+signal :: Trans.MonadIO m => Signal.Signal -> (SignalP -> Int -> m a) -> m a
+signal sig process = withForeignPtr fptr $ \ptr -> process ptr len
     where
     (fptr, len) = Vector.Storable.unsafeToForeignPtr0 $ Signal.to_vector sig
+
+-- | This is the same as 'Foreign.withForeignPtr', except in MonadIO.
+withForeignPtr :: Trans.MonadIO m => Foreign.ForeignPtr a
+    -> (Foreign.Ptr a -> m b) -> m b
+withForeignPtr fptr io = do
+    r <- io (ForeignPtr.Unsafe.unsafeForeignPtrToPtr fptr)
+    liftIO (Foreign.touchForeignPtr fptr)
+    return r

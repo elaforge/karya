@@ -7,7 +7,7 @@
 module Util.Audio.Audio (
     -- * types
     AudioM(..), AudioIO, AudioId
-    , Sample, Frames, frames, Count, Channels
+    , Sample, Frames(..), frames, Count, Channels
     , chunkSize, framesCount, countFrames
     -- * construct
     , fromSamples, toSamples
@@ -17,6 +17,7 @@ module Util.Audio.Audio (
     , mix
     -- * mergeChannels
     , mergeChannels
+    , interleave, deinterleave
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif
@@ -48,7 +49,7 @@ type Sample = Float
 
 -- | Should be >=0.
 newtype Frames = Frames Int
-    deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
+    deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Pretty)
 
 frames :: Int -> Double -> Frames
 frames rate seconds = Frames $ round $ fromIntegral rate * seconds
