@@ -30,7 +30,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Synth.Faust.Convert as Convert
 import qualified Synth.Faust.DriverC as DriverC
-import qualified Synth.Lib.AUtil2 as AUtil
+import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note

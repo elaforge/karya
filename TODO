@@ -1520,7 +1520,10 @@ synth: im:
     - if I separate out the libsamplerate binding from
       conduit-audio-samplerate, then I don't need to depend on all of conduit.
     * convert Synth.Sampler
-    - convert Ness
+    / convert Ness
+      . Actually maybe I shouldn't bother.  It's doing stuff with int samples
+        and chopping samples and I don't mind keeping conduit-audio around for
+        it.
     * convert Synth.Faust
     * efficient mix
       . I could try to implement mix :: [(Frames, Audio)] -> Audio directly

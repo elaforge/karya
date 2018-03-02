@@ -5,4 +5,4 @@
 -- | Prelude for modules in Synth.*.
 module Synth.Lib.Global (Audio, RealTime) where
 import Perform.RealTime (RealTime)
-import Synth.Lib.AUtil2 (Audio)
+import Synth.Lib.AUtil (Audio)

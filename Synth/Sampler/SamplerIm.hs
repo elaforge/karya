@@ -10,7 +10,7 @@ import qualified System.FilePath as FilePath
 
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Log as Log
-import qualified Synth.Lib.AUtil2 as AUtil
+import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
