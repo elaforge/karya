@@ -1502,6 +1502,10 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient streaming audio:
+    - sampler-im: support sample start offset
+    - Audio.interleave shouldn't index in lists
+      . If necessary add a 2 arg version, but I should be able to just stick
+        them in a vector.  Then we are doing vector rotation.
     * get rid of Silence, it's a hassle in resample and only mix uses it.
     - extend Resample.resample to take breakpoints
       . This means convert breakpoints to frames, then keep track of the

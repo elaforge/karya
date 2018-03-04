@@ -7,8 +7,9 @@
 module Util.Audio.Audio (
     -- * types
     AudioM(..), AudioIO, AudioId
-    , Sample, Frames(..), secondsToFrames, Count, Channels
-    , chunkSize, framesCount, countFrames
+    , Sample, Frames(..), secondsToFrames, framesToSeconds
+    , Count, Channels, Rate
+    , chunkSize, framesCount, countFrames, chunkFrames
     -- * construct
     , fromSamples, toSamples
     -- * transform
