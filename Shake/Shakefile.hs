@@ -163,6 +163,7 @@ defaultOptions = Shake.shakeOptions
 data Config = Config {
     buildMode :: Mode
     , hscDir :: FilePath
+    , chsDir :: FilePath
     , ghcLib :: FilePath
     , fltkVersion :: String
     , midiConfig :: MidiConfig
@@ -566,6 +567,7 @@ configure midi = do
     return $ \mode -> Config
         { buildMode = mode
         , hscDir = build </> "hsc"
+        , chsDir = build </> "chs"
         , ghcLib = ghcLib
         , fltkVersion = fltkVersion
         , midiConfig = midi
@@ -640,6 +642,13 @@ configure midi = do
             , define = ["-D__linux__"]
             }
     run cmd args = Process.readProcess cmd args ""
+
+-- | When using gcc I get these defines automatically, but I need to add them
+-- myself for ghci.  But then c2hs complains about duplicate definitions, so
+-- filter them back out for that.  Nothing you can't fix by layering on another
+-- hack!
+platformDefines :: [Flag]
+platformDefines = ["-D__APPLE__", "-D__linux__"]
 
 packageFlags :: Flags -> [Package] -> [Flag]
 packageFlags flags packages =
@@ -720,7 +729,8 @@ main = do
         profileRules (modeConfig Profile)
         criterionRules (modeConfig Profile)
         markdownRule (buildDir (modeConfig Opt) </> "linkify")
-        hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
+        hsc2hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
+        chsRule (modeConfig Debug)
         hsOHiRule infer
         ccORule infer
         dispatch modeConfig targets
@@ -1221,8 +1231,12 @@ hsOHiRule infer = matchHsObjHi ?>> \fns -> do
     let Just obj = List.find (".hs.o" `List.isSuffixOf`) fns
     Shake.askOracleWith (Question () :: Question GhcQ) ("" :: String)
     let config = infer obj
-    isHsc <- liftIO $ Directory.doesFileExist (objToSrc config obj ++ "c")
-    let hs = if isHsc then objToHscHs config obj else objToSrc config obj
+    isHsc <- liftIO $ Directory.doesFileExist (objToHsc config obj)
+    isChs <- if isHsc then return False else liftIO $
+        Directory.doesFileExist (objToChs config obj)
+    let hs  | isHsc = objToHscHs config obj
+            | isChs = objToChsHs config obj
+            | otherwise = objToSrc config obj
     imports <- HsDeps.importsOf generatedSrc (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsOHiRule" config [] hs else return []
@@ -1232,6 +1246,12 @@ hsOHiRule infer = matchHsObjHi ?>> \fns -> do
     -- recompiled, so hopefully this will avoid some work.
     logDeps config "*.hs.o *.hi" obj (hs : includes ++ his)
     Util.cmdline $ compileHs (extraPackagesFor obj ++ allPackages) config hs
+
+objToHsc :: Config -> FilePath -> FilePath
+objToHsc config obj = objToSrc config obj ++ "c"
+
+objToChs :: Config -> FilePath -> FilePath
+objToChs config obj = FilePath.replaceExtension (objToSrc config obj) "chs"
 
 -- | Generate both .hs.o and .hi from a .hs file.
 matchHsObjHi :: FilePath -> Maybe [FilePath]
@@ -1390,10 +1410,10 @@ linkCc flags binary objs =
 
 -- * hsc
 
-hsRule :: Config -> Shake.Rules ()
-hsRule config = hscDir config </> "**/*.hs" %> \hs -> do
+hsc2hsRule :: Config -> Shake.Rules ()
+hsc2hsRule config = hscDir config </> "**/*.hs" %> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
-    includes <- includesOf "hsRule" config [] hsc
+    includes <- includesOf "hsc2hsRule" config [] hsc
     logDeps config "*.hsc" hs (hsc : includes)
     Util.cmdline $ hsc2hs config hs hsc
 
@@ -1406,6 +1426,31 @@ hsc2hs config hs hsc =
         ++ words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
         ++ cInclude flags ++ fltkCc flags ++ define flags
         ++ [hsc, "-o", hs]
+    )
+    where flags = configFlags config
+
+-- * c2hs
+
+chsRule :: Config -> Shake.Rules ()
+chsRule config = chsDir config </> "**/*.hs" %> \hs -> do
+    -- TODO also produces .chi, .chs.h
+    let chs = hsToChs (chsDir config) hs
+    includes <- includesOf "chsRule" config [] chs
+    logDeps config "*.chs" hs (chs : includes)
+    Util.cmdline $ c2hs config hs chs
+
+c2hs :: Config -> FilePath -> FilePath -> Util.Cmdline
+c2hs config hs chs =
+    ( "c2hs"
+    , hs
+    , [ "c2hs"
+      , "--output-dir=" <> chsDir config
+      , "--cppopts="
+        <> unwords (filter (`notElem` platformDefines) (define flags))
+        -- TODO if I use c2hs more extensively I might also want
+        -- cInclude flags ++ fltkCc flags
+      , chs
+      ]
     )
     where flags = configFlags config
 
@@ -1440,6 +1485,10 @@ objToSrc config = FilePath.dropExtension . dropDir (oDir config)
 objToHscHs :: Config -> FilePath -> FilePath
 objToHscHs config = (hscDir config </>) . objToSrc config
 
+-- | build/debug/obj/A/B.o -> build/chs/A/B.hs
+objToChsHs :: Config -> FilePath -> FilePath
+objToChsHs config = (chsDir config </>) . objToSrc config
+
 -- | build/hsc/A/B.hs -> A/B.hsc
 hsToHsc :: FilePath -> FilePath -> FilePath
 hsToHsc hscDir fn = dropDir hscDir $ FilePath.replaceExtension fn "hsc"
@@ -1447,6 +1496,10 @@ hsToHsc hscDir fn = dropDir hscDir $ FilePath.replaceExtension fn "hsc"
 -- | A/B.hsc -> build/hsc/A/B.hs
 hscToHs :: FilePath -> FilePath -> FilePath
 hscToHs hscDir fn = (hscDir </>) $ FilePath.replaceExtension fn "hs"
+
+-- | build/chs/A/B.hs -> A/B.chs
+hsToChs :: FilePath -> FilePath -> FilePath
+hsToChs chsDir fn = dropDir chsDir $ FilePath.replaceExtension fn "chs"
 
 objToHi :: FilePath -> FilePath
 objToHi = (++".hi") . dropExtension
