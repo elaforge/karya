@@ -7,7 +7,7 @@
 module Util.Audio.Audio (
     -- * types
     AudioM(..), AudioIO, AudioId
-    , Sample, Frames(..), frames, Count, Channels
+    , Sample, Frames(..), secondsToFrames, Count, Channels
     , chunkSize, framesCount, countFrames
     -- * construct
     , fromSamples, toSamples
@@ -18,6 +18,8 @@ module Util.Audio.Audio (
     -- * mergeChannels
     , mergeChannels
     , interleave, deinterleave
+    -- * generate
+    , sine
     -- * util
     , loop1
 #ifdef TESTING
@@ -53,12 +55,18 @@ type Sample = Float
 newtype Frames = Frames Int
     deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Pretty)
 
-frames :: Int -> Double -> Frames
-frames rate seconds = Frames $ round $ fromIntegral rate * seconds
-
 -- | Sample count.  This is Frames * channels.
 type Count = Int
 type Channels = Int
+type Rate = Int
+
+type Seconds = Double
+
+secondsToFrames :: Rate -> Seconds -> Frames
+secondsToFrames rate seconds = Frames $ round $ fromIntegral rate * seconds
+
+framesToSeconds :: Rate -> Frames -> Seconds
+framesToSeconds rate (Frames frames) = fromIntegral frames / fromIntegral rate
 
 chunkSize :: Frames
 chunkSize = 5000
@@ -215,6 +223,23 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
     chan1 = Proxy :: Proxy chan1
     chan2 = Proxy :: Proxy chan2
 
+-- * generate
+
+-- | Generate a test tone.
+sine :: forall m rate. (Monad m, KnownNat rate) => Frames -> Float
+    -> AudioM m rate 1
+sine frames frequency = Audio (gen 0)
+    where
+    gen start
+        | start >= frames = return ()
+        | otherwise = S.yield chunk >> gen end
+        where
+        chunk = V.generate (fromIntegral (end - start))
+            (val . (+start) . Frames)
+        end = frames
+        -- end = min frames (start + chunkSize)
+    rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
+    val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)
 
 -- * util
 
