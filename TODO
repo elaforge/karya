@@ -1516,15 +1516,33 @@ synth: im:
       . I think I need to use the callback version, since otherwise it's hard
         to predict how many input frames are needed to get exactly to the
         ratio curve breakpoint.
-      * Bind callback API.
-      - Contribute bindings back to conduit-audio.
-        . See if I can get him to split the package while I'm at it.
-      - make callback with Binding.callbackNew
-        . free with Foreign.freeHaskellFunPtr
-        . It has to keep the stream in a local IORef, pull a new buffer, and
-          hand it to C.
-        . It's probably safest to just copy the buffer.
-      - Loop on pulling from Binding.callbackRead
+      use callback API
+        * Bind callback API.
+        / Contribute bindings back to conduit-audio.
+          . See if I can get him to split the package while I'm at it.
+        / make callback with Binding.callbackNew
+          . free with Foreign.freeHaskellFunPtr
+          . It has to keep the stream in a local IORef, pull a new buffer, and
+            hand it to C.
+          . It's probably safest to just copy the buffer.
+          . It's not so easy, because the stream is in ResourceT, but I need
+            an IO callback.
+          . Ultimately because it's not contained in the caller, so ResourceT
+            can't work.
+          . What about resourceForkIO?  I don't actually want a thread, but
+            I could use a channel to stream chunks?
+          . Is there something in streaming library?
+          . You know, why not implement as just IO a?  Actually, Stream IO is
+            basically just that.  That means give up on ResourceT.  I actually
+            think it's ok because I can just quit on an exception.
+          . I could also build on channels, then parallelism is just fork
+            whatever I want in parallel.
+          . I guess channels are push though, not pull, unless I basically just
+            made them all MVars.
+        / Loop on pulling from Binding.callbackRead
+      - Or I could go back to just predict the breakpoint time, it doesn't
+        seem so bad now.  It's the integral of the slope up until the
+        breakpoint, right?
     - breakpoint-using version of gain, so I can do envelopes.
     - if I separate out the libsamplerate binding from
       conduit-audio-samplerate, then I don't need to depend on all of conduit.

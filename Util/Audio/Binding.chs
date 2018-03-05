@@ -11,7 +11,7 @@ for the input ('DataIn') and output ('DataOut') parts.
 {-# LANGUAGE CPP #-}
 module Util.Audio.Binding
 ( new, delete, process, reset, setRatio
-, callbackNew, makeCallback, callbackRead
+, Callback, callbackNew, makeCallback, callbackRead
 , State, DataIn(..), DataOut(..), ConverterType(..), SRCError(..)
 ) where
 

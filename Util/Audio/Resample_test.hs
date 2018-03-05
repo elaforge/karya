@@ -14,6 +14,8 @@ import qualified Util.Audio.Resample as Resample
 import qualified Perform.Signal as Signal
 
 
+test_me = do
+    print 1
 
 t1 = resampleBy "out.wav" [(0, 2), (0.5, 1)]
 

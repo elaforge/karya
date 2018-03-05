@@ -8,23 +8,23 @@ module Util.Audio.Resample (
     , ConverterType(..)
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Unsafe.Coerce as Coerce
--- import qualified Data.Conduit.Audio.SampleRate.Binding as Binding
--- import Data.Conduit.Audio.SampleRate.Binding (ConverterType(..))
+import qualified Data.IORef as IORef
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 
 import qualified Foreign
+import qualified Foreign.C
 import qualified GHC.TypeLits as TypeLits
 import GHC.TypeLits (KnownNat)
 import qualified Streaming.Prelude as S
+import qualified Unsafe.Coerce as Coerce
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Binding as Binding
 import Util.Audio.Binding (ConverterType(..))
+import qualified Util.Debug as Debug
 import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
-import qualified Util.Debug as Debug
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -86,7 +86,37 @@ resample ctype ratio audio = Audio.Audio $ do
 resampleBy :: forall rate chan. (KnownNat rate, KnownNat chan)
     => ConverterType -> Signal.Control
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
-resampleBy ctype ratio audio = undefined
+resampleBy ctype ratio audio = Audio.Audio $ do
+    let breakpoints = map (Audio.secondsToFrames rate) $
+            Seq.drop_dups id $ map (RealTime.to_seconds . Segment.sx) $
+            Signal.to_samples ratio
+    (callbackKey, callback) <- lift $ Resource.allocate
+        (getBuffer audio) Foreign.freeHaskellFunPtr
+    (stateKey, state) <- lift $ Resource.allocate
+        (Binding.callbackNew callback ctype chan) Binding.delete
+    -- let release = Resource.release callbackKey >> Resource.release stateKey
+    let stream = Audio._stream (Audio.synchronizeBy breakpoints audio)
+    undefined
+    where
+    chan = fromIntegral $ TypeLits.natVal (Proxy :: Proxy chan)
+    rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
+
+getBuffer :: Audio.AudioM m rate chan -> IO (Foreign.FunPtr Binding.Callback)
+getBuffer (Audio.Audio audio) = do
+    ref <- IORef.newIORef audio
+    Binding.makeCallback $ do
+        audio <- IORef.readIORef ref
+        -- out <- S.next audio
+        let bufferp = undefined
+        let frames = 0
+        return (bufferp, frames)
+
+getter :: S.Stream (S.Of a) (Resource.ResourceT IO) () -> IO (Maybe a)
+getter stream = do
+    out <- S.next stream
+    return undefined
+
+-- next :: Monad m => Stream (Of a) m r -> m (Either r (a, Stream (Of a) m r))
 
 -- | Resample the audio.  This doesn't actually change the sampling rate, since
 -- I just use this to change the pitch.
