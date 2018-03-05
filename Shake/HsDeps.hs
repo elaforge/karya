@@ -4,7 +4,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 module Shake.HsDeps (
-    Generated
+    Generated(..)
     , importsOf, transitiveImportsOf
     , importsPackagagesOf_
     , loadPackageDb, savePackageDb
@@ -23,6 +23,7 @@ import qualified Data.Set as Set
 import qualified Development.Shake as Shake
 import qualified System.Directory as Directory
 import qualified System.Exit as Exit
+import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 import qualified System.Process as Process
 
@@ -37,7 +38,12 @@ type ModuleName = B.ByteString
 -- exist, under the assumption that they belong to external packages.  This
 -- set contains exceptions to that, so they will get a need call, so they can
 -- be generated.
-type Generated = Set.Set FilePath
+data Generated = Generated {
+    _generatedHs :: Set.Set FilePath
+    -- | Try files with these extensions, in addition to .hs.
+    -- E.g. [".hsc", ".chs"].
+    , _generatedExtensions :: [FilePath]
+    } deriving (Eq, Show)
 
 -- | Find files of modules this module imports, in the form A/B.hs or A/B.hsc.
 -- Paths that don't exist are assumed to be package imports and are omitted.
@@ -128,8 +134,9 @@ transitiveImportsOf generated cppFlagsOf fn = do
 
 fileOf :: Generated -> ModuleName -> IO (Maybe FilePath)
 fileOf generated mod
-    | fn `Set.member` generated = return $ Just fn
-    | otherwise = findExistingFile [fn, fn ++ "c"]
+    | fn `Set.member` _generatedHs generated = return $ Just fn
+    | otherwise = findExistingFile $
+        fn : map (FilePath.replaceExtension fn) (_generatedExtensions generated)
     where
     fn = B.unpack $ B.map slash mod `B.append` ".hs"
     slash c = if c == '.' then '/' else c

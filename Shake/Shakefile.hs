@@ -5,6 +5,8 @@
 {-# LANGUAGE FlexibleContexts, ViewPatterns #-}
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, OverloadedStrings #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
+{-# LANGUAGE MultiWayIf #-}
 -- | Shakefile for seq and associated binaries.
 module Shake.Shakefile where
 import qualified Control.DeepSeq as DeepSeq
@@ -355,7 +357,10 @@ cppInImports =
 
 -- | Generated src files.
 generatedSrc :: HsDeps.Generated
-generatedSrc = Set.fromList [generatedKorvais, generatedFaustAll]
+generatedSrc = HsDeps.Generated
+    { _generatedHs = Set.fromList [generatedKorvais, generatedFaustAll]
+    , _generatedExtensions = [".hsc", ".chs"]
+    }
 
 -- | Module that define 'main' and should get linked to their own binaries,
 -- and the names of their eventual binaries.
@@ -610,7 +615,6 @@ configure midi = do
             Nothing -> []
             Just path -> ["-no-user-package-db", "-package-db", path]
         }
-        where
     setCcFlags flags = flags
         { globalCcFlags = define flags ++ cInclude flags
             -- Always compile c++ with optimization because I don't have much
@@ -1331,7 +1335,7 @@ makeDataLinks = do
 ghcFlags :: Config -> [Flag]
 ghcFlags config = concat $
     [ "-outputdir", oDir config, "-osuf", ".hs.o"
-    , "-i" ++ oDir config ++ ":" ++ hscDir config
+    , "-i" ++ List.intercalate ":" [oDir config, hscDir config, chsDir config]
     ] :
     [ ghcLanguageFlags
     , define (configFlags config)
@@ -1456,24 +1460,26 @@ c2hs config hs chs =
 
 -- * util
 
--- | A/B.hs -> build/debug/obj/A/B.hs.o
+-- |
+-- A/B.{hs,hsc,chs} -> build/debug/obj/A/B.hs.o
 -- A/B.cc -> build/debug/obj/A/B.cc.o
--- A/B.hsc -> build/debug/obj/A/B.hs.o
 -- build/A/B.hs -> build/A/B.hs.o
--- build/hsc/Ui/Key.hs -> build/debug/obj/Ui/Key.hs.o
+-- build/{hsc,chs}/Ui/Key.hs -> build/debug/obj/Ui/Key.hs.o
 --
 -- Generated .hs files are already in build/ so they shouldn't have build/etc.
--- prepended.  Unless they were .hsc generated files.
+-- prepended.  Unless they were .hsc or .chs generated files.
 srcToObj :: Config -> FilePath -> FilePath
-srcToObj config fn = addDir $ case FilePath.takeExtension fn of
-    ".hs" -> FilePath.addExtension fn "o"
-    ".hsc" -> FilePath.replaceExtension fn "hs.o"
-    ".cc" -> FilePath.addExtension fn "o"
-    _ -> error $ "unknown haskell extension: " ++ show fn
+srcToObj config fn = addDir $ if
+    | ext `elem` [".hsc", ".chs"] -> FilePath.replaceExtension fn "hs.o"
+    | ext `elem` [".hs", ".cc"] -> FilePath.addExtension fn "o"
+    | otherwise -> error $ "unknown src extension: " ++ show fn
     where
+    ext = FilePath.takeExtension fn
     addDir
         | hscDir config `List.isPrefixOf` fn =
             (oDir config </>) . dropDir (hscDir config)
+        | chsDir config `List.isPrefixOf` fn =
+            (oDir config </>) . dropDir (chsDir config)
         | build `List.isPrefixOf` fn = id
         | otherwise = (oDir config </>)
 
@@ -1541,8 +1547,8 @@ includesOf :: String -> Config -> [Flag] -> FilePath -> Shake.Action [FilePath]
 includesOf caller config moreIncludes fn = do
     let dirs =
             [dir | '-':'I':dir <- cInclude (configFlags config) ++ moreIncludes]
-    (includes, notFound) <-
-        hsconfig <$> CcDeps.transitiveIncludesOf generatedSrc dirs fn
+    (includes, notFound) <- hsconfig <$>
+        CcDeps.transitiveIncludesOf (HsDeps._generatedHs generatedSrc) dirs fn
     unless (null notFound) $
         liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show notFound
