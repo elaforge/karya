@@ -14,7 +14,7 @@ module Cmd.Ruler.Tala (
     ruler
     -- * standard talams
     , simple, simple_meter
-    , adi, adi3
+    , adi, adi3, adi6
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
     , ata_tala, eka_tala
     , misra_chapu, khanda_chapu, rupaka_fast
@@ -65,6 +65,9 @@ adi = simple adi_tala 4
 -- | 'adi' but in tisram.
 adi3 :: Avartanams -> Ruler.Ruler
 adi3 = simple adi_tala 3
+
+adi6 :: Avartanams -> Ruler.Ruler
+adi6 = simple adi_tala 6
 
 -- * define talams
 

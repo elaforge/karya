@@ -31,8 +31,6 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
     ]
     where
     theme = takita.ta.takadinna
-    group3 (a:b:cs) = [a] . [b] . __ . group3 cs
-    group3 xs = xs
     mridangam = makeMridangam
         [ (takita.ta, [k, k, t, k])
         , (1^takita.ta, [p&k, p&k, t, k])
@@ -42,6 +40,60 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
         -- , (kitataka, [k, t, p, k])
         , (tarikita, [o, k, n, p])
         , (kitataka, [k, t, k, t])
+        ]
+
+c_18_02_26 :: Korvai
+c_18_02_26 = ganesh $ exercise $ date 2018 2 26 $ korvai adi mridangam $
+    map (nadai 6)
+    [ rest 2 . tri (group3 p8)
+        . rest 2 . mconcat fwd . rest 2 . mconcat bwd
+    , join (din.__6) (replicate 3 (group3 p8))
+        . join (din.__6) fwd . join (din.__6) bwd
+    -- TODO technique: kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
+    ]
+    where
+    p8 = kita.ki.na.takadinna
+    fwd = [p8, group3 p8, group4 p8]
+    bwd = [group4 p8, group3 p8, p8]
+    rest n = restM (n*6)
+    mridangam = makeMridangam
+        [ (p8, [k, t, k, n, k, o, o, k])
+        , (din, [od])
+        ]
+
+yt_mannargudi2 :: Korvai
+yt_mannargudi2 = source "Mannargudi Easwaran" $
+        recording "https://www.youtube.com/watch?v=E7PLgnsFBaI"
+            (Just ((0, 9, 30), (0, 10, 30))) $
+        korvai adi mridangam $ map (nadai 6 • su)
+    [ sarva 6 . taka.naka.p8 . sarva 2 . __.__.tat.__.p8
+        . sarva 1 .__.__. tktu . group3 p8
+    , sarva 2 . tang.__.tang.__ . p8 . nadai 4 p8 . din.__3 . p9 . din.__.na.__
+        . tri_ (din.__.na.__) p8 . group3 p8
+    , din.__4 . join (din.__4)
+        (replicate 2 (p8 . group3 p8) ++ replicate 2 (p8 . nadai 4 p8))
+        -- This is actually a gradual transition from group3 to nadai 4.
+
+    -- eddupu changes to din.__.ga
+    ,     nadai 4 p8 . din.__ . tat_din_
+        . nadai 4 p8 . din.__ . repeat 2 tat_din_
+        . nadai 4 p8 . din.__ . repeat 3 tat_din_
+    ]
+    where
+    p8 = kita.ki.na.takadinna
+    p9 = kita.ki.na.ta.takadinna
+    tat_din_ = tat.__.din.__.p5
+
+    sarva n = sarvaM (n*6)
+    mridangam = makeMridangam
+        [ (p8, [k, t, k, n, k, o, o, k])
+        , (p9, [k, t, k, n, p, k, o, o, k])
+        , (taka.naka, [n, k, n, p])
+        , (din, [od])
+        , (tat, [k])
+        , (tang, [u])
+        , (din.na, [od, n])
+        , (ga, [p])
         ]
 
 yt_pmi1 :: Korvai
@@ -136,3 +188,13 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         , (kitatakatam, [o, k, n, p, u])
         , (tam, [od])
         ]
+
+-- TODO these are awkward because they don't work in a group,
+-- see TODO '- I need a way to transform inside a group'
+group3 :: Sequence -> Sequence
+group3 (a:b:cs) = [a] . [b] . __ . group3 cs
+group3 xs = xs
+
+group4 :: Sequence -> Sequence
+group4 (a:b:cs) = [a] . [b] . __ . __ . group4 cs
+group4 xs = xs

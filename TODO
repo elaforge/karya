@@ -2854,6 +2854,7 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     ascii:
+      - formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
       - Colors stop right before the last note, not on it.
         . It's probably because I need to highlight the end of the group.  Can
           I use lighter gray?
@@ -3393,6 +3394,8 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - loop in save/bali/teruna-jaya leads to long notes
+      - >kantilan | unison prevents nyog from working
       - kajar: automatic hand muting as with reyong.
       + add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
