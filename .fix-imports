@@ -1,4 +1,4 @@
-include: build/hsc
+include: build/hsc build/chs
 import-order-first: Util Midi Ui Cmd Derive Perform Instrument Local LogView
     Synth App
 import-order-last: Global Types
