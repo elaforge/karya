@@ -42,8 +42,8 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
         , (kitataka, [k, t, k, t])
         ]
 
-c_18_02_26 :: Korvai
-c_18_02_26 = ganesh $ exercise $ date 2018 2 26 $ korvai adi mridangam $
+e_18_02_26 :: Korvai
+e_18_02_26 = ganesh $ exercise $ date 2018 2 26 $ korvai adi mridangam $
     map (nadai 6)
     [ rest 2 . tri (group3 p8)
         . rest 2 . mconcat fwd . rest 2 . mconcat bwd

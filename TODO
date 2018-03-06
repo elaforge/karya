@@ -1502,50 +1502,14 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient streaming audio:
-    - sampler-im: support sample start offset
     - Audio.interleave shouldn't index in lists
       . If necessary add a 2 arg version, but I should be able to just stick
         them in a vector.  Then we are doing vector rotation.
     * get rid of Silence, it's a hassle in resample and only mix uses it.
-    - extend Resample.resample to take breakpoints
-      . This means convert breakpoints to frames, then keep track of the
-        current frame.
-      . Break up input chunks where ratio breakpoints occur.
-      . Calculate start and end ratio for each chunk, and Binding.setRatio
-        to the destination.
-      . I think I need to use the callback version, since otherwise it's hard
-        to predict how many input frames are needed to get exactly to the
-        ratio curve breakpoint.
-      use callback API
-        * Bind callback API.
-        / Contribute bindings back to conduit-audio.
-          . See if I can get him to split the package while I'm at it.
-        / make callback with Binding.callbackNew
-          . free with Foreign.freeHaskellFunPtr
-          . It has to keep the stream in a local IORef, pull a new buffer, and
-            hand it to C.
-          . It's probably safest to just copy the buffer.
-          . It's not so easy, because the stream is in ResourceT, but I need
-            an IO callback.
-          . Ultimately because it's not contained in the caller, so ResourceT
-            can't work.
-          . What about resourceForkIO?  I don't actually want a thread, but
-            I could use a channel to stream chunks?
-          . Is there something in streaming library?
-          . You know, why not implement as just IO a?  Actually, Stream IO is
-            basically just that.  That means give up on ResourceT.  I actually
-            think it's ok because I can just quit on an exception.
-          . I could also build on channels, then parallelism is just fork
-            whatever I want in parallel.
-          . I guess channels are push though, not pull, unless I basically just
-            made them all MVars.
-        / Loop on pulling from Binding.callbackRead
-      - Or I could go back to just predict the breakpoint time, it doesn't
-        seem so bad now.  It's the integral of the slope up until the
-        breakpoint, right?
-    - breakpoint-using version of gain, so I can do envelopes.
-    - if I separate out the libsamplerate binding from
+    / if I separate out the libsamplerate binding from
       conduit-audio-samplerate, then I don't need to depend on all of conduit.
+      . On the other hand, conduit is not that big, so maybe not worth
+        bothering about.
     * convert Synth.Sampler
     / convert Ness
       . Actually maybe I shouldn't bother.  It's doing stuff with int samples
@@ -1603,6 +1567,50 @@ synth: im:
       preset mechanism, and it sounds like a lot of hassle.
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
+  sampler:
+    - bind to rubberband library for pitch change without time change
+    - breakpoint-using version of gain, so I can do envelopes.
+    - support sample start offset
+    * extend Resample.resample to take breakpoints
+      . This means convert breakpoints to frames, then keep track of the
+        current frame.
+      . Break up input chunks where ratio breakpoints occur.
+      . Calculate start and end ratio for each chunk, and Binding.setRatio
+        to the destination.
+      . I think I need to use the callback version, since otherwise it's hard
+        to predict how many input frames are needed to get exactly to the
+        ratio curve breakpoint.
+      use callback API
+        * Bind callback API.
+        / Contribute bindings back to conduit-audio.
+          . See if I can get him to split the package while I'm at it.
+        / make callback with Binding.callbackNew
+          . free with Foreign.freeHaskellFunPtr
+          . It has to keep the stream in a local IORef, pull a new buffer, and
+            hand it to C.
+          . It's probably safest to just copy the buffer.
+          . It's not so easy, because the stream is in ResourceT, but I need
+            an IO callback.
+          . Ultimately because it's not contained in the caller, so ResourceT
+            can't work.
+          . What about resourceForkIO?  I don't actually want a thread, but
+            I could use a channel to stream chunks?
+          . Is there something in streaming library?
+          . You know, why not implement as just IO a?  Actually, Stream IO is
+            basically just that.  That means give up on ResourceT.  I actually
+            think it's ok because I can just quit on an exception.
+          . I could also build on channels, then parallelism is just fork
+            whatever I want in parallel.
+          . I guess channels are push though, not pull, unless I basically just
+            made them all MVars.
+        / Loop on pulling from Binding.callbackRead
+      - Or I could go back to just predict the breakpoint time, it doesn't
+        seem so bad now.  It's the integral of the slope up until the
+        breakpoint, right?
+        . Actually I don't need to get it right, just make sure I have enough
+          inputFrames, which I can overestimate by taking
+          outputFrames * max startRatio endRatio * 1.1.  I just have to glue
+          them until I get there.
   faust:
     * render incrementally
     - let faust instruments take streaming input too
@@ -1611,8 +1619,9 @@ synth: im:
         but the signal looks the same as faust output.
       . Actually the faust stuff should be ok for unsafePerformIO.
 
-    - Add defaults: default=x:Doc doc doc.
-      . Use this when no signal is present.
+    - follow up with Yann about extending inputs with metadata
+      - Add defaults: default=x:Doc doc doc.
+        . Use this when no signal is present.
     - Maybe constant controls could use UI controls, then I don't need to fill
       up the buffer.
       . But then I have to deal with two kinds of controls.
@@ -1642,16 +1651,7 @@ synth: im:
         make a Derive.Instrument function to make note calls.
     - Handle amp outside of faust, just by multiplying the signal.  That way
       all instruments support it uniformly.
-    + If I use GUI elements for controls then they update at "control rate",
-      which is probably enough actually.  It also means I can reuse the GUI
-      controls.
-      . But faust has to resample those to a-rate anyway, so if I use controls
-        I do that twice in a complicated way and add some latency, for no
-        other benefit.
-      . Wait and see if interactive GUI experimentation plus compatibility is
-        worth it.  Also MIDI is "GUI."  Probably yes.
-      . UI metadata like [key1: val][key2: val] winds up as calls to
-        ui->metadata("key1", "val")
+      . Do this once I have Audio.gain with breakpoints, as needed by sampler:
     - Figure out decay time instead of hardcoding it.
       . How to know when to drop notes?  I think I have to use a heuristic
         like >1s of audio under a threshold after note off.
@@ -1679,6 +1679,16 @@ synth: im:
         . vol -> a special control that always multiples output volume
         . amp -> gain
         . note-on + duration -> gate
+      . If I use GUI elements for controls then they update at "control rate",
+        which is probably enough actually.  It also means I can reuse the GUI
+        controls.
+        . But faust has to resample those to a-rate anyway, so if I use controls
+          I do that twice in a complicated way and add some latency, for no
+          other benefit.
+        . Wait and see if interactive GUI experimentation plus compatibility is
+          worth it.  Also MIDI is "GUI."  Probably yes.
+        . UI metadata like [key1: val][key2: val] winds up as calls to
+          ui->metadata("key1", "val")
     cleanup:
       - Put find_sample into a TimeVector.cc library.
     plan:

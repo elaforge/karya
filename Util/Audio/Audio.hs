@@ -259,8 +259,7 @@ sine frames frequency = Audio (gen 0)
         where
         chunk = V.generate (fromIntegral (end - start))
             (val . (+start) . Frames)
-        end = frames
-        -- end = min frames (start + chunkSize)
+        end = min frames (start + chunkSize)
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
     val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)
 

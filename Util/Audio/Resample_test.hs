@@ -14,25 +14,53 @@ import qualified Util.Audio.Resample as Resample
 import qualified Perform.Signal as Signal
 
 
-test_me = do
+test_compile_me = do
     print 1
 
-t1 = resampleBy "out.wav" [(0, 2), (0.5, 1)]
+{- It's hard to test these automatically, so I tested by ear.
+    Test for each of:
 
-resampleBy out curve = write out $ Audio.gain 0.5 $ Audio.mix
-    [ -- (0, Audio.sine (44100 * 2) 440)
-    (0, Resample.resampleBy Resample.SincBestQuality
-        (Signal.from_pairs curve) $ Audio.sine (44100 * 2) 440)
+    [ test
+    -- sine for pitch accuracy, file for continuity
+    | source <- [Sine 2, File "test.wav"]
+    , quality <- [Resample.ZeroOrderHold, Resample.SincFastest,
+        Resample.SincBestQuality]
     ]
-    -- Resample.SincBestQuality
+-}
+generate = resampleBy (File "test.wav") -- (Sine 2)
+    "out.wav" Resample.SincBestQuality
 
-resample out = write out $
-    Resample.resample Resample.SincBestQuality 2 $
-    File.read44k "g1.wav"
+-- Should be 220hz, *2 long.
+t_constant = generate [(0, 2)]
+
+-- Should reach 440hz at 0.5s, > *1 long.
+t_linear = generate [(0, 2), (0.5, 1)]
+
+-- Should go 880 to 440 to 880 at breakpoints.
+t_change_direction = generate [(0, 0.5), (0.5, 1), (1, 0.5)]
+
+-- Shoud go to 440 at 0.5 and jump to 220.
+t_discontinuity = generate [(0, 2), (0.5, 1), (0.5, 2), (1, 1)]
+
+data Source = Sine Double | File FilePath
+    deriving (Show)
+
+resampleBy :: Source -> FilePath -> Resample.ConverterType
+    -> [(Signal.X, Signal.Y)] -> IO ()
+resampleBy source out quality curve = write out $ Audio.gain 0.5 $ Audio.mix $
+    -- (0, Audio.sine (44100 * 2) 440) :
+    (0, Resample.resampleBy quality (Signal.from_pairs curve) $
+        case source of
+            Sine dur -> Audio.sine (round $ 44100 * dur) 440
+            -- Sine dur -> Audio.mergeChannels
+            --     (Audio.sine (round $ 44100 * dur) 440)
+            --     (Audio.sine (round $ 44100 * dur) 440)
+            File fname -> File.read fname)
+    : []
 
 resampleRate out = writeRate out $
     Resample.resampleRate Resample.SincBestQuality $
-    File.read44k "g1.wav"
+    File.read44k "test.wav"
     where
     writeRate :: FilePath -> Audio.AudioIO 22100 2 -> IO ()
     writeRate fname = Resource.runResourceT . File.write File.wavFormat fname

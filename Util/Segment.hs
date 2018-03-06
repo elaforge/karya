@@ -42,7 +42,7 @@ module Util.Segment (
     , Boxed
     -- * NumSignal
     , NumSignal
-    , num_interpolate
+    , num_interpolate, num_interpolate_s
     , invert
     , integrate
     -- * resample
@@ -506,6 +506,9 @@ type Y = TimeVector.UnboxedY
 
 num_interpolate :: Interpolate Y
 num_interpolate (Sample x1 y1) (Sample x2 y2) = TimeVector.y_at x1 y1 x2 y2
+
+num_interpolate_s :: Segment Y -> X -> Y
+num_interpolate_s (Segment x1 y1 x2 y2) = TimeVector.y_at x1 y1 x2 y2
 
 invert :: NumSignal -> NumSignal
 invert sig = sig { _vector = V.map swap (_vector sig) }

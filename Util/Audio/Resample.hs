@@ -8,24 +8,18 @@ module Util.Audio.Resample (
     , ConverterType(..)
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Data.IORef as IORef
+import qualified Data.Conduit.Audio.SampleRate.Binding as Binding
+import Data.Conduit.Audio.SampleRate.Binding (ConverterType(..))
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 
 import qualified Foreign
-import qualified Foreign.C
 import qualified GHC.TypeLits as TypeLits
 import GHC.TypeLits (KnownNat)
 import qualified Streaming.Prelude as S
-import qualified Unsafe.Coerce as Coerce
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.Audio.Binding as Binding
-import Util.Audio.Binding (ConverterType(..))
-import qualified Util.Debug as Debug
 import qualified Util.Segment as Segment
-import qualified Util.Seq as Seq
-
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Global
@@ -35,205 +29,109 @@ import Global
 
 -- | Resample the audio.  This doesn't actually change the sampling rate, since
 -- I just use this to change the pitch.
-resample :: forall rate chan. (KnownNat chan)
+resample :: forall rate chan. (KnownNat chan, KnownNat rate)
     => ConverterType -> Double
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
-resample ctype ratio audio = Audio.Audio $ do
-    (key, state) <- lift $
-        Resource.allocate (Binding.new ctype channels) Binding.delete
-    Audio.loop1 (Audio._stream audio) $ \loop audio ->
-        lift (S.next audio) >>= \case
-            Left () -> lift (Resource.release key) >> return ()
-            Right (chunk, audio) -> handle loop state chunk audio
-    where
-    handle loop state chunk audio = do
-        (next, audio) <- either (const (Nothing, audio)) (first Just) <$>
-            lift (S.next audio)
-        let inputFrames = V.length chunk `div` channels
-            outputFrames = round $ fromIntegral inputFrames * ratio * 1.1
-        (used, generated, outFP) <- liftIO $ V.unsafeWith chunk $ \chunkp -> do
-            outp <- Foreign.mallocArray $ outputFrames * channels
-            result <- Binding.process state $ Binding.DataIn
-                { data_in = Foreign.castPtr chunkp
-                , data_out = Foreign.castPtr outp
-                , input_frames = fromIntegral inputFrames
-                , output_frames = fromIntegral outputFrames
-                , src_ratio = ratio
-                , end_of_input = Maybe.isNothing next
-                }
-            outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
-            return
-                ( fromIntegral $ Binding.input_frames_used result
-                , Binding.output_frames_gen result
-                , outFP
-                )
-        let out = V.unsafeFromForeignPtr0 outFP $
-                fromIntegral generated * channels
-        S.yield out
-        let withNext = maybe audio (`S.cons` audio) next
-            left = V.drop (used * channels) chunk
-        if  | used >= inputFrames -> loop withNext
-            -- Only consumed part of the input.
-            | generated > 0 -> loop $ S.cons left withNext
-            -- It wants more input, so combine with the next chunk.
-            | otherwise -> case next of
-                Nothing -> return ()
-                Just next -> loop $ S.cons (left V.++ next) audio
-    channels :: Int
-    channels = fromIntegral $ TypeLits.natVal (Proxy :: Proxy chan)
+resample ctype ratio = resampleBy ctype (Signal.constant ratio)
 
--- TODO
+-- | Resample the audio by the given curve.  This doesn't actually change the
+-- sampling rate, since I just use this to change the pitch.
 resampleBy :: forall rate chan. (KnownNat rate, KnownNat chan)
     => ConverterType -> Signal.Control
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
 resampleBy ctype ratio audio = Audio.Audio $ do
-    let breakpoints = map (Audio.secondsToFrames rate) $
-            Seq.drop_dups id $ map (RealTime.to_seconds . Segment.sx) $
-            Signal.to_samples ratio
-    (callbackKey, callback) <- lift $ Resource.allocate
-        (getBuffer audio) Foreign.freeHaskellFunPtr
-    (stateKey, state) <- lift $ Resource.allocate
-        (Binding.callbackNew callback ctype chan) Binding.delete
-    -- let release = Resource.release callbackKey >> Resource.release stateKey
-    let stream = Audio._stream (Audio.synchronizeBy breakpoints audio)
-    undefined
-    where
-    chan = fromIntegral $ TypeLits.natVal (Proxy :: Proxy chan)
-    rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
-
-getBuffer :: Audio.AudioM m rate chan -> IO (Foreign.FunPtr Binding.Callback)
-getBuffer (Audio.Audio audio) = do
-    ref <- IORef.newIORef audio
-    Binding.makeCallback $ do
-        audio <- IORef.readIORef ref
-        -- out <- S.next audio
-        let bufferp = undefined
-        let frames = 0
-        return (bufferp, frames)
-
-getter :: S.Stream (S.Of a) (Resource.ResourceT IO) () -> IO (Maybe a)
-getter stream = do
-    out <- S.next stream
-    return undefined
-
--- next :: Monad m => Stream (Of a) m r -> m (Either r (a, Stream (Of a) m r))
-
--- | Resample the audio.  This doesn't actually change the sampling rate, since
--- I just use this to change the pitch.
---
--- TODO the timing is off, because I set outputFrames = inputFrames.
-resampleBy_old :: forall rate chan. (KnownNat rate, KnownNat chan)
-    => ConverterType -> Signal.Control
-    -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
-resampleBy_old ctype ratio audio = Audio.Audio $ do
-    let breakpoints = map (Audio.secondsToFrames rate) $
-            Seq.drop_dups id $ map (RealTime.to_seconds . Segment.sx) $
-            Signal.to_samples ratio
     (key, state) <- lift $ Resource.allocate
         (Binding.new ctype (fromIntegral (TypeLits.natVal chan)))
         Binding.delete
-    let stream = Audio._stream (Audio.synchronizeBy breakpoints audio)
-
-    Debug.tracepM "start ratio" (Signal.at 0 ratio)
     liftIO $ Binding.setRatio state (Signal.at 0 ratio)
-    liftIO $ Debug.traceM "1st ratio" =<< Foreign.peek (Coerce.unsafeCoerce state :: Foreign.Ptr Double)
-    Audio.loop1 (0, stream) $
-        \loop (frame, audio) -> lift (S.next audio) >>= \case
-            Left () -> lift (Resource.release key) >> return ()
-            Right (chunk, audio) -> handle loop state chunk frame audio
+    Audio.loop1 (0, Audio._stream audio) $
+        \loop (start, audio) -> do
+            handle loop state start audio
+            lift (Resource.release key)
     where
-    handle loop state chunk start audio = do
-        (next, audio) <- either (const (Nothing, audio)) (first Just) <$>
-            lift (S.next audio)
-        let inputFrames = Audio.chunkFrames chan chunk
-        --     outputFrames = fromIntegral inputFrames * 
-        let endRatio = ratioAt (start + inputFrames)
-        let outputFrames = inputFrames
-        -- let outputFrames = round $
-        --         fromIntegral inputFrames * max (ratioAt start) endRatio * 1.1
-        (used, generated, outFP) <- liftIO $ V.unsafeWith chunk $ \chunkp -> do
+    -- start is Frame position in the output stream.  Position in the input
+    -- only determines how much I feed to libsamplerate, which for sinc
+    -- interpolation will keep a large chunk internally.
+    next audio = either (const (Nothing, audio)) (first Just) <$>
+        lift (S.next audio)
+
+    segmentAt frame = case Signal.segment_at x0 ratio of
+        Just segment -> segment
+        Nothing
+            | Just (x, y) <- Signal.last ratio, x0 >= x ->
+                Segment.Segment 0 y RealTime.large y
+            | otherwise -> Segment.Segment 0 1 RealTime.large 1
+        where x0 = toSeconds frame
+
+    handle loop state start audio = do
+        (chunk, audio) <- next audio
+        (nextChunk, audio) <- next audio
+        let segment = segmentAt start
+        let inputFrames = maybe 0 (Audio.chunkFrames chan) chunk
+        -- Never go past the next breapoint.  Otherwise, try to guess a value
+        -- that will consume all inputFrames, or fallback to chunkSize if I'm
+        -- out of input
+        let outputFrames = min (toFrames (Segment._x2 segment) - start) $
+                max Audio.chunkSize consumeAll
+            consumeAll =
+                Audio.Frames $ ceiling $ fromIntegral inputFrames * maxRatio
+            maxRatio = max (Segment._y1 segment) (Segment._y2 segment)
+        let destRatio = Segment.num_interpolate_s segment $
+                toSeconds $ start + outputFrames
+        -- Debug.tracepM "-- from " (start, toSeconds start, segment)
+        -- This is important not just in case there was a discontinuity, but
+        -- because libresample never actually reaches the destination ratio,
+        -- but delta * ((outputFrames-1) / outputFrames) short of it.
+        -- This should be true on each breakpoint due to the
+        -- min (Segment._x2 - start) above.
+        when (start == toFrames (Segment._x1 segment)) $
+            liftIO $ Binding.setRatio state $ Segment._y1 segment
+
+        -- lastRatio <- liftIO $
+        --     Foreign.peek (Coerce.unsafeCoerce state :: Foreign.Ptr Double)
+        -- Debug.traceM "before ratios" (lastRatio, destRatio)
+
+        let with = V.unsafeWith (fromMaybe V.empty chunk)
+        (used, generated, outFP) <- liftIO $ with $ \chunkp -> do
             outp <- Foreign.mallocArray $ Audio.framesCount chan outputFrames
             result <- Binding.process state $ Binding.DataIn
-                { data_in = Foreign.castPtr chunkp
+                { data_in = Foreign.castPtr chunkp -- Ptr Float -> Ptr CFloat
                 , data_out = Foreign.castPtr outp
                 , input_frames = fromIntegral inputFrames
                 , output_frames = fromIntegral outputFrames
-                , src_ratio = endRatio
-                , end_of_input = Maybe.isNothing next
+                , src_ratio = destRatio
+                , end_of_input = Maybe.isNothing nextChunk
                 }
-            Debug.tracepM "ratio" (start, start + inputFrames, next==Nothing, endRatio)
-            Debug.traceM "last ratio" =<< Foreign.peek (Coerce.unsafeCoerce state :: Foreign.Ptr Double)
-            -- when (startRatio /= endRatio) $
-            Binding.setRatio state endRatio
             outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
             return
                 ( Audio.Frames $ fromIntegral $ Binding.input_frames_used result
                 , Audio.Frames $ fromIntegral $ Binding.output_frames_gen result
                 , outFP
                 )
-        Debug.tracepM "input, used, generated, outFrames" (inputFrames, used, generated, outputFrames)
-        let out = V.unsafeFromForeignPtr0 outFP $
+        -- lastRatio <- liftIO $
+        --     Foreign.peek (Coerce.unsafeCoerce state :: Foreign.Ptr Double)
+        -- Debug.traceM "after ratios" (lastRatio, destRatio)
+        -- Debug.tracepM "inputFrames / used, outputFrames / generated" $
+        --     let secp = pretty . toSeconds in
+        --     secp inputFrames <> " / " <> secp used
+        --     <> ", " <> secp outputFrames <> " / " <> secp generated
+        when (generated > 0) $
+            S.yield $ V.unsafeFromForeignPtr0 outFP $
                 Audio.framesCount chan generated
-        Debug.tracepM "len" (V.length out)
-        S.yield out
-        -- return ()
-        let again s = loop (start + used, s)
-        let withNext = maybe audio (`S.cons` audio) next
-            left = V.drop (Audio.framesCount chan used) chunk
-        if  | used >= inputFrames -> again withNext
-            -- Only consumed part of the input.
-            | generated > 0 -> again $ S.cons left withNext
-            -- It wants more input, so combine with the next chunk.
-            | otherwise -> case next of
-                Nothing -> return ()
-                Just next -> again $ S.cons (left V.++ next) audio
+        -- Stick unconsumed input back on the stream.
+        let withNext = (if V.null left then id else S.cons left) $
+                maybe audio (`S.cons` audio) nextChunk
+            left = maybe V.empty (V.drop (Audio.framesCount chan used)) chunk
+        -- Debug.tracepM "again?" (Maybe.isNothing chunk, generated)
+        if Maybe.isNothing chunk && generated == 0
+            then return ()
+            else loop (start + generated, withNext)
 
-    ratioAt frame = Signal.at
-        (RealTime.seconds (Audio.framesToSeconds rate frame))
-        ratio
+    toSeconds = RealTime.seconds . Audio.framesToSeconds rate
+    toFrames = Audio.secondsToFrames rate . RealTime.to_seconds
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
-
-{-
-    I think the intended mode is that you have a destination ratio, and
-    a small constant out frames, and you juust make blocks until it
-    reaches the destination.
-    Ratios should be indexed by *output* time.  So set output frames
-    to the next ratios breakpoint, then loop process until I reach it.
-    The problem is that I want to stop exactly at the breakpoint.
-    So if I'm coming up on a breakpoint, I need to intentionally supply
-    fewer input frames, but how many?  I'd need to project where in the
-    input the breakpoint will fall, based on the integral of the ratio change
-    slope.
-
-    For callback API:
-
-    typedef long (*src_callback_t) (void *cb_data, float **data) ;
-    getSamples(_cb_data, data) = *data = S.pull
-    state = src_callback_new(getSamples, ctype, chan, error, nullPtr)
-
-    for (x, y) in breakpoints:
-        gen = src_callback_read(state, y, secondToFrames(x), &data)
-        if gen == 0 then return ()
-            else S.yield (gen, data)
-
-    But this is inconvenient in haskell, especially because I need a mutable
-    S.pull for the callback.
--}
-
--- dropUntil :: Ord a => a -> [(a, y)] -> [(a, y)]
--- dropUntil x = go
---     where
---     go [] = []
---     go xys@(_ : xy2s@((x2, _) : _))
---         | x2 <= x = go xy2s
---         | otherwise = xys
---     go xys = xys
---
--- toPairs :: Int -> Signal.Control -> [(Audio.Frames, Double)]
--- toPairs rate = map (first (Audio.secondsToFrames rate . RealTime.to_seconds))
---     . Signal.to_pairs
 
 resampleRate :: forall rateIn rateOut chan.
     (KnownNat rateIn, KnownNat rateOut, KnownNat chan)
