@@ -60,6 +60,5 @@ applyEnvelope :: RealTime -> Signal.Signal -> Audio -> Audio
 applyEnvelope start sig
     | Just val <- Signal.constant_val_from start sig =
         if ApproxEq.eq 0.01 val 1 then id else Audio.gain (Num.d2f val)
-    | otherwise = Audio.multiply $ Audio.mergeChannels
-        (Audio.linear $ map (first RealTime.to_seconds) $ Signal.to_pairs sig)
-        (Audio.linear $ map (first RealTime.to_seconds) $ Signal.to_pairs sig)
+    | otherwise = Audio.multiply $ Audio.expandChannels $
+        Audio.linear $ map (first RealTime.to_seconds) $ Signal.to_pairs sig

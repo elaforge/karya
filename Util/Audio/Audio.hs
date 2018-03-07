@@ -18,6 +18,7 @@ module Util.Audio.Audio (
     , mix
     -- * channels
     , mergeChannels
+    , expandChannels, mixChannels
     , interleave, deinterleave
     -- * generate
     , sine
@@ -219,12 +220,29 @@ mergeChannels audio1 audio2 =
     chan1 = Proxy :: Proxy chan1
     chan2 = Proxy :: Proxy chan2
 
+-- | Take a single channel signal to multiple channels by copying samples.
+expandChannels :: forall m rate chan. (Monad m, KnownNat chan)
+    => AudioM m rate 1 -> AudioM m rate chan
+expandChannels (Audio audio) = Audio $ S.map expand audio
+    where
+    expand chunk = V.generate (V.length chunk * chan) $
+        \i -> chunk V.! (i `div` chan)
+    chan = natVal (Proxy :: Proxy chan)
+
+-- | Do the reverse of 'expandChannels', mixing all channels to a mono signal.
+mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
+    => AudioM m rate chan -> AudioM m rate 1
+mixChannels (Audio audio) = Audio $ S.map mix audio
+    where
+    mix = zipWithN (+) . deinterleave chan
+    chan = natVal (Proxy :: Proxy chan)
+
 deinterleave :: V.Storable a => Channels -> V.Vector a -> [V.Vector a]
 deinterleave channels v
     | channels == 1 = [v]
     | otherwise = map gen [0 .. channels - 1]
     where
-    gen chan = V.generate frames (\f -> v V.! (channels * f + chan))
+    gen chan = V.generate frames (\i -> v V.! (channels * i + chan))
     frames = V.length v `div` channels
 
 interleave :: V.Storable a => [V.Vector a] -> V.Vector a

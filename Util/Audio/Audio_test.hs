@@ -7,6 +7,7 @@
 module Util.Audio.Audio_test where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Vector.Storable as V
+import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
@@ -56,6 +57,21 @@ test_mergeChannels = do
     let f a1 a2 = toSamples $ Audio.mergeChannels a1 a2
     equal (f (fromSamples []) (fromSamples [])) []
     equal (f (fromSamples [[1, 3]]) (fromSamples [[2], [4]])) [[1, 2], [3, 4]]
+
+test_expandChannels = do
+    let f :: TypeLits.KnownNat chan => [[Audio.Sample]] -> Audio.AudioId 10 chan
+        f = Audio.expandChannels . fromSamples
+    equal (toSamples @10 @1 $ f []) []
+    equal (toSamples @10 @1 $ f [[1], [2]]) [[1], [2]]
+    equal (toSamples @10 @2 $ f [[1], [2]]) [[1, 1], [2, 2]]
+    equal (toSamples @10 @2 $ f [[1, 2]]) [[1, 1, 2, 2]]
+    equal (toSamples @10 @3 $ f [[1], [2]]) [[1, 1, 1], [2, 2, 2]]
+
+test_mixChannels = do
+    let f :: TypeLits.KnownNat chan => Audio.AudioId 10 chan -> [[Audio.Sample]]
+        f = toSamples . Audio.mixChannels
+    equal (f $ fromSamples [[1], [2]]) [[1], [2]]
+    equal (f $ fromSamples2 [[1, 2], [3, 4]]) [[3], [7]]
 
 test_synchronize = do
     let f a1 a2 = map (fmap V.toList *** fmap V.toList) $ unstream $
