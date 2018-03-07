@@ -15,7 +15,7 @@ import Global
 
 
 test_mix = do
-    let f = concat . toSamples . Audio.mix . map (second fromSamples)
+    let f = concat . toSamples . Audio.mix . map (Audio.Frames *** fromSamples)
     equal (f []) []
     equal (f [(0, [])]) []
     equal (f [(0, [[1]])]) [1]
@@ -29,7 +29,7 @@ test_mix = do
     equal (f [(0, [[1], [], [3]]), (0, [[], [2], []])]) [3, 3]
 
 test_mix2 = do
-    let f = concat . toSamples . Audio.mix . map (second fromSamples2)
+    let f = concat . toSamples . Audio.mix . map (Audio.Frames *** fromSamples2)
     equal (f [(0, [[0, 1], [2, 3]]), (1, [[4, 5]])])
         [0, 1, 2+4, 3+5]
     equal (f [(0, [[0, 1, 2, 3]]), (1, [[4, 5]])])

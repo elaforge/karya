@@ -33,4 +33,4 @@ catchSndfile = fmap try . Exception.try
     where try = either (Left . txt . Sndfile.errorString) Right
 
 mix :: [(RealTime.RealTime, Audio)] -> Audio
-mix = Audio.mix . map (first toFrames)
+mix = Audio.mix . map (first (Audio.Seconds . RealTime.to_seconds))

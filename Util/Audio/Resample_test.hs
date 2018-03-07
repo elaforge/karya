@@ -48,8 +48,8 @@ data Source = Sine Double | File FilePath
 resampleBy :: Source -> FilePath -> Resample.ConverterType
     -> [(Signal.X, Signal.Y)] -> IO ()
 resampleBy source out quality curve = write out $ Audio.gain 0.5 $ Audio.mix $
-    -- (0, Audio.sine (44100 * 2) 440) :
-    (0, Resample.resampleBy quality (Signal.from_pairs curve) $
+    -- (Audio.Frames 0, Audio.sine (44100 * 2) 440) :
+    (Audio.Frames 0, Resample.resampleBy quality (Signal.from_pairs curve) $
         case source of
             Sine dur -> Audio.sine (round $ 44100 * dur) 440
             -- Sine dur -> Audio.mergeChannels

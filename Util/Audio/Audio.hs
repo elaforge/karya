@@ -104,13 +104,14 @@ gain n (Audio audio) = Audio $ S.map (V.map (*n)) audio
 -- | Mix together the audio streams at the given start times.
 --
 -- TODO the input could also be a stream, in case it somehow comes from IO.
-mix :: forall m rate channels. (Monad m, KnownNat channels)
-    => [(Frame, AudioM m rate channels)] -> AudioM m rate channels
+mix :: forall m rate channels. (Monad m, KnownNat channels, KnownNat rate)
+    => [(Duration, AudioM m rate channels)] -> AudioM m rate channels
 mix = Audio . S.map merge . synchronizeChunks . map pad
     where
-    pad (frames, Audio a)
-        | frames > 0 =
-            S.cons (Silence (framesCount channels frames)) (S.map Chunk a)
+    pad (Seconds secs, a) = pad (Frames (secondsToFrame rate secs), a)
+    pad (Frames frame, Audio a)
+        | frame > 0 =
+            S.cons (Silence (framesCount channels frame)) (S.map Chunk a)
         | otherwise = S.map Chunk a
     merge chunks
         | null vs = case [c | Silence c <- chunks] of
@@ -121,6 +122,7 @@ mix = Audio . S.map merge . synchronizeChunks . map pad
         | otherwise = zipWithN (+) vs
         where vs = [v | Chunk v <- chunks]
     channels = Proxy :: Proxy channels
+    rate = natVal (Proxy :: Proxy rate)
 
 -- | The strategy is to pad the beginning of each audio stream with silence,
 -- but make mixing silence cheap with a special Silence constructor.
