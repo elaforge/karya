@@ -127,7 +127,9 @@ take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
     where chan = Proxy :: Proxy chan
 
 gain :: Monad m => Float -> AudioM m rate channels -> AudioM m rate channels
-gain n (Audio audio) = Audio $ S.map (V.map (*n)) audio
+gain n (Audio audio)
+    | n == 1 = Audio audio
+    | otherwise = Audio $ S.map (V.map (*n)) audio
 
 -- | Multiply two signals, and end with the shorter one.
 multiply :: (Monad m, KnownNat chan) => AudioM m rate chan -> AudioM m rate chan

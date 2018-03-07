@@ -54,6 +54,6 @@ realizeSamples quality notesFilename samples = do
         Left err ->
             Log.error $ "writing to output: " <> showt output <> ": " <> err
         Right () -> return ()
-    put "done"
+    put $ "wrote to " <> output
     where
     put = putStrLn . ((FilePath.takeFileName notesFilename <> ": ")<>)

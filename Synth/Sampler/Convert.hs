@@ -40,8 +40,11 @@ noteToSample note = do
         , envelope = fromMaybe (Signal.constant 1) $ get Control.dynamic
         , ratio = case (Patch.pitch instSample, get Control.pitch) of
             (Just sampleNn, Just noteNns) ->
-                -- TODO I think I actually have to resample here
-                Signal.map_y_linear
+                -- Converting to a ratio is nonlinear, so I have to resample.
+                -- To avoid that I think libsamplerate would have to take
+                -- source and destination hz and convert to ratio internally
+                -- per-sample.
+                Signal.map_y 0.05
                     (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
                     noteNns
             _ -> Signal.constant 1
@@ -63,7 +66,7 @@ keyOnMaybe :: (a -> Maybe k) -> [a] -> [(k, a)]
 keyOnMaybe f xs = [(k, a) | (Just k, a) <- zip (map f xs) xs]
 
 pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y
-pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn -- / sampleHz
+pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn
 
 -- When I go up *2, I should be skipping every other sample.  So srate should
 -- be *2.  Number of frames is /2.

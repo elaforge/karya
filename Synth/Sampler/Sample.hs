@@ -41,16 +41,21 @@ data Sample = Sample {
 -- | Evaluating the Audio could probably produce more exceptions...
 realize :: Resample.ConverterType -> Sample -> (RealTime, Audio)
 realize quality (Sample start filename offset env ratio) = (start,) $
-    resample quality (Signal.at start ratio) $
+    resample quality ratio start $
     applyEnvelope start env $
     Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset))
         (Config.instrumentDbDir </> filename)
 
-resample :: Resample.ConverterType -> Double -> Audio -> Audio
-resample quality ratio audio
-    -- Don't do any work if it's close enough to 1.
-    | ApproxEq.eq closeEnough ratio 1 = audio
-    | otherwise = Resample.resample quality ratio audio
+resample :: Resample.ConverterType -> Signal.Signal -> RealTime
+    -> Audio -> Audio
+resample quality ratio start audio
+    -- Don't do any work if it's close enough to 1.  This is likely to be
+    -- common, so worth optimizing.
+    | Just val <- Signal.constant_val_from start ratio,
+            ApproxEq.eq closeEnough val 1 =
+        audio
+    | otherwise =
+        Resample.resampleBy quality (Signal.shift (-start) ratio) audio
     where
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this
     -- probably isn't perceptible.
