@@ -49,6 +49,9 @@ import Global
 
 newtype AudioM m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
     Audio { _stream :: S.Stream (S.Of (V.Vector Sample)) m () }
+    -- There is an invariant that the length of the vector should always
+    -- be a multiple of channels, in other words that a chunk is an integral
+    -- number of frames.
 
 type AudioIO rate channels = AudioM (Resource.ResourceT IO) rate channels
 type AudioId rate channels = AudioM Identity.Identity rate channels
@@ -91,8 +94,17 @@ chunkFrames channels = countFrames channels . V.length
 
 -- * construct
 
-fromSamples :: Monad m => [V.Vector Sample] -> AudioM m rate channels
-fromSamples = Audio . S.each
+-- | Construct audio manually for testing.  The length of each vector should be
+-- a multiple of the channels, or this will crash.
+fromSamples :: forall m rate chan. (Monad m, KnownNat chan)
+    => [V.Vector Sample] -> AudioM m rate chan
+fromSamples = Audio . S.each . map check
+    where
+    check chunk
+        | V.length chunk `mod` chan == 0 = chunk
+        | otherwise = error $ "chunk length " <> show (V.length chunk)
+            <> " not a multiple of channels " <> show chan
+    chan = natVal (Proxy :: Proxy chan)
 
 toSamples :: Monad m => AudioM m rate channels -> m [V.Vector Sample]
 toSamples = S.toList_ . _stream

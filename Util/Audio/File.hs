@@ -16,6 +16,7 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Fix as Fix
 import qualified Control.Monad.Trans.Resource as Resource
 
+import qualified Data.Vector.Storable as V
 import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile as Sndfile
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
@@ -58,21 +59,28 @@ readFrom (Audio.Seconds secs) fname =
 readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
     (key, handle) <- lift $
         Resource.allocate (openRead fname) Sndfile.hClose
-    liftIO $ whenJust (checkInfo rate channels (Sndfile.hInfo handle)) $ \err ->
-        Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType
-            ("reading file: " <> err) Nothing (Just fname)
+    whenJust (checkInfo rate channels (Sndfile.hInfo handle)) throw
     when (frame > 0) $
         liftIO $ void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
     Fix.fix $ \loop ->
         liftIO (Sndfile.hGetBuffer handle size) >>= \case
             Nothing -> lift (Resource.release key) >> return ()
             Just buf -> do
-                S.yield $ Sndfile.Buffer.Vector.fromBuffer buf
+                let chunk = Sndfile.Buffer.Vector.fromBuffer buf
+                -- Sndfile should enforce this, but let's be sure.
+                when (V.length chunk `mod` chan /= 0) $
+                    throw $ "chunk length " <> show (V.length chunk)
+                        <> " not a multiple of channels " <> show chan
+                S.yield chunk
                 loop
     where
     size = Audio.framesCount channels Audio.chunkSize
     rate = Proxy :: Proxy rate
     channels = Proxy :: Proxy channels
+    chan = fromIntegral $ TypeLits.natVal channels
+    throw msg = liftIO $
+        Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType
+            ("reading file: " <> msg) Nothing (Just fname)
 
 read44k :: FilePath -> Audio.AudioIO 44100 2
 read44k = read
