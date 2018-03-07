@@ -7,7 +7,7 @@
 -- formats supported by libsndfile.
 module Util.Audio.File (
     -- * read
-    check, checkA, read, read44k
+    check, checkA, read, readFrom, read44k
     -- * write
     , write, wavFormat
 ) where
@@ -47,12 +47,19 @@ getInfo fname = Exception.bracket (openRead fname) Sndfile.hClose
 read :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     FilePath -> Audio.AudioIO rate channels
-read fname = Audio.Audio $ do
+read = readFrom 0
+
+readFrom :: forall rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
+    Audio.Frame -> FilePath -> Audio.AudioIO rate channels
+readFrom (Audio.Frame frame) fname = Audio.Audio $ do
     (key, handle) <- lift $
         Resource.allocate (openRead fname) Sndfile.hClose
     liftIO $ whenJust (checkInfo rate channels (Sndfile.hInfo handle)) $ \err ->
         Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType err
             Nothing (Just fname)
+    when (frame > 0) $
+        liftIO $ void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
     Fix.fix $ \loop ->
         liftIO (Sndfile.hGetBuffer handle size) >>= \case
             Nothing -> lift (Resource.release key) >> return ()

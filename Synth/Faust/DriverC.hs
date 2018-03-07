@@ -189,10 +189,10 @@ foreign import ccall "faust_num_outputs" c_faust_num_outputs :: Patch -> IO CInt
 type Sample = Signal.Sample Double
 
 -- | Render a note on the instrument, and return samples.
-render :: Instrument  -> Audio.Frames -> Audio.Frames -> [(Ptr Sample, Int)]
+render :: Instrument  -> Audio.Frame -> Audio.Frame -> [(Ptr Sample, Int)]
     -- ^ (control signal breakpoints, number of Samples)
     -> IO [Vector.Storable.Vector Float]
-render inst (Audio.Frames start) (Audio.Frames end) controlLengths = do
+render inst (Audio.Frame start) (Audio.Frame end) controlLengths = do
     inputs <- patchInputs (asPatch inst)
     unless (length controlLengths == inputs) $
         errorIO $ "instrument has " <> showt inputs

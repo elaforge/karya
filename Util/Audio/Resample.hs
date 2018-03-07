@@ -74,7 +74,7 @@ resampleBy ctype ratio audio = Audio.Audio $ do
         let outputFrames = min (toFrames (Segment._x2 segment) - start) $
                 max Audio.chunkSize consumeAll
             consumeAll =
-                Audio.Frames $ ceiling $ fromIntegral inputFrames * maxRatio
+                Audio.Frame $ ceiling $ fromIntegral inputFrames * maxRatio
             maxRatio = max (Segment._y1 segment) (Segment._y2 segment)
         let destRatio = Segment.num_interpolate_s segment $
                 toSeconds $ start + outputFrames
@@ -104,8 +104,8 @@ resampleBy ctype ratio audio = Audio.Audio $ do
                 }
             outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
             return
-                ( Audio.Frames $ fromIntegral $ Binding.input_frames_used result
-                , Audio.Frames $ fromIntegral $ Binding.output_frames_gen result
+                ( Audio.Frame $ fromIntegral $ Binding.input_frames_used result
+                , Audio.Frame $ fromIntegral $ Binding.output_frames_gen result
                 , outFP
                 )
         -- lastRatio <- liftIO $
@@ -128,7 +128,7 @@ resampleBy ctype ratio audio = Audio.Audio $ do
             else loop (start + generated, withNext)
 
     toSeconds = RealTime.seconds . Audio.framesToSeconds rate
-    toFrames = Audio.secondsToFrames rate . RealTime.to_seconds
+    toFrames = Audio.secondsToFrame rate . RealTime.to_seconds
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)

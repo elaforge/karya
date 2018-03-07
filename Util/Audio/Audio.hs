@@ -7,7 +7,7 @@
 module Util.Audio.Audio (
     -- * types
     AudioM(..), AudioIO, AudioId
-    , Sample, Frames(..), secondsToFrames, framesToSeconds
+    , Sample, Frame(..), secondsToFrame, framesToSeconds
     , Count, Channels, Rate
     , chunkSize, framesCount, countFrames, chunkFrames
     -- * construct
@@ -55,32 +55,32 @@ type AudioId rate channels = AudioM Identity.Identity rate channels
 type Sample = Float
 
 -- | Should be >=0.
-newtype Frames = Frames Int
+newtype Frame = Frame Int
     deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Pretty)
 
--- | Sample count.  This is Frames * channels.
+-- | Sample count.  This is Frame * channels.
 type Count = Int
 type Channels = Int
 type Rate = Int
 
 type Seconds = Double
 
-secondsToFrames :: Rate -> Seconds -> Frames
-secondsToFrames rate seconds = Frames $ round $ fromIntegral rate * seconds
+secondsToFrame :: Rate -> Seconds -> Frame
+secondsToFrame rate seconds = Frame $ round $ fromIntegral rate * seconds
 
-framesToSeconds :: Rate -> Frames -> Seconds
-framesToSeconds rate (Frames frames) = fromIntegral frames / fromIntegral rate
+framesToSeconds :: Rate -> Frame -> Seconds
+framesToSeconds rate (Frame frames) = fromIntegral frames / fromIntegral rate
 
-chunkSize :: Frames
+chunkSize :: Frame
 chunkSize = 5000
 
-framesCount :: KnownNat channels => Proxy channels -> Frames -> Count
-framesCount channels (Frames frames) = frames * natVal channels
+framesCount :: KnownNat channels => Proxy channels -> Frame -> Count
+framesCount channels (Frame frames) = frames * natVal channels
 
-countFrames :: KnownNat channels => Proxy channels -> Count -> Frames
-countFrames channels count = Frames $ count `div` natVal channels
+countFrames :: KnownNat channels => Proxy channels -> Count -> Frame
+countFrames channels count = Frame $ count `div` natVal channels
 
-chunkFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frames
+chunkFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frame
 chunkFrames channels = countFrames channels . V.length
 
 -- * construct
@@ -102,7 +102,7 @@ gain n (Audio audio) = Audio $ S.map (V.map (*n)) audio
 --
 -- TODO the input could also be a stream, in case it somehow comes from IO.
 mix :: forall m rate channels. (Monad m, KnownNat channels)
-    => [(Frames, AudioM m rate channels)] -> AudioM m rate channels
+    => [(Frame, AudioM m rate channels)] -> AudioM m rate channels
 mix = Audio . S.map merge . synchronizeChunks . map pad
     where
     pad (frames, Audio a)
@@ -232,7 +232,7 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
 --
 -- Never can have too many variants of these synchronize functions, right?
 synchronizeBy :: forall m rate chan. (Monad m, KnownNat chan)
-    => [Frames] -> AudioM m rate chan -> AudioM m rate chan
+    => [Frame] -> AudioM m rate chan -> AudioM m rate chan
 synchronizeBy breakpoints = Audio . go breakpoints 0 . _stream
     where
     go breakpoints start audio = lift (S.uncons audio) >>= \case
@@ -252,7 +252,7 @@ synchronizeBy breakpoints = Audio . go breakpoints 0 . _stream
 -- * generate
 
 -- | Generate a test tone.
-sine :: forall m rate. (Monad m, KnownNat rate) => Frames -> Float
+sine :: forall m rate. (Monad m, KnownNat rate) => Frame -> Float
     -> AudioM m rate 1
 sine frames frequency = Audio (gen 0)
     where
@@ -261,7 +261,7 @@ sine frames frequency = Audio (gen 0)
         | otherwise = S.yield chunk >> gen end
         where
         chunk = V.generate (fromIntegral (end - start))
-            (val . (+start) . Frames)
+            (val . (+start) . Frame)
         end = min frames (start + chunkSize)
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
     val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)

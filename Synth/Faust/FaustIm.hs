@@ -125,7 +125,7 @@ renderInstrument patch notes = Audio.Audio $ do
             then Map.insert Control.gate (makeGate notes) else id
     let controls = gate $ mergeControls supported notes
     Convert.controls supported controls $ \controlLengths ->
-        Audio.loop1 (Audio.Frames 0) $ \loop start -> do
+        Audio.loop1 (Audio.Frame 0) $ \loop start -> do
             let end = min final (start + Audio.chunkSize)
             buffers <- liftIO $ DriverC.render inst start end controlLengths
             case buffers of

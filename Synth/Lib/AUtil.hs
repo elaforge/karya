@@ -18,8 +18,8 @@ import Global
 
 type Audio = Audio.AudioIO Config.SamplingRate 2
 
-toFrames :: RealTime.RealTime -> Audio.Frames
-toFrames = Audio.secondsToFrames Config.samplingRate . RealTime.to_seconds
+toFrames :: RealTime.RealTime -> Audio.Frame
+toFrames = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds
 
 outputFormat :: Sndfile.Format
 outputFormat = Sndfile.Format
