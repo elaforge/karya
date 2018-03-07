@@ -69,22 +69,12 @@ with_tempo toplevel range maybe_track_id signal deriver = do
 tempo_to_warp :: Signal.Tempo -> Warp.Warp
 tempo_to_warp sig
     -- Optimize for a constant (or missing) tempo.
-    | Just y <- constant_val sig =
+    -- Tempo tracks have to start at x=0, since they are integrated.
+    | Just y <- Signal.constant_val_from 0 sig =
         Warp.stretch (ScoreTime.double $ 1 / max min_tempo y) Warp.identity
     | otherwise = Warp.from_signal warp_sig
     where
     warp_sig = Signal.integrate_inverse $ Signal.scalar_max min_tempo sig
-
--- | This is analogous to Signal.constant_val, except it takes a sample at
--- 0 as a constant.  Other control tracks can extend their initial sample back
--- to -RealTime.large, but tempo tracks are integrated, which means they have
--- to start at 0.
-constant_val :: Signal.Tempo -> Maybe Signal.Y
-constant_val sig = case Signal.head sig of
-    Nothing -> Just 0
-    Just (x, y)
-        | x <= 0 && all ((==y) . snd) (Signal.to_pairs sig) -> Just y
-        | otherwise -> Nothing
 
 min_tempo :: Signal.Y
 min_tempo = 0.001

@@ -148,12 +148,12 @@ constant_val sig = case TimeVector.uncons (_vector sig) of
 
 -- | 'constant_val' for 'NumSignal's can be more clever, because it can compare
 -- Ys.  Also NumSignals are implicitly 0 before the first sample.
-constant_val_num :: NumSignal -> Maybe Y
-constant_val_num sig = case TimeVector.uncons (_vector sig) of
+constant_val_num :: X -> NumSignal -> Maybe Y
+constant_val_num from sig = case TimeVector.uncons (_vector sig) of
     -- I compare multiple samples because a track might have redundant
     -- values, but I still want to detect if it's constant.
     Just (Sample x y, rest)
-        | x <= -RealTime.large && V.all ((==y) . sy) rest -> Just y
+        | x <= from && V.all ((==y) . sy) rest -> Just y
         | V.all ((==0) . sy) (_vector sig) -> Just 0
         | otherwise -> Nothing
     Nothing -> Just 0
