@@ -1604,7 +1604,7 @@ synth: im:
           . I guess channels are push though, not pull, unless I basically just
             made them all MVars.
         / Loop on pulling from Binding.callbackRead
-      - Or I could go back to just predict the breakpoint time, it doesn't
+      / Or I could go back to just predict the breakpoint time, it doesn't
         seem so bad now.  It's the integral of the slope up until the
         breakpoint, right?
         . Actually I don't need to get it right, just make sure I have enough

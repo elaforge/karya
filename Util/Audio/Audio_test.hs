@@ -56,12 +56,6 @@ test_synchronize = do
     equal (f (fromSamples [[1]]) (fromSamples2 [[2, 3]]))
         [(Just [1], Just [2, 3])]
 
-test_synchronizeBy = do
-    let f bps = toSamples . Audio.synchronizeBy bps . fromSamples2
-    equal (f [] [[1, 2], [3, 4]]) [[1, 2], [3, 4]]
-    equal (f [0, 1] [[1, 2], [3, 4]]) [[1, 2], [3, 4]]
-    equal (f [1, 2] [[1, 2, 3, 4]]) [[1, 2], [3, 4]]
-
 unstream :: S.Stream (S.Of a) Identity.Identity () -> [a]
 unstream = Identity.runIdentity . S.toList_
 

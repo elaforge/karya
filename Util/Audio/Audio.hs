@@ -22,7 +22,6 @@ module Util.Audio.Audio (
     -- * generate
     , sine
     -- * util
-    , synchronizeBy
     , loop1
 #ifdef TESTING
     , module Util.Audio.Audio
@@ -232,27 +231,6 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
             shortest = min frames1 frames2
     chan1 = Proxy :: Proxy chan1
     chan2 = Proxy :: Proxy chan2
-
--- | Ensure that chunks are broken on the given breakpoints.
---
--- Never can have too many variants of these synchronize functions, right?
-synchronizeBy :: forall m rate chan. (Monad m, KnownNat chan)
-    => [Frame] -> AudioM m rate chan -> AudioM m rate chan
-synchronizeBy breakpoints = Audio . go breakpoints 0 . _stream
-    where
-    go breakpoints start audio = lift (S.uncons audio) >>= \case
-        Nothing -> return ()
-        Just (chunk, audio) -> case dropWhile (<=start) breakpoints of
-            [] -> S.cons chunk audio
-            bp : bps
-                | bp >= end -> S.yield chunk >> go (bp:bps) end audio
-                | otherwise -> S.yield pre >> go bps bp (S.cons post audio)
-                where
-                (pre, post) = V.splitAt
-                    (framesCount chan bp - framesCount chan start)
-                    chunk
-                end = start + chunkFrames chan chunk
-    chan = Proxy :: Proxy chan
 
 -- * generate
 
