@@ -59,8 +59,8 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
     (key, handle) <- lift $
         Resource.allocate (openRead fname) Sndfile.hClose
     liftIO $ whenJust (checkInfo rate channels (Sndfile.hInfo handle)) $ \err ->
-        Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType err
-            Nothing (Just fname)
+        Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType
+            ("reading file: " <> err) Nothing (Just fname)
     when (frame > 0) $
         liftIO $ void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
     Fix.fix $ \loop ->

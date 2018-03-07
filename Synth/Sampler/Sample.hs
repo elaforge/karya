@@ -17,6 +17,7 @@ import qualified Perform.RealTime as RealTime
 import Synth.Lib.Global
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
+import Global
 
 
 -- | Path to a sample, relative to the instrument db root.
@@ -57,7 +58,8 @@ resample quality ratio audio
 
 applyEnvelope :: RealTime -> Signal.Signal -> Audio -> Audio
 applyEnvelope start sig
-    | ApproxEq.eq 0.01 val 1 = id
-    | otherwise = Audio.gain val
-    where val = Num.d2f (Signal.at start sig)
-    -- TODO scale by envelope, and shorten the audio if the 'sig' ends on 0
+    | Just val <- Signal.constant_val_from start sig =
+        if ApproxEq.eq 0.01 val 1 then id else Audio.gain (Num.d2f val)
+    | otherwise = Audio.multiply $ Audio.mergeChannels
+        (Audio.linear $ map (first RealTime.to_seconds) $ Signal.to_pairs sig)
+        (Audio.linear $ map (first RealTime.to_seconds) $ Signal.to_pairs sig)

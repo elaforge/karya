@@ -1502,6 +1502,7 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient streaming audio:
+    - implement expandChannels and mixChannels.
     * Audio.interleave shouldn't index in lists
       . If necessary add a 2 arg version, but I should be able to just stick
         them in a vector.  Then we are doing vector rotation.
@@ -1569,7 +1570,11 @@ synth: im:
         out of sync.
   sampler:
     - bind to rubberband library for pitch change without time change
-    - breakpoint-using version of gain, so I can do envelopes.
+    * breakpoint-using version of gain, so I can do envelopes.
+      * I should have a piecewiseLinear :: [(Time, Float)] -> Audio,
+        which I can then pass to multiply.
+        . I can then use this for faust inputs, so I can make them always
+          Audio.
     * support sample start offset
     * extend Resample.resample to take breakpoints
       . This means convert breakpoints to frames, then keep track of the
@@ -1580,7 +1585,7 @@ synth: im:
       . I think I need to use the callback version, since otherwise it's hard
         to predict how many input frames are needed to get exactly to the
         ratio curve breakpoint.
-      use callback API
+      / use callback API
         * Bind callback API.
         / Contribute bindings back to conduit-audio.
           . See if I can get him to split the package while I'm at it.

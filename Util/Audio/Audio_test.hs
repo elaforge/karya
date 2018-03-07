@@ -39,6 +39,19 @@ test_gain = do
     let f n = concat . toSamples . Audio.gain n . fromSamples
     equal (f 0.5 [[1, 2], [3]]) [0.5, 1, 1.5]
 
+test_multiply = do
+    let f a1 a2 = concat $ toSamples $
+            Audio.multiply (fromSamples a1) (fromSamples a2)
+    equal (f [] []) []
+    equal (f [[2]] [[4, 5, 6]]) [2*4]
+    equal (f [[2], [3]] [[4, 5, 6]]) [2*4, 3*5]
+
+test_multiply2 = do
+    let f a1 a2 = concat $ toSamples $
+            Audio.multiply (fromSamples2 a1) (fromSamples2 a2)
+    equal (f [] []) []
+    equal (f [[2, 3], [4, 5]] [[4, 5, 6, 7]]) [2*4, 3*5, 4*6, 5*7]
+
 test_mergeChannels = do
     let f a1 a2 = toSamples $ Audio.mergeChannels a1 a2
     equal (f (fromSamples []) (fromSamples [])) []
@@ -55,6 +68,19 @@ test_synchronize = do
         [(Just [1], Just [2]), (Nothing, Just []), (Nothing, Just [3])]
     equal (f (fromSamples [[1]]) (fromSamples2 [[2, 3]]))
         [(Just [1], Just [2, 3])]
+
+test_linear = do
+    let f = toSamples @1 @1 . Audio.linear
+    equal (f []) []
+    equal (f [(0, 4), (4, 0)]) [[4, 3, 2, 1, 0]]
+    -- Implicit 0.
+    equal (f [(2, 4), (4, 0)]) [[0, 0], [4, 2, 0]]
+    -- Discontinuity.
+    equal (f [(0, 2), (2, 0), (2, 3), (5, 0)]) [[2, 1], [3, 2, 1, 0]]
+    -- Infinite final sample.
+    equal (toSamples @1 @1 $ Audio.take (Audio.Frames 7) $
+            Audio.linear [(0, 0), (4, 4)])
+        [[0, 1, 2, 3, 4], [4, 4]]
 
 unstream :: S.Stream (S.Of a) Identity.Identity () -> [a]
 unstream = Identity.runIdentity . S.toList_

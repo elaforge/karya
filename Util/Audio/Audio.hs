@@ -13,20 +13,22 @@ module Util.Audio.Audio (
     -- * construct
     , fromSamples, toSamples
     -- * transform
-    , gain
+    , take, gain, multiply
     -- * mix
     , mix
-    -- * mergeChannels
+    -- * channels
     , mergeChannels
     , interleave, deinterleave
     -- * generate
     , sine
+    , linear
     -- * util
     , loop1
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif
 ) where
+import Prelude hiding (take)
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Maybe as Maybe
@@ -37,6 +39,7 @@ import GHC.TypeLits (KnownNat)
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Global
 
@@ -95,8 +98,36 @@ toSamples = S.toList_ . _stream
 
 -- * transform
 
+take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
+    => Duration -> AudioM m rate chan -> AudioM m rate chan
+take (Seconds seconds) audio =
+    take (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
+take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
+    \loop (start, audio) -> lift (S.next audio) >>= \case
+        Left () -> return ()
+        Right (chunk, audio)
+            | end <= frames -> S.yield chunk >> loop (end, audio)
+            | start >= frames -> return ()
+            | otherwise -> S.yield $
+                V.take (framesCount chan (min frames end - start)) chunk
+            where end = start + chunkFrames chan chunk
+    where chan = Proxy :: Proxy chan
+
 gain :: Monad m => Float -> AudioM m rate channels -> AudioM m rate channels
 gain n (Audio audio) = Audio $ S.map (V.map (*n)) audio
+
+-- | Multiply two signals, and end with the shorter one.
+multiply :: (Monad m, KnownNat chan) => AudioM m rate chan -> AudioM m rate chan
+    -> AudioM m rate chan
+multiply audio1 audio2 =
+    Audio $ S.unfoldr (fmap merge . S.next) $ synchronize audio1 audio2
+    where
+    merge = \case
+        Left () -> Left ()
+        Right ((Nothing, _), _) -> Left ()
+        Right ((_, Nothing), _) -> Left ()
+        -- Since they have the same channels, there's no need to deinterleave.
+        Right ((Just a1, Just a2), audio) -> Right (V.zipWith (*) a1 a2, audio)
 
 -- * mix
 
@@ -166,7 +197,7 @@ synchronizeChunks = S.unfoldr unfold
                 (Silence size, S.cons (Silence (count - size)) tail)
 
 
--- * mergeChannels
+-- * channels
 
 mergeChannels :: forall m rate chan1 chan2.
     (Monad m, KnownNat chan1, KnownNat chan2)
@@ -251,6 +282,42 @@ sine (Frames frame) frequency = Audio (gen 0)
         end = min frame (start + chunkSize)
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
     val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)
+
+-- | Generate a piecewise linear signal from breakpoints.  If the last
+-- breakpoint is 0, the signal will end there.  Otherwise, it will continue
+-- with the final value forever.
+linear :: forall m rate. (Monad m, KnownNat rate)
+    => [(Seconds, Double)] -> AudioM m rate 1
+linear breakpoints =
+    Audio $ S.unfoldr (pure . unfold) (0, 0, 0, from0 breakpoints)
+    where
+    unfold (start, prevX, prevY, breakpoints) = case breakpoints of
+        []  | prevY == 0 -> Left ()
+            | otherwise -> Right
+                ( V.replicate (framesCount chan chunkSize) (Num.d2f prevY)
+                , (start + chunkSize, prevX, prevY, [])
+                )
+        (x, y) : xys
+            | toFrame x <= start -> unfold (start, x, y, xys)
+            | otherwise -> Right
+                ( V.generate (framesCount chan generate)
+                    (interpolate prevX prevY x y . toSec . (+start) . Frame)
+                , (start + generate, prevX, prevY, breakpoints)
+                )
+            where
+            -- If null xys, this is the last segment, so add a sample to get
+            -- the final value.
+            generate = min chunkSize
+                (toFrame x - start + if null xys then 1 else 0)
+    interpolate x1 y1 x2 y2 x = Num.d2f $
+        (y2 - y1) / (x2 - x1) * (x - x1) + y1
+    toFrame = secondsToFrame rate
+    toSec = framesToSeconds rate
+    chan = Proxy :: Proxy 1
+    rate = natVal (Proxy :: Proxy rate)
+    -- The signal is implicitly constant 0 before the first sample.
+    from0 bps@((x, y) : _) | x > 0 && y /= 0 = (x, 0) : bps
+    from0 bps = bps
 
 -- * util
 
