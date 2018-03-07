@@ -8,7 +8,7 @@ module Util.Audio.Audio (
     -- * types
     AudioM(..), AudioIO, AudioId
     , Sample, Frame(..), secondsToFrame, framesToSeconds
-    , Count, Channels, Rate
+    , Duration(..), Count, Channels, Rate
     , chunkSize, framesCount, countFrames, chunkFrames
     -- * construct
     , fromSamples, toSamples
@@ -57,6 +57,9 @@ type Sample = Float
 -- | Should be >=0.
 newtype Frame = Frame Int
     deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Pretty)
+
+data Duration = Frames !Frame | Seconds !Seconds
+    deriving (Eq, Show)
 
 -- | Sample count.  This is Frame * channels.
 type Count = Int

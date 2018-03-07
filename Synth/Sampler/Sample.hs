@@ -13,6 +13,7 @@ import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Num as Num
 
+import qualified Perform.RealTime as RealTime
 import Synth.Lib.Global
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
@@ -41,8 +42,8 @@ realize :: Resample.ConverterType -> Sample -> (RealTime, Audio)
 realize quality (Sample start filename offset env ratio) = (start,) $
     resample quality (Signal.at start ratio) $
     applyEnvelope start env $
-    Audio.File.read (Config.instrumentDbDir </> filename)
-    -- TODO use offset
+    Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset))
+        (Config.instrumentDbDir </> filename)
 
 resample :: Resample.ConverterType -> Double -> Audio -> Audio
 resample quality ratio audio

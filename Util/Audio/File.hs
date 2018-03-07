@@ -47,12 +47,15 @@ getInfo fname = Exception.bracket (openRead fname) Sndfile.hClose
 read :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     FilePath -> Audio.AudioIO rate channels
-read = readFrom 0
+read = readFrom (Audio.Frames 0)
 
 readFrom :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Audio.Frame -> FilePath -> Audio.AudioIO rate channels
-readFrom (Audio.Frame frame) fname = Audio.Audio $ do
+    Audio.Duration -> FilePath -> Audio.AudioIO rate channels
+readFrom (Audio.Seconds secs) fname =
+    readFrom (Audio.Frames (Audio.secondsToFrame rate secs)) fname
+    where rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
+readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
     (key, handle) <- lift $
         Resource.allocate (openRead fname) Sndfile.hClose
     liftIO $ whenJust (checkInfo rate channels (Sndfile.hInfo handle)) $ \err ->
