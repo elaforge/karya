@@ -257,17 +257,20 @@ synchronizeBy breakpoints = Audio . go breakpoints 0 . _stream
 -- * generate
 
 -- | Generate a test tone.
-sine :: forall m rate. (Monad m, KnownNat rate) => Frame -> Float
-    -> AudioM m rate 1
-sine frames frequency = Audio (gen 0)
+sine :: forall m rate. (Monad m, KnownNat rate)
+    => Duration -> Float -> AudioM m rate 1
+sine (Seconds seconds) frequency =
+    sine (Frames (secondsToFrame rate seconds)) frequency
+    where rate = natVal (Proxy :: Proxy rate)
+sine (Frames frame) frequency = Audio (gen 0)
     where
     gen start
-        | start >= frames = return ()
+        | start >= frame = return ()
         | otherwise = S.yield chunk >> gen end
         where
         chunk = V.generate (fromIntegral (end - start))
             (val . (+start) . Frame)
-        end = min frames (start + chunkSize)
+        end = min frame (start + chunkSize)
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
     val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)
 
