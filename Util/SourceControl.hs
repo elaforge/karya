@@ -112,7 +112,7 @@ currentPatchGit dir = (parseGit . Text.pack =<<) <$> getCurrentPatchGit dir
 getCurrentPatchGit :: FilePath -> IO (Either Error String)
 getCurrentPatchGit dir = do
     (exit, stdout, stderr) <- Process.readCreateProcessWithExitCode
-        ((Process.proc "git" ["log", "-n1", "--format=%H%n%ae%n%at%n%s'"])
+        ((Process.proc "git" ["log", "-n1", "--format=%H%n%ae%n%at%n%s"])
             { Process.cwd = Just dir })
         ""
     return $ case exit of
