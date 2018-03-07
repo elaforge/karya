@@ -77,6 +77,7 @@ test_interleave = do
     equal (f [[1, 3], [2, 4]]) [1, 2, 3, 4]
     equal (f [[1, 3], [2, 4], [5]]) [1, 2, 5, 3, 4]
 
+
 fromSamples :: [[Audio.Sample]] -> Audio.AudioId 10 1
 fromSamples = Audio.fromSamples . map V.fromList
 

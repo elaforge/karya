@@ -32,6 +32,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
+import qualified Data.Vector.Storable.Mutable as VM
 import qualified GHC.TypeLits as TypeLits
 import GHC.TypeLits (KnownNat)
 import qualified Streaming as S
@@ -192,11 +193,13 @@ deinterleave channels v
     frames = V.length v `div` channels
 
 interleave :: V.Storable a => [V.Vector a] -> V.Vector a
-interleave vs = V.generate (sum (map V.length vs)) gen
-    where
-    gen i = (vs !! vsi) V.! vi
-        where (vi, vsi) = i `divMod` len
-    len = length vs
+interleave vs = V.create $ do
+    out <- VM.new (sum (map V.length vs))
+    forM_ (zip [0..] vs) $ \(vi, v) ->
+        forM_ (Seq.range' 0 (V.length v) 1) $ \i ->
+            VM.write out (i*stride + vi) (V.unsafeIndex v i)
+    return out
+    where stride = length vs
 
 -- | Synchronize chunk size for two streams.  If one stream runs out ahead of
 -- the other, it will emit Nothings.

@@ -40,6 +40,8 @@ range start end step = go 0
         | step < 0 && val < end = []
         | otherwise = val : go (i+1)
         where val = start + (i*step)
+{-# INLINEABLE range #-}
+{-# SPECIALIZE range :: Int -> Int -> Int -> [Int] #-}
 
 -- | Enumerate a half-open range.
 range' :: (Num a, Ord a) => a -> a -> a -> [a]
@@ -50,6 +52,8 @@ range' start end step = go 0
         | step < 0 && val <= end = []
         | otherwise = val : go (i+1)
         where val = start + (i*step)
+{-# INLINEABLE range' #-}
+{-# SPECIALIZE range' :: Int -> Int -> Int -> [Int] #-}
 
 -- | Like 'range', but always includes the end, even if it doesn't line up on
 -- a step.
@@ -61,11 +65,15 @@ range_end start end step = go 0
         | step < 0 && val <= end = [end]
         | otherwise = val : go (i+1)
         where val = start + (i*step)
+{-# INLINEABLE range_end #-}
+{-# SPECIALIZE range_end :: Int -> Int -> Int -> [Int] #-}
 
 -- | Infinite range.
 range_ :: Num a => a -> a -> [a]
 range_ start step = go 0
     where go i = start + (i*step) : go (i+1)
+{-# INLINEABLE range_ #-}
+{-# SPECIALIZE range_ :: Int -> Int -> [Int] #-}
 
 -- * transformation
 

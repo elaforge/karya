@@ -1502,7 +1502,7 @@ synth: im:
       level mute and solo, but track level is more convenient to use.
 
   efficient streaming audio:
-    - Audio.interleave shouldn't index in lists
+    * Audio.interleave shouldn't index in lists
       . If necessary add a 2 arg version, but I should be able to just stick
         them in a vector.  Then we are doing vector rotation.
     * get rid of Silence, it's a hassle in resample and only mix uses it.
