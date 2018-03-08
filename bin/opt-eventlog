@@ -1,0 +1,6 @@
+#!/bin/sh
+# Run an opt seq and emit an .eventlog.  This can be analyzed with
+# App.ConvertEventLog.
+
+# -l-p means emit events, omit sparks.
+mode=opt exec bin/run-seq +RTS -l-p -RTS "$@"

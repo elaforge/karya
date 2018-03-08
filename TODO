@@ -2268,23 +2268,42 @@ performance:
   - I should include the number of events in the verify profile, so I can
     compare relative event throughput per score.
     . Clearly the wayang ones are doing something expensive, what is it?
-  Can I get a graphical trace of the respond cycle?
+  ghc-events:
+    . Can I get a graphical trace of the respond cycle?
+    . Even once I do get this, what use will it be?
+      . I can see if a hiccup is waiting on GC, or trying to evaluate
+        something.
+      . But I pretty much know it's going to be GC, because it happens
+    . What would the "real" solution be?
+      . Ideally a low latency or interruptible GC, but that won't happen.
+      . I could put derivation in a separate process.
+    . Reducing garbage would help both latency and throughput, so I could also
+      try to speed up derivation.
+
+    . It would be useful to verify that hiccups are indeed GC, and then verify
+      that GC is particularly bad when lots of derivation is going on.  I may
+      be wrong and it may be another too-strict field.
+
     * Convert GHC events to chrome events
     - convert from by-HEC to by-thread
-      . Also, evCap is capability, which is more-or-less CPU.  But I want to
-        track haskell threads, specifically the respond thread, since it may
-        migrate across caps.
+      . evCap is capability, which is more-or-less CPU.  But I want to track
+        haskell threads, specifically the respond thread, since it may migrate
+        across caps.
         . ghc-events-analyze does this.
         . I think I look for CreateThread, and then associate a HEC with the
           thread id.  Use ThreadLabel to get a name.
       . Though I could use async events to track thread migrations.
     - include the cmd name in the trace
       . maybe use args?  Or put it in the name?
+      . Use the Object feature?  No, not applicable.
     - put tracing in derive, I can put block calls in.
       . Can I make the hierarchical?  Get a flame graph kind of thing.
     - Is trace free-ish when eventlog is off?  Otherwise I could CPP it out.
     - I should put -eventlog on the opt build, since I want to enable it
       during normal use.
+    - add Object support
+      . Thats all documented phases, right?
+    - Think about generalizing convert_event_log so I can release it separately.
     * include GC
       . What's major vs. minor gc?
         GlobalSyncGC is involved, but I don't understand the GC events.
