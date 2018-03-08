@@ -33,7 +33,7 @@ data Modifier = Shift | CapsLock | Control | Alt | NumLock | Meta | ScrollLock
     deriving (Eq, Ord, Read, Show)
 
 instance Pretty Key where
-    pretty (Char ' ') = "␠" -- unicode space symbol
+    pretty (Char ' ') = "␣" -- unicode space symbol
     pretty (Char c) = Text.singleton c
     pretty key = Text.toLower $ showt key
 

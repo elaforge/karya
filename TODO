@@ -2341,7 +2341,8 @@ performance:
     compare relative event throughput per score.
     . Clearly the wayang ones are doing something expensive, what is it?
   ghc-events:
-    Expected values:
+    - GHC.RTS.Events doesn't handle unicode properly
+    conclusions:
       . 10ms for mouse up + minor GC, 9ms for 'j' with no GC.
       . During derivation, I get 80ms for OutOfDate, which should normally
         be 10ms since it just sets the box color.

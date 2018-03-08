@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
+import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
 
@@ -120,7 +121,11 @@ show_short = \case
             ]
         AuxMsg msg -> showt msg
         Unhandled x -> "Unhandled: " <> showt x
-    UiMsg _ctx msg -> fromMaybe "" $ Seq.head $ Text.words $ showt msg
+    UiMsg _ctx (UiUpdate vid update) -> Id.ident_text vid <> ":" <> word update
+    UiMsg _ctx (UpdateScreenSize {}) -> "UpdateScreenSize"
+    where
+    word :: Show a => a -> Text
+    word = fromMaybe "" . Seq.head . Text.words . showt
 
 instance Pretty UiMsg where
     pretty ui_msg = case ui_msg of

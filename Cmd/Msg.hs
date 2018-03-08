@@ -12,6 +12,7 @@ import qualified System.IO as IO
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Midi.Midi as Midi
+import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
@@ -55,7 +56,13 @@ show_short = \case
     Midi midi -> pretty midi
     InputNote note -> pretty note
     Transport status -> pretty status
-    DeriveStatus _bid status -> pretty status
+    DeriveStatus bid status -> Id.ident_text bid <> ":" <> case status of
+        OutOfDate -> "OutOfDate"
+        Deriving -> "Deriving"
+        DeriveComplete {} -> "DeriveComplete"
+        ImComplete -> "ImComplete"
+        -- show_short is used for timing, and Show DeriveStatus can force stuff
+        -- in Performance, so let's not use it.
     Socket _hdl query -> pretty query
 
 instance Pretty Msg where

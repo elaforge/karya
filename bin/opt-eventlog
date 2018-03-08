@@ -17,3 +17,4 @@ fi
 time=$(date +%y-%m-%d:%H:%M:%S)
 
 mv seq.eventlog $dir/$dest.$time.eventlog
+echo $dir/$dest.$time.eventlog
