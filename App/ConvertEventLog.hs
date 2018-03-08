@@ -17,6 +17,9 @@ import qualified GHC.RTS.Events as Events
 import qualified System.Environment as Environment
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Lens as Lens
+import qualified Util.Seq as Seq
+
 import Global
 
 
@@ -94,24 +97,48 @@ convertEvent e = do
 
 convertUser :: Events.EventInfo -> Maybe Detail
 convertUser = \case
-    Events.UserMessage msg -> Just $ case words msg of
+    Events.UserMessage str -> Just $ case Text.words msg of
         "respond" : args ->
-            async "respond" 1 AsyncBegin [("msg", Text.unwords (map txt args))]
+            async "respond" 1 AsyncBegin [("msg", Text.unwords args)]
         ["wait"] -> async "respond" 1 AsyncEnd []
-        _ -> detail (txt msg) [] PMark
+        -- _ | msg `Set.member` respondCycle -> complete msg
+        _ -> detail msg [] PMark
+        where msg = txt str
     _ -> Nothing
     where
+    -- complete name = detail name [] $ PComplete (Complete Nothing)
+    async name id phase args = detail name args $ PAsync $ Async
+        { _asyncId = id
+        , _asyncPhase = phase
+        , _asyncScope = Nothing
+        }
     detail name args phase = Detail
         { _categories = ["user"]
         , _name = name
         , _phase = phase
         , _args = args
         }
-    async name id phase args = detail name args $ PAsync $ Async
-        { _asyncId = id
-        , _asyncPhase = phase
-        , _asyncScope = Nothing
-        }
+
+-- | Add durations for respondCycle events.
+inferDurations :: [Event] -> [Event]
+inferDurations = map infer . Seq.zip_nexts . Seq.sort_on _timestamp
+    where
+    infer (e, nexts)
+        | inCycle e, Just end <- find nexts = ($e) $
+            detail#phase #= PComplete (Complete (Just (end - _timestamp e)))
+    infer (e, _) = e
+    inCycle e = _name (_detail e) `Set.member` respondCycle
+    find = fmap _timestamp
+        . List.find (\e -> inCycle e || _name (_detail e) == "respond")
+        . takeWhile ((/= "respond") . _name . _detail)
+
+-- These should occur after "respond" and before "wait".
+respondCycle :: Set Text
+respondCycle = Set.fromList
+    [ "keys", "ui_updates", "cmds"
+    , "ky", "sync", "derive", "undo"
+    ]
+    -- These are in the expected order.
 
 convertGc :: Events.EventInfo -> Maybe Detail
 convertGc spec = do
@@ -183,6 +210,8 @@ data Event = Event {
     , _detail :: !Detail
     } deriving (Eq, Show)
 
+detail = Lens.lens _detail (\f r -> r { _detail = f (_detail r) })
+
 data Detail = Detail {
     _categories :: ![Text]
     , _name :: !Text
@@ -195,6 +224,8 @@ data Detail = Detail {
     -- cname must be one of the names listed in trace-viewer's base color
     -- scheme's reserved color names list
     } deriving (Eq, Show)
+
+phase = Lens.lens _phase (\f r -> r { _phase = f (_phase r) })
 
 type Microsecond = Word.Word64
 
