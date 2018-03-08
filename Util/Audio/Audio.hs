@@ -3,13 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DataKinds, KindSignatures, TypeOperators #-}
+{-# LANGUAGE DataKinds, KindSignatures, TypeOperators, TypeApplications #-}
 module Util.Audio.Audio (
     -- * types
     Audio(..), AudioIO, AudioId
+    , NAudio(..), NAudioIO, NAudioId
     , Sample, Frame(..), secondsToFrame, framesToSeconds
     , Duration(..), Count, Channels, Rate
-    , chunkSize, framesCount, countFrames, chunkFrames
+    , framesCount, countFrames, chunkFrames
     -- * construct
     , fromSamples, toSamples
     -- * transform
@@ -20,9 +21,15 @@ module Util.Audio.Audio (
     , mergeChannels
     , expandChannels, mixChannels
     , interleave, deinterleave
+    -- ** non-interleaved
+    , nonInterleaved
+    , synchronizeToSize
+    , zeroPadN
     -- * generate
-    , sine
+    , silence, sine
     , linear
+    -- * constants
+    , chunkSize, silentChunk
     -- * util
     , loop1
 #ifdef TESTING
@@ -56,6 +63,20 @@ newtype Audio m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
 type AudioIO rate channels = Audio (Resource.ResourceT IO) rate channels
 type AudioId rate channels = Audio Identity.Identity rate channels
 
+-- | Non-interleaved audio stream.  Ok so it's still interleaved, just per
+-- chunk instead of per sample.
+--
+-- Each of the lists will be channels length.  Each Sample vector will be
+-- the same length until the signal runs out, at which point it may be short,
+-- and then will be empty.  The stream ends when all signals are empty.
+data NAudio m (rate :: TypeLits.Nat) = NAudio
+    { _nchannels :: !Channels
+    , _nstream :: S.Stream (S.Of [(V.Vector Sample)]) m ()
+    }
+
+type NAudioIO rate = NAudio (Resource.ResourceT IO) rate
+type NAudioId rate = NAudio Identity.Identity rate
+
 -- | I hardcode the sample format to Float for now, since I have no need to
 -- work with any other format.
 type Sample = Float
@@ -79,9 +100,6 @@ secondsToFrame rate seconds = Frame $ round $ fromIntegral rate * seconds
 
 framesToSeconds :: Rate -> Frame -> Seconds
 framesToSeconds rate (Frame frames) = fromIntegral frames / fromIntegral rate
-
-chunkSize :: Frame
-chunkSize = 5000
 
 framesCount :: KnownNat channels => Proxy channels -> Frame -> Count
 framesCount channels (Frame frames) = frames * natVal channels
@@ -116,9 +134,9 @@ take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
 take (Seconds seconds) audio =
     take (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
 take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
-    \loop (start, audio) -> lift (S.next audio) >>= \case
-        Left () -> return ()
-        Right (chunk, audio)
+    \loop (start, audio) -> lift (S.uncons audio) >>= \case
+        Nothing -> return ()
+        Just (chunk, audio)
             | end <= frames -> S.yield chunk >> loop (end, audio)
             | start >= frames -> return ()
             | otherwise -> S.yield $
@@ -231,8 +249,8 @@ mergeChannels audio1 audio2 =
     -- These should now have the same number of frames.
     merge (a1, a2) = interleave $
         deinterleave (natVal chan1) a1 ++ deinterleave (natVal chan2) a2
-    chan1 = Proxy :: Proxy chan1
-    chan2 = Proxy :: Proxy chan2
+    chan1 = Proxy @chan1
+    chan2 = Proxy @chan2
 
 -- | Take a single channel signal to multiple channels by copying samples.
 expandChannels :: forall m rate chan. (Monad m, KnownNat chan)
@@ -295,7 +313,57 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
     chan1 = Proxy :: Proxy chan1
     chan2 = Proxy :: Proxy chan2
 
+-- ** non-interleaved
+
+nonInterleaved :: forall m rate. Monad m => Frame -> [Audio m rate 1]
+    -> NAudio m rate
+nonInterleaved size audios = NAudio (length audios) $
+    S.unfoldr unfold (map (_stream . synchronizeToSize size) audios)
+    where
+    unfold streams = do
+        pairs <- mapM S.uncons streams
+        let heads = map (fmap fst) pairs
+            tails = [tail | Just (_, tail) <- pairs]
+        return $ if null tails then Left ()
+            else Right (map (fromMaybe V.empty) heads, tails)
+
+synchronizeToSize :: forall m rate chan. (Monad m, KnownNat chan)
+    => Frame -> Audio m rate chan -> Audio m rate chan
+synchronizeToSize size = Audio . S.unfoldr unfold . _stream
+    where
+    unfold audio = do
+        chunks S.:> rest <- S.toList $ collect audio
+        let (pre, post) = V.splitAt (framesCount chan size) $ mconcat chunks
+        return $ if V.null pre
+            then Left ()
+            else Right (pre, S.cons post rest)
+    collect audio =
+        S.breakWhen (\n -> (+n) . chunkFrames chan) 0 id (>chunkSize) audio
+    chan = Proxy @chan
+
+-- | Extend chunks < chunkSize with zeros, and pad every signal with zeros
+-- forever.  Composed with 'nonInterleaved', the output should be infinite and
+-- have uniform chunk size.
+zeroPadN :: Monad m => NAudio m rate -> NAudio m rate
+zeroPadN naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
+    where
+    unfold audio = do
+        result <- S.uncons audio
+        return $ case result of
+            Nothing -> Right (replicate (_nchannels naudio) silentChunk, audio)
+            Just (chunks, audio) -> Right (map pad chunks, audio)
+    pad chunk
+        | V.length chunk >= size = chunk
+        | V.null chunk = silentChunk
+        | otherwise = chunk V.++ (V.replicate (size - V.length chunk) 0)
+    size = framesCount (Proxy @1) chunkSize
+
+
 -- * generate
+
+-- | Infinite signal of zeros.
+silence :: Monad m => Audio m rate 1
+silence = Audio $ S.repeat silentChunk
 
 -- | Generate a test tone.
 sine :: forall m rate. (Monad m, KnownNat rate)
@@ -315,20 +383,19 @@ sine (Frames frame) frequency = Audio (gen 0)
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
     val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)
 
--- | Generate a piecewise linear signal from breakpoints.  If the last
--- breakpoint is 0, the signal will end there.  Otherwise, it will continue
--- with the final value forever.
+-- | Generate a piecewise linear signal from breakpoints.  The signal will
+-- continue forever with the last value.
 linear :: forall m rate. (Monad m, KnownNat rate)
     => [(Seconds, Double)] -> Audio m rate 1
 linear breakpoints =
     Audio $ S.unfoldr (pure . unfold) (0, 0, 0, from0 breakpoints)
     where
     unfold (start, prevX, prevY, breakpoints) = case breakpoints of
-        []  | prevY == 0 -> Left ()
-            | otherwise -> Right
-                ( V.replicate (framesCount chan chunkSize) (Num.d2f prevY)
-                , (start + chunkSize, prevX, prevY, [])
-                )
+        [] -> Right
+            ( if prevY == 0 then silentChunk
+                else V.replicate (framesCount chan chunkSize) (Num.d2f prevY)
+            , (0, prevX, prevY, [])
+            )
         (x, y) : xys
             | toFrame x <= start -> unfold (start, x, y, xys)
             | otherwise -> Right
@@ -350,6 +417,14 @@ linear breakpoints =
     -- The signal is implicitly constant 0 before the first sample.
     from0 bps@((x, y) : _) | x > 0 && y /= 0 = (x, 0) : bps
     from0 bps = bps
+
+-- * constants
+
+chunkSize :: Frame
+chunkSize = 5000
+
+silentChunk :: V.Vector Sample
+silentChunk = V.replicate (framesCount (Proxy @1) chunkSize) 0
 
 -- * util
 

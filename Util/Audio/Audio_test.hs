@@ -36,6 +36,23 @@ test_mix2 = do
     equal (f [(0, [[0, 1, 2, 3]]), (1, [[4, 5]])])
         [0, 1, 2+4, 3+5]
 
+test_nonInterleaved = do
+    let f = map (map V.toList) . Identity.runIdentity . S.toList_
+            . Audio._nstream
+            . Audio.nonInterleaved 2 . map fromSamples
+    equal (f []) []
+    equal (f [[[1, 2, 3, 4]], [[5], [6], [7, 8]]])
+        [[[1, 2], [5, 6]], [[3, 4], [7, 8]]]
+    equal (f [[[1]], [[5, 6, 7, 8]]])
+        [[[1], [5, 6]], [[], [7, 8]]]
+
+test_synchronizeToSize = do
+    let f = toSamples . Audio.synchronizeToSize 2 . fromSamples
+    equal (f []) []
+    equal (f [[1]]) [[1]]
+    equal (f [[1, 2, 3]]) [[1, 2], [3]]
+    equal (f [[1], [], [2], [3]]) [[1, 2], [3]]
+
 test_gain = do
     let f n = concat . toSamples . Audio.gain n . fromSamples
     equal (f 0.5 [[1, 2], [3]]) [0.5, 1, 1.5]
@@ -86,17 +103,16 @@ test_synchronize = do
         [(Just [1], Just [2, 3])]
 
 test_linear = do
-    let f = toSamples @1 @1 . Audio.linear
-    equal (f []) []
-    equal (f [(0, 4), (4, 0)]) [[4, 3, 2, 1, 0]]
-    -- Implicit 0.
-    equal (f [(2, 4), (4, 0)]) [[0, 0], [4, 2, 0]]
+    let f wanted = toSamples @1 @1 . Audio.take (Audio.Frames wanted)
+            . Audio.linear
+    equal (f 2 []) [[0, 0]]
+    equal (f 7 [(0, 4), (4, 0)]) [[4, 3, 2, 1, 0], [0, 0]]
+    -- Implicit leading 0.
+    equal (f 7 [(2, 4), (4, 0)]) [[0, 0], [4, 2, 0], [0, 0]]
     -- Discontinuity.
-    equal (f [(0, 2), (2, 0), (2, 3), (5, 0)]) [[2, 1], [3, 2, 1, 0]]
+    equal (f 6 [(0, 2), (2, 0), (2, 3), (5, 0)]) [[2, 1], [3, 2, 1, 0]]
     -- Infinite final sample.
-    equal (toSamples @1 @1 $ Audio.take (Audio.Frames 7) $
-            Audio.linear [(0, 0), (4, 4)])
-        [[0, 1, 2, 3, 4], [4, 4]]
+    equal (f 7 [(0, 0), (4, 4)]) [[0, 1, 2, 3, 4], [4, 4]]
 
 unstream :: S.Stream (S.Of a) Identity.Identity () -> [a]
 unstream = Identity.runIdentity . S.toList_

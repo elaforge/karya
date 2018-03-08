@@ -17,6 +17,7 @@ import Global
 
 
 type Audio = Audio.AudioIO Config.SamplingRate 2
+type NAudio = Audio.NAudioIO Config.SamplingRate
 
 toFrames :: RealTime.RealTime -> Audio.Frame
 toFrames = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds

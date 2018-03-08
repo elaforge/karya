@@ -12,12 +12,12 @@ module Synth.Faust.DriverC (
     -- * Instrument
     , withInstrument, initialize, destroy
     , patchInputs, patchOutputs
-    , render
+    , render, render2
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Vector.Storable as Vector.Storable
+import qualified Data.Vector.Storable as V
 
 import qualified Foreign
 
@@ -71,8 +71,8 @@ instance Pretty ControlConfig where
 getParsedMetadata :: Patch
     -> IO (Either Text (Doc.Doc, [(Control.Control, ControlConfig)]))
 getParsedMetadata patch = do
-    inputs <- patchInputs patch
-    outputs <- patchOutputs patch
+    let inputs = patchInputs patch
+    let outputs = patchOutputs patch
     meta <- getMetadata patch
     return $ do
         (doc, controls) <- parseMetadata meta
@@ -179,27 +179,62 @@ destroy = c_faust_destroy
 -- void faust_destroy(Instrument instrument);
 foreign import ccall "faust_destroy" c_faust_destroy :: Instrument -> IO ()
 
-patchInputs, patchOutputs :: Patch -> IO Int
-patchInputs = fmap fromIntegral . c_faust_num_inputs
-patchOutputs = fmap fromIntegral . c_faust_num_outputs
+patchInputs, patchOutputs :: Patch -> Int
+patchInputs = fromIntegral . c_faust_num_inputs
+patchOutputs = fromIntegral . c_faust_num_outputs
 
-foreign import ccall "faust_num_inputs" c_faust_num_inputs :: Patch -> IO CInt
-foreign import ccall "faust_num_outputs" c_faust_num_outputs :: Patch -> IO CInt
+foreign import ccall "faust_num_inputs" c_faust_num_inputs :: Patch -> CInt
+foreign import ccall "faust_num_outputs" c_faust_num_outputs :: Patch -> CInt
 
 type Sample = Signal.Sample Double
+
+render2 :: Instrument -> [V.Vector Float] -> IO [V.Vector Float]
+render2 inst controls = do
+    let inputs = patchInputs (asPatch inst)
+    unless (length controls == inputs) $
+        errorIO $ "instrument has " <> showt inputs
+            <> " controls, but was given " <> showt (length controls)
+    let Audio.Frame frames = maybe Audio.chunkSize (Audio.Frame . V.length)
+            (Seq.head controls)
+    let outputs = patchOutputs (asPatch inst)
+    outFptrs <- mapM Foreign.mallocForeignPtrArray (replicate outputs frames)
+    -- Holy manual memory management, Batman.
+    CUtil.withForeignPtrs outFptrs $ \outPtrs ->
+        withPtrs controls $ \controlPs lens ->
+        withArray outPtrs $ \outsP ->
+        withArray controlPs $ \controlsP ->
+        withArray (map CUtil.c_int lens) $ \lensP ->
+            c_faust_render2 inst (CUtil.c_int frames) controlsP lensP outsP
+    return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr frames) outFptrs
+
+-- void faust_render2(Instrument inst, int frames,
+--     const float **controls, const int *control_lengths,
+--     float **output)
+foreign import ccall "faust_render2"
+    c_faust_render2 :: Instrument -> CInt -> Ptr (Ptr Float) -> Ptr CInt
+        -> Ptr (Ptr Float) -> IO ()
+
+withPtrs :: [V.Vector Float] -> ([Ptr Float] -> [Int] -> IO a) -> IO a
+withPtrs vs f = go [] vs
+    where
+    go accum [] = f ptrs lens
+        where (ptrs, lens) = unzip (reverse accum)
+    go accum (v:vs) = Foreign.withForeignPtr fptr $ \ptr ->
+        go ((ptr, len) : accum) vs
+        where (fptr, len) = V.unsafeToForeignPtr0 v
 
 -- | Render a note on the instrument, and return samples.
 render :: Instrument  -> Audio.Frame -> Audio.Frame -> [(Ptr Sample, Int)]
     -- ^ (control signal breakpoints, number of Samples)
-    -> IO [Vector.Storable.Vector Float]
+    -> IO [V.Vector Float]
 render inst (Audio.Frame start) (Audio.Frame end) controlLengths = do
-    inputs <- patchInputs (asPatch inst)
+    let inputs = patchInputs (asPatch inst)
     unless (length controlLengths == inputs) $
         errorIO $ "instrument has " <> showt inputs
             <> " controls, but was given " <> showt (length controlLengths)
     let (controls, lens) = unzip controlLengths
     let frames = end - start
-    outputs <- patchOutputs (asPatch inst)
+    let outputs = patchOutputs (asPatch inst)
     buffer_fptrs <- mapM Foreign.mallocForeignPtrArray
         (replicate outputs frames)
     -- Holy manual memory management, Batman.
@@ -209,8 +244,7 @@ render inst (Audio.Frame start) (Audio.Frame end) controlLengths = do
         withArray (map CUtil.c_int lens) $ \lensp ->
             c_faust_render inst (CUtil.c_int start) (CUtil.c_int end)
                 controlsp lensp bufferp
-    return $ map (\fptr -> Vector.Storable.unsafeFromForeignPtr0 fptr frames)
-        buffer_fptrs
+    return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr frames) buffer_fptrs
 
 -- void faust_render(Instrument inst, int start_frame, int end_frame,
 --     const ControlSample **controls, const int *control_lengths,

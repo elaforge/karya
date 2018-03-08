@@ -16,25 +16,21 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified Streaming.Prelude as S
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
-import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Synth.Faust.Convert as Convert
 import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
-import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
-import qualified Synth.Shared.Signal as Signal
 
 import Global
 
@@ -92,7 +88,7 @@ process prefix patches notesFilename notes = do
                 (FilePath.takeDirectory output)
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.write AUtil.outputFormat output $
-                renderInstrument patch notes
+                Render.renderInstrument patch notes
             case result of
                 Left err -> put $ inst <> " writing " <> showt output <> ": "
                     <> err
@@ -114,50 +110,3 @@ lookupPatches patches notes =
         Seq.keyed_group_sort Note.patch notes
     where
     find patch = maybe (Left patch) Right $ Map.lookup patch patches
-
--- This renders the instrument incrementally, rather than all at once.
-renderInstrument :: DriverC.Patch -> [Note.Note] -> AUtil.Audio
-renderInstrument patch notes = Audio.Audio $ do
-    (key, inst) <- lift $
-        Resource.allocate (DriverC.initialize patch) DriverC.destroy
-    supported <- liftIO $ DriverC.getControls patch
-    let gate = if Control.gate `elem` supported
-            then Map.insert Control.gate (makeGate notes) else id
-    let controls = gate $ mergeControls supported notes
-    Convert.controls supported controls $ \controlLengths ->
-        Audio.loop1 (Audio.Frame 0) $ \loop start -> do
-            let end = min final (start + Audio.chunkSize)
-            buffers <- liftIO $ DriverC.render inst start end controlLengths
-            case buffers of
-                [left, right] -> S.yield $ Audio.interleave [left, right]
-                [center] -> S.yield $ Audio.interleave [center, center]
-                -- This should have been verified by DriverC.getParsedMetadata.
-                _ -> errorIO $ "expected 1 or 2 outputs, but got "
-                    <> showt (length buffers)
-            if end >= final
-                then Resource.release key >> return ()
-                else loop end
-    where
-    final = maybe 0 (AUtil.toFrames . (+decay) . Note.end) (Seq.last notes)
-    decay = 2
-    -- TODO how can I figure out how long decay actually is?
-    -- I probably have to keep rendering until the samples stay below
-    -- a threshold.
-
-mergeControls :: [Control.Control] -> [Note.Note]
-    -> Map Control.Control Signal.Signal
-mergeControls supported notes =
-    Map.fromList $ filter (not . Signal.null . snd) $ map merge supported
-    where
-    merge control = (control,) $ mconcat
-        [ Signal.clip_before (Note.start n) signal
-        | n <- notes
-        , signal <- maybe [] (:[]) $ Map.lookup control (Note.controls n)
-        ]
-
--- | This makes a sawtooth that goes to 1 on every note start.  This is
--- suitable for percussion, but maybe continuious instruments expect a constant
--- 1 for as long as the note is sustained?
-makeGate :: [Note.Note] -> Signal.Signal
-makeGate notes = Signal.from_pairs $
-    concat [[(Note.start n, 0), (Note.start n, 1)]  | n <- notes]

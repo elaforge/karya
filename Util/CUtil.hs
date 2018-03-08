@@ -80,8 +80,7 @@ decodeUtf8 = Encoding.decodeUtf8With Encoding.Error.lenientDecode
 
 -- * ForeignPtr
 
-withForeignPtrs :: [Foreign.ForeignPtr a] -> ([Foreign.Ptr a] -> IO b)
-    -> IO b
+withForeignPtrs :: [Foreign.ForeignPtr a] -> ([Foreign.Ptr a] -> IO b) -> IO b
 withForeignPtrs fps = withfp [] fps
     where
     withfp ps [] action = action (reverse ps)

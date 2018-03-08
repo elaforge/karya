@@ -234,6 +234,16 @@ print_control(const ControlSample *control, int len)
     }
 }
 
+void
+faust_render2(Instrument inst, int frames, const float **controls,
+    const int *control_lengths, float **output)
+{
+    int ncontrols = inst->getNumInputs();
+    FAUSTFLOAT **input =
+        (FAUSTFLOAT **) calloc(ncontrols, sizeof(FAUSTFLOAT *));
+    inst->compute(frames, input, output);
+    free(input);
+}
 
 void
 faust_render(Instrument inst, int start_frame, int end_frame,
