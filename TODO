@@ -2271,6 +2271,12 @@ performance:
   ghc-events:
     Expected values:
       . 10ms for mouse up + minor GC, 9ms for 'j' with no GC.
+      . During derivation, I get 80ms for OutOfDate, which should normally
+        be 10ms since it just sets the box color.
+        . While GCs are longer than normal, there is still plenty of time with
+          no GC... what is it doing?  Maybe just competing with the derive
+          threads.
+        . Can I put responder on its own thread, or somehow bump priority?
     Even once I do get this, what use will it be?
       . I can see if a hiccup is waiting on GC, or trying to evaluate
         something.
@@ -2285,6 +2291,8 @@ performance:
         that GC is particularly bad when lots of derivation is going on.  I may
         be wrong and it may be another too-strict field.
 
+    * why does is the first respond slice have no BEGIN?
+      . because that's the first "wait", I should just discount that.
     * Convert GHC events to chrome events
     - convert from by-HEC to by-thread
       . evCap is capability, which is more-or-less CPU.  But I want to track

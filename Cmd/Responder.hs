@@ -122,6 +122,7 @@ responder config git_user ui_chan msg_reader midi_interface setup_cmd
     app_dir <- Config.get_app_dir
     let cmd_state = setup_state $ Cmd.initial_state $
             StaticConfig.cmd_config app_dir midi_interface config git_user
+    trace "respond initialize"
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
