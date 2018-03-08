@@ -4,7 +4,6 @@
 
 -- | Convert ghc eventlog to json for <chrome://tracing>.
 module App.ConvertEventLog (main) where
-import qualified System.Environment as Environment
 import qualified Data.Aeson as Aeson
 import Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as ByteString.Lazy
@@ -12,23 +11,33 @@ import qualified Data.Text as Text
 import qualified Data.Word as Word
 
 import qualified GHC.RTS.Events as Events
+import qualified System.Environment as Environment
+
+import qualified Util.CallStack as CallStack
 import Global
 
 
 main :: IO ()
 main = do
-    log <- either error return =<< Events.readEventLogFromFile "seq.eventlog"
-    let events = Events.events $ Events.dat log
     args <- Environment.getArgs
     case args of
-        [] -> do
+        [input] -> do
+            events <- readEvents input
             print (length events)
             mapM_ print $ events
-        [out] -> do
+        [input, output] -> do
+            events <- readEvents input
             let converted = concatMap convertEvent events
             putStrLn $ "write " <> show (length converted) <> " events"
-            write out converted
+            write output converted
         _ -> putStrLn "usage"
+
+readEvents :: FilePath -> IO [Events.Event]
+readEvents = fmap (Events.events . Events.dat) . readLog
+
+readLog :: FilePath -> IO Events.EventLog
+readLog = either (CallStack.errorIO . txt) return
+    <=< Events.readEventLogFromFile
 
 write :: FilePath -> [Event] -> IO ()
 write fname events = ByteString.Lazy.writeFile fname $
