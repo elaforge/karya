@@ -56,21 +56,21 @@ convertEvent e = do
         }
 
 convertUser :: Events.EventInfo -> Maybe Detail
-convertUser spec = do
-    (phase, name) <- case spec of
-        Events.UserMessage msg -> case msg of
-            "respond" -> Just (async 1 AsyncBegin, "respond")
-            "wait" -> Just (async 1 AsyncEnd, "respond")
-            _ -> Just (PMark, Text.pack msg)
-        _ -> Nothing
-    return $ Detail
+convertUser = \case
+    Events.UserMessage msg -> Just $ case words msg of
+        "respond" : args ->
+            async "respond" 1 AsyncBegin [("msg", Text.unwords (map txt args))]
+        ["wait"] -> async "respond" 1 AsyncEnd []
+        _ -> detail (txt msg) [] PMark
+    _ -> Nothing
+    where
+    detail name args phase = Detail
         { _categories = ["user"]
         , _name = name
         , _phase = phase
-        , _args = []
+        , _args = args
         }
-    where
-    async id phase = PAsync $ Async
+    async name id phase args = detail name args $ PAsync $ Async
         { _asyncId = id
         , _asyncPhase = phase
         , _asyncScope = Nothing

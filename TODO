@@ -2269,20 +2269,21 @@ performance:
     compare relative event throughput per score.
     . Clearly the wayang ones are doing something expensive, what is it?
   ghc-events:
-    . Can I get a graphical trace of the respond cycle?
-    . Even once I do get this, what use will it be?
+    Expected values:
+      . 10ms for mouse up + minor GC, 9ms for 'j' with no GC.
+    Even once I do get this, what use will it be?
       . I can see if a hiccup is waiting on GC, or trying to evaluate
         something.
       . But I pretty much know it's going to be GC, because it happens
-    . What would the "real" solution be?
-      . Ideally a low latency or interruptible GC, but that won't happen.
-      . I could put derivation in a separate process.
-    . Reducing garbage would help both latency and throughput, so I could also
-      try to speed up derivation.
+      . What would the "real" solution be?
+        . Ideally a low latency or interruptible GC, but that won't happen.
+        . I could put derivation in a separate process.
+      . Reducing garbage would help both latency and throughput, so I could also
+        try to speed up derivation.
 
-    . It would be useful to verify that hiccups are indeed GC, and then verify
-      that GC is particularly bad when lots of derivation is going on.  I may
-      be wrong and it may be another too-strict field.
+      . It would be useful to verify that hiccups are indeed GC, and then verify
+        that GC is particularly bad when lots of derivation is going on.  I may
+        be wrong and it may be another too-strict field.
 
     * Convert GHC events to chrome events
     - convert from by-HEC to by-thread
@@ -2293,7 +2294,8 @@ performance:
         . I think I look for CreateThread, and then associate a HEC with the
           thread id.  Use ThreadLabel to get a name.
       . Though I could use async events to track thread migrations.
-    - include the cmd name in the trace
+    - respond events should have duration
+    + include the cmd name in the trace
       . maybe use args?  Or put it in the name?
       . Use the Object feature?  No, not applicable.
     - put tracing in derive, I can put block calls in.

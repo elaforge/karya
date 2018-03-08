@@ -216,7 +216,7 @@ respond_loop :: State -> MsgReader -> IO ()
 respond_loop rstate msg_reader = do
     trace "wait"
     msg <- msg_reader
-    trace "respond"
+    trace $ "respond " <> untxt (Msg.show_short msg)
     when (Cmd.state_debug_ui_msgs (state_cmd rstate)) $
         Debug.putp "msg" msg
     result <- Exception.try $ Thread.timeout timeout $ respond rstate msg
