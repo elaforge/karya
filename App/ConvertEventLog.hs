@@ -41,7 +41,12 @@ readLog = either (CallStack.errorIO . txt) return
 
 write :: FilePath -> [Event] -> IO ()
 write fname events = ByteString.Lazy.writeFile fname $
-    Aeson.encode events
+    ("[\n"<>) $ mconcat $ map ((<>",\n") . Aeson.encode) events
+    -- Chrome explicitly supports no trailing ]
+    -- I could do Aeson.encode events, but then there are no newlines and it's
+    -- annoying to view.
+
+-- * convert
 
 convertEvent :: Events.Event -> [Event]
 convertEvent e = do
