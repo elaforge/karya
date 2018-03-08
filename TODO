@@ -2294,22 +2294,30 @@ performance:
     * why does is the first respond slice have no BEGIN?
       . because that's the first "wait", I should just discount that.
     * Convert GHC events to chrome events
-    - convert from by-HEC to by-thread
+    + convert from by-HEC to by-thread
       . evCap is capability, which is more-or-less CPU.  But I want to track
         haskell threads, specifically the respond thread, since it may migrate
         across caps.
         . ghc-events-analyze does this.
         . I think I look for CreateThread, and then associate a HEC with the
-          thread id.  Use ThreadLabel to get a name.
+          thread id.
       . Though I could use async events to track thread migrations.
+      - Use ThreadLabel to add the name.
+      - This works, but chrome doesn't combine threads, so there are too many
+        short lived ones.  I should reuse thread IDs when they don't overlap.
+        . Do this only for unnamed threads?
+        . If there are named threads that don't overlap, I should give the
+          same ID.
     - respond events should have duration
     + include the cmd name in the trace
+      . I have msg in args, I'd need to emit cmd name as it is encountered,
+        and collect them inside the respond bounds.
       . maybe use args?  Or put it in the name?
       . Use the Object feature?  No, not applicable.
     - put tracing in derive, I can put block calls in.
       . Can I make the hierarchical?  Get a flame graph kind of thing.
     - Is trace free-ish when eventlog is off?  Otherwise I could CPP it out.
-    - I should put -eventlog on the opt build, since I want to enable it
+    * I should put -eventlog on the opt build, since I want to enable it
       during normal use.
     - add Object support
       . Thats all documented phases, right?

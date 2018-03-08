@@ -7,6 +7,9 @@ module App.ConvertEventLog (main) where
 import qualified Data.Aeson as Aeson
 import Data.Aeson ((.=))
 import qualified Data.ByteString.Lazy as ByteString.Lazy
+import qualified Data.IntMap as IntMap
+import qualified Data.List as List
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Word as Word
 
@@ -17,6 +20,9 @@ import qualified Util.CallStack as CallStack
 import Global
 
 
+byHsThread :: Bool
+byHsThread = False
+
 main :: IO ()
 main = do
     args <- Environment.getArgs
@@ -26,8 +32,9 @@ main = do
             print (length events)
             mapM_ print $ events
         [input, output] -> do
-            events <- readEvents input
-            let converted = concatMap convertEvent events
+            events <- (if byHsThread then replaceCapWithTid else id) <$>
+                readEvents input
+            let converted = inferDurations $ concatMap convertEvent events
             putStrLn $ "write " <> show (length converted) <> " events"
             write output converted
         _ -> putStrLn "usage"
@@ -45,6 +52,31 @@ write fname events = ByteString.Lazy.writeFile fname $
     -- Chrome explicitly supports no trailing ]
     -- I could do Aeson.encode events, but then there are no newlines and it's
     -- annoying to view.
+
+-- | Replace evCap with the thread ID running on that HEC.
+replaceCapWithTid :: [Events.Event] -> [Events.Event]
+replaceCapWithTid = snd . List.mapAccumL go mempty
+    where
+    go capToThread_ e = case Events.evCap e of
+        Nothing -> (capToThread_, e)
+        Just cap -> case IntMap.lookup cap capToThread of
+            Nothing -> (capToThread, e)
+            Just tid -> (capToThread, e { Events.evCap = Just tid })
+            where capToThread = update cap (Events.evSpec e) capToThread_
+    update cap e = case e of
+        Events.RunThread tid -> IntMap.insert cap (fromIntegral tid)
+        _ -> id
+
+-- TODO not integrated yet, but only makes sense if byHsThread
+convertMetadata :: Events.EventInfo -> Maybe Detail
+convertMetadata spec = case spec of
+    Events.ThreadLabel tid label -> Just $ Detail
+        { _categories = [cGhc, "thread"]
+        , _name = "ThreadLabel"
+        , _phase = PMetadata $ ThreadName (txt label)
+        , _args = []
+        }
+    _ -> Nothing
 
 -- * convert
 
@@ -95,10 +127,14 @@ convertGc spec = do
         }
 
 {-
-           GCStart     GCWork      GCIdle      GCEnd
-  gc start -----> work -----> idle ------+> done -----> gc end
-                   |                     |
-                   `-------<-------<-----'
+    Copied from GHC source:
+
+             GCStart     GCWork      GCIdle      GCEnd
+    gc start -----> work -----> idle ------+> done -----> gc end
+                     |                     |
+                     `-------<-------<-----'
+
+    My on notes:
 
     RequestParGC -> GCWork -> {GCIdle, GCDone}
         -> GlobalSyncGC -> GCStatsGHC -> EndGC
