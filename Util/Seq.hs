@@ -338,7 +338,7 @@ zip_next [x] = [(x, Nothing)]
 zip_next (x : xs@(y:_)) = (x, Just y) : zip_next xs
 
 zip_nexts :: [a] -> [(a, [a])]
-zip_nexts xs = zip xs (map (drop 1) (List.tails xs))
+zip_nexts xs = zip xs (drop 1 (List.tails xs))
 
 zip_prev :: [a] -> [(Maybe a, a)]
 zip_prev xs = zip (Nothing : map Just xs) xs
