@@ -1,6 +1,19 @@
-#!/bin/sh
+#!/bin/zsh
 # Run an opt seq and emit an .eventlog.  This can be analyzed with
 # App.ConvertEventLog.
 
 # -l-p means emit events, omit sparks.
-mode=opt exec bin/run-seq +RTS -l-p -RTS "$@"
+mode=opt bin/run-seq +RTS -l-p -RTS "$@"
+
+dir=prof/eventlog
+mkdir -p $dir
+
+if [[ -n $1 ]]; then
+    dest=$(basename $1)
+else
+    dest=seq
+fi
+
+time=$(date +%y-%m-%d:%H:%M:%S)
+
+mv seq.eventlog $dir/$dest.$time.eventlog

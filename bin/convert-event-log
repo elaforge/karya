@@ -1,0 +1,12 @@
+#!/bin/zsh
+# Convert eventlog to json in its own directory.
+
+eventlog=$1
+
+dir=prof/eventlog-json
+mkdir -p $dir
+
+out=$dir/$(basename -s .eventlog $eventlog).json
+
+bin/run build/opt/convert_event_log $eventlog $out
+echo $out
