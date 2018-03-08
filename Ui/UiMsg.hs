@@ -9,6 +9,7 @@ module Ui.UiMsg where
 import qualified Data.Text as Text
 
 import qualified Util.Rect as Rect
+import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
@@ -104,6 +105,23 @@ data MouseState = MouseMove | MouseDrag Types.MouseButton
     deriving (Eq, Ord, Show)
 data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
 
+-- | Like 'pretty', but more compact.  Only show the most important bits.
+show_short :: UiMsg -> Text
+show_short = \case
+    UiMsg _ctx (MsgEvent mdata) -> case mdata of
+        Mouse mstate _mods _coords _clicks _is_click -> showt mstate
+        Kbd kstate mods key _maybe_char -> mconcat $ concat
+            [ map ((<>"+") . showt) mods
+            , [pretty key]
+            , case kstate of
+                KeyDown -> []
+                KeyUp -> ["(u)"]
+                KeyRepeat -> ["(r)"]
+            ]
+        AuxMsg msg -> showt msg
+        Unhandled x -> "Unhandled: " <> showt x
+    UiMsg _ctx msg -> fromMaybe "" $ Seq.head $ Text.words $ showt msg
+
 instance Pretty UiMsg where
     pretty ui_msg = case ui_msg of
         UiMsg ctx (MsgEvent mdata) -> case mdata of
@@ -118,7 +136,7 @@ instance Pretty UiMsg where
                 ]
             AuxMsg msg -> Text.unwords ["Aux:", showt msg, pretty ctx]
             Unhandled x -> "Unhandled: " <> showt x
-        UiMsg ctx msg -> Text.unwords ["Other Event:", showt msg, pretty ctx]
+        UiMsg ctx msg -> Text.unwords [showt msg, pretty ctx]
 
 instance Pretty Context where
     pretty (Context focus track floating_input) = "{" <> contents <> "}"

@@ -37,6 +37,12 @@ import Global
 data Query = QSaveFile | QCommand !Text | QCompletion !Text
     deriving (Eq, Show)
 
+instance Pretty Query where
+    pretty = \case
+        QSaveFile -> "SaveFile"
+        QCommand t -> "Command: " <> t
+        QCompletion t -> "Completion: " <> t
+
 data Response =
     RSaveFile !(Maybe FilePath) -- ^ current save file
     | RCommand !CmdResult

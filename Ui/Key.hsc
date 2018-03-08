@@ -35,7 +35,7 @@ data Modifier = Shift | CapsLock | Control | Alt | NumLock | Meta | ScrollLock
 instance Pretty Key where
     pretty (Char ' ') = "␠" -- unicode space symbol
     pretty (Char c) = Text.singleton c
-    pretty key = Text.toLower $ Text.pack $ show key
+    pretty key = Text.toLower $ showt key
 
 decode_key :: CInt -> Key
 decode_key code

@@ -23,13 +23,20 @@ import qualified Util.Thread as Thread
 import qualified Midi.Interface as Interface
 import qualified Ui.Ui as Ui
 import qualified Derive.Warp as Warp
+import Global
 import Types
 
 
 -- | These go back to the responder loop from the render thread to notify it
 -- about the transport's state.
-data Status = Playing | Stopped | Died String
+data Status = Playing | Stopped | Died !String
     deriving (Eq, Show)
+
+instance Pretty Status where
+    pretty = \case
+        Playing -> "Playing"
+        Stopped -> "Stopped"
+        Died msg -> "Died: " <> txt msg
 
 -- | Data needed by the player thread.  This is created during app setup and
 -- passed directly to the play cmds by the responder loop.  When the play is

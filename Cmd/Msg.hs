@@ -49,13 +49,24 @@ data Msg =
     | Socket IO.Handle ReplProtocol.Query
     deriving (Show)
 
+show_short :: Msg -> Text
+show_short = \case
+    Ui ui -> UiMsg.show_short ui
+    Midi midi -> pretty midi
+    InputNote note -> pretty note
+    Transport status -> pretty status
+    DeriveStatus _bid status -> pretty status
+    Socket _hdl query -> pretty query
+
 instance Pretty Msg where
-    pretty (Ui msg) = "Ui: " <> pretty msg
-    pretty (Midi msg) = "Midi: " <> pretty msg
-    pretty (InputNote msg) = "Input: " <> showt msg
-    pretty (DeriveStatus bid status) = "DeriveStatus: " <> showt bid <> ": "
-        <> pretty status
-    pretty msg = showt msg
+    pretty = \case
+        Ui msg -> "Ui: " <> pretty msg
+        Midi msg -> "Midi: " <> pretty msg
+        InputNote msg -> "Input: " <> showt msg
+        Transport status -> pretty status
+        DeriveStatus bid status -> "DeriveStatus: " <> showt bid <> ": "
+            <> pretty status
+        Socket _hdl query -> "Socket: " <> pretty query
 
 data DeriveStatus =
     -- | The current derivation is out of date, but work has not yet started
