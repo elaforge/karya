@@ -1501,7 +1501,35 @@ synth: im:
     . So I need to infer muted instruments from tracks.  This is instrument
       level mute and solo, but track level is more convenient to use.
 
-  efficient streaming audio:
+  audio:
+    non-interleaved signals
+      . Faust wants non-interleaved input.  So does VST.  So I should pass
+        around signals non-interleaved.
+      . [AudioM m rate 1] is an approximation to this, but a non-interleaved
+        Audio would guarantee they are all synchronized.
+      . Also it would be easier to step through them all at once.
+      . Ideally there would be no size overhead for the chunks, and it could
+        be size parameterized, e.g. tuples.
+      . But even with vectors, I'd want a short-vector, since I don't need the
+        start and offset overhead.  I think the HAMT implemnetation in
+        unordered-containers uses a short vector.
+      . If I don't put the size in the type, then a hardcoded
+        T1 a | T2 a a | T3 a a a | ... might work.  I don't think UNPACK works
+        for polymorphic types though.
+      . C++ templates can do this kind of thing.
+
+      plan:
+        . Research existing length-indexed vectors.
+          . vector-sized wraps a vector, so inefficient for small vectors.
+          . fixed-vector looks right, but uses peano nats.
+          . sized is generic in the list type, but also uses peano nats.
+        . If it's too complicated, find a short-vector, and assert the types.
+          . Data.Primitive.SmallArray
+        . AudioNI m rate chan is Stream (Of (ShortVector (Vector Sample)))
+          mergeChannels for it is a synchronize, and zip.
+        . Remember the size is actually dynamic...
+    - Replace V.replicate n 0 with a statically allocated chunk?
+      . Also 'linear' constant signals should be able to reuse the same chunk.
     * implement expandChannels and mixChannels.
     * Audio.interleave shouldn't index in lists
       . If necessary add a 2 arg version, but I should be able to just stick
@@ -1569,7 +1597,42 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   sampler:
+    - Put together the reyong instrument, to motivate features.
+    - per-instrument rendering so instrument mutes work
     - bind to rubberband library for pitch change without time change
+    - convolution
+      . What are the options?  jconvolver, ...
+    features for an actual sampler:
+      . see doc/dev_notes/synthesizer
+      . Intrinsic pitch independent of the pitch curve, which influences
+        sample selection.
+      . Intrinsic velocity for the same, independent of volume curve.
+      . For a given pitch and velocity, generate a set of candidate samples.
+        . Who decides on the sample?
+          . I want this to be deterministic, so that it's driven entirely
+            by EnvKey.seed, but not necessarily put the whole sample selection
+            logic in karya.
+          . On the other hand, why not?  Then the sampler has individually
+            addressed samples, and I ask for each one by name.  Karya has access
+            to higher level concepts like intrinsic pitch.
+          . I can put the code physically in Synth.Sampler.PatchDb and still
+            link it in to karya.
+        . Each candidate has a goodness of match weight, so I can optionally
+          borrow from a neighboring pitch or velocity, but with lesser
+          likelihood.
+      . Rules for automatic damping.
+        . For drums I can use the existing mechanism: Samples are in groups,
+          and each group is stopped by a set of groups.
+        . For gangsa reyong etc., it's the same, where each
+          (pitch, articulation) is a group.
+        . For strings, I have a set of open strings, and I have to merge pitch
+          signals on each open string, as with Ness.Guitar.  Damping the
+          string when it's played again would be like plucking, not damping
+          would be like striking.
+      . Recognize sequences, e.g. nakatiku.  Then I'd also have a "speed" axis
+        to pick the closest speed and use rubberband to fit.
+      . I could also use rubberband pitch shifting instead of resampling.
+      . Per-patch signal network so I can incorporate faust effects.
     * breakpoint-using version of gain, so I can do envelopes.
       * I should have a piecewiseLinear :: [(Time, Float)] -> Audio,
         which I can then pass to multiply.

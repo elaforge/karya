@@ -33,10 +33,10 @@ check :: forall rate channels.
     Proxy rate -> Proxy channels -> FilePath -> IO (Maybe String)
 check rate channels fname = checkInfo rate channels <$> getInfo fname
 
--- | Like 'check', but take AudioM instead of Proxy.
+-- | Like 'check', but take 'Audio.Audio' instead of Proxy.
 checkA :: forall m rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Proxy (Audio.AudioM m rate channels) -> FilePath -> IO (Maybe String)
+    Proxy (Audio.Audio m rate channels) -> FilePath -> IO (Maybe String)
 checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy channels)
 
 getInfo :: FilePath -> IO Sndfile.Info

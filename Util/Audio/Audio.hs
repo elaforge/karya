@@ -6,7 +6,7 @@
 {-# LANGUAGE DataKinds, KindSignatures, TypeOperators #-}
 module Util.Audio.Audio (
     -- * types
-    AudioM(..), AudioIO, AudioId
+    Audio(..), AudioIO, AudioId
     , Sample, Frame(..), secondsToFrame, framesToSeconds
     , Duration(..), Count, Channels, Rate
     , chunkSize, framesCount, countFrames, chunkFrames
@@ -47,14 +47,14 @@ import Global
 
 -- * types
 
-newtype AudioM m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
+newtype Audio m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
     Audio { _stream :: S.Stream (S.Of (V.Vector Sample)) m () }
     -- There is an invariant that the length of the vector should always
     -- be a multiple of channels, in other words that a chunk is an integral
     -- number of frames.
 
-type AudioIO rate channels = AudioM (Resource.ResourceT IO) rate channels
-type AudioId rate channels = AudioM Identity.Identity rate channels
+type AudioIO rate channels = Audio (Resource.ResourceT IO) rate channels
+type AudioId rate channels = Audio Identity.Identity rate channels
 
 -- | I hardcode the sample format to Float for now, since I have no need to
 -- work with any other format.
@@ -97,7 +97,7 @@ chunkFrames channels = countFrames channels . V.length
 -- | Construct audio manually for testing.  The length of each vector should be
 -- a multiple of the channels, or this will crash.
 fromSamples :: forall m rate chan. (Monad m, KnownNat chan)
-    => [V.Vector Sample] -> AudioM m rate chan
+    => [V.Vector Sample] -> Audio m rate chan
 fromSamples = Audio . S.each . map check
     where
     check chunk
@@ -106,13 +106,13 @@ fromSamples = Audio . S.each . map check
             <> " not a multiple of channels " <> show chan
     chan = natVal (Proxy :: Proxy chan)
 
-toSamples :: Monad m => AudioM m rate channels -> m [V.Vector Sample]
+toSamples :: Monad m => Audio m rate channels -> m [V.Vector Sample]
 toSamples = S.toList_ . _stream
 
 -- * transform
 
 take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
-    => Duration -> AudioM m rate chan -> AudioM m rate chan
+    => Duration -> Audio m rate chan -> Audio m rate chan
 take (Seconds seconds) audio =
     take (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
 take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
@@ -126,14 +126,14 @@ take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
             where end = start + chunkFrames chan chunk
     where chan = Proxy :: Proxy chan
 
-gain :: Monad m => Float -> AudioM m rate channels -> AudioM m rate channels
+gain :: Monad m => Float -> Audio m rate channels -> Audio m rate channels
 gain n (Audio audio)
     | n == 1 = Audio audio
     | otherwise = Audio $ S.map (V.map (*n)) audio
 
 -- | Multiply two signals, and end with the shorter one.
-multiply :: (Monad m, KnownNat chan) => AudioM m rate chan -> AudioM m rate chan
-    -> AudioM m rate chan
+multiply :: (Monad m, KnownNat chan) => Audio m rate chan -> Audio m rate chan
+    -> Audio m rate chan
 multiply audio1 audio2 =
     Audio $ S.unfoldr (fmap merge . S.next) $ synchronize audio1 audio2
     where
@@ -150,7 +150,7 @@ multiply audio1 audio2 =
 --
 -- TODO the input could also be a stream, in case it somehow comes from IO.
 mix :: forall m rate channels. (Monad m, KnownNat channels, KnownNat rate)
-    => [(Duration, AudioM m rate channels)] -> AudioM m rate channels
+    => [(Duration, Audio m rate channels)] -> Audio m rate channels
 mix = Audio . S.map merge . synchronizeChunks . map pad
     where
     pad (Seconds secs, a) = pad (Frames (secondsToFrame rate secs), a)
@@ -172,7 +172,7 @@ mix = Audio . S.map merge . synchronizeChunks . map pad
 -- | The strategy is to pad the beginning of each audio stream with silence,
 -- but make mixing silence cheap with a special Silence constructor.
 --
--- I used to have Chunk in 'AudioM' so I could process Silence more
+-- I used to have Chunk in 'Audio' so I could process Silence more
 -- efficiently.  But it turns out it's annoying to do that and I only need it
 -- for 'mix' anyway.
 data Chunk = Chunk (V.Vector Sample) | Silence !Count
@@ -216,8 +216,8 @@ synchronizeChunks = S.unfoldr unfold
 
 mergeChannels :: forall m rate chan1 chan2.
     (Monad m, KnownNat chan1, KnownNat chan2)
-    => AudioM m rate chan1 -> AudioM m rate chan2
-    -> AudioM m rate (chan1 TypeLits.+ chan2)
+    => Audio m rate chan1 -> Audio m rate chan2
+    -> Audio m rate (chan1 TypeLits.+ chan2)
 mergeChannels audio1 audio2 =
     Audio $ S.map (merge . to0) $ synchronize audio1 audio2
     where
@@ -236,7 +236,7 @@ mergeChannels audio1 audio2 =
 
 -- | Take a single channel signal to multiple channels by copying samples.
 expandChannels :: forall m rate chan. (Monad m, KnownNat chan)
-    => AudioM m rate 1 -> AudioM m rate chan
+    => Audio m rate 1 -> Audio m rate chan
 expandChannels (Audio audio) = Audio $ S.map expand audio
     where
     expand chunk = V.generate (V.length chunk * chan) $
@@ -245,7 +245,7 @@ expandChannels (Audio audio) = Audio $ S.map expand audio
 
 -- | Do the reverse of 'expandChannels', mixing all channels to a mono signal.
 mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
-    => AudioM m rate chan -> AudioM m rate 1
+    => Audio m rate chan -> Audio m rate 1
 mixChannels (Audio audio) = Audio $ S.map mix audio
     where
     mix = zipWithN (+) . deinterleave chan
@@ -272,7 +272,7 @@ interleave vs = V.create $ do
 -- the other, it will emit Nothings.
 synchronize :: forall m rate chan1 chan2.
     (Monad m, KnownNat chan1, KnownNat chan2)
-    => AudioM m rate chan1 -> AudioM m rate chan2
+    => Audio m rate chan1 -> Audio m rate chan2
     -> S.Stream (S.Of (Maybe (V.Vector Sample), Maybe (V.Vector Sample))) m ()
 synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
     where
@@ -299,7 +299,7 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
 
 -- | Generate a test tone.
 sine :: forall m rate. (Monad m, KnownNat rate)
-    => Duration -> Float -> AudioM m rate 1
+    => Duration -> Float -> Audio m rate 1
 sine (Seconds seconds) frequency =
     sine (Frames (secondsToFrame rate seconds)) frequency
     where rate = natVal (Proxy :: Proxy rate)
@@ -319,7 +319,7 @@ sine (Frames frame) frequency = Audio (gen 0)
 -- breakpoint is 0, the signal will end there.  Otherwise, it will continue
 -- with the final value forever.
 linear :: forall m rate. (Monad m, KnownNat rate)
-    => [(Seconds, Double)] -> AudioM m rate 1
+    => [(Seconds, Double)] -> Audio m rate 1
 linear breakpoints =
     Audio $ S.unfoldr (pure . unfold) (0, 0, 0, from0 breakpoints)
     where
