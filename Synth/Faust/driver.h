@@ -42,13 +42,8 @@ void faust_destroy(Instrument instrument);
 int faust_num_inputs(Patch patch);
 int faust_num_outputs(Patch patch);
 
-void faust_render2(Instrument inst, int frames, const float **controls,
-    const int *control_lengths, float **output);
-
-// Pass a ControlSample array for each control.  Interpolate controls from
-// start_frame to end_frame, passing them to inst->compute, and writing output.
-void faust_render(Instrument inst, int start_frame, int end_frame,
-    const ControlSample **controls, const int *control_lengths, float **output);
+void faust_render(Instrument inst, int frames, const float **controls,
+    float **outputs);
 
 }
 

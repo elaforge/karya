@@ -34,7 +34,7 @@ module Perform.Signal (
 
     -- * transform
     , drop_after, drop_before
-    , clip_after, clip_before
+    , clip_after, clip_before, clip_after_keep_last
     , shift
 
     , invert, sig_add, sig_subtract, sig_multiply, sig_scale
@@ -228,8 +228,15 @@ drop_after x = modify $ Segment.drop_after x
 drop_before x = modify $ Segment.drop_before x
 
 clip_after, clip_before :: X -> Signal kind -> Signal kind
-clip_after x = modify $ Segment.num_clip_after x
+clip_after x = modify $ Segment.num_clip_after False x
 clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
+
+-- | Like 'clip_after', but always put a sample at the end time, even if it's
+-- flat.  This is not necessary if you keep this as a Signal since (<>) will
+-- extend the final sample, but might be if you go to breakpoints via
+-- 'to_pairs'.
+clip_after_keep_last :: X -> Signal kind -> Signal kind
+clip_after_keep_last x = modify $ Segment.num_clip_after True x
 
 shift :: X -> Signal kind -> Signal kind
 shift x = modify (Segment.shift x)

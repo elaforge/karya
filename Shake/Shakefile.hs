@@ -198,7 +198,7 @@ docDir = "doc"
 type Flag = String
 
 data Flags = Flags {
-    -- | -D flags.  This is used by both g++ has ghc.
+    -- | -D flags.  This is used by both g++ and ghc.
     define :: [Flag]
     -- | Linker flags to link in whatever MIDI driver we are using today.
     -- There should be corresponding flags in 'define' to enable said driver.

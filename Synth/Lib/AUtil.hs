@@ -22,6 +22,9 @@ type NAudio = Audio.NAudioIO Config.SamplingRate
 toFrames :: RealTime.RealTime -> Audio.Frame
 toFrames = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds
 
+toSeconds :: Audio.Frame -> RealTime.RealTime
+toSeconds = RealTime.seconds . Audio.frameToSeconds Config.samplingRate
+
 outputFormat :: Sndfile.Format
 outputFormat = Sndfile.Format
     { headerFormat = Sndfile.HeaderFormatWav

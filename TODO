@@ -163,6 +163,8 @@ STATUS
       examples, since full scores still seems to be really noisy.
 
 UNSORTED
+  - Debug.traceM doesn't work in AudioId
+    . Does it not work in an Identity monad?  Why not?
   - extend gliss so I can gliss on harmonics
     . Why does eval_quoted give opposite pitches?
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
@@ -1517,7 +1519,6 @@ synth: im:
         T1 a | T2 a a | T3 a a a | ... might work.  I don't think UNPACK works
         for polymorphic types though.
       . C++ templates can do this kind of thing.
-
       plan:
         . Research existing length-indexed vectors.
           . vector-sized wraps a vector, so inefficient for small vectors.
@@ -1532,6 +1533,9 @@ synth: im:
         . I can get a typed NAudio from the length, but only inside an
           existential type.  It doesn't seem any different from just putting
           the number in the data type.
+    - I think Audio.splitNonInterleaved runs the stream multiple times, fix it.
+      . In general it seems dangerously easy to do this, but I'm not sure how
+        to prevent it.
     * Replace V.replicate n 0 with a statically allocated chunk?
       . Also 'linear' constant signals should be able to reuse the same chunk.
     * implement expandChannels and mixChannels.
@@ -1684,14 +1688,26 @@ synth: im:
           outputFrames * max startRatio endRatio * 1.1.  I just have to glue
           them until I get there.
   faust:
+    - shouldn't faust_all.cc be in build/faust?
     * render incrementally
-    + let faust instruments take streaming input too
+    * let faust instruments take streaming input too
       . This way I can e.g. pipe multiple instruments through an effect.
       . This is also what I need to make control inputs incremental, it's pure
         but the signal looks the same as faust output.
       . Actually the faust stuff should be ok for unsafePerformIO.
-      - Replace Render.mergeControls with Audio.linear
-      - Replace Render.renderInstrument with Render.render
+      * Replace Render.mergeControls with Audio.linear
+        . Should I stop processing in gaps?  I don't exactly know what it is
+          because I don't know the decay here.  So I think I keep generating,
+          but I can make constants cheap.
+      * Replace Render.renderInstrument with Render.render
+      * It sort of works, but notes are delayed and there's distortion.
+        . Control signals are as expected
+        . It looks like the audio gets looped a bit right when the next
+          note should start.
+        . About .06s, which is ~ 26460 samples, which is 5.292 chunks.
+        . It seems the sounding start starts on a chunk boundary.
+    - Audio.linear should reuse the buffer for long constant segments.
+    - Compare timing with pre-input signals.
     - Suspend instrument rendering if gate and signal goes to 0.
       . Maybe I need to bring back Audio.Chunk for this.  Or V.empty in the
         output NAudio?
@@ -1795,7 +1811,10 @@ synth: im:
     . http://faust.grame.fr/faustplayground/
 
   things to change with faust:
-    - Use const on const methods.
+    - Use const on const methods:
+      getNumInputs(), getNumOutputs(), clone(), ...
+    - const on inputs:
+      compute(int count, const FAUSTFLOAT** input, FAUSTFLOAT** output)
     - Have a way to save and restore state.  E.g. stick instance variables in
       a bytestring.
     - Provide access to input signal names so I can get rid of the awkward

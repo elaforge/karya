@@ -398,20 +398,22 @@ clip_after_v interpolate x vec
             | otherwise -> clipped
     where clipped = drop_after_v x vec
 
-num_clip_after :: X -> NumSignal -> NumSignal
-num_clip_after x sig
+num_clip_after :: Bool -> X -> NumSignal -> NumSignal
+num_clip_after keep_last x sig
     | V.null clipped = empty
     | [Sample x0 _] <- V.toList clipped, x0 == x = empty
     | otherwise = Signal { _offset = _offset sig, _vector = clipped }
-    where clipped = num_clip_after_v (x - _offset sig) (_vector sig)
+    where clipped = num_clip_after_v keep_last (x - _offset sig) (_vector sig)
 
 -- | 'clip_after' specialized for 'Y'.  Since it has Eq, it can do an
 -- additional optimization.
-num_clip_after_v :: X -> TimeVector.Unboxed -> TimeVector.Unboxed
-num_clip_after_v x vec = case segment_at_v Types.Negative x vec of
+num_clip_after_v :: Bool -- ^ if False, inhibit the optimization that omits
+    -- the end sample if it's a flat line
+    -> X -> TimeVector.Unboxed -> TimeVector.Unboxed
+num_clip_after_v keep_last x vec = case segment_at_v Types.Negative x vec of
     Nothing -> vec
     Just (i, Segment x1 y1 x2 y2)
-        | y1 == y2 -> prefix
+        | not keep_last && y1 == y2 -> prefix
         | otherwise -> V.snoc prefix (Sample x (TimeVector.y_at x1 y1 x2 y2 x))
         where prefix = V.take (i+1) vec
 

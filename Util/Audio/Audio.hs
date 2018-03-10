@@ -8,8 +8,9 @@ module Util.Audio.Audio (
     -- * types
     Audio(..), AudioIO, AudioId
     , NAudio(..), NAudioIO, NAudioId
-    , Sample, Frame(..), secondsToFrame, framesToSeconds
-    , Duration(..), Count, Channels, Rate
+    , Sample, Frame(..), secondsToFrame, frameToSeconds
+    , Duration(..)
+    , Count, Channels, Rate, Seconds
     , framesCount, countFrames, chunkFrames
     -- * construct
     , fromSamples, toSamples
@@ -22,7 +23,7 @@ module Util.Audio.Audio (
     , expandChannels, mixChannels
     , interleave, deinterleave
     -- ** non-interleaved
-    , nonInterleaved
+    , nonInterleaved, splitNonInterleaved
     , synchronizeToSize
     , zeroPadN
     -- * generate
@@ -98,8 +99,8 @@ type Seconds = Double
 secondsToFrame :: Rate -> Seconds -> Frame
 secondsToFrame rate seconds = Frame $ round $ fromIntegral rate * seconds
 
-framesToSeconds :: Rate -> Frame -> Seconds
-framesToSeconds rate (Frame frames) = fromIntegral frames / fromIntegral rate
+frameToSeconds :: Rate -> Frame -> Seconds
+frameToSeconds rate (Frame frames) = fromIntegral frames / fromIntegral rate
 
 framesCount :: KnownNat channels => Proxy channels -> Frame -> Count
 framesCount channels (Frame frames) = frames * natVal channels
@@ -326,6 +327,14 @@ nonInterleaved size audios = NAudio (length audios) $
         return $ if null tails then Left ()
             else Right (map (fromMaybe V.empty) heads, tails)
 
+-- | Undo 'nonInterleaved'.
+-- TODO does this run the stream multiple times?
+-- I think I have to go directly to interleaved after all.
+splitNonInterleaved :: Monad m => NAudio m rate -> [Audio m rate 1]
+splitNonInterleaved naudio =
+    map (\i -> Audio $ S.map (!! i) (_nstream naudio))
+        [0 .. _nchannels naudio - 1]
+
 synchronizeToSize :: forall m rate chan. (Monad m, KnownNat chan)
     => Frame -> Audio m rate chan -> Audio m rate chan
 synchronizeToSize size = Audio . S.unfoldr unfold . _stream
@@ -409,7 +418,7 @@ linear breakpoints =
     interpolate x1 y1 x2 y2 x = Num.d2f $
         (y2 - y1) / (x2 - x1) * (x - x1) + y1
     toFrame = secondsToFrame rate
-    toSec = framesToSeconds rate
+    toSec = frameToSeconds rate
     chan = Proxy :: Proxy 1
     rate = natVal (Proxy :: Proxy rate)
     -- The signal is implicitly constant 0 before the first sample.

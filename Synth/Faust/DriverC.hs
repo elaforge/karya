@@ -12,7 +12,7 @@ module Synth.Faust.DriverC (
     -- * Instrument
     , withInstrument, initialize, destroy
     , patchInputs, patchOutputs
-    , render, render2
+    , render
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
@@ -20,6 +20,7 @@ import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
 
 import qualified Foreign
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.CUtil as CUtil
@@ -30,8 +31,6 @@ import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Signal as Signal
-
 import Global
 
 
@@ -124,9 +123,9 @@ parseControlText desc
 
 -- | Get supported controls.  The order is important, since it's the same order
 -- 'render' expects to see them.
-getControls :: Patch -> IO [Control.Control]
-getControls =
-    fmap (either (const []) (map fst) . metadataControls) . getMetadata
+getControls :: Patch -> [Control.Control]
+getControls = either (const []) (map fst) . metadataControls
+    . Unsafe.unsafePerformIO . getMetadata
 
 getMetadata :: Patch -> IO (Map Text Text)
 getMetadata patch = alloca $ \keyspp -> alloca $ \valuespp -> do
@@ -186,33 +185,36 @@ patchOutputs = fromIntegral . c_faust_num_outputs
 foreign import ccall "faust_num_inputs" c_faust_num_inputs :: Patch -> CInt
 foreign import ccall "faust_num_outputs" c_faust_num_outputs :: Patch -> CInt
 
-type Sample = Signal.Sample Double
-
-render2 :: Instrument -> [V.Vector Float] -> IO [V.Vector Float]
-render2 inst controls = do
+-- | Render chunk of time and return samples.  The chunk size is determined by
+-- the input controls, or 'Audio.chunkSize' if there are none.
+render :: Instrument -> [V.Vector Float] -- ^ the length must be equal to the
+    -- the patchInputs, and each vector must have the same length
+    -> IO [V.Vector Float] -- ^ one chunk of samples for each output channel
+render inst controls = do
     let inputs = patchInputs (asPatch inst)
     unless (length controls == inputs) $
         errorIO $ "instrument has " <> showt inputs
             <> " controls, but was given " <> showt (length controls)
+    unless (all ((== V.length (head controls)) . V.length) controls) $
+        errorIO $ "all controls don't have the same length: "
+            <> pretty (map V.length controls)
     let Audio.Frame frames = maybe Audio.chunkSize (Audio.Frame . V.length)
             (Seq.head controls)
     let outputs = patchOutputs (asPatch inst)
     outFptrs <- mapM Foreign.mallocForeignPtrArray (replicate outputs frames)
     -- Holy manual memory management, Batman.
     CUtil.withForeignPtrs outFptrs $ \outPtrs ->
-        withPtrs controls $ \controlPs lens ->
+        withPtrs controls $ \controlPs _lens ->
         withArray outPtrs $ \outsP ->
         withArray controlPs $ \controlsP ->
-        withArray (map CUtil.c_int lens) $ \lensP ->
-            c_faust_render2 inst (CUtil.c_int frames) controlsP lensP outsP
+            c_faust_render inst (CUtil.c_int frames) controlsP outsP
     return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr frames) outFptrs
 
--- void faust_render2(Instrument inst, int frames,
---     const float **controls, const int *control_lengths,
---     float **output)
-foreign import ccall "faust_render2"
-    c_faust_render2 :: Instrument -> CInt -> Ptr (Ptr Float) -> Ptr CInt
-        -> Ptr (Ptr Float) -> IO ()
+-- void faust_render(Instrument inst, int frames,
+--     const float **controls, float **outputs)
+foreign import ccall "faust_render"
+    c_faust_render :: Instrument -> CInt -> Ptr (Ptr Float) -> Ptr (Ptr Float)
+        -> IO ()
 
 withPtrs :: [V.Vector Float] -> ([Ptr Float] -> [Int] -> IO a) -> IO a
 withPtrs vs f = go [] vs
@@ -222,36 +224,6 @@ withPtrs vs f = go [] vs
     go accum (v:vs) = Foreign.withForeignPtr fptr $ \ptr ->
         go ((ptr, len) : accum) vs
         where (fptr, len) = V.unsafeToForeignPtr0 v
-
--- | Render a note on the instrument, and return samples.
-render :: Instrument  -> Audio.Frame -> Audio.Frame -> [(Ptr Sample, Int)]
-    -- ^ (control signal breakpoints, number of Samples)
-    -> IO [V.Vector Float]
-render inst (Audio.Frame start) (Audio.Frame end) controlLengths = do
-    let inputs = patchInputs (asPatch inst)
-    unless (length controlLengths == inputs) $
-        errorIO $ "instrument has " <> showt inputs
-            <> " controls, but was given " <> showt (length controlLengths)
-    let (controls, lens) = unzip controlLengths
-    let frames = end - start
-    let outputs = patchOutputs (asPatch inst)
-    buffer_fptrs <- mapM Foreign.mallocForeignPtrArray
-        (replicate outputs frames)
-    -- Holy manual memory management, Batman.
-    CUtil.withForeignPtrs buffer_fptrs $ \buffer_ptrs ->
-        withArray buffer_ptrs $ \bufferp ->
-        withArray controls $ \controlsp ->
-        withArray (map CUtil.c_int lens) $ \lensp ->
-            c_faust_render inst (CUtil.c_int start) (CUtil.c_int end)
-                controlsp lensp bufferp
-    return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr frames) buffer_fptrs
-
--- void faust_render(Instrument inst, int start_frame, int end_frame,
---     const ControlSample **controls, const int *control_lengths,
---     float **output)
-foreign import ccall "faust_render"
-    c_faust_render :: Instrument -> CInt -> CInt
-        -> Ptr (Ptr Sample) -> Ptr CInt -> Ptr (Ptr Float) -> IO ()
 
 -- * util
 

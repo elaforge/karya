@@ -132,7 +132,7 @@ test_drop_after_clip_after = do
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) ([(0, 0), (2, 0)], [(0, 0), (2, 0)])
 
 test_num_clip_after = do
-    let f x = to_pairs . Segment.num_clip_after x . from_pairs
+    let f x = to_pairs . Segment.num_clip_after False x . from_pairs
     equal (f 2 [(0, 0), (1, 1), (4, 1)]) [(0, 0), (1, 1)]
     equal (f 2 [(0, 0), (2, 0), (2, 2)]) [(0, 0)]
     equal (f 2 [(0, 0), (4, 4)]) [(0, 0), (2, 2)]

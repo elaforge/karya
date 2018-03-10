@@ -14,7 +14,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 
-import qualified Synth.Faust.Convert as Convert
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Lib.AUtil as AUtil
 import Synth.Lib.Global
@@ -24,6 +24,16 @@ import qualified Synth.Shared.Signal as Signal
 
 import Global
 
+
+-- | Render notes belonging to a single FAUST patch.  Since they render on
+-- a single element, they should either not overlap, or be ok if overlaps
+-- cut each other off.
+renderPatch :: DriverC.Patch -> [Note.Note] -> NAudio
+renderPatch patch notes = render patch inputs final decay
+    where
+    inputs = renderControls (DriverC.getControls patch) notes
+    final = maybe 0 Note.end (Seq.last notes)
+    decay = 2
 
 -- | Render a FAUST instrument incrementally.
 --
@@ -40,24 +50,24 @@ render patch inputs end decay = Audio.NAudio (DriverC.patchOutputs patch) $ do
     let nstream = Audio._nstream (Audio.zeroPadN inputs)
     Audio.loop1 (0, nstream) $ \loop (start, inputs) -> do
         -- Audio.zeroPadN should have made this infinite.
-        (controls, inputs) <-
+        (controls, nextInputs) <-
             maybe (CallStack.errorIO "end of endless stream") return
                 =<< lift (S.uncons inputs)
-        result <- render1 inst controls start inputs
+        result <- render1 inst controls start
         case result of
             Nothing -> Resource.release key
-            Just (start, inputs) -> loop (start, inputs)
+            Just start -> loop (start, nextInputs)
     where
-    render1 inst controls start inputs = do
-        outputs <- liftIO $ DriverC.render2 inst controls
+    render1 inst controls start = do
+        outputs <- liftIO $ DriverC.render inst controls
         S.yield outputs
-        return $ case outputs of
-            [] -> Nothing
+        case outputs of
+            [] -> CallStack.errorIO "dsp with 0 outputs"
             output : _
                 | frames == 0 || blockEnd >= final + maxDecay
                         || blockEnd >= final && isBasicallySilent output ->
-                    Nothing
-                | otherwise -> Just (blockEnd, inputs)
+                    return Nothing
+                | otherwise -> return $ Just blockEnd
                 where
                 blockEnd = start + frames
                 frames = Audio.Frame $ V.length output
@@ -67,49 +77,58 @@ render patch inputs end decay = Audio.NAudio (DriverC.patchOutputs patch) $ do
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent _samples = False -- TODO RMS < -n dB
 
--- TODO old render, remove when 'render' is done
-renderInstrument :: DriverC.Patch -> [Note.Note] -> AUtil.Audio
-renderInstrument patch notes = Audio.Audio $ do
-    (key, inst) <- lift $
-        Resource.allocate (DriverC.initialize patch) DriverC.destroy
-    supported <- liftIO $ DriverC.getControls patch
-    let gate = if Control.gate `elem` supported
-            then Map.insert Control.gate (makeGate notes) else id
-    let controls = gate $ mergeControls supported notes
-    Convert.controls supported controls $ \controlLengths ->
-        Audio.loop1 0 $ \loop start -> do
-            let end = min final (start + Audio.chunkSize)
-            buffers <- liftIO $ DriverC.render inst start end controlLengths
-            case buffers of
-                [left, right] -> S.yield $ Audio.interleave [left, right]
-                [center] -> S.yield $ Audio.interleave [center, center]
-                -- This should have been verified by DriverC.getParsedMetadata.
-                _ -> errorIO $ "expected 1 or 2 outputs, but got "
-                    <> showt (length buffers)
-            if end >= final
-                then Resource.release key >> return ()
-                else loop end
+-- | Render the supported controls down to audio rate signals.
+renderControls :: [Control.Control]
+    -- ^ controls expected by the instrument, in the expected order
+    -> [Note.Note] -> NAudio
+renderControls controls notes =
+    Audio.nonInterleaved Audio.chunkSize $ map renderControl controls
     where
-    final = maybe 0 (AUtil.toFrames . (+decay) . Note.end) (Seq.last notes)
-    decay = 2
-    -- TODO how can I figure out how long decay actually is?
-    -- I probably have to keep rendering until the samples stay below
-    -- a threshold.
+    renderControl control
+        | control == Control.gate = Audio.linear $ gateBreakpoints notes
+        | otherwise = Audio.linear $ controlBreakpoints control notes
 
--- | This makes a sawtooth that goes to 1 on every note start.  This is
--- suitable for percussion, but maybe continuious instruments expect a constant
--- 1 for as long as the note is sustained?
-makeGate :: [Note.Note] -> Signal.Signal
-makeGate notes = Signal.from_pairs $
-    concat [[(Note.start n, 0), (Note.start n, 1)]  | n <- notes]
-
-mergeControls :: [Control.Control] -> [Note.Note]
-    -> Map Control.Control Signal.Signal
-mergeControls supported notes =
-    Map.fromList $ filter (not . Signal.null . snd) $ map merge supported
+-- | Make a signal which goes to 1 for the duration of the note.
+--
+-- Disabled for now: It won't go to 0 for touching or overlapping notes.  If
+-- a gate transition is required to trigger an attack, presumably the notes
+-- should be shorter duration, such as 0 if it's percussion-like.
+gateBreakpoints :: [Note.Note] -> [(Double, Double)]
+gateBreakpoints = map (first RealTime.to_seconds) . go
     where
-    merge control = (control,) $ mconcat
-        [ Signal.clip_before (Note.start n) signal
-        | n <- notes
-        , signal <- maybe [] (:[]) $ Map.lookup control (Note.controls n)
-        ]
+    go [] = []
+    go (n : ns) =
+        (Note.start n, 0) : (Note.start n, 1) : (Note.end end, 0) : go rest
+        where (end, rest) = (n, ns)
+
+    -- TODO this combines touching notes as documented above, but it turns out
+    -- I rely on not doing that.  Either I should make gate always do that and
+    -- be explicitly percussive, or have karya set percussive events to
+    -- dur = 0.
+    -- go (n : ns) =
+    --     (Note.start n, 0) : (Note.start n, 1)
+    --     : (Note.end end, 1) : (Note.end end, 0)
+    --     : go rest
+    --     where
+    --     (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
+    --         (n:ns)
+
+-- | Drop until this element and the next one matches.
+dropUntil :: (a -> a -> Bool) -> [a] -> [a]
+dropUntil match = go
+    where
+    go [] = []
+    go [x] = [x]
+    go (x1 : xs@(x2 : _))
+        | match x1 x2 = x1 : xs
+        | otherwise = go xs
+
+controlBreakpoints :: Control.Control -> [Note.Note]
+    -> [(Double, Double)]
+controlBreakpoints control = concat . mapMaybe get . Seq.zip_next
+    where
+    get (note, next) = do
+        signal <- Map.lookup control (Note.controls note)
+        return $ map (first RealTime.to_seconds) $ Signal.to_pairs $
+            maybe id (Signal.clip_after_keep_last . Note.start) next $
+            Signal.clip_before (Note.start note) signal

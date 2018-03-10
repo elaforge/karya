@@ -22,13 +22,16 @@ import qualified System.FilePath as FilePath
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
+import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
+import Synth.Lib.Global
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
@@ -65,6 +68,10 @@ main = do
             process prefix patches notesFilename notes
         _ -> errorIO $ "usage: faust-im [notes | print-patches]"
 
+-- | If True, write control signals to separate files for visualization.
+debugControls :: Bool
+debugControls = True
+
 process :: Text -> Map Note.PatchName DriverC.Patch -> FilePath -> [Note.Note]
     -> IO ()
 process prefix patches notesFilename notes = do
@@ -86,13 +93,16 @@ process prefix patches notesFilename notes = do
                 <> txt output
             Directory.createDirectoryIfMissing True
                 (FilePath.takeDirectory output)
+
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.write AUtil.outputFormat output $
-                Render.renderInstrument patch notes
+                interleave $ Render.renderPatch patch notes
+            when debugControls $
+                writeControls output patch notes
             case result of
                 Left err -> put $ inst <> " writing " <> showt output <> ": "
                     <> err
-                Right () -> put $ inst <> " done"
+                Right () -> put $ inst <> " done: " <> txt output
     put "done"
     where
     flatten patchInstNotes =
@@ -100,6 +110,25 @@ process prefix patches notesFilename notes = do
         | (patch, instNotes) <- patchInstNotes
         , (inst, notes) <- instNotes
         ]
+
+writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
+writeControls output patch notes =
+    forM_ (zip controls inputs) $ \(control, audio) -> Resource.runResourceT $
+        Audio.File.write AUtil.outputFormat (fname control) $
+        Audio.take (Audio.Seconds final) audio
+    where
+    final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
+    fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".wav"
+    controls = DriverC.getControls patch
+    inputs = Audio.splitNonInterleaved $ Render.renderControls controls notes
+
+interleave :: NAudio -> Audio
+interleave naudio = case Audio.splitNonInterleaved naudio of
+    [left, right] -> Audio.mergeChannels left right
+    [center] -> Audio.expandChannels center
+    -- This should have been verified by DriverC.getParsedMetadata.
+    buffers -> error $ "expected 1 or 2 outputs, but got "
+        <> show (length buffers)
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])

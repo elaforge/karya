@@ -127,7 +127,7 @@ resampleBy ctype ratio audio = Audio.Audio $ do
             then return ()
             else loop (start + generated, withNext)
 
-    toSeconds = RealTime.seconds . Audio.framesToSeconds rate
+    toSeconds = RealTime.seconds . Audio.frameToSeconds rate
     toFrames = Audio.secondsToFrame rate . RealTime.to_seconds
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
