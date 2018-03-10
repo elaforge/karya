@@ -1707,6 +1707,20 @@ synth: im:
         . About .06s, which is ~ 26460 samples, which is 5.292 chunks.
         . It seems the sounding start starts on a chunk boundary.
     * Audio.linear should reuse the buffer for long constant segments.
+    - Various functions like Audio.linear go through some hassle to create
+      constant chunks efficiently.  But it still doesn't reuse buffers for
+      constant segments in the middle of a sequence, which may be pretty
+      common for a sparse instrument.
+      . Of course for the sparse instrument I want to detect the gap and
+        deactivate then anyway.
+      . Maybe I should switch back to Chunk Vector | Constant Frame Float
+      . This would subsume Chunk | Silent.
+      . I stopped doing that because it was annoying to handle in Resample,
+        but why can't I just map through a Chunk -> Vector if I don't want to
+        deal with them?
+      . And even if I deactivate the instrument during gaps, I need to
+        represent them, so I still need some kind of efficient Silent for
+        NAudio.
     - Compare timing with pre-input signals.
     - Suspend instrument rendering if gate and signal goes to 0.
       . Maybe I need to bring back Audio.Chunk for this.  Or V.empty in the

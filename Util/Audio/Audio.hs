@@ -415,8 +415,7 @@ linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
         (x, y) : xys
             | toFrame x <= start -> loop (start, x, y, xys)
             | otherwise -> do
-                S.yield $ V.generate (toCount generate)
-                    (interpolate prevX prevY x y . toSec . (+start) . Frame)
+                S.yield $ segment prevX prevY x y start (toCount generate)
                 loop (start + generate, prevX, prevY, breakpoints)
             where generate = min chunkSize (toFrame x - start)
         -- Line the output up to chunkSize boundaries so subsequent
@@ -429,6 +428,14 @@ linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
                 S.yield $ V.replicate (toCount leftover) (Num.d2f prevY)
                 loop (start + leftover, prevX, prevY, [])
                 where leftover = start `mod` chunkSize
+    -- Go through some hassle to create constant segments efficiently, since
+    -- they should be pretty common.
+    segment x1 y1 x2 y2 start count
+        | y1 == y2 && y1 == 0 && count <= V.length silentChunk =
+            V.take count silentChunk
+        | y1 == y2 = V.replicate count (Num.d2f y1)
+        | otherwise = V.generate count
+            (interpolate x1 y1 x2 y2 . toSec . (+start) . Frame)
     interpolate x1 y1 x2 y2 x = Num.d2f $
         (y2 - y1) / (x2 - x1) * (x - x1) + y1
     toFrame = secondsToFrame rate
