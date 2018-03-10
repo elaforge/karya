@@ -109,16 +109,27 @@ test_synchronize = do
         [(Just [1], Just [2, 3])]
 
 test_linear = do
-    let f wanted = toSamples @1 @1 . Audio.take (Audio.Frames wanted)
+    let f wanted = concat . toSamples @1 @1 . Audio.take (Audio.Frames wanted)
             . Audio.linear
-    equal (f 2 []) [[0, 0]]
-    equal (f 7 [(0, 4), (4, 0)]) [[4, 3, 2, 1, 0], [0, 0]]
+    equal (f 2 []) [0, 0]
+    equal (f 7 [(0, 4), (4, 0)]) [4, 3, 2, 1, 0, 0, 0]
     -- Implicit leading 0.
-    equal (f 7 [(2, 4), (4, 0)]) [[0, 0], [4, 2, 0], [0, 0]]
+    equal (f 7 [(2, 4), (4, 0)]) [0, 0, 4, 2, 0, 0, 0]
     -- Discontinuity.
-    equal (f 6 [(0, 2), (2, 0), (2, 3), (5, 0)]) [[2, 1], [3, 2, 1, 0]]
+    equal (f 6 [(0, 2), (2, 0), (2, 3), (5, 0)]) [2, 1, 3, 2, 1, 0]
     -- Infinite final sample.
-    equal (f 7 [(0, 0), (4, 4)]) [[0, 1, 2, 3, 4], [4, 4]]
+    equal (f 7 [(0, 0), (4, 4)]) [0, 1, 2, 3, 4, 4, 4]
+
+test_linear_chunk_size = do
+    let f wanted = map V.length . toChunks
+            . Audio.take (Audio.Frames (Audio.Frame wanted)) . Audio.linear
+    let size = Audio.framesCount (Proxy @1) Audio.chunkSize
+    equal (f (2*size+1) []) [size, size, 1]
+    -- The breakpoint splits the chunk, but it lines up on size again when it
+    -- becomes continuous.
+    equal (f (3*size) [(0, 1), (fromIntegral size / 2, 0)])
+        [size `div` 2, size `div` 2, size, size]
+
 
 _test_linear_big = do
     let f wanted = toSamples @44100 @1 . Audio.take (Audio.Seconds wanted)
@@ -160,6 +171,9 @@ fromSamples2 = Audio.fromSamples . map V.fromList
 
 toSamples :: Audio.AudioId rate channels -> [[Audio.Sample]]
 toSamples = map V.toList . Identity.runIdentity . Audio.toSamples
+
+toChunks :: Audio.AudioId 1 1 -> [V.Vector Audio.Sample]
+toChunks = Identity.runIdentity . S.toList_ . Audio._stream
 
 
 -- * util

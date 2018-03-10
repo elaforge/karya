@@ -1706,7 +1706,7 @@ synth: im:
           note should start.
         . About .06s, which is ~ 26460 samples, which is 5.292 chunks.
         . It seems the sounding start starts on a chunk boundary.
-    - Audio.linear should reuse the buffer for long constant segments.
+    * Audio.linear should reuse the buffer for long constant segments.
     - Compare timing with pre-input signals.
     - Suspend instrument rendering if gate and signal goes to 0.
       . Maybe I need to bring back Audio.Chunk for this.  Or V.empty in the

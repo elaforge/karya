@@ -372,9 +372,20 @@ zeroPadN naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
 
 -- * generate
 
--- | Infinite signal of zeros.
+-- | Silence.  Forever.
 silence :: Monad m => Audio m rate 1
-silence = Audio $ S.repeat silentChunk
+silence = constant 0
+
+-- | An infinite constant stream, which reuses the same buffer.
+constant :: Monad m => Float -> Audio m rate 1
+constant = Audio . constant_
+
+constant_ :: Monad m => Float -> S.Stream (S.Of (V.Vector Sample)) m r
+constant_ val = S.repeat chunk
+    where
+    chunk
+        | val == 0 = silentChunk
+        | otherwise = V.replicate (framesCount (Proxy @1) chunkSize) val
 
 -- | Generate a test tone.
 sine :: forall m rate. (Monad m, KnownNat rate)
@@ -398,32 +409,31 @@ sine (Frames frame) frequency = Audio (gen 0)
 -- continue forever with the last value.
 linear :: forall m rate. (Monad m, KnownNat rate)
     => [(Seconds, Double)] -> Audio m rate 1
-linear breakpoints =
-    Audio $ S.unfoldr (pure . unfold) (0, 0, 0, from0 breakpoints)
+linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
     where
-    unfold (start, prevX, prevY, breakpoints) = case breakpoints of
-        [] -> Right
-            ( if prevY == 0 then silentChunk
-                else V.replicate (framesCount chan chunkSize) (Num.d2f prevY)
-            , (0, prevX, prevY, [])
-            )
+    loop (start, prevX, prevY, breakpoints) = case breakpoints of
         (x, y) : xys
-            | toFrame x <= start -> unfold (start, x, y, xys)
-            | otherwise -> Right
-                ( V.generate (framesCount chan generate)
+            | toFrame x <= start -> loop (start, x, y, xys)
+            | otherwise -> do
+                S.yield $ V.generate (toCount generate)
                     (interpolate prevX prevY x y . toSec . (+start) . Frame)
-                , (start + generate, prevX, prevY, breakpoints)
-                )
-            where
-            -- If null xys, this is the last segment, so add a sample to get
-            -- the final value.
-            generate = min chunkSize
-                (toFrame x - start + if null xys then 1 else 0)
+                loop (start + generate, prevX, prevY, breakpoints)
+            where generate = min chunkSize (toFrame x - start)
+        -- Line the output up to chunkSize boundaries so subsequent
+        -- synchronization doesn't have to reallocate.
+        -- TODO I could avoid all reallocation by always using chunkSize, but
+        -- then the interpolate stuff gets a bit more complicated.  Not sure
+        -- if worth it.
+        []  | leftover == 0 -> constant_ (Num.d2f prevY)
+            | otherwise -> do
+                S.yield $ V.replicate (toCount leftover) (Num.d2f prevY)
+                loop (start + leftover, prevX, prevY, [])
+                where leftover = start `mod` chunkSize
     interpolate x1 y1 x2 y2 x = Num.d2f $
         (y2 - y1) / (x2 - x1) * (x - x1) + y1
     toFrame = secondsToFrame rate
     toSec = frameToSeconds rate
-    chan = Proxy :: Proxy 1
+    toCount = framesCount (Proxy @1)
     rate = natVal (Proxy :: Proxy rate)
     -- The signal is implicitly constant 0 before the first sample.
     from0 bps@((x, y) : _) | x > 0 && y /= 0 = (x, 0) : bps
