@@ -163,8 +163,15 @@ STATUS
       examples, since full scores still seems to be really noisy.
 
 UNSORTED
-  - Debug.traceM doesn't work in AudioId
+  upgrade to ghc 8.4.1
+    - first make sure deps build
+    - tag profile runs with ghc version, fix up old data
+    - search for 8.2 tagged things I can do
+    - update flags in Shakefile
+  / Debug.traceM doesn't work in AudioId
     . Does it not work in an Identity monad?  Why not?
+    . f >>= x is just f x.  So f >> g is g, so no big surprise f isn't forced.
+    . In fact traceM won't necessarily work in any non-strict monad.
   - extend gliss so I can gliss on harmonics
     . Why does eval_quoted give opposite pitches?
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
@@ -1688,7 +1695,8 @@ synth: im:
           outputFrames * max startRatio endRatio * 1.1.  I just have to glue
           them until I get there.
   faust:
-    - shouldn't faust_all.cc be in build/faust?
+    / shouldn't faust_all.cc be in build/faust?
+      . No, that would make the shake rule more complicated.
     * render incrementally
     * let faust instruments take streaming input too
       . This way I can e.g. pipe multiple instruments through an effect.
@@ -1721,6 +1729,10 @@ synth: im:
       . And even if I deactivate the instrument during gaps, I need to
         represent them, so I still need some kind of efficient Silent for
         NAudio.
+      . Ultimately I want to be able to have a faust instrument with a control
+        which is constant, and not really pay for it.  So faust should be
+        seeing the same buffer too.  Since I reuse Vector buffers directly
+        I think this should already happen.
     - Compare timing with pre-input signals.
     - Suspend instrument rendering if gate and signal goes to 0.
       . Maybe I need to bring back Audio.Chunk for this.  Or V.empty in the
@@ -2383,6 +2395,8 @@ performance:
           no GC... what is it doing?  Maybe just competing with the derive
           threads.
         . Can I put responder on its own thread, or somehow bump priority?
+        . ghc-devs subject:(GHC Threads affinity)
+          Might be able to pin respond to its own capability.
     Even once I do get this, what use will it be?
       . I can see if a hiccup is waiting on GC, or trying to evaluate
         something.
@@ -2392,11 +2406,12 @@ performance:
         . I could put derivation in a separate process.
       . Reducing garbage would help both latency and throughput, so I could also
         try to speed up derivation.
-
       . It would be useful to verify that hiccups are indeed GC, and then verify
         that GC is particularly bad when lots of derivation is going on.  I may
         be wrong and it may be another too-strict field.
-
+      . In fact it seems like they may just be thread priority.
+    . ghc 8.2 puts heap profile in the eventlog so I can align heap profile
+      with events: https://ghc.haskell.org/trac/ghc/ticket/11094
     * why does is the first respond slice have no BEGIN?
       . because that's the first "wait", I should just discount that.
     * Convert GHC events to chrome events
@@ -2434,7 +2449,6 @@ performance:
       ? Specifically, GCIdle should mark idle GC, but it occurs inside
         StartGC.  Shouldn't it mark the start of a GC?  And what is GCWork?
       - Mark major GCs like threadscope does.
-    . run via +RTS -l-p -RTS # omit spark events
     . JSON event format:
       https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/edit?pli=1
     old notes:
@@ -2523,8 +2537,6 @@ performance:
     . Can I use compact regions for the REPL loaded modules memory?
     . compactWithSharing is slower but retains internal sharing, test to see
       if it's worth it.
-  . ghc 8.2 puts heap profile in the eventlog so I can align heap profile
-    with events: https://ghc.haskell.org/trac/ghc/ticket/11094
   - Reduce memory used by REPL.  NOTE [reduce-repl-memory]
     . About 200mb.
     . GHC reads interfaces maybe with ghc/compiler/utils/Binary.hs:/readBinMem
