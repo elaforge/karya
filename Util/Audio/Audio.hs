@@ -315,8 +315,7 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
 
 -- ** non-interleaved
 
-nonInterleaved :: forall m rate. Monad m => Frame -> [Audio m rate 1]
-    -> NAudio m rate
+nonInterleaved :: Monad m => Frame -> [Audio m rate 1] -> NAudio m rate
 nonInterleaved size audios = NAudio (length audios) $
     S.unfoldr unfold (map (_stream . synchronizeToSize size) audios)
     where
@@ -336,9 +335,8 @@ synchronizeToSize size = Audio . S.unfoldr unfold . _stream
         let (pre, post) = V.splitAt (framesCount chan size) $ mconcat chunks
         return $ if V.null pre
             then Left ()
-            else Right (pre, S.cons post rest)
-    collect audio =
-        S.breakWhen (\n -> (+n) . chunkFrames chan) 0 id (>chunkSize) audio
+            else Right (pre, (if V.null post then id else S.cons post) rest)
+    collect audio = breakAfter (\n -> (+n) . chunkFrames chan) 0 (>=size) audio
     chan = Proxy @chan
 
 -- | Extend chunks < chunkSize with zeros, and pad every signal with zeros
@@ -438,3 +436,16 @@ loop1 state f = f again state
     where
     again :: state -> a
     again = f again
+
+-- | This is like 'S.breakWhen', except it breaks after the place where the
+-- predicate becomes true, not before it.
+breakAfter :: Monad m => (accum -> a -> accum) -> accum -> (accum -> Bool)
+    -> S.Stream (S.Of a) m r -> S.Stream (S.Of a) m (S.Stream (S.Of a) m r)
+breakAfter combine accum check = loop0 accum
+    where
+    loop0 accum as = lift (S.next as) >>= \case
+        Left r -> return (return r)
+        Right (a, as)
+            | check next -> S.yield a >> return as
+            | otherwise -> S.yield a >> loop0 next as
+            where next = combine accum a

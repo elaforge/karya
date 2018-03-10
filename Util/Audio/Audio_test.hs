@@ -6,12 +6,17 @@
 {-# LANGUAGE TypeApplications #-}
 module Util.Audio.Audio_test where
 import qualified Control.Monad.Identity as Identity
+import qualified Data.List as List
+import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
+
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Seq as Seq
 import Util.Test
+
 import Global
 
 
@@ -52,6 +57,7 @@ test_synchronizeToSize = do
     equal (f [[1]]) [[1]]
     equal (f [[1, 2, 3]]) [[1, 2], [3]]
     equal (f [[1], [], [2], [3]]) [[1, 2], [3]]
+    equal (f [[1, 2], [3], [4, 5]]) [[1, 2], [3, 4], [5]]
 
 test_gain = do
     let f n = concat . toSamples . Audio.gain n . fromSamples
@@ -114,6 +120,23 @@ test_linear = do
     -- Infinite final sample.
     equal (f 7 [(0, 0), (4, 4)]) [[0, 1, 2, 3, 4], [4, 4]]
 
+_test_linear_big = do
+    let f wanted = toSamples @44100 @1 . Audio.take (Audio.Seconds wanted)
+            . Audio.synchronizeToSize Audio.chunkSize
+            . Audio.linear
+    let chunks = f 0.55
+            [ (0, 0), (0, 1), (0.25, 1), (0.25, 0), (0.5, 0)
+            , (0.5, 1), (0.75, 1), (0.75, 0)
+            ]
+    mapM_ (putStrLn . untxt) $ snd $ List.mapAccumL annotate 0 chunks
+    where
+    annotate frame chunk = (frame + len,) $ Text.unwords
+        [ showt frame, showt len
+        , pretty (fromIntegral frame / 44100 :: Double)
+        , pretty (take 4 chunk), "...", pretty (Seq.rtake 4 chunk)
+        ]
+        where len = length chunk
+
 unstream :: S.Stream (S.Of a) Identity.Identity () -> [a]
 unstream = Identity.runIdentity . S.toList_
 
@@ -129,8 +152,7 @@ test_interleave = do
     equal (f [[1, 3], [2, 4]]) [1, 2, 3, 4]
     equal (f [[1, 3], [2, 4], [5]]) [1, 2, 5, 3, 4]
 
-
-fromSamples :: [[Audio.Sample]] -> Audio.AudioId 10 1
+fromSamples :: Monad m => [[Audio.Sample]] -> Audio.Audio m 10 1
 fromSamples = Audio.fromSamples . map V.fromList
 
 fromSamples2 :: [[Audio.Sample]] -> Audio.AudioId 10 2
@@ -138,3 +160,14 @@ fromSamples2 = Audio.fromSamples . map V.fromList
 
 toSamples :: Audio.AudioId rate channels -> [[Audio.Sample]]
 toSamples = map V.toList . Identity.runIdentity . Audio.toSamples
+
+
+-- * util
+
+test_breakAfter = do
+    let f check = extract . Audio.breakAfter (+) 0 check . S.each
+        extract xs = Identity.runIdentity $ do
+            as S.:> bs <- S.toList xs
+            return (as, Identity.runIdentity $ S.toList_ bs)
+    equal (f (>=5) [5, 5]) ([5], [5])
+    equal (f (>=5) [3, 2, 3]) ([3, 2], [3])
