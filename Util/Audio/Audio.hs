@@ -316,8 +316,11 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
 
 -- ** non-interleaved
 
-nonInterleaved :: Monad m => Frame -> [Audio m rate 1] -> NAudio m rate
-nonInterleaved size audios = NAudio (length audios) $
+nonInterleaved :: Monad m => [Audio m rate 1] -> NAudio m rate
+nonInterleaved = nonInterleaved_ chunkSize
+
+nonInterleaved_ :: Monad m => Frame -> [Audio m rate 1] -> NAudio m rate
+nonInterleaved_ size audios = NAudio (length audios) $
     S.unfoldr unfold (map (_stream . synchronizeToSize size) audios)
     where
     unfold streams = do
@@ -328,6 +331,7 @@ nonInterleaved size audios = NAudio (length audios) $
             else Right (map (fromMaybe V.empty) heads, tails)
 
 -- | Undo 'nonInterleaved'.
+--
 -- TODO does this run the stream multiple times?
 -- I think I have to go directly to interleaved after all.
 splitNonInterleaved :: Monad m => NAudio m rate -> [Audio m rate 1]
@@ -348,9 +352,9 @@ synchronizeToSize size = Audio . S.unfoldr unfold . _stream
     collect audio = breakAfter (\n -> (+n) . chunkFrames chan) 0 (>=size) audio
     chan = Proxy @chan
 
--- | Extend chunks < chunkSize with zeros, and pad every signal with zeros
--- forever.  Composed with 'nonInterleaved', the output should be infinite and
--- have uniform chunk size.
+-- | Extend chunks shorter than 'chunkSize' with zeros, and pad the end with
+-- zeros forever.  Composed with 'nonInterleaved', which may leave a short
+-- final chunk, the output should be infinite and have uniform chunk size.
 zeroPadN :: Monad m => NAudio m rate -> NAudio m rate
 zeroPadN naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
     where

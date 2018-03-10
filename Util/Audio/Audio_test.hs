@@ -44,7 +44,7 @@ test_mix2 = do
 test_nonInterleaved = do
     let f = map (map V.toList) . Identity.runIdentity . S.toList_
             . Audio._nstream
-            . Audio.nonInterleaved 2 . map fromSamples
+            . Audio.nonInterleaved_ 2 . map fromSamples
     equal (f []) []
     equal (f [[[1, 2, 3, 4]], [[5], [6], [7, 8]]])
         [[[1, 2], [5, 6]], [[3, 4], [7, 8]]]

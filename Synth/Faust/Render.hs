@@ -82,7 +82,7 @@ renderControls :: [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
     -> [Note.Note] -> NAudio
 renderControls controls notes =
-    Audio.nonInterleaved Audio.chunkSize $ map renderControl controls
+    Audio.nonInterleaved $ map renderControl controls
     where
     renderControl control
         | control == Control.gate = Audio.linear $ gateBreakpoints notes
