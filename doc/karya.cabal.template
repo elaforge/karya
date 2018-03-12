@@ -16,7 +16,7 @@ license-file: COPYING
 author: Evan Laforge
 maintainer: Evan Laforge <qdunkan@gmail.com>
 stability: experimental
-tested-with: GHC>=7.6.1
+tested-with: GHC == 7.10, GHC == 8.0.2, GHC == 8.4.2
 
 source-repository head
     type: darcs

@@ -6,8 +6,8 @@
     the end of the last Event.
 -}
 module Ui.TrackC (with_track) where
+import ForeignC
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 

@@ -5,7 +5,7 @@
 module Instrument.BrowserC where
 import Data.Text (Text)
 
-import Util.ForeignC
+import ForeignC
 import qualified Util.CUtil as CUtil
 import qualified Util.Fltk as Fltk
 

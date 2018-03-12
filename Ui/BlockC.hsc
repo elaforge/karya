@@ -64,9 +64,9 @@ import Ui.BlockCStub
 ##else
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
+import ForeignC
 
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 import qualified Util.Rect as Rect
 
 import qualified Ui.Color as Color

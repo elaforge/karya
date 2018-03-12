@@ -12,12 +12,12 @@ import Prelude hiding ((==), (>), (<=), round)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
+import qualified ForeignC as C
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
-import Util.Crc32Instances ()
 import qualified Util.CUtil as CUtil
-import qualified Util.ForeignC as C
+import Util.Crc32Instances ()
 import qualified Util.Num as Num
 import qualified Util.Serialize as Serialize
 

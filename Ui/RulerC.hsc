@@ -11,9 +11,9 @@ module Ui.RulerC (with_ruler, no_ruler) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import ForeignC
 
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Ruler as Ruler

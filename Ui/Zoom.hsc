@@ -4,8 +4,8 @@
 
 -- | The 'Zoom' type.
 module Ui.Zoom (Zoom(..), to_pixels, to_time) where
+import ForeignC
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 import qualified Util.Num as Num
 
 import qualified Ui.ScoreTime as ScoreTime

@@ -69,6 +69,7 @@ basicPackages = concat
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
     , w "vector utf8-string semigroups multiset"
     , [("extra", ">=1.3")]
+    , w "c-storable"
     -- shakefile
     , [("shake", ">=0.13"), ("binary", ""), ("hashable", "")]
     -- Util

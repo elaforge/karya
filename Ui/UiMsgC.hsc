@@ -3,8 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.UiMsgC (get_ui_msgs) where
+import ForeignC
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 
 import qualified Ui.Block as Block
 import qualified Ui.PtrMap as PtrMap

@@ -46,9 +46,9 @@ import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import ForeignC
 
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize

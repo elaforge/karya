@@ -3,7 +3,7 @@
 Karya is a music sequencer.
 
 Its main goal is to let you write a high level score which is then realized to
-expressive and idiomatic instrumental parts, primarily for electronic music.
+expressive and idiomatic instrumental parts.
 
 It uses its own score format.  One way to look at it is a 2D language for
 expressing music along with an editor for that language.  The score language
@@ -19,7 +19,8 @@ The primary backend is MIDI, though it can also produce lilypond if you
 restrict yourself to the subset of notation that can be translated to staff
 notation.  It doesn't record audio or host VSTs, but you can use a DAW to host
 VSTs and record or bounce tracks.  You can sync with MTC and MMC to record live
-audio, but I haven't tested that much yet.
+audio, but I haven't tested that much yet.  There is an offline synthesis
+backend, but it's still in progress.
 
 I develop on OS X.  It should theoretically work on linux, and there is a JACK
 backend, but I haven't done much testing there.

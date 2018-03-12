@@ -5,9 +5,9 @@
 module Ui.Color where
 import Data.Bits
 import qualified Data.Text as Text
+import ForeignC
 
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 import qualified Util.Num as Num
 
 import Global

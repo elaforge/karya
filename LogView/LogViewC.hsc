@@ -7,7 +7,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Text as Text
 
-import Util.ForeignC
+import ForeignC
 import qualified Util.Fltk as Fltk
 
 #include "LogView/interface.h"

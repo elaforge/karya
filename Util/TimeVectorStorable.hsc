@@ -13,7 +13,7 @@ import qualified Data.Aeson as Aeson
 import Foreign
 
 import qualified Util.CUtil as CUtil
-import qualified Util.ForeignC as C
+import qualified ForeignC as C
 import qualified Util.Serialize as Serialize
 
 import qualified Perform.RealTime as RealTime

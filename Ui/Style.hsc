@@ -11,9 +11,9 @@ module Ui.Style (
 ) where
 import qualified Data.List as List
 import qualified Data.Word as Word
+import ForeignC
 
 import qualified Util.CUtil as CUtil
-import Util.ForeignC
 import qualified Util.Serialize as Serialize
 import qualified Ui.Color as Color
 

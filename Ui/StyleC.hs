@@ -3,7 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.StyleC (insert_style) where
-import Util.ForeignC
+import ForeignC
+
 import qualified Ui.Style as Style
 
 

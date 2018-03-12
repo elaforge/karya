@@ -20,12 +20,12 @@ import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
 
 import qualified Foreign
+import ForeignC
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.CUtil as CUtil
 import qualified Util.Doc as Doc
-import Util.ForeignC
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id

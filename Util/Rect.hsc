@@ -19,7 +19,7 @@ module Util.Rect (
     , distance, intersection, overlaps, touches, point_distance
     , contains_point, touches_point
 ) where
-import Util.ForeignC
+import ForeignC
 import qualified Util.Pretty as Pretty
 
 
