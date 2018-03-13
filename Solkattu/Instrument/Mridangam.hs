@@ -145,7 +145,7 @@ both a b = note (Both a b)
 (&) :: CallStack.Stack => SNote -> SNote -> SNote
 Sequence.Note (Realize.Note s1) & Sequence.Note (Realize.Note s2) =
     Sequence.Note $ Realize.Note $ bothRStrokes s1 s2
-a & b = errorStack $ "requires notes: " <> showt (a, b)
+a & b = Solkattu.throw $ "requires notes: " <> showt (a, b)
 
 bothRStrokes :: CallStack.Stack => Realize.Stroke Stroke
     -> Realize.Stroke Stroke -> Realize.Stroke Stroke
@@ -155,7 +155,8 @@ bothRStrokes (Realize.Stroke em1 s1) (Realize.Stroke em2 s2) =
 bothStrokes :: CallStack.Stack => Stroke -> Stroke -> Stroke
 bothStrokes (Thoppi a) (Valantalai b) = Both a b
 bothStrokes (Valantalai b) (Thoppi a) = Both a b
-bothStrokes a b = errorStack $ "requires thoppi & valantalai: " <> showt (a, b)
+bothStrokes a b =
+    Solkattu.throw $ "requires thoppi & valantalai: " <> showt (a, b)
 
 val :: Stroke -> Maybe Valantalai
 val (Valantalai s) = Just s

@@ -46,12 +46,12 @@ type Stroke = Realize.Stroke Mridangam.Stroke
 -- Both sequences must have the same length and structure.
 merge :: CallStack.Stack => Sequence -> Sequence -> Sequence
 merge as bs
-    | not (null trailing) = errorStack $ "trailing strokes: " <> pretty trailing
+    | not (null trailing) = throw $ "trailing strokes: " <> pretty trailing
     | otherwise = map merge1 pairs
     where
     merge1 (Sequence.TempoChange t1 n1, Sequence.TempoChange t2 n2)
         | t1 == t2 = Sequence.TempoChange t1 (merge n1 n2)
-        | otherwise = errorStack $ "differing tempos: " <> pretty t1 <> " /= "
+        | otherwise = throw $ "differing tempos: " <> pretty t1 <> " /= "
             <> pretty t2
     merge1 (a, b)
         | isRest a = b
@@ -65,7 +65,7 @@ merge as bs
 toStroke1 :: (CallStack.Stack, Pretty a, Pretty g) =>
     Sequence.Note g (Solkattu.Note a) -> a
 toStroke1 (Sequence.Note (Solkattu.Note note)) = Solkattu._sollu note
-toStroke1 note = errorStack $ "expected sollu: " <> pretty note
+toStroke1 note = throw $ "expected sollu: " <> pretty note
 
 korvai :: Tala.Tala -> [Sequence] -> Korvai.Korvai
 korvai tala = Korvai.mridangamKorvai tala Mridangam.defaultPatterns

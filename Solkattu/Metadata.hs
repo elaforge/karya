@@ -22,6 +22,8 @@ import qualified Util.Regex as Regex
 
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Korvai)
+import qualified Solkattu.Solkattu as Solkattu
+
 import Global
 
 
@@ -119,7 +121,7 @@ parseTime s = case Regex.groups time s of
 showTime :: CallStack.Stack => Time -> Text
 showTime (h, m, s)
     | any (<0) [h, m, s] || any (>=60) [m, s] =
-        errorStack $ "invalid time: " <> showt (h, m, s)
+        Solkattu.throw $ "invalid time: " <> showt (h, m, s)
     | all (==0) [h, m, s] = "0s"
     | otherwise = mconcat $ concat
         [ [showt h <> "h" | h > 0]

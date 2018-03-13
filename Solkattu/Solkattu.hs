@@ -405,10 +405,10 @@ permuteFst permutations ((k, x) : xs)
     where go = permuteFst permutations
 
 check :: CallStack.Stack => Either Error a -> a
-check = either errorStack id
+check = either throw id
 
 checkMsg :: CallStack.Stack => Text -> Either Error a -> a
-checkMsg msg = either (errorStack . ((msg <> ": ") <>)) id
+checkMsg msg = either (throw . ((msg <> ": ") <>)) id
 
 {- NOTE [nested-groups]
 

@@ -20,7 +20,7 @@ module Solkattu.Dsl (
     , module Solkattu.Html
     , module Solkattu.Metadata
     , module Solkattu.Sequence
-    , check, durationOf
+    , module Solkattu.Solkattu
     , module Solkattu.Notation
     , module Solkattu.Tala
     -- * mridangam
@@ -53,7 +53,7 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import Solkattu.Sequence (Duration, Matra, Nadai, defaultTempo)
 import qualified Solkattu.Solkattu as Solkattu
-import Solkattu.Solkattu (check, durationOf)
+import Solkattu.Solkattu (check, durationOf, throw)
 import qualified Solkattu.Tala as Tala
 import Solkattu.Tala (Akshara)
 
@@ -108,8 +108,8 @@ modifySingleNote modify (n:ns) = case n of
     S.Note note@(Solkattu.Note {}) -> S.Note (modify note) : ns
     S.TempoChange change sub ->
         S.TempoChange change (modifySingleNote modify sub) : ns
-    _ -> errorStack $ "expected a single note: " <> pretty n
-modifySingleNote _ [] = errorStack "expected a single note, but got []"
+    _ -> throw $ "expected a single note: " <> pretty n
+modifySingleNote _ [] = throw "expected a single note, but got []"
 
 -- ** strokes
 
@@ -117,11 +117,11 @@ hv, lt :: (Pretty stroke, Pretty g, CallStack.Stack) =>
     S.Note g (Realize.Note stroke) -> S.Note g (Realize.Note stroke)
 hv (S.Note (Realize.Note s)) =
     S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Heavy }
-hv n = errorStack $ "expected stroke: " <> pretty n
+hv n = throw $ "expected stroke: " <> pretty n
 
 lt (S.Note (Realize.Note s)) =
     S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Light }
-lt n = errorStack $ "expected stroke: " <> pretty n
+lt n = throw $ "expected stroke: " <> pretty n
 
 -- * patterns
 

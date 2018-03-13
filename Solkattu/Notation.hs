@@ -298,7 +298,7 @@ matrasOf = Solkattu.matrasOf S.defaultTempo
 matrasOfI :: CallStack.Stack => SequenceT sollu -> S.Matra
 matrasOfI seq
     | frac == 0 = matras
-    | otherwise = errorStack $ "non-integral matras: " <> pretty fmatras
+    | otherwise = Solkattu.throw $ "non-integral matras: " <> pretty fmatras
     where
     (matras, frac) = properFraction fmatras
     fmatras = matrasOf seq

@@ -257,7 +257,7 @@ date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
 date y m d
     | Num.inRange 2012 2020 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
         Calendar.fromGregorian (fromIntegral y) m d
-    | otherwise = errorStack $ "invalid date: " <> showt (y, m, d)
+    | otherwise = Solkattu.throw $ "invalid date: " <> showt (y, m, d)
 
 -- ** infer
 
