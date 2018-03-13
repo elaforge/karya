@@ -17,20 +17,20 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
             (Just ((0, 4, 05), (0, 5, 22))) $
         eddupu (3/2/2) $
         korvai adi mridangam $ map su
-    [ sarvaM 8 . theme.din.__4 . group3 (1^theme) . theme.din.__8 . sarvaD 4
-        . theme.din.__4 . group3 (1^theme) . din.__6
+    [ sarvaM 8 . theme.din.__4 . in3 (1^theme) . theme.din.__8 . sarvaD 4
+        . theme.din.__4 . in3 (1^theme) . din.__6
         . su tarikita.theme.tat.__6
-        . su (kitataka.tarikita) . group3 theme . din.__2
+        . su (kitataka.tarikita) . in3 theme . din.__2
         . restD 1 . su tarikita.theme.din.__2
-        . su (kitataka.tarikita) . group3 theme
+        . su (kitataka.tarikita) . in3 theme
         -- Korvai starts here, but it starts on arudi.
         -- TODO so I need arbitrary section boundaries.
-        . repeat 3 (theme . spread 3 tdgnt . theme . spread 2 tdgnt . theme
+        . (repeat 3 $ theme . spread 3 tdgnt . theme . spread 2 tdgnt . theme
             . tri_ __3 (tri p5))
             -- Reduce __3 karvai in utarangam to __2 to arrive on sam.
     ]
     where
-    theme = takita.ta.takadinna
+    theme = group $ takita.ta.takadinna
     mridangam = makeMridangam
         [ (takita.ta, [k, k, t, k])
         , (1^takita.ta, [p&k, p&k, t, k])
@@ -45,42 +45,49 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
 e_18_02_26 :: Korvai
 e_18_02_26 = ganesh $ exercise $ date 2018 2 26 $ korvai adi mridangam $
     map (nadai 6)
-    [ rest 2 . tri (group3 p8)
+    [ rest 2 . tri (in3 p8)
         . rest 2 . mconcat fwd . rest 2 . mconcat bwd
-    , join (din.__6) (replicate 3 (group3 p8))
+    , join (din.__6) (replicate 3 (in3 p8))
         . join (din.__6) fwd . join (din.__6) bwd
     -- TODO technique: kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
     ]
     where
-    p8 = kita.ki.na.takadinna
-    fwd = [p8, group3 p8, group4 p8]
-    bwd = [group4 p8, group3 p8, p8]
+    p8 = group $ kita.ki.na.takadinna
+    fwd = [p8, in3 p8, in4 p8]
+    bwd = [in4 p8, in3 p8, p8]
     rest n = restM (n*6)
     mridangam = makeMridangam
         [ (p8, [k, t, k, n, k, o, o, k])
         , (din, [od])
         ]
 
+in4 :: SequenceT sollu -> SequenceT sollu
+in4 = appendEach 2 (__.__)
+
 yt_mannargudi2 :: Korvai
 yt_mannargudi2 = source "Mannargudi Easwaran" $
         recording "https://www.youtube.com/watch?v=E7PLgnsFBaI"
             (Just ((0, 9, 30), (0, 10, 30))) $
+        eddupu (3/2) $
         korvai adi mridangam $ map (nadai 6 • su)
+    -- TODO I need per-section eddupu because the development lands on sam
     [ sarva 6 . taka.naka.p8 . sarva 2 . __.__.tat.__.p8
-        . sarva 1 .__.__. tktu . group3 p8
+        . sarva 1 .__.__. tktu . in3 p8
     , sarva 2 . tang.__.tang.__ . p8 . nadai 4 p8 . din.__3 . p9 . din.__.na.__
-        . tri_ (din.__.na.__) p8 . group3 p8
+        . tri_ (din.__.na.__) p8 . in3 p8
     , din.__4 . join (din.__4)
-        (replicate 2 (p8 . group3 p8) ++ replicate 2 (p8 . nadai 4 p8))
-        -- This is actually a gradual transition from group3 to nadai 4.
+        (replicate 2 (p8 . in3 p8) ++ replicate 2 (p8 . nadai 4 p8))
+        -- I think this is actually a gradual transition from in3 to nadai 4.
 
-    -- eddupu changes to din.__.ga
-    ,     nadai 4 p8 . din.__ . tat_din_
-        . nadai 4 p8 . din.__ . repeat 2 tat_din_
-        . nadai 4 p8 . din.__ . repeat 3 tat_din_
+    -- korvai
+    , repeat 3 $ suffixes (in3 p8 . din.__.ga)
+        [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
+    -- korvai
+    , repeat 3 $ suffixes (nadai 4 p8 . din.__.ga)
+        [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
     ]
     where
-    p8 = kita.ki.na.takadinna
+    p8 = group $ kita.ki.na.takadinna
     p9 = kita.ki.na.ta.takadinna
     tat_din_ = tat.__.din.__.p5
 
@@ -104,22 +111,21 @@ yt_pmi1 = source "Palakkad Mani Iyer" $
     [ __.__.sar1.sar2.__.na.na.din.__
         . __. theme1 . din.__.na.na
         . din.__7 . sar3 . __.__. theme1.din.__.na.na.din.__
-        . su (__.ka).theme1.din.__.na.na.din.__
-        . su (__.ka).theme1
+        . __ . theme2.din.__.na.na.din.__
+        . __ . theme2
     , theme1.din.__ . su __ . fill1 . theme2.din.__ . su __ . fill1
         . theme1 . theme2 . utarangam
     ]
     where
-    sar1 = ta.ta.dit.ta.tang.ga . su (ta.lang.__.ga)
-    sar2 = din.tat.din.tat.tam
-    sar3 = din.din.__.na.ka.na.na.din
+    utarangam = su __ . tri (group $ su $ tat.dit.tat . __ . kita.taka.din)
+    fill1 = tat.din . su tdgnt
 
     theme1 = group $ su (tat.__3.dit.__.ka.taka) . din.din.na
     theme2 = group $ su (ka.tat.__.dit.__.ka.taka) . din.din.na
 
-    utarangam = su __ . tri (group $ su $ tat.dit.tat . __ . kita.taka.din)
-
-    fill1 = tat.din . su tdgnt
+    sar1 = ta.ta.dit.ta.tang.ga . su (ta.lang.__.ga)
+    sar2 = din.tat.din.tat.tam
+    sar3 = din.din.__.na.ka.na.na.din
     mridangam = makeMridangam
         [ (sar1, [k, k, t, k, u, o, o, u, k])
         , (sar2, [o, k, o, k, od])
@@ -188,13 +194,3 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         , (kitatakatam, [o, k, n, p, u])
         , (tam, [od])
         ]
-
--- TODO these are awkward because they don't work in a group,
--- see TODO '- I need a way to transform inside a group'
-group3 :: Sequence -> Sequence
-group3 (a:b:cs) = [a] . [b] . __ . group3 cs
-group3 xs = xs
-
-group4 :: Sequence -> Sequence
-group4 (a:b:cs) = [a] . [b] . __ . __ . group4 cs
-group4 xs = xs

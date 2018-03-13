@@ -163,6 +163,49 @@ STATUS
       examples, since full scores still seems to be really noisy.
 
 UNSORTED
+  setup CI:
+    . https://github.com/haskell-CI/haskell-ci
+      This is for multi ghc version, which might be nice but not really
+      important.
+    . Actually it is important, since travis provided ghc is ancient.
+    travis:
+      . figure out how travis cache works
+        . Looks like you just declare some directories, and it saves them
+          after each successful run and restores before the next.
+      - get other deps: fltk, libpcre, maybe jack for linux
+      - dispatch on ghc version, see https://github.com/haskell-CI/haskell-ci
+        . Most of it is concerned with cabal setup, but I can use the PPAs in
+          the matrix.
+      - replacement for tools/ncpus, or maybe it already works?
+        . https://github.com/haskell-CI/haskell-ci says the container reports
+          16 cores, but the >10 cores bug only seems to apply to ghc --make.
+      - build haddock only for latest ghc
+  open source:
+    - put public branches (or just master?) on github, retain gitlab for work
+      in progress, where I can freely rebase and force push.
+      Push script does normal push to github, force push to gitlab.
+  - Check out pretty-show or pretty-simple or ghci-pretty
+    . http://teh.id.au/posts/2017/02/13/interactive-print/index.html
+    . https://www.reddit.com/r/haskell/comments/76fvsq/replacing_ghcis_prettyprinter/
+    . https://github.com/cdepillabout/pretty-simple
+    . Maybe I can use this to get rid of the haskell-src dep.
+    . Also this is maybe an up to date variant:
+      https://hackage.haskell.org/package/prettyprinter
+
+    . pretty-simple takes up too much vertical space, and I think I don't want
+      the colors.
+    pretty-show:
+      . pretty-show still takes more space than HughsPJ Pretty.pprint, but
+        seems ok?  It's like Util.Format, but doesn't pack horizontally.
+      . Actually pretty-show dispatches to HughsPJ under the surface.
+        But it works by parsing and reifying to a Value type.  It also has
+        a PrettyVal which is a GHC.Generic implementation to convert to Value.
+      . It also renders to HTML, from the Value.
+        It's kind of interesting, but I don't like it.  Takes a lot of space,
+        has confusing 2d layout.  Can collapse though, but you have to click
+        on it.  I'd want to collapse everything at a certain level, like zm.
+      . It uses haskell-lexer instead of haskell-src, so I can remove that
+        dep, which seems old.
   upgrade to ghc 8.4.1
     - first make sure deps build
     - tag profile runs with ghc version, fix up old data
@@ -423,7 +466,7 @@ UNSORTED
     - conduit-audio has base <4.10, I can patch but author is not responding
       . Patched locally, but I'll need a long term solution.
       . Should I fork, or write my own?
-    + ghci thinks I have flags changed again
+    * ghci thinks I have flags changed again
       . f= build/test/obj/Util/CallStack.hs.o; rm $f; mk -V $f
         ghcit -v1  :load Util.Control
       . Flags are same from -XBangPatterns to -fno-warn-duplicate-exports
@@ -453,7 +496,7 @@ UNSORTED
       . Due to https://ghc.haskell.org/trac/ghc/ticket/11798
         https://ghc.haskell.org/trac/ghc/ticket/10923
       . Sent mail to glasgow-haskell-users
-      + Trac ticket: https://ghc.haskell.org/trac/ghc/ticket/13604
+      * Trac ticket: https://ghc.haskell.org/trac/ghc/ticket/13604
       . Should be fixed in 8.2.2.
       . Nope.  Maybe the next release.
   - generalize zheng 'gliss'
@@ -1006,6 +1049,7 @@ IN PROGRESS / branch: branches:
 TASKS:
   Performance
     . Solve input lagginess when the score is large.
+      . Notes for this in ghc-events:
     . Reduce GHC-API memory usage: NOTE [reduce-repl-memory]
     . Look for memory leaks.
     . Make transformers lazy so they can interleave, aka
@@ -3018,7 +3062,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  - I need a way to transform inside a group, e.g.
+  * I need a way to transform inside a group, e.g.
     . in3 (a:b:cs) = [a] . __ . [b] . in3 cs
     . This doesn't work if there's a group
     . I should be able to just apply the function under the first group, but
@@ -3035,6 +3079,11 @@ solkattu:
     . I could do a concatMapAccumL that only goes down one level, and then
       do intersperseN 2 __.
     . This is way too complicated, for something with limited use.
+    . Actually not having it is being really annoying, since group boundaries
+      make the notation a lot easier to read.
+    . How about: transform either at current level, or one group down.  Error
+      if there is another group level.  Apply inside of a single tempo, but
+      error if there is another tempo.
   transcribe:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
@@ -3052,13 +3101,38 @@ solkattu:
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
   format: output:
-    - I might need to do eddupu per-section, since a korvai can start anywhere.
+    sections:
+      . I need to do eddupu per-section, since a korvai can start anywhere,
+        and development sections might not land on the eddupu.
       . Actually what I think I need is to put section boundaries in arbitrary
         spots, instead of always sam to sam.
       . I could have a separate 0-dur type for markers, or use an empty group.
       . If I do this, I could get rid of Korvai having multiple sequences, in
         favor of section dividers.
       . How about named sections, e.g. development, korvai, ...?
+
+      . These could be done as groups, but they have different metadata than
+        dropped stuff: name, comment, expected start and end alignment.
+      . Since sections are often sequential, I shouldn't need start alignment.
+        I could use § (or **?) operator as needed.  An optional end might be
+        convenient though, to get the automatic sam, or explicit eddupu.
+      . Multiple development sections in sequence could just mark groups, so
+        places you might repeat.
+      . Could I use it for varations too?  Just another metadata.  But these
+        are different in that they have a list of sequences, each of which
+        should have the same duration, and might have a comment.
+      . So:
+        korvai etc $ mconcat
+          [ section sDevelopment comment="comment" endOn=3 $
+            takadinna.dheem
+          , section sKorvai $
+            blah.blah
+          ]
+      . Or:
+        korvai etc $ developmentKorvai -- to init and last
+          [ takadinn.dheem
+          , blah.blah
+          ]
     - put the ruler up every few avartanams even if it's not a new section
     - nadai changes are invisible, I should put something in the ruler for it
     - underline for tha+x looks weird.

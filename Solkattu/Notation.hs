@@ -21,13 +21,15 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import Solkattu.Sequence (Duration, FMatra)
 import qualified Solkattu.Solkattu as Solkattu
+import Solkattu.Solkattu (throw)
 import qualified Solkattu.Tala as Tala
 
 import Global
 
 
-type SequenceT sollu = [S.Note Solkattu.Group (Solkattu.Note sollu)]
-    -- This is the same as in Korvai.
+-- | This is the same as 'Solkattu.Korvai.SequenceT'.
+type SequenceT sollu = [NoteT sollu]
+type NoteT sollu = S.Note Solkattu.Group (Solkattu.Note sollu)
 
 -- * rests
 
@@ -298,7 +300,7 @@ matrasOf = Solkattu.matrasOf S.defaultTempo
 matrasOfI :: CallStack.Stack => SequenceT sollu -> S.Matra
 matrasOfI seq
     | frac == 0 = matras
-    | otherwise = Solkattu.throw $ "non-integral matras: " <> pretty fmatras
+    | otherwise = throw $ "non-integral matras: " <> pretty fmatras
     where
     (matras, frac) = properFraction fmatras
     fmatras = matrasOf seq
@@ -389,3 +391,49 @@ sarvaSam tala seq = sarvaA (nextSam tala seq) seq
 sarvaA :: (CallStack.Stack, Pretty sollu) =>
     S.Duration -> SequenceT sollu -> SequenceT sollu
 sarvaA dur seq = replaceEnd (sarvaD dur) seq
+
+-- * complex transformation
+
+-- | ktknkook -> kt_kn_ko_ok
+in3 :: SequenceT sollu -> SequenceT sollu
+in3 = appendEach 2 __
+
+-- | Append a sequence after a number of syllables.  This works across groups,
+-- but not tempo changes.
+appendEach :: Int -> SequenceT sollu -> SequenceT sollu -> SequenceT sollu
+appendEach per sep = mapGroup add (per-1)
+    where
+    add at n
+        | at <= 0 = (per-1, S.Note n : sep)
+        | otherwise = (at-1, [S.Note n])
+
+-- | Apply a stateful transformation within groups.  Since the transformation
+-- is allowed to add or remove notes, this will throw if there is a TempoChange
+-- in there, since now we are changing an unknown amount of time.
+mapGroup :: forall state g a. (state -> a -> (state, [S.Note g a])) -> state
+    -> [S.Note g a] -> [S.Note g a]
+mapGroup f state seq = case seq of
+    [S.TempoChange change ns] -> [S.TempoChange change (mapGroup f state ns)]
+    [S.Group g ns] -> [S.Group g (mapGroup f state ns)]
+    _ -> snd $ transform state seq
+    where
+    transform state seq = case byGroup seq of
+        Nothing -> throw "can't transform multiple tempo changes"
+        Just groups -> second concat $ List.mapAccumL transform1 state groups
+    transform1 :: state -> Either (g, [S.Note g a]) [a] -> (state, [S.Note g a])
+    transform1 state (Right ns) = concat <$> List.mapAccumL f state ns
+    transform1 state (Left (g, ns)) =
+        (:[]) . S.Group g <$> transform state ns
+
+-- | Return groups, or runs of Notes.  Nothing if there's a TempoChange in
+-- there.
+byGroup :: [S.Note g a] -> Maybe [Either (g, [S.Note g a]) [a]]
+byGroup [] = Just []
+byGroup (n : ns) = case n of
+    S.Group g ns -> (Left (g, ns) :) <$> byGroup ns
+    S.TempoChange {} -> Nothing
+    S.Note n -> (Right (n:notes) :) <$> byGroup rest
+        where (notes, rest) = Seq.span_while noteOf ns
+    where
+    noteOf (S.Note n) = Just n
+    noteOf _ = Nothing
