@@ -13,6 +13,7 @@ import Solkattu.Metadata
 import qualified Solkattu.Score.Mridangam2013
 import qualified Solkattu.Score.Mridangam2016
 import qualified Solkattu.Score.Mridangam2017
+import qualified Solkattu.Score.Mridangam2018
 import qualified Solkattu.Score.MridangamSarva
 import qualified Solkattu.Score.Solkattu2013
 import qualified Solkattu.Score.Solkattu2014
@@ -40,6 +41,7 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Mridangam2017",11,"c_17_07_10") Solkattu.Score.Mridangam2017.c_17_07_10
     , setLocation ("Solkattu.Score.Mridangam2017",15,"e_1") Solkattu.Score.Mridangam2017.e_1
     , setLocation ("Solkattu.Score.Mridangam2017",24,"e_2") Solkattu.Score.Mridangam2017.e_2
+    , setLocation ("Solkattu.Score.Mridangam2018",11,"e_18_03_10") Solkattu.Score.Mridangam2018.e_18_03_10
     , setLocation ("Solkattu.Score.MridangamSarva",18,"kir1") Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",23,"kir2") Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",43,"kir3") Solkattu.Score.MridangamSarva.kir3
@@ -114,8 +116,8 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2018",14,"yt_mannargudi1") Solkattu.Score.Solkattu2018.yt_mannargudi1
     , setLocation ("Solkattu.Score.Solkattu2018",45,"e_18_02_26") Solkattu.Score.Solkattu2018.e_18_02_26
     , setLocation ("Solkattu.Score.Solkattu2018",64,"yt_mannargudi2") Solkattu.Score.Solkattu2018.yt_mannargudi2
-    , setLocation ("Solkattu.Score.Solkattu2018",99,"yt_pmi1") Solkattu.Score.Solkattu2018.yt_pmi1
-    , setLocation ("Solkattu.Score.Solkattu2018",140,"yt_karaikudi1") Solkattu.Score.Solkattu2018.yt_karaikudi1
+    , setLocation ("Solkattu.Score.Solkattu2018",102,"yt_pmi1") Solkattu.Score.Solkattu2018.yt_pmi1
+    , setLocation ("Solkattu.Score.Solkattu2018",143,"yt_karaikudi1") Solkattu.Score.Solkattu2018.yt_karaikudi1
     , setLocation ("Solkattu.Score.SolkattuMohra",33,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",50,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",68,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube

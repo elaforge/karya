@@ -9,7 +9,7 @@ import Solkattu.MridangamGlobal
 
 
 c_17_07_10 :: Korvai
-c_17_07_10 = exercise $ korvai1 adi $ su $
+c_17_07_10 = exercise $ date 2017 7 10 $ ganesh $ korvai1 adi $ su $
     o.__.k.o.k.o.o.k . repeat 4 (o.o.k.o.k.o.o.k) . repeat 4 (o.k.k.o.o.k)
 
 e_1 :: Korvai
