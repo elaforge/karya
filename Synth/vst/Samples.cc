@@ -13,13 +13,8 @@
 Samples::Samples(std::ofstream &log, int sampleRate, const char *dir,
     const string &blockId, const std::vector<string> &mutes)
 {
-    // First try dir/blockId.wav.  If that doesn't exist, look for
-    // dir/blockId/*.wav.
-    string wholeBlock = string(dir) + blockId + ".wav";
-    if (!openSample(sampleRate, wholeBlock)) {
-        string subdir = string(dir) + blockId;
-        openSamples(log, sampleRate, subdir, mutes);
-    }
+    string subdir = string(dir) + blockId;
+    openDir(log, sampleRate, subdir, mutes);
 }
 
 
@@ -36,8 +31,18 @@ suffixMatch(const std::vector<string> &mutes, const char *fname)
     return false;
 }
 
+static bool
+endsWith(const string &str, const string &suffix)
+{
+    return str.compare(
+            str.length() - std::min(str.length(), suffix.length()),
+            string::npos,
+            suffix
+        ) == 0;
+}
+
 void
-Samples::openSamples(std::ofstream &log, int sampleRate, const string &dir,
+Samples::openDir(std::ofstream &log, int sampleRate, const string &dir,
     const std::vector<string> &mutes)
 {
     DIR *d = opendir(dir.c_str());
@@ -49,7 +54,10 @@ Samples::openSamples(std::ofstream &log, int sampleRate, const string &dir,
            continue;
         string fname(ent->d_name);
         // Don't try to load random junk, e.g. reaper .repeaks files.
-        if (fname.substr(fname.length() - 4) != ".wav")
+        if (!endsWith(fname, ".wav"))
+            continue;
+        // I write .debug.wav for debugging.
+        if (endsWith(fname, ".debug.wav"))
             continue;
 
         if (suffixMatch(mutes, ent->d_name))

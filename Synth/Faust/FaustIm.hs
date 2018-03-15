@@ -118,7 +118,8 @@ writeControls output patch notes =
         Audio.take (Audio.Seconds final) audio
     where
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
-    fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".wav"
+    -- play_cache is special-cased to ignore *.debug.wav.
+    fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
     controls = DriverC.getControls patch
     inputs = Audio.splitNonInterleaved $ Render.renderControls controls notes
 
