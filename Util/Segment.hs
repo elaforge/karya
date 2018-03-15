@@ -58,6 +58,7 @@ module Util.Segment (
 import Prelude hiding (concat, head, last, maximum, minimum, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as Vector.Storable
 
@@ -80,19 +81,28 @@ import Global
     segments.
 
     A signal has no value before its first sample, and maintains a constant
-    value of the last sample "forever."
+    value of the last sample forever.  There is an implicit discontinuity
+    to the first sample, so if @x@ is the first sample, then @[(x, y), ..]@ is
+    implicitly @[(x, Nothing), (x, y), ...]@.  'NumSignal' uses 0 for not set,
+    so unless the first @y@ is also 0 it becomes @[(x, 0), (x, y), ..]@.
 
-    This comes with a built-in X offset, so translation is cheap.
+    This comes with a built-in X offset, so translation is cheap, via 'shift'.
 
     Each X should be >= the previous X, and there shouldn't be more than two
     equal Xs in a row.  The first ensures that binary search works, and the
-    second insures that I don't try to interpolate a zero length segment.  All
-    the functions in here should maintain these invariants.
-    TODO make sure this is true
+    second insures that I don't try to interpolate a zero length segment.
+    Construction via 'from_samples' should establish them, and transformations
+    should maintain them.
 
-    There may be redundant segments, e.g. [(0, 1), (1, 1), (2, 1] or
-    [(0, 1), (1, 1), (1, 1)].  These can't be eliminated because the @y@ value
-    may not have an Eq instance.
+    However, a few functions in here can break them, e.g. 'map_x' and 'invert',
+    and I think trying to fix them would be expensive.  So be careful with
+    those.  Functions should be robust against zero length segments, but if you
+    break ordering you're out of luck.
+
+    If the @y@ value doesn't have an Eq instance, there's no way to filter
+    out redundant segments like @[(0, 1), (1, 1), (2, 1)]@.  Functions
+    specialized to 'NumSignal' may make some effort to do that, but only if it
+    seems worth it.
 -}
 data Signal v = Signal {
     _offset :: !X
@@ -174,18 +184,28 @@ to_vector sig
 -- TODO I could simplify straight lines, but then I'd need Eq on y.  Maybe do
 -- that separately for NumSignal.
 from_samples :: V.Vector v (Sample y) => [Sample y] -> SignalS v y
-from_samples = from_vector . V.fromList . strip
+from_samples =
+    from_vector . V.fromList . drop_coincident
+        . drop_initial_dup
+        . Maybe.catMaybes . snd . List.mapAccumL in_order Nothing
     where
-    -- Ignore the out-of-order sample.
-    strip (s1@(Sample x1 _) : Sample x2 _ : sn) | x2 < x1 = strip (s1 : sn)
+    -- Since the first sample comes from 0, I can drop leading dups.
+    drop_initial_dup (s1 : ss@(s2 : _)) | sx s1 == sx s2 = drop_initial_dup ss
+    drop_initial_dup s = s
+    -- Drop out-of-order samples.
+    in_order Nothing cur = (Just cur, Just cur)
+    in_order (Just prev) cur
+        | sx cur < sx prev = (Just prev, Nothing)
+        | otherwise = (Just cur, Just cur)
     -- Abbreviate coincident samples.
-    strip (Sample x1 y1 : _ : sn@(Sample x2 _ : _)) | x1 == x2 =
-        strip $ Sample x1 y1 : sn
-    strip (s1:sn) = s1 : strip sn
-    strip [] = []
+    drop_coincident (Sample x1 y1 : _ : sn@(Sample x2 _ : _)) | x1 == x2 =
+        drop_coincident $ Sample x1 y1 : sn
+    drop_coincident (s1:sn) = s1 : drop_coincident sn
+    drop_coincident [] = []
 
 to_samples :: V.Vector v (Sample y) => SignalS v y -> [Sample y]
-to_samples sig = (if _offset sig == 0 then id else map (plus (_offset sig))) $
+to_samples sig =
+    (if _offset sig == 0 then id else map (plus (_offset sig))) $
         V.toList (_vector sig)
     where
     plus n (Sample x y) = Sample (n+x) y
@@ -330,9 +350,9 @@ concat maybe_eq interpolate sigs =
             clipped = clip_after_v interpolate x1 v2
             extension end = V.singleton (Sample x1 (sy end))
     -- Maintain the invariant that there are no greater than two Xs with the
-    -- same value.  Since I don't have Eq y, I can remove complete duplicates
-    -- like (1, 1), (1, 1).
+    -- same value.  If I have Eq, I can also strip redundant Y values.
     strip_duplicates (v1 : _ : v3 : vs)
+        -- Totally skip a chunk if it can be clipped to nothing.
         | Just x1 <- sx <$> TimeVector.last v1
         , Just x3 <- sx <$> TimeVector.head v3
         , x1 == x3 =
@@ -459,6 +479,8 @@ map_y_linear f = modify_vector $ TimeVector.map_y f
 
 -- | Map Xs.  The slopes will definitely change unless the function is adding
 -- a constant, but presumably that's what you want.
+--
+-- TODO this can break 'Signal' invariants.
 map_x :: V.Vector v (Sample y) => (X -> X) -> SignalS v y -> SignalS v y
 map_x f = modify_vector $ TimeVector.map_x f
 
@@ -472,6 +494,9 @@ map_err f = first from_vector . TimeVector.map_err f . to_vector
 
 -- ** hacks
 
+-- | Drop a x1==x2 discontinuity at the given time, if there is one.
+-- Used for Block.trim_controls, which is a terrible hack that I'm trying to
+-- get rid of.
 drop_discontinuity_at :: V.Vector v (Sample y) => X -> SignalS v y
     -> SignalS v y
 drop_discontinuity_at x sig = case V.toList clipped of
@@ -512,6 +537,8 @@ num_interpolate (Sample x1 y1) (Sample x2 y2) = TimeVector.y_at x1 y1 x2 y2
 num_interpolate_s :: Segment Y -> X -> Y
 num_interpolate_s (Segment x1 y1 x2 y2) = TimeVector.y_at x1 y1 x2 y2
 
+-- | Swap X and Y.  Y must be non-decreasing or this will break 'Signal'
+-- invariants.
 invert :: NumSignal -> NumSignal
 invert sig = sig { _vector = V.map swap (_vector sig) }
     where

@@ -2,16 +2,22 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE TypeApplications #-}
 module Util.Segment_test where
+import qualified Data.List as List
+import qualified Test.QuickCheck as Q
+
 import qualified Util.Segment as Segment
 import Util.Segment (Segment(Segment))
 import Util.Segment (X)
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Types as Types
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (large)
+import Types
 
 
 type Y = Double
@@ -40,8 +46,7 @@ test_constant_val = do
     equal (f $ from_pairs [(3, 2)]) Nothing
 
 test_concat = do
-    let f = to_pairs . Segment.concat (Just (==)) Segment.num_interpolate
-            . map from_pairs
+    let f = to_pairs . num_concat . map from_pairs
     equal (f []) []
     -- Extend final segment.
     equal (f [[(0, 1)], [(4, 2)]]) [(0, 1), (4, 1), (4, 2)]
@@ -230,6 +235,43 @@ test_drop_discontinuity_at = do
     equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1), (2, 0)])
         [(0, 0), (2, 0), (2, 0)]
 
+-- * quickcheck
+
+-- Xs are ascending.
+test_from_samples_ascending = quickcheck $ Q.forAll gen_samples $ \samples ->
+    let xs = map fst $ to_pairs $ from_pairs samples
+    in q_equal xs (List.sort xs)
+
+-- Never more than 2 Xs with the same value.
+test_from_samples_dups = quickcheck $ Q.forAll gen_samples $ \samples ->
+    let xs = map fst $ to_pairs $ from_pairs samples
+    in q_equal (filter ((>2) . length) $ List.group xs) []
+
+test_concat_ascending = quickcheck $ \(s1, s2) ->
+    let xs = map fst $ to_pairs $ num_concat [s1, s2]
+    in q_equal xs (List.sort xs)
+
+test_concat_dups = quickcheck $ \(s1, s2) ->
+    let xs = map fst $ to_pairs $ num_concat [s1, s2]
+    in q_equal (filter ((>2) . length) $ List.group xs) []
+
+gen_samples :: Q.Gen [(X, Y)]
+gen_samples = Q.listOf $ (,) <$> gen_integral_x <*> Q.choose (-1, 1)
+
+-- | Integral RealTimes to encourage collisions.
+gen_integral_x :: Q.Gen RealTime
+gen_integral_x = RealTime.seconds . fromIntegral @Int <$> Q.choose (-4, 4)
+
+-- TODO if I continue with QuickCheck I should move them to their own module.
+instance Q.Arbitrary RealTime where
+    arbitrary = RealTime.seconds <$> Q.arbitrary
+    shrink = map RealTime.seconds . Q.shrink . RealTime.to_seconds
+
+instance Q.Arbitrary Segment.NumSignal where
+    arbitrary = from_pairs . Seq.sort_on fst <$> gen_samples
+    shrink = map from_pairs . Q.shrinkList Q.shrink . to_pairs
+
+-- * util
 
 large_y :: Y
 large_y = RealTime.to_seconds large
@@ -246,3 +288,6 @@ to_pairs = Segment.to_pairs
 
 constant :: Y -> Segment.NumSignal
 constant = Segment.constant
+
+num_concat :: [Segment.NumSignal] -> Segment.NumSignal
+num_concat = Segment.concat (Just (==)) Segment.num_interpolate

@@ -1072,8 +1072,6 @@ TASKS:
     . Im
   Tests:
     . Quickcheck for derivation.
-      . Or hedgehog:
-        http://teh.id.au/posts/2017/04/23/property-testing-with-hedgehog/
       . Or Midi.Encode_test.test_encode
       . Or Ui.Diff
     . Test Ui.Diff and Ui.Sync.
@@ -1231,31 +1229,20 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
     to a few things like 'at'.  But I feel like all the various transformation
     functions won't allow that.  They are type specific too.
 
-  - clip_before, clip_after
-    . Slicing a signal will require changing the vector, to add a new
-      sample on the beginning or end.  I could eliminate this with _start
-      and _extend fields.  Not sure if it's worth it.
-    . Do it the simple way first, and profile.
-    . Do I need to clip at all?  The performer can clip to the start, but
-      I think it needs to know where the note stops because otherwise this
-      information isn't preserved.
-      . I could do it more efficiently by just sticking an end time in the
-        Score.Event, and leave it to the performer to observe.
-      . Indeed NoteUtil.trim_controls only does drop_before.
-      . E.g. BlockUtil_test.test_compile, final test
   Util.Segment:
-    - I should put a final sample on for sampled curves too.  Maybe I do?
-    - put Seq.drop_dups id on Signal.to_pairs, or better, from_pairs
-    - Make Signal.from_pairs drop a redundant final sample
-    . use String_test.strip_flat
+    / I should put a final sample on for sampled curves too.  Maybe I do?
+    invariants:
+      - ensure that NumSignal omits redundant samples in a flat segment
+        . Use or remove String_test.strip_flat
+      Util.Segment invariants: Xs are ordered, max of 2 equal Xs
+        * check that from_pairs establishes it
+        * check that concat maintains it
+      - Also ensure that MSignal.Signal can't get duplicate Xs.
     - Util.Segment winds up with _v vector variants.  Maybe I should make
       a whole new module with no offset, and then if I really need offset,
       make a wrapper for it.
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
-    - Util.Segment has an invariant where Xs are ordered, and there are
-      a max of two in the same place.  Quickcheck it!
-    - Also ensure that MSignal.Signal can't get duplicate Xs.
   tests:
     - Always use _rounded for DeriveTest.e_control?
   - Adding linear hurt performance
@@ -1307,12 +1294,13 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       . It will have to find where segments intersect the quantize multiples.
       . Don't bother for now.
 
-  - If I get rid of constant signals starting at 0, then Tempo.tempo_to_warp's
+  / If I get rid of constant signals starting at 0, then Tempo.tempo_to_warp's
     constant_val doesn't work, because tracks start at 0.
     . I could move tempo track's first sample to -large, but no I can't
       because it makes integrate take forever.
     . However, with segments I probably could, but I would have to make all
       control tracks implicitly start at -large.
+    . Fixed via Segment.constant_val_num from.
   ? Another way to make moving events cheap is to make event controls relative
     to event_start.
     . Surely I thought of that before, but I don't remember why I didn't do it.
@@ -2426,6 +2414,24 @@ performance:
   . http://www.tweag.io/posts/2017-09-06-hyperion.html
   . https://github.com/tobami/codespeed can make a web page with perf graphs
 
+  signal:
+    - clip_before and clip_after usually require changing the signal
+      . I could eliminate this with _start and _extent fields.
+    - Segment._offset might not be worth it
+      . Since I think it's only really used to move Score.Events, I could get
+        the same effect by making event signals relative to event start.
+    old notes:
+      . Slicing a signal will require changing the vector, to add a new
+        sample on the beginning or end.  I could eliminate this with _start
+        and _extend fields.  Not sure if it's worth it.
+      . Do it the simple way first, and profile.
+      . Do I need to clip at all?  The performer can clip to the start, but
+        I think it needs to know where the note stops because otherwise this
+        information isn't preserved.
+        . I could do it more efficiently by just sticking an end time in the
+          Score.Event, and leave it to the performer to observe.
+        . Indeed NoteUtil.trim_controls only does drop_before.
+        . E.g. BlockUtil_test.test_compile, final test
   - I should include the number of events in the verify profile, so I can
     compare relative event throughput per score.
     . Clearly the wayang ones are doing something expensive, what is it?
@@ -2969,6 +2975,33 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test: testing:
+  quickcheck: property:
+    notes:
+      . In general for RealTimes, I'd like some which are the same, some which
+        are close, and some randoms.
+      ? How does shrinking get associated?
+        It's encoded in the test rose tree via 'shrinking'
+        Run just explores the tree, which already has shrinks.  So they go into
+        Property construction.
+        . Testable converts to Property
+          Testable (Gen a)
+          Testable (Arbitrary a -> prop) does a forAllShrink
+        . So I only get Arbitrary's shrink if I do a test directly on an
+          Arbitrary, no forAll.  If I want to use forAll with Gens, then I also
+          have to construct and pass a shrink.  The point of Arbitrary is to
+          construct both that and the Gen together.
+      . Arbitrary vs. manual Gen:
+        I don't really want to make all RealTime -4 to 4 integral.
+        But that means I lose shrink, unless I make a newtype.
+      ? Also I want falsifiable msg to pretty print the failing data.  Where
+        does that come from?
+        . From Q.testCase, which is from counterexample calls, which
+          forAllShrink does with show.  So while I can add, I can't replace it
+          without using my own forAll.
+    Hedgehog:
+      . http://teh.id.au/posts/2017/04/23/property-testing-with-hedgehog/
+      . Hedgehog lets me use Gen more easily, since it automatically infers
+        shrink, and keeps it with the Gen.
   - Write a test for Ui.Diff and Ui.Sync.
     . I think the easiest way to do this is make BlockCStub record its calls,
       then have a UI simulation that interprets those.  Then I can use

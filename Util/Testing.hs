@@ -7,6 +7,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 -- | Basic testing utilities.
 module Util.Testing (
     Config(..), modify_test_config, with_test_name
@@ -365,17 +366,19 @@ expect_right (Right v) = v
 -- | Run a quickcheck property.
 quickcheck :: (Stack, QuickCheck.Testable prop) => prop -> IO Bool
 quickcheck prop = do
-    result <- QuickCheck.quickCheckWithResult args prop
-    case result of
-        QuickCheck.Success { output = output } -> success (Text.pack output)
-        QuickCheck.GaveUp { output = output } -> failure (Text.pack output)
-        QuickCheck.Failure { output = output } -> failure (Text.pack output)
-        QuickCheck.NoExpectedFailure { output = output } ->
-            failure (Text.pack output)
-        QuickCheck.InsufficientCoverage { output = output } ->
-            failure (Text.pack output)
+    (ok, msg) <- format_quickcheck_result <$>
+        QuickCheck.quickCheckWithResult args prop
+    (if ok then success else failure) msg
     where
     args = QuickCheck.stdArgs { QuickCheck.chatty = False }
+
+format_quickcheck_result :: QuickCheck.Result -> (Bool, Text)
+format_quickcheck_result result = fmap Text.strip $ case result of
+    QuickCheck.Success { output } -> (True, Text.pack output)
+    QuickCheck.GaveUp { output } -> (False, Text.pack output)
+    QuickCheck.Failure { output } -> (False, Text.pack output)
+    QuickCheck.NoExpectedFailure { output } -> (False, Text.pack output)
+    QuickCheck.InsufficientCoverage { output } -> (False, Text.pack output)
 
 -- | 'equal' for quickcheck.
 q_equal :: (Show a, Eq a) => a -> a -> QuickCheck.Property

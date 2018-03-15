@@ -56,14 +56,14 @@ test_slope_to_limit = do
     equal (f (Just 0) (Just 8) 0 1) [(4, 0), (8, 4)]
     equal (f (Just 0) (Just 2) 2 1) []
     -- TODO not sure this makes sense
-    equal (f (Just 0) (Just 2) 4 1) [(4, 4), (4, 2)]
+    equal (f (Just 0) (Just 2) 4 1) [(4, 2)]
 
     equal (f Nothing Nothing 2 (-1)) [(4, 2), (8, -2)]
     equal (f (Just 0) (Just 2) 2 (-1)) [(4, 2), (6, 0)]
     equal (f (Just (-8)) (Just 2) 2 (-1)) [(4, 2), (8, -2)]
     equal (f (Just 0) (Just 2) 0 (-1)) []
     -- TODO not sure this makes sense
-    equal (f (Just 0) (Just 2) (-1) (-1)) [(4, -1), (4, 0)]
+    equal (f (Just 0) (Just 2) (-1) (-1)) [(4, 0)]
 
 test_smooth_absolute = do
     let f time = Signal.to_pairs
