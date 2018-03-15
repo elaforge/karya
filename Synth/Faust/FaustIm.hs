@@ -70,7 +70,7 @@ main = do
 
 -- | If True, write control signals to separate files for visualization.
 debugControls :: Bool
-debugControls = True
+debugControls = False
 
 process :: Text -> Map Note.PatchName DriverC.Patch -> FilePath -> [Note.Note]
     -> IO ()
