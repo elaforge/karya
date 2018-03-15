@@ -170,6 +170,11 @@ PlayCache::start(VstInt32 delta)
 {
     if (samples)
         delete samples;
+    // This can happen if the DAW gets a NoteOn before the config msgs.
+    if (playConfig.blockId.empty()) {
+        LOG("play received, but blockId is empty");
+        return;
+    }
     LOG("start playing at delta " << delta << " block '" << playConfig.blockId
         << "' from frame " << offsetFrames);
     // TODO Samples allocation should be on a non-realtime thread, and this
