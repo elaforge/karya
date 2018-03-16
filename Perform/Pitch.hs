@@ -357,10 +357,7 @@ modify_transpose f t = case t of
 -- independent, and not every scale will have the same values for key and
 -- mode.
 newtype Key = Key Text
-    deriving (Eq, Ord, Read, Show, Serialize.Serialize)
-
-instance ShowVal.ShowVal Key where
-    show_val = ShowVal.show_val . key_text
+    deriving (Eq, Ord, Read, Show, ShowVal.ShowVal, Serialize.Serialize)
 
 key_text :: Key -> Text
 key_text (Key t) = t
