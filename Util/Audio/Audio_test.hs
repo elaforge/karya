@@ -51,6 +51,18 @@ test_nonInterleaved = do
     equal (f [[[1]], [[5, 6, 7, 8]]])
         [[[1], [5, 6]], [[], [7, 8]]]
 
+test_interleaved = do
+    equal (interleaved (Proxy @3) [[1, 2], [3, 4]]) $
+        Left "can't convert 2 channels to 3"
+    equal (interleaved (Proxy @3) [[1, 2]]) $ Right [1, 1, 1, 2, 2, 2]
+    equal (interleaved (Proxy @2) [[1, 2], [3, 4]]) $ Right [1, 3, 2, 4]
+
+interleaved :: forall outChan. (TypeLits.KnownNat outChan)
+    => Proxy outChan -> [[Audio.Sample]] -> Either Text [Audio.Sample]
+interleaved Proxy = fmap (concat . toSamples @10 @outChan)
+    . Audio.interleaved . Audio.nonInterleaved
+    . map fromSamples . map (:[])
+
 test_synchronizeToSize = do
     let f = toSamples . Audio.synchronizeToSize 2 . fromSamples
     equal (f []) []
@@ -130,7 +142,6 @@ test_linear_chunk_size = do
     equal (f (3*size) [(0, 1), (fromIntegral size / 2, 0)])
         [size `div` 2, size `div` 2, size, size]
 
-
 _test_linear_big = do
     let f wanted = toSamples @44100 @1 . Audio.take (Audio.Seconds wanted)
             . Audio.synchronizeToSize Audio.chunkSize
@@ -151,14 +162,14 @@ _test_linear_big = do
 unstream :: S.Stream (S.Of a) Identity.Identity () -> [a]
 unstream = Identity.runIdentity . S.toList_
 
-test_deinterleave = do
-    let f chans = map V.toList . Audio.deinterleave chans . V.fromList @Float
+test_deinterleaveV = do
+    let f chans = map V.toList . Audio.deinterleaveV chans . V.fromList @Float
     equal (f 1 [1, 2, 3, 4]) [[1, 2, 3, 4]]
     equal (f 2 [1, 2, 3, 4]) [[1, 3], [2, 4]]
     equal (f 3 [1, 2, 3, 4]) [[1], [2], [3]]
 
-test_interleave = do
-    let f = V.toList . Audio.interleave . map (V.fromList @Float)
+test_interleaveV = do
+    let f = V.toList . Audio.interleaveV . map (V.fromList @Float)
     equal (f [[1, 2, 3, 4]]) [1, 2, 3, 4]
     equal (f [[1, 3], [2, 4]]) [1, 2, 3, 4]
     equal (f [[1, 3], [2, 4], [5]]) [1, 2, 5, 3, 4]
@@ -168,6 +179,10 @@ fromSamples = Audio.fromSamples . map V.fromList
 
 fromSamples2 :: [[Audio.Sample]] -> Audio.AudioId 10 2
 fromSamples2 = Audio.fromSamples . map V.fromList
+
+fromSamplesN :: TypeLits.KnownNat chan => [[Audio.Sample]]
+    -> Audio.AudioId 10 chan
+fromSamplesN = Audio.fromSamples . map V.fromList
 
 toSamples :: Audio.AudioId rate channels -> [[Audio.Sample]]
 toSamples = map V.toList . Identity.runIdentity . Audio.toSamples

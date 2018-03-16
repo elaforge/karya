@@ -30,14 +30,16 @@ module Util.Audio.Audio (
     -- * channels
     , mergeChannels
     , expandChannels, mixChannels
-    , interleave, deinterleave
+    , interleaveV, deinterleaveV
     -- ** non-interleaved
-    , nonInterleaved, splitNonInterleaved
+    , nonInterleaved, interleaved
     , synchronizeToSize
     , zeroPadN
     -- * generate
     , silence, sine
     , linear
+    -- * error
+    , Exception(..), throw
     -- * constants
     , chunkSize, silentChunk
     -- * util
@@ -47,6 +49,7 @@ module Util.Audio.Audio (
 #endif
 ) where
 import Prelude hiding (take)
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Maybe as Maybe
@@ -140,7 +143,7 @@ fromSamples = Audio . S.each . map check
         | V.length chunk `mod` chan == 0 = chunk
         | otherwise = error $ "chunk length " <> show (V.length chunk)
             <> " not a multiple of channels " <> show chan
-    chan = natVal (Proxy :: Proxy chan)
+    chan = natVal (Proxy @chan)
 
 toSamples :: Monad m => Audio m rate channels -> m [V.Vector Sample]
 toSamples = S.toList_ . _stream
@@ -265,38 +268,42 @@ mergeChannels audio1 audio2 =
         count1 = framesCount chan1 $ maybe 0 (chunkFrames chan2) a2
         count2 = framesCount chan2 $ maybe 0 (chunkFrames chan1) a1
     -- These should now have the same number of frames.
-    merge (a1, a2) = interleave $
-        deinterleave (natVal chan1) a1 ++ deinterleave (natVal chan2) a2
+    merge (a1, a2) = interleaveV $
+        deinterleaveV (natVal chan1) a1 ++ deinterleaveV (natVal chan2) a2
     chan1 = Proxy @chan1
     chan2 = Proxy @chan2
 
 -- | Take a single channel signal to multiple channels by copying samples.
+--
+-- This could be generalized to expand n to m where m is divisible by n, but
+-- that's more complicated and I don't need it.
 expandChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate 1 -> Audio m rate chan
-expandChannels (Audio audio) = Audio $ S.map expand audio
-    where
-    expand chunk = V.generate (V.length chunk * chan) $
-        \i -> chunk V.! (i `div` chan)
-    chan = natVal (Proxy :: Proxy chan)
+expandChannels (Audio audio) = Audio $ S.map (expandV chan) audio
+    where chan = natVal (Proxy :: Proxy chan)
 
 -- | Do the reverse of 'expandChannels', mixing all channels to a mono signal.
 mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate chan -> Audio m rate 1
 mixChannels (Audio audio) = Audio $ S.map mix audio
     where
-    mix = zipWithN (+) . deinterleave chan
+    mix = zipWithN (+) . deinterleaveV chan
     chan = natVal (Proxy :: Proxy chan)
 
-deinterleave :: V.Storable a => Channels -> V.Vector a -> [V.Vector a]
-deinterleave channels v
+expandV :: Channels -> V.Vector Sample -> V.Vector Sample
+expandV chan chunk = V.generate (V.length chunk * chan) $
+        \i -> chunk V.! (i `div` chan)
+
+deinterleaveV :: V.Storable a => Channels -> V.Vector a -> [V.Vector a]
+deinterleaveV channels v
     | channels == 1 = [v]
     | otherwise = map gen [0 .. channels - 1]
     where
     gen chan = V.generate frames (\i -> v V.! (channels * i + chan))
     frames = V.length v `div` channels
 
-interleave :: V.Storable a => [V.Vector a] -> V.Vector a
-interleave vs = V.create $ do
+interleaveV :: V.Storable a => [V.Vector a] -> V.Vector a
+interleaveV vs = V.create $ do
     out <- VM.new (sum (map V.length vs))
     forM_ (zip [0..] vs) $ \(vi, v) ->
         forM_ (Seq.range' 0 (V.length v) 1) $ \i ->
@@ -347,13 +354,24 @@ nonInterleaved_ size audios = NAudio (length audios) $
         return $ if null tails then Left ()
             else Right (map (fromMaybe V.empty) heads, tails)
 
--- | Undo 'nonInterleaved'.
+-- | Convert a non-interleaved NAudio with an unknown number of channels
+-- to an interleaved one with a known number.  This is the inverse of
+-- 'nonInterleaved'.
 --
--- TODO I think this runs the stream multiple times
-splitNonInterleaved :: Monad m => NAudio m rate -> [Audio m rate 1]
-splitNonInterleaved naudio =
-    map (\i -> Audio $ S.map (!! i) (_nstream naudio))
-        [0 .. _nchannels naudio - 1]
+-- This is limited to only work when the channels are equal, or the NAudio has
+-- 1 channel, in which case it acts like 'expandChannels'.  Similar to
+-- 'expandChannels', I could generalize it, but I don't need that now.
+interleaved :: forall m rate chan. (Monad m, KnownNat chan)
+    => NAudio m rate -> Either Text (Audio m rate chan)
+interleaved naudio
+    | _nchannels naudio == 1 =
+        Right $ Audio $ S.map (expandV chan . head) $ _nstream naudio
+    | _nchannels naudio == chan =
+        Right $ Audio $ S.map interleaveV $ _nstream naudio
+    | otherwise = Left $ "can't convert " <> showt (_nchannels naudio)
+        <> " channels to " <> showt chan
+    where
+    chan = natVal (Proxy @chan)
 
 synchronizeToSize :: forall m rate chan. (Monad m, KnownNat chan)
     => Frame -> Audio m rate chan -> Audio m rate chan
@@ -455,6 +473,16 @@ linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
     -- The signal is implicitly constant 0 before the first sample.
     from0 bps@((x, y) : _) | x > 0 && y /= 0 = (x, 0) : bps
     from0 bps = bps
+
+-- * error
+
+newtype Exception = Exception Text
+    deriving (Show)
+
+instance Exception.Exception Exception
+
+throw :: Text -> AudioIO rate chan
+throw = Audio . liftIO . Exception.throwIO . Exception
 
 -- * constants
 

@@ -1582,7 +1582,7 @@ synth: im:
         . I can get a typed NAudio from the length, but only inside an
           existential type.  It doesn't seem any different from just putting
           the number in the data type.
-    - I think Audio.splitNonInterleaved runs the stream multiple times, fix it.
+    * I think Audio.splitNonInterleaved runs the stream multiple times, fix it.
       . In general it seems dangerously easy to do this, but I'm not sure how
         to prevent it.
       . I think running multiple times is inherent given that it returns

@@ -113,23 +113,22 @@ process prefix patches notesFilename notes = do
 
 writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
 writeControls output patch notes =
-    forM_ (zip controls inputs) $ \(control, audio) -> Resource.runResourceT $
+    forM_ controls $ \control -> Resource.runResourceT $
         Audio.File.write AUtil.outputFormat (fname control) $
-        Audio.take (Audio.Seconds final) audio
+        Audio.take (Audio.Seconds final)
+        (Render.renderControl notes control :: AUtil.Audio1)
     where
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
     -- play_cache is special-cased to ignore *.debug.wav.
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
     controls = DriverC.getControls patch
-    inputs = Audio.splitNonInterleaved $ Render.renderControls controls notes
+
+-- type Audio = Audio.AudioIO Config.SamplingRate 2
 
 interleave :: NAudio -> Audio
-interleave naudio = case Audio.splitNonInterleaved naudio of
-    [left, right] -> Audio.mergeChannels left right
-    [center] -> Audio.expandChannels center
-    -- This should have been verified by DriverC.getParsedMetadata.
-    buffers -> error $ "expected 1 or 2 outputs, but got "
-        <> show (length buffers)
+interleave naudio = case Audio.interleaved naudio of
+    Right audio -> audio
+    Left err -> Audio.throw $ "expected 1 or 2 outputs: " <> err
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])

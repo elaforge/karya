@@ -8,6 +8,7 @@ module Synth.Faust.Render where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
 import qualified Data.Vector.Storable as V
+import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
@@ -82,11 +83,13 @@ renderControls :: [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
     -> [Note.Note] -> NAudio
 renderControls controls notes =
-    Audio.nonInterleaved $ map renderControl controls
-    where
-    renderControl control
-        | control == Control.gate = Audio.linear $ gateBreakpoints notes
-        | otherwise = Audio.linear $ controlBreakpoints control notes
+    Audio.nonInterleaved $ map (renderControl notes) controls
+
+renderControl :: (Monad m, TypeLits.KnownNat rate)
+    => [Note.Note] -> Control.Control -> Audio.Audio m rate 1
+renderControl notes control
+    | control == Control.gate = Audio.linear $ gateBreakpoints notes
+    | otherwise = Audio.linear $ controlBreakpoints control notes
 
 -- | Make a signal which goes to 1 for the duration of the note.
 --
