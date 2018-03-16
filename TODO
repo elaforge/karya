@@ -2,6 +2,8 @@ LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
 
+QuickCheck.morallyDubiousIOProperty
+
 NESS:
   Questions:
     multiplate:
@@ -157,10 +159,18 @@ NESS:
     . can I hand damp metal percussion?
 
 STATUS
-  + Next, I should set up organized profiling, especially so I can profile
-    before and after warp as function, and linear segments.
+  - solkattu: implement korvai sections
+    . I'm motivated to do this because Solkattu2018.yt_mannargudi2 requires
+      eddupu only on the actual korvai variations, not development.
+  - upgrade to ghc 8.4.1
+    . Sent patches to other projects, waiting for everyone to get updated.
+  + I should set up organized profiling, especially so I can profile before
+    and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
       examples, since full scores still seems to be really noisy.
+    . I have this in the 'criterion' branch.  I investigated using 'guage',
+      which has fewer dependencies, but it seems one of those is JSON export,
+      which I need.
 
 UNSORTED
   setup CI:
@@ -1680,6 +1690,11 @@ synth: im:
         to pick the closest speed and use rubberband to fit.
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
+
+      . Problems to solve:
+        . Intrinsic pitch, used to select the sample.
+      . Write down patch description for reyong, and mridangam, so I have a
+        concrete place to start.
     * breakpoint-using version of gain, so I can do envelopes.
       * I should have a piecewiseLinear :: [(Time, Float)] -> Audio,
         which I can then pass to multiply.
@@ -3095,6 +3110,38 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  sections:
+    . I need to do eddupu per-section, since a korvai can start anywhere,
+      and development sections might not land on the eddupu.
+    . Actually what I think I need is to put section boundaries in arbitrary
+      spots, instead of always sam to sam.
+    . I could have a separate 0-dur type for markers, or use an empty group.
+    . If I do this, I could get rid of Korvai having multiple sequences, in
+      favor of section dividers.
+    . How about named sections, e.g. development, korvai, ...?
+
+    . These could be done as groups, but they have different metadata than
+      dropped stuff: name, comment, expected start and end alignment.
+    . Since sections are often sequential, I shouldn't need start alignment.
+      I could use § (or **?) operator as needed.  An optional end might be
+      convenient though, to get the automatic sam, or explicit eddupu.
+    . Multiple development sections in sequence could just mark groups, so
+      places you might repeat.
+    . Could I use it for varations too?  Just another metadata.  But these
+      are different in that they have a list of sequences, each of which
+      should have the same duration, and might have a comment.
+    . So:
+      korvai etc $ mconcat
+        [ section sDevelopment comment="comment" endOn=3 $
+          takadinna.dheem
+        , section sKorvai $
+          blah.blah
+        ]
+    . Or:
+      korvai etc $ developmentKorvai -- to init and last
+        [ takadinna.dheem
+        , blah.blah
+        ]
   * I need a way to transform inside a group, e.g.
     . in3 (a:b:cs) = [a] . __ . [b] . in3 cs
     . This doesn't work if there's a group
@@ -3134,38 +3181,6 @@ solkattu:
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
   format: output:
-    sections:
-      . I need to do eddupu per-section, since a korvai can start anywhere,
-        and development sections might not land on the eddupu.
-      . Actually what I think I need is to put section boundaries in arbitrary
-        spots, instead of always sam to sam.
-      . I could have a separate 0-dur type for markers, or use an empty group.
-      . If I do this, I could get rid of Korvai having multiple sequences, in
-        favor of section dividers.
-      . How about named sections, e.g. development, korvai, ...?
-
-      . These could be done as groups, but they have different metadata than
-        dropped stuff: name, comment, expected start and end alignment.
-      . Since sections are often sequential, I shouldn't need start alignment.
-        I could use § (or **?) operator as needed.  An optional end might be
-        convenient though, to get the automatic sam, or explicit eddupu.
-      . Multiple development sections in sequence could just mark groups, so
-        places you might repeat.
-      . Could I use it for varations too?  Just another metadata.  But these
-        are different in that they have a list of sequences, each of which
-        should have the same duration, and might have a comment.
-      . So:
-        korvai etc $ mconcat
-          [ section sDevelopment comment="comment" endOn=3 $
-            takadinna.dheem
-          , section sKorvai $
-            blah.blah
-          ]
-      . Or:
-        korvai etc $ developmentKorvai -- to init and last
-          [ takadinn.dheem
-          , blah.blah
-          ]
     - put the ruler up every few avartanams even if it's not a new section
     - nadai changes are invisible, I should put something in the ruler for it
     - underline for tha+x looks weird.
@@ -4018,6 +4033,12 @@ Derive:
         fields in TrackLang.Dynamic in a typeclass.
 
 pitch: scales: scale:
+  * extend just to select 5, 7, 11 limit tunings
+  - raga should probably be 5-limit, or at least take tuning if all just
+    scales do.
+  - should just chromatic scales differentiate A4 and d5?
+    . In general they should probably deal with enharmonics, but I don't know
+      enough about just intonation.
   - add edo scale, which divides the octave
     . I could hardcode 2-n, but I'd rather do as an argument
     . Scale.Make could do this: edo=7 | scale=edo, but what about making Scale

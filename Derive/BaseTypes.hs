@@ -258,13 +258,12 @@ data PitchError =
     -- | Input note doesn't map to a scale note.
     | InvalidInput
     -- | A required environ value was missing or had the wrong type or value.
-    -- The Text is a 'ShowVal.show_val' of the wrong Val.
-    | EnvironError !EnvKey.Key !Text
+    -- Nothing if the value is missing, otherwise a Text description.
+    | EnvironError !EnvKey.Key !(Maybe Text)
     -- | Same as EnvironError, but for control vals.
     | ControlError !ScoreTypes.Control !Text
     -- | The scale doesn't implement that operation.
     | NotImplemented
-        -- The Text should be Val except that makes Eq not work.
     -- | Other kind of error.
     | PitchError !Text
     deriving (Eq, Ord, Show)
@@ -280,7 +279,8 @@ instance Pretty PitchError where
             <> if vals == mempty then "" else ": " <> pretty vals
         InvalidInput -> "invalid input"
         EnvironError key err ->
-            "environ value for " <> pretty key <> ": " <> err
+            "environ value for " <> pretty key <> ": "
+                <> fromMaybe "not found" err
         ControlError control err ->
             "control value for " <> pretty control <> ": " <> err
         NotImplemented -> "not implemented"

@@ -453,7 +453,7 @@ read_environ_default read_val maybe_deflt name =
     parse val = maybe
         (environ_error ("unexpected default value: " <> ShowVal.show_val val))
         Right (read_val val)
-    environ_error = Left . BaseTypes.EnvironError name
+    environ_error = Left . BaseTypes.EnvironError name . Just
 
 read_environ_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     (a -> Maybe val) -> Maybe (Either PSignal.PitchError val)
@@ -462,14 +462,14 @@ read_environ_ read_val maybe_deflt name env = case Env.get_val name env of
     Left (Env.WrongType expected) ->
         environ_error ("expected type " <> pretty expected)
     Left Env.NotFound -> case maybe_deflt of
-        Nothing -> Left $ BaseTypes.EnvironError name "not set"
+        Nothing -> Left $ BaseTypes.EnvironError name Nothing
         Just deflt -> deflt
     Right val -> parse val
     where
     parse val = maybe
         (environ_error ("unexpected value: " <> ShowVal.show_val val))
         Right (read_val val)
-    environ_error = Left . BaseTypes.EnvironError name
+    environ_error = Left . BaseTypes.EnvironError name . Just
 
 -- | This is 'read_environ', but for instances of 'Typecheck.TypecheckSymbol'.
 parse_environ :: Typecheck.TypecheckSymbol val => Maybe val
@@ -495,4 +495,4 @@ lookup_key _ keys (Just key) = Map.lookup key keys
 
 key_error :: Pitch.Key -> BaseTypes.PitchError
 key_error (Pitch.Key key) =
-    BaseTypes.EnvironError EnvKey.key ("unknown key: " <> key)
+    BaseTypes.EnvironError EnvKey.key (Just $ "unknown key: " <> key)

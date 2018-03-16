@@ -12,6 +12,7 @@ module Util.Pretty (
     , prettys
     , formatted, pprint
     , char
+    , improper_ratio
 
     -- * formatting
     , textList, formattedList, delimitedList, record, recordTitle
@@ -115,6 +116,15 @@ instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
         (whole, frac) = properFraction r
         ratio r =
             pretty (Ratio.numerator r) <> "/" <> pretty (Ratio.denominator r)
+
+-- | The default Pretty instance for Ratio reduces the fraction to k+n/d, which
+-- is not always right.  This formats an improper fraction.
+improper_ratio :: (Eq a, Num a, Pretty a) => Ratio.Ratio a -> Text
+improper_ratio r
+    | denom == 1 = pretty num
+    | otherwise = pretty num <> "/" <> pretty denom
+    where
+    (num, denom) = (Ratio.numerator r, Ratio.denominator r)
 
 instance Pretty a => Pretty (Maybe a) where
     format Nothing = text "Nothing"

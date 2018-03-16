@@ -50,7 +50,7 @@ pc_per_octave :: Int
 pc_per_octave = 6
 
 scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
-scale_map = JustScales.scale_map keys default_key
+scale_map = JustScales.scale_map keys default_key Nothing
 
 relative_fmt :: TheoryFormat.RelativeFormat TheoryFormat.Tonic
 relative_fmt = JustScales.make_relative_fmt keys default_key
@@ -60,7 +60,7 @@ Just default_key = Map.lookup (Pitch.Key "a-1357-1") keys
 
 keys :: JustScales.Keys
 keys = JustScales.make_keys (take pc_per_octave TheoryFormat.letter_degrees)
-    key_ratios
+    [(key, [("", ratios)]) | (key, ratios) <- key_ratios]
 
 key_ratios :: [(Text, JustScales.Ratios)]
 key_ratios = concatMap make_hexany

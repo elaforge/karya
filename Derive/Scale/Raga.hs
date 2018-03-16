@@ -40,7 +40,7 @@ doc_fields :: [(Doc.Doc, Doc.Doc)]
 doc_fields = JustScales.group_relative_keys melakarta_keys
 
 scale_map :: TheoryFormat.Format -> JustScales.ScaleMap
-scale_map = JustScales.scale_map keys default_key
+scale_map = JustScales.scale_map keys default_key Nothing
 
 relative_fmt :: TheoryFormat.RelativeFormat TheoryFormat.Tonic
 relative_fmt = JustScales.make_relative_fmt keys default_key
@@ -56,7 +56,7 @@ keys = Map.fromList melakarta_keys
 
 melakarta_keys :: [(Pitch.Key, JustScales.Key)]
 melakarta_keys =
-    [ (Pitch.Key alias, JustScales.Key 0 ratios)
+    [ (Pitch.Key alias, JustScales.Key 0 (Map.singleton "" ratios))
     | (name, ratios) <- melakarta_ratios
     , alias <- name : aliases_of name
     ]

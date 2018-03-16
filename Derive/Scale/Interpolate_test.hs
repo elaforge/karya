@@ -22,7 +22,7 @@ test_interpolate = do
             notes = zip (Seq.range_ 0 1) ["4s", "4r", "4g", "4m"]
         extract e = fromMaybe (error "no nn") $ Score.initial_nn e
     let major = [60, 62, 64, 65]
-        hemavati = [Pitch.modify_hz (*n) 60 | n <- [1, 8/7, 6/5, 7/5]]
+        hemavati = [Pitch.modify_hz (*n) 60 | n <- [1, 9/8, 6/5, 7/5]]
     equal (run [(0, 0,"0")]) (major, [])
     equalf 0.01 (run [(0, 0,"1")]) (hemavati, [])
     equalf 0.01 (run [(0, 0, ".5")]) (map (/2) (zipWith (+) major hemavati), [])

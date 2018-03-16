@@ -25,15 +25,16 @@ import Global
 
 
 test_note_to_call = do
-    let run key base ps = DeriveTest.extract extract $
+    let run_title title ps = DeriveTest.extract extract $
             DeriveTest.derive_tracks ""
             [ (title, [(t, 1, "") | (t, _) <- times ps])
             , ("*just", [(t, 0, p) | (t, p) <- times ps])
             ]
             where
             times = zip (Seq.range_ 0 1)
-            title = "> | %just-base = " <> base <> " | key = " <> key
         extract = fmap Pitch.nn_to_hz . Score.initial_nn
+    let run key base =
+            run_title ("> | %just-base = " <> base <> " | key = " <> key)
 
     -- Scale starts at 4c by default, and tunes to %just-base.
     equalf 0.001 (run "c-maj" "440" ["4c"]) ([Just 440], [])
@@ -60,6 +61,11 @@ test_note_to_call = do
             (Just.scale_map TheoryFormat.absolute_c)
     equalf 0.001 (runa ["4c", "4c#", "4cb"])
         ([Just 440, Just $ 440 * acc, Just $ 440 / acc], [])
+
+    -- tuning
+    let runt t = run_title ("> | %just-base=440 | key=c-maj | tuning=" <> t)
+    equalf 0.001 (runt "limit-5" ["4d"]) ([Just (440 * 9/8)], [])
+    equalf 0.001 (runt "limit-7" ["4d"]) ([Just (440 * 8/7)], [])
 
 test_transpose_smooth = do
     let run = DeriveTest.extract DeriveTest.e_nns_old $
@@ -138,7 +144,7 @@ test_input_to_note = do
 
 make_scale_map :: Bool -> Int -> JustScales.ScaleMap
 make_scale_map relative per_oct =
-    JustScales.scale_map keys default_key fmt
+    JustScales.scale_map keys default_key Nothing fmt
     where
     fmt = if relative
         then TheoryFormat.make_relative_format "" degrees
