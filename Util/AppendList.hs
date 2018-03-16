@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Also known as a conc-list or a merge-list.  In the ghc source it's called
 -- OrdList.
 module Util.AppendList (
@@ -25,7 +26,12 @@ instance Functor AppendList where
     fmap f (Pair xs ys) = Pair (fmap f xs) (fmap f ys)
     fmap f (Many xs) = Many (fmap f xs)
 
-instance Monoid.Monoid (AppendList a) where
+#if GHC_VERSION >= 80401
+instance Semigroup (AppendList a) where
+    (<>) = mappend
+#endif
+
+instance Monoid (AppendList a) where
     mempty = empty
     mappend = append
 
