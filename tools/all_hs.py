@@ -45,10 +45,12 @@ def main():
 def get_in_repo():
     if os.path.exists('.git'):
         files = subprocess.check_output(
-            'git ls-tree --name-only -r HEAD'.split()).split('\n')
+            'git ls-tree --name-only -r HEAD'.split()
+        ).decode('utf8').split('\n')
     else:
-        files = subprocess.check_output(['darcs', 'show', 'files']).split('\n')
-    files = map(os.path.normpath, files)
+        files = subprocess.check_output(
+            ['darcs', 'show', 'files']).decode('utf8').split('\n')
+    files = list(map(os.path.normpath, files))
     hs_files = [f for f in files if f.endswith('.hs')]
     hsc_files = [f for f in files if f.endswith('.hsc')]
     return hs_files, hsc_files
