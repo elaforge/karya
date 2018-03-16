@@ -1,7 +1,7 @@
 ## INSTALLATION
 
-- If you pulled from darcs and didn't use --set-scripts-executable, run
-`chmod 755 fix-perms && ./fix-perms`.
+- Install GHC.  At least 8.0 and 8.4 should work.  8.2 definitely does not
+work (details at <https://ghc.haskell.org/trac/ghc/ticket/13604>).
 
 - Install (non-haskell dependencies)[#non-haskell-dependencies].
 

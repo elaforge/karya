@@ -28,6 +28,10 @@ import qualified GHC.Paths
 import qualified DynFlags
 #endif
 
+#if GHC_VERSION >= 80401
+import qualified CmdLineParser
+#endif
+
 -- The liftIO here is not the same one in Control.Monad.Trans!
 -- GHC defines its own MonadIO.
 import MonadUtils (liftIO)
@@ -253,9 +257,14 @@ parse_flags args = do
     dflags <- GHC.getSessionDynFlags
     (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
+#if GHC_VERSION >= 80401
+    let un_msg = GHC.unLoc . CmdLineParser.warnMsg
+#else
+    let un_msg = GHC.unLoc
+#endif
     unless (null warns) $
         liftIO $ Log.warn $ "warnings parsing flags " <> showt args <> ": "
-            <> showt (map GHC.unLoc warns)
+            <> showt (map un_msg warns)
     unless (null args_left) $
         liftIO $ Log.warn $
             "ignoring unparsed args: " <> showt (map GHC.unLoc args_left)

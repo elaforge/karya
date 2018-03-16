@@ -217,8 +217,25 @@ UNSORTED
       . It uses haskell-lexer instead of haskell-src, so I can remove that
         dep, which seems old.
   upgrade to ghc 8.4.1
-    . build time:
-      . tammananny: RunTests
+    . 8.0.2 compile time:
+      debug/seq     257.19s user 35.01s system 341% cpu 1:25.63 total
+                    242.37s user 32.71s system 336% cpu 1:21.78 total
+      opt/seq       619.43s user 44.95s system 331% cpu 3:20.30 total
+    . 8.2.1 compile time:
+      debug/seq     225.21s user 32.80s system 338% cpu 1:16.20 total
+                    201.57s user 30.43s system 328% cpu 1:10.53 total
+      opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
+                    760.40s user 45.88s system 323% cpu 4:09.25 total
+    tammananny:
+    . 8.0.2:
+      . RunTests    781.31s user 58.21s system 363% cpu 3:50.70 total
+      . debug/seq   429.44s user 31.34s system 362% cpu 2:07.03 total
+      . opt/seq     1277.20s user 45.85s system 358% cpu 6:08.68 total
+    . 8.4.1:
+      . RunTests    613.11s user 49.84s system 357% cpu 3:05.52 total
+      . debug/seq   329.67s user 23.86s system 352% cpu 1:40.38 total
+      . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
+
     first make sure deps build
       * ghc-events: no Semigroup instance
         . sent pull request
