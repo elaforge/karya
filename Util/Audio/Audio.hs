@@ -387,23 +387,17 @@ constant_ val = S.repeat chunk
         | val == 0 = silentChunk
         | otherwise = V.replicate (framesCount (Proxy @1) chunkSize) val
 
--- | Generate a test tone.
-sine :: forall m rate. (Monad m, KnownNat rate)
-    => Duration -> Float -> Audio m rate 1
-sine (Seconds seconds) frequency =
-    sine (Frames (secondsToFrame rate seconds)) frequency
-    where rate = natVal (Proxy :: Proxy rate)
-sine (Frames frame) frequency = Audio (gen 0)
+-- | Generate a test tone at the given frequency, forever.  This is not
+-- efficient, but it's just for testing.
+sine :: forall m rate. (Monad m, KnownNat rate) => Float -> Audio m rate 1
+sine frequency =
+    Audio $ loop1 0 $ \loop frame ->
+        S.yield (gen frame) >> loop (frame + chunkSize)
     where
-    gen start
-        | start >= frame = return ()
-        | otherwise = S.yield chunk >> gen end
-        where
-        chunk = V.generate (fromIntegral (end - start))
-            (val . (+start) . Frame)
-        end = min frame (start + chunkSize)
-    rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
+    gen start = V.generate (fromIntegral (end - start)) (val . (+start) . Frame)
+        where end = start + chunkSize
     val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)
+    rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
 
 -- | Generate a piecewise linear signal from breakpoints.  The signal will
 -- continue forever with the last value.

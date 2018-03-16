@@ -17,7 +17,7 @@ t_mix out = write out $ Audio.mix $ map (first Audio.Seconds)
     , (0.5, File.read44k "g1.wav")
     ]
 
-t_sine = write "sine.wav" $ Audio.sine (Audio.Seconds 1) 440
+t_sine = write "sine.wav" $ Audio.take (Audio.Seconds 1) $ Audio.sine 440
 
 t_multiply = write "multiply.wav" $ Audio.multiply
     (Audio.mergeChannels
