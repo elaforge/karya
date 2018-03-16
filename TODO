@@ -217,7 +217,20 @@ UNSORTED
       . It uses haskell-lexer instead of haskell-src, so I can remove that
         dep, which seems old.
   upgrade to ghc 8.4.1
-    - first make sure deps build
+    . build time:
+      . tammananny: RunTests
+    first make sure deps build
+      * ghc-events: no Semigroup instance
+        . sent pull request
+      * haskell-src
+        . Ambiguous (<>), probably because it's in Prelude now.
+        . I should get rid of this if I can...
+      * multiset: need Semigroup superclass
+        . someone else's pull request pending
+        . but the maintainer is slow, I removed the dep since I don't really
+          need it.
+      + zmidi-core: no Semigroup instance
+        . sent pull request
     - tag profile runs with ghc version, fix up old data
     - search for 8.2 tagged things I can do
     - update flags in Shakefile

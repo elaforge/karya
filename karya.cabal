@@ -56,7 +56,6 @@ library
         med-module,
         mersenne-random-pure64,
         mtl >=2.2.1,
-        multiset,
         network,
         old-locale,
         parsec,

@@ -10,14 +10,14 @@ module Solkattu.Realize where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
 import qualified Data.List as List
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.MultiSet as MultiSet
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.MultiSet as MultiSet
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -631,7 +631,7 @@ annotateGroups =
         ( (groups, 0)
         , Just (replicate starts Start ++ replicate ends End, note)
         )
-        where ends = MultiSet.occur i groups
+        where ends = MultiSet.lookup i groups
     flatten (S.FGroup _ _ children) = Left (length flat) : flat
         where flat = concatMap flatten children
     flatten (S.FNote _ note) = [Right note]

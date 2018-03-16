@@ -68,7 +68,7 @@ basicPackages = concat
     --  basic
     , w "deepseq data-ordlist cereal text stm network"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
-    , w "vector utf8-string semigroups multiset"
+    , w "vector utf8-string semigroups"
     , [("extra", ">=1.3")]
     , w "c-storable"
     -- shakefile
