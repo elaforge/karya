@@ -22,12 +22,12 @@ import Global
 
 profile_load = do
     -- Check memory usage for just the state data.
-    start_mem <- Memory.memory_usage
+    start_mem <- Memory.rssVsize
     cmd_config <- DeriveSaved.load_cmd_config
     state <- load (Cmd.config_instrument_db cmd_config) "save/bloom"
     let (state2, table) = Transform.intern_text state
     putStrLn $ "loaded blocks: " ++ show (Map.size (Ui.state_blocks state))
-    print_memory_diff start_mem =<< Memory.memory_usage
+    print_memory_diff start_mem =<< Memory.rssVsize
     let (saved, hits) = Transform.intern_stats table
     putStrLn $ "hits: " ++ show hits ++ " saved: " ++ show saved
 

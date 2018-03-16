@@ -200,7 +200,7 @@ intern_text state =
 
 intern_stats :: Map Text Int -> (Memory.Size, Int)
 intern_stats table =
-    (Memory.from_bytes $ sum (map stats (Map.toList table)), total_hits)
+    (Memory.fromBytes $ sum (map stats (Map.toList table)), total_hits)
     where
     total_hits = sum (Map.elems table) - Map.size table
     stats (text, hits) = size * (hits - 1)
