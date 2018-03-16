@@ -60,7 +60,11 @@ interpret tokens = case tokens of
         ["Ui.set_root_id", str] | Just arg <- val str ->
             action $ Ui.set_root_id arg
 
-        ["LDebug.memory"] -> action $ LDebug.memory
+        -- So I can see memory stats without loading GHC API.  Though it
+        -- happens automatically in the background, so I'd have to disable that
+        -- manually.
+        ["LDebug.rtsAllocated"] -> action $ LDebug.rtsAllocated
+        ["LDebug.rssVsize"] -> action $ LDebug.rssVsize
         _ -> Nothing
     where
     action c = Just (fmap (cmd_result . Global._to_result) c)

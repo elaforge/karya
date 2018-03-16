@@ -9,11 +9,10 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified GHC.Stats
 import qualified System.IO as IO
-import qualified System.Mem
 
 import qualified Util.Log as Log
+import qualified Util.Memory as Memory
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
@@ -41,16 +40,13 @@ import Global
 import Types
 
 
-memory :: Trans.MonadIO m => m Int
-memory = liftIO $ do
-    System.Mem.performMajorGC
-    stats <- GHC.Stats.getGCStats
-    return $ fromIntegral $ GHC.Stats.currentBytesUsed stats `div` 1024
+-- | GHC's opinion on allocated memory.
+rtsAllocated :: Trans.MonadIO m => m Memory.Size
+rtsAllocated = liftIO Memory.rtsAllocated
 
-stats :: Trans.MonadIO m => m GHC.Stats.GCStats
-stats = liftIO $ do
-    System.Mem.performMajorGC
-    GHC.Stats.getGCStats
+-- | OS opinion on RSS and VSIZE.
+rssVsize :: Trans.MonadIO m => m (Memory.Size, Memory.Size)
+rssVsize = liftIO Memory.rssVsize
 
 -- Also see 'LPerf.extract_debug' and similar functions.
 

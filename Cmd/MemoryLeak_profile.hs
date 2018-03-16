@@ -10,11 +10,8 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
-import qualified GHC.Stats
-import qualified System.Mem
-
 import qualified Util.Log as Log
-import qualified Util.Num as Num
+import qualified Util.Memory as Memory
 import Util.Testing
 
 import qualified Ui.Ui as Ui
@@ -31,8 +28,8 @@ import Global
 
 
 -- | Don't leak more than this much on each run.
-max_memory_growth :: Bytes
-max_memory_growth = megabyte 1
+max_memory_growth :: Memory.Size
+max_memory_growth = Memory.fromM 1
 
 -- | No cmd should take more than this many seconds.
 max_cmd_latency :: Double
@@ -66,7 +63,7 @@ check_results times states mods = do
     diffs <- return $ drop 1 diffs
     -- If it's too lazy, memory will leak.
     equal (filter (>= max_memory_growth) diffs) []
-    check ("< 1mb: " <> pretty diffs) $ all ((<1) . megabytes) diffs
+    check ("< 1mb: " <> pretty diffs) $ all ((<1) . Memory.toM) diffs
 
     -- If it's too strict, the UI will get laggy.
     putStrLn "cmd latency:"
@@ -88,28 +85,17 @@ load_file fname = do
     cmd_config <- DeriveSaved.load_cmd_config
     only_derive_root <$> DeriveSaved.load_score_states cmd_config fname
 
-newtype Bytes = Bytes Int
-    deriving (Eq, Ord, Show, Num)
-
-megabyte :: Int -> Bytes
-megabyte n = Bytes (n * 1024^2)
-
-instance Pretty Bytes where
-    pretty = (<>"mb") . Num.showFloat 2 . megabytes
-
-megabytes :: Bytes -> Double
-megabytes (Bytes b) = fromIntegral b / 1024^2
-
 -- | (msg, latency)
 type Latency = (Text, ResponderTest.Seconds)
 
-thread :: ResponderTest.States -> [Cmd.CmdT IO ()] -> IO [([Latency], Bytes)]
+thread :: ResponderTest.States -> [Cmd.CmdT IO ()]
+    -> IO [([Latency], Memory.Size)]
 thread states (mod:mods) = do
     states <- return $ strip_states states
     (latency, result) <- strip_results <$>
         ResponderTest.respond_all timeout states mod
     force_performances result
-    mem <- memory_used
+    mem <- Memory.rtsAllocated
     ((latency, mem):) <$> thread (ResponderTest.result_states result) mods
     where
     timeout = 64
@@ -245,9 +231,3 @@ score sub_blocks sub_notes =
     dur = fromIntegral sub_notes
     subs = map (("sub"<>) . showt) [1..sub_blocks]
     sub = UiTest.regular_notes sub_notes
-
-memory_used :: IO Bytes
-memory_used = do
-    System.Mem.performMajorGC
-    stats <- GHC.Stats.getGCStats
-    return $ Bytes $ fromIntegral $ GHC.Stats.currentBytesUsed stats
