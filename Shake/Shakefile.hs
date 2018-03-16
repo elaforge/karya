@@ -104,19 +104,21 @@ basicPackages = concat
 -- | Packages needed only for targets in Synth.
 synthPackages :: [(Package, String)]
 synthPackages = concat
-    [ w "conduit conduit-audio conduit-audio-sndfile"
-    -- NESS
-    , w "sandi" -- for Codec.Binary.Base64Url
-    ] ++ audioPackages
-    where w = map (\p -> (p, "")) . words
-
-audioPackages :: [(Package, String)]
-audioPackages = concat
-    [ w "hsndfile hsndfile-vector"
+    [ w "conduit conduit-audio"
+    , w "hsndfile hsndfile-vector"
     -- I can get rid of this when I use a direct binding to libsamplerate
     , w "conduit-audio-samplerate"
     , w "resourcet"
     , w "streaming"
+    ]
+    where w = map (\p -> (p, "")) . words
+
+-- | These are used in the Ness.* hierarchy, which probably only I use, and
+-- only from ghci, so I can omit the deps from common use.
+nessPackages :: [(Package, String)]
+nessPackages = concat
+    [ w "conduit-audio-sndfile"
+    , w "sandi" -- for Codec.Binary.Base64Url
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -133,6 +135,7 @@ reallyAllPackages = concat
     [ basicPackages
     , synthPackages
     , ekgPackages
+    , nessPackages
     ]
 
 ekgPackages :: [(Package, String)]
