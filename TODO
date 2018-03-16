@@ -1585,6 +1585,18 @@ synth: im:
     - I think Audio.splitNonInterleaved runs the stream multiple times, fix it.
       . In general it seems dangerously easy to do this, but I'm not sure how
         to prevent it.
+      . I think running multiple times is inherent given that it returns
+        a list, since I can't think of how to stream to multiple streams.
+      . streaming can do unzip, but it does it with chained streams.
+        I don't quite understand what's going on with them though.
+        Conceptually, the multiple output streams should require you to
+        consume them in lockstep, but I think the zipped form already is that,
+        so why did you unzip if you want that?
+      ? How does Stream.unzip work?
+      . Well, I should be able to return interleaved Audio with a type witness
+        for channels, but callers want separate streams.
+      . Actually, the only real caller is going mono to stereo, which I should
+        in fact be able to do directly perfectly well.
     * Replace V.replicate n 0 with a statically allocated chunk?
       . Also 'linear' constant signals should be able to reuse the same chunk.
     * implement expandChannels and mixChannels.

@@ -4,6 +4,15 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds, KindSignatures, TypeOperators, TypeApplications #-}
+{- | This is a basic library for audio streaming.  It uses the @streaming@
+    package to interleave streaming and IO, and represents signals as a stream
+    of Vectors of 'Sample's, which is hardcoded to Float.  There are separate
+    types for interleaved samples 'Audio' and non-interleaved samples 'NAudio'.
+
+    The sampling rate and channels are recorded as type naturals.  This removes
+    the need for runtime error checking, but makes dealing with an unknown
+    sampling rate or channels is more awkward.
+-}
 module Util.Audio.Audio (
     -- * types
     Audio(..), AudioIO, AudioId
@@ -55,21 +64,29 @@ import Global
 
 -- * types
 
+{- | A stream of chunks of interleaved samples.
+
+    There is an invariant that the length of the vector should always be
+    a multiple of channels, in other words that a chunk is an integral number
+    of frames.  The chunks may be of variable size, but should default to
+    'chunkSize', and align to multiples of chunkSize, to minimize re-chunking
+    when synchronizing streams.
+-}
 newtype Audio m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
     Audio { _stream :: S.Stream (S.Of (V.Vector Sample)) m () }
-    -- There is an invariant that the length of the vector should always
-    -- be a multiple of channels, in other words that a chunk is an integral
-    -- number of frames.
 
 type AudioIO rate channels = Audio (Resource.ResourceT IO) rate channels
 type AudioId rate channels = Audio Identity.Identity rate channels
 
--- | Non-interleaved audio stream.  Ok so it's still interleaved, just per
--- chunk instead of per sample.
---
--- Each of the lists will be channels length.  Each Sample vector will be
--- the same length until the signal runs out, at which point it may be short,
--- and then will be empty.  The stream ends when all signals are empty.
+{- | Non-interleaved audio stream.  Ok so it's still interleaved, just per
+    chunk instead of per sample.
+
+    Each of the lists will be channels length.  Each Sample vector will be the
+    same length until the signal runs out, at which point it may be short, and
+    then will be empty.  The stream ends when all signals are empty.
+
+    The same chunk length guidelines as in 'Audio' also apply.
+-}
 data NAudio m (rate :: TypeLits.Nat) = NAudio
     { _nchannels :: !Channels
     , _nstream :: S.Stream (S.Of [(V.Vector Sample)]) m ()
@@ -332,8 +349,7 @@ nonInterleaved_ size audios = NAudio (length audios) $
 
 -- | Undo 'nonInterleaved'.
 --
--- TODO does this run the stream multiple times?
--- I think I have to go directly to interleaved after all.
+-- TODO I think this runs the stream multiple times
 splitNonInterleaved :: Monad m => NAudio m rate -> [Audio m rate 1]
 splitNonInterleaved naudio =
     map (\i -> Audio $ S.map (!! i) (_nstream naudio))
