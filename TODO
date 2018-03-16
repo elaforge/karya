@@ -4034,7 +4034,7 @@ Derive:
 
 pitch: scales: scale:
   * extend just to select 5, 7, 11 limit tunings
-  - raga should probably be 5-limit, or at least take tuning if all just
+  * raga should probably be 5-limit, or at least take tuning if all just
     scales do.
   - should just chromatic scales differentiate A4 and d5?
     . In general they should probably deal with enharmonics, but I don't know

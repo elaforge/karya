@@ -7,7 +7,6 @@ module Derive.Scale.Raga where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
-import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
@@ -85,32 +84,25 @@ find swarams = fst <$> List.find ((==ratios) . snd) melakarta_ratios
 
 type Ratio = Ratio.Ratio Int
 
-{- I don't think there is any official definition, so I use a 7-limit scale:
+{- I don't think there is any official definition, but listeners agree 8/7 is
+    too high for ri, so I use a 5-limit scale.  Except prati madhyama is 7/5,
+    because I like it.  There is some theoretical material deriving 22 srutis
+    via 5-limit, but I'm not sure what bearing it has on real practice.
 
     > 1     2m    2M    3m    3M    4P    4A    5P    6m    6M    7m    7M
     > s     r1    r2    r3                      p     d1    d2    d3
     >             g1    g2    g3    m1    m2                n1    n2    n3
 -}
 
-sa, ri1, ri2, ri3, ga1, ga2, ga3, ma1, ma2 :: Ratio
-sa = 1
-ri1 = 16 % 15
-ri2 = 8 % 7
-ri3 = 6 % 5
+sa, ri1, ri2, ri3, ga3, ma1, ma2, pa, da1, da2, da3, ni3 :: Ratio
+(sa, ri1, ri2, ri3, ga3, ma1, ma2, pa, da1, da2, da3, ni3) =
+    (1, 16/15, 9/8, 6/5, 5/4, 4/3, 7/5, 3/2, 8/5, 5/3, 9/5, 15/8)
+
+ga1, ga2, ni1, ni2 :: Ratio
 ga1 = ri2
 ga2 = ri3
-ga3 = 5 % 4
-ma1 = 4 % 3
-ma2 = 7 % 5
-
-pa, da1, da2, da3, ni1, ni2, ni3 :: Ratio
-pa = 3 % 2
-da1 = 8 % 5
-da2 = 5 % 3
-da3 = 7 % 4
 ni1 = da2
 ni2 = da3
-ni3 = 15 % 8
 
 aliases_of :: Text -> [Text]
 aliases_of = flip (Map.findWithDefault []) $
