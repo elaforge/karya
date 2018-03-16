@@ -374,7 +374,9 @@ test_control_trill = do
             , ("cont", [(0, 0, text), (3, 0, "--|")])
             ]
         extract = DeriveTest.extract (DeriveTest.e_control "cont")
-        trill xs = zip xs (cycle [0, 1])
+        trill [] = []
+        trill (x:xs) = (x, 0) :
+            [(x, y) | (x, ys) <- zip xs (cycle [[0, 1], [1, 0]]), y <- ys]
     equal (run 1 "tr 1 1") ([trill [0, 1, 2]], [])
     -- Defaults to RealTime, but stretches with ScoreTime if asked.
     equal (run 0.5 "tr 1 1") ([trill [0, 1, 2, 3, 4, 5]], [])

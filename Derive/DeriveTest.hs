@@ -654,16 +654,12 @@ e_instrument :: Score.Event -> Text
 e_instrument = Score.instrument_name . Score.event_instrument
 
 e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control control event = maybe [] (Signal.to_pairs_unique . Score.typed_val) $
-    Map.lookup control (Score.event_controls event)
-
-e_control_literal :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control_literal control event = Seq.drop_dups id $
+e_control control event = Seq.drop_dups id $
     maybe [] (Signal.to_pairs . Score.typed_val) $
     Map.lookup control (Score.event_controls event)
 
 e_control_vals :: Score.Control -> Score.Event -> [Signal.Y]
-e_control_vals control = map snd . e_control control
+e_control_vals control = map snd . Seq.drop_initial_dups fst . e_control control
 
 e_control_constant :: Score.Control -> Score.Event -> Maybe Signal.Y
 e_control_constant control = Signal.constant_val . Score.typed_val
@@ -674,11 +670,11 @@ e_start_control control event =
     Score.typed_val <$> Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn = Seq.drop_dups id . e_control_literal Score.c_dynamic
+e_dyn = Seq.drop_dups id . e_control Score.c_dynamic
 
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn_rounded = Seq.drop_dups id . map (second (Num.roundDigits 2))
-    . e_control_literal Score.c_dynamic
+    . e_control Score.c_dynamic
 
 -- | Like 'e_nns', but drop discontinuities.
 --

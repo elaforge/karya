@@ -1242,8 +1242,11 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
   Util.Segment:
     / I should put a final sample on for sampled curves too.  Maybe I do?
     invariants:
-      - ensure that NumSignal omits redundant samples in a flat segment
+      / ensure that NumSignal omits redundant samples in a flat segment
         . Use or remove String_test.strip_flat
+        . There's no strong reason to care about this, except to avoid writing
+          redundant stuff in tests.  It's nice to not do more than necessary,
+          but not worth making into an invariant.
       Util.Segment invariants: Xs are ordered, max of 2 equal Xs
         * check that from_pairs establishes it
         * check that concat maintains it
@@ -1254,7 +1257,8 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
   tests:
-    - Always use _rounded for DeriveTest.e_control?
+    - remove or at least audit remaining calls to Signal.to_pairs_unique
+    / Always use _rounded for DeriveTest.e_control?
   - Adding linear hurt performance
     . For cerucuk-punyah:
               max mb  total mb  derive     perform
@@ -2440,6 +2444,9 @@ performance:
       on my own.
   . http://www.tweag.io/posts/2017-09-06-hyperion.html
   . https://github.com/tobami/codespeed can make a web page with perf graphs
+  . https://github.com/nh2/haskell-cpu-instruction-counter
+    . But only works on linux.
+  . perf stat ...
 
   signal:
     - clip_before and clip_after usually require changing the signal
@@ -4361,7 +4368,6 @@ tracklang problems
     . One complication is that it might be necessary to do an incremental or
       local-only update for speed, and I'd need to come up with some mechanism
       for that.
-
 
 long term:
   - midi record

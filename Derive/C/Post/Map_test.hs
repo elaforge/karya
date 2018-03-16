@@ -13,7 +13,7 @@ test_mapc = do
         (snd $ run (DeriveTest.e_control "c")
             [("> | mapc in_valid \"(smooth 2)", [(0, 8, "")])])
         ["expected Control * or PControl"]
-    equal (run (DeriveTest.e_control_literal "c")
+    equal (run (DeriveTest.e_control "c")
         [ ("> | mapc c \"(smooth 2)", [(0, 8, "")])
         , ("c", [(0, 0, "0"), (4, 0, "1")])
         ])

@@ -43,7 +43,7 @@ test_control_track = do
 
     strings_like (snd (run ("cont", [(0, 0, "abc"), (1, 0, "def")])))
         ["not found: abc", "not found: def"]
-    equal (run ("cont", events)) ([[(0, 1), (1, 2)]], [])
+    equal (run ("cont", events)) ([[(0, 1), (1, 1), (1, 2)]], [])
 
 test_back_to_back_controls = do
     let run events = DeriveTest.extract (DeriveTest.e_control "c") $
@@ -65,14 +65,14 @@ test_back_to_back_pitches = do
 test_hex = do
     let run events = derive (DeriveTest.e_control "cont") ("cont", events)
     equal (run [(0, 0, "`0x`ff"), (1, 0, "`0x`33"), (2, 0, "`0x`00")])
-        ([[(0, 1), (1, 0.2), (2, 0)]], [])
+        ([[(0, 1), (1, 1), (1, 0.2), (2, 0.2), (2, 0)]], [])
 
 test_track_expression = do
     let run = derive (DeriveTest.e_control "cont")
     equal (run ("cont", [(0, 0, "0"), (4, 0, "i 1")]))
         ([[(0, 0), (4, 1)]], [])
     equal (run ("cont | sh .5", [(0, 0, "0"), (4, 0, "i 1")]))
-        ([[(0, 0), (2, 0.5), (4, 1)]], [])
+        ([[(0, 0), (2, 0), (2, 0.5), (4, 0.5), (4, 1)]], [])
 
     let run_pitch = derive DeriveTest.e_nns_old
     equal (run_pitch ("* | sh .5", [(0, 0, "4c"), (4, 0, "i (4d)")]))

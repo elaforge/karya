@@ -185,7 +185,7 @@ test_control_scope_negative_orientation = do
     -- with = CallTest.with_note_generator "" DUtil.constant_pitch
 
 test_trim_controls_problem = do
-    let run = DeriveTest.extract (DeriveTest.e_control_literal "c")
+    let run = DeriveTest.extract (DeriveTest.e_control "c")
             . DeriveTest.derive_blocks
     equal (run
             [ ("top", [("c", [(1, 0, "1")]), (">", [(0, 1, "sub")])])
@@ -264,13 +264,12 @@ test_control_block = do
                 [ ("top", [("cont", caller), (">", [(0, 4, "")])])
                 , ("sub=ruler", [("%", callee)])
                 ]
-        sub = [(0, 0, "1"), (16, 0, "2"), (32, 0, "4")]
+        sub = [(0, 0, "1"), (16, 0, "i 2"), (32, 0, "i 4")]
     strings_like (snd (derive [(0, 2, "nosuch")] []))
         ["control generator not found: nosuch"]
-
-    -- The last sample is clipped off since it's at the end of the block.
+    -- Discontinuity at the end of the sub block.
     equal (derive [(0, 0, "0"), (1, 2, "sub"), (3, 0, "3")] sub)
-        ([[(0, 0), (1, 1), (2, 2), (3, 3)]], [])
+        ([[(0, 0), (1, 0), (1, 1), (2, 2), (3, 4), (3, 3)]], [])
 
 test_control_block_stack = do
     -- Ensure the stack is correct for control block calls.

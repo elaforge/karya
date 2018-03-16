@@ -93,37 +93,6 @@ test_randomize_start = do
     equal logs []
     not_equal starts [0, 1]
 
--- TODO disabled as long as Postproc.replace_note is disabled.
--- test_infer_duration_controls = do
---     -- A zero duration note at the end of a block gets controls from right
---     -- before.
---     let run extract = DeriveTest.extract extract . DeriveTest.derive_blocks
---         top = "top -- cancel 1"
---
---     -- sub---| sub---|
---     -- 4c 4d 4e 4d 4e
---     -- "  "  "  4e 4f
---     equal (run DeriveTest.e_pitch
---             [ (top,
---                 [ ("t-dia", [(0, 0, "0"), (2, 0, "1")])
---                 , (">", [(0, 2, "sub"), (2, 2, "sub")])
---                 ])
---             , ("sub=ruler", UiTest.note_track
---                 [(0, 1, "4c"), (1, 1, "4d"), (2, 0, "4e")])
---             ])
---         (["4c", "4d", "4e", "4e", "4f"], [])
---
---     -- The inferred note takes the controls of the replaced note, except the
---     -- first sample, which comes from the previous block.
---     equal (run (DeriveTest.e_control "c")
---             [ (top, [(">", [(0, 2, "sub"), (2, 2, "sub")])])
---             , ("sub=ruler",
---                 [ ("c", [(0, 0, "1"), (1, 0, "2"), (2, 0, "3")])
---                 , (">", [(0, 2, ""), (2, 0, "")])
---                 ])
---             ])
---         ([[(0, 1), (1, 2), (2, 3)], [(2, 3), (3, 2), (4, 3)], [(4, 3)]], [])
-
 -- * other
 
 test_apply_start_offset = do
