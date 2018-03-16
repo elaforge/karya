@@ -3,19 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Note_test where
-import qualified Data.Map as Map
-
 import Util.Test
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-
 import qualified Perform.NN as NN
-import qualified Perform.Signal as Signal
 import Global
 
 
@@ -59,17 +54,15 @@ test_sub_tracks = do
         ]
 
 test_derive_track_signals = do
-    let run tracknum source = extract . DeriveTest.derive_tracks_setup
-            (DeriveTest.with_tsig_sources [(UiTest.mk_tid tracknum, source)]
-                <> DeriveTest.with_linear)
-            ""
-        extract = Map.toList
-            . Map.map (Signal.to_pairs_unique . Track.ts_signal)
-            . Derive.r_track_signals
+    let run tracknum source = DeriveTest.e_tsigs
+            . DeriveTest.derive_tracks_setup (setup tracknum source) ""
+        setup tracknum source =
+            DeriveTest.with_tsig_sources [(UiTest.mk_tid tracknum, source)]
+            <> DeriveTest.with_linear
         pitch = Just (Track.Pitch Score.default_pitch)
     equal (run 1 pitch $ UiTest.regular_notes 4)
         [((UiTest.default_block_id, UiTest.mk_tid 1),
-            [(0, 48), (1, 50), (2, 52), (3, 53)])]
+            [(0, 48), (1, 48), (1, 50), (2, 50), (2, 52), (3, 52), (3, 53)])]
 
     --    0  1  2  3
     -- t1    (- --
@@ -78,13 +71,13 @@ test_derive_track_signals = do
     -- Make sure track signals from orphans are incorporated.
     equal (run 2 pitch $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         [((UiTest.default_block_id, UiTest.mk_tid 2),
-            [(0, 48), (1, 50), (2, 52), (3, 53)])]
+            [(0, 48), (1, 48), (1, 50), (2, 50), (2, 52), (3, 52), (3, 53)])]
 
     -- This isn't a note track signal, but let's make sure normal track signals
     -- work with orphans as well.
     equal (run 3 Nothing $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
         [((UiTest.default_block_id, UiTest.mk_tid 3),
-            [(0, 48), (1, 50), (2, 52), (3, 53)])]
+            [(0, 48), (1, 48), (1, 50), (2, 50), (2, 52), (3, 52), (3, 53)])]
 
 test_stash_signal = do
     let run wanted tempo tracks =
@@ -97,13 +90,12 @@ test_stash_signal = do
         draw_dyn = Track.Control Score.c_dynamic
         draw_pitch = Track.Pitch Score.default_pitch
     equal (run draw_dyn [(0, 0, "1")] [("dyn", [(0, 0, ".5"), (1, 0, "1")])])
-        (Just [(0, 0.5), (1, 1)])
+        (Just [(0, 0.5), (1, 0.5), (1, 1)])
     equal (run draw_pitch [(0, 0, "1")] [("*", [(0, 0, "4c"), (1, 0, "4d")])])
-        (Just [(0, realToFrac NN.c4), (1, realToFrac NN.d4)])
-
+        (Just $ map (second realToFrac) [(0, NN.c4), (1, NN.c4), (1, NN.d4)])
     equal (run draw_dyn [(0, 0, "1"), (1, 0, "2")]
             [("dyn", [(0, 0, ".5"), (1, 0, "1"), (2, 0, ".5")])])
-        (Just [(0, 0.5), (1, 1), (2, 0.5)])
+        (Just [(0, 0.5), (1, 0.5), (1, 1), (2, 1), (2, 0.5)])
 
 -- * derivers
 

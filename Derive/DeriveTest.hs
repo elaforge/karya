@@ -686,8 +686,7 @@ e_nns_old e
     | otherwise = Seq.drop_dups snd $ Seq.drop_initial_dups fst sig
     where (sig, errs) = e_nns_errors e
 
--- | Like 'e_nns_errors', but throw an exception if there are errors.  Also
--- drops duplicate samples for reasons described in 'Signal.to_pairs_unique'.
+-- | Like 'e_nns_errors', but throw an exception if there are errors.
 e_nns :: CallStack.Stack => Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e
     | not (null errs) = errorStack $ "errors flattening signal: " <> showt errs
@@ -736,7 +735,7 @@ e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
 e_tsigs =
     filter (not . null . snd) . Map.toList . Map.map tsig
         . Derive.r_track_signals
-    where tsig t = Signal.to_pairs_unique $ Track.ts_signal t
+    where tsig t = Signal.to_pairs $ Track.ts_signal t
 
 e_tsig_logs :: Derive.Result -> [Text]
 e_tsig_logs = filter ("Track signal: " `Text.isPrefixOf`) . map show_log

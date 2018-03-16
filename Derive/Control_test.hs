@@ -190,17 +190,17 @@ test_track_signal_transpose = do
     let run title = e_tsig_sigs $ DeriveTest.derive_tracks_setup setup title $
             UiTest.note_track [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
         setup = DeriveTest.with_tsig_tracknums [2]
-    equal (run "") [[(0, 60), (1, 62), (2, 64)]]
+    equal (run "") [[(0, 60), (1, 60), (1, 62), (2, 62), (2, 64)]]
     -- Make sure the transposition doesn't mess up the signal.  This tests
     -- that PSignal.apply_controls doesn't create pitch signal starting at 0
     -- where the transpose control starts.
-    equal (run "%t-oct=1") [[(0, 72), (1, 74), (2, 76)]]
+    equal (run "%t-oct=1") [[(0, 72), (1, 72), (1, 74), (2, 74), (2, 76)]]
 
 test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived
     let itrack = (">i", [])
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
-        csig = [(0, 1), (1, 0)]
+        csig = [(0, 1), (1, 1), (1, 0)]
     let run tracks = e_tsigs $ DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
     let tsig samples p x = (samples, p, x)
@@ -210,19 +210,18 @@ test_stash_signal = do
     -- Tempo track itself is unstretched.
     equal (run [("tempo", [(0, 0, "2")]), ctrack, itrack]) $
         [ tsig [(0, 2)] 0 1
-        , tsig [(0, 1), (0.5, 0)] 0 0.5
+        , tsig [(0, 1), (0.5, 1), (0.5, 0)] 0 0.5
         ]
 
     -- But a complicated tempo makes it unwarp so output is still in RealTime.
     equal (run [("tempo", [(0, 0, "2"), (4, 0, "i 1")]), ctrack, itrack])
         [ tsig [(0, 2), (4, 1)] 0 1
-        , tsig [(0, 1), (1, 0)] 0 1
+        , tsig [(0, 1), (1, 1), (1, 0)] 0 1
         ]
 
     -- pitch tracks work too
     let ptrack = ("*", [(0, 0, "4c"), (1, 0, "4d")])
-        psig = [(0, 60), (1, 62)]
-    equal (run [ptrack, itrack]) [(psig, 0, 1)]
+    equal (run [ptrack, itrack]) [([(0, 60), (1, 60), (1, 62)], 0, 1)]
 
     -- Subtracks should be rendered, and their fragments merged together.
     equal (run [(">", [(0, 3, "")]), ctrack]) [(csig, 0, 1)]
@@ -246,7 +245,7 @@ test_signal_fragments = do
             [ (">", [(0, 1, ""), (1, 1, "")])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             ])
-        [([(0, 0.25), (1, 0.5), (2, 0.75)], 0, 1)]
+        [([(0, 0.25), (1, 0.25), (1, 0.5), (2, 0.5), (2, 0.75)], 0, 1)]
     equal (run [UiTest.mk_tid 2]
             [ (">", [(0, 4, ""), (4, 4, "")])
             , ("dyn", [(0, 0, "0"), (8, 0, "i 1")])
@@ -259,7 +258,7 @@ test_stash_signal_default_tempo = do
             (DeriveTest.with_tsig_tracknums [1] <> set_tempo) ""
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
         set_tempo = DeriveTest.with_ui $ Ui.config#Ui.default_#Ui.tempo #= 2
-    equal r [([(0, 60), (5, 62), (10, 60)], 0, 0.5)]
+    equal r [([(0, 60), (5, 60), (5, 62), (10, 62), (10, 60)], 0, 0.5)]
 
 e_tsig_sigs :: Derive.Result -> [[(RealTime, Signal.Y)]]
 e_tsig_sigs = map (\(sig, _, _) -> sig) . e_tsigs
@@ -273,4 +272,4 @@ e_tsig_tracks :: Derive.Result
 e_tsig_tracks = map (second extract) . Map.toList . Derive.r_track_signals
     where
     extract (Track.TrackSignal sig shift stretch) =
-        (Signal.to_pairs_unique sig, shift, stretch)
+        (Signal.to_pairs sig, shift, stretch)

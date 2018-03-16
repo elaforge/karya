@@ -1257,7 +1257,7 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
   tests:
-    - remove or at least audit remaining calls to Signal.to_pairs_unique
+    * remove or at least audit remaining calls to Signal.to_pairs_unique
     / Always use _rounded for DeriveTest.e_control?
   - Adding linear hurt performance
     . For cerucuk-punyah:
