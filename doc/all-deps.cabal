@@ -75,7 +75,7 @@ library
         resourcet,
         sandi,
         semigroups,
-        shake >=0.13,
+        shake >=0.16,
         stm,
         streaming,
         terminfo,

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE FlexibleContexts, ViewPatterns #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables, OverloadedStrings #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
@@ -71,7 +72,7 @@ basicPackages = concat
     , [("extra", ">=1.3")]
     , w "c-storable"
     -- shakefile
-    , [("shake", ">=0.13"), ("binary", ""), ("hashable", "")]
+    , [("shake", ">=0.16"), ("binary", ""), ("hashable", "")]
     -- Util
     , w "async" -- Util.Process
     , w "pretty haskell-src" -- Util.PPrint
@@ -751,9 +752,16 @@ newtype Question a = Question () deriving
     )
 
 data GhcQ deriving (Typeable.Typeable)
+type instance Shake.RuleResult (Question GhcQ) = String
+
 data FltkQ deriving (Typeable.Typeable)
+type instance Shake.RuleResult (Question FltkQ) = String
+
 data ReplQ deriving (Typeable.Typeable)
+type instance Shake.RuleResult (Question ReplQ) = Bool
+
 data MidiQ deriving (Typeable.Typeable)
+type instance Shake.RuleResult (Question MidiQ) = String
 
 setupOracle :: [(String, String)] -> Config -> Shake.Rules ()
 setupOracle env config = do
