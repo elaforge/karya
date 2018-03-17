@@ -33,7 +33,7 @@ fi
 modified=("${(@f)$(git diff --cached --name-only)}")
 too_long=
 for f in $modified; do
-    if git diff --cached $against -- $f | egrep -n '^\+.{80,}'; then
+    if git diff --cached $against -- $f | egrep -n '^\+.{81,}'; then
         echo $f
         too_long=true
     fi
