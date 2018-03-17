@@ -1365,11 +1365,15 @@ ghciFlags config = concat
     , sandboxFlags (configFlags config)
     -- Without this, GHC API won't load compiled modules.
     -- See https://ghc.haskell.org/trac/ghc/ticket/13604
-    , if ghcVersion config >= "80401"
-        then ["-fignore-optim-changes", "-fignore-hpc-changes"]
-        else []
+    , if | version <= "80002" -> []
+         -- This is unpleasant, but better than having a broken REPL.
+         | version < "80401" -> error
+            "ghc 8.2 doesn't support the flags needed to make the REPL work,\
+            \ use 8.0 or 8.4, see doc/INSTALL.md for details"
+         | otherwise -> ["-fignore-optim-changes", "-fignore-hpc-changes"]
     ]
     where
+    version = ghcVersion config
     wanted flag = not $ or
         -- Otherwise GHC API warns "-O conflicts with --interactive; -O ignored"
         [ "-O" `List.isPrefixOf` flag
