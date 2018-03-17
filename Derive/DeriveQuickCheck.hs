@@ -129,7 +129,7 @@ derive_note_track state blocks (notes, samples) =
         List.mapAccumL go (state, samples) (map to_score notes)
     where
     to_score (start, dur, text) =
-        (RealTime.score start, RealTime.score dur, text)
+        (RealTime.from_score start, RealTime.from_score dur, text)
     go (prev_state, prev_samples) (start, dur, text)
         | text == "" = ((state, samples), [event state start dur])
         | otherwise = error $ "call not supported: " ++ show text
@@ -222,6 +222,6 @@ extract_notes skel tracks
 make_samples :: [Track] -> [Sample]
 make_samples = Seq.merge_lists sample_pos . map make
     where
-    make (title, events) = [Sample title (RealTime.score pos) val
+    make (title, events) = [Sample title (RealTime.from_score pos) val
         | (pos, _, val) <- events]
 

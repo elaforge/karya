@@ -181,7 +181,7 @@ compose_hybrid :: Warp -> Warp -> Warp
 compose_hybrid _ _ = identity
 
 to_real :: ScoreTime -> RealTime
-to_real = RealTime.score
+to_real = RealTime.from_score
 
 {-
 -- | This is like 'compose', but implements a kind of \"semi-absolute\"

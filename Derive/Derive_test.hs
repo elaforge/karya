@@ -430,7 +430,7 @@ test_tempo_funcs1 = do
     -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(t_tid, pos), (tid1, pos)])
     equal (map (inv_tempo res) [0, 2, 4, 6]) [[b0 0], [b0 4], [b0 8], [b0 12]]
-    equal (inv_tempo res (RealTime.score UiTest.default_block_end)) []
+    equal (inv_tempo res (RealTime.from_score UiTest.default_block_end)) []
 
     equal (map (r_tempo res bid t_tid) (Seq.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))

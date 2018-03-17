@@ -44,7 +44,7 @@ module Perform.RealTime (
     RealTime, div, mul, large, larger, suffix
     , show_units
     -- * convert from
-    , seconds, milliseconds, microseconds, score
+    , seconds, milliseconds, microseconds, from_score
     -- * convert to
     , to_diff, to_seconds, to_milliseconds, to_microseconds, to_score
     -- * misc
@@ -160,8 +160,8 @@ milliseconds = seconds . (/1000) . fromIntegral
 microseconds :: Integer -> RealTime
 microseconds = seconds . (/1000000) . fromIntegral
 
-score :: ScoreTime.ScoreTime -> RealTime
-score = seconds . ScoreTime.to_double
+from_score :: ScoreTime.ScoreTime -> RealTime
+from_score = seconds . ScoreTime.to_double
 
 -- * convert to
 

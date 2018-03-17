@@ -179,7 +179,7 @@ with_hybrid toplevel range maybe_track_id signal deriver = do
     --     end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
     --     let block_dur = block_end - block_start
     --     let absolute = Signal.flat_duration (Score.warp_signal warp)
-    --         real_dur = max (RealTime.score absolute)
+    --         real_dur = max (RealTime.from_score absolute)
     --             (Warp.warp warp block_dur)
     --         -- If the block's absolute time is greater than the time allotted,
     --         -- the non-absolute bits become infinitely fast.  Infinitely fast

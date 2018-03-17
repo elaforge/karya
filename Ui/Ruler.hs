@@ -246,7 +246,7 @@ type PosMark = (ScoreTime, Mark)
 
 marklist :: [PosMark] -> Marklist
 marklist = marklist_from_vector . TimeVector.from_pairs
-    . map (first RealTime.score)
+    . map (first RealTime.from_score)
 
 {-# NOINLINE marklist_from_vector #-} -- due to evil unsafePerformIO
 marklist_from_vector :: MarklistVector -> Marklist
@@ -262,12 +262,12 @@ to_list = map unsample . TimeVector.toList . marklist_vec
 -- | Marks starting at the first mark >= the given pos, to the end.
 ascending :: ScoreTime -> Marklist -> [PosMark]
 ascending pos mlist = map unsample $
-    TimeVector.ascending (RealTime.score pos) (marklist_vec mlist)
+    TimeVector.ascending (RealTime.from_score pos) (marklist_vec mlist)
 
 -- | Marks starting at the first mark below the given pos, to the beginning.
 descending :: ScoreTime -> Marklist -> [PosMark]
 descending pos mlist = map unsample $
-    TimeVector.descending (RealTime.score pos) (marklist_vec mlist)
+    TimeVector.descending (RealTime.from_score pos) (marklist_vec mlist)
 
 unsample :: TimeVector.Sample Mark -> PosMark
 unsample s = (RealTime.to_score (TimeVector.sx s), TimeVector.sy s)

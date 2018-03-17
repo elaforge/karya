@@ -150,4 +150,4 @@ instance DeepSeq.NFData TrackSignal where
 
 signal_at :: ScoreTime -> TrackSignal -> Signal.Y
 signal_at x (TrackSignal sig shift stretch) = Signal.at warped sig
-    where warped = RealTime.score $ x * stretch + shift
+    where warped = RealTime.from_score $ x * stretch + shift
