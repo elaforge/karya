@@ -500,7 +500,7 @@ auto_time_scroll view prev_pos pos
     visible = Block.visible_time view
     view_start = Zoom.offset (Block.view_zoom view)
     view_end = view_start + visible
-    space = ScoreTime.double $
+    space = ScoreTime.from_double $
         visible_pixels / Zoom.factor (Block.view_zoom view)
     visible_pixels = 30
 

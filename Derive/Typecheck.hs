@@ -436,7 +436,7 @@ instance TypecheckNum Pitch.NoteNumber where num_type _ = ValType.TNoteNumber
 
 instance Typecheck ScoreTime where
     from_val = num_to_scalar $ \(Score.Typed typ val) ->
-        ScoreTime.double <$> case typ of
+        ScoreTime.from_double <$> case typ of
             Score.Untyped -> Just val
             Score.Score -> Just val
             _ -> Nothing
@@ -460,7 +460,8 @@ instance Typecheck BaseTypes.Duration where
     from_val = num_to_scalar $ \(Score.Typed typ val) -> case typ of
         -- Untyped is abiguous, and there doesn't seem to be a natural
         -- default.
-        Score.Score -> Just $ BaseTypes.ScoreDuration (ScoreTime.double val)
+        Score.Score ->
+            Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
         Score.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
         _ -> Nothing
     to_type = num_to_type
@@ -475,7 +476,8 @@ instance Typecheck DefaultReal where
         DefaultReal <$> case typ of
             Score.Untyped ->
                 Just $ BaseTypes.RealDuration (RealTime.seconds val)
-            Score.Score -> Just $ BaseTypes.ScoreDuration (ScoreTime.double val)
+            Score.Score ->
+                Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
             Score.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
             _ -> Nothing
     to_type = num_to_type
@@ -486,8 +488,9 @@ instance Typecheck DefaultScore where
     from_val = num_to_scalar $ \(Score.Typed typ val) ->
         DefaultScore <$> case typ of
             Score.Untyped ->
-                Just $ BaseTypes.ScoreDuration (ScoreTime.double val)
-            Score.Score -> Just $ BaseTypes.ScoreDuration (ScoreTime.double val)
+                Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
+            Score.Score ->
+                Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
             Score.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
             _ -> Nothing
     to_type = num_to_type

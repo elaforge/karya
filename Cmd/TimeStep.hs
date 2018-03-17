@@ -139,7 +139,8 @@ parse_time_step = Parse.parse p_time_step
     -- P.choice must backtrack because AbsoluteMark parses can overlap.
     p_step = P.choice $ map P.try
         [ str "d:" *> (Duration <$>
-            (ScoreTime.double <$> (Parse.p_float <* P.char ScoreTime.suffix)))
+            (ScoreTime.from_double
+                <$> (Parse.p_float <* P.char ScoreTime.suffix)))
         , str "r:" *> (RelativeMark <$> p_marklists <*> parse_rank)
         , str "END" *> return BlockEdge
         , str "start" *> (EventStart <$> p_tracks)

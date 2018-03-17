@@ -111,7 +111,7 @@ make_grace_notes prev (start, end) notes grace_dur place = do
     place <- Num.clamp 0 1 <$> Call.control_at place real_start
     case grace_dur of
         BaseTypes.ScoreDuration grace_dur -> do
-            let extents = fit_grace_durs (ScoreTime.double place)
+            let extents = fit_grace_durs (ScoreTime.from_double place)
                     prev start end (length notes) grace_dur
             return [Sub.Event s d n | ((s, d), n) <- zip extents notes]
         BaseTypes.RealDuration grace_dur -> do

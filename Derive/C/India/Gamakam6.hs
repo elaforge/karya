@@ -218,8 +218,8 @@ pitch_sequence state total_dur code = do
 
 slice_time :: ScoreTime -> [Double] -> [ScoreTime]
 slice_time dur slices =
-    scanl (+) 0 $ map ((*one) . ScoreTime.double) slices
-    where one = dur / ScoreTime.double (sum slices)
+    scanl (+) 0 $ map ((*one) . ScoreTime.from_double) slices
+    where one = dur / ScoreTime.from_double (sum slices)
 
 eval_call :: ((RealTime, RealTime), Call) -> M Signal.Control
 eval_call ((start, end), call) = case call of

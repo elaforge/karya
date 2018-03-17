@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.ScoreTime (
-    ScoreTime, TrackTime, round, to_double, to_cdouble, double, suffix
+    ScoreTime, TrackTime, round, to_double, to_cdouble, from_double, suffix
     , eta, (==), (>), (<=)
     , is_negative
 ) where
@@ -68,7 +68,7 @@ type TrackTime = ScoreTime
 round :: ScoreTime -> ScoreTime
 round t
     | isNegativeZero (to_double t) = t
-    | otherwise = double . (/divisor) . fromIntegral . to_int $ t
+    | otherwise = from_double . (/divisor) . fromIntegral . to_int $ t
     where
     to_int :: ScoreTime -> Integer
     to_int = Prelude.round . (*divisor) . to_double
@@ -96,8 +96,8 @@ to_double (ScoreTime p) = p
 to_cdouble :: ScoreTime -> C.CDouble
 to_cdouble = C.CDouble . to_double
 
-double :: Double -> ScoreTime
-double = ScoreTime
+from_double :: Double -> ScoreTime
+from_double = ScoreTime
 
 -- | t is for time, since RealTime uses s for seconds
 suffix :: Char

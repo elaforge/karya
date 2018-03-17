@@ -321,7 +321,7 @@ cut_note (linenum, line)
     | otherwise = Nothing
 
 line_start :: LineNum -> TrackTime
-line_start = (/ fromIntegral lines_per_t) . ScoreTime.double
+line_start = (/ fromIntegral lines_per_t) . ScoreTime.from_double
 
 -- | Lines per 1 TrackTime.
 lines_per_t :: Int

@@ -419,7 +419,7 @@ make_controls2 :: Text -> [(Int, Text)] -> (Text, [Event])
 make_controls2 title ps = (title, [(to_score p, 0, val) | (p, val) <- ps])
 
 to_score :: Int -> ScoreTime
-to_score = ScoreTime.double . fromIntegral
+to_score = ScoreTime.from_double . fromIntegral
 
 make_notes :: ScoreTime -> [Char] -> (Text, [Event])
 make_notes offset notes = (">",

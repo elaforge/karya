@@ -99,7 +99,7 @@ to_spec :: Text -> (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime, Text)
 to_spec text (start, dur) = (start, dur, text)
 
 instance Q.Arbitrary ScoreTime where
-    arbitrary = ScoreTime.double <$> Q.arbitrarySizedFractional
+    arbitrary = ScoreTime.from_double <$> Q.arbitrarySizedFractional
 
 
 -- * simple derive

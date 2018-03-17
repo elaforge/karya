@@ -45,4 +45,4 @@ to_pixels zoom pos = Num.d2i $ ScoreTime.to_double pos * factor zoom
 -- | Convert a pixel position to a TrackTime at the given zoom factor.
 -- Doesn't take the zoom offset into account.
 to_time :: Zoom -> Int -> TrackTime
-to_time zoom pixels = ScoreTime.double (fromIntegral pixels / factor zoom)
+to_time zoom pixels = ScoreTime.from_double (fromIntegral pixels / factor zoom)

@@ -42,9 +42,11 @@ cmd_zoom_around view_id pos f = do
     Views.set_zoom view_id (zoom_around zoom pos f)
 
 zoom_around :: Zoom.Zoom -> ScoreTime -> (Double -> Double) -> Zoom.Zoom
-zoom_around (Zoom.Zoom offset factor) pos f =
-    Zoom.Zoom (zoom_pos offset pos (ScoreTime.double factor)
-        (ScoreTime.double newf)) newf
+zoom_around (Zoom.Zoom offset factor) pos f = Zoom.Zoom
+    { offset = zoom_pos offset pos (ScoreTime.from_double factor)
+        (ScoreTime.from_double newf)
+    , factor = newf
+    }
     where newf = f factor
 
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime

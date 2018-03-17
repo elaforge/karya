@@ -178,7 +178,7 @@ to_microseconds :: RealTime -> Integer
 to_microseconds = round . (*1000000) . to_seconds
 
 to_score :: RealTime -> ScoreTime.ScoreTime
-to_score = ScoreTime.double . to_seconds
+to_score = ScoreTime.from_double . to_seconds
 
 -- | Eta for comparison.  Since RealTimes are seconds, this amount of time is
 -- definitely unnoticeable.

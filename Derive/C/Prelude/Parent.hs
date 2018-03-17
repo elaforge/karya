@@ -240,7 +240,7 @@ interpolate_events at events = case drop i events of
         }
     where
     (i, frac) = properFraction (at * fromIntegral (length events - 1))
-    interpolate x y = Num.scale x y (ScoreTime.double frac)
+    interpolate x y = Num.scale x y (ScoreTime.from_double frac)
 
 all_equal :: Eq a => [a] -> Bool
 all_equal [] = True
@@ -289,5 +289,5 @@ cycle_t ctx start transformers =
         | Sub.event_start event >= until = go rest_ts (event : events)
         | otherwise = fmap (Eval.eval_quoted_transformers ctx quoted) event
             : go ts events
-    (ts, durs) = second (map ScoreTime.double)
+    (ts, durs) = second (map ScoreTime.from_double)
         (unzip (NonEmpty.toList transformers))

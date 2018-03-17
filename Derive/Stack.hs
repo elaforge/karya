@@ -244,9 +244,9 @@ instance Aeson.FromJSON Frame where
                 Block . Id.BlockId . Id.read_id <$> Aeson.parseJSON val
             | tag == "Track" ->
                 Track . Id.TrackId . Id.read_id <$> Aeson.parseJSON val
-            | tag == "Region" ->
-                uncurry Region . (ScoreTime.double *** ScoreTime.double) <$>
-                    Aeson.parseJSON val
+            | tag == "Region" -> uncurry Region
+                . (ScoreTime.from_double *** ScoreTime.from_double) <$>
+                Aeson.parseJSON val
             | tag == "Call" -> Call <$> Aeson.parseJSON val
             | tag == "Serial" -> Serial <$> Aeson.parseJSON val
             | otherwise -> fail $ "unknown tag: " <> untxt tag
@@ -360,7 +360,7 @@ parse_ui_frame = ParseText.maybe_parse_string $ do
         from <- ParseText.p_float
         A.char '-'
         to <- ParseText.p_float
-        return (ScoreTime.double from, ScoreTime.double to)
+        return (ScoreTime.from_double from, ScoreTime.from_double to)
     return
         ( Id.BlockId . Id.read_id <$> bid
         , Id.TrackId . Id.read_id <$> tid

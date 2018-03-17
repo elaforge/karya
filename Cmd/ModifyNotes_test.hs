@@ -56,7 +56,9 @@ test_selected_remove = do
                 CmdTest.set_sel 1 start 2 end
                 ModifyNotes.selection (ModifyNotes.notes (const []))
     let mkpitch negative ts = ("*",
-            [(ScoreTime.double t, if negative then -0 else 0, "") | t <- ts])
+            [ (ScoreTime.from_double t, if negative then -0 else 0, "")
+            | t <- ts
+            ])
     equal_t (run (UiTest.note_track [(0, 2, "a"), (2, 2, "b")]) 0 0) $
         Right ([(">", [(2, 2, "")]), ("*", [(2, 0, "b")])], [])
     equal_t (run ((">", [(0, 2, "1"), (2, 2, "2")]) : [mkpitch False [0..4]])

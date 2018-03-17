@@ -71,7 +71,7 @@ tempo_to_warp sig
     -- Optimize for a constant (or missing) tempo.
     -- Tempo tracks have to start at x=0, since they are integrated.
     | Just y <- Signal.constant_val_from 0 sig =
-        Warp.stretch (ScoreTime.double $ 1 / max min_tempo y) Warp.identity
+        Warp.stretch (ScoreTime.from_double $ 1 / max min_tempo y) Warp.identity
     | otherwise = Warp.from_signal warp_sig
     where
     warp_sig = Signal.integrate_inverse $ Signal.scalar_max min_tempo sig

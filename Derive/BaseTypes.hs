@@ -315,7 +315,8 @@ instance Pretty Duration where
 -- by a ScoreDuration, but scaling operations are still useful.
 multiply_duration :: Duration -> Double -> Duration
 multiply_duration (RealDuration t) n = RealDuration (t * RealTime.seconds n)
-multiply_duration (ScoreDuration t) n = ScoreDuration (t * ScoreTime.double n)
+multiply_duration (ScoreDuration t) n =
+    ScoreDuration (t * ScoreTime.from_double n)
 
 -- * Environ
 

@@ -433,8 +433,9 @@ pitch_sequence dur state arg = do
     return $ mconcat results
 
 slice_time :: ScoreTime -> [Double] -> [ScoreTime]
-slice_time dur slices = scanl (+) 0 $ map ((*one) . ScoreTime.double) slices
-    where one = dur / ScoreTime.double (sum slices)
+slice_time dur slices =
+    scanl (+) 0 $ map ((*one) . ScoreTime.from_double) slices
+    where one = dur / ScoreTime.from_double (sum slices)
 
 eval_pitch :: Call ((ScoreTime, ScoreTime), (PitchCall, Char))
     -> M PitchState Result

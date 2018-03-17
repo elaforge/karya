@@ -135,7 +135,7 @@ y_to_x = RealTime.seconds
 
 -- | Some control signals may be interpreted as score time.
 y_to_score :: Y -> ScoreTime
-y_to_score = ScoreTime.double
+y_to_score = ScoreTime.from_double
 
 y_to_nn :: Y -> Pitch.NoteNumber
 y_to_nn = Pitch.NoteNumber

@@ -148,7 +148,7 @@ test_sub_notes = do
 
 make_controls :: String -> [Int] -> (String, [Slice_test.Event])
 make_controls title ps = (title, [(to_score p, 0, showt p) | p <- ps])
-    where to_score = ScoreTime.double . fromIntegral
+    where to_score = ScoreTime.from_double . fromIntegral
 
 mkargs :: Text -> [Slice_test.EventsTree] -> Derive.PassedArgs d
 mkargs text subs = Derive.PassedArgs [] "call" info

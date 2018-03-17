@@ -209,7 +209,7 @@ c_scoretime = val_call "scoretime" mempty
     "Convert a number to ScoreTime. This just changes the type annotation, the\
     \ value remains the same." $
     Sig.call (Sig.required_env "val" Sig.None "") $ \val _ ->
-        return $ ScoreTime.double val
+        return $ ScoreTime.from_double val
 
 c_realtime :: Derive.ValCall
 c_realtime = val_call "realtime" mempty

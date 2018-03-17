@@ -184,7 +184,7 @@ load_track (id_name, title, events) = do
 
 load_event :: Event -> Event.Event
 load_event (start, dur, text) =
-    Event.event (ScoreTime.double start) (ScoreTime.double dur) text
+    Event.event (ScoreTime.from_double start) (ScoreTime.from_double dur) text
 
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
 dump_selection = map (second (map event)) <$> Selection.events

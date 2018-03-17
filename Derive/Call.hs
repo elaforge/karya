@@ -76,7 +76,7 @@ time_control_at default_type control pos = do
             <> ShowVal.show_val control <> " but got " <> pretty typ
     return $ case time_type of
         Typecheck.Real -> BaseTypes.RealDuration (RealTime.seconds val)
-        Typecheck.Score -> BaseTypes.ScoreDuration (ScoreTime.double val)
+        Typecheck.Score -> BaseTypes.ScoreDuration (ScoreTime.from_double val)
 
 real_time_at :: BaseTypes.ControlRef -> RealTime -> Derive.Deriver RealTime
 real_time_at control pos = do
@@ -556,7 +556,7 @@ typed_real_duration default_type from (Score.Typed typ val)
             return (RealTime.seconds val)
     | typ == Score.Score
         || typ == Score.Untyped && default_type == Typecheck.Score =
-            real_duration from (ScoreTime.double val)
+            real_duration from (ScoreTime.from_double val)
     | otherwise = Derive.throw $
         "expected time type for " <> ShowVal.show_val (Score.Typed typ val)
 

@@ -118,7 +118,7 @@ from_signal signal = WarpFunction $ Function
         | otherwise = RealTime.seconds $ Signal.at (to_real t) signal
     backward t
         | t < 0 = to_score t
-        | otherwise = ScoreTime.double $ Signal.at t inverted
+        | otherwise = ScoreTime.from_double $ Signal.at t inverted
         where inverted = Signal.invert signal
 
 compose :: Warp -> Warp -> Warp

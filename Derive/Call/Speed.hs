@@ -31,7 +31,7 @@ instance Typecheck.Typecheck Speed where
     from_val = Typecheck.num_to_scalar $ \(Score.Typed typ val) -> case typ of
         Score.Untyped -> Just $ Real (RealTime.seconds val)
         Score.Real -> Just $ Real (RealTime.seconds val)
-        Score.Score -> Just $ Score (ScoreTime.double val)
+        Score.Score -> Just $ Score (ScoreTime.from_double val)
         _ -> Nothing
     to_type = Typecheck.num_to_type
 instance Typecheck.ToVal Speed where
@@ -115,7 +115,7 @@ convert_score_signal :: Typecheck.Function
     -> Derive.Deriver (ScoreTime -> ScoreTime)
 convert_score_signal f = do
     warp <- Internal.get_warp
-    return $ ScoreTime.double . (1/) . f . Warp.warp warp
+    return $ ScoreTime.from_double . (1/) . f . Warp.warp warp
 
 duration_starts :: (Num a, Ord a, Show a) => (a -> a) -> a -> a
     -> Either Text [a]

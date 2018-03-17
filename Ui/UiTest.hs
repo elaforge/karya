@@ -460,7 +460,7 @@ dump_block block_id state =
     name = snd $ Id.un_id $ Id.read_id id_str
     dump_track (_, title, events) = (title, map convert events)
     convert (start, dur, text) =
-        (ScoreTime.double start, ScoreTime.double dur, text)
+        (ScoreTime.from_double start, ScoreTime.from_double dur, text)
 
 -- | Like 'dump_block' but strip out everything but the tracks.
 extract_tracks_of :: BlockId -> Ui.State -> [TrackSpec]

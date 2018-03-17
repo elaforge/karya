@@ -87,7 +87,7 @@ get_start_offset :: RealTime -> Derive.Deriver RealTime
 get_start_offset start = do
     start_s <- maybe 0 RealTime.seconds <$>
         Derive.untyped_control_at Controls.start_s start
-    start_t <- maybe 0 ScoreTime.double <$>
+    start_t <- maybe 0 ScoreTime.from_double <$>
         Derive.untyped_control_at Controls.start_t start
     start_t <- Call.real_duration start start_t
     return $ start_s + start_t
