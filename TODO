@@ -1519,27 +1519,30 @@ vector performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  - Shift-play plays im cache even when the instruments are gone, but not
-    enter-play?
-    . Properly I should clear out the cache when instruments go away, but
-      meanwhile I should be noticing that there are no im events and not
-      starting play_cache.
-    . Proper MIDI fallback would also fix this.
-  - If I delete an instrument and rerender, the old one is left around.
-    This is because the cache won't delete existing files.  This will be fixed
-    by making a new cache dir instead of just copying into the existing one.
-    . I should be able to cache instruments that don't change.
-  - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
-    im and seq can use the same types.
-    . On the other hand, maybe they should remain different.  Synth Control
-      at least is different in that also includes pitch.  Also Instrument
-      is a score-only.  Even though it winds up in Note.instrument, it's not
-      really in its original context any more.
-  - I can maybe also just replace unchecked_control with Control, and
-    make both Instrument and Control have checked_* constructors.  I can't
-    really enforce Id.valid rules, except at score parsing time.
-  - Also move callers from Score to ScoreTypes.  Can I give it a shorter name?
-    Base types modules should have short names.
+  bugs:
+    - Shift-play plays im cache even when the instruments are gone, but not
+      enter-play?
+      . Properly I should clear out the cache when instruments go away, but
+        meanwhile I should be noticing that there are no im events and not
+        starting play_cache.
+      . Proper MIDI fallback would also fix this.
+    - If I delete an instrument and rerender, the old one is left around.
+      This is because the cache won't delete existing files.  This will be
+      fixed by making a new cache dir instead of just copying into the
+      existing one.
+      . I should be able to cache instruments that don't change.
+  cleanup:
+    - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
+      im and seq can use the same types.
+      . On the other hand, maybe they should remain different.  Synth Control
+        at least is different in that also includes pitch.  Also Instrument
+        is a score-only.  Even though it winds up in Note.instrument, it's not
+        really in its original context any more.
+    - I can maybe also just replace unchecked_control with Control, and
+      make both Instrument and Control have checked_* constructors.  I can't
+      really enforce Id.valid rules, except at score parsing time.
+    - Also move callers from Score to ScoreTypes.  Can I give it a shorter
+      name?  Base types modules should have short names.
   overview:
     . Cmd.Performance will serialize im notes and start the binary.
     . sampler-im or faust-im will read the notes and render wav files for each
@@ -1568,20 +1571,19 @@ synth: im:
       and mix or concatenate the chunks.
     . Atomic cache replacement.  The synth generates a new cache dir, and
       play_cache GCs the old one when it stops.
-  Support track muting.
-    . First, I need to separate notes per-track.  For models I actually can't
-      do this, because notes on the same instrument affect each other.  It
-      should be possible if notes are independent, e.g. samples.
-    . I can do per-instrument.  For NESS I just have to not mix down the
-      result, and save namespace-block-instrument.wav.
-    . Then PlayCache has to read namespace-block-*.wav and mix itself.
-    . Karya needs to turn track mutes into instrument mutes, then send msgs
-      about muted instruments.  I guess it can be more send text with disabled
-      instruments with the block.
-    . So I need to infer muted instruments from tracks.  This is instrument
-      level mute and solo, but track level is more convenient to use.
-
+  performance
+    - Profiling for time and space.  It should take constant space.
+    - fast serialize / deserialize
+      If I'm going to serialize Notes, then serialize / deserialize should be
+      fast.  But Data.Binary is not fast, at least according to dons CBOR talk.
+      . I'd like to be able to directly write and read control signals, e.g.
+        send the pointer to the OS write() call with no intermediate steps.
+      . Or I can map directly with vector-mmap.  For that I need to record the
+        offsets in the file.
   audio:
+    - integrate freeverb for reverb and filters
+      . Or why not just use faust integration?  I think it has the same
+        algorithm?
     non-interleaved signals
       . Faust wants non-interleaved input.  So does VST.  So I should pass
         around signals non-interleaved.
@@ -1695,11 +1697,82 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   sampler: sampler-im:
-    - Put together the reyong instrument, to motivate features.
+    reyong:
+      . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
+      . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in
+        the ideal pitch, to reflect instrument variation.  Of course I can
+        easily insert that back in, so lets go for accuracy.  The instrument
+        can define deviations.
+      . I need the same thing for dynamics, but there isn't such an absolute
+        measure.  But I can match all in one group to each other, then go pp
+        to ff to verify a smooth sounding range.
+      . Filenames should use the symbolic metadata:
+        $pitch-$dyn-$articulation-$variation.wav ==> 4e-mp-open-1.wav
+        Or $oct;[12356]-{0pp, 1mp, 2mf, 3ff}-open-1.wav if I want to sort by
+        (pitch, dynamic).  And if I ever have saih pitu or pamero samples then
+        ioeua won't work anyway.
+      Pitch calibration:
+        . Group samples by pitch, pick a representative, then render
+          a sequence against a test tone.
+        . Or I could do it in realtime with a reaktor patch.  Or do it the
+          other way: loop the note, and then adjust the test tone.
+        - Make a reaktor patch first.
+      Dynamic calibration:
+        . Alternate reference sample with the testee, adjust testee until they
+          sound the same.  Record the negated number as the offset.  Reaktor
+          should have a dB scale fader.
+        . Consistency is most important across samples that will alternate:
+          . Calibrate variations against v1.  They should already be close.
+            (pitch, dyn, articulation), variation
+          . Calibrate similar articulations: [open, mute+*], [cek+*]
+            It's probably hard to calibrate dissimilar ones, but they should
+            represent the same logical dynamic.
+            variation=1, (pitch, dyn), articulation
+          . Calibrate across pitches by articulation:
+            variation=1, (dyn, articulation), pitch
+        . The dynamic scale should be smooth.  Per (pitch, articulation) I
+          play short clips from pp to ff and listen for jumps.  Then adjust
+          the sensitivity to dyn, which is the slope of the scaling curve, or
+          dB multiplier from the distance from the center point.
+        . I'm assuming I divide the dyn signal into uniform sections where
+          each dyn level is nominally at the center.  I could just do
+          1/dynCount, or I could bias towards mp and mf, under the assumption
+          that extreme dynamics are rarer and I want to save the timbral
+          changes for that.
+        . I still want to avoid sudden timbral transitions at regular
+          dynamics.  I can ameliorate some of that by randomizing dyn, but
+          that also should change perceptual dynamic.  So I can also have
+          overlap between each dynamic range, and include them in the sample
+          choice set with a weight according to the depth of overlap.
+
+        Try absolute measurement?
+          . The above is a complicated multi-step process, and since it's all
+            relative I worry things could get off from each other depending on
+            (arbitrary) choice of initial reference.
+          . I still don't really trust automatic normalization, but maybe
+            I could do perceptual normalization manually by picking a midrange
+            sample and then adjust everything to that.
+          . Or maybe automatic normalization was ok after all, just the
+            instrument I put together had a mis-adjusted dynamic response
+            curve.  The problem was that quiet samples were made too loud.
+          . Or it could be that normalization linearizes the dynamic, when
+            they're actually not.  Since I lose the original level, I could
+            wind up with samples not ever overlapping their original level.
+          . At least with the manual but absolute approach I can retain the
+            original dynamic, and thus have a rule like only attenuate, never
+            amplify samples.
+          . Actually, that might be hard.  I'd have to pick the softest within
+            each group and adjust everyone down to match.
+      . Damping rules: +mute damp everything, all others overlap.
+        . When a +mute damps an +open, it should actually damp very slightly
+          before.
+
     * per-instrument rendering so instrument mutes work
+    - The sampler could render per-track since each note is independent.
     - bind to rubberband library for pitch change without time change
     - convolution
       . What are the options?  jconvolver, ...
+    - integrate faust effects for reverb and filters
     features for an actual sampler:
       . see doc/dev_notes/synthesizer
       . Intrinsic pitch independent of the pitch curve, which influences
@@ -1984,7 +2057,7 @@ synth: im:
         . I also need to turn ScoreDamage into RealTime.  Maybe not trivial?
       . Actually first let's not bother with incremental, and just rewrite the
         whole dump each time.  The real saving is in not rerendering audio.
-    - faust-im breaks output into chunks of n seconds.
+    - synthesizers break output into chunks of n seconds.
       . Chunk = (startTime, InstrumentState, samples)
       . InstrumentState = Map (Instrument, Voice) DspState
       . Voice = Int -- assigned by polyphony, but how can I keep it stable?
