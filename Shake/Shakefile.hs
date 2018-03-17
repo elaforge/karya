@@ -956,7 +956,7 @@ getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 -- too, so using command all_hs.py is not the problem.
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
-    let packages = allPackages
+    let packages = map fst reallyAllPackages
     (hs, hscs) <- getAllHaddock (midiConfig config)
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config

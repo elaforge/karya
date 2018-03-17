@@ -5,8 +5,6 @@
 {-# LANGUAGE CPP #-} -- for BUILD_DIR
 {-# LANGUAGE MagicHash #-}
 -- | REPL implementation that directly uses the GHC API.
---
--- Supported versions: 7.10
 module Cmd.ReplGhc (
     Session(..), make_session
     , interpreter, interpret, complete

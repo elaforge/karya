@@ -196,6 +196,7 @@ UNSORTED
     - put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
       Push script does normal push to github, force push to gitlab.
+    - figure out something for Local/*, inst_db
   - Check out pretty-show or pretty-simple or ghci-pretty
     . http://teh.id.au/posts/2017/02/13/interactive-print/index.html
     . https://www.reddit.com/r/haskell/comments/76fvsq/replacing_ghcis_prettyprinter/
@@ -230,14 +231,14 @@ UNSORTED
         opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
                       760.40s user 45.88s system 323% cpu 4:09.25 total
     compile time tammananny:
-    . 8.0.2:
-      . RunTests    781.31s user 58.21s system 363% cpu 3:50.70 total
-      . debug/seq   429.44s user 31.34s system 362% cpu 2:07.03 total
-      . opt/seq     1277.20s user 45.85s system 358% cpu 6:08.68 total
-    . 8.4.1:
-      . RunTests    613.11s user 49.84s system 357% cpu 3:05.52 total
-      . debug/seq   329.67s user 23.86s system 352% cpu 1:40.38 total
-      . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
+      . 8.0.2:
+        . RunTests    781.31s user 58.21s system 363% cpu 3:50.70 total
+        . debug/seq   429.44s user 31.34s system 362% cpu 2:07.03 total
+        . opt/seq     1277.20s user 45.85s system 358% cpu 6:08.68 total
+      . 8.4.1:
+        . RunTests    613.11s user 49.84s system 357% cpu 3:05.52 total
+        . debug/seq   329.67s user 23.86s system 352% cpu 1:40.38 total
+        . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
 
     first make sure deps build
       * ghc-events: no Semigroup instance
@@ -253,7 +254,7 @@ UNSORTED
         . sent pull request
     - tag profile runs with ghc version, fix up old data
     - search for 8.2 tagged things I can do
-    - update flags in Shakefile
+    * update flags in Shakefile
   / Debug.traceM doesn't work in AudioId
     . Does it not work in an Identity monad?  Why not?
     . f >>= x is just f x.  So f >> g is g, so no big surprise f isn't forced.
