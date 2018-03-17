@@ -21,3 +21,4 @@
 *.tix
 
 *.swp
+.DS_Store
