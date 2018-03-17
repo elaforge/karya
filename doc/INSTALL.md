@@ -1,27 +1,65 @@
-## INSTALLATION
+## Installation
 
 - Install GHC.  At least 8.0 and 8.4 should work.  8.2 definitely does not
 work.  It should compile fine, but the REPL won't work.  Details at
 <https://ghc.haskell.org/trac/ghc/ticket/13604>.
 
-- Install (non-haskell dependencies)[#non-haskell-dependencies].
+- Install [non-haskell dependencies](#non-haskell-dependencies).
 
 - Update `Shake/Config.hs` to point to where those dependencies are installed.
 
-- Install (haskell dependencies)[#haskell-dependencies].
+- Install [haskell dependencies](#haskell-dependencies).
 
 - Build shakefile: `bin/mkmk`
 
-- Build optimized binaries and documentation: `bin/mk binaries doc`.  It will
-try to link to CoreMIDI on the mac and to JACK on linux.  If for some reason
-you don't have either of those, you can pass `midi=stub` to link the stub MIDI
+- Build optimized binaries: `bin/mk binaries`.  It will try to link to CoreMIDI
+on the mac and to JACK on linux.  If for some reason you don't have either of
+those, you can run `bin/mk` with the `midi=stub` env var to link the stub MIDI
 driver, but now it will never produce any MIDI so what was the point?
 
 - On OS X, run `defaults write -g ApplePressAndHoldEnabled -bool false` to
 re-enable key repeats globally.  Provided you want them to work sanely, and
 not iphone-ly.
 
-- Go read doc/quickstart.md.
+- Go read `doc/quickstart.md`.
+
+## Non-Haskell dependencies
+
+- Git, and make sure `user.email` and `user.name` are configured.
+
+- Fltk, from <http://fltk.org/> or your package manager.  Get 1.3.4 or newer.
+`Shake/Config.hs` needs the path to the `fltk-config` script, which is normally
+going to be `/usr/local/bin` if you did a `make install`.
+
+- libpcre library from <http://www.pcre.org>.
+
+    If your package manager puts the headers in a non-standard place, e.g.
+`~/homebrew`, then the cabal build (see below) for the haskell bindings won't
+find it.  So you need flags:
+
+        cabal install --extra-include-dirs=$HOME/homebrew/include \
+            --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
+
+- lilypond for the lilypond backend.  This is optional.
+
+- The bravura font for music symbols: <http://www.smufl.org/fonts/> and
+Noto for any other kind of symbol: <https://www.google.com/get/noto/>.
+I don't use fancy symbols very much, so they're not essential.
+
+    OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
+
+    Linux: `cp *.otf ~/.fonts # or /usr/share/fonts`
+
+    On linux, use `fc-list` to see installed fonts and their names.  For some
+reason, the fonts on linux sometimes have backslashes in their names, and
+sometimes not.  If there is a complaint at startup about the font not being
+found you might have to edit `App/Config.hsc`.
+
+## Linux
+
+- Either jack1 or jack2.  JACK support is mostly untested and probably doesn't
+work, since I don't do music on linux.  Get in touch if you can help with linux
+support.
 
 ## Haskell dependencies
 
@@ -49,48 +87,6 @@ If you want to build the documentation:
 You can also install pandoc with cabal but it has a ridiculous number of
 dependencies.
 
-## Non-Haskell dependencies
-
-- Git, and make sure user.email and user.name are configured.
-
-- Fltk, from <http://fltk.org/>.  The latest 1.3 should work fine.  I use the
-SVN version because in the past its had bugfixes for retina macs.
-`Shake/Config.hs` needs the path to the `fltk-config` script, which is normally
-going to be `/usr/local/bin` if you did a `make install`.
-
-- libpcre library from <http://www.pcre.org>.
-
-    If your package manager puts the headers in a non-standard place, e.g.
-~/homebrew, then the cabal build for the haskell bindings won't find it.  So
-you need flags:
-
-        % cabal install --extra-include-dirs=$HOME/homebrew/include \
-            --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
-
-- Also maybe openssl for hlibgit2 and `--extra-include-dirs
-/usr/local/opt/openssl/include --extra-lib-dirs /usr/local/opt/openssl/lib`.
-
-- lilypond for the lilypond backend.  This is optional.
-
-- The bravura font for music symbols: <http://www.smufl.org/fonts/> and
-Noto for any other kind of symbol: <https://www.google.com/get/noto/>
-
-    OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
-
-    Linux: `cp *.otf ~/.fonts # or /usr/share/fonts`
-
-    On linux, use `fc-list` to see installed fonts and their names.  For some
-reason, the fonts on linux sometimes have backslashes in their names, and
-sometimes not.  If there is a complaint at startup about the font not being
-found you might have to edit App/Config.hsc.  Or not, I hardly use the music
-symbols.
-
-## LINUX
-
-Either jack1 or jack2.  JACK support is mostly untested and probably doesn't
-work, since I don't do music on linux.  Get in touch if you care about linux
-support.
-
 ## 音, Im, Synth
 
 These are all names for the incomplete offline synthesizer.  It requires a bunch
@@ -98,18 +94,16 @@ of extra dependencies.  To build, turn on Shake.Config.enableSynth, and install
 the VST.  You'll need additional dependencies, and apparently cabal doesn't let
 you pick the .cabal file, so:
 
-```
-    % cp doc/all-deps.cabal karya.cabal
-    % cabal install --only-dependencies
-```
+    cp doc/all-deps.cabal karya.cabal
+    cabal install --only-dependencies
 
 Unfortunately Steinberg is trying to get rid of VST 2, by trying to get rid of
-the headers.  If you search for vstplugmain.cpp though, you can still find
-a few copies around.
+the headers.  If you search for `vstplugmain.cpp` though, you can still find a
+few copies around.
 
 In the longer term I'll have to port to VST3 or AU.
 
-## MISC
+## Misc
 
 `tools/run_profile` expects `ps2pdf` in the path, which is part of ghostscript.
 It's fine if it's not, but you'll get ps instead of pdf.  Help with heap
