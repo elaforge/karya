@@ -53,7 +53,7 @@ run block = do
     where
     nameScore notesFilename (inst, p) =
         ( Config.outputFilename (Config.rootDir Config.config) notesFilename
-            (Just inst)
+            inst
         , inst
         , renderPerformance srate p
         )

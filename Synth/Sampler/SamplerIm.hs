@@ -4,13 +4,17 @@
 
 -- | Offline sampler.
 module Synth.Sampler.SamplerIm (main) where
+import qualified Control.Concurrent.Async as Async
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Data.Text.IO as Text.IO
+import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Convert as Convert
@@ -36,17 +40,18 @@ main = do
 
 process :: Resample.ConverterType -> FilePath -> [Note.Note] -> IO ()
 process quality notesFilename notes = do
-    samples <- either errorIO return $ mapM Convert.noteToSample notes
-    mapM_ print samples
-    realizeSamples quality notesFilename samples
+    let byInstrument = Seq.keyed_group_sort Note.instrument notes
+    Async.forConcurrently_ byInstrument $ \(instrument, notes) -> do
+        samples <- either errorIO return $ mapM Convert.noteToSample notes
+        realizeSamples quality notesFilename instrument samples
 
-realizeSamples :: Resample.ConverterType -> FilePath -> [Sample.Sample] -> IO ()
-realizeSamples quality notesFilename samples = do
-    put $ "load " <> show (length samples) <> " samples"
-    put "processing"
-    -- TODO divide up output by instrument instead of mixing them here
+realizeSamples :: Resample.ConverterType -> FilePath -> Note.InstrumentName
+    -> [Sample.Sample] -> IO ()
+realizeSamples quality notesFilename instrument samples = do
+    put $ "load " <> showt (length samples) <> " samples"
     let output = Config.outputFilename (Config.rootDir Config.config)
-            notesFilename Nothing
+            notesFilename instrument
+    Directory.createDirectoryIfMissing True (FilePath.takeDirectory output)
     result <- AUtil.catchSndfile $ Resource.runResourceT $
         Audio.File.write AUtil.outputFormat output $
             AUtil.mix $ map (Sample.realize quality) samples
@@ -54,6 +59,6 @@ realizeSamples quality notesFilename samples = do
         Left err ->
             Log.error $ "writing to output: " <> showt output <> ": " <> err
         Right () -> return ()
-    put $ "wrote to " <> output
+    put $ "wrote to " <> txt output
     where
-    put = putStrLn . ((FilePath.takeFileName notesFilename <> ": ")<>)
+    put msg = Text.IO.putStrLn $ instrument <> ": " <> msg

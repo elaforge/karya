@@ -32,23 +32,28 @@ noteToSample note = do
             <> " with pitch " <> showt (Note.initialPitch note)
     (samplePath, instSample) <- justErr msg $
         lookupSample inst (Note.attributes note) (Note.initialPitch note)
-    let get k = Map.lookup k (Note.controls note)
-    return $ Sample.Sample
-        { start = Note.start note
-        , filename = Patch.sampleDirectory inst </> samplePath
-        , offset = 0
-        , envelope = fromMaybe (Signal.constant 1) $ get Control.dynamic
-        , ratio = case (Patch.pitch instSample, get Control.pitch) of
-            (Just sampleNn, Just noteNns) ->
-                -- Converting to a ratio is nonlinear, so I have to resample.
-                -- To avoid that I think libsamplerate would have to take
-                -- source and destination hz and convert to ratio internally
-                -- per-sample.
-                Signal.map_y 0.05
-                    (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
-                    noteNns
-            _ -> Signal.constant 1
-        }
+    return $ makeSample (Patch.sampleDirectory inst </> samplePath)
+        instSample note
+
+makeSample :: Sample.SamplePath -> Patch.Sample -> Note.Note -> Sample.Sample
+makeSample filename instSample note = Sample.Sample
+    { start = Note.start note
+    , filename = filename
+    , offset = 0
+    , envelope = fromMaybe (Signal.constant 1) $ get Control.dynamic
+    , ratio = case (Patch.pitch instSample, get Control.pitch) of
+        (Just sampleNn, Just noteNns) ->
+            -- Converting to a ratio is nonlinear, so I have to resample.
+            -- To avoid that I think libsamplerate would have to take
+            -- source and destination hz and convert to ratio internally
+            -- per-sample.
+            Signal.map_y 0.05
+                (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
+                noteNns
+        _ -> Signal.constant 1
+    }
+    where
+    get k = Map.lookup k (Note.controls note)
 
 -- | Find the sample with the closest pitch, or if there is no pitch, the first
 -- unpitched sample.

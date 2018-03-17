@@ -101,11 +101,9 @@ notesFilename rootDir synth blockId =
 -- instrument.
 outputFilename :: FilePath
     -> FilePath -- ^ Names as produced by 'notesFilename'.
-    -> Maybe Text -- ^ Score.Instrument, but I don't want to import it.
+    -> Text -- ^ Score.Instrument, but I don't want to import it.
     -> FilePath
-outputFilename rootDir notesFilename maybeInstrument = case maybeInstrument of
-    Nothing -> root <> ".wav"
-    Just instrument -> root </> untxt instrument <> ".wav"
+outputFilename rootDir notesFilename inst = root </> untxt inst <> ".wav"
     where
     root = rootDir </> cacheDir </> ns </> name
     ns = FilePath.takeFileName $ FilePath.takeDirectory notesFilename

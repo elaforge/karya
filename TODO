@@ -292,7 +292,8 @@ UNSORTED
       and just have a signal named "pitch".
   cleanup from linear:
     - rename RealTime.seconds to from_seconds etc.
-      . This is a big change, so put it off for a bit.
+      . I'm kind of reluctant because RealTime.seconds reads nicely and
+        there are a lot of places to change and they all get longer.
     - Deriver.Lib.with_control_mods
     - GConvert.fingerMovement
     - Signal.integrate
@@ -1693,9 +1694,9 @@ synth: im:
       preset mechanism, and it sounds like a lot of hassle.
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
-  sampler:
+  sampler: sampler-im:
     - Put together the reyong instrument, to motivate features.
-    - per-instrument rendering so instrument mutes work
+    * per-instrument rendering so instrument mutes work
     - bind to rubberband library for pitch change without time change
     - convolution
       . What are the options?  jconvolver, ...
