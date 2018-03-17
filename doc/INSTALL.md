@@ -23,6 +23,8 @@ not iphone-ly.
 
 - Go read `doc/quickstart.md`.
 
+- Read `doc/DEVELOPMENT.md` if you want to do some of that.
+
 ## Non-Haskell dependencies
 
 - Git, and make sure `user.email` and `user.name` are configured.

@@ -162,8 +162,10 @@ STATUS
   - solkattu: implement korvai sections
     . I'm motivated to do this because Solkattu2018.yt_mannargudi2 requires
       eddupu only on the actual korvai variations, not development.
-  - upgrade to ghc 8.4.1
+  + upgrade to ghc 8.4.1
     . Sent patches to other projects, waiting for everyone to get updated.
+    . Almost done, but I need to tweak version bounds for conduit-audio,
+      zmidi-core, ...?
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
@@ -217,16 +219,17 @@ UNSORTED
       . It uses haskell-lexer instead of haskell-src, so I can remove that
         dep, which seems old.
   upgrade to ghc 8.4.1
-    . 8.0.2 compile time:
-      debug/seq     257.19s user 35.01s system 341% cpu 1:25.63 total
-                    242.37s user 32.71s system 336% cpu 1:21.78 total
-      opt/seq       619.43s user 44.95s system 331% cpu 3:20.30 total
-    . 8.2.1 compile time:
-      debug/seq     225.21s user 32.80s system 338% cpu 1:16.20 total
-                    201.57s user 30.43s system 328% cpu 1:10.53 total
-      opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
-                    760.40s user 45.88s system 323% cpu 4:09.25 total
-    tammananny:
+    compile time mehitabel:
+      . 8.0.2:
+        RunTests      528.01s user 110.00s system 347% cpu 3:03.71 total
+        debug/seq     275.52s user 51.61s system 246% cpu 2:12.87 total
+        opt/seq       702.52s user 65.69s system 335% cpu 3:49.13 total
+      . 8.2.1:
+        debug/seq     225.21s user 32.80s system 338% cpu 1:16.20 total
+                      201.57s user 30.43s system 328% cpu 1:10.53 total
+        opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
+                      760.40s user 45.88s system 323% cpu 4:09.25 total
+    compile time tammananny:
     . 8.0.2:
       . RunTests    781.31s user 58.21s system 363% cpu 3:50.70 total
       . debug/seq   429.44s user 31.34s system 362% cpu 2:07.03 total
@@ -493,16 +496,6 @@ UNSORTED
       they have to be used with Ui.modify, which is the thing I'm trying to
       not use all the time.
     . So maybe just get rid of Ui.allocations.
-  - upgrade to ghc 8.2
-    . 8.0.2 compile time:
-      debug/seq     257.19s user 35.01s system 341% cpu 1:25.63 total
-                    242.37s user 32.71s system 336% cpu 1:21.78 total
-      opt/seq       619.43s user 44.95s system 331% cpu 3:20.30 total
-    . 8.2.1 compile time:
-      debug/seq     225.21s user 32.80s system 338% cpu 1:16.20 total
-                    201.57s user 30.43s system 328% cpu 1:10.53 total
-      opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
-                    760.40s user 45.88s system 323% cpu 4:09.25 total
     - conduit-audio has base <4.10, I can patch but author is not responding
       . Patched locally, but I'll need a long term solution.
       . Should I fork, or write my own?

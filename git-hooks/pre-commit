@@ -1,0 +1,45 @@
+#!/bin/zsh
+# Derived from the example pre-commit.
+
+against=HEAD
+
+# Redirect output to stderr.
+exec 1>&2
+
+# Cross platform projects tend to avoid non-ASCII filenames; prevent
+# them from being added to the repository. We exploit the fact that the
+# printable range starts at the space character and ends with tilde.
+if test $(git diff --cached --name-only --diff-filter=A -z $against |
+    LC_ALL=C tr -d '[ -~]\0' | wc -c) != 0
+    # Note that the use of brackets around a tr range is ok here, (it's
+    # even required, for portability to Solaris 10's /usr/bin/tr), since
+    # the square bracket bytes happen to fall in the designated range.
+then
+    cat <<\EOF
+Error: Attempt to add a non-ASCII file name.
+
+This can cause problems if you want to work with people on other platforms.
+
+To be portable it is advisable to rename the file.
+EOF
+    exit 1
+fi
+
+# If there are whitespace errors, print the offending file names and fail.
+if ! git diff-index --check --cached $against --; then
+    exit 1
+fi
+
+modified=("${(@f)$(git diff --cached --name-only)}")
+too_long=
+for f in $modified; do
+    if git diff --cached $against -- $f | egrep -n '^\+.{80,}'; then
+        echo $f
+        too_long=true
+    fi
+done
+
+if [[ $too_long ]]; then
+    echo 'Lines >80 columns.'
+    exit 1
+fi

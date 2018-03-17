@@ -1,0 +1,9 @@
+#!/bin/sh
+# Install some git hooks.  Run this when cloning a new repo.
+
+cd .git/hooks
+ln -s ../../git-hooks/post-merge
+ln -s ../../git-hooks/pre-commit
+
+# pre-commit uses this.
+git config core.whitespace trailing-space,tab-in-indent
