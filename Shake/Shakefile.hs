@@ -602,12 +602,12 @@ configure midi = do
         , cLibDirs = Config.globalLibDirs
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , hcFlags =
+        , hcFlags = concat
             -- This is necessary for ghci loading to work in 7.8.
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
-            ["-dynamic" | mode /= Profile]
-            ++ case mode of
+            [ ["-dynamic" | mode /= Profile]
+            , case mode of
                 Debug -> []
                 Opt -> ["-O"]
                 Test -> ["-fhpc"]
@@ -615,6 +615,7 @@ configure midi = do
                 -- not sure for plain profiling, maybe I always want manual
                 -- SCCs anyway?
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
+            ]
         , hLinkFlags = ["-rtsopts", "-threaded"]
             ++ ["-eventlog" | Config.enableEventLog && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
@@ -1330,14 +1331,8 @@ writeGhciFlags modeConfig =
     forM_ (map modeConfig allModes) $ \config -> do
         Directory.createDirectoryIfMissing True (buildDir config)
         writeFile (buildDir config </> "ghci-flags") $
-            unwords (getFlags config) ++ "\n"
+            unwords (ghciFlags config) ++ "\n"
     where
-    -- I have to add -I. manually too since it's in hcFlags along with
-    -- non-ghci stuff, not ghcFlags.  I'd have to add a new config field for
-    -- non-file-specific ghc flags, or put -I in 'define', where it doesn't
-    -- belong.
-    getFlags config = "-dynamic" : ghcFlags config
-        ++ sandboxFlags (configFlags config)
 
 -- | Make links to large binary files I don't want to put into source control.
 makeDataLinks :: IO ()
@@ -1348,7 +1343,8 @@ makeDataLinks = do
     return ()
     where run = File.ignoreError IO.Error.isAlreadyExistsError
 
--- | Get the file-independent flags for a haskell compile.
+-- | Get the file-independent flags for a haskell compile.  This is disjunct
+-- from 'hcFlags', which is the per-file compile-specific ones.
 ghcFlags :: Config -> [Flag]
 ghcFlags config = concat $
     [ "-outputdir", oDir config, "-osuf", ".hs.o"
@@ -1359,6 +1355,27 @@ ghcFlags config = concat $
     , cInclude (configFlags config)
     , ghcWarnings (buildMode config)
     ]
+
+-- | Blend the delicate mix of flags needed to convince ghci to load .o files
+-- that ghc just produced.
+ghciFlags :: Config -> [Flag]
+ghciFlags config = concat
+    [ filter wanted $ hcFlags (configFlags config)
+    , ghcFlags config
+    , sandboxFlags (configFlags config)
+    -- Without this, GHC API won't load compiled modules.
+    -- See https://ghc.haskell.org/trac/ghc/ticket/13604
+    , if ghcVersion config >= "80401"
+        then ["-fignore-optim-changes", "-fignore-hpc-changes"]
+        else []
+    ]
+    where
+    wanted flag = not $ or
+        -- Otherwise GHC API warns "-O conflicts with --interactive; -O ignored"
+        [ "-O" `List.isPrefixOf` flag
+        -- Otherwise ghci warns "Hpc can't be used with byte-code interpreter."
+        , flag == "-fhpc"
+        ]
 
 -- | Language extensions which are globally enabled.
 ghcLanguageFlags :: [String]

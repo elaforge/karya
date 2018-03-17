@@ -1,7 +1,8 @@
 ## INSTALLATION
 
 - Install GHC.  At least 8.0 and 8.4 should work.  8.2 definitely does not
-work (details at <https://ghc.haskell.org/trac/ghc/ticket/13604>).
+work.  It should compile file, but the REPL won't work.  Details at
+<https://ghc.haskell.org/trac/ghc/ticket/13604>.
 
 - Install (non-haskell dependencies)[#non-haskell-dependencies].
 
