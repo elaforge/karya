@@ -58,9 +58,10 @@ import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Search as Search
 import qualified Instrument.Tag as Tag
 
-import qualified Local.Instrument
 import qualified App.Config as Config
+import qualified App.LoadInstruments as LoadInstruments
 import qualified App.ReplProtocol as ReplProtocol
+
 import Global
 
 
@@ -86,7 +87,7 @@ main = ReplProtocol.initialize $ do
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 
-    db <- Local.Instrument.load =<< Config.get_app_dir
+    db <- LoadInstruments.load =<< Config.get_app_dir
     putStrLn $ "Loaded " ++ show (Inst.size db) ++ " instruments."
     let geometry = Seq.head [g | Geometry g <- flags]
         (x, y, w, h) = default_geometry geometry

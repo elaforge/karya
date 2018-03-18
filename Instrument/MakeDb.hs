@@ -11,9 +11,10 @@ module Instrument.MakeDb where
 import qualified Data.Text.IO as Text.IO
 import qualified System.Environment as Environment
 
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Instrument.InstTypes as InstTypes
-import qualified Local.Instrument as Instrument
 import qualified App.Config as Config
+import qualified App.LoadInstruments as LoadInstruments
 import Global
 
 
@@ -23,16 +24,16 @@ main = do
     app_dir <- Config.get_app_dir
     let db_path = Config.make_path app_dir Config.instrument_dir
     case db_names of
-        [] -> make db_path Instrument.all_loads
+        [] -> make db_path LoadInstruments.all_loads
         _ -> do
-            let makes = map (`lookup` Instrument.all_loads) db_names
+            let makes = map (`lookup` LoadInstruments.all_loads) db_names
                 not_found = [name | (name, Nothing) <- zip db_names makes]
                 found = [(name, make) | (name, Just make) <- zip db_names makes]
             unless (null not_found) $
                 errorIO $ "dbs not found: " <> showt not_found
             make db_path found
 
-make :: FilePath -> [(InstTypes.SynthName, (Instrument.MakeDb, a))] -> IO ()
+make :: FilePath -> [(InstTypes.SynthName, (MidiInst.MakeDb, a))] -> IO ()
 make db_path = mapM_ $ \(name, (make, _)) -> do
     Text.IO.putStrLn $ "-------- db: " <> name
     make db_path

@@ -18,18 +18,19 @@ import qualified Cmd.SaveGit as SaveGit
 import qualified Derive.C.All as C.All
 import qualified Local.Config.Mehitabel as Mehitabel
 import qualified Local.Config.Tammananny as Tammananny
-import qualified Local.Instrument
 import qualified Local.Setup as Setup
 
 import qualified App.Config as Config
+import qualified App.LoadInstruments as LoadInstruments
 import qualified App.StaticConfig as StaticConfig
+
 import Global
 
 
 load_static_config :: IO StaticConfig.StaticConfig
 load_static_config = do
     app_dir <- Config.get_app_dir
-    instrument_db <- Local.Instrument.load app_dir
+    instrument_db <- LoadInstruments.load app_dir
     midi <- get_midi_config instrument_db
     return $ StaticConfig.StaticConfig
         { instrument_db = instrument_db

@@ -16,8 +16,8 @@ import qualified Perform.Midi.Types as Types
 
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
-import qualified Local.Instrument
 import qualified App.Config as Config
+import qualified App.LoadInstruments as LoadInstruments
 import Global
 import Types
 
@@ -31,7 +31,7 @@ dump_perf_events fname events =
 
 read_perf_events :: [Simple.ExactPerfEvent] -> IO [Types.Event]
 read_perf_events events = do
-    db <- Local.Instrument.load =<< Config.get_app_dir
+    db <- LoadInstruments.load =<< Config.get_app_dir
     return $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
 
 lookup_patch :: Inst.Db code -> InstTypes.Qualified -> Maybe Types.Patch

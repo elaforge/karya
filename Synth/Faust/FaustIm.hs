@@ -123,11 +123,11 @@ writeControls output patch notes =
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
     controls = DriverC.getControls patch
 
--- type Audio = Audio.AudioIO Config.SamplingRate 2
-
 interleave :: NAudio -> Audio
 interleave naudio = case Audio.interleaved naudio of
     Right audio -> audio
+    -- All faust instruments are required to have 1 or 2 outputs.  This should
+    -- have been verified by DriverC.getParsedMetadata.
     Left err -> Audio.throw $ "expected 1 or 2 outputs: " <> err
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]

@@ -28,6 +28,8 @@ module Cmd.Instrument.MidiInst (
     -- * db
     , save_synth, load_synth
     , check_names, generate_names, clean_name
+    -- * types
+    , Load, MakeDb
 ) where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
@@ -442,3 +444,24 @@ clean_name =
 
 valid_instrument_chars :: [Char]
 valid_instrument_chars = '-' : ['0'..'9'] ++ ['a'..'z']
+
+
+-- * types
+
+-- | Instrument definition modules that need to load from disk export a
+-- function called @load@, with this signature.  The FilePath is the
+-- 'Config.instrument_dir' and could hold cached instruments, as created by
+-- 'MakeDb'.
+type Load = FilePath -> IO (Maybe Synth)
+
+
+{- | Some synths may require a more expensive load, e.g. they could parse
+    a directory full of sysex dumps.  These expose a @make_db@ function with
+    this type.  As with 'Load', the FilePath is 'Config.instrument_dir'.  The
+    function is expected to do its work and save the results in the instrument
+    dir
+
+    You should use 'Cmd.Instrument.MidiInst.save_synth', which will put the
+    file into 'Config.instrument_cache_dir' with the same name as the synth.
+-}
+type MakeDb = FilePath -> IO ()
