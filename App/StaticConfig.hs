@@ -37,7 +37,8 @@ data StaticConfig = StaticConfig {
     -- block, load a given file, or do nothing.
     -- Remember that no block is focused when this is run, so cmds that need
     -- a focused block will abort.
-    , setup_cmd :: [String] -> Cmd.CmdT IO Cmd.Status
+    , setup_cmd :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
+        -- ^ Left on error
     , midi :: Midi
     , highlight_colors :: Map Color.Highlight Color.Color
     }
@@ -47,7 +48,7 @@ empty = StaticConfig {
     instrument_db = Inst.empty
     , global_cmds = []
     , builtins = mempty
-    , setup_cmd = const (return Cmd.Done)
+    , setup_cmd = const (Left "StaticConfig.setup_cmd not configured")
     , midi = empty_midi
     , highlight_colors = mempty
     }

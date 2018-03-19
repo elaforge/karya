@@ -116,8 +116,8 @@ main = initialize $ \midi_interface repl_socket -> do
     forM_ (map fst wdevs) (Interface.connect_write_device midi_interface)
     print_devs open_read rdevs wdevs
 
-    setup_cmd <- StaticConfig.setup_cmd static_config <$>
-        System.Environment.getArgs
+    setup_cmd <- either errorIO return . StaticConfig.setup_cmd static_config
+        =<< System.Environment.getArgs
 
     -- TODO Sending midi through the whole responder thing is too laggy for
     -- thru.  So give it a shortcut here, but I'll need to give a way to insert

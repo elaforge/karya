@@ -4,24 +4,27 @@
 
 -- | Setup StaticConfig.
 module Local.Config (load_static_config) where
-import qualified Control.Monad.Trans as Trans
+import qualified Data.Map as Map
 import qualified Network.BSD
+import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
+import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Controller as Controller
+import qualified Cmd.Load.Med as Load.Med
+import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Msg as Msg
-import qualified Cmd.Save as Save
-import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.C.All as C.All
 import qualified Local.Config.Mehitabel as Mehitabel
 import qualified Local.Config.Tammananny as Tammananny
-import qualified Local.Setup as Setup
-
 import qualified App.Config as Config
 import qualified App.LoadInstruments as LoadInstruments
+import qualified App.ParseArgs as ParseArgs
 import qualified App.StaticConfig as StaticConfig
 
 import Global
@@ -40,6 +43,11 @@ load_static_config = do
         , midi = midi
         , highlight_colors = Config.highlight_colors
         }
+
+parse_args :: [String] -> Either Text (Cmd.CmdT IO Cmd.Status)
+parse_args = \case
+    ["med", fn] -> Right $ load_med fn
+    args -> ParseArgs.parse_args args
 
 oxygen8_v2 :: Controller.TransportConfig
 oxygen8_v2 = Controller.TransportConfig
@@ -67,16 +75,58 @@ get_midi_config db = do
           Log.warn $ "no midi configuration for host: " <> showt host
           return StaticConfig.empty_midi
 
-parse_args :: [String] -> Cmd.CmdT IO Cmd.Status
-parse_args argv = case argv of
-    [] -> Save.load_template "save/default" >> return Cmd.Done
-    -- Load a template.
-    ["-t", fn] -> Save.load_template fn >> return Cmd.Done
-    ["med", fn] -> Setup.load_med fn
-    ["midi", fn] -> Setup.load_midi fn
-    [fn] -> Save.load fn >> return Cmd.Done
-    [fn, ref_or_commit] -> do
-        commit <- Cmd.require ("not a ref or commit: " <> txt ref_or_commit)
-            =<< Trans.liftIO (SaveGit.infer_commit fn ref_or_commit)
-        Save.load_git fn (Just commit) >> return Cmd.Done
-    _ -> error $ "bad args: " ++ show argv
+-- * med
+
+load_med :: FilePath -> Cmd.CmdT IO Cmd.Status
+load_med fn = do
+    let inst_map = Map.findWithDefault mempty (FilePath.takeFileName fn)
+            inst_maps
+    mod <- liftIO $ Load.Med.load inst_map fn
+    state <- Cmd.require_right pretty $ Load.Mod.convert (fn_to_ns fn) mod
+    Ui.put state
+    return Cmd.Done
+
+fn_to_ns :: FilePath -> Id.Namespace
+fn_to_ns = Id.namespace . txt . head . Seq.split "." . FilePath.takeFileName
+
+inst_maps :: Map FilePath (Map Text Text)
+inst_maps = Map.fromList
+    [ ("underwater", Map.fromList
+        [ ("Takerimba", "marim")
+        , ("SoftShake", "shake")
+        , ("Thumb Bass", "bass")
+        , ("HeavyBassDrum", "bd")
+        , ("SD1", "sd")
+        , ("FireHiSyn", "lead")
+        , ("VCO Bass", "synb")
+        , ("Chin-PanFluteLooped", "pan")
+        , ("WoodPf (4/29)", "wood")
+        , ("RainyHiMajor", "maj")
+        , ("RainyHiMinor", "min")
+        , ("technoRush-loud", "rush1")
+        , ("technoRush2", "rush2")
+        , ("D50-PizzaGogo", "pizz")
+        , ("filter.maj", "fmaj")
+        ])
+    , ("piano", Map.fromList
+        [ ("UpPiano (4/1)", "pno")
+        , ("UprtBass (6/20)", "bass")
+        , ("Glockn2 (6/36)", "glock")
+        , ("BigPipe (7/13)", "pipe")
+        , ("String2 (5/17)", "string")
+        , ("TubeBe1 (6/37)", "bell")
+        ])
+    , ("Elektrodes", Map.fromList
+        [ ("Elektrodes", "elec")
+        , ("Jazz Man", "bass")
+        , ("440thick-bk", "bd")
+        , ("AquaSnare", "sn")
+        , ("AlesisHihatC", "hh-c")
+        , ("AlesisHihatO", "hh-o")
+        , ("AlesisHihatM", "hh-m")
+        , ("CheckHiSyn-loud", "syn")
+        , ("ClassPiano", "pno")
+        , ("BstTom", "tom")
+        , ("SundanceJazzHit", "hit")
+        ])
+    ]

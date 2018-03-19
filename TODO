@@ -255,10 +255,6 @@ UNSORTED
     - tag profile runs with ghc version, fix up old data
     - search for 8.2 tagged things I can do
     * update flags in Shakefile
-  / Debug.traceM doesn't work in AudioId
-    . Does it not work in an Identity monad?  Why not?
-    . f >>= x is just f x.  So f >> g is g, so no big surprise f isn't forced.
-    . In fact traceM won't necessarily work in any non-strict monad.
   - extend gliss so I can gliss on harmonics
     . Why does eval_quoted give opposite pitches?
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
@@ -1806,7 +1802,7 @@ synth: im:
       . Per-patch signal network so I can incorporate faust effects.
 
       . Problems to solve:
-        . Intrinsic pitch, used to select the sample.
+        . Intrinsic pitch, used to select the sample.  I can use Note.element.
       . Write down patch description for reyong, and mridangam, so I have a
         concrete place to start.
     * breakpoint-using version of gain, so I can do envelopes.
@@ -1895,6 +1891,8 @@ synth: im:
         seeing the same buffer too.  Since I reuse Vector buffers directly
         I think this should already happen.
     - Compare timing with pre-input signals.
+      . In general I should set up performance tracking for faust-im and
+        sampler-im.
     - Suspend instrument rendering if gate and signal goes to 0.
       . Maybe I need to bring back Audio.Chunk for this.  Or V.empty in the
         output NAudio?
@@ -1932,6 +1930,7 @@ synth: im:
     - Handle amp outside of faust, just by multiplying the signal.  That way
       all instruments support it uniformly.
       . Do this once I have Audio.gain with breakpoints, as needed by sampler:
+      . Presumably this should be in dB, to make it sound more linear.
     - Figure out decay time instead of hardcoding it.
       . How to know when to drop notes?  I think I have to use a heuristic
         like >1s of audio under a threshold after note off.
@@ -1942,6 +1941,7 @@ synth: im:
     - Instruments with explicit voice assignments (e.g. strings) use Attribues
       to assign the string, and create a set number of Instruments which are
       reused.
+      . Actually I should use Note.element, since it's exclusive.
     - MIDI thru for im instruments.  Tie to a MIDI instrument for thru.
       . If I support faust controls, I can reuse existing OSC or MIDI bindings
         for an accurate thru.  But I'd have to build the faust library as a
