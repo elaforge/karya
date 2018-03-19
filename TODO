@@ -252,6 +252,8 @@ UNSORTED
         . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
 
     first make sure deps build
+      - conduit-audio
+        . sent pull request
       * ghc-events: no Semigroup instance
         . sent pull request
       * haskell-src

@@ -35,6 +35,7 @@ def format(timings, scores):
         cols.append('score')
     cols.extend(['max mb', 'total mb'])
     cols.extend(['derive', 'lily', 'perform'])
+    cols.append('ghc')
 
     rows = [cols]
     for t in timings:
@@ -49,6 +50,7 @@ def format(timings, scores):
         row.extend([t['gc']['max alloc'], t['gc']['total alloc']])
         for field in ['derive', 'lilypond', 'perform']:
             row.append((t['cpu'].get(field, [])))
+        row.append(t['ghc'])
         rows.append(list(map(format_field, row)))
     return format_columns(rows)
 

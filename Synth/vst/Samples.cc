@@ -87,6 +87,9 @@ Samples::openSample(int sampleRate, const string &fname)
     case Sample::FileNotFound:
         return false;
     }
+    // Suppress a warning.
+    // Evidentally g++ doen't understand exhaustiveness checking.
+    return false;
 }
 
 

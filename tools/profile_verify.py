@@ -58,9 +58,10 @@ def main():
 def fix_old_json():
     # Add a field to old JSONs.
     # Used as a one-off, I'll keep it around in case I need it again.
-    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip()
+    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip() \
+        .decode('utf-8')
     for fn in sys.argv[1:]:
-        print fn
+        print(fn)
         out = []
         for line in open(fn):
             js = json.loads(line)
@@ -74,7 +75,8 @@ def metadata_json():
             [verify_binary, '--mode=PatchInfo'],
             stdout=subprocess.PIPE,
             check=True).stdout)
-    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip()
+    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip() \
+        .decode('utf-8')
     return {
         'system': socket.gethostname().split('.')[0],
         'ghc': ghc,
