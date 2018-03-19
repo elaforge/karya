@@ -31,6 +31,13 @@ import qualified Local.Instrument
 import qualified App.Config as Config
 import Global
 
+#include "hsconfig.h"
+#if defined(ENABLE_IM) && !defined(TESTING)
+import qualified Synth.Faust.PatchDb as Faust.PatchDb
+import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
+import qualified User.Elaforge.Instrument.Ness as Ness
+#endif
+
 
 midi_synths :: [MidiInst.Synth]
 midi_synths = Local.Instrument.midi_synths

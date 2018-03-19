@@ -361,7 +361,7 @@ cppFlags config fn
 -- #include in the import block.
 cppInImports :: [FilePath]
 cppInImports =
-    ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "Local/Instrument.hs"]
+    ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "App/LoadInstruments.hs"]
 
 -- | Generated src files.
 generatedSrc :: HsDeps.Generated
