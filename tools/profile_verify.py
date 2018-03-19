@@ -55,14 +55,29 @@ def main():
         for timing in timings:
             fp.write(json.dumps(timing) + '\n')
 
+def fix_old_json():
+    # Add a field to old JSONs.
+    # Used as a one-off, I'll keep it around in case I need it again.
+    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip()
+    for fn in sys.argv[1:]:
+        print fn
+        out = []
+        for line in open(fn):
+            js = json.loads(line)
+            js['ghc'] = ghc
+            out.append(json.dumps(js))
+        open(fn, 'w').write('\n'.join(out) + '\n')
+
 def metadata_json():
     patch = parse_json(
         subprocess.run(
             [verify_binary, '--mode=PatchInfo'],
             stdout=subprocess.PIPE,
             check=True).stdout)
+    ghc = subprocess.check_output(['ghc', '--numeric-version']).strip()
     return {
         'system': socket.gethostname().split('.')[0],
+        'ghc': ghc,
         'patch': patch,
         'run_date': datetime.datetime.now().isoformat(),
     }

@@ -263,7 +263,7 @@ UNSORTED
           need it.
       + zmidi-core: no Semigroup instance
         . sent pull request
-    - tag profile runs with ghc version, fix up old data
+    * tag profile runs with ghc version, fix up old data
     - search for 8.2 tagged things I can do
     * update flags in Shakefile
   - extend gliss so I can gliss on harmonics
