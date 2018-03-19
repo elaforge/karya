@@ -1539,6 +1539,8 @@ synth: im:
       existing one.
       . I should be able to cache instruments that don't change.
   cleanup:
+    - rename Controls.vol to Controls.amplitude for consistency with im.
+      . I could use vol for both, but amplitude seems a bit more conventional.
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control
@@ -1704,6 +1706,7 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   sampler: sampler-im:
+    - support Control.amplitude
     reyong:
       . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
       . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in
@@ -1942,6 +1945,8 @@ synth: im:
       all instruments support it uniformly.
       . Do this once I have Audio.gain with breakpoints, as needed by sampler:
       . Presumably this should be in dB, to make it sound more linear.
+      . Remember to use Control.amplitude for this.  Probably have to either
+        change Derive.Controls.vol to amp, or convert in Perform.Im.Convert.
     - Figure out decay time instead of hardcoding it.
       . How to know when to drop notes?  I think I have to use a heuristic
         like >1s of audio under a threshold after note off.

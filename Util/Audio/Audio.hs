@@ -11,7 +11,7 @@
 
     The sampling rate and channels are recorded as type naturals.  This removes
     the need for runtime error checking, but makes dealing with an unknown
-    sampling rate or channels is more awkward.
+    sampling rate or channels more awkward.
 -}
 module Util.Audio.Audio (
     -- * types
@@ -24,7 +24,7 @@ module Util.Audio.Audio (
     -- * construct
     , fromSamples, toSamples
     -- * transform
-    , take, gain, multiply
+    , take, mapSamples, gain, multiply
     -- * mix
     , mix
     -- * channels
@@ -42,6 +42,8 @@ module Util.Audio.Audio (
     , Exception(..), throw
     -- * constants
     , chunkSize, silentChunk
+    -- * conversions
+    , dbToLinear, linearToDb
     -- * util
     , loop1
 #ifdef TESTING
@@ -89,6 +91,15 @@ type AudioId rate channels = Audio Identity.Identity rate channels
     then will be empty.  The stream ends when all signals are empty.
 
     The same chunk length guidelines as in 'Audio' also apply.
+
+    Unlike 'Audio', the channel count is dynamic, not static.  This is because
+    I use NAudio to stream a variably sized collection of control signals,
+    while I use Audio to represent audio signals, which generally have a global
+    number of channels determined by how many speakers you have.  But it does
+    mean that you have to be careful that the length of each chunks list always
+    matches '_nchannels'.  TODO it should be possible to use an existentially
+    quantified type natural and length indexed list to ensure this, but not
+    sure if it's worth it.
 -}
 data NAudio m (rate :: TypeLits.Nat) = NAudio
     { _nchannels :: !Channels
@@ -165,10 +176,15 @@ take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
             where end = start + chunkFrames chan chunk
     where chan = Proxy :: Proxy chan
 
+mapSamples :: Monad m => (Float -> Float) -> Audio m rate chan
+    -> Audio m rate chan
+mapSamples f (Audio audio) = Audio (S.map (V.map f) audio)
+
+-- | Set linear gain.  Use 'dbToLinear' to scale by dB.
 gain :: Monad m => Float -> Audio m rate channels -> Audio m rate channels
-gain n (Audio audio)
-    | n == 1 = Audio audio
-    | otherwise = Audio $ S.map (V.map (*n)) audio
+gain n audio
+    | n == 1 = audio
+    | otherwise = mapSamples (*n) audio
 
 -- | Multiply two signals, and end with the shorter one.
 multiply :: (Monad m, KnownNat chan) => Audio m rate chan -> Audio m rate chan
@@ -491,6 +507,12 @@ chunkSize = 5000
 
 silentChunk :: V.Vector Sample
 silentChunk = V.replicate (framesCount (Proxy @1) chunkSize) 0
+
+-- * conversions
+
+linearToDb, dbToLinear :: Float -> Float
+linearToDb x = logBase 10 x * 20
+dbToLinear x = 10**(x / 20)
 
 -- * util
 

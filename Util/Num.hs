@@ -109,6 +109,7 @@ inRange low high x = low <= x && x < high
 -- low--high range.
 {-# INLINEABLE scale #-}
 {-# SPECIALIZE scale :: Double -> Double -> Double -> Double #-}
+{-# SPECIALIZE scale :: Float -> Float -> Float -> Float #-}
 scale :: (Eq a, Num a) => a -> a -> a -> a
 scale low high v
     -- Some calls to scale are likely to have 0 or 1.  If low and high are
@@ -122,6 +123,7 @@ scale low high v
 -- in range either.
 {-# INLINEABLE normalize #-}
 {-# SPECIALIZE normalize :: Double -> Double -> Double -> Double #-}
+{-# SPECIALIZE normalize :: Float -> Float -> Float -> Float #-}
 normalize :: (Eq a, Fractional a) => a -> a -> a -> a
 normalize low high v
     | low == high && v == low = 0 -- avoid a divide by zero
