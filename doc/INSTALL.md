@@ -10,12 +10,14 @@ work.  It should compile fine, but the REPL won't work.  Details at
 
 - Install [haskell dependencies](#haskell-dependencies).
 
+- Run `tools/setup-empty`.  Read it if you want, it's short.
+
 - Build shakefile: `bin/mkmk`
 
 - Build optimized binaries: `bin/mk binaries`.  It will try to link to CoreMIDI
 on the mac and to JACK on linux.  If for some reason you don't have either of
-those, you can run `bin/mk` with the `midi=stub` env var to link the stub MIDI
-driver, but now it will never produce any MIDI so what was the point?
+those, you can run `midi=stub bin/mk` to link the stub MIDI driver, but now it
+will never produce any MIDI so what was the point?
 
 - On OS X, run `defaults write -g ApplePressAndHoldEnabled -bool false` to
 re-enable key repeats globally.  Provided you want them to work sanely, and
@@ -92,9 +94,9 @@ dependencies.
 ## 音, Im, Synth
 
 These are all names for the incomplete offline synthesizer.  It requires a bunch
-of extra dependencies.  To build, turn on Shake.Config.enableSynth, and install
-the VST.  You'll need additional dependencies, and apparently cabal doesn't let
-you pick the .cabal file, so:
+of extra dependencies.  To build, turn on `Shake.Config.enableSynth`, and
+install the VST.  You'll need additional dependencies, and apparently cabal
+doesn't let you pick the .cabal file, so:
 
     cp doc/all-deps.cabal karya.cabal
     cabal install --only-dependencies
