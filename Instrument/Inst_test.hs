@@ -7,7 +7,7 @@ import Util.Test
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
-import qualified Local.Instrument.Kontakt as Kontakt
+import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 
 
 test_lookup = do

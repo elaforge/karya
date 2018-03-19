@@ -11,7 +11,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Local.Instrument.Kontakt as Kontakt
+import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 import Global
 
 

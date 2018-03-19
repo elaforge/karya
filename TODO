@@ -196,7 +196,18 @@ UNSORTED
     - put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
       Push script does normal push to github, force push to gitlab.
-    - figure out something for Local/*, inst_db
+    * figure out something for Local/*, inst_db
+      . I can check in an empty config, then have the initial setup script
+        copy that into place.  I use symlinks to Local.Elaforge.*
+      . It seems messy to have everything in Local, maybe I have
+        User/Elaforge/..., User/Empty/...
+      . Then tools/setup-elaforge links User/Elaforge/* to Local/*, and
+        tools/setup copies User/Empty/* to Local/
+      . I can't use symlinks because the module lines will become inaccurate.
+        I don't want to set them to Local.* because then ghci and vim get
+        confused.
+      . Instead of links, I have to make re-export modules, which is a bit
+        more complicated.
   - Check out pretty-show or pretty-simple or ghci-pretty
     . http://teh.id.au/posts/2017/02/13/interactive-print/index.html
     . https://www.reddit.com/r/haskell/comments/76fvsq/replacing_ghcis_prettyprinter/

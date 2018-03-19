@@ -1,0 +1,11 @@
+#!/bin/zsh
+# I keep data files in a separate directory, to keep it out of source
+# control, and so I can share the data across multiple clones and branches.
+
+export data=../data
+export hs_dir=User/Elaforge
+export hs_package=User.Elaforge
+
+tools/do-setup
+
+ln -s $data/ness-data

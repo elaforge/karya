@@ -1,8 +1,9 @@
-This is a place for local additions.
+This is a place for local additions, which are not in source control.
 
-This means local configuration, instruments, Cmds, and the like.  You should
-probably put the modules in a package with your name, to avoid name collisions
-if anyone ever winds up sharing.
+Normally you'd initialize the contents via tools/setup-empty, but once you
+start making your own configuration you should probably make a User/$USER and
+put the modules in there, and track via source control as normal.
 
-Modules in the `Repl/` directory are included in the REPL's namespace, just
-like 'Cmd.Repl.Environ'.
+Presumably you'd make that a symlink so you could have a non-overlapping repo,
+unless git has some way of combining repos that I don't know about.  Of course
+if they seem to be of general use, you could submit them back to the main repo.

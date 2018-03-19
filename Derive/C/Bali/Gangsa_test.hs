@@ -24,8 +24,8 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Types as Types
 import qualified Instrument.Common as Common
-import qualified Local.Instrument.Kontakt as Kontakt
-import qualified Local.Instrument.Kontakt.ScGamelan as ScGamelan
+import qualified User.Elaforge.Instrument.Kontakt as Kontakt
+import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
 import Global
 import Types
 

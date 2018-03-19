@@ -1,0 +1,2 @@
+This directory is always in the ky import path, so you can put local
+.ky files here.

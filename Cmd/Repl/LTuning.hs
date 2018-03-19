@@ -45,7 +45,7 @@ import qualified Derive.Scale.Wayang as Wayang
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
-import qualified Local.Instrument.Kontakt.Util as Kontakt.Util
+import qualified User.Elaforge.Instrument.Kontakt.Util as Kontakt.Util
 import Global
 import Types
 
