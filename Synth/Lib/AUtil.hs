@@ -11,8 +11,10 @@ import qualified Control.Exception as Exception
 import qualified Sound.File.Sndfile as Sndfile
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Num as Num
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Control as Control
 import Global
 
 
@@ -39,3 +41,10 @@ catchSndfile = fmap try . Exception.try
 
 mix :: [(RealTime.RealTime, Audio)] -> Audio
 mix = Audio.mix . map (first (Audio.Seconds . RealTime.to_seconds))
+
+-- | Convert a volume in dB to linear.
+dbToLinear :: Float -> Float
+dbToLinear = Audio.dbToLinear . Num.scale (Num.d2f Control.minimumDb) 0
+
+volume :: Audio1 -> Audio -> Audio
+volume = Audio.multiply . Audio.expandChannels . Audio.mapSamples dbToLinear

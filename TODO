@@ -175,6 +175,8 @@ STATUS
       which I need.
 
 UNSORTED
+  . Can I run shake based on file contents instead of timestamp?  I think git
+    checkouts cause the timestamps to change.
   setup CI:
     . https://github.com/haskell-CI/haskell-ci
       This is for multi ghc version, which might be nice but not really
@@ -1709,6 +1711,12 @@ synth: im:
         out of sync.
   sampler: sampler-im:
     - support Control.amplitude
+    - I should be able to optimize a constant envelope or pitch over
+      min sampleDuration envelopeDuration.
+      . This might be valuable since many samples could have a locally
+        constant pitch or dyn.
+      . I can't do it at the score level, because I don't know the decay, but
+        for samples I do.
     reyong:
       . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
       . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in
@@ -1943,7 +1951,7 @@ synth: im:
         configure the note call, or whatever else.
       . Or actually, why not just use the note call's documentation?  Just
         make a Derive.Instrument function to make note calls.
-    - Handle amp outside of faust, just by multiplying the signal.  That way
+    * Handle amp outside of faust, just by multiplying the signal.  That way
       all instruments support it uniformly.
       . Do this once I have Audio.gain with breakpoints, as needed by sampler:
       . Presumably this should be in dB, to make it sound more linear.

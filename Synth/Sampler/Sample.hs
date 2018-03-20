@@ -13,8 +13,8 @@ import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Num as Num
 
-import qualified Synth.Shared.Control as Control
 import qualified Perform.RealTime as RealTime
+import qualified Synth.Lib.AUtil as AUtil
 import Synth.Lib.Global
 import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
@@ -63,17 +63,10 @@ resample quality ratio start audio
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000
 
-envelopeToLinear :: Float -> Float
-envelopeToLinear = Audio.dbToLinear . envelopeToDb
-
-envelopeToDb :: Float -> Float
-envelopeToDb = Num.scale (Num.d2f Control.minimumDb) 0
-
 applyEnvelope :: RealTime -> Signal.Signal -> Audio -> Audio
 applyEnvelope start sig
     | Just val <- Signal.constant_val_from start sig =
         if ApproxEq.eq 0.01 val 1 then id
-            else Audio.gain (envelopeToLinear (Num.d2f val))
-    | otherwise = Audio.multiply $ Audio.expandChannels $
-        Audio.mapSamples envelopeToLinear $
-        Audio.linear $ map (first RealTime.to_seconds) $ Signal.to_pairs sig
+            else Audio.gain (AUtil.dbToLinear (Num.d2f val))
+    | otherwise = AUtil.volume $ Audio.linear $
+        map (first RealTime.to_seconds) $ Signal.to_pairs sig

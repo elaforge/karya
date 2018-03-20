@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
+-- | 'UntilFail' list.
 module Util.UF where
 import Prelude hiding (map, concatMap)
 import Control.Arrow (first)

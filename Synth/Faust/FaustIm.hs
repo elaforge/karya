@@ -31,7 +31,6 @@ import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
-import Synth.Lib.Global
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
@@ -96,7 +95,7 @@ process prefix patches notesFilename notes = do
 
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.write AUtil.outputFormat output $
-                interleave $ Render.renderPatch patch notes
+                Render.renderPatch patch notes
             when debugControls $
                 writeControls output patch notes
             case result of
@@ -115,20 +114,14 @@ writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
 writeControls output patch notes =
     forM_ controls $ \control -> Resource.runResourceT $
         Audio.File.write AUtil.outputFormat (fname control) $
-        Audio.take (Audio.Seconds final)
-        (Render.renderControl notes control :: AUtil.Audio1)
+        Audio.take (Audio.Seconds final) $
+        fromMaybe Audio.silence
+        (Render.renderControl notes control :: Maybe AUtil.Audio1)
     where
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
     -- play_cache is special-cased to ignore *.debug.wav.
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
     controls = DriverC.getControls patch
-
-interleave :: NAudio -> Audio
-interleave naudio = case Audio.interleaved naudio of
-    Right audio -> audio
-    -- All faust instruments are required to have 1 or 2 outputs.  This should
-    -- have been verified by DriverC.getParsedMetadata.
-    Left err -> Audio.throw $ "expected 1 or 2 outputs: " <> err
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])

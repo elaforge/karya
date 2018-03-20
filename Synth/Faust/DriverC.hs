@@ -81,7 +81,12 @@ getParsedMetadata patch = do
         unless (outputs `elem` [1, 2]) $
             Left $ "expected 1 or 2 outputs, got " <> showt outputs
         -- Control.gate is used internally, so don't expose that.
-        return (Doc.Doc doc, filter ((/=Control.gate) . fst) controls)
+        return (Doc.Doc doc, amp : filter ((/=Control.gate) . fst) controls)
+    where
+    amp =
+        ( Control.amplitude
+        , ControlConfig False "Instrument volume, handled by faust-im."
+        )
 
 parseMetadata :: Map Text Text
     -> Either Text (Text, [(Control.Control, ControlConfig)])
@@ -104,6 +109,8 @@ metadataControls :: Map Text Text
 metadataControls = check <=< mapMaybeM parse . Map.toAscList
     where
     check controls
+        | Control.amplitude `elem` map fst controls =
+            Left $ pretty Control.amplitude <> " shadowed by internal use"
         | null dups = Right controls
         | otherwise = Left $ "duplicate controls: "
             <> Text.intercalate ", " (map (pretty . fst) dups)

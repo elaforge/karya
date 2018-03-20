@@ -29,12 +29,22 @@ import Global
 -- | Render notes belonging to a single FAUST patch.  Since they render on
 -- a single element, they should either not overlap, or be ok if overlaps
 -- cut each other off.
-renderPatch :: DriverC.Patch -> [Note.Note] -> NAudio
-renderPatch patch notes = render patch inputs final decay
+renderPatch :: DriverC.Patch -> [Note.Note] -> Audio
+renderPatch patch notes =
+    maybe id AUtil.volume amp $ interleave $ render patch inputs final decay
     where
-    inputs = renderControls (DriverC.getControls patch) notes
+    inputs = renderControls (filter (/=Control.amplitude) controls) notes
+    controls = DriverC.getControls patch
+    amp = renderControl notes Control.amplitude
     final = maybe 0 Note.end (Seq.last notes)
     decay = 2
+
+interleave :: NAudio -> Audio
+interleave naudio = case Audio.interleaved naudio of
+    Right audio -> audio
+    -- All faust instruments are required to have 1 or 2 outputs.  This should
+    -- have been verified by DriverC.getParsedMetadata.
+    Left err -> Audio.throw $ "expected 1 or 2 outputs: " <> err
 
 -- | Render a FAUST instrument incrementally.
 --
@@ -83,13 +93,16 @@ renderControls :: [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
     -> [Note.Note] -> NAudio
 renderControls controls notes =
-    Audio.nonInterleaved $ map (renderControl notes) controls
+    Audio.nonInterleaved $
+        map (fromMaybe Audio.silence . renderControl notes) controls
 
 renderControl :: (Monad m, TypeLits.KnownNat rate)
-    => [Note.Note] -> Control.Control -> Audio.Audio m rate 1
+    => [Note.Note] -> Control.Control -> Maybe (Audio.Audio m rate 1)
 renderControl notes control
-    | control == Control.gate = Audio.linear $ gateBreakpoints notes
-    | otherwise = Audio.linear $ controlBreakpoints control notes
+    | control == Control.gate = Just $ Audio.linear $ gateBreakpoints notes
+    | null bps = Nothing
+    | otherwise = Just $ Audio.linear bps
+    where bps = controlBreakpoints control notes
 
 -- | Make a signal which goes to 1 for the duration of the note.
 --
@@ -126,8 +139,7 @@ dropUntil match = go
         | match x1 x2 = x1 : xs
         | otherwise = go xs
 
-controlBreakpoints :: Control.Control -> [Note.Note]
-    -> [(Double, Double)]
+controlBreakpoints :: Control.Control -> [Note.Note] -> [(Double, Double)]
 controlBreakpoints control = concat . mapMaybe get . Seq.zip_next
     where
     get (note, next) = do
