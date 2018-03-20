@@ -36,6 +36,8 @@ library
         bytestring,
         c-storable,
         cereal,
+        conduit-audio,
+        conduit-audio-samplerate,
         conduit-audio-sndfile,
         containers >=0.5,
         data-ordlist,

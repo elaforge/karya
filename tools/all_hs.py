@@ -8,7 +8,6 @@
 Args:
     in_repo - only include checked-in files
     notest - exclude *_test.hs and *Test.hs
-    hsc_as_hs - replace .hsc files with their .hs equivalents, in build/hsc
     nomain - exclude modules with no name, or named Main
     dotted - emit names as dotted haskell modules instead of filenames
 """
@@ -17,23 +16,20 @@ from __future__ import print_function
 
 import sys, os, subprocess
 
+extensions = set(['.hs', '.hsc', '.chs'])
 
 def main():
     args = sys.argv[1:]
     in_repo = 'in_repo' in args
     notest = 'notest' in args
-    hsc_as_hs = 'hsc_as_hs' in args
     nomain = 'nomain' in args
     dotted = 'dotted' in args
     if in_repo:
-        hs_files, hsc_files = get_in_repo()
+        hs_files = get_in_repo()
     else:
-        hs_files, hsc_files = get_all()
+        hs_files = get_all()
 
-    if hsc_as_hs:
-        hsc_files = [os.path.join('build/hsc', fn.replace('.hsc', '.hs'))
-            for fn in hsc_files]
-    fns = sorted(os.path.normpath(fn) for fn in hs_files + hsc_files)
+    fns = sorted(os.path.normpath(fn) for fn in hs_files)
     if notest:
         fns = filter(lambda fn: not is_test(fn), fns)
     if nomain:
@@ -45,29 +41,22 @@ def main():
 def get_in_repo():
     if os.path.exists('.git'):
         files = subprocess.check_output(
-            'git ls-tree --name-only -r HEAD'.split()
-        ).decode('utf8').split('\n')
+            'git ls-tree --name-only -r HEAD'.split())
     else:
-        files = subprocess.check_output(
-            ['darcs', 'show', 'files']).decode('utf8').split('\n')
-    files = list(map(os.path.normpath, files))
-    hs_files = [f for f in files if f.endswith('.hs')]
-    hsc_files = [f for f in files if f.endswith('.hsc')]
-    return hs_files, hsc_files
+        files = subprocess.check_output(['darcs', 'show', 'files'])
+    files = files.decode('utf8').split('\n')
+    return list(filter(is_hs, map(os.path.normpath, files)))
 
 def get_all():
-    hs_files = []
-    hsc_files = []
+    files = []
     for dirpath, subdirs, fnames in os.walk('.'):
         join = lambda fn: os.path.join(dirpath, fn)
-        hs_files.extend(
-            join(fn) for fn in fnames
-            if fn.endswith('.hs') and capword(fn))
-        hsc_files.extend(
-            join(fn) for fn in fnames
-            if fn.endswith('.hsc') and capword(fn))
+        files.extend(join(fn) for fn in fnames if is_hs(fn))
         subdirs[:] = filter(capword, subdirs)
-    return hs_files, hsc_files
+    return files
+
+def is_hs(fn):
+    return os.path.splitext(fn)[1] in extensions and capword(fn)
 
 def is_test(fn):
     return fn.endswith('_test.hs') or fn.endswith('Test.hs')

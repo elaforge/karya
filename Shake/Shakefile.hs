@@ -114,7 +114,7 @@ synthPackages = concat
 -- only from ghci, so I can omit the deps from common use.
 nessPackages :: [(Package, String)]
 nessPackages = concat
-    [ w "conduit-audio-sndfile"
+    [ w "conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
     , w "sandi" -- for Codec.Binary.Base64Url
     ]
     where w = map (\p -> (p, "")) . words
@@ -916,27 +916,25 @@ dispatch modeConfig targets = do
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
-    (hs, hscs) <- getAllHaddock (midiConfig config)
-    need $ map (hscToHs (hscDir config)) hscs
+    hs <- getAllHs config
+    need hs
     Util.staunchSystem "hlint" $
         [ "--report=" <> build </> "hlint.html"
         , "--cpp-define=TESTING"
         , "--cpp-include=" <> buildDir config
-        ] ++ hs ++ map (hscToHs (hscDir config)) hscs
+        ] ++ hs
 
 -- ** doc
 
 -- | Make all documentation.
 makeAllDocumentation :: Config -> Shake.Action ()
 makeAllDocumentation config = do
-    (hs, hscs) <- getAllHaddock (midiConfig config)
     docs <- getMarkdown
-    need $ extractableDocs
-        ++ map (hscToHs (hscDir config)) hscs ++ map docToHtml docs
-    makeHaddock config
+    need $ extractableDocs ++ map docToHtml docs
+    hs <- makeHaddock config
     -- TODO do these individually so they can be parallelized and won't run
     -- each time
-    Util.system "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
+    Util.system "tools/colorize" $ (build </> "hscolour") : hs
 
 -- | Docs produced by extract_doc.
 extractableDocs :: [FilePath]
@@ -954,13 +952,13 @@ getMarkdown :: Shake.Action [FilePath]
 getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 
 -- TODO This always generates haddock, even if no input files have changed.
--- I used to use Util.findHs in 'getAllHaddock', but it always generated then
--- too, so using command all_hs.py is not the problem.
-makeHaddock :: Config -> Shake.Action ()
+-- I used to use Util.findHs in 'getAllHs', but it still always generated, so
+-- using command all_hs.py is not the problem.
+makeHaddock :: Config -> Shake.Action [FilePath]
 makeHaddock config = do
     let packages = map fst reallyAllPackages
-    (hs, hscs) <- getAllHaddock (midiConfig config)
-    need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
+    hs <- filter (wantsHaddock config) <$> getAllHs config
+    need $ hsconfigPath config : hs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces packages
     entry <- liftIO $ either Util.errorIO return =<< SourceControl.current "."
@@ -985,7 +983,8 @@ makeHaddock config = do
         ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags
             ++ ghcLanguageFlags
             ++ packageFlags flags (packages ++ extraPackages)]
-        ++ hs ++ map (hscToHs (hscDir config)) hscs
+        ++ hs
+    return hs
 
 -- | Get paths to haddock interface files for all the packages.
 getHaddockInterfaces :: [Package] -> IO [String]
@@ -997,29 +996,33 @@ getHaddockInterfaces packages = do
     return $ map extract interfaces
     where extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
 
-getAllHaddock :: MidiConfig -> Shake.Action ([FilePath], [FilePath])
-getAllHaddock midi = do
+-- | Get all hs files in the repo, in their .hs form (so it's the generated
+-- output from .hsc or .chs).
+getAllHs :: Config -> Shake.Action [FilePath]
+getAllHs config = do
     Shake.Stdout out <- Shake.command [] "tools/all_hs.py" ["in_repo"]
     let files = words out
-    let wanted = filter $ wantsHaddock midi
-    return
-        ( wanted $ filter ((==".hs") . FilePath.takeExtension) files
-        , wanted $ filter ((==".hsc") . FilePath.takeExtension) files
-        )
+    let get ext = filter ((==ext) . FilePath.takeExtension) files
+    return $ concat
+        [ get ".hs"
+        , map (hscToHs (hscDir config)) $ get ".hsc"
+        , map (chsToHs (chsDir config)) $ get ".chs"
+        ]
 
 -- | Should this module have haddock documentation generated?
-wantsHaddock :: MidiConfig -> FilePath -> Bool
-wantsHaddock midi hs = not $ or
+wantsHaddock :: Config -> FilePath -> Bool
+wantsHaddock config hs = not $ or
     [ "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
-    -- This will crash haddock on OS X since jack.h is likely not present.
+    -- This will crash hsc2hs on OS X since jack.h is likely not present.
     -- TODO NOTE [no-package]
-    , midi /= JackMidi && hs == "Midi/JackMidi.hsc"
+    , midi /= JackMidi && hs == hscToHs (hscDir config) "Midi/JackMidi.hsc"
     -- Synth/* modules have deps that might not be installed.
     -- TODO NOTE [no-package]
     , not Config.enableIm && "Synth/" `List.isPrefixOf` hs
     , not Config.enableIm && "Ness/" `List.isPrefixOf` hs
     ]
+    where midi = midiConfig config
 
 -- ** packages
 
@@ -1542,6 +1545,10 @@ hsToHsc hscDir fn = dropDir hscDir $ FilePath.replaceExtension fn "hsc"
 -- | A/B.hsc -> build/hsc/A/B.hs
 hscToHs :: FilePath -> FilePath -> FilePath
 hscToHs hscDir fn = (hscDir </>) $ FilePath.replaceExtension fn "hs"
+
+-- | A/B.chs -> build/chs/A/B.hs
+chsToHs :: FilePath -> FilePath -> FilePath
+chsToHs chsDir fn = (chsDir </>) $ FilePath.replaceExtension fn "hs"
 
 -- | build/chs/A/B.hs -> A/B.chs
 hsToChs :: FilePath -> FilePath -> FilePath

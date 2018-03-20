@@ -23,7 +23,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
 
-import qualified Local.Instrument.Kontakt as Kontakt
+import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 import Global
 
 
