@@ -31,11 +31,11 @@ import Global
 -- cut each other off.
 renderPatch :: DriverC.Patch -> [Note.Note] -> Audio
 renderPatch patch notes =
-    maybe id AUtil.volume amp $ interleave $ render patch inputs final decay
+    maybe id AUtil.volume vol $ interleave $ render patch inputs final decay
     where
-    inputs = renderControls (filter (/=Control.amplitude) controls) notes
+    inputs = renderControls (filter (/=Control.volume) controls) notes
     controls = DriverC.getControls patch
-    amp = renderControl notes Control.amplitude
+    vol = renderControl notes Control.volume
     final = maybe 0 Note.end (Seq.last notes)
     decay = 2
 

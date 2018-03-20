@@ -84,7 +84,7 @@ getParsedMetadata patch = do
         return (Doc.Doc doc, amp : filter ((/=Control.gate) . fst) controls)
     where
     amp =
-        ( Control.amplitude
+        ( Control.volume
         , ControlConfig False "Instrument volume, handled by faust-im."
         )
 
@@ -109,8 +109,8 @@ metadataControls :: Map Text Text
 metadataControls = check <=< mapMaybeM parse . Map.toAscList
     where
     check controls
-        | Control.amplitude `elem` map fst controls =
-            Left $ pretty Control.amplitude <> " shadowed by internal use"
+        | Control.volume `elem` map fst controls =
+            Left $ pretty Control.volume <> " shadowed by internal use"
         | null dups = Right controls
         | otherwise = Left $ "duplicate controls: "
             <> Text.intercalate ", " (map (pretty . fst) dups)

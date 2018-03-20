@@ -27,12 +27,12 @@ instance Pretty Control where pretty (Control c) = c
 dynamic :: Control
 dynamic = "dyn" -- TODO this and Score.c_dynamic should come from the same place
 
--- | This is similar to 'dynamic', but this always maps to physical amplitude,
+-- | This is similar to 'dynamic', but this always maps to physical volume,
 -- for the case where an instrument distinguishes between dynamic level and
 -- volume level.  The score-level equivalent is 'Derive.Controls.vol' which
--- corresponds to MIDI cc7.  TODO rename vol for consistency.
-amplitude :: Control
-amplitude = "amp"
+-- corresponds to MIDI cc7 in the MIDI backend.
+volume :: Control
+volume = "vol"
 
 -- | A 'dynamic' of 1 maps to 0dB of attenuation, and 0 maps to this level.
 -- Humans maybe have a limit around 120dB, but 96 is a theoretical maximum for

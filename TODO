@@ -1543,8 +1543,10 @@ synth: im:
       existing one.
       . I should be able to cache instruments that don't change.
   cleanup:
-    - rename Controls.vol to Controls.amplitude for consistency with im.
+    * rename Control.amplitude to volume for consistency with MIDI.
       . I could use vol for both, but amplitude seems a bit more conventional.
+      . Actually, let's use volume, since that implied dB, while amplitude
+        seems to imply linear.
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control
@@ -1710,7 +1712,7 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   sampler: sampler-im:
-    - support Control.amplitude
+    - support Control.volume
     - I should be able to optimize a constant envelope or pitch over
       min sampleDuration envelopeDuration.
       . This might be valuable since many samples could have a locally
