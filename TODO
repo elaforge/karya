@@ -164,8 +164,6 @@ STATUS
       eddupu only on the actual korvai variations, not development.
   + upgrade to ghc 8.4.1
     . Sent patches to other projects, waiting for everyone to get updated.
-    . Almost done, but I need to tweak version bounds for conduit-audio,
-      zmidi-core, ...?
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
@@ -254,8 +252,9 @@ UNSORTED
         . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
 
     first make sure deps build
-      - conduit-audio
+      / conduit-audio
         . sent pull request
+        . Wrote my own.
       * ghc-events: no Semigroup instance
         . sent pull request
       * haskell-src
@@ -509,9 +508,10 @@ UNSORTED
       they have to be used with Ui.modify, which is the thing I'm trying to
       not use all the time.
     . So maybe just get rid of Ui.allocations.
-    - conduit-audio has base <4.10, I can patch but author is not responding
+    * conduit-audio has base <4.10, I can patch but author is not responding
       . Patched locally, but I'll need a long term solution.
       . Should I fork, or write my own?
+      . Wrote my own.
     * ghci thinks I have flags changed again
       . f= build/test/obj/Util/CallStack.hs.o; rm $f; mk -V $f
         ghcit -v1  :load Util.Control
@@ -1596,6 +1596,27 @@ synth: im:
       . Or I can map directly with vector-mmap.  For that I need to record the
         offsets in the file.
   audio:
+    make Audio.linear more efficient
+      - reuse buffers for flat signals
+      . E.g. [(0, 0), (1, 0), ...] should just be Signal.constant 0.
+      . Various functions like Audio.linear go through some hassle to create
+        constant chunks efficiently.  But it still doesn't reuse buffers for
+        constant segments in the middle of a sequence, which may be pretty
+        common for a sparse instrument.
+        . Of course for the sparse instrument I want to detect the gap and
+          deactivate then anyway.
+        . Maybe I should switch back to Chunk Vector | Constant Frame Float
+        . This would subsume Chunk | Silent.
+        . I stopped doing that because it was annoying to handle in Resample,
+          but why can't I just map through a Chunk -> Vector if I don't want to
+          deal with them?
+        . And even if I deactivate the instrument during gaps, I need to
+          represent them, so I still need some kind of efficient Silent for
+          NAudio.
+        . Ultimately I want to be able to have a faust instrument with a control
+          which is constant, and not really pay for it.  So faust should be
+          seeing the same buffer too.  Since I reuse Vector buffers directly
+          I think this should already happen.
     - integrate freeverb for reverb and filters
       . Or why not just use faust integration?  I think it has the same
         algorithm?
@@ -1713,6 +1734,9 @@ synth: im:
         out of sync.
   sampler: sampler-im:
     - support Control.volume
+      . Currently dynamic is exactly the same though, so I just multiply them.
+      . Will dynamic ever be different?  Only if I implement filters and
+        envelopes and other synth type things.
     - I should be able to optimize a constant envelope or pitch over
       min sampleDuration envelopeDuration.
       . This might be valuable since many samples could have a locally
@@ -1898,24 +1922,6 @@ synth: im:
         . About .06s, which is ~ 26460 samples, which is 5.292 chunks.
         . It seems the sounding start starts on a chunk boundary.
     * Audio.linear should reuse the buffer for long constant segments.
-    - Various functions like Audio.linear go through some hassle to create
-      constant chunks efficiently.  But it still doesn't reuse buffers for
-      constant segments in the middle of a sequence, which may be pretty
-      common for a sparse instrument.
-      . Of course for the sparse instrument I want to detect the gap and
-        deactivate then anyway.
-      . Maybe I should switch back to Chunk Vector | Constant Frame Float
-      . This would subsume Chunk | Silent.
-      . I stopped doing that because it was annoying to handle in Resample,
-        but why can't I just map through a Chunk -> Vector if I don't want to
-        deal with them?
-      . And even if I deactivate the instrument during gaps, I need to
-        represent them, so I still need some kind of efficient Silent for
-        NAudio.
-      . Ultimately I want to be able to have a faust instrument with a control
-        which is constant, and not really pay for it.  So faust should be
-        seeing the same buffer too.  Since I reuse Vector buffers directly
-        I think this should already happen.
     - Compare timing with pre-input signals.
       . In general I should set up performance tracking for faust-im and
         sampler-im.
@@ -1978,10 +1984,10 @@ synth: im:
         for communicating with the thru-VST, so I could just address patches
         by name and I don't to fuss with MIDI channels.
     support faust ui controls:
-      - Make an instrument into a conduit source.  Then I can render
+      * Make an instrument into a conduit source.  Then I can render
         progressively instead of a whole note.
-        - Then I can use controls by setting controls at the audio chunk rate.
-        - Store persistent buffers in Instrument.
+        . Then I can use controls by setting controls at the audio chunk rate.
+      - Store persistent buffers in Instrument.
       - convert to standard control names:
         . Convert pitch NoteNumber to freq Hz
         . vol -> a special control that always multiples output volume
@@ -2116,6 +2122,12 @@ synth: im:
     . hackage accelerate
 
 shakefile: build:
+  - Modular package system, where I can express the dependencies for each
+    target individually.
+    . Also as I depend on C libraries I need to add them to the ghci cmdline,
+      e.g. -lsamplerate
+      If I can get it to work with fltk, then I can get rid of the
+      Ui.BlockCStub hackery.
   - in HsDeps and CcDeps, if I need every intermediate file, then
     I think I don't need Generated.
   - determine Shakefile.cppFiles automatically.

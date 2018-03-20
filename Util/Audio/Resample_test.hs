@@ -5,7 +5,6 @@
 {-# LANGUAGE DataKinds, KindSignatures #-}
 module Util.Audio.Resample_test where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified GHC.TypeLits as TypeLits
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
@@ -13,6 +12,10 @@ import qualified Util.Audio.Resample as Resample
 
 import qualified Perform.Signal as Signal
 
+
+-- TODO
+-- because I don't have a proper package system, to run these from ghci you
+-- must pass -lsamplerate
 
 test_compile_me = do
     print 1
@@ -45,13 +48,13 @@ t_discontinuity = generate [(0, 2), (0.5, 1), (0.5, 2), (1, 1)]
 data Source = Sine Double | File FilePath
     deriving (Show)
 
-resampleBy :: Source -> FilePath -> Resample.ConverterType
+resampleBy :: Source -> FilePath -> Resample.Quality
     -> [(Signal.X, Signal.Y)] -> IO ()
 resampleBy source out quality curve = write out $ Audio.gain 0.5 $ Audio.mix $
     -- (Audio.Frames 0, takes 2 $ Audio.sine 440) :
     (Audio.Frames 0, Resample.resampleBy quality (Signal.from_pairs curve) $
         case source of
-            Sine secs -> takes secs $ Audio.sine 440
+            Sine secs -> Audio.expandChannels $ takes secs $ Audio.sine 440
             -- Sine secs -> Audio.mergeChannels
             --     (takes secs $ Audio.sine 440)
             --     (takes secs $ Audio.sine 440)
@@ -67,5 +70,5 @@ resampleRate out = writeRate out $
     writeRate :: FilePath -> Audio.AudioIO 22100 2 -> IO ()
     writeRate fname = Resource.runResourceT . File.write File.wavFormat fname
 
-write :: TypeLits.KnownNat chan => FilePath -> Audio.AudioIO 44100 chan -> IO ()
+write :: FilePath -> Audio.AudioIO 44100 2 -> IO ()
 write fname = Resource.runResourceT . File.write File.wavFormat fname

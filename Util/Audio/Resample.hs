@@ -5,21 +5,21 @@
 -- | Resample audio signals via libsamplerate.
 module Util.Audio.Resample (
     resample, resampleBy, resampleRate
-    , ConverterType(..)
+    , Quality(..)
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Data.Conduit.Audio.SampleRate.Binding as Binding
-import Data.Conduit.Audio.SampleRate.Binding (ConverterType(..))
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
-
 import qualified Foreign
 import qualified GHC.TypeLits as TypeLits
 import GHC.TypeLits (KnownNat)
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.SampleRateC as SampleRateC
+import Util.Audio.SampleRateC (Quality(..))
 import qualified Util.Segment as Segment
+
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Global
@@ -30,20 +30,20 @@ import Global
 -- | Resample the audio.  This doesn't actually change the sampling rate, since
 -- I just use this to change the pitch.
 resample :: forall rate chan. (KnownNat chan, KnownNat rate)
-    => ConverterType -> Double
+    => Quality -> Double
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
 resample ctype ratio = resampleBy ctype (Signal.constant ratio)
 
 -- | Resample the audio by the given curve.  This doesn't actually change the
 -- sampling rate, since I just use this to change the pitch.
 resampleBy :: forall rate chan. (KnownNat rate, KnownNat chan)
-    => ConverterType -> Signal.Control
+    => Quality -> Signal.Control
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
 resampleBy ctype ratio audio = Audio.Audio $ do
     (key, state) <- lift $ Resource.allocate
-        (Binding.new ctype (fromIntegral (TypeLits.natVal chan)))
-        Binding.delete
-    liftIO $ Binding.setRatio state (Signal.at 0 ratio)
+        (SampleRateC.new ctype (fromIntegral (TypeLits.natVal chan)))
+        SampleRateC.delete
+    liftIO $ SampleRateC.setRatio state (Signal.at 0 ratio)
     Audio.loop1 (0, Audio._stream audio) $
         \loop (start, audio) -> do
             handle loop state start audio
@@ -85,7 +85,7 @@ resampleBy ctype ratio audio = Audio.Audio $ do
         -- This should be true on each breakpoint due to the
         -- min (Segment._x2 - start) above.
         when (start == toFrames (Segment._x1 segment)) $
-            liftIO $ Binding.setRatio state $ Segment._y1 segment
+            liftIO $ SampleRateC.setRatio state $ Segment._y1 segment
 
         -- lastRatio <- liftIO $
         --     Foreign.peek (Coerce.unsafeCoerce state :: Foreign.Ptr Double)
@@ -94,7 +94,7 @@ resampleBy ctype ratio audio = Audio.Audio $ do
         let with = V.unsafeWith (fromMaybe V.empty chunk)
         (used, generated, outFP) <- liftIO $ with $ \chunkp -> do
             outp <- Foreign.mallocArray $ Audio.framesCount chan outputFrames
-            result <- Binding.process state $ Binding.DataIn
+            result <- SampleRateC.process state $ SampleRateC.Input
                 { data_in = Foreign.castPtr chunkp -- Ptr Float -> Ptr CFloat
                 , data_out = Foreign.castPtr outp
                 , input_frames = fromIntegral inputFrames
@@ -104,8 +104,10 @@ resampleBy ctype ratio audio = Audio.Audio $ do
                 }
             outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
             return
-                ( Audio.Frame $ fromIntegral $ Binding.input_frames_used result
-                , Audio.Frame $ fromIntegral $ Binding.output_frames_gen result
+                ( Audio.Frame $ fromIntegral $
+                    SampleRateC.input_frames_used result
+                , Audio.Frame $ fromIntegral $
+                    SampleRateC.output_frames_generated result
                 , outFP
                 )
         -- lastRatio <- liftIO $
@@ -135,7 +137,7 @@ resampleBy ctype ratio audio = Audio.Audio $ do
 
 resampleRate :: forall rateIn rateOut chan.
     (KnownNat rateIn, KnownNat rateOut, KnownNat chan)
-    => ConverterType
+    => Quality
     -> Audio.AudioIO rateIn chan -> Audio.AudioIO rateOut chan
 resampleRate ctype =
     Audio.Audio . Audio._stream . resample ctype (rateOut / rateIn)

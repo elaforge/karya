@@ -41,15 +41,14 @@ data Sample = Sample {
     } deriving (Show)
 
 -- | Evaluating the Audio could probably produce more exceptions...
-realize :: Resample.ConverterType -> Sample -> (RealTime, Audio)
+realize :: Resample.Quality -> Sample -> (RealTime, Audio)
 realize quality (Sample start filename offset env ratio) = (start,) $
     resample quality ratio start $
     applyEnvelope start env $
     Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset))
         (Config.instrumentDbDir </> filename)
 
-resample :: Resample.ConverterType -> Signal.Signal -> RealTime
-    -> Audio -> Audio
+resample :: Resample.Quality -> Signal.Signal -> RealTime -> Audio -> Audio
 resample quality ratio start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.

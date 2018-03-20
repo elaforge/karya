@@ -104,10 +104,7 @@ basicPackages = concat
 -- | Packages needed only for targets in Synth.
 synthPackages :: [(Package, String)]
 synthPackages = concat
-    [ w "conduit conduit-audio"
-    , w "hsndfile hsndfile-vector"
-    -- I can get rid of this when I use a direct binding to libsamplerate
-    , w "conduit-audio-samplerate"
+    [ w "hsndfile hsndfile-vector"
     , w "resourcet"
     , w "streaming"
     ]
@@ -205,9 +202,6 @@ type Flag = String
 data Flags = Flags {
     -- | -D flags.  This is used by both g++ and ghc.
     define :: [Flag]
-    -- | Linker flags to link in whatever MIDI driver we are using today.
-    -- There should be corresponding flags in 'define' to enable said driver.
-    , midiLibs :: [Flag]
     -- | There's one global list of include dirs, for both haskell and C++.
     -- Technically they don't all need the same dirs, but it doesn't hurt to
     -- have unneeded ones.
@@ -219,6 +213,12 @@ data Flags = Flags {
     -- | Flags for g++.  This is the complete list and includes the 'define's
     -- and 'cInclude's.  This is global because all CcBinaries get these flags.
     , globalCcFlags :: [Flag]
+    -- | Linker flags to link in whatever MIDI driver we are using today.
+    -- There should be corresponding flags in 'define' to enable said driver.
+    , midiLd :: [Flag]
+    -- | Linker flags for im synthesizers.  TODO I really need a modular
+    -- package system, putting everything in global config is getting old.
+    , imLd :: [Flag]
     -- | Additional flags needed when compiling fltk.
     , fltkCc :: [Flag]
     -- | Additional flags needed when linking fltk.
@@ -232,14 +232,15 @@ data Flags = Flags {
     , sandboxFlags :: [Flag]
     } deriving (Show)
 
+-- TODO surely there is a GHC.Generic way to do this
 instance Semigroup Flags where
-    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2) =
+    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 k1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 k2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2) (i1<>i2) (j1<>j2)
+            (h1<>h2) (i1<>i2) (j1<>j2) (k1<>k2)
 
 instance Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] [] []
+    mempty = Flags [] [] [] [] [] [] [] [] [] [] []
     mappend = (<>)
 
 -- * binaries
@@ -602,6 +603,7 @@ configure midi = do
         , cLibDirs = Config.globalLibDirs
         , fltkCc = fltkCs
         , fltkLd = fltkLds
+        , imLd = if not Config.enableIm then [] else ["-lsamplerate"]
         , hcFlags = concat
             -- This is necessary for ghci loading to work in 7.8.
             -- Except for profiling, where it wants "p_dyn" libraries, which
@@ -646,12 +648,12 @@ configure midi = do
             -- { define = ["-DMAC_OS_X_VERSION_MAX_ALLOWED=1060",
             --     "-DMAC_OS_X_VERSION_MIN_REQUIRED=1050"]
             { define = ["-D__APPLE__"]
-            , midiLibs = if midi /= CoreMidi then [] else
+            , midiLd = if midi /= CoreMidi then [] else
                 words $ "-framework CoreFoundation "
                     ++ "-framework CoreMIDI -framework CoreAudio"
             }
         Util.Linux -> mempty
-            { midiLibs = if midi /= JackMidi then [] else ["-ljack"]
+            { midiLd = if midi /= JackMidi then [] else ["-ljack"]
             , define = ["-D__linux__"]
             }
     run cmd args = Process.readProcess cmd args ""
@@ -1316,7 +1318,7 @@ linkHs config rtsFlags output packages objs =
     ( "LD-HS"
     , output
     , ghcBinary : concat
-        [ fltkLd flags, midiLibs flags, hLinkFlags flags
+        [ fltkLd flags, midiLd flags, imLd flags, hLinkFlags flags
         , ["-with-rtsopts=" <> unwords rtsFlags | not (null rtsFlags)]
         , ["-lstdc++"], packageFlags flags packages, objs
         , ["-o", output]

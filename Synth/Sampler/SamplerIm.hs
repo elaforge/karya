@@ -38,14 +38,14 @@ main = do
             process quality notesFilename notes
         _ -> errorIO $ "usage: sampler [ --fast ] notes"
 
-process :: Resample.ConverterType -> FilePath -> [Note.Note] -> IO ()
+process :: Resample.Quality -> FilePath -> [Note.Note] -> IO ()
 process quality notesFilename notes = do
     let byInstrument = Seq.keyed_group_sort Note.instrument notes
     Async.forConcurrently_ byInstrument $ \(instrument, notes) -> do
         samples <- either errorIO return $ mapM Convert.noteToSample notes
         realizeSamples quality notesFilename instrument samples
 
-realizeSamples :: Resample.ConverterType -> FilePath -> Note.InstrumentName
+realizeSamples :: Resample.Quality -> FilePath -> Note.InstrumentName
     -> [Sample.Sample] -> IO ()
 realizeSamples quality notesFilename instrument samples = do
     put $ "load " <> showt (length samples) <> " samples"
