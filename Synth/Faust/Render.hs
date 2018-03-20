@@ -144,6 +144,11 @@ controlBreakpoints control = concat . mapMaybe get . Seq.zip_next
     where
     get (note, next) = do
         signal <- Map.lookup control (Note.controls note)
-        return $ map (first RealTime.to_seconds) $ Signal.to_pairs $
-            maybe id (Signal.clip_after_keep_last . Note.start) next $
-            Signal.clip_before (Note.start note) signal
+        let bps = Signal.to_pairs $
+                maybe id (Signal.clip_after_keep_last . Note.start) next $
+                Signal.clip_before (Note.start note) signal
+        -- Add an explicit 0 if there's no signal.  This is consistent with
+        -- the usual signal treatment, which is that if it is present but
+        -- empty, then it's 0.
+        return $ map (first RealTime.to_seconds) $
+            if null bps then [(Note.start note, 0)] else bps

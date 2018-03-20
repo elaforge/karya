@@ -26,7 +26,7 @@ test_controlBreakpoints = do
             { Note.controls = Map.singleton "c" (Signal.from_pairs cs)
             }
     equal (f []) []
-    equal (f [(0, 1, []), (1, 1, [])]) []
+    equal (f [(0, 1, []), (1, 1, [])]) [(0, 0), (1, 0)]
     -- Audio.linear should optimize away duplicate and flat breakpoints.
     equal (f [(0, 1, [(0, 1)]), (1, 1, [(0, 1)])]) [(0, 1), (1, 1), (1, 1)]
 
