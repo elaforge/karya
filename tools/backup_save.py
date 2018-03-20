@@ -9,7 +9,8 @@ verify_binary = 'build/opt/verify_performance'
 def main():
     run(['bin/mk', verify_binary])
     patch = patch_json()
-    tgz = '%s_run:%s.tgz' % (patch['date'], datetime.datetime.now().isoformat())
+    tgz = '%s_%s_run:%s.tgz' % (
+        patch['date'], patch['hash'], datetime.datetime.now().isoformat())
     tgz = os.path.join(dir, tgz)
     run(['tar', '-cLzf', tgz, 'save'])
     run(['ls', '-lh', tgz])

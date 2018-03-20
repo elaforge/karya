@@ -132,7 +132,8 @@ eachAmpEachString strings amps dur =
 fingerUp notes dur noteCount = do
     n <- notes
     return $ Finger (nString n) (0.01, 0) $ concat $ do
-        (t, fret) <- zip (drop 2 $ iterate (+dur) (nStart n)) (take noteCount frets)
+        (t, fret) <- zip (drop 2 $ iterate (+dur) (nStart n))
+            (take noteCount frets)
         let loc = fLocation fret - offset
         let end = t + dur
         return

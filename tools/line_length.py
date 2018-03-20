@@ -7,33 +7,42 @@
 from __future__ import print_function
 import sys
 
+ignore = set(['Solkattu/All.hs'])
+
+skip_comments = False
 
 def main():
     line_comments = 0
     block_comments = 0
-    blocks = 0
+    blanks = 0
     comment_level = 0
     lengths = {}
     for fname in sys.argv[1:]:
+        if fname in ignore:
+            continue
         lines = open(fname).readlines()
         for lineno, line in enumerate(lines):
+            line = line.decode('utf-8')
             if line.strip().startswith('--'):
                 line_comments += 1
-                continue
+                if skip_comments:
+                    continue
             comment_level = max(
                 0, comment_level + line.count('{-') - line.count('-}'))
             if comment_level > 0:
                 block_comments += 1
-                continue
+                if skip_comments:
+                    continue
             if not line.strip():
-                blocks += 1
+                blanks += 1
             else:
                 cols = len(line) - 1
                 lengths[cols] = lengths.get(cols, 0) + 1
                 if cols > 80:
-                    print(fname, lineno, line[:50])
+                    print('%s:%d' % (fname, lineno))
+                    print(line[:120])
 
-    print('blanks:', blocks)
+    print('blank lines:', blanks)
     print('comments: line:', line_comments, 'block:', block_comments,
         'total:', line_comments + block_comments)
     for length, count in sorted(lengths.items()):

@@ -192,7 +192,8 @@ cat_maybes = emap go
 
 sort :: Stream Score.Event -> Stream Score.Event
 -- sort s@(Stream Sorted _) = s
--- sort (Stream Unsorted events) = from_sorted_list $ Seq.sort_on levent_key events
+-- sort (Stream Unsorted events) =
+--     from_sorted_list $ Seq.sort_on levent_key events
 sort (Stream events) = from_sorted_list $ Seq.sort_on levent_key events
 
 -- | Merge sorted lists of events.  If the lists themselves are also sorted,

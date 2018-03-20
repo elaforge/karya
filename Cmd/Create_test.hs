@@ -39,8 +39,8 @@ test_track_ruler = do
 --
 --     -- No track above, becomes parent to all toplevel tracks.
 --     equal (run 2 [] 2) (Right ([('x', '1'), ('x', '2')], []))
---     equal (run 3 [(1, 2)] 1) (Right ([('x', '1'), ('x', '3'), ('1', '2')], []))
---
+--     equal (run 3 [(1, 2)] 1)
+--         (Right ([('x', '1'), ('x', '3'), ('1', '2')], []))
 --     -- Track above, becomes parent to siblings.
 --     equal (run 5 [(1, 2), (2, 3), (2, 4)] 3)
 --         (Right ([('1', '2'), ('2', 'x'), ('x', '3'), ('x', '4')], []))
