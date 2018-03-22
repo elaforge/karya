@@ -33,11 +33,12 @@ def format(timings, scores):
     cols.append('date')
     if not scores:
         cols.append('score')
-    cols.extend(['max mb', 'total mb'])
+    cols.extend(['max mb', 'total mb', 'prd'])
     cols.extend(['derive', 'lily', 'perform'])
     cols.append('ghc')
 
     rows = [cols]
+    timings = sorted(timings, key=lambda t: (t['patch']['date'], t['run_date']))
     for t in timings:
         if scores and t['score'] not in scores:
             continue
@@ -47,7 +48,11 @@ def format(timings, scores):
         row.append(t['patch']['date'].split('T')[0])
         if not scores:
             row.append(os.path.basename(t['score']))
-        row.extend([t['gc']['max alloc'], t['gc']['total alloc']])
+        row.extend([
+            t['gc']['max alloc'],
+            t['gc']['total alloc'],
+            t['gc']['productivity']
+        ])
         for field in ['derive', 'lilypond', 'perform']:
             row.append((t['cpu'].get(field, [])))
         row.append(t['ghc'])
