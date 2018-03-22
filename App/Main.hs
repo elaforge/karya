@@ -124,7 +124,7 @@ main = initialize $ \midi_interface repl_socket -> do
     -- the thru function.  I'll do some responder optimizations first.
     -- thru_chan <- STM.atomically $
     --          STM.dupTChan (Interface.read_channel midi_interface)
-    -- Thread.start_logged "midi thru" $
+    -- Thread.startLogged "midi thru" $
     --     midi_thru remap_rmsg thru_chan write_midi
 
     loopback_chan <- STM.newTChanIO
@@ -140,7 +140,7 @@ main = initialize $ \midi_interface repl_socket -> do
     session <- Repl.make_session
     quit_request <- MVar.newMVar ()
     ui_chan <- MVar.newMVar []
-    Thread.start_logged "interpreter" $ do
+    Thread.startLogged "interpreter" $ do
         Repl.interpreter session
         `Exception.finally` Fltk.quit_ui_thread quit_request
         -- ctrl-C is killing this thread now.  The interaction between signals
@@ -150,7 +150,7 @@ main = initialize $ \midi_interface repl_socket -> do
 
     git_user <- either (\err -> Log.error err >> Process.exit 1) return
         =<< SaveGit.get_user
-    Thread.start_logged "responder" $ do
+    Thread.startLogged "responder" $ do
         let loopback msg = STM.atomically (TChan.writeTChan loopback_chan msg)
         Responder.responder static_config git_user ui_chan get_msg
             midi_interface setup_cmd session loopback

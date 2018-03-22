@@ -179,7 +179,7 @@ create_msg_reader ::
     -> IO MsgReader
 create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
     repl_chan <- TChan.newTChanIO
-    Thread.start_logged "accept repl socket" $
+    Thread.startLogged "accept repl socket" $
         accept_loop repl_socket repl_chan
     return $ STM.atomically $
         (Msg.Ui <$> TChan.readTChan ui_chan)

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Thread (
-    start, start_logged
+    start, startLogged
     , Seconds, delay
     , timeout
     -- * Flag
@@ -28,15 +28,15 @@ import qualified Util.Log as Log
 
 -- | Start a noisy thread that will log when it starts and stops, and warn if
 -- it dies from an exception.
-start_logged :: String -> IO () -> IO Concurrent.ThreadId
-start_logged name thread = do
-    thread_id <- Concurrent.myThreadId
-    Conc.labelThread thread_id name
-    let thread_name = Text.pack $ show thread_id ++ " " ++ name ++ ": "
-    Log.debug $ thread_name <> "started"
+startLogged :: String -> IO () -> IO Concurrent.ThreadId
+startLogged name thread = do
+    threadId <- Concurrent.myThreadId
+    Conc.labelThread threadId name
+    let threadName = Text.pack $ show threadId ++ " " ++ name ++ ": "
+    Log.debug $ threadName <> "started"
     Concurrent.forkFinally thread $ \result -> case result of
-        Right () -> Log.debug $ thread_name <> "completed"
-        Left err -> Log.warn $ thread_name <> "died: "
+        Right () -> Log.debug $ threadName <> "completed"
+        Left err -> Log.warn $ threadName <> "died: "
             <> Text.pack (show (err :: Exception.SomeException))
 
 start :: IO () -> IO Concurrent.ThreadId
@@ -47,13 +47,13 @@ type Seconds = Time.NominalDiffTime
 
 -- | Delay in seconds.
 delay :: Seconds -> IO ()
-delay = Concurrent.threadDelay . to_usec
+delay = Concurrent.threadDelay . toUsec
 
 timeout :: Seconds -> IO a -> IO (Maybe a)
-timeout = Timeout.timeout . to_usec
+timeout = Timeout.timeout . toUsec
 
-to_usec :: Seconds -> Int
-to_usec = round . (*1000000)
+toUsec :: Seconds -> Int
+toUsec = round . (*1000000)
 
 -- * Flag
 

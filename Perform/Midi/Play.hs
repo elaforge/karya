@@ -35,7 +35,7 @@ play :: Transport.Info -> Maybe Cmd.SyncConfig -> Text -> Messages
 play transport_info sync name msgs repeat_at = do
     state <- make_state transport_info
     now <- Transport.info_get_current_time transport_info
-    Thread.start_logged "render midi" $
+    Thread.startLogged "render midi" $
         -- Don't send MMC if I'm repeating, it'll just confuse the DAW.
         player_thread (if Maybe.isJust repeat_at then Nothing else sync) now
             name state (process now repeat_at msgs)
