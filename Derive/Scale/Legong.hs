@@ -44,13 +44,14 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = make_scale_set config scale_id "Saih pelegongan, from my instruments."
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"
 
-make_scale_set :: BaliScales.Config -> Pitch.ScaleId -> Doc.Doc -> [Scale.Make]
+make_scale_set :: BaliScales.Config -> Pitch.ScaleId -> Doc.Doc
+    -> [Scale.Definition]
 make_scale_set config (Pitch.ScaleId prefix) doc =
     map (Scale.Simple . Scales.add_doc doc)
     [ BaliScales.make_scale (id_with "") (scale_map complete_scale)

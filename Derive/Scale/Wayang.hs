@@ -33,7 +33,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
     [ BaliScales.make_scale scale_id
         (BaliScales.scale_map config BaliScales.ioeua_absolute Nothing)

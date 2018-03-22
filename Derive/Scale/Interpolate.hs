@@ -24,7 +24,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = scale_make $ \env (Scale.LookupScale lookup) -> do
     (from_id, to_id) <- environ_from_to env
     let find msg scale_id = fromMaybe (Left $ BaseTypes.PitchError msg) $

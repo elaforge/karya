@@ -32,7 +32,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map Scale.Simple [scale]
 
 scale :: Scale.Scale

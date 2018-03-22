@@ -28,7 +28,7 @@ import Global
 
 -- TODO letters might be hard to use with so many of them.  Maybe I should use
 -- numbers?
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map Scale.Simple
     [ make "alpha" 19 78
     , make "beta" 19 63.8

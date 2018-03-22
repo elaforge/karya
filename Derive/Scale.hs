@@ -24,14 +24,14 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-data Make =
+data Definition =
     -- | Fancy scales can configure themselves.  Since you can't just look at
     -- the Scale directly, it has the ScaleId (pattern, doc) extracted.
     Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
         !(Env.Environ -> LookupScale -> Either BaseTypes.PitchError Scale)
     | Simple !Scale
 
-scale_id_of :: Make -> Pitch.ScaleId
+scale_id_of :: Definition -> Pitch.ScaleId
 scale_id_of (Make scale_id _ _) = scale_id
 scale_id_of (Simple scale) = scale_id scale
 

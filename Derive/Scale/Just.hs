@@ -21,7 +21,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map Scale.Simple
     [ Scales.add_doc "7-note just scale." $ JustScales.make_scale "just"
         (scale_map TheoryFormat.absolute_c) doc doc_fields

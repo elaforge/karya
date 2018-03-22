@@ -18,7 +18,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map Scale.Simple
     [ JustScales.make_scale "raga"
         (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields

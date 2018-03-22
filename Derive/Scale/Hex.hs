@@ -20,7 +20,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map Scale.Simple
     [ JustScales.make_scale "hex"
         (scale_map (TheoryFormat.letters pc_per_octave))

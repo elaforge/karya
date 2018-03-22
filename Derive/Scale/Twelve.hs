@@ -44,7 +44,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map Scale.Simple [scale, relative_scale, keyed_scale]
 
 scale :: Scale.Scale

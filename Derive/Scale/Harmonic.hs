@@ -27,7 +27,7 @@ import Global
 -- TODO There's no easy way to enter negative harmonics.  Maybe I'd need some
 -- kind of alternate input mode that could affect input_to_note.
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = (:[]) $ Scale.Simple $ Scale.Scale
     { scale_id = scale_id
     , scale_pattern = "[" <> txt octaves <> "]-?[0-9]+"

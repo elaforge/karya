@@ -23,7 +23,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = Legong.make_scale_set config scale_id "The usual saih lima."
 
 scale_id :: Pitch.ScaleId

@@ -16,7 +16,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Make]
+scales :: [Scale.Definition]
 scales = map Scale.Simple
     [ make_scale "octa21" layout21 keys21 absolute_fmt
     , make_scale "octa12" layout12 keys12 absolute_fmt
