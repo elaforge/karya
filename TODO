@@ -196,6 +196,7 @@ UNSORTED
     - put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
       Push script does normal push to github, force push to gitlab.
+      . I can push master to github, and treat work as in-progress.
     * figure out something for Local/*, inst_db
       . I can check in an empty config, then have the initial setup script
         copy that into place.  I use symlinks to Local.Elaforge.*
@@ -233,14 +234,20 @@ UNSORTED
   upgrade to ghc 8.4.1
     compile time mehitabel:
       . 8.0.2:
-        RunTests      528.01s user 110.00s system 347% cpu 3:03.71 total
-        debug/seq     275.52s user 51.61s system 246% cpu 2:12.87 total
-        opt/seq       702.52s user 65.69s system 335% cpu 3:49.13 total
-      . 8.2.1:
-        debug/seq     225.21s user 32.80s system 338% cpu 1:16.20 total
-                      201.57s user 30.43s system 328% cpu 1:10.53 total
-        opt/seq       712.50s user 42.71s system 329% cpu 3:49.21 total
-                      760.40s user 45.88s system 323% cpu 4:09.25 total
+        RunTests      549.10s user 118.45s system 343% cpu 3:14.53 total
+        RunTests      548.71s user 117.10s system 347% cpu 3:11.78 total
+        debug/seq     284.47s user 55.95s system 345% cpu 1:38.58 total
+        debug/seq     283.33s user 55.27s system 343% cpu 1:38.53 total
+        opt/seq       732.63s user 70.86s system 338% cpu 3:57.30 total
+        opt/seq       735.21s user 71.48s system 327% cpu 4:06.31 total
+
+      . 8.4.2:
+        RunTests      450.92s user 109.63s system 343% cpu 2:43.13 total
+        RunTests      445.48s user 107.99s system 341% cpu 2:42.19 total
+        debug/seq     220.92s user 50.21s system 337% cpu 1:20.32 total
+        debug/seq     218.39s user 49.20s system 345% cpu 1:17.47 total
+        opt/seq       785.12s user 65.42s system 327% cpu 4:19.84 total
+        opt/seq       765.52s user 64.01s system 321% cpu 4:18.29 total
     compile time tammananny:
       . 8.0.2:
         . RunTests    781.31s user 58.21s system 363% cpu 3:50.70 total
@@ -252,7 +259,8 @@ UNSORTED
         . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
 
     first make sure deps build
-      / conduit-audio
+      - sandi, filed bug.  It's only used in Ness.* though.
+      * conduit-audio
         . sent pull request
         . Wrote my own.
       * ghc-events: no Semigroup instance
@@ -264,10 +272,10 @@ UNSORTED
         . someone else's pull request pending
         . but the maintainer is slow, I removed the dep since I don't really
           need it.
-      + zmidi-core: no Semigroup instance
+      * zmidi-core: no Semigroup instance
         . sent pull request
     * tag profile runs with ghc version, fix up old data
-    - search for 8.2 tagged things I can do
+    * search for 8.2 tagged things I can do
     * update flags in Shakefile
   - extend gliss so I can gliss on harmonics
     . Why does eval_quoted give opposite pitches?
@@ -1144,6 +1152,15 @@ TASKS:
 ----------------------------------------------------------------------
 
 documentation:
+  - haddock runs with -DTESTING, which means it shows double exports for all
+    the #ifdef TESTING export everything modules.
+    . I can make DeriveTest work by saying TESTING || HADDOCK, but test
+      modules don't work without the extra exports.
+    . The other way is to not do haddock for test modules.  I have to omit
+      *Test.hs and DeriveQuickCheck.hs too, since they rely on all exports.
+      In fact this may be the only way.
+    . Otherwise, I think I'd need some kind of ghc compilation mode to
+      override export lists, but not affect haddock generation.
   - strict markdown parser, and extensible:
     . with https://markkarpov.com/post/announcing-mmark.html
     . But not ready yet (no lists or block quotes).
@@ -1743,6 +1760,7 @@ synth: im:
         constant pitch or dyn.
       . I can't do it at the score level, because I don't know the decay, but
         for samples I do.
+      . See audio:
     reyong:
       . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
       . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in
@@ -2144,6 +2162,15 @@ shakefile: build:
     date.  Now it's up to .7s.  Where is the time going?
 
 incremental save / git:
+  - consider switching to a text format so git delta compression and diff works
+    . I just don't want to fuss with a lot of quoting.
+    . Maybe I can store as null-separated values.
+    . But I want to be line-oriented, so diffs work.  And maybe delta
+      compression is also line-oriented.
+    . Also I don't want to have a whole independent Serialize class for
+      binary.
+    . If I use CBOR, then maybe I could convert to CBOR records, which is
+      JSON-like, and then have an automatic CBOR to text bijection.
   + try saving individual events for incremental save
     Seems to be just as slow as full save, probably most of the time is in
     the call to git.  Test again with larger tracks.

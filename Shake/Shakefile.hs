@@ -77,7 +77,7 @@ basicPackages = concat
     , w "async" -- Util.Process
     , w "pretty haskell-src" -- Util.PPrint
     , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
-    , [("Diff", ">=0.2")] -- Util.Test
+    , [("Diff", ">=0.2")] -- Util.Testing
     , w "zlib" -- Util.File
     , w "wcwidth" -- Util.Format
     , w "dlist" -- Util.TimeVector
@@ -175,7 +175,7 @@ data Config = Config {
     , midiConfig :: MidiConfig
     , configFlags :: Flags
     -- | GHC version as returned by 'parseGhcVersion'.
-    , ghcVersion :: String
+    , ghcVersion :: (Int, Int, Int)
     -- | Absolute path to the root directory for the project.
     , rootDir :: FilePath
     } deriving (Show)
@@ -535,14 +535,11 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
-ghcWarnings :: Mode -> [String]
-ghcWarnings mode = concat
-    [ ["-W"
-      , "-Wcompat"
-      -- TODO GHC >=8.2
-      -- pass -Wundef to CPP for warnings on #if TYPO
-      -- , "-Wcpp-undef"
-      ]
+ghcWarnings :: Config -> [String]
+ghcWarnings config = concat
+    [ ["-W", "-Wcompat"]
+    -- pass -Wundef to CPP for warnings on #if TYPO
+    , ["-Wcpp-undef" | ghcVersion config >= (8, 2, 0)]
     , map ("-fwarn-"++) warns
     , map ("-fno-warn-"++) noWarns
     ]
@@ -560,10 +557,11 @@ ghcWarnings mode = concat
         -- https://ghc.haskell.org/trac/ghc/wiki/Proposal/MonadOfNoReturn
         , "noncanonical-monad-instances"
         ]
-    noWarns =
+    noWarns
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
-        if mode `elem` [Test, Profile] then ["duplicate-exports"] else []
+        | buildMode config `elem` [Test, Profile] = ["duplicate-exports"]
+        | otherwise = []
 
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
@@ -596,7 +594,7 @@ configure midi = do
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
             , ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
-            , ["-DGHC_VERSION=" ++ ghcVersion]
+            , ["-DGHC_VERSION=" ++ ghcVersionMacro ghcVersion]
             ]
         , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
             ++ Config.globalIncludes
@@ -669,22 +667,28 @@ packageFlags :: Flags -> [Package] -> [Flag]
 packageFlags flags packages =
     sandboxFlags flags ++ "-hide-all-packages" : map ("-package="++) packages
 
--- | Parse the GHC version out of the @ghc --print-libdir@ path.  The format is
--- \"71002\" for \"7.10.2\".  This way it can be compared as a number by CPP.
--- It doesn't have a leading 0 because then CPP thinks its octal.  It'll break
--- at ghc-10, but I can fix it when it happens.
-parseGhcVersion :: FilePath -> String
+-- | Parse the GHC version out of the @ghc --print-libdir@ path.  Technically
+-- I should probably use ghc --numeric-version, but I already have libdir so
+-- let's not run ghc again.
+parseGhcVersion :: FilePath -> (Int, Int, Int)
 parseGhcVersion path =
-    -- take 5 to avoid getting confused by versions like 8.0.1.20161213.
-    check $ take 5 $ dropWhile (=='0') $ concatMap pad0 $ Seq.split "." $
+    -- take 3 to avoid getting confused by versions like 8.0.1.20161213.
+    parse $ take 3 $ Seq.split "." $
         drop 1 $ dropWhile (/='-') $ FilePath.takeFileName path
+    where
+    parse cs
+        | all (all Char.isDigit) cs = case map read cs of
+            a : b : c : _ -> (a, b, c)
+            _ -> error $ "parseGhcVersion: can't parse " <> show path
+        | otherwise = error $ "parseGhcVersion: can't parse " <> show path
+
+-- | Generate a number CPP can compare.
+ghcVersionMacro :: (Int, Int, Int) -> String
+ghcVersionMacro (a, b, c) =
+    dropWhile (=='0') $ concatMap (pad0 . show) [a, b, c]
     where
     pad0 [c] = '0' : c : []
     pad0 cs = cs
-    check cs
-        | null cs || any (not . Char.isDigit) cs =
-            error $ "parseGhcVersion: can't parse " <> show path
-        | otherwise = cs
 
 type InferConfig = FilePath -> Config
 
@@ -967,7 +971,12 @@ makeHaddock config = do
             , SourceControl.showDate (SourceControl._date entry)
             , " (patch ", SourceControl._hash entry, ")"
             ]
-    Util.system "haddock" $ filter (not . null)
+    let ghcFlags = concat
+            [ define flags, cInclude flags
+            , ghcLanguageFlags
+            , packageFlags flags (packages ++ extraPackages)
+            ]
+    Util.system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--title=" <> Text.unpack title
         , "--source-base=../hscolour/"
@@ -979,11 +988,11 @@ makeHaddock config = do
         -- Source references qualified names as written in the doc.
         , "-q", "aliased"
         , "-o", build </> "haddock"
-        ] ++ map ("-i"++) interfaces
-        ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags
-            ++ ghcLanguageFlags
-            ++ packageFlags flags (packages ++ extraPackages)]
-        ++ hs
+        ] ++ concat
+        [ map ("-i"++) interfaces
+        , map ("--optghc="++) ghcFlags
+        , hs
+        ]
     return hs
 
 -- | Get paths to haddock interface files for all the packages.
@@ -1358,7 +1367,7 @@ ghcFlags config = concat $
     [ ghcLanguageFlags
     , define (configFlags config)
     , cInclude (configFlags config)
-    , ghcWarnings (buildMode config)
+    , ghcWarnings config
     ]
 
 -- | Blend the delicate mix of flags needed to convince ghci to load .o files
@@ -1370,9 +1379,9 @@ ghciFlags config = concat
     , sandboxFlags (configFlags config)
     -- Without this, GHC API won't load compiled modules.
     -- See https://ghc.haskell.org/trac/ghc/ticket/13604
-    , if | version <= "80002" -> []
+    , if | version <= (8, 0, 2) -> []
          -- This is unpleasant, but better than having a broken REPL.
-         | version < "80401" -> error
+         | version < (8, 4, 1) -> error
             "ghc 8.2 doesn't support the flags needed to make the REPL work,\
             \ use 8.0 or 8.4, see doc/INSTALL.md for details"
          | otherwise -> ["-fignore-optim-changes", "-fignore-hpc-changes"]
