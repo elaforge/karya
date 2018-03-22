@@ -231,12 +231,11 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
     Thread.delay wait
     send_status block_id Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
-    ((), cpu_secs, wall_secs) <- Log.time_eval $
+    ((), cpu_secs, wall_secs) <- Thread.timeAction $
         return $! Msg.force_performance perf
     when (wall_secs > 1) $
         Log.notice $ "derived " <> showt block_id <> " in "
-            <> pretty (RealTime.seconds cpu_secs) <> " cpu, "
-            <> pretty (RealTime.seconds wall_secs) <> " wall"
+            <> pretty cpu_secs <> " cpu, " <> pretty wall_secs <> " wall"
     (procs, events) <-  case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
         Just config ->

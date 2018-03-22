@@ -8,20 +8,26 @@ module Util.Thread (
     , timeout
     -- * Flag
     , Flag, flag, set, wait, poll
-    -- * util
-    , time_action
+    -- * timing
+    , force, timeAction, timeActionText, printTimer, currentCPU
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
+import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
+import qualified Control.Monad.Trans as Trans
 
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
 import qualified GHC.Conc as Conc
 import qualified System.CPUTime as CPUTime
+import qualified System.IO as IO
 import qualified System.Timeout as Timeout
+
+import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 
@@ -81,16 +87,54 @@ wait (Flag var) = STM.atomically $ do
     val <- STM.readTVar var
     if val then return () else STM.retry
 
--- * util
+-- * timing
 
--- | Time an IO action in seconds.  Technically not thread related, but I don't
--- have a better place at the moment.
-time_action :: IO () -> IO Seconds
-time_action action = do
-    start <- CPUTime.getCPUTime
-    action
-    end <- CPUTime.getCPUTime
-    return $ cpu_to_sec (end - start)
+force :: DeepSeq.NFData a => a -> IO ()
+force x = Exception.evaluate (DeepSeq.rnf x)
 
-cpu_to_sec :: Integer -> Seconds
-cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
+-- | Time an IO action in CPU and wall seconds.  Technically not thread
+-- related, but I don't have a better place at the moment.
+timeAction :: Trans.MonadIO m
+    => m a -> m (a, Seconds, Seconds) -- ^ (a, cpu, wall)
+timeAction action = do
+    startCpu <- Trans.liftIO CPUTime.getCPUTime
+    start <- Trans.liftIO Time.getCurrentTime
+    !val <- action
+    endCpu <- Trans.liftIO CPUTime.getCPUTime
+    end <- Trans.liftIO Time.getCurrentTime
+    let elapsed = end `Time.diffUTCTime` start
+    return (val, cpuToSec (endCpu - startCpu), elapsed)
+
+-- | Like 'timeAction', but return a Text msg instead of the values.
+timeActionText :: Trans.MonadIO m => m a -> m (a, Text.Text)
+timeActionText = fmap fmt . timeAction
+    where
+    fmt (val, cpu, wall) = (,) val $ Text.pack $ Printf.printf
+        "%.2f cpu / %.2fs" (toSecs cpu) (toSecs wall)
+
+cpuToSec :: Integer -> Seconds
+cpuToSec s = fromIntegral s / fromIntegral (10^12)
+
+printTimer :: Text.Text -> (a -> String) -> IO a -> IO a
+printTimer msg showVal action = do
+    Text.IO.putStr $ msg <> " - "
+    IO.hFlush IO.stdout
+    result <- Exception.try $ timeActionText $ do
+        !val <- action
+        return val
+    case result of
+        Right (val, msg) -> do
+            Text.IO.putStrLn $
+                "time: " <> msg <> " - " <> Text.pack (showVal val)
+            return val
+        Left (exc :: Exception.SomeException) -> do
+            -- Complete the line so the exception doesn't interrupt it.  This
+            -- is important if it's a 'failure' line!
+            putStrLn $ "threw exception: " <> show exc
+            Exception.throwIO exc
+
+currentCPU :: IO Seconds
+currentCPU = cpuToSec <$> CPUTime.getCPUTime
+
+toSecs :: Seconds -> Double
+toSecs = realToFrac

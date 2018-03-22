@@ -151,6 +151,8 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f) =>
         [format a, format b, format c, format d, format e, format f]
 
 instance Pretty Time.UTCTime where pretty = showt
+instance Pretty Time.NominalDiffTime where
+    pretty s = pretty (realToFrac s :: Double) <> "s"
 instance Pretty Dynamic.Dynamic where pretty = showt
 instance Pretty Calendar.Day where pretty = showt
 

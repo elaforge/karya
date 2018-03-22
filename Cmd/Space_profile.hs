@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Memory as Memory
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Thread as Thread
 
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
@@ -38,8 +38,8 @@ profile_load = do
 
 load :: Cmd.InstrumentDb -> FilePath -> IO Ui.State
 load db fname = do
-    result <- Testing.print_timer ("unserialize " <> showt fname)
-        (\_ _ _ -> "") (Save.read_state_ db fname)
+    result <- Thread.printTimer ("unserialize " <> showt fname)
+        (const "") (Save.read_state_ db fname)
     return $ expect_right result
 
 print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)

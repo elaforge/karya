@@ -8,7 +8,9 @@ import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import qualified Util.Testing as Testing
+import qualified Util.Thread as Thread
 import qualified Util.TimeVector as TimeVector
+
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
@@ -93,7 +95,7 @@ run_multiple :: a -> (a -> IO String) -> IO ()
 run_multiple arg action = forM_ [1..6] $ \n -> do
     putStr $ show n ++ ": "
     IO.hFlush IO.stdout
-    Testing.print_timer (showt n) (\_ _ -> id) (action arg)
+    Thread.printTimer (showt n) id (action arg)
 
 mkevent :: Double -> Double -> [(Score.Control, MSignal.Signal)]
     -> MSignal.Signal -> Types.Event

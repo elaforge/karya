@@ -16,6 +16,8 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import qualified Util.Testing as Testing
+import qualified Util.Thread as Thread
+
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.Ui as Ui
@@ -116,14 +118,14 @@ timed_lilypond fname ui_state cmd_state block_id = case result of
     config = Ui.config#Ui.lilypond #$ ui_state
     boring = Cache.is_cache_log
 
-timer_msg :: (a -> Int) -> Double -> Double -> a -> String
+timer_msg :: (a -> Int) -> CPU -> Thread.Seconds -> a -> String
 timer_msg len cpu_secs secs events =
     Printf.printf "events: %d (%d / cpu, %d / sec)"
         events_len (per cpu_secs) (per secs)
     where
     events_len = len events
-    per :: Double -> Int
-    per secs = round (fromIntegral events_len / secs)
+    per :: Thread.Seconds -> Int
+    per secs = round (fromIntegral events_len / toSecs secs)
 
 run_cmd :: Ui.State -> Cmd.State -> Cmd.CmdId a -> Either Text (a, [Log.Msg])
 run_cmd ui_state cmd_state cmd = case result of
@@ -205,18 +207,21 @@ cmd_config inst_db = do
 -- * timer
 
 -- | CPU seconds.
-type CPU = Double
+type CPU = Thread.Seconds
 
-time :: Text -> (Double -> Double -> a -> String) -> IO a -> IO (a, CPU)
+-- TODO this is mostly duplicated with Thread.printTimer, except I use
+-- the timing info in the msg.
+time :: Text -> (CPU -> Thread.Seconds -> a -> String) -> IO a -> IO (a, CPU)
 time msg show_val op = do
     Text.IO.putStr $ msg <> " - "
     IO.hFlush IO.stdout
-    result <- Exception.try $ Log.time_eval $ do
+    result <- Exception.try $ Thread.timeAction $ do
         !val <- op
         return val
     case result of
         Right (val, cpu_secs, secs) -> do
-            Printf.printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
+            Printf.printf "time: %.2fs cpu %.2fs wall - %s\n"
+                (toSecs cpu_secs) (toSecs secs)
                 (show_val cpu_secs secs val)
             return (val, cpu_secs)
         Left (exc :: Exception.SomeException) -> do
@@ -224,3 +229,6 @@ time msg show_val op = do
             -- is important if it's a 'failure' line!
             putStrLn $ "threw exception: " <> show exc
             Exception.throwIO exc
+
+toSecs :: Thread.Seconds -> Double
+toSecs = realToFrac

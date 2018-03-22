@@ -7,7 +7,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
 -- | Basic testing utilities.
 module Util.Testing (
     Config(..), modify_test_config, with_test_name
@@ -31,15 +31,14 @@ module Util.Testing (
     , quickcheck
     , q_equal
 
-    -- * profiling
-    , timer, print_timer
-    , force
-
     -- * pretty printing
     , prettyp, pprint
 
     -- * filesystem
     , unique_tmp_dir, tmp_dir, tmp_base_dir
+
+    -- * util
+    , force
 ) where
 import Control.Monad (unless)
 import qualified Control.DeepSeq as DeepSeq
@@ -68,12 +67,10 @@ import qualified System.Posix.Temp as Temp
 import qualified System.Posix.Terminal as Terminal
 
 import qualified Test.QuickCheck as QuickCheck
-import qualified Text.Printf as Printf
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.CallStack (Stack)
 import qualified Util.CallStack as CallStack
-import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
@@ -386,33 +383,6 @@ q_equal a b = QuickCheck.counterexample
     (Text.unpack $ pretty_compare "==" "/=" True a b False)
     (a == b)
 
--- * profiling
-
--- | Run an action and report the time in CPU seconds and wall clock seconds.
-timer :: IO a -> IO (a, Double, Double)
-timer = Log.time_eval
-
-print_timer :: Text -> (Double -> Double -> a -> String) -> IO a -> IO a
-print_timer msg show_val op = do
-    Text.IO.putStr $ msg <> " - "
-    IO.hFlush IO.stdout
-    result <- Exception.try $ timer $ do
-        !val <- op
-        return val
-    case result of
-        Right (val, cpu_secs, secs) -> do
-            Printf.printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
-                (show_val cpu_secs secs val)
-            return val
-        Left (exc :: Exception.SomeException) -> do
-            -- Complete the line so the exception doesn't interrupt it.  This
-            -- is important if it's a 'failure' line!
-            putStrLn $ "threw exception: " <> show exc
-            Exception.throwIO exc
-
-force :: DeepSeq.NFData a => a -> IO ()
-force x = Exception.evaluate (DeepSeq.rnf x)
-
 -- * util
 
 prettyp :: Pretty.Pretty a => a -> IO ()
@@ -533,3 +503,8 @@ tmp_dir name = do
 -- TODO instead of being hardcoded this should be configured per-project.
 tmp_base_dir :: FilePath
 tmp_base_dir = "build/test/tmp"
+
+-- * util
+
+force :: DeepSeq.NFData a => a -> IO ()
+force x = Exception.evaluate (DeepSeq.rnf x)

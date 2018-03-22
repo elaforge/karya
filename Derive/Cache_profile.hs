@@ -11,7 +11,7 @@ import qualified System.IO as IO
 import qualified Text.Printf as Printf
 
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Thread as Thread
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Ui as Ui
@@ -65,7 +65,7 @@ rederive initial_state modifications = do
             let result = DeriveTest.derive_block_standard mempty
                     DeriveTest.default_cmd_state mempty mempty state2
                     (UiTest.bid "b1")
-            Testing.force $ Derive.r_events result
+            Thread.force $ Derive.r_events result
             return result
         equal (Cache_test.diff_events cached uncached) []
         go state2 (Derive.r_cache cached) rest
@@ -74,14 +74,14 @@ time_section :: String -> IO a -> IO a
 time_section title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    (val, cpu_secs, _) <- Testing.timer op
-    Printf.printf "%.2f\n" cpu_secs
+    (val, cpu_secs, _) <- Thread.timeAction op
+    Printf.printf "%.2f\n" (realToFrac cpu_secs :: Double)
     return val
 
 eval_derivation :: Derive.Cache -> Ui.State -> Ui.State
     -> [Update.CmdUpdate] -> IO Derive.Result
 eval_derivation cache state1 state2 cmd_updates = do
-    Testing.force $ Derive.r_events result
+    Thread.force $ Derive.r_events result
     return result
     where
     (ui_updates, _) = Diff.diff cmd_updates state1 state2

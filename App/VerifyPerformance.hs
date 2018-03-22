@@ -29,6 +29,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
+import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Ui as Ui
@@ -205,7 +206,7 @@ dump_midi fname = do
     liftIO $ mapM_ Pretty.pprint (Vector.toList msgs)
     return []
 
-type Timings = [(Text, Double)]
+type Timings = [(Text, Thread.Seconds)]
 
 verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
 verify_performance out_dir cmd_config fname = do
@@ -290,6 +291,10 @@ get_root state = justErr "no root block" $ Ui.config#Ui.root #$ state
 basename :: FilePath -> FilePath
 basename = FilePath.takeFileName . Seq.rdrop_while (=='/')
 
-write_timing :: FilePath -> [(Text, Double)] -> IO ()
-write_timing fname vals = ByteString.Lazy.writeFile fname $ (<>"\n") $
-    Aeson.encode $ Map.fromList vals
+write_timing :: FilePath -> Timings -> IO ()
+write_timing fname timings = ByteString.Lazy.writeFile fname $ (<>"\n") $
+    Aeson.encode $ Map.fromList $ map (second toSecs) timings
+
+
+toSecs :: Thread.Seconds -> Double
+toSecs = realToFrac

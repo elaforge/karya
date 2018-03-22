@@ -3,19 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Derive_profile where
-import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.Mem as Mem
-
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Testing as Testing
+import qualified Util.Thread as Thread
 
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.Ui as Ui
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -176,13 +175,15 @@ derive_saved with_perform fname = do
 
 derive_size :: Ui.StateId a -> IO ()
 derive_size create = do
-    Testing.print_timer "force mmsgs" (\_ _ _ -> "done") (Testing.force mmsgs)
-    Testing.print_timer "gc" (\_ _ _ -> "") Mem.performGC
+    Thread.printTimer "force mmsgs" (const "done") (Thread.force mmsgs)
+    Thread.printTimer "gc" (const "") Mem.performGC
     -- This puts a gap in the heap graph so I can tell which each phase begins.
     -- Surely there is a less ridiculous way to do this.
-    Testing.print_timer "busy" (\_ _ -> id) $ return $ show
+    -- TODO yes, since 8.2 ghc puts heap profile in the eventlog, but then
+    -- of course h2ps doesn't work.
+    Thread.printTimer "busy" id $ return $ show
         (busy_wait 100000000)
-    Testing.print_timer "length" (\_ _ -> id) $ return $ show (length mmsgs)
+    Thread.printTimer "length" id $ return $ show (length mmsgs)
     return ()
     where
     ui_state = UiTest.exec Ui.empty create
@@ -210,34 +211,34 @@ run_profile :: String
 run_profile fname maybe_lookup ui_state = do
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         Ui.config#Ui.root #$ ui_state
-    start_cpu <- CPUTime.getCPUTime
+    start_cpu <- Thread.currentCPU
     let section = time_section start_cpu
     let result = DeriveTest.derive_block ui_state block_id
     let events = Stream.to_list $ Derive.r_events result
     section "derive" $ do
-        Testing.force events
+        Thread.force events
         Testing.prettyp (take 20 events)
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
                 (Ui.config#Ui.allocations #$ ui_state)
                 (Stream.from_sorted_list events)
-        Testing.force mmsgs
+        Thread.force mmsgs
         return mmsgs
 
-time_section :: Integer -> String -> IO [a] -> IO ()
+time_section :: Thread.Seconds -> String -> IO [a] -> IO ()
 time_section start_cpu title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    (vals, cpu_secs, _secs) <- Testing.timer op
-    cur_cpu <- CPUTime.getCPUTime
+    (vals, cpu_secs, _secs) <- Thread.timeAction op
+    cur_cpu <- Thread.currentCPU
     let len = length vals
     Printf.printf "%d vals -> %.2f (%.2f / sec) (running: %.2f)\n"
-        len cpu_secs (fromIntegral len / cpu_secs)
-        (cpu_to_sec (cur_cpu - start_cpu))
-
-cpu_to_sec :: Integer -> Double
-cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
+        len (secs cpu_secs) (fromIntegral len / secs cpu_secs)
+        (secs (cur_cpu - start_cpu))
+    where
+    secs :: Thread.Seconds -> Double
+    secs = realToFrac
 
 
 -- * state building

@@ -39,6 +39,7 @@ import System.FilePath ((</>))
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import qualified Cmd.Cmd as Cmd
 import qualified App.ReplProtocol as ReplProtocol
@@ -104,8 +105,8 @@ interpreter (Session chan) = do
         -- obj_allowed must be False, otherwise I get
         -- Cannot add module Cmd.Repl.Environ to context: not interpreted
         GHC.setTargets $ map (make_target False) toplevel_modules
-        ((result, logs, warns), time) <-
-            Log.format_time <$> Log.time_eval (reload toplevel_modules)
+        ((result, logs, warns), time_msg) <-
+            Thread.timeActionText (reload toplevel_modules)
         let expected = map ((++ ".hs, interpreted") . Seq.replace1 '.' "/")
                 toplevel_modules
         logs <- return $ filter
@@ -124,7 +125,7 @@ interpreter (Session chan) = do
             unless (null warns) $
                 Log.warn $ "warnings from reload: "
                     <> Text.intercalate "; " (map txt warns)
-            Log.notice $ "loaded modules for repl: " <> time
+            Log.notice $ "loaded modules for repl: " <> time_msg
             case result of
                 Left err -> Log.warn $ "error loading REPL modules: " <> txt err
                 _ -> return ()

@@ -37,7 +37,6 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Util.Testing as Testing
 import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
@@ -259,12 +258,12 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
     ui_chan <- MVar.newMVar []
     let rstate = make_rstate ui_chan update_chan loopback_chan
             ui_state (set_cmd_state interface) maybe_cmd
-    ((rstate, midi, updates), cpu_secs, _secs) <- Testing.timer $ do
+    ((rstate, midi, updates), cpu_secs, _secs) <- Thread.timeAction $ do
         (_quit, rstate) <- Responder.respond rstate msg
         midi <- get_vals midi_chan
-        Testing.force midi
+        Thread.force midi
         updates <- concat <$> get_vals update_chan
-        Testing.force updates
+        Thread.force updates
         return (rstate, midi, updates)
     -- Updates and MIDI are normally forced by syncing with the UI and MIDI
     -- driver, so force explicitly here.  Not sure if this really makes
@@ -282,7 +281,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
         , result_cmd = cmd_result
         , result_updates = updates
         , result_loopback = loopback_chan
-        , result_time = cpu_secs
+        , result_time = realToFrac cpu_secs
         }
     where
     set_cmd_state interface = cmd_state

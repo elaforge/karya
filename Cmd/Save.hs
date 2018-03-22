@@ -47,11 +47,12 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
+import qualified Util.Thread as Thread
 
 import qualified Ui.Id as Id
+import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
-import qualified Ui.Transform as Transform
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -187,10 +188,10 @@ write_current_state :: FilePath -> Cmd.CmdT IO FilePath
 write_current_state fname = do
     fname <- expand_filename fname
     state <- Ui.get
-    ((), _, wall_secs) <- rethrow_io "write_current_state" $ liftIO $
-        Log.time_eval $ write_state fname state
+    ((), _, wall_secs) <- rethrow_io "write_current_state" $
+        Thread.timeAction $ write_state fname state
     Log.notice $ "wrote state to " <> showt fname <> ", took "
-        <> pretty wall_secs <> "s"
+        <> pretty wall_secs
     return fname
 
 write_state :: FilePath -> Ui.State -> IO ()

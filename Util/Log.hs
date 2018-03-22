@@ -30,9 +30,6 @@ module Util.Log (
     , LogT, run, LogId, run_id
     , format_msg
     , serialize, deserialize
-
-    -- * util
-    , time_eval, format_time
 ) where
 import Prelude hiding (error, log)
 import qualified Control.Applicative as Applicative
@@ -63,7 +60,6 @@ import qualified Data.Vector as Vector
 import qualified GHC.Generics as Generics
 import qualified GHC.Stack
 import qualified Numeric
-import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
@@ -408,23 +404,3 @@ instance Serialize.Serialize Data where
         1 -> Int <$> get
         2 -> Text <$> get
         _ -> Serialize.bad_tag "Data" tag
-
--- * util
-
--- | Run an action and report the time in CPU seconds and wall clock seconds.
-time_eval :: Trans.MonadIO m => m a -> m (a, Double, Double) -- ^ (a, cpu, wall)
-time_eval op = do
-    start_cpu <- liftIO CPUTime.getCPUTime
-    start <- liftIO Time.getCurrentTime
-    !val <- op
-    end_cpu <- liftIO CPUTime.getCPUTime
-    end <- liftIO Time.getCurrentTime
-    let elapsed = end `Time.diffUTCTime` start
-    return (val, cpu_to_sec (end_cpu - start_cpu), realToFrac elapsed)
-    where
-    cpu_to_sec :: Integer -> Double
-    cpu_to_sec s = fromIntegral s / 10^12
-
-format_time :: (a, Double, Double) -> (a, Text)
-format_time (val, cpu, wall) =
-    (val, pretty cpu <> "cpu / " <> pretty wall <> "s")
