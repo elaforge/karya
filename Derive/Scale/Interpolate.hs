@@ -129,7 +129,7 @@ scale_from, scale_to :: Env.Key
 scale_from = "scale-from"
 scale_to = "scale-to"
 
-{- Notes from the implementation:
+{- Notes from the implementation: NOTE [make-scale]
 
     Scale with arguments: *interpolate scale-from=from scale-to=to
 

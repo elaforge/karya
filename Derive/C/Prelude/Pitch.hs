@@ -101,7 +101,7 @@ c_multiply = generator1 "multiply" mempty
         start <- Args.real_start args
         return $ PSignal.from_sample start transposed
     where
-    intervals = JustScales.named_intervals
+    intervals = JustScales.default_named_intervals
 
 -- * interpolating
 

@@ -76,7 +76,7 @@ scale_map keys default_key default_tuning fmt = ScaleMap
     , smap_default_key = default_key
     , smap_default_tuning = default_tuning
     , smap_default_base_hz = Pitch.nn_to_hz NN.middle_c
-    , smap_named_intervals = named_intervals
+    , smap_named_intervals = default_named_intervals
     , smap_accidental_interval = 16 / 15
     }
 
@@ -298,7 +298,7 @@ make_keys degrees key_tuning_ratios = Map.fromList
 
 -- * format
 
-make_relative_fmt :: Keys -> Key
+make_relative_fmt :: Keys -> Key -- ^ only 'key_tonic' is used
     -> TheoryFormat.RelativeFormat TheoryFormat.Tonic
 make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
     { rel_config = TheoryFormat.default_config
@@ -312,9 +312,8 @@ make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
 
 -- * named intervals
 
--- | Default named intervals.
-named_intervals :: ScaleDegree.NamedIntervals
-named_intervals = Map.fromList
+default_named_intervals :: ScaleDegree.NamedIntervals
+default_named_intervals = Map.fromList
     [ ("m2-", 25 % 24) -- 71, 5-limit minor half-step
     , ("m2", 16 % 15) -- 112, 5-limit major half-step
     , ("M2-", 10 % 9) -- 182, minor whole tone
