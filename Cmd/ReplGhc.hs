@@ -108,7 +108,7 @@ interpreter (Session chan) = do
         ((result, logs, warns), time_msg) <-
             Thread.timeActionText (reload toplevel_modules)
         let expected = map ((++ ".hs, interpreted") . Seq.replace1 '.' "/")
-                toplevel_modules
+                (toplevel_modules ++ expected_reloads)
         logs <- return $ filter
             (\log -> not $ (any (`List.isInfixOf` log) expected)) logs
         liftIO $ do
@@ -134,6 +134,7 @@ interpreter (Session chan) = do
             result <- respond toplevel_modules query
             liftIO $ MVar.putMVar return_mvar result
     where
+    expected_reloads = ["User.Elaforge.Repl"] -- TODO should be User.*.Repl
     toplevel_modules = ["Cmd.Repl.Environ", "Local.Repl"]
 
 
