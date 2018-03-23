@@ -200,11 +200,9 @@ in_range smap pitch = bottom <= semis && semis <= top
 
 call_doc :: Set Score.Control -> ScaleMap -> Doc.Doc -> Derive.DocumentedCall
 call_doc transposers smap doc =
-    Scales.annotate_call_doc transposers doc fields $
-        Derive.extract_val_doc call
+    Scales.annotate_call_doc transposers doc fields call_doc
     where
-    call = ScaleDegree.scale_degree PSignal.no_scale err err
-        where err _ = Left $ PSignal.PitchError "it was just an example!"
+    call_doc = Scales.scale_degree_doc ScaleDegree.scale_degree
     -- Not efficient, but shouldn't matter for docs.
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))

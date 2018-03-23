@@ -14,6 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BohlenPierce
+import qualified Derive.Scale.Edo as Edo
 import qualified Derive.Scale.Harmonic as Harmonic
 import qualified Derive.Scale.Hex as Hex
 import qualified Derive.Scale.Interpolate as Interpolate
@@ -52,6 +53,7 @@ scales :: Map Pitch.ScaleId Scale.Definition
 shadowed :: [Pitch.ScaleId]
 (scales, shadowed) = mk $ concat
     [ BohlenPierce.scales
+    , Edo.scales
     , Hex.scales
     , Interpolate.scales
     , Just.scales

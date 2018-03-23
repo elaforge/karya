@@ -176,7 +176,7 @@ make_just scale_id fmt env _ = do
     let smap = JustScales.scale_map Map.empty default_key Nothing fmt
     return $ JustScales.make_scale scale_id smap "doc unused" []
 
-parse_intervals :: Env.Environ -> Either BaseTypes.PitchError [Int]
+parse_intervals :: Env.Environ -> Either BaseTypes.PitchError [Pitch.Semi]
 parse_intervals =
     Scales.read_environ_ parse (Just (Right (replicate 7 1))) just_intervals
     where
@@ -185,7 +185,7 @@ parse_intervals =
         (Left $ Just $ "not one of: " <> pretty (Map.keys all_named_intervals))
         Right (Map.lookup sym all_named_intervals)
 
-parse_ratios :: [Int] -> Env.Environ
+parse_ratios :: [Pitch.Semi] -> Env.Environ
     -> Either BaseTypes.PitchError JustScales.Ratios
 parse_ratios intervals = Scales.read_environ_ parse Nothing just_ratios
     where

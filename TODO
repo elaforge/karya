@@ -4282,7 +4282,7 @@ pitch: scales: scale:
       . just-intervals selects from the ratios, otherwise defaults to all 1s
         or piano layout if the ratios have 11 elements.
         There's only a point to it if using just-ratios=limit-5 or something.
-  - add edo scale, which divides the octave
+  * add edo scale, which divides the octave
     . I could hardcode 2-n, but I'd rather do as an argument
     . Scale.Make could do this: edo=7 | scale=edo, but what about making Scale
       into a Val, and then doing scale = (edo 7)?
