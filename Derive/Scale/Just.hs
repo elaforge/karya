@@ -15,6 +15,7 @@ import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
+import qualified Derive.Scale.Raga as Raga
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
@@ -31,10 +32,10 @@ simple_scales :: [Scale.Definition]
 simple_scales = map Scale.Simple
     [ Scales.add_doc "7-note just scale." $
         JustScales.make_scale "just" (scale_map TheoryFormat.absolute_c)
-            doc doc_fields
+            just_doc doc_fields
     , Scales.add_doc "7-note just scale." $
         JustScales.make_scale "just-r"
-            (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
+            (scale_map (TheoryFormat.sargam relative_fmt)) just_doc doc_fields
     ]
     where
     relative_fmt = JustScales.make_relative_fmt keys default_key
@@ -51,9 +52,9 @@ make_scales =
         , key_ratios = Map.fromList []
         }
 
-doc :: Doc.Doc
-doc =
-    "7-note scales tuned in just intonation.\
+just_doc :: Doc.Doc
+just_doc =
+    "7-note scales in just intonation.\
     \\nThey are fundamentally 7 note scales because they use a A-G or SRGMPDN.\
     \ While they support sharps and flats and have a piano-style layout,\
     \ accidentals are implemented as simple ratio offsets from base pitch.\
@@ -84,11 +85,13 @@ keys = JustScales.make_keys TheoryFormat.absolute_c_degrees key_ratios
 key_ratios :: [(Text, [(JustScales.Tuning, JustScales.Ratios)])]
 key_ratios =
     [ (name, map (second (select is)) (Map.toList tunings))
-    | (name, is) <- intervals
+    | (name, is) <- named_intervals
     ]
+
+named_intervals :: [(Text, [Pitch.Semi])]
+named_intervals = map (second (take 7)) $ zip names $ List.tails $
+    cycle Theory.piano_intervals
     where
-    intervals = map (second (take 7)) $ zip names $ List.tails $
-        cycle Theory.piano_intervals
     -- The names are the same as in Twelve.
     names = ["maj", "dorian", "phrygian", "lydian", "mixolydian", "min",
         "locrian"]
@@ -139,18 +142,33 @@ scale_make_just scale_id fmt =
     where
     call_doc = Scales.annotate_call_doc Scales.standard_transposers
         doc [] JustScales.default_call_doc
-    doc = "Uses " <> ShowVal.doc just_ratios <> " to make a custom scale.\
-        \The ratios should have exactly 6 elements (the initial 1/1 is\
-        \ implicit)."
+    doc = "Set " <> ShowVal.doc just_ratios <> " to make a custom scale, and "
+        <> ShowVal.doc just_intervals <> " to select from it. The intervals\
+        \ default to replicate 7 1, and the number of ratios should be\
+        \ sum intervals - 1 (the initial 1/1 is implicit).\
+        \ Ratios can be a list, or one of "
+        <> literals (Map.keys tunings)
+        <> ", and intervals can be a list or one of "
+        <> literals (map fst named_intervals
+            ++ map fst Raga.melakarta_intervals)
+        <> "\n\n" <> just_doc
+    literals = Doc.commas . map Doc.literal
+
+all_named_intervals :: Map Text [Pitch.Semi]
+all_named_intervals = Map.fromList $ named_intervals ++ Raga.melakarta_intervals
 
 just_ratios :: Env.Key
 just_ratios = "just-ratios"
+
+just_intervals :: Env.Key
+just_intervals = "just-intervals"
 
 make_just :: Pitch.ScaleId -> TheoryFormat.Format
     -> Env.Environ -> Scale.LookupScale
     -> Either BaseTypes.PitchError Scale.Scale
 make_just scale_id fmt env _ = do
-    ratios <- parse_ratios env
+    intervals <- parse_intervals env
+    ratios <- parse_ratios intervals env
     let default_key = JustScales.Key
             { key_tonic = 0
             , key_ratios = Map.fromList [("", ratios)]
@@ -158,10 +176,27 @@ make_just scale_id fmt env _ = do
     let smap = JustScales.scale_map Map.empty default_key Nothing fmt
     return $ JustScales.make_scale scale_id smap "doc unused" []
 
-parse_ratios :: Env.Environ -> Either BaseTypes.PitchError JustScales.Ratios
-parse_ratios = Scales.read_environ_ parse Nothing just_ratios
+parse_intervals :: Env.Environ -> Either BaseTypes.PitchError [Int]
+parse_intervals =
+    Scales.read_environ_ parse (Just (Right (replicate 7 1))) just_intervals
     where
-    parse ratios
-        | Vector.length v == 7 = Right v
-        | otherwise = Left $ Just "length should be exactly 6"
-        where v = Vector.fromList (1 : ratios)
+    parse (Left xs) = Right xs
+    parse (Right sym) = maybe
+        (Left $ Just $ "not one of: " <> pretty (Map.keys all_named_intervals))
+        Right (Map.lookup sym all_named_intervals)
+
+parse_ratios :: [Int] -> Env.Environ
+    -> Either BaseTypes.PitchError JustScales.Ratios
+parse_ratios intervals = Scales.read_environ_ parse Nothing just_ratios
+    where
+    parse (Right sym) = maybe
+        (Left $ Just $ "not one of: " <> pretty (Map.keys tunings))
+        check (Map.lookup sym tunings)
+    parse (Left ratios) = check $ Vector.fromList (1:ratios)
+    check ratios
+        | Vector.length ratios == sum intervals =
+            Right $ select intervals ratios
+        | otherwise = Left $ Just $
+            "length should be sum " <> pretty intervals <> " - 1, but was "
+            <> pretty (Vector.length ratios - 1)
+        -- I don't subtract 1 because I already put 1/1 on.

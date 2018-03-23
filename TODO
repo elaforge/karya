@@ -4276,7 +4276,7 @@ pitch: scales: scale:
         oct-degree type notation, like *hex.
       . I.e.: (TheoryFormat.letters pc_per_octave)
           (TheoryFormat.cipher pc_per_octave relative_fmt)
-    + Ok, so add make-just and make-just-r.
+    * Ok, so add make-just and make-just-r.
       . just-ratios sets a custom list of ratios, must be 7 or 11 elements long.
         limit-5 and limit-7 select from predefined lists.
       . just-intervals selects from the ratios, otherwise defaults to all 1s

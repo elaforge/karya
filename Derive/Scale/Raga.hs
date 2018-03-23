@@ -65,14 +65,39 @@ melakarta_ratios = zip melakarta_names $ map Vector.fromList $ do
     ma <- [ma1, ma2]
     ri <- [ri1, ri2, ri3]
     ga <- [ga1, ga2, ga3]
-    dha <- [da1, da2, da3]
+    da <- [da1, da2, da3]
     ni <- [ni1, ni2, ni3]
-    guard $ dha == da2 |- ni /= ni1
-    guard $ dha == da3 |- ni == ni3
+    guard $ da == da2 |- ni /= ni1
+    guard $ da == da3 |- ni == ni3
     guard $ ri == ri2 |- ga /= ga1
     guard $ ri == ri3 |- ga == ga3
-    return [sa, ri, ga, ma, pa, dha, ni]
+    return [sa, ri, ga, ma, pa, da, ni]
     where
+    infixr 3 |-
+    x |- y = not x || y
+
+-- | This is the same as 'melakarta_ratios', but with intervals.  I should
+-- probably derive melakarta_ratios from this.
+melakarta_intervals :: [(Text, [Pitch.Semi])]
+melakarta_intervals = zip melakarta_names $ do
+    ma <- [ma1, ma2]
+    ri <- [ri1, ri2, ri3]
+    ga <- [ga1, ga2, ga3]
+    da <- [da1, da2, da3]
+    ni <- [ni1, ni2, ni3]
+    guard $ da == da2 |- ni /= ni1
+    guard $ da == da3 |- ni == ni3
+    guard $ ri == ri2 |- ga /= ga1
+    guard $ ri == ri3 |- ga == ga3
+    let indices = [sa, ri, ga, ma, pa, da, ni, 12]
+    return $ zipWith (-) (tail indices) indices
+    where
+    [sa, ri1, ri2, ri3, ga3, ma1, ma2, pa, da1, da2, da3, ni3]
+        = take 12 [0..]
+    ga1 = ri2
+    ga2 = ri3
+    ni1 = da2
+    ni2 = da3
     infixr 3 |-
     x |- y = not x || y
 
