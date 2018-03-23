@@ -436,39 +436,41 @@ no_enharmonics _ _ = Right []
 
 -- | Read and parse an environ value, or throw a ScaleError.
 read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    (a -> Maybe val) -- ^ parse or Nothing
-    -> Maybe val
+    (a -> Maybe val) -> Maybe val
     -- ^ if Just, a missing value gets this, otherwise it's an error
     -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
-read_environ read_val maybe_deflt =
-    read_environ_ read_val (Right <$> maybe_deflt)
+read_environ parse maybe_deflt =
+    read_environ_ (maybe (Left Nothing) Right . parse) (Right <$> maybe_deflt)
 
 -- | Like 'read_environ', except the default is given to the parse function.
 read_environ_default :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     (a -> Maybe val) -> Maybe a
     -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
-read_environ_default read_val maybe_deflt name =
-    read_environ_ read_val (parse <$> maybe_deflt) name
+read_environ_default parse maybe_deflt name =
+    read_environ_ (maybe (Left Nothing) Right . parse)
+        (parse_default <$> maybe_deflt) name
     where
-    parse val = maybe
-        (environ_error ("unexpected default value: " <> ShowVal.show_val val))
-        Right (read_val val)
+    parse_default val = case parse val of
+        Just a -> Right a
+        Nothing -> environ_error $
+            "can't parse default: " <> ShowVal.show_val val
     environ_error = Left . BaseTypes.EnvironError name . Just
 
 read_environ_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    (a -> Maybe val) -> Maybe (Either PSignal.PitchError val)
+    (a -> Either (Maybe Text) val) -> Maybe (Either PSignal.PitchError val)
     -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
-read_environ_ read_val maybe_deflt name env = case Env.get_val name env of
+read_environ_ parse maybe_deflt name env = case Env.get_val name env of
     Left (Env.WrongType expected) ->
         environ_error ("expected type " <> pretty expected)
     Left Env.NotFound -> case maybe_deflt of
         Nothing -> Left $ BaseTypes.EnvironError name Nothing
         Just deflt -> deflt
-    Right val -> parse val
+    Right val -> parse_val val
     where
-    parse val = maybe
-        (environ_error ("unexpected value: " <> ShowVal.show_val val))
-        Right (read_val val)
+    parse_val val = case parse val of
+        Right a -> Right a
+        Left msg -> environ_error $ ShowVal.show_val val <> ": "
+            <> fromMaybe "can't parse" msg
     environ_error = Left . BaseTypes.EnvironError name . Just
 
 -- | This is 'read_environ', but for instances of 'Typecheck.TypecheckSymbol'.

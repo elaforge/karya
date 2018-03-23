@@ -13,7 +13,7 @@ module Util.Testing (
     Config(..), modify_test_config, with_test_name
     -- * assertions
     , check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like
-    , left_like , match
+    , left_like, match
     , Pattern
     -- ** exception assertions
     , throws

@@ -231,6 +231,28 @@ UNSORTED
         on it.  I'd want to collapse everything at a certain level, like zm.
       . It uses haskell-lexer instead of haskell-src, so I can remove that
         dep, which seems old.
+  - support cabal new-build
+    . The advantage is that people can install dependencies without messing up
+      their global package db.
+    . cabal sandbox already does this, but with new-build they can reuse
+      installed packages.
+    . I think to support this I install deps via new-build --only-dependencies
+      and then compile with: -no-user-package-db
+      -package-db $HOME/.cabal/store/ghc-8.4.1/package.db
+    . Also I could consider using a freeze file if there are problems with
+      deps.
+    . The advantage of doing this for travis is that I can resue the cache but
+      still use latest library versions as they come out.
+      . I think?  Or does it prefer what's installed?
+      . It's hard to test this with 8.4.1 because every single package was
+        just update, so only has one valid version.
+      . It will use global packages, but it won't use old versions in user db.
+      . Yes, it will use the newest packages available.  This is probably good
+        for CI, since it means I find out about new breakage.
+      . If I can set up performance CI, then I can find out about performance
+        regressions due to dependency changes.
+      . But locally maybe I want to freeze, to avoid churn whenever I install
+        anything new.
   upgrade to ghc 8.4.1
     compile time mehitabel:
       . 8.0.2:
@@ -4220,14 +4242,52 @@ pitch: scales: scale:
   * extend just to select 5, 7, 11 limit tunings
   * raga should probably be 5-limit, or at least take tuning if all just
     scales do.
-  - should just chromatic scales differentiate A4 and d5?
-    . In general they should probably deal with enharmonics, but I don't know
-      enough about just intonation.
+  just:
+    - should just chromatic scales differentiate A4 and d5?
+      . In general they should probably deal with enharmonics, but I don't know
+        enough about just intonation.
+    . How could use a custom set of intervals?  Or custom set of ratios?
+      . E.g. charukesi: M M m M m M M, 2 2 1 2 1 2 2
+      . The existing setup gives easy access to piano_layout and rotations,
+        with 5-limit and 7-limit, but ideally I want any ratios and layout.
+        I could do this in haskell, but it's awkward to recompile each time.
+      . How about: just-intervals = (list 2 2 1 2 1 2 2)
+        | just-ratios = (list ...) | scale=make-just
+      . I really want a better solution for Scale.Make, so I can write
+        scale = (make-just (list 2 2 1 2 1 2 2) (list 3/2 ...))
+        and not pollute the global environment, so maybe that's the real
+        problem.
+      . But maybe that's orthogonal, if I want that I should have named
+        arguments.
+      . Or, I could delete the keys out of the environment.  I wonder if that
+        would even be a reasonable keyword arg implementation if I put it in
+        Derive.Sig?
+      . Well, but I think scales can't do that since they're not really calls,
+        they'd have to hook into Derive.with_scale somehow.
+        . What if I replaced Scale.Make with with_scopes, so it can handle
+          the scope modification itself.
+        . Actually it already happens: get_scale makes the scale including
+          degree calls, then degree calls are stashed in scopes.
+        . I could just hack this one thing by adding
+          Scale.scale_delete_env_keys, which Derive.with_scale then looks at,
+          but I don't think I hate env pollution that much.
+      . Back to just, there are two possibilities: if I have 7 degrees then
+        I can use sa ri ga, but for a variable number of degrees, I'd need
+        oct-degree type notation, like *hex.
+      . I.e.: (TheoryFormat.letters pc_per_octave)
+          (TheoryFormat.cipher pc_per_octave relative_fmt)
+    + Ok, so add make-just and make-just-r.
+      . just-ratios sets a custom list of ratios, must be 7 or 11 elements long.
+        limit-5 and limit-7 select from predefined lists.
+      . just-intervals selects from the ratios, otherwise defaults to all 1s
+        or piano layout if the ratios have 11 elements.
+        There's only a point to it if using just-ratios=limit-5 or something.
   - add edo scale, which divides the octave
     . I could hardcode 2-n, but I'd rather do as an argument
     . Scale.Make could do this: edo=7 | scale=edo, but what about making Scale
       into a Val, and then doing scale = (edo 7)?
   - Think of a way to return scales from val calls
+    . Detailed notes in Derive.Scale.Interpolate NOTE [make-scale]
     . It's hard because of the Val and Derive circular dependency.
     . Can I put something in Val that will make a Scale without referring to
       Scale directly?
@@ -4239,6 +4299,13 @@ pitch: scales: scale:
       module.
     . At one point is it worth trying hs-boot again?  I remember I really
       hated it when I had it, because ghci tended to reload tons of stuff.
+    . Ok, can I do it without vals, but get the same kind of syntax?  Like
+      maybe LookupPattern for ValCall that evaluates to the scale symbol plus
+      whatever it is that makes the scale?
+    . Speaking of which, what exactly is that?
+      . Scale.All.lookup_scale -> Derive.state_lookup_scale -> Derive.get_scale
+      . So it actually makes the scale on every lookup.  I guess it has to be
+        this way, since it's not in Val, there's no way to store it.
   - I'd like to make a local scale derived from another one but some notes
     missing, and have input and transposition skip those.
     . Ideally it could be a modifier to any scale, so it would modify input

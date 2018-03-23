@@ -7,6 +7,7 @@ module Derive.Typecheck where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.TextUtil as TextUtil
@@ -363,6 +364,14 @@ instance Typecheck Double where
     to_type = num_to_type
 instance ToVal Double where to_val = VNum . Score.untyped
 instance TypecheckNum Double where num_type _ = ValType.TUntyped
+
+instance Typecheck (Ratio.Ratio Int) where
+    from_val = num_to_scalar $
+        Just . realToFrac . flip Ratio.approxRational 0.001 . Score.typed_val
+    to_type = num_to_type
+instance ToVal (Ratio.Ratio Int) where
+    to_val = VNum . Score.untyped . realToFrac
+instance TypecheckNum (Ratio.Ratio Int) where num_type _ = ValType.TUntyped
 
 instance Typecheck Int where
     from_val = from_integral_val

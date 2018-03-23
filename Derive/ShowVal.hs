@@ -5,6 +5,7 @@
 -- | The 'show_val' method turns haskell values back to tracklang expressions.
 -- It's similar to the opposite of 'Derive.Typecheck.Typecheck'.
 module Derive.ShowVal where
+import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 import qualified Numeric
 
@@ -52,6 +53,10 @@ instance ShowVal Int where
 
 instance ShowVal Double where
     show_val = Num.showFloat 3
+
+instance ShowVal (Ratio.Ratio Int) where
+    show_val r =
+        show_val (Ratio.numerator r) <> "/" <> show_val (Ratio.denominator r)
 
 instance ShowVal a => ShowVal (Maybe a) where
     show_val Nothing = "Nothing"

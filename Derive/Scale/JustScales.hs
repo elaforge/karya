@@ -121,6 +121,11 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
         ScaleDegree.scale_degree_just scale (smap_named_intervals smap) 0
     fmt = smap_fmt smap
 
+-- | Call doc that assumes I'm using 'default_named_intervals'.
+default_call_doc :: Derive.DocumentedCall
+default_call_doc = Scales.scale_degree_doc $ \scale ->
+    ScaleDegree.scale_degree_just scale default_named_intervals 0
+
 -- | Group keys and format them into fields suitable to pass to 'make_scale'.
 -- The 'Key's are expected to be relative, so their 'key_tonic's are ignored.
 group_relative_keys :: [(Pitch.Key, Key)] -> [(Doc.Doc, Doc.Doc)]
@@ -198,8 +203,7 @@ note_to_call scale smap note =
 
 pitch_nn :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNn
 pitch_nn smap relative (PSignal.PitchConfig env controls) = do
-    let maybe_key = Scales.environ_key env
-    key <- read_key smap maybe_key
+    key <- read_key smap $ Scales.environ_key env
     tuning <- case smap_default_tuning smap of
         Nothing -> return ""
         Just deflt -> Scales.read_environ id (Just deflt) EnvKey.tuning env
