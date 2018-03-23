@@ -3,7 +3,14 @@
 # avoid recursion.  That's brittle, I should probably use .ghci magic to
 # read the flags.
 
-# Turn off idle time GC, since it causes input lag when lots of modules are
-# loaded.
-exec ghci -v0 +RTS -I0 -RTS $(cat build/debug/ghci-flags) \
-    -fdefer-type-errors "$@"
+args=(
+    -v0
+    # Turn off idle time GC, since it causes input lag when lots of modules
+    # are loaded.
+    +RTS -I0 -RTS
+    $(cat build/debug/ghci-flags)
+
+    # disabled due to http://ghc.haskell.org/trac/ghc/ticket/14963
+    # -fdefer-type-errors
+)
+exec ghci $args "$@"
