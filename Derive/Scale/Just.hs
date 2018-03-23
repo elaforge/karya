@@ -146,8 +146,7 @@ scale_make_just scale_id fmt =
         <> ShowVal.doc just_intervals <> " to select from it. The intervals\
         \ default to replicate 7 1, and the number of ratios should be\
         \ sum intervals - 1 (the initial 1/1 is implicit).\
-        \ Ratios can be a list, or one of "
-        <> literals (Map.keys tunings)
+        \ Ratios can be a list, or one of " <> literals (Map.keys tunings)
         <> ", and intervals can be a list or one of "
         <> literals (map fst named_intervals
             ++ map fst Raga.melakarta_intervals)
@@ -174,7 +173,7 @@ make_just scale_id fmt env _ = do
             , key_ratios = Map.fromList [("", ratios)]
             }
     let smap = JustScales.scale_map Map.empty default_key Nothing fmt
-    return $ JustScales.make_scale scale_id smap "doc unused" []
+    return $ JustScales.make_scale scale_id smap "unused doc" []
 
 parse_intervals :: Env.Environ -> Either BaseTypes.PitchError [Pitch.Semi]
 parse_intervals =

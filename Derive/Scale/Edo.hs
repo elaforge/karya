@@ -50,7 +50,7 @@ make_edo scale_id env _ = do
             { ChromaticScales.smap_semis_to_nn = \_config ->
                 return . semis_to_nn divisions
             }
-    return $ ChromaticScales.make_scale scale_id smap "doc"
+    return $ ChromaticScales.make_scale scale_id smap "unused doc"
 
 semis_to_nn :: Int -> Pitch.FSemi -> Pitch.NoteNumber
 semis_to_nn divisions = Pitch.NoteNumber . (+12) . (*step)

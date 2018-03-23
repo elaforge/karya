@@ -162,7 +162,7 @@ STATUS
   - solkattu: implement korvai sections
     . I'm motivated to do this because Solkattu2018.yt_mannargudi2 requires
       eddupu only on the actual korvai variations, not development.
-  + upgrade to ghc 8.4.1
+  * upgrade to ghc 8.4.1
     . Sent patches to other projects, waiting for everyone to get updated.
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
@@ -253,7 +253,10 @@ UNSORTED
         regressions due to dependency changes.
       . But locally maybe I want to freeze, to avoid churn whenever I install
         anything new.
-  upgrade to ghc 8.4.1
+  track down 8.4.1 performance regression:
+    . performance regression notes: http://ghc.haskell.org/trac/ghc/ticket/14964
+    - try with 8.0.2
+    - try without RTS flags
     compile time mehitabel:
       . 8.0.2:
         RunTests      549.10s user 118.45s system 343% cpu 3:14.53 total
@@ -280,6 +283,7 @@ UNSORTED
         . debug/seq   329.67s user 23.86s system 352% cpu 1:40.38 total
         . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
 
+  upgrade to ghc 8.4.1
     first make sure deps build
       - sandi, filed bug.  It's only used in Ness.* though.
       * conduit-audio
