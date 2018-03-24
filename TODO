@@ -3371,7 +3371,9 @@ solkattu:
           section .> endAt (3/2) $ takita
         . Not sure if it's worth it just to put section at the beginning.  It's
           not important to see, since it's always the same.
-    - use sectionStart and sectionEnd for alignment checks
+    * use sectionStart and sectionEnd for alignment checks
+      . For sectionStart I have to have special support in Realize, so it can
+        start >0, and format can leave that time blank.
     - remove eddupu, but infer eddupu tag from sectionEnd
     - MetadataGlobal.exercise should mark the sections as type=exercise too
   * I need a way to transform inside a group, e.g.

@@ -17,18 +17,16 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
             (Just ((0, 4, 05), (0, 5, 22))) $
         eddupu (3/2/2) $
         korvai adi mridangam $ map (smap su)
-    [ devel $ endOn 0 $ section $
+    [ devel $ endOn 4 $ section $
         sarvaM 8 . theme.din.__4 . in3 (1^theme) . theme.din.__8 . sarvaD 4
         . theme.din.__4 . in3 (1^theme) . din.__6
         . su tarikita.theme.tat.__6
         . su (kitataka.tarikita) . in3 theme . din.__2
         . restD 1 . su tarikita.theme.din.__2
         . su (kitataka.tarikita) . in3 theme
-        . restD (8 + 3/2) -- TODO section end at sam
-    , ending $ startOn 4 $ section $
-        restD 8 -- TODO section start at arudi
-        . (repeat 3 $ theme . spread 3 tdgnt . theme . spread 2 tdgnt . theme
-            . tri_ __3 (tri p5))
+    , ending $ startOn 4 $ endOn (3/4) $ section $
+        repeat 3 $ theme . spread 3 tdgnt . theme . spread 2 tdgnt . theme
+            . tri_ __3 (tri p5)
             -- Reduce __3 karvai in utarangam to __2 to arrive on sam.
     ]
     where
@@ -71,22 +69,24 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
         recording "https://www.youtube.com/watch?v=E7PLgnsFBaI"
             (Just ((0, 9, 30), (0, 10, 30))) $
         eddupu (3/2) $
-        korvaiS adi mridangam $ map (nadai 6 • su)
-    -- TODO I need per-section eddupu because the development lands on sam
-    [ sarva 6 . taka.naka.p8 . sarva 2 . __.__.tat.__.p8
+        korvai adi mridangam $ map (smap (nadai 6 • su))
+    [ devel $ section $
+        sarva 6 . taka.naka.p8 . sarva 2 . __.__.tat.__.p8
         . sarva 1 .__.__. tktu . in3 p8
-    , sarva 2 . tang.__.tang.__ . p8 . nadai 4 p8 . din.__3 . p9 . din.__.na.__
+    , devel $ section $
+        sarva 2 . tang.__.tang.__ . p8 . nadai 4 p8 . din.__3 . p9
+            . din.__.na.__
         . tri_ (din.__.na.__) p8 . in3 p8
-    , din.__4 . join (din.__4)
+    , devel $ scomment "gradual transition to nadai 4" $ section $
+        din.__4 . join (din.__4)
         (replicate 2 (p8 . in3 p8) ++ replicate 2 (p8 . nadai 4 p8))
-        -- I think this is actually a gradual transition from in3 to nadai 4.
 
-    -- korvai
-    , repeat 3 $ suffixes (in3 p8 . din.__.ga)
-        [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
-    -- korvai
-    , repeat 3 $ suffixes (nadai 4 p8 . din.__.ga)
-        [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
+    , ending $ endOn (3/4) $ section $
+        repeat 3 $ suffixes (in3 p8 . din.__.ga)
+            [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
+    , ending $ endOn (3/4) $ section $
+        repeat 3 $ suffixes (nadai 4 p8 . din.__.ga)
+            [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
     ]
     where
     p8 = group $ kita.ki.na.takadinna

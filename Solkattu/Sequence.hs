@@ -224,9 +224,10 @@ tempoNotes = concatMap $ \n -> case n of
     FGroup _ _ children  -> tempoNotes children
     FNote tempo note -> [(tempo, note)]
 
-tempoToState :: HasMatras a => Tala.Tala -> [(Tempo, a)]
+tempoToState :: HasMatras a => Tala.Tala -> Duration -- ^ start time
+    -> [(Tempo, a)]
     -> (State, [(State, a)])
-tempoToState tala = List.mapAccumL toState initialState
+tempoToState tala start = List.mapAccumL toState (stateFrom tala start)
     where
     toState state (tempo, note) =
         (advanceStateBy tala dur state, (state, note))
@@ -333,6 +334,9 @@ instance Pretty State where
             , ("matra", Pretty.format matra)
             ]
 
+stateFrom :: Tala.Tala -> Duration -> State
+stateFrom tala dur = advanceStateBy tala dur initialState
+
 initialState :: State
 initialState = State
     { stateAvartanam = 0
@@ -347,11 +351,13 @@ statePosition state =
 stateMatraPosition :: State -> Duration
 stateMatraPosition state = fromIntegral (stateAkshara state) + stateMatra state
 
+-- | Show avartanam, akshara, and matra as avartanam:akshara+n/d.
 showPosition :: State -> Text
-showPosition state =
-    "avartanam " <> showt (stateAvartanam state + 1)
-    <> ", akshara " <> showt (stateAkshara state)
-    <> if stateMatra state == 0 then "" else " + " <> pretty (stateMatra state)
+showPosition state = showt (stateAvartanam state + 1)
+    <> ":" <> pretty (stateMatraPosition state)
+
+showImproper :: Duration -> Text
+showImproper (Duration d) = Pretty.improper_ratio d
 
 -- * functions
 

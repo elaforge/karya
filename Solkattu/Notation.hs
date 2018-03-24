@@ -2,6 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- TODO otherwise ghc >=8.4.1 complains about extra Semigroup
+-- Remove when I can drop 8.0.2 compatibility.
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 {- | Generic combinators for solkattu patterns.  Because these are expected to
     be called as part of the DSL, impure exceptions are allowed, via
     'Solkattu.throw'.

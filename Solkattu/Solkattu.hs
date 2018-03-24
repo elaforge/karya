@@ -123,11 +123,15 @@ instance Pretty Group where
 -- | A note that can take up a variable amount of space.  Since it doesn't have
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
 data Space = Rest | Sarva
+    -- | This is not actual rest time in the performance, but inserted in the
+    -- score for a start offset.
+    | Offset
     deriving (Eq, Ord, Show)
 
 instance Pretty Space where
     pretty Rest = "__"
     pretty Sarva = "=="
+    pretty Offset = ".."
 
 data NoteT sollu = NoteT {
     _sollu :: !sollu

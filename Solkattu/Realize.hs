@@ -12,7 +12,6 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -132,6 +131,7 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
     notation n = case n of
         Space Solkattu.Rest -> "_"
         Space Solkattu.Sarva -> "="
+        Space Solkattu.Offset -> " "
         Note s -> Solkattu.notation s
         Pattern p -> Solkattu.notation p
         Alignment _ -> "" -- this should be filtered out prior to render
@@ -144,6 +144,7 @@ instance Pretty stroke => Pretty (Note stroke) where
     pretty n = case n of
         Space Solkattu.Rest -> "_"
         Space Solkattu.Sarva -> "="
+        Space Solkattu.Offset -> "."
         Note s -> pretty s
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
@@ -155,25 +156,28 @@ noteDuration tempo = (* S.matraDuration tempo) . fromIntegral . S.matrasOf
 
 -- | Verify that the notes start and end at sam, and the given Alignments
 -- fall where expected.
-verifyAlignment :: Tala.Tala -> S.Duration -> [(S.Tempo, Note stroke)]
-    -> Maybe (Int, Error)
+verifyAlignment :: Tala.Tala -> S.Duration -> S.Duration
+    -> [(S.Tempo, Note stroke)] -> Maybe (Int, Error)
     -- ^ (index where the error occured, error)
-verifyAlignment tala eddupu notes
+verifyAlignment tala startOn endOn notes
     | tala == Tala.any_beats = Nothing
     | otherwise = msum (map verify (zip [0..] states)) <|> checkEnd
     where
-    (finalState, states) = S.tempoToState tala notes
+    (finalState, states) = S.tempoToState tala startOn notes
     -- Either finalState one is at 0, or the last non-rest note is.
     checkEnd
         | atEnd finalState || maybe False atEnd finalNote = Nothing
         | otherwise = Just
             ( length states
-            , "korvai should end on or before sam"
-                <> (if eddupu == 0 then "" else showImproper eddupu)
-                <> ": " <> S.showPosition finalState
-                <> "; " <> pretty left <> " to sam"
+            , "should end on sam" <> endMsg
+                <> ", actually ends on " <> S.showPosition finalState
+                <> ", or sam - " <> pretty left
             )
         where
+        endMsg
+            | endOn == 0 = ""
+            | endOn > 0 = "+" <> S.showImproper endOn
+            | otherwise = S.showImproper endOn
         finalNote = fst <$> List.find (not . isSpace . snd) (reverse states)
         left = fromIntegral (Tala.tala_aksharas tala)
             - S.stateMatraPosition finalState
@@ -185,21 +189,11 @@ verifyAlignment tala eddupu notes
     isSpace (Space _) = True
     isSpace _ = False
     atEnd state
-        | eddupu >= 0 = akshara == eddupu
-        | otherwise = akshara - fromIntegral (Tala.tala_aksharas tala) == eddupu
+        | endOn >= 0 = akshara == endOn
+        | otherwise = akshara - fromIntegral (Tala.tala_aksharas tala) == endOn
         where akshara = S.stateMatraPosition state
     atAkshara akshara state =
         S.stateAkshara state == akshara && S.stateMatra state == 0
-
-showImproper :: S.Duration -> Text
-showImproper dur = mconcat
-    [ if dur > 0 then "+" else ""
-    , showt num
-    , if denom == 1 then "" else "/" <> showt denom
-    ]
-    where
-    (num, denom) =
-        (Ratio.numerator (realToFrac dur), Ratio.denominator (realToFrac dur))
 
 -- * Patterns
 

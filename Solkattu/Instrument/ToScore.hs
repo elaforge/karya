@@ -43,4 +43,5 @@ toScore strokes = (events, [])
         Realize.Pattern p -> Just $ Expr.to_expr p
         Realize.Space Solkattu.Rest -> Nothing
         Realize.Space Solkattu.Sarva -> Nothing -- TODO
+        Realize.Space Solkattu.Offset -> Nothing
         Realize.Alignment {} -> Nothing

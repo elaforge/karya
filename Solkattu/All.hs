@@ -114,8 +114,8 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2017",640,"c_17_12_11") Solkattu.Score.Solkattu2017.c_17_12_11
     , setLocation ("Solkattu.Score.Solkattu2017",660,"speaking1") Solkattu.Score.Solkattu2017.speaking1
     , setLocation ("Solkattu.Score.Solkattu2018",14,"yt_mannargudi1") Solkattu.Score.Solkattu2018.yt_mannargudi1
-    , setLocation ("Solkattu.Score.Solkattu2018",47,"e_18_02_26") Solkattu.Score.Solkattu2018.e_18_02_26
-    , setLocation ("Solkattu.Score.Solkattu2018",69,"yt_mannargudi2") Solkattu.Score.Solkattu2018.yt_mannargudi2
+    , setLocation ("Solkattu.Score.Solkattu2018",45,"e_18_02_26") Solkattu.Score.Solkattu2018.e_18_02_26
+    , setLocation ("Solkattu.Score.Solkattu2018",67,"yt_mannargudi2") Solkattu.Score.Solkattu2018.yt_mannargudi2
     , setLocation ("Solkattu.Score.Solkattu2018",108,"yt_pmi1") Solkattu.Score.Solkattu2018.yt_pmi1
     , setLocation ("Solkattu.Score.Solkattu2018",148,"yt_karaikudi1") Solkattu.Score.Solkattu2018.yt_karaikudi1
     , setLocation ("Solkattu.Score.SolkattuMohra",33,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra

@@ -127,9 +127,10 @@ data Section stroke = Section {
     -- used everywhere so I have to change it all at once.  But score is
     -- already used by e.g. ToScore.
     sectionSequence :: !(SequenceT stroke)
-    -- | Where the section should start and end.  (0, 0) means start and end on
-    -- sam.
+    -- | Where the section should start.  0 means start on sam.
     , sectionStart :: !S.Duration
+    -- | Expect the section to end at this time.  It can be negative, in which
+    -- case it falls before sam.  Useful for eddupu.
     , sectionEnd :: !S.Duration
     -- | This is lazy because it might have a 'Solkattu.Exception' in it.  This
     -- is because 'inferSectionTags' has to evaluate the sequence.
@@ -243,37 +244,54 @@ type Flat stroke =
 realize :: Solkattu.Notation stroke => Instrument stroke -> Bool -> Korvai
     -> [Either Error ([Flat stroke], Error)]
 realize instrument realizePatterns korvai = case korvaiSections korvai of
-    Sollu seqs ->
-        map (realize1 (instFromSollu instrument smap) . sectionSequence) seqs
-    Mridangam seqs -> case instFromMridangam instrument of
+    Sollu sections ->
+        map (realize1 (instFromSollu instrument smap)) sections
+    Mridangam sections -> case instFromMridangam instrument of
         Nothing -> [Left "no sequence, wrong instrument type"]
-        Just realizeNote -> map (realize1 realizeNote . sectionSequence) seqs
+        Just realizeNote -> map (realize1 realizeNote) sections
     where
     realize1 realizeNote =
         fmap (first (instPostprocess instrument))
         . realizeInstrument realizePatterns realizeNote inst tala
-            (korvaiEddupu korvai)
     smap = Realize.instStrokeMap inst
     tala = korvaiTala korvai
     inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
 
 realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke)
     => Bool -> Realize.GetStroke sollu stroke
-    -> Realize.Instrument stroke -> Tala.Tala -> S.Duration -> SequenceT sollu
+    -> Realize.Instrument stroke -> Tala.Tala -> Section sollu
     -> Either Error ([Flat stroke], Error)
-realizeInstrument realizePatterns getStroke inst tala eddupu sequence = do
+realizeInstrument realizePatterns getStroke inst tala section = do
+    startSpace <- spaces (sectionStart section)
     realized <- Realize.formatError $
-        Realize.realize pattern getStroke $ flatten sequence
-    let alignError = Realize.verifyAlignment tala eddupu $ S.tempoNotes realized
-    return (realized, maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError)
+        Realize.realize pattern getStroke $
+        flatten (sectionSequence section)
+    let alignError = Realize.verifyAlignment tala
+            (sectionStart section) (sectionEnd section)
+            (S.tempoNotes realized)
+    return
+        ( startSpace ++ realized
+        , maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError
+        )
     -- TODO maybe put a carat in the output where the error index is
     where
     pattern
         | realizePatterns = Realize.realizePattern (Realize.instPatterns inst)
         | otherwise = Realize.keepPattern
 
+-- data Flat g a = FGroup !Tempo !g ![Flat g a] | FNote !Tempo !a
 flatten :: [S.Note g (Solkattu.Note sollu)] -> [S.Flat g (Solkattu.Note sollu)]
 flatten = Solkattu.cancelKarvai . S.flatten
+
+spaces :: S.Duration -> Either Error [S.Flat g (Realize.Note sollu)]
+spaces dur = do
+    -- Cancel out the nadai.  So d is now in s0 matras.
+    let s0_matras = realToFrac dur * fromIntegral (S._nadai S.defaultTempo)
+    speeds <- S.decomposeM s0_matras
+    return $ map (\s -> S.FNote (speed s) space) speeds
+    where
+    space = Realize.Space Solkattu.Offset
+    speed s = S.defaultTempo { S._speed = s }
 
 -- TODO broken by KorvaiType, fix this
 -- vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai

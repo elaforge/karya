@@ -432,17 +432,16 @@ test_formatSpeed = do
 -- * verifyAlignment
 
 test_verifyAlignment = do
-    let f = verifyAlignment tdktSmap Tala.adi_tala 0
+    let f = verifyAlignment tdktSmap Tala.adi_tala 0 0
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
     equal (f (take 4 tdkt)) $ Right $ Just
         ( 4
-        , "korvai should end on or before sam: avartanam 1, akshara 1; 7 to sam"
+        , "should end on sam, actually ends on 1:1, or sam - 7"
         )
     equal (f (take 6 tdkt)) $ Right $ Just
         (6
-        , "korvai should end on or before sam: avartanam 1, akshara 1 + 1/2;\
-            \ 6+1/2 to sam"
+        , "should end on sam, actually ends on 1:1+1/2, or sam - 6+1/2"
         )
     equal (f (take (8*4) tdkt)) (Right Nothing)
     equal (f (Dsl.speed (-2) $ take 8 tdkt)) (Right Nothing)
@@ -454,27 +453,27 @@ test_verifyAlignment = do
     equal (f (Dsl.speed (-2) $ take 4 tdkt <> Dsl.akshara 4 <> take 4 tdkt))
         (Right Nothing)
     equal (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt)) $ Right
-        (Just (3, "expected akshara 4, but at avartanam 1, akshara 0 + 3/4"))
+        (Just (3, "expected akshara 4, but at 1:3/4"))
 
 test_verifyAlignment_eddupu = do
     let f = verifyAlignment tdktSmap Tala.adi_tala
         tdkt = cycle $ ta <> di <> ki <> ta
-    equal (f 1 (take 8 tdkt)) $ Right $ Just
-        (8, "korvai should end on or before sam+1: avartanam 1, akshara 2;\
-            \ 6 to sam")
-    equal (f 1 (take 4 tdkt)) $ Right Nothing
-    equal (f (-1) (take 4 tdkt)) $ Right $ Just
-        (4, "korvai should end on or before sam-1: avartanam 1, akshara 1;\
-            \ 7 to sam")
-    equal (f (-1) (take (4*7) tdkt)) $ Right Nothing
+    equal (f 0 1 (take 8 tdkt)) $ Right $ Just
+        (8, "should end on sam+1, actually ends on 1:2, or sam - 6")
+    equal (f 0 1 (take 4 tdkt)) $ Right Nothing
+    equal (f 0 (-1) (take 4 tdkt)) $ Right $ Just
+        (4, "should end on sam-1, actually ends on 1:1, or sam - 7")
+    equal (f 0 (-1) (take (4*7) tdkt)) $ Right Nothing
+
+    equal (f 0 0 (take (8*4) tdkt)) $ Right Nothing
+    equal (f 1 1 (take (8*4) tdkt)) $ Right Nothing
 
 test_verifyAlignmentNadaiChange = do
-    let f = verifyAlignment tdktSmap Tala.adi_tala 0
+    let f = verifyAlignment tdktSmap Tala.adi_tala 0 0
         tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
     equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt))) $ Right $ Just
-        (5, "korvai should end on or before sam: avartanam 1, akshara 1;\
-            \ 7 to sam")
+        (5, "should end on sam, actually ends on 1:1, or sam - 7")
 
     -- More complicated example:
     -- 0 __ Ta __ di __ ki th tm
@@ -503,10 +502,10 @@ tdktSmap = expect_right $ Realize.strokeMap
     where M.Strokes {..} = M.notes
 
 verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> Tala.Tala -> Sequence.Duration -> Korvai.Sequence
+    -> Tala.Tala -> Sequence.Duration -> Sequence.Duration -> Korvai.Sequence
     -> Either Text (Maybe (Int, Text))
-verifyAlignment smap tala eddupu =
-    fmap (Realize.verifyAlignment tala eddupu . Sequence.tempoNotes)
+verifyAlignment smap tala startOn endOn =
+    fmap (Realize.verifyAlignment tala startOn endOn . Sequence.tempoNotes)
         . realize smap
 
 -- * util

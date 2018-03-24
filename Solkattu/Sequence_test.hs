@@ -35,7 +35,7 @@ test_flattenWith = do
 
 test_tempoToState = do
     let f = map (eState . fst) . snd
-            . Sequence.tempoToState Tala.adi_tala
+            . Sequence.tempoToState Tala.adi_tala 0
             . Sequence.tempoNotes . Sequence.flatten
     equal (f [note, note, note, note, note])
         [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0)]

@@ -6,6 +6,7 @@
 module Solkattu.SectionGlobal (
     startOn, endOn
     -- * tags
+    , scomment
     , devel, ending, localVar
 ) where
 import qualified Solkattu.Korvai as Korvai
@@ -16,11 +17,16 @@ import qualified Solkattu.Tags as Tags
 import Global
 
 
+-- | Set expected starting and ending time.  Useful for eddupu, or sections
+-- which are split in the middle of an avartanam.
 startOn, endOn :: Sequence.Duration -> Section stroke -> Section stroke
 startOn dur section = section { Korvai.sectionStart = dur }
 endOn dur section = section { Korvai.sectionEnd = dur }
 
 -- * tags
+
+scomment :: Text -> Section sollu -> Section sollu
+scomment = withTag Tags.comment
 
 devel, ending, localVar :: Section sollu -> Section sollu
 devel = withType Tags.development
