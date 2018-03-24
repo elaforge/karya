@@ -18,7 +18,8 @@ module Solkattu.Dsl (
     -- * re-exports
     , module Solkattu.Korvai
     , module Solkattu.Html
-    , module Solkattu.Metadata
+    , module Solkattu.MetadataGlobal
+    , module Solkattu.SectionGlobal
     , module Solkattu.Sequence
     , module Solkattu.Solkattu
     , module Solkattu.Notation
@@ -45,9 +46,10 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai, eddupu, printKonnakol)
+import Solkattu.Korvai (Korvai, eddupu, printKonnakol, section, smap)
 import Solkattu.Html (writeHtmlKorvai)
-import Solkattu.Metadata
+import Solkattu.MetadataGlobal
+import Solkattu.SectionGlobal
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S

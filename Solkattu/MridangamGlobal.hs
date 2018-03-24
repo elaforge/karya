@@ -12,6 +12,7 @@ module Solkattu.MridangamGlobal (
     Sequence
     , (&)
     , korvai, korvai1
+    , korvaiS, korvaiS1
     , k, t, n, d, u, v, i, y, j, p, o, od
     , on, l
     , closed, thomLH, o1
@@ -38,6 +39,7 @@ import Global
 
 type Sequence = SequenceT Stroke
 type Stroke = Realize.Stroke Mridangam.Stroke
+type Section = Korvai.Section Stroke
 
 (&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
 (&) = merge
@@ -67,11 +69,18 @@ toStroke1 :: (CallStack.Stack, Pretty a, Pretty g) =>
 toStroke1 (Sequence.Note (Solkattu.Note note)) = Solkattu._sollu note
 toStroke1 note = throw $ "expected sollu: " <> pretty note
 
-korvai :: Tala.Tala -> [Sequence] -> Korvai.Korvai
+korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
 korvai tala = Korvai.mridangamKorvai tala Mridangam.defaultPatterns
 
-korvai1 :: Tala.Tala -> Sequence -> Korvai.Korvai
-korvai1 tala sequence = korvai tala [sequence]
+korvai1 :: Tala.Tala -> Section -> Korvai.Korvai
+korvai1 tala section = korvai tala [section]
+
+korvaiS :: Tala.Tala -> [Sequence] -> Korvai.Korvai
+korvaiS tala =
+    Korvai.mridangamKorvaiInferSections tala Mridangam.defaultPatterns
+
+korvaiS1 :: Tala.Tala -> Sequence -> Korvai.Korvai
+korvaiS1 tala sequence = korvaiS tala [sequence]
 
 makeNote1 :: stroke -> Sequence.Note g (Solkattu.Note stroke)
 makeNote1 stroke = Sequence.Note $ Solkattu.Note $ Solkattu.note stroke

@@ -13,7 +13,7 @@ import Solkattu.SolkattuGlobal
 c_16_09_28 :: Korvai
 c_16_09_28 = date 2016 9 28 $ ganesh $
     similarTo "Solkattu2016" "c_16_12_06_sriram1" $
-    korvai1 adi mridangam $ su $
+    korvaiS1 adi mridangam $ su $
         group tat_dit_ . tri_ __   (group nakataka) . __6
     . dropM 2 tat_dit_ . tri_ __ (dropM 2 nakataka) . __6
     . dropM 4 tat_dit_ . tri_ __ (dropM 4 nakataka) . __6
@@ -37,7 +37,7 @@ c_16_09_28 = date 2016 9 28 $ ganesh $
         ]
 
 c_16_12_06_sriram1 :: Korvai
-c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
+c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvaiS adi mridangam $
     map su $ map (purvangam.)
     [ tri_ (dheem.__4) ta_takadin
     , tri_ (dheem.__4) (su $ p6 . tk.p6 . tktu.p6)
@@ -73,7 +73,8 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvai adi mridangam $
         ]
 
 c_16_12_06_sriram2 :: Korvai
-c_16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai1 adi mridangam $ nadai 7 $
+c_16_12_06_sriram2 =
+    date 2016 12 6 $ sriram $ korvaiS1 adi mridangam $ nadai 7 $
       repeat 2 takadinnanakita . f1       . din.__7
     . repeat 2 takadinnanakita . f1.f2    . din.__7
     . repeat 2 takadinnanakita . f1.f2.f3 . 2^din.__7
@@ -94,7 +95,7 @@ c_16_12_06_sriram2 = date 2016 12 6 $ sriram $ korvai1 adi mridangam $ nadai 7 $
         ]
 
 c_16_12_06_janahan1 :: Korvai
-c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai1 adi mridangam $ su $
+c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
     tri (mconcat (expand 3 2 theme)) . trin __ (tri p5) (tri p6) (tri p7)
     where
     theme = takadinna.takita.din.__.na
@@ -103,7 +104,7 @@ c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvai1 adi mridangam $ su $
         ]
 
 c_16_12_06_janahan2 :: Korvai
-c_16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvai1 adi mridangam $ su $
+c_16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
     tri theme . tri (dropM 2 theme) . tri (dropM 4 theme)
         . spread 2 tdgnt . p6
         . spread 2 tdgnt . p6 . tk.p6

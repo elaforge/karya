@@ -82,7 +82,7 @@ makeKorvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
     -> SolkattuGlobal.Sequence -> SolkattuGlobal.Korvai
 makeKorvai strokes seq = korvai
     where
-    korvai = SolkattuGlobal.korvai1 Tala.adi_tala
+    korvai = SolkattuGlobal.korvaiS1 Tala.adi_tala
         (SolkattuGlobal.makeMridangam0 strokes)
         seq
 

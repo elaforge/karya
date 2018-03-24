@@ -26,6 +26,7 @@ import qualified Solkattu.Html as Html
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (date)
 import qualified Solkattu.Metadata as Metadata
+import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -69,7 +70,7 @@ format (i, korvai) =
     tagsText = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
         Seq.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
         Map.toAscList tags
-    Korvai.Tags tags = Korvai._tags $ Korvai.korvaiMetadata korvai
+    Tags.Tags tags = Korvai._tags $ Korvai.korvaiMetadata korvai
 
 -- * write
 

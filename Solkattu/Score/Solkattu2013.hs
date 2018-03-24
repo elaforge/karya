@@ -19,14 +19,14 @@ import Global
 -- * chatusra nadai
 
 c_13_07_23 :: Korvai
-c_13_07_23 = date 2013 7 23 $ ganesh $ korvai1 adi mridangam $
+c_13_07_23 = date 2013 7 23 $ ganesh $ korvaiS1 adi mridangam $
     trin tat_din__ (tri p5) (tri p6) (tri p7)
     where
     tat_din__ = tat.__.din.__3
     mridangam = makeMridangam [(tat_din__, [k, od])]
 
 c_13_08_14 :: Korvai
-c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
+c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
     [     group (theme 2 1) . p5
       . dropM 2 (theme 2 2) . p6 . p6
       . dropM 4 (theme 2 3) . tri p7 . tri p6 . tri p5
@@ -66,7 +66,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvai adi (mridangam <> kendang)
     pat9 = ta.__.ka.__.p5
 
 c_yt1 :: Korvai
-c_yt1 = source "youtube" $ korvai1 adi mridangam $
+c_yt1 = source "youtube" $ korvaiS1 adi mridangam $
     -- TODO ... `replace` (tat.__.tam.__4) (taka.tam.__4)
     reduceTo 4 2 theme . tri_ (tam.__) (tri p6)
     where
@@ -78,7 +78,7 @@ c_yt1 = source "youtube" $ korvai1 adi mridangam $
         ]
 
 c_13_10_29 :: Korvai
-c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam
+c_13_10_29 = date 2013 10 29 $ ganesh $ korvaiS adi mridangam
     [ sequence
     , nadai 6 sequence
     ]
@@ -92,7 +92,7 @@ c_13_10_29 = date 2013 10 29 $ ganesh $ korvai adi mridangam
         ]
 
 c_13_11_05 :: Korvai
-c_13_11_05 = date 2013 11 5 $ ganesh $ korvai1 adi mridangam $
+c_13_11_05 = date 2013 11 5 $ ganesh $ korvaiS1 adi mridangam $
     tri_ (tam.__4) theme
     . theme . tam.__4 . theme . tam.__3 . su p6.tam.__3 . su p6
     where
@@ -100,7 +100,7 @@ c_13_11_05 = date 2013 11 5 $ ganesh $ korvai1 adi mridangam $
     mridangam = makeMridangam [(tam, [u])]
 
 c_13_11_12 :: Korvai
-c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam
+c_13_11_12 = date 2013 11 12 $ ganesh $ korvaiS adi mridangam
     [ sequence, nadai 6 sequence
     ]
     where
@@ -117,7 +117,7 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvai adi mridangam
         ]
 
 c_13_12_11 :: Korvai
-c_13_12_11 = date 2013 12 11 $ ganesh $ korvai adi mridangam
+c_13_12_11 = date 2013 12 11 $ ganesh $ korvaiS adi mridangam
     -- development for theme14
     [ sarvaD 8 . sarvaSam adi theme14
         . sarvaSam adi theme14, sarvaSam adi theme14
@@ -152,7 +152,7 @@ c_13_12_11 = date 2013 12 11 $ ganesh $ korvai adi mridangam
 -- * kanda nadai
 
 make_k1 :: [Sequence] -> Korvai
-make_k1 = ganesh • korvai adi k1_mridangam • map (nadai 5)
+make_k1 = ganesh • korvaiS adi k1_mridangam • map (nadai 5)
 
 k1_1 :: Korvai
 k1_1 = make_k1 [sequence p g | g <- gaps, p <- [p5, p6, p7]]
@@ -208,7 +208,7 @@ k1_mridangam = makeMridangam
     ]
 
 k2 :: Bool -> Korvai
-k2 chatusram_transition = korvai1 adi k1_mridangam $ nadai 5 $
+k2 chatusram_transition = korvaiS1 adi k1_mridangam $ nadai 5 $
       din.__3 . p5.tam.__4.p6.ta.__
     . din.__3 . p5.tam.__4.p6.ta.__.ta.__
     . din.__3 . p5
@@ -219,7 +219,7 @@ k2 chatusram_transition = korvai1 adi k1_mridangam $ nadai 5 $
     -- development is din_3.p5.ta.__.din
 
 k3s :: Korvai
-k3s = korvai adi mridangam $ map (nadai 5)
+k3s = korvaiS adi mridangam $ map (nadai 5)
     [   dit . __  . tangkita . dit   . tat . din§2 . __
       . dit . tat . tangkita . dit§4 . tat . din . __
       . ta . __ . dit . tat . din . __
@@ -264,7 +264,7 @@ t_sarva1 =
     -- are implicit.
 
 t1s :: Korvai
-t1s = ganesh $ korvai adi mridangam $ map (nadai 6)
+t1s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     -- TODO if I replace takadinna.din with a reduceR, then I get nested groups
     [ reduce (tat.__.dit.__.takadinna.din.__.__)   . utarangam p5
     , reduce (tat.__.dit.__.takadinna.din.__)      . utarangam p6
@@ -286,7 +286,7 @@ t1s = ganesh $ korvai adi mridangam $ map (nadai 6)
         ]
 
 t2s :: Korvai
-t2s = ganesh $ korvai adi mridangam $ map (nadai 6)
+t2s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.takadinna.dheem.__5) . tri p5
     , reduce (tat.__.dit.__.takadinna.dheem.__4) . tri p6
     , reduce (tat.__.dit.__.takadinna.dheem.__3) . tri p7
@@ -319,7 +319,7 @@ t2s = ganesh $ korvai adi mridangam $ map (nadai 6)
         ]
 
 t3s :: Korvai
-t3s = ganesh $ korvai adi mridangam $ map (nadai 6)
+t3s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     [ reduce (tat.__.dit.__.takadinna.__.ka.din.na.dinga) . utarangam p5
     , reduce (tat.__.dit.__.takadinna.__.dinga) . utarangam p6
     , reduce (tat.__.dit.__.takadinna.__) . utarangam p7
@@ -356,7 +356,7 @@ t3s = ganesh $ korvai adi mridangam $ map (nadai 6)
         ]
 
 t4s2 :: Korvai
-t4s2 = ganesh $ korvai adi mridangam $ map (nadai 6)
+t4s2 = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     [ purvangam1 . tri (ta.din.__.p5)
     , purvangam1 . taka.p5 . ta.din.__.p5 . taka.din.__.p5
 
@@ -381,7 +381,7 @@ t4s2 = ganesh $ korvai adi mridangam $ map (nadai 6)
         ] ++ m_ta_katakita
 
 t4s3 :: Korvai
-t4s3 = ganesh $ korvai adi mridangam $ map (nadai 6)
+t4s3 = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     [ ta_katakita.takadinna . tri (tat.__3.din.__3) . __7
         . ta_katakita.takadinna . tri (tat.__.din.__3) . __7
         . ta_katakita.takadinna . tri (tat.din.__3) . __7
@@ -404,7 +404,7 @@ m_ta_katakita =
     ]
 
 t5s :: Korvai
-t5s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
+t5s = ganesh $ korvaiS adi mridangam $ map (nadai 6 • (purvangam.))
     [ t123 p6 (tat.__6.din.__6)
     , t123 p7 (tat.__.ka.din.__.ta.din.__.ka)
     , t123 (ta.din.__2.p5) (tat.__3.din.__3)
@@ -447,7 +447,7 @@ t5s = ganesh $ korvai adi mridangam $ map (nadai 6 • (purvangam.))
 --      . repeat 2 (ta.__3.ta.takadinna)
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
-misra_lead = korvai1 adi mridangam $ su $
+misra_lead = korvaiS1 adi mridangam $ su $
     restM 8 . tri_ (tam.__) takadinna
     . repeat 2 (ta.__3.ta.takadinna)
     . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
@@ -460,7 +460,7 @@ misra_lead = korvai1 adi mridangam $ su $
        ]
 
 koraippu_misra_no_karvai :: Korvai
-koraippu_misra_no_karvai = koraippu $ ganesh $ korvai adi mridangam $ map su
+koraippu_misra_no_karvai = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     [ mconcatMap long [1..7] -- 2 avartanam
     , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
@@ -503,7 +503,7 @@ koraippu_misra_no_karvai = koraippu $ ganesh $ korvai adi mridangam $ map su
         ]
 
 koraippu_misra :: Korvai
-koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $ map su
+koraippu_misra = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     [ mconcatMap long [1..7] -- 2 avartanam
     , mconcatMap (mconcatMap short) [[1, 2], [3, 4], [5, 6], [7, 7]] -- 1 avart
     , group2 [half n . half (min 7 (n+1)) | n <- [1,3..7]] -- 1/2 avartanam
@@ -541,7 +541,7 @@ koraippu_misra = koraippu $ ganesh $ korvai adi mridangam $ map su
 -- * tirmanam
 
 tir_18 :: Korvai
-tir_18 = tirmanam $ korvai1 adi mridangam $
+tir_18 = tirmanam $ korvaiS1 adi mridangam $
     __sam adi $ su $ reduce3 2 ø (dhom.ka.dhom.ka.ta.lang.__.ga)
     where
     mridangam = makeMridangam

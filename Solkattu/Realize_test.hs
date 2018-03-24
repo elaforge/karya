@@ -527,7 +527,7 @@ kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
     -> Either Text ([Korvai.Flat M.Stroke], Text)
 kRealize realizePatterns tala =
     head . Korvai.realize Korvai.mridangam realizePatterns
-    . Korvai.korvai tala mridangam
+    . Korvai.korvaiInferSections tala mridangam
     . (:[])
 
 strokeMap :: Realize.StrokeMap M.Stroke

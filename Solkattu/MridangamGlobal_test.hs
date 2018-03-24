@@ -30,4 +30,4 @@ realize :: MridangamGlobal.Sequence
     -> Either Text [Realize.Note Mridangam.Stroke]
 realize seq = fmap Sequence.flattenedNotes $ fmap fst $ head $
     Korvai.realize Korvai.mridangam False
-        (MridangamGlobal.korvai1 MridangamGlobal.adi seq)
+        (MridangamGlobal.korvaiS1 MridangamGlobal.adi seq)

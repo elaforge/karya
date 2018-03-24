@@ -13,7 +13,7 @@ import Solkattu.SolkattuGlobal
 
 makeMohra :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-makeMohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $ su $
+makeMohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvaiS1 adi smaps $ su $
       a123.b1 . a123.b1
     . a123.b2
     . a1.b2
@@ -23,7 +23,7 @@ makeMohra smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $ su $
 -- | Alternate melkalam and kirkalam.
 makeMohra2 :: Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-makeMohra2 smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvai1 adi smaps $
+makeMohra2 smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvaiS1 adi smaps $
       a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
     . a123.b2 . su (a123.b2)
     . a1.b2 . su (a1.b2)

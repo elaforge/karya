@@ -15,7 +15,7 @@ import Solkattu.SolkattuGlobal
 -- 2014-01-08 nadai practice
 
 c_14_01_01 :: Korvai
-c_14_01_01 = date 2014 1 1 $ ganesh $ korvai adi mridangam
+c_14_01_01 = date 2014 1 1 $ ganesh $ korvaiS adi mridangam
     -- TODO back to sarva with D.__3/2
     [ sarvaSam adi theme . sarvaSam adi (tk.theme) . sarvaSam adi (tktu.theme)
     , structure (din.__3) (ta.din.__3 . p5)
@@ -40,7 +40,7 @@ c_14_01_01 = date 2014 1 1 $ ganesh $ korvai adi mridangam
         ]
 
 c_14_01_14 :: Korvai
-c_14_01_14 = date 2014 1 14 $ ganesh $ korvai adi mridangam
+c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
     -- development
     [ sarvaSam adi theme -- end with tam!u
         . sarvaSam adi (dropM 1 theme)
@@ -76,7 +76,7 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvai adi mridangam
         ]
 
 c_14_02_05 :: Korvai
-c_14_02_05 = date 2014 2 5 $ ganesh $ korvai adi mridangam $
+c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
     [ utarangam . purvangam (tam.__)
         (replicate 3 (tadi_ . ta_kitathom.ta_kitathom))
     , utarangam . purvangam (tam.__)
@@ -116,7 +116,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvai adi mridangam $
         ]
 
 c_14_02_20 :: Korvai
-c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvai adi mridangam $
+c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvaiS adi mridangam $
         map (nadai 6)
     [     repeat 7 sarva . dhomdhom
         . repeat 2 (repeat 3 sarva . dhomdhom)
@@ -144,7 +144,7 @@ c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvai adi mridangam $
         ] ++ m_ta_katakita
 
 c_14_02_27 :: Korvai
-c_14_02_27 = date 2014 2 27 $ ganesh $ korvai adi mridangam $
+c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
         map (nadai 6 • (purvangam.))
     [ spread 3 tdgnt . spread 2 tdgnt . tri_ __ tdgnt
     , spread 3 tdgnt . tri (ta.__.din.__.gin.__.na.__.thom)
@@ -179,7 +179,7 @@ m_ta_katakita =
     ]
 
 c_14_03_13 :: Korvai
-c_14_03_13 = date 2014 3 13 $ ganesh $ korvai adi mridangam
+c_14_03_13 = date 2014 3 13 $ ganesh $ korvaiS adi mridangam
     [ sarvaD 4 . t1.din . sarvaD 3
     . repeat 2 (t1.din . sarvaD 3)
     , concatMap sequence [t1, t2, t3]
@@ -202,7 +202,7 @@ c_14_03_13 = date 2014 3 13 $ ganesh $ korvai adi mridangam
 
 c_14_03_26 :: Korvai
 c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
-        korvai adi mridangam $
+        korvaiS adi mridangam $
     [ t1 . sarvaD 7 . repeat 2 (t1 . sarvaD 3)
         . repeat 2 (t1 . sarvaD 1) . t1 . sarvaD 3
         . repeat 3 (t1.__) . ka . t1 . sarvaD 3
@@ -228,7 +228,7 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
         ]
 
 c_14_04_21 :: Korvai
-c_14_04_21 = date 2014 4 21 $ ganesh $ korvai adi mridangam $
+c_14_04_21 = date 2014 4 21 $ ganesh $ korvaiS adi mridangam $
     [ tri_ (tam.__3) $ tri (su (dhom.p5).din.__) . tri p5_1
     , tri_ (tam.__3) $ tri (su (dhom.p5).din.__) . tri p5_2
     ]
@@ -246,7 +246,7 @@ c_14_04_21 = date 2014 4 21 $ ganesh $ korvai adi mridangam $
         ]
 
 c_14_04_29 :: Korvai
-c_14_04_29 = date 2014 4 29 $ ganesh $ korvai adi mridangam $
+c_14_04_29 = date 2014 4 29 $ ganesh $ korvaiS adi mridangam $
     -- sarva is namita dimita dimi
     [ sarvaSam adi t1
         . sarvaA 4 t1 . sarvaA 4 t1
@@ -283,7 +283,7 @@ c_14_04_29 = date 2014 4 29 $ ganesh $ korvai adi mridangam $
 
 c_14_06_06 :: Korvai
 c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
-    korvai adi mridangam
+    korvaiS adi mridangam
     -- sarva is nami dimi nami dimi
     [ repeat 2 (sarvaD 5 . nadin4)
         . din.__4 . nadin4.din.__4 . spread 3 tadindintat

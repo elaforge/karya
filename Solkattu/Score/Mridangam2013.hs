@@ -13,7 +13,7 @@ import Solkattu.MridangamGlobal
 
 -- TODO use this as a template to fill in various themes
 dinnagina_sequence :: Korvai
-dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvai1 adi $
+dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
     su $ mconcat $ map (sam.)
     [ sarvaA 16 ptheme
     , sarvaA 8 ptheme . sarvaA 8 ptheme
@@ -83,7 +83,7 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvai1 adi $
 -- * sarvalaghu
 
 t_17_02_13 :: Korvai
-t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvai adi $ map (nadai 6)
+t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvaiS adi $ map (nadai 6)
     [ takitadin.kadin . takitadin.kadin . takitatin.katin
         . takitatin.k.takitatin.k
     , takitadin.kadin . __ . dropM 1 takitadin . kadin . takitatin.katin
@@ -96,19 +96,19 @@ t_17_02_13 = date 2017 2 13 $ ganesh $ sarvalaghu $ korvai adi $ map (nadai 6)
     katin = k. d.__.  n.__.k.__
 
 din_nadin :: Korvai
-din_nadin = sarvalaghu $ ganesh $ korvai (beats 4)
+din_nadin = sarvalaghu $ ganesh $ korvaiS (beats 4)
     [ od.__.on.od.l.od.on.l.od.l.on.od.l.od.on.l
     , su $ repeat 2 $ d.__.p.k.n.l.d.__.p.l.d.__.n.__.l.__
     , su $ repeat 2 $ d.__.p.k.n.l.d.l.p.l.d.l.n.l.p.l
     ]
 
 nadin_ka :: Korvai
-nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvai1 (beats 4) $
+nadin_ka = sarvalaghu $ ganesh $ date 2017 5 15 $ korvaiS1 (beats 4) $
     on.od.__.k.(n.d.__.k).(n.d.__.k).o.od.__.k
     -- 4 nd to switch to kandam
 
 nadindin :: Korvai
-nadindin = sarvalaghu $ korvai adi $ map sd
+nadindin = sarvalaghu $ korvaiS adi $ map sd
     [ template $ lh & rh
     , template $ su (on.on) . od.od.on
     , template $ su (su (k.t.o.k) . o.k) . o . k
@@ -125,7 +125,7 @@ nadindin = sarvalaghu $ korvai adi $ map sd
     lh = o.o.o.o
 
 nadindin_negative :: Korvai
-nadindin_negative = sarvalaghu $ korvai adi $ map sd
+nadindin_negative = sarvalaghu $ korvaiS adi $ map sd
     [ __ . (lh & rh) . (lh & rh) . rh . (lh & rh)
     , __ . (lh & rh) . (lh1 & rh1) . rh . (lh & rh)
     ]
@@ -138,7 +138,7 @@ nadindin_negative = sarvalaghu $ korvai adi $ map sd
     lh = o.o.o.o
 
 namita_dimita :: Korvai
-namita_dimita = sarvalaghu $ korvai1 adi $
+namita_dimita = sarvalaghu $ korvaiS1 adi $
     __ . (lh & rh) . (lh & rh) . rh . (lh & rh)
     where
     rh = l.d.d.l.d.d.l.n
@@ -155,18 +155,18 @@ namita_dimita_dimi =
     where kt = su (k.t)
 
 janahan_exercise :: Korvai
-janahan_exercise = exercise $ janahan $ korvai1 adi $
+janahan_exercise = exercise $ janahan $ korvaiS1 adi $
     o&d.__4 . repeat 7 (n.p.k.t.p.k.t.p) . k.t.p.k
 
 nakanadin :: Korvai
-nakanadin = sarvalaghu $ korvai1 (beats 2) $ su $
+nakanadin = sarvalaghu $ korvaiS1 (beats 2) $ su $
     d.__3.y.n.y.d.__3.y.d.y.n.y.n.y
 
 
 -- * farans
 
 farans :: Korvai
-farans = faran $ korvai adi $ map su $ concat
+farans = faran $ korvaiS adi $ map su $ concat
     [ map (make (p.n.p.k) (p.n.p.k . t.k))
         [ k.t.k.n.p.k.t.k
         , o.o.k.n.p.k.t.k
@@ -212,7 +212,7 @@ farans = faran $ korvai adi $ map su $ concat
 -- * fragments
 
 eddupu6 :: Korvai
-eddupu6 = korvai (beats 3)
+eddupu6 = korvaiS (beats 3)
     [ repeat 2 (k.__.p.__.k.__)
     , repeat 2 (od.__.p.k.n.o)
     , repeat 3 (k.o.o.k)
@@ -223,7 +223,7 @@ eddupu6 = korvai (beats 3)
     ]
 
 eddupu10 :: Korvai
-eddupu10 = korvai (beats 5)
+eddupu10 = korvaiS (beats 5)
     [ repeat 2 $ u.__3.k.o.o&t.k.n.o.k
     , __.__ . repeat 3 p6
     ]

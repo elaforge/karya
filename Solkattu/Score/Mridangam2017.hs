@@ -9,11 +9,11 @@ import Solkattu.MridangamGlobal
 
 
 c_17_07_10 :: Korvai
-c_17_07_10 = exercise $ date 2017 7 10 $ ganesh $ korvai1 adi $ su $
+c_17_07_10 = exercise $ date 2017 7 10 $ ganesh $ korvaiS1 adi $ su $
     o.__.k.o.k.o.o.k . repeat 4 (o.o.k.o.k.o.o.k) . repeat 4 (o.k.k.o.o.k)
 
 e_1 :: Korvai
-e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi
+e_1 = ganesh $ date 2017 9 18 $ exercise $ korvaiS adi
     [ pkt . t.k.t.k . d.n.pk . t.k.t.k . repeat 3 (d.n.pk)
     , pkt . repeat 3 (t.k.t.k . d.n.pk)
     , su (repeat 6 pkt) . nakatiku
@@ -22,7 +22,7 @@ e_1 = ganesh $ date 2017 9 18 $ exercise $ korvai adi
     pkt = p.kt.p.kt.pk
 
 e_2 :: Korvai
-e_2 = ganesh $ date 2017 11 13 $ exercise $ korvai adi $
+e_2 = ganesh $ date 2017 11 13 $ exercise $ korvaiS adi $
     [ cmap pattern [s1, s2, s3, s4, s5]
     , cmap fast [p, k, o, n]
     , concatMap pattern [t1, t2]

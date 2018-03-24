@@ -16,6 +16,7 @@ import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as Sequence
 import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.Tags as Tags
 
 import Global
 
@@ -28,10 +29,10 @@ test_all = do
 
 test_metadata = do
     forM_ All.korvais $ \korvai ->
-        forM_ (Metadata.get Metadata.tSimilarTo korvai) $ \tag -> do
+        forM_ (Metadata.get Tags.similarTo korvai) $ \tag -> do
             unless (referentExists tag) $
                 void $ failure $
-                    location korvai <> ": can't find similar-to " <> showt tag
+                    location korvai <> ": can't find similarTo " <> showt tag
 
 location :: Korvai.Korvai -> Text
 location = Metadata.showLocation . Metadata.getLocation

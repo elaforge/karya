@@ -28,6 +28,7 @@ import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -77,20 +78,23 @@ instance Pretty Korvai where
         , ("metadata", Pretty.format metadata)
         ]
 
-korvai :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
-korvai tala strokeMaps sequences = Korvai
-    { korvaiSections = Sollu $ inferSections sequences
+korvai :: Tala.Tala -> StrokeMaps -> [Section Solkattu.Sollu] -> Korvai
+korvai tala strokeMaps sections = Korvai
+    { korvaiSections = Sollu sections
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
     , korvaiEddupu = 0
     , korvaiMetadata = mempty
     }
 
+korvaiInferSections :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
+korvaiInferSections tala strokeMaps = korvai tala strokeMaps . inferSections
+
 mridangamKorvai :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
-    -> [SequenceT (Realize.Stroke Mridangam.Stroke)]
+    -> [Section (Realize.Stroke Mridangam.Stroke)]
     -> Korvai
-mridangamKorvai tala pmap sequences = Korvai
-    { korvaiSections = Mridangam $ inferSections sequences
+mridangamKorvai tala pmap sections = Korvai
+    { korvaiSections = Mridangam sections
     , korvaiStrokeMaps = mempty
         { instMridangam = Realize.Instrument
             { instStrokeMap = mempty
@@ -101,6 +105,12 @@ mridangamKorvai tala pmap sequences = Korvai
     , korvaiEddupu = 0
     , korvaiMetadata = mempty
     }
+
+mridangamKorvaiInferSections :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
+    -> [SequenceT (Realize.Stroke Mridangam.Stroke)]
+    -> Korvai
+mridangamKorvaiInferSections tala pmap =
+    mridangamKorvai tala pmap . inferSections
 
 eddupu :: S.Duration -> Korvai -> Korvai
 eddupu dur korvai = korvai { korvaiEddupu = dur }
@@ -123,7 +133,7 @@ data Section stroke = Section {
     , sectionEnd :: !S.Duration
     -- | This is lazy because it might have a 'Solkattu.Exception' in it.  This
     -- is because 'inferSectionTags' has to evaluate the sequence.
-    , sectionTags :: Tags
+    , sectionTags :: Tags.Tags
     } deriving (Eq, Show)
 
 instance Pretty stroke => Pretty (Section stroke) where
@@ -134,7 +144,11 @@ instance Pretty stroke => Pretty (Section stroke) where
         , ("sequence", Pretty.format seq)
         ]
 
-withSectionTags :: Tags -> Section stroke -> Section stroke
+smap :: (SequenceT stroke -> SequenceT stroke)
+    -> Section stroke -> Section stroke
+smap f section = section { sectionSequence = f (sectionSequence section) }
+
+withSectionTags :: Tags.Tags -> Section stroke -> Section stroke
 withSectionTags tags section =
     section { sectionTags = tags <> sectionTags section }
 
@@ -149,13 +163,9 @@ section seq = Section
 inferSections :: [SequenceT stroke] -> [Section stroke]
 inferSections seqs = case Seq.viewr (map section seqs) of
     Just (inits, last) ->
-        map (withSectionTags (tag "type" "development")) inits
-        ++ [withSectionTags (tag "type" "korvai") last]
+        map (withSectionTags (Tags.withType Tags.development)) inits
+        ++ [withSectionTags (Tags.withType Tags.ending) last]
     Nothing -> []
-
--- section tags: type=development, type=korvai
--- local-variation
--- comment
 
 -- * Instrument
 
@@ -275,7 +285,7 @@ flatten = Solkattu.cancelKarvai . S.flatten
 -- | Attach some metadata to a Korvai.
 data Metadata = Metadata {
     _date :: !(Maybe Calendar.Day)
-    , _tags :: !Tags
+    , _tags :: !Tags.Tags
     , _location :: !Location
     } deriving (Eq, Show)
 
@@ -297,18 +307,6 @@ instance Pretty Metadata where
         , ("tags", Pretty.format tags)
         , ("location", Pretty.format loc)
         ]
-
-newtype Tags = Tags (Map Text [Text])
-    deriving (Eq, Show, Pretty)
-
-instance Semigroup Tags where
-    Tags t1 <> Tags t2 = Tags (Util.Map.mappend t1 t2)
-instance Monoid Tags where
-    mempty = Tags mempty
-    mappend = (<>)
-
-tag :: Text -> Text -> Tags
-tag k v = Tags (Map.singleton k [v])
 
 date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
 date y m d
@@ -342,8 +340,8 @@ inferKorvaiMetadata :: Korvai -> Korvai
 inferKorvaiMetadata korvai =
     withKorvaiMetadata (mempty { _tags = inferKorvaiTags korvai }) korvai
 
-inferKorvaiTags :: Korvai -> Tags
-inferKorvaiTags korvai = Tags $ Util.Map.multimap $ concat
+inferKorvaiTags :: Korvai -> Tags.Tags
+inferKorvaiTags korvai = Tags.Tags $ Util.Map.multimap $ concat
     [ [ ("tala", Tala._name tala)
       , ("sections", showt sections)
       , ("eddupu", pretty (korvaiEddupu korvai))
@@ -365,8 +363,8 @@ inferKorvaiTags korvai = Tags $ Util.Map.multimap $ concat
     hasInstrument korvai get = not $ Realize.isInstrumentEmpty $
         get (korvaiStrokeMaps korvai)
 
-inferSectionTags :: Tala.Tala -> SequenceT () -> Tags
-inferSectionTags tala seq = Tags $ Map.fromList
+inferSectionTags :: Tala.Tala -> SequenceT () -> Tags.Tags
+inferSectionTags tala seq = Tags.Tags $ Map.fromList
     [ ("avartanams", [pretty $ dur / talaAksharas])
     , ("nadai", map pretty nadais)
     , ("max_speed", [pretty $ maximum (0 : speeds)])

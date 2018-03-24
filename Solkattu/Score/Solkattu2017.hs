@@ -19,7 +19,7 @@ import Global
 
 koraippu_janahan :: Korvai
 koraippu_janahan =
-    koraippu $ source "janahan" $ korvai1 adi mridangam $ su $
+    koraippu $ source "janahan" $ korvaiS1 adi mridangam $ su $
     let seq = sequence takita takadinna
     in mconcat
         [ seq 4 . taka.talang.__.ga.taka.din.__.tat.__.thom.__4
@@ -77,7 +77,7 @@ nang_kita_nakatiku :: Sequence
 nang_kita_nakatiku = nang.__.kita.nakatiku
 
 e_spacing :: Korvai
-e_spacing = exercise $ korvai adi (makeMridangam []) $ map (__sam adi) $
+e_spacing = exercise $ korvaiS adi (makeMridangam []) $ map (__sam adi) $
     map su $ concat
         [ map arithmetic [p5, p6, p7, p8, p9]
         , map geometric [p5, p6, p7, p8, p9]
@@ -92,7 +92,7 @@ e_spacing = exercise $ korvai adi (makeMridangam []) $ map (__sam adi) $
     geometric seq = spread 4 seq . spread 2 seq . tri seq
 
 c_17_02_06 :: Korvai
-c_17_02_06 = date 2017 2 6 $ ganesh $ korvai1 adi mridangam $
+c_17_02_06 = date 2017 2 6 $ ganesh $ korvaiS1 adi mridangam $
     tri_ (din.__.p6.p6) (takita.dinga.din.__.ta.__.ka.__)
     where
     mridangam = makeMridangam
@@ -104,7 +104,7 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvai1 adi mridangam $
 c_17_03_20 :: Korvai
 c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
     \ lot, see section in Laya Vinyas, adi talam solo." $
-    korvai1 adi (mridangam <> kendang <> reyong) $ su $
+    korvaiS1 adi (mridangam <> kendang <> reyong) $ su $
         reduceTo 4 2 theme . sd (sd p6) . sd p6 . tri_ (__2.ga) p6
     where
     theme = tat.__.taka.takadinna.na.ka.dit.__.talang.__.ga
@@ -126,7 +126,7 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
 
 c_17_09_25 :: Korvai
 c_17_09_25 = ganesh $ date 2017 9 25 $ similarTo "Solkattu2017" "c_17_03_20" $
-    korvai Tala.misra_chapu mridangam
+    korvaiS Tala.misra_chapu mridangam
     [ sarvaD 3 . theme
     , mconcat [v `replaceStart` theme_ . __.__. dropM 6 theme | v <- variants]
     , dropM 4 theme . sequence
@@ -151,7 +151,7 @@ c_17_09_25 = ganesh $ date 2017 9 25 $ similarTo "Solkattu2017" "c_17_03_20" $
 
 c_17_04_04 :: Korvai
 c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
-    korvai Tala.misra_chapu mridangam $ map (sd • (purvangam.))
+    korvaiS Tala.misra_chapu mridangam $ map (sd • (purvangam.))
     [ utarangam 3 takita (ta.taka)
     , utarangam 4 takadinna takadinna
     , utarangam 5 tdgnt tdgnt
@@ -176,7 +176,7 @@ c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
         ]
 
 c_17_04_23 :: Korvai
-c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
+c_17_04_23 = date 2017 4 23 $ ganesh $ korvaiS adi mridangam $
     map sd -- remove for melkalam
     [ purvangam . utarangam (tk.tdgnt) (tk.tdgnt)
     , purvangam . su (r32111 tdgnt . r32111 (ta.ka.tdgnt)
@@ -201,7 +201,7 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvai adi mridangam $
         ]
 
 c_17_05_10 :: Korvai
-c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi insts $
+c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
     map (\n -> ta.__n n) [4, 3, 2, 1] `prefixes` (ta.__.kita.takadinna.dinga)
         . ta.__.kita.takadinna.dinga
     .  map (\n -> ta.__n n) [3, 2, 1] `prefixes` (takadinna.dinga)
@@ -250,7 +250,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvai1 adi insts $
 
 c_17_05_11 :: Korvai
 c_17_05_11 = date 2017 5 11 $ source "sriram" $
-    korvai1 adi (mridangam<>sargam) $ nadai 7 $
+    korvaiS1 adi (mridangam<>sargam) $ nadai 7 $
     circum (repeat 2 (takadinna.takita)) (accumulate
         [ din.__.ta.din.__.tat.__
         , takita.din.__.tat.__
@@ -277,13 +277,14 @@ c_17_05_11 = date 2017 5 11 $ source "sriram" $
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_05_19 :: Korvai
-c_17_05_19 = date 2017 5 15 $ exercise $ korvai1 adi mridangam $
+c_17_05_19 = date 2017 5 15 $ exercise $ korvaiS1 adi mridangam $
     tri (tri p8 . tri (kita.thom)) . tri p8 . p5
     where
     mridangam = makeMridangam [(kita.thom, [k, n, o])]
 
 c_17_05_19_janahan :: Korvai
-c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
+c_17_05_19_janahan =
+    date 2017 5 15 $ source "janahan" $ korvaiS1 adi mridangam $
     1^tat_din_din_tam 4 3 . tat_din_din_tam 4 2 . tat_din_din_tam 3 2
         . repeat 2 (tat.__4.tam.__2.ta) . tat.__3
         . tri (takadinna.takita) -- TODO p7
@@ -307,7 +308,7 @@ c_17_05_19_janahan = date 2017 5 15 $ source "janahan" $ korvai1 adi mridangam $
 
 c_17_06_02_janahan :: Korvai
 c_17_06_02_janahan = tirmanam $ date 2017 6 2 $ source "janahan" $
-        korvai1 adi mridangam $
+        korvaiS1 adi mridangam $
     __n 9 . tri_ (su (kitataka)) (din.din . su taka . din.din.tat.din)
     -- TODO use align or pad to sam
     where
@@ -319,7 +320,7 @@ c_17_06_02_janahan = tirmanam $ date 2017 6 2 $ source "janahan" $
         ]
 
 c_17_06_15 :: Korvai
-c_17_06_15 = date 2017 6 15 $ ganesh $ korvai adi mridangam $
+c_17_06_15 = date 2017 6 15 $ ganesh $ korvaiS adi mridangam $
     [ mconcat [suffix sequence (thom.__n gap) | gap <- [4, 3, 2]]
     , join (1^ta) [suffix sequence (thom.__n gap) | gap <- [2, 3, 4]]
     ]
@@ -334,7 +335,7 @@ c_17_06_15 = date 2017 6 15 $ ganesh $ korvai adi mridangam $
         ]
 
 c_17_06_19 :: Korvai
-c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
+c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
     reduce3 2 ø (tat.__.dit.__.takadinna.din.__3.p5)
         . sandi p5 (trin (tam.__3) p5 (tk.p5) (tktu.p5))
     where
@@ -361,7 +362,7 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvai1 adi inst $
 
 c_17_06_19_koraippu :: Korvai
 c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
-    korvai adi mridangam $ map (restD 2 .)
+    korvaiS adi mridangam $ map (restD 2 .)
     [ repeat 2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . tk.tdgnt
     , repeat 2 $ tri (tat.__4.din.__3) . tk.tdgnt
     , repeat 2 $ tri (tat.__4) . tri (din.__3) . tk.tdgnt
@@ -386,7 +387,7 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
 
 c_17_07_13 :: Korvai
 c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
-    korvai adi (mridangam<>kendang) $ concat
+    korvaiS adi (mridangam<>kendang) $ concat
     -- TODO when I can do branches, any dintaka can substitute
     -- purvangam (any dintakas) . utarangam (any dintakas)
     [ map purvangam dintakas
@@ -479,7 +480,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_07_19 :: Korvai
-c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvai adi mridangam $
+c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvaiS adi mridangam $
     map mconcat
     [ [tri (p6 . p5.p5 . dhom_tat_din 2)]
     , [p6 . p5s . dhom_tat_din 2 | p5s <- [p5, p5.p5, p5.p5.p5]]
@@ -492,7 +493,7 @@ c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvai adi mridangam $
         ]
 
 c_17_08_21 :: Korvai
-c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
+c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvaiS adi mridangam $
     map (__sam adi)
     [ tri_ (1^tang.__.ga) (su (kitataka.tarikita.taka) . tat.din.na)
     , tri_ (tang.__.ga) (su (tarikita.taka) . tat.din.na)
@@ -515,7 +516,7 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvai adi mridangam $
 
 c_17_08_29 :: Korvai
 c_17_08_29 = date 2017 8 29 $ ganesh $
-    korvai Tala.misra_chapu (mridangam<>kendang1)
+    korvaiS Tala.misra_chapu (mridangam<>kendang1)
     [ sarvaD 7 . sarvaD 3   . develop.na.__.din
     , dit.__4 . sarvaD 2 . develop . na.__
     , repeat 2 $ dit.__4 . sarvaD 2 . tri develop . na.__
@@ -578,7 +579,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
 
 c_17_10_23 :: Korvai
 c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
-    korvai adi (mridangam<>kendang1)
+    korvaiS adi (mridangam<>kendang1)
     [ sequence theme
     , sequence (theme2a.theme2b)
     , mconcatMap (sarvaA 16) [theme, kitataka.theme, kitakita.kitakita.theme]
@@ -637,7 +638,7 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_12_11 :: Korvai
-c_17_12_11 = date 2017 12 11 $ ganesh $ korvai adi mridangam
+c_17_12_11 = date 2017 12 11 $ ganesh $ korvaiS adi mridangam
     [ __sam adi $ su theme
     ]
     where
@@ -657,7 +658,7 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvai adi mridangam
         ]
 
 speaking1 :: Korvai
-speaking1 = ganesh $ exercise $ korvai Tala.any_beats mridangam $
+speaking1 = ganesh $ exercise $ korvaiS Tala.any_beats mridangam $
     -- 5s, 15 beats
     [ repeat 4 $ t5.t5 . su (t5.t5)
     , repeat 4 $ nadai 6 (in3 (g tdgnt.g tdgnt)) . su (t5.t5)

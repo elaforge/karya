@@ -9,7 +9,7 @@ import Solkattu.MridangamGlobal
 
 
 e_18_03_10 :: Korvai
-e_18_03_10 = exercise $ date 2018 3 10 $ korvai adi
+e_18_03_10 = exercise $ date 2018 3 10 $ korvaiS adi
     [ sarva1 . sarva2
     , (on.kt.kt.k) `replaceStart` sarva1 . sarva2
     , (on.kt.kt.k) `replaceStart` sarva1 . (n.kt.kt.k) `replaceStart` sarva2

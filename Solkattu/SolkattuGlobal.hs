@@ -23,10 +23,11 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
+
 Mridangam.Strokes {..} = Mridangam.notes
 
-
 type Sequence = SequenceT Solkattu.Sollu
+type Section = Korvai.Section Solkattu.Sollu
 
 -- * fragments
 
@@ -98,11 +99,17 @@ makeSargam strokes patterns = mempty
         Realize.instrument strokes (check $ Realize.patterns patterns)
     }
 
-korvai1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
-korvai1 tala inst seq = Korvai.korvai tala inst [seq]
-
-korvai :: Tala.Tala -> Korvai.StrokeMaps -> [Sequence] -> Korvai
+korvai :: Tala.Tala -> Korvai.StrokeMaps -> [Section] -> Korvai
 korvai = Korvai.korvai
+
+korvai1 :: Tala.Tala -> Korvai.StrokeMaps -> Section -> Korvai
+korvai1 tala smaps section = korvai tala smaps [section]
+
+korvaiS :: Tala.Tala -> Korvai.StrokeMaps -> [Sequence] -> Korvai
+korvaiS = Korvai.korvaiInferSections
+
+korvaiS1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
+korvaiS1 tala smaps seq = korvaiS tala smaps [seq]
 
 -- | 'makeMridangam' gives this to all mridangam stroke maps.
 _mridangamStrokes :: [(Sequence, [Mridangam.SNote])]

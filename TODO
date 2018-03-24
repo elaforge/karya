@@ -159,7 +159,7 @@ NESS:
     . can I hand damp metal percussion?
 
 STATUS
-  - solkattu: implement korvai sections
+  + solkattu: implement korvai sections
     . I'm motivated to do this because Solkattu2018.yt_mannargudi2 requires
       eddupu only on the actual korvai variations, not development.
   * upgrade to ghc 8.4.1
@@ -3363,9 +3363,17 @@ solkattu:
     * update inferMetadata
     - search by tags in sections too
     - make html show section tags
-    - give a way to set section data when defining the Korvai
+    * give a way to set section data when defining the Korvai
+      . rename 'korvai' and 'korvai1' to korvaiOld and korvai1Old, which infer
+        the sections.
+      . e.g. endAt (3/2) $ section $ takita
+        . It looks backwards, unless I do a forward compasition:
+          section .> endAt (3/2) $ takita
+        . Not sure if it's worth it just to put section at the beginning.  It's
+          not important to see, since it's always the same.
     - use sectionStart and sectionEnd for alignment checks
     - remove eddupu, but infer eddupu tag from sectionEnd
+    - MetadataGlobal.exercise should mark the sections as type=exercise too
   * I need a way to transform inside a group, e.g.
     . in3 (a:b:cs) = [a] . __ . [b] . in3 cs
     . This doesn't work if there's a group

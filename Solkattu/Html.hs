@@ -19,6 +19,7 @@ import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as Sequence
 import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -78,7 +79,7 @@ metadataHtml korvai = TextUtil.join "<br>\n" $ concat $
     ]
     where
     meta = Korvai.korvaiMetadata korvai
-    Korvai.Tags tags = Korvai._tags meta
+    Tags.Tags tags = Korvai._tags meta
     showTag (k, []) = Doc.html k
     showTag (k, vs) = Doc.html k <> ": "
         <> TextUtil.join ", " (map (htmlTag k) vs)
@@ -86,7 +87,7 @@ metadataHtml korvai = TextUtil.join "<br>\n" $ concat $
 
 htmlTag :: Text -> Text -> Doc.Html
 htmlTag k v
-    | k == Metadata.tRecording = case Metadata.parseRecording v of
+    | k == Tags.recording = case Metadata.parseRecording v of
         Nothing -> Doc.html $ "can't parse: " <> v
         Just (url, range) -> link $ url <> case range of
             Nothing -> ""

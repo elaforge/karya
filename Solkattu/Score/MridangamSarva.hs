@@ -16,12 +16,12 @@ import Global
 -- TODO these don't need to be a full avartanam, only a binary factor of it
 
 kir1 :: Korvai
-kir1 = sarvalaghu $ sudhindra $ korvai adi $
+kir1 = sarvalaghu $ sudhindra $ korvaiS adi $
     [ repeat 4 $ repeat 2 (n.l.d.d) & (o.__.o.o.__.o.o.__) -- takadimi takajonu
     ]
 
 kir2 :: Korvai
-kir2 = sarvalaghu $ sudhindra $ korvai adi $
+kir2 = sarvalaghu $ sudhindra $ korvaiS adi $
     repeat 2 sarva : map pattern prefixes
     where
     pattern (prefix, end) =
@@ -41,18 +41,18 @@ kir2 = sarvalaghu $ sudhindra $ korvai adi $
     dinna_kitataka = o.n . su (k.t.o.k)
 
 kir3 :: Korvai
-kir3 = sarvalaghu $ sudhindra $ korvai1 adi $ repeat 2 $
+kir3 = sarvalaghu $ sudhindra $ korvaiS1 adi $ repeat 2 $
     repeat 2 (n.d.__.n) & (o.o.__.o.__.o.__.o)
     . repeat 2 (n.d.__.n) & (o.__n 8)
     -- can end with faran: oonnpktk naka
 
 kir4 :: Korvai
-kir4 = sarvalaghu $ sudhindra $ korvai1 adi $
+kir4 = sarvalaghu $ sudhindra $ korvaiS1 adi $
       on.__.on.__.on.od.__5.on.__.on.od.__2.o
     . on.k.on.k.on.od.__5.on.k.on.od.__2.o
 
 kir5 :: Korvai
-kir5 = sarvalaghu $ sudhindra $ korvai1 adi $
+kir5 = sarvalaghu $ sudhindra $ korvaiS1 adi $
       nknd & (o.__.o.o.__.o.o.__) . nknd & (__.__.o.o.__.o.o.__)
     . nknd & (o.__n 8)            . nknd
     where
@@ -61,19 +61,20 @@ kir5 = sarvalaghu $ sudhindra $ korvai1 adi $
 -- * melkalam
 
 mel1 :: Korvai
-mel1 = sarvalaghu $ sudhindra $ korvai1 adi $
+mel1 = sarvalaghu $ sudhindra $ korvaiS1 adi $
     repeat 4 $ on.od.on. su (pk.n.o).od.on . su pk
     -- ta din ta din takadin ta din
 
 mel2 :: Korvai
-mel2 = sarvalaghu $ sudhindra $ korvai1 adi $ su $
+mel2 = sarvalaghu $ sudhindra $ korvaiS1 adi $ su $
     repeat 2 $ repeat 3 (yjyj.d.__.lt p.k) . (t.k.o.o.k.t.o.k)
     where yjyj = y.j.y.j
 
 -- reduce with kir2 and kir5
 
 dinna_kitataka :: Korvai
-dinna_kitataka = exercise $ sudhindra $ korvai adi $ map (sarvaSam adi) patterns
+dinna_kitataka = exercise $ sudhindra $ korvaiS adi $
+    map (sarvaSam adi) patterns
     where
     patterns = map su
         [ repeat 4 dinna
@@ -86,7 +87,7 @@ dinna_kitataka = exercise $ sudhindra $ korvai adi $ map (sarvaSam adi) patterns
     dinna = o.n.kttk
 
 farans :: Korvai
-farans = sudhindra $ faran $ korvai adi $
+farans = sudhindra $ faran $ korvaiS adi $
     [ long . long
         . repeat 4 (o.o.k.t) . long
         . repeat 2 (o.o.k.t.p.k) . o.o.k.t . long
@@ -99,7 +100,7 @@ farans = sudhindra $ faran $ korvai adi $
 -- * ganesh
 
 kir6 :: Korvai
-kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvai adi $
+kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiS adi $
     [ both . o1 rh
         -- TODO second half has D after prefix
         -- I could maybe do that by having transparent strokes, so I could
@@ -121,22 +122,22 @@ kir6 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvai adi $
     prefix = su $ od.__.od.n.p.k -- din dinataka
 
 kir_misra_1 :: Korvai
-kir_misra_1 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvai1 Tala.misra_chapu $
+kir_misra_1 = sarvalaghu $ date 2017 8 29 $ ganesh $ korvaiS1 Tala.misra_chapu $
     sd $ rh & thomLH rh . o1 rh
     where rh = n.l.n.n.d.l.n.l.d.l.n.n.d.l
 
 -- | Misra version of nddnnddn.
 kir_misra_2 :: Korvai
-kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvai1 Tala.misra_chapu $
+kir_misra_2 = sarvalaghu $ date 2017 9 26 $ ganesh $ korvaiS1 Tala.misra_chapu $
     sd $ sd $ rh & thomLH rh . o1 rh
     where rh = n.d.n . su (n.n) . d.d.n
 
 c_17_10_23a :: Korvai
-c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvai1 adi $
+c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
     repeat 2 $ repeat 3 cell . n.d . su (p.k.t.k)
     where
     cell = n.d . su (p.k) . d
 
 c_17_10_23b :: Korvai
-c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvai1 adi $
+c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
     su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k)
