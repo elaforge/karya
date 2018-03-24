@@ -1,6 +1,12 @@
 #!/bin/zsh
 # Derived from the example pre-commit.
 
+# Files that can have lines >80 columns.
+ok_long_lines=(
+    # generated
+    Solkattu/All.hs
+)
+
 against=HEAD
 
 # Redirect output to stderr.
@@ -33,6 +39,10 @@ fi
 modified=("${(@f)$(git diff --cached --name-only)}")
 too_long=
 for f in $modified; do
+    # This is how you check membership in an array.  Shell is ridiculous.
+    if [[ -n "${ok_long_lines[(r)$f]}" ]]; then
+        continue
+    fi
     if git diff --cached $against -- $f | egrep -n '^\+.{81,}'; then
         echo $f
         too_long=true
