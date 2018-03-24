@@ -147,11 +147,11 @@ nakatiku = makeNote $ Solkattu.Pattern Solkattu.Nakatiku
 -- * realize util
 
 index :: Int -> Korvai -> Korvai
-index i korvai = case Korvai.korvaiSequences korvai of
-    Korvai.Mridangam seqs ->
-        korvai { Korvai.korvaiSequences = Korvai.Mridangam [seqs !! i] }
-    Korvai.Sollu seqs ->
-        korvai { Korvai.korvaiSequences = Korvai.Sollu [seqs !! i] }
+index i korvai = case Korvai.korvaiSections korvai of
+    Korvai.Mridangam sections ->
+        korvai { Korvai.korvaiSections = Korvai.Mridangam [sections !! i] }
+    Korvai.Sollu sections ->
+        korvai { Korvai.korvaiSections = Korvai.Sollu [sections !! i] }
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realizeM True

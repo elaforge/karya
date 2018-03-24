@@ -59,7 +59,7 @@ comment :: Text -> Korvai -> Korvai
 comment = withTag "comment"
 
 date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
-date y m d = Korvai.withMetadata $ mempty { Korvai._date = Just date }
+date y m d = Korvai.withKorvaiMetadata $ mempty { Korvai._date = Just date }
     where !date = Korvai.date y m d
 
 -- | Where or from who I learned it.
@@ -163,5 +163,5 @@ withType :: Text -> Korvai -> Korvai
 withType = withTag "type"
 
 withTag :: Text -> Text -> Korvai -> Korvai
-withTag k v = Korvai.withMetadata $
+withTag k v = Korvai.withKorvaiMetadata $
     mempty { Korvai._tags = Korvai.Tags (Map.singleton k [v]) }

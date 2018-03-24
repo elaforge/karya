@@ -47,7 +47,7 @@ mapSollu f = map $ \n -> case n of
 -- * korvai
 
 data Korvai = Korvai {
-    korvaiSequences :: !KorvaiType
+    korvaiSections :: !KorvaiType
     , korvaiStrokeMaps :: !StrokeMaps
     , korvaiTala :: !Tala.Tala
     -- | Expect the korvai to end on sam + eddupu.
@@ -56,8 +56,8 @@ data Korvai = Korvai {
     } deriving (Eq, Show)
 
 data KorvaiType =
-    Sollu [SequenceT Solkattu.Sollu]
-    | Mridangam [SequenceT (Realize.Stroke Mridangam.Stroke)]
+    Sollu [Section Solkattu.Sollu]
+    | Mridangam [Section (Realize.Stroke Mridangam.Stroke)]
     deriving (Show, Eq)
 
 solluSequence (Sollu seq) = Just seq
@@ -79,7 +79,7 @@ instance Pretty Korvai where
 
 korvai :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
 korvai tala strokeMaps sequences = Korvai
-    { korvaiSequences = Sollu sequences
+    { korvaiSections = Sollu $ inferSections sequences
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
     , korvaiEddupu = 0
@@ -90,7 +90,7 @@ mridangamKorvai :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
     -> [SequenceT (Realize.Stroke Mridangam.Stroke)]
     -> Korvai
 mridangamKorvai tala pmap sequences = Korvai
-    { korvaiSequences = Mridangam sequences
+    { korvaiSections = Mridangam $ inferSections sequences
     , korvaiStrokeMaps = mempty
         { instMridangam = Realize.Instrument
             { instStrokeMap = mempty
@@ -104,6 +104,60 @@ mridangamKorvai tala pmap sequences = Korvai
 
 eddupu :: S.Duration -> Korvai -> Korvai
 eddupu dur korvai = korvai { korvaiEddupu = dur }
+
+withKorvaiMetadata :: Metadata -> Korvai -> Korvai
+withKorvaiMetadata meta korvai =
+    korvai { korvaiMetadata = meta <> korvaiMetadata korvai }
+
+-- * Section
+
+data Section stroke = Section {
+    -- TODO rename this sectionSequence?
+    -- I think I like the score terminology better, but sequence is already
+    -- used everywhere so I have to change it all at once.  But score is
+    -- already used by e.g. ToScore.
+    sectionSequence :: !(SequenceT stroke)
+    -- | Where the section should start and end.  (0, 0) means start and end on
+    -- sam.
+    , sectionStart :: !S.Duration
+    , sectionEnd :: !S.Duration
+    -- | This is lazy because it might have a 'Solkattu.Exception' in it.  This
+    -- is because 'inferSectionTags' has to evaluate the sequence.
+    , sectionTags :: Tags
+    } deriving (Eq, Show)
+
+instance Pretty stroke => Pretty (Section stroke) where
+    format (Section seq start end tags) = Pretty.record "Section"
+        [ ("tags", Pretty.format tags)
+        , ("start", Pretty.format start)
+        , ("end", Pretty.format end)
+        , ("sequence", Pretty.format seq)
+        ]
+
+withSectionTags :: Tags -> Section stroke -> Section stroke
+withSectionTags tags section =
+    section { sectionTags = tags <> sectionTags section }
+
+section :: SequenceT stroke -> Section stroke
+section seq = Section
+    { sectionSequence = seq
+    , sectionStart = 0
+    , sectionEnd = 0
+    , sectionTags = mempty
+    }
+
+inferSections :: [SequenceT stroke] -> [Section stroke]
+inferSections seqs = case Seq.viewr (map section seqs) of
+    Just (inits, last) ->
+        map (withSectionTags (tag "type" "development")) inits
+        ++ [withSectionTags (tag "type" "korvai") last]
+    Nothing -> []
+
+-- section tags: type=development, type=korvai
+-- local-variation
+-- comment
+
+-- * Instrument
 
 -- | Tie together everything describing how to realize a single instrument.
 data Instrument stroke = Instrument {
@@ -178,11 +232,12 @@ type Flat stroke =
 -- | Realize a Korvai on a particular instrument.
 realize :: Solkattu.Notation stroke => Instrument stroke -> Bool -> Korvai
     -> [Either Error ([Flat stroke], Error)]
-realize instrument realizePatterns korvai = case korvaiSequences korvai of
-    Sollu seqs -> map (realize1 (instFromSollu instrument smap)) seqs
+realize instrument realizePatterns korvai = case korvaiSections korvai of
+    Sollu seqs ->
+        map (realize1 (instFromSollu instrument smap) . sectionSequence) seqs
     Mridangam seqs -> case instFromMridangam instrument of
         Nothing -> [Left "no sequence, wrong instrument type"]
-        Just realizeNote -> map (realize1 realizeNote) seqs
+        Just realizeNote -> map (realize1 realizeNote . sectionSequence) seqs
     where
     realize1 realizeNote =
         fmap (first (instPostprocess instrument))
@@ -213,15 +268,14 @@ flatten = Solkattu.cancelKarvai . S.flatten
 -- TODO broken by KorvaiType, fix this
 -- vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai
 -- vary modify korvai = korvai
---     { korvaiSequences = concatMap modify (korvaiSequences korvai) }
+--     { korvaiSections = concatMap modify (korvaiSections korvai) }
 
 -- * Metadata
 
 -- | Attach some metadata to a Korvai.
 data Metadata = Metadata {
     _date :: !(Maybe Calendar.Day)
-    -- | This is lazy because it might have a 'Solkattu.Exception' in it!
-    , _tags :: Tags
+    , _tags :: !Tags
     , _location :: !Location
     } deriving (Eq, Show)
 
@@ -253,6 +307,9 @@ instance Monoid Tags where
     mempty = Tags mempty
     mappend = (<>)
 
+tag :: Text -> Text -> Tags
+tag k v = Tags (Map.singleton k [v])
+
 date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
 date y m d
     | Num.inRange 2012 2020 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
@@ -266,32 +323,38 @@ date y m d
 -- It used to be called in the 'korvai' and 'mridangamKorvai' constructors, but
 -- it was confusing how it wouldn't see modifications done after construction.
 inferMetadata :: Korvai -> Korvai
-inferMetadata korvai =
-    withMetadata (mempty { _tags = inferTags korvai }) korvai
+inferMetadata = inferSections . inferKorvaiMetadata
+    where
+    inferSections korvai = case korvaiSections korvai of
+        Sollu sections -> korvai
+            { korvaiSections =
+                Sollu $ map (addTags (korvaiTala korvai)) sections
+            }
+        Mridangam sections -> korvai
+            { korvaiSections =
+                Mridangam $ map (addTags (korvaiTala korvai)) sections
+            }
+    addTags :: Tala.Tala -> Section stroke -> Section stroke
+    addTags tala section = withSectionTags (inferSectionTags tala seq) section
+        where seq = mapSollu (const ()) (sectionSequence section)
 
-inferTags :: Korvai -> Tags
-inferTags korvai = Tags $ Util.Map.multimap $ concat
+inferKorvaiMetadata :: Korvai -> Korvai
+inferKorvaiMetadata korvai =
+    withKorvaiMetadata (mempty { _tags = inferKorvaiTags korvai }) korvai
+
+inferKorvaiTags :: Korvai -> Tags
+inferKorvaiTags korvai = Tags $ Util.Map.multimap $ concat
     [ [ ("tala", Tala._name tala)
-      , ("sections", showt (length seqs))
+      , ("sections", showt sections)
       , ("eddupu", pretty (korvaiEddupu korvai))
       ]
-    , map (("avartanams",) . pretty . (/aksharas)
-        . Solkattu.durationOf S.defaultTempo) seqs
-    , map ("nadai",) (map showt nadais)
-    , [("speed", showt $ maximum (0 : speeds))]
     , map ("instrument",) instruments
     ]
     where
     tala = korvaiTala korvai
-    aksharas = fromIntegral (Tala.tala_aksharas tala)
-
-    seqs = case korvaiSequences korvai of
-        Sollu seqs -> map (mapSollu (const ())) seqs
-        Mridangam seqs -> map (mapSollu (const ())) seqs
-    tempos = map (map fst . S.tempoNotes . flatten) seqs
-    nadais = Seq.unique_sort $ concatMap (map S._nadai) tempos
-    speeds = Seq.unique_sort $ concatMap (map S._speed) tempos
-
+    sections = case korvaiSections korvai of
+        Sollu xs -> length xs
+        Mridangam xs -> length xs
     -- TODO use the names from GInstrument
     instruments = concat
         [ ["mridangam" | hasInstrument korvai instMridangam]
@@ -302,9 +365,19 @@ inferTags korvai = Tags $ Util.Map.multimap $ concat
     hasInstrument korvai get = not $ Realize.isInstrumentEmpty $
         get (korvaiStrokeMaps korvai)
 
-withMetadata :: Metadata -> Korvai -> Korvai
-withMetadata meta korvai =
-    korvai { korvaiMetadata = meta <> korvaiMetadata korvai }
+inferSectionTags :: Tala.Tala -> SequenceT () -> Tags
+inferSectionTags tala seq = Tags $ Map.fromList
+    [ ("avartanams", [pretty $ dur / talaAksharas])
+    , ("nadai", map pretty nadais)
+    , ("max_speed", [pretty $ maximum (0 : speeds)])
+    ]
+    where
+    talaAksharas = fromIntegral (Tala.tala_aksharas tala)
+    dur = Solkattu.durationOf S.defaultTempo seq
+    tempos = map fst $ S.tempoNotes $ flatten seq
+    nadais = Seq.unique_sort $ map S._nadai tempos
+    speeds = Seq.unique_sort $ map S._speed tempos
+
 
 -- * types
 
