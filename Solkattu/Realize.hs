@@ -176,8 +176,8 @@ verifyAlignment tala startOn endOn notes
         where
         endMsg
             | endOn == 0 = ""
-            | endOn > 0 = "+" <> S.showImproper endOn
-            | otherwise = S.showImproper endOn
+            | endOn > 0 = "+" <> pretty endOn
+            | otherwise = pretty endOn
         finalNote = fst <$> List.find (not . isSpace . snd) (reverse states)
         left = fromIntegral (Tala.tala_aksharas tala)
             - S.stateMatraPosition finalState

@@ -46,7 +46,7 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai, eddupu, printKonnakol, section, smap)
+import Solkattu.Korvai (Korvai, printKonnakol, section, smap)
 import Solkattu.Html (writeHtmlKorvai)
 import Solkattu.MetadataGlobal
 import Solkattu.SectionGlobal

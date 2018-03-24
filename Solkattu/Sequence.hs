@@ -356,9 +356,6 @@ showPosition :: State -> Text
 showPosition state = showt (stateAvartanam state + 1)
     <> ":" <> pretty (stateMatraPosition state)
 
-showImproper :: Duration -> Text
-showImproper (Duration d) = Pretty.improper_ratio d
-
 -- * functions
 
 -- | Flatten the note and return its Duration.

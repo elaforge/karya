@@ -51,8 +51,6 @@ data Korvai = Korvai {
     korvaiSections :: !KorvaiType
     , korvaiStrokeMaps :: !StrokeMaps
     , korvaiTala :: !Tala.Tala
-    -- | Expect the korvai to end on sam + eddupu.
-    , korvaiEddupu :: !S.Duration
     , korvaiMetadata :: !Metadata
     } deriving (Eq, Show)
 
@@ -69,12 +67,11 @@ instance Pretty KorvaiType where
     pretty (Mridangam a) = pretty a
 
 instance Pretty Korvai where
-    format (Korvai sequence strokeMaps tala eddupu metadata) =
+    format (Korvai sequence strokeMaps tala metadata) =
         Pretty.record "Korvai"
         [ ("sequence", Pretty.format sequence)
         , ("strokeMaps", Pretty.format strokeMaps)
         , ("tala", Pretty.format tala)
-        , ("eddupu", Pretty.format eddupu)
         , ("metadata", Pretty.format metadata)
         ]
 
@@ -83,7 +80,6 @@ korvai tala strokeMaps sections = Korvai
     { korvaiSections = Sollu sections
     , korvaiStrokeMaps = strokeMaps
     , korvaiTala = tala
-    , korvaiEddupu = 0
     , korvaiMetadata = mempty
     }
 
@@ -102,7 +98,6 @@ mridangamKorvai tala pmap sections = Korvai
             }
         }
     , korvaiTala = tala
-    , korvaiEddupu = 0
     , korvaiMetadata = mempty
     }
 
@@ -111,9 +106,6 @@ mridangamKorvaiInferSections :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
     -> Korvai
 mridangamKorvaiInferSections tala pmap =
     mridangamKorvai tala pmap . inferSections
-
-eddupu :: S.Duration -> Korvai -> Korvai
-eddupu dur korvai = korvai { korvaiEddupu = dur }
 
 withKorvaiMetadata :: Metadata -> Korvai -> Korvai
 withKorvaiMetadata meta korvai =
@@ -351,8 +343,8 @@ inferMetadata = inferSections . inferKorvaiMetadata
                 Mridangam $ map (addTags (korvaiTala korvai)) sections
             }
     addTags :: Tala.Tala -> Section stroke -> Section stroke
-    addTags tala section = withSectionTags (inferSectionTags tala seq) section
-        where seq = mapSollu (const ()) (sectionSequence section)
+    addTags tala section =
+        withSectionTags (inferSectionTags tala section) section
 
 inferKorvaiMetadata :: Korvai -> Korvai
 inferKorvaiMetadata korvai =
@@ -362,7 +354,6 @@ inferKorvaiTags :: Korvai -> Tags.Tags
 inferKorvaiTags korvai = Tags.Tags $ Util.Map.multimap $ concat
     [ [ ("tala", Tala._name tala)
       , ("sections", showt sections)
-      , ("eddupu", pretty (korvaiEddupu korvai))
       ]
     , map ("instrument",) instruments
     ]
@@ -381,13 +372,16 @@ inferKorvaiTags korvai = Tags.Tags $ Util.Map.multimap $ concat
     hasInstrument korvai get = not $ Realize.isInstrumentEmpty $
         get (korvaiStrokeMaps korvai)
 
-inferSectionTags :: Tala.Tala -> SequenceT () -> Tags.Tags
-inferSectionTags tala seq = Tags.Tags $ Map.fromList
+inferSectionTags :: Tala.Tala -> Section sollu -> Tags.Tags
+inferSectionTags tala section = Tags.Tags $ Map.fromList $
     [ ("avartanams", [pretty $ dur / talaAksharas])
     , ("nadai", map pretty nadais)
     , ("max_speed", [pretty $ maximum (0 : speeds)])
+    ] ++ if sectionEnd section == 0 then [] else
+    [ ("eddupu", [pretty (sectionEnd section)])
     ]
     where
+    seq = mapSollu (const ()) (sectionSequence section)
     talaAksharas = fromIntegral (Tala.tala_aksharas tala)
     dur = Solkattu.durationOf S.defaultTempo seq
     tempos = map fst $ S.tempoNotes $ flatten seq

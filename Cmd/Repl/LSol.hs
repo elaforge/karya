@@ -140,6 +140,7 @@ strokes_to_events strokes =
         Realize.Pattern p -> Just (Expr.to_expr p, True)
         Realize.Space Solkattu.Rest -> Nothing
         Realize.Space Solkattu.Sarva -> Nothing -- TODO
+        Realize.Space Solkattu.Offset -> Nothing
         Realize.Alignment {} -> Nothing
 
 
