@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 import qualified Util.CallStack as CallStack
 import qualified Util.Parse as Parse
 import qualified Util.Regex as Regex
+import qualified Util.Seq as Seq
 
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Korvai)
@@ -22,10 +23,10 @@ import Global
 
 -- * query
 
-get :: Text -> Korvai -> [Text]
-get tag = Map.findWithDefault [] tag . untags . Korvai._tags
+-- | Get a korvai tag's values.
+korvaiTag :: Text -> Korvai -> [Text]
+korvaiTag tag = Map.findWithDefault [] tag . Tags.untags . Korvai._tags
     . Korvai.korvaiMetadata
-    where untags (Tags.Tags tags) = tags
 
 getLocation :: Korvai -> Korvai.Location
 getLocation = Korvai._location . Korvai.korvaiMetadata
@@ -90,6 +91,11 @@ showTime (h, m, s)
         ]
 
 -- * sections
+
+-- | Get a section tag's values, concatenated and uniqued.
+sectionTag :: Text -> Korvai -> [Text]
+sectionTag tag = Seq.unique
+    . concatMap (Map.findWithDefault [] tag . Tags.untags) . sectionTags
 
 sectionTags :: Korvai -> [Tags.Tags]
 sectionTags = map Korvai.sectionTags . Korvai.genericSections

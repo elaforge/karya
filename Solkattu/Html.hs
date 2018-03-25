@@ -82,7 +82,7 @@ renderSection tala font section (Right (notes, warn)) = mconcat
 sectionMetadata :: Korvai.Section sollu -> Doc.Html
 sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
     where
-    Tags.Tags tags = Korvai.sectionTags section
+    tags = Tags.untags $ Korvai.sectionTags section
     showTag (k, []) = Doc.html k
     showTag (k, vs) = Doc.html k <> ": "
         <> TextUtil.join ", " (map (htmlTag k) vs)
@@ -98,8 +98,8 @@ korvaiMetadata korvai = TextUtil.join "<br>\n" $ concat $
     meta = Korvai.korvaiMetadata korvai
     eddupu = Seq.unique $ filter (/="0") $
         Map.findWithDefault [] Tags.eddupu sectionTags
-    Tags.Tags sectionTags = mconcat $ Metadata.sectionTags korvai
-    Tags.Tags tags = Korvai._tags meta
+    sectionTags = Tags.untags $ mconcat $ Metadata.sectionTags korvai
+    tags = Tags.untags $ Korvai._tags meta
     showTag (k, []) = Doc.html k
     showTag (k, vs) = Doc.html k <> ": "
         <> TextUtil.join ", " (map (htmlTag k) vs)

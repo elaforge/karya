@@ -21,6 +21,9 @@ instance Monoid Tags where
 tag :: Text -> Text -> Tags
 tag k v = Tags (Map.singleton k [v])
 
+untags :: Tags -> Map Text [Text]
+untags (Tags tags) = tags
+
 -- * tags
 
 comment :: Text

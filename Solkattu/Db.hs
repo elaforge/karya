@@ -45,13 +45,18 @@ aroundDate date days =
         (Calendar.addDays days date)
 
 ofType :: Text -> Korvai.Korvai -> Bool
-ofType type_ = (type_ `elem`) . Metadata.get "type"
+ofType type_ = (type_ `elem`) . Metadata.korvaiTag "type"
 
 variableName :: Text -> Korvai.Korvai -> Bool
 variableName name = (name `Text.isInfixOf`) . Metadata.getModuleVariable
 
 hasInstrument :: Text -> Korvai.Korvai -> Bool
-hasInstrument inst = (inst `elem`) . Metadata.get "instrument"
+hasInstrument inst = (inst `elem`) . Metadata.korvaiTag "instrument"
+
+tagHas :: Text -> Text -> Korvai.Korvai -> Bool
+tagHas tag val korvai =
+    any (val `Text.isInfixOf`) $
+        Metadata.korvaiTag tag korvai ++ Metadata.sectionTag tag korvai
 
 -- * search
 
@@ -110,11 +115,11 @@ htmlSummary korvais = TextUtil.join "\n" $
     columns = ["", "type", "tala", "nadai", "date", "instruments"]
     cells korvai = Doc.link variableName (txt (korvaiFname korvai))
         : map Doc.html
-        [ Text.unwords $ Metadata.get "type" korvai
+        [ Text.unwords $ Metadata.korvaiTag "type" korvai
         , Tala._name $ Korvai.korvaiTala korvai
-        , Text.intercalate ", " $ Metadata.get "nadai" korvai
+        , Text.intercalate ", " $ Metadata.sectionTag "nadai" korvai
         , maybe "" (txt . Calendar.showGregorian) $ Korvai._date meta
-        , Text.intercalate ", " $ Metadata.get "instrument" korvai
+        , Text.intercalate ", " $ Metadata.korvaiTag "instrument" korvai
         ]
         where
         meta = Korvai.korvaiMetadata korvai

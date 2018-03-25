@@ -3374,7 +3374,7 @@ solkattu:
       . How about just making Korvai contain [Section] rather than [Sequence]?
     * add Section to Korvai
     * update inferMetadata
-    - search by tags in sections too
+    * search by tags in sections too
     * make html show section tags
     * give a way to set section data when defining the Korvai
       . rename 'korvai' and 'korvai1' to korvaiOld and korvai1Old, which infer

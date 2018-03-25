@@ -29,7 +29,7 @@ test_all = do
 
 test_metadata = do
     forM_ All.korvais $ \korvai ->
-        forM_ (Metadata.get Tags.similarTo korvai) $ \tag -> do
+        forM_ (Metadata.korvaiTag Tags.similarTo korvai) $ \tag -> do
             unless (referentExists tag) $
                 void $ failure $
                     location korvai <> ": can't find similarTo " <> showt tag
