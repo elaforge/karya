@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Format korvais as HTML.
-module Solkattu.Html (writeHtmlKorvai) where
+module Solkattu.Html (indexHtml, writeHtmlKorvai) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -26,6 +26,35 @@ import Global
 
 
 type Error = Text
+
+-- | Make a summary page with all the korvais.
+indexHtml :: (Korvai.Korvai -> FilePath) -> [Korvai.Korvai] -> Doc.Html
+indexHtml korvaiFname korvais = TextUtil.join "\n" $
+    [ "<html><body>"
+    , "<table>"
+    , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | c <- columns] <> "</tr>"
+    ] ++ map row korvais ++
+    [ "</table>"
+    , "</body></html>"
+    ]
+    where
+    row korvai = mconcat
+        [ "<tr>"
+        , mconcat ["<td>" <> cell <> "</td>" | cell <- cells korvai]
+        , "</tr>"
+        ]
+    columns = ["", "type", "tala", "nadai", "date", "instruments"]
+    cells korvai = Doc.link variableName (txt (korvaiFname korvai))
+        : map Doc.html
+        [ Text.unwords $ Metadata.korvaiTag "type" korvai
+        , Tala._name $ Korvai.korvaiTala korvai
+        , Text.intercalate ", " $ Metadata.sectionTag "nadai" korvai
+        , maybe "" (txt . Calendar.showGregorian) $ Korvai._date meta
+        , Text.intercalate ", " $ Metadata.korvaiTag "instrument" korvai
+        ]
+        where
+        meta = Korvai.korvaiMetadata korvai
+        (_, _, variableName) = Korvai._location meta
 
 -- | Write HTML with all the instrument realizations.
 writeHtmlKorvai :: FilePath -> Bool -> Korvai.Korvai -> IO ()
