@@ -286,13 +286,30 @@ expand :: (CallStack.Stack, Pretty sollu) => Int -> FMatra
     -> SequenceT sollu -> [SequenceT sollu]
 expand times dur = reverse . take times . reduceToL dur dur
 
--- | Unlike most other functions, this one doesn't make groups from the reduced
--- sequence.  Since these are used to construct a new sequence, it seems more
--- confusing than helpful.
+-- | Unlike most other functions that drop from a sequence, this one doesn't
+-- make a group.  Since these are used to construct a new sequence, it seems
+-- more confusing than helpful.
+--
+-- As with (<==) and (==>), this is higher precedence than (.), so paretheses
+-- are needed: @(a.b) `replaceStart` xyz@.
 replaceStart, replaceEnd :: (CallStack.Stack, Pretty sollu) => SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
 replaceStart prefix seq = prefix <> dropM_ (matrasOf prefix) seq
 replaceEnd seq suffix = rdropM_ (matrasOf suffix) seq <> suffix
+
+-- | Operators to embed a sequence at the beginning or end of sarvalaghu.
+--
+-- The precedence is such that sequences must be parenthesized:
+-- @(a.b) <== 8@.  If it's lower than (.), then @a.b <== 4 . c.d <== 4@ is
+-- still wrong.  Since sometimes I want (.) to be tighter and sometimes looser,
+-- I go for always looser and require parentheses, just like function calls.
+-- But by being at 8, at least I can be below (^) and (§).
+(<==) :: Pretty sollu => SequenceT sollu -> Duration -> SequenceT sollu
+seq <== dur = seq `replaceStart` sarvaD dur
+(==>) :: Pretty sollu => Duration -> SequenceT sollu -> SequenceT sollu
+dur ==> seq = sarvaD dur `replaceEnd` seq
+infixl 8 <==
+infixl 8 ==>
 
 -- * measurement
 

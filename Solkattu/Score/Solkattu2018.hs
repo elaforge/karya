@@ -201,20 +201,19 @@ yt_karaikudi1 = source "Karaikudi Mani" $
 
 c_18_03_19 :: Korvai
 c_18_03_19 = date 2018 3 19 $ ganesh $ korvaiS Tala.misra_chapu mridangam
-    [ kitataka.sd2 din . sarvaM (28-8) -- `replaceStart` sarvaD 7 -- TODO broken
-        . sarvaD 7
-    , kitataka.sd2 din . sarvaM (28-8) . 1^(kitataka.sd2 din) . sarvaM (28-8)
+    [ (kitataka.sd2 din) <== 7 . sarvaD 7
+    , (kitataka.sd2 din) <== 7 . 1^(kitataka.sd2 din) <== 7
     , kitataka . sd2 (din.na) . kitataka . sd2 (din.din.na)
         . 1^(kitataka . sd2 (din.na) . kitataka . sd2 (din.din.na))
     , kitataka . sd2 (din.na) . tri_ (din.__) kitataka
         . 1^(kitataka . sd2 (din.na) . tri_ (din.__) kitataka)
-    , kitataka.sd2 din . sarvaM (28-8)
-        . sarvaM (28-2) . tri_ (sd (din.__3)) (tat.__.kitataka)
-        . din.__4 . sarvaM (28-4-4)
+    , (kitataka.sd2 din) <== 7
+        . sarvaD 6.5 . tri_ (sd (din.__3)) (tat.__.kitataka)
+        . din.__4 . sarvaD 5
         . tri_ (din.__4) (tat.__4.kitataka)
-        . din.__4 . sarvaM (28-4-6)
+        . din.__4 . sarvaD 4.5
         . tri_ (din.__) (tat.__.tat.__4.kitataka)
-        . din.__4 . sarvaD (6)
+        . din.__4 . sarvaD 6
     , tat.__.tat.__4.kitataka . dindinna
         . tat.__4.kitataka . dindinna
         . tat.__.kitataka . dindinna

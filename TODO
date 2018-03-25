@@ -3333,10 +3333,26 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  - why is replaceStart in Solkattu2018.c_18_03_19 not working?
+  * why is replaceStart in Solkattu2018.c_18_03_19 not working?
+    . It's precedence, didn't I fix that?  It should be looser than (.) at
+      least.
+    . (.) is infixr 6, ``s defaults to infixl 9
+    . Yes, but then a.b `replaceStart` sarva . e.f `replaceStart` sarva
+      is (a.b) `replaceStart` (sarva . e.f) `replaceStart` sarva
+    . I concluded that since both ways do confusing things, I may as well use
+      the haskell default.
+    . Or, I could put (.) at 9, and add (+) as an alias at 6.  Then I can write
+      a.b `replaceStart` sarva + e.f `replaceStart` sarva
+    . It seems like too much ceremony just to get replaceStart working, when
+      I could just insist its args be parenthesized like everything else:
+      (a.b) `replaceStart` sarva . (e.f) `replaceStart` sarva
+    . replaceStart with sarva is common enough I could maybe use an operator,
+      but the precedence issue is the same.
   - I think (&) is not smart enough to understand tempo changes.
     . If I can merge any arbitrary left and right hand then I can write left
       hand independently.
+    . This is really just for MridangamGlobal.merge.
+    . Normalize speed to highest of both.
   sections:
     notes:
       . I need to do eddupu per-section, since a korvai can start anywhere,

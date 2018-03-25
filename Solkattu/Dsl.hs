@@ -2,9 +2,16 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Provide short names and operators for writing korvais in haskell.
--- This module is the shared global namespace between
--- "Solkattu.SolkattuGlobal" and "Solkattu.MridangamGlobal".
+{- | Provide short names and operators for writing korvais in haskell.  This
+    module is the shared global namespace between "Solkattu.SolkattuGlobal" and
+    "Solkattu.MridangamGlobal".
+
+    Operators:
+
+    > infixl 9 ^ § & -- also •, which replaces prelude (.)
+    > infixl 8 <== ==>
+    > infixr 6 . -- same as (<>)
+-}
 module Solkattu.Dsl (
     (.), (•), ø
     , karvai
@@ -37,6 +44,7 @@ module Solkattu.Dsl (
     , adi
     -- * conveniences
     , ganesh, janahan, sriram, sudhindra
+    , Pretty -- signatures wind up being Pretty sollu => ...
 ) where
 import qualified Prelude
 import Prelude hiding ((.), (^), repeat)
@@ -70,6 +78,7 @@ infixr 6 . -- same as <>
 -- | Composition is still useful though.
 (•) :: (b -> c) -> (a -> b) -> a -> c
 (•) = (Prelude..)
+infixr 9 • -- match prelude (.)
 
 -- | Synonym for mempty.  Opt-o on OS X.  It looks a little bit nicer when
 -- the empty case takes less horizontal space than the non-empty case.
