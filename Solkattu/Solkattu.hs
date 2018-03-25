@@ -88,6 +88,9 @@ class Show a => Notation a where -- Show makes debugging more convenient
     notation :: a -> Text
     notationHtml :: a -> Doc.Html
     notationHtml = Doc.html . notation
+    -- | Extend the note to fill its time with this character.
+    extension :: a -> Char
+    extension _ = ' '
 
 type Error = Text
 
@@ -228,6 +231,7 @@ instance Notation Pattern where
     notation p = case p of
         PatternM matras -> "p" <> showt matras
         Nakatiku -> "4n"
+    extension _ = '-'
 
 instance Expr.ToExpr Pattern where
     to_expr p = case p of

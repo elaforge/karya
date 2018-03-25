@@ -3447,7 +3447,7 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     ascii:
-      - Sarva fill === gets some spaces in there.
+      * Sarva fill === gets some spaces in there.
       - I could make sections more compact by prefixing with "n: "
       - formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
       - Colors stop right before the last note, not on it.

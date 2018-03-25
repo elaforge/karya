@@ -128,13 +128,18 @@ instance S.HasMatras (Note stroke) where
         Alignment {} -> False
 
 instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
-    notation n = case n of
+    notation = \case
         Space Solkattu.Rest -> "_"
         Space Solkattu.Sarva -> "="
         Space Solkattu.Offset -> " "
         Note s -> Solkattu.notation s
         Pattern p -> Solkattu.notation p
         Alignment _ -> "" -- this should be filtered out prior to render
+    extension = \case
+        Space Solkattu.Rest -> '_'
+        Space Solkattu.Sarva -> '='
+        Pattern p -> Solkattu.extension p
+        _ -> ' '
     notationHtml n = case n of
         Note s -> Solkattu.notationHtml s
         Pattern p -> Solkattu.notationHtml p
@@ -583,17 +588,17 @@ formatLines :: Solkattu.Notation stroke => Int -> Int -> Tala.Tala
     -> [S.Flat g (Note stroke)] -> [[[(S.State, Symbol)]]]
 formatLines strokeWidth width tala =
     formatFinalAvartanam . map (breakLine width) . breakAvartanams
-        . map combine . Seq.zip_prev . map makeSymbol . flattenGroups tala
+        . map combine . Seq.zip_prev . map makeSymbol . normalizeSpeed tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
         where
         overlap = maybe 0 (subtract strokeWidth . textLength . _text . snd)
             prev
     makeSymbol (startEnds, (state, note)) = (state,) $ make $ case note of
-        S.Attack a -> justifyLeft strokeWidth ' ' (Solkattu.notation a)
-        S.Sustain a -> Text.replicate strokeWidth $ case a of
-            Pattern {} -> "-"
-            _ -> Solkattu.notation a
+        S.Attack a ->
+            justifyLeft strokeWidth (Solkattu.extension a) (Solkattu.notation a)
+        S.Sustain a ->
+            Text.replicate strokeWidth (Text.singleton (Solkattu.extension a))
         S.Rest -> justifyLeft strokeWidth ' ' "_"
         where
         make text = Symbol
@@ -603,9 +608,9 @@ formatLines strokeWidth width tala =
             }
     angas = angaSet tala
 
-flattenGroups :: Tala.Tala -> [S.Flat g (Note a)]
+normalizeSpeed :: Tala.Tala -> [S.Flat g (Note a)]
     -> [([StartEnd], (S.State, S.Stroke (Note a)))]
-flattenGroups tala = annotateGroups
+normalizeSpeed tala = annotateGroups
     . S.normalizeSpeed tala
     . S.filterFlat (not . isAlignment)
     where
@@ -840,7 +845,7 @@ formatHtml tala font notes =
     -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
     avartanams = breakAvartanams $
         map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
-        flattenGroups tala notes
+        normalizeSpeed tala notes
 
 formatTable :: Solkattu.Notation stroke => Tala.Tala -> Font
     -> [Doc.Html] -> [[(S.State, ([StartEnd], S.Stroke (Note stroke)))]]

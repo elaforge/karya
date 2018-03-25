@@ -269,6 +269,14 @@ test_format = do
     equal (f Tala.khanda_chapu (take (5*4) (cycle kook)))
         "k o o k k o o k k o o k k o o k k o o k"
 
+test_format_space = do
+    let run = fmap (eFormat . format 80 Tala.adi_tala . fst)
+            . kRealize False Tala.adi_tala
+    equal (run (Notation.sarvaM 4)) $ Right "========"
+    equal (run (Notation.sarvaD 1)) $ Right "========"
+    equal (run (Notation.restM 4)) $ Right "_|_ _ _"
+    equal (run (Notation.restD 1)) $ Right "_|_ _ _"
+
 tala4 :: Tala.Tala
 tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 
