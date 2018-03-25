@@ -159,7 +159,7 @@ NESS:
     . can I hand damp metal percussion?
 
 STATUS
-  + solkattu: implement korvai sections
+  * solkattu: implement korvai sections
     . I'm motivated to do this because Solkattu2018.yt_mannargudi2 requires
       eddupu only on the actual korvai variations, not development.
   * upgrade to ghc 8.4.1
@@ -3362,7 +3362,7 @@ solkattu:
     * add Section to Korvai
     * update inferMetadata
     - search by tags in sections too
-    - make html show section tags
+    * make html show section tags
     * give a way to set section data when defining the Korvai
       . rename 'korvai' and 'korvai1' to korvaiOld and korvai1Old, which infer
         the sections.

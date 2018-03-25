@@ -48,3 +48,6 @@ recording = "recording"
 development, ending :: Text
 development = "development"
 ending = "ending"
+
+eddupu :: Text
+eddupu = "eddupu"

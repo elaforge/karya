@@ -4,7 +4,7 @@
 
 -- | DSL functions to add tags to Sections.
 module Solkattu.SectionGlobal (
-    startOn, endOn
+    startOn, endOn, eddupu
     -- * tags
     , scomment
     , devel, ending, localVar
@@ -22,6 +22,10 @@ import Global
 startOn, endOn :: Sequence.Duration -> Section stroke -> Section stroke
 startOn dur section = section { Korvai.sectionStart = dur }
 endOn dur section = section { Korvai.sectionEnd = dur }
+
+-- | Like 'endOn', but also mark this section with eddupu.
+eddupu :: Sequence.Duration -> Section sollu -> Section sollu
+eddupu dur = withTag Tags.eddupu (pretty dur) . endOn dur
 
 -- * tags
 

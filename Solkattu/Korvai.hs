@@ -59,9 +59,6 @@ data KorvaiType =
     | Mridangam [Section (Realize.Stroke Mridangam.Stroke)]
     deriving (Show, Eq)
 
-solluSequence (Sollu seq) = Just seq
-solluSequence _ = Nothing
-
 instance Pretty KorvaiType where
     pretty (Sollu a) = pretty a
     pretty (Mridangam a) = pretty a
@@ -111,14 +108,18 @@ withKorvaiMetadata :: Metadata -> Korvai -> Korvai
 withKorvaiMetadata meta korvai =
     korvai { korvaiMetadata = meta <> korvaiMetadata korvai }
 
+genericSections :: Korvai -> [Section ()]
+genericSections korvai = case korvaiSections korvai of
+    Sollu sections -> map strip sections
+    Mridangam sections -> map strip sections
+    where
+    strip section = section
+        { sectionSequence = mapSollu (const ()) (sectionSequence section) }
+
 -- * Section
 
 data Section stroke = Section {
-    -- TODO rename this sectionSequence?
-    -- I think I like the score terminology better, but sequence is already
-    -- used everywhere so I have to change it all at once.  But score is
-    -- already used by e.g. ToScore.
-    sectionSequence :: !(SequenceT stroke)
+    sectionSequence :: SequenceT stroke
     -- | Where the section should start.  0 means start on sam.
     , sectionStart :: !S.Duration
     -- | Expect the section to end at this time.  It can be negative, in which
@@ -377,8 +378,8 @@ inferSectionTags tala section = Tags.Tags $ Map.fromList $
     [ ("avartanams", [pretty $ dur / talaAksharas])
     , ("nadai", map pretty nadais)
     , ("max_speed", [pretty $ maximum (0 : speeds)])
-    ] ++ if sectionEnd section == 0 then [] else
-    [ ("eddupu", [pretty (sectionEnd section)])
+    , ("start", [pretty $ sectionStart section])
+    , ("end", [pretty $ sectionEnd section])
     ]
     where
     seq = mapSollu (const ()) (sectionSequence section)

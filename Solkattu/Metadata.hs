@@ -88,3 +88,8 @@ showTime (h, m, s)
         , [showt m <> "m" | m > 0]
         , [showt s <> "s" | s > 0]
         ]
+
+-- * sections
+
+sectionTags :: Korvai -> [Tags.Tags]
+sectionTags = map Korvai.sectionTags . Korvai.genericSections

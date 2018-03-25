@@ -35,7 +35,7 @@ writeHtmlKorvai fname realizePatterns korvai = do
 
 render :: Bool -> Korvai.Korvai -> Doc.Html
 render realizePatterns korvai =
-    Realize.htmlPage title (metadataHtml korvai) body
+    Realize.htmlPage title (korvaiMetadata korvai) body
     where
     (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
     body = mconcat $ mapMaybe htmlInstrument $ Seq.sort_on (order . fst) $
@@ -43,11 +43,14 @@ render realizePatterns korvai =
     htmlInstrument (name, Korvai.GInstrument inst)
         | Realize.isInstrumentEmpty strokeMap = Nothing
         | otherwise = Just $ "<h3>" <> Doc.html name <> "</h3>\n"
-            <> TextUtil.join "\n\n" sections
+            <> TextUtil.join "\n\n" sectionHtmls
         where
         strokeMap = Korvai.instFromStrokes inst (Korvai.korvaiStrokeMaps korvai)
-        sections = map (htmlResult (Korvai.korvaiTala korvai) (font name)) $
-            Korvai.realize inst realizePatterns korvai
+        sectionHtmls :: [Doc.Html]
+        sectionHtmls =
+            zipWith (renderSection (Korvai.korvaiTala korvai) (font name))
+                (Korvai.genericSections korvai)
+                (Korvai.realize inst realizePatterns korvai)
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
     font name
@@ -64,21 +67,38 @@ instrumentFont = Realize.Font
     , _monospace = True
     }
 
-htmlResult :: Solkattu.Notation stroke => Tala.Tala -> Realize.Font
-    -> Either Text ([Sequence.Flat g (Realize.Note stroke)], Error) -> Doc.Html
-htmlResult _ _ (Left err) = "<p> ERROR: " <> Doc.html err
-htmlResult tala font (Right (notes, warn)) =
-    Realize.formatHtml tala font notes
-    <> if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
+renderSection :: Solkattu.Notation stroke => Tala.Tala -> Realize.Font
+    -> Korvai.Section x
+    -> Either Error ([Sequence.Flat g (Realize.Note stroke)], Error)
+    -> Doc.Html
+renderSection _ _ _ (Left err) = "<p> ERROR: " <> Doc.html err
+renderSection tala font section (Right (notes, warn)) = mconcat
+    [ sectionMetadata section
+    , Realize.formatHtml tala font notes
+    , if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
+    ]
 
-metadataHtml :: Korvai.Korvai -> Doc.Html
-metadataHtml korvai = TextUtil.join "<br>\n" $ concat $
+-- TODO this actually looks pretty ugly, but I'll worry about that later
+sectionMetadata :: Korvai.Section sollu -> Doc.Html
+sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
+    where
+    Tags.Tags tags = Korvai.sectionTags section
+    showTag (k, []) = Doc.html k
+    showTag (k, vs) = Doc.html k <> ": "
+        <> TextUtil.join ", " (map (htmlTag k) vs)
+
+korvaiMetadata :: Korvai.Korvai -> Doc.Html
+korvaiMetadata korvai = TextUtil.join "<br>\n" $ concat $
     [ ["Tala: " <> Doc.html (Tala._name (Korvai.korvaiTala korvai))]
     , ["Date: " <> Doc.html (showDate date) | Just date <- [Korvai._date meta]]
+    , [showTag ("Eddupu", map pretty eddupu) | not (null eddupu)]
     , map showTag (Map.toAscList (Map.delete "tala" tags))
     ]
     where
     meta = Korvai.korvaiMetadata korvai
+    eddupu = Seq.unique $ filter (/="0") $
+        Map.findWithDefault [] Tags.eddupu sectionTags
+    Tags.Tags sectionTags = mconcat $ Metadata.sectionTags korvai
     Tags.Tags tags = Korvai._tags meta
     showTag (k, []) = Doc.html k
     showTag (k, vs) = Doc.html k <> ": "

@@ -24,7 +24,7 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
         . su (kitataka.tarikita) . in3 theme . din.__2
         . restD 1 . su tarikita.theme.din.__2
         . su (kitataka.tarikita) . in3 theme
-    , ending $ startOn 4 $ endOn (3/4) $ section $
+    , ending $ startOn 4 $ eddupu (3/4) $ section $
         repeat 3 $ theme . spread 3 tdgnt . theme . spread 2 tdgnt . theme
             . tri_ __3 (tri p5)
             -- Reduce __3 karvai in utarangam to __2 to arrive on sam.
@@ -81,10 +81,10 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
         din.__4 . join (din.__4)
         (replicate 2 (p8 . in3 p8) ++ replicate 2 (p8 . nadai 4 p8))
 
-    , ending $ endOn (3/4) $ section $
+    , ending $ eddupu (3/4) $ section $
         repeat 3 $ suffixes (in3 p8 . din.__.ga)
             [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
-    , ending $ endOn (3/4) $ section $
+    , ending $ eddupu (3/4) $ section $
         repeat 3 $ suffixes (nadai 4 p8 . din.__.ga)
             [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
     ]
