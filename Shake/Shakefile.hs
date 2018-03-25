@@ -145,11 +145,6 @@ extraPackagesFor obj
     | (criterionHsSuffix <> ".o") `List.isSuffixOf` obj = ["criterion"]
     | otherwise = []
 
--- | Ack.  Haddock needs all packages, but it's not convenient to call
--- 'extraPackagesFor' with everything.
-extraPackages :: [Package]
-extraPackages = ["criterion"]
-
 -- * config implementation
 
 ghcBinary :: FilePath
@@ -885,8 +880,8 @@ dispatch modeConfig targets = do
             -- shakefile runs, but that's probably ok.
             Util.system "rm" ["-rf", build]
             Util.system "mkdir" [build]
-        "doc" -> action $ makeAllDocumentation (modeConfig Test)
-        "haddock" -> action $ makeHaddock (modeConfig Test)
+        "doc" -> action $ makeAllDocumentation modeConfig
+        "haddock" -> action $ makeHaddock modeConfig
         "hlint" -> action $ hlint (modeConfig Debug)
         "md" -> action $ need . map docToHtml =<< getMarkdown
         "profile" -> action $ do
@@ -931,11 +926,11 @@ hlint config = do
 -- ** doc
 
 -- | Make all documentation.
-makeAllDocumentation :: Config -> Shake.Action ()
-makeAllDocumentation config = do
+makeAllDocumentation :: (Mode -> Config) -> Shake.Action ()
+makeAllDocumentation modeConfig = do
     docs <- getMarkdown
     need $ extractableDocs ++ map docToHtml docs
-    hs <- makeHaddock config
+    hs <- makeHaddock modeConfig
     -- TODO do these individually so they can be parallelized and won't run
     -- each time
     Util.system "tools/colorize" $ (build </> "hscolour") : hs
@@ -958,8 +953,9 @@ getMarkdown = map (docDir</>) <$> Shake.getDirectoryFiles docDir ["*.md"]
 -- TODO This always generates haddock, even if no input files have changed.
 -- I used to use Util.findHs in 'getAllHs', but it still always generated, so
 -- using command all_hs.py is not the problem.
-makeHaddock :: Config -> Shake.Action [FilePath]
-makeHaddock config = do
+makeHaddock :: (Mode -> Config) -> Shake.Action [FilePath]
+makeHaddock modeConfig = do
+    let config = modeConfig Debug
     let packages = map fst reallyAllPackages
     hs <- filter (wantsHaddock config) <$> getAllHs config
     need $ hsconfigPath config : hs
@@ -974,7 +970,7 @@ makeHaddock config = do
     let ghcFlags = concat
             [ define flags, cInclude flags
             , ghcLanguageFlags
-            , packageFlags flags (packages ++ extraPackages)
+            , packageFlags flags packages
             ]
     Util.system "haddock" $
         [ "--html", "-B", ghcLib config
@@ -1023,6 +1019,7 @@ wantsHaddock :: Config -> FilePath -> Bool
 wantsHaddock config hs = not $ or
     [ "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
+    , "_criterion.hs" `List.isSuffixOf` hs
     -- This will crash hsc2hs on OS X since jack.h is likely not present.
     -- TODO NOTE [no-package]
     , midi /= JackMidi && hs == hscToHs (hscDir config) "Midi/JackMidi.hsc"
@@ -1030,6 +1027,14 @@ wantsHaddock config hs = not $ or
     -- TODO NOTE [no-package]
     , not Config.enableIm && "Synth/" `List.isPrefixOf` hs
     , not Config.enableIm && "Ness/" `List.isPrefixOf` hs
+
+    -- Omit test util modules as well.  This is because UiTest has
+    -- #ifndef TESTING #error in it to prevent imports from non-tests, but
+    -- if I run haddock with -DTESTING, the extra module exports cause tons
+    -- of duplicate haddock.  Haddock for test utils is not so important, so
+    -- let's just omit them.
+    , "Test.hs" `List.isSuffixOf` hs
+    , hs == "Derive/DeriveQuickCheck.hs"
     ]
     where midi = midiConfig config
 

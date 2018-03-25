@@ -173,6 +173,11 @@ STATUS
       which I need.
 
 UNSORTED
+  - MemoryLeak latency is getting above the limit of 0.05
+    . I don't know what the historical values have been, maybe I should be
+      saving those.
+    ? It's the first cmd only, what is it doing that's more work?
+    . Try with 8.0.2.
   . Can I run shake based on file contents instead of timestamp?  I think git
     checkouts cause the timestamps to change.
   setup CI:
@@ -185,13 +190,13 @@ UNSORTED
         . Looks like you just declare some directories, and it saves them
           after each successful run and restores before the next.
       - get other deps: fltk, libpcre, maybe jack for linux
-      - dispatch on ghc version, see https://github.com/haskell-CI/haskell-ci
+      * dispatch on ghc version, see https://github.com/haskell-CI/haskell-ci
         . Most of it is concerned with cabal setup, but I can use the PPAs in
           the matrix.
-      - replacement for tools/ncpus, or maybe it already works?
+      * replacement for tools/ncpus, or maybe it already works?
         . https://github.com/haskell-CI/haskell-ci says the container reports
           16 cores, but the >10 cores bug only seems to apply to ghc --make.
-      - build haddock only for latest ghc
+      * build haddock only for latest ghc
   open source:
     - put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
@@ -1182,7 +1187,7 @@ TASKS:
 ----------------------------------------------------------------------
 
 documentation:
-  - haddock runs with -DTESTING, which means it shows double exports for all
+  * haddock runs with -DTESTING, which means it shows double exports for all
     the #ifdef TESTING export everything modules.
     . I can make DeriveTest work by saying TESTING || HADDOCK, but test
       modules don't work without the extra exports.
@@ -1191,6 +1196,10 @@ documentation:
       In fact this may be the only way.
     . Otherwise, I think I'd need some kind of ghc compilation mode to
       override export lists, but not affect haddock generation.
+    . or just remove the #error line, but then I need some other way to
+      prevent importing test modules
+    . I could do it with shake, define a way to detect tests, and crash if a
+      test module is imported when mode /= Test.
   - strict markdown parser, and extensible:
     . with https://markkarpov.com/post/announcing-mmark.html
     . But not ready yet (no lists or block quotes).
