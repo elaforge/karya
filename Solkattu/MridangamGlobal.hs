@@ -20,7 +20,7 @@ module Solkattu.MridangamGlobal (
     , module Solkattu.Dsl
     -- * fragments
     , tk, tktu, tdgnt
-    , kt, ktkt, pk, kp
+    , kt, ktkt, ktpk, pk, kp
     , takadinna
 ) where
 import Prelude hiding ((.))
@@ -141,6 +141,7 @@ tdgnt = k.t.k.n.o
 kt, ktkt :: Sequence
 kt = k.t
 ktkt = k.t.k.t
+ktpk = k.t.p.k
 
 pk, kp :: Sequence
 pk = p.k

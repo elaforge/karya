@@ -3333,6 +3333,10 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - why is replaceStart in Solkattu2018.c_18_03_19 not working?
+  - I think (&) is not smart enough to understand tempo changes.
+    . If I can merge any arbitrary left and right hand then I can write left
+      hand independently.
   sections:
     notes:
       . I need to do eddupu per-section, since a korvai can start anywhere,
@@ -3443,6 +3447,7 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     ascii:
+      - Sarva fill === gets some spaces in there.
       - I could make sections more compact by prefixing with "n: "
       - formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
       - Colors stop right before the last note, not on it.
@@ -3537,7 +3542,6 @@ solkattu:
       aksharas.  I don't have a way to notate it.  Maybe a sequence
       needs a separate final stroke, which is played when leading back
       to sarva.
-    - Sarva fill === gets some spaces in there.
   ? Some patterns are end-weighted, e.g. thom in sarvalaghu.
     . I can just add a rest to the beginning, but I still need to
       take duration from the previous note, e.g.

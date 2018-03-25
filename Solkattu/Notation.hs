@@ -329,6 +329,10 @@ su, sd :: [S.Note g sollu] -> [S.Note g sollu]
 su = speed 1
 sd = speed (-1)
 
+su2, sd2 :: [S.Note g sollu] -> [S.Note g sollu]
+su2 = speed 2
+sd2 = speed (-2)
+
 nadai :: S.Matra -> [S.Note g sollu] -> [S.Note g sollu]
 nadai _ [] = []
 nadai n seq = [S.TempoChange (S.Nadai n) seq]
