@@ -3404,7 +3404,7 @@ solkattu:
       . For sectionStart I have to have special support in Realize, so it can
         start >0, and format can leave that time blank.
     * remove eddupu, but infer eddupu tag from sectionEnd
-    - MetadataGlobal.exercise should mark the sections as type=exercise too
+    * MetadataGlobal.exercise should mark the sections as type=exercise too
   * I need a way to transform inside a group, e.g.
     . in3 (a:b:cs) = [a] . __ . [b] . in3 cs
     . This doesn't work if there's a group

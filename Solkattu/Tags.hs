@@ -24,6 +24,9 @@ tag k v = Tags (Map.singleton k [v])
 untags :: Tags -> Map Text [Text]
 untags (Tags tags) = tags
 
+replace :: Text -> Text -> Tags -> Tags
+replace k v (Tags tags) = Tags $ Map.insert k [v] tags
+
 -- * tags
 
 comment :: Text
@@ -37,6 +40,9 @@ type_ = "type"
 
 withType :: Text -> Tags
 withType = tag type_
+
+exercise :: Text
+exercise = "exercise"
 
 -- ** per-korvai
 

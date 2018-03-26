@@ -41,4 +41,4 @@ withType :: Text -> Section sollu -> Section sollu
 withType = withTag Tags.type_
 
 withTag :: Text -> Text -> Section sollu -> Section sollu
-withTag k v = Korvai.withSectionTags (Tags.tag k v)
+withTag k v = Korvai.addSectionTags (Tags.tag k v)

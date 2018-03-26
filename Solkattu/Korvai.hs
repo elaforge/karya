@@ -84,8 +84,7 @@ korvaiInferSections :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
 korvaiInferSections tala strokeMaps = korvai tala strokeMaps . inferSections
 
 mridangamKorvai :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
-    -> [Section (Realize.Stroke Mridangam.Stroke)]
-    -> Korvai
+    -> [Section (Realize.Stroke Mridangam.Stroke)] -> Korvai
 mridangamKorvai tala pmap sections = Korvai
     { korvaiSections = Mridangam sections
     , korvaiStrokeMaps = mempty
@@ -116,6 +115,14 @@ genericSections korvai = case korvaiSections korvai of
     strip section = section
         { sectionSequence = mapSollu (const ()) (sectionSequence section) }
 
+modifySections :: (Tags.Tags -> Tags.Tags) -> Korvai -> Korvai
+modifySections modify korvai = korvai
+    { korvaiSections = case korvaiSections korvai of
+        Sollu sections -> Sollu $ map (modifySectionTags modify) sections
+        Mridangam sections ->
+            Mridangam $ map (modifySectionTags modify) sections
+    }
+
 -- * Section
 
 data Section stroke = Section {
@@ -142,9 +149,13 @@ smap :: (SequenceT stroke -> SequenceT stroke)
     -> Section stroke -> Section stroke
 smap f section = section { sectionSequence = f (sectionSequence section) }
 
-withSectionTags :: Tags.Tags -> Section stroke -> Section stroke
-withSectionTags tags section =
-    section { sectionTags = tags <> sectionTags section }
+addSectionTags :: Tags.Tags -> Section stroke -> Section stroke
+addSectionTags tags = modifySectionTags (tags<>)
+
+modifySectionTags :: (Tags.Tags -> Tags.Tags)
+    -> Section stroke -> Section stroke
+modifySectionTags modify section =
+    section { sectionTags = modify (sectionTags section) }
 
 section :: SequenceT stroke -> Section stroke
 section seq = Section
@@ -157,8 +168,8 @@ section seq = Section
 inferSections :: [SequenceT stroke] -> [Section stroke]
 inferSections seqs = case Seq.viewr (map section seqs) of
     Just (inits, last) ->
-        map (withSectionTags (Tags.withType Tags.development)) inits
-        ++ [withSectionTags (Tags.withType Tags.ending) last]
+        map (addSectionTags (Tags.withType Tags.development)) inits
+        ++ [addSectionTags (Tags.withType Tags.ending) last]
     Nothing -> []
 
 -- * Instrument
@@ -345,7 +356,7 @@ inferMetadata = inferSections . inferKorvaiMetadata
             }
     addTags :: Tala.Tala -> Section stroke -> Section stroke
     addTags tala section =
-        withSectionTags (inferSectionTags tala section) section
+        addSectionTags (inferSectionTags tala section) section
 
 inferKorvaiMetadata :: Korvai -> Korvai
 inferKorvaiMetadata korvai =

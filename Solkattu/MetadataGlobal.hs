@@ -68,9 +68,11 @@ sequenceT = withType "sequence"
 faran :: Korvai -> Korvai
 faran = withType "faran"
 
--- TODO mark all sections as type=exercise?
 exercise :: Korvai -> Korvai
-exercise = withType "exercise"
+exercise =
+    replaceSectionTags Tags.type_ Tags.exercise . withType Tags.exercise
+    -- Replace the inferred development and ending types, exercises generally
+    -- don't have those things.
 
 trikalam :: Korvai -> Korvai
 trikalam = withType "trikalam"
@@ -83,3 +85,6 @@ withType = withTag Tags.type_
 withTag :: Text -> Text -> Korvai -> Korvai
 withTag k v = Korvai.withKorvaiMetadata $
     mempty { Korvai._tags = Tags.tag k v }
+
+replaceSectionTags :: Text -> Text -> Korvai -> Korvai
+replaceSectionTags k v = Korvai.modifySections $ Tags.replace k v
