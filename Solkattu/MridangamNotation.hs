@@ -12,9 +12,11 @@ module Solkattu.MridangamNotation (
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import qualified Solkattu.Instrument.Mridangam as Mridangam
+import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Solkattu as Solkattu
+
 import Global
 
 
@@ -25,7 +27,7 @@ merge :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke] -> [NoteT Stroke]
 merge as bs
     | not (null trailing) =
         Solkattu.throw $ "trailing strokes: " <> pretty trailing
-    | otherwise = map merge1 pairs
+    | otherwise = Notation.speed maxSpeed $ map merge1 pairs
     where
     -- At this point TempoChanges and Groups should have been flattened away.
     merge1 (a, b)

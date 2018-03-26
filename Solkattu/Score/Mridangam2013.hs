@@ -124,10 +124,13 @@ nadindin = sarvalaghu $ korvaiS adi $ map sd
     rh = n.d.d.n
     lh = o.o.o.o
 
+-- | Some patterns are more naturally expressed with negative orientation.
+-- I don't have support for that, and I don't even know how I would, but here's
+-- a simple motivating example.
 nadindin_negative :: Korvai
 nadindin_negative = sarvalaghu $ korvaiS adi $ map sd
-    [ __ . (lh & rh) . (lh & rh) . rh . (lh & rh)
-    , __ . (lh & rh) . (lh1 & rh1) . rh . (lh & rh)
+    [ __ . lh & rh . lh  & rh  . rh . lh & rh
+    , __ . lh & rh . lh1 & rh1 . rh . lh & rh
     ]
     where
     -- For this to work right, I need the the duration of each note to be
