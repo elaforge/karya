@@ -24,50 +24,27 @@ module Solkattu.MridangamGlobal (
     , takadinna
 ) where
 import Prelude hiding ((.))
+
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Solkattu.Dsl hiding ((&), lt, hv)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
+import qualified Solkattu.MridangamNotation as MridangamNotation
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.Sequence as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
-
-import Global
 
 
 type Sequence = SequenceT Stroke
 type Stroke = Realize.Stroke Mridangam.Stroke
 type Section = Korvai.Section Stroke
 
-(&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
-(&) = merge
-
 -- | Merge a sequence of left hand strokes with one of right hand strokes.
 -- Both sequences must have the same length and structure.
-merge :: CallStack.Stack => Sequence -> Sequence -> Sequence
-merge as bs
-    | not (null trailing) = throw $ "trailing strokes: " <> pretty trailing
-    | otherwise = map merge1 pairs
-    where
-    merge1 (Sequence.TempoChange t1 n1, Sequence.TempoChange t2 n2)
-        | t1 == t2 = Sequence.TempoChange t1 (merge n1 n2)
-        | otherwise = throw $ "differing tempos: " <> pretty t1 <> " /= "
-            <> pretty t2
-    merge1 (a, b)
-        | isRest a = b
-        | isRest b = a
-        | otherwise = makeNote1 $
-            Mridangam.bothRStrokes (toStroke1 a) (toStroke1 b)
-    (pairs, trailing) = second (either id id) $ Seq.zip_remainder as bs
-    isRest (Sequence.Note (Solkattu.Space Solkattu.Rest)) = True
-    isRest _ = False
-
-toStroke1 :: (CallStack.Stack, Pretty a, Pretty g) =>
-    Sequence.Note g (Solkattu.Note a) -> a
-toStroke1 (Sequence.Note (Solkattu.Note note)) = Solkattu._sollu note
-toStroke1 note = throw $ "expected sollu: " <> pretty note
+(&) :: CallStack.Stack => Sequence -> Sequence -> Sequence
+(&) = MridangamNotation.merge
 
 korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
 korvai tala = Korvai.mridangamKorvai tala Mridangam.defaultPatterns
@@ -82,14 +59,9 @@ korvaiS tala =
 korvaiS1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvaiS1 tala sequence = korvaiS tala [sequence]
 
-makeNote1 :: stroke -> Sequence.Note g (Solkattu.Note stroke)
-makeNote1 stroke = Sequence.Note $ Solkattu.Note $ Solkattu.note stroke
-
-makeNote :: Stroke -> Sequence
-makeNote stroke = [makeNote1 stroke]
-
 mridangamStrokes :: Mridangam.Strokes Sequence
-mridangamStrokes = makeNote • Realize.stroke <$> Mridangam.strokes
+mridangamStrokes =
+    MridangamNotation.makeNote • Realize.stroke <$> Mridangam.strokes
 
 Mridangam.Strokes {..} = mridangamStrokes
 
@@ -111,7 +83,7 @@ thomLH = mapNote $ \note -> if note `elem` [n, d] then o else __
 
 -- | Add a 'o' to the first stroke.
 o1 :: Sequence -> Sequence
-o1 = Seq.map_head $ Sequence.map1 $ fmap $ fmap $
+o1 = Seq.map_head $ S.map1 $ fmap $ fmap $
     Mridangam.addThoppi Mridangam.Thom
 
 lt, hv :: Sequence -> Sequence

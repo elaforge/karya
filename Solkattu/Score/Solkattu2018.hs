@@ -217,7 +217,7 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvaiS Tala.misra_chapu mridangam
     , tat.__.tat.__4.kitataka . dindinna
         . tat.__4.kitataka . dindinna
         . tat.__.kitataka . dindinna
-        . tri_ (sd2 (tat.din)) p5
+        . tri_ (sd2 (ta.din)) p5
     ]
     where
     p5 = group $ kita.taka.tari.kita.taka
@@ -231,5 +231,6 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvaiS Tala.misra_chapu mridangam
         , (din, [od])
         , (1^din, [d])
         , (tat, [p&k])
+        , (ta, [k])
         , (p5, [k, t, p, k, p, k, t, k, n, o])
         ]

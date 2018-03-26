@@ -4,7 +4,7 @@
 
 -- deriving (Real) for Duration emits this warning.
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Low level support for rhythmic sequences in a Tala.  The actual Note
 -- type is polymorphic, so this is purely rhythmic.
@@ -25,8 +25,8 @@ module Solkattu.Sequence (
     , Flat(..)
     , filterFlat
     , notes, flatten, flattenWith, flattenedNotes
-    , tempoToState, withDurations, tempoNotes
-    , Stroke(..), normalizeSpeed
+    , tempoToState, withDurations, tempoNotes, maxSpeed
+    , Stroke(..), normalizeSpeed, flattenSpeed
     -- * State
     , State(..), statePosition, stateMatraPosition, showPosition
     -- * functions
@@ -50,7 +50,7 @@ data Note g a = Note !a
     | TempoChange !TempoChange ![Note g a]
     -- See NOTE [nested-groups] for how I arrived at this design.
     | Group !g ![Note g a]
-    deriving (Eq, Ord, Show, Functor)
+    deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance (Pretty a, Pretty g) => Pretty (Note g a) where
     format n = case n of
@@ -224,6 +224,15 @@ tempoNotes = concatMap $ \n -> case n of
     FGroup _ _ children  -> tempoNotes children
     FNote tempo note -> [(tempo, note)]
 
+maxSpeed :: [Flat g a] -> Speed
+maxSpeed = maximum . (_speed defaultTempo :) . map _speed . tempoOf
+    where
+    tempoOf = concatMap $ \n -> case n of
+        FNote tempo _ -> [tempo]
+        FGroup tempo _ children -> tempo : tempoOf children
+    -- If I use tempoNotes, I miss the Tempos at FGroups, which turn out to be
+    -- important.
+
 tempoToState :: HasMatras a => Tala.Tala -> Duration -- ^ start time
     -> [(Tempo, a)]
     -> (State, [(State, a)])
@@ -265,17 +274,42 @@ normalizeSpeed tala flattened = fst $
     addState (FGroup tempo g children) =
         FGroup tempo g <$> mapM addState children
     expand (FGroup tempo g children) =
-        [FGroup (tempo { _speed = maxSpeed }) g (concatMap expand children)]
+        [FGroup (tempo { _speed = toSpeed }) g (concatMap expand children)]
     expand (FNote tempo note) =
-        map (FNote (tempo { _speed = maxSpeed })) $
+        map (FNote (tempo { _speed = toSpeed })) $
             Attack note : replicate (spaces - 1)
                 (if hasSustain note then Sustain note else Rest)
         where
-        spaces = _stride tempo * matrasOf note * 2 ^ (maxSpeed - _speed tempo)
-    maxSpeed = maximum $ 0 : map _speed (tempoOf flattened)
+        spaces = _stride tempo * matrasOf note * 2 ^ (toSpeed - _speed tempo)
+
+    toSpeed = maximum $ 0 : map _speed (tempoOf flattened)
     tempoOf = concatMap $ \n -> case n of
         FNote tempo _ -> [tempo]
         FGroup tempo _ children -> tempo : tempoOf children
+
+-- | This is similar to 'normalizeSpeed', but working on 'Note's instead of
+-- 'Flat's.  Expand speed to the given toSpeed, or error if there's a speed
+-- above it, or if I run into a nadai change.  This will eliminate all
+-- 'TempoChange's.
+flattenSpeed :: HasMatras a => Speed -> [Note g a]
+    -> Either Text [Note g (Stroke a)]
+flattenSpeed toSpeed = normalize defaultTempo
+    where
+    normalize tempo = concatMapM (go tempo)
+    go tempo = \case
+        Note a -> Right $ map Note $ Attack a : replicate (spaces-1) sustain
+            where
+            sustain = if hasSustain a then Sustain a else Rest
+            spaces = _stride tempo * matrasOf a * 2 ^ (toSpeed - _speed tempo)
+        TempoChange change subs -> case change of
+            Nadai _ -> Left $ "unsupported nadai change: " <> pretty change
+            ChangeSpeed s | speed + s > toSpeed ->
+                Left $ "speed " <> showt (speed+s) <> " > toSpeed "
+                    <> showt toSpeed
+            _ -> normalize (changeTempo change tempo) subs
+        Group g subs -> (:[]) . Group g <$> normalize tempo subs
+        where
+        speed = _speed tempo
 
 -- ** Tempo
 

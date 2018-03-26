@@ -3348,7 +3348,7 @@ solkattu:
       (a.b) `replaceStart` sarva . (e.f) `replaceStart` sarva
     . replaceStart with sarva is common enough I could maybe use an operator,
       but the precedence issue is the same.
-  - I think (&) is not smart enough to understand tempo changes.
+  * I think (&) is not smart enough to understand tempo changes.
     . If I can merge any arbitrary left and right hand then I can write left
       hand independently.
     . This is really just for MridangamGlobal.merge.

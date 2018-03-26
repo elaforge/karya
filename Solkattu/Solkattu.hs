@@ -49,9 +49,9 @@
 
     Solkattu.Score.Solkattu* - Instrument-independent korvais.
 
-    "Solkattu.MridangamGlobal", Solkattu.Score.Mridangam* - These are similar
-    to Dsl and Score.Solkattu*, except they use concrete mridangam strokes
-    instead of abstract sollus.
+    "Solkattu.MridangamGlobal", "Solkattu.MridangamNotation",
+    Solkattu.Score.Mridangam* - These are similar to Dsl and Score.Solkattu*,
+    except they use concrete mridangam strokes instead of abstract sollus.
 
     The naming convention is that \"Note\" is the level-specific
     value, itself may have a \"Note\" constructor with the "next level" of
