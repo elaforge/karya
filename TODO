@@ -173,7 +173,7 @@ UNSORTED
       saving those.
     ? It's the first cmd only, what is it doing that's more work?
     . Try with 8.0.2.
-  . Can I run shake based on file contents instead of timestamp?  I think git
+  * Can I run shake based on file contents instead of timestamp?  I think git
     checkouts cause the timestamps to change.
   setup CI:
     . https://github.com/haskell-CI/haskell-ci

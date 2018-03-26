@@ -159,6 +159,8 @@ defaultOptions = Shake.shakeOptions
     , Shake.shakeVerbosity = Shake.Quiet
     , Shake.shakeReport = [build </> "report.html"]
     , Shake.shakeProgress = Progress.report
+    -- Git branch checkouts change file timestamps, but not contents.
+    , Shake.shakeChange = Shake.ChangeModtimeAndDigestInput
     }
 
 data Config = Config {
@@ -299,8 +301,8 @@ hsBinaries =
         }
     , plain "send" "App/Send.hs"
     , (plain "shakefile" "Shake/Shakefile.hs")
-        -- Turn off idle ghc, as recommended by the shake docs.
-        { hsRtsFlags = ["-N", "-I0"] }
+        -- Turn off idle gc, and parallel gc, as recommended by the shake docs.
+        { hsRtsFlags = ["-N", "-I0", "-qg", "-qb"] }
     , plain "show_timers" "LogView/ShowTimers.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
@@ -700,7 +702,7 @@ main = do
     modeConfig <- configure (midiFromEnv env)
     writeGhciFlags modeConfig
     makeDataLinks
-    Shake.shakeArgsWith defaultOptions [] $ \_flags targets ->return $ Just $ do
+    Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
         when Config.enableIm faustRules
