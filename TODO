@@ -159,11 +159,6 @@ NESS:
     . can I hand damp metal percussion?
 
 STATUS
-  * solkattu: implement korvai sections
-    . I'm motivated to do this because Solkattu2018.yt_mannargudi2 requires
-      eddupu only on the actual korvai variations, not development.
-  * upgrade to ghc 8.4.1
-    . Sent patches to other projects, waiting for everyone to get updated.
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
@@ -190,30 +185,11 @@ UNSORTED
         . Looks like you just declare some directories, and it saves them
           after each successful run and restores before the next.
       - get other deps: fltk, libpcre, maybe jack for linux
-      * dispatch on ghc version, see https://github.com/haskell-CI/haskell-ci
-        . Most of it is concerned with cabal setup, but I can use the PPAs in
-          the matrix.
-      * replacement for tools/ncpus, or maybe it already works?
-        . https://github.com/haskell-CI/haskell-ci says the container reports
-          16 cores, but the >10 cores bug only seems to apply to ghc --make.
-      * build haddock only for latest ghc
   open source:
     - put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
       Push script does normal push to github, force push to gitlab.
       . I can push master to github, and treat work as in-progress.
-    * figure out something for Local/*, inst_db
-      . I can check in an empty config, then have the initial setup script
-        copy that into place.  I use symlinks to Local.Elaforge.*
-      . It seems messy to have everything in Local, maybe I have
-        User/Elaforge/..., User/Empty/...
-      . Then tools/setup-elaforge links User/Elaforge/* to Local/*, and
-        tools/setup copies User/Empty/* to Local/
-      . I can't use symlinks because the module lines will become inaccurate.
-        I don't want to set them to Local.* because then ghci and vim get
-        confused.
-      . Instead of links, I have to make re-export modules, which is a bit
-        more complicated.
   - Check out pretty-show or pretty-simple or ghci-pretty
     . http://teh.id.au/posts/2017/02/13/interactive-print/index.html
     . https://www.reddit.com/r/haskell/comments/76fvsq/replacing_ghcis_prettyprinter/
@@ -295,23 +271,6 @@ UNSORTED
   upgrade to ghc 8.4.1
     first make sure deps build
       - sandi, filed bug.  It's only used in Ness.* though.
-      * conduit-audio
-        . sent pull request
-        . Wrote my own.
-      * ghc-events: no Semigroup instance
-        . sent pull request
-      * haskell-src
-        . Ambiguous (<>), probably because it's in Prelude now.
-        . I should get rid of this if I can...
-      * multiset: need Semigroup superclass
-        . someone else's pull request pending
-        . but the maintainer is slow, I removed the dep since I don't really
-          need it.
-      * zmidi-core: no Semigroup instance
-        . sent pull request
-    * tag profile runs with ghc version, fix up old data
-    * search for 8.2 tagged things I can do
-    * update flags in Shakefile
   - extend gliss so I can gliss on harmonics
     . Why does eval_quoted give opposite pitches?
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
@@ -356,7 +315,6 @@ UNSORTED
     Pitch.c_set could make curves by default?
 
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
-  * Maybe I should get rid of ScoreTypes.TypedControl and TypedVal
   - If I use cpphs I might be able to use \ string continuation for CPP
     modules.  It would add another dependency though... worth it?
   - It seems there's no way to explicitly pass Nothing if the default is Just,
@@ -551,43 +509,6 @@ UNSORTED
       they have to be used with Ui.modify, which is the thing I'm trying to
       not use all the time.
     . So maybe just get rid of Ui.allocations.
-    * conduit-audio has base <4.10, I can patch but author is not responding
-      . Patched locally, but I'll need a long term solution.
-      . Should I fork, or write my own?
-      . Wrote my own.
-    * ghci thinks I have flags changed again
-      . f= build/test/obj/Util/CallStack.hs.o; rm $f; mk -V $f
-        ghcit -v1  :load Util.Control
-      . Flags are same from -XBangPatterns to -fno-warn-duplicate-exports
-      . But ghci-flags is missing -W -fwarn-identities ... etc
-      . Looks like shakefile uses it twice.
-      . ghc -c
-        [ -outputdir build/test/obj ... -fno-warn-duplicate-exports ]
-        -dynamic
-        -fhpc -hide-all-packages -package=...
-        Util/CallStack.hs -o build/test/obj/Util/CallStack.hs.o
-      . -dynamic
-        [ -outputdir build/test/obj ... -fno-warn-duplicate-exports ]
-      . Maybe it now considers a flag it didn't consider before?
-        But the only difference is -fhpc and packages.
-        . And -fhpc can't be used for ghci.
-      . Or maybe ghci is including some flag it wasn't before?
-        . /usr/local/bin/ghci -ignore-dot-ghci $(cat build/test/ghci-flags)
-          also no help.
-      . Even with minimal flags, it's still "flags changed."
-      . Looks like it is -fhpc, but I can't provide that in ghci.
-      . Then why is this tests only, what about opt?
-        . Because -O is different, but I can't include that either for
-          --interactive.
-      . Still works for debug.
-      . ghc/compiler/iface/MkIface.hs:checkFlagHash
-        iface/FlagChecker
-      . Due to https://ghc.haskell.org/trac/ghc/ticket/11798
-        https://ghc.haskell.org/trac/ghc/ticket/10923
-      . Sent mail to glasgow-haskell-users
-      * Trac ticket: https://ghc.haskell.org/trac/ghc/ticket/13604
-      . Should be fixed in 8.2.2.
-      . Nope.  Maybe the next release.
   - generalize zheng 'gliss'
     . It would use scale instead of open strings.
     . If I wanted to be fancy for harps I could do gliss on whole note or
@@ -624,13 +545,6 @@ UNSORTED
     . fmt: even more operators and imports
   load octamed files
     - implement set tempo and set frames cmds
-  / why does fltk on linux subtract 100 from window width and height?
-    . does os x? nope
-    . Actually it doesn't, it just affects what fvwm prints for the window
-      size.  It prints actual size - window.size_range(w, h).
-    . In fact, fvwm always does that for non-fltk apps like xev.  Maybe it's
-      a feature.  Probably it's the "client reported" size, e.g. xterm uses
-      rows/columns.
   selection-orientation branch cleanup:
     - set_duration: If I have ><---|, I can't set the negative event back to the
       zero dur event because it sets the previous positive event, regardless of
@@ -777,37 +691,6 @@ UNSORTED
 
 IN PROGRESS / branch: branches:
   . This has longer term projects, which are partially complete.
-  * signal-discontinuity:
-    . I need a more systematic solution for signal-discontinuity.
-    . A solution here should also be able to solve signal-offset below.
-    . As well as docs for the NOTE in Util.TimeVector.
-    . Also I worry that it's more expensive but unnecessary for MIDI.  Can I
-      disable it if there are no im instruments?
-    . Possibly I can model the signal as line segments, not Samples?  If
-      I still want it to be disabled, then I'd need some awkward thing in
-      between.
-    . Or maybe I can optimize the flat line somehow?  The reason I originally
-      didn't go with line segments was that I didn't want every single MIDI
-      style sample to wind up as two.  I could have some magic flag to
-      indicate flat until next sample.
-    . But am I really sure efficiency is a concern at all?  Signals are
-      relatively small, and I have a lot of memory.  Most memory is probably
-      used up on lazy thunks or something anyway.
-    ? Actually I should know what most memory is used on. Do some more heap
-      profile runs and write that down somewhere.
-    . Should I get rid of score level srate, and put it in the MIDI performer?
-      In practice I haven't used srate for special effects, and even if
-      I wanted to I could insert a sample and hold.  All I've done is adjusted
-      it down for gamakams.
-    . Then of course there's the continuous signal idea: signal is just
-      a function.  This would solve efficient translate and scale too: just
-      compose with another function.  If I can figure out the coerce to
-      Typecheck.TypedFunction thing, then that's how the Derivers see it too.
-    . Explicit line segments or a continuous signal or whatever would also
-      fix the problem where Signal.constant uses [(0, y)]... but then it
-      doesn't work right at <0.  Or Signal.constant could use -big_x.
-    . Investigate hermite curves in 'interpolate' package.
-      The curve-fitting stuff would be useful for eventual recording.
   - ControlFunctions are still super confusing. NOTE [fix-control-functions]
     . Yet another confusing thing is that they don't work for arbitrary
       signals given to notes.  I think it would be better to override '' to
@@ -1187,19 +1070,6 @@ TASKS:
 ----------------------------------------------------------------------
 
 documentation:
-  * haddock runs with -DTESTING, which means it shows double exports for all
-    the #ifdef TESTING export everything modules.
-    . I can make DeriveTest work by saying TESTING || HADDOCK, but test
-      modules don't work without the extra exports.
-    . The other way is to not do haddock for test modules.  I have to omit
-      *Test.hs and DeriveQuickCheck.hs too, since they rely on all exports.
-      In fact this may be the only way.
-    . Otherwise, I think I'd need some kind of ghc compilation mode to
-      override export lists, but not affect haddock generation.
-    . or just remove the #error line, but then I need some other way to
-      prevent importing test modules
-    . I could do it with shake, define a way to detect tests, and crash if a
-      test module is imported when mode /= Test.
   - strict markdown parser, and extensible:
     . with https://markkarpov.com/post/announcing-mmark.html
     . But not ready yet (no lists or block quotes).
@@ -1258,7 +1128,6 @@ oriented signals
         transpose signals depends on the pitch.
       . Ok, so the plan is
         * Augment controls_at with Orientation
-        * Use DUtil.constant_controls to sample pitches
         . Signal.at_before is actually wrong for old style signals.
           at_before 2 [(0, 0), (2, 2)] should be 0, not 2.
         . Also, some kind of slicing is happening with the pitches that's
@@ -1339,18 +1208,12 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
         . There's no strong reason to care about this, except to avoid writing
           redundant stuff in tests.  It's nice to not do more than necessary,
           but not worth making into an invariant.
-      Util.Segment invariants: Xs are ordered, max of 2 equal Xs
-        * check that from_pairs establishes it
-        * check that concat maintains it
       - Also ensure that MSignal.Signal can't get duplicate Xs.
     - Util.Segment winds up with _v vector variants.  Maybe I should make
       a whole new module with no offset, and then if I really need offset,
       make a wrapper for it.
     - Maybe rename Signal.from_sample to constant_from for a higher level
       emphasis.
-  tests:
-    * remove or at least audit remaining calls to Signal.to_pairs_unique
-    / Always use _rounded for DeriveTest.e_control?
   - Adding linear hurt performance
     . For cerucuk-punyah:
               max mb  total mb  derive     perform
@@ -1420,10 +1283,6 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
 
 gamakam:
   gamakam6:
-    * ']>00' is awkward to go from prev pitch to 0.  >0 is prev pitch, but I'm
-      more likely to want just prev pitch +0 rather than +n.  The same goes for
-      next, I only use relative from _current and _from.
-      . Wait, but I actually do want to say ']<^<='
     - Implement suffixes for absolute time: : or ;
       . I want a move to current which is not dependent on the note length, so
         flat notes can be smoother.
@@ -1451,31 +1310,7 @@ gamakam:
     . But this is no good if the section goes to different places.  Really
       it's the combination (A, B) that gives rise to the alternate notes.
     . Sometimes the end of A will be different depending on the following B.
-  * It seems less confusing if I have a pitch notation, and T is always set.
-    . E.g. < would become T<, and you can always use < to move to the previous
-      pitch.
-    . Then I also augment pitch with +\ for +/- 1nn, and /? for +- .5nn.
-    . But it's convenient to write !^, rather than !T^.  And 0 is already move
-      to current.
-    . In fact T is the only thing with an argument.
-    . Maybe I can just do the whole thing as a parser for pitches, that way
-      I can incorporate the various postfixes.
-  * complete sami ninne in pitch above
-    / if it works, try converting the other songs
-      . Nah too much bother.
-  * pitch above can get a non-zero t-nn after a note
-    . If I just append 0, it messes up from pitch for the next one.
   - promote a gamakam score to verify_performance
-  * How to do microtonal tweaks?  E.g. 'r s' should be s--r r+ r__r+__s where
-    r+ is above r but not at g.
-    . I have e f and g h, but they are relative only.  For absolute I could
-      postfix a number, e.g. or 1+ or 1\ to bump by .5nn.
-    . gamakam6 allows this.
-  * !0= on the last pitch makes an endless loop
-    * Should I abort derivation after too long?  Or have some way to do that?
-      Actually it locked the respond thread, I should abort that one if it
-      goes away too long.
-    . Respond probably got wedged because I hit play, and derive is wedged.
   prev pitch:
     . Originally somewhat broken, but broken in more cases by linear segments.
     . Why is prev pitch so hard?
@@ -1599,10 +1434,6 @@ synth: im:
       existing one.
       . I should be able to cache instruments that don't change.
   cleanup:
-    * rename Control.amplitude to volume for consistency with MIDI.
-      . I could use vol for both, but amplitude seems a bit more conventional.
-      . Actually, let's use volume, since that implied dB, while amplitude
-        seems to imply linear.
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control
@@ -1705,79 +1536,7 @@ synth: im:
         . I can get a typed NAudio from the length, but only inside an
           existential type.  It doesn't seem any different from just putting
           the number in the data type.
-    * I think Audio.splitNonInterleaved runs the stream multiple times, fix it.
-      . In general it seems dangerously easy to do this, but I'm not sure how
-        to prevent it.
-      . I think running multiple times is inherent given that it returns
-        a list, since I can't think of how to stream to multiple streams.
-      . streaming can do unzip, but it does it with chained streams.
-        I don't quite understand what's going on with them though.
-        Conceptually, the multiple output streams should require you to
-        consume them in lockstep, but I think the zipped form already is that,
-        so why did you unzip if you want that?
-      ? How does Stream.unzip work?
-      . Well, I should be able to return interleaved Audio with a type witness
-        for channels, but callers want separate streams.
-      . Actually, the only real caller is going mono to stereo, which I should
-        in fact be able to do directly perfectly well.
-    * Replace V.replicate n 0 with a statically allocated chunk?
-      . Also 'linear' constant signals should be able to reuse the same chunk.
-    * implement expandChannels and mixChannels.
-    * Audio.interleave shouldn't index in lists
-      . If necessary add a 2 arg version, but I should be able to just stick
-        them in a vector.  Then we are doing vector rotation.
-    * get rid of Silence, it's a hassle in resample and only mix uses it.
-    / if I separate out the libsamplerate binding from
-      conduit-audio-samplerate, then I don't need to depend on all of conduit.
-      . On the other hand, conduit is not that big, so maybe not worth
-        bothering about.
-    * convert Synth.Sampler
-    / convert Ness
-      . Actually maybe I shouldn't bother.  It's doing stuff with int samples
-        and chopping samples and I don't mind keeping conduit-audio around for
-        it.
-    * convert Synth.Faust
-    * efficient mix
-      . I could try to implement mix :: [(Frames, Audio)] -> Audio directly
-        or make an Silence Chunk which mixes trivially.
-      . The latter would look like:
-        . pad each stream with a leading Silence frames.
-        . synchronize chunks for all streams: pull from each one, then split
-          each to the shortest one
-        . emit as a stream of lists
-        . Then mix simply filters out the Silence ones and sums the rest
-    notes:
-      . or pipes, or streaming
-      . or streamly?  That one does concurrency too.
-      . Currently I mix [(RealTime, Audio)] by padding all to their start time,
-        and mixing them all.  This is inefficient because it generates and adds
-        tons of 0s.
-      . I'd prefer to have a mix that waits until the start time, allocates
-        any resources needed (open source file, allocate synthesizer), and then
-        emits samples.
-      . Author is nonresponsive.  Maybe I should just write my own:
-        . Only one sample rate, only one channel, support only Float.
-      . I think both streaming and pipes can't embed finalizers inside the way
-        that conduit does, so you can't have them closed when they're exhausted.
-        pipes and streaming can use resourcet, but I think that delays the close
-        until runResourceT, which means I'd need some place to run it.  But
-        I think I never have one, because I might be loading arbitrarily many
-        overlapping samples.
-      . streaming can use streaming-with, which uses bracket.  But I think it
-        still requires a bracket wrapped around the whole thing, and I'm not
-        sure how that even looks.
-      . However, I only need files for the sampler, I think faust and general
-        audio is pure, so no need.
-      . But in that case, I don't need streaming at all, why not a plain list of
-        chunks?
-      . Actually, I can release manually with ResourceT.  So I just do that
-        after the last samples, and ResourceT will clean up anything left if
-        there's an exception.  I think I don't care about that though, because
-        I just exit.
   play_cache: PlayCache:
-    * sami-ninne-faust is starting play at frame 268435280
-      . Because the pitch-bend at time -0.004.
-    * Why do I get error opening samples: .../g.wav.reapeaks: not found
     - Move resampling to play_cache.
     - Theoretically I should be doing sample loading in a non-audio thread.
       In practice it seems to be fine
@@ -1870,7 +1629,6 @@ synth: im:
         . When a +mute damps an +open, it should actually damp very slightly
           before.
 
-    * per-instrument rendering so instrument mutes work
     - The sampler could render per-track since each note is independent.
     - bind to rubberband library for pitch change without time change
     - convolution
@@ -1912,73 +1670,7 @@ synth: im:
         . Intrinsic pitch, used to select the sample.  I can use Note.element.
       . Write down patch description for reyong, and mridangam, so I have a
         concrete place to start.
-    * breakpoint-using version of gain, so I can do envelopes.
-      * I should have a piecewiseLinear :: [(Time, Float)] -> Audio,
-        which I can then pass to multiply.
-        . I can then use this for faust inputs, so I can make them always
-          Audio.
-    * support sample start offset
-    * extend Resample.resample to take breakpoints
-      . This means convert breakpoints to frames, then keep track of the
-        current frame.
-      . Break up input chunks where ratio breakpoints occur.
-      . Calculate start and end ratio for each chunk, and Binding.setRatio
-        to the destination.
-      . I think I need to use the callback version, since otherwise it's hard
-        to predict how many input frames are needed to get exactly to the
-        ratio curve breakpoint.
-      / use callback API
-        * Bind callback API.
-        / Contribute bindings back to conduit-audio.
-          . See if I can get him to split the package while I'm at it.
-        / make callback with Binding.callbackNew
-          . free with Foreign.freeHaskellFunPtr
-          . It has to keep the stream in a local IORef, pull a new buffer, and
-            hand it to C.
-          . It's probably safest to just copy the buffer.
-          . It's not so easy, because the stream is in ResourceT, but I need
-            an IO callback.
-          . Ultimately because it's not contained in the caller, so ResourceT
-            can't work.
-          . What about resourceForkIO?  I don't actually want a thread, but
-            I could use a channel to stream chunks?
-          . Is there something in streaming library?
-          . You know, why not implement as just IO a?  Actually, Stream IO is
-            basically just that.  That means give up on ResourceT.  I actually
-            think it's ok because I can just quit on an exception.
-          . I could also build on channels, then parallelism is just fork
-            whatever I want in parallel.
-          . I guess channels are push though, not pull, unless I basically just
-            made them all MVars.
-        / Loop on pulling from Binding.callbackRead
-      / Or I could go back to just predict the breakpoint time, it doesn't
-        seem so bad now.  It's the integral of the slope up until the
-        breakpoint, right?
-        . Actually I don't need to get it right, just make sure I have enough
-          inputFrames, which I can overestimate by taking
-          outputFrames * max startRatio endRatio * 1.1.  I just have to glue
-          them until I get there.
   faust:
-    / shouldn't faust_all.cc be in build/faust?
-      . No, that would make the shake rule more complicated.
-    * render incrementally
-    * let faust instruments take streaming input too
-      . This way I can e.g. pipe multiple instruments through an effect.
-      . This is also what I need to make control inputs incremental, it's pure
-        but the signal looks the same as faust output.
-      . Actually the faust stuff should be ok for unsafePerformIO.
-      * Replace Render.mergeControls with Audio.linear
-        . Should I stop processing in gaps?  I don't exactly know what it is
-          because I don't know the decay here.  So I think I keep generating,
-          but I can make constants cheap.
-      * Replace Render.renderInstrument with Render.render
-      * It sort of works, but notes are delayed and there's distortion.
-        . Control signals are as expected
-        . It looks like the audio gets looped a bit right when the next
-          note should start.
-        . About .06s, which is ~ 26460 samples, which is 5.292 chunks.
-        . It seems the sounding start starts on a chunk boundary.
-    * Audio.linear should reuse the buffer for long constant segments.
     - Compare timing with pre-input signals.
       . In general I should set up performance tracking for faust-im and
         sampler-im.
@@ -1994,34 +1686,6 @@ synth: im:
       . But then I have to deal with two kinds of controls.
       . And I can just set constant buffers and leave them.
     - Extend the guitar single string model into a multi-string instrument.
-    * Distinguish attack time controls and continuous controls, so I can use
-      Note.controlVals for the continuous ones.
-      . "Point" controls aren't necessarily only wanted at attack time.
-      . And I can imagine wanting pitch plus random offset.  But this requires
-        some kind of more complicated per-control thing, because it depends
-        a lot on the instrument.  E.g. one with continuous pitch I might want
-        to add a offset to 0 curve.
-      . So maybe it's better to do this at instrument-level config, where
-        I can sample some controls.
-      . So revert the Note.control_vals stuff, and introduce a mechanism to
-        sample control vals.
-      . Actually, configuring an instrument's controls as signals or sampled
-        or whatever seems useful for all instruments.  I should have a generic
-        way to configure all patches.
-      . This could be done by per-instrument note call override.  It would be
-        nice to generate this from a description so it can automatically go in
-        the doc though.
-      . I think the place for that is Instrument.Common, so I could add
-        a section concerned with configuration, which is used to automatically
-        configure the note call, or whatever else.
-      . Or actually, why not just use the note call's documentation?  Just
-        make a Derive.Instrument function to make note calls.
-    * Handle amp outside of faust, just by multiplying the signal.  That way
-      all instruments support it uniformly.
-      . Do this once I have Audio.gain with breakpoints, as needed by sampler:
-      . Presumably this should be in dB, to make it sound more linear.
-      . Remember to use Control.amplitude for this.  Probably have to either
-        change Derive.Controls.vol to amp, or convert in Perform.Im.Convert.
     - Figure out decay time instead of hardcoding it.
       . How to know when to drop notes?  I think I have to use a heuristic
         like >1s of audio under a threshold after note off.
@@ -2041,9 +1705,6 @@ synth: im:
         for communicating with the thru-VST, so I could just address patches
         by name and I don't to fuss with MIDI channels.
     support faust ui controls:
-      * Make an instrument into a conduit source.  Then I can render
-        progressively instead of a whole note.
-        . Then I can use controls by setting controls at the audio chunk rate.
       - Store persistent buffers in Instrument.
       - convert to standard control names:
         . Convert pitch NoteNumber to freq Hz
@@ -2097,18 +1758,10 @@ synth: im:
       a bytestring.
     - Provide access to input signal names so I can get rid of the awkward
       declare thing.
-    / Export metadata as data, not via the complicated visitor pattern thing.
   csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
 
-  / The start time should be in fractions of a second instead of sample
-    frames, so I'm not dependent on sample rate.  Also, will I need to emit
-    negative time?
-    . But as long as the srate constant is shared, what's the problem?  Also,
-      for negative I'd have to decide how much, and besides reaper doesn't
-      necessarily have negative time.
-    . So I have to add a constant anyway.
   cache / incremental rerender
     notes
       . I want the sequencer to only send the damaged range, but the synthesizer
@@ -2700,9 +2353,6 @@ performance:
       . In fact it seems like they may just be thread priority.
     . ghc 8.2 puts heap profile in the eventlog so I can align heap profile
       with events: https://ghc.haskell.org/trac/ghc/ticket/11094
-    * why does is the first respond slice have no BEGIN?
-      . because that's the first "wait", I should just discount that.
-    * Convert GHC events to chrome events
     + convert from by-HEC to by-thread
       . evCap is capability, which is more-or-less CPU.  But I want to track
         haskell threads, specifically the respond thread, since it may migrate
@@ -2717,7 +2367,6 @@ performance:
         . Do this only for unnamed threads?
         . If there are named threads that don't overlap, I should give the
           same ID.
-    * respond events should have duration
     + include the cmd name in the trace
       . I have msg in args, I'd need to emit cmd name as it is encountered,
         and collect them inside the respond bounds.
@@ -2726,8 +2375,6 @@ performance:
     - put tracing in derive, I can put block calls in.
       . Can I make the hierarchical?  Get a flame graph kind of thing.
     - Is trace free-ish when eventlog is off?  Otherwise I could CPP it out.
-    * I should put -eventlog on the opt build, since I want to enable it
-      during normal use.
     - add Object support
       . Thats all documented phases, right?
     - Think about generalizing convert_event_log so I can release it separately.
@@ -2766,22 +2413,6 @@ performance:
     . Skia is a 2d library, like cairo, and it has a OpenGL backend.  I guess
       it provides fancier features on top.  But if I don't need those
       features, then I should just use OpenGL directly.
-  * profiling for complete scores is broken since I removed them
-    . Derive_profile.profile_file etc.
-    . Use the the verify score stuff instead.
-    verify_performance should be able to write timing info
-      . What should I write?
-        . timing for derive, perform, lilypond
-        . prof time, total alloc, max alloc, productivity
-        . date, patch name, patch hash
-        . [(ScoreName, [(Date, [(Key, Double)])])]
-      How to use it?
-        . Probably the main way is just get a list of performance by time.
-        . GHC web interface: https://perf.haskell.org/ghc/
-        . https://hackage.haskell.org/package/gipeda
-        . It just takes csvs and makes graphs, but surely I can just create
-          graphs myself.  It uses canvas in some way I don't understand.
-        . Or: https://developers.google.com/chart/
   - Bring back profiling, and do it regularly.
     . Look into that graphing stuff, I have the links around here somewhere.
     . I can get historical data with a script to step through darcs history.
@@ -3333,100 +2964,6 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  * why is replaceStart in Solkattu2018.c_18_03_19 not working?
-    . It's precedence, didn't I fix that?  It should be looser than (.) at
-      least.
-    . (.) is infixr 6, ``s defaults to infixl 9
-    . Yes, but then a.b `replaceStart` sarva . e.f `replaceStart` sarva
-      is (a.b) `replaceStart` (sarva . e.f) `replaceStart` sarva
-    . I concluded that since both ways do confusing things, I may as well use
-      the haskell default.
-    . Or, I could put (.) at 9, and add (+) as an alias at 6.  Then I can write
-      a.b `replaceStart` sarva + e.f `replaceStart` sarva
-    . It seems like too much ceremony just to get replaceStart working, when
-      I could just insist its args be parenthesized like everything else:
-      (a.b) `replaceStart` sarva . (e.f) `replaceStart` sarva
-    . replaceStart with sarva is common enough I could maybe use an operator,
-      but the precedence issue is the same.
-  * I think (&) is not smart enough to understand tempo changes.
-    . If I can merge any arbitrary left and right hand then I can write left
-      hand independently.
-    . This is really just for MridangamGlobal.merge.
-    . Normalize speed to highest of both.
-  sections:
-    notes:
-      . I need to do eddupu per-section, since a korvai can start anywhere,
-        and development sections might not land on the eddupu.
-      . Actually what I think I need is to put section boundaries in arbitrary
-        spots, instead of always sam to sam.
-      . I could have a separate 0-dur type for markers, or use an empty group.
-      . If I do this, I could get rid of Korvai having multiple sequences, in
-        favor of section dividers.
-      . How about named sections, e.g. development, korvai, ...?
-
-      . These could be done as groups, but they have different metadata than
-        dropped stuff: name, comment, expected start and end alignment.
-      . Since sections are often sequential, I shouldn't need start alignment.
-        I could use § (or **?) operator as needed.  An optional end might be
-        convenient though, to get the automatic sam, or explicit eddupu.
-      . Multiple development sections in sequence could just mark groups, so
-        places you might repeat.
-      . Could I use it for varations too?  Just another metadata.  But these
-        are different in that they have a list of sequences, each of which
-        should have the same duration, and might have a comment.
-      . So:
-        korvai etc $ mconcat
-          [ section sDevelopment comment="comment" endOn=3 $
-            takadinna.dheem
-          , section sKorvai $
-            blah.blah
-          ]
-      . Or:
-        korvai etc $ developmentKorvai -- to init and last
-          [ takadinna.dheem
-          , blah.blah
-          ]
-      . Meanwhile a quick fix might be to just put everything in one Sequence.
-      . How about just making Korvai contain [Section] rather than [Sequence]?
-    * add Section to Korvai
-    * update inferMetadata
-    * search by tags in sections too
-    * make html show section tags
-    * give a way to set section data when defining the Korvai
-      . rename 'korvai' and 'korvai1' to korvaiOld and korvai1Old, which infer
-        the sections.
-      . e.g. endAt (3/2) $ section $ takita
-        . It looks backwards, unless I do a forward compasition:
-          section .> endAt (3/2) $ takita
-        . Not sure if it's worth it just to put section at the beginning.  It's
-          not important to see, since it's always the same.
-    * use sectionStart and sectionEnd for alignment checks
-      . For sectionStart I have to have special support in Realize, so it can
-        start >0, and format can leave that time blank.
-    * remove eddupu, but infer eddupu tag from sectionEnd
-    * MetadataGlobal.exercise should mark the sections as type=exercise too
-  * I need a way to transform inside a group, e.g.
-    . in3 (a:b:cs) = [a] . __ . [b] . in3 cs
-    . This doesn't work if there's a group
-    . I should be able to just apply the function under the first group, but
-      what about spanning groups?  There must be a general way to map to
-      a list, then map back.
-    . Since this is a 1:n transformation, in general it would need to know how
-      to add more to a group
-    . I can't just apply inside the first group, since this wouldn't work:
-      in3 (group as . group bs)
-    . In fact, I don't want to apply in tempo changes, because for that to
-      work I'd have to know more about the transformation.  E.g. ideally
-      a spread 3 would stretch everything by 3, and in fact maybe I can
-      already do that.  But that's not in3.
-    . I could do a concatMapAccumL that only goes down one level, and then
-      do intersperseN 2 __.
-    . This is way too complicated, for something with limited use.
-    . Actually not having it is being really annoying, since group boundaries
-      make the notation a lot easier to read.
-    . How about: transform either at current level, or one group down.  Error
-      if there is another group level.  Apply inside of a single tempo, but
-      error if there is another tempo.
   transcribe:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
@@ -3449,7 +2986,6 @@ solkattu:
     - underline for tha+x looks weird.
     html:
       - strip trailing rests for final note
-      * set encoding to utf8
       - Decrease font size for higher speed.
       - For high speed split avartanam.
       db ideas:
@@ -3463,7 +2999,6 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     ascii:
-      * Sarva fill === gets some spaces in there.
       - I could make sections more compact by prefixing with "n: "
       - formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
       - Colors stop right before the last note, not on it.
@@ -3476,8 +3011,6 @@ solkattu:
       . I added notationHtml, which is more error-prone, but simpler.
     - format: if the ruler changes after an avartanam line break, show the
       partial ruler, e.g. Realize_test.test_format_nadai_change
-  / Can't I have a shorter name for dropM?  dr?  dp?
-    . Is it really so common?
   - What if I just renamed Sequence to S?
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
@@ -4199,7 +3732,6 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
-    * It doesn't emit signal discontinuities correctly.
     . Get rid of gamakam1-4:
       - Remove gamakam4.
       Save what I want from 1-3 and remove.
@@ -4297,9 +3829,6 @@ Derive:
         fields in TrackLang.Dynamic in a typeclass.
 
 pitch: scales: scale:
-  * extend just to select 5, 7, 11 limit tunings
-  * raga should probably be 5-limit, or at least take tuning if all just
-    scales do.
   just:
     - should just chromatic scales differentiate A4 and d5?
       . In general they should probably deal with enharmonics, but I don't know
@@ -4334,16 +3863,6 @@ pitch: scales: scale:
         oct-degree type notation, like *hex.
       . I.e.: (TheoryFormat.letters pc_per_octave)
           (TheoryFormat.cipher pc_per_octave relative_fmt)
-    * Ok, so add make-just and make-just-r.
-      . just-ratios sets a custom list of ratios, must be 7 or 11 elements long.
-        limit-5 and limit-7 select from predefined lists.
-      . just-intervals selects from the ratios, otherwise defaults to all 1s
-        or piano layout if the ratios have 11 elements.
-        There's only a point to it if using just-ratios=limit-5 or something.
-  * add edo scale, which divides the octave
-    . I could hardcode 2-n, but I'd rather do as an argument
-    . Scale.Make could do this: edo=7 | scale=edo, but what about making Scale
-      into a Val, and then doing scale = (edo 7)?
   - Think of a way to return scales from val calls
     . Detailed notes in Derive.Scale.Interpolate NOTE [make-scale]
     . It's hard because of the Val and Derive circular dependency.
