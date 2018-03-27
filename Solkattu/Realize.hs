@@ -718,9 +718,18 @@ breakFst f = (map snd *** map snd) . break (f . fst)
 inferRulerText :: Tala.Tala -> Int -> [(S.State, a)] -> Text
 inferRulerText tala strokeWidth =
     -- A final stroke will cause a trailing space, so stripEnd.
-    Text.stripEnd . mconcatMap fmt . inferRuler tala strokeWidth
+    Text.stripEnd . mconcatMap fmt . map addNadai . zipPrevOn 0 snd
+        . inferRuler tala strokeWidth
     where
+    -- Add count of spaces to mark nadai changes.  This gets confused
+    -- when the nadai changes mid akshara though.
+    addNadai (prev, (label, spaces))
+        | spaces == prev || spaces <= 2 = (label, spaces)
+        | otherwise = (label <> ":" <> showt spaces, spaces)
     fmt (label, spaces) = justifyLeft (spaces * strokeWidth) ' ' label
+
+zipPrevOn :: b -> (a -> b) -> [a] -> [(b, a)]
+zipPrevOn from f xs = zip (from : map f xs) xs
 
 -- | Rather than generating the ruler purely from the Tala, I use the formatted
 -- strokes to figure out the mark spacing.  This should guarantee they line up,

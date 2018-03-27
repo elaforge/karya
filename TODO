@@ -3001,7 +3001,7 @@ solkattu:
     - put the ruler up every few avartanams even if it's not a new section
       . In general I could detach the ruler repeats from sections, e.g. always
         put in a ruler every n lines.
-    - nadai changes are invisible, I should put something in the ruler for it
+    * nadai changes are invisible, I should put something in the ruler for it
       . 0     .     1     .     2     .     3     .     |
         D _ ktknkookkt_kn ko_ok D _ ktknkookkt_kn ko_ok
         D _ ktknkookktknkookD _ ktknkookktknkook
@@ -3011,6 +3011,13 @@ solkattu:
         X     .     O   .   X     .     O   .   |
                     n4      n6          n4
         D _ ktknkookktknkookD _ ktknkookktknkook
+      . I could do it purely textually: after each mark, put the number of
+        spaces to the next one, if it's different from the previous.
+        . This seems kind of hacky, but the way the ruler works is also kind
+          of hacky, so it's at least consistent.
+    - nadai change: The nadai hack doesn't work when nadai changes between
+      aksharas.  I think I have to actually generate the ruler from the
+      sequence, not the text.
     * underline for tha+x looks weird.
       . Or rather it looks like gunk on the screen.  Can I pick something more
         obvious?  What about ¨, can I put that over any character?
@@ -3021,6 +3028,7 @@ solkattu:
       - Decrease font size for higher speed.
       - For high speed split avartanam.
       - I shoud be able to display nested groups.
+      - show nadai change: as above
       db ideas:
         - similar_to should be a link
         - source should be a link, click on it to see everything from that
