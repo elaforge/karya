@@ -2,9 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- deriving (Real) for Duration emits this warning.
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+-- deriving (Real) for Duration emits this warning.
 {-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Low level support for rhythmic sequences in a Tala.  The actual Note
 -- type is polymorphic, so this is purely rhythmic.

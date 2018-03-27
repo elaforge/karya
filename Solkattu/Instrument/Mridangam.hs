@@ -48,7 +48,10 @@ instance Solkattu.Notation Stroke where
         Tha -> case v of
             Ki -> "P"
             Ta -> "X"
-            _ -> Solkattu.notation v <> macronBelow
+            -- Hopefully this is big enough to not look like screen gunk, but
+            -- small enough to not be too distracting or make the original
+            -- character unreadable.
+            _ -> Solkattu.notation v <> overline
         Thom -> case v of
             Kin -> "o" <> cedillaBelow
             Tan -> "ô"
@@ -56,13 +59,13 @@ instance Solkattu.Notation Stroke where
 
 instance Pretty Stroke where pretty = Solkattu.notation
 
--- COMBINING MACRON BELOW
-macronBelow :: Text
-macronBelow = "\x0331"
-
 -- COMBINING CEDILLA
 cedillaBelow :: Text
 cedillaBelow = "\x0327"
+
+-- COMBINING OVERLINE
+overline :: Text
+overline = "\x0305"
 
 instance Solkattu.Notation Thoppi where
     notation n = case n of

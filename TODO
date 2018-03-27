@@ -166,6 +166,9 @@ STATUS
     . I have this in the 'criterion' branch.  I investigated using 'guage',
       which has fewer dependencies, but it seems one of those is JSON export,
       which I need.
+  - Track down 8.4.1 performance regression.
+    . Also see why MemoryLeak latency went up.
+    . In general I should know what the expensive things in derivation are.
 
 UNSORTED
   - MemoryLeak latency is getting above the limit of 0.05
@@ -185,6 +188,14 @@ UNSORTED
         . Looks like you just declare some directories, and it saves them
           after each successful run and restores before the next.
       - get other deps: fltk, libpcre, maybe jack for linux
+    - If I want to do verify_performance from CI then I'll need to distribute
+      the scores somehow.
+      . Using source control isn't so bad, but I should probably use
+        a different repo.  But it's weird if the saves themselves are git
+        repos.
+      . I might be able to use git submodules to just tag certain commits in
+        those saves.
+      . Also see git save:
   open source:
     - put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
@@ -1854,7 +1865,8 @@ shakefile: build:
     date.  Now it's up to .7s.  Where is the time going?
 
 incremental save / git:
-  - consider switching to a text format so git delta compression and diff works
+  text save:
+    . consider switching to a text format so delta compression and diff works
     . I just don't want to fuss with a lot of quoting.
     . Maybe I can store as null-separated values.
     . But I want to be line-oriented, so diffs work.  And maybe delta
@@ -1863,6 +1875,7 @@ incremental save / git:
       binary.
     . If I use CBOR, then maybe I could convert to CBOR records, which is
       JSON-like, and then have an automatic CBOR to text bijection.
+    . Research how git deltas actually work first.
   + try saving individual events for incremental save
     Seems to be just as slow as full save, probably most of the time is in
     the call to git.  Test again with larger tracks.
@@ -2967,6 +2980,10 @@ solkattu:
   transcribe:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
+  technique:
+    - kook kook -> kook nook
+    - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
+  - some way to turn ktkno to kikno.
   - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
     . I want to write the sarvalaghu as strokes not solkattu, not just ===
       filler.  This is because sometimes it's hard to distinguish in recordings,
@@ -2982,17 +2999,33 @@ solkattu:
       do things like display diffs.
   format: output:
     - put the ruler up every few avartanams even if it's not a new section
+      . In general I could detach the ruler repeats from sections, e.g. always
+        put in a ruler every n lines.
     - nadai changes are invisible, I should put something in the ruler for it
-    - underline for tha+x looks weird.
+      . 0     .     1     .     2     .     3     .     |
+        D _ ktknkookkt_kn ko_ok D _ ktknkookkt_kn ko_ok
+        D _ ktknkookktknkookD _ ktknkookktknkook
+
+      . 0     .     1     .     2     .     3     .     |
+        D _ ktknkookkt_kn ko_ok D _ ktknkookkt_kn ko_ok
+        X     .     O   .   X     .     O   .   |
+                    n4      n6          n4
+        D _ ktknkookktknkookD _ ktknkookktknkook
+    * underline for tha+x looks weird.
+      . Or rather it looks like gunk on the screen.  Can I pick something more
+        obvious?  What about ¨, can I put that over any character?
+      . I could also change background, but that would probably stick out too
+        much.  What other character modification options are there?
     html:
       - strip trailing rests for final note
       - Decrease font size for higher speed.
       - For high speed split avartanam.
+      - I shoud be able to display nested groups.
       db ideas:
         - similar_to should be a link
-        - source should be a list, click on it to see everything from that
+        - source should be a link, click on it to see everything from that
           source
-        - link to a specific spot in a recording
+        * link to a specific spot in a recording
       - Replace a double rest that starts on an even matra with a double
         underline, or something.  This is effectively rhythmic spelling.
         . Alternately, I could put in a number for matra count.
@@ -3000,7 +3033,11 @@ solkattu:
         . E.g. reductions or tri would line up vertically.
     ascii:
       - I could make sections more compact by prefixing with "n: "
-      - formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
+        . I should also be able to mark sam, to make avartanams more clear
+          when they wrap across two lines.
+      / formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
+        . Actually not really, it's just the nadai change not being marked.
+          See "nadai changes are invisible".
       - Colors stop right before the last note, not on it.
         . It's probably because I need to highlight the end of the group.  Can
           I use lighter gray?
@@ -3020,7 +3057,8 @@ solkattu:
       there for semi-securely evaluating haskell, but even without them
       I think it may be hard to do evil things if you can't import modules,
       and I should be able to run as nobody anyway.  The main thing is
-      noticing and killing a loop.
+      noticing and killing a loop.  There should be haskell execution code
+      in the IRC bot or evaluate expression web page thing.
     . The DB goes in a separate repo, which is edited and synced from the web
       UI.
     . To render sounds, I don't know if there is software to host and run a VST
