@@ -543,7 +543,7 @@ format overrideStrokeWidth width tala notes =
     Text.stripEnd $ Terminal.fixForIterm $ attachRuler rulerAvartanams
     where
     rulerAvartanams =
-        [ (inferRulerText tala strokeWidth (head lines),
+        [ (inferRulerText tala strokeWidth (map fst (head lines)),
             Text.unlines $ map (formatLine . map snd) lines)
         | lines <- avartanamLines
         ]
@@ -693,14 +693,14 @@ breakLine maxWidth notes
     | otherwise = breakBefore maxWidth notes
     where
     width = sum $ map (textLength . _text . snd) notes
-    aksharas = Seq.count atAkshara notes
+    aksharas = Seq.count (atAkshara . fst) notes
     breakAt akshara =
         pairToList . break ((==akshara) . S.stateAkshara . fst)
     pairToList (a, b) = [a, b]
 
 -- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
 breakBefore :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
-breakBefore maxWidth = go . dropWhile null . Seq.split_with atAkshara
+breakBefore maxWidth = go . dropWhile null . Seq.split_with (atAkshara . fst)
     where
     go aksharas =
         case breakFst (>maxWidth) (zip (runningWidth aksharas) aksharas) of
@@ -715,7 +715,7 @@ breakBefore maxWidth = go . dropWhile null . Seq.split_with atAkshara
 breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 breakFst f = (map snd *** map snd) . break (f . fst)
 
-inferRulerText :: Tala.Tala -> Int -> [(S.State, a)] -> Text
+inferRulerText :: Tala.Tala -> Int -> [S.State] -> Text
 inferRulerText tala strokeWidth =
     -- A final stroke will cause a trailing space, so stripEnd.
     Text.stripEnd . mconcatMap fmt . map addNadai . zipPrevOn 0 snd
@@ -736,7 +736,7 @@ zipPrevOn from f xs = zip (from : map f xs) xs
 -- even if the nadai changes.  But it does mean I can't generate ruler if I
 -- run out of strokes, which is a bit annoying for incomplete korvais or ones
 -- with eddupu.
-inferRuler :: Tala.Tala -> Int -> [(S.State, a)] -> [(Text, Int)]
+inferRuler :: Tala.Tala -> Int -> [S.State] -> [(Text, Int)]
 inferRuler tala strokeWidth = (++ [("|", 0)])
     . concatMap insertDots
     . zip (Tala.tala_labels tala)
@@ -748,8 +748,8 @@ inferRuler tala strokeWidth = (++ [("|", 0)])
             [(label, spaces `div` 2), (".", spaces `div` 2)]
         | otherwise = [(label, spaces)]
 
-atAkshara :: (S.State, a) -> Bool
-atAkshara = (==0) . S.stateMatra . fst
+atAkshara :: S.State -> Bool
+atAkshara = (==0) . S.stateMatra
 
 justifyLeft :: Int -> Char -> Text -> Text
 justifyLeft n c text
@@ -847,7 +847,7 @@ formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
 formatHtml tala font notes =
     formatTable tala font (map Doc.html ruler) avartanams
     where
-    ruler = maybe [] (concatMap akshara . inferRuler tala 1)
+    ruler = maybe [] (concatMap akshara . inferRuler tala 1 . map fst)
         (Seq.head avartanams)
     akshara (n, spaces) = n : replicate (spaces-1) ""
     -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
