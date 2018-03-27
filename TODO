@@ -3049,6 +3049,12 @@ solkattu:
     - format: if the ruler changes after an avartanam line break, show the
       partial ruler, e.g. Realize_test.test_format_nadai_change
   - What if I just renamed Sequence to S?
+  - automatic sarvalaghu variation
+    . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
+      and the order is also mix and match.  There should be some way to
+      generate sarvalaghu variations, where I can use these to either come up
+      with material, or restrict the pattern to 323 or something but allow the
+      specific patterns to vary automatically.
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
       strokes, and korvai fields.  Separate entry for name and tags.

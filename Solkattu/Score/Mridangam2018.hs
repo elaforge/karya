@@ -8,21 +8,11 @@ import Prelude hiding ((.), repeat)
 import Solkattu.MridangamGlobal
 
 
-e_18_03_10 :: Korvai
-e_18_03_10 = exercise $ date 2018 3 10 $ korvaiS adi
-    [ sarva1 . sarva2
-    , (on.kt.kt.k) `replaceStart` sarva1 . sarva2
-    , (on.kt.kt.k) `replaceStart` sarva1 . (n.kt.kt.k) `replaceStart` sarva2
-    ]
-    where
-    sarva1 = sd $ on.d.d.on.d.pn.d.d
-    sarva2 = sd $ n .d.d.on.d.on.d.d
-    pn = p&n
-
--- All these also work with 332 of course.
 e_323s :: Korvai
-e_323s = exercise $ date 2018 3 19 $ korvaiS adi
-    [ make (n.kt.kt.k) (sd (n.d))
+e_323s = exercise $ date 2018 3 19 $
+    comment "All these also work with 332 of course." $ korvaiS adi
+    [ make (sd (n.d.d)) (sd (n.d))
+    , make (n.kt.kt.k) (sd (n.d))
     , make (n.k.d.__.n.k) (sd (n.d))
     , make (n.k.d.__.n.k) (n.k.d.__)
     , make (n.kt.kt.k) (n.k.d.__)
