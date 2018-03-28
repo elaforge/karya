@@ -110,6 +110,12 @@ synthPackages = concat
     ]
     where w = map (\p -> (p, "")) . words
 
+-- These have im-specific deps that might not be installed
+-- TODO NOTE [no-package]
+requiresSynthPackages :: FilePath -> Bool
+requiresSynthPackages hs =
+    any (`List.isPrefixOf` hs) ["Synth/", "Ness/", "Util/Audio/"]
+
 -- | These are used in the Ness.* hierarchy, which probably only I use, and
 -- only from ghci, so I can omit the deps from common use.
 nessPackages :: [(Package, String)]
@@ -1018,17 +1024,13 @@ getAllHs config = do
 
 -- | Should this module have haddock documentation generated?
 wantsHaddock :: Config -> FilePath -> Bool
-wantsHaddock config hs = not $ or
+wantsHaddock config hs = not $ or $
     [ "_test.hs" `List.isSuffixOf` hs
     , "_profile.hs" `List.isSuffixOf` hs
     , "_criterion.hs" `List.isSuffixOf` hs
     -- This will crash hsc2hs on OS X since jack.h is likely not present.
     -- TODO NOTE [no-package]
     , midi /= JackMidi && hs == hscToHs (hscDir config) "Midi/JackMidi.hsc"
-    -- Synth/* modules have deps that might not be installed.
-    -- TODO NOTE [no-package]
-    , not Config.enableIm && "Synth/" `List.isPrefixOf` hs
-    , not Config.enableIm && "Ness/" `List.isPrefixOf` hs
 
     -- Omit test util modules as well.  This is because UiTest has
     -- #ifndef TESTING #error in it to prevent imports from non-tests, but
@@ -1037,7 +1039,7 @@ wantsHaddock config hs = not $ or
     -- let's just omit them.
     , "Test.hs" `List.isSuffixOf` hs
     , hs == "Derive/DeriveQuickCheck.hs"
-    ]
+    ] ++ if Config.enableIm then [] else [requiresSynthPackages hs]
     where midi = midiConfig config
 
 -- ** packages
@@ -1115,10 +1117,8 @@ generateTestHs suffix fn = do
     Util.system generate (fn : tests)
 
 wantsTest :: FilePath -> Bool
-wantsTest hs = not $ or
+wantsTest hs = if Config.enableIm then True else not (requiresSynthPackages hs)
     -- TODO NOTE [no-package]
-    [ not Config.enableIm && "Synth/" `List.isPrefixOf` hs
-    ]
 
 -- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs
 criterionRules :: Config -> Shake.Rules ()
