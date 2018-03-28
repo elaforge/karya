@@ -3,7 +3,21 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Convert realized 'S.Flat' output to text or HTML for display.
-module Solkattu.Format.Format where
+module Solkattu.Format.Format (
+    -- * text
+    format
+    -- * html
+    , formatHtml, htmlPage
+    , Font(..)
+
+    -- * testing
+    , StartEnd(..), formatLines, Symbol(..), annotateGroups
+
+-- TODO can't because CPP doesn't like \s
+-- #ifdef TESTING
+--     , module Solkattu.Format.Format
+-- #endif
+) where
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -193,23 +207,6 @@ breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
 breakAvartanams = dropWhile null . Seq.split_with (isSam . fst)
     where isSam state = S.stateMatra state == 0 && S.stateAkshara state == 0
 
--- | Strip duplicate rulers and attach to the notation lines.  Avartanams which
--- were broken due to width are separated with two newlines to make that
--- visible.
-attachRuler :: [(Text, Text)] -> Text
-attachRuler = mconcatMap merge . map (second Text.stripEnd)
-    . map stripDuplicate . Seq.zip_prev
-    where
-    merge (ruler, line) = maybe "" (<>"\n") ruler <> line
-        <> if "\n" `Text.isInfixOf` line then "\n\n" else "\n"
-    stripDuplicate (prev, (ruler, line))
-        | maybe False ((==ruler) . fst) prev = (Nothing, line)
-        | otherwise = (Just ruler, line)
-
--- | Like 'second', but also give fst as an argument.
-mapWithFst :: (a -> b -> c) -> [(a, b)] -> [(a, c)]
-mapWithFst f xs = [(a, f a b) | (a, b) <- xs]
-
 -- | If the text goes over the width, break at the middle akshara, or the
 -- last one before the width if there isn't a middle.
 breakLine :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
@@ -300,9 +297,6 @@ instance Pretty Symbol where
         text <> (if emphasize then "(b)" else "")
             <> pretty bounds
 
-symbol :: Text -> Symbol
-symbol text = Symbol text False []
-
 text :: (Text -> Text) -> Symbol -> Symbol
 text f sym = sym { _text = f (_text sym) }
 
@@ -390,6 +384,9 @@ formatHtml tala font notes =
     avartanams = breakAvartanams $
         map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
         normalizeSpeed tala notes
+
+-- symbol :: Text -> Symbol
+-- symbol text = Symbol text False []
 
 formatTable :: Solkattu.Notation stroke => Tala.Tala -> Font
     -> [Doc.Html] -> [[(S.State, ([StartEnd], S.Stroke (Realize.Note stroke)))]]
