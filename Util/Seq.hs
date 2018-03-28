@@ -280,6 +280,11 @@ merge_asc_lists key = foldr go []
 group_adjacent :: Eq key => (a -> key) -> [a] -> [NonNull a]
 group_adjacent key = List.groupBy ((==) `on` key)
 
+-- | Like 'group_adjacent', but include the key.
+keyed_group_adjacent :: Eq key => (a -> key) -> [a] -> [(key, NonNull a)]
+keyed_group_adjacent key =
+    key_on (key . List.head) . List.groupBy ((==) `on` key)
+
 -- ** sort
 
 -- Sort groups sort the input by the group key as a side-effect of grouping.

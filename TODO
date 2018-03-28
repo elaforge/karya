@@ -2998,7 +2998,7 @@ solkattu:
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
   format: output:
-    - put the ruler up every few avartanams even if it's not a new section
+    * put the ruler up every few avartanams even if it's not a new section
       . In general I could detach the ruler repeats from sections, e.g. always
         put in a ruler every n lines.
     * nadai changes are invisible, I should put something in the ruler for it
@@ -3015,7 +3015,7 @@ solkattu:
         spaces to the next one, if it's different from the previous.
         . This seems kind of hacky, but the way the ruler works is also kind
           of hacky, so it's at least consistent.
-    - nadai change: The nadai hack doesn't work when nadai changes between
+    * nadai change: The nadai hack doesn't work when nadai changes between
       aksharas.  I think I have to actually generate the ruler from the
       sequence, not the text.
     * underline for tha+x looks weird.
@@ -3023,7 +3023,23 @@ solkattu:
         obvious?  What about ¨, can I put that over any character?
       . I could also change background, but that would probably stick out too
         much.  What other character modification options are there?
+    fix all the ruler stuff:
+      . Show ruler by line instead of by section.
+      . Always show the ruler when it changes, instead of suppressing the
+        second half if it wrapped.
+      . Mid-akshara Nadai changes.
+      . Show at least until the end of the akshara when the sequence ends.
+      plan:
+        . Generate from the sequence instead of the text.
+        . Generate a parallel ruler realization.  [(Mark, Duration)]
+        . Every line gets a ruler, which wraps with it.
+        . Filter out rulers unless on line `mod` n, or the ruler changed.
+        . "Changed" is by structure, not marks, so wrapped ruler with the
+          same structure will also be suppressed.
+    - in Realize, clearly separate functions for text and html backends
     html:
+      - show rulers on nadai changes
+      - carry rulersEach across sections
       - strip trailing rests for final note
       - Decrease font size for higher speed.
       - For high speed split avartanam.
@@ -3039,7 +3055,10 @@ solkattu:
         . Alternately, I could put in a number for matra count.
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
-    ascii:
+    text:
+      - carry rulerEach across sections
+      - it looks like the bold-off actually used by xterm and iterm is
+        [22m, not [21m.
       - I could make sections more compact by prefixing with "n: "
         . I should also be able to mark sam, to make avartanams more clear
           when they wrap across two lines.

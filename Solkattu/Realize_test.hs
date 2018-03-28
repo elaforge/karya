@@ -280,17 +280,17 @@ test_format_space = do
 tala4 :: Tala.Tala
 tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 
-test_formatRuler = do
+test_format_ruler = do
     let run = fmap (first (capitalizeEmphasis . format 80 tala4))
             . kRealize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
     equalT (run (tas 2 8)) $ Right
-        ( "X   O   X   O   |\n\
+        ( "X:2 O   X   O   |\n\
           \K k K k K k K k"
         , ""
         )
     equalT (run (tas 2 16)) $ Right
-        ( "X   O   X   O   |\n\
+        ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \K k K k K k K k"
         , ""
@@ -302,25 +302,40 @@ test_formatRuler = do
         )
 
     equalT (run (tas 2 12 <> tas 3 6)) $ Right
-        ( "X   O   X   O   |\n\
+        ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
-          \X   O   X:3   O     |\n\
+          \X:2 O   X:3   O     |\n\
           \K k K k K k k K k k"
         , ""
         )
     -- A final stroke won't cause the ruler to reappear.
     equalT (run (tas 2 16 <> ta)) $ Right
-        ( "X   O   X   O   |\n\
+        ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \K k K k K k K k K"
         , ""
         )
     equal_fmt (either id id) (fst <$> run (tas 4 2)) $ Right
-        "X   |\n\
+        "X:4 |\n\
         \K k"
     equal_fmt (either id id) (fst <$> run (tas 8 8)) $ Right
-        "X:4     .       |\n\
+        "X:8     .       |\n\
         \K k k k k k k k"
+
+test_format_ruler_rulerEach = do
+    let run = fmap (first (capitalizeEmphasis . format 16 Tala.adi_tala))
+            . kRealize False tala4
+    let tas n = Dsl.repeat n ta
+    equalT (run (tas 80)) $ Right
+        ( "0:4 1   2   3   |\n\
+          \KkkkKkkkKkkkKkkk\n\
+          \KkkkKkkkKkkkKkkk\n\
+          \KkkkKkkkKkkkKkkk\n\
+          \KkkkKkkkKkkkKkkk\n\
+          \0:4 1   2   3   |\n\
+          \KkkkKkkkKkkkKkkk"
+        , ""
+        )
 
 equalT :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
     -> Either Text (Text, a) -> IO Bool
@@ -407,10 +422,10 @@ test_formatNadaiChange = do
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala True sequence
-    equal (Text.lines out)
-        [ "0:8     1       2       3       |"
+    equal_fmt Text.unlines (Text.lines out)
+        [ "0:4     1       2       3       |"
         , "_k_t_knok t knok_t_knok t knok_t"
-        -- TODO should be a ruler here
+        , "0:4 :6.   1     .     2     .     3     .     |"
         , "_knok _ t _ k n o k _ t _ k n o k _ t _ k n o"
         ]
     equal warn ""
@@ -583,4 +598,4 @@ statePos state =
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [Sequence.Flat g (Realize.Note stroke)] -> Text
-format = Realize.format Nothing
+format = Realize.format 4 Nothing

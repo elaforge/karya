@@ -531,22 +531,28 @@ exactMatch tag sollus (_, getStroke) =
 
 -- * format text
 
+type Line = [(S.State, Symbol)]
+type Ruler = [(Text, Int)]
+
 -- | Format the notes according to the tala.
 --
 -- The line breaking for rulers is a bit weird in that if the line is broken,
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Solkattu.Notation stroke => Maybe Int -> Int -> Tala.Tala
+format :: Solkattu.Notation stroke => Int -> Maybe Int -> Int -> Tala.Tala
     -> [S.Flat g (Note stroke)] -> Text
-format overrideStrokeWidth width tala notes =
-    Text.stripEnd $ Terminal.fixForIterm $ attachRuler rulerAvartanams
+format rulerEach overrideStrokeWidth width tala notes =
+    Text.stripEnd $ Terminal.fixForIterm $ Text.intercalate "\n" $
+        map formatAvartanam $
+        pairWithRuler rulerEach tala strokeWidth avartanamLines
     where
-    rulerAvartanams =
-        [ (inferRulerText tala strokeWidth (map fst (head lines)),
-            Text.unlines $ map (formatLine . map snd) lines)
-        | lines <- avartanamLines
-        ]
+    formatAvartanam = Text.intercalate "\n" . map formatRulerLine
+    formatRulerLine (ruler, line) = Text.intercalate "\n" $
+        maybe [] ((:[]) . textRuler strokeWidth) ruler
+        ++ [formatLine (map snd line)]
+
+    avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
     (avartanamLines, strokeWidth) = case overrideStrokeWidth of
         Just n -> (formatLines n width tala notes, n)
         Nothing -> case formatLines 1 width tala notes of
@@ -556,6 +562,33 @@ format overrideStrokeWidth width tala notes =
             result -> (result, 1)
     formatLine :: [Symbol] -> Text
     formatLine = Text.stripEnd . mconcat . map formatSymbol . thinRests
+
+pairWithRuler :: Int -> Tala.Tala -> Int -> [[Line]] -> [[(Maybe Ruler, Line)]]
+pairWithRuler rulerEach tala strokeWidth =
+    snd . List.mapAccumL (List.mapAccumL strip) (Nothing, 0)
+        . map (map addRuler)
+    where
+    addRuler line = (inferRuler tala strokeWidth (map fst line), line)
+    -- Strip rulers when they are unchanged.  "Changed" is by structure, not
+    -- mark text, so a wrapped ruler with the same structure will also be
+    -- suppressed.
+    strip (prev, lineNumber) (ruler, line) =
+        ( (Just ruler, lineNumber+1)
+        , (if wanted then Just ruler else Nothing, line)
+        )
+        where
+        wanted = lineNumber `mod` rulerEach == 0
+            || Just (map snd ruler) /= (map snd <$> prev)
+
+textRuler :: Int -> Ruler -> Text
+textRuler strokeWidth = mconcat . snd . List.mapAccumL render 0
+    where
+    render debt (mark, spaces) =
+        ( max 0 (-append) -- debt is how many spaces I'm behind
+        , mark <> Text.replicate append " "
+        )
+        where
+        append = spaces * strokeWidth - Text.length mark - debt
 
 -- | Drop single character rests on odd columns, to make the output look less
 -- cluttered.
@@ -610,9 +643,8 @@ formatLines strokeWidth width tala =
 
 normalizeSpeed :: Tala.Tala -> [S.Flat g (Note a)]
     -> [([StartEnd], (S.State, S.Stroke (Note a)))]
-normalizeSpeed tala = annotateGroups
-    . S.normalizeSpeed tala
-    . S.filterFlat (not . isAlignment)
+normalizeSpeed tala =
+    annotateGroups . S.normalizeSpeed tala . S.filterFlat (not . isAlignment)
     where
     isAlignment (Alignment {}) = True
     isAlignment _ = False
@@ -715,38 +747,42 @@ breakBefore maxWidth = go . dropWhile null . Seq.split_with (atAkshara . fst)
 breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 breakFst f = (map snd *** map snd) . break (f . fst)
 
-inferRulerText :: Tala.Tala -> Int -> [S.State] -> Text
-inferRulerText tala strokeWidth =
-    -- A final stroke will cause a trailing space, so stripEnd.
-    Text.stripEnd . mconcatMap fmt . map addNadai . zipPrevOn 0 snd
-        . inferRuler tala strokeWidth
-    where
-    -- Add count of spaces to mark nadai changes.  This gets confused
-    -- when the nadai changes mid akshara though.
-    addNadai (prev, (label, spaces))
-        | spaces == prev || spaces <= 2 = (label, spaces)
-        | otherwise = (label <> ":" <> showt spaces, spaces)
-    fmt (label, spaces) = justifyLeft (spaces * strokeWidth) ' ' label
-
-zipPrevOn :: b -> (a -> b) -> [a] -> [(b, a)]
-zipPrevOn from f xs = zip (from : map f xs) xs
-
--- | Rather than generating the ruler purely from the Tala, I use the formatted
--- strokes to figure out the mark spacing.  This should guarantee they line up,
--- even if the nadai changes.  But it does mean I can't generate ruler if I
--- run out of strokes, which is a bit annoying for incomplete korvais or ones
--- with eddupu.
-inferRuler :: Tala.Tala -> Int -> [S.State] -> [(Text, Int)]
-inferRuler tala strokeWidth = (++ [("|", 0)])
+-- | Rather than generating the ruler purely from the Tala, I use the States
+-- to figure out the mark spacing.  Otherwise I wouldn't know where nadai
+-- changes occur.  But it does mean I can't generate ruler if I run out of
+-- strokes, which is a bit annoying for incomplete korvais or ones with eddupu.
+inferRuler :: Tala.Tala -> Int -> [S.State] -> Ruler
+inferRuler tala strokeWidth =
+    (++ [("|", 0)])
+    . map (second length)
+    . concat . snd . List.mapAccumL insertNadai 0
     . concatMap insertDots
     . zip (Tala.tala_labels tala)
-    . map length . dropWhile null
+    . dropWhile null
     . Seq.split_with atAkshara
     where
-    insertDots (label, spaces)
+    insertNadai :: S.Nadai -> (Text, [S.State])
+        -> (S.Nadai, [(Text, [S.State])])
+    insertNadai prevNadai (label, states) =
+        ( maybe prevNadai fst (Seq.last groups)
+        , case groups of
+            (nadai, states) : rest | nadai == prevNadai ->
+                (label, states) : map (first nadaiChange) rest
+            _ -> (label, []) : map (first nadaiChange) groups
+        )
+        where
+        groups = Seq.keyed_group_adjacent nadaiOf states
+        nadaiOf = S._nadai . S.stateTempo
+    -- Marker for a nadai change.  It has a colon to separate it from the ruler
+    -- mark, in case it coincides with one.
+    nadaiChange n = ":" <> showt n
+    insertDots (label, states)
         | (spaces * strokeWidth > 8) && spaces `mod` 2 == 0 =
-            [(label, spaces `div` 2), (".", spaces `div` 2)]
-        | otherwise = [(label, spaces)]
+            [(label, pre) , (".", post)]
+        | otherwise = [(label, states)]
+        where
+        (pre, post) = splitAt (spaces `div` 2) states
+        spaces = length states
 
 atAkshara :: S.State -> Bool
 atAkshara = (==0) . S.stateMatra
@@ -764,6 +800,11 @@ data Symbol = Symbol {
     , _emphasize :: !Bool
     , _bounds :: ![StartEnd]
     } deriving (Eq, Show)
+
+instance Pretty Symbol where
+    pretty (Symbol text emphasize bounds) =
+        text <> (if emphasize then "(b)" else "")
+            <> pretty bounds
 
 symbol :: Text -> Symbol
 symbol text = Symbol text False []

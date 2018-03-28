@@ -239,7 +239,9 @@ tempoToState :: HasMatras a => Tala.Tala -> Duration -- ^ start time
 tempoToState tala start = List.mapAccumL toState (stateFrom tala start)
     where
     toState state (tempo, note) =
-        (advanceStateBy tala dur state, (state, note))
+        ( advanceStateBy tala dur state
+        , (state { stateTempo = tempo }, note)
+        )
         where dur = noteDuration tempo note
 
 -- | Calculate Duration for each note.
@@ -270,7 +272,7 @@ normalizeSpeed tala flattened = fst $
     addState (FNote tempo stroke) = do
         state <- State.get
         State.modify' $ advanceStateBy tala (matraDuration tempo)
-        return $ FNote tempo (state, stroke)
+        return $ FNote tempo (state { stateTempo = tempo }, stroke)
     addState (FGroup tempo g children) =
         FGroup tempo g <$> mapM addState children
     expand (FGroup tempo g children) =
@@ -358,14 +360,24 @@ data State = State {
     -- TODO actually this is not matras, but fraction of the way through the
     -- akshara.  Is there a better term?
     , stateMatra :: !Duration
+    -- | The tempo at the time of the State.  This is not needed internally,
+    -- but it's easier to record this explicitly than try to figure it out
+    -- based on the difference between this state and the next.
+    --
+    -- TODO this is a bit error prone, because while the rest of the fields are
+    -- about the current state, this is about the next time step.  That means
+    -- 'advanceStateBy' is too late to set it, and it has to be set by whoever
+    -- calls advanceStateBy.  Ugh.
+    , stateTempo :: !Tempo
     } deriving (Show)
 
 instance Pretty State where
-    format (State avartanam akshara matra) =
+    format (State avartanam akshara matra tempo) =
         Pretty.record "State"
             [ ("avartanam", Pretty.format avartanam)
             , ("akshara", Pretty.format akshara)
             , ("matra", Pretty.format matra)
+            , ("tempo", Pretty.format tempo)
             ]
 
 stateFrom :: Tala.Tala -> Duration -> State
@@ -376,6 +388,7 @@ initialState = State
     { stateAvartanam = 0
     , stateAkshara = 0
     , stateMatra = 0
+    , stateTempo = defaultTempo
     }
 
 statePosition :: State -> (Int, Tala.Akshara, Duration)
@@ -422,10 +435,12 @@ matraDuration tempo =
     1 / speedFactor (_speed tempo) / fromIntegral (_nadai tempo)
 
 advanceStateBy :: Tala.Tala -> Duration -> State -> State
-advanceStateBy tala duration state = state
+advanceStateBy tala duration state = State
     { stateAvartanam = stateAvartanam state + aksharaCarry
     , stateAkshara = akshara
     , stateMatra = dur
+    -- This will probably have to be updated by the caller.
+    , stateTempo = stateTempo state
     }
     where
     (durCarry, dur) = properFraction $ stateMatra state + duration

@@ -429,6 +429,12 @@ instance Pretty StrokeMaps where
 
 -- * print score
 
+-- | Show the ruler on multiples of this line as a reminder.  The ruler is
+-- always shown if it changes.  It should be a multiple of 2 to avoid
+-- getting the second half of a talam in case it's split in half.
+rulerEach :: Int
+rulerEach = 4
+
 printInstrument :: Solkattu.Notation stroke => Instrument stroke -> Bool
     -> Korvai -> IO ()
 printInstrument instrument realizePatterns korvai =
@@ -445,7 +451,7 @@ printResults overrideStrokeWidth korvai = printList . map show1
     where
     show1 (Left err) = "ERROR:\n" <> err
     show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
-        (Realize.format overrideStrokeWidth width tala notes)
+        (Realize.format rulerEach overrideStrokeWidth width tala notes)
         warning
     tala = korvaiTala korvai
 

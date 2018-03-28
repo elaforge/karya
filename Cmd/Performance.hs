@@ -42,7 +42,6 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Im.Convert as Im.Convert
-import qualified Perform.RealTime as RealTime
 import qualified Instrument.Inst as Inst
 import qualified Synth.Shared.Config as Shared.Config
 import qualified App.Config as Config
