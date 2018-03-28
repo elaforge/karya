@@ -12,23 +12,17 @@ import qualified Util.Seq as Seq
 import Global
 
 
--- | iTerm on OSX supports all the extended "disable mode" codes like [24m,
--- except the one for bold.  Which is the one I need.  Work around that by
--- replacing unbold with reset to normal, and then re-enable bg color if that's
--- set.
---
--- This is specific to iTerm, so if I want to support other terminals I might
--- need a more general purpose fix.
-fixForIterm :: Text -> Text
-fixForIterm = mconcat . snd . List.mapAccumL go "" . split
+-- | Tweak escape codes to get around terminal bugs \/ features.
+fix :: Text -> Text
+fix = mconcat . snd . List.mapAccumL go "" . split
     where
     go bg (code, text)
-        | code `Set.member` allSetBgs = (code, code <> fix code text)
-        | code == boldOff = (bg, normal <> bg <> fix bg text)
+        | code `Set.member` allSetBgs = (code, code <> fixNewlineBg code text)
         | code == bgDefault = ("", code <> text)
-        | otherwise = (bg, code <> fix bg text)
-        where fix = fixNewlineBg
+        | otherwise = (bg, code <> fixNewlineBg bg text)
 
+-- | If I don't turn off the bg color before a newline, the color goes all the
+-- way to the right margin, which looks really ugly.
 fixNewlineBg :: Text -> Text -> Text
 fixNewlineBg bg text
     | Text.null bg = text
@@ -65,7 +59,8 @@ normal = esc 0
 
 boldOn, boldOff :: Text
 boldOn = esc 1
-boldOff = esc 21
+boldOff = esc 22
+    -- Some docs say it's 21, but in practice xterm and iterm use 22.
 
 underlineOn, underlineOff :: Text
 underlineOn = esc 4
@@ -76,14 +71,15 @@ esc n = "\ESC[" <> showt n <> "m"
 
 -- * tests
 
--- Should look right on iterm.
-testFixForIterm :: IO ()
-testFixForIterm = putStrLn $ untxt $ fixForIterm $ Text.unwords
-    [ "before", setBg Normal Cyan, "w", boldOn, "b", boldOff
-    , "still w", bgDefault, "done"
+-- Ensure text style state works.
+testTextStyle :: IO ()
+testTextStyle = putStrLn $ untxt $ Text.unwords
+    [ "normal", setBg Normal Cyan, "cyan-bg", boldOn, "bold", boldOff
+    , "bold off, still cyan", bgDefault, "normal"
     ]
 
+-- Ensure the background color doesn't get stuck on across the newline.
 testFixNewlineBg :: IO ()
-testFixNewlineBg = putStrLn $ untxt $ fixForIterm $ Text.unwords
+testFixNewlineBg = putStrLn $ untxt $ fix $ Text.unwords
     [ "before", setBg Normal Cyan, "during\nnewline", bgDefault, "last\nline"
     ]

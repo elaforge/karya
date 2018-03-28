@@ -584,10 +584,10 @@ dropRulers = Text.strip . Text.unlines . filter (not . isRuler) . Text.lines
 capitalizeEmphasis :: Text -> Text
 capitalizeEmphasis =
     TextUtil.mapDelimited True '!' (Text.replace "-" "=" . Text.toUpper)
-    . Text.replace "\ESC[0m" "!" . Text.replace "\ESC[1m" "!"
+    . Text.replace "\ESC[1m" "!" . Text.replace "\ESC[22m" "!"
 
 stripEmphasis :: Text -> Text
-stripEmphasis = Text.replace "\ESC[0m" "" . Text.replace "\ESC[1m" ""
+stripEmphasis = Text.replace "\ESC[1m" "" . Text.replace "\ESC[22m" ""
 
 statePos :: Sequence.State -> (Int, Tala.Akshara, Sequence.Duration)
 statePos state =

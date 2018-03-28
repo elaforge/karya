@@ -543,7 +543,7 @@ type Ruler = [(Text, Int)]
 format :: Solkattu.Notation stroke => Int -> Maybe Int -> Int -> Tala.Tala
     -> [S.Flat g (Note stroke)] -> Text
 format rulerEach overrideStrokeWidth width tala notes =
-    Text.stripEnd $ Terminal.fixForIterm $ Text.intercalate "\n" $
+    Text.stripEnd $ Terminal.fix $ Text.intercalate "\n" $
         map formatAvartanam $
         pairWithRuler rulerEach tala strokeWidth avartanamLines
     where

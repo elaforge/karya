@@ -3057,7 +3057,7 @@ solkattu:
         . E.g. reductions or tri would line up vertically.
     text:
       - carry rulerEach across sections
-      - it looks like the bold-off actually used by xterm and iterm is
+      * it looks like the bold-off actually used by xterm and iterm is
         [22m, not [21m.
       - I could make sections more compact by prefixing with "n: "
         . I should also be able to mark sam, to make avartanams more clear
