@@ -21,7 +21,7 @@ import qualified Util.Seq as Seq
 
 import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
-import qualified Solkattu.Html as Html
+import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (date)
 import qualified Solkattu.Metadata as Metadata

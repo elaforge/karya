@@ -19,6 +19,7 @@ import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.Expr as Expr
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Konnakol as Konnakol
 import qualified Solkattu.Instrument.Mridangam as Mridangam
@@ -451,7 +452,7 @@ printResults overrideStrokeWidth korvai = printList . map show1
     where
     show1 (Left err) = "ERROR:\n" <> err
     show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
-        (Realize.format rulerEach overrideStrokeWidth width tala notes)
+        (Format.format rulerEach overrideStrokeWidth width tala notes)
         warning
     tala = korvaiTala korvai
 

@@ -24,7 +24,7 @@ module Solkattu.Dsl (
     , nakatiku
     -- * re-exports
     , module Solkattu.Korvai
-    , module Solkattu.Html
+    , module Solkattu.Format.Html
     , module Solkattu.MetadataGlobal
     , module Solkattu.SectionGlobal
     , module Solkattu.Sequence
@@ -52,14 +52,14 @@ import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
+import Solkattu.Format.Html (writeHtmlKorvai)
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Korvai, printKonnakol, section, smap)
-import Solkattu.Html (writeHtmlKorvai)
 import Solkattu.MetadataGlobal
-import Solkattu.SectionGlobal
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
+import Solkattu.SectionGlobal
 import qualified Solkattu.Sequence as S
 import Solkattu.Sequence (Duration, Matra, Nadai, defaultTempo)
 import qualified Solkattu.Solkattu as Solkattu

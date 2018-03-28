@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Some terminal display hacks.
-module Solkattu.Terminal where
+module Solkattu.Format.Terminal where
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text

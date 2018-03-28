@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Format korvais as HTML.
-module Solkattu.Html (indexHtml, writeHtmlKorvai) where
+module Solkattu.Format.Html (indexHtml, writeHtmlKorvai) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -14,6 +14,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
@@ -64,7 +65,7 @@ writeHtmlKorvai fname realizePatterns korvai = do
 
 render :: Bool -> Korvai.Korvai -> Doc.Html
 render realizePatterns korvai =
-    Realize.htmlPage title (korvaiMetadata korvai) body
+    Format.htmlPage title (korvaiMetadata korvai) body
     where
     (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
     body = mconcat $ mapMaybe htmlInstrument $ Seq.sort_on (order . fst) $
@@ -86,24 +87,24 @@ render realizePatterns korvai =
         | name == "konnakol" = konnakolFont
         | otherwise = instrumentFont
 
-konnakolFont, instrumentFont :: Realize.Font
-konnakolFont = Realize.Font
+konnakolFont, instrumentFont :: Format.Font
+konnakolFont = Format.Font
     { _sizePercent = 75
     , _monospace = False
     }
-instrumentFont = Realize.Font
+instrumentFont = Format.Font
     { _sizePercent = 125
     , _monospace = True
     }
 
-renderSection :: Solkattu.Notation stroke => Tala.Tala -> Realize.Font
+renderSection :: Solkattu.Notation stroke => Tala.Tala -> Format.Font
     -> Korvai.Section x
     -> Either Error ([Sequence.Flat g (Realize.Note stroke)], Error)
     -> Doc.Html
 renderSection _ _ _ (Left err) = "<p> ERROR: " <> Doc.html err
 renderSection tala font section (Right (notes, warn)) = mconcat
     [ sectionMetadata section
-    , Realize.formatHtml tala font notes
+    , Format.formatHtml tala font notes
     , if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
     ]
 
