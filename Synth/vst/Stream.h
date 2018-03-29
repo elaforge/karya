@@ -17,15 +17,9 @@
 // Stream a sample from a separate thread.  read() should be realtime-safe.
 class Stream {
 public:
-    Stream(sf_count_t blockFrames);
+    Stream(std::ostream &log, sf_count_t blockFrames, const std::string &fname,
+        int sampleRate);
     ~Stream();
-
-    // Start the streaming thread.  It will fill up the ring buffer and keep
-    // it full as long as read() is called.  An error with the file will be
-    // logged and read() will return nullptr.
-    void start(std::ostream &log, int sampleRate, const std::string &fname);
-    // Stop the streaming thread.  Call before destruction.
-    void stop();
 
     // Return a pointer to blockFrames of frames, or nullptr if there are
     // none left.  There is no in-between because the buffer will be 0 padded.
@@ -33,6 +27,12 @@ public:
 
 private:
     void stream(SNDFILE *sndfile);
+    std::unique_ptr<std::thread> streaming;
+    // Start the streaming thread.  It will fill up the ring buffer and keep
+    // it full as long as read() is called.  Erorrs are logged.
+    void start(std::ostream &log, int sampleRate, const std::string &fname);
+    void stop();
+
     // read's wantedFrames will never exceed this value.
     const sf_count_t blockFrames;
     Semaphore ready;

@@ -23,21 +23,25 @@ enum {
 };
 
 
-Stream::Stream(sf_count_t blockFrames) : blockFrames(blockFrames)
+Stream::Stream(
+        std::ostream &log, sf_count_t blockFrames, const std::string &fname,
+        int sampleRate
+    ) : blockFrames(blockFrames)
 {
     ring = jack_ringbuffer_create(ringSize * blockFrames * frameSize);
+    start(log, sampleRate, fname);
 }
 
 
 Stream::~Stream()
 {
+    stop();
     jack_ringbuffer_free(ring);
 }
 
 
 void
-Stream::start(std::ostream &log, int sampleRate,
-    const std::string &fname)
+Stream::start(std::ostream &log, int sampleRate, const std::string &fname)
 {
     SF_INFO info;
     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
@@ -58,7 +62,7 @@ Stream::start(std::ostream &log, int sampleRate,
     for (int i = 0; i < ringSize; i++) {
         ready.post();
     }
-    std::thread(&Stream::stream, this, sndfile);
+    this->streaming.reset(new std::thread(&Stream::stream, this, sndfile));
 }
 
 
@@ -73,6 +77,7 @@ Stream::stream(SNDFILE *sndfile)
         if (quit.load())
             break;
         jack_ringbuffer_get_write_vector(ring, vec);
+        // TODO read could also fail, handle that
         sf_count_t read = sf_readf_float(
             sndfile, reinterpret_cast<float *>(vec[0].buf), blockFrames);
         if (read == 0) {
@@ -92,6 +97,9 @@ Stream::stop()
 {
     quit.store(true);
     ready.post();
+    // Make sure it really quit before I delete the object.
+    if (streaming.get())
+        streaming->join();
 }
 
 
