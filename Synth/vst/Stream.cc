@@ -145,7 +145,7 @@ Stream::read(sf_count_t frames, float **output)
     // DEBUG("reading " << frames*frameSize);
     // showRing("before read", ring);
     size_t bytes = jack_ringbuffer_read(
-        ring, reinterpret_cast<char *>(&block), frames * frameSize);
+        ring, reinterpret_cast<char *>(block), frames * frameSize);
     // size_t bytes = jack_ringbuffer_read(ring, block, frames * frameSize);
     // showRing("after read", ring);
     *output = block;
