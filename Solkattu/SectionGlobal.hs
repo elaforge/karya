@@ -6,12 +6,16 @@
 module Solkattu.SectionGlobal (
     startOn, endOn, eddupu
     -- * tags
-    , scomment
-    , devel, ending, localVar
+    , scomment, sdate
+    , devel, ending, var, local
 ) where
+import qualified Util.CallStack as CallStack
+import qualified Util.Num as Num
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Section)
+import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
 import Global
@@ -29,13 +33,25 @@ eddupu dur = withTag Tags.eddupu (pretty dur) . endOn dur
 
 -- * tags
 
+-- | Separate date for a section, mostly just so I can find its recording.
+-- Unlike the korvai date it's just text.
+sdate :: CallStack.Stack => Int -> Int -> Int -> Section sollu -> Section sollu
+sdate y m d = either Solkattu.throw (const $ withTag Tags.date date) $
+    Metadata.checkDate y m d
+    where date = showt y <> "-" <> Num.zeroPad 2 m <> "-" <> Num.zeroPad 2 d
+
 scomment :: Text -> Section sollu -> Section sollu
 scomment = withTag Tags.comment
 
-devel, ending, localVar :: Section sollu -> Section sollu
+devel, ending, var :: Section sollu -> Section sollu
 devel = withType Tags.development
 ending = withType Tags.ending
-localVar = withType "local_variation"
+var = withType Tags.variation
+
+-- | On a transcription, this section is a local variation, not in the original
+-- transcription.
+local :: Section sollu -> Section sollu
+local = withTag "local" ""
 
 withType :: Text -> Section sollu -> Section sollu
 withType = withTag Tags.type_

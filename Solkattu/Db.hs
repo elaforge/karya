@@ -6,7 +6,6 @@
 module Solkattu.Db (
     module Solkattu.Db
     , module Solkattu.Dsl
-    , date
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -15,6 +14,7 @@ import qualified Data.Time.Calendar as Calendar
 
 import System.FilePath ((</>))
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -23,7 +23,6 @@ import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (date)
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Tags as Tags
 
@@ -55,6 +54,9 @@ tagHas :: Text -> Text -> Korvai.Korvai -> Bool
 tagHas tag val korvai =
     any (val `Text.isInfixOf`) $
         Metadata.korvaiTag tag korvai ++ Metadata.sectionTag tag korvai
+
+date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
+date = Metadata.makeDate
 
 -- * search
 

@@ -38,7 +38,6 @@ import qualified Solkattu.Tala as Tala
 import Global
 
 
-
 type Line = [(S.State, Symbol)]
 type Ruler = [(Text, Int)]
 

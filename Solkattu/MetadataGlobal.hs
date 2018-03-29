@@ -23,7 +23,7 @@ comment = withTag Tags.comment
 
 date :: CallStack.Stack => Int -> Int -> Int -> Korvai -> Korvai
 date y m d = Korvai.withKorvaiMetadata $ mempty { Korvai._date = Just date }
-    where !date = Korvai.date y m d
+    where !date = Metadata.makeDate y m d
 
 -- | Where or from who I learned it.
 source :: Text -> Korvai -> Korvai

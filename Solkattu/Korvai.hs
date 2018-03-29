@@ -11,9 +11,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
-import qualified Util.CallStack as CallStack
 import qualified Util.Map
-import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -330,12 +328,6 @@ instance Pretty Metadata where
         , ("tags", Pretty.format tags)
         , ("location", Pretty.format loc)
         ]
-
-date :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
-date y m d
-    | Num.inRange 2012 2020 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
-        Calendar.fromGregorian (fromIntegral y) m d
-    | otherwise = Solkattu.throw $ "invalid date: " <> showt (y, m, d)
 
 -- ** infer
 

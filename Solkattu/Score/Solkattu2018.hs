@@ -152,11 +152,12 @@ yt_karaikudi1 = source "Karaikudi Mani" $
             (Just ((0, 1, 34), (0, 2, 53))) $
         similarTo "Solkattu2016" "c_16_12_06_sriram1" $
         date 2018 1 12 $
-        korvaiS adi mridangam
-    [ sarvaD (4+1/2) . theme . tat.__ . sarvaD (1/2)
+        korvai adi mridangam
+    [ devel $ section $
+        sarvaD (4+1/2) . theme . tat.__ . sarvaD (1/2)
         . sarvaD (4+1/2) . theme . din.__4
-    -- My own development, not from the recording.
-    , sarvaD 5 . theme.nakadinna
+    , devel $ local $ section $
+        sarvaD 5 . theme.nakadinna
         . sarvaD 5 . __ . dropM 1 theme.nakadinna
         . tam.__4 . theme.nakadinna
         . tam.__4 . __ . dropM 1 theme.nakadinna
@@ -164,7 +165,7 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         -- . theme . dropM 2 theme . dropM 4 theme . tri_ tam nakadinna
 
         . theme.nakadinna.tam.__3 . dropM 1 theme . tri_ tam nakadinna
-    , purvangam . nadai 6 (
+    , ending $ section $ purvangam . nadai 6 (
         tri kitatakatam
         . p5
         . tri kitatakatam
@@ -173,9 +174,11 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         . p5.p5.p5
         )
     -- simple versions for dummies like me
-    , let t = ta.din.__.p6
+    , local $ ending $ section $
+        let t = ta.din.__.p6
         in purvangam . nadai 6 (trin (ta.__3.din.__3) t (t.t) (t.t.t))
-    , let tadin = repeat 3 (ta.din.__)
+    , local $ ending $ section $
+        let tadin = repeat 3 (ta.din.__)
         in purvangam . nadai 6 (
             tadin . p6 . tadin . p6.__.p6 . tadin . tri_ __ p6)
     ]

@@ -54,9 +54,13 @@ recording = "recording"
 
 -- ** per-section
 
-development, ending :: Text
+development, variation, ending :: Text
 development = "development"
+variation = "variation"
 ending = "ending"
 
 eddupu :: Text
 eddupu = "eddupu"
+
+date :: Text
+date = "date"

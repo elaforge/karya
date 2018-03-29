@@ -7,8 +7,10 @@
 module Solkattu.Metadata where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Num as Num
 import qualified Util.Parse as Parse
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -45,6 +47,17 @@ setLocation loc korvai = korvai
 getModuleVariable :: Korvai -> Text
 getModuleVariable korvai = last (Text.splitOn "." module_) <> "." <> name
     where (module_, _, name) = getLocation korvai
+
+-- * date
+
+makeDate :: CallStack.Stack => Int -> Int -> Int -> Calendar.Day
+makeDate y m d = either Solkattu.throw id $ checkDate y m d
+
+checkDate :: Int -> Int -> Int -> Either Text Calendar.Day
+checkDate y m d
+    | Num.inRange 2012 2020 y && Num.inRange 1 13 m && Num.inRange 1 32 d =
+        Right $ Calendar.fromGregorian (fromIntegral y) m d
+    | otherwise = Left $ "invalid date: " <> showt (y, m, d)
 
 -- * time
 
