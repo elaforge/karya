@@ -47,7 +47,7 @@ Stream::Stream(
     ring = jack_ringbuffer_create(ringBlocks * blockFrames * frameSize + 1);
     // showRing("init", ring);
     jack_ringbuffer_mlock(ring);
-    block = new float[blockFrames * frameSize];
+    outputBlock = new float[blockFrames * frameSize];
     start(log, sampleRate, fname, startOffset);
 }
 
@@ -56,7 +56,7 @@ Stream::~Stream()
 {
     stop();
     jack_ringbuffer_free(ring);
-    delete[] block;
+    delete[] outputBlock;
 }
 
 
@@ -155,10 +155,11 @@ Stream::read(sf_count_t frames, float **output)
     // DEBUG("reading " << frames*frameSize);
     // showRing("before read", ring);
     size_t bytes = jack_ringbuffer_read(
-        ring, reinterpret_cast<char *>(block), frames * frameSize);
-    // size_t bytes = jack_ringbuffer_read(ring, block, frames * frameSize);
+        ring, reinterpret_cast<char *>(outputBlock), frames * frameSize);
+    // size_t bytes = jack_ringbuffer_read(
+    //     ring, outputBlock, frames * frameSize);
     // showRing("after read", ring);
-    *output = block;
+    *output = outputBlock;
     ready.post();
     return bytes / frameSize;
 }

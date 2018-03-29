@@ -43,5 +43,5 @@ private:
     // This is always written to and read from in chunks of blockFrames *
     // frameSize.
     jack_ringbuffer_t *ring;
-    float *block;
+    float *outputBlock;
 };
