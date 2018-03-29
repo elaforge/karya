@@ -18,8 +18,7 @@
 // https://developer.apple.com/library/content/documentation/Darwin/Conceptual/KernelProgramming/synchronization/synchronization.html
 class Semaphore {
 public:
-    Semaphore() : Semaphore(0) {}
-    Semaphore(int value) : task(mach_task_self()) {
+    Semaphore(int value = 0) : task(mach_task_self()) {
         semaphore_create(task, &semaphore, SYNC_POLICY_FIFO, value);
     }
     ~Semaphore() {
@@ -27,6 +26,9 @@ public:
     }
     void post() { semaphore_signal(semaphore); }
     void wait() { semaphore_wait(semaphore); }
+
+    Semaphore(const Semaphore &) = delete;
+    Semaphore &operator=(const Semaphore &) = delete;
 private:
     const task_t task;
     semaphore_t semaphore;
@@ -39,17 +41,21 @@ private:
 
 class Semaphore {
 public:
-    Semaphore(int value) { sem_init(&semaphore, 0, value); }
+    Semaphore(int value = 0) { sem_init(&semaphore, 0, value); }
     ~Semaphore() { sem_destroy(&semaphore); }
     void post() { sem_post(&semaphore); }
     void wait() {
         for (;;) {
             if (sem_wait(&semaphore) == -1) {
+                // It must be EDEADLK then.
                 if (errno != EINTR)
                     abort();
             }
         }
     }
+
+    Semaphore(const Semaphore &) = delete;
+    Semaphore &operator=(const Semaphore &) = delete;
 private:
     sem_t semaphore;
 }
