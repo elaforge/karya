@@ -98,7 +98,7 @@ interpreter (Session chan) = do
                 <> showt ghci_flags <> ": " <> showt exc
                 <> ", the REPL is probably not going to work"
             return []
-        Right flags -> return $ words flags
+        Right flags -> return $ lines flags
 
     GHC.runGhcT (Just GHC.Paths.libdir) $ do
         parse_flags args

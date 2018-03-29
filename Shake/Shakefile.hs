@@ -1352,8 +1352,7 @@ writeGhciFlags modeConfig =
     forM_ (map modeConfig allModes) $ \config -> do
         Directory.createDirectoryIfMissing True (buildDir config)
         writeFile (buildDir config </> "ghci-flags") $
-            unwords (ghciFlags config) ++ "\n"
-    where
+            unlines (ghciFlags config)
 
 -- | Make links to large binary files I don't want to put into source control.
 makeDataLinks :: IO ()
