@@ -203,7 +203,8 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         ]
 
 c_18_03_19 :: Korvai
-c_18_03_19 = date 2018 3 19 $ ganesh $ korvaiS Tala.misra_chapu mridangam
+c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
+    map (devel • section)
     [ (kitataka.sd2 din) <== 7 . sarvaD 7
     , (kitataka.sd2 din) <== 7 . 1^(kitataka.sd2 din) <== 7
     , kitataka . sd2 (din.na) . kitataka . sd2 (din.din.na)
@@ -217,15 +218,23 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvaiS Tala.misra_chapu mridangam
         . din.__4 . sarvaD 4.5
         . tri_ (din.__) (tat.__.tat.__4.kitataka)
         . din.__4 . sarvaD 6
-    , tat.__.tat.__4.kitataka . dindinna
-        . tat.__4.kitataka . dindinna
-        . tat.__.kitataka . dindinna
-        . tri_ (sd2 (ta.din)) p5
+    ] ++
+    [ ending $ section $ purvangam 3 . tri_ (sd2 (ta.din)) p5
+    ] ++ map (ending • var • sdate 2018 3 27 • section)
+    [ purvangam 2 . tri_ (sd2 (ta.din)) (tk.p5)
+    , purvangam 1 . tri_ (sd2 (ta.din)) (tktu.p5)
+    , purvangam 3 . tri_ (tam.__) (taka.ti.ku.p5)
+    , purvangam 2 . tri_ (tam.__) (ta.__.ka.ti.__.ku.p5)
+    , purvangam 1 . tri_ (tam.__) (ta.__.__.ka.ti.__.__.ku.p5)
     ]
     where
     p5 = group $ kita.taka.tari.kita.taka
+    purvangam gap =
+        tat.__.tat.__4.kitataka . dindinna gap
+        . tat.__4.kitataka . dindinna gap
+        . tat.__.kitataka . dindinna gap
     kitataka = group $ kita.taka
-    dindinna = sd2 (din.din) . sd (na.__3)
+    dindinna gap = sd2 (din.din) . sd (na.__n gap)
     mridangam = makeMridangam
         [ (kitataka, [k, t, k, o])
         , (1^kitataka, [k, t, k, p])
@@ -236,4 +245,24 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvaiS Tala.misra_chapu mridangam
         , (tat, [p&k])
         , (ta, [k])
         , (p5, [k, t, p, k, p, k, t, k, n, o])
+        , (tam, [u])
+        , (taka.ti.ku, [k, p, n, p])
+        ]
+
+c_18_03_28 :: Korvai
+c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam $
+    [ (theme.din.__4) <== 7 . sarvaD 7
+    , (theme.din.__4) <== 7 . 1^(theme.din.__4) <== 7
+    , (theme.din.__4) <== 5 . takeD 2 theme
+        . 1^(theme.din.__4) <== 5 . takeD 2 (1^theme)
+    , (theme.din.__4) . theme . takeD 2 theme
+        . 1^(theme.din.__4) . 1^theme . takeD 2 (1^theme)
+    ]
+    where
+    theme = group $ tari.kita.ka.din.__.ka
+    mridangam = makeMridangam
+        [ (theme, [k, t, k, n, o, od, k])
+        , (din, [od])
+        , (1^theme, [k, t, k, n, p, d, k])
+        , (1^din, [d])
         ]

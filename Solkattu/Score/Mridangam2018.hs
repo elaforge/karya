@@ -6,10 +6,11 @@ module Solkattu.Score.Mridangam2018 where
 import Prelude hiding ((.), repeat)
 
 import Solkattu.MridangamGlobal
+import qualified Solkattu.Tala as Tala
 
 
 e_323s :: Korvai
-e_323s = exercise $ date 2018 3 19 $
+e_323s = exercise $ date 2018 3 19 $ ganesh $
     comment "All these also work with 332 of course." $ korvaiS adi
     [ make (sd (n.d.d)) (sd (n.d))
     , make (n.kt.kt.k) (sd (n.d))
@@ -23,9 +24,14 @@ e_323s = exercise $ date 2018 3 19 $
     lh = sd $ o.__.__.o.__.p.__.__ . __.__.__.o.__.o.__.__
 
 e_18_03_19 :: Korvai
-e_18_03_19 = exercise $ date 2018 3 19 $ korvaiS adi
+e_18_03_19 = exercise $ date 2018 3 19 $ ganesh $ korvaiS adi
     [ repeat 2 (v.__.p.kt.k.d.p . su (v.p.kt.p.kt.p))
         . repeat 2 (su (v.p.kt.p.kt.p))
     , repeat 2 (d.__.p.kt.p.d.p . su (t.k.o.o.ktpk))
         . repeat 2 (su (t.k.o.o.ktpk))
     ]
+
+e_18_03_28 :: Korvai
+e_18_03_28 = exercise $ date 2018 3 27 $ ganesh $ korvaiS1 Tala.misra_chapu $
+     kt.k.n.o.od.__ . k.n.p.k.od.__.k
+    .kt.k.n.p.d .__ . k.n.p.k.d .__.k

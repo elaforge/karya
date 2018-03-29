@@ -3054,6 +3054,8 @@ solkattu:
       - I could make sections more compact by prefixing with "n: "
         . I should also be able to mark sam, to make avartanams more clear
           when they wrap across two lines.
+        . On the other hand, maybe I don't really want it more compact.  It
+          can already be hard to keep track of where I am.
       / formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
         . Actually not really, it's just the nadai change not being marked.
           See "nadai changes are invisible".
@@ -3065,7 +3067,7 @@ solkattu:
     / Solkattu.notation should output an abstract formatted output, which can
       be rendered to HTML or ASCII.
       . I added notationHtml, which is more error-prone, but simpler.
-    - format: if the ruler changes after an avartanam line break, show the
+    * format: if the ruler changes after an avartanam line break, show the
       partial ruler, e.g. Realize_test.test_format_nadai_change
   - What if I just renamed Sequence to S?
   - automatic sarvalaghu variation
