@@ -1542,7 +1542,17 @@ synth: im:
         . To avoid a click at start time, I have to send the start msg
           a little bit in advance, to give the reader a chance to open the
           file and seek to the right spot.
-      . Also, this will probably be concatenating multiple samples.
+        sequence:
+          . processEvents gets a NoteOn, runs start()
+          . start() sends a request to make a Samples at the given offset
+          . when it's constructed, it atomically swaps in the new Samples
+          . processReplacing now sees that and is reading from it.
+          . processReplacing is continuing to increment its offsetFrames.
+            Samples may take a while to get into place, so I think Streaming
+            also must track current frame to get back in sync.
+          . And then, what if the host asks for <maxFrames?  Stream will get
+            off.
+      . Also, this will probably eventually be concatenating multiple samples.
     - The im/ directory is fundamentally global, since PlayCache hardcodes
       a single path.  It could be theoretically configured, but I'd probably
       have to do it manually via some kind of VST GUI, and save in the VST

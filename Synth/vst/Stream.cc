@@ -24,12 +24,12 @@ enum {
 
 
 Stream::Stream(
-        std::ostream &log, sf_count_t blockFrames, const std::string &fname,
-        int sampleRate
+        std::ostream &log, int sampleRate, sf_count_t blockFrames,
+        const std::string &fname, sf_count_t startOffset
     ) : blockFrames(blockFrames)
 {
     ring = jack_ringbuffer_create(ringSize * blockFrames * frameSize);
-    start(log, sampleRate, fname);
+    start(log, sampleRate, fname, startOffset);
 }
 
 
@@ -41,7 +41,8 @@ Stream::~Stream()
 
 
 void
-Stream::start(std::ostream &log, int sampleRate, const std::string &fname)
+Stream::start(std::ostream &log, int sampleRate, const std::string &fname,
+    sf_count_t startOffset)
 {
     SF_INFO info;
     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
@@ -59,6 +60,13 @@ Stream::start(std::ostream &log, int sampleRate, const std::string &fname)
         return;
     }
 
+    if (startOffset > 0) {
+        if (sf_seek(sndfile, startOffset, SEEK_SET) == -1) {
+            // Likely the sample isn't that long.
+            sf_close(sndfile);
+            return;
+        }
+    }
     for (int i = 0; i < ringSize; i++) {
         ready.post();
     }

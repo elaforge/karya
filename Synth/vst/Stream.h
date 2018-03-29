@@ -17,8 +17,8 @@
 // Stream a sample from a separate thread.  read() should be realtime-safe.
 class Stream {
 public:
-    Stream(std::ostream &log, sf_count_t blockFrames, const std::string &fname,
-        int sampleRate);
+    Stream(std::ostream &log, int sampleRate, sf_count_t blockFrames,
+        const std::string &fname, sf_count_t startOffset);
     ~Stream();
 
     // Return a pointer to blockFrames of frames, or nullptr if there are
@@ -30,7 +30,8 @@ private:
     std::unique_ptr<std::thread> streaming;
     // Start the streaming thread.  It will fill up the ring buffer and keep
     // it full as long as read() is called.  Erorrs are logged.
-    void start(std::ostream &log, int sampleRate, const std::string &fname);
+    void start(std::ostream &log, int sampleRate, const std::string &fname,
+        sf_count_t startOffset);
     void stop();
 
     // read's wantedFrames will never exceed this value.
