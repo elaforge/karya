@@ -74,11 +74,9 @@ Samples::openDir(const string &dir, sf_count_t startOffset,
             continue;
         fname = dir + "/" + fname;
         log << "stream sample: " << fname << '\n';
-        samples.push_back(
+        std::unique_ptr<Stream> sample(
             new Stream(log, sampleRate, maxBlockFrames, fname, startOffset));
-        // std::unique_ptr<Stream> sample(
-        //     new Stream(log, sampleRate, maxBlockFrames, fname, startOffset));
-        // samples.push_back(std::move(sample));
+        samples.push_back(std::move(sample));
     }
     if (samples.empty()) {
         log << "no samples in " << dir << '\n';

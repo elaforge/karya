@@ -42,7 +42,6 @@ private:
     const sf_count_t maxBlockFrames;
     const int sampleRate;
 
-    // std::vector<std::unique_ptr<Stream>> samples;
-    std::vector<Stream *> samples;
+    std::vector<std::unique_ptr<Stream>> samples;
     std::vector<float> mixBuffer;
 };
