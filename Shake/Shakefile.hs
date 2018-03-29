@@ -436,7 +436,14 @@ ccBinaries =
         [ "LogView/test_logview.cc.o", "LogView/logview_ui.cc.o"
         , "fltk/f_util.cc.o"
         ]
-    ] ++ if not Config.enableIm then [] else [playCacheBinary]
+    ] ++ if not Config.enableIm then [] else
+    [ playCacheBinary
+    , (plain "test_play_cache" $ map ("Synth/vst"</>)
+        [ "test_play_cache.cc.o"
+        , "Samples.cc.o", "Stream.cc.o", "ringbuffer.cc.o"
+        ])
+        { ccLinkFlags = const ["-lsndfile"] }
+    ]
     where
     fltk name deps = CcBinary
         { ccName = name
@@ -444,6 +451,13 @@ ccBinaries =
         , ccCompileFlags = fltkCc . configFlags
         , ccLinkFlags = fltkLd . configFlags
         , ccPostproc = makeBundle False
+        }
+    plain name deps = CcBinary
+        { ccName = name
+        , ccRelativeDeps = deps
+        , ccCompileFlags = const []
+        , ccLinkFlags = const []
+        , ccPostproc = const $ return ()
         }
 
 -- TODO This compiles under linux, but I have no idea if it actually produces
@@ -453,8 +467,10 @@ playCacheBinary = CcBinary
     { ccName = case Util.platform of
         Util.Mac -> "play_cache"
         Util.Linux -> "play_cache.so"
-    , ccRelativeDeps =
-        map ("Synth/vst"</>) ["Sample.cc.o", "Samples.cc.o", "PlayCache.cc.o"]
+    , ccRelativeDeps = map ("Synth/vst"</>)
+        [ "Samples.cc.o", "Stream.cc.o", "PlayCache.cc.o"
+        , "ringbuffer.cc.o"
+        ]
     , ccCompileFlags = \config -> platformCc ++
         [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
         , "-I" ++ Config.vstBase

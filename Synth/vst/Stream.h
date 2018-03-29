@@ -7,6 +7,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
 
 #include <sndfile.h>
 
