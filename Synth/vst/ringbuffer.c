@@ -20,14 +20,19 @@
    This is safe for the case of one read thread and one write thread.
  */
 
+// Local modification:
 // #include <config.h>
+#define USE_MLOCK
 
 #include <stdlib.h>
 #include <string.h>
 #ifdef USE_MLOCK
 #include <sys/mman.h>
 #endif /* USE_MLOCK */
-#include <jack/ringbuffer.h>
+
+// Local modification:
+// #include <jack/ringbuffer.h>
+#include "ringbuffer.h"
 
 /* Create a new ringbuffer to hold at least `sz' bytes of data. The
    actual buffer size is rounded up to the next power of two.  */
