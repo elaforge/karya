@@ -175,7 +175,7 @@ UNSORTED
     . I don't know what the historical values have been, maybe I should be
       saving those.
     ? It's the first cmd only, what is it doing that's more work?
-    . Try with 8.0.2.
+    . Try with 8.0.2.  Yes, still happens there.
   * Can I run shake based on file contents instead of timestamp?  I think git
     checkouts cause the timestamps to change.
   setup CI:
@@ -328,6 +328,11 @@ UNSORTED
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
   - If I use cpphs I might be able to use \ string continuation for CPP
     modules.  It would add another dependency though... worth it?
+    . On the other hand, I only have 54 modules with CPP and I don't exactly
+      want to have more.  And most of them don't need string gaps... but
+      Prelude.C.* frequently does.
+    . How many places don't use string gaps because of CPP?
+      Solkattu.Format.Format
   - It seems there's no way to explicitly pass Nothing if the default is Just,
     because _ turns into set the default.
     . Ultimately I think because VNotGiven is special-cased in Derive.Sig.  I
@@ -1518,40 +1523,26 @@ synth: im:
     - integrate freeverb for reverb and filters
       . Or why not just use faust integration?  I think it has the same
         algorithm?
-    non-interleaved signals
-      . Faust wants non-interleaved input.  So does VST.  So I should pass
-        around signals non-interleaved.
-      . [AudioM m rate 1] is an approximation to this, but a non-interleaved
-        Audio would guarantee they are all synchronized.
-      . Also it would be easier to step through them all at once.
-      . Ideally there would be no size overhead for the chunks, and it could
-        be size parameterized, e.g. tuples.
-      . But even with vectors, I'd want a short-vector, since I don't need the
-        start and offset overhead.  I think the HAMT implemnetation in
-        unordered-containers uses a short vector.
-      . If I don't put the size in the type, then a hardcoded
-        T1 a | T2 a a | T3 a a a | ... might work.  I don't think UNPACK works
-        for polymorphic types though.
-      . C++ templates can do this kind of thing.
-      plan:
-        . Research existing length-indexed vectors.
-          . vector-sized wraps a vector, so inefficient for small vectors.
-          . fixed-vector looks right, but uses peano nats.
-          . sized is generic in the list type, but also uses peano nats.
-        . If it's too complicated, find a short-vector, and assert the types.
-          . Data.Primitive.SmallArray
-        . AudioNI m rate chan is Stream (Of (ShortVector (Vector Sample)))
-          mergeChannels for it is a synchronize, and zip.
-        . However, the size is dynamic, so I don't know if there's any point
-          to it.  E.g. faust returns n channels, so how do I return that?
-        . I can get a typed NAudio from the length, but only inside an
-          existential type.  It doesn't seem any different from just putting
-          the number in the data type.
   play_cache: PlayCache:
-    - Move resampling to play_cache.
-    - Theoretically I should be doing sample loading in a non-audio thread.
+    / Move resampling to play_cache.
+      . Well... why though?  The complexity should go in haskell.
+    + Theoretically I should be doing sample loading in a non-audio thread.
       In practice it seems to be fine
-    - Stream samples instead of loading them all at once.
+    + Stream samples instead of loading them all at once.
+      In principle it should be:
+        . The audio thread gets an iterator of chunks of samples, and just
+          loops over that.
+        . The iterator is implemented as a ring buffer.  Look into existing
+          ring buffer implementations, but at a guess, the writer thread
+          watches the read point, and when it advances, load a new chunk at
+          the end of the buffer.  So the sample reader has to block on some
+          notification that the ring buffer has advanced.
+          . The jack ringbuffer doesn't have notification.
+          . But in Midi/jack.cc I use sem_wait / sem_post
+        . To avoid a click at start time, I have to send the start msg
+          a little bit in advance, to give the reader a chance to open the
+          file and seek to the right spot.
+      . Also, this will probably be concatenating multiple samples.
     - The im/ directory is fundamentally global, since PlayCache hardcodes
       a single path.  It could be theoretically configured, but I'd probably
       have to do it manually via some kind of VST GUI, and save in the VST
@@ -1682,6 +1673,7 @@ synth: im:
       . Write down patch description for reyong, and mridangam, so I have a
         concrete place to start.
   faust:
+    - faust-stk/bowed.dsp?
     - Compare timing with pre-input signals.
       . In general I should set up performance tracking for faust-im and
         sampler-im.
@@ -1825,7 +1817,7 @@ synth: im:
         (startTime, Instrument, Controls, DspState) -> Samples.
     - PlayCache can sequence multiple .wav files.  The filenames need to have
       a timestamp so it can know how to seek.
-    - As PlayCache does fancier stuff, maybe I need to put the sample
+    + As PlayCache does fancier stuff, maybe I need to put the sample
       streaming into a separate thread.
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
