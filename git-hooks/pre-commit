@@ -1,5 +1,7 @@
 #!/bin/zsh
 # Derived from the example pre-commit.
+#
+# Commit with long_lines_ok=t to skip the >80 columns check.
 
 # Files that can have lines >80 columns.
 ok_long_lines=(
@@ -36,18 +38,20 @@ if ! git diff-index --check --cached $against --; then
     exit 1
 fi
 
-modified=("${(@f)$(git diff --cached --name-only)}")
 too_long=
-for f in $modified; do
-    # This is how you check membership in an array.  Shell is ridiculous.
-    if [[ -n "${ok_long_lines[(r)$f]}" ]]; then
-        continue
-    fi
-    if git diff --cached $against -- $f | egrep -n '^\+.{81,}'; then
-        echo $f
-        too_long=true
-    fi
-done
+if [[ -z $long_lines_ok ]]; then
+    modified=("${(@f)$(git diff --cached --name-only)}")
+    for f in $modified; do
+        # This is how you check membership in an array.  Shell is ridiculous.
+        if [[ -n "${ok_long_lines[(r)$f]}" ]]; then
+            continue
+        fi
+        if git diff --cached $against -- $f | egrep -n '^\+.{81,}'; then
+            echo $f
+            too_long=true
+        fi
+    done
+fi
 
 if [[ $too_long ]]; then
     echo 'Lines >80 columns.'
