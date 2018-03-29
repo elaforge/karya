@@ -66,7 +66,7 @@ public:
         VstInt32 index, VstPinProperties *properties);
 
     // virtual void setSampleRate(float sampleRate);
-    // virtual void setBlockSize(VstInt32 blockSize);
+    virtual void setBlockSize(VstInt32 blockSize);
 
     // virtual void setProgram(VstInt32 program);
     // virtual void setProgramName(char *name);
@@ -98,6 +98,9 @@ public:
 
 private:
     void start(VstInt32 delta);
+
+    // processReplacing's frames arguent will never exceed this.
+    VstInt32 maxBlockFrames;
     // Playing from this sample, in frames since the beginning of the score.
     unsigned int offsetFrames;
     // True if I am playing, or should start playing once delta is 0.

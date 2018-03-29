@@ -22,8 +22,8 @@ enum {
 
     // This many blockFrames*frameSize chunks in the ring.
     // jack_ringbuffer_create will round up to the next power of 2, so 4
-    // would actually wind up being 8 - 1 byte.
-    ringBlocks = 3
+    // should actually wind up being 8 - 1 byte.
+    ringBlocks = 4
 };
 
 
@@ -64,6 +64,7 @@ void
 Stream::start(std::ostream &log, int sampleRate, const std::string &fname,
     sf_count_t startOffset)
 {
+    log << "stream start\n";
     SF_INFO info;
     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
     std::stringstream errors;
@@ -80,6 +81,7 @@ Stream::start(std::ostream &log, int sampleRate, const std::string &fname,
         return;
     }
 
+    log << "Stream: opened " << fname << '\n';
     if (startOffset > 0) {
         if (sf_seek(sndfile, startOffset, SEEK_SET) == -1) {
             // Likely the sample isn't that long.
@@ -89,27 +91,31 @@ Stream::start(std::ostream &log, int sampleRate, const std::string &fname,
     }
     ready.post();
     // DEBUG(fname << ": start thread");
-    this->streaming.reset(new std::thread(&Stream::stream, this, sndfile));
+    this->streaming.reset(
+        new std::thread(&Stream::stream, this, &log, sndfile));
 }
 
 
 void
-Stream::stream(SNDFILE *sndfile)
+Stream::stream(std::ostream *log, SNDFILE *sndfile)
 {
     float block[blockFrames * channels];
     bool done = false;
     while (!done) {
+        // *log << "wait\n";
         ready.wait();
         if (quit.load())
             break;
         sf_count_t blocks =
             jack_ringbuffer_write_space(ring) / frameSize / blockFrames;
+        // *log << "stream blocks: " << blocks << "\n";
         // showRing("stream", ring);
         // DEBUG("stream blocks: " << blocks);
         while (!done && blocks--) {
             // TODO read could also fail, handle that
             sf_count_t read = sf_readf_float(sndfile, block, blockFrames);
             // DEBUG("stream write " << read);
+            *log << "stream write: " << read << "\n";
             jack_ringbuffer_write(
                 ring, reinterpret_cast<char *>(block), read * frameSize);
             // jack_ringbuffer_write(ring, block, read * frameSize);
@@ -135,7 +141,11 @@ Stream::stop()
 sf_count_t
 Stream::read(sf_count_t frames, float **output)
 {
-    ASSERT(jack_ringbuffer_read_space(ring) >= frames * frameSize);
+    // TODO return empty samples if stream() hasn't started yet
+    // ASSERT(jack_ringbuffer_read_space(ring) >= frames * frameSize);
+    if (jack_ringbuffer_read_space(ring) < frames * frameSize) {
+        return 0;
+    }
     // I think this float * -> char * cast is ok because the char * doesn't
     // have an alignment restriction.  The floats do, but memcpy should be able
     // to copy bytewise into a float array.

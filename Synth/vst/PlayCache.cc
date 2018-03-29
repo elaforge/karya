@@ -114,6 +114,12 @@ bool PlayCache::getOutputProperties(
     return true;
 }
 
+void PlayCache::setBlockSize(VstInt32 blockSize)
+{
+    this->maxBlockFrames = blockSize;
+}
+
+
 // parameters
 
 void PlayCache::setParameter(VstInt32 index, float value)
@@ -168,8 +174,13 @@ void PlayCache::getParameterName(VstInt32 index, char *text)
 void
 PlayCache::start(VstInt32 delta)
 {
-    if (samples)
+    // Hopefully this should wind up statically allocated.
+    static std::string samplesDir(4096, ' ');
+
+    if (samples) {
         delete samples;
+        samples = nullptr;
+    }
     // This can happen if the DAW gets a NoteOn before the config msgs.
     if (playConfig.blockId.empty()) {
         LOG("play received, but blockId is empty");
@@ -177,20 +188,18 @@ PlayCache::start(VstInt32 delta)
     }
     LOG("start playing at delta " << delta << " block '" << playConfig.blockId
         << "' from frame " << offsetFrames);
+
+    samplesDir.clear();
+    samplesDir += cacheDir;
+    samplesDir += playConfig.blockId;
     // TODO Samples allocation should be on a non-realtime thread, and this
     // should just be an async request to it.  However, I still need to start
     // reading samples immediately.
-
-    samples = new Samples(log, this->sampleRate, cacheDir, playConfig.blockId,
-        playConfig.mutedInstruments);
-
-    // If there are errors then processReplacing will quit right away.
-    for (const std::string &error : samples->errors()) {
-        LOG("error opening samples: " << error);
-    }
-    for (const std::string &filename : samples->filenames()) {
-        LOG("loaded sample: " << filename);
-    }
+    samples = new Samples(log, maxBlockFrames, this->sampleRate,
+        samplesDir, offsetFrames, playConfig.mutedInstruments);
+    // give time for the stream threads to start up
+    // TODO fix this
+    usleep(0.15 * 1000000);
     this->playConfig.clear();
     this->delta = delta;
     this->playing = true;
@@ -304,12 +313,11 @@ void PlayCache::processReplacing(
     memset(out2, 0, processFrames * sizeof(float));
 
     // TODO fade out if this makes a nasty click.
-    if (!this->playing || !samples || !samples->errors().empty())
+    if (!this->playing || !samples)
         return;
 
     float *sampleVals;
-    sf_count_t framesLeft = samples->read(
-        offsetFrames, processFrames, &sampleVals);
+    sf_count_t framesLeft = samples->read(processFrames, &sampleVals);
     if (framesLeft == 0) {
         LOG("out of samples");
         this->playing = false;

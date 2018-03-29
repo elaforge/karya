@@ -26,7 +26,7 @@ public:
     sf_count_t read(sf_count_t frames, float **output);
 
 private:
-    void stream(SNDFILE *sndfile);
+    void stream(std::ostream *log, SNDFILE *sndfile);
     std::unique_ptr<std::thread> streaming;
     // Start the streaming thread.  It will fill up the ring buffer and keep
     // it full as long as read() is called.  Erorrs are logged.

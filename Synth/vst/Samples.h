@@ -9,7 +9,7 @@
 
 #include <sndfile.h>
 
-#include "Sample.h"
+#include "Stream.h"
 
 
 using std::string;
@@ -17,33 +17,32 @@ using std::string;
 // Read and mix multiple samples.
 //
 // Read dir/blockId.wav if present.  Otherwise, mix together dir/blockId-*.wav,
-// omitting the ones in mutedInstruments.  This should go on a non-audio
-// thread, so it can allocate memory, but reading samples should be
-// non-allocating.  TODO except that isn't implemented yet, it's all on the
-// audio thread.
+// omitting the ones in mutedInstruments.  This should be created on a
+// non-audio thread, so it can allocate memory, but read() should be
+// realtime-safe.
 //
-// TODO this doesn't resample, so the sound files must have the same srate
-// as the VST host.  In the future I could link in libsamplerate.
+// This doesn't resample, so the sound files must have the same srate as the
+// VST host.  In the future I could link in libsamplerate.
 class Samples {
 public:
-    Samples(std::ofstream &log, int samplingRate, const char *dir,
-        const string &blockId, const std::vector<string> &mutedInstruments);
-    const sf_count_t read(
-        sf_count_t fromFrame, sf_count_t wantedFrames, float **frames);
+    Samples(
+        std::ostream &log, sf_count_t maxBlockFrames, int sampleRate,
+        const string &dir, sf_count_t startOffset,
+        const std::vector<string> &mutes);
 
-    // If non-empty, there was an error loading samples.
-    const std::vector<string> &errors() const { return errors_; }
-    const std::vector<string> &filenames() const { return filenames_; }
+    // This function is realtime-safe.
+    sf_count_t read(sf_count_t wantedFrames, float **frames);
 
 private:
-    void openDir(std::ofstream &log, int sampleRate, const string &dir,
+    void openDir(const string &dir, sf_count_t startOffset,
         const std::vector<string> &mutes);
-    bool openSample(int sampleRate, const std::string &fname);
 
-    std::vector<string> errors_;
-    // Keep a log of each file.
-    std::vector<string> filenames_;
+    // Constants, just for convenience.
+    std::ostream &log;
+    const sf_count_t maxBlockFrames;
+    const int sampleRate;
 
-    std::vector<std::unique_ptr<Sample>> samples;
+    // std::vector<std::unique_ptr<Stream>> samples;
+    std::vector<Stream *> samples;
     std::vector<float> mixBuffer;
 };
