@@ -18,9 +18,23 @@
 enum {
     channels = 2,
     frameSize = sizeof(float) * channels,
+    // frameSize = channels,
+
     // This many blockFrames*frameSize chunks in the ring.
-    ringSize = 8
+    // jack_ringbuffer_create will round up to the next power of 2, so 4
+    // would actually wind up being 8 - 1 byte.
+    ringBlocks = 3
 };
+
+
+// static void
+// showRing(const char *msg, jack_ringbuffer_t *ring)
+// {
+//     size_t r = jack_ringbuffer_read_space(ring);
+//     size_t w = jack_ringbuffer_write_space(ring);
+//     DEBUG(msg << ": read: " << r << " (" << r/frameSize << "), write: "
+//         << w << " (" << w/frameSize << ")");
+// }
 
 
 Stream::Stream(
@@ -28,7 +42,11 @@ Stream::Stream(
         const std::string &fname, sf_count_t startOffset
     ) : blockFrames(blockFrames)
 {
-    ring = jack_ringbuffer_create(ringSize * blockFrames * frameSize);
+    // +1 because the ringbuffer has one less byte available than allocated,
+    // presumably to keep the pointers from touching.
+    ring = jack_ringbuffer_create(ringBlocks * blockFrames * frameSize + 1);
+    // showRing("init", ring);
+    jack_ringbuffer_mlock(ring);
     block = new float[blockFrames * frameSize];
     start(log, sampleRate, fname, startOffset);
 }
@@ -69,9 +87,8 @@ Stream::start(std::ostream &log, int sampleRate, const std::string &fname,
             return;
         }
     }
-    for (int i = 0; i < ringSize; i++) {
-        ready.post();
-    }
+    ready.post();
+    // DEBUG(fname << ": start thread");
     this->streaming.reset(new std::thread(&Stream::stream, this, sndfile));
 }
 
@@ -80,17 +97,26 @@ void
 Stream::stream(SNDFILE *sndfile)
 {
     float block[blockFrames * channels];
-    for (;;) {
+    bool done = false;
+    while (!done) {
         ready.wait();
         if (quit.load())
             break;
-        // TODO read could also fail, handle that
-        sf_count_t read = sf_readf_float(sndfile, block, blockFrames);
-        if (read == 0) {
-            break;
+        sf_count_t blocks =
+            jack_ringbuffer_write_space(ring) / frameSize / blockFrames;
+        // showRing("stream", ring);
+        // DEBUG("stream blocks: " << blocks);
+        while (!done && blocks--) {
+            // TODO read could also fail, handle that
+            sf_count_t read = sf_readf_float(sndfile, block, blockFrames);
+            // DEBUG("stream write " << read);
+            jack_ringbuffer_write(
+                ring, reinterpret_cast<char *>(block), read * frameSize);
+            // jack_ringbuffer_write(ring, block, read * frameSize);
+            // showRing("stream write", ring);
+            if (read < blockFrames)
+                done = true;
         }
-        jack_ringbuffer_write(
-            ring, reinterpret_cast<char *>(block), sizeof(block));
     }
     sf_close(sndfile);
 }
@@ -109,15 +135,20 @@ Stream::stop()
 sf_count_t
 Stream::read(sf_count_t frames, float **output)
 {
+    ASSERT(jack_ringbuffer_read_space(ring) >= frames * frameSize);
     // I think this float * -> char * cast is ok because the char * doesn't
     // have an alignment restriction.  The floats do, but memcpy should be able
     // to copy bytewise into a float array.
     //
     // TODO but I'm not sure.  If it's not ok, I could modify ringbuffer.c to
     // typedef the pointer type and change it to float.
-    *output = block;
-    sf_count_t read = jack_ringbuffer_read(
+    // DEBUG("reading " << frames*frameSize);
+    // showRing("before read", ring);
+    size_t bytes = jack_ringbuffer_read(
         ring, reinterpret_cast<char *>(&block), frames * frameSize);
+    // size_t bytes = jack_ringbuffer_read(ring, block, frames * frameSize);
+    // showRing("after read", ring);
+    *output = block;
     ready.post();
-    return read / frameSize;
+    return bytes / frameSize;
 }
