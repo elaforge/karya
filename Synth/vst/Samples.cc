@@ -95,11 +95,26 @@ Samples::read(sf_count_t wantedFrames, float **frames)
     } else if (samples.size() == 1) {
         // log << "space: " << jack_ringbuffer_read_space(samples[0]->ring)
         //     << " requseted: " << wantedFrames * 8 << '\n';
-        return samples[0]->read(wantedFrames, frames);
+        sf_count_t count = samples[0]->read(wantedFrames, frames);
+        if (count > 0) {
+            return count;
+        } else if (samples[0]->done()) {
+            log << "Samples::read: all done\n";
+            return 0;
+        } else {
+            log << "Samples::read: empty read but not all done\n";
+            // 0 will cause processReplacing to quit.  If the read is short
+            // but the Stream hasn't completed, then it's probably still
+            // initializing, so fake up some 0s.
+            std::fill(mixBuffer.begin(), mixBuffer.end(), 0);
+            *frames = mixBuffer.data();
+            return wantedFrames;
+        }
     } else {
         std::fill(mixBuffer.begin(), mixBuffer.end(), 0);
         float *sFrames = nullptr;
         sf_count_t maxCount = 0;
+        bool allDone = true;
         for (const auto &sample : samples) {
             sf_count_t count = sample->read(wantedFrames, &sFrames);
             maxCount = std::max(maxCount, count);
@@ -107,8 +122,15 @@ Samples::read(sf_count_t wantedFrames, float **frames)
                 mixBuffer[frame*2] += sFrames[frame*2];
                 mixBuffer[frame*2 + 1] += sFrames[frame*2 + 1];
             }
+            if (!sample->done())
+                allDone = false;
         }
         *frames = mixBuffer.data();
-        return maxCount;
+        if (maxCount > 0)
+            return maxCount;
+        else if (allDone)
+            return 0;
+        else
+            return wantedFrames;
     }
 }

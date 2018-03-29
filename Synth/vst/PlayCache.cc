@@ -197,9 +197,6 @@ PlayCache::start(VstInt32 delta)
     // reading samples immediately.
     samples = new Samples(log, maxBlockFrames, this->sampleRate,
         samplesDir, offsetFrames, playConfig.mutedInstruments);
-    // give time for the stream threads to start up
-    // TODO fix this
-    usleep(0.15 * 1000000);
     this->playConfig.clear();
     this->delta = delta;
     this->playing = true;
@@ -287,6 +284,7 @@ VstInt32 PlayCache::processEvents(VstEvents *events)
             // NoteOff.
             this->offsetFrames = 0;
             this->playing = false;
+            LOG("note off");
         } else if (status == NoteOn) {
             start(event->deltaFrames);
         } else if (status == Aftertouch && data[1] < 5) {

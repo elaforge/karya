@@ -1558,6 +1558,19 @@ synth: im:
             point, I may as well use copying read, since I'll have to do that
             sometimes anyway.  Phooey.
       . Also, this will probably eventually be concatenating multiple samples.
+      * Fix the thing where I have to wait for the stream thread to start.
+        . I could prime the buffer synchronously, but eventually I'll want to
+          initialize Samples async as well, so that won't work for long.
+        . Eventually I'll need to have reads keep track of how many read even
+          if the ring can't supply it, so it's in the right place when it can.
+        . But for the time being, I think I can return 0 from Stream.read, but
+          have Samples only give up when all Streams are done.  So Stream gets
+          a done() method.
+      - I wonder if the streaming isn't at the wrong level.
+        . Instead of starting a bunch of threads on each play, I could have
+          just one streaming thread, in Samples.  It just loops through all
+          the Samples and reads a chunk from each one, then drops the mixed
+          result into a single ringbuffer.
     - The im/ directory is fundamentally global, since PlayCache hardcodes
       a single path.  It could be theoretically configured, but I'd probably
       have to do it manually via some kind of VST GUI, and save in the VST

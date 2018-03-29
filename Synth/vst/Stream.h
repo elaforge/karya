@@ -24,6 +24,7 @@ public:
 
     // Put read samples in the output, and return frames read.
     sf_count_t read(sf_count_t frames, float **output);
+    bool done() const { return quit.load(); }
 
 private:
     void stream(std::ostream *log, SNDFILE *sndfile);

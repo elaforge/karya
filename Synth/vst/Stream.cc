@@ -40,7 +40,7 @@ enum {
 Stream::Stream(
         std::ostream &log, int sampleRate, sf_count_t blockFrames,
         const std::string &fname, sf_count_t startOffset
-    ) : blockFrames(blockFrames)
+    ) : blockFrames(blockFrames), quit(false)
 {
     // +1 because the ringbuffer has one less byte available than allocated,
     // presumably to keep the pointers from touching.
@@ -115,7 +115,7 @@ Stream::stream(std::ostream *log, SNDFILE *sndfile)
             // TODO read could also fail, handle that
             sf_count_t read = sf_readf_float(sndfile, block, blockFrames);
             // DEBUG("stream write " << read);
-            *log << "stream write: " << read << "\n";
+            // *log << "stream write: " << read << "\n";
             jack_ringbuffer_write(
                 ring, reinterpret_cast<char *>(block), read * frameSize);
             // jack_ringbuffer_write(ring, block, read * frameSize);
@@ -125,6 +125,8 @@ Stream::stream(std::ostream *log, SNDFILE *sndfile)
         }
     }
     sf_close(sndfile);
+    // Tell the outside world I've completed.
+    quit.store(true);
 }
 
 
