@@ -4,60 +4,37 @@
 
 #pragma once
 
-// OS X doesn't support POSIX unnamed semaphores, but it has its own semaphore
-// API which is close enough for me.
+// OS X doesn't support POSIX unnamed semaphores, C++11 doesn't include one
+// for some reason, so here's one from stackoverflow.
+//
+// I originally used OS X mach semaphores or POSIX, depending on the platform,
+// but I don't trust the OS X one and don't want to deal with #ifdefs.
+//
+// This one takes a lock in post(), which is against the rules for realtime,
+// but it's a really short lock.  For all I know POSIX semaphores do that too.
 
-#ifdef __APPLE__
-
-#include <mach/task.h>
-#include <mach/semaphore.h>
-#include <mach/mach_init.h>
-
-
-// Docs at:
-// https://developer.apple.com/library/content/documentation/Darwin/Conceptual/KernelProgramming/synchronization/synchronization.html
-class Semaphore {
-public:
-    Semaphore(int value = 0) : task(mach_task_self()) {
-        semaphore_create(task, &semaphore, SYNC_POLICY_FIFO, value);
-    }
-    ~Semaphore() {
-        semaphore_destroy(task, semaphore);
-    }
-    void post() { semaphore_signal(semaphore); }
-    void wait() { semaphore_wait(semaphore); }
-
-    Semaphore(const Semaphore &) = delete;
-    Semaphore &operator=(const Semaphore &) = delete;
-private:
-    const task_t task;
-    semaphore_t semaphore;
-};
-
-#else
-
-#include <semaphore.h>
-#include <stdlib.h>
+#include <mutex>
+#include <condition_variable>
 
 class Semaphore {
 public:
-    Semaphore(int value = 0) { sem_init(&semaphore, 0, value); }
-    ~Semaphore() { sem_destroy(&semaphore); }
-    void post() { sem_post(&semaphore); }
+    Semaphore(int count = 0) : count(count) {}
+
+    void post() {
+        std::unique_lock<std::mutex> lock(mutex);
+        ++count;
+        condition.notify_one();
+    }
+
     void wait() {
-        for (;;) {
-            if (sem_wait(&semaphore) == -1) {
-                // It must be EDEADLK then.
-                if (errno != EINTR)
-                    abort();
-            }
-        }
+        std::unique_lock<std::mutex> lock(mutex);
+        while (!count) // Handle spurious wake-ups.
+            condition.wait(lock);
+        --count;
     }
 
-    Semaphore(const Semaphore &) = delete;
-    Semaphore &operator=(const Semaphore &) = delete;
 private:
-    sem_t semaphore;
-}
-
-#endif
+    std::mutex mutex;
+    std::condition_variable condition;
+    int count;
+};
