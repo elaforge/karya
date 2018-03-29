@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <dirent.h>
 #include "Samples.h"
-#include "Sample.h"
 
 #include "util.h"
 
