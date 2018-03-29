@@ -21,9 +21,8 @@ public:
         const std::string &fname, sf_count_t startOffset);
     ~Stream();
 
-    // Return a pointer to blockFrames of frames, or nullptr if there are
-    // none left.  There is no in-between because the buffer will be 0 padded.
-    float *read();
+    // Put read samples in the output, and return frames read.
+    sf_count_t read(sf_count_t frames, float **output);
 
 private:
     void stream(SNDFILE *sndfile);
@@ -43,4 +42,5 @@ private:
     // This is always written to and read from in chunks of blockFrames *
     // frameSize.
     jack_ringbuffer_t *ring;
+    float *block;
 };

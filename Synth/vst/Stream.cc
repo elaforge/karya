@@ -29,6 +29,7 @@ Stream::Stream(
     ) : blockFrames(blockFrames)
 {
     ring = jack_ringbuffer_create(ringSize * blockFrames * frameSize);
+    block = new float[blockFrames * frameSize];
     start(log, sampleRate, fname, startOffset);
 }
 
@@ -37,6 +38,7 @@ Stream::~Stream()
 {
     stop();
     jack_ringbuffer_free(ring);
+    delete[] block;
 }
 
 
@@ -77,24 +79,18 @@ Stream::start(std::ostream &log, int sampleRate, const std::string &fname,
 void
 Stream::stream(SNDFILE *sndfile)
 {
-    // It wants 2 for when the read wraps around, but that shouldn't happen
-    // because I read and write in multiples of blockFrames.
-    jack_ringbuffer_data_t vec[2];
+    float block[blockFrames * channels];
     for (;;) {
         ready.wait();
         if (quit.load())
             break;
-        jack_ringbuffer_get_write_vector(ring, vec);
         // TODO read could also fail, handle that
-        sf_count_t read = sf_readf_float(
-            sndfile, reinterpret_cast<float *>(vec[0].buf), blockFrames);
+        sf_count_t read = sf_readf_float(sndfile, block, blockFrames);
         if (read == 0) {
             break;
-        } else if (read < blockFrames) {
-            memset(vec[0].buf + read * frameSize, 0,
-                (blockFrames - read) * frameSize);
         }
-        jack_ringbuffer_write_advance(ring, blockFrames * frameSize);
+        jack_ringbuffer_write(
+            ring, reinterpret_cast<char *>(block), sizeof(block));
     }
     sf_close(sndfile);
 }
@@ -110,20 +106,18 @@ Stream::stop()
         streaming->join();
 }
 
-
-float *
-Stream::read()
+sf_count_t
+Stream::read(sf_count_t frames, float **output)
 {
-    jack_ringbuffer_data_t vec[2];
-    jack_ringbuffer_get_read_vector(ring, vec);
-
-    if (vec[0].len == 0) {
-        return nullptr;
-    } else {
-        ASSERT(vec[0].len == blockFrames * frameSize);
-    }
-    float *frames = reinterpret_cast<float *>(vec[0].buf);
-    jack_ringbuffer_read_advance(ring, blockFrames * frameSize);
+    // I think this float * -> char * cast is ok because the char * doesn't
+    // have an alignment restriction.  The floats do, but memcpy should be able
+    // to copy bytewise into a float array.
+    //
+    // TODO but I'm not sure.  If it's not ok, I could modify ringbuffer.c to
+    // typedef the pointer type and change it to float.
+    *output = block;
+    sf_count_t read = jack_ringbuffer_read(
+        ring, reinterpret_cast<char *>(&block), frames * frameSize);
     ready.post();
-    return frames;
+    return read / frameSize;
 }

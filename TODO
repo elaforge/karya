@@ -1552,6 +1552,11 @@ synth: im:
             also must track current frame to get back in sync.
           . And then, what if the host asks for <maxFrames?  Stream will get
             off.
+          . So I think I can't do that nice thing where the ringbuffer always
+            gets the same length, and I have to join split segments.  Even
+            though reaper at least always seems to use the same size.  At that
+            point, I may as well use copying read, since I'll have to do that
+            sometimes anyway.  Phooey.
       . Also, this will probably eventually be concatenating multiple samples.
     - The im/ directory is fundamentally global, since PlayCache hardcodes
       a single path.  It could be theoretically configured, but I'd probably
