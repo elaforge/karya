@@ -143,6 +143,9 @@ Streamer::streamLoop()
                 dirSamples(log, state.dir, state.mutes);
             mix.reset(
                 new Mix(log, channels, sampleRate, fnames, state.startOffset));
+            // This is not safe, but since restart is true, read() shouldn't
+            // touch it.
+            jack_ringbuffer_reset(ring);
             restart.store(false);
             mixDone.store(false);
         }
@@ -181,17 +184,24 @@ Streamer::stream()
 bool
 Streamer::read(sf_count_t frames, float **out)
 {
-    // Try to catch up.
-    if (debt > 0) {
-        size_t samples =
-            jack_ringbuffer_read(ring, outputBuffer.data(), debt * channels);
-        debt -= samples / channels;
-        // LOG("discharge debt " << debt << " - " << (samples/channels));
+    size_t samples;
+    if (restart.load()) {
+        // This means streamLoop is restarting and will reset the ring.
+        // So don't read stale samples, but also don't abort the play.
+        samples = 0;
+    } else {
+        // Try to catch up.
+        if (debt > 0) {
+            size_t paid = jack_ringbuffer_read(
+                ring, outputBuffer.data(), debt * channels);
+            debt -= paid / channels;
+            // LOG("discharge debt " << debt << " - " << (paid/channels));
+        }
+        samples = jack_ringbuffer_read(
+            ring, outputBuffer.data(), frames * channels);
+        if (samples == 0 && mixDone.load())
+            return false;
     }
-    size_t samples =
-        jack_ringbuffer_read(ring, outputBuffer.data(), frames * channels);
-    if (samples == 0 && mixDone.load())
-        return false;
     debt += frames - (samples / channels);
     // LOG("read debt " << debt << " frames " << samples/channels);
     std::fill(outputBuffer.begin() + samples, outputBuffer.end(), 0);
