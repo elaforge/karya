@@ -121,16 +121,6 @@ bool PlayCache::getOutputProperties(
     return true;
 }
 
-void PlayCache::setSampleRate(float sampleRate)
-{
-    this->sampleRate = sampleRate;
-}
-
-void PlayCache::setBlockSize(VstInt32 blockSize)
-{
-    this->maxBlockFrames = blockSize;
-}
-
 
 // parameters
 

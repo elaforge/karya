@@ -29,7 +29,8 @@ Streamer::Streamer(
         std::ostream &log, int channels, int sampleRate,
         int maxFrames)
     : channels(channels), sampleRate(sampleRate), maxFrames(maxFrames),
-        log(log), threadQuit(false), restart(false), debt(0), mixDone(false)
+        log(log), threadQuit(false), mixDone(false), restart(false),
+        debt(0)
 {
     ring = jack_ringbuffer_create(ringBlocks * maxFrames * channels);
     jack_ringbuffer_mlock(ring);

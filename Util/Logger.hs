@@ -10,6 +10,9 @@
 
     WriterT is not actually all that good for logging because its (>>=) is not
     tail recursive.
+
+    TODO there's now a CPS version on hackage: writer-cps-mtl It might be more
+    efficient.
 -}
 module Util.Logger (
     LoggerT, Logger, run, runId, exec, MonadLogger(..), logs

@@ -79,6 +79,16 @@ rightm op1 op2 = op1 >>= \x -> case x of
     Left err -> return (Left err)
     Right val -> op2 val
 
+{-
+    I could generalize justm and rightm with:
+
+    bind2 :: (Monad m1, Traversable m2, Monad m2)
+        => m1 (m2 a) -> (a -> m1 (m2 b)) -> m1 (m2 b)
+    bind2 ma mb = ma >>= traverse mb >>= return . Monad.join
+
+    But I can't think of any other Traversables I want.
+-}
+
 -- | Return the first action to return Just.
 firstJust :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
 firstJust action alternative = maybe alternative (return . Just) =<< action

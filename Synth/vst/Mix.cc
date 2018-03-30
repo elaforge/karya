@@ -13,7 +13,7 @@
     << MSG << std::endl; } while (0)
 
 Mix::Mix(std::ostream &log, int channels, int sampleRate,
-        const std::vector<std::string> fnames, sf_count_t startOffset)
+        const std::vector<std::string> &fnames, sf_count_t startOffset)
     : log(log), channels(channels)
 {
     samples.reserve(fnames.size());

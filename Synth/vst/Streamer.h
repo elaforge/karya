@@ -34,31 +34,33 @@ public:
     const int sampleRate;
     const int maxFrames;
 private:
-    // constant config
     std::ostream &log;
 
-    // Statically allocated state to configure streamLoop().
+    // ** stream thread state
+    void streamLoop();
+    void stream();
+    std::unique_ptr<std::thread> streamThread;
+    std::unique_ptr<Mix> mix;
+
+    // ** communication with streamThread.
+    // Statically allocated state start() passes to streamLoop().
     struct {
         std::string dir;
         sf_count_t startOffset;
         std::vector<std::string> mutes;
     } state;
-    void streamLoop();
-    void stream();
-    std::unique_ptr<std::thread> streamThread;
     std::atomic<bool> threadQuit;
-
+    // Goes to true when the Mix has run out of data.
+    std::atomic<bool> mixDone;
     // Set to true to have the streamThread reload mix.
     std::atomic<bool> restart;
-    std::unique_ptr<Mix> mix;
-
+    jack_ringbuffer_t *ring;
     // ring needs more data.
     Semaphore ready;
 
-    // read() state
+    // ** read() state
+    // Keep track if read() position gets ahead of what ring was able to
+    // provide.
     sf_count_t debt;
-    jack_ringbuffer_t *ring;
-    // Goes to true when the Mix has run out of data.
-    std::atomic<bool> mixDone;
     std::vector<float> outputBuffer;
 };

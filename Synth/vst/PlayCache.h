@@ -66,8 +66,12 @@ public:
     virtual bool getOutputProperties(
         VstInt32 index, VstPinProperties *properties);
 
-    virtual void setSampleRate(float sampleRate);
-    virtual void setBlockSize(VstInt32 blockSize);
+    virtual void setSampleRate(float sampleRate) {
+        this->sampleRate = sampleRate;
+    }
+    virtual void setBlockSize(VstInt32 blockSize) {
+        this->maxBlockFrames = blockSize;
+    }
 
     // virtual void setProgram(VstInt32 program);
     // virtual void setProgramName(char *name);

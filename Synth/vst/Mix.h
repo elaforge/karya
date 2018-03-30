@@ -16,7 +16,7 @@
 class Mix {
 public:
     Mix(std::ostream &log, int channels, int sampleRate,
-        const std::vector<std::string> fnames, sf_count_t startOffset);
+        const std::vector<std::string> &fnames, sf_count_t startOffset);
 
     // Read the number of frames into an internal static buffer and put it in
     // out.  There are no partial reads, return all requseted frames and false,
