@@ -9,7 +9,7 @@
 
 #include "public.sdk/source/vst2.x/audioeffectx.h"
 
-#include "Samples.h"
+#include "Streamer.h"
 
 
 // Per-play config.  This decodes the config sent by
@@ -50,6 +50,7 @@ class PlayCache : public AudioEffectX {
 public:
     PlayCache(audioMasterCallback audioMaster);
     virtual ~PlayCache();
+    virtual void resume();
 
     // configure
 
@@ -65,7 +66,7 @@ public:
     virtual bool getOutputProperties(
         VstInt32 index, VstPinProperties *properties);
 
-    // virtual void setSampleRate(float sampleRate);
+    virtual void setSampleRate(float sampleRate);
     virtual void setBlockSize(VstInt32 blockSize);
 
     // virtual void setProgram(VstInt32 program);
@@ -99,6 +100,8 @@ public:
 private:
     void start(VstInt32 delta);
 
+    // I don't know why setSampleRate is a float, but I don't support that.
+    int sampleRate;
     // processReplacing's frames arguent will never exceed this.
     VstInt32 maxBlockFrames;
     // Playing from this sample, in frames since the beginning of the score.
@@ -113,6 +116,6 @@ private:
     float volume;
 
     std::ofstream log;
-    Samples *samples;
+    std::unique_ptr<Streamer> streamer;
     PlayConfig playConfig;
 };

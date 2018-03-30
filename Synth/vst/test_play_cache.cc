@@ -10,9 +10,8 @@
 
 #include <sndfile.h>
 
-#include "Stream.h"
+#include "Streamer.h"
 #include "Semaphore.h"
-#include "Samples.h"
 
 
 static void
@@ -62,18 +61,18 @@ stream(const char *dir)
         std::cout << "no dir";
         return;
     }
-    sf_count_t maxBlockFrames = 512;
+    sf_count_t maxFrames = 512;
     sf_count_t startOffset = 0;
-    std::vector<string> mutes;
+    std::vector<std::string> mutes;
 
-    Samples *samples = new Samples(
-        std::cout, maxBlockFrames, 44100,
-        dir, startOffset, mutes);
-    nap(1);
-    float *out;
+    Streamer streamer(std::cout, 2, 44100, maxFrames);
+    streamer.start(dir, startOffset, mutes);
+
+    float *samples;
+
     for (int n = 0; n < 4; n++) {
-        sf_count_t frames = samples->read(256, &out);
-        std::cout << "read frames: " << frames << '\n';
+        streamer.read(256, &samples);
+        std::cout << "smp: " << samples[0] << '\n';
         nap(1);
     }
 }

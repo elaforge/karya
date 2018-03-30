@@ -39,8 +39,7 @@ AudioEffect *createEffectInstance(audioMasterCallback audioMaster)
 PlayCache::PlayCache(audioMasterCallback audioMaster) :
     AudioEffectX(audioMaster, 1, 1),
     offsetFrames(0), playing(false), delta(0), volume(1),
-    log(logFilename, std::ios::app),
-    samples(nullptr)
+    log(logFilename, std::ios::app)
 {
     if (!log.good()) {
         // Wait, how am I supposed to report this?  Can I put it in the GUI?
@@ -59,8 +58,16 @@ PlayCache::PlayCache(audioMasterCallback audioMaster) :
 PlayCache::~PlayCache()
 {
     LOG("quitting");
-    if (samples)
-        delete samples;
+}
+
+void PlayCache::resume()
+{
+    if (!streamer.get() || streamer->sampleRate != sampleRate
+        || streamer->maxFrames != maxBlockFrames)
+    {
+        streamer.reset(
+            new Streamer(log, numOutputs, sampleRate, maxBlockFrames));
+    }
 }
 
 // configure
@@ -112,6 +119,11 @@ bool PlayCache::getOutputProperties(
     }
     properties->flags = kVstPinIsActive | kVstPinIsStereo;
     return true;
+}
+
+void PlayCache::setSampleRate(float sampleRate)
+{
+    this->sampleRate = sampleRate;
 }
 
 void PlayCache::setBlockSize(VstInt32 blockSize)
@@ -171,16 +183,13 @@ void PlayCache::getParameterName(VstInt32 index, char *text)
 
 // process
 
+// Start streaming samples from offsetFrames, starting at the given delta.
 void
 PlayCache::start(VstInt32 delta)
 {
     // Hopefully this should wind up statically allocated.
     static std::string samplesDir(4096, ' ');
 
-    if (samples) {
-        delete samples;
-        samples = nullptr;
-    }
     // This can happen if the DAW gets a NoteOn before the config msgs.
     if (playConfig.blockId.empty()) {
         LOG("play received, but blockId is empty");
@@ -192,11 +201,7 @@ PlayCache::start(VstInt32 delta)
     samplesDir.clear();
     samplesDir += cacheDir;
     samplesDir += playConfig.blockId;
-    // TODO Samples allocation should be on a non-realtime thread, and this
-    // should just be an async request to it.  However, I still need to start
-    // reading samples immediately.
-    samples = new Samples(log, maxBlockFrames, this->sampleRate,
-        samplesDir, offsetFrames, playConfig.mutedInstruments);
+    streamer->start(samplesDir, offsetFrames, playConfig.mutedInstruments);
     this->playConfig.clear();
     this->delta = delta;
     this->playing = true;
@@ -311,19 +316,18 @@ void PlayCache::processReplacing(
     memset(out2, 0, processFrames * sizeof(float));
 
     // TODO fade out if this makes a nasty click.
-    if (!this->playing || !samples)
+    if (!this->playing)
         return;
 
     float *sampleVals;
-    sf_count_t framesLeft = samples->read(processFrames, &sampleVals);
-    if (framesLeft == 0) {
+    if (!streamer->read(processFrames, &sampleVals)) {
         LOG("out of samples");
         this->playing = false;
         return;
     }
 
     // LOG("process frames " << processFrames << " delta: " << delta
-    //     << " offset: " << offsetFrames << " left: " << framesLeft);
+    //     << " offset: " << offsetFrames;
 
     if (this->delta > 0) {
         if (delta >= processFrames) {
@@ -337,10 +341,11 @@ void PlayCache::processReplacing(
         processFrames -= delta;
         this->delta = 0;
     }
-    int frameCount = std::min(VstInt32(framesLeft), processFrames);
-    for (int frame = 0; frame < frameCount; frame++) {
+    for (int frame = 0; frame < processFrames; frame++) {
         (*out1++) = sampleVals[frame*2] * volume;
         (*out2++) = sampleVals[frame*2 + 1] * volume;
     }
-    this->offsetFrames += frameCount;
+    // I don't actually use offsetFrames any more, so I don't technically need
+    // to update it.
+    this->offsetFrames += processFrames;
 }

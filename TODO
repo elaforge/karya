@@ -1526,9 +1526,9 @@ synth: im:
   play_cache: PlayCache:
     / Move resampling to play_cache.
       . Well... why though?  The complexity should go in haskell.
-    + Theoretically I should be doing sample loading in a non-audio thread.
+    * Theoretically I should be doing sample loading in a non-audio thread.
       In practice it seems to be fine
-    + Stream samples instead of loading them all at once.
+    * Stream samples instead of loading them all at once.
       In principle it should be:
         . The audio thread gets an iterator of chunks of samples, and just
           loops over that.
@@ -1566,11 +1566,64 @@ synth: im:
         . But for the time being, I think I can return 0 from Stream.read, but
           have Samples only give up when all Streams are done.  So Stream gets
           a done() method.
-      - I wonder if the streaming isn't at the wrong level.
+      * I wonder if the streaming isn't at the wrong level.
         . Instead of starting a bunch of threads on each play, I could have
           just one streaming thread, in Samples.  It just loops through all
           the Samples and reads a chunk from each one, then drops the mixed
           result into a single ringbuffer.
+    actually be realtime safe in the audio thread
+      . In practice I haven't had problems with it, but I should probably do
+        it anyway, if just for the experience.
+      * Initialize Samples asynchronously.
+        . processEvents collects data in static buffers, then runs start().
+        . start() sends the data in a start msg to the non-RT stream thread.
+          The part that sets the offsetFrame is synchronous so it takes effect
+          immediately.  This is so its read() can immediately be called, and
+          will start counting frames read.
+        . Meanwhile, the streamer notices the signal, presumably set an
+          atomic and bump the ready semaphore.  It closes any existing streams
+          by clearing the Sample vector, and opens new ones.  Then it starts
+          a loop on the ready semaphore.
+        . Each time around, if the write space exceeds a limit, it reads from
+          each file, mixes them, and writes the result to the ring.
+        . The read() method keeps track of the current frame at the front of
+          the ring.  It tries to read the desired amount from the ring, padding
+          with zeros if there isn't enough.  But it keeps track of the
+          shortfall, and the next time it will do a throw-away read to catch
+          up.  This means the streaming isn't keeping up, and should only
+          happen at the very beginning.
+        . Eventually the files will run out and the ring will empty out.  If
+          the ring is empty and the streamer has set a "all done" value, then
+          return 0 read and processReplacing can shortcut.  Not that it has
+          to, it might also be reasonable to just continue to emit 0 buffers
+          and accumulate debt.
+
+        ? How to share variables in C++?  I think int writes should be
+          naturally atomic, but what do I need to do to guarantee that the
+          other thread sees it immediately?
+          . I think std::atomic provides that guarantee.
+          . Or maybe not, memory_order_seq_cst doesn't guarantee up-to-date.
+          . stackoverflow says I need read-modify-write operation such as
+            exchange(), compare_exchange_strong() or fetch_add().
+          . I guess I don't actually have a strong time requirement, just
+            "real soon".  I'm concerned with timeliness, not ordering.
+          . Actually, I do care about ordering if I set the value, then bump
+            the semaphore.  The default memory_order_seq_cst definitely does
+            that.
+
+        * Class representing merged audio files.
+          . Give it a list of files, and read() will return a mixed buffer.
+          . Files are automatically closed on destruction or when they run
+            out.
+          . read() returns 0 only when all files are finished.
+          . In the future, this can concatenate multiple files.
+        * Streamer class that has one of those, and communicates with the
+          audio thread.
+      - Log on a separate thread.
+        . Ideally I would accumulate the msg in a static buffer, then copy it
+          into a ring, and the logger would then pull it off the ring.
+        . Maybe I don't actually care though.  LOG is for debugging, and
+          eventually I should be able to turn it off.
     - The im/ directory is fundamentally global, since PlayCache hardcodes
       a single path.  It could be theoretically configured, but I'd probably
       have to do it manually via some kind of VST GUI, and save in the VST

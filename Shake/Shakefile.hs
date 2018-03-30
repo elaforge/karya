@@ -438,10 +438,8 @@ ccBinaries =
         ]
     ] ++ if not Config.enableIm then [] else
     [ playCacheBinary
-    , (plain "test_play_cache" $ map ("Synth/vst"</>)
-        [ "test_play_cache.cc.o"
-        , "Samples.cc.o", "Stream.cc.o", "ringbuffer.cc.o"
-        ])
+    , (plain "test_play_cache" $
+            "Synth/vst/test_play_cache.cc.o" : playCacheDeps)
         { ccLinkFlags = const $ "-lsndfile" : case Util.platform of
             Util.Linux -> ["-lpthread"]
             Util.Mac -> []
@@ -470,10 +468,7 @@ playCacheBinary = CcBinary
     { ccName = case Util.platform of
         Util.Mac -> "play_cache"
         Util.Linux -> "play_cache.so"
-    , ccRelativeDeps = map ("Synth/vst"</>)
-        [ "Samples.cc.o", "Stream.cc.o", "PlayCache.cc.o"
-        , "ringbuffer.cc.o"
-        ]
+    , ccRelativeDeps = "Synth/vst/PlayCache.cc.o" : playCacheDeps
     , ccCompileFlags = \config -> platformCc ++
         [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
         , "-I" ++ Config.vstBase
@@ -497,6 +492,10 @@ playCacheBinary = CcBinary
         Util.Mac -> []
         -- aeffect.h is broken for linux, suppressing __cdecl fixes it.
         Util.Linux -> ["-fPIC", "-D__cdecl="]
+
+playCacheDeps :: [FilePath]
+playCacheDeps = map (("Synth/vst"</>) . (++".o"))
+    ["Mix.cc", "Sample.cc", "Streamer.cc", "ringbuffer.cc"]
 
 
 {- | Since fltk.a is a library, not a binary, I can't just chase includes to
