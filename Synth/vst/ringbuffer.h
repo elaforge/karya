@@ -21,6 +21,9 @@
 #ifndef _RINGBUFFER_H
 #define _RINGBUFFER_H
 
+// Local modification, the original version hardcodes to char *.
+typedef float data_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,14 +46,14 @@ extern "C" {
 
 typedef struct
 {
-  char  *buf;
+  data_t  *buf;
   size_t len;
 }
 jack_ringbuffer_data_t ;
 
 typedef struct
 {
-  char           *buf;
+  data_t           *buf;
   volatile size_t write_ptr;
   volatile size_t read_ptr;
   size_t          size;
@@ -134,7 +137,7 @@ void jack_ringbuffer_get_write_vector(const jack_ringbuffer_t *rb,
  *
  * @return the number of bytes read, which may range from 0 to cnt.
  */
-size_t jack_ringbuffer_read(jack_ringbuffer_t *rb, char *dest, size_t cnt);
+size_t jack_ringbuffer_read(jack_ringbuffer_t *rb, data_t *dest, size_t cnt);
 
 /**
  * Read data from the ringbuffer. Opposed to jack_ringbuffer_read()
@@ -151,7 +154,7 @@ size_t jack_ringbuffer_read(jack_ringbuffer_t *rb, char *dest, size_t cnt);
  *
  * @return the number of bytes read, which may range from 0 to cnt.
  */
-size_t jack_ringbuffer_peek(jack_ringbuffer_t *rb, char *dest, size_t cnt);
+size_t jack_ringbuffer_peek(jack_ringbuffer_t *rb, data_t *dest, size_t cnt);
 
 /**
  * Advance the read pointer.
@@ -202,7 +205,7 @@ void jack_ringbuffer_reset(jack_ringbuffer_t *rb);
  *
  * @return the number of bytes write, which may range from 0 to cnt
  */
-size_t jack_ringbuffer_write(jack_ringbuffer_t *rb, const char *src,
+size_t jack_ringbuffer_write(jack_ringbuffer_t *rb, const data_t *src,
                              size_t cnt);
 
 /**

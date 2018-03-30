@@ -55,7 +55,7 @@ jack_ringbuffer_create (size_t sz)
         rb->size_mask -= 1;
         rb->write_ptr = 0;
         rb->read_ptr = 0;
-        if ((rb->buf = (char *) malloc (rb->size)) == NULL) {
+        if ((rb->buf = (data_t *) malloc (rb->size * sizeof(data_t))) == NULL) {
                 free (rb);
                 return NULL;
         }
@@ -71,7 +71,7 @@ jack_ringbuffer_free (jack_ringbuffer_t * rb)
 {
 #ifdef USE_MLOCK
         if (rb->mlocked) {
-                munlock (rb->buf, rb->size);
+                munlock (rb->buf, rb->size * sizeof(data_t));
         }
 #endif  /* USE_MLOCK */
         free (rb->buf);
@@ -84,7 +84,7 @@ int
 jack_ringbuffer_mlock (jack_ringbuffer_t * rb)
 {
 #ifdef USE_MLOCK
-        if (mlock (rb->buf, rb->size)) {
+        if (mlock (rb->buf, rb->size * sizeof(data_t))) {
                 return -1;
         }
 #endif  /* USE_MLOCK */
@@ -146,7 +146,7 @@ jack_ringbuffer_write_space (const jack_ringbuffer_t * rb)
    `dest'.  Returns the actual number of bytes copied. */
 
 size_t
-jack_ringbuffer_read (jack_ringbuffer_t * rb, char *dest, size_t cnt)
+jack_ringbuffer_read (jack_ringbuffer_t * rb, data_t *dest, size_t cnt)
 {
         size_t free_cnt;
         size_t cnt2;
@@ -168,12 +168,12 @@ jack_ringbuffer_read (jack_ringbuffer_t * rb, char *dest, size_t cnt)
                 n1 = to_read;
                 n2 = 0;
         }
-
-        memcpy (dest, &(rb->buf[rb->read_ptr]), n1);
+        memcpy (dest, &(rb->buf[rb->read_ptr]), n1 * sizeof(data_t));
         rb->read_ptr = (rb->read_ptr + n1) & rb->size_mask;
 
         if (n2) {
-                memcpy (dest + n1, &(rb->buf[rb->read_ptr]), n2);
+                memcpy (dest + n1, &(rb->buf[rb->read_ptr]),
+                    n2 * sizeof(data_t));
                 rb->read_ptr = (rb->read_ptr + n2) & rb->size_mask;
         }
 
@@ -185,7 +185,7 @@ jack_ringbuffer_read (jack_ringbuffer_t * rb, char *dest, size_t cnt)
    copied. */
 
 size_t
-jack_ringbuffer_peek (jack_ringbuffer_t * rb, char *dest, size_t cnt)
+jack_ringbuffer_peek (jack_ringbuffer_t * rb, data_t *dest, size_t cnt)
 {
         size_t free_cnt;
         size_t cnt2;
@@ -211,11 +211,12 @@ jack_ringbuffer_peek (jack_ringbuffer_t * rb, char *dest, size_t cnt)
                 n2 = 0;
         }
 
-        memcpy (dest, &(rb->buf[tmp_read_ptr]), n1);
+        memcpy (dest, &(rb->buf[tmp_read_ptr]), n1 * sizeof(data_t));
         tmp_read_ptr = (tmp_read_ptr + n1) & rb->size_mask;
 
         if (n2) {
-                memcpy (dest + n1, &(rb->buf[tmp_read_ptr]), n2);
+                memcpy (dest + n1, &(rb->buf[tmp_read_ptr]),
+                    n2 * sizeof(data_t));
         }
 
         return to_read;
@@ -226,7 +227,7 @@ jack_ringbuffer_peek (jack_ringbuffer_t * rb, char *dest, size_t cnt)
    `src'.  Returns the actual number of bytes copied. */
 
 size_t
-jack_ringbuffer_write (jack_ringbuffer_t * rb, const char *src, size_t cnt)
+jack_ringbuffer_write (jack_ringbuffer_t * rb, const data_t *src, size_t cnt)
 {
         size_t free_cnt;
         size_t cnt2;
@@ -249,11 +250,12 @@ jack_ringbuffer_write (jack_ringbuffer_t * rb, const char *src, size_t cnt)
                 n2 = 0;
         }
 
-        memcpy (&(rb->buf[rb->write_ptr]), src, n1);
+        memcpy (&(rb->buf[rb->write_ptr]), src, n1 * sizeof(data_t));
         rb->write_ptr = (rb->write_ptr + n1) & rb->size_mask;
 
         if (n2) {
-                memcpy (&(rb->buf[rb->write_ptr]), src + n1, n2);
+                memcpy (&(rb->buf[rb->write_ptr]), src + n1,
+                    n2 * sizeof(data_t));
                 rb->write_ptr = (rb->write_ptr + n2) & rb->size_mask;
         }
 

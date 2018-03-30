@@ -17,8 +17,7 @@
 
 enum {
     channels = 2,
-    frameSize = sizeof(float) * channels,
-    // frameSize = channels,
+    frameSize = channels,
 
     // This many blockFrames*frameSize chunks in the ring.
     // jack_ringbuffer_create will round up to the next power of 2, so 4
@@ -116,9 +115,7 @@ Stream::stream(std::ostream *log, SNDFILE *sndfile)
             sf_count_t read = sf_readf_float(sndfile, block, blockFrames);
             // DEBUG("stream write " << read);
             // *log << "stream write: " << read << "\n";
-            jack_ringbuffer_write(
-                ring, reinterpret_cast<char *>(block), read * frameSize);
-            // jack_ringbuffer_write(ring, block, read * frameSize);
+            jack_ringbuffer_write(ring, block, read * frameSize);
             // showRing("stream write", ring);
             if (read < blockFrames)
                 done = true;
@@ -148,18 +145,9 @@ Stream::read(sf_count_t frames, float **output)
     if (jack_ringbuffer_read_space(ring) < frames * frameSize) {
         return 0;
     }
-    // I think this float * -> char * cast is ok because the char * doesn't
-    // have an alignment restriction.  The floats do, but memcpy should be able
-    // to copy bytewise into a float array.
-    //
-    // TODO but I'm not sure.  If it's not ok, I could modify ringbuffer.c to
-    // typedef the pointer type and change it to float.
     // DEBUG("reading " << frames*frameSize);
     // showRing("before read", ring);
-    size_t bytes = jack_ringbuffer_read(
-        ring, reinterpret_cast<char *>(outputBlock), frames * frameSize);
-    // size_t bytes = jack_ringbuffer_read(
-    //     ring, outputBlock, frames * frameSize);
+    size_t bytes = jack_ringbuffer_read(ring, outputBlock, frames * frameSize);
     // showRing("after read", ring);
     *output = outputBlock;
     ready.post();
