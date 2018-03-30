@@ -12,7 +12,7 @@
 
 // TODO this should probably append to a ring-buffer and be flushed by
 // a separate thread, so I can call it from processReplacing.
-#define LOG(MSG) LOG_TO(this->log, MSG)
+#define LOG(MSG) LOG_TO(log, MSG)
 #define LOG_TO(OUT, MSG) do { OUT << __FILE__ << ':' << __LINE__ << ' ' \
     << MSG << std::endl; } while (0)
 
@@ -228,16 +228,16 @@ PlayConfig::collect(std::ofstream &log, unsigned char d1, unsigned char d2)
     // if a muted instrument starts with '@', but that character isn't allowed
     // in instrument names anyway.
     if (d1 == 0 && d2 == 64) {
-        // LOG_TO(log, "ignoring (0, 64) pitch bend");
+        // LOG("ignoring (0, 64) pitch bend");
         return;
     }
-    // LOG_TO(log, "collect: " << int(d1) << ", " << int(d2));
+    // LOG("collect: " << int(d1) << ", " << int(d2));
     collect1(d1);
     collect1(d2);
     if (instrumentIndex == -1) {
-        LOG_TO(log, "blockId: '" << blockId << "'");
+        // LOG("blockId: '" << blockId << "'");
     } else {
-        LOG_TO(log, "muted: '" << mutedInstruments[instrumentIndex] << "'");
+        // LOG("muted: '" << mutedInstruments[instrumentIndex] << "'");
     }
 }
 
