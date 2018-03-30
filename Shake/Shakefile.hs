@@ -605,7 +605,7 @@ configure midi = do
         , ghcLib = ghcLib
         , fltkVersion = fltkVersion
         , midiConfig = midi
-        , configFlags = setCcFlags $
+        , configFlags = setCcFlags mode $
             setConfigFlags sandbox fltkCs fltkLds mode ghcVersion osFlags
         , ghcVersion = ghcVersion
         , rootDir = rootDir
@@ -646,16 +646,20 @@ configure midi = do
             Nothing -> []
             Just path -> ["-no-user-package-db", "-package-db", path]
         }
-    setCcFlags flags = flags
-        { globalCcFlags = define flags ++ cInclude flags
-            -- Always compile c++ with optimization because I don't have much
-            -- of it and it compiles quickly.
-            ++ ["-Wall", "-std=c++11", "-O2"]
-            ++ ["-fPIC"] -- necessary for ghci loading to work in 7.8
+    setCcFlags mode flags = flags
+        { globalCcFlags = concat
+            [ define flags
+            , cInclude flags
+            , case mode of
+                Opt -> ["-O2"]
+                _ -> []
+            , ["-Wall", "-std=c++11"]
+            , ["-fPIC"] -- necessary for ghci loading to work in 7.8
             -- Turn on Effective C++ warnings, which includes uninitialized
             -- variables.  Unfortunately it's very noisy with lots of false
             -- positives.  Also, this is only for g++.
-            -- ++ ["-Weffc++"]
+            -- , ["-Weffc++"]
+            ]
         }
     osFlags = case Util.platform of
         -- In C and C++ programs the OS specific defines like __APPLE__ and
