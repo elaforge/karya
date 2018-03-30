@@ -442,7 +442,10 @@ ccBinaries =
         [ "test_play_cache.cc.o"
         , "Samples.cc.o", "Stream.cc.o", "ringbuffer.cc.o"
         ])
-        { ccLinkFlags = const ["-lsndfile"] }
+        { ccLinkFlags = const $ "-lsndfile" : case Util.platform of
+            Util.Linux -> ["-lpthread"]
+            Util.Mac -> []
+        }
     ]
     where
     fltk name deps = CcBinary
@@ -489,7 +492,7 @@ playCacheBinary = CcBinary
     where
     platformLink = case Util.platform of
         Util.Mac -> ["-bundle"]
-        Util.Linux -> ["-shared", "-Wl,-soname=play_cache.so"]
+        Util.Linux -> ["-lpthread", "-shared", "-Wl,-soname=play_cache.so"]
     platformCc = case Util.platform of
         Util.Mac -> []
         -- aeffect.h is broken for linux, suppressing __cdecl fixes it.
