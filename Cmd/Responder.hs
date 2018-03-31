@@ -210,8 +210,12 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
 
 -- | Kill the respond if it's taking too long.  This can happen if derive gets
 -- stuck and you hit play, for instance.
+--
+-- 2 seconds is too short, initial REPL cmds can take that much time.
+-- TODO find out why and fix it?  That might be hard because presumably it's
+-- forcing a bunch of CAFs.
 timeout :: Thread.Seconds
-timeout = 2
+timeout = 5
 
 respond_loop :: State -> MsgReader -> IO ()
 respond_loop rstate msg_reader = do

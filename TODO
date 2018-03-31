@@ -169,6 +169,13 @@ STATUS
   - Track down 8.4.1 performance regression.
     . Also see why MemoryLeak latency went up.
     . In general I should know what the expensive things in derivation are.
+    . It seems like compiles are taking a long time on a certain file.
+      . Cmd.GlobalKeymap was 33s, was that true on 8.0.2 as well?
+      . Can I get shake to not record 'compilation is NOT required' runs?
+      . Or maybe the laptop was overheating.
+  - Organize reyong and wayang samples for a real sampler-im instrument.
+    . First come up with exact pitches for reyong.
+    . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
   - MemoryLeak latency is getting above the limit of 0.05
@@ -1571,10 +1578,10 @@ synth: im:
           just one streaming thread, in Samples.  It just loops through all
           the Samples and reads a chunk from each one, then drops the mixed
           result into a single ringbuffer.
-    actually be realtime safe in the audio thread
+    * actually be realtime safe in the audio thread
       . In practice I haven't had problems with it, but I should probably do
         it anyway, if just for the experience.
-      * Initialize Samples asynchronously.
+      . Initialize Samples asynchronously.
         . processEvents collects data in static buffers, then runs start().
         . start() sends the data in a start msg to the non-RT stream thread.
           The part that sets the offsetFrame is synchronous so it takes effect
@@ -1619,11 +1626,11 @@ synth: im:
           . In the future, this can concatenate multiple files.
         * Streamer class that has one of those, and communicates with the
           audio thread.
-      - Log on a separate thread.
-        . Ideally I would accumulate the msg in a static buffer, then copy it
-          into a ring, and the logger would then pull it off the ring.
-        . Maybe I don't actually care though.  LOG is for debugging, and
-          eventually I should be able to turn it off.
+    - Log on a separate thread.
+      . Ideally I would accumulate the msg in a static buffer, then copy it
+        into a ring, and the logger would then pull it off the ring.
+      . Maybe I don't actually care though.  LOG is for debugging, and
+        eventually I should be able to turn it off.
     - The im/ directory is fundamentally global, since PlayCache hardcodes
       a single path.  It could be theoretically configured, but I'd probably
       have to do it manually via some kind of VST GUI, and save in the VST
@@ -1711,6 +1718,12 @@ synth: im:
       . Damping rules: +mute damp everything, all others overlap.
         . When a +mute damps an +open, it should actually damp very slightly
           before.
+    wayang:
+      . Same situation as reyong, except I also want to fade out based on
+        duration.
+      . Or model it as a hand-mute, which doesn't have its own sample.
+    guzheng:
+      . Everything rings except when explicitly muted.
 
     - The sampler could render per-track since each note is independent.
     - bind to rubberband library for pitch change without time change
@@ -1846,7 +1859,7 @@ synth: im:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
 
-  cache / incremental rerender
+  cache / incremental rerender:
     notes
       . I want the sequencer to only send the damaged range, but the synthesizer
         will have to rewind to the previous chunk boundary, since it can't just
@@ -1898,9 +1911,9 @@ synth: im:
         (startTime, Instrument, Controls, DspState) -> Samples.
     - PlayCache can sequence multiple .wav files.  The filenames need to have
       a timestamp so it can know how to seek.
-    + As PlayCache does fancier stuff, maybe I need to put the sample
+    * As PlayCache does fancier stuff, maybe I need to put the sample
       streaming into a separate thread.
-  - If there is only one cache mutated by the synth, then a play in process
+  . If there is only one cache mutated by the synth, then a play in progress
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
     one if the play is stopped and there is a newer one, so this could be done
@@ -2673,6 +2686,8 @@ performance:
       presumably ByteString.  But what is it then, if I'm using Text for
       events now?
 
+  - the first REPL cmd can take 2-3s, but they're fast after that, why?
+    . Presumably it's forcing a bunch of CAFs.
   research using pipes for generators and transformers
     . or streaming, or https://www.reddit.com/r/haskell/comments/7w79q1/what_is_your_take_on_conduits_pipes_and_streams/
     . This would handle the composed transforms thing.
