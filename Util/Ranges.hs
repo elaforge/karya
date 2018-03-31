@@ -4,11 +4,10 @@
 
 -- | Ranges are half-open.
 module Util.Ranges (
-    Ranges, fmap, extract
+    Ranges, extract, pair_map
     , ranges, sorted_ranges, merge_sorted, range, point, everything, nothing
     , overlapping, overlapping_closed, intersection, invert
 ) where
-import Prelude hiding (fmap)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import Data.Semigroup (Semigroup, (<>))
@@ -38,16 +37,15 @@ instance DeepSeq.NFData n => DeepSeq.NFData (Ranges n) where
     rnf Everything = ()
     rnf (Ranges xs) = DeepSeq.rnf xs
 
--- | It has a different type from the real fmap, but it wants to be an fmap.
-fmap :: Ord b => ((a, a) -> (b, b)) -> Ranges a -> Ranges b
-fmap f r = case extract r of
-    Nothing -> everything
-    Just pairs -> sorted_ranges (map f pairs)
-
 -- | Nothing means an everything range.
 extract :: Ranges n -> Maybe [(n, n)]
 extract (Ranges pairs) = Just pairs
 extract Everything = Nothing
+
+pair_map :: Ord b => ((a, a) -> (b, b)) -> Ranges a -> Ranges b
+pair_map f r = case extract r of
+    Nothing -> everything
+    Just pairs -> sorted_ranges (map f pairs)
 
 -- * constructors
 

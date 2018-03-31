@@ -260,13 +260,10 @@ evaluate_im :: Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument) -> BlockId
     -> Vector.Vector Score.Event
     -> IO ([Process.CreateProcess], Vector.Vector Score.Event)
-evaluate_im config lookup_inst block_id events
-    | null im_events = return ([], events)
-    | otherwise = do
-        cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
-        return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
+evaluate_im config lookup_inst block_id events = do
+    cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
+    return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
-    im_events = events
     by_synth = Util.Vector.partition_on im_synth events
     im_synth event = case lookup_inst (Score.event_instrument event) of
         Just inst -> case Cmd.inst_instrument inst of
@@ -277,15 +274,15 @@ evaluate_im config lookup_inst block_id events
     write_notes (Just synth, events) =
         case Map.lookup synth (Shared.Config.synths config) of
             Just synth -> do
-                let notes = Shared.Config.notesFilename
+                let fname = Shared.Config.notesFilename
                         (Shared.Config.rootDir config) synth block_id
                 -- TODO It would be better to not reach this point at all if
                 -- the block hasn't changed, but until then at least I can
                 -- skip running the binary if the notes haven't changed.
-                changed <- Im.Convert.write lookup_inst notes events
+                changed <- Im.Convert.write lookup_inst fname events
                 let binary = Shared.Config.binary synth
                 return $ if null binary || not changed then Nothing
-                    else Just $ Process.proc binary [notes]
+                    else Just $ Process.proc binary [fname]
             Nothing -> do
                 Log.warn $ "unknown im synth " <> synth <> " with "
                     <> showt (Vector.length events) <> " events"

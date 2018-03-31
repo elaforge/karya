@@ -137,10 +137,8 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
         FloatingInput {} -> 3
         Quit -> 4
 
--- | Arguments for "Cmd.PlayC.play".
---
--- Mmc config, descriptive name, events, tempo func to display play position,
--- optional time to repeat at.
+-- | Arguments for "Cmd.PlayC.play".  This is a special return value to trigger
+-- a play, see "Cmd.PlayC" for details.
 data PlayMidiArgs = PlayMidiArgs {
     play_sync :: !(Maybe SyncConfig)
     -- | Description of what is being played for logging.

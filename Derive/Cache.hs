@@ -376,7 +376,7 @@ extend_damage track_id track_range (ControlDamage damage)
 
 _extend_control_damage :: ScoreTime -> Events.Events
     -> Ranges.Ranges ScoreTime -> Ranges.Ranges ScoreTime
-_extend_control_damage track_end events = Ranges.fmap (extend1 events)
+_extend_control_damage track_end events = Ranges.pair_map (extend1 events)
     where
     extend1 events (s, e) = (event_at_before s events, event_after e events)
     event_at_before p events = case Events.split_lists p events of

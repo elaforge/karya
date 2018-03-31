@@ -55,11 +55,13 @@ get_root :: Cmd.M m => m Cmd.Performance
 get_root = Perf.get_root
 
 get :: Cmd.M m => BlockId -> m Cmd.Performance
-get = Cmd.get_performance
+get block_id = Cmd.require ("no performance for " <> pretty block_id)
+    =<< Cmd.lookup_performance block_id
 
 get_current :: Cmd.M m => BlockId -> m Cmd.Performance
-get_current block_id = Cmd.abort_unless =<< Map.lookup block_id <$>
-    Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
+get_current block_id = Cmd.require ("no performance for " <> pretty block_id)
+    =<< Map.lookup block_id <$>
+        Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
 
 -- * info
 
