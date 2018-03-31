@@ -595,7 +595,7 @@ default_dynamic = 1
 
 instance Pretty Dynamic where
     format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
-            aliases damage _under_invert inversion pitch_map
+            aliases control_damage _under_invert inversion pitch_map
             note_track stack mode) =
         Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
@@ -607,7 +607,7 @@ instance Pretty Dynamic where
             , ("warp", Pretty.format warp)
             , ("scopes", Pretty.format scopes)
             , ("instrument_aliases", Pretty.format aliases)
-            , ("damage", Pretty.format damage)
+            , ("control_damage", Pretty.format control_damage)
             , ("inversion", Pretty.format inversion)
             , ("pitch_map", Pretty.format pitch_map)
             , ("note_track", Pretty.format note_track)
@@ -617,11 +617,11 @@ instance Pretty Dynamic where
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
-            aliases damage _under_invert _inversion pitch_map
+            aliases control_damage _under_invert _inversion pitch_map
             note_track stack _mode) =
         rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
         `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
-        `seq` rnf damage `seq` rnf pitch_map `seq` rnf note_track
+        `seq` rnf control_damage `seq` rnf pitch_map `seq` rnf note_track
         `seq` rnf stack
 
 -- ** scope

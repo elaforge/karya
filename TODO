@@ -1469,33 +1469,98 @@ synth: im:
     - Also move callers from Score to ScoreTypes.  Can I give it a shorter
       name?  Base types modules should have short names.
   overview:
-    . Cmd.Performance will serialize im notes and start the binary.
-    . sampler-im or faust-im will read the notes and render wav files for each
+    * Cmd.Performance will serialize im notes and start the binary.
+    * sampler-im or faust-im will read the notes and render wav files for each
       instrument.
-    . Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
+    * Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
       which will mix together the unmuted instruments, starting at the given
       time.
     - Im instruments should have a midi thru-like preview sound.
-      . One way would be to assign a parallel MIDI instrument for thru.
-      . A fancier way would be to have a realtime im interface.  For that
-        I think I'd need to run the im synthesizers persistently, and talk to
-        them via MIDI or OSC.
-      . A compromise would be a general mechanism to render samples, and then
-        feed that into a realtime sampler.  Of course commercial samplers can
-        do that but would insert a lot of manual work into the process.  So
-        maybe I can write a minimal MIDI VST sampler.
-      . All it needs to do is play a sample with a given pitch (pitch bend
-        and pitch) and velocity.
+      . This doesn't have to be performance-level of low latency,
+        probably < 100ms will do.  Still, the lower the better.
+      ? Experiment with how various latencies feel, so I know my target.
+      possible designs:
+        parallel MIDI:
+          . Assign a parallel MIDI instrument for thru.
+          . All I get is the right pitch and possibly similar instrument sound.
+          . Probably in practice I'd just have a single MIDI instrument with
+            a neutral sound.
+        hybrid im and MIDI:
+          . A compromise would be a general mechanism to render samples, and
+            then feed that into a realtime sampler.  Of course commercial
+            samplers can do that but would insert a lot of manual work into
+            the process.  So maybe I can write a minimal MIDI VST sampler.
+          . All it needs to do is play a sample with a given pitch (pitch bend
+            and pitch) and velocity.
+          . For this, I need to prepare each instrument by rendering a set of
+            example samples.
+          . I don't want to have to encode notes as MIDI, so just have
+            play_cache open a socket, which takes a filename and pitch and
+            immediately plays whatever it gets.  All I have to do is teach
+            play_cache to resample and maybe scale volume.
+        pure im:
+          . I have to give a single Note to the im synthesizer, which then has
+            to stream to the VST, which has a socket to immediately play
+            samples.
+          . I might have to run im synthesizers persistently to avoid startup
+            overhead.
+          . Presumably I also have to ensure they use a sufficiently small
+            block size to get that first block out quickly.  Since I'm not
+            doing realtime control, I don't actually care about the rest of
+            the blocks.
+          . This is more complicated, but is accurate for the instrument:
+            I get the right sounds so I can e.g.  see how sampler-im picks
+            samples in realtime-ish.  However, if I go this far, it might not
+            be that much more work to go for the full realtime interface.
+        realtime interface:
+          . This is basically try to turn im into a realtime interface.
+          . The difference with the previous is that I'd also support realtime
+            control signals.
+          . The reason to want this is that I could explore instruments
+            interactively.
+          . I would probably have to take MIDI or OSC, run the im synth
+            persistently, and either stream to the VST or directly to audio
+            out.
+          . I'd have to plan out a general purpose interface.  Synthesizers
+            that use knowledge of the future would have to be adapted to not
+            having that.
     - Incremnetal rendering.
+      . Overview: Karya has to emit damage ranges, and the synth has to
+        rerender just those sections.  The cache becomes a sequence of wav
+        files, which play_cache concatenates as it plays.
       . Propagate score damage up to the im perform step.
-      . I have to split the cache into chunks.
-      . Save and restore sythesize state.
-    . Cache / incremental rendering.  Karya has to also emit damage ranges,
-      and the synth has to expand that to notes and rerender just those
-      sections.  play_cache has to understand the more complicated cache
-      and mix or concatenate the chunks.
-    . Atomic cache replacement.  The synth generates a new cache dir, and
-      play_cache GCs the old one when it stops.
+      . Instead of writing all notes as one big chunk, only replace the notes
+        that changed.  I'll need some kind of time-indexed data store for
+        this, possibly just a directory of files with timestamp names.  The
+        main thing is that it supports delete and insert a time range of data.
+      . Im synthesizers get (instrument, time_range) to rerender, and only
+        read and render the Notes in that range.
+      . Similarly, the wav cache also needs to be time-indexed to replace the
+        specific chunks.
+      . This means the synthesizer needs to be able to segment its output.
+        . For faust-im, I can store the current state with each chunk, so it
+          can restore that state when restarting at that time.
+        . For sampler-im, I might want to take the same approach, only the
+          state is the currently sounding samples and their offset.  If
+          there are effects like reverb or filters then I save the state in
+          the same way as the faust stuff.
+    - Atomic cache replacement.
+      . Im synths write to a new cache dir instead of modifying the existing
+        one.
+      . If they're doing an incremental rerender, then hardlink over the
+        unchanged outputs.  If there are a lot, maybe I want to symlink
+        directories of unchanged instruments, but then GC is more difficult.
+        Still, I can GC offline so performance is not such a concern there.
+      . When all im synths complete, move the new cache dir into place.
+        Presumably I can just use a serial number.
+      . Each time play_cache plays, it chooses the latest cache dir.
+      . I'll need some way to GC away the old ones.  If it's all hardlinks,
+        I can just delete the old ones.  play_cache can do that itself on
+        stop.  If there are symlinks I need something fancier that moves
+        the files instead of deleting, but that should be relatively easy
+        since it's a fixed directory structure.
+      . The synth generates a new cache dir, and play_cache GCs the old one
+        when it stops.
   performance
     - Profiling for time and space.  It should take constant space.
     - fast serialize / deserialize
@@ -1505,6 +1570,18 @@ synth: im:
         send the pointer to the OS write() call with no intermediate steps.
       . Or I can map directly with vector-mmap.  For that I need to record the
         offsets in the file.
+      . On the other hand, if I'm doing incremental rerenter, then it's not so
+        critical.
+  Incremnetal rendering:
+    - Propagate score damage up to the im perform step.
+      . I have to change it from ScoreTime to RealTime though.
+      . By the time I get to Performance.evaluate_im, perf_damage is empty.
+        Maybe I have to stash the old damage?
+      . Do I need to keep Derive.state_control_damage?
+      . Then there is Derive.state_score_damage, from the caller.
+      . Since ControlDamage is inferred during derivation, I think I need to
+        collect it in Collect.
+
   audio:
     make Audio.linear more efficient
       - reuse buffers for flat signals
@@ -1962,6 +2039,10 @@ incremental save / git:
     . If I use CBOR, then maybe I could convert to CBOR records, which is
       JSON-like, and then have an automatic CBOR to text bijection.
     . Research how git deltas actually work first.
+    . Actually it seems like they work with binary, so space efficiency is not
+      a reason to use text.  The only thing left is visible diffs, but I don't
+      know that there's much point to that.  They're likely to be completely
+      unreadable, so if I want to see diffs I'd need a graphical version.
   + try saving individual events for incremental save
     Seems to be just as slow as full save, probably most of the time is in
     the call to git.  Test again with larger tracks.
@@ -1969,10 +2050,6 @@ incremental save / git:
   - make sure things are ok if it fails at any step
   - I don't think Ui.State needs to emit CmdTrackAllEvents for cases where
     diff will catch it.
-  - See if git's delta compression understands binary and can compress
-    tracks.  Otherwise, would it be worth helping it by e.g. separating
-    each event with a newline?  But then it makes serializing events more of
-    a hassle.
   . Git docs: http://progit.org/book/ch9-2.html
 
 integrate / integration:
