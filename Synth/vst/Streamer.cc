@@ -4,6 +4,7 @@
 
 #include <dirent.h>
 #include <ostream>
+#include <string.h>
 
 #include "Streamer.h"
 #include "ringbuffer.h"
