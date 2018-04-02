@@ -175,6 +175,7 @@ with_empty_collect inflict_control_damage deriver = do
 find_generator_cache :: Cacheable d => Type -> Derive.CacheKey -> Ranges
     -> ScoreDamage -> ControlDamage -> Cache
     -> Either (Bool, Text) (Derive.Collect, Stream.Stream d)
+    -- ^ on a miss, the Bool is 'with_empty_collect' inflict_control_damage
 find_generator_cache typ key (Ranges event_range is_negative) score
         (ControlDamage control) (Cache cache) = do
     cached <- justErr (False, "not in cache") $ Map.lookup key cache

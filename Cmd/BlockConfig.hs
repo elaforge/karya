@@ -33,7 +33,7 @@ import Global
 import Types
 
 
--- * block
+-- * skeleton
 
 -- | Toggle an edge from the selected parent to the clicked child.
 cmd_toggle_edge :: Cmd.M m => Msg.Msg -> m ()
@@ -57,6 +57,8 @@ clicked_track :: Msg.Msg -> Maybe TrackNum
 clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
     (True, Just (tracknum, _)) -> Just tracknum
     _ -> Nothing
+
+-- * merge
 
 -- | Merge all adjacent note/pitch pairs.  If they're already all merged,
 -- unmerge them all.
@@ -101,6 +103,8 @@ is_control_or_pitch parent block_id tracknum =
             , TrackTree.is_child_of block_id parent tracknum
             ]
 
+-- * misc
+
 cmd_open_block :: Cmd.M m => Bool -> m ()
 cmd_open_block align_new_view = do
     sel <- Selection.events
@@ -127,6 +131,8 @@ align_view_to parent start end view_id = do
     Views.set_track_rect view_id $ Rect.xywh x top width (bottom - top)
     Views.zoom_to_ruler view_id
 
+-- | Add an empty title and focus on it.  The text widget hides itself when
+-- empty, so the space gets it to appear for focus.
 cmd_add_block_title :: Cmd.M m => Msg.Msg -> m ()
 cmd_add_block_title _ = do
     view_id <- Cmd.get_focused_view

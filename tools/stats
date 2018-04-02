@@ -31,5 +31,4 @@ echo "$total\t$(count_files $all_files)"
 
 # echo
 # date +%y-%m-%d
-# tokei --sort files *.hs [A-Z]* bin doc fltk ly test tools \
-#     | grep -v -e '^-' -e SVG -e Cabal
+# tokei --sort files .

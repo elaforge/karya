@@ -167,18 +167,20 @@ STATUS
       which has fewer dependencies, but it seems one of those is JSON export,
       which I need.
   - Track down 8.4.1 performance regression.
-    . Also see why MemoryLeak latency went up.
     . In general I should know what the expensive things in derivation are.
     . It seems like compiles are taking a long time on a certain file.
       . Cmd.GlobalKeymap was 33s, was that true on 8.0.2 as well?
       . Can I get shake to not record 'compilation is NOT required' runs?
       . Or maybe the laptop was overheating.
+  - Find out why MemoryLeak latency: went up.
   - Organize reyong and wayang samples for a real sampler-im instrument.
     . First come up with exact pitches for reyong.
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
+  . Currently planning for Incremnetal rendering:
 
 UNSORTED
-  - MemoryLeak latency is getting above the limit of 0.05
+  - MemoryLeak latency:
+    . getting above the limit of 0.05
     . I don't know what the historical values have been, maybe I should be
       saving those.
     ? It's the first cmd only, what is it doing that's more work?
@@ -296,6 +298,32 @@ UNSORTED
     consistently, e.g. in grace and roll.
   - It's awkward to rearrange tracks and then redo the skeleton.  Since
     I never really want tangled skeleton anyway, can't I make that implicit?
+    . I could say the skeleton always goes left to right, and only branches,
+      never merges.  So the control is the tree structure and the ordering of
+      the toplevel tracks, and I think the rest can be inferred.
+    . Write infer_order_from_skeleton, and infer_skeleton_from_order.  I can
+      invoke the first after modifying the skeleton, and the second after
+      moving a track.
+    . Actually, how can the second work, if I don't have the tree structure?
+      If I just have the first I would have to move tracks by modifying the
+      skeleton, but that seems pretty awkward.
+    . The restricted skeleton is like that which is used by integration and
+      ModifyNotes: [(Note, [Control])].  Except I have a tree of controls on
+      top: [TopControl] where
+        data TopControl = TopControl Title [TopControl]
+          | TopNote Note
+        data Note = Note Title [Control]
+        data Control = Control Title
+    . Or maybe I could address it directly by making track move work on the
+      whole note track.  I can already do this by just selecting all the
+      children, but this would make it automatic.
+    . But I originally added this entry because I was swapping a control from
+      below to above.
+    . I guess I could have a move variant that keeps the skeleton the same.
+    . The other annoying thing is having to manually add e.g. the tempo track
+      to all new note tracks.  I sort of get around this with the insert-above
+      etc. cmds, maybe I just need to make those smarter, or understand them
+      better?
   . Simplify or unify various types in Derive.ScoreTypes,
     Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
     and move simple types to Derive.T.
@@ -1580,7 +1608,73 @@ synth: im:
       . Do I need to keep Derive.state_control_damage?
       . Then there is Derive.state_score_damage, from the caller.
       . Since ControlDamage is inferred during derivation, I think I need to
-        collect it in Collect.
+        collect it in Collect.  At that point I may already have RealTime.
+      . I think I can do it in the note track deriver, store
+        (TrackId, Ranges RealTime), which is the union of state_control_damage
+        and state_score_damage.
+      . Of course the fact that I'm evaluating the track at all means I missed
+        the cache.  I can't just emit the track range though, because then I'd
+        always just get everything from the top level.
+      . I want to only emit damage for the ranges which are not above block
+        calls, because the block call may have a tempo which modifies the
+        range.  Control damage may also be expanded, but since it's always an
+        expand, redundancy isn't such a problem.  Still, inefficient.
+      . So, that's a problem.  Ultimately, it's the Score.Notes that matter,
+        but if I just emit damage for rederived Score.Notes then I miss
+        deleted ones.
+      . Ok so since track is the lowest cache level, eventually I hit a track
+        which is a complete miss.
+      . If no damage, then hit, nothing is evaluated.
+        If damaged, then evaluate, but that block or track in turn may hit
+        other caches.  So maybe I want to damage the whole track range, but
+        then subtract out the hit ranges.  Since I always rederive the root,
+        actually the whole thing is subtractive, so I might as well just
+        collect *undamaged* ranges, and then invert it.
+
+      . This damage informs what note ranges I serialize and replace on disk.
+        I also write them to a per-root file so the synth knows which have
+        been replaced.  This also has to accumulate in case multiple edits
+        happen before a synth completes successfully.
+      . Damaged chunks will wind up being at the track level, which should be
+        fine for just serializing Notes, but if synthesis is expensive I may
+        want something more finely grained.  If I break the note serialization
+        into time range chunks, I can store hashes of each file and the
+        synthesizer can then skip ones whose hash hasn't changed.  This is
+        kind of a time-based memoization.
+      . I need synthesizer state in the per-chunk metadata anyway, so it would
+        look like (InputHash, State).  Compare the InputHash to the current
+        file contents, and if it differs, run the synth with the given state
+        to make a new file.
+      . At this point, it's likely that the State for the next chunk has also
+        changed, so this might lead to evaluating the whole rest of the piece.
+        I could either accept that (assuming most edits are at the end), or
+        try to minimize it by allowing a "close enough" States to be
+        considered equal.  What exactly this is requires internal synth
+        knowledge, and it might be hard to figure out if the state is a bunch
+        of faust-generated caches.  I could assume the values have a vaguely
+        linear effect on the output and just do approx equal by eta.  It might
+        be ok if there's a slight discontinuity at the transition just for
+        auditing purposes.
+      . If I'm rerendering asynchronously, especially if I do the "evaluate
+        the rest" approach, I might want to preserve the work if the rerender
+        is killed.  Instead of writing and updating the whole output cache,
+        I would replace chunks atomically, and if the synth is killed, rely on
+        the damage and memoization mechanism to notice that the bits I didn't
+        get to are still dirty.
+      . I should be able to play past the rerender point, presumably there
+        would be a discontinuity and then all would be well.
+      . In fact, if there will be a discontinuity for both this approach and
+        the "close enough State" heuristic, and I want the effect of the
+        heuristic without the fussy per-synth heuristic and "permanent"
+        pollution in the output, I could just stop rerendering once I get
+        sufficiently past the end of the damaged range.  If the problem is
+        battery use, I could stop entirely, if it's interactive latency
+        suffering due to contention, I could bump up the nice.  Unlike the GHC
+        runtime though, the OS should be pretty good at prioritizing
+        interactive processes over background ones.
+      . All this is making me think I should remain with the single mutable
+        output cache idea instead of writing a new one and atomically
+        switching to it.
 
   audio:
     make Audio.linear more efficient
@@ -3049,6 +3143,8 @@ test: testing:
       . http://teh.id.au/posts/2017/04/23/property-testing-with-hedgehog/
       . Hedgehog lets me use Gen more easily, since it automatically infers
         shrink, and keeps it with the Gen.
+    - Integrate hedgehog into Util.Testing
+    - port Util.Segment_test quickchecks to hedgehog
   - Write a test for Ui.Diff and Ui.Sync.
     . I think the easiest way to do this is make BlockCStub record its calls,
       then have a UI simulation that interprets those.  Then I can use
