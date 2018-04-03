@@ -11,6 +11,8 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.NN as NN
 
+import Global
+
 
 test_edo = do
     let run scale_id divisions intervals pitches = DeriveTest.extract extract $

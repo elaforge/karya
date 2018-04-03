@@ -33,7 +33,7 @@ enableIm = False
 -- | Path to the fltk installation.  If you @make install@ then it'll probably
 -- be in /usr/local/bin.
 fltkConfig :: FilePath
-fltkConfig = "/usr/local/bin/fltk-config"
+fltkConfig = "fltk-config"
 
 -- | Extra -I flags that all compiles get, including haskell cpp and hsc2hs.
 -- E.g. ["-I/Users/me/homebrew/include"]

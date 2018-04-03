@@ -192,11 +192,33 @@ UNSORTED
       This is for multi ghc version, which might be nice but not really
       important.
     . Actually it is important, since travis provided ghc is ancient.
+    . Maybe I want to put in a freeze file, so I don't have to deal with
+      random package updates.
+      . That means I deal with them all at once at occasionally when I do
+        an explicit upgrade, but that's maybe better.
+      . Or maybe it's just not worth worrying about, I only get broken by one
+        or two things every few years.
+      . But, freezing should make CI faster because I just cache the deps and
+        then never have to rebuild them.
+
     travis:
       . figure out how travis cache works
         . Looks like you just declare some directories, and it saves them
           after each successful run and restores before the next.
-      - get other deps: fltk, libpcre, maybe jack for linux
+      * get other deps: fltk, libpcre, maybe jack for linux
+    - I should be able to run everything as Test, and save a lot of build time.
+    - tests should tee to stdout, so travis doesn't think I died, and so I
+      can see if it wedges.
+    - The flaky test is back.
+      . Last time was 340948137c64186600a6215c7192494439704bc7
+      . __-> Cmd/Integrate_test.hs:66 [test_block_integrate]
+        ("b2",
+         [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
+          ("*", [(0.0, 0.0, "4e"), (2.0, 0.0, "4c")])])
+            /=
+        ("b2",
+         [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
+          ("*", [(0.0, 0.0, "4f"), (2.0, 0.0, "4c")])])
     - If I want to do verify_performance from CI then I'll need to distribute
       the scores somehow.
       . Using source control isn't so bad, but I should probably use
@@ -1676,6 +1698,18 @@ synth: im:
         output cache idea instead of writing a new one and atomically
         switching to it.
 
+      . Ok, so the plan is:
+        - Derive.Cache marks that bits that hit the cache.
+          . That's already in logs, but I should stick it in Collect.
+          . Maybe as a side-effect I can get rid of the log parsing for cache
+            stats.
+        - Perform.Im.Convert inverts that and writes it as damage.
+        - Write a disk-backed time indexed DB.
+          . Implemented as a directory with time-stamped files.  For
+            simplicity, put each note in its own file, but maybe I'll want to
+            combine them later.
+          . Not sure though, surely modern filesystems can handle this fine?
+
   audio:
     make Audio.linear more efficient
       - reuse buffers for flat signals
@@ -2598,6 +2632,10 @@ performance:
     . Clearly the wayang ones are doing something expensive, what is it?
   ghc-events:
     - GHC.RTS.Events doesn't handle unicode properly
+    docs:
+      . https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/frame-viewer
+      . https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/using-frameviewer
+      . http://www.well-typed.com/blog/2014/02/ghc-events-analyze/
     conclusions:
       . 10ms for mouse up + minor GC, 9ms for 'j' with no GC.
       . During derivation, I get 80ms for OutOfDate, which should normally

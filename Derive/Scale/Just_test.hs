@@ -12,6 +12,8 @@ import qualified Derive.Score as Score
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
+import Global
+
 
 test_make_just7 = do
     let run scale_id intervals ratios pitches = DeriveTest.extract extract $

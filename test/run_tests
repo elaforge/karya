@@ -81,25 +81,28 @@ failures=$(grep '^__->' $test_output | wc -l)
 tests=$(grep '^===> run-test' $test_output | wc -l)
 echo $failures failed / $passes passed / $tests tests
 
-# hpc is super slow
-echo 'Generating hpc markup in the background...'
-(
-    wait # for hpc sum above to complete
-    rm -rf build/hpc
-    mkdir -p build/hpc
-    if [[ -n $hpc_exclude_test ]]; then
-        nontest=$(tools/all_hs.py notest dotted)
-        nontest=--include=${^nontest}
-    else
-        nontest=
-    fi
-    if [[ -n $(echo $tmp/*.tix(N)) ]]; then
-        hpc sum --union --output=RunTests.tix $tmp/*.tix
-    fi
-    hpc markup --destdir=build/hpc $nontest RunTests.tix | grep -v Writing
-    # I'm more used to typing index.html
-    (cd build/hpc && ln -fs hpc_index.html index.html)
-    echo Done generating hpc.
-) &
+# Optionally disable HPC.
+if [[ -z $skip_hpc ]]; then
+    # hpc is super slow
+    echo 'Generating hpc markup in the background...'
+    (
+        wait # for hpc sum above to complete
+        rm -rf build/hpc
+        mkdir -p build/hpc
+        if [[ -n $hpc_exclude_test ]]; then
+            nontest=$(tools/all_hs.py notest dotted)
+            nontest=--include=${^nontest}
+        else
+            nontest=
+        fi
+        if [[ -n $(echo $tmp/*.tix(N)) ]]; then
+            hpc sum --union --output=RunTests.tix $tmp/*.tix
+        fi
+        hpc markup --destdir=build/hpc $nontest RunTests.tix | grep -v Writing
+        # I'm more used to typing index.html
+        (cd build/hpc && ln -fs hpc_index.html index.html)
+        echo Done generating hpc.
+    ) &
+fi
 
 exit $failures

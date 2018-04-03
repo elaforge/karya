@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # How many CPUs do I have?
 # I use actual cores because hyperthreads seem to be useless.
 
