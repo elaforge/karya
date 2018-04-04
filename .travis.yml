@@ -105,6 +105,7 @@ script:
   # think I wedged, and so if I did wedge, I can see where.
   - build/opt/shakefile +RTS -N -RTS -j$cpus build/test/RunTests
   - build/test/RunTests --noninteractive '^normal-' | tee build/test/output
+      | grep '^===>'
   - test/check_output build/test/output
 
   # I need to get all-deps working for this.

@@ -948,7 +948,7 @@ dispatch modeConfig targets = do
             ++ criterion ++ [runTests, runProfile] ++ more
     needEverythingTest = do
         criterion <- getCriterionTargets (modeConfig Test)
-        need $ map (modeToDir Debug </>) allBinaries
+        need $ map (modeToDir Test </>) allBinaries
             ++ criterion ++ [runTests]
             -- This is missing runProfile, but at the moment I can't be
             -- bothered to get that to compile in build/test.
