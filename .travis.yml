@@ -76,9 +76,11 @@ install:
   - ghc-pkg list
   - cp data/cabal.config .
   - travis_retry cabal update
-  - travis_retry cabal install -j$cpus hsc2hs c2hs
+  - if which hsc2hs && which c2hs; then echo ok;
+    else travis_retry cabal install -j$cpus hsc2hs c2hs;
+    fi
   # mk typecheck needs this even though it's not in the .cabal
-  # TODO Ugh.  I should switch to guage and get rid of this hack.
+  # TODO Ugh.  I should switch to gauge and get rid of this hack.
   - travis_retry cabal install -j$cpus criterion
 
   - travis_retry cabal install --only-dependencies -j$cpus

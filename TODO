@@ -211,6 +211,8 @@ UNSORTED
     * I should be able to run everything as Test, and save a lot of build time.
     * tests should tee to stdout, so travis doesn't think I died, and so I
       can see if it wedges.
+    - I could cache build/ to reuse the build status.  Then I just run into
+      the usual shake problems with disappeared files.
     - The flaky test is back.
       . Last time was 340948137c64186600a6215c7192494439704bc7
       . __-> Cmd/Integrate_test.hs:66 [test_block_integrate]
