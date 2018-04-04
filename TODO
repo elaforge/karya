@@ -258,30 +258,6 @@ UNSORTED
         on it.  I'd want to collapse everything at a certain level, like zm.
       . It uses haskell-lexer instead of haskell-src, so I can remove that
         dep, which seems old.
-  - support cabal new-build
-    . The advantage is that people can install dependencies without messing up
-      their global package db.
-    . Also I might be able to skip the install build tools step.
-    . cabal sandbox already does this, but with new-build they can reuse
-      installed packages.
-    . I think to support this I install deps via new-build --only-dependencies
-      and then compile with: -no-user-package-db
-      -package-db $HOME/.cabal/store/ghc-8.4.1/package.db
-    . Also I could consider using a freeze file if there are problems with
-      deps.
-    . The advantage of doing this for travis is that I can resue the cache but
-      still use latest library versions as they come out.
-      . I think?  Or does it prefer what's installed?
-      . It's hard to test this with 8.4.1 because every single package was
-        just update, so only has one valid version.
-      . It will use global packages, but it won't use old versions in user db.
-      . Yes, it will use the newest packages available.  This is probably good
-        for CI, since it means I find out about new breakage.
-      . If I can set up performance CI, then I can find out about performance
-        regressions due to dependency changes.
-      . But locally maybe I want to freeze, to avoid churn whenever I install
-        anything new.
-    . All in all, this is not really a big deal.
   track down 8.4.1 performance regression:
     . performance regression notes: http://ghc.haskell.org/trac/ghc/ticket/14964
     - try with 8.0.2
@@ -2431,6 +2407,30 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - support cabal new-build
+    . The advantage is that people can install dependencies without messing up
+      their global package db.
+    . Also I might be able to skip the install build tools step.
+    . cabal sandbox already does this, but with new-build they can reuse
+      installed packages.
+    . I think to support this I install deps via new-build --only-dependencies
+      and then compile with: -no-user-package-db
+      -package-db $HOME/.cabal/store/ghc-8.4.1/package.db
+    . Also I could consider using a freeze file if there are problems with
+      deps.
+    . The advantage of doing this for travis is that I can resue the cache but
+      still use latest library versions as they come out.
+      . I think?  Or does it prefer what's installed?
+      . It's hard to test this with 8.4.1 because every single package was
+        just update, so only has one valid version.
+      . It will use global packages, but it won't use old versions in user db.
+      . Yes, it will use the newest packages available.  This is probably good
+        for CI, since it means I find out about new breakage.
+      . If I can set up performance CI, then I can find out about performance
+        regressions due to dependency changes.
+      . But locally maybe I want to freeze, to avoid churn whenever I install
+        anything new.
+    . All in all, this is not really a big deal.
   - see TODOs: lentil ^build
   - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - visualize module dependencies: https://github.com/yav/graphmod

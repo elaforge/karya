@@ -198,6 +198,9 @@ buildDocDir = build </> "doc"
 docDir :: FilePath
 docDir = "doc"
 
+dataDir :: FilePath
+dataDir = "data"
+
 -- * flags
 
 type Flag = String
@@ -735,7 +738,7 @@ main = do
     makeDataLinks
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
-        cabalRule reallyAllPackages (docDir </> "all-deps.cabal")
+        cabalRule reallyAllPackages (dataDir </> "all-deps.cabal")
         when Config.enableIm faustRules
         generateKorvais
         matchBuildDir hsconfigH ?> hsconfigHRule
@@ -1082,7 +1085,7 @@ wantsHaddock config hs = not $ or $
 cabalRule :: [(Package, String)] -> FilePath -> Shake.Rules ()
 cabalRule packages fn = (>> Shake.want [fn]) $ fn %> \_ -> do
     Shake.alwaysRerun
-    template <- Shake.readFile' "doc/karya.cabal.template"
+    template <- Shake.readFile' (dataDir </> "karya.cabal.template")
     Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
     where
     indent = replicate 8 ' '

@@ -19,8 +19,8 @@ stability: experimental
 tested-with: GHC == 7.10, GHC == 8.0.2, GHC == 8.4.2
 
 source-repository head
-    type: darcs
-    location: http://ofb.net/~elaforge/darcs/karya/
+    type: git
+    location: https://github.com/elaforge/karya.git
 
 -- build-depends are appended by the shake rule.
 library
