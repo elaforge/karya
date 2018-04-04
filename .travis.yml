@@ -74,6 +74,7 @@ before_install:
 
 install:
   - ghc-pkg list
+  - cp data/cabal.config .
   - travis_retry cabal update
   - travis_retry cabal install --enable-profiling -j$cpus hsc2hs c2hs
   # mk typecheck needs this even though it's not in the .cabal

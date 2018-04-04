@@ -192,7 +192,7 @@ UNSORTED
       This is for multi ghc version, which might be nice but not really
       important.
     . Actually it is important, since travis provided ghc is ancient.
-    . Maybe I want to put in a freeze file, so I don't have to deal with
+    * Maybe I want to put in a freeze file, so I don't have to deal with
       random package updates.
       . That means I deal with them all at once at occasionally when I do
         an explicit upgrade, but that's maybe better.
@@ -200,6 +200,8 @@ UNSORTED
         or two things every few years.
       . But, freezing should make CI faster because I just cache the deps and
         then never have to rebuild them.
+      . Aaaand someone updated something and it's already broken.  Ok,
+        I definitely want to do this.
 
     travis:
       . figure out how travis cache works
