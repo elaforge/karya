@@ -2,6 +2,10 @@
 # How many CPUs do I have?
 # I use actual cores because hyperthreads seem to be useless.
 
+if [[ -n "$CPUS" ]]; then
+    echo $CPUS
+    exit 0
+fi
 if [[ -r /proc/cpuinfo ]]; then
     # Count unique (physical id, core id) pairs.
     # Wow linux, seriously?

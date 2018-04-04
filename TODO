@@ -230,7 +230,7 @@ UNSORTED
         those saves.
       . Also see git save:
   open source:
-    - put public branches (or just master?) on github, retain gitlab for work
+    * put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
       Push script does normal push to github, force push to gitlab.
       . I can push master to github, and treat work as in-progress.

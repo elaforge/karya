@@ -1,4 +1,6 @@
 #!/bin/zsh
+# Push complete work to public github, and incomplete branches to private
+# gitlab.
 
 gitlab=git@gitlab.com:elaforge/karya.git
 github=git@github.com:elaforge/karya.git

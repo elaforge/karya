@@ -90,20 +90,21 @@ install:
 # to be harmless.
 
 script:
+  - export CPUS=$cpus # override tools/ncpus
   - bin/mkmk
   - tools/setup-elaforge # create Local/*.hs
-  - build/opt/shakefile +RTS -N -RTS -j$cpus typecheck-test
+  - bin/mk typecheck-test
 
   # Run "tests-normal" instead of "tests".
   # "tests" includes the memory leak stuff, which requires profiling libs
   # and a whole separate build with optimization.  I can get the former
   # with ghc-8.4.1-prof apt package, but I can't get around the parallel
   # build.
-  # - build/opt/shakefile +RTS -N -RTS -j$cpus tests-normal
+  # - bin/mk tests-normal
 
   # Run tests, but print output to stdout too.  This is so travis doesn't
   # think I wedged, and so if I did wedge, I can see where.
-  - build/opt/shakefile +RTS -N -RTS -j$cpus build/test/RunTests
+  - bin/mk build/test/RunTests
   - build/test/RunTests --noninteractive '^normal-' | tee build/test/output
       | grep '^===>'
   - test/check_output build/test/output
@@ -111,7 +112,7 @@ script:
   # I need to get all-deps working for this.
   # - |
   #   if [ "$GHC" = "$latest_ghc" ]; then
-  #     build/opt/shakefile +RTS -N -RTS -j$cpus haddock
+  #     bin/mk haddock
   #   fi
 
 # after_success: upload timing info?
