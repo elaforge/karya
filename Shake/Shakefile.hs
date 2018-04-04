@@ -628,6 +628,9 @@ configure midi = do
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
             [ ["-dynamic" | mode /= Profile]
+            -- There's no particular reason for --nomacro, except I don't use
+            -- them, and I don't want to start unless for good reason.
+            , ["-pgmP", "cpphs --nomacro --cpp"]
             , case mode of
                 Debug -> []
                 Opt -> ["-O"]

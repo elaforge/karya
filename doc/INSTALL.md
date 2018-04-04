@@ -67,14 +67,19 @@ support.
 
 ## Haskell dependencies
 
-For whatever reason cabal won't install happy automatically, so first run
+For whatever reason cabal doesn't install binary dependencies automatically,
+and it doesn't know how to do dependencies between them, so first run:
 
     cabal install happy
+    cabal install c2hs cpphs
 
-The reason for happy is that I use `haskell-src` to do pretty printing.  To
-install the needed haskell dependencies, type:
+I think when I can rely on Cabal >=2.0 and nix-style builds, `cabal install`
+will finally handle this automatically.
+
+To install the needed haskell dependencies, type:
 
     cabal sandbox init  # if you're afraid to screw up your haskell installation
+    cp data/cabal.config . # if you want to use the same versions as I do
     cabal install --only-dependencies
 
 The actual build is with shake, but there's a dummy cabal file with just

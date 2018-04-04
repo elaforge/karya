@@ -228,16 +228,15 @@ step_difference p1 p2 = fmap realToFrac $
     (-) <$> Pitches.pitch_nn p1 <*> Pitches.pitch_nn p2
 
 pitch_sequence_doc :: Doc.Doc
-pitch_sequence_doc = Doc.Doc $ mconcat
-    [ "This is a mini-language, where each one or two characters is a call."
-    , " An upper-case call will take a single character argument. A special"
-    , " parsing rule means that `-` and its following character is considered"
-    , " a single character, so `-1` is a valid call or argument."
-    , " Most of these calls represent a pitch movement:\n"
-    , Text.unlines (map pitch_call_doc (Map.toAscList pitch_call_map))
-    , "\nCurrently the transition curve is hardcoded to a sigmoid curve, but"
-    , " I could add a curve env var if necessary."
-    ]
+pitch_sequence_doc = Doc.Doc $
+    "This is a mini-language, where each one or two characters is a call.\
+    \ An upper-case call will take a single character argument. A special\
+    \ parsing rule means that `-` and its following character is considered\
+    \ a single character, so `-1` is a valid call or argument.\
+    \ Most of these calls represent a pitch movement:"
+    <> Text.unlines (map pitch_call_doc (Map.toAscList pitch_call_map))
+    <> "Currently the transition curve is hardcoded to a sigmoid curve, but\
+    \ I could add a curve env var if necessary."
 
 pitch_call_doc :: (Char, [PitchCall]) -> Text
 pitch_call_doc (name, pcalls) =
@@ -299,13 +298,12 @@ c_dyn_sequence = Derive.generator1 (module_ <> "dyn") "dyn-sequence" mempty doc
                 { state_from_dyn = maybe 0 snd (Args.prev_control args) }
         Derive.at start $ dyn_sequence (end - start) state text
     where
-    doc = Doc.Doc $ mconcat
-        [ "This is a mini-language, where each one or two characters is a call."
-        , " Each character can take an argument, which can only be a single"
-        , " digit. Typically this represents a dyn level / 9, so 0 is 0 and"
-        , " 9 is 1.  Calls:\n"
-        , Text.unlines (map dyn_call_doc (Map.toAscList dyn_call_map))
-        ]
+    doc = Doc.Doc $
+        "This is a mini-language, where each one or two characters is a call.\
+        \ Each character can take an argument, which can only be a single\
+        \ digit. Typically this represents a dyn level / 9, so 0 is 0 and\
+        \ 9 is 1.  Calls:"
+        <> Text.unlines (map dyn_call_doc (Map.toAscList dyn_call_map))
 
 dyn_call_doc :: (Char, DynCall) -> Text
 dyn_call_doc (name, dcall) = "`" <> Text.singleton name <> "` - "
@@ -769,6 +767,6 @@ pitch_has_argument c = Char.isUpper c || c == '-'
 
 c_sahitya :: Derive.Taggable a => Derive.Transformer a
 c_sahitya = Derive.transformer module_ "sahitya" mempty
-    ("Ignore the transformed deriver. Put this on a track to ignore its"
-    <> " contents, and put in sahitya.")
+    "Ignore the transformed deriver. Put this on a track to ignore its\
+    \ contents, and put in sahitya."
     $ Sig.call0t $ \_args _deriver -> return Stream.empty

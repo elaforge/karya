@@ -150,13 +150,11 @@ parseImports = Maybe.mapMaybe (parse . B.words) . B.lines
     parse (w1:w2:_) | w1 == "import" = Just w2
     parse _ = Nothing
 
--- | Read the file, and preprocess with CPP if cppFlags are given.
+-- | Read the file, and preprocess with CPPHS if cppFlags are given.
 preprocess :: Maybe [String] -> FilePath -> IO B.ByteString
 preprocess Nothing fn = B.readFile fn
-preprocess (Just flags) fn = processStdout "cpp" (["-w", "-P"] ++ flags ++ [fn])
-    -- Use -w to suppress warnings.  CPP doesn't understand haskell comments
-    -- and will warn about unterminated 's in comments.  -P suppresses the
-    -- '# line' stuff I don't care about.
+preprocess (Just flags) fn =
+    processStdout "cpphs" ("--cpp" : flags ++ [fn])
 
 
 -- * util

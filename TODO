@@ -261,6 +261,7 @@ UNSORTED
   - support cabal new-build
     . The advantage is that people can install dependencies without messing up
       their global package db.
+    . Also I might be able to skip the install build tools step.
     . cabal sandbox already does this, but with new-build they can reuse
       installed packages.
     . I think to support this I install deps via new-build --only-dependencies
@@ -280,6 +281,7 @@ UNSORTED
         regressions due to dependency changes.
       . But locally maybe I want to freeze, to avoid churn whenever I install
         anything new.
+    . All in all, this is not really a big deal.
   track down 8.4.1 performance regression:
     . performance regression notes: http://ghc.haskell.org/trac/ghc/ticket/14964
     - try with 8.0.2
@@ -316,7 +318,7 @@ UNSORTED
         . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
   upgrade to ghc 8.4.1
     first make sure deps build
-      - sandi, filed bug.  It's only used in Ness.* though.
+      * sandi, filed bug.  It's only used in Ness.* though.
   - extend gliss so I can gliss on harmonics
     . Why does eval_quoted give opposite pitches?
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
@@ -387,7 +389,7 @@ UNSORTED
     Pitch.c_set could make curves by default?
 
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
-  - If I use cpphs I might be able to use \ string continuation for CPP
+  * If I use cpphs I might be able to use \ string continuation for CPP
     modules.  It would add another dependency though... worth it?
     . On the other hand, I only have 54 modules with CPP and I don't exactly
       want to have more.  And most of them don't need string gaps... but

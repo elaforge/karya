@@ -144,18 +144,17 @@ blocking_get :: Interface.ReadChan -> ReadMsg
 blocking_get read_chan = STM.atomically $ fmap Just (STM.readTChan read_chan)
 
 usage :: String
-usage = unlines
-    [ "(no arg)             monitor all inputs"
-    , "record-sysex         save incoming sysex msgs to files"
-    , "send-sysex <out> fn  read a raw sysex from fn and send it to the port"
-    , "monitor <a> <b> ...  monitor input ports 'a' and 'b'"
-    , "help                 print this usage"
-    , "thru <out>           msgs from any input are relayed to <out>"
-    , "melody <out>         play a melody on <out>, also relaying msgs thru"
-    , "spam <out> n         spam <out> with 'n' msgs in rapid succession"
-    , "test                 run some semi-automatic tests"
-    , "pb-range <out> n     send pitch bend range"
-    ]
+usage =
+    "(no arg)             monitor all inputs\n\
+    \record-sysex         save incoming sysex msgs to files\n\
+    \send-sysex <out> fn  read a raw sysex from fn and send it to the port\n\
+    \monitor <a> <b> ...  monitor input ports 'a' and 'b'\n\
+    \help                 print this usage\n\
+    \thru <out>           msgs from any input are relayed to <out>\n\
+    \melody <out>         play a melody on <out>, also relaying msgs thru\n\
+    \spam <out> n         spam <out> with 'n' msgs in rapid succession\n\
+    \test                 run some semi-automatic tests\n\
+    \pb-range <out> n     send pitch bend range\n"
 
 
 -- * program change

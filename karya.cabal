@@ -24,6 +24,9 @@ source-repository head
 
 -- build-depends are appended by the shake rule.
 library
+    -- Supported by Cabal >=2.0, should make --only-dependencies install the
+    -- binaries:
+    -- build-tool-depends: cpphs, c2hs
     build-depends:
         Diff >=0.2,
         QuickCheck,

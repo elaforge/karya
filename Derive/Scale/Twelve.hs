@@ -58,12 +58,11 @@ relative_scale = ChromaticScales.make_scale "twelve-r" relative_scale_map
     "This is 12TET, but spelled relative to the current key and mode."
 
 keyed_scale :: Scale.Scale
-keyed_scale = ChromaticScales.make_scale "twelve-k" keyed_scale_map $ mconcat
-    [ "This variant treats accidentals like staff notation. If a pitch doesn't"
-    , " have an accidental, it will inherit from the key signature. It thus"
-    , " needs an explicit natural to cancel that out. Unlike staff notation,"
-    , " accidentals don't persist until the next barline."
-    ]
+keyed_scale = ChromaticScales.make_scale "twelve-k" keyed_scale_map
+    "This variant treats accidentals like staff notation. If a pitch doesn't\
+    \ have an accidental, it will inherit from the key signature. It thus\
+    \ needs an explicit natural to cancel that out. Unlike staff notation,\
+    \ accidentals don't persist until the next barline."
 
 scale_id :: Pitch.ScaleId
 scale_id = "twelve"
