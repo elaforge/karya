@@ -101,10 +101,11 @@ script:
   # build.
   # - build/opt/shakefile +RTS -N -RTS -j$cpus tests-normal
 
+  # Run tests, but print output to stdout too.  This is so travis doesn't
+  # think I wedged, and so if I did wedge, I can see where.
   - build/opt/shakefile +RTS -N -RTS -j$cpus build/test/RunTests
-  - skip_hpc=true test/run_tests build/test/RunTests '^normal-[ACD]'
-  - skip_hpc=true test/run_tests build/test/RunTests '^normal-[ILMNP]'
-  - skip_hpc=true test/run_tests build/test/RunTests '^normal-[SU]'
+  - build/test/RunTests --noninteractive '^normal-' | tee build/test/output
+  - test/check_output build/test/output
 
   # I need to get all-deps working for this.
   # - |
