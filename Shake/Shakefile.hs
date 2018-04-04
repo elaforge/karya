@@ -772,6 +772,7 @@ main = do
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
         criterionRules (modeConfig Profile)
+        criterionRules (modeConfig Test) -- for typecheck-test
         markdownRule (buildDir (modeConfig Opt) </> "linkify")
         hsc2hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
         chsRule (modeConfig Debug)
@@ -902,6 +903,9 @@ dispatch modeConfig targets = do
                 \ save/complete/*"
         -- Compile everything, like validate but when I don't want to test.
         "typecheck" -> action $ needEverything []
+        -- Like typecheck, but compile everything as Test, which speeds things
+        -- up a lot.
+        "typecheck-test" -> action needEverythingTest
         "binaries" -> do
             Shake.want $ map (modeToDir Opt </>) allBinaries
             return True
@@ -942,6 +946,12 @@ dispatch modeConfig targets = do
         criterion <- getCriterionTargets (modeConfig Profile)
         need $ map (modeToDir Debug </>) allBinaries
             ++ criterion ++ [runTests, runProfile] ++ more
+    needEverythingTest = do
+        criterion <- getCriterionTargets (modeConfig Test)
+        need $ map (modeToDir Debug </>) allBinaries
+            ++ criterion ++ [runTests]
+            -- This is missing runProfile, but at the moment I can't be
+            -- bothered to get that to compile in build/test.
 
 hlint :: Config -> Shake.Action ()
 hlint config = do

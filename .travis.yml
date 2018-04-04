@@ -45,7 +45,7 @@ matrix:
             - libsamplerate0-dev
             - zsh
 
-            - ghc-8.0.2-prof
+            - ghc-8.0.2 # -prof
           sources: [hvr-ghc]
     - env: GHC=8.4.1
       addons:
@@ -61,7 +61,7 @@ matrix:
             - libsamplerate0-dev
             - zsh
 
-            - ghc-8.4.1-prof
+            - ghc-8.4.1 # -prof
           sources: [hvr-ghc]
 
 before_install:
@@ -76,12 +76,12 @@ install:
   - ghc-pkg list
   - cp data/cabal.config .
   - travis_retry cabal update
-  - travis_retry cabal install --enable-profiling -j$cpus hsc2hs c2hs
+  - travis_retry cabal install -j$cpus hsc2hs c2hs
   # mk typecheck needs this even though it's not in the .cabal
   # TODO Ugh.  I should switch to guage and get rid of this hack.
-  - travis_retry cabal install --enable-profiling -j$cpus criterion
+  - travis_retry cabal install -j$cpus criterion
 
-  - travis_retry cabal install --enable-profiling --only-dependencies -j$cpus
+  - travis_retry cabal install --only-dependencies -j$cpus
 
 # The fltk provided by the trusty package has --ldflags:
 # -Wl,-Bsymbolic-functions -lfltk -lX11
@@ -92,15 +92,16 @@ install:
 script:
   - bin/mkmk
   - tools/setup-elaforge # create Local/*.hs
-  - build/opt/shakefile +RTS -N -RTS -j$cpus typecheck
+  - build/opt/shakefile +RTS -N -RTS -j$cpus typecheck-test
+
+  # Run "tests-normal" instead of "tests".
   # "tests" includes the memory leak stuff, which requires profiling libs
   # and a whole separate build with optimization.  I can get the former
   # with ghc-8.4.1-prof apt package, but I can't get around the parallel
   # build.
-
   # - build/opt/shakefile +RTS -N -RTS -j$cpus tests-normal
-  - build/opt/shakefile +RTS -N -RTS -j$cpus build/test/RunTests
 
+  - build/opt/shakefile +RTS -N -RTS -j$cpus build/test/RunTests
   - skip_hpc=true test/run_tests build/test/RunTests '^normal-[ACD]'
   - skip_hpc=true test/run_tests build/test/RunTests '^normal-[ILMNP]'
   - skip_hpc=true test/run_tests build/test/RunTests '^normal-[SU]'
