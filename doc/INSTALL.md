@@ -6,7 +6,8 @@ work.  It should compile fine, but the REPL won't work.  Details at
 
 - Install [non-haskell dependencies](#non-haskell-dependencies).
 
-- Update `Shake/Config.hs` to point to where those dependencies are installed.
+- Update `Local/ShakeConfig.hs` to point to where those dependencies are
+installed.
 
 - Install [haskell dependencies](#haskell-dependencies).
 
@@ -31,15 +32,15 @@ not iphone-ly.
 
 - Git, and make sure `user.email` and `user.name` are configured.
 
-- Fltk, from <http://fltk.org/> or your package manager.  Get 1.3.4 or newer.
-`Shake/Config.hs` needs the path to the `fltk-config` script, which is normally
-going to be `/usr/local/bin` if you did a `make install`.
+- Install either via package manager or manually:
 
-- libpcre library from <http://www.pcre.org>.
+    - fltk - I use >=1.3.4, but any >=1.3 should work.
+    - libpcre
 
-    If your package manager puts the headers in a non-standard place, e.g.
-`~/homebrew`, then the cabal build (see below) for the haskell bindings won't
-find it.  So you need flags:
+    Remember to install -dev variants to get headers.  If your package manager
+    puts headers in a non-standard place, e.g. `~/homebrew`, then
+    `cabal install --only-dependencies` won't find it.  You'll need to add
+    flags, e.g.:
 
         cabal install --extra-include-dirs=$HOME/homebrew/include \
             --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
@@ -85,9 +86,6 @@ To install the needed haskell dependencies, type:
 The actual build is with shake, but there's a dummy cabal file with just
 dependencies to make install easier.
 
-You might get an error about `pcre.h` file not found, in that case see libpcre
-below.
-
 If you want to build the documentation:
 
     cabal install hscolour
@@ -98,19 +96,25 @@ dependencies.
 
 ## 音, Im, Synth
 
-These are all names for the incomplete offline synthesizer.  It requires a bunch
-of extra dependencies.  To build, turn on `Shake.Config.enableSynth`, and
-install the VST.  You'll need additional dependencies, and apparently cabal
-doesn't let you pick the .cabal file, so:
+These are all names for the incomplete offline synthesizer.  It requires a
+bunch of extra dependencies.  First you need more non-haskell dependencies.
+Get the -dev versions as usual:
+
+    - faust
+    - libsamplerate
+    - libsndfile
+
+To use DAW integration, you need the VST2 SDK.  Unfortunately Steinberg is
+trying to get rid of it, so they're no longer distributing it, and they forbid
+anyone else to do so.  If you search for `vstplugmain.cpp` though, you can
+still find a few copies around.  Such is the commercial music software world.
+Notes on how to fix this are in TODO.
+
+Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 
     cp data/all-deps.cabal karya.cabal
+    cp data/cabal.config.all-deps cabal.config # if you want my versions
     cabal install --only-dependencies
-
-Unfortunately Steinberg is trying to get rid of VST 2, by trying to get rid of
-the headers.  If you search for `vstplugmain.cpp` though, you can still find a
-few copies around.
-
-In the longer term I'll have to port to VST3 or AU.
 
 ## Misc
 

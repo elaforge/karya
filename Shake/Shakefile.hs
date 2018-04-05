@@ -47,6 +47,8 @@ import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
 import qualified Shake.Util as Util
 
+import Local.ShakeConfig (localConfig)
+
 
 -- * config
 
@@ -128,8 +130,8 @@ nessPackages = concat
 enabledPackages :: [(Package, String)]
 enabledPackages = concat
     [ basicPackages
-    , if Config.enableIm then synthPackages else []
-    , if Config.enableEkg then ekgPackages else []
+    , if Config.enableIm localConfig then synthPackages else []
+    , if Config.enableEkg localConfig then ekgPackages else []
     ]
 
 -- | All packages, not just enabled ones.
@@ -318,7 +320,7 @@ hsBinaries =
     , (plain "verify_performance" "App/VerifyPerformance.hs")
         { hsRtsFlags = ["-N", "-A8m"] }
     ]
-    ++ if not Config.enableIm then [] else
+    ++ if not (Config.enableIm localConfig) then [] else
         [ plain "sampler-im" "Synth/Sampler/SamplerIm.hs"
         , plain "faust-im" "Synth/Faust/FaustIm.hs"
         ]
@@ -439,7 +441,7 @@ ccBinaries =
         [ "LogView/test_logview.cc.o", "LogView/logview_ui.cc.o"
         , "fltk/f_util.cc.o"
         ]
-    ] ++ if not Config.enableIm then [] else
+    ] ++ if not (Config.enableIm localConfig) then [] else
     [ playCacheBinary
     , (plain "test_play_cache" $
             "Synth/vst/test_play_cache.cc.o" : playCacheDeps)
@@ -474,10 +476,11 @@ playCacheBinary = CcBinary
     , ccRelativeDeps = "Synth/vst/PlayCache.cc.o" : playCacheDeps
     , ccCompileFlags = \config -> platformCc ++
         [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
-        , "-I" ++ Config.vstBase
+        , "-I" ++ Config.vstBase localConfig
         ]
     , ccLinkFlags = const $ platformLink ++
-        "-lsndfile" : map ((Config.vstBase </> "public.sdk/source/vst2.x") </>)
+        "-lsndfile" : map
+            ((Config.vstBase localConfig </> "public.sdk/source/vst2.x") </>)
             ["audioeffect.cpp", "audioeffectx.cpp", "vstplugmain.cpp"]
     , ccPostproc = \fn -> case Util.platform of
         Util.Mac -> do
@@ -593,9 +596,11 @@ configure midi = do
     let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
-    fltkCs <- filter wantedFltk . words <$> run Config.fltkConfig ["--cflags"]
-    fltkLds <- words <$> run Config.fltkConfig ["--ldflags"]
-    fltkVersion <- takeWhile (/='\n') <$> run Config.fltkConfig ["--version"]
+    fltkCs <- filter wantedFltk . words <$>
+        run (Config.fltkConfig localConfig) ["--cflags"]
+    fltkLds <- words <$> run (Config.fltkConfig localConfig) ["--ldflags"]
+    fltkVersion <- takeWhile (/='\n') <$>
+        run (Config.fltkConfig localConfig) ["--version"]
     let ghcVersion = parseGhcVersion ghcLib
     sandbox <- Util.sandboxPackageDb
     -- TODO this breaks if you run from a different directory
@@ -621,11 +626,12 @@ configure midi = do
             , ["-DGHC_VERSION=" ++ ghcVersionMacro ghcVersion]
             ]
         , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
-            ++ Config.globalIncludes
-        , cLibDirs = Config.globalLibDirs
+            ++ Config.globalIncludes localConfig
+        , cLibDirs = Config.globalLibDirs localConfig
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , imLd = if not Config.enableIm then [] else ["-lsamplerate"]
+        , imLd = if not (Config.enableIm localConfig) then []
+            else ["-lsamplerate"]
         , hcFlags = concat
             -- This is necessary for ghci loading to work in 7.8.
             -- Except for profiling, where it wants "p_dyn" libraries, which
@@ -641,7 +647,7 @@ configure midi = do
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
             ]
         , hLinkFlags = ["-rtsopts", "-threaded"]
-            ++ ["-eventlog" | Config.enableEventLog && mode == Opt]
+            ++ ["-eventlog" | Config.enableEventLog localConfig && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
         , sandboxFlags = case sandbox of
@@ -772,7 +778,7 @@ main = do
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (dataDir </> "all-deps.cabal")
-        when Config.enableIm faustRules
+        when (Config.enableIm localConfig) faustRules
         generateKorvais
         matchBuildDir hsconfigH ?> hsconfigHRule
         let infer = inferConfig modeConfig
@@ -894,8 +900,8 @@ hsconfigHRule fn = do
         , "#define __HSCONFIG_H"
         , define useRepl "INTERPRETER_GHC"
         , define True midiDriver
-        , define Config.enableEkg "USE_EKG"
-        , define Config.enableIm "ENABLE_IM"
+        , define (Config.enableEkg localConfig) "USE_EKG"
+        , define (Config.enableIm localConfig) "ENABLE_IM"
         , "#endif"
         ]
     where
@@ -1115,7 +1121,7 @@ wantsHaddock config hs = not $ or $
     -- let's just omit them.
     , "Test.hs" `List.isSuffixOf` hs
     , hs == "Derive/DeriveQuickCheck.hs"
-    ] ++ if Config.enableIm then [] else [requiresSynthPackages hs]
+    ] ++ if Config.enableIm localConfig then [] else [requiresSynthPackages hs]
     where midi = midiConfig config
 
 -- ** packages
@@ -1193,7 +1199,8 @@ generateTestHs suffix fn = do
     Util.system generate (fn : tests)
 
 wantsTest :: FilePath -> Bool
-wantsTest hs = if Config.enableIm then True else not (requiresSynthPackages hs)
+wantsTest hs = if Config.enableIm localConfig then True
+    else not (requiresSynthPackages hs)
     -- TODO NOTE [no-package]
 
 -- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs

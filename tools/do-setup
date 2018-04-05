@@ -9,7 +9,7 @@ hs_package=${hs_package:?hs_package not set}
 
 
 data_dirs=(im inst_db prof save)
-local_hs=(Config.hs Instrument.hs KeyLayout.hs Repl.hs)
+local_hs=(Config.hs Instrument.hs KeyLayout.hs Repl.hs ShakeConfig.hs)
 non_hs=(ky)
 
 for dir in $data_dirs; do

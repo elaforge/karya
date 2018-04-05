@@ -180,7 +180,7 @@ STATUS
 
 UNSORTED
   - could I use -fno-code with mk typecheck?
-  - I need a better way to modify Shake.Config
+  * I need a better way to modify Shake.Config
     . Maybe use Local.ShakeConfig
     . Make it re-export Shake.Config.  Ideally I could just assign values in
       there, but I then need to add a hiding to the import.
