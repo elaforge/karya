@@ -8,4 +8,6 @@ export hs_package=User.Elaforge
 
 tools/do-setup
 
-ln -s $data/ness-data
+if [[ ! -e ness-data ]]; then
+    ln -s $data/ness-data
+fi
