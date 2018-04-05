@@ -179,6 +179,16 @@ STATUS
   . Currently planning for Incremnetal rendering:
 
 UNSORTED
+  - could I use -fno-code with mk typecheck?
+  - I need a better way to modify Shake.Config
+    . Maybe use Local.ShakeConfig
+    . Make it re-export Shake.Config.  Ideally I could just assign values in
+      there, but I then need to add a hiding to the import.
+    . Maybe make it a record, then config = defaultConfig { ... }
+  - sometimes I want to see the control curve without event text in the way
+    . E.g. when reading wayang patterns.
+    . Maybe I just need to learn to read better.
+    . Actually LTrack.filled is pretty good.
   - MemoryLeak latency:
     . getting above the limit of 0.05
     . I don't know what the historical values have been, maybe I should be
@@ -211,8 +221,32 @@ UNSORTED
     * I should be able to run everything as Test, and save a lot of build time.
     * tests should tee to stdout, so travis doesn't think I died, and so I
       can see if it wedges.
-    - I could cache build/ to reuse the build status.  Then I just run into
+    * Build with data/all-deps.cabal
+      . I need a cabal.config for all-deps.cabal
+      . libsndfile and libsamplerate - put these in doc/INSTALL.md too
+      . For the vst I need local vst2 sdk.  But I think I can't distribute
+        vst2.
+      . audacity has a workaround:
+        https://github.com/audacity/audacity/blob/master/src/effects/VST/aeffectx.h
+        . How is it meant to be used?  Its AEffect is intentionally not using
+          virtual methods.
+        . I think you just assign pointers into the struct.
+      . Porting to vst3 would also fix it, but as far as I can tell vst3 is
+        an overengineered mess.  Someday I'll have to figure out how to cut
+        through the weeds and make an API that just takes a processReplacing
+        function, end of story.  Or maybe someone has already done that.
+        Look for VST3 tutorial type things, though most of them love weeds
+        so much they introduce their own weedy frameworks.
+      . By far the easiest is to just omit play_cache from the typecheck
+        build.
+
+    - I could cache build/ to reuse the build status.  But then I run into
       the usual shake problems with disappeared files.
+      . Actually this is likely a ghc bug.
+      . Probably still worth it though.  I can clear the cache manually if
+        I run into that problem.
+      . In the long run I should try to reproduce and report it.  Maybe start
+        by looking for "some modules below me" in ghc source.
     - The flaky test is back.
       . Last time was 340948137c64186600a6215c7192494439704bc7
       . __-> Cmd/Integrate_test.hs:66 [test_block_integrate]

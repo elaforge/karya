@@ -103,7 +103,7 @@ of extra dependencies.  To build, turn on `Shake.Config.enableSynth`, and
 install the VST.  You'll need additional dependencies, and apparently cabal
 doesn't let you pick the .cabal file, so:
 
-    cp doc/all-deps.cabal karya.cabal
+    cp data/all-deps.cabal karya.cabal
     cabal install --only-dependencies
 
 Unfortunately Steinberg is trying to get rid of VST 2, by trying to get rid of
