@@ -77,8 +77,10 @@ before_install:
 
 install:
   - ghc-pkg list
-  - cp data/all-deps.cabal karya.cabal
-  - cp data/cabal.config.all-deps cabal.config
+  # Disabled until I can get an up-to-date faust.
+  # - cp data/all-deps.cabal karya.cabal
+  # - cp data/cabal.config.all-deps cabal.config
+  - cp data/cabal.config .
   - travis_retry cabal update
   - if which hsc2hs && which c2hs && which cpphs; then echo ok;
     else travis_retry cabal install -j$cpus hsc2hs c2hs cpphs;
@@ -98,6 +100,12 @@ install:
 script:
   - export CPUS=$cpus # override tools/ncpus
   - tools/setup-elaforge # create Local/*.hs
+  - |
+    cat >Local/ShakeConfig.hs <<EOF
+    module Local.ShakeConfig where
+    import Shake.Config
+    localConfig = defaultConfig
+    EOF
   - bin/mkmk
   - bin/mk typecheck-ci
 
