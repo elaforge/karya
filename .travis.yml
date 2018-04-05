@@ -39,7 +39,6 @@ matrix:
             - alex-3.1.7
             - happy-1.19.5
             - cabal-install-2.0
-            - faust
             - ghc-ppa-tools
             - libfltk1.3-dev
             - libjack-dev
@@ -57,7 +56,6 @@ matrix:
             - alex-3.1.7
             - happy-1.19.5
             - cabal-install-2.0
-            - faust
             - ghc-ppa-tools
             - libfltk1.3-dev
             - libjack-dev
@@ -81,11 +79,6 @@ install:
   - ghc-pkg list
   - cp data/all-deps.cabal karya.cabal
   - cp data/cabal.config.all-deps cabal.config
-  # TODO this bit of awesome surgery could be ameliorated with Local.ShakeConfig
-  - |
-    grep -v enableIm Shake/Config.hs >tmp.hs
-    echo 'enableIm = True' >>tmp.hs
-    mv tmp.hs Shake/Config.hs
   - travis_retry cabal update
   - if which hsc2hs && which c2hs && which cpphs; then echo ok;
     else travis_retry cabal install -j$cpus hsc2hs c2hs cpphs;
@@ -104,8 +97,8 @@ install:
 
 script:
   - export CPUS=$cpus # override tools/ncpus
-  - bin/mkmk
   - tools/setup-elaforge # create Local/*.hs
+  - bin/mkmk
   - bin/mk typecheck-ci
 
   # Run "tests-normal" instead of "tests".
