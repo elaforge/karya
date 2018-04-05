@@ -1,3 +1,7 @@
+-- Copyright 2018 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 module Synth.Faust.Render_test where
 import qualified Data.Map as Map
 import Util.Test

@@ -631,9 +631,6 @@ configure midi = do
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
             [ ["-dynamic" | mode /= Profile]
-            -- There's no particular reason for --nomacro, except I don't use
-            -- them, and I don't want to start unless for good reason.
-            , ["-pgmP", "cpphs --nomacro --cpp"]
             , case mode of
                 Debug -> []
                 Opt -> ["-O"]
@@ -686,6 +683,42 @@ configure midi = do
             , define = ["-D__linux__"]
             }
     run cmd args = Process.readProcess cmd args ""
+
+-- | Flags used by both ghc and haddock.  This is unlike 'hcFlags', which is
+-- used by ghc only, and vary based on Mode.
+ghcGlobalFlags :: [Flag]
+ghcGlobalFlags =
+    -- There's no particular reason for --nomacro, except I don't use
+    -- them, and I don't want to start unless for good reason.
+    ["-pgmP", "cpphs --nomacro --cpp"]
+    ++ ghcLanguageFlags
+
+-- | Language extensions which are globally enabled.
+ghcLanguageFlags :: [Flag]
+ghcLanguageFlags = map ("-X"++)
+    -- Pretty conservative, and useful.
+    [ "BangPatterns"
+    -- This enables slightly more concise record initialization and doesn't
+    -- seem to hurt anything.
+    , "DisambiguateRecordFields"
+    -- ghc-7.10 adds a new rule where you can't infer a signature you can't
+    -- type.  OverloadedStrings combined with local definitions results in
+    -- a lot of types like "IsString [a] => [a] -> ...", which results in
+    -- "Non type-variable argument in the constraint: IsString [a]".
+    , "FlexibleContexts"
+    -- Just too useful.
+    , "GeneralizedNewtypeDeriving"
+    , "LambdaCase"
+    , "MultiWayIf"
+    -- Without this, it becomes really annoying to use Text everywhere.
+    , "OverloadedStrings"
+    , "ScopedTypeVariables"
+    -- It's nicer than flip (,), but not worth using if you have to put in
+    -- a LANGUAGE.
+    , "TupleSections"
+    -- Allow instances on nested types, and fully applied type synonyms.
+    , "FlexibleInstances", "TypeSynonymInstances"
+    ]
 
 -- | When using gcc I get these defines automatically, but I need to add them
 -- myself for ghci.  But then c2hs complains about duplicate definitions, so
@@ -1020,7 +1053,7 @@ makeHaddock modeConfig = do
             ]
     let ghcFlags = concat
             [ define flags, cInclude flags
-            , ghcLanguageFlags
+            , ghcGlobalFlags
             , packageFlags flags packages
             ]
     Util.system "haddock" $
@@ -1413,7 +1446,7 @@ ghcFlags config = concat $
     [ "-outputdir", oDir config, "-osuf", ".hs.o"
     , "-i" ++ List.intercalate ":" [oDir config, hscDir config, chsDir config]
     ] :
-    [ ghcLanguageFlags
+    [ ghcGlobalFlags
     , define (configFlags config)
     , cInclude (configFlags config)
     , ghcWarnings config
@@ -1443,33 +1476,6 @@ ghciFlags config = concat
         -- Otherwise ghci warns "Hpc can't be used with byte-code interpreter."
         , flag == "-fhpc"
         ]
-
--- | Language extensions which are globally enabled.
-ghcLanguageFlags :: [String]
-ghcLanguageFlags = map ("-X"++)
-    -- Pretty conservative, and useful.
-    [ "BangPatterns"
-    -- This enables slightly more concise record initialization and doesn't
-    -- seem to hurt anything.
-    , "DisambiguateRecordFields"
-    -- ghc-7.10 adds a new rule where you can't infer a signature you can't
-    -- type.  OverloadedStrings combined with local definitions results in
-    -- a lot of types like "IsString [a] => [a] -> ...", which results in
-    -- "Non type-variable argument in the constraint: IsString [a]".
-    , "FlexibleContexts"
-    -- Just too useful.
-    , "GeneralizedNewtypeDeriving"
-    , "LambdaCase"
-    , "MultiWayIf"
-    -- Without this, it becomes really annoying to use Text everywhere.
-    , "OverloadedStrings"
-    , "ScopedTypeVariables"
-    -- It's nicer than flip (,), but not worth using if you have to put in
-    -- a LANGUAGE.
-    , "TupleSections"
-    -- Allow instances on nested types, and fully applied type synonyms.
-    , "FlexibleInstances", "TypeSynonymInstances"
-    ]
 
 -- * cc
 
