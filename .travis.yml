@@ -88,14 +88,7 @@ install:
   # mk typecheck needs this even though it's not in the .cabal
   # TODO Ugh.  I should switch to gauge and get rid of this hack.
   - travis_retry cabal install -j$cpus criterion
-
   - travis_retry cabal install --only-dependencies -j$cpus
-
-# The fltk provided by the trusty package has --ldflags:
-# -Wl,-Bsymbolic-functions -lfltk -lX11
-#
-# I'm not sure what that is, but it causes warnings when compiling.  They seem
-# to be harmless.
 
 script:
   - export CPUS=$cpus # override tools/ncpus

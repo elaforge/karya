@@ -598,7 +598,11 @@ configure midi = do
     -- messes up hsc2hs, which wants only CPP flags.
     fltkCs <- filter wantedFltk . words <$>
         run (Config.fltkConfig localConfig) ["--cflags"]
-    fltkLds <- words <$> run (Config.fltkConfig localConfig) ["--ldflags"]
+    -- The libfltk1.3-dev provided on ubuntu trusty has this, which leads to
+    -- warnings because ghc doesn't understand -Wl.  It seems -Wl passes a flag
+    -- to the linker, and -Bsymbolic-functions is an ELF thing.
+    fltkLds <- filter (/="-Wl,-Bsymbolic-functions") . words <$>
+        run (Config.fltkConfig localConfig) ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$>
         run (Config.fltkConfig localConfig) ["--version"]
     let ghcVersion = parseGhcVersion ghcLib
