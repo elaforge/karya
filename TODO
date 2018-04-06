@@ -193,21 +193,35 @@ UNSORTED
       . https://github.com/olilarkin/wdl-ol
         . Wants you to download official sdk.
       . https://github.com/WeAreROLI/JUCE/tree/master/modules/juce_audio_processors/format_types
-        . Looks like it can do it, but don't want to touch the enormous
-          JUCE library just for this.
-        . Ok, so I think the only option is to pull bits out of
-          juce_VSTPluginFormat.c.
-        . I extract the minimum necessary to create a VstEffectInterface,
-          which is the struct vst actually is.
-        . Basically I just need the field offsets, put in processReplacing
-          pointer, and handle the dispatch function for processEvents, and
-          leave the rest stubbed out so the host doesn't crash.
+      . Looks like it can do it, but don't want to touch the enormous
+        JUCE library just for this.
+      . Ok, so I think the only option is to pull bits out of
+        juce_VSTPluginFormat.c.
+      . I extract the minimum necessary to create a VstEffectInterface,
+        which is the struct vst actually is.
+      . Basically I just need the field offsets, put in processReplacing
+        pointer, and handle the dispatch function for processEvents, and
+        leave the rest stubbed out so the host doesn't crash.
 
-        . OR extract the minimal amount from wdl-ol to make vst3 work.  That
-          might be less sketchy overall, in that there might be a less chance
-          of having to deal with host crashes because I didn't fill in some
-          field right.
-    - Figure out how the wdl-ol vst3 adaptor works, try to extract it.
+      . OR extract the minimal amount from wdl-ol to make vst3 work.  That
+        might be less sketchy overall, in that there might be a less chance
+        of having to deal with host crashes because I didn't fill in some
+        field right.
+      . I'm suspicious that wdl-ol doesn't actually support MIDI in VST3
+        because while IPlugVST implements SendMidiMsg, IPlugVST3 does not.
+        IPlugAU explicitly doesn't implemnet it, so I think wdl-ol is
+        generally incomplete.
+      . Ok, so how about JUCE?
+        Yes, it does MIDI, but it's just driving the VST.  It just turns
+        into a call to process().  I'm writing the other side of the API.
+      . Maybe the vst3 examples are the best bet after all, if I can strip
+        away all the gunk.
+    conclusion:
+      . Either write my own VST2 interface, starting from a GPL version like
+        audacity or JUCE.
+      . Or try to write a VST3 plugin, starting from trying to reduce the
+        examples.
+
   * I need a better way to modify Shake.Config
     . Maybe use Local.ShakeConfig
     . Make it re-export Shake.Config.  Ideally I could just assign values in

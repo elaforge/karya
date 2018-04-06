@@ -55,5 +55,6 @@ fi
 
 if [[ $too_long ]]; then
     echo 'Lines >80 columns.'
+    echo "Rerun with long_lines_ok=t to override."
     exit 1
 fi
