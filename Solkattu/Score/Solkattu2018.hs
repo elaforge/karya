@@ -230,11 +230,11 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
     where
     p5 = group $ kita.taka.tari.kita.taka
     purvangam gap =
-        tat.__.tat.__4.kitataka . dindinna gap
-        . tat.__4.kitataka . dindinna gap
-        . tat.__.kitataka . dindinna gap
+        tat.__.tat.__4.kitataka . din_din_na__ gap
+        . tat.__4.kitataka . din_din_na__ gap
+        . tat.__.kitataka . din_din_na__ gap
     kitataka = group $ kita.taka
-    dindinna gap = sd2 (din.din) . sd (na.__n gap)
+    din_din_na__ gap = sd2 (din.din) . sd (na.__n gap)
     mridangam = makeMridangam
         [ (kitataka, [k, t, k, o])
         , (1^kitataka, [k, t, k, p])
@@ -253,16 +253,35 @@ c_18_03_28 :: Korvai
 c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam $
     [ (theme.din.__4) <== 7 . sarvaD 7
     , (theme.din.__4) <== 7 . 1^(theme.din.__4) <== 7
-    , (theme.din.__4) <== 5 . takeD 2 theme
-        . 1^(theme.din.__4) <== 5 . takeD 2 (1^theme)
+    , (theme.din.__4) . theme.din.__4 . na.__4
+        . 1^(theme.din.__4 . theme.din.__4 . na.__4)
     , (theme.din.__4) . theme . takeD 2 theme
         . 1^(theme.din.__4) . 1^theme . takeD 2 (1^theme)
+    , (theme.din.__4) . kitakinakadin.__ . repeat 2 (nakadin.__) . ga
+        . 1^((theme.din.__4) . kitakinakadin.__ . repeat 2 (nakadin.__) . ga)
+    , (theme.din.__4) . kitakinakadin.__ . repeat 3 (ka.din.__)
+        . 1^((theme.din.__4) . kitakinakadin.__ . repeat 3 (ka.din.__))
+    , (theme.din.__4) <== 7 . sarvaD 6 . tri_ (din.__4) theme
+    , sarvaD 7 . sarvaD 4.5 . tri_ (din.__4) (tat.__.theme)
+    , sarvaD 7 . sarvaD 3 . tri_ (din.__4) (tat.__4.theme)
     ]
     where
-    theme = group $ tari.kita.ka.din.__.ka
+    kitakinakadin = group $ kita.ki.na.ka.din
+    nakadin = group $ na.ka.din
+    theme = group $ kita.ki.na.ka.din.__.ka
     mridangam = makeMridangam
-        [ (theme, [k, t, k, n, o, od, k])
+        [ (kitakinakadin, [k, t, k, n, o, od])
+        , (1^kitakinakadin, [k, t, k, n, p, d])
+        , (nakadin, [n, o, od])
+        , (1^nakadin, [n, p, d])
+        , (ka.din, [k, od])
+        , (1^(ka.din), [k, d])
+        , (theme, [k, t, k, n, o, od, k])
         , (din, [od])
         , (1^theme, [k, t, k, n, p, d, k])
         , (1^din, [d])
+        , (na, [on])
+        , (1^na, [n])
+        , (ga, [p])
+        , (tat, [p&k])
         ]
