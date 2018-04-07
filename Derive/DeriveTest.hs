@@ -484,7 +484,7 @@ cmd_config inst_db = Cmd.Config
     , config_builtins = C.All.builtins
     , config_highlight_colors = Config.highlight_colors
     , config_im = Shared.Config.Config
-        { rootDir = Testing.tmp_base_dir </> "im"
+        { imDir = Testing.tmp_base_dir </> "im"
         , synths = Map.fromList
             [ ("im-synth", Shared.Config.Synth
                 { binary = ""

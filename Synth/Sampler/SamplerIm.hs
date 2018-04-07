@@ -49,7 +49,7 @@ realizeSamples :: Resample.Quality -> FilePath -> Note.InstrumentName
     -> [Sample.Sample] -> IO ()
 realizeSamples quality notesFilename instrument samples = do
     put $ "load " <> showt (length samples) <> " samples"
-    let output = Config.outputFilename (Config.rootDir Config.config)
+    let output = Config.outputFilename (Config.imDir Config.config)
             notesFilename instrument
     Directory.createDirectoryIfMissing True (FilePath.takeDirectory output)
     result <- AUtil.catchSndfile $ Resource.runResourceT $

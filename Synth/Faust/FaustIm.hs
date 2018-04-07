@@ -86,7 +86,7 @@ process prefix patches notesFilename notes = do
         async exc = put $ "exception: " <> showt exc
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
-            let output = Config.outputFilename (Config.rootDir Config.config)
+            let output = Config.outputFilename (Config.imDir Config.config)
                     notesFilename inst
             put $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output

@@ -179,6 +179,13 @@ STATUS
   . Currently planning for Incremnetal rendering:
 
 UNSORTED
+  fix namespace:
+    . The original theory was that I could load other scores and not get name
+      collisions.
+    . In practice, I don't load other scores, and I don't tend to update the
+      namespace either.
+    . However, if I do want to load a score, I could update the namespace
+      right then, so maybe there isn't really a problem?
   fix the vst2 problem:
     notes:
       . Porting to vst3 would also fix it, but as far as I can tell vst3 is
@@ -1788,6 +1795,22 @@ synth: im:
         - Perform.Im.Convert inverts that and writes it as damage.
         - Once this stuff works, add misses to CacheStats, and replace the
           log msg parsing hackery.
+  - I think I want to switch from by-instrument muting to by-track, because
+    that's what the UI is.
+    . And it's more flexible, I can put multiple instruments on one track,
+      or split a single instrument across multiple tracks.
+    . The track enforces non-overlapping notes, but the faust implementation
+      assumes non-overlapping instrument notes.  To make faust line up with
+      tracks, I'd have to allocate by (TrackId, Instrument), then mix together
+      all the instruments on the track.
+    . I think the sampler can go by-track without further hassle, since it
+      doesn't have state across notes.
+    . Also, I don't trust using namespace/ident as a unique name for a block.
+      Lots of scores have the same namespace, and while it sort of defeats the
+      purpose of the namespace, that's what happens.
+    . If I use the filename, it has to be the complete path though.
+    . Fixing namespace is another problem.  If it's not serving its purpose
+      I should get rid of it.  See fix namespace:
   audio:
     make Audio.linear more efficient
       - reuse buffers for flat signals

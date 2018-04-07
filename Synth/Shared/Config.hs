@@ -16,7 +16,6 @@ import System.FilePath ((</>))
 
 import qualified Ui.Id as Id
 import Global
-import Types
 
 #include "config.h"
 
@@ -25,14 +24,14 @@ data Config = Config {
     -- | All of the data files used by the Im backend are based in this
     -- directory.  Everything in here should be temporary files, used for
     -- communication or caching.
-    rootDir :: FilePath
+    imDir :: FilePath
     , synths :: Map SynthName Synth
     }
     deriving (Eq, Show)
 
 config :: Config
 config = Config
-    { rootDir = "im"
+    { imDir = "im"
     , synths = Map.fromList
         [ (samplerName, sampler)
         , (faustName, faust)
@@ -93,9 +92,9 @@ type SamplingRate = SAMPLING_RATE
 -- * cache files
 
 -- | Write serialized notes to this file.
-notesFilename :: FilePath -> Synth -> BlockId -> FilePath
-notesFilename rootDir synth blockId =
-    rootDir </> "notes" </> notesDir synth </> untxt (blockFilename blockId)
+notesFilename :: FilePath -> Synth -> Id.BlockId -> FilePath
+notesFilename imDir synth blockId =
+    imDir </> notesParentDir </> notesDir synth </> idFilename blockId
 
 -- | Get the filename that should be used for the output of a certain block and
 -- instrument.
@@ -103,13 +102,12 @@ outputFilename :: FilePath
     -> FilePath -- ^ Names as produced by 'notesFilename'.
     -> Text -- ^ Score.Instrument, but I don't want to import it.
     -> FilePath
-outputFilename rootDir notesFilename inst = root </> untxt inst <> ".wav"
+outputFilename imDir notesFilename inst = dir </> untxt inst <> ".wav"
     where
-    root = rootDir </> cacheDir </> ns </> name
+    dir = imDir </> cacheDir </> ns </> name
     ns = FilePath.takeFileName $ FilePath.takeDirectory notesFilename
     name = FilePath.takeFileName notesFilename
 
--- Yes, it should return FilePath, but Im.Play.encode_play_config uses Text.
-blockFilename :: BlockId -> Text
-blockFilename blockId = Id.un_namespace ns <> "/" <> name
-    where (ns, name) = Id.un_id $ Id.unpack_id blockId
+idFilename :: Id.Ident a => a -> FilePath
+idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
+    where (ns, name) = Id.un_id $ Id.unpack_id id

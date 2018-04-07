@@ -275,7 +275,7 @@ evaluate_im config lookup_inst block_id events = do
         case Map.lookup synth (Shared.Config.synths config) of
             Just synth -> do
                 let fname = Shared.Config.notesFilename
-                        (Shared.Config.rootDir config) synth block_id
+                        (Shared.Config.imDir config) synth block_id
                 -- TODO It would be better to not reach this point at all if
                 -- the block hasn't changed, but until then at least I can
                 -- skip running the binary if the notes haven't changed.
