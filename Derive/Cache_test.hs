@@ -241,6 +241,29 @@ test_logs = do
         , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]
 
+test_stats = do
+    let create = mkblocks
+            [ ("top",
+                [ (">i", [(0, 2, "sub1"), (2, 3, "sub2")])
+                ])
+            , ("sub1=ruler", [(">", [(0, 1, "")]), (">", [(0, 1, "")])])
+            , ("sub2=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
+            ]
+    let e_stats = Derive.collect_cache_stats . Derive.state_collect
+            . Derive.r_state
+
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "sub2.t1" 1 1 ""
+    equal (e_stats uncached) mempty
+    equal (e_stats cached) $ mempty
+        { Derive.cstats_hits = [(Left (UiTest.bid "sub1"), (0, 2))] }
+
+    let (_, cached, _) = compare_cached create $ do
+            insert_event "sub1.t1" 1 1 ""
+            insert_event "sub2.t1" 1 1 ""
+    equal (e_stats cached) $ mempty
+        { Derive.cstats_hits = [(Right (UiTest.tid "sub1.t2"), (0, 4))] }
+
 test_extend_control_damage = do
     let f = Cache._extend_control_damage
     equal (f 3 (Events.from_list [Event.event 0 0 "4c"])

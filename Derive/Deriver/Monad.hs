@@ -83,7 +83,7 @@ module Derive.Deriver.Monad (
     , Merge(..), Merger(..)
 
     -- ** collect
-    , Collect(..), SignalFragments
+    , Collect(..), CacheStats(..), SignalFragments
     , ControlMod(..), Integrated(..)
     , TrackDynamic, CallDuration(..)
 
@@ -1082,11 +1082,29 @@ data Collect = Collect {
 
     -- | New caches accumulating over the course of the derivation.
     , collect_cache :: !Cache
+    , collect_cache_stats :: !CacheStats
     , collect_integrated :: ![Integrated]
     , collect_control_mods :: ![ControlMod]
     , collect_score_duration :: !(CallDuration ScoreTime)
     , collect_real_duration :: !(CallDuration RealTime)
     }
+
+data CacheStats = CacheStats {
+    -- This isn't Ranges RealTime because I don't want to allow
+    -- Ranges.Everything.
+    cstats_hits :: ![(Either BlockId TrackId, (RealTime, RealTime))]
+    } deriving (Eq, Show)
+
+instance Pretty CacheStats where
+    format (CacheStats hits) = Pretty.record "CacheStats"
+        [ ("hits", Pretty.format hits)
+        ]
+
+instance Semigroup CacheStats where
+    CacheStats hits1 <> CacheStats hits2 = CacheStats (hits1 <> hits2)
+instance Monoid CacheStats where
+    mempty = CacheStats mempty
+    mappend = (<>)
 
 -- | These are fragments of a signal, which will be later collected into
 -- 'collect_track_signals'.  This is part of a complicated mechanism to
@@ -1102,8 +1120,8 @@ data Collect = Collect {
 type SignalFragments = Map (BlockId, TrackId) (Map TrackTime Signal.Control)
 
 instance Pretty Collect where
-    format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps cache
-            integrated cmods call_dur call_end) =
+    format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps
+            cache cache_stats integrated cmods call_dur call_end) =
         Pretty.record "Collect"
             [ ("warp_map", Pretty.format warp_map)
             , ("track_signals", Pretty.format tsigs)
@@ -1112,6 +1130,7 @@ instance Pretty Collect where
             , ("track_dynamic_inverted", Pretty.format trackdyn_inv)
             , ("block_deps", Pretty.format deps)
             , ("cache", Pretty.format cache)
+            , ("cache_stats", Pretty.format cache_stats)
             , ("integrated", Pretty.format integrated)
             , ("control_mods", Pretty.format cmods)
             , ("call duration", Pretty.format call_dur)
@@ -1119,23 +1138,24 @@ instance Pretty Collect where
             ]
 
 instance Semigroup Collect where
-    (<>)    (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1 cache1
-                integrated1 cmods1 cdur1 cend1)
-            (Collect warps2 tsigs2 frags2 trackdyn2 trackdyn_inv2 deps2 cache2
-                integrated2 cmods2 cdur2 cend2) =
+    (<>)    (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1
+                cache1 cstats1 integrated1 cmods1 cdur1 cend1)
+            (Collect warps2 tsigs2 frags2 trackdyn2 trackdyn_inv2 deps2
+                cache2 cstats2 integrated2 cmods2 cdur2 cend2) =
         Collect (warps1 <> warps2)
             (tsigs1 <> tsigs2) (Map.unionWith (<>) frags1 frags2)
             (trackdyn1 <> trackdyn2) (trackdyn_inv1 <> trackdyn_inv2)
-            (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
-            (cmods1 <> cmods2) (cdur1 <> cdur2) (cend1 <> cend2)
+            (deps1 <> deps2) (cache1 <> cache2) (cstats1 <> cstats2)
+            (integrated1 <> integrated2) (cmods1 <> cmods2) (cdur1 <> cdur2)
+            (cend1 <> cend2)
 instance Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
-        mempty mempty mempty
+        mempty mempty mempty mempty
     mappend = (<>)
 
 instance DeepSeq.NFData Collect where
-    rnf (Collect warp_map frags tsigs track_dyn track_dyn_inv local_dep cache
-            integrated _cmods _cdur _cend) =
+    rnf (Collect warp_map frags tsigs track_dyn track_dyn_inv local_dep
+            cache _cstats integrated _cmods _cdur _cend) =
         rnf warp_map `seq` rnf frags `seq` rnf tsigs `seq` rnf track_dyn
         `seq` rnf track_dyn_inv `seq` rnf local_dep `seq` rnf cache
         `seq` rnf integrated

@@ -101,7 +101,7 @@ c_block block_id = Derive.with_score_duration get_score_duration $
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
         -- on the stack.
-        Internal.with_stack_block block_id $ Cache.block run args
+        Internal.with_stack_block block_id $ Cache.block block_id run args
     where
     run args = Derive.place start (end - start) $ trim args $ d_block block_id
         where (start, end) = Args.range args

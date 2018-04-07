@@ -1750,18 +1750,44 @@ synth: im:
         output cache idea instead of writing a new one and atomically
         switching to it.
 
+      . One thing is that the Derive.Cache is only down to track level.  But
+        I'd like to know exactly where on the track is the damage.  That's
+        basically the ScoreDamage.  The reason I can't just directly use
+        ScoreDamage is that I also need to take ControlDamage into account.
+        But I don't want ControlDamage directly, I want the ranges of notes
+        invalidated by it.  Hence using the cache.
+      . Maybe I can have the cache emit the exact range, even though it's just
+        checking if it overlaps with the cache.
+      . But that doesn't work if I'm doing the inverse thing, where I remember
+        the hits and then invert it.  Why am I doing that again?
+      . Actually, never mind all of the above.  This damage is just for
+        re-emitting Notes.  I can do a separate per-block cache to do
+        a minimal rerender.
+
       . Ok, so the plan is:
-        - Derive.Cache marks that bits that hit the cache.
+        * Derive.Cache marks that bits that hit the cache.
           . That's already in logs, but I should stick it in Collect.
           . Maybe as a side-effect I can get rid of the log parsing for cache
             stats.
-        - Perform.Im.Convert inverts that and writes it as damage.
+          . For hits, I collect (BlockId | TrackId, Ranges RealTime).  I can
+            collect just as a list and merge them later, or merge them
+            in-place in Collect.  Eventually what I want is
+            Map TrackId (Ranges RealTime) and count of hits (for logging).
+            It would also be nice to have the cached event count, since
+            current logging has that.
+          . If I switch to putting Collect in LEvent, then I think this kind
+            of question becomes moot.  Also I should be able to collect into
+            a list via cons, rather than (++) on subtrees.  I think that's
+            equivalent to the dlist transform, in some way.  Anyway, this is
+            support for Collect in LEvent being worth doing.
         - Write a disk-backed time indexed DB.
           . Implemented as a directory with time-stamped files.  For
             simplicity, put each note in its own file, but maybe I'll want to
             combine them later.
           . Not sure though, surely modern filesystems can handle this fine?
-
+        - Perform.Im.Convert inverts that and writes it as damage.
+        - Once this stuff works, add misses to CacheStats, and replace the
+          log msg parsing hackery.
   audio:
     make Audio.linear more efficient
       - reuse buffers for flat signals

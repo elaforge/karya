@@ -68,14 +68,14 @@ instance Cacheable PSignal.PSignal where
 
 -- | Unfortunately caching is not entirely general, and cache invalidation
 -- works a bit differently for blocks and tracks.
-data Type = Block
-    -- | Cache a track.  For a note track, it has the set is its TrackId along
-    -- with its children, so it knows what sort of damage will invalidate the
-    -- cache.  If the track has children, it's assumed to be inverting, so that
-    -- it depends on all of its children.  For a control track, the set should
-    -- be empty, since control tracks are not invalidated by damage on their
+data Type = Block !BlockId
+    -- | Cache a track.  For a note track, the set is its TrackId along with
+    -- its children, so it knows what sort of damage will invalidate the cache.
+    -- If the track has children, it's assumed to be inverting, so that it
+    -- depends on all of its children.  For a control track, the set should be
+    -- empty, since control tracks are not invalidated by damage on their
     -- children.
-    | Track !(Set TrackId)
+    | Track !TrackId !(Set TrackId)
     deriving (Eq, Show)
 
 -- | If the given generator has a cache entry, relevant derivation context is
@@ -83,31 +83,47 @@ data Type = Block
 -- I can reuse the cached values for it.  This is effectively a kind of
 -- memoization.  If the generator is called, the results will be put in the
 -- cache before being returned.
-block :: (Derive.PassedArgs d -> Derive.NoteDeriver)
+block :: BlockId -> (Derive.PassedArgs d -> Derive.NoteDeriver)
     -> (Derive.PassedArgs d -> Derive.NoteDeriver)
-block call args = caching_deriver Block range (call args)
+block block_id call args = caching_deriver (Block block_id) range (call args)
     where
-    range = Ranges (uncurry Ranges.range (Args.range_on_track args))
-        (Event.is_negative (Args.event args))
+    range = Range
+        { _start = fst $ Args.range_on_track args
+        , _end = snd $ Args.range_on_track args
+        , _negative = Event.is_negative (Args.event args)
+        }
 
--- | If True, these are the ranges of a negative event, which affects how
--- control damage works.
-data Ranges = Ranges !(Ranges.Ranges ScoreTime) !Bool deriving (Show)
+data Range = Range {
+    _start :: !TrackTime
+    , _end :: !TrackTime
+    -- | If True, these are the ranges of a negative event, which affects how
+    -- control damage works.
+    , _negative :: !Bool
+    } deriving (Show)
 
 -- | Cache a track, but only if it's not sliced and has a TrackId.
 track :: Cacheable d => TrackTree.Track -> Set TrackId
     -- ^ Children, as documented in 'Track'.
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
-track track children
-    | should_cache track = caching_deriver (Track children)
-        (Ranges Ranges.everything False)
-    | otherwise = id
+track track children deriver = case should_cache track of
+    Just track_id -> caching_deriver (Track track_id children) range deriver
+    Nothing -> deriver
+    where
+    range = Range
+        { _start = TrackTree.track_start track
+        , _end = TrackTree.track_end track
+        , _negative = False
+        }
 
-should_cache :: TrackTree.Track -> Bool
-should_cache track = TrackTree.track_sliced track == TrackTree.NotSliced
-    && Maybe.isJust (TrackTree.track_id track)
+should_cache :: TrackTree.Track -> Maybe TrackId
+should_cache track
+    | TrackTree.track_sliced track == TrackTree.NotSliced =
+        TrackTree.track_id track
+    | otherwise = Nothing
+-- should_cache track = TrackTree.track_sliced track == TrackTree.NotSliced
+--     && Maybe.isJust (TrackTree.track_id track)
 
-caching_deriver :: Cacheable d => Type -> Ranges
+caching_deriver :: Cacheable d => Type -> Range
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 caching_deriver typ range call = do
     st <- Derive.get
@@ -119,9 +135,11 @@ caching_deriver typ range call = do
     where
     generate _ (Right (collect, cached)) = do
         Log.write $ cache_hit_msg cached
+        stats <- hit_stats typ range
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
-        Internal.merge_collect collect
+        Internal.merge_collect $
+            mempty { Derive.collect_cache_stats = stats } <> collect
         return cached
     generate stack (Left (inflict_control_damage, reason)) = do
         (result, collect) <- with_collect inflict_control_damage call
@@ -140,9 +158,27 @@ caching_deriver typ range call = do
         -- empty cache if it failed?  Otherwise I think maybe a failed
         -- event will continue to produce its old value.
         (result, collect) <- with_empty_collect
-            (typ == Block && inflict_control_damage) deriver
+            (is_block typ && inflict_control_damage) deriver
         Internal.merge_collect collect
         return (result, collect)
+    is_block (Block {}) = True
+    is_block _ = False
+
+hit_stats :: Type -> Range -> Derive.Deriver Derive.CacheStats
+hit_stats typ (Range start end _) = do
+    start <- Derive.real start
+    end <- Derive.real end
+    return $ mempty
+        { Derive.cstats_hits = [(id, (start, end))]
+        }
+    where
+    id = case typ of
+        Block block_id -> Left block_id
+        Track track_id _ -> Right track_id
+
+-- real_range :: Ranges.Ranges ScoreTime -> Derive.Deriver (RealTime, RealTime)
+-- real_range ranges = case Ranges.extract ranges of
+--     undefined
 
 -- | Both track warps and local deps are used as dynamic return values (aka
 -- modifying a variable to \"return\" something).  When evaluating a cached
@@ -172,12 +208,12 @@ with_empty_collect inflict_control_damage deriver = do
 
 -- | Find the cached value, or a reason why there is no cache entry.  This
 -- is the function that determines whether you hit the cache or not.
-find_generator_cache :: Cacheable d => Type -> Derive.CacheKey -> Ranges
+find_generator_cache :: Cacheable d => Type -> Derive.CacheKey -> Range
     -> ScoreDamage -> ControlDamage -> Cache
     -> Either (Bool, Text) (Derive.Collect, Stream.Stream d)
-    -- ^ on a miss, the Bool is 'with_empty_collect' inflict_control_damage
-find_generator_cache typ key (Ranges event_range is_negative) score
-        (ControlDamage control) (Cache cache) = do
+    -- ^ on a miss, the Bool is 'with_empty_collect's inflict_control_damage arg
+find_generator_cache typ key range score (ControlDamage control) (Cache cache)
+        = do
     cached <- justErr (False, "not in cache") $ Map.lookup key cache
     -- Look for block damage before looking for Invalid, because if there is
     -- block damage I inflict control damage too.  This is because block damage
@@ -185,14 +221,14 @@ find_generator_cache typ key (Ranges event_range is_negative) score
     -- can invalidate all blocks called from this one.
     let stack = Stack.innermost (Derive.key_stack key)
     case typ of
-        Block -> case msum (map Stack.block_of stack) of
+        Block _block_id -> case msum (map Stack.block_of stack) of
             Just this_block
                 | this_block `Set.member` sdamage_blocks score ->
                     Left (True, "direct block damage")
                 | this_block `Set.member` sdamage_track_blocks score ->
                     Left (False, "track block damage")
             _ -> return ()
-        Track children
+        Track _track_id children
             | any (`Set.member` children) (Map.keys (sdamage_tracks score)) ->
                 Left (False, "track damage")
             | otherwise -> return ()
@@ -208,9 +244,9 @@ find_generator_cache typ key (Ranges event_range is_negative) score
     -- Negative duration indicates an arrival note.  The block deriver then
     -- takes the controls from the bottom of event (which is the start),
     -- see "Derive.Call.Block".
-    let overlapping = if is_negative then Ranges.overlapping_closed
+    let overlapping = if _negative range then Ranges.overlapping_closed
             else Ranges.overlapping
-    when (overlapping control event_range) $
+    when (overlapping control (Ranges.range (_start range) (_end range))) $
         Left (True, "control damage")
     return (collect, stream)
 
