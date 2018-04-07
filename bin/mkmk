@@ -1,9 +1,6 @@
 #!/bin/sh
 # Rebuild the shakefile.
 
-mkdir -p build
-touch build/shake.database # Needed for my shake.database locking hack.
-
 # TODO I should get the -X flags from Shakefile.ghcLanguageFlags, otherwise
 # "boot" modules need explicit LANGUAGE pragmas.  I could fix it by putting
 # them in a separate file, but I'm not super motivated because the boot
