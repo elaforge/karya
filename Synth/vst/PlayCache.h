@@ -24,19 +24,19 @@ class PlayConfig {
 public:
     PlayConfig() {
         // Try to avoid some allocation, not that I'm consistent about that.
-        blockId.reserve(64);
+        scorePath.reserve(64);
         mutedInstruments.reserve(8);
         clear();
     }
     void collect(std::ofstream &log, unsigned char d1, unsigned char d2);
     void clear() {
-        blockId.clear();
+        scorePath.clear();
         mutedInstruments.clear();
         instrumentIndex = -1;
     }
 
     // Current playing block.
-    std::string blockId;
+    std::string scorePath;
     std::vector<std::string> mutedInstruments;
 private:
     void collect1(unsigned char d);

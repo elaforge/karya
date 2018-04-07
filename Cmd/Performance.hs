@@ -190,7 +190,7 @@ generate_performance ui_state wait send_status block_id = do
         evaluate_performance
             (if im_allocated allocs then Just im_config else Nothing)
             (Cmd.state_resolve_instrument ui_state cmd_state)
-            wait send_status block_id perf
+            wait send_status (Cmd.score_path cmd_state) block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert block_id
             thread_id (Cmd.state_performance_threads st)
@@ -224,8 +224,10 @@ derive ui_state cmd_state block_id = (perf, logs)
 
 evaluate_performance :: Maybe Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> Thread.Seconds -> SendStatus -> BlockId -> Cmd.Performance -> IO ()
-evaluate_performance im_config lookup_inst wait send_status block_id perf = do
+    -> Thread.Seconds -> SendStatus -> FilePath -> BlockId -> Cmd.Performance
+    -> IO ()
+evaluate_performance im_config lookup_inst wait send_status score_path block_id
+        perf = do
     send_status block_id Msg.OutOfDate
     Thread.delay wait
     send_status block_id Msg.Deriving
@@ -237,8 +239,8 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
             <> pretty cpu_secs <> " cpu, " <> pretty wall_secs <> " wall"
     (procs, events) <-  case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
-        Just config ->
-            evaluate_im config lookup_inst block_id (Cmd.perf_events perf)
+        Just config -> evaluate_im config lookup_inst score_path block_id
+            (Cmd.perf_events perf)
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
@@ -257,10 +259,10 @@ subprocesses procs = do
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.
 evaluate_im :: Shared.Config.Config
-    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument) -> BlockId
-    -> Vector.Vector Score.Event
+    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> FilePath -> BlockId -> Vector.Vector Score.Event
     -> IO ([Process.CreateProcess], Vector.Vector Score.Event)
-evaluate_im config lookup_inst block_id events = do
+evaluate_im config lookup_inst score_path block_id events = do
     cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
     return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
@@ -271,11 +273,11 @@ evaluate_im config lookup_inst block_id events = do
             _ -> Nothing
         Nothing -> Nothing
 
-    write_notes (Just synth, events) =
-        case Map.lookup synth (Shared.Config.synths config) of
+    write_notes (Just synth_name, events) = do
+        case Map.lookup synth_name (Shared.Config.synths config) of
             Just synth -> do
                 let fname = Shared.Config.notesFilename
-                        (Shared.Config.imDir config) synth block_id
+                        (Shared.Config.imDir config) synth score_path block_id
                 -- TODO It would be better to not reach this point at all if
                 -- the block hasn't changed, but until then at least I can
                 -- skip running the binary if the notes haven't changed.
@@ -284,7 +286,7 @@ evaluate_im config lookup_inst block_id events = do
                 return $ if null binary || not changed then Nothing
                     else Just $ Process.proc binary [fname]
             Nothing -> do
-                Log.warn $ "unknown im synth " <> synth <> " with "
+                Log.warn $ "unknown im synth " <> synth_name <> " with "
                     <> showt (Vector.length events) <> " events"
                 return Nothing
     write_notes (Nothing, _) = return Nothing

@@ -125,7 +125,7 @@ dirSamples(
     }
     closedir(d);
     if (fnames.empty()) {
-        LOG("no samples in " << dir);
+        LOG("no matching samples in " << dir);
     }
     return fnames;
 }

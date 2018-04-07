@@ -179,6 +179,9 @@ STATUS
   . Currently planning for Incremnetal rendering:
 
 UNSORTED
+  - Have a score base dir, so I can assume all scores are relative to that.
+    . Currently it's just Config.app_dir, but if I set a prefix, I can use
+      shorter names for Cmd.score_path, and hence im/notes/...
   fix namespace:
     . The original theory was that I could load other scores and not get name
       collisions.
@@ -1553,6 +1556,7 @@ vector performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  - rename Synth/vst -> Synth/play_cache
   bugs:
     - Shift-play plays im cache even when the instruments are gone, but not
       enter-play?
@@ -1795,6 +1799,16 @@ synth: im:
         - Perform.Im.Convert inverts that and writes it as damage.
         - Once this stuff works, add misses to CacheStats, and replace the
           log msg parsing hackery.
+  * make sure play_cache understands score_path.
+    . And it's now synth-inst, but I think I don't need that.
+    . im/cache/test/faust/faust-*.wav
+    . The difference is that it used to be .../blockId/inst.wav where blockId
+      was ns/block, but now it's .../scorePath/inst.wav
+    . But that's no good, I still need the root block.  So
+      .../scorePath/blockId/inst.wav.
+    . This means that Im.Play has to send scorePath/blockId instead of just
+      blockId.  I guess it only sends once per play, so it should be ok?
+
   - I think I want to switch from by-instrument muting to by-track, because
     that's what the UI is.
     . And it's more flexible, I can put multiple instruments on one track,
@@ -1811,6 +1825,22 @@ synth: im:
     . If I use the filename, it has to be the complete path though.
     . Fixing namespace is another problem.  If it's not serving its purpose
       I should get rid of it.  See fix namespace:
+    . Wait, how does this even work?  It's the bottom track for the note, but
+      do I need block?  I think technically yes, because UI mutes are
+      (block, track).  So render blocks are marked with both, and the midi
+      mute msg has to include both.
+    . Ultimately this is because note damage is per-track, which means the
+      note storage should also be per-track. Of course that doesn't mean
+      muting has to be per-track, so I guess this is sort of orthogonal.
+      But it does seem more useful than per-instrument.  But since it's
+      orthogonal, maybe I should put it on hold for now.
+    . Also, is this overkill just to save time writing Notes?  That's not even
+      the expensive thing.  The point is to make rendering audio incremental,
+      and I don't need damage for that, I can just memoize.
+    . Having explicit damaged ranges would let me skip serialization and
+      checking for the majority of the score, so I think I will eventually
+      want that.  But I can probably do without in the beginning, if I get
+      incremental audio.
   audio:
     make Audio.linear more efficient
       - reuse buffers for flat signals

@@ -31,6 +31,9 @@ srate = 11000
 namespace :: Id.Namespace
 namespace = Id.namespace "ness2"
 
+scorePath :: FilePath
+scorePath = "test/ness2"
+
 mkBlockId :: Text -> BlockId
 mkBlockId block = Id.BlockId $ Id.id namespace block
 
@@ -45,15 +48,14 @@ printPerformance block =
 run :: Text -> IO ()
 run block = do
     let blockId = mkBlockId block
-    let notesFilename = Config.notesFilename (Config.rootDir Config.config)
-            Config.ness blockId
+    let notesFilename = Config.notesFilename (Config.imDir Config.config)
+            Config.ness scorePath blockId
     instPerformances <- either errorIO return =<< loadConvert block
     Util.submitInstruments "convert" $
         map (nameScore notesFilename) instPerformances
     where
     nameScore notesFilename (inst, p) =
-        ( Config.outputFilename (Config.rootDir Config.config) notesFilename
-            inst
+        ( Config.outputFilename (Config.imDir Config.config) notesFilename inst
         , inst
         , renderPerformance srate p
         )
@@ -65,8 +67,8 @@ type Error = Text
 
 loadConvert :: Text -> IO (Either Error [(Note.InstrumentName, Performance)])
 loadConvert b =
-    convert <$> load (Config.notesFilename (Config.rootDir Config.config)
-        Config.ness (mkBlockId b))
+    convert <$> load (Config.notesFilename (Config.imDir Config.config)
+        Config.ness scorePath (mkBlockId b))
 
 renderPerformance :: SamplingRate -> Performance -> (Text, Text)
 renderPerformance sr (Guitar i s) = Guitar.renderAll sr (i, s)

@@ -69,10 +69,12 @@ encode_time t = [at 0, at 1, at 2, at 3]
 
 -- | Send the block to play, along with muted instruments, if any.  Each
 -- is separated by a \0.
-encode_play_config :: Set Score.Instrument -> BlockId -> [Midi.ChannelMessage]
-encode_play_config muted block_id = encode_text $ Text.intercalate "\0" $
-    txt (Shared.Config.idFilename block_id)
-        : map ScoreTypes.instrument_name (Set.toList muted)
+encode_play_config :: FilePath -> BlockId -> Set Score.Instrument
+    -> [Midi.ChannelMessage]
+encode_play_config score_path block_id muted =
+    encode_text $ Text.intercalate "\0" $
+        txt (Shared.Config.playFilename score_path block_id)
+            : map ScoreTypes.instrument_name (Set.toList muted)
 
 -- | Encode text in MIDI.  This uses a PitchBend to encode a pair of
 -- characters, with a leading '\DEL' to mark the start of the sequence, and

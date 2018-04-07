@@ -10,12 +10,12 @@
 
 #include "PlayCache.h"
 
+
 // TODO this should probably append to a ring-buffer and be flushed by
 // a separate thread, so I can call it from processReplacing.
 #define LOG(MSG) LOG_TO(log, MSG)
 #define LOG_TO(OUT, MSG) do { OUT << __FILE__ << ':' << __LINE__ << ' ' \
     << MSG << std::endl; } while (0)
-
 
 // Miscellaneous constants.
 enum {
@@ -30,6 +30,7 @@ enum {
 // VST_BASE_DIR must be defined when compiling.
 static const char *logFilename = VST_BASE_DIR "/PlayCache.log";
 static const char *cacheDir = VST_BASE_DIR "/cache/";
+
 
 AudioEffect *createEffectInstance(audioMasterCallback audioMaster)
 {
@@ -181,16 +182,16 @@ PlayCache::start(VstInt32 delta)
     static std::string samplesDir(4096, ' ');
 
     // This can happen if the DAW gets a NoteOn before the config msgs.
-    if (playConfig.blockId.empty()) {
-        LOG("play received, but blockId is empty");
+    if (playConfig.scorePath.empty()) {
+        LOG("play received, but scorePath is empty");
         return;
     }
-    LOG("start playing at delta " << delta << " block '" << playConfig.blockId
+    LOG("start playing at delta " << delta << " block '" << playConfig.scorePath
         << "' from frame " << offsetFrames);
 
     samplesDir.clear();
     samplesDir += cacheDir;
-    samplesDir += playConfig.blockId;
+    samplesDir += playConfig.scorePath;
     streamer->start(samplesDir, offsetFrames, playConfig.mutedInstruments);
     this->playConfig.clear();
     this->delta = delta;
@@ -225,7 +226,7 @@ PlayConfig::collect(std::ofstream &log, unsigned char d1, unsigned char d2)
     collect1(d1);
     collect1(d2);
     if (instrumentIndex == -1) {
-        // LOG("blockId: '" << blockId << "'");
+        // LOG("scorePath: '" << scorePath << "'");
     } else {
         // LOG("muted: '" << mutedInstruments[instrumentIndex] << "'");
     }
@@ -248,7 +249,7 @@ PlayConfig::collect1(unsigned char d)
         break;
     default:
         if (instrumentIndex == -1) {
-            blockId.push_back(d);
+            scorePath.push_back(d);
         } else {
             // TODO there's allocation here, but no point worrying about it
             // while Samples are still loaded in the audio thread.
