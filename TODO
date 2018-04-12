@@ -1556,7 +1556,7 @@ vector performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  - rename Synth/vst -> Synth/play_cache
+  * rename Synth/vst -> Synth/play_cache
   bugs:
     - Shift-play plays im cache even when the instruments are gone, but not
       enter-play?
