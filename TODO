@@ -1791,14 +1791,19 @@ synth: im:
             a list via cons, rather than (++) on subtrees.  I think that's
             equivalent to the dlist transform, in some way.  Anyway, this is
             support for Collect in LEvent being worth doing.
+        - Perform.Im.Convert inverts that and writes it as damage.
         - Write a disk-backed time indexed DB.
           . Implemented as a directory with time-stamped files.  For
             simplicity, put each note in its own file, but maybe I'll want to
             combine them later.
           . Not sure though, surely modern filesystems can handle this fine?
-        - Perform.Im.Convert inverts that and writes it as damage.
+          . But if I'm not doing incremental write at the moment, then why do
+            I need this?
         - Once this stuff works, add misses to CacheStats, and replace the
           log msg parsing hackery.
+
+        - But first: make render incremental.  I need to do the whole save
+          states thing for this.
   * make sure play_cache understands score_path.
     . And it's now synth-inst, but I think I don't need that.
     . im/cache/test/faust/faust-*.wav
@@ -2213,7 +2218,7 @@ synth: im:
         need to re-save the damaged ones and either send the time range or infer
         from file timestamps.
     - Include DamageRange RealTime RealTime in the notes dump.
-      . This is assuming a always serialize all notes, but I'd also want to do
+      . This is assuming I always serialize all notes, but I'd also want to do
         that in chunks.  But I would have to expand the damage range out to
         all overlapping notes, which is not great if there's a drone + control
         and you modify the control in the middle.

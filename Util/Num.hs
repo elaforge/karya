@@ -46,7 +46,7 @@ showHigit c = case c of
     12 -> Just 'c'; 13 -> Just 'd'; 14 -> Just 'e'; 15 -> Just 'f'
     _ -> Nothing
 
-zeroPad :: Int -> Int -> Text
+zeroPad :: Show a => Int -> a -> Text
 zeroPad digits n = Text.replicate (digits - Text.length s) "0" <> s
     where s = Text.pack (show n)
 

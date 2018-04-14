@@ -10,3 +10,4 @@ git push --all --force $gitlab
 
 # github is public and I shouldn't rebase it
 git push $github master
+git push $github work
