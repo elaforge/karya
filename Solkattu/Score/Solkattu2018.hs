@@ -264,16 +264,15 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam $
     , (theme.din.__4) <== 7 . sarvaD 6 . tri_ (din.__4) theme
     , sarvaD 7 . sarvaD 4.5 . tri_ (din.__4) (tat.__.theme)
     , sarvaD 7 . sarvaD 3 . tri_ (din.__4) (tat.__4.theme)
+    , repeat 3 (tat.__4.theme.din.__4.din.__4.na.__4) . sd (tri_ __ p6)
     ]
     where
     kitakinakadin = group $ kita.ki.na.ka.din
-    nakadin = group $ na.ka.din
+    nakadin = dropM 3 kitakinakadin
     theme = group $ kita.ki.na.ka.din.__.ka
     mridangam = makeMridangam
         [ (kitakinakadin, [k, t, k, n, o, od])
         , (1^kitakinakadin, [k, t, k, n, p, d])
-        , (nakadin, [n, o, od])
-        , (1^nakadin, [n, p, d])
         , (ka.din, [k, od])
         , (1^(ka.din), [k, d])
         , (theme, [k, t, k, n, o, od, k])
