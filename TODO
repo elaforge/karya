@@ -1979,6 +1979,29 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   sampler: sampler-im:
+    incremental render:
+      . save samples and positions, along with resample state.
+      . Or, since samples are all independent, rewind to the beginning of
+        each overlapping sample.  But to remove the samples from the old
+        output, I have to output each sample individually, at which point I've
+        just moved the sampler to realtime implementation in play cache.
+      . For samples maybe that's actually reasonable.  And I just have to mix
+        in realtime, sampler-im is still picking samples, resampling, applying
+        envelopes.  Still, it wouldn't work great with really long samples.
+      . So try true chunk-based incremental first, and see how hard it is.
+    chunk incremental:
+      . Currently I just map noteToSample notes.  Instead I want to iterate
+        over chunks, and only render if the inputs have changed.
+      . What if I just say inputs are the set of notes overlapping?
+      . For each chunk, hash notes in scope and compare to saved hash.  If no
+        match, then write the hash and write the chunk.
+      . I have to maintain the state.  I guess that's all in Sample.realize.
+        So really this becomes feed samples to Audio.mix until I'm producing
+        identical output.
+
+      . Audio.File.write AUtil.outputFormat output $
+            AUtil.mix $ map (Sample.realize quality) samples
+
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
