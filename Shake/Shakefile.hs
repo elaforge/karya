@@ -624,11 +624,13 @@ configure midi = do
         }
     where
     setConfigFlags sandbox fltkCs fltkLds mode ghcVersion flags = flags
-        { define = (define osFlags ++) $ concat
+        { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
             , ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
             , ["-DGHC_VERSION=" ++ ghcVersionMacro ghcVersion]
+            , define osFlags
+            , Config.extraDefines localConfig
             ]
         , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
             ++ Config.globalIncludes localConfig

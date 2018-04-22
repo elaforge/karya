@@ -7,4 +7,5 @@ localConfig = defaultConfig
     { enableEkg = False
     , enableEventLog = True
     , enableIm = True
+    , extraDefines = ["-DHACKED_FLTK"]
     }

@@ -815,9 +815,31 @@ highlight_focused(BlockWindow *focus)
 }
 
 
+#ifdef HACKED_FLTK
+extern Fl_Window *fl_mac_get_key_window();
+
+static void
+check_focus()
+{
+    Fl_Widget *focus = Fl::focus();
+    while (focus && focus->window())
+        focus = focus->window();
+    BlockWindow *fl = dynamic_cast<BlockWindow *>(focus);
+    BlockWindow *os = dynamic_cast<BlockWindow *>(fl_mac_get_key_window());
+    if (fl != os) {
+        DEBUG("FOCUS WARNING, Fl::focus() /= OS focus: "
+            << (fl == nullptr ? "null" : fl->block.get_title()) << " /= "
+            << (os == nullptr ? "null" : os->block.get_title()));
+    }
+}
+#else
+static void check_focus() {}
+#endif
+
 int
 BlockWindow::handle(int evt)
 {
+    check_focus();
     if (evt == FL_SHOW) {
         // Send an initial resize to inform the haskell layer about dimensions.
         MsgCollector::get()->view(UiMsg::msg_resize, this);

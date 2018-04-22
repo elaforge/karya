@@ -23,6 +23,9 @@ data Config = Config {
     -- the Synth hierarchy.  This requires a number of hackage dependencies,
     -- including the VST SDK, which has to be downloaded separately.
     , enableIm :: Bool
+    -- | Extra flags passed to both C++ and Haskell compiles.  I use them
+    -- to enable some purely local hacks, e.g. hacked version of libfltk.
+    , extraDefines :: [Flag]
 
     -- paths
 
@@ -47,6 +50,7 @@ defaultConfig = Config
     { enableEkg = False
     , enableEventLog = False
     , enableIm = False
+    , extraDefines = []
     , fltkConfig = "fltk-config"
     , globalIncludes = []
     , globalLibDirs = []

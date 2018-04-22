@@ -3285,6 +3285,45 @@ fltk:
       just ask the OS what window has focus?
     . Cmd.state_debug_ui_msgs doesn't help because I have to take off focus to
       turn it on.  I would need a key stroke that does that.
+    . come up with the next step to find this
+    . Last time: c0f6295365b3b1ad1df41f884c4b6a986cf2f608
+    . Every msg contains the focused window, and since moving the selection in
+      the same block doesn't fix the focus, it must be sending the wrong
+      focus.  So I think printing msgs with state_debug_ui_msgs will not be
+      helpful.
+    . How does MsgCollector get the focus?  From Fl::focus().  So it must be
+      out of sync with OS X focus.
+    . How does Fl::focus() get it?  Can I directly ask the OS?
+    . Yes, by hacking libfltk to add the function.
+    . Of course fl_mac_get_key_window() is not a solution, but hopefully I can
+      see it diverge.  Then what?
+    . At least I want to narrow it down to a problem with how my program uses
+      fltk, one with fltk itself, or that the OS is sometimes not delivering
+      the notification, or doing it in a way not expected by fltk.  I think
+      getting access to the "ground truth" of what the OS thinks is the key
+      window is a first step for all of those.
+    . Path from windowDidBecomeKey to Fl::focus():
+      . Fl::handle(FL_FOCUS, w)
+      . Fl::handle_ sets fl_xfocus, calls fl_fix_focus()
+      . fl_fix_focus() walks up to the top
+        window (presumably already there), checks if the window wants
+        take_focus(), and calls Fl::focus(Fl_Window *), which will set
+        Fl::focus_ unless visible_focus() is false.
+      . visible_focus() is confusingly named, since it really means accept
+        *any* keyboard focus, not just do so visibly, but whatever.
+      . This is a pretty long convoluted path, with lots of ways to go off the
+        rails, so I can't be totally sure it makes it in all cases.  There are
+        also some seeming redundancies which make me confused about
+        responsibility, for instance, fl_fix_focus() does "if
+        (!w->take_focus()) Fl::focus(w);", but Fl_Widget::take_focus already
+        does Fl::focus(this) if it's going to return 1.
+      . Fl_Widget::take_focus:
+        if (!takesevents()) return 0;
+        if (!visible_focus()) return 0;
+        if (!handle(FL_FOCUS)) return 0; // see if it wants it
+        if (contains(Fl::focus())) return 1; // it called Fl::focus for us
+        Fl::focus(this);
+        return 1;
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
