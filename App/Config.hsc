@@ -77,7 +77,9 @@ instrument_cache_dir = "db"
 log_dir :: RelativePath
 log_dir = "log"
 
--- | Saved scores are expected to be relative to this directory.
+-- | Saved scores are expected to be relative to this directory.  I use
+-- a symlink to have a path relative to the app dir, but point to a global
+-- directory.
 save_dir :: RelativePath
 save_dir = "save"
 

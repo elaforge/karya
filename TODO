@@ -179,7 +179,7 @@ STATUS
   . Currently planning for Incremnetal rendering:
 
 UNSORTED
-  - Have a score base dir, so I can assume all scores are relative to that.
+  * Have a score base dir, so I can assume all scores are relative to that.
     . Currently it's just Config.app_dir, but if I set a prefix, I can use
       shorter names for Cmd.score_path, and hence im/notes/...
   fix namespace:
@@ -3253,9 +3253,10 @@ fltk:
       something similar could?
   - It gets a few extra focus/unfocus pairs before show, why?
     . I hacked around with FloatingInput::ready.
-  - Also, it seems resize on a window which is a child of another window
+  / Also, it seems resize on a window which is a child of another window
     goes into endless recursion.  What is a child window supposed to mean
     anyway?
+    . Who cares, I don't use any of those.
   - Manually fiddling with track widths is annoying.  It seems like I could
     ask the UI about text extents to resize them automatically.
   - I never wound up using rank > 1, so presumably I could simplify things by
@@ -3274,9 +3275,10 @@ fltk:
     But it doesn't say how to add the Window menu.
   drawing artifacts on retina:
     . Some of this may be fltk bugs.
-    - tops of tracks and the tops of track text boxes still get gunk, visible
+    / tops of tracks and the tops of track text boxes still get gunk, visible
       when scrolling horizontally
-  - bug: There's a focus bug, but I'm not sure how to reproduce it.
+      . I don't see it now, probably just fltk problems.
+  + bug: There's a focus bug, but I'm not sure how to reproduce it.
     . The focus bug is still here.  Even clicking on the "unfocused" block
       doesn't fix it.  Don't all msgs contain focus?  What can I log after the
       fact to figure out what's going on?

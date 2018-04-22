@@ -40,7 +40,6 @@ import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Digest.CRC32 as CRC32
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -426,10 +425,10 @@ score_path state = case state_save_file state of
     Just (_, SaveRepo repo) -> strip repo
     where
     -- All my scores are in the save directory, so get rid of some redundancy.
-    -- TODO I should have an official score base dir.
-    strip fn
-        | "save/" `List.isPrefixOf` fn = drop (length ("save/" :: String)) fn
-        | otherwise = fn
+    -- TODO this is easily fooled if app dir isn't cwd, maybe I should
+    -- canonicalize paths.
+    strip = dropWhile (=='/') . fst . Seq.drop_prefix save_dir
+    Config.RelativePath save_dir = Config.save_dir
 
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
