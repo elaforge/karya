@@ -69,38 +69,47 @@ class StoreUi : public UI {
 public:
     std::vector<Widget> widgets;
 
-    virtual void openTabBox(const char *label) {}
-    virtual void openHorizontalBox(const char *label) {}
-    virtual void openVerticalBox(const char *label) {}
-    virtual void closeBox() {}
+    virtual void openTabBox(const char *label) override {}
+    virtual void openHorizontalBox(const char *label) override {}
+    virtual void openVerticalBox(const char *label) override {}
+    virtual void closeBox() override {}
+    virtual void addSoundfile(
+        const char *label, const char *filename, Soundfile **sf_zone) override
+    {}
 
     // -- active widgets
 
-    virtual void addButton(const char *label, FAUSTFLOAT *zone) {
+    virtual void addButton(const char *label, FAUSTFLOAT *zone) override {
         widgets.push_back(Widget(label, zone, true));
     }
-    virtual void addCheckButton(const char *label, FAUSTFLOAT *zone) {
+    virtual void addCheckButton(const char *label, FAUSTFLOAT *zone) override {
         widgets.push_back(Widget(label, zone, true));
     }
     virtual void addVerticalSlider(const char *label, FAUSTFLOAT *zone,
-            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step) {
+            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
+        override
+    {
         widgets.push_back(Widget(label, zone, false, init, min, max, step));
     }
     virtual void addHorizontalSlider(const char *label, FAUSTFLOAT *zone,
-            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step) {
+            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
+        override
+    {
         widgets.push_back(Widget(label, zone, false, init, min, max, step));
     }
     virtual void addNumEntry(const char *label, FAUSTFLOAT *zone,
-            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step) {
+            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
+        override
+    {
         widgets.push_back(Widget(label, zone, false, init, min, max, step));
     }
 
     // -- passive widgets
 
     virtual void addHorizontalBargraph(const char *label, FAUSTFLOAT *zone,
-        FAUSTFLOAT min, FAUSTFLOAT max) {}
+        FAUSTFLOAT min, FAUSTFLOAT max) override {}
     virtual void addVerticalBargraph(const char *label, FAUSTFLOAT *zone,
-        FAUSTFLOAT min, FAUSTFLOAT max) {}
+        FAUSTFLOAT min, FAUSTFLOAT max) override {}
 };
 
 int
