@@ -71,7 +71,7 @@ support.
 For whatever reason cabal doesn't install binary dependencies automatically,
 and it doesn't know how to do dependencies between them, so first run:
 
-    cabal install happy
+    cabal install alex happy
     cabal install c2hs cpphs
 
 I think when I can rely on Cabal >=2.0 and nix-style builds, `cabal install`
