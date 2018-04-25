@@ -104,12 +104,6 @@ Get the -dev versions as usual:
     - libsamplerate
     - libsndfile
 
-To use DAW integration, you need the VST2 SDK.  Unfortunately Steinberg is
-trying to get rid of it, so they're no longer distributing it, and they forbid
-anyone else to do so.  If you search for `vstplugmain.cpp` though, you can
-still find a few copies around.  Such is the commercial music software world.
-Notes on how to fix this are in TODO.
-
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 
     cp data/all-deps.cabal karya.cabal

@@ -159,6 +159,7 @@ NESS:
     . can I hand damp metal percussion?
 
 STATUS
+  * fix the vst2 problem:
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
@@ -189,49 +190,6 @@ UNSORTED
       namespace either.
     . However, if I do want to load a score, I could update the namespace
       right then, so maybe there isn't really a problem?
-  fix the vst2 problem:
-    notes:
-      . Porting to vst3 would also fix it, but as far as I can tell vst3 is
-        an overengineered mess.  Someday I'll have to figure out how to cut
-        through the weeds and make an API that just takes a processReplacing
-        function, end of story.  Or maybe someone has already done that.
-        Look for VST3 tutorial type things, though most of them love weeds
-        so much they introduce their own weedy frameworks.
-      . audacity has a workaround:
-        https://github.com/audacity/audacity/blob/master/src/effects/VST/aeffectx.h
-        . All tied in with audacity stuff, maybe doesn't support MIDI.
-      . https://github.com/olilarkin/wdl-ol
-        . Wants you to download official sdk.
-      . https://github.com/WeAreROLI/JUCE/tree/master/modules/juce_audio_processors/format_types
-      . Looks like it can do it, but don't want to touch the enormous
-        JUCE library just for this.
-      . Ok, so I think the only option is to pull bits out of
-        juce_VSTPluginFormat.c.
-      . I extract the minimum necessary to create a VstEffectInterface,
-        which is the struct vst actually is.
-      . Basically I just need the field offsets, put in processReplacing
-        pointer, and handle the dispatch function for processEvents, and
-        leave the rest stubbed out so the host doesn't crash.
-
-      . OR extract the minimal amount from wdl-ol to make vst3 work.  That
-        might be less sketchy overall, in that there might be a less chance
-        of having to deal with host crashes because I didn't fill in some
-        field right.
-      . I'm suspicious that wdl-ol doesn't actually support MIDI in VST3
-        because while IPlugVST implements SendMidiMsg, IPlugVST3 does not.
-        IPlugAU explicitly doesn't implemnet it, so I think wdl-ol is
-        generally incomplete.
-      . Ok, so how about JUCE?
-        Yes, it does MIDI, but it's just driving the VST.  It just turns
-        into a call to process().  I'm writing the other side of the API.
-      . Maybe the vst3 examples are the best bet after all, if I can strip
-        away all the gunk.
-    conclusion:
-      . Either write my own VST2 interface, starting from a GPL version like
-        audacity or JUCE.
-      . Or try to write a VST3 plugin, starting from trying to reduce the
-        examples.
-
   * I need a better way to modify Shake.Config
     . Maybe use Local.ShakeConfig
     . Make it re-export Shake.Config.  Ideally I could just assign values in
@@ -1557,6 +1515,72 @@ vector performance:
 
 synth: im:
   * rename Synth/vst -> Synth/play_cache
+  - can I use vst latency / setInitialDelay to counteract the load samples
+    time?  What does that do?
+  * fix the vst2 problem:
+    notes:
+      . Porting to vst3 would also fix it, but as far as I can tell vst3 is
+        an overengineered mess.  Someday I'll have to figure out how to cut
+        through the weeds and make an API that just takes a processReplacing
+        function, end of story.  Or maybe someone has already done that.
+        Look for VST3 tutorial type things, though most of them love weeds
+        so much they introduce their own weedy frameworks.
+      . audacity has a workaround:
+        https://github.com/audacity/audacity/blob/master/src/effects/VST/aeffectx.h
+        . All tied in with audacity stuff, maybe doesn't support MIDI.
+      . https://github.com/olilarkin/wdl-ol
+        . Wants you to download official sdk.
+      . https://github.com/WeAreROLI/JUCE/tree/master/modules/juce_audio_processors/format_types
+      . Looks like it can do it, but don't want to touch the enormous
+        JUCE library just for this.
+      . Ok, so I think the only option is to pull bits out of
+        juce_VSTPluginFormat.c.
+      . I extract the minimum necessary to create a VstEffectInterface,
+        which is the struct vst actually is.
+      . Basically I just need the field offsets, put in processReplacing
+        pointer, and handle the dispatch function for processEvents, and
+        leave the rest stubbed out so the host doesn't crash.
+
+      . OR extract the minimal amount from wdl-ol to make vst3 work.  That
+        might be less sketchy overall, in that there might be a less chance
+        of having to deal with host crashes because I didn't fill in some
+        field right.
+      . I'm suspicious that wdl-ol doesn't actually support MIDI in VST3
+        because while IPlugVST implements SendMidiMsg, IPlugVST3 does not.
+        IPlugAU explicitly doesn't implemnet it, so I think wdl-ol is
+        generally incomplete.
+      . Ok, so how about JUCE?
+        Yes, it does MIDI, but it's just driving the VST.  It just turns
+        into a call to process().  I'm writing the other side of the API.
+      . Maybe the vst3 examples are the best bet after all, if I can strip
+        away all the gunk.
+    conclusion:
+      . Either write my own VST2 interface, starting from a GPL version like
+        audacity or JUCE.
+      . Or try to write a VST3 plugin, starting from trying to reduce the
+        examples.
+    vst2 wrapper:
+      . Verify juce can handle MIDI.
+      . Basic interface is VstEffectInterface.  MIDI is handled by some
+        dispatch function.  Wrap that up in a basic adaptor.
+      . VSTPluginFormat::processAudio does both audio and MIDI.
+
+      . But VSTPluginFormat looks like it's hosting a VST, not creating one:
+        VstEffectInterface *vstEffect;
+        VSTMidiEventList midiEventsToSend;
+        vstEffect->dispatchFunction(
+          vstEffect, plugInOpcodePreAudioProcessingEvents, 0, 0,
+          midiEventsToSend.events, 0);
+      . Who is making the VstEffectInterface?
+      . From VSTPluginInstance : AudioPluginInstance, but it gets passed
+        (VstEffectInterface *).
+      . What is AudioPluginInstance?
+      . What about VSTPluginFormat::createCustomVSTFromMainCall?
+        ::createPluginInstance?
+        It looks like this is still host, it loads existing plugins from
+        a file.
+      . From the client side, I need to fill in the VstEffectInterface.  How
+        does juce do that?
   bugs:
     - Shift-play plays im cache even when the instruments are gone, but not
       enter-play?

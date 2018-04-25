@@ -38,10 +38,6 @@ data Config = Config {
     -- | Extra -L flags for the C++ link.
     -- E.g. ["-I/Users/me/homebrew/include"]
     , globalLibDirs :: [Flag]
-    -- | Root of the VST2 SDK.  Only used if 'enableIm' is true.  I can't
-    -- legally distribute this, see doc/INSTALL.md for a possible way to find
-    -- it.
-    , vstBase :: FilePath
     } deriving (Show)
 
 
@@ -54,5 +50,4 @@ defaultConfig = Config
     , fltkConfig = "fltk-config"
     , globalIncludes = []
     , globalLibDirs = []
-    , vstBase = "/usr/local/src/music/vstsdk2.4"
     }

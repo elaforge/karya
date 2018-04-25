@@ -473,15 +473,13 @@ playCacheBinary = CcBinary
     { ccName = case Util.platform of
         Util.Mac -> "play_cache"
         Util.Linux -> "play_cache.so"
-    , ccRelativeDeps = "Synth/play_cache/PlayCache.cc.o" : playCacheDeps
+    , ccRelativeDeps = "Synth/play_cache/PlayCache.cc.o"
+        : "Synth/vst2/interface.cc.o"
+        : playCacheDeps
     , ccCompileFlags = \config -> platformCc ++
         [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
-        , "-I" ++ Config.vstBase localConfig
         ]
-    , ccLinkFlags = const $ platformLink ++
-        "-lsndfile" : map
-            ((Config.vstBase localConfig </> "public.sdk/source/vst2.x") </>)
-            ["audioeffect.cpp", "audioeffectx.cpp", "vstplugmain.cpp"]
+    , ccLinkFlags = const $ "-lsndfile" : platformLink
     , ccPostproc = \fn -> case Util.platform of
         Util.Mac -> do
             let vst = fn ++ ".vst"

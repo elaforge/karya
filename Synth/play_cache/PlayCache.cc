@@ -2,8 +2,9 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
+#include <math.h>
 #include <unistd.h>
 
 #include <sndfile.h>
@@ -19,12 +20,18 @@
 
 // Miscellaneous constants.
 enum {
-    numOutputs = 2
+    numOutputs = 2,
+    numInputs = 0,
+    numPrograms = 0,
+    // How much inherent delay the plugin has.  I'm just streaming samples, so
+    // it's 0.
+    initialDelay = 0
 };
 
 // VST parameters.
 enum {
-    pVolume = 0
+    pVolume = 0,
+    numParameters
 };
 
 // VST_BASE_DIR must be defined when compiling.
@@ -32,26 +39,26 @@ static const char *logFilename = VST_BASE_DIR "/PlayCache.log";
 static const char *cacheDir = VST_BASE_DIR "/cache/";
 
 
-AudioEffect *createEffectInstance(audioMasterCallback audioMaster)
+// Magic function name, called by VSTMain, which is called by the host.
+VstEffectInterface *
+createEffectInstance(VstHostCallback hostCallback)
 {
-    return new PlayCache(audioMaster);
+    return (new PlayCache(hostCallback))->getVst();
 }
 
-PlayCache::PlayCache(audioMasterCallback audioMaster) :
-    AudioEffectX(audioMaster, 1, 1),
+// Plugin::Plugin(VstHostCallback hostCallback,
+//         int32_t numPrograms, int32_t numParameters, int32_t numInChannels,
+//         int32_t numOutChannels, int32_t uniqueID, int32_t version,
+//         int32_t initialDelay, bool isSynth) :
+PlayCache::PlayCache(VstHostCallback hostCallback) :
+    Plugin(hostCallback, numPrograms, numParameters, numInputs, numOutputs,
+        'bdpm', 1, initialDelay, true),
     offsetFrames(0), playing(false), delta(0), volume(1),
     log(logFilename, std::ios::app)
 {
     if (!log.good()) {
         // Wait, how am I supposed to report this?  Can I put it in the GUI?
         // LOG("couldn't open " << logFilename);
-    }
-    if (audioMaster) {
-        setNumInputs(0);
-        setNumOutputs(numOutputs);
-        canProcessReplacing();
-        isSynth();
-        setUniqueID('bdpm');
     }
     LOG("started");
 }
@@ -61,7 +68,8 @@ PlayCache::~PlayCache()
     LOG("quitting");
 }
 
-void PlayCache::resume()
+void
+PlayCache::resume()
 {
     if (!streamer.get() || streamer->sampleRate != sampleRate
         || streamer->maxFrames != maxBlockFrames)
@@ -69,63 +77,45 @@ void PlayCache::resume()
         streamer.reset(
             new Streamer(log, numOutputs, sampleRate, maxBlockFrames));
     }
+    Plugin::resume();
 }
 
 // configure
 
-bool PlayCache::getEffectName(char *name)
+void
+PlayCache::getPluginName(char *name)
 {
-    vst_strncpy(name, "PlayCache", kVstMaxEffectNameLen);
-    return true;
+    strncpy(name, "PlayCache", Max::PlugInNameStringLength);
 }
 
-bool PlayCache::getVendorString(char *text)
+void
+PlayCache::getManufacturerName(char *text)
 {
-    vst_strncpy(text, "Karya", kVstMaxVendorStrLen);
-    return true;
+    strncpy(text, "Karya", Max::ManufacturerStringLength);
 }
 
-bool PlayCache::getProductString(char *text)
-{
-    vst_strncpy(text, "PlayCache", kVstMaxProductStrLen);
-    return true;
-}
-
-VstInt32 PlayCache::getVendorVersion() { return 1; }
-
-VstInt32 PlayCache::canDo(char *text)
-{
-    // if (!strcmp(text, "receiveVstEvents"))
-    //     return 1;
-    if (!strcmp(text, "receiveVstMidiEvent"))
-        return 1;
-    return -1;
-}
-
-VstInt32 PlayCache::getNumMidiInputChannels() { return 1; }
-VstInt32 PlayCache::getNumMidiOutputChannels () { return 0; }
-
-bool PlayCache::getOutputProperties(
-    VstInt32 index, VstPinProperties *properties)
+bool
+PlayCache::getOutputProperties(int32_t index, VstPinProperties *properties)
 {
     if (index >= numOutputs)
         return false;
     switch (index) {
     case 0:
-        vst_strncpy(properties->label, "out1", 63);
+        strncpy(properties->text, "out1", 63);
         break;
     case 1:
-        vst_strncpy(properties->label, "out2", 63);
+        strncpy(properties->text, "out2", 63);
         break;
     }
-    properties->flags = kVstPinIsActive | kVstPinIsStereo;
+    properties->flags = VstPinProperties::IsActive | VstPinProperties::IsStereo;
     return true;
 }
 
 
 // parameters
 
-void PlayCache::setParameter(VstInt32 index, float value)
+void
+PlayCache::setParameter(int32_t index, float value)
 {
     switch (index) {
     case pVolume:
@@ -134,7 +124,8 @@ void PlayCache::setParameter(VstInt32 index, float value)
     }
 }
 
-float PlayCache::getParameter(VstInt32 index)
+float
+PlayCache::getParameter(int32_t index)
 {
     switch (index) {
     case pVolume:
@@ -144,29 +135,39 @@ float PlayCache::getParameter(VstInt32 index)
     }
 }
 
-void PlayCache::getParameterLabel(VstInt32 index, char *label)
+void
+PlayCache::getParameterLabel(int32_t index, char *label)
 {
     switch (index) {
     case pVolume:
-        vst_strncpy(label, "dB", kVstMaxParamStrLen);
+        strncpy(label, "dB", Max::ParameterOrPinLabelLength);
         break;
     }
 }
 
-void PlayCache::getParameterDisplay(VstInt32 index, char *text)
+static float
+linearToDb(float f)
+{
+    return log10(f) * 20;
+}
+
+void
+PlayCache::getParameterText(int32_t index, char *text)
 {
     switch (index) {
     case pVolume:
-        dB2string(this->volume, text, kVstMaxParamStrLen);
+        snprintf(text, Max::ParameterOrPinLabelLength, "%.2fdB",
+            linearToDb(this->volume));
         break;
     }
 }
 
-void PlayCache::getParameterName(VstInt32 index, char *text)
+void
+PlayCache::getParameterName(int32_t index, char *text)
 {
     switch (index) {
     case pVolume:
-        vst_strncpy(text, "volume", kVstMaxParamStrLen);
+        strncpy(text, "volume", Max::ParameterOrPinLabelLength);
         break;
     }
 }
@@ -176,7 +177,7 @@ void PlayCache::getParameterName(VstInt32 index, char *text)
 
 // Start streaming samples from offsetFrames, starting at the given delta.
 void
-PlayCache::start(VstInt32 delta)
+PlayCache::start(int32_t delta)
 {
     // Hopefully this should wind up statically allocated.
     static std::string samplesDir(4096, ' ');
@@ -262,10 +263,11 @@ PlayConfig::collect1(unsigned char d)
 }
 
 
-VstInt32 PlayCache::processEvents(VstEvents *events)
+int32_t
+PlayCache::processEvents(const VstEventBlock *events)
 {
-    for (VstInt32 i = 0; i < events->numEvents; i++) {
-        if (events->events[i]->type != kVstMidiType)
+    for (int32_t i = 0; i < events->numberOfEvents; i++) {
+        if (events->events[i]->type != VstEventBlock::Midi)
             continue;
 
         VstMidiEvent *event = (VstMidiEvent *) events->events[i];
@@ -282,7 +284,7 @@ VstInt32 PlayCache::processEvents(VstEvents *events)
             this->playing = false;
             LOG("note off");
         } else if (status == NoteOn) {
-            start(event->deltaFrames);
+            start(event->sampleOffset);
         } else if (status == Aftertouch && data[1] < 5) {
             // Use aftertouch on keys 0--4 to set offsetFrames bits 0--35.
             unsigned int index = int(data[1]) * 7;
@@ -297,8 +299,8 @@ VstInt32 PlayCache::processEvents(VstEvents *events)
     return 1;
 }
 
-void PlayCache::processReplacing(
-    float **_inputs, float **outputs, VstInt32 processFrames)
+void
+PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
 {
     float *out1 = outputs[0];
     float *out2 = outputs[1];

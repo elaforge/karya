@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-#include "public.sdk/source/vst2.x/audioeffectx.h"
+#include "Synth/vst2/interface.h"
 
 #include "Streamer.h"
 
@@ -46,75 +46,56 @@ private:
 // This is a simple VST that understands MIDI messages to play from a certain
 // time, and plays back samples from the cache directory.  It's expected that
 // offline synthesizers will be maintaining the cache.
-class PlayCache : public AudioEffectX {
+class PlayCache : public Plugin {
 public:
-    PlayCache(audioMasterCallback audioMaster);
+    PlayCache(VstHostCallback hostCallback);
     virtual ~PlayCache();
-    virtual void resume();
+    virtual void resume() override;
 
     // configure
 
-    virtual bool getEffectName(char *name);
-    virtual bool getVendorString(char *text);
-    virtual bool getProductString(char *text);
-    virtual VstInt32 getVendorVersion();
-    virtual VstInt32 canDo(char *text);
+    virtual void getPluginName(char *name) override;
+    virtual void getManufacturerName(char *text) override;
 
-    virtual VstInt32 getNumMidiInputChannels();
-    virtual VstInt32 getNumMidiOutputChannels();
+    virtual int32_t getNumMidiInputChannels() override { return 1; }
+    virtual int32_t getNumMidiOutputChannels() override { return 0; }
 
     virtual bool getOutputProperties(
-        VstInt32 index, VstPinProperties *properties);
+        int32_t index, VstPinProperties *properties) override;
 
-    virtual void setSampleRate(float sampleRate) {
+    virtual void setSampleRate(float sampleRate) override {
         this->sampleRate = sampleRate;
     }
-    virtual void setBlockSize(VstInt32 blockSize) {
+    virtual void setBlockSize(int32_t blockSize) override {
         this->maxBlockFrames = blockSize;
     }
 
-    // virtual void setProgram(VstInt32 program);
-    // virtual void setProgramName(char *name);
-    // virtual void getProgramName(char *name);
-    // virtual bool getProgramNameIndexed(
-    //     VstInt32 category, VstInt32 index, char *text);
-
-    virtual void setParameter(VstInt32 index, float value);
-    virtual float getParameter(VstInt32 index);
-    virtual void getParameterLabel(VstInt32 index, char *label);
-    virtual void getParameterDisplay(VstInt32 index, char *text);
-    virtual void getParameterName(VstInt32 index, char *text);
-
-    // only used if canDo "midiProgramNames"
-    // virtual VstInt32 getMidiProgramName(
-    //     VstInt32 channel, MidiProgramName *midiProgramName);
-    // virtual VstInt32 getCurrentMidiProgram(
-    //     VstInt32 channel, MidiProgramName *currentProgram);
-    // virtual VstInt32 getMidiProgramCategory(
-    //     VstInt32 channel, MidiProgramCategory *category);
-    // virtual bool hasMidiProgramsChanged(VstInt32 channel);
-    // virtual bool getMidiKeyName(VstInt32 channel, MidiKeyName *keyName);
+    virtual void setParameter(int32_t index, float value) override;
+    virtual float getParameter(int32_t index) override;
+    virtual void getParameterLabel(int32_t index, char *label) override;
+    virtual void getParameterText(int32_t index, char *text) override;
+    virtual void getParameterName(int32_t index, char *text) override;
 
     // process
 
-    virtual void processReplacing(
-        float **_inputs, float **outputs, VstInt32 frames);
-    virtual VstInt32 processEvents(VstEvents *events);
+    virtual void process(float **_inputs, float **outputs, int32_t frames)
+        override;
+    virtual int32_t processEvents(const VstEventBlock *events) override;
 
 private:
-    void start(VstInt32 delta);
+    void start(int32_t delta);
 
     // I don't know why setSampleRate is a float, but I don't support that.
     int sampleRate;
     // processReplacing's frames arguent will never exceed this.
-    VstInt32 maxBlockFrames;
+    int32_t maxBlockFrames;
     // Playing from this sample, in frames since the beginning of the score.
     unsigned int offsetFrames;
     // True if I am playing, or should start playing once delta is 0.
     bool playing;
     // When playing is set, this has the number of frames to wait before
     // starting.
-    VstInt32 delta;
+    int32_t delta;
 
     // parameters
     float volume;
