@@ -20,8 +20,8 @@ import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.C.All as C.All
-import qualified User.Elaforge.Config.Mehitabel as Mehitabel
 import qualified User.Elaforge.Config.Tammananny as Tammananny
+import qualified User.Elaforge.Config.Hobbes as Hobbes
 import qualified App.Config as Config
 import qualified App.LoadInstruments as LoadInstruments
 import qualified App.ParseArgs as ParseArgs
@@ -70,7 +70,7 @@ get_midi_config db = do
     full_host <- Network.BSD.getHostName
     case takeWhile (/='.') full_host of
         "tammananny" -> return $ Tammananny.midi_config db
-        "mehitabel" -> return $ Mehitabel.midi_config db
+        "hobbes" -> return $ Hobbes.midi_config db
         host -> do
           Log.warn $ "no midi configuration for host: " <> showt host
           return StaticConfig.empty_midi
