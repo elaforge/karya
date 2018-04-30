@@ -177,7 +177,7 @@ STATUS
   - Organize reyong and wayang samples for a real sampler-im instrument.
     . First come up with exact pitches for reyong.
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
-  . Currently planning for Incremnetal rendering:
+  . Currently planning for Incremental rendering:
 
 UNSORTED
   * Have a score base dir, so I can assume all scores are relative to that.
@@ -1566,7 +1566,7 @@ synth: im:
         field right.
       . I'm suspicious that wdl-ol doesn't actually support MIDI in VST3
         because while IPlugVST implements SendMidiMsg, IPlugVST3 does not.
-        IPlugAU explicitly doesn't implemnet it, so I think wdl-ol is
+        IPlugAU explicitly doesn't implement it, so I think wdl-ol is
         generally incomplete.
       . Ok, so how about JUCE?
         Yes, it does MIDI, but it's just driving the VST.  It just turns
@@ -1680,7 +1680,7 @@ synth: im:
           . I'd have to plan out a general purpose interface.  Synthesizers
             that use knowledge of the future would have to be adapted to not
             having that.
-    - Incremnetal rendering.
+    - Incremental rendering.
       . Overview: Karya has to emit damage ranges, and the synth has to
         rerender just those sections.  The cache becomes a sequence of wav
         files, which play_cache concatenates as it plays.
@@ -1728,7 +1728,7 @@ synth: im:
         offsets in the file.
       . On the other hand, if I'm doing incremental rerenter, then it's not so
         critical.
-  Incremnetal rendering:
+  Incremental rendering:
     - Propagate score damage up to the im perform step.
       . I have to change it from ScoreTime to RealTime though.
       . By the time I get to Performance.evaluate_im, perf_damage is empty.
@@ -2022,7 +2022,7 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   sampler: sampler-im:
-    incremental render:
+    Incremental rendering:
       . save samples and positions, along with resample state.
       . Or, since samples are all independent, rewind to the beginning of
         each overlapping sample.  But to remove the samples from the old
@@ -2038,12 +2038,45 @@ synth: im:
       . What if I just say inputs are the set of notes overlapping?
       . For each chunk, hash notes in scope and compare to saved hash.  If no
         match, then write the hash and write the chunk.
-      . I have to maintain the state.  I guess that's all in Sample.realize.
-        So really this becomes feed samples to Audio.mix until I'm producing
-        identical output.
-
-      . Audio.File.write AUtil.outputFormat output $
-            AUtil.mix $ map (Sample.realize quality) samples
+      . Then I need to switch to chunk-based rendering.  How?
+      . Segment input notes into the groups in scope each chunk: [[Note]]
+      . I can hash the [Note] and that's the input.  If it matches I just
+        go to the next chunk.  If it doesn't match, I need to render the
+        chunk.
+      . For this, initialize the state, which means each sample and offset,
+        along with the resample SRC state.
+      . This seems maybe hard to reconcile with streams, since they have
+        implicit state inside.  What would it look like without streams?
+        . render prevState@(srcState, offset) sample = do
+            Resample.setState srcState
+            write chunkSize $ Resample.resample srcState (ratio sample) $
+              File.open (offset sample + offset)
+      . Maybe faust-im is easier, since they both have state, but faust uses
+        only one channel per instrument.
+        . I can write state and sample chunks easily enough when writing, but
+          the tricky thing is to resume in the middle.
+        . I need to initialize the streams, so they start with initial state
+      - support save and restore state for faust
+        . I should be able to just cast the class to void* to save, but the
+          size is lost.
+        . While I'm at it, maybe I don't want to statically allocate all dsps
+          in faust_all.cc?  They might have a large-ish state.  Thanks to
+          faust's awkward design, I have to create them anyway just to query
+          them, but then I can deallocate.
+        . I have to go from Instrument to size.  I can get it by wrapping
+          dsp, but then I have to delegate all the methods I use.  I could
+          wrap dsp, but it seems like a hassle.
+        . Cast to void is not portable, but I don't need that.  Still, maybe
+          I should put a hash of the source text to avoid blowing up on old
+          state?
+        . Just do state first and stay with static allocation.  Add getState
+          and putState to faust, worry about a wrapper if they don't want to
+          accept it.
+        . The problem with memcpy is the vtable pointer.  I need a raw struct.
+          I can emit -lang c, but then I have to re-wrap in an object.
+        . I could use a local struct in c++, but I have to update all the
+          variable references.  But presumably that's abstracted in the faust
+          compiler, since it uses a pointer for C.
 
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.

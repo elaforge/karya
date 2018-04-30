@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "driver.h"
+#include <faust/gui/CInterface.h>
 #include <faust/dsp/dsp.h>
 
 #include "build/faust_all.cc"
@@ -17,34 +18,23 @@
 extern "C" {
 
 int
-faust_patches(const char ***names, Patch **patches)
+faust_patches(const Patch ***patches)
 {
-    *names = all_names;
-    *patches = all_dsps;
-    return all_count;
+    *patches = all_patches;
+    return all_patches_count;
 }
 
-class StoreMeta : public Meta {
-public:
-    std::vector<std::pair<const char *, const char *>> variables;
-    virtual void declare(const char *key, const char *value) override {
-        // For now I only want controls and description.
-        if (strncmp(key, "control", 7) == 0 || strcmp(key, "description") == 0)
-            variables.push_back(std::make_pair(key, value));
-    }
-};
-
 int
-faust_metadata(Patch patch, const char ***keys, const char ***values)
+faust_metadata(const Patch *patch, const char ***keys, const char ***values)
 {
-    StoreMeta store;
-    const_cast<dsp *>(patch)->metadata(&store);
+    std::vector<std::pair<const char *, const char *>> pairs =
+        patch->getMetadata();
 
-    int size = store.variables.size();
+    int size = pairs.size();
     *keys = (const char **) calloc(size, sizeof(char *));
     *values = (const char **) calloc(size, sizeof(char *));
     int i = 0;
-    for (auto const &entry : store.variables) {
+    for (auto const &entry : pairs) {
         (*keys)[i] = entry.first;
         (*values)[i] = entry.second;
         i++;
@@ -52,79 +42,18 @@ faust_metadata(Patch patch, const char ***keys, const char ***values)
     return size;
 }
 
-struct Widget {
-    Widget(const char *label, FAUSTFLOAT *value, bool boolean,
-            FAUSTFLOAT init = 0, FAUSTFLOAT min = 0, FAUSTFLOAT max = 0,
-            FAUSTFLOAT step = 0)
-        : label(label), value(value), boolean(boolean), init(init),
-            min(min), max(max), step(step)
-        {}
-    const char *label;
-    FAUSTFLOAT *value;
-    bool boolean;
-    FAUSTFLOAT init, min, max, step;
-};
-
-class StoreUi : public UI {
-public:
-    std::vector<Widget> widgets;
-
-    virtual void openTabBox(const char *label) override {}
-    virtual void openHorizontalBox(const char *label) override {}
-    virtual void openVerticalBox(const char *label) override {}
-    virtual void closeBox() override {}
-    virtual void addSoundfile(
-        const char *label, const char *filename, Soundfile **sf_zone) override
-    {}
-
-    // -- active widgets
-
-    virtual void addButton(const char *label, FAUSTFLOAT *zone) override {
-        widgets.push_back(Widget(label, zone, true));
-    }
-    virtual void addCheckButton(const char *label, FAUSTFLOAT *zone) override {
-        widgets.push_back(Widget(label, zone, true));
-    }
-    virtual void addVerticalSlider(const char *label, FAUSTFLOAT *zone,
-            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
-        override
-    {
-        widgets.push_back(Widget(label, zone, false, init, min, max, step));
-    }
-    virtual void addHorizontalSlider(const char *label, FAUSTFLOAT *zone,
-            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
-        override
-    {
-        widgets.push_back(Widget(label, zone, false, init, min, max, step));
-    }
-    virtual void addNumEntry(const char *label, FAUSTFLOAT *zone,
-            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
-        override
-    {
-        widgets.push_back(Widget(label, zone, false, init, min, max, step));
-    }
-
-    // -- passive widgets
-
-    virtual void addHorizontalBargraph(const char *label, FAUSTFLOAT *zone,
-        FAUSTFLOAT min, FAUSTFLOAT max) override {}
-    virtual void addVerticalBargraph(const char *label, FAUSTFLOAT *zone,
-        FAUSTFLOAT min, FAUSTFLOAT max) override {}
-};
-
 int
-faust_controls(Patch patch, const char ***out_controls, char ***out_docs,
+faust_controls(const Patch *patch, const char ***out_controls, char ***out_docs,
     FAUSTFLOAT ***out_vals)
 {
-    StoreUi ui;
-    const_cast<dsp *>(patch)->buildUserInterface(&ui);
-    int size = ui.widgets.size();
+    std::vector<Patch::Widget> widgets(patch->getUiMetadata());
+    int size = widgets.size();
     const char **controls = (const char **) calloc(size, sizeof(char *));
     char **docs = (char **) calloc(size, sizeof(char *));
     FAUSTFLOAT **vals = (FAUSTFLOAT **) calloc(size, sizeof(FAUSTFLOAT *));
 
     for (int i = 0; i < size; i++) {
-        const Widget &w = ui.widgets[i];
+        const Patch::Widget &w = widgets[i];
         if (w.boolean)
             asprintf(docs + i, "%s", "boolean");
         else
@@ -138,40 +67,16 @@ faust_controls(Patch patch, const char ***out_controls, char ***out_docs,
     return size;
 }
 
-Instrument
-faust_initialize(Patch patch, int sample_rate)
+Patch *
+faust_initialize(const Patch *patch, int srate)
 {
-    // The clone() method should be const, but it looks like the faust
-    // authors didn't know about const.
-    Instrument instrument = const_cast<dsp *>(patch)->clone();
-    instrument->init(sample_rate);
-    return instrument;
+    return patch->allocate(srate);
 }
 
 void
-faust_destroy(Instrument instrument)
+faust_render(Patch *patch, int frames, const float **controls, float **outputs)
 {
-    delete instrument;
-}
-
-int
-faust_num_inputs(Patch patch)
-{
-    return const_cast<dsp *>(patch)->getNumInputs();
-}
-
-int
-faust_num_outputs(Patch patch)
-{
-    return const_cast<dsp *>(patch)->getNumOutputs();
-}
-
-void
-faust_render(Instrument inst, int frames, const float **controls,
-    float **outputs)
-{
-    // TODO input is treated as const, I should fix faust's generated c++.
-    inst->compute(frames, const_cast<float **>(controls), outputs);
+    patch->compute(frames, controls, outputs);
 }
 
 }

@@ -13,8 +13,11 @@ module Synth.Faust.DriverC (
     , withInstrument, initialize, destroy
     , patchInputs, patchOutputs
     , render
+    -- ** state
+    , getState, putState
 ) where
 import qualified Control.Exception as Exception
+import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
@@ -37,6 +40,7 @@ import Global
 -- | A patch can be used to create 'Instrument's.
 type Patch = Ptr DspP
 data DspP
+-- TODO Show instance that shows the name
 
 -- | An allocated patch.
 type Instrument = Ptr DspI
@@ -48,15 +52,15 @@ asPatch = Foreign.castPtr
 
 -- | Get all patches and their names.
 getPatches :: IO (Map Text Patch)
-getPatches = alloca $ \namespp -> alloca $ \patchpp -> do
-    count <- fromIntegral <$> c_faust_patches namespp patchpp
-    names <- peekTexts count =<< peek namespp
+getPatches = alloca $ \patchpp -> do
+    count <- fromIntegral <$> c_faust_patches patchpp
     patches <- peekArray count =<< peek patchpp
+    names <- mapM patchName patches
     return $ Map.fromList $ zip names patches
 
--- int faust_patches(const char ***names, Patch **patches);
+-- int faust_patches(const Patch ***patches);
 foreign import ccall "faust_patches"
-    c_faust_patches :: Ptr (Ptr CString) -> Ptr (Ptr Patch) -> IO CInt
+    c_faust_patches :: Ptr (Ptr Patch) -> IO CInt
 
 data ControlConfig = ControlConfig {
     _constant :: !Bool
@@ -143,7 +147,8 @@ getMetadata patch = alloca $ \keyspp -> alloca $ \valuespp -> do
     free =<< peek valuespp
     return $ Map.fromList kvs
 
--- int faust_metadata(Patch inst, const char ***keys, const char ***values);
+-- int faust_metadata(
+--     const Patch *patch, const char ***keys, const char ***values);
 foreign import ccall "faust_metadata"
     c_faust_metadata :: Patch -> Ptr (Ptr CString) -> Ptr (Ptr CString)
         -> IO CInt
@@ -176,14 +181,19 @@ withInstrument patch = Exception.bracket (initialize patch) destroy
 initialize :: Patch -> IO Instrument
 initialize patch = c_faust_initialize patch (CUtil.c_int Config.samplingRate)
 
--- Instrument faust_initialize(Patch dsp, int sample_rate);
+-- Patch *faust_initialize(const Patch *patch, int srate);
 foreign import ccall "faust_initialize"
     c_faust_initialize :: Patch -> CInt -> IO Instrument
 
 destroy :: Instrument -> IO ()
 destroy = c_faust_destroy
--- void faust_destroy(Instrument instrument);
+-- void faust_destroy(Patch *patch) { delete patch; }
 foreign import ccall "faust_destroy" c_faust_destroy :: Instrument -> IO ()
+
+patchName :: Patch -> IO Text
+patchName = CUtil.peekCString . c_faust_name
+
+foreign import ccall "faust_name" c_faust_name :: Patch -> CString
 
 patchInputs, patchOutputs :: Patch -> Int
 patchInputs = fromIntegral . c_faust_num_inputs
@@ -217,8 +227,8 @@ render inst controls = do
             c_faust_render inst (CUtil.c_int frames) controlsP outsP
     return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr frames) outFptrs
 
--- void faust_render(Instrument inst, int frames,
---     const float **controls, float **outputs)
+-- void faust_render(
+--     Patch *patch, int frames, const float **controls, float **outputs);
 foreign import ccall "faust_render"
     c_faust_render :: Instrument -> CInt -> Ptr (Ptr Float) -> Ptr (Ptr Float)
         -> IO ()
@@ -231,6 +241,35 @@ withPtrs vs f = go [] vs
     go accum (v:vs) = Foreign.withForeignPtr fptr $ \ptr ->
         go ((ptr, len) : accum) vs
         where (fptr, len) = V.unsafeToForeignPtr0 v
+
+-- ** state
+
+getState :: Patch -> IO ByteString.ByteString
+getState patch = alloca $ \statepp -> do
+    c_faust_get_state patch statepp
+    statep <- peek statepp
+    ByteString.packCStringLen
+        (statep, fromIntegral $ c_faust_get_state_size patch)
+
+putState :: ByteString.ByteString -> Patch -> IO ()
+putState state patch = ByteString.useAsCStringLen state $ \(statep, size) -> do
+    let psize = c_faust_get_state_size patch
+    unless (fromIntegral size == psize) $
+        errorIO $ "patch " <> showt patch <> " expects state size "
+            <> showt psize <> " but got " <> showt size
+    c_faust_put_state patch statep
+
+-- size_t faust_get_state_size(const Patch *patch) { return patch->size; }
+foreign import ccall "faust_get_state_size"
+    c_faust_get_state_size :: Patch -> CSize
+
+-- size_t faust_get_state(const Patch *patch, const char **state);
+foreign import ccall "faust_get_state"
+    c_faust_get_state :: Patch -> Ptr CString -> IO ()
+
+-- void faust_put_state(Patch *patch, const char *state);
+foreign import ccall "faust_put_state"
+    c_faust_put_state :: Patch -> CString -> IO ()
 
 -- * util
 
