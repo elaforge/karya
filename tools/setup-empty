@@ -6,10 +6,12 @@
 
 export data=${data:-../data}
 
-echo "Making $data to store local data."
-echo "If you want a different place, quit and rerun with data=whatever $0"
-if ! read -q '?ok (y/n) '; then
-    exit 1
+if [[ ! -e $data ]]; then
+    echo "Making $data to store local data."
+    echo "If you want a different place, quit and rerun with data=whatever $0"
+    if ! read -q '?ok (y/n) '; then
+        exit 1
+    fi
 fi
 
 mkdir -p $data
@@ -18,5 +20,3 @@ export hs_dir=User/Empty
 export hs_package=User.Empty
 
 tools/do-setup
-
-cp data/default.save save/

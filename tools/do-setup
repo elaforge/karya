@@ -1,7 +1,10 @@
 #!/bin/zsh
 # Called by tools/setup-* to initialize a new install.
+#
+# All the file operations in here should be skipped for files that already
+# exist, to avoid overwriting local config.
 
-# set -x # trace cmds
+set -x # trace cmds
 
 data=${data:?data not set}
 hs_dir=${hs_dir:?hs_dir not set}
@@ -19,9 +22,11 @@ for dir in $data_dirs; do
     if [[ ! -e $dir ]]; then
         echo ln -s $data/$dir
         ln -s $data/$dir
-        cp data/default.save save/default
     fi
 done
+if [[ ! -e save/default ]]; then
+    cp data/default.save save/default
+fi
 
 # Make a re-export module for each config hs.
 for hs in $local_hs; do
