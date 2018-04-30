@@ -747,6 +747,16 @@ block_view_window_cb(Fl_Window *win, void *p)
     }
 }
 
+std::ostream &
+operator<<(std::ostream &os, const BlockWindow *p)
+{
+    if (p) {
+        return os << ((void *) p) << ":'" << p->block.get_title() << "'";
+    } else {
+        return os << "null";
+    }
+}
+
 
 BlockWindow::BlockWindow(
         int x, int y, int w, int h,
@@ -817,29 +827,45 @@ highlight_focused(BlockWindow *focus)
 
 #ifdef HACKED_FLTK
 extern Fl_Window *fl_mac_get_key_window();
+extern Fl_Window *fl_mac_get_did_become_key();
+extern Fl_Window *fl_mac_get_did_become_main();
 
 static void
-check_focus()
+check_focus(int evt)
 {
     Fl_Widget *focus = Fl::focus();
     while (focus && focus->window())
         focus = focus->window();
     BlockWindow *fl = dynamic_cast<BlockWindow *>(focus);
     BlockWindow *os = dynamic_cast<BlockWindow *>(fl_mac_get_key_window());
-    if (fl != os) {
-        DEBUG("FOCUS WARNING, Fl::focus() /= OS focus: "
-            << (fl == nullptr ? "null" : fl->block.get_title()) << " /= "
-            << (os == nullptr ? "null" : os->block.get_title()));
+    BlockWindow *key =
+        dynamic_cast<BlockWindow *>(fl_mac_get_did_become_key());
+    BlockWindow *main =
+        dynamic_cast<BlockWindow *>(fl_mac_get_did_become_main());
+
+    // fl and os will be out of sync when fltk is sending FL_FOCUS and
+    // FL_UNFOCUS.  Also, lastKey is briefly null when switching to the app
+    // via cmd-tab, and for some reason it receives a FL_MOVE.
+    // TODO probably I should just log all events and focus state, but then
+    // I have to go to a separate log file, which means real logging from
+    // C++.
+    if (fl != os && (evt == FL_PUSH || evt == FL_KEYDOWN)) {
+        DEBUG("FOCUS WARNING on "
+            << f_util::show_event(evt) << ":" << f_util::show_event_info(evt)
+            << " - Fl::focus(): " << fl
+            << " getKey: " << os
+            << " lastKey: " << key
+            << " lastMain: " << main);
     }
 }
 #else
-static void check_focus() {}
+static void check_focus(int) {}
 #endif
 
 int
 BlockWindow::handle(int evt)
 {
-    check_focus();
+    check_focus(evt);
     if (evt == FL_SHOW) {
         // Send an initial resize to inform the haskell layer about dimensions.
         MsgCollector::get()->view(UiMsg::msg_resize, this);
