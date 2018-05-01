@@ -250,7 +250,7 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
         ]
 
 c_18_03_28 :: Korvai
-c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam $
+c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
     [ (theme.din.__4) <== 7 . sarvaD 7
     , (theme.din.__4) <== 7 . 1^(theme.din.__4) <== 7
     , (theme.din.__4) . theme.din.__4 . na.__4
@@ -283,4 +283,31 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam $
         , (1^na, [n])
         , (ga, [p])
         , (tat, [p&k])
+        ]
+
+c_18_04_25 :: Korvai
+c_18_04_25 = date 2018 4 25 $ ganesh $
+    similarTo "Mridangam2013" "dinnagina_sequence" $
+    korvaiS Tala.misra_chapu mridangam
+    [ (4*7) ==> theme
+    , (2*7) ==> theme . (2*7) ==> theme
+    , repeat 2 (7 ==> theme . 7 ==> theme)
+        -- TODO open and closed sarva: o_k_d, p_k_d
+    , repeat 4 $ takeM 12 (1^theme) . theme
+    , 1^theme . dhom.__4 . theme . dhom.__4 . theme
+        -- TODO if I understood kali/tali I could use tri_
+    , 1^theme . dhom.__4 . theme . dhom.__ . dropM 8 theme
+                                 . dhom.__ . dropM 8 theme
+                    -- TODO sandi
+    , tri_ (dhom.__) (theme.dhom.__. dropM 8 theme.dhom.__ . dropM 8 theme)
+                    -- TODO sandi again
+    -- TODO incomplete
+    ]
+    where
+    theme = group $ dhom.__.ka.__ . repeat 3 (din.na.gin.na)
+    -- TODO other themes
+    mridangam = makeMridangam
+        [ (theme, [t, k, o, k, t, k, o, k, t, k, o, k, t, k])
+        , (1^theme, [o, k, o, k, t, k, o, k, t, k, o, k, t, k])
+        , (dhom, [o])
         ]
