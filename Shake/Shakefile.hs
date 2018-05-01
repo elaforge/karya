@@ -589,9 +589,10 @@ ghcWarnings config = concat
         | buildMode config `elem` [Test, Profile] = ["duplicate-exports"]
         | otherwise = []
 
-configure :: MidiConfig -> IO (Mode -> Config)
-configure midi = do
-    ghcLib <- strip <$> run ghcBinary ["--print-libdir"]
+configure :: IO (Mode -> Config)
+configure = do
+    midi <- midiFromEnv <$> Environment.getEnvironment
+    ghcLib <- run ghcBinary ["--print-libdir"]
     let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
@@ -616,7 +617,7 @@ configure midi = do
         , fltkVersion = fltkVersion
         , midiConfig = midi
         , configFlags = setCcFlags mode $
-            setConfigFlags sandbox fltkCs fltkLds mode ghcVersion osFlags
+            setConfigFlags sandbox fltkCs fltkLds mode ghcVersion (osFlags midi)
         , ghcVersion = ghcVersion
         , rootDir = rootDir
         }
@@ -627,7 +628,7 @@ configure midi = do
             , ["-DSTUB_OUT_FLTK" | mode == Test]
             , ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
             , ["-DGHC_VERSION=" ++ ghcVersionMacro ghcVersion]
-            , define osFlags
+            , define flags
             , Config.extraDefines localConfig
             ]
         , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
@@ -674,7 +675,7 @@ configure midi = do
             -- , ["-Weffc++"]
             ]
         }
-    osFlags = case Util.platform of
+    osFlags midi = case Util.platform of
         -- In C and C++ programs the OS specific defines like __APPLE__ and
         -- __linux__ are already defined, but ghc doesn't define them.
         Util.Mac -> mempty
@@ -693,7 +694,7 @@ configure midi = do
             { midiLd = if midi /= JackMidi then [] else ["-ljack"]
             , define = ["-D__linux__"]
             }
-    run cmd args = Process.readProcess cmd args ""
+    run cmd args = strip <$> Process.readProcess cmd args ""
 
 -- | Flags used by both ghc and haddock.  This is unlike 'hcFlags', which is
 -- used by ghc only, and vary based on Mode.
@@ -777,7 +778,7 @@ main :: IO ()
 main = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     env <- Environment.getEnvironment
-    modeConfig <- configure (midiFromEnv env)
+    modeConfig <- configure
     writeGhciFlags modeConfig
     makeDataLinks
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
