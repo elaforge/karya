@@ -238,17 +238,21 @@ data Flags = Flags {
     , hLinkFlags :: [Flag]
     -- | Package DB flags to use a cabal sandbox, if there is one.
     , sandboxFlags :: [Flag]
+    -- | -package-db flags for ghci-flags.  This comes from GHC_PACKAGE_PATH,
+    -- as set by tools/use-stack, and that's enough for ghc, but I need the
+    -- explicit flags for the GHC API.
+    , packageDbFlags :: [Flag]
     } deriving (Show)
 
 -- TODO surely there is a GHC.Generic way to do this
 instance Semigroup Flags where
-    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 k1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 k2) =
+    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 k1 l1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 k2 l2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2) (i1<>i2) (j1<>j2) (k1<>k2)
+            (h1<>h2) (i1<>i2) (j1<>j2) (k1<>k2) (l1<>l2)
 
 instance Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] [] [] []
+    mempty = Flags [] [] [] [] [] [] [] [] [] [] [] []
     mappend = (<>)
 
 -- * binaries
@@ -591,7 +595,8 @@ ghcWarnings config = concat
 
 configure :: IO (Mode -> Config)
 configure = do
-    midi <- midiFromEnv <$> Environment.getEnvironment
+    env <- Environment.getEnvironment
+    let midi = midiFromEnv env
     ghcLib <- run ghcBinary ["--print-libdir"]
     let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
@@ -617,12 +622,14 @@ configure = do
         , fltkVersion = fltkVersion
         , midiConfig = midi
         , configFlags = setCcFlags mode $
-            setConfigFlags sandbox fltkCs fltkLds mode ghcVersion (osFlags midi)
+            setConfigFlags sandbox fltkCs fltkLds mode ghcVersion
+                (lookup "GHC_PACKAGE_PATH" env) (osFlags midi)
         , ghcVersion = ghcVersion
         , rootDir = rootDir
         }
     where
-    setConfigFlags sandbox fltkCs fltkLds mode ghcVersion flags = flags
+    setConfigFlags sandbox fltkCs fltkLds mode ghcVersion ghcPackagePath flags =
+        flags
         { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
             , ["-DSTUB_OUT_FLTK" | mode == Test]
@@ -659,6 +666,8 @@ configure = do
         , sandboxFlags = case sandbox of
             Nothing -> []
             Just path -> ["-no-user-package-db", "-package-db", path]
+        , packageDbFlags = map ("-package-db="<>) $
+            maybe [] (Seq.split ":") ghcPackagePath
         }
     setCcFlags mode flags = flags
         { globalCcFlags = concat
@@ -1480,6 +1489,7 @@ ghciFlags config = concat
             "ghc 8.2 doesn't support the flags needed to make the REPL work,\
             \ use 8.0 or 8.4, see doc/INSTALL.md for details"
          | otherwise -> ["-fignore-optim-changes", "-fignore-hpc-changes"]
+    , packageDbFlags (configFlags config)
     ]
     where
     version = ghcVersion config

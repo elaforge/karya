@@ -1,6 +1,7 @@
 #!/bin/zsh
 # ghci with flags to import test modules
 
+. tools/use-stack
 args=(
     -v0
     # Turn off idle time GC, since it causes input lag when lots of modules

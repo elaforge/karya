@@ -3,6 +3,7 @@
 # avoid recursion.  That's brittle, I should probably use .ghci magic to
 # read the flags.
 
+. tools/use-stack
 args=(
     -v0
     # Turn off idle time GC, since it causes input lag when lots of modules

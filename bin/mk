@@ -1,2 +1,6 @@
 #!/bin/sh
+# Wrapper around build/opt/shakefile.  Use this instead of directly running the
+# shakefile.
+
+. tools/use-stack
 exec build/opt/shakefile +RTS -N -RTS -j$(tools/ncpus) "$@"

@@ -1,0 +1,5 @@
+# Source this to setup stack env vars.
+if [[ $use_stack ]]; then
+    export GHC_PACKAGE_PATH=$(stack path --ghc-package-path)
+    PATH=$(stack path --compiler-bin):$PATH
+fi

@@ -1,0 +1,36 @@
+# This is an optional stack config, if you want to install dependencies with
+# stack instead of cabal.
+
+# There's no LTS for ghc-8.4 yet.
+resolver: nightly-2018-04-30
+
+# User packages to be built.
+packages:
+  - .
+
+# Dependency packages to be pulled from upstream that are not in the resolver
+# using the same syntax as the packages field.
+# (e.g., acme-missiles-0.3)
+extra-deps:
+  - c-storable-0.2
+  - ghc-events-0.7.2
+  - wcwidth-0.0.2
+  - zmidi-core-0.8.2
+
+  # Uncomment these for enableIm = True.
+  # - conduit-audio-0.2.0.3
+  # - conduit-audio-samplerate-0.1.0.3
+  # - conduit-audio-sndfile-0.1.2.1
+  # - hsndfile-0.8.0
+  # - hsndfile-vector-0.5.2
+  # - sandi-0.4.2
+
+# Control whether we use the GHC we find on the path
+# system-ghc: true
+
+# Require a specific version of stack, using version ranges
+# require-stack-version: -any # Default
+# require-stack-version: ">=1.7"
+
+# Allow a newer minor version of GHC than the snapshot specifies
+compiler-check: newer-minor

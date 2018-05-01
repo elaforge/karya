@@ -10,6 +10,7 @@
 /prof
 
 /.cabal-sandbox/
+/.stack-work/
 /cabal.sandbox.config
 
 # Generated files:

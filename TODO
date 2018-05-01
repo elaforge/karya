@@ -270,6 +270,25 @@ UNSORTED
         those saves.
       . Also see git save:
   open source:
+    stack support:
+      * Add stack.yaml with 8.4 resolver.
+      * Get it to download just deps for karya.cabal or data/all-deps.cabal.
+        . stack build --only-dependencies
+        . I need to duplicate non-stackage deps in stackage.yaml because they
+          need explicit versions.  Ideally I could get those out of
+          data/cabal.config, but there aren't many so no big deal.
+      * Get the shakefile build to see stack ghc and packages.
+        . PATH=$(stack path --compiler-exe):$PATH
+      * shakefile should use stack packages
+        . GHC_PACKAGE_PATH=$(stack path --ghc-package-path) ghc-pkg list
+        . Just path -> "-clear-package-db" : [ "-package-db", path]
+      * bin/ghci should pick up stack packages:
+        . Write packages to build/package-env?
+          /usr/local/share/doc/ghc-8.4.1/html/users_guide/packages.html
+      * mkmk needs to know if stack is on, and substitute stack ghc and packages
+      * try with enableIm=True
+      - make sure REPL works
+
     * put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
       Push script does normal push to github, force push to gitlab.

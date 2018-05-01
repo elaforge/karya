@@ -68,9 +68,14 @@ support.
 
 ## Haskell dependencies
 
+You can do this either the cabal way, or the stack way.
+
+### cabal way
+
 For whatever reason cabal doesn't install binary dependencies automatically,
 and it doesn't know how to do dependencies between them, so first run:
 
+    # These must be separate command lines!  Cabal is not smart about binaries.
     cabal install alex happy
     cabal install c2hs cpphs
 
@@ -94,6 +99,24 @@ If you want to build the documentation:
 You can also install pandoc with cabal but it has a ridiculous number of
 dependencies.
 
+### stack way
+
+I don't use stack, but I added some basic support so hopefully this should work:
+
+    stack setup # install ghc
+    stack install alex happy c2hs cpphs
+    # Put ~/.local/bin in $PATH if stack warns you about that.
+    stack install --only-dependencies
+
+From here on, you will need to `export use_stack=t`.  Then when you run
+`bin/mkmk` and `bin/mk`, it will use `stack path` to find where to get the
+stack-flavored ghc and packages.
+
+### nix way
+
+If you like nix, write me a nix expression.  You could probably get this whole
+mess down to one command.
+
 ## 音, Im, Synth
 
 These are all names for the incomplete offline synthesizer.  It requires a
@@ -109,6 +132,11 @@ Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
     cp data/all-deps.cabal karya.cabal
     cp data/cabal.config.all-deps cabal.config # if you want my versions
     cabal install --only-dependencies
+
+Or, if you're doing it the stack way:
+
+    cp data/all-deps.cabal karya.cabal
+    vi stack.yaml # uncomment the stuff in there that says to
 
 ## Misc
 
