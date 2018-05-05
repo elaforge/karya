@@ -159,6 +159,12 @@ NESS:
     . can I hand damp metal percussion?
 
 STATUS
+  + Incremental rendering:
+    faust-im
+      * add getState / putState
+      - use it
+    sampler-im
+      - start a stream with state, get final state
   * fix the vst2 problem:
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
@@ -177,7 +183,6 @@ STATUS
   - Organize reyong and wayang samples for a real sampler-im instrument.
     . First come up with exact pitches for reyong.
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
-  . Currently planning for Incremental rendering:
 
 UNSORTED
   * Have a score base dir, so I can assume all scores are relative to that.
@@ -2032,6 +2037,11 @@ synth: im:
         in realtime, sampler-im is still picking samples, resampling, applying
         envelopes.  Still, it wouldn't work great with really long samples.
       . So try true chunk-based incremental first, and see how hard it is.
+
+      - figure out how to save libresample state
+        . there's src_clone, but I think I just need the size?
+        . I have to fork the library:
+          https://github.com/erikd/libsamplerate/issues/40
     chunk incremental:
       . Currently I just map noteToSample notes.  Instead I want to iterate
         over chunks, and only render if the inputs have changed.
@@ -2056,27 +2066,6 @@ synth: im:
         . I can write state and sample chunks easily enough when writing, but
           the tricky thing is to resume in the middle.
         . I need to initialize the streams, so they start with initial state
-      - support save and restore state for faust
-        . I should be able to just cast the class to void* to save, but the
-          size is lost.
-        . While I'm at it, maybe I don't want to statically allocate all dsps
-          in faust_all.cc?  They might have a large-ish state.  Thanks to
-          faust's awkward design, I have to create them anyway just to query
-          them, but then I can deallocate.
-        . I have to go from Instrument to size.  I can get it by wrapping
-          dsp, but then I have to delegate all the methods I use.  I could
-          wrap dsp, but it seems like a hassle.
-        . Cast to void is not portable, but I don't need that.  Still, maybe
-          I should put a hash of the source text to avoid blowing up on old
-          state?
-        . Just do state first and stay with static allocation.  Add getState
-          and putState to faust, worry about a wrapper if they don't want to
-          accept it.
-        . The problem with memcpy is the vtable pointer.  I need a raw struct.
-          I can emit -lang c, but then I have to re-wrap in an object.
-        . I could use a local struct in c++, but I have to update all the
-          variable references.  But presumably that's abstracted in the faust
-          compiler, since it uses a pointer for C.
 
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
@@ -2207,6 +2196,42 @@ synth: im:
       . Write down patch description for reyong, and mridangam, so I have a
         concrete place to start.
   faust:
+    incremental rendering:
+      - instrument stream has to take initial state, and return it at the end
+        . What to call chunks?  Sections?
+        . I could just call once for each section, but it seems wasteful to
+          save and restore state each time.  I want to call Resource.allocate
+          and Resource.release only when necessary.
+        . I could also put save state during the stream, then Audio doesn't
+          need a return value.  It needs to stop on its own, I guess when it
+          detects that the state is the same.
+        . But this is pre-mixed?  I guess for faust each patch is a single
+          audio stream, and if I have multiple voices then I need to save
+          state for all of them.
+        . In fact, there may be multiple stateful things in the stream, e.g.
+          filters and reverb, so I need some way to collect all the states
+          together and checkpoint in one place.
+      * support save and restore state for faust
+        . I should be able to just cast the class to void* to save, but the
+          size is lost.
+        . While I'm at it, maybe I don't want to statically allocate all dsps
+          in faust_all.cc?  They might have a large-ish state.  Thanks to
+          faust's awkward design, I have to create them anyway just to query
+          them, but then I can deallocate.
+        . I have to go from Instrument to size.  I can get it by wrapping
+          dsp, but then I have to delegate all the methods I use.  I could
+          wrap dsp, but it seems like a hassle.
+        . Cast to void is not portable, but I don't need that.  Still, maybe
+          I should put a hash of the source text to avoid blowing up on old
+          state?
+        . Just do state first and stay with static allocation.  Add getState
+          and putState to faust, worry about a wrapper if they don't want to
+          accept it.
+        . The problem with memcpy is the vtable pointer.  I need a raw struct.
+          I can emit -lang c, but then I have to re-wrap in an object.
+        . I could use a local struct in c++, but I have to update all the
+          variable references.  But presumably that's abstracted in the faust
+          compiler, since it uses a pointer for C.
     - faust-stk/bowed.dsp?
     - Compare timing with pre-input signals.
       . In general I should set up performance tracking for faust-im and

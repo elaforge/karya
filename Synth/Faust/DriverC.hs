@@ -38,13 +38,13 @@ import Global
 
 
 -- | A patch can be used to create 'Instrument's.
-type Patch = Ptr DspP
-data DspP
+type Patch = Ptr ConstPatchP
+data ConstPatchP
 -- TODO Show instance that shows the name
 
 -- | An allocated patch.
-type Instrument = Ptr DspI
-data DspI
+type Instrument = Ptr PatchP
+data PatchP
 
 -- | A Patch is just a const Instrument.
 asPatch :: Instrument -> Patch
@@ -244,32 +244,32 @@ withPtrs vs f = go [] vs
 
 -- ** state
 
-getState :: Patch -> IO ByteString.ByteString
-getState patch = alloca $ \statepp -> do
-    c_faust_get_state patch statepp
+getState :: Instrument -> IO ByteString.ByteString
+getState inst = alloca $ \statepp -> do
+    c_faust_get_state inst statepp
     statep <- peek statepp
     ByteString.packCStringLen
-        (statep, fromIntegral $ c_faust_get_state_size patch)
+        (statep, fromIntegral $ c_faust_get_state_size inst)
 
-putState :: ByteString.ByteString -> Patch -> IO ()
-putState state patch = ByteString.useAsCStringLen state $ \(statep, size) -> do
-    let psize = c_faust_get_state_size patch
+putState :: ByteString.ByteString -> Instrument -> IO ()
+putState state inst = ByteString.useAsCStringLen state $ \(statep, size) -> do
+    let psize = c_faust_get_state_size inst
     unless (fromIntegral size == psize) $
-        errorIO $ "patch " <> showt patch <> " expects state size "
+        errorIO $ "inst " <> showt inst <> " expects state size "
             <> showt psize <> " but got " <> showt size
-    c_faust_put_state patch statep
+    c_faust_put_state inst statep
 
 -- size_t faust_get_state_size(const Patch *patch) { return patch->size; }
 foreign import ccall "faust_get_state_size"
-    c_faust_get_state_size :: Patch -> CSize
+    c_faust_get_state_size :: Instrument -> CSize
 
 -- size_t faust_get_state(const Patch *patch, const char **state);
 foreign import ccall "faust_get_state"
-    c_faust_get_state :: Patch -> Ptr CString -> IO ()
+    c_faust_get_state :: Instrument -> Ptr CString -> IO ()
 
 -- void faust_put_state(Patch *patch, const char *state);
 foreign import ccall "faust_put_state"
-    c_faust_put_state :: Patch -> CString -> IO ()
+    c_faust_put_state :: Instrument -> CString -> IO ()
 
 -- * util
 
