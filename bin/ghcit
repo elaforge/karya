@@ -1,19 +1,4 @@
 #!/bin/zsh
 # ghci with flags to import test modules
 
-. tools/use-stack
-args=(
-    -v0
-    # Turn off idle time GC, since it causes input lag when lots of modules
-    # are loaded.
-    +RTS -I0 -RTS
-    -fshow-hole-constraints
-
-    # This bit of zsh insanity reads newline separated words, so args with
-    # spaces work.
-    "${(@f)$(cat build/test/ghci-flags)}"
-
-    # disabled due to http://ghc.haskell.org/trac/ghc/ticket/14963
-    # -fdefer-type-errors
-)
-exec ghci $args "$@"
+exec tools/do-ghci build/test/ghci-flags "$@"

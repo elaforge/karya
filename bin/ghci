@@ -1,20 +1,3 @@
 #!/bin/zsh
-# This relies on ./bin/ being added to the PATH in zshrc but not zshenv to
-# avoid recursion.  That's brittle, I should probably use .ghci magic to
-# read the flags.
 
-. tools/use-stack
-args=(
-    -v0
-    # Turn off idle time GC, since it causes input lag when lots of modules
-    # are loaded.
-    +RTS -I0 -RTS
-
-    # This bit of zsh insanity reads newline separated words, so args with
-    # spaces work.
-    "${(@f)$(cat build/debug/ghci-flags)}"
-
-    # disabled due to http://ghc.haskell.org/trac/ghc/ticket/14963
-    # -fdefer-type-errors
-)
-exec ghci $args "$@"
+exec tools/do-ghci build/debug/ghci-flags "$@"
