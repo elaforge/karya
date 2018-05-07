@@ -14,10 +14,12 @@ module Synth.Faust.DriverC (
     , patchInputs, patchOutputs
     , render
     -- ** state
-    , getState, putState
+    , State(..)
+    , getState, unsafeGetState, putState
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
@@ -244,20 +246,33 @@ withPtrs vs f = go [] vs
 
 -- ** state
 
-getState :: Instrument -> IO ByteString.ByteString
+newtype State = State ByteString.ByteString
+    deriving (Show)
+
+getState :: Instrument -> IO State
 getState inst = alloca $ \statepp -> do
     c_faust_get_state inst statepp
     statep <- peek statepp
-    ByteString.packCStringLen
+    State <$> ByteString.packCStringLen
         (statep, fromIntegral $ c_faust_get_state_size inst)
 
-putState :: ByteString.ByteString -> Instrument -> IO ()
-putState state inst = ByteString.useAsCStringLen state $ \(statep, size) -> do
-    let psize = c_faust_get_state_size inst
-    unless (fromIntegral size == psize) $
-        errorIO $ "inst " <> showt inst <> " expects state size "
-            <> showt psize <> " but got " <> showt size
-    c_faust_put_state inst statep
+-- | 'getState', but without copying, if you promise to finish with the State
+-- before you call 'render', which will change it.
+unsafeGetState :: Instrument -> IO State
+unsafeGetState inst = alloca $ \statepp -> do
+    c_faust_get_state inst statepp
+    statep <- peek statepp
+    State <$> ByteString.Unsafe.unsafePackCStringLen
+        (statep, fromIntegral $ c_faust_get_state_size inst)
+
+putState :: State -> Instrument -> IO ()
+putState (State state) inst = ByteString.Unsafe.unsafeUseAsCStringLen state $
+    \(statep, size) -> do
+        let psize = c_faust_get_state_size inst
+        unless (fromIntegral size == psize) $
+            errorIO $ "inst " <> showt inst <> " expects state size "
+                <> showt psize <> " but got " <> showt size
+        c_faust_put_state inst statep
 
 -- size_t faust_get_state_size(const Patch *patch) { return patch->size; }
 foreign import ccall "faust_get_state_size"

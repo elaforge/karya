@@ -2198,7 +2198,7 @@ synth: im:
   faust:
     incremental rendering:
       - instrument stream has to take initial state, and return it at the end
-        . What to call chunks?  Sections?
+        . What to call chunks?  Sections?  Checkpoints?
         . I could just call once for each section, but it seems wasteful to
           save and restore state each time.  I want to call Resource.allocate
           and Resource.release only when necessary.
@@ -2210,7 +2210,34 @@ synth: im:
           state for all of them.
         . In fact, there may be multiple stateful things in the stream, e.g.
           filters and reverb, so I need some way to collect all the states
-          together and checkpoint in one place.
+          together and checkpoint in one place.  Also I have to know who
+          emitted those things, so when I reconstruct the graph, I can pass
+          the right bits back in.
+        . So the expression would look like:
+          . writeCheckpoints state dir $ reverb reverbState $ faust faustState
+            where
+            state = State { _reverbState :: Bytes, _faustState :: Bytes }
+            faustState = lens _faustState state
+            reverbState = lens _reverbState state
+        . I guess the state writing has to be in writeCheckpoints, which means
+          it has to somehow ask for it.  If I put 'state' in an mvar, then it
+          could send a signal to get them to update their fields,
+          at which point writeCheckpoints could serialize it.
+        . Alternately, I could stream state with every chunk:
+          Stream (Chunk, State), and each participant updates its own field.
+          Getting state should just be a pointer, no copying needed.
+        - Generalize Audio to AudioState, which streams (Chunk, a).
+          . I can lift audio transformers via 'first'.
+          . Actually, it's NAudio that needs that.  But then I interleave to
+            Audio, so do they both need it?  Bother!
+        Or:
+        - Pass an IO action to each function to update a State with the
+          current state.
+          . writeCheckpoints can then look at it after getting a chunk for the
+            current states.
+          . I don't have to send a signal because if getting state is
+            copy-free I can just do it on every chunk.
+
       * support save and restore state for faust
         . I should be able to just cast the class to void* to save, but the
           size is lost.
