@@ -91,6 +91,17 @@ samplingRate = SAMPLING_RATE
 
 type SamplingRate = SAMPLING_RATE
 
+-- | Number of frames in each audio chunk.
+chunkSize :: Int
+chunkSize = samplingRate `div` 4
+
+-- | Save an audio chunk and checkpoint in this many frames.  This should be
+-- an integral multiple of 'chunkSize', so checkpoint state lines up with audio
+-- output.
+checkpointSize :: Int
+checkpointSize = chunkSize * 4 * seconds
+    where seconds = 4
+
 
 -- * cache files
 
@@ -119,6 +130,18 @@ outputFilename :: FilePath
     -> FilePath
 outputFilename imDir notesFilename inst =
     imDir </> cacheDir </> scorePathBlock </> untxt inst <> ".wav"
+    where
+    -- Recover scorePath/ns/block from the path so I don't have to put it in
+    -- a file or something.  TODO It's a bit sketchy though.
+    scorePathBlock = FilePath.joinPath $ Seq.rdrop 1 $ drop 2 $
+        FilePath.splitPath notesFilename
+
+outputDirectory :: FilePath
+    -> FilePath -- ^ Names as produced by 'notesFilename'.
+    -> Text -- ^ ScoreTypes.Instrument, but I don't want to import ScoreTypes.
+    -> FilePath
+outputDirectory imDir notesFilename inst =
+    imDir </> cacheDir </> scorePathBlock </> untxt inst
     where
     -- Recover scorePath/ns/block from the path so I don't have to put it in
     -- a file or something.  TODO It's a bit sketchy though.

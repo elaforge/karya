@@ -11,7 +11,9 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 
+import qualified Data.ByteString as ByteString
 import qualified Data.Either as Either
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -19,11 +21,13 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -36,6 +40,13 @@ import qualified Synth.Shared.Note as Note
 
 import Global
 
+
+-- | If True, write control signals to separate files for visualization.
+debugControls :: Bool
+debugControls = False
+
+useCheckpoints :: Bool
+useCheckpoints = False
 
 main :: IO ()
 main = do
@@ -67,10 +78,6 @@ main = do
             process prefix patches notesFilename notes
         _ -> errorIO $ "usage: faust-im [notes | print-patches]"
 
--- | If True, write control signals to separate files for visualization.
-debugControls :: Bool
-debugControls = False
-
 process :: Text -> Map Note.PatchName DriverC.Patch -> FilePath -> [Note.Note]
     -> IO ()
 process prefix patches notesFilename notes = do
@@ -86,22 +93,27 @@ process prefix patches notesFilename notes = do
         async exc = put $ "exception: " <> showt exc
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
-            let output = Config.outputFilename (Config.imDir Config.config)
-                    notesFilename inst
+            let output
+                    | useCheckpoints = Config.outputDirectory
+                        (Config.imDir Config.config) notesFilename inst
+                    | otherwise = Config.outputFilename
+                        (Config.imDir Config.config) notesFilename inst
             put $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
-            Directory.createDirectoryIfMissing True
-                (FilePath.takeDirectory output)
-
-            result <- AUtil.catchSndfile $ Resource.runResourceT $
-                Audio.File.write AUtil.outputFormat output $
-                Render.renderPatch patch notes
+            Directory.createDirectoryIfMissing True $
+                if useCheckpoints then output else FilePath.takeDirectory output
+            mbErr <- if useCheckpoints
+                then writeCheckpoints output patch notes
+                else fmap (either Just (const Nothing)) $ AUtil.catchSndfile $
+                    Resource.runResourceT $
+                    Audio.File.write AUtil.outputFormat output $
+                    Render.renderPatch patch (\_ -> return ()) notes
             when debugControls $
                 writeControls output patch notes
-            case result of
-                Left err -> put $ inst <> " writing " <> showt output <> ": "
-                    <> err
-                Right () -> put $ inst <> " done: " <> txt output
+            case mbErr of
+                Nothing -> put $ inst <> " done: " <> txt output
+                Just err -> put $ inst <> " writing " <> txt output
+                    <> ": " <> err
     put "done"
     where
     flatten patchInstNotes =
@@ -109,6 +121,25 @@ process prefix patches notesFilename notes = do
         | (patch, instNotes) <- patchInstNotes
         , (inst, notes) <- instNotes
         ]
+
+writeCheckpoints :: FilePath -> DriverC.Patch -> [Note.Note] -> IO (Maybe Text)
+writeCheckpoints outputDir patch notes = either Just (const Nothing) <$> do
+    stateRef <- IORef.newIORef ByteString.empty
+    let putState (DriverC.State state) = IORef.writeIORef stateRef state
+    AUtil.catchSndfile $ Resource.runResourceT $
+        Audio.File.writeCheckpoints size (writeState stateRef)
+            AUtil.outputFormat fnames $
+        Render.renderPatch patch putState notes
+    where
+    size = Audio.Frame Config.checkpointSize
+    fnames = map (\n -> outputDir </> untxt (Num.zeroPad 3 n) <> ".wav") [0..]
+    writeState stateRef fname = do
+        state <- IORef.readIORef stateRef
+        -- The first one should be empty, and I don't want to overwrite the
+        -- initial state with 0s.
+        unless (ByteString.null state) $
+            ByteString.writeFile (FilePath.replaceExtension fname ".state")
+                state
 
 writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
 writeControls output patch notes =

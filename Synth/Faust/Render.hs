@@ -19,6 +19,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Lib.AUtil as AUtil
 import Synth.Lib.Global
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -29,9 +30,11 @@ import Global
 -- | Render notes belonging to a single FAUST patch.  Since they render on
 -- a single element, they should either not overlap, or be ok if overlaps
 -- cut each other off.
-renderPatch :: DriverC.Patch -> [Note.Note] -> Audio
-renderPatch patch notes =
-    maybe id AUtil.volume vol $ interleave $ render patch inputs final decay
+renderPatch :: DriverC.Patch -> (DriverC.State -> IO ()) -> [Note.Note]
+    -> Audio
+renderPatch patch putState notes =
+    maybe id AUtil.volume vol $ interleave $
+        render patch Nothing putState inputs final decay
     where
     inputs = renderControls (filter (/=Control.volume) controls) notes
     controls = DriverC.getControls patch
@@ -51,49 +54,56 @@ interleave naudio = case Audio.interleaved naudio of
 -- Chunk size is determined by the size of the 'NAudio' chunks, or
 -- Audio.chunkSize if they're empty or run out.  The inputs will go to zero
 -- if they end before the given time.
-render :: DriverC.Patch -> NAudio -> RealTime -- ^ logical end time
+render :: DriverC.Patch -> Maybe DriverC.State
+    -> (DriverC.State -> IO ()) -- ^ notify new state after each audio chunk
+    -> NAudio -> RealTime -- ^ logical end time
     -> RealTime
     -- ^ max decay, force an end if the signal hasn't gone to zero before this
     -> NAudio
-render patch inputs end decay = Audio.NAudio (DriverC.patchOutputs patch) $ do
-    (key, inst) <- lift $
-        Resource.allocate (DriverC.initialize patch) DriverC.destroy
-    let nstream = Audio._nstream (Audio.zeroPadN inputs)
-    Audio.loop1 (0, nstream) $ \loop (start, inputs) -> do
-        -- Audio.zeroPadN should have made this infinite.
-        (controls, nextInputs) <-
-            maybe (CallStack.errorIO "end of endless stream") return
-                =<< lift (S.uncons inputs)
-        result <- render1 inst controls start
-        case result of
-            Nothing -> Resource.release key
-            Just start -> loop (start, nextInputs)
-    where
-    render1 inst controls start = do
-        outputs <- liftIO $ DriverC.render inst controls
-        S.yield outputs
-        case outputs of
-            [] -> CallStack.errorIO "dsp with 0 outputs"
-            output : _
-                | frames == 0 || blockEnd >= final + maxDecay
-                        || blockEnd >= final && isBasicallySilent output ->
-                    return Nothing
-                | otherwise -> return $ Just blockEnd
-                where
-                blockEnd = start + frames
-                frames = Audio.Frame $ V.length output
-    final = AUtil.toFrames end
-    maxDecay = AUtil.toFrames decay
+render patch mbState putState inputs end decay =
+    Audio.NAudio (DriverC.patchOutputs patch) $ do
+        (key, inst) <- lift $
+            Resource.allocate (DriverC.initialize patch) DriverC.destroy
+        liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
+        let nstream = Audio._nstream (Audio.zeroPadN inputs)
+        Audio.loop1 (0, nstream) $ \loop (start, inputs) -> do
+            -- Audio.zeroPadN should have made this infinite.
+            (controls, nextInputs) <-
+                maybe (CallStack.errorIO "end of endless stream") return
+                    =<< lift (S.uncons inputs)
+            result <- render1 inst controls start
+            liftIO $ putState =<< DriverC.unsafeGetState inst
+            case result of
+                Nothing -> Resource.release key
+                Just start -> loop (start, nextInputs)
+        where
+        render1 inst controls start = do
+            outputs <- liftIO $ DriverC.render inst controls
+            S.yield outputs
+            case outputs of
+                [] -> CallStack.errorIO "dsp with 0 outputs"
+                output : _
+                    | frames == 0 || blockEnd >= final + maxDecay
+                            || blockEnd >= final && isBasicallySilent output ->
+                        return Nothing
+                    | otherwise -> return $ Just blockEnd
+                    where
+                    blockEnd = start + frames
+                    frames = Audio.Frame $ V.length output
+        final = AUtil.toFrames end
+        maxDecay = AUtil.toFrames decay
 
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent _samples = False -- TODO RMS < -n dB
 
--- | Render the supported controls down to audio rate signals.
+-- | Render the supported controls down to audio rate signals.  This causes the
+-- stream to be synchronized by 'Config.chunkSize', which should determine
+-- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
 renderControls :: [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
     -> [Note.Note] -> NAudio
 renderControls controls notes =
-    Audio.nonInterleaved $
+    Audio.nonInterleaved (Audio.Frame Config.chunkSize) $
         map (fromMaybe Audio.silence . renderControl notes) controls
 
 renderControl :: (Monad m, TypeLits.KnownNat rate)

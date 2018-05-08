@@ -44,7 +44,7 @@ test_mix2 = do
 test_nonInterleaved = do
     let f = map (map V.toList) . Identity.runIdentity . S.toList_
             . Audio._nstream
-            . Audio.nonInterleaved_ 2 . map fromSamples
+            . Audio.nonInterleaved 2 . map fromSamples
     equal (f []) []
     equal (f [[[1, 2, 3, 4]], [[5], [6], [7, 8]]])
         [[[1, 2], [5, 6]], [[3, 4], [7, 8]]]
@@ -60,7 +60,7 @@ test_interleaved = do
 interleaved :: forall outChan. (TypeLits.KnownNat outChan)
     => Proxy outChan -> [[Audio.Sample]] -> Either Text [Audio.Sample]
 interleaved Proxy = fmap (concat . toSamples @10 @outChan)
-    . Audio.interleaved . Audio.nonInterleaved
+    . Audio.interleaved . Audio.nonInterleaved Audio.chunkSize
     . map fromSamples . map (:[])
 
 test_synchronizeToSize = do

@@ -9,7 +9,8 @@ module Util.Audio.File (
     -- * read
     check, checkA, read, readFrom, read44k
     -- * write
-    , write, wavFormat
+    , write, writeCheckpoints
+    , wavFormat
 ) where
 import Prelude hiding (read)
 import qualified Control.Exception as Exception
@@ -114,21 +115,49 @@ write :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
     => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
     -> Resource.ResourceT IO ()
-write format fname (Audio.Audio audio) = do
-    let info = Sndfile.defaultInfo
-            { Sndfile.samplerate = fromIntegral $
-                TypeLits.natVal (Proxy :: Proxy rate)
-            , Sndfile.channels = fromIntegral $
-                TypeLits.natVal (Proxy :: Proxy channels)
-            , Sndfile.format = format
-            }
-    (key, handle) <- Resource.allocate
-        (annotate fname $ Sndfile.openFile fname Sndfile.WriteMode info)
+write format fname audio = do
+    (key, handle) <- Resource.allocate (openWrite format fname audio)
         Sndfile.hClose
     S.mapM_ (liftIO . Sndfile.hPutBuffer handle
             . Sndfile.Buffer.Vector.toBuffer)
-        audio
+        (Audio._stream audio)
     Resource.release key
+
+-- | Write files in chunks to the given directory.  Run an action before
+-- writing each chunk.  It's expected to query and save audio generator state.
+writeCheckpoints :: forall rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
+    => Audio.Frame -> (FilePath -> IO ()) -- ^ run before rendering each chunk
+    -> Sndfile.Format -> [FilePath] -- ^ should be infinite
+    -> Audio.AudioIO rate channels
+    -> Resource.ResourceT IO ()
+writeCheckpoints size checkpoint format = go
+    where
+    go (fname : fnames) audio = do
+        liftIO (checkpoint fname)
+        (chunks, audio) <- Audio.takeFrames size audio
+        liftIO $ Exception.bracket (openWrite format fname audio) Sndfile.hClose
+            (\handle -> mapM_
+                (Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer)
+                chunks)
+        unless (null chunks) $
+            go fnames audio
+    go [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of fnames"
+
+openWrite :: forall rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
+    => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
+    -> IO Sndfile.Handle
+openWrite format fname _audio =
+    annotate fname $ Sndfile.openFile fname Sndfile.WriteMode info
+    where
+    info = Sndfile.defaultInfo
+        { Sndfile.samplerate = fromIntegral $
+            TypeLits.natVal (Proxy :: Proxy rate)
+        , Sndfile.channels = fromIntegral $
+            TypeLits.natVal (Proxy :: Proxy channels)
+        , Sndfile.format = format
+        }
 
 wavFormat :: Sndfile.Format
 wavFormat = Sndfile.Format

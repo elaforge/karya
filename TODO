@@ -2231,13 +2231,24 @@ synth: im:
           . Actually, it's NAudio that needs that.  But then I interleave to
             Audio, so do they both need it?  Bother!
         Or:
-        - Pass an IO action to each function to update a State with the
+        * Pass an IO action to each function to update a State with the
           current state.
           . writeCheckpoints can then look at it after getting a chunk for the
             current states.
           . I don't have to send a signal because if getting state is
             copy-free I can just do it on every chunk.
-
+        * implement writeCheckpoints
+          . How do I control chunk size?  I know faust blocks will be
+            a multiple of Audio.chunkSize, so I might as well make a multiple
+            of that, and then accumulate until I get >= checkpoint size, then
+            write out a checkpoint.
+          . Or I could just set that to faust chuck size, why not?
+          . I control that by setting controls chunk size, which in turn is
+            Audio.linear, which is min chunkSize nextBreakpoint.
+          . But I did want to make Audio.linear use a constant chunk size, so
+            I don't have to reallocate in Audio.nonInterleaved.
+        - continue from checkpoints
+        - make play_cache understand fragment directories
       * support save and restore state for faust
         . I should be able to just cast the class to void* to save, but the
           size is lost.

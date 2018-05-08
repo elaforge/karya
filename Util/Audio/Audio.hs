@@ -46,6 +46,7 @@ module Util.Audio.Audio (
     , dbToLinear, linearToDb
     -- * util
     , loop1
+    , takeFrames
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif
@@ -356,11 +357,10 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
 
 -- ** non-interleaved
 
-nonInterleaved :: Monad m => [Audio m rate 1] -> NAudio m rate
-nonInterleaved = nonInterleaved_ chunkSize
-
-nonInterleaved_ :: Monad m => Frame -> [Audio m rate 1] -> NAudio m rate
-nonInterleaved_ size audios = NAudio (length audios) $
+-- | Merge 'Audio's into a single 'NAudio' stream, synchronized with the given
+-- chunk size.
+nonInterleaved :: Monad m => Frame -> [Audio m rate 1] -> NAudio m rate
+nonInterleaved size audios = NAudio (length audios) $
     S.unfoldr unfold (map (_stream . synchronizeToSize size) audios)
     where
     unfold streams = do
@@ -391,16 +391,19 @@ interleaved naudio
 
 synchronizeToSize :: forall m rate chan. (Monad m, KnownNat chan)
     => Frame -> Audio m rate chan -> Audio m rate chan
-synchronizeToSize size = Audio . S.unfoldr unfold . _stream
+synchronizeToSize size = Audio . S.unfoldr unfold
     where
     unfold audio = do
-        chunks S.:> rest <- S.toList $ collect audio
+        (chunks, audio) <- takeFrames size audio
         let (pre, post) = V.splitAt (framesCount chan size) $ mconcat chunks
+        let consed
+                | V.null post = audio
+                | otherwise = apply (S.cons post) audio
         return $ if V.null pre
             then Left ()
-            else Right (pre, (if V.null post then id else S.cons post) rest)
-    collect audio = breakAfter (\n -> (+n) . chunkFrames chan) 0 (>=size) audio
+            else Right (pre, consed)
     chan = Proxy @chan
+    apply f = Audio . f . _stream
 
 -- | Extend chunks shorter than 'chunkSize' with zeros, and pad the end with
 -- zeros forever.  Composed with 'nonInterleaved', which may leave a short
@@ -531,11 +534,22 @@ loop1 state f = f again state
 -- predicate becomes true, not before it.
 breakAfter :: Monad m => (accum -> a -> accum) -> accum -> (accum -> Bool)
     -> S.Stream (S.Of a) m r -> S.Stream (S.Of a) m (S.Stream (S.Of a) m r)
-breakAfter combine accum check = loop0 accum
+breakAfter combine accum check = loop accum
     where
-    loop0 accum as = lift (S.next as) >>= \case
+    loop accum as = lift (S.next as) >>= \case
         Left r -> return (return r)
         Right (a, as)
             | check next -> S.yield a >> return as
-            | otherwise -> S.yield a >> loop0 next as
+            | otherwise -> S.yield a >> loop next as
             where next = combine accum a
+
+-- | Take at least the given number of frames.  It may take more if the size
+-- doesn't line up on a chunk boundary.
+takeFrames :: forall m rate chan. (Monad m, KnownNat chan)
+    => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
+takeFrames frames (Audio audio) = do
+    chunks S.:> rest <- S.toList $
+        breakAfter (\n -> (+n) . chunkFrames chan) 0 (>=frames) audio
+    return (chunks, Audio rest)
+    where
+    chan = Proxy :: Proxy chan
