@@ -145,7 +145,7 @@ pretty_compare :: Show a =>
     -> a -> a -> Bool -- ^ True if as are equal
     -> Text
 pretty_compare equal inequal expect_equal a b is_equal
-    | expect_equal == is_equal = equal <> " " <> ellipse (showt a)
+    | is_equal = equal <> " " <> ellipse (showt a)
     | otherwise = fmt_lines inequal
         (Text.lines $ highlight_lines color diff_a pretty_a)
         (Text.lines $ highlight_lines color diff_b pretty_b)
