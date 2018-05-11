@@ -185,6 +185,7 @@ STATUS
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
+  - I should use under_scores for all C++, currently play_cache is camelCase.
   * Have a score base dir, so I can assume all scores are relative to that.
     . Currently it's just Config.app_dir, but if I set a prefix, I can use
       shorter names for Cmd.score_path, and hence im/notes/...
@@ -2197,8 +2198,9 @@ synth: im:
         concrete place to start.
   faust:
     incremental rendering:
-      - instrument stream has to take initial state, and return it at the end
-        . What to call chunks?  Sections?  Checkpoints?
+      notes:
+        . instrument stream has to take initial state, and return it at the end
+          . What to call chunks?  Sections?  Checkpoints?
         . I could just call once for each section, but it seems wasteful to
           save and restore state each time.  I want to call Resource.allocate
           and Resource.release only when necessary.
@@ -2226,29 +2228,38 @@ synth: im:
         . Alternately, I could stream state with every chunk:
           Stream (Chunk, State), and each participant updates its own field.
           Getting state should just be a pointer, no copying needed.
-        - Generalize Audio to AudioState, which streams (Chunk, a).
-          . I can lift audio transformers via 'first'.
-          . Actually, it's NAudio that needs that.  But then I interleave to
-            Audio, so do they both need it?  Bother!
-        Or:
-        * Pass an IO action to each function to update a State with the
-          current state.
-          . writeCheckpoints can then look at it after getting a chunk for the
-            current states.
-          . I don't have to send a signal because if getting state is
-            copy-free I can just do it on every chunk.
-        * implement writeCheckpoints
-          . How do I control chunk size?  I know faust blocks will be
-            a multiple of Audio.chunkSize, so I might as well make a multiple
-            of that, and then accumulate until I get >= checkpoint size, then
-            write out a checkpoint.
-          . Or I could just set that to faust chuck size, why not?
-          . I control that by setting controls chunk size, which in turn is
-            Audio.linear, which is min chunkSize nextBreakpoint.
-          . But I did want to make Audio.linear use a constant chunk size, so
-            I don't have to reallocate in Audio.nonInterleaved.
-        - continue from checkpoints
-        - make play_cache understand fragment directories
+      / Generalize Audio to AudioState, which streams (Chunk, a).
+        . I can lift audio transformers via 'first'.
+        . Actually, it's NAudio that needs that.  But then I interleave to
+          Audio, so do they both need it?  Bother!
+      Or:
+      * Pass an IO action to each function to update a State with the
+        current state.
+        . writeCheckpoints can then look at it after getting a chunk for the
+          current states.
+        . I don't have to send a signal because if getting state is
+          copy-free I can just do it on every chunk.
+      * implement writeCheckpoints
+        . How do I control chunk size?  I know faust blocks will be
+          a multiple of Audio.chunkSize, so I might as well make a multiple
+          of that, and then accumulate until I get >= checkpoint size, then
+          write out a checkpoint.
+        . Or I could just set that to faust chuck size, why not?
+        . I control that by setting controls chunk size, which in turn is
+          Audio.linear, which is min chunkSize nextBreakpoint.
+        . But I did want to make Audio.linear use a constant chunk size, so
+          I don't have to reallocate in Audio.nonInterleaved.
+      + write [Note] hash with each checkpoint
+        . Only calculate the hash when the [Note] changes.
+        . How about I just store a hash with each Note, then I can remove from
+          the set without recalculating too.
+      - continue from checkpoints
+      - make play_cache understand fragment directories: SampleDirectory:
+        . Basic requirement is to stream multiple files.
+        . It should load and play files in order on demand, so I can start
+          playing while still writing output.
+        . I need the checkpoint size, so I can map startOffset to a file.
+        - Streamer.cc dirSamples should return directories, not samples.
       * support save and restore state for faust
         . I should be able to just cast the class to void* to save, but the
           size is lost.
@@ -2927,6 +2938,8 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  . use weak pointers to detect space leaks more precisely:
+    https://github.com/ghc/ghc/commit/5fe6aaa3756cda654374ebfd883fa8f064ff64a4
   . Criterion-like with fewer deps: https://github.com/vincenthz/hs-gauge
     . Also supposedly --measure-with to run each in a separate process
       produces more consistent results.  But there's no reason I can't do that

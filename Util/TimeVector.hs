@@ -19,6 +19,7 @@ module Util.TimeVector (
 ) where
 import Prelude hiding (head, last, take)
 import qualified Control.Monad.State.Strict as State
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as V
 import Data.Vector.Generic
@@ -26,8 +27,10 @@ import Data.Vector.Generic
 import qualified Data.Vector.Storable as Storable
 
 import qualified Foreign
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Crc32Instances as Crc32Instances
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Util.TimeVectorStorable (X, Sample(..))
@@ -62,8 +65,12 @@ to_foreign_ptr :: Storable.Storable a =>
 to_foreign_ptr = Storable.unsafeToForeignPtr0
 
 with_ptr :: Storable.Storable a =>
-    Storable.Vector a -> (Foreign.Ptr a -> IO b) -> IO b
-with_ptr = Storable.unsafeWith
+    Storable.Vector a -> (Foreign.Ptr a -> Int -> IO b) -> IO b
+with_ptr v action = Storable.unsafeWith v $ \ptr -> action ptr (V.length v)
+
+instance CRC32.CRC32 Unboxed where
+    crc32Update n v = Unsafe.unsafePerformIO $
+        with_ptr v (Crc32Instances.ptrIO n)
 
 -- * implementation
 

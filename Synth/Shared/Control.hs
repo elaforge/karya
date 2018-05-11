@@ -5,15 +5,17 @@
 -- | Im-specific controls.  Generally they are per-instrument, but like
 -- "Derive.Controls", it's useful to have a standard vocabulary.
 module Synth.Shared.Control where
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.String as String
 
 import qualified Util.Serialize as Serialize
+import Util.Crc32Instances ()
 import Global
 
 
 -- | Unlike 'Derive.ScoreTypes.Control', pitch is just another control.
 newtype Control = Control Text
-    deriving (Eq, Ord, Show, String.IsString, Serialize.Serialize)
+    deriving (Eq, Ord, Show, String.IsString, Serialize.Serialize, CRC32.CRC32)
 
 instance Pretty Control where pretty (Control c) = c
 

@@ -5,7 +5,9 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
+import Data.Digest.CRC32 (CRC32(..))
 import qualified Data.Map.Strict as Map
+import qualified Data.Word as Word
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -91,3 +93,13 @@ unserialize  = Serialize.unserialize notesMagic
 
 notesMagic :: Serialize.Magic [Note]
 notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
+
+
+-- * hash
+
+instance CRC32 Note where
+    crc32Update n (Note name inst element start dur controls attrs) =
+        n & name & inst & element & start & dur & controls & Attrs.to_set attrs
+        where
+        (&) :: CRC32 a => Word.Word32 -> a -> Word.Word32
+        (&) = crc32Update

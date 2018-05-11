@@ -57,6 +57,7 @@ module Util.Segment (
 ) where
 import Prelude hiding (concat, head, last, maximum, minimum, null)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Generic as V
@@ -127,6 +128,10 @@ instance Serialize.Serialize v => Serialize.Serialize (Signal v) where
 
 instance DeepSeq.NFData v => DeepSeq.NFData (Signal v) where
     rnf (Signal offset vec) = DeepSeq.rnf offset `seq` DeepSeq.rnf vec `seq` ()
+
+instance CRC32.CRC32 v => CRC32.CRC32 (Signal v) where
+    crc32Update n (Signal offset vector) =
+        n `CRC32.crc32Update` offset `CRC32.crc32Update` vector
 
 modify_vector :: (a -> b) -> Signal a -> Signal b
 modify_vector modify sig = sig { _vector = modify (_vector sig) }
@@ -248,8 +253,7 @@ unfoldr gen state = from_vector $ TimeVector.unfoldr gen state
 with_ptr :: Foreign.Storable a =>
     Signal (Vector.Storable.Vector a) -> (X -> Foreign.Ptr a -> Int-> IO b)
     -> IO b
-with_ptr (Signal offset vec) f = TimeVector.with_ptr vec $
-    \ptr -> f offset ptr (V.length vec)
+with_ptr (Signal offset vec) action = TimeVector.with_ptr vec (action offset)
 
 -- * query
 
