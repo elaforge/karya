@@ -99,8 +99,10 @@ chunkSize = samplingRate `div` 4
 -- an integral multiple of 'chunkSize', so checkpoint state lines up with audio
 -- output.
 checkpointSize :: Int
-checkpointSize = chunkSize * 4 * seconds
-    where seconds = 4
+checkpointSize = chunkSize * 4 * checkpointSeconds
+
+checkpointSeconds :: Int
+checkpointSeconds = CHECKPOINT_SECONDS
 
 
 -- * cache files

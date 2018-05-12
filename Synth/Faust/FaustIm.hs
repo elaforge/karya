@@ -46,7 +46,7 @@ debugControls :: Bool
 debugControls = False
 
 useCheckpoints :: Bool
-useCheckpoints = False
+useCheckpoints = True
 
 main :: IO ()
 main = do

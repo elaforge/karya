@@ -19,7 +19,8 @@
 //
 // This has a realtime and a non-realtime API.  The class must be created in a
 // non-realtime context, at which point it starts up streamThread which will
-// handle non-realtime work.  The public methods should then be realtime-safe.
+// handle non-realtime work.  The public methods, specifically read(), should
+// then be realtime-safe.
 class Streamer {
 public:
     Streamer(std::ostream &log, int channels, int sampleRate, int maxFrames);

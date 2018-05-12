@@ -9,14 +9,14 @@
 #include <memory>
 #include <vector>
 
-#include "Sample.h"
+#include "SampleDirectory.h"
 
 
 // Read and mix together a list of samples.
 class Mix {
 public:
     Mix(std::ostream &log, int channels, int sampleRate,
-        const std::vector<std::string> &fnames, sf_count_t startOffset);
+        const std::vector<std::string> &dirnames, sf_count_t startOffset);
 
     // Read the number of frames into an internal static buffer and put it in
     // out.  There are no partial reads, return all requseted frames and false,
@@ -24,7 +24,7 @@ public:
     bool read(sf_count_t frames, float **out);
 
 private:
-    std::vector<std::unique_ptr<Sample>> samples;
+    std::vector<std::unique_ptr<SampleDirectory>> sampleDirs;
     std::vector<float> buffer;
     std::ostream &log;
     const int channels;

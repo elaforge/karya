@@ -10,13 +10,10 @@
 #include <sndfile.h>
 
 #include "PlayCache.h"
+#include "log.h"
 
 
-// TODO this should probably append to a ring-buffer and be flushed by
-// a separate thread, so I can call it from processReplacing.
-#define LOG(MSG) LOG_TO(log, MSG)
-#define LOG_TO(OUT, MSG) do { OUT << __FILE__ << ':' << __LINE__ << ' ' \
-    << MSG << std::endl; } while (0)
+// TODO LOG() called from the audio thread should put them on a ringbuffer
 
 // Miscellaneous constants.
 enum {

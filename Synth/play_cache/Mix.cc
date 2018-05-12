@@ -5,22 +5,20 @@
 #include <iostream>
 
 #include "Mix.h"
-#include "Sample.h"
+#include "SampleDirectory.h"
+#include "log.h"
 
-
-#define LOG(MSG) LOG_TO(log, MSG)
-#define LOG_TO(OUT, MSG) do { OUT << __FILE__ << ':' << __LINE__ << ' ' \
-    << MSG << std::endl; } while (0)
 
 Mix::Mix(std::ostream &log, int channels, int sampleRate,
-        const std::vector<std::string> &fnames, sf_count_t startOffset)
+        const std::vector<std::string> &dirnames, sf_count_t startOffset)
     : log(log), channels(channels)
 {
-    samples.reserve(fnames.size());
-    for (const auto &fname : fnames) {
-        std::unique_ptr<Sample> sample(
-            new Sample(log, channels, sampleRate, fname, startOffset));
-        samples.push_back(std::move(sample));
+    sampleDirs.reserve(dirnames.size());
+    for (const auto &dirname : dirnames) {
+        std::unique_ptr<SampleDirectory> sampleDir(
+            new SampleDirectory(
+                log, channels, sampleRate, dirname, startOffset));
+        sampleDirs.push_back(std::move(sampleDir));
     }
 }
 
@@ -30,14 +28,17 @@ Mix::read(sf_count_t frames, float **out)
     buffer.resize(0);
     buffer.resize(frames * channels);
     bool done = true;
-    for (const auto &sample : samples) {
+    for (const auto &sampleDir : sampleDirs) {
         float *sBuffer;
-        sf_count_t count = sample->read(frames, &sBuffer);
-        // LOG("requested " << frames << " got " << count);
-        for (sf_count_t frame = 0; frame < count; frame++) {
-            for (int c = 0; c < channels; c++)
-                buffer[frame*channels + c] += sBuffer[frame*channels + c];
+        sf_count_t count = sampleDir->read(frames, &sBuffer);
+        LOG("requested " << frames << " got " << count);
+        for (sf_count_t i = 0; i < count * channels; i++) {
+            buffer[i] += sBuffer[i];
         }
+        // for (sf_count_t frame = 0; frame < count; frame++) {
+        //     for (int c = 0; c < channels; c++)
+        //         buffer[frame*channels + c] += sBuffer[frame*channels + c];
+        // }
 
         if (count > 0)
             done = false;

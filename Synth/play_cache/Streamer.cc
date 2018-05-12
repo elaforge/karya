@@ -7,14 +7,11 @@
 #include <string.h>
 
 #include "Streamer.h"
+#include "log.h"
 #include "ringbuffer.h"
 
 
 using std::string;
-
-#define LOG(MSG) LOG_TO(log, MSG)
-#define LOG_TO(OUT, MSG) do { OUT << __FILE__ << ':' << __LINE__ << ' ' \
-    << MSG << std::endl; } while (0)
 
 enum {
     // This many maxFrames in the ring.
@@ -84,17 +81,6 @@ suffixMatch(const std::vector<string> &mutes, const char *fname)
 }
 
 
-static bool
-endsWith(const string &str, const string &suffix)
-{
-    return str.compare(
-            str.length() - std::min(str.length(), suffix.length()),
-            string::npos,
-            suffix
-        ) == 0;
-}
-
-
 static std::vector<string>
 dirSamples(
     std::ostream &log, const string &dir, const std::vector<string> &mutes)
@@ -107,21 +93,16 @@ dirSamples(
     }
     struct dirent *ent;
     while ((ent = readdir(d)) != nullptr) {
-        if (ent->d_type != DT_REG)
+        if (ent->d_type != DT_DIR)
            continue;
-        string fname(ent->d_name);
-        // Don't try to load random junk, e.g. reaper .repeaks files.
-        if (!endsWith(fname, ".wav"))
+        string subdir(ent->d_name);
+        if (subdir.empty() || subdir[0] == '.')
             continue;
-        // I write .debug.wav for debugging.
-        if (endsWith(fname, ".debug.wav"))
+        if (suffixMatch(mutes, subdir.c_str()))
             continue;
-
-        if (suffixMatch(mutes, fname.c_str()))
-            continue;
-        fname = dir + "/" + fname;
-        LOG("load sample: " << fname);
-        fnames.push_back(fname);
+        subdir = dir + "/" + subdir;
+        LOG("play sample dir: " << subdir);
+        fnames.push_back(subdir);
     }
     closedir(d);
     if (fnames.empty()) {
@@ -141,10 +122,10 @@ Streamer::streamLoop()
             break;
         if (restart.load()) {
             LOG("restart:  " << state.dir);
-            std::vector<string> fnames =
+            std::vector<string> dirnames =
                 dirSamples(log, state.dir, state.mutes);
-            mix.reset(
-                new Mix(log, channels, sampleRate, fnames, state.startOffset));
+            mix.reset(new Mix(
+                log, channels, sampleRate, dirnames, state.startOffset));
             // This is not safe, but since restart is true, read() shouldn't
             // touch it.
             jack_ringbuffer_reset(ring);
