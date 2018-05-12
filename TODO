@@ -2443,6 +2443,14 @@ synth: im:
     . hackage accelerate
 
 shakefile: build:
+  - use Text, not ByteString, files can be unicode
+  - get rid of cppFlags and follow #includes in all hs
+    . previously I would run CPP, which gets accurate imports, but I think
+      it's just wrong for #includes because they get expanded out
+    . I think it's ok to ignore #ifdef and chase all imports.
+      . Will this cause non-imported modules like JackMidi.hsc to get
+        compiled?
+  * tests for HsDeps and CcDeps
   - could I use -fno-code with mk typecheck?
   - Modular package system, where I can express the dependencies for each
     target individually.
@@ -3536,6 +3544,9 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test: testing:
+  - clear build/test/tmp before each run
+  - restore CWD after each test run
+    . Anything else I should do for isolation?
   quickcheck: property:
     notes:
       . In general for RealTimes, I'd like some which are the same, some which

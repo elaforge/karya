@@ -359,7 +359,7 @@ runTests = modeToDir Test </> "RunTests"
 -- deps.
 cppFlags :: Config -> FilePath -> Maybe [String]
 cppFlags config fn
-    | fn `elem` cppInImports = Just $
+    | fn `Set.member` cppInImports = Just $
         cInclude (configFlags config) ++ define (configFlags config)
     | otherwise = Nothing
 
@@ -372,9 +372,15 @@ cppFlags config fn
 --
 -- TODO this is error-prone, maybe I should have a hack in HsDeps to look for
 -- #include in the import block.
-cppInImports :: [FilePath]
-cppInImports =
-    ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs", "App/LoadInstruments.hs"]
+-- TODO this is also needed if I use #defines, but why don't I always chase
+-- includes?
+cppInImports :: Set.Set FilePath
+cppInImports = Set.fromList
+    [ "App/Main.hs"
+    , "Cmd/Repl.hs"
+    , "Midi/TestMidi.hs"
+    , "App/LoadInstruments.hs"
+    ]
 
 -- | Generated src files.
 generatedSrc :: HsDeps.Generated
@@ -505,7 +511,9 @@ playCacheBinary = CcBinary
 
 playCacheDeps :: [FilePath]
 playCacheDeps = map (("Synth/play_cache"</>) . (++".o"))
-    ["Mix.cc", "Sample.cc", "Streamer.cc", "ringbuffer.cc"]
+    [ "Mix.cc", "SampleDirectory.cc", "Streamer.cc"
+    , "ringbuffer.cc"
+    ]
 
 
 {- | Since fltk.a is a library, not a binary, I can't just chase includes to
@@ -1388,6 +1396,8 @@ hsOHiRule infer = matchHsObjHi ?>> \fns -> do
             | isChs = objToChsHs config obj
             | otherwise = objToSrc config obj
     imports <- HsDeps.importsOf generatedSrc (cppFlags config hs) hs
+    -- TODO no config.h?  what about hsconfig.h?
+
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsOHiRule" config [] hs else return []
     let his = map (objToHi . srcToObj config) imports

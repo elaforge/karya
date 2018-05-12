@@ -44,10 +44,15 @@ enableDefines fn defines undefs = do
 -- | Same as 'Shake.HsDeps.Generated'.
 type Generated = Set.Set FilePath
 
+-- | Unlike HsDeps.importsOf, I return the not-found paths instead of ignoring
+-- them.  This is because I assume not-found haskell imports are from external
+-- packages, while #include with double-quotes is a sign it should be found
+-- locally.
 includesOf :: Generated -> [FilePath] -> FilePath
     -> Shake.Action ([FilePath], [FilePath])
+    -- ^ (foundIncludes, notFoundIncludes)
 includesOf generated dirs fn =
-    Shake.need [fn] >> Trans.liftIO (includesOf_ generated dirs fn)
+    Shake.need [fn] >> Trans.liftIO (includesOfIO generated dirs fn)
 
 -- | Find files this files includes, transitively.  Includes the given file.
 --
@@ -61,16 +66,16 @@ transitiveIncludesOf generated dirs fn = go Set.empty Set.empty [fn]
         | fn `Set.member` checked || fn `Set.member` notFound =
             go checked notFound fns
         | otherwise = do
-            (includes, fnNotfound) <- includesOf generated dirs fn
+            (includes, notFounds) <- includesOf generated dirs fn
             let checked' = Set.insert fn checked
-            go checked' (Set.union notFound (Set.fromList fnNotfound))
+            go checked' (Set.union notFound (Set.fromList notFounds))
                 (fns ++ filter (`Set.notMember` checked') includes)
     go checked notFound [] = return
         (map FilePath.normalise (Set.toList checked), Set.toList notFound)
 
-includesOf_ :: Generated -> [FilePath] -> FilePath
-    -> IO ([FilePath], [FilePath])
-includesOf_ generated dirs fn = do
+includesOfIO :: Generated -> [FilePath] -> FilePath
+    -> IO ([FilePath], [FilePath]) -- ^ (foundIncludes, notFoundIncludes)
+includesOfIO generated dirs fn = do
     includes <- readIncludes fn
     -- @#include "x"@ starts searching from the same directory as the source
     -- file.
@@ -85,7 +90,7 @@ includesOf_ generated dirs fn = do
 find :: [FilePath] -> FilePath -> IO (Maybe FilePath)
 find [] _ = return Nothing
 find (dir:dirs) fn = Util.ifM (Directory.doesFileExist (dir </> fn))
-    (return $ Just (dir </> fn))
+    (return $ Just $ FilePath.normalise $ dir </> fn)
     (find dirs fn)
 
 -- | TODO #includes can be anywhere, but stop parsing as soon as a function

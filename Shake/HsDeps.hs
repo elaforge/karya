@@ -138,7 +138,7 @@ fileOf generated mod
     | otherwise = findExistingFile $
         fn : map (FilePath.replaceExtension fn) (_generatedExtensions generated)
     where
-    fn = B.unpack $ B.map slash mod `B.append` ".hs"
+    fn = B.unpack $ B.map slash mod <> ".hs"
     slash c = if c == '.' then '/' else c
 
 -- | Any line that starts with @import@ should be an import.  It's a reserved
@@ -153,8 +153,7 @@ parseImports = Maybe.mapMaybe (parse . B.words) . B.lines
 -- | Read the file, and preprocess with CPPHS if cppFlags are given.
 preprocess :: Maybe [String] -> FilePath -> IO B.ByteString
 preprocess Nothing fn = B.readFile fn
-preprocess (Just flags) fn =
-    processStdout "cpphs" ("--cpp" : flags ++ [fn])
+preprocess (Just flags) fn = processStdout "cpphs" ("--cpp" : flags ++ [fn])
 
 
 -- * util

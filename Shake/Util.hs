@@ -15,6 +15,7 @@ module Shake.Util (
     -- * general
     , ifM, whenM, errorIO
 ) where
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
@@ -102,10 +103,15 @@ findHs :: Shake.FilePattern -> FilePath -> Shake.Action [FilePath]
 findHs = findFiles $ all Char.isUpper . take 1
 
 -- | Run an Action, useful for interactive testing.
-runIO :: Show a => Shake.Action a -> IO ()
-runIO action = Shake.shake Shake.shakeOptions $ Shake.action $ do
-    result <- action
-    liftIO $ print result
+runIO :: FilePath -> Shake.Action a -> IO a
+runIO shakeDir action = do
+    mvar <- MVar.newEmptyMVar
+    Shake.shake options $ Shake.action $ do
+        result <- action
+        liftIO $ MVar.putMVar mvar result
+    MVar.takeMVar mvar
+    where
+    options = Shake.shakeOptions { Shake.shakeFiles = shakeDir }
 
 -- * platform
 

@@ -35,7 +35,7 @@ module Util.Testing (
     , prettyp, pprint
 
     -- * filesystem
-    , unique_tmp_dir, tmp_dir, tmp_base_dir
+    , unique_tmp_dir, in_tmp_dir, tmp_dir, tmp_base_dir
 
     -- * util
     , force
@@ -491,6 +491,11 @@ unique_tmp_dir :: String -> IO FilePath
 unique_tmp_dir prefix = do
     Directory.createDirectoryIfMissing True tmp_base_dir
     Temp.mkdtemp $ tmp_base_dir </> prefix ++ "-"
+
+in_tmp_dir :: String -> IO a -> IO a
+in_tmp_dir prefix action = do
+    dir <- unique_tmp_dir prefix
+    Directory.withCurrentDirectory dir action
 
 -- | Get a tmp dir, which is the same on each test run.
 tmp_dir :: String -> IO FilePath
