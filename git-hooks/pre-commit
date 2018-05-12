@@ -38,6 +38,7 @@ if ! git diff-index --check --cached $against --; then
     exit 1
 fi
 
+maxcol=81
 too_long=
 if [[ -z $long_lines_ok ]]; then
     modified=("${(@f)$(git diff --cached --name-only)}")
@@ -46,8 +47,8 @@ if [[ -z $long_lines_ok ]]; then
         if [[ -n "${ok_long_lines[(r)$f]}" ]]; then
             continue
         fi
-        if git diff --cached $against -- $f | egrep -n '^\+.{81,}'; then
-            echo $f
+        if git diff --cached $against -- $f | egrep -q "^\+.{$maxcol,}"; then
+            egrep -Hn ".{$maxcol,}" $f
             too_long=true
         fi
     done
