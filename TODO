@@ -2254,16 +2254,22 @@ synth: im:
         . How about I just store a hash with each Note, then I can remove from
           the set without recalculating too.
       - continue from checkpoints
-      + make play_cache understand fragment directories: SampleDirectory:
+      * make play_cache understand fragment directories: SampleDirectory:
         . Basic requirement is to stream multiple files.
         . It should load and play files in order on demand, so I can start
           playing while still writing output.
         . I need the checkpoint size, so I can map startOffset to a file.
         * Streamer.cc dirSamples should return directories, not samples.
-        - I get clicks when it switches files
+        * I get clicks when it switches files
           . It looks like gaps in playback, like it lost a cycle.
           . 2560 samples, so this is 5 cycles.  But I feel like live playback
             isn't that long, so maybe that's just reaper.
+          . There's buffer overrun, I crashed reaper.
+          . I fixed the clicks, but reaper still crashes, maybe another
+            problem.
+      - reaper crashes when playing back recorded MIDI
+        . Can't reproduce it now, maybe it only happens when I have a audio
+          "stem" track.
       * support save and restore state for faust
         . I should be able to just cast the class to void* to save, but the
           size is lost.

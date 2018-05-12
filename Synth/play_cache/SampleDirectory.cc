@@ -129,9 +129,9 @@ SampleDirectory::~SampleDirectory()
 sf_count_t
 SampleDirectory::read(sf_count_t frames, float **out)
 {
-    buffer.resize(0);
     buffer.resize(frames * channels);
-    sf_count_t read = 0;
+    // TODO ensure size and clear?
+    sf_count_t totalRead = 0;
     do {
         if (fname.empty())
             break;
@@ -143,17 +143,16 @@ SampleDirectory::read(sf_count_t frames, float **out)
                 break;
         }
         // TODO read could fail, handle that
-        sf_count_t delta =
-            sf_readf_float(sndfile, buffer.data() + read, frames - read);
-        LOG("read " << fname << ": " << delta << "/" << frames);
-        if (delta < frames - read) {
+        sf_count_t delta = sf_readf_float(
+            sndfile, buffer.data() + totalRead * channels, frames - totalRead);
+        if (delta < frames - totalRead) {
             sf_close(sndfile);
             sndfile = nullptr;
             fname = findNextSample(dir, fname);
-            LOG("next sample: " << fname);
+            LOG(dir << ": next sample: " << fname);
         }
-        read += delta;
-    } while (read < frames);
+        totalRead += delta;
+    } while (totalRead < frames);
     *out = buffer.data();
-    return read;
+    return totalRead;
 }

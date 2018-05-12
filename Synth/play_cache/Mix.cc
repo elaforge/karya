@@ -31,14 +31,10 @@ Mix::read(sf_count_t frames, float **out)
     for (const auto &sampleDir : sampleDirs) {
         float *sBuffer;
         sf_count_t count = sampleDir->read(frames, &sBuffer);
-        LOG("requested " << frames << " got " << count);
+        // LOG("requested " << frames << " got " << count);
         for (sf_count_t i = 0; i < count * channels; i++) {
             buffer[i] += sBuffer[i];
         }
-        // for (sf_count_t frame = 0; frame < count; frame++) {
-        //     for (int c = 0; c < channels; c++)
-        //         buffer[frame*channels + c] += sBuffer[frame*channels + c];
-        // }
 
         if (count > 0)
             done = false;

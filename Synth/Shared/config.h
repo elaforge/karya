@@ -9,4 +9,4 @@
 #define SAMPLING_RATE 44100
 
 // Each audio checkpoint is exactly this many seconds, except the last one.
-#define CHECKPOINT_SECONDS 1
+#define CHECKPOINT_SECONDS 4
