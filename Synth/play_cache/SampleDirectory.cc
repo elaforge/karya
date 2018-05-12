@@ -75,40 +75,6 @@ findNextSample(const string &dir, const string &fname)
 }
 
 
-// static SNDFILE *
-// openSample(
-//     std::ostream &log, int channels, int sampleRate,
-//     const std::string &fname, sf_count_t startOffset)
-// {
-//     SF_INFO info;
-//     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
-//     // std::stringstream errors;
-//     if (sf_error(sndfile) == SF_ERR_NO_ERROR) {
-//
-//     } else if (info.channels != channels) {
-//         LOG(fname << : "expected " << channels << " channels, got "
-//             << info.channels);
-//         // errors << "expected " << channels << " channels, got " << info.channels;
-//     } else if (info.samplerate != sampleRate) {
-//         LOG(fname << ": expected srate of " << sampleRate << ", got "
-//             << info.samplerate;
-//         // errors << "expected srate of " << sampleRate << ", got "
-//         //     << info.samplerate;
-//     }
-//     if (!errors.str().empty()) {
-//         LOG(fname << ": " << errors.str() << std::endl);
-//         sf_close(sndfile);
-//         return nullptr;
-//     } else if (startOffset > 0) {
-//         if (sf_seek(sndfile, startOffset, SEEK_SET) == -1) {
-//             // Likely the sample isn't long enough.
-//             sf_close(sndfile);
-//             return nullptr;
-//         }
-//     }
-//     return sndfile;
-// }
-
 static SNDFILE *
 openSample(
     std::ostream &log, int channels, int sampleRate,
