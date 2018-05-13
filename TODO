@@ -186,6 +186,9 @@ STATUS
 
 UNSORTED
   - I should use under_scores for all C++, currently play_cache is camelCase.
+    . Actually it's kind of forced by the VST interface, which is camelCase.
+    . Of course I control that too, so I could change Synth/vst2/* to
+      under_scores as well.
   * Have a score base dir, so I can assume all scores are relative to that.
     . Currently it's just Config.app_dir, but if I set a prefix, I can use
       shorter names for Cmd.score_path, and hence im/notes/...
@@ -293,7 +296,7 @@ UNSORTED
           /usr/local/share/doc/ghc-8.4.1/html/users_guide/packages.html
       * mkmk needs to know if stack is on, and substitute stack ghc and packages
       * try with enableIm=True
-      - make sure REPL works
+      * make sure REPL works
 
     * put public branches (or just master?) on github, retain gitlab for work
       in progress, where I can freely rebase and force push.
@@ -1540,8 +1543,13 @@ vector performance:
 
 synth: im:
   * rename Synth/vst -> Synth/play_cache
-  - can I use vst latency / setInitialDelay to counteract the load samples
+  / can I use vst latency / setInitialDelay to counteract the load samples
     time?  What does that do?
+    . No, it just means the plugin itself inherently adds a delay.
+    . Of course, I could have a convention to send the start a bit in advance.
+  . actually it looks like VST3 SDK now includes VST2 again?  E.g.
+    link from https://www.steinberg.net/en/company/developers.html has
+    a VST2_SDK in it.  All in a convenient 80mb zip file!
   * fix the vst2 problem:
     notes:
       . Porting to vst3 would also fix it, but as far as I can tell vst3 is
@@ -1734,7 +1742,36 @@ synth: im:
         offsets in the file.
       . On the other hand, if I'm doing incremental rerenter, then it's not so
         critical.
-  Incremental rendering:
+  incremental rendering:
+    - hash and checkpoint based rendering
+      . I can skip rendering a block if the note hash and state are the
+        same.
+      . Compare Note hashes with checkpoints.
+      . Later I can use track damage to narrow the range down to a block,
+        but I'll need hashes to see what to rerender within the block.
+      . Also, I need to compare states to render due to state, e.g. string
+        energy.
+      . For cheaper instruments, especially realtime ones, it might be
+        cheaper to just rerender, than to check hash and state.
+      . Also I may never get back to the original state, so it may be
+        pointless comparing all those states and hashes, just rerender the
+        rest of the score.  The problem is that I don't know when the state
+        is "close enough".
+      . This implies that any modification winds up rerendering the rest of
+        the score.  So maybe I should take the MIDI backend approach, and
+        render on demand, but ahead of the play point?
+      . But this means I have to be real-time or greater, all it does is
+        eliminate the latency problem.  And since I could start playing
+        anywhere, I don't know where to render to.  MIDI doesn't have this
+        problem since it's definitely faster than realtime, doesn't have the
+        stateful thing where a change invalidates everything afterwards.
+      . And while faust state may never sync up again, I think sampler
+        should be able to, as long as I leave reverb and effects out of it.
+        That means I have to do those realtime, or maybe just ignore their
+        state, at the cost of discontinuities at the join points.
+        . Actually as long as reverb and effects are deterministic, why
+          shouldn't they line up again?
+
     - Propagate score damage up to the im perform step.
       . I have to change it from ScoreTime to RealTime though.
       . By the time I get to Performance.evaluate_im, perf_damage is empty.
@@ -1853,6 +1890,147 @@ synth: im:
 
         - But first: make render incremental.  I need to do the whole save
           states thing for this.
+    sampler-im:
+      . save samples and positions, along with resample state.
+      . Or, since samples are all independent, rewind to the beginning of
+        each overlapping sample.  But to remove the samples from the old
+        output, I have to output each sample individually, at which point I've
+        just moved the sampler to realtime implementation in play cache.
+      . For samples maybe that's actually reasonable.  And I just have to mix
+        in realtime, sampler-im is still picking samples, resampling, applying
+        envelopes.  Still, it wouldn't work great with really long samples.
+      . So try true chunk-based incremental first, and see how hard it is.
+
+      - figure out how to save libresample state
+        . there's src_clone, but I think I just need the size?
+        . I have to fork the library:
+          https://github.com/erikd/libsamplerate/issues/40
+      chunk incremental:
+        . Currently I just map noteToSample notes.  Instead I want to iterate
+          over chunks, and only render if the inputs have changed.
+        . What if I just say inputs are the set of notes overlapping?
+        . For each chunk, hash notes in scope and compare to saved hash.  If no
+          match, then write the hash and write the chunk.
+        . Then I need to switch to chunk-based rendering.  How?
+        . Segment input notes into the groups in scope each chunk: [[Note]]
+        . I can hash the [Note] and that's the input.  If it matches I just
+          go to the next chunk.  If it doesn't match, I need to render the
+          chunk.
+        . For this, initialize the state, which means each sample and offset,
+          along with the resample SRC state.
+        . This seems maybe hard to reconcile with streams, since they have
+          implicit state inside.  What would it look like without streams?
+          . render prevState@(srcState, offset) sample = do
+              Resample.setState srcState
+              write chunkSize $ Resample.resample srcState (ratio sample) $
+                File.open (offset sample + offset)
+        . Maybe faust-im is easier, since they both have state, but faust uses
+          only one channel per instrument.
+          . I can write state and sample chunks easily enough when writing, but
+            the tricky thing is to resume in the middle.
+          . I need to initialize the streams, so they start with initial state
+    faust:
+      notes:
+        . instrument stream has to take initial state, and return it at the end
+          . What to call chunks?  Sections?  Checkpoints?
+        . I could just call once for each section, but it seems wasteful to
+          save and restore state each time.  I want to call Resource.allocate
+          and Resource.release only when necessary.
+        . I could also put save state during the stream, then Audio doesn't
+          need a return value.  It needs to stop on its own, I guess when it
+          detects that the state is the same.
+        . But this is pre-mixed?  I guess for faust each patch is a single
+          audio stream, and if I have multiple voices then I need to save
+          state for all of them.
+        . In fact, there may be multiple stateful things in the stream, e.g.
+          filters and reverb, so I need some way to collect all the states
+          together and checkpoint in one place.  Also I have to know who
+          emitted those things, so when I reconstruct the graph, I can pass
+          the right bits back in.
+        . So the expression would look like:
+          . writeCheckpoints state dir $ reverb reverbState $ faust faustState
+            where
+            state = State { _reverbState :: Bytes, _faustState :: Bytes }
+            faustState = lens _faustState state
+            reverbState = lens _reverbState state
+        . I guess the state writing has to be in writeCheckpoints, which means
+          it has to somehow ask for it.  If I put 'state' in an mvar, then it
+          could send a signal to get them to update their fields,
+          at which point writeCheckpoints could serialize it.
+        . Alternately, I could stream state with every chunk:
+          Stream (Chunk, State), and each participant updates its own field.
+          Getting state should just be a pointer, no copying needed.
+      either:
+        / Generalize Audio to AudioState, which streams (Chunk, a).
+          . I can lift audio transformers via 'first'.
+          . Actually, it's NAudio that needs that.  But then I interleave to
+            Audio, so do they both need it?  Bother!
+      or:
+        * Pass an IO action to each function to update a State with the
+          current state.
+          . writeCheckpoints can then look at it after getting a chunk for the
+            current states.
+          . I don't have to send a signal because if getting state is
+            copy-free I can just do it on every chunk.
+      * implement writeCheckpoints
+        . How do I control chunk size?  I know faust blocks will be
+          a multiple of Audio.chunkSize, so I might as well make a multiple
+          of that, and then accumulate until I get >= checkpoint size, then
+          write out a checkpoint.
+        . Or I could just set that to faust chuck size, why not?
+        . I control that by setting controls chunk size, which in turn is
+          Audio.linear, which is min chunkSize nextBreakpoint.
+        . But I did want to make Audio.linear use a constant chunk size, so
+          I don't have to reallocate in Audio.nonInterleaved.
+      + write [Note] hash with each checkpoint
+        . Only calculate the hash when the [Note] changes.
+        . How about I just store a hash with each Note, then I can remove from
+          the set without recalculating too.
+        . If I want to write notes incrementally anyway, why can't I use this
+          for rerender instead of hashes?
+      - continue from checkpoints
+        . Find the first chunk where the hash doesn't match
+      - tests for FaustIm
+        . It's easy to test the pure functions
+        . How to test e.g. incremental rerender?
+      * make play_cache understand fragment directories: SampleDirectory:
+        . Basic requirement is to stream multiple files.
+        . It should load and play files in order on demand, so I can start
+          playing while still writing output.
+        . I need the checkpoint size, so I can map startOffset to a file.
+        * Streamer.cc dirSamples should return directories, not samples.
+        * I get clicks when it switches files
+          . It looks like gaps in playback, like it lost a cycle.
+          . 2560 samples, so this is 5 cycles.  But I feel like live playback
+            isn't that long, so maybe that's just reaper.
+          . There's buffer overrun, I crashed reaper.
+          . I fixed the clicks, but reaper still crashes, maybe another
+            problem.
+      - reaper crashes when playing back recorded MIDI
+        . Can't reproduce it now, maybe it only happens when I have a audio
+          "stem" track.
+      * support save and restore state for faust
+        . I should be able to just cast the class to void* to save, but the
+          size is lost.
+        . While I'm at it, maybe I don't want to statically allocate all dsps
+          in faust_all.cc?  They might have a large-ish state.  Thanks to
+          faust's awkward design, I have to create them anyway just to query
+          them, but then I can deallocate.
+        . I have to go from Instrument to size.  I can get it by wrapping
+          dsp, but then I have to delegate all the methods I use.  I could
+          wrap dsp, but it seems like a hassle.
+        . Cast to void is not portable, but I don't need that.  Still, maybe
+          I should put a hash of the source text to avoid blowing up on old
+          state?
+        . Just do state first and stay with static allocation.  Add getState
+          and putState to faust, worry about a wrapper if they don't want to
+          accept it.
+        . The problem with memcpy is the vtable pointer.  I need a raw struct.
+          I can emit -lang c, but then I have to re-wrap in an object.
+        . I could use a local struct in c++, but I have to update all the
+          variable references.  But presumably that's abstracted in the faust
+          compiler, since it uses a pointer for C.
+
   * make sure play_cache understands score_path.
     . And it's now synth-inst, but I think I don't need that.
     . im/cache/test/faust/faust-*.wav
@@ -2028,46 +2206,6 @@ synth: im:
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
   sampler: sampler-im:
-    Incremental rendering:
-      . save samples and positions, along with resample state.
-      . Or, since samples are all independent, rewind to the beginning of
-        each overlapping sample.  But to remove the samples from the old
-        output, I have to output each sample individually, at which point I've
-        just moved the sampler to realtime implementation in play cache.
-      . For samples maybe that's actually reasonable.  And I just have to mix
-        in realtime, sampler-im is still picking samples, resampling, applying
-        envelopes.  Still, it wouldn't work great with really long samples.
-      . So try true chunk-based incremental first, and see how hard it is.
-
-      - figure out how to save libresample state
-        . there's src_clone, but I think I just need the size?
-        . I have to fork the library:
-          https://github.com/erikd/libsamplerate/issues/40
-    chunk incremental:
-      . Currently I just map noteToSample notes.  Instead I want to iterate
-        over chunks, and only render if the inputs have changed.
-      . What if I just say inputs are the set of notes overlapping?
-      . For each chunk, hash notes in scope and compare to saved hash.  If no
-        match, then write the hash and write the chunk.
-      . Then I need to switch to chunk-based rendering.  How?
-      . Segment input notes into the groups in scope each chunk: [[Note]]
-      . I can hash the [Note] and that's the input.  If it matches I just
-        go to the next chunk.  If it doesn't match, I need to render the
-        chunk.
-      . For this, initialize the state, which means each sample and offset,
-        along with the resample SRC state.
-      . This seems maybe hard to reconcile with streams, since they have
-        implicit state inside.  What would it look like without streams?
-        . render prevState@(srcState, offset) sample = do
-            Resample.setState srcState
-            write chunkSize $ Resample.resample srcState (ratio sample) $
-              File.open (offset sample + offset)
-      . Maybe faust-im is easier, since they both have state, but faust uses
-        only one channel per instrument.
-        . I can write state and sample chunks easily enough when writing, but
-          the tricky thing is to resume in the middle.
-        . I need to initialize the streams, so they start with initial state
-
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
@@ -2197,100 +2335,6 @@ synth: im:
       . Write down patch description for reyong, and mridangam, so I have a
         concrete place to start.
   faust:
-    incremental rendering:
-      notes:
-        . instrument stream has to take initial state, and return it at the end
-          . What to call chunks?  Sections?  Checkpoints?
-        . I could just call once for each section, but it seems wasteful to
-          save and restore state each time.  I want to call Resource.allocate
-          and Resource.release only when necessary.
-        . I could also put save state during the stream, then Audio doesn't
-          need a return value.  It needs to stop on its own, I guess when it
-          detects that the state is the same.
-        . But this is pre-mixed?  I guess for faust each patch is a single
-          audio stream, and if I have multiple voices then I need to save
-          state for all of them.
-        . In fact, there may be multiple stateful things in the stream, e.g.
-          filters and reverb, so I need some way to collect all the states
-          together and checkpoint in one place.  Also I have to know who
-          emitted those things, so when I reconstruct the graph, I can pass
-          the right bits back in.
-        . So the expression would look like:
-          . writeCheckpoints state dir $ reverb reverbState $ faust faustState
-            where
-            state = State { _reverbState :: Bytes, _faustState :: Bytes }
-            faustState = lens _faustState state
-            reverbState = lens _reverbState state
-        . I guess the state writing has to be in writeCheckpoints, which means
-          it has to somehow ask for it.  If I put 'state' in an mvar, then it
-          could send a signal to get them to update their fields,
-          at which point writeCheckpoints could serialize it.
-        . Alternately, I could stream state with every chunk:
-          Stream (Chunk, State), and each participant updates its own field.
-          Getting state should just be a pointer, no copying needed.
-      / Generalize Audio to AudioState, which streams (Chunk, a).
-        . I can lift audio transformers via 'first'.
-        . Actually, it's NAudio that needs that.  But then I interleave to
-          Audio, so do they both need it?  Bother!
-      Or:
-      * Pass an IO action to each function to update a State with the
-        current state.
-        . writeCheckpoints can then look at it after getting a chunk for the
-          current states.
-        . I don't have to send a signal because if getting state is
-          copy-free I can just do it on every chunk.
-      * implement writeCheckpoints
-        . How do I control chunk size?  I know faust blocks will be
-          a multiple of Audio.chunkSize, so I might as well make a multiple
-          of that, and then accumulate until I get >= checkpoint size, then
-          write out a checkpoint.
-        . Or I could just set that to faust chuck size, why not?
-        . I control that by setting controls chunk size, which in turn is
-          Audio.linear, which is min chunkSize nextBreakpoint.
-        . But I did want to make Audio.linear use a constant chunk size, so
-          I don't have to reallocate in Audio.nonInterleaved.
-      + write [Note] hash with each checkpoint
-        . Only calculate the hash when the [Note] changes.
-        . How about I just store a hash with each Note, then I can remove from
-          the set without recalculating too.
-      - continue from checkpoints
-      * make play_cache understand fragment directories: SampleDirectory:
-        . Basic requirement is to stream multiple files.
-        . It should load and play files in order on demand, so I can start
-          playing while still writing output.
-        . I need the checkpoint size, so I can map startOffset to a file.
-        * Streamer.cc dirSamples should return directories, not samples.
-        * I get clicks when it switches files
-          . It looks like gaps in playback, like it lost a cycle.
-          . 2560 samples, so this is 5 cycles.  But I feel like live playback
-            isn't that long, so maybe that's just reaper.
-          . There's buffer overrun, I crashed reaper.
-          . I fixed the clicks, but reaper still crashes, maybe another
-            problem.
-      - reaper crashes when playing back recorded MIDI
-        . Can't reproduce it now, maybe it only happens when I have a audio
-          "stem" track.
-      * support save and restore state for faust
-        . I should be able to just cast the class to void* to save, but the
-          size is lost.
-        . While I'm at it, maybe I don't want to statically allocate all dsps
-          in faust_all.cc?  They might have a large-ish state.  Thanks to
-          faust's awkward design, I have to create them anyway just to query
-          them, but then I can deallocate.
-        . I have to go from Instrument to size.  I can get it by wrapping
-          dsp, but then I have to delegate all the methods I use.  I could
-          wrap dsp, but it seems like a hassle.
-        . Cast to void is not portable, but I don't need that.  Still, maybe
-          I should put a hash of the source text to avoid blowing up on old
-          state?
-        . Just do state first and stay with static allocation.  Add getState
-          and putState to faust, worry about a wrapper if they don't want to
-          accept it.
-        . The problem with memcpy is the vtable pointer.  I need a raw struct.
-          I can emit -lang c, but then I have to re-wrap in an object.
-        . I could use a local struct in c++, but I have to update all the
-          variable references.  But presumably that's abstracted in the faust
-          compiler, since it uses a pointer for C.
     - faust-stk/bowed.dsp?
     - Compare timing with pre-input signals.
       . In general I should set up performance tracking for faust-im and
@@ -2454,7 +2498,8 @@ synth: im:
 
 shakefile: build:
   - use Text, not ByteString, files can be unicode
-  - get rid of cppFlags and follow #includes in all hs
+  + get rid of cppFlags and follow #includes in all hs
+    . branch shake-includes
     . previously I would run CPP, which gets accurate imports, but I think
       it's just wrong for #includes because they get expanded out
     . I think it's ok to ignore #ifdef and chase all imports.

@@ -32,9 +32,10 @@ import Global
 -- cut each other off.
 renderPatch :: DriverC.Patch -> (DriverC.State -> IO ()) -> [Note.Note]
     -> Audio
-renderPatch patch putState notes =
+renderPatch patch notifyState notes =
     maybe id AUtil.volume vol $ interleave $
-        render patch Nothing putState inputs final decay
+        render patch Nothing notifyState inputs final decay
+        -- TODO initialize initial state when supported
     where
     inputs = renderControls (filter (/=Control.volume) controls) notes
     controls = DriverC.getControls patch
@@ -60,7 +61,7 @@ render :: DriverC.Patch -> Maybe DriverC.State
     -> RealTime
     -- ^ max decay, force an end if the signal hasn't gone to zero before this
     -> NAudio
-render patch mbState putState inputs end decay =
+render patch mbState notifyState inputs end decay =
     Audio.NAudio (DriverC.patchOutputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.initialize patch) DriverC.destroy
@@ -72,7 +73,7 @@ render patch mbState putState inputs end decay =
                 maybe (CallStack.errorIO "end of endless stream") return
                     =<< lift (S.uncons inputs)
             result <- render1 inst controls start
-            liftIO $ putState =<< DriverC.unsafeGetState inst
+            liftIO $ notifyState =<< DriverC.unsafeGetState inst
             case result of
                 Nothing -> Resource.release key
                 Just start -> loop (start, nextInputs)

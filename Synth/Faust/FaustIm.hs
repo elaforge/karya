@@ -125,11 +125,11 @@ process prefix patches notesFilename notes = do
 writeCheckpoints :: FilePath -> DriverC.Patch -> [Note.Note] -> IO (Maybe Text)
 writeCheckpoints outputDir patch notes = either Just (const Nothing) <$> do
     stateRef <- IORef.newIORef ByteString.empty
-    let putState (DriverC.State state) = IORef.writeIORef stateRef state
+    let notifyState (DriverC.State state) = IORef.writeIORef stateRef state
     AUtil.catchSndfile $ Resource.runResourceT $
         Audio.File.writeCheckpoints size (writeState stateRef)
             AUtil.outputFormat fnames $
-        Render.renderPatch patch putState notes
+        Render.renderPatch patch notifyState notes
     where
     size = Audio.Frame Config.checkpointSize
     fnames = map (\n -> outputDir </> untxt (Num.zeroPad 3 n) <> ".wav") [0..]

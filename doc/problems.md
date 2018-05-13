@@ -136,7 +136,7 @@ everything gets in the way.
 UI lagginess when editing notes is a continual problem.  It tends to get
 clunky after editing for a while.  Likely there are memory leaks which cause
 GC to get more expensive.  Also in the past I've accidentally blocked the UI
-thread by unevaluated but expensive thunk.
+thread by forcing an unevaluated but expensive thunk.
 
 Part of this endemic to any interactive program, but Haskell's laziness makes
 it worse.  It's also hard to troubleshoot since it only tends to come up after
@@ -150,3 +150,33 @@ usage and latency.
 
 Cmd/MemoryLeak_profile.hs looks for both memory leaks and bad latency, so it's
 a start.
+
+
+
+### general topics
+
+Control signals: data vs. code, e.g. vector vs function
+
+Continuous vs. non continuous, e.g. random variation and ControlFunction
+
+Negative orientation.  Negatively oriented control signals.
+
+Floating point imprecision, e.g. ScoreTime -> RealTime means pitches don't
+quite line up, which means infering things about notation based on that
+(e.g. reset t-nn in gamakam) needs eta adjustment.
+
+MIDI synthesizers are often non-deterministic.  E.g. kontakt randomly misses
+keyswitches.
+
+Keeping performance is hard.
+
+Inversion, and the problem of transformation before or after controls.
+Tags.under_transform.
+
+Pitches and transposition.  Why pitches are code.
+
+Randomness.  How seed works, call serial number.  ControlFnuctions and
+continuous vs. constant (sampled) signals, for random jitter.  Future: random
+is not totally random, probably normal distribution, but then e.g. time off of
+beat is probably relative to previous amount off the beat, with some pull back
+towards it.  Maybe also varies by instrument group.
