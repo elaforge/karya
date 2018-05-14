@@ -8,8 +8,8 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Seq as Seq
+import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Derive.C.Prelude.ControlFunction as ControlFunction
 import qualified Derive.C.Prelude.Equal as Equal
 import qualified Derive.C.Prelude.Note as Note

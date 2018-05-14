@@ -9,7 +9,7 @@ module Derive.C.Prelude.Highlight (
 ) where
 import qualified Data.Maybe as Maybe
 
-import qualified Util.ApproxEq as ApproxEq
+import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Ui.Color as Color
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module

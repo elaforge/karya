@@ -42,10 +42,10 @@ import qualified Data.Typeable as Typeable
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
-import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
+import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Midi.Midi as Midi
 import qualified Derive.ShowVal as ShowVal

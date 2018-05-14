@@ -5,10 +5,10 @@
 {-# LANGUAGE ExistentialQuantification #-}
 -- | Utilities that emit 'Signal.Control's and 'Derive.ControlMod's.
 module Derive.Call.ControlUtil where
-import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes

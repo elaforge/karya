@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | ApproxEq class for comparing floating point numbers.
-module Util.ApproxEq (ApproxEq(eq), compare) where
+module Util.Test.ApproxEq (ApproxEq(eq), compare) where
 import Prelude hiding (compare)
 import qualified Data.Text as Text
 

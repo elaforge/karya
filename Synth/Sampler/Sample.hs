@@ -7,11 +7,11 @@
 module Synth.Sampler.Sample where
 import System.FilePath ((</>))
 
-import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Num as Num
+import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil

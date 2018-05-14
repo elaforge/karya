@@ -68,7 +68,7 @@ import qualified System.Posix.Terminal as Terminal
 
 import qualified Test.QuickCheck as QuickCheck
 
-import qualified Util.ApproxEq as ApproxEq
+import qualified Util.Test.ApproxEq as ApproxEq
 import Util.CallStack (Stack)
 import qualified Util.CallStack as CallStack
 import qualified Util.Map
