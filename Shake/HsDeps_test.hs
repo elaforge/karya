@@ -8,7 +8,7 @@ import qualified Development.Shake as Shake
 import qualified System.Directory as Directory
 
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Util as Util
 

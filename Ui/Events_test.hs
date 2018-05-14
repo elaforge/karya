@@ -9,7 +9,7 @@ import qualified Test.QuickCheck as Q
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events

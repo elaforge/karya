@@ -79,11 +79,11 @@ basicPackages = concat
     , w "async" -- Util.Process
     , w "pretty haskell-src" -- Util.PPrint
     , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
-    , [("Diff", ">=0.2")] -- Util.Testing
+    , [("Diff", ">=0.2")] -- Util.Test
     , w "zlib" -- Util.File
     , w "wcwidth" -- Util.Format
     , w "dlist" -- Util.TimeVector
-    , w "QuickCheck" -- Util.Testing
+    , w "QuickCheck" -- Util.Test
     -- karya
     , w "old-locale"
     , w "attoparsec" -- Derive: tracklang parsing
@@ -295,7 +295,7 @@ hsBinaries =
     -- having to link in all that stuff anyway.
     , (plain "extract_doc" "App/ExtractDoc.hs") { hsDeps = ["fltk/fltk.a"] }
     , plain "extract_korvais" "Solkattu/ExtractKorvais.hs"
-    , plain "generate_run_tests" "Util/GenerateRunTests.hs"
+    , plain "generate_run_tests" "Util/Test/GenerateRunTests.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
     , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"]

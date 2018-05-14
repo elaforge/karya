@@ -7,7 +7,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 import qualified Util.Thread as Thread
 import qualified Util.TimeVector as TimeVector
 

@@ -15,7 +15,7 @@ import qualified System.IO as IO
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 import qualified Util.Thread as Thread
 
 import qualified Midi.Midi as Midi

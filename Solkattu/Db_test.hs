@@ -8,7 +8,7 @@ import qualified Data.Either as Either
 import qualified Data.Text as Text
 
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 import qualified Solkattu.All as All
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai

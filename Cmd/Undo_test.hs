@@ -10,7 +10,7 @@ import qualified Util.File as File
 import qualified Util.Git as Git
 import qualified Util.Rect as Rect
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id

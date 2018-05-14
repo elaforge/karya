@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
 -- | Basic testing utilities.
-module Util.Testing (
+module Util.Test.Testing (
     Config(..), modify_test_config, with_test_name
     -- * assertions
     , check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like

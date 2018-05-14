@@ -17,7 +17,7 @@ import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi

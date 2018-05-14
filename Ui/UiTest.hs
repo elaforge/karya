@@ -13,7 +13,7 @@ import qualified Data.Text as Text
 import qualified Util.CallStack as CallStack
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 import qualified Util.TextUtil as TextUtil
 import qualified Util.Then as Then
 

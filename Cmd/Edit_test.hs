@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel

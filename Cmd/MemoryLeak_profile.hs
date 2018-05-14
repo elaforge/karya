@@ -12,7 +12,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Memory as Memory
-import Util.Testing
+import Util.Test
 
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest

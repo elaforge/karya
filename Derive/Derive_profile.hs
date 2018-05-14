@@ -9,7 +9,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 import qualified Util.Thread as Thread
 
 import qualified Ui.ScoreTime as ScoreTime

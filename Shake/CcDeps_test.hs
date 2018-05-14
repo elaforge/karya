@@ -7,7 +7,7 @@ import qualified Data.Set as Set
 import qualified Development.Shake as Shake
 
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.Util as Util
 

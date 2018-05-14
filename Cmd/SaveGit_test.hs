@@ -5,7 +5,7 @@
 module Cmd.SaveGit_test where
 import qualified Util.Git as Git
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events

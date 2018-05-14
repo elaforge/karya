@@ -13,7 +13,7 @@ import System.FilePath ((</>))
 
 import qualified Util.ParseText as ParseText
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes

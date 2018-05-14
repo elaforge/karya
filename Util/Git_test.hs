@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import qualified Util.Git as Git
 import Util.Git (Modification(..))
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 
 test_misc = Git.initialize $ do

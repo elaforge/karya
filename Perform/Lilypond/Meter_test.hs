@@ -9,7 +9,7 @@ import qualified Data.Vector.Unboxed as Vector.Unboxed
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Util.Testing as Testing
+import qualified Util.Test.Testing as Testing
 
 import Perform.Lilypond.LilypondTest (parse_meter)
 import qualified Perform.Lilypond.Meter as Meter

@@ -17,7 +17,7 @@
     run frequently.  Auto tests get an auto- prefix so you can avoid the
     interactive ones.  TODO interactive should be removed
 -}
-module Util.GenerateRunTests (main) where
+module Util.Test.GenerateRunTests (main) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified System.Environment
@@ -118,8 +118,8 @@ testType hasInitialize name interactive
 
 testTemplate :: Text
 testTemplate =
-    "import qualified Util.RunTests as RunTests\n\
-    \import Util.RunTests (Test(..))\n\
+    "import qualified Util.Test.RunTests as RunTests\n\
+    \import Util.Test.RunTests (Test(..))\n\
     \\n\
     \${imports}\n\
     \\n\
