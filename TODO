@@ -2,162 +2,6 @@ LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
 
-QuickCheck.morallyDubiousIOProperty
-
-NESS:
-  Questions:
-    multiplate:
-      . You can define membrane and drumshell, but not strike them?
-        . It seems like 'strike membrane1 ...' works, but is undocumented?
-          Are there any examples of its use?  The demos on the website sound
-          pretty good.
-      . What's the point of the name on drumshell?
-      . In plate, what's rho, H, E, nu, T60, sig1?  Membrane has the same
-        parameters, but with an extra T.
-        . nu = poisson's ratio?
-      . In plate, what does the center coordinates mean?
-      . What shape are the plates?  Square, circular?  I assume they're the
-        same thickness everywhere?  Depending on the parameters, they can have
-        a definite pitch, but where is the continuum between gong and tamtam?
-      . How difficult would it be to add features like hand damping, striking
-        with soft or hard mallets?
-      . Multiplate can be slow!  61m for a 4 second simulation (5m in demo
-        mode).  Are there guidelines about what parameters influence runtime?
-        It seems like the presence of a membrane makes demo runtime go from
-        34s to 5m, and sound become empty.
-
-    soundboard:
-      . Each string has its own frets count and distance from the string, but
-        you can't place them, and since you can't press on a string, you can't
-        generally hear them... I assume they're for collisions only?
-      . What's the meaning of the baseboard profile?
-      . Each string has start and end coordinates, what does that affect?
-
-    guitar:
-      - What's the formula to derive the sounding frequency from the string's
-        length, tension, and material?
-      - How about the inharmonicity value as used by string_def_gen()?
-        I assume it also affects material.
-
-      - "itnum" is presumably iterations for a newton solver... which does what?
-      - I guess "tol" would have been its tolerance, but isn't used for the C++
-        version?
-
-    bowed string:
-      - In this model you can directly set the frequency of a string, but
-        isn't that determined by length, tension, and material?
-      - The (instrument, instrument_numb) presets affect only strings, right?
-        What string definitions do they correspond to?
-      - What's kw, alpha, beta, lambda and M in the finger and bow definitions?
-        Finger has an extra ku.
-      - The bow movements have: w0, vw0, u0, vu0 (initial positions and
-        velocities).  I assume w is vertical, and u is horizontal?
-      - Then the breakpoints are (position, vertical force, horiz force).
-        If the position is horizontal position, what's the relationship
-        between it and force?  Wouldn't the force be whatever is necessary to
-        put it at the given position and time?
-
-    brass:
-      - is the online version the same as the downloadable binary?
-
-  guitar:
-    Things that work:
-      . Strike open strings, with possible collisions, "jawari fret".
-      . Originally, sliding up worked, but not sure how to get that back.
-    Things that don't work:
-      . Interaction with frets is hard to get right.  If the frets are
-        very close (0.0005), then there are lots of string collisions, but
-        further distance produces only silence or unpitched jangle.
-      . For instance, "fingering", striking with the finger at or below each
-        fret, tends to just get a jangle with a tiny bit of pitch.  Also
-        touching at or below a fret and striking the string gets a lot of
-        collisions.  So try as I might, I can't get the effect of normal
-        fingering.
-      . Since a finger can only be in one place, I don't think I can do
-        artificial harmonics.
-      . However, with no frets and a more distant backboard, and touching with
-        high force, I can get another pitch, which is presumably the string
-        segment on the other side of the finger, which is a nice effect.
-    Bugs:
-      . Occasionally the guitar model renders the whole sequence with
-        a high-pitched whine.  E.g. ness-data/whine-1
-      . Segfault, probably when finger movements overlap.
-      . Seems like >2 fingers on one string results in no sound output.
-      . Negative times or string locations in finger_def causes segfaults or
-        no results.
-      . For the web interface, output directories marked with seconds means
-        parallel submits are unreliable.
-
-    - Experiment with string connections for sympathetic strings.
-    * Why do I get attack artifacts?
-      . First, I need a stronger touch, like 0.5.
-      . I get a cleaner sound if I go from zero to finger from t-0.05
-      . I can't release without a new note.
-
-    - Maybe I can use the "jawari" fret with parallel strings as a special
-      effect.
-    . Can I get a muted string effect by plucking while touching with low
-      force?
-      . Yes, sort of, just don't touch a node.
-
-  * I need a better way to name strings.  string.idiom needs pitches, but the
-    instrument needs symbolic names.
-    . Maybe I could use custom pitches with a symbolic name, then convert via
-      PSignal.pitch_note?  It seems like a misuse, since it's not really the
-      pitch name.  Unless it is, and I also name the strings like that, but
-      then I can only use an instrument with one scale.
-    . Articulation.c_harmonic open_strings uses [NoteNumber]
-    . Or why not use PSignal.Pitch, but the instrument definition converts it
-      to a Text of the NN?
-    . But I can't use just NN as string name, because then it breaks on
-      scales.  It's the symbolic name.
-    . I can't put PSignal.Pitch in the patch for open_strings, because Pitch
-      can't go in a RestrictedEnviron.  Even though these patches are
-      definitely code, and don't need to be serialized.  I only need
-      RestrictedEnviron for local config, which is saved with the score.
-    . Other than that, is using PSignal.Pitch for strings ok?  Basically
-      I need a symbolic name and a NN, which is basically what Pitch is, minus
-      the transposing stuff.
-    . I think only Common.config_environ really needs to be RestrictedEnviron.
-      But since Cmd.ResolvedInstrument merges common_environ into
-      Common.Config, I'd have to make the environ a type parameter.
-    . But there's no reason the string kind of pitch can't be in
-      RestrictedEnviron, because it's just a pair.  So the other approach is
-      to add an untranspoesable pitch to RestrictedEnviron.
-    . Would it be really awful to just call it VPitch?  Then coerce via
-      PSignal.constant_pitch.  The danger is silently casting away
-      transposability, for instance put pitches in patch environ and expect to
-      transpose them.  I could make it a bit clearer by not having ToVal
-      Pitch, but requiring an explicit constructor, or ToVal ConstantPitch.
-    . Setting patch element in the note call doesn't work, because it's too
-      early.  I assign string via postproc.  So I need to assign at convert
-      time.  Don't I have a postproc field for that?
-    . Yes, Cmd.inst_postproc.
-  - How to do strums and rolls with harmonics?
-    . A roll transform would do it, and fix the grace note problems too.
-
-  - Have some way to more easily switch between kontakt mockup and ness.
-    . How would this look for real?  A hybrid instrument that writes to im but
-      otherwise acts like a MIDI instrument.
-    . But on playback I want either im or not, which means I'd have to tell im
-      to mute the tracks that are now MIDI.
-    . Or I could just use a custom thru, but then I can't get the playback
-      mockup.  But in the longer term I'm hoping incremental rendering can fix
-      that.
-  Expressive things:
-    . mute note: just do a short note?
-    . pdm: make a quick turn at the beginning.  Use hybrid tempo?
-    . ping: rapid pitch drop
-    . roll
-
-  ideas:
-    . yangqin?
-    . play string like reyong, with a hand damp
-    . string like gangsa with noltol
-    . jawari like tambura or sitar
-    . solkattu for metal percussion thing
-    . can I hand damp metal percussion?
-
 STATUS
   + Incremental rendering:
     faust-im
@@ -1743,7 +1587,7 @@ synth: im:
       . On the other hand, if I'm doing incremental rerenter, then it's not so
         critical.
   incremental rendering:
-    - hash and checkpoint based rendering
+    hash and checkpoint based rendering?
       . I can skip rendering a block if the note hash and state are the
         same.
       . Compare Note hashes with checkpoints.
@@ -5132,3 +4976,157 @@ planning / research
 
   . If I implement a VST host or patch a DAW to accept VST controls like MIDI
     controls can I get low latency high res controls?
+
+ness:
+  Questions:
+    multiplate:
+      . You can define membrane and drumshell, but not strike them?
+        . It seems like 'strike membrane1 ...' works, but is undocumented?
+          Are there any examples of its use?  The demos on the website sound
+          pretty good.
+      . What's the point of the name on drumshell?
+      . In plate, what's rho, H, E, nu, T60, sig1?  Membrane has the same
+        parameters, but with an extra T.
+        . nu = poisson's ratio?
+      . In plate, what does the center coordinates mean?
+      . What shape are the plates?  Square, circular?  I assume they're the
+        same thickness everywhere?  Depending on the parameters, they can have
+        a definite pitch, but where is the continuum between gong and tamtam?
+      . How difficult would it be to add features like hand damping, striking
+        with soft or hard mallets?
+      . Multiplate can be slow!  61m for a 4 second simulation (5m in demo
+        mode).  Are there guidelines about what parameters influence runtime?
+        It seems like the presence of a membrane makes demo runtime go from
+        34s to 5m, and sound become empty.
+
+    soundboard:
+      . Each string has its own frets count and distance from the string, but
+        you can't place them, and since you can't press on a string, you can't
+        generally hear them... I assume they're for collisions only?
+      . What's the meaning of the baseboard profile?
+      . Each string has start and end coordinates, what does that affect?
+
+    guitar:
+      - What's the formula to derive the sounding frequency from the string's
+        length, tension, and material?
+      - How about the inharmonicity value as used by string_def_gen()?
+        I assume it also affects material.
+
+      - "itnum" is presumably iterations for a newton solver... which does what?
+      - I guess "tol" would have been its tolerance, but isn't used for the C++
+        version?
+
+    bowed string:
+      - In this model you can directly set the frequency of a string, but
+        isn't that determined by length, tension, and material?
+      - The (instrument, instrument_numb) presets affect only strings, right?
+        What string definitions do they correspond to?
+      - What's kw, alpha, beta, lambda and M in the finger and bow definitions?
+        Finger has an extra ku.
+      - The bow movements have: w0, vw0, u0, vu0 (initial positions and
+        velocities).  I assume w is vertical, and u is horizontal?
+      - Then the breakpoints are (position, vertical force, horiz force).
+        If the position is horizontal position, what's the relationship
+        between it and force?  Wouldn't the force be whatever is necessary to
+        put it at the given position and time?
+
+    brass:
+      - is the online version the same as the downloadable binary?
+
+  guitar:
+    Things that work:
+      . Strike open strings, with possible collisions, "jawari fret".
+      . Originally, sliding up worked, but not sure how to get that back.
+    Things that don't work:
+      . Interaction with frets is hard to get right.  If the frets are
+        very close (0.0005), then there are lots of string collisions, but
+        further distance produces only silence or unpitched jangle.
+      . For instance, "fingering", striking with the finger at or below each
+        fret, tends to just get a jangle with a tiny bit of pitch.  Also
+        touching at or below a fret and striking the string gets a lot of
+        collisions.  So try as I might, I can't get the effect of normal
+        fingering.
+      . Since a finger can only be in one place, I don't think I can do
+        artificial harmonics.
+      . However, with no frets and a more distant backboard, and touching with
+        high force, I can get another pitch, which is presumably the string
+        segment on the other side of the finger, which is a nice effect.
+    Bugs:
+      . Occasionally the guitar model renders the whole sequence with
+        a high-pitched whine.  E.g. ness-data/whine-1
+      . Segfault, probably when finger movements overlap.
+      . Seems like >2 fingers on one string results in no sound output.
+      . Negative times or string locations in finger_def causes segfaults or
+        no results.
+      . For the web interface, output directories marked with seconds means
+        parallel submits are unreliable.
+
+    - Experiment with string connections for sympathetic strings.
+    * Why do I get attack artifacts?
+      . First, I need a stronger touch, like 0.5.
+      . I get a cleaner sound if I go from zero to finger from t-0.05
+      . I can't release without a new note.
+
+    - Maybe I can use the "jawari" fret with parallel strings as a special
+      effect.
+    . Can I get a muted string effect by plucking while touching with low
+      force?
+      . Yes, sort of, just don't touch a node.
+
+  * I need a better way to name strings.  string.idiom needs pitches, but the
+    instrument needs symbolic names.
+    . Maybe I could use custom pitches with a symbolic name, then convert via
+      PSignal.pitch_note?  It seems like a misuse, since it's not really the
+      pitch name.  Unless it is, and I also name the strings like that, but
+      then I can only use an instrument with one scale.
+    . Articulation.c_harmonic open_strings uses [NoteNumber]
+    . Or why not use PSignal.Pitch, but the instrument definition converts it
+      to a Text of the NN?
+    . But I can't use just NN as string name, because then it breaks on
+      scales.  It's the symbolic name.
+    . I can't put PSignal.Pitch in the patch for open_strings, because Pitch
+      can't go in a RestrictedEnviron.  Even though these patches are
+      definitely code, and don't need to be serialized.  I only need
+      RestrictedEnviron for local config, which is saved with the score.
+    . Other than that, is using PSignal.Pitch for strings ok?  Basically
+      I need a symbolic name and a NN, which is basically what Pitch is, minus
+      the transposing stuff.
+    . I think only Common.config_environ really needs to be RestrictedEnviron.
+      But since Cmd.ResolvedInstrument merges common_environ into
+      Common.Config, I'd have to make the environ a type parameter.
+    . But there's no reason the string kind of pitch can't be in
+      RestrictedEnviron, because it's just a pair.  So the other approach is
+      to add an untranspoesable pitch to RestrictedEnviron.
+    . Would it be really awful to just call it VPitch?  Then coerce via
+      PSignal.constant_pitch.  The danger is silently casting away
+      transposability, for instance put pitches in patch environ and expect to
+      transpose them.  I could make it a bit clearer by not having ToVal
+      Pitch, but requiring an explicit constructor, or ToVal ConstantPitch.
+    . Setting patch element in the note call doesn't work, because it's too
+      early.  I assign string via postproc.  So I need to assign at convert
+      time.  Don't I have a postproc field for that?
+    . Yes, Cmd.inst_postproc.
+  - How to do strums and rolls with harmonics?
+    . A roll transform would do it, and fix the grace note problems too.
+
+  - Have some way to more easily switch between kontakt mockup and ness.
+    . How would this look for real?  A hybrid instrument that writes to im but
+      otherwise acts like a MIDI instrument.
+    . But on playback I want either im or not, which means I'd have to tell im
+      to mute the tracks that are now MIDI.
+    . Or I could just use a custom thru, but then I can't get the playback
+      mockup.  But in the longer term I'm hoping incremental rendering can fix
+      that.
+  Expressive things:
+    . mute note: just do a short note?
+    . pdm: make a quick turn at the beginning.  Use hybrid tempo?
+    . ping: rapid pitch drop
+    . roll
+
+  ideas:
+    . yangqin?
+    . play string like reyong, with a hand damp
+    . string like gangsa with noltol
+    . jawari like tambura or sitar
+    . solkattu for metal percussion thing
+    . can I hand damp metal percussion?
