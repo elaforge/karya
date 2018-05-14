@@ -334,7 +334,7 @@ concat :: V.Vector v (Sample y) => Maybe (y -> y -> Bool)
 concat _ _ [] = empty
 concat _ _ [sig] = sig
 concat maybe_eq interpolate sigs =
-    from_vector . V.concat . strip_duplicates . reverse . chunks . reverse
+    from_vector . V.concat . try_strip_duplicates . reverse . chunks . reverse
         . map to_vector $ sigs
     where
     chunks [] = []
@@ -353,22 +353,17 @@ concat maybe_eq interpolate sigs =
             where
             clipped = clip_after_v interpolate x1 v2
             extension end = V.singleton (Sample x1 (sy end))
-    -- Maintain the invariant that there are no greater than two Xs with the
-    -- same value.  If I have Eq, I can also strip redundant Y values.
-    strip_duplicates (v1 : _ : v3 : vs)
-        -- Totally skip a chunk if it can be clipped to nothing.
-        | Just x1 <- sx <$> TimeVector.last v1
-        , Just x3 <- sx <$> TimeVector.head v3
-        , x1 == x3 =
-            strip_duplicates (v1 : v3 : vs)
-    strip_duplicates (v1 : v2 : vs)
+    try_strip_duplicates = case maybe_eq of
+        Nothing -> id
+        Just eq -> strip_duplicates eq
+    -- If I have Eq, I can strip redundant Y values.
+    strip_duplicates eq (v1 : v2 : vs)
         | Just (Sample x1 y1) <- TimeVector.last v1
         , Just (Sample x2 y2) <- TimeVector.head v2
-        , Just eq <- maybe_eq
         , x1 == x2 && eq y1 y2 =
-            v1 : strip_duplicates (V.drop 1 v2 : vs)
-    strip_duplicates (v1 : vs) = v1 : strip_duplicates vs
-    strip_duplicates [] = []
+            v1 : strip_duplicates eq (V.drop 1 v2 : vs)
+    strip_duplicates eq (v1 : vs) = v1 : strip_duplicates eq vs
+    strip_duplicates _ [] = []
 
 -- | With 'concat', each signal start clips the signal to its left.  This is
 -- the other way around, the final sample in the first signal is taken as its
