@@ -2,6 +2,8 @@ LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
 
+  Use indent folding with indent=2.
+
 STATUS
   + Incremental rendering:
     faust-im
@@ -9,7 +11,6 @@ STATUS
       - use it
     sampler-im
       - start a stream with state, get final state
-  * fix the vst2 problem:
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
@@ -33,21 +34,6 @@ UNSORTED
     . Actually it's kind of forced by the VST interface, which is camelCase.
     . Of course I control that too, so I could change Synth/vst2/* to
       under_scores as well.
-  * Have a score base dir, so I can assume all scores are relative to that.
-    . Currently it's just Config.app_dir, but if I set a prefix, I can use
-      shorter names for Cmd.score_path, and hence im/notes/...
-  fix namespace:
-    . The original theory was that I could load other scores and not get name
-      collisions.
-    . In practice, I don't load other scores, and I don't tend to update the
-      namespace either.
-    . However, if I do want to load a score, I could update the namespace
-      right then, so maybe there isn't really a problem?
-  * I need a better way to modify Shake.Config
-    . Maybe use Local.ShakeConfig
-    . Make it re-export Shake.Config.  Ideally I could just assign values in
-      there, but I then need to add a hiding to the import.
-    . Maybe make it a record, then config = defaultConfig { ... }
   / sometimes I want to see the control curve without event text in the way
     . E.g. when reading wayang patterns.
     . Maybe I just need to learn to read better.
@@ -58,95 +44,17 @@ UNSORTED
       saving those.
     ? It's the first cmd only, what is it doing that's more work?
     . Try with 8.0.2.  Yes, still happens there.
-  * Can I run shake based on file contents instead of timestamp?  I think git
-    checkouts cause the timestamps to change.
-  setup CI:
-    . https://github.com/haskell-CI/haskell-ci
-      This is for multi ghc version, which might be nice but not really
-      important.
-    . Actually it is important, since travis provided ghc is ancient.
-    * Maybe I want to put in a freeze file, so I don't have to deal with
-      random package updates.
-      . That means I deal with them all at once at occasionally when I do
-        an explicit upgrade, but that's maybe better.
-      . Or maybe it's just not worth worrying about, I only get broken by one
-        or two things every few years.
-      . But, freezing should make CI faster because I just cache the deps and
-        then never have to rebuild them.
-      . Aaaand someone updated something and it's already broken.  Ok,
-        I definitely want to do this.
-
-    travis:
-      . figure out how travis cache works
-        . Looks like you just declare some directories, and it saves them
-          after each successful run and restores before the next.
-      * get other deps: fltk, libpcre, maybe jack for linux
-    * I should be able to run everything as Test, and save a lot of build time.
-    * tests should tee to stdout, so travis doesn't think I died, and so I
-      can see if it wedges.
-    * Build with data/all-deps.cabal
-      . I need a cabal.config for all-deps.cabal
-      . libsndfile and libsamplerate - put these in doc/INSTALL.md too
-      . For the vst I need local vst2 sdk.  But I think I can't distribute
-        vst2.
-        . How is it meant to be used?  Its AEffect is intentionally not using
-          virtual methods.
-        . I think you just assign pointers into the struct.
-      . https://github.com/WeAreROLI/JUCE/tree/master/modules/juce_audio_processors/format_types
-      . https://github.com/olilarkin/wdl-ol
-      . By far the easiest is to just omit play_cache from the typecheck
-        build.
-
-    - I could cache build/ to reuse the build status.  But then I run into
-      the usual shake problems with disappeared files.
-      . Actually this is likely a ghc bug.
-      . Probably still worth it though.  I can clear the cache manually if
-        I run into that problem.
-      . In the long run I should try to reproduce and report it.  Maybe start
-        by looking for "some modules below me" in ghc source.
-    - The flaky test is back.
-      . Last time was 340948137c64186600a6215c7192494439704bc7
-      . __-> Cmd/Integrate_test.hs:66 [test_block_integrate]
-        ("b2",
-         [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
-          ("*", [(0.0, 0.0, "4e"), (2.0, 0.0, "4c")])])
-            /=
-        ("b2",
-         [(">i1", [(0.0, 1.0, ""), (2.0, 1.0, "")]),
-          ("*", [(0.0, 0.0, "4f"), (2.0, 0.0, "4c")])])
-    - If I want to do verify_performance from CI then I'll need to distribute
-      the scores somehow.
-      . Using source control isn't so bad, but I should probably use
-        a different repo.  But it's weird if the saves themselves are git
-        repos.
-      . I might be able to use git submodules to just tag certain commits in
-        those saves.
-      . Also see git save:
-  open source:
-    stack support:
-      * Add stack.yaml with 8.4 resolver.
-      * Get it to download just deps for karya.cabal or data/all-deps.cabal.
-        . stack build --only-dependencies
-        . I need to duplicate non-stackage deps in stackage.yaml because they
-          need explicit versions.  Ideally I could get those out of
-          data/cabal.config, but there aren't many so no big deal.
-      * Get the shakefile build to see stack ghc and packages.
-        . PATH=$(stack path --compiler-exe):$PATH
-      * shakefile should use stack packages
-        . GHC_PACKAGE_PATH=$(stack path --ghc-package-path) ghc-pkg list
-        . Just path -> "-clear-package-db" : [ "-package-db", path]
-      * bin/ghci should pick up stack packages:
-        . Write packages to build/package-env?
-          /usr/local/share/doc/ghc-8.4.1/html/users_guide/packages.html
-      * mkmk needs to know if stack is on, and substitute stack ghc and packages
-      * try with enableIm=True
-      * make sure REPL works
-
-    * put public branches (or just master?) on github, retain gitlab for work
-      in progress, where I can freely rebase and force push.
-      Push script does normal push to github, force push to gitlab.
-      . I can push master to github, and treat work as in-progress.
+  ci:
+    - cache shake output
+      . branch travis
+      . For some reason shake doesn't reuse the .o files.  Asked on
+        shake-build-system how to find out why shake wanted to rebuild.
+        No answer yet.
+    - Build with data/all-deps.cabal
+      . branch travis-all-deps
+      . I need a ppa for faust, the ubuntu one is too old.
   - Check out pretty-show or pretty-simple or ghci-pretty
+    . https://www.reddit.com/r/haskell/comments/8ilw75/there_are_too_many_prettyprinting_libraries/
     . http://teh.id.au/posts/2017/02/13/interactive-print/index.html
     . https://www.reddit.com/r/haskell/comments/76fvsq/replacing_ghcis_prettyprinter/
     . https://github.com/cdepillabout/pretty-simple
@@ -202,9 +110,6 @@ UNSORTED
         . RunTests    613.11s user 49.84s system 357% cpu 3:05.52 total
         . debug/seq   329.67s user 23.86s system 352% cpu 1:40.38 total
         . opt/seq     1339.73s user 39.87s system 341% cpu 6:43.50 total
-  upgrade to ghc 8.4.1
-    first make sure deps build
-      * sandi, filed bug.  It's only used in Ness.* though.
   - extend gliss so I can gliss on harmonics
     . Why does eval_quoted give opposite pitches?
     note = Eval.eval_one_call True $ Expr.call0 Symbols.null_note
@@ -275,13 +180,6 @@ UNSORTED
     Pitch.c_set could make curves by default?
 
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
-  * If I use cpphs I might be able to use \ string continuation for CPP
-    modules.  It would add another dependency though... worth it?
-    . On the other hand, I only have 54 modules with CPP and I don't exactly
-      want to have more.  And most of them don't need string gaps... but
-      Prelude.C.* frequently does.
-    . How many places don't use string gaps because of CPP?
-      Solkattu.Format.Format
   - It seems there's no way to explicitly pass Nothing if the default is Just,
     because _ turns into set the default.
     . Ultimately I think because VNotGiven is special-cased in Derive.Sig.  I
@@ -1247,6 +1145,8 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       was that randomize moves every event.
 
 gamakam:
+  . Arvind Krishnaswamy did pitch tracking studies:
+    https://ccrma.stanford.edu/~arvindh/cmt/
   gamakam6:
     - Implement suffixes for absolute time: : or ;
       . I want a move to current which is not dependent on the note length, so
@@ -1386,78 +1286,9 @@ vector performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  * rename Synth/vst -> Synth/play_cache
-  / can I use vst latency / setInitialDelay to counteract the load samples
-    time?  What does that do?
-    . No, it just means the plugin itself inherently adds a delay.
-    . Of course, I could have a convention to send the start a bit in advance.
   . actually it looks like VST3 SDK now includes VST2 again?  E.g.
     link from https://www.steinberg.net/en/company/developers.html has
     a VST2_SDK in it.  All in a convenient 80mb zip file!
-  * fix the vst2 problem:
-    notes:
-      . Porting to vst3 would also fix it, but as far as I can tell vst3 is
-        an overengineered mess.  Someday I'll have to figure out how to cut
-        through the weeds and make an API that just takes a processReplacing
-        function, end of story.  Or maybe someone has already done that.
-        Look for VST3 tutorial type things, though most of them love weeds
-        so much they introduce their own weedy frameworks.
-      . audacity has a workaround:
-        https://github.com/audacity/audacity/blob/master/src/effects/VST/aeffectx.h
-        . All tied in with audacity stuff, maybe doesn't support MIDI.
-      . https://github.com/olilarkin/wdl-ol
-        . Wants you to download official sdk.
-      . https://github.com/WeAreROLI/JUCE/tree/master/modules/juce_audio_processors/format_types
-      . Looks like it can do it, but don't want to touch the enormous
-        JUCE library just for this.
-      . Ok, so I think the only option is to pull bits out of
-        juce_VSTPluginFormat.c.
-      . I extract the minimum necessary to create a VstEffectInterface,
-        which is the struct vst actually is.
-      . Basically I just need the field offsets, put in processReplacing
-        pointer, and handle the dispatch function for processEvents, and
-        leave the rest stubbed out so the host doesn't crash.
-
-      . OR extract the minimal amount from wdl-ol to make vst3 work.  That
-        might be less sketchy overall, in that there might be a less chance
-        of having to deal with host crashes because I didn't fill in some
-        field right.
-      . I'm suspicious that wdl-ol doesn't actually support MIDI in VST3
-        because while IPlugVST implements SendMidiMsg, IPlugVST3 does not.
-        IPlugAU explicitly doesn't implement it, so I think wdl-ol is
-        generally incomplete.
-      . Ok, so how about JUCE?
-        Yes, it does MIDI, but it's just driving the VST.  It just turns
-        into a call to process().  I'm writing the other side of the API.
-      . Maybe the vst3 examples are the best bet after all, if I can strip
-        away all the gunk.
-    conclusion:
-      . Either write my own VST2 interface, starting from a GPL version like
-        audacity or JUCE.
-      . Or try to write a VST3 plugin, starting from trying to reduce the
-        examples.
-    vst2 wrapper:
-      . Verify juce can handle MIDI.
-      . Basic interface is VstEffectInterface.  MIDI is handled by some
-        dispatch function.  Wrap that up in a basic adaptor.
-      . VSTPluginFormat::processAudio does both audio and MIDI.
-
-      . But VSTPluginFormat looks like it's hosting a VST, not creating one:
-        VstEffectInterface *vstEffect;
-        VSTMidiEventList midiEventsToSend;
-        vstEffect->dispatchFunction(
-          vstEffect, plugInOpcodePreAudioProcessingEvents, 0, 0,
-          midiEventsToSend.events, 0);
-      . Who is making the VstEffectInterface?
-      . From VSTPluginInstance : AudioPluginInstance, but it gets passed
-        (VstEffectInterface *).
-      . What is AudioPluginInstance?
-      . What about VSTPluginFormat::createCustomVSTFromMainCall?
-        ::createPluginInstance?
-        It looks like this is still host, it loads existing plugins from
-        a file.
-      . From the client side, I need to fill in the VstEffectInterface.  How
-        does juce do that?
   bugs:
     - Shift-play plays im cache even when the instruments are gone, but not
       enter-play?
@@ -1538,7 +1369,7 @@ synth: im:
           . I'd have to plan out a general purpose interface.  Synthesizers
             that use knowledge of the future would have to be adapted to not
             having that.
-    - Incremental rendering.
+    + incremental rendering:
       . Overview: Karya has to emit damage ranges, and the synth has to
         rerender just those sections.  The cache becomes a sequence of wav
         files, which play_cache concatenates as it plays.
@@ -1837,53 +1668,9 @@ synth: im:
       - tests for FaustIm
         . It's easy to test the pure functions
         . How to test e.g. incremental rerender?
-      * make play_cache understand fragment directories: SampleDirectory:
-        . Basic requirement is to stream multiple files.
-        . It should load and play files in order on demand, so I can start
-          playing while still writing output.
-        . I need the checkpoint size, so I can map startOffset to a file.
-        * Streamer.cc dirSamples should return directories, not samples.
-        * I get clicks when it switches files
-          . It looks like gaps in playback, like it lost a cycle.
-          . 2560 samples, so this is 5 cycles.  But I feel like live playback
-            isn't that long, so maybe that's just reaper.
-          . There's buffer overrun, I crashed reaper.
-          . I fixed the clicks, but reaper still crashes, maybe another
-            problem.
       - reaper crashes when playing back recorded MIDI
         . Can't reproduce it now, maybe it only happens when I have a audio
           "stem" track.
-      * support save and restore state for faust
-        . I should be able to just cast the class to void* to save, but the
-          size is lost.
-        . While I'm at it, maybe I don't want to statically allocate all dsps
-          in faust_all.cc?  They might have a large-ish state.  Thanks to
-          faust's awkward design, I have to create them anyway just to query
-          them, but then I can deallocate.
-        . I have to go from Instrument to size.  I can get it by wrapping
-          dsp, but then I have to delegate all the methods I use.  I could
-          wrap dsp, but it seems like a hassle.
-        . Cast to void is not portable, but I don't need that.  Still, maybe
-          I should put a hash of the source text to avoid blowing up on old
-          state?
-        . Just do state first and stay with static allocation.  Add getState
-          and putState to faust, worry about a wrapper if they don't want to
-          accept it.
-        . The problem with memcpy is the vtable pointer.  I need a raw struct.
-          I can emit -lang c, but then I have to re-wrap in an object.
-        . I could use a local struct in c++, but I have to update all the
-          variable references.  But presumably that's abstracted in the faust
-          compiler, since it uses a pointer for C.
-
-  * make sure play_cache understands score_path.
-    . And it's now synth-inst, but I think I don't need that.
-    . im/cache/test/faust/faust-*.wav
-    . The difference is that it used to be .../blockId/inst.wav where blockId
-      was ns/block, but now it's .../scorePath/inst.wav
-    . But that's no good, I still need the root block.  So
-      .../scorePath/blockId/inst.wav.
-    . This means that Im.Play has to send scorePath/blockId instead of just
-      blockId.  I guess it only sends once per play, so it should be ok?
 
   - I think I want to switch from by-instrument muting to by-track, because
     that's what the UI is.
@@ -1943,101 +1730,6 @@ synth: im:
       . Or why not just use faust integration?  I think it has the same
         algorithm?
   play_cache: PlayCache:
-    / Move resampling to play_cache.
-      . Well... why though?  The complexity should go in haskell.
-    * Theoretically I should be doing sample loading in a non-audio thread.
-      In practice it seems to be fine
-    * Stream samples instead of loading them all at once.
-      In principle it should be:
-        . The audio thread gets an iterator of chunks of samples, and just
-          loops over that.
-        . The iterator is implemented as a ring buffer.  Look into existing
-          ring buffer implementations, but at a guess, the writer thread
-          watches the read point, and when it advances, load a new chunk at
-          the end of the buffer.  So the sample reader has to block on some
-          notification that the ring buffer has advanced.
-          . The jack ringbuffer doesn't have notification.
-          . But in Midi/jack.cc I use sem_wait / sem_post
-        . To avoid a click at start time, I have to send the start msg
-          a little bit in advance, to give the reader a chance to open the
-          file and seek to the right spot.
-        sequence:
-          . processEvents gets a NoteOn, runs start()
-          . start() sends a request to make a Samples at the given offset
-          . when it's constructed, it atomically swaps in the new Samples
-          . processReplacing now sees that and is reading from it.
-          . processReplacing is continuing to increment its offsetFrames.
-            Samples may take a while to get into place, so I think Streaming
-            also must track current frame to get back in sync.
-          . And then, what if the host asks for <maxFrames?  Stream will get
-            off.
-          . So I think I can't do that nice thing where the ringbuffer always
-            gets the same length, and I have to join split segments.  Even
-            though reaper at least always seems to use the same size.  At that
-            point, I may as well use copying read, since I'll have to do that
-            sometimes anyway.  Phooey.
-      . Also, this will probably eventually be concatenating multiple samples.
-      * Fix the thing where I have to wait for the stream thread to start.
-        . I could prime the buffer synchronously, but eventually I'll want to
-          initialize Samples async as well, so that won't work for long.
-        . Eventually I'll need to have reads keep track of how many read even
-          if the ring can't supply it, so it's in the right place when it can.
-        . But for the time being, I think I can return 0 from Stream.read, but
-          have Samples only give up when all Streams are done.  So Stream gets
-          a done() method.
-      * I wonder if the streaming isn't at the wrong level.
-        . Instead of starting a bunch of threads on each play, I could have
-          just one streaming thread, in Samples.  It just loops through all
-          the Samples and reads a chunk from each one, then drops the mixed
-          result into a single ringbuffer.
-    * actually be realtime safe in the audio thread
-      . In practice I haven't had problems with it, but I should probably do
-        it anyway, if just for the experience.
-      . Initialize Samples asynchronously.
-        . processEvents collects data in static buffers, then runs start().
-        . start() sends the data in a start msg to the non-RT stream thread.
-          The part that sets the offsetFrame is synchronous so it takes effect
-          immediately.  This is so its read() can immediately be called, and
-          will start counting frames read.
-        . Meanwhile, the streamer notices the signal, presumably set an
-          atomic and bump the ready semaphore.  It closes any existing streams
-          by clearing the Sample vector, and opens new ones.  Then it starts
-          a loop on the ready semaphore.
-        . Each time around, if the write space exceeds a limit, it reads from
-          each file, mixes them, and writes the result to the ring.
-        . The read() method keeps track of the current frame at the front of
-          the ring.  It tries to read the desired amount from the ring, padding
-          with zeros if there isn't enough.  But it keeps track of the
-          shortfall, and the next time it will do a throw-away read to catch
-          up.  This means the streaming isn't keeping up, and should only
-          happen at the very beginning.
-        . Eventually the files will run out and the ring will empty out.  If
-          the ring is empty and the streamer has set a "all done" value, then
-          return 0 read and processReplacing can shortcut.  Not that it has
-          to, it might also be reasonable to just continue to emit 0 buffers
-          and accumulate debt.
-
-        ? How to share variables in C++?  I think int writes should be
-          naturally atomic, but what do I need to do to guarantee that the
-          other thread sees it immediately?
-          . I think std::atomic provides that guarantee.
-          . Or maybe not, memory_order_seq_cst doesn't guarantee up-to-date.
-          . stackoverflow says I need read-modify-write operation such as
-            exchange(), compare_exchange_strong() or fetch_add().
-          . I guess I don't actually have a strong time requirement, just
-            "real soon".  I'm concerned with timeliness, not ordering.
-          . Actually, I do care about ordering if I set the value, then bump
-            the semaphore.  The default memory_order_seq_cst definitely does
-            that.
-
-        * Class representing merged audio files.
-          . Give it a list of files, and read() will return a mixed buffer.
-          . Files are automatically closed on destruction or when they run
-            out.
-          . read() returns 0 only when all files are finished.
-          . In the future, this can concatenate multiple files.
-        * Streamer class that has one of those, and communicates with the
-          audio thread.
     - Log on a separate thread.
       . Ideally I would accumulate the msg in a static buffer, then copy it
         into a ring, and the logger would then pull it off the ring.
@@ -2260,13 +1952,22 @@ synth: im:
 
   things to change with faust:
     - Use const on const methods:
-      getNumInputs(), getNumOutputs(), clone(), ...
+        getNumInputs(), getNumOutputs(), clone(), ...
+      . I have a patch for this but it will likely be rejected because it will
+        break subclasses that don't declare const.
     - const on inputs:
       compute(int count, const FAUSTFLOAT** input, FAUSTFLOAT** output)
+      . Same deal, might break subclasses.
     - Have a way to save and restore state.  E.g. stick instance variables in
       a bytestring.
+      . I think the way to do this is put state variables in a struct inside
+        the class.  Then update all variable references to state.x.
+      . It's too annoying to edit C++, especially heavily OO-pattern faust
+        C++.  I just used the C backend and wrapped it in my own C++ class.
     - Provide access to input signal names so I can get rid of the awkward
       declare thing.
+      . Talked with Yann about this, seemed receptive.  Probably have to
+        remind him, or implement myself.
   csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440
@@ -2349,7 +2050,6 @@ shakefile: build:
     . I think it's ok to ignore #ifdef and chase all imports.
       . Will this cause non-imported modules like JackMidi.hsc to get
         compiled?
-  * tests for HsDeps and CcDeps
   - could I use -fno-code with mk typecheck?
   - Modular package system, where I can express the dependencies for each
     target individually.
@@ -2671,6 +2371,8 @@ cleanup:
       . But locally maybe I want to freeze, to avoid churn whenever I install
         anything new.
     . All in all, this is not really a big deal.
+    . I think I'd really want to do nix, then I can get all dependencies in
+      one go.
   - see TODOs: lentil ^build
   - replace fromIntegral with http://hackage.haskell.org/package/int-cast?
   - visualize module dependencies: https://github.com/yav/graphmod
@@ -3589,31 +3291,6 @@ solkattu:
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
   format: output:
-    * put the ruler up every few avartanams even if it's not a new section
-      . In general I could detach the ruler repeats from sections, e.g. always
-        put in a ruler every n lines.
-    * nadai changes are invisible, I should put something in the ruler for it
-      . 0     .     1     .     2     .     3     .     |
-        D _ ktknkookkt_kn ko_ok D _ ktknkookkt_kn ko_ok
-        D _ ktknkookktknkookD _ ktknkookktknkook
-
-      . 0     .     1     .     2     .     3     .     |
-        D _ ktknkookkt_kn ko_ok D _ ktknkookkt_kn ko_ok
-        X     .     O   .   X     .     O   .   |
-                    n4      n6          n4
-        D _ ktknkookktknkookD _ ktknkookktknkook
-      . I could do it purely textually: after each mark, put the number of
-        spaces to the next one, if it's different from the previous.
-        . This seems kind of hacky, but the way the ruler works is also kind
-          of hacky, so it's at least consistent.
-    * nadai change: The nadai hack doesn't work when nadai changes between
-      aksharas.  I think I have to actually generate the ruler from the
-      sequence, not the text.
-    * underline for tha+x looks weird.
-      . Or rather it looks like gunk on the screen.  Can I pick something more
-        obvious?  What about ¨, can I put that over any character?
-      . I could also change background, but that would probably stick out too
-        much.  What other character modification options are there?
     fix all the ruler stuff:
       . Show ruler by line instead of by section.
       . Always show the ruler when it changes, instead of suppressing the
@@ -3648,8 +3325,6 @@ solkattu:
         . E.g. reductions or tri would line up vertically.
     text:
       - carry rulerEach across sections
-      * it looks like the bold-off actually used by xterm and iterm is
-        [22m, not [21m.
       - I could make sections more compact by prefixing with "n: "
         . I should also be able to mark sam, to make avartanams more clear
           when they wrap across two lines.
@@ -3666,8 +3341,6 @@ solkattu:
     / Solkattu.notation should output an abstract formatted output, which can
       be rendered to HTML or ASCII.
       . I added notationHtml, which is more error-prone, but simpler.
-    * format: if the ruler changes after an avartanam line break, show the
-      partial ruler, e.g. Realize_test.test_format_nadai_change
   - What if I just renamed Sequence to S?
   - automatic sarvalaghu variation
     . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
@@ -3922,8 +3595,9 @@ Cmd:
   - Figure out exactly what bad things could happen because of the
     Ui.fltk_event_loop race.  Also figure out what kind of cancelling I'd need
     to fix them.
-  + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
+  - Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
+    . I have notes in ViewConfig.auto_tile, but it turns out this is hard.
   - Create tempo by "stretching", i.e. select start and end, and create tempo
     mark that will cause the start point to be played where the end point used
     to be played.

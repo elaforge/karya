@@ -7,6 +7,7 @@ github=git@github.com:elaforge/karya.git
 
 # gitlab is private and may be rebased
 git push --all --force $gitlab
+# git push --tags $gitlab
 
 # github is public and I shouldn't rebase it
 git push $github master
