@@ -1,9 +1,9 @@
 The test framework is home-grown and sort of hacked up, but fairly simple.
 
-`test/generate_run_tests.py` is given a set of test modules.  By convention,
+`Util.Test.GenerateRunTests` is given a set of test modules.  By convention,
 these have the form *_test.hs.  It extracts functions beginning with `test_`,
-and generates a `RunTests` program that calls all of them.  `RunTests` actually
-takes a regex and only runs tests that match.
+and generates a `RunTests` program that calls all of them.  `RunTests`
+actually takes a regex and only runs tests that match.
 
 Test names are prefixed with `interactive-` for tests that want to have a chat
 with you, `gui-` that are going to be popping up windows right and left (more
