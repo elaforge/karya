@@ -15,11 +15,11 @@ import Control.Monad
 import qualified Control.Monad.Fix as Fix
 
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Monoid ((<>))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
 import qualified Numeric
@@ -41,7 +41,7 @@ import qualified Util.Test.Testing as Testing
 
 data Test = Test {
     -- | Name of the test function.
-    testSymName :: String
+    testSymName :: Text
     -- | Run the test.
     , testRun :: IO ()
     -- | Test module filename.
@@ -54,15 +54,15 @@ data Test = Test {
     , testInitialize :: Maybe (IO () -> IO ())
     -- | This is an arbitrary classification added by generate_run_tests.py.
     -- It is prepended to the test name, so you can filter tests with it.
-    , testType :: String
+    , testType :: Text
     }
 
 -- TODO change to Text
-testName :: Test -> String
-testName test = testType test ++ "-" ++ testSymName test
+testName :: Test -> Text
+testName test = testType test <> "-" <> testSymName test
 
 -- Prefix for lines with test metadata.
-metaPrefix :: String
+metaPrefix :: Text
 metaPrefix = "===>"
 
 data Flag = List | NonInteractive | Jobs ![String] | Subprocess
@@ -97,7 +97,8 @@ run argv0 allTests = do
 
 runTests :: String -> [Test] -> [Flag] -> [String] -> IO ()
 runTests argv0 allTests flags args
-    | List `elem` flags = mapM_ putStrLn $ List.sort $ map testName matches
+    | List `elem` flags =
+        mapM_ Text.IO.putStrLn $ List.sort $ map testName matches
     | otherwise = do
         when (NonInteractive `elem` flags) $
             Testing.modify_test_config $ \config ->
@@ -122,12 +123,11 @@ runTests argv0 allTests flags args
 isolateSubprocess :: String -> Test -> IO ()
 isolateSubprocess argv0 test = do
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
-    val <- Process.rawSystem argv0 [testName test]
+    val <- Process.rawSystem argv0 [Text.unpack (testName test)]
     case val of
         System.Exit.ExitFailure code -> Testing.with_test_name (testName test) $
             void $ Testing.failure $
-                "test returned " <> showt code <> ": "
-                <> Text.pack (testName test)
+                "test returned " <> showt code <> ": " <> testName test
         _ -> return ()
 
 -- * parallel jobs
@@ -140,7 +140,7 @@ runParallel argv0 outputs tests = do
     Async.forConcurrently_ outputs $ \output -> jobThread argv0 output queue
 
 -- | Pull tests off the queue and feed them to a single subprocess.
-jobThread :: FilePath -> FilePath -> Queue (Text.Text, [Test]) -> IO ()
+jobThread :: FilePath -> FilePath -> Queue (Text, [Test]) -> IO ()
 jobThread argv0 output queue =
     Exception.bracket (IO.openFile output IO.WriteMode) IO.hClose $ \hdl -> do
         to <- Chan.newChan
@@ -152,7 +152,7 @@ jobThread argv0 output queue =
         whileJust (takeQueue queue) $ \(name, tests) -> do
             put $ Text.unpack name
             Chan.writeChan to $ Util.Process.Text $
-                Text.unwords (map (Text.pack . testName) tests) <> "\n"
+                Text.unwords (map testName tests) <> "\n"
             Fix.fix $ \loop -> Chan.readChan from >>= \case
                 Util.Process.Stdout line -> Text.IO.hPutStrLn hdl line >> loop
                 Util.Process.Stderr line
@@ -171,7 +171,7 @@ jobThread argv0 output queue =
 
 subprocess :: [Test] -> IO ()
 subprocess allTests = void $ File.ignoreEOF $ forever $ do
-    testNames <- Set.fromList . words <$> getLine
+    testNames <- Set.fromList . Text.words <$> Text.IO.getLine
     -- For some reason, I get an extra "" from getLine when the parent process
     -- closes the pipe.  From the documentation I think it should throw EOF.
     unless (Set.null testNames) $ do
@@ -180,7 +180,7 @@ subprocess allTests = void $ File.ignoreEOF $ forever $ do
             `Exception.finally` Text.IO.hPutStrLn IO.stderr testsCompleteLine
 
 -- | Signal to the caller that the current batch of tests are done.
-testsCompleteLine :: Text.Text
+testsCompleteLine :: Text
 testsCompleteLine = "•complete•"
 
 -- * run tests
@@ -190,26 +190,24 @@ testsCompleteLine = "•complete•"
 matchingTests :: [String] -> [Test] -> [Test]
 matchingTests regexes tests = concatMap match regexes
     where
-    byName = Map.fromList (zip (map testName tests) tests)
-    match reg = case Map.lookup reg byName of
+    match reg = case List.find ((== Text.pack reg) . testName) tests of
         Just test -> [test]
-        Nothing -> filter
-            (Regex.matches (Regex.compileUnsafe reg) . Text.pack . testName)
+        Nothing -> filter (Regex.matches (Regex.compileUnsafe reg) . testName)
             tests
 
 runTest :: Test -> IO ()
 runTest test = Testing.with_test_name name $ isolate $ do
-    putStrLn $ unwords [metaPrefix, "run-test", testName test]
+    Text.IO.putStrLn $ Text.unwords [metaPrefix, "run-test", testName test]
     start <- CPUTime.getCPUTime
     maybe id id (testInitialize test) $ catch (testSymName test) (testRun test)
     end <- CPUTime.getCPUTime
     -- CPUTime is in picoseconds.
     let secs = fromIntegral (end - start) / 10^12
     -- Grep for timing to make a histogram.
-    putStrLn $ unwords [metaPrefix, "timing ", testName test,
-        Numeric.showFFloat (Just 3) secs ""]
+    Text.IO.putStrLn $ Text.unwords [metaPrefix, "timing ", testName test,
+        Text.pack $ Numeric.showFFloat (Just 3) secs ""]
     return ()
-    where name = last (Seq.split "." (testName test))
+    where name = last (Text.split (=='.') (testName test))
 
 -- | Try to save and restore any process level state in case the test messes
 -- with it.  Currently this just restores CWD, but probably there is more than
@@ -217,13 +215,12 @@ runTest test = Testing.with_test_name name $ isolate $ do
 isolate :: IO a -> IO a
 isolate = Directory.withCurrentDirectory "."
 
-catch :: String -> IO a -> IO ()
+catch :: Text -> IO a -> IO ()
 catch name action = do
     result <- Exception.try action
     case result of
         Left (exc :: Exception.SomeException) -> do
-            void $ Testing.failure $ Text.pack name <> " threw exception: "
-                <> showt exc
+            void $ Testing.failure $ name <> " threw exception: " <> showt exc
             -- Die on async exception, otherwise it will try to continue
             -- after ^C or out of memory.
             case Exception.fromException exc of
@@ -232,7 +229,7 @@ catch name action = do
         Right _ -> return ()
 
 
-showt :: Show a => a -> Text.Text
+showt :: Show a => a -> Text
 showt = Text.pack . show
 
 -- * queue

@@ -86,13 +86,13 @@ test_config = Unsafe.unsafePerformIO (IORef.newIORef (Config "no-test" False))
 modify_test_config :: (Config -> Config) -> IO ()
 modify_test_config = IORef.modifyIORef test_config
 
-with_test_name :: String -> IO a -> IO a
+with_test_name :: Text -> IO a -> IO a
 with_test_name name action = do
     modify_test_config (\config -> config { config_test_name = name })
     action
 
 data Config = Config {
-    config_test_name :: !String
+    config_test_name :: !Text
     -- | If True, skip through human-feedback tests.  That way I can at least
     -- get the coverage and check for crashes, even if I can't verify the
     -- results.
@@ -431,14 +431,14 @@ print_test_line stack color prefix msg = do
     where
     is_highlighted = (vt100_prefix `Text.isInfixOf`)
 
-show_stack :: String -> Stack.CallStack -> Text
+show_stack :: Text -> Stack.CallStack -> Text
 show_stack test_name =
     maybe "<empty-stack>" show_frame . Seq.last . Stack.getCallStack
     where
     show_frame (_, srcloc) =
         Text.pack (Stack.srcLocFile srcloc) <> ":"
         <> showt (Stack.srcLocStartLine srcloc)
-        <> if null test_name then "" else " [" <> Text.pack test_name <> "]"
+        <> if Text.null test_name then "" else " [" <> test_name <> "]"
 
 highlight :: ColorCode -> Text -> Text
 highlight (ColorCode code) text
