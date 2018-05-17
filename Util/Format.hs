@@ -21,10 +21,7 @@ module Util.Format (
     , Width, render, renderFlat
     , simplify, denest
 #ifdef TESTING
-    , Doc(..)
-    , BreakType(..), Section(..), B(..), bFromText
-    , flatten, spanLine, findBreak
-    , renderText
+    , module Util.Format
 #endif
 ) where
 import Prelude hiding (unlines)

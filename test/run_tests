@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/zsh -e
 # Copyright 2013 Evan Laforge
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
@@ -13,74 +13,60 @@
 # If set, then exclude the test modules from the hpc results.
 hpc_exclude_test=${hpc_exclude_test-} # Add 't' to default true.
 
-while [[ $1 = */* ]]; do
-    binaries=($binaries $1)
-    shift
-done
-if [[ ${#binaries} -eq 0 ]]; then
+binary=$1
+if [[ -z $binary ]]; then
     echo "usage: $0 build/test/RunTests [ build/profile/Run ...] [ prefix ...]"
     exit 1
 fi
+shift
 
 prefixes=("$@")
+if [[ -z $prefixes ]]; then
+    prefixes=('^normal-')
+fi
 
 # Default to parallel, but you can turn it off with parallel=
 parallel=${parallel-t}
 
 # Write test stdout to here.
-test_output=build/test/output
-
-function run {
-    echo '->start' "$@" >&2 # In case the test itself writes to stderr.
-    "$@" 2>&1
-    local r=$?
-    if [[ $r -ne 0 ]]; then
-        echo '__->' cmd returned $r: "$@"
-    fi
-    echo '<-complete' "$@" >&2
-}
+out_dir=build/test/output
+all_tix=$out_dir/all.tix
 
 # Tests will recreate this if they need to.
 tmp=build/test/tmp
-rm -rf $tmp $test_output
-mkdir -p $tmp
-rm -f *.tix(N)
+rm -rf $tmp $out_dir
+mkdir -p $tmp $out_dir
 
-time (
-if [[ -n $parallel && -z $prefixes ]]; then
-    # Only run in parallel if no explicit prefixes were given.
-    for bin in $binaries; do
-        for test in $($bin --list '^large-'); do
-            ln $bin $tmp/RunTests.$test
-            run $tmp/RunTests.$test $test >$tmp/output.$test &
-        done
-    done
-    for bin in $binaries; do
-        run $bin '^normal-' >>$test_output
-    done
-    wait
-    mv *.tix $tmp
-    cat $tmp/output.* >>$test_output
-    # Will be waited for later.
-    hpc sum --union --output=RunTests.tix $tmp/*.tix &
+
+function run {
+    echo "$@"
+    "$@"
+}
+
+if [[ -n $parallel ]]; then
+    outs=($out_dir/out{1..4}.stdout)
+    outs=${(j:,:)outs}
+    # The subprocesses will set HPCTIXFILE appropriately.
+    HPCTIXFILE=/dev/null run $binary --jobs $outs $prefixes
 else
-    if [[ -z $prefixes ]]; then
-        prefixes=('^normal-')
-    fi
-    for bin in $binaries; do
-        run $bin --noninteractive $prefixes >>$test_output
-    done
+    echo "HPCTIXFILE=$all_tix $binary --noninteractive $prefixes \
+        >$out_dir/out.stdout"
+    time (
+        HPCTIXFILE=$all_tix $binary --noninteractive $prefixes \
+            >$out_dir/out.stdout
+    )
 fi
-)
 
-test/check_output $test_output
+test/check_output $out_dir/*.stdout
 
 # Optionally disable HPC.
 if [[ -z $skip_hpc ]]; then
     # hpc is super slow
     echo 'Generating hpc markup in the background...'
     (
-        wait # for hpc sum above to complete
+        if ! [[ -e $all_tix ]]; then
+            hpc sum --union --output=$all_tix $out_dir/*.tix
+        fi
         rm -rf build/hpc
         mkdir -p build/hpc
         if [[ -n $hpc_exclude_test ]]; then
@@ -89,10 +75,7 @@ if [[ -z $skip_hpc ]]; then
         else
             nontest=
         fi
-        if [[ -n $(echo $tmp/*.tix(N)) ]]; then
-            hpc sum --union --output=RunTests.tix $tmp/*.tix
-        fi
-        hpc markup --destdir=build/hpc $nontest RunTests.tix | grep -v Writing
+        hpc markup --destdir=build/hpc $nontest $all_tix | grep -v Writing
         # I'm more used to typing index.html
         (cd build/hpc && ln -fs hpc_index.html index.html)
         echo Done generating hpc.

@@ -6,16 +6,21 @@
 {-# LANGUAGE LambdaCase #-}
 -- | Utilities to deal with processes.
 module Util.Process where
+import Control.Monad (forever, void)
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Async as Async
+import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 
+import qualified Data.String as String
 import qualified Data.ByteString as ByteString
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Text (Text)
+import qualified Data.Text.IO as Text.IO
 
+import qualified System.Exit
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
@@ -121,6 +126,48 @@ create :: Process.CreateProcess
 create proc = File.ignoreEnoent (Process.createProcess proc) >>= \case
     Nothing -> return (Nothing, Nothing, Nothing, Nothing)
     Just (inh, outh, errh, hdl) -> return (inh, outh, errh, Just hdl)
+
+-- * conversation
+
+data TalkOut = Stdout !Text | Stderr !Text | Exit !Int
+    deriving (Eq, Show)
+data TalkIn = Text !Text | EOF
+    deriving (Eq, Show)
+
+instance String.IsString TalkIn where
+    fromString = Text . Text.pack
+
+-- | Have a conversation with a subprocess.  This doesn't use ptys, so this
+-- will only work if the subprocess explicitly doesn't use block buffering.
+conversation :: FilePath -> [String] -> Maybe [(String, String)]
+    -> Chan.Chan TalkIn -> IO (Chan.Chan TalkOut)
+conversation cmd args env input = do
+    output <- Chan.newChan
+    Concurrent.forkIO $ Process.withCreateProcess proc $
+        \(Just stdin) (Just stdout) (Just stderr) pid -> do
+            Concurrent.forkIO $ void $ File.ignoreEOF $ forever $
+                Chan.writeChan output . Stdout =<< Text.IO.hGetLine stdout
+            Concurrent.forkIO $ void $ File.ignoreEOF $ forever $
+                Chan.writeChan output . Stderr =<< Text.IO.hGetLine stderr
+            Concurrent.forkIO $ forever $ Chan.readChan input >>= \case
+                Text t -> Text.IO.hPutStrLn stdin t >> IO.hFlush stdin
+                EOF -> IO.hClose stdin
+            code <- Process.waitForProcess pid
+            case code of
+                System.Exit.ExitFailure code ->
+                    Chan.writeChan output (Exit code)
+                _ -> Chan.writeChan output (Exit 0)
+    return output
+    where
+    proc = (Process.proc cmd args)
+        { Process.std_in = Process.CreatePipe
+        , Process.std_out = Process.CreatePipe
+        , Process.std_err = Process.CreatePipe
+        , Process.close_fds = True
+        , Process.env = env
+        }
+
+-- * util
 
 cmdOf :: Process.CreateProcess -> String
 cmdOf proc = case Process.cmdspec proc of

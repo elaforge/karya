@@ -4,9 +4,11 @@
 
 module Util.Process_test where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.Chan as Chan
 import qualified System.Process
 
 import qualified Util.Process as Process
+import Util.Test
 import qualified Util.Thread as Thread
 
 
@@ -29,3 +31,19 @@ manual_test_multiple_supervised = do
     -- Should see two 'killing' messages.
     Thread.delay 0.1
     Concurrent.killThread tid
+
+test_conversation_stdout = do
+    input <- Chan.newChan
+    output <- Process.conversation "cat" ["-u"] Nothing input
+    Chan.writeChan input "hi there"
+    io_equal (Chan.readChan output) (Process.Stdout "hi there")
+    Chan.writeChan input Process.EOF
+    io_equal (Chan.readChan output) (Process.Exit 0)
+
+test_conversation_stderr = do
+    input <- Chan.newChan
+    output <- Process.conversation "cat" ["no such file"] Nothing input
+    Chan.writeChan input "hi there"
+    io_equal (Chan.readChan output)
+        (Process.Stderr "cat: no such file: No such file or directory")
+    io_equal (Chan.readChan output) (Process.Exit 1)

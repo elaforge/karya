@@ -110,6 +110,9 @@ writeLines fname lines = IO.withFile fname IO.WriteMode $ \hdl ->
 ignoreEnoent :: IO a -> IO (Maybe a)
 ignoreEnoent = ignoreError IO.Error.isDoesNotExistError
 
+ignoreEOF :: IO a -> IO (Maybe a)
+ignoreEOF = ignoreError IO.Error.isEOFError
+
 -- | Ignore all IO errors.  This is useful when you want to see if a file
 -- exists, because some-file/x will not give ENOENT, but ENOTDIR, which is
 -- probably isIllegalOperation.

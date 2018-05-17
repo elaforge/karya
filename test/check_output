@@ -1,14 +1,14 @@
-#!/bin/zsh
+#!/bin/zsh -e
 # Copyright 2013 Evan Laforge
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-test_output=$1
+test_outputs=("$@")
 
 echo -n '\nTests complete.  Failures:\n'
-test/extract_failures.py <$test_output
+cat $test_outputs | test/extract_failures.py
 # These magic prefixes are in Util.Test and Util.RunTests.
-passes=$(grep '^++->' $test_output | wc -l)
-failures=$(grep '^__->' $test_output | wc -l)
-tests=$(grep '^===> run-test' $test_output | wc -l)
+passes=$(grep '^++->' $test_outputs | wc -l)
+failures=$(grep '^__->' $test_outputs | wc -l)
+tests=$(grep '^===> run-test' $test_outputs | wc -l)
 echo $failures failed / $passes passed / $tests tests

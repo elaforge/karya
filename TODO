@@ -3145,9 +3145,65 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test: testing:
-  - clear build/test/tmp before each run
-  - restore CWD after each test run
+  - rm .tix and test.output in test/run_tests instead of Shakefile
+  - --noninteractive should be the default
+  - on failure, instead of
+      __-> Util/Format_test.hs:80 [test_render_full_width] ...
+    print
+      __-> Util.Format_test.test_render_full_width 80 ...
+    So I can copy paste into run tests.  But fname:lineno is usual for editors
+    to jump to that line.
+  - use a set of tags instead of single test type
+    . I can also put tags in the test name instead of hackery in
+      GenerateRunTests.extractTests:
+      test'large'interactive'_blah = ...
+    . Also the io_human detection is pretty broken.
+  / clear build/test/tmp before each run
+    . test/run_tests already does this
+  * restore CWD after each test run
     . Anything else I should do for isolation?
+  parallelize tests
+    . Do a work stealing queue, with n workers.
+    . Each test has to redirect stdout to its out stream so they don't get
+      tangled, but I'm not sure if I can actually do that.
+    . If tests reported errors in another way then I wouldn't have the
+      problem, but I think I like being able to use print and Util.Debug and
+      having it be interleaved properly with test output.
+    . In that case, I can start subprocesses for each task.  I already do this
+      for tests with setup.
+    . Either divide up by module, and assume they're all reasonably quick, or
+      dynamically feed tests to a persistent runner.
+    . Static is simpler, but assumes each test module is reasonably quick, and
+      pays for startup overhead for each one.  Actual fork and startup should
+      be pretty quick, but I might have to re-evaluate a lot of CAFs, which
+      could slow things down a lot.
+    * So let's try static first, and if it's much slower, try a persistent
+      runner.
+      . Startup overhead is really high:
+        . single thread:    4.42s user 1.39s system 291% cpu 1.994 total
+        . 2 subprocesses:   17.41s user 11.11s system 341% cpu 8.357 total
+    * Try persistent runners.
+      . How to tell the caller the tests are done?  I guess I have to monitor
+        the output, and notice when it completes.
+      . Open subprocesses with pipes, merge stdout and stderr into a chan.
+    . Timing:
+      . 1 thread:   16.75s user 4.69s system 250% cpu 8.567 total
+      . 2 threads:  14.44s user 7.42s system 393% cpu 5.557 total
+      . 4 threads:  15.98s user 5.67s system 543% cpu 3.983 total
+    * Incorporate the initialization tests?
+    * Also I get *.tix parse errors.  I think ghc is mutating RunTests.tix
+      on each run, so I have to write different files and merge them
+      together at the end.
+    * update test/run_tests
+    fix failures
+      * Util.Format_test.test_render_full_width
+        . split on chinese, so maybe wcwidth is different somehow?
+        . somhow is -4 instead of 8, what?  What is different about the
+          environment?
+      * Cmd.Undo_test.test_load_previous_history.test_load_previous_history
+        threw exception: git: createProcess: runInteractiveProcess: exec: does
+        not exist (No such file or directory)
+        . suddenly it can't find git?  RunTests cleared the environment!
   quickcheck: property:
     notes:
       . In general for RealTimes, I'd like some which are the same, some which
