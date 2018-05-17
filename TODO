@@ -3145,7 +3145,7 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test: testing:
-  - rm .tix and test.output in test/run_tests instead of Shakefile
+  * rm .tix and test.output in test/run_tests instead of Shakefile
   - --noninteractive should be the default
   - on failure, instead of
       __-> Util/Format_test.hs:80 [test_render_full_width] ...

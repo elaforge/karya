@@ -1197,10 +1197,6 @@ testRules config = do
         -- automatically added when any .o that uses it is linked in.
         buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"] []
             (fn ++ ".hs") fn
-        -- This sticks around and breaks hpc.
-        Util.system "rm" ["-f", replaceExt fn "tix"]
-        -- This gets reset on each new test run.
-        Util.system "rm" ["-f", "test.output"]
 
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
