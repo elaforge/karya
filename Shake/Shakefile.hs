@@ -1022,12 +1022,12 @@ dispatch modeConfig targets = do
 fastTests :: Shake.Action ()
 fastTests = do
     need [runTests]
-    Util.system "test/run_tests" [runTests, "^-"]
+    Util.system "test/run_tests" [runTests, "^normal-"]
 
 allTests :: Shake.Action ()
 allTests = do
     need [runTests, runProfileTest]
-    Util.system "test/run_tests" [runTests, runProfileTest, "^-"]
+    Util.system "test/run_tests" [runTests, runProfileTest, "^normal-"]
 
 hlint :: Config -> Shake.Action ()
 hlint config = do

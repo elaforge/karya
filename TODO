@@ -3146,7 +3146,10 @@ Ui:
 
 test: testing:
   * rm .tix and test.output in test/run_tests instead of Shakefile
-  - --noninteractive should be the default
+  / --noninteractive should be the default
+    . Actually let's not bother.  It seems confusing to have to add a flag to
+      get io_human to actually work, and I never run interactive tests
+      automatically anyway.
   - on failure, instead of
       __-> Util/Format_test.hs:80 [test_render_full_width] ...
     print
@@ -3165,7 +3168,8 @@ test: testing:
       which happens to correspond to gui ones, but doesn't have to.
     . I could have something like initialize, but to get typechecking,
       I could put them in a Test.Meta record.
-  - find those "manual tests" and mark them with a tag: Util.Process_test
+  / find those "manual tests" and mark them with a tag: Util.Process_test
+    . Nah, I can still run them by hand.  And I'd need per-test tags.
   * I removed the test/run_tests feature to run multiple binaries, but
     I relied on it for profile tests, and it's convenient to have it because
     then the test logs go to the same place.

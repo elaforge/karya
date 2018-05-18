@@ -26,7 +26,7 @@ shift
 
 prefixes=("$@")
 if [[ -z $prefixes ]]; then
-    prefixes=('^-')
+    prefixes=('^normal-')
 fi
 
 # Default to parallel, but you can turn it off with parallel=

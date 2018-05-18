@@ -58,7 +58,8 @@ testModuleMeta = Maybe.fromMaybe Testing.moduleMeta . testModuleMeta_
 testName :: Test -> Text
 testName test = Text.intercalate "," tags <> "-" <> testSymName test
     where
-    tags = Seq.unique_sort $ map (Text.toLower . showt) $
+    tags = if null tags_ then ["normal"] else tags_
+    tags_ = Seq.unique_sort $ map (Text.toLower . showt) $
         Testing.tags (testModuleMeta test)
 
 -- Prefix for lines with test metadata.
