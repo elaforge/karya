@@ -3158,6 +3158,20 @@ test: testing:
       GenerateRunTests.extractTests:
       test'large'interactive'_blah = ...
     . Also the io_human detection is pretty broken.
+    . I don't want to make the function name in the testName inconsistent,
+      but once this stuff is in the test name, why repeat it?
+    . That's fine for stuff like large, for which I can just write
+      test_large_..., but I think I want module level, e.g. for initialize,
+      which happens to correspond to gui ones, but doesn't have to.
+    . I could have something like initialize, but to get typechecking,
+      I could put them in a Test.Meta record.
+  - find those "manual tests" and mark them with a tag: Util.Process_test
+  * I removed the test/run_tests feature to run multiple binaries, but
+    I relied on it for profile tests, and it's convenient to have it because
+    then the test logs go to the same place.
+    . But it seems not quite right, because I don't want parallization for
+      MemoryLeak.
+    . Or make parallel append by default, and just run MemoryLeak first.
   / clear build/test/tmp before each run
     . test/run_tests already does this
   * restore CWD after each test run

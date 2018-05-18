@@ -13,9 +13,13 @@
 # If set, then exclude the test modules from the hpc results.
 hpc_exclude_test=${hpc_exclude_test-} # Add 't' to default true.
 
-binary=$1
-if [[ -z $binary ]]; then
-    echo "usage: $0 build/test/RunTests [ build/profile/Run ...] [ prefix ...]"
+while [[ $1 = */* ]]; do
+    binaries=($binaries $1)
+    shift
+done
+
+if [[ ${#binaries} -eq 0 ]]; then
+    echo "usage: $0 build/test/RunTests [ build/profile/Run ... ] [ prefix ...]"
     exit 1
 fi
 shift
@@ -47,16 +51,20 @@ if [[ -n $parallel ]]; then
     outs=($out_dir/out{1..4}.stdout)
     outs=${(j:,:)outs}
     # The subprocesses will set HPCTIXFILE appropriately.
-    # Apparently there's no way to turn of hpc, and it doesn't like /dev/null.
-    HPCTIXFILE=build/test/tmp/tix.tix run $binary --jobs $outs $prefixes
+    # Apparently there's no way to turn off hpc, and it doesn't like /dev/null.
+    for bin in $binaries; do
+        HPCTIXFILE=build/test/tmp/tix.tix run $bin --jobs $outs $prefixes
+    done
     rm -f build/test/tmp/tix.tix
 else
-    echo "HPCTIXFILE=$all_tix $binary --noninteractive $prefixes \
-        >$out_dir/out.stdout"
-    time (
-        HPCTIXFILE=$all_tix $binary --noninteractive $prefixes \
-            >$out_dir/out.stdout
-    )
+    for bin in $binaries; do
+        echo "HPCTIXFILE=$all_tix $bin --noninteractive $prefixes \
+            >>$out_dir/out.stdout"
+        time (
+            HPCTIXFILE=$all_tix $bin --noninteractive $prefixes \
+                >>$out_dir/out.stdout
+        )
+    done
 fi
 
 test/check_output $out_dir/*.stdout

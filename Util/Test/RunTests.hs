@@ -142,7 +142,7 @@ runParallel argv0 outputs tests = do
 -- | Pull tests off the queue and feed them to a single subprocess.
 jobThread :: FilePath -> FilePath -> Queue (Text, [Test]) -> IO ()
 jobThread argv0 output queue =
-    Exception.bracket (IO.openFile output IO.WriteMode) IO.hClose $ \hdl -> do
+    Exception.bracket (IO.openFile output IO.AppendMode) IO.hClose $ \hdl -> do
         to <- Chan.newChan
         env <- Environment.getEnvironment
         -- Give each subprocess its own .tix, or they will stomp on each other
