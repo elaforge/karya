@@ -10,7 +10,9 @@
 {-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
 -- | Basic testing utilities.
 module Util.Test.Testing (
-    Config(..), modify_test_config, with_test_name
+    Config(..), moduleMeta, modify_test_config, with_test_name
+    -- * metadata
+    , ModuleMeta(..), moduleMeta, Tag(..)
     -- * assertions
     , check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like
     , left_like, match
@@ -102,6 +104,29 @@ data Config = Config {
 check :: Stack => Text -> Bool -> IO Bool
 check msg False = failure ("failed: " <> msg)
 check msg True = success msg
+
+-- * metadata
+
+data ModuleMeta = ModuleMeta {
+    -- | Wrap each test with IO level setup and teardown.  Sync exceptions are
+    -- caught from the test function, so this should only see async exceptions.
+    initialize :: IO () -> IO ()
+    , tags :: [Tag]
+    }
+
+moduleMeta :: ModuleMeta
+moduleMeta = ModuleMeta
+    { initialize = id
+    , tags = []
+    }
+
+data Tag =
+    -- | Especially expensive to run.
+    Large
+    -- | Wants to have a conversation.  This implies the tests must be
+    -- serialized, since who wants to have a conversation in parallel.
+    | Interactive
+    deriving (Eq, Show)
 
 -- * equal and diff
 

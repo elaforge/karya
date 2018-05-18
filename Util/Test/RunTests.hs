@@ -48,18 +48,18 @@ data Test = Test {
     , testFilename :: FilePath
     -- | Line of the test function declaration.
     , testLine :: Int
-    -- | If given, this function is wrapped around 'testRun'.  Since there is
-    -- no tear down function, each test requiring initialization will be called
-    -- in its own subprocess.
-    , testInitialize :: Maybe (IO () -> IO ())
-    -- | This is an arbitrary classification added by generate_run_tests.py.
-    -- It is prepended to the test name, so you can filter tests with it.
-    , testType :: Text
+    -- | Module-level metadata, declared as @meta@ in the test module toplevel.
+    , testModuleMeta_ :: Maybe Testing.ModuleMeta
     }
 
--- TODO change to Text
+testModuleMeta :: Test -> Testing.ModuleMeta
+testModuleMeta = Maybe.fromMaybe Testing.moduleMeta . testModuleMeta_
+
 testName :: Test -> Text
-testName test = testType test <> "-" <> testSymName test
+testName test = Text.intercalate "," tags <> "-" <> testSymName test
+    where
+    tags = Seq.unique_sort $ map (Text.toLower . showt) $
+        Testing.tags (testModuleMeta test)
 
 -- Prefix for lines with test metadata.
 metaPrefix :: Text
@@ -104,18 +104,18 @@ runTests argv0 allTests flags args
             Testing.modify_test_config $ \config ->
                 config { Testing.config_skip_human = True }
         let isSubprocess = Subprocess `elem` flags
-        let (initTests, nonInitTests) =
-                List.partition (Maybe.isJust . testInitialize) $
-                    if isSubprocess then allTests else matches
+        let (serialized, nonserialized) = List.partition
+                ((Testing.Interactive `elem`) . Testing.tags . testModuleMeta)
+                (if isSubprocess then allTests else matches)
         let outputs = concat [outputs | Jobs outputs <- flags]
         if isSubprocess
-            then subprocess nonInitTests
+            then subprocess nonserialized
             else do
                 (if null outputs then mapM_ runTest
-                    else runParallel argv0 outputs) nonInitTests
-                case initTests of
+                    else runParallel argv0 outputs) nonserialized
+                case serialized of
                     [test] -> runTest test
-                    _ -> mapM_ (isolateSubprocess argv0) initTests
+                    _ -> mapM_ (isolateSubprocess argv0) serialized
                         -- TODO write to head outputs instead of stdout
     where
     matches = matchingTests args allTests
@@ -199,7 +199,8 @@ runTest :: Test -> IO ()
 runTest test = Testing.with_test_name name $ isolate $ do
     Text.IO.putStrLn $ Text.unwords [metaPrefix, "run-test", testName test]
     start <- CPUTime.getCPUTime
-    maybe id id (testInitialize test) $ catch (testSymName test) (testRun test)
+    Testing.initialize (testModuleMeta test) $
+        catch (testSymName test) (testRun test)
     end <- CPUTime.getCPUTime
     -- CPUTime is in picoseconds.
     let secs = fromIntegral (end - start) / 10^12

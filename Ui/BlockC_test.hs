@@ -13,6 +13,8 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Rect as Rect
 import Util.Test
+import qualified Util.Test.Testing as Testing
+
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
@@ -33,13 +35,16 @@ import qualified App.LoadConfig as LoadConfig
 import Types
 
 
-initialize f = do
-    quit_request <- Concurrent.newMVar ()
-    msg_chan <- STM.newTChanIO
-    LoadConfig.styles Config.styles
-    Concurrent.forkIO $
-        f `Exception.finally` Fltk.quit_ui_thread quit_request
-    Fltk.event_loop global_ui_channel quit_request msg_chan
+meta = Testing.moduleMeta
+    { Testing.initialize = \test -> do
+        quit_request <- Concurrent.newMVar ()
+        msg_chan <- STM.newTChanIO
+        LoadConfig.styles Config.styles
+        Concurrent.forkIO $
+            test `Exception.finally` Fltk.quit_ui_thread quit_request
+        Fltk.event_loop global_ui_channel quit_request msg_chan
+    , Testing.tags = [Testing.Interactive]
+    }
 
 global_ui_channel :: Fltk.Channel
 {-# NOINLINE global_ui_channel #-}

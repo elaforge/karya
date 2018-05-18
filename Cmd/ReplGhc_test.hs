@@ -5,7 +5,7 @@
 module Cmd.ReplGhc_test where
 import qualified Control.Concurrent as Concurrent
 
-import Util.Test
+import qualified Util.Test.Testing as Testing
 import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
@@ -15,12 +15,11 @@ import qualified App.ReplProtocol as ReplProtocol
 import Global
 
 
+meta = Testing.moduleMeta { Testing.tags = [Testing.Interactive] }
+
 -- Fiddle around with the REPL by hand.
 test_repl_ghc :: IO ()
 test_repl_ghc = do
-    -- Get generate_run_tests.py to recognize this as interactive.
-    -- TODO need a better way
-    io_human "Ready?" (return ())
     session <- ReplGhc.make_session
     Concurrent.forkIO $ ReplGhc.interpreter session
     go session

@@ -3,14 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {- | Collect tests from the given modules and generate a haskell module that
-    calls the tests.  Test functions are any function starting with
-    'large_test_', 'test_' or 'profile_' and immediately followed by '='
-    (implying the function has no arguments).  This module doesn't distinguish
-    between tests and profiles, but they should presumably be compiled
-    separately since they required different flags.
+    calls the tests.  Test functions are any function starting with @test_@ or
+    @profile_@ and immediately followed by @=@ (implying the function has no
+    arguments).  This module doesn't distinguish between tests and profiles,
+    but they should presumably be compiled separately since they required
+    different flags.
 
-    If a module has a function called 'initialize', it will be called as 'IO ()'
-    prior to the tests.
+    If a module has a function called @initialize@, it will be called as
+    @IO ()@ prior to the tests.
 
     Tests are divided into interactive and auto variants.  Interactive tests
     want to have a conversation with the user, so they're not appropriate to
@@ -35,7 +35,7 @@ main = do
     args <- System.Environment.getArgs
     ExtractHs.process args (extract . ExtractHs.stripComments) generate
 
-generate :: FilePath -> Map FilePath ([Test], Initialize)
+generate :: FilePath -> Map FilePath ([Test], HasMeta)
     -> Either Text ([Text], Text)
 generate outFname extracted = fmap (warnings,) $
     TextUtil.interpolate testTemplate $ Map.fromList
@@ -52,69 +52,61 @@ generate outFname extracted = fmap (warnings,) $
 data Test  = Test {
     testLineNumber :: !LineNumber
     , testName :: !Text
-    , testInteractive :: !Bool
     } deriving (Show)
 type LineNumber = Int
 
 -- * extract
 
-data Initialize = Initialize | NoInitialize deriving (Eq, Show)
+type HasMeta = Maybe Text
 
--- | Extract test functions and a possible initilaize function from the file.
-extract :: Text -> ([Test], Initialize)
-extract content = (extractTests content, hasInitialize content)
+-- | Extract test functions and possible metadata from the file.
+extract :: Text -> ([Test], HasMeta)
+extract content = (extractTests content, hasMeta content)
 
-hasInitialize :: Text -> Initialize
-hasInitialize =
-    (\b -> if b then Initialize else NoInitialize) . Regex.matches reg
-    where reg = Regex.compileOptionsUnsafe [Regex.Multiline] "^initialize .*="
+hasMeta :: Text -> HasMeta
+hasMeta =
+    (\b -> if b then Just "meta" else Nothing) . Regex.matches reg
+    where reg = Regex.compileOptionsUnsafe [Regex.Multiline] "^meta\\b"
 
 extractTests :: Text -> [Test]
 extractTests = go . zip [1..] . Text.lines
     where
     go ((i, line) : lines)
-        | Just def <- hasTestFunction line =
-            Test i def (isInteractive (map snd body)) : go rest
+        | Just def <- hasTestFunction line = Test
+            { testLineNumber = i
+            , testName = def
+            } : go rest
         | otherwise = go lines
         where
-        (body, rest) = span (isIndented . snd) lines
+        rest = dropWhile (isIndented . snd) lines
+        -- TODO does this get fooled by empty lines?
         isIndented t = " " `Text.isPrefixOf` t || t == "\n"
     go [] = []
-    isInteractive = any ("io_human" `Text.isInfixOf`)
 
 hasTestFunction :: Text -> Maybe Text
 hasTestFunction line
     | Regex.matches reg line = Just $ head (Text.words line)
     | otherwise = Nothing
     where
-    reg = Regex.compileUnsafe "^(?:large_test|test|profile)_[a-zA-Z0-9_]+ \\="
+    reg = Regex.compileUnsafe "^(?:test|profile)_[a-zA-Z0-9_]+ \\="
 
 -- * make
 
-makeTests :: Map.Map FilePath ([Test], Initialize) -> [Text]
+makeTests :: Map.Map FilePath ([Test], HasMeta) -> [Text]
 makeTests fnameTests =
-    [ makeTestLine fname test init
-    | (fname, (tests, init)) <- Map.toList fnameTests, test <- tests
+    [ makeTestLine fname test meta
+    | (fname, (tests, meta)) <- Map.toList fnameTests, test <- tests
     ]
 
-makeTestLine :: FilePath -> Test -> Initialize -> Text
-makeTestLine fname test init = Text.unwords
+makeTestLine :: FilePath -> Test -> HasMeta -> Text
+makeTestLine fname test meta = Text.unwords
     [ "Test", showt name, "(" <> name <> " >> return ())"
     , showt fname, showt (testLineNumber test)
-    , case init of
-        NoInitialize -> "Nothing"
-        Initialize -> "(Just " <> ExtractHs.pathToModule fname <> ".initialize)"
-    , showt $ testType (init == Initialize) (testName test)
-        (testInteractive test)
+    , case meta of
+        Nothing -> "Nothing"
+        Just fn -> "(Just " <> ExtractHs.pathToModule fname <> "." <> fn <> ")"
     ]
     where name = ExtractHs.pathToModule fname <> "." <> testName test
-
-testType :: Bool -> Text -> Bool -> Text
-testType hasInitialize name interactive
-    | interactive = "interactive"
-    | hasInitialize = "gui"
-    | "large_test_" `Text.isPrefixOf` name = "large"
-    | otherwise = "normal"
 
 testTemplate :: Text
 testTemplate =

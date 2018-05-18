@@ -33,6 +33,7 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Util.Test.Testing as Testing
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
@@ -68,13 +69,16 @@ import Types
 -- set_block_title
 -- set_track_scroll
 
-initialize f = do
-    quit_request <- Concurrent.newMVar ()
-    msg_chan <- STM.newTChanIO
-    LoadConfig.styles Config.styles
-    Concurrent.forkIO $
-        f `Exception.finally` Fltk.quit_ui_thread quit_request
-    Fltk.event_loop global_ui_channel quit_request msg_chan
+meta = Testing.moduleMeta
+    { Testing.initialize = \test -> do
+        quit_request <- Concurrent.newMVar ()
+        msg_chan <- STM.newTChanIO
+        LoadConfig.styles Config.styles
+        Concurrent.forkIO $
+            test `Exception.finally` Fltk.quit_ui_thread quit_request
+        Fltk.event_loop global_ui_channel quit_request msg_chan
+    , Testing.tags = [Testing.Interactive]
+    }
 
 global_ui_channel :: Fltk.Channel
 {-# NOINLINE global_ui_channel #-}

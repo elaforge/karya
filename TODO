@@ -3153,7 +3153,7 @@ test: testing:
       __-> Util.Format_test.test_render_full_width 80 ...
     So I can copy paste into run tests.  But fname:lineno is usual for editors
     to jump to that line.
-  - use a set of tags instead of single test type
+  * use a set of tags instead of single test type
     . I can also put tags in the test name instead of hackery in
       GenerateRunTests.extractTests:
       test'large'interactive'_blah = ...

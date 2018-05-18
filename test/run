@@ -1,0 +1,19 @@
+#!/bin/sh -e
+
+run=test/run_tests
+
+case $1 in
+    fast)
+        bin/mk build/test/RunTests
+        $run build/test/RunTests '^-'
+        ;;
+    all)
+        bin/mk build/test/RunTests build/profile/RunProfile-MemoryLeak
+        skip_hpc=t parallel= $run build/profile/RunProfile-MemoryLeak .
+        $run build/test/RunTests '^-'
+        ;;
+    *)
+        echo "usage: $0 [ fast | all ]"
+        exit 1
+        ;;
+esac

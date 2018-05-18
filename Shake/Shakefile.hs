@@ -960,9 +960,8 @@ dispatch modeConfig targets = do
             -- opt, which causes most of the opt tree to build.  I could build
             -- a debug one, but debug deriving is really slow.
             let opt = (modeToDir Opt </>)
-            needEverything [opt "verify_performance", runProfileTest]
-            Util.system "test/run_tests" [runTests, runProfileTest]
-            Util.system "mkdir" ["-p", build </> "verify"]
+            needEverything [opt "verify_performance", runTests, runProfileTest]
+            allTests
             Util.shell $ opt "verify_performance --out=build/verify\
                 \ save/complete/*"
         "verify" -> action $ do
@@ -996,16 +995,9 @@ dispatch modeConfig targets = do
                 [if with_scc then "scc" else "no-scc"]
         "show-debug" -> action $ liftIO $ PPrint.pprint (modeConfig Debug)
         "show-opt" -> action $ liftIO $ PPrint.pprint (modeConfig Opt)
-        "tests" -> action $ do
-            need [runTests, runProfileTest]
-            Util.system "test/run_tests" [runTests, runProfileTest]
-        "tests-normal" -> action $ do
-            need [runTests]
-            Util.system "test/run_tests" [runTests, "^normal-"]
-        "tests-complete" -> action $ do
-            -- Separated from normal tests because the GUI tests tend to wedge.
-            need [runTests]
-            Util.system "test/run_tests" [runTests, "normal-", "gui-"]
+        "tests" -> action allTests
+        -- Run tests with no tags.
+        "tests-normal" -> action $ fastTests
         (dropPrefix "tests-" -> Just tests) -> action $ do
             need [runTestsTarget (Just tests)]
             Util.system "test/run_tests" [runTestsTarget (Just tests)]
@@ -1026,6 +1018,16 @@ dispatch modeConfig targets = do
             -- bothered to get that to compile in build/test.
         where
         cantBuild = [ccName playCacheBinary]
+
+fastTests :: Shake.Action ()
+fastTests = do
+    need [runTests]
+    Util.system "test/run_tests" [runTests, "^-"]
+
+allTests :: Shake.Action ()
+allTests = do
+    need [runTests, runProfileTest]
+    Util.system "test/run_tests" [runTests, runProfileTest, "^-"]
 
 hlint :: Config -> Shake.Action ()
 hlint config = do

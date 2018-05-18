@@ -6,6 +6,7 @@
 -- unqualified.
 module Util.Test.Global (module Util.Test.Testing) where
 import Util.Test.Testing
-       (check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like,
-        left_like, match, throws, io_equal, io_human, pause, success, failure,
-        expect_right, quickcheck, q_equal, prettyp, pprint)
+       (ModuleMeta(ModuleMeta), check, equal, equal_fmt, right_equal, not_equal,
+        equalf, strings_like, left_like, match, throws, io_equal, io_human,
+        pause, success, failure, expect_right, quickcheck, q_equal, prettyp,
+        pprint)
