@@ -137,7 +137,8 @@ runParallel :: FilePath -> [FilePath] -> [Test] -> IO ()
 runParallel argv0 outputs tests = do
     let byModule = Seq.keyed_group_adjacent testFilename tests
     queue <- newQueue [(Text.pack name, tests) | (name, tests) <- byModule]
-    Async.forConcurrently_ outputs $ \output -> jobThread argv0 output queue
+    Async.forConcurrently_ (map fst (zip outputs byModule)) $ \output ->
+        jobThread argv0 output queue
 
 -- | Pull tests off the queue and feed them to a single subprocess.
 jobThread :: FilePath -> FilePath -> Queue (Text, [Test]) -> IO ()
