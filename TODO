@@ -30,6 +30,12 @@ STATUS
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
+  - ghci: often ghci will load a compiled module interpreted, why?
+    . If I explicitly regenerate the .o file by deleted and rebuilding, it
+      will load it.
+    . Can I do verbose logging to find out why?
+    . Or I can see where the usual "reason why" text ("flags changed") comes
+      from, and is there anything else that causes it to not load the .o.
   - I should use under_scores for all C++, currently play_cache is camelCase.
     . Actually it's kind of forced by the VST interface, which is camelCase.
     . Of course I control that too, so I could change Synth/vst2/* to
@@ -2310,7 +2316,14 @@ negative duration / arrival beats:
     work, but if it's buggy or turns into continual for for every cmd then it
     becomes a big deal.
 
-external
+external:
+  hpc:
+    - there should be a way to turn off .tix generation
+      . also HPCTIXFILE /dev/null shouldn't crash
+    - hpc tool is slow and noisy
+      . hpc markup shouldn't spam Writing
+      . and it should create index.html
+    - ghc runtime shouldn't hard crash if it doesn't recognize the tix file
   parsing "1r" instead of "1s" gives a "unexpected eof" error msg, it should
     say 'r' was an unknown suffix
     Can't get attoparsec to consistently report an error.  Kind of hard when
@@ -3251,6 +3264,9 @@ test: testing:
         shrink, and keeps it with the Gen.
     - Integrate hedgehog into Util.Testing
     - port Util.Segment_test quickchecks to hedgehog
+      . but I want to see some errors that require shrinking, to demo
+        hedgehog's automatic shrinking
+      . I can't get test_concat_dups to generate the 3 element list.
   - Write a test for Ui.Diff and Ui.Sync.
     . I think the easiest way to do this is make BlockCStub record its calls,
       then have a UI simulation that interprets those.  Then I can use
@@ -3274,7 +3290,7 @@ test: testing:
       performance.  Mostly because just one more allocation is probably not a
       big deal, but also maybe if I inline the interpretation function then
       the allocation goes away.
-  - delete build/test/tmp on every test run to avoid test contamination
+  / delete build/test/tmp on every test run to avoid test contamination
     . test/run_tests will clear it out, but sometimes I run them directly
     . But this is pretty much limited to expecting a file in a certain
       place, which pretty much only Perform.Im.Convert does.  Tests that

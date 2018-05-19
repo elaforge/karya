@@ -74,8 +74,9 @@ if [[ -z $skip_hpc ]]; then
     # hpc is super slow
     echo 'Generating hpc markup in the background...'
     (
+        exec >$out_dir/hpc.log 2>&1
         if ! [[ -e $all_tix ]]; then
-            hpc sum --union --output=$all_tix $out_dir/*.tix
+            run hpc sum --union --output=$all_tix $out_dir/*.tix
         fi
         rm -rf build/hpc
         mkdir -p build/hpc
@@ -85,7 +86,7 @@ if [[ -z $skip_hpc ]]; then
         else
             nontest=
         fi
-        hpc markup --destdir=build/hpc $nontest $all_tix | grep -v Writing
+        hpc markup --destdir=build/hpc $nontest $all_tix
         # I'm more used to typing index.html
         (cd build/hpc && ln -fs hpc_index.html index.html)
         echo Done generating hpc.
