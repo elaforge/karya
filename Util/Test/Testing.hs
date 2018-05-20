@@ -10,11 +10,12 @@
 {-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
 -- | Basic testing utilities.
 module Util.Test.Testing (
-    Config(..), moduleMeta, modify_test_config, with_test_name
+    Config(..), modify_test_config, with_test_name
     -- * metadata
     , ModuleMeta(..), moduleMeta, Tag(..)
     -- * assertions
-    , check, equal, equal_fmt, right_equal, not_equal, equalf, strings_like
+    , check, check_val
+    , equal, equal_fmt, right_equal, not_equal, equalf, strings_like
     , left_like, match
     , Pattern
     -- ** exception assertions
@@ -104,6 +105,14 @@ data Config = Config {
 check :: Stack => Text -> Bool -> IO Bool
 check msg False = failure ("failed: " <> msg)
 check msg True = success msg
+
+-- | Check against a function.  Use like:
+--
+-- > check_val (f x) $ \case -> ...
+check_val :: Show a => Stack => a -> (a -> Bool) -> IO Bool
+check_val val f
+    | f val = success $ "ok: " <> pshowt val
+    | otherwise = failure $ "failed:" <> pshowt val
 
 -- * metadata
 
@@ -410,15 +419,6 @@ q_equal a b = QuickCheck.counterexample
 
 -- * util
 
-prettyp :: Pretty.Pretty a => a -> IO ()
-prettyp val = s `DeepSeq.deepseq` Text.IO.putStr s
-    -- deepseq to ensure log tracing happens first
-    where s = Pretty.formatted val
-
-pprint :: Show a => a -> IO ()
-pprint val = s `DeepSeq.deepseq` putStr s
-    where s = PPrint.pshow val
-
 -- These used to write to stderr, but the rest of the diagnostic output goes to
 -- stdout, and it's best these appear in context.
 
@@ -503,11 +503,26 @@ human_get_char = do
             do { c <- getChar; putChar ' '; return c}
                 `Exception.finally` IO.hSetBuffering IO.stdin mode
 
+-- * pretty
+
+prettyp :: Pretty.Pretty a => a -> IO ()
+prettyp val = s `DeepSeq.deepseq` Text.IO.putStr s
+    -- deepseq to ensure log tracing happens first
+    where s = Pretty.formatted val
+
+pprint :: Show a => a -> IO ()
+pprint = putStr . pshow
+
 showt :: Show a => a -> Text
 showt = Text.pack . show
 
 pshowt :: Show a => a -> Text
-pshowt = Text.pack . PPrint.pshow
+pshowt = Text.pack . pshow
+
+-- | Strict pshow, so I don't get debug traces interleaved with printing.
+pshow :: Show a => a -> String
+pshow val = s `DeepSeq.deepseq` s
+    where s = PPrint.pshow val
 
 -- * filesystem
 

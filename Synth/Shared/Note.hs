@@ -2,10 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
-import Data.Digest.CRC32 (CRC32(..))
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map.Strict as Map
 import qualified Data.Word as Word
 
@@ -42,8 +41,9 @@ data Note = Note {
 
 -- | Unique identifier for a patch.
 type PatchName = Text
--- | This is the local scone instantiation of the 'PatchName'.  This is the
--- same as 'Derive.ScoreTypes.Instrument'.
+
+-- | This is a specific instantiation of a 'PatchName'.  This is the same as
+-- 'Derive.ScoreTypes.Instrument'.
 type InstrumentName = Text
 
 end :: Note -> RealTime
@@ -97,9 +97,22 @@ notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
 
 -- * hash
 
-instance CRC32 Note where
+newtype Hash = Hash Word.Word32
+    deriving (Show, Eq, Pretty, Serialize.Serialize)
+
+hash :: Note -> Hash
+hash = Hash . CRC32.crc32
+
+instance Semigroup Hash where
+    Hash h1 <> Hash h2 = Hash $ CRC32.crc32Update h1 h2
+
+instance Monoid Hash where
+    mempty = Hash 0
+    mappend = (<>)
+
+instance CRC32.CRC32 Note where
     crc32Update n (Note name inst element start dur controls attrs) =
         n & name & inst & element & start & dur & controls & Attrs.to_set attrs
         where
-        (&) :: CRC32 a => Word.Word32 -> a -> Word.Word32
-        (&) = crc32Update
+        (&) :: CRC32.CRC32 a => Word.Word32 -> a -> Word.Word32
+        (&) = CRC32.crc32Update

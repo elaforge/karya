@@ -1452,7 +1452,6 @@ synth: im:
         state, at the cost of discontinuities at the join points.
         . Actually as long as reverb and effects are deterministic, why
           shouldn't they line up again?
-
     - Propagate score damage up to the im perform step.
       . I have to change it from ScoreTime to RealTime though.
       . By the time I get to Performance.evaluate_im, perf_damage is empty.
@@ -1663,7 +1662,7 @@ synth: im:
           Audio.linear, which is min chunkSize nextBreakpoint.
         . But I did want to make Audio.linear use a constant chunk size, so
           I don't have to reallocate in Audio.nonInterleaved.
-      + write [Note] hash with each checkpoint
+      * write [Note] hash with each checkpoint
         . Only calculate the hash when the [Note] changes.
         . How about I just store a hash with each Note, then I can remove from
           the set without recalculating too.

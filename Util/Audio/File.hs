@@ -125,16 +125,16 @@ write format fname audio = do
 
 -- | Write files in chunks to the given directory.  Run an action before
 -- writing each chunk.  It's expected to query and save audio generator state.
-writeCheckpoints :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
-    => Audio.Frame -> (FilePath -> IO ()) -- ^ run before rendering each chunk
-    -> Sndfile.Format -> [FilePath] -- ^ should be infinite
-    -> Audio.AudioIO rate channels
-    -> Resource.ResourceT IO ()
+writeCheckpoints :: (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
+    => Audio.Frame
+    -> (state -> FilePath -> IO ()) -- ^ run before rendering each chunk
+    -> Sndfile.Format -> [(state, FilePath)]
+    -- ^ shouldn't run out before the audio runs out
+    -> Audio.AudioIO rate channels -> Resource.ResourceT IO ()
 writeCheckpoints size checkpoint format = go
     where
-    go (fname : fnames) audio = do
-        liftIO (checkpoint fname)
+    go ((state, fname) : fnames) audio = do
+        liftIO $ checkpoint state fname
         (chunks, audio) <- Audio.takeFrames size audio
         liftIO $ Exception.bracket (openWrite format fname audio) Sndfile.hClose
             (\handle -> mapM_

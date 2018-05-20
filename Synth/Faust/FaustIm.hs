@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DataKinds #-}
 -- | Offline synthesizer that uses FAUST.
 module Synth.Faust.FaustIm (main) where
 import qualified Control.Concurrent as Concurrent
@@ -29,10 +28,12 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.Hash as Hash
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
@@ -126,20 +127,25 @@ writeCheckpoints :: FilePath -> DriverC.Patch -> [Note.Note] -> IO (Maybe Text)
 writeCheckpoints outputDir patch notes = either Just (const Nothing) <$> do
     stateRef <- IORef.newIORef ByteString.empty
     let notifyState (DriverC.State state) = IORef.writeIORef stateRef state
+    let hashes = Hash.hashOverlapping 0 (AUtil.toSeconds size) notes
     AUtil.catchSndfile $ Resource.runResourceT $
         Audio.File.writeCheckpoints size (writeState stateRef)
-            AUtil.outputFormat fnames $
+            AUtil.outputFormat (zip hashes fnames) $
         Render.renderPatch patch notifyState notes
     where
     size = Audio.Frame Config.checkpointSize
     fnames = map (\n -> outputDir </> untxt (Num.zeroPad 3 n) <> ".wav") [0..]
-    writeState stateRef fname = do
-        state <- IORef.readIORef stateRef
-        -- The first one should be empty, and I don't want to overwrite the
-        -- initial state with 0s.
-        unless (ByteString.null state) $
-            ByteString.writeFile (FilePath.replaceExtension fname ".state")
-                state
+
+writeState :: IORef.IORef ByteString.ByteString -> Note.Hash -> FilePath
+    -> IO ()
+writeState stateRef hash fname = do
+    state <- IORef.readIORef stateRef
+    -- The first one should be empty, and I don't want to overwrite the
+    -- initial state with 0s.
+    unless (ByteString.null state) $ do
+        ByteString.writeFile (FilePath.replaceExtension fname ".state") state
+    ByteString.writeFile (FilePath.replaceExtension fname ".hash")
+        (Serialize.encode hash)
 
 writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
 writeControls output patch notes =
