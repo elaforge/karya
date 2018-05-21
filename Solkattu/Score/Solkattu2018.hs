@@ -265,10 +265,14 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
     , sarvaD 7 . sarvaD 4.5 . tri_ (din.__4) (tat.__.theme)
     , sarvaD 7 . sarvaD 3 . tri_ (din.__4) (tat.__4.theme)
     , repeat 3 (tat.__4.theme.din.__4.din.__4.na.__4) . sd (tri_ __ p6)
+    , tsep (tat.__4.theme.din.__4.din.__4.na.__6)
+        (tari.kita) (kita.kita.tari.kita)
+        . tri_ (tat.__4.din.__4) (tri p10)
     ]
     where
     kitakinakadin = group $ kita.ki.na.ka.din
     nakadin = dropM 3 kitakinakadin
+    p10 = group $ kita.taka.tari.kita.taka
     theme = group $ kita.ki.na.ka.din.__.ka
     mridangam = makeMridangam
         [ (kitakinakadin, [k, t, k, n, o, od])
@@ -283,6 +287,10 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
         , (1^na, [n])
         , (ga, [p])
         , (tat, [p&k])
+
+        , (tari.kita, [p, k, n, p])
+        , (kita.kita, [k, t, k, t])
+        , (p10, [k, t, p, k, p, k, n, k, n, o])
         ]
 
 c_18_04_25 :: Korvai
@@ -311,3 +319,13 @@ c_18_04_25 = date 2018 4 25 $ ganesh $
         , (1^theme, [o, k, o, k, t, k, o, k, t, k, o, k, t, k])
         , (dhom, [o])
         ]
+
+{-
+    misra capu sequence 100 bpm:
+
+    . dinaginna sequence with 4 avartanams per section
+    . dinaginna with dinnaginna taka taka talang ga
+    . kita kina din
+    . kita kinakadin kadin
+
+-}
