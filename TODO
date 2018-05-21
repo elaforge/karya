@@ -36,10 +36,6 @@ UNSORTED
     . Can I do verbose logging to find out why?
     . Or I can see where the usual "reason why" text ("flags changed") comes
       from, and is there anything else that causes it to not load the .o.
-  - I should use under_scores for all C++, currently play_cache is camelCase.
-    . Actually it's kind of forced by the VST interface, which is camelCase.
-    . Of course I control that too, so I could change Synth/vst2/* to
-      under_scores as well.
   / sometimes I want to see the control curve without event text in the way
     . E.g. when reading wayang patterns.
     . Maybe I just need to learn to read better.
@@ -1671,9 +1667,10 @@ synth: im:
       - continue from checkpoints
         . Find the first chunk where the hash doesn't match
       - tests for FaustIm
-        . It's easy to test the pure functions
-        . How to test e.g. incremental rerender?
-      - reaper crashes when playing back recorded MIDI
+        . It's easy to test the non-audio functions, but How to test
+          incremental rerender?
+        . I can do with and without and assert the audio output is the same.
+      / reaper crashes when playing back recorded MIDI
         . Can't reproduce it now, maybe it only happens when I have a audio
           "stem" track.
 
@@ -1735,17 +1732,22 @@ synth: im:
       . Or why not just use faust integration?  I think it has the same
         algorithm?
   play_cache: PlayCache:
+    - I should use under_scores for all C++, currently play_cache is camelCase.
+      . Actually it's kind of forced by the VST interface, which is camelCase.
+      . Of course I control that too, so I could change Synth/vst2/* to
+        under_scores as well.
     - Log on a separate thread.
       . Ideally I would accumulate the msg in a static buffer, then copy it
         into a ring, and the logger would then pull it off the ring.
       . Maybe I don't actually care though.  LOG is for debugging, and
         eventually I should be able to turn it off.
-    - The im/ directory is fundamentally global, since PlayCache hardcodes
-      a single path.  It could be theoretically configured, but I'd probably
+    / The im/ directory is fundamentally global, since PlayCache hardcodes
+      a single path.  It could theoretically be configured, but I'd probably
       have to do it manually via some kind of VST GUI, and save in the VST
       preset mechanism, and it sounds like a lot of hassle.
       . Or I could send it over via MIDI, but that kind of state always gets
         out of sync.
+      . What's so bad about global though?
   sampler: sampler-im:
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
@@ -2359,6 +2361,10 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - get rid of the complicated sort order in .fix-imports
+    . This should be enough:
+      import-order-first: Util
+      import-order-last: Global Types Synth.Lib.Global
   - support cabal new-build
     . The advantage is that people can install dependencies without messing up
       their global package db.
@@ -3157,6 +3163,11 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test: testing:
+  - export Util.Test so I can use it in other projects
+    . I think I can get cabal to run the generator via build hooks:
+      https://www.haskell.org/cabal/users-guide/developing-packages.html#more-complex-packages
+    . I also want Util.Debug, but that in turn pulls in Util.Format, which is
+      buggy.
   * rm .tix and test.output in test/run_tests instead of Shakefile
   / --noninteractive should be the default
     . Actually let's not bother.  It seems confusing to have to add a flag to
