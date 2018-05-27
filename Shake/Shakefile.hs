@@ -1000,7 +1000,7 @@ dispatch modeConfig targets = do
         "tests-normal" -> action $ fastTests
         (dropPrefix "tests-" -> Just tests) -> action $ do
             need [runTestsTarget (Just tests)]
-            Util.system "test/run_tests" [runTestsTarget (Just tests)]
+            Util.system "tools/run_tests" [runTestsTarget (Just tests)]
         _ -> return False
     action act = Shake.action act >> return True
     runTestsTarget tests = runTests ++ maybe "" ('-':) tests
@@ -1022,12 +1022,12 @@ dispatch modeConfig targets = do
 fastTests :: Shake.Action ()
 fastTests = do
     need [runTests]
-    Util.system "test/run_tests" [runTests, "^normal-"]
+    Util.system "tools/run_tests" [runTests, "^normal-"]
 
 allTests :: Shake.Action ()
 allTests = do
     need [runTests, runProfileTest]
-    Util.system "test/run_tests" [runTests, runProfileTest, "^normal-"]
+    Util.system "tools/run_tests" [runTests, runProfileTest, "^normal-"]
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
