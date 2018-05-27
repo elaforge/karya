@@ -213,7 +213,7 @@ overlapping pos events
         Just next
     | prev : _ <- pre, Event.end prev > pos = Just prev
     | otherwise = Nothing
-    where (pre, post) = (descending *** ascending) $ split pos events
+    where (pre, post) = bimap descending ascending $ split pos events
 
 head :: Events -> Maybe Event.Event
 head (Events events) = snd <$> Map.min events
@@ -270,7 +270,7 @@ around start end events = Events $ above $ below within
 -- *** List [Event]
 
 split_lists :: ScoreTime -> Events -> ([Event.Event], [Event.Event])
-split_lists pos = (descending *** ascending) . split pos
+split_lists pos = bimap descending ascending . split pos
 
 -- | Events whose start is at or after @pos@.
 at_after :: ScoreTime -> Events -> [Event.Event]

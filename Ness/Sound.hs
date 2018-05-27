@@ -73,7 +73,7 @@ velocityNames keys =
 
 vels = [8, 16 .. 128]
 rangesFrom xs =
-    map (Num.clamp 1 127 *** Num.clamp 1 127) $ zip (1 : map (+1) xs) xs
+    map (bimap (Num.clamp 1 127) (Num.clamp 1 127)) $ zip (1 : map (+1) xs) xs
 
 fmt :: Int -> String
 fmt = show -- Util.zeroPad 3

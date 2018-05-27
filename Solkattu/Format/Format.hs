@@ -235,7 +235,7 @@ breakBefore maxWidth = go . dropWhile null . Seq.split_before (atAkshara . fst)
         drop 1 . scanl (+) 0 . map (sum . map (textLength . _text . snd))
 
 breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
-breakFst f = (map snd *** map snd) . break (f . fst)
+breakFst f = bimap (map snd) (map snd) . break (f . fst)
 
 -- | Rather than generating the ruler purely from the Tala, I use the States
 -- to figure out the mark spacing.  Otherwise I wouldn't know where nadai

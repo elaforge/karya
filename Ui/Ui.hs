@@ -1694,7 +1694,7 @@ fix_integrated_block block_id block = do
 -- - No TrackIds duplicated across integrated tracks.
 fix_integrated_tracks :: BlockId -> Block.Block -> StateId [Text]
 fix_integrated_tracks block_id block = do
-    let (dests, errs) = Maybe.catMaybes *** concat $ unzip $ map fix
+    let (dests, errs) = bimap Maybe.catMaybes concat $ unzip $ map fix
             (Block.block_integrated_tracks block)
     unless (null errs) $
         modify_block block_id $ \block -> block

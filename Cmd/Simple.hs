@@ -239,7 +239,7 @@ dump_exact_perf_event (Midi.Types.Event start dur patch controls pitch svel evel
         stack) =
     ( Score.instrument_name (Midi.Types.patch_name patch)
     , start, dur
-    , map (Score.control_name *** MSignal.to_pairs) (Map.toList controls)
+    , map (bimap Score.control_name MSignal.to_pairs) (Map.toList controls)
     , MSignal.to_pairs pitch
     , (svel, evel)
     , stack

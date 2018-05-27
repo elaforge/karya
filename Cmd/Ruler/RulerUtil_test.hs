@@ -111,7 +111,7 @@ track_rulers = map Id.ident_name . Block.ruler_ids_of
 
 extract_rulers :: Ui.State -> [(Text, [Text])]
 extract_rulers =
-    map (Id.ident_name *** extract) . Map.toList . Ui.state_rulers
+    map (bimap Id.ident_name extract) . Map.toList . Ui.state_rulers
     where
     extract ruler = map (Ruler.mark_name . snd) (Ruler.ascending 0 mlist)
         where (_config, mlist) = Ruler.get_meter ruler

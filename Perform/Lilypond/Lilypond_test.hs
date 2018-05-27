@@ -289,7 +289,7 @@ test_movements = do
     match text "score * c4 d4 e4 f4 *number 2*score * g4 a4 r2"
 
 test_parse_meters = do
-    let f end = fmap (map pretty *** map pretty)
+    let f end = fmap (bimap (map pretty) (map pretty))
             . Lilypond.parse_meters 0 (end * Types.time_per_whole)
             . map LilypondTest.environ_event
         meter m = (Constants.v_meter, Typecheck.to_val (m :: Text))

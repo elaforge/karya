@@ -60,7 +60,7 @@ extract_lys :: [Text]
 extract_lys wanted =
     fmap $ unwords_right . map to_str . filter is_wanted . split_barlines
     where
-    to_str = show_voices *** Types.to_lily
+    to_str = bimap show_voices Types.to_lily
     show_voices (Process.Voices voices) =
         [(v, Text.unwords $ map Types.to_lily lys) | (v, lys) <- voices]
     is_wanted (Left _voices) = True -- TODO filter \s from voices?
@@ -179,7 +179,7 @@ convert_staves ::
     -- Or 'want_all' to see them all, for debugging.
     -> [Types.Event] -> Either Text [StaffGroup]
 convert_staves wanted events =
-    (Log.msg_text *** map extract_staves) $
+    bimap Log.msg_text (map extract_staves) $
         Lilypond.convert_staff_groups default_config 0 global normal
     where
     (global, normal) = List.partition

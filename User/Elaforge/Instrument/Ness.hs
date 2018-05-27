@@ -67,7 +67,7 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
         Set.fromList $ map control [Guitar.Patch.c_location, Control.dynamic]
 
 show_string :: PSignal.Pitch -> Either Log.Msg Text
-show_string = (Log.msg Log.Warn Nothing . pretty *** Pitch.note_text)
+show_string = bimap (Log.msg Log.Warn Nothing . pretty) Pitch.note_text
     . PSignal.pitch_note . PSignal.coerce
 
 make_string :: Guitar.String -> RestrictedEnviron.ConstantPitch

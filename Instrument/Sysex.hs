@@ -60,7 +60,7 @@ parse_dir parsers dir = do
 parse_file :: [Parser [Patch]] -> FilePath -> ByteString
     -> Either String [Patch]
 parse_file parsers fn bytes =
-    map (initialize bytes *** add_file fn) <$> try_parsers parsers bytes
+    map (bimap (initialize bytes) (add_file fn)) <$> try_parsers parsers bytes
     where
     -- Only add the sysex if the parser hasn't already added one.  This is
     -- because some parsers may parse things that aren't actually sysexes.

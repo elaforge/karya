@@ -403,7 +403,7 @@ test_collect = do
         Just collect = maybe_collect
     equal root_key "top * *"
 
-    let e_warp_maps = Seq.sort_on fst . map (Stack.pretty_ui_ *** e_track)
+    let e_warp_maps = Seq.sort_on fst . map (bimap Stack.pretty_ui_ e_track)
             . Map.toAscList . Derive.collect_warp_map
         e_track (TrackWarp.Track start end _warp block_id track_id) =
             (start, end, block_id, track_id)

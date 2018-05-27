@@ -129,7 +129,8 @@ collectFingers = collect . Seq.keyed_group_stable _string
         let overlaps = findOverlaps notes
         let startDur n = (_start n, _duration n)
         unless (null overlaps) $
-            Left $ "overlaps: " <> pretty (map (startDur *** startDur) overlaps)
+            Left $ "overlaps: "
+                <> pretty (map (bimap startDur startDur) overlaps)
         let pitch = merge_segments [(_start n, _pitch n) | n <- notes]
             fingerWeight = merge_segments [(_start n, _finger n) | n <- notes]
         return

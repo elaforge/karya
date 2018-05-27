@@ -78,7 +78,7 @@ scale_map (Config layout base_oct all_keys default_key laras default_laras)
             { ChromaticScales.smap_semis_to_nn =
                 semis_to_nn offset laras default_laras
             -- Convert range to absolute.
-            , ChromaticScales.smap_range = ((+offset) *** (+offset)) range
+            , ChromaticScales.smap_range = bimap (+offset) (+offset) range
             }
         , smap_laras = laras
         , smap_default_laras = default_laras

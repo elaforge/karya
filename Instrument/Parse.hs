@@ -38,7 +38,7 @@ parse_annotations :: FilePath
     -> IO (Either String (Map InstTypes.Qualified [Annotation]))
 parse_annotations fn = do
     result <- Parse.file mempty p_annotation_file () fn
-    return $ (show *** Map.fromListWith (++)) result
+    return $ bimap show (Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(InstTypes.Qualified, [Annotation])]
 p_annotation_file = concat <$> Parsec.many line <* Parsec.eof

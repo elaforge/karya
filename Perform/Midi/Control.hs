@@ -75,7 +75,7 @@ pb_from_nn pb_range key (Pitch.NoteNumber nn)
     | bend > 0 = if high > 0 then Num.d2f $ bend / high else 0
     | otherwise = if low < 0 then Num.d2f $ bend / (-low) else 0
     where
-    (low, high) = (fromIntegral *** fromIntegral) pb_range
+    (low, high) = bimap fromIntegral fromIntegral pb_range
     bend = Num.clamp low high (nn - Midi.from_key key)
 
 -- ** cc controls

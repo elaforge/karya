@@ -99,7 +99,7 @@ splitM_ matras = Solkattu.check . splitM_either matras
 splitM_either :: Pretty sollu => FMatra -> SequenceT sollu
     -> Either Text (SequenceT sollu, SequenceT sollu)
 splitM_either matras =
-    fmap ((S.simplify *** S.simplify) . snd) . go S.defaultTempo matras
+    fmap (bimap S.simplify S.simplify . snd) . go S.defaultTempo matras
     where
     -- Return (matrasLeft, (pre, post)).  matrasLeft is so that a recursive
     -- split in a S.TempoChange or S.Group can report how many matras it

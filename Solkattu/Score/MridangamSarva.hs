@@ -28,7 +28,7 @@ kir2 = sarvalaghu $ sudhindra $ korvaiS adi $
         (repeat 2 $ prefix `replaceStart` sarva) `replaceEnd` end
     -- takatadin or nakanadin
     sarva = repeat 2 (n.k.n.d) & (o.__.o.o.__.__.o.o) . (on.k.n.d) . (n.k.n.d)
-    prefixes = map (su *** su)
+    prefixes = map (bimap su su)
         [ (takadinna, takadinna . repeat 3 (t.o.o.k))
         , (o.o.n.n . o.k, repeat 4 (o.o.n.n))
         , (o.o.k.t . p.k, repeat 4 (o.o.k.t))

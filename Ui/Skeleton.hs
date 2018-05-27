@@ -129,8 +129,8 @@ move from to = make . go . flatten
     -- TODO should be possible to translate into a map over the graph array
     where
     go
-        | from < to = map $ up *** up
-        | to < from = map $ down *** down
+        | from < to = map $ bimap up up
+        | to < from = map $ bimap down down
         | otherwise = id
     up x
         | x == from = to

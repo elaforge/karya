@@ -30,7 +30,7 @@ test_events_from = do
     let i1 = UiTest.i1
         i2 = UiTest.i2
         i3 = UiTest.i3
-    let f pos = (map extract *** map extract . Vector.toList)
+    let f pos = bimap (map extract) (map extract . Vector.toList)
             . PlayUtil.events_from resume_insts pos
             . Vector.fromList . map mkevent
         resume_insts = Set.fromList [i1, i2]

@@ -609,7 +609,7 @@ extract_events e_event result = Log.trace_logs logs (map e_event events)
     where (events, logs) = r_split result
 
 extract_levents :: (a -> b) -> [LEvent.LEvent a] -> ([b], [Text])
-extract_levents e_event = (map e_event *** map show_log) . extract_logs
+extract_levents e_event = bimap (map e_event) (map show_log) . extract_logs
 
 extract_logs :: [LEvent.LEvent a] -> ([a], [Log.Msg])
 extract_logs = second (filter interesting_log) . LEvent.partition
@@ -703,7 +703,7 @@ e_nn_rounded = maybe 0 (Num.roundDigits 2) . Score.initial_nn
 -- | Extract pitch signal and any errors flattening it.
 e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [Text])
 e_nns_errors =
-    (map (second Pitch.nn) . Signal.to_pairs *** map pretty)
+    bimap (map (second Pitch.nn) . Signal.to_pairs) (map pretty)
     . PSignal.to_nn . Score.event_pitch . Score.normalize
 
 e_pitch :: Score.Event -> Text

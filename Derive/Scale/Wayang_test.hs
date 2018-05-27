@@ -40,7 +40,7 @@ test_note_to_call = do
     equal (to_hz $ run "gender-kuta" ["3o", "3e"]) ([Just 183, Just 206], [])
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
-read_scale scale note = (prettys *** prettys) $
+read_scale scale note = bimap prettys prettys $
     Scale.scale_read scale mempty note
 
 scale_track :: Text -> [Text] -> [UiTest.TrackSpec]

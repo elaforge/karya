@@ -397,7 +397,7 @@ note_spec (inst, pitches, controls) =
         | "--" `Text.isInfixOf` s = (note, pitch)
         | otherwise = ("", s)
         where
-        (note, pitch) = (Text.strip *** Text.strip) $ TextUtil.split1 "--" s
+        (note, pitch) = bimap Text.strip Text.strip $ TextUtil.split1 "--" s
 
 -- | Abbreviation for 'note_spec' where the inst and controls are empty.
 note_track :: [EventSpec] -> [TrackSpec]

@@ -239,7 +239,7 @@ test_load_ky = do
 
     let write imports =
             writeFile (dir </> "defs") (make_ky imports ["defs-call"])
-    let load = (untxt *** first extract)
+    let load = bimap untxt (first extract)
             <$> Parse.load_ky [dir, lib] "import 'defs'"
         extract = map (fst . snd) . fst . Parse.def_note
     write ["z1"]
@@ -267,7 +267,7 @@ e_expr (Parse.Expr (call :| calls)) = e_call call : map e_call calls
     where e_call (Parse.Call sym terms) = (sym, map ShowVal.show_val terms)
 
 test_parse_ky = do
-    let f extract = (untxt *** extract) . Parse.parse_ky "fname.ky"
+    let f extract = bimap untxt extract . Parse.parse_ky "fname.ky"
         note = f e_note . ("note generator:\n"<>)
         e_note = map (second (head . e_expr) . snd) . fst . Parse.def_note . snd
     left_like (f id "x:\na = b\n") "unknown sections: x"
@@ -301,7 +301,7 @@ test_split_sections = do
         ("import a\nimport b\n", [("a", [(4, "2")])])
 
 test_p_definition = do
-    let f = (untxt *** second e_expr)
+    let f = bimap untxt (second e_expr)
             . ParseText.parse_lines 1 Parse.p_definition
     equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
     left_like (f "a =\n b\nc = d\n") ""

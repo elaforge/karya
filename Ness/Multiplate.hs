@@ -20,8 +20,8 @@ verify instrument score =
     map ("duplicate object name: "<>) duplicates
         ++ mapMaybe strike (sStrikes score)
     where
-    (objects, duplicates) =
-        (Set.fromList *** map fst) $ Seq.partition_dups id (iObjects instrument)
+    (objects, duplicates) = bimap Set.fromList (map fst) $
+        Seq.partition_dups id (iObjects instrument)
     strike s
         | sObject s `Set.notMember` objects =
             Just $ "strike at " <> pretty (sStart s) <> ": unknown object "

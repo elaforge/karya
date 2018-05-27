@@ -80,10 +80,10 @@ empty_midi :: Midi
 empty_midi = Midi Map.empty Map.empty Set.empty
 
 make_rdev_map :: [(Text, Text)] -> Map Midi.ReadDevice Midi.ReadDevice
-make_rdev_map = Map.fromList . map (Midi.read_device *** Midi.read_device)
+make_rdev_map = Map.fromList . map (bimap Midi.read_device Midi.read_device)
 
 make_wdev_map :: [(Text, Text)] -> Map Midi.WriteDevice Midi.WriteDevice
-make_wdev_map = Map.fromList . map (Midi.write_device *** Midi.write_device)
+make_wdev_map = Map.fromList . map (bimap Midi.write_device Midi.write_device)
 
 make_read_devices :: [Text] -> Set Midi.ReadDevice
 make_read_devices = Set.fromList . map Midi.read_device

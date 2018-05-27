@@ -47,7 +47,7 @@ test_split_range = do
         ([], [], [1, 1, 2])
 
 test_split = do
-    let f = (e_start_dur *** e_start_dur) . Events.split 2 . from_start_dur
+    let f = bimap e_start_dur e_start_dur . Events.split 2 . from_start_dur
     equal (f [(0, 2), (2, 2), (4, 2)]) ([(0, 2)], [(2, 2), (4, 2)])
     equal (f [(2, -2), (2, 2)]) ([(2, -2)], [(2, 2)])
     equal (f [(2, -0), (2, 0)]) ([(2, -0)], [(2, 0)])
@@ -63,7 +63,7 @@ e_ranges (pre, within, post) =
 test_split_at_before = do
     let f pos = extract $ Events.split_at_before pos e1
         e1 = from_list [(0, 1, "0"), (1, 1, "1"), (2, 1, "2")]
-        extract = map Event.start *** map Event.start
+        extract = bimap (map Event.start) (map Event.start)
     equal (f 0) ([], [0, 1, 2])
     equal (f 0.5) ([], [0, 1, 2])
     equal (f 1) ([0], [1, 2])

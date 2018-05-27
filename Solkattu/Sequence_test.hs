@@ -55,7 +55,7 @@ test_tempoToState = do
         [(0, 0), (0, 3/8), (0, 6/8), (1, 1/8)]
 
 test_normalizeSpeed = do
-    let f = map (eState *** prettyStroke)
+    let f = map (bimap eState prettyStroke)
             . Sequence.flattenedNotes
             . Sequence.normalizeSpeed Tala.adi_tala
             . Sequence.flatten

@@ -4,8 +4,10 @@
 
 -- | Control flow and monadic utilities.
 module Util.Control (
-    module Util.Control, module Control.Monad.Extra, module Util.CallStack
+    module Util.Control
+    , module Data.Bifunctor, module Control.Monad.Extra, module Util.CallStack
 ) where
+import Data.Bifunctor (Bifunctor(bimap, first, second))
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Except as Except
 import Control.Monad.Extra
@@ -16,24 +18,6 @@ import qualified Data.Monoid as Monoid
 
 import Util.CallStack (errorStack, errorIO)
 
-
--- | This is like the hackage bifunctor package, but with no extra
--- dependencies, and no clowns.
-class Bifunctor p where
-    (***) :: (a -> b) -> (c -> d) -> p a c -> p b d
-    first :: (a -> b) -> p a c -> p b c
-    second :: (c -> d) -> p a c -> p a d
-infixr 3 ***
-
-instance Bifunctor (,) where
-    f *** g = \(x, y) -> (f x, g y)
-    first f (a, c) = (f a, c)
-    second f (c, a) = (c, f a)
-
-instance Bifunctor Either where
-    f *** g = either (Left . f) (Right . g)
-    first f = either (Left . f) Right
-    second f = either Left (Right . f)
 
 while :: Monad m => m Bool -> m a -> m [a]
 while cond op = do

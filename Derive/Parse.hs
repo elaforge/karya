@@ -537,7 +537,7 @@ parse_ky filename text = do
             get (kind <> " " <> transformer))
     aliases <- mapM parse_alias (get alias)
     let add_fname = map (filename,)
-        add_fname2 = add_fname *** add_fname
+        add_fname2 = bimap add_fname add_fname
     return $ (,) imports $ Definitions
         { def_note = add_fname2 $ get2 note
         , def_control = add_fname2 $ get2 control

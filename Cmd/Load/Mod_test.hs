@@ -34,7 +34,7 @@ load = do
 
 convert :: M.Module
     -> Either Text [(BlockId, (UiTest.BlockSpec, [Skeleton.Edge]))]
-convert = (pretty *** UiTest.dump_blocks) . Mod.convert UiTest.test_ns
+convert = (bimap pretty UiTest.dump_blocks) . Mod.convert UiTest.test_ns
 
 tempo :: M.Tempo
 tempo = M.Tempo 33 6

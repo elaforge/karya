@@ -106,7 +106,7 @@ rulers_in_scope :: Ui.M m => Scope -> BlockId -> RulerId
 rulers_in_scope scope block_id ruler_id = do
     blocks <- Ui.blocks_with_ruler_id ruler_id
     let in_block :: [TrackNum]
-        (in_block, out_block) = ((map fst . concatMap snd) *** (not . null)) $
+        (in_block, out_block) = (bimap (map fst . concatMap snd) (not . null)) $
             List.partition ((==block_id) . fst) blocks
     case scope of
         Block -> return (in_block, out_block)

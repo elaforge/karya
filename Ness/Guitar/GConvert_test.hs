@@ -18,7 +18,7 @@ import Types
 
 
 test_collectFingers = do
-    let f = fmap (map e_note *** map e_finger) . GConvert.collectFingers
+    let f = fmap (bimap (map e_note) (map e_finger)) . GConvert.collectFingers
             . map mknote
     equal (f []) $ Right ([], [])
     pprint (f [("3e", 0, 1, [(0, NN.e4)]), ("3e", 1, 1, [(1, NN.b3)])])

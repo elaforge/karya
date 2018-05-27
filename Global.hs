@@ -7,7 +7,7 @@
 module Global (
     Proxy(..), Map, Set
     , (<|>)
-    , first, second, (***)
+    , first, second, bimap
     , Monoid(..), Semigroup(..)
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM

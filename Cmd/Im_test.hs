@@ -25,7 +25,7 @@ import Global
 
 
 test_respond = do
-    let states = (add_allocation *** set_db) $ ResponderTest.mkstates $
+    let states = (bimap add_allocation set_db) $ ResponderTest.mkstates $
             UiTest.note_spec
                 ( "im"
                 , [(0, 1, "4c"), (1, 1, "4d")]

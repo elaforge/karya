@@ -100,7 +100,7 @@ environ_code :: Env.Environ -> [(CodePosition, Text)]
 environ_code env =
     [ (code, val)
     | (Just code, Just val)
-        <- map (key_position *** Typecheck.from_val_simple) (Env.to_list env)
+        <- map (bimap key_position Typecheck.from_val_simple) (Env.to_list env)
     ]
 
 with_code :: CodePosition -> Text -> Env.Environ -> Env.Environ
@@ -122,7 +122,7 @@ environ_free_code :: Env.Environ -> [(FreeCodePosition, Text)]
 environ_free_code env =
     [ (code, val)
     | (Just code, Just val)
-        <- map (key_free_code *** Typecheck.from_val_simple) (Env.to_list env)
+        <- map (bimap key_free_code Typecheck.from_val_simple) (Env.to_list env)
     ]
 
 with_free_code :: FreeCodePosition -> Text -> Env.Environ -> Env.Environ

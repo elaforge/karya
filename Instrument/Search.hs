@@ -154,7 +154,7 @@ inst_tags Inst.Dummy = []
 
 normalize_tags :: [Tag.Tag] -> [Tag.Tag]
 normalize_tags =
-    Seq.drop_dups id . List.sort . map (Text.toLower *** Text.toLower)
+    Seq.drop_dups id . List.sort . map (bimap Text.toLower Text.toLower)
 
 control_tags :: Control.ControlMap -> [Tag.Tag]
 control_tags = map ((,) Tag.control . Score.control_name) . Map.keys

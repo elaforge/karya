@@ -153,7 +153,7 @@ block_cache block_id =
 -- | Get summarized stats for cached tracks on the given block.
 track_cache :: BlockId -> Cmd.CmdL ([(Text, [TrackId])], [(TrackId, Int)])
 track_cache block_id = do
-    (rederived, cached) <- (rederived_block *** cached_block)
+    (rederived, cached) <- (bimap rederived_block cached_block)
         . Play.extract_cache_stats Play.get_track_id . Cmd.perf_logs
         <$> Cmd.get_performance block_id
     return (rederived, cached)

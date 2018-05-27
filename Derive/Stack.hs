@@ -245,7 +245,7 @@ instance Aeson.FromJSON Frame where
             | tag == "Track" ->
                 Track . Id.TrackId . Id.read_id <$> Aeson.parseJSON val
             | tag == "Region" -> uncurry Region
-                . (ScoreTime.from_double *** ScoreTime.from_double) <$>
+                . bimap ScoreTime.from_double ScoreTime.from_double <$>
                 Aeson.parseJSON val
             | tag == "Call" -> Call <$> Aeson.parseJSON val
             | tag == "Serial" -> Serial <$> Aeson.parseJSON val

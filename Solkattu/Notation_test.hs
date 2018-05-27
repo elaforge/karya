@@ -29,11 +29,11 @@ taka = ta <> ka
 -- Many of the Notation functions are indirectly tested in Realize_test.
 
 test_splitM = do
-    equal ((map pretty *** map pretty) $ splitM 1 taka)
+    equal (bimap (map pretty) (map pretty) $ splitM 1 taka)
         (["(1, After)(ta ka)"], ["(1, Before)(ta ka)"])
 
 test_splitM_ = do
-    let f matras = fmap (extract *** extract) . splitM_either matras
+    let f matras = fmap (bimap extract extract) . splitM_either matras
         extract = map pretty . flattenGroups
     equal (f 1 (su taka <> di)) $ Right (["s+1(ta ka)"], ["di"])
     equal (f 1 (su (ta <> di <> ki <> ta) <> di)) $

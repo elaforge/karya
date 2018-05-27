@@ -38,7 +38,7 @@ newtype Environ = Environ (Map EnvKey.Key Val)
 -- Environ keys are always Text, and it's annoying to have quotes on them.
 instance Pretty Environ where
     format (Environ env) = Pretty.formatMap
-        . map (Pretty.text *** Pretty.format) . Map.toList $ env
+        . map (bimap Pretty.text Pretty.format) . Map.toList $ env
 
 from_list :: [(EnvKey.Key, Val)] -> Environ
 from_list = Environ . Map.fromList

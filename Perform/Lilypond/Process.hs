@@ -323,7 +323,7 @@ apply_free_code codes ly = case ly of
         return $ LyNested $ nested { nested_contents = lys }
     _ -> Nothing
     where
-    (prepend, append) = (map snd *** map snd) $
+    (prepend, append) = bimap (map snd) (map snd) $
         List.partition ((==Constants.FreePrepend) . fst) codes
     -- Apply to the first place that takes it, or Nothing if there was none.
     apply_nested [] = Nothing
@@ -675,7 +675,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
             mconcat $ map event_attributes $ NonEmpty.toList chord
 
     (prepend_chord, append_chord) =
-        (Seq.unique . concat *** Seq.unique . concat) $ unzip
+        bimap (Seq.unique . concat) (Seq.unique . concat) $ unzip
             [ event_note_code Constants.Chord (is_first e) (is_last e) e
             | e <- NonEmpty.toList chord
             ]
@@ -721,7 +721,7 @@ make_note config measure_start prev_attrs maybe_meter chord next =
 events_note_code :: Constants.Attach -> Bool -> Bool -> [Event]
     -> ([Text], [Text])
 events_note_code attach is_first is_last =
-    (Seq.unique . concat *** Seq.unique . concat)
+    bimap (Seq.unique . concat) (Seq.unique . concat)
     . unzip . map (event_note_code attach is_first is_last)
 
 event_note_code :: Constants.Attach -> Bool -> Bool -> Event -> ([Text], [Text])

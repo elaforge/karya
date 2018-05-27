@@ -16,7 +16,7 @@ import Global
 
 
 test_parse_annotations = do
-    let f = (show *** map extract)
+    let f = bimap show (map extract)
             .  Parsec.runParser Parse.p_annotation_file () "test"
         extract (qualified, annots) =
             (InstTypes.show_qualified qualified, annots)
@@ -32,7 +32,7 @@ test_parse_annotations = do
 test_parse_patch_file = do
     let parse f = extract f
             . Parsec.runParser Parse.p_patch_file Parse.empty_state "test"
-        extract f = show *** map f
+        extract f = bimap show (map f)
 
     let e_init (patch, _) = case Patch.patch_initialize patch of
             Patch.InitializeMidi msgs -> [m | Midi.ChannelMessage _ m <- msgs]
