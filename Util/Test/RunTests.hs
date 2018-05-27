@@ -164,7 +164,7 @@ runInSubprocess :: Test -> IO ()
 runInSubprocess test = do
     argv0 <- System.Environment.getExecutablePath
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
-    val <- Process.rawSystem argv0 [Text.unpack (testName test)]
+    val <- Process.rawSystem argv0 [untxt (testName test)]
     case val of
         System.Exit.ExitFailure code -> Testing.with_test_name (testName test) $
             void $ Testing.failure $
@@ -178,7 +178,7 @@ runParallel :: [FilePath] -> [Test] -> IO ()
 runParallel _ [] = return ()
 runParallel outputs tests = do
     let byModule = Seq.keyed_group_adjacent testFilename tests
-    queue <- newQueue [(Text.pack name, tests) | (name, tests) <- byModule]
+    queue <- newQueue [(txt name, tests) | (name, tests) <- byModule]
     Async.forConcurrently_ (map fst (zip outputs byModule)) $
         \output -> jobThread output queue
 
@@ -194,7 +194,7 @@ jobThread output queue =
         from <- Util.Process.conversation argv0 ["--subprocess"]
             (Just (("HPCTIXFILE", output <> ".tix") : env)) to
         whileJust (takeQueue queue) $ \(name, tests) -> do
-            put $ Text.unpack name
+            put $ untxt name
             Chan.writeChan to $ Util.Process.Text $
                 Text.unwords (map testName tests) <> "\n"
             Fix.fix $ \loop -> Chan.readChan from >>= \case
@@ -234,7 +234,7 @@ testsCompleteLine = "•complete•"
 matchingTests :: [String] -> [Test] -> [Test]
 matchingTests regexes tests = concatMap match regexes
     where
-    match reg = case List.find ((== Text.pack reg) . testName) tests of
+    match reg = case List.find ((== txt reg) . testName) tests of
         Just test -> [test]
         Nothing -> filter (Regex.matches (Regex.compileUnsafe reg) . testName)
             tests
@@ -249,8 +249,8 @@ runTest test = Testing.with_test_name name $ isolate $ do
     -- CPUTime is in picoseconds.
     let secs = fromIntegral (end - start) / 10^12
     -- Grep for timing to make a histogram.
-    Text.IO.putStrLn $ Text.unwords [metaPrefix, "timing ", testName test,
-        Text.pack $ Numeric.showFFloat (Just 3) secs ""]
+    Text.IO.putStrLn $ Text.unwords [metaPrefix, "timing", testName test,
+        txt $ Numeric.showFFloat (Just 3) secs ""]
     return ()
     where name = last (Text.split (=='.') (testName test))
 
