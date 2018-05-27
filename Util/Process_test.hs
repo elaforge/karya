@@ -42,8 +42,8 @@ test_conversation_stdout = do
 
 test_conversation_stderr = do
     input <- Chan.newChan
-    output <- Process.conversation "cat" ["no such file"] Nothing input
+    output <- Process.conversation "cat" ["no-such-file"] Nothing input
     Chan.writeChan input "hi there"
     io_equal (Chan.readChan output)
-        (Process.Stderr "cat: no such file: No such file or directory")
+        (Process.Stderr "cat: no-such-file: No such file or directory")
     io_equal (Chan.readChan output) (Process.Exit 1)
