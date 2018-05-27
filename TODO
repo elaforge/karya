@@ -2691,7 +2691,7 @@ performance:
     . Skia is a 2d library, like cairo, and it has a OpenGL backend.  I guess
       it provides fancier features on top.  But if I don't need those
       features, then I should just use OpenGL directly.
-  - Bring back profiling, and do it regularly.
+  + Bring back profiling, and do it regularly.
     . Look into that graphing stuff, I have the links around here somewhere.
     . I can get historical data with a script to step through darcs history.
     . I don't have historical scores.  Well, I have backup/y-m-d, but they're
@@ -2725,6 +2725,11 @@ performance:
       . The problem is I have to update twice as much stuff, but I don't need
         that many "reference" scores.
     . Profile MIDI and ly generation separately?
+  keep track of history save scores and timing:
+    * I put saves and timing in a gitlab group: https://gitlab.com/karya-group
+    - I should have a way to commit saves on each karya commit, and keep track
+      of which was there.
+      . This seems like submodules.
   - When I'm using ghc 8.2, try compact regions for inst db, especially vsl.
     . 'compact' package
     . Maybe even serialize it to disk?  Probably not worth it though, since

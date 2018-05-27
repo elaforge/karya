@@ -19,6 +19,8 @@ def main():
     scores = set(sys.argv[1:])
     timings = []
     for fn in os.listdir(timing_dir):
+        if not fn.endswith('.json'):
+            continue
         timings.extend(read(os.path.join(timing_dir, fn)))
 
     timings.sort(key=lambda json: json['patch']['date'])
