@@ -422,7 +422,8 @@ regular_notes n = note_track $
 
 -- | Parse a TrackSpec back out to a NoteSpec.
 to_note_spec :: [TrackSpec] -> [NoteSpec]
-to_note_spec = mapMaybe parse . Seq.split_with (ParseTitle.is_note_track . fst)
+to_note_spec =
+    mapMaybe parse . Seq.split_before (ParseTitle.is_note_track . fst)
     where
     parse [] = Nothing
     parse ((inst, notes) : controls) =

@@ -574,7 +574,7 @@ parse_alias (_, expr) = Left $ "rhs of alias should be an instrument: "
 split_sections :: [Text] -> (Text, Map Text [(LineNumber, Text)])
 split_sections =
     second (Map.fromListWith (flip (++)) . concatMap split_header)
-        . split_imports . Seq.split_with is_header . zip [1..]
+        . split_imports . Seq.split_before is_header . zip [1..]
     where
     is_header = (":" `Text.isSuffixOf`) . snd
     split_imports [] = ("", [])

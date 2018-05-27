@@ -58,3 +58,15 @@ test_drop_dups = do
     equal (f "abbc") "abc"
     equal (f "abbbc") "abc"
     equal (f "abbbcccca") "abca"
+
+test_split_before = do
+    let f = Seq.split_before (==1)
+    equal (f []) []
+    equal (f [1, 2, 3, 1, 2]) [[], [1, 2, 3], [1, 2]]
+    equal (f [2, 3, 1, 2]) [[2, 3], [1, 2]]
+
+test_split_after = do
+    let f = Seq.split_after (==1)
+    equal (f []) []
+    equal (f [1, 2, 3, 1, 2]) [[1], [2, 3, 1], [2]]
+    equal (f [2, 3, 1, 2]) [[2, 3, 1], [2]]

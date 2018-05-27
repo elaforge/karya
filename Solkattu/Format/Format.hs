@@ -203,7 +203,7 @@ angaSet :: Tala.Tala -> Set Tala.Akshara
 angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
 
 breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
-breakAvartanams = dropWhile null . Seq.split_with (isSam . fst)
+breakAvartanams = dropWhile null . Seq.split_before (isSam . fst)
     where isSam state = S.stateMatra state == 0 && S.stateAkshara state == 0
 
 -- | If the text goes over the width, break at the middle akshara, or the
@@ -222,7 +222,7 @@ breakLine maxWidth notes
 
 -- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
 breakBefore :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
-breakBefore maxWidth = go . dropWhile null . Seq.split_with (atAkshara . fst)
+breakBefore maxWidth = go . dropWhile null . Seq.split_before (atAkshara . fst)
     where
     go aksharas =
         case breakFst (>maxWidth) (zip (runningWidth aksharas) aksharas) of
@@ -249,7 +249,7 @@ inferRuler tala strokeWidth =
     . concatMap insertDots
     . zip (Tala.tala_labels tala)
     . dropWhile null
-    . Seq.split_with atAkshara
+    . Seq.split_before atAkshara
     where
     insertNadai :: S.Nadai -> (Text, [S.State])
         -> (S.Nadai, [(Text, [S.State])])

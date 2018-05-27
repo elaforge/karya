@@ -279,9 +279,9 @@ log_ui_frame frame = "{s " <> showt (unparse_ui_frame frame) <> "}"
 -- region, e.g. [track, call, call, region].
 track_regions :: Stack -> TrackId -> [Ranges.Ranges TrackTime]
 track_regions stack track_id =
-    [Ranges.range s e | (_:rest) <- grps, (s, e) <- get_region rest ]
+    [Ranges.range s e | _ : rest <- groups, (s, e) <- get_region rest ]
     where
-    grps = Seq.split_with (== Track track_id) (outermost stack)
+    groups = Seq.split_before (== Track track_id) (outermost stack)
     get_region frames = case dropWhile is_call frames of
         Region s e : _ -> [(s, e)]
         _ -> []

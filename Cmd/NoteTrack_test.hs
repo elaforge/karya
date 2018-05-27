@@ -184,17 +184,15 @@ simplify = simplify_tracks . UiTest.extract_tracks . fst
 -- -> [(">", [(0, 1, "4c")])]
 simplify_tracks :: [UiTest.TrackSpec] -> [UiTest.TrackSpec]
 simplify_tracks tracks =
-    case Seq.split_with (ParseTitle.is_note_track . fst) tracks of
+    case Seq.split_before (ParseTitle.is_note_track . fst) tracks of
         [] -> []
         [] : groups -> map simplify groups
-        hd : _ ->
-            error $ "simplify_tracks: extra tracks in front: " ++ show hd
+        hd : _ -> error $ "extra tracks in front: " ++ show hd
     where
     simplify [(note, notes), (pitch, pitches)]
         | ParseTitle.is_note_track note && ParseTitle.is_pitch_track pitch =
             (note, combine "" notes pitches)
-    simplify tracks = error $ "simplify_tracks: expected a note and a pitch: "
-        ++ show tracks
+    simplify tracks = error $ "expected a note and a pitch: " ++ show tracks
     combine _ [] _ = []
     combine last_p notes [] = [(s, e, last_p) | (s, e, _) <- notes]
     combine last_p all_notes@((s, e, _) : notes)

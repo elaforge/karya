@@ -109,7 +109,7 @@ fmt_meter meter = Text.unlines $ map fmt_rank [0..3]
     where
     ranks = Vector.Unboxed.toList $ Meter.meter_ranks meter
     fmt_rank r = mconcatMap (fmt r) $
-        dropWhile null $ Seq.split_with (<=r) ranks
+        dropWhile null $ Seq.split_before (<=r) ranks
     fmt r g = Text.justifyLeft (to_spaces g) ' '  (showt r)
     to_spaces = (`div` fromIntegral (Types.dur_to_time min_duration)) . length
 

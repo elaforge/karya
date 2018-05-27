@@ -193,7 +193,7 @@ get_section :: Ui.M m => BlockId -> TrackNum
     -> m [(TrackNum, Block.TracklikeId)]
 get_section block_id tracknum = do
     tracks <- map snd <$> block_tracks block_id
-    let sections = Seq.split_with (Maybe.isJust . ruler_id_of . snd)
+    let sections = Seq.split_before (Maybe.isJust . ruler_id_of . snd)
             (zip [0..] tracks)
     return $ fromMaybe [] $ List.find ((tracknum `elem`) . map fst) sections
     where

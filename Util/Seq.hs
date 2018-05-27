@@ -17,6 +17,8 @@ import Data.Monoid ((<>))
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 
+import qualified Util.Then as Then
+
 
 -- | This is just a list, but is documentation that a return value will never
 -- be null, or an argument should never be null.  This is for cases where
@@ -672,18 +674,28 @@ ne_viewr (x :| xs) =
 
 -- ** split and join
 
--- | Split @xs@ before places where @f@ matches.
+-- | Split before places where the function matches.
 --
--- > split_with (==1) [1,2,1]
--- > --> [[], [1, 2], [1]]
-split_with :: (a -> Bool) -> [a] -> NonNull [a]
-    -- ^ output is non-null, and the contents are also, except the first one
-split_with f xs = map reverse (go f xs [])
+-- > > split_before (==1) [1,2,1]
+-- > [[], [1, 2], [1]]
+split_before :: (a -> Bool) -> [a] -> [[a]]
+split_before f = go
     where
-    go _ [] collect = [collect]
-    go f (x:xs) collect
-        | f x = collect : go f xs [x]
-        | otherwise = go f xs (x:collect)
+    go [] = []
+    go xs = pre : case post of
+        x : xs -> cons1 x (go xs)
+        [] -> []
+        where (pre, post) = break f xs
+    cons1 x [] = [[x]]
+    cons1 x (g:gs) = (x:g) : gs
+
+-- | Split after places where the function matches.
+split_after :: (a -> Bool) -> [a] -> [[a]]
+split_after f = go
+    where
+    go [] = []
+    go xs = pre : go post
+        where (pre, post) = Then.break1 f xs
 
 -- | Split 'xs' on 'sep', dropping 'sep' from the result.
 split :: Eq a => NonNull a -> [a] -> NonNull [a]

@@ -41,8 +41,8 @@ make_skeleton =
 parse_to_tree :: Bool -> [Ui.TrackInfo] -> Tree.Forest Ui.TrackInfo
 parse_to_tree reversed tracks = concatMap parse groups
     where
-    groups =
-        Seq.split_with (ParseTitle.is_tempo_track . Ui.track_title) tracks
+    groups = Seq.split_before (ParseTitle.is_tempo_track . Ui.track_title)
+        tracks
     parse = if reversed then reverse_tempo_group else parse_tempo_group
 
 parse_tempo_group :: [Ui.TrackInfo] -> Tree.Forest Ui.TrackInfo
@@ -51,7 +51,7 @@ parse_tempo_group tracks = case groups of
         non_note : ngroups ->
             descend non_note (concatMap parse_note_group ngroups)
     where
-    groups = Seq.split_with (ParseTitle.is_note_track . Ui.track_title)
+    groups = Seq.split_before (ParseTitle.is_note_track . Ui.track_title)
         tracks
 
 reverse_tempo_group :: [Ui.TrackInfo] -> Tree.Forest Ui.TrackInfo
@@ -59,7 +59,7 @@ reverse_tempo_group [] = []
 reverse_tempo_group (track:tracks) =
     [Tree.Node track $ concatMap parse_note_group (shift groups)]
     where
-    groups = Seq.split_with (ParseTitle.is_note_track . Ui.track_title)
+    groups = Seq.split_before (ParseTitle.is_note_track . Ui.track_title)
         tracks
     shift (group : (note : rest) : gs) = (group ++ [note]) : shift (rest : gs)
     shift gs = gs
