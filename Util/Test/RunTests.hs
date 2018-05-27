@@ -198,10 +198,10 @@ jobThread output queue =
             Chan.writeChan to $ Util.Process.Text $
                 Text.unwords (map testName tests) <> "\n"
             Fix.fix $ \loop -> Chan.readChan from >>= \case
-                Util.Process.Stdout line -> Text.IO.hPutStrLn hdl line >> loop
-                Util.Process.Stderr line
+                Util.Process.Stdout line
                     | line == testsCompleteLine -> return ()
                     | otherwise -> Text.IO.hPutStrLn hdl line >> loop
+                Util.Process.Stderr line -> Text.IO.hPutStrLn hdl line >> loop
                 Util.Process.Exit n -> put $ "completed early: " <> show n
         Chan.writeChan to Util.Process.EOF
         final <- Chan.readChan from
@@ -221,7 +221,9 @@ subprocess allTests = void $ File.ignoreEOF $ forever $ do
     unless (Set.null testNames) $ do
         let tests = filter ((`Set.member` testNames) . testName) allTests
         mapM_ runTest tests
-            `Exception.finally` Text.IO.hPutStrLn IO.stderr testsCompleteLine
+            `Exception.finally` Text.IO.hPutStrLn IO.stdout testsCompleteLine
+            -- I previously wrote this on stderr, but it turns out it then
+            -- gets nondeterministically interleaved with stdout.
 
 -- | Signal to the caller that the current batch of tests are done.
 testsCompleteLine :: Text
