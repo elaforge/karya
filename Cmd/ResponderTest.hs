@@ -31,8 +31,10 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text.IO as Text.IO
 
+import qualified System.Environment as Environment
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
+
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
@@ -198,7 +200,9 @@ continue_all timeout prev_result = go Set.empty (result_states prev_result)
     complete _ = Nothing
 
 read_msg :: Thread.Seconds -> Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
-read_msg timeout = Thread.timeout timeout . Chan.readChan
+read_msg timeout chan = do
+    ci <- maybe False (not . null) <$> Environment.lookupEnv "CI_DONT_TIMEOUT"
+    (if ci then fmap Just else Thread.timeout timeout) $ Chan.readChan chan
 
 -- * thread
 

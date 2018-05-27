@@ -107,7 +107,7 @@ script:
   # and a whole separate build with optimization.  I can get the former
   # with ghc-8.4.1-prof apt package, but I can't get around the parallel
   # build.
-  - bin/mk tests-normal
+  - CI_DONT_TIMEOUT=t skip_hpc=t bin/mk tests-normal
 
   # I need to get all-deps working for this.
   # - |

@@ -3165,6 +3165,23 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test: testing:
+  * travis failure:
+    . log:
+      ---------- new cmd
+      ResponderTest.continue: DeriveStatus: (bid "test/b1"): OutOfDate
+      ResponderTest.continue: DeriveStatus: (bid "test/b1"): Deriving
+      ResponderTest.continue: timed out!
+      Socket: Command: MAGIC!!
+      DeriveStatus: (bid "test/b1"): OutOfDate
+      DeriveStatus: (bid "test/b1"): Deriving
+      **   Cmd/Performance.hs:238 - derived (bid "test/b1") in 3.467s cpu,
+        7.501s wall
+      __-> Cmd/Im_test.hs:51 [test_respond] Left: IOError build / test / tmp
+        / im / notes /# untitled / test / b1 / notes : openBinaryFile : does not
+        exist (No such file or directory)
+    . Things run very slowly on travis, that 7.5s wall time is instant
+      locally.
+    . Maybe turn off or turn up timeout for travis?
   + export Util.Test so I can use it in other projects
     . I think I can get cabal to run the generator via build hooks:
       https://www.haskell.org/cabal/users-guide/developing-packages.html#more-complex-packages
