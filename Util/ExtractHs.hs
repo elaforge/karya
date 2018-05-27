@@ -26,11 +26,11 @@ process :: [String] -> (Text -> a)
     -> (FilePath -> Map FilePath a -> Either Error ([Warning], Text)) -> IO ()
 process args extract generate = do
     progName <- System.Environment.getProgName
-    (outFname, hs) <- case args of
-        outFname : hs -> return (outFname, hs)
+    (outFname, inFnames) <- case args of
+        outFname : inFnames -> return (outFname, inFnames)
         _ -> die $ "usage: " <> txt progName
             <> " output.hs input1.hs input2.hs ..."
-    extracted <- extractFiles extract hs
+    extracted <- extractFiles extract inFnames
     case generate outFname extracted of
         Left err -> die err
         Right (warnings, output) -> do

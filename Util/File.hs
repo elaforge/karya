@@ -78,7 +78,7 @@ writable fn = orM
 -- it prepends the directory.
 list :: FilePath -> IO [FilePath]
 list dir = do
-    fns <- Directory.getDirectoryContents dir
+    fns <- Directory.listDirectory dir
     return $ map (strip . (dir </>)) $ filter ((/=".") . take 1) fns
     where
     strip ('.' : '/' : path) = path
