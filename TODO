@@ -1666,6 +1666,8 @@ synth: im:
           for rerender instead of hashes?
       - continue from checkpoints
         . Find the first chunk where the hash doesn't match
+        . Crazy idea: could I use shake?  Make each audo chunk built from
+          the input notes and previous state.
       - tests for FaustIm
         . It's easy to test the non-audio functions, but How to test
           incremental rerender?
@@ -3163,16 +3165,22 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test: testing:
-  - export Util.Test so I can use it in other projects
+  + export Util.Test so I can use it in other projects
     . I think I can get cabal to run the generator via build hooks:
       https://www.haskell.org/cabal/users-guide/developing-packages.html#more-complex-packages
     . I also want Util.Debug, but that in turn pulls in Util.Format, which is
       buggy.
+    integrate test/* scripts into RunTest so it can run under cabal
+      * integrate check_output
+      - add hpc support
+      - add Testing.Interactive / serialized test support
+  - RunTests --list shouldn't need '.'
   * rm .tix and test.output in test/run_tests instead of Shakefile
-  / --noninteractive should be the default
+  * --noninteractive should be the default
     . Actually let's not bother.  It seems confusing to have to add a flag to
       get io_human to actually work, and I never run interactive tests
       automatically anyway.
+    . I wound up doing it anyway.
   - on failure, instead of
       __-> Util/Format_test.hs:80 [test_render_full_width] ...
     print

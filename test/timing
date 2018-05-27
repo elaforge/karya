@@ -1,4 +1,4 @@
 #!/bin/sh
 # Extract test times.
 
-grep '^===> timing' build/test/output | sort -n -k4
+grep -h '^===> timing' build/test/output/*.stdout | sort -n -k4

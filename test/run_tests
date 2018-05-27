@@ -48,26 +48,24 @@ function run {
 }
 
 if [[ -n $parallel ]]; then
-    outs=($out_dir/out{1..4}.stdout)
-    outs=${(j:,:)outs}
     # The subprocesses will set HPCTIXFILE appropriately.
     # Apparently there's no way to turn off hpc, and it doesn't like /dev/null.
     for bin in $binaries; do
-        HPCTIXFILE=build/test/tmp/tix.tix run $bin --outputs $outs $prefixes
+        HPCTIXFILE=build/test/tmp/tix.tix run $bin --jobs=4 --output=$out_dir \
+            $prefixes
     done
     rm -f build/test/tmp/tix.tix
 else
     for bin in $binaries; do
-        echo "HPCTIXFILE=$all_tix $bin --noninteractive $prefixes \
-            >>$out_dir/out.stdout"
+        echo "HPCTIXFILE=$all_tix $bin $prefixes >>$out_dir/out.stdout"
         time (
-            HPCTIXFILE=$all_tix $bin --noninteractive $prefixes \
-                >>$out_dir/out.stdout
+            HPCTIXFILE=$all_tix $bin $prefixes >>$out_dir/out.stdout
         )
     done
 fi
 
-test/check_output $out_dir/*.stdout
+$binaries[1] --jobs=4 --output=$out_dir --check-output
+rm *.tix # these things are really annoying
 
 # Optionally disable HPC.
 if [[ -z $skip_hpc ]]; then

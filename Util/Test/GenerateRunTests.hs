@@ -36,8 +36,7 @@ main = do
 generate :: Map FilePath ([Test], HasMeta) -> ([Text], Text)
 generate extracted = (,) warnings $
     testTemplate
-        (Text.unlines $
-            map ExtractHs.makeImport (Map.keys fnameTests))
+        (Text.unlines $ map ExtractHs.makeImport (Map.keys fnameTests))
         (Text.intercalate "\n    , " $ makeTests fnameTests)
     where
     (empty, fnameTests) = Map.partition (null . fst) extracted
