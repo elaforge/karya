@@ -121,14 +121,15 @@ quitWithUsage errors = do
     System.Exit.exitFailure
 
 runTests :: [Test] -> [Flag] -> [String] -> IO Bool
-runTests allTests flags args = do
+runTests allTests flags regexes = do
     when (mbOutputDir == Nothing && CheckOutput `elem` flags) $
         quitWithUsage ["--check-output requires --output"]
     when (ClearDirs `elem` flags) $ do
         clearDirectory Testing.tmp_base_dir
         whenJust mbOutputDir clearDirectory
     if  | List `elem` flags -> do
-            mapM_ Text.IO.putStrLn $ List.sort $ map testName matches
+            mapM_ Text.IO.putStrLn $ List.sort $ map testName $
+                if null regexes then allTests else matches
             return True
         | Subprocess `elem` flags -> subprocess allTests >> return True
         | Just outputDir <- mbOutputDir ->
@@ -137,7 +138,7 @@ runTests allTests flags args = do
         | otherwise -> mapM_ runTest matches >> return True
     where
     mbOutputDir = Seq.last [d | Output d <- flags]
-    matches = matchingTests args allTests
+    matches = matchingTests regexes allTests
 
 {- TODO integrate this back in
     | otherwise = do
