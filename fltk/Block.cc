@@ -825,7 +825,7 @@ highlight_focused(BlockWindow *focus)
 }
 
 
-#ifdef HACKED_FLTK
+#if defined(HACKED_FLTK) && defined(__APPLE__)
 extern Fl_Window *fl_mac_get_key_window();
 extern Fl_Window *fl_mac_get_did_become_key();
 extern Fl_Window *fl_mac_get_did_become_main();
