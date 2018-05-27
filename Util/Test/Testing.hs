@@ -84,7 +84,10 @@ import qualified Util.Seq as Seq
 
 {-# NOINLINE test_config #-}
 test_config :: IORef.IORef Config
-test_config = Unsafe.unsafePerformIO (IORef.newIORef (Config "no-test" False))
+test_config = Unsafe.unsafePerformIO $ IORef.newIORef $ Config
+    { config_test_name = "no-test"
+    , config_human_agreeable = True
+    }
 
 modify_test_config :: (Config -> Config) -> IO ()
 modify_test_config = IORef.modifyIORef test_config
@@ -96,10 +99,10 @@ with_test_name name action = do
 
 data Config = Config {
     config_test_name :: !Text
-    -- | If True, skip through human-feedback tests.  That way I can at least
+    -- | If True, 'io_human' will always return True.  That way I can at least
     -- get the coverage and check for crashes, even if I can't verify the
     -- results.
-    , config_skip_human :: !Bool
+    , config_human_agreeable :: !Bool
     } deriving (Show)
 
 check :: Stack => Text -> Bool -> IO Bool
@@ -134,6 +137,7 @@ data Tag =
     Large
     -- | Wants to have a conversation.  This implies the tests must be
     -- serialized, since who wants to have a conversation in parallel.
+    -- 'io_human' is one way to do this.
     | Interactive
     deriving (Eq, Show)
 
@@ -493,14 +497,14 @@ success_color = ColorCode "\ESC[32m" -- green
 -- | getChar with no buffering.
 human_get_char :: IO Char
 human_get_char = do
-    skip <- config_skip_human <$> IORef.readIORef test_config
-    if skip
+    agreeable <- config_human_agreeable <$> IORef.readIORef test_config
+    if agreeable
         then return 'y'
         else do
             IO.hFlush IO.stdout
             mode <- IO.hGetBuffering IO.stdin
             IO.hSetBuffering IO.stdin IO.NoBuffering
-            do { c <- getChar; putChar ' '; return c}
+            do { c <- getChar; putChar ' '; return c }
                 `Exception.finally` IO.hSetBuffering IO.stdin mode
 
 -- * pretty

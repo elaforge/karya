@@ -89,15 +89,17 @@ options =
         \ This is probably just for cabal, which can't wrap tests in a shell\
         \ script."
     , GetOpt.Option [] ["interactive"] (GetOpt.NoArg Interactive)
-        "interactive tests can ask questions, otherwise assume they all pass"
+        "Interactive tests can ask questions, otherwise assume they all pass.\
+        \ This disables --jobs parallelism, and output goes to stdout."
     , GetOpt.Option [] ["jobs"] (GetOpt.ReqArg (Jobs . read) "1")
-        "number of parallel jobs"
+        "Number of parallel jobs."
     , GetOpt.Option [] ["list"] (GetOpt.NoArg List) "display but don't run"
     , GetOpt.Option [] ["output"] (GetOpt.ReqArg Output "path")
-        "path to a directory to put output logs, if not given output goes to\
-        \ stdout"
+        "Path to a directory to put output logs, if not given output goes to\
+        \ stdout."
     , GetOpt.Option [] ["subprocess"] (GetOpt.NoArg Subprocess)
-        "meant to be driven by --outputs: read test names on stdin"
+        "Read test names on stdin.  This is meant to be run as a subprocess\
+        \ by --jobs."
     ]
 
 -- | Called by the generated main function.
@@ -131,6 +133,11 @@ runTests allTests flags regexes = do
             mapM_ Text.IO.putStrLn $ List.sort $ map testName $
                 if null regexes then allTests else matches
             return True
+        | Interactive `elem` flags -> do
+            Testing.modify_test_config $ \config ->
+                config { Testing.config_human_agreeable = False }
+            mapM_ runInSubprocess matches
+            return True
         | Subprocess `elem` flags -> subprocess allTests >> return True
         | Just outputDir <- mbOutputDir ->
             runOutput outputDir (fromMaybe 1 $ Seq.last [n | Jobs n <- flags])
@@ -139,27 +146,6 @@ runTests allTests flags regexes = do
     where
     mbOutputDir = Seq.last [d | Output d <- flags]
     matches = matchingTests regexes allTests
-
-{- TODO integrate this back in
-    | otherwise = do
-        when (NonInteractive `elem` flags) $
-            Testing.modify_test_config $ \config ->
-                config { Testing.config_skip_human = True }
-        let isSubprocess = Subprocess `elem` flags
-        let (serialized, nonserialized) = List.partition
-                ((Testing.Interactive `elem`) . Testing.tags . testModuleMeta)
-                (if isSubprocess then allTests else matches)
-        let outputs = concat [outputs | Outputs outputs <- flags]
-        if isSubprocess
-            then subprocess nonserialized
-            else do
-                (if null outputs then mapM_ runTest
-                    else runParallel outputs) nonserialized
-                case serialized of
-                    [test] -> runTest test
-                    _ -> mapM_ (isolateSubprocess) serialized
-                        -- TODO write to head outputs instead of stdout
--}
 
 runOutput :: FilePath -> Int -> [Test] -> Bool -> IO Bool
 runOutput outputDir jobs tests check = do
@@ -170,8 +156,12 @@ runOutput outputDir jobs tests check = do
         else return True
     -- TODO run hpc?
 
-isolateSubprocess :: Test -> IO ()
-isolateSubprocess test = do
+-- | Isolate the test by running it in a subprocess.  I'm not sure if this is
+-- necessary, but I believe at the time GUI-using tests would crash each other
+-- without it.  Presumably they left some GUI state around that process exit
+-- will clean up.
+runInSubprocess :: Test -> IO ()
+runInSubprocess test = do
     argv0 <- System.Environment.getExecutablePath
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
     val <- Process.rawSystem argv0 [Text.unpack (testName test)]

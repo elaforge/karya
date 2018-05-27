@@ -3173,7 +3173,7 @@ test: testing:
     integrate test/* scripts into RunTest so it can run under cabal
       * integrate check_output
       - add hpc support
-      - add Testing.Interactive / serialized test support
+      * add Testing.Interactive / serialized test support
   * RunTests --list shouldn't need '.'
   * rm .tix and test.output in test/run_tests instead of Shakefile
   * --noninteractive should be the default
