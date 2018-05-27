@@ -21,33 +21,43 @@ module Util.Test.GenerateRunTests (main) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified System.Environment
-import qualified System.FilePath as FilePath
 
 import qualified Util.ExtractHs as ExtractHs
 import qualified Util.Regex as Regex
-import qualified Util.TextUtil as TextUtil
-
 import Global
 
 
 main :: IO ()
 main = do
     args <- System.Environment.getArgs
-    ExtractHs.process args (extract . ExtractHs.stripComments) generate
+    ExtractHs.process args (extract . ExtractHs.stripComments)
+        (\_ -> Right . generate)
 
-generate :: FilePath -> Map FilePath ([Test], HasMeta)
-    -> Either Text ([Text], Text)
-generate outFname extracted = fmap (warnings,) $
-    TextUtil.interpolate testTemplate $ Map.fromList
-        [ ("imports", Text.unlines $
+generate :: Map FilePath ([Test], HasMeta) -> ([Text], Text)
+generate extracted = (,) warnings $
+    testTemplate
+        (Text.unlines $
             map ExtractHs.makeImport (Map.keys fnameTests))
-        , ("all_tests", Text.intercalate "\n    , " $ makeTests fnameTests)
-        , ("argv0", showt (FilePath.dropExtension outFname))
-        ]
+        (Text.intercalate "\n    , " $ makeTests fnameTests)
     where
     (empty, fnameTests) = Map.partition (null . fst) extracted
     warnings = map (("Warning: no (test|profile)_* defs in " <>) . txt)
         (Map.keys empty)
+
+testTemplate :: Text -> Text -> Text
+testTemplate imports allTests =
+    "import qualified Util.Test.RunTests as RunTests\n\
+    \import Util.Test.RunTests (Test(..))\n\
+    \\n"
+    <> imports <> "\n\
+    \\n\
+    \tests :: [Test]\n\
+    \tests = \n\
+    \    [ " <> allTests <> "\n\
+    \    ]\n\
+    \\n\
+    \main :: IO ()\n\
+    \main = RunTests.run tests\n"
 
 data Test  = Test {
     testLineNumber :: !LineNumber
@@ -107,23 +117,3 @@ makeTestLine fname test meta = Text.unwords
         Just fn -> "(Just " <> ExtractHs.pathToModule fname <> "." <> fn <> ")"
     ]
     where name = ExtractHs.pathToModule fname <> "." <> testName test
-
-testTemplate :: Text
-testTemplate =
-    "import qualified Util.Test.RunTests as RunTests\n\
-    \import Util.Test.RunTests (Test(..))\n\
-    \\n\
-    \${imports}\n\
-    \\n\
-    \-- System.Environment.getProgName strips the dir, so I can't use it to\n\
-    \-- reinvoke.\n\
-    \argv0 :: String\n\
-    \argv0 = ${argv0}\n\
-    \\n\
-    \tests :: [Test]\n\
-    \tests = \n\
-    \    [ ${all_tests}\n\
-    \    ]\n\
-    \\n\
-    \main :: IO ()\n\
-    \main = RunTests.run argv0 tests\n"

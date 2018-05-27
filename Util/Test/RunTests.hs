@@ -84,8 +84,8 @@ options =
     where commas = Seq.split ","
 
 -- | Called by the generated main function.
-run :: String -> [Test] -> IO ()
-run argv0 allTests = do
+run :: [Test] -> IO ()
+run allTests = do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     args <- System.Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
@@ -95,10 +95,10 @@ run argv0 allTests = do
             putStr (GetOpt.usageInfo "Run tests that match any regex." options)
             putStrLn $ "\nerrors:\n" ++ concat errs
             System.Exit.exitFailure
-    runTests argv0 allTests flags args
+    runTests allTests flags args
 
-runTests :: String -> [Test] -> [Flag] -> [String] -> IO ()
-runTests argv0 allTests flags args
+runTests :: [Test] -> [Flag] -> [String] -> IO ()
+runTests allTests flags args
     | List `elem` flags =
         mapM_ Text.IO.putStrLn $ List.sort $ map testName matches
     | otherwise = do
@@ -114,16 +114,17 @@ runTests argv0 allTests flags args
             then subprocess nonserialized
             else do
                 (if null outputs then mapM_ runTest
-                    else runParallel argv0 outputs) nonserialized
+                    else runParallel outputs) nonserialized
                 case serialized of
                     [test] -> runTest test
-                    _ -> mapM_ (isolateSubprocess argv0) serialized
+                    _ -> mapM_ (isolateSubprocess) serialized
                         -- TODO write to head outputs instead of stdout
     where
     matches = matchingTests args allTests
 
-isolateSubprocess :: String -> Test -> IO ()
-isolateSubprocess argv0 test = do
+isolateSubprocess :: Test -> IO ()
+isolateSubprocess test = do
+    argv0 <- System.Environment.getExecutablePath
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
     val <- Process.rawSystem argv0 [Text.unpack (testName test)]
     case val of
@@ -135,19 +136,20 @@ isolateSubprocess argv0 test = do
 -- * parallel jobs
 
 -- | Run tests in parallel, redirecting stdout and stderr to each output.
-runParallel :: FilePath -> [FilePath] -> [Test] -> IO ()
-runParallel argv0 outputs tests = do
+runParallel :: [FilePath] -> [Test] -> IO ()
+runParallel outputs tests = do
     let byModule = Seq.keyed_group_adjacent testFilename tests
     queue <- newQueue [(Text.pack name, tests) | (name, tests) <- byModule]
-    Async.forConcurrently_ (map fst (zip outputs byModule)) $ \output ->
-        jobThread argv0 output queue
+    Async.forConcurrently_ (map fst (zip outputs byModule)) $
+        \output -> jobThread output queue
 
 -- | Pull tests off the queue and feed them to a single subprocess.
-jobThread :: FilePath -> FilePath -> Queue (Text, [Test]) -> IO ()
-jobThread argv0 output queue =
+jobThread :: FilePath -> Queue (Text, [Test]) -> IO ()
+jobThread output queue =
     Exception.bracket (IO.openFile output IO.AppendMode) IO.hClose $ \hdl -> do
         to <- Chan.newChan
         env <- Environment.getEnvironment
+        argv0 <- System.Environment.getExecutablePath
         -- Give each subprocess its own .tix, or they will stomp on each other
         -- and crash.
         from <- Util.Process.conversation argv0 ["--subprocess"]
