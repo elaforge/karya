@@ -5,6 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <math.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <sndfile.h>
