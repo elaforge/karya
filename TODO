@@ -2698,7 +2698,13 @@ performance:
       done irregularly and don't line up to commits.  Still, I should be able
       to do ok by looking for the closest match.  Outright failures should be
       visible as outliers.
-    . For the future I should have a more organized way to backup scores.
+    . Profile MIDI and ly generation separately?
+  keep track of history save scores and timing:
+    * I put saves and timing in a gitlab group: https://gitlab.com/karya-group
+    - I should have a way to commit saves on each karya commit, and keep track
+      of which was there.
+      . This seems like submodules.
+    I should have a more organized way to backup scores:
       . One way is to trigger a save-backup/backup after every patch that
         requires that score to be updated.
         . This is actually uncommon, less common than ones requiring an update
@@ -2724,12 +2730,6 @@ performance:
         a separate repo.
       . The problem is I have to update twice as much stuff, but I don't need
         that many "reference" scores.
-    . Profile MIDI and ly generation separately?
-  keep track of history save scores and timing:
-    * I put saves and timing in a gitlab group: https://gitlab.com/karya-group
-    - I should have a way to commit saves on each karya commit, and keep track
-      of which was there.
-      . This seems like submodules.
   - When I'm using ghc 8.2, try compact regions for inst db, especially vsl.
     . 'compact' package
     . Maybe even serialize it to disk?  Probably not worth it though, since

@@ -1,0 +1,6 @@
+#!/bin/zsh
+# Pull everything.
+
+git pull --ff-only
+(cd save && git pull --ff-only)
+(cd prof/timing && git pull --ff-only)
