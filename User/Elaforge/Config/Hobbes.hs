@@ -22,18 +22,19 @@ midi_config db = StaticConfig.Midi
 iac, tapco, network :: Int -> Text
 iac n = "IAC Driver " <> showt n
 tapco n = "Tapco Port " <> showt n
-network n = "Network archy" <> showt n
+network n = "Network hobbes" <> showt n
 
 wdev_map :: [(Text, Text)]
-wdev_map =
-    [("loop" <> showt n, iac n) | n <- [1..4]] ++
-    [("net" <> showt n, network n) | n <- [1..4]] ++
-    [ ("fm8", "Native Instruments FM8 Virtual Input")
-    , ("msv", "Massive Virtual Input")
-    , ("z1", tapco 1)
-    , ("vl1", tapco 2)
-    , ("morph", tapco 3)
-    , ("pc2496", tapco 4)
+wdev_map = concat
+    [ [("loop" <> showt n, iac n) | n <- [1..4]]
+    , [("net" <> showt n, network n) | n <- [1..4]]
+    , [ ("fm8", "Native Instruments FM8 Virtual Input")
+      , ("msv", "Massive Virtual Input")
+      , ("z1", tapco 1)
+      , ("vl1", tapco 2)
+      , ("morph", tapco 3)
+      , ("pc2496", tapco 4)
+      ]
     ]
 
 rdev_map :: [(Text, Text)]

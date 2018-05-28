@@ -22,7 +22,7 @@ will never produce any MIDI so what was the point?
 
 - On OS X, run `defaults write -g ApplePressAndHoldEnabled -bool false` to
 re-enable key repeats globally.  Provided you want them to work sanely, and
-not iphone-ly.
+not iphone-ly.  Or don't do that.  This is just reminder to myself.
 
 - Go read `doc/quickstart.md`.
 
@@ -37,10 +37,9 @@ not iphone-ly.
     - fltk - I use >=1.3.4, but any >=1.3 should work.
     - libpcre
 
-    Remember to install -dev variants to get headers.  If your package manager
-    puts headers in a non-standard place, e.g. `~/homebrew`, then
-    `cabal install --only-dependencies` won't find it.  You'll need to add
-    flags, e.g.:
+    Install -dev variants to get headers.  If your package manager puts headers
+    in a non-standard place, e.g. `~/homebrew`, then `cabal install
+    --only-dependencies` won't find it.  You'll need to add flags, e.g.:
 
         cabal install --extra-include-dirs=$HOME/homebrew/include \
             --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
@@ -49,7 +48,8 @@ not iphone-ly.
 
 - The bravura font for music symbols: <http://www.smufl.org/fonts/> and
 Noto for any other kind of symbol: <https://www.google.com/get/noto/>.
-I don't use fancy symbols very much, so they're not essential.
+I don't use fancy symbols very much, so they're not essential.  You'll probably
+get some complaints at startup if they're missing, you can ignore that.
 
     OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
 
@@ -58,7 +58,7 @@ I don't use fancy symbols very much, so they're not essential.
     On linux, use `fc-list` to see installed fonts and their names.  For some
 reason, the fonts on linux sometimes have backslashes in their names, and
 sometimes not.  If there is a complaint at startup about the font not being
-found you might have to edit `App/Config.hsc`.
+found you might have to edit a font name in `App/Config.hsc`.
 
 ## Linux
 
@@ -103,7 +103,7 @@ dependencies.
 
 I don't use stack, but I added some basic support so hopefully this should work:
 
-    stack setup # install ghc
+    stack setup # install ghc, it's 8.0 or 8.4, right?
     stack install alex happy c2hs cpphs
     # Put ~/.local/bin in $PATH if stack warns you about that.
     stack install --only-dependencies
@@ -123,9 +123,9 @@ These are all names for the incomplete offline synthesizer.  It requires a
 bunch of extra dependencies.  First you need more non-haskell dependencies.
 Get the -dev versions as usual:
 
-    - faust
-    - libsamplerate
-    - libsndfile
+- faust - you probably need the git version, distro version is likely too old
+- libsamplerate
+- libsndfile
 
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 

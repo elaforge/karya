@@ -13,6 +13,8 @@ import qualified App.LoadInstruments as LoadInstruments
 import qualified App.ParseArgs as ParseArgs
 import qualified App.StaticConfig as StaticConfig
 
+import Global
+
 
 load_static_config :: IO StaticConfig.StaticConfig
 load_static_config = do
@@ -32,4 +34,10 @@ global_cmds :: [Msg.Msg -> Cmd.CmdT IO Cmd.Status]
 global_cmds = []
 
 get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
-get_midi_config _db = return StaticConfig.empty_midi
+get_midi_config _db = return $ StaticConfig.Midi
+    { rdev_map = StaticConfig.make_rdev_map []
+    -- This assumes OS X, and IAC ports named 1, 2, 3, 4.
+    , wdev_map = StaticConfig.make_wdev_map
+        [("loop" <> showt n, "IAC Driver " <> showt n) | n <- [1..4]]
+    , read_devices = mempty
+    }

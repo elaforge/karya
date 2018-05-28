@@ -30,12 +30,6 @@ STATUS
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
-  - ghci: often ghci will load a compiled module interpreted, why?
-    . If I explicitly regenerate the .o file by deleted and rebuilding, it
-      will load it.
-    . Can I do verbose logging to find out why?
-    . Or I can see where the usual "reason why" text ("flags changed") comes
-      from, and is there anything else that causes it to not load the .o.
   / sometimes I want to see the control curve without event text in the way
     . E.g. when reading wayang patterns.
     . Maybe I just need to learn to read better.
@@ -2702,8 +2696,24 @@ performance:
   keep track of history save scores and timing:
     * I put saves and timing in a gitlab group: https://gitlab.com/karya-group
     - I should have a way to commit saves on each karya commit, and keep track
-      of which was there.
+      of which karya commit corresponds to which 'saves' commit.
       . This seems like submodules.
+      . The thing is, I want this only for my local repo.
+      . But it seems like .gitconfig can assign the submodule url locally.
+        Could someone else use that to point to their own saves repo?
+      . I want the commit link, but I don't want the local directory, because
+        I'll use a symlink for that, so I can modify things inside.
+      . Actually it's ok to use the submodule directory directly.
+      . And local .git/config is no help after all, because the repo points to
+        exactly one commit.
+      . Since the save repo is per-user, it has to keep the local link to the
+        karya repo, not the other way around.  I could do it manually by
+        adding a tag with the karya commit whenever I commit the saves.
+      . I can do this with a commit wrapper script:
+        After each commit, check if there are diffs in save.  If so, commit save
+        with the current karya HEAD hash.
+    - Is it stupid to store git repos in a git repo?  What I would want is the
+      unversioned repo, and then a versioned HEAD ref.
     I should have a more organized way to backup scores:
       . One way is to trigger a save-backup/backup after every patch that
         requires that score to be updated.
@@ -3168,6 +3178,23 @@ Ui:
     dense sampled signals
       . efficient storage, preferably as a Signal so no conversion is necessary
       . display dense signals: omit text and trigger lines when zoomed out
+
+ghc-bugs:
+  - ghci: often ghci will load a compiled module interpreted, why?
+    . If I explicitly regenerate the .o file by deleted and rebuilding, it
+      will load it.
+    . Can I do verbose logging to find out why?
+    . Or I can see where the usual "reason why" text ("flags changed") comes
+      from, and is there anything else that causes it to not load the .o.
+    . Could be bug in shakefile, bug in shake, or bug in ghc.
+  - Stale files when loading in ghci.
+    . This has been around forever:
+      WARNING in hptSomeThingsBelowUs
+      missing module User.Elaforge.KeyLayout
+      Probable cause: out-of-date interface files
+    . What exactly does it mean?
+  - -fdefer-type-errors is broken in 8.4:
+    https://ghc.haskell.org/trac/ghc/ticket/14963
 
 test: testing:
   * travis failure:
