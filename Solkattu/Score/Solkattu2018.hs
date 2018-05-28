@@ -327,5 +327,37 @@ c_18_04_25 = date 2018 4 25 $ ganesh $
     . dinaginna with dinnaginna taka taka talang ga
     . kita kina din
     . kita kinakadin kadin
-
 -}
+
+c_18_05_25 :: Korvai
+c_18_05_25 = date 2018 5 25 $ ganesh $
+    korvaiS Tala.misra_chapu mridangam
+    [ (4*7) ==> theme . (4*7) ==> dropD 1 theme . (4*7) ==> dropD 2 theme
+    , (2*7) ==> theme . (2*7) ==> dropD 1 theme . (2*7) ==> dropD 2 theme
+
+    -- TODO This expresses din.__ karvai as a general connective, which is
+    -- probably more accurate than the ad-hoc cases in 'tri_' or 'reduce3'.
+    -- Unfortunately, this makes it hard to use 'sandi', which should be:
+    --
+    -- sandi . tri theme2 . sandi . tri (dropD 1 theme2)
+    -- . sandi . tri (dropD 2 theme2)
+    --
+    -- but can't be, because 'sandi' takes the elided part explicitly, and
+    -- that includes the din.__ karvais.  Since 'sandi' operates at the flat
+    -- level, maybe it should be implicit after all?
+    , join (din.__) $ concat
+        [ take 3 $ reduceToL 0 4 (theme.theme2)
+        , replicate 2 theme2
+        , replicate 2 (dropD 1 theme2)
+        , replicate 2 (dropD 2 theme2)
+        ]
+    ]
+    where
+    theme = group $ theme0.nakatiku
+    theme0 = tat.__4.dit.__4.kita.ki.na.ta.ki.taka
+    theme2 = group $ dit.__.tat.__.din.na.gin.na.taka.taka.talang.__.ga
+    mridangam = makeMridangam
+        [ (theme0, [p&k, p&t, k, t, k, n, o, k, o&t, k])
+        , (theme2, [t, k, o, k, t, k, o, k, o, k, o, u, k])
+        , (din, [o])
+        ]

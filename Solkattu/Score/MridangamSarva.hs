@@ -141,3 +141,13 @@ c_17_10_23a = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
 c_17_10_23b :: Korvai
 c_17_10_23b = sarvalaghu $ date 2017 10 23 $ ganesh $ korvaiS1 adi $
     su $ repeat 2 $ p.n.p.k.d.__.p.k . repeat 3 (n.__.p.k.d.__.p.k)
+
+-- * misra
+
+c_18_05_25 :: Korvai
+c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
+    sd $
+      o .k.on.on.od.__.on.k.od.k.on.on.od.__
+    . on.k.on.on.od.__.on.k.od.k.on.on.od.__
+    . on.k. n. n. d.__. n.k. d.k. n. n. d.__
+    .  n.k. n. n. d.__. n.k.od.k.on.on.od.__

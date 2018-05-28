@@ -45,3 +45,10 @@ e_18_03_28 :: Korvai
 e_18_03_28 = exercise $ date 2018 3 27 $ ganesh $ korvaiS1 Tala.misra_chapu $
      kt.k.n.o.od.__ . k.n.p.k.od.__.k
     .kt.k.n.p.d .__ . k.n.p.k.d .__.k
+
+e_18_05_25 :: Korvai
+e_18_05_25 = exercise $ date 2018 5 25 $ ganesh $ korvaiS adi
+    [ repeat 3 ktkt . k.o.o.k . repeat 2 (od.o.o.u.__.o.o.k)
+    , repeat 2 ktkt . k.k.t.k . k.o.o.k . repeat 2 (od.o.o.u.__.o.o.k)
+    , repeat 2 ktkt . k.k.t.k . k.o.o.k . od.o.o.u.__.o.o.u.__.o.o.u.__.o.o.k
+    ]
