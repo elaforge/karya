@@ -6,16 +6,11 @@
     calls the tests.  Test functions are any function starting with @test_@ or
     @profile_@ and immediately followed by @=@ (implying the function has no
     arguments).  This module doesn't distinguish between tests and profiles,
-    but they should presumably be compiled separately since they required
+    but they should presumably be compiled separately since they require
     different flags.
 
     If a module has a function called @initialize@, it will be called as
     @IO ()@ prior to the tests.
-
-    Tests are divided into interactive and auto variants.  Interactive tests
-    want to have a conversation with the user, so they're not appropriate to
-    run frequently.  Auto tests get an auto- prefix so you can avoid the
-    interactive ones.  TODO interactive should be removed
 -}
 module Util.Test.GenerateRunTests (main) where
 import qualified Data.Map as Map

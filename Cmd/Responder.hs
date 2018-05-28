@@ -136,7 +136,7 @@ responder config git_user ui_chan msg_reader midi_interface setup_cmd
     respond_loop state msg_reader
 
 -- | TODO This should probably go in StaticConfig, or better StaticConfig could
--- just directly provide the Cmd.Ui.  But in needs to take app_dir and
+-- just directly provide the Cmd.State.  But it needs to take app_dir and
 -- interface as args, so... too much work for now.
 setup_state :: Cmd.State -> Cmd.State
 setup_state state = state
@@ -145,8 +145,7 @@ setup_state state = state
             TimeStep.AbsoluteMark TimeStep.AllMarklists Meter.r_4
         }
     , Cmd.state_hooks = (Cmd.state_hooks state)
-        { Cmd.hooks_selection = Internal.default_selection_hooks
-        }
+        { Cmd.hooks_selection = Internal.default_selection_hooks }
     }
 
 -- | A special run-and-sync that runs before the respond loop gets started.
