@@ -149,6 +149,7 @@ runTests allTests flags regexes = do
 
 runOutput :: FilePath -> Int -> [Test] -> Bool -> IO Bool
 runOutput outputDir jobs tests check = do
+    Directory.createDirectoryIfMissing True outputDir
     let outputs = [outputDir </> "out" <> show n <> ".stdout" | n <- [1..jobs]]
     runParallel outputs tests
     if check
