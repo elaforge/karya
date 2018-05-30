@@ -579,12 +579,13 @@ ghcWarnings config = concat
     [ ["-W", "-Wcompat"]
     -- pass -Wundef to CPP for warnings on #if TYPO
     , ["-Wcpp-undef" | ghcVersion config >= (8, 2, 0)]
-    , map ("-fwarn-"++) warns
-    , map ("-fno-warn-"++) noWarns
+    , map ("-W"++) warns
+    , map ("-Wno-"++) noWarns
     ]
     where
     warns =
-        [ "identities"
+        [ "hi-shadowing"
+        , "identities"
         , "tabs"
         , "incomplete-record-updates"
         , "missing-fields"
