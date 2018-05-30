@@ -66,6 +66,7 @@ instance Pretty Note where
             , ("attributes", Pretty.format attrs)
             ]
 
+-- | Make a Note for testing.
 note :: PatchName -> InstrumentName -> RealTime -> RealTime -> Note
 note patch instrument start duration = Note
     { patch = patch

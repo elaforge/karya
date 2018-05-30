@@ -168,7 +168,7 @@ defaultOptions = Shake.shakeOptions
     , Shake.shakeReport = [build </> "report.html"]
     , Shake.shakeProgress = Progress.report
     -- Git branch checkouts change file timestamps, but not contents.
-    , Shake.shakeChange = Shake.ChangeModtimeAndDigestInput
+    , Shake.shakeChange = Shake.ChangeModtime
     }
 
 data Config = Config {

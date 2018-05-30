@@ -1662,46 +1662,69 @@ synth: im:
         . Find the first chunk where the hash doesn't match
         . Crazy idea: could I use shake?  Make each audo chunk built from
           the input notes and previous state.
+        . In general, the whole thing from score to incrementally recomputing
+          audio is like a build system.  I don't think the observation really
+          helps though.
+        . However, if I keep around old hashes, I could toggle between two
+          different results quickly.  E.g. track disable.
       - tests for FaustIm
-        . It's easy to test the non-audio functions, but How to test
+        . It's easy to test the non-audio functions, but how to test
           incremental rerender?
         . I can do with and without and assert the audio output is the same.
       / reaper crashes when playing back recorded MIDI
         . Can't reproduce it now, maybe it only happens when I have a audio
           "stem" track.
 
-  - I think I want to switch from by-instrument muting to by-track, because
+  / I think I want to switch from by-instrument muting to by-track, because
     that's what the UI is.
-    . And it's more flexible, I can put multiple instruments on one track,
-      or split a single instrument across multiple tracks.
-    . The track enforces non-overlapping notes, but the faust implementation
-      assumes non-overlapping instrument notes.  To make faust line up with
-      tracks, I'd have to allocate by (TrackId, Instrument), then mix together
-      all the instruments on the track.
-    . I think the sampler can go by-track without further hassle, since it
-      doesn't have state across notes.
-    . Also, I don't trust using namespace/ident as a unique name for a block.
-      Lots of scores have the same namespace, and while it sort of defeats the
-      purpose of the namespace, that's what happens.
-    . If I use the filename, it has to be the complete path though.
-    . Fixing namespace is another problem.  If it's not serving its purpose
-      I should get rid of it.  See fix namespace:
-    . Wait, how does this even work?  It's the bottom track for the note, but
-      do I need block?  I think technically yes, because UI mutes are
-      (block, track).  So render blocks are marked with both, and the midi
-      mute msg has to include both.
-    . Ultimately this is because note damage is per-track, which means the
-      note storage should also be per-track. Of course that doesn't mean
-      muting has to be per-track, so I guess this is sort of orthogonal.
-      But it does seem more useful than per-instrument.  But since it's
-      orthogonal, maybe I should put it on hold for now.
-    . Also, is this overkill just to save time writing Notes?  That's not even
-      the expensive thing.  The point is to make rendering audio incremental,
-      and I don't need damage for that, I can just memoize.
-    . Having explicit damaged ranges would let me skip serialization and
-      checking for the majority of the score, so I think I will eventually
-      want that.  But I can probably do without in the beginning, if I get
-      incremental audio.
+    . TrackId is not unique.  PlayUtil.filter_track_muted filters out any
+      event that appears in the stack.  This is so mute on a track also mutes
+      any children.
+    . This implies I would have to keep intermediate output of each track in
+      each block, which is a pretty big change.
+    . So maybe keep mute as instrument mute, and I can get just track via
+      disable, at the cost of a rerender.  But if I keep a few previous
+      renders in the cache, I can alternate quickly.
+    faust-im:
+      . group by track, and then by instrument
+      . render each instrument separately, then mix together
+        . This means that each (track, instrument) is its own allocation,
+          which means that instrument state is per-track.  That should be fine
+          though, if you want to stay on one instrument, then stay on one
+          track.
+    sampler-im:
+      . I think the same as faust-im?
+    notes:
+      . And it's more flexible, I can put multiple instruments on one track,
+        or split a single instrument across multiple tracks.
+      . The track enforces non-overlapping notes, but the faust implementation
+        assumes non-overlapping instrument notes.  To make faust line up with
+        tracks, I'd have to allocate by (TrackId, Instrument), then mix together
+        all the instruments on the track.
+      . I think the sampler can go by-track without further hassle, since it
+        doesn't have state across notes.
+      . Also, I don't trust using namespace/ident as a unique name for a block.
+        Lots of scores have the same namespace, and while it sort of defeats the
+        purpose of the namespace, that's what happens.
+      . If I use the filename, it has to be the complete path though.
+      . Fixing namespace is another problem.  If it's not serving its purpose
+        I should get rid of it.  See fix namespace:
+      . Wait, how does this even work?  It's the bottom track for the note, but
+        do I need block?  I think technically yes, because UI mutes are
+        (block, track).  So render blocks are marked with both, and the midi
+        mute msg has to include both.
+      . Ultimately this is because note damage is per-track, which means the
+        note storage should also be per-track. Of course that doesn't mean
+        muting has to be per-track, so I guess this is sort of orthogonal.
+        But it does seem more useful than per-instrument.  But since it's
+        orthogonal, maybe I should put it on hold for now.
+      . Also, is this overkill just to save time writing Notes?  That's not even
+        the expensive thing.  The point is to make rendering audio incremental,
+        and I don't need damage for that, I can just memoize.
+      . Having explicit damaged ranges would let me skip serialization and
+        checking for the majority of the score, so I think I will eventually
+        want that.  But I can probably do without in the beginning, if I get
+        incremental audio.
   audio:
     make Audio.linear more efficient
       - reuse buffers for flat signals
@@ -3208,13 +3231,18 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 ghc-bugs:
-  - ghci: often ghci will load a compiled module interpreted, why?
+  + ghci: often ghci will load a compiled module interpreted, why?
     . If I explicitly regenerate the .o file by deleted and rebuilding, it
       will load it.
     . Can I do verbose logging to find out why?
-    . Or I can see where the usual "reason why" text ("flags changed") comes
-      from, and is there anything else that causes it to not load the .o.
-    . Could be bug in shakefile, bug in shake, or bug in ghc.
+    . It's due to timestamp .o < timestamp .hs, probably caused by git
+      checkouts.  I can fix it with touch.
+    . This is because shake is using the hash.  Just passing --digest-not
+      doesn't recompile everything ghc thinks should be, but maybe it's due to
+      shake's database.
+    . Could I have shake update output timestamps even when it determines that
+      no rebuild is needed?
+    . send mail to shake-build-system
   - Stale files when loading in ghci.
     . This has been around forever:
       WARNING in hptSomeThingsBelowUs
@@ -3426,6 +3454,7 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - I could probably the repl more robust by putting most things in a package
   - sometimes vim fails even though the app is open:
     App/Repl.hs:274 - non-zero exit code from ["vi","-c","source vim-functions.vim","-c","source ky-syntax.vim","-c","nmap gz :call Send('LState.set_ky %s')<cr>","+0","repl-NDpIUn"]: 1
   - vim should abort the changes if I quit with :q instead of ZZ
