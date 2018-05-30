@@ -1667,6 +1667,18 @@ synth: im:
           helps though.
         . However, if I keep around old hashes, I could toggle between two
           different results quickly.  E.g. track disable.
+        * In that case, maybe put the hash in the filename?  That way I can
+          have multiple versions in the same place.  I can expire old ones by
+          timestamp.
+        - How then do I know which ones to play?  They're the ones
+          corresponding to the current notes, but play_cache doesn't know
+          about that.  I guess I can mark them by renaming, e.g.
+          005-<hash>.old.wav, then play_cache ignores .old.wav like it ignores
+          .debug.wav.
+        . If I'm skipping parts of the stream, I want to skip generating
+          control signals in there.  So I think I need to restart the stream.
+          So, scan until I get a mismatch, then start a new audio stream,
+          then abort it when it matches again, repeat.
       - tests for FaustIm
         . It's easy to test the non-audio functions, but how to test
           incremental rerender?
@@ -3455,6 +3467,44 @@ midi record:
 
 REPL: repl:
   - I could probably the repl more robust by putting most things in a package
+    . Pier.Build.Components.buildLibraryFromDesc
+    . ghc
+        [ "-this-unit-id", display pkg
+        , "-hidir", hiDir
+        , "-hisuf", "dyn_hi"
+        , "-osuf", "dyn_o"
+        , "-odir", oDir
+        , "-shared", "-dynamic"
+        , "-o", dynLibFile
+        ]
+    . for dynlib:
+      /usr/local/bin/ghc-pkg init dist/package.conf.inplace
+      /usr/local/bin/ghc -shared -dynamic '-dynload deploy'
+        -optl-Wl,-rpath,/usr/local/lib/ghc-8.4.1/array-0.5.2.0
+        ...
+        -optl-Wl,-rpath,/Users/elaforge/.cabal/lib/x86_64-osx-ghc-8.4.1
+        -this-unit-id fast-tags-1.4.2-EKWV1xgHS3F5IyzUV7QwVY
+        -hide-all-packages -no-auto-link-packages
+        -package-db dist/package.conf.inplace
+        -package-id base-4.11.0.0
+        ...
+        dist/build/Control/Monad/EitherK.dyn_o
+        ...
+        -o dist/build/libHSfast-tags-1.4.2-EKWV1xgHS3F5IyzUV7QwVY-ghc8.4.1.dylib
+      /usr/local/bin/ghc-pkg recache '--package-db=dist/package.conf.inplace'
+      . -this-unit-id - unique package name for type equality and linker symbols
+      . For the packagedb I need a cabal file with export modules etc.  Cabal
+        does ghc-pkg init, and then recache, but I can't see where it adds the
+        package .conf.  Unless ghc itself adds that?
+    . for static lib:
+      /usr/bin/ar -r -s
+        dist/build/objs-39495/libHSfast-tags-1.4.2-EKWV1xgHS3F5IyzUV7QwVY.a
+        dist/build/Control/Monad/EitherK.o dist/build/FastTags/Tag.o
+        ...
+
+    . Have to figure out how to cabal does the linking.
+    . https://github.com/judah/pier implements its own compile.
+      Probably in Pier.Build.Components
   - sometimes vim fails even though the app is open:
     App/Repl.hs:274 - non-zero exit code from ["vi","-c","source vim-functions.vim","-c","source ky-syntax.vim","-c","nmap gz :call Send('LState.set_ky %s')<cr>","+0","repl-NDpIUn"]: 1
   - vim should abort the changes if I quit with :q instead of ZZ

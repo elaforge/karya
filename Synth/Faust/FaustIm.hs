@@ -11,6 +11,8 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Base64.URL as Base64.URL
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Either as Either
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
@@ -26,7 +28,6 @@ import qualified System.Posix.Signals as Signals
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
@@ -127,25 +128,36 @@ writeCheckpoints :: FilePath -> DriverC.Patch -> [Note.Note] -> IO (Maybe Text)
 writeCheckpoints outputDir patch notes = either Just (const Nothing) <$> do
     stateRef <- IORef.newIORef ByteString.empty
     let notifyState (DriverC.State state) = IORef.writeIORef stateRef state
-    let hashes = Hash.hashOverlapping 0 (AUtil.toSeconds size) notes
+    let fnames = map (outputDir</>) (checkpointFilenames size notes)
     AUtil.catchSndfile $ Resource.runResourceT $
         Audio.File.writeCheckpoints size (writeState stateRef)
-            AUtil.outputFormat (zip hashes fnames) $
+            AUtil.outputFormat fnames $
         Render.renderPatch patch notifyState notes
     where
     size = Audio.Frame Config.checkpointSize
-    fnames = map (\n -> outputDir </> untxt (Num.zeroPad 3 n) <> ".wav") [0..]
 
-writeState :: IORef.IORef ByteString.ByteString -> Note.Hash -> FilePath
-    -> IO ()
-writeState stateRef hash fname = do
+checkpointFilenames :: Audio.Frame -> [Note.Note] -> [FilePath]
+checkpointFilenames size notes =
+    [ ByteString.Char8.unpack $ (zeroPad 3 n) <> "."
+        <> Base64.URL.encode (Serialize.encode hash) <> ".wav"
+    | (n, hash) <- zip [0..] hashes
+    ]
+    where
+    hashes = Hash.hashOverlapping 0 (AUtil.toSeconds size) notes
+
+-- | 'Num.zeroPad' for ByteString.
+zeroPad :: Show a => Int -> a -> ByteString.ByteString
+zeroPad digits n =
+    ByteString.Char8.replicate (digits - ByteString.length s) '0' <> s
+    where s = ByteString.Char8.pack (show n)
+
+writeState :: IORef.IORef ByteString.ByteString -> FilePath -> IO ()
+writeState stateRef fname = do
     state <- IORef.readIORef stateRef
     -- The first one should be empty, and I don't want to overwrite the
     -- initial state with 0s.
     unless (ByteString.null state) $ do
         ByteString.writeFile (FilePath.replaceExtension fname ".state") state
-    ByteString.writeFile (FilePath.replaceExtension fname ".hash")
-        (Serialize.encode hash)
 
 writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
 writeControls output patch notes =

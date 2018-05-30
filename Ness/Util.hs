@@ -5,7 +5,6 @@
 module Ness.Util where
 import qualified Prelude
 import Prelude hiding (putStrLn)
-import qualified Codec.Binary.Base64Url as Base64Url
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.QSem as QSem
 import qualified Control.Exception as Exception
@@ -13,6 +12,7 @@ import qualified Control.Exception as Exception
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.))
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Base64.URL as Base64.URL
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map as Map
@@ -30,10 +30,11 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Synth.Shared.Config as Config
-import Global
 import Ness.Global (SamplingRate)
 import qualified Ness.Sound as Sound
 import qualified Ness.Submit as Submit
+
+import Global
 
 
 baseDir :: FilePath
@@ -156,7 +157,7 @@ dirFor instrument score = fingerprint [instrument, score]
 
 fingerprint :: [Text] -> FilePath
 fingerprint texts =
-    dropR (=='=') $ ByteString.Char8.unpack $ Base64Url.encode $
+    dropR (=='=') $ ByteString.Char8.unpack $ Base64.URL.encode $
         ByteString.pack bytes
     where
     n = CRC32.crc32 texts

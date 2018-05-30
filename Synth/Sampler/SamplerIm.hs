@@ -80,12 +80,12 @@ writeCheckpoints :: Resample.Quality -> FilePath -> [Sample.Sample]
     -> IO (Maybe Text)
 writeCheckpoints quality outputDir samples = either Just (const Nothing) <$> do
     AUtil.catchSndfile $ Resource.runResourceT $
-        Audio.File.writeCheckpoints size writeState AUtil.outputFormat
-            (zip (repeat ()) fnames) $
+        Audio.File.writeCheckpoints size writeState AUtil.outputFormat fnames $
         -- TODO I think AUtil.mix and Sample.realize don't guarantee that chunk
         -- sizes are a factor of checkpointSize
         AUtil.mix $ map (Sample.realize quality) samples
     where
     size = Audio.Frame Config.checkpointSize
+    -- TODO share with FaustIm version
     fnames = map (\n -> outputDir </> untxt (Num.zeroPad 3 n) <> ".wav") [0..]
-    writeState () _fname = return ()
+    writeState _fname = return ()

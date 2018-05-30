@@ -150,4 +150,4 @@ c_18_05_25 = sarvalaghu $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
       o .k.on.on.od.__.on.k.od.k.on.on.od.__
     . on.k.on.on.od.__.on.k.od.k.on.on.od.__
     . on.k. n. n. d.__. n.k. d.k. n. n. d.__
-    .  n.k. n. n. d.__. n.k.od.k.on.on.od.__
+    .  n.k. n. n. d.__. n.k.od.k.on.on.od.k

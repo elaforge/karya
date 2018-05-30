@@ -109,6 +109,7 @@ synthPackages = concat
     [ w "hsndfile hsndfile-vector"
     , w "resourcet"
     , w "streaming"
+    , w "base64-bytestring" -- for hashes in incremental rendering
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -123,7 +124,6 @@ requiresSynthPackages hs =
 nessPackages :: [(Package, String)]
 nessPackages = concat
     [ w "conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
-    , w "sandi" -- for Codec.Binary.Base64Url
     ]
     where w = map (\p -> (p, "")) . words
 

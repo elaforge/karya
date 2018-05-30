@@ -168,7 +168,6 @@ setParameterCB(VstEffectInterface *vst, int32_t index, float value)
 static float
 getParameterCB(VstEffectInterface *vst, int32_t index)
 {
-    // return 0;
     return static_cast<Plugin *>(vst->effectPointer)->getParameter(index);
 }
 
