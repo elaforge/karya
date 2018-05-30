@@ -586,16 +586,16 @@ ghcWarnings config = concat
     warns =
         [ "hi-shadowing"
         , "identities"
-        , "tabs"
         , "incomplete-record-updates"
         , "missing-fields"
-        , "unused-matches"
-        , "wrong-do-bind"
-        -- The 8.2.1 docs claim it's on by default, but it's not.
-        , "redundant-constraints"
         -- Check compatibility with
         -- https://ghc.haskell.org/trac/ghc/wiki/Proposal/MonadOfNoReturn
         , "noncanonical-monad-instances"
+        -- The 8.2.1 docs claim it's on by default, but it's not.
+        , "redundant-constraints"
+        , "tabs"
+        , "unused-matches"
+        , "wrong-do-bind"
         ]
     noWarns
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the

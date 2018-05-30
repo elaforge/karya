@@ -4,9 +4,8 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns, DisambiguateRecordFields #-}
 -- | Basic testing utilities.
 module Util.Test.Testing (
@@ -92,12 +91,16 @@ test_config = Unsafe.unsafePerformIO $ IORef.newIORef $ Config
 modify_test_config :: (Config -> Config) -> IO ()
 modify_test_config = IORef.modifyIORef test_config
 
+-- | Set 'configTestName'.  This is a grody hack, but I need it because GHC
+-- call stack is off by one, so you get the caller line number, but the
+-- callee's function name: https://ghc.haskell.org/trac/ghc/ticket/11686
 with_test_name :: Text -> IO a -> IO a
 with_test_name name action = do
     modify_test_config (\config -> config { config_test_name = name })
     action
 
 data Config = Config {
+    -- | Keep the test name so I can report it in 'success' in 'failure'.
     config_test_name :: !Text
     -- | If True, 'io_human' will always return True.  That way I can at least
     -- get the coverage and check for crashes, even if I can't verify the
@@ -267,7 +270,7 @@ numbered_diff equal a b =
     where number = zipWith Numbered [0..]
 
 data Numbered a = Numbered {
-    _numbered :: !Int
+    numbered :: !Int
     , numbered_val :: !a
     } deriving (Show)
 
@@ -292,9 +295,9 @@ strings_like :: forall txt. (Stack, TextLike txt) => [txt] -> [Pattern]
 strings_like gotten_ expected
     | all is_both diffs = success $ fmt_lines "=~" gotten expected
     | otherwise = failure $ fmt_lines "/~"
-        (map (fmt_line (Set.fromList [_numbered a | Diff.Second a <- diffs]))
+        (map (fmt_line (Set.fromList [numbered a | Diff.Second a <- diffs]))
             (zip [0..] gotten))
-        (map (fmt_line (Set.fromList [_numbered a | Diff.First a <- diffs]))
+        (map (fmt_line (Set.fromList [numbered a | Diff.First a <- diffs]))
             (zip [0..] expected))
     where
     fmt_line failures (n, line)

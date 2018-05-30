@@ -44,10 +44,9 @@ resampleBy ctype ratio audio = Audio.Audio $ do
         (SampleRateC.new ctype (fromIntegral (TypeLits.natVal chan)))
         SampleRateC.delete
     liftIO $ SampleRateC.setRatio state (Signal.at 0 ratio)
-    Audio.loop1 (0, Audio._stream audio) $
-        \loop (start, audio) -> do
-            handle loop state start audio
-            lift (Resource.release key)
+    Audio.loop1 (0, Audio._stream audio) $ \loop (start, audio) -> do
+        handle loop state start audio
+        lift (Resource.release key)
     where
     -- start is Frame position in the output stream.  Position in the input
     -- only determines how much I feed to libsamplerate, which for sinc
