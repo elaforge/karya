@@ -13,4 +13,5 @@ in=$1
 out=$2
 
 build/opt/linkify $haddock_dir $in \
-    | pandoc --standalone --from=markdown --to=html >$out
+    | pandoc --standalone --from=markdown --to=html \
+        --title-prefix "karya - $(basename $in)"  >$out

@@ -244,12 +244,12 @@ are set up for easy modification.
 ### more details
 
 Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
-[source](../hscolour/).  Since using karya probably involves writing code that
-interacts with the internal APIs, you'll need to be familiar with at least some
-of the implementation.  Sometimes the documentation isn't exported as haddock,
-so if the haddock seems sparse try the "source" link.  Whenever possible, I try
-to keep documentation in the haddock, since it's easier to keep up to date if
-it's next to the code that implements it.
+[source](https://github.com/elaforge/karya).  Since using karya probably
+involves writing code that interacts with the internal APIs, you'll need to be
+familiar with at least some of the implementation.  Sometimes the documentation
+isn't exported as haddock, so if the haddock seems sparse try the "source"
+link.  Whenever possible, I try to keep documentation in the haddock, since
+it's easier to keep up to date if it's next to the code that implements it.
 
 [My blog](http://elaforge.blogspot.com/) has notes I have taken during
 development.  It's mostly just notes to myself.

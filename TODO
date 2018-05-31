@@ -3506,7 +3506,11 @@ REPL: repl:
     . https://github.com/judah/pier implements its own compile.
       Probably in Pier.Build.Components
   - sometimes vim fails even though the app is open:
-    App/Repl.hs:274 - non-zero exit code from ["vi","-c","source vim-functions.vim","-c","source ky-syntax.vim","-c","nmap gz :call Send('LState.set_ky %s')<cr>","+0","repl-NDpIUn"]: 1
+    App/Repl.hs:274 - non-zero exit code from
+      [ "vi", "-c", "source vim-functions.vim", "-c", "source ky-syntax.vim"
+      , "-c", "nmap gz :call Send('LState.set_ky %s')<cr>", "+0"
+      , "repl-NDpIUn"
+      ]: 1
   - vim should abort the changes if I quit with :q instead of ZZ
     . But I don't necessarily want to lose the changes.  Maybe I can save the
       repl-???? tmp file in that case.
