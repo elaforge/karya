@@ -1670,6 +1670,9 @@ synth: im:
         * In that case, maybe put the hash in the filename?  That way I can
           have multiple versions in the same place.  I can expire old ones by
           timestamp.
+        * I think I also need to put state in the hash, otherwise I will
+          overwrite output from a different run as soon as the notes are the
+          same again.
         - How then do I know which ones to play?  They're the ones
           corresponding to the current notes, but play_cache doesn't know
           about that.  I guess I can mark them by renaming, e.g.

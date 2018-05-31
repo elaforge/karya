@@ -127,22 +127,22 @@ write format fname audio = do
 -- writing each chunk.  It's expected to query and save audio generator state.
 writeCheckpoints :: (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
     => Audio.Frame
-    -> (FilePath -> IO ()) -- ^ run before rendering each chunk
-    -> Sndfile.Format -> [FilePath]
+    -> (state -> IO FilePath) -- ^ run before rendering each chunk
+    -> Sndfile.Format -> [state]
     -- ^ shouldn't run out before the audio runs out
     -> Audio.AudioIO rate channels -> Resource.ResourceT IO ()
 writeCheckpoints size checkpoint format = go
     where
-    go (fname : fnames) audio = do
-        liftIO $ checkpoint fname
+    go (state : states) audio = do
+        fname <- liftIO $ checkpoint state
         (chunks, audio) <- Audio.takeFrames size audio
         liftIO $ Exception.bracket (openWrite format fname audio) Sndfile.hClose
             (\handle -> mapM_
                 (Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer)
                 chunks)
         unless (null chunks) $
-            go fnames audio
-    go [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of fnames"
+            go states audio
+    go [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
 
 openWrite :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
