@@ -332,8 +332,8 @@ c_18_04_25 = date 2018 4 25 $ ganesh $
 c_18_05_25 :: Korvai
 c_18_05_25 = date 2018 5 25 $ ganesh $
     korvaiS Tala.misra_chapu mridangam
-    [ (4*7) ==> theme . (4*7) ==> dropD 1 theme . (4*7) ==> dropD 2 theme
-    , (2*7) ==> theme . (2*7) ==> dropD 1 theme . (2*7) ==> dropD 2 theme
+    [ (4*7) ==> theme1 . (4*7) ==> dropD 1 theme1 . (4*7) ==> dropD 2 theme1
+    , (2*7) ==> theme1 . (2*7) ==> dropD 1 theme1 . (2*7) ==> dropD 2 theme1
 
     -- TODO This expresses din.__ karvai as a general connective, which is
     -- probably more accurate than the ad-hoc cases in 'tri_' or 'reduce3'.
@@ -346,18 +346,30 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
     -- that includes the din.__ karvais.  Since 'sandi' operates at the flat
     -- level, maybe it should be implicit after all?
     , join (din.__) $ concat
-        [ take 3 $ reduceToL 0 4 (theme.theme2)
+        [ take 3 $ reduceToL 0 4 (theme1.theme2)
         , replicate 2 theme2
         , replicate 2 (dropD 1 theme2)
         , replicate 2 (dropD 2 theme2)
         ]
+    , let theme2 = theme2' in join (1^din.__4) $ concat
+        [ take 3 $ reduceToL 0 4 (theme1.theme2)
+        , replicate 2 theme2
+        , replicate 2 (dropD 1 theme2)
+        , replicate 2 (dropD 2 theme2)
+        , replicate 2 (dropD 4 theme2)
+        ]
     ]
     where
-    theme = group $ theme0.nakatiku
-    theme0 = tat.__4.dit.__4.kita.ki.na.ta.ki.taka
-    theme2 = group $ dit.__.tat.__.din.na.gin.na.taka.taka.talang.__.ga
+    theme1 = group $ theme1_.nakatiku
+    theme1_ = tat.__4.dit.__4.kita.ki.na.ta.ki.taka
+    theme2 = group theme2_
+    theme2_ = tat.__.dit.__.di.mi.kita.dugu.dugu.talang.__.ga
+
+    theme2' = group $ theme2_ . din.__.tat.__.din.na.tat.__
     mridangam = makeMridangam
-        [ (theme0, [p&k, p&t, k, t, k, n, o, k, o&t, k])
+        [ (theme1_, [p&k, p&t, k, t, k, n, o, k, o&t, k])
         , (theme2, [t, k, o, k, t, k, o, k, o, k, o, u, k])
+        , (din.tat.din.na.tat, [o, k, o, k, k])
         , (din, [o])
+        , (1^din, [od])
         ]

@@ -243,7 +243,7 @@ data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
 data Sollu =
     NoSollu -- ^ a dummy sollu for rests in Konnakol
-    | Dheem | Dhom | Di | Din | Dit
+    | Dheem | Dhom | Di | Din | Dit | Du
     | Ga | Gin | Gu | Ka | Ki | Ku | Kum | Lang
     | Mi | Na | Nam | Nang | Ri
     | Ta | Tam | Tang | Tat | Tha | Thom | Ti
