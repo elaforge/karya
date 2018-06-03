@@ -6,7 +6,9 @@ No line is longer than 80 columns.
 All lower case names are lower_with_underscores even though it's not haskell
 standard.  All upper case names are haskell standard CamelCase.  If I started
 again I'd use lowerUpper, but it's too late to change now.  Some modules in
-Util, which are nominally independent, are in lowerUpper.
+Util, which are nominally independent, are in lowerUpper, but I'm a bit
+inconsistent.  Solkattu/* is all camelCase.  Acrynyms are words, so MidiTest,
+not MIDITest, and NoteId, not NoteID.  It looks weird but it's consistent.
 
 Operators are wrapped on the following line, with some exceptions like =, <-,
 $, <$>.  Call signature definitions are a bit stylized so they have their own
@@ -19,18 +21,18 @@ Large comments use {- -} and their contents are indented.  This way
 indentation based folding can get them out of the way.
 
 Long explanations (typically of why something is the way it is) are in a
-separate comment that starts off 'NOTE [something-or-other]', and other
-comments that want to reference it mention 'see NOTE [something-or-other]'.
+separate comment that starts off `NOTE [something-or-other]`, and other
+comments that want to reference it mention `see NOTE [something-or-other]`.
 Make sure to capitalize the NOTE, otherwise there are way too many things
 named "note" or "Note" in the source!  This is borrowed from GHC and it seems
 to work for them.
 
-Modules are imported like 'import qualified A.B.C as C', with very few
+Modules are imported like `import qualified A.B.C as C`, with very few
 exceptions (notably, Global and Types).  Therefore, toplevel variable names
 should generally not repeat the module name.  Preferably no two modules have
 the same file name, but if they do, they can be imported along with their
-directory name, e.g. 'import qualified A.B.C as B.C'.  They are sorted by the
-order in the '.fix-imports' file, and alphabetically after that.  The order is
+directory name, e.g. `import qualified A.B.C as B.C`.  They are sorted by the
+order in the `.fix-imports` file, and alphabetically after that.  The order is
 automatically enforced by the fix-imports tool.
 
 Major high level types tend to go in a module with their own name.  Many types
@@ -47,12 +49,14 @@ import a module with foreign deps.  Technically it should be able to if you
 give it the object files but since it's the entire GUI library and associated
 system libraries I've never been able to get that to work.
 
-Record fields are named rec_xyz, where 'rec' is an abbreviation of the record
-type name.  Yeah, it's annoying.  The lenses, if there are any, omit the
-leading 'rec_'.  I write lenses by hand, no TH, because TH is a hassle.  In
-modules with only one main record type and no lenses I've been omitting the
-rec_ prefix.  I'm inconsistent about lenses, but generally only add them for
-records that are nested in other records.
+I'm inconsistent about record fields.  Originally I used `rec_xyz` where `rec`
+is an abbreviation of the record type name, but lately I've been using just
+`_xyz`.  It's hard to do that everywhere though, because they can collide
+within the module.  Yeah, it's annoying.  The lenses, if there are any, omit
+the leading `rec_`.  I write lenses by hand, no TH, because TH is a hassle.
+I'm inconsistent about lenses, but generally only add them for records that are
+nested in other records.  Records in Haskell are just inconsistent and awkward
+in general.
 
 Cmds begin with cmd_.  But not always.  I'm not very convinced of the value of
 this convention.  The idea with cmd_ is that the cmd_* version can be directly
@@ -67,9 +71,9 @@ parsing, and the non-prefixed version has the actual logic.
 Most types should be in Show and Pretty, for debugging and interactive use.
 Types that cannot use the automatic Show instance may derive their own.  If so,
 they should emit valid haskell syntax because non-valid syntax will break
-'Util.PPrint.pshow'.  In this case, they are surrounded by double parens
-'((xyz))' to distinguish them from automatic instances.
+`Util.PPrint.pshow`.  In this case, they are surrounded by double parens
+`((xyz))` to distinguish them from automatic instances.
 
 There's a convention where functions that look something up are prefixed with
-lookup_ if they return Nothing on failure, and get_ if they throw an exception
-on failure.
+`lookup_` if they return Nothing on failure, and `get_` if they throw an
+exception on failure.
