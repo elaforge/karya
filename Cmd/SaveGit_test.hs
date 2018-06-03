@@ -150,7 +150,7 @@ mkview :: [UiTest.TrackSpec] -> Ui.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo :: IO FilePath
-new_repo = (++ SaveGit.git_suffix) <$> Testing.unique_tmp_dir "git"
+new_repo = (++ SaveGit.git_suffix) <$> Testing.tmp_dir "git"
 
 user :: SaveGit.User
 user = SaveGit.User "name" "email"

@@ -37,7 +37,7 @@ module Util.Test.Testing (
     , prettyp, pprint
 
     -- * filesystem
-    , unique_tmp_dir, in_tmp_dir, tmp_base_dir
+    , tmp_dir, in_tmp_dir, tmp_base_dir
 
     -- * util
     , force
@@ -534,15 +534,15 @@ pshow val = s `DeepSeq.deepseq` s
 -- * filesystem
 
 -- | Get a tmp dir, which will be unique for each test run.
-unique_tmp_dir :: String -> IO FilePath
-unique_tmp_dir prefix = do
+tmp_dir :: String -> IO FilePath
+tmp_dir prefix = do
     Directory.createDirectoryIfMissing True tmp_base_dir
     Temp.mkdtemp $ tmp_base_dir </> prefix ++ "-"
 
 -- | Run the computation with cwd in a new tmp dir.
 in_tmp_dir :: String -> IO a -> IO a
 in_tmp_dir prefix action = do
-    dir <- unique_tmp_dir prefix
+    dir <- tmp_dir prefix
     Directory.withCurrentDirectory dir action
 
 -- | All tmp files used by tests should go in this directory.

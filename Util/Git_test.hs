@@ -107,6 +107,6 @@ test_modifications_to_dir = Git.initialize $ do
 
 new_repo :: IO FilePath
 new_repo = do
-    repo <- Testing.unique_tmp_dir "git"
+    repo <- Testing.tmp_dir "git"
     io_equal (Git.init repo) False
     return repo

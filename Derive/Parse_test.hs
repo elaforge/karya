@@ -232,7 +232,7 @@ test_load_ky = do
     let make_ky imports defs = unlines $
             ["import '" <> i <> "'" | i <- imports]
             ++ "note generator:" : [d <> " = z" | d <- defs]
-    dir <- Testing.unique_tmp_dir "ky"
+    dir <- Testing.tmp_dir "ky"
     let lib = dir </> "lib"
     Directory.createDirectory lib
     writeFile (lib </> "lib1") $ make_ky ["lib2"] ["lib1-call"]

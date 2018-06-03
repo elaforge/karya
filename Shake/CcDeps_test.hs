@@ -28,5 +28,5 @@ test_includesOf = Testing.in_tmp_dir "CcDeps" $ do
 
 run :: Shake.Action a -> IO a
 run action = do
-    dir <- Testing.unique_tmp_dir "shake"
+    dir <- Testing.tmp_dir "shake"
     Util.runIO dir action
