@@ -25,6 +25,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+import qualified Util.Thread as Thread
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.Checkpoint as Checkpoint
@@ -98,7 +99,7 @@ process prefix patches notesFilename notes = do
                 <> txt output
             Directory.createDirectoryIfMissing True $
                 if useCheckpoints then output else FilePath.takeDirectory output
-            result <- if useCheckpoints
+            (result, elapsed) <- Thread.timeActionText $ if useCheckpoints
                 then Checkpoint.write output patch notes
                 else fmap (second (\() -> (0, 0))) $ AUtil.catchSndfile $
                     Resource.runResourceT $
@@ -113,6 +114,7 @@ process prefix patches notesFilename notes = do
                 Right (rendered, total) ->
                     put $ inst <> " " <> showt rendered <> "/"
                         <> showt total <> " chunks: " <> txt output
+                        <> " (" <> elapsed <> ")"
     put "done"
     where
     flatten patchInstNotes =
