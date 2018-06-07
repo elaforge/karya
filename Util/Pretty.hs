@@ -175,7 +175,11 @@ instance Pretty a => Pretty (Tree.Tree a) where
 -- ** text
 
 instance Pretty ByteString.ByteString where
-    format = format . Encoding.decodeUtf8
+    format bs = case Encoding.decodeUtf8' bs of
+        -- If it's binary, quote like a string.  Unfortunately, show will add
+        -- extra "s which format will then add again.
+        Left _ -> format $ Seq.rdrop 1 $ drop 1 $ show bs
+        Right txt -> format txt
 
 instance Pretty Text where
     format t = "\"" <> text t <> "\""
