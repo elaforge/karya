@@ -3,16 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DataKinds, KindSignatures #-}
+{-# LANGUAGE TypeApplications #-}
 -- | Functions to read and write audio files.  This should be able to read all
 -- formats supported by libsndfile.
 module Util.Audio.File (
     -- * read
     check, checkA, read, readFrom, read44k
+    , concat
     -- * write
     , write, writeCheckpoints
     , wavFormat
 ) where
-import Prelude hiding (read)
+import Prelude hiding (concat, read)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Fix as Fix
 import qualified Control.Monad.Trans.Resource as Resource
@@ -86,6 +88,14 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
 read44k :: FilePath -> Audio.AudioIO 44100 2
 read44k = read
 
+-- | Concatenate multiple files.
+concat :: forall rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
+    [FilePath] -> Audio.AudioIO rate channels
+concat = Audio.Audio . mconcat . map (Audio._stream . read @rate @channels)
+
+-- ** util
+
 checkInfo :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
     => Proxy rate -> Proxy channels -> Sndfile.Info -> Maybe String
@@ -123,26 +133,30 @@ write format fname audio = do
         (Audio._stream audio)
     Resource.release key
 
--- | Write files in chunks to the given directory.  Run an action before
--- writing each chunk.  It's expected to query and save audio generator state.
+-- | Write files in chunks to the given directory.  Run actions before
+-- and after writing each chunk.  It's expected to query and save audio
+-- generator state.
 writeCheckpoints :: (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
     => Audio.Frame
-    -> (state -> IO FilePath) -- ^ run before rendering each chunk
+    -> (state -> IO FilePath) -- ^ get filename for this state
+    -> (FilePath -> IO ()) -- ^ write state after the computation
     -> Sndfile.Format -> [state]
-    -- ^ shouldn't run out before the audio runs out
+    -- ^ Some render-specific state for each checkpoint.  Shouldn't run out
+    -- before the audio runs out.
     -> Audio.AudioIO rate channels -> Resource.ResourceT IO ()
-writeCheckpoints size checkpoint format = go
+writeCheckpoints size getFilename writeState format = go
     where
     go (state : states) audio = do
-        fname <- liftIO $ checkpoint state
+        fname <- liftIO $ getFilename state
         (chunks, audio) <- Audio.takeFrames size audio
-        liftIO $ Exception.bracket (openWrite format fname audio) Sndfile.hClose
-            (\handle -> mapM_
-                (Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer)
-                chunks)
-        unless (null chunks) $
+        unless (null chunks) $ do
+            liftIO $ do
+                Exception.bracket (openWrite format fname audio)
+                    Sndfile.hClose (\handle -> mapM_ (write handle) chunks)
+                writeState fname
             go states audio
     go [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
+    write handle = Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer
 
 openWrite :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)

@@ -1675,15 +1675,44 @@ synth: im:
         * I think I also need to put state in the hash, otherwise I will
           overwrite output from a different run as soon as the notes are the
           same again.
-        - How then do I know which ones to play?  They're the ones
+        * How then do I know which ones to play?  They're the ones
           corresponding to the current notes, but play_cache doesn't know
           about that.  I guess I can mark them by renaming, e.g.
-          005-<hash>.old.wav, then play_cache ignores .old.wav like it ignores
-          .debug.wav.
-        . If I'm skipping parts of the stream, I want to skip generating
-          control signals in there.  So I think I need to restart the stream.
-          So, scan until I get a mismatch, then start a new audio stream,
-          then abort it when it matches again, repeat.
+          005-<hash>.old.wav, then play_cache ignores .old.wav like it
+          ignores .debug.wav.
+          . I put them in a cache/ subdir, and symlink in the current ones.
+        * skip already rendered checkpoints
+          . If I'm skipping parts of the stream, I want to skip generating
+            control signals in there.  So I think I need to restart the stream.
+            So, scan until I get a mismatch, then start a new audio stream,
+            then abort it when it matches again, repeat.
+          . If a filename matches, then I can skip.  But then I need the
+            state hash for the next one.  What if states are saved at the end?
+            Then if I find 000.abc.xyz.wav, then I can look for
+            001.bbc.{encode 000.abc.xyz.hash}.wav.
+          . I'd like to avoid the extra read and hash, since states can
+            be large.  What if I save as 000.abc.xyz.state.{my hash}, then
+            I look for a filename replace .wav -> .state.*.
+          . I keep the filename of the last hash, and when I can't find
+            file.wav, then I read its contents to initialize the stream.
+          . If the notes are completely the same, I don't want to do anything.
+            So I need to know the difference between out of notes, and Hash 0.
+            Otherwise, I'd still rerender the decay after the last note.
+            But, File.writeCheckpoints needs 0s afterwards, because it is
+            rendering the decay.
+          - print number of checkpoints rendered vs skipped
+          - The use of Audio.takeFrames in writeCheckpoints is too risky
+            . use uncons and assert the chunk size is as expected.
+          - isn't there an atomic way to replace the current chunk symlink?
+            . Create the link and rename into place?
+          - come up with some means to expire old chunks
+
+          * implement skipCheckpoints
+          * hook skipCheckpoints up to render
+          * test skipCheckpoints
+          - have render abort when the hash differs, restart skipCheckpoints
+          * test that audio produced by a rerender is the same as a render
+            from scratch
       - tests for FaustIm
         . It's easy to test the non-audio functions, but how to test
           incremental rerender?

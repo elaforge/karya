@@ -9,31 +9,30 @@ import Synth.Lib.Global
 import qualified Synth.Shared.Note as Note
 
 
+test_overlapping = do
+    let f start size = map (\(Note.Hash h) -> h)
+            . Hash.overlapping start size . map note
+    equal (f 0 1 []) []
+    check_val (f 0 1 [(1, 2)]) $ \case
+        [0, x1, x2] -> x1 == x2
+        _ -> False
+    check_val (f 0 2 [(1, 2)]) $ \case
+        [x1, x2] -> x1 /= 0 && x1 == x2
+        _ -> False
+    check_val (f 0 1 [(0, 3), (1, 1)]) $ \case
+        [x1, y1, x2] -> y1 /= 0 && x1 == x2
+        _ -> False
+
 test_groupOverlapping = do
     let f start size = map (map (e_note . snd))
             . Hash.groupOverlapping start size
             . map ((),) . map note
-    equal (take 1 $ f 0 1 []) [[]]
-    equal (take 4 $ f 0 1 [(1, 2)]) [[], [(1, 2)], [(1, 2)], []]
-    equal (take 4 $ f 0 2 [(1, 2)]) [[(1, 2)], [(1, 2)], [], []]
-    equal (take 2 $ f 1 2 [(1, 2)]) [[(1, 2)], []]
-    equal (take 4 $ f 0 1 [(0, 3), (1, 1)])
-        [[(0, 3)], [(0, 3), (1, 1)], [(0, 3)], []]
+    equal (f 0 1 []) []
+    equal (f 0 1 [(1, 2)]) [[], [(1, 2)], [(1, 2)]]
 
-test_hashOverlapping = do
-    let f start size = map (\(Note.Hash h) -> h)
-            . Hash.hashOverlapping start size
-            . map note
-    equal (take 2 $ f 0 1 []) [0, 0]
-    check_val (take 4 $ f 0 1 [(1, 2)]) $ \case
-        [0, x1, x2, 0] -> x1 == x2
-        _ -> False
-    check_val (take 4 $ f 0 2 [(1, 2)]) $ \case
-        [x1, x2, 0, 0] -> x1 == x2 && x1 /= 0
-        _ -> False
-    check_val (take 4 $ f 0 1 [(0, 3), (1, 1)]) $ \case
-        [x1, y1, x2, 0] -> x1 == x2 && y1 /= 0
-        _ -> False
+    equal (f 0 2 [(1, 2)]) [[(1, 2)], [(1, 2)]]
+    equal (f 1 2 [(1, 2)]) [[(1, 2)]]
+    equal (f 0 1 [(0, 3), (1, 1)]) [[(0, 3)], [(0, 3), (1, 1)], [(0, 3)]]
 
 note :: (RealTime, RealTime) -> Note.Note
 note (s, d) = Note.note "patch" "inst" s d

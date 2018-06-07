@@ -9,9 +9,9 @@ import Synth.Lib.Global
 import qualified Synth.Shared.Note as Note
 
 
-hashOverlapping :: RealTime -> RealTime -> [Note.Note] -> [Note.Hash]
-hashOverlapping size start =
-    map (mconcat . map fst) . groupOverlapping size start . Seq.key_on Note.hash
+overlapping :: RealTime -> RealTime -> [Note.Note] -> [Note.Hash]
+overlapping start size =
+    map (mconcat . map fst) . groupOverlapping start size . Seq.key_on Note.hash
     -- Pair each Note with its Hash, then group Notes and combine the Hashes.
     -- This ensures I only compute each Hash a maximum of once.
 
@@ -22,10 +22,11 @@ groupOverlapping start size = go (Seq.range_ start size)
     -- error.  Size should integral, but let's just be careful.
     where
     go (t1 : ts@(t2 : _)) notes
-        | null notes = repeat []
+        | null notes = []
+        | null overlapping && null rest = []
         | otherwise = overlapping : go ts rest
         where (overlapping, rest) = splitOverlapping t1 t2 notes
-    go _ts _ = repeat []
+    go _ _ = []
 
 {-
     0   1   2   3   4   5   6   7   8

@@ -10,12 +10,7 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 
-import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Base64.URL as Base64.URL
-import qualified Data.ByteString.Char8 as ByteString.Char8
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Either as Either
-import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -23,19 +18,17 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Seq as Seq
-import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
 
 import qualified Perform.RealTime as RealTime
+import qualified Synth.Faust.Checkpoint as Checkpoint
 import qualified Synth.Faust.DriverC as DriverC
-import qualified Synth.Faust.Hash as Hash
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Config as Config
@@ -106,11 +99,12 @@ process prefix patches notesFilename notes = do
             Directory.createDirectoryIfMissing True $
                 if useCheckpoints then output else FilePath.takeDirectory output
             mbErr <- if useCheckpoints
-                then writeCheckpoints output patch notes
+                then Checkpoint.write output patch notes
                 else fmap (either Just (const Nothing)) $ AUtil.catchSndfile $
                     Resource.runResourceT $
                     Audio.File.write AUtil.outputFormat output $
-                    Render.renderPatch patch (\_ -> return ()) notes
+                    Render.renderPatch patch Render.defaultConfig
+                        Nothing (\_ -> return ()) notes 0
             when debugControls $
                 writeControls output patch notes
             case mbErr of
@@ -131,8 +125,9 @@ writeControls output patch notes =
         Audio.File.write AUtil.outputFormat (fname control) $
         Audio.take (Audio.Seconds final) $
         fromMaybe Audio.silence
-        (Render.renderControl notes control :: Maybe AUtil.Audio1)
+        (Render.renderControl chunkSize notes 0 control :: Maybe AUtil.Audio1)
     where
+    chunkSize = Render._chunkSize Render.defaultConfig
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
     -- play_cache is special-cased to ignore *.debug.wav.
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
@@ -147,61 +142,3 @@ lookupPatches patches notes =
         Seq.keyed_group_sort Note.patch notes
     where
     find patch = maybe (Left patch) Right $ Map.lookup patch patches
-
--- * checkpoints
-
-writeCheckpoints :: FilePath -> DriverC.Patch -> [Note.Note] -> IO (Maybe Text)
-writeCheckpoints outputDir patch notes = either Just (const Nothing) <$> do
-    stateRef <- IORef.newIORef $ DriverC.State ByteString.empty
-    let notifyState = IORef.writeIORef stateRef
-    let hashes = Hash.hashOverlapping 0 (AUtil.toSeconds size) notes
-    AUtil.catchSndfile $ Resource.runResourceT $
-        Audio.File.writeCheckpoints size (writeState outputDir stateRef)
-            AUtil.outputFormat (zip [0..] hashes) $
-        Render.renderPatch patch notifyState notes
-    where
-    size = Audio.Frame Config.checkpointSize
-
--- canSkip state fname = do
---     cachedState <- fmap (fromMaybe mempty) $ File.ignoreEnoent $
---         ByteString.readFile $ FilePath.replaceExtension fname ".state"
-
--- checkState stateRef fname = do
---     state <- IORef.readIORef stateRef
---     cachedState <- fmap (fromMaybe mempty) $ File.ignoreEnoent $
---         ByteString.readFile $ FilePath.replaceExtension fname ".state"
---     -- The first one should be empty, and I don't want to overwrite the
---     -- initial state with 0s.
---     unless (ByteString.null state) $ do
---         ByteString.writeFile (FilePath.replaceExtension fname ".state") state
-
-writeState :: FilePath -> IORef.IORef DriverC.State -> (Int, Note.Hash)
-    -> IO FilePath
-writeState outputDir stateRef (n, hash) = do
-    state@(DriverC.State stateBs) <- IORef.readIORef stateRef
-    let fname = outputDir </> filenameOf state n hash
-    -- The first one should be empty, and I don't want to overwrite the
-    -- initial state with 0s.
-    unless (ByteString.null stateBs) $
-        ByteString.writeFile (FilePath.replaceExtension fname ".state") stateBs
-    return fname
-
-filenameOf :: DriverC.State -> Int -> Note.Hash -> FilePath
-filenameOf (DriverC.State state) n hash =
-    -- Base64.URL uses A-Za-z_=-, so separate with dots.
-    ByteString.Char8.unpack $ ByteString.Char8.intercalate "."
-        [ (zeroPad 3 n)
-        , encodeHash hash
-        , encodeHash $ Note.Hash $ CRC32.crc32 state
-        , "wav"
-        ]
-
-encodeHash :: Note.Hash -> ByteString.ByteString
-encodeHash = fst . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
-    . Serialize.encode
-
--- | 'Num.zeroPad' for ByteString.
-zeroPad :: Show a => Int -> a -> ByteString.ByteString
-zeroPad digits n =
-    ByteString.Char8.replicate (digits - ByteString.length s) '0' <> s
-    where s = ByteString.Char8.pack (show n)

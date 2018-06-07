@@ -247,7 +247,7 @@ withPtrs vs f = go [] vs
 -- ** state
 
 newtype State = State ByteString.ByteString
-    deriving (Show)
+    deriving (Eq, Show)
 
 getState :: Instrument -> IO State
 getState inst = alloca $ \statepp -> do

@@ -8,6 +8,7 @@ module Synth.Faust.Render where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
 import qualified Data.Vector.Storable as V
+
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 
@@ -27,21 +28,36 @@ import qualified Synth.Shared.Signal as Signal
 import Global
 
 
+data Config = Config {
+    _chunkSize :: Audio.Frame
+    -- | Force an end if the signal hasn't gone to zero before this.
+    , _maxDecay :: RealTime
+    } deriving (Show)
+
+defaultConfig :: Config
+defaultConfig = Config
+    { _chunkSize = Audio.Frame Config.checkpointSize
+    -- TODO it should be longer, but since Render.isBasicallySilent is
+    -- unimplemented every decay lasts this long.
+    , _maxDecay = 2
+    }
+
 -- | Render notes belonging to a single FAUST patch.  Since they render on
 -- a single element, they should either not overlap, or be ok if overlaps
 -- cut each other off.
-renderPatch :: DriverC.Patch -> (DriverC.State -> IO ()) -> [Note.Note]
-    -> Audio
-renderPatch patch notifyState notes =
+renderPatch :: DriverC.Patch -> Config -> Maybe DriverC.State
+    -> (DriverC.State -> IO ()) -> [Note.Note] -> RealTime -> Audio
+renderPatch patch config state notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
-        render patch Nothing notifyState inputs final decay
-        -- TODO initialize initial state when supported
+        render patch state notifyState inputs
+            (AUtil.toFrames start) (AUtil.toFrames final) config
     where
-    inputs = renderControls (filter (/=Control.volume) controls) notes
+    inputs = renderControls (_chunkSize config)
+        (filter (/=Control.volume) controls) notes start
     controls = DriverC.getControls patch
-    vol = renderControl notes Control.volume
+    vol = renderControl (_chunkSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
-    decay = 2
+    notes = dropUntil (\_ n -> Note.end n > start) notes_
 
 interleave :: NAudio -> Audio
 interleave naudio = case Audio.interleaved naudio of
@@ -52,47 +68,50 @@ interleave naudio = case Audio.interleaved naudio of
 
 -- | Render a FAUST instrument incrementally.
 --
--- Chunk size is determined by the size of the 'NAudio' chunks, or
+-- Chunk size is determined by the size of the @inputs@ chunks, or
 -- Audio.chunkSize if they're empty or run out.  The inputs will go to zero
 -- if they end before the given time.
 render :: DriverC.Patch -> Maybe DriverC.State
     -> (DriverC.State -> IO ()) -- ^ notify new state after each audio chunk
-    -> NAudio -> RealTime -- ^ logical end time
-    -> RealTime
-    -- ^ max decay, force an end if the signal hasn't gone to zero before this
-    -> NAudio
-render patch mbState notifyState inputs end decay =
+    -> NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
+    -> Config -> NAudio
+render patch mbState notifyState inputs start end config =
     Audio.NAudio (DriverC.patchOutputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.initialize patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
-        let nstream = Audio._nstream (Audio.zeroPadN inputs)
-        Audio.loop1 (0, nstream) $ \loop (start, inputs) -> do
+        let nstream = Audio._nstream (Audio.zeroPadN (_chunkSize config) inputs)
+        Audio.loop1 (start, nstream) $ \loop (start, inputs) -> do
             -- Audio.zeroPadN should have made this infinite.
             (controls, nextInputs) <-
                 maybe (CallStack.errorIO "end of endless stream") return
                     =<< lift (S.uncons inputs)
             result <- render1 inst controls start
-            liftIO $ notifyState =<< DriverC.unsafeGetState inst
             case result of
                 Nothing -> Resource.release key
                 Just start -> loop (start, nextInputs)
         where
-        render1 inst controls start = do
-            outputs <- liftIO $ DriverC.render inst controls
-            S.yield outputs
-            case outputs of
-                [] -> CallStack.errorIO "dsp with 0 outputs"
-                output : _
-                    | frames == 0 || blockEnd >= final + maxDecay
-                            || blockEnd >= final && isBasicallySilent output ->
-                        return Nothing
-                    | otherwise -> return $ Just blockEnd
-                    where
-                    blockEnd = start + frames
-                    frames = Audio.Frame $ V.length output
-        final = AUtil.toFrames end
-        maxDecay = AUtil.toFrames decay
+        render1 inst controls start
+            | start >= end + maxDecay = return Nothing
+            | otherwise = do
+                outputs <- liftIO $ DriverC.render inst controls
+                -- XXX Since this uses unsafeGetState, readers of notifyState
+                -- have to entirely use the state before returning.  See
+                -- Checkpoint.getFilename and Checkpoint.writeBs.
+                liftIO $ notifyState =<< DriverC.unsafeGetState inst
+                S.yield outputs
+                case outputs of
+                    [] -> CallStack.errorIO "dsp with 0 outputs"
+                    output : _
+                        | frames == 0 || blockEnd >= end + maxDecay
+                                || blockEnd >= end
+                                    && isBasicallySilent output ->
+                            return Nothing
+                        | otherwise -> return $ Just blockEnd
+                        where
+                        blockEnd = start + frames
+                        frames = Audio.Frame $ V.length output
+        maxDecay = AUtil.toFrames $ _maxDecay config
 
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent _samples = False -- TODO RMS < -n dB
@@ -100,20 +119,26 @@ isBasicallySilent _samples = False -- TODO RMS < -n dB
 -- | Render the supported controls down to audio rate signals.  This causes the
 -- stream to be synchronized by 'Config.chunkSize', which should determine
 -- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
-renderControls :: [Control.Control]
+renderControls :: Audio.Frame -> [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
-    -> [Note.Note] -> NAudio
-renderControls controls notes =
-    Audio.nonInterleaved (Audio.Frame Config.chunkSize) $
-        map (fromMaybe Audio.silence . renderControl notes) controls
+    -> [Note.Note] -> RealTime -> NAudio
+renderControls chunkSize controls notes start =
+    Audio.nonInterleaved chunkSize $
+        map (fromMaybe Audio.silence . renderControl chunkSize notes start)
+            controls
 
 renderControl :: (Monad m, TypeLits.KnownNat rate)
-    => [Note.Note] -> Control.Control -> Maybe (Audio.Audio m rate 1)
-renderControl notes control
-    | control == Control.gate = Just $ Audio.linear $ gateBreakpoints notes
+    => Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
+    -> Maybe (Audio.Audio m rate 1)
+renderControl chunkSize notes start control
+    | control == Control.gate =
+        Just $ sync $ Audio.linear $ shiftBack $ gateBreakpoints notes
     | null bps = Nothing
-    | otherwise = Just $ Audio.linear bps
-    where bps = controlBreakpoints control notes
+    | otherwise = Just $ sync $ Audio.linear $ shiftBack bps
+    where
+    shiftBack = map $ first (subtract (RealTime.to_seconds start))
+    bps = controlBreakpoints control notes
+    sync = Audio.synchronizeToSize chunkSize
 
 -- | Make a signal which goes to 1 for the duration of the note.
 --
@@ -140,16 +165,6 @@ gateBreakpoints = map (first RealTime.to_seconds) . go
     --     (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
     --         (n:ns)
 
--- | Drop until this element and the next one matches.
-dropUntil :: (a -> a -> Bool) -> [a] -> [a]
-dropUntil match = go
-    where
-    go [] = []
-    go [x] = [x]
-    go (x1 : xs@(x2 : _))
-        | match x1 x2 = x1 : xs
-        | otherwise = go xs
-
 controlBreakpoints :: Control.Control -> [Note.Note] -> [(Double, Double)]
 controlBreakpoints control = concat . mapMaybe get . Seq.zip_next
     where
@@ -163,3 +178,13 @@ controlBreakpoints control = concat . mapMaybe get . Seq.zip_next
         -- empty, then it's 0.
         return $ map (first RealTime.to_seconds) $
             if null bps then [(Note.start note, 0)] else bps
+
+-- | Drop until this element and the next one matches.
+dropUntil :: (a -> a -> Bool) -> [a] -> [a]
+dropUntil match = go
+    where
+    go [] = []
+    go [x] = [x]
+    go (x1 : xs@(x2 : _))
+        | match x1 x2 = x1 : xs
+        | otherwise = go xs

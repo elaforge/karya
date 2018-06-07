@@ -405,11 +405,11 @@ synchronizeToSize size = Audio . S.unfoldr unfold
     chan = Proxy @chan
     apply f = Audio . f . _stream
 
--- | Extend chunks shorter than 'chunkSize' with zeros, and pad the end with
+-- | Extend chunks shorter than the given size with zeros, and pad the end with
 -- zeros forever.  Composed with 'nonInterleaved', which may leave a short
 -- final chunk, the output should be infinite and have uniform chunk size.
-zeroPadN :: Monad m => NAudio m rate -> NAudio m rate
-zeroPadN naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
+zeroPadN :: Monad m => Frame -> NAudio m rate -> NAudio m rate
+zeroPadN size_ naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
     where
     unfold audio = do
         result <- S.uncons audio
@@ -420,7 +420,7 @@ zeroPadN naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
         | V.length chunk >= size = chunk
         | V.null chunk = silentChunk
         | otherwise = chunk V.++ (V.replicate (size - V.length chunk) 0)
-    size = framesCount (Proxy @1) chunkSize
+    size = framesCount (Proxy @1) size_
 
 
 -- * generate

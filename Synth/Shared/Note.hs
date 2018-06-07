@@ -83,6 +83,12 @@ initialPitch note =
     Pitch.nn . Signal.at (start note) <$>
         Map.lookup Control.pitch (controls note)
 
+withControl :: Control.Control -> Signal.Signal -> Note -> Note
+withControl control signal note =
+    note { controls = Map.insert control signal (controls note) }
+
+withPitch :: Pitch.NoteNumber -> Note -> Note
+withPitch = withControl Control.pitch . Signal.constant . Pitch.nn_to_double
 
 -- * serialize
 

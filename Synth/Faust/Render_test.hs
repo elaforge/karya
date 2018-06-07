@@ -27,8 +27,7 @@ test_gateBreakpoints = do
 test_controlBreakpoints = do
     let f = Render.controlBreakpoints "c" . map make
         make (s, e, cs) = (Note.note "" "" s e)
-            { Note.controls = Map.singleton "c" (Signal.from_pairs cs)
-            }
+            { Note.controls = Map.singleton "c" (Signal.from_pairs cs) }
     equal (f []) []
     equal (f [(0, 1, []), (1, 1, [])]) [(0, 0), (1, 0)]
     -- Audio.linear should optimize away duplicate and flat breakpoints.
