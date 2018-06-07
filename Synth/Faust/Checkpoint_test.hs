@@ -36,7 +36,7 @@ test_write_incremental = do
     patch <- getPatch
     let write = Checkpoint.writeConfig config dir patch
     -- no notes produces no output
-    io_equal (write []) Nothing
+    io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.cacheDir)) []
 
     let dur = AUtil.toSeconds (Render._chunkSize config)
@@ -44,7 +44,7 @@ test_write_incremental = do
     let newNotes = mkNotes (dur/2) [NN.c4, NN.d4, NN.e4, NN.f4, NN.c4]
 
     -- Should be be 2.5 checkpoints.
-    io_equal (write oldNotes) Nothing
+    io_equal (write oldNotes) (Right (3, 3))
     wavs <- listWavs dir
     equal_on length wavs 3
     io_equal (length <$> listWavs (dir </> Checkpoint.cacheDir)) 3
@@ -57,7 +57,7 @@ test_write_incremental = do
 
     -- change only last note: only 3rd sample should rerender, but contents
     -- should be the same.
-    io_equal (write newNotes) Nothing
+    io_equal (write newNotes) (Right (1, 3))
 
     -- Test skipCheckpoints directly.
     let hashes = Checkpoint.noteHashes (Render._chunkSize config) newNotes
@@ -74,7 +74,7 @@ test_write_incremental = do
     equal incremental nonIncremental
 
     -- Switched back to the old ones, nothing new should render.
-    io_equal (write oldNotes) Nothing
+    io_equal (write oldNotes) (Right (0, 3))
 
     let hashes = Checkpoint.noteHashes (Render._chunkSize config) oldNotes
     (skippedHashes, state) <- Checkpoint.skipCheckpoints dir hashes
@@ -90,7 +90,7 @@ test_write_incremental = do
 renderSamples :: DriverC.Patch -> [Note.Note] -> IO [Float]
 renderSamples patch notes = do
     dir <- Testing.tmp_dir "renderSamples"
-    io_equal (Checkpoint.writeConfig config dir patch notes) Nothing
+    io_equal (Checkpoint.writeConfig config dir patch notes) (Right (3, 3))
     readSamples dir
 
 readSamples :: FilePath -> IO [Float]

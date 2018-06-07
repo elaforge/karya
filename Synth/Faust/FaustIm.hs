@@ -98,19 +98,21 @@ process prefix patches notesFilename notes = do
                 <> txt output
             Directory.createDirectoryIfMissing True $
                 if useCheckpoints then output else FilePath.takeDirectory output
-            mbErr <- if useCheckpoints
+            result <- if useCheckpoints
                 then Checkpoint.write output patch notes
-                else fmap (either Just (const Nothing)) $ AUtil.catchSndfile $
+                else fmap (second (\() -> (0, 0))) $ AUtil.catchSndfile $
                     Resource.runResourceT $
                     Audio.File.write AUtil.outputFormat output $
                     Render.renderPatch patch Render.defaultConfig
                         Nothing (\_ -> return ()) notes 0
             when debugControls $
                 writeControls output patch notes
-            case mbErr of
-                Nothing -> put $ inst <> " done: " <> txt output
-                Just err -> put $ inst <> " writing " <> txt output
+            case result of
+                Left err -> put $ inst <> " writing " <> txt output
                     <> ": " <> err
+                Right (rendered, total) ->
+                    put $ inst <> " " <> showt rendered <> "/"
+                        <> showt total <> " chunks: " <> txt output
     put "done"
     where
     flatten patchInstNotes =

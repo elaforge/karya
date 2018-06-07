@@ -38,27 +38,31 @@ type Error = Text
 cacheDir :: FilePath
 cacheDir = "cache"
 
-write :: FilePath -> DriverC.Patch -> [Note.Note] -> IO (Maybe Error)
+write :: FilePath -> DriverC.Patch -> [Note.Note]
+    -> IO (Either Error (Int, Int))
 write = writeConfig Render.defaultConfig
 
 writeConfig :: Render.Config -> FilePath -> DriverC.Patch -> [Note.Note]
-    -> IO (Maybe Error)
-writeConfig config outputDir patch notes = either Just (const Nothing) <$> do
-    let hashes = noteHashes chunkSize notes
-    (hashes, mbState) <- skipCheckpoints outputDir hashes
+    -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
+writeConfig config outputDir patch notes = do
+    let allHashes = noteHashes chunkSize notes
+    (hashes, mbState) <- skipCheckpoints outputDir allHashes
     stateRef <- IORef.newIORef $ DriverC.State mempty
     let notifyState = IORef.writeIORef stateRef
     let start = case hashes of
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
             _ -> 0
+    let total = length allHashes
     if null hashes
-        then return (Right ())
-        else AUtil.catchSndfile $ Resource.runResourceT $
-            Audio.File.writeCheckpoints chunkSize
-                (getFilename outputDir stateRef)
-                (writeState outputDir stateRef)
-                AUtil.outputFormat (extendHashes hashes) $
-            Render.renderPatch patch config mbState notifyState notes start
+        then return (Right (0, total))
+        else do
+            result <- AUtil.catchSndfile $ Resource.runResourceT $
+                Audio.File.writeCheckpoints chunkSize
+                    (getFilename outputDir stateRef)
+                    (writeState outputDir stateRef)
+                    AUtil.outputFormat (extendHashes hashes) $
+                Render.renderPatch patch config mbState notifyState notes start
+            return $ second (\() -> (length hashes, total)) result
     where
     chunkSize = Render._chunkSize config
 
