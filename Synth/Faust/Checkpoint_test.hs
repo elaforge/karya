@@ -96,8 +96,6 @@ renderSamples patch notes = do
 readSamples :: FilePath -> IO [Float]
 readSamples dir = toSamples . File.concat . map (dir</>) =<< listWavs dir
 
--- equal_on f got expected = equal (f got)
-
 listWavs :: FilePath -> IO [FilePath]
 listWavs = fmap (List.sort . filter (".wav" `List.isSuffixOf`))
     . Directory.listDirectory

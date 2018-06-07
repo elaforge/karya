@@ -21,7 +21,6 @@ import qualified UnliftIO.Resource as Resource
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
-import qualified Util.File as File
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -44,23 +43,22 @@ write = writeConfig Render.defaultConfig
 
 writeConfig :: Render.Config -> FilePath -> DriverC.Patch -> [Note.Note]
     -> IO (Maybe Error)
-writeConfig config outputDir patch notes =
-    either Just (const Nothing) <$> do
-        let hashes = noteHashes chunkSize notes
-        (hashes, mbState) <- skipCheckpoints outputDir hashes
-        stateRef <- IORef.newIORef $ DriverC.State mempty
-        let notifyState = IORef.writeIORef stateRef
-        let start = case hashes of
-                (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
-                _ -> 0
-        if null hashes
-            then return (Right ())
-            else AUtil.catchSndfile $ Resource.runResourceT $
-                Audio.File.writeCheckpoints chunkSize
-                    (getFilename outputDir stateRef)
-                    (writeState outputDir stateRef)
-                    AUtil.outputFormat (extendHashes hashes) $
-                Render.renderPatch patch config mbState notifyState notes start
+writeConfig config outputDir patch notes = either Just (const Nothing) <$> do
+    let hashes = noteHashes chunkSize notes
+    (hashes, mbState) <- skipCheckpoints outputDir hashes
+    stateRef <- IORef.newIORef $ DriverC.State mempty
+    let notifyState = IORef.writeIORef stateRef
+    let start = case hashes of
+            (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
+            _ -> 0
+    if null hashes
+        then return (Right ())
+        else AUtil.catchSndfile $ Resource.runResourceT $
+            Audio.File.writeCheckpoints chunkSize
+                (getFilename outputDir stateRef)
+                (writeState outputDir stateRef)
+                AUtil.outputFormat (extendHashes hashes) $
+            Render.renderPatch patch config mbState notifyState notes start
     where
     chunkSize = Render._chunkSize config
 
@@ -81,8 +79,8 @@ extendHashes = go
     go (h : hs) = h : go hs
 
 noteHashes :: Audio.Frame -> [Note.Note] -> [(Int, Note.Hash)]
-noteHashes chunkSize = zip [0..]
-    . Hash.overlapping 0 (AUtil.toSeconds chunkSize)
+noteHashes chunkSize =
+    zip [0..] . Hash.overlapping 0 (AUtil.toSeconds chunkSize)
 
 -- | Find where the checkpoints begin to differ from the given 'Note.Hash's.
 skipCheckpoints :: FilePath -> [(Int, Note.Hash)]
@@ -114,18 +112,18 @@ findLastState files = go "" initialState
         | otherwise = Right ((i, hash) : hashes, prevStateFname)
         where
         fname = filenameOf2 i hash state
-    -- 'hashes' should be infinite so this shouldn't happen.
     go _ _ [] = Right ([], "")
 
 {-
     Each chunk writes two files:
 
-    -- hash and state at beginning of .wav
+    -- $hash and $state at beginning of .wav
     000.$hash.$state.wav
-    -- state at the end of the .wav, hash of the state is cached in $stateHash
+    -- file contains the state at the end of the .wav, cached in $stateHash
     000.$hash.$state.state.$stateHash
 
     001.$hash.$state.wav -- $state == previous $stateHash
+    001.$hash.$state.state.$stateHash -- as before
 -}
 
 getFilename :: FilePath -> IORef.IORef DriverC.State -> (Int, Note.Hash)
@@ -147,8 +145,10 @@ writeState outputDir stateRef fname = do
         stateBs
     let current = outputDir </> filenameToCurrent (FilePath.takeFileName fname)
     -- 000.wav -> cache/000.$hash.$state.wav
-    File.ignoreEnoent $ Directory.removeFile current
-    Directory.createFileLink (cacheDir </> FilePath.takeFileName fname) current
+    -- Atomically replace the old link, if any.
+    Directory.createFileLink (cacheDir </> FilePath.takeFileName fname)
+        (current <> ".tmp")
+    Directory.renameFile (current <> ".tmp") current
 
 -- | 000.$hash.$state.wav
 filenameOf :: Int -> Note.Hash -> DriverC.State -> FilePath

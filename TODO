@@ -1703,7 +1703,7 @@ synth: im:
           - print number of checkpoints rendered vs skipped
           - The use of Audio.takeFrames in writeCheckpoints is too risky
             . use uncons and assert the chunk size is as expected.
-          - isn't there an atomic way to replace the current chunk symlink?
+          * isn't there an atomic way to replace the current chunk symlink?
             . Create the link and rename into place?
           - come up with some means to expire old chunks
 
