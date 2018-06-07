@@ -14,7 +14,7 @@ module Util.Test.Testing (
     , ModuleMeta(..), moduleMeta, Tag(..)
     -- * assertions
     , check, check_val
-    , equal, equal_fmt, right_equal, not_equal, equalf, strings_like
+    , equal, equal_fmt, equal_on, right_equal, not_equal, equalf, strings_like
     , left_like, match
     , Pattern
     -- ** exception assertions
@@ -167,6 +167,15 @@ equal_fmt fmt a b = do
         color = failure_color
         (diff_a, diff_b) = diff_ranges pretty_a pretty_b
 
+-- | Assert these things are equal after applying a function.  Print without
+-- the function if they're not equal.  This is for cases when the extract
+-- function loses information it would be nice to see if the test fails.
+equal_on :: (Stack, Eq b, Show a, Show b) => (a -> b) -> a -> b -> IO Bool
+equal_on f a b = do
+    ok <- equal (f a) b
+    unless ok $ Text.IO.putStrLn (pshowt a)
+    return ok
+
 not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 not_equal a b
     | a == b = failure $ cmp True
@@ -193,8 +202,8 @@ pretty_compare equal inequal expect_equal a b is_equal
     where
     color = if expect_equal then failure_color else success_color
     (diff_a, diff_b) = diff_ranges pretty_a pretty_b
-    pretty_a = Text.strip $ pshowt a
-    pretty_b = Text.strip $ pshowt b
+    pretty_a = pshowt a
+    pretty_b = pshowt b
     -- Equal values are usually not interesting, so abbreviate if they're too
     -- long.
     ellipse s
@@ -524,7 +533,7 @@ showt :: Show a => a -> Text
 showt = Text.pack . show
 
 pshowt :: Show a => a -> Text
-pshowt = Text.pack . pshow
+pshowt = Text.strip . Text.pack . pshow
 
 -- | Strict pshow, so I don't get debug traces interleaved with printing.
 pshow :: Show a => a -> String
