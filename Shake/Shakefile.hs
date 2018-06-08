@@ -41,13 +41,12 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 
+import Local.ShakeConfig (localConfig)
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.Config as Config
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
 import qualified Shake.Util as Util
-
-import Local.ShakeConfig (localConfig)
 
 
 -- * config
@@ -350,7 +349,7 @@ runProfile = modeToDir Profile </> "RunProfile"
 -- | This is run as a test, but must be compiled with optimization like
 -- a profile.
 runProfileTest :: FilePath
-runProfileTest = modeToDir Profile </> "RunProfile-MemoryLeak"
+runProfileTest = modeToDir Profile </> "RunProfile-Cmd.MemoryLeak"
 
 runTests :: FilePath
 runTests = modeToDir Test </> "RunTests"
@@ -1195,7 +1194,7 @@ makeBundle hasIcon binary = case Util.platform of
 testRules :: Config -> Shake.Rules ()
 testRules config = do
     runTests ++ "*.hs" %> generateTestHs "_test"
-    binaryWithPrefix runTests ?> \fn -> do
+    runTestsBinary runTests ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
         buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"] []
@@ -1204,23 +1203,30 @@ testRules config = do
         -- instantly crash, and there's no way to turn off .tix generation.
         Util.system "rm" ["-f", replaceExt fn "tix"]
 
-
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
     runProfile ++ "*.hs" %> generateTestHs "_profile"
-    binaryWithPrefix runProfile ?> \fn ->
+    runTestsBinary runProfile ?> \fn ->
         buildHs config defaultRtsFlags [oDir config </> "fltk/fltk.a"] []
             (fn ++ ".hs") fn
 
+-- | Match Run(Tests|Profile)(-A.B)?.hs
+--
+-- TODO This is hacky because I need to match the binary, but not the generated
+-- output.  It's because this is the one place where the source file and
+-- outputs live in the same directory.  It would be better to put the generated
+-- source in build/generated or something as I do with hsc and chs.
+runTestsBinary :: FilePath -> FilePath -> Bool
+runTestsBinary prefix fn = prefix `List.isPrefixOf` fn
+    && FilePath.takeExtension fn `notElem` [".hs", ".o", ".hi"]
+
 generateTestHs :: FilePath -> FilePath -> Shake.Action ()
 generateTestHs suffix fn = do
-    -- build/test/RunTests-Xyz.hs -> **/*Xyz*_test.hs
-    let contains = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
-        pattern = if null contains then '*' : suffix ++ ".hs"
-            else contains ++ suffix ++ ".hs"
-    tests <- filter wantsTest <$> Util.findHs pattern "."
-    when (null tests) $
-        Util.errorIO $ "no tests match pattern: " ++ show pattern
+    -- build/test/RunTests-A.B.Xyz.hs -> A/B/Xyz_test.hs
+    let testName = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
+    tests <- if null testName
+        then filter wantsTest <$> Util.findHs ('*' : suffix ++ ".hs") "."
+        else return [moduleToPath testName ++ suffix ++ ".hs"]
     let generate = modeToDir Opt </> "generate_run_tests"
     need $ generate : tests
     Util.system generate (fn : tests)
@@ -1257,12 +1263,6 @@ srcToRunCriterion config src =
 getCriterionTargets :: Config -> Shake.Action [FilePath]
 getCriterionTargets config =
     map (srcToRunCriterion config) <$> Util.findHs ('*' : criterionHsSuffix) "."
-
--- | Match any filename that starts with the given prefix but doesn't have
--- an extension, i.e. binaries.
-binaryWithPrefix :: FilePath -> FilePath -> Bool
-binaryWithPrefix prefix fn = prefix `List.isPrefixOf` fn
-    && null (FilePath.takeExtension fn)
 
 -- * generated haskell
 
