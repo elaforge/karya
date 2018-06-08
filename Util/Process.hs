@@ -129,7 +129,10 @@ create proc = File.ignoreEnoent (Process.createProcess proc) >>= \case
 
 -- * conversation
 
-data TalkOut = Stdout !Text | Stderr !Text | Exit !Int
+data TalkOut = Stdout !Text | Stderr !Text
+    -- | This always terminates the conversation, and effectively marks the
+    -- channel closed.
+    | Exit !Int
     deriving (Eq, Show)
 data TalkIn = Text !Text | EOF
     deriving (Eq, Show)
@@ -145,18 +148,21 @@ conversation cmd args env input = do
     output <- Chan.newChan
     Concurrent.forkIO $ Process.withCreateProcess proc $
         \(Just stdin) (Just stdout) (Just stderr) pid -> do
-            Concurrent.forkIO $ void $ File.ignoreEOF $ forever $
+            IO.hSetBuffering stdout IO.LineBuffering
+            IO.hSetBuffering stderr IO.LineBuffering
+            outThread <- Async.async $ void $ File.ignoreEOF $ forever $
                 Chan.writeChan output . Stdout =<< Text.IO.hGetLine stdout
-            Concurrent.forkIO $ void $ File.ignoreEOF $ forever $
+            errThread <- Async.async $ void $ File.ignoreEOF $ forever $
                 Chan.writeChan output . Stderr =<< Text.IO.hGetLine stderr
             Concurrent.forkIO $ forever $ Chan.readChan input >>= \case
                 Text t -> Text.IO.hPutStrLn stdin t >> IO.hFlush stdin
                 EOF -> IO.hClose stdin
+            -- Ensure both stdout and stderr are flushed before exit.
+            Async.waitBoth outThread errThread
             code <- Process.waitForProcess pid
-            case code of
-                System.Exit.ExitFailure code ->
-                    Chan.writeChan output (Exit code)
-                _ -> Chan.writeChan output (Exit 0)
+            Chan.writeChan output $ Exit $ case code of
+                System.Exit.ExitFailure code -> code
+                System.Exit.ExitSuccess -> 0
     return output
     where
     proc = (Process.proc cmd args)
@@ -166,6 +172,7 @@ conversation cmd args env input = do
         , Process.close_fds = True
         , Process.env = env
         }
+
 
 -- * util
 

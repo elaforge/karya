@@ -3305,6 +3305,17 @@ ghc-bugs:
     https://ghc.haskell.org/trac/ghc/ticket/14963
 
 test: testing:
+  * Process.conversation is not reliable:
+    . __-> Util/Process_test.hs:47 [test_conversation_stderr]
+      Exit 1
+          /=
+      Stderr "cat: no-such-file: No such file or directory"
+      __-> Util/Test/RunTests.hs:271 [test_conversation_stderr]
+        Util.Process_test.test_conversation_stderr threw exception: thread
+        blocked indefinitely in an MVar operation
+    . I think Exit and stdout interleaving is not deterministic.
+      I think when I see exit, I need to join on stdout and stderr threads.
+    . How about just one thread for IO, and waiting on exit?
   * travis failure:
     . log:
       ---------- new cmd
