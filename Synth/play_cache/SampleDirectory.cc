@@ -45,7 +45,7 @@ listSamples(const string &dir)
     struct dirent *ent;
     std::vector<string> fnames;
     while ((ent = readdir(d)) != nullptr) {
-        if (ent->d_type != DT_REG)
+        if (ent->d_type != DT_REG && ent->d_type != DT_LNK)
             continue;
         string fname(ent->d_name);
         if (isSample(fname))
@@ -112,7 +112,7 @@ SampleDirectory::SampleDirectory(
     int filenum = offset / (CHECKPOINT_SECONDS * sampleRate);
     sf_count_t fileOffset = offset % (CHECKPOINT_SECONDS * sampleRate);
     this->fname = findNthSample(dir, filenum);
-    LOG("dir " << dir << ": start at " << fname << " + " << fileOffset);
+    LOG("dir " << dir << ": start at '" << fname << "' + " << fileOffset);
     if (!fname.empty()) {
         sndfile = openSample(log, channels, sampleRate, dir, fname, fileOffset);
     }

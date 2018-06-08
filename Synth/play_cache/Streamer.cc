@@ -121,7 +121,7 @@ Streamer::streamLoop()
         if (threadQuit.load())
             break;
         if (restart.load()) {
-            LOG("restart:  " << state.dir);
+            LOG("restart: " << state.dir);
             std::vector<string> dirnames =
                 dirSamples(log, state.dir, state.mutes);
             mix.reset(new Mix(

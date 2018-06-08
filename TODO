@@ -1660,7 +1660,7 @@ synth: im:
           the set without recalculating too.
         . If I want to write notes incrementally anyway, why can't I use this
           for rerender instead of hashes?
-      - continue from checkpoints:
+      * continue from checkpoints:
         . Find the first chunk where the hash doesn't match
         . Crazy idea: could I use shake?  Make each audo chunk built from
           the input notes and previous state.
@@ -1701,11 +1701,18 @@ synth: im:
             But, File.writeCheckpoints needs 0s afterwards, because it is
             rendering the decay.
           * print number of checkpoints rendered vs skipped
-          - The use of Audio.takeFrames in writeCheckpoints is too risky
+          / The use of Audio.takeFrames in writeCheckpoints is too risky
             . use uncons and assert the chunk size is as expected.
+            . Actually it's take >=n frames, so it can just result in greater
+              than expected chunks, not desynced state.
           * isn't there an atomic way to replace the current chunk symlink?
             . Create the link and rename into place?
           - come up with some means to expire old chunks
+            . I want to keep the last one because then I can toggle two things
+              quickly, but after that it's increasingly unlikely to need them.
+            . It's valid to remove the whole directory occasionally.
+            . Or I can delete everything with mtime >1hr ago, plus all
+              symlinks.
 
           * implement skipCheckpoints
           * hook skipCheckpoints up to render
@@ -1713,7 +1720,7 @@ synth: im:
           - have render abort when the hash differs, restart skipCheckpoints
           * test that audio produced by a rerender is the same as a render
             from scratch
-      - tests for FaustIm
+      * tests for FaustIm
         . It's easy to test the non-audio functions, but how to test
           incremental rerender?
         . I can do with and without and assert the audio output is the same.
