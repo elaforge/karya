@@ -42,7 +42,6 @@ import System.FilePath ((</>))
 
 import qualified Util.File as File
 import qualified Util.Git as Git
-import qualified Util.Locale as Locale
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -167,7 +166,7 @@ date :: IO Text
 date = do
     tz <- Time.getCurrentTimeZone
     today <- Time.utcToLocalTime tz <$> Time.getCurrentTime
-    return $ txt $ Time.formatTime Locale.defaultTimeLocale "%y-%m-%d" today
+    return $ txt $ Time.formatTime Time.defaultTimeLocale "%y-%m-%d" today
 
 -- * plain serialize
 

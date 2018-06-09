@@ -55,9 +55,6 @@ import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
-#if GHC_VERSION < 80000
-import qualified GHC.SrcLoc as Stack
-#endif
 import qualified GHC.Stack as Stack
 
 import qualified System.Directory as Directory
