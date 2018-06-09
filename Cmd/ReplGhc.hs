@@ -22,9 +22,7 @@ import qualified Data.Text as Text
 import qualified GHC
 import qualified GHC.Exts
 import qualified GHC.Paths
-#if GHC_VERSION >= 80000
 import qualified DynFlags
-#endif
 
 #if GHC_VERSION >= 80401
 import qualified CmdLineParser
@@ -227,21 +225,10 @@ collect_logs action = do
     catch_logs logs = modify_flags $ \flags ->
         flags { GHC.log_action = log_action logs }
 
--- The log_action signature tends to change between GHC versions.
-#if GHC_VERSION < 80000
--- ghc 7.10:
--- type LogAction = DynFlags -> WarnReason -> Severity -> SrcSpan
---      -> PprStyle -> MsgDoc -> IO ()
-log_action :: IORef.IORef [String]
-    -> GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> Outputable.PprStyle
-    -> Outputable.SDoc -> IO ()
-log_action logs dflags _severity _span style msg =
-#else
 log_action :: IORef.IORef [String]
     -> GHC.DynFlags -> DynFlags.WarnReason -> GHC.Severity -> GHC.SrcSpan
     -> Outputable.PprStyle -> Outputable.SDoc -> IO ()
 log_action logs dflags _warn_reason _severity _span style msg =
-#endif
     liftIO $ IORef.modifyIORef logs (formatted:)
     where
     formatted = Outputable.showSDoc dflags $
