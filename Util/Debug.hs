@@ -20,12 +20,12 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.IORef as IORef
-import qualified Data.Monoid as Monoid
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
+import GHC.Stack (HasCallStack)
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Timeout as Timeout
@@ -33,6 +33,7 @@ import qualified System.Timeout as Timeout
 import qualified Util.CallStack as CallStack
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
+import Util.Pretty (Pretty)
 
 
 {-# NOINLINE active #-}
@@ -55,7 +56,7 @@ full f val
     | otherwise = f val
 
 -- | Like 'full' but useful for the traceM and put family.
-fullM :: (Monad m, Eq a, Monoid a) => (a -> m()) -> a -> m ()
+fullM :: (Monad m, Eq a, Monoid a) => (a -> m ()) -> a -> m ()
 fullM f val
     | val == mempty = return ()
     | otherwise = f val
@@ -63,33 +64,33 @@ fullM f val
 -- * forced by evaluation
 
 -- | Print a showable value en passant.
-trace :: (CallStack.Stack, Show a) => Text -> a -> a
+trace :: (HasCallStack, Show a) => Text -> a -> a
 trace msg val = traces msg val val
 
 -- | Pretty print a value en passant.
-tracep :: (CallStack.Stack, Pretty.Pretty a) => Text -> a -> a
+tracep :: (HasCallStack, Pretty a) => Text -> a -> a
 tracep msg val = write (with_msg msg (Pretty.formatted val)) val
 
 -- | Print a showable value.
-traces :: (CallStack.Stack, Show b) => Text -> b -> a -> a
+traces :: (HasCallStack, Show b) => Text -> b -> a -> a
 traces msg val = write (with_msg msg (pshow val))
 
 -- | Pretty print a value.
-tracesp :: (CallStack.Stack, Pretty.Pretty b) => Text -> b -> a -> a
+tracesp :: (HasCallStack, Pretty b) => Text -> b -> a -> a
 tracesp msg traced = write (with_msg msg (Pretty.formatted traced))
 
 -- | Print a value after applying a function to it.
-tracef :: (CallStack.Stack, Show b) => Text -> (a -> b) -> a -> a
+tracef :: (HasCallStack, Show b) => Text -> (a -> b) -> a -> a
 tracef msg f val = write (with_msg msg (pshow (f val))) val
 
-tracefp :: (CallStack.Stack, Pretty.Pretty b) => Text -> (a -> b) -> a -> a
+tracefp :: (HasCallStack, Pretty b) => Text -> (a -> b) -> a -> a
 tracefp msg f val = write (with_msg msg (Pretty.formatted (f val))) val
 
 -- | Trace input and output of a function.
-trace_ret :: (CallStack.Stack, Show a, Show b) => Text -> a -> b -> b
+trace_ret :: (HasCallStack, Show a, Show b) => Text -> a -> b -> b
 trace_ret function a ret = trace_str text ret
     where
-    text = Monoid.mconcat
+    text = mconcat
         [ function
         , if multiline then "\n" else " "
         , pa
@@ -100,11 +101,11 @@ trace_ret function a ret = trace_str text ret
     pa = pshow a
     pret = pshow ret
 
-trace_retp :: (CallStack.Stack, Pretty.Pretty a, Pretty.Pretty b) =>
+trace_retp :: (HasCallStack, Pretty a, Pretty b) =>
     Text -> a -> b -> b
 trace_retp function a ret = trace_str text ret
     where
-    text = Monoid.mconcat
+    text = mconcat
         [ function
         , if multiline then "\n" else " "
         , pa
@@ -116,41 +117,41 @@ trace_retp function a ret = trace_str text ret
     pret = Text.strip $ Pretty.formatted ret
 
 -- | Show a raw string, equivalent to 'Debug.Trace.trace'.
-trace_str :: CallStack.Stack => Text -> a -> a
+trace_str :: HasCallStack => Text -> a -> a
 trace_str = write . (prefix<>)
 
 -- * forced by monad
 
 -- | Print a value in a monad.  The monad will force it to be printed.
-traceM :: (CallStack.Stack, Show a, Monad m) => Text -> a -> m ()
+traceM :: (HasCallStack, Show a, Monad m) => Text -> a -> m ()
 traceM msg val = write (with_msg msg (pshow val)) (return ())
 
-tracepM :: (CallStack.Stack, Pretty.Pretty a, Monad m) => Text -> a -> m ()
+tracepM :: (HasCallStack, Pretty a, Monad m) => Text -> a -> m ()
 tracepM msg val = write (with_msg msg (Pretty.formatted val)) (return ())
 
-tracesM :: (CallStack.Stack, Monad m) => Text -> m ()
+tracesM :: (HasCallStack, Monad m) => Text -> m ()
 tracesM msg = write msg (return ())
 
 -- * in IO
 -- These are like putStrLn, but more easily greppable.
 
-puts :: (CallStack.Stack, Trans.MonadIO m) => Text -> m ()
+puts :: (HasCallStack, Trans.MonadIO m) => Text -> m ()
 puts = writeIO . (prefix<>)
 
-put :: (CallStack.Stack, Trans.MonadIO m, Show a) => Text -> a -> m ()
+put :: (HasCallStack, Trans.MonadIO m, Show a) => Text -> a -> m ()
 put msg = writeIO . with_msg msg . pshow
 
-putp :: (CallStack.Stack, Trans.MonadIO m, Pretty.Pretty a) => Text -> a -> m ()
+putp :: (HasCallStack, Trans.MonadIO m, Pretty a) => Text -> a -> m ()
 putp msg = writeIO . with_msg msg . Pretty.formatted
 
 
 -- * implementation
 
 {-# NOINLINE write #-}
-write :: CallStack.Stack => Text -> a -> a
+write :: HasCallStack => Text -> a -> a
 write msg val = Unsafe.unsafePerformIO $ writeIO msg >> return val
 
-writeIO :: (CallStack.Stack, Trans.MonadIO m) => Text -> m ()
+writeIO :: (HasCallStack, Trans.MonadIO m) => Text -> m ()
 writeIO msg = Trans.liftIO $ IORef.readIORef active >>= \x -> case x of
     Nothing -> return ()
     Just hdl -> do
@@ -168,14 +169,14 @@ timeout :: Double -> IO a -> IO (Maybe a)
 timeout = Timeout.timeout . to_usec
     where to_usec = round . (*1000000)
 
-with_msg :: CallStack.Stack => Text -> Text -> Text
+with_msg :: HasCallStack => Text -> Text -> Text
 with_msg msg text_ =
     prefix <> msg <> (if multiline then ":\n" else ": ") <> text
     where
     text = Text.strip text_
     multiline = Text.count "\n" text > 2
 
-prefix :: CallStack.Stack => Text
+prefix :: HasCallStack => Text
 prefix = "** " <> CallStack.getStack <> ": "
 
 pshow :: Show a => a -> Text
