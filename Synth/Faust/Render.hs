@@ -8,7 +8,6 @@ module Synth.Faust.Render where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
 import qualified Data.Vector.Storable as V
-
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 
@@ -19,13 +18,13 @@ import qualified Util.Seq as Seq
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Lib.AUtil as AUtil
-import Synth.Lib.Global
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
+import Synth.Lib.Global
 
 
 data Config = Config {
