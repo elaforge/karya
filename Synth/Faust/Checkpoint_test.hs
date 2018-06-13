@@ -13,6 +13,7 @@ import System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Test.Testing as Testing
 
@@ -55,15 +56,19 @@ test_write_incremental = do
             . ((dir </> Checkpoint.cacheDir) </>)) states)
         [40, 40, 40]
 
+    let skipCheckpoints = Checkpoint.skipCheckpoints dir
+            . Checkpoint.noteHashes (Render._chunkSize config)
+    -- Test skipCheckpoints directly.
+    (skippedHashes, state) <- skipCheckpoints newNotes
+    equal_on (fmap fst . Seq.head) skippedHashes (Just 2)
+    equal ((/= DriverC.State mempty) <$> state) (Just True)
+
     -- change only last note: only 3rd sample should rerender, but contents
     -- should be the same.
     io_equal (write newNotes) (Right (1, 3))
 
-    -- Test skipCheckpoints directly.
-    let hashes = Checkpoint.noteHashes (Render._chunkSize config) newNotes
-    (skippedHashes, state) <- Checkpoint.skipCheckpoints dir hashes
-    equal_on (fst . head) (take 4 skippedHashes) 2
-    equal ((/= DriverC.State mempty) <$> state) (Just True)
+    (skippedHashes, _) <- skipCheckpoints newNotes
+    equal skippedHashes []
 
     -- Only 1 was rerendered, so now there are 4.
     wavs <- listWavs (dir </> Checkpoint.cacheDir)
@@ -76,8 +81,7 @@ test_write_incremental = do
     -- Switched back to the old ones, nothing new should render.
     io_equal (write oldNotes) (Right (0, 3))
 
-    let hashes = Checkpoint.noteHashes (Render._chunkSize config) oldNotes
-    (skippedHashes, state) <- Checkpoint.skipCheckpoints dir hashes
+    (skippedHashes, state) <- skipCheckpoints oldNotes
     equal skippedHashes []
     equal state Nothing
     -- Should have rendered 0 more files, since Render.renderPatch should exit
