@@ -1201,7 +1201,7 @@ testRules config = do
             (fn ++ ".hs") fn
         -- A stale .tix file from a previous compile will cause any binary to
         -- instantly crash, and there's no way to turn off .tix generation.
-        Util.system "rm" ["-f", replaceExt fn "tix"]
+        Util.system "rm" ["-f", FilePath.takeFileName fn ++ ".tix"]
 
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
