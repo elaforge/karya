@@ -9,6 +9,7 @@ args=(
     # Turn off idle time GC, since it causes input lag when lots of modules
     # are loaded.
     +RTS -I0 -RTS
+    -j$(tools/ncpus)
 
     # This bit of zsh insanity reads newline separated words, so args with
     # spaces work.

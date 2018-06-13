@@ -3,7 +3,9 @@ import-order-first: Util.
 import-order-last: Global Types Synth.Lib.Global
 
 -- Prefer or don't prefer to resolve to these modules.
-prio-module-high: Perform.Pitch Util.Serialize Data.Map Data.Set
+prio-module-high: Perform.Pitch Util.Serialize
+    Data.Map Data.Set
+    Control.Monad.Trans.Resource
 prio-module-low:
 prio-package-high:
 prio-package-low: haskell98 ghc darcs comonad
