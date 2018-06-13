@@ -14,12 +14,14 @@ module Synth.Faust.DriverC (
     , patchInputs, patchOutputs
     , render
     -- ** state
-    , State(..)
+    , State(..), encodeState
     , getState, unsafeGetState, putState
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
+import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
@@ -33,9 +35,11 @@ import qualified Util.CUtil as CUtil
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 
-import qualified Ui.Id as Id
+import qualified Synth.Faust.Hash as Hash
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
+
+import qualified Ui.Id as Id
 import Global
 
 
@@ -248,6 +252,13 @@ withPtrs vs f = go [] vs
 
 newtype State = State ByteString.ByteString
     deriving (Eq, Show)
+
+instance Pretty State where
+    pretty = txt . encodeState
+
+encodeState :: State -> String
+encodeState = ByteString.Char8.unpack . Hash.fingerprint . CRC32.crc32 . unstate
+    where unstate (State bs) = bs
 
 getState :: Instrument -> IO State
 getState inst = alloca $ \statepp -> do

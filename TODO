@@ -8,7 +8,7 @@ STATUS
   + incremental rendering:
     faust-im
       * add getState / putState
-      - continue from checkpoints:
+      + continue from checkpoints:
     sampler-im
       - start a stream with state, get final state
   - use ghc package:
@@ -1713,6 +1713,25 @@ synth: im:
             . It's valid to remove the whole directory occasionally.
             . Or I can delete everything with mtime >1hr ago, plus all
               symlinks.
+          * why does toggling output not seem to reuse the last render?
+            . The note hash is changing, why?
+            . 2m: ["AAAAAA", "9e51Dg", "-_EU6A"]
+              have 001.FnCUIA.aasnkw.wav
+              want 001.9e51Dg.aasnkw.wav
+              made 001.9e51Dg.AAAAAA.wav <- wrong, I should have set state
+            . 4m: ["AAAAAA", "9e51Dg", "-_EU6A"]
+              have 001.FnCUIA.aasnkw.wav
+              have 001.9e51Dg.AAAAAA.wav
+            . The problem is it goes:
+              fname <- getFilename =<< stateRef
+              samples <- Audio.take
+                putState
+                out <- render1
+                notifyState =<< getState
+                yield out
+              writeFile samples
+              writeState <- stateRef
+
 
           * implement skipCheckpoints
           * hook skipCheckpoints up to render
@@ -1720,6 +1739,7 @@ synth: im:
           - have render abort when the hash differs, restart skipCheckpoints
           * test that audio produced by a rerender is the same as a render
             from scratch
+      - if the synth returns progress, karya could mark it in the ruler
       * tests for FaustIm
         . It's easy to test the non-audio functions, but how to test
           incremental rerender?

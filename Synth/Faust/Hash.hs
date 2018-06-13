@@ -4,10 +4,19 @@
 
 -- | Hash 'Note.Note's to skip rerendering when possible.
 module Synth.Faust.Hash where
-import qualified Util.Seq as Seq
-import Synth.Lib.Global
-import qualified Synth.Shared.Note as Note
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Base64.URL as Base64.URL
+import qualified Data.ByteString.Char8 as ByteString.Char8
 
+import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
+import qualified Synth.Shared.Note as Note
+import Synth.Lib.Global
+
+
+fingerprint :: Serialize.Serialize a => a -> ByteString.ByteString
+fingerprint = fst . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
+    . Serialize.encode
 
 overlapping :: RealTime -> RealTime -> [Note.Note] -> [Note.Hash]
 overlapping start size =

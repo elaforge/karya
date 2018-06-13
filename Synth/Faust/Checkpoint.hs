@@ -6,9 +6,7 @@
 module Synth.Faust.Checkpoint where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Base64.URL as Base64.URL
 import qualified Data.ByteString.Char8 as ByteString.Char8
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Set as Set
@@ -22,7 +20,6 @@ import qualified UnliftIO.Resource as Resource
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Seq as Seq
-import qualified Util.Serialize as Serialize
 
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Hash as Hash
@@ -47,7 +44,7 @@ writeConfig :: Render.Config -> FilePath -> DriverC.Patch -> [Note.Note]
 writeConfig config outputDir patch notes = do
     let allHashes = noteHashes chunkSize notes
     (hashes, mbState) <- skipCheckpoints outputDir allHashes
-    stateRef <- IORef.newIORef $ DriverC.State mempty
+    stateRef <- IORef.newIORef $ fromMaybe (DriverC.State mempty) mbState
     let notifyState = IORef.writeIORef stateRef
     let start = case hashes of
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
@@ -104,7 +101,7 @@ findLastState :: Set FilePath -> [(Int, Note.Hash)]
     -> Either Error ([(Int, Note.Hash)], FilePath)
 findLastState files = go "" initialState
     where
-    initialState = ByteString.Char8.unpack $ encodeState $ DriverC.State mempty
+    initialState = DriverC.encodeState $ DriverC.State mempty
     go prevStateFname state ((i, hash) : hashes)
         | fname `Set.member` files = do
             let prefix = FilePath.replaceExtension fname ".state."
@@ -143,7 +140,7 @@ getFilename outputDir stateRef (i, hash) = do
 writeState :: FilePath -> IORef.IORef DriverC.State -> FilePath -> IO ()
 writeState outputDir stateRef fname = do
     state@(DriverC.State stateBs) <- IORef.readIORef stateRef
-    let stateHash = ByteString.Char8.unpack $ encodeState state
+    let stateHash = DriverC.encodeState state
     ByteString.writeFile
         (FilePath.replaceExtension fname (".state." <> stateHash))
         stateBs
@@ -156,35 +153,20 @@ writeState outputDir stateRef fname = do
 
 -- | 000.$hash.$state.wav
 filenameOf :: Int -> Note.Hash -> DriverC.State -> FilePath
-filenameOf i hash state =
-    -- Base64.URL uses A-Za-z_=-, so separate with dots.
-    ByteString.Char8.unpack $ ByteString.Char8.intercalate "."
-        [ zeroPad 3 i
-        , encodeHash hash
-        , encodeState state
-        , "wav"
-        ]
+filenameOf i hash state = filenameOf2 i hash (DriverC.encodeState state)
 
 -- | 'filenameOf' but with 'DriverC.State' already encoded.
 filenameOf2 :: Int -> Note.Hash -> String -> FilePath
 filenameOf2 i hash encodedState =
     ByteString.Char8.unpack (ByteString.Char8.intercalate "."
         [ zeroPad 3 i
-        , encodeHash hash
+        , Hash.fingerprint hash
         ]) <> "." <> encodedState <> ".wav"
 
 filenameToCurrent :: FilePath -> FilePath
 filenameToCurrent fname = case Seq.split "." fname of
     [num, _hash, _state, "wav"] -> num <> ".wav"
     _ -> fname
-
-encodeState :: DriverC.State -> ByteString.ByteString
-encodeState = encodeHash . Note.Hash . CRC32.crc32 . unstate
-    where unstate (DriverC.State bs) = bs
-
-encodeHash :: Note.Hash -> ByteString.ByteString
-encodeHash = fst . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
-    . Serialize.encode
 
 -- | 'Num.zeroPad' for ByteString.
 zeroPad :: Show a => Int -> a -> ByteString.ByteString

@@ -46,9 +46,9 @@ defaultConfig = Config
 -- cut each other off.
 renderPatch :: DriverC.Patch -> Config -> Maybe DriverC.State
     -> (DriverC.State -> IO ()) -> [Note.Note] -> RealTime -> Audio
-renderPatch patch config state notifyState notes_ start =
+renderPatch patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
-        render patch state notifyState inputs
+        render patch mbState notifyState inputs
             (AUtil.toFrames start) (AUtil.toFrames final) config
     where
     inputs = renderControls (_chunkSize config)

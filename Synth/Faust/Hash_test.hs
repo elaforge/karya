@@ -5,8 +5,8 @@
 module Synth.Faust.Hash_test where
 import Util.Test
 import qualified Synth.Faust.Hash as Hash
-import Synth.Lib.Global
 import qualified Synth.Shared.Note as Note
+import Synth.Lib.Global
 
 
 test_overlapping = do
