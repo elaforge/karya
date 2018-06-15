@@ -6,18 +6,22 @@
 -- | Render FAUST instruments.
 module Synth.Faust.Render where
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Data.IORef as IORef
 import qualified Data.Map as Map
 import qualified Data.Vector.Storable as V
+
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.File as Audio.File
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -26,6 +30,40 @@ import qualified Synth.Shared.Signal as Signal
 import Global
 import Synth.Lib.Global
 
+
+type Error = Text
+
+-- * write
+
+write :: FilePath -> DriverC.Patch -> [Note.Note]
+    -> IO (Either Error (Int, Int))
+write = writeConfig defaultConfig
+
+writeConfig :: Config -> FilePath -> DriverC.Patch -> [Note.Note]
+    -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
+writeConfig config outputDir patch notes = do
+    let allHashes = Checkpoint.noteHashes chunkSize notes
+    (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
+    stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
+    let notifyState = IORef.writeIORef stateRef
+    let start = case hashes of
+            (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
+            _ -> 0
+    let total = length allHashes
+    if null hashes
+        then return (Right (0, total))
+        else do
+            result <- AUtil.catchSndfile $ Resource.runResourceT $
+                Audio.File.writeCheckpoints chunkSize
+                    (Checkpoint.getFilename outputDir stateRef)
+                    (Checkpoint.writeState outputDir stateRef)
+                    AUtil.outputFormat (Checkpoint.extendHashes hashes) $
+                renderPatch patch config mbState notifyState notes start
+            return $ second (\() -> (length hashes, total)) result
+    where
+    chunkSize = _chunkSize config
+
+-- * render
 
 data Config = Config {
     _chunkSize :: Audio.Frame
@@ -36,7 +74,7 @@ data Config = Config {
 defaultConfig :: Config
 defaultConfig = Config
     { _chunkSize = Audio.Frame Config.checkpointSize
-    -- TODO it should be longer, but since Render.isBasicallySilent is
+    -- TODO it should be longer, but since 'isBasicallySilent' is
     -- unimplemented every decay lasts this long.
     , _maxDecay = 2
     }
@@ -44,8 +82,8 @@ defaultConfig = Config
 -- | Render notes belonging to a single FAUST patch.  Since they render on
 -- a single element, they should either not overlap, or be ok if overlaps
 -- cut each other off.
-renderPatch :: DriverC.Patch -> Config -> Maybe DriverC.State
-    -> (DriverC.State -> IO ()) -> [Note.Note] -> RealTime -> Audio
+renderPatch :: DriverC.Patch -> Config -> Maybe Checkpoint.State
+    -> (Checkpoint.State -> IO ()) -> [Note.Note] -> RealTime -> Audio
 renderPatch patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
         render patch mbState notifyState inputs
@@ -70,8 +108,8 @@ interleave naudio = case Audio.interleaved naudio of
 -- Chunk size is determined by the size of the @inputs@ chunks, or
 -- Audio.chunkSize if they're empty or run out.  The inputs will go to zero
 -- if they end before the given time.
-render :: DriverC.Patch -> Maybe DriverC.State
-    -> (DriverC.State -> IO ()) -- ^ notify new state after each audio chunk
+render :: DriverC.Patch -> Maybe Checkpoint.State
+    -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
     -> NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
     -> Config -> NAudio
 render patch mbState notifyState inputs start end config =

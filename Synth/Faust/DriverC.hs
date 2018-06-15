@@ -14,14 +14,11 @@ module Synth.Faust.DriverC (
     , patchInputs, patchOutputs
     , render
     -- ** state
-    , State(..), encodeState
     , getState, unsafeGetState, putState
 ) where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
@@ -35,7 +32,7 @@ import qualified Util.CUtil as CUtil
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 
-import qualified Synth.Faust.Hash as Hash
+import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 
@@ -250,35 +247,25 @@ withPtrs vs f = go [] vs
 
 -- ** state
 
-newtype State = State ByteString.ByteString
-    deriving (Eq, Show)
-
-instance Pretty State where
-    pretty = txt . encodeState
-
-encodeState :: State -> String
-encodeState = ByteString.Char8.unpack . Hash.fingerprint . CRC32.crc32 . unstate
-    where unstate (State bs) = bs
-
-getState :: Instrument -> IO State
+getState :: Instrument -> IO Checkpoint.State
 getState inst = alloca $ \statepp -> do
     c_faust_get_state inst statepp
     statep <- peek statepp
-    State <$> ByteString.packCStringLen
+    Checkpoint.State <$> ByteString.packCStringLen
         (statep, fromIntegral $ c_faust_get_state_size inst)
 
 -- | 'getState', but without copying, if you promise to finish with the State
 -- before you call 'render', which will change it.
-unsafeGetState :: Instrument -> IO State
+unsafeGetState :: Instrument -> IO Checkpoint.State
 unsafeGetState inst = alloca $ \statepp -> do
     c_faust_get_state inst statepp
     statep <- peek statepp
-    State <$> ByteString.Unsafe.unsafePackCStringLen
+    Checkpoint.State <$> ByteString.Unsafe.unsafePackCStringLen
         (statep, fromIntegral $ c_faust_get_state_size inst)
 
-putState :: State -> Instrument -> IO ()
-putState (State state) inst = ByteString.Unsafe.unsafeUseAsCStringLen state $
-    \(statep, size) -> do
+putState :: Checkpoint.State -> Instrument -> IO ()
+putState (Checkpoint.State state) inst =
+    ByteString.Unsafe.unsafeUseAsCStringLen state $ \(statep, size) -> do
         let psize = c_faust_get_state_size inst
         unless (fromIntegral size == psize) $
             errorIO $ "inst " <> showt inst <> " expects state size "

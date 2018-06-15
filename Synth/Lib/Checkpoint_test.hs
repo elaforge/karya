@@ -2,16 +2,19 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Synth.Faust.Hash_test where
+module Synth.Lib.Checkpoint_test where
 import Util.Test
-import qualified Synth.Faust.Hash as Hash
+import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 import Synth.Lib.Global
 
 
-test_overlapping = do
+-- Many functions in Checkpoint are tested by caller tests, e.g.
+-- 'Synth.Faust.Render_test'.
+
+test_hashOverlapping = do
     let f start size = map (\(Note.Hash h) -> h)
-            . Hash.overlapping start size . map note
+            . Checkpoint.hashOverlapping start size . map note
     equal (f 0 1 []) []
     check_val (f 0 1 [(1, 2)]) $ \case
         [0, x1, x2] -> x1 == x2
@@ -25,7 +28,7 @@ test_overlapping = do
 
 test_groupOverlapping = do
     let f start size = map (map (e_note . snd))
-            . Hash.groupOverlapping start size
+            . Checkpoint.groupOverlapping start size
             . map ((),) . map note
     equal (f 0 1 []) []
     equal (f 0 1 [(1, 2)]) [[], [(1, 2)], [(1, 2)]]

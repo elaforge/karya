@@ -28,7 +28,6 @@ import qualified Util.TextUtil as TextUtil
 import qualified Util.Thread as Thread
 
 import qualified Perform.RealTime as RealTime
-import qualified Synth.Faust.Checkpoint as Checkpoint
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
@@ -100,7 +99,7 @@ process prefix patches notesFilename notes = do
             Directory.createDirectoryIfMissing True $
                 if useCheckpoints then output else FilePath.takeDirectory output
             (result, elapsed) <- Thread.timeActionText $ if useCheckpoints
-                then Checkpoint.write output patch notes
+                then Render.write output patch notes
                 else fmap (second (\() -> (0, 0))) $ AUtil.catchSndfile $
                     Resource.runResourceT $
                     Audio.File.write AUtil.outputFormat output $
