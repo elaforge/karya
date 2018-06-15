@@ -720,7 +720,7 @@ ghcGlobalFlags :: [Flag]
 ghcGlobalFlags =
     -- There's no particular reason for --nomacro, except I don't use
     -- them, and I don't want to start unless for good reason.
-    ["-pgmP", "cpphs --nomacro --cpp"]
+    ["-pgmP", "cpphs", "-optP", "--nomacro", "-optP", "--cpp"]
     ++ ghcLanguageFlags
 
 -- | Language extensions which are globally enabled.
