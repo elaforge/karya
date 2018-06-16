@@ -1869,6 +1869,10 @@ synth: im:
       . Audio.File.write AUtil.outputFormat output $
             AUtil.mix $ map (Sample.realize quality) samples
 
+    - if libsamplerate could handle the pitch curve directly, I wouldn't have
+      to resample in Convert.makeSample, and it could be per-sample.
+      . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
+        have it take nn to nn breakpoints, and do that calculation internally.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and

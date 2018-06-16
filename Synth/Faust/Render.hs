@@ -37,11 +37,11 @@ type Error = Text
 
 write :: FilePath -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int))
-write = writeConfig defaultConfig
+write = write_ defaultConfig
 
-writeConfig :: Config -> FilePath -> DriverC.Patch -> [Note.Note]
+write_ :: Config -> FilePath -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
-writeConfig config outputDir patch notes = do
+write_ config outputDir patch notes = do
     let allHashes = Checkpoint.noteHashes chunkSize notes
     (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState

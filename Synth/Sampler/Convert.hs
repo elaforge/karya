@@ -62,13 +62,10 @@ lookupSample :: Patch.Patch -> Attrs.Attributes
 lookupSample inst attrs maybePitch = case maybePitch of
     Nothing -> List.find ((==Nothing) . Patch.pitch . snd) samples
     Just pitch -> fmap snd $ Seq.minimum_on (abs . subtract pitch . fst) $
-        keyOnMaybe (Patch.pitch . snd) samples
+        Seq.key_on_just (Patch.pitch . snd) samples
     where
     samples = filter ((==attrs) . Patch.attributes . snd) $ Map.toList $
         Patch.samples inst
-
-keyOnMaybe :: (a -> Maybe k) -> [a] -> [(k, a)]
-keyOnMaybe f xs = [(k, a) | (Just k, a) <- zip (map f xs) xs]
 
 pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y
 pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn
