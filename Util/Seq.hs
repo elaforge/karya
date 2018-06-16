@@ -242,7 +242,8 @@ ne_maximum (x :| xs) = List.maximum (x : xs)
 insert_on :: Ord k => (a -> k) -> a -> [a] -> [a]
 insert_on key = List.insertBy (\a b -> compare (key a) (key b))
 
--- | Stable sort on a cheap key function.
+-- | Stable sort on a cheap key function.  Different from 'List.sortOn', which
+-- is for an expensive key function.
 sort_on :: Ord k => (a -> k) -> [a] -> [a]
 sort_on = Ordered.sortOn'
 
@@ -495,9 +496,14 @@ chunked n xs = case splitAt n xs of
     (pre, []) -> [pre]
     (pre, post) -> pre : chunked n post
 
+
 -- | Take a list of rows to a list of columns.  This is like a zip except
 -- for variable-length lists.  Similar to zip, the result is trimmed to the
 -- length of the shortest row.
+--
+-- 'List.transpose' is similar, but it skips missing elements, instead of
+-- truncating all to the shortest.  Skipping means you lose what column the
+-- element came from.
 rotate :: [[a]] -> [[a]]
 rotate [] = []
 rotate xs = maybe [] (: rotate (map List.tail xs)) (mapM head xs)
@@ -607,8 +613,10 @@ rdrop n = either id (const []) . foldr f (Right n)
         | otherwise = Right (n-1)
     f x (Left xs) = Left (x:xs)
 
+-- | The same as 'List.dropWhileEnd` except I also have all the other from-end
+-- variants.
 rdrop_while :: (a -> Bool) -> [a] -> [a]
-rdrop_while f = foldr (\x xs -> if null xs && f x then [] else x:xs) []
+rdrop_while = List.dropWhileEnd
 
 lstrip, rstrip, strip :: String -> String
 lstrip = dropWhile Char.isSpace
@@ -616,7 +624,8 @@ rstrip = rdrop_while Char.isSpace
 strip = rstrip . lstrip
 
 -- | If the list doesn't have the given prefix, return the original list and
--- False.  Otherwise, strip it off and return True.
+-- False.  Otherwise, strip it off and return True.  'List.stripPrefix' is an
+-- alternate version.
 drop_prefix :: Eq a => [a] -> [a] -> ([a], Bool)
 drop_prefix pref list = go pref list
     where

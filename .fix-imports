@@ -1,6 +1,7 @@
 include: build/hsc build/chs
 import-order-first: Util.
 import-order-last: Global Types Synth.Lib.Global
+    Util.Test -- doesn't work yet because I need longest match
 
 -- Prefer or don't prefer to resolve to these modules.
 prio-module-high: Perform.Pitch Util.Serialize
