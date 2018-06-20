@@ -1563,20 +1563,11 @@ synth: im:
         - But first: make render incremental.  I need to do the whole save
           states thing for this.
     sampler-im:
-      . save samples and positions, along with resample state.
-      . Or, since samples are all independent, rewind to the beginning of
-        each overlapping sample.  But to remove the samples from the old
-        output, I have to output each sample individually, at which point I've
-        just moved the sampler to realtime implementation in play cache.
-      . For samples maybe that's actually reasonable.  And I just have to mix
-        in realtime, sampler-im is still picking samples, resampling, applying
-        envelopes.  Still, it wouldn't work great with really long samples.
-      . So try true chunk-based incremental first, and see how hard it is.
-
-      - figure out how to save libresample state
+      * figure out how to save libresample state
         . there's src_clone, but I think I just need the size?
         . I have to fork the library:
           https://github.com/erikd/libsamplerate/issues/40
+        . 'local' branch at: https://github.com/elaforge/libsamplerate
       chunk incremental:
         . Currently I just map noteToSample notes.  Instead I want to iterate
           over chunks, and only render if the inputs have changed.
@@ -1842,33 +1833,47 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     incremental render:
-      . save samples and positions, along with resample state.
-      . Or, since samples are all independent, rewind to the beginning of
-        each overlapping sample.  But to remove the samples from the old
-        output, I have to output each sample individually, at which point I've
-        just moved the sampler to realtime implementation in play cache.
-      . For samples maybe that's actually reasonable.  And I just have to mix
-        in realtime, sampler-im is still picking samples, resampling, applying
-        envelopes.  Still, it wouldn't work great with really long samples.
-      . So try true chunk-based incremental first, and see how hard it is.
-    chunk incremental:
-      . Currently I just map noteToSample notes.  Instead I want to iterate
-        over chunks, and only render if the inputs have changed.
-      . What if I just say inputs are the set of notes overlapping?
-      . For each chunk, hash notes in scope and compare to saved hash.  If no
-        match, then write the hash and write the chunk.
-      . I have to maintain the state.  I guess that's all in Sample.realize.
-        So really this becomes feed samples to Audio.mix until I'm producing
-        identical output.
+      notes:
+        . save samples and positions, along with resample state.
+        . Or, since samples are all independent, rewind to the beginning of
+          each overlapping sample.  But to remove the samples from the old
+          output, I have to output each sample individually, at which point I've
+          just moved the sampler to realtime implementation in play cache.
+        . For samples maybe that's actually reasonable.  And I just have to mix
+          in realtime, sampler-im is still picking samples, resampling, applying
+          envelopes.  Still, it wouldn't work great with really long samples.
+        . So try true chunk-based incremental first, and see how hard it is.
 
-      . Save sampler state:
-        . Each pipeline has to return the final state, and start with initial
-          state.
-        . [State], State = (Sample, RealTime, Resample.State)
-
-      . Audio.File.write AUtil.outputFormat output $
-            AUtil.mix $ map (Sample.realize quality) samples
-
+        . This way I'm not using AUtil.mix, so I have to recreate efficiently
+          skipping silence, as with faust.
+        . I also need to log errors since I'm converting Notes to Samples in the
+          stream.  I can do it in IO though.
+        . I have to render signals like with faust... but what signals are used?
+          Except for ones used to select Sample, maybe just volume at the
+          moment.  But in the future, I'd want to include faust blocks, for
+          e.g. filters.
+        . At that point, I should just merge sampler-im and faust-im.
+        . In fact, maybe I should do that now?  What would it look like?
+          I can't compose faust modules, but I don't think I want to: it should
+          be done in faust instead, as that's the whole reason for faust.  But
+          since faust can't do a sampler, then I do need modules, faust
+          + sampler.
+        . The reason to not compose in faust is that faust can't handle voice
+          allocation, so global effects will have to be separate.  Not to
+          mention if I want to insert VSTs.
+      - Write glue to get SRC state to State, then serialize to
+        Checkpoint.State, and back again.
+        . void src_get_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
+          size_t *size, void **private)
+        . void src_put_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
+          size_t size, void *private)
+      - make Sample -> Audio render function, can be initialized with State.
+        . Checkpoint.State deserializes to [State], and I start a render
+          function for each one.
+        . Those correspond to playing Notes, so I can drop those.  Future
+          Notes get rendered.
+      - Each chunk, sort playing Samples by Note hash, and serialize to state.
+      - Test restart from checkpoint like with faust.
     - if libsamplerate could handle the pitch curve directly, I wouldn't have
       to resample in Convert.makeSample, and it could be per-sample.
       . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
