@@ -3636,6 +3636,7 @@ solkattu:
     - kook kook -> kook nook
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
   - some way to turn ktkno to kikno.
+    . This might be when you have a longer time on nam.
   - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
     . I want to write the sarvalaghu as strokes not solkattu, not just ===
       filler.  This is because sometimes it's hard to distinguish in recordings,
@@ -3857,8 +3858,21 @@ solkattu:
   - Mridangam patterns can vary by intensity in addition to duration and
     family. How can I represent and realize that?  E.g. the final of
     a group of three can be higher intensity.
+    . E.g. k_t_kno -> i_i_ktkto
     . It can also be a variant pattern, e.g.
       k_kto k_k_kto k_t_k_kto -> repeat 4 k_kto
+
+    . If I have patterns with duration and can also put strokes inside, then
+      I can represent as 777 777 777, but put a special rule for the last 7s.
+    . Have a high level structure, and then it can be realized automatically,
+      but there are also overlays, e.g. like integration.
+    . But if I keep it abstract, like 777 777 intense(777), then I can write
+      rules for other instruments, or more quickly generate patterns.
+    . I have a 'mid' tag, why not an 'intense' or 'final' tag?
+      I can put the tag in the score, and then realization can do things
+      based on that tag.
+    . But for those variations to actually be in the rendered output, I need
+      to have pattern realization in the score.
   - replacements, e.g. ta.ki.ta -> nang.__ . su (kita.taka)
     . use this in koraippu_janahan
   / I think I need an absolute SetSpeed, so I can pad a number of

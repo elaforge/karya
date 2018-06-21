@@ -8,6 +8,7 @@ module Solkattu.SectionGlobal (
     -- * tags
     , scomment, sdate
     , devel, ending, var, local
+    , variations
 ) where
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
@@ -58,3 +59,8 @@ withType = withTag Tags.type_
 
 withTag :: Text -> Text -> Section sollu -> Section sollu
 withTag k v = Korvai.addSectionTags (Tags.tag k v)
+
+-- * util
+
+variations :: [Korvai.SequenceT sollu] -> [Section sollu]
+variations = map (var . Korvai.section)
