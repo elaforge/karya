@@ -55,6 +55,7 @@ import Prelude hiding (take)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Control.Monad.Trans as Trans
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
@@ -501,7 +502,10 @@ newtype Exception = Exception Text
 instance Exception.Exception Exception
 
 throw :: Text -> AudioIO rate chan
-throw = Audio . liftIO . Exception.throwIO . Exception
+throw = Audio . throwIO
+
+throwIO :: Trans.MonadIO m => Text -> m a
+throwIO = liftIO . Exception.throwIO . Exception
 
 -- * constants
 

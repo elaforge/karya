@@ -10,10 +10,17 @@ module Util.Audio.SampleRateC (
     , Input(..), Output(..)
     , process
     , Exception(..)
+    -- * SavedState
+    , SavedState(..)
+    , getState, putState
 ) where
 import qualified Control.Exception as Exception
 import Control.Monad (when)
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Unsafe as Unsafe
+
 import qualified Foreign
+import Foreign (alloca, peek)
 import qualified Foreign.C as C
 import qualified GHC.Stack as Stack
 import qualified Data.Text as Text
@@ -105,3 +112,48 @@ check code
 {#fun src_set_ratio { `State', `Double' } -> `Int' #}
 {#fun src_strerror { id `C.CInt' } -> `C.CString' id #}
 {#fun src_process { `State', `Data' } -> `Int' #}
+
+type CSize = {#type size_t #}
+{#pointer *SRC_STATE_FLAT as StateFlat newtype #}
+
+data SavedState = SavedState ByteString.ByteString ByteString.ByteString
+    deriving (Eq, Show)
+
+-- | The second ByteString in SavedState is done without copying, so use it
+-- before doing anything with State!
+--
+-- TODO this is only in my fork of libsamplerate:
+-- https://github.com/elaforge/libsamplerate/tree/local
+getState :: State -> IO SavedState
+getState state = do
+    let size1 = {#sizeof SRC_STATE_FLAT #}
+    ptr <- Foreign.mallocBytes size1
+    (size2, state2p) <- src_get_state state (StateFlat ptr)
+    state1 <- Unsafe.unsafePackMallocCStringLen (Foreign.castPtr ptr, size1)
+    state2 <- Unsafe.unsafePackCStringLen
+        (Foreign.castPtr state2p, fromIntegral size2)
+    return $ SavedState state1 state2
+
+-- void src_get_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
+--   size_t *size, void **private)
+{#fun src_get_state
+    { `State'
+    , `StateFlat'
+    , alloca- `CSize' peek*
+    , alloca- `Foreign.Ptr ()' peek*
+    } -> `()'
+#}
+
+putState :: State -> SavedState -> IO ()
+putState state (SavedState state1 state2) =
+    Unsafe.unsafeUseAsCString state1 $ \state1p ->
+    Unsafe.unsafeUseAsCStringLen state2 $ \(state2p, size2) ->
+        src_put_state state (StateFlat (Foreign.castPtr state1p))
+            (fromIntegral size2) (Foreign.castPtr state2p)
+
+-- void src_put_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
+--   size_t size, void *private)
+{#fun src_put_state
+    { `State', `StateFlat', id `CSize', id `Foreign.Ptr ()'
+    } -> `()'
+#}

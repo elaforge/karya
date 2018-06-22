@@ -60,8 +60,8 @@ tir_18_05_25 = tirmanam $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
 tir_18_06_15 = tirmanam $ date 2018 6 15 $ korvai Tala.misra_chapu $
     variations $ map sd
     -- 42424 as 41414
-    [ tri_ o (k.o.o.k)
-    , tri_ o (su (k.o.o.k) . o . k)
+    [ tri_ od (k.o.o.k)
+    , tri_ od (su (k.o.o.k) . o . k)
     , tri_ od (su (k.__.o.od.__.k.__.k))
     , tri_ od (su (t.k.o.o.k.o.o.k))
     , tri_ od (su (o.k.o.k.o.u.__.k))

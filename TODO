@@ -1861,7 +1861,7 @@ synth: im:
         . The reason to not compose in faust is that faust can't handle voice
           allocation, so global effects will have to be separate.  Not to
           mention if I want to insert VSTs.
-      - Write glue to get SRC state to State, then serialize to
+      * Write glue to get SRC state to State, then serialize to
         Checkpoint.State, and back again.
         . void src_get_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
           size_t *size, void **private)
@@ -1872,6 +1872,17 @@ synth: im:
           function for each one.
         . Those correspond to playing Notes, so I can drop those.  Future
           Notes get rendered.
+        . Resample.SavedState is internal to Audio.Resample.resampleBy, so
+          I need to be able to get into that.  It's the same problem as
+          getting state from the faust stream, which I can solve the same way,
+          via a notifyState :: State -> IO ().
+        . But resampleBy needs to do the right chunk size, so I get state at
+          the right time.  I think this is really hard though, because the
+          whole thing about resampling is that it produces a variable amount
+          of output.
+        . No wait, I can ask for a specific amount of output.  So take
+          a chunkSize, ask for exactly that much output, and notifyState each
+          time.
       - Each chunk, sort playing Samples by Note hash, and serialize to state.
       - Test restart from checkpoint like with faust.
     - if libsamplerate could handle the pitch curve directly, I wouldn't have
