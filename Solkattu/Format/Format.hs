@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Convert realized 'S.Flat' output to text or HTML for display.
 module Solkattu.Format.Format (
     -- * text
@@ -13,10 +14,9 @@ module Solkattu.Format.Format (
     -- * testing
     , StartEnd(..), formatLines, Symbol(..), annotateGroups
 
--- TODO can't because CPP doesn't like \s
--- #ifdef TESTING
---     , module Solkattu.Format.Format
--- #endif
+#ifdef TESTING
+    , module Solkattu.Format.Format
+#endif
 ) where
 import qualified Data.Char as Char
 import qualified Data.List as List
@@ -244,6 +244,7 @@ breakFst f = bimap (map snd) (map snd) . break (f . fst)
 inferRuler :: Tala.Tala -> Int -> [S.State] -> Ruler
 inferRuler tala strokeWidth =
     (++ [("|", 0)])
+    . merge
     . map (second length)
     . concat . snd . List.mapAccumL insertNadai 0
     . concatMap insertDots
@@ -251,6 +252,11 @@ inferRuler tala strokeWidth =
     . dropWhile null
     . Seq.split_before atAkshara
     where
+    -- Merge 0 dur marks with the next mark.  HTML output puts one mark per
+    -- matra, so it can't have 0 dur marks.
+    merge ((n1, 0) : (n2, spaces) : xs) = merge ((n1<>n2, spaces) : xs)
+    merge ((n, spaces) : xs) = (n, spaces) : merge xs
+    merge xs = xs
     insertNadai :: S.Nadai -> (Text, [S.State])
         -> (S.Nadai, [(Text, [S.State])])
     insertNadai prevNadai (label, states) =
@@ -370,6 +376,7 @@ tableCss =
 
 data Font = Font { _sizePercent :: Int, _monospace :: Bool } deriving (Show)
 
+-- TODO move to Format.Html
 formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
     -> [S.Flat g (Realize.Note stroke)] -> Doc.Html
 formatHtml tala font notes =
@@ -377,6 +384,7 @@ formatHtml tala font notes =
     where
     ruler = maybe [] (concatMap akshara . inferRuler tala 1 . map fst)
         (Seq.head avartanams)
+    akshara :: (Text, Int) -> [Text]
     akshara (n, spaces) = n : replicate (spaces-1) ""
     -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
     -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)

@@ -51,7 +51,6 @@ test_format = do
     equal (f Tala.khanda_chapu (take (5*4) (cycle kook)))
         "k o o k k o o k k o o k k o o k k o o k"
 
-
 test_format_patterns = do
     let f pmap = Realize.formatError
             . Realize.realize (Realize.realizePattern pmap)
@@ -113,6 +112,14 @@ test_format_ruler = do
     equal_fmt (either id id) (fst <$> run (tas 8 8)) $ Right
         "X:8     .       |\n\
         \K k k k k k k k"
+
+test_inferRuler = do
+    let f = Format.inferRuler tala4 2
+            . map (fst . snd) . Format.normalizeSpeed tala4 . fst
+            . expect_right
+            . kRealize False tala4
+    let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
+    equal (f (tas 2 4)) [("X:2", 2), ("O", 2), ("|", 0)]
 
 test_format_ruler_rulerEach = do
     let run = fmap (first (capitalizeEmphasis . format 16 Tala.adi_tala))
