@@ -595,7 +595,7 @@ ghcWarnings config = concat
         , "tabs"
         , "unused-matches"
         , "wrong-do-bind"
-        ]
+        ] ++ ["partial-fields" | ghcVersion config >= (8, 4, 0)]
     noWarns
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
