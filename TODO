@@ -3682,6 +3682,8 @@ solkattu:
           same structure will also be suppressed.
     - in Realize, clearly separate functions for text and html backends
     html:
+      - tala markings show up on the matra after the beat
+      - tala name incomplete, e.g. triputa -> triputa tisra jati
       - show rulers on nadai changes
       - carry rulersEach across sections
       - strip trailing rests for final note

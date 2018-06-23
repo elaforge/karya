@@ -57,32 +57,34 @@ tir_18_05_25 = tirmanam $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
     __sam Tala.misra_chapu $
         kt.__.k.__.k.__.o.__.o.k.o . tri_ (od.__.p.k.t.k.o) (o.k.o.o.k)
 
+tir_18_06_15 :: Korvai
 tir_18_06_15 = tirmanam $ date 2018 6 15 $ korvai Tala.misra_chapu $
-    variations $ map sd
+    variations
     -- 42424 as 41414
-    [ tri_ od (k.o.o.k)
-    , tri_ od (su (k.o.o.k) . o . k)
-    , tri_ od (su (k.__.o.od.__.k.__.k))
-    , tri_ od (su (t.k.o.o.k.o.o.k))
-    , tri_ od (su (o.k.o.k.o.u.__.k))
+    [ sd $ tri_ od (k.o.o.k)
+    , tri_ (od.__) (k.o.o.k . o.__.k.__)
+    , tri_ (od.__) (k.__.o.od.__.k.__.k)
+    , tri_ (od.__) (t.k.o.o.k.o.o.k)
+    , tri_ (od.__) (o.k.o.k.o.u.__.k)
+
     -- 3x + 2y where x+y = 7, x ends on sam, y = 7 - dur x
-    , restD 2    . tri_ __ (on.on.k.on.on.k)
-    , restD 2.25 . tri_ (od.__) (k.t.k.n.o)
-    , restD 2.5  . tri_ (od.__3) (k.o.o.k)
-    , restD 2.75 . tri_ (od.__4) (on.on.k)
+    , restD 4   . sd (tri_ __ (on.on.k.on.on.k))
+    , restD 4.5 . sd (tri_ (od.__) (k.t.k.n.o))
+    , restD 5   . sd (tri_ (od.__3) (k.o.o.k))
+    , restD 5.5 . sd (tri_ (od.__4) (on.on.k))
     -- with fancy takadinna
-    , tri_ od takadinna
-    , tri2 od takadinna od
-    --
-    , restD 3 . tri_ (od.su pk) takadinna
-    , restD 3 . tri2 (od.su pk) takadinna (od.su o)
-    --
-    , restD 2.5  . tri_ (od.su (pk.t.k)) takadinna
-    , restD 2.5  . tri2 (od.su (pk.t.k)) takadinna (od.__)
+    , tri_ (od.__) p4
+    , tri2 (od.__) p4 (od.__)
+
+    , restD 6 . tri_ (od.__.pk) p4
+    , restD 6 . tri2 (od.__.pk) p4 (od.__.o)
+
+    , restD 5  . tri_ (od.__.pk.t.k) p4
+    , restD 5  . tri2 (od.__.pk.t.k) p4 (od.__4)
     ]
     where
     tri2 karv seq karv2 = seq . karv . seq . karv2
-        . rtakeM 1.5 seq . karv2 . rtakeM 1.5 seq
-    takadinna = group $ su $ t.k.o.od.__.on.__.k
+        . rtakeM 3 seq . karv2 . rtakeM 3 seq
+    p4 = group $ t.k.o.od.__.on.__.k
 
 -- din nakitataka at 140

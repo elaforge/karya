@@ -44,9 +44,11 @@ sdate y m d = either Solkattu.throw (const $ withTag Tags.date date) $
 scomment :: Text -> Section sollu -> Section sollu
 scomment = withTag Tags.comment
 
-devel, ending, var :: Section sollu -> Section sollu
-devel = withType Tags.development
-ending = withType Tags.ending
+devel, ending :: Korvai.SequenceT sollu -> Section sollu
+devel = withType Tags.development . Korvai.section
+ending = withType Tags.ending . Korvai.section
+
+var :: Section sollu -> Section sollu
 var = withType Tags.variation
 
 -- | On a transcription, this section is a local variation, not in the original

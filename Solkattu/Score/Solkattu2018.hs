@@ -17,14 +17,14 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
             (Just ((0, 4, 05), (0, 5, 22))) $
         date 2018 1 12 $
         korvai adi mridangam $ map (smap su)
-    [ devel $ endOn 4 $ section $
+    [ endOn 4 $ devel $
         sarvaM 8 . theme.din.__4 . in3 (1^theme) . theme.din.__8 . sarvaD 4
         . theme.din.__4 . in3 (1^theme) . din.__6
         . su tarikita.theme.tat.__6
         . su (kitataka.tarikita) . in3 theme . din.__2
         . restD 1 . su tarikita.theme.din.__2
         . su (kitataka.tarikita) . in3 theme
-    , ending $ startOn 4 $ eddupu (3/4) $ section $
+    , startOn 4 $ eddupu (3/4) $ ending $
         repeat 3 $ theme . spread 3 tdgnt . theme . spread 2 tdgnt . theme
             . tri_ __3 (tri p5)
             -- Reduce __3 karvai in utarangam to __2 to arrive on sam.
@@ -70,21 +70,21 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
             (Just ((0, 9, 30), (0, 10, 30))) $
         date 2018 2 26 $
         korvai adi mridangam $ map (smap (nadai 6 • su))
-    [ devel $ section $
+    [ devel $
         sarva 6 . taka.naka.p8 . sarva 2 . __.__.tat.__.p8
         . sarva 1 .__.__. tktu . in3 p8
-    , devel $ section $
+    , devel $
         sarva 2 . tang.__.tang.__ . p8 . nadai 4 p8 . din.__3 . p9
             . din.__.na.__
         . tri_ (din.__.na.__) p8 . in3 p8
-    , devel $ scomment "gradual transition to nadai 4" $ section $
+    , scomment "gradual transition to nadai 4" $ devel $
         din.__4 . join (din.__4)
         (replicate 2 (p8 . in3 p8) ++ replicate 2 (p8 . nadai 4 p8))
 
-    , ending $ eddupu (3/4) $ section $
+    , eddupu (3/4) $ ending $
         repeat 3 $ suffixes (in3 p8 . din.__.ga)
             [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
-    , ending $ eddupu (3/4) $ section $
+    , eddupu (3/4) $ ending $
         repeat 3 $ suffixes (nadai 4 p8 . din.__.ga)
             [tat_din_, repeat 2 tat_din_, repeat 3 tat_din_]
     ]
@@ -153,10 +153,10 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         similarTo "Solkattu2016" "c_16_12_06_sriram1" $
         date 2018 1 12 $
         korvai adi mridangam
-    [ devel $ section $
+    [ devel $
         sarvaD (4+1/2) . theme . tat.__ . sarvaD (1/2)
         . sarvaD (4+1/2) . theme . din.__4
-    , devel $ local $ section $
+    , local $ devel $
         sarvaD 5 . theme.nakadinna
         . sarvaD 5 . __ . dropM 1 theme.nakadinna
         . tam.__4 . theme.nakadinna
@@ -165,7 +165,7 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         -- . theme . dropM 2 theme . dropM 4 theme . tri_ tam nakadinna
 
         . theme.nakadinna.tam.__3 . dropM 1 theme . tri_ tam nakadinna
-    , ending $ section $ purvangam . nadai 6 (
+    , ending $ purvangam . nadai 6 (
         tri kitatakatam
         . p5
         . tri kitatakatam
@@ -174,10 +174,10 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         . p5.p5.p5
         )
     -- simple versions for dummies like me
-    , local $ ending $ section $
+    , local $ ending $
         let t = ta.din.__.p6
         in purvangam . nadai 6 (trin (ta.__3.din.__3) t (t.t) (t.t.t))
-    , local $ ending $ section $
+    , local $ ending $
         let tadin = repeat 3 (ta.din.__)
         in purvangam . nadai 6 (
             tadin . p6 . tadin . p6.__.p6 . tadin . tri_ __ p6)
@@ -204,7 +204,7 @@ yt_karaikudi1 = source "Karaikudi Mani" $
 
 c_18_03_19 :: Korvai
 c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
-    map (devel • section)
+    map devel
     [ (kitataka.sd2 din) <== 7 . sarvaD 7
     , (kitataka.sd2 din) <== 7 . 1^(kitataka.sd2 din) <== 7
     , kitataka . sd2 (din.na) . kitataka . sd2 (din.din.na)
@@ -219,8 +219,8 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
         . tri_ (din.__) (tat.__.tat.__4.kitataka)
         . din.__4 . sarvaD 6
     ] ++
-    [ ending $ section $ purvangam 3 . tri_ (sd2 (ta.din)) p5
-    ] ++ map (ending • var • sdate 2018 3 27 • section)
+    [ ending $ purvangam 3 . tri_ (sd2 (ta.din)) p5
+    ] ++ map (var • sdate 2018 3 27 • ending)
     [ purvangam 2 . tri_ (sd2 (ta.din)) (tk.p5)
     , purvangam 1 . tri_ (sd2 (ta.din)) (tktu.p5)
     , purvangam 3 . tri_ (tam.__) (taka.ti.ku.p5)
@@ -331,9 +331,11 @@ c_18_04_25 = date 2018 4 25 $ ganesh $
 
 c_18_05_25 :: Korvai
 c_18_05_25 = date 2018 5 25 $ ganesh $
-    korvaiS Tala.misra_chapu mridangam
-    [ (4*7) ==> theme1 . (4*7) ==> dropD 1 theme1 . (4*7) ==> dropD 2 theme1
-    , (2*7) ==> theme1 . (2*7) ==> dropD 1 theme1 . (2*7) ==> dropD 2 theme1
+    korvai Tala.misra_chapu mridangam
+    [ devel $
+        (4*7) ==> theme1 . (4*7) ==> dropD 1 theme1 . (4*7) ==> dropD 2 theme1
+    , devel $
+        (2*7) ==> theme1 . (2*7) ==> dropD 1 theme1 . (2*7) ==> dropD 2 theme1
 
     -- TODO This expresses din.__ karvai as a general connective, which is
     -- probably more accurate than the ad-hoc cases in 'tri_' or 'reduce3'.
@@ -345,13 +347,13 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
     -- but can't be, because 'sandi' takes the elided part explicitly, and
     -- that includes the din.__ karvais.  Since 'sandi' operates at the flat
     -- level, maybe it should be implicit after all?
-    , join (din.__) $ concat
+    , ending $ join (din.__) $ concat
         [ take 3 $ reduceToL 0 4 (theme1.theme2)
         , replicate 2 theme2
         , replicate 2 (dropD 1 theme2)
         , replicate 2 (dropD 2 theme2)
         ]
-    , let theme2 = theme2' in join (1^din.__4) $ concat
+    , ending $ let theme2 = theme2' in join (1^din.__4) $ concat
         [ take 3 $ reduceToL 0 4 (theme1.theme2)
         , replicate 2 theme2
         , replicate 2 (dropD 1 theme2)
@@ -363,7 +365,7 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
     theme1 = group $ theme1_.nakatiku
     theme1_ = tat.__4.dit.__4.kita.ki.na.ta.ki.taka
     theme2 = group theme2_
-    theme2_ = tat.__.dit.__.di.mi.kita.dugu.dugu.talang.__.ga
+    theme2_ = dit.__.tat.__.di.mi.kita.dugu.dugu.talang.__.ga
 
     theme2' = group $ theme2_ . din.__.tat.__.din.na.tat.__
     mridangam = makeMridangam
