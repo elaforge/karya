@@ -61,9 +61,11 @@ import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import qualified GHC.TypeLits as TypeLits
 import GHC.TypeLits (KnownNat)
+import qualified GHC.Stack as Stack
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
+import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Global
@@ -501,11 +503,16 @@ newtype Exception = Exception Text
 
 instance Exception.Exception Exception
 
-throw :: Text -> AudioIO rate chan
+throw :: Stack.HasCallStack => Text -> AudioIO rate chan
 throw = Audio . throwIO
 
-throwIO :: Trans.MonadIO m => Text -> m a
+throwIO :: (Stack.HasCallStack, Trans.MonadIO m) => Text -> m a
 throwIO = liftIO . Exception.throwIO . Exception
+    . ((CallStack.getStack <> ": ") <>)
+
+assert :: (Stack.HasCallStack, Trans.MonadIO m) => Bool -> Text -> m ()
+assert True _ = return ()
+assert False msg = throwIO $ "assertion: " <> msg
 
 -- * constants
 

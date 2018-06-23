@@ -126,7 +126,7 @@ render patch mbState notifyState inputs start end config =
             result <- render1 inst controls start
             case result of
                 Nothing -> Resource.release key
-                Just start -> loop (start, nextInputs)
+                Just nextStart -> loop (nextStart, nextInputs)
         where
         render1 inst controls start
             | start >= end + maxDecay = return Nothing
@@ -140,13 +140,13 @@ render patch mbState notifyState inputs start end config =
                 case outputs of
                     [] -> CallStack.errorIO "dsp with 0 outputs"
                     output : _
-                        | frames == 0 || blockEnd >= end + maxDecay
-                                || blockEnd >= end
+                        | frames == 0 || chunkEnd >= end + maxDecay
+                                || chunkEnd >= end
                                     && isBasicallySilent output ->
                             return Nothing
-                        | otherwise -> return $ Just blockEnd
+                        | otherwise -> return $ Just chunkEnd
                         where
-                        blockEnd = start + frames
+                        chunkEnd = start + frames
                         frames = Audio.Frame $ V.length output
         maxDecay = AUtil.toFrames $ _maxDecay config
 

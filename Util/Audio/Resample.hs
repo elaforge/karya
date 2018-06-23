@@ -67,8 +67,8 @@ resampleBy2 mbSaved notifyState chunkSize ctype ratio audio start =
                         )
                     | chunkLeft - generated == 0 -> do
                         let sizes = map (Audio.chunkFrames chan) (chunk:collect)
-                        unless (sum sizes == chunkSize) $
-                            Audio.throwIO $ "> chunkSize " <> showt sizes
+                        Audio.assert (sum sizes == chunkSize) $
+                            "> chunkSize " <> showt sizes
                         liftIO $ notifyState =<< SampleRateC.getState state
                         S.yield $ mconcat (reverse (chunk : collect))
                         loop
@@ -77,7 +77,7 @@ resampleBy2 mbSaved notifyState chunkSize ctype ratio audio start =
                             , []
                             , chunkSize
                             )
-                    | otherwise -> Audio.throwIO $
+                    | otherwise -> Audio.assert False $
                         "resampleChunk generated too much: "
                         <> showt (chunkLeft, generated)
                     where generated = Audio.chunkFrames chan chunk
@@ -94,15 +94,13 @@ type Stream a =
 resampleChunk :: KnownNat chan => Proxy chan -> Audio.Rate
     -> SampleRateC.State -> Audio.Frame -> Audio.Frame -> Signal.Control
     -> Stream () -> Stream (Maybe (V.Vector Audio.Sample, Stream ()))
-resampleChunk chan rate state start maxSize ratio audio = do
+resampleChunk chan rate state start maxFrames ratio audio = do
     (inputChunk, audio) <- next audio
-    (atEnd, audio) <- lift $ streamEnd audio
+    (atEnd, audio) <- lift $ checkEnd audio
     let segment = segmentAt start
     let inputFrames = maybe 0 (Audio.chunkFrames chan) inputChunk
-    -- Never go past the next breapoint.  Otherwise, try to guess a value
-    -- that will consume all inputFrames, or fallback to chunkSize if I'm
-    -- out of input
-    let outputFrames = min maxSize (toFrames (Segment._x2 segment) - start)
+    -- Never go past the next breapoint.
+    let outputFrames = min maxFrames (toFrames (Segment._x2 segment) - start)
     let destRatio = Segment.num_interpolate_s segment $
             toSeconds $ start + outputFrames
     let with = V.unsafeWith (fromMaybe V.empty inputChunk)
@@ -151,8 +149,8 @@ resampleChunk chan rate state start maxSize ratio audio = do
 -- | True if this stream is empty.  It also returns the stream since it has to
 -- peek an element to check, and if it's not empty, it conses the element back
 -- on to avoid repeating the effect.
-streamEnd :: Monad m => S.Stream (S.Of a) m r -> m (Bool, S.Stream (S.Of a) m r)
-streamEnd stream = (S.next stream) >>= \case
+checkEnd :: Monad m => S.Stream (S.Of a) m r -> m (Bool, S.Stream (S.Of a) m r)
+checkEnd stream = (S.next stream) >>= \case
     Left a -> pure (True, pure a)
     Right (x, xs) -> pure (False, S.cons x xs)
 
