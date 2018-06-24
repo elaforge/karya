@@ -361,6 +361,11 @@ inferKorvaiTags korvai = Tags.Tags $ Util.Map.multimap $ concat
       , ("sections", showt sections)
       ]
     , map ("instrument",) instruments
+    -- Default type=korvai if not given explicitly.
+    , [ (Tags.type_, "korvai")
+      | not $ Map.member Tags.type_ $
+        Tags.untags (_tags (korvaiMetadata korvai))
+      ]
     ]
     where
     tala = korvaiTala korvai

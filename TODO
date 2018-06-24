@@ -3648,6 +3648,12 @@ solkattu:
   transcribe:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
+  flashcards:
+    - search and then choose randomly, e.g. random exercise + korvai
+    - remember what I did last time, and do spaced repetition
+      . This isn't memorization, just randomization with coverage.  So it's
+        enough to pick random but twice as likely to pick with score one
+        lower.
   technique:
     - kook kook -> kook nook
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
