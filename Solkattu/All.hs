@@ -47,6 +47,7 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Mridangam2018",44,"e_18_03_28") Solkattu.Score.Mridangam2018.e_18_03_28
     , setLocation ("Solkattu.Score.Mridangam2018",49,"e_18_05_25") Solkattu.Score.Mridangam2018.e_18_05_25
     , setLocation ("Solkattu.Score.Mridangam2018",60,"tir_18_06_15") Solkattu.Score.Mridangam2018.tir_18_06_15
+    , setLocation ("Solkattu.Score.Mridangam2018",92,"e_18_06_22") Solkattu.Score.Mridangam2018.e_18_06_22
     , setLocation ("Solkattu.Score.MridangamSarva",18,"kir1") Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",23,"kir2") Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",43,"kir3") Solkattu.Score.MridangamSarva.kir3

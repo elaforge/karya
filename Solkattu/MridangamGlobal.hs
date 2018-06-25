@@ -9,19 +9,8 @@
     Its sollu type is just 'Mridangam.Stroke', so it doesn't need a StrokeMap.
 -}
 module Solkattu.MridangamGlobal (
-    Sequence
-    , (&)
-    , korvai, korvai1
-    , korvaiS, korvaiS1
-    , k, t, n, d, u, v, i, y, j, p, o, od
-    , on, l
-    , closed, thomLH, o1
-    , lt, hv
+    module Solkattu.MridangamGlobal
     , module Solkattu.Dsl
-    -- * fragments
-    , tk, tktu, tdgnt
-    , kt, ktkt, ktpk, pk, kp
-    , takadinna
 ) where
 import Prelude hiding ((.))
 
@@ -104,21 +93,23 @@ mapNote = fmap • fmap
 -- * fragments
 
 -- | Taka and takatiku from solkattu.
-tk, tktu :: Sequence
-tk = k.p
-tktu = k.p.n.p
+kp = k.p
+kpnp = k.p.n.p
 
 tdgnt :: Sequence
 tdgnt = k.t.k.n.o
 
-kt, ktkt :: Sequence
+kt, tk, ktkt :: Sequence
 kt = k.t
+tk = t.k
 ktkt = k.t.k.t
+
+ktpk :: Sequence
 ktpk = k.t.p.k
 
-pk, kp :: Sequence
+pk :: Sequence
 pk = p.k
-kp = k.p
 
-takadinna :: Sequence
+takadinna, kook :: Sequence
 takadinna = k.o.o.k
+kook = k.o.o.k

@@ -88,3 +88,43 @@ tir_18_06_15 = tirmanam $ date 2018 6 15 $ korvai Tala.misra_chapu $
     p4 = group $ t.k.o.od.__.on.__.k
 
 -- din nakitataka at 140
+
+e_18_06_22 :: Korvai
+e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
+    [ make (su2 (kt.kt.k.o.o.k))
+    , make (su2 (kook.o.k.k.__))
+    , make9 (su2 (k.kook.o.k.k.__))
+    , make9 (su2 (k.__.o.o.k.o.k.k.__))
+    , make9 (su2 (k.__.o.o.k.__.o.o.k))
+    -- TODO then 1 2 3 variations
+
+    , make3 (su (k.o.o.k.o.o.k))
+    , make3 (su (o.n. su (kt.o.k) . on . su (kt.o.k)))
+    , make3 (su (k.__.t.__.k.n.o))
+    ]
+    where
+    make p =
+          sd (on.od.od.on) . p . sd (od.od.on)
+          . sd (on.d.d.n) . tri_ od p
+        . sd (on.od.od.on) . p . sd (od.od.on)
+          . sd (on.d.d.n) . p.od.p.su od . rtakeM 1 p . su od
+                                         . rtakeM 1 p
+
+    -- TODO I need some kind of start offset to express this naturally
+    make9 p =
+          sd (on.od.od) . shim on . p . sd (od.od.on)
+          . sd (on.d.d) . shim n . tri_ od3 p
+        . sd (on.od.od) . shim on . p . sd (od.od.on)
+          . sd (on.d.d) . shim n . p.od3.p.su od . rtakeM 1 p . su od
+                                                 . rtakeM 1 p
+        where
+        shim s = s . su2 __4
+        od3 = su od . su2 __
+
+    -- TODO this should also have a 123 variant
+    make3 p = nadai 6 $
+          s3 (on.od.od) . shim on . p . s3 (od.od.on)
+        . s3 (on.d.d) . shim n . tri_ od p
+        where
+        s3 = spread 3
+        shim s = s . __ . su __
