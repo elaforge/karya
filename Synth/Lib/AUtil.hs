@@ -4,10 +4,12 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 -- | Audio utilities.  This is named AUtil instead of the more obvious
 -- Audio to avoid clashing with Util.Audio.Audio.
 module Synth.Lib.AUtil where
 import qualified Control.Exception as Exception
+import qualified Data.Vector.Storable as Storable
 import qualified Sound.File.Sndfile as Sndfile
 
 import qualified Util.Audio.Audio as Audio
@@ -27,6 +29,9 @@ toFrame = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds
 
 toSeconds :: Audio.Frame -> RealTime.RealTime
 toSeconds = RealTime.seconds . Audio.frameToSeconds Config.samplingRate
+
+chunkFrames2 :: Storable.Vector Audio.Sample -> Audio.Frame
+chunkFrames2 = Audio.chunkFrames (Proxy @2)
 
 outputFormat :: Sndfile.Format
 outputFormat = Sndfile.Format

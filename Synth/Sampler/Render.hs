@@ -4,16 +4,22 @@
 
 module Synth.Sampler.Render where
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Data.ByteString as ByteString
 import qualified Data.IORef as IORef
+import qualified Data.List as List
+import qualified Data.Vector.Storable as V
+
+import qualified Streaming.Prelude as S
 import System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Log as Log
+import qualified Util.Serialize as Serialize
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
+import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
@@ -31,8 +37,6 @@ write = write_ (Audio.Frame Config.checkpointSize)
 write_ :: Audio.Frame -> Resample.Quality -> FilePath -> [Note.Note]
     -> IO (Either Error (Int, Int))
 write_ chunkSize quality outputDir notes = do
-    -- TODO put quality into the hashes, actually no need, the state will
-    -- surely be different
     let allHashes = Checkpoint.noteHashes chunkSize notes
     (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
@@ -41,26 +45,159 @@ write_ chunkSize quality outputDir notes = do
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
             _ -> 0
     let total = length allHashes
-    if null hashes
-        then return (Right (0, total))
-        else do
+    case maybe (Right []) unserializeStates mbState of
+        _ | null hashes -> return $ Right (0, total)
+        Left err -> return $ Left err
+        Right states -> do
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.writeCheckpoints chunkSize
                     (Checkpoint.getFilename outputDir stateRef)
                     (Checkpoint.writeState outputDir stateRef)
                     AUtil.outputFormat (Checkpoint.extendHashes hashes) $
-                render chunkSize quality mbState notifyState
-                    (dropUntil (\_ n -> Note.end n > start) notes) start
-                -- TODO I think AUtil.mix and Sample.realize don't guarantee
-                -- that chunk sizes are a factor of checkpointSize
-                -- AUtil.mix $ map (Sample.realize quality) samples
+                render chunkSize quality states notifyState
+                    (dropUntil (\_ n -> Note.end n > start) notes)
+                    (AUtil.toFrame start)
             return $ second (\() -> (length hashes, total)) result
 
-render :: Audio.Frame -> Resample.Quality -> Maybe Checkpoint.State
-    -> (Checkpoint.State -> IO ()) -> [Note.Note] -> RealTime -> Audio
-render chunkSize quality mbState notifyState notes start = Audio.Audio $ do
-    whenJust mbState $
-    undefined
+data Running = Running {
+    _noteHash :: Note.Hash
+    , _getState :: IO (Maybe Resample.SavedState)
+    , _audio :: Audio
+    }
+
+failedRunning :: Note.Note -> Running
+failedRunning note = Running
+    { _noteHash = Note.hash note
+    , _getState = return Nothing
+    , _audio = mempty
+    }
+
+render :: Audio.Frame -> Resample.Quality -> [Resample.SavedState]
+    -> (Checkpoint.State -> IO ()) -> [Note.Note] -> Audio.Frame -> Audio
+render chunkSize quality states notifyState notes now = Audio.Audio $ do
+    -- The first chunk is different because I have to resume alreading running
+    -- samples.
+    let (runningNotes, startingNotes, futureNotes) =
+            overlappingNotes (AUtil.toSeconds now) chunkSize notes
+    running <- liftIO $ resumeSamples now quality chunkSize states runningNotes
+    running <- renderChunk running startingNotes
+    Audio.loop1 (now + chunkSize, running, futureNotes) $
+        \loop (now, running, notes) -> do
+            let (runningNotes, startingNotes, futureNotes) =
+                    overlappingNotes (AUtil.toSeconds now) chunkSize notes
+            Audio.assert (null runningNotes) $
+                "runningNotes: " <> pretty runningNotes
+            running <- renderChunk running startingNotes
+            loop (now + chunkSize, running, futureNotes)
+    where
+    renderChunk running startingNotes = do
+        starting <- liftIO $
+            mapM (startSample now quality chunkSize Nothing) startingNotes
+        (chunks, running) <- pull (running ++ starting)
+        liftIO $ notifyState . serializeStates =<< mapM _getState running
+        Audio.assert (all ((==chunkSize) . AUtil.chunkFrames2) chunks) $
+            "/= " <> showt chunkSize <> ": "
+            <> showt (map AUtil.chunkFrames2 chunks)
+        -- Mix concurrent samples and emit them.
+        S.yield $ Audio.zipWithN (+) chunks
+        return $ running ++ starting
+
+pull :: [Running] -> m ([V.Vector Audio.Sample], [Running])
+pull = undefined
+-- takeFrames :: forall m rate chan. (Monad m, KnownNat chan)
+--     => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
+
+resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
+    -> [Resample.SavedState] -> [Note.Note] -> IO [Running]
+resumeSamples now quality chunkSize states notes = do
+    Audio.assert (length states /= length notes) $
+        "states /= notes: " <> showt (length states) <> " /= "
+            <> showt (length notes)
+    mapM (uncurry (startSample now quality chunkSize . Just)) (zip states notes)
+        -- TODO sort by hash
+
+-- | Convert Note to Sample
+-- Insert empty space if necessary.
+--
+-- TODO what if Sample.start is different from Note.start?  I think that spoils
+-- my resume logic, so I should ensure they are the same, which maybe means
+-- remove Sample.start.
+startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
+    -> Maybe Resample.SavedState
+    -- ^ If given, resume a playing sample which should have started in the
+    -- <= now, otherwise start a new one which should start >= now.
+    -> Note.Note -> IO Running
+startSample now quality chunkSize mbState note =
+    case Convert.noteToSample note of
+        Left err -> Log.warn err >> return (failedRunning note)
+        Right sample -> do
+            stateRef <- IORef.newIORef Nothing
+            let config state = Resample.Config
+                    { _quality = quality
+                    , _state = state
+                    , _notifyState = IORef.writeIORef stateRef . Just
+                    , _chunkSize = chunkSize
+                    }
+            audio <- case mbState of
+                Just state -> do
+                    let startOffset = AUtil.toFrame (Note.start note) - now
+                    Audio.assert (startOffset >= 0) $
+                        "resumeSample should start before " <> showt now
+                        <> " but: " <> showt (Note.start note)
+                    return $ Sample.render (config (Just state)) startOffset
+                        sample
+                Nothing -> do
+                    let silence = now - AUtil.toFrame (Note.start note)
+                    Audio.assert (0 <= silence && silence < chunkSize) $
+                        "note should have started between " <> showt now
+                        <> "--" <> showt (now + chunkSize) <> " but started at "
+                        <> showt (Note.start note)
+                    return $ Audio.take (Audio.Frames silence) Audio.silence2
+                        <> Sample.render (config Nothing) 0 sample
+            return $ Running
+                { _noteHash = Note.hash note
+                , _getState = IORef.readIORef stateRef
+                , _audio = audio
+                }
+
+overlappingNotes :: RealTime -> Audio.Frame -> [Note.Note]
+    -> ([Note.Note], [Note.Note], [Note.Note])
+    -- ^ (overlappingStart, overlappingRange, afterEnd)
+overlappingNotes start chunkSize notes = (overlapping, starting, rest)
+    where
+    (starting, overlapping) = List.partition ((>start) . Note.start) here
+    (here, rest) = span ((<end) . Note.start) $
+        dropWhile ((<=start) . Note.end) notes
+    end = start + AUtil.toSeconds chunkSize
+
+-- splitOverlapping :: RealTime -> RealTime -> [(a, Note.Note)]
+--     -> ([(a, Note.Note)], [(a, Note.Note)])
+-- splitOverlapping start end notes = (overlapping, overlapping ++ rest)
+--     where
+--     overlapping = filter (not . (<=start) . Note.end . snd) here
+--     (here, rest) = span ((<end) . Note.start . snd) $
+--         dropWhile ((<=start) . Note.end . snd) notes
+
+instance Serialize.Serialize Resample.SavedState where
+    put (Resample.SavedState a b) = Serialize.put a >> Serialize.put b
+    get = Resample.SavedState <$> Serialize.get <*> Serialize.get
+
+-- | These will be sorted in order of Note hash.
+unserializeStates :: Checkpoint.State -> Either Error [Resample.SavedState]
+unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
+
+serializeStates :: [Maybe Resample.SavedState] -> Checkpoint.State
+serializeStates = Checkpoint.State . Serialize.encode
+
+-- Effectively, the synth is the combination of each sample render, which
+-- means the state has to be:
+-- I think I don't need this, I can get _filename and _offset from the Sample.
+-- In fact, I have to, unless I also want to save the envelope.
+data State = State
+    { _filename :: !Sample.SamplePath
+    , _offset :: !Audio.Frame
+    , _resampleState :: !Resample.SavedState
+    } deriving (Eq, Show)
 
 {-
     noteToSample :: Note.Note -> Either Text Sample.Sample
@@ -102,19 +239,6 @@ render patch mbState notifyState inputs start end config =
         (key, inst) <- lift $
             Resource.allocate (DriverC.initialize patch) DriverC.destroy
 -}
-
--- Effectively, the synth is the combination of each sample render, which
--- means the state has to be:
-data State = State
-    { _filename :: !Sample.SamplePath
-    , _offset :: !Audio.Frame
-    , _resampleState :: !ResampleState
-    } deriving (Eq, Show)
-
-data ResampleState =
-    ResampleState !ByteString.ByteString !ByteString.ByteString
-    -- main and private state
-    deriving (Eq, Show)
 
 {-
 To restart, initialize a Sample for each State, and then mix them.

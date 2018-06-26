@@ -36,22 +36,22 @@ module Util.Audio.Audio (
     , synchronizeToSize
     , zeroPadN
     -- * generate
-    , silence, sine
+    , silence1, silence2, sine
     , linear
     -- * error
-    , Exception(..), throw
+    , Exception(..), throw, assert
     -- * constants
     , chunkSize, silentChunk
     -- * conversions
     , dbToLinear, linearToDb
     -- * util
     , loop1
-    , takeFrames
+    , takeFramesGE
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif
 ) where
-import Prelude hiding (take)
+import Prelude hiding (take, splitAt)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
@@ -83,6 +83,7 @@ import Global
 -}
 newtype Audio m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
     Audio { _stream :: S.Stream (S.Of (V.Vector Sample)) m () }
+    deriving (Semigroup, Monoid)
 
 type AudioIO rate channels = Audio (Resource.ResourceT IO) rate channels
 type AudioId rate channels = Audio Identity.Identity rate channels
@@ -167,17 +168,18 @@ toSamples = S.toList_ . _stream
 
 take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
     => Duration -> Audio m rate chan -> Audio m rate chan
+take dur _ | dur == Seconds 0 || dur == Frames 0 = mempty
 take (Seconds seconds) audio =
     take (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
 take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
-    \loop (start, audio) -> lift (S.uncons audio) >>= \case
+    \loop (now, audio) -> lift (S.uncons audio) >>= \case
         Nothing -> return ()
         Just (chunk, audio)
             | end <= frames -> S.yield chunk >> loop (end, audio)
-            | start >= frames -> return ()
+            | now >= frames -> return ()
             | otherwise -> S.yield $
-                V.take (framesCount chan (min frames end - start)) chunk
-            where end = start + chunkFrames chan chunk
+                V.take (framesCount chan (min frames end - now)) chunk
+            where end = now + chunkFrames chan chunk
     where chan = Proxy :: Proxy chan
 
 mapSamples :: Monad m => (Float -> Float) -> Audio m rate chan
@@ -208,14 +210,13 @@ multiply audio1 audio2 =
 -- | Mix together the audio streams at the given start times.
 --
 -- TODO the input could also be a stream, in case it somehow comes from IO.
-mix :: forall m rate channels. (Monad m, KnownNat channels, KnownNat rate)
-    => [(Duration, Audio m rate channels)] -> Audio m rate channels
+mix :: forall m rate chan. (Monad m, KnownNat chan, KnownNat rate)
+    => [(Duration, Audio m rate chan)] -> Audio m rate chan
 mix = Audio . S.map merge . synchronizeChunks . map pad
     where
     pad (Seconds secs, a) = pad (Frames (secondsToFrame rate secs), a)
     pad (Frames frame, Audio a)
-        | frame > 0 =
-            S.cons (Silence (framesCount channels frame)) (S.map Chunk a)
+        | frame > 0 = S.cons (Silence (framesCount chan frame)) (S.map Chunk a)
         | otherwise = S.map Chunk a
     merge chunks
         | null vs = case [c | Silence c <- chunks] of
@@ -225,7 +226,7 @@ mix = Audio . S.map merge . synchronizeChunks . map pad
             [] -> V.empty
         | otherwise = zipWithN (+) vs
         where vs = [v | Chunk v <- chunks]
-    channels = Proxy :: Proxy channels
+    chan = Proxy :: Proxy chan
     rate = natVal (Proxy :: Proxy rate)
 
 -- | The strategy is to pad the beginning of each audio stream with silence,
@@ -397,7 +398,7 @@ synchronizeToSize :: forall m rate chan. (Monad m, KnownNat chan)
 synchronizeToSize size = Audio . S.unfoldr unfold
     where
     unfold audio = do
-        (chunks, audio) <- takeFrames size audio
+        (chunks, audio) <- takeFramesGE size audio
         let (pre, post) = V.splitAt (framesCount chan size) $ mconcat chunks
         let consed
                 | V.null post = audio
@@ -429,8 +430,13 @@ zeroPadN size_ naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
 -- * generate
 
 -- | Silence.  Forever.
-silence :: Monad m => Audio m rate 1
-silence = constant 0
+silence1 :: Monad m => Audio m rate 1
+silence1 = constant 0
+
+-- | The chan is hardcoded so I can be sure 'chunkSize' is divisible by it.
+-- Otherwise, the stream would be invalid.
+silence2 :: Monad m => Audio m rate 2
+silence2 = Audio $ constant_ 0
 
 -- | An infinite constant stream, which reuses the same buffer.
 constant :: Monad m => Float -> Audio m rate 1
@@ -554,13 +560,33 @@ breakAfter combine accum check = loop accum
             | otherwise -> S.yield a >> loop next as
             where next = combine accum a
 
--- | Take at least the given number of frames.  It may take more if the size
--- doesn't line up on a chunk boundary.
-takeFrames :: forall m rate chan. (Monad m, KnownNat chan)
+-- | Take >= the given number of frames.  It may take more if the size doesn't
+-- line up on a chunk boundary.
+--
+-- TODO actually more like splitAt
+takeFramesGE :: forall m rate chan. (Monad m, KnownNat chan)
     => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
-takeFrames frames (Audio audio) = do
+takeFramesGE frames (Audio audio) = do
     chunks S.:> rest <- S.toList $
         breakAfter (\n -> (+n) . chunkFrames chan) 0 (>=frames) audio
     return (chunks, Audio rest)
     where
     chan = Proxy :: Proxy chan
+
+-- takeFrames frame = fst . splitAt frame
+--
+-- -- | Take exactly the given number of frames.  TODO actually splitAt
+-- splitAt :: forall m rate chan. (Monad m, KnownNat chan)
+--     => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
+-- splitAt frames (Audio audio) = S.next audio >>= \case
+--     Left () -> return ([], mempty)
+--     Right (chunk, audio)
+--         | produced > frames ->
+--             first (chunk:) <$> splitAt (frames - produced) (Audio audio)
+--         | produced == frames -> return ([chunk], Audio audio)
+--         | otherwise -> return ([pre], Audio $ S.cons post audio)
+--         where
+--         produced = chunkFrames chan chunk
+--         (pre, post) = V.splitAt (framesCount chan frames) chunk
+--     where
+--     chan = Proxy :: Proxy chan

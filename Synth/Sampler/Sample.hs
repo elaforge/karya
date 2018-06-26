@@ -40,6 +40,33 @@ data Sample = Sample {
     , ratio :: !Signal.Signal
     } deriving (Show)
 
+render :: Resample.Config -> Audio.Frame -> Sample -> Audio
+render config startOffset (Sample start filename offset envelope ratio) =
+    resample2 config ratio startOffset start $
+    applyEnvelope start envelope $
+    Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset))
+        (Config.instrumentDbDir </> filename)
+
+resample2 :: Resample.Config -> Signal.Signal -> Audio.Frame -> RealTime
+    -> Audio -> Audio
+resample2 config ratio startOffset start audio
+    -- Don't do any work if it's close enough to 1.  This is likely to be
+    -- common, so worth optimizing.
+    | Just val <- Signal.constant_val_from start ratio,
+            ApproxEq.eq closeEnough val 1 =
+        audio
+        -- TODO make sure it's in chunkSize, also _notifyState mempty?
+    | otherwise = Resample.resampleBy2 config
+        (Signal.shift (- (start + AUtil.toSeconds startOffset)) ratio)
+        audio
+        -- The resample always starts at 0 in the ratio, so shift it back to
+        -- account for when the sample starts (start), and how far into the
+        -- note (startOffset) I'm starting.
+    where
+    -- More or less a semitone / 100 cents / 10.  Anything narrower than this
+    -- probably isn't perceptible.
+    closeEnough = 1.05 / 1000
+
 -- | Evaluating the Audio could probably produce more exceptions...
 realize :: Resample.Quality -> Sample -> (RealTime, Audio)
     -- ^ sample start time, and audio to render

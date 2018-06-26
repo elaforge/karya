@@ -43,6 +43,14 @@ test_mix2 = do
     equal (f [(0, [[0, 1, 2, 3]]), (1, [[4, 5]])])
         [0, 1, 2+4, 3+5]
 
+test_monoid = do
+    equal (toSamples mempty) []
+    equal (toSamples (mempty <> mempty)) []
+    equal (toSamples (mempty <> fromSamples [[2]])) [[2]]
+    equal (toSamples (fromSamples [[1]] <> fromSamples [[2]])) [[1], [2]]
+    equal (toSamples (fromSamples [[1], [2]] <> fromSamples [[3, 4]]))
+        [[1], [2], [3, 4]]
+
 test_nonInterleaved = do
     let f = map (map V.toList) . Identity.runIdentity . S.toList_
             . Audio._nstream

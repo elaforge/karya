@@ -1867,7 +1867,7 @@ synth: im:
           size_t *size, void **private)
         . void src_put_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
           size_t size, void *private)
-      - make Sample -> Audio render function, can be initialized with State.
+      + make Sample -> Audio render function, can be initialized with State.
         . Checkpoint.State deserializes to [State], and I start a render
           function for each one.
         . Those correspond to playing Notes, so I can drop those.  Future
@@ -1883,7 +1883,10 @@ synth: im:
         . No wait, I can ask for a specific amount of output.  So take
           a chunkSize, ask for exactly that much output, and notifyState each
           time.
-      - Each chunk, sort playing Samples by Note hash, and serialize to state.
+        * startSample must insert silence
+        - make sure notes and states are sorted by hash
+        - implement Render.pull
+      - Sample should stream the envelope.
       - Test restart from checkpoint like with faust.
     - if libsamplerate could handle the pitch curve directly, I wouldn't have
       to resample in Convert.makeSample, and it could be per-sample.

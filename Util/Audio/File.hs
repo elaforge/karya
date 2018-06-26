@@ -148,7 +148,7 @@ writeCheckpoints size getFilename writeState format = go
     where
     go (state : states) audio = do
         fname <- liftIO $ getFilename state
-        (chunks, audio) <- Audio.takeFrames size audio
+        (chunks, audio) <- Audio.takeFramesGE size audio
         unless (null chunks) $ do
             liftIO $ do
                 Exception.bracket (openWrite format fname audio)

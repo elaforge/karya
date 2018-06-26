@@ -5,6 +5,7 @@
 -- | Resample audio signals via libsamplerate.
 module Util.Audio.Resample (
     resample, resampleBy, resampleRate
+    , Config(..)
     , resampleBy2
     , Quality(..)
     , SavedState(..)
@@ -37,24 +38,30 @@ resample :: forall rate chan. (KnownNat chan, KnownNat rate)
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
 resample ctype ratio = resampleBy ctype (Signal.constant ratio)
 
+-- | Configure the resampler.
+data Config = Config {
+    _quality :: Quality
+    , _state :: Maybe SavedState
+    , _notifyState :: SavedState -> IO ()
+    , _chunkSize :: Audio.Frame
+    }
+
 -- | Resample the audio by the given curve.  This doesn't actually change the
 -- sampling rate, since I just use this to change the pitch.
 resampleBy2 :: forall rate chan. (KnownNat rate, KnownNat chan)
-    => Maybe SavedState -> (SavedState -> IO ()) -> Audio.Frame -> Quality
-    -> Signal.Control -> Audio.AudioIO rate chan -> Audio.Frame
+    => Config -> Signal.Control -> Audio.AudioIO rate chan
     -> Audio.AudioIO rate chan
-resampleBy2 mbSaved notifyState chunkSize ctype ratio audio start =
-    Audio.Audio $ do
+resampleBy2 config ratio audio = Audio.Audio $ do
     (key, state) <- lift $ Resource.allocate
-        (SampleRateC.new ctype (fromIntegral (TypeLits.natVal chan)))
+        (SampleRateC.new (_quality config)
+            (fromIntegral (TypeLits.natVal chan)))
         SampleRateC.delete
-    liftIO $ case mbSaved of
-        Nothing ->
-            SampleRateC.setRatio state (Signal.at (toSeconds start) ratio)
+    liftIO $ case (_state config) of
+        Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratio
         Just saved -> SampleRateC.putState state saved
     -- I have to collect chunks until I fill up the output chunk size.  The key
     -- thing is to not let the resample state get ahead of the chunk boundary.
-    Audio.loop1 (start, Audio._stream audio, [], chunkSize) $
+    Audio.loop1 (0, Audio._stream audio, [], _chunkSize config) $
         \loop (now, audio, collect, chunkLeft) ->
             resampleChunk chan rate state now chunkLeft ratio audio >>= \case
                 Nothing -> lift $ Resource.release key
@@ -67,15 +74,16 @@ resampleBy2 mbSaved notifyState chunkSize ctype ratio audio start =
                         )
                     | chunkLeft - generated == 0 -> do
                         let sizes = map (Audio.chunkFrames chan) (chunk:collect)
-                        Audio.assert (sum sizes == chunkSize) $
+                        Audio.assert (sum sizes == _chunkSize config) $
                             "> chunkSize " <> showt sizes
-                        liftIO $ notifyState =<< SampleRateC.getState state
+                        liftIO $ _notifyState config
+                            =<< SampleRateC.getState state
                         S.yield $ mconcat (reverse (chunk : collect))
                         loop
                             ( now + generated
                             , audio
                             , []
-                            , chunkSize
+                            , _chunkSize config
                             )
                     | otherwise -> Audio.assert False $
                         "resampleChunk generated too much: "
@@ -85,7 +93,6 @@ resampleBy2 mbSaved notifyState chunkSize ctype ratio audio start =
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
-    toSeconds = RealTime.seconds . Audio.frameToSeconds rate
 
 type Stream a =
     S.Stream (S.Of (V.Vector Audio.Sample)) (Resource.ResourceT IO) a
