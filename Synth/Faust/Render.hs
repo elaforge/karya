@@ -87,7 +87,7 @@ renderPatch :: DriverC.Patch -> Config -> Maybe Checkpoint.State
 renderPatch patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
         render patch mbState notifyState inputs
-            (AUtil.toFrames start) (AUtil.toFrames final) config
+            (AUtil.toFrame start) (AUtil.toFrame final) config
     where
     inputs = renderControls (_chunkSize config)
         (filter (/=Control.volume) controls) notes start
@@ -148,7 +148,7 @@ render patch mbState notifyState inputs start end config =
                         where
                         chunkEnd = start + frames
                         frames = Audio.Frame $ V.length output
-        maxDecay = AUtil.toFrames $ _maxDecay config
+        maxDecay = AUtil.toFrame $ _maxDecay config
 
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent _samples = False -- TODO RMS < -n dB
@@ -161,7 +161,7 @@ renderControls :: Audio.Frame -> [Control.Control]
     -> [Note.Note] -> RealTime -> NAudio
 renderControls chunkSize controls notes start =
     Audio.nonInterleaved chunkSize $
-        map (fromMaybe Audio.silence . renderControl chunkSize notes start)
+        map (fromMaybe Audio.silence1 . renderControl chunkSize notes start)
             controls
 
 renderControl :: (Monad m, TypeLits.KnownNat rate)

@@ -84,7 +84,7 @@ renderPatch :: DriverC.Patch -> Config -> Maybe Checkpoint.State
 renderPatch patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
         render patch mbState notifyState inputs
-            (AUtil.toFrames start) (AUtil.toFrames final) config
+            (AUtil.toFrame start) (AUtil.toFrame final) config
     where
     inputs = renderControls (_chunkSize config)
         (filter (/=Control.volume) controls) notes start

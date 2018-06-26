@@ -43,9 +43,9 @@ data Sample = Sample {
 -- | Evaluating the Audio could probably produce more exceptions...
 realize :: Resample.Quality -> Sample -> (RealTime, Audio)
     -- ^ sample start time, and audio to render
-realize quality (Sample start filename offset env ratio) = (start,) $
+realize quality (Sample start filename offset envelope ratio) = (start,) $
     resample quality ratio start $
-    applyEnvelope start env $
+    applyEnvelope start envelope $
     Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset))
         (Config.instrumentDbDir </> filename)
 
