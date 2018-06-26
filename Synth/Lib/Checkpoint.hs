@@ -170,7 +170,6 @@ hashOverlapping :: RealTime -> RealTime -> [Note.Note] -> [Note.Hash]
 hashOverlapping start size =
     map (mconcat . map fst) . groupOverlapping start size . Seq.key_on Note.hash
     -- Pair each Note with its Hash, then group Notes and combine the Hashes.
-    -- This ensures I only compute each Hash a maximum of once.
 
 groupOverlapping :: RealTime -> RealTime -> [(a, Note.Note)]
     -> [[(a, Note.Note)]]

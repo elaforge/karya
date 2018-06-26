@@ -37,6 +37,14 @@ data Note = Note {
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map Control.Control Signal.Signal)
     , attributes :: !Attrs.Attributes
+    -- | The hash of the note itself, minus the hash field.  This is in the
+    -- Note as a lazy field so it only ever gets calculated once.
+    --
+    -- It turns out to be more convenient to group with the note since then I
+    -- can cheaply sort Notes by hash.  The downside is that now I can't
+    -- modify a Note without having to update the hash, but I shouldn't be
+    -- modifying Notes except in a few tests.
+    , hash :: Hash
     } deriving (Show)
 
 -- | Unique identifier for a patch.
@@ -50,12 +58,14 @@ end :: Note -> RealTime
 end n = start n + duration n
 
 instance Serialize.Serialize Note where
-    put (Note a b c d e f g) =
+    put (Note a b c d e f g _hash) =
         put a *> put b *> put c *> put d *> put e *> put f *> put g
-    get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get
+    get = fmap setHash $
+        Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get
+            <*> pure mempty
 
 instance Pretty Note where
-    format (Note patch inst element start dur controls attrs) =
+    format (Note patch inst element start dur controls attrs hash) =
         Pretty.record "Note"
             [ ("patch", Pretty.format patch)
             , ("instrument", Pretty.format inst)
@@ -64,11 +74,12 @@ instance Pretty Note where
             , ("duration", Pretty.format dur)
             , ("controls", Pretty.format controls)
             , ("attributes", Pretty.format attrs)
+            , ("hash", Pretty.format hash)
             ]
 
 -- | Make a Note for testing.
 note :: PatchName -> InstrumentName -> RealTime -> RealTime -> Note
-note patch instrument start duration = Note
+note patch instrument start duration = setHash $ Note
     { patch = patch
     , instrument = instrument
     , element = ""
@@ -76,6 +87,7 @@ note patch instrument start duration = Note
     , duration = duration
     , controls = mempty
     , attributes = mempty
+    , hash = mempty
     }
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
@@ -105,10 +117,10 @@ notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
 -- * hash
 
 newtype Hash = Hash Word.Word32
-    deriving (Show, Eq, Pretty, Serialize.Serialize)
+    deriving (Show, Eq, Ord, Pretty, Serialize.Serialize)
 
-hash :: Note -> Hash
-hash = Hash . CRC32.crc32
+setHash :: Note -> Note
+setHash note = note { hash = Hash (CRC32.crc32 note) }
 
 instance Semigroup Hash where
     Hash h1 <> Hash h2 = Hash $ CRC32.crc32Update h1 h2
@@ -118,7 +130,7 @@ instance Monoid Hash where
     mappend = (<>)
 
 instance CRC32.CRC32 Note where
-    crc32Update n (Note name inst element start dur controls attrs) =
+    crc32Update n (Note name inst element start dur controls attrs _hash) =
         n & name & inst & element & start & dur & controls & Attrs.to_set attrs
         where
         (&) :: CRC32.CRC32 a => Word.Word32 -> a -> Word.Word32

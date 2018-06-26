@@ -15,6 +15,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Synth.Lib.AUtil as AUtil
@@ -94,7 +95,8 @@ render chunkSize quality states notifyState notes now = Audio.Audio $ do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) startingNotes
         (chunks, running) <- pull (running ++ starting)
-        liftIO $ notifyState . serializeStates =<< mapM _getState running
+        liftIO $ notifyState . serializeStates
+            =<< mapM _getState (Seq.sort_on _noteHash running)
         Audio.assert (all ((==chunkSize) . AUtil.chunkFrames2) chunks) $
             "/= " <> showt chunkSize <> ": "
             <> showt (map AUtil.chunkFrames2 chunks)
@@ -113,8 +115,8 @@ resumeSamples now quality chunkSize states notes = do
     Audio.assert (length states /= length notes) $
         "states /= notes: " <> showt (length states) <> " /= "
             <> showt (length notes)
-    mapM (uncurry (startSample now quality chunkSize . Just)) (zip states notes)
-        -- TODO sort by hash
+    mapM (uncurry (startSample now quality chunkSize . Just))
+        (zip states (Seq.sort_on Note.hash notes))
 
 -- | Convert Note to Sample
 -- Insert empty space if necessary.

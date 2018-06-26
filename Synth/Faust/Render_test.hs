@@ -124,7 +124,8 @@ mkNotes dur nns =
     ]
 
 mkNote :: RealTime -> RealTime -> Pitch.NoteNumber -> Note.Note
-mkNote start dur nn = Note.withControl Control.volume (Signal.constant 1) $
+mkNote start dur nn = Note.setHash $
+    Note.withControl Control.volume (Signal.constant 1) $
     Note.withControl Control.dynamic (Signal.constant 1) $
     Note.withPitch nn $ Note.note "sine" "sine" start dur
 

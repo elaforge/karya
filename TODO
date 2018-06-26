@@ -1884,7 +1884,23 @@ synth: im:
           a chunkSize, ask for exactly that much output, and notifyState each
           time.
         * startSample must insert silence
-        - make sure notes and states are sorted by hash
+        * make sure notes and states are sorted by hash
+          . But how to get Note.Hash without recomputing it?  I need to sort
+            for every checkpoint I write, so I should at least try to avoid
+            recomputing.
+          . Currently I compute the note hashes to find the states to start
+            with, and then independently fast-forward the Notes to what should
+            be the same spot.  Can I use [(Index, Hash, [Note])]
+          . Well, it has to be [(Note, Hash)].
+          . I guess I can, skipCheckpoints has to keep [(Note, Hash)] around
+            and return that too.  But that contains duplicated Notes for
+            each overlap.  What I really want is non-duplicated Notes, and
+            [Hash] for each checkpoint.
+          . So maybe just keep [Hash] from skipCheckpoints, but still skip
+            Notes independently.  I could try to unduplicate the Notes, or
+            keep the original list, but it seems more complicated.
+          . Or, I could just put Hash in the Note as a lazy field, on
+            deserialize.  This is seeming simpler now.
         - implement Render.pull
       - Sample should stream the envelope.
       - Test restart from checkpoint like with faust.
