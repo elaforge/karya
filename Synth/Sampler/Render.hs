@@ -60,14 +60,15 @@ write_ chunkSize quality outputDir notes = do
                     (AUtil.toFrame start)
             return $ second (\() -> (length hashes, total)) result
 
-data Running = Running {
+-- | A currently playing sample.
+data Playing = Playing {
     _noteHash :: Note.Hash
     , _getState :: IO (Maybe Resample.SavedState)
     , _audio :: Audio
     }
 
-failedRunning :: Note.Note -> Running
-failedRunning note = Running
+failedPlaying :: Note.Note -> Playing
+failedPlaying note = Playing
     { _noteHash = Note.hash note
     , _getState = return Nothing
     , _audio = mempty
@@ -76,41 +77,41 @@ failedRunning note = Running
 render :: Audio.Frame -> Resample.Quality -> [Resample.SavedState]
     -> (Checkpoint.State -> IO ()) -> [Note.Note] -> Audio.Frame -> Audio
 render chunkSize quality states notifyState notes now = Audio.Audio $ do
-    -- The first chunk is different because I have to resume alreading running
+    -- The first chunk is different because I have to resume alreading playing
     -- samples.
-    let (runningNotes, startingNotes, futureNotes) =
+    let (playingNotes, startingNotes, futureNotes) =
             overlappingNotes (AUtil.toSeconds now) chunkSize notes
-    running <- liftIO $ resumeSamples now quality chunkSize states runningNotes
-    running <- renderChunk running startingNotes
-    Audio.loop1 (now + chunkSize, running, futureNotes) $
-        \loop (now, running, notes) -> do
-            let (runningNotes, startingNotes, futureNotes) =
+    playing <- liftIO $ resumeSamples now quality chunkSize states playingNotes
+    playing <- renderChunk playing startingNotes
+    Audio.loop1 (now + chunkSize, playing, futureNotes) $
+        \loop (now, playing, notes) -> do
+            let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
-            Audio.assert (null runningNotes) $
-                "runningNotes: " <> pretty runningNotes
-            running <- renderChunk running startingNotes
-            loop (now + chunkSize, running, futureNotes)
+            Audio.assert (null playingNotes) $
+                "playingNotes: " <> pretty playingNotes
+            playing <- renderChunk playing startingNotes
+            loop (now + chunkSize, playing, futureNotes)
     where
-    renderChunk running startingNotes = do
+    renderChunk playing startingNotes = do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) startingNotes
-        (chunks, running) <- pull (running ++ starting)
+        (chunks, playing) <- pull (playing ++ starting)
         liftIO $ notifyState . serializeStates
-            =<< mapM _getState (Seq.sort_on _noteHash running)
+            =<< mapM _getState (Seq.sort_on _noteHash playing)
         Audio.assert (all ((==chunkSize) . AUtil.chunkFrames2) chunks) $
             "/= " <> showt chunkSize <> ": "
             <> showt (map AUtil.chunkFrames2 chunks)
         -- Mix concurrent samples and emit them.
         S.yield $ Audio.zipWithN (+) chunks
-        return $ running ++ starting
+        return $ playing ++ starting
 
-pull :: [Running] -> m ([V.Vector Audio.Sample], [Running])
+pull :: [Playing] -> m ([V.Vector Audio.Sample], [Playing])
 pull = undefined
 -- takeFrames :: forall m rate chan. (Monad m, KnownNat chan)
 --     => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
 
 resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
-    -> [Resample.SavedState] -> [Note.Note] -> IO [Running]
+    -> [Resample.SavedState] -> [Note.Note] -> IO [Playing]
 resumeSamples now quality chunkSize states notes = do
     Audio.assert (length states /= length notes) $
         "states /= notes: " <> showt (length states) <> " /= "
@@ -128,10 +129,10 @@ startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -> Maybe Resample.SavedState
     -- ^ If given, resume a playing sample which should have started in the
     -- <= now, otherwise start a new one which should start >= now.
-    -> Note.Note -> IO Running
+    -> Note.Note -> IO Playing
 startSample now quality chunkSize mbState note =
     case Convert.noteToSample note of
-        Left err -> Log.warn err >> return (failedRunning note)
+        Left err -> Log.warn err >> return (failedPlaying note)
         Right sample -> do
             stateRef <- IORef.newIORef Nothing
             let config state = Resample.Config
@@ -157,7 +158,7 @@ startSample now quality chunkSize mbState note =
                         <> showt (Note.start note)
                     return $ Audio.take (Audio.Frames silence) Audio.silence2
                         <> Sample.render (config Nothing) 0 sample
-            return $ Running
+            return $ Playing
                 { _noteHash = Note.hash note
                 , _getState = IORef.readIORef stateRef
                 , _audio = audio
