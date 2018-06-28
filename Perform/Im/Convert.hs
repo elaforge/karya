@@ -66,6 +66,7 @@ convert_event event patch name = run $ do
         , attributes = maybe mempty snd $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
+        , hash = mempty -- filled in after deserialize
         }
 
 run :: Log.LogId a -> [LEvent.LEvent a]

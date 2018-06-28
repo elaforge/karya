@@ -160,9 +160,10 @@ renderControls :: Audio.Frame -> [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
     -> [Note.Note] -> RealTime -> NAudio
 renderControls chunkSize controls notes start =
-    Audio.nonInterleaved chunkSize $
+    Audio.nonInterleaved now chunkSize $
         map (fromMaybe Audio.silence1 . renderControl chunkSize notes start)
             controls
+    where now = 0 -- for the moment, faust always starts at 0
 
 renderControl :: (Monad m, TypeLits.KnownNat rate)
     => Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
@@ -175,7 +176,8 @@ renderControl chunkSize notes start control
     where
     shiftBack = map $ first (subtract (RealTime.to_seconds start))
     bps = controlBreakpoints control notes
-    sync = Audio.synchronizeToSize chunkSize
+    sync = Audio.synchronizeToSize now chunkSize
+    now = 0 -- for the moment, faust always starts at 0
 
 -- | Make a signal which goes to 1 for the duration of the note.
 --

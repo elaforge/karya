@@ -51,7 +51,7 @@ module Util.Audio.Audio (
     , module Util.Audio.Audio
 #endif
 ) where
-import Prelude hiding (take, splitAt)
+import Prelude hiding (splitAt, take)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
@@ -363,9 +363,9 @@ synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
 
 -- | Merge 'Audio's into a single 'NAudio' stream, synchronized with the given
 -- chunk size.
-nonInterleaved :: Monad m => Frame -> [Audio m rate 1] -> NAudio m rate
-nonInterleaved size audios = NAudio (length audios) $
-    S.unfoldr unfold (map (_stream . synchronizeToSize size) audios)
+nonInterleaved :: Monad m => Frame -> Frame -> [Audio m rate 1] -> NAudio m rate
+nonInterleaved now size audios = NAudio (length audios) $
+    S.unfoldr unfold (map (_stream . synchronizeToSize now size) audios)
     where
     unfold streams = do
         pairs <- mapM S.uncons streams
@@ -394,20 +394,15 @@ interleaved naudio
     chan = natVal (Proxy @chan)
 
 synchronizeToSize :: forall m rate chan. (Monad m, KnownNat chan)
-    => Frame -> Audio m rate chan -> Audio m rate chan
-synchronizeToSize size = Audio . S.unfoldr unfold
+    => Frame -> Frame -> Audio m rate chan -> Audio m rate chan
+synchronizeToSize now size = Audio . S.unfoldr unfold . (True,)
     where
-    unfold audio = do
-        (chunks, audio) <- takeFramesGE size audio
-        let (pre, post) = V.splitAt (framesCount chan size) $ mconcat chunks
-        let consed
-                | V.null post = audio
-                | otherwise = apply (S.cons post) audio
-        return $ if V.null pre
+    unfold (initial, audio) = do
+        (chunks, audio) <- splitAt (if initial then align else size) audio
+        return $ if null chunks
             then Left ()
-            else Right (pre, consed)
-    chan = Proxy @chan
-    apply f = Audio . f . _stream
+            else Right (mconcat chunks, (False, audio))
+    align = if now `mod` size == 0 then size else now `mod` size
 
 -- | Extend chunks shorter than the given size with zeros, and pad the end with
 -- zeros forever.  Composed with 'nonInterleaved', which may leave a short
@@ -563,7 +558,7 @@ breakAfter combine accum check = loop accum
 -- | Take >= the given number of frames.  It may take more if the size doesn't
 -- line up on a chunk boundary.
 --
--- TODO actually more like splitAt
+-- TODO rename to splitAtGE
 takeFramesGE :: forall m rate chan. (Monad m, KnownNat chan)
     => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
 takeFramesGE frames (Audio audio) = do
@@ -573,20 +568,20 @@ takeFramesGE frames (Audio audio) = do
     where
     chan = Proxy :: Proxy chan
 
--- takeFrames frame = fst . splitAt frame
---
--- -- | Take exactly the given number of frames.  TODO actually splitAt
--- splitAt :: forall m rate chan. (Monad m, KnownNat chan)
---     => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
--- splitAt frames (Audio audio) = S.next audio >>= \case
---     Left () -> return ([], mempty)
---     Right (chunk, audio)
---         | produced > frames ->
---             first (chunk:) <$> splitAt (frames - produced) (Audio audio)
---         | produced == frames -> return ([chunk], Audio audio)
---         | otherwise -> return ([pre], Audio $ S.cons post audio)
---         where
---         produced = chunkFrames chan chunk
---         (pre, post) = V.splitAt (framesCount chan frames) chunk
---     where
---     chan = Proxy :: Proxy chan
+-- | Take exactly the given number of frames.
+splitAt :: forall m rate chan. (Monad m, KnownNat chan)
+    => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
+splitAt frames (Audio audio)
+    | frames <= 0 = return ([], Audio audio)
+    | otherwise = S.next audio >>= \case
+        Left () -> return ([], mempty)
+        Right (chunk, audio)
+            | produced < frames ->
+                first (chunk:) <$> splitAt (frames - produced) (Audio audio)
+            | produced == frames -> return ([chunk], Audio audio)
+            | otherwise -> return ([pre], Audio $ S.cons post audio)
+            where
+            produced = chunkFrames chan chunk
+            (pre, post) = V.splitAt (framesCount chan frames) chunk
+    where
+    chan = Proxy :: Proxy chan

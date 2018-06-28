@@ -54,7 +54,7 @@ test_monoid = do
 test_nonInterleaved = do
     let f = map (map V.toList) . Identity.runIdentity . S.toList_
             . Audio._nstream
-            . Audio.nonInterleaved 2 . map fromSamples
+            . Audio.nonInterleaved 0 2 . map fromSamples
     equal (f []) []
     equal (f [[[1, 2, 3, 4]], [[5], [6], [7, 8]]])
         [[[1, 2], [5, 6]], [[3, 4], [7, 8]]]
@@ -70,16 +70,17 @@ test_interleaved = do
 interleaved :: forall outChan. (TypeLits.KnownNat outChan)
     => Proxy outChan -> [[Audio.Sample]] -> Either Text [Audio.Sample]
 interleaved Proxy = fmap (concat . toSamples @10 @outChan)
-    . Audio.interleaved . Audio.nonInterleaved Audio.chunkSize
+    . Audio.interleaved . Audio.nonInterleaved 0 Audio.chunkSize
     . map fromSamples . map (:[])
 
 test_synchronizeToSize = do
-    let f = toSamples . Audio.synchronizeToSize 2 . fromSamples
-    equal (f []) []
-    equal (f [[1]]) [[1]]
-    equal (f [[1, 2, 3]]) [[1, 2], [3]]
-    equal (f [[1], [], [2], [3]]) [[1, 2], [3]]
-    equal (f [[1, 2], [3], [4, 5]]) [[1, 2], [3, 4], [5]]
+    let f now = toSamples . Audio.synchronizeToSize now 2 . fromSamples
+    equal (f 1 []) []
+    equal (f 1 [[1]]) [[1]]
+    equal (f 1 [[1, 2, 3]]) [[1], [2, 3]]
+    equal (f 1 [[1], [], [2], [3]]) [[1], [2, 3]]
+    equal (f 1 [[1, 2], [3], [4, 5, 6]]) [[1], [2, 3], [4, 5], [6]]
+    equal (f 0 [[1, 2], [3], [4, 5, 6]]) [[1, 2], [3, 4], [5, 6]]
 
 test_gain = do
     let f n = concat . toSamples . Audio.gain n . fromSamples
@@ -154,7 +155,7 @@ test_linear_chunk_size = do
 
 _test_linear_big = do
     let f wanted = toSamples @44100 @1 . Audio.take (Audio.Seconds wanted)
-            . Audio.synchronizeToSize Audio.chunkSize
+            . Audio.synchronizeToSize 0 Audio.chunkSize
             . Audio.linear
     let chunks = f 0.55
             [ (0, 0), (0, 1), (0.25, 1), (0.25, 0), (0.5, 0)

@@ -543,7 +543,9 @@ pshow val = s `DeepSeq.deepseq` s
 tmp_dir :: String -> IO FilePath
 tmp_dir prefix = do
     Directory.createDirectoryIfMissing True tmp_base_dir
-    Temp.mkdtemp $ tmp_base_dir </> prefix ++ "-"
+    dir <- Temp.mkdtemp $ tmp_base_dir </> prefix ++ "-"
+    putStrLn $ "** tmp dir: " ++ dir
+    return dir
 
 -- | Run the computation with cwd in a new tmp dir.
 in_tmp_dir :: String -> IO a -> IO a

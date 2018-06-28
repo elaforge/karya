@@ -139,6 +139,7 @@ startSample now quality chunkSize mbState note =
                     , _state = state
                     , _notifyState = IORef.writeIORef stateRef . Just
                     , _chunkSize = chunkSize
+                    , _now = now
                     }
             audio <- case mbState of
                 Just state -> do

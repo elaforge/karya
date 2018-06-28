@@ -44,6 +44,9 @@ data Config = Config {
     , _state :: Maybe SavedState
     , _notifyState :: SavedState -> IO ()
     , _chunkSize :: Audio.Frame
+    -- | This affects the first chunk size.  This is so that chunk boundaries
+    -- fall on multiples of chunkSize.
+    , _now :: Audio.Frame
     }
 
 -- | Resample the audio by the given curve.  This doesn't actually change the
@@ -61,7 +64,9 @@ resampleBy2 config ratio audio = Audio.Audio $ do
         Just saved -> SampleRateC.putState state saved
     -- I have to collect chunks until I fill up the output chunk size.  The key
     -- thing is to not let the resample state get ahead of the chunk boundary.
-    Audio.loop1 (0, Audio._stream audio, [], _chunkSize config) $
+    let align = if m == 0 then _chunkSize config else m
+            where m = _now config `mod` _chunkSize config
+    Audio.loop1 (0, Audio._stream audio, [], align) $
         \loop (now, audio, collect, chunkLeft) ->
             resampleChunk chan rate state now chunkLeft ratio audio >>= \case
                 Nothing -> lift $ Resource.release key

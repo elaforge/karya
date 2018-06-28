@@ -60,8 +60,7 @@ readFrom (Audio.Seconds secs) fname =
     readFrom (Audio.Frames (Audio.secondsToFrame rate secs)) fname
     where rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
 readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
-    (key, handle) <- lift $
-        Resource.allocate (openRead fname) Sndfile.hClose
+    (key, handle) <- lift $ Resource.allocate (openRead fname) Sndfile.hClose
     whenJust (checkInfo rate channels (Sndfile.hInfo handle)) throw
     when (frame > 0) $
         liftIO $ void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame

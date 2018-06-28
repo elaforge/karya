@@ -1901,9 +1901,18 @@ synth: im:
             keep the original list, but it seems more complicated.
           . Or, I could just put Hash in the Note as a lazy field, on
             deserialize.  This is seeming simpler now.
+        * I think resample output won't have the right chunks, because they
+          should be globally aligned, not relative to the sample start.
+          . I have to adjust the size of the first chunk, so I have to keep
+            a global absolute frame and use that.
+          . I still need to merge silence + start of sample.  I guess the
+            checkpoint machinery can merge too-small chunks, and complain if
+            they don't add up to chunkSize.
         - implement Render.pull
-      - Sample should stream the envelope.
+      - If the sampler is cheaper overall, maybe I should use larger chunk
+        size?  Of course, my current faust instruments are really cheap too.
       - Test restart from checkpoint like with faust.
+      - Sample should stream the envelope.
     - if libsamplerate could handle the pitch curve directly, I wouldn't have
       to resample in Convert.makeSample, and it could be per-sample.
       . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to

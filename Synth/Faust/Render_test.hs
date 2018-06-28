@@ -35,7 +35,6 @@ import Types
 
 test_write_incremental = do
     dir <- Testing.tmp_dir "write"
-    putStrLn $ "** tmp dir: " ++ dir
     patch <- getPatch
     let write = Render.write_ config dir patch
     -- no notes produces no output
@@ -90,6 +89,26 @@ test_write_incremental = do
     -- immediately, due to start >= end.
     wavs <- listWavs (dir </> Checkpoint.cacheDir)
     equal_on length wavs 4
+
+test_write_incremental_offset = do
+    -- faust always starts rendering at 0, even if the first note doesn't.
+    -- So this works trivially.  But later I'll want to skip empty time, so
+    -- I want to keep the test.
+    dir <- Testing.tmp_dir "write"
+    patch <- getPatch
+    let write = Render.write_ config dir patch
+    let dur = AUtil.toSeconds (Render._chunkSize config)
+    let notes = drop 1 $ mkNotes (dur/2) [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
+
+    -- Should be be 2.5 checkpoints.
+    io_equal (write notes) (Right (3, 3))
+    wavs <- listWavs dir
+    equal_on length wavs 3
+
+    samples <- readSamples dir
+    pprint samples
+    equal (take 4 samples) (replicate 4 0)
+    -- TODO also test checkpoints are lined up right
 
 -- TODO test volume and dyn
 
