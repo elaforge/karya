@@ -46,7 +46,8 @@ module Util.Audio.Audio (
     , dbToLinear, linearToDb
     -- * util
     , loop1
-    , takeFramesGE
+    , takeFramesGE, splitAt
+    , next
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif
@@ -585,3 +586,9 @@ splitAt frames (Audio audio)
             (pre, post) = V.splitAt (framesCount chan frames) chunk
     where
     chan = Proxy :: Proxy chan
+
+next :: Monad m => Audio m rate chan
+    -> m (Maybe (V.Vector Sample, Audio m rate chan))
+next (Audio audio) = S.next audio >>= \case
+    Left () -> return Nothing
+    Right (chunk, audio) -> return $ Just (chunk, Audio audio)

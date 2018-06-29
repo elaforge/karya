@@ -127,7 +127,7 @@ writeControls output patch notes =
     forM_ controls $ \control -> Resource.runResourceT $
         Audio.File.write AUtil.outputFormat (fname control) $
         Audio.take (Audio.Seconds final) $
-        fromMaybe Audio.silence
+        fromMaybe Audio.silence1
         (Render.renderControl chunkSize notes 0 control :: Maybe AUtil.Audio1)
     where
     chunkSize = Render._chunkSize Render.defaultConfig

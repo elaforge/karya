@@ -95,7 +95,7 @@ render chunkSize quality states notifyState notes now = Audio.Audio $ do
     renderChunk playing startingNotes = do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) startingNotes
-        (chunks, playing) <- pull (playing ++ starting)
+        (chunks, playing) <- lift $ pull (playing ++ starting)
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
         Audio.assert (all ((==chunkSize) . AUtil.chunkFrames2) chunks) $
@@ -105,10 +105,13 @@ render chunkSize quality states notifyState notes now = Audio.Audio $ do
         S.yield $ Audio.zipWithN (+) chunks
         return $ playing ++ starting
 
-pull :: [Playing] -> m ([V.Vector Audio.Sample], [Playing])
-pull = undefined
--- takeFrames :: forall m rate chan. (Monad m, KnownNat chan)
---     => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
+-- | Get one chunk from each Playing, and remove Playings which no longer are.
+pull :: [Playing] -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
+pull = fmap unzip . mapMaybeM get
+    where
+    get playing = Audio.next (_audio playing) >>= return . \case
+        Nothing -> Nothing
+        Just (chunk, audio) -> Just (chunk, playing { _audio = audio })
 
 resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -> [Resample.SavedState] -> [Note.Note] -> IO [Playing]

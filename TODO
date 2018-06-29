@@ -1908,11 +1908,11 @@ synth: im:
           . I still need to merge silence + start of sample.  I guess the
             checkpoint machinery can merge too-small chunks, and complain if
             they don't add up to chunkSize.
-        - implement Render.pull
-      - If the sampler is cheaper overall, maybe I should use larger chunk
-        size?  Of course, my current faust instruments are really cheap too.
+        * implement Render.pull
       - Test restart from checkpoint like with faust.
       - Sample should stream the envelope.
+      - If the sampler is cheaper overall, maybe I should use larger chunk
+        size?  Of course, my current faust instruments are really cheap too.
     - if libsamplerate could handle the pitch curve directly, I wouldn't have
       to resample in Convert.makeSample, and it could be per-sample.
       . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
