@@ -98,9 +98,12 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
     , make9 (su2 (k.__.o.o.k.__.o.o.k))
     -- TODO then 1 2 3 variations
 
-    , make3 (su (k.o.o.k.o.o.k))
-    , make3 (su (o.n. su (kt.o.k) . on . su (kt.o.k)))
-    , make3 (su (k.__.t.__.k.n.o))
+    , make3 (k.o.o.k.o.o.k)
+    , make123 (k . repeat 3 (o.o.k))
+
+    , make3 (o.n. su (kt.o.k) . on . su (kt.o.k))
+    , make123 (o.n. su (kt.o.k) . repeat 2 (on . su (kt.o.k)))
+    , make3 (k.__.t.__.k.n.o)
     ]
     where
     make p =
@@ -121,10 +124,22 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
         shim s = s . su2 __4
         od3 = su od . su2 __
 
-    -- TODO this should also have a 123 variant
     make3 p = nadai 6 $
-          s3 (on.od.od) . shim on . p . s3 (od.od.on)
-        . s3 (on.d.d) . shim n . tri_ od p
+          s3 (on.od.od) . shim on . su p . s3 (od.od.on)
+        . s3 (on.d.d) . shim n . tri_ od (su p)
         where
         s3 = spread 3
-        shim s = s . __ . su __
+        shim s = s.__.su __
+
+    -- 123 variant for tisram
+    make123 p123 = nadai 6 $
+          s3 (on.od.od) . shim on . su (takeM 7 p123) . s3 (od.od.on)
+        . s3 (on.d.d) . shim n . expand
+        where
+        s3 = spread 3
+        shim s = s.__.su __
+        expand = join od
+            [ takeM 2 (su p123)
+            , takeM 3.5 (su p123)
+            , su p123
+            ]
