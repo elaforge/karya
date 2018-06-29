@@ -135,20 +135,25 @@ write format fname audio = do
 -- | Write files in chunks to the given directory.  Run actions before
 -- and after writing each chunk.  It's expected to query and save audio
 -- generator state.
-writeCheckpoints :: (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
+writeCheckpoints :: forall rate chan state.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frame
     -> (state -> IO FilePath) -- ^ get filename for this state
     -> (FilePath -> IO ()) -- ^ write state after the computation
     -> Sndfile.Format -> [state]
     -- ^ Some render-specific state for each checkpoint.  Shouldn't run out
     -- before the audio runs out.
-    -> Audio.AudioIO rate channels -> Resource.ResourceT IO ()
+    -> Audio.AudioIO rate chan -> Resource.ResourceT IO ()
 writeCheckpoints size getFilename writeState format = go
     where
     go (state : states) audio = do
         fname <- liftIO $ getFilename state
         (chunks, audio) <- Audio.takeFramesGE size audio
         unless (null chunks) $ do
+            let count = Audio.framesCount chan size
+            Audio.assert (sum (map V.length chunks) == count) $
+                "expected size " <> pretty count <> " but got "
+                <> pretty (map V.length chunks)
             liftIO $ do
                 Exception.bracket (openWrite format fname audio)
                     Sndfile.hClose (\handle -> mapM_ (write handle) chunks)
@@ -156,6 +161,7 @@ writeCheckpoints size getFilename writeState format = go
             go states audio
     go [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
     write handle = Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer
+    chan = Proxy @chan
 
 openWrite :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
