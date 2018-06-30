@@ -84,7 +84,7 @@ render chunkSize quality states notifyState notes now = Audio.Audio $ do
     playing <- liftIO $ resumeSamples now quality chunkSize states playingNotes
     playing <- renderChunk playing startingNotes
     Audio.loop1 (now + chunkSize, playing, futureNotes) $
-        \loop (now, playing, notes) -> do
+        \loop (now, playing, notes) -> unless (null playing && null notes) $ do
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             Audio.assert (null playingNotes) $
@@ -102,12 +102,13 @@ render chunkSize quality states notifyState notes now = Audio.Audio $ do
             "/= " <> showt chunkSize <> ": "
             <> showt (map AUtil.chunkFrames2 chunks)
         -- Mix concurrent samples and emit them.
-        S.yield $ Audio.zipWithN (+) chunks
+        unless (null chunks) $
+            S.yield $ Audio.zipWithN (+) chunks
         return $ playing ++ starting
 
 -- | Get one chunk from each Playing, and remove Playings which no longer are.
 pull :: [Playing] -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
-pull = fmap unzip . mapMaybeM get
+pull = fmap (first (filter (not . V.null)) . unzip) . mapMaybeM get
     where
     get playing = Audio.next (_audio playing) >>= return . \case
         Nothing -> Nothing
@@ -116,7 +117,7 @@ pull = fmap unzip . mapMaybeM get
 resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -> [Resample.SavedState] -> [Note.Note] -> IO [Playing]
 resumeSamples now quality chunkSize states notes = do
-    Audio.assert (length states /= length notes) $
+    Audio.assert (length states == length notes) $
         "states /= notes: " <> showt (length states) <> " /= "
             <> showt (length notes)
     mapM (uncurry (startSample now quality chunkSize . Just))
@@ -172,7 +173,7 @@ overlappingNotes :: RealTime -> Audio.Frame -> [Note.Note]
     -- ^ (overlappingStart, overlappingRange, afterEnd)
 overlappingNotes start chunkSize notes = (overlapping, starting, rest)
     where
-    (starting, overlapping) = List.partition ((>start) . Note.start) here
+    (starting, overlapping) = List.partition ((>=start) . Note.start) here
     (here, rest) = span ((<end) . Note.start) $
         dropWhile ((<=start) . Note.end) notes
     end = start + AUtil.toSeconds chunkSize
@@ -188,6 +189,9 @@ overlappingNotes start chunkSize notes = (overlapping, starting, rest)
 instance Serialize.Serialize Resample.SavedState where
     put (Resample.SavedState a b) = Serialize.put a >> Serialize.put b
     get = Resample.SavedState <$> Serialize.get <*> Serialize.get
+
+instance Pretty Resample.SavedState where
+    pretty = pretty . serializeStates . (:[]) . Just
 
 -- | These will be sorted in order of Note hash.
 unserializeStates :: Checkpoint.State -> Either Error [Resample.SavedState]
