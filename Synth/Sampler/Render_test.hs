@@ -42,13 +42,25 @@ test_write_incremental_noop = do
     io_equal (write dir [mkNote "no-such-patch" 0 dur NN.c4]) (Right (0, 0))
     io_equal (listWavs dir) []
 
-test_write_incremental = do
+test_write_incremental_simple = do
     dir <- Testing.tmp_dir "write"
     samples <- writeDb dir
-    -- A single note that spans two checkpoints.
-    io_equal (write dir [mkNote "patch" 0 dur NN.c4]) (Right (2, 2))
+    -- A single note that spans two checkpoints.  Dur is determined by the
+    -- sample length.
+    io_equal (write dir [mkNote "patch" 0 0 NN.c4]) (Right (2, 2))
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) samples
+
+test_overlappingNotes = do
+    let f = (\(a, b, c) -> (map extract a, map extract b, map extract c))
+            . Render.overlappingNotes 0 1
+            . map (\(s, d) -> mkNote "patch" s d NN.c4)
+        extract n = (Note.start n, Note.duration n)
+    equal (f []) ([], [], [])
+    equal (f [(0, 0)]) ([], [(0, 0)], [])
+    equal (f [(-1, 1), (-0.5, 1), (0, 1), (1, 1)])
+        ([(-0.5, 1)], [(0, 1)], [(1, 1)])
+
 
 write :: FilePath -> [Note.Note] -> IO (Either Text (Int, Int))
 write dir = Render.write_ (mkDb dir) chunkSize Resample.Linear dir

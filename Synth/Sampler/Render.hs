@@ -180,23 +180,17 @@ startSample db now quality chunkSize mbState note =
                 , _audio = audio
                 }
 
+-- | This is similar to 'Note.splitOverlapping', but it differentiates notes
+-- that overlap the starting time.
 overlappingNotes :: RealTime -> Audio.Frame -> [Note.Note]
     -> ([Note.Note], [Note.Note], [Note.Note])
     -- ^ (overlappingStart, overlappingRange, afterEnd)
 overlappingNotes start chunkSize notes = (overlapping, starting, rest)
     where
     (starting, overlapping) = List.partition ((>=start) . Note.start) here
-    (here, rest) = span ((<end) . Note.start) $
-        dropWhile ((<=start) . Note.end) notes
+    (here, rest) = span ((<end) . Note.start) $ dropWhile passed notes
+    passed n = Note.end n <= start && Note.start n < start
     end = start + AUtil.toSeconds chunkSize
-
--- splitOverlapping :: RealTime -> RealTime -> [(a, Note.Note)]
---     -> ([(a, Note.Note)], [(a, Note.Note)])
--- splitOverlapping start end notes = (overlapping, overlapping ++ rest)
---     where
---     overlapping = filter (not . (<=start) . Note.end . snd) here
---     (here, rest) = span ((<end) . Note.start . snd) $
---         dropWhile ((<=start) . Note.end . snd) notes
 
 instance Serialize.Serialize Resample.SavedState where
     put (Resample.SavedState a b) = Serialize.put a >> Serialize.put b
