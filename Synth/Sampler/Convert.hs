@@ -13,7 +13,6 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -23,16 +22,18 @@ import Global
 
 
 -- TODO use dur for an envelope
-noteToSample :: Note.Note -> Either Text Sample.Sample
-noteToSample note = do
+noteToSample :: Patch.Db -> Note.Note -> Either Text Sample.Sample
+noteToSample db note = do
     let patch = Note.patch note
     -- TODO I think the sampler doesn't care about individual instruments?
-    inst <- justErr ("patch not found: " <> patch) $ Map.lookup patch PatchDb.db
+    inst <- justErr ("patch not found: " <> patch) $
+        Map.lookup patch (Patch._patches db)
     let msg = "sample not found for " <> showt (patch, Note.attributes note)
             <> " with pitch " <> showt (Note.initialPitch note)
     (samplePath, instSample) <- justErr msg $
         lookupSample inst (Note.attributes note) (Note.initialPitch note)
-    return $ makeSample (Patch.sampleDirectory inst </> samplePath)
+    return $ makeSample
+        (Patch._rootDir db </> Patch.sampleDirectory inst </> samplePath)
         instSample note
 
 makeSample :: Sample.SamplePath -> Patch.Sample -> Note.Note -> Sample.Sample

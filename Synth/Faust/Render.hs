@@ -49,9 +49,9 @@ write_ config outputDir patch notes = do
     let start = case hashes of
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
             _ -> 0
-    let total = length allHashes
+    let skipped = length allHashes - length hashes
     if null hashes
-        then return (Right (0, total))
+        then return (Right (0, length allHashes))
         else do
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.writeCheckpoints chunkSize
@@ -59,7 +59,7 @@ write_ config outputDir patch notes = do
                     (Checkpoint.writeState outputDir stateRef)
                     AUtil.outputFormat (Checkpoint.extendHashes hashes) $
                 renderPatch patch config mbState notifyState notes start
-            return $ second (\() -> (length hashes, total)) result
+            return $ second (\written -> (written, written + skipped)) result
     where
     chunkSize = _chunkSize config
 

@@ -9,11 +9,11 @@ import qualified Data.List as List
 import qualified Data.Vector.Storable as V
 
 import qualified Streaming.Prelude as S
-import System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -21,6 +21,8 @@ import qualified Util.Serialize as Serialize
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Convert as Convert
+import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
@@ -33,21 +35,22 @@ type Error = Text
 
 write :: Resample.Quality -> FilePath -> [Note.Note]
     -> IO (Either Error (Int, Int))
-write = write_ (Audio.Frame Config.checkpointSize)
+write = write_ PatchDb.db (Audio.Frame Config.checkpointSize)
 
-write_ :: Audio.Frame -> Resample.Quality -> FilePath -> [Note.Note]
+write_ :: Patch.Db -> Audio.Frame -> Resample.Quality -> FilePath -> [Note.Note]
     -> IO (Either Error (Int, Int))
-write_ chunkSize quality outputDir notes = do
+write_ db chunkSize quality outputDir notes = do
     let allHashes = Checkpoint.noteHashes chunkSize notes
     (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
+    Debug.tracepM "hashes, state" (hashes, mbState)
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
     let notifyState = IORef.writeIORef stateRef
     let start = case hashes of
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
             _ -> 0
-    let total = length allHashes
+    let skipped = length allHashes - length hashes
     case maybe (Right []) unserializeStates mbState of
-        _ | null hashes -> return $ Right (0, total)
+        _ | null hashes -> return $ Right (0, length allHashes)
         Left err -> return $ Left err
         Right states -> do
             result <- AUtil.catchSndfile $ Resource.runResourceT $
@@ -55,10 +58,10 @@ write_ chunkSize quality outputDir notes = do
                     (Checkpoint.getFilename outputDir stateRef)
                     (Checkpoint.writeState outputDir stateRef)
                     AUtil.outputFormat (Checkpoint.extendHashes hashes) $
-                render chunkSize quality states notifyState
+                render db chunkSize quality states notifyState
                     (dropUntil (\_ n -> Note.end n > start) notes)
                     (AUtil.toFrame start)
-            return $ second (\() -> (length hashes, total)) result
+            return $ second (\written -> (written, written + skipped)) result
 
 -- | A currently playing sample.
 data Playing = Playing {
@@ -67,6 +70,9 @@ data Playing = Playing {
     , _audio :: Audio
     }
 
+instance Pretty Playing where
+    pretty = pretty . _noteHash
+
 failedPlaying :: Note.Note -> Playing
 failedPlaying note = Playing
     { _noteHash = Note.hash note
@@ -74,27 +80,33 @@ failedPlaying note = Playing
     , _audio = mempty
     }
 
-render :: Audio.Frame -> Resample.Quality -> [Resample.SavedState]
+render :: Patch.Db -> Audio.Frame -> Resample.Quality -> [Resample.SavedState]
     -> (Checkpoint.State -> IO ()) -> [Note.Note] -> Audio.Frame -> Audio
-render chunkSize quality states notifyState notes now = Audio.Audio $ do
+render db chunkSize quality states notifyState notes now = Audio.Audio $ do
     -- The first chunk is different because I have to resume alreading playing
     -- samples.
     let (playingNotes, startingNotes, futureNotes) =
             overlappingNotes (AUtil.toSeconds now) chunkSize notes
-    playing <- liftIO $ resumeSamples now quality chunkSize states playingNotes
+    Debug.tracepM "now, states" (now, states)
+    Debug.tracepM "playing, starting" (playingNotes, startingNotes)
+    playing <- liftIO $
+        resumeSamples db now quality chunkSize states playingNotes
     playing <- renderChunk playing startingNotes
+    Debug.tracepM "renderChunk playing" playing
     Audio.loop1 (now + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             Audio.assert (null playingNotes) $
                 "playingNotes: " <> pretty playingNotes
+            Debug.tracepM "starting" startingNotes
             playing <- renderChunk playing startingNotes
             loop (now + chunkSize, playing, futureNotes)
     where
     renderChunk playing startingNotes = do
         starting <- liftIO $
-            mapM (startSample now quality chunkSize Nothing) startingNotes
+            mapM (startSample db now quality chunkSize Nothing) startingNotes
+        Debug.tracepM "playing, starting" (playing, starting)
         (chunks, playing) <- lift $ pull (playing ++ starting)
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
@@ -104,7 +116,7 @@ render chunkSize quality states notifyState notes now = Audio.Audio $ do
         -- Mix concurrent samples and emit them.
         unless (null chunks) $
             S.yield $ Audio.zipWithN (+) chunks
-        return $ playing ++ starting
+        return playing
 
 -- | Get one chunk from each Playing, and remove Playings which no longer are.
 pull :: [Playing] -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
@@ -114,13 +126,13 @@ pull = fmap (first (filter (not . V.null)) . unzip) . mapMaybeM get
         Nothing -> Nothing
         Just (chunk, audio) -> Just (chunk, playing { _audio = audio })
 
-resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
+resumeSamples :: Patch.Db -> Audio.Frame -> Resample.Quality -> Audio.Frame
     -> [Resample.SavedState] -> [Note.Note] -> IO [Playing]
-resumeSamples now quality chunkSize states notes = do
+resumeSamples db now quality chunkSize states notes = do
     Audio.assert (length states == length notes) $
         "states /= notes: " <> showt (length states) <> " /= "
             <> showt (length notes)
-    mapM (uncurry (startSample now quality chunkSize . Just))
+    mapM (uncurry (startSample db now quality chunkSize . Just))
         (zip states (Seq.sort_on Note.hash notes))
 
 -- | Convert Note to Sample
@@ -129,13 +141,13 @@ resumeSamples now quality chunkSize states notes = do
 -- TODO what if Sample.start is different from Note.start?  I think that spoils
 -- my resume logic, so I should ensure they are the same, which maybe means
 -- remove Sample.start.
-startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
+startSample :: Patch.Db -> Audio.Frame -> Resample.Quality -> Audio.Frame
     -> Maybe Resample.SavedState
     -- ^ If given, resume a playing sample which should have started in the
     -- <= now, otherwise start a new one which should start >= now.
     -> Note.Note -> IO Playing
-startSample now quality chunkSize mbState note =
-    case Convert.noteToSample note of
+startSample db now quality chunkSize mbState note =
+    case Convert.noteToSample db note of
         Left err -> Log.warn err >> return (failedPlaying note)
         Right sample -> do
             stateRef <- IORef.newIORef Nothing

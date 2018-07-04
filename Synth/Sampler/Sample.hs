@@ -5,8 +5,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- | The 'Sample' type and support.
 module Synth.Sampler.Sample where
-import System.FilePath ((</>))
-
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
@@ -15,11 +13,9 @@ import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
-import Synth.Lib.Global
-import qualified Synth.Sampler.Config as Config
 import qualified Synth.Shared.Signal as Signal
-
 import Global
+import Synth.Lib.Global
 
 
 -- | Path to a sample, relative to the instrument db root.
@@ -44,8 +40,7 @@ render :: Resample.Config -> Audio.Frame -> Sample -> Audio
 render config startOffset (Sample start filename offset envelope ratio) =
     resample2 config ratio startOffset start $
     applyEnvelope start envelope $
-    Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset))
-        (Config.instrumentDbDir </> filename)
+    Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset)) filename
 
 resample2 :: Resample.Config -> Signal.Signal -> Audio.Frame -> RealTime
     -> Audio -> Audio
@@ -77,8 +72,7 @@ realize :: Resample.Quality -> Sample -> (RealTime, Audio)
 realize quality (Sample start filename offset envelope ratio) = (start,) $
     resample quality ratio start $
     applyEnvelope start envelope $
-    Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset))
-        (Config.instrumentDbDir </> filename)
+    Audio.File.readFrom (Audio.Seconds (RealTime.to_seconds offset)) filename
 
 resample :: Resample.Quality -> Signal.Signal -> RealTime -> Audio -> Audio
 resample quality ratio start audio

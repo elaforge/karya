@@ -143,13 +143,13 @@ writeCheckpoints :: forall rate chan state.
     -> Sndfile.Format -> [state]
     -- ^ Some render-specific state for each checkpoint.  Shouldn't run out
     -- before the audio runs out.
-    -> Audio.AudioIO rate chan -> Resource.ResourceT IO ()
-writeCheckpoints size getFilename writeState format = go
+    -> Audio.AudioIO rate chan -> Resource.ResourceT IO Int
+writeCheckpoints size getFilename writeState format = go 0
     where
-    go (state : states) audio = do
+    go !written (state : states) audio = do
         fname <- liftIO $ getFilename state
         (chunks, audio) <- Audio.takeFramesGE size audio
-        unless (null chunks) $ do
+        if null chunks then return written else do
             let count = Audio.framesCount chan size
             Audio.assert (sum (map V.length chunks) == count) $
                 "expected size " <> pretty count <> " but got "
@@ -158,8 +158,8 @@ writeCheckpoints size getFilename writeState format = go
                 Exception.bracket (openWrite format fname audio)
                     Sndfile.hClose (\handle -> mapM_ (write handle) chunks)
                 writeState fname
-            go states audio
-    go [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
+            go (written+1) states audio
+    go _ [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
     write handle = Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer
     chan = Proxy @chan
 

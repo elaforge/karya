@@ -2,9 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Synth.Sampler.Patch (
-    module Synth.Sampler.Patch
-) where
+module Synth.Sampler.Patch where
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -13,13 +11,20 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Attrs as Attrs
-import qualified Perform.Im.Patch as Patch
-import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Perform.Im.Patch as Patch
+import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
 import Global
 
+
+data Db = Db {
+    _patches :: !(Map Note.PatchName Patch)
+    -- | The Patch's 'sampleDirectory' is relative to this.
+    , _rootDir :: !FilePath
+    } deriving (Show)
 
 data Patch = Patch {
     -- | Sample file names are relative to this.
@@ -48,7 +53,7 @@ instance Pretty Patch where
         , ("samples", Pretty.format samples)
         ]
 
--- | Sample in an Patch.
+-- | Sample in a Patch.
 data Sample = Sample {
     pitch :: !(Maybe Pitch.NoteNumber)
     -- | Select Samples whose attribute match the Note's attribute.

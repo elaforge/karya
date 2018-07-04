@@ -11,18 +11,18 @@ import qualified Derive.Attrs as Attrs
 import qualified Instrument.Inst as Inst
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Shared.Config as Config
-import qualified Synth.Shared.Note as Note
 
 
-type Db = Map.Map Note.PatchName Patch.Patch
-
-db :: Db
-db = Map.fromList
-    [ ("test",) $ Patch.patch "test"
-        [ ("cek.wav", attrs cek Patch.sample)
-        , ("open.wav", attrs open $ Patch.pitchedSample 60)
+db :: Patch.Db
+db = Patch.Db
+    { _patches = Map.fromList
+        [ ("test",) $ Patch.patch "test"
+            [ ("cek.wav", attrs cek Patch.sample)
+            , ("open.wav", attrs open $ Patch.pitchedSample 60)
+            ]
         ]
-    ]
+    , _rootDir = "Synth/Sampler/instruments"
+    }
 
 cek, open :: Attrs.Attributes
 cek = Attrs.attr "cek"
@@ -34,4 +34,6 @@ attrs attrs sample = sample { Patch.attributes = attrs }
 -- | Declaration for "Local.Instrument".
 synth :: Inst.SynthDecl Cmd.InstrumentCode
 synth = Inst.SynthDecl Config.samplerName "音 sampler"
-    [(name, Patch.makeInst patch) | (name, patch) <- Map.toList db]
+    [ (name, Patch.makeInst patch)
+    | (name, patch) <- Map.toList (Patch._patches db)
+    ]

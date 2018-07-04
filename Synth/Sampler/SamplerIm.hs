@@ -21,6 +21,7 @@ import qualified Util.Seq as Seq
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Convert as Convert
+import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
@@ -48,7 +49,8 @@ process :: Resample.Quality -> FilePath -> [Note.Note] -> IO ()
 process quality notesFilename notes = do
     let byInstrument = Seq.keyed_group_sort Note.instrument notes
     Async.forConcurrently_ byInstrument $ \(instrument, notes) -> do
-        samples <- either errorIO return $ mapM Convert.noteToSample notes
+        samples <- either errorIO return $
+            mapM (Convert.noteToSample PatchDb.db) notes
         realizeSamples quality notesFilename instrument samples
 
 realizeSamples :: Resample.Quality -> FilePath -> Note.InstrumentName
