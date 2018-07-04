@@ -31,9 +31,8 @@ import Global
 import Types
 
 
-test_write_incremental_noop = do
+test_write_noop = do
     dir <- Testing.tmp_dir "write"
-
     -- no notes produces no output
     io_equal (write dir []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.cacheDir)) []
@@ -42,7 +41,7 @@ test_write_incremental_noop = do
     io_equal (write dir [mkNote "no-such-patch" 0 dur NN.c4]) (Right (0, 0))
     io_equal (listWavs dir) []
 
-test_write_incremental_simple = do
+test_write_simple = do
     dir <- Testing.tmp_dir "write"
     samples <- writeDb dir
     -- A single note that spans two checkpoints.  Dur is determined by the
@@ -50,6 +49,35 @@ test_write_incremental_simple = do
     io_equal (write dir [mkNote "patch" 0 0 NN.c4]) (Right (2, 2))
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) samples
+
+test_write_simple_offset = do
+    dir <- Testing.tmp_dir "write"
+    samples <- writeDb dir
+    io_equal (write dir [mkNote "patch" dur 0 NN.c4]) (Right (3, 3))
+    io_equal (readSamples dir) (replicate 8 0 ++ samples)
+
+test_write_freq = do
+    dir <- Testing.tmp_dir "write"
+    writeDb dir
+    -- Freq*2 is half as many samples.
+    io_equal (write dir [mkNote "patch" 0 0 NN.c5]) (Right (1, 1))
+    io_equal (length <$> listWavs dir) 1
+    io_equal (readSamples dir) [0, 1, 3, 3, 1, 1, 3, 3]
+    -- [0, 1, 2, 3, 4, 3, 2, 1, 0, 1, 2, 3, 4, 3, 2, 1]
+
+-- test_write_incremental = do
+--     dir <- Testing.tmp_dir "write"
+--     writeDb dir
+--     -- +   +   +   +   +
+--     -- c4----->
+--     --     d4----->
+--     let oldNotes = [mkNote "patch" 0 0 NN.c4, mkNote "patch" dur 0 NN.d4]
+--     let newNotes = [mkNote "patch" 0 0 NN.c4, mkNote "patch" dur 0 NN.e4]
+--     io_equal (write dir oldNotes) (Right (3, 3))
+--     io_equal (write dir newNotes) (Right (2, 3))
+--
+--     -- TODO Resume after changing a later note, results same as rerender from
+--     -- scratch.
 
 test_overlappingNotes = do
     let f = (\(a, b, c) -> (map extract a, map extract b, map extract c))
@@ -78,7 +106,7 @@ mkDb :: FilePath -> Patch.Db
 mkDb dir = Patch.Db
     { _patches = Map.fromList
         [ ("patch", Patch.patch "."
-            [("sine.wav", Patch.pitchedSample NN.c4)])
+            [("tri.wav", Patch.pitchedSample NN.c4)])
         ]
     , _rootDir = dir </> patchDir
     }
@@ -88,13 +116,15 @@ writeDb dir = do
     let patch = dir </> patchDir
     Directory.createDirectoryIfMissing True patch
     Resource.runResourceT $
-        File.write AUtil.outputFormat (patch </> "sine.wav") sine
-    toSamples sine
+        File.write AUtil.outputFormat (patch </> "tri.wav") audio
+    toSamples audio
     where
-    c4 = realToFrac $ Pitch.nn_to_hz NN.c4
-    sine :: AUtil.Audio
-    sine = Audio.take (Audio.Frames (chunkSize * 2)) $
-        Audio.expandChannels (Audio.sine c4) :: AUtil.Audio
+    audio :: AUtil.Audio
+    audio = Audio.expandChannels $ Audio.fromSampleLists
+        [take (fromIntegral chunkSize * 2) (cycle triangle)]
+
+triangle :: [Audio.Sample]
+triangle = [0, 1, 2, 3, 4, 3, 2, 1]
 
 
 -- * TODO copy paste with Faust.Render_test
@@ -115,4 +145,4 @@ readSamples dir = toSamples . File.concat . map (dir</>) =<< listWavs dir
 
 toSamples :: AUtil.Audio -> IO [Audio.Sample]
 toSamples = fmap (concatMap Vector.toList) . Resource.runResourceT
-    . Audio.toSamples
+    . Audio.toSamples . Audio.extractChannel 0

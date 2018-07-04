@@ -22,7 +22,7 @@ module Util.Audio.Audio (
     , Count, Channels, Rate, Seconds
     , framesCount, countFrames, chunkFrames
     -- * construct
-    , fromSamples, toSamples
+    , fromSamples, fromSampleLists, toSamples
     -- * transform
     , take, mapSamples, gain, multiply
     -- * mix
@@ -162,6 +162,10 @@ fromSamples = Audio . S.each . map check
             <> " not a multiple of channels " <> show chan
     chan = natVal (Proxy @chan)
 
+fromSampleLists :: forall m rate chan. (Monad m, KnownNat chan)
+    => [[Sample]] -> Audio m rate chan
+fromSampleLists = fromSamples . map V.fromList
+
 toSamples :: Monad m => Audio m rate channels -> m [V.Vector Sample]
 toSamples = S.toList_ . _stream
 
@@ -295,6 +299,16 @@ mergeChannels audio1 audio2 =
     chan1 = Proxy @chan1
     chan2 = Proxy @chan2
 
+-- | Extract a single channel.  It will crash unless 0 <= idx < chan.
+--
+-- I don't have a splitChannels because it amounts to an unzip, and requires
+-- using the stream return value, which Audio doesn't do.  And I don't need
+-- splitChannels.
+extractChannel :: forall m rate chan. (Monad m, KnownNat chan)
+    => Channels -> Audio m rate chan -> Audio m rate 1
+extractChannel idx = Audio . S.map ((!!idx) . deinterleaveV chan) . _stream
+    where chan = natVal (Proxy @chan)
+
 -- | Take a single channel signal to multiple channels by copying samples.
 --
 -- This could be generalized to expand n to m where m is divisible by n, but
@@ -310,7 +324,7 @@ mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
 mixChannels (Audio audio) = Audio $ S.map mix audio
     where
     mix = zipWithN (+) . deinterleaveV chan
-    chan = natVal (Proxy :: Proxy chan)
+    chan = natVal (Proxy @chan)
 
 expandV :: Channels -> V.Vector Sample -> V.Vector Sample
 expandV chan chunk = V.generate (V.length chunk * chan) $

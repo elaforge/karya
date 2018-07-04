@@ -20,9 +20,13 @@ import qualified Synth.Shared.Control as Control
 import Global
 
 
-type Audio = Audio.AudioIO Config.SamplingRate 2
+type Audio = Audio.AudioIO Config.SamplingRate Channels
 type Audio1 = Audio.AudioIO Config.SamplingRate 1
 type NAudio = Audio.NAudioIO Config.SamplingRate
+
+-- | Synth output is pretty tied to 2 channels, but I may as well at least
+-- document the things that depend on that.
+type Channels = 2
 
 toFrame :: RealTime.RealTime -> Audio.Frame
 toFrame = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds

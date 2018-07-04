@@ -1917,6 +1917,11 @@ synth: im:
       to resample in Convert.makeSample, and it could be per-sample.
       . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
         have it take nn to nn breakpoints, and do that calculation internally.
+    - support envelope
+      . Currently the note is always as long as the whole sample.  I should
+        respect note duration by stopping on end.
+      . But this depends on per-patch envelope, so I need to be able to
+        configure it.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and

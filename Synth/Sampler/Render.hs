@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE TypeApplications, DataKinds #-}
 module Synth.Sampler.Render where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
@@ -82,41 +83,49 @@ failedPlaying note = Playing
 
 render :: Patch.Db -> Audio.Frame -> Resample.Quality -> [Resample.SavedState]
     -> (Checkpoint.State -> IO ()) -> [Note.Note] -> Audio.Frame -> Audio
-render db chunkSize quality states notifyState notes now = Audio.Audio $ do
+render db chunkSize quality states notifyState notes start = Audio.Audio $ do
     -- The first chunk is different because I have to resume alreading playing
     -- samples.
     let (playingNotes, startingNotes, futureNotes) =
-            overlappingNotes (AUtil.toSeconds now) chunkSize notes
-    Debug.tracepM "now, states" (now, states)
+            overlappingNotes (AUtil.toSeconds start) chunkSize notes
+    Debug.tracepM "start, states" (start, states)
     Debug.tracepM "playing, starting" (playingNotes, startingNotes)
     playing <- liftIO $
-        resumeSamples db now quality chunkSize states playingNotes
-    playing <- renderChunk playing startingNotes
+        resumeSamples db start quality chunkSize states playingNotes
+    playing <- renderChunk start playing startingNotes (null futureNotes)
     Debug.tracepM "renderChunk playing" playing
-    Audio.loop1 (now + chunkSize, playing, futureNotes) $
+    Audio.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             Audio.assert (null playingNotes) $
                 "playingNotes: " <> pretty playingNotes
-            Debug.tracepM "starting" startingNotes
-            playing <- renderChunk playing startingNotes
+            Debug.tracepM "playing, starting" (now, playingNotes, startingNotes)
+            playing <- renderChunk now playing startingNotes (null futureNotes)
+            Debug.tracepM "playing, future" (now, playing, futureNotes)
             loop (now + chunkSize, playing, futureNotes)
     where
-    renderChunk playing startingNotes = do
+    renderChunk now playing startingNotes noFuture = do
         starting <- liftIO $
             mapM (startSample db now quality chunkSize Nothing) startingNotes
-        Debug.tracepM "playing, starting" (playing, starting)
+        -- Debug.tracepM "playing, starting" (playing, starting)
         (chunks, playing) <- lift $ pull (playing ++ starting)
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
         Audio.assert (all ((==chunkSize) . AUtil.chunkFrames2) chunks) $
             "/= " <> showt chunkSize <> ": "
             <> showt (map AUtil.chunkFrames2 chunks)
-        -- Mix concurrent samples and emit them.
-        unless (null chunks) $
-            S.yield $ Audio.zipWithN (+) chunks
+        -- If there's no output and no chance to be any more output, don't
+        -- emit anything.
+        unless (null chunks && null playing && noFuture) $
+            S.yield $ if null chunks
+                then silentChunk
+                else Audio.zipWithN (+) chunks
         return playing
+    silentChunk -- try to reuse existing memory
+        | V.length Audio.silentChunk <= size = V.take size Audio.silentChunk
+        | otherwise = V.replicate size 0
+        where size = Audio.framesCount (Proxy @AUtil.Channels) chunkSize
 
 -- | Get one chunk from each Playing, and remove Playings which no longer are.
 pull :: [Playing] -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
@@ -171,7 +180,7 @@ startSample db now quality chunkSize mbState note =
                     Audio.assert (0 <= silence && silence < chunkSize) $
                         "note should have started between " <> showt now
                         <> "--" <> showt (now + chunkSize) <> " but started at "
-                        <> showt (Note.start note)
+                        <> pretty (AUtil.toFrame (Note.start note))
                     return $ Audio.take (Audio.Frames silence) Audio.silence2
                         <> Sample.render (config Nothing) 0 sample
             return $ Playing
