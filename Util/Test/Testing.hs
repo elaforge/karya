@@ -115,7 +115,7 @@ check msg True = success msg
 check_val :: Show a => Stack => a -> (a -> Bool) -> IO Bool
 check_val val f
     | f val = success $ "ok: " <> pshowt val
-    | otherwise = failure $ "failed:" <> pshowt val
+    | otherwise = failure $ "failed: " <> pshowt val
 
 -- * metadata
 
