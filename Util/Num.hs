@@ -9,6 +9,7 @@
 module Util.Num where
 import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
+import Data.Bifunctor (second)
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Text (Text)
@@ -71,6 +72,29 @@ showFloat precision = drop0 . showFloat0 (Just precision)
         | Just rest <- Text.stripPrefix "-0." t = "-." <> rest
         | Just rest <- Text.stripPrefix "0." t = Text.cons '.' rest
         | otherwise = t
+
+-- | Fancy decimal float formatting.  Show up to the given precision, like
+-- 'showFloat', unless it would be all 0s.  In that case, show the minimum
+-- necessary to get to a non-zero.
+showFloatP :: RealFloat a => Bool -> Int -> a -> Text
+showFloatP leadingZero precision num
+    | numS == "0" = "0"
+    | Text.all (=='0') inPrecision =
+        prependInt $ takeWhile1 (=='0') (strip0 frac)
+    | otherwise = prependInt $ strip0 inPrecision
+    where
+    numS = showFloat0 Nothing num
+    (int, frac) = second (Text.drop 1) $ Text.break (=='.') numS
+    intS = (if leadingZero then id else drop0) int <> "."
+    inPrecision = Text.take precision frac
+    takeWhile1 f t = Text.take (1 + Text.length (Text.takeWhile f t)) t
+    prependInt = Text.dropWhileEnd (=='.') . (intS<>)
+
+    drop0 t
+        | "-0" `Text.isPrefixOf` t = "-"
+        | "0" `Text.isPrefixOf` t = ""
+        | otherwise = t
+    strip0 = Text.dropWhileEnd (=='0')
 
 -- | Like 'showFloat', but use a leading 0, so haskell can parse it.
 showFloat0 :: RealFloat a => Maybe Int -> a -> Text

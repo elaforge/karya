@@ -102,8 +102,8 @@ instance Pretty Word.Word8 where pretty = showt
 instance Pretty Word.Word16 where pretty = showt
 instance Pretty Word.Word32 where pretty = showt
 instance Pretty Word.Word64 where pretty = showt
-instance Pretty Double where pretty = Num.showFloat 3
-instance Pretty Float where pretty = Num.showFloat 3
+instance Pretty Double where pretty = Num.showFloatP False 3
+instance Pretty Float where pretty = Num.showFloatP False 3
 
 instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
     pretty r

@@ -107,7 +107,7 @@ instance ShowVal.ShowVal RealTime where
     show_val = (`Text.snoc` suffix) . Num.showFloat 3 . to_seconds
 
 instance Pretty RealTime where
-    pretty t = Num.showFloat 2 (to_seconds t) <> Text.singleton suffix
+    pretty t = Num.showFloatP False 2 (to_seconds t) <> Text.singleton suffix
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)
