@@ -128,6 +128,10 @@ instance Semigroup Hash where
 instance Monoid Hash where
     mempty = Hash 0
     mappend = (<>)
+    -- Otherwise, the extra <>0 means that mconcat [x] /= x.  It's not wrong,
+    -- but it's less confusing when mconcat [x] == x.
+    mconcat (x:xs) = foldl' (<>) x xs
+    mconcat [] = mempty
 
 instance CRC32.CRC32 Note where
     crc32Update n (Note name inst element start dur controls attrs _hash) =

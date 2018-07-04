@@ -195,6 +195,7 @@ splitOverlapping :: RealTime -> RealTime -> [(a, Note.Note)]
     -> ([(a, Note.Note)], [(a, Note.Note)])
 splitOverlapping start end notes = (overlapping, overlapping ++ rest)
     where
-    overlapping = filter (not . (<=start) . Note.end . snd) here
+    overlapping = filter (not . passed . snd) here
     (here, rest) = span ((<end) . Note.start . snd) $
-        dropWhile ((<=start) . Note.end . snd) notes
+        dropWhile (passed . snd) notes
+    passed n = Note.end n <= start && Note.start n < start

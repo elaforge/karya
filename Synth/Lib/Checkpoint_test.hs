@@ -13,17 +13,19 @@ import Synth.Lib.Global
 -- 'Synth.Faust.Render_test'.
 
 test_hashOverlapping = do
-    let f start size = map (\(Note.Hash h) -> h)
-            . Checkpoint.hashOverlapping start size . map note
+    let f start size = Checkpoint.hashOverlapping start size . map note
     equal (f 0 1 []) []
+    -- 0 dur notes are also counted.
+    equal (f 0 1 [(0, 0)]) [Note.hash (note (0, 0))]
+
     check_val (f 0 1 [(1, 2)]) $ \case
-        [0, x1, x2] -> x1 == x2
+        [Note.Hash 0, x1, x2] -> x1 == x2
         _ -> False
     check_val (f 0 2 [(1, 2)]) $ \case
-        [x1, x2] -> x1 /= 0 && x1 == x2
+        [x1, x2] -> x1 /= Note.Hash 0 && x1 == x2
         _ -> False
     check_val (f 0 1 [(0, 3), (1, 1)]) $ \case
-        [x1, y1, x2] -> y1 /= 0 && x1 == x2
+        [x1, y1, x2] -> y1 /= Note.Hash 0 && x1 == x2
         _ -> False
 
 test_groupOverlapping = do
@@ -31,8 +33,15 @@ test_groupOverlapping = do
             . Checkpoint.groupOverlapping start size
             . map ((),) . map note
     equal (f 0 1 []) []
-    equal (f 0 1 [(1, 2)]) [[], [(1, 2)], [(1, 2)]]
 
+    -- 0 dur notes also included.
+    equal (f 0 1 [(0, 0)]) [[(0, 0)]]
+    equal (f 0 1 [(0, 0), (1, 0)]) [[(0, 0)], [(1, 0)]]
+    equal (f 0 1 [(0, 0), (0.5, 0), (1, 0)]) [[(0, 0), (0.5, 0)], [(1, 0)]]
+    equal (f 0 1 [(0, 0), (0.5, 1), (1, 0)])
+        [[(0, 0), (0.5, 1)], [(0.5, 1), (1, 0)]]
+
+    equal (f 0 1 [(1, 2)]) [[], [(1, 2)], [(1, 2)]]
     equal (f 0 2 [(1, 2)]) [[(1, 2)], [(1, 2)]]
     equal (f 1 2 [(1, 2)]) [[(1, 2)]]
     equal (f 0 1 [(0, 3), (1, 1)]) [[(0, 3)], [(0, 3), (1, 1)], [(0, 3)]]
