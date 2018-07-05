@@ -36,12 +36,13 @@ tdgnt = ta.din.gin.na.thom
 td_gnt = ta.din.__.gin.na.thom
 t_d_gnt = ta.__.din.__.gin.na.thom
 
-takadinna, takita, kita, taka, diku, tari, dugu :: Sequence
+takadinna, takita, kita, taka, tiku, diku, tari, dugu :: Sequence
 takadinna = ta.ka.din.na
 takita = ta.ki.ta
 kita = ki.ta
 taka = ta.ka
 naka = na.ka
+tiku = ti.ku
 diku = di.ku
 tari = ta.ri
 dugu = du.gu
@@ -53,8 +54,9 @@ tarikita = tari.kita
 talang :: Sequence
 talang = ta.lang
 
-dinga, tanga, langa :: Sequence
+dinga, dingu, tanga, langa :: Sequence
 dinga = din.__.ga
+dingu = din.__.gu
 tanga = tang.__.ga
 langa = lang.__.ga
 

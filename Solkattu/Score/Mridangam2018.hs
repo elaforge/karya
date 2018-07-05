@@ -143,3 +143,12 @@ e_18_06_22 = exercise $ date 2018 6 22 $ korvai adi $ variations
             , takeM 3.5 (su p123)
             , su p123
             ]
+
+c_18_07_02_sarva :: Korvai
+c_18_07_02_sarva = sudhindra $ korvai Tala.misra_chapu $ variations
+    [ sd $ sarva & (o .__.o.o.o.__4.o.__.o.o.o.__)
+         . sarva & (__.__.o.o.o.__4.o.__.o.o.o.__)
+         . sarva & (o.__n 14)
+         . sarva
+    ]
+    where sarva = n.k.n.n.d.__4.n.k.n.n.d.__

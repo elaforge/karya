@@ -5,9 +5,9 @@
 -- | Just the sollus, so "Solkattu.MridagamDsl" doesn't have to import
 -- them along with "Solkattu.Dsl".
 module Solkattu.DslSollu (
-    dheem, dhom, di, din, dit, du, ga, gin, gu, ka, ki, ku, mi, na, nam, nang
-    , ri, ta, tam, tat, tha, thom, ti, kum
-    , tang, lang
+    dheem, dhom, di, din, dim, dit, du, ga, gin, gu, ka, ki, ku, mi, na, nam
+    , nang, ri, ta, tam, tat, tha, thom, ti, kum
+    , tang, tong, lang
 ) where
 import qualified Solkattu.Sequence as Sequence
 import qualified Solkattu.Solkattu as Solkattu
@@ -27,6 +27,7 @@ dheem = sollu Dheem
 dhom = sollu Dhom
 di = sollu Di
 din = sollu Din
+dim = sollu Dim
 dit = sollu Dit
 du = sollu Du
 ga = sollu Ga
@@ -49,6 +50,7 @@ thom = sollu Thom
 ti = sollu Ti
 
 tang = sollu Tang
+tong = sollu Tong
 lang = sollu Lang
 
 __ :: Sequence

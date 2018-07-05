@@ -3776,6 +3776,8 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
+      - show some tags after sections, e.g. x2 and type
+        . If I carry rulerEach, then I can put the section numbers there too
       - carry rulerEach across sections
       - I could make sections more compact by prefixing with "n: "
         . I should also be able to mark sam, to make avartanams more clear
@@ -3794,12 +3796,6 @@ solkattu:
       be rendered to HTML or ASCII.
       . I added notationHtml, which is more error-prone, but simpler.
   - What if I just renamed Sequence to S?
-  - automatic sarvalaghu variation
-    . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
-      and the order is also mix and match.  There should be some way to
-      generate sarvalaghu variations, where I can use these to either come up
-      with material, or restrict the pattern to 323 or something but allow the
-      specific patterns to vary automatically.
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
       strokes, and korvai fields.  Separate entry for name and tags.
@@ -3875,6 +3871,12 @@ solkattu:
       . But it's easier if I get rid of multiple sequences per Korvai.
       . Or keep multiple sequences but take [Index].
   sarvalaghu:
+    - automatic sarvalaghu variation
+      . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
+        and the order is also mix and match.  There should be some way to
+        generate sarvalaghu variations, where I can use these to either come up
+        with material, or restrict the pattern to 323 or something but allow the
+        specific patterns to vary automatically.
     . Fill it in based on position in the tala.
     . Sometimes there's a final note, e.g. D that replaces the first 1.5
       aksharas.  I don't have a way to notate it.  Maybe a sequence
@@ -3936,12 +3938,15 @@ solkattu:
       . I think I need "kre" support.
       . The other thing is tette infer.
     - Copy the stuff from Derive.C.India.PakhawajScore.
-  reyong realization:
-    - some way to select between melodic and rythmic realization, and
-      transposition for melodic
-      . This could be the same as the emphasis mechanism, if I extend
-        it to attach Attributes.
-      . Or if I have alternate StrokeMaps by name, then I can use that.
+  instruments:
+    konnakol:
+      - alternate ways to say nakatikutarikita, e.g. dikutari kitataka
+    reyong:
+      - some way to select between melodic and rythmic realization, and
+        transposition for melodic
+        . This could be the same as the emphasis mechanism, if I extend
+          it to attach Attributes.
+        . Or if I have alternate StrokeMaps by name, then I can use that.
   - Emphasis or automatic variant versions of patterns, e.g.
     . kt_kno -> ki_kno.  k_t_kno -> i_i_kno, i _ i _ ktkto _,
       pu_ pu_ ktkto

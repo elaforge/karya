@@ -8,6 +8,7 @@ module Solkattu.SectionGlobal (
     -- * tags
     , scomment, sdate
     , devel, ending, var, local
+    , times, x2
     , variations
 ) where
 import qualified Util.CallStack as CallStack
@@ -55,6 +56,13 @@ var = withType Tags.variation
 -- transcription.
 local :: Section sollu -> Section sollu
 local = withTag "local" ""
+
+-- | Performance instruction to repeat this section.
+times :: Int -> Section sollu -> Section sollu
+times n = withTag "times" (showt n)
+
+x2 :: Section sollu -> Section sollu
+x2 = times 2
 
 withType :: Text -> Section sollu -> Section sollu
 withType = withTag Tags.type_

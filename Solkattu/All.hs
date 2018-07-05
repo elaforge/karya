@@ -48,6 +48,7 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Mridangam2018",49,"e_18_05_25") Solkattu.Score.Mridangam2018.e_18_05_25
     , setLocation ("Solkattu.Score.Mridangam2018",60,"tir_18_06_15") Solkattu.Score.Mridangam2018.tir_18_06_15
     , setLocation ("Solkattu.Score.Mridangam2018",92,"e_18_06_22") Solkattu.Score.Mridangam2018.e_18_06_22
+    , setLocation ("Solkattu.Score.Mridangam2018",147,"c_18_07_02_sarva") Solkattu.Score.Mridangam2018.c_18_07_02_sarva
     , setLocation ("Solkattu.Score.MridangamSarva",18,"kir1") Solkattu.Score.MridangamSarva.kir1
     , setLocation ("Solkattu.Score.MridangamSarva",23,"kir2") Solkattu.Score.MridangamSarva.kir2
     , setLocation ("Solkattu.Score.MridangamSarva",43,"kir3") Solkattu.Score.MridangamSarva.kir3
@@ -129,6 +130,10 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2018",252,"c_18_03_28") Solkattu.Score.Solkattu2018.c_18_03_28
     , setLocation ("Solkattu.Score.Solkattu2018",296,"c_18_04_25") Solkattu.Score.Solkattu2018.c_18_04_25
     , setLocation ("Solkattu.Score.Solkattu2018",325,"c_18_05_25") Solkattu.Score.Solkattu2018.c_18_05_25
+    , setLocation ("Solkattu.Score.Solkattu2018",375,"misra_to_mohra1") Solkattu.Score.Solkattu2018.misra_to_mohra1
+    , setLocation ("Solkattu.Score.Solkattu2018",409,"misra_to_mohra2") Solkattu.Score.Solkattu2018.misra_to_mohra2
+    , setLocation ("Solkattu.Score.Solkattu2018",450,"misra_to_mohra3") Solkattu.Score.Solkattu2018.misra_to_mohra3
+    , setLocation ("Solkattu.Score.Solkattu2018",467,"misra_to_mohra4") Solkattu.Score.Solkattu2018.misra_to_mohra4
     , setLocation ("Solkattu.Score.SolkattuMohra",33,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",50,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",68,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube

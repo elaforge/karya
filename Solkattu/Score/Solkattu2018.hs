@@ -290,7 +290,7 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
 
         , (tari.kita, [p, k, n, p])
         , (kita.kita, [k, t, k, t])
-        , (p10, [k, t, p, k, p, k, n, k, n, o])
+        , (p10, [k, t, p, k, p, k, t, k, n, o])
         ]
 
 c_18_04_25 :: Korvai
@@ -375,3 +375,136 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
         , (din, [o])
         , (1^din, [od])
         ]
+
+-- * HS Sudhindra
+
+-- abhipriyam (telugu) -> thoughts
+misra_to_mohra1 :: Korvai
+misra_to_mohra1 = date 2018 7 2 $ sudhindra $
+    korvai Tala.misra_chapu mridangam $ map ending
+    [ repeat 3 tA . repeat 2 (dropD 5 tA) . repeat 2 (dropD 7 tA)
+        . repeat 2 (dropD 9 tA)
+    , tB.takadinna.din.__6.tat.__4
+        . tB . repeat 2 takadinna.din.__6 . tat.__4.dit.__4
+        . tB . trin (tam.__n 16)
+            (tri_ (din.__6) (tri takadinna))
+            (tri_ (din.__6) (repeat 2 takadinna))
+            (tri_ (din.__6) takadinna)
+    ]
+    where
+    tA = group $ tA0.dikutarikitataka.tA1
+    tA0 = tat.__.dit.__.tarikita.kitataka
+    tA1 = tat.__.tat.__.tarikita.gu.gu.takita.tong.__.ka.din.__.tat.__
+        .din.__4
+
+    tB = group $ tB0.dikutarikitataka
+    tB0 = tarikita.kitataka
+    mridangam = makeMridangam
+        [ (tA0, [p&k, p&t, k, t, k, n, p, k, t, k])
+        , (tA1, [k, k, p, k, t, k, o, o, k, p, k, od, k, od, k, od])
+
+        , (tB0, [k, t, k, n, p, k, t, k])
+        , (takadinna, [n, o, o, k])
+        , (repeat 3 takadinna, [k, o, o, k, t, o, o, k, t, o, o, k])
+        , (din, [od])
+        , (tat, [p&u])
+        , (tat.dit, [p&u, p&u])
+        , (tam, [od])
+        , (mid^tam, [i])
+        ]
+
+misra_to_mohra2 :: Korvai
+misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
+    [ section $ sarvaD 14
+    , x2 $ section $ sarvaD (7+4) . tri (talang.__.gu)
+    , x2 $ section $ sarvaD (7+4) . tri takadinna
+    , x2 $ section $ sarvaD (7+4) . tri (gu.gu.na.na)
+    , section $ repeat 2 $ sarvaD 4 . tri dinnakitataka
+    , section $ repeat 2 $ sarvaD 4 . repeat 2 (taka.dinnakitataka)
+    , x2 $ section $ sarvaD 4 . repeat 2 (taka.dinnakitataka)
+      . repeat 4 (taka.dinnakitataka) . dinnakitataka
+    , section $ sarvaD 4 . repeat 2 (taka.dinnakitataka)
+      . repeat 3 (repeat 2 (taka.dinnakitataka) . repeat 4 dinnakitataka)
+    , section $ tri_ (din.__4) (repeat 4 dinnakitataka)
+    , section $ sarvaD 14 -- sarva2
+    , x2 $ section $
+        sarvaD 7 . sarvaD 3 . tarikita.kitataka.dikutarikitataka
+        . sarvaD 3 . repeat 4 (ta.dingu)
+    , x2 $ section $ sarvaD 3 . tarikita.kitataka.dikutarikitataka
+    , section $ tri_ (tam.__4) (tarikita.kitataka.dikutarikitataka)
+    ]
+    where
+    -- Mridangam2018.c_18_07_02_sarva
+    sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
+    sarva2 = sd $ taka.ta.ta.din.__.ta.ta.din.__.ta.ta.din.__
+    dinnakitataka = din.na . su (kita.taka)
+    mridangam = makeMridangam
+        [ (sarva, [on, k, on, on, od, on, k, on, on, od])
+        , (talang.gu, [p, u, k])
+        , (takadinna, [p, n, k, k])
+        , (gu.gu.na.na, [o, o, n, n])
+        , (dinnakitataka, dinna)
+        , (taka.dinnakitataka, [o, k] ++ dinna)
+        , (din, [od])
+
+        -- TODO guess realization
+        , (tarikita.kitataka, [k, t, k, n, o, k, t, k])
+        , (ta.dingu, [p, u, k]) -- TODO guess realization
+        , (tam, [od])
+        ]
+        where dinna = [o, n, k, t, o, k]
+
+misra_to_mohra3 :: Korvai
+misra_to_mohra3 = date 2018 7 2 $ sudhindra $
+    korvai Tala.misra_chapu mridangam $ map ending
+    [ reduceTo 4 2 theme . tri theme2'
+    ]
+    where
+    theme = tat.__.dit.__.takadinna.din.__.tat.__.din.__4
+    -- theme2 = ta.__.di.__.ki.__.ta.__.tarikita.thom.__
+    theme2' = ta.__.di.__.ki.__.ta.__.ta.tarikita.thom
+    mridangam = makeMridangam
+        [ (theme, [k, t, k, o, o, k, od, k, od])
+        -- TODO should be applied in the reduction
+        , (din.na.din.tat.din, [p, k, od, k, od])
+        -- , (theme2, [k, t, k, n, k, t, k, n, o])
+        , (theme2', [k, t, k, n, p, k, t, k, n, o])
+        ]
+
+misra_to_mohra4 :: Korvai
+misra_to_mohra4 = date 2018 7 2 $ sudhindra $
+    korvai Tala.misra_chapu mridangam
+    [ section $ restD 3 . tat.__.tat.__.kitataka.dikutarikitataka
+        . tri_ (thom.__4) (repeat 2 dikutarikitataka)
+    , x2 $ section $ repeat 4 (din_gu_ . tarikitataka) . dim.__4 . tat.__4
+    , x2 $ section $ din_gu_ . tri_ (dim.__4) tarikitataka . din_gu_
+        . taka.dikutarikitataka . dim.__4 . tat.__4
+    , x2 $ section $ repeat 2 (prefixes [dim, thom] (__.taka.dikutarikitataka))
+        . dikutarikitataka
+    , section $ repeat 7 $ gu.gu.na.na.tarikita.dikutarikitataka
+    , x2 $ section $ repeat 4 (gu.gu.na.na) . tarikita.dikutarikitataka
+    , x2 $ section $ repeat 2 (gu.gu.na.nang.__.gu) . gu.gu.na.na
+        . tarikita.dikutarikitataka
+    , x2 $ section $ repeat 2 (gu.gu.na.na.taka) . gu.gu.na.na
+        . tarikita.dikutarikitataka
+    , section $ repeat 3 (gu.gu.na.na . tarikita.dikutarikitataka)
+        . tri_ (dim.__8) (gu.gu.na.na . tarikita.dikutarikitataka)
+    ]
+    where
+    din_gu_ = din.__4.gu.__
+    tarikitataka = group $ tarikita.taka
+    mridangam = makeMridangam
+        [ (tat, [k])
+        , (kitataka, [k, t, p, k])
+        , (din.gu, [od, o])
+        , (taka, [p, k])
+        , (dim, [od])
+        , (thom, [od])
+
+        , (tarikita, [p, k, t, k])
+        , (gu.gu.na.na, [o, o, n, n])
+        , (gu.gu.na.nang.gu, [o, o, n, n, k])
+        ]
+
+dikutarikitataka :: SequenceT sollu
+dikutarikitataka = nakatiku
