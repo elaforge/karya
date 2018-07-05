@@ -3418,6 +3418,8 @@ ghc-bugs:
     https://ghc.haskell.org/trac/ghc/ticket/14963
 
 test: testing:
+  * does RunTests.extractFailures drop lines after the failure?
+    Then I can't see multi-line fails.
   * Process.conversation is not reliable:
     . __-> Util/Process_test.hs:47 [test_conversation_stderr]
       Exit 1

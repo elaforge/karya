@@ -321,24 +321,45 @@ readFileEmpty :: FilePath -> IO Text.Lazy.Text
 readFileEmpty = fmap (fromMaybe "") . File.ignoreEnoent . Text.Lazy.IO.readFile
 
 extractStats :: Text.Lazy.Text -> ([Text], Int, Int, Int)
+    -- ^ (failureContext, failures, checks, tests)
 extractStats = collect . drop 1 . Seq.split_before isTest . Text.Lazy.lines
     where
     collect tests = (failures, length failures, length extracted, length tests)
         where
         failures = Maybe.catMaybes extracted
-        extracted = concatMap extractFailures tests
+        extracted = concatMap (extractFailures . drop 1) tests
     isTest = ((Text.Lazy.fromStrict (metaPrefix <> " run-test"))
         `Text.Lazy.isPrefixOf`)
 
--- | Collect lines before each failure for context.
+-- | Collect lines before and after each failure for context.
+--
+-- I collect before because that's where debugging info about that test is
+-- likely to show up, and I collect after because the failure output may
+-- have multiple lines.
+--
+-- It can be confusing that I can get the failure lines of the previous test as
+-- context for the current one.  To fix that I'd have to explicitly mark all
+-- lines of the failure, or put some ending marker afterwards.  It's not hard
+-- but maybe not worth it.
 extractFailures :: [Text.Lazy.Text] -> [Maybe Text]
-extractFailures =
-    mapMaybe fmt . Seq.split_after (\x -> isFailure x || isSuccess x)
+    -- ^ Just context for a failure, Nothing for a success.
+extractFailures = map convert . toChunks
     where
-    fmt lines
-        | maybe False isFailure (Seq.last lines) =
-            Just $ Just $ Text.Lazy.toStrict (Text.Lazy.unlines lines)
-        | maybe False isSuccess (Seq.last lines) = Just Nothing
+    convert (pre, test, post)
+        | isFailure test = Just $ Text.Lazy.toStrict $ Text.Lazy.unlines $
+            pre ++ [test] ++ post
         | otherwise = Nothing
+    toChunks [] = []
+    toChunks lines
+        | test == "" = []
+        | otherwise = (pre, test, post) : toChunks rest2
+        where
+        (pre, rest1) = break isTest lines
+        (test, rest2) = case rest1 of
+            x : xs -> (x, xs)
+            [] -> ("", [])
+        post = takeWhile (not . isTest) rest2
+
+    isTest s = isFailure s || isSuccess s
     isFailure = ("__-> " `Text.Lazy.isPrefixOf`)
     isSuccess = ("++-> " `Text.Lazy.isPrefixOf`)
