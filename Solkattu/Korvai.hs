@@ -8,16 +8,13 @@
 module Solkattu.Korvai where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.Expr as Expr
-import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Konnakol as Konnakol
 import qualified Solkattu.Instrument.Mridangam as Mridangam
@@ -423,44 +420,3 @@ instance Pretty StrokeMaps where
             , ("reyong", Pretty.format reyong)
             , ("sargam", Pretty.format sargam)
             ]
-
-
--- * print score
-
--- | Show the ruler on multiples of this line as a reminder.  The ruler is
--- always shown if it changes.  It should be a multiple of 2 to avoid
--- getting the second half of a talam in case it's split in half.
-rulerEach :: Int
-rulerEach = 4
-
-printInstrument :: Solkattu.Notation stroke => Instrument stroke -> Bool
-    -> Korvai -> IO ()
-printInstrument instrument realizePatterns korvai =
-    printResults Nothing korvai $ realize instrument realizePatterns korvai
-
-printKonnakol :: Bool -> Korvai -> IO ()
-printKonnakol realizePatterns korvai =
-    printResults (Just 4) korvai $ realize konnakol realizePatterns korvai
-
-printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai
-    -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]
-    -> IO ()
-printResults overrideStrokeWidth korvai = printList . map show1
-    where
-    show1 (Left err) = "ERROR:\n" <> err
-    show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
-        (Format.format rulerEach overrideStrokeWidth width tala notes)
-        warning
-    tala = korvaiTala korvai
-
-width :: Int
-width = 78
-
-printList :: [Text] -> IO ()
-printList [] = return ()
-printList [x] = Text.IO.putStrLn x
-printList xs = mapM_ print1 (zip [1..] xs)
-    where
-    print1 (i, x) = do
-        putStrLn $ "---- " <> show i
-        Text.IO.putStrLn x

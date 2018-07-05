@@ -3,16 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
--- | Convert realized 'S.Flat' output to text or HTML for display.
+-- | Convert realized 'S.Flat' output to text for the terminal.
+--
+-- TODO this should probably be called Terminal, but then what should I call
+-- the existing Terminal module?
 module Solkattu.Format.Format (
-    -- * text
-    format
-    -- * html
-    , formatHtml, htmlPage
-    , Font(..)
+    printInstrument
+    , printKonnakol
 
-    -- * testing
-    , StartEnd(..), formatLines, Symbol(..), annotateGroups
+    -- * shared with Format.Html
+    , StartEnd(..)
+    , breakAvartanams, normalizeSpeed, inferRuler
+    , onAkshara, onAnga, angaSet
 
 #ifdef TESTING
     , module Solkattu.Format.Format
@@ -23,13 +25,14 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
-import qualified Util.Doc as Doc
 import qualified Util.MultiSet as MultiSet
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
 import qualified Solkattu.Format.Terminal as Terminal
+import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -37,6 +40,52 @@ import qualified Solkattu.Tala as Tala
 
 import Global
 
+
+-- * print score
+
+type Error = Text
+
+-- | Show the ruler on multiples of this line as a reminder.  The ruler is
+-- always shown if it changes.  It should be a multiple of 2 to avoid
+-- getting the second half of a talam in case it's split in half.
+rulerEach :: Int
+rulerEach = 4
+
+printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
+    -> Korvai.Korvai -> IO ()
+printInstrument instrument realizePatterns korvai =
+    printResults Nothing korvai $
+        Korvai.realize instrument realizePatterns korvai
+
+printKonnakol :: Bool -> Korvai.Korvai -> IO ()
+printKonnakol realizePatterns korvai =
+    printResults (Just 4) korvai $
+        Korvai.realize Korvai.konnakol realizePatterns korvai
+
+printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai.Korvai
+    -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]
+    -> IO ()
+printResults overrideStrokeWidth korvai = printList . map show1
+    where
+    show1 (Left err) = "ERROR:\n" <> err
+    show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
+        (format rulerEach overrideStrokeWidth width tala notes) warning
+    tala = Korvai.korvaiTala korvai
+
+width :: Int
+width = 78
+
+printList :: [Text] -> IO ()
+printList [] = return ()
+printList [x] = Text.IO.putStrLn x
+printList xs = mapM_ print1 (zip [1..] xs)
+    where
+    print1 (i, x) = do
+        putStrLn $ "---- " <> show i
+        Text.IO.putStrLn x
+
+
+-- * implementation
 
 type Line = [(S.State, Symbol)]
 type Ruler = [(Text, Int)]
@@ -329,141 +378,3 @@ textLength = sum . map len . untxt
     len c
         | Char.isMark c = 0
         | otherwise = 1
-
--- * format html
-
-htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
-htmlPage title meta body = mconcat
-    [ htmlHeader title
-    , meta
-    , body
-    , htmlFooter
-    ]
-
-htmlHeader :: Text -> Doc.Html
-htmlHeader title = TextUtil.join "\n"
-    [ "<html><head>"
-    , "<meta charset=utf-8>"
-    , "<title>" <> Doc.html title <> "</title></head>"
-    , "<body>"
-    , ""
-    , "<style type=\"text/css\">"
-    , tableCss
-    , "</style>"
-    , ""
-    ]
-
-htmlFooter :: Doc.Html
-htmlFooter = "</body></html>\n"
-
-tableCss :: Doc.Html
-tableCss =
-    "table.konnakol {\n\
-    \   table-layout: fixed;\n\
-    \   width: 100%;\n\
-    \}\n\
-    \table.konnakol th {\n\
-    \   text-align: left;\n\
-    \   border-bottom: 1px solid;\n\
-    \}\n\
-    \.onAnga { border-left: 3px double }\n\
-    \.onAkshara { border-left: 1px solid }\n\
-    \.inG { background-color: lightgray }\n\
-    \.startG { background:\
-        \ linear-gradient(to right, lightgreen, lightgray, lightgray) }\n\
-    \.endG { background:\
-        \ linear-gradient(to right, lightgray, lightgray, white) }"
-
-data Font = Font { _sizePercent :: Int, _monospace :: Bool } deriving (Show)
-
--- TODO move to Format.Html
-formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
-    -> [S.Flat g (Realize.Note stroke)] -> Doc.Html
-formatHtml tala font notes =
-    formatTable tala font (map Doc.html ruler) avartanams
-    where
-    ruler = maybe [] (concatMap akshara . inferRuler tala 1 . map fst)
-        (Seq.head avartanams)
-    akshara :: (Text, Int) -> [Text]
-    akshara (n, spaces) = n : replicate (spaces-1) ""
-    -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
-    -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
-    avartanams = breakAvartanams $
-        map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
-        normalizeSpeed tala notes
-
--- symbol :: Text -> Symbol
--- symbol text = Symbol text False []
-
-formatTable :: Solkattu.Notation stroke => Tala.Tala -> Font
-    -> [Doc.Html] -> [[(S.State, ([StartEnd], S.Stroke (Realize.Note stroke)))]]
-    -> Doc.Html
-formatTable tala font header rows = mconcatMap (<>"\n") $
-    [ "<p> <table style=\"" <> fontStyle
-        <> "\" class=konnakol cellpadding=0 cellspacing=0>"
-    , "<tr>" <> mconcatMap th header <> "</tr>\n"
-    ] ++ map row (snd $ mapAccumL2 addGroups 0 rows)
-    ++ ["</table>"]
-    where
-    fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
-        <> if _monospace font then "; font-family: Monaco, monospace" else ""
-    th col = Doc.tag_attrs "th" [] (Just col)
-    row cells = TextUtil.join ("\n" :: Doc.Html)
-        [ "<tr>"
-        , TextUtil.join "\n" $ map td (List.groupBy groupSustains cells)
-        , "</tr>"
-        , ""
-        ]
-    addGroups prevDepth (state, (startEnds, a)) =
-        (depth, (state,
-            ((depth, Start `elem` startEnds, End `elem` startEnds), a)))
-        where
-        depth = (prevDepth+) $ sum $ flip map startEnds $ \n -> case n of
-            Start -> 1
-            End -> -1
-    groupSustains (_, (_, note1)) (state2, (_, note2)) =
-        not (hasLine state2) && merge note1 note2
-        where
-        -- For Pattern, the first cell gets the p# notation, the rest get <hr>.
-        -- For Sarva, there's no notation, so they all get the <hr>.
-        merge (S.Attack (Realize.Space Solkattu.Sarva))
-            (S.Sustain (Realize.Space Solkattu.Sarva)) = True
-        merge (S.Sustain (Realize.Space Solkattu.Sarva))
-            (S.Sustain (Realize.Space Solkattu.Sarva)) = True
-        merge (S.Sustain (Realize.Pattern {})) (S.Sustain (Realize.Pattern {}))
-            = True
-        merge _ _ = False
-
-    td [] = "" -- not reached, List.groupBy shouldn't return empty groups
-    td ((state, ((depth :: Int, start, end), note)) : ns) =
-        Doc.tag_attrs "td" tags $ Just $ case note of
-            S.Attack (Realize.Space Solkattu.Sarva) -> sarva
-            S.Sustain (Realize.Space Solkattu.Sarva) -> sarva
-            S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
-            S.Sustain a -> notation a
-            S.Attack a -> notation a
-            S.Rest -> Doc.html "_"
-        where
-        notation = bold . Solkattu.notationHtml
-            where bold = if onAkshara state then Doc.tag "b" else id
-        sarva = "<hr style=\"border: 4px dotted\">"
-        tags = concat
-            [ [("class", Text.unwords classes) | not (null classes)]
-            , [("colspan", showt (length ns + 1)) | not (null ns)]
-            ]
-        classes = concat
-            [ if
-                | onAnga angas state -> ["onAnga"]
-                | onAkshara state -> ["onAkshara"]
-                | otherwise -> []
-            , if
-                | start -> ["startG"]
-                | end -> ["endG"]
-                | depth > 0 -> ["inG"]
-                | otherwise -> []
-            ]
-    hasLine = onAkshara
-    angas = angaSet tala
-
-mapAccumL2 :: (state -> a -> (state, b)) -> state -> [[a]] -> (state, [[b]])
-mapAccumL2 f = List.mapAccumL (List.mapAccumL f)

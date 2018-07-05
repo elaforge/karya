@@ -23,13 +23,14 @@ module Solkattu.Dsl (
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku
     -- * re-exports
-    , module Solkattu.Korvai
+    , module Solkattu.Format.Format
     , module Solkattu.Format.Html
+    , module Solkattu.Korvai
     , module Solkattu.MetadataGlobal
+    , module Solkattu.Notation
     , module Solkattu.SectionGlobal
     , module Solkattu.Sequence
     , module Solkattu.Solkattu
-    , module Solkattu.Notation
     , module Solkattu.Tala
     -- * mridangam
     , (&)
@@ -52,10 +53,12 @@ import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
+import qualified Solkattu.Format.Format as Format
+import Solkattu.Format.Format (printKonnakol)
 import Solkattu.Format.Html (writeHtmlKorvai)
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Korvai, printKonnakol, section, smap)
+import Solkattu.Korvai (Korvai, section, smap)
 import Solkattu.MetadataGlobal
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
@@ -169,16 +172,16 @@ realize = realizeM True
 realizep = realizeM False
 
 realizeM :: Bool -> Korvai.Korvai -> IO ()
-realizeM = Korvai.printInstrument Korvai.mridangam
+realizeM = Format.printInstrument Korvai.mridangam
 
 realizeK1 :: Bool -> Korvai.Korvai -> IO ()
-realizeK1 = Korvai.printInstrument Korvai.kendangTunggal
+realizeK1 = Format.printInstrument Korvai.kendangTunggal
 
 realizeR :: Bool -> Korvai.Korvai -> IO ()
-realizeR = Korvai.printInstrument Korvai.reyong
+realizeR = Format.printInstrument Korvai.reyong
 
 realizeSargam :: Bool -> Korvai.Korvai -> IO ()
-realizeSargam = Korvai.printInstrument Korvai.sargam
+realizeSargam = Format.printInstrument Korvai.sargam
 
 
 -- * talam
