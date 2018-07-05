@@ -49,9 +49,11 @@ resample2 config ratio startOffset start audio
     -- common, so worth optimizing.
     | Just val <- Signal.constant_val_from start ratio,
             ApproxEq.eq closeEnough val 1 =
-        -- resampleBy synchronizes, but File.readFrom doesn't.
+        Audio.assertIn (state == Nothing)
+            ("expected no state for un-resampled, got " <> showt state) $
         Audio.synchronizeToSize (Resample._now config)
             (Resample._chunkSize config) audio
+        -- resampleBy synchronizes, but File.readFrom doesn't.
     | otherwise = Resample.resampleBy2 config
         (Signal.shift (- (start + AUtil.toSeconds startOffset)) ratio)
         audio
@@ -59,6 +61,7 @@ resample2 config ratio startOffset start audio
         -- account for when the sample starts (start), and how far into the
         -- note (startOffset) I'm starting.
     where
+    state = Resample._state config
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000

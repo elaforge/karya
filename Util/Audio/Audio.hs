@@ -28,7 +28,7 @@ module Util.Audio.Audio (
     -- * mix
     , mix
     -- * channels
-    , mergeChannels
+    , mergeChannels, extractChannel
     , expandChannels, mixChannels
     , interleaveV, deinterleaveV
     -- ** non-interleaved
@@ -39,7 +39,7 @@ module Util.Audio.Audio (
     , silence1, silence2, sine
     , linear
     -- * error
-    , Exception(..), throw, assert
+    , Exception(..), throw, assert, assertIn
     -- * constants
     , chunkSize, silentChunk
     -- * conversions
@@ -529,6 +529,11 @@ throwIO = liftIO . Exception.throwIO . Exception
 assert :: (Stack.HasCallStack, Trans.MonadIO m) => Bool -> Text -> m ()
 assert True _ = return ()
 assert False msg = throwIO $ "assertion: " <> msg
+
+-- | Insert an assertion into the audio stream.
+assertIn :: (Stack.HasCallStack, Trans.MonadIO m) => Bool -> Text
+    -> Audio m rate chan -> Audio m rate chan
+assertIn check msg (Audio audio) = Audio (assert check msg *> audio)
 
 -- * constants
 

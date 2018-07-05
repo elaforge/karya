@@ -1913,6 +1913,39 @@ synth: im:
       - Sample should stream the envelope.
       - If the sampler is cheaper overall, maybe I should use larger chunk
         size?  Of course, my current faust instruments are really cheap too.
+      . It seems bad that sample duration and note duration could be totally
+        different.  E.g. a long note duration will emit lots of hash overlaps,
+        but the actual sample is not so long.  Or the hashes don't overlap,
+        but actually the sample rings.
+        . Don't I have this same problem with the decay on faust instruments?
+          How to test that?
+        . For instance, dropUntil is wrong, because the samples might be still
+          running.
+        . I think this isn't a problem for faust, because the ringing note is
+          captured in the state, but samples don't do that.
+
+        . I can get the duration of a sample pretty easily if the resample
+          ratio is constant, but if it's not then it's quite complicated,
+          something like an integral of the ratio curve.  At that point
+          I should just resample with ZOH and see how many samples.  That
+          requires effectively running each sample twice, even though the
+          resample is super cheap, I still have to stream the sample from
+          disk.
+        . But otherwise, I have to assume that any note could last forever,
+          and that means none of the note overlap stuff with hashes works.
+          So I think I really do have to figure out note length.
+        . I could put an upper bound on sample length by using note duration,
+          cutting it off if it goes beyond that.  I can build some knowledge
+          of sample duration into the patch, e.g. I can start with the normal
+          constant ratio.  Still, it will be awkward if any sample that bends
+          down is cut off.
+        . I do get to know the sample duration after I play it.  That means I
+          can still do overlapping notes, but I have to use the Audio stream,
+          not the Note duration.
+        - Ok, first try to pull the duration from the play.
+          . The first time play, I think I have to record the durations.
+          . Then I have to use those in skipCheckpoints.
+
     - if libsamplerate could handle the pitch curve directly, I wouldn't have
       to resample in Convert.makeSample, and it could be per-sample.
       . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to

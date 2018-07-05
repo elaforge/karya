@@ -65,19 +65,20 @@ test_write_freq = do
     io_equal (readSamples dir) [0, 1, 3, 3, 1, 1, 3, 3]
     -- [0, 1, 2, 3, 4, 3, 2, 1, 0, 1, 2, 3, 4, 3, 2, 1]
 
--- test_write_incremental = do
---     dir <- Testing.tmp_dir "write"
---     writeDb dir
---     -- +   +   +   +   +
---     -- c4----->
---     --     d4----->
---     let oldNotes = [mkNote "patch" 0 0 NN.c4, mkNote "patch" dur 0 NN.d4]
---     let newNotes = [mkNote "patch" 0 0 NN.c4, mkNote "patch" dur 0 NN.e4]
---     io_equal (write dir oldNotes) (Right (3, 3))
---     io_equal (write dir newNotes) (Right (2, 3))
---
---     -- TODO Resume after changing a later note, results same as rerender from
---     -- scratch.
+test_write_incremental = do
+    dir <- Testing.tmp_dir "write"
+    writeDb dir
+    -- 0   8   16  24  32
+    -- c4----->
+    --     c4----->
+    let oldNotes = [mkNote "patch" 0 0 NN.c4, mkNote "patch" dur 0 NN.c4]
+    -- The duration of 1 should have no effect, but change the hash.
+    let newNotes = [mkNote "patch" 0 0 NN.c4, mkNote "patch" dur (dur/2) NN.c4]
+    io_equal (write dir oldNotes) (Right (3, 3))
+    -- io_equal (write dir newNotes) (Right (2, 3))
+
+    -- TODO Resume after changing a later note, results same as rerender from
+    -- scratch.
 
 test_overlappingNotes = do
     let f = (\(a, b, c) -> (map extract a, map extract b, map extract c))
