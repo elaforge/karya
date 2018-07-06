@@ -59,7 +59,7 @@ local = withTag "local" ""
 
 -- | Performance instruction to repeat this section.
 times :: Int -> Section sollu -> Section sollu
-times n = withTag "times" (showt n)
+times n = withTag Tags.times (showt n)
 
 x2 :: Section sollu -> Section sollu
 x2 = times 2

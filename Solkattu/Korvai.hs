@@ -244,8 +244,7 @@ type Flat stroke =
 realize :: Solkattu.Notation stroke => Instrument stroke -> Bool -> Korvai
     -> [Either Error ([Flat stroke], Error)]
 realize instrument realizePatterns korvai = case korvaiSections korvai of
-    Sollu sections ->
-        map (realize1 (instFromSollu instrument smap)) sections
+    Sollu sections -> map (realize1 (instFromSollu instrument smap)) sections
     Mridangam sections -> case instFromMridangam instrument of
         Nothing -> [Left "no sequence, wrong instrument type"]
         Just realizeNote -> map (realize1 realizeNote) sections

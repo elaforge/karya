@@ -64,3 +64,6 @@ eddupu = "eddupu"
 
 date :: Text
 date = "date"
+
+times :: Text
+times = "times"

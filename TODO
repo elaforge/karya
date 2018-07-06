@@ -3776,8 +3776,14 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
-      - show some tags after sections, e.g. x2 and type
+      * show some tags after sections, e.g. x2 and type
         . If I carry rulerEach, then I can put the section numbers there too
+      - now group highlight is carrying into ruler lines
+        . Because I just emit start and end.  To resume I'd have to remember
+          when I'm in the middle of a group when breaking rulers.
+        . It would be easier to output styled text, and then render to vt100
+          later.  Is there anything on hackage about that?
+          . terminal-text sort of, but no docs and huge dependency list
       * carry rulerEach across sections
       * I could make sections more compact by prefixing with "n: "
         . On the other hand, maybe I don't really want it more compact.  It

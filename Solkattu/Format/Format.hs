@@ -22,6 +22,7 @@ module Solkattu.Format.Format (
 ) where
 import qualified Data.Char as Char
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -36,6 +37,7 @@ import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Sequence as S
 import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -54,28 +56,34 @@ rulerEach = 4
 printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
     -> Korvai.Korvai -> IO ()
 printInstrument instrument realizePatterns korvai =
-    printResults Nothing korvai $
+    printResults Nothing korvai $ zip (korvaiTags korvai) $
         Korvai.realize instrument realizePatterns korvai
 
 printKonnakol :: Bool -> Korvai.Korvai -> IO ()
 printKonnakol realizePatterns korvai =
-    printResults (Just 4) korvai $
+    printResults (Just 4) korvai $ zip (korvaiTags korvai) $
         Korvai.realize Korvai.konnakol realizePatterns korvai
 
+korvaiTags :: Korvai.Korvai -> [Tags.Tags]
+korvaiTags = map Korvai.sectionTags . Korvai.genericSections
+
 printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai.Korvai
-    -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]
+    -> [(Tags.Tags, Either Error ([S.Flat g (Realize.Note stroke)], Error))]
     -> IO ()
 printResults overrideStrokeWidth korvai =
     mapM_ Text.IO.putStrLn . snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
     where
-    show1 _ (section, Left err) =
-        ((Nothing, 0), sectionFmt section $ "ERROR:\n" <> err)
-    show1 prevRuler (section, Right (notes, warning)) =
-        (nextRuler, TextUtil.joinWith "\n" (sectionFmt section out) warning)
+    show1 _ (section, (_, Left err)) =
+        ((Nothing, 0), sectionFmt section mempty $ "ERROR:\n" <> err)
+    show1 prevRuler (section, (tags, Right (notes, warning))) =
+        ( nextRuler
+        , TextUtil.joinWith "\n" (sectionFmt section tags out) warning
+        )
         where
         (nextRuler, out) = format rulerEach prevRuler overrideStrokeWidth width
             (Korvai.korvaiTala korvai) notes
-    sectionFmt section = Text.intercalate "\n"
+    sectionFmt section tags = Text.intercalate "\n"
+        . Seq.map_last (<> showTags tags)
         . mapHT (sectionNumber section <>) (Text.replicate leader " " <>)
         . Text.lines
     sectionNumber section = Text.justifyLeft leader ' ' (showt section <> ":")
@@ -83,6 +91,11 @@ printResults overrideStrokeWidth korvai =
 
     mapHT f g (x:xs) = f x : map g xs
     mapHT _ _ [] = []
+
+showTags :: Tags.Tags -> Text
+showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
+    Just [n] -> "   x" <> n
+    _ -> ""
 
 width :: Int
 width = 78
