@@ -3779,7 +3779,7 @@ solkattu:
       - show some tags after sections, e.g. x2 and type
         . If I carry rulerEach, then I can put the section numbers there too
       * carry rulerEach across sections
-      - I could make sections more compact by prefixing with "n: "
+      * I could make sections more compact by prefixing with "n: "
         . On the other hand, maybe I don't really want it more compact.  It
           can already be hard to keep track of where I am.
       - I should also be able to mark sam, to make avartanams more clear

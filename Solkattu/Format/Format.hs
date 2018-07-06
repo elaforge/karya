@@ -66,15 +66,23 @@ printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai.Korvai
     -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]
     -> IO ()
 printResults overrideStrokeWidth korvai =
-    mapM_ Text.IO.putStrLn . snd . List.mapAccumL show1 (Nothing, 0)
+    mapM_ Text.IO.putStrLn . snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
     where
-    show1 _ (Left err) = ((Nothing, 0), "ERROR:\n" <> err)
-    show1 prevRuler (Right (notes, warning)) =
-        (nextRuler, TextUtil.joinWith "\n" out warning)
+    show1 _ (section, Left err) =
+        ((Nothing, 0), sectionFmt section $ "ERROR:\n" <> err)
+    show1 prevRuler (section, Right (notes, warning)) =
+        (nextRuler, TextUtil.joinWith "\n" (sectionFmt section out) warning)
         where
         (nextRuler, out) = format rulerEach prevRuler overrideStrokeWidth width
-            tala notes
-    tala = Korvai.korvaiTala korvai
+            (Korvai.korvaiTala korvai) notes
+    sectionFmt section = Text.intercalate "\n"
+        . mapHT (sectionNumber section <>) (Text.replicate leader " " <>)
+        . Text.lines
+    sectionNumber section = Text.justifyLeft leader ' ' (showt section <> ":")
+    leader = 4
+
+    mapHT f g (x:xs) = f x : map g xs
+    mapHT _ _ [] = []
 
 width :: Int
 width = 78
