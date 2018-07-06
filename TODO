@@ -3741,7 +3741,7 @@ solkattu:
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
   format: output:
-    fix all the ruler stuff:
+    * fix all the ruler stuff:
       . Show ruler by line instead of by section.
       . Always show the ruler when it changes, instead of suppressing the
         second half if it wrapped.
@@ -3754,7 +3754,7 @@ solkattu:
         . Filter out rulers unless on line `mod` n, or the ruler changed.
         . "Changed" is by structure, not marks, so wrapped ruler with the
           same structure will also be suppressed.
-    - in Realize, clearly separate functions for text and html backends
+    * in Realize, clearly separate functions for text and html backends
     html:
       * tala markings show up on the matra after the beat
       - tala name incomplete, e.g. triputa -> triputa tisra jati
@@ -3778,12 +3778,13 @@ solkattu:
     text:
       - show some tags after sections, e.g. x2 and type
         . If I carry rulerEach, then I can put the section numbers there too
-      - carry rulerEach across sections
+      * carry rulerEach across sections
       - I could make sections more compact by prefixing with "n: "
-        . I should also be able to mark sam, to make avartanams more clear
-          when they wrap across two lines.
         . On the other hand, maybe I don't really want it more compact.  It
           can already be hard to keep track of where I am.
+      - I should also be able to mark sam, to make avartanams more clear
+        when they wrap across two lines.
+        . Say by colorizing the stroke on sam.
       / formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
         . Actually not really, it's just the nadai change not being marked.
           See "nadai changes are invisible".

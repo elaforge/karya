@@ -436,7 +436,7 @@ misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
     where
     -- Mridangam2018.c_18_07_02_sarva
     sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
-    sarva2 = sd $ taka.ta.ta.din.__.ta.ta.din.__.ta.ta.din.__
+    _sarva2 = sd $ taka.ta.ta.din.__.ta.ta.din.__.ta.ta.din.__
     dinnakitataka = din.na . su (kita.taka)
     mridangam = makeMridangam
         [ (sarva, [on, k, on, on, od, on, k, on, on, od])

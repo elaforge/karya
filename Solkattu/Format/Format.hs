@@ -65,27 +65,26 @@ printKonnakol realizePatterns korvai =
 printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai.Korvai
     -> [Either Error ([S.Flat g (Realize.Note stroke)], Error)]
     -> IO ()
-printResults overrideStrokeWidth korvai = printList . map show1
+printResults overrideStrokeWidth korvai =
+    mapM_ Text.IO.putStrLn . snd . List.mapAccumL show1 (Nothing, 0)
     where
-    show1 (Left err) = "ERROR:\n" <> err
-    show1 (Right (notes, warning)) = TextUtil.joinWith "\n"
-        (format rulerEach overrideStrokeWidth width tala notes) warning
+    show1 _ (Left err) = ((Nothing, 0), "ERROR:\n" <> err)
+    show1 prevRuler (Right (notes, warning)) =
+        (nextRuler, TextUtil.joinWith "\n" out warning)
+        where
+        (nextRuler, out) = format rulerEach prevRuler overrideStrokeWidth width
+            tala notes
     tala = Korvai.korvaiTala korvai
 
 width :: Int
 width = 78
 
-printList :: [Text] -> IO ()
-printList [] = return ()
-printList [x] = Text.IO.putStrLn x
-printList xs = mapM_ print1 (zip [1..] xs)
-    where
-    print1 (i, x) = do
-        putStrLn $ "---- " <> show i
-        Text.IO.putStrLn x
-
 
 -- * implementation
+
+-- | Keep state about the last ruler across calls to 'format', so I can
+-- suppress unneeded ones.  (prevRuler, lineNumber)
+type PrevRuler = (Maybe Ruler, Int)
 
 type Line = [(S.State, Symbol)]
 type Ruler = [(Text, Int)]
@@ -96,12 +95,12 @@ type Ruler = [(Text, Int)]
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Solkattu.Notation stroke => Int -> Maybe Int -> Int -> Tala.Tala
-    -> [S.Flat g (Realize.Note stroke)] -> Text
-format rulerEach overrideStrokeWidth width tala notes =
-    Text.stripEnd $ Terminal.fix $ Text.intercalate "\n" $
-        map formatAvartanam $
-        pairWithRuler rulerEach tala strokeWidth avartanamLines
+format :: Solkattu.Notation stroke => Int -> PrevRuler -> Maybe Int -> Int
+    -> Tala.Tala -> [S.Flat g (Realize.Note stroke)] -> (PrevRuler, Text)
+format rulerEach prevRuler overrideStrokeWidth width tala notes =
+    second (Text.stripEnd . Terminal.fix . Text.intercalate "\n"
+            . map formatAvartanam) $
+        pairWithRuler rulerEach prevRuler tala strokeWidth avartanamLines
     where
     formatAvartanam = Text.intercalate "\n" . map formatRulerLine
     formatRulerLine (ruler, line) = Text.intercalate "\n" $
@@ -119,10 +118,10 @@ format rulerEach overrideStrokeWidth width tala notes =
     formatLine :: [Symbol] -> Text
     formatLine = Text.stripEnd . mconcat . map formatSymbol . thinRests
 
-pairWithRuler :: Int -> Tala.Tala -> Int -> [[Line]] -> [[(Maybe Ruler, Line)]]
-pairWithRuler rulerEach tala strokeWidth =
-    snd . List.mapAccumL (List.mapAccumL strip) (Nothing, 0)
-        . map (map addRuler)
+pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line]]
+    -> (PrevRuler, [[(Maybe Ruler, Line)]])
+pairWithRuler rulerEach prevRuler tala strokeWidth =
+    List.mapAccumL (List.mapAccumL strip) prevRuler . map (map addRuler)
     where
     addRuler line = (inferRuler tala strokeWidth (map fst line), line)
     -- Strip rulers when they are unchanged.  "Changed" is by structure, not

@@ -259,7 +259,7 @@ rpattern = Realize.Pattern . Solkattu.PatternM
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [Sequence.Flat g (Realize.Note stroke)] -> Text
-format = Format.format 4 Nothing
+format width tala = snd . Format.format 4 (Nothing, 0) Nothing width tala
 
 eFormat :: Text -> Text
 eFormat = stripEmphasis . dropRulers
