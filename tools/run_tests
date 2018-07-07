@@ -51,8 +51,8 @@ if [[ -n $parallel ]]; then
     # The subprocesses will set HPCTIXFILE appropriately.
     # Apparently there's no way to turn off hpc, and it doesn't like /dev/null.
     for bin in $binaries; do
-        HPCTIXFILE=build/test/tmp/tix.tix run $bin --jobs=4 --output=$out_dir \
-            $prefixes
+        HPCTIXFILE=build/test/tmp/tix.tix run $bin --jobs=auto \
+            --output=$out_dir $prefixes
     done
     rm -f build/test/tmp/tix.tix
 else
@@ -64,7 +64,7 @@ else
     done
 fi
 
-$binaries[1] --jobs=4 --output=$out_dir --check-output
+$binaries[1] --jobs=auto --output=$out_dir --check-output
 rm *.tix # these things are really annoying
 
 # Optionally disable HPC.

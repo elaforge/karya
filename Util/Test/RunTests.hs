@@ -34,6 +34,9 @@ import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Process as Process
 
+import qualified Text.Read as Read
+
+import qualified Util.Cpu as Cpu
 import qualified Util.File as File
 import qualified Util.Process
 import qualified Util.Regex as Regex
@@ -74,11 +77,13 @@ data Flag =
     CheckOutput
     | ClearDirs
     | Interactive
-    | Jobs !Int
+    | Jobs !Jobs
     | List
     | Output !FilePath
     | Subprocess
     deriving (Eq, Show)
+
+data Jobs = Auto | NJobs !Int deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
 options =
@@ -91,8 +96,8 @@ options =
     , GetOpt.Option [] ["interactive"] (GetOpt.NoArg Interactive)
         "Interactive tests can ask questions, otherwise assume they all pass.\
         \ This disables --jobs parallelism, and output goes to stdout."
-    , GetOpt.Option [] ["jobs"] (GetOpt.ReqArg (Jobs . read) "1")
-        "Number of parallel jobs."
+    , GetOpt.Option [] ["jobs"] (GetOpt.ReqArg (Jobs . parseJobs) "1")
+        "Number of parallel jobs, or 'auto' for physical CPU count."
     , GetOpt.Option [] ["list"] (GetOpt.NoArg List) "display but don't run"
     , GetOpt.Option [] ["output"] (GetOpt.ReqArg Output "path")
         "Path to a directory to put output logs, if not given output goes to\
@@ -101,6 +106,11 @@ options =
         "Read test names on stdin.  This is meant to be run as a subprocess\
         \ by --jobs."
     ]
+    where
+    parseJobs s
+        | s == "auto" = Auto
+        | Just n <- Read.readMaybe s = NJobs n
+        | otherwise = error $ "jobs should be auto or a number, was: " <> show s
 
 -- | Called by the generated main function.
 run :: [Test] -> IO ()
@@ -139,13 +149,18 @@ runTests allTests flags regexes = do
             mapM_ runInSubprocess matches
             return True
         | Subprocess `elem` flags -> subprocess allTests >> return True
-        | Just outputDir <- mbOutputDir ->
-            runOutput outputDir (fromMaybe 1 $ Seq.last [n | Jobs n <- flags])
-                matches (CheckOutput `elem` flags)
+        | Just outputDir <- mbOutputDir -> do
+            jobs <- getJobs $
+                fromMaybe (NJobs 1) $ Seq.last [n | Jobs n <- flags]
+            runOutput outputDir jobs matches (CheckOutput `elem` flags)
         | otherwise -> mapM_ runTest matches >> return True
     where
     mbOutputDir = Seq.last [d | Output d <- flags]
     matches = matchingTests regexes allTests
+
+getJobs :: Jobs -> IO Int
+getJobs (NJobs n) = return n
+getJobs Auto = Cpu.physicalCores
 
 runOutput :: FilePath -> Int -> [Test] -> Bool -> IO Bool
 runOutput outputDir jobs tests check = do
