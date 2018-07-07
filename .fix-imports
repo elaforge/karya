@@ -7,9 +7,9 @@ import-order-last: Global Types Synth.Lib.Global
 prio-module-high: Perform.Pitch Util.Serialize
     Data.Map Data.Set Data.Vector Data.String
     Control.Monad.Trans.Resource
-prio-module-low:
+prio-module-low: GHC.Environment GHC.Read
 prio-package-high:
-prio-package-low: haskell98 ghc darcs comonad
+prio-package-low: haskell98 ghc ghc-prim darcs comonad
 
 language: BangPatterns DisambiguateRecordFields FlexibleContexts
     GeneralizedNewtypeDeriving LambdaCase MultiWayIf OverloadedStrings
