@@ -5,7 +5,7 @@
 -- | List functions with continuations.  This allows you to chain them and
 -- easily express things like 'take until f then take one more'.
 module Util.Then where
-import Prelude hiding (break, span, take, takeWhile, mapM)
+import Prelude hiding (break, span, take, takeWhile, map, mapM)
 import qualified Data.List as List
 
 
@@ -34,6 +34,12 @@ filter f done cont = go
         | f x = x : go xs
         | otherwise = go xs
 
+map :: (a -> b) -> [b] -> [a] -> [b]
+map f bs = go
+    where
+    go [] = bs
+    go (a:as) = f a : go as
+
 -- | Like 'List.mapAccumL', except that you can do something with the final
 -- state and append that to the list.
 mapAccumL :: (acc -> x -> (acc, y)) -> acc -> (acc -> [y]) -> [x] -> [y]
@@ -42,6 +48,14 @@ mapAccumL f acc cont = go acc
     go acc [] = cont acc
     go acc (x:xs) = y : go acc2 xs
         where (acc2, y) = f acc x
+
+mapM :: Monad m => (a -> m b) -> m [b] -> [a] -> m [b]
+mapM f cont = go
+    where
+    go [] = cont
+    go (a:as) = do
+        b <- f a
+        (b:) <$> go as
 
 break :: (a -> Bool) -> ([a] -> ([a], rest))
     -- ^ Given the list after the break, return (pre, post), where pre will
@@ -58,11 +72,3 @@ span f = break (not . f)
 -- | Break right after the function returns True.
 break1 :: (a -> Bool) -> [a] -> ([a], [a])
 break1 f = break f (splitAt 1)
-
-mapM :: Monad m => (a -> m b) -> m [b] -> [a] -> m [b]
-mapM f cont = go
-    where
-    go [] = cont
-    go (a:as) = do
-        b <- f a
-        (b:) <$> go as

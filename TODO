@@ -3778,16 +3778,24 @@ solkattu:
     text:
       * show some tags after sections, e.g. x2 and type
         . If I carry rulerEach, then I can put the section numbers there too
+      - if I have 'section' get CallStack and put section on each element,
+        then I can tag sections with line numbers.
       - now group highlight is carrying into ruler lines
         . Because I just emit start and end.  To resume I'd have to remember
           when I'm in the middle of a group when breaking rulers.
         . It would be easier to output styled text, and then render to vt100
           later.  Is there anything on hackage about that?
           . terminal-text sort of, but no docs and huge dependency list
+          . rainbow sort of, but only 8 colors, and doesn't optimize no-change
+          . ansi-terminal has just the low level set colors stuff
+          . pretty-terminal - like ansi-terminal, but just colors
+        . But the key thing is that I have a stateless StyledText, that I can
+          append and not worry about terminal state.
       * carry rulerEach across sections
       * I could make sections more compact by prefixing with "n: "
         . On the other hand, maybe I don't really want it more compact.  It
           can already be hard to keep track of where I am.
+        . I could improve that with some color on rulers.
       - I should also be able to mark sam, to make avartanams more clear
         when they wrap across two lines.
         . Say by colorizing the stroke on sam.

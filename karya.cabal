@@ -31,6 +31,7 @@ library
         Diff >=0.2,
         QuickCheck,
         aeson >=1.1.0.0,
+        ansi-terminal,
         array,
         async,
         attoparsec,

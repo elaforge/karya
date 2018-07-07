@@ -5,7 +5,7 @@ import-order-last: Global Types Synth.Lib.Global
 
 -- Prefer or don't prefer to resolve to these modules.
 prio-module-high: Perform.Pitch Util.Serialize
-    Data.Map Data.Set Data.Vector
+    Data.Map Data.Set Data.Vector Data.String
     Control.Monad.Trans.Resource
 prio-module-low:
 prio-package-high:
