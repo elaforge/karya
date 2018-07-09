@@ -125,7 +125,7 @@ format rulerEach prevRuler overrideStrokeWidth width tala notes =
     where
     formatAvartanam = Text.intercalate "\n" . map formatRulerLine
     formatRulerLine (ruler, line) = Text.intercalate "\n" $
-        maybe [] ((:[]) . textRuler strokeWidth) ruler
+        maybe [] ((:[]) . formatRuler strokeWidth) ruler
         ++ [formatLine (map snd line)]
 
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
@@ -156,9 +156,13 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
         wanted = lineNumber `mod` rulerEach == 0
             || Just (map snd ruler) /= (map snd <$> prev)
 
-textRuler :: Int -> Ruler -> Text
-textRuler strokeWidth = mconcat . snd . List.mapAccumL render 0
+formatRuler :: Int -> Ruler -> Text
+formatRuler strokeWidth =
+    mconcat . (bg:) . (++[Terminal.bgDefault]) . snd . List.mapAccumL render 0
     where
+    -- Make rulers distinct.  TODO This is buggy because it interrupts group
+    -- highlights, but I need to switch to Util.Styled to get fix that.
+    bg = Terminal.setBg Terminal.Bright Terminal.White
     render debt (mark, spaces) =
         ( max 0 (-append) -- debt is how many spaces I'm behind
         , mark <> Text.replicate append " "
