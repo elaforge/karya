@@ -7,6 +7,7 @@
 module Solkattu.Score.Solkattu2018 where
 import Prelude hiding ((.), (^), repeat)
 
+import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
@@ -381,7 +382,7 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 -- abhipriyam (telugu) -> thoughts
 misra_to_mohra1 :: Korvai
 misra_to_mohra1 = date 2018 7 2 $ sudhindra $
-    korvai Tala.misra_chapu mridangam $ map ending
+    korvai Tala.misra_chapu (mridangam<>kendang) $ map ending
     [ repeat 3 tA . repeat 2 (dropD 5 tA) . repeat 2 (dropD 7 tA)
         . repeat 2 (dropD 9 tA)
     , tB.takadinna.din.__6.tat.__4
@@ -402,16 +403,27 @@ misra_to_mohra1 = date 2018 7 2 $ sudhindra $
     mridangam = makeMridangam
         [ (tA0, [p&k, p&t, k, t, k, n, p, k, t, k])
         , (tA1, [k, k, p, k, t, k, o, o, k, p, k, od, k, od, k, od])
+        , (din, [od])
+        , (tat, [p&u])
+        , (tat.dit, [p&u, p&u])
 
         , (tB0, [k, t, k, n, p, k, t, k])
         , (takadinna, [n, o, o, k])
         , (repeat 3 takadinna, [k, o, o, k, t, o, o, k, t, o, o, k])
-        , (din, [od])
-        , (tat, [p&u])
-        , (tat.dit, [p&u, p&u])
         , (tam, [od])
-        , (mid^tam, [i])
         ]
+    kendang = makeKendang1
+        [ (tA0, [pk, pk, k, p, k, t, p, k, p, k])
+        , (tA1, [p, p, p, k, p, p, a, a, k, p, k, a, o, a, o, a])
+        , (din, [a])
+        , (tat, [u])
+        , (tat.dit, [u, u])
+
+        , (tB0, [k, p, k, t, p, k, p, k])
+        , (takadinna, [t, a, a, p])
+        , (repeat 3 takadinna, [t, a, a, k, p, a, a, k, p, a, a, p])
+        , (tam, [a])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra2 :: Korvai
 misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
@@ -437,6 +449,7 @@ misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
     -- Mridangam2018.c_18_07_02_sarva
     sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
     _sarva2 = sd $ taka.ta.ta.din.__.ta.ta.din.__.ta.ta.din.__
+    -- TODO if I group this it can't find strokes
     dinnakitataka = din.na . su (kita.taka)
     mridangam = makeMridangam
         [ (sarva, [on, k, on, on, od, on, k, on, on, od])
@@ -456,7 +469,7 @@ misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
 
 misra_to_mohra3 :: Korvai
 misra_to_mohra3 = date 2018 7 2 $ sudhindra $
-    korvai Tala.misra_chapu mridangam $ map ending
+    korvai Tala.misra_chapu (mridangam<>kendang) $ map ending
     [ reduceTo 4 2 theme . tri theme2'
     ]
     where
@@ -470,6 +483,12 @@ misra_to_mohra3 = date 2018 7 2 $ sudhindra $
         -- , (theme2, [k, t, k, n, k, t, k, n, o])
         , (theme2', [k, t, k, n, p, k, t, k, n, o])
         ]
+    kendang = makeKendang1
+        [ (theme, [p, p, t, a, a, u, a, o, a])
+        -- TODO
+        , (din.na.din.tat.din, [k, u, a, o, a])
+        , (theme2', [o, p, k, t, a, o, p, k, t, a])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra4 :: Korvai
 misra_to_mohra4 = date 2018 7 2 $ sudhindra $
