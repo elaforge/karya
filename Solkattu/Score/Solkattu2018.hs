@@ -8,6 +8,7 @@ module Solkattu.Score.Solkattu2018 where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
+import qualified Solkattu.Score.SolkattuMohra as SolkattuMohra
 import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
@@ -523,6 +524,47 @@ misra_to_mohra4 = date 2018 7 2 $ sudhindra $
         , (tarikita, [p, k, t, k])
         , (gu.gu.na.na, [o, o, n, n])
         , (gu.gu.na.nang.gu, [o, o, n, n, k])
+        ]
+
+misra_mohras :: Korvai
+misra_mohras = date 2018 7 11 $ sudhindra $
+    SolkattuMohra.makeMohras Tala.misra_chapu mridangam
+        [ ((a1, a2, a1), (b1, b2, b3))
+        , ((c1, a2, c1), (b1, b2, b3))
+        ]
+    where
+    a1 = din.__.taka.tiku.tarikita.thom.__
+    a2 = dit.__4.tam.__.taka.tiku.tarikita.thom.__
+    b1 = talang.__.gu.din.__.tat.__.talang.__.gu.din.__4
+    b2 = talang.__.gu.din.__4
+    b3 = tri_ (din.__4) (talang.__.gu.din.__.tat.__)
+
+    theme = tat.__.dit.__.takadinna.din.__4
+    c1 = reduceTo 4 2 theme
+    mridangam = makeMridangam
+        [ (din.taka, [u, p, k])
+        , (tam.taka, [u, p, k])
+        , (tiku.tarikita.thom, [t, p, u, p, k, t, o])
+        , (dit, [k])
+        , (talang.gu, [p, u, k])
+        , (din.tat, [o, k])
+        , (din, [od])
+        , (theme, [k, t, k, o, o, k, od])
+        ]
+
+misra_muktai1 :: Korvai
+misra_muktai1 = date 2018 7 11 $ sudhindra $
+    korvai1 Tala.misra_chapu mridangam $ section $
+    reduceTo 4 2 theme . tri_ (sd __) (sd (ta.__.di.__.ta.di.ki.ta.thom))
+    where
+    theme = tat.__.dit.__.tat.__.tat.__.kita.thom.__4
+    mridangam = makeMridangam
+        [ (tat, [k])
+        , (dit, [t])
+        , (kita.thom, [k, t, o])
+        , (ta, [k])
+        , (di, [t])
+        , (ta.di.ki.ta.thom, [k, t, k, n, o])
         ]
 
 dikutarikitataka :: SequenceT sollu
