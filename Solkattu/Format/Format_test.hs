@@ -9,6 +9,7 @@ import qualified Data.Char as Char
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Regex as Regex
 import Util.Test
 import qualified Util.TextUtil as TextUtil
 
@@ -203,7 +204,7 @@ test_annotateGroups = do
         [([Start, Start], "ta"), ([End, End], "ki")]
 
 test_formatBreakLines = do
-    let run width = fmap (stripEmphasis . format width tala4 . fst)
+    let run width = fmap (stripAnsi . format width tala4 . fst)
             . kRealize False tala4
     let tas n = Dsl.repeat n ta
     equal (run 80 (tas 16)) $ Right
@@ -216,7 +217,7 @@ test_formatBreakLines = do
 
 test_formatNadaiChange = do
     let f tala realizePatterns =
-            fmap (first (stripEmphasis . format 50 tala))
+            fmap (first (stripAnsi . format 50 tala))
             . kRealize realizePatterns tala
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
@@ -262,21 +263,22 @@ format :: Solkattu.Notation stroke => Int -> Tala.Tala
 format width tala = snd . Format.format 4 (Nothing, 0) Nothing width tala
 
 eFormat :: Text -> Text
-eFormat = stripEmphasis . dropRulers
+eFormat = stripAnsi . dropRulers
 
 dropRulers :: Text -> Text
-dropRulers = Text.strip . Text.unlines . filter (not . isRuler) . Text.lines
+dropRulers =
+    Text.strip . Text.unlines . filter (not . isRuler . stripAnsi) . Text.lines
     where
     isRuler t = Text.all Char.isDigit (Text.take 1 t)
         || "X" `Text.isPrefixOf` t
 
-stripEmphasis :: Text -> Text
-stripEmphasis = Text.replace "\ESC[1m" "" . Text.replace "\ESC[22m" ""
+stripAnsi :: Text -> Text
+stripAnsi = Regex.substitute (Regex.compileUnsafe "\ESC\\[[0-9]+m") ""
 
 -- | Replace emphasis with capitals, so spacing is preserved.
 capitalizeEmphasis :: Text -> Text
-capitalizeEmphasis =
-    TextUtil.mapDelimited True '!' (Text.replace "-" "=" . Text.toUpper)
+capitalizeEmphasis = stripAnsi
+    . TextUtil.mapDelimited True '!' (Text.replace "-" "=" . Text.toUpper)
     . Text.replace "\ESC[1m" "!" . Text.replace "\ESC[22m" "!"
 
 kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
