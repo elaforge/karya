@@ -136,7 +136,7 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2018",487,"misra_to_mohra4") Solkattu.Score.Solkattu2018.misra_to_mohra4
     , setLocation ("Solkattu.Score.Solkattu2018",522,"misra_mohras") Solkattu.Score.Solkattu2018.misra_mohras
     , setLocation ("Solkattu.Score.Solkattu2018",548,"misra_muktai1") Solkattu.Score.Solkattu2018.misra_muktai1
-    , setLocation ("Solkattu.Score.SolkattuMohra",43,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
-    , setLocation ("Solkattu.Score.SolkattuMohra",60,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
-    , setLocation ("Solkattu.Score.SolkattuMohra",78,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube
+    , setLocation ("Solkattu.Score.SolkattuMohra",54,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
+    , setLocation ("Solkattu.Score.SolkattuMohra",71,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
+    , setLocation ("Solkattu.Score.SolkattuMohra",89,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube
     ]

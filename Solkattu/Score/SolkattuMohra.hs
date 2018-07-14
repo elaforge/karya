@@ -31,14 +31,25 @@ makeMohra :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
 makeMohra tala smaps as bs = makeMohras tala smaps [(as, bs)]
 
 -- | Alternate melkalam and kirkalam.
+makeMohras2 :: Tala.Tala -> Korvai.StrokeMaps
+    -> [((Sequence, Sequence, Sequence), (Sequence, Sequence, Sequence))]
+    -> Korvai
+makeMohras2 tala smaps = mohra • korvai tala smaps • map (section • make)
+    where
+    make ((a1_, a2_, a3_), (b1_, b2_, b3_)) =
+        a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
+        . a123.b2 . su (a123.b2)
+        . a1.b2 . su (a1.b2)
+        . a3.b3 . su (a3.b3)
+        where
+        (a1, a2, a3) = (group a1_, group a2_, group a3_)
+        (b1, b2, b3) = (group b1_, group b2_, group b3_)
+        a123 = a1.a2.a3
+
+-- | Alternate melkalam and kirkalam.
 makeMohra2 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-makeMohra2 tala smaps (a1, a2, a3) (b1, b2, b3) = mohra $ korvaiS1 tala smaps $
-      a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
-    . a123.b2 . su (a123.b2)
-    . a1.b2 . su (a1.b2)
-    . a3.b3 . su (a3.b3)
-    where a123 = a1.a2.a3
+makeMohra2 tala smaps as bs = makeMohras2 tala smaps [(as, bs)]
 
 c_mohra :: Korvai
 c_mohra = ganesh $ makeMohra adi mridangam (a1, a2, a1) (b1, b2, b3)
