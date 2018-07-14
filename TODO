@@ -9,8 +9,10 @@ STATUS
     faust-im
       * add getState / putState
       + continue from checkpoints:
+        - I need accurate sample durations to determine overlap
     sampler-im
       - start a stream with state, get final state
+        . Figure out note vs. sample duration
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -1692,10 +1694,11 @@ synth: im:
             But, File.writeCheckpoints needs 0s afterwards, because it is
             rendering the decay.
           * print number of checkpoints rendered vs skipped
-          / The use of Audio.takeFrames in writeCheckpoints is too risky
+          * The use of Audio.takeFrames in writeCheckpoints is too risky
             . use uncons and assert the chunk size is as expected.
             . Actually it's take >=n frames, so it can just result in greater
               than expected chunks, not desynced state.
+            . Also I put in an assert about chunk size.
           * isn't there an atomic way to replace the current chunk symlink?
             . Create the link and rename into place?
           - come up with some means to expire old chunks
@@ -1722,8 +1725,6 @@ synth: im:
                 yield out
               writeFile samples
               writeState <- stateRef
-
-
           * implement skipCheckpoints
           * hook skipCheckpoints up to render
           * test skipCheckpoints
@@ -1909,42 +1910,61 @@ synth: im:
             checkpoint machinery can merge too-small chunks, and complain if
             they don't add up to chunkSize.
         * implement Render.pull
-      - Test restart from checkpoint like with faust.
-      - Sample should stream the envelope.
-      - If the sampler is cheaper overall, maybe I should use larger chunk
-        size?  Of course, my current faust instruments are really cheap too.
-      . It seems bad that sample duration and note duration could be totally
-        different.  E.g. a long note duration will emit lots of hash overlaps,
-        but the actual sample is not so long.  Or the hashes don't overlap,
-        but actually the sample rings.
-        . Don't I have this same problem with the decay on faust instruments?
-          How to test that?
-        . For instance, dropUntil is wrong, because the samples might be still
-          running.
-        . I think this isn't a problem for faust, because the ringing note is
-          captured in the state, but samples don't do that.
-
-        . I can get the duration of a sample pretty easily if the resample
-          ratio is constant, but if it's not then it's quite complicated,
-          something like an integral of the ratio curve.  At that point
-          I should just resample with ZOH and see how many samples.  That
-          requires effectively running each sample twice, even though the
-          resample is super cheap, I still have to stream the sample from
-          disk.
-        . But otherwise, I have to assume that any note could last forever,
-          and that means none of the note overlap stuff with hashes works.
-          So I think I really do have to figure out note length.
-        . I could put an upper bound on sample length by using note duration,
-          cutting it off if it goes beyond that.  I can build some knowledge
-          of sample duration into the patch, e.g. I can start with the normal
-          constant ratio.  Still, it will be awkward if any sample that bends
-          down is cut off.
-        . I do get to know the sample duration after I play it.  That means I
-          can still do overlapping notes, but I have to use the Audio stream,
-          not the Note duration.
+      * Test restart from checkpoint like with faust.
+        . Test crashes with states /= notes.
+        . I think this is because I'm not treating correctly samples longer
+          than note duration.
+        . For now set samples to note duration by force, but I'll have to
+          figure out the real solution below.
+      - I need accurate sample durations to determine overlap
+        . E.g. a long note duration will emit lots of hash overlaps, but the
+          actual sample is not so long.  Or the hashes don't overlap, but
+          actually the sample rings.
+        Notes:
+          . Don't I have this same problem with the decay on faust instruments?
+            How to test that?
+          . For instance, dropUntil is wrong, because the samples might be still
+            running.
+          . I think this isn't a problem for faust, because the ringing note is
+            captured in the state, but samples don't do that.  It's
+            fundamentally a problem with samples, in that they are *all* state,
+            and the state is very large, so it's simultaneously not practical to
+            save it, and not necessary.
+          . I can get the duration of a sample pretty easily if the resample
+            ratio is constant, but if it's not then it's quite complicated,
+            something like an integral of the ratio curve.  At that point
+            I should just resample with ZOH and see how many samples.  That
+            requires effectively running each sample twice, even though the
+            resample is super cheap, I still have to stream the sample from
+            disk.
+            . Actually, I don't have to do that, since I don't need the samples
+              themselves.  I could extract the ZOH notion of how many samples to
+              skip or insert, and just simulate that.  Effectively this is just
+              the integral, but based on libsamplerate's own code, to make sure
+              I get the same answer.
+          . But otherwise, I have to assume that any note could last forever,
+            and that means none of the note overlap stuff with hashes works.
+            So I think I really do have to figure out note length.
+          . I could put an upper bound on sample length by using note duration,
+            cutting it off if it goes beyond that.  I can build some knowledge
+            of sample duration into the patch, e.g. I can start with the normal
+            constant ratio.  Still, it will be awkward if any sample that bends
+            down is cut off.
+          . I do get to know the sample duration after I play it.  That means I
+            can still do overlapping notes, but I have to use the Audio stream,
+            not the Note duration.
+        plan:
+          . Figure out if it's theoretically possible to save the duration from
+            the play through, and use those.
+          . Otherwise, pursue figuring out duration via looking at sample file
+            size and taking the integral of the ratio curve.  This should be
+            fast for constant ratios.
         - Ok, first try to pull the duration from the play.
           . The first time play, I think I have to record the durations.
           . Then I have to use those in skipCheckpoints.
+      - Sample should stream the envelope.
+      - If the sampler is cheaper overall, maybe I should use larger chunk
+        size?  Of course, my current faust instruments are really cheap too.
 
     - if libsamplerate could handle the pitch curve directly, I wouldn't have
       to resample in Convert.makeSample, and it could be per-sample.

@@ -37,6 +37,9 @@ toSeconds = RealTime.seconds . Audio.frameToSeconds Config.samplingRate
 chunkFrames2 :: Storable.Vector Audio.Sample -> Audio.Frame
 chunkFrames2 = Audio.chunkFrames (Proxy @2)
 
+framesCount2 :: Audio.Frame -> Audio.Count
+framesCount2 = Audio.framesCount (Proxy @2)
+
 outputFormat :: Sndfile.Format
 outputFormat = Sndfile.Format
     { headerFormat = Sndfile.HeaderFormatWav

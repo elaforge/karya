@@ -4,6 +4,7 @@
 
 {-# LANGUAGE TypeApplications, DataKinds #-}
 module Synth.Sampler.Render where
+import qualified Control.Monad as Monad
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
 import qualified Data.List as List
@@ -14,7 +15,6 @@ import qualified Streaming.Prelude as S
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -43,7 +43,8 @@ write_ :: Patch.Db -> Audio.Frame -> Resample.Quality -> FilePath -> [Note.Note]
 write_ db chunkSize quality outputDir notes = do
     let allHashes = Checkpoint.noteHashes chunkSize notes
     (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
-    Debug.tracepM "hashes, state" (hashes, mbState)
+    -- Debug.tracepM "skipped: hashes, state"
+    --     (take (length allHashes - length hashes) allHashes, hashes, mbState)
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
     let notifyState = IORef.writeIORef stateRef
     let start = case hashes of
@@ -90,60 +91,68 @@ render db chunkSize quality states notifyState notes start = Audio.Audio $ do
     -- samples.
     let (playingNotes, startingNotes, futureNotes) =
             overlappingNotes (AUtil.toSeconds start) chunkSize notes
-    Debug.tracepM "start, states" (start, states)
-    Debug.tracepM "playing, starting, future"
-        (playingNotes, startingNotes, futureNotes)
+    -- Debug.tracepM "start, states" (start, states)
+    -- Debug.tracepM "playing, starting, future"
+    --     (playingNotes, startingNotes, futureNotes)
     playing <- liftIO $
         resumeSamples db start quality chunkSize states playingNotes
     playing <- renderChunk start playing startingNotes (null futureNotes)
-    Debug.tracepM "renderChunk playing" playing
+    -- Debug.tracepM "renderChunk playing" playing
     Audio.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             Audio.assert (null playingNotes) $
                 "playingNotes: " <> pretty playingNotes
-            Debug.tracepM "playing, starting, future"
-                (now, playing, startingNotes, futureNotes)
+            -- Debug.tracepM "playing, starting, future"
+            --     (now, playing, startingNotes, futureNotes)
             playing <- renderChunk now playing startingNotes (null futureNotes)
-            Debug.tracepM "playing, future" (now, playing, futureNotes)
+            -- Debug.tracepM "playing, future" (now, playing, futureNotes)
             loop (now + chunkSize, playing, futureNotes)
     where
     renderChunk now playing startingNotes noFuture = do
         starting <- liftIO $
             mapM (startSample db now quality chunkSize Nothing) startingNotes
-        (chunks, playing) <- lift $ pull (playing ++ starting)
+        (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
-        Audio.assert (all ((==chunkSize) . AUtil.chunkFrames2) chunks) $
-            "/= " <> showt chunkSize <> ": "
+        -- Debug.tracepM "chunks" chunks
+        Audio.assert (all ((<=chunkSize) . AUtil.chunkFrames2) chunks) $
+            ">" <> showt chunkSize <> ": "
             <> showt (map AUtil.chunkFrames2 chunks)
         -- If there's no output and no chance to be any more output, don't
         -- emit anything.
         unless (null chunks && null playing && noFuture) $
             S.yield $ if null chunks
                 then silentChunk
-                else Audio.zipWithN (+) chunks
+                else Audio.zipWithN (+) (map padZero chunks)
         return playing
     silentChunk -- try to reuse existing memory
         | V.length Audio.silentChunk <= size = V.take size Audio.silentChunk
         | otherwise = V.replicate size 0
         where size = Audio.framesCount (Proxy @AUtil.Channels) chunkSize
+    padZero chunk
+        | delta > 0 = chunk <> V.replicate (AUtil.framesCount2 delta) 0
+        | otherwise = chunk
+        where delta = chunkSize - AUtil.chunkFrames2 chunk
 
--- | Get one chunk from each Playing, and remove Playings which no longer are.
-pull :: [Playing] -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
-pull = fmap (first (filter (not . V.null)) . unzip) . mapMaybeM get
+-- | Get chunkSize from each Playing, and remove Playings which no longer are.
+pull :: Audio.Frame -> [Playing]
+    -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
+pull chunkSize = fmap (first (filter (not . V.null)) . unzip) . mapMaybeM get
     where
-    get playing = Audio.next (_audio playing) >>= return . \case
-        Nothing -> Nothing
-        Just (chunk, audio) -> Just (chunk, playing { _audio = audio })
+    get playing = do
+        (chunks, audio) <- Audio.takeFramesGE chunkSize (_audio playing)
+        -- Debug.tracepM "pull" chunks
+        return $ if null chunks
+            then Nothing
+            else Just (mconcat chunks, playing { _audio = audio })
 
 resumeSamples :: Patch.Db -> Audio.Frame -> Resample.Quality -> Audio.Frame
     -> [Maybe Resample.SavedState] -> [Note.Note] -> IO [Playing]
 resumeSamples db now quality chunkSize states notes = do
     Audio.assert (length states == length notes) $
-        "states /= notes: " <> showt (length states) <> " /= "
-            <> showt (length notes)
+        "len states /= len notes: " <> pretty states <> " /= " <> pretty notes
     mapM (uncurry (startSample db now quality chunkSize . Just))
         (zip states (Seq.sort_on Note.hash notes))
 
@@ -172,21 +181,20 @@ startSample db now quality chunkSize mbMbState note =
                     , _chunkSize = chunkSize
                     , _now = now
                     }
-            audio <- case mbMbState of
-                Just mbState -> do
-                    let startOffset = AUtil.toFrame (Note.start note) - now
-                    Audio.assert (startOffset >= 0) $
-                        "resumeSample should start before " <> showt now
-                        <> " but: " <> showt (Note.start note)
-                    return $ Sample.render (config mbState) startOffset sample
-                Nothing -> do
-                    let silence = now - AUtil.toFrame (Note.start note)
-                    Audio.assert (0 <= silence && silence < chunkSize) $
+            let start = AUtil.toFrame (Sample.start sample)
+            case mbMbState of
+                Just _ -> Audio.assert (start < now) $
+                    "resumeSample should start before " <> showt now
+                    <> " but started at " <> showt start
+                Nothing ->
+                    Audio.assert (start >= now && now-start < chunkSize) $
                         "note should have started between " <> showt now
-                        <> "--" <> showt (now + chunkSize) <> " but started at "
-                        <> pretty (AUtil.toFrame (Note.start note))
-                    return $ Audio.take (Audio.Frames silence) Audio.silence2
-                        <> Sample.render (config Nothing) 0 sample
+                        <> "--" <> showt (now + chunkSize)
+                        <> " but started at " <> showt start
+            -- if AUtil.toFrame (Sample.start sample) < now
+            --     then Debug.tracepM "resume" (now, sample)
+            --     else Debug.tracepM "start" (now, sample)
+            let audio = Sample.render (config (Monad.join mbMbState)) sample
             return $ Playing
                 { _noteHash = Note.hash note
                 , _getState = IORef.readIORef stateRef

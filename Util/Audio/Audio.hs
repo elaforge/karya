@@ -173,19 +173,22 @@ toSamples = S.toList_ . _stream
 
 take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
     => Duration -> Audio m rate chan -> Audio m rate chan
-take dur _ | dur == Seconds 0 || dur == Frames 0 = mempty
-take (Seconds seconds) audio =
-    take (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
-take (Frames frames) (Audio audio) = Audio $ loop1 (0, audio) $
-    \loop (now, audio) -> lift (S.uncons audio) >>= \case
-        Nothing -> return ()
-        Just (chunk, audio)
-            | end <= frames -> S.yield chunk >> loop (end, audio)
-            | now >= frames -> return ()
-            | otherwise -> S.yield $
-                V.take (framesCount chan (min frames end - now)) chunk
-            where end = now + chunkFrames chan chunk
-    where chan = Proxy :: Proxy chan
+take (Seconds seconds) audio
+    | seconds <= 0 = mempty
+    | otherwise = take
+        (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
+take (Frames frames) (Audio audio)
+    | frames <= 0 = mempty
+    | otherwise = Audio $ loop1 (0, audio) $
+        \loop (now, audio) -> lift (S.uncons audio) >>= \case
+            Nothing -> return ()
+            Just (chunk, audio)
+                | end <= frames -> S.yield chunk >> loop (end, audio)
+                | now >= frames -> return ()
+                | otherwise -> S.yield $
+                    V.take (framesCount chan (min frames end - now)) chunk
+                where end = now + chunkFrames chan chunk
+        where chan = Proxy :: Proxy chan
 
 mapSamples :: Monad m => (Float -> Float) -> Audio m rate chan
     -> Audio m rate chan
