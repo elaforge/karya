@@ -12,6 +12,8 @@ import qualified Solkattu.Score.SolkattuMohra as SolkattuMohra
 import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
+import Global
+
 
 yt_mannargudi1 :: Korvai
 yt_mannargudi1 = source "Mannargudi Easwaran" $

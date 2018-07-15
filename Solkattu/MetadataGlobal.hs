@@ -8,6 +8,7 @@ module Solkattu.MetadataGlobal (
     , recording
     , korvaiT, koraippu, mohra, sarvalaghu, tirmanam
     , sequenceT, faran, exercise, trikalam
+    , withType
 ) where
 import qualified Util.CallStack as CallStack
 import qualified Solkattu.Korvai as Korvai
