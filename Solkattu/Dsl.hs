@@ -24,7 +24,6 @@ module Solkattu.Dsl (
     , nakatiku
     -- * re-exports
     , module Solkattu.Format.Format
-    , module Solkattu.Format.Html
     , module Solkattu.Korvai
     , module Solkattu.MetadataGlobal
     , module Solkattu.Notation
@@ -43,6 +42,7 @@ module Solkattu.Dsl (
     -- * talam
     , beats
     , adi
+    , htmlWriteAll
     -- * conveniences
     , ganesh, janahan, sriram, sudhindra
     , Pretty -- signatures wind up being Pretty sollu => ...
@@ -55,7 +55,7 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
 import Solkattu.Format.Format (printKonnakol)
-import Solkattu.Format.Html (writeHtmlKorvai)
+import qualified Solkattu.Format.Html as Html
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Korvai, section, smap)
@@ -182,6 +182,9 @@ realizeR = Format.printInstrument Korvai.reyong
 
 realizeSargam :: Bool -> Korvai.Korvai -> IO ()
 realizeSargam = Format.printInstrument Korvai.sargam
+
+htmlWriteAll :: FilePath -> Bool -> Korvai -> IO ()
+htmlWriteAll = Html.writeAll
 
 
 -- * talam

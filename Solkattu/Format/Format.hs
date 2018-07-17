@@ -28,6 +28,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified Util.File as File
 import qualified Util.MultiSet as MultiSet
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -43,8 +44,6 @@ import qualified Solkattu.Tala as Tala
 import Global
 
 
--- * print score
-
 type Error = Text
 
 -- | Show the ruler on multiples of this line as a reminder.  The ruler is
@@ -53,25 +52,47 @@ type Error = Text
 rulerEach :: Int
 rulerEach = 4
 
+-- * write
+
+-- | Write all instrument realizations.
+writeAll :: FilePath -> Bool -> Korvai.Korvai -> IO ()
+writeAll fname realizePatterns korvai =
+    File.writeLines fname $ List.intersperse "" $ concatMap write1 $
+    Korvai.korvaiInstruments korvai
+    where
+    write1 (name, Korvai.GInstrument inst) =
+        name <> ":" : formatInstrument inst realizePatterns korvai
+
+-- * format
+
 printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
     -> Korvai.Korvai -> IO ()
-printInstrument instrument realizePatterns korvai =
-    printResults Nothing korvai $ zip (korvaiTags korvai) $
-        Korvai.realize instrument realizePatterns korvai
+printInstrument instrument realizePatterns =
+    mapM_ Text.IO.putStrLn . formatInstrument instrument realizePatterns
 
 printKonnakol :: Bool -> Korvai.Korvai -> IO ()
-printKonnakol realizePatterns korvai =
-    printResults (Just 4) korvai $ zip (korvaiTags korvai) $
+printKonnakol realizePatterns =
+    mapM_ Text.IO.putStrLn . formatKonnakol realizePatterns
+
+formatInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
+    -> Korvai.Korvai -> [Text]
+formatInstrument instrument realizePatterns korvai =
+    formatResults Nothing korvai $ zip (korvaiTags korvai) $
+        Korvai.realize instrument realizePatterns korvai
+
+formatKonnakol :: Bool -> Korvai.Korvai -> [Text]
+formatKonnakol realizePatterns korvai =
+    formatResults (Just 4) korvai $ zip (korvaiTags korvai) $
         Korvai.realize Korvai.konnakol realizePatterns korvai
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
-printResults :: Solkattu.Notation stroke => Maybe Int -> Korvai.Korvai
+formatResults :: Solkattu.Notation stroke => Maybe Int -> Korvai.Korvai
     -> [(Tags.Tags, Either Error ([S.Flat g (Realize.Note stroke)], Error))]
-    -> IO ()
-printResults overrideStrokeWidth korvai =
-    mapM_ Text.IO.putStrLn . snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
+    -> [Text]
+formatResults overrideStrokeWidth korvai =
+    snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
     where
     show1 _ (section, (_, Left err)) =
         ((Nothing, 0), sectionFmt section mempty $ "ERROR:\n" <> err)
@@ -88,7 +109,6 @@ printResults overrideStrokeWidth korvai =
         . Text.lines
     sectionNumber section = Text.justifyLeft leader ' ' (showt section <> ":")
     leader = 4
-
     mapHT f g (x:xs) = f x : map g xs
     mapHT _ _ [] = []
 

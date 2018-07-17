@@ -21,6 +21,7 @@ import qualified Util.Seq as Seq
 
 import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
@@ -77,6 +78,7 @@ format (i, korvai) =
         Map.toAscList tags
     Tags.Tags tags = Korvai._tags $ Korvai.korvaiMetadata korvai
 
+
 -- * write
 
 write :: IO ()
@@ -85,14 +87,25 @@ write = writeHtml "../data/solkattu" False
 -- | Write all Korvais as HTML into the given directory.
 writeHtml :: FilePath -> Bool -> IO ()
 writeHtml dir realizePatterns = do
-    mapM_ write All.korvais
+    mapM_ write1 All.korvais
     Text.IO.writeFile (dir </> "index.html") $
-        Doc.un_html $ Html.indexHtml korvaiFname All.korvais
+        Doc.un_html $ Html.indexHtml ((<>".html") . korvaiFname) All.korvais
     where
-    write korvai = Html.writeHtmlKorvai (dir </> korvaiFname korvai)
+    write1 korvai = Html.writeAll (dir </> korvaiFname korvai <> ".html")
         realizePatterns korvai
 
 korvaiFname :: Korvai.Korvai -> FilePath
-korvaiFname korvai = untxt $ mod <> "." <> variableName <> ".html"
+korvaiFname korvai = untxt $ mod <> "." <> variableName
     where
     (mod, _, variableName) = Korvai._location $ Korvai.korvaiMetadata korvai
+
+-- ** writeText
+
+writeText :: IO ()
+writeText = writeTextTo "../data/solkattu-text" False
+
+writeTextTo :: FilePath -> Bool -> IO ()
+writeTextTo dir realizePatterns = mapM_ write1 All.korvais
+    where
+    write1 korvai = Format.writeAll (dir </> korvaiFname korvai <> ".txt")
+        realizePatterns korvai

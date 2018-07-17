@@ -79,6 +79,12 @@ korvai tala strokeMaps sections = Korvai
 korvaiInferSections :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
 korvaiInferSections tala strokeMaps = korvai tala strokeMaps . inferSections
 
+korvaiInstruments :: Korvai -> [(Text, GInstrument)]
+korvaiInstruments korvai = filter (not . isEmpty) $ Map.toList instruments
+    where
+    isEmpty (_, GInstrument inst) = Realize.isInstrumentEmpty strokeMap
+        where strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
+
 mridangamKorvai :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
     -> [Section (Realize.Stroke Mridangam.Stroke)] -> Korvai
 mridangamKorvai tala pmap sections = Korvai
@@ -233,6 +239,7 @@ instruments = Map.fromList
     , ("reyong", GInstrument reyong)
     , ("sargam", GInstrument sargam)
     ]
+
 
 -- * realize
 

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Format korvais as HTML.
-module Solkattu.Format.Html (indexHtml, writeHtmlKorvai) where
+module Solkattu.Format.Html (indexHtml, writeAll) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -60,10 +60,11 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
         (_, _, variableName) = Korvai._location meta
 
 -- | Write HTML with all the instrument realizations.
-writeHtmlKorvai :: FilePath -> Bool -> Korvai.Korvai -> IO ()
-writeHtmlKorvai fname realizePatterns korvai = do
+writeAll :: FilePath -> Bool -> Korvai.Korvai -> IO ()
+writeAll fname realizePatterns korvai = do
     Text.IO.writeFile fname $ Doc.un_html $ render realizePatterns korvai
     putStrLn $ "wrote " <> fname
+
 
 -- * high level
 
@@ -72,13 +73,11 @@ render realizePatterns korvai = htmlPage title (korvaiMetadata korvai) body
     where
     (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
     body = mconcat $ mapMaybe htmlInstrument $ Seq.sort_on (order . fst) $
-        Map.toList Korvai.instruments
-    htmlInstrument (name, Korvai.GInstrument inst)
-        | Realize.isInstrumentEmpty strokeMap = Nothing
-        | otherwise = Just $ "<h3>" <> Doc.html name <> "</h3>\n"
+        Korvai.korvaiInstruments korvai
+    htmlInstrument (name, Korvai.GInstrument inst) =
+        Just $ "<h3>" <> Doc.html name <> "</h3>\n"
             <> TextUtil.join "\n\n" sectionHtmls
         where
-        strokeMap = Korvai.instFromStrokes inst (Korvai.korvaiStrokeMaps korvai)
         sectionHtmls :: [Doc.Html]
         sectionHtmls =
             zipWith (renderSection (Korvai.korvaiTala korvai) (font name))
