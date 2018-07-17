@@ -9,10 +9,10 @@ STATUS
     faust-im
       * add getState / putState
       + continue from checkpoints:
-        - I need accurate sample durations to determine overlap
     sampler-im
       - start a stream with state, get final state
         . Figure out note vs. sample duration
+        - I need accurate sample durations to determine overlap
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -3743,6 +3743,7 @@ solkattu:
         enough to pick random but twice as likely to pick with score one
         lower.
   technique:
+    * kook, ok -> kook, pk
     - kook kook -> kook nook
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
   - some way to turn ktkno to kikno.

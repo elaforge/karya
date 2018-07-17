@@ -8,6 +8,7 @@ module Solkattu.Instrument.Mridangam where
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Seq as Seq
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
@@ -192,13 +193,15 @@ postprocess :: [Technique.Flat Stroke] -> [Technique.Flat Stroke]
 postprocess = Technique.postprocess $ Technique.plain technique
 
 -- There are extended analogues of this, e.g.:
--- [on, k] ot [k, on, k] -> on [k, on, ..]
+-- [on, k] to [k, on, k] -> on [k, on, ..]
 -- But to apply it I'd have to extend from ktk to ntn, and also to apply
 -- across intervening 'k's, so no need until I see more examples.
 technique :: Technique.Technique Stroke
-technique (prev:_) cur (next:_)
+technique prevs@(prev:_) cur (next:_)
     -- (k, t, [k, ..]) -> k, [k, ..]
     | map val [prev, cur, next] == map Just [Ki, Ta, Ki] = Just $ setVal Ki cur
+    -- (ko, o, [k, ..]) -> p, [k, ..]
+    | Seq.rtake 2 prevs ++ [cur, next] == [k, o, o, k] = Just p
     where
     Strokes {..} = strokes
     val (Valantalai s) = Just s

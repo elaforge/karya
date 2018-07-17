@@ -16,7 +16,9 @@ type Flat stroke =
 
 -- | A Technique is a wrapper around postprocess to write functions which
 -- modify strokes during a reduction.
-type Technique stroke = [stroke] -- ^ dropped strokes
+type Technique stroke = [stroke] -- ^ Dropped strokes.  These are in original
+    -- order, which means if you want to see the previous strokes, you have to
+    -- use Seq.rtake.
     -> stroke -- ^ current
     -> [stroke] -- ^ next
     -> Maybe stroke -- ^ Nothing to not modify

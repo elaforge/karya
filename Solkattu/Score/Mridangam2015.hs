@@ -11,7 +11,7 @@ import qualified Solkattu.Tala as Tala
 
 c_1 :: Korvai
 c_1 = akash $ date 2015 1 1 $ tekha $
-    comment "roopak hindustani = 2 * misra chapu" $
+    comment "rupak hindustani = 2 * misra chapu" $
     korvai Tala.misra_chapu $ map section
     [ sd $ i. __.i. __.n. __.od.__.  n.__.od.__. n. __
     , sd $ p&i.k.p&i.__.n.k .od.o&k.p&n.k.od.o&k.p&n.k
