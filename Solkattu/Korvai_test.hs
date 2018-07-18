@@ -13,6 +13,8 @@ import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
+import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
+import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
 import qualified Solkattu.Sequence as Sequence
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
@@ -61,6 +63,13 @@ test_realizeTechnique = do
         ta_din = mconcat [ta, din, ta, Dsl.su (ta <> ka), din]
     equal (f strokes2 $ mconcat $ Notation.expand 3 1 ta_din) $
         Right $ "k k t o\ \ k k k t o\ \ k t k k t o"
+
+test_korvaiInstruments = do
+    let f = map fst . Korvai.korvaiInstruments
+    equal (f Solkattu2018.misra_to_mohra1)
+        ["kendang tunggal", "konnakol", "mridangam"]
+    -- No konnakol!
+    equal (f Mridangam2018.e_323_1) ["mridangam"]
 
 chars :: [Char] -> [Text]
 chars = map Text.singleton

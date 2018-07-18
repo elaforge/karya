@@ -502,6 +502,8 @@ type GetStroke sollu stroke =
 realizeStroke :: GetStroke (Stroke stroke) stroke
 realizeStroke = (1, const $ Just . map Just)
 
+-- | If the sollu and stroke are the same, I can just copy the sollu.  This is
+-- for "monomorphic" single instrument scores, such as for mridangam.
 realizeSimpleStroke :: GetStroke stroke stroke
 realizeSimpleStroke = (1, const $ Just . map (Just . stroke))
 

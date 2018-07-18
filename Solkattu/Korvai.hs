@@ -7,6 +7,7 @@
 -- 'Korvai'.
 module Solkattu.Korvai where
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
@@ -50,6 +51,8 @@ data Korvai = Korvai {
     , korvaiMetadata :: !Metadata
     } deriving (Eq, Show)
 
+-- | This is a hack so I can have both Solkattu.Sollu sequences and
+-- instrument specific ones.  It induces a similar hack in 'Instrument'.
 data KorvaiType =
     Sollu [Section Solkattu.Sollu]
     | Mridangam [Section (Realize.Stroke Mridangam.Stroke)]
@@ -80,9 +83,12 @@ korvaiInferSections :: Tala.Tala -> StrokeMaps -> [Sequence] -> Korvai
 korvaiInferSections tala strokeMaps = korvai tala strokeMaps . inferSections
 
 korvaiInstruments :: Korvai -> [(Text, GInstrument)]
-korvaiInstruments korvai = filter (not . isEmpty) $ Map.toList instruments
+korvaiInstruments korvai = filter (hasInstrument . snd) $ Map.toList instruments
     where
-    isEmpty (_, GInstrument inst) = Realize.isInstrumentEmpty strokeMap
+    hasInstrument (GInstrument inst) = case korvaiSections korvai of
+        Sollu {} -> not (isEmpty inst)
+        Mridangam {} -> Maybe.isJust (instFromMridangam inst)
+    isEmpty inst = Realize.isInstrumentEmpty strokeMap
         where strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
 
 mridangamKorvai :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
@@ -178,8 +184,10 @@ inferSections seqs = case Seq.viewr (map section seqs) of
 
 -- | Tie together everything describing how to realize a single instrument.
 data Instrument stroke = Instrument {
+    -- | Realize a 'Sollu' 'KorvaiType'.
     instFromSollu :: Realize.StrokeMap stroke
         -> Realize.GetStroke Solkattu.Sollu stroke
+    -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
         Maybe (Realize.GetStroke (Realize.Stroke Mridangam.Stroke) stroke)
     , instFromStrokes :: StrokeMaps -> Realize.Instrument stroke
@@ -375,15 +383,7 @@ inferKorvaiTags korvai = Tags.Tags $ Util.Map.multimap $ concat
     sections = case korvaiSections korvai of
         Sollu xs -> length xs
         Mridangam xs -> length xs
-    -- TODO use the names from GInstrument
-    instruments = concat
-        [ ["mridangam" | hasInstrument korvai instMridangam]
-        , ["kendang tunggal" | hasInstrument korvai instKendangTunggal]
-        , ["reyong" | hasInstrument korvai instReyong]
-        , ["sargam" | hasInstrument korvai instSargam]
-        ]
-    hasInstrument korvai get = not $ Realize.isInstrumentEmpty $
-        get (korvaiStrokeMaps korvai)
+    instruments = map fst $ korvaiInstruments korvai
 
 inferSectionTags :: Tala.Tala -> Section sollu -> Tags.Tags
 inferSectionTags tala section = Tags.Tags $ Map.fromList $
