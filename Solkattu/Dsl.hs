@@ -23,7 +23,6 @@ module Solkattu.Dsl (
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku
     -- * re-exports
-    , module Solkattu.Format.Format
     , module Solkattu.Korvai
     , module Solkattu.MetadataGlobal
     , module Solkattu.Notation
@@ -38,7 +37,7 @@ module Solkattu.Dsl (
     -- * realize
     , index
     , realize, realizep
-    , realizeM, realizeK1, realizeR, realizeSargam
+    , realizeM, realizeK1, realizeR, realizeSargam, realizeKon
     -- * talam
     , beats
     , adi
@@ -54,7 +53,6 @@ import qualified Data.Monoid as Monoid
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
-import Solkattu.Format.Format (printKonnakol)
 import qualified Solkattu.Format.Html as Html
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
@@ -182,6 +180,9 @@ realizeR = Format.printInstrument Korvai.reyong
 
 realizeSargam :: Bool -> Korvai.Korvai -> IO ()
 realizeSargam = Format.printInstrument Korvai.sargam
+
+realizeKon :: Bool -> Korvai -> IO ()
+realizeKon = Format.printKonnakol
 
 htmlWriteAll :: FilePath -> Bool -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll

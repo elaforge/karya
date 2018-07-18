@@ -554,20 +554,76 @@ misra_mohras = date 2018 7 11 $ sudhindra $
         , (theme, [k, t, k, o, o, k, od])
         ]
 
-misra_muktai1 :: Korvai
-misra_muktai1 = date 2018 7 11 $ sudhindra $
+misra_muktayi1 :: Korvai
+misra_muktayi1 = date 2018 7 11 $ sudhindra $
     korvai1 Tala.misra_chapu mridangam $ section $
-    reduceTo 4 2 theme . tri_ (sd __) (sd (ta.__.di.__.ta.di.ki.ta.thom))
+    reduceTo 4 2 theme . tri_ (sd __) (sd (ta.__.di.__.p5))
     where
     theme = tat.__.dit.__.tat.__.tat.__.kita.thom.__4
+    -- TODO this should be a p5, but I should be able to configure the specific
+    -- one I want.  Also, alternate realization is ktktpkpko.
+    p5 = su $ kita.kita.tari.kita.thom.__
+    -- TODO replace reduction fingering.  How should I express irregular
+    -- fingerings like this?  Maybe with per-korvai technique?
+    _fingerings =
+        [ [] -- same: [k, t, k, k]
+        , [k, t, k]
+        , [k, k]
+        ]
     mridangam = makeMridangam
         [ (tat, [k])
         , (dit, [t])
         , (kita.thom, [k, t, o])
-        , (ta, [k])
-        , (di, [t])
-        , (ta.di.ki.ta.thom, [k, t, k, n, o])
+        , (ta.di, [p&k, p&k])
+        , (p5, [k, t, k, t, p, k, p, t, o])
         ]
 
+trikalam1 :: Korvai
+trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $
+    korvai adi mridangam
+    [ startOn 4 $ endOn 4 $ section $ theme
+    , startOn 4 $ endOn 4 $ section $ repeat 2 $ nadai 6 theme
+    , startOn 4 $ section $ repeat 3 $ su theme
+    ]
+    where
+    theme = tam.__4.theme0.p6
+        . ta.takita.theme0.p6
+        . tam.__4.theme0 . tri_ (di.__6) p6
+    theme0 = taka.din.__.din.__.tat.__.di.__6
+    p6 = ta.di.__.ki.ta.thom
+    mridangam = makeMridangam
+        [ (tam, [p&v])
+        , (theme0, [k, o, od, od, k, od])
+        , (ta.takita, [k, t, k, t])
+        , (di, [od])
+        , (p6, [k, t, k, n, o])
+        ]
+    -- At higher speed, tadi kitathom becomes tadi kitaka.
+
+trikalam2 :: Korvai
+trikalam2 = date 2018 7 16 $ trikalam $ sudhindra $
+    korvai adi mridangam $ map section
+    [ restD 2 . seq . repeat 2 (nadai 6 seq) . repeat 3 (su seq)
+    ]
+    where
+    seq = reduce3 2 ø theme . tri p6
+    theme = tat.__.dit.__.takadinna.di.__4
+    mridangam = makeMridangam
+        [ (theme, [k, t, k, o, o, k, od])
+        ]
+
+-- TODO
+misra_tani1 =
+    [ repeat 2 $
+        tam.__3.tam.__.tam.__
+      . tam.__3.tam.__.taka.jonu
+    ]
+    where
+    mridangam = makeMridangam
+        [ (tam, [p&v])
+        , (taka.jonu, [k, o, o, k])
+        ]
+
+-- | Shri HSS speaks it this way.
 dikutarikitataka :: SequenceT sollu
 dikutarikitataka = nakatiku

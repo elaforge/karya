@@ -3743,6 +3743,9 @@ solkattu:
         enough to pick random but twice as likely to pick with score one
         lower.
   technique:
+    - I should be able to configure per-korvai technique
+      . For irregular reductions, e.g. Solkattu2018.misra_muktayi1
+      . Or just general purpose post-processing.
     * kook, ok -> kook, pk
     - kook kook -> kook nook
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
@@ -3762,6 +3765,9 @@ solkattu:
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
   format: output:
+    - Solkattu.Offset inserted by startOn should figure out nadai
+    - rulers seem to use absolute rulerEach, and are not reset by nadai
+      changes
     * fix all the ruler stuff:
       . Show ruler by line instead of by section.
       . Always show the ruler when it changes, instead of suppressing the

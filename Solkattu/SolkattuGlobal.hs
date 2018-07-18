@@ -47,6 +47,9 @@ diku = di.ku
 tari = ta.ri
 dugu = du.gu
 
+jonu :: Sequence
+jonu = jo.nu
+
 kitataka, tarikita :: Sequence
 kitataka = kita.taka
 tarikita = tari.kita
