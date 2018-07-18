@@ -3765,7 +3765,7 @@ solkattu:
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
   format: output:
-    - Solkattu.Offset inserted by startOn should figure out nadai
+    * Solkattu.Offset inserted by startOn should figure out nadai
     - rulers seem to use absolute rulerEach, and are not reset by nadai
       changes
     * fix all the ruler stuff:

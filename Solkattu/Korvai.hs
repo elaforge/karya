@@ -276,13 +276,13 @@ realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke)
     -> Realize.Instrument stroke -> Tala.Tala -> Section sollu
     -> Either Error ([Flat stroke], Error)
 realizeInstrument realizePatterns getStroke inst tala section = do
-    startSpace <- spaces (sectionStart section)
     realized <- Realize.formatError $
         Realize.realize pattern getStroke $
         flatten (sectionSequence section)
     let alignError = Realize.verifyAlignment tala
             (sectionStart section) (sectionEnd section)
             (S.tempoNotes realized)
+    startSpace <- spaces (inferNadai realized) (sectionStart section)
     return
         ( startSpace ++ realized
         , maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError
@@ -293,19 +293,21 @@ realizeInstrument realizePatterns getStroke inst tala section = do
         | realizePatterns = Realize.realizePattern (Realize.instPatterns inst)
         | otherwise = Realize.keepPattern
 
--- data Flat g a = FGroup !Tempo !g ![Flat g a] | FNote !Tempo !a
+inferNadai :: [Flat stroke] -> S.Nadai
+inferNadai = S._nadai . maybe S.defaultTempo fst . Seq.head . S.tempoNotes
+
 flatten :: [S.Note g (Solkattu.Note sollu)] -> [S.Flat g (Solkattu.Note sollu)]
 flatten = Solkattu.cancelKarvai . S.flatten
 
-spaces :: S.Duration -> Either Error [S.Flat g (Realize.Note sollu)]
-spaces dur = do
-    -- Cancel out the nadai.  So d is now in s0 matras.
-    let s0_matras = realToFrac dur * fromIntegral (S._nadai S.defaultTempo)
+spaces :: S.Nadai -> S.Duration -> Either Error [S.Flat g (Realize.Note sollu)]
+spaces nadai dur = do
+    -- Cancel out the nadai.  So dur is now in s0 matras.
+    let s0_matras = realToFrac dur * fromIntegral nadai
     speeds <- S.decomposeM s0_matras
     return $ map (\s -> S.FNote (speed s) space) speeds
     where
     space = Realize.Space Solkattu.Offset
-    speed s = S.defaultTempo { S._speed = s }
+    speed s = S.defaultTempo { S._speed = s, S._nadai = nadai }
 
 -- TODO broken by KorvaiType, fix this
 -- vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai
