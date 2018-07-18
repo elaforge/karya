@@ -18,6 +18,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
@@ -101,11 +102,19 @@ korvaiFname korvai = untxt $ mod <> "." <> variableName
 
 -- ** writeText
 
-writeText :: IO ()
-writeText = writeTextTo "../data/solkattu-text" False
+textDir :: FilePath
+textDir = "../data/solkattu-text"
 
+writeText :: IO ()
+writeText = writeTextTo textDir False
+
+-- | The usual textDir is a git repo, so I can see what effect changes have, in
+-- the same manner as App.VerifyPerformance.
 writeTextTo :: FilePath -> Bool -> IO ()
-writeTextTo dir realizePatterns = mapM_ write1 All.korvais
+writeTextTo dir realizePatterns = do
+    mapM_ write1 All.korvais
+    patch <- either (errorIO . txt) return =<< SourceControl.current "."
+    Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
     where
     write1 korvai = Format.writeAll (dir </> korvaiFname korvai <> ".txt")
         realizePatterns korvai
