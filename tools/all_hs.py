@@ -8,6 +8,7 @@
 Args:
     in_repo - only include checked-in files
     notest - exclude *_test.hs and *Test.hs
+    test - include only *_test and *Test.hs
     nomain - exclude modules with no name, or named Main
     dotted - emit names as dotted haskell modules instead of filenames
 """
@@ -20,10 +21,19 @@ extensions = set(['.hs', '.hsc', '.chs'])
 
 def main():
     args = sys.argv[1:]
-    in_repo = 'in_repo' in args
-    notest = 'notest' in args
-    nomain = 'nomain' in args
-    dotted = 'dotted' in args
+    def remove(x):
+        if x in args:
+            args.remove(x)
+            return True
+        else:
+            return False
+    in_repo = remove('in_repo')
+    notest = remove('notest')
+    test = remove('test')
+    nomain = remove('nomain')
+    dotted = remove('dotted')
+    if args:
+        sys.exit('unknown flags: ' + ' '.join(args))
     if in_repo:
         hs_files = get_in_repo()
     else:
@@ -32,6 +42,8 @@ def main():
     fns = sorted(os.path.normpath(fn) for fn in hs_files)
     if notest:
         fns = filter(lambda fn: not is_test(fn), fns)
+    if test:
+        fns = filter(is_test, fns)
     if nomain:
         fns = filter(lambda fn: not is_main(fn), fns)
     if dotted:
