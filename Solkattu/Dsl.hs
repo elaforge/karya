@@ -181,8 +181,8 @@ realizeR = Format.printInstrument Korvai.reyong
 realizeSargam :: Bool -> Korvai.Korvai -> IO ()
 realizeSargam = Format.printInstrument Korvai.sargam
 
-realizeKon :: Bool -> Korvai -> IO ()
-realizeKon = Format.printKonnakol
+realizeKon :: Int -> Korvai -> IO ()
+realizeKon width = Format.printKonnakol width True
 
 htmlWriteAll :: FilePath -> Bool -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll

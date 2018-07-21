@@ -70,28 +70,31 @@ printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
 printInstrument instrument realizePatterns =
     mapM_ Text.IO.putStrLn . formatInstrument instrument realizePatterns
 
-printKonnakol :: Bool -> Korvai.Korvai -> IO ()
-printKonnakol realizePatterns =
-    mapM_ Text.IO.putStrLn . formatKonnakol realizePatterns
+printKonnakol :: Int -> Bool -> Korvai.Korvai -> IO ()
+printKonnakol width realizePatterns =
+    mapM_ Text.IO.putStrLn . formatKonnakol width realizePatterns
 
 formatInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
     -> Korvai.Korvai -> [Text]
 formatInstrument instrument realizePatterns korvai =
-    formatResults Nothing korvai $ zip (korvaiTags korvai) $
+    formatResults defaultWidth Nothing korvai $ zip (korvaiTags korvai) $
         Korvai.realize instrument realizePatterns korvai
 
-formatKonnakol :: Bool -> Korvai.Korvai -> [Text]
-formatKonnakol realizePatterns korvai =
-    formatResults (Just 4) korvai $ zip (korvaiTags korvai) $
+defaultWidth :: Int
+defaultWidth = 78
+
+formatKonnakol :: Int -> Bool -> Korvai.Korvai -> [Text]
+formatKonnakol width realizePatterns korvai =
+    formatResults width (Just 4) korvai $ zip (korvaiTags korvai) $
         Korvai.realize Korvai.konnakol realizePatterns korvai
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
-formatResults :: Solkattu.Notation stroke => Maybe Int -> Korvai.Korvai
+formatResults :: Solkattu.Notation stroke => Int -> Maybe Int -> Korvai.Korvai
     -> [(Tags.Tags, Either Error ([S.Flat g (Realize.Note stroke)], Error))]
     -> [Text]
-formatResults overrideStrokeWidth korvai =
+formatResults width overrideStrokeWidth korvai =
     snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
     where
     show1 _ (section, (_, Left err)) =
@@ -101,8 +104,8 @@ formatResults overrideStrokeWidth korvai =
         , TextUtil.joinWith "\n" (sectionFmt section tags out) warning
         )
         where
-        (nextRuler, out) = format rulerEach prevRuler overrideStrokeWidth width
-            (Korvai.korvaiTala korvai) notes
+        (nextRuler, out) = format rulerEach prevRuler overrideStrokeWidth
+            width (Korvai.korvaiTala korvai) notes
     sectionFmt section tags = Text.intercalate "\n"
         . Seq.map_last (<> showTags tags)
         . mapHT (sectionNumber section <>) (Text.replicate leader " " <>)
@@ -116,9 +119,6 @@ showTags :: Tags.Tags -> Text
 showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
     Just [n] -> "   x" <> n
     _ -> ""
-
-width :: Int
-width = 78
 
 
 -- * implementation
