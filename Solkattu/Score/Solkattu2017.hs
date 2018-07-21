@@ -348,6 +348,7 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
     kendang = makeKendang1
         [ (tat.dit, [p, t])
         , (din, [a])
+        , (tam, [a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     sargam = makeSargam
         [ (tat.dit, [p, m])

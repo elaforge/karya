@@ -10,7 +10,6 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Util.Test.Testing as Testing
 import qualified Solkattu.All as All
-import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
@@ -22,10 +21,16 @@ import Global
 
 
 test_all = do
-    forM_ All.korvais $ \korvai ->
-        realizeCatch korvai >>= \case
-            Right _ -> return True
-            Left errs -> failure $ location korvai <> ": " <> Text.unlines errs
+    forM_ All.korvais testKorvai
+
+testKorvai :: Korvai.Korvai -> IO ()
+testKorvai korvai =
+    forM_ (Korvai.korvaiInstruments korvai) $
+        \(name, Korvai.GInstrument inst) ->
+    realizeCatch inst korvai >>= \case
+        Right _ -> return True
+        Left errs -> failure $ location korvai <> ": " <> name <> ": "
+            <> Text.unlines errs
 
 test_metadata = do
     forM_ All.korvais $ \korvai ->
@@ -40,20 +45,21 @@ location = Metadata.showLocation . Metadata.getLocation
 referentExists :: Text -> Bool
 referentExists = (`elem` map Metadata.getModuleVariable All.korvais)
 
-realizeCatch :: Korvai.Korvai
-    -> IO (Either [Text] [[Realize.Note Mridangam.Stroke]])
-realizeCatch korvai =
+realizeCatch :: Solkattu.Notation stroke => Korvai.Instrument stroke
+    -> Korvai.Korvai -> IO (Either [Text] [[Realize.Note stroke]])
+realizeCatch inst korvai =
     Exception.handle (\(Solkattu.Exception msg) -> return (Left [msg])) $ do
-        let result = realize korvai
+        let result = realize inst korvai
         Testing.force result
         return result
 
-realize :: Korvai.Korvai -> Either [Text] [[Realize.Note Mridangam.Stroke]]
-realize korvai
+realize :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Korvai.Korvai
+    -> Either [Text] [[Realize.Note stroke]]
+realize inst korvai
     | not (null errors) = Left errors
     | not (null warnings) = Left warnings
     | otherwise = Right $ map Sequence.flattenedNotes notes
     where
     (errors, results) = Either.partitionEithers $
-        Korvai.realize Korvai.mridangam True korvai
+        Korvai.realize inst True korvai
     (notes, warnings) = second (filter (/="")) $ unzip results

@@ -60,6 +60,7 @@ c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
         -- for pat7 -- pat9
         , (taka, [p, k])
         , (tam, [a])
+        , (dheem, [a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     pat7 = taka.p5
     pat8 = taka.__.p5

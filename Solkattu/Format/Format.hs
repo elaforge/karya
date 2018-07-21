@@ -8,8 +8,8 @@
 -- TODO this should probably be called Terminal, but then what should I call
 -- the existing Terminal module?
 module Solkattu.Format.Format (
-    printInstrument
-    , printKonnakol
+    writeAll
+    , printInstrument, printKonnakol
 
     -- * shared with Format.Html
     , StartEnd(..)
