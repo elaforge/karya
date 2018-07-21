@@ -61,32 +61,34 @@ writeAll fname realizePatterns korvai =
     Korvai.korvaiInstruments korvai
     where
     write1 (name, Korvai.GInstrument inst) =
-        name <> ":" : formatInstrument inst realizePatterns korvai
+        name <> ":"
+        : formatInstrument width overrideStrokeWidth inst realizePatterns korvai
+        where
+        (width, overrideStrokeWidth)
+            | name == "konnakol" = (100, Just 3)
+            | otherwise = (defaultWidth, Nothing)
 
 -- * format
 
 printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
     -> Korvai.Korvai -> IO ()
 printInstrument instrument realizePatterns =
-    mapM_ Text.IO.putStrLn . formatInstrument instrument realizePatterns
+    mapM_ Text.IO.putStrLn
+    . formatInstrument defaultWidth Nothing instrument realizePatterns
 
 printKonnakol :: Int -> Bool -> Korvai.Korvai -> IO ()
 printKonnakol width realizePatterns =
-    mapM_ Text.IO.putStrLn . formatKonnakol width realizePatterns
+    mapM_ Text.IO.putStrLn
+    . formatInstrument width (Just 4) Korvai.konnakol realizePatterns
 
-formatInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
-    -> Korvai.Korvai -> [Text]
-formatInstrument instrument realizePatterns korvai =
-    formatResults defaultWidth Nothing korvai $ zip (korvaiTags korvai) $
+formatInstrument :: Solkattu.Notation stroke => Int -> Maybe Int
+    -> Korvai.Instrument stroke -> Bool -> Korvai.Korvai -> [Text]
+formatInstrument width overrideStrokeWidth instrument realizePatterns korvai =
+    formatResults width overrideStrokeWidth korvai $ zip (korvaiTags korvai) $
         Korvai.realize instrument realizePatterns korvai
 
 defaultWidth :: Int
 defaultWidth = 78
-
-formatKonnakol :: Int -> Bool -> Korvai.Korvai -> [Text]
-formatKonnakol width realizePatterns korvai =
-    formatResults width (Just 4) korvai $ zip (korvaiTags korvai) $
-        Korvai.realize Korvai.konnakol realizePatterns korvai
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections

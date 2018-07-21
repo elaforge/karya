@@ -3784,6 +3784,9 @@ solkattu:
         . "Changed" is by structure, not marks, so wrapped ruler with the
           same structure will also be suppressed.
     * in Realize, clearly separate functions for text and html backends
+    - Replace a double rest that starts on an even matra with a double
+      underline, or something.  This is effectively rhythmic spelling.
+      . Alternately, I could put in a number for matra count.
     html:
       * tala markings show up on the matra after the beat
       - tala name incomplete, e.g. triputa -> triputa tisra jati
@@ -3799,12 +3802,11 @@ solkattu:
         - source should be a link, click on it to see everything from that
           source
         * link to a specific spot in a recording
-      - Replace a double rest that starts on an even matra with a double
-        underline, or something.  This is effectively rhythmic spelling.
-        . Alternately, I could put in a number for matra count.
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
+      - something is cutting off the first letter in
+        solkattu-text/Solkattu.Score.Solkattu2018.misra_to_mohra3.txt
       * strip rests after the end-on-sam stroke so it winds up on the same line
         . Didn't it used to do this?
       * show some tags after sections, e.g. x2 and type

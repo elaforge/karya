@@ -407,10 +407,10 @@ misra_tani1 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
     -- misra_to_mohra1
     --
     -- part 2:
+    -- taka.tatadin.__4.taka.tatadin    x4
     -- sarvaD (2*7)
     -- misra_to_mohra2
-    -- taka.tatadin.__4.taka.tatadin    x4
-    -- misra_to_mohra3 sarva
+    -- misra_to_mohra3
     --
     -- part 3
     -- misra_to_mohra4
@@ -638,14 +638,14 @@ trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $
     , startOn 4 $ section $ repeat 3 $ su theme
     ]
     where
-    theme = tam.__4.theme0.p6
-        . ta.takita.theme0.p6
-        . tam.__4.theme0 . tri_ (di.__6) p6
-    theme0 = taka.din.__.din.__.tat.__.di.__6
+    theme = tam.__4.theme0.di.__6.p6
+        . ta.takita.theme0.di.__6.p6
+        . tam.__4.theme0.di.__6 . tri_ (di.__6) p6
+    theme0 = taka.din.__.din.__.tat.__
     p6 = ta.di.__.ki.ta.thom
     mridangam = makeMridangam
         [ (tam, [p&v])
-        , (theme0, [k, o, od, od, k, od])
+        , (theme0, [k, o, od, od, k])
         , (ta.takita, [k, t, k, t])
         , (di, [od])
         , (p6, [k, t, k, n, o])
