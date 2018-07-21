@@ -81,10 +81,9 @@ import Global
     There could be exceptions for strokes which are both rare and almost always
     occur before a rest.
 
-    TODO I could extend it with an html method for non-ASCII output, or some
-    type that can be rendered to both ASCII and terminal escape codes.
+    The Show and Pretty superclasses are to make debugging more convenient.
 -}
-class Show a => Notation a where -- Show makes debugging more convenient
+class (Show a, Pretty a) => Notation a where
     notation :: a -> Text
     notationHtml :: a -> Doc.Html
     notationHtml = Doc.html . notation

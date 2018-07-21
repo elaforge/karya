@@ -46,11 +46,32 @@ import Global
 
 type Error = Text
 
--- | Show the ruler on multiples of this line as a reminder.  The ruler is
--- always shown if it changes.  It should be a multiple of 2 to avoid
--- getting the second half of a talam in case it's split in half.
-rulerEach :: Int
-rulerEach = 4
+data Config = Config {
+    -- | Show the ruler on multiples of this line as a reminder.  The ruler is
+    -- always shown if it changes.  It should be a multiple of 2 to avoid
+    -- getting the second half of a talam in case it's split in half.
+    _rulerEach :: !Int
+    , _terminalWidth :: !Int
+    -- | Normally 'format' tries to figure out a with for each stroke according
+    -- to what will fit on the screen.  But it assumes notation is always at
+    -- most one character per time unit.  This hardcodes the width for e.g.
+    -- konnakol, where a sollu like `thom` can be 4 characters wide.
+    , _overrideStrokeWidth :: !(Maybe Int)
+    } deriving (Eq, Show)
+
+defaultConfig :: Config
+defaultConfig = Config
+    { _rulerEach = 4
+    , _terminalWidth = 78
+    , _overrideStrokeWidth = Nothing
+    }
+
+konnakolConfig :: Config
+konnakolConfig = Config
+    { _rulerEach = 4
+    , _terminalWidth = 100
+    , _overrideStrokeWidth = Just 3
+    }
 
 -- * write
 
@@ -61,12 +82,9 @@ writeAll fname realizePatterns korvai =
     Korvai.korvaiInstruments korvai
     where
     write1 (name, Korvai.GInstrument inst) =
-        name <> ":"
-        : formatInstrument width overrideStrokeWidth inst realizePatterns korvai
+        name <> ":" : formatInstrument config inst realizePatterns korvai
         where
-        (width, overrideStrokeWidth)
-            | name == "konnakol" = (100, Just 3)
-            | otherwise = (defaultWidth, Nothing)
+        config = if name == "konnakol" then konnakolConfig else defaultConfig
 
 -- * format
 
@@ -74,17 +92,18 @@ printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
     -> Korvai.Korvai -> IO ()
 printInstrument instrument realizePatterns =
     mapM_ Text.IO.putStrLn
-    . formatInstrument defaultWidth Nothing instrument realizePatterns
+    . formatInstrument defaultConfig instrument realizePatterns
 
 printKonnakol :: Int -> Bool -> Korvai.Korvai -> IO ()
 printKonnakol width realizePatterns =
     mapM_ Text.IO.putStrLn
-    . formatInstrument width (Just 4) Korvai.konnakol realizePatterns
+    . formatInstrument (konnakolConfig { _terminalWidth = width })
+        Korvai.konnakol realizePatterns
 
-formatInstrument :: Solkattu.Notation stroke => Int -> Maybe Int
+formatInstrument :: Solkattu.Notation stroke => Config
     -> Korvai.Instrument stroke -> Bool -> Korvai.Korvai -> [Text]
-formatInstrument width overrideStrokeWidth instrument realizePatterns korvai =
-    formatResults width overrideStrokeWidth korvai $ zip (korvaiTags korvai) $
+formatInstrument config instrument realizePatterns korvai =
+    formatResults config korvai $ zip (korvaiTags korvai) $
         Korvai.realize instrument realizePatterns korvai
 
 defaultWidth :: Int
@@ -93,10 +112,10 @@ defaultWidth = 78
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
-formatResults :: Solkattu.Notation stroke => Int -> Maybe Int -> Korvai.Korvai
+formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
     -> [(Tags.Tags, Either Error ([S.Flat g (Realize.Note stroke)], Error))]
     -> [Text]
-formatResults width overrideStrokeWidth korvai =
+formatResults config korvai =
     snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
     where
     show1 _ (section, (_, Left err)) =
@@ -106,8 +125,8 @@ formatResults width overrideStrokeWidth korvai =
         , TextUtil.joinWith "\n" (sectionFmt section tags out) warning
         )
         where
-        (nextRuler, out) = format rulerEach prevRuler overrideStrokeWidth
-            width (Korvai.korvaiTala korvai) notes
+        (nextRuler, out) =
+            format config prevRuler (Korvai.korvaiTala korvai) notes
     sectionFmt section tags = Text.intercalate "\n"
         . Seq.map_last (<> showTags tags)
         . mapHT (sectionNumber section <>) (Text.replicate leader " " <>)
@@ -138,12 +157,13 @@ type Ruler = [(Text, Int)]
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Solkattu.Notation stroke => Int -> PrevRuler -> Maybe Int -> Int
+format :: Solkattu.Notation stroke => Config -> PrevRuler
     -> Tala.Tala -> [S.Flat g (Realize.Note stroke)] -> (PrevRuler, Text)
-format rulerEach prevRuler overrideStrokeWidth width tala notes =
+format config prevRuler tala notes =
     second (Text.stripEnd . Terminal.fix . Text.intercalate "\n"
             . map formatAvartanam) $
-        pairWithRuler rulerEach prevRuler tala strokeWidth avartanamLines
+        pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
+            avartanamLines
     where
     formatAvartanam = Text.intercalate "\n" . map formatRulerLine
     formatRulerLine (ruler, line) = Text.intercalate "\n" $
@@ -151,15 +171,16 @@ format rulerEach prevRuler overrideStrokeWidth width tala notes =
         ++ [formatLine (map snd line)]
 
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
-    (avartanamLines, strokeWidth) = case overrideStrokeWidth of
+    (avartanamLines, strokeWidth) = case _overrideStrokeWidth config of
         Just n -> (formatLines n width tala notes, n)
         Nothing -> case formatLines 1 width tala notes of
             ([line] : _)
-                | sum (map (textLength . _text . snd) line) <= width `div` 2 ->
+                | sum (map (symLength . snd) line) <= width `div` 2 ->
                     (formatLines 2 width tala notes, 2)
             result -> (result, 1)
     formatLine :: [Symbol] -> Text
     formatLine = Text.stripEnd . mconcat . map formatSymbol . thinRests
+    width = _terminalWidth config
 
 pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line]]
     -> (PrevRuler, [[(Maybe Ruler, Line)]])
@@ -226,9 +247,7 @@ formatLines strokeWidth width tala =
         . map combine . Seq.zip_prev . map makeSymbol . normalizeSpeed tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
-        where
-        overlap = maybe 0 (subtract strokeWidth . textLength . _text . snd)
-            prev
+        where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
     makeSymbol (startEnds, (state, note)) = (state,) $ make $ case note of
         S.Attack a ->
             justifyLeft strokeWidth (Solkattu.extension a) (Solkattu.notation a)
@@ -309,7 +328,7 @@ breakLine maxWidth notes
     | even aksharas = breakAt (aksharas `div` 2) notes
     | otherwise = breakBefore maxWidth notes
     where
-    width = sum $ map (textLength . _text . snd) notes
+    width = sum $ map (symLength . snd) notes
     aksharas = Seq.count (atAkshara . fst) notes
     breakAt akshara =
         pairToList . break ((==akshara) . S.stateAkshara . fst)
@@ -326,8 +345,7 @@ breakBefore maxWidth = go . dropWhile null . Seq.split_before (atAkshara . fst)
             ([], post:posts) -> post : go posts
             (pre, post) -> concat pre : go post
     -- drop 1 so it's the width at the end of each section.
-    runningWidth =
-        drop 1 . scanl (+) 0 . map (sum . map (textLength . _text . snd))
+    runningWidth = drop 1 . scanl (+) 0 . map (sum . map (symLength . snd))
 
 breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 breakFst f = bimap (map snd) (map snd) . break (f . fst)
@@ -378,6 +396,8 @@ inferRuler tala strokeWidth =
 atAkshara :: S.State -> Bool
 atAkshara = (==0) . S.stateMatra
 
+-- | This is like 'Text.justifyLeft', except it understands the actual length
+-- of unicode characters, courtesty of 'textLength'.
 justifyLeft :: Int -> Char -> Text -> Text
 justifyLeft n c text
     | len >= n = text
@@ -415,6 +435,9 @@ emphasize word
     | word == "_ " = emphasize "_|"
     | otherwise = Terminal.boldOn <> pre <> Terminal.boldOff <> post
     where (pre, post) = Text.break (==' ') word
+
+symLength :: Symbol -> Int
+symLength = textLength . _text
 
 textLength :: Text -> Int
 textLength = sum . map len . untxt

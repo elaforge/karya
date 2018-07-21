@@ -3784,11 +3784,9 @@ solkattu:
         . "Changed" is by structure, not marks, so wrapped ruler with the
           same structure will also be suppressed.
     * in Realize, clearly separate functions for text and html backends
-    - Replace a double rest that starts on an even matra with a double
-      underline, or something.  This is effectively rhythmic spelling.
-      . Alternately, I could put in a number for matra count.
     html:
       * tala markings show up on the matra after the beat
+      - do the double rest thing for html
       - tala name incomplete, e.g. triputa -> triputa tisra jati
       - show rulers on nadai changes
       - carry rulersEach across sections
@@ -3805,6 +3803,17 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
+      * Use Config data type for terminalWidth and overrideStrokeWidth, so
+        tests can turn things on and off more easily.
+      - Rests are messy.  Notation:extension causes them to be ___ depending
+        on the duration of the rest, and then thinRests then strips out the
+        extras.  This is confusing and messy.
+      - Replace a double rest that starts on an even matra with a double
+        underline, or something.  This is effectively rhythmic spelling.
+        . Alternately, I could put in a number for matra count.
+        . ‗
+          DOUBLE LOW LINE
+          Unicode: U+2017, UTF-8: E2 80 97
       - something is cutting off the first letter in
         solkattu-text/Solkattu.Score.Solkattu2018.misra_to_mohra3.txt
       * strip rests after the end-on-sam stroke so it winds up on the same line
