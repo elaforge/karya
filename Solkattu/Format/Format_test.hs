@@ -114,6 +114,11 @@ test_format_ruler = do
         "X:8     .       |\n\
         \K k k k k k k k"
 
+    let ta_ = ta <> Dsl.__4
+    equal_fmt (either id id) (fst <$> run (Dsl.repeat 5 ta_)) $ Right
+        "X:4     O       X       O       |\n\
+        \K _ _ _ K _ _ _ K _ _ _ K _ _ _ K"
+
 test_inferRuler = do
     let f = Format.inferRuler tala4 2
             . map (fst . snd) . Format.normalizeSpeed tala4 . fst

@@ -213,8 +213,8 @@ formatFinalAvartanam avartanams = case reverse avartanams of
     _ -> avartanams
     where
     -- This should be (== Space Rest), but I have to showStroke first to break
-    -- lines.
-    isRest = (=="_") . Text.strip . _text
+    -- lines.  TODO brittle hack, this is from makeSymbol below.
+    isRest = Text.all (=='_') . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
 formatLines :: Solkattu.Notation stroke => Int -> Int -> Tala.Tala

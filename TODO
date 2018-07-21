@@ -3805,7 +3805,7 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
-      - strip rests after the end-on-sam stroke so it winds up on the same line
+      * strip rests after the end-on-sam stroke so it winds up on the same line
         . Didn't it used to do this?
       * show some tags after sections, e.g. x2 and type
         . If I carry rulerEach, then I can put the section numbers there too
