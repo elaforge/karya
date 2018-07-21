@@ -3764,6 +3764,8 @@ solkattu:
     . This is like the ascii version of auto integration.
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
+    . I could do this with a ghci macro.  Call writeText, write to
+      ../data/solkattu-text, and use git diff to see differences.
   format: output:
     * Solkattu.Offset inserted by startOn should figure out nadai
     - rulers seem to use absolute rulerEach, and are not reset by nadai
@@ -3803,6 +3805,8 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
+      - strip rests after the end-on-sam stroke so it winds up on the same line
+        . Didn't it used to do this?
       * show some tags after sections, e.g. x2 and type
         . If I carry rulerEach, then I can put the section numbers there too
       - if I have 'section' get CallStack and put section on each element,

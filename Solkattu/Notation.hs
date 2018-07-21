@@ -60,6 +60,9 @@ __9 = __n 9
 __n :: S.Matra -> SequenceT sollu
 __n n = repeat (n-1) __
 
+__D :: Duration -> SequenceT sollu
+__D dur = __n (dToM2 (S._nadai S.defaultTempo) dur)
+
 restM :: S.Matra -> SequenceT sollu
 restM n = repeat n __
 
@@ -335,6 +338,13 @@ matraDuration = S.matraDuration S.defaultTempo
 
 dToM :: Duration -> FMatra
 dToM d = realToFrac $ d / S.matraDuration S.defaultTempo
+
+dToM2 :: CallStack.Stack => S.Nadai -> Duration -> S.Matra
+dToM2 nadai dur
+    | frac == 0 = matra
+    | otherwise = throw $ "duration not divisible by nadai: " <> pretty dur
+    where
+    (matra, frac) = properFraction $ dur * fromIntegral nadai
 
 -- * generic notation
 
