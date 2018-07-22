@@ -141,14 +141,10 @@ formatHtml tala font notes =
         (Seq.head avartanams)
     akshara :: (Text, Int) -> [Text]
     akshara (n, spaces) = n : replicate (spaces-1) ""
-    -- I don't thin rests for HTML, it seems to look ok with all explicit rests.
-    -- thin = map (Doc.Html . _text) . thinRests . map (symbol . Doc.un_html)
-    avartanams = Format.breakAvartanams $
+    avartanams =
+        Format.breakAvartanams $
         map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
         Format.normalizeSpeed tala notes
-
--- symbol :: Text -> Symbol
--- symbol text = Symbol text False []
 
 formatTable :: Solkattu.Notation stroke => Tala.Tala -> Font -> [Doc.Html]
     -> [[(S.State, ([Format.StartEnd], S.Stroke (Realize.Note stroke)))]]
@@ -165,9 +161,11 @@ formatTable tala font header rows = mconcatMap (<>"\n") $ concat
     fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
         <> if _monospace font then "; font-family: Monaco, monospace" else ""
     th col = Doc.tag_attrs "th" [] (Just col)
+    td (tags, body) = Doc.tag_attrs "td" tags (Just body)
     row cells = TextUtil.join ("\n" :: Doc.Html)
         [ "<tr>"
-        , TextUtil.join "\n" $ map td (List.groupBy groupSustains cells)
+        , TextUtil.join "\n" $ map td . Format.mapSnd spellRests . map mkCell $
+            List.groupBy groupSustains cells
         , "</tr>"
         , ""
         ]
@@ -179,7 +177,7 @@ formatTable tala font header rows = mconcatMap (<>"\n") $ concat
               , Format.Start `elem` startEnds
               , Format.End `elem` startEnds
               )
-            , a
+            , Format.normalizeRest a
             )
           )
         )
@@ -200,9 +198,10 @@ formatTable tala font header rows = mconcatMap (<>"\n") $ concat
             = True
         merge _ _ = False
 
-    td [] = "" -- not reached, List.groupBy shouldn't return empty groups
-    td ((state, ((depth :: Int, start, end), note)) : ns) =
-        Doc.tag_attrs "td" tags $ Just $ case note of
+    -- not reached, List.groupBy shouldn't return empty groups
+    mkCell [] = ([], "")
+    mkCell ((state, ((depth :: Int, start, end), note)) : ns) =
+        (,) tags $ case note of
             S.Attack (Realize.Space Solkattu.Sarva) -> sarva
             S.Sustain (Realize.Space Solkattu.Sarva) -> sarva
             S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
@@ -230,6 +229,20 @@ formatTable tala font header rows = mconcatMap (<>"\n") $ concat
             ]
     hasLine = Format.onAkshara
     angas = Format.angaSet tala
+
+-- | This is the HTML version of 'Format.spellRests'.
+spellRests :: [Doc.Html] -> [Doc.Html]
+spellRests = map set . zip [0..] . Seq.zip_neighbors
+    where
+    set (col, (prev, sym, next))
+        | not (isRest sym) = sym
+        | even col && maybe False isRest next =
+            Doc.html (Text.singleton Realize.doubleRest)
+        | odd col && maybe False isRest prev = ""
+        | otherwise = sym
+
+isRest :: Doc.Html -> Bool
+isRest = (=="_") . Text.strip . Doc.un_html
 
 mapAccumL2 :: (state -> a -> (state, b)) -> state -> [[a]] -> (state, [[b]])
 mapAccumL2 f = List.mapAccumL (List.mapAccumL f)

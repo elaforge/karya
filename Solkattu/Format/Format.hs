@@ -15,6 +15,7 @@ module Solkattu.Format.Format (
     , StartEnd(..)
     , breakAvartanams, normalizeSpeed, inferRuler
     , onAkshara, onAnga, angaSet
+    , normalizeRest, mapSnd
 
 #ifdef TESTING
     , module Solkattu.Format.Format
@@ -263,7 +264,7 @@ formatLines strokeWidth width tala =
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
         where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
     makeSymbol (startEnds, (state, note)) =
-        (state,) $ make $ case toRest note of
+        (state,) $ make $ case normalizeRest note of
             S.Attack a -> justifyLeft strokeWidth (Solkattu.extension a)
                 (Solkattu.notation a)
             S.Sustain a -> Text.replicate strokeWidth
@@ -275,12 +276,14 @@ formatLines strokeWidth width tala =
             , _emphasize = shouldEmphasize tala angas state
             , _bounds = startEnds
             }
-    -- Rests are special in that S.normalizeSpeed can produce them.  Normalize
-    -- them to force them to all be treated the same way.
-    toRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
-    toRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
-    toRest a = a
     angas = angaSet tala
+
+-- | Rests are special in that S.normalizeSpeed can produce them.  Normalize
+-- them to force them to all be treated the same way.
+normalizeRest :: S.Stroke (Realize.Note a) -> S.Stroke (Realize.Note a)
+normalizeRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
+normalizeRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
+normalizeRest a = a
 
 normalizeSpeed :: Tala.Tala -> [S.Flat g (Realize.Note stroke)]
     -> [([StartEnd], (S.State, S.Stroke (Realize.Note stroke)))]

@@ -3786,7 +3786,10 @@ solkattu:
     * in Realize, clearly separate functions for text and html backends
     html:
       * tala markings show up on the matra after the beat
-      - do the double rest thing for html
+      * do the double rest thing for html
+      - rests could be wider, since I have more space
+        . But just doubling them leads to an ugly gap in between.  How can I
+          emit a long underscore or double underscore?
       - tala name incomplete, e.g. triputa -> triputa tisra jati
       - show rulers on nadai changes
       - carry rulersEach across sections
