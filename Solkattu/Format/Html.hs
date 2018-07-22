@@ -61,9 +61,8 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
 
 -- | Write HTML with all the instrument realizations.
 writeAll :: FilePath -> Bool -> Korvai.Korvai -> IO ()
-writeAll fname realizePatterns korvai = do
+writeAll fname realizePatterns korvai =
     Text.IO.writeFile fname $ Doc.un_html $ render realizePatterns korvai
-    putStrLn $ "wrote " <> fname
 
 
 -- * high level

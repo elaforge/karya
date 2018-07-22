@@ -82,13 +82,13 @@ format (i, korvai) =
 
 -- * write
 
-write :: IO ()
-write = writeHtml "../data/solkattu" False
+writeHtml :: IO ()
+writeHtml = writeHtmlTo "../data/solkattu" False
 
 -- | Write all Korvais as HTML into the given directory.
-writeHtml :: FilePath -> Bool -> IO ()
-writeHtml dir realizePatterns = do
-    mapM_ write1 All.korvais
+writeHtmlTo :: FilePath -> Bool -> IO ()
+writeHtmlTo dir realizePatterns = do
+    writeWithStatus write1 All.korvais
     Text.IO.writeFile (dir </> "index.html") $
         Doc.un_html $ Html.indexHtml ((<>".html") . korvaiFname) All.korvais
     where
@@ -112,9 +112,21 @@ writeText = writeTextTo textDir False
 -- the same manner as App.VerifyPerformance.
 writeTextTo :: FilePath -> Bool -> IO ()
 writeTextTo dir realizePatterns = do
-    mapM_ write1 All.korvais
+    writeWithStatus write1 All.korvais
     patch <- either (errorIO . txt) return =<< SourceControl.current "."
     Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
     where
-    write1 korvai = Format.writeAll (dir </> korvaiFname korvai <> ".txt")
-        realizePatterns korvai
+    write1 korvai =
+        Format.writeAll (dir </> korvaiFname korvai <> ".txt")
+            realizePatterns korvai
+
+writeWithStatus :: (Korvai.Korvai -> IO ()) -> [Korvai.Korvai] -> IO ()
+writeWithStatus write korvais = do
+    mapM_ one (zip [1..] korvais)
+    putChar '\n'
+    where
+    one (i, korvai) = do
+        Text.IO.putStr $ "\ESC[K" <> num i <> "/" <> showt (length korvais)
+            <> ": " <> txt (korvaiFname korvai) <> "\r"
+        write korvai
+    num = Text.justifyLeft 3 ' ' . showt
