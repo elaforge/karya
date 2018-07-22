@@ -66,8 +66,8 @@ test_format_space = do
             . kRealize False Tala.adi_tala
     equal (run (Notation.sarvaM 4)) $ Right "========"
     equal (run (Notation.sarvaD 1)) $ Right "========"
-    equal (run (Notation.restM 4)) $ Right "_|_ _ _"
-    equal (run (Notation.restD 1)) $ Right "_|_ _ _"
+    equal (run (Notation.restM 4)) $ Right "‗|  ‗"
+    equal (run (Notation.restD 1)) $ Right "‗|  ‗"
 
 tala4 :: Tala.Tala
 tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
@@ -76,24 +76,24 @@ test_format_ruler = do
     let run = fmap (first (capitalizeEmphasis . format 80 tala4))
             . kRealize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
-    equalT (run (tas 2 8)) $ Right
+    equalT1 (run (tas 2 8)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k"
         , ""
         )
-    equalT (run (tas 2 16)) $ Right
+    equalT1 (run (tas 2 16)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \K k K k K k K k"
         , ""
         )
-    equalT (run (tas 3 12)) $ Right
+    equalT1 (run (tas 3 12)) $ Right
         ( "X:3   O     X     O     |\n\
           \K k k K k k K k k K k k"
         , ""
         )
 
-    equalT (run (tas 2 12 <> tas 3 6)) $ Right
+    equalT1 (run (tas 2 12 <> tas 3 6)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \X:2 O   X:3   O     |\n\
@@ -101,23 +101,32 @@ test_format_ruler = do
         , ""
         )
     -- A final stroke won't cause the ruler to reappear.
-    equalT (run (tas 2 16 <> ta)) $ Right
+    equalT1 (run (tas 2 16 <> ta)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \K k K k K k K k K"
         , ""
         )
-    equal_fmt (either id id) (fst <$> run (tas 4 2)) $ Right
+    equalT (fst <$> run (tas 4 2)) $ Right
         "X:4 |\n\
         \K k"
-    equal_fmt (either id id) (fst <$> run (tas 8 8)) $ Right
+    equalT (fst <$> run (tas 8 8)) $ Right
         "X:8     .       |\n\
         \K k k k k k k k"
 
+    -- Rests stripped from final stroke.
     let ta_ = ta <> Dsl.__4
-    equal_fmt (either id id) (fst <$> run (Dsl.repeat 5 ta_)) $ Right
+    equalT (fst <$> run (Dsl.repeat 5 ta_)) $ Right
         "X:4     O       X       O       |\n\
-        \K _ _ _ K _ _ _ K _ _ _ K _ _ _ K"
+        \K _ ‗   K _ ‗   K _ ‗   K _ ‗   K"
+
+test_spellRests = do
+    let run width = fmap (eFormat . format width tala4 . fst)
+            . kRealize False tala4
+    equalT (run 80 (sd (Dsl.__ <> ta))) $ Right "‗|  k _"
+    equalT (run 80 (sd (ta <> Dsl.__ <> ta))) $ Right "k _ ‗   k _"
+    equalT (run 10 (sd (ta <> Dsl.__ <> ta))) $ Right "k _ k"
+    equalT (run 80 (ta <> Dsl.__4 <> ta)) $ Right "k _ ‗   k"
 
 test_inferRuler = do
     let f = Format.inferRuler tala4 2
@@ -131,7 +140,7 @@ test_format_ruler_rulerEach = do
     let run = fmap (first (capitalizeEmphasis . format 16 Tala.adi_tala))
             . kRealize False tala4
     let tas n = Dsl.repeat n ta
-    equalT (run (tas 80)) $ Right
+    equalT1 (run (tas 80)) $ Right
         ( "0:4 1   2   3   |\n\
           \KkkkKkkkKkkkKkkk\n\
           \KkkkKkkkKkkkKkkk\n\
@@ -142,9 +151,12 @@ test_format_ruler_rulerEach = do
         , ""
         )
 
-equalT :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
+equalT :: CallStack.Stack => Either Text Text -> Either Text Text -> IO Bool
+equalT = equal_fmt (either id id)
+
+equalT1 :: (CallStack.Stack, Eq a, Show a) => Either Text (Text, a)
     -> Either Text (Text, a) -> IO Bool
-equalT = equal_fmt (either id fst)
+equalT1 = equal_fmt (either id fst)
 
 test_formatLines = do
     let f strokeWidth width tala =
@@ -158,7 +170,7 @@ test_formatLines = do
     equal (f 2 14 tala4 (tas 8)) $ Right [["k k k k", "k k k k"]]
 
     -- Break multiple avartanams and lines.
-    let ta2 = "k _ _ _ k _ _ _"
+    let ta2 = "k _ ‗   k _ ‗"
     equal (f 2 8 tala4 (sd (sd (tas 8)))) $ Right
         [ [ta2, ta2]
         , [ta2, ta2]
@@ -166,7 +178,7 @@ test_formatLines = do
     -- If there's a final stroke on sam, append it to the previous line.
     equal (f 2 8 tala4 (sd (sd (tas 9)))) $ Right
         [ [ta2, ta2]
-        , [ta2, ta2 <> " k"]
+        , [ta2, ta2 <> "   k"]
         ]
 
     -- Uneven ones break before the width.
@@ -250,7 +262,7 @@ test_formatSpeed = do
     equal (f 80 $ thoms 2 <> su (thoms 4) <> thoms 1)
         (Right "O _ o _ o o o o O _")
     equal (f 80 $ thoms 2 <> su (su (thoms 8)) <> thoms 1)
-        (Right "O _ _ _ o _ _ _ o o o o o o o o O _ _ _")
+        (Right "O _ ‗   o _ ‗   o o o o o o o o O _ ‗")
     equal (f 80 $ sd (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
     equal (f 80 (Dsl.p5 <> Dsl.p5)) (Right "P5------==p5----==--")
     -- Use narrow spacing when there's isn't space, and p5 overlaps the next

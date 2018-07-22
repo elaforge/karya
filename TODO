@@ -3805,15 +3805,22 @@ solkattu:
     text:
       * Use Config data type for terminalWidth and overrideStrokeWidth, so
         tests can turn things on and off more easily.
-      - Rests are messy.  Notation:extension causes them to be ___ depending
+      * Rests are messy.  Notation(extension) causes them to be ___ depending
         on the duration of the rest, and then thinRests then strips out the
-        extras.  This is confusing and messy.
-      - Replace a double rest that starts on an even matra with a double
+        extras.
+        . Shouldn't normalizeSpeed split them up?  I guess it doesn't, because
+          it can't really split Patterns, but it could.  Or a separate pass
+          could.
+      * Replace a double rest that starts on an even matra with a double
         underline, or something.  This is effectively rhythmic spelling.
         . Alternately, I could put in a number for matra count.
         . ‗
           DOUBLE LOW LINE
           Unicode: U+2017, UTF-8: E2 80 97
+        . This is not ideal because at strokeWidth=1 I wind up with double
+          rests every other column.  I think what I really want is that at
+          strokeWidth=1, '__' becomes '_ ' and '____' becomes '‗   '.
+        . Do I have to do the same _| thing with double rest?
       - something is cutting off the first letter in
         solkattu-text/Solkattu.Score.Solkattu2018.misra_to_mohra3.txt
       * strip rests after the end-on-sam stroke so it winds up on the same line

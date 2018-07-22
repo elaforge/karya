@@ -133,7 +133,7 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
         Pattern p -> Solkattu.notation p
         Alignment _ -> "" -- this should be filtered out prior to render
     extension = \case
-        Space Solkattu.Rest -> '_'
+        Space Solkattu.Rest -> ' '
         Space Solkattu.Sarva -> '='
         Pattern p -> Solkattu.extension p
         _ -> ' '
@@ -141,6 +141,10 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
         Note s -> Solkattu.notationHtml s
         Pattern p -> Solkattu.notationHtml p
         _ -> Doc.html $ Solkattu.notation n
+
+-- | Used to replace two rests.
+doubleRest :: Char
+doubleRest = '‗' -- DOUBLE LOW LINE U+2017
 
 instance Pretty stroke => Pretty (Note stroke) where
     pretty n = case n of

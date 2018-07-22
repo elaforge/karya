@@ -106,9 +106,6 @@ formatInstrument config instrument realizePatterns korvai =
     formatResults config korvai $ zip (korvaiTags korvai) $
         Korvai.realize instrument realizePatterns korvai
 
-defaultWidth :: Int
-defaultWidth = 78
-
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
@@ -179,7 +176,7 @@ format config prevRuler tala notes =
                     (formatLines 2 width tala notes, 2)
             result -> (result, 1)
     formatLine :: [Symbol] -> Text
-    formatLine = Text.stripEnd . mconcat . map formatSymbol . thinRests
+    formatLine = Text.stripEnd . mconcat . map formatSymbol
     width = _terminalWidth config
 
 pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line]]
@@ -213,17 +210,31 @@ formatRuler strokeWidth =
         where
         append = spaces * strokeWidth - Text.length mark - debt
 
--- | Drop single character rests on odd columns, to make the output look less
--- cluttered.
-thinRests :: [Symbol] -> [Symbol]
-thinRests = snd . List.mapAccumL thin 0
+-- | Replace two rests starting on an even note, with a Realize.doubleRest.
+-- This is an elementary form of rhythmic spelling.
+--
+-- But if strokeWidth=1, then replace replace odd _ with ' ', to avoid clutter.
+spellRests :: Int -> [Symbol] -> [Symbol]
+spellRests strokeWidth
+    | strokeWidth == 1 = map thin . zip [0..]
+    | otherwise = map set . zip [0..] . Seq.zip_neighbors
     where
-    thin column sym
-        | Text.all (=='_') (_text sym) =
-            let (column2, stroke2) = Text.mapAccumL clear column (_text sym)
-            in (column2, sym { _text = stroke2 })
-        | otherwise = (column + textLength (_text sym), sym)
-    clear column _ = (column+1, if even column then '_' else ' ')
+    thin (col, sym)
+        | isRest sym && odd col = sym { _text = " " }
+        | otherwise = sym
+    set (col, (prev, sym, next))
+        | not (isRest sym) = sym
+        | even col && maybe False isRest next = sym
+            { _text = justifyLeft (symLength sym) ' ' double }
+        | odd col && maybe False isRest prev = sym
+            { _text = Text.replicate (symLength sym) " " }
+        | otherwise = sym
+    double = Text.singleton Realize.doubleRest
+
+-- | This assumes the function doesn't change the length of the list!
+mapSnd :: ([a] -> [b]) -> [(x, a)] -> [(x, b)]
+mapSnd f xas = zip xs (f as)
+    where (xs, as) = unzip xas
 
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
 -- onto the next line.
@@ -234,36 +245,45 @@ formatFinalAvartanam avartanams = case reverse avartanams of
             reverse $ (Seq.map_last (++[final]) penultimate) : prevs
         | otherwise -> avartanams
     _ -> avartanams
-    where
-    -- This should be (== Space Rest), but I have to showStroke first to break
-    -- lines.  TODO brittle hack, this is from makeSymbol below.
-    isRest = Text.all (=='_') . Text.strip . _text
+
+-- This should be (== Space Rest), but I have to makeSymbol first to break
+-- lines.
+isRest :: Symbol -> Bool
+isRest = (=="_") . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
 formatLines :: Solkattu.Notation stroke => Int -> Int -> Tala.Tala
     -> [S.Flat g (Realize.Note stroke)] -> [[[(S.State, Symbol)]]]
 formatLines strokeWidth width tala =
-    formatFinalAvartanam . map (breakLine width) . breakAvartanams
-        . map combine . Seq.zip_prev . map makeSymbol . normalizeSpeed tala
+    map (map (mapSnd (spellRests strokeWidth)))
+        . formatFinalAvartanam . map (breakLine width) . breakAvartanams
+        . map combine . Seq.zip_prev . map makeSymbol
+        . normalizeSpeed tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
         where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
-    makeSymbol (startEnds, (state, note)) = (state,) $ make $ case note of
-        S.Attack a ->
-            justifyLeft strokeWidth (Solkattu.extension a) (Solkattu.notation a)
-        S.Sustain a ->
-            Text.replicate strokeWidth (Text.singleton (Solkattu.extension a))
-        S.Rest -> justifyLeft strokeWidth ' ' "_"
+    makeSymbol (startEnds, (state, note)) =
+        (state,) $ make $ case toRest note of
+            S.Attack a -> justifyLeft strokeWidth (Solkattu.extension a)
+                (Solkattu.notation a)
+            S.Sustain a -> Text.replicate strokeWidth
+                (Text.singleton (Solkattu.extension a))
+            S.Rest -> justifyLeft strokeWidth ' ' "_"
         where
         make text = Symbol
             { _text = text
             , _emphasize = shouldEmphasize tala angas state
             , _bounds = startEnds
             }
+    -- Rests are special in that S.normalizeSpeed can produce them.  Normalize
+    -- them to force them to all be treated the same way.
+    toRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
+    toRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
+    toRest a = a
     angas = angaSet tala
 
-normalizeSpeed :: Tala.Tala -> [S.Flat g (Realize.Note a)]
-    -> [([StartEnd], (S.State, S.Stroke (Realize.Note a)))]
+normalizeSpeed :: Tala.Tala -> [S.Flat g (Realize.Note stroke)]
+    -> [([StartEnd], (S.State, S.Stroke (Realize.Note stroke)))]
 normalizeSpeed tala =
     annotateGroups . S.normalizeSpeed tala . S.filterFlat (not . isAlignment)
     where
@@ -432,7 +452,8 @@ emphasize :: Text -> Text
 emphasize word
     -- A bold _ looks the same as a non-bold one, so put a bar to make it
     -- more obvious.
-    | word == "_ " = emphasize "_|"
+    | "_ " `Text.isPrefixOf` word = emphasize "_|"
+    | "‗ " `Text.isPrefixOf` word = emphasize "‗|"
     | otherwise = Terminal.boldOn <> pre <> Terminal.boldOff <> post
     where (pre, post) = Text.break (==' ') word
 

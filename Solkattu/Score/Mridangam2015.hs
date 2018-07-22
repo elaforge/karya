@@ -18,7 +18,6 @@ c_1 = akash $ date 2015 1 1 $ tekha $
     , sd $ od.__.k.od.__.k  .od.o&k.p&n.k.od.o&k.p&n.k
     , sd $ on.su (kt.o.k).on.on.su (kt.p.k).n.su (kt.p.k).on.on.su (kt.o.k)
     ]
-    where
 
 c_2 :: Korvai
 c_2 = akash $ date 2015 1 1 $ tekha $
