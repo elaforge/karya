@@ -33,7 +33,22 @@ type Error = Text
 -- | Make a summary page with all the korvais.
 indexHtml :: (Korvai.Korvai -> FilePath) -> [Korvai.Korvai] -> Doc.Html
 indexHtml korvaiFname korvais = TextUtil.join "\n" $
-    [ "<html><body>"
+    [ "<html> <head>"
+    , "<meta charset=utf-8>"
+    , "<title>solkattu db</title>"
+    , "<style>"
+    , "table {"
+    , "    border-collapse: collapse;"
+    , "}"
+    , "tr:nth-child(even) {"
+    , "    background-color: #f2f2f2;"
+    , "}"
+    , "th, td {"
+    , "    padding: 4px;"
+    , "    border-left: 1px solid black;"
+    , "}"
+    , "</style>"
+    , "</head> <body>"
     , "<table>"
     , "<tr>" <> mconcat ["<th>" <> c <> "</th>" | c <- columns] <> "</tr>"
     ] ++ map row korvais ++
@@ -46,7 +61,7 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
         , mconcat ["<td>" <> cell <> "</td>" | cell <- cells korvai]
         , "</tr>"
         ]
-    columns = ["", "type", "tala", "nadai", "date", "instruments"]
+    columns = ["", "type", "tala", "nadai", "date", "instruments", "source"]
     cells korvai = Doc.link variableName (txt (korvaiFname korvai))
         : map Doc.html
         [ Text.unwords $ Metadata.korvaiTag "type" korvai
@@ -54,10 +69,12 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
         , Text.intercalate ", " $ Metadata.sectionTag "nadai" korvai
         , maybe "" (txt . Calendar.showGregorian) $ Korvai._date meta
         , Text.intercalate ", " $ Metadata.korvaiTag "instrument" korvai
+        , Text.intercalate ", " $ Metadata.korvaiTag "source" korvai
         ]
         where
         meta = Korvai.korvaiMetadata korvai
         (_, _, variableName) = Korvai._location meta
+
 
 -- | Write HTML with all the instrument realizations.
 writeAll :: FilePath -> Bool -> Korvai.Korvai -> IO ()

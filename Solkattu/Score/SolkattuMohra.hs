@@ -87,10 +87,11 @@ c_mohra2 = janahan $ makeMohra adi mridangam (a1, a2, a3) (b1, b2, b3)
         ]
 
 c_mohra_youtube :: Korvai
-c_mohra_youtube = source "Melakkaveri Balaji" $ source url $
+c_mohra_youtube = source "Melakkaveri Balaji" $
+    recording "https://www.youtube.com/watch?v=eq-DZeJi8Sk"
+            (Just ((0, 0, 59), (0, 2, 7))) $
     makeMohra2 adi mridangam (a1, a2, a3) (b1, b2, b3)
     where
-    url = "https://www.youtube.com/watch?v=eq-DZeJi8Sk"
     -- he says "tikutaka tarikita" instead of "nakatiku tarikita"
     a1 =  su $ __.dhom.ta.ka.ta .__.ki.ta . nakatiku
     a2 =  su $ ka.din.__.din.__. ta.ki.ta . nakatiku
