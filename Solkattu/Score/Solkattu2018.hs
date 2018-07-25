@@ -325,7 +325,7 @@ c_18_04_25 = date 2018 4 25 $ ganesh $
         ]
 
 {-
-    misra capu sequence 100 bpm:
+    misra chapu sequence 100 bpm:
 
     . dinaginna sequence with 4 avartanams per section
     . dinaginna with dinnaginna taka taka talang ga
@@ -386,15 +386,16 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: SequenceT sollu
 dikutarikitataka = nakatiku
 
--- TODO
-misra_tani1 :: Korvai
-misra_tani1 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
+misra_tani :: Korvai
+misra_tani = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
     map section
     [ sd2 $ repeat 2 $
         tam.__3.tam.__.tam.__
       . tam.__3.tam.__.su (taka.jonu)
-    , sd2 $ na.din.din.na.din.din.na.din.__7
-    , sd2 $ na.din.din.su (na.na).din.din.na.din.__7
+    , sd2 $ na.din.na.na.din.din.na
+        . din.__n 7
+        . na.din.na.su (na.na).din.din.na
+        . din.__n 7
     , (7*4) ==> (ta.takita.takadinna)
     , tam.__8 . tA1
     , sarvaD (7*3)
@@ -642,13 +643,11 @@ trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $
         . ta.takita.theme0.di.__6.p6
         . tam.__4.theme0.di.__6 . tri_ (di.__6) p6
     theme0 = taka.din.__.din.__.tat.__
-    p6 = ta.di.__.ki.ta.thom
     mridangam = makeMridangam
         [ (tam, [p&v])
         , (theme0, [k, o, od, od, k])
         , (ta.takita, [k, t, k, t])
         , (di, [od])
-        , (p6, [k, t, k, n, o])
         ]
     -- At higher speed, tadi kitathom becomes tadi kitaka.
 

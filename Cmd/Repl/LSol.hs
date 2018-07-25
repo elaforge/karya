@@ -57,7 +57,7 @@ import Types
 -- * search
 
 search :: Monad m => (Korvai.Korvai -> Bool) -> m Text
-search = return . Db.search
+search = return . Db.search id
 
 search_date :: Monad m => Int -> Int -> Int -> Integer -> m Text
 search_date y m d days = search $ aroundDate (date y m d) days

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE RankNTypes #-}
 -- | Collect korvais into a searchable form.
 module Solkattu.Db (
     module Solkattu.Db
@@ -36,6 +37,11 @@ korvais = All.korvais
 
 -- * predicates
 
+-- | The number of date groups starting from the most recent.
+recentDates :: Int -> FilterP
+recentDates groups = concat . Seq.rtake groups
+    . Seq.group_sort (Korvai._date . Korvai.korvaiMetadata . snd)
+
 aroundDate :: Calendar.Day -> Integer -> Korvai.Korvai -> Bool
 aroundDate date days =
     maybe False inRange . Korvai._date . Korvai.korvaiMetadata
@@ -63,21 +69,40 @@ date = Metadata.makeDate
 -- * search
 
 searchp :: (Korvai.Korvai -> Bool) -> IO ()
-searchp = liftIO . Text.IO.putStrLn . search
+searchp = Text.IO.putStrLn . search id
 
-search :: (Korvai.Korvai -> Bool) -> Text
-search predicate = Text.stripEnd $
-    Text.unlines $ map format $ filter (predicate . snd) $ zip [0..] korvais
+-- | TODO this is awkward.  I just want to lift 'snd' into [x] -> [x] the same
+-- way I can trivially lift it into x -> Bool.  But I don't think I can write
+-- ([a] -> [a]) -> ([(x, a)] -> [(x, a)]), because [a]->[a] is not guaranteed
+-- to be a filter.  Also it's just for 'recentDates', but search needs a whole
+-- new argument for it, and it seems too annoying to lift all predicates to the
+-- list-to-list form.
+type FilterP = forall x. [(x, Korvai.Korvai)] -> [(x, Korvai.Korvai)]
+
+search :: FilterP -> (Korvai.Korvai -> Bool) -> Text
+search filterP predicate = Text.stripEnd $
+    Text.unlines $ map format $ filter (predicate . snd) $ filterP $
+    zip [0..] korvais
+
+searchIndices :: FilterP -> (Korvai.Korvai -> Bool) -> [Int]
+searchIndices filterP predicate =
+    map fst $ filter (predicate . snd) $ filterP $ zip [0..] korvais
 
 format :: (Int, Korvai.Korvai) -> Text
-format (i, korvai) =
-    showt i <> ": " <> Metadata.showLocation (Metadata.getLocation korvai)
-        <> "\n" <> tagsText
+format (i, korvai) = mconcat
+    [ showt i
+    , ": "
+    , Metadata.showLocation (Metadata.getLocation korvai)
+    , " -- " <> maybe "no date" showt date
+    , "\n"
+    , tagsText
+    ]
     where
     tagsText = Text.unlines $ map ("    "<>) $ map (Text.intercalate "; ") $
         Seq.chunked 3 $ map (\(k, v) -> k <> ": " <> Text.unwords v) $
         Map.toAscList tags
     Tags.Tags tags = Korvai._tags $ Korvai.korvaiMetadata korvai
+    date = Korvai._date (Korvai.korvaiMetadata korvai)
 
 
 -- * write

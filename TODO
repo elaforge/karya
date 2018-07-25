@@ -3737,7 +3737,7 @@ solkattu:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   flashcards:
-    - search and then choose randomly, e.g. random exercise + korvai
+    * search and then choose randomly, e.g. random exercise + korvai
     - remember what I did last time, and do spaced repetition
       . This isn't memorization, just randomization with coverage.  So it's
         enough to pick random but twice as likely to pick with score one
@@ -3862,7 +3862,7 @@ solkattu:
     / Solkattu.notation should output an abstract formatted output, which can
       be rendered to HTML or ASCII.
       . I added notationHtml, which is more error-prone, but simpler.
-  - What if I just renamed Sequence to S?
+  * What if I just renamed Sequence to S?
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
       strokes, and korvai fields.  Separate entry for name and tags.
