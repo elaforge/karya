@@ -12,7 +12,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Technique as Technique
 
@@ -22,7 +22,7 @@ import Global
 type SNote = Realize.SNote Stroke
 
 note :: stroke -> Realize.SNote stroke
-note = Sequence.Note . Realize.Note . Realize.stroke
+note = S.Note . Realize.Note . Realize.stroke
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
@@ -147,8 +147,8 @@ both :: Thoppi -> Valantalai -> SNote
 both a b = note (Both a b)
 
 (&) :: CallStack.Stack => SNote -> SNote -> SNote
-Sequence.Note (Realize.Note s1) & Sequence.Note (Realize.Note s2) =
-    Sequence.Note $ Realize.Note $ bothRStrokes s1 s2
+S.Note (Realize.Note s1) & S.Note (Realize.Note s2) =
+    S.Note $ Realize.Note $ bothRStrokes s1 s2
 a & b = Solkattu.throw $ "requires notes: " <> showt (a, b)
 
 bothRStrokes :: CallStack.Stack => Realize.Stroke Stroke
@@ -240,7 +240,7 @@ defaultPatternsEmphasis =
     where Strokes {..} = notes
 
 -- | Misc patterns I should figure out how to integrate some day.
-misc :: [(Sequence.Matra, [SNote])]
+misc :: [(S.Matra, [SNote])]
 misc =
     [ (7, su [k, __, __, t, __, __, k, __, __, n, __, __, o, __])
     ]
@@ -307,10 +307,9 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
     kp = [k, p]
     kpnp = [k, p, n, p]
 
-patterns :: [(Sequence.Matra, [SNote])]
-    -> Either Text (Realize.Patterns Stroke)
+patterns :: [(S.Matra, [SNote])] -> Either Text (Realize.Patterns Stroke)
 patterns = Realize.patterns . (defaultNakatiku++)
     . map (first Solkattu.PatternM)
 
-su :: [Sequence.Note g a] -> [Sequence.Note g a]
-su = (:[]) . Sequence.changeSpeed 1
+su :: [S.Note g a] -> [S.Note g a]
+su = (:[]) . S.changeSpeed 1

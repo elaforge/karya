@@ -7,7 +7,7 @@
 module Solkattu.Instrument.Konnakol where
 import qualified Derive.Expr as Expr
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Sollu(..))
 
@@ -16,7 +16,7 @@ import Global
 
 note :: Sollu -> Realize.SNote Sollu
 note NoSollu = Realize.rest
-note sollu = Sequence.Note (Realize.Note (Realize.stroke sollu))
+note sollu = S.Note (Realize.Note (Realize.stroke sollu))
 
 defaultPatterns :: Realize.Patterns Sollu
 defaultPatterns = Solkattu.check $ patterns
@@ -39,7 +39,7 @@ alternatePatterns = Solkattu.check $ patterns
 __ :: Sollu
 __ = NoSollu
 
-patterns :: [(Sequence.Matra, [Sollu])] -> Either Text (Realize.Patterns Sollu)
+patterns :: [(S.Matra, [Sollu])] -> Either Text (Realize.Patterns Sollu)
 patterns = Realize.patterns . map (second (map note)) . (defaultNakatiku++)
     . map (first Solkattu.PatternM)
 

@@ -7,7 +7,7 @@ module Solkattu.Instrument.ToScore where
 import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
 import Global
@@ -19,11 +19,11 @@ import Global
 -- intermediate data structure to bridge the solkattu types and the karya
 -- types.
 type ToScore stroke =
-    [(Sequence.Duration, Realize.Note stroke)] -> ([Event], [(Text, [Event])])
+    [(S.Duration, Realize.Note stroke)] -> ([Event], [(Text, [Event])])
     -- ^ (noteEvents, [(control, controlEvents)]).  A control named "*"
     -- becomes a pitch track.
 
-type Event = (Sequence.Duration, Sequence.Duration, Text)
+type Event = (S.Duration, S.Duration, Text)
 
 
 -- | A standard ToScore for simple percussion, with 0 duration and no control
@@ -34,7 +34,7 @@ toScore strokes = (events, [])
     events = do
         (start, dur, note) <- zip3 starts durs notes
         Just expr <- [toExpr note]
-        let d = if Sequence.hasSustain note then dur else 0
+        let d = if S.hasSustain note then dur else 0
         return (start, d, ShowVal.show_val expr)
     starts = scanl (+) 0 durs
     (durs, notes) = unzip strokes

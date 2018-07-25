@@ -37,7 +37,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as S
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala

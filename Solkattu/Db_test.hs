@@ -13,7 +13,7 @@ import qualified Solkattu.All as All
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
@@ -58,7 +58,7 @@ realize :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Korvai.Korvai
 realize inst korvai
     | not (null errors) = Left errors
     | not (null warnings) = Left warnings
-    | otherwise = Right $ map Sequence.flattenedNotes notes
+    | otherwise = Right $ map S.flattenedNotes notes
     where
     (errors, results) = Either.partitionEithers $
         Korvai.realize inst True korvai

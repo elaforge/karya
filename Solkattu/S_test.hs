@@ -3,19 +3,19 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances #-}
-module Solkattu.Sequence_test where
+module Solkattu.S_test where
 import Util.Test
-import qualified Solkattu.Sequence as Sequence
-import Solkattu.Sequence (Note(..), Flat(..), defaultTempo)
+import qualified Solkattu.S as S
+import Solkattu.S (Note(..), Flat(..), defaultTempo)
 import qualified Solkattu.Tala as Tala
 
 import Global
 
 
 test_flattenWith = do
-    let f = Sequence.flattenWith defaultTempo
+    let f = S.flattenWith defaultTempo
         -- extract n = n -- fmap (const ()) n
-        -- extract (Meta g (Sequence.Tempo speed nadai _)) = (g, (speed, nadai))
+        -- extract (Meta g (S.Tempo speed nadai _)) = (g, (speed, nadai))
     equal (f [su [note]]) [FNote (tempo 1 4) 1]
     equal (f [Group 'a' [note, su [Group 'b' [note]], note]])
         [ FGroup (tempo 0 4) 'a'
@@ -35,8 +35,8 @@ test_flattenWith = do
 
 test_tempoToState = do
     let f = map (eState . fst) . snd
-            . Sequence.tempoToState Tala.adi_tala 0
-            . Sequence.tempoNotes . Sequence.flatten
+            . S.tempoToState Tala.adi_tala 0
+            . S.tempoNotes . S.flatten
     equal (f [note, note, note, note, note])
         [(0, 0), (0, 1/4), (0, 2/4), (0, 3/4), (1, 0)]
 
@@ -56,10 +56,10 @@ test_tempoToState = do
 
 test_normalizeSpeed = do
     let f = map (bimap eState prettyStroke)
-            . Sequence.flattenedNotes
-            . Sequence.normalizeSpeed Tala.adi_tala
-            . Sequence.flatten
-        n matras = Sequence.Note (matras :: Sequence.Matra)
+            . S.flattenedNotes
+            . S.normalizeSpeed Tala.adi_tala
+            . S.flatten
+        n matras = S.Note (matras :: S.Matra)
     equal (f [n 1, n 1]) [((0, 0), '+'), ((0, 1/4), '+')]
     -- It would omit the rests, but 1/nadai is the minimum dur.
     equal (f [sd [n 1, n 1]])
@@ -85,9 +85,8 @@ test_normalizeSpeed = do
     equal (map snd $ f [stride 3 [note, su [note, note]]]) "+_____+__+__"
 
 test_normalizeSpeedGroups = do
-    let f = map (fmap extract) . Sequence.normalizeSpeed Tala.adi_tala
-            . Sequence.flatten
-        n = Note (1 :: Sequence.Matra)
+    let f = map (fmap extract) . S.normalizeSpeed Tala.adi_tala . S.flatten
+        n = Note (1 :: S.Matra)
         extract = pretty . snd
     let t0 = tempo 0 4
         t1 = tempo 1 4
@@ -115,7 +114,7 @@ test_normalizeSpeedGroups = do
         ]
 
 test_simplify = do
-    let f = Sequence.simplify
+    let f = S.simplify
     equal (f [su [note, note]]) [su [note, note]]
     equal (f [su [note], su [note]]) [su [note, note]]
 
@@ -131,7 +130,7 @@ test_simplify = do
         [speed (-1) [note], note]
 
 test_noteFmatra = do
-    let f = Sequence.noteFmatra
+    let f = S.noteFmatra
     equal (f (tempo 0 4) note) 1
     equal (f (tempo 0 6) note) 1
     equal (f (tempo 1 4) note) (1/2)
@@ -140,33 +139,33 @@ test_noteFmatra = do
     equal (f (tempo 1 4) $ su [note, note]) (1/2)
     equal (f (tempo 0 4) $ speed 0 [note, nadai 6 [note, note, note]]) 3
 
-prettyStroke :: Sequence.Stroke a -> Char
+prettyStroke :: S.Stroke a -> Char
 prettyStroke s = case s of
-    Sequence.Attack _ -> '+'
-    Sequence.Sustain {} -> '-'
-    Sequence.Rest -> '_'
+    S.Attack _ -> '+'
+    S.Sustain {} -> '-'
+    S.Rest -> '_'
 
-eState :: Sequence.State -> (Tala.Akshara, Sequence.Duration)
-eState state = (Sequence.stateAkshara state, Sequence.stateMatra state)
+eState :: S.State -> (Tala.Akshara, S.Duration)
+eState state = (S.stateAkshara state, S.stateMatra state)
 
 note :: Note Char Int
-note = Sequence.Note 1
+note = S.Note 1
 
-instance Sequence.HasMatras Sequence.Matra where
+instance S.HasMatras S.Matra where
     matrasOf = id
     hasSustain n = n > 1
 
-nadai :: Sequence.Nadai -> [Note g a] -> Note g a
-nadai = TempoChange . Sequence.Nadai
+nadai :: S.Nadai -> [Note g a] -> Note g a
+nadai = TempoChange . S.Nadai
 
-speed :: Sequence.Speed -> [Note g a] -> Note g a
-speed = Sequence.changeSpeed
+speed :: S.Speed -> [Note g a] -> Note g a
+speed = S.changeSpeed
 
-stride :: Sequence.Stride -> [Note g a] -> Note g a
-stride = TempoChange . Sequence.Stride
+stride :: S.Stride -> [Note g a] -> Note g a
+stride = TempoChange . S.Stride
 
 su, sd :: [Note g a] -> Note g a
 su = speed 1
 sd = speed (-1)
 
-tempo s n = Sequence.Tempo s n 1
+tempo s n = S.Tempo s n 1

@@ -13,7 +13,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
 import qualified Perform.Pitch as Pitch
@@ -23,7 +23,7 @@ import Global
 type SNote = Realize.SNote Stroke
 
 note :: stroke -> Realize.SNote stroke
-note = Sequence.Note . Realize.Note . Realize.stroke
+note = S.Note . Realize.Note . Realize.stroke
 
 newtype Attributes = Attributes (Map Text (Maybe Text))
     deriving (Show, Eq)

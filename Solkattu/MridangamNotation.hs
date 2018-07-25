@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as S
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
 import Global

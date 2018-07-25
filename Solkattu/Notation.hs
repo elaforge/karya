@@ -21,8 +21,8 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as S
-import Solkattu.Sequence (Duration, FMatra)
+import qualified Solkattu.S as S
+import Solkattu.S (Duration, FMatra)
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (throw)
 import qualified Solkattu.Tala as Tala

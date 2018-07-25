@@ -16,7 +16,7 @@ import qualified Util.Num as Num
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Section)
 import qualified Solkattu.Metadata as Metadata
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 
@@ -25,12 +25,12 @@ import Global
 
 -- | Set expected starting and ending time.  Useful for eddupu, or sections
 -- which are split in the middle of an avartanam.
-startOn, endOn :: Sequence.Duration -> Section stroke -> Section stroke
+startOn, endOn :: S.Duration -> Section stroke -> Section stroke
 startOn dur section = section { Korvai.sectionStart = dur }
 endOn dur section = section { Korvai.sectionEnd = dur }
 
 -- | Like 'endOn', but also mark this section with eddupu.
-eddupu :: Sequence.Duration -> Section sollu -> Section sollu
+eddupu :: S.Duration -> Section sollu -> Section sollu
 eddupu dur = withTag Tags.eddupu (pretty dur) . endOn dur
 
 -- * tags

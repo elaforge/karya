@@ -8,7 +8,7 @@
 {-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Low level support for rhythmic sequences in a Tala.  The actual Note
 -- type is polymorphic, so this is purely rhythmic.
-module Solkattu.Sequence (
+module Solkattu.S (
     Note(..), TempoChange(..)
     , Duration, FMatra, Matra, Speed, Nadai, Stride, speedFactor
     , changeSpeed
@@ -33,7 +33,7 @@ module Solkattu.Sequence (
     , durationOf, noteDuration, noteFmatra, fmatraDuration, normalizeFmatra
     , matraDuration
 #ifdef TESTING
-    , module Solkattu.Sequence
+    , module Solkattu.S
 #endif
 ) where
 import qualified Control.Monad.State.Strict as State

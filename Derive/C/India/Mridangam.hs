@@ -30,7 +30,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
 import Global
@@ -78,7 +78,7 @@ dur_arg = Typecheck.non_negative <$> Sig.defaulted_env "dur" Sig.Both 0
     "Duration for each letter in the sequence. If 0, the sequence will\
     \ stretch to the event's duration."
 
-m_sequence :: [(Sequence.Duration, Maybe Derive.NoteDeriver)] -> ScoreTime
+m_sequence :: [(S.Duration, Maybe Derive.NoteDeriver)] -> ScoreTime
     -> (TrackTime, TrackTime) -> Types.Orientation -> Derive.NoteDeriver
 m_sequence notes dur (start, end) orientation = realize $ case orientation of
     _ | dur == 0 -> stretch_to_range (start, end) notes
@@ -91,7 +91,7 @@ m_sequence notes dur (start, end) orientation = realize $ case orientation of
     realize notes =
         mconcat [Derive.place start 0 note | (start, note) <- notes]
 
-stretch_to_range :: (ScoreTime, ScoreTime) -> [(Sequence.Duration, Maybe a)]
+stretch_to_range :: (ScoreTime, ScoreTime) -> [(S.Duration, Maybe a)]
     -> [(ScoreTime, a)]
 stretch_to_range (start, end) dur_notes =
     [(t, note) | (t, Just note) <- zip starts notes]
@@ -138,8 +138,8 @@ c_pattern = Derive.generator module_ "pattern" Tags.inst
             map (second (realize_mstroke (Args.context args))) notes
         m_sequence notes dur (Args.range args) (Args.orientation args)
 
-infer_pattern :: Sequence.Matra -> Text
-    -> Either Text [(Sequence.Duration, Realize.Note Mridangam.Stroke)]
+infer_pattern :: S.Matra -> Text
+    -> Either Text [(S.Duration, Realize.Note Mridangam.Stroke)]
 infer_pattern dur variation = do
     patterns <- justErr ("unknown variation " <> showt variation) $
         Map.lookup variation variations
@@ -149,8 +149,8 @@ infer_pattern dur variation = do
         (Realize.lookupPattern (Solkattu.PatternM dur) patterns)
     -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
     -- duration in matras.
-    return $ map (first (*4)) $ Sequence.flattenedNotes $
-        Sequence.withDurations $ Sequence.flatten notes
+    return $ map (first (*4)) $ S.flattenedNotes $
+        S.withDurations $ S.flatten notes
 
 realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
     -> Maybe Derive.NoteDeriver

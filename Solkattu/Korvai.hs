@@ -23,7 +23,7 @@ import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as S
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala

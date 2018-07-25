@@ -20,11 +20,7 @@ import qualified Data.Text as Text
 
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Ui as Ui
-
+import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate as Integrate
@@ -39,17 +35,21 @@ import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Pitch as Pitch
 import qualified Solkattu.Db as Db
 import Solkattu.Db hiding (realize, search, searchp)
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
-import qualified Perform.Pitch as Pitch
-import qualified App.ReplProtocol as ReplProtocol
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Ui as Ui
+
 import Global
 import Types
 
@@ -101,13 +101,12 @@ realize instrument realize_patterns korvai index akshara_dur at = do
         to_note_track (Korvai.instToScore instrument) akshara_dur at strokes
 
 to_note_track :: ToScore.ToScore stroke -> TrackTime -> TrackTime
-    -> [Sequence.Flat g (Realize.Note stroke)] -> ModifyNotes.NoteTrack
+    -> [S.Flat g (Realize.Note stroke)] -> ModifyNotes.NoteTrack
 to_note_track to_score stretch shift strokes =
     ModifyNotes.NoteTrack (mk_events notes) control_tracks
     where
     controls :: [(Text, [ToScore.Event])]
-    (notes, controls) = to_score $ Sequence.flattenedNotes $
-        Sequence.withDurations strokes
+    (notes, controls) = to_score $ S.flattenedNotes $ S.withDurations strokes
     pitches = fromMaybe [] $ lookup "*" controls
     pitch_track = if null pitches then Nothing
         else Just (ModifyNotes.Pitch Pitch.empty_scale, mk_events pitches)
@@ -125,7 +124,7 @@ place shift stretch = (Event.duration_ %= (*stretch))
     . (Event.start_ %= ((+shift) . (*stretch)))
 
 strokes_to_events :: Expr.ToExpr (Realize.Stroke a) =>
-    [Sequence.Flat g (Realize.Note a)] -> [Event.Event]
+    [S.Flat g (Realize.Note a)] -> [Event.Event]
 strokes_to_events strokes =
     [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
         (ShowVal.show_val expr)
@@ -133,8 +132,7 @@ strokes_to_events strokes =
     ]
     where
     starts = scanl (+) 0 durs
-    (durs, notes) = unzip $ Sequence.flattenedNotes $
-        Sequence.withDurations strokes
+    (durs, notes) = unzip $ S.flattenedNotes $ S.withDurations strokes
     to_expr s = case s of
         Realize.Note stroke -> Just (Expr.to_expr stroke, False)
         Realize.Pattern p -> Just (Expr.to_expr p, True)

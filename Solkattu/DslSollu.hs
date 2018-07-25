@@ -9,19 +9,19 @@ module Solkattu.DslSollu (
     , nam, nang, nu, ri, ta, tam, tat, tha, thom, ti, kum
     , tang, tong, lang
 ) where
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Sollu(..))
 
 
-type Sequence = [Sequence.Note Solkattu.Group (Solkattu.Note Solkattu.Sollu)]
+type Sequence = [S.Note Solkattu.Group (Solkattu.Note Solkattu.Sollu)]
     -- This is the same as in Korvai.
 
 sollu :: Solkattu.Sollu -> Sequence
 sollu s = makeNote (Solkattu.Note (Solkattu.note s))
 
-makeNote :: a -> [Sequence.Note g a]
-makeNote a = [Sequence.Note a]
+makeNote :: a -> [S.Note g a]
+makeNote a = [S.Note a]
 
 dheem = sollu Dheem
 dhom = sollu Dhom

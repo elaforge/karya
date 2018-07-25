@@ -7,7 +7,7 @@
 module Solkattu.Instrument.Reyong where
 import qualified Derive.Expr as Expr
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
 import Global
@@ -16,7 +16,7 @@ import Global
 type SNote = Realize.SNote Stroke
 
 note :: stroke -> Realize.SNote stroke
-note = Sequence.Note . Realize.Note . Realize.stroke
+note = S.Note . Realize.Note . Realize.stroke
 
 -- Automatically infer two handed cek if they are isolated.
 -- Maybe infer light byut if there is a note immediately afterwards?
@@ -101,7 +101,7 @@ rhythmicPatterns = Solkattu.check $ patterns
     , (9, [x, k, __, x, __, b, o, __, __])
     ] where Strokes {..} = notes
 
-patterns :: [(Sequence.Matra, [Realize.SNote Stroke])]
+patterns :: [(S.Matra, [Realize.SNote Stroke])]
     -> Either Text (Realize.Patterns Stroke)
 patterns = Realize.patterns . (melodicNakatiku:)
     . map (first Solkattu.PatternM)

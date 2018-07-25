@@ -17,7 +17,7 @@ import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
 import Solkattu.Notation (takeM, dropM, rdropM)
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Note(..), Sollu(..))
 import qualified Solkattu.Tala as Tala
@@ -91,9 +91,9 @@ test_realizeGroupsOutput = do
             where M.Strokes {..} = M.notes
         taka = ta <> ka
         extract = fmap $ Text.unwords . map fmt
-        fmt (Sequence.FGroup _ g children) =
+        fmt (S.FGroup _ g children) =
             pretty g <> "(" <> Text.unwords (map fmt children) <> ")"
-        fmt (Sequence.FNote _ n) = pretty n
+        fmt (S.FNote _ n) = pretty n
     equal (f taka) (Right "k t")
     equal (f $ dropM 1 taka) (Right "([k], Before)(t)")
     equal (f $ rdropM 1 taka) (Right "([t], After)(k)")
@@ -187,15 +187,15 @@ test_realizeTag = do
 sollu :: Sollu -> Note Sollu
 sollu s = Solkattu.Note (Solkattu.note s)
 
-pattern :: Sequence.Matra -> Solkattu.Note stroke
+pattern :: S.Matra -> Solkattu.Note stroke
 pattern = Solkattu.Pattern . Solkattu.PatternM
 
 test_realizePatterns = do
     let f pmap = Realize.formatError
             . Realize.realize (Realize.realizePattern pmap)
                 (Realize.realizeSollu strokeMap)
-            . Sequence.flatten
-    let eStrokes = eWords . fmap Sequence.flattenedNotes
+            . S.flatten
+    let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
         (Right "k t k n o")
     equal (eStrokes $ f (M.families567 !! 1) Dsl.p5)
@@ -231,7 +231,7 @@ test_strokeMap = do
         [((Just 1, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ki))])]
     left_like (f [(ta <> di, [k])]) "have differing lengths"
     left_like (f [(tang <> ga, [u, __, __])]) "differing lengths"
-    left_like (f [(ta <> [Sequence.Note $ pattern 5], [k])])
+    left_like (f [(ta <> [S.Note $ pattern 5], [k])])
         "only have plain sollus"
 
 -- * verifyAlignment
@@ -307,25 +307,25 @@ tdktSmap = expect_right $ Realize.strokeMap
     where M.Strokes {..} = M.notes
 
 verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> Tala.Tala -> Sequence.Duration -> Sequence.Duration -> Korvai.Sequence
+    -> Tala.Tala -> S.Duration -> S.Duration -> Korvai.Sequence
     -> Either Text (Maybe (Int, Text))
 verifyAlignment smap tala startOn endOn =
-    fmap (Realize.verifyAlignment tala startOn endOn . Sequence.tempoNotes)
+    fmap (Realize.verifyAlignment tala startOn endOn . S.tempoNotes)
         . realize smap
 
 -- * util
 
 realizeN :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> [Sequence.Note Solkattu.Group (Note Sollu)]
+    -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Note stroke]
-realizeN smap = fmap Sequence.flattenedNotes . realize smap
+realizeN smap = fmap S.flattenedNotes . realize smap
 
 realize :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> [Sequence.Note Solkattu.Group (Note Sollu)]
+    -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
 realize smap = Realize.formatError
     . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
-    . Sequence.flatten
+    . S.flatten
 
 strokeMap :: Realize.StrokeMap M.Stroke
 strokeMap = expect_right $ Realize.strokeMap
@@ -339,9 +339,9 @@ mridangam = mempty
         Realize.instrument [(ta, [M.k M.notes])] M.defaultPatterns
     }
 
-sd, su :: [Sequence.Note g a] -> [Sequence.Note g a]
-sd = (:[]) . Sequence.changeSpeed (-1)
-su = (:[]) . Sequence.changeSpeed 1
+sd, su :: [S.Note g a] -> [S.Note g a]
+sd = (:[]) . S.changeSpeed (-1)
+su = (:[]) . S.changeSpeed 1
 
-nadai :: Sequence.Nadai -> [Sequence.Note g a] -> Sequence.Note g a
-nadai n = Sequence.TempoChange (Sequence.Nadai n)
+nadai :: S.Nadai -> [S.Note g a] -> S.Note g a
+nadai n = S.TempoChange (S.Nadai n)

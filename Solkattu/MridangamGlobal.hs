@@ -21,7 +21,7 @@ import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.MridangamNotation as MridangamNotation
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as S
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 

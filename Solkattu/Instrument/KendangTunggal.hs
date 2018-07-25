@@ -8,7 +8,7 @@ module Solkattu.Instrument.KendangTunggal where
 import qualified Derive.Expr as Expr
 import qualified Derive.Symbols as Symbols
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
 import Global
@@ -68,7 +68,7 @@ data Strokes a = Strokes {
     } deriving (Show)
 
 note :: stroke -> Realize.SNote stroke
-note = Sequence.Note . Realize.Note . Realize.stroke
+note = S.Note . Realize.Note . Realize.stroke
 
 notes :: Strokes SNote
 notes = Strokes

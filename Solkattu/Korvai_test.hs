@@ -15,7 +15,7 @@ import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
 import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
@@ -28,7 +28,7 @@ test_realize = do
             . korvai [] (Tala.Tala "eka" Tala.eka 2) . (:[])
         extract notes =
             [ pretty tempo <> ":" <> pretty stroke
-            | (tempo, stroke) <- Sequence.tempoNotes notes
+            | (tempo, stroke) <- S.tempoNotes notes
             ]
         tkdn = cycle $ mconcat [ta, ka, din, na]
         p4s = cycle $ Dsl.pat 4
@@ -47,7 +47,7 @@ test_realizeTechnique = do
     let f strokes = fmap extract . head
             . Korvai.realize Korvai.mridangam False
             . korvai strokes Tala.adi_tala . (:[])
-        extract = Text.unwords . map pretty . Sequence.flattenedNotes . fst
+        extract = Text.unwords . map pretty . S.flattenedNotes . fst
     let strokes1 =
             [ (takatakadinna, [k, t, k, o, o, k])
             , (takatataka, [k, t, k, k, o])

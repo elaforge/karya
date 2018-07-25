@@ -6,7 +6,7 @@
 -- | Functions to write performance postprocess functions.
 module Solkattu.Technique where
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as S
+import qualified Solkattu.S as S
 import Global
 
 

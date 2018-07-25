@@ -27,7 +27,7 @@ module Solkattu.Dsl (
     , module Solkattu.MetadataGlobal
     , module Solkattu.Notation
     , module Solkattu.SectionGlobal
-    , module Solkattu.Sequence
+    , module Solkattu.S
     , module Solkattu.Solkattu
     , module Solkattu.Tala
     -- * mridangam
@@ -61,8 +61,8 @@ import Solkattu.MetadataGlobal
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
 import Solkattu.SectionGlobal
-import qualified Solkattu.Sequence as S
-import Solkattu.Sequence (Duration, Matra, Nadai, defaultTempo)
+import qualified Solkattu.S as S
+import Solkattu.S (Duration, Matra, Nadai, defaultTempo)
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (check, durationOf, throw)
 import qualified Solkattu.Tala as Tala

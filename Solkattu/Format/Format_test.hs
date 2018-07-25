@@ -21,7 +21,7 @@ import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Note(..), Sollu(..))
 import qualified Solkattu.Tala as Tala
@@ -31,7 +31,7 @@ import Global
 
 test_format = do
     let f tala = eFormat . format 80 tala
-            . map (Sequence.FNote Sequence.defaultTempo)
+            . map (S.FNote S.defaultTempo)
         n4 = [k, t, Realize.Space Solkattu.Rest, n]
         M.Strokes {..} = Realize.Note . Realize.stroke <$> M.strokes
         rupaka = Tala.rupaka_fast
@@ -56,7 +56,7 @@ test_format_patterns = do
     let f pmap = Realize.formatError
             . Realize.realize (Realize.realizePattern pmap)
                 (Realize.realizeSollu strokeMap)
-            . Sequence.flatten
+            . S.flatten
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
     equal (eFormat $ format 80 Tala.adi_tala p) "k _ t _ k _ k t o _"
     equal (eFormat $ format 15 Tala.adi_tala p) "k t k kto"
@@ -210,8 +210,8 @@ test_formatSymbol = do
 test_annotateGroups = do
     let f = map (second (pretty . snd))
             . Format.annotateGroups
-            . Sequence.normalizeSpeed Tala.adi_tala
-            . Sequence.flatten
+            . S.normalizeSpeed Tala.adi_tala
+            . S.flatten
     equal (f (ta <> ki)) [([], "ta"), ([], "ki")]
     equal (f (Notation.group ta <> ki)) [([Start, End], "ta"), ([], "ki")]
     equal (f (Notation.group (ta <> ki))) [([Start], "ta"), ([End], "ki")]
@@ -272,11 +272,11 @@ test_formatSpeed = do
 
 -- * util
 
-rpattern :: Sequence.Matra -> Realize.Note stroke
+rpattern :: S.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.PatternM
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
-    -> [Sequence.Flat g (Realize.Note stroke)] -> Text
+    -> [S.Flat g (Realize.Note stroke)] -> Text
 format width tala = snd
     . Format.format (config { Format._terminalWidth = width }) (Nothing, 0) tala
 
@@ -312,19 +312,19 @@ kRealize realizePatterns tala =
 
 -- * TODO duplicated with Realize_test
 
-sd, su :: [Sequence.Note g a] -> [Sequence.Note g a]
-sd = (:[]) . Sequence.changeSpeed (-1)
-su = (:[]) . Sequence.changeSpeed 1
+sd, su :: [S.Note g a] -> [S.Note g a]
+sd = (:[]) . S.changeSpeed (-1)
+su = (:[]) . S.changeSpeed 1
 
-nadai :: Sequence.Nadai -> [Sequence.Note g a] -> Sequence.Note g a
-nadai n = Sequence.TempoChange (Sequence.Nadai n)
+nadai :: S.Nadai -> [S.Note g a] -> S.Note g a
+nadai n = S.TempoChange (S.Nadai n)
 
 realize :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> [Sequence.Note Solkattu.Group (Note Sollu)]
+    -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
 realize smap = Realize.formatError
     . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
-    . Sequence.flatten
+    . S.flatten
 
 strokeMap :: Realize.StrokeMap M.Stroke
 strokeMap = expect_right $ Realize.strokeMap

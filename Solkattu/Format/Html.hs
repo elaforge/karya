@@ -18,7 +18,7 @@ import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.Sequence as S
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala

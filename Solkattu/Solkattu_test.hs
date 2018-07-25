@@ -11,21 +11,21 @@ import qualified Solkattu.Dsl as Dsl
 import Solkattu.Dsl (__)
 import Solkattu.DslSollu (ta, di, ki, thom)
 import qualified Solkattu.Notation as Notation
-import qualified Solkattu.Sequence as Sequence
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
 
 
 test_matrasOf = do
     let f = Solkattu.matrasOf
-        t s n = Sequence.Tempo s n 1
+        t s n = S.Tempo s n 1
     equal (f (t 0 4) ta) 1
     equal (f (t 0 6) ta) 1
     equal (f (t 1 4) ta) (1/2)
     equal (f (t 1 6) ta) (1/2)
 
     let ta4 = ta <> ta <> ta <> ta
-    let f2 = f Sequence.defaultTempo
+    let f2 = f S.defaultTempo
     equal (f2 (Notation.takeM 0 ta4)) 0
     equal (f2 (Notation.takeM 1 ta4)) 1
     equal (f2 (Notation.takeM 4 ta4)) 4
@@ -38,15 +38,15 @@ test_matrasOf = do
     equal (f2 (Notation.dropM 5 ta4)) 0
 
 test_durationOf = do
-    let f = Solkattu.durationOf Sequence.defaultTempo
+    let f = Solkattu.durationOf S.defaultTempo
     let tas n = mconcat $ replicate n ta
     equal (f (tas 4)) 1
     equal (f (Dsl.nadai 7 (tas 7))) 1
     equal (f (Dsl.nadai 7 $ Notation.dropM 2 (tas 9))) 1
 
 test_cancelKarvai = do
-    let f = Text.unwords . map pretty . Sequence.flattenedNotes
-            . Solkattu.cancelKarvai . Sequence.flatten
+    let f = Text.unwords . map pretty . S.flattenedNotes
+            . Solkattu.cancelKarvai . S.flatten
         k = Dsl.karvai
         group = Notation.group
     equal (f (ta <> thom)) "ta thom"

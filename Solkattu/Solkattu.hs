@@ -19,7 +19,7 @@
 
     "Solkattu.Tala" - General 'Tala.Tala' type.
 
-    "Solkattu.Sequence" - Generic rhythmic framework, where the
+    "Solkattu.S" - Generic rhythmic framework, where the
     "payload" note type is abstract.  This can express rhythms in terms of
     'S.Speed' and 'S.Nadai', check them against a Tala, and realize down to
     'S.Duration' tagged notes.
@@ -71,7 +71,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 
 import qualified Derive.Expr as Expr
-import qualified Solkattu.Sequence as S
+import qualified Solkattu.S as S
 import qualified Solkattu.Tala as Tala
 import Global
 
