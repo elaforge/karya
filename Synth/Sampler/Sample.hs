@@ -15,6 +15,7 @@ import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Signal as Signal
+
 import Global
 import Synth.Lib.Global
 
