@@ -74,6 +74,7 @@ library
         pcre-light >=0.4,
         pretty,
         process,
+        random,
         random-shuffle,
         resourcet,
         semigroups,

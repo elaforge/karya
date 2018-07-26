@@ -67,7 +67,7 @@ basicPackages = concat
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
     , w "directory filepath process bytestring time unix array ghc-prim"
     --  basic
-    , w "deepseq data-ordlist cereal text stm network"
+    , w "deepseq data-ordlist cereal random text stm network"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
     , w "vector utf8-string semigroups"
     , [("extra", ">=1.3")]

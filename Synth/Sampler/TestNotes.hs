@@ -55,4 +55,5 @@ make (start, pitch, dyn, attrs) = Note.Note
         (Control.dynamic, dyn)
         : maybe [] ((:[]) . (Control.pitch,)) pitch
     , attributes = Attrs.attrs attrs
+    , hash = mempty
     }

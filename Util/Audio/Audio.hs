@@ -27,6 +27,7 @@ module Util.Audio.Audio (
     , take, mapSamples, gain, multiply
     -- * mix
     , mix
+    , zipWithN
     -- * channels
     , mergeChannels, extractChannel
     , expandChannels, mixChannels
