@@ -81,7 +81,7 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
         sarva 2 . tang.__.tang.__ . p8 . nadai 4 p8 . din.__3 . p9
             . din.__.na.__
         . tri_ (din.__.na.__) p8 . in3 p8
-    , scomment "gradual transition to nadai 4" $ devel $
+    , commentS "gradual transition to nadai 4" $ devel $
         din.__4 . join (din.__4)
         (replicate 2 (p8 . in3 p8) ++ replicate 2 (p8 . nadai 4 p8))
 
@@ -224,7 +224,7 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
         . din.__4 . sarvaD 6
     ] ++
     [ ending $ purvangam 3 . tri_ (sd2 (ta.din)) p5
-    ] ++ map (var • sdate 2018 3 27 • ending)
+    ] ++ map (var • dateS 2018 3 27 • ending)
     [ purvangam 2 . tri_ (sd2 (ta.din)) (tk.p5)
     , purvangam 1 . tri_ (sd2 (ta.din)) (tktu.p5)
     , purvangam 3 . tri_ (tam.__) (taka.ti.ku.p5)
@@ -386,8 +386,25 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: SequenceT sollu
 dikutarikitataka = nakatiku
 
-misra_tani :: Korvai
-misra_tani = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
+-- TODO this implies I need some way to compose korvais together, or
+-- include one in another
+misra_tani_all :: [Korvai]
+misra_tani_all =
+    -- part 1
+    [ misra_tani1
+    , misra_to_mohra1 -- plus 2 or 4 avartanams of sarva in between
+    -- part 2
+    , misra_tani2
+    , misra_to_mohra2
+    , misra_to_mohra3
+    -- part 3
+    , misra_to_mohra4
+    , misra_mohras -- !! 0 or !! 1
+    , misra_muktayi1
+    ]
+
+misra_tani1 :: Korvai
+misra_tani1 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
     map section
     [ sd2 $ repeat 2 $
         tam.__3.tam.__.tam.__
@@ -402,19 +419,6 @@ misra_tani = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
     , sarvaD 4 . tA
     , sarvaD 7 . repeat 3 (sarvaD 4 . dropD 2 tA1)
     ]
-    -- TODO this implies I need some way to compose korvais together, or
-    -- include one in another
-    -- part 1:
-    -- misra_to_mohra1
-    --
-    -- part 2:
-    -- taka.tatadin.__4.taka.tatadin    x4
-    -- sarvaD (2*7)
-    -- misra_to_mohra2
-    -- misra_to_mohra3
-    --
-    -- part 3
-    -- misra_to_mohra4
     where
     -- TODO copy paste from misra_to_mohra1
     tA = group $ tA0.dikutarikitataka.tA1
@@ -430,6 +434,35 @@ misra_tani = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
         , (tA0, [p&k, p&t, k, t, k, n, p, k, t, k])
         , (tA1, [k, k, p, k, t, k, o, o, k, p, k, od, k, od, k])
         ]
+
+misra_tani2 :: Korvai
+misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
+    [ x4 $ section $ sd $ taka.ta.ta.din.__6.tatadin_
+    , x4 $ section $ sd $ taka.ta.ta.din.__4.taka.tatadin_
+    , x3 $ section $ sd $ taka.repeat 3 tatadin_
+    , x2 $ section $
+        sarvaD 3 . repeat 4 (talang.__.gu)
+      . sarvaD (7+3) . repeat 4 (talang.__.gu)
+    , x4 $ section $ sarvaD 3 . repeat 4 (talang.__.gu)
+    , section $ sd (taka.repeat 3 tatadin_)
+    , x2 $ section $ taka.taka . sd (repeat 3 tatadin_)
+    , x4 $ section $ taka.taka . sd tatadin_ . taka.taka.din.__4 . sd tatadin_
+    , x4 $ section $ taka.taka . sd tatadin_ . repeat 2 (taka.taka.din.__4)
+    , x3 $ section $ taka.taka.taka.taka.din.__4 . repeat 2 (taka.taka.din.__4)
+    , ending $ tri (taka.taka.din.__4)
+        . tri_ (din.__4) (ta.ta.kita.takadinna)
+    ]
+    where
+    tatadin_ = ta.ta.din.__
+    mridangam = makeMridangam
+        [ (taka.ta.ta.din, [on, k, on, on, od])
+        , (ta.ta.din, [on, on, od])
+        , (talang.gu, [p, u, k])
+        , (taka.taka, [o&j, y, o&j, y])
+        , (din, [od])
+        , (ta.ta.kita.takadinna, [t, k, o, o, k, t, o, k])
+        ]
+
 
 -- abhipriyam (telugu) -> thoughts
 misra_to_mohra1 :: Korvai
@@ -482,7 +515,7 @@ misra_to_mohra1 = date 2018 7 2 $ sudhindra $
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra2 :: Korvai
-misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
+misra_to_mohra2 = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
     [ section $ sarvaD 14
     , x2 $ section $ sarvaD (7+4) . tri (talang.__.gu)
     , x2 $ section $ sarvaD (7+4) . tri takadinna
@@ -494,17 +527,10 @@ misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
     , section $ sarvaD 4 . repeat 2 (taka.dinnakitataka)
       . repeat 3 (repeat 2 (taka.dinnakitataka) . repeat 4 dinnakitataka)
     , section $ tri_ (din.__4) (repeat 4 dinnakitataka)
-    , section $ sarvaD 14 -- sarva2
-    , x2 $ section $
-        sarvaD 7 . sarvaD 3 . tarikita.kitataka.dikutarikitataka
-        . sarvaD 3 . repeat 4 (ta.dingu)
-    , x2 $ section $ sarvaD 3 . tarikita.kitataka.dikutarikitataka
-    , section $ tri_ (tam.__4) (tarikita.kitataka.dikutarikitataka)
     ]
     where
     -- Mridangam2018.c_18_07_02_sarva
     sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
-    _sarva2 = sd $ taka.ta.ta.din.__.ta.ta.din.__.ta.ta.din.__
     -- TODO if I group this it can't find strokes
     dinnakitataka = din.na . su (kita.taka)
     mridangam = makeMridangam
@@ -516,10 +542,6 @@ misra_to_mohra2 = sudhindra $ korvai Tala.misra_chapu mridangam $ map var
         , (taka.dinnakitataka, [o, k] ++ dinna)
         , (din, [od])
 
-        -- TODO guess realization
-        , (tarikita.kitataka, [k, t, k, n, o, k, t, k])
-        , (ta.dingu, [p, u, k]) -- TODO guess realization
-        , (tam, [od])
         ]
         where dinna = [o, n, k, t, o, k]
 
@@ -663,9 +685,8 @@ trikalam2 = date 2018 7 16 $ trikalam $ sudhindra $
         [ (theme, [k, t, k, o, o, k, od])
         ]
 
-
 e_sarva1 :: Korvai
-e_sarva1 = exercise $ date 2018 7 16 $ sudhindra $
+e_sarva1 = sarvalaghu $ date 2018 7 16 $ sudhindra $
     korvai Tala.misra_chapu mridangam $ map section $ map (nadai 3)
     [ din.__.gu.takita.din.__.gu . repeat 2 (din.__.gu.takita)
     ]
@@ -675,7 +696,21 @@ e_sarva1 = exercise $ date 2018 7 16 $ sudhindra $
         , (din.gu, [od, k])
         ]
 
--- * misra chapu, tisra nadai
+e_sarva2 :: Korvai
+e_sarva2 = sarvalaghu $ date 2018 7 25 $ sudhindra $
+        korvai Tala.misra_chapu mridangam $ map section
+    [ sarva
+    , sarva `replaceEnd` (ta.ta.kita.takadinna)
+    , tri (taka.taka.din.__.kita) . tri_ (tam.__4) (ta.ta.kita.takadinna)
+    ]
+    where
+    sarva = taka.taka.din.__.kita.din.__.kita.repeat 2 (taka.taka.din.__.kita)
+    mridangam = makeMridangam
+        [ (taka.taka, [j, y, j, y])
+        , (din.kita, [d, p, k])
+        , (ta.ta.kita.takadinna, [t, k, o, o, k, t, o, k])
+        , (tam, [od])
+        ]
 
 e_misra_tisra :: Korvai
 e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
@@ -687,3 +722,27 @@ e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
     , repeat 6 takita . tri (group p8)
     , repeat 5 takita . tri (group p9)
     ]
+
+-- * adi
+
+e_sarva1_adi :: Korvai
+e_sarva1_adi = exercise $ date 2018 7 25 $ sudhindra $
+    korvai adi mridangam $ map section $ map (nadai 6)
+    [ repeat 5 din_gutakita . din.__.gu . tri p5
+    , repeat 5 din_gutakita . tri p6
+    , repeat 4 din_gutakita . din.__.gu . tri p7
+    , repeat 4 din_gutakita . tri p8
+    , repeat 3 din_gutakita . din.__.gu . tri p9
+    ]
+    where
+    din_gutakita = din.__.gu.takita
+    mridangam = makeMridangam
+        [ (din_gutakita, [od, y, o&j, y, od])
+        , (din.gu, [od, k])
+        ]
+
+-- takadimi takajonu
+-- where l is only slighly on saddam
+-- n.l.d.d
+-- increase the speed
+-- also n.d.d.d

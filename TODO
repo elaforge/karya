@@ -3727,6 +3727,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - I think kin^ and tan, are backwards, should be tan^ above, kin, below
   David Nelson mridangam transcriptions:
     . http://www.ancient-future.com/atfp.html#MIDI
     . http://dpnelson.web.wesleyan.edu/publications.html

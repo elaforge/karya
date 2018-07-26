@@ -6,10 +6,11 @@
 module Solkattu.SectionGlobal (
     startOn, endOn, eddupu
     -- * tags
-    , scomment, sdate
+    , commentS, dateS
     , devel, ending, var, local
-    , times, x2
+    , times, x2, x3, x4
     , variations
+    , withTypeS
 ) where
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
@@ -37,20 +38,20 @@ eddupu dur = withTag Tags.eddupu (pretty dur) . endOn dur
 
 -- | Separate date for a section, mostly just so I can find its recording.
 -- Unlike the korvai date it's just text.
-sdate :: CallStack.Stack => Int -> Int -> Int -> Section sollu -> Section sollu
-sdate y m d = either Solkattu.throw (const $ withTag Tags.date date) $
+dateS :: CallStack.Stack => Int -> Int -> Int -> Section sollu -> Section sollu
+dateS y m d = either Solkattu.throw (const $ withTag Tags.date date) $
     Metadata.checkDate y m d
     where date = showt y <> "-" <> Num.zeroPad 2 m <> "-" <> Num.zeroPad 2 d
 
-scomment :: Text -> Section sollu -> Section sollu
-scomment = withTag Tags.comment
+commentS :: Text -> Section sollu -> Section sollu
+commentS = withTag Tags.comment
 
 devel, ending :: Korvai.SequenceT sollu -> Section sollu
-devel = withType Tags.development . Korvai.section
-ending = withType Tags.ending . Korvai.section
+devel = withTypeS Tags.development . Korvai.section
+ending = withTypeS Tags.ending . Korvai.section
 
 var :: Section sollu -> Section sollu
-var = withType Tags.variation
+var = withTypeS Tags.variation
 
 -- | On a transcription, this section is a local variation, not in the original
 -- transcription.
@@ -61,11 +62,13 @@ local = withTag "local" ""
 times :: Int -> Section sollu -> Section sollu
 times n = withTag Tags.times (showt n)
 
-x2 :: Section sollu -> Section sollu
+x2, x3, x4 :: Section sollu -> Section sollu
 x2 = times 2
+x3 = times 3
+x4 = times 4
 
-withType :: Text -> Section sollu -> Section sollu
-withType = withTag Tags.type_
+withTypeS :: Text -> Section sollu -> Section sollu
+withTypeS = withTag Tags.type_
 
 withTag :: Text -> Text -> Section sollu -> Section sollu
 withTag k v = Korvai.addSectionTags (Tags.tag k v)
