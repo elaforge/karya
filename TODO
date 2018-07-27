@@ -3727,6 +3727,8 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - tatakita.takadinna -> tkoo ktok
+    This is like a nakatiku, but a bit less common.
   - I think kin^ and tan, are backwards, should be tan^ above, kin, below
   David Nelson mridangam transcriptions:
     . http://www.ancient-future.com/atfp.html#MIDI

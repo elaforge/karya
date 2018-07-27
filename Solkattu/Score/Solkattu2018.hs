@@ -386,50 +386,49 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: SequenceT sollu
 dikutarikitataka = nakatiku
 
--- TODO this implies I need some way to compose korvais together, or
--- include one in another
-misra_tani_all :: [Korvai]
+misra_tani_all :: [Part]
 misra_tani_all =
-    -- part 1
-    [ misra_tani1
-    , misra_to_mohra1 -- plus 2 or 4 avartanams of sarva in between
-    -- part 2
-    , misra_tani2
-    , misra_to_mohra2
-    , misra_to_mohra3
-    -- part 3
-    , misra_to_mohra4
-    , misra_mohras -- !! 0 or !! 1
-    , misra_muktayi1
+    [ Comment "part 1"
+    , K misra_tani1 All
+    , K misra_to_mohra1 (Index 0)
+    , K (korvai1 Tala.misra_chapu mempty $ section $ sarvaD 14) All
+    , K misra_to_mohra1 (Index 1)
+    , Comment "part 2"
+    , K misra_to_mohra2 All
+    , K misra_tani2 All
+    , K misra_to_mohra3 All
+    , Comment "part 3"
+    , K misra_to_mohra4 All
+    , K misra_mohras (Index 0) -- or !! 1
+    , K misra_muktayi1 All
     ]
 
 misra_tani1 :: Korvai
-misra_tani1 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam $
-    map section
-    [ sd2 $ repeat 2 $
+misra_tani1 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
+    [ x2 $ section $ sd2 $
         tam.__3.tam.__.tam.__
       . tam.__3.tam.__.su (taka.jonu)
-    , sd2 $ na.din.na.na.din.din.na
-        . din.__n 7
-        . na.din.na.su (na.na).din.din.na
-        . din.__n 7
-    , (7*4) ==> (ta.takita.takadinna)
-    , tam.__8 . tA1
-    , sarvaD (7*3)
-    , sarvaD 4 . tA
-    , sarvaD 7 . repeat 3 (sarvaD 4 . dropD 2 tA1)
+    , section $ sd2 $
+        na.din.na.na.din.din.na.din.__n 7
+        . na.din.na.su (na.na).din.din.na.din.__n 7
+    , section $ (7*4) ==> (ta.takita.takadinna)
+    , section $ tam.__8 . tA1
+    , section $ sarvaD (7*3)
+    , section $ sarvaD 4 . tA
+    , section $ sarvaD 7 . repeat 3 (sarvaD 4 . dropD 2 tA1)
     ]
     where
     -- TODO copy paste from misra_to_mohra1
+    -- should probably move to it, since it's preparation
     tA = group $ tA0.dikutarikitataka.tA1
     tA0 = tat.__.dit.__.tarikita.kitataka
     tA1 = tat.__.tat.__.tarikita.gu.gu.takita.tong.__.ka.din.__.tat.__
     mridangam = makeMridangam
         [ (tam, [p&v])
         , (taka.jonu, [k, o, o, k])
-        , (na, [n])
-        , (din, [d])
-        , (ta.takita, [n, n, o, k])
+        , (na, [on])
+        , (din, [od])
+        , (ta.takita.takadinna, [t, k, o, o, k, t, p, k])
 
         , (tA0, [p&k, p&t, k, t, k, n, p, k, t, k])
         , (tA1, [k, k, p, k, t, k, o, o, k, p, k, od, k, od, k])
@@ -462,7 +461,6 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
         , (din, [od])
         , (ta.ta.kita.takadinna, [t, k, o, o, k, t, o, k])
         ]
-
 
 -- abhipriyam (telugu) -> thoughts
 misra_to_mohra1 :: Korvai
@@ -700,15 +698,15 @@ e_sarva2 :: Korvai
 e_sarva2 = sarvalaghu $ date 2018 7 25 $ sudhindra $
         korvai Tala.misra_chapu mridangam $ map section
     [ sarva
-    , sarva `replaceEnd` (ta.ta.kita.takadinna)
-    , tri (taka.taka.din.__.kita) . tri_ (tam.__4) (ta.ta.kita.takadinna)
+    , sarva `replaceEnd` (ta.takita.takadinna)
+    , tri (taka.taka.din.__.kita) . tri_ (tam.__4) (ta.takita.takadinna)
     ]
     where
     sarva = taka.taka.din.__.kita.din.__.kita.repeat 2 (taka.taka.din.__.kita)
     mridangam = makeMridangam
         [ (taka.taka, [j, y, j, y])
         , (din.kita, [d, p, k])
-        , (ta.ta.kita.takadinna, [t, k, o, o, k, t, o, k])
+        , (ta.takita.takadinna, [t, k, o, o, k, t, o, k])
         , (tam, [od])
         ]
 

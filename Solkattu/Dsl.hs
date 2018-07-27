@@ -26,6 +26,7 @@ module Solkattu.Dsl (
     , module Solkattu.Korvai
     , module Solkattu.MetadataGlobal
     , module Solkattu.Notation
+    , module Solkattu.Part
     , module Solkattu.SectionGlobal
     , module Solkattu.S
     , module Solkattu.Solkattu
@@ -60,6 +61,7 @@ import Solkattu.Korvai (Korvai, section, smap)
 import Solkattu.MetadataGlobal
 import Solkattu.Notation
 import qualified Solkattu.Realize as Realize
+import Solkattu.Part (Part(..), Index(..), realizeParts)
 import Solkattu.SectionGlobal
 import qualified Solkattu.S as S
 import Solkattu.S (Duration, Matra, Nadai, defaultTempo)
