@@ -13,6 +13,7 @@ STATUS
       - start a stream with state, get final state
         . Figure out note vs. sample duration
         - I need accurate sample durations to determine overlap
+          + Use math to find integral of the ratio curve.
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -1959,9 +1960,29 @@ synth: im:
           . Otherwise, pursue figuring out duration via looking at sample file
             size and taking the integral of the ratio curve.  This should be
             fast for constant ratios.
-        - Ok, first try to pull the duration from the play.
+          . Math approach:
+            . integral x = nx^2 / 2 + kx
+            where input size = 3
+            f(x) = 2 ==>    integral 2x             solve 2x = 3, x = 1.5
+            f(x) = 2x ==>   integral x^2            solve x^2 = 3, x = sqrt 3
+            f(x) = 2x+1 ==> integral x^2 + x        solve x^2+x = 3, x = 1.30277
+            f(x) = nx+k ==> integral nx^2/2 + kx    solve nx^2/2 + kx, x = ?
+            . I should be able to use the quadratic equation:
+                (-b + sqrt (b^2 - 4*a*c)) / 2*a
+              x^2 + x - 3 = 0 ==> x = (-1 + sqrt (1^2 - 4*1*(-3))) / 2*1
+                                      (-1 + sqrt 13) / 2
+              [1.3027756377319946, -2.302775637731995]
+        / Ok, first try to pull the duration from the play.
           . The first time play, I think I have to record the durations.
           . Then I have to use those in skipCheckpoints.
+          . Actually this way sounds error-prone, look at libsamplerate for
+            the sample-skipping algorithm.
+          . will be in data->output_frames_gen
+            priv->out_get / priv->channels
+        + Use math to find integral of the ratio curve.
+          . I think the math is right, but libsamplerate doesn't match up.
+          . Test other changing ratios.
+          . If it's too much bother, check-in as-is for just constant ratios.
       - Sample should stream the envelope.
       - If the sampler is cheaper overall, maybe I should use larger chunk
         size?  Of course, my current faust instruments are really cheap too.
@@ -3936,10 +3957,11 @@ solkattu:
       . Unless I also implement that in karya, I'd need a mridangam-specific
         clip and Clip.
     - LSol.insert_* doesn't clear and replace existing notes
-    - I want to be able to insert all parts of a korvai in sequence.
+    * I want to be able to insert all parts of a korvai in sequence.
       . If I make LSol.insert take [Korvai] then I can use take etc.
       . But it's easier if I get rid of multiple sequences per Korvai.
       . Or keep multiple sequences but take [Index].
+      . I think multiple sequences are here to say, so I used Part.Index
   sarvalaghu:
     - automatic sarvalaghu variation
       . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
@@ -3960,7 +3982,7 @@ solkattu:
   / rename tri to tir, for tirmanam?
     . Nah, a bunch of changes for no big gain.
   groups:
-    This whole groups stuff is still a bit of a mess.
+    Groups are still a bit of a mess.
       . Having to keep group count up to date in 'Realize.realize'.  I could
         fix this with a nested FGroup, but of course introducing other
         problems.
@@ -3994,7 +4016,7 @@ solkattu:
       them, but choose a certain path.
     . This is also part of the intensity pattern, where the final repeat
       may have an alternate more intense realization.
-  - Different tags for patterns within a Korvai, e.g. for performance
+  * Different tags for patterns within a Korvai, e.g. for performance
     and exercise variants.
     . Also useful to mark the sections, e.g. development, and related
       sequences.  Ideally I could have separate stroke maps, but maybe
@@ -4010,7 +4032,7 @@ solkattu:
     - Copy the stuff from Derive.C.India.PakhawajScore.
   instruments:
     konnakol:
-      - alternate ways to say nakatikutarikita, e.g. dikutari kitataka
+      - alternate ways to say nakatiku tarikita, e.g. dikutari kitataka
     reyong:
       - some way to select between melodic and rythmic realization, and
         transposition for melodic

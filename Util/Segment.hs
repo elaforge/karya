@@ -14,7 +14,7 @@ module Util.Segment (
     , from_vector, to_vector
     , from_samples, to_samples
     , from_pairs, to_pairs
-    , from_segments, to_segments
+    , from_segments, to_segments, samples_to_segments
     , unfoldr
     , with_ptr
 
@@ -28,7 +28,7 @@ module Util.Segment (
     , concat, prepend
     -- * slice
     , drop_after, clip_after, num_clip_after
-    , drop_before, clip_before
+    , drop_before, clip_before, clip_before_samples
     -- * transform
     , shift
     , map_y, map_y_linear, map_x
@@ -456,6 +456,18 @@ clip_before interpolate x sig = case head clipped of
         | otherwise -> clipped
     where clipped = drop_before x sig
 
+-- TODO is this the same as 'to_samples . clip_before'?
+clip_before_samples :: V.Vector v (Sample y) => Interpolate y -> X
+    -> SignalS v y -> [Sample y]
+clip_before_samples interpolate x sig = case head clipped of
+    Nothing -> []
+    Just (x1, _)
+        | x1 < x, Just y <- at interpolate x sig ->
+            Sample x y : to_samples (modify_vector (V.drop 1) clipped)
+        | otherwise -> to_samples clipped
+
+    where clipped = drop_before x sig
+
 -- * transform
 
 -- | Shift the signal in time.
@@ -554,7 +566,7 @@ integrate srate_x =
     from_samples . List.concat . snd
         . List.mapAccumL segment 0 . map to_double . to_segments
     where
-    -- Integral of nx + y = nx^2 / 2 + yx
+    -- Integral of nx + k = nx^2 / 2 + kx
     to_double (Segment x1 y1 x2 y2) = (s x1, y1, s x2, y2)
         where s = RealTime.to_seconds
     to_sample x y = Sample (RealTime.seconds x) y

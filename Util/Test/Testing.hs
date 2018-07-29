@@ -34,6 +34,7 @@ module Util.Test.Testing (
     , q_equal
 
     -- * pretty printing
+    , pretty_compare
     , prettyp, pprint
 
     -- * filesystem

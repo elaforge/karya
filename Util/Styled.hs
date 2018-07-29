@@ -18,7 +18,6 @@ import Prelude hiding (print)
 import Control.Applicative ((<|>))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
-import qualified Data.List as List
 import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)
@@ -153,10 +152,6 @@ bold, underline :: ToStyled a => a -> Styled
 bold = bolds . toStyled
 underline = underlines . toStyled
 
--- * Text-like functions
-
-intercalate :: Styled -> [Styled] -> Styled
-intercalate sep = mconcat . List.intersperse sep
 
 -- t0 = printLn $ fgs (bright red) "hi" <> fgs red "there"
 -- t1 = printLn $ bgs (bright red) "hi" <> bgs red "there"
