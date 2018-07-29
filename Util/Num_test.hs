@@ -10,6 +10,7 @@ import Util.Test
 test_showFloatP = do
     let f leadingZero = Num.showFloatP leadingZero 3
     equal (f True 0) "0"
+    equal (f False 0) "0"
     equal (f False 3) "3"
     equal (f False 3.0005) "3.0005"
     equal (f True 0.1005) "0.1"
@@ -24,3 +25,5 @@ test_showFloatP = do
     equal (f False (-0.1005)) "-.1"
     equal (f False (-0.0005)) "-.0005"
     equal (f False (-1.1005)) "-1.1"
+    equal (f True (-0)) "-0"
+    equal (f False (-0)) "-0"

@@ -78,7 +78,7 @@ showFloat precision = drop0 . showFloat0 (Just precision)
 -- necessary to get to a non-zero.
 showFloatP :: RealFloat a => Bool -> Int -> a -> Text
 showFloatP leadingZero precision num
-    | numS == "0" = "0"
+    | num == 0 = if isNegativeZero num then "-0" else "0"
     | Text.all (=='0') inPrecision =
         prependInt $ takeWhile1 (=='0') (strip0 frac)
     | otherwise = prependInt $ strip0 inPrecision
