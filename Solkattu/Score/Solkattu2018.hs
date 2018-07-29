@@ -386,7 +386,7 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: SequenceT sollu
 dikutarikitataka = nakatiku
 
-misra_tani_all :: [Part]
+misra_tani_all :: [Part] -- realizeParts realizep misra_tani_all
 misra_tani_all =
     [ Comment "part 1"
     , K misra_tani1 All
@@ -698,8 +698,8 @@ e_sarva2 :: Korvai
 e_sarva2 = sarvalaghu $ date 2018 7 25 $ sudhindra $
         korvai Tala.misra_chapu mridangam $ map section
     [ sarva
-    , sarva `replaceEnd` (ta.takita.takadinna)
-    , tri (taka.taka.din.__.kita) . tri_ (tam.__4) (ta.takita.takadinna)
+    , sarva `replaceEnd` group (ta.takita.takadinna)
+    , tri (taka.taka.din.__.kita) . tri_ (tam.__4) (group (ta.takita.takadinna))
     ]
     where
     sarva = taka.taka.din.__.kita.din.__.kita.repeat 2 (taka.taka.din.__.kita)

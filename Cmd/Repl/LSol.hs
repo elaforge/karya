@@ -9,17 +9,17 @@
 -- > return $ LSol.search $ LSol.hasInstrument "kendang_tunggal"
 -- > return $ LSol.search $ LSol.aroundDate (LSol.date 2017 7 10) 10
 -- > 59: .... etc
--- > LSol.insert_k1 True 1 (LSol.korvais !! 59) 0
+-- > LSol.insert_k1 True 1 (LSol.korvais !! 59) (Index 0)
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Solkattu.Db
+    , Index(..)
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.ParseText as ParseText
-import qualified Util.Seq as Seq
 import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -41,6 +41,8 @@ import Solkattu.Db hiding (realize, search, searchp)
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
+import qualified Solkattu.Part as Part
+import Solkattu.Part (Index(..))
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -63,8 +65,6 @@ search_date :: Monad m => Int -> Int -> Int -> Integer -> m Text
 search_date y m d days = search $ aroundDate (date y m d) days
 
 -- * realize
-
-type Index = Int
 
 insert_m :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
 insert_m = insert Korvai.mridangam
@@ -92,11 +92,12 @@ realize :: (Ui.M m, Solkattu.Notation stroke) => Korvai.Instrument stroke
     -> Bool -> Korvai.Korvai -> Index -> TrackTime -> TrackTime
     -> m ModifyNotes.NoteTrack
 realize instrument realize_patterns korvai index akshara_dur at = do
-    (strokes, _warning) <- Ui.require_right id
-        <=< Ui.require ("no korvai at index " <> showt index) $
-            Seq.at (Korvai.realize instrument realize_patterns korvai) index
-    -- _warning is an alignment warning, which I can see well enough on the
-    -- track already.
+    results <- Ui.require_right id $ sequence $
+        Korvai.realize instrument realize_patterns $
+        Part.index index korvai
+    -- snd is an alignment warning, which I can see well enough on the track
+    -- already.
+    let strokes = concatMap fst results
     return $
         to_note_track (Korvai.instToScore instrument) akshara_dur at strokes
 
@@ -246,7 +247,9 @@ get_by_key key = do
     index <- ParseText.maybe_parse ParseText.p_nat index
     korvai <- List.find (matches mod variable) Db.korvais
     instrument <- Map.lookup instrument Korvai.instruments
-    return (korvai, index, instrument)
+    -- This means reintegrate only works with a single section a single korvai.
+    -- I can extend it if this turns out to be too restrictive.
+    return (korvai, Index index, instrument)
     where
     -- split3 t = case Text.splitOn "/" t of
     --     [a, b, c] -> Just (a, b, c)
