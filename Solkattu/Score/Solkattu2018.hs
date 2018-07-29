@@ -705,7 +705,7 @@ e_sarva2 = sarvalaghu $ date 2018 7 25 $ sudhindra $
     sarva = taka.taka.din.__.kita.din.__.kita.repeat 2 (taka.taka.din.__.kita)
     mridangam = makeMridangam
         [ (taka.taka, [j, y, j, y])
-        , (din.kita, [d, p, k])
+        , (din.kita, [d, lt p, k])
         , (ta.takita.takadinna, [t, k, o, o, k, t, o, k])
         , (tam, [od])
         ]

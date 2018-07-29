@@ -9,7 +9,7 @@
 -- > return $ LSol.search $ LSol.hasInstrument "kendang_tunggal"
 -- > return $ LSol.search $ LSol.aroundDate (LSol.date 2017 7 10) 10
 -- > 59: .... etc
--- > LSol.insert_k1 True 1 (LSol.korvais !! 59) (Index 0)
+-- > LSol.insert_k1 True 1 59 (Index 0)
 module Cmd.Repl.LSol (
     module Cmd.Repl.LSol
     , module Solkattu.Db
@@ -56,6 +56,8 @@ import Global
 import Types
 
 
+type KorvaiIndex = Int
+
 -- * search
 
 search :: Monad m => (Korvai.Korvai -> Bool) -> m Text
@@ -66,26 +68,27 @@ search_date y m d days = search $ aroundDate (date y m d) days
 
 -- * realize
 
-insert_m :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
+insert_m :: Cmd.M m => Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
 insert_m = insert Korvai.mridangam
 
-insert_k1 :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
+insert_k1 :: Cmd.M m => Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
 insert_k1 = insert Korvai.kendangTunggal
 
-insert_r :: Cmd.M m => Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
+insert_r :: Cmd.M m => Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
 insert_r = insert Korvai.reyong
 
-insert_sargam :: Cmd.M m => TrackTime -> Korvai.Korvai -> Index -> m ()
+insert_sargam :: Cmd.M m => TrackTime -> KorvaiIndex -> Index -> m ()
 insert_sargam = insert Korvai.sargam True
 
 -- | Insert the korvai at the selection.
 -- TODO implement ModifyNotes.replace_tracks to clear existing notes first
 insert :: (Solkattu.Notation stroke, Cmd.M m) => Korvai.Instrument stroke
-    -> Bool -> TrackTime -> Korvai.Korvai -> Index -> m ()
+    -> Bool -> TrackTime -> KorvaiIndex -> Index -> m ()
 insert instrument realize_patterns akshara_dur korvai index = do
     (block_id, _, track_id, at) <- Selection.get_insert
     note_track <-
-        realize instrument realize_patterns korvai index akshara_dur at
+        realize instrument realize_patterns (Db.korvais !! korvai) index
+            akshara_dur at
     ModifyNotes.write_tracks block_id [track_id] [note_track]
 
 realize :: (Ui.M m, Solkattu.Notation stroke) => Korvai.Instrument stroke
