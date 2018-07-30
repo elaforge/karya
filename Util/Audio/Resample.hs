@@ -69,7 +69,10 @@ resampleBy2 config ratio audio = Audio.Audio $ do
     Audio.loop1 (0, Audio._stream audio, [], align) $
         \loop (now, audio, collect, chunkLeft) ->
             resampleChunk chan rate state now chunkLeft ratio audio >>= \case
-                Nothing -> lift $ Resource.release key
+                Nothing -> do
+                    unless (null collect) $
+                        S.yield $ mconcat (reverse collect)
+                    lift $ Resource.release key
                 Just (chunk, audio)
                     | chunkLeft - generated > 0 -> loop
                         ( now + generated
@@ -115,6 +118,8 @@ resampleChunk chan rate state start maxFrames ratio audio = do
     let outputFrames = min maxFrames (toFrames (Segment._x2 segment) - start)
     let destRatio = Segment.num_interpolate_s segment $
             toSeconds $ start + outputFrames
+        -- Progress through the ratio signal proceeds in real time, which is
+        -- to say, outputFrames.
     let with = V.unsafeWith (fromMaybe V.empty inputChunk)
     (used, generated, outFP) <- liftIO $ with $ \chunkp -> do
         outp <- Foreign.mallocArray $ Audio.framesCount chan outputFrames

@@ -1269,7 +1269,9 @@ gamakam:
       . Which of these would be best for possible future kinds of notation,
         or further extension?
 
-vector performance:
+vector: performance:
+  ? is 'V.toList (V.cons x xs)' the same as 'x : V.toList xs'?
+    . If it is then I don't need Perform.Signal.clip_before_segments
   . fromList doesn't measure the list, it does exponential resizing
   ? Segment.to_samples:
     . Does 'V.toList . V.map f' fuse the map into toList?  It should, so

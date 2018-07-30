@@ -72,4 +72,4 @@ pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y
 pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn
 
 -- When I go up *2, I should be skipping every other sample.  So srate should
--- be *2.  Number of frames is /2.
+-- be *2.  Number of frames is /2.  Ratio is 0.5.

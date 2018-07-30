@@ -8,7 +8,7 @@
 -- formats supported by libsndfile.
 module Util.Audio.File (
     -- * read
-    check, checkA, read, readFrom, read44k
+    check, checkA, getInfo, read, readFrom, read44k
     , concat
     -- * write
     , write, writeCheckpoints
