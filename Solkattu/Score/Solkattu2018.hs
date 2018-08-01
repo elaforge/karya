@@ -390,12 +390,11 @@ misra_tani_all :: [Part] -- realizeParts realizep misra_tani_all
 misra_tani_all =
     [ Comment "part 1"
     , K misra_tani1 All
-    , K misra_to_mohra1 (Index 0)
-    , K (korvai1 Tala.misra_chapu mempty $ section $ sarvaD 14) All
-    , K misra_to_mohra1 (Index 1)
+    , K misra_to_mohra1a All
     , Comment "part 2"
-    , K misra_to_mohra2 All
+    , K to_mohra_farans All
     , K misra_tani2 All
+    , K misra_to_mohra1b All
     , K misra_to_mohra3 All
     , Comment "part 3"
     , K misra_to_mohra4 All
@@ -439,10 +438,6 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
     [ x4 $ section $ sd $ taka.ta.ta.din.__6.tatadin_
     , x4 $ section $ sd $ taka.ta.ta.din.__4.taka.tatadin_
     , x3 $ section $ sd $ taka.repeat 3 tatadin_
-    , x2 $ section $
-        sarvaD 3 . repeat 4 (talang.__.gu)
-      . sarvaD (7+3) . repeat 4 (talang.__.gu)
-    , x4 $ section $ sarvaD 3 . repeat 4 (talang.__.gu)
     , section $ sd (taka.repeat 3 tatadin_)
     , x2 $ section $ taka.taka . sd (repeat 3 tatadin_)
     , x4 $ section $ taka.taka . sd tatadin_ . taka.taka.din.__4 . sd tatadin_
@@ -463,57 +458,77 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
         ]
 
 -- abhipriyam (telugu) -> thoughts
-misra_to_mohra1 :: Korvai
-misra_to_mohra1 = date 2018 7 2 $ sudhindra $
-    korvai Tala.misra_chapu (mridangam<>kendang) $ map ending
+misra_to_mohra1a :: Korvai
+misra_to_mohra1a = date 2018 7 2 $ sudhindra $
+    korvaiS Tala.misra_chapu (mridangam<>kendang)
     [ repeat 3 tA . repeat 2 (dropD 5 tA) . repeat 2 (dropD 7 tA)
         . repeat 2 (dropD 9 tA)
-    , dropD 2 tA1 . repeat 2 (din.__.ta.din.__.tat.__) . __.__
-        -- alternate ending
-
-    , tB.takadinna.din.__6.tat.__4
-        . tB . repeat 2 takadinna.din.__6 . tat.__4.dit.__4
-        . tB . trin (tam.__n 16)
-            (tri_ (din.__6) (tri takadinna))
-            (tri_ (din.__6) (repeat 2 takadinna))
-            (tri_ (din.__6) takadinna)
     ]
     where
     tA = group $ tA0.dikutarikitataka.tA1.din.__4
     tA0 = tat.__.dit.__.tarikita.kitataka
     tA1 = tat.__.tat.__.tarikita.gu.gu.takita.tong.__.ka.din.__.tat.__
-
-    tB = group $ tB0.dikutarikitataka
-    tB0 = tarikita.kitataka
     mridangam = makeMridangam
         [ (tA0, [p&k, p&t, k, t, k, n, p, k, t, k])
         , (tA1, [k, k, p, k, t, k, o, o, k, p, k, od, k, od, k])
         , (din, [od])
-        , (tat, [p&u])
-        , (tat.dit, [p&u, p&u])
-        , (din.ta.din.tat, [od, k, od, k])
-
-        , (tB0, [k, t, k, n, p, k, t, k])
-        , (takadinna, [n, o, o, k])
-        , (repeat 3 takadinna, [k, o, o, k, t, o, o, k, t, o, o, k])
-        , (tam, [od])
         ]
     kendang = makeKendang1
         [ (tA0, [pk, pk, k, p, k, t, p, k, p, k])
         , (tA1, [p, p, p, k, p, p, a, a, k, p, k, a, o, a, o])
         , (din, [a])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
+
+misra_to_mohra1b :: Korvai
+misra_to_mohra1b = date 2018 7 2 $ sudhindra $
+    korvai Tala.misra_chapu (mridangam<>kendang)
+    [ x4 $ devel sarva
+    , x4 $ devel $ sarva `replaceEnd` group (ta.takita.takadinna)
+    , x4 $ devel $ takeD 2 sarva.din.__4. theme
+    , ending $ theme.takadinna.din.__6.tat.__4
+        . theme . repeat 2 takadinna.din.__6 . tat.__4.dit.__4
+        . theme . trin (tam.__n 16)
+            (tri_ (din.__6) (tri takadinna))
+            (tri_ (din.__6) (repeat 2 takadinna))
+            (tri_ (din.__6) takadinna)
+    ]
+    where
+    sarva = taka.taka.din.__.kita.din.__.kita.repeat 2 (taka.taka.din.__.kita)
+    theme = group $ theme0.dikutarikitataka
+    theme0 = tarikita.kitataka
+    mridangam = makeMridangam
+        -- sarva
+        [ (taka.taka, [j, y, j, y])
+        , (din.kita, [d, lt p, k])
+        , (ta.takita.takadinna, [t, k, o, o, k, t, o, k])
+
+        -- ending
+        , (din, [od])
+        , (tat, [p&u])
+        , (tat.dit, [p&u, p&u])
+
+        , (theme0, [k, t, k, n, p, k, t, k])
+        , (takadinna, [n, o, o, k])
+        , (repeat 3 takadinna, [k, o, o, k, t, o, o, k, t, o, o, k])
+        , (tam, [od])
+        ]
+    kendang = makeKendang1
+        [ (taka.taka, [t, k, t, o])
+        , (din.kita, [u, lt p, k])
+        , (ta.takita.takadinna, [t, p, a, a, p, k, p, p])
+
+        , (din, [a])
         , (tat, [u])
         , (tat.dit, [u, u])
-        , (din.ta.din.tat, [a, p, a, p])
 
-        , (tB0, [k, p, k, t, p, k, p, k])
+        , (theme0, [k, p, k, t, p, k, p, k])
         , (takadinna, [t, a, a, p])
         , (repeat 3 takadinna, [t, a, a, k, p, a, a, k, p, a, a, p])
         , (tam, [a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
-misra_to_mohra2 :: Korvai
-misra_to_mohra2 = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
+to_mohra_farans :: Korvai
+to_mohra_farans = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
     [ section $ sarvaD 14
     , x2 $ section $ sarvaD (7+4) . tri (talang.__.gu)
     , x2 $ section $ sarvaD (7+4) . tri takadinna
@@ -723,8 +738,8 @@ e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
 
 -- * adi
 
-e_sarva1_adi :: Korvai
-e_sarva1_adi = exercise $ date 2018 7 25 $ sudhindra $
+e_sarva1_tisra :: Korvai
+e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
     korvai adi mridangam $ map section $ map (nadai 6)
     [ repeat 5 din_gutakita . din.__.gu . tri p5
     , repeat 5 din_gutakita . tri p6
@@ -744,3 +759,54 @@ e_sarva1_adi = exercise $ date 2018 7 25 $ sudhindra $
 -- n.l.d.d
 -- increase the speed
 -- also n.d.d.d
+
+e_adi_tisra :: Korvai
+e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
+    korvai adi mridangam $ map (smap (nadai 6))
+    [ section $ sarva 8
+    , x2 $ section $ sarva 7 . tarikitadiku
+    , section $ repeat 2 $ sarva 3 . tarikitadiku
+    , section $ sarva_.tarikitadiku.sarva_.tarikitadiku
+        . tri_ (tang.__.gu) tarikitadiku
+    , x2 $ section $ sarva 6 . tri dinna
+    , section $ repeat 2 (sarva 2 . tri dinna)
+    , section $ sarva 2 . repeat 3 (tri dinna)
+    , x2 $ section $ sarva 6 . tari3
+    , section $ repeat 3 (sarva 2 . tari3) . tari3 . tari3
+    , x2 $ section $ sarva 6 . repeat 2 takadinna
+    , section $ repeat 2 $ sarva 2 . repeat 2 takadinna
+    , section $ repeat 8 takadinna
+        . repeat 6 takadinna . tri dinna
+    , section $ repeat 6 takadinna . tri dinna
+    , section $ repeat 6 takadinna . tari3
+    , section $ repeat 6 takadinna . din_trktkt
+    , section $ repeat 2 $ repeat 2 takadinna . din_trktkt
+    , x2 $ section $ repeat 4 $ din_trktkt
+    , x2 $ section $ repeat 2 $ din.__ . repeat 4 trktkt . tarikitadiku
+    , section $ repeat 4 tarikitadiku
+        . tri (tri_ (tam.__3) tarikitadiku)
+    ]
+    where
+    sarva n = repeat n sarva_
+    sarva_ = taka.ta.ta.dim.__
+    tarikitadiku = group $ su $ tari.kita.taka.diku.kita.taka
+    dinna = group $ din.na.su (kita.taka)
+    tari3 = tri trktkt
+    trktkt = group $ su $ tari.kita.kita.taka
+    takadinna = group $ taka.dinna
+    din_trktkt = din.__.trktkt.tarikitadiku
+    mridangam = makeMridangam0
+        [ (sarva_, [n, k, n, n, d])
+            -- o_ooo_ __ooo_ o___ ____
+            --  _ooo__ _ooo_o ____ ___o
+        , (tarikitadiku, [n, p, k, t, p, k, t, p, k, t, p, k])
+        , (tang.__.gu, [od, o])
+        , (dinna, [o, n, k, t, o, k])
+        , (taka, [o, k])
+        , (trktkt, [n, p, k, t, k, t, p, k])
+        , (din.trktkt, [od, on, __, k, t, k, t, p, k])
+            -- high speed variant of trktkt, drops the tha
+            -- say tari.kita.kita.taka, play nang.__.kita.kita.taka
+        , (din, [od])
+        , (tam, [od])
+        ]

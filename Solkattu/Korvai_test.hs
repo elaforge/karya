@@ -66,7 +66,7 @@ test_realizeTechnique = do
 
 test_korvaiInstruments = do
     let f = map fst . Korvai.korvaiInstruments
-    equal (f Solkattu2018.misra_to_mohra1)
+    equal (f Solkattu2018.misra_to_mohra1a)
         ["kendang tunggal", "konnakol", "mridangam"]
     -- No konnakol!
     equal (f Mridangam2018.e_323_1) ["mridangam"]
