@@ -674,7 +674,7 @@ IN PROGRESS / branch: branches:
   Integrate from dsl.
     . Status: I think it just barely works, via LSol.edit_new, and
       reintegrate, but not tested and not hooked up to the editor.
-    - I tend to use multiple korvai sequences as versions of a single korvai.
+    * I tend to use multiple korvai sequences as versions of a single korvai.
       Maybe use index -1 to concatenate them all?  Or have a general way to
       concatenate multiple korvais?
     - validate Block.ManualDestinations from Ui.set_integrated_manual
@@ -3786,6 +3786,10 @@ solkattu:
       is awkward.
     . Ideally I could write sarva (k.t.n.o...) and it becomes === or strokes
       for mridangam.  I guess this would become a different kind of group.
+    . If I put full mridangam notation into StrokeMap, then the right side of
+      the StrokeMap becomes the same monoid oriented notation, and repeat etc.
+      is ok.  Then I can have a "Sarva Name" Note which is like Pattern except
+      of variable length.  That gets realized as cycling the strokes.
   - Can I get a rerender on save?
     . This is like the ascii version of auto integration.
     . This would be set up as an interactive korvai editor, and it could
@@ -3818,6 +3822,7 @@ solkattu:
           emit a long underscore or double underscore?
       - tala name incomplete, e.g. triputa -> triputa tisra jati
       - show rulers on nadai changes
+        . formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
       - carry rulersEach across sections
       - strip trailing rests for final note
       - Decrease font size for higher speed.
@@ -3877,9 +3882,6 @@ solkattu:
       - I should also be able to mark sam, to make avartanams more clear
         when they wrap across two lines.
         . Say by colorizing the stroke on sam.
-      / formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
-        . Actually not really, it's just the nadai change not being marked.
-          See "nadai changes are invisible".
       - Colors stop right before the last note, not on it.
         . It's probably because I need to highlight the end of the group.  Can
           I use lighter gray?
@@ -3983,6 +3985,97 @@ solkattu:
       should be ' d d n nnd d n n'
   / rename tri to tir, for tirmanam?
     . Nah, a bunch of changes for no big gain.
+
+  unify patterns and groups:
+    notes:
+      . Groups have an optional name and highlight :: Bool.
+      . Then a realizeByDefault :: Bool, which says if realizePatterns :: Bool
+        will replace it.  Otherwise it can use name or "p" <> matras.
+      . In this way, everything is a group of some duration.  Groups may have
+        an explicit realization, which will be sollus, or be implicit, in
+        which case they can be filled in generically as with Patterns.  They
+        can have a name, which can inform the realization, e.g. difference
+        between p4 and nakatiku.
+      . realizePatterns becomes realizeGroups, and it can take a predicate.
+        So I can say realize only certain explicit groups, or don't realize
+        any for a fully abstract view.  I can tag "taka/takatiku" as "filler"
+        groups, which can be rendered differently.
+      . As currently, even after realization (or not), group boundaries are
+        retained, to highlight or not in the realization.  The group can have
+        some metadata about this.
+      why do this?
+        . show non-Patterns as abstract durations
+        . generalize nakatiku etc. to just a named group
+        . put Pattern realizations in StrokeMap
+
+        . But I don't like how I wind up with redundant
+          Group (Pattern dur) [Pattern dur].  Why not treat the pattern as
+          a group?
+        . Well, if I turn nakatiku into a named group, I need some place to
+          attach the name.  In that case, why not Pattern Name Matras?
+    plan 2:
+      - Groups get an optional name, used for render.
+    - Patterns become groups with duration but no sollus.
+      . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.
+        Well, I guess that means Nakatiku is not a Pattern anymore, just a
+        predefined sequence, and member of the standard stroke map.
+      . I could put a special tag on it to avoid ambiguity with other uses
+        of those sollus, but in practice you wouldn't want to speak it that
+        way since it would have the same ambiguity problem.  I guess
+        taka/takatiku is an exception, since taka is highly overloaded.
+      Examples:
+        . nakatiku / dikutaka
+        . kitadugu tarikita (tkoo ktpk)
+        . taka, takatiku (kp, kpnp)
+      . It's a unfortunate how I have to have an invariant where the group
+        has a size, and then sollus are either empty, or have a single Pattern
+        of the same size.
+      . Also if the sollus are empty, be careful with the HasMatras
+        instance... I think callers use Solkattu.durationOf though, which
+        takes groups into account.
+    - realizePatterns functionality gets folded into general realization,
+    - flags for pattern realize: all groups abstract, patterns abstract,
+      all realized
+      . I need names for groups, so I know how to render them.
+    - To control pattern realization, allow patterns in the stroke map.
+      . Then I'll want tags for them, but if they're groups with no sollus
+        they can't have a tag.  It would work if they used `Pattern dur` as a
+        single sollu, and use that to key the realization.
+      . This means Pattern would move from Solkattu.Note to Solkattu.NoteT.
+      . Actually why even do that?  StrokeMap can have Patterns in it.
+        It seems a bit nicer to have Pattern at the Note level, one is for
+        less nesting, two is because it's convenient to know that a NoteT
+        is always 1 sollu, e.g. in Realize.replaceSollus.
+        . Wait, realizeSollu is after the match, so any Pattern should have
+          been expanded out already.
+        . I don't have an "expand" step at all, so this would be new.
+        . I can do realizePatterns as whether or not they are in the
+          StrokeMap, so if a Pattern isn't found, it just turns into
+          a Realize.Pattern.
+        . Patterns will break the 1:1 StrokeMap rule, but it just becomes
+          1:1 for matras.
+        . So I think this just means that bestMatch returns more strokes.
+      . But on the other hand, it seems I do want to match patterns as Notes,
+        then I can do (taka.p5, ...), without jumping through hoops.
+      . So maybe the cleanest way is just to make a StrokeMap key
+        Either Pattern sollu
+      . What about merging Pattern with Sollu?  E.g.
+        Ta | Di | Pattern Matra
+      . In that case, I have to also explicitly add it to each instrument, so
+        it should be defined separately at least.  But maybe I can do
+        data NSollu = NSollu Sollu | NPattern !Pattern
+        effectively that's put the either at the sollu level.
+      . Then I need a special rule to perhaps pass Patterns through unchanged,
+        and I need the equivalent for Stroke.  This is basically the same as
+        moving the Pattern from Solkattu.Note to Solkattu.NoteT, except it
+        gets the bogus karvai.  The advantage is I can have a more specific
+        type, but StrokeMap gets the full SequenceT anyway and does runtime
+        checking, just for syntactic convenience.
+      . So this seems like not much of a win over Either where needed.
+      . realizePatterns just becomes switching the base StrokeMap.
+      . The difference with patterns is that they can have tempo changes.
+        Sollus can't be that way because they ignore rests.  So StrokeMap
+        would have to become less precise to accomodate both.
   groups:
     Groups are still a bit of a mess.
       . Having to keep group count up to date in 'Realize.realize'.  I could
@@ -4005,10 +4098,6 @@ solkattu:
     - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
       the unexpanded form.  I think this does need named groups.
     - Don't make tk and tktu groups, or at least don't highlight them.
-    unify patterns and groups:
-      . Groups have an optional name and highlight :: Bool.
-      . Then a realizeByDefault :: Bool, which says if realizePatterns :: Bool
-        will replace it.  Otherwise it can use name or "p" <> matras.
     - Various Notation functions like 'spread' should work with groups.
   - Ornaments to fill in karvai, e.g. with taka and takatiku
   - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
