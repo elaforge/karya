@@ -386,8 +386,8 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: SequenceT sollu
 dikutarikitataka = nakatiku
 
-misra_tani_all :: [Part] -- realizeParts realizep misra_tani_all
-misra_tani_all =
+misra_tani :: [Part] -- realizeParts realizep misra_tani
+misra_tani =
     [ Comment "part 1"
     , K misra_tani1 All
     , K misra_to_mohra1a All
@@ -667,8 +667,7 @@ misra_muktayi1 = date 2018 7 11 $ sudhindra $
         ]
 
 trikalam1 :: Korvai
-trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $
-    korvai adi mridangam
+trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $ korvai adi mridangam
     [ startOn 4 $ endOn 4 $ section $ theme
     , startOn 4 $ endOn 4 $ section $ repeat 2 $ nadai 6 theme
     , startOn 4 $ section $ repeat 3 $ su theme
@@ -737,6 +736,71 @@ e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
     ]
 
 -- * adi
+
+adi_tani :: [Part] -- realizeParts realizep adi_tani
+adi_tani =
+    [ K adi_tani1 All
+    , K trikalam1 All
+    , K e_sarva1_tisra All
+    , K e_adi_tisra All
+    , K c_18_08_03 All
+    , K adi_tani2 All
+    , Comment "mohra"
+    , K adi_muktai All
+    ]
+
+adi_tani1 :: Korvai
+adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
+    [ section $ repeat 6 (tam.__4) . tri_ din (su takadinna)
+    , section $ repeat 2 $ repeat 2 (tam.__4) . tri_ din (su takadinna)
+    , section $ tri_ (din.__4) (tri_ din (su takadinna))
+    , section $ sd (na.din.din.na) . na.na.sd (din.din.na)
+        . kita.taka. sd (din.din) . talang_gu
+    , x2 $ section $ repeat 2 $ sd (na.din.din.na) . talang_gu
+    , section $ tri_ (din.__4) talang_gu
+    , x2 $ section $ repeat 3 sarva2 . su (faran1.nakatiku)
+    , section $ repeat 2 (sarva2 . su (faran1.nakatiku))
+        . repeat 4 (su (faran1.nakatiku))
+        . tri_ (din.__4) (su (faran1.nakatiku))
+    , section $ repeat 2 (sarva3a.sarva3')
+        . repeat 2 (sarva3b.sarva3')
+        . repeat 2 (sarva3c.sarva3')
+        . repeat 2 (sarva3d.sarva3')
+    , section $ sarva3b.sarva3' . sarva3b . su (faran2.nakatiku)
+        . repeat 2 (sarva3b . su (faran2.nakatiku))
+    , endOn 4 $ section $
+        repeat 2 (su (faran2.nakatiku))
+        . tri_ (din.__4) (su (faran2.nakatiku))
+    ]
+    where
+    talang_gu = su $ talang.__.gu.talang.__.gu.taka.taka.talang.__.gu
+    sarva2 = taka.ta.din.__.ta.din.__
+    faran1 = gu.gu.taka.tari.kita
+    faran2 = kita.gu.gu.tari.kita
+    sarva3' = 10^sarva3a
+    sarva3a = repeat 2 $ naka.na.din
+    sarva3b = 2^sarva3a
+    sarva3c = 3^sarva3a
+    sarva3d = su (naka.naka).na.din . naka.na.din
+    mridangam = makeMridangam
+        [ (tam, [p&u])
+        , (din, [od])
+        , (na, [n])
+        , (kita.taka, [k, t, p, k])
+        , (talang.gu, [p, u, k])
+        , (taka.taka, [o, k, o, k])
+        , (sarva2, [on, y, on, od, on, od])
+            -- TODO sarva
+            -- o_oo_oo_ __oo_oo_ o______
+        , (faran1, [o, o, k, t, o, k, t, k])
+        , (faran2, [t, k, o, o, k, t, p, k])
+            -- TODO HSS plays first one as ktoo... rest as tkoo...
+        , (sarva3', [on, y, n, d, n, y, n, d])
+        , (sarva3a, [on, y, on, od, n, o&y, on, d])
+        , (sarva3b, [on, y, on, od, n, y, on, od])
+        , (sarva3c, [on, on, on, od, n, y, on, od])
+        , (sarva3d, [on, y, on, y, on, od, n, y, on, od])
+        ]
 
 e_sarva1_tisra :: Korvai
 e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
@@ -809,4 +873,71 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
             -- say tari.kita.kita.taka, play nang.__.kita.kita.taka
         , (din, [od])
         , (tam, [od])
+        ]
+
+c_18_08_03 :: Korvai
+c_18_08_03 = date 2018 8 3 $ sudhindra $
+    korvai1 adi mridangam $ section $ nadai 6 $
+    dit_tang.din.__.tat.__.din.__4
+    . dit_tang.din.__3.tat.__3.din.__4
+    . dit_tang.din.__4.tat.__4.din.__4
+    . trin (din.__.gu) p6 (p6.p6) (p6.p6.p6)
+    where
+    dit_tang = dit.__.tang.su (kita.nakatiku) -- taka.tari.kita.taka
+    mridangam = makeMridangam0
+        [ (dit.tang.kita, [k, u, p, k])
+        , (din, [od])
+        , (tat, [k])
+        , (din.gu, [od, lt o])
+        ]
+
+adi_tani2 :: Korvai
+adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
+    [ restD 4 . su (tri_ (tam.__4) nakatiku)
+    , repeat 2 $ repeat 2 (din.__.gu . su (tari.kita.taka)) . dim.__.tat.__
+    , repeat 2 $ din.__.gu . tri_ (dim.__) (su (tari.kita.taka))
+    , repeat 2 $ repeat 2 (din.__.gu . su (tari.kita.taka)) . su nakatiku
+    , repeat 2 $ repeat 2 (dim.su (taka.tikutarikitataka)) . su dikutarikitataka
+    , su $ repeat 4 (faran1.dikutarikitataka)
+        . repeat 2 (repeat 4 (takeM 4 faran1) . faran1.dikutarikitataka)
+        . repeat 2 (tri_ taka (takeM 4 faran1) . faran1.dikutarikitataka)
+        . repeat 2 (repeat 2 faran2 . takeM 4 faran1 . faran1.dikutarikitataka)
+    , su $ repeat 4 (faran1.dikutarikitataka)
+        . repeat 4 dikutarikitataka
+        . tri (tri_ (tam.__4) dikutarikitataka)
+    ]
+    where
+    -- said this way, played dikutarikitataka aka nakatiku
+    -- TODO maybe there should be a way to set sollus for set patterns
+    -- effectively it's konnakol realization
+    tikutarikitataka = dikutarikitataka
+    faran1 = ta.ta.kita.tari.kita
+    faran2 = ta.ta.ki.tang.__.gu
+    mridangam = makeMridangam
+        [ (tam, [od])
+        , (dim, [od])
+        , (din.gu, [od, lt o])
+        , (tari.kita.taka, [k, t, k, t, p, k])
+        , (tat, [k])
+        , (dim.taka, [on, p, k])
+        , (faran1, [o, o, k, t, p, k, t, k])
+        , (faran2, [o, o, k, t, k])
+        , (taka, [p, k])
+        ]
+
+adi_muktai :: Korvai
+adi_muktai = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $ x3 $ section $
+    su $
+    t0 . tari.kita . t0 . tari.kita.taka.taka . t0
+        . tri (sd p6) .__.__. tari.kita . tri (sd (tat.__.p6))
+         .__.__. tari.kita.taka.taka . tri (sd (tat.__.di.__.p6))
+    where
+    t0 = dit.__4.tang.__.taka.dikutarikitataka.din.__4.tat.__4.din.__4
+    mridangam = makeMridangam
+        [ (dit.tang.taka, [k, u, p, k])
+        , (din, [od])
+        , (tat, [k])
+        , (tat.di, [k, t])
+        , (tari.kita, [o, k, n, p])
+        , (tari.kita.taka.taka, [k, t, k, t, o, k, n, p])
         ]
