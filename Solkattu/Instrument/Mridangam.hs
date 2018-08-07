@@ -216,7 +216,7 @@ __ = Realize.rest
 
 defaultNakatiku :: [(Solkattu.Pattern, [SNote])]
 defaultNakatiku =
-    [ (Solkattu.Nakatiku, [n, p, u, p, k, t, p, k])
+    [ (Solkattu.nakatiku, [n, p, u, p, k, t, p, k])
     ]
     where Strokes {..} = notes
 
@@ -309,7 +309,7 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
 
 patterns :: [(S.Matra, [SNote])] -> Either Text (Realize.Patterns Stroke)
 patterns = Realize.patterns . (defaultNakatiku++)
-    . map (first Solkattu.PatternM)
+    . map (first (Solkattu.PatternM Nothing))
 
 su :: [S.Note g a] -> [S.Note g a]
 su = (:[]) . S.changeSpeed 1

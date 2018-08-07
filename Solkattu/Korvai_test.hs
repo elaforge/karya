@@ -86,6 +86,6 @@ makeMridangam strokes = mempty
     where
     takadinna = (ta <> ka <> din <> na, [k, o, o, k])
     patterns = Solkattu.check $ Realize.patterns $
-        map (first Solkattu.PatternM) [(4, [p, k, o, n])]
+        map (first (Solkattu.PatternM Nothing)) [(4, [p, k, o, n])]
         where Mridangam.Strokes {..} = Mridangam.notes
     Mridangam.Strokes {..} = Mridangam.notes

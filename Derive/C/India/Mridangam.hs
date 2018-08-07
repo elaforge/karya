@@ -146,7 +146,7 @@ infer_pattern dur variation = do
     notes <- justErr
         ("variation " <> showt variation <> " doesn't have duration: "
             <> showt dur)
-        (Realize.lookupPattern (Solkattu.PatternM dur) patterns)
+        (Realize.lookupPattern (Solkattu.PatternM Nothing dur) patterns)
     -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
     -- duration in matras.
     return $ map (first (*4)) $ S.flattenedNotes $

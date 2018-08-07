@@ -80,7 +80,7 @@ __ :: SNote
 __ = Realize.rest
 
 melodicNakatiku :: (Solkattu.Pattern, [SNote])
-melodicNakatiku = (Solkattu.Nakatiku, [i, r3, i, r2, r3, i, r3, r2])
+melodicNakatiku = (Solkattu.nakatiku, [i, r3, i, r2, r3, i, r3, r2])
     where Strokes {..} = notes
 
 melodicPatterns :: Patterns
@@ -104,4 +104,4 @@ rhythmicPatterns = Solkattu.check $ patterns
 patterns :: [(S.Matra, [Realize.SNote Stroke])]
     -> Either Text (Realize.Patterns Stroke)
 patterns = Realize.patterns . (melodicNakatiku:)
-    . map (first Solkattu.PatternM)
+    . map (first (Solkattu.PatternM Nothing))

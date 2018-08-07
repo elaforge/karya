@@ -188,7 +188,7 @@ sollu :: Sollu -> Note Sollu
 sollu s = Solkattu.Note (Solkattu.note s)
 
 pattern :: S.Matra -> Solkattu.Note stroke
-pattern = Solkattu.Pattern . Solkattu.PatternM
+pattern = Solkattu.Pattern . Solkattu.PatternM Nothing
 
 test_realizePatterns = do
     let f pmap = Realize.formatError
@@ -205,9 +205,12 @@ test_realizePatterns = do
     equal (eStrokes $ f M.defaultPatterns $ rdropM 0 $ sd Dsl.p5)
         (Right "k t k n o")
     left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for p3"
+    equal (eStrokes $ f (M.families567 !! 0) Dsl.nakatiku)
+        (Right "n p u p k t p k")
 
 test_patterns = do
-    let f = second (const ()) . Realize.patterns . map (first Solkattu.PatternM)
+    let f = second (const ()) . Realize.patterns
+            . map (first (Solkattu.PatternM Nothing))
     let M.Strokes {..} = M.notes
     left_like (f [(2, [k])]) "2 /= realization matras 1"
     equal (f [(2, sd [k])]) (Right ())

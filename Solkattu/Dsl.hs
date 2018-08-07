@@ -140,7 +140,7 @@ lt n = throw $ "expected stroke: " <> pretty n
 -- * patterns
 
 pat :: Matra -> SequenceT sollu
-pat d = makeNote $ Solkattu.Pattern (Solkattu.PatternM d)
+pat d = makeNote $ Solkattu.Pattern (Solkattu.PatternM Nothing d)
 
 p5, p6, p7, p8, p9 :: SequenceT sollu
 p5 = pat 5
@@ -155,7 +155,7 @@ p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
 nakatiku :: SequenceT sollu
-nakatiku = makeNote $ Solkattu.Pattern Solkattu.Nakatiku
+nakatiku = makeNote $ Solkattu.Pattern Solkattu.nakatiku
 
 
 -- * realize util

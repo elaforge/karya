@@ -18,6 +18,7 @@ import Prelude hiding (print)
 import Control.Applicative ((<|>))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import Data.Semigroup (Semigroup(..))
 import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)

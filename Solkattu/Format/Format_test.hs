@@ -273,7 +273,7 @@ test_formatSpeed = do
 -- * util
 
 rpattern :: S.Matra -> Realize.Note stroke
-rpattern = Realize.Pattern . Solkattu.PatternM
+rpattern = Realize.Pattern . Solkattu.PatternM Nothing
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [S.Flat g (Realize.Note stroke)] -> Text

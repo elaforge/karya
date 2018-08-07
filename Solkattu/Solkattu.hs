@@ -212,31 +212,29 @@ instance S.HasMatras (Note sollu) where
         Pattern {} -> True
         Alignment {} -> False
 
-instance S.HasMatras Pattern where
-    matrasOf p = case p of
-        PatternM m -> m
-        Nakatiku -> 8
-    hasSustain _ = True
-
-data Pattern =
-    PatternM !S.Matra
-    -- | 4-matra faran nakatikutarikita
-    | Nakatiku
+data Pattern = PatternM !(Maybe Text) !S.Matra
     deriving (Eq, Ord, Show)
+
+instance S.HasMatras Pattern where
+    matrasOf (PatternM _ m) = m
+    hasSustain _ = True
 
 instance Pretty Pattern where pretty = notation
 
 instance Notation Pattern where
     notation p = case p of
-        PatternM matras -> "p" <> showt matras
-        Nakatiku -> "4n"
+        PatternM Nothing matras -> "p" <> showt matras
+        PatternM (Just name) _matras -> name
     extension _ = '-'
 
 instance Expr.ToExpr Pattern where
     to_expr p = case p of
-        PatternM matras ->
-            Expr.generator (Expr.call "p" [Expr.num (fromIntegral matras)])
-        Nakatiku -> "4n"
+        PatternM name matras -> Expr.generator $
+            Expr.call (maybe "p" Expr.Symbol name)
+                [Expr.num (fromIntegral matras)]
+
+nakatiku :: Pattern
+nakatiku = PatternM (Just "4n") 8
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
@@ -333,7 +331,7 @@ vary allowedVariations notes
     modificationGroups = permuteFst allowedVariations (findTriads notes)
     -- Apply a set of permutations to the original input.
     apply mods = applyModifications
-        (\_ matras -> S.Note (Pattern (PatternM matras)))
+        (\_ matras -> S.Note (Pattern (PatternM Nothing matras)))
         (concatMap extract mods) notes
     extract ((m1, m2, m3), (i1, i2, i3)) = [(i1, m1), (i2, m2), (i3, m3)]
 
@@ -365,7 +363,7 @@ findTriads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst
         [ (matras, i)
-        | (i, S.Note (Pattern (PatternM matras))) <- zip [0..] notes
+        | (i, S.Note (Pattern (PatternM Nothing matras))) <- zip [0..] notes
         ]
     , triad <- triads indices
     ]

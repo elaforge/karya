@@ -377,7 +377,7 @@ group :: SequenceT sollu -> SequenceT sollu
 group = groupOf 0 Solkattu.Before
 
 groupOf :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
-groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side)
+groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side Nothing)
 
 -- ** tags
 

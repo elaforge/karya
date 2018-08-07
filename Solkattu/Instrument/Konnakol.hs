@@ -41,11 +41,11 @@ __ = NoSollu
 
 patterns :: [(S.Matra, [Sollu])] -> Either Text (Realize.Patterns Sollu)
 patterns = Realize.patterns . map (second (map note)) . (defaultNakatiku++)
-    . map (first Solkattu.PatternM)
+    . map (first (Solkattu.PatternM Nothing))
 
 defaultNakatiku :: [(Solkattu.Pattern, [Sollu])]
 defaultNakatiku =
-    [ (Solkattu.Nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
+    [ (Solkattu.nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
     ]
 
 instance Expr.ToExpr Sollu where

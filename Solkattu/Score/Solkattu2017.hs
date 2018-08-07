@@ -273,7 +273,7 @@ c_17_05_11 = date 2017 5 11 $ source "sriram" $
         , (thom.thom.ka, [hv m_, m_, s])
         , (tam, [hv s])
         ]
-        [ ( Solkattu.PatternM 5, [hv n_, s, d_, n_, p_])
+        [ ( Solkattu.PatternM Nothing 5, [hv n_, s, d_, n_, p_])
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_05_19 :: Korvai
@@ -358,7 +358,7 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
         , ( tk, [s, p_])
         , ( tktu, [s, p_, r, p_])
         ]
-        [ ( Solkattu.PatternM 5, su [d_, s, d_, n_] . [s, n_, p_])
+        [ ( Solkattu.PatternM Nothing 5, su [d_, s, d_, n_] . [s, n_, p_])
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_06_19_koraippu :: Korvai

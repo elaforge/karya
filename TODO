@@ -3829,6 +3829,8 @@ solkattu:
       - For high speed split avartanam.
       - I shoud be able to display nested groups.
       - show nadai change: as above
+      - use JS to switch between konnakol and mridangam
+      - use JS to switch between realizePatterns and not
       db ideas:
         - similar_to should be a link
         - source should be a link, click on it to see everything from that
@@ -4014,7 +4016,32 @@ solkattu:
         . Well, if I turn nakatiku into a named group, I need some place to
           attach the name.  In that case, why not Pattern Name Matras?
     plan 2:
-      - Groups get an optional name, used for render.
+      * Groups get an optional name, used for render.
+        . This way I can have other Pattern-like things, which is to say a
+          sequence with special rendering and a fixed realization.
+        . I can do nakatiku in two ways: named pattern, or named group.
+          I can't think of a strong reason for one over the other.  Go for
+          pattern then.
+      * Pattern gets an optional name
+        . It still seems not quite right because I don't want to have nakatiku
+          with dur /= 4.
+        . But if I put NamedPattern Text, then I can't write HasDuration for
+          it.
+      * replace Nakatiku with a Pattern with the "n4" name
+      - merge Patterns into StrokeMap.
+        . I guess this is just Realize.Instrument, but StrokeMap makes more
+          sense as a name anyway.
+        . I think I still want to put them in separate maps since patterns
+          have tempo changes, while sollus don't.
+        . On the other hand, if I want to match on taka.p6 or something then
+          they have to be together.
+        . But an explicit StrokeMap defeats the notion of p6 as having
+          variable realization.  The idea is that:
+          . The strokes are optional.  I can already do it with
+            defaultStrokeMap.
+          . I can display them abstractly.  I can do this by realizing
+            Patterns to Patterns instead of strokes.
+      - realize can replace groups with a Pattern, by depth or by name
     - Patterns become groups with duration but no sollus.
       . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.
         Well, I guess that means Nakatiku is not a Pattern anymore, just a
