@@ -146,7 +146,7 @@ infer_pattern dur variation = do
     notes <- justErr
         ("variation " <> showt variation <> " doesn't have duration: "
             <> showt dur)
-        (Realize.lookupPattern (Solkattu.PatternM Nothing dur) patterns)
+        (Map.lookup (Solkattu.pattern dur) patterns)
     -- (*4) because each note is 1 matra, which is 1/4 Duration, and I want
     -- duration in matras.
     return $ map (first (*4)) $ S.flattenedNotes $
@@ -172,8 +172,8 @@ infer_strokes dur event_dur
 default_variation :: Text
 default_variation = "d"
 
-variations :: Map Text Mridangam.Patterns
-variations = Map.fromList $
+variations :: Map Text (Map Solkattu.Pattern [Mridangam.SNote])
+variations = Map.fromList $ map (fmap Map.fromList) $
     [ (default_variation, Mridangam.defaultPatterns)
     , ("kt_kn_o", Mridangam.kt_kn_o)
     ] ++

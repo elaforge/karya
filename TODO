@@ -4009,7 +4009,6 @@ solkattu:
         . show non-Patterns as abstract durations
         . generalize nakatiku etc. to just a named group
         . put Pattern realizations in StrokeMap
-
         . But I don't like how I wind up with redundant
           Group (Pattern dur) [Pattern dur].  Why not treat the pattern as
           a group?
@@ -4028,7 +4027,7 @@ solkattu:
         . But if I put NamedPattern Text, then I can't write HasDuration for
           it.
       * replace Nakatiku with a Pattern with the "n4" name
-      - merge Patterns into StrokeMap.
+      / merge Patterns into StrokeMap.
         . I guess this is just Realize.Instrument, but StrokeMap makes more
           sense as a name anyway.
         . I think I still want to put them in separate maps since patterns
@@ -4041,6 +4040,12 @@ solkattu:
             defaultStrokeMap.
           . I can display them abstractly.  I can do this by realizing
             Patterns to Patterns instead of strokes.
+      - Ok then at least rename StrokeMap -> SolluMap, Patterns -> PatternMap
+      * Integrate setting patterns and strokes into the same list.
+        . They can already go there, but split them out in the constructor.
+        . Sargam stuff can get cleaned up a bit.
+      - Implement realizePatterns as switching out the default stroke map.
+        . Is it really better?
       - realize can replace groups with a Pattern, by depth or by name
     - Patterns become groups with duration but no sollus.
       . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.

@@ -53,10 +53,10 @@ test_format = do
         "k o o k k o o k k o o k k o o k k o o k"
 
 test_format_patterns = do
-    let f pmap = Realize.formatError
-            . Realize.realize (Realize.realizePattern pmap)
-                (Realize.realizeSollu strokeMap)
-            . S.flatten
+    let f pmap seq = do
+            ps <- Realize.patterns pmap
+            Realize.formatError $ Realize.realize (Realize.realizePattern ps)
+                (Realize.realizeSollu strokeMap) (S.flatten seq)
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
     equal (eFormat $ format 80 Tala.adi_tala p) "k _ t _ k _ k t o _"
     equal (eFormat $ format 15 Tala.adi_tala p) "k t k kto"
@@ -273,7 +273,7 @@ test_formatSpeed = do
 -- * util
 
 rpattern :: S.Matra -> Realize.Note stroke
-rpattern = Realize.Pattern . Solkattu.PatternM Nothing
+rpattern = Realize.Pattern . Solkattu.pattern
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [S.Flat g (Realize.Note stroke)] -> Text
@@ -334,6 +334,6 @@ strokeMap = expect_right $ Realize.strokeMap
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.instMridangam = Dsl.check $
-        Realize.instrument [(ta, [M.k M.notes])] M.defaultPatterns
+    { Korvai.instMridangam = Dsl.check $ Realize.instrument $
+        (ta, [M.k M.notes]) : Realize.patternKeys M.defaultPatterns
     }

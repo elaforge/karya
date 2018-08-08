@@ -41,7 +41,7 @@ __ = NoSollu
 
 patterns :: [(S.Matra, [Sollu])] -> Either Text (Realize.Patterns Sollu)
 patterns = Realize.patterns . map (second (map note)) . (defaultNakatiku++)
-    . map (first (Solkattu.PatternM Nothing))
+    . map (first Solkattu.pattern)
 
 defaultNakatiku :: [(Solkattu.Pattern, [Sollu])]
 defaultNakatiku =

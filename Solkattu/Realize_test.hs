@@ -188,13 +188,13 @@ sollu :: Sollu -> Note Sollu
 sollu s = Solkattu.Note (Solkattu.note s)
 
 pattern :: S.Matra -> Solkattu.Note stroke
-pattern = Solkattu.Pattern . Solkattu.PatternM Nothing
+pattern = Solkattu.Pattern . Solkattu.pattern
 
 test_realizePatterns = do
-    let f pmap = Realize.formatError
-            . Realize.realize (Realize.realizePattern pmap)
-                (Realize.realizeSollu strokeMap)
-            . S.flatten
+    let f pmap seq = do
+            ps <- Realize.patterns pmap
+            Realize.formatError $ Realize.realize (Realize.realizePattern ps)
+                (Realize.realizeSollu strokeMap) (S.flatten seq)
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
         (Right "k t k n o")
@@ -209,8 +209,7 @@ test_realizePatterns = do
         (Right "n p u p k t p k")
 
 test_patterns = do
-    let f = second (const ()) . Realize.patterns
-            . map (first (Solkattu.PatternM Nothing))
+    let f = second (const ()) . Realize.patterns . map (first Solkattu.pattern)
     let M.Strokes {..} = M.notes
     left_like (f [(2, [k])]) "2 /= realization matras 1"
     equal (f [(2, sd [k])]) (Right ())
@@ -338,8 +337,8 @@ strokeMap = expect_right $ Realize.strokeMap
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.instMridangam = Dsl.check $
-        Realize.instrument [(ta, [M.k M.notes])] M.defaultPatterns
+    { Korvai.instMridangam = Dsl.check $ Realize.instrument $
+        (ta, [M.k M.notes]) : Realize.patternKeys M.defaultPatterns
     }
 
 sd, su :: [S.Note g a] -> [S.Note g a]

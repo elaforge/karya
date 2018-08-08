@@ -224,8 +224,8 @@ alternateNakatiku :: [SNote]
 alternateNakatiku = [t, p, u, p, k, t, p, k]
     where Strokes {..} = notes
 
-defaultPatterns :: Patterns
-defaultPatterns = Solkattu.check $ patterns
+defaultPatterns :: [(Solkattu.Pattern, [SNote])]
+defaultPatterns = defaultNakatiku ++ patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, __, k, n, o])
     , (7, [k, __, t, __, k, n, o])
@@ -234,9 +234,9 @@ defaultPatterns = Solkattu.check $ patterns
     ]
     where Strokes {..} = notes
 
-defaultPatternsEmphasis :: Patterns
+defaultPatternsEmphasis :: [(Solkattu.Pattern, [SNote])]
 defaultPatternsEmphasis =
-    Realize.mapPatterns (map $ \s -> if s == t then i else s) defaultPatterns
+    map (second (map $ \s -> if s == t then i else s)) defaultPatterns
     where Strokes {..} = notes
 
 -- | Misc patterns I should figure out how to integrate some day.
@@ -246,8 +246,8 @@ misc =
     ]
     where Strokes {..} = notes
 
-kt_kn_o :: Patterns
-kt_kn_o = Solkattu.check $ patterns
+kt_kn_o :: [(Solkattu.Pattern, [SNote])]
+kt_kn_o = defaultNakatiku ++ patterns
     [ (5, [k, t, k, n, o])
     , (7, [k, t, __, k, n, __, o])
     , (9, [k, t, __, __, k, n, __, __, o])
@@ -263,8 +263,8 @@ fives =
     where
     Strokes {..} = notes
 
-families567 :: [Patterns]
-families567 = map (Solkattu.check . patterns . zip [5..]) $
+families567 :: [[(Solkattu.Pattern, [SNote])]]
+families567 = map ((defaultNakatiku++) . patterns . zip [5..]) $
     [ [k, t, k, n, o]
     , [k, t, __, k, n, o]
     , [k, __, t, __, k, n, o]
@@ -307,9 +307,8 @@ families567 = map (Solkattu.check . patterns . zip [5..]) $
     kp = [k, p]
     kpnp = [k, p, n, p]
 
-patterns :: [(S.Matra, [SNote])] -> Either Text (Realize.Patterns Stroke)
-patterns = Realize.patterns . (defaultNakatiku++)
-    . map (first (Solkattu.PatternM Nothing))
+patterns :: [(S.Matra, a)] -> [(Solkattu.Pattern, a)]
+patterns = map (first Solkattu.pattern)
 
 su :: [S.Note g a] -> [S.Note g a]
 su = (:[]) . S.changeSpeed 1

@@ -112,6 +112,9 @@ data Group = Group {
     -- | Where to split the sollus.
     _split :: !S.FMatra
     , _side :: !Side
+    -- | If given, the group can be realized as a Pattern with this name
+    -- plus the duration in matras.  Otherwise, it gets named by just duration.
+    , _name :: !(Maybe Text)
     } deriving (Eq, Ord, Show)
 
 -- | Before means drop the strokes before the '_split' split, After means
@@ -120,7 +123,8 @@ data Side = Before | After deriving (Eq, Ord, Show)
 instance Pretty Side where pretty = showt
 
 instance Pretty Group where
-    pretty (Group dropped side) = pretty (dropped, side)
+    pretty (Group split side Nothing) = pretty (split, side)
+    pretty (Group split side (Just name)) = pretty (split, side, name)
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
@@ -214,6 +218,9 @@ instance S.HasMatras (Note sollu) where
 
 data Pattern = PatternM !(Maybe Text) !S.Matra
     deriving (Eq, Ord, Show)
+
+pattern :: S.Matra -> Pattern
+pattern = PatternM Nothing
 
 instance S.HasMatras Pattern where
     matrasOf (PatternM _ m) = m

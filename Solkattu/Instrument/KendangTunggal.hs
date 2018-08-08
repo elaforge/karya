@@ -88,9 +88,8 @@ notes = Strokes
 __ :: SNote
 __ = Realize.rest
 
-defaultPatterns :: Patterns
-defaultPatterns = Solkattu.check $ Realize.patterns $
-    standardPatterns ++ map (first (Solkattu.PatternM Nothing))
+defaultPatterns :: [(Solkattu.Pattern, [SNote])]
+defaultPatterns = standardPatterns ++ patterns
     [ (5, [o, p, k, t, a])
     , (6, [o, p, __, k, t, a])
     , (7, [o, __, p, __, k, t, a])
@@ -99,12 +98,15 @@ defaultPatterns = Solkattu.check $ Realize.patterns $
     ]
     where Strokes {..} = notes
 
-defaultPatternsEmphasis :: Patterns
+defaultPatternsEmphasis :: [(Solkattu.Pattern, [SNote])]
 defaultPatternsEmphasis =
-    Realize.mapPatterns (map $ \s -> if s == p then a else s) defaultPatterns
+    map (second (map $ \s -> if s == p then a else s)) defaultPatterns
     where Strokes {..} = notes
 
 standardPatterns :: [(Solkattu.Pattern, [SNote])]
 standardPatterns =
     [ (Solkattu.nakatiku, [t, o, u, k, p, a, o, k])
     ] where Strokes {..} = notes
+
+patterns :: [(S.Matra, a)] -> [(Solkattu.Pattern, a)]
+patterns = map (first Solkattu.pattern)

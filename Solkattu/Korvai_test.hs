@@ -16,7 +16,6 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
 import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
 import qualified Solkattu.S as S
-import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -81,11 +80,11 @@ korvai strokes tala = Korvai.korvaiInferSections tala (makeMridangam strokes)
 makeMridangam :: [(Korvai.Sequence, [Mridangam.SNote])] -> Korvai.StrokeMaps
 makeMridangam strokes = mempty
     { Korvai.instMridangam = Dsl.check $
-        Realize.instrument (takadinna : strokes) patterns
+        Realize.instrument (defaults ++ strokes)
     }
     where
-    takadinna = (ta <> ka <> din <> na, [k, o, o, k])
-    patterns = Solkattu.check $ Realize.patterns $
-        map (first (Solkattu.PatternM Nothing)) [(4, [p, k, o, n])]
+    defaults =
+        [ (ta <> ka <> din <> na, [k, o, o, k])
+        , (Dsl.pat 4, [p, k, o, n])
+        ]
         where Mridangam.Strokes {..} = Mridangam.notes
-    Mridangam.Strokes {..} = Mridangam.notes

@@ -230,10 +230,6 @@ patterns pairs
 lookupPattern :: Solkattu.Pattern -> Patterns stroke -> Maybe [SNote stroke]
 lookupPattern p (Patterns pmap) = Map.lookup p pmap
 
-mapPatterns :: ([SNote stroke] -> [SNote stroke]) -> Patterns stroke
-    -> Patterns stroke
-mapPatterns f (Patterns p) = Patterns (f <$> p)
-
 -- ** StrokeMap
 
 -- | Sollus and Strokes should be the same length.  This is enforced in the
@@ -281,7 +277,15 @@ strokeMap =
 
 -- ** Instrument
 
--- | Sollu to instrument stroke mapping.
+{- | Sollu to instrument stroke mapping.  TODO I don't really like the name
+
+    I considered integrating both strokes and patterns into StrokeMap, but
+    I kind of like how the types for 'StrokeMap' and 'Patterns' can be more
+    specific.  Namely, StrokeMap has only strokes and rests, because it gets
+    substituted for sollus, regardless of their rhythm, while Patterns can
+    have tempo changes since they always substitute a single Solkattu.Note.
+    If I ever have a use for e.g. (taka.p5, ...) then I could reconsider.
+-}
 data Instrument stroke = Instrument {
     instStrokeMap :: StrokeMap stroke
     , instPatterns :: Patterns stroke
@@ -303,15 +307,25 @@ instance Pretty stroke => Pretty (Instrument stroke) where
         , ("patterns", Pretty.format patterns)
         ]
 
+-- | Verify a list of pairs stroke map and put them in an 'Instrument'.
+-- This allows both patterns and strokes, but you're not allowed to mix them,
+-- e.g. (taka.p5, ...).  See 'Instrument' for details.
 instrument :: Pretty stroke =>
     [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> Patterns stroke -> Either Error (Instrument stroke)
-instrument strokes patterns = do
-    smap <- strokeMap strokes
-    return $ Instrument
-        { instStrokeMap = smap
-        , instPatterns = patterns
-        }
+    -> Either Error (Instrument stroke)
+instrument strokesPatterns = do
+    let (ps, strokes) = Seq.partition_on isPattern strokesPatterns
+    Instrument
+        <$> strokeMap strokes
+        <*> patterns ps
+    where
+    isPattern ([S.Note (Solkattu.Pattern p)], strokes) = Just (p, strokes)
+    isPattern _ = Nothing
+
+patternKeys :: [(Solkattu.Pattern, a)]
+    -> [([S.Note g (Solkattu.Note sollu)], a)]
+patternKeys = map (first make)
+    where make = (:[]) . S.Note . Solkattu.Pattern
 
 -- * realize
 
@@ -390,7 +404,7 @@ convertGroups (S.FGroup tempo g children) =
         (children, Just err) -> UF.fromListFail children err
         (children, Nothing) -> convertGroup tempo g children
     where
-    convertGroup tempo (Solkattu.Group split side) children =
+    convertGroup tempo (Solkattu.Group split side name) children =
         case splitStrokes (S.fmatraDuration tempo split) children of
             Left err -> UF.Fail err
             Right (left, (pre, post))
