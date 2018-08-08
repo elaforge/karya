@@ -3750,6 +3750,12 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - single letter patterns for fast patterns, e.g.
+    . trkt = su (tari.kita) = ktpk
+      trkttk = su (tari.kita.taka)
+      kt = su kita
+      kttk = su (kita.taka)
+    . I'll have to get tk and tktu out of the way.
   - tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
   - I think kin^ and tan, are backwards, should be tan^ above, kin, below
@@ -3952,11 +3958,12 @@ solkattu:
       okookook -> nakatiku.  This implies just a realization heuristic
       won't be enough, though maybe I want it anyway for things like
       dynamics.
-  - Can I put StrokeMap and Patterns together?  Then I can put standard
+  * Can I put StrokeMap and Patterns together?  Then I can put standard
     strokes along with the stroke map, and override them together.
   - ensure that later entries in the StrokeMap override earlier ones
-  - have a mode to warn about unused StrokeMap entries, and overidden
-    ones
+  - analyze for unused StrokeMap entries, or overidden ones
+    . I'll need a way to mark "standard library", where it's fine if they're
+      not used, or overidden.
   karya integration:
     - I could emit groups as blocks with clip or Clip.
       . But then I lose technique.
@@ -4047,11 +4054,16 @@ solkattu:
       * Integrate setting patterns and strokes into the same list.
         . They can already go there, but split them out in the constructor.
         . Sargam stuff can get cleaned up a bit.
-      - Implement realizePatterns as switching out the default stroke map
+      / Implement realizePatterns as switching out the default stroke map
         instead of a RealizePatterns function.
         . Is it really better though?
-      - realize can replace groups with a Pattern, by depth or by name
-    - Patterns become groups with duration but no sollus.
+    - support tags on patterns, e.g. (2^p5, [something else])
+      . Or should I use named patterns?
+    - realize can replace groups with a Pattern, by depth or by name
+      . flags for pattern realize: all groups abstract, patterns abstract,
+        all realized
+      . I need names for groups, so I know how to render them.
+    / Patterns become groups with duration but no sollus.
       . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.
         Well, I guess that means Nakatiku is not a Pattern anymore, just a
         predefined sequence, and member of the standard stroke map.
@@ -4069,11 +4081,8 @@ solkattu:
       . Also if the sollus are empty, be careful with the HasMatras
         instance... I think callers use Solkattu.durationOf though, which
         takes groups into account.
-    - realizePatterns functionality gets folded into general realization,
-    - flags for pattern realize: all groups abstract, patterns abstract,
-      all realized
-      . I need names for groups, so I know how to render them.
-    - To control pattern realization, allow patterns in the stroke map.
+    / realizePatterns functionality gets folded into general realization,
+    * To control pattern realization, allow patterns in the stroke map.
       . Then I'll want tags for them, but if they're groups with no sollus
         they can't have a tag.  It would work if they used `Pattern dur` as a
         single sollu, and use that to key the realization.
@@ -4131,10 +4140,10 @@ solkattu:
       . Do some tests to make sure I understand Solkattu.durationOf and
         Solkattu.matrasOf.
 
-    - Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
+    * Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
       the unexpanded form.  I think this does need named groups.
-    - Don't make tk and tktu groups, or at least don't highlight them.
-    - Various Notation functions like 'spread' should work with groups.
+    * Don't make tk and tktu groups, or at least don't highlight them.
+    / Various Notation functions like 'spread' should work with groups.
   - Ornaments to fill in karvai, e.g. with taka and takatiku
   - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
     end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6

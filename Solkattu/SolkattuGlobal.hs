@@ -66,8 +66,8 @@ langa = lang.__.ga
 -- ** standard fragments
 
 tk, tktu :: Sequence
-tk = group $ Solkattu.Standard ^ (ta.ka)
-tktu = group $ Solkattu.Standard ^ (ta.ka.ti.ku)
+tk = Solkattu.Standard ^ taka
+tktu = Solkattu.Standard ^ (taka.tiku)
 
 -- * instruments
 
