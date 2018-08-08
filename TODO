@@ -4042,7 +4042,7 @@ solkattu:
             Patterns to Patterns instead of strokes.
       * Ok then at least rename StrokeMap -> SolluMap, Patterns -> PatternMap
         . How about Korvai.StrokeMaps -> Korvai.Instruments?
-        - But I don't like Realize.Instrument.  Maybe Instrument -> StrokeMap
+        * But I don't like Realize.Instrument.  Maybe Instrument -> StrokeMap
           now that it's free.
       * Integrate setting patterns and strokes into the same list.
         . They can already go there, but split them out in the constructor.

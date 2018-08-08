@@ -201,7 +201,59 @@ verifyAlignment tala startOn endOn notes
     atAkshara akshara state =
         S.stateAkshara state == akshara && S.stateMatra state == 0
 
--- * Instrument
+-- * StrokeMap
+
+{- | Sollu to instrument stroke mapping.
+
+    I considered integrating both strokes and patterns into SolluMap, but
+    I kind of like how the types for 'SolluMap' and 'PatternMap' can be more
+    specific.  Namely, SolluMap has only strokes and rests, because it gets
+    substituted for sollus, regardless of their rhythm, while PatternMap can
+    have tempo changes since they always substitute a single Solkattu.Note.
+    If I ever have a use for e.g. (taka.p5, ...) then I could reconsider.
+-}
+data StrokeMap stroke = StrokeMap {
+    smapSolluMap :: SolluMap stroke
+    , smapPatternMap :: PatternMap stroke
+    } deriving (Eq, Show)
+
+isInstrumentEmpty :: StrokeMap stroke -> Bool
+isInstrumentEmpty (StrokeMap (SolluMap solluMap) (PatternMap patternMap)) =
+    Map.null solluMap && Map.null patternMap
+
+instance Semigroup (StrokeMap stroke) where
+    StrokeMap a1 b1 <> StrokeMap a2 b2 = StrokeMap (a1<>a2) (b1<>b2)
+instance Monoid (StrokeMap stroke) where
+    mempty = StrokeMap mempty mempty
+    mappend = (<>)
+
+instance Pretty stroke => Pretty (StrokeMap stroke) where
+    format (StrokeMap solluMap patternMap) = Pretty.record "StrokeMap"
+        [ ("solluMap", Pretty.format solluMap)
+        , ("patternMap", Pretty.format patternMap)
+        ]
+
+-- | Verify a list of pairs stroke map and put them in an 'StrokeMap'.
+-- This allows both patterns and strokes, but you're not allowed to mix them,
+-- e.g. (taka.p5, ...).  See 'StrokeMap' for details.
+strokeMap :: Pretty stroke =>
+    [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
+    -> Either Error (StrokeMap stroke)
+strokeMap strokesPatterns = do
+    let (patterns, strokes) = Seq.partition_on isPattern strokesPatterns
+    StrokeMap
+        <$> solluMap strokes
+        <*> patternMap patterns
+    where
+    isPattern ([S.Note (Solkattu.Pattern p)], strokes) = Just (p, strokes)
+    isPattern _ = Nothing
+
+patternKeys :: [(Solkattu.Pattern, a)]
+    -> [([S.Note g (Solkattu.Note sollu)], a)]
+patternKeys = map (first make)
+    where make = (:[]) . S.Note . Solkattu.Pattern
+
+-- ** PatternMap
 
 -- | This maps a 'Pattern' of a certain duration to a realization.  The
 -- 'S.Matra's should the same duration as the the list in the default tempo.
@@ -275,57 +327,6 @@ solluMap =
         -- TODO warn if there are inconsistent tags?
         return ((Seq.head (Maybe.catMaybes tags), sollus), strokes)
 
--- ** Instrument
-
-{- | Sollu to instrument stroke mapping.  TODO I don't really like the name
-
-    I considered integrating both strokes and patterns into SolluMap, but
-    I kind of like how the types for 'SolluMap' and 'PatternMap' can be more
-    specific.  Namely, SolluMap has only strokes and rests, because it gets
-    substituted for sollus, regardless of their rhythm, while PatternMap can
-    have tempo changes since they always substitute a single Solkattu.Note.
-    If I ever have a use for e.g. (taka.p5, ...) then I could reconsider.
--}
-data Instrument stroke = Instrument {
-    instSolluMap :: SolluMap stroke
-    , instPatternMap :: PatternMap stroke
-    } deriving (Eq, Show)
-
-isInstrumentEmpty :: Instrument stroke -> Bool
-isInstrumentEmpty (Instrument (SolluMap solluMap) (PatternMap patternMap)) =
-    Map.null solluMap && Map.null patternMap
-
-instance Semigroup (Instrument stroke) where
-    Instrument a1 b1 <> Instrument a2 b2 = Instrument (a1<>a2) (b1<>b2)
-instance Monoid (Instrument stroke) where
-    mempty = Instrument mempty mempty
-    mappend = (<>)
-
-instance Pretty stroke => Pretty (Instrument stroke) where
-    format (Instrument solluMap patternMap) = Pretty.record "Instrument"
-        [ ("solluMap", Pretty.format solluMap)
-        , ("patternMap", Pretty.format patternMap)
-        ]
-
--- | Verify a list of pairs stroke map and put them in an 'Instrument'.
--- This allows both patterns and strokes, but you're not allowed to mix them,
--- e.g. (taka.p5, ...).  See 'Instrument' for details.
-instrument :: Pretty stroke =>
-    [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> Either Error (Instrument stroke)
-instrument strokesPatterns = do
-    let (patterns, strokes) = Seq.partition_on isPattern strokesPatterns
-    Instrument
-        <$> solluMap strokes
-        <*> patternMap patterns
-    where
-    isPattern ([S.Note (Solkattu.Pattern p)], strokes) = Just (p, strokes)
-    isPattern _ = Nothing
-
-patternKeys :: [(Solkattu.Pattern, a)]
-    -> [([S.Note g (Solkattu.Note sollu)], a)]
-patternKeys = map (first make)
-    where make = (:[]) . S.Note . Solkattu.Pattern
 
 -- * realize
 
@@ -519,11 +520,7 @@ replaceSollus (_:_) [] = ([], [])
 type GetStrokes sollu stroke =
     ( Int
     , Maybe Solkattu.Tag -> [sollu] -> Maybe [Maybe (Stroke stroke)]
-    -- , StrokeKey sollu -> Maybe [Maybe (Stroke stroke)]
     )
-
--- type RealizePattern tempo stroke =
---     tempo -> Solkattu.Pattern -> Either Error [(tempo, Note stroke)]
 
 realizeStroke :: GetStrokes (Stroke stroke) stroke
 realizeStroke = (1, const $ Just . map Just)

@@ -84,27 +84,27 @@ makeMridangam strokes = makeMridangam0 (_mridangamStrokes ++ strokes)
 makeMridangam0 :: CallStack.Stack => StrokeMap Mridangam.Stroke
     -> Korvai.StrokeMaps
 makeMridangam0 strokes = mempty
-    { Korvai.instMridangam = check $ Realize.instrument $
+    { Korvai.smapMridangam = check $ Realize.strokeMap $
         Realize.patternKeys Mridangam.defaultPatterns ++ strokes
     }
 
 makeKendang1 :: CallStack.Stack => StrokeMap KendangTunggal.Stroke
     -> Korvai.StrokeMaps
 makeKendang1 strokes = mempty
-    { Korvai.instKendangTunggal = check $ Realize.instrument $
+    { Korvai.smapKendangTunggal = check $ Realize.strokeMap $
         Realize.patternKeys KendangTunggal.defaultPatterns ++ _kendangStrokes
             ++ strokes
     }
 
 makeReyong :: CallStack.Stack => StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 makeReyong strokes = mempty
-    { Korvai.instReyong = check $ Realize.instrument $
+    { Korvai.smapReyong = check $ Realize.strokeMap $
         Realize.patternKeys Reyong.rhythmicPatterns ++ _reyongStrokes ++ strokes
     }
 
 makeSargam :: CallStack.Stack => StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
 makeSargam strokes = mempty
-    { Korvai.instSargam = check $ Realize.instrument strokes }
+    { Korvai.smapSargam = check $ Realize.strokeMap strokes }
 
 korvai :: Tala.Tala -> Korvai.StrokeMaps -> [Section] -> Korvai
 korvai = Korvai.korvai

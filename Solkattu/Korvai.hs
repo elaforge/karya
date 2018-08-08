@@ -96,9 +96,9 @@ mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
 mridangamKorvai tala pmap sections = Korvai
     { korvaiSections = Mridangam sections
     , korvaiStrokeMaps = mempty
-        { instMridangam = Realize.Instrument
-            { instSolluMap = mempty
-            , instPatternMap = pmap
+        { smapMridangam = Realize.StrokeMap
+            { smapSolluMap = mempty
+            , smapPatternMap = pmap
             }
         }
     , korvaiTala = tala
@@ -190,7 +190,7 @@ data Instrument stroke = Instrument {
     -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
         Maybe (Realize.GetStrokes (Realize.Stroke Mridangam.Stroke) stroke)
-    , instFromStrokes :: StrokeMaps -> Realize.Instrument stroke
+    , instFromStrokes :: StrokeMaps -> Realize.StrokeMap stroke
     -- | Modify strokes after 'realize'.  Use with 'strokeTechnique'.
     , instPostprocess :: [Flat stroke] -> [Flat stroke]
     , instToScore :: ToScore.ToScore stroke
@@ -209,27 +209,27 @@ mridangam :: Instrument Mridangam.Stroke
 mridangam = defaultInstrument
     { instFromMridangam = Just Realize.realizeStroke
     , instPostprocess = Mridangam.postprocess
-    , instFromStrokes = instMridangam
+    , instFromStrokes = smapMridangam
     }
 
 konnakol :: Instrument Solkattu.Sollu
 konnakol = defaultInstrument
     { instFromSollu = const Realize.realizeSimpleStroke
-    , instFromStrokes = const $ Realize.Instrument
-        { instSolluMap = mempty
-        , instPatternMap = Konnakol.defaultPatterns
+    , instFromStrokes = const $ Realize.StrokeMap
+        { smapSolluMap = mempty
+        , smapPatternMap = Konnakol.defaultPatterns
         }
     }
 
 kendangTunggal :: Instrument KendangTunggal.Stroke
-kendangTunggal = defaultInstrument { instFromStrokes = instKendangTunggal }
+kendangTunggal = defaultInstrument { instFromStrokes = smapKendangTunggal }
 
 reyong :: Instrument Reyong.Stroke
-reyong = defaultInstrument { instFromStrokes = instReyong }
+reyong = defaultInstrument { instFromStrokes = smapReyong }
 
 sargam :: Instrument Sargam.Stroke
 sargam = defaultInstrument
-    { instFromStrokes = instSargam
+    { instFromStrokes = smapSargam
     , instToScore = Sargam.toScore
     }
 
@@ -265,13 +265,13 @@ realize instrument realizePatterns korvai = case korvaiSections korvai of
     realize1 realizeNote =
         fmap (first (instPostprocess instrument))
         . realizeInstrument realizePatterns realizeNote inst tala
-    smap = Realize.instSolluMap inst
+    smap = Realize.smapSolluMap inst
     tala = korvaiTala korvai
     inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
 
 realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke)
     => Bool -> Realize.GetStrokes sollu stroke
-    -> Realize.Instrument stroke -> Tala.Tala -> Section sollu
+    -> Realize.StrokeMap stroke -> Tala.Tala -> Section sollu
     -> Either Error ([Flat stroke], Error)
 realizeInstrument realizePatterns getStroke inst tala section = do
     realized <- Realize.formatError $
@@ -288,7 +288,7 @@ realizeInstrument realizePatterns getStroke inst tala section = do
     -- TODO maybe put a carat in the output where the error index is
     where
     pattern
-        | realizePatterns = Realize.realizePattern (Realize.instPatternMap inst)
+        | realizePatterns = Realize.realizePattern (Realize.smapPatternMap inst)
         | otherwise = Realize.keepPattern
 
 inferNadai :: [Flat stroke] -> S.Nadai
@@ -405,10 +405,10 @@ inferSectionTags tala section = Tags.Tags $ Map.fromList $
 -- * types
 
 data StrokeMaps = StrokeMaps {
-    instMridangam :: Realize.Instrument Mridangam.Stroke
-    , instKendangTunggal :: Realize.Instrument KendangTunggal.Stroke
-    , instReyong :: Realize.Instrument Reyong.Stroke
-    , instSargam :: Realize.Instrument Sargam.Stroke
+    smapMridangam :: Realize.StrokeMap Mridangam.Stroke
+    , smapKendangTunggal :: Realize.StrokeMap KendangTunggal.Stroke
+    , smapReyong :: Realize.StrokeMap Reyong.Stroke
+    , smapSargam :: Realize.StrokeMap Sargam.Stroke
     } deriving (Eq, Show)
 
 instance Semigroup StrokeMaps where

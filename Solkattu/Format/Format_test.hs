@@ -334,6 +334,6 @@ strokeMap = expect_right $ Realize.solluMap
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.instMridangam = Dsl.check $ Realize.instrument $
+    { Korvai.smapMridangam = Dsl.check $ Realize.strokeMap $
         (ta, [M.k M.notes]) : Realize.patternKeys M.defaultPatterns
     }

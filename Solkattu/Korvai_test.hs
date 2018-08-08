@@ -79,8 +79,8 @@ korvai strokes tala = Korvai.korvaiInferSections tala (makeMridangam strokes)
 
 makeMridangam :: [(Korvai.Sequence, [Mridangam.SNote])] -> Korvai.StrokeMaps
 makeMridangam strokes = mempty
-    { Korvai.instMridangam = Dsl.check $
-        Realize.instrument (defaults ++ strokes)
+    { Korvai.smapMridangam = Dsl.check $
+        Realize.strokeMap (defaults ++ strokes)
     }
     where
     defaults =
