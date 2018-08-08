@@ -54,8 +54,8 @@ mridangamStrokes =
 
 Mridangam.Strokes {..} = mridangamStrokes
 
-defaultPatterns :: Realize.Patterns Mridangam.Stroke
-Right defaultPatterns = Realize.patterns Mridangam.defaultPatterns
+defaultPatterns :: Realize.PatternMap Mridangam.Stroke
+Right defaultPatterns = Realize.patternMap Mridangam.defaultPatterns
 
 on :: Sequence
 on = o&n

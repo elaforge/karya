@@ -201,19 +201,19 @@ verifyAlignment tala startOn endOn notes
     atAkshara akshara state =
         S.stateAkshara state == akshara && S.stateMatra state == 0
 
--- * Patterns
+-- * Instrument
 
 -- | This maps a 'Pattern' of a certain duration to a realization.  The
 -- 'S.Matra's should the same duration as the the list in the default tempo.
--- This is enforced in the constructor 'patterns'.
-newtype Patterns stroke = Patterns (Map Solkattu.Pattern [SNote stroke])
+-- This is enforced in the constructor 'patternMap'.
+newtype PatternMap stroke = PatternMap (Map Solkattu.Pattern [SNote stroke])
     deriving (Eq, Show, Pretty, Semigroup, Monoid)
 
--- | Make a Patterns while checking that the durations match.
-patterns :: [(Solkattu.Pattern, [SNote stroke])]
-    -> Either Error (Patterns stroke)
-patterns pairs
-    | null errors = Right $ Patterns $ Map.fromList pairs
+-- | Make a PatternMap while checking that the durations match.
+patternMap :: [(Solkattu.Pattern, [SNote stroke])]
+    -> Either Error (PatternMap stroke)
+patternMap pairs
+    | null errors = Right $ PatternMap $ Map.fromList pairs
     | otherwise = Left $ Text.intercalate "; " errors
     where
     errors = mapMaybe check pairs
@@ -227,28 +227,28 @@ patterns pairs
         notesMatras = notesDuration / S.matraDuration S.defaultTempo
         notesDuration = sum $ map (S.durationOf S.defaultTempo) notes
 
-lookupPattern :: Solkattu.Pattern -> Patterns stroke -> Maybe [SNote stroke]
-lookupPattern p (Patterns pmap) = Map.lookup p pmap
+lookupPattern :: Solkattu.Pattern -> PatternMap stroke -> Maybe [SNote stroke]
+lookupPattern p (PatternMap pmap) = Map.lookup p pmap
 
--- ** StrokeMap
+-- ** SolluMap
 
 -- | Sollus and Strokes should be the same length.  This is enforced in the
--- constructor 'strokeMap'.  Nothing is a rest, which means a sollu can map
+-- constructor 'solluMap'.  Nothing is a rest, which means a sollu can map
 -- to silence, which actually happens in practice.
-newtype StrokeMap stroke = StrokeMap
+newtype SolluMap stroke = SolluMap
     (Map (Maybe Solkattu.Tag, [Solkattu.Sollu]) [Maybe (Stroke stroke)])
     deriving (Eq, Show, Pretty, Semigroup, Monoid)
 
--- | Directly construct a StrokeMap from strokes.
-simpleStrokeMap :: [([Solkattu.Sollu], [Maybe stroke])] -> StrokeMap stroke
-simpleStrokeMap = StrokeMap .  fmap (fmap (fmap stroke)) . Map.fromList
+-- | Directly construct a SolluMap from strokes.
+simpleSolluMap :: [([Solkattu.Sollu], [Maybe stroke])] -> SolluMap stroke
+simpleSolluMap = SolluMap .  fmap (fmap (fmap stroke)) . Map.fromList
     . map (first (Nothing,))
 
-strokeMap :: Pretty stroke =>
+solluMap :: Pretty stroke =>
     [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> Either Error (StrokeMap stroke)
-strokeMap =
-    fmap (StrokeMap . Map.fromList)
+    -> Either Error (SolluMap stroke)
+solluMap =
+    fmap (SolluMap . Map.fromList)
         . mapM (verify . first (map (S.mapGroup (const ()))))
     where
     verify (sollus, strokes) = do
@@ -279,21 +279,21 @@ strokeMap =
 
 {- | Sollu to instrument stroke mapping.  TODO I don't really like the name
 
-    I considered integrating both strokes and patterns into StrokeMap, but
-    I kind of like how the types for 'StrokeMap' and 'Patterns' can be more
-    specific.  Namely, StrokeMap has only strokes and rests, because it gets
-    substituted for sollus, regardless of their rhythm, while Patterns can
+    I considered integrating both strokes and patterns into SolluMap, but
+    I kind of like how the types for 'SolluMap' and 'PatternMap' can be more
+    specific.  Namely, SolluMap has only strokes and rests, because it gets
+    substituted for sollus, regardless of their rhythm, while PatternMap can
     have tempo changes since they always substitute a single Solkattu.Note.
     If I ever have a use for e.g. (taka.p5, ...) then I could reconsider.
 -}
 data Instrument stroke = Instrument {
-    instStrokeMap :: StrokeMap stroke
-    , instPatterns :: Patterns stroke
+    instSolluMap :: SolluMap stroke
+    , instPatternMap :: PatternMap stroke
     } deriving (Eq, Show)
 
 isInstrumentEmpty :: Instrument stroke -> Bool
-isInstrumentEmpty (Instrument (StrokeMap strokeMap) (Patterns patterns)) =
-    Map.null strokeMap && Map.null patterns
+isInstrumentEmpty (Instrument (SolluMap solluMap) (PatternMap patternMap)) =
+    Map.null solluMap && Map.null patternMap
 
 instance Semigroup (Instrument stroke) where
     Instrument a1 b1 <> Instrument a2 b2 = Instrument (a1<>a2) (b1<>b2)
@@ -302,9 +302,9 @@ instance Monoid (Instrument stroke) where
     mappend = (<>)
 
 instance Pretty stroke => Pretty (Instrument stroke) where
-    format (Instrument strokeMap patterns) = Pretty.record "Instrument"
-        [ ("strokeMap", Pretty.format strokeMap)
-        , ("patterns", Pretty.format patterns)
+    format (Instrument solluMap patternMap) = Pretty.record "Instrument"
+        [ ("solluMap", Pretty.format solluMap)
+        , ("patternMap", Pretty.format patternMap)
         ]
 
 -- | Verify a list of pairs stroke map and put them in an 'Instrument'.
@@ -314,10 +314,10 @@ instrument :: Pretty stroke =>
     [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
     -> Either Error (Instrument stroke)
 instrument strokesPatterns = do
-    let (ps, strokes) = Seq.partition_on isPattern strokesPatterns
+    let (patterns, strokes) = Seq.partition_on isPattern strokesPatterns
     Instrument
-        <$> strokeMap strokes
-        <*> patterns ps
+        <$> solluMap strokes
+        <*> patternMap patterns
     where
     isPattern ([S.Note (Solkattu.Pattern p)], strokes) = Just (p, strokes)
     isPattern _ = Nothing
@@ -332,11 +332,11 @@ patternKeys = map (first make)
 type RealizePattern tempo stroke =
     tempo -> Solkattu.Pattern -> Either Error [(tempo, Note stroke)]
 
--- | Don't realize Patterns, just pass them through.
+-- | Don't realize PatternMap, just pass them through.
 keepPattern :: RealizePattern tempo stroke
 keepPattern tempo pattern = Right [(tempo, Pattern pattern)]
 
-realizePattern :: Patterns stroke -> RealizePattern S.Tempo stroke
+realizePattern :: PatternMap stroke -> RealizePattern S.Tempo stroke
 realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
     Nothing -> Left $ "no pattern for " <> pretty pattern
     Just notes -> Right $ S.tempoNotes $ S.flattenWith tempo notes
@@ -507,14 +507,14 @@ replaceSollus (stroke : strokes) (S.FNote tempo n : ns) = case n of
     -- Continue without consuming this stroke.
     next = replaceSollus (stroke : strokes) ns
 replaceSollus (_:_) [] = ([], [])
-    -- This shouldn't happen because strokes from the StrokeMap should be
+    -- This shouldn't happen because strokes from the SolluMap should be
     -- the same length as the RealizedNotes used to find them.
 
 -- ** GetStrokes
 
 -- | Find strokes for a sequence of sollus.
 --
--- Int is the longest [sollu] key in the whole StrokeMap, so I know when to
+-- Int is the longest [sollu] key in the whole SolluMap, so I know when to
 -- give up looking for the longest prefix.
 type GetStrokes sollu stroke =
     ( Int
@@ -533,8 +533,8 @@ realizeStroke = (1, const $ Just . map Just)
 realizeSimpleStroke :: GetStrokes stroke stroke
 realizeSimpleStroke = (1, const $ Just . map (Just . stroke))
 
-realizeSollu :: StrokeMap stroke -> GetStrokes Solkattu.Sollu stroke
-realizeSollu (StrokeMap smap) =
+realizeSollu :: SolluMap stroke -> GetStrokes Solkattu.Sollu stroke
+realizeSollu (SolluMap smap) =
     ( fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
     , \tag sollus -> Map.lookup (tag, sollus) smap
     )

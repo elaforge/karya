@@ -91,23 +91,23 @@ korvaiInstruments korvai = filter (hasInstrument . snd) $ Map.toList instruments
     isEmpty inst = Realize.isInstrumentEmpty strokeMap
         where strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
 
-mridangamKorvai :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
+mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
     -> [Section (Realize.Stroke Mridangam.Stroke)] -> Korvai
 mridangamKorvai tala pmap sections = Korvai
     { korvaiSections = Mridangam sections
     , korvaiStrokeMaps = mempty
         { instMridangam = Realize.Instrument
-            { instStrokeMap = mempty
-            , instPatterns = pmap
+            { instSolluMap = mempty
+            , instPatternMap = pmap
             }
         }
     , korvaiTala = tala
     , korvaiMetadata = mempty
     }
 
-mridangamKorvaiInferSections :: Tala.Tala -> Realize.Patterns Mridangam.Stroke
-    -> [SequenceT (Realize.Stroke Mridangam.Stroke)]
-    -> Korvai
+mridangamKorvaiInferSections :: Tala.Tala
+    -> Realize.PatternMap Mridangam.Stroke
+    -> [SequenceT (Realize.Stroke Mridangam.Stroke)] -> Korvai
 mridangamKorvaiInferSections tala pmap =
     mridangamKorvai tala pmap . inferSections
 
@@ -185,7 +185,7 @@ inferSections seqs = case Seq.viewr (map section seqs) of
 -- | Tie together everything describing how to realize a single instrument.
 data Instrument stroke = Instrument {
     -- | Realize a 'Sollu' 'KorvaiType'.
-    instFromSollu :: Realize.StrokeMap stroke
+    instFromSollu :: Realize.SolluMap stroke
         -> Realize.GetStrokes Solkattu.Sollu stroke
     -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
@@ -216,10 +216,8 @@ konnakol :: Instrument Solkattu.Sollu
 konnakol = defaultInstrument
     { instFromSollu = const Realize.realizeSimpleStroke
     , instFromStrokes = const $ Realize.Instrument
-        { instStrokeMap = mempty
-        -- TODO to control the patterns, I could modify
-        -- konnakol.getRealization
-        , instPatterns = Konnakol.defaultPatterns
+        { instSolluMap = mempty
+        , instPatternMap = Konnakol.defaultPatterns
         }
     }
 
@@ -267,7 +265,7 @@ realize instrument realizePatterns korvai = case korvaiSections korvai of
     realize1 realizeNote =
         fmap (first (instPostprocess instrument))
         . realizeInstrument realizePatterns realizeNote inst tala
-    smap = Realize.instStrokeMap inst
+    smap = Realize.instSolluMap inst
     tala = korvaiTala korvai
     inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
 
@@ -290,7 +288,7 @@ realizeInstrument realizePatterns getStroke inst tala section = do
     -- TODO maybe put a carat in the output where the error index is
     where
     pattern
-        | realizePatterns = Realize.realizePattern (Realize.instPatterns inst)
+        | realizePatterns = Realize.realizePattern (Realize.instPatternMap inst)
         | otherwise = Realize.keepPattern
 
 inferNadai :: [Flat stroke] -> S.Nadai

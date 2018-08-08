@@ -4040,12 +4040,16 @@ solkattu:
             defaultStrokeMap.
           . I can display them abstractly.  I can do this by realizing
             Patterns to Patterns instead of strokes.
-      - Ok then at least rename StrokeMap -> SolluMap, Patterns -> PatternMap
+      * Ok then at least rename StrokeMap -> SolluMap, Patterns -> PatternMap
+        . How about Korvai.StrokeMaps -> Korvai.Instruments?
+        - But I don't like Realize.Instrument.  Maybe Instrument -> StrokeMap
+          now that it's free.
       * Integrate setting patterns and strokes into the same list.
         . They can already go there, but split them out in the constructor.
         . Sargam stuff can get cleaned up a bit.
-      - Implement realizePatterns as switching out the default stroke map.
-        . Is it really better?
+      - Implement realizePatterns as switching out the default stroke map
+        instead of a RealizePatterns function.
+        . Is it really better though?
       - realize can replace groups with a Pattern, by depth or by name
     - Patterns become groups with duration but no sollus.
       . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.

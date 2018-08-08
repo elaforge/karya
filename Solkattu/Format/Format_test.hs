@@ -54,7 +54,7 @@ test_format = do
 
 test_format_patterns = do
     let f pmap seq = do
-            ps <- Realize.patterns pmap
+            ps <- Realize.patternMap pmap
             Realize.formatError $ Realize.realize (Realize.realizePattern ps)
                 (Realize.realizeSollu strokeMap) (S.flatten seq)
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
@@ -319,15 +319,15 @@ su = (:[]) . S.changeSpeed 1
 nadai :: S.Nadai -> [S.Note g a] -> S.Note g a
 nadai n = S.TempoChange (S.Nadai n)
 
-realize :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
 realize smap = Realize.formatError
     . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
     . S.flatten
 
-strokeMap :: Realize.StrokeMap M.Stroke
-strokeMap = expect_right $ Realize.strokeMap
+strokeMap :: Realize.SolluMap M.Stroke
+strokeMap = expect_right $ Realize.solluMap
     [ (thom, [o])
     ]
     where M.Strokes {..} = M.notes

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Realize to konnakol.  This is simpler than instruments since I just use
--- the sollus directly, but I still need realizations for 'Patterns'.
+-- the sollus directly, but I still need realizations for 'Realize.PatternMap'.
 module Solkattu.Instrument.Konnakol where
 import qualified Derive.Expr as Expr
 import qualified Solkattu.Realize as Realize
@@ -18,7 +18,7 @@ note :: Sollu -> Realize.SNote Sollu
 note NoSollu = Realize.rest
 note sollu = S.Note (Realize.Note (Realize.stroke sollu))
 
-defaultPatterns :: Realize.Patterns Sollu
+defaultPatterns :: Realize.PatternMap Sollu
 defaultPatterns = Solkattu.check $ patterns
     [ (5, [Ta, Din, Gin, Na, Thom])
     , (6, [Ta, Din, __, Gin, Na, Thom])
@@ -27,7 +27,7 @@ defaultPatterns = Solkattu.check $ patterns
     , (9, [Ta, __, Din, __, Gin, __, Na, __, Thom])
     ]
 
-alternatePatterns :: Realize.Patterns Sollu
+alternatePatterns :: Realize.PatternMap Sollu
 alternatePatterns = Solkattu.check $ patterns
     [ (5, [Ta, Di, Ki, Tha, Thom])
     , (6, [Ta, Di, __, Ki, Tha, Thom])
@@ -39,8 +39,8 @@ alternatePatterns = Solkattu.check $ patterns
 __ :: Sollu
 __ = NoSollu
 
-patterns :: [(S.Matra, [Sollu])] -> Either Text (Realize.Patterns Sollu)
-patterns = Realize.patterns . map (second (map note)) . (defaultNakatiku++)
+patterns :: [(S.Matra, [Sollu])] -> Either Text (Realize.PatternMap Sollu)
+patterns = Realize.patternMap . map (second (map note)) . (defaultNakatiku++)
     . map (first Solkattu.pattern)
 
 defaultNakatiku :: [(Solkattu.Pattern, [Sollu])]

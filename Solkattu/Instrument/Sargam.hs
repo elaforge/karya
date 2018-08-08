@@ -130,10 +130,3 @@ octave oct s = s { _pitch = Pitch.add_octave oct (_pitch s) }
 
 add :: Pitch.PitchClass -> Stroke -> Stroke
 add steps s = s { _pitch = Pitch.add_pc 7 steps (_pitch s) }
-
--- * patterns
-
-type Patterns = Realize.Patterns Stroke
-
-patterns :: Either Text (Realize.Patterns Stroke)
-patterns = Realize.patterns []

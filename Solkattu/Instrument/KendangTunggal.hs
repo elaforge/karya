@@ -22,8 +22,6 @@ data Stroke =
     | Ka | Tut | De -- right
     deriving (Eq, Ord, Show)
 
-type Patterns = Realize.Patterns Stroke
-
 -- * strokes
 
 instance Solkattu.Notation Stroke where

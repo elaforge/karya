@@ -74,8 +74,6 @@ notes = note <$> strokes
 
 -- * patterns
 
-type Patterns = Realize.Patterns Stroke
-
 __ :: SNote
 __ = Realize.rest
 

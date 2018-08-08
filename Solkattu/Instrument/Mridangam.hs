@@ -38,8 +38,6 @@ data Valantalai = Ki | Ta
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show)
 
-type Patterns = Realize.Patterns Stroke
-
 -- * strokes
 
 instance Solkattu.Notation Stroke where

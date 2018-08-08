@@ -10,7 +10,6 @@ import Prelude hiding ((.), (^), repeat)
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
-import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 

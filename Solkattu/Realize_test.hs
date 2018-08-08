@@ -27,7 +27,7 @@ import Global
 
 test_realize = do
     let f = eWords . realizeN smap . mconcat
-        smap = expect_right $ Realize.strokeMap
+        smap = expect_right $ Realize.solluMap
             [ (ta <> din, [k, od])
             , (na <> din, [n, od])
             , (ta, [t])
@@ -44,7 +44,7 @@ test_realize = do
 
 test_realizeGroups = do
     let f = eWords . realizeN smap
-        smap = expect_right $ Realize.strokeMap
+        smap = expect_right $ Realize.solluMap
             [ (taka, [k, t])
             , (din, [od])
             ]
@@ -87,7 +87,7 @@ test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
     -- with strokes.
     let f = extract . realize smap
-        smap = expect_right $ Realize.strokeMap [(taka, [k, t])]
+        smap = expect_right $ Realize.solluMap [(taka, [k, t])]
             where M.Strokes {..} = M.notes
         taka = ta <> ka
         extract = fmap $ Text.unwords . map fmt
@@ -100,7 +100,7 @@ test_realizeGroupsOutput = do
 
 test_realizeGroupsNested = do
     let f = fmap (mconcatMap pretty) . realizeN smap
-        smap = expect_right $ Realize.strokeMap [(nakita, [n, k, t])]
+        smap = expect_right $ Realize.solluMap [(nakita, [n, k, t])]
             where M.Strokes {..} = M.notes
         nakita = na <> ki <> ta
     equal (f $ Notation.reduceTo 1 1 nakita) $ Right $ mconcat
@@ -164,7 +164,7 @@ eWords = fmap (Text.unwords . map pretty)
 test_realizeEmphasis = do
     let f = second (map (fmap pretty)) . realizeN smap . mconcat
         smap = expect_right $
-            Realize.strokeMap [(ta <> di, [Dsl.hv k, Dsl.lt t])]
+            Realize.solluMap [(ta <> di, [Dsl.hv k, Dsl.lt t])]
             where M.Strokes {..} = M.notes
     equal (f [ta, di]) $ Right
         [ Realize.Note $ Realize.Stroke Realize.Heavy "k"
@@ -173,7 +173,7 @@ test_realizeEmphasis = do
 
 test_realizeTag = do
     let f = eWords . realizeN smap
-        smap = expect_right $ Realize.strokeMap
+        smap = expect_right $ Realize.solluMap
             [ (ta <> ta, [p, p])
             , (ta, [k])
             , (1^ta, [t])
@@ -192,9 +192,9 @@ pattern = Solkattu.Pattern . Solkattu.pattern
 
 test_realizePatterns = do
     let f pmap seq = do
-            ps <- Realize.patterns pmap
+            ps <- Realize.patternMap pmap
             Realize.formatError $ Realize.realize (Realize.realizePattern ps)
-                (Realize.realizeSollu strokeMap) (S.flatten seq)
+                (Realize.realizeSollu solluMap) (S.flatten seq)
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
         (Right "k t k n o")
@@ -209,16 +209,17 @@ test_realizePatterns = do
         (Right "n p u p k t p k")
 
 test_patterns = do
-    let f = second (const ()) . Realize.patterns . map (first Solkattu.pattern)
+    let f = second (const ()) . Realize.patternMap
+            . map (first Solkattu.pattern)
     let M.Strokes {..} = M.notes
     left_like (f [(2, [k])]) "2 /= realization matras 1"
     equal (f [(2, sd [k])]) (Right ())
     equal (f [(2, su [k, t, k, t])]) (Right ())
     equal (f [(2, [k, t])]) (Right ())
 
-test_strokeMap = do
-    let f = fmap (\(Realize.StrokeMap smap) -> Map.toList smap)
-            . Realize.strokeMap
+test_solluMap = do
+    let f = fmap (\(Realize.SolluMap smap) -> Map.toList smap)
+            . Realize.solluMap
         M.Strokes {..} = M.notes
     equal (f []) (Right [])
     equal (f [(ta <> di, [k, t])]) $ Right
@@ -298,8 +299,8 @@ test_verifyAlignmentNadaiChange = do
         (Right Nothing)
     equal (f (sequence Dsl.p7)) (Right Nothing)
 
-tdktSmap :: Realize.StrokeMap M.Stroke
-tdktSmap = expect_right $ Realize.strokeMap
+tdktSmap :: Realize.SolluMap M.Stroke
+tdktSmap = expect_right $ Realize.solluMap
     [ (ta, [k])
     , (di, [t])
     , (ki, [p])
@@ -308,7 +309,7 @@ tdktSmap = expect_right $ Realize.strokeMap
     ]
     where M.Strokes {..} = M.notes
 
-verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+verifyAlignment :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> Tala.Tala -> S.Duration -> S.Duration -> Korvai.Sequence
     -> Either Text (Maybe (Int, Text))
 verifyAlignment smap tala startOn endOn =
@@ -317,20 +318,20 @@ verifyAlignment smap tala startOn endOn =
 
 -- * util
 
-realizeN :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+realizeN :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Note stroke]
 realizeN smap = fmap S.flattenedNotes . realize smap
 
-realize :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
 realize smap = Realize.formatError
     . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
     . S.flatten
 
-strokeMap :: Realize.StrokeMap M.Stroke
-strokeMap = expect_right $ Realize.strokeMap
+solluMap :: Realize.SolluMap M.Stroke
+solluMap = expect_right $ Realize.solluMap
     [ (thom, [o])
     ]
     where M.Strokes {..} = M.notes
