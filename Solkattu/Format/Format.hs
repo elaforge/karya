@@ -273,7 +273,7 @@ formatFinalAvartanam avartanams = case reverse avartanams of
         | otherwise -> avartanams
     _ -> avartanams
 
--- This should be (== Space Rest), but I have to makeSymbol first to break
+-- This should be (== Space Rest), but I have to 'makeSymbols' first to break
 -- lines.
 isRest :: Symbol -> Bool
 isRest = (=="_") . Text.strip . _text
@@ -285,17 +285,17 @@ formatLines abstractGroups strokeWidth width tala =
     map (map (mapSnd (spellRests strokeWidth)))
         . formatFinalAvartanam . map (breakLine width) . breakAvartanams
         . map combine . Seq.zip_prev
-        . concatMap (makeSymbol strokeWidth tala angas)
-        . (if abstractGroups then makeGroupsAbstract2 else id)
+        . concatMap (makeSymbols strokeWidth tala angas)
+        . (if abstractGroups then makeGroupsAbstract else id)
         . normalizeSpeed tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
         where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
     angas = angaSet tala
 
-makeSymbol :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
+makeSymbols :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
     -> NormalizedFlat stroke -> [(S.State, Symbol)]
-makeSymbol strokeWidth tala angas = go
+makeSymbols strokeWidth tala angas = go
     where
     go (S.FNote _ (state, note)) =
         (:[]) $ (state,) $ make state $ case normalizeRest note of
@@ -306,7 +306,7 @@ makeSymbol strokeWidth tala angas = go
             S.Rest -> justifyLeft strokeWidth ' ' "_"
     go (S.FGroup _ _group children) =
         Seq.map_last (second (set EndHighlight)) $
-        headTail (second (set StartHightlight)) (second (set Highlight))
+        headTail (second (set StartHighlight)) (second (set Highlight))
             (concatMap go children)
     set h sym = sym { _highlight = Just h }
     make state text = Symbol
@@ -325,8 +325,8 @@ normalizeRest a = a
 type NormalizedFlat stroke =
     S.Flat Group (S.State, S.Stroke (Realize.Note stroke))
 
-makeGroupsAbstract2 :: [NormalizedFlat stroke] -> [NormalizedFlat stroke]
-makeGroupsAbstract2 = concatMap combine
+makeGroupsAbstract :: [NormalizedFlat stroke] -> [NormalizedFlat stroke]
+makeGroupsAbstract = concatMap combine
     where
     combine (S.FGroup tempo _group children) =
         headTail (make S.Attack) (make S.Sustain) flattened
@@ -342,29 +342,6 @@ makeGroupsAbstract2 = concatMap combine
 headTail :: (a -> b) -> (a -> b) -> [a] -> [b]
 headTail f g (x : xs) = f x : map g xs
 headTail _ _ [] = []
-
--- | Because a group can be a non-integral number of matras, it may not be
--- possible to represent with a 'Solkattu.Pattern', but I can
--- post-'normalizeSpeed', since its whole job is to multiply out to an integral
--- number of matras.
--- TODO unused
-makeGroupsAbstract :: [([StartEnd], (S.State, S.Stroke (Realize.Note stroke)))]
-    -> [([StartEnd], (S.State, S.Stroke (Realize.Note stroke)))]
-makeGroupsAbstract =
-    concatMap combine . collectPairs ((==0) . fst) . groupDepth
-    where
-    combine (outside, inside) = map snd outside ++ case map snd inside of
-        [] -> []
-        (startEnd, (state, _)) : rest -> (startEnd, (state, S.Attack note))
-            : map (fmap (fmap (const (S.Sustain note)))) rest
-            where
-            note = Realize.Pattern (Solkattu.PatternM (Just name) 1)
-            -- dur = S.matraDuration tempo * fromIntegral (length rest + 1)
-            -- fmatra = S.durationFmatra (S._nadai tempo) dur
-            fmatra = S.normalizeFmatra tempo (fromIntegral (length rest + 1))
-            tempo = S.stateTempo state
-            -- TODO I should preserve the group name
-            name = Pretty.fraction True fmatra
 
 normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
 normalizeSpeed tala = S.normalizeSpeed tala . S.filterFlat (not . isAlignment)
@@ -389,26 +366,6 @@ annotateGroups =
     flatten (S.FGroup _ _ children) = Left (length flat) : flat
         where flat = concatMap flatten children
     flatten (S.FNote _ note) = [Right note]
-
--- annotateGroups2 :: [S.Flat Group a] -> [([Group], a, [Group])]
--- annotateGroups2 = concatMap $ \case
---     S.FNote _ note -> [([], note, [])]
---     S.FGroup _ g children -> firstLast
---         (\(starts, n, ends) -> (g:starts, n, ends))
---         (\(starts, n, ends) -> (starts, n, g:ends))
---         (annotateGroups2 children)
-
-firstLast :: (a -> a) -> (a -> a) -> [a] -> [a]
-firstLast start end [x] = [start (end x)]
-firstLast start end xs = Seq.first_last start end xs
-
-groupDepth :: [([StartEnd], a)] -> [(Int, ([StartEnd], a))]
-groupDepth = snd . List.mapAccumL count 0
-    where
-    count n (startEnds, a) = (n + starts - ends, (n + starts, (startEnds, a)))
-        where
-        (starts, ends) = bimap length length $
-            List.partition (==Start) startEnds
 
 data StartEnd = Start | End deriving (Eq, Show)
 
@@ -533,7 +490,7 @@ data Symbol = Symbol {
     , _highlight :: !(Maybe Highlight)
     } deriving (Eq, Show)
 
-data Highlight = StartHightlight | Highlight | EndHighlight
+data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
 
 instance Pretty Symbol where
@@ -541,7 +498,7 @@ instance Pretty Symbol where
         text <> (if emphasize then "(b)" else "")
         <> case highlight of
             Nothing -> ""
-            Just StartHightlight -> "+"
+            Just StartHighlight -> "+"
             Just Highlight -> "-"
             Just EndHighlight -> "|"
 
@@ -552,7 +509,7 @@ formatSymbol :: Symbol -> Styled.Styled
 formatSymbol (Symbol text emph highlight) =
     (case highlight of
         Nothing -> id
-        Just StartHightlight -> Styled.bg (Styled.bright Styled.cyan)
+        Just StartHighlight -> Styled.bg (Styled.bright Styled.cyan)
         Just _ -> Styled.bg Styled.white) $
     (if emph then emphasize else Styled.plain) text
     where
@@ -574,14 +531,3 @@ textLength = sum . map len . untxt
     len c
         | Char.isMark c = 0
         | otherwise = 1
-
--- ** util
-
-collectPairs :: (a -> Bool) -> [a] -> [([a], [a])] -- ^ [(notTrue, true)]
-collectPairs f = go
-    where
-    go [] = []
-    go xs = (pre, within) : go post2
-        where
-        (pre, post1) = span f xs
-        (within, post2) = break f post1

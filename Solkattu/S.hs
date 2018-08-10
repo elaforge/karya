@@ -428,9 +428,6 @@ noteFmatra :: HasMatras a => Tempo -> Note g a -> FMatra
 noteFmatra tempo n =
     realToFrac $ durationOf tempo n * fromIntegral (_nadai tempo)
 
-durationFmatra :: Nadai -> Duration -> FMatra
-durationFmatra nadai (Duration dur) = FMatra $ dur * fromIntegral nadai
-
 fmatraDuration :: Tempo -> FMatra -> Duration
 fmatraDuration tempo (FMatra matra) = Duration matra * matraDuration tempo
 
