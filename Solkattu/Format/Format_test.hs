@@ -9,11 +9,9 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Regex as Regex
-import Util.Test
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Styled as Styled
 
 import qualified Solkattu.Dsl as Dsl
-import Solkattu.DslSollu
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
@@ -25,6 +23,8 @@ import Solkattu.Solkattu (Note(..), Sollu(..))
 import qualified Solkattu.Tala as Tala
 
 import Global
+import Solkattu.DslSollu
+import Util.Test
 
 
 test_format = do
@@ -205,6 +205,7 @@ test_formatLines_abstractGroups = do
     equal (f (Dsl.group (tas 2) <> Dsl.group (tas 2)))
         (Right ["2---2---"])
 
+-- Just print nested groups to check visually.
 _nested_groups = do
     let f = fmap (dropRulers . format 80 tala4 . fst) . kRealize False tala4
     let tas n = Dsl.repeat n ta
@@ -276,7 +277,9 @@ rpattern = Realize.Pattern . Solkattu.pattern
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
-format width tala = snd
+format width tala =
+    Text.intercalate "\n" . map Text.strip . Text.lines
+    . Styled.toText . snd
     . Format.format (config { Format._terminalWidth = width }) (Nothing, 0) tala
 
 config :: Format.Config
@@ -293,13 +296,15 @@ dropRulers =
         || "X" `Text.isPrefixOf` t
 
 stripAnsi :: Text -> Text
-stripAnsi = Regex.substitute (Regex.compileUnsafe "\ESC\\[[0-9]+m") ""
+stripAnsi =
+    Text.strip . Regex.substitute (Regex.compileUnsafe "\ESC\\[[0-9;]+?m") ""
+    -- ANSI codes likely protected trailing spaces.
 
 -- | Replace emphasis with capitals, so spacing is preserved.
 capitalizeEmphasis :: Text -> Text
 capitalizeEmphasis = stripAnsi
-    . TextUtil.mapDelimited True '!' (Text.replace "-" "=" . Text.toUpper)
-    . Text.replace "\ESC[1m" "!" . Text.replace "\ESC[22m" "!"
+    . Regex.substituteGroups (Regex.compileUnsafe "\ESC\\[0;1m(.*?)\ESC\\[0m")
+        (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
 
 kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
     -> Either Text ([Format.Flat M.Stroke], Text)

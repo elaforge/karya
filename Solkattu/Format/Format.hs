@@ -13,6 +13,7 @@ module Solkattu.Format.Format (
     , printInstrument, printKonnakol
 
     -- * shared with Format.Html
+    , Group, convertGroups
     , StartEnd(..)
     , breakAvartanams, normalizeSpeed, annotateGroups, inferRuler
     , onAkshara, onAnga, angaSet
@@ -34,9 +35,9 @@ import qualified Util.File as File
 import qualified Util.MultiSet as MultiSet
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Styled as Styled
 import qualified Util.TextUtil as TextUtil
 
-import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
@@ -139,8 +140,7 @@ mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
 mapGroups = S.mapGroupFlat (fromMaybe "" . Realize._name)
 
 formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
-    -> [(Tags.Tags, Either Error ([Flat stroke], Error))]
-    -> [Text]
+    -> [(Tags.Tags, Either Error ([Flat stroke], Error))] -> [Text]
 formatResults config korvai =
     snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
     where
@@ -148,19 +148,19 @@ formatResults config korvai =
         ((Nothing, 0), sectionFmt section mempty $ "ERROR:\n" <> err)
     show1 prevRuler (section, (tags, Right (notes, warning))) =
         ( nextRuler
-        , TextUtil.joinWith "\n" (sectionFmt section tags out) warning
+        , TextUtil.joinWith "\n" (sectionFmt section tags (Styled.toText out))
+            warning
         )
         where
         (nextRuler, out) =
             format config prevRuler (Korvai.korvaiTala korvai) notes
     sectionFmt section tags = Text.intercalate "\n"
         . Seq.map_last (<> showTags tags)
-        . mapHT (sectionNumber section <>) (Text.replicate leader " " <>)
+        . headTail (sectionNumber section <>) (Text.replicate leader " " <>)
+        . map Text.strip
         . Text.lines
     sectionNumber section = Text.justifyLeft leader ' ' (showt section <> ":")
     leader = 4
-    mapHT f g (x:xs) = f x : map g xs
-    mapHT _ _ [] = []
 
 showTags :: Tags.Tags -> Text
 showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
@@ -184,15 +184,14 @@ type Ruler = [(Text, Int)]
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
 format :: Solkattu.Notation stroke => Config -> PrevRuler
-    -> Tala.Tala -> [Flat stroke] -> (PrevRuler, Text)
+    -> Tala.Tala -> [Flat stroke] -> (PrevRuler, Styled.Styled)
 format config prevRuler tala notes =
-    second (Text.stripEnd . Terminal.fix . Text.intercalate "\n"
-            . map formatAvartanam) $
+    second (Styled.join "\n" . map formatAvartanam) $
         pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
             avartanamLines
     where
-    formatAvartanam = Text.intercalate "\n" . map formatRulerLine
-    formatRulerLine (ruler, line) = Text.intercalate "\n" $
+    formatAvartanam = Styled.join "\n" . map formatRulerLine
+    formatRulerLine (ruler, line) = Styled.join "\n" $
         maybe [] ((:[]) . formatRuler strokeWidth) ruler
         ++ [formatLine (map snd line)]
 
@@ -205,8 +204,8 @@ format config prevRuler tala notes =
                     (fmt 2 width tala notes, 2)
             result -> (result, 1)
         where fmt = formatLines (_abstraction config >= Groups)
-    formatLine :: [Symbol] -> Text
-    formatLine = Text.stripEnd . mconcat . map formatSymbol
+    formatLine :: [Symbol] -> Styled.Styled
+    formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
 
 pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line]]
@@ -226,13 +225,11 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
         wanted = lineNumber `mod` rulerEach == 0
             || Just (map snd ruler) /= (map snd <$> prev)
 
-formatRuler :: Int -> Ruler -> Text
+formatRuler :: Int -> Ruler -> Styled.Styled
 formatRuler strokeWidth =
-    mconcat . (bg:) . (++[Terminal.bgDefault]) . snd . List.mapAccumL render 0
+    Styled.bg (Styled.bright Styled.white)
+        . mconcat . snd . List.mapAccumL render 0
     where
-    -- Make rulers distinct.  TODO This is buggy because it interrupts group
-    -- highlights, but I need to switch to Util.Styled to get fix that.
-    bg = Terminal.setBg Terminal.Bright Terminal.White
     render debt (mark, spaces) =
         ( max 0 (-append) -- debt is how many spaces I'm behind
         , mark <> Text.replicate append " "
@@ -551,24 +548,20 @@ instance Pretty Symbol where
 text :: (Text -> Text) -> Symbol -> Symbol
 text f sym = sym { _text = f (_text sym) }
 
-formatSymbol :: Symbol -> Text
-formatSymbol (Symbol text emph highlight) = mconcat
-    [ case highlight of
-        Nothing -> ""
-        Just StartHightlight -> Terminal.setBg Terminal.Normal Terminal.White
-        Just Highlight -> ""
-        Just EndHighlight -> Terminal.bgDefault
-    , (if emph then emphasize  else id) text
-    ]
-
-emphasize :: Text -> Text
-emphasize word
-    -- A bold _ looks the same as a non-bold one, so put a bar to make it
-    -- more obvious.
-    | "_ " `Text.isPrefixOf` word = emphasize "_|"
-    | "‗ " `Text.isPrefixOf` word = emphasize "‗|"
-    | otherwise = Terminal.boldOn <> pre <> Terminal.boldOff <> post
-    where (pre, post) = Text.break (==' ') word
+formatSymbol :: Symbol -> Styled.Styled
+formatSymbol (Symbol text emph highlight) =
+    (case highlight of
+        Nothing -> id
+        Just StartHightlight -> Styled.bg (Styled.bright Styled.cyan)
+        Just _ -> Styled.bg Styled.white) $
+    (if emph then emphasize else Styled.plain) text
+    where
+    emphasize word
+        -- A bold _ looks the same as a non-bold one, so put a bar to make it
+        -- more obvious.
+        | "_ " `Text.isPrefixOf` word = emphasize "_|"
+        | "‗ " `Text.isPrefixOf` word = emphasize "‗|"
+        | otherwise = Styled.bold word
 
 symLength :: Symbol -> Int
 symLength = textLength . _text

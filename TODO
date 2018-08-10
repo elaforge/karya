@@ -3848,6 +3848,8 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
+      - maybe use 256 color ansi to give a less jarring contrast between
+        start group and group highlight
       * Use Config data type for terminalWidth and overrideStrokeWidth, so
         tests can turn things on and off more easily.
       * Rests are messy.  Notation(extension) causes them to be ___ depending
@@ -3874,7 +3876,7 @@ solkattu:
         . If I carry rulerEach, then I can put the section numbers there too
       - if I have 'section' get CallStack and put section on each element,
         then I can tag sections with line numbers.
-      - now group highlight is carrying into ruler lines
+      * now group highlight is carrying into ruler lines
         . Because I just emit start and end.  To resume I'd have to remember
           when I'm in the middle of a group when breaking rulers.
         . It would be easier to output styled text, and then render to vt100
@@ -3893,7 +3895,7 @@ solkattu:
       - I should also be able to mark sam, to make avartanams more clear
         when they wrap across two lines.
         . Say by colorizing the stroke on sam.
-      - Colors stop right before the last note, not on it.
+      * Colors stop right before the last note, not on it.
         . It's probably because I need to highlight the end of the group.  Can
           I use lighter gray?
       - If groups touch each other then I can't tell them apart.  Maybe
@@ -4096,7 +4098,6 @@ solkattu:
       . Many diffs are just fewer redundent codes.
       . Missing highlights I think are nested groups, I'll fix those for real
         later.
-    - test nested groups
     - Format.Html support
       . I have to flatten out the groups to break avartanams (easily).
       . So do that, convert to Symbol, and later group together Symbols.

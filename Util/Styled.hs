@@ -4,20 +4,33 @@
 
 -- | A simple Styled Text implementation.  There are a few others on hackage
 -- (terminal-text, rainbow, ...), but they're all too complicated for me.
+--
+-- Examples:
+-- > printLn $ fgs (bright red) "hi" <> fgs red "there"
+-- > printLn $ bgs (bright red) "hi" <> bgs red "there"
+-- > printLn $ underlines "hi" <> " " <> bolds "there"
+-- > printLn $ underlines $ fgs (bright red) "hi" <> fgs red "there"
+--
+-- > printLn $ bgs cyan "hello\nthere"
+-- > printLn $ bgs cyan "hello" <> "\n" <> bgs cyan "there"
 module Util.Styled (
     Styled, Style(..)
     , print, printLn
     , toByteString, toByteStrings
+    , toText, toTexts
     , Color, black, red, green, yellow, blue, magenta, cyan, white
     , plain
     , bright
     , fgs, bgs, bolds, underlines
     , fg, bg, bold, underline
+    -- * text util
+    , join
 ) where
 import Prelude hiding (print)
 import Control.Applicative ((<|>))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import qualified Data.List as List
 import Data.Semigroup (Semigroup(..))
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -68,6 +81,16 @@ toByteStrings = filter (/="") . concatMap render . toSGRs
         [ if null sgrs then "" else ByteString.pack (ANSI.setSGRCode sgrs)
         , Encoding.encodeUtf8 text
         ]
+
+toText :: Styled -> Text
+toText = mconcat . toTexts
+
+toTexts :: Styled -> [Text]
+toTexts = filter (/="") . concatMap render . toSGRs
+    where
+    render (sgrs, text)
+        | null sgrs = [text]
+        | otherwise = [Text.pack (ANSI.setSGRCode sgrs), text]
 
 -- | Render in order, but only emit escape codes if the Style changed.
 toSGRs :: Styled -> [([ANSI.SGR], Text)]
@@ -153,11 +176,7 @@ bold, underline :: ToStyled a => a -> Styled
 bold = bolds . toStyled
 underline = underlines . toStyled
 
+-- * text util
 
--- t0 = printLn $ fgs (bright red) "hi" <> fgs red "there"
--- t1 = printLn $ bgs (bright red) "hi" <> bgs red "there"
--- t2 = printLn $ underlines "hi" <> " " <> bolds "there"
--- t3 = printLn $ underlines $ fgs (bright red) "hi" <> fgs red "there"
---
--- t_newline1 = printLn $ bgs cyan "hello\nthere"
--- t_newline2 = printLn $ bgs cyan "hello" <> "\n" <> bgs cyan "there"
+join :: Styled -> [Styled] -> Styled
+join sep = mconcat . List.intersperse sep
