@@ -4,7 +4,7 @@ sort-unqualified-last: t
 
 -- Prefer or don't prefer to resolve to these modules.
 prio-module-high: Perform.Pitch Util.Serialize
-    Data.Map Data.Set Data.Vector Data.String
+    Data.Map Data.Set Data.Vector Data.String Data.Ratio
     Control.Monad.Trans.Resource
 prio-module-low: GHC.Environment GHC.Read
 prio-package-high:
