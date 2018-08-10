@@ -8,12 +8,13 @@
 -- TODO this should probably be called Terminal, but then what should I call
 -- the existing Terminal module?
 module Solkattu.Format.Format (
-    writeAll
+    Abstraction(..)
+    , writeAll
     , printInstrument, printKonnakol
 
     -- * shared with Format.Html
     , StartEnd(..)
-    , breakAvartanams, normalizeSpeed, inferRuler
+    , breakAvartanams, normalizeSpeed, annotateGroups, inferRuler
     , onAkshara, onAnga, angaSet
     , normalizeRest, mapSnd
 
@@ -31,6 +32,7 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.File as File
 import qualified Util.MultiSet as MultiSet
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -58,6 +60,7 @@ data Config = Config {
     -- most one character per time unit.  This hardcodes the width for e.g.
     -- konnakol, where a sollu like `thom` can be 4 characters wide.
     , _overrideStrokeWidth :: !(Maybe Int)
+    , _abstraction :: !Abstraction
     } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -65,6 +68,7 @@ defaultConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 78
     , _overrideStrokeWidth = Nothing
+    , _abstraction = Patterns
     }
 
 konnakolConfig :: Config
@@ -72,46 +76,70 @@ konnakolConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 100
     , _overrideStrokeWidth = Just 3
+    , _abstraction = Patterns
     }
+
+-- | Control what is rendered as strokes, and what is rendered as abstract
+-- groups with durations.  This gets succesively more abstract.
+data Abstraction = None | Patterns | Groups
+    deriving (Eq, Ord, Show)
 
 -- * write
 
 -- | Write all instrument realizations.
-writeAll :: FilePath -> Bool -> Korvai.Korvai -> IO ()
-writeAll fname realizePatterns korvai =
+writeAll :: FilePath -> Abstraction -> Korvai.Korvai -> IO ()
+writeAll fname abstraction korvai =
     File.writeLines fname $ List.intersperse "" $ concatMap write1 $
     Korvai.korvaiInstruments korvai
     where
     write1 (name, Korvai.GInstrument inst) =
-        name <> ":" : formatInstrument config inst realizePatterns korvai
+        name <> ":" : formatInstrument config inst korvai
         where
-        config = if name == "konnakol" then konnakolConfig else defaultConfig
+        config = (if name == "konnakol" then konnakolConfig else defaultConfig)
+            { _abstraction = abstraction }
 
 -- * format
 
-printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke -> Bool
-    -> Korvai.Korvai -> IO ()
-printInstrument instrument realizePatterns =
+printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
+    -> Abstraction -> Korvai.Korvai -> IO ()
+printInstrument instrument abstraction =
     mapM_ Text.IO.putStrLn
-    . formatInstrument defaultConfig instrument realizePatterns
+    . formatInstrument (defaultConfig { _abstraction = abstraction }) instrument
 
-printKonnakol :: Int -> Bool -> Korvai.Korvai -> IO ()
-printKonnakol width realizePatterns =
-    mapM_ Text.IO.putStrLn
-    . formatInstrument (konnakolConfig { _terminalWidth = width })
-        Korvai.konnakol realizePatterns
+printKonnakol :: Int -> Abstraction -> Korvai.Korvai -> IO ()
+printKonnakol width abstraction =
+    mapM_ Text.IO.putStrLn . formatInstrument config Korvai.konnakol
+    where
+    config = konnakolConfig
+        { _terminalWidth = width
+        , _abstraction = abstraction
+        }
 
 formatInstrument :: Solkattu.Notation stroke => Config
-    -> Korvai.Instrument stroke -> Bool -> Korvai.Korvai -> [Text]
-formatInstrument config instrument realizePatterns korvai =
-    formatResults config korvai $ zip (korvaiTags korvai) $
-        Korvai.realize instrument realizePatterns korvai
+    -> Korvai.Instrument stroke -> Korvai.Korvai -> [Text]
+formatInstrument config instrument korvai =
+    formatResults config korvai $ zip (korvaiTags korvai) $ convertGroups $
+        Korvai.realize instrument (_abstraction config < Patterns) korvai
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
+-- | Format-level Group.  This has just the group data which is needed to
+-- format.
+type Group = Text
+
+type Flat stroke = S.Flat Group (Realize.Note stroke)
+
+-- | Reduce 'Realize.Group's to local 'Group's.
+convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], Korvai.Error)]
+    -> [Either Korvai.Error ([Flat stroke], Korvai.Error)]
+convertGroups = map (fmap (first mapGroups))
+
+mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
+mapGroups = S.mapGroupFlat (fromMaybe "" . Realize._name)
+
 formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
-    -> [(Tags.Tags, Either Error ([S.Flat g (Realize.Note stroke)], Error))]
+    -> [(Tags.Tags, Either Error ([Flat stroke], Error))]
     -> [Text]
 formatResults config korvai =
     snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
@@ -156,7 +184,7 @@ type Ruler = [(Text, Int)]
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
 format :: Solkattu.Notation stroke => Config -> PrevRuler
-    -> Tala.Tala -> [S.Flat g (Realize.Note stroke)] -> (PrevRuler, Text)
+    -> Tala.Tala -> [Flat stroke] -> (PrevRuler, Text)
 format config prevRuler tala notes =
     second (Text.stripEnd . Terminal.fix . Text.intercalate "\n"
             . map formatAvartanam) $
@@ -170,12 +198,13 @@ format config prevRuler tala notes =
 
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
     (avartanamLines, strokeWidth) = case _overrideStrokeWidth config of
-        Just n -> (formatLines n width tala notes, n)
-        Nothing -> case formatLines 1 width tala notes of
-            ([line] : _)
+        Just n -> (fmt n width tala notes, n)
+        Nothing -> case fmt 1 width tala notes of
+            [line] : _
                 | sum (map (symLength . snd) line) <= width `div` 2 ->
-                    (formatLines 2 width tala notes, 2)
+                    (fmt 2 width tala notes, 2)
             result -> (result, 1)
+        where fmt = formatLines (_abstraction config >= Groups)
     formatLine :: [Symbol] -> Text
     formatLine = Text.stripEnd . mconcat . map formatSymbol
     width = _terminalWidth config
@@ -253,30 +282,41 @@ isRest :: Symbol -> Bool
 isRest = (=="_") . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
-formatLines :: Solkattu.Notation stroke => Int -> Int -> Tala.Tala
-    -> [S.Flat g (Realize.Note stroke)] -> [[[(S.State, Symbol)]]]
-formatLines strokeWidth width tala =
+formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
+    -> [Flat stroke] -> [[[(S.State, Symbol)]]]
+formatLines abstractGroups strokeWidth width tala =
     map (map (mapSnd (spellRests strokeWidth)))
         . formatFinalAvartanam . map (breakLine width) . breakAvartanams
-        . map combine . Seq.zip_prev . map makeSymbol
+        . map combine . Seq.zip_prev
+        . concatMap (makeSymbol strokeWidth tala angas)
+        . (if abstractGroups then makeGroupsAbstract2 else id)
         . normalizeSpeed tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
         where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
-    makeSymbol (startEnds, (state, note)) =
-        (state,) $ make $ case normalizeRest note of
+    angas = angaSet tala
+
+makeSymbol :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
+    -> NormalizedFlat stroke -> [(S.State, Symbol)]
+makeSymbol strokeWidth tala angas = go
+    where
+    go (S.FNote _ (state, note)) =
+        (:[]) $ (state,) $ make state $ case normalizeRest note of
             S.Attack a -> justifyLeft strokeWidth (Solkattu.extension a)
                 (Solkattu.notation a)
             S.Sustain a -> Text.replicate strokeWidth
                 (Text.singleton (Solkattu.extension a))
             S.Rest -> justifyLeft strokeWidth ' ' "_"
-        where
-        make text = Symbol
-            { _text = text
-            , _emphasize = shouldEmphasize tala angas state
-            , _bounds = startEnds
-            }
-    angas = angaSet tala
+    go (S.FGroup _ _group children) =
+        Seq.map_last (second (set EndHighlight)) $
+        headTail (second (set StartHightlight)) (second (set Highlight))
+            (concatMap go children)
+    set h sym = sym { _highlight = Just h }
+    make state text = Symbol
+        { _text = text
+        , _emphasize = shouldEmphasize tala angas state
+        , _highlight = Nothing
+        }
 
 -- | Rests are special in that S.normalizeSpeed can produce them.  Normalize
 -- them to force them to all be treated the same way.
@@ -285,10 +325,52 @@ normalizeRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
 normalizeRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
 normalizeRest a = a
 
-normalizeSpeed :: Tala.Tala -> [S.Flat g (Realize.Note stroke)]
+type NormalizedFlat stroke =
+    S.Flat Group (S.State, S.Stroke (Realize.Note stroke))
+
+makeGroupsAbstract2 :: [NormalizedFlat stroke] -> [NormalizedFlat stroke]
+makeGroupsAbstract2 = concatMap combine
+    where
+    combine (S.FGroup tempo _group children) =
+        headTail (make S.Attack) (make S.Sustain) flattened
+        where
+        flattened  = S.tempoNotes children
+        make c (tempo, (state, _)) = S.FNote tempo (state, c note)
+        note = Realize.Pattern (Solkattu.PatternM (Just name) 1)
+        fmatra = S.normalizeFmatra tempo (fromIntegral (length flattened))
+        -- TODO I should preserve the group name
+        name = Pretty.fraction True fmatra
+    combine n = [n]
+
+headTail :: (a -> b) -> (a -> b) -> [a] -> [b]
+headTail f g (x : xs) = f x : map g xs
+headTail _ _ [] = []
+
+-- | Because a group can be a non-integral number of matras, it may not be
+-- possible to represent with a 'Solkattu.Pattern', but I can
+-- post-'normalizeSpeed', since its whole job is to multiply out to an integral
+-- number of matras.
+-- TODO unused
+makeGroupsAbstract :: [([StartEnd], (S.State, S.Stroke (Realize.Note stroke)))]
     -> [([StartEnd], (S.State, S.Stroke (Realize.Note stroke)))]
-normalizeSpeed tala =
-    annotateGroups . S.normalizeSpeed tala . S.filterFlat (not . isAlignment)
+makeGroupsAbstract =
+    concatMap combine . collectPairs ((==0) . fst) . groupDepth
+    where
+    combine (outside, inside) = map snd outside ++ case map snd inside of
+        [] -> []
+        (startEnd, (state, _)) : rest -> (startEnd, (state, S.Attack note))
+            : map (fmap (fmap (const (S.Sustain note)))) rest
+            where
+            note = Realize.Pattern (Solkattu.PatternM (Just name) 1)
+            -- dur = S.matraDuration tempo * fromIntegral (length rest + 1)
+            -- fmatra = S.durationFmatra (S._nadai tempo) dur
+            fmatra = S.normalizeFmatra tempo (fromIntegral (length rest + 1))
+            tempo = S.stateTempo state
+            -- TODO I should preserve the group name
+            name = Pretty.fraction True fmatra
+
+normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
+normalizeSpeed tala = S.normalizeSpeed tala . S.filterFlat (not . isAlignment)
     where
     isAlignment (Realize.Alignment {}) = True
     isAlignment _ = False
@@ -311,8 +393,26 @@ annotateGroups =
         where flat = concatMap flatten children
     flatten (S.FNote _ note) = [Right note]
 
--- TODO these don't distinguish between different groups, but I'll probably
--- want to do that once I have fancier formatting.
+-- annotateGroups2 :: [S.Flat Group a] -> [([Group], a, [Group])]
+-- annotateGroups2 = concatMap $ \case
+--     S.FNote _ note -> [([], note, [])]
+--     S.FGroup _ g children -> firstLast
+--         (\(starts, n, ends) -> (g:starts, n, ends))
+--         (\(starts, n, ends) -> (starts, n, g:ends))
+--         (annotateGroups2 children)
+
+firstLast :: (a -> a) -> (a -> a) -> [a] -> [a]
+firstLast start end [x] = [start (end x)]
+firstLast start end xs = Seq.first_last start end xs
+
+groupDepth :: [([StartEnd], a)] -> [(Int, ([StartEnd], a))]
+groupDepth = snd . List.mapAccumL count 0
+    where
+    count n (startEnds, a) = (n + starts - ends, (n + starts, (startEnds, a)))
+        where
+        (starts, ends) = bimap length length $
+            List.partition (==Start) startEnds
+
 data StartEnd = Start | End deriving (Eq, Show)
 
 instance Pretty StartEnd where pretty = showt
@@ -339,6 +439,7 @@ shouldEmphasize tala angas state
 angaSet :: Tala.Tala -> Set Tala.Akshara
 angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
 
+-- | Split on sam.
 breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
 breakAvartanams = dropWhile null . Seq.split_before (isSam . fst)
     where isSam state = S.stateMatra state == 0 && S.stateAkshara state == 0
@@ -432,22 +533,31 @@ justifyLeft n c text
 data Symbol = Symbol {
     _text :: !Text
     , _emphasize :: !Bool
-    , _bounds :: ![StartEnd]
+    , _highlight :: !(Maybe Highlight)
     } deriving (Eq, Show)
 
+data Highlight = StartHightlight | Highlight | EndHighlight
+    deriving (Eq, Show)
+
 instance Pretty Symbol where
-    pretty (Symbol text emphasize bounds) =
+    pretty (Symbol text emphasize highlight) =
         text <> (if emphasize then "(b)" else "")
-            <> pretty bounds
+        <> case highlight of
+            Nothing -> ""
+            Just StartHightlight -> "+"
+            Just Highlight -> "-"
+            Just EndHighlight -> "|"
 
 text :: (Text -> Text) -> Symbol -> Symbol
 text f sym = sym { _text = f (_text sym) }
 
 formatSymbol :: Symbol -> Text
-formatSymbol (Symbol text emph bounds) = mconcat
-    [ Text.replicate (Seq.count (==End) bounds) Terminal.bgDefault
-    , Text.replicate (Seq.count (==Start) bounds)
-        (Terminal.setBg Terminal.Normal Terminal.White)
+formatSymbol (Symbol text emph highlight) = mconcat
+    [ case highlight of
+        Nothing -> ""
+        Just StartHightlight -> Terminal.setBg Terminal.Normal Terminal.White
+        Just Highlight -> ""
+        Just EndHighlight -> Terminal.bgDefault
     , (if emph then emphasize  else id) text
     ]
 
@@ -471,3 +581,14 @@ textLength = sum . map len . untxt
     len c
         | Char.isMark c = 0
         | otherwise = 1
+
+-- ** util
+
+collectPairs :: (a -> Bool) -> [a] -> [([a], [a])] -- ^ [(notTrue, true)]
+collectPairs f = go
+    where
+    go [] = []
+    go xs = (pre, within) : go post2
+        where
+        (pre, post1) = span f xs
+        (within, post2) = break f post1

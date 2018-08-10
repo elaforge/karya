@@ -7,19 +7,33 @@
 module Cmd.Internal where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Ratio as Ratio
-import Data.Ratio ((%))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
 import qualified Util.Map as Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
+import qualified App.Config as Config
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
+import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
+
+import qualified Derive.Attrs as Attrs
+import qualified Derive.Parse as Parse
+import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
+
 import qualified Midi.Midi as Midi
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Diff as Diff
@@ -35,21 +49,6 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
-import qualified Cmd.Perf as Perf
-import qualified Cmd.Selection as Selection
-import qualified Cmd.TimeStep as TimeStep
-
-import qualified Derive.Attrs as Attrs
-import qualified Derive.Parse as Parse
-import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
-
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-import qualified App.Config as Config
 import Global
 import Types
 
@@ -518,8 +517,8 @@ selection_status sel start_secs end_secs =
     -- ScoreTime tends to be low numbers and have fractions.  RealTime is
     -- just seconds though, so unless there's a unicode fraction, just use
     -- decimal notation.
-    show_score = pretty_rational True . ScoreTime.to_double
-    show_real = pretty_rational False . RealTime.to_seconds
+    show_score = Pretty.fraction True . ScoreTime.to_double
+    show_real = Pretty.fraction False . RealTime.to_seconds
 
 show_range :: (Eq a, Num a) => (a -> Text) -> a -> a -> Text
 show_range fmt start end = fmt start
@@ -534,30 +533,6 @@ track_selection_status ns sel maybe_track_id =
         , maybe "" (Id.show_short ns . Id.unpack_id) maybe_track_id
         ]
     where (tstart, tend) = Sel.track_range sel
-
--- | If it looks like a low fraction, display it thus, rather than as
--- a decimal.  This is useful because e.g. meters in three will have lots of
--- repeating decimals.  I also use fractions for power of two denominators
--- which are just fine in decimal, but the fraction still takes up less space.
-pretty_rational :: Bool -> Double -> Text
-pretty_rational favor_fraction d
-    | d == 0 = "0"
-    | Just frac <- Map.lookup ratio fractions = int_s <> frac
-    | favor_fraction && Ratio.denominator ratio <= 12 =
-        int_s <> "+" <> pretty ratio
-    | otherwise = pretty d
-    where
-    (int, frac) = properFraction d
-    int_s = if int == 0 then "" else showt int
-    ratio = Ratio.approxRational frac 0.0001
-    fractions = Map.fromList
-        [ (0 % 1, "")
-        , (1 % 4, "¼"), (1 % 2, "½"), (3 % 4, "¾")
-        , (1 % 3, "⅓"), (2 % 3, "⅔")
-        , (1 % 5, "⅕"), (2 % 5, "⅖"), (3 % 5, "⅗"), (4 % 5, "⅘")
-        , (1 % 6, "⅙"), (5 % 6, "⅚")
-        , (1 % 8, "⅛"), (3 % 8, "⅜"), (5 % 8, "⅝"), (7 % 8, "⅞")
-        ]
 
 -- ** selection control value
 

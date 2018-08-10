@@ -5,7 +5,7 @@
 -- | A simple Styled Text implementation.  There are a few others on hackage
 -- (terminal-text, rainbow, ...), but they're all too complicated for me.
 module Util.Styled (
-    Styled
+    Styled, Style(..)
     , print, printLn
     , toByteString, toByteStrings
     , Color, black, red, green, yellow, blue, magenta, cyan, white

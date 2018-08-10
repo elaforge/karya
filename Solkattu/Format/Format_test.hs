@@ -4,7 +4,6 @@
 
 {-# LANGUAGE RecordWildCards #-}
 module Solkattu.Format.Format_test where
-import Prelude hiding ((^))
 import qualified Data.Char as Char
 import qualified Data.Text as Text
 
@@ -16,7 +15,6 @@ import qualified Util.TextUtil as TextUtil
 import qualified Solkattu.Dsl as Dsl
 import Solkattu.DslSollu
 import qualified Solkattu.Format.Format as Format
-import Solkattu.Format.Format (StartEnd(..))
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
@@ -55,8 +53,7 @@ test_format = do
 test_format_patterns = do
     let f pmap seq = do
             ps <- Realize.patternMap pmap
-            Realize.formatError $ Realize.realize (Realize.realizePattern ps)
-                (Realize.realizeSollu strokeMap) (S.flatten seq)
+            realizeP (Just ps) strokeMap seq
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
     equal (eFormat $ format 80 Tala.adi_tala p) "k _ t _ k _ k t o _"
     equal (eFormat $ format 15 Tala.adi_tala p) "k t k kto"
@@ -130,7 +127,7 @@ test_spellRests = do
 
 test_inferRuler = do
     let f = Format.inferRuler tala4 2
-            . map (fst . snd) . Format.normalizeSpeed tala4 . fst
+            . map fst . S.flattenedNotes . Format.normalizeSpeed tala4 . fst
             . expect_right
             . kRealize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
@@ -160,9 +157,8 @@ equalT1 = equal_fmt (either id fst)
 
 test_formatLines = do
     let f strokeWidth width tala =
-            fmap (extract . Format.formatLines strokeWidth width tala . fst)
+            fmap (extractLines . formatLines False strokeWidth width tala . fst)
             . kRealize False tala
-        extract = map $ map $ Text.strip . mconcat . map (Format._text . snd)
     let tas n = Dsl.repeat n ta
 
     equal (f 2 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
@@ -194,31 +190,34 @@ test_formatLines = do
     equal (f 1 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4--"]]
     equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4------"]]
 
-test_formatSymbol = do
-    let f = fmap (extract . Format.formatLines 2 80 tala . fst)
-            . kRealize False tala
-        extract = map ((\(Format.Symbol _ b c) -> (b, c)) . snd)
-            . head . head
-        tala = Tala.rupaka_fast
-    let group = Notation.dropM 0
+test_formatLines_abstractGroups = do
+    let f = fmap (mconcat . extractLines . formatLines True 2 80 tala4 . fst)
+            . kRealize False tala4
     let tas n = Dsl.repeat n ta
-    equal (f (group $ tas 4 <> group (tas 4))) $ Right
-        [ (True, [Start]), (False, []), (False, []), (False, [])
-        , (True, [Start]), (False, []), (False, []), (False, [End, End])
-        ]
+    equal (f (tas 4)) (Right ["k k k k"])
+    equal (f (tas 2 <> Dsl.group (tas 2))) (Right ["k k 2---"])
+    equal (f (su $ tas 2 <> Dsl.group (tas 2))) (Right ["k k 1---"])
+    equal (f (su $ tas 2 <> Dsl.group (tas 3))) (Right ["k k 1½----"])
+    equal (f (Dsl.nadai 3 $ tas 2 <> Dsl.group (tas 3)))
+        (Right ["k k 3-----"])
+    equal (f (su $ Dsl.nadai 3 $ tas 2 <> Dsl.group (tas 3)))
+        (Right ["k k 1½----"])
+    equal (f (Dsl.group (tas 2) <> Dsl.group (tas 2)))
+        (Right ["2---2---"])
 
-test_annotateGroups = do
-    let f = map (second (pretty . snd))
-            . Format.annotateGroups
-            . S.normalizeSpeed Tala.adi_tala
-            . S.flatten
-    equal (f (ta <> ki)) [([], "ta"), ([], "ki")]
-    equal (f (Notation.group ta <> ki)) [([Start, End], "ta"), ([], "ki")]
-    equal (f (Notation.group (ta <> ki))) [([Start], "ta"), ([End], "ki")]
-    equal (f (Notation.group (ta <> Notation.group ki)))
-        [([Start], "ta"), ([Start, End, End], "ki")]
-    equal (f (Notation.group (Notation.group (ta <> ki))))
-        [([Start, Start], "ta"), ([End, End], "ki")]
+_nested_groups = do
+    let f = fmap (dropRulers . format 80 tala4 . fst) . kRealize False tala4
+    let tas n = Dsl.repeat n ta
+        group = Dsl.group
+    prettyp (f (tas 4))
+    prettyp (f (group (tas 4)))
+    -- adjacent groups
+    prettyp (f (group (tas 2) <> group (tas 2)))
+    -- nested groups:   k k             k k       k k       k k
+    prettyp (f $ group (tas 2 <> group (tas 2) <> tas 2) <> tas 2)
+
+extractLines :: [[[(a, Format.Symbol)]]] -> [[Text]]
+extractLines = map $ map $ Text.strip . mconcat . map (Format._text . snd)
 
 test_formatBreakLines = do
     let run width = fmap (stripAnsi . format width tala4 . fst)
@@ -276,7 +275,7 @@ rpattern :: S.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.pattern
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
-    -> [S.Flat g (Realize.Note stroke)] -> Text
+    -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
 format width tala = snd
     . Format.format (config { Format._terminalWidth = width }) (Nothing, 0) tala
 
@@ -303,9 +302,10 @@ capitalizeEmphasis = stripAnsi
     . Text.replace "\ESC[1m" "!" . Text.replace "\ESC[22m" "!"
 
 kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
-    -> Either Text ([Korvai.Flat M.Stroke], Text)
+    -> Either Text ([Format.Flat M.Stroke], Text)
 kRealize realizePatterns tala =
-    head . Korvai.realize Korvai.mridangam realizePatterns
+    fmap (first Format.mapGroups) . head
+    . Korvai.realize Korvai.mridangam realizePatterns
     . Korvai.korvaiInferSections tala mridangam
     . (:[])
 
@@ -321,10 +321,32 @@ nadai n = S.TempoChange (S.Nadai n)
 
 realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
-    -> Either Text [Realize.Realized stroke]
-realize smap = Realize.formatError
-    . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
+    -> Either Text [Format.Flat stroke]
+realize = realizeP Nothing
+
+realizeP :: Solkattu.Notation stroke => Maybe (Realize.PatternMap stroke)
+    -> Realize.SolluMap stroke -> [S.Note Solkattu.Group (Note Sollu)]
+    -> Either Text [Format.Flat stroke]
+realizeP pmap smap = fmap Format.mapGroups
+    . Realize.formatError
+    . Realize.realize pattern (Realize.realizeSollu smap)
     . S.flatten
+    where
+    pattern = maybe Realize.keepPattern Realize.realizePattern pmap
+
+formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
+    -> [Format.Flat stroke] -> [[[(S.State, Format.Symbol)]]]
+formatLines = Format.formatLines
+
+-- formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
+--     -- -> [S.Flat Format.Group (Realize.Note stroke)]
+--     -> [S.Flat (Realize.Group stroke) stroke]
+--     -> [[[(S.State, Format.Symbol)]]]
+-- -- formatLines = Format.formatLines
+-- formatLines abstractGroups strokeWidth width tala =
+--     Format.formatLines abstractGroups strokeWidth width tala
+--     . Format.mapGroups
+-- -- mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
 
 strokeMap :: Realize.SolluMap M.Stroke
 strokeMap = expect_right $ Realize.solluMap

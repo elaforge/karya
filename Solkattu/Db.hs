@@ -131,19 +131,19 @@ textDir :: FilePath
 textDir = "../data/solkattu-text"
 
 writeText :: IO ()
-writeText = writeTextTo textDir False
+writeText = writeTextTo textDir Format.Patterns
 
 -- | The usual textDir is a git repo, so I can see what effect changes have, in
 -- the same manner as App.VerifyPerformance.
-writeTextTo :: FilePath -> Bool -> IO ()
-writeTextTo dir realizePatterns = do
+writeTextTo :: FilePath -> Format.Abstraction -> IO ()
+writeTextTo dir abstraction = do
     writeWithStatus write1 All.korvais
     patch <- either (errorIO . txt) return =<< SourceControl.current "."
     Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
     where
     write1 korvai =
         Format.writeAll (dir </> korvaiFname korvai <> ".txt")
-            realizePatterns korvai
+            abstraction korvai
 
 writeWithStatus :: (Korvai.Korvai -> IO ()) -> [Korvai.Korvai] -> IO ()
 writeWithStatus write korvais = do

@@ -142,7 +142,7 @@ show_ratios tunings = Text.intercalate "; "
     | (tuning, r) <- Map.toList tunings
     ]
     where
-    ratios = Text.intercalate ", " . map Pretty.improper_ratio . Vector.toList
+    ratios = Text.intercalate ", " . map Pretty.improperRatio . Vector.toList
 
 just_doc :: Doc.Doc
 just_doc =

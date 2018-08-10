@@ -98,7 +98,8 @@ render realizePatterns korvai = htmlPage title (korvaiMetadata korvai) body
         sectionHtmls =
             zipWith (renderSection (Korvai.korvaiTala korvai) (font name))
                 (Korvai.genericSections korvai)
-                (Korvai.realize inst realizePatterns korvai)
+                (Format.convertGroups
+                    (Korvai.realize inst realizePatterns korvai))
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
     font name
@@ -150,7 +151,7 @@ tableCss =
 data Font = Font { _sizePercent :: Int, _monospace :: Bool } deriving (Show)
 
 formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
-    -> [S.Flat g (Realize.Note stroke)] -> Doc.Html
+    -> [S.Flat Format.Group (Realize.Note stroke)] -> Doc.Html
 formatHtml tala font notes =
     formatTable tala font (map Doc.html ruler) avartanams
     where
@@ -161,6 +162,7 @@ formatHtml tala font notes =
     avartanams =
         Format.breakAvartanams $
         map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
+        Format.annotateGroups $
         Format.normalizeSpeed tala notes
 
 formatTable :: Solkattu.Notation stroke => Tala.Tala -> Font -> [Doc.Html]
@@ -279,7 +281,7 @@ instrumentFont = Font
 
 renderSection :: Solkattu.Notation stroke => Tala.Tala -> Font
     -> Korvai.Section x
-    -> Either Error ([S.Flat g (Realize.Note stroke)], Error)
+    -> Either Error ([S.Flat Format.Group (Realize.Note stroke)], Error)
     -> Doc.Html
 renderSection _ _ _ (Left err) = "<p> ERROR: " <> Doc.html err
 renderSection tala font section (Right (notes, warn)) = mconcat

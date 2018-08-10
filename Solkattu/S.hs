@@ -23,7 +23,7 @@ module Solkattu.S (
     , decompose, decomposeM
     -- * flatten
     , Flat(..)
-    , filterFlat
+    , filterFlat, mapGroupFlat
     , notes, flatten, flattenWith, flattenedNotes
     , tempoToState, withDurations, tempoNotes, maxSpeed
     , Stroke(..), normalizeSpeed, flattenSpeed
@@ -198,6 +198,13 @@ filterFlat f = go
             | f n -> FNote tempo n : go ns
             | otherwise -> go ns
     go [] = []
+
+mapGroupFlat :: (g -> h) -> [Flat g a] -> [Flat h a]
+mapGroupFlat f = map convert
+    where
+    convert (FGroup tempo g children) =
+        FGroup tempo (f g) (map convert children)
+    convert (FNote tempo a) = FNote tempo a
 
 notes :: [Note g a] -> [a]
 notes = flattenedNotes . flatten
@@ -420,6 +427,9 @@ noteDuration tempo n = matraDuration tempo * fromIntegral (matrasOf n)
 noteFmatra :: HasMatras a => Tempo -> Note g a -> FMatra
 noteFmatra tempo n =
     realToFrac $ durationOf tempo n * fromIntegral (_nadai tempo)
+
+durationFmatra :: Nadai -> Duration -> FMatra
+durationFmatra nadai (Duration dur) = FMatra $ dur * fromIntegral nadai
 
 fmatraDuration :: Tempo -> FMatra -> Duration
 fmatraDuration tempo (FMatra matra) = Duration matra * matraDuration tempo

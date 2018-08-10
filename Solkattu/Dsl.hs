@@ -31,6 +31,7 @@ module Solkattu.Dsl (
     , module Solkattu.S
     , module Solkattu.Solkattu
     , module Solkattu.Tala
+    , Abstraction(..)
     -- * mridangam
     , (&)
     -- * misc
@@ -54,6 +55,7 @@ import qualified Data.Monoid as Monoid
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
+import Solkattu.Format.Format (Abstraction(..))
 import qualified Solkattu.Format.Html as Html
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
@@ -168,23 +170,23 @@ index i korvai = case Korvai.korvaiSections korvai of
         korvai { Korvai.korvaiSections = Korvai.Sollu [sections !! i] }
 
 realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM True
-realizep = realizeM False
+realize = realizeM None
+realizep = realizeM Patterns
 
-realizeM :: Bool -> Korvai.Korvai -> IO ()
+realizeM :: Abstraction -> Korvai.Korvai -> IO ()
 realizeM = Format.printInstrument Korvai.mridangam
 
-realizeK1 :: Bool -> Korvai.Korvai -> IO ()
+realizeK1 :: Abstraction -> Korvai.Korvai -> IO ()
 realizeK1 = Format.printInstrument Korvai.kendangTunggal
 
-realizeR :: Bool -> Korvai.Korvai -> IO ()
+realizeR :: Abstraction -> Korvai.Korvai -> IO ()
 realizeR = Format.printInstrument Korvai.reyong
 
-realizeSargam :: Bool -> Korvai.Korvai -> IO ()
+realizeSargam :: Abstraction -> Korvai.Korvai -> IO ()
 realizeSargam = Format.printInstrument Korvai.sargam
 
 realizeKon :: Int -> Korvai -> IO ()
-realizeKon width = Format.printKonnakol width True
+realizeKon width = Format.printKonnakol width Patterns
 
 htmlWriteAll :: FilePath -> Bool -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll

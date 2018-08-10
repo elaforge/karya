@@ -7,9 +7,9 @@
 -- | Miscellaneous functions on numbers.  Things that could have gone in
 -- Numeric.
 module Util.Num where
+import Data.Bifunctor (second)
 import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
-import Data.Bifunctor (second)
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Text (Text)

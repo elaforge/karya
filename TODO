@@ -3750,6 +3750,9 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - rename xFmatra to xFMatra
+  - S.Flat is not in fact flat.  Only the tempo has been flattened out, not
+    groups.  It needs a better name.
   - single letter patterns for fast patterns, e.g.
     . trkt = su (tari.kita) = ktpk
       trkttk = su (tari.kita.taka)
@@ -4059,10 +4062,57 @@ solkattu:
         . Is it really better though?
     - support tags on patterns, e.g. (2^p5, [something else])
       . Or should I use named patterns?
-    - realize can replace groups with a Pattern, by depth or by name
+    * realize can replace groups with a Pattern, by depth or by name
       . flags for pattern realize: all groups abstract, patterns abstract,
         all realized
       . I need names for groups, so I know how to render them.
+      . Alternately, propagate the group name to Realize.Group and render can
+        decide.
+      . But I should be consistent.  So maybe Patterns also turn into named
+        groups.
+      . I think I'll use Pattern's render, so why not standardize on Pattern
+        instead?  I wind up mapping Groups to Pattern again at the end anyway.
+      . If I want to have fancy html that switches, I might want to have
+        render emit all the possibilities in place.
+      . Also I could get rid of Realize.Pattern, and switch the rendering to
+        the special Group.
+      . Groups don't have to be an integral number of matras, but Patterns do.
+        I could extend Pattern but how to display it?
+      . This goes back to S.normalizeSpeed, which uses HasMatras, which
+        returns integral Matra.  Because it then multiplies by speed, it can
+        only express powers of 2.  I could switch to fMatrasOf, but I lose
+        guarantees that it produces an integral number of spaces.  It should,
+        because the group is composed of an integral number of matras at
+        a higher speed, but can't I just use that higher speed then?
+      . Yes, I should be able to do flatMatras, which returns the highest
+        speed and the number of matras.  I should still be able to do if it if
+        changes nadai.
+      . It seems overcomplicated though, how about I emit the group as-is, but
+        merge afterwards?
+    * add a control so I can control abstract patterns and groups
+    * adjacent groups get merged into one group
+      . I lost highlights on Solkattu.Score.Solkattu2017.c_17_08_29.txt
+      . cat -e, --ext-diff, --textconv, gitattributes
+      . Many diffs are just fewer redundent codes.
+      . Missing highlights I think are nested groups, I'll fix those for real
+        later.
+    - test nested groups
+    - Format.Html support
+      . I have to flatten out the groups to break avartanams (easily).
+      . So do that, convert to Symbol, and later group together Symbols.
+        So I think they may need a sustain flag to group Patterns.
+      . Abstract groups already use S.Sustain, so all I have to do is
+        preserve that in Symbol, via the sustain flag.
+      . Otherwise, I could make an Html-specific Symbol, which is basically
+        just flatten the groups enough to split avartanams.
+      . But in that case it may be the same amount of work to just split
+        avartanams within groups, it's not actually that complicated.
+    - preserve group name, and abstract groups by name
+      . what's an example when I would want to do this?
+    - can I highlight karvais?  I guess I have to infer when they are, e.g.
+      tri_ can put the group on, or join, though maybe it should be called
+      karvai to emphasize that.
+    - consider unifying Pattern and Group at the Format level
     / Patterns become groups with duration but no sollus.
       . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.
         Well, I guess that means Nakatiku is not a Pattern anymore, just a

@@ -344,11 +344,16 @@ realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
 
 -- | This is the realized version of 'Solkattu.Group'.  I retain the dropped
 -- strokes so "Solkattu.Technique" can use them.
-data Group stroke = Group { _dropped :: ![stroke], _side :: !Solkattu.Side }
-    deriving (Eq, Ord, Show)
+data Group stroke = Group {
+    _dropped :: ![stroke]
+    , _side :: !Solkattu.Side
+    -- | Inherited from 'Solkattu._name'.
+    , _name :: !(Maybe Text)
+    } deriving (Eq, Ord, Show)
 
 instance Pretty stroke => Pretty (Group stroke) where
-    pretty (Group dropped side) = pretty (dropped, side)
+    pretty (Group dropped side Nothing) = pretty (dropped, side)
+    pretty (Group dropped side (Just name)) = pretty (dropped, side, name)
 
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
@@ -416,6 +421,7 @@ convertGroups (S.FGroup tempo g children) =
                     group = Group
                         { _dropped = mapMaybe noteOf $ S.flattenedNotes dropped
                         , _side = side
+                        , _name = name
                         }
                     (kept, dropped) = case side of
                         Solkattu.Before -> (post, pre)

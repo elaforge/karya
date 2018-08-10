@@ -12,7 +12,7 @@ module Util.Pretty (
     , prettys
     , formatted, pprint
     , char
-    , improper_ratio
+    , improperRatio, fraction
 
     -- * formatting
     , textList, formattedList, delimitedList, record, recordTitle
@@ -119,12 +119,39 @@ instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
 
 -- | The default Pretty instance for Ratio reduces the fraction to k+n/d, which
 -- is not always right.  This formats an improper fraction.
-improper_ratio :: (Eq a, Num a, Pretty a) => Ratio.Ratio a -> Text
-improper_ratio r
+improperRatio :: (Eq a, Num a, Pretty a) => Ratio.Ratio a -> Text
+improperRatio r
     | denom == 1 = pretty num
     | otherwise = pretty num <> "/" <> pretty denom
     where
     (num, denom) = (Ratio.numerator r, Ratio.denominator r)
+
+-- | If it looks like a low fraction, display it thus, rather than as
+-- a decimal.  This is useful because e.g. meters in three will have lots of
+-- repeating decimals.  I also use fractions for power of two denominators
+-- which are just fine in decimal, but the fraction still takes up less space.
+fraction :: (RealFrac a, Pretty a) => Bool -> a
+    -- ^ If true, try an ASCII fraction if there are no unicode ones, otherwise
+    -- always use decimal.
+    -> Text
+fraction asciiFraction d
+    | d == 0 = "0"
+    | Just frac <- Map.lookup ratio fractions = int_s <> frac
+    | asciiFraction && Ratio.denominator ratio <= 12 =
+        int_s <> "+" <> pretty ratio
+    | otherwise = pretty d
+    where
+    (int, frac) = properFraction d
+    int_s = if int == 0 then "" else Text.pack (show int)
+    ratio = Ratio.approxRational frac 0.0001
+    fractions = Map.fromList
+        [ (0 / 1, "")
+        , (1 / 4, "¼"), (1 / 2, "½"), (3 / 4, "¾")
+        , (1 / 3, "⅓"), (2 / 3, "⅔")
+        , (1 / 5, "⅕"), (2 / 5, "⅖"), (3 / 5, "⅗"), (4 / 5, "⅘")
+        , (1 / 6, "⅙"), (5 / 6, "⅚")
+        , (1 / 8, "⅛"), (3 / 8, "⅜"), (5 / 8, "⅝"), (7 / 8, "⅞")
+        ]
 
 instance Pretty a => Pretty (Maybe a) where
     format Nothing = text "Nothing"
