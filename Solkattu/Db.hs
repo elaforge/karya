@@ -116,6 +116,7 @@ writeHtmlTo dir realizePatterns = do
     writeWithStatus write1 All.korvais
     Text.IO.writeFile (dir </> "index.html") $
         Doc.un_html $ Html.indexHtml ((<>".html") . korvaiFname) All.korvais
+    writeCommit dir
     where
     write1 korvai = Html.writeAll (dir </> korvaiFname korvai <> ".html")
         realizePatterns korvai
@@ -138,8 +139,7 @@ writeText = writeTextTo textDir Format.Patterns
 writeTextTo :: FilePath -> Format.Abstraction -> IO ()
 writeTextTo dir abstraction = do
     writeWithStatus write1 All.korvais
-    patch <- either (errorIO . txt) return =<< SourceControl.current "."
-    Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
+    writeCommit dir
     where
     write1 korvai =
         Format.writeAll (dir </> korvaiFname korvai <> ".txt")
@@ -155,3 +155,8 @@ writeWithStatus write korvais = do
             <> ": " <> txt (korvaiFname korvai) <> "\r"
         write korvai
     num = Text.justifyLeft 3 ' ' . showt
+
+writeCommit :: FilePath -> IO ()
+writeCommit dir = do
+    patch <- either (errorIO . txt) return =<< SourceControl.current "."
+    Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
