@@ -13,10 +13,12 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
 
+import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
+import qualified Util.File as File
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
@@ -113,6 +115,7 @@ writeHtml = writeHtmlTo "../data/solkattu" Format.Patterns
 -- | Write all Korvais as HTML into the given directory.
 writeHtmlTo :: FilePath -> Format.Abstraction -> IO ()
 writeHtmlTo dir abstraction = do
+    clearDir dir
     writeWithStatus write1 All.korvais
     Text.IO.writeFile (dir </> "index.html") $
         Doc.un_html $ Html.indexHtml ((<>".html") . korvaiFname) All.korvais
@@ -138,6 +141,7 @@ writeText = writeTextTo textDir Format.Patterns
 -- the same manner as App.VerifyPerformance.
 writeTextTo :: FilePath -> Format.Abstraction -> IO ()
 writeTextTo dir abstraction = do
+    clearDir dir
     writeWithStatus write1 All.korvais
     writeCommit dir
     where
@@ -160,3 +164,6 @@ writeCommit :: FilePath -> IO ()
 writeCommit dir = do
     patch <- either (errorIO . txt) return =<< SourceControl.current "."
     Text.IO.writeFile (dir </> "commit") (SourceControl._hash patch <> "\n")
+
+clearDir :: FilePath -> IO ()
+clearDir = mapM_ Directory.removeFile <=< File.list
