@@ -53,7 +53,7 @@ test_takeDrop = do
     equal (extract $ dropM_ 2 (takeM 2 tdgn)) []
 
 test_spaceM = do
-    let f = sum . map (S.noteFmatra S.defaultTempo) . spaceM Solkattu.Rest
+    let f = sum . map (S.noteFMatra S.defaultTempo) . spaceM Solkattu.Rest
     equal (f 0) 0
     equal (f 1) 1
     equal (f 3) 3

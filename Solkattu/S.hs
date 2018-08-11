@@ -30,7 +30,7 @@ module Solkattu.S (
     -- * State
     , State(..), statePosition, stateMatraPosition, showPosition
     -- * functions
-    , durationOf, noteDuration, noteFmatra, fmatraDuration, normalizeFmatra
+    , durationOf, noteDuration, noteFMatra, fmatraDuration, normalizeFMatra
     , matraDuration
 #ifdef TESTING
     , module Solkattu.S
@@ -424,15 +424,15 @@ noteDuration :: HasMatras a => Tempo -> a -> Duration
 noteDuration tempo n = matraDuration tempo * fromIntegral (matrasOf n)
     * fromIntegral (_stride tempo)
 
-noteFmatra :: HasMatras a => Tempo -> Note g a -> FMatra
-noteFmatra tempo n =
+noteFMatra :: HasMatras a => Tempo -> Note g a -> FMatra
+noteFMatra tempo n =
     realToFrac $ durationOf tempo n * fromIntegral (_nadai tempo)
 
 fmatraDuration :: Tempo -> FMatra -> Duration
 fmatraDuration tempo (FMatra matra) = Duration matra * matraDuration tempo
 
-normalizeFmatra :: Tempo -> FMatra -> FMatra
-normalizeFmatra tempo = (/ realToFrac (speedFactor (_speed tempo)))
+normalizeFMatra :: Tempo -> FMatra -> FMatra
+normalizeFMatra tempo = (/ realToFrac (speedFactor (_speed tempo)))
 
 -- | Duration of one matra in the given tempo.  This doesn't include '_stride',
 -- because stride adds matras to the note duration, it doesn't change the

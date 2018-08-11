@@ -323,7 +323,7 @@ makeGroupsAbstract = concatMap combine
         flattened  = S.tempoNotes children
         make c (tempo, (state, _)) = S.FNote tempo (state, c note)
         note = Realize.Pattern (Solkattu.PatternM (Just name) 1)
-        fmatra = S.normalizeFmatra tempo (fromIntegral (length flattened))
+        fmatra = S.normalizeFMatra tempo (fromIntegral (length flattened))
         -- TODO I should preserve the group name
         name = Pretty.fraction True fmatra
     combine n = [n]

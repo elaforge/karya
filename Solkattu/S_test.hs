@@ -129,8 +129,8 @@ test_simplify = do
     equal (f [speed (-2) [speed 1 [note], speed 2 [note]]])
         [speed (-1) [note], note]
 
-test_noteFmatra = do
-    let f = S.noteFmatra
+test_noteFMatra = do
+    let f = S.noteFMatra
     equal (f (tempo 0 4) note) 1
     equal (f (tempo 0 6) note) 1
     equal (f (tempo 1 4) note) (1/2)

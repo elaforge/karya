@@ -3750,7 +3750,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  - rename xFmatra to xFMatra
+  * rename xFmatra to xFMatra
   - S.Flat is not in fact flat.  Only the tempo has been flattened out, not
     groups.  It needs a better name.
   * single letter patterns for fast patterns, e.g.
@@ -3850,7 +3850,7 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
-      - maybe use 256 color ansi to give a less jarring contrast between
+      * maybe use 256 color ansi to give a less jarring contrast between
         start group and group highlight
       * Use Config data type for terminalWidth and overrideStrokeWidth, so
         tests can turn things on and off more easily.
@@ -3878,6 +3878,8 @@ solkattu:
         . If I carry rulerEach, then I can put the section numbers there too
       - if I have 'section' get CallStack and put section on each element,
         then I can tag sections with line numbers.
+        . This won't work with 'map section', and I want to get rid of noisy
+          section annotations anyway.
       * now group highlight is carrying into ruler lines
         . Because I just emit start and end.  To resume I'd have to remember
           when I'm in the middle of a group when breaking rulers.
