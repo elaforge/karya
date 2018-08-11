@@ -1096,6 +1096,7 @@ makeHaddock modeConfig = do
         , "--source-module=../hscolour/%{MODULE/.//}.html"
         , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
         , "--prologue=doc/prologue"
+        , "--package-name=karya" -- otherwise it warns incessantly
         -- Don't report every single function without a doc.
         , "--no-print-missing-docs"
         -- Source references qualified names as written in the doc.

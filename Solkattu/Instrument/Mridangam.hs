@@ -111,6 +111,7 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 
 data Strokes a = Strokes {
     k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, v :: a, i :: a
+    -- | Mnemonic: y = kin = , uses 3 fingers, j = tan = ^ uses 1.
     , y :: a, j :: a
     , p :: a, o :: a
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately

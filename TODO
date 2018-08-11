@@ -3761,7 +3761,8 @@ solkattu:
     . I'll have to get tk and tktu out of the way.
   - tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
-  - I think kin^ and tan, are backwards, should be tan^ above, kin, below
+  / I think kin^ and tan, are backwards, should be tan^ above, kin, below
+    . It already is.
   David Nelson mridangam transcriptions:
     . http://www.ancient-future.com/atfp.html#MIDI
     . http://dpnelson.web.wesleyan.edu/publications.html
@@ -3782,10 +3783,8 @@ solkattu:
       . For irregular reductions, e.g. Solkattu2018.misra_muktayi1
       . Or just general purpose post-processing.
     * kook, ok -> kook, pk
-    - kook kook -> kook nook
+    - kook kook -> kook nook, or kook took
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
-  - some way to turn ktkno to kikno.
-    . This might be when you have a longer time on nam.
   - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
     . I want to write the sarvalaghu as strokes not solkattu, not just ===
       filler.  This is because sometimes it's hard to distinguish in recordings,
@@ -3805,6 +3804,11 @@ solkattu:
       do things like display diffs.
     . I could do this with a ghci macro.  Call writeText, write to
       ../data/solkattu-text, and use git diff to see differences.
+  sections:
+    - if I have 'section' get CallStack and put section on each element,
+      then I can tag sections with line numbers.
+      . This won't work with 'map section', and I want to get rid of noisy
+        section annotations anyway.
   format: output:
     * Solkattu.Offset inserted by startOn should figure out nadai
     * rulers seem to use absolute rulerEach, and are not reset by nadai
@@ -3824,6 +3828,7 @@ solkattu:
           same structure will also be suppressed.
     * in Realize, clearly separate functions for text and html backends
     html:
+      - section metadata display is really ugly
       - sarva double dots are pretty ugly, how about single dots?
         . And can I stop them from clumping together at the breaks?
       * tala markings show up on the matra after the beat
@@ -3841,7 +3846,7 @@ solkattu:
       - I shoud be able to display nested groups.
       - show nadai change: as above
       - use JS to switch between konnakol and mridangam
-      - use JS to switch between realizePatterns and not
+      - use JS to switch between Format.Abstraction level
       db ideas:
         - similar_to should be a link
         - source should be a link, click on it to see everything from that
@@ -3876,10 +3881,6 @@ solkattu:
         . Didn't it used to do this?
       * show some tags after sections, e.g. x2 and type
         . If I carry rulerEach, then I can put the section numbers there too
-      - if I have 'section' get CallStack and put section on each element,
-        then I can tag sections with line numbers.
-        . This won't work with 'map section', and I want to get rid of noisy
-          section annotations anyway.
       * now group highlight is carrying into ruler lines
         . Because I just emit start and end.  To resume I'd have to remember
           when I'm in the middle of a group when breaking rulers.
@@ -3930,24 +3931,29 @@ solkattu:
     (solkattu, stroke_map) approach, because there are too many meanings
     for taka and din.  Really if it's meant to be useful for different
     realizations, I should emphasize the reusable phrases, so I should
-    try to figure out ways to make that easier.  For instance,
-    understanding about reduction is good for that.
+    try to figure out ways to make that easier.  For instance, understanding
+    about reduction is good for that.
     . To an extent, it's acceptable that it's harder than just writing
       the strokes, because I'm trying to find a more general
       representation.
-    . Still, I could make it easier with tools:
-      - Lint to show unmatched stroke sequences.
-      - Diff to compare realizations before and after I change the
-        stroke map.
-        . How can I keep them both around?  If I do it at the haskell
-          level, I have to copy the stroke map, and then have multiple
-          stroke maps for the same instrument, and then diff between
-          them.  This might be useful in general to highlight different
-          players style.
-        . If I do it at the ghci level, I'd have to somehow stash the
-          previous previous Korvai or realize output someplace that
-          survives a reload, like write a file.  Then add a function to
-          do a text diff with the file contents.
+    . Still, I could make it easier with tools, see StrokeMap:
+  StrokeMap:
+    - ensure that later entries in the StrokeMap override earlier ones
+    - analyze for unused StrokeMap entries, or overidden ones
+      . I'll need a way to mark "standard library", where it's fine if they're
+        not used, or overidden.
+    - Lint to show unmatched stroke sequences.
+    - Diff to compare realizations before and after I change the
+      stroke map.
+      . How can I keep them both around?  If I do it at the haskell
+        level, I have to copy the stroke map, and then have multiple
+        stroke maps for the same instrument, and then diff between
+        them.  This might be useful in general to highlight different
+        players style.
+      . If I do it at the ghci level, I'd have to somehow stash the
+        previous previous Korvai or realize output someplace that
+        survives a reload, like write a file.  Then add a function to
+        do a text diff with the file contents.
   / Final notes should be cancellable, so e.g. tri will cancel for the
     first two.
     . E.g. tri (taka.tam.__) is ok when it's at the end, but when I nest
@@ -3969,10 +3975,6 @@ solkattu:
       dynamics.
   * Can I put StrokeMap and Patterns together?  Then I can put standard
     strokes along with the stroke map, and override them together.
-  - ensure that later entries in the StrokeMap override earlier ones
-  - analyze for unused StrokeMap entries, or overidden ones
-    . I'll need a way to mark "standard library", where it's fine if they're
-      not used, or overidden.
   karya integration:
     - I could emit groups as blocks with clip or Clip.
       . But then I lose technique.
@@ -4267,6 +4269,8 @@ solkattu:
       based on that tag.
     . But for those variations to actually be in the rendered output, I need
       to have pattern realization in the score.
+  - some way to turn ktkno to kikno.
+    . This might be when you have a longer time on nam.
   - replacements, e.g. ta.ki.ta -> nang.__ . su (kita.taka)
     . use this in koraippu_janahan
   / I think I need an absolute SetSpeed, so I can pad a number of

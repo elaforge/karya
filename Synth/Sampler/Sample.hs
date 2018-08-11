@@ -111,7 +111,7 @@ predictDuration ratio sampleDur = case Signal.constant_val_from 0 ratio of
         | y1 <= 0 || y2 <= 0 =
             error $ "ratio went to 0: " <> prettys (head segments)
         -- TODO verify this is the same
-        -- | y1 == y2 = go (input - consumed) (output + consumed * y1) segments
+        --  | y1 == y2 = go (input - consumed) (output + consumed * y1) segments
         | otherwise = go (input - consumed) (output + generated)
             (if now >= x2 then rest else segments)
         where

@@ -15,6 +15,7 @@ import qualified System.Random as Random
 
 import qualified Solkattu.Db as Db
 import qualified Solkattu.Format.Terminal as Terminal
+import Solkattu.Format.Format (Abstraction(..))
 import qualified Solkattu.Korvai as Korvai
 
 import Global
@@ -36,14 +37,14 @@ randomTypes types = do
         Text.IO.putStrLn $ maybe "Nothing" Db.format korvai
 
 realize, realizep :: Int -> IO ()
-realize i = realizeM True (Db.korvais !! i)
-realizep i = realizeM False (Db.korvais !! i)
+realize i = realizeM None (Db.korvais !! i)
+realizep i = realizeM Patterns (Db.korvais !! i)
 
-realizeM :: Bool -> Korvai.Korvai -> IO ()
+realizeM :: Abstraction -> Korvai.Korvai -> IO ()
 realizeM = Terminal.printInstrument Korvai.mridangam
 
 realizeKon :: Int -> IO ()
-realizeKon i = Terminal.printKonnakol 100 True (Db.korvais !! i)
+realizeKon i = Terminal.printKonnakol 100 Patterns (Db.korvais !! i)
 
 -- | Mark these korvais as practiced.
 practiced :: [Int] -> IO ()
