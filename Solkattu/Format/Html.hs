@@ -77,15 +77,23 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
 
 
 -- | Write HTML with all the instrument realizations.
-writeAll :: FilePath -> Bool -> Korvai.Korvai -> IO ()
-writeAll fname realizePatterns korvai =
-    Text.IO.writeFile fname $ Doc.un_html $ render realizePatterns korvai
+writeAll :: FilePath -> Format.Abstraction -> Korvai.Korvai -> IO ()
+writeAll fname abstraction korvai =
+    Text.IO.writeFile fname $ Doc.un_html $ render abstraction korvai
 
 
 -- * high level
 
-render :: Bool -> Korvai.Korvai -> Doc.Html
-render realizePatterns korvai = htmlPage title (korvaiMetadata korvai) body
+data Config = Config {
+    _abstraction :: !Format.Abstraction
+    , _font :: !Font
+    } deriving (Show)
+
+data Font = Font { _sizePercent :: Int, _monospace :: Bool }
+    deriving (Show)
+
+render :: Format.Abstraction -> Korvai.Korvai -> Doc.Html
+render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
     where
     (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
     body = mconcat $ mapMaybe htmlInstrument $ Seq.sort_on (order . fst) $
@@ -96,15 +104,17 @@ render realizePatterns korvai = htmlPage title (korvaiMetadata korvai) body
         where
         sectionHtmls :: [Doc.Html]
         sectionHtmls =
-            zipWith (renderSection (Korvai.korvaiTala korvai) (font name))
+            zipWith (renderSection (config name) (Korvai.korvaiTala korvai))
                 (Korvai.genericSections korvai)
                 (Format.convertGroups
-                    (Korvai.realize inst realizePatterns korvai))
+                    (Korvai.realize inst (abstraction < Format.Patterns)
+                        korvai))
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
-    font name
-        | name == "konnakol" = konnakolFont
-        | otherwise = instrumentFont
+    config name = Config
+        { _abstraction = abstraction
+        , _font = if name == "konnakol" then konnakolFont else instrumentFont
+        }
 
 htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
 htmlPage title meta body = mconcat
@@ -148,12 +158,10 @@ tableCss =
     \.endG { background:\
         \ linear-gradient(to right, lightgray, lightgray, white) }"
 
-data Font = Font { _sizePercent :: Int, _monospace :: Bool } deriving (Show)
-
-formatHtml :: Solkattu.Notation stroke => Tala.Tala -> Font
+formatHtml :: Solkattu.Notation stroke => Config -> Tala.Tala
     -> [S.Flat Format.Group (Realize.Note stroke)] -> Doc.Html
-formatHtml tala font notes =
-    formatTable tala font (map Doc.html ruler) avartanams
+formatHtml config tala notes =
+    formatTable (_font config) tala (map Doc.html ruler) avartanams
     where
     ruler = maybe [] (concatMap akshara . Format.inferRuler tala 1 . map fst)
         (Seq.head avartanams)
@@ -161,19 +169,62 @@ formatHtml tala font notes =
     akshara (n, spaces) = n : replicate (spaces-1) ""
     avartanams =
         Format.breakAvartanams $
-        map (\(startEnd, (state, note)) -> (state, (startEnd, note))) $
-        Format.annotateGroups $
+        concatMap makeSymbols $
+        (if _abstraction config >= Format.Groups
+            then Format.makeGroupsAbstract else id) $
         Format.normalizeSpeed tala notes
 
-formatTable :: Solkattu.Notation stroke => Tala.Tala -> Font -> [Doc.Html]
-    -> [[(S.State, ([Format.StartEnd], S.Stroke (Realize.Note stroke)))]]
+data Symbol = Symbol {
+    _html :: !Doc.Html
+    , _isSustain :: !Bool
+    , _highlight :: !(Maybe Format.Highlight)
+    } deriving (Eq, Show)
+
+-- | Flatten the groups into linear [Symbol].
+makeSymbols :: Solkattu.Notation stroke => Format.NormalizedFlat stroke
+    -> [(S.State, Symbol)]
+makeSymbols = go
+    where
+    go (S.FNote _ (state, note_)) =
+        (:[]) $ (state,) $ Symbol
+            { _html = noteHtml state note
+            , _isSustain = case note of
+                S.Sustain {} -> True
+                _ -> False
+            , _highlight = Nothing
+            }
+        where note = normalizeSarva note_
+    go (S.FGroup _ _group children) =
+        Seq.map_last (second (set Format.EndHighlight)) $
+        Format.headTail (second (set Format.StartHighlight))
+            (second (set Format.Highlight))
+            (concatMap go children)
+    set h sym = sym { _highlight = Just h }
+    noteHtml state = \case
+        S.Sustain (Realize.Space Solkattu.Sarva) -> sarva
+        S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
+        S.Sustain a -> notation state a
+        S.Attack a -> notation state a
+        S.Rest -> Doc.html "_"
+    -- Because sarva is <hr> all the way through, don't separate the attack
+    -- from sustain. TODO I should do this for all attack+sustain, and
+    -- just append the <hr> to the (optional) notation html.
+    normalizeSarva (S.Attack (Realize.Space Solkattu.Sarva)) =
+        S.Sustain (Realize.Space Solkattu.Sarva)
+    normalizeSarva n = n
+    notation state = bold . Solkattu.notationHtml
+        where bold = if Format.onAkshara state then Doc.tag "b" else id
+    -- TODO this is actually pretty ugly
+    sarva = "<hr style=\"border: 4px dotted\">"
+
+formatTable :: Font -> Tala.Tala -> [Doc.Html] -> [[(S.State, Symbol)]]
     -> Doc.Html
-formatTable tala font header rows = mconcatMap (<>"\n") $ concat
+formatTable font tala header rows = mconcatMap (<>"\n") $ concat
     [ [ "<p> <table style=\"" <> fontStyle
         <> "\" class=konnakol cellpadding=0 cellspacing=0>"
       , "<tr>" <> mconcatMap th header <> "</tr>\n"
       ]
-    , map row (snd $ mapAccumL2 addGroups 0 rows)
+    , map row rows
     , ["</table>"]
     ]
     where
@@ -184,69 +235,36 @@ formatTable tala font header rows = mconcatMap (<>"\n") $ concat
     row cells = TextUtil.join ("\n" :: Doc.Html)
         [ "<tr>"
         , TextUtil.join "\n" $ map td . Format.mapSnd spellRests . map mkCell $
-            List.groupBy groupSustains cells
+            List.groupBy merge cells
         , "</tr>"
         , ""
         ]
-    addGroups prevDepth (state, (startEnds, a)) =
-        -- TODO this is out of control
-        ( depth
-        , ( state
-          , ( ( depth
-              , Format.Start `elem` startEnds
-              , Format.End `elem` startEnds
-              )
-            , Format.normalizeRest a
-            )
-          )
-        )
+    -- Merge together the sustains after an attack.  They will likely have an
+    -- <hr> in them, which will expand to the full colspan width.
+    merge (_, sym1) (state2, sym2) = _isSustain sym1 && _isSustain sym2
+        && not (Format.onAkshara state2)
+        -- Split sustains on aksharas.  Otherwise, the colspan prevents the
+        -- vertical lines that mark them.
+    mkCell :: [(S.State, Symbol)] -> ([(Text, Text)], Doc.Html)
+    mkCell [] = ([], "") -- List.groupBy shouldn't return empty groups
+    mkCell syms@((state, sym) : _) = (tags, _html sym)
         where
-        depth = (prevDepth+) $ sum $ flip map startEnds $ \n -> case n of
-            Format.Start -> 1
-            Format.End -> -1
-    groupSustains (_, (_, note1)) (state2, (_, note2)) =
-        not (hasLine state2) && merge note1 note2
-        where
-        -- For Pattern, the first cell gets the p# notation, the rest get <hr>.
-        -- For Sarva, there's no notation, so they all get the <hr>.
-        merge (S.Attack (Realize.Space Solkattu.Sarva))
-            (S.Sustain (Realize.Space Solkattu.Sarva)) = True
-        merge (S.Sustain (Realize.Space Solkattu.Sarva))
-            (S.Sustain (Realize.Space Solkattu.Sarva)) = True
-        merge (S.Sustain (Realize.Pattern {})) (S.Sustain (Realize.Pattern {}))
-            = True
-        merge _ _ = False
-
-    -- not reached, List.groupBy shouldn't return empty groups
-    mkCell [] = ([], "")
-    mkCell ((state, ((depth :: Int, start, end), note)) : ns) =
-        (,) tags $ case note of
-            S.Attack (Realize.Space Solkattu.Sarva) -> sarva
-            S.Sustain (Realize.Space Solkattu.Sarva) -> sarva
-            S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
-            S.Sustain a -> notation a
-            S.Attack a -> notation a
-            S.Rest -> Doc.html "_"
-        where
-        notation = bold . Solkattu.notationHtml
-            where bold = if Format.onAkshara state then Doc.tag "b" else id
-        sarva = "<hr style=\"border: 4px dotted\">"
         tags = concat
             [ [("class", Text.unwords classes) | not (null classes)]
-            , [("colspan", showt (length ns + 1)) | not (null ns)]
+            , [("colspan", showt cells) | cells > 1]
             ]
+            where cells = length syms
         classes = concat
             [ if
                 | Format.onAnga angas state -> ["onAnga"]
                 | Format.onAkshara state -> ["onAkshara"]
                 | otherwise -> []
-            , if
-                | start -> ["startG"]
-                | end -> ["endG"]
-                | depth > 0 -> ["inG"]
-                | otherwise -> []
+            , case _highlight sym of
+                Nothing -> []
+                Just Format.StartHighlight -> ["startG"]
+                Just Format.Highlight -> ["inG"]
+                Just Format.EndHighlight -> ["endG"]
             ]
-    hasLine = Format.onAkshara
     angas = Format.angaSet tala
 
 -- | This is the HTML version of 'Format.spellRests'.
@@ -263,9 +281,6 @@ spellRests = map set . zip [0..] . Seq.zip_neighbors
 isRest :: Doc.Html -> Bool
 isRest = (=="_") . Text.strip . Doc.un_html
 
-mapAccumL2 :: (state -> a -> (state, b)) -> state -> [[a]] -> (state, [[b]])
-mapAccumL2 f = List.mapAccumL (List.mapAccumL f)
-
 
 -- * implementation
 
@@ -279,14 +294,14 @@ instrumentFont = Font
     , _monospace = True
     }
 
-renderSection :: Solkattu.Notation stroke => Tala.Tala -> Font
-    -> Korvai.Section x
+renderSection :: Solkattu.Notation stroke => Config
+    -> Tala.Tala -> Korvai.Section x
     -> Either Error ([S.Flat Format.Group (Realize.Note stroke)], Error)
     -> Doc.Html
 renderSection _ _ _ (Left err) = "<p> ERROR: " <> Doc.html err
-renderSection tala font section (Right (notes, warn)) = mconcat
+renderSection config tala section (Right (notes, warn)) = mconcat
     [ sectionMetadata section
-    , formatHtml tala font notes
+    , formatHtml config tala notes
     , if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
     ]
 

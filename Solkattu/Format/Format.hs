@@ -13,11 +13,13 @@ module Solkattu.Format.Format (
     , printInstrument, printKonnakol
 
     -- * shared with Format.Html
-    , Group, convertGroups
-    , StartEnd(..)
-    , breakAvartanams, normalizeSpeed, annotateGroups, inferRuler
-    , onAkshara, onAnga, angaSet
-    , normalizeRest, mapSnd
+    , Group, NormalizedFlat
+    , convertGroups
+    , breakAvartanams, normalizeSpeed, makeGroupsAbstract, inferRuler
+    , onSam, onAnga, onAkshara, angaSet
+    , Highlight(..)
+    -- * util
+    , mapSnd, headTail
 
 #ifdef TESTING
     , module Solkattu.Format.Format
@@ -26,13 +28,11 @@ module Solkattu.Format.Format (
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.File as File
-import qualified Util.MultiSet as MultiSet
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
@@ -258,11 +258,6 @@ spellRests strokeWidth
         | otherwise = sym
     double = Text.singleton Realize.doubleRest
 
--- | This assumes the function doesn't change the length of the list!
-mapSnd :: ([a] -> [b]) -> [(x, a)] -> [(x, b)]
-mapSnd f xas = zip xs (f as)
-    where (xs, as) = unzip xas
-
 -- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
 -- onto the next line.
 formatFinalAvartanam :: [[[(a, Symbol)]]] -> [[[(a, Symbol)]]]
@@ -293,12 +288,16 @@ formatLines abstractGroups strokeWidth width tala =
         where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
     angas = angaSet tala
 
+-- | 'Flat' after 'normalizeSpeed'.
+type NormalizedFlat stroke =
+    S.Flat Group (S.State, S.Stroke (Realize.Note stroke))
+
 makeSymbols :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
     -> NormalizedFlat stroke -> [(S.State, Symbol)]
 makeSymbols strokeWidth tala angas = go
     where
     go (S.FNote _ (state, note)) =
-        (:[]) $ (state,) $ make state $ case normalizeRest note of
+        (:[]) $ (state,) $ make state $ case note of
             S.Attack a -> justifyLeft strokeWidth (Solkattu.extension a)
                 (Solkattu.notation a)
             S.Sustain a -> Text.replicate strokeWidth
@@ -315,16 +314,6 @@ makeSymbols strokeWidth tala angas = go
         , _highlight = Nothing
         }
 
--- | Rests are special in that S.normalizeSpeed can produce them.  Normalize
--- them to force them to all be treated the same way.
-normalizeRest :: S.Stroke (Realize.Note a) -> S.Stroke (Realize.Note a)
-normalizeRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
-normalizeRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
-normalizeRest a = a
-
-type NormalizedFlat stroke =
-    S.Flat Group (S.State, S.Stroke (Realize.Note stroke))
-
 makeGroupsAbstract :: [NormalizedFlat stroke] -> [NormalizedFlat stroke]
 makeGroupsAbstract = concatMap combine
     where
@@ -339,37 +328,23 @@ makeGroupsAbstract = concatMap combine
         name = Pretty.fraction True fmatra
     combine n = [n]
 
-headTail :: (a -> b) -> (a -> b) -> [a] -> [b]
-headTail f g (x : xs) = f x : map g xs
-headTail _ _ [] = []
-
 normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
-normalizeSpeed tala = S.normalizeSpeed tala . S.filterFlat (not . isAlignment)
+normalizeSpeed tala =
+    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed tala
+    . S.filterFlat (not . isAlignment)
     where
     isAlignment (Realize.Alignment {}) = True
     isAlignment _ = False
 
--- | Put StartEnd on the strokes to mark group boundaries.  This discards all
--- other group data.
-annotateGroups :: [S.Flat g a] -> [([StartEnd], a)]
-annotateGroups =
-    Maybe.catMaybes . snd . List.mapAccumL go (mempty, 0) . zip [0..]
-        . concatMap flatten
-    where
-    go (groups, starts) (i, Left count) =
-        ((MultiSet.insert (i + count) groups, starts + 1), Nothing)
-    go (groups, starts) (i, Right note) =
-        ( (groups, 0)
-        , Just (replicate starts Start ++ replicate ends End, note)
-        )
-        where ends = MultiSet.lookup i groups
-    flatten (S.FGroup _ _ children) = Left (length flat) : flat
-        where flat = concatMap flatten children
-    flatten (S.FNote _ note) = [Right note]
+-- | Rests are special in that S.normalizeSpeed can produce them.  Normalize
+-- them to force them to all be treated the same way.
+normalizeRest :: S.Stroke (Realize.Note a) -> S.Stroke (Realize.Note a)
+normalizeRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
+normalizeRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
+normalizeRest a = a
 
-data StartEnd = Start | End deriving (Eq, Show)
-
-instance Pretty StartEnd where pretty = showt
+onSam :: S.State -> Bool
+onSam state = S.stateMatra state == 0 && S.stateAkshara state == 0
 
 onAnga :: Set Tala.Akshara -> S.State -> Bool
 onAnga angas state =
@@ -395,8 +370,7 @@ angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
 
 -- | Split on sam.
 breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
-breakAvartanams = dropWhile null . Seq.split_before (isSam . fst)
-    where isSam state = S.stateMatra state == 0 && S.stateAkshara state == 0
+breakAvartanams = dropWhile null . Seq.split_before (onSam . fst)
 
 -- | If the text goes over the width, break at the middle akshara, or the
 -- last one before the width if there isn't a middle.
@@ -424,9 +398,6 @@ breakBefore maxWidth = go . dropWhile null . Seq.split_before (atAkshara . fst)
             (pre, post) -> concat pre : go post
     -- drop 1 so it's the width at the end of each section.
     runningWidth = drop 1 . scanl (+) 0 . map (sum . map (symLength . snd))
-
-breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
-breakFst f = bimap (map snd) (map snd) . break (f . fst)
 
 -- | Rather than generating the ruler purely from the Tala, I use the States
 -- to figure out the mark spacing.  Otherwise I wouldn't know where nadai
@@ -531,3 +502,17 @@ textLength = sum . map len . untxt
     len c
         | Char.isMark c = 0
         | otherwise = 1
+
+-- * util
+
+breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
+breakFst f = bimap (map snd) (map snd) . break (f . fst)
+
+-- | This assumes the function doesn't change the length of the list!
+mapSnd :: ([a] -> [b]) -> [(x, a)] -> [(x, b)]
+mapSnd f xas = zip xs (f as)
+    where (xs, as) = unzip xas
+
+headTail :: (a -> b) -> (a -> b) -> [a] -> [b]
+headTail f g (x : xs) = f x : map g xs
+headTail _ _ [] = []

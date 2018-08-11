@@ -188,7 +188,7 @@ realizeSargam = Format.printInstrument Korvai.sargam
 realizeKon :: Int -> Korvai -> IO ()
 realizeKon width = Format.printKonnakol width Patterns
 
-htmlWriteAll :: FilePath -> Bool -> Korvai -> IO ()
+htmlWriteAll :: FilePath -> Abstraction -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll
 
 

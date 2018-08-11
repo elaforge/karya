@@ -3824,6 +3824,8 @@ solkattu:
           same structure will also be suppressed.
     * in Realize, clearly separate functions for text and html backends
     html:
+      - sarva double dots are pretty ugly, how about single dots?
+        . And can I stop them from clumping together at the breaks?
       * tala markings show up on the matra after the beat
       * do the double rest thing for html
       - rests could be wider, since I have more space
@@ -4098,7 +4100,7 @@ solkattu:
       . Many diffs are just fewer redundent codes.
       . Missing highlights I think are nested groups, I'll fix those for real
         later.
-    - Format.Html support
+    * Format.Html support
       . I have to flatten out the groups to break avartanams (easily).
       . So do that, convert to Symbol, and later group together Symbols.
         So I think they may need a sustain flag to group Patterns.
@@ -4108,6 +4110,13 @@ solkattu:
         just flatten the groups enough to split avartanams.
       . But in that case it may be the same amount of work to just split
         avartanams within groups, it's not actually that complicated.
+      - Solkattu2017.c_17_08_29 section 4, 3rd tat tam gets a highlight, which
+        carries through to the theme start
+        . It likely has to do with how sandi makes groups by dropping things,
+          which for some reason confuses the new group mechanism.
+        . Indeed these used to be nested groups that only accidentally worked
+          right.
+        . Can I have sandi not make a group when it drops?
     - preserve group name, and abstract groups by name
       . what's an example when I would want to do this?
     - can I highlight karvais?  I guess I have to infer when they are, e.g.
