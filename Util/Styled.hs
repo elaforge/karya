@@ -19,6 +19,7 @@ module Util.Styled (
     , toByteString, toByteStrings
     , toText, toTexts
     , Color, black, red, green, yellow, blue, magenta, cyan, white
+    , rgb
     , plain
     , bright
     , fgs, bgs, bolds, underlines
@@ -30,6 +31,9 @@ import Prelude hiding (print)
 import Control.Applicative ((<|>))
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as ByteString
+import qualified Data.Colour as Colour
+import qualified Data.Colour.Names as Colour.Names
+import qualified Data.Colour.SRGB as SRGB
 import qualified Data.List as List
 import Data.Semigroup (Semigroup(..))
 import qualified Data.String as String
@@ -112,10 +116,12 @@ styleSGR (Style fg bg bold underline) = ANSI.Reset : concat
         Nothing -> []
         Just (Color intensity color) ->
             [ANSI.SetColor ANSI.Foreground intensity color]
+        Just (RGB color) -> [ANSI.SetRGBColor ANSI.Foreground color]
     , case bg of
         Nothing -> []
         Just (Color intensity color) ->
             [ANSI.SetColor ANSI.Background intensity color]
+        Just (RGB color) -> [ANSI.SetRGBColor ANSI.Background color]
     , [ANSI.SetConsoleIntensity ANSI.BoldIntensity | bold]
     , [ANSI.SetUnderlining ANSI.SingleUnderline | underline]
     ]
@@ -145,6 +151,7 @@ noStyle = Style
     }
 
 data Color = Color !ANSI.ColorIntensity !ANSI.Color
+    | RGB !(Colour.Colour Float)
     deriving (Eq, Show)
 
 black, red, green, yellow, blue, magenta, cyan, white :: Color
@@ -154,11 +161,15 @@ black, red, green, yellow, blue, magenta, cyan, white :: Color
     )
     where c = Color ANSI.Dull
 
+rgb :: Float -> Float -> Float -> Color
+rgb r g b = RGB $ SRGB.sRGB r g b
+
 plain :: Text -> Styled
 plain = Styled mempty
 
 bright :: Color -> Color
 bright (Color _ color) = Color ANSI.Vivid color
+bright (RGB color) = RGB (Colour.blend 0.5 color Colour.Names.white)
 
 fgs, bgs :: Color -> Styled -> Styled
 fgs color = mapStyle (\style -> style { _foreground = Just color })

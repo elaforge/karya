@@ -480,8 +480,9 @@ formatSymbol :: Symbol -> Styled.Styled
 formatSymbol (Symbol text emph highlight) =
     (case highlight of
         Nothing -> id
-        Just StartHighlight -> Styled.bg (Styled.bright Styled.cyan)
-        Just _ -> Styled.bg Styled.white) $
+        Just StartHighlight -> Styled.bg (Styled.rgb 0.5 0.75 0.5)
+        Just _ -> Styled.bg (Styled.rgb 0.75 0.75 0.75)
+    ) $
     (if emph then emphasize else Styled.plain) text
     where
     emphasize word

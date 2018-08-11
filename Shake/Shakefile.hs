@@ -83,7 +83,7 @@ basicPackages = concat
     , w "wcwidth" -- Util.Format
     , w "dlist" -- Util.TimeVector
     , w "QuickCheck" -- Util.Test
-    , w "ansi-terminal" -- Util.StyledText
+    , w "ansi-terminal colour" -- Util.StyledText
     -- karya
     , w "old-locale"
     , w "attoparsec" -- Derive: tracklang parsing

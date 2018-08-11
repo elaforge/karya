@@ -41,6 +41,7 @@ library
         bytestring,
         c-storable,
         cereal,
+        colour,
         conduit-audio,
         conduit-audio-samplerate,
         conduit-audio-sndfile,

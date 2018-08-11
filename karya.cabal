@@ -40,6 +40,7 @@ library
         bytestring,
         c-storable,
         cereal,
+        colour,
         containers >=0.5,
         data-ordlist,
         deepseq,
