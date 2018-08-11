@@ -3807,7 +3807,7 @@ solkattu:
       ../data/solkattu-text, and use git diff to see differences.
   format: output:
     * Solkattu.Offset inserted by startOn should figure out nadai
-    - rulers seem to use absolute rulerEach, and are not reset by nadai
+    * rulers seem to use absolute rulerEach, and are not reset by nadai
       changes
     * fix all the ruler stuff:
       . Show ruler by line instead of by section.

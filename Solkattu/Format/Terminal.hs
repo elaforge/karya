@@ -184,7 +184,7 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
     -- mark text, so a wrapped ruler with the same structure will also be
     -- suppressed.
     strip (prev, lineNumber) (ruler, line) =
-        ( (Just ruler, lineNumber+1)
+        ( (Just ruler, 1 + if wanted then 0 else lineNumber)
         , (if wanted then Just ruler else Nothing, line)
         )
         where
