@@ -12,7 +12,6 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
 import qualified Util.CallStack as CallStack
-import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
 import qualified Synth.Lib.AUtil as AUtil
@@ -20,7 +19,6 @@ import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Signal as Signal
 
 import Global
-import Types
 import Util.Test
 
 

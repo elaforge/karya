@@ -54,17 +54,14 @@ import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
-import qualified Solkattu.Format.Terminal as Terminal
-import Solkattu.Format.Terminal (Abstraction(..))
+import Solkattu.Format.Format (Abstraction(..))
 import qualified Solkattu.Format.Html as Html
+import qualified Solkattu.Format.Terminal as Terminal
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Korvai, section, smap)
-import Solkattu.MetadataGlobal
-import Solkattu.Notation
-import qualified Solkattu.Realize as Realize
 import Solkattu.Part (Part(..), Index(..), realizeParts)
-import Solkattu.SectionGlobal
+import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import Solkattu.S (Duration, Matra, Nadai, defaultTempo)
 import qualified Solkattu.Solkattu as Solkattu
@@ -73,6 +70,9 @@ import qualified Solkattu.Tala as Tala
 import Solkattu.Tala (Akshara)
 
 import Global
+import Solkattu.MetadataGlobal
+import Solkattu.Notation
+import Solkattu.SectionGlobal
 
 
 -- | Combine 'Sequence's.  This is just another name for (<>).

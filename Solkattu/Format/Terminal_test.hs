@@ -12,6 +12,7 @@ import qualified Util.Regex as Regex
 import qualified Util.Styled as Styled
 
 import qualified Solkattu.Dsl as Dsl
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
@@ -126,8 +127,8 @@ test_spellRests = do
     equalT (run 80 (ta <> Dsl.__4 <> ta)) $ Right "k _ ‗   k"
 
 test_inferRuler = do
-    let f = Terminal.inferRuler tala4 2
-            . map fst . S.flattenedNotes . Terminal.normalizeSpeed tala4 . fst
+    let f = Format.inferRuler tala4 2
+            . map fst . S.flattenedNotes . Format.normalizeSpeed tala4 . fst
             . expect_right
             . kRealize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
@@ -276,7 +277,7 @@ rpattern :: S.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.pattern
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
-    -> [S.Flat Terminal.Group (Realize.Note stroke)] -> Text
+    -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
 format width tala =
     Text.intercalate "\n" . map Text.strip . Text.lines
     . Styled.toText . snd
@@ -308,9 +309,9 @@ capitalizeEmphasis = stripAnsi
         (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
 
 kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
-    -> Either Text ([Terminal.Flat M.Stroke], Text)
+    -> Either Text ([Format.Flat M.Stroke], Text)
 kRealize realizePatterns tala =
-    fmap (first Terminal.mapGroups) . head
+    fmap (first Format.mapGroups) . head
     . Korvai.realize Korvai.mridangam realizePatterns
     . Korvai.korvaiInferSections tala mridangam
     . (:[])
@@ -327,13 +328,13 @@ nadai n = S.TempoChange (S.Nadai n)
 
 realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
-    -> Either Text [Terminal.Flat stroke]
+    -> Either Text [Format.Flat stroke]
 realize = realizeP Nothing
 
 realizeP :: Solkattu.Notation stroke => Maybe (Realize.PatternMap stroke)
     -> Realize.SolluMap stroke -> [S.Note Solkattu.Group (Note Sollu)]
-    -> Either Text [Terminal.Flat stroke]
-realizeP pmap smap = fmap Terminal.mapGroups
+    -> Either Text [Format.Flat stroke]
+realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError
     . Realize.realize pattern (Realize.realizeSollu smap)
     . S.flatten
@@ -341,7 +342,7 @@ realizeP pmap smap = fmap Terminal.mapGroups
     pattern = maybe Realize.keepPattern Realize.realizePattern pmap
 
 formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
-    -> [Terminal.Flat stroke] -> [[[(S.State, Terminal.Symbol)]]]
+    -> [Format.Flat stroke] -> [[[(S.State, Terminal.Symbol)]]]
 formatLines = Terminal.formatLines
 
 strokeMap :: Realize.SolluMap M.Stroke

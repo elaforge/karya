@@ -116,6 +116,10 @@ map_tail :: (a -> a) -> [a] -> [a]
 map_tail f (x:xs) = x : map f xs
 map_tail _ [] = []
 
+map_head_tail :: (a -> b) -> (a -> b) -> [a] -> [b]
+map_head_tail f g (x : xs) = f x : map g xs
+map_head_tail _ _ [] = []
+
 map_init :: (a -> a) -> [a] -> [a]
 map_init _ [] = []
 map_init _ [x] = [x]

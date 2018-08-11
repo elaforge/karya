@@ -14,7 +14,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Solkattu.Format.Terminal as Terminal
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
@@ -77,7 +77,7 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
 
 
 -- | Write HTML with all the instrument realizations.
-writeAll :: FilePath -> Terminal.Abstraction -> Korvai.Korvai -> IO ()
+writeAll :: FilePath -> Format.Abstraction -> Korvai.Korvai -> IO ()
 writeAll fname abstraction korvai =
     Text.IO.writeFile fname $ Doc.un_html $ render abstraction korvai
 
@@ -85,14 +85,14 @@ writeAll fname abstraction korvai =
 -- * high level
 
 data Config = Config {
-    _abstraction :: !Terminal.Abstraction
+    _abstraction :: !Format.Abstraction
     , _font :: !Font
     } deriving (Show)
 
 data Font = Font { _sizePercent :: Int, _monospace :: Bool }
     deriving (Show)
 
-render :: Terminal.Abstraction -> Korvai.Korvai -> Doc.Html
+render :: Format.Abstraction -> Korvai.Korvai -> Doc.Html
 render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
     where
     (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
@@ -106,8 +106,8 @@ render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
         sectionHtmls =
             zipWith (renderSection (config name) (Korvai.korvaiTala korvai))
                 (Korvai.genericSections korvai)
-                (Terminal.convertGroups
-                    (Korvai.realize inst (abstraction < Terminal.Patterns)
+                (Format.convertGroups
+                    (Korvai.realize inst (abstraction < Format.Patterns)
                         korvai))
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
@@ -159,29 +159,29 @@ tableCss =
         \ linear-gradient(to right, lightgray, lightgray, white) }"
 
 formatHtml :: Solkattu.Notation stroke => Config -> Tala.Tala
-    -> [S.Flat Terminal.Group (Realize.Note stroke)] -> Doc.Html
+    -> [S.Flat Format.Group (Realize.Note stroke)] -> Doc.Html
 formatHtml config tala notes =
     formatTable (_font config) tala (map Doc.html ruler) avartanams
     where
-    ruler = maybe [] (concatMap akshara . Terminal.inferRuler tala 1 . map fst)
+    ruler = maybe [] (concatMap akshara . Format.inferRuler tala 1 . map fst)
         (Seq.head avartanams)
     akshara :: (Text, Int) -> [Text]
     akshara (n, spaces) = n : replicate (spaces-1) ""
     avartanams =
-        Terminal.breakAvartanams $
+        Format.breakAvartanams $
         concatMap makeSymbols $
-        (if _abstraction config >= Terminal.Groups
-            then Terminal.makeGroupsAbstract else id) $
-        Terminal.normalizeSpeed tala notes
+        (if _abstraction config >= Format.Groups
+            then Format.makeGroupsAbstract else id) $
+        Format.normalizeSpeed tala notes
 
 data Symbol = Symbol {
     _html :: !Doc.Html
     , _isSustain :: !Bool
-    , _highlight :: !(Maybe Terminal.Highlight)
+    , _highlight :: !(Maybe Format.Highlight)
     } deriving (Eq, Show)
 
 -- | Flatten the groups into linear [Symbol].
-makeSymbols :: Solkattu.Notation stroke => Terminal.NormalizedFlat stroke
+makeSymbols :: Solkattu.Notation stroke => Format.NormalizedFlat stroke
     -> [(S.State, Symbol)]
 makeSymbols = go
     where
@@ -195,9 +195,9 @@ makeSymbols = go
             }
         where note = normalizeSarva note_
     go (S.FGroup _ _group children) =
-        Seq.map_last (second (set Terminal.EndHighlight)) $
-        Terminal.headTail (second (set Terminal.StartHighlight))
-            (second (set Terminal.Highlight))
+        Seq.map_last (second (set Format.EndHighlight)) $
+        Seq.map_head_tail
+            (second (set Format.StartHighlight)) (second (set Format.Highlight))
             (concatMap go children)
     set h sym = sym { _highlight = Just h }
     noteHtml state = \case
@@ -213,7 +213,7 @@ makeSymbols = go
         S.Sustain (Realize.Space Solkattu.Sarva)
     normalizeSarva n = n
     notation state = bold . Solkattu.notationHtml
-        where bold = if Terminal.onAkshara state then Doc.tag "b" else id
+        where bold = if Format.onAkshara state then Doc.tag "b" else id
     -- TODO this is actually pretty ugly
     sarva = "<hr style=\"border: 4px dotted\">"
 
@@ -235,7 +235,7 @@ formatTable font tala header rows = mconcatMap (<>"\n") $ concat
     row cells = TextUtil.join ("\n" :: Doc.Html)
         [ "<tr>"
         , TextUtil.join "\n" $
-            map td . Terminal.mapSnd spellRests . map mkCell $
+            map td . Format.mapSnd spellRests . map mkCell $
             List.groupBy merge cells
         , "</tr>"
         , ""
@@ -243,7 +243,7 @@ formatTable font tala header rows = mconcatMap (<>"\n") $ concat
     -- Merge together the sustains after an attack.  They will likely have an
     -- <hr> in them, which will expand to the full colspan width.
     merge (_, sym1) (state2, sym2) = _isSustain sym1 && _isSustain sym2
-        && not (Terminal.onAkshara state2)
+        && not (Format.onAkshara state2)
         -- Split sustains on aksharas.  Otherwise, the colspan prevents the
         -- vertical lines that mark them.
     mkCell :: [(S.State, Symbol)] -> ([(Text, Text)], Doc.Html)
@@ -257,18 +257,18 @@ formatTable font tala header rows = mconcatMap (<>"\n") $ concat
             where cells = length syms
         classes = concat
             [ if
-                | Terminal.onAnga angas state -> ["onAnga"]
-                | Terminal.onAkshara state -> ["onAkshara"]
+                | Format.onAnga angas state -> ["onAnga"]
+                | Format.onAkshara state -> ["onAkshara"]
                 | otherwise -> []
             , case _highlight sym of
                 Nothing -> []
-                Just Terminal.StartHighlight -> ["startG"]
-                Just Terminal.Highlight -> ["inG"]
-                Just Terminal.EndHighlight -> ["endG"]
+                Just Format.StartHighlight -> ["startG"]
+                Just Format.Highlight -> ["inG"]
+                Just Format.EndHighlight -> ["endG"]
             ]
-    angas = Terminal.angaSet tala
+    angas = Format.angaSet tala
 
--- | This is the HTML version of 'Terminal.spellRests'.
+-- | This is the HTML version of 'Format.spellRests'.
 spellRests :: [Doc.Html] -> [Doc.Html]
 spellRests = map set . zip [0..] . Seq.zip_neighbors
     where
@@ -297,7 +297,7 @@ instrumentFont = Font
 
 renderSection :: Solkattu.Notation stroke => Config
     -> Tala.Tala -> Korvai.Section x
-    -> Either Error ([S.Flat Terminal.Group (Realize.Note stroke)], Error)
+    -> Either Error ([S.Flat Format.Group (Realize.Note stroke)], Error)
     -> Doc.Html
 renderSection _ _ _ (Left err) = "<p> ERROR: " <> Doc.html err
 renderSection config tala section (Right (notes, warn)) = mconcat

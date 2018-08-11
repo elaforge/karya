@@ -4,23 +4,8 @@
 
 {-# LANGUAGE CPP #-}
 -- | Convert realized 'S.Flat' output to text for the terminal.
---
--- TODO this should probably be called Terminal, but then what should I call
--- the existing Terminal module?
 module Solkattu.Format.Terminal (
-    Abstraction(..)
-    , writeAll
-    , printInstrument, printKonnakol
-
-    -- * shared with Format.Html
-    , Group, NormalizedFlat
-    , convertGroups
-    , breakAvartanams, normalizeSpeed, makeGroupsAbstract, inferRuler
-    , onSam, onAnga, onAkshara, angaSet
-    , Highlight(..)
-    -- * util
-    , mapSnd, headTail
-
+    writeAll, printInstrument, printKonnakol
 #ifdef TESTING
     , module Solkattu.Format.Terminal
 #endif
@@ -28,16 +13,15 @@ module Solkattu.Format.Terminal (
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.File as File
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 import qualified Util.TextUtil as TextUtil
 
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
@@ -61,7 +45,7 @@ data Config = Config {
     -- most one character per time unit.  This hardcodes the width for e.g.
     -- konnakol, where a sollu like `thom` can be 4 characters wide.
     , _overrideStrokeWidth :: !(Maybe Int)
-    , _abstraction :: !Abstraction
+    , _abstraction :: !Format.Abstraction
     } deriving (Eq, Show)
 
 defaultConfig :: Config
@@ -69,7 +53,7 @@ defaultConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 78
     , _overrideStrokeWidth = Nothing
-    , _abstraction = Patterns
+    , _abstraction = Format.Patterns
     }
 
 konnakolConfig :: Config
@@ -77,18 +61,13 @@ konnakolConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 100
     , _overrideStrokeWidth = Just 3
-    , _abstraction = Patterns
+    , _abstraction = Format.Patterns
     }
-
--- | Control what is rendered as strokes, and what is rendered as abstract
--- groups with durations.  This gets succesively more abstract.
-data Abstraction = None | Patterns | Groups
-    deriving (Eq, Ord, Show)
 
 -- * write
 
 -- | Write all instrument realizations.
-writeAll :: FilePath -> Abstraction -> Korvai.Korvai -> IO ()
+writeAll :: FilePath -> Format.Abstraction -> Korvai.Korvai -> IO ()
 writeAll fname abstraction korvai =
     File.writeLines fname $ List.intersperse "" $ concatMap write1 $
     Korvai.korvaiInstruments korvai
@@ -102,12 +81,12 @@ writeAll fname abstraction korvai =
 -- * format
 
 printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
-    -> Abstraction -> Korvai.Korvai -> IO ()
+    -> Format.Abstraction -> Korvai.Korvai -> IO ()
 printInstrument instrument abstraction =
     mapM_ Text.IO.putStrLn
     . formatInstrument (defaultConfig { _abstraction = abstraction }) instrument
 
-printKonnakol :: Int -> Abstraction -> Korvai.Korvai -> IO ()
+printKonnakol :: Int -> Format.Abstraction -> Korvai.Korvai -> IO ()
 printKonnakol width abstraction =
     mapM_ Text.IO.putStrLn . formatInstrument config Korvai.konnakol
     where
@@ -119,28 +98,15 @@ printKonnakol width abstraction =
 formatInstrument :: Solkattu.Notation stroke => Config
     -> Korvai.Instrument stroke -> Korvai.Korvai -> [Text]
 formatInstrument config instrument korvai =
-    formatResults config korvai $ zip (korvaiTags korvai) $ convertGroups $
-        Korvai.realize instrument (_abstraction config < Patterns) korvai
+    formatResults config korvai $ zip (korvaiTags korvai) $
+        Format.convertGroups $
+        Korvai.realize instrument (_abstraction config < Format.Patterns) korvai
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
--- | Format-level Group.  This has just the group data which is needed to
--- format.
-type Group = Text
-
-type Flat stroke = S.Flat Group (Realize.Note stroke)
-
--- | Reduce 'Realize.Group's to local 'Group's.
-convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], Korvai.Error)]
-    -> [Either Korvai.Error ([Flat stroke], Korvai.Error)]
-convertGroups = map (fmap (first mapGroups))
-
-mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
-mapGroups = S.mapGroupFlat (fromMaybe "" . Realize._name)
-
 formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
-    -> [(Tags.Tags, Either Error ([Flat stroke], Error))] -> [Text]
+    -> [(Tags.Tags, Either Error ([Format.Flat stroke], Error))] -> [Text]
 formatResults config korvai =
     snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
     where
@@ -156,7 +122,8 @@ formatResults config korvai =
             format config prevRuler (Korvai.korvaiTala korvai) notes
     sectionFmt section tags = Text.intercalate "\n"
         . Seq.map_last (<> showTags tags)
-        . headTail (sectionNumber section <>) (Text.replicate leader " " <>)
+        . Seq.map_head_tail
+            (sectionNumber section <>) (Text.replicate leader " " <>)
         . map Text.strip
         . Text.lines
     sectionNumber section = Text.justifyLeft leader ' ' (showt section <> ":")
@@ -172,10 +139,9 @@ showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
 
 -- | Keep state about the last ruler across calls to 'format', so I can
 -- suppress unneeded ones.  (prevRuler, lineNumber)
-type PrevRuler = (Maybe Ruler, Int)
+type PrevRuler = (Maybe Format.Ruler, Int)
 
 type Line = [(S.State, Symbol)]
-type Ruler = [(Text, Int)]
 
 -- | Format the notes according to the tala.
 --
@@ -184,7 +150,7 @@ type Ruler = [(Text, Int)]
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
 format :: Solkattu.Notation stroke => Config -> PrevRuler
-    -> Tala.Tala -> [Flat stroke] -> (PrevRuler, Styled.Styled)
+    -> Tala.Tala -> [Format.Flat stroke] -> (PrevRuler, Styled.Styled)
 format config prevRuler tala notes =
     second (Styled.join "\n" . map formatAvartanam) $
         pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
@@ -203,17 +169,17 @@ format config prevRuler tala notes =
                 | sum (map (symLength . snd) line) <= width `div` 2 ->
                     (fmt 2 width tala notes, 2)
             result -> (result, 1)
-        where fmt = formatLines (_abstraction config >= Groups)
+        where fmt = formatLines (_abstraction config >= Format.Groups)
     formatLine :: [Symbol] -> Styled.Styled
     formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
 
 pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line]]
-    -> (PrevRuler, [[(Maybe Ruler, Line)]])
+    -> (PrevRuler, [[(Maybe Format.Ruler, Line)]])
 pairWithRuler rulerEach prevRuler tala strokeWidth =
     List.mapAccumL (List.mapAccumL strip) prevRuler . map (map addRuler)
     where
-    addRuler line = (inferRuler tala strokeWidth (map fst line), line)
+    addRuler line = (Format.inferRuler tala strokeWidth (map fst line), line)
     -- Strip rulers when they are unchanged.  "Changed" is by structure, not
     -- mark text, so a wrapped ruler with the same structure will also be
     -- suppressed.
@@ -225,7 +191,7 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
         wanted = lineNumber `mod` rulerEach == 0
             || Just (map snd ruler) /= (map snd <$> prev)
 
-formatRuler :: Int -> Ruler -> Styled.Styled
+formatRuler :: Int -> Format.Ruler -> Styled.Styled
 formatRuler strokeWidth =
     Styled.bg (Styled.bright Styled.white)
         . mconcat . snd . List.mapAccumL render 0
@@ -275,25 +241,22 @@ isRest = (=="_") . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
 formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
-    -> [Flat stroke] -> [[[(S.State, Symbol)]]]
+    -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
 formatLines abstractGroups strokeWidth width tala =
-    map (map (mapSnd (spellRests strokeWidth)))
-        . formatFinalAvartanam . map (breakLine width) . breakAvartanams
+    map (map (Format.mapSnd (spellRests strokeWidth)))
+        . formatFinalAvartanam . map (breakLine width)
+        . Format.breakAvartanams
         . map combine . Seq.zip_prev
         . concatMap (makeSymbols strokeWidth tala angas)
-        . (if abstractGroups then makeGroupsAbstract else id)
-        . normalizeSpeed tala
+        . (if abstractGroups then Format.makeGroupsAbstract else id)
+        . Format.normalizeSpeed tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
         where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
-    angas = angaSet tala
-
--- | 'Flat' after 'normalizeSpeed'.
-type NormalizedFlat stroke =
-    S.Flat Group (S.State, S.Stroke (Realize.Note stroke))
+    angas = Format.angaSet tala
 
 makeSymbols :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
-    -> NormalizedFlat stroke -> [(S.State, Symbol)]
+    -> Format.NormalizedFlat stroke -> [(S.State, Symbol)]
 makeSymbols strokeWidth tala angas = go
     where
     go (S.FNote _ (state, note)) =
@@ -304,8 +267,9 @@ makeSymbols strokeWidth tala angas = go
                 (Text.singleton (Solkattu.extension a))
             S.Rest -> justifyLeft strokeWidth ' ' "_"
     go (S.FGroup _ _group children) =
-        Seq.map_last (second (set EndHighlight)) $
-        headTail (second (set StartHighlight)) (second (set Highlight))
+        Seq.map_last (second (set Format.EndHighlight)) $
+        Seq.map_head_tail
+            (second (set Format.StartHighlight)) (second (set Format.Highlight))
             (concatMap go children)
     set h sym = sym { _highlight = Just h }
     make state text = Symbol
@@ -314,63 +278,17 @@ makeSymbols strokeWidth tala angas = go
         , _highlight = Nothing
         }
 
-makeGroupsAbstract :: [NormalizedFlat stroke] -> [NormalizedFlat stroke]
-makeGroupsAbstract = concatMap combine
-    where
-    combine (S.FGroup tempo _group children) =
-        headTail (make S.Attack) (make S.Sustain) flattened
-        where
-        flattened  = S.tempoNotes children
-        make c (tempo, (state, _)) = S.FNote tempo (state, c note)
-        note = Realize.Pattern (Solkattu.PatternM (Just name) 1)
-        fmatra = S.normalizeFMatra tempo (fromIntegral (length flattened))
-        -- TODO I should preserve the group name
-        name = Pretty.fraction True fmatra
-    combine n = [n]
-
-normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
-normalizeSpeed tala =
-    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed tala
-    . S.filterFlat (not . isAlignment)
-    where
-    isAlignment (Realize.Alignment {}) = True
-    isAlignment _ = False
-
--- | Rests are special in that S.normalizeSpeed can produce them.  Normalize
--- them to force them to all be treated the same way.
-normalizeRest :: S.Stroke (Realize.Note a) -> S.Stroke (Realize.Note a)
-normalizeRest (S.Attack (Realize.Space Solkattu.Rest)) = S.Rest
-normalizeRest (S.Sustain (Realize.Space Solkattu.Rest)) = S.Rest
-normalizeRest a = a
-
-onSam :: S.State -> Bool
-onSam state = S.stateMatra state == 0 && S.stateAkshara state == 0
-
-onAnga :: Set Tala.Akshara -> S.State -> Bool
-onAnga angas state =
-    S.stateMatra state == 0 && Set.member (S.stateAkshara state) angas
-
-onAkshara :: S.State -> Bool
-onAkshara state = S.stateMatra state == 0
-
 -- | Chapus are generally fast, so only emphasize the angas.  Other talas are
 -- slower, and without such a strong beat, so emphasize every akshara.
 shouldEmphasize :: Tala.Tala -> Set Tala.Akshara -> S.State -> Bool
 shouldEmphasize tala angas state
-    | isChapu = onAnga angas state
-    | otherwise = onAkshara state
+    | isChapu = Format.onAnga angas state
+    | otherwise = Format.onAkshara state
     where
     isChapu = case Tala._angas tala of
         Tala.Wave _ : _ -> True
         Tala.Clap _ : _ -> True
         _ -> False
-
-angaSet :: Tala.Tala -> Set Tala.Akshara
-angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
-
--- | Split on sam.
-breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
-breakAvartanams = dropWhile null . Seq.split_before (onSam . fst)
 
 -- | If the text goes over the width, break at the middle akshara, or the
 -- last one before the width if there isn't a middle.
@@ -381,14 +299,15 @@ breakLine maxWidth notes
     | otherwise = breakBefore maxWidth notes
     where
     width = sum $ map (symLength . snd) notes
-    aksharas = Seq.count (atAkshara . fst) notes
+    aksharas = Seq.count (Format.onAkshara . fst) notes
     breakAt akshara =
         pairToList . break ((==akshara) . S.stateAkshara . fst)
     pairToList (a, b) = [a, b]
 
 -- | Yet another word-breaking algorithm.  I must have 3 or 4 of these by now.
 breakBefore :: Int -> [(S.State, Symbol)] -> [[(S.State, Symbol)]]
-breakBefore maxWidth = go . dropWhile null . Seq.split_before (atAkshara . fst)
+breakBefore maxWidth =
+    go . dropWhile null . Seq.split_before (Format.onAkshara . fst)
     where
     go aksharas =
         case breakFst (>maxWidth) (zip (runningWidth aksharas) aksharas) of
@@ -398,52 +317,6 @@ breakBefore maxWidth = go . dropWhile null . Seq.split_before (atAkshara . fst)
             (pre, post) -> concat pre : go post
     -- drop 1 so it's the width at the end of each section.
     runningWidth = drop 1 . scanl (+) 0 . map (sum . map (symLength . snd))
-
--- | Rather than generating the ruler purely from the Tala, I use the States
--- to figure out the mark spacing.  Otherwise I wouldn't know where nadai
--- changes occur.  But it does mean I can't generate ruler if I run out of
--- strokes, which is a bit annoying for incomplete korvais or ones with eddupu.
-inferRuler :: Tala.Tala -> Int -> [S.State] -> Ruler
-inferRuler tala strokeWidth =
-    (++ [("|", 0)])
-    . merge
-    . map (second length)
-    . concat . snd . List.mapAccumL insertNadai 0
-    . concatMap insertDots
-    . zip (Tala.tala_labels tala)
-    . dropWhile null
-    . Seq.split_before atAkshara
-    where
-    -- Merge 0 dur marks with the next mark.  HTML output puts one mark per
-    -- matra, so it can't have 0 dur marks.
-    merge ((n1, 0) : (n2, spaces) : xs) = merge ((n1<>n2, spaces) : xs)
-    merge ((n, spaces) : xs) = (n, spaces) : merge xs
-    merge xs = xs
-    insertNadai :: S.Nadai -> (Text, [S.State])
-        -> (S.Nadai, [(Text, [S.State])])
-    insertNadai prevNadai (label, states) =
-        ( maybe prevNadai fst (Seq.last groups)
-        , case groups of
-            (nadai, states) : rest | nadai == prevNadai ->
-                (label, states) : map (first nadaiChange) rest
-            _ -> (label, []) : map (first nadaiChange) groups
-        )
-        where
-        groups = Seq.keyed_group_adjacent nadaiOf states
-        nadaiOf = S._nadai . S.stateTempo
-    -- Marker for a nadai change.  It has a colon to separate it from the ruler
-    -- mark, in case it coincides with one.
-    nadaiChange n = ":" <> showt n
-    insertDots (label, states)
-        | (spaces * strokeWidth > 8) && spaces `mod` 2 == 0 =
-            [(label, pre) , (".", post)]
-        | otherwise = [(label, states)]
-        where
-        (pre, post) = splitAt (spaces `div` 2) states
-        spaces = length states
-
-atAkshara :: S.State -> Bool
-atAkshara = (==0) . S.stateMatra
 
 -- | This is like 'Text.justifyLeft', except it understands the actual length
 -- of unicode characters, courtesty of 'textLength'.
@@ -458,20 +331,17 @@ justifyLeft n c text
 data Symbol = Symbol {
     _text :: !Text
     , _emphasize :: !Bool
-    , _highlight :: !(Maybe Highlight)
+    , _highlight :: !(Maybe Format.Highlight)
     } deriving (Eq, Show)
-
-data Highlight = StartHighlight | Highlight | EndHighlight
-    deriving (Eq, Show)
 
 instance Pretty Symbol where
     pretty (Symbol text emphasize highlight) =
         text <> (if emphasize then "(b)" else "")
         <> case highlight of
             Nothing -> ""
-            Just StartHighlight -> "+"
-            Just Highlight -> "-"
-            Just EndHighlight -> "|"
+            Just Format.StartHighlight -> "+"
+            Just Format.Highlight -> "-"
+            Just Format.EndHighlight -> "|"
 
 text :: (Text -> Text) -> Symbol -> Symbol
 text f sym = sym { _text = f (_text sym) }
@@ -480,7 +350,7 @@ formatSymbol :: Symbol -> Styled.Styled
 formatSymbol (Symbol text emph highlight) =
     (case highlight of
         Nothing -> id
-        Just StartHighlight -> Styled.bg (Styled.rgb 0.5 0.75 0.5)
+        Just Format.StartHighlight -> Styled.bg (Styled.rgb 0.5 0.75 0.5)
         Just _ -> Styled.bg (Styled.rgb 0.75 0.75 0.75)
     ) $
     (if emph then emphasize else Styled.plain) text
@@ -508,12 +378,3 @@ textLength = sum . map len . untxt
 
 breakFst :: (key -> Bool) -> [(key, a)] -> ([a], [a])
 breakFst f = bimap (map snd) (map snd) . break (f . fst)
-
--- | This assumes the function doesn't change the length of the list!
-mapSnd :: ([a] -> [b]) -> [(x, a)] -> [(x, b)]
-mapSnd f xas = zip xs (f as)
-    where (xs, as) = unzip xas
-
-headTail :: (a -> b) -> (a -> b) -> [a] -> [b]
-headTail f g (x : xs) = f x : map g xs
-headTail _ _ [] = []
