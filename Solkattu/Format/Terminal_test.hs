@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
-module Solkattu.Format.Format_test where
+module Solkattu.Format.Terminal_test where
 import qualified Data.Char as Char
 import qualified Data.Text as Text
 
@@ -12,7 +12,7 @@ import qualified Util.Regex as Regex
 import qualified Util.Styled as Styled
 
 import qualified Solkattu.Dsl as Dsl
-import qualified Solkattu.Format.Format as Format
+import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
@@ -126,8 +126,8 @@ test_spellRests = do
     equalT (run 80 (ta <> Dsl.__4 <> ta)) $ Right "k _ ‗   k"
 
 test_inferRuler = do
-    let f = Format.inferRuler tala4 2
-            . map fst . S.flattenedNotes . Format.normalizeSpeed tala4 . fst
+    let f = Terminal.inferRuler tala4 2
+            . map fst . S.flattenedNotes . Terminal.normalizeSpeed tala4 . fst
             . expect_right
             . kRealize False tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
@@ -217,8 +217,8 @@ _nested_groups = do
     -- nested groups:   k k             k k       k k       k k
     prettyp (f $ group (tas 2 <> group (tas 2) <> tas 2) <> tas 2)
 
-extractLines :: [[[(a, Format.Symbol)]]] -> [[Text]]
-extractLines = map $ map $ Text.strip . mconcat . map (Format._text . snd)
+extractLines :: [[[(a, Terminal.Symbol)]]] -> [[Text]]
+extractLines = map $ map $ Text.strip . mconcat . map (Terminal._text . snd)
 
 test_formatBreakLines = do
     let run width = fmap (stripAnsi . format width tala4 . fst)
@@ -276,14 +276,15 @@ rpattern :: S.Matra -> Realize.Note stroke
 rpattern = Realize.Pattern . Solkattu.pattern
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
-    -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
+    -> [S.Flat Terminal.Group (Realize.Note stroke)] -> Text
 format width tala =
     Text.intercalate "\n" . map Text.strip . Text.lines
     . Styled.toText . snd
-    . Format.format (config { Format._terminalWidth = width }) (Nothing, 0) tala
+    . Terminal.format (config { Terminal._terminalWidth = width })
+        (Nothing, 0) tala
 
-config :: Format.Config
-config = Format.defaultConfig
+config :: Terminal.Config
+config = Terminal.defaultConfig
 
 eFormat :: Text -> Text
 eFormat = stripAnsi . dropRulers
@@ -307,9 +308,9 @@ capitalizeEmphasis = stripAnsi
         (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
 
 kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
-    -> Either Text ([Format.Flat M.Stroke], Text)
+    -> Either Text ([Terminal.Flat M.Stroke], Text)
 kRealize realizePatterns tala =
-    fmap (first Format.mapGroups) . head
+    fmap (first Terminal.mapGroups) . head
     . Korvai.realize Korvai.mridangam realizePatterns
     . Korvai.korvaiInferSections tala mridangam
     . (:[])
@@ -326,13 +327,13 @@ nadai n = S.TempoChange (S.Nadai n)
 
 realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
-    -> Either Text [Format.Flat stroke]
+    -> Either Text [Terminal.Flat stroke]
 realize = realizeP Nothing
 
 realizeP :: Solkattu.Notation stroke => Maybe (Realize.PatternMap stroke)
     -> Realize.SolluMap stroke -> [S.Note Solkattu.Group (Note Sollu)]
-    -> Either Text [Format.Flat stroke]
-realizeP pmap smap = fmap Format.mapGroups
+    -> Either Text [Terminal.Flat stroke]
+realizeP pmap smap = fmap Terminal.mapGroups
     . Realize.formatError
     . Realize.realize pattern (Realize.realizeSollu smap)
     . S.flatten
@@ -340,18 +341,8 @@ realizeP pmap smap = fmap Format.mapGroups
     pattern = maybe Realize.keepPattern Realize.realizePattern pmap
 
 formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
-    -> [Format.Flat stroke] -> [[[(S.State, Format.Symbol)]]]
-formatLines = Format.formatLines
-
--- formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
---     -- -> [S.Flat Format.Group (Realize.Note stroke)]
---     -> [S.Flat (Realize.Group stroke) stroke]
---     -> [[[(S.State, Format.Symbol)]]]
--- -- formatLines = Format.formatLines
--- formatLines abstractGroups strokeWidth width tala =
---     Format.formatLines abstractGroups strokeWidth width tala
---     . Format.mapGroups
--- -- mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
+    -> [Terminal.Flat stroke] -> [[[(S.State, Terminal.Symbol)]]]
+formatLines = Terminal.formatLines
 
 strokeMap :: Realize.SolluMap M.Stroke
 strokeMap = expect_right $ Realize.solluMap

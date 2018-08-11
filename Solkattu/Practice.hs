@@ -14,7 +14,7 @@ import qualified Data.Time as Time
 import qualified System.Random as Random
 
 import qualified Solkattu.Db as Db
-import qualified Solkattu.Format.Format as Format
+import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 
 import Global
@@ -40,10 +40,10 @@ realize i = realizeM True (Db.korvais !! i)
 realizep i = realizeM False (Db.korvais !! i)
 
 realizeM :: Bool -> Korvai.Korvai -> IO ()
-realizeM = Format.printInstrument Korvai.mridangam
+realizeM = Terminal.printInstrument Korvai.mridangam
 
 realizeKon :: Int -> IO ()
-realizeKon i = Format.printKonnakol 100 True (Db.korvais !! i)
+realizeKon i = Terminal.printKonnakol 100 True (Db.korvais !! i)
 
 -- | Mark these korvais as practiced.
 practiced :: [Int] -> IO ()

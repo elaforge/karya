@@ -25,7 +25,7 @@ import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl (index, realize, realizep, realizeM, realizeK1, realizeR)
-import qualified Solkattu.Format.Format as Format
+import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
@@ -110,10 +110,10 @@ format (i, korvai) = mconcat
 -- * write
 
 writeHtml :: IO ()
-writeHtml = writeHtmlTo "../data/solkattu" Format.Patterns
+writeHtml = writeHtmlTo "../data/solkattu" Terminal.Patterns
 
 -- | Write all Korvais as HTML into the given directory.
-writeHtmlTo :: FilePath -> Format.Abstraction -> IO ()
+writeHtmlTo :: FilePath -> Terminal.Abstraction -> IO ()
 writeHtmlTo dir abstraction = do
     clearDir dir
     writeWithStatus write1 All.korvais
@@ -135,18 +135,18 @@ textDir :: FilePath
 textDir = "../data/solkattu-text"
 
 writeText :: IO ()
-writeText = writeTextTo textDir Format.Patterns
+writeText = writeTextTo textDir Terminal.Patterns
 
 -- | The usual textDir is a git repo, so I can see what effect changes have, in
 -- the same manner as App.VerifyPerformance.
-writeTextTo :: FilePath -> Format.Abstraction -> IO ()
+writeTextTo :: FilePath -> Terminal.Abstraction -> IO ()
 writeTextTo dir abstraction = do
     clearDir dir
     writeWithStatus write1 All.korvais
     writeCommit dir
     where
     write1 korvai =
-        Format.writeAll (dir </> korvaiFname korvai <> ".txt")
+        Terminal.writeAll (dir </> korvaiFname korvai <> ".txt")
             abstraction korvai
 
 writeWithStatus :: (Korvai.Korvai -> IO ()) -> [Korvai.Korvai] -> IO ()

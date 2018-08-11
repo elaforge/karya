@@ -54,8 +54,8 @@ import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
-import qualified Solkattu.Format.Format as Format
-import Solkattu.Format.Format (Abstraction(..))
+import qualified Solkattu.Format.Terminal as Terminal
+import Solkattu.Format.Terminal (Abstraction(..))
 import qualified Solkattu.Format.Html as Html
 import Solkattu.Instrument.Mridangam ((&))
 import qualified Solkattu.Korvai as Korvai
@@ -174,19 +174,19 @@ realize = realizeM None
 realizep = realizeM Patterns
 
 realizeM :: Abstraction -> Korvai.Korvai -> IO ()
-realizeM = Format.printInstrument Korvai.mridangam
+realizeM = Terminal.printInstrument Korvai.mridangam
 
 realizeK1 :: Abstraction -> Korvai.Korvai -> IO ()
-realizeK1 = Format.printInstrument Korvai.kendangTunggal
+realizeK1 = Terminal.printInstrument Korvai.kendangTunggal
 
 realizeR :: Abstraction -> Korvai.Korvai -> IO ()
-realizeR = Format.printInstrument Korvai.reyong
+realizeR = Terminal.printInstrument Korvai.reyong
 
 realizeSargam :: Abstraction -> Korvai.Korvai -> IO ()
-realizeSargam = Format.printInstrument Korvai.sargam
+realizeSargam = Terminal.printInstrument Korvai.sargam
 
 realizeKon :: Int -> Korvai -> IO ()
-realizeKon width = Format.printKonnakol width Patterns
+realizeKon width = Terminal.printKonnakol width Patterns
 
 htmlWriteAll :: FilePath -> Abstraction -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll
