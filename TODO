@@ -4110,13 +4110,15 @@ solkattu:
         just flatten the groups enough to split avartanams.
       . But in that case it may be the same amount of work to just split
         avartanams within groups, it's not actually that complicated.
-      - Solkattu2017.c_17_08_29 section 4, 3rd tat tam gets a highlight, which
+      * Solkattu2017.c_17_08_29 section 4, 3rd tat tam gets a highlight, which
         carries through to the theme start
         . It likely has to do with how sandi makes groups by dropping things,
           which for some reason confuses the new group mechanism.
         . Indeed these used to be nested groups that only accidentally worked
           right.
         . Can I have sandi not make a group when it drops?
+        . I can, but I might need it for matching?  Maybe I should have
+          non-highlighting groups.
     - preserve group name, and abstract groups by name
       . what's an example when I would want to do this?
     - can I highlight karvais?  I guess I have to infer when they are, e.g.

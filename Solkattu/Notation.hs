@@ -193,7 +193,12 @@ rtakeD = rtakeM . dToM
 -- than just dropping explicitly.
 sandi :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
-sandi dropped = dropM (matrasOf dropped)
+sandi dropped = dropM_ (matrasOf dropped)
+    -- dropM_ means don't create a group.  At the moment, making a group means
+    -- it gets highlighted, which I definitely don't want.  It seems like if
+    -- I sandi away part of a sequence I may no longer match strokes, or match
+    -- different ones, but at least so far no one does that.
+    -- TODO I probably want a non-highlighting group.
 
 -- | Repeat thrice, with no karvai.
 tri :: SequenceT sollu -> SequenceT sollu
