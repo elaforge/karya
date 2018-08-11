@@ -84,9 +84,11 @@ kp, kpnp :: Sequence
 kp = Solkattu.Standard ^ taka
 kpnp = Solkattu.Standard ^ (taka.tiku)
 
-pknp, ktktpknp :: Sequence
-pknp = Solkattu.Standard ^ tarikita
-ktktpknp = Solkattu.Standard ^ (kita.kita.tarikita)
+-- These are more problematic because different realizations are common, e.g.
+-- oktp, pktp.
+oknp, ktktoknp :: Sequence
+oknp = Solkattu.Standard ^ tarikita
+ktktoknp = Solkattu.Standard ^ (tarikita.taka.taka)
 
 -- * instruments
 
@@ -149,6 +151,8 @@ _mridangamStrokes =
     , (tdgnt, [k, t, k, n, o])
     , (kp, [k, p])
     , (kpnp, [k, p, n, p])
+    , (oknp, [o, k, n, p]) -- fast version: pktp
+    , (ktktoknp, [k, t, k, t, o, k, n, p])
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
 
@@ -162,6 +166,8 @@ _kendangStrokes =
     , (tdgnt, [o, k, p, t, a])
     , (kp, [p, k])
     , (kpnp, [p, k, t, k])
+    , (oknp, [a, k, t, o])
+    , (ktktoknp, [k, p, k, p, a, k, t, o])
     ]
     where KendangTunggal.Strokes {..} = KendangTunggal.notes
 

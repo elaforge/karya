@@ -411,26 +411,14 @@ misra_tani1 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
         na.din.na.na.din.din.na.din.__n 7
         . na.din.na.su (na.na).din.din.na.din.__n 7
     , section $ (7*4) ==> (ta.takita.takadinna)
-    , section $ tam.__8 . tA1
-    , section $ sarvaD (7*3)
-    , section $ sarvaD 4 . tA
-    , section $ sarvaD 7 . repeat 3 (sarvaD 4 . dropD 2 tA1)
     ]
     where
-    -- TODO copy paste from misra_to_mohra1
-    -- should probably move to it, since it's preparation
-    tA = group $ tA0.dikutarikitataka.tA1
-    tA0 = tat.__.dit.__.tarikita.kitataka
-    tA1 = tat.__.tat.__.tarikita.gu.gu.takita.tong.__.ka.din.__.tat.__
     mridangam = makeMridangam
-        [ (tam, [p&v])
+        [ (ta.takita.takadinna, [t, k, o, o, k, t, p, k])
+        , (tam, [p&v])
         , (taka.jonu, [k, o, o, k])
         , (na, [on])
         , (din, [od])
-        , (ta.takita.takadinna, [t, k, o, o, k, t, p, k])
-
-        , (tA0, [p&k, p&t, k, t, k, n, p, k, t, k])
-        , (tA1, [k, k, p, k, t, k, o, o, k, p, k, od, k, od, k])
         ]
 
 misra_tani2 :: Korvai
@@ -454,6 +442,7 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
         , (talang.gu, [p, u, k])
         , (taka.taka, [o&j, y, o&j, y])
         , (din, [od])
+        -- TODO standard pattern
         , (ta.ta.kita.takadinna, [t, k, o, o, k, t, o, k])
         ]
 
@@ -461,7 +450,11 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
 misra_to_mohra1a :: Korvai
 misra_to_mohra1a = date 2018 7 2 $ sudhindra $
     korvaiS Tala.misra_chapu (mridangam<>kendang)
-    [ repeat 3 tA . repeat 2 (dropD 5 tA) . repeat 2 (dropD 7 tA)
+    [ din.__8 . tA1
+    , sarvaD (7*3)
+    , sarvaD 4 . tA
+    , sarvaD 7 . repeat 3 (sarvaD 4 . dropD 2 tA1)
+    , repeat 3 tA . repeat 2 (dropD 5 tA) . repeat 2 (dropD 7 tA)
         . repeat 2 (dropD 9 tA)
     ]
     where
@@ -528,7 +521,8 @@ misra_to_mohra1b = date 2018 7 2 $ sudhindra $
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 to_mohra_farans :: Korvai
-to_mohra_farans = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
+to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
+    korvai Tala.misra_chapu mridangam
     [ section $ sarvaD 14
     , x2 $ section $ sarvaD (7+4) . tri (talang.__.gu)
     , x2 $ section $ sarvaD (7+4) . tri takadinna
@@ -554,7 +548,6 @@ to_mohra_farans = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
         , (dinnakitataka, dinna)
         , (takadinnakitataka, [o, k] ++ dinna)
         , (din, [od])
-
         ]
         where dinna = [o, n, k, t, o, k]
 
@@ -581,23 +574,21 @@ misra_to_mohra4 :: Korvai
 misra_to_mohra4 = date 2018 7 2 $ sudhindra $
     korvai Tala.misra_chapu mridangam
     [ section $ restD 3 . tat.__.tat.__.kitataka.dikutarikitataka
-        . tri_ (thom.__4) (repeat 2 dikutarikitataka)
+        . tri123 (thom.__4) dikutarikitataka
     , x2 $ section $ repeat 4 (din_gu_ . tarikitataka) . dim.__4 . tat.__4
     , x2 $ section $ din_gu_ . tri_ (dim.__4) tarikitataka . din_gu_
         . taka.dikutarikitataka . dim.__4 . tat.__4
     , x2 $ section $ repeat 2 (prefixes [dim, thom] (__.taka.dikutarikitataka))
         . dikutarikitataka
-    , section $ repeat 7 $ gu.gu.na.na.tarikita.dikutarikitataka
-    , x2 $ section $ repeat 4 (gu.gu.na.na) . tarikita.dikutarikitataka
-    , x2 $ section $ repeat 2 (gu.gu.na.nang.__.gu) . gu.gu.na.na
-        . tarikita.dikutarikitataka
-    , x2 $ section $ repeat 2 (gu.gu.na.na.taka) . gu.gu.na.na
-        . tarikita.dikutarikitataka
-    , section $ repeat 3 (gu.gu.na.na . tarikita.dikutarikitataka)
-        . tri_ (dim.__8) (gu.gu.na.na . tarikita.dikutarikitataka)
+    , section $ repeat 7 $ gugunana_trkt
+    , x2 $ section $ repeat 3 (gu.gu.na.na) . gugunana_trkt
+    , x2 $ section $ repeat 2 (gu.gu.na.nang.__.gu) . gugunana_trkt
+    , x2 $ section $ repeat 2 (gu.gu.na.na.taka) . gugunana_trkt
+    , section $ repeat 3 gugunana_trkt . tri_ (dim.__8) gugunana_trkt
     ]
     where
     din_gu_ = din.__4.gu.__
+    gugunana_trkt = group $ gu.gu.na.na.tarikita.dikutarikitataka
     tarikitataka = group $ tarikita.taka
     mridangam = makeMridangam
         [ (tat, [k])
@@ -606,7 +597,6 @@ misra_to_mohra4 = date 2018 7 2 $ sudhindra $
         , (taka, [p, k])
         , (dim, [od])
         , (thom, [od])
-
         , (tarikita, [p, k, t, k])
         , (gu.gu.na.na, [o, o, n, n])
         , (gu.gu.na.nang.gu, [o, o, n, n, k])
@@ -742,7 +732,7 @@ adi_tani =
     , K c_18_08_03 All
     , K adi_tani2 All
     , Comment "mohra"
-    , K adi_muktai All
+    , K adi_muktayi All
     ]
 
 adi_tani1 :: Korvai
@@ -877,9 +867,9 @@ c_18_08_03 = date 2018 8 3 $ sudhindra $
     dit_tang.din.__.tat.__.din.__4
     . dit_tang.din.__3.tat.__3.din.__4
     . dit_tang.din.__4.tat.__4.din.__4
-    . trin (din.__.gu) p6 (p6.p6) (p6.p6.p6)
+    . tri123 dingu p6
     where
-    dit_tang = dit.__.tang.su (kita.nakatiku) -- taka.tari.kita.taka
+    dit_tang = dit.__.tang.su (kita.nakatiku) -- spoken taka.tari.kita.taka
     mridangam = makeMridangam0
         [ (dit.tang.kita, [k, u, p, k])
         , (din, [od])
@@ -921,12 +911,12 @@ adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
         , (taka, [p, k])
         ]
 
-adi_muktai :: Korvai
-adi_muktai = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $ x3 $ section $
-    su $
-    t0 . tari.kita . t0 . tari.kita.taka.taka . t0
-        . tri (sd p6) .__.__. tari.kita . tri (sd (tat.__.p6))
-         .__.__. tari.kita.taka.taka . tri (sd (tat.__.di.__.p6))
+adi_muktayi :: Korvai
+adi_muktayi = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $
+    x3 $ section $ su $
+    t0 . oknp.t0 . ktktoknp.t0
+        . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
+        .__.__. ktktoknp.tri (sd (tat.__.di.__.p6))
     where
     t0 = dit.__4.tang.__.taka.dikutarikitataka.din.__4.tat.__4.din.__4
     mridangam = makeMridangam
@@ -934,6 +924,4 @@ adi_muktai = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $ x3 $ section $
         , (din, [od])
         , (tat, [k])
         , (tat.di, [k, t])
-        , (tari.kita, [o, k, n, p])
-        , (tari.kita.taka.taka, [k, t, k, t, o, k, n, p])
         ]

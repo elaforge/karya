@@ -210,6 +210,9 @@ tri_, tri_m :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
 tri_ sep a = a <> sep <> a <> trySetTag mid sep <> a
 tri_m sep a = a <> sep <> a <> sep <> a
 
+tri123 :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
+tri123 sep a = a <> sep <> a<>a <> sep <> a<>a<>a
+
 -- | Three different patterns with the same separator.
 trin :: SequenceT sollu -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu -> SequenceT sollu
