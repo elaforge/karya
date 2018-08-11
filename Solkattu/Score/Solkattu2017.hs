@@ -26,7 +26,7 @@ koraippu_janahan =
         , seq 2 . tri p6 . thom.__4
         , seq 1 . tri p7 . thom.__4
         ]
-    ++ let seq = sequence (su (nang.__.kita.taka)) (su nakatiku)
+    ++ let seq = sequence (nang.kttk) (su nakatiku)
     in mconcat
         [ seq 4 . su nang_kita_nakatiku . taka.din.__.tat.__.thom.__4
         , seq 3 . tri (su (thom.kita.ka.na.ka.kitataka)) . thom.__4
@@ -178,7 +178,7 @@ c_17_04_23 :: Korvai
 c_17_04_23 = date 2017 4 23 $ ganesh $ korvaiS adi mridangam $
     map sd -- remove for melkalam
     [ purvangam . utarangam (group (kp.tdgnt)) (group (kp.tdgnt))
-    , purvangam . su (r32111 tdgnt . r32111 (ta.ka.tdgnt)
+    , purvangam . su (r32111 tdgnt . r32111 (taka.tdgnt)
         . r32111 (ta.ka.na.ka.tdgnt))
     , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
     ]
@@ -305,14 +305,14 @@ c_17_05_19_janahan =
 c_17_06_02_janahan :: Korvai
 c_17_06_02_janahan = tirmanam $ date 2017 6 2 $ source "janahan" $
         korvaiS1 adi mridangam $
-    __n 9 . tri_ (su (kitataka)) (din.din . su taka . din.din.tat.din)
+    __n 9 . tri_ kttk (din.din.tk.din.din.tat.din)
     -- TODO use align or pad to sam
     where
     mridangam = makeMridangam
         [ (din, [od])
-        , (taka, [p, k])
+        , (tk, [p, k])
         , (tat, [k])
-        , (kitataka, [p, k, n, o])
+        , (kttk, [p, k, n, o])
         ]
 
 c_17_06_15 :: Korvai
@@ -402,7 +402,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
     ]
     where
     purvangam dintaka =
-        ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . su (1^(kita.taka))
+        ta.__.kita.taka.din.__.tat.__.tat.__.din.__2 . 1^kttk
         . dintaka . din.__.tat.__.tat.__.tam.__4
     -- variation: drop kita, so ta.__.kita -> ta.__4
     utarangam dintaka = tri_ (tam.__) $
@@ -414,8 +414,8 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
     basic_dintaka = 1^(din.taka.din.taka)
     dintakas = -- each is 6 beats -- TODO map assert dur == 6
         [ basic_dintaka
-        , din . su (1^taka).din.din.taka
-        , din . su (1^taka).din.din . su (1^taka).din
+        , din. 1^tk.din.din.taka
+        , din. 1^tk.din.din. 1^tk.din
         , n6 (din.1^taka).din.din.taka
         , n6 (din.1^taka.din.din.1^ta) . 1^ka.din
         -- TODO this one can also be slightly swung, so ta is slightly later
@@ -491,16 +491,16 @@ c_17_07_19 = date 2017 7 19 $ ganesh $ exercise $ korvaiS adi mridangam $
 c_17_08_21 :: Korvai
 c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvaiS adi mridangam $
     map (__sam adi)
-    [ tri_ (1^tang.__.ga) (su (kitataka.tarikita.taka) . tat.din.na)
-    , tri_ (tang.__.ga) (su (tarikita.taka) . tat.din.na)
+    [ tri_ (1^tang.__.ga) (kttk.trkt.tk.tat.din.na)
+    , tri_ (tang.__.ga) (trkt.tk.tat.din.na)
     , tri_ (tang.__.ga) (su t2)
     , tri_ (1^tang.__.ga) (tri $ su $ talang.__.ga)
     ]
     where
     t2 = takadinna.takadinna.na.ka.din.na
     mridangam = makeMridangam
-        [ (kitataka.tarikita.taka, [p, k, t, p, k, t, k, t, p, k])
-        , (tarikita.taka, [k, t, k, t, p, k])
+        [ (kttk.trkt.tk, [p, k, t, p, k, t, k, t, p, k])
+        , (trkt.tk, [k, t, k, t, p, k])
         , (tat.din.na, [o, od, k])
         , (1^tang.__.ga, [od, k]) -- avoid double thoppi
         , (tang.__.ga, [od, o])
@@ -542,8 +542,8 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     --            1  4
     develop = group $ na.__.na.dinga.na.dinga.na.dinga -- 7 matras
     theme1 = na.__.na.__.na.dinga
-    theme2 = dhom.ka.dhom.ka.din.na . su kitataka
-    theme3 = taka.na.ka . su (kita.tarikita) . dhom
+    theme2 = dhom.ka.dhom.ka.din.na . kttk
+    theme3 = taka.na.ka.kt.trkt.dhom
     mridangam = makeMridangam
         [ (na, [n])
         , (na.dinga, [n, d, p])
@@ -606,8 +606,8 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
     theme2a = group $ theme2a_ . su tdgnt
     theme2a_o = 1^theme2a
     theme2b = group $ ta.__.ka.din.__.ta.__
-    kitataka = group $ su $ kita.taka
-    kitakita = group $ su $ kita.kita
+    kitataka = group $ kttk
+    kitakita = group $ kt.kt
     mridangam = makeMridangam
         [ (theme, [k, t, k, t, k, k, o, od, k])
         , (kitataka, [p, k, n, p])

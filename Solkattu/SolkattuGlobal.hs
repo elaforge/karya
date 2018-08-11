@@ -63,11 +63,30 @@ dingu = din.__.gu
 tanga = tang.__.ga
 langa = lang.__.ga
 
+-- ** fast variants
+
+kt, tk, tkt, tkdn, trkt, kttk :: Sequence
+kt = su kita
+tk = su taka
+tkt = su takita
+tkdn = su takadinna
+trkt = su tarikita
+kttk = su kitataka
+
 -- ** standard fragments
+
+-- It's awkward that these use mridangam fingerings instead of solkattu, but
+-- the solkattu are otherwise ambiguous, and too long anyway.  I originally
+-- used solkattu without vowels, but later I wanted to use the same names for
+-- fast variants.
 
 kp, kpnp :: Sequence
 kp = Solkattu.Standard ^ taka
 kpnp = Solkattu.Standard ^ (taka.tiku)
+
+pknp, ktktpknp :: Sequence
+pknp = Solkattu.Standard ^ tarikita
+ktktpknp = Solkattu.Standard ^ (kita.kita.tarikita)
 
 -- * instruments
 

@@ -3753,7 +3753,7 @@ solkattu:
   - rename xFmatra to xFMatra
   - S.Flat is not in fact flat.  Only the tempo has been flattened out, not
     groups.  It needs a better name.
-  - single letter patterns for fast patterns, e.g.
+  * single letter patterns for fast patterns, e.g.
     . trkt = su (tari.kita) = ktpk
       trkttk = su (tari.kita.taka)
       kt = su kita
@@ -4121,6 +4121,11 @@ solkattu:
           non-highlighting groups.
     - preserve group name, and abstract groups by name
       . what's an example when I would want to do this?
+      . if nakatiku becomes a group, it has sollus, which can be
+        manipulated, e.g. via spread.  I can't think of other advantages
+        a named group has over a named pattern.
+      . In that case, if I don't have a use for named groups, remove the name?
+        I might want to use tags, e.g. karvai.  Then highlight based on that.
     - can I highlight karvais?  I guess I have to infer when they are, e.g.
       tri_ can put the group on, or join, though maybe it should be called
       karvai to emphasize that.

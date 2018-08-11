@@ -24,10 +24,10 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
     [ endOn 4 $ devel $
         sarvaM 8 . theme.din.__4 . in3 (1^theme) . theme.din.__8 . sarvaD 4
         . theme.din.__4 . in3 (1^theme) . din.__6
-        . su tarikita.theme.tat.__6
-        . su (kitataka.tarikita) . in3 theme . din.__2
-        . restD 1 . su tarikita.theme.din.__2
-        . su (kitataka.tarikita) . in3 theme
+        . trkt.theme.tat.__6
+        . kttk.trkt . in3 theme . din.__2
+        . restD 1 . trkt.theme.din.__2
+        . kttk.trkt . in3 theme
     , startOn 4 $ eddupu (3/4) $ ending $
         repeat 3 $ theme . spread 3 tdgnt . theme . spread 2 tdgnt . theme
             . tri_ __3 (tri p5)
@@ -194,7 +194,7 @@ yt_karaikudi1 = source "Karaikudi Mani" $
     theme = group $ su $ theme1 . nakatiku
     theme1 = tat.__.dit.__.kita.ki.na.ta.ki.taka
     nakadinna = group $ su $ na.ka.din.na
-    kitatakatam = su (kita.taka) . tam.__
+    kitatakatam = kttk.tam.__
     mridangam = makeMridangam
         [ (theme1, [k, t, k, t, k, n, o, k, o&t, k])
         , (tat, [k])
@@ -544,8 +544,8 @@ to_mohra_farans = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
     where
     -- Mridangam2018.c_18_07_02_sarva
     sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
-    dinnakitataka = group $ din.na . su (kita.taka)
-    takadinnakitataka = group $ taka.din.na . su (kita.taka)
+    dinnakitataka = group $ din.na.kttk
+    takadinnakitataka = group $ taka.din.na.kttk
     mridangam = makeMridangam
         [ (sarva, [on, k, on, on, od, on, k, on, on, od])
         , (talang.gu, [p, u, k])
@@ -747,9 +747,9 @@ adi_tani =
 
 adi_tani1 :: Korvai
 adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
-    [ section $ repeat 6 (tam.__4) . tri_ din (su takadinna)
-    , section $ repeat 2 $ repeat 2 (tam.__4) . tri_ din (su takadinna)
-    , section $ tri_ (din.__4) (tri_ din (su takadinna))
+    [ section $ repeat 6 (tam.__4) . tri_ din tkdn
+    , section $ repeat 2 $ repeat 2 (tam.__4) . tri_ din tkdn
+    , section $ tri_ (din.__4) (tri_ din tkdn)
     , section $ sd (na.din.din.na) . na.na.sd (din.din.na)
         . kita.taka. sd (din.din) . talang_gu
     , x2 $ section $ repeat 2 $ sd (na.din.din.na) . talang_gu
@@ -850,9 +850,9 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     sarva n = repeat n sarva_
     sarva_ = taka.ta.ta.dim.__
     tarikitadiku = group $ su $ tari.kita.taka.diku.kita.taka
-    dinna = group $ din.na.su (kita.taka)
+    dinna = group $ din.na.kttk
     tari3 = tri trktkt
-    trktkt = group $ su $ tari.kita.kita.taka
+    trktkt = group $ trkt.kttk
     takadinna = group $ taka.dinna
     din_trktkt = din.__.trktkt.tarikitadiku
     mridangam = makeMridangam0
@@ -890,9 +890,9 @@ c_18_08_03 = date 2018 8 3 $ sudhindra $
 adi_tani2 :: Korvai
 adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
     [ restD 4 . su (tri_ (tam.__4) nakatiku)
-    , repeat 2 $ repeat 2 (din.__.gu . su (tari.kita.taka)) . dim.__.tat.__
-    , repeat 2 $ din.__.gu . tri_ (dim.__) (su (tari.kita.taka))
-    , repeat 2 $ repeat 2 (din.__.gu . su (tari.kita.taka)) . su nakatiku
+    , repeat 2 $ repeat 2 (din.__.gu.trkt.tk) . dim.__.tat.__
+    , repeat 2 $ din.__.gu . tri_ (dim.__) (trkt.tk)
+    , repeat 2 $ repeat 2 (din.__.gu.trkt.tk) . su nakatiku
     , repeat 2 $ repeat 2 (dim.su (taka.tikutarikitataka)) . su dikutarikitataka
     , su $ repeat 4 (faran1.dikutarikitataka)
         . repeat 2 (repeat 4 (takeM 4 faran1) . faran1.dikutarikitataka)
