@@ -65,9 +65,9 @@ langa = lang.__.ga
 
 -- ** standard fragments
 
-tk, tktu :: Sequence
-tk = Solkattu.Standard ^ taka
-tktu = Solkattu.Standard ^ (taka.tiku)
+kp, kpnp :: Sequence
+kp = Solkattu.Standard ^ taka
+kpnp = Solkattu.Standard ^ (taka.tiku)
 
 -- * instruments
 
@@ -128,8 +128,8 @@ _mridangamStrokes =
     , (talang, [p, u])
     , (takadinna, [k, o, o, k])
     , (tdgnt, [k, t, k, n, o])
-    , (tk, [k, p])
-    , (tktu, [k, p, n, p])
+    , (kp, [k, p])
+    , (kpnp, [k, p, n, p])
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
 
@@ -141,8 +141,8 @@ _kendangStrokes =
     , (talang, [o, u])
     , (takadinna, [p, a, o, p])
     , (tdgnt, [o, k, p, t, a])
-    , (tk, [p, k])
-    , (tktu, [p, k, t, k])
+    , (kp, [p, k])
+    , (kpnp, [p, k, t, k])
     ]
     where KendangTunggal.Strokes {..} = KendangTunggal.notes
 

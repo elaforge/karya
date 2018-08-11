@@ -177,7 +177,7 @@ c_17_04_04 = date 2017 4 4 $ source "subash chandran" $
 c_17_04_23 :: Korvai
 c_17_04_23 = date 2017 4 23 $ ganesh $ korvaiS adi mridangam $
     map sd -- remove for melkalam
-    [ purvangam . utarangam (group (tk.tdgnt)) (group (tk.tdgnt))
+    [ purvangam . utarangam (group (kp.tdgnt)) (group (kp.tdgnt))
     , purvangam . su (r32111 tdgnt . r32111 (ta.ka.tdgnt)
         . r32111 (ta.ka.na.ka.tdgnt))
     , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
@@ -333,7 +333,7 @@ c_17_06_15 = date 2017 6 15 $ ganesh $ korvaiS adi mridangam $
 c_17_06_19 :: Korvai
 c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
     reduce3 2 ø (tat.__.dit.__.takadinna.din.__3.p5)
-        . sandi p5 (trin (tam.__3) p5 (tk.p5) (tktu.p5))
+        . sandi p5 (trin (tam.__3) p5 (kp.p5) (kpnp.p5))
     where
     inst = mridangam <> kendang <> sargam
     mridangam = makeMridangam
@@ -351,24 +351,24 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
         , (takadinna, [p, m, r, m])
         , (din, [hv s])
         , (tam, [hv s_])
-        , (tk, [s, p_])
-        , (tktu, [s, p_, r, p_])
+        , (kp, [s, p_])
+        , (kpnp, [s, p_, r, p_])
         , (p5, su [d_, s, d_, n_] . [s, n_, p_])
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_06_19_koraippu :: Korvai
 c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
     korvaiS adi mridangam $ map (restD 2 .)
-    [ repeat 2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . tk.tdgnt
-    , repeat 2 $ tri (tat.__4.din.__3) . tk.tdgnt
-    , repeat 2 $ tri (tat.__4) . tri (din.__3) . tk.tdgnt
-    , repeat 2 $ tri (tat.__3) . tri (din.__4) . tk.tdgnt
+    [ repeat 2 $ tanga7 . __ . tat.__4.din.__4.din.__4 . kp.tdgnt
+    , repeat 2 $ tri (tat.__4.din.__3) . kp.tdgnt
+    , repeat 2 $ tri (tat.__4) . tri (din.__3) . kp.tdgnt
+    , repeat 2 $ tri (tat.__3) . tri (din.__4) . kp.tdgnt
 
     -- 6 + 15
-    , repeat 2 $ nadai 6 (tanga7.ga) . tat.__5.din.__5.din.__5 . tk.tdgnt
+    , repeat 2 $ nadai 6 (tanga7.ga) . tat.__5.din.__5.din.__5 . kp.tdgnt
 
     -- 334353
-    , repeat 2 $ tanga.dinga . ta.tanga.dinga . taka.tanga.dinga . tk.tdgnt
+    , repeat 2 $ tanga.dinga . ta.tanga.dinga . taka.tanga.dinga . kp.tdgnt
     ]
     where
     tanga7 = tanga.dinga.din.__
@@ -409,7 +409,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__
     utarangam_gap = tri $
         ta.__.kita.taka.din.na.__ . 1^takita.taka.din.na.__ . tat.tat.__.tam.__
-    one_avartanam = ta.__4.taka.din.__ . tk.kita.taka.din.__
+    one_avartanam = ta.__4.taka.din.__ . kp.kita.taka.din.__
       . dhom.__.kita.taka.din.__ . dhom.dhom.kita.taka.din.__
     basic_dintaka = 1^(din.taka.din.taka)
     dintakas = -- each is 6 beats -- TODO map assert dur == 6
@@ -591,12 +591,12 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
         . spread 3 tdgnt . spread 2 tdgnt
         . trin (tat.__.tat.__3.tam.__.tam.__3) (tri p5) (tri p6) (tri p7)
     -- alternate endings
-    , let tkp = tri_ (su tk) in
+    , let tkp = tri_ (su kp) in
         restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt
         . trin (tat.__.tat.__.tam.__3) (tkp p5) (tkp p6) (tkp p7)
     , restD 7 . __ . spread 3 tdgnt . spread 2 tdgnt
         . trin (tat.__.tat.__3.tam.__.tam.__3)
-            (tri p5) (tri (su tk.p5)) (tri (su tktu.p5))
+            (tri p5) (tri (su kp.p5)) (tri (su kpnp.p5))
     ]
     where
     sequence t = mconcatMap (sarvaA 8)

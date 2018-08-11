@@ -18,13 +18,13 @@ c_16_09_28 = date 2016 9 28 $ ganesh $
     . dropM 2 tat_dit_ . tri_ __ (dropM 2 nakataka) . __6
     . dropM 4 tat_dit_ . tri_ __ (dropM 4 nakataka) . __6
 
-    . tri (p6 . tk.p6 . tktu.p6)
+    . tri (p6 . kp.p6 . kpnp.p6)
 
     -- TODO the old one kind of looks nicer though...
     -- tat.__.dit.__.kitakina . nakatiku . tri_ __ (na.ka.takadinna.dheem) . __6
     --       .dit.__.kitakina . nakatiku . tri_ __       (takadinna.dheem) . __6
     --              .kitakina . nakatiku . tri_ __            (taka.dheem) . __6
-    -- . tri (p6 . tk.p6 . tktu.p6)
+    -- . tri (p6 . kp.p6 . kpnp.p6)
     where
     tat_dit_ = tat.__.dit.__.kitakina . nakatiku
     nakataka = na.ka.takadinna.dheem
@@ -40,8 +40,8 @@ c_16_12_06_sriram1 :: Korvai
 c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvaiS adi mridangam $
     map su $ map (purvangam.)
     [ tri_ (dheem.__4) ta_takadin
-    , tri_ (dheem.__4) (su $ p6 . tk.p6 . tktu.p6)
-    -- All variations can get tk and tktu in the karvai, and
+    , tri_ (dheem.__4) (su $ p6 . kp.p6 . kpnp.p6)
+    -- All variations can get kp and kpnp in the karvai, and
     -- 345 345 345 can become 345 345 3333
     ]
     where
@@ -107,8 +107,8 @@ c_16_12_06_janahan2 :: Korvai
 c_16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
     tri theme . tri (dropM 2 theme) . tri (dropM 4 theme)
         . spread 2 tdgnt . p6
-        . spread 2 tdgnt . p6 . tk.p6
-        . spread 2 tdgnt . p6 . tk.p6 . tktu.p6
+        . spread 2 tdgnt . p6 . kp.p6
+        . spread 2 tdgnt . p6 . kp.p6 . kpnp.p6
     where
     theme = group $ tat.__.dit.__.takadinna
     mridangam = makeMridangam

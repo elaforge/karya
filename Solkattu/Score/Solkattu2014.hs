@@ -17,10 +17,10 @@ import Solkattu.SolkattuGlobal
 c_14_01_01 :: Korvai
 c_14_01_01 = date 2014 1 1 $ ganesh $ korvaiS adi mridangam
     -- TODO back to sarva with D.__3/2
-    [ sarvaSam adi theme . sarvaSam adi (tk.theme) . sarvaSam adi (tktu.theme)
+    [ sarvaSam adi theme . sarvaSam adi (kp.theme) . sarvaSam adi (kpnp.theme)
     , structure (din.__3) (ta.din.__3 . p5)
     , structure (din.__2) (ta.din.__2 . p5.tam.__2)
-    , structure dhom (tk.p5.tam.__4)
+    , structure dhom (kp.p5.tam.__4)
     -- same, but in tisram
     , nadai 6 $ structure (din.__3) (ta.din.__3 . p5)
     -- etc.
@@ -28,8 +28,8 @@ c_14_01_01 = date 2014 1 1 $ ganesh $ korvaiS adi mridangam
     where
     structure gap fill =
              theme . gap . fill
-         .tk.theme . gap . fill
-       .tktu.theme . gap . tri fill
+         .kp.theme . gap . fill
+       .kpnp.theme . gap . tri fill
     theme = ta.dit.__.ta.din.__.ta.__.din.__.ta.__
     mridangam = makeMridangam
         [ (ta.din, [k, od])
@@ -101,7 +101,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
         . dropM 1 theme . tri (tat.__.din.__3)
         . dropM 2 theme . tri (tat.din.__3)
     purvangam karv seqs =
-        join karv $ zipWith (.) [ø, su tk, su tktu] seqs
+        join karv $ zipWith (.) [ø, su kp, su kpnp] seqs
     theme = tha.ki.ta.ta . su kita . thom
     ta_kitathom = dropM 3 theme
     mridangam = makeMridangam
@@ -153,7 +153,7 @@ c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
     , p123 p6 (dheem.__3)
 
     , p123 p5 (tat.__3.din.__3)
-    , p5.dinga . tk.p5.p5. dinga . tktu.p5.p5.p5
+    , p5.dinga . kp.p5.p5. dinga . kpnp.p5.p5.p5
     , tri (tat.dinga . tat.__.dinga.p5)
     , spread 3 (taka.tdgnt) . spread 2 (taka.tdgnt) . taka.tdgnt
     ]

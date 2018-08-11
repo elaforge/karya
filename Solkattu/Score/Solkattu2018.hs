@@ -76,7 +76,7 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
         korvai adi mridangam $ map (smap (nadai 6 • su))
     [ devel $
         sarva 6 . taka.naka.p8 . sarva 2 . __.__.tat.__.p8
-        . sarva 1 .__.__. tktu . in3 p8
+        . sarva 1 .__.__. kpnp . in3 p8
     , devel $
         sarva 2 . tang.__.tang.__ . p8 . nadai 4 p8 . din.__3 . p9
             . din.__.na.__
@@ -225,8 +225,8 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
     ] ++
     [ ending $ purvangam 3 . tri_ (sd2 (ta.din)) p5
     ] ++ map (var • dateS 2018 3 27 • ending)
-    [ purvangam 2 . tri_ (sd2 (ta.din)) (tk.p5)
-    , purvangam 1 . tri_ (sd2 (ta.din)) (tktu.p5)
+    [ purvangam 2 . tri_ (sd2 (ta.din)) (kp.p5)
+    , purvangam 1 . tri_ (sd2 (ta.din)) (kpnp.p5)
     , purvangam 3 . tri_ (tam.__) (taka.ti.ku.p5)
     , purvangam 2 . tri_ (tam.__) (ta.__.ka.ti.__.ku.p5)
     , purvangam 1 . tri_ (tam.__) (ta.__.__.ka.ti.__.__.ku.p5)
