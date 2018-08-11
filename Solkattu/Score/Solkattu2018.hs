@@ -534,25 +534,25 @@ to_mohra_farans = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
     , x2 $ section $ sarvaD (7+4) . tri takadinna
     , x2 $ section $ sarvaD (7+4) . tri (gu.gu.na.na)
     , section $ repeat 2 $ sarvaD 4 . tri dinnakitataka
-    , section $ repeat 2 $ sarvaD 4 . repeat 2 (taka.dinnakitataka)
-    , x2 $ section $ sarvaD 4 . repeat 2 (taka.dinnakitataka)
-      . repeat 4 (taka.dinnakitataka) . dinnakitataka
-    , section $ sarvaD 4 . repeat 2 (taka.dinnakitataka)
-      . repeat 3 (repeat 2 (taka.dinnakitataka) . repeat 4 dinnakitataka)
+    , section $ repeat 2 $ sarvaD 4 . repeat 2 takadinnakitataka
+    , x2 $ section $ sarvaD 4 . repeat 2 takadinnakitataka
+      . repeat 4 takadinnakitataka . dinnakitataka
+    , section $ sarvaD 4 . repeat 2 takadinnakitataka
+      . repeat 3 (repeat 2 takadinnakitataka . repeat 4 dinnakitataka)
     , section $ tri_ (din.__4) (repeat 4 dinnakitataka)
     ]
     where
     -- Mridangam2018.c_18_07_02_sarva
     sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
-    -- TODO if I group this it can't find strokes
-    dinnakitataka = din.na . su (kita.taka)
+    dinnakitataka = group $ din.na . su (kita.taka)
+    takadinnakitataka = group $ taka.din.na . su (kita.taka)
     mridangam = makeMridangam
         [ (sarva, [on, k, on, on, od, on, k, on, on, od])
         , (talang.gu, [p, u, k])
         , (takadinna, [p, n, k, k])
         , (gu.gu.na.na, [o, o, n, n])
         , (dinnakitataka, dinna)
-        , (taka.dinnakitataka, [o, k] ++ dinna)
+        , (takadinnakitataka, [o, k] ++ dinna)
         , (din, [od])
 
         ]
@@ -561,24 +561,20 @@ to_mohra_farans = sudhindra $ faran $ korvai Tala.misra_chapu mridangam
 misra_to_mohra3 :: Korvai
 misra_to_mohra3 = date 2018 7 2 $ sudhindra $
     korvai Tala.misra_chapu (mridangam<>kendang) $ map ending
-    [ reduceTo 4 2 theme . tri theme2'
+    [ reduceTo 4 2 theme . tri theme2
     ]
     where
     theme = tat.__.dit.__.takadinna.din.__.tat.__.din.__4
-    -- theme2 = ta.__.di.__.ki.__.ta.__.tarikita.thom.__
-    theme2' = ta.__.di.__.ki.__.ta.__.ta.tarikita.thom
+    theme2 = ta.__.di.__.ki.__.ta.__.ta.tarikita.thom
     mridangam = makeMridangam
         [ (theme, [k, t, k, o, o, k, od, k, od])
-        -- TODO should be applied in the reduction
-        , (din.na.din.tat.din, [p, k, od, k, od])
-        -- , (theme2, [k, t, k, n, k, t, k, n, o])
-        , (theme2', [k, t, k, n, p, k, t, k, n, o])
+        , (theme2, [k, t, k, n, p, k, t, k, n, o])
         ]
     kendang = makeKendang1
         [ (theme, [p, p, t, a, a, u, a, o, a])
-        -- TODO
+        -- TODO similar technique for kendang as for mridangam?
         , (din.na.din.tat.din, [k, u, a, o, a])
-        , (theme2', [o, p, k, t, a, o, p, k, t, a])
+        , (theme2, [o, p, k, t, a, o, p, k, t, a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra4 :: Korvai
