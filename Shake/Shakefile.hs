@@ -60,6 +60,9 @@ type Package = String
 allPackages :: [Package]
 allPackages = map fst enabledPackages
 
+-- NOTE:
+-- Remember to run tools/freeze_deps.hs after changing any of these.
+
 -- | This is used to create karya.cabal and supply -package arguments to ghc.
 basicPackages :: [(Package, String)]
 basicPackages = concat
@@ -69,6 +72,7 @@ basicPackages = concat
     --  basic
     , w "deepseq data-ordlist cereal random text stm network"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
+    , w "writer-cps-mtl"
     , w "vector utf8-string semigroups"
     , [("extra", ">=1.3")]
     , w "c-storable"
