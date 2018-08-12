@@ -192,8 +192,9 @@ pattern = Solkattu.Pattern . Solkattu.pattern
 test_realizePatterns = do
     let f pmap seq = do
             ps <- Realize.patternMap pmap
-            Realize.formatError $ Realize.realize (Realize.realizePattern ps)
-                (Realize.realizeSollu solluMap) (S.flatten seq)
+            Realize.formatError $ fst $
+                Realize.realize (Realize.realizePattern ps)
+                    (Realize.realizeSollu solluMap) (S.flatten seq)
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
         (Right "k t k n o")
@@ -328,7 +329,7 @@ realizeN smap = fmap S.flattenedNotes . realize smap
 realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realize smap = Realize.formatError
+realize smap = Realize.formatError . fst
     . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
     . S.flatten
 

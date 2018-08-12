@@ -6,14 +6,17 @@
 -- | Tie together generic Solkattu and specific instruments into a single
 -- 'Korvai'.
 module Solkattu.Korvai where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.Expr as Expr
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
@@ -181,8 +184,9 @@ inferSections seqs = case Seq.viewr (map section seqs) of
 
 -- | Tie together everything describing how to realize a single instrument.
 data Instrument stroke = Instrument {
+    instName :: Text
     -- | Realize a 'Sollu' 'KorvaiType'.
-    instFromSollu :: Realize.SolluMap stroke
+    , instFromSollu :: Realize.SolluMap stroke
         -> Realize.ToStrokes Solkattu.Sollu stroke
     -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
@@ -195,7 +199,8 @@ data Instrument stroke = Instrument {
 
 defaultInstrument :: Expr.ToExpr (Realize.Stroke stroke) => Instrument stroke
 defaultInstrument = Instrument
-    { instFromSollu = Realize.realizeSollu
+    { instName = ""
+    , instFromSollu = Realize.realizeSollu
     , instFromMridangam = Nothing
     , instFromStrokes = const mempty
     , instPostprocess = id
@@ -204,27 +209,36 @@ defaultInstrument = Instrument
 
 mridangam :: Instrument Mridangam.Stroke
 mridangam = defaultInstrument
-    { instFromMridangam = Just Realize.realizeStroke
+    { instName = "mridangam"
+    , instFromMridangam = Just Realize.realizeStroke
     , instPostprocess = Mridangam.postprocess
     , instFromStrokes = smapMridangam
     }
 
 konnakol :: Instrument Solkattu.Sollu
 konnakol = defaultInstrument
-    { instFromSollu = const Realize.realizeSimpleStroke
+    { instName = "konnakol"
+    , instFromSollu = const Realize.realizeSimpleStroke
     , instFromStrokes = const $
         mempty { Realize.smapPatternMap = Konnakol.defaultPatterns }
     }
 
 kendangTunggal :: Instrument KendangTunggal.Stroke
-kendangTunggal = defaultInstrument { instFromStrokes = smapKendangTunggal }
+kendangTunggal = defaultInstrument
+    { instName = "kendang tunggal"
+    , instFromStrokes = smapKendangTunggal
+    }
 
 reyong :: Instrument Reyong.Stroke
-reyong = defaultInstrument { instFromStrokes = smapReyong }
+reyong = defaultInstrument
+    { instName = "reyong"
+    , instFromStrokes = smapReyong
+    }
 
 sargam :: Instrument Sargam.Stroke
 sargam = defaultInstrument
-    { instFromStrokes = smapSargam
+    { instName = "sargam"
+    , instFromStrokes = smapSargam
     , instToScore = Sargam.toScore
     }
 
@@ -233,13 +247,14 @@ data GInstrument =
     forall stroke. Solkattu.Notation stroke => GInstrument (Instrument stroke)
 
 instruments :: Map Text GInstrument
-instruments = Map.fromList
-    [ ("mridangam", GInstrument mridangam)
-    , ("konnakol", GInstrument konnakol)
-    , ("kendang tunggal", GInstrument kendangTunggal)
-    , ("reyong", GInstrument reyong)
-    , ("sargam", GInstrument sargam)
+instruments = Map.fromList $ Seq.key_on nameOf
+    [ GInstrument mridangam
+    , GInstrument konnakol
+    , GInstrument kendangTunggal
+    , GInstrument reyong
+    , GInstrument sargam
     ]
+    where nameOf (GInstrument inst) = instName inst
 
 
 -- * realize
@@ -255,21 +270,21 @@ realize instrument realizePatterns korvai = case korvaiSections korvai of
     Sollu sections -> map (realize1 (instFromSollu instrument smap)) sections
     Mridangam sections -> case instFromMridangam instrument of
         Nothing -> [Left "no sequence, wrong instrument type"]
-        Just realizeNote -> map (realize1 realizeNote) sections
+        Just toStrokes -> map (realize1 toStrokes) sections
     where
-    realize1 realizeNote =
+    realize1 toStrokes =
         fmap (first (instPostprocess instrument))
-        . realizeInstrument realizePatterns realizeNote inst tala
+        . realizeInstrument realizePatterns toStrokes inst tala
     smap = Realize.smapSolluMap inst
     tala = korvaiTala korvai
     inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
 
-realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke)
+realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     => Bool -> Realize.ToStrokes sollu stroke
     -> Realize.StrokeMap stroke -> Tala.Tala -> Section sollu
     -> Either Error ([Flat stroke], Error)
 realizeInstrument realizePatterns toStrokes inst tala section = do
-    realized <- Realize.formatError $
+    realized <- Realize.formatError $ fst $
         Realize.realize pattern toStrokes $
         flatten (sectionSequence section)
     let alignError = Realize.verifyAlignment tala
@@ -285,6 +300,23 @@ realizeInstrument realizePatterns toStrokes inst tala section = do
     pattern
         | realizePatterns = Realize.realizePattern (Realize.smapPatternMap inst)
         | otherwise = Realize.keepPattern
+
+allMatchedSollus :: Instrument stroke -> Korvai
+    -> Set (Realize.SolluMapKey Solkattu.Sollu)
+allMatchedSollus instrument korvai = case korvaiSections korvai of
+    Sollu sections ->
+        mconcatMap (matchedSollus (instFromSollu instrument smap)) sections
+    Mridangam {} -> mempty
+    where
+    smap = Realize.smapSolluMap inst
+    inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
+
+matchedSollus :: (Pretty sollu, Ord sollu)
+    => Realize.ToStrokes sollu stroke -> Section sollu
+    -> Set (Realize.SolluMapKey sollu)
+matchedSollus toStrokes =
+    snd . Realize.realize Realize.keepPattern toStrokes
+        . flatten . sectionSequence
 
 inferNadai :: [Flat stroke] -> S.Nadai
 inferNadai = S._nadai . maybe S.defaultTempo fst . Seq.head . S.tempoNotes
@@ -306,6 +338,29 @@ spaces nadai dur = do
 -- vary :: (Sequence -> [Sequence]) -> Korvai -> Korvai
 -- vary modify korvai = korvai
 --     { korvaiSections = concatMap modify (korvaiSections korvai) }
+
+-- * lint
+
+-- | Show the shadowed strokes, except an ok set.  It's ok to shadow the
+-- builtins.
+lint :: Pretty stroke => Instrument stroke -> [Sequence] -> Korvai -> Text
+lint inst defaultStrokes korvai = TextUtil.joinWith "\n"
+    (if null shadowed then ""
+        else Text.intercalate "\n" $ "shadowed:" : map prettyPair shadowed)
+    (if Set.null unmatched then ""
+        else Text.intercalate "\n" $ "unmatched:"
+            : map Realize.prettyKey (Set.toList unmatched))
+    where
+    shadowed = filter ((`Set.notMember` defaultKeys) . fst) $
+        Realize.smapSolluShadows smap
+    prettyPair (key, strokes) = Realize.prettyKey key <> ": " <> pretty strokes
+    matched = allMatchedSollus inst korvai
+    unmatched = Realize.smapKeys smap
+        `Set.difference` matched
+        `Set.difference` defaultKeys
+    defaultKeys = Set.fromList $ Either.rights $
+        map Realize.verifySolluKey defaultStrokes
+    smap = instFromStrokes inst $ korvaiStrokeMaps korvai
 
 -- * Metadata
 

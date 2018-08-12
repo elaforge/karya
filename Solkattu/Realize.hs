@@ -8,8 +8,10 @@
 -- 'Note's.
 module Solkattu.Realize where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Control.Monad.Writer as Writer
+import qualified Control.Monad.Writer.CPS as Writer.CPS
+
 import qualified Data.Char as Char
-import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
@@ -218,13 +220,18 @@ verifyAlignment tala startOn endOn notes
 data StrokeMap stroke = StrokeMap {
     smapSolluMap :: SolluMap stroke
     -- | Shadowed SolluMapKeys, saved here to warn about them later.
-    , smapSolluShadows :: [(SolluMapKey, [Maybe (Stroke stroke)])]
+    , smapSolluShadows ::
+        [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])]
     , smapPatternMap :: PatternMap stroke
     } deriving (Eq, Show)
 
 isInstrumentEmpty :: StrokeMap stroke -> Bool
 isInstrumentEmpty (StrokeMap (SolluMap solluMap) _ (PatternMap patternMap)) =
     Map.null solluMap && Map.null patternMap
+
+smapKeys :: StrokeMap stroke -> Set (SolluMapKey Solkattu.Sollu)
+smapKeys smap = Map.keysSet m
+    where SolluMap m = smapSolluMap smap
 
 instance Semigroup (StrokeMap stroke) where
     StrokeMap a1 b1 c1 <> StrokeMap a2 b2 c2 =
@@ -266,16 +273,6 @@ patternKeys :: [(Solkattu.Pattern, a)]
 patternKeys = map (first make)
     where make = (:[]) . S.Note . Solkattu.Pattern
 
--- | Show the shadowed strokes, except an ok set.  It's ok to shadow the
--- builtins.
-shadowedSollus :: Pretty stroke
-    => [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> StrokeMap stroke -> [Text]
-shadowedSollus okShadows =
-    map pretty . filter ((`Set.notMember` ok) . fst) . smapSolluShadows
-    where
-    ok = Set.fromList $ map fst $ Either.rights $ map verifySolluKey okShadows
-
 -- ** PatternMap
 
 -- | This maps a 'Pattern' of a certain duration to a realization.  The
@@ -311,9 +308,13 @@ lookupPattern p (PatternMap pmap) = Map.lookup p pmap
 -- | Sollus and Strokes should be the same length.  This is enforced in the
 -- constructor 'solluMap'.  Nothing is a rest, which means a sollu can map
 -- to silence, which actually happens in practice.
-newtype SolluMap stroke = SolluMap (Map SolluMapKey [Maybe (Stroke stroke)])
+newtype SolluMap stroke =
+    SolluMap (Map (SolluMapKey Solkattu.Sollu) [Maybe (Stroke stroke)])
     deriving (Eq, Show, Pretty, Semigroup, Monoid)
-type SolluMapKey = (Maybe Solkattu.Tag, [Solkattu.Sollu])
+type SolluMapKey sollu = (Maybe Solkattu.Tag, [sollu])
+
+prettyKey :: Pretty sollu => SolluMapKey sollu -> Text
+prettyKey (tag, sollus) = maybe ""  ((<>"^") . pretty) tag <> pretty sollus
 
 -- | Directly construct a SolluMap from strokes.
 simpleSolluMap :: [([Solkattu.Sollu], [Maybe stroke])] -> SolluMap stroke
@@ -324,18 +325,32 @@ simpleSolluMap = SolluMap .  fmap (fmap (fmap stroke)) . Map.fromList
 -- earlier ones.
 solluMap :: Pretty stroke =>
     [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> Either Error (SolluMap stroke, [(SolluMapKey, [Maybe (Stroke stroke)])])
+    -> Either Error (SolluMap stroke,
+        [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])])
 solluMap =
-    fmap (first SolluMap . Util.Map.unique . reverse) . mapM (verifySolluKey)
+    fmap (first SolluMap . Util.Map.unique . reverse) . mapM verifySolluMap
 
-verifySolluKey :: Pretty stroke
+verifySolluMap :: Pretty stroke
     => ([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])
-    -> Either Error (SolluMapKey, [Maybe (Stroke stroke)])
-verifySolluKey (sollus_, strokes) = do
+    -> Either Error (SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])
+verifySolluMap (sollus, strokes) = do
+    (tag, sollus) <- verifySolluKey sollus
+    let throw = Left . ((pretty sollus <> ": ")<>)
+    strokes <- forM strokes $ \case
+        S.Note (Note s) -> Right (Just s)
+        S.Note (Space {}) -> Right Nothing
+        s -> throw $ "should have plain strokes: " <> pretty s
+    unless (length sollus == length strokes) $
+        throw $ "sollus and strokes have differing lengths after removing\
+            \ rests: sollus " <> showt (length sollus)
+            <> " /= strokes " <> showt (length strokes)
+    return ((tag, sollus), strokes)
+
+verifySolluKey :: [S.Note g (Solkattu.Note Solkattu.Sollu)]
+    -> Either Error (SolluMapKey Solkattu.Sollu)
+verifySolluKey sollus_ = do
     let sollus = map (S.mapGroup (const ())) sollus_
-    let throw = Left . (prefix <>)
-        prefix = "stroke map " <> pretty sollus <> " to "
-            <> pretty strokes <> ": "
+    let throw = Left . ((pretty sollus <> ": ")<>)
     (tags, sollus) <- fmap (unzip . Maybe.catMaybes) $
         -- Allow but ignore TempoChanges.  This makes it convenient to use
         -- a sequence like 'nakataka = su (na.ka.ta.ka)' in both notation
@@ -345,16 +360,8 @@ verifySolluKey (sollus_, strokes) = do
                 Right $ Just (Solkattu._tag note, Solkattu._sollu note)
             Solkattu.Space {} -> Right Nothing
             s -> throw $ "should only have plain sollus: " <> pretty s
-    strokes <- forM strokes $ \case
-        S.Note (Note s) -> Right (Just s)
-        S.Note (Space {}) -> Right Nothing
-        s -> throw $ "should have plain strokes: " <> pretty s
-    unless (length sollus == length strokes) $
-        throw $ "sollus and strokes have differing lengths after removing\
-            \ rests: sollus " <> showt (length sollus)
-            <> " /= strokes " <> showt (length strokes)
     -- TODO warn if there are inconsistent tags?
-    return ((Seq.head (Maybe.catMaybes tags), sollus), strokes)
+    return (Seq.head (Maybe.catMaybes tags), sollus)
 
 
 -- * realize
@@ -386,25 +393,29 @@ instance Pretty stroke => Pretty (Group stroke) where
 
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
-realize :: Pretty sollu => RealizePattern S.Tempo stroke
+realize :: (Pretty sollu, Ord sollu) => RealizePattern S.Tempo stroke
     -> ToStrokes sollu stroke -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
-    -> UF.UntilFail Error (Realized stroke)
+    -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
 realize realizePattern toStrokes =
-    UF.concatMap convertGroups . UF.process realize1
+    Writer.CPS.runWriter
+        . fmap (UF.concatMap convertGroups) . UF.processM realize1
     where
     realize1 note@(S.FNote tempo n) notes = case n of
-        Solkattu.Alignment n -> (,notes) $
+        Solkattu.Alignment n -> return $ (,notes) $
             UF.singleton $ S.FNote tempo (Alignment n)
-        Solkattu.Space space -> (,notes) $
+        Solkattu.Space space -> return $ (,notes) $
             UF.singleton $ S.FNote tempo (Space space)
-        Solkattu.Pattern p -> (,notes) $ case realizePattern tempo p of
+        Solkattu.Pattern p -> return $ (,notes) $ case realizePattern tempo p of
             Left err -> UF.Fail err
             Right tempoNotes -> UF.fromList $ map (uncurry S.FNote) tempoNotes
         Solkattu.Note {} -> case findSequence toStrokes (note : notes) of
-            Left err -> (UF.Fail err, notes)
-            Right (realized, remain) -> (UF.fromList realized, remain)
-    realize1 (S.FGroup tempo g children) notes =
-        (,notes) $ case UF.toList $ UF.process realize1 children of
+            Left err -> return (UF.Fail err, notes)
+            Right (matched, (realized, remain)) -> do
+                Writer.tell $ Set.singleton matched
+                return (UF.fromList realized, remain)
+    realize1 (S.FGroup tempo g children) notes = do
+        rest <- UF.toList <$> UF.processM realize1 children
+        return $ (,notes) $ case rest of
             -- I drop the group, so there will be extra notes in the output.
             -- But if I emit a partial group, then convertGroup may get an
             -- error, which will conceal the real one here.
@@ -502,11 +513,14 @@ makeSpace tempo space dur = map make <$> S.decompose s0_matras
 findSequence :: Pretty sollu => ToStrokes sollu stroke
     -> [S.Flat g (Solkattu.Note sollu)]
     -> Either Error
-        ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
+        ( SolluMapKey sollu
+        , ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
+        )
 findSequence toStrokes notes =
     case bestMatch tag sollus toStrokes of
         Nothing -> Left $ "sequence not found: " <> pretty sollus
-        Just strokes -> Right $ replaceSollus strokes notes
+        Just (matched, strokes) ->
+            Right ((tag, matched), replaceSollus strokes notes)
     where
     -- Collect only sollus and rests.  This stops at a group boundary.
     pre = fst $ Seq.span_while noteOf notes
@@ -580,20 +594,15 @@ realizeSollu (SolluMap smap) = ToStrokes
 
 -- | Convert sollus to strokes.
 bestMatch :: Maybe Solkattu.Tag -> [sollu] -> ToStrokes sollu stroke
-    -> Maybe [Maybe (Stroke stroke)]
+    -> Maybe ([sollu], [Maybe (Stroke stroke)])
     -- ^ Nothing means no match, [Nothing] is a rest
 bestMatch tag sollus toStrokes =
     -- Try with the specific tag, otherwise fall back to no tag.
     Seq.head (find tag prefixes) <|> Seq.head (find Nothing prefixes)
     where
-    find tag = mapMaybe (\s -> _getStrokes toStrokes tag s)
+    find tag = mapMaybe (\s -> (s,) <$> _getStrokes toStrokes tag s)
     prefixes = reverse $ drop 1 $ List.inits $
         take (_longestKey toStrokes) sollus
-
-exactMatch :: Maybe Solkattu.Tag -> [sollu] -> ToStrokes sollu stroke
-    -> Maybe [Maybe (Stroke stroke)]
-exactMatch tag sollus toStrokes =
-    _getStrokes toStrokes tag sollus <|> _getStrokes toStrokes Nothing sollus
 
 
 -- * text util

@@ -68,3 +68,15 @@ process f = go
     append as (b :+ bs) = b :+ append as bs
     append as Done = go as
     append _ (Fail err) = Fail err
+
+processM :: Monad m => (a -> [a] -> m (UntilFail err b, [a])) -> [a]
+    -> m (UntilFail err b)
+processM f = go
+    where
+    go (a : as) = do
+        (bs, remain) <- f a as
+        append remain bs
+    go [] = return Done
+    append as (b :+ bs) = (b :+) <$> append as bs
+    append as Done = go as
+    append _ (Fail err) = return $ Fail err

@@ -3942,8 +3942,11 @@ solkattu:
     * analyze for overidden StrokeMap entries
       . I'll need a way to mark "standard library", where it's fine if they're
         not used, or overidden.
-    - analyze for unused StrokeMap entries
+    * analyze for unused StrokeMap entries
       . I have to have Realize.realize record which SolluKeys matched
+      . I can return to realize easily, but to accumulate the set of used
+        [sollu], I have to either thread the value or switch to StateT
+        + monadic.
     - put analyses in the tests?
     - Diff to compare realizations before and after I change the
       stroke map.

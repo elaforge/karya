@@ -335,7 +335,7 @@ realizeP :: Solkattu.Notation stroke => Maybe (Realize.PatternMap stroke)
     -> Realize.SolluMap stroke -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Format.Flat stroke]
 realizeP pmap smap = fmap Format.mapGroups
-    . Realize.formatError
+    . Realize.formatError . fst
     . Realize.realize pattern (Realize.realizeSollu smap)
     . S.flatten
     where

@@ -7,7 +7,6 @@ import qualified Control.Exception as Exception
 import qualified Data.Either as Either
 import qualified Data.Text as Text
 
-import Util.Test
 import qualified Util.Test.Testing as Testing
 import qualified Solkattu.All as All
 import qualified Solkattu.Korvai as Korvai
@@ -15,9 +14,11 @@ import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import qualified Solkattu.Tags as Tags
 
 import Global
+import Util.Test
 
 
 test_all = do
@@ -31,6 +32,16 @@ testKorvai korvai =
         Right _ -> return True
         Left errs -> failure $ location korvai <> ": " <> name <> ": "
             <> Text.unlines errs
+
+-- test_lints = do
+--     forM_ All.korvais testLint
+
+testLint :: Korvai.Korvai -> IO Bool
+testLint korvai
+    | lints == "" = return True
+    | otherwise = failure $ location korvai <> ": " <> lints
+    where
+    lints = SolkattuGlobal.allLints korvai
 
 test_metadata = do
     forM_ All.korvais $ \korvai ->

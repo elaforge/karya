@@ -10,10 +10,12 @@ module Solkattu.SolkattuGlobal (
     , module Solkattu.DslSollu
 ) where
 import Prelude hiding ((.), (^))
+import qualified Data.List as List
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
-import Solkattu.Dsl
-import Solkattu.DslSollu
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Reyong as Reyong
@@ -24,6 +26,8 @@ import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
 import Global
+import Solkattu.Dsl
+import Solkattu.DslSollu
 
 
 Mridangam.Strokes {..} = Mridangam.notes
@@ -112,8 +116,8 @@ makeMridangam0 strokes = mempty
     }
 
 -- | Show shadowed strokes in the stroke map.
-lintM :: Korvai.Korvai -> [Text]
-lintM = lintInst _mridangamStrokes Korvai.smapMridangam
+lintM :: Korvai.Korvai -> IO ()
+lintM = _printLint Korvai.mridangam _mridangamStrokes
 
 makeKendang1 :: CallStack.Stack => StrokeMap KendangTunggal.Stroke
     -> Korvai.StrokeMaps
@@ -123,8 +127,8 @@ makeKendang1 strokes = mempty
             ++ strokes
     }
 
-lintK1 :: Korvai -> [Text]
-lintK1 = lintInst _kendangStrokes Korvai.smapKendangTunggal
+lintK1 :: Korvai -> IO ()
+lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes
 
 makeReyong :: CallStack.Stack => StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 makeReyong strokes = mempty
@@ -132,15 +136,15 @@ makeReyong strokes = mempty
         Realize.patternKeys Reyong.rhythmicPatterns ++ _reyongStrokes ++ strokes
     }
 
-lintR :: Korvai -> [Text]
-lintR = lintInst _reyongStrokes Korvai.smapReyong
+lintR :: Korvai -> IO ()
+lintR = _printLint Korvai.reyong _reyongStrokes
 
 makeSargam :: CallStack.Stack => StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
 makeSargam strokes = mempty
     { Korvai.smapSargam = check $ Realize.strokeMap strokes }
 
-lintS :: Korvai -> [Text]
-lintS = lintInst [] Korvai.smapSargam
+lintS :: Korvai -> IO ()
+lintS = _printLint Korvai.sargam []
 
 korvai :: Tala.Tala -> Korvai.StrokeMaps -> [Section] -> Korvai
 korvai = Korvai.korvai
@@ -154,10 +158,19 @@ korvaiS = Korvai.korvaiInferSections
 korvaiS1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
 korvaiS1 tala smaps seq = korvaiS tala smaps [seq]
 
-lintInst :: Pretty stroke => StrokeMap stroke
-    -> (Korvai.StrokeMaps -> Realize.StrokeMap stroke) -> Korvai -> [Text]
-lintInst okStrokes inst korvai = Realize.shadowedSollus okStrokes $
-    inst $ Korvai.korvaiStrokeMaps korvai
+lintAll :: Korvai -> IO ()
+lintAll = Text.IO.putStr • allLints
+
+allLints :: Korvai -> Text
+allLints korvai =
+    Text.unlines $ List.intersperse "" $
+        mapMaybe lintsOf (Korvai.korvaiInstruments korvai)
+    where
+    lintsOf (name, Korvai.GInstrument inst)
+        | Text.null warn = Nothing
+        | otherwise = Just $ "    " <> name <> ":\n" <> warn
+        where warn = Korvai.lint inst (get name) korvai
+    get name = Map.findWithDefault [] name _instrumentDefaultStrokes
 
 -- | 'makeMridangam' gives this to all mridangam stroke maps.
 _mridangamStrokes :: [(Sequence, [Mridangam.SNote])]
@@ -199,6 +212,22 @@ _reyongStrokes =
     , (talang, [b, o])
     ]
     where Reyong.Strokes {..} = Reyong.notes
+
+_printLint :: Pretty stroke => Korvai.Instrument stroke -> [(Sequence, x)]
+    -> Korvai -> IO ()
+_printLint inst strokes korvai =
+    Text.IO.putStr $ Korvai.lint inst (map fst strokes) korvai
+
+_instrumentDefaultStrokes :: Map Text [Sequence]
+_instrumentDefaultStrokes = Map.fromList
+    [ pair Korvai.mridangam _mridangamStrokes
+    , pair Korvai.kendangTunggal _kendangStrokes
+    , pair Korvai.reyong _reyongStrokes
+    ]
+    where
+    pair :: Korvai.Instrument stroke -> [(Sequence, [Realize.SNote stroke])]
+        -> (Text, [Sequence])
+    pair inst strokes = (Korvai.instName inst, map fst strokes)
 
 -- TODO
 -- vary :: Korvai -> Korvai
