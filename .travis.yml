@@ -79,8 +79,7 @@ install:
   - ghc-pkg list
   # Disabled until I can get an up-to-date faust.
   # - cp data/all-deps.cabal karya.cabal
-  # - cp data/cabal.config.all-deps cabal.config
-  - cp data/cabal.config .
+  # - cp data/all-deps.cabal.config cabal.config
   - travis_retry cabal update
   - if which hsc2hs && which c2hs && which cpphs; then echo ok;
     else travis_retry cabal install -j$cpus hsc2hs c2hs cpphs;

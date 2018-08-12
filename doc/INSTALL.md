@@ -85,7 +85,6 @@ will finally handle this automatically.
 To install the needed haskell dependencies, type:
 
     cabal sandbox init  # if you're afraid to screw up your haskell installation
-    cp data/cabal.config . # if you want to use the same versions as I do
     cabal install --only-dependencies
 
 The actual build is with shake, but there's a dummy cabal file with just
@@ -130,7 +129,7 @@ Get the -dev versions as usual:
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 
     cp data/all-deps.cabal karya.cabal
-    cp data/cabal.config.all-deps cabal.config # if you want my versions
+    cp data/all-deps.cabal.config cabal.config # if you want my versions
     cabal install --only-dependencies
 
 Or, if you're doing it the stack way:
