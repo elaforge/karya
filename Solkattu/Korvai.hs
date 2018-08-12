@@ -183,10 +183,10 @@ inferSections seqs = case Seq.viewr (map section seqs) of
 data Instrument stroke = Instrument {
     -- | Realize a 'Sollu' 'KorvaiType'.
     instFromSollu :: Realize.SolluMap stroke
-        -> Realize.GetStrokes Solkattu.Sollu stroke
+        -> Realize.ToStrokes Solkattu.Sollu stroke
     -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
-        Maybe (Realize.GetStrokes (Realize.Stroke Mridangam.Stroke) stroke)
+        Maybe (Realize.ToStrokes (Realize.Stroke Mridangam.Stroke) stroke)
     , instFromStrokes :: StrokeMaps -> Realize.StrokeMap stroke
     -- | Modify strokes after 'realize'.  Use with 'strokeTechnique'.
     , instPostprocess :: [Flat stroke] -> [Flat stroke]
@@ -265,12 +265,12 @@ realize instrument realizePatterns korvai = case korvaiSections korvai of
     inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
 
 realizeInstrument :: (Pretty sollu, Solkattu.Notation stroke)
-    => Bool -> Realize.GetStrokes sollu stroke
+    => Bool -> Realize.ToStrokes sollu stroke
     -> Realize.StrokeMap stroke -> Tala.Tala -> Section sollu
     -> Either Error ([Flat stroke], Error)
-realizeInstrument realizePatterns getStroke inst tala section = do
+realizeInstrument realizePatterns toStrokes inst tala section = do
     realized <- Realize.formatError $
-        Realize.realize pattern getStroke $
+        Realize.realize pattern toStrokes $
         flatten (sectionSequence section)
     let alignError = Realize.verifyAlignment tala
             (sectionStart section) (sectionEnd section)

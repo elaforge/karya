@@ -387,9 +387,9 @@ instance Pretty stroke => Pretty (Group stroke) where
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
 realize :: Pretty sollu => RealizePattern S.Tempo stroke
-    -> GetStrokes sollu stroke -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> ToStrokes sollu stroke -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> UF.UntilFail Error (Realized stroke)
-realize realizePattern getStroke =
+realize realizePattern toStrokes =
     UF.concatMap convertGroups . UF.process realize1
     where
     realize1 note@(S.FNote tempo n) notes = case n of
@@ -400,7 +400,7 @@ realize realizePattern getStroke =
         Solkattu.Pattern p -> (,notes) $ case realizePattern tempo p of
             Left err -> UF.Fail err
             Right tempoNotes -> UF.fromList $ map (uncurry S.FNote) tempoNotes
-        Solkattu.Note {} -> case findSequence getStroke (note : notes) of
+        Solkattu.Note {} -> case findSequence toStrokes (note : notes) of
             Left err -> (UF.Fail err, notes)
             Right (realized, remain) -> (UF.fromList realized, remain)
     realize1 (S.FGroup tempo g children) notes =
@@ -499,12 +499,12 @@ makeSpace tempo space dur = map make <$> S.decompose s0_matras
 
 -- | Find the longest matching sequence and return the match and unconsumed
 -- notes.
-findSequence :: Pretty sollu => GetStrokes sollu stroke
+findSequence :: Pretty sollu => ToStrokes sollu stroke
     -> [S.Flat g (Solkattu.Note sollu)]
     -> Either Error
         ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
-findSequence getStroke notes =
-    case bestMatch tag sollus getStroke of
+findSequence toStrokes notes =
+    case bestMatch tag sollus toStrokes of
         Nothing -> Left $ "sequence not found: " <> pretty sollus
         Just strokes -> Right $ replaceSollus strokes notes
     where
@@ -546,46 +546,54 @@ replaceSollus (_:_) [] = ([], [])
     -- This shouldn't happen because strokes from the SolluMap should be
     -- the same length as the RealizedNotes used to find them.
 
--- ** GetStrokes
+-- ** ToStrokes
 
 -- | Find strokes for a sequence of sollus.
---
--- Int is the longest [sollu] key in the whole SolluMap, so I know when to
--- give up looking for the longest prefix.
-type GetStrokes sollu stroke =
-    ( Int
-    , Maybe Solkattu.Tag -> [sollu] -> Maybe [Maybe (Stroke stroke)]
-    )
+data ToStrokes sollu stroke = ToStrokes {
+    -- | The longest [sollu] key in the whole SolluMap, so I know when to give
+    -- up looking for the longest prefix.
+    _longestKey :: !Int
+    , _getStrokes :: Maybe Solkattu.Tag -> [sollu]
+        -> Maybe [Maybe (Stroke stroke)]
+    }
 
-realizeStroke :: GetStrokes (Stroke stroke) stroke
-realizeStroke = (1, const $ Just . map Just)
+realizeStroke :: ToStrokes (Stroke stroke) stroke
+realizeStroke = ToStrokes
+    { _longestKey = 1
+    , _getStrokes = const $ Just . map Just
+    }
 
 -- | If the sollu and stroke are the same, I can just copy the sollu.  This is
 -- for "monomorphic" single instrument scores, such as for mridangam.
-realizeSimpleStroke :: GetStrokes stroke stroke
-realizeSimpleStroke = (1, const $ Just . map (Just . stroke))
+realizeSimpleStroke :: ToStrokes stroke stroke
+realizeSimpleStroke = ToStrokes
+    { _longestKey = 1
+    , _getStrokes = const $ Just . map (Just . stroke)
+    }
 
-realizeSollu :: SolluMap stroke -> GetStrokes Solkattu.Sollu stroke
-realizeSollu (SolluMap smap) =
-    ( fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
-    , \tag sollus -> Map.lookup (tag, sollus) smap
-    )
+realizeSollu :: SolluMap stroke -> ToStrokes Solkattu.Sollu stroke
+realizeSollu (SolluMap smap) = ToStrokes
+    { _longestKey =
+        fromMaybe 0 $ Seq.maximum (map (length . snd) (Map.keys smap))
+    , _getStrokes = \tag sollus -> Map.lookup (tag, sollus) smap
+    }
 
 -- | Convert sollus to strokes.
-bestMatch :: Maybe Solkattu.Tag -> [sollu] -> GetStrokes sollu stroke
+bestMatch :: Maybe Solkattu.Tag -> [sollu] -> ToStrokes sollu stroke
     -> Maybe [Maybe (Stroke stroke)]
     -- ^ Nothing means no match, [Nothing] is a rest
-bestMatch tag sollus (longestKey, getStroke) =
+bestMatch tag sollus toStrokes =
     -- Try with the specific tag, otherwise fall back to no tag.
     Seq.head (find tag prefixes) <|> Seq.head (find Nothing prefixes)
     where
-    find tag = mapMaybe (\s -> getStroke tag s)
-    prefixes = reverse $ drop 1 $ List.inits $ take longestKey sollus
+    find tag = mapMaybe (\s -> _getStrokes toStrokes tag s)
+    prefixes = reverse $ drop 1 $ List.inits $
+        take (_longestKey toStrokes) sollus
 
-exactMatch :: Maybe Solkattu.Tag -> [sollu] -> GetStrokes sollu stroke
+exactMatch :: Maybe Solkattu.Tag -> [sollu] -> ToStrokes sollu stroke
     -> Maybe [Maybe (Stroke stroke)]
-exactMatch tag sollus (_, getStroke) =
-    getStroke tag sollus <|> getStroke Nothing sollus
+exactMatch tag sollus toStrokes =
+    _getStrokes toStrokes tag sollus <|> _getStrokes toStrokes Nothing sollus
 
 
 -- TODO duplicated in Format
