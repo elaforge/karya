@@ -596,7 +596,7 @@ exactMatch tag sollus toStrokes =
     _getStrokes toStrokes tag sollus <|> _getStrokes toStrokes Nothing sollus
 
 
--- TODO duplicated in Format
+-- * text util
 
 justifyLeft :: Int -> Char -> Text -> Text
 justifyLeft n c text

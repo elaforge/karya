@@ -10,7 +10,6 @@ module Solkattu.Format.Terminal (
     , module Solkattu.Format.Terminal
 #endif
 ) where
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -218,7 +217,7 @@ spellRests strokeWidth
     set (col, (prev, sym, next))
         | not (isRest sym) = sym
         | even col && maybe False isRest next = sym
-            { _text = justifyLeft (symLength sym) ' ' double }
+            { _text = Realize.justifyLeft (symLength sym) ' ' double }
         | odd col && maybe False isRest prev = sym
             { _text = Text.replicate (symLength sym) " " }
         | otherwise = sym
@@ -261,11 +260,11 @@ makeSymbols strokeWidth tala angas = go
     where
     go (S.FNote _ (state, note)) =
         (:[]) $ (state,) $ make state $ case note of
-            S.Attack a -> justifyLeft strokeWidth (Solkattu.extension a)
+            S.Attack a -> Realize.justifyLeft strokeWidth (Solkattu.extension a)
                 (Solkattu.notation a)
             S.Sustain a -> Text.replicate strokeWidth
                 (Text.singleton (Solkattu.extension a))
-            S.Rest -> justifyLeft strokeWidth ' ' "_"
+            S.Rest -> Realize.justifyLeft strokeWidth ' ' "_"
     go (S.FGroup _ _group children) =
         Seq.map_last (second (set Format.EndHighlight)) $
         Seq.map_head_tail
@@ -318,14 +317,6 @@ breakBefore maxWidth =
     -- drop 1 so it's the width at the end of each section.
     runningWidth = drop 1 . scanl (+) 0 . map (sum . map (symLength . snd))
 
--- | This is like 'Text.justifyLeft', except it understands the actual length
--- of unicode characters, courtesty of 'textLength'.
-justifyLeft :: Int -> Char -> Text -> Text
-justifyLeft n c text
-    | len >= n = text
-    | otherwise = text <> Text.replicate (n - len) (Text.singleton c)
-    where len = textLength text
-
 -- ** formatting
 
 data Symbol = Symbol {
@@ -363,16 +354,7 @@ formatSymbol (Symbol text emph highlight) =
         | otherwise = Styled.bold word
 
 symLength :: Symbol -> Int
-symLength = textLength . _text
-
-textLength :: Text -> Int
-textLength = sum . map len . untxt
-    where
-    -- Combining characters don't contribute to the width.  I'm sure it's way
-    -- more complicated than this, but for the moment this seems to work.
-    len c
-        | Char.isMark c = 0
-        | otherwise = 1
+symLength = Realize.textLength . _text
 
 -- * util
 
