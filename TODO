@@ -3948,7 +3948,7 @@ solkattu:
         [sollu], I have to either thread the value or switch to StateT
         + monadic.
     * put analyses in the tests?
-    - except Solkattu2017.c_17_07_13 is a false positive, taka is indeed used
+    * except Solkattu2017.c_17_07_13 is a false positive, taka is indeed used
       . Maybe it's confused by the 1^taka?
     - Diff to compare realizations before and after I change the
       stroke map.

@@ -10,10 +10,10 @@ import Prelude hiding ((.), (^), repeat)
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
-import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
 import Global
+import Solkattu.SolkattuGlobal
 
 
 koraippu_janahan :: Korvai
@@ -395,10 +395,8 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         [ tri (purvangam basic_dintaka)
         , one_avartanam . utarangam basic_dintaka
         ]
-    , map su
-        [ tri (purvangam basic_dintaka)
+    , (:[]) $ su $ tri (purvangam basic_dintaka)
         . one_avartanam . tri (utarangam basic_dintaka)
-        ]
     ]
     where
     purvangam dintaka =
@@ -409,7 +407,7 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         ta.__.kita.taka.din.na . dintaka.din.na.tat.__.tat.__
     utarangam_gap = tri $
         ta.__.kita.taka.din.na.__ . 1^takita.taka.din.na.__ . tat.tat.__.tam.__
-    one_avartanam = ta.__4.taka.din.__ . kp.kita.taka.din.__
+    one_avartanam = ta.__4.taka.din.__ . taka.kita.taka.din.__
       . dhom.__.kita.taka.din.__ . dhom.dhom.kita.taka.din.__
     basic_dintaka = 1^(din.taka.din.taka)
     dintakas = -- each is 6 beats -- TODO map assert dur == 6

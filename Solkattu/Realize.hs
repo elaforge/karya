@@ -520,7 +520,7 @@ findSequence toStrokes notes =
     case bestMatch tag sollus toStrokes of
         Nothing -> Left $ "sequence not found: " <> pretty sollus
         Just (matched, strokes) ->
-            Right ((tag, matched), replaceSollus strokes notes)
+            Right (matched, replaceSollus strokes notes)
     where
     -- Collect only sollus and rests.  This stops at a group boundary.
     pre = fst $ Seq.span_while noteOf notes
@@ -594,13 +594,13 @@ realizeSollu (SolluMap smap) = ToStrokes
 
 -- | Convert sollus to strokes.
 bestMatch :: Maybe Solkattu.Tag -> [sollu] -> ToStrokes sollu stroke
-    -> Maybe ([sollu], [Maybe (Stroke stroke)])
+    -> Maybe (SolluMapKey sollu, [Maybe (Stroke stroke)])
     -- ^ Nothing means no match, [Nothing] is a rest
 bestMatch tag sollus toStrokes =
     -- Try with the specific tag, otherwise fall back to no tag.
     Seq.head (find tag prefixes) <|> Seq.head (find Nothing prefixes)
     where
-    find tag = mapMaybe (\s -> (s,) <$> _getStrokes toStrokes tag s)
+    find tag = mapMaybe (\s -> ((tag, s),) <$> _getStrokes toStrokes tag s)
     prefixes = reverse $ drop 1 $ List.inits $
         take (_longestKey toStrokes) sollus
 
