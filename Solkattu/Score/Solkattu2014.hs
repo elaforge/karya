@@ -235,11 +235,10 @@ c_14_04_21 = date 2014 4 21 $ ganesh $ korvaiS adi mridangam $
     where
     -- TODO these are just fives, but I don't have any way to say I want
     -- a specific five.
-    p5_1 = ta.__. su (taka.taka).din
-    p5_2 = ta.__. ta . su taka.din
+    p5_1 = ta.__.tk.tk.din
+    p5_2 = ta.__.ta.tk.din
     mridangam = makeMridangam
         [ (din, [od])
-        , (ta.taka.taka.din, [k, k, t, k, t, o])
         , (tam, [u])
         , (p5_1, [k, k, t, k, t, o])
         , (p5_2, [k, k, k, t, o])
@@ -318,7 +317,6 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
         , (din, [od])
         , (dinga, [od, k])
         , (tadindintat, [k, od, od, k])
-        , (1^tadindintat, [k, o, od, k])
         , (tat, [k])
         , (dit, [t])
         , (taka.ta, [k, p, k])

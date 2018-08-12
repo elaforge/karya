@@ -439,7 +439,6 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
     mridangam = makeMridangam
         [ (taka.ta.ta.din, [on, k, on, on, od])
         , (ta.ta.din, [on, on, od])
-        , (talang.gu, [p, u, k])
         , (taka.taka, [o&j, y, o&j, y])
         , (din, [od])
         -- TODO standard pattern
@@ -537,12 +536,12 @@ to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     ]
     where
     -- Mridangam2018.c_18_07_02_sarva
-    sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
+    _sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
+    -- (sarva, [on, k, on, on, od, on, k, on, on, od])
     dinnakitataka = group $ din.na.kttk
     takadinnakitataka = group $ taka.din.na.kttk
     mridangam = makeMridangam
-        [ (sarva, [on, k, on, on, od, on, k, on, on, od])
-        , (talang.gu, [p, u, k])
+        [ (talang.gu, [p, u, k])
         , (takadinna, [p, n, k, k])
         , (gu.gu.na.na, [o, o, n, n])
         , (dinnakitataka, dinna)
@@ -566,7 +565,7 @@ misra_to_mohra3 = date 2018 7 2 $ sudhindra $
     kendang = makeKendang1
         [ (theme, [p, p, t, a, a, u, a, o, a])
         -- TODO similar technique for kendang as for mridangam?
-        , (din.na.din.tat.din, [k, u, a, o, a])
+        -- , (din.na.din.tat.din, [k, u, a, o, a])
         , (theme2, [o, p, k, t, a, o, p, k, t, a])
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
@@ -844,7 +843,9 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     tari3 = tri trktkt
     trktkt = group $ trkt.kttk
     takadinna = group $ taka.dinna
-    din_trktkt = din.__.trktkt.tarikitadiku
+    -- TODO this uses trkt.tkkt instead of trktkt above because being a group
+    -- will prevent the full din_trktkt match.
+    din_trktkt = din.__.trkt.kttk.tarikitadiku
     mridangam = makeMridangam0
         [ (sarva_, [n, k, n, n, d])
             -- o_ooo_ __ooo_ o___ ____
@@ -853,10 +854,10 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
         , (tang.__.gu, [od, o])
         , (dinna, [o, n, k, t, o, k])
         , (taka, [o, k])
-        , (trktkt, [n, p, k, t, k, t, p, k])
-        , (din.trktkt, [od, on, __, k, t, k, t, p, k])
             -- high speed variant of trktkt, drops the tha
             -- say tari.kita.kita.taka, play nang.__.kita.kita.taka
+        , (din.trkt.kttk, [od, on, __, k, t, k, t, p, k])
+        , (trktkt, [n, p, k, t, k, t, p, k])
         , (din, [od])
         , (tam, [od])
         ]

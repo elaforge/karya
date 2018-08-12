@@ -33,8 +33,8 @@ testKorvai korvai =
         Left errs -> failure $ location korvai <> ": " <> name <> ": "
             <> Text.unlines errs
 
--- test_lints = do
---     forM_ All.korvais testLint
+test_lints = do
+    forM_ All.korvais testLint
 
 testLint :: Korvai.Korvai -> IO Bool
 testLint korvai

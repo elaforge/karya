@@ -3947,7 +3947,9 @@ solkattu:
       . I can return to realize easily, but to accumulate the set of used
         [sollu], I have to either thread the value or switch to StateT
         + monadic.
-    - put analyses in the tests?
+    * put analyses in the tests?
+    - except Solkattu2017.c_17_07_13 is a false positive, taka is indeed used
+      . Maybe it's confused by the 1^taka?
     - Diff to compare realizations before and after I change the
       stroke map.
       . How can I keep them both around?  If I do it at the haskell

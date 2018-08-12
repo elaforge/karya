@@ -74,20 +74,20 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2013",81,"c_13_10_29") Solkattu.Score.Solkattu2013.c_13_10_29
     , setLocation ("Solkattu.Score.Solkattu2013",95,"c_13_11_05") Solkattu.Score.Solkattu2013.c_13_11_05
     , setLocation ("Solkattu.Score.Solkattu2013",103,"c_13_11_12") Solkattu.Score.Solkattu2013.c_13_11_12
-    , setLocation ("Solkattu.Score.Solkattu2013",120,"c_13_12_11") Solkattu.Score.Solkattu2013.c_13_12_11
-    , setLocation ("Solkattu.Score.Solkattu2013",158,"k1_1") Solkattu.Score.Solkattu2013.k1_1
-    , setLocation ("Solkattu.Score.Solkattu2013",175,"k1_2") Solkattu.Score.Solkattu2013.k1_2
-    , setLocation ("Solkattu.Score.Solkattu2013",188,"k1_3") Solkattu.Score.Solkattu2013.k1_3
-    , setLocation ("Solkattu.Score.Solkattu2013",222,"k3s") Solkattu.Score.Solkattu2013.k3s
-    , setLocation ("Solkattu.Score.Solkattu2013",267,"t1s") Solkattu.Score.Solkattu2013.t1s
-    , setLocation ("Solkattu.Score.Solkattu2013",289,"t2s") Solkattu.Score.Solkattu2013.t2s
-    , setLocation ("Solkattu.Score.Solkattu2013",322,"t3s") Solkattu.Score.Solkattu2013.t3s
-    , setLocation ("Solkattu.Score.Solkattu2013",359,"t4s2") Solkattu.Score.Solkattu2013.t4s2
-    , setLocation ("Solkattu.Score.Solkattu2013",384,"t4s3") Solkattu.Score.Solkattu2013.t4s3
-    , setLocation ("Solkattu.Score.Solkattu2013",407,"t5s") Solkattu.Score.Solkattu2013.t5s
-    , setLocation ("Solkattu.Score.Solkattu2013",463,"koraippu_misra_no_karvai") Solkattu.Score.Solkattu2013.koraippu_misra_no_karvai
-    , setLocation ("Solkattu.Score.Solkattu2013",506,"koraippu_misra") Solkattu.Score.Solkattu2013.koraippu_misra
-    , setLocation ("Solkattu.Score.Solkattu2013",544,"tir_18") Solkattu.Score.Solkattu2013.tir_18
+    , setLocation ("Solkattu.Score.Solkattu2013",119,"c_13_12_11") Solkattu.Score.Solkattu2013.c_13_12_11
+    , setLocation ("Solkattu.Score.Solkattu2013",157,"k1_1") Solkattu.Score.Solkattu2013.k1_1
+    , setLocation ("Solkattu.Score.Solkattu2013",174,"k1_2") Solkattu.Score.Solkattu2013.k1_2
+    , setLocation ("Solkattu.Score.Solkattu2013",187,"k1_3") Solkattu.Score.Solkattu2013.k1_3
+    , setLocation ("Solkattu.Score.Solkattu2013",221,"k3s") Solkattu.Score.Solkattu2013.k3s
+    , setLocation ("Solkattu.Score.Solkattu2013",266,"t1s") Solkattu.Score.Solkattu2013.t1s
+    , setLocation ("Solkattu.Score.Solkattu2013",286,"t2s") Solkattu.Score.Solkattu2013.t2s
+    , setLocation ("Solkattu.Score.Solkattu2013",316,"t3s") Solkattu.Score.Solkattu2013.t3s
+    , setLocation ("Solkattu.Score.Solkattu2013",350,"t4s2") Solkattu.Score.Solkattu2013.t4s2
+    , setLocation ("Solkattu.Score.Solkattu2013",375,"t4s3") Solkattu.Score.Solkattu2013.t4s3
+    , setLocation ("Solkattu.Score.Solkattu2013",398,"t5s") Solkattu.Score.Solkattu2013.t5s
+    , setLocation ("Solkattu.Score.Solkattu2013",451,"koraippu_misra_no_karvai") Solkattu.Score.Solkattu2013.koraippu_misra_no_karvai
+    , setLocation ("Solkattu.Score.Solkattu2013",494,"koraippu_misra") Solkattu.Score.Solkattu2013.koraippu_misra
+    , setLocation ("Solkattu.Score.Solkattu2013",532,"tir_18") Solkattu.Score.Solkattu2013.tir_18
     , setLocation ("Solkattu.Score.Solkattu2014",17,"c_14_01_01") Solkattu.Score.Solkattu2014.c_14_01_01
     , setLocation ("Solkattu.Score.Solkattu2014",42,"c_14_01_14") Solkattu.Score.Solkattu2014.c_14_01_14
     , setLocation ("Solkattu.Score.Solkattu2014",78,"c_14_02_05") Solkattu.Score.Solkattu2014.c_14_02_05
@@ -96,8 +96,8 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2014",181,"c_14_03_13") Solkattu.Score.Solkattu2014.c_14_03_13
     , setLocation ("Solkattu.Score.Solkattu2014",203,"c_14_03_26") Solkattu.Score.Solkattu2014.c_14_03_26
     , setLocation ("Solkattu.Score.Solkattu2014",230,"c_14_04_21") Solkattu.Score.Solkattu2014.c_14_04_21
-    , setLocation ("Solkattu.Score.Solkattu2014",248,"c_14_04_29") Solkattu.Score.Solkattu2014.c_14_04_29
-    , setLocation ("Solkattu.Score.Solkattu2014",284,"c_14_06_06") Solkattu.Score.Solkattu2014.c_14_06_06
+    , setLocation ("Solkattu.Score.Solkattu2014",247,"c_14_04_29") Solkattu.Score.Solkattu2014.c_14_04_29
+    , setLocation ("Solkattu.Score.Solkattu2014",283,"c_14_06_06") Solkattu.Score.Solkattu2014.c_14_06_06
     , setLocation ("Solkattu.Score.Solkattu2016",13,"c_16_09_28") Solkattu.Score.Solkattu2016.c_16_09_28
     , setLocation ("Solkattu.Score.Solkattu2016",39,"c_16_12_06_sriram1") Solkattu.Score.Solkattu2016.c_16_12_06_sriram1
     , setLocation ("Solkattu.Score.Solkattu2016",75,"c_16_12_06_sriram2") Solkattu.Score.Solkattu2016.c_16_12_06_sriram2
@@ -119,12 +119,12 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2017",333,"c_17_06_19") Solkattu.Score.Solkattu2017.c_17_06_19
     , setLocation ("Solkattu.Score.Solkattu2017",359,"c_17_06_19_koraippu") Solkattu.Score.Solkattu2017.c_17_06_19_koraippu
     , setLocation ("Solkattu.Score.Solkattu2017",384,"c_17_07_13") Solkattu.Score.Solkattu2017.c_17_07_13
-    , setLocation ("Solkattu.Score.Solkattu2017",478,"c_17_07_19") Solkattu.Score.Solkattu2017.c_17_07_19
-    , setLocation ("Solkattu.Score.Solkattu2017",491,"c_17_08_21") Solkattu.Score.Solkattu2017.c_17_08_21
-    , setLocation ("Solkattu.Score.Solkattu2017",513,"c_17_08_29") Solkattu.Score.Solkattu2017.c_17_08_29
-    , setLocation ("Solkattu.Score.Solkattu2017",576,"c_17_10_23") Solkattu.Score.Solkattu2017.c_17_10_23
-    , setLocation ("Solkattu.Score.Solkattu2017",636,"c_17_12_11") Solkattu.Score.Solkattu2017.c_17_12_11
-    , setLocation ("Solkattu.Score.Solkattu2017",656,"speaking1") Solkattu.Score.Solkattu2017.speaking1
+    , setLocation ("Solkattu.Score.Solkattu2017",477,"c_17_07_19") Solkattu.Score.Solkattu2017.c_17_07_19
+    , setLocation ("Solkattu.Score.Solkattu2017",490,"c_17_08_21") Solkattu.Score.Solkattu2017.c_17_08_21
+    , setLocation ("Solkattu.Score.Solkattu2017",512,"c_17_08_29") Solkattu.Score.Solkattu2017.c_17_08_29
+    , setLocation ("Solkattu.Score.Solkattu2017",575,"c_17_10_23") Solkattu.Score.Solkattu2017.c_17_10_23
+    , setLocation ("Solkattu.Score.Solkattu2017",635,"c_17_12_11") Solkattu.Score.Solkattu2017.c_17_12_11
+    , setLocation ("Solkattu.Score.Solkattu2017",655,"speaking1") Solkattu.Score.Solkattu2017.speaking1
     , setLocation ("Solkattu.Score.Solkattu2018",18,"yt_mannargudi1") Solkattu.Score.Solkattu2018.yt_mannargudi1
     , setLocation ("Solkattu.Score.Solkattu2018",49,"e_18_02_26") Solkattu.Score.Solkattu2018.e_18_02_26
     , setLocation ("Solkattu.Score.Solkattu2018",71,"yt_mannargudi2") Solkattu.Score.Solkattu2018.yt_mannargudi2
@@ -136,24 +136,24 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2018",329,"c_18_05_25") Solkattu.Score.Solkattu2018.c_18_05_25
     , setLocation ("Solkattu.Score.Solkattu2018",398,"misra_tani1") Solkattu.Score.Solkattu2018.misra_tani1
     , setLocation ("Solkattu.Score.Solkattu2018",417,"misra_tani2") Solkattu.Score.Solkattu2018.misra_tani2
-    , setLocation ("Solkattu.Score.Solkattu2018",443,"misra_to_mohra1a") Solkattu.Score.Solkattu2018.misra_to_mohra1a
-    , setLocation ("Solkattu.Score.Solkattu2018",468,"misra_to_mohra1b") Solkattu.Score.Solkattu2018.misra_to_mohra1b
-    , setLocation ("Solkattu.Score.Solkattu2018",516,"to_mohra_farans") Solkattu.Score.Solkattu2018.to_mohra_farans
-    , setLocation ("Solkattu.Score.Solkattu2018",547,"misra_to_mohra3") Solkattu.Score.Solkattu2018.misra_to_mohra3
-    , setLocation ("Solkattu.Score.Solkattu2018",566,"misra_to_mohra4") Solkattu.Score.Solkattu2018.misra_to_mohra4
-    , setLocation ("Solkattu.Score.Solkattu2018",598,"misra_mohras") Solkattu.Score.Solkattu2018.misra_mohras
-    , setLocation ("Solkattu.Score.Solkattu2018",624,"misra_muktayi1") Solkattu.Score.Solkattu2018.misra_muktayi1
-    , setLocation ("Solkattu.Score.Solkattu2018",648,"trikalam1") Solkattu.Score.Solkattu2018.trikalam1
-    , setLocation ("Solkattu.Score.Solkattu2018",667,"trikalam2") Solkattu.Score.Solkattu2018.trikalam2
-    , setLocation ("Solkattu.Score.Solkattu2018",679,"e_sarva1") Solkattu.Score.Solkattu2018.e_sarva1
-    , setLocation ("Solkattu.Score.Solkattu2018",690,"e_sarva2") Solkattu.Score.Solkattu2018.e_sarva2
-    , setLocation ("Solkattu.Score.Solkattu2018",706,"e_misra_tisra") Solkattu.Score.Solkattu2018.e_misra_tisra
-    , setLocation ("Solkattu.Score.Solkattu2018",731,"adi_tani1") Solkattu.Score.Solkattu2018.adi_tani1
-    , setLocation ("Solkattu.Score.Solkattu2018",784,"e_sarva1_tisra") Solkattu.Score.Solkattu2018.e_sarva1_tisra
-    , setLocation ("Solkattu.Score.Solkattu2018",806,"e_adi_tisra") Solkattu.Score.Solkattu2018.e_adi_tisra
-    , setLocation ("Solkattu.Score.Solkattu2018",857,"c_18_08_03") Solkattu.Score.Solkattu2018.c_18_08_03
-    , setLocation ("Solkattu.Score.Solkattu2018",873,"adi_tani2") Solkattu.Score.Solkattu2018.adi_tani2
-    , setLocation ("Solkattu.Score.Solkattu2018",907,"adi_muktayi") Solkattu.Score.Solkattu2018.adi_muktayi
+    , setLocation ("Solkattu.Score.Solkattu2018",442,"misra_to_mohra1a") Solkattu.Score.Solkattu2018.misra_to_mohra1a
+    , setLocation ("Solkattu.Score.Solkattu2018",467,"misra_to_mohra1b") Solkattu.Score.Solkattu2018.misra_to_mohra1b
+    , setLocation ("Solkattu.Score.Solkattu2018",515,"to_mohra_farans") Solkattu.Score.Solkattu2018.to_mohra_farans
+    , setLocation ("Solkattu.Score.Solkattu2018",546,"misra_to_mohra3") Solkattu.Score.Solkattu2018.misra_to_mohra3
+    , setLocation ("Solkattu.Score.Solkattu2018",565,"misra_to_mohra4") Solkattu.Score.Solkattu2018.misra_to_mohra4
+    , setLocation ("Solkattu.Score.Solkattu2018",597,"misra_mohras") Solkattu.Score.Solkattu2018.misra_mohras
+    , setLocation ("Solkattu.Score.Solkattu2018",623,"misra_muktayi1") Solkattu.Score.Solkattu2018.misra_muktayi1
+    , setLocation ("Solkattu.Score.Solkattu2018",647,"trikalam1") Solkattu.Score.Solkattu2018.trikalam1
+    , setLocation ("Solkattu.Score.Solkattu2018",666,"trikalam2") Solkattu.Score.Solkattu2018.trikalam2
+    , setLocation ("Solkattu.Score.Solkattu2018",678,"e_sarva1") Solkattu.Score.Solkattu2018.e_sarva1
+    , setLocation ("Solkattu.Score.Solkattu2018",689,"e_sarva2") Solkattu.Score.Solkattu2018.e_sarva2
+    , setLocation ("Solkattu.Score.Solkattu2018",705,"e_misra_tisra") Solkattu.Score.Solkattu2018.e_misra_tisra
+    , setLocation ("Solkattu.Score.Solkattu2018",730,"adi_tani1") Solkattu.Score.Solkattu2018.adi_tani1
+    , setLocation ("Solkattu.Score.Solkattu2018",783,"e_sarva1_tisra") Solkattu.Score.Solkattu2018.e_sarva1_tisra
+    , setLocation ("Solkattu.Score.Solkattu2018",805,"e_adi_tisra") Solkattu.Score.Solkattu2018.e_adi_tisra
+    , setLocation ("Solkattu.Score.Solkattu2018",858,"c_18_08_03") Solkattu.Score.Solkattu2018.c_18_08_03
+    , setLocation ("Solkattu.Score.Solkattu2018",874,"adi_tani2") Solkattu.Score.Solkattu2018.adi_tani2
+    , setLocation ("Solkattu.Score.Solkattu2018",908,"adi_muktayi") Solkattu.Score.Solkattu2018.adi_muktayi
     , setLocation ("Solkattu.Score.SolkattuMohra",54,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",71,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",89,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube

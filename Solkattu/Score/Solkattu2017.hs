@@ -457,7 +457,6 @@ c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
         , (taka, [p, a])
         , (taka.din, [p, lt a, a])
         , (din.na, [a, p])
-        , (na, [p])
 
         , (tat.tat.din, [o, o, a])
         , (din.tat.tat, [a, o, o])
