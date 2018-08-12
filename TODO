@@ -3938,11 +3938,13 @@ solkattu:
       representation.
     . Still, I could make it easier with tools, see StrokeMap:
   StrokeMap:
-    - ensure that later entries in the StrokeMap override earlier ones
-    - analyze for unused StrokeMap entries, or overidden ones
+    * ensure that later entries in the StrokeMap override earlier ones
+    * analyze for overidden StrokeMap entries
       . I'll need a way to mark "standard library", where it's fine if they're
         not used, or overidden.
-    - Lint to show unmatched stroke sequences.
+    - analyze for unused StrokeMap entries
+      . I have to have Realize.realize record which SolluKeys matched
+    - put analyses in the tests?
     - Diff to compare realizations before and after I change the
       stroke map.
       . How can I keep them both around?  If I do it at the haskell

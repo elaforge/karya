@@ -346,7 +346,7 @@ formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
 formatLines = Terminal.formatLines
 
 strokeMap :: Realize.SolluMap M.Stroke
-strokeMap = expect_right $ Realize.solluMap
+strokeMap = fst $ expect_right $ Realize.solluMap
     [ (thom, [o])
     ]
     where M.Strokes {..} = M.notes

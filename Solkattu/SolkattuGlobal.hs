@@ -23,6 +23,8 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
+import Global
+
 
 Mridangam.Strokes {..} = Mridangam.notes
 
@@ -109,6 +111,10 @@ makeMridangam0 strokes = mempty
         Realize.patternKeys Mridangam.defaultPatterns ++ strokes
     }
 
+-- | Show shadowed strokes in the stroke map.
+lintM :: Korvai.Korvai -> [Text]
+lintM = lintInst _mridangamStrokes Korvai.smapMridangam
+
 makeKendang1 :: CallStack.Stack => StrokeMap KendangTunggal.Stroke
     -> Korvai.StrokeMaps
 makeKendang1 strokes = mempty
@@ -117,15 +123,24 @@ makeKendang1 strokes = mempty
             ++ strokes
     }
 
+lintK1 :: Korvai -> [Text]
+lintK1 = lintInst _kendangStrokes Korvai.smapKendangTunggal
+
 makeReyong :: CallStack.Stack => StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 makeReyong strokes = mempty
     { Korvai.smapReyong = check $ Realize.strokeMap $
         Realize.patternKeys Reyong.rhythmicPatterns ++ _reyongStrokes ++ strokes
     }
 
+lintR :: Korvai -> [Text]
+lintR = lintInst _reyongStrokes Korvai.smapReyong
+
 makeSargam :: CallStack.Stack => StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
 makeSargam strokes = mempty
     { Korvai.smapSargam = check $ Realize.strokeMap strokes }
+
+lintS :: Korvai -> [Text]
+lintS = lintInst [] Korvai.smapSargam
 
 korvai :: Tala.Tala -> Korvai.StrokeMaps -> [Section] -> Korvai
 korvai = Korvai.korvai
@@ -138,6 +153,11 @@ korvaiS = Korvai.korvaiInferSections
 
 korvaiS1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
 korvaiS1 tala smaps seq = korvaiS tala smaps [seq]
+
+lintInst :: Pretty stroke => StrokeMap stroke
+    -> (Korvai.StrokeMaps -> Realize.StrokeMap stroke) -> Korvai -> [Text]
+lintInst okStrokes inst korvai = Realize.shadowedSollus okStrokes $
+    inst $ Korvai.korvaiStrokeMaps korvai
 
 -- | 'makeMridangam' gives this to all mridangam stroke maps.
 _mridangamStrokes :: [(Sequence, [Mridangam.SNote])]

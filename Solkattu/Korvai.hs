@@ -96,10 +96,7 @@ mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
 mridangamKorvai tala pmap sections = Korvai
     { korvaiSections = Mridangam sections
     , korvaiStrokeMaps = mempty
-        { smapMridangam = Realize.StrokeMap
-            { smapSolluMap = mempty
-            , smapPatternMap = pmap
-            }
+        { smapMridangam = mempty { Realize.smapPatternMap = pmap }
         }
     , korvaiTala = tala
     , korvaiMetadata = mempty
@@ -215,10 +212,8 @@ mridangam = defaultInstrument
 konnakol :: Instrument Solkattu.Sollu
 konnakol = defaultInstrument
     { instFromSollu = const Realize.realizeSimpleStroke
-    , instFromStrokes = const $ Realize.StrokeMap
-        { smapSolluMap = mempty
-        , smapPatternMap = Konnakol.defaultPatterns
-        }
+    , instFromStrokes = const $
+        mempty { Realize.smapPatternMap = Konnakol.defaultPatterns }
     }
 
 kendangTunggal :: Instrument KendangTunggal.Stroke
