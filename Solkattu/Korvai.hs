@@ -16,7 +16,6 @@ import qualified Data.Time.Calendar as Calendar
 import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.Expr as Expr
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal

@@ -35,8 +35,9 @@ freeze global cabalFile freezeFile = do
 getGlobalPackags :: IO [Text]
 getGlobalPackags =
     map (Text.dropWhileEnd (=='-') . Text.dropWhileEnd (/='-') . Text.strip)
-        . drop 1 . Text.lines . Text.pack
-        <$> Process.readProcess "ghc-pkg" ["list", "--global"] ""
+        . Text.words . Text.pack
+        <$> Process.readProcess "ghc-pkg"
+            ["list", "--global", "--simple-output"] ""
 
 parseConstraints :: [Text] -> [(Text, Text)]
 parseConstraints [] = []

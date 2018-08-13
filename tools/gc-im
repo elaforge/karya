@@ -1,0 +1,11 @@
+#!/usr/bin/python
+
+import os, time
+
+age = 24 * 60
+now = time.time()
+
+for dir, _subdirs, fnames in os.walk('im/cache'):
+    for fn in (os.path.join(dir, fn) for fn in fnames):
+        if now - os.path.getmtime(fn) > age:
+            print fn
