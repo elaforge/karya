@@ -344,12 +344,13 @@ spaces nadai dur = do
 -- | Show the shadowed strokes, except an ok set.  It's ok to shadow the
 -- builtins.
 lint :: Pretty stroke => Instrument stroke -> [Sequence] -> Korvai -> Text
-lint inst defaultStrokes korvai = TextUtil.joinWith "\n"
-    (if null shadowed then ""
-        else Text.intercalate "\n" $ "shadowed:" : map prettyPair shadowed)
-    (if Set.null unmatched then ""
+lint inst defaultStrokes korvai = Text.unlines $ filter (not . Text.null)
+    [ if null shadowed then ""
+        else Text.intercalate "\n" $ "shadowed:" : map prettyPair shadowed
+    , if Set.null unmatched then ""
         else Text.intercalate "\n" $ "unmatched:"
-            : map Realize.prettyKey (Set.toList unmatched))
+            : map Realize.prettyKey (Set.toList unmatched)
+    ]
     where
     shadowed = filter ((`Set.notMember` defaultKeys) . fst) $
         Realize.smapSolluShadows smap

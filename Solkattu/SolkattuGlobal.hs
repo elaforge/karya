@@ -16,6 +16,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
+import qualified Solkattu.Format.Html as Html
+import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Reyong as Reyong
@@ -114,6 +116,49 @@ makeMridangam0 strokes = mempty
     { Korvai.smapMridangam = check $ Realize.strokeMap $
         Realize.patternKeys Mridangam.defaultPatterns ++ strokes
     }
+
+-- * interactive utilities
+
+-- ** realize
+
+index :: Int -> Korvai -> Korvai
+index i korvai = case Korvai.korvaiSections korvai of
+    Korvai.Mridangam sections ->
+        korvai { Korvai.korvaiSections = Korvai.Mridangam [sections !! i] }
+    Korvai.Sollu sections ->
+        korvai { Korvai.korvaiSections = Korvai.Sollu [sections !! i] }
+
+realize, realizep :: Korvai.Korvai -> IO ()
+realize = realizeM None
+realizep = realizeM Patterns
+
+realizeM :: Abstraction -> Korvai.Korvai -> IO ()
+realizeM = _printInstrument Korvai.mridangam
+
+realizeK1 :: Abstraction -> Korvai.Korvai -> IO ()
+realizeK1 = _printInstrument Korvai.kendangTunggal
+
+realizeR :: Abstraction -> Korvai.Korvai -> IO ()
+realizeR = _printInstrument Korvai.reyong
+
+realizeSargam :: Abstraction -> Korvai.Korvai -> IO ()
+realizeSargam = _printInstrument Korvai.sargam
+
+realizeKon :: Int -> Korvai -> IO ()
+realizeKon width = Terminal.printKonnakol width Patterns
+
+htmlWriteAll :: FilePath -> Abstraction -> Korvai -> IO ()
+htmlWriteAll = Html.writeAll
+
+_printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
+    -> Abstraction -> Korvai -> IO ()
+_printInstrument inst abstraction korvai = do
+    Terminal.printInstrument inst abstraction korvai
+    Text.IO.putStr $ Korvai.lint inst (get (Korvai.instName inst)) korvai
+    where
+    get name = Map.findWithDefault [] name _instrumentDefaultStrokes
+
+-- ** lint
 
 -- | Show shadowed strokes in the stroke map.
 lintM :: Korvai.Korvai -> IO ()

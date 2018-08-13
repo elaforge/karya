@@ -36,14 +36,9 @@ module Solkattu.Dsl (
     , (&)
     -- * misc
     , pprint
-    -- * realize
-    , index
-    , realize, realizep
-    , realizeM, realizeK1, realizeR, realizeSargam, realizeKon
     -- * talam
     , beats
     , adi
-    , htmlWriteAll
     -- * conveniences
     , ganesh, janahan, sriram, sudhindra
     , Pretty -- signatures wind up being Pretty sollu => ...
@@ -55,10 +50,7 @@ import qualified Data.Monoid as Monoid
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import Solkattu.Format.Format (Abstraction(..))
-import qualified Solkattu.Format.Html as Html
-import qualified Solkattu.Format.Terminal as Terminal
 import Solkattu.Instrument.Mridangam ((&))
-import qualified Solkattu.Korvai as Korvai
 import Solkattu.Korvai (Korvai, section, smap)
 import Solkattu.Part (Part(..), Index(..), realizeParts)
 import qualified Solkattu.Realize as Realize
@@ -158,38 +150,6 @@ p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
 nakatiku :: SequenceT sollu
 nakatiku = makeNote $ Solkattu.Pattern Solkattu.nakatiku
-
-
--- * realize util
-
-index :: Int -> Korvai -> Korvai
-index i korvai = case Korvai.korvaiSections korvai of
-    Korvai.Mridangam sections ->
-        korvai { Korvai.korvaiSections = Korvai.Mridangam [sections !! i] }
-    Korvai.Sollu sections ->
-        korvai { Korvai.korvaiSections = Korvai.Sollu [sections !! i] }
-
-realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM None
-realizep = realizeM Patterns
-
-realizeM :: Abstraction -> Korvai.Korvai -> IO ()
-realizeM = Terminal.printInstrument Korvai.mridangam
-
-realizeK1 :: Abstraction -> Korvai.Korvai -> IO ()
-realizeK1 = Terminal.printInstrument Korvai.kendangTunggal
-
-realizeR :: Abstraction -> Korvai.Korvai -> IO ()
-realizeR = Terminal.printInstrument Korvai.reyong
-
-realizeSargam :: Abstraction -> Korvai.Korvai -> IO ()
-realizeSargam = Terminal.printInstrument Korvai.sargam
-
-realizeKon :: Int -> Korvai -> IO ()
-realizeKon width = Terminal.printKonnakol width Patterns
-
-htmlWriteAll :: FilePath -> Abstraction -> Korvai -> IO ()
-htmlWriteAll = Html.writeAll
 
 
 -- * talam
