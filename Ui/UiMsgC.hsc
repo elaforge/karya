@@ -93,7 +93,13 @@ peek_event msgp = do
     text <- (#peek UiMsg, event.text) msgp :: IO CChar
     modifier_state <- (#peek UiMsg, event.modifier_state) msgp :: IO CInt
     is_repeat <- toBool <$> ((#peek UiMsg, event.is_repeat) msgp :: IO CChar)
-    let mouse state = UiMsg.Mouse state mods (x, y) clicks is_click
+    let mouse state = UiMsg.Mouse $ UiMsg.MouseEvent
+            { mouse_state = state
+            , mouse_modifiers = mods
+            , mouse_coords = (x, y)
+            , mouse_clicks = clicks
+            , mouse_is_click = is_click
+            }
         mods = Key.decode_modifiers modifier_state
         key = Key.decode_key key_code
         kbd state = UiMsg.Kbd state mods key $ if text == 0 then Nothing

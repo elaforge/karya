@@ -77,14 +77,7 @@ data UiUpdate =
 
 -- | MsgType.msg_event, which is a fltk event.
 data MsgEvent =
-    Mouse
-        { mouse_state :: MouseState
-        , mouse_modifiers :: [Key.Modifier]
-        , mouse_coords :: (Int, Int)
-        -- | As per fltk, 0 is the first click, 1 is a double click, etc.
-        , mouse_clicks :: Int
-        , mouse_is_click :: Bool
-        }
+    Mouse !MouseEvent
     -- | The Char is the text that this key wants to enter, if any.  They Key
     -- is just the keycap, without taking shift into account.
     | Kbd KbdState [Key.Modifier] Key.Key (Maybe Char)
@@ -95,6 +88,15 @@ data MsgEvent =
     -- only for cmd_record_keys.  All the rest should use Cmd.state_keys_down.
     -- TODO maybe this should move to MsgEvent so FOCUS can update the
     -- modifiers?  Doesn't matter as long as fltk doesn't support it.
+
+data MouseEvent = MouseEvent
+    { mouse_state :: !MouseState
+    , mouse_modifiers :: ![Key.Modifier]
+    , mouse_coords :: !(Int, Int)
+    -- | As per fltk, 0 is the first click, 1 is a double click, etc.
+    , mouse_clicks :: !Int
+    , mouse_is_click :: !Bool
+    } deriving (Eq, Ord, Show)
 
 -- | Most of these are unused, but are included here for completeness.
 data AuxMsg = Enter | Leave | Focus | Unfocus | Shortcut | Deactivate
@@ -110,7 +112,7 @@ data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
 show_short :: UiMsg -> Text
 show_short = \case
     UiMsg _ctx (MsgEvent mdata) -> case mdata of
-        Mouse mstate _mods _coords _clicks _is_click -> showt mstate
+        Mouse (MouseEvent { mouse_state = state }) -> showt state
         Kbd kstate mods key _maybe_char -> mconcat $ concat
             [ map ((<>"+") . showt) mods
             , [pretty key]
@@ -130,10 +132,7 @@ show_short = \case
 instance Pretty UiMsg where
     pretty ui_msg = case ui_msg of
         UiMsg ctx (MsgEvent mdata) -> case mdata of
-            Mouse mstate mods coords clicks is_click -> Text.unwords
-                [ "Mouse:", showt mstate, showt mods, showt coords, pretty ctx
-                , "click:", showt is_click, showt clicks
-                ]
+            Mouse mouse -> Text.unwords [pretty mouse, pretty ctx]
             Kbd kstate mods key maybe_char -> Text.unwords
                 [ "Kbd:", showt kstate, showt mods, showt key
                 , maybe "" (\c -> "(" <> Text.singleton c <> ") ") maybe_char
@@ -142,6 +141,12 @@ instance Pretty UiMsg where
             AuxMsg msg -> Text.unwords ["Aux:", showt msg, pretty ctx]
             Unhandled x -> "Unhandled: " <> showt x
         UiMsg ctx msg -> Text.unwords [showt msg, pretty ctx]
+
+instance Pretty MouseEvent where
+    pretty (MouseEvent mstate mods coords clicks is_click) = Text.unwords
+        [ "Mouse:", showt mstate, showt mods, showt coords
+        , "click:", showt is_click, showt clicks
+        ]
 
 instance Pretty Context where
     pretty (Context focus track floating_input) = "{" <> contents <> "}"

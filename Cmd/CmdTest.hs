@@ -388,14 +388,15 @@ backspace = make_key UiMsg.KeyDown Key.Backspace
 
 mouse :: Bool -> Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg
 mouse down btn track pos = Msg.Ui $ UiMsg.UiMsg context $
-    UiMsg.MsgEvent (UiMsg.Mouse state [] (42, 2) 0 True)
+    UiMsg.MsgEvent $ UiMsg.Mouse $ UiMsg.MouseEvent state [] (42, 2) 0 True
     where
     state = if down then UiMsg.MouseDown btn else UiMsg.MouseUp btn
     context = empty_context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) }
 
 drag :: Types.MouseButton -> TrackNum -> ScoreTime -> Msg.Msg
 drag btn track pos = Msg.Ui $ UiMsg.UiMsg context $
-    UiMsg.MsgEvent (UiMsg.Mouse (UiMsg.MouseDrag btn) [] (42, 2) 0 False)
+    UiMsg.MsgEvent $ UiMsg.Mouse $
+        UiMsg.MouseEvent (UiMsg.MouseDrag btn) [] (42, 2) 0 False
     where
     context = empty_context { UiMsg.ctx_track = Just (track, UiMsg.Track pos) }
 

@@ -3751,7 +3751,7 @@ REPL: repl:
 
 solkattu:
   * rename xFmatra to xFMatra
-  - S.Flat is not in fact flat.  Only the tempo has been flattened out, not
+  / S.Flat is not in fact flat.  Only the tempo has been flattened out, not
     groups.  It needs a better name.
   * single letter patterns for fast patterns, e.g.
     . trkt = su (tari.kita) = ktpk

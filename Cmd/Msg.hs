@@ -164,14 +164,14 @@ instance Pretty Performance where
 -- to read cases, use the view functions here.  They can be conveniently used
 -- with the ViewPatterns feature.
 
-mouse :: Msg -> Maybe UiMsg.MsgEvent
-mouse (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent mouse@(UiMsg.Mouse {})))) =
+mouse :: Msg -> Maybe UiMsg.MouseEvent
+mouse (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Mouse mouse)))) =
     Just mouse
 mouse _ = Nothing
 
 mouse_down :: Msg -> Bool
 mouse_down msg = case mouse msg of
-    Just (UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown _ }) -> True
+    Just (UiMsg.MouseEvent { UiMsg.mouse_state = UiMsg.MouseDown _ }) -> True
     _ -> False
 
 key :: Msg -> Maybe (UiMsg.KbdState, Key.Key)

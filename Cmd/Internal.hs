@@ -102,7 +102,8 @@ msg_to_key_mods :: Msg.Msg -> Maybe [Key.Modifier]
 msg_to_key_mods msg = case msg of
     Msg.Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent evt)) -> case evt of
         UiMsg.Kbd _ mods _ _ -> Just mods
-        UiMsg.Mouse { UiMsg.mouse_modifiers = mods } -> Just mods
+        UiMsg.Mouse (UiMsg.MouseEvent { UiMsg.mouse_modifiers = mods }) ->
+            Just mods
         _ -> Nothing
     _ -> Nothing
 
@@ -114,9 +115,11 @@ msg_to_mod msg = case msg of
             UiMsg.KeyDown -> Just (True, Nothing)
             UiMsg.KeyUp -> Just (False, Nothing)
             _ -> Nothing
-        UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseDown btn } ->
+        UiMsg.Mouse (UiMsg.MouseEvent
+                { UiMsg.mouse_state = UiMsg.MouseDown btn }) ->
             Just (True, Just $ Cmd.MouseMod btn (UiMsg.ctx_track context))
-        UiMsg.Mouse { UiMsg.mouse_state = UiMsg.MouseUp btn } ->
+        UiMsg.Mouse (UiMsg.MouseEvent
+                { UiMsg.mouse_state = UiMsg.MouseUp btn }) ->
             Just (False, Just $ Cmd.MouseMod btn (UiMsg.ctx_track context))
         _ -> Nothing
     Msg.Midi (Midi.ReadMessage { Midi.rmsg_msg = msg }) -> case msg of
