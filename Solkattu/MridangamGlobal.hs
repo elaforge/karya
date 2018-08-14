@@ -23,6 +23,7 @@ import qualified Solkattu.MridangamNotation as MridangamNotation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
 
@@ -115,3 +116,12 @@ pk = p.k
 takadinna, kook :: Sequence
 takadinna = k.o.o.k
 kook = k.o.o.k
+
+-- * interactive utilities
+
+realize, realizep :: Korvai.Korvai -> IO ()
+realize = realizeM None
+realizep = realizeM Patterns
+
+realizeM :: Abstraction -> Korvai.Korvai -> IO ()
+realizeM = SolkattuGlobal._printInstrument Korvai.mridangam
