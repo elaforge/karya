@@ -6,6 +6,8 @@
 -- | Convert realized 'S.Flat' output to text for the terminal.
 module Solkattu.Format.Terminal (
     writeAll, printInstrument, printKonnakol
+    , Config(..), defaultConfig
+    , formatInstrument
 #ifdef TESTING
     , module Solkattu.Format.Terminal
 #endif

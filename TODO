@@ -3804,6 +3804,23 @@ solkattu:
       do things like display diffs.
     . I could do this with a ghci macro.  Call writeText, write to
       ../data/solkattu-text, and use git diff to see differences.
+    * Diff to compare realizations before and after I change the
+      stroke map.
+      . How can I keep them both around?  If I do it at the haskell
+        level, I have to copy the stroke map, and then have multiple
+        stroke maps for the same instrument, and then diff between
+        them.  This might be useful in general to highlight different
+        players style.
+      . If I do it at the ghci level, I'd have to somehow stash the
+        previous previous Korvai or realize output someplace that
+        survives a reload, like write a file.  Then add a function to
+        do a text diff with the file contents.
+    - clear when switching to a different korvai
+    - :k macro:
+      . save korvai variable or get last one
+      . make a tmp git dir, if it doesn't exist
+      . commit in git dir
+      . writeText to the git dir, :kdiff will diff changes
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
@@ -3875,8 +3892,6 @@ solkattu:
           rests every other column.  I think what I really want is that at
           strokeWidth=1, '__' becomes '_ ' and '____' becomes '‗   '.
         . Do I have to do the same _| thing with double rest?
-      - something is cutting off the first letter in
-        solkattu-text/Solkattu.Score.Solkattu2018.misra_to_mohra3.txt
       * strip rests after the end-on-sam stroke so it winds up on the same line
         . Didn't it used to do this?
       * show some tags after sections, e.g. x2 and type
@@ -3903,7 +3918,7 @@ solkattu:
       * Colors stop right before the last note, not on it.
         . It's probably because I need to highlight the end of the group.  Can
           I use lighter gray?
-      - If groups touch each other then I can't tell them apart.  Maybe
+      / If groups touch each other then I can't tell them apart.  Maybe
         I should alternate two colors.
     / Solkattu.notation should output an abstract formatted output, which can
       be rendered to HTML or ASCII.
@@ -3950,17 +3965,6 @@ solkattu:
     * put analyses in the tests?
     * except Solkattu2017.c_17_07_13 is a false positive, taka is indeed used
       . Maybe it's confused by the 1^taka?
-    - Diff to compare realizations before and after I change the
-      stroke map.
-      . How can I keep them both around?  If I do it at the haskell
-        level, I have to copy the stroke map, and then have multiple
-        stroke maps for the same instrument, and then diff between
-        them.  This might be useful in general to highlight different
-        players style.
-      . If I do it at the ghci level, I'd have to somehow stash the
-        previous previous Korvai or realize output someplace that
-        survives a reload, like write a file.  Then add a function to
-        do a text diff with the file contents.
   / Final notes should be cancellable, so e.g. tri will cancel for the
     first two.
     . E.g. tri (taka.tam.__) is ok when it's at the end, but when I nest

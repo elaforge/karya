@@ -8,6 +8,7 @@ module Solkattu.SolkattuGlobal (
     module Solkattu.SolkattuGlobal
     , module Solkattu.Dsl
     , module Solkattu.DslSollu
+    , module Solkattu.Interactive
 ) where
 import Prelude hiding ((.), (^))
 import qualified Data.List as List
@@ -22,6 +23,8 @@ import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
+import qualified Solkattu.Interactive as Interactive
+import Solkattu.Interactive (diff, diffw)
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
@@ -152,11 +155,9 @@ htmlWriteAll = Html.writeAll
 
 _printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Abstraction -> Korvai -> IO ()
-_printInstrument inst abstraction korvai = do
-    Terminal.printInstrument inst abstraction korvai
-    Text.IO.putStr $ Korvai.lint inst (get (Korvai.instName inst)) korvai
-    where
-    get name = Map.findWithDefault [] name _instrumentDefaultStrokes
+_printInstrument inst =
+    Interactive.printInstrument inst (get (Korvai.instName inst))
+    where get name = Map.findWithDefault [] name _instrumentDefaultStrokes
 
 -- ** lint
 
