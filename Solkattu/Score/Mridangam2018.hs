@@ -53,6 +53,7 @@ e_18_05_25 = exercise $ date 2018 5 25 $ ganesh $ korvai adi $ variations
     , repeat 2 ktkt . k.k.t.k . k.o.o.k . od.o.o.u.__.o.o.u.__.o.o.u.__.o.o.k
     ]
 
+tir_18_05_25 :: Korvai
 tir_18_05_25 = tirmanam $ date 2018 5 25 $ ganesh $ korvaiS1 Tala.misra_chapu $
     __sam Tala.misra_chapu $
         kt.__.k.__.k.__.o.__.o.k.o . tri_ (od.__.p.k.t.k.o) (o.k.o.o.k)

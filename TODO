@@ -4137,6 +4137,23 @@ solkattu:
         . Can I have sandi not make a group when it drops?
         . I can, but I might need it for matching?  Maybe I should have
           non-highlighting groups.
+    - used named groups instead of named patterns
+      . E.g. takadugutarikita or tarikita.takataka are set in SolkattuGlobal,
+        but nakatiku is set in patterns and Instrument/*
+      . Why not use named patterrns though?
+      . Patterns are abstracted, but I could abstract by name, for both
+        pattern and group.
+      . Patterns go in Instrument/* and PatternMap, and the strokes have
+        rhythm, while sollus go in SolkattuGlobal and the rhythm is on the
+        sollus.
+      . Patterns have an arbitrary konnakol realization, but sollus reuse
+        sollus for konnakol.  Actually for standard patterns konnakol varies.
+        I could get this with sollus by supporting sollu map for konnakol too,
+        just default to reusing the sollu when not found.
+      . I could even do generic duration patterns in sollus with
+        replicate n NoSollu.  Pattern seems a bit nicer though, but if it
+        means I can completely get rid of patterns it might be worth it.
+      . Ok, first extend groups for nakatiku at least, then see.
     - preserve group name, and abstract groups by name
       . what's an example when I would want to do this?
       . if nakatiku becomes a group, it has sollus, which can be

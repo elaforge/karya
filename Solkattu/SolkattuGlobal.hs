@@ -101,6 +101,17 @@ oknp, ktktoknp :: Sequence
 oknp = Solkattu.Standard ^ tarikita
 ktktoknp = Solkattu.Standard ^ (tarikita.taka.taka)
 
+takadugutarikita :: Sequence
+takadugutarikita = Solkattu.Standard ^ (taka.dugu.tarikita)
+    -- TODO name 4t
+
+-- takadugutarikita :: Sequence
+-- takadugutarikita = Solkattu.Standard ^ su (taka.dugu.tarikita)
+-- takadugutarikita = PatternM (Just "4t") 8
+
+-- nakatiku :: Pattern
+-- nakatiku = PatternM (Just "4n") 8
+
 -- * instruments
 
 on :: Mridangam.SNote
@@ -232,6 +243,7 @@ _mridangamStrokes =
     , (kpnp, [k, p, n, p])
     , (oknp, [o, k, n, p]) -- fast version: pktp
     , (ktktoknp, [k, t, k, t, o, k, n, p])
+    , (takadugutarikita, [t, k, o, o, k, t, p, k])
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
 
@@ -247,6 +259,7 @@ _kendangStrokes =
     , (kpnp, [p, k, t, k])
     , (oknp, [a, k, t, o])
     , (ktktoknp, [k, p, k, p, a, k, t, o])
+    , (takadugutarikita, [k, p, a, a, k, p, k, t])
     ]
     where KendangTunggal.Strokes {..} = KendangTunggal.notes
 

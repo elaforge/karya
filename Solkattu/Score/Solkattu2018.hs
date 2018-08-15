@@ -403,23 +403,29 @@ misra_tani =
     ]
 
 misra_tani1 :: Korvai
-misra_tani1 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
+misra_tani1 = date 2018 7 16 $ sudhindra $
+    korvai Tala.misra_chapu (mridangam<>kendang)
     [ x2 $ section $ sd2 $
         tam.__3.tam.__.tam.__
       . tam.__3.tam.__.su (taka.jonu)
     , section $ sd2 $
         na.din.na.na.din.din.na.din.__n 7
         . na.din.na.su (na.na).din.din.na.din.__n 7
-    , section $ (7*4) ==> (ta.takita.takadinna)
+    , section $ (7*4) ==> takadugutarikita
     ]
     where
     mridangam = makeMridangam
-        [ (ta.takita.takadinna, [t, k, o, o, k, t, p, k])
-        , (tam, [p&v])
+        [ (tam, [p&v])
         , (taka.jonu, [k, o, o, k])
         , (na, [on])
         , (din, [od])
         ]
+    kendang = makeKendang1
+        [ (tam, [a])
+        , (taka.jonu, [p, a, o, p])
+        , (na, [t])
+        , (din, [a])
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_tani2 :: Korvai
 misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
@@ -431,8 +437,7 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
     , x4 $ section $ taka.taka . sd tatadin_ . taka.taka.din.__4 . sd tatadin_
     , x4 $ section $ taka.taka . sd tatadin_ . repeat 2 (taka.taka.din.__4)
     , x3 $ section $ taka.taka.taka.taka.din.__4 . repeat 2 (taka.taka.din.__4)
-    , ending $ tri (taka.taka.din.__4)
-        . tri_ (din.__4) (ta.ta.kita.takadinna)
+    , ending $ tri (taka.taka.din.__4) . tri_ (din.__4) takadugutarikita
     ]
     where
     tatadin_ = ta.ta.din.__
@@ -441,8 +446,6 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
         , (ta.ta.din, [on, on, od])
         , (taka.taka, [o&j, y, o&j, y])
         , (din, [od])
-        -- TODO standard pattern
-        , (ta.ta.kita.takadinna, [t, k, o, o, k, t, o, k])
         ]
 
 -- abhipriyam (telugu) -> thoughts
