@@ -48,13 +48,20 @@ printInstrument inst defaultStrokes abstraction korvai = do
         (commit gitRepo >> write)
         (createRepo gitRepo >> write >> commit gitRepo)
 
--- TODO drop first 5 lines
+-- | Line-oriented diff against the previous realize.
 diff :: IO ()
-diff = callCwd gitRepo "git" ["diff", "--unified=100"]
+diff = mapM_ putStrLn . drop 5 . lines
+    =<< readCwd gitRepo "git" diffArgs
+    -- The first 5 lines are diff hunk metadata that I don't care about.
 
+-- | Word-oriented diff against the previous realize.
 diffw :: IO ()
-diffw = callCwd gitRepo "git"
-    ["diff", "--unified=40", "--word-diff", "--word-diff-regex=."]
+diffw = mapM_ putStrLn . drop 5 . lines
+    =<< readCwd gitRepo "git"
+        (diffArgs ++ ["--word-diff", "--word-diff-regex=."])
+
+diffArgs :: [String]
+diffArgs = ["diff", "--unified=100", "--color=always"]
 
 korvaiPath :: FilePath
 korvaiPath = "korvai.txt"
@@ -68,7 +75,7 @@ createRepo dir = do
 
 commit :: FilePath -> IO ()
 commit dir =
-    readCwd dir "git" ["commit", "--quiet", "-m", "update", korvaiPath]
+    void $ readCwd dir "git" ["commit", "--quiet", "-m", "update", korvaiPath]
 
 resolveName :: String -> IO String
 resolveName name
@@ -79,11 +86,11 @@ resolveName name
 saveName :: String -> IO ()
 saveName = writeFile (gitRepo </> "korvai")
 
-readCwd :: FilePath -> FilePath -> [String] -> IO ()
+readCwd :: FilePath -> FilePath -> [String] -> IO String
 readCwd cwd cmd args = do
-    (_, _stdout, _stderr) <- Process.readCreateProcessWithExitCode
+    (_, stdout, _stderr) <- Process.readCreateProcessWithExitCode
         ((Process.proc cmd args) { Process.cwd = Just cwd }) ""
-    return ()
+    return stdout
 
 callCwd :: FilePath -> FilePath -> [String] -> IO ()
 callCwd cwd cmd args = do
