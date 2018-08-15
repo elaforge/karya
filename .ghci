@@ -1,3 +1,22 @@
 -- Make sure the D module is always in scope.
 :def! l (\args -> return $ ":load " ++ args ++ " D\n:module +D")
 
+-- Interactive tools for Solkattu/Score/*.hs
+:{
+let _ghciKorvai args = do
+        (realize, korvai) <- case words args of
+            [realize, korvai] -> return (realize, korvai)
+            [korvai] -> (,) <$> return korvai <*> readFile realizeName
+            [] -> (,) <$> readFile realizeName <*> readFile korvaiName
+            _ -> error "usage: :K [realize] [korvai]"
+        -- Force the thunks because of stupid lazy readFile.
+        putStrLn $ unwords [realize, korvai]
+        writeFile realizeName realize
+        writeFile korvaiName korvai
+        return $ ":r\n" ++ unwords [realize, korvai]
+        where
+        gitRepo = "../data/solkattu-korvai"
+        korvaiName = gitRepo ++ "/korvai-name"
+        realizeName = gitRepo ++ "/realize-name"
+:}
+:def! K _ghciKorvai

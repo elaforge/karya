@@ -3798,7 +3798,7 @@ solkattu:
       the StrokeMap becomes the same monoid oriented notation, and repeat etc.
       is ok.  Then I can have a "Sarva Name" Note which is like Pattern except
       of variable length.  That gets realized as cycling the strokes.
-  - Can I get a rerender on save?
+  * Can I get a rerender on save?
     . This is like the ascii version of auto integration.
     . This would be set up as an interactive korvai editor, and it could
       do things like display diffs.
@@ -3815,8 +3815,9 @@ solkattu:
         previous previous Korvai or realize output someplace that
         survives a reload, like write a file.  Then add a function to
         do a text diff with the file contents.
-    - clear when switching to a different korvai
-    - :k macro:
+    / clear when switching to a different korvai
+      . Or not, it would look like a big diff but I can just run again.
+    * :K macro:
       . save korvai variable or get last one
       . make a tmp git dir, if it doesn't exist
       . commit in git dir
@@ -3826,6 +3827,8 @@ solkattu:
       then I can tag sections with line numbers.
       . This won't work with 'map section', and I want to get rid of noisy
         section annotations anyway.
+      . But I don't think I can do that with 'map section', maybe have the
+        usual 'x2' 'devel' etc. be overloaded on ToSection.
   format: output:
     * Solkattu.Offset inserted by startOn should figure out nadai
     * rulers seem to use absolute rulerEach, and are not reset by nadai

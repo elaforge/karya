@@ -4,7 +4,7 @@
 
 -- | Utilities for ghci.
 module Solkattu.Interactive (
-    _ghciSave, diff, diffw, printInstrument
+    diff, diffw, printInstrument
 ) where
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -13,7 +13,6 @@ import qualified System.Exit as Exit
 import System.FilePath ((</>))
 import qualified System.Process as Process
 
-import qualified Util.File as File
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
@@ -21,19 +20,6 @@ import qualified Solkattu.Solkattu as Solkattu
 
 import Global
 
-
--- . save korvai variable or get last one
--- . make a tmp git dir, if it doesn't exist
--- . commit in git dir
--- . writeText to the git dir, :kdiff will diff changes
-
--- TODO call from ghci macro
-_ghciSave :: String -> IO String
-_ghciSave name = do
-    name <- resolveName name
-    saveName name
-    return $ unwords ["realizep", show name, name]
-    -- return the code to execute
 
 printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> [Korvai.Sequence] -> Format.Abstraction -> Korvai.Korvai -> IO ()
@@ -76,15 +62,6 @@ createRepo dir = do
 commit :: FilePath -> IO ()
 commit dir =
     void $ readCwd dir "git" ["commit", "--quiet", "-m", "update", korvaiPath]
-
-resolveName :: String -> IO String
-resolveName name
-    | name /= "" = return name
-    | otherwise =
-        fromMaybe "" <$> File.ignoreEnoent (readFile (gitRepo </> korvaiPath))
-
-saveName :: String -> IO ()
-saveName = writeFile (gitRepo </> "korvai")
 
 readCwd :: FilePath -> FilePath -> [String] -> IO String
 readCwd cwd cmd args = do
