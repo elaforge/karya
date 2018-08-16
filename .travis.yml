@@ -30,25 +30,6 @@ before_cache:
 # GHC packages are documented at https://github.com/haskell-CI/haskell-ci
 matrix:
   include:
-    - env: GHC=8.0.2
-      addons:
-        apt:
-          packages:
-            # Keep the first paragraph the same for each entry.
-            # TODO is there same way to do this without copy paste?
-            - alex-3.1.7
-            - happy-1.19.5
-            - cabal-install-2.0
-            - ghc-ppa-tools
-            - libfltk1.3-dev
-            - libjack-dev
-            - libpcre3-dev
-            - libsamplerate0-dev
-            - libsndfile1-dev
-            - zsh
-
-            - ghc-8.0.2 # -prof
-          sources: [hvr-ghc]
     - env: GHC=8.4.1
       addons:
         apt:
@@ -63,7 +44,6 @@ matrix:
             - libsamplerate0-dev
             - libsndfile1-dev
             - zsh
-
             - ghc-8.4.1 # -prof
           sources: [hvr-ghc]
 
