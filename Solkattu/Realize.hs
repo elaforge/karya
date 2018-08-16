@@ -160,7 +160,7 @@ instance Pretty stroke => Pretty (Note stroke) where
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
 
-noteDuration :: S.Tempo -> Note stroke -> S.Duration
+noteDuration :: S.HasMatras a => S.Tempo -> a -> S.Duration
 noteDuration tempo = (* S.matraDuration tempo) . fromIntegral . S.matrasOf
 
 -- * verifyAlignment
@@ -393,8 +393,9 @@ instance Pretty stroke => Pretty (Group stroke) where
 
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
-realize :: (Pretty sollu, Ord sollu) => RealizePattern S.Tempo stroke
-    -> ToStrokes sollu stroke -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+realize :: (Pretty sollu, Ord sollu)
+    => RealizePattern S.Tempo stroke -> ToStrokes sollu stroke
+    -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
 realize realizePattern toStrokes =
     Writer.CPS.runWriter
@@ -514,7 +515,9 @@ findSequence :: Pretty sollu => ToStrokes sollu stroke
     -> [S.Flat g (Solkattu.Note sollu)]
     -> Either Error
         ( SolluMapKey sollu
-        , ([S.Flat g (Note stroke)], [S.Flat g (Solkattu.Note sollu)])
+        , ( [S.Flat g (Note stroke)]
+          , [S.Flat g (Solkattu.Note sollu)]
+          )
         )
 findSequence toStrokes notes =
     case bestMatch tag sollus toStrokes of

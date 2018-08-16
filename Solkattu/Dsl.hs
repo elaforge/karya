@@ -16,10 +16,13 @@ module Solkattu.Dsl (
     (.), (•), ø
     , karvai
 
-    -- ** directives
+    -- * directives
     , hv, lt
     , akshara, sam, (§)
-    -- ** patterns
+    -- * abstraction
+    , Abstraction
+    , patterns, groups
+    -- * patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     , nakatiku
     -- * re-exports
@@ -31,7 +34,6 @@ module Solkattu.Dsl (
     , module Solkattu.S
     , module Solkattu.Solkattu
     , module Solkattu.Tala
-    , Abstraction(..)
     -- * mridangam
     , (&)
     -- * misc
@@ -49,7 +51,8 @@ import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
-import Solkattu.Format.Format (Abstraction(..))
+import qualified Solkattu.Format.Format as Format
+import Solkattu.Format.Format (Abstraction)
 import Solkattu.Instrument.Mridangam ((&))
 import Solkattu.Korvai (Korvai, section, smap)
 import Solkattu.Part (Part(..), Index(..), realizeParts)
@@ -130,6 +133,17 @@ hv n = throw $ "expected stroke: " <> pretty n
 lt (S.Note (Realize.Note s)) =
     S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Light }
 lt n = throw $ "expected stroke: " <> pretty n
+
+-- * Abstraction
+
+-- | Abstract all Patterns to durations.
+patterns :: Abstraction
+patterns = Format.abstract Format.Patterns
+
+-- | Abstract groups to durations, either all of them or just the ones with
+-- the given name.
+groups :: Maybe Text -> Abstraction
+groups name = Format.abstract (Format.Group name)
 
 -- * patterns
 

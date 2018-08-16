@@ -120,8 +120,8 @@ kook = k.o.o.k
 -- * interactive utilities
 
 realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM None
-realizep = realizeM Patterns
+realize = realizeM mempty
+realizep = realizeM patterns
 
 realizeM :: Abstraction -> Korvai.Korvai -> IO ()
 realizeM = SolkattuGlobal._printInstrument Korvai.mridangam

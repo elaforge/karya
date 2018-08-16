@@ -158,7 +158,8 @@ equalT1 = equal_fmt (either id fst)
 
 test_formatLines = do
     let f strokeWidth width tala =
-            fmap (extractLines . formatLines False strokeWidth width tala . fst)
+            fmap (extractLines . formatLines mempty strokeWidth width tala
+                . fst)
             . kRealize False tala
     let tas n = Dsl.repeat n ta
 
@@ -192,7 +193,9 @@ test_formatLines = do
     equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4------"]]
 
 test_formatLines_abstractGroups = do
-    let f = fmap (mconcat . extractLines . formatLines True 2 80 tala4 . fst)
+    let f = fmap (mconcat . extractLines
+            . formatLines (Format.abstract (Format.Group Nothing)) 2 80 tala4
+                . fst)
             . kRealize False tala4
     let tas n = Dsl.repeat n ta
     equal (f (tas 4)) (Right ["k k k k"])
@@ -205,6 +208,7 @@ test_formatLines_abstractGroups = do
         (Right ["k k 1½----"])
     equal (f (Dsl.group (tas 2) <> Dsl.group (tas 2)))
         (Right ["2---2---"])
+    equal (f (su $ tas 2 <> Dsl.named "q" (tas 2))) (Right ["k k q---"])
 
 -- Just print nested groups to check visually.
 _nested_groups = do
@@ -341,8 +345,9 @@ realizeP pmap smap = fmap Format.mapGroups
     where
     pattern = maybe Realize.keepPattern Realize.realizePattern pmap
 
-formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
-    -> [Format.Flat stroke] -> [[[(S.State, Terminal.Symbol)]]]
+formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
+    -> Int -> Tala.Tala -> [Format.Flat stroke]
+    -> [[[(S.State, Terminal.Symbol)]]]
 formatLines = Terminal.formatLines
 
 strokeMap :: Realize.SolluMap M.Stroke

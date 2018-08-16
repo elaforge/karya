@@ -92,6 +92,8 @@ kttk = su kitataka
 -- fast variants.
 
 kp, kpnp :: Sequence
+-- kp = named "2t" (Solkattu.Standard ^ taka)
+-- kpnp = named "4t" (Solkattu.Standard ^ (taka.tiku))
 kp = Solkattu.Standard ^ taka
 kpnp = Solkattu.Standard ^ (taka.tiku)
 
@@ -102,12 +104,7 @@ oknp = Solkattu.Standard ^ tarikita
 ktktoknp = Solkattu.Standard ^ (tarikita.taka.taka)
 
 takadugutarikita :: Sequence
-takadugutarikita = Solkattu.Standard ^ (taka.dugu.tarikita)
-    -- TODO name 4t
-
--- takadugutarikita :: Sequence
--- takadugutarikita = Solkattu.Standard ^ su (taka.dugu.tarikita)
--- takadugutarikita = PatternM (Just "4t") 8
+takadugutarikita = named "8t" (Solkattu.Standard ^ (taka.dugu.tarikita))
 
 -- nakatiku :: Pattern
 -- nakatiku = PatternM (Just "4n") 8
@@ -143,8 +140,8 @@ index i korvai = case Korvai.korvaiSections korvai of
         korvai { Korvai.korvaiSections = Korvai.Sollu [sections !! i] }
 
 realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM None
-realizep = realizeM Patterns
+realize = realizeM mempty
+realizep = realizeM patterns
 
 realizeM :: Abstraction -> Korvai.Korvai -> IO ()
 realizeM = _printInstrument Korvai.mridangam
@@ -159,7 +156,7 @@ realizeSargam :: Abstraction -> Korvai.Korvai -> IO ()
 realizeSargam = _printInstrument Korvai.sargam
 
 realizeKon :: Int -> Korvai -> IO ()
-realizeKon width = Terminal.printKonnakol width Patterns
+realizeKon width = Terminal.printKonnakol width patterns
 
 htmlWriteAll :: FilePath -> Abstraction -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll

@@ -107,8 +107,8 @@ render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
             zipWith (renderSection (config name) (Korvai.korvaiTala korvai))
                 (Korvai.genericSections korvai)
                 (Format.convertGroups
-                    (Korvai.realize inst (abstraction < Format.Patterns)
-                        korvai))
+                    (Korvai.realize inst realizePatterns korvai))
+        realizePatterns = not $ Format.isAbstract abstraction Format.Patterns
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
     config name = Config
@@ -170,8 +170,7 @@ formatHtml config tala notes =
     avartanams =
         Format.breakAvartanams $
         concatMap makeSymbols $
-        (if _abstraction config >= Format.Groups
-            then Format.makeGroupsAbstract else id) $
+        Format.makeGroupsAbstract (_abstraction config) $
         Format.normalizeSpeed tala notes
 
 data Symbol = Symbol {

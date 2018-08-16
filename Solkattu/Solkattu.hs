@@ -117,6 +117,13 @@ data Group = Group {
     , _name :: !(Maybe Text)
     } deriving (Eq, Ord, Show)
 
+group :: Group
+group = Group
+    { _split = 0
+    , _side = Before
+    , _name = Nothing
+    }
+
 -- | Before means drop the strokes before the '_split' split, After means
 -- drop the ones after.
 data Side = Before | After deriving (Eq, Ord, Show)

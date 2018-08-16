@@ -380,12 +380,18 @@ stride :: S.Stride -> [S.Note g sollu] -> [S.Note g sollu]
 stride _ [] = []
 stride n seq = [S.TempoChange (S.Stride n) seq]
 
--- | Just mark a group.  Equivalent to dropM 0.
+-- | Just mark a group.
 group :: SequenceT sollu -> SequenceT sollu
-group = groupOf 0 Solkattu.Before
+group = (:[]) . S.Group Solkattu.group
 
 groupOf :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
-groupOf dropped side = (:[]) . S.Group (Solkattu.Group dropped side Nothing)
+groupOf split side = (:[]) . S.Group g
+    where
+    g = Solkattu.group { Solkattu._split = split, Solkattu._side = side }
+
+-- | Make a named group.
+named :: Text -> SequenceT sollu -> SequenceT sollu
+named name = (:[]) . S.Group (Solkattu.group { Solkattu._name = Just name })
 
 -- ** tags
 

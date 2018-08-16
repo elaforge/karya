@@ -54,7 +54,7 @@ defaultConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 78
     , _overrideStrokeWidth = Nothing
-    , _abstraction = Format.Patterns
+    , _abstraction = Format.abstract Format.Patterns
     }
 
 konnakolConfig :: Config
@@ -62,7 +62,7 @@ konnakolConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 100
     , _overrideStrokeWidth = Just 3
-    , _abstraction = Format.Patterns
+    , _abstraction = Format.abstract Format.Patterns
     }
 
 -- * write
@@ -101,7 +101,10 @@ formatInstrument :: Solkattu.Notation stroke => Config
 formatInstrument config instrument korvai =
     formatResults config korvai $ zip (korvaiTags korvai) $
         Format.convertGroups $
-        Korvai.realize instrument (_abstraction config < Format.Patterns) korvai
+        Korvai.realize instrument realizePatterns korvai
+    where
+    realizePatterns = not $
+        Format.isAbstract (_abstraction config) Format.Patterns
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
@@ -170,7 +173,7 @@ format config prevRuler tala notes =
                 | sum (map (symLength . snd) line) <= width `div` 2 ->
                     (fmt 2 width tala notes, 2)
             result -> (result, 1)
-        where fmt = formatLines (_abstraction config >= Format.Groups)
+        where fmt = formatLines (_abstraction config)
     formatLine :: [Symbol] -> Styled.Styled
     formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
@@ -241,15 +244,15 @@ isRest :: Symbol -> Bool
 isRest = (=="_") . Text.strip . _text
 
 -- | Break into [avartanam], where avartanam = [line].
-formatLines :: Solkattu.Notation stroke => Bool -> Int -> Int -> Tala.Tala
-    -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
-formatLines abstractGroups strokeWidth width tala =
+formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
+    -> Int -> Tala.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
+formatLines abstraction strokeWidth width tala =
     map (map (Format.mapSnd (spellRests strokeWidth)))
         . formatFinalAvartanam . map (breakLine width)
         . Format.breakAvartanams
         . map combine . Seq.zip_prev
         . concatMap (makeSymbols strokeWidth tala angas)
-        . (if abstractGroups then Format.makeGroupsAbstract else id)
+        . Format.makeGroupsAbstract abstraction
         . Format.normalizeSpeed tala
     where
     combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)

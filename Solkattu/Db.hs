@@ -112,7 +112,7 @@ format (i, korvai) = mconcat
 -- * write
 
 writeHtml :: IO ()
-writeHtml = writeHtmlTo "../data/solkattu" Format.Patterns
+writeHtml = writeHtmlTo "../data/solkattu" (Format.abstract Format.Patterns)
 
 -- | Write all Korvais as HTML into the given directory.
 writeHtmlTo :: FilePath -> Format.Abstraction -> IO ()
@@ -137,7 +137,7 @@ textDir :: FilePath
 textDir = "../data/solkattu-text"
 
 writeText :: IO ()
-writeText = writeTextTo textDir Format.Patterns
+writeText = writeTextTo textDir (Format.abstract Format.Patterns)
 
 -- | The usual textDir is a git repo, so I can see what effect changes have, in
 -- the same manner as App.VerifyPerformance.
