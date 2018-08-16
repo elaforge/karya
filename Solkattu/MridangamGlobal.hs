@@ -118,9 +118,8 @@ takadinna = k.o.o.k
 kook = k.o.o.k
 
 nakatiku :: Sequence
-nakatiku = named True "4n" (n.p.u.p.k.t.p.k)
+nakatiku = named True "8n" (n.p.u.p.k.t.p.k)
     -- also t.p.u.k.t.p.k
-    -- TODO 8n
 
 -- * interactive utilities
 

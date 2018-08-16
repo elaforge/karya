@@ -103,9 +103,8 @@ oknp = Solkattu.Standard ^ tarikita
 ktktoknp = Solkattu.Standard ^ (tarikita.taka.taka)
 
 nakatiku :: Sequence
-nakatiku = named True "4n" (Solkattu.Standard ^ (naka.tiku.tari.kita))
+nakatiku = named True "8n" (Solkattu.Standard ^ (naka.tiku.tari.kita))
     -- also diku.tari.kita.taka
-    -- TODO 8n
 
 takadugutarikita :: Sequence
 takadugutarikita = named True "8t" (Solkattu.Standard ^ (taka.dugu.tari.kita))

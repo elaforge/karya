@@ -51,7 +51,7 @@ isAbstract (Abstraction abstract) (Groups name) =
 isAbstract (Abstraction abstract) Patterns = Patterns `Set.member` abstract
 
 defaultAbstraction :: Abstraction
-defaultAbstraction = abstract Patterns <> abstract (Groups (Just "4n"))
+defaultAbstraction = abstract Patterns <> abstract (Groups (Just "8n"))
 
 data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
