@@ -270,12 +270,15 @@ makeSymbols strokeWidth tala angas = go
             S.Sustain a -> Text.replicate strokeWidth
                 (Text.singleton (Solkattu.extension a))
             S.Rest -> Realize.justifyLeft strokeWidth ' ' "_"
-    go (S.FGroup _ _group children) =
-        Seq.map_last (second (set Format.EndHighlight)) $
-        Seq.map_head_tail
-            (second (set Format.StartHighlight)) (second (set Format.Highlight))
+    go (S.FGroup _ group children) =
+        (if Format._highlight group then setHighlights else id)
             (concatMap go children)
-    set h sym = sym { _highlight = Just h }
+    setHighlights =
+        Seq.map_last (second (set Format.EndHighlight))
+        . Seq.map_head_tail
+            (second (set Format.StartHighlight))
+            (second (set Format.Highlight))
+        where set h sym = sym { _highlight = Just h }
     make state text = Symbol
         { _text = text
         , _emphasize = shouldEmphasize tala angas state

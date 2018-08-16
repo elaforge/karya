@@ -4137,7 +4137,7 @@ solkattu:
         . Can I have sandi not make a group when it drops?
         . I can, but I might need it for matching?  Maybe I should have
           non-highlighting groups.
-    + use named groups instead of named patterns
+    * use named groups instead of named patterns
       . E.g. takadugutarikita or tarikita.takataka are set in SolkattuGlobal,
         but nakatiku is set in patterns and Instrument/*
       . Why not use named patterrns though?
@@ -4154,7 +4154,7 @@ solkattu:
         replicate n NoSollu.  Pattern seems a bit nicer though, but if it
         means I can completely get rid of patterns it might be worth it.
       . Ok, first extend groups for nakatiku at least, then see.
-      - I need to be able to turn off highlighting per-group, since I don't
+      * I need to be able to turn off highlighting per-group, since I don't
         want to highlight kp and kpnp
     * preserve group name, and abstract groups by name
       . what's an example when I would want to do this?

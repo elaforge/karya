@@ -143,7 +143,7 @@ patterns = Format.abstract Format.Patterns
 -- | Abstract groups to durations, either all of them or just the ones with
 -- the given name.
 groups :: Maybe Text -> Abstraction
-groups name = Format.abstract (Format.Group name)
+groups name = Format.abstract (Format.Groups name)
 
 -- * patterns
 

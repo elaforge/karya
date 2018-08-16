@@ -193,12 +193,15 @@ makeSymbols = go
             , _highlight = Nothing
             }
         where note = normalizeSarva note_
-    go (S.FGroup _ _group children) =
-        Seq.map_last (second (set Format.EndHighlight)) $
-        Seq.map_head_tail
-            (second (set Format.StartHighlight)) (second (set Format.Highlight))
+    go (S.FGroup _ group children) =
+        (if Format._highlight group then setHighlights else id)
             (concatMap go children)
-    set h sym = sym { _highlight = Just h }
+    setHighlights =
+        Seq.map_last (second (set Format.EndHighlight))
+        . Seq.map_head_tail
+            (second (set Format.StartHighlight))
+            (second (set Format.Highlight))
+        where set h sym = sym { _highlight = Just h }
     noteHtml state = \case
         S.Sustain (Realize.Space Solkattu.Sarva) -> sarva
         S.Sustain (Realize.Pattern {}) -> "<hr noshade>"

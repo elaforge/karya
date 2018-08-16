@@ -7,7 +7,7 @@ module Solkattu.Format.Format (
     Abstraction, Abstract(..), abstract, isAbstract
     , Highlight(..)
     -- * group
-    , Flat, Group
+    , Flat, Group(..)
     , convertGroups, mapGroups
     -- * normalize speed
     , NormalizedFlat
@@ -41,15 +41,15 @@ import Global
 
 newtype Abstraction = Abstraction (Set Abstract)
     deriving (Eq, Show, Semigroup, Monoid)
-data Abstract = Patterns | Group !(Maybe Text)
+data Abstract = Patterns | Groups !(Maybe Text)
     deriving (Eq, Ord, Show)
 
 abstract :: Abstract -> Abstraction
 abstract = Abstraction . Set.singleton
 
 isAbstract :: Abstraction -> Abstract -> Bool
-isAbstract (Abstraction abstract) (Group name) =
-    Group Nothing `Set.member` abstract || Group name `Set.member` abstract
+isAbstract (Abstraction abstract) (Groups name) =
+    Groups Nothing `Set.member` abstract || Groups name `Set.member` abstract
 isAbstract (Abstraction abstract) Patterns = Patterns `Set.member` abstract
 
 data Highlight = StartHighlight | Highlight | EndHighlight
@@ -61,7 +61,10 @@ type Flat stroke = S.Flat Group (Realize.Note stroke)
 
 -- | Format-level Group.  This has just the group data which is needed to
 -- format.
-type Group = Maybe Text
+data Group = Group {
+    _name :: Maybe Text
+    , _highlight :: Bool
+    } deriving (Eq, Show)
 
 -- | Reduce 'Realize.Group's to local 'Group's.
 convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], Korvai.Error)]
@@ -69,7 +72,10 @@ convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], Korvai.Error)]
 convertGroups = map (fmap (first mapGroups))
 
 mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
-mapGroups = S.mapGroupFlat Realize._name
+mapGroups = S.mapGroupFlat $ \g -> Group
+    { _name = Realize._name g
+    , _highlight = Realize._highlight g
+    }
 
 -- * normalize speed
 
@@ -82,14 +88,14 @@ makeGroupsAbstract :: Abstraction -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | isAbstract abstraction (Group group) =
+        | isAbstract abstraction (Groups (_name group)) =
             Seq.map_head_tail (make S.Attack) (make S.Sustain) flattened
         where
         flattened  = S.tempoNotes children
         make c (tempo, (state, _)) = S.FNote tempo (state, c note)
         note = Realize.Pattern (Solkattu.PatternM (Just name) 1)
         fmatra = S.normalizeFMatra tempo (fromIntegral (length flattened))
-        name = fromMaybe (Pretty.fraction True fmatra) group
+        name = fromMaybe (Pretty.fraction True fmatra) (_name group)
     combine n = [n]
 
 normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]

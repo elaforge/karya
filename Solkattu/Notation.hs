@@ -390,8 +390,11 @@ groupOf split side = (:[]) . S.Group g
     g = Solkattu.group { Solkattu._split = split, Solkattu._side = side }
 
 -- | Make a named group.
-named :: Text -> SequenceT sollu -> SequenceT sollu
-named name = (:[]) . S.Group (Solkattu.group { Solkattu._name = Just name })
+named :: Bool -> Text -> SequenceT sollu -> SequenceT sollu
+named highlight name = (:[]) . S.Group g
+    where
+    g = Solkattu.group
+        { Solkattu._name = Just name, Solkattu._highlight = highlight }
 
 -- ** tags
 

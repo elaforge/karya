@@ -194,7 +194,7 @@ test_formatLines = do
 
 test_formatLines_abstractGroups = do
     let f = fmap (mconcat . extractLines
-            . formatLines (Format.abstract (Format.Group Nothing)) 2 80 tala4
+            . formatLines (Format.abstract (Format.Groups Nothing)) 2 80 tala4
                 . fst)
             . kRealize False tala4
     let tas n = Dsl.repeat n ta
@@ -208,7 +208,7 @@ test_formatLines_abstractGroups = do
         (Right ["k k 1½----"])
     equal (f (Dsl.group (tas 2) <> Dsl.group (tas 2)))
         (Right ["2---2---"])
-    equal (f (su $ tas 2 <> Dsl.named "q" (tas 2))) (Right ["k k q---"])
+    equal (f (su $ tas 2 <> Dsl.named True "q" (tas 2))) (Right ["k k q---"])
 
 -- Just print nested groups to check visually.
 _nested_groups = do
