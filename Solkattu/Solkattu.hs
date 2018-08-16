@@ -241,8 +241,7 @@ instance Pretty Pattern where pretty = notation
 
 instance Notation Pattern where
     notation p = case p of
-        PatternM matras -> "p" <> showt matras
-            -- TODO use matras <> "p"
+        PatternM matras -> showt matras <> "p"
     extension _ = '-'
 
 instance Expr.ToExpr Pattern where

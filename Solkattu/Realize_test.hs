@@ -36,7 +36,7 @@ test_realize = do
             where M.Strokes {..} = M.notes
     equal (f [__, ta, __, __, din]) (Right "_ k _ _ D")
     equal (f [Notation.sarvaM 4]) (Right "= = = =")
-    equal (f [Dsl.p5, __, ta, din]) (Right "p5 _ k D")
+    equal (f [Dsl.p5, __, ta, din]) (Right "5p _ k D")
     equal (f [ta, ta]) (Right "t t")
     equal (f [din, ga]) (Right "D _")
     equal (f [din, __, ga]) (Right "D _ _")
@@ -81,7 +81,7 @@ test_realizeGroups = do
     -- With rests.
     equal (f $ dropM 1 $ ta <> __ <> ka <> __) (Right "_ t _")
     -- With a Pattern.
-    equal (f $ dropM 1 $ taka <> Dsl.p5) (Right "t p5")
+    equal (f $ dropM 1 $ taka <> Dsl.p5) (Right "t 5p")
 
 test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
@@ -204,7 +204,7 @@ test_realizePatterns = do
     -- realizePatterns changes it.
     equal (eStrokes $ f M.defaultPatterns $ rdropM 0 $ sd Dsl.p5)
         (Right "k t k n o")
-    left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for p3"
+    left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for 3p"
 
 test_patterns = do
     let f = second (const ()) . Realize.patternMap

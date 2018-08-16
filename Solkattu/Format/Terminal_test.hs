@@ -4,7 +4,6 @@
 
 {-# LANGUAGE RecordWildCards #-}
 module Solkattu.Format.Terminal_test where
-import qualified Data.Char as Char
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
@@ -41,11 +40,11 @@ test_format = do
     equal (f rupaka (n4 <> n4)) "k t _ n k t _ n"
     -- Emphasis works in patterns.
     equal (f rupaka (n4 <> [rpattern 5] <> n4))
-        "k t _ n p5--------k t _ n"
+        "k t _ n 5p--------k t _ n"
     -- Patterns are wrapped properly.
     equal (f rupaka (n4 <> [rpattern 5] <> n4 <> [rpattern 5]))
-        "k t _ n p5--------k t _\n\
-        \n p5--------"
+        "k t _ n 5p--------k t _\n\
+        \n 5p--------"
     -- Emphasize according to the tala.
     let kook = [k, o, o, k]
     equal (f Tala.khanda_chapu (take (5*4) (cycle kook)))
@@ -189,8 +188,8 @@ test_formatLines = do
     equal (f 2 1 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k", "k k k k", "k k k k"]]
 
-    equal (f 1 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4--"]]
-    equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["p4------"]]
+    equal (f 1 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["4p--"]]
+    equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["4p------"]]
 
 test_formatLines_abstractGroups = do
     let f = fmap (mconcat . extractLines
@@ -269,10 +268,10 @@ test_formatSpeed = do
     equal (f 80 $ thoms 2 <> su (su (thoms 8)) <> thoms 1)
         (Right "O _ ‗   o _ ‗   o o o o o o o o O _ ‗")
     equal (f 80 $ sd (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
-    equal (f 80 (Dsl.p5 <> Dsl.p5)) (Right "P5------==p5----==--")
+    equal (f 80 (Dsl.p5 <> Dsl.p5)) (Right "5P------==5p----==--")
     -- Use narrow spacing when there's isn't space, and p5 overlaps the next
     -- '-'.
-    equal (f 10 (Dsl.p5 <> Dsl.p5)) (Right "P5--=p5-=-")
+    equal (f 10 (Dsl.p5 <> Dsl.p5)) (Right "5P--=5p-=-")
 
 
 -- * util
@@ -297,9 +296,7 @@ eFormat = stripAnsi . dropRulers
 dropRulers :: Text -> Text
 dropRulers =
     Text.strip . Text.unlines . filter (not . isRuler . stripAnsi) . Text.lines
-    where
-    isRuler t = Text.all Char.isDigit (Text.take 1 t)
-        || "X" `Text.isPrefixOf` t
+    where isRuler t = "X:" `Text.isPrefixOf` t || "0:" `Text.isPrefixOf` t
 
 stripAnsi :: Text -> Text
 stripAnsi =

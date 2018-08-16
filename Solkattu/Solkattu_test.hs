@@ -64,11 +64,11 @@ test_vary = do
                 (Solkattu.variations [Solkattu.standard, Solkattu.ascending])
                 notes
     equal (f (ta <> di)) ["ta di"]
-    equal (f (ta <> Dsl.p6 <> di <> Dsl.p6)) ["ta p6 di p6"]
-    equal (f (ta <> Dsl.p6 <> di <> Dsl.p6 <> Dsl.p6)) ["ta p5 di p6 p7"]
+    equal (f (ta <> Dsl.p6 <> di <> Dsl.p6)) ["ta 6p di 6p"]
+    equal (f (ta <> Dsl.p6 <> di <> Dsl.p6 <> Dsl.p6)) ["ta 5p di 6p 7p"]
     equal (f (Dsl.tri_ ta Dsl.p6 <> di <> Dsl.tri_ ki Dsl.p7))
-        [ "p5 ta p6 mid^ta p7 di p6 ki p7 mid^ki p8"
-        , "p5 ta p6 mid^ta p7 di p5 ki p7 mid^ki p9"
+        [ "5p ta 6p mid^ta 7p di 6p ki 7p mid^ki 8p"
+        , "5p ta 6p mid^ta 7p di 5p ki 7p mid^ki 9p"
         ]
 
 -- * utils

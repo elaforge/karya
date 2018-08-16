@@ -35,10 +35,10 @@ test_realize = do
         ( map ("s0n4:"<>) (chars "kook")
         , "4: should end on sam, actually ends on 1:1, or sam - 1"
         )
-    equal (f False (take 2 p4s)) $ Right (map ("s0n4:"<>) ["p4", "p4"], "")
+    equal (f False (take 2 p4s)) $ Right (map ("s0n4:"<>) ["4p", "4p"], "")
     equal (f True (take 2 p4s)) $ Right (map ("s0n4:"<>) (chars "pkonpkon"), "")
-    equal (f False (Dsl.sd (take 1 p4s))) $ Right (["s-1n4:p4"], "")
-    equal (f False (Dsl.nadai 2 (take 1 p4s))) $ Right (["s0n2:p4"], "")
+    equal (f False (Dsl.sd (take 1 p4s))) $ Right (["s-1n4:4p"], "")
+    equal (f False (Dsl.nadai 2 (take 1 p4s))) $ Right (["s0n2:4p"], "")
     equal (f True (Dsl.nadai 2 (take 1 p4s))) $
         Right (map ("s0n2:"<>) (chars "pkon"), "")
 
