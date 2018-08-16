@@ -40,13 +40,8 @@ __ :: Sollu
 __ = NoSollu
 
 patterns :: [(S.Matra, [Sollu])] -> Either Text (Realize.PatternMap Sollu)
-patterns = Realize.patternMap . map (second (map note)) . (defaultNakatiku++)
+patterns = Realize.patternMap . map (second (map note))
     . map (first Solkattu.pattern)
-
-defaultNakatiku :: [(Solkattu.Pattern, [Sollu])]
-defaultNakatiku =
-    [ (Solkattu.nakatiku, [Na, Ka, Ti, Ku, Ta, Ri, Ki, Ta])
-    ]
 
 instance Expr.ToExpr Sollu where
     to_expr = Expr.generator0 . Expr.Symbol . pretty

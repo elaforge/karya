@@ -205,8 +205,6 @@ test_realizePatterns = do
     equal (eStrokes $ f M.defaultPatterns $ rdropM 0 $ sd Dsl.p5)
         (Right "k t k n o")
     left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for p3"
-    equal (eStrokes $ f (M.families567 !! 0) Dsl.nakatiku)
-        (Right "n p u p k t p k")
 
 test_patterns = do
     let f = second (const ()) . Realize.patternMap

@@ -213,18 +213,8 @@ technique _ _ _ = Nothing
 __ :: SNote
 __ = Realize.rest
 
-defaultNakatiku :: [(Solkattu.Pattern, [SNote])]
-defaultNakatiku =
-    [ (Solkattu.nakatiku, [n, p, u, p, k, t, p, k])
-    ]
-    where Strokes {..} = notes
-
-alternateNakatiku :: [SNote]
-alternateNakatiku = [t, p, u, p, k, t, p, k]
-    where Strokes {..} = notes
-
 defaultPatterns :: [(Solkattu.Pattern, [SNote])]
-defaultPatterns = defaultNakatiku ++ patterns
+defaultPatterns = patterns
     [ (5, [k, t, k, n, o])
     , (6, [k, t, __, k, n, o])
     , (7, [k, __, t, __, k, n, o])
@@ -246,7 +236,7 @@ misc =
     where Strokes {..} = notes
 
 kt_kn_o :: [(Solkattu.Pattern, [SNote])]
-kt_kn_o = defaultNakatiku ++ patterns
+kt_kn_o = patterns
     [ (5, [k, t, k, n, o])
     , (7, [k, t, __, k, n, __, o])
     , (9, [k, t, __, __, k, n, __, __, o])
@@ -263,7 +253,7 @@ fives =
     Strokes {..} = notes
 
 families567 :: [[(Solkattu.Pattern, [SNote])]]
-families567 = map ((defaultNakatiku++) . patterns . zip [5..]) $
+families567 = map (patterns . zip [5..]) $
     [ [k, t, k, n, o]
     , [k, t, __, k, n, o]
     , [k, __, t, __, k, n, o]

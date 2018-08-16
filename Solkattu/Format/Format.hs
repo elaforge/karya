@@ -5,6 +5,7 @@
 -- | Utilities shared among formatting backends.
 module Solkattu.Format.Format (
     Abstraction, Abstract(..), abstract, isAbstract
+    , defaultAbstraction
     , Highlight(..)
     -- * group
     , Flat, Group(..)
@@ -35,10 +36,7 @@ import Global
 
 
 -- | Control what is rendered as strokes, and what is rendered as abstract
--- groups with durations.  This gets succesively more abstract.
--- data Abstraction = None | Patterns | Groups
---     deriving (Eq, Ord, Show)
-
+-- groups with durations.
 newtype Abstraction = Abstraction (Set Abstract)
     deriving (Eq, Show, Semigroup, Monoid)
 data Abstract = Patterns | Groups !(Maybe Text)
@@ -51,6 +49,9 @@ isAbstract :: Abstraction -> Abstract -> Bool
 isAbstract (Abstraction abstract) (Groups name) =
     Groups Nothing `Set.member` abstract || Groups name `Set.member` abstract
 isAbstract (Abstraction abstract) Patterns = Patterns `Set.member` abstract
+
+defaultAbstraction :: Abstraction
+defaultAbstraction = abstract Patterns <> abstract (Groups (Just "4n"))
 
 data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
@@ -90,10 +91,11 @@ makeGroupsAbstract abstraction = concatMap combine
     combine (S.FGroup tempo group children)
         | isAbstract abstraction (Groups (_name group)) =
             Seq.map_head_tail (make S.Attack) (make S.Sustain) flattened
+        | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where
         flattened  = S.tempoNotes children
-        make c (tempo, (state, _)) = S.FNote tempo (state, c note)
-        note = Realize.Pattern (Solkattu.PatternM (Just name) 1)
+        make c (tempo, (state, _)) =
+            S.FNote tempo (state, c (Realize.Abstract name))
         fmatra = S.normalizeFMatra tempo (fromIntegral (length flattened))
         name = fromMaybe (Pretty.fraction True fmatra) (_name group)
     combine n = [n]

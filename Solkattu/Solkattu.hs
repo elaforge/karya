@@ -227,32 +227,28 @@ instance S.HasMatras (Note sollu) where
         Pattern {} -> True
         Alignment {} -> False
 
-data Pattern = PatternM !(Maybe Text) !S.Matra
+newtype Pattern = PatternM S.Matra
     deriving (Eq, Ord, Show)
 
 pattern :: S.Matra -> Pattern
-pattern = PatternM Nothing
+pattern = PatternM
 
 instance S.HasMatras Pattern where
-    matrasOf (PatternM _ m) = m
+    matrasOf (PatternM m) = m
     hasSustain _ = True
 
 instance Pretty Pattern where pretty = notation
 
 instance Notation Pattern where
     notation p = case p of
-        PatternM Nothing matras -> "p" <> showt matras
-        PatternM (Just name) _matras -> name
+        PatternM matras -> "p" <> showt matras
+            -- TODO use matras <> "p"
     extension _ = '-'
 
 instance Expr.ToExpr Pattern where
     to_expr p = case p of
-        PatternM name matras -> Expr.generator $
-            Expr.call (maybe "p" Expr.Symbol name)
-                [Expr.num (fromIntegral matras)]
-
-nakatiku :: Pattern
-nakatiku = PatternM (Just "4n") 8
+        PatternM matras -> Expr.generator $
+            Expr.call "p" [Expr.num (fromIntegral matras)]
 
 data Karvai = Karvai | NotKarvai deriving (Eq, Ord, Show)
 
@@ -349,7 +345,7 @@ vary allowedVariations notes
     modificationGroups = permuteFst allowedVariations (findTriads notes)
     -- Apply a set of permutations to the original input.
     apply mods = applyModifications
-        (\_ matras -> S.Note (Pattern (PatternM Nothing matras)))
+        (\_ matras -> S.Note (Pattern (PatternM matras)))
         (concatMap extract mods) notes
     extract ((m1, m2, m3), (i1, i2, i3)) = [(i1, m1), (i2, m2), (i3, m3)]
 
@@ -381,7 +377,7 @@ findTriads notes =
     [ (matras, triad)
     | (matras, indices) <- Seq.group_fst
         [ (matras, i)
-        | (i, S.Note (Pattern (PatternM Nothing matras))) <- zip [0..] notes
+        | (i, S.Note (Pattern (PatternM matras))) <- zip [0..] notes
         ]
     , triad <- triads indices
     ]

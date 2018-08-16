@@ -41,6 +41,8 @@ toScore strokes = (events, [])
     toExpr s = case s of
         Realize.Note stroke -> Just $ Expr.to_expr stroke
         Realize.Pattern p -> Just $ Expr.to_expr p
+        Realize.Abstract name -> Just $
+            Expr.generator $ Expr.call (Expr.Symbol name) []
         Realize.Space Solkattu.Rest -> Nothing
         Realize.Space Solkattu.Sarva -> Nothing -- TODO
         Realize.Space Solkattu.Offset -> Nothing

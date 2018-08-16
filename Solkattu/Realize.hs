@@ -46,6 +46,12 @@ data Note stroke =
     Note !(Stroke stroke)
     | Space !Solkattu.Space
     | Pattern !Solkattu.Pattern
+    -- | A pattern that has been made abstract.  This is different from Pattern
+    -- in that it was a group that has been abstracted away.  That means it
+    -- can have a name, but also it doesn't have to have an integral matra
+    -- duration.  Since Abstract comes from Notes, the abstract duration is
+    -- a series of 1-duration Abstracts, where each Note used to be.
+    | Abstract !Text
     -- | This is 'Solkattu.Alignment'.  It shouldn't be here, but since I now
     -- drop groups in realize via 'stripGroups', I have to do
     -- 'verifyAlignment' on the output of 'realize', which means I need to
@@ -122,11 +128,13 @@ instance S.HasMatras (Note stroke) where
         Note {} -> 1
         Space {} -> 1
         Pattern p -> S.matrasOf p
+        Abstract {} -> 1
         Alignment {} -> 0
     hasSustain n = case n of
         Note {} -> False
         Space {} -> True
         Pattern {} -> True
+        Abstract {} -> True
         Alignment {} -> False
 
 instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
@@ -136,11 +144,13 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
         Space Solkattu.Offset -> " "
         Note s -> Solkattu.notation s
         Pattern p -> Solkattu.notation p
+        Abstract name -> name
         Alignment _ -> "" -- this should be filtered out prior to render
     extension = \case
         Space Solkattu.Rest -> ' '
         Space Solkattu.Sarva -> '='
         Pattern p -> Solkattu.extension p
+        Abstract _ -> '-'
         _ -> ' '
     notationHtml n = case n of
         Note s -> Solkattu.notationHtml s
@@ -158,6 +168,7 @@ instance Pretty stroke => Pretty (Note stroke) where
         Space Solkattu.Offset -> "."
         Note s -> pretty s
         Pattern p -> pretty p
+        Abstract name -> name
         Alignment n -> "@" <> showt n
 
 noteDuration :: S.HasMatras a => S.Tempo -> a -> S.Duration
@@ -492,6 +503,7 @@ splitStrokes dur (note : notes) = case note of
         | noteDur <= dur -> add (note:) $ splitStrokes (dur - noteDur) notes
         | otherwise -> case n of
             Note _ -> Left "can't split a stroke"
+            Abstract name -> Left $ "can't split Abstract " <> name
             Pattern p -> Left $ "can't split a pattern: " <> pretty p
             Alignment _ -> Left $ "not reached: alignment should have 0 dur"
             Space space -> do

@@ -113,9 +113,12 @@ toScore durStrokes = (noteTrack, [("*", pitchTrack)])
         ]
     (durs, strokes) = unzip durStrokes
     starts = scanl (+) 0 durs
+    -- TODO why can't I reuse ToScore.toScore?
     to_expr s = case s of
         Realize.Note stroke -> Just $ Expr.to_expr stroke
         Realize.Pattern p -> Just $ Expr.to_expr p
+        Realize.Abstract name -> Just $
+            Expr.generator $ Expr.call (Expr.Symbol name) []
         Realize.Space _ -> Nothing
         Realize.Alignment {} -> Nothing
 

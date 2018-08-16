@@ -205,6 +205,7 @@ makeSymbols = go
     noteHtml state = \case
         S.Sustain (Realize.Space Solkattu.Sarva) -> sarva
         S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
+        S.Sustain (Realize.Abstract {}) -> "<hr noshade>"
         S.Sustain a -> notation state a
         S.Attack a -> notation state a
         S.Rest -> Doc.html "_"

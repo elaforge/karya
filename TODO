@@ -4166,7 +4166,7 @@ solkattu:
     - can I highlight karvais?  I guess I have to infer when they are, e.g.
       tri_ can put the group on, or join, though maybe it should be called
       karvai to emphasize that.
-    - consider unifying Pattern and Group at the Format level
+    / consider unifying Pattern and Group at the Format level
     / Patterns become groups with duration but no sollus.
       . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.
         Well, I guess that means Nakatiku is not a Pattern anymore, just a

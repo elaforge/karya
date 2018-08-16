@@ -17,6 +17,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
@@ -101,11 +102,13 @@ oknp, ktktoknp :: Sequence
 oknp = Solkattu.Standard ^ tarikita
 ktktoknp = Solkattu.Standard ^ (tarikita.taka.taka)
 
-takadugutarikita :: Sequence
-takadugutarikita = named True "8t" (Solkattu.Standard ^ (taka.dugu.tarikita))
+nakatiku :: Sequence
+nakatiku = named True "4n" (Solkattu.Standard ^ (naka.tiku.tari.kita))
+    -- also diku.tari.kita.taka
+    -- TODO 8n
 
--- nakatiku :: Pattern
--- nakatiku = PatternM (Just "4n") 8
+takadugutarikita :: Sequence
+takadugutarikita = named True "8t" (Solkattu.Standard ^ (taka.dugu.tari.kita))
 
 -- * instruments
 
@@ -139,7 +142,7 @@ index i korvai = case Korvai.korvaiSections korvai of
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realizeM mempty
-realizep = realizeM patterns
+realizep = realizeM Format.defaultAbstraction
 
 realizeM :: Abstraction -> Korvai.Korvai -> IO ()
 realizeM = _printInstrument Korvai.mridangam
@@ -154,7 +157,7 @@ realizeSargam :: Abstraction -> Korvai.Korvai -> IO ()
 realizeSargam = _printInstrument Korvai.sargam
 
 realizeKon :: Int -> Korvai -> IO ()
-realizeKon width = Terminal.printKonnakol width patterns
+realizeKon width = Terminal.printKonnakol width Format.defaultAbstraction
 
 htmlWriteAll :: FilePath -> Abstraction -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll
@@ -238,6 +241,8 @@ _mridangamStrokes =
     , (kpnp, [k, p, n, p])
     , (oknp, [o, k, n, p]) -- fast version: pktp
     , (ktktoknp, [k, t, k, t, o, k, n, p])
+    , (nakatiku, [n, p, u, p, k, t, p, k])
+        -- alternate = [t, p, u, p, k, t, p, k]
     , (takadugutarikita, [t, k, o, o, k, t, p, k])
     ]
     where Mridangam.Strokes {..} = Mridangam.notes
@@ -254,6 +259,7 @@ _kendangStrokes =
     , (kpnp, [p, k, t, k])
     , (oknp, [a, k, t, o])
     , (ktktoknp, [k, p, k, p, a, k, t, o])
+    , (nakatiku, [t, o, u, k, p, a, o, k])
     , (takadugutarikita, [k, p, a, a, k, p, k, t])
     ]
     where KendangTunggal.Strokes {..} = KendangTunggal.notes
@@ -264,6 +270,8 @@ _reyongStrokes =
     , (tang, [o])
     , (lang, [o])
     , (talang, [b, o])
+    , (nakatiku, [i, r3, i, r2, r3, i, r3, r2])
+        -- TODO melodic version, there could also be a rhythmic version
     ]
     where Reyong.Strokes {..} = Reyong.notes
 

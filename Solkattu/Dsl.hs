@@ -24,7 +24,6 @@ module Solkattu.Dsl (
     , patterns, groups
     -- * patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
-    , nakatiku
     -- * re-exports
     , module Solkattu.Korvai
     , module Solkattu.MetadataGlobal
@@ -161,9 +160,6 @@ p666, p567, p765 :: SequenceT sollu -> SequenceT sollu
 p666 sep = trin sep (pat 6) (pat 6) (pat 6)
 p567 sep = trin sep (pat 5) (pat 6) (pat 7)
 p765 sep = trin sep (pat 7) (pat 6) (pat 5)
-
-nakatiku :: SequenceT sollu
-nakatiku = makeNote $ Solkattu.Pattern Solkattu.nakatiku
 
 
 -- * talam

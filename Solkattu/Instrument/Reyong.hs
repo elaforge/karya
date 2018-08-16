@@ -77,10 +77,6 @@ notes = note <$> strokes
 __ :: SNote
 __ = Realize.rest
 
-melodicNakatiku :: (Solkattu.Pattern, [SNote])
-melodicNakatiku = (Solkattu.nakatiku, [i, r3, i, r2, r3, i, r3, r2])
-    where Strokes {..} = notes
-
 melodicPatterns :: [(Solkattu.Pattern, [Realize.SNote Stroke])]
 melodicPatterns = patterns
     [ (5, [r3, r2, r3, i, r2])

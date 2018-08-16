@@ -12,8 +12,6 @@ import qualified Solkattu.Score.SolkattuMohra as SolkattuMohra
 import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
-import Global
-
 
 yt_mannargudi1 :: Korvai
 yt_mannargudi1 = source "Mannargudi Easwaran" $
@@ -383,7 +381,7 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 -- * HS Sudhindra
 
 -- | Shri HSS speaks it this way.
-dikutarikitataka :: SequenceT sollu
+dikutarikitataka :: Sequence
 dikutarikitataka = nakatiku
 
 misra_tani :: [Part] -- realizeParts realizep misra_tani
@@ -849,7 +847,7 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     -- TODO this uses trkt.tkkt instead of trktkt above because being a group
     -- will prevent the full din_trktkt match.
     din_trktkt = din.__.trkt.kttk.tarikitadiku
-    mridangam = makeMridangam0
+    mridangam = makeMridangam
         [ (sarva_, [n, k, n, n, d])
             -- o_ooo_ __ooo_ o___ ____
             --  _ooo__ _ooo_o ____ ___o
@@ -874,7 +872,7 @@ c_18_08_03 = date 2018 8 3 $ sudhindra $
     . tri123 dingu p6
     where
     dit_tang = dit.__.tang.su (kita.nakatiku) -- spoken taka.tari.kita.taka
-    mridangam = makeMridangam0
+    mridangam = makeMridangam
         [ (dit.tang.kita, [k, u, p, k])
         , (din, [od])
         , (tat, [k])
