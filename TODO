@@ -674,9 +674,6 @@ IN PROGRESS / branch: branches:
   Integrate from dsl.
     . Status: I think it just barely works, via LSol.edit_new, and
       reintegrate, but not tested and not hooked up to the editor.
-    * I tend to use multiple korvai sequences as versions of a single korvai.
-      Maybe use index -1 to concatenate them all?  Or have a general way to
-      concatenate multiple korvais?
     - validate Block.ManualDestinations from Ui.set_integrated_manual
     - If I put a TrackTime offset into the ManualDestination, I could have
       multiple destinations on a single track.  But then I'd have to also
@@ -2280,8 +2277,6 @@ synth: im:
         (startTime, Instrument, Controls, DspState) -> Samples.
     - PlayCache can sequence multiple .wav files.  The filenames need to have
       a timestamp so it can know how to seek.
-    * As PlayCache does fancier stuff, maybe I need to put the sample
-      streaming into a separate thread.
   . If there is only one cache mutated by the synth, then a play in progress
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
@@ -3461,124 +3456,12 @@ ghc-bugs:
     https://ghc.haskell.org/trac/ghc/ticket/14963
 
 test: testing:
-  * does RunTests.extractFailures drop lines after the failure?
-    Then I can't see multi-line fails.
-  * Process.conversation is not reliable:
-    . __-> Util/Process_test.hs:47 [test_conversation_stderr]
-      Exit 1
-          /=
-      Stderr "cat: no-such-file: No such file or directory"
-      __-> Util/Test/RunTests.hs:271 [test_conversation_stderr]
-        Util.Process_test.test_conversation_stderr threw exception: thread
-        blocked indefinitely in an MVar operation
-    . I think Exit and stdout interleaving is not deterministic.
-      I think when I see exit, I need to join on stdout and stderr threads.
-    . How about just one thread for IO, and waiting on exit?
-  * travis failure:
-    . log:
-      ---------- new cmd
-      ResponderTest.continue: DeriveStatus: (bid "test/b1"): OutOfDate
-      ResponderTest.continue: DeriveStatus: (bid "test/b1"): Deriving
-      ResponderTest.continue: timed out!
-      Socket: Command: MAGIC!!
-      DeriveStatus: (bid "test/b1"): OutOfDate
-      DeriveStatus: (bid "test/b1"): Deriving
-      **   Cmd/Performance.hs:238 - derived (bid "test/b1") in 3.467s cpu,
-        7.501s wall
-      __-> Cmd/Im_test.hs:51 [test_respond] Left: IOError build / test / tmp
-        / im / notes /# untitled / test / b1 / notes : openBinaryFile : does not
-        exist (No such file or directory)
-    . Things run very slowly on travis, that 7.5s wall time is instant
-      locally.
-    . Maybe turn off or turn up timeout for travis?
-  + export Util.Test so I can use it in other projects
-    . I think I can get cabal to run the generator via build hooks:
-      https://www.haskell.org/cabal/users-guide/developing-packages.html#more-complex-packages
-    . I also want Util.Debug, but that in turn pulls in Util.Format, which is
-      buggy.
-    integrate test/* scripts into RunTest so it can run under cabal
-      * integrate check_output
-      - add hpc support
-      * add Testing.Interactive / serialized test support
-  * RunTests --list shouldn't need '.'
-  * rm .tix and test.output in test/run_tests instead of Shakefile
-  * --noninteractive should be the default
-    . Actually let's not bother.  It seems confusing to have to add a flag to
-      get io_human to actually work, and I never run interactive tests
-      automatically anyway.
-    . I wound up doing it anyway.
   - on failure, instead of
       __-> Util/Format_test.hs:80 [test_render_full_width] ...
     print
       __-> Util.Format_test.test_render_full_width 80 ...
     So I can copy paste into run tests.  But fname:lineno is usual for editors
     to jump to that line.
-  * use a set of tags instead of single test type
-    . I can also put tags in the test name instead of hackery in
-      GenerateRunTests.extractTests:
-      test'large'interactive'_blah = ...
-    . Also the io_human detection is pretty broken.
-    . I don't want to make the function name in the testName inconsistent,
-      but once this stuff is in the test name, why repeat it?
-    . That's fine for stuff like large, for which I can just write
-      test_large_..., but I think I want module level, e.g. for initialize,
-      which happens to correspond to gui ones, but doesn't have to.
-    . I could have something like initialize, but to get typechecking,
-      I could put them in a Test.Meta record.
-  / find those "manual tests" and mark them with a tag: Util.Process_test
-    . Nah, I can still run them by hand.  And I'd need per-test tags.
-  * I removed the test/run_tests feature to run multiple binaries, but
-    I relied on it for profile tests, and it's convenient to have it because
-    then the test logs go to the same place.
-    . But it seems not quite right, because I don't want parallization for
-      MemoryLeak.
-    . Or make parallel append by default, and just run MemoryLeak first.
-  / clear build/test/tmp before each run
-    . test/run_tests already does this
-  * restore CWD after each test run
-    . Anything else I should do for isolation?
-  parallelize tests
-    . Do a work stealing queue, with n workers.
-    . Each test has to redirect stdout to its out stream so they don't get
-      tangled, but I'm not sure if I can actually do that.
-    . If tests reported errors in another way then I wouldn't have the
-      problem, but I think I like being able to use print and Util.Debug and
-      having it be interleaved properly with test output.
-    . In that case, I can start subprocesses for each task.  I already do this
-      for tests with setup.
-    . Either divide up by module, and assume they're all reasonably quick, or
-      dynamically feed tests to a persistent runner.
-    . Static is simpler, but assumes each test module is reasonably quick, and
-      pays for startup overhead for each one.  Actual fork and startup should
-      be pretty quick, but I might have to re-evaluate a lot of CAFs, which
-      could slow things down a lot.
-    * So let's try static first, and if it's much slower, try a persistent
-      runner.
-      . Startup overhead is really high:
-        . single thread:    4.42s user 1.39s system 291% cpu 1.994 total
-        . 2 subprocesses:   17.41s user 11.11s system 341% cpu 8.357 total
-    * Try persistent runners.
-      . How to tell the caller the tests are done?  I guess I have to monitor
-        the output, and notice when it completes.
-      . Open subprocesses with pipes, merge stdout and stderr into a chan.
-    . Timing:
-      . 1 thread:   16.75s user 4.69s system 250% cpu 8.567 total
-      . 2 threads:  14.44s user 7.42s system 393% cpu 5.557 total
-      . 4 threads:  15.98s user 5.67s system 543% cpu 3.983 total
-    * Incorporate the initialization tests?
-    * Also I get *.tix parse errors.  I think ghc is mutating RunTests.tix
-      on each run, so I have to write different files and merge them
-      together at the end.
-    * update test/run_tests
-    fix failures
-      * Util.Format_test.test_render_full_width
-        . split on chinese, so maybe wcwidth is different somehow?
-        . somhow is -4 instead of 8, what?  What is different about the
-          environment?
-      * Cmd.Undo_test.test_load_previous_history.test_load_previous_history
-        threw exception: git: createProcess: runInteractiveProcess: exec: does
-        not exist (No such file or directory)
-        . suddenly it can't find git?  RunTests cleared the environment!
   quickcheck: property:
     notes:
       . In general for RealTimes, I'd like some which are the same, some which
@@ -3750,15 +3633,6 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  * rename xFmatra to xFMatra
-  / S.Flat is not in fact flat.  Only the tempo has been flattened out, not
-    groups.  It needs a better name.
-  * single letter patterns for fast patterns, e.g.
-    . trkt = su (tari.kita) = ktpk
-      trkttk = su (tari.kita.taka)
-      kt = su kita
-      kttk = su (kita.taka)
-    . I'll have to get tk and tktu out of the way.
   - tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
   / I think kin^ and tan, are backwards, should be tan^ above, kin, below
@@ -3773,7 +3647,6 @@ solkattu:
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   flashcards:
-    * search and then choose randomly, e.g. random exercise + korvai
     - remember what I did last time, and do spaced repetition
       . This isn't memorization, just randomization with coverage.  So it's
         enough to pick random but twice as likely to pick with score one
@@ -3782,7 +3655,6 @@ solkattu:
     - I should be able to configure per-korvai technique
       . For irregular reductions, e.g. Solkattu2018.misra_muktayi1
       . Or just general purpose post-processing.
-    * kook, ok -> kook, pk
     - kook kook -> kook nook, or kook took
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
   - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
@@ -3798,30 +3670,6 @@ solkattu:
       the StrokeMap becomes the same monoid oriented notation, and repeat etc.
       is ok.  Then I can have a "Sarva Name" Note which is like Pattern except
       of variable length.  That gets realized as cycling the strokes.
-  * Can I get a rerender on save?
-    . This is like the ascii version of auto integration.
-    . This would be set up as an interactive korvai editor, and it could
-      do things like display diffs.
-    . I could do this with a ghci macro.  Call writeText, write to
-      ../data/solkattu-text, and use git diff to see differences.
-    * Diff to compare realizations before and after I change the
-      stroke map.
-      . How can I keep them both around?  If I do it at the haskell
-        level, I have to copy the stroke map, and then have multiple
-        stroke maps for the same instrument, and then diff between
-        them.  This might be useful in general to highlight different
-        players style.
-      . If I do it at the ghci level, I'd have to somehow stash the
-        previous previous Korvai or realize output someplace that
-        survives a reload, like write a file.  Then add a function to
-        do a text diff with the file contents.
-    / clear when switching to a different korvai
-      . Or not, it would look like a big diff but I can just run again.
-    * :K macro:
-      . save korvai variable or get last one
-      . make a tmp git dir, if it doesn't exist
-      . commit in git dir
-      . writeText to the git dir, :kdiff will diff changes
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
@@ -3830,29 +3678,10 @@ solkattu:
       . But I don't think I can do that with 'map section', maybe have the
         usual 'x2' 'devel' etc. be overloaded on ToSection.
   format: output:
-    * Solkattu.Offset inserted by startOn should figure out nadai
-    * rulers seem to use absolute rulerEach, and are not reset by nadai
-      changes
-    * fix all the ruler stuff:
-      . Show ruler by line instead of by section.
-      . Always show the ruler when it changes, instead of suppressing the
-        second half if it wrapped.
-      . Mid-akshara Nadai changes.
-      . Show at least until the end of the akshara when the sequence ends.
-      plan:
-        . Generate from the sequence instead of the text.
-        . Generate a parallel ruler realization.  [(Mark, Duration)]
-        . Every line gets a ruler, which wraps with it.
-        . Filter out rulers unless on line `mod` n, or the ruler changed.
-        . "Changed" is by structure, not marks, so wrapped ruler with the
-          same structure will also be suppressed.
-    * in Realize, clearly separate functions for text and html backends
     html:
       - section metadata display is really ugly
       - sarva double dots are pretty ugly, how about single dots?
         . And can I stop them from clumping together at the breaks?
-      * tala markings show up on the matra after the beat
-      * do the double rest thing for html
       - rests could be wider, since I have more space
         . But just doubling them leads to an ugly gap in between.  How can I
           emit a long underscore or double underscore?
@@ -3871,62 +3700,12 @@ solkattu:
         - similar_to should be a link
         - source should be a link, click on it to see everything from that
           source
-        * link to a specific spot in a recording
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     text:
-      * maybe use 256 color ansi to give a less jarring contrast between
-        start group and group highlight
-      * Use Config data type for terminalWidth and overrideStrokeWidth, so
-        tests can turn things on and off more easily.
-      * Rests are messy.  Notation(extension) causes them to be ___ depending
-        on the duration of the rest, and then thinRests then strips out the
-        extras.
-        . Shouldn't normalizeSpeed split them up?  I guess it doesn't, because
-          it can't really split Patterns, but it could.  Or a separate pass
-          could.
-      * Replace a double rest that starts on an even matra with a double
-        underline, or something.  This is effectively rhythmic spelling.
-        . Alternately, I could put in a number for matra count.
-        . ‗
-          DOUBLE LOW LINE
-          Unicode: U+2017, UTF-8: E2 80 97
-        . This is not ideal because at strokeWidth=1 I wind up with double
-          rests every other column.  I think what I really want is that at
-          strokeWidth=1, '__' becomes '_ ' and '____' becomes '‗   '.
-        . Do I have to do the same _| thing with double rest?
-      * strip rests after the end-on-sam stroke so it winds up on the same line
-        . Didn't it used to do this?
-      * show some tags after sections, e.g. x2 and type
-        . If I carry rulerEach, then I can put the section numbers there too
-      * now group highlight is carrying into ruler lines
-        . Because I just emit start and end.  To resume I'd have to remember
-          when I'm in the middle of a group when breaking rulers.
-        . It would be easier to output styled text, and then render to vt100
-          later.  Is there anything on hackage about that?
-          . terminal-text sort of, but no docs and huge dependency list
-          . rainbow sort of, but only 8 colors, and doesn't optimize no-change
-          . ansi-terminal has just the low level set colors stuff
-          . pretty-terminal - like ansi-terminal, but just colors
-        . But the key thing is that I have a stateless StyledText, that I can
-          append and not worry about terminal state.
-      * carry rulerEach across sections
-      * I could make sections more compact by prefixing with "n: "
-        . On the other hand, maybe I don't really want it more compact.  It
-          can already be hard to keep track of where I am.
-        . I could improve that with some color on rulers.
       - I should also be able to mark sam, to make avartanams more clear
         when they wrap across two lines.
         . Say by colorizing the stroke on sam.
-      * Colors stop right before the last note, not on it.
-        . It's probably because I need to highlight the end of the group.  Can
-          I use lighter gray?
-      / If groups touch each other then I can't tell them apart.  Maybe
-        I should alternate two colors.
-    / Solkattu.notation should output an abstract formatted output, which can
-      be rendered to HTML or ASCII.
-      . I added notationHtml, which is more error-prone, but simpler.
-  * What if I just renamed Sequence to S?
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
       strokes, and korvai fields.  Separate entry for name and tags.
@@ -3955,31 +3734,6 @@ solkattu:
       the strokes, because I'm trying to find a more general
       representation.
     . Still, I could make it easier with tools, see StrokeMap:
-  StrokeMap:
-    * ensure that later entries in the StrokeMap override earlier ones
-    * analyze for overidden StrokeMap entries
-      . I'll need a way to mark "standard library", where it's fine if they're
-        not used, or overidden.
-    * analyze for unused StrokeMap entries
-      . I have to have Realize.realize record which SolluKeys matched
-      . I can return to realize easily, but to accumulate the set of used
-        [sollu], I have to either thread the value or switch to StateT
-        + monadic.
-    * put analyses in the tests?
-    * except Solkattu2017.c_17_07_13 is a false positive, taka is indeed used
-      . Maybe it's confused by the 1^taka?
-  / Final notes should be cancellable, so e.g. tri will cancel for the
-    first two.
-    . E.g. tri (taka.tam.__) is ok when it's at the end, but when I nest
-      it: tri (tri (taka.tam.__)) I need to rewrite as
-      tri (tri_ (tam.__) taka)
-    . Actually, don't I already have the karvai mechanism for this?
-      What if I do tri (taka. karvai tam.__)?
-    . Not quite, I'd have to do 'tri_ __ (taka . karvai tam)
-    . The problem is I don't really have a well defined notion of when
-      cancelling is ok.
-    . Or maybe it's better to use tri_ after all?  Are there cases where
-      either I can't express with tri_, or it's really awkward?
   - Some strokes change realization based on the tempo, e.g. 'od' when
     slow to 'o' when fast.  I could add a stroke attribute for that, or
     I could try to do a global instrument realization heuristic.
@@ -3987,19 +3741,12 @@ solkattu:
       okookook -> nakatiku.  This implies just a realization heuristic
       won't be enough, though maybe I want it anyway for things like
       dynamics.
-  * Can I put StrokeMap and Patterns together?  Then I can put standard
-    strokes along with the stroke map, and override them together.
   karya integration:
     - I could emit groups as blocks with clip or Clip.
       . But then I lose technique.
       . Unless I also implement that in karya, I'd need a mridangam-specific
         clip and Clip.
     - LSol.insert_* doesn't clear and replace existing notes
-    * I want to be able to insert all parts of a korvai in sequence.
-      . If I make LSol.insert take [Korvai] then I can use take etc.
-      . But it's easier if I get rid of multiple sequences per Korvai.
-      . Or keep multiple sequences but take [Index].
-      . I think multiple sequences are here to say, so I used Part.Index
   sarvalaghu:
     - automatic sarvalaghu variation
       . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
@@ -4046,208 +3793,10 @@ solkattu:
           a group?
         . Well, if I turn nakatiku into a named group, I need some place to
           attach the name.  In that case, why not Pattern Name Matras?
-    plan 2:
-      * Groups get an optional name, used for render.
-        . This way I can have other Pattern-like things, which is to say a
-          sequence with special rendering and a fixed realization.
-        . I can do nakatiku in two ways: named pattern, or named group.
-          I can't think of a strong reason for one over the other.  Go for
-          pattern then.
-      * Pattern gets an optional name
-        . It still seems not quite right because I don't want to have nakatiku
-          with dur /= 4.
-        . But if I put NamedPattern Text, then I can't write HasDuration for
-          it.
-      * replace Nakatiku with a Pattern with the "n4" name
-      / merge Patterns into StrokeMap.
-        . I guess this is just Realize.Instrument, but StrokeMap makes more
-          sense as a name anyway.
-        . I think I still want to put them in separate maps since patterns
-          have tempo changes, while sollus don't.
-        . On the other hand, if I want to match on taka.p6 or something then
-          they have to be together.
-        . But an explicit StrokeMap defeats the notion of p6 as having
-          variable realization.  The idea is that:
-          . The strokes are optional.  I can already do it with
-            defaultStrokeMap.
-          . I can display them abstractly.  I can do this by realizing
-            Patterns to Patterns instead of strokes.
-      * Ok then at least rename StrokeMap -> SolluMap, Patterns -> PatternMap
-        . How about Korvai.StrokeMaps -> Korvai.Instruments?
-        * But I don't like Realize.Instrument.  Maybe Instrument -> StrokeMap
-          now that it's free.
-      * Integrate setting patterns and strokes into the same list.
-        . They can already go there, but split them out in the constructor.
-        . Sargam stuff can get cleaned up a bit.
-      / Implement realizePatterns as switching out the default stroke map
-        instead of a RealizePatterns function.
-        . Is it really better though?
     - support tags on patterns, e.g. (2^p5, [something else])
-      . Or should I use named patterns?
-    * realize can replace groups with a Pattern, by depth or by name
-      . flags for pattern realize: all groups abstract, patterns abstract,
-        all realized
-      . I need names for groups, so I know how to render them.
-      . Alternately, propagate the group name to Realize.Group and render can
-        decide.
-      . But I should be consistent.  So maybe Patterns also turn into named
-        groups.
-      . I think I'll use Pattern's render, so why not standardize on Pattern
-        instead?  I wind up mapping Groups to Pattern again at the end anyway.
-      . If I want to have fancy html that switches, I might want to have
-        render emit all the possibilities in place.
-      . Also I could get rid of Realize.Pattern, and switch the rendering to
-        the special Group.
-      . Groups don't have to be an integral number of matras, but Patterns do.
-        I could extend Pattern but how to display it?
-      . This goes back to S.normalizeSpeed, which uses HasMatras, which
-        returns integral Matra.  Because it then multiplies by speed, it can
-        only express powers of 2.  I could switch to fMatrasOf, but I lose
-        guarantees that it produces an integral number of spaces.  It should,
-        because the group is composed of an integral number of matras at
-        a higher speed, but can't I just use that higher speed then?
-      . Yes, I should be able to do flatMatras, which returns the highest
-        speed and the number of matras.  I should still be able to do if it if
-        changes nadai.
-      . It seems overcomplicated though, how about I emit the group as-is, but
-        merge afterwards?
-    * add a control so I can control abstract patterns and groups
-    * adjacent groups get merged into one group
-      . I lost highlights on Solkattu.Score.Solkattu2017.c_17_08_29.txt
-      . cat -e, --ext-diff, --textconv, gitattributes
-      . Many diffs are just fewer redundent codes.
-      . Missing highlights I think are nested groups, I'll fix those for real
-        later.
-    * Format.Html support
-      . I have to flatten out the groups to break avartanams (easily).
-      . So do that, convert to Symbol, and later group together Symbols.
-        So I think they may need a sustain flag to group Patterns.
-      . Abstract groups already use S.Sustain, so all I have to do is
-        preserve that in Symbol, via the sustain flag.
-      . Otherwise, I could make an Html-specific Symbol, which is basically
-        just flatten the groups enough to split avartanams.
-      . But in that case it may be the same amount of work to just split
-        avartanams within groups, it's not actually that complicated.
-      * Solkattu2017.c_17_08_29 section 4, 3rd tat tam gets a highlight, which
-        carries through to the theme start
-        . It likely has to do with how sandi makes groups by dropping things,
-          which for some reason confuses the new group mechanism.
-        . Indeed these used to be nested groups that only accidentally worked
-          right.
-        . Can I have sandi not make a group when it drops?
-        . I can, but I might need it for matching?  Maybe I should have
-          non-highlighting groups.
-    * use named groups instead of named patterns
-      . E.g. takadugutarikita or tarikita.takataka are set in SolkattuGlobal,
-        but nakatiku is set in patterns and Instrument/*
-      . Why not use named patterrns though?
-      . Patterns are abstracted, but I could abstract by name, for both
-        pattern and group.
-      . Patterns go in Instrument/* and PatternMap, and the strokes have
-        rhythm, while sollus go in SolkattuGlobal and the rhythm is on the
-        sollus.
-      . Patterns have an arbitrary konnakol realization, but sollus reuse
-        sollus for konnakol.  Actually for standard patterns konnakol varies.
-        I could get this with sollus by supporting sollu map for konnakol too,
-        just default to reusing the sollu when not found.
-      . I could even do generic duration patterns in sollus with
-        replicate n NoSollu.  Pattern seems a bit nicer though, but if it
-        means I can completely get rid of patterns it might be worth it.
-      . Ok, first extend groups for nakatiku at least, then see.
-      * I need to be able to turn off highlighting per-group, since I don't
-        want to highlight kp and kpnp
-    * preserve group name, and abstract groups by name
-      . what's an example when I would want to do this?
-      . if nakatiku becomes a group, it has sollus, which can be
-        manipulated, e.g. via spread.  I can't think of other advantages
-        a named group has over a named pattern.
-      . In that case, if I don't have a use for named groups, remove the name?
-        I might want to use tags, e.g. karvai.  Then highlight based on that.
     - can I highlight karvais?  I guess I have to infer when they are, e.g.
       tri_ can put the group on, or join, though maybe it should be called
       karvai to emphasize that.
-    / consider unifying Pattern and Group at the Format level
-    / Patterns become groups with duration but no sollus.
-      . Actually they could have sollus, e.g. nakatiku tarikita or takadinna.
-        Well, I guess that means Nakatiku is not a Pattern anymore, just a
-        predefined sequence, and member of the standard stroke map.
-      . I could put a special tag on it to avoid ambiguity with other uses
-        of those sollus, but in practice you wouldn't want to speak it that
-        way since it would have the same ambiguity problem.  I guess
-        taka/takatiku is an exception, since taka is highly overloaded.
-      Examples:
-        . nakatiku / dikutaka
-        . kitadugu tarikita (tkoo ktpk)
-        . taka, takatiku (kp, kpnp)
-      . It's a unfortunate how I have to have an invariant where the group
-        has a size, and then sollus are either empty, or have a single Pattern
-        of the same size.
-      . Also if the sollus are empty, be careful with the HasMatras
-        instance... I think callers use Solkattu.durationOf though, which
-        takes groups into account.
-    / realizePatterns functionality gets folded into general realization,
-    * To control pattern realization, allow patterns in the stroke map.
-      . Then I'll want tags for them, but if they're groups with no sollus
-        they can't have a tag.  It would work if they used `Pattern dur` as a
-        single sollu, and use that to key the realization.
-      . This means Pattern would move from Solkattu.Note to Solkattu.NoteT.
-      . Actually why even do that?  StrokeMap can have Patterns in it.
-        It seems a bit nicer to have Pattern at the Note level, one is for
-        less nesting, two is because it's convenient to know that a NoteT
-        is always 1 sollu, e.g. in Realize.replaceSollus.
-        . Wait, realizeSollu is after the match, so any Pattern should have
-          been expanded out already.
-        . I don't have an "expand" step at all, so this would be new.
-        . I can do realizePatterns as whether or not they are in the
-          StrokeMap, so if a Pattern isn't found, it just turns into
-          a Realize.Pattern.
-        . Patterns will break the 1:1 StrokeMap rule, but it just becomes
-          1:1 for matras.
-        . So I think this just means that bestMatch returns more strokes.
-      . But on the other hand, it seems I do want to match patterns as Notes,
-        then I can do (taka.p5, ...), without jumping through hoops.
-      . So maybe the cleanest way is just to make a StrokeMap key
-        Either Pattern sollu
-      . What about merging Pattern with Sollu?  E.g.
-        Ta | Di | Pattern Matra
-      . In that case, I have to also explicitly add it to each instrument, so
-        it should be defined separately at least.  But maybe I can do
-        data NSollu = NSollu Sollu | NPattern !Pattern
-        effectively that's put the either at the sollu level.
-      . Then I need a special rule to perhaps pass Patterns through unchanged,
-        and I need the equivalent for Stroke.  This is basically the same as
-        moving the Pattern from Solkattu.Note to Solkattu.NoteT, except it
-        gets the bogus karvai.  The advantage is I can have a more specific
-        type, but StrokeMap gets the full SequenceT anyway and does runtime
-        checking, just for syntactic convenience.
-      . So this seems like not much of a win over Either where needed.
-      . realizePatterns just becomes switching the base StrokeMap.
-      . The difference with patterns is that they can have tempo changes.
-        Sollus can't be that way because they ignore rests.  So StrokeMap
-        would have to become less precise to accomodate both.
-  groups:
-    Groups are still a bit of a mess.
-      . Having to keep group count up to date in 'Realize.realize'.  I could
-        fix this with a nested FGroup, but of course introducing other
-        problems.
-      . I think the group _split compensation for After in
-        Realize.split_strokes is incorrect.  I think split_strokes or the
-        whole collect group thing should be recursive.  Making FGroup nested
-        might be good for this.
-      . I *still* don't really understand Duration vs. Matra vs. FMatra.
-        I think the notion of local FMatra is required.  Duration is useful
-        at the DSL level but it only makes sense at the toplevel which means
-        it's actually error-prone.  Maybe I should get rid of it entirely,
-        except at the global level where I can be sure it's right, which
-        basically means after 'Realize.realize'.
-      . Can I do quickcheck tests for various durationOf and matrasOf?
-      . Do some tests to make sure I understand Solkattu.durationOf and
-        Solkattu.matrasOf.
-
-    * Get Nakatiku out of Pattern.  I can use the Standard tag, but I like
-      the unexpanded form.  I think this does need named groups.
-    * Don't make tk and tktu groups, or at least don't highlight them.
-    / Various Notation functions like 'spread' should work with groups.
   - Ornaments to fill in karvai, e.g. with taka and takatiku
   - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
     end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
@@ -4256,11 +3805,6 @@ solkattu:
       them, but choose a certain path.
     . This is also part of the intensity pattern, where the final repeat
       may have an alternate more intense realization.
-  * Different tags for patterns within a Korvai, e.g. for performance
-    and exercise variants.
-    . Also useful to mark the sections, e.g. development, and related
-      sequences.  Ideally I could have separate stroke maps, but maybe
-      that's overkill.
   - I should be able to add multiple realizations of the same
     instrument, keyed by string, e.g. for different mridangists
     realizations.
