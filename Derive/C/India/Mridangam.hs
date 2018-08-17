@@ -12,7 +12,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Ui.Types as Types
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -29,9 +28,12 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Solkattu.Instrument.Mridangam as Mridangam
+import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
+
+import qualified Ui.Types as Types
 
 import Global
 import Types
@@ -154,14 +156,7 @@ infer_pattern dur variation = do
 
 realize_mstroke :: Derive.Context Score.Event -> Realize.Note Mridangam.Stroke
     -> Maybe Derive.NoteDeriver
-realize_mstroke ctx = fmap (Eval.eval_expr_val ctx) . stroke_expr
-
-stroke_expr :: Realize.Note Mridangam.Stroke -> Maybe (Expr.Expr Expr.MiniVal)
-stroke_expr stroke = case stroke of
-    Realize.Note stroke -> Just $ Expr.to_expr stroke
-    Realize.Space {} -> Nothing
-    Realize.Pattern p -> Just $ Expr.to_expr p
-    Realize.Alignment {} -> Nothing
+realize_mstroke ctx = fmap (Eval.eval_expr_val ctx) . ToScore.toExpr
 
 infer_strokes :: ScoreTime -> ScoreTime -> Derive.Deriver Int
 infer_strokes dur event_dur

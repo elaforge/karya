@@ -105,7 +105,8 @@ toScore durStrokes = (noteTrack, [("*", pitchTrack)])
     where
     noteTrack =
         [ (start, dur, ShowVal.show_val expr)
-        | (start, dur, Just expr) <- zip3 starts durs (map to_expr strokes)
+        | (start, dur, Just expr) <-
+            zip3 starts durs (map ToScore.toExpr strokes)
         ]
     pitchTrack =
         [ (start, 0, scorePitch (_pitch (Realize._stroke note)))
@@ -113,14 +114,6 @@ toScore durStrokes = (noteTrack, [("*", pitchTrack)])
         ]
     (durs, strokes) = unzip durStrokes
     starts = scanl (+) 0 durs
-    -- TODO why can't I reuse ToScore.toScore?
-    to_expr s = case s of
-        Realize.Note stroke -> Just $ Expr.to_expr stroke
-        Realize.Pattern p -> Just $ Expr.to_expr p
-        Realize.Abstract name -> Just $
-            Expr.generator $ Expr.call (Expr.Symbol name) []
-        Realize.Space _ -> Nothing
-        Realize.Alignment {} -> Nothing
 
 noteOf :: Realize.Note a -> Maybe (Realize.Stroke a)
 noteOf (Realize.Note s) = Just s

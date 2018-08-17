@@ -132,19 +132,13 @@ strokes_to_events :: Expr.ToExpr (Realize.Stroke a) =>
 strokes_to_events strokes =
     [ Event.event (realToFrac start) (if has_dur then realToFrac dur else 0)
         (ShowVal.show_val expr)
-    | (start, dur, Just (expr, has_dur)) <- zip3 starts durs (map to_expr notes)
+    | (start, dur, Just expr, has_dur) <-
+        List.zip4 starts durs
+            (map ToScore.toExpr notes) (map S.hasSustain notes)
     ]
     where
     starts = scanl (+) 0 durs
     (durs, notes) = unzip $ S.flattenedNotes $ S.withDurations strokes
-    to_expr s = case s of
-        Realize.Note stroke -> Just (Expr.to_expr stroke, False)
-        Realize.Pattern p -> Just (Expr.to_expr p, True)
-        Realize.Space Solkattu.Rest -> Nothing
-        Realize.Space Solkattu.Sarva -> Nothing -- TODO
-        Realize.Space Solkattu.Offset -> Nothing
-        Realize.Alignment {} -> Nothing
-
 
 -- * integrate
 

@@ -38,12 +38,15 @@ toScore strokes = (events, [])
         return (start, d, ShowVal.show_val expr)
     starts = scanl (+) 0 durs
     (durs, notes) = unzip strokes
-    toExpr s = case s of
-        Realize.Note stroke -> Just $ Expr.to_expr stroke
-        Realize.Pattern p -> Just $ Expr.to_expr p
-        Realize.Abstract name -> Just $
-            Expr.generator $ Expr.call (Expr.Symbol name) []
-        Realize.Space Solkattu.Rest -> Nothing
-        Realize.Space Solkattu.Sarva -> Nothing -- TODO
-        Realize.Space Solkattu.Offset -> Nothing
-        Realize.Alignment {} -> Nothing
+
+toExpr :: Expr.ToExpr (Realize.Stroke stroke) => Realize.Note stroke
+    -> Maybe (Expr.Expr Expr.MiniVal)
+toExpr s = case s of
+    Realize.Note stroke -> Just $ Expr.to_expr stroke
+    Realize.Pattern p -> Just $ Expr.to_expr p
+    Realize.Abstract name -> Just $
+        Expr.generator $ Expr.call (Expr.Symbol name) []
+    Realize.Space Solkattu.Rest -> Nothing
+    Realize.Space Solkattu.Sarva -> Nothing -- TODO
+    Realize.Space Solkattu.Offset -> Nothing
+    Realize.Alignment {} -> Nothing
