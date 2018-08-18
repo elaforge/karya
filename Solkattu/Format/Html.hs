@@ -168,6 +168,8 @@ formatHtml config tala notes =
     akshara :: (Text, Int) -> [Text]
     akshara (n, spaces) = n : replicate (spaces-1) ""
     avartanams =
+        concat $
+        Format.formatFinalAvartanam (isRest . _html) $ map (:[]) $
         Format.breakAvartanams $
         concatMap makeSymbols $
         Format.makeGroupsAbstract (_abstraction config) $

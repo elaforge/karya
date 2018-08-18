@@ -14,7 +14,7 @@ module Solkattu.Format.Format (
     , NormalizedFlat
     , makeGroupsAbstract, normalizeSpeed
     -- * tala
-    , breakAvartanams
+    , breakAvartanams, formatFinalAvartanam
     , onSam, onAnga, onAkshara, angaSet
     -- * ruler
     , Ruler, inferRuler
@@ -120,6 +120,18 @@ normalizeRest a = a
 -- | Split on sam.
 breakAvartanams :: [(S.State, a)] -> [[(S.State, a)]]
 breakAvartanams = dropWhile null . Seq.split_before (onSam . fst)
+
+-- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
+-- onto the next line.
+formatFinalAvartanam :: (note -> Bool) -> [[[(a, note)]]]
+    -- ^ [avartanams], broken by lines
+    -> [[[(a, note)]]]
+formatFinalAvartanam isRest avartanams = case reverse avartanams of
+    [final : rests] : penultimate : prevs
+        | not (isRest (snd final)) && all (isRest . snd) rests ->
+            reverse $ (Seq.map_last (++[final]) penultimate) : prevs
+        | otherwise -> avartanams
+    _ -> avartanams
 
 onSam :: S.State -> Bool
 onSam state = S.stateMatra state == 0 && S.stateAkshara state == 0

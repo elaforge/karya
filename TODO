@@ -3689,7 +3689,7 @@ solkattu:
       - show rulers on nadai changes
         . formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
       - carry rulersEach across sections
-      - strip trailing rests for final note
+      * strip trailing rests for final note
       - Decrease font size for higher speed.
       - For high speed split avartanam.
       - I shoud be able to display nested groups.

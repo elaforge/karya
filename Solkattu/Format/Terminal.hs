@@ -228,16 +228,6 @@ spellRests strokeWidth
         | otherwise = sym
     double = Text.singleton Realize.doubleRest
 
--- | If the final non-rest is at sam, drop trailing rests, and don't wrap it
--- onto the next line.
-formatFinalAvartanam :: [[[(a, Symbol)]]] -> [[[(a, Symbol)]]]
-formatFinalAvartanam avartanams = case reverse avartanams of
-    [final : rests] : penultimate : prevs
-        | not (isRest (snd final)) && all (isRest . snd) rests ->
-            reverse $ (Seq.map_last (++[final]) penultimate) : prevs
-        | otherwise -> avartanams
-    _ -> avartanams
-
 -- This should be (== Space Rest), but I have to 'makeSymbols' first to break
 -- lines.
 isRest :: Symbol -> Bool
@@ -248,7 +238,7 @@ formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Int -> Tala.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
 formatLines abstraction strokeWidth width tala =
     map (map (Format.mapSnd (spellRests strokeWidth)))
-        . formatFinalAvartanam . map (breakLine width)
+        . Format.formatFinalAvartanam isRest . map (breakLine width)
         . Format.breakAvartanams
         . map combine . Seq.zip_prev
         . concatMap (makeSymbols strokeWidth tala angas)
