@@ -27,7 +27,7 @@ import Global
 
 -- | Set expected starting and ending time.  Useful for eddupu, or sections
 -- which are split in the middle of an avartanam.
-startOn, endOn :: S.Duration -> Section stroke -> Section stroke
+startOn, endOn :: S.Duration -> Section sollu -> Section sollu
 startOn dur section = section { Korvai.sectionStart = dur }
 endOn dur section = section { Korvai.sectionEnd = dur }
 

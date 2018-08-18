@@ -132,8 +132,8 @@ modifySections modify korvai = korvai
 
 -- * Section
 
-data Section stroke = Section {
-    sectionSequence :: SequenceT stroke
+data Section sollu = Section {
+    sectionSequence :: SequenceT sollu
     -- | Where the section should start.  0 means start on sam.
     , sectionStart :: !S.Duration
     -- | Expect the section to end at this time.  It can be negative, in which
@@ -144,7 +144,7 @@ data Section stroke = Section {
     , sectionTags :: Tags.Tags
     } deriving (Eq, Show)
 
-instance Pretty stroke => Pretty (Section stroke) where
+instance Pretty sollu => Pretty (Section sollu) where
     format (Section seq start end tags) = Pretty.record "Section"
         [ ("tags", Pretty.format tags)
         , ("start", Pretty.format start)
@@ -152,19 +152,17 @@ instance Pretty stroke => Pretty (Section stroke) where
         , ("sequence", Pretty.format seq)
         ]
 
-smap :: (SequenceT stroke -> SequenceT stroke)
-    -> Section stroke -> Section stroke
+smap :: (SequenceT sollu -> SequenceT sollu) -> Section sollu -> Section sollu
 smap f section = section { sectionSequence = f (sectionSequence section) }
 
-addSectionTags :: Tags.Tags -> Section stroke -> Section stroke
+addSectionTags :: Tags.Tags -> Section sollu -> Section sollu
 addSectionTags tags = modifySectionTags (tags<>)
 
-modifySectionTags :: (Tags.Tags -> Tags.Tags)
-    -> Section stroke -> Section stroke
+modifySectionTags :: (Tags.Tags -> Tags.Tags) -> Section sollu -> Section sollu
 modifySectionTags modify section =
     section { sectionTags = modify (sectionTags section) }
 
-section :: SequenceT stroke -> Section stroke
+section :: SequenceT sollu -> Section sollu
 section seq = Section
     { sectionSequence = seq
     , sectionStart = 0
@@ -172,7 +170,7 @@ section seq = Section
     , sectionTags = mempty
     }
 
-inferSections :: [SequenceT stroke] -> [Section stroke]
+inferSections :: [SequenceT sollu] -> [Section sollu]
 inferSections seqs = case Seq.viewr (map section seqs) of
     Just (inits, last) ->
         map (addSectionTags (Tags.withType Tags.development)) inits
@@ -408,7 +406,7 @@ inferMetadata = inferSections . inferKorvaiMetadata
             { korvaiSections =
                 Mridangam $ map (addTags (korvaiTala korvai)) sections
             }
-    addTags :: Tala.Tala -> Section stroke -> Section stroke
+    addTags :: Tala.Tala -> Section sollu -> Section sollu
     addTags tala section =
         addSectionTags (inferSectionTags tala section) section
 
