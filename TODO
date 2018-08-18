@@ -3635,8 +3635,6 @@ REPL: repl:
 solkattu:
   - tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
-  / I think kin^ and tan, are backwards, should be tan^ above, kin, below
-    . It already is.
   David Nelson mridangam transcriptions:
     . http://www.ancient-future.com/atfp.html#MIDI
     . http://dpnelson.web.wesleyan.edu/publications.html
@@ -3677,6 +3675,8 @@ solkattu:
         section annotations anyway.
       . But I don't think I can do that with 'map section', maybe have the
         usual 'x2' 'devel' etc. be overloaded on ToSection.
+  - abstract group names are wrong
+    . e.g. Solkattu2013.c_13_07_23 groups go 18 19 20, they should go 18 16 14
   format: output:
     html:
       - section metadata display is really ugly
@@ -3695,7 +3695,7 @@ solkattu:
       - I shoud be able to display nested groups.
       - show nadai change: as above
       - use JS to switch between konnakol and mridangam
-      - use JS to switch between Format.Abstraction level
+      * use JS to switch between Format.Abstraction level
       db ideas:
         - similar_to should be a link
         - source should be a link, click on it to see everything from that

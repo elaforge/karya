@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Format korvais as HTML.
-module Solkattu.Format.Html (indexHtml, writeAll) where
+module Solkattu.Format.Html (indexHtml, writeAbstraction, writeAll) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -77,9 +77,12 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
 
 
 -- | Write HTML with all the instrument realizations.
-writeAll :: FilePath -> Format.Abstraction -> Korvai.Korvai -> IO ()
-writeAll fname abstraction korvai =
+writeAbstraction :: FilePath -> Format.Abstraction -> Korvai.Korvai -> IO ()
+writeAbstraction fname abstraction korvai =
     Text.IO.writeFile fname $ Doc.un_html $ render abstraction korvai
+
+writeAll :: FilePath -> Korvai.Korvai -> IO ()
+writeAll fname korvai = Text.IO.writeFile fname $ Doc.un_html $ renderAll korvai
 
 
 -- * high level
@@ -96,25 +99,73 @@ render :: Format.Abstraction -> Korvai.Korvai -> Doc.Html
 render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
     where
     (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
-    body = mconcat $ mapMaybe htmlInstrument $ Seq.sort_on (order . fst) $
+    body = mconcat $ map htmlInstrument $ Seq.sort_on (order . fst) $
         Korvai.korvaiInstruments korvai
-    htmlInstrument (name, Korvai.GInstrument inst) =
-        Just $ "<h3>" <> Doc.html name <> "</h3>\n"
-            <> TextUtil.join "\n\n" sectionHtmls
-        where
-        sectionHtmls :: [Doc.Html]
-        sectionHtmls =
-            zipWith (renderSection (config name) (Korvai.korvaiTala korvai))
-                (Korvai.genericSections korvai)
-                (Format.convertGroups
-                    (Korvai.realize inst realizePatterns korvai))
-        realizePatterns = not $ Format.isAbstract abstraction Format.Patterns
+    htmlInstrument (name, Korvai.GInstrument inst) = mconcat
+        [ "<h3>" <> Doc.html name <> "</h3>\n"
+        , TextUtil.join "\n\n" (sectionHtmls inst (config name) korvai)
+        ]
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
     config name = Config
         { _abstraction = abstraction
         , _font = if name == "konnakol" then konnakolFont else instrumentFont
         }
+
+abstractions :: [(Text, Format.Abstraction)]
+abstractions =
+    [ ("none", mempty)
+    , ("patterns", Format.defaultAbstraction)
+    , ("all", Format.abstract Format.Patterns
+        <> Format.abstract (Format.Groups Nothing))
+    ]
+
+defaultAbstraction :: Text
+defaultAbstraction = "patterns"
+
+-- | Render all 'Abstraction's, with javascript to switch between them.
+--
+-- TODO copy paste with 'render', either merge them or delete render
+renderAll :: Korvai.Korvai -> Doc.Html
+renderAll korvai = htmlPage title (korvaiMetadata korvai) body
+    where
+    (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
+    body :: Doc.Html
+    body = mconcatMap htmlInstrument $ Seq.sort_on (order . fst) $
+        Korvai.korvaiInstruments korvai
+    order name = (fromMaybe 999 $ List.elemIndex name prio, name)
+        where prio = ["konnakol", "mridangam"]
+    htmlInstrument (instName, Korvai.GInstrument inst) = TextUtil.unlines $
+        "<h3>" <> Doc.html instName <> "</h3>"
+        : chooseAbstraction instName
+        : map (realizeAbstraction instName inst) abstractions
+    realizeAbstraction instName inst (aname, abstraction) =
+        Doc.tag_attrs "div" attrs $ Just $
+            TextUtil.join "\n\n" $
+            sectionHtmls inst (config abstraction instName) korvai
+        where
+        attrs =
+            [ ("class", "realization")
+            , ("instrument", instName)
+            , ("abstraction", aname)
+            ] ++ if aname == defaultAbstraction
+            then [("", "")] else [("hidden", "")]
+    config abstraction instName = Config
+        { _abstraction = abstraction
+        , _font = if instName == "konnakol"
+            then konnakolFont else instrumentFont
+        }
+
+sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
+    -> Config -> Korvai.Korvai -> [Doc.Html]
+sectionHtmls inst config korvai =
+    zipWith (renderSection config (Korvai.korvaiTala korvai))
+        (Korvai.genericSections korvai)
+        (Format.convertGroups
+            (Korvai.realize inst realizePatterns korvai))
+    where
+    realizePatterns = not $
+        Format.isAbstract (_abstraction config) Format.Patterns
 
 htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
 htmlPage title meta body = mconcat
@@ -135,7 +186,37 @@ htmlHeader title = TextUtil.join "\n"
     , tableCss
     , "</style>"
     , ""
+    , "<script>"
+    , javascript
+    , "</script>"
+    , ""
     ]
+
+javascript :: Doc.Html
+javascript =
+    "function showAbstraction(instrument, abstraction) {\n\
+    \    var tables = document.getElementsByClassName('realization');\n\
+    \    for (var i = 0; i < tables.length; i++) {\n\
+    \        var attrs = tables[i].attributes;\n\
+    \        if (attrs.instrument.value == instrument) {\n\
+    \            tables[i].hidden = attrs.abstraction.value != abstraction;\n\
+    \        }\n\
+    \    }\n\
+    \}\n"
+
+chooseAbstraction :: Text -> Doc.Html
+chooseAbstraction instrument =
+    "\n<p> " <> mconcatMap ((<>"\n") . radio . fst) abstractions
+    where
+    -- <label> makes the text clickable too.
+    radio val = Doc.tag "label" $
+        Doc.tag_attrs "input" (attrs val) (Just (Doc.html val))
+    attrs val =
+        [ ("type", "radio")
+        , ("onchange", "showAbstraction('" <> instrument <> "', this.value)")
+        , ("name", "abstraction-" <> instrument)
+        , ("value", val)
+        ] ++ if val == defaultAbstraction then [("checked", "")] else []
 
 htmlFooter :: Doc.Html
 htmlFooter = "</body></html>\n"
@@ -321,7 +402,7 @@ sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
         <> TextUtil.join ", " (map (htmlTag k) vs)
 
 korvaiMetadata :: Korvai.Korvai -> Doc.Html
-korvaiMetadata korvai = TextUtil.join "<br>\n" $ concat $
+korvaiMetadata korvai = (<>"\n\n") $ TextUtil.join "<br>\n" $ concat $
     [ ["Tala: " <> Doc.html (Tala._name (Korvai.korvaiTala korvai))]
     , ["Date: " <> Doc.html (showDate date) | Just date <- [Korvai._date meta]]
     , [showTag ("Eddupu", map pretty eddupu) | not (null eddupu)]

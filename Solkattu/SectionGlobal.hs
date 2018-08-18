@@ -4,7 +4,8 @@
 
 -- | DSL functions to add tags to Sections.
 module Solkattu.SectionGlobal (
-    startOn, endOn, eddupu
+    section, smap
+    , startOn, endOn, eddupu
     -- * tags
     , commentS, dateS
     , devel, ending, var, local
@@ -15,7 +16,7 @@ module Solkattu.SectionGlobal (
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Korvai (Section)
+import Solkattu.Korvai (Section, section, smap)
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu

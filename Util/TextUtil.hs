@@ -4,6 +4,7 @@
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
 module Util.TextUtil where
+import Prelude hiding (lines)
 import Control.Arrow (first)
 import Control.Monad (liftM)
 import qualified Control.Monad.Identity as Identity
@@ -59,6 +60,9 @@ joinWith sep a b = join sep $ filter (not . Text.null . toText) [a, b]
 
 join :: Textlike a => a -> [a] -> a
 join sep = fromText . Text.intercalate (toText sep) . map toText
+
+unlines :: Textlike a => [a] -> a
+unlines = fromText . Text.unlines . map toText
 
 split1 :: Text -> Text -> (Text, Text)
 split1 sep text = (pre, Text.drop (Text.length sep) post)

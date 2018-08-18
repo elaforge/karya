@@ -88,7 +88,10 @@ tag_attrs name attrs maybe_content =
     attrs_text
         | null attrs = ""
         | otherwise = (" "<>) $ Seq.join " "
-            [html name <> "=\"" <> html val <> "\"" | (name, val) <- attrs]
+            [ html name
+                <> if Text.null val then "" else "=\"" <> html val <> "\""
+            | (name, val) <- attrs
+            ]
 
 -- | Format a Doc to HTML.  Interpret simple markdown-like formatting:
 -- single quotes for a reference to function or module haddock, backticks

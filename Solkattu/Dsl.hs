@@ -53,7 +53,7 @@ import Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
 import Solkattu.Format.Format (Abstraction)
 import Solkattu.Instrument.Mridangam ((&))
-import Solkattu.Korvai (Korvai, section, smap)
+import Solkattu.Korvai (Korvai)
 import Solkattu.Part (Part(..), Index(..), realizeParts)
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S

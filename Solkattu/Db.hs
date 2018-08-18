@@ -112,19 +112,18 @@ format (i, korvai) = mconcat
 -- * write
 
 writeHtml :: IO ()
-writeHtml = writeHtmlTo "../data/solkattu" Format.defaultAbstraction
+writeHtml = writeHtmlTo "../data/solkattu"
 
 -- | Write all Korvais as HTML into the given directory.
-writeHtmlTo :: FilePath -> Format.Abstraction -> IO ()
-writeHtmlTo dir abstraction = do
+writeHtmlTo :: FilePath -> IO ()
+writeHtmlTo dir = do
     clearDir dir
     writeWithStatus write1 All.korvais
     Text.IO.writeFile (dir </> "index.html") $
         Doc.un_html $ Html.indexHtml ((<>".html") . korvaiFname) All.korvais
     writeCommit dir
     where
-    write1 korvai = Html.writeAll (dir </> korvaiFname korvai <> ".html")
-        abstraction korvai
+    write1 korvai = Html.writeAll (dir </> korvaiFname korvai <> ".html") korvai
 
 korvaiFname :: Korvai.Korvai -> FilePath
 korvaiFname korvai = untxt $ mod <> "." <> variableName

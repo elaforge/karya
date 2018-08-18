@@ -158,7 +158,7 @@ realizeSargam = _printInstrument Korvai.sargam
 realizeKon :: Int -> Korvai -> IO ()
 realizeKon width = Terminal.printKonnakol width Format.defaultAbstraction
 
-htmlWriteAll :: FilePath -> Abstraction -> Korvai -> IO ()
+htmlWriteAll :: FilePath -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll
 
 _printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
