@@ -4,6 +4,9 @@
 
 -- | The 'Tala' type, which describes a Carnatic tala.
 module Solkattu.Tala where
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+
 import Global
 
 
@@ -42,6 +45,24 @@ data Tala = Tala {
     } deriving (Show, Eq)
 
 instance Pretty Tala where pretty = showt
+
+tala_name :: Tala -> Text
+tala_name tala
+    | tala == adi_tala = "adi"
+    | _angas tala == [I] = showt (_jati tala) <> " beats"
+    | _jati tala == 0 = _name tala -- chapu talams don't have jati
+    | otherwise = Text.unwords
+        [ _name tala
+        , Map.findWithDefault (showt (_jati tala)) (_jati tala) jatis
+        , "jati"
+        ]
+    where
+    jatis = Map.fromList
+        [ (3, "tisra")
+        , (4, "chatusra")
+        , (5, "khanda")
+        , (9, "sankirna")
+        ]
 
 data Anga = Clap !Akshara | Wave !Akshara
     -- | laghu, drutam, anudrutam
@@ -90,3 +111,7 @@ rupaka_fast = Tala "rupaka" [Clap 1, Clap 1, Wave 1] 0
 -- automatically.
 any_beats :: Tala
 any_beats = Tala "any beats" [I] 4
+
+-- | For a fragment which fits a certain number of beats.
+beats :: Akshara -> Tala
+beats aksharas = Tala "beats" [I] aksharas

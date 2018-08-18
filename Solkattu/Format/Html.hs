@@ -403,7 +403,7 @@ sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
 
 korvaiMetadata :: Korvai.Korvai -> Doc.Html
 korvaiMetadata korvai = (<>"\n\n") $ TextUtil.join "<br>\n" $ concat $
-    [ ["Tala: " <> Doc.html (Tala._name (Korvai.korvaiTala korvai))]
+    [ ["Tala: " <> Doc.html (Tala.tala_name (Korvai.korvaiTala korvai))]
     , ["Date: " <> Doc.html (showDate date) | Just date <- [Korvai._date meta]]
     , [showTag ("Eddupu", map pretty eddupu) | not (null eddupu)]
     , map showTag (Map.toAscList (Map.delete "tala" tags))

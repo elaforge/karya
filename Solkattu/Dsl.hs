@@ -166,7 +166,7 @@ p765 sep = trin sep (pat 7) (pat 6) (pat 5)
 
 -- | For a fragment which fits a certain number of beats.
 beats :: Akshara -> Tala.Tala
-beats aksharas = Tala.Tala "beats" [Tala.I] aksharas
+beats = Tala.beats
 
 adi :: Tala.Tala
 adi = Tala.adi_tala

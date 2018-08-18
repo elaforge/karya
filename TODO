@@ -3675,17 +3675,22 @@ solkattu:
         section annotations anyway.
       . But I don't think I can do that with 'map section', maybe have the
         usual 'x2' 'devel' etc. be overloaded on ToSection.
-  - abstract group names are wrong
+      . This may require SequenceT to be a newtype instead of type synonym.
+  / abstract group names are wrong
     . e.g. Solkattu2013.c_13_07_23 groups go 18 19 20, they should go 18 16 14
+    . They're right, I'm confused.
   format: output:
     html:
+      - start <hr> right next to the text, instead of in the next cell
+        . <hr> wants to go below text, can I get it to go to the right of the
+          next, or have another way to draw a horizontal line?
       - section metadata display is really ugly
       - sarva double dots are pretty ugly, how about single dots?
         . And can I stop them from clumping together at the breaks?
       - rests could be wider, since I have more space
         . But just doubling them leads to an ugly gap in between.  How can I
           emit a long underscore or double underscore?
-      - tala name incomplete, e.g. triputa -> triputa tisra jati
+      * tala name incomplete, e.g. triputa -> triputa tisra jati
       - show rulers on nadai changes
         . formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
       - carry rulersEach across sections
