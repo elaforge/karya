@@ -2611,7 +2611,7 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
-  - get rid of the complicated sort order in .fix-imports
+  * get rid of the complicated sort order in .fix-imports
     . This should be enough:
       import-order-first: Util
       import-order-last: Global Types Synth.Lib.Global
@@ -3633,7 +3633,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  - tatakita.takadinna -> tkoo ktok
+  * tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
   David Nelson mridangam transcriptions:
     . http://www.ancient-future.com/atfp.html#MIDI
@@ -3698,7 +3698,6 @@ solkattu:
       - Decrease font size for higher speed.
       - For high speed split avartanam.
       - I shoud be able to display nested groups.
-      - show nadai change: as above
       - use JS to switch between konnakol and mridangam
       * use JS to switch between Format.Abstraction level
       db ideas:
@@ -3833,6 +3832,7 @@ solkattu:
       pu_ pu_ ktkto
     . The emphasis note can be i, or pu, or maybe u, or p+u (play like
       kre on pakhawaj).
+    . Generally ktkno -> kikno when there is a longer time on nam.
   - Mridangam patterns can vary by intensity in addition to duration and
     family. How can I represent and realize that?  E.g. the final of
     a group of three can be higher intensity.
@@ -3851,9 +3851,7 @@ solkattu:
       based on that tag.
     . But for those variations to actually be in the rendered output, I need
       to have pattern realization in the score.
-  - some way to turn ktkno to kikno.
-    . This might be when you have a longer time on nam.
-  - replacements, e.g. ta.ki.ta -> nang.__ . su (kita.taka)
+  - replacements, e.g. takita -> nang.kttk
     . use this in koraippu_janahan
   / I think I need an absolute SetSpeed, so I can pad a number of
     aksharas, regardless of the speed.
@@ -3868,7 +3866,7 @@ solkattu:
     . Actually since align is used at the top level, I can assume s0.
   - extend Karvai to take a minimum number of Rests before it applies.
     Default to 2, but a chapu might require 3.
-  - This turns into a general way to represent unparsed expressions.
+  * This turns into a general way to represent unparsed expressions.
     . Text shouldn't have ShowVal, it should be Symbol, and then CallId
       should have a separate type, its ShowVal doesn't need quotes,
       unless there is a space.
@@ -4688,7 +4686,7 @@ Perform:
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
   Instrument
-    - some basic midi instrument defs for generic midi (dev, patch)
+    * some basic midi instrument defs for generic midi (dev, patch)
 
 Util.Format:
   HsPretty:

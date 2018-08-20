@@ -384,7 +384,7 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: Sequence
 dikutarikitataka = nakatiku
 
-misra_tani :: [Part] -- realizeParts realizep misra_tani
+misra_tani :: [Part] -- realizePartsM misra_tani
 misra_tani =
     [ Comment "part 1"
     , K misra_tani1 All
@@ -723,7 +723,7 @@ e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
 
 -- * adi
 
-adi_tani :: [Part] -- realizeParts realizep adi_tani
+adi_tani :: [Part] -- realizePartsM adi_tani
 adi_tani =
     [ K adi_tani1 All
     , K trikalam1 All

@@ -21,18 +21,21 @@ import qualified Solkattu.Solkattu as Solkattu
 import Global
 
 
-printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
-    -> [Korvai.Sequence] -> Format.Abstraction -> Korvai.Korvai -> IO ()
-printInstrument inst defaultStrokes abstraction korvai = do
+printInstrument :: Solkattu.Notation stroke => Bool -> Bool
+    -> Korvai.Instrument stroke -> [Korvai.Sequence] -> Format.Abstraction
+    -> Korvai.Korvai -> IO ()
+printInstrument lint writeDiff inst defaultStrokes abstraction korvai = do
     let config = Terminal.defaultConfig { Terminal._abstraction = abstraction }
     let out = Terminal.formatInstrument config inst korvai
     mapM_ Text.IO.putStrLn out
-    Text.IO.putStr $ Korvai.lint inst defaultStrokes korvai
+    when lint $
+        Text.IO.putStr $ Korvai.lint inst defaultStrokes korvai
     let write = Text.IO.writeFile (gitRepo </> korvaiPath)
             (Text.unlines out)
-    ifM (Directory.doesDirectoryExist (gitRepo </> ".git"))
-        (commit gitRepo >> write)
-        (createRepo gitRepo >> write >> commit gitRepo)
+    when writeDiff $
+        ifM (Directory.doesDirectoryExist (gitRepo </> ".git"))
+            (commit gitRepo >> write)
+            (createRepo gitRepo >> write >> commit gitRepo)
 
 -- | Line-oriented diff against the previous realize.
 diff :: IO ()

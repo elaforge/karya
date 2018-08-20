@@ -27,6 +27,7 @@ import qualified Solkattu.Instrument.Sargam as Sargam
 import qualified Solkattu.Interactive as Interactive
 import Solkattu.Interactive (diff, diffw)
 import qualified Solkattu.Korvai as Korvai
+import qualified Solkattu.Part as Part
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
@@ -161,11 +162,23 @@ realizeKon width = Terminal.printKonnakol width Format.defaultAbstraction
 htmlWriteAll :: FilePath -> Korvai -> IO ()
 htmlWriteAll = Html.writeAll
 
+-- | 'realizeParts' specialized to mridangam, and disbale the usual
+-- 'Interactive.printInstrument' lint and write diff stuff.
+realizePartsM :: [Part] -> IO ()
+realizePartsM = Part.realizeParts realize
+    where
+    inst = Korvai.mridangam
+    realize = Interactive.printInstrument False False inst
+        (_defaultStrokes inst) Format.defaultAbstraction
+
 _printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Abstraction -> Korvai -> IO ()
 _printInstrument inst =
-    Interactive.printInstrument inst (get (Korvai.instName inst))
-    where get name = Map.findWithDefault [] name _instrumentDefaultStrokes
+    Interactive.printInstrument True True inst (_defaultStrokes inst)
+
+_defaultStrokes :: Korvai.Instrument stroke -> [Sequence]
+_defaultStrokes inst = Map.findWithDefault [] (Korvai.instName inst)
+    _instrumentDefaultStrokes
 
 -- ** lint
 

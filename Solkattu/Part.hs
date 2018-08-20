@@ -14,7 +14,6 @@ data Part = K !Korvai.Korvai !Index | Comment !Text
 data Index = All | Index !Int | Range !Int !Int
     deriving (Eq, Show)
 
-
 realizeParts :: (Korvai.Korvai -> IO ()) -> [Part] -> IO ()
 realizeParts realize = mapM_ part
     where
