@@ -60,12 +60,12 @@ c_mohra = ganesh $ makeMohra adi mridangam (a1, a2, a1) (b1, b2, b3)
     b2 = su $ ta.langa.dheem.__4
     b3 = su $ tri_ (dheem.__4) (ta.langa.din.__.tat.__)
     mridangam = makeMridangam
-        [ (dit, [k])
-        , (tang.kita, [u, p, k])
-        , (ta.langa, [p, u, k])
-        , (din.tat, [o, k])
-        , (dheem, [od])
-        , (na.ka, [n, p])
+        [ (dit, k)
+        , (tang.kita, u.p.k)
+        , (ta.langa, p.u.k)
+        , (din.tat, o.k)
+        , (dheem, od)
+        , (na.ka, n.p)
         ]
 
 c_mohra2 :: Korvai
@@ -79,11 +79,11 @@ c_mohra2 = janahan $ makeMohra adi mridangam (a1, a2, a3) (b1, b2, b3)
     b2 = su $ ta.ga.ta.ga . dhom.__4
     b3 = su $ tri_ (dhom.__4) $ repeat 2 (ta.ga.ta.ga)
     mridangam = makeMridangam
-        [ (dit, [t])
-        , (tang, [o])
-        , (kitataka, [k, t, p, k])
-        , (ta.ga, [o, u])
-        , (dhom, [o])
+        [ (dit, t)
+        , (tang, o)
+        , (kitataka, k.t.p.k)
+        , (ta.ga, o.u)
+        , (dhom, o)
         ]
 
 c_mohra_youtube :: Korvai
@@ -100,14 +100,14 @@ c_mohra_youtube = source "Melakkaveri Balaji" $
     b2 = su $ taka . tang.__3.ga.tang.__
     b3 = su $ taka . tri_ (tang.__.kitataka) (tang.__3.ga.din.__)
     mridangam = makeMridangam
-        [ (dhom.ta.ka.ta, [o, k, p, u])
-        , (ki.ta, [p, k])
-        , (ka.din.din, [p, i, i])
-        , (ta.ki.ta, [k, t, k])
-        , (ka, [k])
-        , (taka.tang, [n, o, od])
-        , (ga.tang, [o, od])
-        , (ga.din.tang, [o, od, u])
-        , (kitataka, [p, k, k, o])
-        , (ga.din, [o, od])
+        [ (dhom.ta.ka.ta, o.k.p.u)
+        , (ki.ta, p.k)
+        , (ka.din.din, p.i.i)
+        , (ta.ki.ta, k.t.k)
+        , (ka, k)
+        , (taka.tang, n.o.od)
+        , (ga.tang, o.od)
+        , (ga.din.tang, o.od.u)
+        , (kitataka, p.k.k.o)
+        , (ga.din, o.od)
         ]

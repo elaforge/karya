@@ -167,12 +167,17 @@ infer_strokes dur event_dur
 default_variation :: Text
 default_variation = "d"
 
-variations :: Map Text (Map Solkattu.Pattern [Mridangam.SNote])
-variations = Map.fromList $ map (fmap Map.fromList) $
-    [ (default_variation, Mridangam.defaultPatterns)
+type SequenceM = [S.Note () (Realize.Note Mridangam.Stroke)]
+
+variations :: Map Text (Map Solkattu.Pattern SequenceM)
+variations = Map.fromList $ map (fmap (Map.fromList . map (fmap convert))) $
+    [ (default_variation,  Mridangam.defaultPatterns)
     , ("kt_kn_o", Mridangam.kt_kn_o)
     ] ++
     [ ("f567-" <> showt n, p) | (n, p) <- zip [0..] Mridangam.families567]
+    where
+    convert :: Mridangam.SequenceM g -> SequenceM
+    convert = Realize.solkattuToRealize
 
 -- * c_tirmanam
 

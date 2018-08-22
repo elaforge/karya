@@ -13,10 +13,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import Global
 
 
-type SNote = Realize.SNote Stroke
-
-note :: stroke -> Realize.SNote stroke
-note = S.Note . Realize.Note . Realize.stroke
+type SequenceM g = [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
 
 -- Automatically infer two handed cek if they are isolated.
 -- Maybe infer light byut if there is a note immediately afterwards?
@@ -69,31 +66,38 @@ strokes = Strokes
     , x = CekO
     }
 
-notes :: Strokes SNote
-notes = note <$> strokes
+notes :: Strokes (SequenceM g)
+notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
+    strokes
 
 -- * patterns
 
-__ :: SNote
-__ = Realize.rest
+__ :: SequenceM g
+__ = [S.Note $ Solkattu.Space Solkattu.Rest]
 
-melodicPatterns :: [(Solkattu.Pattern, [Realize.SNote Stroke])]
+melodicPatterns :: [(Solkattu.Pattern, SequenceM g)]
 melodicPatterns = patterns
-    [ (5, [r3, r2, r3, i, r2])
-    , (6, [r3, r2, __, r3, i, r2])
-    , (7, [r3, __, r2, __, r3, i, r2])
-    , (8, [r3, r2, __, r3, __, i, __, r2])
-    , (9, [r3, __, r2, __, r3, __, i, __, r2])
-    ] where Strokes {..} = notes
+    [ (5, r3.r2.r3.i.r2)
+    , (6, r3.r2.__.r3.i.r2)
+    , (7, r3.__.r2.__.r3.i.r2)
+    , (8, r3.r2.__.r3.__.i.__.r2)
+    , (9, r3.__.r2.__.r3.__.i.__.r2)
+    ]
+    where
+    Strokes {..} = notes
+    (.) = (<>)
 
-rhythmicPatterns :: [(Solkattu.Pattern, [Realize.SNote Stroke])]
+rhythmicPatterns :: [(Solkattu.Pattern, SequenceM g)]
 rhythmicPatterns = patterns
-    [ (5, [b, __, o, __, __])
-    , (6, [o, __, b, o, __, __])
-    , (7, [x, __, x, __, o, __, __])
-    , (8, [x, k, __, x, __, o, __, __])
-    , (9, [x, k, __, x, __, b, o, __, __])
-    ] where Strokes {..} = notes
+    [ (5, b.__.o.__.__)
+    , (6, o.__.b.o.__.__)
+    , (7, x.__.x.__.o.__.__)
+    , (8, x.k.__.x.__.o.__.__)
+    , (9, x.k.__.x.__.b.o.__.__)
+    ]
+    where
+    Strokes {..} = notes
+    (.) = (<>)
 
 patterns :: [(S.Matra, a)] -> [(Solkattu.Pattern, a)]
 patterns = map (first Solkattu.pattern)

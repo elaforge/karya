@@ -34,14 +34,14 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
     where
     theme = group $ takita.ta.takadinna
     mridangam = makeMridangam
-        [ (takita.ta, [k, k, t, k])
-        , (1^takita.ta, [p&k, p&k, t, k])
-        , (din, [od])
-        , (tat, [k])
-        -- , (tarikita, [p, k, t, p])
-        -- , (kitataka, [k, t, p, k])
-        , (tarikita, [o, k, n, p])
-        , (kitataka, [k, t, k, t])
+        [ (takita.ta, k.k.t.k)
+        , (1^takita.ta, p&k.p&k.t.k)
+        , (din, od)
+        , (tat, k)
+        -- , (tarikita, p.k.t.p)
+        -- , (kitataka, k.t.p.k)
+        , (tarikita, o.k.n.p)
+        , (kitataka, k.t.k.t)
         ]
 
 e_18_02_26 :: Korvai
@@ -59,8 +59,8 @@ e_18_02_26 = ganesh $ exercise $ date 2018 2 26 $ korvaiS adi mridangam $
     bwd = [in4 p8, in3 p8, p8]
     rest n = restM (n*6)
     mridangam = makeMridangam
-        [ (p8, [k, t, k, n, k, o, o, k])
-        , (din, [od])
+        [ (p8, k.t.k.n.k.o.o.k)
+        , (din, od)
         ]
 
 in4 :: SequenceT sollu -> SequenceT sollu
@@ -97,14 +97,14 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
 
     sarva n = sarvaM (n*6)
     mridangam = makeMridangam
-        [ (p8, [k, t, k, n, k, o, o, k])
-        , (p9, [k, t, k, n, p, k, o, o, k])
-        , (taka.naka, [n, k, n, p])
-        , (din, [od])
-        , (tat, [k])
-        , (tang, [u])
-        , (din.na, [od, n])
-        , (ga, [p])
+        [ (p8, k.t.k.n.k.o.o.k)
+        , (p9, k.t.k.n.p.k.o.o.k)
+        , (taka.naka, n.k.n.p)
+        , (din, od)
+        , (tat, k)
+        , (tang, u)
+        , (din.na, od.n)
+        , (ga, p)
         ]
 
 yt_pmi1 :: Korvai
@@ -132,20 +132,20 @@ yt_pmi1 = source "Palakkad Mani Iyer" $
     sar2 = din.tat.din.tat.tam
     sar3 = din.din.__.na.ka.na.na.din
     mridangam = makeMridangam
-        [ (sar1, [k, k, t, k, u, o, o, u, k])
-        , (sar2, [o, k, o, k, od])
-        , (sar3, [d, d, n, d, n, n, u])
+        [ (sar1, k.k.t.k.u.o.o.u.k)
+        , (sar2, o.k.o.k.od)
+        , (sar3, d.d.n.d.n.n.u)
 
-        , (tat.dit, [p&k, p&t])
-        , (ka.taka, [k, n, n])
-        , (din.din.na, [o, o, k])
-        , (tat.dit.tat, [p&k, p&k, p&k])
-        , (kita.taka.din, [p, k, n, n, o])
-        , (na.na.din, [on, on, od])
-        , (tat.din, [p&k, od])
-        , (din, [od])
-        , (ka, [p&k])
-        , (tdgnt, [p&k, t, k, n, o])
+        , (tat.dit, p&k.p&t)
+        , (ka.taka, k.n.n)
+        , (din.din.na, o.o.k)
+        , (tat.dit.tat, p&k.p&k.p&k)
+        , (kita.taka.din, p.k.n.n.o)
+        , (na.na.din, on.on.od)
+        , (tat.din, p&k.od)
+        , (din, od)
+        , (ka, p&k)
+        , (tdgnt, p&k.t.k.n.o)
         ]
 
 yt_karaikudi1 :: Korvai
@@ -194,14 +194,14 @@ yt_karaikudi1 = source "Karaikudi Mani" $
     nakadinna = group $ su $ na.ka.din.na
     kitatakatam = kttk.tam.__
     mridangam = makeMridangam
-        [ (theme1, [k, t, k, t, k, n, o, k, o&t, k])
-        , (tat, [k])
-        , (ta, [k])
-        , (din, [od])
+        [ (theme1, k.t.k.t.k.n.o.k.o&t.k)
+        , (tat, k)
+        , (ta, k)
+        , (din, od)
         -- TODO technique: if preceded by a rest, play kook
-        , (nakadinna, [n, o, o, k])
-        , (kitatakatam, [o, k, n, p, u])
-        , (tam, [od])
+        , (nakadinna, n.o.o.k)
+        , (kitatakatam, o.k.n.p.u)
+        , (tam, od)
         ]
 
 c_18_03_19 :: Korvai
@@ -238,17 +238,17 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
     kitataka = group $ kita.taka
     din_din_na__ gap = sd2 (din.din) . sd (na.__n gap)
     mridangam = makeMridangam
-        [ (kitataka, [k, t, k, o])
-        , (1^kitataka, [k, t, k, p])
-        , (na, [on])
-        , (1^na, [n])
-        , (din, [od])
-        , (1^din, [d])
-        , (tat, [p&k])
-        , (ta, [k])
-        , (p5, [k, t, p, k, p, k, t, k, n, o])
-        , (tam, [u])
-        , (taka.ti.ku, [k, p, n, p])
+        [ (kitataka, k.t.k.o)
+        , (1^kitataka, k.t.k.p)
+        , (na, on)
+        , (1^na, n)
+        , (din, od)
+        , (1^din, d)
+        , (tat, p&k)
+        , (ta, k)
+        , (p5, k.t.p.k.p.k.t.k.n.o)
+        , (tam, u)
+        , (taka.tiku, k.p.n.p)
         ]
 
 c_18_03_28 :: Korvai
@@ -277,22 +277,22 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
     p10 = group $ kita.taka.tari.kita.taka
     theme = group $ kita.ki.na.ka.din.__.ka
     mridangam = makeMridangam
-        [ (kitakinakadin, [k, t, k, n, o, od])
-        , (1^kitakinakadin, [k, t, k, n, p, d])
-        , (ka.din, [k, od])
-        , (1^(ka.din), [k, d])
-        , (theme, [k, t, k, n, o, od, k])
-        , (din, [od])
-        , (1^theme, [k, t, k, n, p, d, k])
-        , (1^din, [d])
-        , (na, [on])
-        , (1^na, [n])
-        , (ga, [p])
-        , (tat, [p&k])
+        [ (kitakinakadin, k.t.k.n.o.od)
+        , (1^kitakinakadin, k.t.k.n.p.d)
+        , (ka.din, k.od)
+        , (1^(ka.din), k.d)
+        , (theme, k.t.k.n.o.od.k)
+        , (din, od)
+        , (1^theme, k.t.k.n.p.d.k)
+        , (1^din, d)
+        , (na, on)
+        , (1^na, n)
+        , (ga, p)
+        , (tat, p&k)
 
-        , (tari.kita, [p, k, n, p])
-        , (kita.kita, [k, t, k, t])
-        , (p10, [k, t, p, k, p, k, t, k, n, o])
+        , (tari.kita, p.k.n.p)
+        , (kita.kita, k.t.k.t)
+        , (p10, k.t.p.k.p.k.t.k.n.o)
         ]
 
 c_18_04_25 :: Korvai
@@ -317,9 +317,9 @@ c_18_04_25 = date 2018 4 25 $ ganesh $
     theme = group $ dhom.__.ka.__ . repeat 3 (din.na.gin.na)
     -- TODO other themes
     mridangam = makeMridangam
-        [ (theme, [t, k, o, k, t, k, o, k, t, k, o, k, t, k])
-        , (1^theme, [o, k, o, k, t, k, o, k, t, k, o, k, t, k])
-        , (dhom, [o])
+        [ (theme, t.k.o.k.t.k.o.k.t.k.o.k.t.k)
+        , (1^theme, o.k.o.k.t.k.o.k.t.k.o.k.t.k)
+        , (dhom, o)
         ]
 
 {-
@@ -371,11 +371,11 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 
     theme2' = group $ theme2_ . din.__.tat.__.din.na.tat.__
     mridangam = makeMridangam
-        [ (theme1_, [p&k, p&t, k, t, k, n, o, k, o&t, k])
-        , (theme2, [t, k, o, k, t, k, o, k, o, k, o, u, k])
-        , (din.tat.din.na.tat, [o, k, o, k, k])
-        , (din, [o])
-        , (1^din, [od])
+        [ (theme1_, p&k.p&t.k.t.k.n.o.k.o&t.k)
+        , (theme2, t.k.o.k.t.k.o.k.o.k.o.u.k)
+        , (din.tat.din.na.tat, o.k.o.k.k)
+        , (din, o)
+        , (1^din, od)
         ]
 
 -- * HS Sudhindra
@@ -413,16 +413,16 @@ misra_tani1 = date 2018 7 16 $ sudhindra $
     ]
     where
     mridangam = makeMridangam
-        [ (tam, [p&v])
-        , (taka.jonu, [k, o, o, k])
-        , (na, [on])
-        , (din, [od])
+        [ (tam, p&v)
+        , (taka.jonu, k.o.o.k)
+        , (na, on)
+        , (din, od)
         ]
     kendang = makeKendang1
-        [ (tam, [a])
-        , (taka.jonu, [p, a, o, p])
-        , (na, [t])
-        , (din, [a])
+        [ (tam, a)
+        , (taka.jonu, p.a.o.p)
+        , (na, t)
+        , (din, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_tani2 :: Korvai
@@ -440,10 +440,10 @@ misra_tani2 = date 2018 7 16 $ sudhindra $ korvai Tala.misra_chapu mridangam
     where
     tatadin_ = ta.ta.din.__
     mridangam = makeMridangam
-        [ (taka.ta.ta.din, [on, k, on, on, od])
-        , (ta.ta.din, [on, on, od])
-        , (taka.taka, [o&j, y, o&j, y])
-        , (din, [od])
+        [ (taka.ta.ta.din, on.k.on.on.od)
+        , (ta.ta.din, on.on.od)
+        , (taka.taka, o&j.y.o&j.y)
+        , (din, od)
         ]
 
 -- abhipriyam (telugu) -> thoughts
@@ -462,14 +462,14 @@ misra_to_mohra1a = date 2018 7 2 $ sudhindra $
     tA0 = tat.__.dit.__.tarikita.kitataka
     tA1 = tat.__.tat.__.tarikita.gu.gu.takita.tong.__.ka.din.__.tat.__
     mridangam = makeMridangam
-        [ (tA0, [p&k, p&t, k, t, k, n, p, k, t, k])
-        , (tA1, [k, k, p, k, t, k, o, o, k, p, k, od, k, od, k])
-        , (din, [od])
+        [ (tA0, p&k.p&t.k.t.k.n.p.k.t.k)
+        , (tA1, k.k.p.k.t.k.o.o.k.p.k.od.k.od.k)
+        , (din, od)
         ]
     kendang = makeKendang1
-        [ (tA0, [pk, pk, k, p, k, t, p, k, p, k])
-        , (tA1, [p, p, p, k, p, p, a, a, k, p, k, a, o, a, o])
-        , (din, [a])
+        [ (tA0, pk.pk.k.p.k.t.p.k.p.k)
+        , (tA1, p.p.p.k.p.p.a.a.k.p.k.a.o.a.o)
+        , (din, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra1b :: Korvai
@@ -491,33 +491,33 @@ misra_to_mohra1b = date 2018 7 2 $ sudhindra $
     theme0 = tarikita.kitataka
     mridangam = makeMridangam
         -- sarva
-        [ (taka.taka, [j, y, j, y])
-        , (din.kita, [d, lt p, k])
-        , (ta.takita.takadinna, [t, k, o, o, k, t, o, k])
+        [ (taka.taka, j.y.j.y)
+        , (din.kita, d.lt p.k)
+        , (ta.takita.takadinna, t.k.o.o.k.t.o.k)
 
         -- ending
-        , (din, [od])
-        , (tat, [p&u])
-        , (tat.dit, [p&u, p&u])
+        , (din, od)
+        , (tat, p&u)
+        , (tat.dit, p&u.p&u)
 
-        , (theme0, [k, t, k, n, p, k, t, k])
-        , (takadinna, [n, o, o, k])
-        , (repeat 3 takadinna, [k, o, o, k, t, o, o, k, t, o, o, k])
-        , (tam, [od])
+        , (theme0, k.t.k.n.p.k.t.k)
+        , (takadinna, n.o.o.k)
+        , (repeat 3 takadinna, k.o.o.k.t.o.o.k.t.o.o.k)
+        , (tam, od)
         ]
     kendang = makeKendang1
-        [ (taka.taka, [t, k, t, o])
-        , (din.kita, [u, lt p, k])
-        , (ta.takita.takadinna, [t, p, a, a, p, k, p, p])
+        [ (taka.taka, t.k.t.o)
+        , (din.kita, u.lt p.k)
+        , (ta.takita.takadinna, t.p.a.a.p.k.p.p)
 
-        , (din, [a])
-        , (tat, [u])
-        , (tat.dit, [u, u])
+        , (din, a)
+        , (tat, u)
+        , (tat.dit, u.u)
 
-        , (theme0, [k, p, k, t, p, k, p, k])
-        , (takadinna, [t, a, a, p])
-        , (repeat 3 takadinna, [t, a, a, k, p, a, a, k, p, a, a, p])
-        , (tam, [a])
+        , (theme0, k.p.k.t.p.k.p.k)
+        , (takadinna, t.a.a.p)
+        , (repeat 3 takadinna, t.a.a.k.p.a.a.k.p.a.a.p)
+        , (tam, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 to_mohra_farans :: Korvai
@@ -538,18 +538,18 @@ to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     where
     -- Mridangam2018.c_18_07_02_sarva
     _sarva = sd $ taka.ta.ta.din.__4.taka.ta.ta.din.__
-    -- (sarva, [on, k, on, on, od, on, k, on, on, od])
+    -- (sarva, on.k.on.on.od.on.k.on.on.od)
     dinnakitataka = group $ din.na.kttk
     takadinnakitataka = group $ taka.din.na.kttk
     mridangam = makeMridangam
-        [ (talang.gu, [p, u, k])
-        , (takadinna, [p, n, k, k])
-        , (gu.gu.na.na, [o, o, n, n])
+        [ (talang.gu, p.u.k)
+        , (takadinna, p.n.k.k)
+        , (gu.gu.na.na, o.o.n.n)
         , (dinnakitataka, dinna)
-        , (takadinnakitataka, [o, k] ++ dinna)
-        , (din, [od])
+        , (takadinnakitataka, o.k.dinna)
+        , (din, od)
         ]
-        where dinna = [o, n, k, t, o, k]
+        where dinna = o.n.k.t.o.k
 
 misra_to_mohra3 :: Korvai
 misra_to_mohra3 = date 2018 7 2 $ sudhindra $
@@ -560,14 +560,14 @@ misra_to_mohra3 = date 2018 7 2 $ sudhindra $
     theme = tat.__.dit.__.takadinna.din.__.tat.__.din.__4
     theme2 = ta.__.di.__.ki.__.ta.__.ta.tarikita.thom
     mridangam = makeMridangam
-        [ (theme, [k, t, k, o, o, k, od, k, od])
-        , (theme2, [k, t, k, n, p, k, t, k, n, o])
+        [ (theme, k.t.k.o.o.k.od.k.od)
+        , (theme2, k.t.k.n.p.k.t.k.n.o)
         ]
     kendang = makeKendang1
-        [ (theme, [p, p, t, a, a, u, a, o, a])
+        [ (theme, p.p.t.a.a.u.a.o.a)
         -- TODO similar technique for kendang as for mridangam?
-        -- , (din.na.din.tat.din, [k, u, a, o, a])
-        , (theme2, [o, p, k, t, a, o, p, k, t, a])
+        -- , (din.na.din.tat.din, k.u.a.o.a)
+        , (theme2, o.p.k.t.a.o.p.k.t.a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 misra_to_mohra4 :: Korvai
@@ -591,15 +591,15 @@ misra_to_mohra4 = date 2018 7 2 $ sudhindra $
     gugunana_trkt = group $ gu.gu.na.na.tarikita.dikutarikitataka
     tarikitataka = group $ tarikita.taka
     mridangam = makeMridangam
-        [ (tat, [k])
-        , (kitataka, [k, t, p, k])
-        , (din.gu, [od, o])
-        , (taka, [p, k])
-        , (dim, [od])
-        , (thom, [od])
-        , (tarikita, [p, k, t, k])
-        , (gu.gu.na.na, [o, o, n, n])
-        , (gu.gu.na.nang.gu, [o, o, n, n, k])
+        [ (tat, k)
+        , (kitataka, k.t.p.k)
+        , (din.gu, od.o)
+        , (taka, p.k)
+        , (dim, od)
+        , (thom, od)
+        , (tarikita, p.k.t.k)
+        , (gu.gu.na.na, o.o.n.n)
+        , (gu.gu.na.nang.gu, o.o.n.n.k)
         ]
 
 misra_mohras :: Korvai
@@ -618,14 +618,14 @@ misra_mohras = date 2018 7 11 $ sudhindra $
     theme = tat.__.dit.__.takadinna.din.__4
     c1 = reduceTo 4 2 theme
     mridangam = makeMridangam
-        [ (din.taka, [u, p, k])
-        , (tam.taka, [u, p, k])
-        , (tiku.tarikita.thom, [t, p, u, p, k, t, o])
-        , (dit, [k])
-        , (talang.gu, [p, u, k])
-        , (din.tat, [o, k])
-        , (din, [od])
-        , (theme, [k, t, k, o, o, k, od])
+        [ (din.taka, u.p.k)
+        , (tam.taka, u.p.k)
+        , (tiku.tarikita.thom, t.p.u.p.k.t.o)
+        , (dit, k)
+        , (talang.gu, p.u.k)
+        , (din.tat, o.k)
+        , (din, od)
+        , (theme, k.t.k.o.o.k.od)
         ]
 
 misra_muktayi1 :: Korvai
@@ -645,11 +645,11 @@ misra_muktayi1 = date 2018 7 11 $ sudhindra $
         , [k, t]
         ]
     mridangam = makeMridangam
-        [ (tat, [k])
-        , (dit, [t])
-        , (kita.thom, [p, k, o])
-        , (ta.di, [p&k, p&k])
-        , (p5, [k, t, k, t, p, k, p, t, o])
+        [ (tat, k)
+        , (dit, t)
+        , (kita.thom, p.k.o)
+        , (ta.di, p&k.p&k)
+        , (p5, k.t.k.t.p.k.p.t.o)
         ]
 
 trikalam1 :: Korvai
@@ -664,10 +664,10 @@ trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $ korvai adi mridangam
         . tam.__4.theme0.di.__6 . tri_ (di.__6) p6
     theme0 = taka.din.__.din.__.tat.__
     mridangam = makeMridangam
-        [ (tam, [p&v])
-        , (theme0, [k, o, od, od, k])
-        , (ta.takita, [k, t, k, t])
-        , (di, [od])
+        [ (tam, p&v)
+        , (theme0, k.o.od.od.k)
+        , (ta.takita, k.t.k.t)
+        , (di, od)
         ]
     -- At higher speed, tadi kitathom becomes tadi kitaka.
 
@@ -680,7 +680,7 @@ trikalam2 = date 2018 7 16 $ trikalam $ sudhindra $
     seq = reduce3 2 ø theme . tri p6
     theme = tat.__.dit.__.takadinna.di.__4
     mridangam = makeMridangam
-        [ (theme, [k, t, k, o, o, k, od])
+        [ (theme, k.t.k.o.o.k.od)
         ]
 
 e_sarva1 :: Korvai
@@ -690,8 +690,8 @@ e_sarva1 = sarvalaghu $ date 2018 7 16 $ sudhindra $
     ]
     where
     mridangam = makeMridangam
-        [ (din.gu.takita, [od, y, o&j, y, od])
-        , (din.gu, [od, k])
+        [ (din.gu.takita, od.y.o&j.y.od)
+        , (din.gu, od.k)
         ]
 
 e_sarva2 :: Korvai
@@ -704,10 +704,10 @@ e_sarva2 = sarvalaghu $ date 2018 7 25 $ sudhindra $
     where
     sarva = taka.taka.din.__.kita.din.__.kita.repeat 2 (taka.taka.din.__.kita)
     mridangam = makeMridangam
-        [ (taka.taka, [j, y, j, y])
-        , (din.kita, [d, lt p, k])
-        , (ta.takita.takadinna, [t, k, o, o, k, t, o, k])
-        , (tam, [od])
+        [ (taka.taka, j.y.j.y)
+        , (din.kita, d.lt p.k)
+        , (ta.takita.takadinna, t.k.o.o.k.t.o.k)
+        , (tam, od)
         ]
 
 e_misra_tisra :: Korvai
@@ -732,6 +732,7 @@ adi_tani =
     , K c_18_08_03 All
     , K adi_tani2 All
     , Comment "mohra"
+    , K SolkattuMohra.c_mohra All
     , K adi_muktayi All
     ]
 
@@ -741,7 +742,7 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
     , section $ repeat 2 $ repeat 2 (tam.__4) . tri_ din tkdn
     , section $ tri_ (din.__4) (tri_ din tkdn)
     , section $ sd (na.din.din.na) . na.na.sd (din.din.na)
-        . kita.taka. sd (din.din) . talang_gu
+        . kttk. sd (din.din.na) . talang_gu
     , x2 $ section $ repeat 2 $ sd (na.din.din.na) . talang_gu
     , section $ tri_ (din.__4) talang_gu
     , x2 $ section $ repeat 3 sarva2 . su (faran1.nakatiku)
@@ -762,30 +763,29 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
     talang_gu = su $ talang.__.gu.talang.__.gu.taka.taka.talang.__.gu
     sarva2 = taka.ta.din.__.ta.din.__
     faran1 = gu.gu.taka.tari.kita
-    faran2 = kita.gu.gu.tari.kita
+    faran2 = takadugutarikita
+        -- TODO HSS plays first one as ktoo... rest as tkoo...
     sarva3' = 10^sarva3a
     sarva3a = repeat 2 $ naka.na.din
     sarva3b = 2^sarva3a
     sarva3c = 3^sarva3a
     sarva3d = su (naka.naka).na.din . naka.na.din
     mridangam = makeMridangam
-        [ (tam, [p&u])
-        , (din, [od])
-        , (na, [n])
-        , (kita.taka, [k, t, p, k])
-        , (talang.gu, [p, u, k])
-        , (taka.taka, [o, k, o, k])
-        , (sarva2, [on, y, on, od, on, od])
+        [ (tam, p&u)
+        , (din, od)
+        , (na, n)
+        , (kita.taka, k.t.p.k)
+        , (talang.gu, p.u.k)
+        , (taka.taka, o.k.o.k)
+        , (sarva2, on.y.on.od.on.od)
             -- TODO sarva
             -- o_oo_oo_ __oo_oo_ o______
-        , (faran1, [o, o, k, t, o, k, t, k])
-        , (faran2, [t, k, o, o, k, t, p, k])
-            -- TODO HSS plays first one as ktoo... rest as tkoo...
-        , (sarva3', [on, y, n, d, n, y, n, d])
-        , (sarva3a, [on, y, on, od, n, o&y, on, d])
-        , (sarva3b, [on, y, on, od, n, y, on, od])
-        , (sarva3c, [on, on, on, od, n, y, on, od])
-        , (sarva3d, [on, y, on, y, on, od, n, y, on, od])
+        , (faran1, o.o.k.t.o.k.t.k)
+        , (sarva3', on.y.n.d.n.y.n.d)
+        , (sarva3a, on.y.on.od.n.o&y.on.d)
+        , (sarva3b, on.y.on.od.n.y.on.od)
+        , (sarva3c, on.on.on.od.n.y.on.od)
+        , (sarva3d, on.y.on.y.on.od.n.y.on.od)
         ]
 
 e_sarva1_tisra :: Korvai
@@ -800,8 +800,8 @@ e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
     where
     din_gutakita = din.__.gu.takita
     mridangam = makeMridangam
-        [ (din_gutakita, [od, y, o&j, y, od])
-        , (din.gu, [od, k])
+        [ (din_gutakita, od.y.o&j.y.od)
+        , (din.gu, od.k)
         ]
 
 -- takadimi takajonu
@@ -848,19 +848,19 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     -- will prevent the full din_trktkt match.
     din_trktkt = din.__.trkt.kttk.tarikitadiku
     mridangam = makeMridangam
-        [ (sarva_, [n, k, n, n, d])
+        [ (sarva_, n.k.n.n.d)
             -- o_ooo_ __ooo_ o___ ____
             --  _ooo__ _ooo_o ____ ___o
-        , (tarikitadiku, [n, p, k, t, p, k, t, p, k, t, p, k])
-        , (tang.__.gu, [od, o])
-        , (dinna, [o, n, k, t, o, k])
-        , (taka, [o, k])
+        , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
+        , (tang.__.gu, od.o)
+        , (dinna, o.n.k.t.o.k)
+        , (taka, o.k)
             -- high speed variant of trktkt, drops the tha
             -- say tari.kita.kita.taka, play nang.__.kita.kita.taka
-        , (din.trkt.kttk, [od, on, __, k, t, k, t, p, k])
-        , (trktkt, [n, p, k, t, k, t, p, k])
-        , (din, [od])
-        , (tam, [od])
+        , (din.trkt.kttk, od.on.__.k.t.k.t.p.k)
+        , (trktkt, n.p.k.t.k.t.p.k)
+        , (din, od)
+        , (tam, od)
         ]
 
 c_18_08_03 :: Korvai
@@ -873,10 +873,10 @@ c_18_08_03 = date 2018 8 3 $ sudhindra $
     where
     dit_tang = dit.__.tang.su (kita.nakatiku) -- spoken taka.tari.kita.taka
     mridangam = makeMridangam
-        [ (dit.tang.kita, [k, u, p, k])
-        , (din, [od])
-        , (tat, [k])
-        , (din.gu, [od, lt o])
+        [ (dit.tang.kita, k.u.p.k)
+        , (din, od)
+        , (tat, k)
+        , (din.gu, od.lt o)
         ]
 
 adi_tani2 :: Korvai
@@ -902,15 +902,15 @@ adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
     faran1 = ta.ta.kita.tari.kita
     faran2 = ta.ta.ki.tang.__.gu
     mridangam = makeMridangam
-        [ (tam, [od])
-        , (dim, [od])
-        , (din.gu, [od, lt o])
-        , (tari.kita.taka, [k, t, k, t, p, k])
-        , (tat, [k])
-        , (dim.taka, [on, p, k])
-        , (faran1, [o, o, k, t, p, k, t, k])
-        , (faran2, [o, o, k, t, k])
-        , (taka, [p, k])
+        [ (tam, od)
+        , (dim, od)
+        , (din.gu, od.lt o)
+        , (tari.kita.taka, k.t.k.t.p.k)
+        , (tat, k)
+        , (dim.taka, on.p.k)
+        , (faran1, o.o.k.t.p.k.t.k)
+        , (faran2, o.o.k.t.k)
+        , (taka, p.k)
         ]
 
 adi_muktayi :: Korvai
@@ -922,8 +922,8 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $
     where
     t0 = dit.__4.tang.__.taka.dikutarikitataka.din.__4.tat.__4.din.__4
     mridangam = makeMridangam
-        [ (dit.tang.taka, [k, u, p, k])
-        , (din, [od])
-        , (tat, [k])
-        , (tat.di, [k, t])
+        [ (dit.tang.taka, k.u.p.k)
+        , (din, od)
+        , (tat, k)
+        , (tat.di, k.t)
         ]

@@ -263,10 +263,13 @@ instance Pretty stroke => Pretty (StrokeMap stroke) where
 -- This allows both patterns and strokes, but you're not allowed to mix them,
 -- e.g. (taka.p5, ...).  See 'StrokeMap' for details.
 strokeMap :: Pretty stroke =>
-    [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
-    -> Either Error (StrokeMap stroke)
+    [ ( [S.Note g (Solkattu.Note Solkattu.Sollu)]
+      , [S.Note g (Solkattu.Note (Stroke stroke))]
+      )
+    ] -> Either Error (StrokeMap stroke)
 strokeMap strokesPatterns = do
-    let (patterns, strokes) = Seq.partition_on isPattern strokesPatterns
+    let (patterns, strokes) = Seq.partition_on isPattern $
+            map (second solkattuToRealize) strokesPatterns
     (smap, solluShadows) <- solluMap strokes
     pmap <- patternMap patterns
     return $ StrokeMap
@@ -277,6 +280,20 @@ strokeMap strokesPatterns = do
     where
     isPattern ([S.Note (Solkattu.Pattern p)], strokes) = Just (p, strokes)
     isPattern _ = Nothing
+
+-- | Stroke maps use 'Solkattu.Notes', so they can use the same language in
+-- "Solkattu.Dsl".  But since they don't go through a realization step
+-- (being used to implement the realization step for sollus), I can directly
+-- map them to 'Realize.Note's before storing them in 'StrokeMap'.
+solkattuToRealize :: [S.Note g (Solkattu.Note (Stroke stroke))]
+    -> [S.Note () (Note stroke)]
+solkattuToRealize = map (fmap convert . S.mapGroup (const ()))
+    where
+    convert = \case
+        Solkattu.Note n -> Note (Solkattu._sollu n)
+        Solkattu.Space a -> Space a
+        Solkattu.Pattern a -> Pattern a
+        Solkattu.Alignment a -> Alignment a
 
 -- | Promote patterns into a 'strokeMap' arg.
 patternKeys :: [(Solkattu.Pattern, a)]

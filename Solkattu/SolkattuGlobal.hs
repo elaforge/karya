@@ -27,8 +27,10 @@ import qualified Solkattu.Instrument.Sargam as Sargam
 import qualified Solkattu.Interactive as Interactive
 import Solkattu.Interactive (diff, diffw)
 import qualified Solkattu.Korvai as Korvai
+import qualified Solkattu.MridangamNotation as MridangamNotation
 import qualified Solkattu.Part as Part
 import qualified Solkattu.Realize as Realize
+import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
@@ -37,9 +39,10 @@ import Solkattu.Dsl
 import Solkattu.DslSollu
 
 
-Mridangam.Strokes {..} = Mridangam.notes
-
 type Sequence = SequenceT Solkattu.Sollu
+type SequenceR stroke = SequenceT (Realize.Stroke stroke)
+type SequenceM = SequenceR Mridangam.Stroke
+
 type Section = Korvai.Section Solkattu.Sollu
 
 -- * fragments
@@ -112,26 +115,146 @@ takadugutarikita = named True "8t" (Solkattu.Standard ^ (taka.dugu.tari.kita))
 
 -- * instruments
 
-on :: Mridangam.SNote
-on = o & n
+Mridangam.Strokes {..} = Mridangam.notes
 
-type StrokeMap stroke = [(Sequence, [Realize.SNote stroke])]
+-- | Merge a sequence of left hand strokes with one of right hand strokes.
+-- Both sequences must have the same length and structure.
+(&) :: CallStack.Stack => SequenceM -> SequenceM -> SequenceM
+(&) = MridangamNotation.merge
+
+on :: SequenceM
+on = o&n
+
+type StrokeMap stroke =
+    [ ( Sequence
+      , [S.Note Solkattu.Group (Solkattu.Note (Realize.Stroke stroke))]
+      )
+    ]
 
 makeMridangam :: CallStack.Stack => StrokeMap Mridangam.Stroke
     -> Korvai.StrokeMaps
 makeMridangam strokes = makeMridangam0 (_mridangamStrokes ++ strokes)
 
 -- | Make a mridangam StrokeMap, but without the default '_mridangamStrokes'.
-makeMridangam0 :: CallStack.Stack => StrokeMap Mridangam.Stroke
-    -> Korvai.StrokeMaps
+makeMridangam0 :: CallStack.Stack
+    => StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
 makeMridangam0 strokes = mempty
     { Korvai.smapMridangam = check $ Realize.strokeMap $
         Realize.patternKeys Mridangam.defaultPatterns ++ strokes
     }
 
--- * interactive utilities
+-- | Show shadowed strokes in the stroke map.
+lintM :: Korvai.Korvai -> IO ()
+lintM = _printLint Korvai.mridangam _mridangamStrokes
 
--- ** realize
+makeKendang1 :: CallStack.Stack => StrokeMap KendangTunggal.Stroke
+    -> Korvai.StrokeMaps
+makeKendang1 strokes = mempty
+    { Korvai.smapKendangTunggal = check $ Realize.strokeMap $
+        Realize.patternKeys KendangTunggal.defaultPatterns ++ _kendangStrokes
+            ++ strokes
+    }
+
+lintK1 :: Korvai -> IO ()
+lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes
+
+makeReyong :: CallStack.Stack => StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
+makeReyong strokes = mempty
+    { Korvai.smapReyong = check $ Realize.strokeMap $
+        Realize.patternKeys Reyong.rhythmicPatterns ++ _reyongStrokes ++ strokes
+    }
+
+lintR :: Korvai -> IO ()
+lintR = _printLint Korvai.reyong _reyongStrokes
+
+makeSargam :: CallStack.Stack => StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
+makeSargam strokes = mempty
+    { Korvai.smapSargam = check $ Realize.strokeMap strokes }
+
+lintS :: Korvai -> IO ()
+lintS = _printLint Korvai.sargam []
+
+_defaultStrokes :: Korvai.Instrument stroke -> [Sequence]
+_defaultStrokes inst = Map.findWithDefault [] (Korvai.instName inst)
+    _instrumentDefaultStrokes
+
+lintAll :: Korvai -> IO ()
+lintAll = Text.IO.putStr • allLints
+
+allLints :: Korvai -> Text
+allLints korvai =
+    Text.unlines $ List.intersperse "" $
+        mapMaybe lintsOf (Korvai.korvaiInstruments korvai)
+    where
+    lintsOf (name, Korvai.GInstrument inst)
+        | Text.null warn = Nothing
+        | otherwise = Just $ "    " <> name <> ":\n" <> warn
+        where warn = Korvai.lint inst (get name) korvai
+    get name = Map.findWithDefault [] name _instrumentDefaultStrokes
+
+-- | 'makeMridangam' gives this to all mridangam stroke maps.
+_mridangamStrokes :: [(Sequence, SequenceM)]
+_mridangamStrokes =
+    [ (thom, o)
+    , (dhom, o)
+    , (tang, u)
+    , (lang, u)
+    , (talang, p.u)
+    , (takadinna, k.o.o.k)
+    , (tdgnt, k.t.k.n.o)
+    , (kp, k.p)
+    , (kpnp, k.p.n.p)
+    , (oknp, o.k.n.p) -- fast version: pktp
+    , (ktktoknp, k.t.k.t.o.k.n.p)
+    , (nakatiku, n.p.u.p.k.t.p.k) -- alternate: t.p.u.p.k.t.p.k
+    , (takadugutarikita, t.k.o.o.k.t.p.k)
+    ]
+    where Mridangam.Strokes {..} = Mridangam.notes
+
+_kendangStrokes :: [(Sequence, SequenceR KendangTunggal.Stroke)]
+_kendangStrokes =
+    [ (thom, a)
+    , (tang, u)
+    , (lang, u)
+    , (talang, o.u)
+    , (takadinna, p.a.o.p)
+    , (tdgnt, o.k.p.t.a)
+    , (kp, p.k)
+    , (kpnp, p.k.t.k)
+    , (oknp, a.k.t.o)
+    , (ktktoknp, k.p.k.p.a.k.t.o)
+    , (nakatiku, t.o.u.k.p.a.o.k)
+    , (takadugutarikita, k.p.a.a.k.p.k.t)
+    ]
+    where KendangTunggal.Strokes {..} = KendangTunggal.notes
+
+_reyongStrokes :: [(Sequence, SequenceR Reyong.Stroke)]
+_reyongStrokes =
+    [ (thom, o)
+    , (tang, o)
+    , (lang, o)
+    , (talang, b.o)
+    , (nakatiku, i.r3.i.r2.r3.i.r3.r2)
+        -- TODO melodic version, there could also be a rhythmic version
+    ]
+    where Reyong.Strokes {..} = Reyong.notes
+
+_printLint :: Pretty stroke => Korvai.Instrument stroke -> [(Sequence, x)]
+    -> Korvai -> IO ()
+_printLint inst strokes korvai =
+    Text.IO.putStr $ Korvai.lint inst (map fst strokes) korvai
+
+_instrumentDefaultStrokes :: Map Text [Sequence]
+_instrumentDefaultStrokes = Map.fromList
+    [ pair Korvai.mridangam _mridangamStrokes
+    , pair Korvai.kendangTunggal _kendangStrokes
+    , pair Korvai.reyong _reyongStrokes
+    ]
+    where
+    pair :: Korvai.Instrument stroke -> [(Sequence, x)] -> (Text, [Sequence])
+    pair inst strokes = (Korvai.instName inst, map fst strokes)
+
+-- * realize
 
 index :: Int -> Korvai -> Korvai
 index i korvai = case Korvai.korvaiSections korvai of
@@ -176,42 +299,7 @@ _printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
 _printInstrument inst =
     Interactive.printInstrument True True inst (_defaultStrokes inst)
 
-_defaultStrokes :: Korvai.Instrument stroke -> [Sequence]
-_defaultStrokes inst = Map.findWithDefault [] (Korvai.instName inst)
-    _instrumentDefaultStrokes
-
--- ** lint
-
--- | Show shadowed strokes in the stroke map.
-lintM :: Korvai.Korvai -> IO ()
-lintM = _printLint Korvai.mridangam _mridangamStrokes
-
-makeKendang1 :: CallStack.Stack => StrokeMap KendangTunggal.Stroke
-    -> Korvai.StrokeMaps
-makeKendang1 strokes = mempty
-    { Korvai.smapKendangTunggal = check $ Realize.strokeMap $
-        Realize.patternKeys KendangTunggal.defaultPatterns ++ _kendangStrokes
-            ++ strokes
-    }
-
-lintK1 :: Korvai -> IO ()
-lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes
-
-makeReyong :: CallStack.Stack => StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
-makeReyong strokes = mempty
-    { Korvai.smapReyong = check $ Realize.strokeMap $
-        Realize.patternKeys Reyong.rhythmicPatterns ++ _reyongStrokes ++ strokes
-    }
-
-lintR :: Korvai -> IO ()
-lintR = _printLint Korvai.reyong _reyongStrokes
-
-makeSargam :: CallStack.Stack => StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
-makeSargam strokes = mempty
-    { Korvai.smapSargam = check $ Realize.strokeMap strokes }
-
-lintS :: Korvai -> IO ()
-lintS = _printLint Korvai.sargam []
+-- * korvai
 
 korvai :: Tala.Tala -> Korvai.StrokeMaps -> [Section] -> Korvai
 korvai = Korvai.korvai
@@ -224,84 +312,6 @@ korvaiS = Korvai.korvaiInferSections
 
 korvaiS1 :: Tala.Tala -> Korvai.StrokeMaps -> Sequence -> Korvai
 korvaiS1 tala smaps seq = korvaiS tala smaps [seq]
-
-lintAll :: Korvai -> IO ()
-lintAll = Text.IO.putStr • allLints
-
-allLints :: Korvai -> Text
-allLints korvai =
-    Text.unlines $ List.intersperse "" $
-        mapMaybe lintsOf (Korvai.korvaiInstruments korvai)
-    where
-    lintsOf (name, Korvai.GInstrument inst)
-        | Text.null warn = Nothing
-        | otherwise = Just $ "    " <> name <> ":\n" <> warn
-        where warn = Korvai.lint inst (get name) korvai
-    get name = Map.findWithDefault [] name _instrumentDefaultStrokes
-
--- | 'makeMridangam' gives this to all mridangam stroke maps.
-_mridangamStrokes :: [(Sequence, [Mridangam.SNote])]
-_mridangamStrokes =
-    [ (thom, [o])
-    , (dhom, [o])
-    , (tang, [u])
-    , (lang, [u])
-    , (talang, [p, u])
-    , (takadinna, [k, o, o, k])
-    , (tdgnt, [k, t, k, n, o])
-    , (kp, [k, p])
-    , (kpnp, [k, p, n, p])
-    , (oknp, [o, k, n, p]) -- fast version: pktp
-    , (ktktoknp, [k, t, k, t, o, k, n, p])
-    , (nakatiku, [n, p, u, p, k, t, p, k])
-        -- alternate = [t, p, u, p, k, t, p, k]
-    , (takadugutarikita, [t, k, o, o, k, t, p, k])
-    ]
-    where Mridangam.Strokes {..} = Mridangam.notes
-
-_kendangStrokes :: [(Sequence, [KendangTunggal.SNote])]
-_kendangStrokes =
-    [ (thom, [a])
-    , (tang, [u])
-    , (lang, [u])
-    , (talang, [o, u])
-    , (takadinna, [p, a, o, p])
-    , (tdgnt, [o, k, p, t, a])
-    , (kp, [p, k])
-    , (kpnp, [p, k, t, k])
-    , (oknp, [a, k, t, o])
-    , (ktktoknp, [k, p, k, p, a, k, t, o])
-    , (nakatiku, [t, o, u, k, p, a, o, k])
-    , (takadugutarikita, [k, p, a, a, k, p, k, t])
-    ]
-    where KendangTunggal.Strokes {..} = KendangTunggal.notes
-
-_reyongStrokes :: [(Sequence, [Reyong.SNote])]
-_reyongStrokes =
-    [ (thom, [o])
-    , (tang, [o])
-    , (lang, [o])
-    , (talang, [b, o])
-    , (nakatiku, [i, r3, i, r2, r3, i, r3, r2])
-        -- TODO melodic version, there could also be a rhythmic version
-    ]
-    where Reyong.Strokes {..} = Reyong.notes
-
-_printLint :: Pretty stroke => Korvai.Instrument stroke -> [(Sequence, x)]
-    -> Korvai -> IO ()
-_printLint inst strokes korvai =
-    Text.IO.putStr $ Korvai.lint inst (map fst strokes) korvai
-
-_instrumentDefaultStrokes :: Map Text [Sequence]
-_instrumentDefaultStrokes = Map.fromList
-    [ pair Korvai.mridangam _mridangamStrokes
-    , pair Korvai.kendangTunggal _kendangStrokes
-    , pair Korvai.reyong _reyongStrokes
-    ]
-    where
-    pair :: Korvai.Instrument stroke -> [(Sequence, [Realize.SNote stroke])]
-        -> (Text, [Sequence])
-    pair inst strokes = (Korvai.instName inst, map fst strokes)
 
 -- TODO
 -- vary :: Korvai -> Korvai

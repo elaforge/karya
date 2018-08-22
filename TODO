@@ -3642,6 +3642,8 @@ solkattu:
     . $38 for pdf only, but no dvd
     . For ordering information, please send email to dpnelson@wesleyan.edu.
   transcribe:
+    - lots of korvais in Solkattu2013 are not really from that time, just
+      undated
     - after 2014-06-17
     - complete Mridangam2013.dinnagina_sequence, maybe move to solkattu.
   flashcards:
@@ -3655,7 +3657,7 @@ solkattu:
       . Or just general purpose post-processing.
     - kook kook -> kook nook, or kook took
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
-  - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
+  Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
     . I want to write the sarvalaghu as strokes not solkattu, not just ===
       filler.  This is because sometimes it's hard to distinguish in recordings,
       and also because sometimes it has motives related to the korvai.
@@ -3668,6 +3670,22 @@ solkattu:
       the StrokeMap becomes the same monoid oriented notation, and repeat etc.
       is ok.  Then I can have a "Sarva Name" Note which is like Pattern except
       of variable length.  That gets realized as cycling the strokes.
+    . I think this is just the same as a pattern or named group except the
+      variable length.
+    . I want to key by solkattu:
+      sarva1 = sarva (na.ka.na.din.__.na.din.__)
+        ( makeMridangam (repeat 4 (n.k.n.d.__.n.d.__)
+            & (o.__.o.o.__.o.o.__ . __.__.o.o.__.o.o.__.o))
+            -- repeat 4 (strM "nknd_nd_") & strM "o_oo_oo_ __oo_oo_ o"
+        <> makeKendang1 (let Kendang1.Strokes{..} = Kendang1.notes in ...)
+        )
+    * Let makeMridangam etc. take full mridangam sequence, not just [stroke].
+      . :s/\[\(.*\)\]/\=substitute(submatch(1), ', ', '.', 'g')/
+    - Make (&+) pad with rests.
+    - Create something like Group but for Sarva, which can map to something
+      of any duration in the SolluMap, and is realized as cycling.
+    . It has to be variable length in the Sequence too, so it has to be like
+      a pattern, but with [sollu] for name and duration.
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.

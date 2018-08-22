@@ -16,7 +16,7 @@ import Prelude hiding ((.))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Solkattu.Dsl hiding ((&), lt, hv)
+import Solkattu.Dsl
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.MridangamNotation as MridangamNotation
@@ -49,14 +49,11 @@ korvaiS tala = Korvai.mridangamKorvaiInferSections tala defaultPatterns
 korvaiS1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvaiS1 tala sequence = korvaiS tala [sequence]
 
-mridangamStrokes :: Mridangam.Strokes Sequence
-mridangamStrokes =
-    MridangamNotation.makeNote • Realize.stroke <$> Mridangam.strokes
-
-Mridangam.Strokes {..} = mridangamStrokes
+Mridangam.Strokes {..} = Mridangam.notes
 
 defaultPatterns :: Realize.PatternMap Mridangam.Stroke
-Right defaultPatterns = Realize.patternMap Mridangam.defaultPatterns
+Right defaultPatterns = Realize.patternMap $
+    map (fmap Realize.solkattuToRealize) Mridangam.defaultPatterns
 
 on :: Sequence
 on = o&n
@@ -79,15 +76,8 @@ o1 :: Sequence -> Sequence
 o1 = Seq.map_head $ S.map1 $ fmap $ fmap $
     Mridangam.addThoppi Mridangam.Thom
 
-lt, hv :: Sequence -> Sequence
-lt = mapStroke (\stroke -> stroke { Realize._emphasis = Realize.Light })
-hv = mapStroke (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
-
 mapMStroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
 mapMStroke = fmap • fmap • fmap • fmap
-
-mapStroke :: (Stroke -> Stroke) -> Sequence -> Sequence
-mapStroke = fmap • fmap • fmap
 
 mapNote :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
     -> Sequence -> Sequence

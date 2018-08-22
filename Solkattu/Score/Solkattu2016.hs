@@ -31,9 +31,9 @@ c_16_09_28 = date 2016 9 28 $ ganesh $
 
     kitakina = ki.ta.ki.na.ta.ki.ta.ka
     mridangam = makeMridangam
-        [ (tat.dit, [p&k, p&t])
-        , (kitakina, [k, t, k, n, o, k, t&o, k])
-        , (nakataka, [n, p, k, o, o, k, od])
+        [ (tat.dit, p&k.p&t)
+        , (kitakina, k.t.k.n.o.k.t&o.k)
+        , (nakataka, n.p.k.o.o.k.od)
         ]
 
 c_16_12_06_sriram1 :: Korvai
@@ -59,17 +59,17 @@ c_16_12_06_sriram1 = date 2016 12 6 $ source "sriram" $ korvaiS adi mridangam $
     ta_takadin = mconcat $ expand 3 1 tat_dit
     tat_dit = tat.dit.ta . su taka . din
     mridangam = makeMridangam
-        [ (1^tat, [p&k])
-        , (1^dit, [p&t])
-        , (kitakina, [k, t, k, n, o, k, o&t, k])
-        , (dinnaka, [o, k, t, o, hv k, t, o, k])
-        , (takadinna, [n, o, o, k])
-        , (din, [o])
-        , (tat, [k])
-        , (tat_dit, [k, t, k, k, t, o])
-        , (dheem, [u])
-        , (mid^dheem, [i])
-        , (thom, [od])
+        [ (1^tat, p&k)
+        , (1^dit, p&t)
+        , (kitakina, k.t.k.n.o.k.o&t.k)
+        , (dinnaka, o.k.t.o.hv k.t.o.k)
+        , (takadinna, n.o.o.k)
+        , (din, o)
+        , (tat, k)
+        , (tat_dit, k.t.k.k.t.o)
+        , (dheem, u)
+        , (mid^dheem, i)
+        , (thom, od)
         ]
 
 c_16_12_06_sriram2 :: Korvai
@@ -85,13 +85,13 @@ c_16_12_06_sriram2 =
     f2 = group $ takita.din.__.tat.__
     f3 = group $ gu.gu.ta.din.__.tat.__
     mridangam = makeMridangam
-        [ (na.kita, [n, p, k])
-        , (f1, [od, k, d, k])
-        , (f2, [n, p, k, d, k])
-        , (f3, [o, o, k, d, k])
-        , (din, [od])
-        , (2^din, [p&u])
-        , (tam, [u])
+        [ (na.kita, n.p.k)
+        , (f1, od.k.d.k)
+        , (f2, n.p.k.d.k)
+        , (f3, o.o.k.d.k)
+        , (din, od)
+        , (2^din, p&u)
+        , (tam, u)
         ]
 
 c_16_12_06_janahan1 :: Korvai
@@ -100,7 +100,7 @@ c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
     where
     theme = takadinna.takita.din.__.na
     mridangam = makeMridangam
-        [ (theme, [on, k, o&t, k, on, p, k, od, o])
+        [ (theme, on.k.o&t.k.on.p.k.od.o)
         ]
 
 c_16_12_06_janahan2 :: Korvai
@@ -111,5 +111,4 @@ c_16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
         . spread 2 tdgnt . p6 . kp.p6 . kpnp.p6
     where
     theme = group $ tat.__.dit.__.takadinna
-    mridangam = makeMridangam
-        [(theme, [k, t, k, o, o, k])]
+    mridangam = makeMridangam [(theme, k.t.k.o.o.k)]

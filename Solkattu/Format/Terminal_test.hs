@@ -19,7 +19,7 @@ import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import Solkattu.Solkattu (Note(..), Sollu(..))
+import Solkattu.Solkattu (Sollu(..))
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -52,7 +52,7 @@ test_format = do
 
 test_format_patterns = do
     let f pmap seq = do
-            ps <- Realize.patternMap pmap
+            ps <- Realize.patternMap $ solkattuToRealize pmap
             realizeP (Just ps) strokeMap seq
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
     equal (eFormat $ format 80 Tala.adi_tala p) "k _ t _ k _ k t o _"
@@ -329,12 +329,12 @@ nadai :: S.Nadai -> [S.Note g a] -> S.Note g a
 nadai n = S.TempoChange (S.Nadai n)
 
 realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
-    -> [S.Note Solkattu.Group (Note Sollu)]
+    -> [S.Note Solkattu.Group (Solkattu.Note Sollu)]
     -> Either Text [Format.Flat stroke]
 realize = realizeP Nothing
 
 realizeP :: Solkattu.Notation stroke => Maybe (Realize.PatternMap stroke)
-    -> Realize.SolluMap stroke -> [S.Note Solkattu.Group (Note Sollu)]
+    -> Realize.SolluMap stroke -> [S.Note Solkattu.Group (Solkattu.Note Sollu)]
     -> Either Text [Format.Flat stroke]
 realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError . fst
@@ -349,13 +349,18 @@ formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
 formatLines = Terminal.formatLines
 
 strokeMap :: Realize.SolluMap M.Stroke
-strokeMap = fst $ expect_right $ Realize.solluMap
-    [ (thom, [o])
+strokeMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize
+    [ (thom, o)
     ]
     where M.Strokes {..} = M.notes
+
+solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
+    -> [(a, [S.Note () (Realize.Note stroke)])]
+solkattuToRealize = map (second Realize.solkattuToRealize)
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
     { Korvai.smapMridangam = Dsl.check $ Realize.strokeMap $
-        (ta, [M.k M.notes]) : Realize.patternKeys M.defaultPatterns
+        (ta, k) : Realize.patternKeys M.defaultPatterns
     }
+    where M.Strokes {..} = M.notes

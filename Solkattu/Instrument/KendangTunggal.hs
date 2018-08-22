@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 -- | Realize an abstract solkattu sequence to concrete kendang 'Note's.
 module Solkattu.Instrument.KendangTunggal where
 import qualified Derive.Expr as Expr
@@ -14,7 +14,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import Global
 
 
-type SNote = Realize.SNote Stroke
+type SequenceM g = [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
 
 data Stroke =
     Plak -- both
@@ -63,43 +63,45 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
 
 data Strokes a = Strokes {
     pk :: a, p :: a, t :: a, u :: a, å :: a, k :: a, o :: a , a :: a
-    } deriving (Show)
+    } deriving (Show, Functor)
 
-note :: stroke -> Realize.SNote stroke
-note = S.Note . Realize.Note . Realize.stroke
-
-notes :: Strokes SNote
-notes = Strokes
-    { pk = note Plak
-    , p = note Pak
-    , t = note Pang
-    , u = note TutL
-    , å = note DeL
-    , k = note Ka
-    , o = note Tut
-    , a = note De
+strokes :: Strokes Stroke
+strokes = Strokes
+    { pk = Plak
+    , p = Pak
+    , t = Pang
+    , u = TutL
+    , å = DeL
+    , k = Ka
+    , o = Tut
+    , a = De
     }
 
+notes :: Strokes (SequenceM g)
+notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
+    strokes
 
 -- * Patterns
 
-__ :: SNote
-__ = Realize.rest
+__ :: SequenceM g
+__ = [S.Note $ Solkattu.Space Solkattu.Rest]
 
-defaultPatterns :: [(Solkattu.Pattern, [SNote])]
+defaultPatterns :: [(Solkattu.Pattern, SequenceM g)]
 defaultPatterns = patterns
-    [ (5, [o, p, k, t, a])
-    , (6, [o, p, __, k, t, a])
-    , (7, [o, __, p, __, k, t, a])
-    , (8, [o, p, __, k, __, t, __, a])
-    , (9, [o, __, p, __, k, __, t, __, a])
+    [ (5, o.p.k.t.a)
+    , (6, o.p.__.k.t.a)
+    , (7, o.__.p.__.k.t.a)
+    , (8, o.p.__.k.__.t.__.a)
+    , (9, o.__.p.__.k.__.t.__.a)
     ]
-    where Strokes {..} = notes
+    where
+    Strokes {..} = notes
+    (.) = (<>)
 
-defaultPatternsEmphasis :: [(Solkattu.Pattern, [SNote])]
-defaultPatternsEmphasis =
-    map (second (map $ \s -> if s == p then a else s)) defaultPatterns
-    where Strokes {..} = notes
+-- defaultPatternsEmphasis :: [(Solkattu.Pattern, SequenceM g)]
+-- defaultPatternsEmphasis =
+--     map (second (map $ \s -> if s == p then a else s)) defaultPatterns
+--     where Strokes {..} = notes
 
 patterns :: [(S.Matra, a)] -> [(Solkattu.Pattern, a)]
 patterns = map (first Solkattu.pattern)

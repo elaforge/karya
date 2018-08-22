@@ -21,7 +21,7 @@ module Solkattu.Dsl (
     , akshara, sam, (§)
     -- * abstraction
     , Abstraction
-    , patterns, groups
+    , patterns, groups, allAbstract
     -- * patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- * re-exports
@@ -33,8 +33,6 @@ module Solkattu.Dsl (
     , module Solkattu.S
     , module Solkattu.Solkattu
     , module Solkattu.Tala
-    -- * mridangam
-    , (&)
     -- * misc
     , pprint
     -- * talam
@@ -52,7 +50,6 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
 import Solkattu.Format.Format (Abstraction)
-import Solkattu.Instrument.Mridangam ((&))
 import Solkattu.Korvai (Korvai)
 import Solkattu.Part (Part(..), Index(..), realizeParts)
 import qualified Solkattu.Realize as Realize
@@ -123,15 +120,12 @@ modifySingleNote _ [] = throw "expected a single note, but got []"
 
 -- ** strokes
 
-hv, lt :: (Pretty stroke, Pretty g, CallStack.Stack) =>
-    S.Note g (Realize.Note stroke) -> S.Note g (Realize.Note stroke)
-hv (S.Note (Realize.Note s)) =
-    S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Heavy }
-hv n = throw $ "expected stroke: " <> pretty n
+lt, hv :: SequenceT (Realize.Stroke stroke) -> SequenceT (Realize.Stroke stroke)
+lt = mapSollu (\stroke -> stroke { Realize._emphasis = Realize.Light })
+hv = mapSollu (\stroke -> stroke { Realize._emphasis = Realize.Heavy })
 
-lt (S.Note (Realize.Note s)) =
-    S.Note $ Realize.Note $ s { Realize._emphasis = Realize.Light }
-lt n = throw $ "expected stroke: " <> pretty n
+mapSollu :: (sollu -> sollu) -> SequenceT sollu -> SequenceT sollu
+mapSollu = fmap • fmap • fmap
 
 -- * Abstraction
 
@@ -143,6 +137,9 @@ patterns = Format.abstract Format.Patterns
 -- the given name.
 groups :: Maybe Text -> Abstraction
 groups name = Format.abstract (Format.Groups name)
+
+allAbstract :: Abstraction
+allAbstract = patterns <> groups Nothing
 
 -- * patterns
 

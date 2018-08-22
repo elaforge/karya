@@ -19,10 +19,7 @@ import qualified Solkattu.Technique as Technique
 import Global
 
 
-type SNote = Realize.SNote Stroke
-
-note :: stroke -> Realize.SNote stroke
-note = S.Note . Realize.Note . Realize.stroke
+type SequenceM g = [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
@@ -139,16 +136,9 @@ strokes = Strokes
     , od = Both Thom Din
     }
 
-notes :: Strokes SNote
-notes = note <$> strokes
-
-both :: Thoppi -> Valantalai -> SNote
-both a b = note (Both a b)
-
-(&) :: CallStack.Stack => SNote -> SNote -> SNote
-S.Note (Realize.Note s1) & S.Note (Realize.Note s2) =
-    S.Note $ Realize.Note $ bothRStrokes s1 s2
-a & b = Solkattu.throw $ "requires notes: " <> showt (a, b)
+notes :: Strokes (SequenceM g)
+notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
+    strokes
 
 bothRStrokes :: CallStack.Stack => Realize.Stroke Stroke
     -> Realize.Stroke Stroke -> Realize.Stroke Stroke
@@ -210,11 +200,11 @@ technique _ _ _ = Nothing
 
 -- * patterns
 
-__ :: SNote
-__ = Realize.rest
+__ :: SequenceM g
+__ = [S.Note $ Solkattu.Space Solkattu.Rest]
 
-defaultPatterns :: [(Solkattu.Pattern, [SNote])]
-defaultPatterns = patterns
+defaultPatterns :: [(Solkattu.Pattern, SequenceM g)]
+defaultPatterns = patterns $ map (fmap mconcat)
     [ (5, [k, t, k, n, o])
     , (6, [k, t, __, k, n, o])
     , (7, [k, __, t, __, k, n, o])
@@ -223,78 +213,76 @@ defaultPatterns = patterns
     ]
     where Strokes {..} = notes
 
-defaultPatternsEmphasis :: [(Solkattu.Pattern, [SNote])]
-defaultPatternsEmphasis =
-    map (second (map $ \s -> if s == t then i else s)) defaultPatterns
-    where Strokes {..} = notes
-
 -- | Misc patterns I should figure out how to integrate some day.
-misc :: [(S.Matra, [SNote])]
+misc :: [(S.Matra, SequenceM g)]
 misc =
-    [ (7, su [k, __, __, t, __, __, k, __, __, n, __, __, o, __])
+    [ (7, su $ mconcat [k, __, __, t, __, __, k, __, __, n, __, __, o, __])
     ]
     where Strokes {..} = notes
 
-kt_kn_o :: [(Solkattu.Pattern, [SNote])]
+kt_kn_o :: [(Solkattu.Pattern, SequenceM g)]
 kt_kn_o = patterns
-    [ (5, [k, t, k, n, o])
-    , (7, [k, t, __, k, n, __, o])
-    , (9, [k, t, __, __, k, n, __, __, o])
+    [ (5, k.t.k.n.o)
+    , (7, k.t.__.k.n.__.o)
+    , (9, k.t.__.__.k.n.__.__.o)
     ]
-    where Strokes {..} = notes
+    where
+    Strokes {..} = notes
+    (.) = (<>)
 
--- TODO I should import MridangamGlobal so I can write k.__.su (ktkt).o
-fives :: [[SNote]]
+fives :: [SequenceM g]
 fives =
-    [ su [k, __, __, __, k, t, k, t, o, __]
-    , su [k, __, __, __, k, __, k, t, o, __]
+    [ k.__.su (k.t.k.t).o
+    , k.__.k.su (k.t).o
     ]
     where
     Strokes {..} = notes
+    (.) = (<>)
 
-families567 :: [[(Solkattu.Pattern, [SNote])]]
-families567 = map (patterns . zip [5..]) $
-    [ [k, t, k, n, o]
-    , [k, t, __, k, n, o]
-    , [k, __, t, __, k, n, o]
+families567 :: [[(Solkattu.Pattern, SequenceM g)]]
+families567 = map patterns $ map (zip [5..]) $
+    [ k.t.k.n.o
+    , k.t.__.k.n.o
+    , k.__.t.__.k.n.o
     ] : map (map su)
-    [ [ [k, __, t, __, k, __, k, t, o, __]
-      , [k, __, t, __, __, __, k, __, k, t, o, __]
-      , [k, __, __, __, t, __, __, __, k, __, k, t, o, __]
+    [ [ k.__.t.__.k.__.k.t.o.__
+      , k.__.t.__.__.__.k.__.k.t.o.__
+      , k.__.__.__.t.__.__.__.k.__.k.t.o.__
       ]
-    , [ [k, __, t, __, k, __, k, n, o, __]
-      , [k, __, t, __, __, __, k, __, k, n, o, __]
-      , [k, __, __, __, t, __, __, __, k, __, k, n, o, __]
+    , [ k.__.t.__.k.__.k.n.o.__
+      , k.__.t.__.__.__.k.__.k.n.o.__
+      , k.__.__.__.t.__.__.__.k.__.k.n.o.__
       ]
-    , [ [k, t, p, k, p, k, t, k, n, o]
-      , kp <> [k, t, p, k, p, k, t, k, n, o]
-      , kpnp <> [k, t, p, k, p, k, t, k, n, o]
+    , [ k.t.p.k.p.k.t.k.n.o
+      , kp.k.t.p.k.p.k.t.k.n.o
+      , kpnp.k.t.p.k.p.k.t.k.n.o
       ]
-    , [ [k, t, k, t, p, k, p, t, o, __]
-      , [p, __, k, t, k, t, p, k, p, t, o, __]
-      , [k, __, p, __, k, t, k, t, p, k, p, t, o, __]
+    , [ k.t.k.t.p.k.p.t.o.__
+      , p.__.k.t.k.t.p.k.p.t.o.__
+      , k.__.p.__.k.t.k.t.p.k.p.t.o.__
       ]
-    , [ [n, __, k, t, p, k, p, t, o, __]
-      , [p, __, n, __, k, t, p, k, p, t, o, __]
-      , [k, __, p, __, n, __, k, t, p, k, p, t, o, __]
+    , [ n.__.k.t.p.k.p.t.o.__
+      , p.__.n.__.k.t.p.k.p.t.o.__
+      , k.__.p.__.n.__.k.t.p.k.p.t.o.__
       ]
-    , [ [u, __, k, t, p, k, p, t, o, __]
-      , [p, __, u, __, k, t, p, k, p, t, o, __]
-      , [k, __, p, __, u, __, k, t, p, k, p, t, o, __]
+    , [ u.__.k.t.p.k.p.t.o.__
+      , p.__.u.__.k.t.p.k.p.t.o.__
+      , k.__.p.__.u.__.k.t.p.k.p.t.o.__
       ]
-    , [ [k, __, t, __, k, t, __, k, n, o]
-      , kp <> [k, __, t, __, k, t, __, k, n, o]
-      , kpnp <> [k, __, t, __, k, t, __, k, n, o]
+    , [ k.__.t.__.k.t.__.k.n.o
+      , kp.k.__.t.__.k.t.__.k.n.o
+      , kpnp.k.__.t.__.k.t.__.k.n.o
       ]
-    , [ [k, p, k, od, __, k, t, k, n, o]
-      , [k, p, __, k, od, __, k, t, __, k, n, o]
-      , [k, p, __, __, k, od, __, k, __, t, __, k, n, o]
+    , [ k.p.k.od.__.k.t.k.n.o
+      , k.p.__.k.od.__.k.t.__.k.n.o
+      , k.p.__.__.k.od.__.k.__.t.__.k.n.o
       ]
     ]
     where
     Strokes {..} = notes
-    kp = [k, p]
-    kpnp = [k, p, n, p]
+    (.) = (<>)
+    kp = k.p
+    kpnp = k.p.n.p
 
 patterns :: [(S.Matra, a)] -> [(Solkattu.Pattern, a)]
 patterns = map (first Solkattu.pattern)

@@ -6,19 +6,20 @@
 module Solkattu.Korvai_test where
 import qualified Data.Text as Text
 
-import Util.Test
 import qualified Solkattu.Dsl as Dsl
 import Solkattu.DslSollu (ta, ka, din, na)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
+import qualified Solkattu.S as S
 import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
 import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
-import qualified Solkattu.S as S
+import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
 import Global
+import Util.Test
 
 
 test_realize = do
@@ -48,8 +49,8 @@ test_realizeTechnique = do
             . korvai strokes Tala.adi_tala . (:[])
         extract = Text.unwords . map pretty . S.flattenedNotes . fst
     let strokes1 =
-            [ (takatakadinna, [k, t, k, o, o, k])
-            , (takatataka, [k, t, k, k, o])
+            [ (takatakadinna, mconcat [k, t, k, o, o, k])
+            , (takatataka, mconcat [k, t, k, k, o])
             ]
             where Mridangam.Strokes {..} = Mridangam.notes
         takatakadinna = mconcat [ta, ka, ta, ka, din, na]
@@ -57,7 +58,7 @@ test_realizeTechnique = do
     equal (f strokes1 takatakadinna) (Right "k t k o o k")
     equal (f strokes1 (Dsl.dropM 1 takatakadinna)) (Right "k k o o k")
 
-    let strokes2 = [(ta_din, [k, t, k, k, t, o])]
+    let strokes2 = [(ta_din, mconcat [k, t, k, k, t, o])]
             where Mridangam.Strokes {..} = Mridangam.notes
         ta_din = mconcat [ta, din, ta, Dsl.su (ta <> ka), din]
     equal (f strokes2 $ mconcat $ Notation.expand 3 1 ta_din) $
@@ -73,18 +74,19 @@ test_korvaiInstruments = do
 chars :: [Char] -> [Text]
 chars = map Text.singleton
 
-korvai :: [(Korvai.Sequence, [Mridangam.SNote])] -> Tala.Tala
-    -> [Korvai.Sequence] -> Korvai.Korvai
+korvai :: [(Korvai.Sequence, Mridangam.SequenceM Solkattu.Group)]
+    -> Tala.Tala -> [Korvai.Sequence] -> Korvai.Korvai
 korvai strokes tala = Korvai.korvaiInferSections tala (makeMridangam strokes)
 
-makeMridangam :: [(Korvai.Sequence, [Mridangam.SNote])] -> Korvai.StrokeMaps
+makeMridangam :: [(Korvai.Sequence, Mridangam.SequenceM Solkattu.Group)]
+    -> Korvai.StrokeMaps
 makeMridangam strokes = mempty
     { Korvai.smapMridangam = Dsl.check $
         Realize.strokeMap (defaults ++ strokes)
     }
     where
-    defaults =
-        [ (ta <> ka <> din <> na, [k, o, o, k])
-        , (Dsl.pat 4, [p, k, o, n])
+    defaults = map (bimap mconcat mconcat)
+        [ ([ta, ka, din, na], [k, o, o, k])
+        , ([Dsl.pat 4], [p, k, o, n])
         ]
         where Mridangam.Strokes {..} = Mridangam.notes

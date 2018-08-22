@@ -20,10 +20,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-type SNote = Realize.SNote Stroke
-
-note :: stroke -> Realize.SNote stroke
-note = S.Note . Realize.Note . Realize.stroke
+type SequenceM g = [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
 
 newtype Attributes = Attributes (Map Text (Maybe Text))
     deriving (Show, Eq)
@@ -97,8 +94,9 @@ strokes = (uncurry stroke) <$> Strokes
 stroke :: Pitch.Octave -> Pitch.PitchClass -> Stroke
 stroke oct pc = Stroke (Pitch.pitch oct pc) mempty
 
-notes :: Strokes SNote
-notes = note <$> strokes
+notes :: Strokes (SequenceM g)
+notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
+    strokes
 
 toScore :: ToScore.ToScore Stroke
 toScore durStrokes = (noteTrack, [("*", pitchTrack)])
