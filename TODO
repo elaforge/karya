@@ -3657,6 +3657,8 @@ solkattu:
       . Or just general purpose post-processing.
     - kook kook -> kook nook, or kook took
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
+  - concise stroke map:
+    . repeat 4 (strM "nknd_nd_") & strM "o_oo_oo_ __oo_oo_ o"
   Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
     . I want to write the sarvalaghu as strokes not solkattu, not just ===
       filler.  This is because sometimes it's hard to distinguish in recordings,
@@ -3673,12 +3675,21 @@ solkattu:
     . I think this is just the same as a pattern or named group except the
       variable length.
     . I want to key by solkattu:
-      sarva1 = sarva (na.ka.na.din.__.na.din.__)
-        ( makeMridangam (repeat 4 (n.k.n.d.__.n.d.__)
-            & (o.__.o.o.__.o.o.__ . __.__.o.o.__.o.o.__.o))
-            -- repeat 4 (strM "nknd_nd_") & strM "o_oo_oo_ __oo_oo_ o"
-        <> makeKendang1 (let Kendang1.Strokes{..} = Kendang1.notes in ...)
-        )
+      c_korvai = korvai ...
+        [ sarvaD sarva1 7 . su nakatiku ]
+        where
+        sarva1 = Sarva ^ na.ka.na.din.__.na.din.__
+        mridangam = makeMridangam
+          [ (sarva1, repeat 4 (n.k.n.d.__.n.d.__)
+              & (o.__.o.o.__.o.o.__ . __.__.o.o.__.o.o.__.o))
+          , ...
+          ]
+      . sarvaD :: Sequence -> Duration -> Sequence
+        Creates Sarva with the sequence as key.  This either realizes as ===
+        or by looking up the key in the StrokeMap, and cycling or trimming it
+        to fit the given duration.
+      . Add a Sarva tag as a convenient way to disambiguate.
+
     * Let makeMridangam etc. take full mridangam sequence, not just [stroke].
       . :s/\[\(.*\)\]/\=substitute(submatch(1), ', ', '.', 'g')/
     - Make (&+) pad with rests.

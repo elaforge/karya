@@ -63,7 +63,7 @@ test_format_space = do
             . kRealize False Tala.adi_tala
     equal (run (Notation.sarvaM 4)) $ Right "========"
     equal (run (Notation.sarvaD 1)) $ Right "========"
-    equal (run (Notation.restM 4)) $ Right "‗|  ‗"
+    equal (run (Notation.__M 4)) $ Right "‗|  ‗"
     equal (run (Notation.restD 1)) $ Right "‗|  ‗"
 
 tala4 :: Tala.Tala

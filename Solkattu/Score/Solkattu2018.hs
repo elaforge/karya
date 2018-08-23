@@ -57,7 +57,7 @@ e_18_02_26 = ganesh $ exercise $ date 2018 2 26 $ korvaiS adi mridangam $
     p8 = group $ kita.ki.na.takadinna
     fwd = [p8, in3 p8, in4 p8]
     bwd = [in4 p8, in3 p8, p8]
-    rest n = restM (n*6)
+    rest n = __M (n*6)
     mridangam = makeMridangam
         [ (p8, k.t.k.n.k.o.o.k)
         , (din, od)

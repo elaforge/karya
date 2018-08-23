@@ -438,7 +438,7 @@ t5s = ganesh $ korvaiS adi mridangam $ map (nadai 6 • (purvangam.))
 
 misra_lead :: Korvai -- but add one akshara, so it lands on 1.
 misra_lead = korvaiS1 adi mridangam $ su $
-    restM 8 . tri_ (tam.__) takadinna
+    __M 8 . tri_ (tam.__) takadinna
     . repeat 2 (ta.__3.ta.takadinna)
     . trin (tam.__3) (ta.din.na) (repeat 2 (ta.din.na)) (repeat 3 (ta.din.na))
     where
@@ -502,10 +502,10 @@ koraippu_misra = koraippu $ ganesh $ korvaiS adi mridangam $ map su
     ]
     where
     -- 8 + 8*7 (3+2 + 3)
-    long n = restM 8 . tri_ (fill n) tan7 . tri (fill n)
+    long n = __M 8 . tri_ (fill n) tan7 . tri (fill n)
     -- 4 + 4*7 (1 + 3)
-    short n = restM 4 . tan7 . tri (fill n)
-    half n = restM 2 . tan7 . fill n
+    short n = __M 4 . tan7 . tri (fill n)
+    half n = __M 2 . tan7 . fill n
     group2 seq = mconcatMap mconcat (Seq.chunked 2 seq)
     fill n = fills !! (n-1) . karvai din
     fills = zipWith (\n p -> __n (n+1) . p) [6, 5..]

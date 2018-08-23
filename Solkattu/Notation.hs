@@ -46,7 +46,8 @@ instance Rest (Solkattu.Note sollu) where
 
 -- | These are meant to suffix a sollu.  Since the sollu is considered part of
 -- the duration, the number is one higher than the number of rests.  E.g.
--- @din.__3@ is a 3 count, and equivalent to @din.__.__@.
+-- @din.__3@ is a 3 count, and equivalent to @din.__.__@.  '__M' is the version
+-- that doesn't do this.
 __2, __3, __4, __5, __6, __7, __8, __9 :: SequenceT sollu
 __2 = __
 __3 = __n 3
@@ -63,8 +64,8 @@ __n n = repeat (n-1) __
 __D :: Duration -> SequenceT sollu
 __D dur = __n (dToM2 (S._nadai S.defaultTempo) dur)
 
-restM :: S.Matra -> SequenceT sollu
-restM n = repeat n __
+__M :: S.Matra -> SequenceT sollu
+__M matras = repeat matras __
 
 sarvaM :: S.Matra -> SequenceT sollu
 sarvaM n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
