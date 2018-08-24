@@ -8,10 +8,8 @@ import Prelude hiding ((^))
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Test
 import qualified Solkattu.Dsl as Dsl
 import Solkattu.Dsl ((^), __)
-import Solkattu.DslSollu
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
@@ -23,6 +21,8 @@ import Solkattu.Solkattu (Note(..), Sollu(..))
 import qualified Solkattu.Tala as Tala
 
 import Global
+import Solkattu.DslSollu
+import Util.Test
 
 
 test_realize = do
@@ -157,6 +157,16 @@ test_realizeGroupsNested = do
     -- groups in a group's prefix.
     equal (f $ dropM 2 $ dropM 1 nakita <> nakita) $ Right "nkt"
     equal (f $ dropM 1 $ nakita <> dropM 1 nakita) $ Right "ktkt"
+
+test_realizeSarva = do
+    let f = eWords . realizeN smap . mconcat
+        smap = checkSolluMap
+            [ (ta <> din, [n, d])
+            ] where M.Strokes {..} = M.notes
+        sarvaM = Notation.sarvaM2
+    equal (f []) (Right "")
+    equal (f [sarvaM (ta <> din) 5]) (Right "n d n d n")
+    left_like (f [sarvaM (ta <> din <> ta) 5]) "incomplete match"
 
 eWords :: Pretty b => Either a [b] -> Either a Text
 eWords = fmap (Text.unwords . map pretty)

@@ -39,7 +39,7 @@ import Global
 -- groups with durations.
 newtype Abstraction = Abstraction (Set Abstract)
     deriving (Eq, Show, Semigroup, Monoid)
-data Abstract = Patterns | Groups !(Maybe Text)
+data Abstract = Patterns | Sarva | Groups !(Maybe Text)
     deriving (Eq, Ord, Show)
 
 abstract :: Abstract -> Abstraction
@@ -49,9 +49,14 @@ isAbstract :: Abstraction -> Abstract -> Bool
 isAbstract (Abstraction abstract) (Groups name) =
     Groups Nothing `Set.member` abstract || Groups name `Set.member` abstract
 isAbstract (Abstraction abstract) Patterns = Patterns `Set.member` abstract
+isAbstract (Abstraction abstract) Sarva = Sarva `Set.member` abstract
 
 defaultAbstraction :: Abstraction
-defaultAbstraction = abstract Patterns <> abstract (Groups (Just "8n"))
+defaultAbstraction = mconcat
+    [ abstract Patterns
+    , abstract (Groups (Just "8n"))
+    , abstract Sarva
+    ]
 
 data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
@@ -65,6 +70,7 @@ type Flat stroke = S.Flat Group (Realize.Note stroke)
 data Group = Group {
     _name :: Maybe Text
     , _highlight :: Bool
+    , _isSarva :: Bool
     } deriving (Eq, Show)
 
 -- | Reduce 'Realize.Group's to local 'Group's.
@@ -76,6 +82,9 @@ mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
 mapGroups = S.mapGroupFlat $ \g -> Group
     { _name = Realize._name g
     , _highlight = Realize._highlight g
+    , _isSarva = case Realize._groupType g of
+        Solkattu.SarvaGroup {} -> True
+        _ -> False
     }
 
 -- * normalize speed
@@ -89,13 +98,17 @@ makeGroupsAbstract :: Abstraction -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
+        | _isSarva group && isAbstract abstraction Sarva =
+            map (replace (S.Sustain (Realize.Abstract Realize.AbstractedSarva)))
+                flattened
         | isAbstract abstraction (Groups (_name group)) =
-            Seq.map_head_tail (make S.Attack) (make S.Sustain) flattened
+            Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain) flattened
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where
         flattened  = S.tempoNotes children
-        make c (tempo, (state, _)) =
-            S.FNote tempo (state, c (Realize.Abstract name))
+        abstract c =
+            replace (c (Realize.Abstract (Realize.AbstractedGroup name)))
+        replace n (tempo, (state, _)) = S.FNote tempo (state, n)
         fmatra = S.normalizeFMatra tempo (fromIntegral (length flattened))
         name = fromMaybe (Pretty.fraction True fmatra) (_name group)
     combine n = [n]

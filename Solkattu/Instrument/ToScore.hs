@@ -44,8 +44,8 @@ toExpr :: Expr.ToExpr (Realize.Stroke stroke) => Realize.Note stroke
 toExpr s = case s of
     Realize.Note stroke -> Just $ Expr.to_expr stroke
     Realize.Pattern p -> Just $ Expr.to_expr p
-    Realize.Abstract name -> Just $
-        Expr.generator $ Expr.call (Expr.Symbol name) []
+    Realize.Abstract a -> Just $
+        Expr.generator $ Expr.call (Expr.Symbol (pretty a)) []
     Realize.Space Solkattu.Rest -> Nothing
     Realize.Space Solkattu.Sarva -> Nothing -- TODO
     Realize.Space Solkattu.Offset -> Nothing

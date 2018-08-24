@@ -53,7 +53,7 @@ test_format = do
 test_format_patterns = do
     let f pmap seq = do
             ps <- Realize.patternMap $ solkattuToRealize pmap
-            realizeP (Just ps) strokeMap seq
+            realizeP (Just ps) defaultSolluMap seq
     let p = expect_right $ f (M.families567 !! 1) Dsl.p5
     equal (eFormat $ format 80 Tala.adi_tala p) "k _ t _ k _ k t o _"
     equal (eFormat $ format 15 Tala.adi_tala p) "k t k kto"
@@ -65,6 +65,14 @@ test_format_space = do
     equal (run (Notation.sarvaD 1)) $ Right "========"
     equal (run (Notation.__M 4)) $ Right "‗|  ‗"
     equal (run (Notation.restD 1)) $ Right "‗|  ‗"
+
+test_format_sarva = do
+    let run abstract =
+            fmap (eFormat . formatAbstraction abstract 80 Tala.adi_tala . fst)
+            . kRealize False Tala.adi_tala
+    equal (run mempty (Notation.sarvaM2 ta 5)) (Right "k k k k k")
+    equal (run (Format.abstract Format.Sarva) (Notation.sarvaM2 ta 5))
+        (Right "==========")
 
 tala4 :: Tala.Tala
 tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
@@ -258,7 +266,7 @@ test_formatNadaiChange = do
 test_formatSpeed = do
     let f width = fmap (capitalizeEmphasis . dropRulers
                 . format width Tala.rupaka_fast)
-            . realize strokeMap
+            . realize defaultSolluMap
         thoms n = mconcat (replicate n thom)
     equal (f 80 []) (Right "")
     equal (f 80 (thoms 8)) (Right "O o o o O o o o")
@@ -282,14 +290,19 @@ rpattern = Realize.Pattern . Solkattu.pattern
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
-format width tala =
+format = formatAbstraction Format.defaultAbstraction
+
+formatAbstraction :: Solkattu.Notation stroke => Format.Abstraction -> Int
+    -> Tala.Tala -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
+formatAbstraction abstraction width tala =
     Text.intercalate "\n" . map Text.strip . Text.lines
     . Styled.toText . snd
-    . Terminal.format (config { Terminal._terminalWidth = width })
-        (Nothing, 0) tala
-
-config :: Terminal.Config
-config = Terminal.defaultConfig
+    . Terminal.format config (Nothing, 0) tala
+    where
+    config = Terminal.defaultConfig
+        { Terminal._terminalWidth = width
+        , Terminal._abstraction = abstraction
+        }
 
 eFormat :: Text -> Text
 eFormat = stripAnsi . dropRulers
@@ -315,7 +328,7 @@ kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
 kRealize realizePatterns tala =
     fmap (first Format.mapGroups) . head
     . Korvai.realize Korvai.mridangam realizePatterns
-    . Korvai.korvaiInferSections tala mridangam
+    . Korvai.korvaiInferSections tala defaultStrokeMap
     . (:[])
 
 
@@ -348,8 +361,8 @@ formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> [[[(S.State, Terminal.Symbol)]]]
 formatLines = Terminal.formatLines
 
-strokeMap :: Realize.SolluMap M.Stroke
-strokeMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize
+defaultSolluMap :: Realize.SolluMap M.Stroke
+defaultSolluMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize
     [ (thom, o)
     ]
     where M.Strokes {..} = M.notes
@@ -358,8 +371,8 @@ solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
     -> [(a, [S.Note () (Realize.Note stroke)])]
 solkattuToRealize = map (second Realize.solkattuToRealize)
 
-mridangam :: Korvai.StrokeMaps
-mridangam = mempty
+defaultStrokeMap :: Korvai.StrokeMaps
+defaultStrokeMap = mempty
     { Korvai.smapMridangam = Dsl.check $ Realize.strokeMap $
         (ta, k) : Realize.patternKeys M.defaultPatterns
     }

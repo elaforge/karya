@@ -39,10 +39,18 @@ test_splitM_ = do
     equal (f 1 (su (ta <> di <> ki <> ta) <> di)) $
         Right (["s+1(ta di)"], ["s+1(ki ta)", "di"])
     left_like (f 1 (sd ta <> ka)) "can't split"
-
     -- split rests
     equal (f 1 (sd __ <> ka)) $ Right (["__"], ["__", "ka"])
     equal (f 3 (sd (sd __) <> ka)) $ Right (["s-1(__)", "__"], ["__", "ka"])
+
+test_splitM_sarva = do
+    let f matras = fmap (bimap (map pretty) (map pretty)) . splitM_either matras
+    -- split sarva
+    let sarva = sarvaM2 taka
+    equal (f 3 (sarva 4)) $ Right (["==3(ta ka)"], ["==1(ta ka)"])
+    equal (f 3 (sd (sarva 4))) $
+        Right (["s-1(==3(ta ka))"], ["s-1(==1(ta ka))"])
+    equal (f 4 (sarva 4)) $ Right (["==4(ta ka)"], [])
 
 test_takeDrop = do
     let tdgn = mconcat [ta, DslSollu.din, DslSollu.gin, DslSollu.na]

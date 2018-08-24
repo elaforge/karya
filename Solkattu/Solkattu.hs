@@ -117,7 +117,9 @@ data Group = Group {
     , _name :: !(Maybe Text)
     -- | Whether or not to highlight this group on render.
     , _highlight :: !Bool
+    , _groupType :: !GroupType
     } deriving (Eq, Ord, Show)
+    -- TODO make Group itself a sum
 
 group :: Group
 group = Group
@@ -125,6 +127,7 @@ group = Group
     , _side = Before
     , _name = Nothing
     , _highlight = True
+    , _groupType = NormalGroup
     }
 
 -- | Before means drop the strokes before the '_split' split, After means
@@ -132,10 +135,17 @@ group = Group
 data Side = Before | After deriving (Eq, Ord, Show)
 instance Pretty Side where pretty = showt
 
+data GroupType = NormalGroup | SarvaGroup !S.FMatra
+    deriving (Eq, Ord, Show)
+
 instance Pretty Group where
-    pretty (Group split side Nothing True) = pretty (split, side)
-    pretty (Group split side name highlight) =
-        pretty (split, side, name, highlight)
+    pretty (Group split side Nothing True NormalGroup) = pretty (split, side)
+    pretty (Group 0 Before name _highlight (SarvaGroup matras)) =
+        "==" <> pretty matras <> maybe "" (("("<>) . (<>")") . pretty) name
+    pretty (Group split side name highlight typ) =
+        pretty (split, side, name, highlight, typ)
+
+instance Pretty GroupType where pretty = showt
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
@@ -279,10 +289,12 @@ _durationOf convert = go
     get tempo n = case n of
         S.Note n -> convert tempo $ S.noteDuration tempo n
         S.TempoChange change notes -> go (S.changeTempo change tempo) notes
-        S.Group g notes -> case _side g of
-            Before -> max 0 (go tempo notes - split)
-            After -> min split (go tempo notes)
-            where split = convert tempo $ S.fmatraDuration tempo (_split g)
+        S.Group g notes -> case _groupType g of
+            NormalGroup -> case _side g of
+                Before -> max 0 (go tempo notes - split)
+                After -> min split (go tempo notes)
+                where split = convert tempo $ S.fmatraDuration tempo (_split g)
+            SarvaGroup matras -> convert tempo $ S.fmatraDuration tempo matras
 
 -- * functions
 

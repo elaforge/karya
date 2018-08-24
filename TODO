@@ -3692,11 +3692,47 @@ solkattu:
 
     * Let makeMridangam etc. take full mridangam sequence, not just [stroke].
       . :s/\[\(.*\)\]/\=substitute(submatch(1), ', ', '.', 'g')/
-    - Make (&+) pad with rests.
+    - Make (&) pad with rests.
     - Create something like Group but for Sarva, which can map to something
       of any duration in the SolluMap, and is realized as cycling.
-    . It has to be variable length in the Sequence too, so it has to be like
-      a pattern, but with [sollu] for name and duration.
+      . It has to be variable length in the Sequence too, so it has to be like
+        a pattern, but with [sollu] for name and duration.
+      . If I want to use sollus as a key only, then I save [sollu] but I can't
+        use SolluMap because I can't record tempo changes, and I don't have
+        them in the sollus.
+      . Otherwise, I have to save Notes, and this is what groups are for.  So
+        maybe this should be a Solkattu.Group with _highlight -> _groupType
+        and it's Sarva.
+      * Then try to reuse findSequence but insist on exact match.
+      * Also I need to do the duration hack for these groups too, since the
+        duration is stored explicitly, not sollus - dropped.
+      * Test.
+      . sarva groups now behave like Space in that they can be split, e.g. by
+        Notation.splitM.  That makes it seem like Sarva should still go in
+        Space.  But the reason I backed off from that is that SolluMap is
+        keyed by [sollu].  That's appropriate for sollus because I explicitly
+        want to ignore rests, but sarva is like Patterns in that the rests and
+        tempo changes are in the strokes.  It would be confusing if
+          (ta.__.ka.din, ...)
+          (taka.__.din, ...)
+        were overlapping.
+      . But isn't that still the case with groups?  I'm still doing
+        replaceSollus, which means rhythm is taken from sollus, not strokes,
+        but sollu map is still keyed without rests.
+      . Sollus: input and output have no tempo structure, because output
+          strokes are mapped to input sollus.
+        Patterns: input is just duration, so output has a tempo structure.
+        Sarva: input is sollus, but just for disambiguation.  Tempo could
+          could come from either sollus or strokes, but for consistency should
+          come from sollus, since they have it in sollus.
+      . So by using SolluMap I inherit the behaviour where I can use the same
+        sollus with a different rhythm, even though it's not necessarily
+        useful for sarva.
+      * find places where Space splits, and make sure SarvaGroup can too.
+        . Since it has arbitrary duration, it should be easy.
+      - remove old Sarva
+      - Replace groupType with making Group a sum
+      - highlight realized sarva with a different color
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.

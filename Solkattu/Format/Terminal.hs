@@ -54,7 +54,7 @@ defaultConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 78
     , _overrideStrokeWidth = Nothing
-    , _abstraction = Format.abstract Format.Patterns
+    , _abstraction = Format.defaultAbstraction
     }
 
 konnakolConfig :: Config
@@ -62,7 +62,7 @@ konnakolConfig = Config
     { _rulerEach = 4
     , _terminalWidth = 100
     , _overrideStrokeWidth = Just 3
-    , _abstraction = Format.abstract Format.Patterns
+    , _abstraction = Format.defaultAbstraction
     }
 
 -- * write
