@@ -276,9 +276,12 @@ makeSymbols = go
             , _highlight = Nothing
             }
         where note = normalizeSarva note_
-    go (S.FGroup _ group children) =
-        (if Format._highlight group then setHighlights else id)
-            (concatMap go children)
+    go (S.FGroup _ group children) = modify (concatMap go children)
+        where
+        modify = case Format._type group of
+            Realize.Unhighlighted -> id
+            Realize.Highlighted -> setHighlights
+            Realize.Sarva -> setHighlights -- TODO special highlight
     setHighlights =
         Seq.map_last (second (set Format.EndHighlight))
         . Seq.map_head_tail

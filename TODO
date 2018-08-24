@@ -3693,7 +3693,7 @@ solkattu:
     * Let makeMridangam etc. take full mridangam sequence, not just [stroke].
       . :s/\[\(.*\)\]/\=substitute(submatch(1), ', ', '.', 'g')/
     - Make (&) pad with rests.
-    - Create something like Group but for Sarva, which can map to something
+    . Create something like Group but for Sarva, which can map to something
       of any duration in the SolluMap, and is realized as cycling.
       . It has to be variable length in the Sequence too, so it has to be like
         a pattern, but with [sollu] for name and duration.
@@ -3731,8 +3731,9 @@ solkattu:
       * find places where Space splits, and make sure SarvaGroup can too.
         . Since it has arbitrary duration, it should be easy.
       - remove old Sarva
-      - Replace groupType with making Group a sum
+      * Replace groupType with making Group a sum
       - highlight realized sarva with a different color
+      - put Sarva abstraction in html
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.

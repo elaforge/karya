@@ -71,9 +71,7 @@ sarvaM :: S.Matra -> SequenceT sollu
 sarvaM n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
 
 sarvaM2 :: SequenceT sollu -> S.FMatra -> SequenceT sollu
-sarvaM2 sollus matras = [S.Group group sollus]
-    where
-    group = Solkattu.group { Solkattu._groupType = Solkattu.SarvaGroup matras }
+sarvaM2 sollus matras = [S.Group (Solkattu.GSarva matras) sollus]
 
 -- * by FMatra
 
@@ -122,23 +120,15 @@ splitM_either matras =
             S.TempoChange change subs ->
                 group (S.TempoChange change) (S.changeTempo change tempo)
                     matras subs ns
-            S.Group g children -> case Solkattu._groupType g of
-                Solkattu.SarvaGroup sarvaMatras -> return
-                    ( 0
-                    , ( [make matras]
-                      , make (sarvaMatras - matras) : ns
-                      )
-                    )
-                    where
-                    make m = S.Group
-                        (g { Solkattu._groupType = Solkattu.SarvaGroup m })
-                        children
+            S.Group (Solkattu.GNormal g) children -> do
                 -- The group is destroyed if it gets split.
-                Solkattu.NormalGroup -> do
-                    (pre, post) <- splitM_either (Solkattu._split g) children
-                    case Solkattu._side g of
-                        Solkattu.Before -> go tempo matras (post ++ ns)
-                        Solkattu.After -> go tempo matras (pre ++ ns)
+                (pre, post) <- splitM_either (Solkattu._split g) children
+                case Solkattu._side g of
+                    Solkattu.Before -> go tempo matras (post ++ ns)
+                    Solkattu.After -> go tempo matras (pre ++ ns)
+            S.Group (Solkattu.GSarva sarvaMatras) children -> return
+                (0, ([make matras], make (sarvaMatras - matras) : ns))
+                where make m = S.Group (Solkattu.GSarva m) children
             S.Note (Solkattu.Space space) -> do
                 pre <- spaces tempo space matras
                 post <- spaces tempo space (noteMatras - matras)
@@ -399,18 +389,19 @@ stride n seq = [S.TempoChange (S.Stride n) seq]
 
 -- | Just mark a group.
 group :: SequenceT sollu -> SequenceT sollu
-group = (:[]) . S.Group Solkattu.group
+group = (:[]) . S.Group (Solkattu.GNormal Solkattu.group)
 
 groupOf :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
 groupOf split side = (:[]) . S.Group g
     where
-    g = Solkattu.group { Solkattu._split = split, Solkattu._side = side }
+    g = Solkattu.GNormal $ Solkattu.group
+        { Solkattu._split = split, Solkattu._side = side }
 
 -- | Make a named group.
 named :: Bool -> Text -> SequenceT sollu -> SequenceT sollu
 named highlight name = (:[]) . S.Group g
     where
-    g = Solkattu.group
+    g = Solkattu.GNormal $ Solkattu.group
         { Solkattu._name = Just name, Solkattu._highlight = highlight }
 
 -- ** tags

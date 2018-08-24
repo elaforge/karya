@@ -69,8 +69,7 @@ type Flat stroke = S.Flat Group (Realize.Note stroke)
 -- format.
 data Group = Group {
     _name :: Maybe Text
-    , _highlight :: Bool
-    , _isSarva :: Bool
+    , _type :: Realize.GroupType
     } deriving (Eq, Show)
 
 -- | Reduce 'Realize.Group's to local 'Group's.
@@ -81,10 +80,7 @@ convertGroups = map (fmap (first mapGroups))
 mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
 mapGroups = S.mapGroupFlat $ \g -> Group
     { _name = Realize._name g
-    , _highlight = Realize._highlight g
-    , _isSarva = case Realize._groupType g of
-        Solkattu.SarvaGroup {} -> True
-        _ -> False
+    , _type = Realize._type g
     }
 
 -- * normalize speed
@@ -98,7 +94,7 @@ makeGroupsAbstract :: Abstraction -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | _isSarva group && isAbstract abstraction Sarva =
+        | _type group == Realize.Sarva && isAbstract abstraction Sarva =
             map (replace (S.Sustain (Realize.Abstract Realize.AbstractedSarva)))
                 flattened
         | isAbstract abstraction (Groups (_name group)) =
