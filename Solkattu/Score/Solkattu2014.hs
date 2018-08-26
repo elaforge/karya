@@ -44,7 +44,7 @@ c_14_01_14 = date 2014 1 14 $ ganesh $ korvaiS adi mridangam
     -- development
     [ sarvaSam adi theme -- end with tam!u
         . sarvaSam adi (dropM 1 theme)
-        . sarvaA 4 theme . sarvaA 4 (dropM 1 theme)
+        . sarvaA_ 4 theme . sarvaA_ 4 (dropM 1 theme)
         . __a 2 theme . __a 2 (dropM 1 theme)
         . __a 2 theme . repeat 2 (__ . dropM 3 theme)
     , tri_ (tam.__) reduce -- TODO u, i, u substitution
@@ -180,12 +180,12 @@ m_ta_katakita =
 
 c_14_03_13 :: Korvai
 c_14_03_13 = date 2014 3 13 $ ganesh $ korvaiS adi mridangam
-    [ sarvaD 4 . t1.din . sarvaD 3
-    . repeat 2 (t1.din . sarvaD 3)
+    [ sarvaD_ 4 . t1.din . sarvaD_ 3
+    . repeat 2 (t1.din . sarvaD_ 3)
     , concatMap sequence [t1, t2, t3]
     ]
     where
-    sequence p = p.din . sarvaD 3 . p.din . sarvaD 1 . p
+    sequence p = p.din . sarvaD_ 3 . p.din . sarvaD_ 1 . p
         . dropM (1/2) p . dropM (1/2) p
     t1 = su $ din.__.kitataka
     t2 = su $ ka.tdgnt
@@ -203,10 +203,10 @@ c_14_03_13 = date 2014 3 13 $ ganesh $ korvaiS adi mridangam
 c_14_03_26 :: Korvai
 c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
         korvaiS adi mridangam $
-    [ t1 . sarvaD 7 . repeat 2 (t1 . sarvaD 3)
-        . repeat 2 (t1 . sarvaD 1) . t1 . sarvaD 3
-        . repeat 3 (t1.__) . ka . t1 . sarvaD 3
-        . t1.__.ka . repeat 2 (t1.__) . t1 . sarvaD 3
+    [ t1 . sarvaD_ 7 . repeat 2 (t1 . sarvaD_ 3)
+        . repeat 2 (t1 . sarvaD_ 1) . t1 . sarvaD_ 3
+        . repeat 3 (t1.__) . ka . t1 . sarvaD_ 3
+        . t1.__.ka . repeat 2 (t1.__) . t1 . sarvaD_ 3
     ] ++ map sequence [t1, t2, t3, t4, t5]
     where
     -- Same sarva as c_14_03_13.
@@ -248,7 +248,7 @@ c_14_04_29 :: Korvai
 c_14_04_29 = date 2014 4 29 $ ganesh $ korvaiS adi mridangam $
     -- sarva is namita dimita dimi
     [ sarvaSam adi t1
-        . sarvaA 4 t1 . sarvaA 4 t1
+        . sarvaA_ 4 t1 . sarvaA_ 4 t1
         . 1^t1 . t1 . 1^t1 . t1
         -- TODO still not right, t1 after 1^t1 should drop the first thom.
     ] ++ map sequence ts
@@ -284,7 +284,7 @@ c_14_06_06 :: Korvai
 c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
     korvaiS adi mridangam
     -- sarva is nami dimi nami dimi
-    [ repeat 2 (sarvaD 5 . nadin4)
+    [ repeat 2 (sarvaD_ 5 . nadin4)
         . din.__4 . nadin4.din.__4 . spread 3 tadindintat
 
     , purvangam (tat.__3) (tat.__3.dit.__3)

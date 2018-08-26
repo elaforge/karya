@@ -15,8 +15,8 @@ import Solkattu.MridangamGlobal
 dinnagina_sequence :: Korvai
 dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
     su $ mconcat $ map (sam.)
-    [ sarvaA 16 ptheme
-    , sarvaA 8 ptheme . sarvaA 8 ptheme
+    [ sarvaA_ 16 ptheme
+    , sarvaA_ 8 ptheme . sarvaA_ 8 ptheme
 
     -- start sarvalaghu with o k D D ...
     -- o k oktkoktkpktkt k oktkoktkoktk     x2

@@ -3633,6 +3633,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - move DslSollu into SolkattuGlobal
   * tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
   David Nelson mridangam transcriptions:
@@ -3730,10 +3731,22 @@ solkattu:
         useful for sarva.
       * find places where Space splits, and make sure SarvaGroup can too.
         . Since it has arbitrary duration, it should be easy.
-      - remove old Sarva
+      * remove old Sarva
+      * I need to support empty sarva
+        . But then I need notes to carry the =s, and specifically to carry
+          (tempo, state).  I don't need tempo, but formatting does use state
+          to break avartanams at least.
+        . So I have to put in the dummies pre-normalize.
+        . In fact I have dummies for that purpose, Realize.Abstract, so maybe
+          I just have to put it in earlier, like when realize finds out it's
+          an empty sarva.
+        . S.simplify drops empty groups, and I can't special case it because
+          it's polymorphic.
+        . I could put in a dummy [NoSollu] but for now let's just not simplify
+          away empty groups.
       * Replace groupType with making Group a sum
       - highlight realized sarva with a different color
-      - put Sarva abstraction in html
+      - put Sarva abstraction level in html
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.

@@ -131,7 +131,10 @@ simplify :: [Note g a] -> [Note g a]
 simplify = merge . concatMap cancel
     where
     cancel (Note a) = [Note a]
-    cancel (Group _ []) = []
+    -- TODO I used to do this, but there is now such a thing as empty sarva
+    -- groups, which have a duration.  I could get this back put putting in
+    -- a dummy [NoSollu], but I'm not sure if that's better or worse.
+    -- cancel (Group _ []) = []
     cancel (Group g ns) = [Group g ns]
     cancel (TempoChange _ []) = []
     cancel (TempoChange (ChangeSpeed s) xs) | s == 0 = xs

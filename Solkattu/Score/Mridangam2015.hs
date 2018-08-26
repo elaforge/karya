@@ -34,7 +34,7 @@ c_3 = akash $ date 2015 1 1 $ tekha $ comment "14 beats" $
     korvai Tala.misra_chapu $ map section
     [ sd $ on.od.__.on.on.od.__.n.p&d.__.on.on.od.__
     , sd $ repeat 2 (n.d.l.n.l.d.l) & (o.__3.o.__.o.__.p.__3.o.__.o.__)
-    , sarvaD 5 . repeat 2 (nadai 6 (n.p.kt.pk))
+    , sarvaD_ 5 . repeat 2 (nadai 6 (n.p.kt.pk))
     ]
 
 akash :: Korvai -> Korvai

@@ -20,7 +20,7 @@ yt_mannargudi1 = source "Mannargudi Easwaran" $
         date 2018 1 12 $
         korvai adi mridangam $ map (smap su)
     [ endOn 4 $ devel $
-        sarvaM 8 . theme.din.__4 . in3 (1^theme) . theme.din.__8 . sarvaD 4
+        sarvaM_ 8 . theme.din.__4 . in3 (1^theme) . theme.din.__8 . sarvaD_ 4
         . theme.din.__4 . in3 (1^theme) . din.__6
         . trkt.theme.tat.__6
         . kttk.trkt . in3 theme . din.__2
@@ -95,7 +95,7 @@ yt_mannargudi2 = source "Mannargudi Easwaran" $
     p9 = kita.ki.na.ta.takadinna
     tat_din_ = tat.__.din.__.p5
 
-    sarva n = sarvaM (n*6)
+    sarva n = sarvaM_ (n*6)
     mridangam = makeMridangam
         [ (p8, k.t.k.n.k.o.o.k)
         , (p9, k.t.k.n.p.k.o.o.k)
@@ -156,11 +156,11 @@ yt_karaikudi1 = source "Karaikudi Mani" $
         date 2018 1 12 $
         korvai adi mridangam
     [ devel $
-        sarvaD (4+1/2) . theme . tat.__ . sarvaD (1/2)
-        . sarvaD (4+1/2) . theme . din.__4
+        sarvaD_ (4+1/2) . theme . tat.__ . sarvaD_ (1/2)
+        . sarvaD_ (4+1/2) . theme . din.__4
     , local $ devel $
-        sarvaD 5 . theme.nakadinna
-        . sarvaD 5 . __ . dropM 1 theme.nakadinna
+        sarvaD_ 5 . theme.nakadinna
+        . sarvaD_ 5 . __ . dropM 1 theme.nakadinna
         . tam.__4 . theme.nakadinna
         . tam.__4 . __ . dropM 1 theme.nakadinna
         -- . theme . dropM 1 theme . dropM 2 theme . p5
@@ -207,19 +207,19 @@ yt_karaikudi1 = source "Karaikudi Mani" $
 c_18_03_19 :: Korvai
 c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
     map devel
-    [ (kitataka.sd2 din) <== 7 . sarvaD 7
+    [ (kitataka.sd2 din) <== 7 . sarvaD_ 7
     , (kitataka.sd2 din) <== 7 . 1^(kitataka.sd2 din) <== 7
     , kitataka . sd2 (din.na) . kitataka . sd2 (din.din.na)
         . 1^(kitataka . sd2 (din.na) . kitataka . sd2 (din.din.na))
     , kitataka . sd2 (din.na) . tri_ (din.__) kitataka
         . 1^(kitataka . sd2 (din.na) . tri_ (din.__) kitataka)
     , (kitataka.sd2 din) <== 7
-        . sarvaD 6.5 . tri_ (sd (din.__3)) (tat.__.kitataka)
-        . din.__4 . sarvaD 5
+        . sarvaD_ 6.5 . tri_ (sd (din.__3)) (tat.__.kitataka)
+        . din.__4 . sarvaD_ 5
         . tri_ (din.__4) (tat.__4.kitataka)
-        . din.__4 . sarvaD 4.5
+        . din.__4 . sarvaD_ 4.5
         . tri_ (din.__) (tat.__.tat.__4.kitataka)
-        . din.__4 . sarvaD 6
+        . din.__4 . sarvaD_ 6
     ] ++
     [ ending $ purvangam 3 . tri_ (sd2 (ta.din)) p5
     ] ++ map (var • dateS 2018 3 27 • ending)
@@ -253,7 +253,7 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
 
 c_18_03_28 :: Korvai
 c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
-    [ (theme.din.__4) <== 7 . sarvaD 7
+    [ (theme.din.__4) <== 7 . sarvaD_ 7
     , (theme.din.__4) <== 7 . 1^(theme.din.__4) <== 7
     , (theme.din.__4) . theme.din.__4 . na.__4
         . 1^(theme.din.__4 . theme.din.__4 . na.__4)
@@ -263,9 +263,9 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
         . 1^((theme.din.__4) . kitakinakadin.__ . repeat 2 (nakadin.__) . ga)
     , (theme.din.__4) . kitakinakadin.__ . repeat 3 (ka.din.__)
         . 1^((theme.din.__4) . kitakinakadin.__ . repeat 3 (ka.din.__))
-    , (theme.din.__4) <== 7 . sarvaD 6 . tri_ (din.__4) theme
-    , sarvaD 7 . sarvaD 4.5 . tri_ (din.__4) (tat.__.theme)
-    , sarvaD 7 . sarvaD 3 . tri_ (din.__4) (tat.__4.theme)
+    , (theme.din.__4) <== 7 . sarvaD_ 6 . tri_ (din.__4) theme
+    , sarvaD_ 7 . sarvaD_ 4.5 . tri_ (din.__4) (tat.__.theme)
+    , sarvaD_ 7 . sarvaD_ 3 . tri_ (din.__4) (tat.__4.theme)
     , repeat 3 (tat.__4.theme.din.__4.din.__4.na.__4) . sd (tri_ __ p6)
     , tsep (tat.__4.theme.din.__4.din.__4.na.__6)
         (tari.kita) (kita.kita.tari.kita)
@@ -451,9 +451,9 @@ misra_to_mohra1a :: Korvai
 misra_to_mohra1a = date 2018 7 2 $ sudhindra $
     korvaiS Tala.misra_chapu (mridangam<>kendang)
     [ din.__8 . tA1
-    , sarvaD (7*3)
-    , sarvaD 4 . tA
-    , sarvaD 7 . repeat 3 (sarvaD 4 . dropD 2 tA1)
+    , sarvaD_ (7*3)
+    , sarvaD_ 4 . tA
+    , sarvaD_ 7 . repeat 3 (sarvaD_ 4 . dropD 2 tA1)
     , repeat 3 tA . repeat 2 (dropD 5 tA) . repeat 2 (dropD 7 tA)
         . repeat 2 (dropD 9 tA)
     ]
@@ -523,15 +523,15 @@ misra_to_mohra1b = date 2018 7 2 $ sudhindra $
 to_mohra_farans :: Korvai
 to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     korvai Tala.misra_chapu mridangam
-    [ section $ sarvaD 14
-    , x2 $ section $ sarvaD (7+4) . tri (talang.__.gu)
-    , x2 $ section $ sarvaD (7+4) . tri takadinna
-    , x2 $ section $ sarvaD (7+4) . tri (gu.gu.na.na)
-    , section $ repeat 2 $ sarvaD 4 . tri dinnakitataka
-    , section $ repeat 2 $ sarvaD 4 . repeat 2 takadinnakitataka
-    , x2 $ section $ sarvaD 4 . repeat 2 takadinnakitataka
+    [ section $ sarvaD_ 14
+    , x2 $ section $ sarvaD_ (7+4) . tri (talang.__.gu)
+    , x2 $ section $ sarvaD_ (7+4) . tri takadinna
+    , x2 $ section $ sarvaD_ (7+4) . tri (gu.gu.na.na)
+    , section $ repeat 2 $ sarvaD_ 4 . tri dinnakitataka
+    , section $ repeat 2 $ sarvaD_ 4 . repeat 2 takadinnakitataka
+    , x2 $ section $ sarvaD_ 4 . repeat 2 takadinnakitataka
       . repeat 4 takadinnakitataka . dinnakitataka
-    , section $ sarvaD 4 . repeat 2 takadinnakitataka
+    , section $ sarvaD_ 4 . repeat 2 takadinnakitataka
       . repeat 3 (repeat 2 takadinnakitataka . repeat 4 dinnakitataka)
     , section $ tri_ (din.__4) (repeat 4 dinnakitataka)
     ]

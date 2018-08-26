@@ -67,11 +67,17 @@ __D dur = __n (dToM2 (S._nadai S.defaultTempo) dur)
 __M :: S.Matra -> SequenceT sollu
 __M matras = repeat matras __
 
-sarvaM :: S.Matra -> SequenceT sollu
-sarvaM n = replicate n (S.Note (Solkattu.Space Solkattu.Sarva))
+sarvaM :: SequenceT sollu -> S.FMatra -> SequenceT sollu
+sarvaM sollus matras = [S.Group (Solkattu.GSarva matras) sollus]
 
-sarvaM2 :: SequenceT sollu -> S.FMatra -> SequenceT sollu
-sarvaM2 sollus matras = [S.Group (Solkattu.GSarva matras) sollus]
+sarvaD :: SequenceT sollu -> Duration -> SequenceT sollu
+sarvaD sollus dur = sarvaM sollus (dToM dur)
+
+sarvaM_ :: FMatra -> SequenceT sollu
+sarvaM_ = sarvaM mempty
+
+sarvaD_ :: Duration -> SequenceT sollu
+sarvaD_ = sarvaD mempty
 
 -- * by FMatra
 
@@ -168,9 +174,8 @@ spaceM space matras =
 
 -- * by Duration
 
-restD, sarvaD :: CallStack.Stack => Duration -> SequenceT sollu
+restD :: CallStack.Stack => Duration -> SequenceT sollu
 restD = spaceD Solkattu.Rest S.defaultTempo
-sarvaD = spaceD Solkattu.Sarva S.defaultTempo
 
 spaceD :: CallStack.Stack => Solkattu.Space -> S.Tempo -> Duration
     -> SequenceT sollu
@@ -327,9 +332,9 @@ replaceEnd seq suffix = rdropM_ (matrasOf suffix) seq <> suffix
 -- I go for always looser and require parentheses, just like function calls.
 -- But by being at 8, at least I can be below (^) and (§).
 (<==) :: Pretty sollu => SequenceT sollu -> Duration -> SequenceT sollu
-seq <== dur = seq `replaceStart` sarvaD dur
+seq <== dur = seq `replaceStart` sarvaD_ dur
 (==>) :: Pretty sollu => Duration -> SequenceT sollu -> SequenceT sollu
-dur ==> seq = sarvaD dur `replaceEnd` seq
+dur ==> seq = sarvaD_ dur `replaceEnd` seq
 infixl 8 <==
 infixl 8 ==>
 
@@ -449,11 +454,15 @@ __a dur seq = replaceEnd (restD dur) seq
 
 sarvaSam :: (CallStack.Stack, Pretty sollu) =>
     Tala.Tala -> SequenceT sollu -> SequenceT sollu
-sarvaSam tala seq = sarvaA (nextSam tala seq) seq
+sarvaSam tala seq = sarvaA_ (nextSam tala seq) seq
 
 sarvaA :: (CallStack.Stack, Pretty sollu) =>
+    SequenceT sollu -> S.Duration -> SequenceT sollu -> SequenceT sollu
+sarvaA sarva dur seq = replaceEnd (sarvaD sarva dur) seq
+
+sarvaA_ :: (CallStack.Stack, Pretty sollu) =>
     S.Duration -> SequenceT sollu -> SequenceT sollu
-sarvaA dur seq = replaceEnd (sarvaD dur) seq
+sarvaA_ = sarvaA mempty
 
 -- * complex transformation
 

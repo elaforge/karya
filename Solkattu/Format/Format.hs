@@ -72,6 +72,9 @@ data Group = Group {
     , _type :: Realize.GroupType
     } deriving (Eq, Show)
 
+instance Pretty Group where
+    pretty (Group name typ) = fromMaybe "" name <> "(" <> showt typ <> ")"
+
 -- | Reduce 'Realize.Group's to local 'Group's.
 convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], Korvai.Error)]
     -> [Either Korvai.Error ([Flat stroke], Korvai.Error)]
@@ -95,10 +98,12 @@ makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
         | _type group == Realize.Sarva && isAbstract abstraction Sarva =
-            map (replace (S.Sustain (Realize.Abstract Realize.AbstractedSarva)))
+            map (replace abstractSarva) flattened
+        | isAbstract abstraction (Groups (_name group))
+                && _type group /= Realize.Sarva =
+                -- Sarva is abstracted in its own way
+            Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
                 flattened
-        | isAbstract abstraction (Groups (_name group)) =
-            Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain) flattened
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where
         flattened  = S.tempoNotes children
@@ -108,6 +113,7 @@ makeGroupsAbstract abstraction = concatMap combine
         fmatra = S.normalizeFMatra tempo (fromIntegral (length flattened))
         name = fromMaybe (Pretty.fraction True fmatra) (_name group)
     combine n = [n]
+    abstractSarva = S.Sustain (Realize.Abstract Realize.AbstractedSarva)
 
 normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
 normalizeSpeed tala =

@@ -119,12 +119,12 @@ c_13_11_12 = date 2013 11 12 $ ganesh $ korvaiS adi mridangam
 c_13_12_11 :: Korvai
 c_13_12_11 = date 2013 12 11 $ ganesh $ korvaiS adi mridangam
     -- development for theme14
-    [ sarvaD 8 . sarvaSam adi theme14
+    [ sarvaD_ 8 . sarvaSam adi theme14
         . sarvaSam adi theme14, sarvaSam adi theme14
         . __a 4 theme14 . __a 4 theme14
         . __a 4 theme14 . repeat 2 (__.__.tat.__.ka.din.na.__)
     -- development for three together
-    , mconcat [sarvaD 8 . sarvaSam adi t | t <- themes]
+    , mconcat [sarvaD_ 8 . sarvaSam adi t | t <- themes]
         . mconcat [sarvaSam adi t | t <- themes]
         . repeat 2 (__a 4 theme14 . __a 4 theme16)
     , structure theme14 (din.__6)

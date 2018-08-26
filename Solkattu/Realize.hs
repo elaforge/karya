@@ -149,7 +149,6 @@ instance S.HasMatras (Note stroke) where
 instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
     notation = \case
         Space Solkattu.Rest -> "_"
-        Space Solkattu.Sarva -> "="
         Space Solkattu.Offset -> " "
         Note s -> Solkattu.notation s
         Pattern p -> Solkattu.notation p
@@ -158,7 +157,6 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
         Alignment _ -> "" -- this should be filtered out prior to render
     extension = \case
         Space Solkattu.Rest -> ' '
-        Space Solkattu.Sarva -> '='
         Pattern p -> Solkattu.extension p
         Abstract (AbstractedGroup _) -> '-'
         Abstract AbstractedSarva -> '='
@@ -175,7 +173,6 @@ doubleRest = '‗' -- DOUBLE LOW LINE U+2017
 instance Pretty stroke => Pretty (Note stroke) where
     pretty n = case n of
         Space Solkattu.Rest -> "_"
-        Space Solkattu.Sarva -> "="
         Space Solkattu.Offset -> "."
         Note s -> pretty s
         Pattern p -> pretty p
@@ -470,8 +467,17 @@ realize realizePattern toStrokes =
             (children, Just err) -> UF.fromListFail children err
             (children, Nothing) ->
                 UF.singleton $ S.FGroup tempo (Solkattu.GNormal group) children
-    realize1 (S.FGroup tempo (Solkattu.GSarva matras) children) notes =
-        (, notes) <$> case findSequence toStrokes children of
+    realize1 (S.FGroup tempo (Solkattu.GSarva matras) children) notes
+        | null children = (, notes) <$> case S.decomposeM matras of
+            Left err ->
+                return $ UF.Fail $ "GSarva " <> pretty matras <> ": " <> err
+            Right speeds ->
+                return $ UF.singleton $ S.FGroup tempo (Solkattu.GSarva matras)
+                    [ S.FNote t (Abstract AbstractedSarva)
+                    | t <- map mktempo speeds
+                    ]
+                where mktempo s = tempo { S._speed = S._speed tempo + s }
+        | otherwise = (, notes) <$> case findSequence toStrokes children of
             Left err -> return $ UF.Fail $ "sarva: " <> err
             Right (matched, (_, (_:_))) ->
                 return $ UF.Fail $
@@ -487,6 +493,8 @@ realize realizePattern toStrokes =
                         return $ UF.singleton $
                             S.FGroup tempo (Solkattu.GSarva matras) strokes
         where dur = S.fmatraDuration tempo matras
+    -- TODO it seems like I should have some way to convert Either Error to
+    -- a UF.Fail.
 
 formatError :: Solkattu.Notation a => UF.UntilFail Error (S.Flat g a)
     -> Either Error [S.Flat g a]

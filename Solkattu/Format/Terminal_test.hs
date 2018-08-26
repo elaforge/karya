@@ -61,8 +61,6 @@ test_format_patterns = do
 test_format_space = do
     let run = fmap (eFormat . format 80 Tala.adi_tala . fst)
             . kRealize False Tala.adi_tala
-    equal (run (Notation.sarvaM 4)) $ Right "========"
-    equal (run (Notation.sarvaD 1)) $ Right "========"
     equal (run (Notation.__M 4)) $ Right "‗|  ‗"
     equal (run (Notation.restD 1)) $ Right "‗|  ‗"
 
@@ -70,8 +68,24 @@ test_format_sarva = do
     let run abstract =
             fmap (eFormat . formatAbstraction abstract 80 Tala.adi_tala . fst)
             . kRealize False Tala.adi_tala
-    equal (run mempty (Notation.sarvaM2 ta 5)) (Right "k k k k k")
-    equal (run (Format.abstract Format.Sarva) (Notation.sarvaM2 ta 5))
+    -- equal (run mempty (Notation.sarvaM ta 5)) (Right "k k k k k")
+    -- equal (run (Format.abstract Format.Sarva) (Notation.sarvaM ta 5))
+    --     (Right "==========")
+    -- equal (run mempty (Notation.sarvaM_ 3)) (Right "======")
+
+    let sarva = Notation.sarvaM_
+    -- [s-1]
+    -- [[s0, s0]]
+    equal (run (Format.abstract Format.Sarva) (sarva 2))
+        (Right "====")
+    -- This seems like it should be (2+1)*2, the fact that they can all be
+    -- reduced to s1 means normalize expands to s1 instead of s0.  I don't
+    -- really understand it but I think it's right?
+    -- [s0, s0]
+    -- [[s1, s1], [s1, s1]] 4*2 -> 8*'='
+    equal (run (Format.abstract Format.Sarva) (sarva 1 <> su (sarva 2)))
+        (Right "========")
+    equal (run (Format.abstract Format.Sarva) (sarva 1 <> sd (sarva 2)))
         (Right "==========")
 
 tala4 :: Tala.Tala

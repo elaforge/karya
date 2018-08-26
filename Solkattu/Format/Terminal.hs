@@ -265,7 +265,8 @@ makeSymbols strokeWidth tala angas = go
         modify = case Format._type group of
             Realize.Unhighlighted -> id
             Realize.Highlighted -> setHighlights
-            Realize.Sarva -> setHighlights -- TODO special highlight
+            -- TODO special highlight, but only when non-abstract
+            Realize.Sarva -> id
     setHighlights =
         Seq.map_last (second (set Format.EndHighlight))
         . Seq.map_head_tail

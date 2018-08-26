@@ -35,12 +35,14 @@ test_realize = do
             ]
             where M.Strokes {..} = M.notes
     equal (f [__, ta, __, __, din]) (Right "_ k _ _ D")
-    equal (f [Notation.sarvaM 4]) (Right "= = = =")
     equal (f [Dsl.p5, __, ta, din]) (Right "5p _ k D")
     equal (f [ta, ta]) (Right "t t")
     equal (f [din, ga]) (Right "D _")
     equal (f [din, __, ga]) (Right "D _ _")
     left_like (f [din, din]) "sequence not found"
+
+    -- pretty of Abstract AbstractedSarva
+    equal (f [Notation.sarvaM_ 4]) (Right "sarva")
 
 test_realizeGroups = do
     let f = eWords . realizeN smap
@@ -163,7 +165,7 @@ test_realizeSarva = do
         smap = checkSolluMap
             [ (ta <> din, [n, d])
             ] where M.Strokes {..} = M.notes
-        sarvaM = Notation.sarvaM2
+        sarvaM = Notation.sarvaM
     equal (f []) (Right "")
     equal (f [sarvaM (ta <> din) 5]) (Right "n d n d n")
     left_like (f [sarvaM (ta <> din <> ta) 5]) "incomplete match"

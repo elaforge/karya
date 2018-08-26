@@ -126,7 +126,7 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
 c_17_09_25 :: Korvai
 c_17_09_25 = ganesh $ date 2017 9 25 $ similarTo "Solkattu2017" "c_17_03_20" $
     korvaiS Tala.misra_chapu mridangam
-    [ sarvaD 3 . theme
+    [ sarvaD_ 3 . theme
     , mconcat [v `replaceStart` theme_ . __.__. dropM 6 theme | v <- variants]
     , dropM 4 theme . sequence
     , dropM 8 theme . repeat 3 sequence
@@ -510,9 +510,9 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvaiS adi mridangam $
 c_17_08_29 :: Korvai
 c_17_08_29 = date 2017 8 29 $ ganesh $
     korvaiS Tala.misra_chapu (mridangam<>kendang1)
-    [ sarvaD 7 . sarvaD 3   . develop.na.__.din
-    , dit.__4 . sarvaD 2 . develop . na.__
-    , repeat 2 $ dit.__4 . sarvaD 2 . tri develop . na.__
+    [ sarvaD_ 7 . sarvaD_ 3   . develop.na.__.din
+    , dit.__4 . sarvaD_ 2 . develop . na.__
+    , repeat 2 $ dit.__4 . sarvaD_ 2 . tri develop . na.__
 
     , sequence theme1
     , sequence theme2
@@ -575,8 +575,8 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
     korvaiS adi (mridangam<>kendang1)
     [ sequence theme
     , sequence (theme2a.theme2b)
-    , mconcatMap (sarvaA 16) [theme, kitataka.theme, kitakita.kitakita.theme]
-        . sarvaA 8 (kitataka.theme) . sarvaA 8 (kitakita.kitataka.theme)
+    , mconcatMap (sarvaA_ 16) [theme, kitataka.theme, kitakita.kitakita.theme]
+        . sarvaA_ 8 (kitataka.theme) . sarvaA_ 8 (kitakita.kitataka.theme)
     , din.__8 . repeat 3 (theme2a.tat.__7) . theme -- repeat 2
     , din.__8 . repeat 3 (theme2a_o.theme2a) . theme -- repeat 2
     , din.__4 . theme2a_o.theme2a . theme -- repeat 2
@@ -596,7 +596,7 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
             (tri p5) (tri (su kp.p5)) (tri (su kpnp.p5))
     ]
     where
-    sequence t = mconcatMap (sarvaA 8)
+    sequence t = mconcatMap (sarvaA_ 8)
         [t, kitataka.t, kitakita.kitataka.t]
     theme = group $ ta.dit.__.ta.__.kita.taka.__.din.__.ta.__
     theme2a_ = su $ dit.__.taka.na.ka.ta.na.ka

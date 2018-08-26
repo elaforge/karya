@@ -2,8 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Format korvais as HTML.
-module Solkattu.Format.Html (indexHtml, writeAbstraction, writeAll) where
+module Solkattu.Format.Html (
+    indexHtml, writeAbstraction, writeAll
+#ifdef TESTING
+    , module Solkattu.Format.Html
+#endif
+) where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -161,8 +167,7 @@ sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
 sectionHtmls inst config korvai =
     zipWith (renderSection config (Korvai.korvaiTala korvai))
         (Korvai.genericSections korvai)
-        (Format.convertGroups
-            (Korvai.realize inst realizePatterns korvai))
+        (Format.convertGroups (Korvai.realize inst realizePatterns korvai))
     where
     realizePatterns = not $
         Format.isAbstract (_abstraction config) Format.Patterns
@@ -281,7 +286,8 @@ makeSymbols = go
         modify = case Format._type group of
             Realize.Unhighlighted -> id
             Realize.Highlighted -> setHighlights
-            Realize.Sarva -> setHighlights -- TODO special highlight
+            -- TODO special highlight, but only when non-abstract
+            Realize.Sarva -> id
     setHighlights =
         Seq.map_last (second (set Format.EndHighlight))
         . Seq.map_head_tail
@@ -289,22 +295,22 @@ makeSymbols = go
             (second (set Format.Highlight))
         where set h sym = sym { _highlight = Just h }
     noteHtml state = \case
-        S.Sustain (Realize.Space Solkattu.Sarva) -> sarva
         S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
-        S.Sustain (Realize.Abstract {}) -> "<hr noshade>"
+        S.Sustain (Realize.Abstract (Realize.AbstractedGroup _)) ->
+            "<hr noshade>"
+        S.Sustain (Realize.Abstract Realize.AbstractedSarva) ->
+            -- TODO this is actually pretty ugly
+            "<hr style=\"border: 4px dotted\">"
         S.Sustain a -> notation state a
         S.Attack a -> notation state a
         S.Rest -> Doc.html "_"
     -- Because sarva is <hr> all the way through, don't separate the attack
-    -- from sustain. TODO I should do this for all attack+sustain, and
-    -- just append the <hr> to the (optional) notation html.
-    normalizeSarva (S.Attack (Realize.Space Solkattu.Sarva)) =
-        S.Sustain (Realize.Space Solkattu.Sarva)
+    -- from sustain.
+    normalizeSarva (S.Attack n@(Realize.Abstract Realize.AbstractedSarva)) =
+        S.Sustain n
     normalizeSarva n = n
     notation state = bold . Solkattu.notationHtml
         where bold = if Format.onAkshara state then Doc.tag "b" else id
-    -- TODO this is actually pretty ugly
-    sarva = "<hr style=\"border: 4px dotted\">"
 
 formatTable :: Font -> Tala.Tala -> [Doc.Html] -> [[(S.State, Symbol)]]
     -> Doc.Html

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 module Solkattu.Notation_test where
 import qualified Data.Tuple as Tuple
 
@@ -44,13 +45,14 @@ test_splitM_ = do
     equal (f 3 (sd (sd __) <> ka)) $ Right (["s-1(__)", "__"], ["__", "ka"])
 
 test_splitM_sarva = do
-    let f matras = fmap (bimap (map pretty) (map pretty)) . splitM_either matras
-    -- split sarva
-    let sarva = sarvaM2 taka
+    let f matras = fmap (bimap (map pretty) (map pretty))
+            . splitM_either @Solkattu.Sollu matras
+    let sarva = sarvaM taka
     equal (f 3 (sarva 4)) $ Right (["==3(ta ka)"], ["==1(ta ka)"])
     equal (f 3 (sd (sarva 4))) $
         Right (["s-1(==3(ta ka))"], ["s-1(==1(ta ka))"])
     equal (f 4 (sarva 4)) $ Right (["==4(ta ka)"], [])
+    equal (f 3 (sarvaM_ 4)) $ Right (["==3()"], ["==1()"])
 
 test_takeDrop = do
     let tdgn = mconcat [ta, DslSollu.din, DslSollu.gin, DslSollu.na]

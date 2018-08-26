@@ -47,6 +47,5 @@ toExpr s = case s of
     Realize.Abstract a -> Just $
         Expr.generator $ Expr.call (Expr.Symbol (pretty a)) []
     Realize.Space Solkattu.Rest -> Nothing
-    Realize.Space Solkattu.Sarva -> Nothing -- TODO
     Realize.Space Solkattu.Offset -> Nothing
     Realize.Alignment {} -> Nothing
