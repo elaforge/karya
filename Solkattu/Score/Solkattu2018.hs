@@ -654,7 +654,11 @@ misra_muktayi1 = date 2018 7 11 $ sudhindra $
 
 trikalam1 :: Korvai
 trikalam1 = date 2018 7 16 $ trikalam $ sudhindra $ korvai adi mridangam
-    [ startOn 4 $ endOn 4 $ section $ theme
+    [ endOn 4 $ devel $
+        tam.__4.theme0.di.__6.p6.__3.p6
+        . ta.takita.theme0.di.__6.p6.__3.p6
+        . tam.__4.theme0.di.__4
+    , startOn 4 $ endOn 4 $ section $ theme
     , startOn 4 $ endOn 4 $ section $ repeat 2 $ nadai 6 theme
     , startOn 4 $ section $ repeat 3 $ su theme
     ]
@@ -926,4 +930,35 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $
         , (din, od)
         , (tat, k)
         , (tat.di, k.t)
+        ]
+
+
+-- * ganesh
+
+misra_trikalam :: Korvai
+misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
+    korvai Tala.misra_chapu  mridangam $
+    [ section $ theme
+    , section $ nadai 6 theme
+    , section $ su theme
+    ]
+    where
+    theme = mconcat $ map (group • sd)
+        [ tat.__3.din.__3.na.__.na.__.din.__.p6.tam.__3
+        , ta.taka.din.__3.na.__.na.__.din.__.p6.tam.__3
+        , tat.__3.din.__3.na.__.na.__.din.__.p6
+        , ta.taka.din.__3.na.__.na.__.din.__.p6
+        , tat.__3.din.__3.na.__3.p6
+        , ta.taka.din.__3.na.__3.p6
+        , tat.__3.din.__3.p6
+        , ta.taka.din.__3
+        ] ++ [
+            sd $ tri123 (tam.__3) p6
+        ]
+    mridangam = makeMridangam
+        [ (tat, k)
+        , (din, od)
+        , (na, on)
+        , (tam, v)
+        , (ta.taka, k.k.o)
         ]
