@@ -3744,6 +3744,21 @@ solkattu:
           it's polymorphic.
         . I could put in a dummy [NoSollu] but for now let's just not simplify
           away empty groups.
+      - sarva sollu map needs to accept strokes > sollus for sarva
+        . Or I could repeat the sollus.
+      - sollu map could strip rests, but that encourages putting them in
+        there, which is then confusing when they don't actually matter.
+        . I could verify that the rests are in the same places.  This means
+          that if you use rests in sollus, you have to put them in the strokes
+          too.
+        . Actually since I have sollus map to rest and rest map to sollus,
+          I can only verify that the length is the same.
+        . This seems like a shame, because it's rare to map sollu to a rest
+          and rarer to map rest to stroke.  Can I have some explicit way of
+          doing that?
+        . Tags on strokes otherwise have no meaning, so I could repurpose that
+          as a "don't check this" tag.
+      - sarva match should strip rests from the end
       * Replace groupType with making Group a sum
       - highlight realized sarva with a different color
       - put Sarva abstraction level in html

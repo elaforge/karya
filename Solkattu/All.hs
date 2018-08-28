@@ -9,7 +9,7 @@
 -- directory should cause it to be regenerated.
 module Solkattu.All where
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Metadata
+import Solkattu.Metadata (setLocation)
 import qualified Solkattu.Score.Mridangam2013
 import qualified Solkattu.Score.Mridangam2015
 import qualified Solkattu.Score.Mridangam2016
@@ -145,16 +145,17 @@ korvais = map Korvai.inferMetadata
     , setLocation ("Solkattu.Score.Solkattu2018",598,"misra_mohras") Solkattu.Score.Solkattu2018.misra_mohras
     , setLocation ("Solkattu.Score.Solkattu2018",624,"misra_muktayi1") Solkattu.Score.Solkattu2018.misra_muktayi1
     , setLocation ("Solkattu.Score.Solkattu2018",648,"trikalam1") Solkattu.Score.Solkattu2018.trikalam1
-    , setLocation ("Solkattu.Score.Solkattu2018",667,"trikalam2") Solkattu.Score.Solkattu2018.trikalam2
-    , setLocation ("Solkattu.Score.Solkattu2018",679,"e_sarva1") Solkattu.Score.Solkattu2018.e_sarva1
-    , setLocation ("Solkattu.Score.Solkattu2018",690,"e_sarva2") Solkattu.Score.Solkattu2018.e_sarva2
-    , setLocation ("Solkattu.Score.Solkattu2018",706,"e_misra_tisra") Solkattu.Score.Solkattu2018.e_misra_tisra
-    , setLocation ("Solkattu.Score.Solkattu2018",732,"adi_tani1") Solkattu.Score.Solkattu2018.adi_tani1
-    , setLocation ("Solkattu.Score.Solkattu2018",784,"e_sarva1_tisra") Solkattu.Score.Solkattu2018.e_sarva1_tisra
-    , setLocation ("Solkattu.Score.Solkattu2018",806,"e_adi_tisra") Solkattu.Score.Solkattu2018.e_adi_tisra
-    , setLocation ("Solkattu.Score.Solkattu2018",859,"c_18_08_03") Solkattu.Score.Solkattu2018.c_18_08_03
-    , setLocation ("Solkattu.Score.Solkattu2018",875,"adi_tani2") Solkattu.Score.Solkattu2018.adi_tani2
-    , setLocation ("Solkattu.Score.Solkattu2018",909,"adi_muktayi") Solkattu.Score.Solkattu2018.adi_muktayi
+    , setLocation ("Solkattu.Score.Solkattu2018",671,"trikalam2") Solkattu.Score.Solkattu2018.trikalam2
+    , setLocation ("Solkattu.Score.Solkattu2018",683,"e_sarva1") Solkattu.Score.Solkattu2018.e_sarva1
+    , setLocation ("Solkattu.Score.Solkattu2018",694,"e_sarva2") Solkattu.Score.Solkattu2018.e_sarva2
+    , setLocation ("Solkattu.Score.Solkattu2018",710,"e_misra_tisra") Solkattu.Score.Solkattu2018.e_misra_tisra
+    , setLocation ("Solkattu.Score.Solkattu2018",736,"adi_tani1") Solkattu.Score.Solkattu2018.adi_tani1
+    , setLocation ("Solkattu.Score.Solkattu2018",788,"e_sarva1_tisra") Solkattu.Score.Solkattu2018.e_sarva1_tisra
+    , setLocation ("Solkattu.Score.Solkattu2018",810,"e_adi_tisra") Solkattu.Score.Solkattu2018.e_adi_tisra
+    , setLocation ("Solkattu.Score.Solkattu2018",863,"c_18_08_03") Solkattu.Score.Solkattu2018.c_18_08_03
+    , setLocation ("Solkattu.Score.Solkattu2018",879,"adi_tani2") Solkattu.Score.Solkattu2018.adi_tani2
+    , setLocation ("Solkattu.Score.Solkattu2018",913,"adi_muktayi") Solkattu.Score.Solkattu2018.adi_muktayi
+    , setLocation ("Solkattu.Score.Solkattu2018",931,"misra_trikalam") Solkattu.Score.Solkattu2018.misra_trikalam
     , setLocation ("Solkattu.Score.SolkattuMohra",54,"c_mohra") Solkattu.Score.SolkattuMohra.c_mohra
     , setLocation ("Solkattu.Score.SolkattuMohra",71,"c_mohra2") Solkattu.Score.SolkattuMohra.c_mohra2
     , setLocation ("Solkattu.Score.SolkattuMohra",89,"c_mohra_youtube") Solkattu.Score.SolkattuMohra.c_mohra_youtube

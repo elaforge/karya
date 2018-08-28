@@ -90,15 +90,16 @@ korvaiInstruments korvai = filter (hasInstrument . snd) $ Map.toList instruments
     hasInstrument (GInstrument inst) = case korvaiSections korvai of
         Sollu {} -> not (isEmpty inst)
         Mridangam {} -> Maybe.isJust (instFromMridangam inst)
-    isEmpty inst = Realize.isInstrumentEmpty strokeMap
-        where strokeMap = instFromStrokes inst (korvaiStrokeMaps korvai)
+    -- If the stroke map is broken, that at least means there is one.
+    isEmpty inst = either (const False) Realize.isInstrumentEmpty $
+        instStrokeMap inst (korvaiStrokeMaps korvai)
 
 mridangamKorvai :: Tala.Tala -> Realize.PatternMap Mridangam.Stroke
     -> [Section (Realize.Stroke Mridangam.Stroke)] -> Korvai
 mridangamKorvai tala pmap sections = Korvai
     { korvaiSections = Mridangam sections
     , korvaiStrokeMaps = mempty
-        { smapMridangam = mempty { Realize.smapPatternMap = pmap }
+        { smapMridangam = Right $ mempty { Realize.smapPatternMap = pmap }
         }
     , korvaiTala = tala
     , korvaiMetadata = mempty
@@ -188,7 +189,7 @@ data Instrument stroke = Instrument {
     -- | Realize a 'Mridangam' 'KorvaiType'.
     , instFromMridangam ::
         Maybe (Realize.ToStrokes (Realize.Stroke Mridangam.Stroke) stroke)
-    , instFromStrokes :: StrokeMaps -> Realize.StrokeMap stroke
+    , instStrokeMap :: StrokeMaps -> Either Error (Realize.StrokeMap stroke)
     -- | Modify strokes after 'realize'.  Use with 'strokeTechnique'.
     , instPostprocess :: [Flat stroke] -> [Flat stroke]
     , instToScore :: ToScore.ToScore stroke
@@ -199,7 +200,7 @@ defaultInstrument = Instrument
     { instName = ""
     , instFromSollu = Realize.realizeSollu
     , instFromMridangam = Nothing
-    , instFromStrokes = const mempty
+    , instStrokeMap = const $ Right mempty
     , instPostprocess = id
     , instToScore = ToScore.toScore
     }
@@ -209,33 +210,33 @@ mridangam = defaultInstrument
     { instName = "mridangam"
     , instFromMridangam = Just Realize.realizeStroke
     , instPostprocess = Mridangam.postprocess
-    , instFromStrokes = smapMridangam
+    , instStrokeMap = smapMridangam
     }
 
 konnakol :: Instrument Solkattu.Sollu
 konnakol = defaultInstrument
     { instName = "konnakol"
     , instFromSollu = const Realize.realizeSimpleStroke
-    , instFromStrokes = const $
+    , instStrokeMap = const $ Right $
         mempty { Realize.smapPatternMap = Konnakol.defaultPatterns }
     }
 
 kendangTunggal :: Instrument KendangTunggal.Stroke
 kendangTunggal = defaultInstrument
     { instName = "kendang tunggal"
-    , instFromStrokes = smapKendangTunggal
+    , instStrokeMap = smapKendangTunggal
     }
 
 reyong :: Instrument Reyong.Stroke
 reyong = defaultInstrument
     { instName = "reyong"
-    , instFromStrokes = smapReyong
+    , instStrokeMap = smapReyong
     }
 
 sargam :: Instrument Sargam.Stroke
 sargam = defaultInstrument
     { instName = "sargam"
-    , instFromStrokes = smapSargam
+    , instStrokeMap = smapSargam
     , instToScore = Sargam.toScore
     }
 
@@ -263,18 +264,21 @@ type Flat stroke =
 -- | Realize a Korvai on a particular instrument.
 realize :: Solkattu.Notation stroke => Instrument stroke -> Bool -> Korvai
     -> [Either Error ([Flat stroke], Error)]
-realize instrument realizePatterns korvai = case korvaiSections korvai of
-    Sollu sections -> map (realize1 (instFromSollu instrument smap)) sections
-    Mridangam sections -> case instFromMridangam instrument of
-        Nothing -> [Left "no sequence, wrong instrument type"]
-        Just toStrokes -> map (realize1 toStrokes) sections
-    where
-    realize1 toStrokes =
-        fmap (first (instPostprocess instrument))
-        . realizeInstrument realizePatterns toStrokes inst tala
-    smap = Realize.smapSolluMap inst
-    tala = korvaiTala korvai
-    inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
+realize instrument realizePatterns korvai =
+    case instStrokeMap instrument (korvaiStrokeMaps korvai) of
+        Left err -> [Left err]
+        Right smap -> case korvaiSections korvai of
+            Sollu sections ->
+                map (realize1
+                        (instFromSollu instrument (Realize.smapSolluMap smap)))
+                    sections
+            Mridangam sections -> case instFromMridangam instrument of
+                Nothing -> [Left "no sequence, wrong instrument type"]
+                Just toStrokes -> map (realize1 toStrokes) sections
+            where
+            realize1 toStrokes = fmap (first (instPostprocess instrument))
+                . realizeInstrument realizePatterns toStrokes smap
+                    (korvaiTala korvai)
 
 realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     => Bool -> Realize.ToStrokes sollu stroke
@@ -302,11 +306,11 @@ allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)
 allMatchedSollus instrument korvai = case korvaiSections korvai of
     Sollu sections ->
-        mconcatMap (matchedSollus (instFromSollu instrument smap)) sections
+        mconcatMap (matchedSollus (instFromSollu instrument solluMap)) sections
     Mridangam {} -> mempty
     where
-    smap = Realize.smapSolluMap inst
-    inst = instFromStrokes instrument (korvaiStrokeMaps korvai)
+    solluMap = either mempty Realize.smapSolluMap smap
+    smap = instStrokeMap instrument (korvaiStrokeMaps korvai)
 
 matchedSollus :: (Pretty sollu, Ord sollu)
     => Realize.ToStrokes sollu stroke -> Section sollu
@@ -341,24 +345,28 @@ spaces nadai dur = do
 -- | Show the shadowed strokes, except an ok set.  It's ok to shadow the
 -- builtins.
 lint :: Pretty stroke => Instrument stroke -> [Sequence] -> Korvai -> Text
-lint inst defaultStrokes korvai = Text.unlines $ filter (not . Text.null)
-    [ if null shadowed then ""
-        else Text.intercalate "\n" $ "shadowed:" : map prettyPair shadowed
-    , if Set.null unmatched then ""
-        else Text.intercalate "\n" $ "unmatched:"
-            : map Realize.prettyKey (Set.toList unmatched)
-    ]
+lint inst defaultStrokes korvai =
+    either ("stroke map: "<>) lintSmap $
+    instStrokeMap inst $ korvaiStrokeMaps korvai
     where
-    shadowed = filter ((`Set.notMember` defaultKeys) . fst) $
-        Realize.smapSolluShadows smap
-    prettyPair (key, strokes) = Realize.prettyKey key <> ": " <> pretty strokes
-    matched = allMatchedSollus inst korvai
-    unmatched = Realize.smapKeys smap
-        `Set.difference` matched
-        `Set.difference` defaultKeys
-    defaultKeys = Set.fromList $ Either.rights $
-        map Realize.verifySolluKey defaultStrokes
-    smap = instFromStrokes inst $ korvaiStrokeMaps korvai
+    lintSmap smap = Text.unlines $ filter (not . Text.null)
+        [ if null shadowed then ""
+            else Text.intercalate "\n" $ "shadowed:" : map prettyPair shadowed
+        , if Set.null unmatched then ""
+            else Text.intercalate "\n" $ "unmatched:"
+                : map Realize.prettyKey (Set.toList unmatched)
+        ]
+        where
+        shadowed = filter ((`Set.notMember` defaultKeys) . fst) $
+            Realize.smapSolluShadows smap
+        prettyPair (key, strokes) =
+            Realize.prettyKey key <> ": " <> pretty strokes
+        matched = allMatchedSollus inst korvai
+        unmatched = Realize.smapKeys smap
+            `Set.difference` matched
+            `Set.difference` defaultKeys
+        defaultKeys = Set.fromList $
+            Either.rights $ map Realize.verifySolluKey defaultStrokes
 
 -- * Metadata
 
@@ -453,17 +461,23 @@ inferSectionTags tala section = Tags.Tags $ Map.fromList $
 -- * types
 
 data StrokeMaps = StrokeMaps {
-    smapMridangam :: Realize.StrokeMap Mridangam.Stroke
-    , smapKendangTunggal :: Realize.StrokeMap KendangTunggal.Stroke
-    , smapReyong :: Realize.StrokeMap Reyong.Stroke
-    , smapSargam :: Realize.StrokeMap Sargam.Stroke
+    smapMridangam :: Either Error (Realize.StrokeMap Mridangam.Stroke)
+    , smapKendangTunggal ::
+        Either Error (Realize.StrokeMap KendangTunggal.Stroke)
+    , smapReyong :: Either Error (Realize.StrokeMap Reyong.Stroke)
+    , smapSargam :: Either Error (Realize.StrokeMap Sargam.Stroke)
     } deriving (Eq, Show)
 
 instance Semigroup StrokeMaps where
     StrokeMaps a1 a2 a3 a4 <> StrokeMaps b1 b2 b3 b4 =
-        StrokeMaps (a1<>b1) (a2<>b2) (a3<>b3) (a4<>b4)
+        StrokeMaps (merge a1 b1) (merge a2 b2) (merge a3 b3) (merge a4 b4)
+        where
+        merge (Left err) _ = Left err
+        merge _ (Left err) = Left err
+        merge (Right a) (Right b) = Right (a<>b)
 instance Monoid StrokeMaps where
-    mempty = StrokeMaps mempty mempty mempty mempty
+    mempty = StrokeMaps
+        (Right mempty) (Right mempty) (Right mempty) (Right mempty)
     mappend = (<>)
 
 instance Pretty StrokeMaps where

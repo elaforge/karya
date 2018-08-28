@@ -387,7 +387,7 @@ solkattuToRealize = map (second Realize.solkattuToRealize)
 
 defaultStrokeMap :: Korvai.StrokeMaps
 defaultStrokeMap = mempty
-    { Korvai.smapMridangam = Dsl.check $ Realize.strokeMap $
+    { Korvai.smapMridangam = Realize.strokeMap $
         (ta, k) : Realize.patternKeys M.defaultPatterns
     }
     where M.Strokes {..} = M.notes

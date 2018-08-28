@@ -17,6 +17,8 @@ data Index = All | Index !Int | Range !Int !Int
 realizeParts :: (Korvai.Korvai -> IO ()) -> [Part] -> IO ()
 realizeParts realize = mapM_ part
     where
+    -- TODO it would be nice to print the name, but it's only available through
+    -- Db.
     part (K korvai i) = realize $ index i korvai
     part (Comment comment) = Styled.printLn $ Styled.bold comment
 

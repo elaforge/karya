@@ -8,6 +8,7 @@ import Prelude hiding ((^))
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.CallStack as CallStack
 import qualified Solkattu.Dsl as Dsl
 import Solkattu.Dsl ((^), __)
 import qualified Solkattu.Instrument.Mridangam as M
@@ -327,7 +328,7 @@ verifyAlignment smap tala startOn endOn =
 
 -- * util
 
-checkSolluMap ::
+checkSolluMap :: CallStack.Stack =>
     [ ( [S.Note g (Note Sollu)]
       , [[S.Note g (Note (Realize.Stroke M.Stroke))]]
       )
@@ -362,7 +363,7 @@ solluMap = checkSolluMap
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.smapMridangam = Dsl.check $ Realize.strokeMap $
+    { Korvai.smapMridangam = Realize.strokeMap $
         (ta, k) : Realize.patternKeys M.defaultPatterns
     }
     where M.Strokes {..} = M.notes

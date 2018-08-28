@@ -55,7 +55,7 @@ template =
     \-- directory should cause it to be regenerated.\n\
     \${module}\n\
     \import qualified Solkattu.Korvai as Korvai\n\
-    \import Solkattu.Metadata\n\
+    \import Solkattu.Metadata (setLocation)\n\
     \${imports}\n\
     \\n\
     \korvais :: [Korvai.Korvai]\n\

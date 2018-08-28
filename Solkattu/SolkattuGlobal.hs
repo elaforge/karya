@@ -131,15 +131,13 @@ type StrokeMap stroke =
       )
     ]
 
-makeMridangam :: CallStack.Stack => StrokeMap Mridangam.Stroke
-    -> Korvai.StrokeMaps
+makeMridangam :: StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
 makeMridangam strokes = makeMridangam0 (_mridangamStrokes ++ strokes)
 
 -- | Make a mridangam StrokeMap, but without the default '_mridangamStrokes'.
-makeMridangam0 :: CallStack.Stack
-    => StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
+makeMridangam0 :: StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
 makeMridangam0 strokes = mempty
-    { Korvai.smapMridangam = check $ Realize.strokeMap $
+    { Korvai.smapMridangam = Realize.strokeMap $
         Realize.patternKeys Mridangam.defaultPatterns ++ strokes
     }
 
@@ -147,10 +145,9 @@ makeMridangam0 strokes = mempty
 lintM :: Korvai.Korvai -> IO ()
 lintM = _printLint Korvai.mridangam _mridangamStrokes
 
-makeKendang1 :: CallStack.Stack => StrokeMap KendangTunggal.Stroke
-    -> Korvai.StrokeMaps
+makeKendang1 :: StrokeMap KendangTunggal.Stroke -> Korvai.StrokeMaps
 makeKendang1 strokes = mempty
-    { Korvai.smapKendangTunggal = check $ Realize.strokeMap $
+    { Korvai.smapKendangTunggal = Realize.strokeMap $
         Realize.patternKeys KendangTunggal.defaultPatterns ++ _kendangStrokes
             ++ strokes
     }
@@ -158,18 +155,18 @@ makeKendang1 strokes = mempty
 lintK1 :: Korvai -> IO ()
 lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes
 
-makeReyong :: CallStack.Stack => StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
+makeReyong :: StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 makeReyong strokes = mempty
-    { Korvai.smapReyong = check $ Realize.strokeMap $
+    { Korvai.smapReyong = Realize.strokeMap $
         Realize.patternKeys Reyong.rhythmicPatterns ++ _reyongStrokes ++ strokes
     }
 
 lintR :: Korvai -> IO ()
 lintR = _printLint Korvai.reyong _reyongStrokes
 
-makeSargam :: CallStack.Stack => StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
+makeSargam :: StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
 makeSargam strokes = mempty
-    { Korvai.smapSargam = check $ Realize.strokeMap strokes }
+    { Korvai.smapSargam = Realize.strokeMap strokes }
 
 lintS :: Korvai -> IO ()
 lintS = _printLint Korvai.sargam []

@@ -81,9 +81,7 @@ korvai strokes tala = Korvai.korvaiInferSections tala (makeMridangam strokes)
 makeMridangam :: [(Korvai.Sequence, Mridangam.SequenceM Solkattu.Group)]
     -> Korvai.StrokeMaps
 makeMridangam strokes = mempty
-    { Korvai.smapMridangam = Dsl.check $
-        Realize.strokeMap (defaults ++ strokes)
-    }
+    { Korvai.smapMridangam = Realize.strokeMap (defaults ++ strokes) }
     where
     defaults = map (bimap mconcat mconcat)
         [ ([ta, ka, din, na], [k, o, o, k])
