@@ -15,6 +15,7 @@
 module Solkattu.Dsl (
     (.), (•), ø
     , karvai
+    , stripRests
 
     -- * directives
     , hv, lt
@@ -117,6 +118,12 @@ modifySingleNote modify (n:ns) = case n of
         S.TempoChange change (modifySingleNote modify sub) : ns
     _ -> throw $ "expected a single note: " <> pretty n
 modifySingleNote _ [] = throw "expected a single note, but got []"
+
+stripRests :: SequenceT sollu -> SequenceT sollu
+stripRests = S.filterNotes notRest
+    where
+    notRest (Solkattu.Space {}) = False
+    notRest _ = True
 
 -- ** strokes
 

@@ -17,6 +17,7 @@ module Solkattu.S (
     , mapGroup, flattenGroups
     , simplify
     , map1
+    , filterNotes
     -- * tempo
     , Tempo(..), defaultTempo
     , changeTempo
@@ -166,6 +167,12 @@ map1 f n = case n of
     Note a -> Note (f a)
     TempoChange change ns -> TempoChange change (Seq.map_head (map1 f) ns)
     Group g ns -> Group g (Seq.map_head (map1 f) ns)
+
+filterNotes :: (a -> Bool) -> [Note g a] -> [Note g a]
+filterNotes f = mapMaybe $ \case
+    note@(Note a) -> if f a then Just note else Nothing
+    TempoChange change ns -> Just $ TempoChange change (filterNotes f ns)
+    Group g ns -> Just $ Group g (filterNotes f ns)
 
 -- * flatten
 

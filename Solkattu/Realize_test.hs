@@ -32,18 +32,19 @@ test_realize = do
             [ (ta <> din, [k, od])
             , (na <> din, [n, od])
             , (ta, [t])
-            , (din <> __ <> ga, [od, __])
+            , (din <> __ <> ga, [od, __, __])
             ]
             where M.Strokes {..} = M.notes
     equal (f [__, ta, __, __, din]) (Right "_ k _ _ D")
     equal (f [Dsl.p5, __, ta, din]) (Right "5p _ k D")
     equal (f [ta, ta]) (Right "t t")
     equal (f [din, ga]) (Right "D _")
-    equal (f [din, __, ga]) (Right "D _ _")
     left_like (f [din, din]) "sequence not found"
-
     -- pretty of Abstract AbstractedSarva
     equal (f [Notation.sarvaM_ 4]) (Right "sarva")
+
+    equal (f [din, __, ga]) (Right "D _ _")
+    equal (f [din, __, ga, ta, din]) (Right "D _ _ k D")
 
 test_realizeGroups = do
     let f = eWords . realizeN smap
@@ -242,10 +243,11 @@ test_solluMap = do
         [((Nothing, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ta))])]
     equal (f [(1 ^ ta, [k])]) $ Right
         [((Just 1, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ki))])]
-    left_like (f [(ta <> di, [k])]) "have differing lengths"
-    left_like (f [(tang <> ga, [u, __, __])]) "differing lengths"
-    left_like (f [(ta <> [S.Note $ pattern 5], [k])])
-        "only have plain sollus"
+    left_like (f [(ta <> di, [k])]) "more sollus than strokes"
+    left_like (f [(ta, [k, t])]) "more strokes than sollus"
+    equal (length <$> f [(tang <> ga, [u, __])]) (Right 1)
+    left_like (f [(tang <> __, [k, t])]) "rest sollu given non-rest stroke"
+    left_like (f [(ta <> [S.Note $ pattern 5], [k])]) "only have plain sollus"
 
 -- * verifyAlignment
 

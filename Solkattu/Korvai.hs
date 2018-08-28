@@ -365,7 +365,7 @@ lint inst defaultStrokes korvai =
         unmatched = Realize.smapKeys smap
             `Set.difference` matched
             `Set.difference` defaultKeys
-        defaultKeys = Set.fromList $
+        defaultKeys = Set.fromList $ map (second Maybe.catMaybes) $
             Either.rights $ map Realize.verifySolluKey defaultStrokes
 
 -- * Metadata

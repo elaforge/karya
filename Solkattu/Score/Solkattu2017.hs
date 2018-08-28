@@ -95,7 +95,7 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvaiS1 adi mridangam $
     tri_ (din.__.p6.p6) (takita.dinga.din.__.ta.__.ka.__)
     where
     mridangam = makeMridangam
-        [ (takita.dinga.din, k.p.k.od.k.od)
+        [ (takita.dinga.din, k.p.k.od.__.k.od)
         , (ta.ka, o&n.k)
         , (din, od)
         ]
@@ -115,11 +115,11 @@ c_17_03_20 = date 2017 3 20 $ ganesh $ comment "Trichy Sankaran plays this a\
         , (ga, lt k)
         ]
     kendang = makeKendang1
-        [ (theme, p.p.k.p.a.o.p.t.o.p.o.u.p)
+        [ (theme, p.__.p.k.p.a.o.p.t.o.p.__.o.u.__.p)
         , (ga, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     reyong = makeReyong
-        [ (theme, b.k.k.x.k.k.k.i.r2.r3.b.o.b)
+        [ (theme, b.__.k.k.x.k.k.k.i.r2.r3.__.b.o.__.b)
         , (ga, b)
         ] where Reyong.Strokes {..} = Reyong.notes
 
@@ -228,20 +228,20 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
     mridangam = makeMridangam
         [ (ta, k)
         , (kita, t.k)
-        , (dinga, od.__)
+        , (dinga, od.__.__)
         ]
     kendang = makeKendang1
         [ (ta, p)
         , (kita, p.k)
         , (takadinna, t.o.o.p)
-        , (dinga, a.lt k)
+        , (dinga, a.__.lt k)
         , (tdgnt, p.k.t.a.o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     sargam = makeSargam
         [ (ta, s1)
         , (kita, n.s1)
         , (takadinna, d.n.p.d)
-        , (dinga, hv g.s)
+        , (dinga, hv g.__.s)
         , (tdgnt, hv r.g.hv p.m.n)
         ] where Sargam.Strokes {..} = Sargam.notes
 
@@ -373,8 +373,8 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
     where
     tanga7 = tanga.dinga.din.__
     mridangam = makeMridangam
-        [ (tanga, on.k)
-        , (dinga, od.k)
+        [ (tanga, on.__.k)
+        , (dinga, od.__.k)
         , (tat, on)
         , (ta, k)
         , (taka, p.k)
@@ -499,11 +499,9 @@ c_17_08_21 = date 2017 8 21 $ sudhindra $ tirmanam $ korvaiS adi mridangam $
         [ (kttk.trkt.tk, p.k.t.p.k.t.k.t.p.k)
         , (trkt.tk, k.t.k.t.p.k)
         , (tat.din.na, o.od.k)
-        , (1^tang.__.ga, od.k) -- avoid double thoppi
-        , (tang.__.ga, od.o)
-
-        , (takadinna.takadinna.na.ka.din.na,
-            k.o.o.k.t.o.o.k.n.o.o.k)
+        , (1^tang.__.ga, od.__.k) -- avoid double thoppi
+        , (tang.__.ga, od.__.o)
+        , (takadinna.takadinna.na.ka.din.na, k.o.o.k.t.o.o.k.n.o.o.k)
         , (talang.ga, p.u.k)
         ]
 
@@ -543,11 +541,11 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
     theme3 = taka.na.ka.kt.trkt.dhom
     mridangam = makeMridangam
         [ (na, n)
-        , (na.dinga, n.d.p)
+        , (na.dinga, n.d.__.p)
         , (na.din, on.od)
         , (dit, n)
 
-        , (theme1, on.on.on.d.o)
+        , (theme1, on.__.on.__.on.d.__.o)
         , (tat, on)
         , (tam, u)
         , (mid^tam, i)
@@ -557,11 +555,11 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
         ]
     kendang1 = makeKendang1
         [ (na, t)
-        , (na.dinga, o.u.p)
+        , (na.dinga, o.u.__.p)
         , (na.din, o.a)
         , (dit, t)
 
-        , (theme1, t.t.o.u.p)
+        , (theme1, t.__.t.__.o.u.__.p)
         , (tat, p)
         , (tam, o)
         , (mid^tam, a)
@@ -606,24 +604,24 @@ c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
     kitataka = group $ kttk
     kitakita = group $ kt.kt
     mridangam = makeMridangam
-        [ (theme, k.t.k.t.k.k.o.od.k)
+        [ (theme, k.t.__.k.__.t.k.k.o.__.od.__.k.__)
         , (kitataka, p.k.n.p)
         , (kitakita, k.t.k.t)
-        , (theme2a_, k.p.k.n.p.k.n.p)
-        , (1^theme2a_, o&k.o.k.n.o.k.n.p)
-        , (theme2b, k.o.od.k)
+        , (theme2a_, k.__.p.k.n.p.k.n.p)
+        , (1^theme2a_, o&k.__.o.k.n.o.k.n.p)
+        , (theme2b, k.__.o.od.__.k.__)
         , (din, od)
         , (tat, k)
         , (tat.tat.tam.tam, p&k.p&k.od.od)
         , (tat.tat.tam, p&k.p&k.od)
         ]
     kendang1 = makeKendang1
-        [ (theme, p.k.p.k.p.p.a.o.p)
+        [ (theme, p.k.__.p.__.k.p.p.a.__.o.__.p.__)
         , (kitataka, k.t.t.k)
         , (kitakita, p.k.p.k)
-        , (theme2a_, p.k.p.t.k.p.t.p)
-        , (1^theme2a_, a.a.p.t.a.p.t.p)
-        , (theme2b, p.a.o.p)
+        , (theme2a_, p.__.k.p.t.k.p.t.p)
+        , (1^theme2a_, a.__.a.p.t.a.p.t.p)
+        , (theme2b, p.__.a.o.__.p.__)
         , (din, a)
         , (tat, p)
         , (tat.tat.tam.tam, pk.pk.a.a)
@@ -646,7 +644,7 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvaiS adi mridangam
         , (gu.gu.na.na, o.o.n.n)
         , (taka.ti.ku, p.k.t.p)
         , (ki.ta.ki.na.thom, k.t.k.n.o)
-        , (din.ta.ka.dinga, on.k.o.d.o)
+        , (din.ta.ka.dinga, on.k.o.d.__.o)
         , (tat.dit, on.u)
         ]
 

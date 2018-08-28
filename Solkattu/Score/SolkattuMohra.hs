@@ -62,7 +62,7 @@ c_mohra = ganesh $ makeMohra adi mridangam (a1, a2, a1) (b1, b2, b3)
     mridangam = makeMridangam
         [ (dit, k)
         , (tang.kita, u.p.k)
-        , (ta.langa, p.u.k)
+        , (ta.langa, p.u.__.k)
         , (din.tat, o.k)
         , (dheem, od)
         , (na.ka, n.p)

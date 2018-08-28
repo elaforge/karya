@@ -23,7 +23,7 @@ c_13_07_23 = date 2013 7 23 $ ganesh $ korvaiS1 adi mridangam $
     trin tat_din__ (tri p5) (tri p6) (tri p7)
     where
     tat_din__ = tat.__.din.__3
-    mridangam = makeMridangam [(tat_din__, k.od)]
+    mridangam = makeMridangam [(tat_din__, k.__.od.__3)]
 
 c_13_08_14 :: Korvai
 c_13_08_14 = ganesh $ date 2013 8 14 $ korvaiS adi (mridangam <> kendang)
@@ -73,7 +73,7 @@ c_yt1 = source "youtube" $ korvaiS1 adi mridangam $
     where
     theme = tat.__.dit.__.takadinna.din.__.tat.__.tam.__4
     mridangam = makeMridangam
-        [ (theme, k.t.k.o.o.k.on.k.od)
+        [ (theme, k.__.t.__.k.o.o.k.on.__.k.__.od.__4)
         , (tam, u)
         , (mid^tam, i)
         ]
@@ -144,7 +144,7 @@ c_13_12_11 = date 2013 12 11 $ ganesh $ korvaiS adi mridangam
     -- theme20 is on 2014 1 1
     theme20 = ta.di.__3.ki.__.ta.__.kita.ta.tat.__3.ka.__.din.__.tat.__
     mridangam = makeMridangam
-        [ (theme14, k.t.p.k.t.k.t.k.o.od.k)
+        [ (stripRests theme14, k.t.p.k.t.k.t.k.o.od.k)
         , (tat.ka.din.na, k.o.od.k)
         , (din, od)
         ]
@@ -343,7 +343,7 @@ t3s = ganesh $ korvaiS adi mridangam $ map (nadai 6)
     mridangam = makeMridangam
         [ (tat.dit, k.t)
         , (ka.din.na, o.o.k)
-        , (dinga, od.__)
+        , (dinga, od.__.__)
         , (tang.ga, u.__)
         ]
 
@@ -392,7 +392,7 @@ ta_katakita = ta.__.ka.ta.kitataka
 
 m_ta_katakita :: StrokeMap Mridangam.Stroke
 m_ta_katakita =
-    [ (ta_katakita, k.p.k.t.k.t.k)
+    [ (ta_katakita, k.__.p.k.t.k.t.k)
     ]
 
 t5s :: Korvai

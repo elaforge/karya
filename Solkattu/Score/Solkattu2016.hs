@@ -86,9 +86,9 @@ c_16_12_06_sriram2 =
     f3 = group $ gu.gu.ta.din.__.tat.__
     mridangam = makeMridangam
         [ (na.kita, n.p.k)
-        , (f1, od.k.d.k)
-        , (f2, n.p.k.d.k)
-        , (f3, o.o.k.d.k)
+        , (f1, od.__.k.d.__.k.__)
+        , (f2, n.p.k.d.__.k.__)
+        , (f3, o.o.k.d.__.k.__)
         , (din, od)
         , (2^din, p&u)
         , (tam, u)
@@ -100,7 +100,7 @@ c_16_12_06_janahan1 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
     where
     theme = takadinna.takita.din.__.na
     mridangam = makeMridangam
-        [ (theme, on.k.o&t.k.on.p.k.od.o)
+        [ (theme, on.k.o&t.k.on.p.k.od.__.o)
         ]
 
 c_16_12_06_janahan2 :: Korvai
@@ -111,4 +111,4 @@ c_16_12_06_janahan2 = date 2016 12 6 $ janahan $ korvaiS1 adi mridangam $ su $
         . spread 2 tdgnt . p6 . kp.p6 . kpnp.p6
     where
     theme = group $ tat.__.dit.__.takadinna
-    mridangam = makeMridangam [(theme, k.t.k.o.o.k)]
+    mridangam = makeMridangam [(theme, k.__.t.__.k.o.o.k)]

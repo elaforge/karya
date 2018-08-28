@@ -110,7 +110,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
         , (ta.di, k.t)
         , (ta, k)
         , (ga, lt p)
-        , (nang_kita, n.k.t.p.k.p.t.o)
+        , (nang_kita, n.__.k.t.p.k.p.t.o.__)
 
         , (tam, od)
         ]
@@ -118,10 +118,10 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
 c_14_02_20 :: Korvai
 c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvaiS adi mridangam $
         map (nadai 6)
-    [     repeat 7 sarva . dhomdhom
-        . repeat 2 (repeat 3 sarva . dhomdhom)
-        . repeat 4 (sarva . dhomdhom)
-        . repeat 7 dhomdhom . repeat 2 dhodhoka
+    [     repeat 7 sarva . din_dhodhoka
+        . repeat 2 (repeat 3 sarva . din_dhodhoka)
+        . repeat 4 (sarva . din_dhodhoka)
+        . repeat 7 din_dhodhoka . repeat 2 dhodhoka
     ,     repeat 6 sarva . ta_katakita.takadinna
         . repeat 2 (repeat 2 sarva . ta_katakita.takadinna)
         . repeat 4 (ta_katakita.takadinna)
@@ -133,11 +133,11 @@ c_14_02_20 = date 2014 2 20 $ ganesh $ exercise $ korvaiS adi mridangam $
     ]
     where
     sarva = tanga.takita
-    dhomdhom = din.__3.dhodhoka
+    din_dhodhoka = din.__3.dhodhoka
     dhodhoka = dhom.dhom.ka
     mridangam = makeMridangam $
-        [ (sarva, d.lt p.k.t.k)
-        , (dhomdhom, d.o.o.k)
+        [ (sarva, d.__.lt p.k.t.k)
+        , (din_dhodhoka, d.__3.o.o.k)
         , (dhodhoka, o.o.k)
         , (din, od)
         , (taka, p.k)
@@ -166,7 +166,7 @@ c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
         , (dheem, u)
         , (din, od)
         , (tat, k)
-        , (dinga, od.p)
+        , (dinga, od.__.p)
         , (taka, k.p)
         ] ++ m_ta_katakita
 
@@ -175,7 +175,7 @@ ta_katakita = ta.__.ka.takita.taka
 
 m_ta_katakita :: StrokeMap Mridangam.Stroke
 m_ta_katakita =
-    [ (ta_katakita, k.lt p.k.t.k.t.k)
+    [ (ta_katakita, k.__.lt p.k.t.k.t.k)
     ]
 
 c_14_03_13 :: Korvai
@@ -191,10 +191,10 @@ c_14_03_13 = date 2014 3 13 $ ganesh $ korvaiS adi mridangam
     t2 = su $ ka.tdgnt
     t3 = su $ takadinna.taka
 
-    -- sarva = d.__.n.d.l.d.n.k .t.k.n.d.l.d.n.l
+    -- sarva = d.__.n.d.l.d.n.k .t.k.n.d.l.d.n.l -- TODO sarva
     --         o.__.o.o._.o.o._ .o._.o.o._.o.o._
     mridangam = makeMridangam
-        [ (t1, od.p.k.n.o)
+        [ (t1, od.__.p.k.n.o)
         , (t2, p.k.t.k.n.o)
         , (t3, k.o.o.k.o.k)
         , (din, od)
@@ -209,7 +209,7 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
         . t1.__.ka . repeat 2 (t1.__) . t1 . sarvaD_ 3
     ] ++ map sequence [t1, t2, t3, t4, t5]
     where
-    -- Same sarva as c_14_03_13.
+    -- Same sarva as c_14_03_13.  TODO sarva
     sequence p = tri_ (dheem.__3) (repeat 3 (p.__) . tri p5)
     t1 = group $ na.na.na.din
     t2 = group $ su $ dhom.__.taka.taka.din.__
@@ -219,10 +219,10 @@ c_14_03_26 = date 2014 3 26 $ ganesh $ similarTo "Solkattu2014" "c_14_03_13" $
     -- 2014-04-02 has transition from c_14_03_12 to this
     mridangam = makeMridangam
         [ (t1, on.on.on.od)
-        , (t2, o.k.o.k.o.od)
-        , (t3, on.p.k.n.o.od)
-        , (t4, k.o.o.k.k.o.od)
-        , (t5, o.k.t.k.n.o.od)
+        , (t2, o.__.k.o.k.o.od.__)
+        , (t3, on.__.p.k.n.o.od.__)
+        , (t4, k.o.o.k.k.o.od.__)
+        , (t5, o.k.t.k.n.o.od.__)
         , (ka, k)
         , (dheem, i)
         ]
@@ -240,13 +240,13 @@ c_14_04_21 = date 2014 4 21 $ ganesh $ korvaiS adi mridangam $
     mridangam = makeMridangam
         [ (din, od)
         , (tam, u)
-        , (p5_1, k.k.t.k.t.o)
-        , (p5_2, k.k.k.t.o)
+        , (p5_1, k.__.k.t.k.t.o)
+        , (p5_2, k.__.k.k.t.o)
         ]
 
 c_14_04_29 :: Korvai
 c_14_04_29 = date 2014 4 29 $ ganesh $ korvaiS adi mridangam $
-    -- sarva is namita dimita dimi
+    -- TODO sarva is namita dimita dimi
     [ sarvaSam adi t1
         . sarvaA_ 4 t1 . sarvaA_ 4 t1
         . 1^t1 . t1 . 1^t1 . t1
@@ -254,7 +254,7 @@ c_14_04_29 = date 2014 4 29 $ ganesh $ korvaiS adi mridangam $
     ] ++ map sequence ts
     where
     sequence t = tri_ (din.__.takita) (takeM 5 t . takeM 5 t . t)
-    t1 = group $ nang . su kitataka . din.na.__.di.mi
+    t1 = group $ nang.kttk.din.na.__.di.mi
     t2 = theme (dhom.ka)
     t3 = theme (su (ta.ki.taka))
     t4 = theme (su (dhom.ki.ta.ki))
@@ -263,18 +263,18 @@ c_14_04_29 = date 2014 4 29 $ ganesh $ korvaiS adi mridangam $
     t7 = theme (__.__)
     ts = [t1, t2, t3, t4, t5, t6, t7]
 
-    theme xx = group $ nang . su kitataka . xx . nang . su kitataka
+    theme xx = group $ nang.kttk.xx.nang.kttk
     theme_m xx = on.k.t.o.k . xx.n.k.t.o.k
                                  -- khali: p
     mridangam = makeMridangam
-        [ (t1,   on.k.t.o.k.od.n.od.k)
-        , (1^t1, on.k.t.o.k.od.n.p&d.k)
+        [ (t1,   on.k.t.o.k.od.n.__.od.k)
+        , (1^t1, on.k.t.o.k.od.n.__.p&d.k)
         , (t2, theme_m (o&t.k))
         , (t3, theme_m (o.k.o.t))
         , (t4, theme_m (o.k.t.k))
-        , (t5, theme_m (o.u.k))
-        , (t6, theme_m (o.k.k))
-        , (t7, theme_m mempty)
+        , (t5, theme_m (o.u.__.k))
+        , (t6, theme_m (o.k.k.__))
+        , (t7, theme_m (__.__))
         , (din.takita, od.k.p.k)
         ]
 
@@ -315,7 +315,7 @@ c_14_06_06 = date 2014 6 6 $ ganesh $ comment "chatusra tisram" $
     mridangam = makeMridangam
         [ (na.din, on.d)
         , (din, od)
-        , (dinga, od.k)
+        , (dinga, od.__.k)
         , (tadindintat, k.od.od.k)
         , (tat, k)
         , (dit, t)

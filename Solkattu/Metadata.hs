@@ -35,7 +35,7 @@ getLocation = Korvai._location . Korvai.korvaiMetadata
 
 showLocation :: Korvai.Location -> Text
 showLocation (module_, line, name) =
-    name <> " " <> path <> ":" <> showt line
+    path <> ":" <> showt line <> " " <> name
     where path = Text.replace "." "/" module_ <> ".hs"
 
 setLocation :: Korvai.Location -> Korvai -> Korvai

@@ -366,24 +366,42 @@ solluMap :: Pretty stroke =>
 solluMap =
     fmap (first SolluMap . Util.Map.unique . reverse) . mapM verifySolluMap
 
+-- | A sollu can map to a rest stroke: tang.ga, where ga is silent Or
+-- taka.tarikita played N_ktpk.  But I don't think a rest sollu can map to
+-- a stroke, and in fact it won't work since I look up by sollus only.
 verifySolluMap :: Pretty stroke
     => ([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])
     -> Either Error (SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])
 verifySolluMap (sollus, strokes) = do
-    (tag, sollus) <- verifySolluKey sollus
-    let throw = Left . ((pretty sollus <> ": ")<>)
-    strokes <- forM strokes $ \case
-        S.Note (Note s) -> Right (Just s)
-        S.Note (Space {}) -> Right Nothing
-        s -> throw $ "should have plain strokes: " <> pretty s
-    unless (length sollus == length strokes) $
-        throw $ "sollus and strokes have differing lengths after removing\
-            \ rests: sollus " <> showt (length sollus)
-            <> " /= strokes " <> showt (length strokes)
-    return ((tag, sollus), strokes)
+    (tag, mbSollus) <- verifySolluKey sollus
+
+    let throw = Left . ((psollus <> " -> " <> pstrokes <> ": ")<>)
+            where
+            psollus = Text.intercalate "." $ map (maybe "__" pretty) mbSollus
+            pstrokes = mconcat $ map pretty strokes
+    -- TODO enable strictCheck somehow.  Maybe on by default, and disable via
+    -- tag on strokes?
+    let strictCheck = False
+    strokes <- forM (Seq.zip_padded mbSollus strokes) $ \case
+        Seq.Both (Just sollu) (S.Note (Space {}))
+            | strictCheck ->
+                throw $ "sollu '" <> pretty sollu <> "' given rest stroke"
+            | otherwise -> return $ Just Nothing
+        Seq.Both Nothing (S.Note (Note stroke)) ->
+            throw $ "rest sollu given non-rest stroke '" <> pretty stroke <> "'"
+        Seq.Both Nothing (S.Note (Space {})) -> return Nothing
+        Seq.Both (Just _) (S.Note (Note stroke)) -> return $ Just $ Just stroke
+        Seq.First sollu ->
+            throw $ "more sollus than strokes at " <> pretty sollu
+        Seq.Second stroke ->
+            throw $ "more strokes than sollus at " <> pretty stroke
+        Seq.Both sollu stroke ->
+            throw $ "should have plain sollus and strokes: "
+                <> pretty (sollu, stroke)
+    return ((tag, Maybe.catMaybes mbSollus), Maybe.catMaybes strokes)
 
 verifySolluKey :: [S.Note g (Solkattu.Note Solkattu.Sollu)]
-    -> Either Error (SolluMapKey Solkattu.Sollu)
+    -> Either Error (SolluMapKey (Maybe Solkattu.Sollu))
 verifySolluKey sollus_ = do
     let sollus = map (S.mapGroup (const ())) sollus_
     let throw = Left . ((pretty sollus <> ": ")<>)
@@ -393,8 +411,8 @@ verifySolluKey sollus_ = do
         -- and the stroke map.
         forM (S.notes sollus) $ \case
             Solkattu.Note note ->
-                Right $ Just (Solkattu._tag note, Solkattu._sollu note)
-            Solkattu.Space {} -> Right Nothing
+                Right $ Just (Solkattu._tag note, Just $ Solkattu._sollu note)
+            Solkattu.Space {} -> Right $ Just (Nothing, Nothing)
             s -> throw $ "should only have plain sollus: " <> pretty s
     -- TODO warn if there are inconsistent tags?
     return (Seq.head (Maybe.catMaybes tags), sollus)
@@ -479,11 +497,11 @@ realize realizePattern toStrokes =
                 where mktempo s = tempo { S._speed = S._speed tempo + s }
         | otherwise = (, notes) <$> case findSequence toStrokes children of
             Left err -> return $ UF.Fail $ "sarva: " <> err
-            Right (matched, (_, (_:_))) ->
-                return $ UF.Fail $
+            Right (matched, (strokes, left))
+                | any notRest (S.flattenedNotes left) -> return $ UF.Fail $
                     "sarva: incomplete match: " <> pretty matched
-            Right (matched, (strokes, [])) ->
-                case splitStrokes dur (cycle strokes) of
+                    <> ", left: " <> pretty left
+                | otherwise -> case splitStrokes dur (cycle strokes) of
                     Left err -> return $ UF.Fail $ "sarva: " <> err
                     Right (_left, (strokes, _)) -> do
                         Writer.tell $ Set.singleton matched
@@ -495,6 +513,8 @@ realize realizePattern toStrokes =
         where dur = S.fmatraDuration tempo matras
     -- TODO it seems like I should have some way to convert Either Error to
     -- a UF.Fail.
+    notRest (Solkattu.Space {}) = False
+    notRest _ = True
 
 formatError :: Solkattu.Notation a => UF.UntilFail Error (S.Flat g a)
     -> Either Error [S.Flat g a]
