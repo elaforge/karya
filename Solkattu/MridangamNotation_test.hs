@@ -23,7 +23,8 @@ test_merge = do
     equal (f $ (k<>k<>k) & (o<>__<>o)) $ Right "K k K"
     equal (f $ (k <> su (k<>k)) & (o <> su (o<>__))) $ Right "K _ K k"
     throws (f $ k & k) "requires thoppi & valantalai"
-    throws (f $ o & (k<>k)) "trailing strokes"
+    -- Pad with rests.
+    equal (f $ o & (k<>k)) $ Right "K k"
     -- Merge unequal speeds.
     equal (f $ (k <> su (k<>t) <> k) & (o<>o<>o)) $ Right "K _ K t K _"
 

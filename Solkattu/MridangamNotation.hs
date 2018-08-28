@@ -24,22 +24,19 @@ type NoteT sollu = S.Note Solkattu.Group (Solkattu.Note sollu)
 type Stroke = Realize.Stroke Mridangam.Stroke
 
 merge :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke] -> [NoteT Stroke]
-merge as bs
-    | not (null trailing) =
-        Solkattu.throw $ "trailing strokes: " <> pretty trailing
-    | otherwise = Notation.speed maxSpeed $ map merge1 pairs
+merge as bs = Notation.speed maxSpeed $ map merge1 pairs
     where
     -- At this point TempoChanges and Groups should have been flattened away.
-    merge1 (a, b)
+    merge1 (Seq.First a) = a
+    merge1 (Seq.Second b) = b
+    merge1 (Seq.Both a b)
         | isRest a = b
         | isRest b = a
         | otherwise = makeNote1 $
             Mridangam.bothRStrokes (toStroke1 a) (toStroke1 b)
     isRest (S.Note (Solkattu.Space Solkattu.Rest)) = True
     isRest _ = False
-    (pairs, trailing) = second (either id id) $
-        Seq.zip_remainder (flatten as) (flatten bs)
-
+    pairs = Seq.zip_padded (flatten as) (flatten bs)
     flatten :: CallStack.Stack => [NoteT Stroke] -> [NoteT Stroke]
     flatten = Solkattu.check
         . (traverse (traverse unstroke) <=< S.flattenSpeed maxSpeed)
