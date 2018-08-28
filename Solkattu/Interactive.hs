@@ -26,13 +26,13 @@ printInstrument :: Solkattu.Notation stroke => Bool -> Bool
     -> Korvai.Korvai -> IO ()
 printInstrument lint writeDiff inst defaultStrokes abstraction korvai = do
     let config = Terminal.defaultConfig { Terminal._abstraction = abstraction }
-    let out = Terminal.formatInstrument config inst korvai
+    let (out, hasError) = Terminal.formatInstrument config inst korvai
     mapM_ Text.IO.putStrLn out
-    when lint $
+    when (not hasError && lint) $
         Text.IO.putStr $ Korvai.lint inst defaultStrokes korvai
     let write = Text.IO.writeFile (gitRepo </> korvaiPath)
             (Text.unlines out)
-    when writeDiff $
+    when (not hasError && writeDiff) $
         ifM (Directory.doesDirectoryExist (gitRepo </> ".git"))
             (commit gitRepo >> write)
             (createRepo gitRepo >> write >> commit gitRepo)

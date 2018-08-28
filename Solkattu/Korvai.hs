@@ -346,7 +346,7 @@ spaces nadai dur = do
 -- builtins.
 lint :: Pretty stroke => Instrument stroke -> [Sequence] -> Korvai -> Text
 lint inst defaultStrokes korvai =
-    either ("stroke map: "<>) lintSmap $
+    either (("stroke map: "<>) . (<>"\n")) lintSmap $
     instStrokeMap inst $ korvaiStrokeMaps korvai
     where
     lintSmap smap = Text.unlines $ filter (not . Text.null)

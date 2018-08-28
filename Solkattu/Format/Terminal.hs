@@ -12,6 +12,7 @@ module Solkattu.Format.Terminal (
     , module Solkattu.Format.Terminal
 #endif
 ) where
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -74,7 +75,7 @@ writeAll fname abstraction korvai =
     Korvai.korvaiInstruments korvai
     where
     write1 (name, Korvai.GInstrument inst) =
-        name <> ":" : formatInstrument config inst korvai
+        name <> ":" : fst (formatInstrument config inst korvai)
         where
         config = (if name == "konnakol" then konnakolConfig else defaultConfig)
             { _abstraction = abstraction }
@@ -84,12 +85,12 @@ writeAll fname abstraction korvai =
 printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Format.Abstraction -> Korvai.Korvai -> IO ()
 printInstrument instrument abstraction =
-    mapM_ Text.IO.putStrLn
+    mapM_ Text.IO.putStrLn . fst
     . formatInstrument (defaultConfig { _abstraction = abstraction }) instrument
 
 printKonnakol :: Int -> Format.Abstraction -> Korvai.Korvai -> IO ()
 printKonnakol width abstraction =
-    mapM_ Text.IO.putStrLn . formatInstrument config Korvai.konnakol
+    mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.konnakol
     where
     config = konnakolConfig
         { _terminalWidth = width
@@ -97,7 +98,7 @@ printKonnakol width abstraction =
         }
 
 formatInstrument :: Solkattu.Notation stroke => Config
-    -> Korvai.Instrument stroke -> Korvai.Korvai -> [Text]
+    -> Korvai.Instrument stroke -> Korvai.Korvai -> ([Text], Bool)
 formatInstrument config instrument korvai =
     formatResults config korvai $ zip (korvaiTags korvai) $
         Format.convertGroups $
@@ -110,9 +111,12 @@ korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections
 
 formatResults :: Solkattu.Notation stroke => Config -> Korvai.Korvai
-    -> [(Tags.Tags, Either Error ([Format.Flat stroke], Error))] -> [Text]
-formatResults config korvai =
-    snd . List.mapAccumL show1 (Nothing, 0) . zip [1..]
+    -> [(Tags.Tags, Either Error ([Format.Flat stroke], Error))]
+    -> ([Text], Bool)
+formatResults config korvai results =
+    ( snd . List.mapAccumL show1 (Nothing, 0) . zip [1..] $ results
+    , any (Either.isLeft . snd) results
+    )
     where
     show1 _ (section, (_, Left err)) =
         ((Nothing, 0), sectionFmt section mempty $ "ERROR:\n" <> err)
