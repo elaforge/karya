@@ -69,13 +69,17 @@ stripComments = mconcat . go 0
     where
     go nesting text
         | Text.null post = [text]
-        | "{-" `Text.isPrefixOf` post = (if nesting > 0 then id else (pre:))
-            (go (nesting+1) (Text.drop 2 post))
-        | otherwise = (if nesting == 0 then (pre <> Text.take 2 post :) else id)
-            (go (max 0 (nesting-1)) (Text.drop 2 post))
-        where (pre, post) = breakOnFirst "{-" "-}" text
+        | "{-" `Text.isPrefixOf` post =
+            (if nesting > 0 then strip pre else pre)
+                : go (nesting+1) (Text.drop 2 post)
+        | otherwise =
+            (if nesting == 0 then pre <> Text.take 2 post else strip pre)
+                : go (max 0 (nesting-1)) (Text.drop 2 post)
+        where
+        (pre, post) = breakOnFirst "{-" "-}" text
+        strip = Text.filter (=='\n')
 
--- | Like 'Text.breakOn', but break on two things.
+-- | Like 'Text.breakOn', but break either of two things.
 breakOnFirst :: Text -> Text -> Text -> (Text, Text)
 breakOnFirst a b text
     | Text.length aPre <= Text.length bPre = (aPre, aPost)
