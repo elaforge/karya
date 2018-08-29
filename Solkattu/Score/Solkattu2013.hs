@@ -252,16 +252,19 @@ k3s = korvaiS adi mridangam $ map (nadai 5)
 
 -- * tisra nadai
 
-t_sarva1 :: (Sequence, Sequence)
-t_sarva1 =
-    ( dhom.ka.na.na.di.mi . na.mi.na.na.di.mi
-      . na.mi.na.na.di.mi . na.mi.na.na.di.mi
-    , ta  .__.ta.ta.ta.__ . ta.__.ta.ta.ta.__
-    . ta  .__.__.__.__.__ . __.__.ta.ta.ta.__
-    )
-    -- dhom is either o or o.t
-    -- TODO I need a better way to write sarva laghu.  The problem is the thoms
-    -- are implicit.
+t_sarva1 :: Korvai
+t_sarva1 = sarvalaghu $ ganesh $ korvai1 adi mridangam $ section $
+    nadai 6 sarva
+    where
+    sarva = sd $
+        dhom.ka.na.na.di.mi . na.mi.na.na.di.mi
+        . na.mi.na.na.di.mi . na.mi.na.na.di.mi
+    rh x = x.k.n.n.d.k      . n.k.n.n.d.k
+    mridangam = makeMridangam
+        [ (sarva,
+            (rh __ & (o.__.o.o.o.__    .o.__.o.o.o.__)
+            . rh n & (o.__.__.__.__.__ .__.__.o.o.o.__)))
+        ]
 
 t1s :: Korvai
 t1s = ganesh $ korvaiS adi mridangam $ map (nadai 6)

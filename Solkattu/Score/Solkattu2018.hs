@@ -538,8 +538,7 @@ to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     where
     dinnakitataka = group $ din.na.kttk
     takadinnakitataka = group $ taka.din.na.kttk
-    -- sarva dur = sarvaD sarvaS dur
-    sarva dur = sarvaD_ dur
+    sarva dur = sarvaD sarvaS dur
     sarvaS = repeat 4 $ sd $ taka.ta.ta.din.__.taka.din.na.ta.ta.din.__
     sarvaM =
         let rh = n.k.n.n.d.__.n.k.d.k.n.n.d.__ in
@@ -548,8 +547,8 @@ to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
         . rh & o
         . rh
     mridangam = makeMridangam
-        -- [ (sarvaS, sarvaM)
-        [ (talang.gu, p.u.k)
+        [ (sarvaS, sarvaM)
+        , (talang.gu, p.u.k)
         , (gu.gu.na.na, o.o.n.n)
         , (dinnakitataka, dinna)
         , (takadinnakitataka, o.k.dinna)
@@ -640,9 +639,7 @@ misra_muktayi1 = date 2018 7 11 $ sudhindra $
     reduceTo 4 2 theme . tri_ (sd __) (sd (ta.__.di.__.p5))
     where
     theme = tat.__.dit.__.tat.__.tat.__.kita.thom.__4
-    -- TODO this should be a p5, but I should be able to configure the specific
-    -- one I want.  Also, alternate realization is ktktpkpko.
-    p5 = su $ kita.kita.tari.kita.thom.__
+    p5 = group $ su $ kita.kita.tari.kita.thom.__
     -- TODO replace reduction fingering.  How should I express irregular
     -- fingerings like this?  Maybe with per-korvai technique?
     _fingerings =

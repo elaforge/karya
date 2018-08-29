@@ -22,36 +22,39 @@ import Util.Test
 
 
 test_all = do
-    forM_ All.korvais testKorvai
+    forM_ (zip [0..] All.korvais) testKorvai
 
-testKorvai :: Korvai.Korvai -> IO ()
-testKorvai korvai =
+testKorvai :: (Int, Korvai.Korvai) -> IO ()
+testKorvai (i, korvai) =
     forM_ (Korvai.korvaiInstruments korvai) $
         \(name, Korvai.GInstrument inst) ->
     realizeCatch inst korvai >>= \case
         Right _ -> return True
-        Left errs -> failure $ location korvai <> ": " <> name <> ": "
+        Left errs -> failure $ location korvai i <> ": " <> name <> ": "
             <> Text.unlines errs
 
-test_lints = do
-    forM_ All.korvais testLint
+_test0 = either mconcat (const "") $ realize Korvai.konnakol (All.korvais!!114)
 
-testLint :: Korvai.Korvai -> IO Bool
-testLint korvai
+test_lints = do
+    forM_ (zip [0..] All.korvais) testLint
+
+testLint :: (Int, Korvai.Korvai) -> IO Bool
+testLint (i, korvai)
     | lints == "" = return True
-    | otherwise = failure $ location korvai <> ": " <> lints
+    | otherwise = failure $ location korvai i <> ": " <> lints
     where
     lints = SolkattuGlobal.allLints korvai
 
 test_metadata = do
-    forM_ All.korvais $ \korvai ->
+    forM_ (zip [0..] All.korvais) $ \(i, korvai) ->
         forM_ (Metadata.korvaiTag Tags.similarTo korvai) $ \tag -> do
             unless (referentExists tag) $
                 void $ failure $
-                    location korvai <> ": can't find similarTo " <> showt tag
+                    location korvai i <> ": can't find similarTo " <> showt tag
 
-location :: Korvai.Korvai -> Text
-location = Metadata.showLocation . Metadata.getLocation
+location :: Korvai.Korvai -> Int -> Text
+location korvai i = Metadata.showLocation (Metadata.getLocation korvai)
+    <> " All.korvais!!" <> showt i
 
 referentExists :: Text -> Bool
 referentExists = (`elem` map Metadata.getModuleVariable All.korvais)

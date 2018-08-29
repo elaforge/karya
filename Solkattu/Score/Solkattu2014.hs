@@ -81,7 +81,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
         (replicate 3 (tadi_ . ta_kitathom.ta_kitathom))
     , utarangam . purvangam (tam.__)
         [tadi_ . repeat n ta_kitathom | n <- [1, 2, 3]]
-    , utarangam . purvangam (tam.__) (replicate 3 (tadi_ . ta.nang_kita))
+    , utarangam . purvangam (tam.__) (replicate 3 (tadi_ . ta.p5))
     , utarangam . purvangam (tam.__) (replicate 3 (td_gnt . su td_gnt))
 
     -- date 2014 2 20
@@ -90,8 +90,6 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
     ]
     where
     tadi_ = ta.di.__
-    -- TODO this is p5, but a specific one.  I should be able to get those too.
-    nang_kita = su $ nang.__.kita.ta.ri.kita.thom.__
     utarangam =
             group theme . tat.__3.din.__3
         . dropM 1 theme . tat.__2.din.__3
@@ -110,8 +108,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
         , (ta.di, k.t)
         , (ta, k)
         , (ga, lt p)
-        , (nang_kita, n.__.k.t.p.k.p.t.o.__)
-
+        , (p5, su $ n.__.k.t.p.k.p.t.o.__)
         , (tam, od)
         ]
 
@@ -161,8 +158,7 @@ c_14_02_27 = date 2014 2 27 $ ganesh $ korvaiS adi mridangam $
     p123 p sep = trin sep p (p.p) (p.p.p)
     purvangam = tri (ta_katakita.takadinna . din.__6)
     mridangam = makeMridangam $
-        [ (ta.din.gin.na.thom, k.t.k.n.o) -- TODO tdgnt
-        , (ta.din, k.od)
+        [ (ta.din, k.od)
         , (dheem, u)
         , (din, od)
         , (tat, k)
@@ -242,6 +238,9 @@ c_14_04_21 = date 2014 4 21 $ ganesh $ korvaiS adi mridangam $
         , (tam, u)
         , (p5_1, k.__.k.t.k.t.o)
         , (p5_2, k.__.k.k.t.o)
+        -- TODO patterns with tags not supported
+        -- , (1^p5, k.__.su (k.t.k.t).o)
+        -- , (2^p5, k.__.k.su (k.t).o)
         ]
 
 c_14_04_29 :: Korvai

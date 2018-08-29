@@ -19,6 +19,7 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Note(..), Sollu(..))
+import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -207,7 +208,7 @@ test_realizePatterns = do
     let f pmap seq = do
             ps <- Realize.patternMap $ solkattuToRealize pmap
             Realize.formatError $ fst $
-                Realize.realize (Realize.realizePattern ps)
+                Realize.realize_ (Realize.realizePattern ps)
                     (Realize.realizeSollu solluMap) (S.flatten seq)
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
@@ -219,6 +220,21 @@ test_realizePatterns = do
     equal (eStrokes $ f M.defaultPatterns $ rdropM 0 $ sd Dsl.p5)
         (Right "k t k n o")
     left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for 3p"
+
+test_realizePatterns_tags = do
+    let f realizePatterns = eWords . fmap S.flattenedNotes
+            . realizeSmap smap realizePatterns . mconcat
+        smap = expect_right $ Korvai.smapMridangam $
+            SolkattuGlobal.makeMridangam0
+                [ (1^Dsl.p5, mconcat [n, n, n, n, d])
+                , (2^Dsl.p5, mconcat [d, d, d, d, n])
+                ]
+            where M.Strokes {..} = M.notes
+    equal (f True [Dsl.p5]) $ Right "d d d d n"
+    -- TODO not supported yet
+    -- equal (f True [Dsl.p5]) $ Right "k t k n o"
+    -- equal (f True [1^Dsl.p5]) $ Right "n n n n d"
+    -- equal (f True [2^Dsl.p5]) $ Right "d d d d n"
 
 test_patterns = do
     let f = second (const ()) . Realize.patternMap . solkattuToRealize
@@ -243,8 +259,8 @@ test_solluMap = do
         [((Nothing, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ta))])]
     equal (f [(1 ^ ta, [k])]) $ Right
         [((Just 1, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ki))])]
-    left_like (f [(ta <> di, [k])]) "more sollus than strokes"
-    left_like (f [(ta, [k, t])]) "more strokes than sollus"
+    left_like (f [(ta <> di <> ta, [k])]) "more sollus than strokes at di.ta"
+    left_like (f [(ta, [k, t, k])]) "more strokes than sollus at tk"
     equal (length <$> f [(tang <> ga, [u, __])]) (Right 1)
     left_like (f [(tang <> __, [k, t])]) "rest sollu given non-rest stroke"
     left_like (f [(ta <> [S.Note $ pattern 5], [k])]) "only have plain sollus"
@@ -353,8 +369,21 @@ realizeN smap = fmap S.flattenedNotes . realize smap
 realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realize smap = Realize.formatError . fst
-    . Realize.realize Realize.keepPattern (Realize.realizeSollu smap)
+realize solluMap = realizeSmap smap False
+    where
+    smap = Realize.StrokeMap
+        { smapSolluMap = solluMap
+        , smapSolluShadows = []
+        , smapPatternMap = mempty
+        }
+
+realizeSmap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
+    -> Bool -> [S.Note Solkattu.Group (Note Sollu)]
+    -> Either Text [Realize.Realized stroke]
+realizeSmap smap realizePatterns =
+    Realize.formatError . fst
+    . Realize.realize smap realizePatterns
+        (Realize.realizeSollu (Realize.smapSolluMap smap))
     . S.flatten
 
 solluMap :: Realize.SolluMap M.Stroke

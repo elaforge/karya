@@ -375,30 +375,34 @@ verifySolluMap :: Pretty stroke
 verifySolluMap (sollus, strokes) = do
     (tag, mbSollus) <- verifySolluKey sollus
 
-    let throw = Left . ((psollus <> " -> " <> pstrokes <> ": ")<>)
-            where
-            psollus = Text.intercalate "." $ map (maybe "__" pretty) mbSollus
-            pstrokes = mconcat $ map pretty strokes
+    let pSollus = Text.intercalate "." . map (maybe "__" pretty)
+        pStrokes = mconcat . map pretty
+    let throw = Left . (pref<>)
+            where pref = pSollus mbSollus <> " -> " <> pStrokes strokes <> ": "
     -- TODO enable strictCheck somehow.  Maybe on by default, and disable via
     -- tag on strokes?
     let strictCheck = False
-    strokes <- forM (Seq.zip_padded mbSollus strokes) $ \case
-        Seq.Both (Just sollu) (S.Note (Space {}))
+    strokes <- forM (zipTails mbSollus strokes) $ \case
+        (Just sollu : _, S.Note (Space {}) : _)
             | strictCheck ->
                 throw $ "sollu '" <> pretty sollu <> "' given rest stroke"
             | otherwise -> return $ Just Nothing
-        Seq.Both Nothing (S.Note (Note stroke)) ->
+        (Nothing : _, S.Note (Note stroke) : _) ->
             throw $ "rest sollu given non-rest stroke '" <> pretty stroke <> "'"
-        Seq.Both Nothing (S.Note (Space {})) -> return Nothing
-        Seq.Both (Just _) (S.Note (Note stroke)) -> return $ Just $ Just stroke
-        Seq.First sollu ->
-            throw $ "more sollus than strokes at " <> pretty sollu
-        Seq.Second stroke ->
-            throw $ "more strokes than sollus at " <> pretty stroke
-        Seq.Both sollu stroke ->
+        (Nothing : _, S.Note (Space {}) : _) -> return Nothing
+        (Just _ : _, S.Note (Note stroke) : _) -> return $ Just $ Just stroke
+        (sollus, []) ->
+            throw $ "more sollus than strokes at " <> pSollus sollus
+        ([], strokes) ->
+            throw $ "more strokes than sollus at " <> pStrokes strokes
+        (sollu : _, stroke : _) ->
             throw $ "should have plain sollus and strokes: "
                 <> pretty (sollu, stroke)
     return ((tag, Maybe.catMaybes mbSollus), Maybe.catMaybes strokes)
+
+zipTails :: [a] -> [b] -> [([a], [b])]
+zipTails as bs = filter (\(as, bs) -> not (null as && null bs)) $
+    zip (List.tails as) (List.tails bs)
 
 verifySolluKey :: [S.Note g (Solkattu.Note Solkattu.Sollu)]
     -> Either Error (SolluMapKey (Maybe Solkattu.Sollu))
@@ -455,10 +459,19 @@ instance Pretty GroupType where pretty = showt
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
 realize :: (Pretty sollu, Ord sollu)
+    => StrokeMap stroke -> Bool -> ToStrokes sollu stroke
+    -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
+    -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
+realize smap realizePatterns = realize_ $
+    if realizePatterns
+        then realizePattern (smapPatternMap smap)
+        else keepPattern
+
+realize_ :: (Pretty sollu, Ord sollu)
     => RealizePattern S.Tempo stroke -> ToStrokes sollu stroke
     -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
-realize realizePattern toStrokes =
+realize_ realizePattern toStrokes =
     Writer.CPS.runWriter
         . fmap (UF.concatMap convertGroups) . UF.processM realize1
     where
@@ -500,7 +513,7 @@ realize realizePattern toStrokes =
             Right (matched, (strokes, left))
                 | any notRest (S.flattenedNotes left) -> return $ UF.Fail $
                     "sarva: incomplete match: " <> pretty matched
-                    <> ", left: " <> pretty left
+                    <> ", left: " <> pretty (S.flattenedNotes left)
                 | otherwise -> case splitStrokes dur (cycle strokes) of
                     Left err -> return $ UF.Fail $ "sarva: " <> err
                     Right (_left, (strokes, _)) -> do
@@ -686,7 +699,7 @@ data ToStrokes sollu stroke = ToStrokes {
 
 realizeStroke :: ToStrokes (Stroke stroke) stroke
 realizeStroke = ToStrokes
-    { _longestKey = 1
+    { _longestKey = 100
     , _getStrokes = const $ Just . map Just
     }
 
@@ -694,7 +707,9 @@ realizeStroke = ToStrokes
 -- for "monomorphic" single instrument scores, such as for mridangam.
 realizeSimpleStroke :: ToStrokes stroke stroke
 realizeSimpleStroke = ToStrokes
-    { _longestKey = 1
+    -- realize for GSarva expects an exact match, so to make it happy I can
+    -- convert as many as I'm given.  TODO grody hack
+    { _longestKey = 100
     , _getStrokes = const $ Just . map (Just . stroke)
     }
 

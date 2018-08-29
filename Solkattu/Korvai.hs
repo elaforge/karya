@@ -286,7 +286,7 @@ realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
     -> Either Error ([Flat stroke], Error)
 realizeInstrument realizePatterns toStrokes inst tala section = do
     realized <- Realize.formatError $ fst $
-        Realize.realize pattern toStrokes $
+        Realize.realize inst realizePatterns toStrokes $
         flatten (sectionSequence section)
     let alignError = Realize.verifyAlignment tala
             (sectionStart section) (sectionEnd section)
@@ -297,10 +297,6 @@ realizeInstrument realizePatterns toStrokes inst tala section = do
         , maybe "" (\(i, msg) -> showt i <> ": " <> msg) alignError
         )
     -- TODO maybe put a carat in the output where the error index is
-    where
-    pattern
-        | realizePatterns = Realize.realizePattern (Realize.smapPatternMap inst)
-        | otherwise = Realize.keepPattern
 
 allMatchedSollus :: Instrument stroke -> Korvai
     -> Set (Realize.SolluMapKey Solkattu.Sollu)
@@ -316,7 +312,7 @@ matchedSollus :: (Pretty sollu, Ord sollu)
     => Realize.ToStrokes sollu stroke -> Section sollu
     -> Set (Realize.SolluMapKey sollu)
 matchedSollus toStrokes =
-    snd . Realize.realize Realize.keepPattern toStrokes
+    snd . Realize.realize_ Realize.keepPattern toStrokes
         . flatten . sectionSequence
 
 inferNadai :: [Flat stroke] -> S.Nadai
