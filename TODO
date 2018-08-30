@@ -3763,7 +3763,7 @@ solkattu:
       * Replace groupType with making Group a sum
       * highlight realized sarva with a different color
       - for html too
-      - put Sarva abstraction level in html
+      * put Sarva abstraction level in html
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.

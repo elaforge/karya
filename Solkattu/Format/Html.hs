@@ -122,6 +122,7 @@ render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
 abstractions :: [(Text, Format.Abstraction)]
 abstractions =
     [ ("none", mempty)
+    , ("sarva", Format.abstract [Solkattu.GSarvaT])
     , ("patterns", Format.defaultAbstraction)
     , ("all", Format.allAbstract)
     ]
