@@ -477,7 +477,11 @@ realize_ realizePattern toStrokes =
             UF.singleton $ S.FNote tempo (Space space)
         Solkattu.Pattern p -> return $ (,notes) $ case realizePattern tempo p of
             Left err -> UF.Fail err
-            Right tempoNotes -> UF.fromList $ map (uncurry S.FNote) tempoNotes
+            Right tempoNotes -> UF.singleton $ S.FGroup tempo group $
+                map (uncurry S.FNote) tempoNotes
+            where
+            group = Solkattu.GNormal (Solkattu.group Solkattu.GPattern)
+                { Solkattu._name = Just (Solkattu.notation p) }
         Solkattu.Note {} -> case findSequence toStrokes (note : notes) of
             Left err -> return (UF.Fail err, notes)
             Right (matched, (strokes, remain)) -> do

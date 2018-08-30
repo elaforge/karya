@@ -51,12 +51,13 @@ test_format = do
         "k o o k k o o k k o o k k o o k k o o k"
 
 test_format_patterns = do
-    let f pmap seq = do
+    let realize pmap seq = do
             ps <- Realize.patternMap $ solkattuToRealize pmap
             realizeP (Just ps) defaultSolluMap seq
-    let p = expect_right $ f (M.families567 !! 1) Dsl.p5
-    equal (eFormat $ format 80 Tala.adi_tala p) "k _ t _ k _ k t o _"
-    equal (eFormat $ format 15 Tala.adi_tala p) "k t k kto"
+    let p = expect_right $ realize (M.families567 !! 1) Dsl.p5
+    equal (eFormat $ formatAbstraction mempty 80 Tala.adi_tala p)
+        "k _ t _ k _ k t o _"
+    equal (eFormat $ formatAbstraction mempty 15 Tala.adi_tala p) "k t k kto"
 
 test_format_space = do
     let run = fmap (eFormat . format 80 Tala.adi_tala . fst)
@@ -261,7 +262,7 @@ test_formatBreakLines = do
 
 test_formatNadaiChange = do
     let f tala realizePatterns =
-            fmap (first (stripAnsi . format 50 tala))
+            fmap (first (stripAnsi . formatAbstraction mempty 50 tala))
             . kRealize realizePatterns tala
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)

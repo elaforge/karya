@@ -3764,6 +3764,11 @@ solkattu:
       * highlight realized sarva with a different color
       * for html too
       * put Sarva abstraction level in html
+  * realized patterns should be highlighted
+  - since Patterns are always wrapped in a group now, Realize.Pattern
+    itself seems redundant.
+    . Maybe I can always realize the pattern, but use the usual group
+      abstraction in Solkattu.Format to collapse it.
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
