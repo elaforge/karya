@@ -123,8 +123,7 @@ abstractions :: [(Text, Format.Abstraction)]
 abstractions =
     [ ("none", mempty)
     , ("patterns", Format.defaultAbstraction)
-    , ("all", Format.abstract Format.Patterns
-        <> Format.abstract (Format.Groups Nothing))
+    , ("all", Format.allAbstract)
     ]
 
 defaultAbstraction :: Text
@@ -171,7 +170,7 @@ sectionHtmls inst config korvai =
         (Format.convertGroups (Korvai.realize inst realizePatterns korvai))
     where
     realizePatterns = not $
-        Format.isAbstract (_abstraction config) Format.Patterns
+        Format.isAbstract (_abstraction config) Solkattu.GPattern
 
 htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
 htmlPage title meta body = mconcat
@@ -291,9 +290,12 @@ makeSymbols = go
                 (Styled.rgbColor 0.5 0.5 0.5) (Styled.rgbColor 0.5 0.5 0.5)
             Solkattu.GPattern -> setHighlights
                 (Styled.rgbColor 0.5 0.5 0.65) (Styled.rgbColor 0.5 0.5 0.65)
-            -- TODO special highlight, but only when non-abstract
-            Solkattu.GSarvaT -> setHighlights
-                (Styled.rgbColor 0.5 0.65 0.5) (Styled.rgbColor 0.5 0.65 0.5)
+            -- Highlight only when non-abstract.
+            Solkattu.GSarvaT -> case children of
+                S.FNote _ (state, S.Attack (Realize.Abstract {})) : _ -> id
+                _ -> setHighlights
+                    (Styled.rgbColor 0.5 0.65 0.5)
+                    (Styled.rgbColor 0.5 0.65 0.5)
 
             -- Realize.Unhighlighted -> id
             -- Realize.Highlighted -> setHighlights

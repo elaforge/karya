@@ -105,7 +105,7 @@ formatInstrument config instrument korvai =
         Korvai.realize instrument realizePatterns korvai
     where
     realizePatterns = not $
-        Format.isAbstract (_abstraction config) Format.Patterns
+        Format.isAbstract (_abstraction config) Solkattu.GPattern
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections

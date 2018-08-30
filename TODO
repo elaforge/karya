@@ -3746,7 +3746,7 @@ solkattu:
           away empty groups.
       - sarva sollu map needs to accept strokes > sollus for sarva
         . Or I could repeat the sollus.
-      - abstract groups by Solkattu.GroupType, not name
+      * abstract groups by Solkattu.GroupType, not name
       * sollu map could strip rests, but that encourages putting them in
         there, which is then confusing when they don't actually matter.
         . I could verify that the rests are in the same places.  This means

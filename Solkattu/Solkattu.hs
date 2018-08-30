@@ -131,7 +131,7 @@ data GroupType =
     -- | A pattern with an explicit content.
     | GPattern
     | GSarvaT
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Pretty GroupType where pretty = showt
 

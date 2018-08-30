@@ -4,8 +4,8 @@
 
 -- | Utilities shared among formatting backends.
 module Solkattu.Format.Format (
-    Abstraction, Abstract(..), abstract, isAbstract
-    , defaultAbstraction
+    Abstraction, isAbstract, abstract
+    , defaultAbstraction, allAbstract
     , Highlight(..)
     -- * group
     , Flat, Group(..)
@@ -37,26 +37,23 @@ import Global
 
 -- | Control what is rendered as strokes, and what is rendered as abstract
 -- groups with durations.
-newtype Abstraction = Abstraction (Set Abstract)
+newtype Abstraction = Abstraction (Set Solkattu.GroupType)
     deriving (Eq, Show, Semigroup, Monoid)
-data Abstract = Patterns | Sarva | Groups !(Maybe Text)
-    deriving (Eq, Ord, Show)
 
-abstract :: Abstract -> Abstraction
-abstract = Abstraction . Set.singleton
+isAbstract :: Abstraction -> Solkattu.GroupType -> Bool
+isAbstract (Abstraction abstract) gtype = Set.member gtype abstract
 
-isAbstract :: Abstraction -> Abstract -> Bool
-isAbstract (Abstraction abstract) (Groups name) =
-    Groups Nothing `Set.member` abstract || Groups name `Set.member` abstract
-isAbstract (Abstraction abstract) Patterns = Patterns `Set.member` abstract
-isAbstract (Abstraction abstract) Sarva = Sarva `Set.member` abstract
+abstract :: [Solkattu.GroupType] -> Abstraction
+abstract = Abstraction . Set.fromList
 
 defaultAbstraction :: Abstraction
-defaultAbstraction = mconcat
-    [ abstract Patterns
-    , abstract (Groups (Just "8n"))
-    , abstract Sarva
+defaultAbstraction = abstract
+    [ Solkattu.GPattern
+    , Solkattu.GSarvaT
     ]
+
+allAbstract :: Abstraction
+allAbstract = Abstraction $ Set.fromList [minBound .. maxBound]
 
 data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
@@ -97,13 +94,12 @@ makeGroupsAbstract :: Abstraction -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | _type group == Solkattu.GSarvaT && isAbstract abstraction Sarva =
-            map (replace abstractSarva) flattened
-        | isAbstract abstraction (Groups (_name group))
-                && _type group /= Solkattu.GSarvaT =
-                -- Sarva is abstracted in its own way
-            Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
-                flattened
+        | isAbstract abstraction (_type group) =
+            -- Sarva has no start symbol.
+            if _type group == Solkattu.GSarvaT
+                then map (replace abstractSarva) flattened
+                else Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
+                    flattened
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where
         flattened  = S.tempoNotes children

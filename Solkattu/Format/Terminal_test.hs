@@ -74,18 +74,18 @@ test_format_sarva = do
     -- equal (run mempty (Notation.sarvaM_ 3)) (Right "======")
 
     let sarva = Notation.sarvaM_
+        abstract = Format.abstract [Solkattu.GSarvaT]
     -- [s-1]
     -- [[s0, s0]]
-    equal (run (Format.abstract Format.Sarva) (sarva 2))
-        (Right "====")
+    equal (run abstract (sarva 2)) (Right "====")
     -- This seems like it should be (2+1)*2, the fact that they can all be
     -- reduced to s1 means normalize expands to s1 instead of s0.  I don't
     -- really understand it but I think it's right?
     -- [s0, s0]
     -- [[s1, s1], [s1, s1]] 4*2 -> 8*'='
-    equal (run (Format.abstract Format.Sarva) (sarva 1 <> su (sarva 2)))
+    equal (run abstract (sarva 1 <> su (sarva 2)))
         (Right "========")
-    equal (run (Format.abstract Format.Sarva) (sarva 1 <> sd (sarva 2)))
+    equal (run abstract (sarva 1 <> sd (sarva 2)))
         (Right "==========")
 
 tala4 :: Tala.Tala
@@ -215,8 +215,7 @@ test_formatLines = do
 
 test_formatLines_abstractGroups = do
     let f = fmap (mconcat . extractLines
-            . formatLines (Format.abstract (Format.Groups Nothing)) 2 80 tala4
-                . fst)
+                . formatLines (Format.allAbstract) 2 80 tala4 . fst)
             . kRealize False tala4
     let tas n = Dsl.repeat n ta
     equal (f (tas 4)) (Right ["k k k k"])
