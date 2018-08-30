@@ -238,12 +238,46 @@ tableCss =
     \   border-bottom: 1px solid;\n\
     \}\n\
     \.onAnga { border-left: 3px double }\n\
-    \.onAkshara { border-left: 1px solid }\n\
-    \.inG { background-color: lightgray }\n\
-    \.startG { background:\
-        \ linear-gradient(to right, lightgreen, lightgray, lightgray) }\n\
-    \.endG { background:\
-        \ linear-gradient(to right, lightgray, lightgray, white) }"
+    \.onAkshara { border-left: 1px solid }\n"
+    <> Doc.Html typeCss
+
+typeCss :: Text
+typeCss = Text.unlines $ concat
+    [ styles gtype (cssColor start) (cssColor end)
+    | ((start, end), gtype) <- Seq.key_on typeColors [minBound .. maxBound]
+    ]
+    where
+    styles gtype start end =
+        [ "." <> groupStyle gtype Start
+            <> " { background: linear-gradient(to right, "
+                <> start <> ", " <> end <> ", " <> end <> ") }"
+        , "." <> groupStyle gtype In <> " { background-color: " <> end <> " }"
+        , "." <> groupStyle gtype End
+            <> " { background: linear-gradient(to right, "
+                <> end <> ", " <> end <> ", white) }"
+        ]
+    cssColor c = "rgb(" <> Text.intercalate ", " (map to8 [r, g, b]) <> ")"
+        where (r, g, b) = Styled.rgbComponents c
+    to8 = showt . round . (*255)
+
+data Pos = Start | In | End
+    deriving (Eq, Show)
+
+-- | Get the class name for a GroupType at the Start, In, or End of the
+-- highlight.
+groupStyle :: Solkattu.GroupType -> Pos -> Text
+groupStyle gtype pos = "g" <> showt gtype <> showt pos
+
+typeColors :: Solkattu.GroupType -> (Styled.RgbColor, Styled.RgbColor)
+typeColors = \case
+    Solkattu.GTheme -> (rgb 0.5 0.8 0.5, gray 0.8)
+    Solkattu.GFiller -> both $ gray 0.9
+    Solkattu.GPattern -> both $ rgb 0.7 0.7 0.85
+    Solkattu.GSarvaT -> both $ rgb 0.7 0.85 0.7
+    where
+    both n = (n, n)
+    rgb = Styled.rgbColor
+    gray n = rgb n n n
 
 formatHtml :: Solkattu.Notation stroke => Config -> Tala.Tala
     -> [S.Flat Format.Group (Realize.Note stroke)] -> Doc.Html
@@ -265,7 +299,7 @@ formatHtml config tala notes =
 data Symbol = Symbol {
     _html :: !Doc.Html
     , _isSustain :: !Bool
-    , _highlight :: !(Maybe (Format.Highlight, Styled.RgbColor))
+    , _style :: !(Maybe Text)
     } deriving (Eq, Show)
 
 -- | Flatten the groups into linear [Symbol].
@@ -279,35 +313,20 @@ makeSymbols = go
             , _isSustain = case note of
                 S.Sustain {} -> True
                 _ -> False
-            , _highlight = Nothing
+            , _style = Nothing
             }
         where note = normalizeSarva note_
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
         modify = case Format._type group of
-            Solkattu.GTheme -> setHighlights
-                (Styled.rgbColor 0.5 0.75 0.5) (Styled.rgbColor 0.75 0.75 0.75)
-            Solkattu.GFiller -> setHighlights
-                (Styled.rgbColor 0.5 0.5 0.5) (Styled.rgbColor 0.5 0.5 0.5)
-            Solkattu.GPattern -> setHighlights
-                (Styled.rgbColor 0.5 0.5 0.65) (Styled.rgbColor 0.5 0.5 0.65)
             -- Highlight only when non-abstract.
             Solkattu.GSarvaT -> case children of
-                S.FNote _ (state, S.Attack (Realize.Abstract {})) : _ -> id
-                _ -> setHighlights
-                    (Styled.rgbColor 0.5 0.65 0.5)
-                    (Styled.rgbColor 0.5 0.65 0.5)
-
-            -- Realize.Unhighlighted -> id
-            -- Realize.Highlighted -> setHighlights
-            -- -- TODO special highlight, but only when non-abstract
-            -- Realize.Sarva -> id
-    setHighlights startColor color =
-        Seq.map_last (second (set Format.EndHighlight color))
-        . Seq.map_head_tail
-            (second (set Format.StartHighlight startColor))
-            (second (set Format.Highlight color))
-        where set h color sym = sym { _highlight = Just (h, color) }
+                S.FNote _ (_, S.Attack (Realize.Abstract {})) : _ -> id
+                _ -> setStyle Solkattu.GSarvaT
+            gtype -> setStyle gtype
+    setStyle gtype = Seq.map_last (second (set End))
+        . Seq.map_head_tail (second (set Start)) (second (set In))
+        where set pos sym = sym { _style = Just (groupStyle gtype pos) }
     noteHtml state = \case
         S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
         S.Sustain (Realize.Abstract (Realize.AbstractedGroup _)) ->
@@ -369,11 +388,7 @@ formatTable font tala header rows = mconcatMap (<>"\n") $ concat
                 | Format.onAnga angas state -> ["onAnga"]
                 | Format.onAkshara state -> ["onAkshara"]
                 | otherwise -> []
-            , case _highlight sym of
-                Nothing -> []
-                Just (Format.StartHighlight, color) -> ["startG"]
-                Just (Format.Highlight, color) -> ["inG"]
-                Just (Format.EndHighlight, color) -> ["endG"]
+            , maybe [] (:[]) (_style sym)
             ]
     angas = Format.angaSet tala
 

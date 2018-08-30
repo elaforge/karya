@@ -3762,7 +3762,7 @@ solkattu:
       / sarva match should strip rests from the end
       * Replace groupType with making Group a sum
       * highlight realized sarva with a different color
-      - for html too
+      * for html too
       * put Sarva abstraction level in html
   sections:
     - if I have 'section' get CallStack and put section on each element,
@@ -3777,6 +3777,9 @@ solkattu:
     . They're right, I'm confused.
   format: output:
     html:
+      - color abstracted groups too
+      - Solkattu.Score.Solkattu2014.c_14_02_05.html at >=patterns abstraction
+        has wrong long rest position next to the pattern highlights
       - start <hr> right next to the text, instead of in the next cell
         . <hr> wants to go below text, can I get it to go to the right of the
           next, or have another way to draw a horizontal line?

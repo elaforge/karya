@@ -20,7 +20,7 @@ module Util.Styled (
     , toText, toTexts
     , Color(..), RgbColor, AnsiColor
     , black, red, green, yellow, blue, magenta, cyan, white
-    , rgb, rgbGray, rgbColor
+    , rgb, rgbGray, rgbColor, rgbComponents
     , plain
     , bright
     , fgs, bgs, bolds, underlines
@@ -175,6 +175,10 @@ rgbGray n = rgb n n n
 
 rgbColor :: Float -> Float -> Float -> RgbColor
 rgbColor r g b = RgbColor $ SRGB.sRGB r g b
+
+rgbComponents :: RgbColor -> (Float, Float, Float)
+rgbComponents (RgbColor c) = (r, g, b)
+    where (SRGB.RGB r g b) = SRGB.toSRGB c
 
 plain :: Text -> Styled
 plain = Styled mempty
