@@ -99,8 +99,8 @@ takeM matras = fst . splitM matras
 splitM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
 splitM matras seq =
-    ( groupOf matras Solkattu.After seq
-    , groupOf matras Solkattu.Before seq
+    ( groupOf Solkattu.GTheme matras Solkattu.After seq
+    , groupOf Solkattu.GTheme matras Solkattu.Before seq
     )
 
 -- | Split the sequence at the given FMatra.  Unlike 'splitM', this directly
@@ -392,22 +392,30 @@ stride :: S.Stride -> [S.Note g sollu] -> [S.Note g sollu]
 stride _ [] = []
 stride n seq = [S.TempoChange (S.Stride n) seq]
 
--- | Just mark a group.
+-- | Mark a theme group.
 group :: SequenceT sollu -> SequenceT sollu
-group = (:[]) . S.Group (Solkattu.GNormal Solkattu.group)
+group = (:[]) . S.Group (Solkattu.GNormal (Solkattu.group Solkattu.GTheme))
 
-groupOf :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
-groupOf split side = (:[]) . S.Group g
+-- | Mark a pattern group.  These are like patterns, except with a specific
+-- realization.
+--
+-- TODO mark it specially, so patterns can collapse it, or highlight
+-- differently, or have a #p type name
+pattern :: SequenceT sollu -> SequenceT sollu
+pattern = (:[]) . S.Group (Solkattu.GNormal (Solkattu.group Solkattu.GPattern))
+
+groupOf :: Solkattu.GroupType -> FMatra -> Solkattu.Side -> SequenceT sollu
+    -> SequenceT sollu
+groupOf gtype split side = (:[]) . S.Group g
     where
-    g = Solkattu.GNormal $ Solkattu.group
+    g = Solkattu.GNormal $ (Solkattu.group gtype)
         { Solkattu._split = split, Solkattu._side = side }
 
 -- | Make a named group.
-named :: Bool -> Text -> SequenceT sollu -> SequenceT sollu
-named highlight name = (:[]) . S.Group g
+named :: Solkattu.GroupType -> Text -> SequenceT sollu -> SequenceT sollu
+named gtype name = (:[]) . S.Group g
     where
-    g = Solkattu.GNormal $ Solkattu.group
-        { Solkattu._name = Just name, Solkattu._highlight = highlight }
+    g = Solkattu.GNormal $ (Solkattu.group gtype) { Solkattu._name = Just name }
 
 -- ** tags
 

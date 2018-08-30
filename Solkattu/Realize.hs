@@ -443,18 +443,13 @@ data Group stroke = Group {
     , _side :: !Solkattu.Side
     -- | Inherited from 'Solkattu._name'.
     , _name :: !(Maybe Text)
-    , _type :: !GroupType
+    , _type :: !Solkattu.GroupType
     } deriving (Eq, Ord, Show)
 
 instance Pretty stroke => Pretty (Group stroke) where
-    pretty (Group dropped side Nothing Highlighted) = pretty (dropped, side)
+    pretty (Group dropped side Nothing Solkattu.GTheme) = pretty (dropped, side)
     pretty (Group dropped side name typ) =
         pretty (dropped, side, name, typ)
-
-data GroupType = Unhighlighted | Highlighted | Sarva
-    deriving (Eq, Ord, Show)
-
-instance Pretty GroupType where pretty = showt
 
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
@@ -558,7 +553,7 @@ convertGroups (S.FGroup tempo g children) =
         (children, Nothing) -> convertGroup tempo g children
     where
     convertGroup tempo
-            (Solkattu.GNormal (Solkattu.NormalGroup split side name highlight))
+            (Solkattu.GNormal (Solkattu.NormalGroup split side name gtype))
             children =
         case splitStrokes (S.fmatraDuration tempo split) children of
             Left err -> UF.Fail err
@@ -571,8 +566,7 @@ convertGroups (S.FGroup tempo g children) =
                         { _dropped = mapMaybe noteOf $ S.flattenedNotes dropped
                         , _side = side
                         , _name = name
-                        , _type = if highlight
-                            then Highlighted else Unhighlighted
+                        , _type = gtype
                         }
                     (kept, dropped) = case side of
                         Solkattu.Before -> (post, pre)
@@ -584,7 +578,7 @@ convertGroups (S.FGroup tempo g children) =
             { _dropped = []
             , _side = Solkattu.Before
             , _name = Nothing
-            , _type = Sarva
+            , _type = Solkattu.GSarvaT
             }
 
 splitStrokes :: S.Duration -> [S.Flat g (Note stroke)]

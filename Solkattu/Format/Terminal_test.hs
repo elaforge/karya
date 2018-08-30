@@ -229,7 +229,8 @@ test_formatLines_abstractGroups = do
         (Right ["k k 1½----"])
     equal (f (Dsl.group (tas 2) <> Dsl.group (tas 2)))
         (Right ["2---2---"])
-    equal (f (su $ tas 2 <> Dsl.named True "q" (tas 2))) (Right ["k k q---"])
+    equal (f (su $ tas 2 <> Dsl.named Solkattu.GTheme "q" (tas 2)))
+        (Right ["k k q---"])
     equal (f (Notation.reduce3 1 mempty (tas 4))) (Right ["4-------3-----2---"])
 
 -- Just print nested groups to check visually.

@@ -69,7 +69,7 @@ type Flat stroke = S.Flat Group (Realize.Note stroke)
 -- format.
 data Group = Group {
     _name :: Maybe Text
-    , _type :: Realize.GroupType
+    , _type :: Solkattu.GroupType
     } deriving (Eq, Show)
 
 instance Pretty Group where
@@ -97,10 +97,10 @@ makeGroupsAbstract :: Abstraction -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | _type group == Realize.Sarva && isAbstract abstraction Sarva =
+        | _type group == Solkattu.GSarvaT && isAbstract abstraction Sarva =
             map (replace abstractSarva) flattened
         | isAbstract abstraction (Groups (_name group))
-                && _type group /= Realize.Sarva =
+                && _type group /= Solkattu.GSarvaT =
                 -- Sarva is abstracted in its own way
             Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
                 flattened

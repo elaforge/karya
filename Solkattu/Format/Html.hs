@@ -18,6 +18,7 @@ import qualified Data.Time.Calendar as Calendar
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
+import qualified Util.Styled as Styled
 import qualified Util.TextUtil as TextUtil
 
 import qualified Solkattu.Format.Format as Format
@@ -264,7 +265,7 @@ formatHtml config tala notes =
 data Symbol = Symbol {
     _html :: !Doc.Html
     , _isSustain :: !Bool
-    , _highlight :: !(Maybe Format.Highlight)
+    , _highlight :: !(Maybe (Format.Highlight, Styled.RgbColor))
     } deriving (Eq, Show)
 
 -- | Flatten the groups into linear [Symbol].
@@ -284,16 +285,26 @@ makeSymbols = go
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
         modify = case Format._type group of
-            Realize.Unhighlighted -> id
-            Realize.Highlighted -> setHighlights
+            Solkattu.GTheme -> setHighlights
+                (Styled.rgbColor 0.5 0.75 0.5) (Styled.rgbColor 0.75 0.75 0.75)
+            Solkattu.GFiller -> setHighlights
+                (Styled.rgbColor 0.5 0.5 0.5) (Styled.rgbColor 0.5 0.5 0.5)
+            Solkattu.GPattern -> setHighlights
+                (Styled.rgbColor 0.5 0.5 0.65) (Styled.rgbColor 0.5 0.5 0.65)
             -- TODO special highlight, but only when non-abstract
-            Realize.Sarva -> id
-    setHighlights =
-        Seq.map_last (second (set Format.EndHighlight))
+            Solkattu.GSarvaT -> setHighlights
+                (Styled.rgbColor 0.5 0.65 0.5) (Styled.rgbColor 0.5 0.65 0.5)
+
+            -- Realize.Unhighlighted -> id
+            -- Realize.Highlighted -> setHighlights
+            -- -- TODO special highlight, but only when non-abstract
+            -- Realize.Sarva -> id
+    setHighlights startColor color =
+        Seq.map_last (second (set Format.EndHighlight color))
         . Seq.map_head_tail
-            (second (set Format.StartHighlight))
-            (second (set Format.Highlight))
-        where set h sym = sym { _highlight = Just h }
+            (second (set Format.StartHighlight startColor))
+            (second (set Format.Highlight color))
+        where set h color sym = sym { _highlight = Just (h, color) }
     noteHtml state = \case
         S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
         S.Sustain (Realize.Abstract (Realize.AbstractedGroup _)) ->
@@ -357,9 +368,9 @@ formatTable font tala header rows = mconcatMap (<>"\n") $ concat
                 | otherwise -> []
             , case _highlight sym of
                 Nothing -> []
-                Just Format.StartHighlight -> ["startG"]
-                Just Format.Highlight -> ["inG"]
-                Just Format.EndHighlight -> ["endG"]
+                Just (Format.StartHighlight, color) -> ["startG"]
+                Just (Format.Highlight, color) -> ["inG"]
+                Just (Format.EndHighlight, color) -> ["endG"]
             ]
     angas = Format.angaSet tala
 

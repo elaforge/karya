@@ -18,8 +18,9 @@ module Util.Styled (
     , print, printLn
     , toByteString, toByteStrings
     , toText, toTexts
-    , Color, black, red, green, yellow, blue, magenta, cyan, white
-    , rgb
+    , Color(..), RgbColor, AnsiColor
+    , black, red, green, yellow, blue, magenta, cyan, white
+    , rgb, rgbGray, rgbColor
     , plain
     , bright
     , fgs, bgs, bolds, underlines
@@ -114,14 +115,14 @@ styleSGR :: Style -> [ANSI.SGR]
 styleSGR (Style fg bg bold underline) = ANSI.Reset : concat
     [ case fg of
         Nothing -> []
-        Just (Color intensity color) ->
+        Just (Ansi (AnsiColor intensity color)) ->
             [ANSI.SetColor ANSI.Foreground intensity color]
-        Just (RGB color) -> [ANSI.SetRGBColor ANSI.Foreground color]
+        Just (Rgb (RgbColor color)) -> [ANSI.SetRGBColor ANSI.Foreground color]
     , case bg of
         Nothing -> []
-        Just (Color intensity color) ->
+        Just (Ansi (AnsiColor intensity color)) ->
             [ANSI.SetColor ANSI.Background intensity color]
-        Just (RGB color) -> [ANSI.SetRGBColor ANSI.Background color]
+        Just (Rgb (RgbColor color)) -> [ANSI.SetRGBColor ANSI.Background color]
     , [ANSI.SetConsoleIntensity ANSI.BoldIntensity | bold]
     , [ANSI.SetUnderlining ANSI.SingleUnderline | underline]
     ]
@@ -150,8 +151,13 @@ noStyle = Style
     , _underline = False
     }
 
-data Color = Color !ANSI.ColorIntensity !ANSI.Color
-    | RGB !(Colour.Colour Float)
+data Color = Ansi !AnsiColor | Rgb !RgbColor
+    deriving (Eq, Show)
+
+data AnsiColor = AnsiColor !ANSI.ColorIntensity !ANSI.Color
+    deriving (Eq, Show)
+
+data RgbColor = RgbColor !(Colour.Colour Float)
     deriving (Eq, Show)
 
 black, red, green, yellow, blue, magenta, cyan, white :: Color
@@ -159,17 +165,24 @@ black, red, green, yellow, blue, magenta, cyan, white :: Color
     ( c ANSI.Black, c ANSI.Red, c ANSI.Green, c ANSI.Yellow, c ANSI.Blue
     , c ANSI.Magenta, c ANSI.Cyan, c ANSI.White
     )
-    where c = Color ANSI.Dull
+    where c = Ansi . AnsiColor ANSI.Dull
 
 rgb :: Float -> Float -> Float -> Color
-rgb r g b = RGB $ SRGB.sRGB r g b
+rgb r g b = Rgb $ rgbColor r g b
+
+rgbGray :: Float -> Color
+rgbGray n = rgb n n n
+
+rgbColor :: Float -> Float -> Float -> RgbColor
+rgbColor r g b = RgbColor $ SRGB.sRGB r g b
 
 plain :: Text -> Styled
 plain = Styled mempty
 
 bright :: Color -> Color
-bright (Color _ color) = Color ANSI.Vivid color
-bright (RGB color) = RGB (Colour.blend 0.5 color Colour.Names.white)
+bright (Ansi (AnsiColor _ color)) = Ansi $ AnsiColor ANSI.Vivid color
+bright (Rgb (RgbColor color)) =
+    Rgb $ RgbColor $ Colour.blend 0.5 color Colour.Names.white
 
 fgs, bgs :: Color -> Styled -> Styled
 fgs color = mapStyle (\style -> style { _foreground = Just color })

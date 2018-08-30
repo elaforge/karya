@@ -119,16 +119,28 @@ data NormalGroup = NormalGroup {
     -- plus the duration in matras.  Otherwise, it gets named by just duration.
     , _name :: !(Maybe Text)
     -- | Whether or not to highlight this group on render.
-    , _highlight :: !Bool
+    , _groupType :: !GroupType
     } deriving (Eq, Ord, Show)
     -- TODO make Group itself a sum
 
-group :: NormalGroup
-group = NormalGroup
+data GroupType =
+    -- | Part of a main theme, should be highlighted prominently.
+    GTheme
+    -- | A bit of decorative filler, should be highlighted subtly if at all.
+    | GFiller
+    -- | A pattern with an explicit content.
+    | GPattern
+    | GSarvaT
+    deriving (Eq, Ord, Show)
+
+instance Pretty GroupType where pretty = showt
+
+group :: GroupType -> NormalGroup
+group gtype = NormalGroup
     { _split = 0
     , _side = Before
     , _name = Nothing
-    , _highlight = True
+    , _groupType = gtype
     }
 
 -- | Before means drop the strokes before the '_split' split, After means
@@ -141,9 +153,9 @@ instance Pretty Group where
     pretty (GSarva matras) = "==" <> pretty matras
 
 instance Pretty NormalGroup where
-    pretty (NormalGroup split side Nothing True) = pretty (split, side)
-    pretty (NormalGroup split side name highlight) =
-        pretty (split, side, name, highlight)
+    pretty (NormalGroup split side Nothing GTheme) = pretty (split, side)
+    pretty (NormalGroup split side name gtype) =
+        pretty (split, side, name, gtype)
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.

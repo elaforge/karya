@@ -3746,6 +3746,7 @@ solkattu:
           away empty groups.
       - sarva sollu map needs to accept strokes > sollus for sarva
         . Or I could repeat the sollus.
+      - abstract groups by Solkattu.GroupType, not name
       * sollu map could strip rests, but that encourages putting them in
         there, which is then confusing when they don't actually matter.
         . I could verify that the rests are in the same places.  This means
@@ -3758,9 +3759,10 @@ solkattu:
           doing that?
         . Tags on strokes otherwise have no meaning, so I could repurpose that
           as a "don't check this" tag.
-      - sarva match should strip rests from the end
+      / sarva match should strip rests from the end
       * Replace groupType with making Group a sum
-      - highlight realized sarva with a different color
+      * highlight realized sarva with a different color
+      - for html too
       - put Sarva abstraction level in html
   sections:
     - if I have 'section' get CallStack and put section on each element,

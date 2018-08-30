@@ -90,6 +90,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
     ]
     where
     tadi_ = ta.di.__
+    p5 = pattern $ su $ nang.__.kita.ta.ri.kita.thom.__
     utarangam =
             group theme . tat.__3.din.__3
         . dropM 1 theme . tat.__2.din.__3
@@ -108,7 +109,7 @@ c_14_02_05 = date 2014 2 5 $ ganesh $ korvaiS adi mridangam $
         , (ta.di, k.t)
         , (ta, k)
         , (ga, lt p)
-        , (p5, su $ n.__.k.t.p.k.p.t.o.__)
+        , (p5, n.__.k.t.p.k.p.t.o.__)
         , (tam, od)
         ]
 

@@ -267,16 +267,20 @@ makeSymbols strokeWidth tala angas = go
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
         modify = case Format._type group of
-            Realize.Unhighlighted -> id
-            Realize.Highlighted -> setHighlights
+            Solkattu.GTheme -> setHighlights
+                (Styled.rgb 0.5 0.75 0.5) (gray 0.75)
+            Solkattu.GFiller -> setHighlights2 (gray 0.85)
+            Solkattu.GPattern -> setHighlights2 (Styled.rgb 0.65 0.65 0.8)
             -- TODO special highlight, but only when non-abstract
-            Realize.Sarva -> id
-    setHighlights =
-        Seq.map_last (second (set Format.EndHighlight))
+            Solkattu.GSarvaT -> setHighlights2 (Styled.rgb 0.5 0.65 0.5)
+    gray n = Styled.rgb n n n
+    setHighlights2 color = setHighlights color color
+    setHighlights startColor color =
+        Seq.map_last (second (set Format.EndHighlight color))
         . Seq.map_head_tail
-            (second (set Format.StartHighlight))
-            (second (set Format.Highlight))
-        where set h sym = sym { _highlight = Just h }
+            (second (set Format.StartHighlight startColor))
+            (second (set Format.Highlight color))
+        where set h color sym = sym { _highlight = Just (h, color) }
     make state text = Symbol
         { _text = text
         , _emphasize = shouldEmphasize tala angas state
@@ -328,7 +332,7 @@ breakBefore maxWidth =
 data Symbol = Symbol {
     _text :: !Text
     , _emphasize :: !Bool
-    , _highlight :: !(Maybe Format.Highlight)
+    , _highlight :: !(Maybe (Format.Highlight, Styled.Color))
     } deriving (Eq, Show)
 
 instance Pretty Symbol where
@@ -336,9 +340,9 @@ instance Pretty Symbol where
         text <> (if emphasize then "(b)" else "")
         <> case highlight of
             Nothing -> ""
-            Just Format.StartHighlight -> "+"
-            Just Format.Highlight -> "-"
-            Just Format.EndHighlight -> "|"
+            Just (Format.StartHighlight, _) -> "+"
+            Just (Format.Highlight, _) -> "-"
+            Just (Format.EndHighlight, _) -> "|"
 
 text :: (Text -> Text) -> Symbol -> Symbol
 text f sym = sym { _text = f (_text sym) }
@@ -347,8 +351,8 @@ formatSymbol :: Symbol -> Styled.Styled
 formatSymbol (Symbol text emph highlight) =
     (case highlight of
         Nothing -> id
-        Just Format.StartHighlight -> Styled.bg (Styled.rgb 0.5 0.75 0.5)
-        Just _ -> Styled.bg (Styled.rgb 0.75 0.75 0.75)
+        Just (Format.StartHighlight, color) -> Styled.bg color
+        Just (_, color) -> Styled.bg color
     ) $
     (if emph then emphasize else Styled.plain) text
     where
