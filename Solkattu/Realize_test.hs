@@ -28,16 +28,17 @@ import Util.Test
 
 
 test_realize = do
-    let f = eWords . realizeN smap . mconcat
-        smap = checkSolluMap
-            [ (ta <> din, [k, od])
-            , (na <> din, [n, od])
-            , (ta, [t])
-            , (din <> __ <> ga, [od, __, __])
+    let f = eWords . fmap S.flattenedNotes . realizeSmap smap . mconcat
+        smap = makeMridangam
+            [ (ta <> din, k <> od)
+            , (na <> din, n <> od)
+            , (ta, t)
+            , (din <> __ <> ga, od <> __ <> __)
+            , (Dsl.p5, k <> t <> k <> n <> o)
             ]
             where M.Strokes {..} = M.notes
     equal (f [__, ta, __, __, din]) (Right "_ k _ _ D")
-    equal (f [Dsl.p5, __, ta, din]) (Right "5p _ k D")
+    equal (f [Dsl.p5, __, ta, din]) (Right "k t k n o _ k D")
     equal (f [ta, ta]) (Right "t t")
     equal (f [din, ga]) (Right "D _")
     left_like (f [din, din]) "sequence not found"
@@ -85,8 +86,6 @@ test_realizeGroups = do
 
     -- With rests.
     equal (f $ dropM 1 $ ta <> __ <> ka <> __) (Right "_ t _")
-    -- With a Pattern.
-    equal (f $ dropM 1 $ taka <> Dsl.p5) (Right "t 5p")
 
 test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
@@ -222,15 +221,14 @@ test_realizePatterns = do
     left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for 3p"
 
 test_realizePatterns_tags = do
-    let f realizePatterns = eWords . fmap S.flattenedNotes
-            . realizeSmap smap realizePatterns . mconcat
-        smap = expect_right $ Korvai.smapMridangam $
-            SolkattuGlobal.makeMridangam0
-                [ (1^Dsl.p5, mconcat [n, n, n, n, d])
-                , (2^Dsl.p5, mconcat [d, d, d, d, n])
-                ]
+    let f = eWords . fmap S.flattenedNotes
+            . realizeSmap smap . mconcat
+        smap = makeMridangam
+            [ (1^Dsl.p5, mconcat [n, n, n, n, d])
+            , (2^Dsl.p5, mconcat [d, d, d, d, n])
+            ]
             where M.Strokes {..} = M.notes
-    equal (f True [Dsl.p5]) $ Right "d d d d n"
+    equal (f [Dsl.p5]) $ Right "d d d d n"
     -- TODO not supported yet
     -- equal (f True [Dsl.p5]) $ Right "k t k n o"
     -- equal (f True [1^Dsl.p5]) $ Right "n n n n d"
@@ -327,22 +325,22 @@ test_verifyAlignmentNadaiChange = do
         (Right Nothing)
     equal (f (sequence Dsl.p7)) (Right Nothing)
 
-tdktSmap :: Realize.SolluMap M.Stroke
-tdktSmap = checkSolluMap
-    [ (ta, [k])
-    , (di, [t])
-    , (ki, [p])
-    , (tha, [k])
-    , (thom, [o])
+tdktSmap :: Realize.StrokeMap M.Stroke
+tdktSmap = makeMridangam
+    [ (ta, k)
+    , (di, t)
+    , (ki, p)
+    , (tha, k)
+    , (thom, o)
     ]
     where M.Strokes {..} = M.notes
 
-verifyAlignment :: Solkattu.Notation stroke => Realize.SolluMap stroke
+verifyAlignment :: Solkattu.Notation stroke => Realize.StrokeMap stroke
     -> Tala.Tala -> S.Duration -> S.Duration -> Korvai.Sequence
     -> Either Text (Maybe (Int, Text))
 verifyAlignment smap tala startOn endOn =
     fmap (Realize.verifyAlignment tala startOn endOn . S.tempoNotes)
-        . realize smap
+        . realizeSmap smap
 
 -- * util
 
@@ -361,15 +359,21 @@ makeSolluMap ::
 makeSolluMap =
     fmap fst . Realize.solluMap . solkattuToRealize . map (second mconcat)
 
+makeMridangam :: SolkattuGlobal.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
+makeMridangam = expect_right . Korvai.smapMridangam
+    . SolkattuGlobal.makeMridangam0
+
+-- TODO better name
 realizeN :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Note stroke]
 realizeN smap = fmap S.flattenedNotes . realize smap
 
+-- TODO rename realizeSolluMap
 realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realize solluMap = realizeSmap smap False
+realize solluMap = realizeSmap smap
     where
     smap = Realize.StrokeMap
         { smapSolluMap = solluMap
@@ -378,12 +382,11 @@ realize solluMap = realizeSmap smap False
         }
 
 realizeSmap :: Solkattu.Notation stroke => Realize.StrokeMap stroke
-    -> Bool -> [S.Note Solkattu.Group (Note Sollu)]
+    -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realizeSmap smap realizePatterns =
+realizeSmap smap =
     Realize.formatError . fst
-    . Realize.realize smap realizePatterns
-        (Realize.realizeSollu (Realize.smapSolluMap smap))
+    . Realize.realize smap (Realize.realizeSollu (Realize.smapSolluMap smap))
     . S.flatten
 
 solluMap :: Realize.SolluMap M.Stroke

@@ -23,8 +23,8 @@ import Util.Test
 
 
 test_realize = do
-    let f realizePatterns = fmap (first extract) . head
-            . Korvai.realize Korvai.mridangam realizePatterns
+    let f = fmap (first extract) . head
+            . Korvai.realize Korvai.mridangam
             . korvai [] (Tala.Tala "eka" Tala.eka 2) . (:[])
         extract notes =
             [ pretty tempo <> ":" <> pretty stroke
@@ -32,20 +32,19 @@ test_realize = do
             ]
         tkdn = cycle $ mconcat [ta, ka, din, na]
         p4s = cycle $ Dsl.pat 4
-    equal (f False (take 4 tkdn)) $ Right
+    equal (f (take 4 tkdn)) $ Right
         ( map ("s0n4:"<>) (chars "kook")
         , "4: should end on sam, actually ends on 1:1, or sam - 1"
         )
-    equal (f False (take 2 p4s)) $ Right (map ("s0n4:"<>) ["4p", "4p"], "")
-    equal (f True (take 2 p4s)) $ Right (map ("s0n4:"<>) (chars "pkonpkon"), "")
-    equal (f False (Dsl.sd (take 1 p4s))) $ Right (["s-1n4:4p"], "")
-    equal (f False (Dsl.nadai 2 (take 1 p4s))) $ Right (["s0n2:4p"], "")
-    equal (f True (Dsl.nadai 2 (take 1 p4s))) $
+    equal (f (take 2 p4s)) $ Right (map ("s0n4:"<>) (chars "pkonpkon"), "")
+    equal (f (Dsl.sd (take 1 p4s))) $
+        Right (map ("s-1n4:"<>) (chars "pkon"), "")
+    equal (f (Dsl.nadai 2 (take 1 p4s))) $
         Right (map ("s0n2:"<>) (chars "pkon"), "")
 
 test_realizeTechnique = do
     let f strokes = fmap extract . head
-            . Korvai.realize Korvai.mridangam False
+            . Korvai.realize Korvai.mridangam
             . korvai strokes Tala.adi_tala . (:[])
         extract = Text.unwords . map pretty . S.flattenedNotes . fst
     let strokes1 =

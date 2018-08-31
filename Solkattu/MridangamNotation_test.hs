@@ -31,5 +31,5 @@ test_merge = do
 realize :: MridangamGlobal.Sequence
     -> Either Text [Realize.Note Mridangam.Stroke]
 realize seq = fmap S.flattenedNotes $ fmap fst $ head $
-    Korvai.realize Korvai.mridangam False
+    Korvai.realize Korvai.mridangam
         (MridangamGlobal.korvaiS1 MridangamGlobal.adi seq)

@@ -26,12 +26,14 @@ module Solkattu.S (
     , Flat(..)
     , filterFlat, mapGroupFlat
     , notes, flatten, flattenWith, flattenedNotes
-    , tempoToState, withDurations, tempoNotes, maxSpeed
+    , tempoToState, withDurations, flatDuration
+    , tempoNotes, maxSpeed
     , Stroke(..), normalizeSpeed, flattenSpeed
     -- * State
     , State(..), statePosition, stateMatraPosition, showPosition
     -- * functions
-    , durationOf, noteDuration, noteFMatra, fmatraDuration, normalizeFMatra
+    , durationOf, noteDuration, noteFMatra, fmatraDuration, durationFMatra
+    , normalizeFMatra
     , matraDuration
 #ifdef TESTING
     , module Solkattu.S
@@ -267,6 +269,12 @@ withDurations = map $ \n -> case n of
     FGroup tempo g children -> FGroup tempo g (withDurations children)
     FNote tempo note -> FNote tempo (noteDuration tempo note, note)
 
+flatDuration :: HasMatras a => [Flat g a] -> Duration
+flatDuration = List.foldl' dur 0
+    where
+    dur accum (FGroup _ _ children) = List.foldl' dur accum children
+    dur accum (FNote tempo note) = accum + noteDuration tempo note
+
 data Stroke a = Attack a | Sustain a | Rest
     deriving (Show, Eq)
 
@@ -440,6 +448,9 @@ noteFMatra tempo n =
 
 fmatraDuration :: Tempo -> FMatra -> Duration
 fmatraDuration tempo (FMatra matra) = Duration matra * matraDuration tempo
+
+durationFMatra :: Tempo -> Duration -> FMatra
+durationFMatra tempo dur = realToFrac $ dur / matraDuration tempo
 
 normalizeFMatra :: Tempo -> FMatra -> FMatra
 normalizeFMatra tempo = (/ realToFrac (speedFactor (_speed tempo)))

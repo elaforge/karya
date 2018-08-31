@@ -102,10 +102,7 @@ formatInstrument :: Solkattu.Notation stroke => Config
 formatInstrument config instrument korvai =
     formatResults config korvai $ zip (korvaiTags korvai) $
         Format.convertGroups $
-        Korvai.realize instrument realizePatterns korvai
-    where
-    realizePatterns = not $
-        Format.isAbstract (_abstraction config) Solkattu.GPattern
+        Korvai.realize instrument korvai
 
 korvaiTags :: Korvai.Korvai -> [Tags.Tags]
 korvaiTags = map Korvai.sectionTags . Korvai.genericSections

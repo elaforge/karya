@@ -12,7 +12,7 @@ module Solkattu.Format.Format (
     , convertGroups, mapGroups
     -- * normalize speed
     , NormalizedFlat
-    , makeGroupsAbstract, normalizeSpeed
+    , makeGroupsAbstract, makeGroupsAbstractRealize, normalizeSpeed
     -- * tala
     , breakAvartanams, formatFinalAvartanam
     , onSam, onAnga, onAkshara, angaSet
@@ -89,8 +89,8 @@ mapGroups = S.mapGroupFlat $ \g -> Group
 type NormalizedFlat stroke =
     S.Flat Group (S.State, S.Stroke (Realize.Note stroke))
 
-makeGroupsAbstract :: Abstraction -> [NormalizedFlat stroke]
-    -> [NormalizedFlat stroke]
+makeGroupsAbstract :: Abstraction
+    -> [NormalizedFlat stroke] -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
@@ -110,6 +110,24 @@ makeGroupsAbstract abstraction = concatMap combine
         name = fromMaybe (Pretty.fraction True fmatra) (_name group)
     combine n = [n]
     abstractSarva = S.Sustain (Realize.Abstract Realize.AbstractedSarva)
+
+-- | Like 'makeGroupsAbstract' except for non-normalized 'Realize.realize'
+-- output.  This is used by LSol, not Format, but is defined here since it's
+-- doing the same thing.
+makeGroupsAbstractRealize :: Abstraction
+    -> [S.Flat (Realize.Group a) (Realize.Note stroke)]
+    -> [S.Flat (Realize.Group a) (Realize.Note stroke)]
+makeGroupsAbstractRealize abstraction = concatMap combine
+    where
+    combine (S.FGroup tempo group children)
+        | isAbstract abstraction (Realize._type group) =
+            [S.FNote tempo (Realize.Abstract (Realize.AbstractedGroup name))]
+        | otherwise = [S.FGroup tempo group (concatMap combine children)]
+        where
+        -- TODO shouldn't it depend on GroupType?
+        name = fromMaybe (Pretty.fraction True fmatras) (Realize._name group)
+        fmatras = S.durationFMatra tempo $ S.flatDuration children
+    combine n = [n]
 
 normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
 normalizeSpeed tala =

@@ -262,9 +262,9 @@ type Flat stroke =
     S.Flat (Realize.Group (Realize.Stroke stroke)) (Realize.Note stroke)
 
 -- | Realize a Korvai on a particular instrument.
-realize :: Solkattu.Notation stroke => Instrument stroke -> Bool -> Korvai
+realize :: Solkattu.Notation stroke => Instrument stroke -> Korvai
     -> [Either Error ([Flat stroke], Error)]
-realize instrument realizePatterns korvai =
+realize instrument korvai =
     case instStrokeMap instrument (korvaiStrokeMaps korvai) of
         Left err -> [Left err]
         Right smap -> case korvaiSections korvai of
@@ -277,16 +277,14 @@ realize instrument realizePatterns korvai =
                 Just toStrokes -> map (realize1 toStrokes) sections
             where
             realize1 toStrokes = fmap (first (instPostprocess instrument))
-                . realizeInstrument realizePatterns toStrokes smap
-                    (korvaiTala korvai)
+                . realizeInstrument toStrokes smap (korvaiTala korvai)
 
 realizeInstrument :: (Ord sollu, Pretty sollu, Solkattu.Notation stroke)
-    => Bool -> Realize.ToStrokes sollu stroke
-    -> Realize.StrokeMap stroke -> Tala.Tala -> Section sollu
-    -> Either Error ([Flat stroke], Error)
-realizeInstrument realizePatterns toStrokes inst tala section = do
+    => Realize.ToStrokes sollu stroke -> Realize.StrokeMap stroke -> Tala.Tala
+    -> Section sollu -> Either Error ([Flat stroke], Error)
+realizeInstrument toStrokes inst tala section = do
     realized <- Realize.formatError $ fst $
-        Realize.realize inst realizePatterns toStrokes $
+        Realize.realize inst toStrokes $
         flatten (sectionSequence section)
     let alignError = Realize.verifyAlignment tala
             (sectionStart section) (sectionEnd section)

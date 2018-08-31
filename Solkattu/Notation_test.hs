@@ -97,7 +97,7 @@ makeKorvai strokes seq = korvai
         seq
 
 realize :: SolkattuGlobal.Korvai -> Either Text [(Text, S.Duration)]
-realize = extract . head . Korvai.realize Korvai.mridangam False
+realize = extract . head . Korvai.realize Korvai.mridangam
     where
     extract (Left err) = Left err
     extract (Right (strokes, _err)) = Right $ extractStrokes strokes

@@ -168,10 +168,7 @@ sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
 sectionHtmls inst config korvai =
     zipWith (renderSection config (Korvai.korvaiTala korvai))
         (Korvai.genericSections korvai)
-        (Format.convertGroups (Korvai.realize inst realizePatterns korvai))
-    where
-    realizePatterns = not $
-        Format.isAbstract (_abstraction config) Solkattu.GPattern
+        (Format.convertGroups (Korvai.realize inst korvai))
 
 htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
 htmlPage title meta body = mconcat

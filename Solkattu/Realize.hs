@@ -45,12 +45,16 @@ type SNote stroke = S.Note () (Note stroke)
 data Note stroke =
     Note !(Stroke stroke)
     | Space !Solkattu.Space
+    -- TODO: this is only used by solkattuToRealize, which in turn is only
+    -- needed so I can put Patterns in the stroke map, which until recently
+    -- I didn't even allow, and maybe I don't really like anyway, given that I
+    -- now have Solkattu.GPattern groups.
     | Pattern !Solkattu.Pattern
-    -- | A pattern that has been made abstract.  This is different from Pattern
-    -- in that it was a group that has been abstracted away.  That means it
-    -- can have a name, but also it doesn't have to have an integral matra
-    -- duration.  Since Abstract comes from Notes, the abstract duration is
-    -- a series of 1-duration Abstracts, where each Note used to be.
+    -- | A pattern that has been made abstract.  This is a group that has been
+    -- abstracted away.  That means it can have a name, but also it doesn't
+    -- have to have an integral matra duration.  Since Abstract comes from
+    -- Notes, the abstract duration is a series of 1-duration Abstracts, where
+    -- each Note used to be.
     --
     -- These are created at the Format level, not here.
     | Abstract !Abstracted
@@ -454,13 +458,11 @@ instance Pretty stroke => Pretty (Group stroke) where
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
 realize :: (Pretty sollu, Ord sollu)
-    => StrokeMap stroke -> Bool -> ToStrokes sollu stroke
+    => StrokeMap stroke -> ToStrokes sollu stroke
     -> [S.Flat Solkattu.Group (Solkattu.Note sollu)]
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
-realize smap realizePatterns = realize_ $
-    if realizePatterns
-        then realizePattern (smapPatternMap smap)
-        else keepPattern
+realize smap = realize_ (realizePattern (smapPatternMap smap))
+    -- TODO just pass PatternMap, since I don't parameterize anymore
 
 realize_ :: (Pretty sollu, Ord sollu)
     => RealizePattern S.Tempo stroke -> ToStrokes sollu stroke

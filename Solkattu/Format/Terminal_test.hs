@@ -61,14 +61,14 @@ test_format_patterns = do
 
 test_format_space = do
     let run = fmap (eFormat . format 80 Tala.adi_tala . fst)
-            . kRealize False Tala.adi_tala
+            . kRealize Tala.adi_tala
     equal (run (Notation.__M 4)) $ Right "‗|  ‗"
     equal (run (Notation.restD 1)) $ Right "‗|  ‗"
 
 test_format_sarva = do
     let run abstract =
             fmap (eFormat . formatAbstraction abstract 80 Tala.adi_tala . fst)
-            . kRealize False Tala.adi_tala
+            . kRealize Tala.adi_tala
     -- equal (run mempty (Notation.sarvaM ta 5)) (Right "k k k k k")
     -- equal (run (Format.abstract Format.Sarva) (Notation.sarvaM ta 5))
     --     (Right "==========")
@@ -94,7 +94,7 @@ tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 
 test_format_ruler = do
     let run = fmap (first (capitalizeEmphasis . format 80 tala4))
-            . kRealize False tala4
+            . kRealize tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
     equalT1 (run (tas 2 8)) $ Right
         ( "X:2 O   X   O   |\n\
@@ -142,7 +142,7 @@ test_format_ruler = do
 
 test_spellRests = do
     let run width = fmap (eFormat . format width tala4 . fst)
-            . kRealize False tala4
+            . kRealize tala4
     equalT (run 80 (sd (Dsl.__ <> ta))) $ Right "‗|  k _"
     equalT (run 80 (sd (ta <> Dsl.__ <> ta))) $ Right "k _ ‗   k _"
     equalT (run 10 (sd (ta <> Dsl.__ <> ta))) $ Right "k _ k"
@@ -152,13 +152,13 @@ test_inferRuler = do
     let f = Format.inferRuler tala4 2
             . map fst . S.flattenedNotes . Format.normalizeSpeed tala4 . fst
             . expect_right
-            . kRealize False tala4
+            . kRealize tala4
     let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
     equal (f (tas 2 4)) [("X:2", 2), ("O", 2), ("|", 0)]
 
 test_format_ruler_rulerEach = do
     let run = fmap (first (capitalizeEmphasis . format 16 Tala.adi_tala))
-            . kRealize False tala4
+            . kRealize tala4
     let tas n = Dsl.repeat n ta
     equalT1 (run (tas 80)) $ Right
         ( "0:4 1   2   3   |\n\
@@ -180,9 +180,10 @@ equalT1 = equal_fmt (either id fst)
 
 test_formatLines = do
     let f strokeWidth width tala =
-            fmap (extractLines . formatLines mempty strokeWidth width tala
+            fmap (extractLines
+                . formatLines Format.defaultAbstraction strokeWidth width tala
                 . fst)
-            . kRealize False tala
+            . kRealize tala
     let tas n = Dsl.repeat n ta
 
     equal (f 2 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
@@ -211,13 +212,13 @@ test_formatLines = do
     equal (f 2 1 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k", "k k k k", "k k k k"]]
 
-    equal (f 1 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["4p--"]]
-    equal (f 2 80 Tala.rupaka_fast (Dsl.pat 4)) $ Right [["4p------"]]
+    equal (f 1 80 Tala.rupaka_fast (Dsl.p5)) $ Right [["5p---"]]
+    equal (f 2 80 Tala.rupaka_fast (Dsl.p5)) $ Right [["5p--------"]]
 
 test_formatLines_abstractGroups = do
     let f = fmap (mconcat . extractLines
                 . formatLines (Format.allAbstract) 2 80 tala4 . fst)
-            . kRealize False tala4
+            . kRealize tala4
     let tas n = Dsl.repeat n ta
     equal (f (tas 4)) (Right ["k k k k"])
     equal (f (tas 2 <> Dsl.group (tas 2))) (Right ["k k 2---"])
@@ -235,7 +236,7 @@ test_formatLines_abstractGroups = do
 
 -- Just print nested groups to check visually.
 _nested_groups = do
-    let f = fmap (dropRulers . format 80 tala4 . fst) . kRealize False tala4
+    let f = fmap (dropRulers . format 80 tala4 . fst) . kRealize tala4
     let tas n = Dsl.repeat n ta
         group = Dsl.group
     prettyp (f (tas 4))
@@ -250,7 +251,7 @@ extractLines = map $ map $ Text.strip . mconcat . map (Terminal._text . snd)
 
 test_formatBreakLines = do
     let run width = fmap (stripAnsi . format width tala4 . fst)
-            . kRealize False tala4
+            . kRealize tala4
     let tas n = Dsl.repeat n ta
     equal (run 80 (tas 16)) $ Right
         "X:4     O       X       O       |\n\
@@ -261,12 +262,12 @@ test_formatBreakLines = do
         \kkkkkkkk"
 
 test_formatNadaiChange = do
-    let f tala realizePatterns =
+    let f tala =
             fmap (first (stripAnsi . formatAbstraction mempty 50 tala))
-            . kRealize realizePatterns tala
+            . kRealize tala
     let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
             <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
-    let (out, warn) = expect_right $ f Tala.adi_tala True sequence
+    let (out, warn) = expect_right $ f Tala.adi_tala sequence
     equal_fmt Text.unlines (Text.lines out)
         [ "0:4     1       2       3       |"
         , "_k_t_knok t knok_t_knok t knok_t"
@@ -338,11 +339,11 @@ capitalizeEmphasis = stripAnsi
     . Regex.substituteGroups (Regex.compileUnsafe "\ESC\\[0;1m(.*?)\ESC\\[0m")
         (\_ [t] -> Text.replace "-" "=" (Text.toUpper t))
 
-kRealize :: Bool -> Tala.Tala -> Korvai.Sequence
+kRealize :: Tala.Tala -> Korvai.Sequence
     -> Either Text ([Format.Flat M.Stroke], Text)
-kRealize realizePatterns tala =
+kRealize tala =
     fmap (first Format.mapGroups) . head
-    . Korvai.realize Korvai.mridangam realizePatterns
+    . Korvai.realize Korvai.mridangam
     . Korvai.korvaiInferSections tala defaultStrokeMap
     . (:[])
 

@@ -75,5 +75,5 @@ realize inst korvai
     | otherwise = Right $ map S.flattenedNotes notes
     where
     (errors, results) = Either.partitionEithers $
-        Korvai.realize inst True korvai
+        Korvai.realize inst korvai
     (notes, warnings) = second (filter (/="")) $ unzip results

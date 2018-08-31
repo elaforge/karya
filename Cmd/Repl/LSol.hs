@@ -38,6 +38,7 @@ import qualified Derive.Stack as Stack
 import qualified Perform.Pitch as Pitch
 import qualified Solkattu.Db as Db
 import Solkattu.Db hiding (realize, search, searchp)
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
@@ -96,11 +97,15 @@ realize :: (Ui.M m, Solkattu.Notation stroke) => Korvai.Instrument stroke
     -> m ModifyNotes.NoteTrack
 realize instrument realize_patterns korvai index akshara_dur at = do
     results <- Ui.require_right id $ sequence $
-        Korvai.realize instrument realize_patterns $
+        Korvai.realize instrument $
         Part.index index korvai
+    -- TODO I could probbaly abstract more than just patterns
+    let abstraction = if realize_patterns
+            then Format.abstract [Solkattu.GPattern] else mempty
     -- snd is an alignment warning, which I can see well enough on the track
     -- already.
-    let strokes = concatMap fst results
+    let strokes = Format.makeGroupsAbstractRealize abstraction $
+            concatMap fst results
     return $
         to_note_track (Korvai.instToScore instrument) akshara_dur at strokes
 
