@@ -9,23 +9,17 @@ import qualified Data.Tuple as Tuple
 
 import Util.Test
 import Solkattu.Dsl (su, sd, __)
-import qualified Solkattu.DslSollu as DslSollu
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Notation
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
+import Solkattu.SolkattuGlobal (di, ta, ka, ki, taka, din, gin, na)
 import qualified Solkattu.Tala as Tala
 
 import Global
 
-
-di, ta, ka, ki :: SequenceT Solkattu.Sollu
-(di, ta, ka, ki) = (DslSollu.di, DslSollu.ta, DslSollu.ka, DslSollu.ki)
-
-taka :: SequenceT Solkattu.Sollu
-taka = ta <> ka
 
 -- Many of the Notation functions are indirectly tested in Realize_test.
 
@@ -55,7 +49,7 @@ test_splitM_sarva = do
     equal (f 3 (sarvaM_ 4)) $ Right (["==3()"], ["==1()"])
 
 test_takeDrop = do
-    let tdgn = mconcat [ta, DslSollu.din, DslSollu.gin, DslSollu.na]
+    let tdgn = mconcat [ta, din, gin, na]
     let extract = map pretty
     equal (extract $ dropM_ 0 (takeM 2 tdgn)) ["(2, After)(ta din gin na)"]
     equal (extract $ dropM_ 1 (takeM 2 tdgn)) ["din"]

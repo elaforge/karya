@@ -9,7 +9,7 @@ import Util.Test
 import Global
 import qualified Solkattu.Dsl as Dsl
 import Solkattu.Dsl (__)
-import Solkattu.DslSollu (ta, di, ki, thom)
+import Solkattu.SolkattuGlobal (ta, di, ki, thom)
 import qualified Solkattu.Notation as Notation
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu

@@ -7,7 +7,6 @@ module Solkattu.Korvai_test where
 import qualified Data.Text as Text
 
 import qualified Solkattu.Dsl as Dsl
-import Solkattu.DslSollu (ta, ka, din, na)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
@@ -16,6 +15,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
 import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
 import qualified Solkattu.Solkattu as Solkattu
+import Solkattu.SolkattuGlobal (ta, ka, din, na)
 import qualified Solkattu.Tala as Tala
 
 import Global

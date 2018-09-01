@@ -20,10 +20,10 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Sollu(..))
+import Solkattu.SolkattuGlobal (ta, thom)
 import qualified Solkattu.Tala as Tala
 
 import Global
-import Solkattu.DslSollu
 import Util.Test
 
 

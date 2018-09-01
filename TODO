@@ -3633,7 +3633,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  - move DslSollu into SolkattuGlobal
+  * move DslSollu into SolkattuGlobal
   * tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
   David Nelson mridangam transcriptions:
@@ -3770,6 +3770,7 @@ solkattu:
     . Maybe I can always realize the pattern, but use the usual group
       abstraction in Solkattu.Format to collapse it.
   - get rid of Realize.Pattern
+    . This means getting rid of local pattern defs, in favor of pattern group.
   sections:
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.

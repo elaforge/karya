@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 import qualified Util.CallStack as CallStack
 import qualified Solkattu.Dsl as Dsl
 import Solkattu.Dsl ((^), __)
+import Solkattu.SolkattuGlobal (ta, di, ki, tha, thom, tang, ga, din, na, ka)
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Notation as Notation
@@ -23,7 +24,6 @@ import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
 import Global
-import Solkattu.DslSollu
 import Util.Test
 
 

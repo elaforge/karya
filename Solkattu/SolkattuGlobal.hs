@@ -7,7 +7,6 @@
 module Solkattu.SolkattuGlobal (
     module Solkattu.SolkattuGlobal
     , module Solkattu.Dsl
-    , module Solkattu.DslSollu
     , module Solkattu.Interactive
 ) where
 import Prelude hiding ((.), (^))
@@ -36,7 +35,6 @@ import qualified Solkattu.Tala as Tala
 
 import Global
 import Solkattu.Dsl
-import Solkattu.DslSollu
 
 
 type Sequence = SequenceT Solkattu.Sollu
@@ -44,6 +42,43 @@ type SequenceR stroke = SequenceT (Realize.Stroke stroke)
 type SequenceM = SequenceR Mridangam.Stroke
 
 type Section = Korvai.Section Solkattu.Sollu
+
+-- * sollus
+
+_sollu :: Solkattu.Sollu -> Sequence
+_sollu s = [S.Note (Solkattu.Note (Solkattu.note s))]
+
+dheem = _sollu Solkattu.Dheem
+dhom = _sollu Solkattu.Dhom
+di = _sollu Solkattu.Di
+din = _sollu Solkattu.Din
+dim = _sollu Solkattu.Dim
+dit = _sollu Solkattu.Dit
+du = _sollu Solkattu.Du
+ga = _sollu Solkattu.Ga
+gin = _sollu Solkattu.Gin
+gu = _sollu Solkattu.Gu
+jo = _sollu Solkattu.Jo
+ka = _sollu Solkattu.Ka
+ki = _sollu Solkattu.Ki
+ku = _sollu Solkattu.Ku
+kum = _sollu Solkattu.Kum
+mi = _sollu Solkattu.Mi
+na = _sollu Solkattu.Na
+nam = _sollu Solkattu.Nam
+nang = _sollu Solkattu.Nang
+nu = _sollu Solkattu.Nu
+ri = _sollu Solkattu.Ri
+ta = _sollu Solkattu.Ta
+tam = _sollu Solkattu.Tam
+tat = _sollu Solkattu.Tat
+tha = _sollu Solkattu.Tha
+thom = _sollu Solkattu.Thom
+ti = _sollu Solkattu.Ti
+
+tang = _sollu Solkattu.Tang
+tong = _sollu Solkattu.Tong
+lang = _sollu Solkattu.Lang
 
 -- * fragments
 
