@@ -14,8 +14,6 @@ import qualified Solkattu.Solkattu as Solkattu
 import Global
 
 
-type SequenceM g = [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
-
 data Stroke =
     Plak -- both
     | Pak | Pang | TutL | DeL -- left
@@ -77,17 +75,22 @@ strokes = Strokes
     , a = De
     }
 
-notes :: Strokes (SequenceM g)
+notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
 notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
     strokes
 
+type SequenceR = [S.Note () (Realize.Note Stroke)]
+
+rnotes :: Strokes SequenceR
+rnotes = (:[]) . S.Note . Realize.Note . Realize.stroke <$> strokes
+
 -- * Patterns
 
-__ :: SequenceM g
-__ = [S.Note $ Solkattu.Space Solkattu.Rest]
+__ :: SequenceR
+__ = [Realize.rest]
 
-defaultPatterns :: [(Solkattu.Pattern, SequenceM g)]
-defaultPatterns = patterns
+defaultPatterns :: Realize.PatternMap Stroke
+defaultPatterns = Solkattu.check $ patterns
     [ (5, o.p.k.t.a)
     , (6, o.p.__.k.t.a)
     , (7, o.__.p.__.k.t.a)
@@ -95,13 +98,14 @@ defaultPatterns = patterns
     , (9, o.__.p.__.k.__.t.__.a)
     ]
     where
-    Strokes {..} = notes
+    Strokes {..} = rnotes
     (.) = (<>)
 
 -- defaultPatternsEmphasis :: [(Solkattu.Pattern, SequenceM g)]
 -- defaultPatternsEmphasis =
 --     map (second (map $ \s -> if s == p then a else s)) defaultPatterns
---     where Strokes {..} = notes
+--     where Strokes {..} = rnotes
 
-patterns :: [(S.Matra, a)] -> [(Solkattu.Pattern, a)]
-patterns = map (first Solkattu.pattern)
+patterns :: [(S.Matra, SequenceR)]
+    -> Either Realize.Error (Realize.PatternMap Stroke)
+patterns = Realize.patternMap . map (first Solkattu.pattern)

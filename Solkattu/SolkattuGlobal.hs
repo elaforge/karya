@@ -174,8 +174,7 @@ makeMridangam strokes = makeMridangam0 (_mridangamStrokes ++ strokes)
 -- | Make a mridangam StrokeMap, but without the default '_mridangamStrokes'.
 makeMridangam0 :: StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
 makeMridangam0 strokes = mempty
-    { Korvai.smapMridangam = Realize.strokeMap $
-        Realize.patternKeys Mridangam.defaultPatterns ++ strokes
+    { Korvai.smapMridangam = Realize.strokeMap Mridangam.defaultPatterns strokes
     }
 
 -- | Show shadowed strokes in the stroke map.
@@ -184,9 +183,9 @@ lintM = _printLint Korvai.mridangam _mridangamStrokes
 
 makeKendang1 :: StrokeMap KendangTunggal.Stroke -> Korvai.StrokeMaps
 makeKendang1 strokes = mempty
-    { Korvai.smapKendangTunggal = Realize.strokeMap $
-        Realize.patternKeys KendangTunggal.defaultPatterns ++ _kendangStrokes
-            ++ strokes
+    { Korvai.smapKendangTunggal =
+        Realize.strokeMap KendangTunggal.defaultPatterns
+            (_kendangStrokes ++ strokes)
     }
 
 lintK1 :: Korvai -> IO ()
@@ -194,16 +193,22 @@ lintK1 = _printLint Korvai.kendangTunggal _kendangStrokes
 
 makeReyong :: StrokeMap Reyong.Stroke -> Korvai.StrokeMaps
 makeReyong strokes = mempty
-    { Korvai.smapReyong = Realize.strokeMap $
-        Realize.patternKeys Reyong.rhythmicPatterns ++ _reyongStrokes ++ strokes
+    { Korvai.smapReyong = Realize.strokeMap
+        Reyong.rhythmicPatterns (_reyongStrokes ++ strokes)
     }
 
 lintR :: Korvai -> IO ()
 lintR = _printLint Korvai.reyong _reyongStrokes
 
-makeSargam :: StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
-makeSargam strokes = mempty
-    { Korvai.smapSargam = Realize.strokeMap strokes }
+makeSargam :: [(S.Matra, SequenceR Sargam.Stroke)]
+    -> StrokeMap Sargam.Stroke -> Korvai.StrokeMaps
+makeSargam patterns strokes = mempty { Korvai.smapSargam = convert }
+    where
+    convert = do
+        patterns <- mapM (traverse Realize.solkattuToRealize) $
+            map (first Solkattu.pattern) patterns
+        pmap <- Realize.patternMap patterns
+        Realize.strokeMap pmap strokes
 
 lintS :: Korvai -> IO ()
 lintS = _printLint Korvai.sargam []

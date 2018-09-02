@@ -230,18 +230,13 @@ c_14_04_21 = date 2014 4 21 $ ganesh $ korvaiS adi mridangam $
     , tri_ (tam.__3) $ tri (su (dhom.p5).din.__) . tri p5_2
     ]
     where
-    -- TODO these are just fives, but I don't have any way to say I want
-    -- a specific five.
-    p5_1 = ta.__.tk.tk.din
-    p5_2 = ta.__.ta.tk.din
+    p5_1 = pattern $ ta.__.tk.tk.din
+    p5_2 = pattern $ ta.__.ta.tk.din
     mridangam = makeMridangam
         [ (din, od)
         , (tam, u)
         , (p5_1, k.__.k.t.k.t.o)
         , (p5_2, k.__.k.k.t.o)
-        -- TODO patterns with tags not supported
-        -- , (1^p5, k.__.su (k.t.k.t).o)
-        -- , (2^p5, k.__.k.su (k.t).o)
         ]
 
 c_14_04_29 :: Korvai

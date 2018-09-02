@@ -45,10 +45,9 @@ type SNote stroke = S.Note () (Note stroke)
 data Note stroke =
     Note !(Stroke stroke)
     | Space !Solkattu.Space
-    -- TODO: this is only used by solkattuToRealize, which in turn is only
-    -- needed so I can put Patterns in the stroke map, which until recently
-    -- I didn't even allow, and maybe I don't really like anyway, given that I
-    -- now have Solkattu.GPattern groups.
+    -- TODO: this is only used by keepPattern, which in turn is only used
+    -- by Korvai.matchedSollus.  I should be able to give it a dummy one
+    -- that always works.
     | Pattern !Solkattu.Pattern
     -- | A pattern that has been made abstract.  This is a group that has been
     -- abstracted away.  That means it can have a name, but also it doesn't
@@ -272,46 +271,34 @@ instance Pretty stroke => Pretty (StrokeMap stroke) where
             ]
 
 -- | Verify a list of pairs stroke map and put them in an 'StrokeMap'.
--- This allows both patterns and strokes, but you're not allowed to mix them,
--- e.g. (taka.p5, ...).  See 'StrokeMap' for details.
-strokeMap :: Pretty stroke =>
-    [ ( [S.Note g (Solkattu.Note Solkattu.Sollu)]
-      , [S.Note g (Solkattu.Note (Stroke stroke))]
-      )
-    ] -> Either Error (StrokeMap stroke)
-strokeMap strokesPatterns = do
-    let (patterns, strokes) = Seq.partition_on isPattern $
-            map (second solkattuToRealize) strokesPatterns
+strokeMap :: Pretty stroke => PatternMap stroke
+    -> [ ( [S.Note g (Solkattu.Note Solkattu.Sollu)]
+         , [S.Note g (Solkattu.Note (Stroke stroke))]
+         )
+       ]
+    -> Either Error (StrokeMap stroke)
+strokeMap pmap strokes = do
+    strokes <- mapM (traverse solkattuToRealize) strokes
     (smap, solluShadows) <- solluMap strokes
-    pmap <- patternMap patterns
     return $ StrokeMap
         { smapSolluMap = smap
         , smapSolluShadows = solluShadows
         , smapPatternMap = pmap
         }
-    where
-    isPattern ([S.Note (Solkattu.Pattern p)], strokes) = Just (p, strokes)
-    isPattern _ = Nothing
 
 -- | Stroke maps use 'Solkattu.Notes', so they can use the same language in
 -- "Solkattu.Dsl".  But since they don't go through a realization step
 -- (being used to implement the realization step for sollus), I can directly
 -- map them to 'Realize.Note's before storing them in 'StrokeMap'.
 solkattuToRealize :: [S.Note g (Solkattu.Note (Stroke stroke))]
-    -> [S.Note () (Note stroke)]
-solkattuToRealize = map (fmap convert . S.mapGroup (const ()))
+    -> Either Error [S.Note () (Note stroke)]
+solkattuToRealize = mapM $ traverse convert . S.mapGroup (const ())
     where
     convert = \case
-        Solkattu.Note n -> Note (Solkattu._sollu n)
-        Solkattu.Space a -> Space a
-        Solkattu.Pattern a -> Pattern a
-        Solkattu.Alignment a -> Alignment a
-
--- | Promote patterns into a 'strokeMap' arg.
-patternKeys :: [(Solkattu.Pattern, a)]
-    -> [([S.Note g (Solkattu.Note sollu)], a)]
-patternKeys = map (first make)
-    where make = (:[]) . S.Note . Solkattu.Pattern
+        Solkattu.Note n -> Right $ Note (Solkattu._sollu n)
+        Solkattu.Space a -> Right $ Space a
+        Solkattu.Pattern p -> Left $ "can't convert pattern: " <> pretty p
+        Solkattu.Alignment a -> Right $ Alignment a
 
 -- ** PatternMap
 

@@ -3452,6 +3452,16 @@ ghc-bugs:
       missing module User.Elaforge.KeyLayout
       Probable cause: out-of-date interface files
     . What exactly does it mean?
+    . I can also get run errors:
+      WARNING in hptSomeThingsBelowUs
+        missing module Solkattu.DslSollu
+      Ok, 81 modules loaded.
+      *Solkattu.Db D> writeHtml
+      <interactive>: fatal:
+          cannot find object file for module ‘Solkattu.DslSollu’
+          while linking an interpreted expression
+    . possible reproduction: sync to 99cfe84a2b4ff4c782ec7c550718c8d235ab5439,
+      compile, sync to 99dfbbd4d45d0f593f2349f52e6643ae4f029a90, reload
   - -fdefer-type-errors is broken in 8.4:
     https://ghc.haskell.org/trac/ghc/ticket/14963
 
@@ -4624,6 +4634,7 @@ Derive:
         fields in TrackLang.Dynamic in a typeclass.
 
 pitch: scales: scale:
+  - non octave equal temperaments, e.g. 12ed5
   just:
     - should just chromatic scales differentiate A4 and d5?
       . In general they should probably deal with enharmonics, but I don't know

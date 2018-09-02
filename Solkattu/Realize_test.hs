@@ -34,7 +34,6 @@ test_realize = do
             , (na <> din, n <> od)
             , (ta, t)
             , (din <> __ <> ga, od <> __ <> __)
-            , (Dsl.p5, k <> t <> k <> n <> o)
             ]
             where M.Strokes {..} = M.notes
     equal (f [__, ta, __, __, din]) (Right "_ k _ _ D")
@@ -204,11 +203,9 @@ pattern :: S.Matra -> Solkattu.Note stroke
 pattern = Solkattu.Pattern . Solkattu.pattern
 
 test_realizePatterns = do
-    let f pmap seq = do
-            ps <- Realize.patternMap $ solkattuToRealize pmap
-            Realize.formatError $ fst $
-                Realize.realize_ (Realize.realizePattern ps)
-                    (Realize.realizeSollu solluMap) (S.flatten seq)
+    let f pmap seq = Realize.formatError $ fst $
+            Realize.realize_ (Realize.realizePattern pmap)
+                (Realize.realizeSollu solluMap) (S.flatten seq)
     let eStrokes = eWords . fmap S.flattenedNotes
     equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
         (Right "k t k n o")
@@ -219,20 +216,6 @@ test_realizePatterns = do
     equal (eStrokes $ f M.defaultPatterns $ rdropM 0 $ sd Dsl.p5)
         (Right "k t k n o")
     left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for 3p"
-
-test_realizePatterns_tags = do
-    let f = eWords . fmap S.flattenedNotes
-            . realizeSmap smap . mconcat
-        smap = makeMridangam
-            [ (1^Dsl.p5, mconcat [n, n, n, n, d])
-            , (2^Dsl.p5, mconcat [d, d, d, d, n])
-            ]
-            where M.Strokes {..} = M.notes
-    equal (f [Dsl.p5]) $ Right "d d d d n"
-    -- TODO not supported yet
-    -- equal (f True [Dsl.p5]) $ Right "k t k n o"
-    -- equal (f True [1^Dsl.p5]) $ Right "n n n n d"
-    -- equal (f True [2^Dsl.p5]) $ Right "d d d d n"
 
 test_patterns = do
     let f = second (const ()) . Realize.patternMap . solkattuToRealize
@@ -255,7 +238,7 @@ test_solluMap = do
     -- Last one wins.
     equal (f [(ta, [k]), (ta, [t])]) $ Right
         [((Nothing, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ta))])]
-    equal (f [(1 ^ ta, [k])]) $ Right
+    equal (f [(1^ta, [k])]) $ Right
         [((Just 1, [Ta]), [Just (Realize.stroke (M.Valantalai M.Ki))])]
     left_like (f [(ta <> di <> ta, [k])]) "more sollus than strokes at di.ta"
     left_like (f [(ta, [k, t, k])]) "more strokes than sollus at tk"
@@ -397,8 +380,7 @@ solluMap = checkSolluMap
 
 mridangam :: Korvai.StrokeMaps
 mridangam = mempty
-    { Korvai.smapMridangam = Realize.strokeMap $
-        (ta, k) : Realize.patternKeys M.defaultPatterns
+    { Korvai.smapMridangam = Realize.strokeMap M.defaultPatterns [(ta, k)]
     }
     where M.Strokes {..} = M.notes
 
@@ -411,4 +393,4 @@ nadai n = S.TempoChange (S.Nadai n)
 
 solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
     -> [(a, [S.Note () (Realize.Note stroke)])]
-solkattuToRealize = map (second Realize.solkattuToRealize)
+solkattuToRealize = expect_right . mapM (traverse Realize.solkattuToRealize)

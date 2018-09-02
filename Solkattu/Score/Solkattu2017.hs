@@ -237,7 +237,7 @@ c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
         , (dinga, a.__.lt k)
         , (tdgnt, p.k.t.a.o)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
-    sargam = makeSargam
+    sargam = makeSargam []
         [ (ta, s1)
         , (kita, n.s1)
         , (takadinna, d.n.p.d)
@@ -263,13 +263,14 @@ c_17_05_11 = date 2017 5 11 $ source "sriram" $
         , (tam, u)
         ]
     sargam = makeSargam
+        [ (5, hv n_.s.d_.n_.p_)
+        ]
         [ (takadinna, hv p.m.r.m)
         , (takita, hv s.r.d_)
         , (din.ta.din.tat, s.n.s.d)
         , (din.tat, r.n)
         , (thom.thom.ka, hv m_.m_.s)
         , (tam, hv s)
-        , (p5, hv n_.s.d_.n_.p_)
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_05_19 :: Korvai
@@ -347,13 +348,14 @@ c_17_06_19 = date 2017 6 19 $ ganesh $ korvaiS1 adi inst $
         , (tam, a)
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
     sargam = makeSargam
+        [ (5, su (d_.s.d_.n_) . s.n_.p_)
+        ]
         [ (tat.dit, p.m)
         , (takadinna, p.m.r.m)
         , (din, hv s)
         , (tam, hv s_)
         , (kp, s.p_)
         , (kpnp, s.p_.r.p_)
-        , (p5, su (d_.s.d_.n_) . s.n_.p_)
         ] where Sargam.Strokes {..} = Sargam.notes
 
 c_17_06_19_koraippu :: Korvai

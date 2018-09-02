@@ -19,8 +19,6 @@ import qualified Solkattu.Technique as Technique
 import Global
 
 
-type SequenceM g = [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
-
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
 data Thoppi = Tha | Thom
@@ -136,9 +134,14 @@ strokes = Strokes
     , od = Both Thom Din
     }
 
-notes :: Strokes (SequenceM g)
+notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
 notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
     strokes
+
+type SequenceR = [S.Note () (Realize.Note Stroke)]
+
+rnotes :: Strokes SequenceR
+rnotes = (:[]) . S.Note . Realize.Note . Realize.stroke <$> strokes
 
 bothRStrokes :: CallStack.Stack => Realize.Stroke Stroke
     -> Realize.Stroke Stroke -> Realize.Stroke Stroke
@@ -200,47 +203,49 @@ technique _ _ _ = Nothing
 
 -- * patterns
 
-__ :: SequenceM g
-__ = [S.Note $ Solkattu.Space Solkattu.Rest]
+__ :: SequenceR
+__ = [Realize.rest]
 
-defaultPatterns :: [(Solkattu.Pattern, SequenceM g)]
-defaultPatterns = patterns $ map (fmap mconcat)
-    [ (5, [k, t, k, n, o])
-    , (6, [k, t, __, k, n, o])
-    , (7, [k, __, t, __, k, n, o])
-    , (8, [k, t, __, k, __, n, __, o])
-    , (9, [k, __, t, __, k, __, n, __, o])
+defaultPatterns :: Realize.PatternMap Stroke
+defaultPatterns = Solkattu.check $ patterns
+    [ (5, k.t.k.n.o)
+    , (6, k.t.__.k.n.o)
+    , (7, k.__.t.__.k.n.o)
+    , (8, k.t.__.k.__.n.__.o)
+    , (9, k.__.t.__.k.__.n.__.o)
     ]
-    where Strokes {..} = notes
+    where
+    Strokes {..} = rnotes
+    (.) = (<>)
 
 -- | Misc patterns I should figure out how to integrate some day.
-misc :: [(S.Matra, SequenceM g)]
+misc :: [(S.Matra, SequenceR)]
 misc =
     [ (7, su $ mconcat [k, __, __, t, __, __, k, __, __, n, __, __, o, __])
     ]
-    where Strokes {..} = notes
+    where Strokes {..} = rnotes
 
-kt_kn_o :: [(Solkattu.Pattern, SequenceM g)]
-kt_kn_o = patterns
+kt_kn_o :: Realize.PatternMap Stroke
+kt_kn_o = Solkattu.check $ patterns
     [ (5, k.t.k.n.o)
     , (7, k.t.__.k.n.__.o)
     , (9, k.t.__.__.k.n.__.__.o)
     ]
     where
-    Strokes {..} = notes
+    Strokes {..} = rnotes
     (.) = (<>)
 
-fives :: [SequenceM g]
+fives :: [SequenceR]
 fives =
     [ k.__.su (k.t.k.t).o
     , k.__.k.su (k.t).o
     ]
     where
-    Strokes {..} = notes
+    Strokes {..} = rnotes
     (.) = (<>)
 
-families567 :: [[(Solkattu.Pattern, SequenceM g)]]
-families567 = map patterns $ map (zip [5..]) $
+families567 :: [Realize.PatternMap Stroke]
+families567 = map Solkattu.check $ map patterns $ map (zip [5..]) $
     [ k.t.k.n.o
     , k.t.__.k.n.o
     , k.__.t.__.k.n.o
@@ -279,13 +284,14 @@ families567 = map patterns $ map (zip [5..]) $
       ]
     ]
     where
-    Strokes {..} = notes
+    Strokes {..} = rnotes
     (.) = (<>)
     kp = k.p
     kpnp = k.p.n.p
 
-patterns :: [(S.Matra, a)] -> [(Solkattu.Pattern, a)]
-patterns = map (first Solkattu.pattern)
-
 su :: [S.Note g a] -> [S.Note g a]
 su = (:[]) . S.changeSpeed 1
+
+patterns :: [(S.Matra, SequenceR)]
+    -> Either Realize.Error (Realize.PatternMap Stroke)
+patterns = Realize.patternMap . map (first Solkattu.pattern)

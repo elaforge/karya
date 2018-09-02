@@ -51,9 +51,7 @@ test_format = do
         "k o o k k o o k k o o k k o o k k o o k"
 
 test_format_patterns = do
-    let realize pmap seq = do
-            ps <- Realize.patternMap $ solkattuToRealize pmap
-            realizeP (Just ps) defaultSolluMap seq
+    let realize pmap seq = realizeP (Just pmap) defaultSolluMap seq
     let p = expect_right $ realize (M.families567 !! 1) Dsl.p5
     equal (eFormat $ formatAbstraction mempty 80 Tala.adi_tala p)
         "k _ t _ k _ k t o _"
@@ -383,13 +381,11 @@ defaultSolluMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize
     ]
     where M.Strokes {..} = M.notes
 
-solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
-    -> [(a, [S.Note () (Realize.Note stroke)])]
-solkattuToRealize = map (second Realize.solkattuToRealize)
-
 defaultStrokeMap :: Korvai.StrokeMaps
 defaultStrokeMap = mempty
-    { Korvai.smapMridangam = Realize.strokeMap $
-        (ta, k) : Realize.patternKeys M.defaultPatterns
-    }
+    { Korvai.smapMridangam = Realize.strokeMap M.defaultPatterns [(ta, k)] }
     where M.Strokes {..} = M.notes
+
+solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]
+    -> [(a, [S.Note () (Realize.Note stroke)])]
+solkattuToRealize = expect_right . mapM (traverse Realize.solkattuToRealize)

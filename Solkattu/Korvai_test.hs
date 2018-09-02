@@ -14,7 +14,7 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
 import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
-import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import Solkattu.SolkattuGlobal (ta, ka, din, na)
 import qualified Solkattu.Tala as Tala
 
@@ -30,17 +30,16 @@ test_realize = do
             [ pretty tempo <> ":" <> pretty stroke
             | (tempo, stroke) <- S.tempoNotes notes
             ]
-        tkdn = cycle $ mconcat [ta, ka, din, na]
-        p4s = cycle $ Dsl.pat 4
-    equal (f (take 4 tkdn)) $ Right
+        tkdn n = mconcat $ take n $ cycle [ta, ka, din, na]
+        p5s n = mconcat $ replicate n Dsl.p5
+    equal (f (tkdn 4)) $ Right
         ( map ("s0n4:"<>) (chars "kook")
         , "4: should end on sam, actually ends on 1:1, or sam - 1"
         )
-    equal (f (take 2 p4s)) $ Right (map ("s0n4:"<>) (chars "pkonpkon"), "")
-    equal (f (Dsl.sd (take 1 p4s))) $
-        Right (map ("s-1n4:"<>) (chars "pkon"), "")
-    equal (f (Dsl.nadai 2 (take 1 p4s))) $
-        Right (map ("s0n2:"<>) (chars "pkon"), "")
+    equal (f (Dsl.nadai 5 (p5s 2))) $
+        Right (map ("s0n5:"<>) (chars "ktknoktkno"), "")
+    equal (f (Dsl.sd (tkdn 8))) $
+        Right (map ("s-1n4:"<>) (chars "kookkook"), "")
 
 test_realizeTechnique = do
     let f strokes = fmap extract . head
@@ -73,17 +72,17 @@ test_korvaiInstruments = do
 chars :: [Char] -> [Text]
 chars = map Text.singleton
 
-korvai :: [(Korvai.Sequence, Mridangam.SequenceM Solkattu.Group)]
+korvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
     -> Tala.Tala -> [Korvai.Sequence] -> Korvai.Korvai
 korvai strokes tala = Korvai.korvaiInferSections tala (makeMridangam strokes)
 
-makeMridangam :: [(Korvai.Sequence, Mridangam.SequenceM Solkattu.Group)]
-    -> Korvai.StrokeMaps
+makeMridangam :: SolkattuGlobal.StrokeMap Mridangam.Stroke -> Korvai.StrokeMaps
 makeMridangam strokes = mempty
-    { Korvai.smapMridangam = Realize.strokeMap (defaults ++ strokes) }
+    { Korvai.smapMridangam =
+        Realize.strokeMap Mridangam.defaultPatterns (defaults ++ strokes) }
     where
     defaults = map (bimap mconcat mconcat)
         [ ([ta, ka, din, na], [k, o, o, k])
-        , ([Dsl.pat 4], [p, k, o, n])
+        -- , ([Dsl.pat 4], [p, k, o, n])
         ]
         where Mridangam.Strokes {..} = Mridangam.notes

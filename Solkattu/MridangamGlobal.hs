@@ -37,23 +37,20 @@ type Section = Korvai.Section Stroke
 (&) = MridangamNotation.merge
 
 korvai :: Tala.Tala -> [Section] -> Korvai.Korvai
-korvai tala = Korvai.mridangamKorvai tala defaultPatterns
+korvai tala = Korvai.mridangamKorvai tala Mridangam.defaultPatterns
 
 korvai1 :: Tala.Tala -> Section -> Korvai.Korvai
 korvai1 tala section = korvai tala [section]
 
 -- | Infer Section types, as init is development, last is ending.
 korvaiS :: Tala.Tala -> [Sequence] -> Korvai.Korvai
-korvaiS tala = Korvai.mridangamKorvaiInferSections tala defaultPatterns
+korvaiS tala =
+    Korvai.mridangamKorvaiInferSections tala Mridangam.defaultPatterns
 
 korvaiS1 :: Tala.Tala -> Sequence -> Korvai.Korvai
 korvaiS1 tala sequence = korvaiS tala [sequence]
 
 Mridangam.Strokes {..} = Mridangam.notes
-
-defaultPatterns :: Realize.PatternMap Mridangam.Stroke
-Right defaultPatterns = Realize.patternMap $
-    map (fmap Realize.solkattuToRealize) Mridangam.defaultPatterns
 
 on :: Sequence
 on = o&n
