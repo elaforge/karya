@@ -83,6 +83,7 @@ mapNote = fmap • fmap
 -- * fragments
 
 -- | Taka and takatiku from solkattu.
+kp, kpnp :: Sequence
 kp = k.p
 kpnp = k.p.n.p
 

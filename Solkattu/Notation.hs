@@ -62,7 +62,7 @@ __n :: S.Matra -> SequenceT sollu
 __n n = repeat (n-1) __
 
 __D :: Duration -> SequenceT sollu
-__D dur = __n (dToM2 (S._nadai S.defaultTempo) dur)
+__D dur = __M (dToM2 (S._nadai S.defaultTempo) dur)
 
 __M :: S.Matra -> SequenceT sollu
 __M matras = repeat matras __

@@ -96,7 +96,7 @@ c_17_02_06 = date 2017 2 6 $ ganesh $ korvaiS1 adi mridangam $
     where
     mridangam = makeMridangam
         [ (takita.dinga.din, k.p.k.od.__.k.od)
-        , (ta.ka, o&n.k)
+        , (taka, o&n.k)
         , (din, od)
         ]
 
@@ -179,7 +179,7 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvaiS adi mridangam $
     map sd -- remove for melkalam
     [ purvangam . utarangam (group (kp.tdgnt)) (group (kp.tdgnt))
     , purvangam . su (r32111 tdgnt . r32111 (taka.tdgnt)
-        . r32111 (ta.ka.na.ka.tdgnt))
+        . r32111 (taka.na.ka.tdgnt))
     , purvangam . utarangam (su (ta.__3.din.__3.gin.__3.na.__3.thom.__2)) p7
     ]
     where
@@ -195,17 +195,19 @@ c_17_04_23 = date 2017 4 23 $ ganesh $ korvaiS adi mridangam $
         [ (ta, k)
         , (din, od)
         -- TODO spread doesn't work with standard patterns, but it should
-        , (ta.ka.tdgnt, k.p.k.t.k.n.o)
-        , (ta.ka.na.ka, k.p.n.p)
+        , (taka.tdgnt, k.p.k.t.k.n.o)
+        , (taka.na.ka, k.p.n.p)
         ]
 
 c_17_05_10 :: Korvai
 c_17_05_10 = date 2017 5 10 $ ganesh $ korvaiS1 adi insts $
-    map (\n -> ta.__n n) [4, 3, 2, 1] `prefixes` (ta.__.kita.takadinna.dinga)
-        . ta.__.kita.takadinna.dinga
-    .  map (\n -> ta.__n n) [3, 2, 1] `prefixes` (takadinna.dinga)
-        . reduceTo 3 1 (takadinna.dinga)
-    . tri (spread 4 tdgnt . tdgnt)
+    mconcat (map group $
+        for ([ta.__n n | n <- [4, 3, 2, 1]] ++ [ø])
+            (.ta.__.kita.takadinna.dinga)
+        ++ for ([ta.__n n | n <- [3, 2, 1]]) (.takadinna.dinga)
+        ) . reduceTo 3 1 (takadinna.dinga)
+    . tri (spread 4 tdgnt . group tdgnt)
+
     -- TODO an alternate way to this is a reduceTo that makes a list,
     -- then zipWith a replacePrefix, e.g.:
     -- reduceTo 3 1 (ta.__4 . ta.__.kita.takadinna.dinga) `with`
@@ -284,7 +286,7 @@ c_17_05_19_janahan =
     date 2017 5 15 $ source "janahan" $ korvaiS1 adi mridangam $
     1^tat_din_din_tam 4 3 . tat_din_din_tam 4 2 . tat_din_din_tam 3 2
         . repeat 2 (tat.__4.tam.__2.ta) . tat.__3
-        . tri (takadinna.takita) -- TODO p7
+        . tri (group (takadinna.takita))
     where
     tat_din_din_tam a b =
           tat.__4         .    din.__4.din.__n a . tam.__n b . ta
@@ -306,8 +308,7 @@ c_17_05_19_janahan =
 c_17_06_02_janahan :: Korvai
 c_17_06_02_janahan = tirmanam $ date 2017 6 2 $ source "janahan" $
         korvaiS1 adi mridangam $
-    __n 9 . tri_ kttk (din.din.tk.din.din.tat.din)
-    -- TODO use align or pad to sam
+    __D 2 . tri_ (din.kttk) (group (din.din.tk.din.din.tat))
     where
     mridangam = makeMridangam
         [ (din, od)
@@ -635,18 +636,18 @@ c_17_12_11 = date 2017 12 11 $ ganesh $ korvaiS adi mridangam
     [ __sam adi $ su theme
     ]
     where
-    theme = kita.kita.taka.na.ta -- TODO taka.tiku
+    theme = kita.kita.taka.naka
         . kita.kita.gu.gu.na.na
-        . taka.ti.ku.kita.__.ki.na.thom
+        . taka.tiku.kita.__.ki.na.thom
         . tri (din.__.ta.__.ka.dinga)
         . tat.__.dit
     mridangam = makeMridangam
         [ (kita, k.t)
-        , (taka.na.ta, p.k.n.p)
+        , (taka.naka, p.k.n.p)
         , (gu.gu.na.na, o.o.n.n)
-        , (taka.ti.ku, p.k.t.p)
-        , (ki.ta.ki.na.thom, k.t.k.n.o)
-        , (din.ta.ka.dinga, on.k.o.d.__.o)
+        , (taka.tiku, p.k.t.p)
+        , (kita.ki.na.thom, k.t.k.n.o)
+        , (din.taka.dinga, on.k.o.d.__.o)
         , (tat.dit, on.u)
         ]
 
@@ -680,7 +681,6 @@ speaking1 = ganesh $ exercise $ korvaiS Tala.any_beats mridangam $
     t5 = group tdgnt
     t7 = group $ taka.tdgnt
     t9 = group $ taka.tiku.tdgnt
-    tiku = ti.ku
     mridangam = makeMridangam
         [ (taka, k.p)
         , (tiku, n.p)

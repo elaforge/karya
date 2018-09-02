@@ -226,7 +226,7 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
     ] ++ map (var • dateS 2018 3 27 • ending)
     [ purvangam 2 . tri_ (sd2 (ta.din)) (kp.p5)
     , purvangam 1 . tri_ (sd2 (ta.din)) (kpnp.p5)
-    , purvangam 3 . tri_ (tam.__) (taka.ti.ku.p5)
+    , purvangam 3 . tri_ (tam.__) (taka.tiku.p5)
     , purvangam 2 . tri_ (tam.__) (ta.__.ka.ti.__.ku.p5)
     , purvangam 1 . tri_ (tam.__) (ta.__.__.ka.ti.__.__.ku.p5)
     ]
