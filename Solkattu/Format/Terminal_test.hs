@@ -38,13 +38,6 @@ test_format = do
     -- Alignment should be ignored.
     equal (f rupaka ([Realize.Alignment 0] <> n4)) "k t _ n"
     equal (f rupaka (n4 <> n4)) "k t _ n k t _ n"
-    -- Emphasis works in patterns.
-    equal (f rupaka (n4 <> [rpattern 5] <> n4))
-        "k t _ n 5p--------k t _ n"
-    -- Patterns are wrapped properly.
-    equal (f rupaka (n4 <> [rpattern 5] <> n4 <> [rpattern 5]))
-        "k t _ n 5p--------k t _\n\
-        \n 5p--------"
     -- Emphasize according to the tala.
     let kook = [k, o, o, k]
     equal (f Tala.khanda_chapu (take (5*4) (cycle kook)))
@@ -299,9 +292,6 @@ test_formatSpeed = do
 
 -- * util
 
-rpattern :: S.Matra -> Realize.Note stroke
-rpattern = Realize.Pattern . Solkattu.pattern
-
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
 format = formatAbstraction Format.defaultAbstraction
@@ -355,20 +345,21 @@ su = (:[]) . S.changeSpeed 1
 nadai :: S.Nadai -> [S.Note g a] -> S.Note g a
 nadai n = S.TempoChange (S.Nadai n)
 
-realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
+realize :: Realize.SolluMap M.Stroke
     -> [S.Note Solkattu.Group (Solkattu.Note Sollu)]
-    -> Either Text [Format.Flat stroke]
+    -> Either Text [Format.Flat M.Stroke]
 realize = realizeP Nothing
 
-realizeP :: Solkattu.Notation stroke => Maybe (Realize.PatternMap stroke)
-    -> Realize.SolluMap stroke -> [S.Note Solkattu.Group (Solkattu.Note Sollu)]
-    -> Either Text [Format.Flat stroke]
+realizeP :: Maybe (Realize.PatternMap M.Stroke)
+    -> Realize.SolluMap M.Stroke
+    -> [S.Note Solkattu.Group (Solkattu.Note Sollu)]
+    -> Either Text [Format.Flat M.Stroke]
 realizeP pmap smap = fmap Format.mapGroups
     . Realize.formatError . fst
     . Realize.realize_ pattern (Realize.realizeSollu smap)
     . S.flatten
     where
-    pattern = maybe Realize.keepPattern Realize.realizePattern pmap
+    pattern = Realize.realizePattern $ fromMaybe M.defaultPatterns pmap
 
 formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Int -> Tala.Tala -> [Format.Flat stroke]

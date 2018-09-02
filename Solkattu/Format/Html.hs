@@ -325,7 +325,6 @@ makeSymbols = go
         . Seq.map_head_tail (second (set Start)) (second (set In))
         where set pos sym = sym { _style = Just (groupStyle gtype pos) }
     noteHtml state = \case
-        S.Sustain (Realize.Pattern {}) -> "<hr noshade>"
         S.Sustain (Realize.Abstract (Realize.AbstractedGroup _)) ->
             "<hr noshade>"
         S.Sustain (Realize.Abstract Realize.AbstractedSarva) ->

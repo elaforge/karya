@@ -310,8 +310,13 @@ matchedSollus :: (Pretty sollu, Ord sollu)
     => Realize.ToStrokes sollu stroke -> Section sollu
     -> Set (Realize.SolluMapKey sollu)
 matchedSollus toStrokes =
-    snd . Realize.realize_ Realize.keepPattern toStrokes
-        . flatten . sectionSequence
+    snd . Realize.realize_ dummyPattern toStrokes . flatten . sectionSequence
+    where
+    -- Since I'm just looking for used sollus, I can just map all patterns to
+    -- rests.  I probably don't have to bother to get the duration right, but
+    -- why not.
+    dummyPattern tempo (Solkattu.PatternM p) =
+        Right $ replicate p (tempo, Realize.Space Solkattu.Rest)
 
 inferNadai :: [Flat stroke] -> S.Nadai
 inferNadai = S._nadai . maybe S.defaultTempo fst . Seq.head . S.tempoNotes

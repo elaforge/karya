@@ -3643,6 +3643,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - explicit patterns in Solkattu2014.c_14_04_21.txt abstract to 5-- not 5p--
   * move DslSollu into SolkattuGlobal
   * tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.
@@ -3779,7 +3780,7 @@ solkattu:
     itself seems redundant.
     . Maybe I can always realize the pattern, but use the usual group
       abstraction in Solkattu.Format to collapse it.
-  - get rid of Realize.Pattern
+  * get rid of Realize.Pattern
     . This means getting rid of local pattern defs, in favor of pattern group.
   sections:
     - if I have 'section' get CallStack and put section on each element,

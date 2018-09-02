@@ -45,10 +45,6 @@ type SNote stroke = S.Note () (Note stroke)
 data Note stroke =
     Note !(Stroke stroke)
     | Space !Solkattu.Space
-    -- TODO: this is only used by keepPattern, which in turn is only used
-    -- by Korvai.matchedSollus.  I should be able to give it a dummy one
-    -- that always works.
-    | Pattern !Solkattu.Pattern
     -- | A pattern that has been made abstract.  This is a group that has been
     -- abstracted away.  That means it can have a name, but also it doesn't
     -- have to have an integral matra duration.  Since Abstract comes from
@@ -139,13 +135,11 @@ instance S.HasMatras (Note stroke) where
     matrasOf n = case n of
         Note {} -> 1
         Space {} -> 1
-        Pattern p -> S.matrasOf p
         Abstract {} -> 1
         Alignment {} -> 0
     hasSustain n = case n of
         Note {} -> False
         Space {} -> True
-        Pattern {} -> True
         Abstract {} -> True
         Alignment {} -> False
 
@@ -154,19 +148,16 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
         Space Solkattu.Rest -> "_"
         Space Solkattu.Offset -> " "
         Note s -> Solkattu.notation s
-        Pattern p -> Solkattu.notation p
         Abstract (AbstractedGroup name) -> name
         Abstract AbstractedSarva -> "="
         Alignment _ -> "" -- this should be filtered out prior to render
     extension = \case
         Space Solkattu.Rest -> ' '
-        Pattern p -> Solkattu.extension p
         Abstract (AbstractedGroup _) -> '-'
         Abstract AbstractedSarva -> '='
         _ -> ' '
     notationHtml n = case n of
         Note s -> Solkattu.notationHtml s
-        Pattern p -> Solkattu.notationHtml p
         _ -> Doc.html $ Solkattu.notation n
 
 -- | Used to replace two rests.
@@ -178,7 +169,6 @@ instance Pretty stroke => Pretty (Note stroke) where
         Space Solkattu.Rest -> "_"
         Space Solkattu.Offset -> "."
         Note s -> pretty s
-        Pattern p -> pretty p
         Abstract a -> pretty a
         Alignment n -> "@" <> showt n
 
@@ -418,10 +408,6 @@ verifySolluKey sollus_ = do
 type RealizePattern tempo stroke =
     tempo -> Solkattu.Pattern -> Either Error [(tempo, Note stroke)]
 
--- | Don't realize PatternMap, just pass them through.
-keepPattern :: RealizePattern tempo stroke
-keepPattern tempo pattern = Right [(tempo, Pattern pattern)]
-
 realizePattern :: PatternMap stroke -> RealizePattern S.Tempo stroke
 realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
     Nothing -> Left $ "no pattern for " <> pretty pattern
@@ -450,6 +436,7 @@ realize :: (Pretty sollu, Ord sollu)
     -> (UF.UntilFail Error (Realized stroke), Set (SolluMapKey sollu))
 realize smap = realize_ (realizePattern (smapPatternMap smap))
     -- TODO just pass PatternMap, since I don't parameterize anymore
+    -- well, except Korvai.matchedSollus
 
 realize_ :: (Pretty sollu, Ord sollu)
     => RealizePattern S.Tempo stroke -> ToStrokes sollu stroke
@@ -599,7 +586,6 @@ splitStrokes dur (note : notes) = case note of
         | otherwise -> case n of
             Note _ -> Left "can't split a stroke"
             Abstract a -> Left $ "can't split Abstract " <> pretty a
-            Pattern p -> Left $ "can't split a pattern: " <> pretty p
             Alignment _ -> Left $ "not reached: alignment should have 0 dur"
             Space space -> do
                 let make = fmap (map (uncurry S.FNote)) . makeSpace tempo space
