@@ -3643,7 +3643,7 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  - explicit patterns in Solkattu2014.c_14_04_21.txt abstract to 5-- not 5p--
+  * explicit patterns in Solkattu2014.c_14_04_21.txt abstract to 5-- not 5p--
   * move DslSollu into SolkattuGlobal
   * tatakita.takadinna -> tkoo ktok
     This is like a nakatiku, but a bit less common.

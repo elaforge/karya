@@ -106,8 +106,8 @@ makeGroupsAbstract abstraction = concatMap combine
         abstract c =
             replace (c (Realize.Abstract (Realize.AbstractedGroup name)))
         replace n (tempo, (state, _)) = S.FNote tempo (state, n)
-        fmatra = S.normalizeFMatra tempo (fromIntegral (length flattened))
-        name = fromMaybe (Pretty.fraction True fmatra) (_name group)
+        fmatras = S.normalizeFMatra tempo (fromIntegral (length flattened))
+        name = groupName fmatras (_type group) (_name group)
     combine n = [n]
     abstractSarva = S.Sustain (Realize.Abstract Realize.AbstractedSarva)
 
@@ -124,10 +124,22 @@ makeGroupsAbstractRealize abstraction = concatMap combine
             [S.FNote tempo (Realize.Abstract (Realize.AbstractedGroup name))]
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where
-        -- TODO shouldn't it depend on GroupType?
-        name = fromMaybe (Pretty.fraction True fmatras) (Realize._name group)
+        name = groupName fmatras (Realize._type group) (Realize._name group)
         fmatras = S.durationFMatra tempo $ S.flatDuration children
     combine n = [n]
+
+groupName :: S.FMatra -> Solkattu.GroupType -> Maybe Text -> Text
+groupName _ _ (Just name) = name
+groupName fmatras typ Nothing =
+    (if typ == Solkattu.GSarvaT then "" else Pretty.fraction True fmatras)
+    <> typePrefix typ
+
+typePrefix :: Solkattu.GroupType -> Text
+typePrefix = \case
+    Solkattu.GTheme -> "t"
+    Solkattu.GFiller -> "f"
+    Solkattu.GPattern -> "p"
+    Solkattu.GSarvaT -> "sarva"
 
 normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
 normalizeSpeed tala =

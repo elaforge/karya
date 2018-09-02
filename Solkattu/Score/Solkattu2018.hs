@@ -231,7 +231,7 @@ c_18_03_19 = date 2018 3 19 $ ganesh $ korvai Tala.misra_chapu mridangam $
     , purvangam 1 . tri_ (tam.__) (ta.__.__.ka.ti.__.__.ku.p5)
     ]
     where
-    p5 = group $ kita.taka.tari.kita.taka
+    p5 = pattern $ kita.taka.tari.kita.taka
     purvangam gap =
         tat.__.tat.__4.kitataka . din_din_na__ gap
         . tat.__4.kitataka . din_din_na__ gap
