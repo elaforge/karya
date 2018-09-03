@@ -9,18 +9,15 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
-import qualified Solkattu.Dsl as Dsl
-import Solkattu.Dsl ((^), __)
-import Solkattu.SolkattuGlobal (ta, di, ki, tha, thom, tang, ga, din, na, ka)
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.Notation as Notation
-import Solkattu.Notation (takeM, dropM, rdropM)
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Note(..), Sollu(..))
-import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
+import qualified Solkattu.SolkattuGlobal as G
+import Solkattu.SolkattuGlobal
+       ((^), __, ta, di, ki, tha, thom, tang, ga, din, na, ka)
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -37,11 +34,11 @@ test_realize = do
             ]
             where M.Strokes {..} = M.notes
     equal (f [__, ta, __, __, din]) (Right "_ k _ _ D")
-    equal (f [Dsl.p5, __, ta, din]) (Right "k t k n o _ k D")
+    equal (f [G.p5, __, ta, din]) (Right "k t k n o _ k D")
     equal (f [ta, ta]) (Right "t t")
     equal (f [din, ga]) (Right "D _")
     left_like (f [din, din]) "sequence not found"
-    equal (f [Notation.sarvaM_ 4]) (Right "==4")
+    equal (f [G.sarvaM_ 4]) (Right "==4")
     equal (f [din, __, ga]) (Right "D _ _")
     equal (f [din, __, ga, ta, din]) (Right "D _ _ k D")
 
@@ -56,33 +53,34 @@ test_realizeGroups = do
     equal (f taka) (Right "k t")
 
     -- TODO these could also go in Notation_test
-    equal (f $ dropM 1 taka) (Right "t")
-    equal (f $ takeM 1 taka) (Right "k")
-    equal (f $ takeM 2 (taka <> din)) (Right "k t")
-    equal (f $ dropM 2 (taka <> din)) (Right "D")
-    equal (f $ dropM 1 $ su taka) $ Right ""
-    equal (f $ su $ dropM 1 taka) $ Right "t"
+    equal (f $ G.dropM 1 taka) (Right "t")
+    equal (f $ G.takeM 1 taka) (Right "k")
+    equal (f $ G.takeM 2 (taka <> din)) (Right "k t")
+    equal (f $ G.dropM 2 (taka <> din)) (Right "D")
+    equal (f $ G.dropM 1 $ su taka) $ Right ""
+    equal (f $ su $ G.dropM 1 taka) $ Right "t"
 
     -- Groups keep finding fragments.
-    equal (f $ dropM 1 $ taka <> din) (Right "t D")
-    equal (f $ dropM 2 $ taka <> din) (Right "D")
-    equal (f $ dropM 3 $ taka <> din) (Right "")
-    equal (f $ dropM 3 $ taka <> din <> din) (Right "D")
-    equal (f $ takeM 2 $ din <> taka) (Right "D k")
-    equal (f $ takeM 1 $ din <> taka) (Right "D")
-    equal (f $ takeM 0 $ din <> taka) (Right "")
-    equal (f $ rdropM 1 taka) (Right "k")
-    equal (f $ Notation.rtakeM 1 taka) (Right "t")
-    equal (f $ mconcat $ replicate 2 $ takeM 1 taka) (Right "k k")
+    equal (f $ G.dropM 1 $ taka <> din) (Right "t D")
+    equal (f $ G.dropM 2 $ taka <> din) (Right "D")
+    equal (f $ G.dropM 3 $ taka <> din) (Right "")
+    equal (f $ G.dropM 3 $ taka <> din <> din) (Right "D")
+    equal (f $ G.takeM 2 $ din <> taka) (Right "D k")
+    equal (f $ G.takeM 1 $ din <> taka) (Right "D")
+    equal (f $ G.takeM 0 $ din <> taka) (Right "")
+    equal (f $ G.rdropM 1 taka) (Right "k")
+    equal (f $ G.rtakeM 1 taka) (Right "t")
+    equal (f $ mconcat $ replicate 2 $ G.takeM 1 taka) (Right "k k")
 
     left_like (f $ ka <> ka) "sequence not found"
-    left_like (f $ dropM 1 (ka <> ka)) "sequence not found"
+    left_like (f $ G.dropM 1 (ka <> ka)) "sequence not found"
     -- I leave the extra 'k' in the output, otherwise 'sequence not found' will
     -- be suppressed by 'group split too long' error.
-    left_like (f $ dropM 1 $ taka <> dropM 1 (ka<>ka)) "k  t*sequence not found"
+    left_like (f $ G.dropM 1 $ taka <> G.dropM 1 (ka<>ka))
+        "k  t*sequence not found"
 
     -- With rests.
-    equal (f $ dropM 1 $ ta <> __ <> ka <> __) (Right "_ t _")
+    equal (f $ G.dropM 1 $ ta <> __ <> ka <> __) (Right "_ t _")
 
 test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
@@ -96,22 +94,22 @@ test_realizeGroupsOutput = do
             pretty g <> "(" <> Text.unwords (map fmt children) <> ")"
         fmt (S.FNote _ n) = pretty n
     equal (f taka) (Right "k t")
-    equal (f $ dropM 1 taka) (Right "([k], Before)(t)")
-    equal (f $ rdropM 1 taka) (Right "([t], After)(k)")
+    equal (f $ G.dropM 1 taka) (Right "([k], Before)(t)")
+    equal (f $ G.rdropM 1 taka) (Right "([t], After)(k)")
 
 test_realizeGroupsNested = do
     let f = fmap (mconcatMap pretty) . realizeN smap
         smap = checkSolluMap [(nakita, [n, k, t])]
             where M.Strokes {..} = M.notes
         nakita = na <> ki <> ta
-    equal (f $ Notation.reduceTo 1 1 nakita) $ Right $ mconcat
+    equal (f $ G.reduceTo 1 1 nakita) $ Right $ mconcat
         [ "nkt"
         , "kt"
         , "t"
         ]
 
     -- nested reduction
-    equal (f $ Notation.reduceTo 2 2 $ Notation.reduceTo 1 1 nakita) $
+    equal (f $ G.reduceTo 2 2 $ G.reduceTo 1 1 nakita) $
         Right $ mconcat
         [ "nkt"
         , "kt"
@@ -142,7 +140,7 @@ test_realizeGroupsNested = do
     --     1/2 nkt
 
     -- dropM 4 doesn't count the second na, because it's already dropped.
-    equal (f $ dropM 4 $ nakita <> dropM 1 nakita) $
+    equal (f $ G.dropM 4 $ nakita <> G.dropM 1 nakita) $
         Right "t"
 
     -- This is the sandi situtaion.
@@ -156,15 +154,15 @@ test_realizeGroupsNested = do
     -- What else?  It would have to omit the [ki, ta] from the dropped group
     -- from the prefix.  I guess the rule would be don't include parts of other
     -- groups in a group's prefix.
-    equal (f $ dropM 2 $ dropM 1 nakita <> nakita) $ Right "nkt"
-    equal (f $ dropM 1 $ nakita <> dropM 1 nakita) $ Right "ktkt"
+    equal (f $ G.dropM 2 $ G.dropM 1 nakita <> nakita) $ Right "nkt"
+    equal (f $ G.dropM 1 $ nakita <> G.dropM 1 nakita) $ Right "ktkt"
 
 test_realizeSarva = do
     let f = eWords . realizeN smap . mconcat
         smap = checkSolluMap
             [ (ta <> din, [n, d])
             ] where M.Strokes {..} = M.notes
-        sarvaM = Notation.sarvaM
+        sarvaM = G.sarvaM
     equal (f []) (Right "")
     equal (f [sarvaM (ta <> din) 5]) (Right "n d n d n")
     left_like (f [sarvaM (ta <> din <> ta) 5]) "incomplete match"
@@ -174,7 +172,7 @@ eWords = fmap (Text.unwords . map pretty)
 
 test_realizeEmphasis = do
     let f = second (map (fmap pretty)) . realizeN smap . mconcat
-        smap = checkSolluMap [(ta <> di, [Dsl.hv k, Dsl.lt t])]
+        smap = checkSolluMap [(ta <> di, [G.hv k, G.lt t])]
             where M.Strokes {..} = M.notes
     equal (f [ta, di]) $ Right
         [ Realize.Note $ Realize.Stroke Realize.Heavy "k"
@@ -205,15 +203,15 @@ test_realizePatterns = do
             Realize.realize_ (Realize.realizePattern pmap)
                 (Realize.realizeSollu solluMap) (S.flatten seq)
     let eStrokes = eWords . fmap S.flattenedNotes
-    equal (eStrokes $ f (M.families567 !! 0) Dsl.p5)
+    equal (eStrokes $ f (M.families567 !! 0) G.p5)
         (Right "k t k n o")
-    equal (eStrokes $ f (M.families567 !! 1) Dsl.p5)
+    equal (eStrokes $ f (M.families567 !! 1) G.p5)
         (Right "k _ t _ k _ k t o _")
     -- This ensures that 'Realize.realize' fixes the FGroup count if
     -- realizePatterns changes it.
-    equal (eStrokes $ f M.defaultPatterns $ rdropM 0 $ sd Dsl.p5)
+    equal (eStrokes $ f M.defaultPatterns $ G.rdropM 0 $ sd G.p5)
         (Right "k t k n o")
-    left_like (f (M.families567 !! 0) (Dsl.pat 3)) "no pattern for 3p"
+    left_like (f (M.families567 !! 0) (G.pat 3)) "no pattern for 3p"
 
 test_patterns = do
     let f = second (const ()) . Realize.patternMap . solkattuToRealize
@@ -247,7 +245,7 @@ test_solluMap = do
 -- * verifyAlignment
 
 test_verifyAlignment = do
-    let f = verifyAlignment tdktSmap Tala.adi_tala 0 0
+    let f = verifyAlignment tdktSmap G.adi 0 0
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f []) (Right Nothing)
     equal (f (take 4 tdkt)) $ Right $ Just
@@ -259,19 +257,19 @@ test_verifyAlignment = do
         , "should end on sam, actually ends on 1:1+1/2, or sam - 6+1/2"
         )
     equal (f (take (8*4) tdkt)) (Right Nothing)
-    equal (f (Dsl.speed (-2) $ take 8 tdkt)) (Right Nothing)
+    equal (f (G.speed (-2) $ take 8 tdkt)) (Right Nothing)
     -- Ok to end on sam, even with trailing rests.
-    equal (f (Dsl.speed (-2) $ take 9 tdkt <> __ <> __)) (Right Nothing)
+    equal (f (G.speed (-2) $ take 9 tdkt <> __ <> __)) (Right Nothing)
     -- But I don't drop rests because sometimes they make it line up.
-    equal (f (Dsl.speed (-2) $ take 7 tdkt <> __)) (Right Nothing)
+    equal (f (G.speed (-2) $ take 7 tdkt <> __)) (Right Nothing)
 
-    equal (f (Dsl.speed (-2) $ take 4 tdkt <> Dsl.akshara 4 <> take 4 tdkt))
+    equal (f (G.speed (-2) $ take 4 tdkt <> G.akshara 4 <> take 4 tdkt))
         (Right Nothing)
-    equal (f (take 3 tdkt <> Dsl.akshara 4 <> take 5 tdkt)) $ Right
+    equal (f (take 3 tdkt <> G.akshara 4 <> take 5 tdkt)) $ Right
         (Just (3, "expected akshara 4, but at 1:3/4"))
 
 test_verifyAlignment_eddupu = do
-    let f = verifyAlignment tdktSmap Tala.adi_tala
+    let f = verifyAlignment tdktSmap G.adi
         tdkt = cycle $ ta <> di <> ki <> ta
     equal (f 0 1 (take 8 tdkt)) $ Right $ Just
         (8, "should end on sam+1, actually ends on 1:2, or sam - 6")
@@ -284,10 +282,10 @@ test_verifyAlignment_eddupu = do
     equal (f 1 1 (take (8*4) tdkt)) $ Right Nothing
 
 test_verifyAlignmentNadaiChange = do
-    let f = verifyAlignment tdktSmap Tala.adi_tala 0 0
+    let f = verifyAlignment tdktSmap G.adi 0 0
         tdkt = ta <> di <> ki <> ta
     -- Change nadai in the middle of an akshara.
-    equal (f (take 2 tdkt <> Dsl.nadai 6 (take 3 tdkt))) $ Right $ Just
+    equal (f (take 2 tdkt <> G.nadai 6 (take 3 tdkt))) $ Right $ Just
         (5, "should end on sam, actually ends on 1:1, or sam - 7")
 
     -- More complicated example:
@@ -300,11 +298,10 @@ test_verifyAlignmentNadaiChange = do
     -- 5 -_ ki th Tm ta __
     -- 6 di __ ki th tm ta
     -- 7 __ di __ ki th tm
-    let sequence p7 = Dsl.nadai 8 (__ <> Dsl.repeat 5 p7)
-            <> Dsl.nadai 6 (Dsl.tri p7)
+    let sequence p7 = G.nadai 8 (__ <> G.repeat 5 p7) <> G.nadai 6 (G.tri p7)
     equal (f (sequence (ta <> __ <> di <> __ <> ki <> tha <> thom)))
         (Right Nothing)
-    equal (f (sequence Dsl.p7)) (Right Nothing)
+    equal (f (sequence G.p7)) (Right Nothing)
 
 tdktSmap :: Realize.StrokeMap M.Stroke
 tdktSmap = makeMridangam
@@ -340,9 +337,8 @@ makeSolluMap ::
 makeSolluMap =
     fmap fst . Realize.solluMap . solkattuToRealize . map (second mconcat)
 
-makeMridangam :: SolkattuGlobal.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
-makeMridangam = expect_right . Korvai.smapMridangam
-    . SolkattuGlobal.makeMridangam0
+makeMridangam :: G.StrokeMap M.Stroke -> Realize.StrokeMap M.Stroke
+makeMridangam = expect_right . Korvai.smapMridangam . G.makeMridangam0
 
 -- TODO better name
 realizeN :: Solkattu.Notation stroke => Realize.SolluMap stroke

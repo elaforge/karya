@@ -4,12 +4,12 @@
 
 {-# LANGUAGE TypeSynonymInstances #-}
 module Solkattu.S_test where
-import Util.Test
 import qualified Solkattu.S as S
 import Solkattu.S (Note(..), Flat(..), defaultTempo)
 import qualified Solkattu.Tala as Tala
 
 import Global
+import Util.Test
 
 
 test_flattenWith = do

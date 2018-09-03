@@ -8,7 +8,6 @@ import qualified Data.Text as Text
 
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
@@ -61,7 +60,7 @@ test_realizeTechnique = do
     -- let strokes2 = [(ta_din, mconcat [k, t, k, k, t, o])]
     --         where Mridangam.Strokes {..} = Mridangam.notes
     --     ta_din = mconcat [ta, din, ta, G.su (ta <> ka), din]
-    -- equal (f strokes2 $ mconcat $ Notation.expand 3 1 ta_din) $
+    -- equal (f strokes2 $ mconcat $ G.expand 3 1 ta_din) $
     --     Right $ "k k t o\ \ k k k t o\ \ k t k k t o"
 
 test_korvaiInstruments = do

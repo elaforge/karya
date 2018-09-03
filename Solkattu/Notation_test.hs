@@ -8,14 +8,13 @@ module Solkattu.Notation_test where
 import qualified Data.Tuple as Tuple
 
 import Util.Test
-import Solkattu.Dsl (su, sd, __)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import Solkattu.Notation
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
-import Solkattu.SolkattuGlobal (di, ta, ka, ki, taka, din, gin, na)
+import Solkattu.SolkattuGlobal (su, sd, __, di, ta, ka, ki, taka, din, gin, na)
 import qualified Solkattu.Tala as Tala
 
 import Global
