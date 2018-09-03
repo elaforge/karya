@@ -29,14 +29,18 @@ main = do
         (\_ -> Right . generate)
 
 generate :: Map FilePath ([Test], HasMeta) -> ([Text], Text)
-generate extracted = (,) warnings $
+generate fnameTests = (,) warnings $
     testTemplate
         (Text.unlines $ map ExtractHs.makeImport (Map.keys fnameTests))
         (Text.intercalate "\n    , " $ makeTests fnameTests)
     where
-    (empty, fnameTests) = Map.partition (null . fst) extracted
-    warnings = map (("Warning: no (test|profile)_* defs in " <>) . txt)
-        (Map.keys empty)
+    noTests = map fst $ filter (null . fst . snd) $ Map.toList fnameTests
+    -- I tend to have empty test modules with hand tests.  I used to filter out
+    -- the empty modules, but at least this way they get type-checked.
+    --
+    -- Most likely ghc will already warn with -Wunused-imports but let's warn
+    -- here too.
+    warnings = map (("Warning: no (test|profile)_* defs in " <>) . txt) noTests
 
 testTemplate :: Text -> Text -> Text
 testTemplate imports allTests =
