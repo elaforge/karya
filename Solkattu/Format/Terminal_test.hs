@@ -10,17 +10,15 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Regex as Regex
 import qualified Util.Styled as Styled
 
-import qualified Solkattu.Dsl as Dsl
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as M
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Sollu(..))
-import Solkattu.SolkattuGlobal (ta, thom)
+import qualified Solkattu.SolkattuGlobal as G
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -45,7 +43,7 @@ test_format = do
 
 test_format_patterns = do
     let realize pmap seq = realizeP (Just pmap) defaultSolluMap seq
-    let p = expect_right $ realize (M.families567 !! 1) Dsl.p5
+    let p = expect_right $ realize (M.families567 !! 1) G.p5
     equal (eFormat $ formatAbstraction mempty 80 Tala.adi_tala p)
         "k _ t _ k _ k t o _"
     equal (eFormat $ formatAbstraction mempty 15 Tala.adi_tala p) "k t k kto"
@@ -53,19 +51,19 @@ test_format_patterns = do
 test_format_space = do
     let run = fmap (eFormat . format 80 Tala.adi_tala . fst)
             . kRealize Tala.adi_tala
-    equal (run (Notation.__M 4)) $ Right "‗|  ‗"
-    equal (run (Notation.restD 1)) $ Right "‗|  ‗"
+    equal (run (G.__M 4)) $ Right "‗|  ‗"
+    equal (run (G.restD 1)) $ Right "‗|  ‗"
 
 test_format_sarva = do
     let run abstract =
             fmap (eFormat . formatAbstraction abstract 80 Tala.adi_tala . fst)
             . kRealize Tala.adi_tala
-    -- equal (run mempty (Notation.sarvaM ta 5)) (Right "k k k k k")
-    -- equal (run (Format.abstract Format.Sarva) (Notation.sarvaM ta 5))
+    -- equal (run mempty (G.sarvaM G.ta 5)) (Right "k k k k k")
+    -- equal (run (Format.abstract Format.Sarva) (G.sarvaM G.ta 5))
     --     (Right "==========")
-    -- equal (run mempty (Notation.sarvaM_ 3)) (Right "======")
+    -- equal (run mempty (G.sarvaM_ 3)) (Right "======")
 
-    let sarva = Notation.sarvaM_
+    let sarva = G.sarvaM_
         abstract = Format.abstract [Solkattu.GSarvaT]
     -- [s-1]
     -- [[s0, s0]]
@@ -86,7 +84,7 @@ tala4 = Tala.Tala "tala4" [Tala.O, Tala.O] 0
 test_format_ruler = do
     let run = fmap (first (capitalizeEmphasis . format 80 tala4))
             . kRealize tala4
-    let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
+    let tas nadai n = G.nadai nadai (G.repeat n G.ta)
     equalT1 (run (tas 2 8)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k"
@@ -112,7 +110,7 @@ test_format_ruler = do
         , ""
         )
     -- A final stroke won't cause the ruler to reappear.
-    equalT1 (run (tas 2 16 <> ta)) $ Right
+    equalT1 (run (tas 2 16 <> G.ta)) $ Right
         ( "X:2 O   X   O   |\n\
           \K k K k K k K k\n\
           \K k K k K k K k K"
@@ -126,31 +124,31 @@ test_format_ruler = do
         \K k k k k k k k"
 
     -- Rests stripped from final stroke.
-    let ta_ = ta <> Dsl.__4
-    equalT (fst <$> run (Dsl.repeat 5 ta_)) $ Right
+    let ta_ = G.ta <> G.__4
+    equalT (fst <$> run (G.repeat 5 ta_)) $ Right
         "X:4     O       X       O       |\n\
         \K _ ‗   K _ ‗   K _ ‗   K _ ‗   K"
 
 test_spellRests = do
     let run width = fmap (eFormat . format width tala4 . fst)
             . kRealize tala4
-    equalT (run 80 (sd (Dsl.__ <> ta))) $ Right "‗|  k _"
-    equalT (run 80 (sd (ta <> Dsl.__ <> ta))) $ Right "k _ ‗   k _"
-    equalT (run 10 (sd (ta <> Dsl.__ <> ta))) $ Right "k _ k"
-    equalT (run 80 (ta <> Dsl.__4 <> ta)) $ Right "k _ ‗   k"
+    equalT (run 80 (sd (G.__ <> G.ta))) $ Right "‗|  k _"
+    equalT (run 80 (sd (G.ta <> G.__ <> G.ta))) $ Right "k _ ‗   k _"
+    equalT (run 10 (sd (G.ta <> G.__ <> G.ta))) $ Right "k _ k"
+    equalT (run 80 (G.ta <> G.__4 <> G.ta)) $ Right "k _ ‗   k"
 
 test_inferRuler = do
     let f = Format.inferRuler tala4 2
             . map fst . S.flattenedNotes . Format.normalizeSpeed tala4 . fst
             . expect_right
             . kRealize tala4
-    let tas nadai n = Dsl.nadai nadai (Dsl.repeat n ta)
+    let tas nadai n = G.nadai nadai (G.repeat n G.ta)
     equal (f (tas 2 4)) [("X:2", 2), ("O", 2), ("|", 0)]
 
 test_format_ruler_rulerEach = do
     let run = fmap (first (capitalizeEmphasis . format 16 Tala.adi_tala))
             . kRealize tala4
-    let tas n = Dsl.repeat n ta
+    let tas n = G.repeat n G.ta
     equalT1 (run (tas 80)) $ Right
         ( "0:4 1   2   3   |\n\
           \KkkkKkkkKkkkKkkk\n\
@@ -175,7 +173,7 @@ test_formatLines = do
                 . formatLines Format.defaultAbstraction strokeWidth width tala
                 . fst)
             . kRealize tala
-    let tas n = Dsl.repeat n ta
+    let tas n = G.repeat n G.ta
 
     equal (f 2 16 tala4 (tas 8)) $ Right [["k k k k k k k k"]]
     -- Even aksharas break in the middle.
@@ -203,33 +201,40 @@ test_formatLines = do
     equal (f 2 1 Tala.rupaka_fast (tas (4 * 3))) $
         Right [["k k k k", "k k k k", "k k k k"]]
 
-    equal (f 1 80 Tala.rupaka_fast (Dsl.p5)) $ Right [["5p---"]]
-    equal (f 2 80 Tala.rupaka_fast (Dsl.p5)) $ Right [["5p--------"]]
+    equal (f 1 80 Tala.rupaka_fast (G.p5)) $ Right [["5p---"]]
+    equal (f 2 80 Tala.rupaka_fast (G.p5)) $ Right [["5p--------"]]
 
-test_formatLines_abstractGroups = do
+test_abstract = do
     let f = fmap (mconcat . extractLines
-                . formatLines (Format.allAbstract) 2 80 tala4 . fst)
+                . formatLines Format.allAbstract 2 80 tala4 . fst)
             . kRealize tala4
-    let tas n = Dsl.repeat n ta
+    let tas n = G.repeat n G.ta
     equal (f (tas 4)) (Right ["k k k k"])
-    equal (f (tas 2 <> Dsl.group (tas 2))) (Right ["k k 2---"])
-    equal (f (su $ tas 2 <> Dsl.group (tas 2))) (Right ["k k 1---"])
-    equal (f (su $ tas 2 <> Dsl.group (tas 3))) (Right ["k k 1½----"])
-    equal (f (Dsl.nadai 3 $ tas 2 <> Dsl.group (tas 3)))
+    equal (f (tas 2 <> G.group (tas 2))) (Right ["k k 2---"])
+    equal (f (su $ tas 2 <> G.group (tas 2))) (Right ["k k 1---"])
+    equal (f (su $ tas 2 <> G.group (tas 3))) (Right ["k k 1½----"])
+    equal (f (G.nadai 3 $ tas 2 <> G.group (tas 3)))
         (Right ["k k 3-----"])
-    equal (f (su $ Dsl.nadai 3 $ tas 2 <> Dsl.group (tas 3)))
+    equal (f (su $ G.nadai 3 $ tas 2 <> G.group (tas 3)))
         (Right ["k k 1½----"])
-    equal (f (Dsl.group (tas 2) <> Dsl.group (tas 2)))
+    equal (f (G.group (tas 2) <> G.group (tas 2)))
         (Right ["2---2---"])
-    equal (f (su $ tas 2 <> Dsl.named Solkattu.GTheme "q" (tas 2)))
+    equal (f (su $ tas 2 <> G.named Solkattu.GTheme "q" (tas 2)))
         (Right ["k k q---"])
-    equal (f (Notation.reduce3 1 mempty (tas 4))) (Right ["4-------3-----2---"])
+    equal (f (G.reduce3 1 mempty (tas 4))) (Right ["4-------3-----2---"])
+    -- patterns
+    equal (f (G.pattern (tas 4))) (Right ["4p------"])
+    equal (f (G.pattern (su $ tas 4))) (Right ["2p------"])
+    equal (f G.p5) (Right ["5p--------"])
+    -- Unlike GExplicitPattern 'G.pattern', these have a logical matra
+    -- duration, so they use that, not fmatras.
+    equal (f (su G.p5)) (Right ["5p--------"])
 
 -- Just print nested groups to check visually.
 _nested_groups = do
     let f = fmap (dropRulers . format 80 tala4 . fst) . kRealize tala4
-    let tas n = Dsl.repeat n ta
-        group = Dsl.group
+    let tas n = G.repeat n G.ta
+        group = G.group
     prettyp (f (tas 4))
     prettyp (f (group (tas 4)))
     -- adjacent groups
@@ -243,7 +248,7 @@ extractLines = map $ map $ Text.strip . mconcat . map (Terminal._text . snd)
 test_formatBreakLines = do
     let run width = fmap (stripAnsi . format width tala4 . fst)
             . kRealize tala4
-    let tas n = Dsl.repeat n ta
+    let tas n = G.repeat n G.ta
     equal (run 80 (tas 16)) $ Right
         "X:4     O       X       O       |\n\
         \k k k k k k k k k k k k k k k k"
@@ -256,8 +261,7 @@ test_formatNadaiChange = do
     let f tala =
             fmap (first (stripAnsi . formatAbstraction mempty 50 tala))
             . kRealize tala
-    let sequence = Dsl.su (Dsl.__ <> Dsl.repeat 5 Dsl.p7)
-            <> Dsl.nadai 6 (Dsl.tri Dsl.p7)
+    let sequence = G.su (G.__ <> G.repeat 5 G.p7) <> G.nadai 6 (G.tri G.p7)
     let (out, warn) = expect_right $ f Tala.adi_tala sequence
     equal_fmt Text.unlines (Text.lines out)
         [ "0:4     1       2       3       |"
@@ -274,7 +278,7 @@ test_formatSpeed = do
     let f width = fmap (capitalizeEmphasis . dropRulers
                 . format width Tala.rupaka_fast)
             . realize defaultSolluMap
-        thoms n = mconcat (replicate n thom)
+        thoms n = mconcat (replicate n G.thom)
     equal (f 80 []) (Right "")
     equal (f 80 (thoms 8)) (Right "O o o o O o o o")
     equal (f 80 [nadai 3 $ thoms 6]) (Right "O o o O o o")
@@ -284,20 +288,20 @@ test_formatSpeed = do
     equal (f 80 $ thoms 2 <> su (su (thoms 8)) <> thoms 1)
         (Right "O _ ‗   o _ ‗   o o o o o o o o O _ ‗")
     equal (f 80 $ sd (thoms 2) <> thoms 4) (Right "O _ o _ O o o o")
-    equal (f 80 (Dsl.p5 <> Dsl.p5)) (Right "5P------==5p----==--")
+    equal (f 80 (G.p5 <> G.p5)) (Right "5P------==5p----==--")
     -- Use narrow spacing when there's isn't space, and p5 overlaps the next
     -- '-'.
-    equal (f 10 (Dsl.p5 <> Dsl.p5)) (Right "5P--=5p-=-")
+    equal (f 10 (G.p5 <> G.p5)) (Right "5P--=5p-=-")
 
 
 -- * util
 
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
-    -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
+    -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
 format = formatAbstraction Format.defaultAbstraction
 
 formatAbstraction :: Solkattu.Notation stroke => Format.Abstraction -> Int
-    -> Tala.Tala -> [S.Flat Format.Group (Realize.Note stroke)] -> Text
+    -> Tala.Tala -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
 formatAbstraction abstraction width tala =
     Text.intercalate "\n" . map Text.strip . Text.lines
     . Styled.toText . snd
@@ -368,13 +372,13 @@ formatLines = Terminal.formatLines
 
 defaultSolluMap :: Realize.SolluMap M.Stroke
 defaultSolluMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize
-    [ (thom, o)
+    [ (G.thom, o)
     ]
     where M.Strokes {..} = M.notes
 
 defaultStrokeMap :: Korvai.StrokeMaps
 defaultStrokeMap = mempty
-    { Korvai.smapMridangam = Realize.strokeMap M.defaultPatterns [(ta, k)] }
+    { Korvai.smapMridangam = Realize.strokeMap M.defaultPatterns [(G.ta, k)] }
     where M.Strokes {..} = M.notes
 
 solkattuToRealize :: [(a, [(S.Note g (Solkattu.Note (Realize.Stroke stroke)))])]

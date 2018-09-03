@@ -195,7 +195,7 @@ data Instrument stroke = Instrument {
     , instToScore :: ToScore.ToScore stroke
     }
 
-defaultInstrument :: Expr.ToExpr (Realize.Stroke stroke) => Instrument stroke
+defaultInstrument :: (Expr.ToExpr (Realize.Stroke stroke)) => Instrument stroke
 defaultInstrument = Instrument
     { instName = ""
     , instFromSollu = Realize.realizeSollu

@@ -26,14 +26,14 @@ module Solkattu.S (
     , Flat(..)
     , filterFlat, mapGroupFlat
     , notes, flatten, flattenWith, flattenedNotes
-    , tempoToState, withDurations, flatDuration
-    , tempoNotes, maxSpeed
+    , tempoToState, withDurations
+    , tempoNotes, flatDuration, maxSpeed
     , Stroke(..), normalizeSpeed, flattenSpeed
     -- * State
     , State(..), statePosition, stateMatraPosition, showPosition
     -- * functions
     , durationOf, noteDuration, noteFMatra, fmatraDuration, durationFMatra
-    , normalizeFMatra
+    , matraFMatra
     , matraDuration
 #ifdef TESTING
     , module Solkattu.S
@@ -73,7 +73,20 @@ instance (Pretty a, Pretty g) => Pretty (Note g a) where
 newtype Duration = Duration Ratio.Rational
     deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty)
 
--- | This is a fractional 'Matra'.
+-- | A matra is an akshara divided by the nadai.  It corresponds to a single
+-- sollu in first speed, which means the actual duration is dependent on Nadai
+-- and Speed.
+--
+-- Matra being integral is important, since together with TempoChange, it
+-- can encode the invariant that durations are always a power of two rational,
+-- once you multiply out the nadai.
+type Matra = Int
+
+-- | This is a fractional 'Matra'.  The reason to need a fraction matra is if
+-- there are speed changes below, so often this is used to mean toplevel matra,
+-- which is to say duration / nadai, in which case it's relative to nadai, not
+-- speed.  But not always!  Sometimes it's used to name a number of Matras
+-- where it's assumed they have speed changes to accommodate the fraction.
 newtype FMatra = FMatra Ratio.Rational
     deriving (Show, Ord, Eq, Num, Real, Fractional, RealFrac, Pretty)
 
@@ -87,11 +100,6 @@ instance Pretty TempoChange where
         "s" <> (if s > 0 then "+" else "-") <> showt (abs s)
     pretty (Nadai s) = "n" <> showt s
     pretty (Stride s) = "t" <> showt s
-
--- | A matra is an akshara divided by the nadai.  It corresponds to a single
--- sollu in first speed, which means the actual duration is dependent on Nadai
--- and Speed.
-type Matra = Int
 
 -- | 0 means nadai matras per akshara.  Positive numbers double that and
 -- negative ones halve it.
@@ -193,6 +201,8 @@ filterNotes f = mapMaybe $ \case
 
     It turns out it's still annoying to modify trees though, evidence in
     'Solkattu.Solkattu.cancelKarvai'.
+
+    Another way to look at this, is that each FNote is one Matra.
 -}
 data Flat g a = FGroup !Tempo !g ![Flat g a] | FNote !Tempo !a
     deriving (Eq, Show, Functor)
@@ -243,6 +253,14 @@ tempoNotes = concatMap $ \n -> case n of
     FGroup _ _ children  -> tempoNotes children
     FNote tempo note -> [(tempo, note)]
 
+-- | This should be equivalent to but more efficient than
+-- @sum . map (uncurry noteDuration) . tempoNotes@
+flatDuration :: HasMatras a => [Flat g a] -> Duration
+flatDuration = List.foldl' dur 0
+    where
+    dur accum (FGroup _ _ children) = List.foldl' dur accum children
+    dur accum (FNote tempo note) = accum + noteDuration tempo note
+
 maxSpeed :: [Flat g a] -> Speed
 maxSpeed = maximum . (_speed defaultTempo :) . map _speed . tempoOf
     where
@@ -268,12 +286,6 @@ withDurations :: HasMatras a => [Flat g a] -> [Flat g (Duration, a)]
 withDurations = map $ \n -> case n of
     FGroup tempo g children -> FGroup tempo g (withDurations children)
     FNote tempo note -> FNote tempo (noteDuration tempo note, note)
-
-flatDuration :: HasMatras a => [Flat g a] -> Duration
-flatDuration = List.foldl' dur 0
-    where
-    dur accum (FGroup _ _ children) = List.foldl' dur accum children
-    dur accum (FNote tempo note) = accum + noteDuration tempo note
 
 data Stroke a = Attack a | Sustain a | Rest
     deriving (Show, Eq)
@@ -450,10 +462,16 @@ fmatraDuration :: Tempo -> FMatra -> Duration
 fmatraDuration tempo (FMatra matra) = Duration matra * matraDuration tempo
 
 durationFMatra :: Tempo -> Duration -> FMatra
-durationFMatra tempo dur = realToFrac $ dur / matraDuration tempo
+durationFMatra tempo dur = realToFrac $ dur * fromIntegral (_nadai tempo)
 
-normalizeFMatra :: Tempo -> FMatra -> FMatra
-normalizeFMatra tempo = (/ realToFrac (speedFactor (_speed tempo)))
+-- | Convert a tempo-relative Matra to a toplevel FMatra, which should only
+-- be nadai-relative.
+matraFMatra :: Tempo -> Matra -> FMatra
+matraFMatra tempo matra =
+    fromIntegral matra * (1 / realToFrac (speedFactor (_speed tempo)))
+
+-- normalizeFMatra :: Tempo -> FMatra -> FMatra
+-- normalizeFMatra tempo = (/ realToFrac (speedFactor (_speed tempo)))
 
 -- | Duration of one matra in the given tempo.  This doesn't include '_stride',
 -- because stride adds matras to the note duration, it doesn't change the

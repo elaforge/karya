@@ -269,15 +269,17 @@ typeColors :: Solkattu.GroupType -> (Styled.RgbColor, Styled.RgbColor)
 typeColors = \case
     Solkattu.GTheme -> (rgb 0.5 0.8 0.5, gray 0.8)
     Solkattu.GFiller -> both $ gray 0.9
-    Solkattu.GPattern -> both $ rgb 0.7 0.7 0.85
+    Solkattu.GPattern -> patternc
+    Solkattu.GExplicitPattern -> patternc
     Solkattu.GSarvaT -> both $ rgb 0.7 0.85 0.7
     where
+    patternc = (rgb 0.65 0.65 0.8, rgb 0.8 0.8 0.95)
     both n = (n, n)
     rgb = Styled.rgbColor
     gray n = rgb n n n
 
 formatHtml :: Solkattu.Notation stroke => Config -> Tala.Tala
-    -> [S.Flat Format.Group (Realize.Note stroke)] -> Doc.Html
+    -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Doc.Html
 formatHtml config tala notes =
     formatTable (_font config) tala (map Doc.html ruler) avartanams
     where
@@ -315,7 +317,7 @@ makeSymbols = go
         where note = normalizeSarva note_
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
-        modify = case Format._type group of
+        modify = case Solkattu._type group of
             -- Highlight only when non-abstract.
             Solkattu.GSarvaT -> case children of
                 S.FNote _ (_, S.Attack (Realize.Abstract {})) : _ -> id
@@ -325,18 +327,17 @@ makeSymbols = go
         . Seq.map_head_tail (second (set Start)) (second (set In))
         where set pos sym = sym { _style = Just (groupStyle gtype pos) }
     noteHtml state = \case
-        S.Sustain (Realize.Abstract (Realize.AbstractedGroup _)) ->
-            "<hr noshade>"
-        S.Sustain (Realize.Abstract Realize.AbstractedSarva) ->
+        S.Sustain (Realize.Abstract meta) -> case Solkattu._type meta of
             -- TODO this is actually pretty ugly
-            "<hr style=\"border: 4px dotted\">"
+            Solkattu.GSarvaT -> "<hr style=\"border: 4px dotted\">"
+            _ -> "<hr noshade>"
         S.Sustain a -> notation state a
         S.Attack a -> notation state a
         S.Rest -> Doc.html "_"
     -- Because sarva is <hr> all the way through, don't separate the attack
     -- from sustain.
-    normalizeSarva (S.Attack n@(Realize.Abstract Realize.AbstractedSarva)) =
-        S.Sustain n
+    normalizeSarva (S.Attack n@(Realize.Abstract meta))
+        | Solkattu._type meta == Solkattu.GSarvaT = S.Sustain n
     normalizeSarva n = n
     notation state = bold . Solkattu.notationHtml
         where bold = if Format.onAkshara state then Doc.tag "b" else id
@@ -417,7 +418,7 @@ instrumentFont = Font
 
 renderSection :: Solkattu.Notation stroke => Config
     -> Tala.Tala -> Korvai.Section x
-    -> Either Error ([S.Flat Format.Group (Realize.Note stroke)], Error)
+    -> Either Error ([S.Flat Solkattu.Meta (Realize.Note stroke)], Error)
     -> Doc.Html
 renderSection _ _ _ (Left err) = "<p> ERROR: " <> Doc.html err
 renderSection config tala section (Right (notes, warn)) = mconcat

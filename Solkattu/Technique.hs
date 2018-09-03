@@ -29,11 +29,14 @@ postprocess technique = map process
     where
     -- TODO I just pick the innermost group, but maybe I should try for each
     -- nested group.
-    process (S.FGroup tempo g children) = case children of
-        S.FNote tempo note : notes
-            | Just newNote <- group (Realize._dropped g) note notes ->
-                S.FGroup tempo g (S.FNote tempo newNote : notes)
-        _ -> S.FGroup tempo g (map process children)
+    process (S.FGroup tempo g@(Realize.GReduction r) children) =
+        case children of
+            S.FNote tempo note : notes
+                | Just newNote <- group (Realize._dropped r) note notes ->
+                    S.FGroup tempo g (S.FNote tempo newNote : notes)
+            _ -> S.FGroup tempo g (map process children)
+    process (S.FGroup tempo meta children) =
+        S.FGroup tempo meta (map process children)
     process note@(S.FNote {}) = note
     group prevs note notes = do
         stroke <- Realize.noteOf note

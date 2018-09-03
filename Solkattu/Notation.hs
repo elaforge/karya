@@ -61,22 +61,24 @@ __9 = __n 9
 __n :: S.Matra -> SequenceT sollu
 __n n = repeat (n-1) __
 
-__D :: Duration -> SequenceT sollu
+__D :: CallStack.Stack => Duration -> SequenceT sollu
 __D dur = __M (dToM2 (S._nadai S.defaultTempo) dur)
 
 __M :: S.Matra -> SequenceT sollu
 __M matras = repeat matras __
 
-sarvaM :: SequenceT sollu -> S.FMatra -> SequenceT sollu
-sarvaM sollus matras = [S.Group (Solkattu.GSarva matras) sollus]
+sarvaM :: CallStack.Stack => SequenceT sollu -> S.Matra -> SequenceT sollu
+sarvaM sollus matras = [S.Group (Solkattu.GMeta meta) sollus]
+    where
+    meta = (Solkattu.meta Solkattu.GSarvaT) { Solkattu._matras = Just matras }
 
-sarvaD :: SequenceT sollu -> Duration -> SequenceT sollu
-sarvaD sollus dur = sarvaM sollus (dToM dur)
+sarvaD :: CallStack.Stack => SequenceT sollu -> Duration -> SequenceT sollu
+sarvaD sollus dur = sarvaM sollus (dToM2 (S._nadai S.defaultTempo) dur)
 
-sarvaM_ :: FMatra -> SequenceT sollu
+sarvaM_ :: CallStack.Stack => S.Matra -> SequenceT sollu
 sarvaM_ = sarvaM mempty
 
-sarvaD_ :: Duration -> SequenceT sollu
+sarvaD_ :: CallStack.Stack => Duration -> SequenceT sollu
 sarvaD_ = sarvaD mempty
 
 -- * by FMatra
@@ -99,8 +101,8 @@ takeM matras = fst . splitM matras
 splitM :: (CallStack.Stack, Pretty sollu) => FMatra -> SequenceT sollu
     -> (SequenceT sollu, SequenceT sollu)
 splitM matras seq =
-    ( groupOf Solkattu.GTheme matras Solkattu.After seq
-    , groupOf Solkattu.GTheme matras Solkattu.Before seq
+    ( reduction matras Solkattu.After seq
+    , reduction matras Solkattu.Before seq
     )
 
 -- | Split the sequence at the given FMatra.  Unlike 'splitM', this directly
@@ -126,15 +128,37 @@ splitM_either matras =
             S.TempoChange change subs ->
                 group (S.TempoChange change) (S.changeTempo change tempo)
                     matras subs ns
-            S.Group (Solkattu.GNormal g) children -> do
+            S.Group (Solkattu.GReduction r) children -> do
                 -- The group is destroyed if it gets split.
-                (pre, post) <- splitM_either (Solkattu._split g) children
-                case Solkattu._side g of
+                (pre, post) <- splitM_either (Solkattu._split r) children
+                case Solkattu._side r of
                     Solkattu.Before -> go tempo matras (post ++ ns)
                     Solkattu.After -> go tempo matras (pre ++ ns)
-            S.Group (Solkattu.GSarva sarvaMatras) children -> return
-                (0, ([make matras], make (sarvaMatras - matras) : ns))
-                where make m = S.Group (Solkattu.GSarva m) children
+            S.Group (Solkattu.GMeta
+                        meta@(Solkattu.Meta (Just sMatras) _ Solkattu.GSarvaT))
+                    children
+                | Just imatras <- Num.asIntegral matras -> return
+                    (0, ([make imatras], make (sMatras - imatras) : ns))
+                | otherwise ->
+                    Left $ "can't split sarva of non-integral matras: "
+                        <> pretty matras
+                    where
+                    make m = S.Group
+                        (Solkattu.GMeta (meta { Solkattu._matras = Just m }))
+                        children
+
+            -- S.Group (Solkattu.GNormal g) children ->
+            --     case Solkattu._groupType (Solkattu._meta g) of
+            --         _ -> do
+            --             -- The group is destroyed if it gets split.
+            --             (pre, post) <- splitM_either (Solkattu._split g)
+            --                 children
+            --             case Solkattu._side g of
+            --                 Solkattu.Before -> go tempo matras (post ++ ns)
+            --                 Solkattu.After -> go tempo matras (pre ++ ns)
+            -- S.Group (Solkattu.GSarva sarvaMatras) children -> return
+            --     (0, ([make matras], make (sarvaMatras - matras) : ns))
+            --     where make m = S.Group (Solkattu.GSarva m) children
             S.Note (Solkattu.Space space) -> do
                 pre <- spaces tempo space matras
                 post <- spaces tempo space (noteMatras - matras)
@@ -394,28 +418,28 @@ stride n seq = [S.TempoChange (S.Stride n) seq]
 
 -- | Mark a theme group.
 group :: SequenceT sollu -> SequenceT sollu
-group = (:[]) . S.Group (Solkattu.GNormal (Solkattu.group Solkattu.GTheme))
+group = (:[]) . S.Group (Solkattu.GMeta (Solkattu.meta Solkattu.GTheme))
 
 -- | Mark a pattern group.  These are like patterns, except with a specific
 -- realization.
---
--- TODO mark it specially, so patterns can collapse it, or highlight
--- differently, or have a #p type name
 pattern :: SequenceT sollu -> SequenceT sollu
-pattern = (:[]) . S.Group (Solkattu.GNormal (Solkattu.group Solkattu.GPattern))
+pattern = (:[])
+    . S.Group (Solkattu.GMeta (Solkattu.meta Solkattu.GExplicitPattern))
 
-groupOf :: Solkattu.GroupType -> FMatra -> Solkattu.Side -> SequenceT sollu
-    -> SequenceT sollu
-groupOf gtype split side = (:[]) . S.Group g
+reduction :: FMatra -> Solkattu.Side -> SequenceT sollu -> SequenceT sollu
+reduction split side = (:[]) . S.Group group
     where
-    g = Solkattu.GNormal $ (Solkattu.group gtype)
-        { Solkattu._split = split, Solkattu._side = side }
+    group = Solkattu.GReduction $ Solkattu.Reduction
+        { _split = split
+        , _side = side
+        }
 
 -- | Make a named group.
 named :: Solkattu.GroupType -> Text -> SequenceT sollu -> SequenceT sollu
-named gtype name = (:[]) . S.Group g
-    where
-    g = Solkattu.GNormal $ (Solkattu.group gtype) { Solkattu._name = Just name }
+named gtype name = (:[]) . S.Group (Solkattu.GMeta group)
+    where group = (Solkattu.meta gtype) { Solkattu._name = Just name }
+
+-- groupType gtype = (:[]) . S.Group (Solkattu.meta gtype)
 
 -- ** tags
 

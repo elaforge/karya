@@ -8,11 +8,11 @@ module Solkattu.Format.Format (
     , defaultAbstraction, allAbstract
     , Highlight(..)
     -- * group
-    , Flat, Group(..)
+    , Flat
     , convertGroups, mapGroups
     -- * normalize speed
     , NormalizedFlat
-    , makeGroupsAbstract, makeGroupsAbstractRealize, normalizeSpeed
+    , makeGroupsAbstract, makeGroupsAbstractScore, normalizeSpeed
     -- * tala
     , breakAvartanams, formatFinalAvartanam
     , onSam, onAnga, onAkshara, angaSet
@@ -60,86 +60,72 @@ data Highlight = StartHighlight | Highlight | EndHighlight
 
 -- * group
 
-type Flat stroke = S.Flat Group (Realize.Note stroke)
-
--- | Format-level Group.  This has just the group data which is needed to
--- format.
-data Group = Group {
-    _name :: Maybe Text
-    , _type :: Solkattu.GroupType
-    } deriving (Eq, Show)
-
-instance Pretty Group where
-    pretty (Group name typ) = fromMaybe "" name <> "(" <> showt typ <> ")"
+type Flat stroke = S.Flat Solkattu.Meta (Realize.Note stroke)
 
 -- | Reduce 'Realize.Group's to local 'Group's.
 convertGroups :: [Either Korvai.Error ([Korvai.Flat stroke], Korvai.Error)]
     -> [Either Korvai.Error ([Flat stroke], Korvai.Error)]
 convertGroups = map (fmap (first mapGroups))
 
-mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Group a]
-mapGroups = S.mapGroupFlat $ \g -> Group
-    { _name = Realize._name g
-    , _type = Realize._type g
+mapGroups :: [S.Flat (Realize.Group stroke) a] -> [S.Flat Solkattu.Meta a]
+mapGroups = S.mapGroupFlat groupToMeta
+
+groupToMeta :: Realize.Group stroke -> Solkattu.Meta
+groupToMeta (Realize.GReduction _) = Solkattu.Meta
+    { _matras = Nothing -- TODO pick a real duration?
+    , _name = Nothing
+    , _type = Solkattu.GTheme
     }
+groupToMeta (Realize.GMeta meta) = meta
 
 -- * normalize speed
 
 -- | 'Flat' after 'normalizeSpeed'.
 type NormalizedFlat stroke =
-    S.Flat Group (S.State, S.Stroke (Realize.Note stroke))
+    S.Flat Solkattu.Meta (S.State, S.Stroke (Realize.Note stroke))
 
 makeGroupsAbstract :: Abstraction
     -> [NormalizedFlat stroke] -> [NormalizedFlat stroke]
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | isAbstract abstraction (_type group) =
-            -- Sarva has no start symbol.
-            if _type group == Solkattu.GSarvaT
-                then map (replace abstractSarva) flattened
-                else Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
-                    flattened
+        | isAbstract abstraction gtype =
+            Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
+                tempoNotes
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where
-        flattened  = S.tempoNotes children
-        abstract c =
-            replace (c (Realize.Abstract (Realize.AbstractedGroup name)))
+        gtype = Solkattu._type group
+        tempoNotes  = S.tempoNotes children
+        abstract c = replace $ c $ Realize.Abstract $
+            -- Some groups are named by their duration.  Since the next stop is
+            -- the HasMatras instance, I put them name on here, when I still
+            -- have access to the children duration.
+            if Solkattu._name group == Nothing
+                    && gtype `elem` [Solkattu.GTheme, Solkattu.GExplicitPattern]
+                then group
+                    { Solkattu._name = Just $
+                        Pretty.fraction True fmatras <> Realize.typeName gtype
+                    }
+                else group
+        fmatras = S.durationFMatra tempo $
+            sum $ map (S.matraDuration . fst) tempoNotes
         replace n (tempo, (state, _)) = S.FNote tempo (state, n)
-        fmatras = S.normalizeFMatra tempo (fromIntegral (length flattened))
-        name = groupName fmatras (_type group) (_name group)
     combine n = [n]
-    abstractSarva = S.Sustain (Realize.Abstract Realize.AbstractedSarva)
 
 -- | Like 'makeGroupsAbstract' except for non-normalized 'Realize.realize'
 -- output.  This is used by LSol, not Format, but is defined here since it's
 -- doing the same thing.
-makeGroupsAbstractRealize :: Abstraction
+makeGroupsAbstractScore :: Abstraction
     -> [S.Flat (Realize.Group a) (Realize.Note stroke)]
     -> [S.Flat (Realize.Group a) (Realize.Note stroke)]
-makeGroupsAbstractRealize abstraction = concatMap combine
+makeGroupsAbstractScore abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | isAbstract abstraction (Realize._type group) =
-            [S.FNote tempo (Realize.Abstract (Realize.AbstractedGroup name))]
+        | isAbstract abstraction (Solkattu._type meta) = (:[]) $
+            S.FNote tempo $ Realize.Abstract meta
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
-        where
-        name = groupName fmatras (Realize._type group) (Realize._name group)
-        fmatras = S.durationFMatra tempo $ S.flatDuration children
+        where meta = groupToMeta group
     combine n = [n]
-
-groupName :: S.FMatra -> Solkattu.GroupType -> Maybe Text -> Text
-groupName _ _ (Just name) = name
-groupName fmatras typ Nothing =
-    (if typ == Solkattu.GSarvaT then "" else Pretty.fraction True fmatras)
-    <> typePrefix typ
-
-typePrefix :: Solkattu.GroupType -> Text
-typePrefix = \case
-    Solkattu.GTheme -> "t"
-    Solkattu.GFiller -> "f"
-    Solkattu.GPattern -> "p"
-    Solkattu.GSarvaT -> "sarva"
 
 normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
 normalizeSpeed tala =

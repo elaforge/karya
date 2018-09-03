@@ -101,10 +101,10 @@ realize instrument realize_patterns korvai index akshara_dur at = do
         Part.index index korvai
     -- TODO I could probbaly abstract more than just patterns
     let abstraction = if realize_patterns
-            then Format.abstract [Solkattu.GPattern] else mempty
+            then mempty else Format.abstract [Solkattu.GPattern]
     -- snd is an alignment warning, which I can see well enough on the track
     -- already.
-    let strokes = Format.makeGroupsAbstractRealize abstraction $
+    let strokes = Format.makeGroupsAbstractScore abstraction $
             concatMap fst results
     return $
         to_note_track (Korvai.instToScore instrument) akshara_dur at strokes
@@ -115,7 +115,7 @@ to_note_track to_score stretch shift strokes =
     ModifyNotes.NoteTrack (mk_events notes) control_tracks
     where
     controls :: [(Text, [ToScore.Event])]
-    (notes, controls) = to_score $ S.flattenedNotes $ S.withDurations strokes
+    (notes, controls) = ToScore.fromStrokes to_score strokes
     pitches = fromMaybe [] $ lookup "*" controls
     pitch_track = if null pitches then Nothing
         else Just (ModifyNotes.Pitch Pitch.empty_scale, mk_events pitches)

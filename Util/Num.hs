@@ -51,16 +51,6 @@ zeroPad :: Show a => Int -> a -> Text
 zeroPad digits n = Text.replicate (digits - Text.length s) "0" <> s
     where s = Text.pack (show n)
 
--- * read
-
-readDigit :: Char -> Maybe Int
-readDigit c = case c of
-    '0' -> Just 0; '1' -> Just 1; '2' -> Just 2; '3' -> Just 3; '4' -> Just 4
-    '5' -> Just 5; '6' -> Just 6; '7' -> Just 7; '8' -> Just 8; '9' -> Just 9
-    _ -> Nothing
-
--- * show
-
 -- | Display a float with the given precision, dropping trailing and leading
 -- zeros.  Haskell requires a 0 before the decimal point, so this produces
 -- non-Haskell numbers.
@@ -107,6 +97,14 @@ showFloat0 precision =
         | maybe True (>0) precision =
             Text.dropWhileEnd (=='.') . Text.dropWhileEnd (=='0')
         | otherwise = id
+
+-- * read
+
+readDigit :: Char -> Maybe Int
+readDigit c = case c of
+    '0' -> Just 0; '1' -> Just 1; '2' -> Just 2; '3' -> Just 3; '4' -> Just 4
+    '5' -> Just 5; '6' -> Just 6; '7' -> Just 7; '8' -> Just 8; '9' -> Just 9
+    _ -> Nothing
 
 -- * transform
 
@@ -171,6 +169,12 @@ fDivMod a b = (floor (a / b), fmod a b)
 
 integral :: RealFrac a => a -> Bool
 integral = (==0) . snd . properFraction
+
+asIntegral :: (RealFrac frac, Integral int) => frac -> Maybe int
+asIntegral n
+    | f == 0 = Just i
+    | otherwise = Nothing
+    where (i, f) = properFraction n
 
 -- | realToFrac doesn't preserve the special float values and is inefficient.
 --

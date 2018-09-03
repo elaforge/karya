@@ -41,9 +41,7 @@ test_realize = do
     equal (f [ta, ta]) (Right "t t")
     equal (f [din, ga]) (Right "D _")
     left_like (f [din, din]) "sequence not found"
-    -- pretty of Abstract AbstractedSarva
-    equal (f [Notation.sarvaM_ 4]) (Right "sarva")
-
+    equal (f [Notation.sarvaM_ 4]) (Right "==4")
     equal (f [din, __, ga]) (Right "D _ _")
     equal (f [din, __, ga, ta, din]) (Right "D _ _ k D")
 
@@ -89,7 +87,7 @@ test_realizeGroups = do
 test_realizeGroupsOutput = do
     -- Ensure groups are still in the output, and dropped sollus replaced
     -- with strokes.
-    let f = extract . realize smap
+    let f = extract . realizeSolluMap smap
         smap = checkSolluMap [(taka, [k, t])]
             where M.Strokes {..} = M.notes
         taka = ta <> ka
@@ -350,13 +348,12 @@ makeMridangam = expect_right . Korvai.smapMridangam
 realizeN :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Note stroke]
-realizeN smap = fmap S.flattenedNotes . realize smap
+realizeN smap = fmap S.flattenedNotes . realizeSolluMap smap
 
--- TODO rename realizeSolluMap
-realize :: Solkattu.Notation stroke => Realize.SolluMap stroke
+realizeSolluMap :: Solkattu.Notation stroke => Realize.SolluMap stroke
     -> [S.Note Solkattu.Group (Note Sollu)]
     -> Either Text [Realize.Realized stroke]
-realize solluMap = realizeSmap smap
+realizeSolluMap solluMap = realizeSmap smap
     where
     smap = Realize.StrokeMap
         { smapSolluMap = solluMap

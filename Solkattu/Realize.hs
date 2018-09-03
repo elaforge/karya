@@ -48,11 +48,11 @@ data Note stroke =
     -- | A pattern that has been made abstract.  This is a group that has been
     -- abstracted away.  That means it can have a name, but also it doesn't
     -- have to have an integral matra duration.  Since Abstract comes from
-    -- Notes, the abstract duration is a series of 1-duration Abstracts, where
+    -- Notes, the abstract duration is a series of 1-matra Abstracts, where
     -- each Note used to be.
     --
     -- These are created at the Format level, not here.
-    | Abstract !Abstracted
+    | Abstract !Solkattu.Meta
     -- | This is 'Solkattu.Alignment'.  It shouldn't be here, but since I now
     -- drop groups in realize via 'stripGroups', I have to do
     -- 'verifyAlignment' on the output of 'realize', which means I need to
@@ -62,13 +62,6 @@ data Note stroke =
 
 instance DeepSeq.NFData (Note stroke) where
     rnf _ = ()
-
-data Abstracted = AbstractedGroup !Text | AbstractedSarva
-    deriving (Eq, Show)
-
-instance Pretty Abstracted where
-    pretty (AbstractedGroup name) = name
-    pretty AbstractedSarva = "sarva"
 
 data Stroke stroke = Stroke {
     _emphasis :: !Emphasis
@@ -135,7 +128,7 @@ instance S.HasMatras (Note stroke) where
     matrasOf n = case n of
         Note {} -> 1
         Space {} -> 1
-        Abstract {} -> 1
+        Abstract meta -> fromMaybe 1 $ Solkattu._matras meta
         Alignment {} -> 0
     hasSustain n = case n of
         Note {} -> False
@@ -148,17 +141,31 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
         Space Solkattu.Rest -> "_"
         Space Solkattu.Offset -> " "
         Note s -> Solkattu.notation s
-        Abstract (AbstractedGroup name) -> name
-        Abstract AbstractedSarva -> "="
+        Abstract meta -> metaNotation meta
         Alignment _ -> "" -- this should be filtered out prior to render
     extension = \case
         Space Solkattu.Rest -> ' '
-        Abstract (AbstractedGroup _) -> '-'
-        Abstract AbstractedSarva -> '='
+        Abstract meta -> case Solkattu._type meta of
+            Solkattu.GSarvaT -> '='
+            _ -> '-'
         _ -> ' '
     notationHtml n = case n of
         Note s -> Solkattu.notationHtml s
         _ -> Doc.html $ Solkattu.notation n
+
+metaNotation :: Solkattu.Meta -> Text
+metaNotation (Solkattu.Meta _ (Just name) _) = name
+metaNotation (Solkattu.Meta matras Nothing gtype) = case gtype of
+    Solkattu.GSarvaT -> "="
+    _ -> maybe "" showt matras <> typeName gtype
+
+typeName :: Solkattu.GroupType -> Text
+typeName = \case
+    Solkattu.GTheme -> ""
+    Solkattu.GFiller -> "f"
+    Solkattu.GPattern -> "p"
+    Solkattu.GExplicitPattern -> "p"
+    Solkattu.GSarvaT -> "sarva"
 
 -- | Used to replace two rests.
 doubleRest :: Char
@@ -415,18 +422,22 @@ realizePattern pmap tempo pattern = case lookupPattern pattern pmap of
 
 -- | This is the realized version of 'Solkattu.Group'.  I retain the dropped
 -- strokes so "Solkattu.Technique" can use them.
-data Group stroke = Group {
+data Group stroke =
+    GReduction !(Reduction stroke)
+    | GMeta !Solkattu.Meta
+    deriving (Eq, Ord, Show)
+
+data Reduction stroke = Reduction {
     _dropped :: ![stroke]
     , _side :: !Solkattu.Side
-    -- | Inherited from 'Solkattu._name'.
-    , _name :: !(Maybe Text)
-    , _type :: !Solkattu.GroupType
     } deriving (Eq, Ord, Show)
 
 instance Pretty stroke => Pretty (Group stroke) where
-    pretty (Group dropped side Nothing Solkattu.GTheme) = pretty (dropped, side)
-    pretty (Group dropped side name typ) =
-        pretty (dropped, side, name, typ)
+    pretty (GReduction r) = pretty r
+    pretty (GMeta m) = pretty m
+
+instance Pretty stroke => Pretty (Reduction stroke) where
+    pretty (Reduction dropped side) = pretty (dropped, side)
 
 type Realized stroke = S.Flat (Group (Stroke stroke)) (Note stroke)
 
@@ -451,38 +462,34 @@ realize_ realizePattern toStrokes =
             UF.singleton $ S.FNote tempo (Alignment n)
         Solkattu.Space space -> return $ (,notes) $
             UF.singleton $ S.FNote tempo (Space space)
-        Solkattu.Pattern p -> return $ (,notes) $ case realizePattern tempo p of
-            Left err -> UF.Fail err
-            Right tempoNotes -> UF.singleton $ S.FGroup tempo group $
-                map (uncurry S.FNote) tempoNotes
+        Solkattu.Pattern p@(Solkattu.PatternM matras) ->
+            return $ (,notes) $ case realizePattern tempo p of
+                Left err -> UF.Fail err
+                Right tempoNotes -> UF.singleton $ S.FGroup tempo group $
+                    map (uncurry S.FNote) tempoNotes
             where
-            group = Solkattu.GNormal (Solkattu.group Solkattu.GPattern)
-                { Solkattu._name = Just (Solkattu.notation p) }
+            group = Solkattu.GMeta $ Solkattu.Meta
+                { _matras = Just matras
+                , _name = Nothing
+                , _type = Solkattu.GPattern
+                }
         Solkattu.Note {} -> case findSequence toStrokes (note : notes) of
             Left err -> return (UF.Fail err, notes)
             Right (matched, (strokes, remain)) -> do
                 Writer.tell $ Set.singleton matched
                 return (UF.fromList strokes, remain)
-    realize1 (S.FGroup tempo (Solkattu.GNormal group) children) notes = do
-        rest <- UF.toList <$> UF.processM realize1 children
-        return $ (, notes) $ case rest of
-            -- I drop the group, so there will be extra notes in the
-            -- output.  But if I emit a partial group, then
-            -- convertGroup may get an error, which will conceal the
-            -- real one here.
-            (children, Just err) -> UF.fromListFail children err
-            (children, Nothing) ->
-                UF.singleton $ S.FGroup tempo (Solkattu.GNormal group) children
-    realize1 (S.FGroup tempo (Solkattu.GSarva matras) children) notes
-        | null children = (, notes) <$> case S.decomposeM matras of
-            Left err ->
-                return $ UF.Fail $ "GSarva " <> pretty matras <> ": " <> err
-            Right speeds ->
-                return $ UF.singleton $ S.FGroup tempo (Solkattu.GSarva matras)
-                    [ S.FNote t (Abstract AbstractedSarva)
-                    | t <- map mktempo speeds
-                    ]
-                where mktempo s = tempo { S._speed = S._speed tempo + s }
+    realize1 (S.FGroup tempo
+            (Solkattu.GMeta m@(Solkattu.Meta (Just matras) _ Solkattu.GSarvaT))
+                children)
+            notes
+        | null children = return
+            ( UF.singleton $ S.FGroup tempo (Solkattu.GMeta m)
+                [S.FNote tempo (Abstract m)]
+                -- The metadata is already in the group, but ToScore at least
+                -- relies on an explicit Abstract since it flattens out groups.
+            , notes
+            )
+        -- TODO use monad Either?
         | otherwise = (, notes) <$> case findSequence toStrokes children of
             Left err -> return $ UF.Fail $ "sarva: " <> err
             Right (matched, (strokes, left))
@@ -497,10 +504,18 @@ realize_ realizePattern toStrokes =
                         -- Even though I realized the sarva, I might as well
                         -- leave the duration on.
                         return $ UF.singleton $
-                            S.FGroup tempo (Solkattu.GSarva matras) strokes
-        where dur = S.fmatraDuration tempo matras
-    -- TODO it seems like I should have some way to convert Either Error to
-    -- a UF.Fail.
+                            S.FGroup tempo (Solkattu.GMeta m) strokes
+        where dur = S.matraDuration tempo * fromIntegral matras
+    realize1 (S.FGroup tempo group children) notes = do
+        rest <- UF.toList <$> UF.processM realize1 children
+        return $ (, notes) $ case rest of
+            -- I drop the group, so there will be extra notes in the
+            -- output.  But if I emit a partial group, then
+            -- convertGroup may get an error, which will conceal the
+            -- real one here.
+            (children, Just err) -> UF.fromListFail children err
+            (children, Nothing) ->
+                UF.singleton $ S.FGroup tempo group children
     notRest (Solkattu.Space {}) = False
     notRest _ = True
 
@@ -515,11 +530,11 @@ formatError = format . UF.toList
 
 {- | Given a group like
 
-    > [S.FGroup (Solkatttu.Group 1 Before) [a, b], c]
+    > [S.FGroup (Solkatttu.Reduction 1 Before) [a, b], c]
 
-    collect dropped strokes into a 'Group':
+    collect dropped strokes into a Realize.'Reduction':
 
-    > [S.FGroup (Group [a] Before) [b], c]
+    > [S.FGroup (Reduction [a] Before) [b], c]
 -}
 convertGroups :: S.Flat Solkattu.Group (Note stroke)
     -> UF.UntilFail Error (S.Flat (Group (Stroke stroke)) (Note stroke))
@@ -532,8 +547,7 @@ convertGroups (S.FGroup tempo g children) =
         (children, Just err) -> UF.fromListFail children err
         (children, Nothing) -> convertGroup tempo g children
     where
-    convertGroup tempo
-            (Solkattu.GNormal (Solkattu.NormalGroup split side name gtype))
+    convertGroup tempo (Solkattu.GReduction (Solkattu.Reduction split side))
             children =
         case splitStrokes (S.fmatraDuration tempo split) children of
             Left err -> UF.Fail err
@@ -542,24 +556,15 @@ convertGroups (S.FGroup tempo g children) =
                     <> pretty left
                 | otherwise -> UF.singleton $ S.FGroup tempo group kept
                     where
-                    group = Group
+                    group = GReduction $ Reduction
                         { _dropped = mapMaybe noteOf $ S.flattenedNotes dropped
                         , _side = side
-                        , _name = name
-                        , _type = gtype
                         }
                     (kept, dropped) = case side of
                         Solkattu.Before -> (post, pre)
                         Solkattu.After -> (pre, post)
-    convertGroup tempo (Solkattu.GSarva _matras) children =
-        UF.singleton $ S.FGroup tempo group children
-        where
-        group = Group
-            { _dropped = []
-            , _side = Solkattu.Before
-            , _name = Nothing
-            , _type = Solkattu.GSarvaT
-            }
+    convertGroup tempo (Solkattu.GMeta meta) children =
+        UF.singleton $ S.FGroup tempo (GMeta meta) children
 
 splitStrokes :: S.Duration -> [S.Flat g (Note stroke)]
     -> Either Error

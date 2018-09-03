@@ -3643,6 +3643,62 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  LSol.insert patterns are broken
+    * They get 5p 8n instead of 'p 5' and '4n'
+      . I need the original pattern matras, which means I think I have to
+        make GPattern Matra
+    * Also only get one matra.
+      . Because in Format, I have S.Attack and S.Sustain, so Abstracted can be
+        1 matra.  But LSol is working with Realize.Notes.
+      . But I can get this with the duration in AbstractedGroup.  I just need
+        noteDuration to understand.
+      . But then there's a weird inconsistency, where makeGroupsAbstractScore
+        adds a single AbstractedGroup with the whole dur, while
+        makeGroupsAbstract adds a bunch, each one with the whole dur.
+        noteDuration will add up too much.
+      . makeGroupsAbstract adds a bunch because Pattern had an integral Matra,
+        but Pattern is gone now.  Maybe I should add a FMatra arg to
+        Realize.Abstracted.
+      . Format still needs to expand to S.Attack and S.Sustain though.
+      ? Why is sarva right?
+      . Non-abstract but empty sarva is
+        'GSarvaT group [Abstract AbstractedSarva]' with tempo set right for
+        the duration.
+        Abstract is 'FNote (AbstractedGroup GSarvaT)', with tempo for one
+        matra.
+      . This is confusing, abstract and non-abstract empty sarva should be the
+        same, and non-abstract realized sarva should be a GSarvaT group.
+      . The AbstratedSarva doesn't work anyway because the duration may not
+        work for exactly one matra.
+      . I think GroupMeta is wrong too, I want to have arbitrary FMatras
+        duration for both sarva and abstracted groups.  So maybe generalize
+        GSarva.
+      . Solkattu: data SGroup = Reduction Split Side | Meta GroupMeta
+                  data GroupMeta = GroupMeta S.FMatra GroupType
+        Realize: data Group = Reduction [stroke] Side | Meta Solkattu.GroupMeta
+        Format: GroupMeta
+          but GroupType + GTheme, because I want to abstract those
+      . Reduction is implicitly GTheme.
+      . Realize.Meta must be FMatra because reductions may be fractional
+        matras.  But Solkattu.Meta must be Matra because it's in HasMatras.
+      . Oh bother, Realize.Note is HasMatras too.  And since I use
+        Realize.Abstract, I can't put FMatra in Format either.
+      . Why is HasMatras not FMatra?  Where is matrasOf used?
+        The most important place is S.normalizeSpeed, which relies on it
+        being integral.  Realize.Abstract should be post normalize, so this
+        could be a side-effect of reusing Realize.Note post-flatten.
+      . I think it only really works when Abstract is 1 matra as originally
+        intended.  The problems all came from trying to reuse it as a stand-in
+        for abstraction of any duration.  Can I go back to that original
+        state, and come up with some other solution for
+        Format.makeGroupsAbstractScore?  Such as return an ad-hoc type.
+      . I think the Meta refactors are worth keeping, so I don't want to just
+        revert.
+      . The invariant is not that matras are integral, but that they are
+        a fraction which can be decomposed into fractions of powers of two.
+        This is more restrictive than just rational, which is what I think
+        adding nadai would technically mean.  But since Tempo is in there, it
+        is with nadai.  Still, I keep the invariant with integral matras.
   * explicit patterns in Solkattu2014.c_14_04_21.txt abstract to 5-- not 5p--
   * move DslSollu into SolkattuGlobal
   * tatakita.takadinna -> tkoo ktok

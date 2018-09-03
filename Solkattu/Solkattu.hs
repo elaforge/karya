@@ -107,41 +107,46 @@ instance Pretty sollu => Pretty (Note sollu) where
         Pattern p -> pretty p
         Alignment n -> "@" <> showt n
 
--- See NOTE [nested-groups] for how I arrived at this design.
-data Group = GNormal !NormalGroup | GSarva !S.FMatra
+-- | A Group is metadata stored alongside the nested sollus, but the actual
+-- nesting happens in 'S.Group'.  See NOTE [nested-groups] for how I arrived at
+-- the design.
+data Group = GReduction !Reduction | GMeta !Meta
     deriving (Eq, Ord, Show)
 
-data NormalGroup = NormalGroup {
+data Reduction = Reduction {
     -- | Where to split the sollus.
     _split :: !S.FMatra
     , _side :: !Side
-    -- | If given, the group can be realized as a Pattern with this name
-    -- plus the duration in matras.  Otherwise, it gets named by just duration.
-    , _name :: !(Maybe Text)
-    -- | Whether or not to highlight this group on render.
-    , _groupType :: !GroupType
     } deriving (Eq, Ord, Show)
-    -- TODO make Group itself a sum
+
+data Meta = Meta {
+    -- | This is the logical number of Matras the group has.  It has to be
+    -- stored because the number of matras is only accurate relative to the
+    -- tempo context.  TODO I have that in the tempo of the S.Group, so maybe
+    -- this is unnecessary after all?
+    _matras :: !(Maybe S.Matra)
+    -- | Normally name is derived from _matras and _type, but some groups want
+    -- to override that.
+    , _name :: !(Maybe Text)
+    -- | This determines abstraction level and color highlight in the score.
+    , _type :: !GroupType
+    } deriving (Eq, Ord, Show)
+
+meta :: GroupType -> Meta
+meta = Meta Nothing Nothing
 
 data GroupType =
     -- | Part of a main theme, should be highlighted prominently.
     GTheme
     -- | A bit of decorative filler, should be highlighted subtly if at all.
     | GFiller
-    -- | A pattern with an explicit content.
     | GPattern
+    -- | A pattern with sollus already given.
+    | GExplicitPattern
     | GSarvaT
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Pretty GroupType where pretty = showt
-
-group :: GroupType -> NormalGroup
-group gtype = NormalGroup
-    { _split = 0
-    , _side = Before
-    , _name = Nothing
-    , _groupType = gtype
-    }
 
 -- | Before means drop the strokes before the '_split' split, After means
 -- drop the ones after.
@@ -149,13 +154,24 @@ data Side = Before | After deriving (Eq, Ord, Show)
 instance Pretty Side where pretty = showt
 
 instance Pretty Group where
-    pretty (GNormal g) = pretty g
-    pretty (GSarva matras) = "==" <> pretty matras
+    pretty (GReduction r) = pretty r
+    pretty (GMeta m) = pretty m
+instance Pretty Reduction where
+    pretty (Reduction split side) = pretty (split, side)
+instance Pretty Meta where
+    -- Shorthand that makes tests look nicer.
+    pretty (Meta (Just matras) Nothing GSarvaT) = "==" <> showt matras
+    pretty (Meta matras name gtype) = pretty (matras, name, gtype)
 
-instance Pretty NormalGroup where
-    pretty (NormalGroup split side Nothing GTheme) = pretty (split, side)
-    pretty (NormalGroup split side name gtype) =
-        pretty (split, side, name, gtype)
+-- instance Pretty Group where
+--     pretty (GNormal g) = pretty g
+--     pretty (GSarva matras) = "==" <> pretty matras
+--
+-- instance Pretty NormalGroup where
+--     pretty (NormalGroup split side (GroupMeta Nothing Nothing GTheme)) =
+--         pretty (split, side)
+--     pretty (NormalGroup split side (GroupMeta name matras gtype)) =
+--         pretty (split, side, name, matras, gtype)
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
@@ -298,12 +314,20 @@ _durationOf convert = go
     get tempo n = case n of
         S.Note n -> convert tempo $ S.noteDuration tempo n
         S.TempoChange change notes -> go (S.changeTempo change tempo) notes
-        S.Group (GNormal g) notes -> case _side g of
+        S.Group (GReduction (Reduction splitAt side)) notes -> case side of
             Before -> max 0 (go tempo notes - split)
             After -> min split (go tempo notes)
-            where split = convert tempo $ S.fmatraDuration tempo (_split g)
-        S.Group (GSarva matras) _ ->
-            convert tempo $ S.fmatraDuration tempo matras
+            where split = convert tempo $ S.fmatraDuration tempo splitAt
+        S.Group (GMeta (Meta (Just matras) _ _)) _notes ->
+            convert tempo $ S.matraDuration tempo * fromIntegral matras
+        S.Group (GMeta (Meta Nothing _ _)) notes -> go tempo notes
+
+        -- S.Group (GNormal g) notes -> case _side g of
+        --     Before -> max 0 (go tempo notes - split)
+        --     After -> min split (go tempo notes)
+        --     where split = convert tempo $ S.fmatraDuration tempo (_split g)
+        -- S.Group (GSarva matras) _ ->
+        --     convert tempo $ S.fmatraDuration tempo matras
 
 -- * functions
 
