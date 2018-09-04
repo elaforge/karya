@@ -4,7 +4,6 @@
 
 -- | Functions to convert instrument-specific strokes to karya score.
 module Solkattu.Instrument.ToScore where
-import qualified Util.Debug as Debug
 import qualified Derive.Expr as Expr
 import qualified Derive.ShowVal as ShowVal
 import qualified Solkattu.Realize as Realize

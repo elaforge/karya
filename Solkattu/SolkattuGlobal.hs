@@ -326,12 +326,12 @@ htmlWriteAll = Html.writeAll
 
 -- | 'realizeParts' specialized to mridangam, and disbale the usual
 -- 'Interactive.printInstrument' lint and write diff stuff.
-realizePartsM :: [Part] -> IO ()
-realizePartsM = Part.realizeParts realize
+realizePartsM :: Abstraction -> [Part] -> IO ()
+realizePartsM abstraction = Part.realizeParts realize
     where
     inst = Korvai.mridangam
     realize = Interactive.printInstrument False False inst
-        (_defaultStrokes inst) Format.defaultAbstraction
+        (_defaultStrokes inst) abstraction
 
 _printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Abstraction -> Korvai -> IO ()

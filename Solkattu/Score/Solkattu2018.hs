@@ -752,8 +752,8 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
         . kttk. sd (din.din.na) . talang_gu
     , x2 $ section $ repeat 2 $ sd (na.din.din.na) . talang_gu
     , section $ tri_ (din.__4) talang_gu
-    , x2 $ section $ repeat 3 sarva2 . su (faran1.nakatiku)
-    , section $ repeat 2 (sarva2 . su (faran1.nakatiku))
+    , x2 $ section $ sarva2 6 . su (faran1.nakatiku)
+    , section $ repeat 2 (sarva2 2 . su (faran1.nakatiku))
         . repeat 4 (su (faran1.nakatiku))
         . tri_ (din.__4) (su (faran1.nakatiku))
     , section $ repeat 2 (sarva3a.sarva3')
@@ -768,7 +768,8 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
     ]
     where
     talang_gu = su $ talang.__.gu.talang.__.gu.taka.taka.talang.__.gu
-    sarva2 = taka.ta.din.__.ta.din.__
+    sarva2 = sarvaD sarva2Sollu
+    sarva2Sollu = repeat 4 $ taka.ta.din.__.ta.din.__
     faran1 = gu.gu.taka.tari.kita
     faran2 = takadugutarikita
         -- TODO HSS plays first one as ktoo... rest as tkoo...
@@ -784,9 +785,11 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
         , (kita.taka, k.t.p.k)
         , (talang.gu, p.u.k)
         , (taka.taka, o.k.o.k)
-        , (sarva2, on.y.on.od.__.on.od.__)
-            -- TODO sarva
-            -- o_oo_oo_ __oo_oo_ o______
+        , (sarva2Sollu, let rh = n.y.n.d.__.n.d.__ in
+              (o.__.o.o.__.o.o.__) & rh
+            . (__.__.o.o.__.o.o.__) & rh
+            . o & rh
+            . rh)
         , (faran1, o.o.k.t.o.k.t.k)
         , (sarva3', on.y.n.d.n.y.n.d)
         , (sarva3a, on.y.on.od.n.o&y.on.d)
