@@ -17,7 +17,8 @@ module Solkattu.Format.Format (
     , breakAvartanams, formatFinalAvartanam
     , onSam, onAnga, onAkshara, angaSet
     -- * ruler
-    , Ruler, inferRuler
+    , Ruler, pairWithRuler
+    , inferRuler
     -- * util
     , mapSnd
 ) where
@@ -176,6 +177,27 @@ angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
 -- * ruler
 
 type Ruler = [(Text, Int)]
+
+-- | (prevRuler, linesSinceLastRuler)
+type PrevRuler = (Maybe Ruler, Int)
+type Line sym = [(S.State, sym)]
+
+pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line sym]]
+    -> (PrevRuler, [[(Maybe Ruler, Line sym)]])
+pairWithRuler rulerEach prevRuler tala strokeWidth =
+    List.mapAccumL (List.mapAccumL strip) prevRuler . map (map addRuler)
+    where
+    addRuler line = (inferRuler tala strokeWidth (map fst line), line)
+    -- Strip rulers when they are unchanged.  "Changed" is by structure, not
+    -- mark text, so a wrapped ruler with the same structure will also be
+    -- suppressed.
+    strip (prev, lineNumber) (ruler, line) =
+        ( (Just ruler, 1 + if wanted then 0 else lineNumber)
+        , (if wanted then Just ruler else Nothing, line)
+        )
+        where
+        wanted = lineNumber `mod` rulerEach == 0
+            || Just (map snd ruler) /= (map snd <$> prev)
 
 -- | Rather than generating the ruler purely from the Tala, I use the States
 -- to figure out the mark spacing.  Otherwise I wouldn't know where nadai

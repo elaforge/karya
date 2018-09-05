@@ -97,7 +97,15 @@ writeAll fname korvai = Text.IO.writeFile fname $ Doc.un_html $ renderAll korvai
 data Config = Config {
     _abstraction :: !Format.Abstraction
     , _font :: !Font
+    -- | Show the ruler on multiples of this line as a reminder.  The ruler is
+    -- always shown if it changes.  It should be a multiple of 2 to avoid
+    -- getting the second half of a talam in case it's split in half.
+    , _rulerEach :: !Int
     } deriving (Show)
+
+-- | HTML output has vertical lines for ruler marks, so they can be rarer.
+defaultRulerEach :: Int
+defaultRulerEach = 8
 
 data Font = Font { _sizePercent :: Int, _monospace :: Bool }
     deriving (Show)
@@ -117,6 +125,7 @@ render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
     config name = Config
         { _abstraction = abstraction
         , _font = if name == "konnakol" then konnakolFont else instrumentFont
+        , _rulerEach = defaultRulerEach
         }
 
 abstractions :: [(Text, Format.Abstraction)]
@@ -161,6 +170,7 @@ renderAll korvai = htmlPage title (korvaiMetadata korvai) body
         { _abstraction = abstraction
         , _font = if instName == "konnakol"
             then konnakolFont else instrumentFont
+        , _rulerEach = defaultRulerEach
         }
 
 sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
@@ -281,19 +291,19 @@ typeColors = \case
 formatHtml :: Solkattu.Notation stroke => Config -> Tala.Tala
     -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Doc.Html
 formatHtml config tala notes =
-    formatTable (_font config) tala (map Doc.html ruler) avartanams
+    formatTable (_font config) tala avartanams
     where
-    ruler = maybe [] (concatMap akshara . Format.inferRuler tala 1 . map fst)
-        (Seq.head avartanams)
-    akshara :: (Text, Int) -> [Text]
-    akshara (n, spaces) = n : replicate (spaces-1) ""
+    avartanams :: [(Maybe Format.Ruler, Line)]
     avartanams =
         concat $
+        snd $ Format.pairWithRuler (_rulerEach config) (Nothing, 0) tala 1 $
         Format.formatFinalAvartanam (isRest . _html) $ map (:[]) $
         Format.breakAvartanams $
         concatMap makeSymbols $
         Format.makeGroupsAbstract (_abstraction config) $
         Format.normalizeSpeed tala notes
+
+type Line = [(S.State, Symbol)]
 
 data Symbol = Symbol {
     _html :: !Doc.Html
@@ -342,29 +352,29 @@ makeSymbols = go
     notation state = bold . Solkattu.notationHtml
         where bold = if Format.onAkshara state then Doc.tag "b" else id
 
-formatTable :: Font -> Tala.Tala -> [Doc.Html] -> [[(S.State, Symbol)]]
+formatTable :: Font -> Tala.Tala
+    -> [(Maybe Format.Ruler, [(S.State, Symbol)])]
     -> Doc.Html
-formatTable font tala header rows = mconcatMap (<>"\n") $ concat
-    [ [ "<p> <table style=\"" <> fontStyle
-        <> "\" class=konnakol cellpadding=0 cellspacing=0>"
-      , "<tr>" <> mconcatMap th header <> "</tr>\n"
-      ]
+formatTable font tala rows = mconcatMap (<>"\n") $ concat
+    [ ["<p> <table style=\"" <> fontStyle
+        <> "\" class=konnakol cellpadding=0 cellspacing=0>"]
     , map row rows
     , ["</table>"]
     ]
     where
     fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
         <> if _monospace font then "; font-family: Monaco, monospace" else ""
-    th col = Doc.tag_attrs "th" [] (Just col)
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
-    row cells = TextUtil.join ("\n" :: Doc.Html)
-        [ "<tr>"
-        , TextUtil.join "\n" $
-            map td . Format.mapSnd spellRests . map mkCell $
-            List.groupBy merge cells
-        , "</tr>"
-        , ""
-        ]
+    row (mbRuler, cells) =
+        TextUtil.join ("\n" :: Doc.Html) $
+            maybe [] ((:[]) . formatRuler) mbRuler ++
+            [ "<tr>"
+            , TextUtil.join "\n" $
+                map td . Format.mapSnd spellRests . map mkCell $
+                List.groupBy merge cells
+            , "</tr>"
+            , ""
+            ]
     -- Merge together the sustains after an attack.  They will likely have an
     -- <hr> in them, which will expand to the full colspan width.
     merge (_, sym1) (state2, sym2) = _isSustain sym1 && _isSustain sym2
@@ -388,6 +398,14 @@ formatTable font tala header rows = mconcatMap (<>"\n") $ concat
             , maybe [] (:[]) (_style sym)
             ]
     angas = Format.angaSet tala
+
+formatRuler :: Format.Ruler -> Doc.Html
+formatRuler =
+    ("<tr>"<>) . (<>"</tr>") . mconcatMap th . map Doc.html . concatMap akshara
+    where
+    akshara :: (Text, Int) -> [Text]
+    akshara (n, spaces) = n : replicate (spaces-1) ""
+    th col = Doc.tag_attrs "th" [] (Just col)
 
 -- | This is the HTML version of 'Format.spellRests'.
 spellRests :: [Doc.Html] -> [Doc.Html]

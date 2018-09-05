@@ -158,7 +158,7 @@ format :: Solkattu.Notation stroke => Config -> PrevRuler
     -> Tala.Tala -> [Format.Flat stroke] -> (PrevRuler, Styled.Styled)
 format config prevRuler tala notes =
     second (Styled.join "\n" . map formatAvartanam) $
-        pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
+        Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
             avartanamLines
     where
     formatAvartanam = Styled.join "\n" . map formatRulerLine
@@ -178,23 +178,6 @@ format config prevRuler tala notes =
     formatLine :: [Symbol] -> Styled.Styled
     formatLine = mconcat . map formatSymbol
     width = _terminalWidth config
-
-pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line]]
-    -> (PrevRuler, [[(Maybe Format.Ruler, Line)]])
-pairWithRuler rulerEach prevRuler tala strokeWidth =
-    List.mapAccumL (List.mapAccumL strip) prevRuler . map (map addRuler)
-    where
-    addRuler line = (Format.inferRuler tala strokeWidth (map fst line), line)
-    -- Strip rulers when they are unchanged.  "Changed" is by structure, not
-    -- mark text, so a wrapped ruler with the same structure will also be
-    -- suppressed.
-    strip (prev, lineNumber) (ruler, line) =
-        ( (Just ruler, 1 + if wanted then 0 else lineNumber)
-        , (if wanted then Just ruler else Nothing, line)
-        )
-        where
-        wanted = lineNumber `mod` rulerEach == 0
-            || Just (map snd ruler) /= (map snd <$> prev)
 
 formatRuler :: Int -> Format.Ruler -> Styled.Styled
 formatRuler strokeWidth =
