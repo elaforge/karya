@@ -540,10 +540,9 @@ to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     takadinnakitataka = group $ taka.din.na.kttk
     sarva dur = sarvaD sarvaS dur
     sarvaS = repeat 4 $ sd $ taka.ta.ta.din.__.taka.din.na.ta.ta.din.__
-    sarvaM =
-        let rh = n.k.n.n.d.__.n.k.d.k.n.n.d.__ in
-        rh & (o.__.o.o.o.__.o.__.o.__.o.o.o.__)
-        . rh & (__.__.o.o.o.__.o.__.o.__.o.o.o.__)
+    sarvaM = let rh = strM "nknnd_nkdknnd_" in
+          rh & strM "o_ooo_o_o_ooo_"
+        . rh & strM "__ooo_o_o_ooo_"
         . rh & o
         . rh
     mridangam = makeMridangam
@@ -785,10 +784,10 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
         , (kita.taka, k.t.p.k)
         , (talang.gu, p.u.k)
         , (taka.taka, o.k.o.k)
-        , (sarva2Sollu, let rh = n.y.n.d.__.n.d.__ in
-              (o.__.o.o.__.o.o.__) & rh
-            . (__.__.o.o.__.o.o.__) & rh
-            . o & rh
+        , (sarva2Sollu, let rh = strM "n,nd_nd_" in
+              rh & strM "o_oo_oo_"
+            . rh & strM "__oo_oo_"
+            . rh & o
             . rh)
         , (faran1, o.o.k.t.o.k.t.k)
         , (sarva3', on.y.n.d.n.y.n.d)
@@ -858,7 +857,12 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     -- will prevent the full din_trktkt match.
     din_trktkt = din.__.trkt.kttk.tarikitadiku
     mridangam = makeMridangam
-        [ (sarva_, n.k.n.n.d.__)
+        [ (sarvaSollu, let rh = n.k.n.n.d.__ in
+              rh & strM "o_ooo_"
+            . rh & strM "__ooo_"
+            . rh & o
+            . rh)
+        -- [ (sarva_, n.k.n.n.d.__)
             -- o_ooo_ __ooo_ o___ ____
             --  _ooo__ _ooo_o ____ ___o
         , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)

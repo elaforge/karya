@@ -95,8 +95,7 @@ stroke :: Pitch.Octave -> Pitch.PitchClass -> Stroke
 stroke oct pc = Stroke (Pitch.pitch oct pc) mempty
 
 notes :: Strokes (SequenceM g)
-notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
-    strokes
+notes = Realize.strokeToSequence <$> strokes
 
 toScore :: ToScore.ToScore Stroke
 toScore durStrokes = (noteTrack, [("*", pitchTrack)])

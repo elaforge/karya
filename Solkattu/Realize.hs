@@ -108,6 +108,9 @@ stroke = Stroke Normal
 rest :: SNote stroke
 rest = S.Note (Space Solkattu.Rest)
 
+strokeToSequence :: stroke -> [S.Note g (Solkattu.Note (Stroke stroke))]
+strokeToSequence = (:[]) . S.Note . Solkattu.Note . Solkattu.note . stroke
+
 -- There's no general ToCall instance for Stroke because individual instruments
 -- may have special cases.
 

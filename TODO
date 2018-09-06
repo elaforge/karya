@@ -3728,7 +3728,7 @@ solkattu:
       . Or just general purpose post-processing.
     - kook kook -> kook nook, or kook took
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
-  - concise stroke map:
+  * concise stroke map:
     . repeat 4 (strM "nknd_nd_") & strM "o_oo_oo_ __oo_oo_ o"
   * Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
     . I want to write the sarvalaghu as strokes not solkattu, not just ===

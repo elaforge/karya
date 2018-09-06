@@ -162,6 +162,13 @@ Mridangam.Strokes {..} = Mridangam.notes
 on :: SequenceM
 on = o&n
 
+-- | Parse a string to mridangam strokes.
+strM :: CallStack.Stack => String -> SequenceM
+strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
+    where
+    toSeq Nothing = __
+    toSeq (Just stroke) = Realize.strokeToSequence stroke
+
 type StrokeMap stroke =
     [ ( Sequence
       , [S.Note Solkattu.Group (Solkattu.Note (Realize.Stroke stroke))]

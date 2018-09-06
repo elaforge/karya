@@ -5,6 +5,7 @@
 {-# LANGUAGE RecordWildCards, DeriveFunctor #-}
 -- | Realize an abstract solkattu Notes to concrete mridangam 'Note's.
 module Solkattu.Instrument.Mridangam where
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
@@ -31,7 +32,7 @@ data Valantalai = Ki | Ta
     | Dheem
     | Kin -- ^ ki on meetu
     | Tan -- ^ ta on meetu
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- * strokes
 
@@ -135,8 +136,7 @@ strokes = Strokes
     }
 
 notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
-notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
-    strokes
+notes = Realize.strokeToSequence <$> strokes
 
 type SequenceR = [S.Note () (Realize.Note Stroke)]
 
@@ -178,6 +178,36 @@ addThoppi :: Thoppi -> Stroke -> Stroke
 addThoppi t (Valantalai v) = Both t v
 addThoppi t (Both _ v) = Both t v
 addThoppi t (Thoppi _) = Thoppi t
+
+-- * fromString
+
+fromString :: String -> Either Text [Maybe Stroke]
+fromString = mapMaybeM parse
+    where
+    parse c = case c of
+        ' ' -> Right Nothing
+        '_' -> Right $ Just Nothing
+        _ -> case Map.lookup c notations of
+            Nothing -> Left $ "unknown mridangam stroke: " <> showt c
+            Just s -> Right $ Just $ Just s
+
+notations :: Map Char Stroke
+notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
+    Seq.key_on Solkattu.notation $ concat
+        [ map Thoppi lhs
+        , map Valantalai rhs
+        , [Both lh rh | lh <- lhs, rh <- rhs]
+        ]
+    where
+    extras =
+        [ ('y', y strokes)
+        , ('j', j strokes)
+        ]
+    isChar t = case untxt t of
+        [c] -> Just c
+        _ -> Nothing
+    lhs = [Tha, Thom]
+    rhs = [minBound .. maxBound]
 
 -- * postprocess
 

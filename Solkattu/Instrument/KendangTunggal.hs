@@ -47,7 +47,7 @@ instance Expr.ToExpr Stroke where
         Tut -> "o"
         De -> "+"
 
--- TODO unify with Local.Instrument.Kontakt.KendangBali.Stroke
+-- TODO unify with User.Elaforge.Instrument.Kontakt.KendangBali.Stroke
 instance Expr.ToExpr (Realize.Stroke Stroke) where
     to_expr (Realize.Stroke emphasis stroke) = case emphasis of
         Realize.Normal -> Expr.to_expr stroke
@@ -76,8 +76,7 @@ strokes = Strokes
     }
 
 notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
-notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
-    strokes
+notes = Realize.strokeToSequence <$> strokes
 
 type SequenceR = [S.Note () (Realize.Note Stroke)]
 

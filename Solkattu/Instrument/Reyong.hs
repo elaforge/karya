@@ -65,8 +65,7 @@ strokes = Strokes
     }
 
 notes :: Strokes [S.Note g (Solkattu.Note (Realize.Stroke Stroke))]
-notes = (:[]) . S.Note . Solkattu.Note . Solkattu.note . Realize.stroke <$>
-    strokes
+notes = Realize.strokeToSequence <$> strokes
 
 type SequenceR = [S.Note () (Realize.Note Stroke)]
 
