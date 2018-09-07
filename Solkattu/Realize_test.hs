@@ -161,11 +161,13 @@ test_realizeSarva = do
     let f = eWords . realizeN smap . mconcat
         smap = checkSolluMap
             [ (ta <> din, [n, d])
+            , (ta <> ka <> __, [p, k, __])
             ] where M.Strokes {..} = M.notes
         sarvaM = G.sarvaM
     equal (f []) (Right "")
     equal (f [sarvaM (ta <> din) 5]) (Right "n d n d n")
     left_like (f [sarvaM (ta <> din <> ta) 5]) "incomplete match"
+    equal (f [sarvaM (ta <> ka <> __) 5]) (Right "p k _ p k")
 
 eWords :: Pretty b => Either a [b] -> Either a Text
 eWords = fmap (Text.unwords . map pretty)

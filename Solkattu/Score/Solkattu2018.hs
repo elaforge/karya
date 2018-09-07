@@ -825,7 +825,7 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     [ section $ sarva 8
     , x2 $ section $ sarva 7 . tarikitadiku
     , section $ repeat 2 $ sarva 3 . tarikitadiku
-    , section $ sarva_.tarikitadiku.sarva_.tarikitadiku
+    , section $ sarva 1.tarikitadiku.sarva 1.tarikitadiku
         . tri_ (tang.__.gu) tarikitadiku
     , x2 $ section $ sarva 6 . tri dinna
     , section $ repeat 2 (sarva 2 . tri dinna)
@@ -846,31 +846,27 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
         . tri (tri_ (tam.__3) tarikitadiku)
     ]
     where
-    sarva n = repeat n sarva_
-    sarva_ = taka.ta.ta.dim.__
+    -- Duration is off due to map nadai 6.  TODO this is pretty awkward.
+    sarva dur = sarvaD sarvaSollu (dur * 1.5)
+    sarvaSollu = repeat 4 $ taka.ta.ta.dim.__
     tarikitadiku = group $ su $ tari.kita.taka.diku.kita.taka
     dinna = group $ din.na.kttk
     tari3 = tri trktkt
     trktkt = group $ trkt.kttk
     takadinna = group $ taka.dinna
-    -- TODO this uses trkt.tkkt instead of trktkt above because being a group
+    -- TODO this uses trkt.kttk instead of trktkt above because being a group
     -- will prevent the full din_trktkt match.
     din_trktkt = din.__.trkt.kttk.tarikitadiku
     mridangam = makeMridangam
         [ (sarvaSollu, let rh = n.k.n.n.d.__ in
-              rh & strM "o_ooo_"
-            . rh & strM "__ooo_"
-            . rh & o
-            . rh)
-        -- [ (sarva_, n.k.n.n.d.__)
-            -- o_ooo_ __ooo_ o___ ____
-            --  _ooo__ _ooo_o ____ ___o
+              rh & strM "o_ooo_" . rh & strM "__ooo_" . rh & o . rh)
         , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
         , (tang.__.gu, od.__.o)
         , (dinna, o.n.k.t.o.k)
         , (taka, o.k)
-            -- high speed variant of trktkt, drops the tha
-            -- say tari.kita.kita.taka, play nang.__.kita.kita.taka
+        -- High speed variant of trktkt drops the tha.
+        -- Say din.__.tari.kita.kita.taka,
+        -- play din.__.nang.__.kita.kita.taka
         , (din.trkt.kttk, od.on.__.k.t.k.t.p.k)
         , (trktkt, n.p.k.t.k.t.p.k)
         , (din, od)

@@ -3643,6 +3643,11 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  * sarva doesn't work with trailing rests
+    . The problem is that I search by [sollu], but I want to get the trailing
+      rest too.  This isn't a problem for normal matches because realize_ will
+      then pass the rest through on the next step, but sarva does a cycle on
+      the output.
   - can I highlight karvais?  I guess I have to infer when they are, e.g.
     tri_ can put the group on, or join, though maybe it should be called
     karvai to emphasize that.

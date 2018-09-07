@@ -495,19 +495,22 @@ realize_ realizePattern toStrokes =
         -- TODO use monad Either?
         | otherwise = (, notes) <$> case findSequence toStrokes children of
             Left err -> return $ UF.Fail $ "sarva: " <> err
-            Right (matched, (strokes, left))
-                | any notRest (S.flattenedNotes left) -> return $ UF.Fail $
+            Right (matched, (strokes, left)) -> case mapM getRest left of
+                Nothing -> return $ UF.Fail $
                     "sarva: incomplete match: " <> pretty matched
                     <> ", left: " <> pretty (S.flattenedNotes left)
-                | otherwise -> case splitStrokes dur (cycle strokes) of
-                    Left err -> return $ UF.Fail $ "sarva: " <> err
-                    Right (_left, (strokes, _)) -> do
-                        Writer.tell $ Set.singleton matched
-                        -- I keep this as a group so format can highlight it.
-                        -- Even though I realized the sarva, I might as well
-                        -- leave the duration on.
-                        return $ UF.singleton $
-                            S.FGroup tempo (Solkattu.GMeta m) strokes
+                -- Trailing rests are ok, as long as I include them in the
+                -- output.
+                Just rests ->
+                    case splitStrokes dur (cycle (strokes ++ rests)) of
+                        Left err -> return $ UF.Fail $ "sarva: " <> err
+                        Right (_left, (strokes, _)) -> do
+                            Writer.tell $ Set.singleton matched
+                            -- I keep this as a group so format can highlight
+                            -- it.  Even though I realized the sarva, I might
+                            -- as well leave the duration on.
+                            return $ UF.singleton $
+                                S.FGroup tempo (Solkattu.GMeta m) strokes
         where dur = S.matraDuration tempo * fromIntegral matras
     realize1 (S.FGroup tempo group children) notes = do
         rest <- UF.toList <$> UF.processM realize1 children
@@ -519,8 +522,9 @@ realize_ realizePattern toStrokes =
             (children, Just err) -> UF.fromListFail children err
             (children, Nothing) ->
                 UF.singleton $ S.FGroup tempo group children
-    notRest (Solkattu.Space {}) = False
-    notRest _ = True
+    getRest (S.FNote tempo (Solkattu.Space space)) =
+        Just $ S.FNote tempo (Space space)
+    getRest _ = Nothing
 
 formatError :: Solkattu.Notation a => UF.UntilFail Error (S.Flat g a)
     -> Either Error [S.Flat g a]
