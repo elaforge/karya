@@ -481,50 +481,53 @@ realize_ realizePattern toStrokes =
             Right (matched, (strokes, remain)) -> do
                 Writer.tell $ Set.singleton matched
                 return (UF.fromList strokes, remain)
-    realize1 (S.FGroup tempo
-            (Solkattu.GMeta m@(Solkattu.Meta (Just matras) _ Solkattu.GSarvaT))
-                children)
-            notes
-        | null children = return
-            ( UF.singleton $ S.FGroup tempo (Solkattu.GMeta m)
-                [S.FNote tempo (Abstract m)]
-                -- The metadata is already in the group, but ToScore at least
-                -- relies on an explicit Abstract since it flattens out groups.
-            , notes
-            )
-        -- TODO use monad Either?
-        | otherwise = (, notes) <$> case findSequence toStrokes children of
-            Left err -> return $ UF.Fail $ "sarva: " <> err
-            Right (matched, (strokes, left)) -> case mapM getRest left of
-                Nothing -> return $ UF.Fail $
-                    "sarva: incomplete match: " <> pretty matched
-                    <> ", left: " <> pretty (S.flattenedNotes left)
-                -- Trailing rests are ok, as long as I include them in the
-                -- output.
-                Just rests ->
-                    case splitStrokes dur (cycle (strokes ++ rests)) of
-                        Left err -> return $ UF.Fail $ "sarva: " <> err
-                        Right (_left, (strokes, _)) -> do
-                            Writer.tell $ Set.singleton matched
-                            -- I keep this as a group so format can highlight
-                            -- it.  Even though I realized the sarva, I might
-                            -- as well leave the duration on.
-                            return $ UF.singleton $
-                                S.FGroup tempo (Solkattu.GMeta m) strokes
-        where dur = S.matraDuration tempo * fromIntegral matras
     realize1 (S.FGroup tempo group children) notes = do
+        (,notes) <$> realizeGroup tempo group children
+    realizeGroup tempo
+            (Solkattu.GMeta m@(Solkattu.Meta (Just matras) _ Solkattu.GSarvaT))
+            children
+        | null children = return $
+            -- The metadata is already in the group, but ToScore at least
+            -- relies on an explicit Abstract since it flattens out groups.
+            UF.singleton $ S.FGroup tempo (Solkattu.GMeta m)
+                [S.FNote tempo (Abstract m)]
+        | otherwise = case realizeSarva toStrokes tempo matras children of
+            Left err -> return $ UF.Fail $ "sarva: " <> err
+            Right (matched, strokes) -> do
+                Writer.tell $ Set.singleton matched
+                -- I keep this as a group so format can highlight it.  Also,
+                -- even though I realized the sarva, I might as well leave the
+                -- duration on.
+                return $ UF.singleton $
+                    S.FGroup tempo (Solkattu.GMeta m) strokes
+    realizeGroup tempo group children = do
         rest <- UF.toList <$> UF.processM realize1 children
-        return $ (, notes) $ case rest of
-            -- I drop the group, so there will be extra notes in the
-            -- output.  But if I emit a partial group, then
-            -- convertGroup may get an error, which will conceal the
-            -- real one here.
+        return $ case rest of
+            -- I drop the group, so there will be extra notes in the output.
+            -- But if I emit a partial group, then convertGroup may get an
+            -- error, which will conceal the real one here.
             (children, Just err) -> UF.fromListFail children err
-            (children, Nothing) ->
-                UF.singleton $ S.FGroup tempo group children
+            (children, Nothing) -> UF.singleton $ S.FGroup tempo group children
+
+-- | Realize a 'Solkattu.GSarvaT' group, by matching the sollus, and then
+-- cycling the strokes for the given duration.
+realizeSarva :: Pretty sollu => ToStrokes sollu stroke -> S.Tempo
+    -> S.Matra -> [S.Flat g (Solkattu.Note sollu)]
+    -> Either Error (SolluMapKey sollu, [S.Flat g (Note stroke)])
+realizeSarva toStrokes tempo matras children = do
+    (matched, (strokes, left)) <- findSequence toStrokes children
+    -- Trailing rests are ok, as long as I include them in the output.
+    rests <- tryJust
+        ("incomplete match: " <> pretty matched
+            <> ", left: " <> pretty (S.flattenedNotes left))
+        (mapM getRest left)
+    (_left, (strokes, _)) <- splitStrokes dur (cycle (strokes ++ rests))
+    return (matched, strokes)
+    where
     getRest (S.FNote tempo (Solkattu.Space space)) =
         Just $ S.FNote tempo (Space space)
     getRest _ = Nothing
+    dur = S.matraDuration tempo * fromIntegral matras
 
 formatError :: Solkattu.Notation a => UF.UntilFail Error (S.Flat g a)
     -> Either Error [S.Flat g a]
