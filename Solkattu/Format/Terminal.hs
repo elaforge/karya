@@ -252,7 +252,7 @@ makeSymbols strokeWidth tala angas = go
             Solkattu.GFiller -> setHighlights2 (gray 0.85)
             Solkattu.GPattern -> patternc
             Solkattu.GExplicitPattern -> patternc
-            Solkattu.GSarvaT -> setHighlights2 (Styled.rgb 0.5 0.65 0.5)
+            Solkattu.GSarva -> setHighlights2 (Styled.rgb 0.5 0.65 0.5)
     patternc = setHighlights2 (Styled.rgb 0.65 0.65 0.8)
     gray n = Styled.rgb n n n
     setHighlights2 color = setHighlights color color

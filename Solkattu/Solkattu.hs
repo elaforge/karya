@@ -143,7 +143,7 @@ data GroupType =
     | GPattern
     -- | A pattern with sollus already given.
     | GExplicitPattern
-    | GSarvaT
+    | GSarva
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Pretty GroupType where pretty = showt
@@ -160,18 +160,8 @@ instance Pretty Reduction where
     pretty (Reduction split side) = pretty (split, side)
 instance Pretty Meta where
     -- Shorthand that makes tests look nicer.
-    pretty (Meta (Just matras) Nothing GSarvaT) = "==" <> showt matras
+    pretty (Meta (Just matras) Nothing GSarva) = "==" <> showt matras
     pretty (Meta matras name gtype) = pretty (matras, name, gtype)
-
--- instance Pretty Group where
---     pretty (GNormal g) = pretty g
---     pretty (GSarva matras) = "==" <> pretty matras
---
--- instance Pretty NormalGroup where
---     pretty (NormalGroup split side (GroupMeta Nothing Nothing GTheme)) =
---         pretty (split, side)
---     pretty (NormalGroup split side (GroupMeta name matras gtype)) =
---         pretty (split, side, name, matras, gtype)
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have
 -- set strokes (or any, in the case of Rest), it can be arbitrarily divided.
@@ -321,13 +311,6 @@ _durationOf convert = go
         S.Group (GMeta (Meta (Just matras) _ _)) _notes ->
             convert tempo $ S.matraDuration tempo * fromIntegral matras
         S.Group (GMeta (Meta Nothing _ _)) notes -> go tempo notes
-
-        -- S.Group (GNormal g) notes -> case _side g of
-        --     Before -> max 0 (go tempo notes - split)
-        --     After -> min split (go tempo notes)
-        --     where split = convert tempo $ S.fmatraDuration tempo (_split g)
-        -- S.Group (GSarva matras) _ ->
-        --     convert tempo $ S.fmatraDuration tempo matras
 
 -- * functions
 

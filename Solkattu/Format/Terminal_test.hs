@@ -58,13 +58,13 @@ test_format_sarva = do
     let run abstract =
             fmap (eFormat . formatAbstraction abstract 80 Tala.adi_tala . fst)
             . kRealize Tala.adi_tala
-    -- equal (run mempty (G.sarvaM G.ta 5)) (Right "k k k k k")
-    -- equal (run (Format.abstract Format.Sarva) (G.sarvaM G.ta 5))
-    --     (Right "==========")
-    -- equal (run mempty (G.sarvaM_ 3)) (Right "======")
+    equal (run mempty (G.sarvaM G.ta 5)) (Right "k k k k k")
+    equal (run (Format.abstract [Solkattu.GSarva]) (G.sarvaM G.ta 5))
+        (Right "==========")
+    equal (run mempty (G.sarvaM_ 3)) (Right "======")
 
     let sarva = G.sarvaM_
-        abstract = Format.abstract [Solkattu.GSarvaT]
+        abstract = Format.abstract [Solkattu.GSarva]
     -- [s-1]
     -- [[s0, s0]]
     equal (run abstract (sarva 2)) (Right "====")

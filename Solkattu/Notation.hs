@@ -70,7 +70,7 @@ __M matras = repeat matras __
 sarvaM :: CallStack.Stack => SequenceT sollu -> S.Matra -> SequenceT sollu
 sarvaM sollus matras = [S.Group (Solkattu.GMeta meta) sollus]
     where
-    meta = (Solkattu.meta Solkattu.GSarvaT) { Solkattu._matras = Just matras }
+    meta = (Solkattu.meta Solkattu.GSarva) { Solkattu._matras = Just matras }
 
 sarvaD :: CallStack.Stack => SequenceT sollu -> Duration -> SequenceT sollu
 sarvaD sollus dur = sarvaM sollus (dToM2 (S._nadai S.defaultTempo) dur)
@@ -135,7 +135,7 @@ splitM_either matras =
                     Solkattu.Before -> go tempo matras (post ++ ns)
                     Solkattu.After -> go tempo matras (pre ++ ns)
             S.Group (Solkattu.GMeta
-                        meta@(Solkattu.Meta (Just sMatras) _ Solkattu.GSarvaT))
+                        meta@(Solkattu.Meta (Just sMatras) _ Solkattu.GSarva))
                     children
                 | Just imatras <- Num.asIntegral matras -> return
                     (0, ([make imatras], make (sMatras - imatras) : ns))
@@ -146,19 +146,6 @@ splitM_either matras =
                     make m = S.Group
                         (Solkattu.GMeta (meta { Solkattu._matras = Just m }))
                         children
-
-            -- S.Group (Solkattu.GNormal g) children ->
-            --     case Solkattu._groupType (Solkattu._meta g) of
-            --         _ -> do
-            --             -- The group is destroyed if it gets split.
-            --             (pre, post) <- splitM_either (Solkattu._split g)
-            --                 children
-            --             case Solkattu._side g of
-            --                 Solkattu.Before -> go tempo matras (post ++ ns)
-            --                 Solkattu.After -> go tempo matras (pre ++ ns)
-            -- S.Group (Solkattu.GSarva sarvaMatras) children -> return
-            --     (0, ([make matras], make (sarvaMatras - matras) : ns))
-            --     where make m = S.Group (Solkattu.GSarva m) children
             S.Note (Solkattu.Space space) -> do
                 pre <- spaces tempo space matras
                 post <- spaces tempo space (noteMatras - matras)

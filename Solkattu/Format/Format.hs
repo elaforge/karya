@@ -50,7 +50,7 @@ abstract = Abstraction . Set.fromList
 defaultAbstraction :: Abstraction
 defaultAbstraction = abstract
     [ Solkattu.GPattern
-    , Solkattu.GSarvaT
+    , Solkattu.GSarva
     ]
 
 allAbstract :: Abstraction

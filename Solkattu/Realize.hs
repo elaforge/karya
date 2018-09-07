@@ -149,7 +149,7 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
     extension = \case
         Space Solkattu.Rest -> ' '
         Abstract meta -> case Solkattu._type meta of
-            Solkattu.GSarvaT -> '='
+            Solkattu.GSarva -> '='
             _ -> '-'
         _ -> ' '
     notationHtml n = case n of
@@ -159,7 +159,7 @@ instance Solkattu.Notation stroke => Solkattu.Notation (Note stroke) where
 metaNotation :: Solkattu.Meta -> Text
 metaNotation (Solkattu.Meta _ (Just name) _) = name
 metaNotation (Solkattu.Meta matras Nothing gtype) = case gtype of
-    Solkattu.GSarvaT -> "="
+    Solkattu.GSarva -> "="
     _ -> maybe "" showt matras <> typeName gtype
 
 typeName :: Solkattu.GroupType -> Text
@@ -168,7 +168,7 @@ typeName = \case
     Solkattu.GFiller -> "f"
     Solkattu.GPattern -> "p"
     Solkattu.GExplicitPattern -> "p"
-    Solkattu.GSarvaT -> "sarva"
+    Solkattu.GSarva -> "sarva"
 
 -- | Used to replace two rests.
 doubleRest :: Char
@@ -484,7 +484,7 @@ realize_ realizePattern toStrokes =
     realize1 (S.FGroup tempo group children) notes = do
         (,notes) <$> realizeGroup tempo group children
     realizeGroup tempo
-            (Solkattu.GMeta m@(Solkattu.Meta (Just matras) _ Solkattu.GSarvaT))
+            (Solkattu.GMeta m@(Solkattu.Meta (Just matras) _ Solkattu.GSarva))
             children
         | null children = return $
             -- The metadata is already in the group, but ToScore at least
@@ -509,7 +509,7 @@ realize_ realizePattern toStrokes =
             (children, Just err) -> UF.fromListFail children err
             (children, Nothing) -> UF.singleton $ S.FGroup tempo group children
 
--- | Realize a 'Solkattu.GSarvaT' group, by matching the sollus, and then
+-- | Realize a 'Solkattu.GSarva' group, by matching the sollus, and then
 -- cycling the strokes for the given duration.
 realizeSarva :: Pretty sollu => ToStrokes sollu stroke -> S.Tempo
     -> S.Matra -> [S.Flat g (Solkattu.Note sollu)]

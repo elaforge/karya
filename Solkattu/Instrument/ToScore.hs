@@ -56,7 +56,7 @@ toExpr s = case s of
 metaExpr :: Solkattu.Meta -> Expr.Call Expr.MiniVal
 metaExpr (Solkattu.Meta matras name gtype) =
     Expr.call call $ case gtype of
-        Solkattu.GSarvaT -> []
+        Solkattu.GSarva -> []
         _ -> case matras of
             Nothing -> []
             Just matras -> [Expr.num (fromIntegral matras)]

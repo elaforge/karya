@@ -131,7 +131,7 @@ render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
 abstractions :: [(Text, Format.Abstraction)]
 abstractions =
     [ ("none", mempty)
-    , ("sarva", Format.abstract [Solkattu.GSarvaT])
+    , ("sarva", Format.abstract [Solkattu.GSarva])
     , ("patterns", Format.defaultAbstraction)
     , ("all", Format.allAbstract)
     ]
@@ -281,7 +281,7 @@ typeColors = \case
     Solkattu.GFiller -> both $ gray 0.9
     Solkattu.GPattern -> patternc
     Solkattu.GExplicitPattern -> patternc
-    Solkattu.GSarvaT -> both $ rgb 0.7 0.85 0.7
+    Solkattu.GSarva -> both $ rgb 0.7 0.85 0.7
     where
     patternc = (rgb 0.65 0.65 0.8, rgb 0.8 0.8 0.95)
     both n = (n, n)
@@ -329,9 +329,9 @@ makeSymbols = go
         where
         modify = case Solkattu._type group of
             -- Highlight only when non-abstract.
-            Solkattu.GSarvaT -> case children of
+            Solkattu.GSarva -> case children of
                 S.FNote _ (_, S.Attack (Realize.Abstract {})) : _ -> id
-                _ -> setStyle Solkattu.GSarvaT
+                _ -> setStyle Solkattu.GSarva
             gtype -> setStyle gtype
     setStyle gtype = Seq.map_last (second (set End))
         . Seq.map_head_tail (second (set Start)) (second (set In))
@@ -339,7 +339,7 @@ makeSymbols = go
     noteHtml state = \case
         S.Sustain (Realize.Abstract meta) -> case Solkattu._type meta of
             -- TODO this is actually pretty ugly
-            Solkattu.GSarvaT -> "<hr style=\"border: 4px dotted\">"
+            Solkattu.GSarva -> "<hr style=\"border: 4px dotted\">"
             _ -> "<hr noshade>"
         S.Sustain a -> notation state a
         S.Attack a -> notation state a
@@ -347,7 +347,7 @@ makeSymbols = go
     -- Because sarva is <hr> all the way through, don't separate the attack
     -- from sustain.
     normalizeSarva (S.Attack n@(Realize.Abstract meta))
-        | Solkattu._type meta == Solkattu.GSarvaT = S.Sustain n
+        | Solkattu._type meta == Solkattu.GSarva = S.Sustain n
     normalizeSarva n = n
     notation state = bold . Solkattu.notationHtml
         where bold = if Format.onAkshara state then Doc.tag "b" else id
