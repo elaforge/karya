@@ -3651,6 +3651,7 @@ solkattu:
   - can I highlight karvais?  I guess I have to infer when they are, e.g.
     tri_ can put the group on, or join, though maybe it should be called
     karvai to emphasize that.
+    . Or maybe it's enough that the non-karvai is highlighted.
   * LSol.insert patterns are broken
     * They get 5p 8n instead of 'p 5' and '4n'
       . I need the original pattern matras, which means I think I have to
@@ -3733,6 +3734,10 @@ solkattu:
       . Or just general purpose post-processing.
     - kook kook -> kook nook, or kook took
     - kt_ kn_ ko_ ok_ D -> kt_pkn_pko_ook_oD
+      . This is a general fill-in gaps thing, e.g. it could work in tisram to
+        k__t__k__n__o__ -> k_pt_pk_pn_ko_o
+      . The general rule is before a rh stroke we get p, before lh get k.
+        Except if o then follow with o unless it's p.
   * concise stroke map:
     . repeat 4 (strM "nknd_nd_") & strM "o_oo_oo_ __oo_oo_ o"
   * Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
@@ -3846,7 +3851,44 @@ solkattu:
       abstraction in Solkattu.Format to collapse it.
   * get rid of Realize.Pattern
     . This means getting rid of local pattern defs, in favor of pattern group.
+  - Duration is supposedly absolute, but it only works at the toplevel.
+    So it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
+    sarvaD is wrong.
+    . One way is to store as Duration, and then do a Duration normalization
+      step.  This would work for sarvaM which stores its duration directly.
+    . I guess restD could do that too.
+    . (==>) wouldn't work though, because I need to drop a certain amount of
+      the space, and if I have to normalize Duration I'd have to wait until
+      after that to do it.
+    . As opposed to a postprocess step, I could have the current tempo in the
+      environment, which means SequenceT would become a ReaderT, where the
+      monoid instance runs and combines results.  As long as it's a monad,
+      I could also replace the IO exceptions.  The downside is that all that
+      stuff becomes monadic... but how bad is that really?
+    . I could probably write a Show instance that runs with the default tempo.
+    . I could do the section metadata anywhere thing by putting WriterT, or
+      if I don't want children to see it, maybe make it a
+      (Metadata, SequenceT sollu) and put Monoid on that.
+    . newtype SequenceT sollu =
+        ExceptT Error (ReaderT Tempo Identity) [S.Note Group sollu]
   sections:
+    - sections are syntactically noisy
+      . I have to put 'section' on everything, just so I can have one with
+        e.g. 'x2'.
+      . Also they break maps, like 'map (nadai 6)' has to become
+        'map (smap (nadai 6))'
+      . The simplest thing is to put the section data inside Sequence, and
+        then pull it out, like Alignment.
+      . It means I could embed section metadata in sollus and have it show up
+        in multiple sections, or multiple times.  That seems not right,
+        because they really are per-section, and in fact the point of sections
+        is to have that stuff.
+      . The ideal is an implicit 'section' on each element of the list.
+        It would be like fromSequence, but added automatically.  But maps have
+        to go under, so it really requires dynamic typing.
+      . What about an Either?  I would still need the automatic fromSequence
+        so I don't need an explicit annotation, otherwise it's the same as the
+        current 'section'.
     - if I have 'section' get CallStack and put section on each element,
       then I can tag sections with line numbers.
       . This won't work with 'map section', and I want to get rid of noisy

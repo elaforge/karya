@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | Format korvais as HTML.
 module Solkattu.Format.Html (
-    indexHtml, writeAbstraction, writeAll
+    indexHtml, writeAll
 #ifdef TESTING
     , module Solkattu.Format.Html
 #endif
@@ -83,13 +83,11 @@ indexHtml korvaiFname korvais = TextUtil.join "\n" $
         (_, _, variableName) = Korvai._location meta
 
 
--- | Write HTML with all the instrument realizations.
-writeAbstraction :: FilePath -> Format.Abstraction -> Korvai.Korvai -> IO ()
-writeAbstraction fname abstraction korvai =
-    Text.IO.writeFile fname $ Doc.un_html $ render abstraction korvai
-
+-- | Write HTML with all the instrument realizations at all abstraction levels.
 writeAll :: FilePath -> Korvai.Korvai -> IO ()
-writeAll fname korvai = Text.IO.writeFile fname $ Doc.un_html $ renderAll korvai
+writeAll fname korvai =
+    Text.IO.writeFile fname $ Doc.un_html $
+        render defaultAbstractions korvai
 
 
 -- * high level
@@ -110,26 +108,8 @@ defaultRulerEach = 8
 data Font = Font { _sizePercent :: Int, _monospace :: Bool }
     deriving (Show)
 
-render :: Format.Abstraction -> Korvai.Korvai -> Doc.Html
-render abstraction korvai = htmlPage title (korvaiMetadata korvai) body
-    where
-    (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
-    body = mconcat $ map htmlInstrument $ Seq.sort_on (order . fst) $
-        Korvai.korvaiInstruments korvai
-    htmlInstrument (name, Korvai.GInstrument inst) = mconcat
-        [ "<h3>" <> Doc.html name <> "</h3>\n"
-        , TextUtil.join "\n\n" (sectionHtmls inst (config name) korvai)
-        ]
-    order name = (fromMaybe 999 $ List.elemIndex name prio, name)
-        where prio = ["konnakol", "mridangam"]
-    config name = Config
-        { _abstraction = abstraction
-        , _font = if name == "konnakol" then konnakolFont else instrumentFont
-        , _rulerEach = defaultRulerEach
-        }
-
-abstractions :: [(Text, Format.Abstraction)]
-abstractions =
+defaultAbstractions :: [(Text, Format.Abstraction)]
+defaultAbstractions =
     [ ("none", mempty)
     , ("sarva", Format.abstract [Solkattu.GSarva])
     , ("patterns", Format.defaultAbstraction)
@@ -140,10 +120,9 @@ defaultAbstraction :: Text
 defaultAbstraction = "patterns"
 
 -- | Render all 'Abstraction's, with javascript to switch between them.
---
--- TODO copy paste with 'render', either merge them or delete render
-renderAll :: Korvai.Korvai -> Doc.Html
-renderAll korvai = htmlPage title (korvaiMetadata korvai) body
+render :: [(Text, Format.Abstraction)] -> Korvai.Korvai -> Doc.Html
+render abstractions korvai =
+    htmlPage title (korvaiMetadata korvai) body
     where
     (_, _, title) = Korvai._location (Korvai.korvaiMetadata korvai)
     body :: Doc.Html
@@ -153,19 +132,23 @@ renderAll korvai = htmlPage title (korvaiMetadata korvai) body
         where prio = ["konnakol", "mridangam"]
     htmlInstrument (instName, Korvai.GInstrument inst) = TextUtil.unlines $
         "<h3>" <> Doc.html instName <> "</h3>"
-        : chooseAbstraction instName
-        : map (realizeAbstraction instName inst) abstractions
-    realizeAbstraction instName inst (aname, abstraction) =
-        Doc.tag_attrs "div" attrs $ Just $
-            TextUtil.join "\n\n" $
-            sectionHtmls inst (config abstraction instName) korvai
-        where
-        attrs =
-            [ ("class", "realization")
-            , ("instrument", instName)
-            , ("abstraction", aname)
-            ] ++ if aname == defaultAbstraction
-            then [("", "")] else [("hidden", "")]
+        : chooseAbstraction abstractions instName
+        : map (renderAbstraction instName inst korvai) abstractions
+
+renderAbstraction :: Solkattu.Notation stroke => Text
+    -> Korvai.Instrument stroke -> Korvai.Korvai
+    -> (Text, Format.Abstraction) -> Doc.Html
+renderAbstraction instName inst korvai (aname, abstraction) =
+    Doc.tag_attrs "div" attrs $ Just $
+        TextUtil.join "\n\n" $
+        sectionHtmls inst (config abstraction instName) korvai
+    where
+    attrs =
+        [ ("class", "realization")
+        , ("instrument", instName)
+        , ("abstraction", aname)
+        ] ++ if aname == defaultAbstraction
+        then [("", "")] else [("hidden", "")]
     config abstraction instName = Config
         { _abstraction = abstraction
         , _font = if instName == "konnakol"
@@ -217,8 +200,8 @@ javascript =
     \    }\n\
     \}\n"
 
-chooseAbstraction :: Text -> Doc.Html
-chooseAbstraction instrument =
+chooseAbstraction :: [(Text, Format.Abstraction)] -> Text -> Doc.Html
+chooseAbstraction abstractions instrument =
     "\n<p> " <> mconcatMap ((<>"\n") . radio . fst) abstractions
     where
     -- <label> makes the text clickable too.

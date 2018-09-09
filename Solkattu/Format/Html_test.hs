@@ -28,7 +28,7 @@ show_format_sarva = do
         G.repeat 2 G.takadinna <> G.nadai 6 G.takadinna
 
 format :: Korvai.Sequence -> Text
-format = Doc.un_html . Html.render abstraction . korvai
+format = Doc.un_html . Html.render [("x", abstraction)] . korvai
 
 korvai :: Korvai.Sequence -> Korvai.Korvai
 korvai = Korvai.korvaiInferSections Tala.adi_tala (G.makeMridangam []) . (:[])
