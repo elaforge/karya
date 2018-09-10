@@ -224,14 +224,34 @@ formatLines abstraction strokeWidth width tala =
     map (map (Format.mapSnd (spellRests strokeWidth)))
         . Format.formatFinalAvartanam isRest . map (breakLine width)
         . Format.breakAvartanams
-        . map combine . Seq.zip_prev
+        . overlapSymbols strokeWidth
         . concatMap (makeSymbols strokeWidth tala angas)
         . Format.makeGroupsAbstract abstraction
         . Format.normalizeSpeed tala
     where
-    combine (prev, (state, sym)) = (state, text (Text.drop overlap) sym)
-        where overlap = maybe 0 (subtract strokeWidth . symLength . snd) prev
     angas = Format.angaSet tala
+
+-- | Long names will overlap following _isSustain ones.
+overlapSymbols :: Int -> [(a, Symbol)] -> [(a, Symbol)]
+overlapSymbols strokeWidth = snd . mapAccumLSnd combine ""
+    where
+    combine overlap sym
+        | _isSustain sym =
+            let (pre, post) = textSplitAt strokeWidth overlap
+            in (post, modifyText (replace pre) sym)
+        | otherwise =
+            let (pre, post) = textSplitAt strokeWidth (_text sym)
+            in (post, sym { _text = pre })
+    replace prefix text =
+        prefix <> snd (textSplitAt (Realize.textLength prefix) text)
+
+-- TODO isn't there an easier way to lift mapAccumL into second?
+mapAccumLSnd :: (state -> a -> (state, b)) -> state -> [(x, a)]
+    -> (state, [(x, b)])
+mapAccumLSnd f state = List.mapAccumL f2 state
+    where
+    f2 state (x, a) = (state2, (x, b))
+        where (state2, b) = f state a
 
 makeSymbols :: Solkattu.Notation stroke => Int -> Tala.Tala -> Set Tala.Akshara
     -> Format.NormalizedFlat stroke -> [(S.State, Symbol)]
@@ -239,11 +259,12 @@ makeSymbols strokeWidth tala angas = go
     where
     go (S.FNote _ (state, note)) =
         (:[]) $ (state,) $ make state $ case note of
-            S.Attack a -> Realize.justifyLeft strokeWidth (Solkattu.extension a)
-                (Solkattu.notation a)
-            S.Sustain a -> Text.replicate strokeWidth
+            S.Attack a -> (False,) $
+                Realize.justifyLeft strokeWidth (Solkattu.extension a)
+                    (Solkattu.notation a)
+            S.Sustain a -> (True,) $ Text.replicate strokeWidth
                 (Text.singleton (Solkattu.extension a))
-            S.Rest -> Realize.justifyLeft strokeWidth ' ' "_"
+            S.Rest -> (True, Realize.justifyLeft strokeWidth ' ' "_")
     go (S.FGroup _ group children) = modify (concatMap go children)
         where
         modify = case Solkattu._type group of
@@ -262,8 +283,9 @@ makeSymbols strokeWidth tala angas = go
             (second (set Format.StartHighlight startColor))
             (second (set Format.Highlight color))
         where set h color sym = sym { _highlight = Just (h, color) }
-    make state text = Symbol
+    make state (isSustain, text) = Symbol
         { _text = text
+        , _isSustain = isSustain
         , _emphasize = shouldEmphasize tala angas state
         , _highlight = Nothing
         }
@@ -312,12 +334,13 @@ breakBefore maxWidth =
 
 data Symbol = Symbol {
     _text :: !Text
+    , _isSustain :: !Bool
     , _emphasize :: !Bool
     , _highlight :: !(Maybe (Format.Highlight, Styled.Color))
     } deriving (Eq, Show)
 
 instance Pretty Symbol where
-    pretty (Symbol text emphasize highlight) =
+    pretty (Symbol text _ emphasize highlight) =
         text <> (if emphasize then "(b)" else "")
         <> case highlight of
             Nothing -> ""
@@ -325,11 +348,11 @@ instance Pretty Symbol where
             Just (Format.Highlight, _) -> "-"
             Just (Format.EndHighlight, _) -> "|"
 
-text :: (Text -> Text) -> Symbol -> Symbol
-text f sym = sym { _text = f (_text sym) }
+modifyText :: (Text -> Text) -> Symbol -> Symbol
+modifyText f sym = sym { _text = f (_text sym) }
 
 formatSymbol :: Symbol -> Styled.Styled
-formatSymbol (Symbol text emph highlight) =
+formatSymbol (Symbol text _ emph highlight) =
     (case highlight of
         Nothing -> id
         Just (Format.StartHighlight, color) -> Styled.bg color
@@ -346,6 +369,15 @@ formatSymbol (Symbol text emph highlight) =
 
 symLength :: Symbol -> Int
 symLength = Realize.textLength . _text
+
+textSplitAt :: Int -> Text -> (Text, Text)
+textSplitAt at text =
+    find $ map (flip Text.splitAt text) [0 .. Realize.textLength text]
+    where
+    find (cur : next@((pre, _) : _))
+        | Realize.textLength pre > at = cur
+        | otherwise = find next
+    find _ = (text, "")
 
 -- * util
 

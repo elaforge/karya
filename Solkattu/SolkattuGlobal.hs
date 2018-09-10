@@ -132,8 +132,8 @@ kttk = su kitataka
 -- fast variants.
 
 kp, kpnp :: Sequence
-kp = named Solkattu.GFiller "2t" (Solkattu.Standard ^ taka)
-kpnp = named Solkattu.GFiller "4t" (Solkattu.Standard ^ (taka.tiku))
+kp = namedT Solkattu.GFiller "2t" (Solkattu.Standard ^ taka)
+kpnp = namedT Solkattu.GFiller "4t" (Solkattu.Standard ^ (taka.tiku))
 
 -- These are more problematic because different realizations are common, e.g.
 -- oktp, pktp.
@@ -143,12 +143,12 @@ ktktoknp = Solkattu.Standard ^ (tarikita.taka.taka)
 
 nakatiku :: Sequence
 nakatiku =
-    named Solkattu.GPattern "8n" (Solkattu.Standard ^ (naka.tiku.tari.kita))
+    namedT Solkattu.GPattern "8n" (Solkattu.Standard ^ (naka.tiku.tari.kita))
     -- also diku.tari.kita.taka
 
 takadugutarikita :: Sequence
 takadugutarikita =
-    named Solkattu.GPattern "8t" (Solkattu.Standard ^ (taka.dugu.tari.kita))
+    namedT Solkattu.GPattern "8t" (Solkattu.Standard ^ (taka.dugu.tari.kita))
 
 -- * instruments
 

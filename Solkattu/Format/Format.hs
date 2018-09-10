@@ -5,7 +5,7 @@
 -- | Utilities shared among formatting backends.
 module Solkattu.Format.Format (
     Abstraction, isAbstract, abstract
-    , defaultAbstraction, allAbstract
+    , defaultAbstraction, namedGroups, allAbstract
     , Highlight(..)
     -- * group
     , Flat
@@ -23,6 +23,7 @@ module Solkattu.Format.Format (
     , mapSnd
 ) where
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
@@ -38,23 +39,32 @@ import Global
 
 -- | Control what is rendered as strokes, and what is rendered as abstract
 -- groups with durations.
-newtype Abstraction = Abstraction (Set Solkattu.GroupType)
+newtype Abstraction = Abstraction (Set Abstract)
     deriving (Eq, Show, Semigroup, Monoid)
 
-isAbstract :: Abstraction -> Solkattu.GroupType -> Bool
-isAbstract (Abstraction abstract) gtype = Set.member gtype abstract
+data Abstract = GroupType !Solkattu.GroupType | NamedGroups
+    deriving (Eq, Ord, Show)
+
+isAbstract :: Abstraction -> Solkattu.Meta -> Bool
+isAbstract (Abstraction abstract) group =
+    GroupType gtype `Set.member` abstract
+    || Maybe.isJust (Solkattu._name group) && NamedGroups `Set.member` abstract
+    where gtype = Solkattu._type group
 
 abstract :: [Solkattu.GroupType] -> Abstraction
-abstract = Abstraction . Set.fromList
+abstract = Abstraction . Set.fromList . map GroupType
+
+namedGroups :: Abstraction
+namedGroups = Abstraction $ Set.singleton NamedGroups
 
 defaultAbstraction :: Abstraction
 defaultAbstraction = abstract
     [ Solkattu.GPattern
     , Solkattu.GSarva
-    ]
+    ] <> namedGroups
 
 allAbstract :: Abstraction
-allAbstract = Abstraction $ Set.fromList [minBound .. maxBound]
+allAbstract = Abstraction $ Set.fromList $ map GroupType [minBound .. maxBound]
 
 data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
@@ -90,7 +100,7 @@ makeGroupsAbstract :: Abstraction
 makeGroupsAbstract abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | isAbstract abstraction gtype =
+        | isAbstract abstraction group =
             Seq.map_head_tail (abstract S.Attack) (abstract S.Sustain)
                 tempoNotes
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
@@ -122,7 +132,7 @@ makeGroupsAbstractScore :: Abstraction
 makeGroupsAbstractScore abstraction = concatMap combine
     where
     combine (S.FGroup tempo group children)
-        | isAbstract abstraction (Solkattu._type meta) = (:[]) $
+        | isAbstract abstraction meta = (:[]) $
             S.FNote tempo $ Realize.Abstract meta
         | otherwise = [S.FGroup tempo group (concatMap combine children)]
         where meta = groupToMeta group

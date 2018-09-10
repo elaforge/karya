@@ -16,7 +16,7 @@ import Prelude hiding ((.))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Solkattu.Dsl
+import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.MridangamNotation as MridangamNotation
@@ -25,6 +25,8 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import qualified Solkattu.Tala as Tala
+
+import Solkattu.Dsl
 
 
 type Sequence = SequenceT Stroke
@@ -106,14 +108,14 @@ takadinna = k.o.o.k
 kook = k.o.o.k
 
 nakatiku :: Sequence
-nakatiku = named Solkattu.GPattern "8n" (n.p.u.p.k.t.p.k)
+nakatiku = namedT Solkattu.GPattern "8n" (n.p.u.p.k.t.p.k)
     -- also t.p.u.k.t.p.k
 
 -- * interactive utilities
 
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realizeM mempty
-realizep = realizeM patterns
+realizep = realizeM Format.defaultAbstraction
 
 realizeM :: Abstraction -> Korvai.Korvai -> IO ()
 realizeM = SolkattuGlobal._printInstrument Korvai.mridangam

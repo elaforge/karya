@@ -385,7 +385,7 @@ c_18_05_25 = date 2018 5 25 $ ganesh $
 dikutarikitataka :: Sequence
 dikutarikitataka = nakatiku
 
-misra_tani :: [Part] -- realizePartsM misra_tani
+misra_tani :: [Part] -- realizePartsM patterns misra_tani
 misra_tani =
     [ Comment "part 1"
     , K misra_tani1 All
@@ -729,7 +729,7 @@ e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
 
 -- * adi
 
-adi_tani :: [Part] -- realizePartsM adi_tani
+adi_tani :: [Part] -- realizePartsM patterns adi_tani
 adi_tani =
     [ K adi_tani1 All
     , K trikalam1 All
@@ -849,10 +849,10 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     -- Duration is off due to map nadai 6.  TODO this is pretty awkward.
     sarva dur = sarvaD sarvaSollu (dur * 1.5)
     sarvaSollu = repeat 4 $ taka.ta.ta.dim.__
-    tarikitadiku = group $ su $ tari.kita.taka.diku.kita.taka
+    tarikitadiku = named "6npkt" $ su $ tari.kita.taka.diku.kita.taka
     dinna = group $ din.na.kttk
     tari3 = tri trktkt
-    trktkt = group $ trkt.kttk
+    trktkt = named "4npkt" $ trkt.kttk
     takadinna = group $ taka.dinna
     -- TODO this uses trkt.kttk instead of trktkt above because being a group
     -- will prevent the full din_trktkt match.
@@ -958,9 +958,7 @@ misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
         , ta.taka.din.__3.na.__3.p6
         , tat.__3.din.__3.p6
         , ta.taka.din.__3
-        ] ++ [
-            sd $ tri123 (tam.__3) p6
-        ]
+        ] ++ [sd $ tri123 (tam.__3) p6]
     mridangam = makeMridangam
         [ (tat, k)
         , (din, od)

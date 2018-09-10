@@ -22,7 +22,7 @@ module Solkattu.Dsl (
     , akshara, sam, (§)
     -- * abstraction
     , Abstraction
-    , patterns, allAbstract
+    , patterns, namedGroups, allAbstract
     -- * patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- * re-exports
@@ -139,6 +139,9 @@ mapSollu = fmap • fmap • fmap
 -- | Abstract all Patterns to durations.
 patterns :: Format.Abstraction
 patterns = Format.abstract [Solkattu.GPattern]
+
+namedGroups :: Format.Abstraction
+namedGroups = Format.namedGroups
 
 allAbstract :: Abstraction
 allAbstract = Format.allAbstract

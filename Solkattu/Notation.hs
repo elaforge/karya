@@ -422,8 +422,11 @@ reduction split side = (:[]) . S.Group group
         }
 
 -- | Make a named group.
-named :: Solkattu.GroupType -> Text -> SequenceT sollu -> SequenceT sollu
-named gtype name = (:[]) . S.Group (Solkattu.GMeta group)
+named :: Text -> SequenceT sollu -> SequenceT sollu
+named = namedT Solkattu.GTheme
+
+namedT :: Solkattu.GroupType -> Text -> SequenceT sollu -> SequenceT sollu
+namedT gtype name = (:[]) . S.Group (Solkattu.GMeta group)
     where group = (Solkattu.meta gtype) { Solkattu._name = Just name }
 
 -- groupType gtype = (:[]) . S.Group (Solkattu.meta gtype)

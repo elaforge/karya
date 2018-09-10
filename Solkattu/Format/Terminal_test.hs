@@ -219,8 +219,15 @@ test_abstract = do
         (Right ["k k 1½----"])
     equal (f (G.group (tas 2) <> G.group (tas 2)))
         (Right ["2---2---"])
-    equal (f (su $ tas 2 <> G.named Solkattu.GTheme "q" (tas 2)))
+    equal (f (su $ tas 2 <> G.named "q" (tas 2)))
         (Right ["k k q---"])
+
+    -- Named group with a longer name.
+    equal (f (G.named "tata" (tas 4))) (Right ["tata----"])
+    equal (f (G.named "takatiku" (tas 4))) (Right ["takatiku"])
+    equal (f (G.named "takatikutari" (tas 4))) (Right ["takatiku"])
+    equal (f (G.named "takatiku" (tas 2) <> tas 2)) (Right ["takak k"])
+
     equal (f (G.reduce3 1 mempty (tas 4))) (Right ["4-------3-----2---"])
     -- patterns
     equal (f (G.pattern (tas 4))) (Right ["4p------"])
@@ -291,7 +298,7 @@ test_formatSpeed = do
     equal (f 80 (G.p5 <> G.p5)) (Right "5P------==5p----==--")
     -- Use narrow spacing when there's isn't space, and p5 overlaps the next
     -- '-'.
-    equal (f 10 (G.p5 <> G.p5)) (Right "5P--=5p-=-")
+    equal (f 10 (G.p5 <> G.p5)) (Right "5p--=5p-=-")
 
 
 -- * util
