@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Utilities for ghci.
-module Solkattu.Interactive (
+module Solkattu.Dsl.Interactive (
     diff, diffw, printInstrument
 ) where
 import qualified Data.Text as Text

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | DSL functions to add metadata to Korvais.
-module Solkattu.MetadataGlobal (
+module Solkattu.Dsl.Metadata (
     comment, date, source, similarTo
     , recording
     , korvaiT, koraippu, mohra, sarvalaghu, tirmanam
@@ -12,9 +12,10 @@ module Solkattu.MetadataGlobal (
 ) where
 import qualified Util.CallStack as CallStack
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.Metadata as Metadata
 import Solkattu.Korvai (Korvai)
+import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Tags as Tags
+
 import Global
 
 

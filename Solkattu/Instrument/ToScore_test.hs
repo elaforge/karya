@@ -3,11 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Solkattu.Instrument.ToScore_test where
+import qualified Solkattu.Dsl.Solkattu as G
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.SolkattuGlobal as G
 import qualified Solkattu.Tala as Tala
 
 import Util.Test

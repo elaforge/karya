@@ -7,12 +7,12 @@ module Solkattu.Format.Html_test where
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.Doc as Doc
+import qualified Solkattu.Dsl.Solkattu as G
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
-import qualified Solkattu.SolkattuGlobal as G
 import qualified Solkattu.Tala as Tala
 
 import Global

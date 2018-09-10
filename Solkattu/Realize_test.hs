@@ -15,8 +15,8 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Note(..), Sollu(..))
-import qualified Solkattu.SolkattuGlobal as G
-import Solkattu.SolkattuGlobal
+import qualified Solkattu.Dsl.Solkattu as G
+import Solkattu.Dsl.Solkattu
        ((^), __, ta, di, ki, tha, thom, tang, ga, din, na, ka)
 import qualified Solkattu.Tala as Tala
 

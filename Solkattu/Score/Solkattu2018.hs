@@ -9,8 +9,9 @@ import Prelude hiding ((.), (^), repeat)
 
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Score.SolkattuMohra as SolkattuMohra
-import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
+
+import Solkattu.Dsl.Solkattu
 
 
 yt_mannargudi1 :: Korvai
@@ -830,14 +831,13 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     , x2 $ section $ sarva 6 . tri dinna
     , section $ repeat 2 (sarva 2 . tri dinna)
     , section $ sarva 2 . repeat 3 (tri dinna)
-    , x2 $ section $ sarva 6 . tari3
-    , section $ repeat 3 (sarva 2 . tari3) . tari3 . tari3
+    , x2 $ section $ sarva 6 . trktkt3
+    , section $ repeat 3 (sarva 2 . trktkt3) . trktkt3 . trktkt3
     , x2 $ section $ sarva 6 . repeat 2 takadinna
     , section $ repeat 2 $ sarva 2 . repeat 2 takadinna
     , section $ repeat 8 takadinna
-        . repeat 6 takadinna . tri dinna
-    , section $ repeat 6 takadinna . tri dinna
-    , section $ repeat 6 takadinna . tari3
+    , x2 $ section $ repeat 6 takadinna . tri dinna
+    , section $ repeat 6 takadinna . trktkt3
     , section $ repeat 6 takadinna . din_trktkt
     , section $ repeat 2 $ repeat 2 takadinna . din_trktkt
     , x2 $ section $ repeat 4 $ din_trktkt
@@ -851,7 +851,7 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     sarvaSollu = repeat 4 $ taka.ta.ta.dim.__
     tarikitadiku = named "6npkt" $ su $ tari.kita.taka.diku.kita.taka
     dinna = group $ din.na.kttk
-    tari3 = tri trktkt
+    trktkt3 = tri trktkt
     trktkt = named "4npkt" $ trkt.kttk
     takadinna = group $ taka.dinna
     -- TODO this uses trkt.kttk instead of trktkt above because being a group

@@ -7,7 +7,7 @@
 module Solkattu.Score.Solkattu2016 where
 import Prelude hiding ((.), (^), repeat)
 
-import Solkattu.SolkattuGlobal
+import Solkattu.Dsl.Solkattu
 
 
 c_16_09_28 :: Korvai

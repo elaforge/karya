@@ -3,8 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {- | Provide short names and operators for writing korvais in haskell.  This
-    module is the shared global namespace between "Solkattu.SolkattuGlobal" and
-    "Solkattu.MridangamGlobal".
+    module is the shared global namespace between "Solkattu.Dsl.Solkattu" and
+    "Solkattu.Dsl.Mridangam".
 
     Operators:
 
@@ -12,7 +12,7 @@
     > infixl 8 <== ==>
     > infixr 6 . -- same as (<>)
 -}
-module Solkattu.Dsl (
+module Solkattu.Dsl.Generic (
     (.), (•), ø
     , karvai
     , stripRests
@@ -27,10 +27,10 @@ module Solkattu.Dsl (
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- * re-exports
     , module Solkattu.Korvai
-    , module Solkattu.MetadataGlobal
-    , module Solkattu.Notation
+    , module Solkattu.Dsl.Metadata
+    , module Solkattu.Dsl.Notation
+    , module Solkattu.Dsl.Section
     , module Solkattu.Part
-    , module Solkattu.SectionGlobal
     , module Solkattu.S
     , module Solkattu.Solkattu
     , module Solkattu.Tala
@@ -62,9 +62,9 @@ import qualified Solkattu.Tala as Tala
 import Solkattu.Tala (Akshara)
 
 import Global
-import Solkattu.MetadataGlobal
-import Solkattu.Notation
-import Solkattu.SectionGlobal
+import Solkattu.Dsl.Metadata
+import Solkattu.Dsl.Notation
+import Solkattu.Dsl.Section
 
 
 -- | Combine 'Sequence's.  This is just another name for (<>).

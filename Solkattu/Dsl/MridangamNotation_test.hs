@@ -2,18 +2,18 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Solkattu.MridangamNotation_test where
+module Solkattu.Dsl.MridangamNotation_test where
 import qualified Data.Text as Text
 
-import Util.Test
+import qualified Solkattu.Dsl.Mridangam as G
+import Solkattu.Dsl.Mridangam ((&), o, k, t, __, su)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.MridangamGlobal as MridangamGlobal
-import Solkattu.MridangamGlobal ((&), o, k, t, __, su)
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 
 import Global
+import Util.Test
 
 
 test_merge = do
@@ -28,8 +28,6 @@ test_merge = do
     -- Merge unequal speeds.
     equal (f $ (k <> su (k<>t) <> k) & (o<>o<>o)) $ Right "K _ K t K _"
 
-realize :: MridangamGlobal.Sequence
-    -> Either Text [Realize.Note Mridangam.Stroke]
+realize :: G.Sequence -> Either Text [Realize.Note Mridangam.Stroke]
 realize seq = fmap S.flattenedNotes $ fmap fst $ head $
-    Korvai.realize Korvai.mridangam
-        (MridangamGlobal.korvaiS1 MridangamGlobal.adi seq)
+    Korvai.realize Korvai.mridangam (G.korvaiS1 G.adi seq)

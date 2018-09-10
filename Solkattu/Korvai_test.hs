@@ -6,14 +6,14 @@
 module Solkattu.Korvai_test where
 import qualified Data.Text as Text
 
+import qualified Solkattu.Dsl.Solkattu as G
+import Solkattu.Dsl.Solkattu (ta, ka, din, na)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Score.Mridangam2018 as Mridangam2018
 import qualified Solkattu.Score.Solkattu2018 as Solkattu2018
-import qualified Solkattu.SolkattuGlobal as G
-import Solkattu.SolkattuGlobal (ta, ka, din, na)
 import qualified Solkattu.Tala as Tala
 
 import Global

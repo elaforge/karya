@@ -11,9 +11,9 @@ import qualified Util.Seq as Seq
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.SolkattuGlobal
 
 import Global
+import Solkattu.Dsl.Solkattu
 
 
 -- * chatusra nadai

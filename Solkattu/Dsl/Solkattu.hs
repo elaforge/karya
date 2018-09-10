@@ -4,10 +4,10 @@
 
 {-# LANGUAGE RecordWildCards #-}
 -- | Global imports for solkattu score modules.
-module Solkattu.SolkattuGlobal (
-    module Solkattu.SolkattuGlobal
-    , module Solkattu.Dsl
-    , module Solkattu.Interactive
+module Solkattu.Dsl.Solkattu (
+    module Solkattu.Dsl.Solkattu
+    , module Solkattu.Dsl.Generic
+    , module Solkattu.Dsl.Interactive
 ) where
 import Prelude hiding ((.), (^))
 import qualified Data.List as List
@@ -16,6 +16,9 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
+import qualified Solkattu.Dsl.Interactive as Interactive
+import Solkattu.Dsl.Interactive (diff, diffw)
+import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
@@ -23,10 +26,7 @@ import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Instrument.Reyong as Reyong
 import qualified Solkattu.Instrument.Sargam as Sargam
-import qualified Solkattu.Interactive as Interactive
-import Solkattu.Interactive (diff, diffw)
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.MridangamNotation as MridangamNotation
 import qualified Solkattu.Part as Part
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
@@ -34,7 +34,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
 import Global
-import Solkattu.Dsl
+import Solkattu.Dsl.Generic
 
 
 type Sequence = SequenceT Solkattu.Sollu

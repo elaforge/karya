@@ -6,7 +6,7 @@
 -- | Collect korvais into a searchable form.
 module Solkattu.Db (
     module Solkattu.Db
-    , module Solkattu.SolkattuGlobal
+    , module Solkattu.Dsl.Solkattu
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -24,13 +24,13 @@ import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
+import Solkattu.Dsl.Solkattu
+       (index, realize, realizep, realizeM, realizeK1, realizeR)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
-import Solkattu.SolkattuGlobal
-       (index, realize, realizep, realizeM, realizeK1, realizeR)
 import qualified Solkattu.Tags as Tags
 
 import Global

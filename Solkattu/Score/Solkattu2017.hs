@@ -13,7 +13,7 @@ import qualified Solkattu.Instrument.Sargam as Sargam
 import qualified Solkattu.Tala as Tala
 
 import Global
-import Solkattu.SolkattuGlobal
+import Solkattu.Dsl.Solkattu
 
 
 koraippu_janahan :: Korvai

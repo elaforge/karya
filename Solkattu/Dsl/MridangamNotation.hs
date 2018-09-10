@@ -2,17 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities for the mridangam-specific DSL.  Sister to "Solkattu.Notation",
--- this is like "Solkattu.MridangamGlobal", but with more complicated
--- implementations, and without the annoying overidden (.).
-module Solkattu.MridangamNotation (
+-- | Utilities for the mridangam-specific DSL.  Sister to
+-- "Solkattu.Dsl.Notation", this is like "Solkattu.Dsl.Mridangam", but with
+-- more complicated implementations, and without the annoying overidden (.).
+module Solkattu.Dsl.MridangamNotation (
     merge
     , makeNote1, makeNote
 ) where
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
+import qualified Solkattu.Dsl.Notation as Notation
 import qualified Solkattu.Instrument.Mridangam as Mridangam
-import qualified Solkattu.Notation as Notation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu

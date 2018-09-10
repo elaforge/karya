@@ -9,7 +9,8 @@ import Prelude hiding ((.), (^), repeat)
 import qualified Data.List as List
 
 import qualified Solkattu.Instrument.Mridangam as Mridangam
-import Solkattu.SolkattuGlobal
+
+import Solkattu.Dsl.Solkattu
 
 
 -- 2014-01-08 nadai practice

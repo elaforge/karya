@@ -43,15 +43,14 @@
     stroke types into a single type, and projects out the specific strokes
     depending on which instrument is being realized.
 
-    "Solkattu.Dsl", "Solkattu.SolkattuGlobal",
-    "Solkattu.Notation" - Functions for creating solkattu scores.  Dsl
+    "Solkattu.Dsl.Solkattu" - Functions for creating solkattu scores.  It
     defines (or replaces) various operators to make scores look nicer.
 
     Solkattu.Score.Solkattu* - Instrument-independent korvais.
 
-    "Solkattu.MridangamGlobal", "Solkattu.MridangamNotation",
-    Solkattu.Score.Mridangam* - These are similar to Dsl and Score.Solkattu*,
-    except they use concrete mridangam strokes instead of abstract sollus.
+    "Solkattu.Dsl.Mridangam", Solkattu.Score.Mridangam* - These are similar to
+    Dsl and Score.Solkattu*, except they use concrete mridangam strokes instead
+    of abstract sollus.
 
     The naming convention is that \"Note\" is the level-specific
     value, itself may have a \"Note\" constructor with the "next level" of

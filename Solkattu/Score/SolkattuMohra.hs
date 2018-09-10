@@ -8,8 +8,9 @@ module Solkattu.Score.SolkattuMohra where
 import Prelude hiding ((.), (^), repeat)
 
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.SolkattuGlobal
 import qualified Solkattu.Tala as Tala
+
+import Solkattu.Dsl.Solkattu
 
 
 makeMohras :: Tala.Tala -> Korvai.StrokeMaps

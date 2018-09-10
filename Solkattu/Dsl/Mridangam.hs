@@ -3,30 +3,30 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE RecordWildCards #-}
-{- | This is analogous to "Solkattu.SolkattuGlobal", except it exports
+{- | This is analogous to "Solkattu.Dsl.Solkattu", except it exports
     a mridangam-specific notation without using sollus at all.
 
     Its sollu type is just 'Mridangam.Stroke', so it doesn't need a StrokeMap.
 -}
-module Solkattu.MridangamGlobal (
-    module Solkattu.MridangamGlobal
-    , module Solkattu.Dsl
+module Solkattu.Dsl.Mridangam (
+    module Solkattu.Dsl.Mridangam
+    , module Solkattu.Dsl.Generic
 ) where
 import Prelude hiding ((.))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
+import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
+import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
-import qualified Solkattu.MridangamNotation as MridangamNotation
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import qualified Solkattu.Tala as Tala
 
-import Solkattu.Dsl
+import Solkattu.Dsl.Generic
 
 
 type Sequence = SequenceT Stroke
@@ -118,4 +118,4 @@ realize = realizeM mempty
 realizep = realizeM Format.defaultAbstraction
 
 realizeM :: Abstraction -> Korvai.Korvai -> IO ()
-realizeM = SolkattuGlobal._printInstrument Korvai.mridangam
+realizeM = Dsl.Solkattu._printInstrument Korvai.mridangam

@@ -12,7 +12,7 @@
     This is meant to have just Sequence manipulation, without
     instrument-specific functions.
 -}
-module Solkattu.Notation where
+module Solkattu.Dsl.Notation where
 import Prelude hiding ((^), repeat)
 import qualified Data.List as List
 

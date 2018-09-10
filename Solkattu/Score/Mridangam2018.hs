@@ -5,8 +5,9 @@
 module Solkattu.Score.Mridangam2018 where
 import Prelude hiding ((.), repeat)
 
-import Solkattu.MridangamGlobal
 import qualified Solkattu.Tala as Tala
+
+import Solkattu.Dsl.Mridangam
 
 
 e_323_1 :: Korvai

@@ -4,20 +4,20 @@
 
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
-module Solkattu.Notation_test where
+module Solkattu.Dsl.Notation_test where
 import qualified Data.Tuple as Tuple
 
-import Util.Test
+import qualified Solkattu.Dsl.Solkattu as G
+import Solkattu.Dsl.Solkattu (su, sd, __, di, ta, ka, ki, taka, din, gin, na)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
-import Solkattu.Notation
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
-import Solkattu.SolkattuGlobal (su, sd, __, di, ta, ka, ki, taka, din, gin, na)
 import qualified Solkattu.Tala as Tala
 
 import Global
+import Solkattu.Dsl.Notation
+import Util.Test
 
 
 -- Many of the Notation functions are indirectly tested in Realize_test.
@@ -77,19 +77,16 @@ test_align = do
 flattenGroups :: [S.Note g a] -> [S.Note () a]
 flattenGroups = S.flattenGroups
 
-realizeKorvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
-    -> SolkattuGlobal.Sequence -> Either Text [(Text, S.Duration)]
+realizeKorvai :: G.StrokeMap Mridangam.Stroke
+    -> G.Sequence -> Either Text [(Text, S.Duration)]
 realizeKorvai strokes = realize . makeKorvai strokes
 
-makeKorvai :: SolkattuGlobal.StrokeMap Mridangam.Stroke
-    -> SolkattuGlobal.Sequence -> SolkattuGlobal.Korvai
+makeKorvai :: G.StrokeMap Mridangam.Stroke -> G.Sequence -> G.Korvai
 makeKorvai strokes seq = korvai
     where
-    korvai = SolkattuGlobal.korvaiS1 Tala.adi_tala
-        (SolkattuGlobal.makeMridangam0 strokes)
-        seq
+    korvai = G.korvaiS1 Tala.adi_tala (G.makeMridangam0 strokes) seq
 
-realize :: SolkattuGlobal.Korvai -> Either Text [(Text, S.Duration)]
+realize :: G.Korvai -> Either Text [(Text, S.Duration)]
 realize = extract . head . Korvai.realize Korvai.mridangam
     where
     extract (Left err) = Left err

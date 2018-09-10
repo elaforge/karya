@@ -10,6 +10,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Regex as Regex
 import qualified Util.Styled as Styled
 
+import qualified Solkattu.Dsl.Solkattu as G
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as M
@@ -18,7 +19,6 @@ import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import Solkattu.Solkattu (Sollu(..))
-import qualified Solkattu.SolkattuGlobal as G
 import qualified Solkattu.Tala as Tala
 
 import Global

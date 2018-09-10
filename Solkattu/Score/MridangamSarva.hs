@@ -6,9 +6,10 @@
 module Solkattu.Score.MridangamSarva where
 import Prelude hiding ((.), repeat)
 
-import Solkattu.MridangamGlobal
 import qualified Solkattu.Tala as Tala
+
 import Global
+import Solkattu.Dsl.Mridangam
 
 
 -- * kirkalam

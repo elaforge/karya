@@ -5,14 +5,13 @@
 module Solkattu.Solkattu_test where
 import qualified Data.Text as Text
 
-import Util.Test
-import Global
-import qualified Solkattu.Dsl as Dsl
-import Solkattu.Dsl (__)
-import Solkattu.SolkattuGlobal (ta, di, ki, thom)
-import qualified Solkattu.Notation as Notation
+import qualified Solkattu.Dsl.Solkattu as G
+import Solkattu.Dsl.Solkattu (__, ta, di, ki, thom)
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
+
+import Global
+import Util.Test
 
 
 
@@ -26,29 +25,29 @@ test_matrasOf = do
 
     let ta4 = ta <> ta <> ta <> ta
     let f2 = f S.defaultTempo
-    equal (f2 (Notation.takeM 0 ta4)) 0
-    equal (f2 (Notation.takeM 1 ta4)) 1
-    equal (f2 (Notation.takeM 4 ta4)) 4
-    equal (f2 (Notation.takeM 5 ta4)) 4
-    equal (f2 (Dsl.su (Notation.takeM 2 ta4))) 1
+    equal (f2 (G.takeM 0 ta4)) 0
+    equal (f2 (G.takeM 1 ta4)) 1
+    equal (f2 (G.takeM 4 ta4)) 4
+    equal (f2 (G.takeM 5 ta4)) 4
+    equal (f2 (G.su (G.takeM 2 ta4))) 1
 
-    equal (f2 (Notation.dropM 0 ta4)) 4
-    equal (f2 (Notation.dropM 1 ta4)) 3
-    equal (f2 (Notation.dropM 4 ta4)) 0
-    equal (f2 (Notation.dropM 5 ta4)) 0
+    equal (f2 (G.dropM 0 ta4)) 4
+    equal (f2 (G.dropM 1 ta4)) 3
+    equal (f2 (G.dropM 4 ta4)) 0
+    equal (f2 (G.dropM 5 ta4)) 0
 
 test_durationOf = do
     let f = Solkattu.durationOf S.defaultTempo
     let tas n = mconcat $ replicate n ta
     equal (f (tas 4)) 1
-    equal (f (Dsl.nadai 7 (tas 7))) 1
-    equal (f (Dsl.nadai 7 $ Notation.dropM 2 (tas 9))) 1
+    equal (f (G.nadai 7 (tas 7))) 1
+    equal (f (G.nadai 7 $ G.dropM 2 (tas 9))) 1
 
 test_cancelKarvai = do
     let f = Text.unwords . map pretty . S.flattenedNotes
             . Solkattu.cancelKarvai . S.flatten
-        k = Dsl.karvai
-        group = Notation.group
+        k = G.karvai
+        group = G.group
     equal (f (ta <> thom)) "ta thom"
     equal (f (ta <> k thom)) "ta"
     equal (f (ta <> thom <> __)) "ta thom __"
@@ -64,9 +63,9 @@ test_vary = do
                 (Solkattu.variations [Solkattu.standard, Solkattu.ascending])
                 notes
     equal (f (ta <> di)) ["ta di"]
-    equal (f (ta <> Dsl.p6 <> di <> Dsl.p6)) ["ta 6p di 6p"]
-    equal (f (ta <> Dsl.p6 <> di <> Dsl.p6 <> Dsl.p6)) ["ta 5p di 6p 7p"]
-    equal (f (Dsl.tri_ ta Dsl.p6 <> di <> Dsl.tri_ ki Dsl.p7))
+    equal (f (ta <> G.p6 <> di <> G.p6)) ["ta 6p di 6p"]
+    equal (f (ta <> G.p6 <> di <> G.p6 <> G.p6)) ["ta 5p di 6p 7p"]
+    equal (f (G.tri_ ta G.p6 <> di <> G.tri_ ki G.p7))
         [ "5p ta 6p mid^ta 7p di 6p ki 7p mid^ki 8p"
         , "5p ta 6p mid^ta 7p di 5p ki 7p mid^ki 9p"
         ]

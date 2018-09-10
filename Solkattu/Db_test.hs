@@ -9,12 +9,12 @@ import qualified Data.Text as Text
 
 import qualified Util.Test.Testing as Testing
 import qualified Solkattu.All as All
+import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
-import qualified Solkattu.SolkattuGlobal as SolkattuGlobal
 import qualified Solkattu.Tags as Tags
 
 import Global
@@ -43,7 +43,7 @@ testLint (i, korvai)
     | lints == "" = return True
     | otherwise = failure $ location korvai i <> ": " <> lints
     where
-    lints = SolkattuGlobal.allLints korvai
+    lints = Dsl.Solkattu.allLints korvai
 
 test_metadata = do
     forM_ (zip [0..] All.korvais) $ \(i, korvai) ->

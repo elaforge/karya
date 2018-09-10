@@ -5,7 +5,7 @@
 module Solkattu.Score.Vathapi where
 import Prelude hiding ((.), repeat)
 
-import Solkattu.MridangamGlobal
+import Solkattu.Dsl.Mridangam
 
 
     -- pallavi

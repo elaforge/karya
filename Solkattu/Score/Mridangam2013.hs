@@ -8,7 +8,7 @@
 module Solkattu.Score.Mridangam2013 where
 import Prelude hiding ((.), repeat)
 
-import Solkattu.MridangamGlobal
+import Solkattu.Dsl.Mridangam
 
 
 -- TODO use this as a template to fill in various themes

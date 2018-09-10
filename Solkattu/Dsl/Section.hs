@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | DSL functions to add tags to Sections.
-module Solkattu.SectionGlobal (
+module Solkattu.Dsl.Section (
     section, smap
     , startOn, endOn, eddupu
     -- * tags

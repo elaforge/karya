@@ -5,7 +5,7 @@
 module Solkattu.Score.Mridangam2017 where
 import Prelude hiding ((.), repeat)
 
-import Solkattu.MridangamGlobal
+import Solkattu.Dsl.Mridangam
 
 
 c_17_07_10 :: Korvai
