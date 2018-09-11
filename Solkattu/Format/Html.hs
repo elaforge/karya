@@ -111,7 +111,7 @@ data Font = Font { _sizePercent :: Int, _monospace :: Bool }
 defaultAbstractions :: [(Text, Format.Abstraction)]
 defaultAbstractions =
     [ ("none", mempty)
-    , ("sarva", Format.abstract [Solkattu.GSarva])
+    , ("sarva", Format.abstract Solkattu.GSarva)
     , ("patterns", Format.defaultAbstraction)
     , ("all", Format.allAbstract)
     ]

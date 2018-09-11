@@ -3900,6 +3900,7 @@ solkattu:
     . e.g. Solkattu2013.c_13_07_23 groups go 18 19 20, they should go 18 16 14
     . They're right, I'm confused.
   format: output:
+    * I want to be able to abstract named groups, but not GFiller
     html:
       - color abstracted groups too
       - Solkattu.Score.Solkattu2014.c_14_02_05.html at >=patterns abstraction

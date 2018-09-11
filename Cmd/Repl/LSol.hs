@@ -101,7 +101,7 @@ realize instrument realize_patterns korvai index akshara_dur at = do
         Part.index index korvai
     -- TODO I could probbaly abstract more than just patterns
     let abstraction = if realize_patterns
-            then mempty else Format.abstract [Solkattu.GPattern]
+            then mempty else Format.abstract Solkattu.GPattern
     -- snd is an alignment warning, which I can see well enough on the track
     -- already.
     let strokes = Format.makeGroupsAbstractScore abstraction $

@@ -4,8 +4,9 @@
 
 -- | Utilities shared among formatting backends.
 module Solkattu.Format.Format (
-    Abstraction, isAbstract, abstract
-    , defaultAbstraction, namedGroups, allAbstract
+    Abstraction, isAbstract
+    , abstract, named, unnamed
+    , defaultAbstraction, allAbstract
     , Highlight(..)
     -- * group
     , Flat
@@ -23,7 +24,6 @@ module Solkattu.Format.Format (
     , mapSnd
 ) where
 import qualified Data.List as List
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
@@ -39,32 +39,39 @@ import Global
 
 -- | Control what is rendered as strokes, and what is rendered as abstract
 -- groups with durations.
-newtype Abstraction = Abstraction (Set Abstract)
+newtype Abstraction = Abstraction (Set (Solkattu.GroupType, Named))
     deriving (Eq, Show, Semigroup, Monoid)
 
-data Abstract = GroupType !Solkattu.GroupType | NamedGroups
-    deriving (Eq, Ord, Show)
+data Named = Unnamed | Named deriving (Eq, Ord, Show)
+
+-- data Abstract = GroupType !Solkattu.GroupType | NamedGroups
+--     deriving (Eq, Ord, Show)
 
 isAbstract :: Abstraction -> Solkattu.Meta -> Bool
-isAbstract (Abstraction abstract) group =
-    GroupType gtype `Set.member` abstract
-    || Maybe.isJust (Solkattu._name group) && NamedGroups `Set.member` abstract
-    where gtype = Solkattu._type group
+isAbstract (Abstraction abstract) group = Set.member (gtype, isNamed) abstract
+    where
+    gtype = Solkattu._type group
+    isNamed = case Solkattu._name group of
+        Nothing -> Unnamed
+        Just _ -> Named
 
-abstract :: [Solkattu.GroupType] -> Abstraction
-abstract = Abstraction . Set.fromList . map GroupType
-
-namedGroups :: Abstraction
-namedGroups = Abstraction $ Set.singleton NamedGroups
+abstract, named, unnamed :: Solkattu.GroupType -> Abstraction
+abstract gtype = Abstraction $ Set.fromList [(gtype, Named), (gtype, Unnamed)]
+named gtype = Abstraction $ Set.singleton (gtype, Named)
+unnamed gtype = Abstraction $ Set.singleton (gtype, Unnamed)
 
 defaultAbstraction :: Abstraction
-defaultAbstraction = abstract
-    [ Solkattu.GPattern
-    , Solkattu.GSarva
-    ] <> namedGroups
+defaultAbstraction = mconcat
+    [ abstract Solkattu.GPattern
+    , abstract Solkattu.GSarva
+    , named Solkattu.GTheme
+    ]
 
 allAbstract :: Abstraction
-allAbstract = Abstraction $ Set.fromList $ map GroupType [minBound .. maxBound]
+allAbstract = Abstraction $ Set.fromList
+    [ (gtype, named)
+    | gtype <- [minBound .. maxBound], named <- [Unnamed, Named]
+    ]
 
 data Highlight = StartHighlight | Highlight | EndHighlight
     deriving (Eq, Show)
