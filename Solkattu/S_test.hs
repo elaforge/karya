@@ -57,7 +57,7 @@ test_tempoToState = do
 test_normalizeSpeed = do
     let f = map (bimap eState prettyStroke)
             . S.flattenedNotes
-            . S.normalizeSpeed Tala.adi_tala
+            . normalizeSpeed Tala.adi_tala
             . S.flatten
         n matras = S.Note (matras :: S.Matra)
     equal (f [n 1, n 1]) [((0, 0), '+'), ((0, 1/4), '+')]
@@ -85,7 +85,7 @@ test_normalizeSpeed = do
     equal (map snd $ f [stride 3 [note, su [note, note]]]) "+_____+__+__"
 
 test_normalizeSpeedGroups = do
-    let f = map (fmap extract) . S.normalizeSpeed Tala.adi_tala . S.flatten
+    let f = map (fmap extract) . normalizeSpeed Tala.adi_tala . S.flatten
         n = Note (1 :: S.Matra)
         extract = pretty . snd
     let t0 = tempo 0 4
@@ -112,6 +112,10 @@ test_normalizeSpeedGroups = do
             , FGroup t0 'b' [ FNote t0 "1" ]
             ]
         ]
+
+normalizeSpeed :: S.HasMatras a => Tala.Tala -> [Flat g a]
+    -> [Flat g (S.State, S.Stroke a)]
+normalizeSpeed tala notes = S.normalizeSpeed (S.maxSpeed notes) tala notes
 
 test_simplify = do
     let f = S.simplify

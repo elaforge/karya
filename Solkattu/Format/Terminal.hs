@@ -99,6 +99,7 @@ printKonnakol width abstraction =
 
 formatInstrument :: Solkattu.Notation stroke => Config
     -> Korvai.Instrument stroke -> Korvai.Korvai -> ([Text], Bool)
+    -- ^ (lines, hadError)
 formatInstrument config instrument korvai =
     formatResults config korvai $ zip (korvaiTags korvai) $
         Format.convertGroups $
@@ -125,6 +126,12 @@ formatResults config korvai results =
         where
         (nextRuler, out) =
             format config prevRuler (Korvai.korvaiTala korvai) notes
+    -- If I want to normalize speed across all sections, then this is the place
+    -- to get it.  I originally tried this, but from looking at the results I
+    -- think I like when the notation can get more compact.
+    -- toSpeed = maximum $ 0 : map S.maxSpeed (mapMaybe notesOf results)
+    -- notesOf (_, Right (notes, _)) = Just notes
+    -- notesOf _ = Nothing
     sectionFmt section tags = Text.intercalate "\n"
         . Seq.map_last (<> showTags tags)
         . Seq.map_head_tail
@@ -220,16 +227,18 @@ isRest = (=="_") . Text.strip . _text
 -- | Break into [avartanam], where avartanam = [line].
 formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Int -> Tala.Tala -> [Format.Flat stroke] -> [[[(S.State, Symbol)]]]
-formatLines abstraction strokeWidth width tala =
+formatLines abstraction strokeWidth width tala notes =
     map (map (Format.mapSnd (spellRests strokeWidth)))
         . Format.formatFinalAvartanam isRest . map (breakLine width)
         . Format.breakAvartanams
         . overlapSymbols strokeWidth
         . concatMap (makeSymbols strokeWidth tala angas)
         . Format.makeGroupsAbstract abstraction
-        . Format.normalizeSpeed tala
+        . Format.normalizeSpeed toSpeed tala
+        $ notes
     where
     angas = Format.angaSet tala
+    toSpeed = S.maxSpeed notes
 
 -- | Long names will overlap following _isSustain ones.
 overlapSymbols :: Int -> [(a, Symbol)] -> [(a, Symbol)]
@@ -245,7 +254,7 @@ overlapSymbols strokeWidth = snd . mapAccumLSnd combine ""
     replace prefix text =
         prefix <> snd (textSplitAt (Realize.textLength prefix) text)
 
--- TODO isn't there an easier way to lift mapAccumL into second?
+-- | I think lenses are the way to lift mapAccumL into second.
 mapAccumLSnd :: (state -> a -> (state, b)) -> state -> [(x, a)]
     -> (state, [(x, b)])
 mapAccumLSnd f state = List.mapAccumL f2 state

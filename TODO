@@ -3902,6 +3902,11 @@ solkattu:
   format: output:
     * I want to be able to abstract named groups, but not GFiller
     html:
+      - separate sections with a horizontal line
+      - now that I use globally max speed, I get too many rests, e.g. in
+        Solkattu2018.yt_mannargudi1.
+      - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
+        . It looks fine but seems messy.
       - color abstracted groups too
       - Solkattu.Score.Solkattu2014.c_14_02_05.html at >=patterns abstraction
         has wrong long rest position next to the pattern highlights
@@ -3909,6 +3914,9 @@ solkattu:
         . <hr> wants to go below text, can I get it to go to the right of the
           next, or have another way to draw a horizontal line?
       - section metadata display is really ugly
+        . I tried tooltip, but it's still full of useless info.
+          E.g. avartanams, end, max_speed, nadai, start
+        . I can try to attach x2 and type in some more clever way.
       - sarva double dots are pretty ugly, how about single dots?
         . And can I stop them from clumping together at the breaks?
       - rests could be wider, since I have more space
@@ -3917,7 +3925,16 @@ solkattu:
       * tala name incomplete, e.g. triputa -> triputa tisra jati
       * show rulers on nadai changes
         . formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
-      / carry rulersEach across sections
+      * carry rulersEach across sections
+        . I also need to only do <table> start and ends on a new ruler
+        * This gets ugly when the rulers normalize to a different speed.
+          I should make all sections use the same speed.
+        . E.g. Solkattu2018.yt_mannargudi1
+        . Maybe it's because it gets a new ruler because of the end time?
+        . Html is still messed up, sollus use 16 before onAkshara, but
+          the next section uses 8, why?
+        . Must have to do with normalization, so it's that all sections should
+          be normalized to the max speed.
       * strip trailing rests for final note
       - Decrease font size for higher speed.
       - For high speed split avartanam.
@@ -3930,7 +3947,21 @@ solkattu:
           source
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
-    text:
+    terminal:
+      - somehow the normalize to max speed caused some double rests to stop
+        working.
+        . E.g. Solkattu2014.c_14_06_06
+        . Also I'm not sure I love it... the compactness is nice and I don't
+          think I've been confused by it.  Maybe for html only?
+        . Maybe I should at least be sure I emit a ruler when the maxSpeed
+          changes.
+        . I disabled normalize to max speed.
+      - emphasized Symbols that cover an extension should retain emphasis
+      - Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
+        arudi but starts on 2, not 4.
+        . Acutally this is due to differing normalization.  The next section
+          is actually at a different speed.
+        . Shouldn't there be an intermediate ruler though?
       - I should also be able to mark sam, to make avartanams more clear
         when they wrap across two lines.
         . Say by colorizing the stroke on sam.

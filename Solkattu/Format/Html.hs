@@ -140,28 +140,42 @@ renderAbstraction :: Solkattu.Notation stroke => Text
     -> (Text, Format.Abstraction) -> Doc.Html
 renderAbstraction instName inst korvai (aname, abstraction) =
     Doc.tag_attrs "div" attrs $ Just $
-        TextUtil.join "\n\n" $
-        sectionHtmls inst (config abstraction instName) korvai
+        TextUtil.join "\n" $ concat
+        [ ["\n<p><table style=\"" <> fontStyle
+            <> "\" class=konnakol cellpadding=0 cellspacing=0>"]
+        , sectionHtmls inst (config abstraction) korvai
+        , ["</table>"]
+        ]
     where
+    fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
+        <> if _monospace font then "; font-family: Monaco, monospace" else ""
     attrs =
         [ ("class", "realization")
         , ("instrument", instName)
         , ("abstraction", aname)
         ] ++ if aname == defaultAbstraction
         then [("", "")] else [("hidden", "")]
-    config abstraction instName = Config
+    config abstraction = Config
         { _abstraction = abstraction
-        , _font = if instName == "konnakol"
-            then konnakolFont else instrumentFont
+        , _font = font
         , _rulerEach = defaultRulerEach
         }
+    font = if instName == "konnakol" then konnakolFont else instrumentFont
 
 sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Config -> Korvai.Korvai -> [Doc.Html]
 sectionHtmls inst config korvai =
-    zipWith (renderSection config (Korvai.korvaiTala korvai))
+    snd $ List.mapAccumL section (Nothing, 0) $ zip
         (Korvai.genericSections korvai)
-        (Format.convertGroups (Korvai.realize inst korvai))
+        sectionNotes
+    where
+    sectionNotes = Format.convertGroups (Korvai.realize inst korvai)
+    section prevRuler (section, notes) =
+        renderSection config toSpeed prevRuler (Korvai.korvaiTala korvai)
+            section notes
+    toSpeed = maximum $ 0 : map S.maxSpeed (mapMaybe notesOf sectionNotes)
+    notesOf (Right (notes, _)) = Just notes
+    notesOf _ = Nothing
 
 htmlPage :: Text -> Doc.Html -> Doc.Html -> Doc.Html
 htmlPage title meta body = mconcat
@@ -179,7 +193,7 @@ htmlHeader title = TextUtil.join "\n"
     , "<body>"
     , ""
     , "<style type=\"text/css\">"
-    , tableCss
+    , allCss
     , "</style>"
     , ""
     , "<script>"
@@ -217,6 +231,9 @@ chooseAbstraction abstractions instrument =
 htmlFooter :: Doc.Html
 htmlFooter = "</body></html>\n"
 
+allCss :: Doc.Html
+allCss = TextUtil.join "\n" [tableCss, Doc.Html typeCss]
+
 tableCss :: Doc.Html
 tableCss =
     "table.konnakol {\n\
@@ -229,7 +246,28 @@ tableCss =
     \}\n\
     \.onAnga { border-left: 3px double }\n\
     \.onAkshara { border-left: 1px solid }\n"
-    <> Doc.Html typeCss
+
+-- metadataCss :: Doc.Html
+-- metadataCss =
+--     ".tooltip {\n\
+--     \    position: relative;\n\
+--     \    display: inline-block;\n\
+--     \}\n\
+--     \.tooltip .tooltiptext {\n\
+--     \    visibility: hidden;\n\
+--     \    width: 120px;\n\
+--     \    background-color: black;\n\
+--     \    color: #fff;\n\
+--     \    text-align: center;\n\
+--     \    padding: 5px 0;\n\
+--     \    border-radius: 6px;\n\
+--     \    /* Position the tooltip text - see examples below! */\n\
+--     \    position: absolute;\n\
+--     \    z-index: 1;\n\
+--     \}\n\
+--     \.tooltip:hover .tooltiptext {\n\
+--     \    visibility: visible;\n\
+--     \}\n"
 
 typeCss :: Text
 typeCss = Text.unlines $ concat
@@ -271,20 +309,69 @@ typeColors = \case
     rgb = Styled.rgbColor
     gray n = rgb n n n
 
-formatHtml :: Solkattu.Notation stroke => Config -> Tala.Tala
-    -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Doc.Html
-formatHtml config tala notes =
-    formatTable (_font config) tala avartanams
+-- * render
+
+renderSection :: Solkattu.Notation stroke => Config -> S.Speed
+    -> Format.PrevRuler -> Tala.Tala -> Korvai.Section x
+    -> Either Error ([S.Flat Solkattu.Meta (Realize.Note stroke)], Error)
+    -> (Format.PrevRuler, Doc.Html)
+renderSection _ _ prevRuler _ _ (Left err) =
+    (prevRuler, "<p> ERROR: " <> Doc.html err)
+renderSection config toSpeed prevRuler tala section (Right (notes, warn)) =
+    -- (nextRuler,) $ Doc.tag_class "div" "tooltip" $ mconcat
+    --     [ Doc.tag_class "span" "tooltiptext" (sectionMetadata section)
+    (nextRuler,) $ mconcat
+        [ body
+        , if Text.null warn then ""
+            else "<tr><td colspan=100> WARNING: " <> Doc.html warn
+                <> "</td></tr>"
+        ]
+    where
+    (nextRuler, body) = formatHtml config toSpeed prevRuler tala notes
+
+-- TODO this actually looks pretty ugly, but I'll worry about that later
+sectionMetadata :: Korvai.Section sollu -> Doc.Html
+sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
+    where
+    tags = Tags.untags $ Korvai.sectionTags section
+    showTag (k, []) = Doc.html k
+    showTag (k, vs) = Doc.html k <> ": "
+        <> TextUtil.join ", " (map (htmlTag k) vs)
+
+korvaiMetadata :: Korvai.Korvai -> Doc.Html
+korvaiMetadata korvai = (<>"\n\n") $ TextUtil.join "<br>\n" $ concat $
+    [ ["Tala: " <> Doc.html (Tala.tala_name (Korvai.korvaiTala korvai))]
+    , ["Date: " <> Doc.html (showDate date) | Just date <- [Korvai._date meta]]
+    , [showTag ("Eddupu", map pretty eddupu) | not (null eddupu)]
+    , map showTag (Map.toAscList (Map.delete "tala" tags))
+    ]
+    where
+    meta = Korvai.korvaiMetadata korvai
+    eddupu = Seq.unique $ filter (/="0") $
+        Map.findWithDefault [] Tags.eddupu sectionTags
+    sectionTags = Tags.untags $ mconcat $ Metadata.sectionTags korvai
+    tags = Tags.untags $ Korvai._tags meta
+    showTag (k, []) = Doc.html k
+    showTag (k, vs) = Doc.html k <> ": "
+        <> TextUtil.join ", " (map (htmlTag k) vs)
+    showDate = txt . Calendar.showGregorian
+
+formatHtml :: Solkattu.Notation stroke => Config -> S.Speed -> Format.PrevRuler
+    -> Tala.Tala -> [S.Flat Solkattu.Meta (Realize.Note stroke)]
+    -> (Format.PrevRuler, Doc.Html)
+formatHtml config toSpeed prevRuler tala notes =
+    (nextRuler, formatTable tala avartanams)
     where
     avartanams :: [(Maybe Format.Ruler, Line)]
-    avartanams =
-        concat $
-        snd $ Format.pairWithRuler (_rulerEach config) (Nothing, 0) tala 1 $
-        Format.formatFinalAvartanam (isRest . _html) $ map (:[]) $
-        Format.breakAvartanams $
-        concatMap makeSymbols $
-        Format.makeGroupsAbstract (_abstraction config) $
-        Format.normalizeSpeed tala notes
+    (nextRuler, avartanams) =
+        second concat
+        . Format.pairWithRuler (_rulerEach config) prevRuler tala 1
+        . Format.formatFinalAvartanam (isRest . _html) . map (:[])
+        . Format.breakAvartanams
+        . concatMap makeSymbols
+        . Format.makeGroupsAbstract (_abstraction config)
+        . Format.normalizeSpeed toSpeed tala
+        $ notes
 
 type Line = [(S.State, Symbol)]
 
@@ -293,6 +380,9 @@ data Symbol = Symbol {
     , _isSustain :: !Bool
     , _style :: !(Maybe Text)
     } deriving (Eq, Show)
+
+instance Pretty Symbol where
+    pretty (Symbol html _ _) = pretty html
 
 -- | Flatten the groups into linear [Symbol].
 makeSymbols :: Solkattu.Notation stroke => Format.NormalizedFlat stroke
@@ -335,18 +425,10 @@ makeSymbols = go
     notation state = bold . Solkattu.notationHtml
         where bold = if Format.onAkshara state then Doc.tag "b" else id
 
-formatTable :: Font -> Tala.Tala
-    -> [(Maybe Format.Ruler, [(S.State, Symbol)])]
+formatTable :: Tala.Tala -> [(Maybe Format.Ruler, [(S.State, Symbol)])]
     -> Doc.Html
-formatTable font tala rows = mconcatMap (<>"\n") $ concat
-    [ ["<p> <table style=\"" <> fontStyle
-        <> "\" class=konnakol cellpadding=0 cellspacing=0>"]
-    , map row rows
-    , ["</table>"]
-    ]
+formatTable tala = mconcatMap ((<>"\n") . row)
     where
-    fontStyle = "font-size: " <> Doc.html (showt (_sizePercent font)) <> "%"
-        <> if _monospace font then "; font-family: Monaco, monospace" else ""
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
     row (mbRuler, cells) =
         TextUtil.join ("\n" :: Doc.Html) $
@@ -416,44 +498,6 @@ instrumentFont = Font
     { _sizePercent = 125
     , _monospace = True
     }
-
-renderSection :: Solkattu.Notation stroke => Config
-    -> Tala.Tala -> Korvai.Section x
-    -> Either Error ([S.Flat Solkattu.Meta (Realize.Note stroke)], Error)
-    -> Doc.Html
-renderSection _ _ _ (Left err) = "<p> ERROR: " <> Doc.html err
-renderSection config tala section (Right (notes, warn)) = mconcat
-    [ sectionMetadata section
-    , formatHtml config tala notes
-    , if Text.null warn then "" else "<br> WARNING: " <> Doc.html warn
-    ]
-
--- TODO this actually looks pretty ugly, but I'll worry about that later
-sectionMetadata :: Korvai.Section sollu -> Doc.Html
-sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
-    where
-    tags = Tags.untags $ Korvai.sectionTags section
-    showTag (k, []) = Doc.html k
-    showTag (k, vs) = Doc.html k <> ": "
-        <> TextUtil.join ", " (map (htmlTag k) vs)
-
-korvaiMetadata :: Korvai.Korvai -> Doc.Html
-korvaiMetadata korvai = (<>"\n\n") $ TextUtil.join "<br>\n" $ concat $
-    [ ["Tala: " <> Doc.html (Tala.tala_name (Korvai.korvaiTala korvai))]
-    , ["Date: " <> Doc.html (showDate date) | Just date <- [Korvai._date meta]]
-    , [showTag ("Eddupu", map pretty eddupu) | not (null eddupu)]
-    , map showTag (Map.toAscList (Map.delete "tala" tags))
-    ]
-    where
-    meta = Korvai.korvaiMetadata korvai
-    eddupu = Seq.unique $ filter (/="0") $
-        Map.findWithDefault [] Tags.eddupu sectionTags
-    sectionTags = Tags.untags $ mconcat $ Metadata.sectionTags korvai
-    tags = Tags.untags $ Korvai._tags meta
-    showTag (k, []) = Doc.html k
-    showTag (k, vs) = Doc.html k <> ": "
-        <> TextUtil.join ", " (map (htmlTag k) vs)
-    showDate = txt . Calendar.showGregorian
 
 htmlTag :: Text -> Text -> Doc.Html
 htmlTag k v

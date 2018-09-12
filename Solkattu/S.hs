@@ -301,9 +301,9 @@ instance Pretty a => Pretty (Stroke a) where
 --
 -- This normalizes speed, not nadai, because Realize.format lays out notation
 -- by nadai, not in absolute time.
-normalizeSpeed :: HasMatras a => Tala.Tala -> [Flat g a]
-    -> [Flat g (State, (Stroke a))]
-normalizeSpeed tala flattened = fst $
+normalizeSpeed :: HasMatras a => Speed -> Tala.Tala
+    -> [Flat g a] -> [Flat g (State, (Stroke a))]
+normalizeSpeed toSpeed tala flattened = fst $
     State.runState (mapM addState (concatMap expand flattened)) initialState
     where
     addState (FNote tempo stroke) = do
@@ -319,12 +319,11 @@ normalizeSpeed tala flattened = fst $
             Attack note : replicate (spaces - 1)
                 (if hasSustain note then Sustain note else Rest)
         where
-        spaces = _stride tempo * matrasOf note * 2 ^ (toSpeed - _speed tempo)
-
-    toSpeed = maximum $ 0 : map _speed (tempoOf flattened)
-    tempoOf = concatMap $ \n -> case n of
-        FNote tempo _ -> [tempo]
-        FGroup tempo _ children -> tempo : tempoOf children
+        spaces = _stride tempo * matrasOf note * 2 ^ exp
+        exp | toSpeed - _speed tempo < 0 =
+                error $ "tried to normalize to speed " <> show toSpeed
+                    <> " but there is " <> prettys tempo
+            | otherwise = toSpeed - _speed tempo
 
 -- | This is similar to 'normalizeSpeed', but working on 'Note's instead of
 -- 'Flat's.  Expand speed to the given toSpeed, or error if there's a speed

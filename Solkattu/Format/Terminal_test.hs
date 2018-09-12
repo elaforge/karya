@@ -129,6 +129,24 @@ test_format_ruler = do
         "X:4     O       X       O       |\n\
         \K _ ‗   K _ ‗   K _ ‗   K _ ‗   K"
 
+test_format_eddupu = do
+    let run = stripAnsi . formatInstrument . korvai tala4
+    let tas n = G.repeat n G.ta
+    let s = G.section
+    equal_fmt id (run [s $ tas 32, s $ tas 32])
+        "1:  X:4     O       X       O       |\n\
+        \    k k k k k k k k k k k k k k k k\n\
+        \    k k k k k k k k k k k k k k k k\n\
+        \2:  k k k k k k k k k k k k k k k k\n\
+        \    k k k k k k k k k k k k k k k k"
+    -- The ruler remains unchanged, even though there aren't enough sollus.
+    equal_fmt id (run [G.endOn 2 $ s $ tas 24, G.startOn 2 $ s $ tas 24])
+        "1:  X:4     O       X       O       |\n\
+        \    k k k k k k k k k k k k k k k k\n\
+        \    k k k k k k k k\n\
+        \2:                  k k k k k k k k\n\
+        \    k k k k k k k k k k k k k k k k"
+
 test_spellRests = do
     let run width = fmap (eFormat . format width tala4 . fst)
             . kRealize tala4
@@ -139,11 +157,11 @@ test_spellRests = do
 
 test_inferRuler = do
     let f = Format.inferRuler tala4 2
-            . map fst . S.flattenedNotes . Format.normalizeSpeed tala4 . fst
+            . map fst . S.flattenedNotes . Format.normalizeSpeed 0 tala4 . fst
             . expect_right
             . kRealize tala4
     let tas nadai n = G.nadai nadai (G.repeat n G.ta)
-    equal (f (tas 2 4)) [("X:2", 2), ("O", 2), ("|", 0)]
+    equal (f (tas 2 4)) [("X:2", 2), ("O", 2)]
 
 test_format_ruler_rulerEach = do
     let run = fmap (first (capitalizeEmphasis . format 16 Tala.adi_tala))
@@ -303,16 +321,21 @@ test_formatSpeed = do
 
 -- * util
 
+formatInstrument :: Korvai.Korvai -> Text
+formatInstrument = Text.unlines . fst
+    . Terminal.formatInstrument Terminal.defaultConfig Korvai.mridangam
+
 format :: Solkattu.Notation stroke => Int -> Tala.Tala
     -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
 format = formatAbstraction Format.defaultAbstraction
 
 formatAbstraction :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Tala.Tala -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
-formatAbstraction abstraction width tala =
+formatAbstraction abstraction width tala notes =
     Text.intercalate "\n" . map Text.strip . Text.lines
     . Styled.toText . snd
     . Terminal.format config (Nothing, 0) tala
+    $ notes
     where
     config = Terminal.defaultConfig
         { Terminal._terminalWidth = width
@@ -328,8 +351,8 @@ dropRulers =
     where isRuler t = "X:" `Text.isPrefixOf` t || "0:" `Text.isPrefixOf` t
 
 stripAnsi :: Text -> Text
-stripAnsi =
-    Text.strip . Regex.substitute (Regex.compileUnsafe "\ESC\\[[0-9;]+?m") ""
+stripAnsi = Text.intercalate "\n" . map Text.stripEnd . Text.lines
+    .  Regex.substitute (Regex.compileUnsafe "\ESC\\[[0-9;]+?m") ""
     -- ANSI codes likely protected trailing spaces.
 
 -- | Replace emphasis with capitals, so spacing is preserved.
@@ -340,11 +363,16 @@ capitalizeEmphasis = stripAnsi
 
 kRealize :: Tala.Tala -> Korvai.Sequence
     -> Either Text ([Format.Flat M.Stroke], Text)
-kRealize tala =
-    fmap (first Format.mapGroups) . head
-    . Korvai.realize Korvai.mridangam
+kRealize tala = kRealizes tala . (:[])
+
+kRealizes :: Tala.Tala -> [Korvai.Sequence]
+    -> Either Text ([Format.Flat M.Stroke], Text)
+kRealizes tala =
+    fmap (first Format.mapGroups) . head . Korvai.realize Korvai.mridangam
     . Korvai.korvaiInferSections tala defaultStrokeMap
-    . (:[])
+
+korvai :: Tala.Tala -> [Korvai.Section Solkattu.Sollu] -> Korvai.Korvai
+korvai tala = Korvai.korvai tala defaultStrokeMap
 
 
 -- * TODO duplicated with Realize_test
@@ -375,7 +403,8 @@ realizeP pmap smap = fmap Format.mapGroups
 formatLines :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Int -> Tala.Tala -> [Format.Flat stroke]
     -> [[[(S.State, Terminal.Symbol)]]]
-formatLines = Terminal.formatLines
+formatLines abstraction strokeWidth width tala notes =
+    Terminal.formatLines abstraction strokeWidth width tala notes
 
 defaultSolluMap :: Realize.SolluMap M.Stroke
 defaultSolluMap = fst $ expect_right $ Realize.solluMap $ solkattuToRealize

@@ -18,7 +18,7 @@ module Solkattu.Format.Format (
     , breakAvartanams, formatFinalAvartanam
     , onSam, onAnga, onAkshara, angaSet
     -- * ruler
-    , Ruler, pairWithRuler
+    , Ruler, PrevRuler, pairWithRuler
     , inferRuler
     -- * util
     , mapSnd
@@ -145,9 +145,10 @@ makeGroupsAbstractScore abstraction = concatMap combine
         where meta = groupToMeta group
     combine n = [n]
 
-normalizeSpeed :: Tala.Tala -> [Flat stroke] -> [NormalizedFlat stroke]
-normalizeSpeed tala =
-    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed tala
+normalizeSpeed :: S.Speed -> Tala.Tala -> [Flat stroke]
+    -> [NormalizedFlat stroke]
+normalizeSpeed toSpeed tala =
+    fmap (fmap (fmap normalizeRest)) . S.normalizeSpeed toSpeed tala
     . S.filterFlat (not . isAlignment)
     where
     isAlignment (Realize.Alignment {}) = True
@@ -222,6 +223,8 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
         wanted = lineNumber `mod` rulerEach == 0
             || Just (map snd ruler) /= (map snd <$> prev)
 
+-- | Fix the problem in 'inferRuler' by re-using the previous ruler if this one
+-- is a subset of it.
 inheritRuler :: Ruler -> Ruler -> Ruler
 inheritRuler prev cur
     | length cur < length prev && map snd cur `List.isPrefixOf` map snd prev =
