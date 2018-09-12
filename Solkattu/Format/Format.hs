@@ -193,6 +193,7 @@ angaSet = Set.fromList . scanl (+) 0 . Tala.tala_angas
 
 -- * ruler
 
+-- | (mark, width)
 type Ruler = [(Text, Int)]
 
 -- | (prevRuler, linesSinceLastRuler)
@@ -202,19 +203,30 @@ type Line sym = [(S.State, sym)]
 pairWithRuler :: Int -> PrevRuler -> Tala.Tala -> Int -> [[Line sym]]
     -> (PrevRuler, [[(Maybe Ruler, Line sym)]])
 pairWithRuler rulerEach prevRuler tala strokeWidth =
-    List.mapAccumL (List.mapAccumL strip) prevRuler . map (map addRuler)
+    List.mapAccumL (List.mapAccumL strip) prevRuler
+    . snd . List.mapAccumL (List.mapAccumL inherit) (fst prevRuler)
+    . map (map addRuler)
     where
     addRuler line = (inferRuler tala strokeWidth (map fst line), line)
+    inherit Nothing (ruler, line) = (Just ruler, (ruler, line))
+    inherit (Just prev) (ruler, line) = (Just cur, (cur, line))
+        where !cur = inheritRuler prev ruler
     -- Strip rulers when they are unchanged.  "Changed" is by structure, not
     -- mark text, so a wrapped ruler with the same structure will also be
     -- suppressed.
     strip (prev, lineNumber) (ruler, line) =
         ( (Just ruler, 1 + if wanted then 0 else lineNumber)
-        , (if wanted then Just ruler else Nothing, line)
+        , (if wanted then Just (ruler ++ [("|", 0)]) else Nothing, line)
         )
         where
         wanted = lineNumber `mod` rulerEach == 0
             || Just (map snd ruler) /= (map snd <$> prev)
+
+inheritRuler :: Ruler -> Ruler -> Ruler
+inheritRuler prev cur
+    | length cur < length prev && map snd cur `List.isPrefixOf` map snd prev =
+        prev
+    | otherwise = cur
 
 -- | Rather than generating the ruler purely from the Tala, I use the States
 -- to figure out the mark spacing.  Otherwise I wouldn't know where nadai
@@ -222,8 +234,7 @@ pairWithRuler rulerEach prevRuler tala strokeWidth =
 -- strokes, which is a bit annoying for incomplete korvais or ones with eddupu.
 inferRuler :: Tala.Tala -> Int -> [S.State] -> Ruler
 inferRuler tala strokeWidth =
-    (++ [("|", 0)])
-    . merge
+    merge
     . map (second length)
     . concat . snd . List.mapAccumL insertNadai 0
     . concatMap insertDots

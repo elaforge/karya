@@ -111,6 +111,9 @@ format (i, korvai) = mconcat
 
 -- * write
 
+writeAll :: IO ()
+writeAll = writeText >> writeHtml
+
 writeHtml :: IO ()
 writeHtml = writeHtmlTo "../data/solkattu"
 
