@@ -12,6 +12,7 @@ module Solkattu.Format.Html (
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time.Calendar as Calendar
@@ -245,7 +246,8 @@ tableCss =
     \   border-bottom: 1px solid;\n\
     \}\n\
     \.onAnga { border-left: 3px double }\n\
-    \.onAkshara { border-left: 1px solid }\n"
+    \.onAkshara { border-left: 1px solid }\n\
+    \.finalLine { border-bottom: 1px solid gray; }\n"
 
 typeCss :: Text
 typeCss = Text.unlines $ concat
@@ -404,15 +406,16 @@ makeSymbols = go
 
 formatTable :: Tala.Tala -> [(Maybe Format.Ruler, [(S.State, Symbol)])]
     -> Doc.Html
-formatTable tala = mconcatMap ((<>"\n") . row)
+formatTable tala =
+    mconcatMap ((<>"\n") . row) . map (second Maybe.isNothing) . Seq.zip_next
     where
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
-    row (mbRuler, cells) =
+    row ((mbRuler, cells), isFinal) =
         TextUtil.join ("\n" :: Doc.Html) $
             maybe [] ((:[]) . formatRuler) mbRuler ++
             [ "<tr>"
             , TextUtil.join "\n" $
-                map td . Format.mapSnd spellRests . map mkCell $
+                map td . Format.mapSnd spellRests . map (mkCell isFinal) $
                 List.groupBy merge cells
             , "</tr>"
             , ""
@@ -423,9 +426,9 @@ formatTable tala = mconcatMap ((<>"\n") . row)
         && not (Format.onAkshara state2)
         -- Split sustains on aksharas.  Otherwise, the colspan prevents the
         -- vertical lines that mark them.
-    mkCell :: [(S.State, Symbol)] -> ([(Text, Text)], Doc.Html)
-    mkCell [] = ([], "") -- List.groupBy shouldn't return empty groups
-    mkCell syms@((state, sym) : _) = (tags, _html sym)
+    mkCell :: Bool -> [(S.State, Symbol)] -> ([(Text, Text)], Doc.Html)
+    mkCell _ [] = ([], "") -- List.groupBy shouldn't return empty groups
+    mkCell isFinal syms@((state, sym) : _) = (tags, _html sym)
         where
         tags = concat
             [ [("class", Text.unwords classes) | not (null classes)]
@@ -438,6 +441,7 @@ formatTable tala = mconcatMap ((<>"\n") . row)
                 | Format.onAkshara state -> ["onAkshara"]
                 | otherwise -> []
             , maybe [] (:[]) (_style sym)
+            , ["finalLine" | isFinal]
             ]
     angas = Format.angaSet tala
 
