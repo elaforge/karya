@@ -27,6 +27,15 @@ show_format_sarva = do
     p $ render mempty $ korvai $ G.sd2 $
         G.repeat 2 G.takadinna <> G.nadai 6 G.takadinna
 
+test_spellRests = do
+    let f = mconcat . map toSpace . map Doc.un_html . Html.spellRests
+    equal (f ["_", "_", "_", "_", "_", "_", "_"]) "‗   _  "
+    equal (f ["x", "_", "_", "_", "_", "_", "_"]) "x _ _  "
+
+toSpace :: Text -> Text
+toSpace "" = " "
+toSpace s = s
+
 format :: Korvai.Sequence -> Text
 format = Doc.un_html . Html.render [("x", abstraction)] . korvai
 

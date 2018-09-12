@@ -453,16 +453,27 @@ formatRuler =
     akshara (n, spaces) = n : replicate (spaces-1) ""
     th col = Doc.tag_attrs "th" [] (Just col)
 
--- | This is the HTML version of 'Format.spellRests'.
+-- | This is the HTML version of 'Terminal.spellRests'.
+--
+-- It uses 3 levels of rests: space, single, and double.
 spellRests :: [Doc.Html] -> [Doc.Html]
-spellRests = map set . zip [0..] . Seq.zip_neighbors
+spellRests = spell . zip [0..]
     where
-    set (col, (prev, sym, next))
-        | not (isRest sym) = sym
-        | even col && maybe False isRest next =
-            Doc.html (Text.singleton Realize.doubleRest)
-        | odd col && maybe False isRest prev = ""
-        | otherwise = sym
+    spell [] = []
+    spell ((col, sym) : syms)
+        | not (isRest sym) = sym : spell syms
+        | Just post <- checkRests col syms 4 =
+            (double : replicate 3 "") ++ spell post
+        | Just post <- checkRests col syms 2 =
+            single : "" : spell post
+        | otherwise = "" : spell syms
+    checkRests col syms n
+        | col `mod` n == 0 && length rests == n-1 = Just $ drop (n-1) syms
+        | otherwise = Nothing
+        where
+        rests = take (n-1) $ takeWhile (isRest . snd) syms
+    double = Doc.html (Text.singleton Realize.doubleRest)
+    single = "_"
 
 isRest :: Doc.Html -> Bool
 isRest = (=="_") . Text.strip . Doc.un_html
