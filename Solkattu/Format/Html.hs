@@ -247,28 +247,6 @@ tableCss =
     \.onAnga { border-left: 3px double }\n\
     \.onAkshara { border-left: 1px solid }\n"
 
--- metadataCss :: Doc.Html
--- metadataCss =
---     ".tooltip {\n\
---     \    position: relative;\n\
---     \    display: inline-block;\n\
---     \}\n\
---     \.tooltip .tooltiptext {\n\
---     \    visibility: hidden;\n\
---     \    width: 120px;\n\
---     \    background-color: black;\n\
---     \    color: #fff;\n\
---     \    text-align: center;\n\
---     \    padding: 5px 0;\n\
---     \    border-radius: 6px;\n\
---     \    /* Position the tooltip text - see examples below! */\n\
---     \    position: absolute;\n\
---     \    z-index: 1;\n\
---     \}\n\
---     \.tooltip:hover .tooltiptext {\n\
---     \    visibility: visible;\n\
---     \}\n"
-
 typeCss :: Text
 typeCss = Text.unlines $ concat
     [ styles gtype (cssColor start) (cssColor end)
@@ -318,8 +296,6 @@ renderSection :: Solkattu.Notation stroke => Config -> S.Speed
 renderSection _ _ prevRuler _ _ (Left err) =
     (prevRuler, "<p> ERROR: " <> Doc.html err)
 renderSection config toSpeed prevRuler tala section (Right (notes, warn)) =
-    -- (nextRuler,) $ Doc.tag_class "div" "tooltip" $ mconcat
-    --     [ Doc.tag_class "span" "tooltiptext" (sectionMetadata section)
     (nextRuler,) $ mconcat
         [ body
         , if Text.null warn then ""
@@ -329,7 +305,8 @@ renderSection config toSpeed prevRuler tala section (Right (notes, warn)) =
     where
     (nextRuler, body) = formatHtml config toSpeed prevRuler tala notes
 
--- TODO this actually looks pretty ugly, but I'll worry about that later
+-- | TODO unused, later I should filter out only the interesting ones and
+-- cram them in per-section inline
 sectionMetadata :: Korvai.Section sollu -> Doc.Html
 sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
     where
