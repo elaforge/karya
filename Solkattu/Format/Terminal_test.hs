@@ -316,7 +316,7 @@ test_formatSpeed = do
     equal (f 80 (G.p5 <> G.p5)) (Right "5P------==5p----==--")
     -- Use narrow spacing when there's isn't space, and p5 overlaps the next
     -- '-'.
-    equal (f 10 (G.p5 <> G.p5)) (Right "5p--=5p-=-")
+    equal (f 10 (G.p5 <> G.p5)) (Right "5P--=5p-=-")
 
 
 -- * util

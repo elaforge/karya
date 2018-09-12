@@ -3913,10 +3913,13 @@ solkattu:
       - start <hr> right next to the text, instead of in the next cell
         . <hr> wants to go below text, can I get it to go to the right of the
           next, or have another way to draw a horizontal line?
+        . Also when the sym text is long it overlaps.
       - section metadata display is really ugly
         . I tried tooltip, but it's still full of useless info.
           E.g. avartanams, end, max_speed, nadai, start
         . I can try to attach x2 and type in some more clever way.
+        . Do what terminal does: number each section, and put 2x etc. on the
+          right.
       - sarva double dots are pretty ugly, how about single dots?
         . And can I stop them from clumping together at the breaks?
       - rests could be wider, since I have more space
@@ -3948,7 +3951,7 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
-      - somehow the normalize to max speed caused some double rests to stop
+      / somehow the normalize to max speed caused some double rests to stop
         working.
         . E.g. Solkattu2014.c_14_06_06
         . Also I'm not sure I love it... the compactness is nice and I don't
@@ -3956,7 +3959,7 @@ solkattu:
         . Maybe I should at least be sure I emit a ruler when the maxSpeed
           changes.
         . I disabled normalize to max speed.
-      - emphasized Symbols that cover an extension should retain emphasis
+      * emphasized Symbols that cover an extension should retain emphasis
       - Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
         arudi but starts on 2, not 4.
         . Acutally this is due to differing normalization.  The next section

@@ -242,17 +242,26 @@ formatLines abstraction strokeWidth width tala notes =
 
 -- | Long names will overlap following _isSustain ones.
 overlapSymbols :: Int -> [(a, Symbol)] -> [(a, Symbol)]
-overlapSymbols strokeWidth = snd . mapAccumLSnd combine ""
+overlapSymbols strokeWidth = snd . mapAccumLSnd combine ("", Nothing)
     where
-    combine overlap sym
-        | _isSustain sym =
-            let (pre, post) = textSplitAt strokeWidth overlap
-            in (post, modifyText (replace pre) sym)
+    combine (overlap, overlapSym) sym
+        | _isSustain sym = if Text.null overlap
+            then (("", Nothing), sym)
+            else let (pre, post) = textSplitAt strokeWidth overlap
+                in ((post, overlapSym), replace pre overlapSym sym)
         | otherwise =
             let (pre, post) = textSplitAt strokeWidth (_text sym)
-            in (post, sym { _text = pre })
-    replace prefix text =
-        prefix <> snd (textSplitAt (Realize.textLength prefix) text)
+            in ((post, Just sym), sym { _text = pre })
+    replace prefix mbOverlapSym sym = case mbOverlapSym of
+        Nothing -> sym { _text = newText }
+        Just overlapSym -> sym
+            { _text = newText
+            , _highlight = _highlight overlapSym
+            , _emphasize = _emphasize overlapSym
+            }
+        where
+        newText = prefix
+            <> snd (textSplitAt (Realize.textLength prefix) (_text sym))
 
 -- | I think lenses are the way to lift mapAccumL into second.
 mapAccumLSnd :: (state -> a -> (state, b)) -> state -> [(x, a)]
