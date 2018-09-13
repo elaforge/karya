@@ -943,7 +943,7 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $
 
 misra_trikalam :: Korvai
 misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
-    korvai Tala.misra_chapu  mridangam $
+    korvai Tala.misra_chapu mridangam $
     [ section $ theme
     , section $ nadai 6 theme
     , section $ su theme

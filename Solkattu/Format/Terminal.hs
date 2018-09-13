@@ -14,7 +14,6 @@ module Solkattu.Format.Terminal (
 ) where
 import qualified Data.Either as Either
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -133,18 +132,16 @@ formatResults config korvai results =
     -- notesOf (_, Right (notes, _)) = Just notes
     -- notesOf _ = Nothing
     sectionFmt section tags = Text.intercalate "\n"
-        . Seq.map_last (<> showTags tags)
+        . (if Text.null tagsText then id
+            else Seq.map_last (<> "   " <> tagsText))
         . Seq.map_head_tail
             (sectionNumber section <>) (Text.replicate leader " " <>)
         . map Text.strip
         . Text.lines
+        where
+        tagsText = Format.showTags tags
     sectionNumber section = Text.justifyLeft leader ' ' (showt section <> ":")
     leader = 4
-
-showTags :: Tags.Tags -> Text
-showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
-    Just [n] -> "   x" <> n
-    _ -> ""
 
 
 -- * implementation
@@ -365,9 +362,6 @@ instance Pretty Symbol where
             Just (Format.StartHighlight, _) -> "+"
             Just (Format.Highlight, _) -> "-"
             Just (Format.EndHighlight, _) -> "|"
-
-modifyText :: (Text -> Text) -> Symbol -> Symbol
-modifyText f sym = sym { _text = f (_text sym) }
 
 formatSymbol :: Symbol -> Styled.Styled
 formatSymbol (Symbol text _ emph highlight) =

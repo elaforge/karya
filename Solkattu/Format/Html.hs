@@ -34,8 +34,6 @@ import qualified Solkattu.Tala as Tala
 import Global
 
 
-type Error = Text
-
 -- * interface
 
 -- | Make a summary page with all the korvais.
@@ -166,14 +164,23 @@ renderAbstraction instName inst korvai (aname, abstraction) =
 sectionHtmls :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Config -> Korvai.Korvai -> [Doc.Html]
 sectionHtmls inst config korvai =
-    snd $ List.mapAccumL section (Nothing, 0) $ zip
-        (Korvai.genericSections korvai)
-        sectionNotes
+    snd $ List.mapAccumL show1 (Nothing, 0) $
+        zip3 [1..] (Korvai.genericSections korvai) sectionNotes
     where
     sectionNotes = Format.convertGroups (Korvai.realize inst korvai)
-    section prevRuler (section, notes) =
-        renderSection config toSpeed prevRuler (Korvai.korvaiTala korvai)
-            section notes
+    show1 prevRuler (i, section, notes) = case notes of
+        Left err -> (prevRuler, "<p> ERROR: " <> Doc.html err)
+        Right (notes, warn) -> (nextRuler,) $ mconcat
+            [ formatTable tala i section avartanams
+            , if Text.null warn then ""
+                else "<tr><td colspan=100> WARNING: " <> Doc.html warn
+                    <> "</td></tr>"
+            ]
+            where
+            (nextRuler, avartanams) =
+                formatAvartanams config toSpeed prevRuler tala notes
+            tala = Korvai.korvaiTala korvai
+
     toSpeed = maximum $ 0 : map S.maxSpeed (mapMaybe notesOf sectionNotes)
     notesOf (Right (notes, _)) = Just notes
     notesOf _ = Nothing
@@ -249,6 +256,30 @@ tableCss =
     \.onAkshara { border-left: 1px solid }\n\
     \.finalLine { border-bottom: 1px solid gray; }\n"
 
+-- | Unused, because I don't really like the tooltips.
+_metadataCss :: Doc.Html
+_metadataCss =
+    ".tooltip {\n\
+    \    position: relative;\n\
+    \    display: inline-block;\n\
+    \}\n\
+    \.tooltip .tooltiptext {\n\
+    \    visibility: hidden;\n\
+    \    width: 120px;\n\
+    \    background-color: black;\n\
+    \    color: #fff;\n\
+    \    text-align: center;\n\
+    \    padding: 5px 0;\n\
+    \    border-radius: 6px;\n\
+    \    position: absolute;\n\
+    \    z-index: 1;\n\
+    \    left: 105%;\n\
+    \    bottom: 100%;\n\
+    \}\n\
+    \.tooltip:hover .tooltiptext {\n\
+    \    visibility: visible;\n\
+    \}\n"
+
 typeCss :: Text
 typeCss = Text.unlines $ concat
     [ styles gtype (cssColor start) (cssColor end)
@@ -291,26 +322,10 @@ typeColors = \case
 
 -- * render
 
-renderSection :: Solkattu.Notation stroke => Config -> S.Speed
-    -> Format.PrevRuler -> Tala.Tala -> Korvai.Section x
-    -> Either Error ([S.Flat Solkattu.Meta (Realize.Note stroke)], Error)
-    -> (Format.PrevRuler, Doc.Html)
-renderSection _ _ prevRuler _ _ (Left err) =
-    (prevRuler, "<p> ERROR: " <> Doc.html err)
-renderSection config toSpeed prevRuler tala section (Right (notes, warn)) =
-    (nextRuler,) $ mconcat
-        [ body
-        , if Text.null warn then ""
-            else "<tr><td colspan=100> WARNING: " <> Doc.html warn
-                <> "</td></tr>"
-        ]
-    where
-    (nextRuler, body) = formatHtml config toSpeed prevRuler tala notes
-
 -- | TODO unused, later I should filter out only the interesting ones and
 -- cram them in per-section inline
-sectionMetadata :: Korvai.Section sollu -> Doc.Html
-sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
+_sectionMetadata :: Korvai.Section sollu -> Doc.Html
+_sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
     where
     tags = Tags.untags $ Korvai.sectionTags section
     showTag (k, []) = Doc.html k
@@ -335,22 +350,18 @@ korvaiMetadata korvai = (<>"\n\n") $ TextUtil.join "<br>\n" $ concat $
         <> TextUtil.join ", " (map (htmlTag k) vs)
     showDate = txt . Calendar.showGregorian
 
-formatHtml :: Solkattu.Notation stroke => Config -> S.Speed -> Format.PrevRuler
-    -> Tala.Tala -> [S.Flat Solkattu.Meta (Realize.Note stroke)]
-    -> (Format.PrevRuler, Doc.Html)
-formatHtml config toSpeed prevRuler tala notes =
-    (nextRuler, formatTable tala avartanams)
-    where
-    avartanams :: [(Maybe Format.Ruler, Line)]
-    (nextRuler, avartanams) =
-        second concat
-        . Format.pairWithRuler (_rulerEach config) prevRuler tala 1
-        . Format.formatFinalAvartanam (isRest . _html) . map (:[])
-        . Format.breakAvartanams
-        . concatMap makeSymbols
-        . Format.makeGroupsAbstract (_abstraction config)
-        . Format.normalizeSpeed toSpeed tala
-        $ notes
+formatAvartanams :: Solkattu.Notation stroke => Config -> S.Speed
+    -> Format.PrevRuler -> Tala.Tala
+    -> [S.Flat Solkattu.Meta (Realize.Note stroke)]
+    -> (Format.PrevRuler, [(Maybe Format.Ruler, Line)])
+formatAvartanams config toSpeed prevRuler tala =
+    second concat
+    . Format.pairWithRuler (_rulerEach config) prevRuler tala 1
+    . Format.formatFinalAvartanam (isRest . _html) . map (:[])
+    . Format.breakAvartanams
+    . concatMap makeSymbols
+    . Format.makeGroupsAbstract (_abstraction config)
+    . Format.normalizeSpeed toSpeed tala
 
 type Line = [(S.State, Symbol)]
 
@@ -404,22 +415,35 @@ makeSymbols = go
     notation state = bold . Solkattu.notationHtml
         where bold = if Format.onAkshara state then Doc.tag "b" else id
 
-formatTable :: Tala.Tala -> [(Maybe Format.Ruler, [(S.State, Symbol)])]
-    -> Doc.Html
-formatTable tala =
-    mconcatMap ((<>"\n") . row) . map (second Maybe.isNothing) . Seq.zip_next
+formatTable :: Tala.Tala -> Int -> Korvai.Section ()
+    -> [(Maybe Format.Ruler, [(S.State, Symbol)])] -> Doc.Html
+formatTable tala _sectionIndex section rows =
+    mconcatMap ((<>"\n") . row) . zipFirstFinal $ rows
     where
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
-    row ((mbRuler, cells), isFinal) =
-        TextUtil.join ("\n" :: Doc.Html) $
-            maybe [] ((:[]) . formatRuler) mbRuler ++
-            [ "<tr>"
-            , TextUtil.join "\n" $
-                map td . Format.mapSnd spellRests . map (mkCell isFinal) $
-                List.groupBy merge cells
-            , "</tr>"
-            , ""
-            ]
+    row (isFirst, (mbRuler, cells), isFinal) = TextUtil.join "\n" $
+        maybe [] ((:[]) . formatRuler) mbRuler ++
+        [ "<tr>"
+        , if not isFirst then "" else sectionHeader
+        , TextUtil.join "\n" $
+            map td . Format.mapSnd spellRests . map (mkCell isFinal) $
+            List.groupBy merge cells
+        , "</tr>"
+        , ""
+        ]
+    sectionHeader = Doc.tag_attrs "td" [("rowspan", showt (length rows))] $
+        Just $ Doc.tag_attrs "div"
+            [ ("class", "tooltip")
+            , ("style", "display:block")
+            ] $
+        Just -- $ Doc.tag_class "span" "tooltiptext" (showh sectionIndex) <>
+            sectionTags
+        where
+        sectionTags
+            | Text.null tags = Doc.Html "&nbsp;"
+            | otherwise = Doc.tag_attrs "span" [("style", "font-size:50%")] $
+                Just $ Doc.html tags
+            where tags = Format.showTags (Korvai.sectionTags section)
     -- Merge together the sustains after an attack.  They will likely have an
     -- <hr> in them, which will expand to the full colspan width.
     merge (_, sym1) (state2, sym2) = _isSustain sym1 && _isSustain sym2
@@ -445,13 +469,21 @@ formatTable tala =
             ]
     angas = Format.angaSet tala
 
+-- showh :: Show a => a -> Doc.Html
+-- showh = Doc.html . showt
+
+zipFirstFinal :: [a] -> [(Bool, a, Bool)]
+zipFirstFinal =
+    map (\(prev, x, next) -> (Maybe.isNothing prev, x, Maybe.isNothing next))
+    . Seq.zip_neighbors
+
 formatRuler :: Format.Ruler -> Doc.Html
 formatRuler =
-    ("<tr>"<>) . (<>"</tr>") . mconcatMap th . map Doc.html . concatMap akshara
+    ("<tr><td></td>"<>) . (<>"</tr>") . mconcatMap (Doc.tag "th" . Doc.html)
+        . concatMap akshara
     where
     akshara :: (Text, Int) -> [Text]
     akshara (n, spaces) = n : replicate (spaces-1) ""
-    th col = Doc.tag_attrs "th" [] (Just col)
 
 -- | This is the HTML version of 'Terminal.spellRests'.
 --

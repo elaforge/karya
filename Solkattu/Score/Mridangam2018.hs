@@ -154,3 +154,10 @@ c_18_07_02_sarva = sudhindra $ korvai Tala.misra_chapu $ variations
          . sarva
     ]
     where sarva = n.k.n.n.d.__4.n.k.n.n.d.__
+
+e_misra_tisram :: Korvai
+e_misra_tisram = exercise $ date 2018 9 11 $ ganesh $
+    korvai Tala.misra_chapu $ variations $ map sd $ map (nadai 6)
+    [ repeat 5 (k.t.k) . t.k.k.o.o.k
+    , repeat 5 (n.d.k) . n.k.n.n.d.k
+    ]

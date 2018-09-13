@@ -3915,7 +3915,7 @@ solkattu:
         . <hr> wants to go below text, can I get it to go to the right of the
           next, or have another way to draw a horizontal line?
         . Also when the sym text is long it overlaps.
-      - section metadata display is really ugly
+      * section metadata display is really ugly
         . I tried tooltip, but it's still full of useless info.
           E.g. avartanams, end, max_speed, nadai, start
         . I can try to attach x2 and type in some more clever way.

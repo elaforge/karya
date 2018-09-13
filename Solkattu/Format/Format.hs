@@ -20,10 +20,13 @@ module Solkattu.Format.Format (
     -- * ruler
     , Ruler, PrevRuler, pairWithRuler
     , inferRuler
+    -- * metadata
+    , showTags
     -- * util
     , mapSnd
 ) where
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
@@ -32,6 +35,7 @@ import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
+import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
 import Global
@@ -272,6 +276,13 @@ inferRuler tala strokeWidth =
         where
         (pre, post) = splitAt (spaces `div` 2) states
         spaces = length states
+
+-- * metadata
+
+showTags :: Tags.Tags -> Text
+showTags tags = case Map.lookup Tags.times (Tags.untags tags) of
+    Just [n] -> "x" <> n
+    _ -> ""
 
 -- * util
 
