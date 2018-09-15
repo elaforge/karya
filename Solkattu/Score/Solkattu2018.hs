@@ -730,7 +730,7 @@ e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
 
 -- * adi
 
-adi_tani :: [Part] -- realizePartsM patterns adi_tani
+adi_tani :: [Part] -- realizePartsM (patterns <> namedThemes) adi_tani
 adi_tani =
     [ K adi_tani1 All
     , K trikalam1 All

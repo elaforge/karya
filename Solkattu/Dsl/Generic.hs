@@ -14,6 +14,8 @@
 -}
 module Solkattu.Dsl.Generic (
     (.), (•), ø
+    , htmlWriteAll
+    -- * notation
     , karvai
     , stripRests
 
@@ -22,7 +24,7 @@ module Solkattu.Dsl.Generic (
     , akshara, sam, (§)
     -- * abstraction
     , Abstraction
-    , defaultAbstraction, patterns, allAbstract
+    , defaultAbstraction, patterns, namedThemes, allAbstract
     -- * patterns
     , pat, p5, p6, p7, p8, p9, p666, p567, p765
     -- * re-exports
@@ -51,6 +53,7 @@ import qualified Util.CallStack as CallStack
 import Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
 import Solkattu.Format.Format (Abstraction)
+import qualified Solkattu.Format.Html as Html
 import Solkattu.Korvai (Korvai)
 import Solkattu.Part (Part(..), Index(..), realizeParts)
 import qualified Solkattu.Realize as Realize
@@ -85,7 +88,12 @@ infixr 9 • -- match prelude (.)
 makeNote :: a -> [S.Note g a]
 makeNote a = [S.Note a]
 
--- ** sollus
+-- * realize
+
+htmlWriteAll :: FilePath -> Korvai -> IO ()
+htmlWriteAll = Html.writeAll
+
+-- * notation
 
 -- | Make a single sollu 'Solkattu.Karvai'.
 karvai :: (CallStack.Stack, Pretty sollu) => SequenceT sollu -> SequenceT sollu
@@ -142,6 +150,9 @@ defaultAbstraction = Format.defaultAbstraction
 -- | Abstract all Patterns to durations.
 patterns :: Format.Abstraction
 patterns = Format.abstract Solkattu.GPattern
+
+namedThemes :: Format.Abstraction
+namedThemes = Format.named Solkattu.GTheme
 
 allAbstract :: Abstraction
 allAbstract = Format.allAbstract

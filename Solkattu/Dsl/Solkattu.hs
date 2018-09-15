@@ -20,7 +20,6 @@ import qualified Solkattu.Dsl.Interactive as Interactive
 import Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Format.Format as Format
-import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
@@ -328,9 +327,6 @@ realizeSargam = _printInstrument Korvai.sargam
 
 realizeKon :: Int -> Korvai -> IO ()
 realizeKon width = Terminal.printKonnakol width Format.defaultAbstraction
-
-htmlWriteAll :: FilePath -> Korvai -> IO ()
-htmlWriteAll = Html.writeAll
 
 -- | 'realizeParts' specialized to mridangam, and disbale the usual
 -- 'Interactive.printInstrument' lint and write diff stuff.

@@ -42,4 +42,3 @@ e_2 = ganesh $ date 2017 11 13 $ exercise $ korvaiS adi $
 
     t_sarva = o.k.n.o.k.d.o.k . repeat 3 (pk.n.pk.d.pk)
     tk = t.k
-
