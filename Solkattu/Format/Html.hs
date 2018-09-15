@@ -483,9 +483,12 @@ zipFirstFinal =
 formatRuler :: Bool -> Format.Ruler -> Doc.Html
 formatRuler isFirst =
     ("<tr>"<>) . (if isFirst then ("<td></td>"<>) else id) . (<>"</tr>")
-        . mconcatMap (Doc.tag "th" . Doc.html)
+        . mconcatMap mark . map (second Maybe.isNothing) . Seq.zip_next
         . concatMap akshara
     where
+    -- If the final one is th, then it omits the underline, which looks a bit
+    -- nicer.
+    mark (m, isFinal) = Doc.tag (if isFinal then "td" else "th") (Doc.html m)
     akshara :: (Text, Int) -> [Text]
     akshara (n, spaces) = n : replicate (spaces-1) ""
 
