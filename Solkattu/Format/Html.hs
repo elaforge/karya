@@ -422,7 +422,7 @@ formatTable tala _sectionIndex section rows =
     where
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
     row (isFirst, (mbRuler, cells), isFinal) = TextUtil.join "\n" $
-        maybe [] ((:[]) . formatRuler) mbRuler ++
+        maybe [] ((:[]) . formatRuler isFirst) mbRuler ++
         [ "<tr>"
         , if not isFirst then "" else sectionHeader
         , TextUtil.join "\n" $
@@ -431,14 +431,17 @@ formatTable tala _sectionIndex section rows =
         , "</tr>"
         , ""
         ]
-    sectionHeader = Doc.tag_attrs "td" [("rowspan", showt (length rows))] $
-        Just $ Doc.tag_attrs "div"
-            [ ("class", "tooltip")
-            , ("style", "display:block")
-            ] $
+    sectionHeader = Doc.tag_attrs "td" [("rowspan", showt sectionRows)] $
+        -- Just $ Doc.tag_attrs "div"
+        --     [ ("class", "tooltip")
+        --     , ("style", "display:block")
+        --     ] $
         Just -- $ Doc.tag_class "span" "tooltiptext" (showh sectionIndex) <>
             sectionTags
         where
+        -- Each ruler adds an additional row, except the first one, which has
+        -- already been output.
+        sectionRows = length rows + Seq.count (Maybe.isJust . fst) (drop 1 rows)
         sectionTags
             | Text.null tags = Doc.Html "&nbsp;"
             | otherwise = Doc.tag_attrs "span" [("style", "font-size:50%")] $
@@ -477,9 +480,10 @@ zipFirstFinal =
     map (\(prev, x, next) -> (Maybe.isNothing prev, x, Maybe.isNothing next))
     . Seq.zip_neighbors
 
-formatRuler :: Format.Ruler -> Doc.Html
-formatRuler =
-    ("<tr><td></td>"<>) . (<>"</tr>") . mconcatMap (Doc.tag "th" . Doc.html)
+formatRuler :: Bool -> Format.Ruler -> Doc.Html
+formatRuler isFirst =
+    ("<tr>"<>) . (if isFirst then ("<td></td>"<>) else id) . (<>"</tr>")
+        . mconcatMap (Doc.tag "th" . Doc.html)
         . concatMap akshara
     where
     akshara :: (Text, Int) -> [Text]
