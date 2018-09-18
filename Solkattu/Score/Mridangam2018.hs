@@ -158,6 +158,19 @@ c_18_07_02_sarva = sudhindra $ korvai Tala.misra_chapu $ variations
 e_misra_tisram :: Korvai
 e_misra_tisram = exercise $ date 2018 9 11 $ ganesh $
     korvai Tala.misra_chapu $ variations $ map sd $ map (nadai 6)
-    [ repeat 5 (k.t.k) . t.k.k.o.o.k
-    , repeat 5 (n.d.k) . n.k.n.n.d.k
+    [ repeat 5 (kt.k) . tk.kook
+    , repeat 5 ndk . n.k.n.n.d.k
+    , (o.__3.p) & repeat 5 ndk . n.k.on.on.od.k
+    , o & ndk . n.k.on.on.od.k . (o.__3.p) & repeat 2 ndk . n.k.on.on.od.k
+    , o & ndk . repeat 3 (n.k.on.on.od.k)
+    , on.od.k . repeat 3 (on.k.on.on.od.k)
+    , on.od.k . repeat 2 (on.k.on.on.od.k) . o&nang_kita
+    , o & repeat 5 ndk . nang_kita
+    , o & ndk . nang_kita . o & repeat 2 ndk . nang_kita
+    , o & ndk . repeat 3 nang_kita
+    , su (n.p.kt.pk) . repeat 3 nang_kita
+    , su (n.p.kt.pk) . nang_kita . repeat 2 (su (n.p.kt.pk)) . nang_kita
     ]
+    where
+    nang_kita = n . su (pk.nakatiku)
+    ndk = n.d.k
