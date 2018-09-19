@@ -19,25 +19,25 @@ import Global
 import Util.Test
 
 
--- manual test
-show_format_sarva = do
+manual_test = do
     let p = Text.IO.putStrLn
-    -- p $ render abstraction $ korvai $ G.sarvaM_ 4
+    -- p $ render Format.defaultAbstraction $ korvai $ G.sarvaM_ 4
 
-    p $ render mempty $ korvai $ G.sd2 $
-        G.repeat 2 G.takadinna <> G.nadai 6 G.takadinna
+    p $ render mempty $ korvai $ mconcat $
+        G.p6 : replicate 5 G.__
+    p $ render Format.defaultAbstraction $ korvai $ mconcat $
+        G.p6 : replicate 5 G.__
+
 
 test_spellRests = do
-    let f = mconcat . map toSpace . map Doc.un_html . Html.spellRests
+    let f = mconcat . map toSpace . map Doc.un_html
+            . Html.spellRests . zip [0..]
     equal (f ["_", "_", "_", "_", "_", "_", "_"]) "‗   _  "
     equal (f ["x", "_", "_", "_", "_", "_", "_"]) "x _ _  "
 
 toSpace :: Text -> Text
 toSpace "" = " "
 toSpace s = s
-
-format :: Korvai.Sequence -> Text
-format = Doc.un_html . Html.render [("x", abstraction)] . korvai
 
 korvai :: Korvai.Sequence -> Korvai.Korvai
 korvai = Korvai.korvaiInferSections Tala.adi_tala (G.makeMridangam []) . (:[])
@@ -51,9 +51,6 @@ render abstraction =
         , _font = Html.instrumentFont
         , _rulerEach = 4
         }
-
-abstraction :: Format.Abstraction
-abstraction = mempty -- Format.defaultAbstraction
 
 defaultStrokeMap :: Korvai.StrokeMaps
 defaultStrokeMap = mempty

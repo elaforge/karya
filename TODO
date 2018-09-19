@@ -3902,7 +3902,7 @@ solkattu:
   format: output:
     * I want to be able to abstract named groups, but not GFiller
     html:
-      - table messed up on Mridangam2013.dinnagina_sequence
+      * table messed up on Mridangam2013.dinnagina_sequence
       - writeParts
       * separate sections with a horizontal line
       * now that I use globally max speed, I get too many rests, e.g. in
@@ -3910,8 +3910,9 @@ solkattu:
       - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
         . It looks fine but seems messy.
       - color abstracted groups too
-      - Solkattu.Score.Solkattu2014.c_14_02_05.html at >=patterns abstraction
+      * Solkattu.Score.Solkattu2014.c_14_02_05.html at >=patterns abstraction
         has wrong long rest position next to the pattern highlights
+        . All abstractions mess up neighboring rests.
       - start <hr> right next to the text, instead of in the next cell
         . <hr> wants to go below text, can I get it to go to the right of the
           next, or have another way to draw a horizontal line?

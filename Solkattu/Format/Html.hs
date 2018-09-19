@@ -425,9 +425,10 @@ formatTable tala _sectionIndex section rows =
         maybe [] ((:[]) . formatRuler isFirst) mbRuler ++
         [ "<tr>"
         , if not isFirst then "" else sectionHeader
-        , TextUtil.join "\n" $
-            map td . Format.mapSnd spellRests . map (mkCell isFinal) $
-            List.groupBy merge cells
+        , TextUtil.join "\n" . map td . Format.mapSnd spellRests
+            . map (mkCell isFinal) . List.groupBy merge . zip [0..] $ cells
+            -- Carry the index through the merge so spellRests can tell what
+            -- column things are in.
         , "</tr>"
         , ""
         ]
@@ -449,13 +450,14 @@ formatTable tala _sectionIndex section rows =
             where tags = Format.showTags (Korvai.sectionTags section)
     -- Merge together the sustains after an attack.  They will likely have an
     -- <hr> in them, which will expand to the full colspan width.
-    merge (_, sym1) (state2, sym2) = _isSustain sym1 && _isSustain sym2
-        && not (Format.onAkshara state2)
+    merge (_, (_, sym1)) (_, (state2, sym2)) =
+        _isSustain sym1 && _isSustain sym2 && not (Format.onAkshara state2)
         -- Split sustains on aksharas.  Otherwise, the colspan prevents the
         -- vertical lines that mark them.
-    mkCell :: Bool -> [(S.State, Symbol)] -> ([(Text, Text)], Doc.Html)
-    mkCell _ [] = ([], "") -- List.groupBy shouldn't return empty groups
-    mkCell isFinal syms@((state, sym) : _) = (tags, _html sym)
+    mkCell :: Bool -> [(Int, (S.State, Symbol))]
+        -> ([(Text, Text)], (Int, Doc.Html))
+    mkCell _ [] = ([], (0, "")) -- List.groupBy shouldn't return empty groups
+    mkCell isFinal syms@((index, (state, sym)) : _) = (tags, (index, _html sym))
         where
         tags = concat
             [ [("class", Text.unwords classes) | not (null classes)]
@@ -495,8 +497,8 @@ formatRuler isFirst =
 -- | This is the HTML version of 'Terminal.spellRests'.
 --
 -- It uses 3 levels of rests: space, single, and double.
-spellRests :: [Doc.Html] -> [Doc.Html]
-spellRests = spell . zip [0..]
+spellRests :: [(Int, Doc.Html)] -> [Doc.Html]
+spellRests = spell
     where
     spell [] = []
     spell ((col, sym) : syms)
