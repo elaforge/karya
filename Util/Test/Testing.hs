@@ -29,6 +29,11 @@ module Util.Test.Testing (
     -- * extracting
     , expect_right
 
+    -- * hedgehog
+    , hedgehog
+    , property
+    , (===), (/==)
+
     -- * QuickCheck
     , quickcheck
     , q_equal
@@ -43,9 +48,10 @@ module Util.Test.Testing (
     -- * util
     , force
 ) where
-import Control.Monad (unless)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
+import Control.Monad (unless)
+
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.IntMap as IntMap
@@ -57,6 +63,13 @@ import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 
 import qualified GHC.Stack as Stack
+import qualified Hedgehog
+import Hedgehog ((===), (/==), property)
+import qualified Hedgehog.Internal.Config as Internal.Config
+import qualified Hedgehog.Internal.Property as Internal.Property
+import qualified Hedgehog.Internal.Report as Report
+import qualified Hedgehog.Internal.Runner as Internal.Runner
+import qualified Hedgehog.Internal.Seed as Internal.Seed
 
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
@@ -68,15 +81,15 @@ import qualified System.Posix.Terminal as Terminal
 
 import qualified Test.QuickCheck as QuickCheck
 
-import qualified Util.Test.ApproxEq as ApproxEq
-import Util.CallStack (Stack)
 import qualified Util.CallStack as CallStack
+import Util.CallStack (Stack)
 import qualified Util.Map
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
+import qualified Util.Test.ApproxEq as ApproxEq
 
 
 {-# NOINLINE test_config #-}
@@ -405,6 +418,33 @@ pause msg = do
 expect_right :: (Stack, Show a) => Either a b -> b
 expect_right (Left v) = CallStack.errorStack (showt v)
 expect_right (Right v) = v
+
+-- * hedgehog
+
+hedgehog :: Hedgehog.Property -> IO Bool
+hedgehog prop = do
+    seed <- Internal.Seed.random
+    report <- Internal.Runner.checkReport config size seed
+        (Internal.Property.propertyTest prop) updateUI
+    (ok, msg) <- format_hedgehog_report report
+    (if ok then success else failure) msg
+    where
+    -- TODO if it's interactive, give a progress report?
+    updateUI _progress = return ()
+    config = Internal.Property.propertyConfig prop
+    size = 0
+
+format_hedgehog_report :: Report.Report Report.Result -> IO (Bool, Text)
+format_hedgehog_report report = do
+    name <- Text.unpack . config_test_name <$> IORef.readIORef test_config
+    str <- Report.renderResult color
+        (Just (Internal.Property.PropertyName name)) report
+    return $ (, Text.pack str) $ case Report.reportStatus report of
+        Report.OK -> True
+        Report.GaveUp -> False
+        Report.Failed {} -> False
+    where
+    color = Just Internal.Config.EnableColor
 
 -- * QuickCheck
 

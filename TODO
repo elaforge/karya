@@ -3495,11 +3495,14 @@ test: testing:
         . From Q.testCase, which is from counterexample calls, which
           forAllShrink does with show.  So while I can add, I can't replace it
           without using my own forAll.
-    Hedgehog:
+    hedgehog:
       . http://teh.id.au/posts/2017/04/23/property-testing-with-hedgehog/
       . Hedgehog lets me use Gen more easily, since it automatically infers
         shrink, and keeps it with the Gen.
-    - Integrate hedgehog into Util.Testing
+      . But no classify/coverage?
+        . https://github.com/hedgehogqa/haskell-hedgehog/issues/127
+        . https://hackage.haskell.org/package/tasty-hedgehog-coverage
+    * Integrate hedgehog into Util.Testing
     - port Util.Segment_test quickchecks to hedgehog
       . but I want to see some errors that require shrinking, to demo
         hedgehog's automatic shrinking

@@ -87,6 +87,7 @@ basicPackages = concat
     , w "wcwidth" -- Util.Format
     , w "dlist" -- Util.TimeVector
     , w "QuickCheck" -- Util.Test
+    , w "hedgehog" -- Util.Test
     , w "ansi-terminal colour" -- Util.StyledText
     -- karya
     , w "old-locale"

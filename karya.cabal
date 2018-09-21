@@ -57,6 +57,7 @@ library
         hashable,
         haskeline,
         haskell-src,
+        hedgehog,
         hlibgit2,
         med-module,
         mersenne-random-pure64,

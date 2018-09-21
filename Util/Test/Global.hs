@@ -8,5 +8,6 @@ module Util.Test.Global (module Util.Test.Testing) where
 import Util.Test.Testing
        (ModuleMeta(ModuleMeta), check, check_val, equal, equal_fmt, equal_on,
         right_equal, not_equal, equalf, strings_like, left_like, match, throws,
-        io_equal, io_human, pause, success, failure, expect_right, quickcheck,
-        q_equal, prettyp, pprint)
+        io_equal, io_human, pause, success, failure, expect_right,
+        hedgehog, property, (===), (/==),
+        quickcheck, q_equal, prettyp, pprint)
