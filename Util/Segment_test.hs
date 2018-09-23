@@ -6,19 +6,22 @@
 module Util.Segment_test where
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.List as List
-import qualified Test.QuickCheck as Q
+import qualified Hedgehog
+import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
 
 import qualified Util.Segment as Segment
 import Util.Segment (Segment(Segment))
 import Util.Segment (X)
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.TimeVector as TimeVector
 
-import qualified Ui.Types as Types
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (large)
+import qualified Ui.Types as Types
+
 import Types
+import Util.Test
 
 
 type Y = Double
@@ -65,6 +68,16 @@ test_concat = do
         [(0, 0), (1, 1), (1, 2)]
     -- But not legit ones.
     equal (f [[(0, 1), (1, 1)], [(1, 2)]]) [(0, 1), (1, 1), (1, 2)]
+
+test_concat_ascending = hedgehog $ property $ do
+    (s1, s2) <- Hedgehog.forAll $ (,) <$> gen_signal <*> gen_signal
+    let xs = map fst $ to_pairs $ num_concat [s1, s2]
+    xs === List.sort xs
+
+test_concat_dups = hedgehog $ Hedgehog.withTests 500 $ property $ do
+    sigs <- Hedgehog.forAll $ Gen.list (Range.linear 0 4) gen_signal
+    let xs = map fst $ to_pairs $ num_concat sigs
+    filter ((>2) . length) (List.group xs) === []
 
 test_prepend = do
     let f sig1 sig2 = to_pairs $
@@ -248,39 +261,30 @@ test_crc32 = do
 
 -- * quickcheck
 
--- Xs are ascending.
-test_from_samples_ascending = quickcheck $ Q.forAll gen_samples $ \samples ->
+-- | Xs are ascending.
+test_from_samples_ascending = hedgehog $ property $ do
+    samples <- Hedgehog.forAll gen_samples
     let xs = map fst $ to_pairs $ from_pairs samples
-    in q_equal xs (List.sort xs)
+    xs === List.sort xs
 
--- Never more than 2 Xs with the same value.
-test_from_samples_dups = quickcheck $ Q.forAll gen_samples $ \samples ->
+-- | Never more than 2 Xs with the same value.
+test_from_samples_dups = hedgehog $ property $ do
+    samples <- Hedgehog.forAll gen_samples
     let xs = map fst $ to_pairs $ from_pairs samples
-    in q_equal (filter ((>2) . length) $ List.group xs) []
+    Hedgehog.annotateShow xs
+    filter ((>2) . length) (List.group xs) === []
 
-test_concat_ascending = quickcheck $ \(s1, s2) ->
-    let xs = map fst $ to_pairs $ num_concat [s1, s2]
-    in q_equal xs (List.sort xs)
-
-test_concat_dups = quickcheck $ \(s1, s2) ->
-    let xs = map fst $ to_pairs $ num_concat [s1, s2]
-    in q_equal (filter ((>2) . length) $ List.group xs) []
-
-gen_samples :: Q.Gen [(X, Y)]
-gen_samples = Q.listOf $ (,) <$> gen_integral_x <*> Q.choose (-1, 1)
+gen_samples :: Hedgehog.Gen [(X, Y)]
+gen_samples = Gen.list (Range.linear 0 16) $
+    (,) <$> gen_integral_x <*> Gen.element [-1, 1]
 
 -- | Integral RealTimes to encourage collisions.
-gen_integral_x :: Q.Gen RealTime
-gen_integral_x = RealTime.seconds . fromIntegral @Int <$> Q.choose (-4, 4)
+gen_integral_x :: Hedgehog.Gen RealTime
+gen_integral_x = RealTime.seconds . fromIntegral <$>
+    Gen.int (Range.linear (-4) 4)
 
--- TODO if I continue with QuickCheck I should move them to their own module.
-instance Q.Arbitrary RealTime where
-    arbitrary = RealTime.seconds <$> Q.arbitrary
-    shrink = map RealTime.seconds . Q.shrink . RealTime.to_seconds
-
-instance Q.Arbitrary Segment.NumSignal where
-    arbitrary = from_pairs . Seq.sort_on fst <$> gen_samples
-    shrink = map from_pairs . Q.shrinkList Q.shrink . to_pairs
+gen_signal :: Hedgehog.Gen Segment.NumSignal
+gen_signal = from_pairs . Seq.sort_on fst <$> gen_samples
 
 -- * util
 

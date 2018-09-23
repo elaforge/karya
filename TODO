@@ -3503,7 +3503,7 @@ test: testing:
         . https://github.com/hedgehogqa/haskell-hedgehog/issues/127
         . https://hackage.haskell.org/package/tasty-hedgehog-coverage
     * Integrate hedgehog into Util.Testing
-    - port Util.Segment_test quickchecks to hedgehog
+    * port Util.Segment_test quickchecks to hedgehog
       . but I want to see some errors that require shrinking, to demo
         hedgehog's automatic shrinking
       . I can't get test_concat_dups to generate the 3 element list.
