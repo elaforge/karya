@@ -1,8 +1,7 @@
 #!/usr/local/bin/runghc
 {-# LANGUAGE OverloadedStrings #-}
 
--- Run cabal freeze, then use this to take out the base deps, so it has a
--- chance of working with another ghc version.
+-- Run this to freeze cabal deps and write to .config files.
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
@@ -25,7 +24,7 @@ freeze global cabalFile freezeFile = do
     tmp <- Temp.mkdtemp "/tmp/freeze_deps"
     constraints <- Directory.withCurrentDirectory tmp $ do
         Text.IO.writeFile "fake-project.cabal" cabal
-        Process.callProcess "cabal" ["freeze"]
+        Process.callProcess "cabal" ["v1-freeze"]
         parseConstraints . Text.lines <$> Text.IO.readFile "cabal.config"
     Text.IO.writeFile freezeFile $ Text.unlines $
         ("constraints:":) $
