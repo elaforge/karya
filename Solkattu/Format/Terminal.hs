@@ -297,7 +297,13 @@ makeSymbols strokeWidth tala angas = go
         . Seq.map_head_tail
             (second (set Format.StartHighlight startColor))
             (second (set Format.Highlight color))
-        where set h color sym = sym { _highlight = Just (h, color) }
+        where
+        set h color sym = case _highlight sym of
+            Nothing -> sym { _highlight = Just (h, color) }
+            -- Don't set highlight if it's already set.  This means the
+            -- innermost group's highlight will show, which seems to be most
+            -- useful in practice.
+            Just _ -> sym
     make state (isSustain, text) = Symbol
         { _text = text
         , _isSustain = isSustain

@@ -25,6 +25,21 @@ import Global
 import Util.Test
 
 
+-- Just print nested groups to check visually.
+show_nested_groups = do
+    let f = fmap (dropRulers . formatAbstraction mempty 80 tala4 . fst)
+            . kRealize tala4
+    let tas n = G.repeat n G.ta
+        group = G.group
+    prettyp (f (tas 4))
+    prettyp (f (group (tas 4)))
+    -- adjacent groups
+    prettyp (f (group (tas 2) <> group (tas 2)))
+    -- nested groups:   k k             k k       k k       k k
+    prettyp (f $ group (tas 2 <> group (tas 2) <> tas 2) <> tas 2)
+    -- show innermost nested group
+    prettyp (f $ group (tas 2 <> G.p5))
+
 test_format = do
     let f tala = eFormat . format 80 tala
             . map (S.FNote S.defaultTempo)
@@ -254,18 +269,6 @@ test_abstract = do
     -- Unlike GExplicitPattern 'G.pattern', these have a logical matra
     -- duration, so they use that, not fmatras.
     equal (f (su G.p5)) (Right ["5p--------"])
-
--- Just print nested groups to check visually.
-_nested_groups = do
-    let f = fmap (dropRulers . format 80 tala4 . fst) . kRealize tala4
-    let tas n = G.repeat n G.ta
-        group = G.group
-    prettyp (f (tas 4))
-    prettyp (f (group (tas 4)))
-    -- adjacent groups
-    prettyp (f (group (tas 2) <> group (tas 2)))
-    -- nested groups:   k k             k k       k k       k k
-    prettyp (f $ group (tas 2 <> group (tas 2) <> tas 2) <> tas 2)
 
 extractLines :: [[[(a, Terminal.Symbol)]]] -> [[Text]]
 extractLines = map $ map $ Text.strip . mconcat . map (Terminal._text . snd)
