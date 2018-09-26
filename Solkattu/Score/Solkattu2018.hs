@@ -733,6 +733,7 @@ e_misra_tisra = exercise $ korvai Tala.misra_chapu mempty $
 adi_tani :: [Part] -- realizePartsM (patterns <> namedThemes) adi_tani
 adi_tani =
     [ K adi_tani1 All
+    , K c_18_09_25 All
     , K trikalam1 All
     , K e_sarva1_tisra All
     , K e_adi_tisra All
@@ -762,9 +763,11 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
         . repeat 2 (sarva3d.sarva3')
     , section $ sarva3b.sarva3' . sarva3b . su (faran2.nakatiku)
         . repeat 2 (sarva3b . su (faran2.nakatiku))
-    , endOn 4 $ section $
-        repeat 2 (su (faran2.nakatiku))
+    , section $ repeat 4 (su (faran2.nakatiku))
         . tri_ (din.__4) (su (faran2.nakatiku))
+    -- , endOn 4 $ section $
+    --     repeat 2 (su (faran2.nakatiku))
+    --     . tri_ (din.__4) (su (faran2.nakatiku))
     ]
     where
     talang_gu = su $ talang.__.gu.talang.__.gu.taka.taka.talang.__.gu
@@ -801,7 +804,8 @@ adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
 e_sarva1_tisra :: Korvai
 e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
     korvai adi mridangam $ map section $ map (nadai 6)
-    [ repeat 5 din_gutakita . din.__.gu . tri p5
+    [ restD (4*1.5) . __.__ . tri_ (din.__5) takadinna
+    , repeat 5 din_gutakita . din.__.gu . tri p5
     , repeat 5 din_gutakita . tri p6
     , repeat 4 din_gutakita . din.__.gu . tri p7
     , repeat 4 din_gutakita . tri p8
@@ -812,6 +816,7 @@ e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
     mridangam = makeMridangam
         [ (din_gutakita, od.__.y.o&j.y.od)
         , (din.gu, od.k)
+        , (din, od)
         ]
 
 -- takadimi takajonu
@@ -965,4 +970,18 @@ misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
         , (na, on)
         , (tam, v)
         , (ta.taka, k.k.o)
+        ]
+
+c_18_09_25 :: Korvai
+c_18_09_25 = date 2018 9 25 $ ganesh $ korvaiS1 adi mridangam $
+    tri (su (takadugutarikita.nakatiku).din.__3.tat.__3.din.__3)
+    . tri_ (tat.__4.tam.__4) p5
+    . sandi p5 (tri_ (tam.__) p5)
+    where
+    p5 = pattern $ su $ ta.__.di.__.ta.di.__.ki.ta.thom
+    mridangam = makeMridangam
+        [ (din.tat.din, od.k.od)
+        , (tat.tam, k.i)
+        , (tam, u)
+        , (p5, k.__.t.__.k.t.__.k.n.o)
         ]
