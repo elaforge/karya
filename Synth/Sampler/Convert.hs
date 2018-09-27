@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE OverloadedStrings, DisambiguateRecordFields #-}
 -- | Convert 'Note.Note's to 'Sample.Sample's.
 module Synth.Sampler.Convert where
 import qualified Data.List as List
@@ -36,6 +35,18 @@ noteToSample db note = do
         (Patch._rootDir db </> Patch.sampleDirectory inst </> samplePath)
         instSample note
 
+-- | Find the sample with the closest pitch, or if there is no pitch, the first
+-- unpitched sample.
+lookupSample :: Patch.Patch -> Attrs.Attributes
+    -> Maybe Pitch.NoteNumber -> Maybe (FilePath, Patch.Sample)
+lookupSample inst attrs maybePitch = case maybePitch of
+    Nothing -> List.find ((==Nothing) . Patch.pitch . snd) samples
+    Just pitch -> fmap snd $ Seq.minimum_on (abs . subtract pitch . fst) $
+        Seq.key_on_just (Patch.pitch . snd) samples
+    where
+    samples = filter ((==attrs) . Patch.attributes . snd) $ Map.toList $
+        Patch.samples inst
+
 makeSample :: Sample.SamplePath -> Patch.Sample -> Note.Note -> Sample.Sample
 makeSample filename instSample note = Sample.Sample
     { start = Note.start note
@@ -55,18 +66,6 @@ makeSample filename instSample note = Sample.Sample
     }
     where
     get k = Map.lookup k (Note.controls note)
-
--- | Find the sample with the closest pitch, or if there is no pitch, the first
--- unpitched sample.
-lookupSample :: Patch.Patch -> Attrs.Attributes
-    -> Maybe Pitch.NoteNumber -> Maybe (FilePath, Patch.Sample)
-lookupSample inst attrs maybePitch = case maybePitch of
-    Nothing -> List.find ((==Nothing) . Patch.pitch . snd) samples
-    Just pitch -> fmap snd $ Seq.minimum_on (abs . subtract pitch . fst) $
-        Seq.key_on_just (Patch.pitch . snd) samples
-    where
-    samples = filter ((==attrs) . Patch.attributes . snd) $ Map.toList $
-        Patch.samples inst
 
 pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y
 pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn

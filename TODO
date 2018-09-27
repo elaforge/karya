@@ -1,7 +1,6 @@
 LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
-
   Use indent folding with indent=2.
 
 STATUS
@@ -1833,6 +1832,19 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    status:
+      . If I have constant pitches, I think incremental rendering should work,
+        but I haven't tried a real instrument yet.
+      . I need to get sample duration after applying the pitch curve so I can
+        accurately determine overlap.  I figured out the math to predict
+        duration, but it turns out libsamplerate doesn't actually do that.
+        But libsamplerate's algorithm for advancing samples seems to be the
+        same for all quality levels, so I should be able to derive something
+        from its loop.
+      . Abandon variable pitch for now, and make some instruments.  For that
+        I need frequencies for each of the notes.  I can use the kontakt
+        instrument and reaktor tuning instrument for that.
+        wayang: reyong:
     incremental render:
       notes:
         . save samples and positions, along with resample state.
@@ -2079,6 +2091,9 @@ synth: im:
       . Same situation as reyong, except I also want to fade out based on
         duration.
       . Or model it as a hand-mute, which doesn't have its own sample.
+      * parse filenames into a patch
+      - write convert to pick the right sample
+      - write karya side to generate sampler notes
     guzheng:
       . Everything rings except when explicitly muted.
 
@@ -3905,6 +3920,7 @@ solkattu:
   format: output:
     * I want to be able to abstract named groups, but not GFiller
     html:
+      - index.html: sort by date, source
       * table messed up on Mridangam2013.dinnagina_sequence
       - writeParts
       * separate sections with a horizontal line
