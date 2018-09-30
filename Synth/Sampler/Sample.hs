@@ -12,12 +12,12 @@ import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Debug as Debug
 import qualified Util.Num as Num
-import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
 import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Sampler.Types as Types
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Signal as Signal
 
@@ -25,36 +25,9 @@ import Global
 import Synth.Lib.Global
 
 
--- | Path to a sample, relative to the instrument db root.
-type SamplePath = FilePath
 
--- | Low level representation of a note.  This corresponds to a single sample
--- played.
-data Sample = Sample {
-    start :: !RealTime
-    -- | Relative to 'Config.instrumentDbDir'.
-    , filename :: !SamplePath
-    -- | Sample start offset.
-    , offset :: !RealTime
-    -- | The sample ends when it runs out of samples, or when envelope ends
-    -- on 0.
-    , envelope :: !Signal.Signal
-    -- | Sample rate conversion ratio.  This controls the pitch.
-    , ratio :: !Signal.Signal
-    } deriving (Show)
-
-instance Pretty Sample where
-    format (Sample start filename offset envelope ratio) =
-        Pretty.record "Sample"
-            [ ("start", Pretty.format start)
-            , ("filename", Pretty.format filename)
-            , ("offset", Pretty.format offset)
-            , ("envelope", Pretty.format envelope)
-            , ("ratio", Pretty.format ratio)
-            ]
-
-render :: Resample.Config -> Sample -> Audio
-render config (Sample start filename offset envelope ratio) =
+render :: Resample.Config -> Types.Sample -> Audio
+render config (Types.Sample start filename offset envelope ratio) =
     resample2 config ratio start $
     applyEnvelope start envelope $
     File.readFrom (Audio.Frames readFrom) filename
@@ -240,9 +213,9 @@ If I move to NN breakpoints, this won't work.
 -- * old
 
 -- | Evaluating the Audio could probably produce more exceptions...
-realize :: Resample.Quality -> Sample -> (RealTime, Audio)
+realize :: Resample.Quality -> Types.Sample -> (RealTime, Audio)
     -- ^ sample start time, and audio to render
-realize quality (Sample start filename offset envelope ratio) = (start,) $
+realize quality (Types.Sample start filename offset envelope ratio) = (start,) $
     resample quality ratio start $
     applyEnvelope start envelope $
     File.readFrom (Audio.Seconds (RealTime.to_seconds offset)) filename

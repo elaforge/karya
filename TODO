@@ -1844,7 +1844,7 @@ synth: im:
       . Abandon variable pitch for now, and make some instruments.  For that
         I need frequencies for each of the notes.  I can use the kontakt
         instrument and reaktor tuning instrument for that.
-        wayang: reyong:
+      wayang: reyong:
     incremental render:
       notes:
         . save samples and positions, along with resample state.
@@ -2092,8 +2092,10 @@ synth: im:
         duration.
       . Or model it as a hand-mute, which doesn't have its own sample.
       * parse filenames into a patch
-      - write convert to pick the right sample
-      - write karya side to generate sampler notes
+      + write convert to pick the right sample
+      - Turn +stop or +damp or +mute+soft into durations.
+      - Get the paths right and hook this into SamplerIm.
+      - write karya side to generate sampler notes, and explicit mutes
     guzheng:
       . Everything rings except when explicitly muted.
 

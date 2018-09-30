@@ -25,6 +25,7 @@ import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Sampler.Types as Types
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
@@ -181,7 +182,7 @@ startSample db now quality chunkSize mbMbState note =
                     , _chunkSize = chunkSize
                     , _now = now
                     }
-            let start = AUtil.toFrame (Sample.start sample)
+            let start = AUtil.toFrame (Types.start sample)
             case mbMbState of
                 Just _ -> Audio.assert (start < now) $
                     "resumeSample should start before " <> showt now
@@ -236,7 +237,7 @@ serializeStates = Checkpoint.State . Serialize.encode
 -- I think I don't need this, I can get _filename and _offset from the Sample.
 -- In fact, I have to, unless I also want to save the envelope.
 data State = State
-    { _filename :: !Sample.SamplePath
+    { _filename :: !Types.SamplePath
     , _offset :: !Audio.Frame
     , _resampleState :: !Resample.SavedState
     } deriving (Eq, Show)

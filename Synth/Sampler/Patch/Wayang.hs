@@ -14,12 +14,18 @@ import System.FilePath ((</>))
 
 import qualified Text.Parsec as P
 
+import qualified Util.Num as Num
 import qualified Util.Parse as Parse
+import qualified Util.Seq as Seq
+
+import qualified Derive.Attrs as Attrs
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Types as Types
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
 
 import Global
 
@@ -29,10 +35,89 @@ type Error = Text
 sampleDir :: FilePath
 sampleDir = "../data/sampler/wayang"
 
--- Convert Note.Note into Sample.Sample
--- Must be deterministic, which means the Variation has to be in the Note.
-convert :: Note.Note -> Either Error (FilePath, Patch.Sample)
-convert = undefined
+{-
+    Convert Note.Note into Types.Sample.
+    Must be deterministic, which means the Variation has to be in the Note.
+
+    * map Note.instrument to (Instrument, Tuning)
+    * map attrs to Articulation
+    * map dynamic
+    This is select the next higher Dynamic, then scale down by the difference
+    * pitch
+
+    I can use duration, or can extend duration until the next mute, and add
+    a silent mute.  If the latter, I have to do it as a preprocess step, since
+    it affects overlap calculation.
+-}
+convert :: Patch -> Note.Note -> Either Text Types.Sample
+convert patch note = do
+    inst <- tryJust ("unknown instrument: " <> showt (Note.instrument note)) $
+        convertInstrument (Note.instrument note)
+    let articulation = convertArticulation $ Note.attributes note
+    let (dyn, scale) = convertDynamic $ fromMaybe 0 $
+            Note.initial Control.dynamic note
+    samples <- tryJust ("no sample for " <> showt (inst, dyn, articulation)) $
+        Map.lookup (inst, dyn, articulation) (_samples patch)
+    let var = convertVariation note
+    let sample = samples !! (var `mod` length samples)
+    pitch <- tryJust "no pitch" $ Note.initialPitch note
+        -- samples should be NonEmpty, so this shouldn't fail.
+    return $ Types.Sample
+        { start = Note.start note
+        , filename = _filename sample
+        , offset = 0
+        , envelope = Signal.constant (dynFactor * scale)
+        , ratio = Signal.constant $
+            pitchToRatio (Pitch.nn_to_hz (_pitch sample)) pitch
+        }
+
+-- TODO move to Types, or common Sample module
+pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y
+pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn
+
+-- TODO This should be dB
+dynFactor :: Signal.Y
+dynFactor = 0.5
+
+convertInstrument :: Note.InstrumentName -> Maybe (Instrument, Tuning)
+convertInstrument name = case Text.split (=='-') name of
+    [inst, tuning] -> (,)
+        <$> case inst of
+            "pemade" -> Just Pemade
+            "kantilan" -> Just Kantilan
+            _ -> Nothing
+        <*> case tuning of
+            "umbang" -> Just Umbang
+            "isep" -> Just Isep
+            _ -> Nothing
+    _ -> Nothing
+
+convertArticulation :: Attrs.Attributes -> Articulation
+convertArticulation attrs
+    | has Attrs.mute = if
+        | has calung -> CalungMute
+        | has Attrs.loose -> LooseMute
+        | otherwise -> Mute
+    | has calung = Calung
+    | otherwise = Open
+    where
+    has = Attrs.contain attrs
+    calung = Attrs.attr "calung"
+
+-- | Convert to (Dynamic, DistanceFromPrevDynamic)
+convertDynamic :: Signal.Y -> (Dynamic, Signal.Y)
+convertDynamic y =
+    find 0 (Num.clamp 0 127 (round (y * 127))) (Map.toAscList dynamicRanges)
+    where
+    find low val (((_, high), dyn) : rest)
+        | null rest || val < high =
+            (dyn, Num.normalize (int low) (int high) (int val))
+        | otherwise = find high val rest
+    find _ _ [] = error "empty dynamicRanges"
+    int = fromIntegral
+
+convertVariation :: Note.Note -> Variation
+convertVariation = maybe 0 floor . Note.initial Control.variation
 
 load :: IO (Either [FilePath] Patch)
 load = loadPatch sampleDir
@@ -40,7 +125,7 @@ load = loadPatch sampleDir
 -- * implementation
 
 data Patch = Patch {
-    _samples :: Map (Instrument, Tuning) [Sample]
+    _samples :: Map ((Instrument, Tuning), Dynamic, Articulation) [Sample]
     } deriving (Eq, Show)
 
 data Instrument = Pemade | Kantilan deriving (Eq, Ord, Show)
@@ -55,10 +140,10 @@ data Sample = Sample {
     } deriving (Eq, Show)
 
 data Dynamic = PP | MP | MF | FF
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 data Articulation = Mute | LooseMute | Open | CalungMute | Calung
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 type Variation = Int
 
@@ -66,8 +151,13 @@ loadPatch :: FilePath -> IO (Either [FilePath] Patch)
 loadPatch rootDir = do
     (errs, samples) <- Either.partitionEithers <$> parseAll rootDir
     return $ if null errs
-        then Right $ Patch (Map.fromList samples)
+        then Right $ Patch $ Map.fromList $ concatMap index samples
         else Left errs
+    where
+    index (inst, samples) = map (extract inst) $
+        Seq.keyed_group_sort (\s -> (_dynamic s, _articulation s)) samples
+    extract inst ((dyn, art), samples) =
+        ((inst, dyn, art), Seq.sort_on _variation samples)
 
 parseAll :: FilePath -> IO [Either FilePath ((Instrument, Tuning), [Sample])]
 parseAll rootDir = mapM parse
@@ -93,12 +183,24 @@ parseDir toNn dir =
     map (\fn -> maybe (Left fn) Right $ parseFilename toNn fn) <$>
         Directory.listDirectory dir
 
+{- |
+    sample structure:
+    pemade/{isep,umbang}/normal/$key-$lowVel-$highVel-$group.wav
+    group = mute{1..8} loose{1..8} open{1..4}
+
+    100-1-31-calung{1..3}.wav
+    29-1-31-calung+mute{1..6}.wav
+
+    mute and loose start at Key.f0 (17)
+    open starts at Key.f4 65
+-}
 parseFilename :: KeyToNn -> FilePath -> Maybe Sample
 parseFilename toNn filename =
     parse . Text.split (=='-') . txt . FilePath.dropExtension $ filename
     where
     parse [key, lowVel, highVel, group] = do
-        dyn <- flip Map.lookup dyns =<< (,) <$> pNat lowVel <*> pNat highVel
+        dyn <- flip Map.lookup dynamicRanges
+            =<< (,) <$> pNat lowVel <*> pNat highVel
         (art, var) <- parseArticulation group
         nn <- toNn art . Midi.Key =<< pNat key
         return $ Sample
@@ -129,19 +231,8 @@ parseArticulation = try . Parse.parse p
         , ("calung", Calung)
         ]
 
-{-
-    sample structure:
-    pemade/{isep,umbang}/normal/$key-$lowVel-$highVel-$group.wav
-    group = mute{1..8} loose{1..8} open{1..4}
-
-    100-1-31-calung{1..3}.wav
-    29-1-31-calung+mute{1..6}.wav
-
-    mute and loose start at Key.f0 (17)
-    open starts at Key.f4 65
--}
-dyns :: Map (Int, Int) Dynamic
-dyns = Map.fromList
+dynamicRanges :: Map (Int, Int) Dynamic
+dynamicRanges = Map.fromList
     [ ((1, 31), PP)
     , ((32, 64), MP)
     , ((65, 108), MF)

@@ -11,6 +11,8 @@ prio-module-low: GHC.Environment GHC.Read
 prio-package-high:
 prio-package-low: haskell98 ghc ghc-prim darcs comonad
 
+unqualified: System.FilePath.(</>)
+
 language: BangPatterns DisambiguateRecordFields FlexibleContexts
     GeneralizedNewtypeDeriving LambdaCase MultiWayIf OverloadedStrings
     ScopedTypeVariables TupleSections FlexibleInstances TypeSynonymInstances

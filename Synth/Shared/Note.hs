@@ -91,9 +91,11 @@ note patch instrument start duration = setHash $ Note
     }
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
-initialPitch note =
-    Pitch.nn . Signal.at (start note) <$>
-        Map.lookup Control.pitch (controls note)
+initialPitch = fmap Pitch.nn . initial Control.pitch
+
+initial :: Control.Control -> Note -> Maybe Signal.Y
+initial control note = Signal.at (start note) <$>
+    Map.lookup control (controls note)
 
 withControl :: Control.Control -> Signal.Signal -> Note -> Note
 withControl control signal note =

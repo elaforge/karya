@@ -54,3 +54,6 @@ pitch = "pitch"
 gate :: Control
 gate = "gate"
 
+-- | An integral variation, for "random" variant samples.
+variation :: Control
+variation = "variation"

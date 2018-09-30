@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Convert 'Note.Note's to 'Sample.Sample's.
+-- | Convert 'Note.Note's to 'Types.Sample's.
 module Synth.Sampler.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -12,7 +12,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Sampler.Types as Types
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -21,7 +21,7 @@ import Global
 
 
 -- TODO use dur for an envelope
-noteToSample :: Patch.Db -> Note.Note -> Either Text Sample.Sample
+noteToSample :: Patch.Db -> Note.Note -> Either Text Types.Sample
 noteToSample db note = do
     let patch = Note.patch note
     -- TODO I think the sampler doesn't care about individual instruments?
@@ -47,8 +47,8 @@ lookupSample inst attrs maybePitch = case maybePitch of
     samples = filter ((==attrs) . Patch.attributes . snd) $ Map.toList $
         Patch.samples inst
 
-makeSample :: Sample.SamplePath -> Patch.Sample -> Note.Note -> Sample.Sample
-makeSample filename instSample note = Sample.Sample
+makeSample :: Types.SamplePath -> Patch.Sample -> Note.Note -> Types.Sample
+makeSample filename instSample note = Types.Sample
     { start = Note.start note
     , filename = filename
     , offset = 0

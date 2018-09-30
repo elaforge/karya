@@ -23,6 +23,7 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Sampler.Types as Types
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
@@ -54,7 +55,7 @@ process quality notesFilename notes = do
         realizeSamples quality notesFilename instrument samples
 
 realizeSamples :: Resample.Quality -> FilePath -> Note.InstrumentName
-    -> [Sample.Sample] -> IO ()
+    -> [Types.Sample] -> IO ()
 realizeSamples quality notesFilename instrument samples = do
     notice $ "load " <> showt (length samples) <> " samples"
     let output
@@ -78,7 +79,7 @@ realizeSamples quality notesFilename instrument samples = do
     notice = Log.notice . ((instrument <> ": ")<>)
 
 -- TODO state checkpoints not fully implemented
-writeCheckpoints :: Resample.Quality -> FilePath -> [Sample.Sample]
+writeCheckpoints :: Resample.Quality -> FilePath -> [Types.Sample]
     -> IO (Maybe Text)
 writeCheckpoints quality outputDir samples = either Just (const Nothing) <$> do
     AUtil.catchSndfile $ Resource.runResourceT $
