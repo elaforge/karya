@@ -24,7 +24,7 @@ freeze global cabalFile freezeFile = do
     tmp <- Temp.mkdtemp "/tmp/freeze_deps"
     constraints <- Directory.withCurrentDirectory tmp $ do
         Text.IO.writeFile "fake-project.cabal" cabal
-        Process.callProcess "cabal" ["v1-freeze"]
+        Process.callProcess "cabal" ["freeze"]
         parseConstraints . Text.lines <$> Text.IO.readFile "cabal.config"
     Text.IO.writeFile freezeFile $ Text.unlines $
         ("constraints:":) $

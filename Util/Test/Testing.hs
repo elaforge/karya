@@ -463,7 +463,6 @@ format_quickcheck_result result = fmap Text.strip $ case result of
     QuickCheck.GaveUp { output } -> (False, Text.pack output)
     QuickCheck.Failure { output } -> (False, Text.pack output)
     QuickCheck.NoExpectedFailure { output } -> (False, Text.pack output)
-    QuickCheck.InsufficientCoverage { output } -> (False, Text.pack output)
 
 -- | 'equal' for quickcheck.
 q_equal :: (Show a, Eq a) => a -> a -> QuickCheck.Property
