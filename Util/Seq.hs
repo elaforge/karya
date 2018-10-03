@@ -92,9 +92,9 @@ key_on_just f xs = [(k, a) | (Just k, a) <- key_on f xs]
 -- unchanged.  A null or singleton list is also unchanged.
 first_last :: (a -> a) -> (a -> a) -> [a] -> [a]
 first_last start end xs = case xs of
-        [] -> []
-        [x] -> [x]
-        x : xs -> start x : go xs
+    [] -> []
+    [x] -> [x]
+    x : xs -> start x : go xs
     where
     go [] = []
     go [x] = [end x]
@@ -147,11 +147,11 @@ cartesian (xs:rest) = [x:ps | x <- xs, ps <- cartesian rest]
 at :: (Num i, Ord i) => [a] -> i -> Maybe a
 at xs n
     | n < 0 = Nothing
-    | otherwise = _at xs n
+    | otherwise = go xs n
     where
-    _at [] _ = Nothing
-    _at (x:_) 0 = Just x
-    _at (_:xs) n = at xs (n-1)
+    go [] _ = Nothing
+    go (x:_) 0 = Just x
+    go (_:xs) n = go xs (n-1)
 
 -- | Insert @x@ into @xs@ at index @i@.  If @i@ is out of range, insert at the
 -- beginning or end of the list.
@@ -542,7 +542,7 @@ tail (_:xs) = Just xs
 drop_dups :: Eq k => (a -> k) -> [a] -> [a]
 drop_dups _ [] = []
 drop_dups key (x:xs) = x : map snd (filter (not . equal) (zip (x:xs) xs))
-    where equal (x, y) = key x == key y
+    where equal (a, b) = key a == key b
 
 -- | Filter out elts when the predicate is true for adjacent elts.  The first
 -- elt is kept, and the later ones are dropped.  This is like 'drop_dups'
@@ -678,8 +678,8 @@ viewr :: [a] -> Maybe ([a], a)
 viewr [] = Nothing
 viewr (x:xs) = Just $ go x xs
     where
-    go x [] = ([], x)
-    go x (x':xs) = let (pre, post) = go x' xs in (x:pre, post)
+    go x0 [] = ([], x0)
+    go x0 (x:xs) = let (pre, post) = go x xs in (x0:pre, post)
 
 ne_viewr :: NonEmpty a -> ([a], a)
 ne_viewr (x :| xs) =
@@ -695,10 +695,10 @@ split_before :: (a -> Bool) -> [a] -> [[a]]
 split_before f = go
     where
     go [] = []
-    go xs = pre : case post of
+    go xs0 = pre : case post of
         x : xs -> cons1 x (go xs)
         [] -> []
-        where (pre, post) = break f xs
+        where (pre, post) = break f xs0
     cons1 x [] = [[x]]
     cons1 x (g:gs) = (x:g) : gs
 
@@ -712,12 +712,12 @@ split_after f = go
 
 -- | Split 'xs' on 'sep', dropping 'sep' from the result.
 split :: Eq a => NonNull a -> [a] -> NonNull [a]
-split [] _ = error "Util.Seq.split: empty separator"
-split sep xs = go sep xs
+split [] = error "Util.Seq.split: empty separator"
+split sep = go
     where
-    go sep xs
+    go xs
         | null post = [pre]
-        | otherwise = pre : split sep (drop (length sep) post)
+        | otherwise = pre : go (drop (length sep) post)
         where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
 -- | Like 'split', but it returns [] if the input was null.
@@ -787,7 +787,7 @@ count f = List.foldl' (\n c -> if f c then n + 1 else n) 0
 -- | Like 'List.mapAccumL', but monadic.
 mapAccumLM :: Monad m => (state -> x -> m (state, y)) -> state -> [x]
     -> m (state, [y])
-mapAccumLM f state xs = go state xs
+mapAccumLM f = go
     where
     go state [] = return (state, [])
     go state (x:xs) = do

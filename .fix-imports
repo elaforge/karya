@@ -6,7 +6,7 @@ sort-unqualified-last: t
 prio-module-high: Perform.Pitch Util.Serialize
     Data.Map Data.Set Data.Vector Data.String Data.Ratio
     Control.Monad.Trans.Resource
-prio-module-low: GHC.Environment GHC.Read
+prio-module-low: GHC.Environment GHC.Read GHC.MVar
     LogView.Process
 prio-package-high:
 prio-package-low: haskell98 ghc ghc-prim darcs comonad
