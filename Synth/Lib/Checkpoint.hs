@@ -163,25 +163,31 @@ extendHashes = go
     go [(i, h)] = (i, h) : zip [i+1 ..] (repeat (Note.Hash 0))
     go (h : hs) = h : go hs
 
-noteHashes :: Audio.Frame -> [Note.Note] -> [(Int, Note.Hash)]
+noteHashes :: Audio.Frame -> [Span] -> [(Int, Note.Hash)]
 noteHashes chunkSize = zip [0..] . hashOverlapping 0 (AUtil.toSeconds chunkSize)
 
-hashOverlapping :: RealTime -> RealTime -> [Note.Note] -> [Note.Hash]
+data Span = Span {
+    _start :: RealTime
+    , _duration :: RealTime
+    , _hash :: Note.Hash
+    } deriving (Show)
+
+hashOverlapping :: RealTime -> RealTime -> [Span] -> [Note.Hash]
 hashOverlapping start size =
-    map (mconcat . map fst) . groupOverlapping start size . Seq.key_on Note.hash
+    map (mconcat . map fst) . groupOverlapping start size
+    . Seq.key_on _hash
     -- Pair each Note with its Hash, then group Notes and combine the Hashes.
 
-groupOverlapping :: RealTime -> RealTime -> [(a, Note.Note)]
-    -> [[(a, Note.Note)]]
+groupOverlapping :: RealTime -> RealTime -> [(a, Span)] -> [[(a, Span)]]
 groupOverlapping start size = go (Seq.range_ start size)
     -- Use Seq.range_ instead of successive addition to avoid accumulating
     -- error.  Size should integral, but let's just be careful.
     where
-    go (t1 : ts@(t2 : _)) notes
-        | null notes = []
+    go (t1 : ts@(t2 : _)) spans
+        | null spans = []
         | null overlapping && null rest = []
         | otherwise = overlapping : go ts rest
-        where (overlapping, rest) = splitOverlapping t1 t2 notes
+        where (overlapping, rest) = splitOverlapping t1 t2 spans
     go _ _ = []
 
 {-
@@ -191,11 +197,11 @@ groupOverlapping start size = go (Seq.range_ start size)
             +---
                     +---
 -}
-splitOverlapping :: RealTime -> RealTime -> [(a, Note.Note)]
-    -> ([(a, Note.Note)], [(a, Note.Note)])
-splitOverlapping start end notes = (overlapping, overlapping ++ rest)
+splitOverlapping :: RealTime -> RealTime -> [(a, Span)]
+    -> ([(a, Span)], [(a, Span)])
+splitOverlapping start end spans = (overlapping, overlapping ++ rest)
     where
     overlapping = filter (not . passed . snd) here
-    (here, rest) = span ((<end) . Note.start . snd) $
-        dropWhile (passed . snd) notes
-    passed n = Note.end n <= start && Note.start n < start
+    (here, rest) = span ((<end) . _start . snd) $
+        dropWhile (passed . snd) spans
+    passed n = _start n + _duration n <= start && _start n < start

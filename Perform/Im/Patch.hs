@@ -35,11 +35,10 @@ instance Pretty Patch where
 
 -- | Since the synth understands Attributes directly, this is just a list of
 -- supported Attributes along with their priority.
-type AttributeMap = Common.AttributeMap Attrs.Attributes
+type AttributeMap = Common.AttributeMap ()
 
 attribute_map :: [Attrs.Attributes] -> AttributeMap
-attribute_map =
-    Common.sort_attribute_map . Common.AttributeMap . map (\a -> (a, a))
+attribute_map = Common.attribute_map . map (\a -> (a, ()))
 
 data Flag =
     -- | Patch doesn't pay attention to duration, e.g. percussion.  The UI can

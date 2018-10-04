@@ -63,10 +63,11 @@ convert_event event patch name = run $ do
         , duration = Score.event_duration event
         , controls = maybe id (Map.insert Control.pitch) pitch $
             convert_controls supported controls
-        , attributes = maybe mempty snd $
+        -- Restrict attributes to the ones it says it accepts, to protect
+        -- against false advertising.
+        , attributes = maybe mempty fst $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
-        , hash = mempty -- filled in after deserialize
         }
 
 run :: Log.LogId a -> [LEvent.LEvent a]

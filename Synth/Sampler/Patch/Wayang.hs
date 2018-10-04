@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Definitions for the wayang instrument family.
-module Synth.Sampler.Patch.Wayang (convert, load, Patch) where
+module Synth.Sampler.Patch.Wayang (patches) where
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -18,25 +18,50 @@ import qualified Util.Num as Num
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
+import qualified Instrument.Common as Common
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Sampler.Types as Types
+import qualified Synth.Sampler.Patch2 as Patch2
+import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
+import Synth.Types
 
 
-type Error = Text
+patches :: [Patch2.Patch]
+patches = map make
+    [ (Pemade, Umbang), (Pemade, Isep), (Kantilan, Umbang), (Kantilan, Isep) ]
+    where
+    make (inst, tuning) = Patch2.Patch
+        { _name = Text.toLower $
+            Text.intercalate "-" ["wayang", showt inst, showt tuning]
+        , _load = fmap (first toError) . loadPatch (inst, tuning)
+        , _convert = convert (inst, tuning)
+        , _karyaPatch = ImInst.make_patch $ Im.Patch.Patch
+            { patch_controls = mempty
+            , patch_attribute_map = const () <$> attributeMap
+            , patch_flags = mempty
+            }
+        }
+    -- TODO add scale and tuning env like kontakt instrument
+    toError fnames = "error parsing samples: "
+        <> Text.intercalate ", " (map txt fnames)
 
-sampleDir :: FilePath
-sampleDir = "../data/sampler/wayang"
+-- load :: IO (Either [FilePath] Patch)
+-- load = loadPatch sampleDir
+--
+-- sampleDir :: FilePath
+-- sampleDir = "../data/sampler/wayang"
 
 {-
-    Convert Note.Note into Types.Sample.
+    Convert Note.Note into Sample.Sample.
     Must be deterministic, which means the Variation has to be in the Note.
 
     * map Note.instrument to (Instrument, Tuning)
@@ -49,60 +74,51 @@ sampleDir = "../data/sampler/wayang"
     a silent mute.  If the latter, I have to do it as a preprocess step, since
     it affects overlap calculation.
 -}
-convert :: Patch -> Note.Note -> Either Text Types.Sample
-convert patch note = do
-    inst <- tryJust ("unknown instrument: " <> showt (Note.instrument note)) $
-        convertInstrument (Note.instrument note)
+convert :: (Instrument, Tuning) -> Patch -> Note.Note
+    -> Either Text Sample.Sample
+convert inst patch note = do
     let articulation = convertArticulation $ Note.attributes note
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
             Note.initial Control.dynamic note
     samples <- tryJust ("no sample for " <> showt (inst, dyn, articulation)) $
-        Map.lookup (inst, dyn, articulation) (_samples patch)
+        Map.lookup (dyn, articulation) (_samples patch)
     let var = convertVariation note
     let sample = samples !! (var `mod` length samples)
     pitch <- tryJust "no pitch" $ Note.initialPitch note
         -- samples should be NonEmpty, so this shouldn't fail.
-    return $ Types.Sample
-        { start = Note.start note
-        , filename = _filename sample
+    let dyn = dynFactor * scale
+    return $ Sample.Sample
+        { filename = _filename sample
         , offset = 0
-        , envelope = Signal.constant (dynFactor * scale)
+        , envelope = Signal.constant dyn
+            <> Signal.from_pairs
+                [(Note.end note, dyn), (Note.end note + muteTime, 0)]
         , ratio = Signal.constant $
-            pitchToRatio (Pitch.nn_to_hz (_pitch sample)) pitch
+            Sample.pitchToRatio (Pitch.nn_to_hz (_pitch sample)) pitch
         }
 
--- TODO move to Types, or common Sample module
-pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y
-pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn
+-- | Time to mute at the end of a note.
+muteTime :: RealTime
+muteTime = 0.15
 
 -- TODO This should be dB
 dynFactor :: Signal.Y
 dynFactor = 0.5
 
-convertInstrument :: Note.InstrumentName -> Maybe (Instrument, Tuning)
-convertInstrument name = case Text.split (=='-') name of
-    [inst, tuning] -> (,)
-        <$> case inst of
-            "pemade" -> Just Pemade
-            "kantilan" -> Just Kantilan
-            _ -> Nothing
-        <*> case tuning of
-            "umbang" -> Just Umbang
-            "isep" -> Just Isep
-            _ -> Nothing
-    _ -> Nothing
+attributeMap :: Common.AttributeMap Articulation
+attributeMap = Common.attribute_map
+    [ (calung <> mute, CalungMute)
+    , (calung, Calung)
+    , (mute <> Attrs.loose, LooseMute)
+    , (mute, Mute)
+    , (mempty, Open)
+    ]
+    where
+    mute = Attrs.mute
+    calung = Attrs.attr "calung"
 
 convertArticulation :: Attrs.Attributes -> Articulation
-convertArticulation attrs
-    | has Attrs.mute = if
-        | has calung -> CalungMute
-        | has Attrs.loose -> LooseMute
-        | otherwise -> Mute
-    | has calung = Calung
-    | otherwise = Open
-    where
-    has = Attrs.contain attrs
-    calung = Attrs.attr "calung"
+convertArticulation = maybe Open snd . (`Common.lookup_attributes` attributeMap)
 
 -- | Convert to (Dynamic, DistanceFromPrevDynamic)
 convertDynamic :: Signal.Y -> (Dynamic, Signal.Y)
@@ -119,13 +135,10 @@ convertDynamic y =
 convertVariation :: Note.Note -> Variation
 convertVariation = maybe 0 floor . Note.initial Control.variation
 
-load :: IO (Either [FilePath] Patch)
-load = loadPatch sampleDir
-
 -- * implementation
 
 data Patch = Patch {
-    _samples :: Map ((Instrument, Tuning), Dynamic, Articulation) [Sample]
+    _samples :: Map (Dynamic, Articulation) [Sample]
     } deriving (Eq, Show)
 
 data Instrument = Pemade | Kantilan deriving (Eq, Ord, Show)
@@ -147,32 +160,30 @@ data Articulation = Mute | LooseMute | Open | CalungMute | Calung
 
 type Variation = Int
 
-loadPatch :: FilePath -> IO (Either [FilePath] Patch)
-loadPatch rootDir = do
-    (errs, samples) <- Either.partitionEithers <$> parseAll rootDir
+loadPatch :: (Instrument, Tuning) -> FilePath -> IO (Either [FilePath] Patch)
+loadPatch instTuning rootDir = do
+    (errs, samples) <- Either.partitionEithers <$> loadDir rootDir instTuning
     return $ if null errs
-        then Right $ Patch $ Map.fromList $ concatMap index samples
+        then Right $ Patch $ Map.fromList $
+            map (second (Seq.sort_on _variation)) $
+            Seq.keyed_group_sort (\s -> (_dynamic s, _articulation s)) samples
         else Left errs
-    where
-    index (inst, samples) = map (extract inst) $
-        Seq.keyed_group_sort (\s -> (_dynamic s, _articulation s)) samples
-    extract inst ((dyn, art), samples) =
-        ((inst, dyn, art), Seq.sort_on _variation samples)
 
-parseAll :: FilePath -> IO [Either FilePath ((Instrument, Tuning), [Sample])]
-parseAll rootDir = mapM parse
-    [ (Pemade, Umbang)
-    , (Pemade, Isep)
-    , (Kantilan, Umbang)
-    , (Kantilan, Isep)
-    ]
+-- parseAll :: FilePath -> IO [Either FilePath ((Instrument, Tuning), [Sample])]
+-- parseAll rootDir = mapM parse
+--     [ (Pemade, Umbang)
+--     , (Pemade, Isep)
+--     , (Kantilan, Umbang)
+--     , (Kantilan, Isep)
+--     ]
+--     where
+
+loadDir :: FilePath -> (Instrument, Tuning) -> IO [Either FilePath Sample]
+loadDir rootDir (inst, tuning) =
+    (++) <$> parseDir (keyToNn nns) (rootDir </> dir </> "normal")
+         <*> parseDir (keyToNn nns) (rootDir </> dir </> "calung")
     where
-    parse (inst, tuning) =
-        fmap ((inst, tuning),) . sequence <$>
-            ((++) <$> parseDir (keyToNn nns) (rootDir </> dir </> "normal")
-                <*> parseDir (keyToNn nns) (rootDir </> dir </> "calung"))
-        where (nns, dir) = nnsDir (inst, tuning)
-    nnsDir = \case
+    (nns, dir) = case (inst, tuning) of
         (Pemade, Umbang) -> (pemadeUmbang, "pemade/umbang")
         (Pemade, Isep) -> (pemadeIsep, "pemade/isep")
         (Kantilan, Umbang) -> (kantilanUmbang, "kantilan/umbang")
@@ -251,12 +262,6 @@ keyToNn ((inst, _), nns) art key = lookup key keyNns
         CalungMute -> 1
         Open -> 5
         Calung -> 5
-
-pemadeMute = wayangKeys 1
-pemadeOpen = wayangKeys 5
-
-kantilanMute = wayangKeys 2
-kantilanOpen = wayangKeys 6
 
 wayangKeys :: Int -> [Midi.Key]
 wayangKeys oct = map (Midi.to_key (oct * 12) +)

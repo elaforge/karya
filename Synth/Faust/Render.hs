@@ -42,7 +42,7 @@ write = write_ defaultConfig
 write_ :: Config -> FilePath -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
 write_ config outputDir patch notes = do
-    let allHashes = Checkpoint.noteHashes chunkSize notes
+    let allHashes = Checkpoint.noteHashes chunkSize (map toSpan notes)
     (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
     let notifyState = IORef.writeIORef stateRef
@@ -62,6 +62,13 @@ write_ config outputDir patch notes = do
             return $ second (\written -> (written, written + skipped)) result
     where
     chunkSize = _chunkSize config
+
+toSpan :: Note.Note -> Checkpoint.Span
+toSpan note = Checkpoint.Span
+    { _start = Note.start note
+    , _duration = Note.duration note
+    , _hash = Note.hash note
+    }
 
 -- * render
 

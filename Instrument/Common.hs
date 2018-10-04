@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor #-}
 -- | This contains instrument data in common between different backends.
 module Instrument.Common where
 import qualified Data.List as List
@@ -84,7 +85,7 @@ instance Pretty code => Pretty (Common code) where
     make sure that can't happen.
 -}
 newtype AttributeMap a = AttributeMap [(Attrs.Attributes, a)]
-    deriving (Eq, Show, Pretty, Serialize.Serialize)
+    deriving (Eq, Show, Pretty, Functor, Serialize.Serialize)
 
 attribute_map :: [(Attrs.Attributes, a)] -> AttributeMap a
 attribute_map = sort_attribute_map . AttributeMap

@@ -4,7 +4,7 @@
 
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeApplications #-}
-module Synth.Sampler.Sample_test where
+module Synth.Sampler.RenderSample_test where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Vector.Storable as Storable
 import qualified System.IO.Unsafe as Unsafe
@@ -15,7 +15,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Test.Testing as Testing
 
 import qualified Synth.Lib.AUtil as AUtil
-import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Shared.Signal as Signal
 
 import Global
@@ -58,7 +58,7 @@ signal = Signal.from_pairs . map (first AUtil.toSeconds)
 verify :: Resample.Quality -> [(Audio.Frame, Signal.Y)] -> Audio.Frame
     -> (Audio.Frame, Audio.Frame) -- ^ (predicted, actual)
 verify quality ratio dur =
-    ( Sample.predictDuration sig dur
+    ( RenderSample.predictDuration sig dur
     , actualDuration (mkConfig quality) sig dur
     )
     where sig = signal ratio

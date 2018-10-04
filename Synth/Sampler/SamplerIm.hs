@@ -6,28 +6,30 @@
 module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 
-import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Thread as Thread
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Convert as Convert
+import qualified Synth.Sampler.Patch2 as Patch2
 import qualified Synth.Sampler.PatchDb as PatchDb
+import qualified Synth.Sampler.Render as Render
+import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Sampler.Types as Types
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
 import Global
+import Synth.Types
 
 
 useCheckpoints :: Bool
@@ -43,11 +45,55 @@ main = do
         [notesFilename] -> do
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
-            process quality notesFilename notes
+            if useCheckpoints
+                then process PatchDb.db2 quality notesFilename notes
+                else processOld quality notesFilename notes
         _ -> errorIO $ "usage: sampler [ --fast ] notes"
 
-process :: Resample.Quality -> FilePath -> [Note.Note] -> IO ()
-process quality notesFilename notes = do
+type Error = Text
+
+process :: Patch2.Db -> Resample.Quality -> FilePath -> [Note.Note] -> IO ()
+process db quality notesFilename notes =
+    by Note.patch notes $ \(patch, notes) -> loadPatch db patch >>= \case
+        Left err -> Log.warn $ "patch " <> patch <> ": " <> err
+        Right toSample -> by Note.instrument notes $ \(inst, notes) ->
+            realize quality notesFilename inst $ map (convert toSample) notes
+    where by key xs = Async.forConcurrently_ (Seq.keyed_group_sort key xs)
+
+convert :: (Note.Note -> Either Text Sample.Sample) -> Note.Note -> Sample.Note
+convert toSample note = Sample.Note
+    { start = Note.start note
+    , duration = Note.duration note -- TODO calculate it with RenderSample
+    , hash = Note.hash note
+    , sample = toSample note
+    }
+
+loadPatch :: Patch2.Db -> Note.PatchName
+    -> IO (Either Error (Note.Note -> Either Error Sample.Sample))
+loadPatch db patchName = case Map.lookup patchName (Patch2._patches db) of
+    Nothing -> return $ Left "patch not found"
+    Just patch -> Patch2.load (Patch2._rootDir db) patch
+
+realize :: Resample.Quality -> FilePath -> Note.InstrumentName
+    -> [Sample.Note] -> IO ()
+realize quality notesFilename instrument notes = do
+    let output = Config.outputDirectory
+            (Config.imDir Config.config) notesFilename instrument
+    Directory.createDirectoryIfMissing True output
+    (result, elapsed) <- Thread.timeActionText $
+        Render.write quality output notes
+    case result of
+        Left err -> Log.error $ instrument <> ": writing " <> txt output
+            <> ": " <> err
+        Right (rendered, total) ->
+            Log.notice $ instrument <> " " <> showt rendered <> "/"
+                <> showt total <> " chunks: " <> txt output
+                <> " (" <> elapsed <> ")"
+
+-- * old
+
+processOld :: Resample.Quality -> FilePath -> [Note.Note] -> IO ()
+processOld quality notesFilename notes = do
     let byInstrument = Seq.keyed_group_sort Note.instrument notes
     Async.forConcurrently_ byInstrument $ \(instrument, notes) -> do
         samples <- either errorIO return $
@@ -55,21 +101,15 @@ process quality notesFilename notes = do
         realizeSamples quality notesFilename instrument samples
 
 realizeSamples :: Resample.Quality -> FilePath -> Note.InstrumentName
-    -> [Types.Sample] -> IO ()
+    -> [(RealTime, Sample.Sample)] -> IO ()
 realizeSamples quality notesFilename instrument samples = do
     notice $ "load " <> showt (length samples) <> " samples"
-    let output
-            | useCheckpoints = Config.outputDirectory
-                (Config.imDir Config.config) notesFilename instrument
-            | otherwise = Config.outputFilename (Config.imDir Config.config)
-                notesFilename instrument
-    Directory.createDirectoryIfMissing True $
-            if useCheckpoints then output else FilePath.takeDirectory output
-    mbErr <- if useCheckpoints
-        then writeCheckpoints quality output samples
-        else fmap (either Just (const Nothing)) $ AUtil.catchSndfile $
-            Resource.runResourceT $ Audio.File.write AUtil.outputFormat output $
-                AUtil.mix $ map (Sample.realize quality) samples
+    let output = Config.outputFilename (Config.imDir Config.config)
+            notesFilename instrument
+    Directory.createDirectoryIfMissing True $ FilePath.takeDirectory output
+    mbErr <- fmap (either Just (const Nothing)) $ AUtil.catchSndfile $
+        Resource.runResourceT $ Audio.File.write AUtil.outputFormat output $
+            AUtil.mix $ map (uncurry (RenderSample.renderOld quality)) samples
     case mbErr of
         Nothing -> notice $ "done: " <> txt output
         Just err -> Log.error $ "writing " <> txt output <> ": " <> err
@@ -77,18 +117,3 @@ realizeSamples quality notesFilename instrument samples = do
     where
     notice :: CallStack.Stack => Text -> IO ()
     notice = Log.notice . ((instrument <> ": ")<>)
-
--- TODO state checkpoints not fully implemented
-writeCheckpoints :: Resample.Quality -> FilePath -> [Types.Sample]
-    -> IO (Maybe Text)
-writeCheckpoints quality outputDir samples = either Just (const Nothing) <$> do
-    AUtil.catchSndfile $ Resource.runResourceT $
-        Audio.File.writeCheckpoints size getFilename writeState
-            AUtil.outputFormat [0..] $
-        -- TODO I think AUtil.mix and Sample.realize don't guarantee that chunk
-        -- sizes are a factor of checkpointSize
-        AUtil.mix $ map (Sample.realize quality) samples
-    where
-    size = Audio.Frame Config.checkpointSize
-    getFilename i = return $ outputDir </> untxt (Num.zeroPad 3 i) <> ".wav"
-    writeState _fname = return ()

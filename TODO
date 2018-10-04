@@ -1845,6 +1845,8 @@ synth: im:
         I need frequencies for each of the notes.  I can use the kontakt
         instrument and reaktor tuning instrument for that.
       wayang: reyong:
+    * Get the paths right and hook this into SamplerIm.
+    - set Sample.duration correctly, at least for constant pitch notes
     incremental render:
       notes:
         . save samples and positions, along with resample state.
@@ -2092,10 +2094,12 @@ synth: im:
         duration.
       . Or model it as a hand-mute, which doesn't have its own sample.
       * parse filenames into a patch
-      + write convert to pick the right sample
-      - Turn +stop or +damp or +mute+soft into durations.
-      - Get the paths right and hook this into SamplerIm.
-      - write karya side to generate sampler notes, and explicit mutes
+      * write convert to pick the right sample
+      / Turn +stop or +damp or +mute+soft into durations.
+        Actually, don't I want to handle this stuff in the sequencer?  All
+        higher level stuff should be there.  The only thing the sampler can do
+        is shorten durations because it knows the lengths of the samples.
+      - write karya side to generate sampler notes, with correct durations
     guzheng:
       . Everything rings except when explicitly muted.
 

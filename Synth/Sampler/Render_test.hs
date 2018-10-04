@@ -14,7 +14,6 @@ import System.FilePath ((</>))
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
-import Util.Test
 import qualified Util.Test.Testing as Testing
 
 import qualified Perform.NN as NN
@@ -23,47 +22,48 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Render as Render
-import qualified Synth.Shared.Control as Control
+import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
+import Util.Test
 
 
 test_write_noop = do
     dir <- Testing.tmp_dir "write"
-    let write = write_ dir dir
+    let write = write_ dir
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.cacheDir)) []
 
     -- One failed note produces no output.
-    io_equal (write [mkNote "no-such-patch" 0 16 NN.c4]) (Right (0, 0))
+    io_equal (write [mkNote "" 0 16 NN.c4]) (Right (0, 0))
     io_equal (listWavs dir) []
 
 test_write_simple = do
     dir <- Testing.tmp_dir "write"
-    let write = write_ dir dir
+    let write = write_ dir
     writeDb dir
     -- A single note that spans two checkpoints.  Dur is determined by the
     -- sample length.
-    io_equal (write [mkNote "patch" 0 8 NN.c4]) (Right (2, 2))
+    io_equal (write [mkNote dir 0 8 NN.c4]) (Right (2, 2))
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) triangle
 
 test_write_simple_offset = do
     dir <- Testing.tmp_dir "write"
-    let write = write_ dir dir
+    let write = write_ dir
     writeDb dir
-    io_equal (write [mkNote "patch" 8 8 NN.c4]) (Right (4, 4))
+    io_equal (write [mkNote dir 8 8 NN.c4]) (Right (4, 4))
     io_equal (readSamples dir) (replicate 8 0 ++ triangle)
 
 test_write_freq = do
     dir <- Testing.tmp_dir "write"
-    let write = write_ dir dir
+    let write = write_ dir
     writeDb dir
     -- Freq*2 is half as many samples.
-    io_equal (write [mkNote "patch" 0 8 NN.c5]) (Right (1, 1))
+    io_equal (write [mkNote dir 0 8 NN.c5]) (Right (1, 1))
     io_equal (length <$> listWavs dir) 1
     io_equal (readSamples dir) [1, 2, 4, 2]
 
@@ -71,14 +71,14 @@ test_write_incremental = do
     -- Resume after changing a later note, results same as rerender from
     -- scratch.
     dir <- Testing.tmp_dir "write"
-    let write = write_ dir dir
+    let write = write_ dir
     writeDb dir
     -- 0   4   8   12   16
     -- 12343210
     --     12343210
     let oldNotes =
-            [ mkNote "patch" 0 8 NN.c4
-            , mkNote "patch" 4 8 NN.c4
+            [ mkNote dir 0 8 NN.c4
+            , mkNote dir 4 8 NN.c4
             ]
     -- 0   4   8   12   16
     -- 12343210
@@ -86,8 +86,8 @@ test_write_incremental = do
     -- ====3210
     --     0012
     let newNotes =
-            [ mkNote "patch" 0 8 NN.c4
-            , mkNote "patch" 6 8 NN.c4
+            [ mkNote dir 0 8 NN.c4
+            , mkNote dir 6 8 NN.c4
             ]
     io_equal (write oldNotes) (Right (3, 3))
     io_equal (readSamples dir)
@@ -99,22 +99,22 @@ test_write_incremental = do
             ++ [0, 0] -- pad to 16
     incremental <- readSamples dir
     equal incremental expected
-    nonIncremental <- renderSamples dir newNotes
+    nonIncremental <- renderSamples newNotes
     equal nonIncremental expected
 
-renderSamples :: FilePath -> [Note.Note] -> IO [Float]
-renderSamples dbDir notes = do
+renderSamples :: [Sample.Note] -> IO [Float]
+renderSamples notes = do
     dir <- Testing.tmp_dir "renderSamples"
-    write_ dbDir dir notes
+    write_ dir notes
     readSamples dir
 
 test_overlappingNotes = do
     let f = (\(a, b, c) -> (map extract a, map extract b, map extract c))
             . Render.overlappingNotes 0 1
-            . map (\(s, d) -> mkNote "patch" s d NN.c4)
+            . map (\(s, d) -> mkNote "" s d NN.c4)
         extract n =
-            ( AUtil.toFrame (Note.start n)
-            , AUtil.toFrame (Note.duration n)
+            ( AUtil.toFrame (Sample.start n)
+            , AUtil.toFrame (Sample.duration n)
             )
     equal (f []) ([], [], [])
     equal (f [(0, 0)]) ([], [(0, 0)], [])
@@ -122,9 +122,8 @@ test_overlappingNotes = do
         ([(-2, 4)], [(0, 4)], [(4, 4)])
 
 
-write_ :: FilePath -> FilePath -> [Note.Note] -> IO (Either Text (Int, Int))
-write_ dbDir outDir =
-    Render.write_ (mkDb dbDir) chunkSize Resample.Linear outDir
+write_ :: FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
+write_ outDir = Render.write_ chunkSize Resample.Linear outDir
 
 patchDir :: FilePath
 patchDir = "patch"
@@ -142,28 +141,43 @@ mkDb dir = Patch.Db
     }
 
 writeDb :: FilePath -> IO ()
-writeDb dir = do
-    let patch = dir </> patchDir
+writeDb dbDir = do
+    let patch = dbDir </> patchDir
     Directory.createDirectoryIfMissing True patch
     Resource.runResourceT $
-        File.write AUtil.outputFormat (patch </> "tri.wav") audio
+        File.write AUtil.outputFormat (triFilename dbDir) audio
     where
     audio :: AUtil.Audio
     audio = Audio.expandChannels $ Audio.fromSampleLists [triangle]
+
+triFilename :: FilePath -> FilePath
+triFilename dbDir = dbDir </> patchDir </> "tri.wav"
 
 triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]
 
 
--- * TODO copy paste with Faust.Render_test
+mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Pitch.NoteNumber
+    -> Sample.Note
+mkNote dbDir startF durF nn = Sample.Note
+    { start = start
+    , duration = dur
+    , hash = Note.hash $ Note.withPitch nn $ Note.note "patch" "inst" start dur
+    , sample = if null dbDir
+        then Left "no patch"
+        else Right $ Sample.Sample
+            { filename = triFilename dbDir
+            , offset = 0
+            , envelope = Signal.constant 1
+            , ratio = Signal.constant $
+                Sample.pitchToRatio (Pitch.nn_to_hz NN.c4) nn
+            }
+    }
+    where
+    start = AUtil.toSeconds startF
+    dur = AUtil.toSeconds durF
 
-mkNote :: Note.PatchName -> Audio.Frame -> Audio.Frame -> Pitch.NoteNumber
-    -> Note.Note
-mkNote patch start dur nn = Note.setHash $
-    Note.withControl Control.volume (Signal.constant 1) $
-    Note.withControl Control.dynamic (Signal.constant 1) $
-    Note.withPitch nn $
-    Note.note patch "inst" (AUtil.toSeconds start) (AUtil.toSeconds dur)
+-- * TODO copy paste with Faust.Render_test
 
 listWavs :: FilePath -> IO [FilePath]
 listWavs = fmap (List.sort . filter (".wav" `List.isSuffixOf`))

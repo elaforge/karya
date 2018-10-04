@@ -59,6 +59,7 @@ test_write_incremental = do
 
     let skipCheckpoints = Checkpoint.skipCheckpoints dir
             . Checkpoint.noteHashes (Render._chunkSize config)
+            . map Render.toSpan
     -- Test skipCheckpoints directly.
     (skippedHashes, state) <- skipCheckpoints newNotes
     equal_on (fmap fst . Seq.head) skippedHashes (Just 2)
@@ -143,7 +144,7 @@ mkNotes dur nns =
     ]
 
 mkNote :: RealTime -> RealTime -> Pitch.NoteNumber -> Note.Note
-mkNote start dur nn = Note.setHash $
+mkNote start dur nn =
     Note.withControl Control.volume (Signal.constant 1) $
     Note.withControl Control.dynamic (Signal.constant 1) $
     Note.withPitch nn $ Note.note "sine" "sine" start dur
