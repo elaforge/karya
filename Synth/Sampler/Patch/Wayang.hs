@@ -3,21 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Definitions for the wayang instrument family.
-module Synth.Sampler.Patch.Wayang (patches) where
-import qualified Data.Either as Either
-import qualified Data.Map as Map
+module Synth.Sampler.Patch.Wayang (patches, allFilenames) where
+import qualified Data.Char as Char
 import qualified Data.Text as Text
-
-import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
-import qualified Text.Parsec as P
-
 import qualified Util.Num as Num
-import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
-
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
@@ -42,8 +34,7 @@ patches = map make
     make (inst, tuning) = Patch2.Patch
         { _name = Text.toLower $
             Text.intercalate "-" ["wayang", showt inst, showt tuning]
-        , _load = fmap (first toError) . loadPatch (inst, tuning)
-        , _convert = convert (inst, tuning)
+        , _convert = convert inst tuning
         , _karyaPatch = ImInst.make_patch $ Im.Patch.Patch
             { patch_controls = mempty
             , patch_attribute_map = const () <$> attributeMap
@@ -51,59 +42,6 @@ patches = map make
             }
         }
     -- TODO add scale and tuning env like kontakt instrument
-    toError fnames = "error parsing samples: "
-        <> Text.intercalate ", " (map txt fnames)
-
--- load :: IO (Either [FilePath] Patch)
--- load = loadPatch sampleDir
---
--- sampleDir :: FilePath
--- sampleDir = "../data/sampler/wayang"
-
-{-
-    Convert Note.Note into Sample.Sample.
-    Must be deterministic, which means the Variation has to be in the Note.
-
-    * map Note.instrument to (Instrument, Tuning)
-    * map attrs to Articulation
-    * map dynamic
-    This is select the next higher Dynamic, then scale down by the difference
-    * pitch
-
-    I can use duration, or can extend duration until the next mute, and add
-    a silent mute.  If the latter, I have to do it as a preprocess step, since
-    it affects overlap calculation.
--}
-convert :: (Instrument, Tuning) -> Patch -> Note.Note
-    -> Either Text Sample.Sample
-convert inst patch note = do
-    let articulation = convertArticulation $ Note.attributes note
-    let (dyn, scale) = convertDynamic $ fromMaybe 0 $
-            Note.initial Control.dynamic note
-    samples <- tryJust ("no sample for " <> showt (inst, dyn, articulation)) $
-        Map.lookup (dyn, articulation) (_samples patch)
-    let var = convertVariation note
-    let sample = samples !! (var `mod` length samples)
-    pitch <- tryJust "no pitch" $ Note.initialPitch note
-        -- samples should be NonEmpty, so this shouldn't fail.
-    let dyn = dynFactor * scale
-    return $ Sample.Sample
-        { filename = _filename sample
-        , offset = 0
-        , envelope = Signal.constant dyn
-            <> Signal.from_pairs
-                [(Note.end note, dyn), (Note.end note + muteTime, 0)]
-        , ratio = Signal.constant $
-            Sample.pitchToRatio (Pitch.nn_to_hz (_pitch sample)) pitch
-        }
-
--- | Time to mute at the end of a note.
-muteTime :: RealTime
-muteTime = 0.15
-
--- TODO This should be dB
-dynFactor :: Signal.Y
-dynFactor = 0.5
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map
@@ -117,151 +55,183 @@ attributeMap = Common.attribute_map
     mute = Attrs.mute
     calung = Attrs.attr "calung"
 
+-- verifyFilenames :: IO [FilePath]
+-- verifyFilenames = filterM (fmap not . Directory.doesFileExist)
+--     (map ("../data/sampler/wayang" </>) allFilenames)
+
+-- * convert
+
+{- |
+    Convert Note.Note into Sample.Sample.
+    Must be deterministic, which means the Variation has to be in the Note.
+
+    * map Note.instrument to (Instrument, Tuning)
+    * map attrs to Articulation
+    * map dynamic
+    This is select the next higher Dynamic, then scale down by the difference
+    * pitch
+
+    I can use duration, or can extend duration until the next mute, and add
+    a silent mute.  If the latter, I have to do it as a preprocess step, since
+    it affects overlap calculation.
+-}
+convert :: Instrument -> Tuning -> Note.Note -> Either Text Sample.Sample
+convert instrument tuning note = do
+    let articulation = convertArticulation $ Note.attributes note
+    let (dyn, scale) = convertDynamic $ fromMaybe 0 $
+            Note.initial Control.dynamic note
+    pitch <- tryJust "no pitch" $ Note.initialPitch note
+    let (filename, sampleNn) =
+            toFilename instrument tuning articulation pitch dyn
+                (convertVariation note)
+    let dyn = dynFactor * scale
+    return $ Sample.Sample
+        { filename = filename
+        , offset = 0
+        , envelope = Signal.from_pairs
+            [ (Note.start note, dyn), (Note.end note, dyn)
+            , (Note.end note + muteTime, 0)
+            ]
+        , ratio = Signal.constant $
+            Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) pitch
+        }
+
+-- | Time to mute at the end of a note.
+muteTime :: RealTime
+muteTime = 0.15
+
+-- TODO This should be dB
+dynFactor :: Signal.Y
+dynFactor = 0.5
+
 convertArticulation :: Attrs.Attributes -> Articulation
 convertArticulation = maybe Open snd . (`Common.lookup_attributes` attributeMap)
 
 -- | Convert to (Dynamic, DistanceFromPrevDynamic)
 convertDynamic :: Signal.Y -> (Dynamic, Signal.Y)
-convertDynamic y =
-    find 0 (Num.clamp 0 127 (round (y * 127))) (Map.toAscList dynamicRanges)
+convertDynamic y = find 0 (Num.clamp 0 127 (round (y * 127))) rangeDynamics
     where
-    find low val (((_, high), dyn) : rest)
+    find low val ((high, dyn) : rest)
         | null rest || val < high =
             (dyn, Num.normalize (int low) (int high) (int val))
         | otherwise = find high val rest
-    find _ _ [] = error "empty dynamicRanges"
+    find _ _ [] = error "empty rangeDynamics"
     int = fromIntegral
+    rangeDynamics = Seq.key_on (snd . dynamicRange) enumAll
 
 convertVariation :: Note.Note -> Variation
 convertVariation = maybe 0 floor . Note.initial Control.variation
 
--- * implementation
+-- * toFilename
 
-data Patch = Patch {
-    _samples :: Map (Dynamic, Articulation) [Sample]
-    } deriving (Eq, Show)
+{- | Find the sample.
+
+    File structure:
+    > {pemade,kantilan}/{isep,umbang}/{normal,calung}/
+    >     $key-$lowVel-$highVel-$group.wav
+    > normal groups = mute{1..8} loose{1..8} open{1..4}
+    > calung groups = calung{1..3} calung+mute{1..6}
+    > mute and loose start at Key.f0 (17)
+    > open starts at Key.f4 65
+-}
+toFilename :: Instrument -> Tuning -> Articulation -> Pitch.NoteNumber
+    -> Dynamic -> Variation -> (FilePath, Pitch.NoteNumber)
+toFilename instrument tuning articulation nn dyn variation =
+    ( toDir instrument </> toDir tuning </> panggul </> sampleName ++ ".wav"
+    , sampleNn
+    )
+    where
+    -- TODO some of them have +v$var
+    toDir :: Show a => a -> FilePath
+    toDir = map Char.toLower . show
+    panggul = case articulation of
+        CalungMute -> "calung"
+        Calung -> "calung"
+        _ -> "normal"
+    sampleName = Seq.join "-"
+        [show sampleKey, show lowVel, show highVel, group]
+    (lowVel, highVel) = dynamicRange dyn
+    group = articulationFile articulation
+        ++ show (variation `mod` variationsOf articulation + 1)
+    (sampleNn, Midi.Key sampleKey) = findPitch instrument tuning articulation nn
+
+allFilenames :: [FilePath]
+allFilenames =
+    [ fst $ toFilename instrument tuning articulation nn dyn variation
+    | instrument <- [Pemade, Kantilan]
+    , tuning <- [Umbang, Isep]
+    , articulation <- enumAll
+    , nn <- map fst $ instrumentKeys instrument tuning articulation
+    , dyn <- enumAll
+    , variation <- [0 .. variationsOf articulation - 1]
+    ]
+
+dynamicRange :: Dynamic -> (Int, Int)
+dynamicRange = \case
+    PP -> (1, 31)
+    MP -> (32, 64)
+    MF -> (65, 108)
+    FF -> (109, 127)
+
+articulationFile :: Articulation -> String
+articulationFile = \case
+    Mute -> "mute"
+    LooseMute -> "loose"
+    Open -> "open"
+    Calung -> "calung"
+    CalungMute -> "calung+mute"
+
+variationsOf :: Articulation -> Variation
+variationsOf = \case
+    Mute -> 8
+    LooseMute -> 8
+    Open -> 4
+    Calung -> 3
+    CalungMute -> 6
+
+-- * implementation
 
 data Instrument = Pemade | Kantilan deriving (Eq, Ord, Show)
 data Tuning = Umbang | Isep deriving (Eq, Ord, Show)
 
-data Sample = Sample {
-    _filename :: !FilePath
-    , _pitch :: !Pitch.NoteNumber
-    , _dynamic :: !Dynamic
-    , _articulation :: !Articulation
-    , _variation :: !Variation
-    } deriving (Eq, Show)
-
 data Dynamic = PP | MP | MF | FF
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Enum, Bounded, Show)
 
 data Articulation = Mute | LooseMute | Open | CalungMute | Calung
-    deriving (Eq, Ord, Show)
+    deriving (Eq, Ord, Enum, Bounded, Show)
 
 type Variation = Int
 
-loadPatch :: (Instrument, Tuning) -> FilePath -> IO (Either [FilePath] Patch)
-loadPatch instTuning rootDir = do
-    (errs, samples) <- Either.partitionEithers <$> loadDir rootDir instTuning
-    return $ if null errs
-        then Right $ Patch $ Map.fromList $
-            map (second (Seq.sort_on _variation)) $
-            Seq.keyed_group_sort (\s -> (_dynamic s, _articulation s)) samples
-        else Left errs
+findPitch :: Instrument -> Tuning -> Articulation -> Pitch.NoteNumber
+    -> (Pitch.NoteNumber, Midi.Key)
+findPitch instrument tuning articulation nn =
+    findBelow fst nn (instrumentKeys instrument tuning articulation)
 
--- parseAll :: FilePath -> IO [Either FilePath ((Instrument, Tuning), [Sample])]
--- parseAll rootDir = mapM parse
---     [ (Pemade, Umbang)
---     , (Pemade, Isep)
---     , (Kantilan, Umbang)
---     , (Kantilan, Isep)
---     ]
---     where
-
-loadDir :: FilePath -> (Instrument, Tuning) -> IO [Either FilePath Sample]
-loadDir rootDir (inst, tuning) =
-    (++) <$> parseDir (keyToNn nns) (rootDir </> dir </> "normal")
-         <*> parseDir (keyToNn nns) (rootDir </> dir </> "calung")
+instrumentKeys :: Instrument -> Tuning -> Articulation
+    -> [(Pitch.NoteNumber, Midi.Key)]
+instrumentKeys instrument tuning articulation = zip nns keys
     where
-    (nns, dir) = case (inst, tuning) of
-        (Pemade, Umbang) -> (pemadeUmbang, "pemade/umbang")
-        (Pemade, Isep) -> (pemadeIsep, "pemade/isep")
-        (Kantilan, Umbang) -> (kantilanUmbang, "kantilan/umbang")
-        (Kantilan, Isep) -> (kantilanIsep, "kantilan/isep")
+    keys = wayangKeys $ (if instrument == Kantilan then (+1) else id) $
+        case articulation of
+            Mute -> 1
+            LooseMute -> 1
+            CalungMute -> 1
+            Open -> 5
+            Calung -> 5
+    nns = case (instrument, tuning) of
+        (Pemade, Umbang) -> pemadeUmbang
+        (Pemade, Isep) -> pemadeIsep
+        (Kantilan, Umbang) -> kantilanUmbang
+        (Kantilan, Isep) -> kantilanIsep
 
-parseDir :: KeyToNn -> FilePath -> IO [Either FilePath Sample]
-parseDir toNn dir =
-    map (\fn -> maybe (Left fn) Right $ parseFilename toNn fn) <$>
-        Directory.listDirectory dir
-
-{- |
-    sample structure:
-    pemade/{isep,umbang}/normal/$key-$lowVel-$highVel-$group.wav
-    group = mute{1..8} loose{1..8} open{1..4}
-
-    100-1-31-calung{1..3}.wav
-    29-1-31-calung+mute{1..6}.wav
-
-    mute and loose start at Key.f0 (17)
-    open starts at Key.f4 65
--}
-parseFilename :: KeyToNn -> FilePath -> Maybe Sample
-parseFilename toNn filename =
-    parse . Text.split (=='-') . txt . FilePath.dropExtension $ filename
+findBelow :: Ord k => (a -> k) -> k -> [a] -> a
+findBelow _ _ [] = error "empty list"
+findBelow key val (x:xs) = go x xs
     where
-    parse [key, lowVel, highVel, group] = do
-        dyn <- flip Map.lookup dynamicRanges
-            =<< (,) <$> pNat lowVel <*> pNat highVel
-        (art, var) <- parseArticulation group
-        nn <- toNn art . Midi.Key =<< pNat key
-        return $ Sample
-            { _filename = filename
-            , _pitch = nn
-            , _dynamic = dyn
-            , _articulation = art
-            , _variation = var
-            }
-    parse _ = Nothing
-
-pNat :: Text -> Maybe Int
-pNat = try . Parse.parse Parse.p_nat
-
-try :: Either Text a -> Maybe a
-try = either (const Nothing) return
-
-parseArticulation :: Text -> Maybe (Articulation, Variation)
-parseArticulation = try . Parse.parse p
-    where
-    p = (,) <$> pArticulation <*> (P.optional (P.string "+v") *> Parse.p_nat)
-    match (str, val) = P.try (P.string str) *> pure val
-    pArticulation = P.choice $ map match
-        [ ("mute", Mute)
-        , ("loose", LooseMute)
-        , ("open", Open)
-        , ("calung+mute", CalungMute)
-        , ("calung", Calung)
-        ]
-
-dynamicRanges :: Map (Int, Int) Dynamic
-dynamicRanges = Map.fromList
-    [ ((1, 31), PP)
-    , ((32, 64), MP)
-    , ((65, 108), MF)
-    , ((109, 127), FF)
-    ]
-
-type KeyToNn = Articulation -> Midi.Key -> Maybe Pitch.NoteNumber
-
-keyToNn :: ((Instrument, a), [Pitch.NoteNumber]) -> KeyToNn
-keyToNn ((inst, _), nns) art key = lookup key keyNns
-    where
-    keyNns = zip keys nns
-    keys = wayangKeys $ (if inst == Kantilan then (+1) else id) $ case art of
-        Mute -> 1
-        LooseMute -> 1
-        CalungMute -> 1
-        Open -> 5
-        Calung -> 5
+    go x0 (x:xs)
+        | val < key x = x0
+        | otherwise = go x xs
+    go x0 [] = x0
 
 wayangKeys :: Int -> [Midi.Key]
 wayangKeys oct = map (Midi.to_key (oct * 12) +)
@@ -270,8 +240,8 @@ wayangKeys oct = map (Midi.to_key (oct * 12) +)
     -- ding dong deng dung dang
     baseKeys = [Key.e_1, Key.f_1, Key.a_1, Key.b_1, Key.c0]
 
-pemadeUmbang :: ((Instrument, Tuning), [Pitch.NoteNumber])
-pemadeUmbang = ((Pemade, Umbang),) $ map toNN
+pemadeUmbang :: [Pitch.NoteNumber]
+pemadeUmbang = map toNN
     [ (Key.f3, 55)
     , (Key.g3, 43)
     , (Key.as3, 56)
@@ -284,8 +254,8 @@ pemadeUmbang = ((Pemade, Umbang),) $ map toNN
     , (Key.ds5, 34)
     ]
 
-pemadeIsep :: ((Instrument, Tuning), [Pitch.NoteNumber])
-pemadeIsep = ((Pemade, Isep),) $ map toNN
+pemadeIsep :: [Pitch.NoteNumber]
+pemadeIsep = map toNN
     [ (Key.f3, 0)
     , (Key.g3, -7)
     , (Key.as3, 0)
@@ -298,8 +268,8 @@ pemadeIsep = ((Pemade, Isep),) $ map toNN
     , (Key.ds5, 16)
     ]
 
-kantilanUmbang :: ((Instrument, Tuning), [Pitch.NoteNumber])
-kantilanUmbang = ((Kantilan, Umbang),) $ map toNN
+kantilanUmbang :: [Pitch.NoteNumber]
+kantilanUmbang = map toNN
     [ (Key.e4, -31)
     , (Key.g4, -13)
     , (Key.a4, -23)
@@ -312,8 +282,8 @@ kantilanUmbang = ((Kantilan, Umbang),) $ map toNN
     , (Key.ds6, 21)
     ]
 
-kantilanIsep :: ((Instrument, Tuning), [Pitch.NoteNumber])
-kantilanIsep = ((Kantilan, Isep),) $ map toNN
+kantilanIsep :: [Pitch.NoteNumber]
+kantilanIsep = map toNN
     [ (Key.e4, 23)
     , (Key.gs4, 55)
     , (Key.as4, 55)
@@ -329,6 +299,9 @@ kantilanIsep = ((Kantilan, Isep),) $ map toNN
 -- NN +cents to adjust to that NN
 toNN :: (Midi.Key, Int) -> Pitch.NoteNumber
 toNN (key, cents) = Pitch.key_to_nn key - Pitch.nn cents / 100
+
+enumAll :: (Enum a, Bounded a) => [a]
+enumAll = [minBound .. maxBound]
 
 {-
     Use this to get absolute pitches for samples:

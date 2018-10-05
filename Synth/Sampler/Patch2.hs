@@ -1,7 +1,9 @@
-{-# LANGUAGE ExistentialQuantification #-}
+-- Copyright 2018 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 module Synth.Sampler.Patch2 where
 import qualified Data.Map as Map
-import System.FilePath ((</>))
 
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -20,21 +22,13 @@ db rootDir patches = Db
     }
 
 data Db = Db {
-    -- | Base directory for samples.  '_load' gets rootDir </> patchName.
+    -- | Base directory for samples.  This is prepended to 'Sample.filename'.
     _rootDir :: !FilePath
     , _patches :: !(Map Note.PatchName Patch)
     }
 
-data Patch = forall loaded. Patch {
+data Patch = Patch {
     _name :: Note.PatchName
-    , _load :: FilePath -> IO (Either Error loaded)
-    , _convert :: loaded -> Note.Note -> Either Error Sample.Sample
+    , _convert :: Note.Note -> Either Error Sample.Sample
     , _karyaPatch :: ImInst.Patch
     }
-
-load :: FilePath -> Patch
-    -> IO (Either Error (Note.Note -> Either Error Sample.Sample))
-load rootDir patch@(Patch { _load = load, _convert = convert })  =
-    load (rootDir </> untxt (_name patch)) >>= \case
-        Left err -> return $ Left err
-        Right loaded -> return $ Right $ convert loaded

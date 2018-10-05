@@ -54,25 +54,23 @@ type Error = Text
 
 process :: Patch2.Db -> Resample.Quality -> FilePath -> [Note.Note] -> IO ()
 process db quality notesFilename notes =
-    by Note.patch notes $ \(patch, notes) -> loadPatch db patch >>= \case
-        Left err -> Log.warn $ "patch " <> patch <> ": " <> err
-        Right toSample -> by Note.instrument notes $ \(inst, notes) ->
-            realize quality notesFilename inst $ map (convert toSample) notes
-    where by key xs = Async.forConcurrently_ (Seq.keyed_group_sort key xs)
+    by Note.patch notes $ \(patch, notes) -> case get patch of
+        Nothing -> Log.warn $ patch <> ": not found"
+        Just patch -> by Note.instrument notes $ \(inst, notes) ->
+            realize quality notesFilename inst $
+                map (uncurry makeNote)
+                    (Seq.key_on (Patch2._convert patch) notes)
+    where
+    by key xs = Async.forConcurrently_ (Seq.keyed_group_sort key xs)
+    get patch = Map.lookup patch (Patch2._patches db)
 
-convert :: (Note.Note -> Either Text Sample.Sample) -> Note.Note -> Sample.Note
-convert toSample note = Sample.Note
+makeNote :: Either Error Sample.Sample -> Note.Note -> Sample.Note
+makeNote sample note = Sample.Note
     { start = Note.start note
     , duration = Note.duration note -- TODO calculate it with RenderSample
     , hash = Note.hash note
-    , sample = toSample note
+    , sample = sample
     }
-
-loadPatch :: Patch2.Db -> Note.PatchName
-    -> IO (Either Error (Note.Note -> Either Error Sample.Sample))
-loadPatch db patchName = case Map.lookup patchName (Patch2._patches db) of
-    Nothing -> return $ Left "patch not found"
-    Just patch -> Patch2.load (Patch2._rootDir db) patch
 
 realize :: Resample.Quality -> FilePath -> Note.InstrumentName
     -> [Sample.Note] -> IO ()
