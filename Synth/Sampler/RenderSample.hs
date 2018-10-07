@@ -60,7 +60,7 @@ resample2 config ratio start audio
 
 predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frame
 predictFileDuration ratio =
-    predictDuration ratio . Audio.Frame . Sndfile.frames <$< File.getInfo
+    fmap (predictDuration ratio . Audio.Frame . Sndfile.frames) . File.getInfo
 
 type FrameF = Double
 
@@ -240,8 +240,3 @@ applyEnvelope start sig
             else Audio.gain (AUtil.dbToLinear (Num.d2f val))
     | otherwise = AUtil.volume $ Audio.linear $
         map (first RealTime.to_seconds) $ Signal.to_pairs sig
-
-
-(<$<) :: Functor f => (b -> c) -> (a -> f b) -> a -> f c
-f <$< g = fmap f . g
-infixl 4 <$<

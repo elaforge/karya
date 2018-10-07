@@ -3,15 +3,20 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Definitions for the wayang instrument family.
-module Synth.Sampler.Patch.Wayang (patches, allFilenames) where
+module Synth.Sampler.Patch.Wayang (patches, verifyFilenames) where
 import qualified Data.Char as Char
 import qualified Data.Text as Text
+import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
+import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.Wayang as Wayang
+
 import qualified Instrument.Common as Common
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -28,20 +33,34 @@ import Synth.Types
 
 
 patches :: [Patch2.Patch]
-patches = map make
-    [ (Pemade, Umbang), (Pemade, Isep), (Kantilan, Umbang), (Kantilan, Isep) ]
+patches =
+    map make
+        [ (Pemade, Umbang), (Pemade, Isep)
+        , (Kantilan, Umbang), (Kantilan, Isep)
+        ]
     where
     make (inst, tuning) = Patch2.Patch
         { _name = Text.toLower $
             Text.intercalate "-" ["wayang", showt inst, showt tuning]
         , _convert = convert inst tuning
-        , _karyaPatch = ImInst.make_patch $ Im.Patch.Patch
-            { patch_controls = mempty
-            , patch_attribute_map = const () <$> attributeMap
-            , patch_flags = mempty
-            }
+        , _karyaPatch = setRange inst $ setScale tuning $ ImInst.make_patch $
+            Im.Patch.Patch
+                { patch_controls = mconcat
+                    [ Control.supportPitch
+                    , Control.supportDyn
+                    , Control.supportVariation
+                    ]
+                , patch_attribute_map = const () <$> attributeMap
+                , patch_flags = mempty
+                }
         }
-    -- TODO add scale and tuning env like kontakt instrument
+    setRange inst = ImInst.range $ BaliScales.instrument_range $ case inst of
+        Pemade -> Wayang.pemade
+        Kantilan -> Wayang.kantilan
+    setScale tuning = ImInst.default_scale Wayang.scale_id
+        . ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
+    tuningVal Umbang = "umbang"
+    tuningVal Isep = "isep"
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map
@@ -55,9 +74,15 @@ attributeMap = Common.attribute_map
     mute = Attrs.mute
     calung = Attrs.attr "calung"
 
--- verifyFilenames :: IO [FilePath]
--- verifyFilenames = filterM (fmap not . Directory.doesFileExist)
---     (map ("../data/sampler/wayang" </>) allFilenames)
+-- kantilan/umbang/calung/52-109-127-calung+mute1.wav
+-- kantilan/umbang/calung/52-109-127-calung+mute2.wav
+-- kantilan/umbang/calung/52-109-127-calung+mute3.wav
+-- kantilan/umbang/calung/52-109-127-calung+mute4.wav
+-- kantilan/umbang/calung/52-109-127-calung+mute5.wav
+-- kantilan/umbang/calung/52-109-127-calung+mute6.wav
+verifyFilenames :: IO [FilePath]
+verifyFilenames = filterM (fmap not . exists) allFilenames
+    where exists = Directory.doesFileExist . ("../data/sampler/wayang" </>)
 
 -- * convert
 
@@ -100,7 +125,7 @@ convert instrument tuning note = do
 muteTime :: RealTime
 muteTime = 0.15
 
--- TODO This should be dB
+-- Since dyn signal is in dB, this is -x*96 dB.
 dynFactor :: Signal.Y
 dynFactor = 0.5
 
@@ -141,7 +166,6 @@ toFilename instrument tuning articulation nn dyn variation =
     , sampleNn
     )
     where
-    -- TODO some of them have +v$var
     toDir :: Show a => a -> FilePath
     toDir = map Char.toLower . show
     panggul = case articulation of

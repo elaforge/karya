@@ -16,11 +16,16 @@ import Cmd.Instrument.MidiInst
         note_transformers, val_calls, postproc, cmd, thru)
 
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
-import qualified Perform.Im.Patch as Patch
+import qualified Derive.Scale as Scale
+
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
+
+import qualified Perform.Im.Patch as Patch
+import qualified Perform.Pitch as Pitch
 
 import Global
 
@@ -59,7 +64,19 @@ make_inst (Patch patch common) = Inst.Inst
         { Common.common_code = MidiInst.make_code (Common.common_code common) }
     }
 
+-- TODO: these are copy paste from MidiInst, only 'commen' is different.
+-- I should be able to share the code.
+
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a -> Patch -> Patch
 environ name val = common#Common.environ
     %= (RestrictedEnviron.from_list [(name, RestrictedEnviron.to_val val)] <>)
+
+-- | The instrument will set the given scale when it comes into scope.
+default_scale :: Pitch.ScaleId -> Patch -> Patch
+default_scale = environ EnvKey.scale . Expr.scale_id_to_str
+
+-- | Set instrument range.
+range :: Scale.Range -> Patch -> Patch
+range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
+    . environ EnvKey.instrument_top (Scale.range_top range)

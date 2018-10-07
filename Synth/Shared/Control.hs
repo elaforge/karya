@@ -6,10 +6,12 @@
 -- "Derive.Controls", it's useful to have a standard vocabulary.
 module Synth.Shared.Control where
 import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.Map as Map
 import qualified Data.String as String
 
-import qualified Util.Serialize as Serialize
 import Util.Crc32Instances ()
+import qualified Util.Serialize as Serialize
+
 import Global
 
 
@@ -57,3 +59,19 @@ gate = "gate"
 -- | An integral variation, for "random" variant samples.
 variation :: Control
 variation = "variation"
+
+
+type Supported = Map Control Text
+
+supportPitch :: Supported
+supportPitch = Map.fromList [(pitch, "Pitch signal.")]
+
+supportDyn :: Supported
+supportDyn = Map.fromList
+    [ (dynamic,
+        "Dynamic signal.  dB scale, where 0 is " <> pretty minimumDb <> " dB.")
+    ]
+
+supportVariation :: Supported
+supportVariation = Map.fromList
+    [(variation, "Random integer, to choose between variant samples.")]
