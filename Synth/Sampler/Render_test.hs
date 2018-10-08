@@ -5,9 +5,7 @@
 module Synth.Sampler.Render_test where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Vector.Storable as Vector
-
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
@@ -132,13 +130,9 @@ chunkSize :: Audio.Frame
 chunkSize = 4
 
 mkDb :: FilePath -> Patch.Db
-mkDb dir = Patch.Db
-    { _patches = Map.fromList
-        [ ("patch", Patch.patch "."
-            [("tri.wav", Patch.pitchedSample NN.c4)])
-        ]
-    , _rootDir = dir </> patchDir
-    }
+mkDb dir = Patch.db
+    (dir </> patchDir)
+    [Patch.simple "test" "tri.wav" NN.c4]
 
 writeDb :: FilePath -> IO ()
 writeDb dbDir = do

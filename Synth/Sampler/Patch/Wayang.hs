@@ -22,7 +22,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
-import qualified Synth.Sampler.Patch2 as Patch2
+import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -32,14 +32,14 @@ import Global
 import Synth.Types
 
 
-patches :: [Patch2.Patch]
+patches :: [Patch.Patch]
 patches =
     map make
         [ (Pemade, Umbang), (Pemade, Isep)
         , (Kantilan, Umbang), (Kantilan, Isep)
         ]
     where
-    make (inst, tuning) = Patch2.Patch
+    make (inst, tuning) = Patch.Patch
         { _name = Text.toLower $
             Text.intercalate "-" ["wayang", showt inst, showt tuning]
         , _convert = convert inst tuning

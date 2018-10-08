@@ -9,7 +9,7 @@ import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
-import qualified Synth.Sampler.Patch2 as Patch2
+import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -18,11 +18,11 @@ import qualified Synth.Shared.Signal as Signal
 import Global
 
 
-patches :: [Patch2.Patch]
+patches :: [Patch.Patch]
 patches = [patch]
 
-patch :: Patch2.Patch
-patch = Patch2.Patch
+patch :: Patch.Patch
+patch = Patch.Patch
     { _name = "reyong"
     , _convert = convert
     , _karyaPatch = ImInst.make_patch $ Im.Patch.Patch
@@ -53,7 +53,7 @@ convert note = do
     let articulation = convertArticulation $ Note.attributes note
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
             Note.initial Control.dynamic note
-    return $ Left "reyong incomplete"
+    Left "reyong incomplete"
 
 {-
     45-1-31-cek+{closed,open}+v{1..6}.wav
