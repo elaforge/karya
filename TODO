@@ -1852,7 +1852,7 @@ synth: im:
       Note.element.  I can get rid of "loading" entirely.
       . I can still check the samples with a REPL function to enumerate all
         the filenames.
-    - set Sample.duration correctly, at least for constant pitch notes
+    * set Sample.duration correctly, at least for constant pitch notes
     incremental render:
       notes:
         . save samples and positions, along with resample state.

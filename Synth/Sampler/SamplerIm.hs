@@ -14,6 +14,7 @@ import qualified System.FilePath as FilePath
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.CallStack as CallStack
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -57,20 +58,28 @@ process db quality notesFilename notes =
     by Note.patch notes $ \(patch, notes) -> case get patch of
         Nothing -> Log.warn $ patch <> ": not found"
         Just patch -> by Note.instrument notes $ \(inst, notes) ->
-            realize quality notesFilename inst $
-                map (uncurry makeNote)
+            realize quality notesFilename inst
+                =<< mapM (uncurry makeNote)
                     (Seq.key_on (Patch2._convert patch) notes)
     where
     by key xs = Async.forConcurrently_ (Seq.keyed_group_sort key xs)
     get patch = Map.lookup patch (Patch2._patches db)
 
-makeNote :: Either Error Sample.Sample -> Note.Note -> Sample.Note
-makeNote sample note = Sample.Note
-    { start = Note.start note
-    , duration = Note.duration note -- TODO calculate it with RenderSample
-    , hash = Note.hash note
-    , sample = sample
-    }
+makeNote :: Either Error Sample.Sample -> Note.Note -> IO Sample.Note
+makeNote errSample note = do
+    -- It's important to get an accurate duration if I can, because that
+    -- determines overlap, which affects caching.
+    dur <- case errSample of
+        Left _ -> return Nothing
+        Right sample -> File.ignoreEnoent $
+            RenderSample.predictFileDuration (Sample.ratio sample)
+                (Sample.filename sample)
+    return $ Sample.Note
+        { start = Note.start note
+        , duration = maybe id (min . AUtil.toSeconds) dur (Note.duration note)
+        , hash = Note.hash note
+        , sample = errSample
+        }
 
 realize :: Resample.Quality -> FilePath -> Note.InstrumentName
     -> [Sample.Note] -> IO ()
