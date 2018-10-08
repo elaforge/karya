@@ -14,6 +14,7 @@ import qualified Instrument.Inst as Inst
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Reyong as Reyong
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Sampler.Patch2 as Patch2
 import qualified Synth.Sampler.Sample as Sample
@@ -27,7 +28,8 @@ import Global
 
 db2 :: Patch2.Db
 db2 = Patch2.db "../data/sampler" $ concat
-    [ Wayang.patches
+    [ Reyong.patches
+    , Wayang.patches
     , [testPatch]
     ]
 
