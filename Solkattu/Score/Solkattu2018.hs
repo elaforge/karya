@@ -985,3 +985,14 @@ c_18_09_25 = date 2018 9 25 $ ganesh $ korvaiS1 adi mridangam $
         , (tam, u)
         , (p5, k.__.t.__.k.t.__.k.n.o)
         ]
+
+c_18_10_06 :: Korvai
+c_18_10_06 = date 2018 10 6 $ tirmanam $
+    comment "practice in urukalai/rendaikalai adi, rupaka, kanda, misra" $
+    korvaiS1 adi mridangam $
+    __D 2 . reduceBy [0, 2, 5, 7] (dheem.__) (kita.taka.takadinna)
+    where
+    mridangam = makeMridangam
+        [ (kita.taka, t.k.o.o)
+        , (dheem, od)
+        ]

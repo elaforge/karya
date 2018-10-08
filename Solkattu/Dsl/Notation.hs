@@ -300,7 +300,11 @@ accumulate = map mconcat . drop 1 . List.inits
 -- | Reduce three times, with a separator.
 reduce3 :: Pretty sollu => FMatra -> SequenceT sollu -> SequenceT sollu
     -> SequenceT sollu
-reduce3 dur sep = List.intercalate sep . take 3 . reduceToL dur dur
+reduce3 dur sep = join sep . take 3 . reduceToL dur dur
+
+reduceBy :: Pretty sollu => [FMatra] -> SequenceT sollu -> SequenceT sollu
+    -> SequenceT sollu
+reduceBy durs sep seq = join sep [dropM d seq | d <- durs]
 
 -- | 'reduceToL', except mconcat the result.
 reduceTo :: (CallStack.Stack, Pretty sollu) => FMatra -> FMatra
