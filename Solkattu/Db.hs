@@ -115,7 +115,7 @@ writeAll :: IO ()
 writeAll = writeText >> writeHtml
 
 writeHtml :: IO ()
-writeHtml = writeHtmlTo "../data/solkattu"
+writeHtml = writeHtmlTo "../data/solkattu-html"
 
 -- | Write all Korvais as HTML into the given directory.
 writeHtmlTo :: FilePath -> IO ()
@@ -135,13 +135,10 @@ korvaiFname korvai = untxt $ mod <> "." <> variableName
 
 -- ** writeText
 
-textDir :: FilePath
-textDir = "../data/solkattu-text"
-
 writeText :: IO ()
-writeText = writeTextTo textDir Format.defaultAbstraction
+writeText = writeTextTo "../data/solkattu-text" Format.defaultAbstraction
 
--- | The usual textDir is a git repo, so I can see what effect changes have, in
+-- | The usual text dir is a git repo, so I can see what effect changes have, in
 -- the same manner as App.VerifyPerformance.
 writeTextTo :: FilePath -> Format.Abstraction -> IO ()
 writeTextTo dir abstraction = do
