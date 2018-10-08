@@ -74,12 +74,6 @@ attributeMap = Common.attribute_map
     mute = Attrs.mute
     calung = Attrs.attr "calung"
 
--- kantilan/umbang/calung/52-109-127-calung+mute1.wav
--- kantilan/umbang/calung/52-109-127-calung+mute2.wav
--- kantilan/umbang/calung/52-109-127-calung+mute3.wav
--- kantilan/umbang/calung/52-109-127-calung+mute4.wav
--- kantilan/umbang/calung/52-109-127-calung+mute5.wav
--- kantilan/umbang/calung/52-109-127-calung+mute6.wav
 verifyFilenames :: IO [FilePath]
 verifyFilenames = filterM (fmap not . exists) allFilenames
     where exists = Directory.doesFileExist . ("../data/sampler/wayang" </>)
@@ -106,6 +100,7 @@ convert instrument tuning note = do
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
             Note.initial Control.dynamic note
     pitch <- tryJust "no pitch" $ Note.initialPitch note
+    (dyn, scale) <- pure $ workaround instrument tuning articulation dyn scale
     let (filename, sampleNn) =
             toFilename instrument tuning articulation pitch dyn
                 (convertVariation note)
@@ -120,6 +115,12 @@ convert instrument tuning note = do
         , ratio = Signal.constant $
             Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) pitch
         }
+
+-- | I'm missing these samples, so substitute some others.
+workaround :: Instrument -> Tuning -> Articulation -> Dynamic -> Signal.Y
+    -> (Dynamic, Signal.Y)
+workaround Kantilan Umbang CalungMute FF scale = (MF, scale + 1)
+workaround _inst _tuning _articulation dyn scale = (dyn, scale)
 
 -- | Time to mute at the end of a note.
 muteTime :: RealTime
