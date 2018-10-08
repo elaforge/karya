@@ -154,7 +154,7 @@ convertVariation = maybe 0 floor . Note.initial Control.variation
 
     File structure:
     > {pemade,kantilan}/{isep,umbang}/{normal,calung}/
-    >     $key-$lowVel-$highVel-$group.wav
+    >     $key-$lowVel-$highVel-$group.flac
     > normal groups = mute{1..8} loose{1..8} open{1..4}
     > calung groups = calung{1..3} calung+mute{1..6}
     > mute and loose start at Key.f0 (17)
@@ -163,7 +163,7 @@ convertVariation = maybe 0 floor . Note.initial Control.variation
 toFilename :: Instrument -> Tuning -> Articulation -> Pitch.NoteNumber
     -> Dynamic -> Variation -> (FilePath, Pitch.NoteNumber)
 toFilename instrument tuning articulation nn dyn variation =
-    ( toDir instrument </> toDir tuning </> panggul </> sampleName ++ ".wav"
+    ( toDir instrument </> toDir tuning </> panggul </> sampleName ++ ".flac"
     , sampleNn
     )
     where

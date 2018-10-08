@@ -9,17 +9,50 @@ import qualified Data.Map as Map
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
+import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Sampler.Patch2 as Patch2
+import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
+
+import Global
 
 
 db2 :: Patch2.Db
 db2 = Patch2.db "../data/sampler" $ concat
     [ Wayang.patches
+    , [testPatch]
     ]
+
+testPatch :: Patch2.Patch
+testPatch = Patch2.Patch
+    { _name = "test"
+    , _convert = \note -> do
+        pitch <- tryJust "no pitch" $ Note.initialPitch note
+        dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note
+        return $ Sample.Sample
+            { filename = "open.flac"
+            , offset = 0
+            , envelope = Signal.constant dyn
+            , ratio = Signal.constant $
+                Sample.pitchToRatio (Pitch.nn_to_hz 60) pitch
+            }
+    , _karyaPatch = ImInst.make_patch $
+        Im.Patch.Patch
+            { patch_controls = Control.supportPitch <> Control.supportDyn
+            , patch_attribute_map = Common.attribute_map []
+            , patch_flags = mempty
+            }
+    }
+
+-- * old
 
 db :: Patch.Db
 db = Patch.Db

@@ -32,9 +32,9 @@ notes = map make
     [ (0,   nn NN.c4,       env [(0, 0.15), (0.25, 0.15), (0.3, 0)], ["open"])
     , (0.5, nn NN.d4,       vel 0.35,   ["open"])
     , (1,   pcurve [(1, NN.a3), (1.25, NN.ds4)], vel 1, ["open"])
-    , (2,   Nothing,        vel 0.5,    ["cek"])
-    , (2.2, Nothing,        vel 0.75,   ["cek"])
-    , (2.4, Nothing,        vel 1,      ["cek"])
+    -- , (2,   Nothing,        vel 0.5,    ["cek"])
+    -- , (2.2, Nothing,        vel 0.75,   ["cek"])
+    -- , (2.4, Nothing,        vel 1,      ["cek"])
     ]
     where
     env = Signal.from_pairs
@@ -55,5 +55,4 @@ make (start, pitch, dyn, attrs) = Note.Note
         (Control.dynamic, dyn)
         : maybe [] ((:[]) . (Control.pitch,)) pitch
     , attributes = Attrs.attrs attrs
-    , hash = mempty
     }
