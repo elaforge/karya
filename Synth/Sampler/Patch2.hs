@@ -22,7 +22,7 @@ db rootDir patches = Db
     }
 
 data Db = Db {
-    -- | Base directory for samples.  This is prepended to 'Sample.filename'.
+    -- | Base directory for patches.  Samples are in _rootDir / _name.
     _rootDir :: !FilePath
     , _patches :: !(Map Note.PatchName Patch)
     }

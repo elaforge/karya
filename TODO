@@ -34,6 +34,8 @@ STATUS
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
+  - Instead of using symlinks into the app dir, have a configurable data dir,
+    and make everything relative to that.
   / sometimes I want to see the control curve without event text in the way
     . E.g. when reading wayang patterns.
     . Maybe I just need to learn to read better.
@@ -1815,6 +1817,8 @@ synth: im:
       . Or why not just use faust integration?  I think it has the same
         algorithm?
   play_cache: PlayCache:
+    - save cache as flac?  Since I use libsndfile I think it should Just Work.
+      libsndfile for PlayCache.
     - I should use under_scores for all C++, currently play_cache is camelCase.
       . Actually it's kind of forced by the VST interface, which is camelCase.
       . Of course I control that too, so I could change Synth/vst2/* to
@@ -2106,6 +2110,9 @@ synth: im:
         higher level stuff should be there.  The only thing the sampler can do
         is shorten durations because it knows the lengths of the samples.
       - write karya side to generate sampler notes, with correct durations
+      - add a wayang infer-damp similar to the reyong one
+        . Instead of using +damp notes, just extend durations.  I can do this
+          since I'm not MIDI and can have overlapping notes.
     guzheng:
       . Everything rings except when explicitly muted.
 

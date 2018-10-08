@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
@@ -54,16 +55,23 @@ main = do
 type Error = Text
 
 process :: Patch2.Db -> Resample.Quality -> FilePath -> [Note.Note] -> IO ()
-process db quality notesFilename notes =
+process db quality notesFilename notes = do
     by Note.patch notes $ \(patch, notes) -> case get patch of
-        Nothing -> Log.warn $ patch <> ": not found"
+        Nothing -> Log.warn $ "patch not found: " <> patch
         Just patch -> by Note.instrument notes $ \(inst, notes) ->
             realize quality notesFilename inst
-                =<< mapM (uncurry makeNote)
-                    (Seq.key_on (Patch2._convert patch) notes)
+                =<< mapM (uncurry makeNote) (convert db patch notes)
     where
     by key xs = Async.forConcurrently_ (Seq.keyed_group_sort key xs)
     get patch = Map.lookup patch (Patch2._patches db)
+
+convert :: Patch2.Db -> Patch2.Patch -> [Note.Note]
+    -> [(Either Error Sample.Sample, Note.Note)]
+convert db patch notes =
+    zip (map (fmap setFilename . Patch2._convert patch) notes) notes
+    where
+    setFilename = Sample.modifyFilename (patchDir</>)
+    patchDir = Patch2._rootDir db </> untxt (Patch2._name patch)
 
 makeNote :: Either Error Sample.Sample -> Note.Note -> IO Sample.Note
 makeNote errSample note = do

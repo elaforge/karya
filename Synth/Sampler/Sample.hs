@@ -33,7 +33,8 @@ end note = start note + duration note
 
 -- | The actual sample played by a 'Note'.
 data Sample = Sample {
-    -- | Relative to 'Config.instrumentDbDir'.
+    -- | This is initially relative to 'Patch._rootDir', and will have the root
+    -- dir prepended before rendering.
     filename :: !SamplePath
     -- | Sample start offset.
     , offset :: !RealTime
@@ -43,6 +44,9 @@ data Sample = Sample {
     -- | Sample rate conversion ratio.  This controls the pitch.
     , ratio :: !Signal.Signal
     } deriving (Show)
+
+modifyFilename :: (SamplePath -> SamplePath) -> Sample -> Sample
+modifyFilename modify sample = sample { filename = modify (filename sample) }
 
 instance Pretty Note where
     format (Note start dur hash sample) = Pretty.record "Note"
