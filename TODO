@@ -2115,6 +2115,11 @@ synth: im:
           . chunkSize = 11025
             checkpointSize = 176400
         - now there's a segfault
+      - wayang nns don't match up with Derive.Scale.Wayang, measure to see
+        what the actual values are.  Again.
+      * It seems like umbang/isep are backwards in Scale.Wayang?
+        . They are, but if I fix this will it screw things up?  Why do they
+          work with >kontakt/wayang-etc?
       - extend duration by decay time
       - write karya side to generate sampler notes, with correct durations
         . set Control.variation

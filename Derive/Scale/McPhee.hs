@@ -33,8 +33,10 @@ extract :: Pitch.Pitch -> Pitch.Pitch -> Laras
     -> (Text, ([Pitch.NoteNumber], Doc.Doc))
 extract low high laras = (dashes sname, (hz_to_nn low high laras, doc))
     where
-    doc = "From McPhee's \"Music in Bali\", from "
-        <> Doc.Doc (Text.toTitle (origin laras)) <> "."
+    doc
+        | name laras == "6-edo" = "Theoretical 6-EDO tuning."
+        | otherwise = "From McPhee's \"Music in Bali\", from "
+            <> Doc.Doc (Text.toTitle (origin laras)) <> "."
     sname
         | Text.null (name laras) =
             TextUtil.joinWith "-" (genre laras) (origin laras)
@@ -104,7 +106,7 @@ bebonangan =
 -- | o e u a i
 slendro :: [Laras]
 slendro =
-    [ s "6-edo"     [183, 210, 241.5, 277, 318.5] -- theoretical
+    [ (s ""         [183, 210, 241.5, 277, 318.5]) { name = "6-edo" }
     , s "kuta"      [183, 206, 241, 280, 327]
     , s "klandis"   [180, 203, 235, 274, 317.5]
     , s "tabanan"   [179, 212, 240, 278, 320]

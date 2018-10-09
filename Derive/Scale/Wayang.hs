@@ -92,23 +92,23 @@ laras = Map.fromList $ (default_laras, laras_sawan) : mcphee
 laras_sawan :: BaliScales.Laras
 laras_sawan = BaliScales.laras (extend (BaliScales.inst_low pemade))
     "Tuning from my gender wayang, made in Sawan, Singaraja."
-    [ (53.00,   52.30) -- 3o, pemade begin
-    , (55.15,   54.55)
-    , (57.73,   57.35)
-    , (60.40,   59.85)
+    [ (52.30,   53.00) -- 3o, pemade begin
+    , (54.55,   55.15)
+    , (57.35,   57.73)
+    , (59.85,   60.40)
 
-    , (62.95,   62.50) -- 4i, pemade middle
-    , (64.70,   64.45) -- 4o, kantilan begin
-    , (67.57,   67.26)
-    , (69.45,   69.25)
-    , (72.10,   71.81)
+    , (62.50,   62.95) -- 4i, pemade middle
+    , (64.45,   64.70) -- 4o, kantilan begin
+    , (67.26,   67.57)
+    , (69.25,   69.45)
+    , (71.81,   72.10)
 
-    , (74.83,   74.63) -- 5i, pemade end, kantilan middle
-    , (76.85,   76.73)
-    , (79.48,   79.35)
-    , (81.63,   81.51)
-    , (84.12,   84.00)
-    , (86.88,   86.78) -- 6i, kantilan end
+    , (74.63,   74.83) -- 5i, pemade end, kantilan middle
+    , (76.73,   76.85)
+    , (79.35,   79.48)
+    , (81.51,   81.63)
+    , (84.00,   84.12)
+    , (86.78,   86.88) -- 6i, kantilan end
     ]
 
 mcphee :: [(Text, BaliScales.Laras)]
