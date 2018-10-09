@@ -45,6 +45,7 @@ type Error = Text
 
 process :: Patch.Db -> Resample.Quality -> FilePath -> [Note.Note] -> IO ()
 process db quality notesFilename notes = do
+    Log.notice $ "processing " <> txt notesFilename
     by Note.patch notes $ \(patch, notes) -> case get patch of
         Nothing -> Log.warn $ "patch not found: " <> patch
         Just patch -> by Note.instrument notes $ \(inst, notes) ->
@@ -60,7 +61,7 @@ convert db patch notes =
     zip (map (fmap setFilename . Patch._convert patch) notes) notes
     where
     setFilename = Sample.modifyFilename (patchDir</>)
-    patchDir = Patch._rootDir db </> untxt (Patch._name patch)
+    patchDir = Patch._rootDir db </> Patch._dir patch
 
 makeNote :: Either Error Sample.Sample -> Note.Note -> IO Sample.Note
 makeNote errSample note = do

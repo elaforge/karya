@@ -24,6 +24,7 @@ patches = [patch]
 patch :: Patch.Patch
 patch = Patch.Patch
     { _name = "reyong"
+    , _dir = "reyong"
     , _convert = convert
     , _karyaPatch = ImInst.make_patch $ Im.Patch.Patch
         { patch_controls = mempty

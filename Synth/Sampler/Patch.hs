@@ -27,13 +27,16 @@ db rootDir patches = Db
     }
 
 data Db = Db {
-    -- | Base directory for patches.  Samples are in _rootDir / _name.
+    -- | Base directory for patches.  Samples are in '_rootDir' / '_dir'.
     _rootDir :: !FilePath
     , _patches :: !(Map Note.PatchName Patch)
     }
 
 data Patch = Patch {
     _name :: Note.PatchName
+    -- | Root dir for samples, relative to '_rootDir'.  This is not the same
+    -- as '_name' because multiple patches may share a sample directory.
+    , _dir :: FilePath
     , _convert :: Note.Note -> Either Error Sample.Sample
     -- | Karya configuration.
     --
@@ -48,6 +51,7 @@ data Patch = Patch {
 simple :: Note.PatchName -> Sample.SamplePath -> Pitch.NoteNumber -> Patch
 simple name filename sampleNn = Patch
     { _name = name
+    , _dir = untxt name
     , _convert = \note -> do
         pitch <- tryJust "no pitch" $ Note.initialPitch note
         dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note

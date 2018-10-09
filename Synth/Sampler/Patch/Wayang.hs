@@ -42,6 +42,7 @@ patches =
     make (inst, tuning) = Patch.Patch
         { _name = Text.toLower $
             Text.intercalate "-" ["wayang", showt inst, showt tuning]
+        , _dir = "wayang"
         , _convert = convert inst tuning
         , _karyaPatch = setRange inst $ setScale tuning $ ImInst.make_patch $
             Im.Patch.Patch
