@@ -80,7 +80,7 @@ data Playing = Playing {
     }
 
 instance Pretty Playing where
-    pretty = pretty . _noteHash
+    pretty = ("Playing:"<>) . pretty . _noteHash
 
 failedPlaying :: Sample.Note -> Playing
 failedPlaying note = Playing
@@ -109,7 +109,7 @@ render chunkSize quality states notifyState notes start = Audio.Audio $ do
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             Audio.assert (null playingNotes) $
-                "playingNotes: " <> pretty playingNotes
+                "playingNotes should be []: " <> pretty playingNotes
             -- Debug.tracepM "playing, starting, future"
             --     (now, playing, startingNotes, futureNotes)
             playing <- renderChunk now playing startingNotes (null futureNotes)
@@ -122,10 +122,10 @@ render chunkSize quality states notifyState notes start = Audio.Audio $ do
         (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
-        -- Debug.tracepM "chunks" chunks
         Audio.assert (all ((<=chunkSize) . AUtil.chunkFrames2) chunks) $
-            ">" <> showt chunkSize <> ": "
-            <> showt (map AUtil.chunkFrames2 chunks)
+            "chunk was >" <> pretty chunkSize <> ": "
+            <> pretty (map AUtil.chunkFrames2 chunks)
+            <> " of " <> pretty playing
         -- If there's no output and no chance to be any more output, don't
         -- emit anything.
         unless (null chunks && null playing && noFuture) $
@@ -162,8 +162,7 @@ resumeSamples now quality chunkSize states notes = do
     mapM (uncurry (startSample now quality chunkSize . Just))
         (zip states (Seq.sort_on Sample.hash notes))
 
--- | Convert Note to Sample
--- Insert empty space if necessary.
+-- | Convert 'Sample.Note' to a 'Playing'.
 startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -> Maybe (Maybe Resample.SavedState)
     -- ^ If given, resume a playing sample which should have started in the

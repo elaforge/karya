@@ -4,6 +4,8 @@
 
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
+import qualified Data.ByteString.Base64.URL as Base64.URL
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map.Strict as Map
 import qualified Data.Word as Word
@@ -16,9 +18,9 @@ import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
-import Synth.Types
 
 import Global
+import Synth.Types
 
 
 -- | High level representation of one note.  This will be converted into
@@ -107,10 +109,18 @@ notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
 -- * hash
 
 newtype Hash = Hash Word.Word32
-    deriving (Show, Eq, Ord, Pretty, Serialize.Serialize)
+    deriving (Show, Eq, Ord, Serialize.Serialize)
+
+instance Pretty Hash where pretty = txt . encodeHash
 
 hash :: Note -> Hash
 hash = Hash . CRC32.crc32
+
+-- | Encode to a short string which I can stick in a filename.
+encodeHash :: Hash -> String
+encodeHash hash = ByteString.Char8.unpack . fst
+    . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
+    . Serialize.encode $ hash
 
 instance Semigroup Hash where
     Hash h1 <> Hash h2 = Hash $ CRC32.crc32Update h1 h2

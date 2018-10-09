@@ -24,6 +24,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Note as Note
+
 import Global
 import Synth.Lib.Global
 
@@ -130,7 +131,7 @@ filenameOf2 :: Int -> Note.Hash -> String -> FilePath
 filenameOf2 i hash encodedState =
     ByteString.Char8.unpack (ByteString.Char8.intercalate "."
         [ zeroPad 3 i
-        , fingerprint hash
+        , ByteString.Char8.pack $ Note.encodeHash hash
         ]) <> "." <> encodedState <> ".wav"
 
 filenameToCurrent :: FilePath -> FilePath
