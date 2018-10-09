@@ -45,7 +45,8 @@ resample2 config ratio start audio
         Audio.synchronizeToSize (Resample._now config)
             (Resample._chunkSize config) (silence <> audio)
     | otherwise = silence
-        <> Resample.resampleBy2 config (Signal.shift (-start) ratio) audio
+        <> Resample.resampleBy2 (addNow silenceF config)
+            (Signal.shift (-start) ratio) audio
         -- The resample always starts at 0 in the ratio, so shift it back to
         -- account for when the sample starts.
     where
@@ -55,6 +56,9 @@ resample2 config ratio start audio
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000
+
+addNow :: Audio.Frame -> Resample.Config -> Resample.Config
+addNow frames config = config { Resample._now = frames + Resample._now config }
 
 -- * duration
 

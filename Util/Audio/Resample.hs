@@ -12,7 +12,9 @@ module Util.Audio.Resample (
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
+
 import qualified Foreign
 import qualified Foreign.C as C
 import qualified GHC.TypeLits as TypeLits
@@ -64,40 +66,43 @@ resampleBy2 config ratio audio = Audio.Audio $ do
         Just saved -> SampleRateC.putState state saved
     -- I have to collect chunks until I fill up the output chunk size.  The key
     -- thing is to not let the resample state get ahead of the chunk boundary.
-    let align = if m == 0 then _chunkSize config else m
-            where m = _now config `mod` _chunkSize config
+    let align = _chunkSize config - (_now config `mod` _chunkSize config)
     Audio.loop1 (0, Audio._stream audio, [], align) $
         \loop (now, audio, collect, chunkLeft) ->
             resampleChunk chan rate state now chunkLeft ratio audio >>= \case
-                Nothing -> do
-                    unless (null collect) $
-                        S.yield $ mconcat (reverse collect)
-                    lift $ Resource.release key
-                Just (chunk, audio)
-                    | chunkLeft - generated > 0 -> loop
-                        ( now + generated
-                        , audio
-                        , chunk : collect
-                        , chunkLeft - generated
-                        )
-                    | chunkLeft - generated == 0 -> do
-                        let sizes = map (Audio.chunkFrames chan) (chunk:collect)
-                        Audio.assert (sum sizes == _chunkSize config) $
-                            "> chunkSize " <> showt sizes
-                        liftIO $ _notifyState config
-                            =<< SampleRateC.getState state
-                        S.yield $ mconcat (reverse (chunk : collect))
-                        loop
-                            ( now + generated
-                            , audio
-                            , []
-                            , _chunkSize config
-                            )
-                    | otherwise -> Audio.assert False $
-                        "resampleChunk generated too much: "
-                        <> showt (chunkLeft, generated)
-                    where generated = Audio.chunkFrames chan chunk
+                Nothing -> done key collect
+                Just (chunk, audio) ->
+                    loop =<< emit state now collect chunkLeft chunk audio
     where
+    done key collect = do
+        unless (null collect) $
+            S.yield $ mconcat (reverse collect)
+        lift $ Resource.release key
+    emit state now collect chunkLeft chunk audio
+        | chunkLeft - generated > 0 = return
+            ( now + generated
+            , audio
+            , chunk : collect
+            , chunkLeft - generated
+            )
+        | chunkLeft - generated == 0 = do
+            let sizes = map (Audio.chunkFrames chan) (chunk:collect)
+            Audio.assert (sum sizes <= _chunkSize config) $ Text.unwords
+                [ "sum", pretty (sum sizes), "> chunkSize"
+                , pretty (_chunkSize config) <> ":", pretty sizes
+                ]
+            liftIO $ _notifyState config =<< SampleRateC.getState state
+            S.yield $ mconcat (reverse (chunk : collect))
+            return
+                ( now + generated
+                , audio
+                , []
+                , _chunkSize config
+                )
+        | otherwise = Audio.throwIO $ "resampleChunk generated too much: "
+            <> pretty (chunkLeft, generated)
+        where generated = Audio.chunkFrames chan chunk
+
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)

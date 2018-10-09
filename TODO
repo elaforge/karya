@@ -2110,11 +2110,11 @@ synth: im:
         Actually, don't I want to handle this stuff in the sequencer?  All
         higher level stuff should be there.  The only thing the sampler can do
         is shorten durations because it knows the lengths of the samples.
-      - crash rendering:
+      * crash rendering:
           . chunk was >176400f: [176400f, 220500f, 264600f]
           . chunkSize = 11025
             checkpointSize = 176400
-          . segfault if I remove the leading silence in RenderSample
+        - now there's a segfault
       - extend duration by decay time
       - write karya side to generate sampler notes, with correct durations
         . set Control.variation

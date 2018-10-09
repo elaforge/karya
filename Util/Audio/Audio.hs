@@ -40,7 +40,7 @@ module Util.Audio.Audio (
     , silence1, silence2, sine
     , linear
     -- * error
-    , Exception(..), throw, assert, assertIn
+    , Exception(..), throw, throwIO, assert, assertIn
     -- * constants
     , chunkSize, silentChunk
     -- * conversions
@@ -122,7 +122,10 @@ type Sample = Float
 
 -- | Should be >=0.
 newtype Frame = Frame Int
-    deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Pretty)
+    deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
+
+instance Pretty Frame where
+    pretty (Frame n) = pretty n <> "f"
 
 data Duration = Frames !Frame | Seconds !Seconds
     deriving (Eq, Show)
