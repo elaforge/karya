@@ -8,25 +8,26 @@
 -- in "Ui.State".
 module Ui.UiConfig where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
-import qualified Midi.Midi as Midi
-import qualified Ui.Block as Block
-import qualified Ui.Id as Id
 import qualified Derive.Score as Score
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
+import qualified Midi.Midi as Midi
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Ui.Block as Block
+import qualified Ui.Id as Id
 
 import Global
 import Types
@@ -126,14 +127,14 @@ verify_no_overlapping_addrs :: Allocations -> Allocation -> Maybe Text
 verify_no_overlapping_addrs (Allocations allocs) alloc
     | null overlaps = Nothing
     | otherwise = Just $ "instruments with overlapping channel allocations: "
-        <> Text.intercalate ", " (map pretty overlaps)
+        <> Text.intercalate ", "
+            [ pretty addr <> " used by " <> pretty inst
+            | (addr, inst) <- overlaps
+            ]
     where
-    new = Set.fromList (addrs_of alloc)
-    overlaps =
-        [ inst
-        | (inst, alloc) <- Map.toList allocs
-        , any (`Set.member` new) (addrs_of alloc)
-        ]
+    overlaps = mapMaybe find (addrs_of alloc)
+    find addr = (addr,) . fst <$>
+        List.find ((addr `elem`) . addrs_of . snd) (Map.toList allocs)
     addrs_of alloc = case alloc_backend alloc of
         Midi config -> map fst (Patch.config_allocation config)
         _ -> []
