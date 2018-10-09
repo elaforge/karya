@@ -237,10 +237,10 @@ merge (UiConfig.Allocations alloc_map) = do
     insts <- mapM (Cmd.get_qualified . UiConfig.alloc_qualified) allocs
     merged <- Cmd.require_right id $
         mapM (uncurry MidiInst.merge_defaults) (zip insts allocs)
-    let errors = mapMaybe (verify (UiConfig.Allocations alloc_map))
-            (zip3 names merged insts)
+    existing <- Ui.get_config (Ui.allocations #$)
+    let errors = mapMaybe (verify existing) (zip3 names merged insts)
     unless (null errors) $
-        Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
+        Cmd.throw $ "merged allocations: " <> Text.intercalate "\n" errors
     Ui.modify_config $ Ui.allocations
         %= (UiConfig.Allocations (Map.fromList (zip names merged)) <>)
     where
