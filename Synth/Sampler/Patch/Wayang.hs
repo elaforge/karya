@@ -6,11 +6,15 @@
 module Synth.Sampler.Patch.Wayang (patches, verifyFilenames) where
 import qualified Data.Char as Char
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
+
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
@@ -105,7 +109,7 @@ convert instrument tuning note = do
     let (filename, sampleNn) =
             toFilename instrument tuning articulation pitch dyn
                 (convertVariation note)
-    let dyn = dynFactor * scale
+    let dyn = Num.scale dynFactor 1 scale
     return $ Sample.Sample
         { filename = filename
         , offset = 0
@@ -129,7 +133,7 @@ muteTime = 0.15
 
 -- Since dyn signal is in dB, this is -x*96 dB.
 dynFactor :: Signal.Y
-dynFactor = 0.5
+dynFactor = 1 -- TODO adjust
 
 convertArticulation :: Attrs.Attributes -> Articulation
 convertArticulation = maybe Open snd . (`Common.lookup_attributes` attributeMap)
@@ -322,29 +326,47 @@ kantilanIsep = map toNN
     , (Key.ds6, 11)
     ]
 
+showPitchTable :: IO ()
+showPitchTable = Text.IO.putStr $ Text.unlines $ TextUtil.formatColumns 3 $
+    Seq.rotate
+    [ map pp scaleUmbang, map pp scaleIsep
+    , pemadeUmbang, pemadeIsep
+    , replicate 5 "" ++ kantilanUmbang, replicate 5 "" ++ kantilanIsep
+    ]
+    where
+    (scaleUmbang, scaleIsep) = unzip scalePitches
+    [pemadeUmbang, pemadeIsep, kantilanUmbang, kantilanIsep] =
+        map ((++ repeat "") . map (pp . fst))
+            [ instrumentKeys inst tuning Open
+            | inst <- [Pemade, Kantilan], tuning <- [Umbang, Isep]
+            ]
+    pp :: Pitch.NoteNumber -> Text
+    pp = Text.replace "nn" "" . pretty
+
+scalePitches :: [(Pitch.NoteNumber, Pitch.NoteNumber)]
+scalePitches =
+    [ (52.30,   53.00) -- 3o, pemade begin
+    , (54.55,   55.15)
+    , (57.35,   57.73)
+    , (59.85,   60.40)
+
+    , (62.50,   62.95) -- 4i, pemade middle
+    , (64.45,   64.70) -- 4o, kantilan begin
+    , (67.26,   67.57)
+    , (69.25,   69.45)
+    , (71.81,   72.10)
+
+    , (74.63,   74.83) -- 5i, pemade end, kantilan middle
+    , (76.73,   76.85)
+    , (79.35,   79.48)
+    , (81.51,   81.63)
+    , (84.00,   84.12)
+    , (86.78,   86.88) -- 6i, kantilan end
+    ]
+
 -- NN +cents to adjust to that NN
 toNN :: (Midi.Key, Int) -> Pitch.NoteNumber
 toNN (key, cents) = Pitch.key_to_nn key - Pitch.nn cents / 100
 
 enumAll :: (Enum a, Bounded a) => [a]
 enumAll = [minBound .. maxBound]
-
-{-
-    Use this to get absolute pitches for samples:
-
-    pemade umbang 12
-        start f2, midi 53
-        f+.55 g+.43 a#+.56 c+.2 d#+.54 f+.50 g#+.68 a#+.69 c+.18 d#+.34
-    pemade isep 12
-        start f2, midi 53
-        f+0 g-.07 a#+0 c-.36 d#+0 f+.28 g#+.39 a#+.51 c-.12 d#+.16
-        down to prev c, up to next g
-    kantilan umbang 12
-        start e3, midi 64
-        e-.31 g-.13 a-.23 c+.2 d#+.44 f+.24 g-.36 a#+.48 c-.01 d#+.21
-        down to prev c, up to next g
-    kantilan isep 12
-        start e3, midi 64
-        e+.23 g#+.55 a#+.55 c-.01 d#+.2 f+.12 g#+.5 a#+.35 c-.13 d#+11
-        down to prev c, up to next g
--}
