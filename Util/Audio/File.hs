@@ -133,8 +133,7 @@ write format fname audio = do
     Resource.release key
 
 -- | Write files in chunks to the given directory.  Run actions before
--- and after writing each chunk.  It's expected to query and save audio
--- generator state.
+-- and after writing each chunk.
 writeCheckpoints :: forall rate chan state.
     (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frame

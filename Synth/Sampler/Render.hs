@@ -108,6 +108,7 @@ render chunkSize quality states notifyState notes start = Audio.Audio $ do
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
+            -- If notes started in the past, they should already be 'playing'.
             Audio.assert (null playingNotes) $
                 "playingNotes should be []: " <> pretty playingNotes
             -- Debug.tracepM "playing, starting, future"
@@ -173,11 +174,11 @@ startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
 startSample now quality chunkSize mbMbState note = case Sample.sample note of
     Left err -> Log.warn err >> return (failedPlaying note)
     Right sample -> do
-        stateRef <- IORef.newIORef Nothing
+        sampleStateRef <- IORef.newIORef Nothing
         let config mbState = Resample.Config
                 { _quality = quality
                 , _state = mbState
-                , _notifyState = IORef.writeIORef stateRef . Just
+                , _notifyState = IORef.writeIORef sampleStateRef
                 , _chunkSize = chunkSize
                 , _now = now
                 }
@@ -186,17 +187,15 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
             Just _ -> Audio.assert (start < now) $
                 "resumeSample should start before " <> showt now
                 <> " but started at " <> showt start
-            Nothing ->
-                Audio.assert (start >= now && now-start < chunkSize) $
-                    "note should have started between " <> showt now
-                    <> "--" <> showt (now + chunkSize)
-                    <> " but started at " <> showt start
+            Nothing -> Audio.assert (start >= now && now-start < chunkSize) $
+                "note should have started between " <> showt now <> "--"
+                <> showt (now + chunkSize) <> " but started at " <> showt start
         -- if AUtil.toFrame (Sample.start sample) < now
         --     then Debug.tracepM "resume" (now, sample)
         --     else Debug.tracepM "start" (now, sample)
         return $ Playing
             { _noteHash = Sample.hash note
-            , _getState = IORef.readIORef stateRef
+            , _getState = IORef.readIORef sampleStateRef
             , _audio = RenderSample.render
                 (config (Monad.join mbMbState)) (Sample.start note) sample
             }

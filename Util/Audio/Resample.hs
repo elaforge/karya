@@ -28,10 +28,12 @@ import qualified Util.Segment as Segment
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 
 
--- TODO I could maybe unsafePerformIO the resampling C.
+-- TODO resampling is theoretically pure, so I could maybe unsafePerformIO the
+-- resampling
 
 -- | Resample the audio.  This doesn't actually change the sampling rate, since
 -- I just use this to change the pitch.
@@ -44,7 +46,10 @@ resample ctype ratio = resampleBy ctype (Signal.constant ratio)
 data Config = Config {
     _quality :: Quality
     , _state :: Maybe SavedState
-    , _notifyState :: SavedState -> IO ()
+    -- | Called before yielding a chunk.  The final call is with Nothing,
+    -- before yielding the final chunk.  At that point the state should be
+    -- used up.
+    , _notifyState :: Maybe SavedState -> IO ()
     , _chunkSize :: Audio.Frame
     -- | This affects the first chunk size.  This is so that chunk boundaries
     -- fall on multiples of chunkSize.
@@ -72,13 +77,14 @@ resampleBy2 config ratio audio = Audio.Audio $ do
             resampleChunk chan rate state now chunkLeft ratio audio >>= \case
                 Nothing -> done key collect
                 Just (chunk, audio) ->
-                    loop =<< emit state now collect chunkLeft chunk audio
+                    loop =<< yield state now collect chunkLeft chunk audio
     where
     done key collect = do
+        liftIO $ _notifyState config Nothing
         unless (null collect) $
             S.yield $ mconcat (reverse collect)
         lift $ Resource.release key
-    emit state now collect chunkLeft chunk audio
+    yield state now collect chunkLeft chunk audio
         | chunkLeft - generated > 0 = return
             ( now + generated
             , audio
@@ -91,7 +97,7 @@ resampleBy2 config ratio audio = Audio.Audio $ do
                 [ "sum", pretty (sum sizes), "> chunkSize"
                 , pretty (_chunkSize config) <> ":", pretty sizes
                 ]
-            liftIO $ _notifyState config =<< SampleRateC.getState state
+            liftIO $ _notifyState config . Just =<< SampleRateC.getState state
             S.yield $ mconcat (reverse (chunk : collect))
             return
                 ( now + generated

@@ -128,9 +128,7 @@ Get the -dev versions as usual:
 
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 
-    cp data/all-deps.cabal karya.cabal
-    cp data/all-deps.cabal.config cabal.config # if you want my versions
-    cabal install --only-dependencies
+    cd data && cabal install --only-dependencies
 
 Or, if you're doing it the stack way:
 

@@ -2114,9 +2114,14 @@ synth: im:
           . chunk was >176400f: [176400f, 220500f, 264600f]
           . chunkSize = 11025
             checkpointSize = 176400
-        - now there's a segfault
+        * now there's a segfault
+          . Only happens when I resample.
+      - now the notes seem to cut off early
+        . Also what's with the tons of silence on the end?
       - wayang nns don't match up with Derive.Scale.Wayang, measure to see
         what the actual values are.  Again.
+        . Also see logical pitch:
+      - Even when I don't resample, output is quiet.
       * It seems like umbang/isep are backwards in Scale.Wayang?
         . They are, but if I fix this will it screw things up?  Why do they
           work with >kontakt/wayang-etc?
@@ -2126,6 +2131,12 @@ synth: im:
       - add a wayang infer-damp similar to the reyong one
         . Instead of using +damp notes, just extend durations.  I can do this
           since I'm not MIDI and can have overlapping notes.
+      - logical pitch: I might need separate logical and actual tuning, since
+        even when the scale logically has certain frequencies, each instrument
+        will differ slightly.  I could do that by setting symbolic pitch as
+        Note.element or an env var.
+        . Alternately I could consistently use *wayang-p and *wayang-k, but
+          it seems like a bother.
     guzheng:
       . Everything rings except when explicitly muted.
 
