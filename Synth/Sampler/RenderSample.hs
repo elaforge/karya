@@ -26,15 +26,15 @@ import Synth.Lib.Global
 
 render :: Resample.Config -> RealTime -> Sample.Sample -> Audio
 render config start (Sample.Sample filename offset envelope ratio) =
-    resample2 config ratio start $
-    applyEnvelope start envelope $
+    applyEnvelope (AUtil.toSeconds now) envelope $
+    resample config ratio start $
     File.readFrom (Audio.Frames readFrom) filename
     where
     readFrom = AUtil.toFrame offset + max 0 (now - AUtil.toFrame start)
     now = Resample._now config
 
-resample2 :: Resample.Config -> Signal.Signal -> RealTime -> Audio -> Audio
-resample2 config ratio start audio
+resample :: Resample.Config -> Signal.Signal -> RealTime -> Audio -> Audio
+resample config ratio start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
     | Just val <- Signal.constant_val_from start ratio,
@@ -59,6 +59,15 @@ resample2 config ratio start audio
 
 addNow :: Audio.Frame -> Resample.Config -> Resample.Config
 addNow frames config = config { Resample._now = frames + Resample._now config }
+
+applyEnvelope :: RealTime -> Signal.Signal -> Audio -> Audio
+applyEnvelope start sig
+    | Just val <- Signal.constant_val_from start sig =
+        if ApproxEq.eq 0.01 val 1 then id
+            else Audio.gain (AUtil.dbToLinear (Num.d2f val))
+    | otherwise = AUtil.volume $ Audio.linear $
+        map (first (RealTime.to_seconds . subtract start)) $
+        Signal.clip_before_pairs start sig
 
 -- * duration
 
@@ -209,38 +218,4 @@ A constant segment means progress through sample at that rate.
 Iteratively, emit that much output, consume that much input.
 
 If I move to NN breakpoints, this won't work.
-
 -}
-
--- * old
-
--- | Evaluating the Audio could probably produce more exceptions...
-renderOld :: Resample.Quality -> RealTime -> Sample.Sample -> (RealTime, Audio)
-    -- ^ sample start time, and audio to render
-renderOld quality start (Sample.Sample filename offset envelope ratio) =
-    (start,) $
-        resample quality ratio start $
-        applyEnvelope start envelope $
-        File.readFrom (Audio.Seconds (RealTime.to_seconds offset)) filename
-
-resample :: Resample.Quality -> Signal.Signal -> RealTime -> Audio -> Audio
-resample quality ratio start audio
-    -- Don't do any work if it's close enough to 1.  This is likely to be
-    -- common, so worth optimizing.
-    | Just val <- Signal.constant_val_from start ratio,
-            ApproxEq.eq closeEnough val 1 =
-        audio
-    | otherwise =
-        Resample.resampleBy quality (Signal.shift (-start) ratio) audio
-    where
-    -- More or less a semitone / 100 cents / 10.  Anything narrower than this
-    -- probably isn't perceptible.
-    closeEnough = 1.05 / 1000
-
-applyEnvelope :: RealTime -> Signal.Signal -> Audio -> Audio
-applyEnvelope start sig
-    | Just val <- Signal.constant_val_from start sig =
-        if ApproxEq.eq 0.01 val 1 then id
-            else Audio.gain (AUtil.dbToLinear (Num.d2f val))
-    | otherwise = AUtil.volume $ Audio.linear $
-        map (first RealTime.to_seconds) $ Signal.to_pairs sig

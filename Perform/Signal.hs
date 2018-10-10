@@ -34,7 +34,8 @@ module Perform.Signal (
 
     -- * transform
     , drop_after, drop_before
-    , clip_after, clip_before, clip_before_segments, clip_after_keep_last
+    , clip_after, clip_before, clip_before_segments, clip_before_pairs
+    , clip_after_keep_last
     , shift
 
     , invert, sig_add, sig_subtract, sig_multiply, sig_scale
@@ -237,6 +238,12 @@ clip_before x = modify $ Segment.clip_before Segment.num_interpolate x
 -- then this is the same as 'clip_before'.
 clip_before_segments :: X -> Signal kind -> [Segment.Segment Y]
 clip_before_segments x = Segment.samples_to_segments
+    . Segment.clip_before_samples Segment.num_interpolate x
+    . _signal
+
+clip_before_pairs :: X -> Signal kind -> [(X, Y)]
+clip_before_pairs x =
+    map TimeVector.to_pair
     . Segment.clip_before_samples Segment.num_interpolate x
     . _signal
 
