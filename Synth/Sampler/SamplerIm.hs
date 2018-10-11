@@ -58,23 +58,27 @@ process db quality notesFilename notes = do
 convert :: Patch.Db -> Patch.Patch -> [Note.Note]
     -> [(Either Error Sample.Sample, Note.Note)]
 convert db patch notes =
-    zip (map (fmap setFilename . Patch._convert patch) notes) notes
+    map update (Seq.key_on (Patch._convert patch) notes)
     where
-    setFilename = Sample.modifyFilename (patchDir</>)
+    update (Right (dur, sample), note) =
+        ( Right $ Sample.modifyFilename (patchDir</>) sample
+        , note { Note.duration = dur }
+        )
+    update (Left err, note) = (Left err, note)
     patchDir = Patch._rootDir db </> Patch._dir patch
 
 makeNote :: Either Error Sample.Sample -> Note.Note -> IO Sample.Note
 makeNote errSample note = do
     -- It's important to get an accurate duration if I can, because that
     -- determines overlap, which affects caching.
-    dur <- case errSample of
+    mbDur <- case errSample of
         Left _ -> return Nothing
         Right sample -> File.ignoreEnoent $
             RenderSample.predictFileDuration (Sample.ratio sample)
                 (Sample.filename sample)
     return $ Sample.Note
         { start = Note.start note
-        , duration = maybe id (min . AUtil.toSeconds) dur (Note.duration note)
+        , duration = maybe id (min . AUtil.toSeconds) mbDur (Note.duration note)
         , hash = Note.hash note
         , sample = errSample
         }

@@ -1322,55 +1322,6 @@ synth: im:
     * Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
       which will mix together the unmuted instruments, starting at the given
       time.
-    - Im instruments should have a midi thru-like preview sound.
-      . This doesn't have to be performance-level of low latency,
-        probably < 100ms will do.  Still, the lower the better.
-      ? Experiment with how various latencies feel, so I know my target.
-      possible designs:
-        parallel MIDI:
-          . Assign a parallel MIDI instrument for thru.
-          . All I get is the right pitch and possibly similar instrument sound.
-          . Probably in practice I'd just have a single MIDI instrument with
-            a neutral sound.
-        hybrid im and MIDI:
-          . A compromise would be a general mechanism to render samples, and
-            then feed that into a realtime sampler.  Of course commercial
-            samplers can do that but would insert a lot of manual work into
-            the process.  So maybe I can write a minimal MIDI VST sampler.
-          . All it needs to do is play a sample with a given pitch (pitch bend
-            and pitch) and velocity.
-          . For this, I need to prepare each instrument by rendering a set of
-            example samples.
-          . I don't want to have to encode notes as MIDI, so just have
-            play_cache open a socket, which takes a filename and pitch and
-            immediately plays whatever it gets.  All I have to do is teach
-            play_cache to resample and maybe scale volume.
-        pure im:
-          . I have to give a single Note to the im synthesizer, which then has
-            to stream to the VST, which has a socket to immediately play
-            samples.
-          . I might have to run im synthesizers persistently to avoid startup
-            overhead.
-          . Presumably I also have to ensure they use a sufficiently small
-            block size to get that first block out quickly.  Since I'm not
-            doing realtime control, I don't actually care about the rest of
-            the blocks.
-          . This is more complicated, but is accurate for the instrument:
-            I get the right sounds so I can e.g.  see how sampler-im picks
-            samples in realtime-ish.  However, if I go this far, it might not
-            be that much more work to go for the full realtime interface.
-        realtime interface:
-          . This is basically try to turn im into a realtime interface.
-          . The difference with the previous is that I'd also support realtime
-            control signals.
-          . The reason to want this is that I could explore instruments
-            interactively.
-          . I would probably have to take MIDI or OSC, run the im synth
-            persistently, and either stream to the VST or directly to audio
-            out.
-          . I'd have to plan out a general purpose interface.  Synthesizers
-            that use knowledge of the future would have to be adapted to not
-            having that.
     + incremental rendering:
       . Overview: Karya has to emit damage ranges, and the synth has to
         rerender just those sections.  The cache becomes a sequence of wav
@@ -1742,25 +1693,72 @@ synth: im:
         . Can't reproduce it now, maybe it only happens when I have a audio
           "stem" track.
 
+  - preview: midi thru:
+    . Im instruments should have a midi thru-like preview sound.
+    . This doesn't have to be performance-level of low latency,
+      probably < 100ms will do.  Still, the lower the better.
+    ? Experiment with how various latencies feel, so I know my target.
+    . If I do hybrid im and MIDI: below then I need to make play_cache into a
+      little sampler, which just means streaming through libsamplerate.
+    possible designs:
+      parallel MIDI:
+        . Assign a parallel MIDI instrument for thru.
+        . All I get is the right pitch and possibly similar instrument sound.
+        . Probably in practice I'd just have a single MIDI instrument with
+          a neutral sound.
+      hybrid im and MIDI:
+        . A compromise would be a general mechanism to render samples, and
+          then feed that into a realtime sampler.  Of course commercial
+          samplers can do that but would insert a lot of manual work into
+          the process.  So maybe I can write a minimal MIDI VST sampler.
+        . All it needs to do is play a sample with a given pitch (pitch bend
+          and pitch) and velocity.
+        . For this, I need to prepare each instrument by rendering a set of
+          example samples.
+        . I don't want to have to encode notes as MIDI, so just have
+          play_cache open a socket, which takes a filename and pitch and
+          immediately plays whatever it gets.  All I have to do is teach
+          play_cache to resample and maybe scale volume.
+      pure im:
+        . I have to give a single Note to the im synthesizer, which then has
+          to stream to the VST, which has a socket to immediately play
+          samples.
+        . I might have to run im synthesizers persistently to avoid startup
+          overhead.
+        . Presumably I also have to ensure they use a sufficiently small
+          block size to get that first block out quickly.  Since I'm not
+          doing realtime control, I don't actually care about the rest of
+          the blocks.
+        . This is more complicated, but is accurate for the instrument:
+          I get the right sounds so I can e.g.  see how sampler-im picks
+          samples in realtime-ish.  However, if I go this far, it might not
+          be that much more work to go for the full realtime interface.
+      realtime interface:
+        . This is basically try to turn im into a realtime interface.
+        . The difference with the previous is that I'd also support realtime
+          control signals.
+        . The reason to want this is that I could explore instruments
+          interactively.
+        . I would probably have to take MIDI or OSC, run the im synth
+          persistently, and either stream to the VST or directly to audio
+          out.
+        . I'd have to plan out a general purpose interface.  Synthesizers
+          that use knowledge of the future would have to be adapted to not
+          having that.
   / I think I want to switch from by-instrument muting to by-track, because
     that's what the UI is.
     . TrackId is not unique.  PlayUtil.filter_track_muted filters out any
       event that appears in the stack.  This is so mute on a track also mutes
       any children.
+    . The problem is that tracks are hierarchical and I can mute at any
+      level, but the im cache is flat, except the root block.
+    . Or rather, tracks start and stop, while I currently divide
+      per-instrument vertically.
     . This implies I would have to keep intermediate output of each track in
       each block, which is a pretty big change.
     . So maybe keep mute as instrument mute, and I can get just track via
       disable, at the cost of a rerender.  But if I keep a few previous
       renders in the cache, I can alternate quickly.
-    faust-im:
-      . group by track, and then by instrument
-      . render each instrument separately, then mix together
-        . This means that each (track, instrument) is its own allocation,
-          which means that instrument state is per-track.  That should be fine
-          though, if you want to stay on one instrument, then stay on one
-          track.
-    sampler-im:
-      . I think the same as faust-im?
     notes:
       . And it's more flexible, I can put multiple instruments on one track,
         or split a single instrument across multiple tracks.
@@ -1818,8 +1816,12 @@ synth: im:
       . Or why not just use faust integration?  I think it has the same
         algorithm?
   play_cache: PlayCache:
+    - What about writing play_cache in rust?  Just for fun I guess, though if
+      it gains semi-sampler features then I'll wind up with more logic.  But
+      I do need to bind to libsamplerate and libsndfile.
     - save cache as flac?  Since I use libsndfile I think it should Just Work.
-      libsndfile for PlayCache.
+      . probably afplay stops working though, because Apple.  But libsndfile
+        maybe comes with a demo player?
     - I should use under_scores for all C++, currently play_cache is camelCase.
       . Actually it's kind of forced by the VST interface, which is camelCase.
       . Of course I control that too, so I could change Synth/vst2/* to
@@ -2024,7 +2026,7 @@ synth: im:
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
         envelopes and other synth type things.
-    - I should be able to optimize a constant envelope or pitch over
+    * I should be able to optimize a constant envelope or pitch over
       min sampleDuration envelopeDuration.
       . This might be valuable since many samples could have a locally
         constant pitch or dyn.
@@ -2111,9 +2113,9 @@ synth: im:
         higher level stuff should be there.  The only thing the sampler can do
         is shorten durations because it knows the lengths of the samples.
       * crash rendering:
-          . chunk was >176400f: [176400f, 220500f, 264600f]
-          . chunkSize = 11025
-            checkpointSize = 176400
+        . chunk was >176400f: [176400f, 220500f, 264600f]
+        . chunkSize = 11025
+          checkpointSize = 176400
         * now there's a segfault
           . Only happens when I resample.
       * now the notes seem to cut off early
@@ -2127,7 +2129,7 @@ synth: im:
       * It seems like umbang/isep are backwards in Scale.Wayang?
         . They are, but if I fix this will it screw things up?  Why do they
           work with >kontakt/wayang-etc?
-      - extend duration by decay time
+      * extend duration by decay time
       - write karya side to generate sampler notes, with correct durations
         . set Control.variation
       - add a wayang infer-damp similar to the reyong one

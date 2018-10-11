@@ -16,6 +16,7 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
+import Synth.Types
 
 
 type Error = Text
@@ -37,7 +38,9 @@ data Patch = Patch {
     -- | Root dir for samples, relative to '_rootDir'.  This is not the same
     -- as '_name' because multiple patches may share a sample directory.
     , _dir :: FilePath
-    , _convert :: Note.Note -> Either Error Sample.Sample
+    -- | Find a sample.  Returns (newDuration, sample) since the decay time
+    -- might extend the duration.
+    , _convert :: Note.Note -> Either Error (RealTime, Sample.Sample)
     -- | Karya configuration.
     --
     -- Putting code here means that the sampler has to link in a large portion
@@ -55,7 +58,7 @@ simple name filename sampleNn = Patch
     , _convert = \note -> do
         pitch <- tryJust "no pitch" $ Note.initialPitch note
         dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note
-        return $ Sample.Sample
+        return $ (Note.duration note,) $ Sample.Sample
             { filename = filename
             , offset = 0
             , envelope = Signal.constant dyn

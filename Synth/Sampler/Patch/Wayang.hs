@@ -3,7 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Definitions for the wayang instrument family.
-module Synth.Sampler.Patch.Wayang (patches, verifyFilenames) where
+module Synth.Sampler.Patch.Wayang (
+    patches
+    -- * interactive
+    , verifyFilenames
+    , showPitchTable
+) where
 import qualified Data.Char as Char
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -99,7 +104,8 @@ verifyFilenames = filterM (fmap not . exists) allFilenames
     a silent mute.  If the latter, I have to do it as a preprocess step, since
     it affects overlap calculation.
 -}
-convert :: Instrument -> Tuning -> Note.Note -> Either Text Sample.Sample
+convert :: Instrument -> Tuning -> Note.Note
+    -> Either Text (RealTime, Sample.Sample)
 convert instrument tuning note = do
     let articulation = convertArticulation $ Note.attributes note
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
@@ -110,7 +116,7 @@ convert instrument tuning note = do
             toFilename instrument tuning articulation pitch dyn
                 (convertVariation note)
     let dyn = Num.scale dynFactor 1 scale
-    return $ Sample.Sample
+    return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
         , envelope = Signal.from_pairs
@@ -329,9 +335,12 @@ kantilanIsep = map toNN
 showPitchTable :: IO ()
 showPitchTable = Text.IO.putStr $ Text.unlines $ TextUtil.formatColumns 3 $
     Seq.rotate
-    [ map pp scaleUmbang, map pp scaleIsep
-    , pemadeUmbang, pemadeIsep
-    , replicate 5 "" ++ kantilanUmbang, replicate 5 "" ++ kantilanIsep
+    [ map pp scaleUmbang
+    , pemadeUmbang
+    , replicate 5 "" ++ kantilanUmbang
+    , map pp scaleIsep
+    , pemadeIsep
+    , replicate 5 "" ++ kantilanIsep
     ]
     where
     (scaleUmbang, scaleIsep) = unzip scalePitches

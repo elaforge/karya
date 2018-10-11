@@ -16,6 +16,7 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
+import Synth.Types
 
 
 patches :: [Patch.Patch]
@@ -49,7 +50,7 @@ attributeMap = Common.attribute_map
 
 -- * convert
 
-convert :: Note.Note -> Either Text Sample.Sample
+convert :: Note.Note -> Either Text (RealTime, Sample.Sample)
 convert note = do
     let articulation = convertArticulation $ Note.attributes note
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
