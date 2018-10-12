@@ -12,7 +12,11 @@ import Prelude hiding (null)
 
 import qualified Derive.Score as Score
 import Derive.Score (Control)
+import qualified Derive.ScoreTypes as ScoreTypes
+
 import qualified Perform.Pitch as Pitch
+import qualified Synth.Shared.Control as Shared.Control
+
 import Global
 
 
@@ -182,3 +186,12 @@ mc1 = mc 1
 mc2 = mc 2
 mc3 = mc 3
 mc4 = mc 4
+
+
+-- * shared with im
+
+variation :: Control
+variation = from_shared Shared.Control.variation
+
+from_shared :: Shared.Control.Control -> Control
+from_shared (Shared.Control.Control a) = ScoreTypes.Control a

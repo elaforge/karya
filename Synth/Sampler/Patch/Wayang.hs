@@ -10,6 +10,8 @@ module Synth.Sampler.Patch.Wayang (
     , showPitchTable
 ) where
 import qualified Data.Char as Char
+import qualified Data.Either as Either
+import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -32,6 +34,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.WayangCode as WayangCode
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -53,15 +56,15 @@ patches =
             Text.intercalate "-" ["wayang", showt inst, showt tuning]
         , _dir = "wayang"
         , _convert = convert inst tuning
-        , _karyaPatch = setRange inst $ setScale tuning $ ImInst.make_patch $
-            Im.Patch.Patch
-                { patch_controls = mconcat
+        , _karyaPatch = ImInst.code #= WayangCode.code $
+            setRange inst $ setScale tuning $
+            ImInst.make_patch $ Im.Patch.patch
+                { Im.Patch.patch_controls = mconcat
                     [ Control.supportPitch
                     , Control.supportDyn
                     , Control.supportVariation
                     ]
-                , patch_attribute_map = const () <$> attributeMap
-                , patch_flags = mempty
+                , Im.Patch.patch_attribute_map = const () <$> attributeMap
                 }
         }
     setRange inst = ImInst.range $ BaliScales.instrument_range $ case inst of
@@ -110,21 +113,25 @@ convert instrument tuning note = do
     let articulation = convertArticulation $ Note.attributes note
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
             Note.initial Control.dynamic note
-    pitch <- tryJust "no pitch" $ Note.initialPitch note
+    symPitch <- if Text.null (Note.element note)
+        then Right <$> tryJust "no pitch" (Note.initialPitch note)
+        else return $ Left $ Pitch.Note (Note.element note)
     (dyn, scale) <- pure $ workaround instrument tuning articulation dyn scale
-    let (filename, sampleNn) =
-            toFilename instrument tuning articulation pitch dyn
-                (convertVariation note)
-    let dyn = Num.scale dynFactor 1 scale
+    (filename, noteNn, sampleNn) <- toFilename instrument tuning articulation
+        symPitch dyn (convertVariation note)
+    -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
+    --     <> pretty ((dyn, scale), (symPitch, sampleNn), convertVariation note)
+    --     <> ": " <> txt filename
+    let dynVal = Num.scale dynFactor 1 scale
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
         , envelope = Signal.from_pairs
-            [ (Note.start note, dyn), (Note.end note, dyn)
+            [ (Note.start note, dynVal), (Note.end note, dynVal)
             , (Note.end note + muteTime, 0)
             ]
         , ratio = Signal.constant $
-            Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) pitch
+            Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
         }
 
 -- | I'm missing these samples, so substitute some others.
@@ -170,13 +177,22 @@ convertVariation = maybe 0 floor . Note.initial Control.variation
     > calung groups = calung{1..3} calung+mute{1..6}
     > mute and loose start at Key.f0 (17)
     > open starts at Key.f4 65
+
+    TODO The complicated encoding is leftover kontakt nonsense.  I could rename
+    to $symPitch-$dyn-$articulation-$var.flac.
 -}
-toFilename :: Instrument -> Tuning -> Articulation -> Pitch.NoteNumber
-    -> Dynamic -> Variation -> (FilePath, Pitch.NoteNumber)
-toFilename instrument tuning articulation nn dyn variation =
-    ( toDir instrument </> toDir tuning </> panggul </> sampleName ++ ".flac"
-    , sampleNn
-    )
+toFilename :: Instrument -> Tuning -> Articulation
+    -> Either Pitch.Note Pitch.NoteNumber -> Dynamic -> Variation
+    -> Either Text (FilePath, Pitch.NoteNumber, Pitch.NoteNumber)
+toFilename instrument tuning articulation symPitch dyn variation = do
+    (sampleNn, noteNn, Midi.Key sampleKey) <-
+        findPitch instrument tuning articulation symPitch
+    return
+        ( toDir instrument </> toDir tuning </> panggul
+            </> sampleName sampleKey ++ ".flac"
+        , noteNn
+        , sampleNn
+        )
     where
     toDir :: Show a => a -> FilePath
     toDir = map Char.toLower . show
@@ -184,16 +200,15 @@ toFilename instrument tuning articulation nn dyn variation =
         CalungMute -> "calung"
         Calung -> "calung"
         _ -> "normal"
-    sampleName = Seq.join "-"
+    sampleName sampleKey = Seq.join "-"
         [show sampleKey, show lowVel, show highVel, group]
     (lowVel, highVel) = dynamicRange dyn
     group = articulationFile articulation
         ++ show (variation `mod` variationsOf articulation + 1)
-    (sampleNn, Midi.Key sampleKey) = findPitch instrument tuning articulation nn
 
 allFilenames :: [FilePath]
-allFilenames =
-    [ fst $ toFilename instrument tuning articulation nn dyn variation
+allFilenames = map fst3 $ Either.rights
+    [ toFilename instrument tuning articulation (Right nn) dyn variation
     | instrument <- [Pemade, Kantilan]
     , tuning <- [Umbang, Isep]
     , articulation <- enumAll
@@ -201,6 +216,7 @@ allFilenames =
     , dyn <- enumAll
     , variation <- [0 .. variationsOf articulation - 1]
     ]
+    where fst3 (a, _, _) = a
 
 dynamicRange :: Dynamic -> (Int, Int)
 dynamicRange = \case
@@ -238,22 +254,35 @@ data Articulation = Mute | LooseMute | Open | CalungMute | Calung
 
 type Variation = Int
 
-findPitch :: Instrument -> Tuning -> Articulation -> Pitch.NoteNumber
-    -> (Pitch.NoteNumber, Midi.Key)
-findPitch instrument tuning articulation nn =
-    findBelow fst nn (instrumentKeys instrument tuning articulation)
+instance Pretty Dynamic where pretty = showt
+
+findPitch :: Instrument -> Tuning -> Articulation
+    -> Either Pitch.Note Pitch.NoteNumber
+    -> Either Text (Pitch.NoteNumber, Pitch.NoteNumber, Midi.Key)
+findPitch instrument tuning articulation symPitch = case symPitch of
+    Left sym -> do
+        (sampleNn, (key, _)) <- tryJust ("invalid pitch: " <> pretty sym) $
+            List.find ((==sym) . snd . snd) keys
+        return (sampleNn, sampleNn, key)
+    Right noteNn -> return (sampleNn, noteNn, key)
+        where (sampleNn, (key, _)) = findBelow fst noteNn keys
+    where
+    keys = instrumentKeys instrument tuning articulation
 
 instrumentKeys :: Instrument -> Tuning -> Articulation
-    -> [(Pitch.NoteNumber, Midi.Key)]
-instrumentKeys instrument tuning articulation = zip nns keys
+    -> [(Pitch.NoteNumber, (Midi.Key, Pitch.Note))]
+instrumentKeys instrument tuning articulation =
+    zip nns (zip (map (offset*12+) keys) notes)
     where
-    keys = wayangKeys $ (if instrument == Kantilan then (+1) else id) $
-        case articulation of
-            Mute -> 1
-            LooseMute -> 1
-            CalungMute -> 1
-            Open -> 5
-            Calung -> 5
+    (keys, notes) = unzip $ wayangKeys $ case instrument of
+        Pemade -> 3
+        Kantilan -> 4
+    offset = case articulation of
+        Mute -> -2
+        LooseMute -> -2
+        CalungMute -> -2
+        Open -> 2
+        Calung -> 2
     nns = case (instrument, tuning) of
         (Pemade, Umbang) -> map fst pemadeTuning
         (Pemade, Isep) -> map snd pemadeTuning
@@ -269,12 +298,21 @@ findBelow key val (x:xs) = go x xs
         | otherwise = go x xs
     go x0 [] = x0
 
-wayangKeys :: Int -> [Midi.Key]
-wayangKeys oct = map (Midi.to_key (oct * 12) +)
-    (take 10 $ drop 1 [k + o*12 | o <- [0..], k <- baseKeys])
+wayangKeys :: Int -> [(Midi.Key, Pitch.Note)]
+wayangKeys baseOct = take 10 $ drop 1
+    [ convert (o + Midi.to_key baseOct) key sym
+    | o <- [0..], (key, sym) <- baseKeys
+    ]
     where
-    -- ding dong deng dung dang
-    baseKeys = [Key.e_1, Key.f_1, Key.a_1, Key.b_1, Key.c0]
+    convert oct key sym =
+        (key + oct*12, Pitch.Note (showt (Midi.from_key oct) <> sym))
+    baseKeys =
+        [ (Key.e_1, "i")
+        , (Key.f_1, "o")
+        , (Key.a_1, "e")
+        , (Key.b_1, "u")
+        , (Key.c0, "a")
+        ]
 
 showPitchTable :: IO ()
 showPitchTable = Text.IO.putStr $ Text.unlines $ TextUtil.formatColumns 3 $

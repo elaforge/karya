@@ -12,8 +12,8 @@ import qualified Util.Lens as Lens
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import Cmd.Instrument.MidiInst
-       (generator, transformer, both, null_call, note_calls, note_generators,
-        note_transformers, val_calls, postproc, cmd, thru)
+       (Code, generator, transformer, both, null_call, note_calls,
+        note_generators, note_transformers, val_calls, postproc, cmd, thru)
 
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
@@ -38,7 +38,7 @@ synth name doc patches =
 
 data Patch = Patch {
     patch_patch :: Patch.Patch
-    , patch_common :: Common.Common MidiInst.Code
+    , patch_common :: Common.Common Code
     }
 
 make_patch :: Patch.Patch -> Patch
@@ -51,7 +51,7 @@ patch = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
 common = Lens.lens patch_common
     (\f r -> r { patch_common = f (patch_common r) })
 
-code :: Lens Patch MidiInst.Code
+code :: Lens Patch Code
 code = common # Common.code
 
 doc :: Lens Patch Doc.Doc

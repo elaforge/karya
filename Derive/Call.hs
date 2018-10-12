@@ -213,6 +213,9 @@ get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch)
     -> RealTime -> Derive.Deriver Pitch.Pitch
 get_parsed_pitch parse = parse_pitch parse <=< get_transposed
 
+get_symbolic_pitch :: RealTime -> Derive.Deriver Pitch.Note
+get_symbolic_pitch = Pitches.pitch_note <=< get_transposed
+
 dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
     Derive.control_at Controls.dynamic pos

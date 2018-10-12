@@ -2131,11 +2131,11 @@ synth: im:
           work with >kontakt/wayang-etc?
       * extend duration by decay time
       - write karya side to generate sampler notes, with correct durations
-        . set Control.variation
+        * set Control.variation
       - add a wayang infer-damp similar to the reyong one
         . Instead of using +damp notes, just extend durations.  I can do this
           since I'm not MIDI and can have overlapping notes.
-      - logical pitch: I might need separate logical and actual tuning, since
+      * logical pitch: I might need separate logical and actual tuning, since
         even when the scale logically has certain frequencies, each instrument
         will differ slightly.  I could do that by setting symbolic pitch as
         Note.element or an env var.
@@ -2144,6 +2144,7 @@ synth: im:
         . How to set Note.element?  It comes from EnvKey.patch_element.
         . I could also add a RestrictedEnviron to Shared.Note.  ConstantPitch
           would be appropriate.  And I could put variation there as well.
+      - But I also want a way to disable this.  symbolic-pitch=f?
     guzheng:
       . Everything rings except when explicitly muted.
 
