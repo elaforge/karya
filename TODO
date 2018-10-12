@@ -2123,7 +2123,7 @@ synth: im:
         ? Also what's with the tons of silence on the end?
       - also incremental is broken:
         . len states /= len notes: [Bf2CQg, lBcUbQ, mF8w1A, csgg6g] /= []
-      - wayang nns don't match up with Derive.Scale.Wayang, measure to see
+      * wayang nns don't match up with Derive.Scale.Wayang, measure to see
         what the actual values are.  Again.
         . Also see logical pitch:
       * It seems like umbang/isep are backwards in Scale.Wayang?
@@ -2141,6 +2141,9 @@ synth: im:
         Note.element or an env var.
         . Alternately I could consistently use *wayang-p and *wayang-k, but
           it seems like a bother.
+        . How to set Note.element?  It comes from EnvKey.patch_element.
+        . I could also add a RestrictedEnviron to Shared.Note.  ConstantPitch
+          would be appropriate.  And I could put variation there as well.
     guzheng:
       . Everything rings except when explicitly muted.
 

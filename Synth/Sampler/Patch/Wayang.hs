@@ -255,10 +255,10 @@ instrumentKeys instrument tuning articulation = zip nns keys
             Open -> 5
             Calung -> 5
     nns = case (instrument, tuning) of
-        (Pemade, Umbang) -> pemadeUmbang
-        (Pemade, Isep) -> pemadeIsep
-        (Kantilan, Umbang) -> kantilanUmbang
-        (Kantilan, Isep) -> kantilanIsep
+        (Pemade, Umbang) -> map fst pemadeTuning
+        (Pemade, Isep) -> map snd pemadeTuning
+        (Kantilan, Umbang) -> map fst kantilanTuning
+        (Kantilan, Isep) -> map snd kantilanTuning
 
 findBelow :: Ord k => (a -> k) -> k -> [a] -> a
 findBelow _ _ [] = error "empty list"
@@ -276,106 +276,52 @@ wayangKeys oct = map (Midi.to_key (oct * 12) +)
     -- ding dong deng dung dang
     baseKeys = [Key.e_1, Key.f_1, Key.a_1, Key.b_1, Key.c0]
 
-pemadeUmbang :: [Pitch.NoteNumber]
-pemadeUmbang = map toNN
-    [ (Key.f3, 55)
-    , (Key.g3, 43)
-    , (Key.as3, 56)
-    , (Key.c4, 20)
-    , (Key.ds4, 54)
-    , (Key.f4, 50)
-    , (Key.gs4, 68)
-    , (Key.as4, 69)
-    , (Key.c5, 18)
-    , (Key.ds5, 34)
-    ]
-
-pemadeIsep :: [Pitch.NoteNumber]
-pemadeIsep = map toNN
-    [ (Key.f3, 0)
-    , (Key.g3, -7)
-    , (Key.as3, 0)
-    , (Key.c4, -36)
-    , (Key.ds4, 0)
-    , (Key.f4, 28)
-    , (Key.gs4, 39)
-    , (Key.as4, 51)
-    , (Key.c5, -12)
-    , (Key.ds5, 16)
-    ]
-
-kantilanUmbang :: [Pitch.NoteNumber]
-kantilanUmbang = map toNN
-    [ (Key.e4, -31)
-    , (Key.g4, -13)
-    , (Key.a4, -23)
-    , (Key.c5, 20)
-    , (Key.ds5, 44)
-    , (Key.f5, 24)
-    , (Key.g5, -36)
-    , (Key.as5, 48)
-    , (Key.c6, -1)
-    , (Key.ds6, 21)
-    ]
-
-kantilanIsep :: [Pitch.NoteNumber]
-kantilanIsep = map toNN
-    [ (Key.e4, 23)
-    , (Key.gs4, 55)
-    , (Key.as4, 55)
-    , (Key.c5, -1)
-    , (Key.ds5, 20)
-    , (Key.f5, 12)
-    , (Key.gs5, 50)
-    , (Key.as5, 35)
-    , (Key.c6, -13)
-    , (Key.ds6, 11)
-    ]
-
 showPitchTable :: IO ()
 showPitchTable = Text.IO.putStr $ Text.unlines $ TextUtil.formatColumns 3 $
     Seq.rotate
-    [ map pp scaleUmbang
-    , pemadeUmbang
+    [ pemadeUmbang ++ repeat ""
     , replicate 5 "" ++ kantilanUmbang
-    , map pp scaleIsep
-    , pemadeIsep
+    , pemadeIsep ++ repeat ""
     , replicate 5 "" ++ kantilanIsep
     ]
     where
-    (scaleUmbang, scaleIsep) = unzip scalePitches
     [pemadeUmbang, pemadeIsep, kantilanUmbang, kantilanIsep] =
-        map ((++ repeat "") . map (pp . fst))
+        map (map (pp . fst))
             [ instrumentKeys inst tuning Open
             | inst <- [Pemade, Kantilan], tuning <- [Umbang, Isep]
             ]
     pp :: Pitch.NoteNumber -> Text
     pp = Text.replace "nn" "" . pretty
 
-scalePitches :: [(Pitch.NoteNumber, Pitch.NoteNumber)]
-scalePitches =
-    [ (52.30,   53.00) -- 3o, pemade begin
-    , (54.55,   55.15)
-    , (57.35,   57.73)
-    , (59.85,   60.40)
+pemadeTuning :: [(Pitch.NoteNumber, Pitch.NoteNumber)]
+pemadeTuning =
+    [ (52.27, 52.94)
+    , (54.55, 55.15)
+    , (57.35, 57.90)
+    , (59.85, 60.32)
 
-    , (62.50,   62.95) -- 4i, pemade middle
-    , (64.45,   64.70) -- 4o, kantilan begin
-    , (67.26,   67.57)
-    , (69.25,   69.45)
-    , (71.81,   72.10)
-
-    , (74.63,   74.83) -- 5i, pemade end, kantilan middle
-    , (76.73,   76.85)
-    , (79.35,   79.48)
-    , (81.51,   81.63)
-    , (84.00,   84.12)
-    , (86.78,   86.88) -- 6i, kantilan end
+    , (62.50, 63.00)
+    , (64.45, 64.72)
+    , (67.29, 67.60)
+    , (69.25, 69.48)
+    , (71.83, 72.11)
+    , (74.66, 74.85)
     ]
 
--- NN +cents to adjust to that NN
-toNN :: (Midi.Key, Int) -> Pitch.NoteNumber
-toNN (key, cents) = Pitch.key_to_nn key - Pitch.nn cents / 100
+kantilanTuning :: [(Pitch.NoteNumber, Pitch.NoteNumber)]
+kantilanTuning =
+    [ (64.31, 64.70)
+    , (67.13, 67.45)
+    , (69.22, 69.46)
+    , (71.81, 72.00)
+
+    , (74.57, 74.80)
+    , (76.75, 76.88)
+    , (79.37, 79.50)
+    , (81.53, 81.65)
+    , (84.02, 84.13)
+    , (86.79, 86.90)
+    ]
 
 enumAll :: (Enum a, Bounded a) => [a]
 enumAll = [minBound .. maxBound]

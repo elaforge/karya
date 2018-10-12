@@ -65,10 +65,9 @@ simple name filename sampleNn = Patch
             , ratio = Signal.constant $
                 Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) pitch
             }
-    , _karyaPatch = ImInst.make_patch $
-        Im.Patch.Patch
-            { patch_controls = Control.supportPitch <> Control.supportDyn
-            , patch_attribute_map = Common.attribute_map []
-            , patch_flags = mempty
-            }
+    , _karyaPatch = ImInst.make_patch $ Im.Patch.Patch
+        { patch_controls = Control.supportPitch <> Control.supportDyn
+        , patch_attribute_map = Common.attribute_map []
+        , patch_flags = mempty
+        }
     }
