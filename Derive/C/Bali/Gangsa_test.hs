@@ -298,7 +298,7 @@ test_unison_tuning = do
             . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_config inst $
             Common.add_environ EnvKey.tuning tuning
-    equal (run [(0, 1, "4i")]) ([("i1", Just 62.95), ("i2", Just 62.5)], [])
+    equal (run [(0, 1, "4i")]) ([("i1", Just 62.5), ("i2", Just 62.95)], [])
 
 modify_config :: Score.Instrument -> (Common.Config -> Common.Config)
     -> Ui.State -> Ui.State

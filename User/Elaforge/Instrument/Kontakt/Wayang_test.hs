@@ -53,7 +53,7 @@ test_wayang_pasang = do
     equal (DeriveTest.extract DeriveTest.e_instrument result)
         (["u", "i"], [])
     equal (fst $ DeriveTest.extract Score.initial_nn result)
-        [Just 62.95, Just 62.5]
+        [Just 62.5, Just 62.95]
 
     let ((_events, midi), logs) =
             KontaktTest.perform allocations (Derive.r_events result)
