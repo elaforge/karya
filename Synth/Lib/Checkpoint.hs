@@ -56,20 +56,26 @@ fingerprint = fst . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
 
 -- | Find where the checkpoints begin to differ from the given 'Note.Hash's.
 skipCheckpoints :: FilePath -> [(Int, Note.Hash)]
-    -> IO ([(Int, Note.Hash)], Maybe State)
-    -- ^ (remaining notes, state at that point)
+    -> IO ([FilePath], [(Int, Note.Hash)], Maybe State)
+    -- ^ (skipped chunks, remaining notes, state at that point)
 skipCheckpoints outputDir hashes = do
     Directory.createDirectoryIfMissing False (outputDir </> cacheDir)
     files <- Directory.listDirectory (outputDir </> cacheDir)
-    (hashes, stateFname) <- either errorIO return $
+    (skipped, (hashes, stateFname)) <- either errorIO return $
         findLastState (Set.fromList files) hashes
-    (hashes,) <$> if null stateFname
+    mbState <- if null stateFname
         then return Nothing
         else Just . State
             <$> ByteString.readFile (outputDir </> cacheDir </> stateFname)
+    return (skipped, hashes, mbState)
 
+-- | Find the first 'Note.Hash' that doesn't have a matching filename.
+--
+-- Since the output state of the previous filename needs to match the input
+-- state of the next one as described in 'writeState', this has to follow the
+-- files in sequence.
 findLastState :: Set FilePath -> [(Int, Note.Hash)]
-    -> Either Text ([(Int, Note.Hash)], FilePath)
+    -> Either Text ([FilePath], ([(Int, Note.Hash)], FilePath))
 findLastState files = go "" initialState
     where
     initialState = encodeState $ State mempty
@@ -80,23 +86,11 @@ findLastState files = go "" initialState
                 Just stateFname | prefix `List.isPrefixOf` stateFname ->
                     Right (stateFname, drop (length prefix) stateFname)
                 _ -> Left $ "no state: " <> txt prefix
-            go stateFname nextState hashes
-        | otherwise = Right ((i, hash) : hashes, prevStateFname)
+            first (fname:) <$> go stateFname nextState hashes
+        | otherwise = Right ([], ((i, hash) : hashes, prevStateFname))
         where
         fname = filenameOf2 i hash state
-    go _ _ [] = Right ([], "")
-
-{-
-    Each chunk writes two files:
-
-    -- $hash and $state at beginning of .wav
-    000.$hash.$state.wav
-    -- file contains the state at the end of the .wav, cached in $stateHash
-    000.$hash.$state.state.$stateHash
-
-    001.$hash.$state.wav -- $state == previous $stateHash
-    001.$hash.$state.state.$stateHash -- as before
--}
+    go _ _ [] = Right ([], ([], ""))
 
 getFilename :: FilePath -> IORef.IORef State -> (Int, Note.Hash)
     -> IO FilePath
@@ -108,19 +102,42 @@ getFilename outputDir stateRef (i, hash) = do
     -- sketchy, but it works now and it is non-copying.
     fname `DeepSeq.deepseq` return fname
 
-writeState :: FilePath -> IORef.IORef State -> FilePath -> IO ()
-writeState outputDir stateRef fname = do
+{- | Write synth state to the cache.  The filename is derived from the audio
+    chunk filename, which presumably has already been written.
+
+    Each chunk writes two files:
+
+    -- $hash and $state at beginning of .wav
+    000.$hash.$state.wav
+    -- file contains the state at the end of the .wav, cached in $stateHash
+    000.$hash.$state.state.$stateHash
+
+    001.$hash.$state.wav -- $state == previous $stateHash
+    001.$hash.$state.state.$stateHash -- as before
+-}
+writeState :: IORef.IORef State -> FilePath -> IO ()
+writeState stateRef fname = do
     state@(State stateBs) <- IORef.readIORef stateRef
-    let stateHash = encodeState state
     ByteString.writeFile
-        (FilePath.replaceExtension fname (".state." <> stateHash))
+        (FilePath.replaceExtension fname (".state." <> encodeState state))
         stateBs
-    let current = outputDir </> filenameToCurrent (FilePath.takeFileName fname)
-    -- 000.wav -> cache/000.$hash.$state.wav
+
+-- | Link the audio chunk output (presumably already written) from the cache to
+-- its position in the output sequence.
+--
+-- > 000.wav -> cache/000.$hash.$state.wav
+linkOutput :: FilePath -> FilePath -> IO ()
+linkOutput outputDir fname = do
+    let current = outputDir </> filenameToOutput (FilePath.takeFileName fname)
     -- Atomically replace the old link, if any.
     Directory.createFileLink (cacheDir </> FilePath.takeFileName fname)
         (current <> ".tmp")
     Directory.renameFile (current <> ".tmp") current
+
+filenameToOutput :: FilePath -> FilePath
+filenameToOutput fname = case Seq.split "." fname of
+    [num, _hash, _state, "wav"] -> num <> ".wav"
+    _ -> fname
 
 -- | 000.$hash.$state.wav
 filenameOf :: Int -> Note.Hash -> State -> FilePath
@@ -133,11 +150,6 @@ filenameOf2 i hash encodedState =
         [ zeroPad 3 i
         , ByteString.Char8.pack $ Note.encodeHash hash
         ]) <> "." <> encodedState <> ".wav"
-
-filenameToCurrent :: FilePath -> FilePath
-filenameToCurrent fname = case Seq.split "." fname of
-    [num, _hash, _state, "wav"] -> num <> ".wav"
-    _ -> fname
 
 -- | 'Num.zeroPad' for ByteString.
 zeroPad :: Show a => Int -> a -> ByteString.ByteString

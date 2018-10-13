@@ -1819,9 +1819,10 @@ synth: im:
     - What about writing play_cache in rust?  Just for fun I guess, though if
       it gains semi-sampler features then I'll wind up with more logic.  But
       I do need to bind to libsamplerate and libsndfile.
-    - save cache as flac?  Since I use libsndfile I think it should Just Work.
+    / save cache as flac?  Since I use libsndfile I think it should Just Work.
       . probably afplay stops working though, because Apple.  But libsndfile
         maybe comes with a demo player?
+      . flac doesn't support float samples, so nevermind
     - I should use under_scores for all C++, currently play_cache is camelCase.
       . Actually it's kind of forced by the VST interface, which is camelCase.
       . Of course I control that too, so I could change Synth/vst2/* to
@@ -2154,9 +2155,9 @@ synth: im:
             /= [Note { start = 3s ..}
           . I have to remove Playings more eagerly.
       - it sounds like the attack of the first note is cut off?
-      - disable track and re-enable caches as intended, but doesn't relink
+        . It's not in the audio, so it must be play_cache.
+      * disable track and re-enable caches as intended, but doesn't relink
         the audio.
-      - toggling between two notes doesn't reuse the cache.
 
       * wayang nns don't match up with Derive.Scale.Wayang, measure to see
         what the actual values are.  Again.

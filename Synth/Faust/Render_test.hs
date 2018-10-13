@@ -61,16 +61,16 @@ test_write_incremental = do
             . Checkpoint.noteHashes (Render._chunkSize config)
             . map Render.toSpan
     -- Test skipCheckpoints directly.
-    (skippedHashes, state) <- skipCheckpoints newNotes
-    equal_on (fmap fst . Seq.head) skippedHashes (Just 2)
+    (_, remainingHashes, state) <- skipCheckpoints newNotes
+    equal_on (fmap fst . Seq.head) remainingHashes (Just 2)
     equal ((/= Checkpoint.State mempty) <$> state) (Just True)
 
     -- change only last note: only 3rd sample should rerender, but contents
     -- should be the same.
     io_equal (write newNotes) (Right (1, 3))
 
-    (skippedHashes, _) <- skipCheckpoints newNotes
-    equal skippedHashes []
+    (_, remainingHashes, _) <- skipCheckpoints newNotes
+    equal remainingHashes []
 
     -- Only 1 was rerendered, so now there are 4.
     wavs <- listWavs (dir </> Checkpoint.cacheDir)
@@ -83,8 +83,8 @@ test_write_incremental = do
     -- Switched back to the old ones, nothing new should render.
     io_equal (write oldNotes) (Right (0, 3))
 
-    (skippedHashes, state) <- skipCheckpoints oldNotes
-    equal skippedHashes []
+    (_, remainingHashes, state) <- skipCheckpoints oldNotes
+    equal remainingHashes []
     equal state Nothing
     -- Should have rendered 0 more files, since Render.renderPatch should exit
     -- immediately, due to start >= end.

@@ -41,23 +41,24 @@ write :: Resample.Quality -> FilePath -> [Sample.Note]
     -> IO (Either Error (Int, Int))
 write = write_ (Audio.Frame Config.checkpointSize)
 
+-- TODO lots of this is duplicated with Faust.Render.write, factor out the
+-- repeated parts.
 write_ :: Audio.Frame -> Resample.Quality -> FilePath
     -> [Sample.Note] -> IO (Either Error (Int, Int))
 write_ chunkSize quality outputDir notes = Exception.handle handle $ do
     let allHashes = Checkpoint.noteHashes chunkSize (map toSpan notes)
-    Debug.tracepM "overlap" $ map (map snd) $
-        Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
-        Seq.key_on Checkpoint._hash $ map toSpan notes
-    (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
-    let skipped = length allHashes - length hashes
+    -- Debug.tracepM "overlap" $ map (map snd) $
+    --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
+    --     Seq.key_on Checkpoint._hash $ map toSpan notes
+    (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
     let start = case hashes of
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
             _ -> 0
-    Log.debug $ "skipped "
-        <> pretty (take (length allHashes - length hashes) allHashes)
+    Log.debug $ "skipped " <> pretty skipped
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
+    mapM_ (Checkpoint.linkOutput outputDir) skipped
     case maybe (Right []) unserializeStates mbState of
         _ | null hashes -> return $ Right (0, length allHashes)
         Left err -> return $ Left $
@@ -69,12 +70,14 @@ write_ chunkSize quality outputDir notes = Exception.handle handle $ do
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.writeCheckpoints chunkSize
                     (Checkpoint.getFilename outputDir stateRef)
-                    (Checkpoint.writeState outputDir stateRef)
+                    (\fn -> Checkpoint.writeState stateRef fn
+                        >> Checkpoint.linkOutput outputDir fn)
                     AUtil.outputFormat (Checkpoint.extendHashes hashes) $
                 render chunkSize quality states notifyState
                     (dropUntil (\_ n -> Sample.end n > start) notes)
                     (AUtil.toFrame start)
-            return $ second (\written -> (written, written + skipped)) result
+            return $ second (\written -> (written, written + length skipped))
+                result
     where
     -- TODO surely there are other exceptions.  Or I could catch all non-async.
     handle (Audio.Exception err) = return $ Left err

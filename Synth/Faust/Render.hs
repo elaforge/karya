@@ -16,6 +16,7 @@ import qualified Streaming.Prelude as S
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.CallStack as CallStack
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Perform.RealTime as RealTime
@@ -43,23 +44,29 @@ write_ :: Config -> FilePath -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
 write_ config outputDir patch notes = do
     let allHashes = Checkpoint.noteHashes chunkSize (map toSpan notes)
-    (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
+    (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
     let notifyState = IORef.writeIORef stateRef
     let start = case hashes of
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
             _ -> 0
-    let skipped = length allHashes - length hashes
+    Log.debug $ "skipped " <> pretty skipped
+        <> ", resume at " <> pretty (take 1 hashes)
+        <> " state: " <> pretty mbState
+        <> " start: " <> pretty start
+    mapM_ (Checkpoint.linkOutput outputDir) skipped
     if null hashes
         then return (Right (0, length allHashes))
         else do
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.writeCheckpoints chunkSize
                     (Checkpoint.getFilename outputDir stateRef)
-                    (Checkpoint.writeState outputDir stateRef)
+                    (\fn -> Checkpoint.writeState stateRef fn
+                        >> Checkpoint.linkOutput outputDir fn)
                     AUtil.outputFormat (Checkpoint.extendHashes hashes) $
                 renderPatch patch config mbState notifyState notes start
-            return $ second (\written -> (written, written + skipped)) result
+            return $ second (\written -> (written, written + length skipped))
+                result
     where
     chunkSize = _chunkSize config
 
