@@ -36,6 +36,7 @@ library
         async,
         attoparsec,
         base >=4.6,
+        base64-bytestring,
         binary,
         bytestring,
         c-storable,

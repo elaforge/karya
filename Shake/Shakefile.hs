@@ -103,6 +103,7 @@ basicPackages = concat
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , [("aeson", ">=1.1.0.0")] -- serialize and unserialize log msgs
     , w "med-module" -- for Cmd.Load.Med
+    , w "base64-bytestring" -- for hashes in incremental rendering
 
     , w "ghc-events"
     ]
@@ -114,7 +115,6 @@ synthPackages = concat
     [ w "hsndfile hsndfile-vector"
     , w "resourcet"
     , w "streaming"
-    , w "base64-bytestring" -- for hashes in incremental rendering
     ]
     where w = map (\p -> (p, "")) . words
 
