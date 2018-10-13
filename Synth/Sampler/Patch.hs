@@ -3,8 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Patch where
+import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Instrument.Common as Common
@@ -18,8 +21,6 @@ import qualified Synth.Shared.Signal as Signal
 import Global
 import Synth.Types
 
-
-type Error = Text
 
 db :: FilePath -> [Patch] -> Db
 db rootDir patches = Db
@@ -40,7 +41,7 @@ data Patch = Patch {
     , _dir :: FilePath
     -- | Find a sample.  Returns (newDuration, sample) since the decay time
     -- might extend the duration.
-    , _convert :: Note.Note -> Either Error (RealTime, Sample.Sample)
+    , _convert :: Note.Note -> ConvertM (RealTime, Sample.Sample)
     -- | Karya configuration.
     --
     -- Putting code here means that the sampler has to link in a large portion
@@ -71,3 +72,13 @@ simple name filename sampleNn = Patch
         , patch_flags = mempty
         }
     }
+
+type ConvertM a = Log.LogT (Except.ExceptT Error Identity.Identity) a
+type Error = Text
+
+convert :: Patch -> Note.Note
+    -> Either Error ((RealTime, Sample.Sample), [Log.Msg])
+convert note = runConvert . _convert note
+
+runConvert :: ConvertM a -> Either Error (a, [Log.Msg])
+runConvert = Identity.runIdentity . Except.runExceptT . Log.run

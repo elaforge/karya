@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Patch.Reyong (patches) where
+import qualified Control.Monad.Except as Except
+
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -50,12 +52,12 @@ attributeMap = Common.attribute_map
 
 -- * convert
 
-convert :: Note.Note -> Either Text (RealTime, Sample.Sample)
+convert :: Note.Note -> Patch.ConvertM (RealTime, Sample.Sample)
 convert note = do
     let articulation = convertArticulation $ Note.attributes note
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
             Note.initial Control.dynamic note
-    Left "reyong incomplete"
+    Except.throwError "reyong incomplete"
 
 {-
     45-1-31-cek+{closed,open}+v{1..6}.wav

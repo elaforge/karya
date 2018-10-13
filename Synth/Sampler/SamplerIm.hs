@@ -50,25 +50,29 @@ process db quality notesFilename notes = do
         Nothing -> Log.warn $ "patch not found: " <> patch
         Just patch -> by Note.instrument notes $ \(inst, notes) ->
             realize quality notesFilename inst
-                =<< mapM (uncurry makeNote) (convert db patch notes)
+                =<< mapM makeNote (convert db patch notes)
     where
     by key xs = Async.forConcurrently_ (Seq.keyed_group_sort key xs)
     get patch = Map.lookup patch (Patch._patches db)
 
 convert :: Patch.Db -> Patch.Patch -> [Note.Note]
-    -> [(Either Error Sample.Sample, Note.Note)]
+    -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]
 convert db patch notes =
-    map update (Seq.key_on (Patch._convert patch) notes)
+    map update (Seq.key_on (Patch.convert patch) notes)
     where
-    update (Right (dur, sample), note) =
+    update (Right ((dur, sample), logs), note) =
         ( Right $ Sample.modifyFilename (patchDir</>) sample
+        , logs
         , note { Note.duration = dur }
         )
-    update (Left err, note) = (Left err, note)
+    update (Left err, note) = (Left err, [], note)
     patchDir = Patch._rootDir db </> Patch._dir patch
 
-makeNote :: Either Error Sample.Sample -> Note.Note -> IO Sample.Note
-makeNote errSample note = do
+-- TODO do this incrementally?  A stream?
+makeNote :: (Either Error Sample.Sample, [Log.Msg], Note.Note)
+    -> IO Sample.Note
+makeNote (errSample, logs, note) = do
+    mapM_ Log.write logs
     -- It's important to get an accurate duration if I can, because that
     -- determines overlap, which affects caching.
     mbDur <- case errSample of

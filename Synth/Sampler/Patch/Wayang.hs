@@ -18,6 +18,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
+import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -108,7 +109,7 @@ verifyFilenames = filterM (fmap not . exists) allFilenames
     it affects overlap calculation.
 -}
 convert :: Instrument -> Tuning -> Note.Note
-    -> Either Text (RealTime, Sample.Sample)
+    -> Patch.ConvertM (RealTime, Sample.Sample)
 convert instrument tuning note = do
     let articulation = convertArticulation $ Note.attributes note
     let (dyn, scale) = convertDynamic $ fromMaybe 0 $
@@ -117,11 +118,12 @@ convert instrument tuning note = do
         then Right <$> tryJust "no pitch" (Note.initialPitch note)
         else return $ Left $ Pitch.Note (Note.element note)
     (dyn, scale) <- pure $ workaround instrument tuning articulation dyn scale
-    (filename, noteNn, sampleNn) <- toFilename instrument tuning articulation
+    (filename, noteNn, sampleNn) <- tryRight $
+        toFilename instrument tuning articulation
         symPitch dyn (convertVariation note)
-    -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
-    --     <> pretty ((dyn, scale), (symPitch, sampleNn), convertVariation note)
-    --     <> ": " <> txt filename
+    Log.debug $ "note at " <> pretty (Note.start note) <> ": "
+        <> pretty ((dyn, scale), (symPitch, sampleNn), convertVariation note)
+        <> ": " <> txt filename
     let dynVal = Num.scale dynFactor 1 scale
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
