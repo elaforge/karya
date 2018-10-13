@@ -65,9 +65,18 @@ applyEnvelope start sig
     | Just val <- Signal.constant_val_from start sig =
         if ApproxEq.eq 0.01 val 1 then id
             else Audio.gain (AUtil.dbToLinear (Num.d2f val))
-    | otherwise = AUtil.volume $ Audio.linear $
+    | otherwise = AUtil.volume $ clipEnd $ Audio.linear $
+        -- Debug.tracep "env" $
         map (first (RealTime.to_seconds . subtract start)) $
         Signal.clip_before_pairs start sig
+    where
+    -- If the envelope ends on a 0, I can clip the sample short.  Not just for
+    -- performance, but because checkpoints rely on the note durations being
+    -- accurate.
+    clipEnd = maybe id (Audio.take . Audio.Seconds . RealTime.to_seconds) mbEnd
+    mbEnd = case Signal.last sig of
+        Just (x, 0) -> Just $ x - start
+        _ -> Nothing
 
 -- * duration
 

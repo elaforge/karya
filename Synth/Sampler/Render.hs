@@ -5,10 +5,13 @@
 {-# LANGUAGE TypeApplications, DataKinds #-}
 -- | Render 'Sample.Note's down to audio.
 module Synth.Sampler.Render where
+import qualified Control.Exception as Exception
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Trans.Resource as Resource
+
 import qualified Data.IORef as IORef
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 
 import qualified Streaming.Prelude as S
@@ -16,6 +19,7 @@ import qualified Streaming.Prelude as S
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -39,22 +43,29 @@ write = write_ (Audio.Frame Config.checkpointSize)
 
 write_ :: Audio.Frame -> Resample.Quality -> FilePath
     -> [Sample.Note] -> IO (Either Error (Int, Int))
-write_ chunkSize quality outputDir notes = do
+write_ chunkSize quality outputDir notes = Exception.handle handle $ do
     let allHashes = Checkpoint.noteHashes chunkSize (map toSpan notes)
+    Debug.tracepM "overlap" $ map (map snd) $
+        Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
+        Seq.key_on Checkpoint._hash $ map toSpan notes
     (hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
-    -- Debug.tracepM "skipped: hashes, state"
-    --     (take (length allHashes - length hashes) allHashes, hashes, mbState)
-    stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
-    let notifyState = IORef.writeIORef stateRef
+    let skipped = length allHashes - length hashes
     let start = case hashes of
             (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
             _ -> 0
-    let skipped = length allHashes - length hashes
+    Log.debug $ "skipped "
+        <> pretty (take (length allHashes - length hashes) allHashes)
+        <> ", resume at " <> pretty (take 1 hashes)
+        <> " state: " <> pretty mbState
+        <> " start: " <> pretty start
     case maybe (Right []) unserializeStates mbState of
         _ | null hashes -> return $ Right (0, length allHashes)
         Left err -> return $ Left $
             "unserializing " <> pretty mbState <> ": " <> err
         Right states -> do
+            stateRef <- IORef.newIORef $
+                fromMaybe (Checkpoint.State mempty) mbState
+            let notifyState = IORef.writeIORef stateRef
             result <- AUtil.catchSndfile $ Resource.runResourceT $
                 Audio.File.writeCheckpoints chunkSize
                     (Checkpoint.getFilename outputDir stateRef)
@@ -64,6 +75,9 @@ write_ chunkSize quality outputDir notes = do
                     (dropUntil (\_ n -> Sample.end n > start) notes)
                     (AUtil.toFrame start)
             return $ second (\written -> (written, written + skipped)) result
+    where
+    -- TODO surely there are other exceptions.  Or I could catch all non-async.
+    handle (Audio.Exception err) = return $ Left err
 
 toSpan :: Sample.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
@@ -74,13 +88,13 @@ toSpan note = Checkpoint.Span
 
 -- | A currently playing sample.
 data Playing = Playing {
-    _noteHash :: Note.Hash
+    _noteHash :: !Note.Hash
     , _getState :: IO (Maybe Resample.SavedState)
-    , _audio :: Audio
+    , _audio :: !Audio
     }
 
 instance Pretty Playing where
-    pretty = ("Playing:"<>) . pretty . _noteHash
+    pretty p = "Playing:" <> "(" <> pretty (_noteHash p) <> ")"
 
 failedPlaying :: Sample.Note -> Playing
 failedPlaying note = Playing
@@ -120,7 +134,11 @@ render chunkSize quality states notifyState notes start = Audio.Audio $ do
     renderChunk now playing startingNotes noFuture = do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) startingNotes
+        Debug.tracepM "playing, starting"
+            (AUtil.toSeconds now, playing, starting)
         (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
+        Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
+        -- Record playing states for the start of the next chunk.
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
         Audio.assert (all ((<=chunkSize) . AUtil.chunkFrames2) chunks) $
@@ -146,20 +164,25 @@ render chunkSize quality states notifyState notes start = Audio.Audio $ do
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
 pull :: Audio.Frame -> [Playing]
     -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
-pull chunkSize = fmap (first (filter (not . V.null)) . unzip) . mapMaybeM get
+pull chunkSize = fmap (trim . unzip) . mapM get
     where
+    trim (chunks, playing) =
+        (filter (not . V.null) chunks, Maybe.catMaybes playing)
     get playing = do
-        (chunks, audio) <- Audio.takeFramesGE chunkSize (_audio playing)
-        -- Debug.tracepM "pull" chunks
-        return $ if null chunks
-            then Nothing
-            else Just (mconcat chunks, playing { _audio = audio })
+        (chunk, audio) <- first mconcat <$>
+            Audio.takeFramesGE chunkSize (_audio playing)
+        return
+            ( chunk
+            , if AUtil.chunkFrames2 chunk < chunkSize
+                then Nothing else Just (playing { _audio = audio })
+            )
 
 resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -> [Maybe Resample.SavedState] -> [Sample.Note] -> IO [Playing]
 resumeSamples now quality chunkSize states notes = do
     Audio.assert (length states == length notes) $
-        "len states /= len notes: " <> pretty states <> " /= " <> pretty notes
+        "at " <> pretty now <> ": len states /= len notes: "
+        <> pretty states <> " /= " <> pretty notes
     mapM (uncurry (startSample now quality chunkSize . Just))
         (zip states (Seq.sort_on Sample.hash notes))
 
@@ -172,7 +195,9 @@ startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -- there's no resampler state.
     -> Sample.Note -> IO Playing
 startSample now quality chunkSize mbMbState note = case Sample.sample note of
-    Left err -> Log.warn err >> return (failedPlaying note)
+    Left err -> do
+        Log.warn $ pretty note <> ": " <> err
+        return (failedPlaying note)
     Right sample -> do
         sampleStateRef <- IORef.newIORef Nothing
         let config mbState = Resample.Config

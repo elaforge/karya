@@ -48,6 +48,9 @@ test_groupOverlapping = do
     equal (f 0 2 [(1, 2)]) [[(1, 2)], [(1, 2)]]
     equal (f 1 2 [(1, 2)]) [[(1, 2)]]
     equal (f 0 1 [(0, 3), (1, 1)]) [[(0, 3)], [(0, 3), (1, 1)], [(0, 3)]]
+    -- this is the Checkpoint.groupOverlapping haddock example
+    equal (f 0 2 [(1, 2), (2, 1), (3, 2), (4, 1)])
+        [[(1, 2)], [(1, 2), (2, 1), (3, 2)], [(3, 2), (4, 1)]]
 
 mkSpan :: (RealTime, RealTime) -> Checkpoint.Span
 mkSpan (s, d) = Checkpoint.Span

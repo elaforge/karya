@@ -173,12 +173,27 @@ data Span = Span {
     , _hash :: Note.Hash
     } deriving (Show)
 
+instance Pretty Span where
+    pretty (Span start dur hash) = pretty start <> "+" <> pretty dur
+        <> "(" <> pretty hash <> ")"
+
 hashOverlapping :: RealTime -> RealTime -> [Span] -> [Note.Hash]
 hashOverlapping start size =
     map (mconcat . map fst) . groupOverlapping start size
     . Seq.key_on _hash
     -- Pair each Note with its Hash, then group Notes and combine the Hashes.
 
+
+{- | Group all Spans that overlap the given range.  So:
+
+    > 0   1   2   3   4   5   6   7   8
+    > |=======|=======|=======|
+    >     a------
+    >         b---c-----
+    >                  d---
+
+    Should be: [[a], [a, b, c], [c, d]]
+-}
 groupOverlapping :: RealTime -> RealTime -> [(a, Span)] -> [[(a, Span)]]
 groupOverlapping start size = go (Seq.range_ start size)
     -- Use Seq.range_ instead of successive addition to avoid accumulating
@@ -191,13 +206,6 @@ groupOverlapping start size = go (Seq.range_ start size)
         where (overlapping, rest) = splitOverlapping t1 t2 spans
     go _ _ = []
 
-{-
-    0   1   2   3   4   5   6   7   8
-    +---
-        +-------------------
-            +---
-                    +---
--}
 splitOverlapping :: RealTime -> RealTime -> [(a, Span)]
     -> ([(a, Span)], [(a, Span)])
 splitOverlapping start end spans = (overlapping, overlapping ++ rest)
