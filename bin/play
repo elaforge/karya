@@ -1,0 +1,8 @@
+#!/bin/zsh
+# Extend afplay to play multiple files.  Sophisticated!
+
+trap 'echo next' INT
+for f in "$@"; do
+    echo $f
+    afplay $f
+done
