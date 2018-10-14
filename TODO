@@ -2156,6 +2156,10 @@ synth: im:
           . I have to remove Playings more eagerly.
       - it sounds like the attack of the first note is cut off?
         . It's not in the audio, so it must be play_cache.
+        . play_cache claims start at '000.wav' + 0
+        . Probably due to the load thread having to fill the ringbuffer.
+        . I think the only real way around this is to have play wait for
+          a fraction of a second.
       * disable track and re-enable caches as intended, but doesn't relink
         the audio.
 
@@ -2185,6 +2189,10 @@ synth: im:
           its original tuning, then you can ask for that.  This is basically
           just the *wayang-pemade-umbang idea, except that the instrument
           somehow brings it into scope.
+      * every single "random" number is divisible by 8.  Not by 16.
+        . Probably I don't have enough random bits, and I multiply by 8.
+      - Do dynamics.  Wayang is normalized, so they have to be absolute.
+        . create test scores to check for smooth transitions on each note.
     guzheng:
       . Everything rings except when explicitly muted.
 

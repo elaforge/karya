@@ -45,6 +45,9 @@ import Global
 import Synth.Types
 
 
+-- sample changes:
+-- cut silence from pemade/umbang/normal/88-1-31-open{1,2,3}.wav
+
 patches :: [Patch.Patch]
 patches =
     map make
@@ -166,7 +169,7 @@ convertDynamic y = find 0 (Num.clamp 0 127 (round (y * 127))) rangeDynamics
     rangeDynamics = Seq.key_on (snd . dynamicRange) enumAll
 
 convertVariation :: Note.Note -> Variation
-convertVariation = maybe 0 floor . Note.initial Control.variation
+convertVariation = fromMaybe 0 . Note.initial Control.variation
 
 -- * toFilename
 
@@ -181,7 +184,9 @@ convertVariation = maybe 0 floor . Note.initial Control.variation
     > open starts at Key.f4 65
 
     TODO The complicated encoding is leftover kontakt nonsense.  I could rename
-    to $symPitch-$dyn-$articulation-$var.flac.
+    to $symPitch-$dyn-$articulation-$var.flac.  On the other hand, it means I
+    can easily map back to the kontakt instrument, though it would be easier
+    without the ncw nonsense.
 -}
 toFilename :: Instrument -> Tuning -> Articulation
     -> Either Pitch.Note Pitch.NoteNumber -> Dynamic -> Variation
@@ -206,7 +211,7 @@ toFilename instrument tuning articulation symPitch dyn variation = do
         [show sampleKey, show lowVel, show highVel, group]
     (lowVel, highVel) = dynamicRange dyn
     group = articulationFile articulation
-        ++ show (variation `mod` variationsOf articulation + 1)
+        ++ show (pickVariation articulation variation)
 
 allFilenames :: [FilePath]
 allFilenames = map fst3 $ Either.rights
@@ -235,6 +240,10 @@ articulationFile = \case
     Calung -> "calung"
     CalungMute -> "calung+mute"
 
+pickVariation :: Articulation -> Variation -> Int
+pickVariation articulation var =
+    round (var * (variationsOf articulation - 1)) + 1
+
 variationsOf :: Articulation -> Variation
 variationsOf = \case
     Mute -> 8
@@ -254,7 +263,8 @@ data Dynamic = PP | MP | MF | FF
 data Articulation = Mute | LooseMute | Open | CalungMute | Calung
     deriving (Eq, Ord, Enum, Bounded, Show)
 
-type Variation = Int
+-- | From 0 to 1.  Multiply to pick the appropriate variation.
+type Variation = Double
 
 instance Pretty Dynamic where pretty = showt
 

@@ -452,6 +452,8 @@ instance Random Int where
     randoms = _make_randoms Pure64.randomInt
     randoms_in low high = map (Num.restrict low high) <$> randoms
 
+-- | Get a random Double or Int.  Ints will lose precision if converted to
+-- double!
 random :: Random a => Derive.Deriver a
 random = head <$> randoms
 

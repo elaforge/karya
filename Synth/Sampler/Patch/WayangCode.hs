@@ -66,5 +66,4 @@ with_symbolic_pitch args deriver = do
 with_variation :: Derive.Deriver a -> Derive.Deriver a
 with_variation deriver = do
     n <- Call.random
-    Derive.with_constant_control Controls.variation (fromIntegral (n :: Int))
-        deriver
+    Derive.with_constant_control Controls.variation n deriver
