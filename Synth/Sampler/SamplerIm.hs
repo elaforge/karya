@@ -5,11 +5,15 @@
 -- | Offline sampler.
 module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
+import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.File as File
 import qualified Util.Log as Log
@@ -18,6 +22,7 @@ import qualified Util.Thread as Thread
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Render as Render
 import qualified Synth.Sampler.RenderSample as RenderSample
@@ -35,6 +40,9 @@ main = do
             | "--fast" `elem` args = Resample.SincFastest
             | otherwise = Resample.SincBestQuality
     case filter (/="--fast") args of
+        ["--check"] -> do
+            let (reference, samples) = Wayang.checkStarts
+            mapM_ (renderStarts . (++[reference])) samples
         [notesFilename] -> do
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
@@ -102,3 +110,36 @@ realize quality notesFilename instrument notes = do
             Log.notice $ instrument <> " " <> showt rendered <> "/"
                 <> showt total <> " chunks: " <> txt output
                 <> " (" <> elapsed <> ")"
+
+-- * one off testing
+
+renderStarts :: [Sample.Sample] -> IO ()
+renderStarts samples = do
+    putStrLn $ "==> " <> filename
+    exist <- mapM (Directory.doesFileExist . (patchDir</>) . Sample.filename)
+        samples
+    if all id exist
+        then renderDirect filename 1 $
+            map (Sample.modifyFilename (patchDir</>)) samples
+        else putStrLn "*** missing"
+    where
+    filename = "check" </> replace '/' '-'
+            (FilePath.dropExtension (Sample.filename (head samples)))
+            ++ ".wav"
+    patchDir = "../data/sampler/wayang"
+    replace a b = map (\c -> if c == a then b else c)
+
+renderDirect :: FilePath -> Audio.Seconds -> [Sample.Sample] -> IO ()
+renderDirect filename dur samples =
+    Resource.runResourceT $
+    Audio.File.write AUtil.outputFormat filename $
+        Audio.take (Audio.Seconds dur) $ Audio.mix $
+        map ((Audio.Frames 0,) . RenderSample.render config 0) samples
+    where
+    config = Resample.Config {
+        _quality = Resample.SincFastest
+        , _state = Nothing
+        , _notifyState = const $ return ()
+        , _chunkSize = Audio.Frame Config.checkpointSize
+        , _now = 0
+        }

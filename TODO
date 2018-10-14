@@ -2191,8 +2191,44 @@ synth: im:
           somehow brings it into scope.
       * every single "random" number is divisible by 8.  Not by 16.
         . Probably I don't have enough random bits, and I multiply by 8.
-      - Do dynamics.  Wayang is normalized, so they have to be absolute.
+      * Do dynamics.  Wayang is normalized, so they have to be absolute.
         . create test scores to check for smooth transitions on each note.
+      * I think there are a bunch of samples with time at the beginning, how
+        to find them?
+        . The dynamic ranges tend to get them.
+        . How about play a bunch at once?
+        pemade umbang:
+          * pemade-umbang-calung-17-1-31-calung+mute1.wav
+          * pemade-umbang-calung-69-1-31-calung1.wav
+          * pemade-umbang-calung-69-32-64-calung1.wav
+          * pemade-umbang-calung-69-65-108-calung1.wav
+          . pemade-umbang-calung-71-1-31-calung1.wav
+          . pemade-umbang-calung-77-1-31-calung1.wav
+          * pemade-umbang-normal-65-1-31-open1.wav
+          * pemade-umbang-normal-69-32-64-open1.wav
+          . pemade-umbang-normal-72-1-31-open1.wav
+          . pemade-umbang-normal-77-1-31-open1.wav
+          * pemade-umbang-normal-83-1-31-open1.wav
+        pemade isep:
+          . pemade-isep-calung-23-1-31-calung+mute1.wav
+          * pemade-isep-calung-65-1-31-calung1.wav
+          * pemade-isep-normal-71-1-31-open1.wav
+          * pemade-isep-normal-76-1-31-open1.wav
+          * pemade-isep-normal-77-1-31-open1.wav
+          * pemade-isep-normal-81-1-31-open1.wav
+          * pemade-isep-normal-81-32-64-open1.wav
+        kantilan umbang:
+          / kantilan-umbang-calung-52-109-127-calung+mute1.wav
+          * kantilan-umbang-calung-77-1-31-calung1.wav
+          * kantilan-umbang-calung-81-65-108-calung1.wav
+          . kantilan-umbang-calung-93-1-31-calung1.wav
+          . kantilan-umbang-normal-100-1-31-open1.wav
+          . kantilan-umbang-normal-45-1-31-loose1.wav
+        kantilan isep:
+          . kantilan-isep-calung-45-1-31-calung+mute1.wav
+          * kantilan-isep-normal-95-109-127-open1.wav
+          * kantilan-isep-normal-95-32-64-open1.wav
+          * kantilan-isep-normal-95-65-108-open1.wav
     guzheng:
       . Everything rings except when explicitly muted.
 

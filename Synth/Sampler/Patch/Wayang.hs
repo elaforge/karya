@@ -6,7 +6,7 @@
 module Synth.Sampler.Patch.Wayang (
     patches
     -- * interactive
-    , verifyFilenames
+    , checkFilenames, checkStarts
     , showPitchTable
 ) where
 import qualified Data.Char as Char
@@ -91,15 +91,53 @@ attributeMap = Common.attribute_map
     mute = Attrs.mute
     calung = Attrs.attr "calung"
 
-verifyFilenames :: IO [FilePath]
-verifyFilenames = filterM (fmap not . exists) allFilenames
+-- * checks
+
+checkFilenames :: IO [FilePath]
+checkFilenames = filterM (fmap not . exists) allFilenames
     where exists = Directory.doesFileExist . ("../data/sampler/wayang" </>)
+
+allFilenames :: [FilePath]
+allFilenames = map fst3 $ Either.rights
+    [ toFilename instrument tuning articulation (Right nn) dyn variation
+    | instrument <- [Pemade, Kantilan]
+    , tuning <- [Umbang, Isep]
+    , articulation <- enumAll
+    , nn <- map fst $ instrumentKeys instrument tuning articulation
+    , dyn <- enumAll
+    , variation <- [0 .. variationsOf articulation - 1]
+    ]
+    where fst3 (a, _, _) = a
+
+
+checkStarts :: (Sample.Sample, [[Sample.Sample]])
+checkStarts = (makeSample reference,)
+    [ map makeSample $ makeFilenames instrument tuning articulation pitch dyn
+    | instrument <- [Pemade, Kantilan]
+    , tuning <- [Umbang, Isep]
+    , articulation <- enumAll
+    , pitch <- map (snd . snd) $ instrumentKeys instrument tuning articulation
+    , dyn <- enumAll
+    ]
+    where
+    Right (reference, _, _) = toFilename Pemade Umbang Mute (Left "4i") FF 0
+    makeFilenames instrument tuning articulation pitch dyn =
+        map fst3 $ Either.rights $
+        map (toFilename instrument tuning articulation (Left pitch) dyn)
+            [0 .. variationsOf articulation - 1]
+    fst3 (a, _, _) = a
+    makeSample fname = Sample.Sample
+        { filename = fname
+        , offset = 0
+        , envelope = Signal.from_pairs
+            [(0, 1), (0 + dur, 1), (0 + dur + muteTime, 0)]
+        , ratio = Signal.constant 1
+        }
+    dur = 1
 
 -- * convert
 
-{- |
-    Convert Note.Note into Sample.Sample.
-    Must be deterministic, which means the Variation has to be in the Note.
+{- | Convert Note.Note into Sample.Sample.
 
     * map Note.instrument to (Instrument, Tuning)
     * map attrs to Articulation
@@ -115,19 +153,21 @@ convert :: Instrument -> Tuning -> Note.Note
     -> Patch.ConvertM (RealTime, Sample.Sample)
 convert instrument tuning note = do
     let articulation = convertArticulation $ Note.attributes note
-    let (dyn, scale) = convertDynamic $ fromMaybe 0 $
-            Note.initial Control.dynamic note
+    let noteDyn = fromMaybe 0 $ Note.initial Control.dynamic note
+    let (dyn, scale) = convertDynamic noteDyn
     symPitch <- if Text.null (Note.element note)
         then Right <$> tryJust "no pitch" (Note.initialPitch note)
         else return $ Left $ Pitch.Note (Note.element note)
     (dyn, scale) <- pure $ workaround instrument tuning articulation dyn scale
     (filename, noteNn, sampleNn) <- tryRight $
         toFilename instrument tuning articulation
-        symPitch dyn (convertVariation note)
+        symPitch dyn (convertVariation articulation note)
     Log.debug $ "note at " <> pretty (Note.start note) <> ": "
-        <> pretty ((dyn, scale), (symPitch, sampleNn), convertVariation note)
+        <> pretty ((dyn, scale), (symPitch, sampleNn),
+            convertVariation articulation note)
         <> ": " <> txt filename
-    let dynVal = Num.scale dynFactor 1 scale
+    -- let dynVal = Num.scale dynFactor 1 scale
+    let dynVal = Num.scale minDyn 1 noteDyn
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
@@ -149,6 +189,9 @@ workaround _inst _tuning _articulation dyn scale = (dyn, scale)
 muteTime :: RealTime
 muteTime = 0.15
 
+minDyn :: Signal.Y
+minDyn = 0.5
+
 -- Since dyn signal is in dB, this is -x*96 dB.
 dynFactor :: Signal.Y
 dynFactor = 1 -- TODO adjust
@@ -168,8 +211,9 @@ convertDynamic y = find 0 (Num.clamp 0 127 (round (y * 127))) rangeDynamics
     int = fromIntegral
     rangeDynamics = Seq.key_on (snd . dynamicRange) enumAll
 
-convertVariation :: Note.Note -> Variation
-convertVariation = fromMaybe 0 . Note.initial Control.variation
+convertVariation :: Articulation -> Note.Note -> Variation
+convertVariation articulation =
+    pickVariation articulation . fromMaybe 0 . Note.initial Control.variation
 
 -- * toFilename
 
@@ -210,20 +254,7 @@ toFilename instrument tuning articulation symPitch dyn variation = do
     sampleName sampleKey = Seq.join "-"
         [show sampleKey, show lowVel, show highVel, group]
     (lowVel, highVel) = dynamicRange dyn
-    group = articulationFile articulation
-        ++ show (pickVariation articulation variation)
-
-allFilenames :: [FilePath]
-allFilenames = map fst3 $ Either.rights
-    [ toFilename instrument tuning articulation (Right nn) dyn variation
-    | instrument <- [Pemade, Kantilan]
-    , tuning <- [Umbang, Isep]
-    , articulation <- enumAll
-    , nn <- map fst $ instrumentKeys instrument tuning articulation
-    , dyn <- enumAll
-    , variation <- [0 .. variationsOf articulation - 1]
-    ]
-    where fst3 (a, _, _) = a
+    group = articulationFile articulation ++ show (variation + 1)
 
 dynamicRange :: Dynamic -> (Int, Int)
 dynamicRange = \case
@@ -240,9 +271,9 @@ articulationFile = \case
     Calung -> "calung"
     CalungMute -> "calung+mute"
 
-pickVariation :: Articulation -> Variation -> Int
+pickVariation :: Articulation -> Signal.Y -> Variation
 pickVariation articulation var =
-    round (var * (variationsOf articulation - 1)) + 1
+    round (var * fromIntegral (variationsOf articulation - 1))
 
 variationsOf :: Articulation -> Variation
 variationsOf = \case
@@ -263,8 +294,7 @@ data Dynamic = PP | MP | MF | FF
 data Articulation = Mute | LooseMute | Open | CalungMute | Calung
     deriving (Eq, Ord, Enum, Bounded, Show)
 
--- | From 0 to 1.  Multiply to pick the appropriate variation.
-type Variation = Double
+type Variation = Int
 
 instance Pretty Dynamic where pretty = showt
 
