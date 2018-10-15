@@ -157,3 +157,17 @@ test_weak = do
             , (">", [(n, 1, "weak") | (n, _) <- strength])
             ])
         ([[0.25], [0], [0]], [])
+
+-- * im
+
+test_infer_damp_simple = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks
+                "import bali.gender.im | inst=i1 | infer-damp-simple i1"
+            . UiTest.note_track
+    equal (run [(0, 1, "4c")]) ([(0, 1, "4c")], [])
+    equal (run [(0, 1, "4c"), (1, 1, "4c")]) ([(0, 2, "4c"), (1, 1, "4c")], [])
+    equal (run [(0, 1, "4c"), (1, 1, "4c"), (2, 1, "4c")])
+        ([(0, 3, "4c"), (1, 2, "4c"), (2, 1, "4c")], [])
+    equal (run [(0, 1, "4c"), (1, 1, "4d")]) ([(0, 1, "4c"), (1, 1, "4d")], [])
+    equal (run [(0, 1, "4c"), (2, 1, "4c")]) ([(0, 1, "4c"), (2, 1, "4c")], [])

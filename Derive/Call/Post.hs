@@ -31,6 +31,7 @@
 module Derive.Call.Post where
 import qualified Data.DList as DList
 import qualified Data.List as List
+import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -51,6 +52,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -185,6 +187,16 @@ emap_asc_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [Score.Event])
     -> Stream a -> Derive.Deriver (Stream Score.Event)
 emap_asc_m_ event_of f =
     fmap snd <$> emap_asc_m event_of (\() e -> (,) () <$> f e) ()
+
+-- * only
+
+-- | Only process the events that match, otherwise pass unchanged.
+only :: (a -> event) -> (event -> Bool) -> (a -> event) -> a -> event
+only event_of match f a = if match (event_of a) then f a else event_of a
+
+has_instrument :: [Score.Instrument] -> Score.Event -> Bool
+has_instrument wanted = (`Set.member` set) . Score.event_instrument
+    where set = Set.fromList wanted
 
 -- ** unthreaded state
 

@@ -34,7 +34,9 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
+
 import Global
+import Types
 
 
 library :: Library.Library
@@ -43,6 +45,7 @@ library = mconcat
         (("weak", c_weak) : ngoret_variations gender_ngoret)
     , Library.transformers
         [ ("realize-ngoret", c_realize_ngoret)
+        , ("infer-damp-simple", c_infer_damp_simple)
         ]
     ]
 
@@ -240,3 +243,48 @@ weak strength args = do
     where
     omit_threshold = 0.25
     unmute_threshold = 0.75
+
+-- * im
+
+-- ** infer damp
+
+{- |
+    Simple version:
+    - Any note immediately followed by the same pitch gets its duration
+    extended to the end of the last note with the same pitch.
+
+    Fancy version:
+    - All notes ring until explicitly damped.
+    - A gap between notes in the same hand adds a damp.  A pitch followed by a
+    different one in the same hand adds a damp to the first.
+    - The hand requires time to actually do the damp.  Adjacent pitches by 1 or
+    2 can be simultaneous.  Otherwise, you need a certain amount of time when
+    that hand is not busy damping.
+-}
+c_infer_damp_simple :: Derive.Transformer Derive.Note
+c_infer_damp_simple =
+    Derive.transformer (module_ <> "im") "infer-damp-simple" Tags.postproc
+    ("Simple gender damping. Duration is extended if the next note on the same\
+    \ hand has the same pitch and the gap is < " <> ShowVal.doc gap <> ".")
+    $ Sig.callt (Sig.required "insts" "Apply damping to these instruments.")
+    $ \insts _args ->
+        fmap $ Post.emap1_ (infer insts) . Post.nexts_by Post.hand_key
+    where
+    infer insts =
+        Post.only fst (Post.has_instrument insts) $ infer_damp_simple gap
+    -- Less than this much time before the next note of the same pitch means
+    -- extend the duration.
+    gap = 0.15
+
+infer_damp_simple :: RealTime -> (Score.Event, [Score.Event]) -> Score.Event
+infer_damp_simple gap (event, nexts)
+    | new_end > Score.event_end event =
+        Score.set_duration (new_end - Score.event_start event) event
+    | otherwise = event
+    where
+    new_end = go event nexts
+    go prev (next:nexts)
+        | Score.event_start next - Score.event_end prev <= gap
+                && Score.initial_note prev == Score.initial_note next
+            = go next nexts
+    go prev _ = Score.event_end prev

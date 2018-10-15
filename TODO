@@ -2172,7 +2172,7 @@ synth: im:
       * extend duration by decay time
       write karya side
         * set Control.variation
-        - add a wayang infer-damp similar to the reyong one
+        * add a wayang infer-damp similar to the reyong one
           . Instead of using +damp notes, just extend durations.  I can do this
             since I'm not MIDI and can have overlapping notes.
       * logical pitch: I might need separate logical and actual tuning, since
