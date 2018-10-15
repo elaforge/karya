@@ -1028,11 +1028,15 @@ data Merger =
     -- | name merge identity
     Merger !Text !(Signal.Control -> Signal.Control -> Signal.Control) !Signal.Y
     | Set -- ^ Replace the existing signal.
+    | Unset -- ^ Replace only if there is no existing signal.
+    -- TODO I thought I'd need this but I don't.  If it turns out to never be
+    -- useful I can delete it.
 
 -- It's not really a 'BaseTypes.Val', so this is a bit wrong for ShowVal.  But
 -- I want to express that this is meant to be valid syntax for the track title.
 instance ShowVal.ShowVal Merger where
     show_val Set = "set"
+    show_val Unset = "unset"
     show_val (Merger name _ _) = name
 instance Pretty Merger where pretty = ShowVal.show_val
 instance Show Merger where
@@ -1048,7 +1052,7 @@ mergers = Map.fromList $ map to_pair
     ]
     where to_pair merger = (Expr.Symbol (ShowVal.show_val merger), merger)
 
-merge_add, merge_sub, merge_mul  :: Merger
+merge_add, merge_sub, merge_mul :: Merger
 merge_add = Merger "add" Signal.sig_add 0
 merge_sub = Merger "sub" Signal.sig_subtract 0
 merge_mul = Merger "mul" Signal.sig_multiply 1

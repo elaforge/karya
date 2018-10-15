@@ -435,6 +435,7 @@ modify_with merge control end sig = do
             return $ case Score.typed_val <$> maybe_old of
                 Nothing -> sig
                 Just old -> old <> sig <> Signal.clip_before end old
+        Derive.Unset -> return sig
 
 multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
 multiply_dyn = modify_with (Derive.Merge Derive.merge_mul) Controls.dynamic

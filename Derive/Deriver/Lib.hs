@@ -340,9 +340,14 @@ delete_val key = Internal.local $ \state ->
 -- env vals.
 with_merged_numeric_val :: Merger -> Env.Key -> Signal.Y
     -> Deriver a -> Deriver a
-with_merged_numeric_val Set key val = with_val key val
-with_merged_numeric_val (Merger name merge ident) key val = Internal.localm $
-    \state -> do
+with_merged_numeric_val merger key val = case merger of
+    Set -> with_val key val
+    Unset -> \deriver -> do
+        old <- lookup_val key -- throw if not numeric
+        if (old :: Maybe Signal.Y) == Nothing
+            then with_val key val deriver
+            else deriver
+    Merger name merge ident -> Internal.localm $ \state -> do
         (typ, old) <- case Env.checked_val2 key (state_environ state) of
             Nothing -> return (Score.Untyped, ident)
             Just (Right (Score.Typed typ old)) -> return (typ, old)
@@ -495,6 +500,9 @@ lookup_control :: Score.Control
 lookup_control control = lookup_control_function control >>= \case
     Just f -> return $ Just f
     Nothing -> lookup_control_signal control >>= return . fmap signal_function
+
+is_control_set :: Score.Control -> Deriver Bool
+is_control_set = fmap Maybe.isJust . lookup_control
 
 signal_function :: Score.Typed Signal.Control
     -> (RealTime -> Score.Typed Signal.Y)
@@ -660,6 +668,8 @@ get_default_merger control = do
 merge :: Merger -> Maybe (Score.Typed Signal.Control)
     -> Score.Typed Signal.Control -> Score.Typed Signal.Control
 merge Set _ new = new
+merge Unset (Just old) _ = old
+merge Unset Nothing new = new
 merge (Merger _ merger ident) maybe_old new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (merger (Score.typed_val old) (Score.typed_val new))
@@ -670,6 +680,7 @@ merge (Merger _ merger ident) maybe_old new =
 merge_vals :: Merger -> Signal.Y -> Signal.Y -> Signal.Y
 merge_vals merger old new = case merger of
     Set -> new
+    Unset -> old
     Merger _ merge _ -> maybe new snd $ Signal.head $
         merge (Signal.constant old) (Signal.constant new)
         -- This is awkward.  Maybe the merge function should be on scalars?

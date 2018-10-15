@@ -178,6 +178,7 @@ invert_merge merge val current_val = case Map.lookup merge inverters of
         ]
     n (Derive.Merger name _ _) = name
     n Derive.Set = "set"
+    n Derive.Unset = "unset"
 
 
 -- * misc
