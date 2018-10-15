@@ -121,7 +121,7 @@ test_overlappingNotes = do
 
 
 write_ :: FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
-write_ outDir = Render.write_ chunkSize Resample.Linear outDir
+write_ outDir = Render.write_ chunkSize "inst" Resample.Linear outDir
 
 patchDir :: FilePath
 patchDir = "patch"

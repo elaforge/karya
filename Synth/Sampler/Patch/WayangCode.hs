@@ -11,7 +11,6 @@ import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
-import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
@@ -24,12 +23,9 @@ import Global
 
 
 code :: ImInst.Code
-code = ImInst.null_call note
-
-c_infer_damp :: Derive.Transformer Derive.Note
-c_infer_damp = Derive.transformer Module.instrument "infer-damp" Tags.postproc
-    "doc"
-    $ Sig.call0t $ \_args deriver -> deriver
+code = mconcat
+    [ ImInst.null_call note
+    ]
 
 note :: Derive.Generator Derive.Note
 note = DUtil.zero_duration "note"
@@ -46,14 +42,12 @@ weak_call args =
     Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
     where dur = Args.next args - Args.start args
 
-
 -- * shared
 
 -- TODO these can be shared for all sampler patches
 
 c_with_variation :: Derive.Transformer Derive.Note
-c_with_variation =
-    Derive.transformer Module.instrument "with-variation" mempty
+c_with_variation = Derive.transformer Module.instrument "with-variation" mempty
     ("Set " <> Doc.pretty Controls.variation <> " randomly.") $
     Sig.call0t $ \_args -> with_variation
 
@@ -64,6 +58,7 @@ with_symbolic_pitch args deriver = do
     Derive.with_val EnvKey.patch_element (Pitch.note_text note) deriver
 
 with_variation :: Derive.Deriver a -> Derive.Deriver a
-with_variation deriver = do
-    n <- Call.random
-    Derive.with_constant_control Controls.variation n deriver
+with_variation deriver = ifM (Derive.is_control_set Controls.variation)
+    deriver $ do
+        n <- Call.random
+        Derive.with_constant_control Controls.variation n deriver

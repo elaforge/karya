@@ -88,9 +88,13 @@ makeNote (errSample, logs, note) = do
         Right sample -> File.ignoreEnoent $
             RenderSample.predictFileDuration (Sample.ratio sample)
                 (Sample.filename sample)
+    let newDur = maybe id (min . AUtil.toSeconds) mbDur (Note.duration note)
+    when (newDur /= Note.duration note) $
+        Log.debug $ "sample " <> pretty errSample <> " dur "
+            <> pretty (Note.duration note) <> " -> " <> pretty newDur
     return $ Sample.Note
         { start = Note.start note
-        , duration = maybe id (min . AUtil.toSeconds) mbDur (Note.duration note)
+        , duration = newDur
         , hash = Note.hash note
         , sample = errSample
         }
@@ -102,7 +106,7 @@ realize quality notesFilename instrument notes = do
             (Config.imDir Config.config) notesFilename instrument
     Directory.createDirectoryIfMissing True output
     (result, elapsed) <- Thread.timeActionText $
-        Render.write quality output notes
+        Render.write instrument quality output notes
     case result of
         Left err -> Log.error $ instrument <> ": writing " <> txt output
             <> ": " <> err

@@ -37,15 +37,15 @@ import Synth.Lib.Global
 
 type Error = Text
 
-write :: Resample.Quality -> FilePath -> [Sample.Note]
+write :: Note.InstrumentName -> Resample.Quality -> FilePath -> [Sample.Note]
     -> IO (Either Error (Int, Int))
 write = write_ (Audio.Frame Config.checkpointSize)
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
 -- repeated parts.
-write_ :: Audio.Frame -> Resample.Quality -> FilePath
+write_ :: Audio.Frame -> Note.InstrumentName -> Resample.Quality -> FilePath
     -> [Sample.Note] -> IO (Either Error (Int, Int))
-write_ chunkSize quality outputDir notes = Exception.handle handle $ do
+write_ chunkSize inst quality outputDir notes = Exception.handle handle $ do
     let allHashes = Checkpoint.noteHashes chunkSize (map toSpan notes)
     -- Debug.tracepM "overlap" $ map (map snd) $
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
@@ -73,7 +73,7 @@ write_ chunkSize quality outputDir notes = Exception.handle handle $ do
                     (\fn -> Checkpoint.writeState stateRef fn
                         >> Checkpoint.linkOutput outputDir fn)
                     AUtil.outputFormat (Checkpoint.extendHashes hashes) $
-                render chunkSize quality states notifyState
+                render inst chunkSize quality states notifyState
                     (dropUntil (\_ n -> Sample.end n > start) notes)
                     (AUtil.toFrame start)
             return $ second (\written -> (written, written + length skipped))
@@ -106,10 +106,10 @@ failedPlaying note = Playing
     , _audio = mempty
     }
 
-render :: Audio.Frame -> Resample.Quality
+render :: Note.InstrumentName -> Audio.Frame -> Resample.Quality
     -> [Maybe Resample.SavedState] -> (Checkpoint.State -> IO ())
     -> [Sample.Note] -> Audio.Frame -> Audio
-render chunkSize quality states notifyState notes start = Audio.Audio $ do
+render inst chunkSize quality states notifyState notes start = Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing
     -- samples.
     let (playingNotes, startingNotes, futureNotes) =
@@ -123,6 +123,8 @@ render chunkSize quality states notifyState notes start = Audio.Audio $ do
     -- Debug.tracepM "renderChunk playing" playing
     Audio.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
+            liftIO $ Log.debug $ inst <> ": " <> showt (length playing)
+                <> " playing, " <> pretty (AUtil.toSeconds now)
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             -- If notes started in the past, they should already be 'playing'.
@@ -137,10 +139,10 @@ render chunkSize quality states notifyState notes start = Audio.Audio $ do
     renderChunk now playing startingNotes noFuture = do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) startingNotes
-        Debug.tracepM "playing, starting"
-            (AUtil.toSeconds now, playing, starting)
+        -- Debug.tracepM "playing, starting"
+        --     (AUtil.toSeconds now, playing, starting)
         (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
-        Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
+        -- Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
         -- Record playing states for the start of the next chunk.
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)

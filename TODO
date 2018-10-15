@@ -2229,6 +2229,9 @@ synth: im:
           * kantilan-isep-normal-95-109-127-open1.wav
           * kantilan-isep-normal-95-32-64-open1.wav
           * kantilan-isep-normal-95-65-108-open1.wav
+      - There's still a place for a [Score.Event] per-instrument postproc,
+        because then I can apply postproc before writing im, and I don't have
+        to pass the instrument name.
     guzheng:
       . Everything rings except when explicitly muted.
 
