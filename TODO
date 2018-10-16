@@ -2103,6 +2103,15 @@ synth: im:
       . Damping rules: +mute damp everything, all others overlap.
         . When a +mute damps an +open, it should actually damp very slightly
           before.
+      * implement convert
+      - figure out tuning
+      - separate ranges and tuning for trompong, reyong, reyong-trompong
+      - test with dynamics to find dynFactor
+      - implement infer-damp
+        . This is for low level cutoff stuff, so it takes notes with +damp
+          attrs and manages durations.
+        . Maybe a case for per-instrument postproc.
+        . Should wayang take the same approach?
     wayang:
       . Same situation as reyong, except I also want to fade out based on
         duration.
@@ -2229,9 +2238,20 @@ synth: im:
           * kantilan-isep-normal-95-109-127-open1.wav
           * kantilan-isep-normal-95-32-64-open1.wav
           * kantilan-isep-normal-95-65-108-open1.wav
+      - What should the mute protocol be?
+        . Lowest level is zero dur becomes +mute or +loose+mute.
+        . Then I want to scale dyn down so it sounds appropriate next to the
+          equivalent open stroke.
+        . Then variable mute.
+        . Then optionally turn on zero dur becomes a weak note.
+      - Variable mute, take a mute control where 1 is +mute, .75 is
+        +mute+loose, and <.5 is open note with an envelope.
       - There's still a place for a [Score.Event] per-instrument postproc,
         because then I can apply postproc before writing im, and I don't have
         to pass the instrument name.
+        . Well, it's awkward because I don't have things grouped by
+          instrument.  But since this is im-specific anyway, I can just put it
+          as a preproc on the patch.
     guzheng:
       . Everything rings except when explicitly muted.
 

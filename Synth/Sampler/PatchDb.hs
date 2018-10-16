@@ -14,8 +14,6 @@ import qualified Synth.Sampler.Patch.Reyong as Reyong
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Shared.Config as Config
 
-import Global
-
 
 db :: Patch.Db
 db = Patch.db "../data/sampler" $ concat

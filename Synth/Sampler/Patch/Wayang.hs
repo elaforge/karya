@@ -35,6 +35,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Util as Util
 import qualified Synth.Sampler.Patch.WayangCode as WayangCode
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -102,22 +103,21 @@ allFilenames = map fst3 $ Either.rights
     [ toFilename instrument tuning articulation (Right nn) dyn variation
     | instrument <- [Pemade, Kantilan]
     , tuning <- [Umbang, Isep]
-    , articulation <- enumAll
+    , articulation <- Util.enumAll
     , nn <- map fst $ instrumentKeys instrument tuning articulation
-    , dyn <- enumAll
+    , dyn <- Util.enumAll
     , variation <- [0 .. variationsOf articulation - 1]
     ]
     where fst3 (a, _, _) = a
-
 
 checkStarts :: (Sample.Sample, [[Sample.Sample]])
 checkStarts = (makeSample reference,)
     [ map makeSample $ makeFilenames instrument tuning articulation pitch dyn
     | instrument <- [Pemade, Kantilan]
     , tuning <- [Umbang, Isep]
-    , articulation <- enumAll
+    , articulation <- Util.enumAll
     , pitch <- map (snd . snd) $ instrumentKeys instrument tuning articulation
-    , dyn <- enumAll
+    , dyn <- Util.enumAll
     ]
     where
     Right (reference, _, _) = toFilename Pemade Umbang Mute (Left "4i") FF 0
@@ -152,21 +152,21 @@ checkStarts = (makeSample reference,)
 convert :: Instrument -> Tuning -> Note.Note
     -> Patch.ConvertM (RealTime, Sample.Sample)
 convert instrument tuning note = do
-    let articulation = convertArticulation $ Note.attributes note
+    let articulation = Util.articulation Open attributeMap $
+            Note.attributes note
     let noteDyn = fromMaybe 0 $ Note.initial Control.dynamic note
-    let (dyn, scale) = convertDynamic noteDyn
+    let (dyn, scale) = Util.findDynamic dynamicRange noteDyn
     symPitch <- if Text.null (Note.element note)
         then Right <$> tryJust "no pitch" (Note.initialPitch note)
         else return $ Left $ Pitch.Note (Note.element note)
     (dyn, scale) <- pure $ workaround instrument tuning articulation dyn scale
+    let var = Util.variation (variationsOf articulation) note
     (filename, noteNn, sampleNn) <- tryRight $
         toFilename instrument tuning articulation
-        symPitch dyn (convertVariation articulation note)
+        symPitch dyn var
     Log.debug $ "note at " <> pretty (Note.start note) <> ": "
-        <> pretty ((dyn, scale), (symPitch, sampleNn),
-            convertVariation articulation note)
+        <> pretty ((dyn, scale), (symPitch, sampleNn), var)
         <> ": " <> txt filename
-    -- let dynVal = Num.scale dynFactor 1 scale
     let dynVal = Num.scale minDyn 1 noteDyn
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
@@ -189,31 +189,10 @@ workaround _inst _tuning _articulation dyn scale = (dyn, scale)
 muteTime :: RealTime
 muteTime = 0.15
 
+-- | Wayang samples are normalized, so it just scales by Control.dynamic, where
+-- 0 gets this value.
 minDyn :: Signal.Y
 minDyn = 0.5
-
--- Since dyn signal is in dB, this is -x*96 dB.
-dynFactor :: Signal.Y
-dynFactor = 1 -- TODO adjust
-
-convertArticulation :: Attrs.Attributes -> Articulation
-convertArticulation = maybe Open snd . (`Common.lookup_attributes` attributeMap)
-
--- | Convert to (Dynamic, DistanceFromPrevDynamic)
-convertDynamic :: Signal.Y -> (Dynamic, Signal.Y)
-convertDynamic y = find 0 (Num.clamp 0 127 (round (y * 127))) rangeDynamics
-    where
-    find low val ((high, dyn) : rest)
-        | null rest || val < high =
-            (dyn, Num.normalize (int low) (int high) (int val))
-        | otherwise = find high val rest
-    find _ _ [] = error "empty rangeDynamics"
-    int = fromIntegral
-    rangeDynamics = Seq.key_on (snd . dynamicRange) enumAll
-
-convertVariation :: Articulation -> Note.Note -> Variation
-convertVariation articulation =
-    pickVariation articulation . fromMaybe 0 . Note.initial Control.variation
 
 -- * toFilename
 
@@ -233,7 +212,7 @@ convertVariation articulation =
     without the ncw nonsense.
 -}
 toFilename :: Instrument -> Tuning -> Articulation
-    -> Either Pitch.Note Pitch.NoteNumber -> Dynamic -> Variation
+    -> Either Pitch.Note Pitch.NoteNumber -> Dynamic -> Util.Variation
     -> Either Text (FilePath, Pitch.NoteNumber, Pitch.NoteNumber)
 toFilename instrument tuning articulation symPitch dyn variation = do
     (sampleNn, noteNn, Midi.Key sampleKey) <-
@@ -271,11 +250,7 @@ articulationFile = \case
     Calung -> "calung"
     CalungMute -> "calung+mute"
 
-pickVariation :: Articulation -> Signal.Y -> Variation
-pickVariation articulation var =
-    round (var * fromIntegral (variationsOf articulation - 1))
-
-variationsOf :: Articulation -> Variation
+variationsOf :: Articulation -> Util.Variation
 variationsOf = \case
     Mute -> 8
     LooseMute -> 8
@@ -290,13 +265,10 @@ data Tuning = Umbang | Isep deriving (Eq, Ord, Show)
 
 data Dynamic = PP | MP | MF | FF
     deriving (Eq, Ord, Enum, Bounded, Show)
+instance Pretty Dynamic where pretty = showt
 
 data Articulation = Mute | LooseMute | Open | CalungMute | Calung
     deriving (Eq, Ord, Enum, Bounded, Show)
-
-type Variation = Int
-
-instance Pretty Dynamic where pretty = showt
 
 findPitch :: Instrument -> Tuning -> Articulation
     -> Either Pitch.Note Pitch.NoteNumber
@@ -307,7 +279,7 @@ findPitch instrument tuning articulation symPitch = case symPitch of
             List.find ((==sym) . snd . snd) keys
         return (sampleNn, sampleNn, key)
     Right noteNn -> return (sampleNn, noteNn, key)
-        where (sampleNn, (key, _)) = findBelow fst noteNn keys
+        where (sampleNn, (key, _)) = Util.findBelow fst noteNn keys
     where
     keys = instrumentKeys instrument tuning articulation
 
@@ -330,15 +302,6 @@ instrumentKeys instrument tuning articulation =
         (Pemade, Isep) -> map snd pemadeTuning
         (Kantilan, Umbang) -> map fst kantilanTuning
         (Kantilan, Isep) -> map snd kantilanTuning
-
-findBelow :: Ord k => (a -> k) -> k -> [a] -> a
-findBelow _ _ [] = error "empty list"
-findBelow key val (x:xs) = go x xs
-    where
-    go x0 (x:xs)
-        | val < key x = x0
-        | otherwise = go x xs
-    go x0 [] = x0
 
 wayangKeys :: Int -> [(Midi.Key, Pitch.Note)]
 wayangKeys baseOct = take 10 $ drop 1
@@ -402,6 +365,3 @@ kantilanTuning =
     , (84.02, 84.13)
     , (86.79, 86.90)
     ]
-
-enumAll :: (Enum a, Bounded a) => [a]
-enumAll = [minBound .. maxBound]
