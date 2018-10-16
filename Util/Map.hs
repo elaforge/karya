@@ -29,7 +29,7 @@ filter_key :: (k -> Bool) -> Map.Map k a -> Map.Map k a
 filter_key f = Map.filterWithKey (\k _ -> f k)
 
 delete_keys :: Ord k => [k] -> Map.Map k a -> Map.Map k a
-delete_keys keys fm = Map.difference fm (Map.fromList [(k, ()) | k <- keys])
+delete_keys keys m = Map.withoutKeys m (Set.fromList keys)
 
 insert_list :: Ord k => [(k, v)] -> Map.Map k v -> Map.Map k v
 insert_list kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
