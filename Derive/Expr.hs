@@ -19,6 +19,7 @@ import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
 import Global
 
 
@@ -147,14 +148,16 @@ unstr (Str str) = str
 -- RestrictedEnviron.Val.
 -- TODO NOTE [val-and-minival]
 data MiniVal = VNum !(ScoreTypes.Typed Signal.Y) | VStr !Str
-    deriving (Show)
+    deriving (Eq, Show)
 
 instance String.IsString MiniVal where
     fromString = VStr. String.fromString
 
-num :: Double -> MiniVal
-num = VNum . ScoreTypes.untyped
-
 instance ShowVal.ShowVal MiniVal where
     show_val (VNum v) = ShowVal.show_val v
     show_val (VStr v) = ShowVal.show_val v
+
+instance Pretty MiniVal where pretty = ShowVal.show_val
+
+num :: Double -> MiniVal
+num = VNum . ScoreTypes.untyped

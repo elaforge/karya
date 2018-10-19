@@ -3,10 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Patch.Util where
+import qualified Control.Monad.Except as Except
+import qualified Data.List as List
+import qualified Data.Text as Text
+
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
+import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -14,7 +19,24 @@ import qualified Synth.Shared.Signal as Signal
 import Global
 
 
+-- * preprocess
+
+nextsBy :: Eq key => (a -> key) -> [a] -> [(a, [a])]
+nextsBy key xs = zipWith extract xs (drop 1 (List.tails xs))
+    where extract x xs = (x, filter ((== key x) . key) xs)
+
+nexts :: [a] -> [(a, [a])]
+nexts xs = zip xs (drop 1 (List.tails xs))
+
+
 -- * convert
+
+symbolicPitch :: (Except.MonadError Text m) => Note.Note
+    -> m (Either Pitch.Note Pitch.NoteNumber)
+symbolicPitch note
+    | Text.null (Note.element note) =
+        Right <$> tryJust "no pitch" (Note.initialPitch note)
+    | otherwise = return $ Left $ Pitch.Note $ Note.element note
 
 articulation :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
 articulation deflt attributeMap  =

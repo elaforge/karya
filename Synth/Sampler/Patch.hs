@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
-import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Sample as Sample
@@ -42,6 +41,7 @@ data Patch = Patch {
     -- | Find a sample.  Returns (newDuration, sample) since the decay time
     -- might extend the duration.
     , _convert :: Note.Note -> ConvertM (RealTime, Sample.Sample)
+    , _preprocess :: [Note.Note] -> [Note.Note]
     -- | Karya configuration.
     --
     -- Putting code here means that the sampler has to link in a large portion
@@ -51,12 +51,19 @@ data Patch = Patch {
     , _karyaPatch :: ImInst.Patch
     }
 
--- | Make a simple patch of a single sample.
-simple :: Note.PatchName -> Sample.SamplePath -> Pitch.NoteNumber -> Patch
-simple name filename sampleNn = Patch
+patch :: Note.PatchName -> Patch
+patch name = Patch
     { _name = name
     , _dir = untxt name
-    , _convert = \note -> do
+    , _convert = const $ Except.throwError "not implemented"
+    , _preprocess = id
+    , _karyaPatch = ImInst.make_patch Im.Patch.patch
+    }
+
+-- | Make a simple patch of a single sample.
+simple :: Note.PatchName -> Sample.SamplePath -> Pitch.NoteNumber -> Patch
+simple name filename sampleNn = (patch name)
+    { _convert = \note -> do
         pitch <- tryJust "no pitch" $ Note.initialPitch note
         dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note
         return $ (Note.duration note,) $ Sample.Sample
@@ -66,10 +73,8 @@ simple name filename sampleNn = Patch
             , ratio = Signal.constant $
                 Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) pitch
             }
-    , _karyaPatch = ImInst.make_patch $ Im.Patch.Patch
-        { patch_controls = Control.supportPitch <> Control.supportDyn
-        , patch_attribute_map = Common.attribute_map []
-        , patch_flags = mempty
+    , _karyaPatch = ImInst.make_patch $ Im.Patch.patch
+        { Im.Patch.patch_controls = Control.supportPitch <> Control.supportDyn
         }
     }
 

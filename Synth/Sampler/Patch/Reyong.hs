@@ -5,8 +5,6 @@
 module Synth.Sampler.Patch.Reyong (patches, checkFilenames) where
 import qualified Data.Either as Either
 import qualified Data.List as List
-import qualified Data.Text as Text
-
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
@@ -46,12 +44,12 @@ patches =
     ]
 
 makePatch :: Note.PatchName -> Scale.Range -> Patch.Patch
-makePatch name range = Patch.Patch
-    { _name = name
-    , _dir = "reyong"
-    , _convert = convert
+makePatch name range = (Patch.patch name)
+    { Patch._dir = "reyong"
+    , Patch._convert = convert
+    , Patch._preprocess = inferDuration
     -- , _karyaPatch = ImInst.code #= ReyongCode.code $ ImInst.range range $
-    , _karyaPatch = ImInst.range range $
+    , Patch._karyaPatch = ImInst.range range $
         ImInst.default_scale Legong.scale_id $
         ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
@@ -77,6 +75,32 @@ attributeMap = Common.attribute_map
     -- TODO from Derive.C.Bali.Reyong, or from a common attrs module
     cek = Attrs.attr "cek"
 
+-- * preprocess
+
+inferDuration :: [Note.Note] -> [Note.Note]
+inferDuration = map infer . Util.nexts
+    where
+    infer (note, nexts) = case inferEnd note nexts of
+        Nothing -> note
+        Just end -> note { Note.duration = end - Note.start note }
+
+-- | Open notes ring until a mute at the same pitch.
+inferEnd :: Note.Note -> [Note.Note] -> Maybe RealTime
+inferEnd note nexts
+    | articulationOf note /= Open = Nothing
+    | otherwise = case List.find isMute nexts of
+        Nothing -> Just 100
+        Just mute -> Just $ Note.start mute
+    where
+    pitch :: Either Text (Either Pitch.Note Pitch.NoteNumber)
+    pitch = Util.symbolicPitch note
+    isMute next =
+        Util.symbolicPitch next == pitch && case articulationOf next of
+            MuteClosed -> True
+            MuteOpen -> True
+            _ -> False
+    articulationOf = Util.articulation Open attributeMap . Note.attributes
+
 -- * checks
 
 checkFilenames :: IO [FilePath]
@@ -100,9 +124,7 @@ convert note = do
     let articulation = Util.articulation Open attributeMap $
             Note.attributes note
     let (dyn, scale) = Util.dynamic dynamicRange note
-    symPitch <- if Text.null (Note.element note)
-        then Right <$> tryJust "no pitch" (Note.initialPitch note)
-        else return $ Left $ Pitch.Note (Note.element note)
+    symPitch <- Util.symbolicPitch note
     let var = Util.variation (variationsOf articulation) note
     (filename, noteNn, sampleNn) <-
         tryRight $ toFilename articulation symPitch dyn var

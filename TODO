@@ -2246,12 +2246,18 @@ synth: im:
         . Then optionally turn on zero dur becomes a weak note.
       - Variable mute, take a mute control where 1 is +mute, .75 is
         +mute+loose, and <.5 is open note with an envelope.
-      - There's still a place for a [Score.Event] per-instrument postproc,
+      / There's still a place for a [Score.Event] per-instrument postproc,
         because then I can apply postproc before writing im, and I don't have
         to pass the instrument name.
         . Well, it's awkward because I don't have things grouped by
           instrument.  But since this is im-specific anyway, I can just put it
           as a preproc on the patch.
+        . That doesn't work because Note.Note doesn't have all the same stuff
+          as Score.Event, notably environ.  I could just put environ in
+          Note.Note.  Or do preproc in Perform.Im.Convert.
+        . Environ is just a generalization of Note.element, and I could take
+          the same approach as controls, by only copying a whitelist.
+      * apply hardcoded damping rules as a sampler preproc
     guzheng:
       . Everything rings except when explicitly muted.
 

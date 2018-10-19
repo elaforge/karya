@@ -65,8 +65,8 @@ process db quality notesFilename notes = do
 
 convert :: Patch.Db -> Patch.Patch -> [Note.Note]
     -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]
-convert db patch notes =
-    map update (Seq.key_on (Patch.convert patch) notes)
+convert db patch =
+    map update . Seq.key_on (Patch.convert patch) . Patch._preprocess patch
     where
     update (Right ((dur, sample), logs), note) =
         ( Right $ Sample.modifyFilename (patchDir</>) sample

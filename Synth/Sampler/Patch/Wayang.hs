@@ -56,12 +56,12 @@ patches =
         , (Kantilan, Umbang), (Kantilan, Isep)
         ]
     where
-    make (inst, tuning) = Patch.Patch
-        { _name = Text.toLower $
-            Text.intercalate "-" ["wayang", showt inst, showt tuning]
-        , _dir = "wayang"
-        , _convert = convert inst tuning
-        , _karyaPatch = ImInst.code #= WayangCode.code $
+    make (inst, tuning) =
+        (Patch.patch $
+            Text.intercalate "-" ["wayang", showt inst, showt tuning])
+        { Patch._dir = "wayang"
+        , Patch._convert = convert inst tuning
+        , Patch._karyaPatch = ImInst.code #= WayangCode.code $
             setRange inst $ setScale tuning $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -156,9 +156,7 @@ convert instrument tuning note = do
             Note.attributes note
     let noteDyn = fromMaybe 0 $ Note.initial Control.dynamic note
     let (dyn, scale) = Util.findDynamic dynamicRange noteDyn
-    symPitch <- if Text.null (Note.element note)
-        then Right <$> tryJust "no pitch" (Note.initialPitch note)
-        else return $ Left $ Pitch.Note (Note.element note)
+    symPitch <- Util.symbolicPitch note
     (dyn, scale) <- pure $ workaround instrument tuning articulation dyn scale
     let var = Util.variation (variationsOf articulation) note
     (filename, noteNn, sampleNn) <- tryRight $
