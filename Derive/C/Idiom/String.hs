@@ -7,10 +7,8 @@
 module Derive.C.Idiom.String where
 import qualified Data.Map as Map
 
-import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -164,7 +162,7 @@ string_idiom config = do
         when (Signal.null nns) $ Derive.throw "no pitch"
         let lowest = Pitch.nn $ Signal.minimum nns
         string <- Derive.require ("below lowest string: " <> pretty lowest) $
-            snd <$> Util.Map.lookup_below lowest (_open_strings config)
+            snd <$> Map.lookupLE lowest (_open_strings config)
         return
             ( Score.modify_environ
                 (Env.insert_val EnvKey.string (StringUtil.str_pitch string))

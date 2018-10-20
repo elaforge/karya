@@ -54,11 +54,6 @@ split3 low high fm = (below, within, way_above)
 within :: Ord k => k -> k -> Map.Map k a -> Map.Map k a
 within low high fm = let (_, m, _) = split3 low high fm in m
 
-lookup_below :: Ord k => k -> Map.Map k a -> Maybe (k, a)
-lookup_below k m = case Map.splitLookup k m of
-    (_, Just v, _) -> Just (k, v)
-    (pre, _, _) -> max pre
-
 invert :: Ord a => Map.Map k a -> Map.Map a k
 invert = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs
 
