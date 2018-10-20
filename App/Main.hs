@@ -15,7 +15,7 @@ import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text.IO as Text.IO
-import qualified Network
+import qualified Network.Socket as Socket
 import qualified System.Environment
 import qualified System.IO as IO
 #ifdef USE_EKG
@@ -74,7 +74,7 @@ max_log_size :: Int
 max_log_size = 4 * mb
     where mb = 1024^2
 
-initialize :: (Interface.Interface -> Network.Socket -> IO ()) -> IO ()
+initialize :: (Interface.Interface -> Socket.Socket -> IO ()) -> IO ()
 initialize app = do
     log_fn <- Tail.log_filename
     log_hdl <- Tail.rotate_logs 4 max_log_size log_fn
@@ -84,7 +84,7 @@ initialize app = do
         }
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
         Left err -> errorStack $ "initializing midi: " <> txt err
-        Right midi_interface -> Network.withSocketsDo $ do
+        Right midi_interface -> Socket.withSocketsDo $ do
             midi_interface <- Interface.track_interface midi_interface
             Git.initialize $ Repl.with_socket $ app midi_interface
     where
