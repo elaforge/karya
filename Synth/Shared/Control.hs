@@ -60,18 +60,21 @@ gate = "gate"
 variation :: Control
 variation = "variation"
 
+-- | Amount of mutedness, for instruments that support variable amount of mute.
+mute :: Control
+mute = "mute"
+
+-- * Supported
 
 type Supported = Map Control Text
 
 supportPitch :: Supported
-supportPitch = Map.fromList [(pitch, "Pitch signal.")]
+supportPitch = Map.singleton pitch "Pitch signal."
 
 supportDyn :: Supported
-supportDyn = Map.fromList
-    [ (dynamic,
-        "Dynamic signal.  dB scale, where 0 is " <> pretty minimumDb <> " dB.")
-    ]
+supportDyn = Map.singleton dynamic $
+    "Dynamic signal.  dB scale, where 0 is " <> pretty minimumDb <> " dB."
 
 supportVariation :: Supported
-supportVariation = Map.fromList
-    [(variation, "Random integer, to choose between variant samples.")]
+supportVariation = Map.singleton
+    variation "Random integer, to choose between variant samples."

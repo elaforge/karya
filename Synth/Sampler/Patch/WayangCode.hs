@@ -4,6 +4,7 @@
 
 module Synth.Sampler.Patch.WayangCode where
 import qualified Util.Doc as Doc
+import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Args as Args
 import qualified Derive.C.Bali.Gender as Gender
@@ -16,6 +17,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Sig as Sig
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 
@@ -29,13 +31,18 @@ code = mconcat
 
 note :: Derive.Generator Derive.Note
 note = DUtil.zero_duration "note"
-    "This a normal note with non-zero duration, but when the duration is\
-    \ zero, it uses the `weak` call."
-    (Sub.inverting $ \args -> transform args (weak_call args))
-    (Sub.inverting $ \args ->
-        transform args (Note.default_note Note.use_attributes args))
+    "When zero duration, and use-weak=t, use the `weak` call.\
+    \ When use-symbolic-pitch=t, tell the samples to use pitch by name rather\
+    \ than nn."
+    (Sub.inverting $ \args -> transform args $ if_env "use-weak" (Just True)
+        (weak_call args)
+        (Call.multiply_dynamic 0.65 (Bali.reapply_mute args)))
+    (Sub.inverting $ \args -> transform args (note args))
     where
-    transform args = with_symbolic_pitch args . with_variation
+    note = Note.default_note Note.use_attributes
+    transform args =
+        when_env "use-symbolic-pitch" (Just True) (with_symbolic_pitch args)
+            . with_variation
 
 weak_call :: Derive.PassedArgs a -> Derive.NoteDeriver
 weak_call args =
@@ -51,14 +58,29 @@ c_with_variation = Derive.transformer Module.instrument "with-variation" mempty
     ("Set " <> Doc.pretty Controls.variation <> " randomly.") $
     Sig.call0t $ \_args -> with_variation
 
+with_variation :: Derive.Deriver a -> Derive.Deriver a
+with_variation deriver =
+    ifM (Derive.is_control_set Controls.variation) deriver $ do
+        n <- Call.random
+        Derive.with_constant_control Controls.variation n deriver
+
 with_symbolic_pitch :: Derive.PassedArgs x -> Derive.Deriver a
     -> Derive.Deriver a
 with_symbolic_pitch args deriver = do
     note <- Call.get_symbolic_pitch =<< Args.real_start args
     Derive.with_val EnvKey.patch_element (Pitch.note_text note) deriver
 
-with_variation :: Derive.Deriver a -> Derive.Deriver a
-with_variation deriver = ifM (Derive.is_control_set Controls.variation)
-    deriver $ do
-        n <- Call.random
-        Derive.with_constant_control Controls.variation n deriver
+-- * util
+
+-- TODO move to Derive.Call?
+
+if_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
+    -> Derive.Deriver a -> Derive.Deriver a -> Derive.Deriver a
+if_env key val is_set not_set =
+    ifM ((==val) <$> Derive.lookup_val key) is_set not_set
+
+when_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
+    -> (Derive.Deriver a -> Derive.Deriver a)
+    -> Derive.Deriver a -> Derive.Deriver a
+when_env key val transformer deriver =
+    if_env key val (transformer deriver) deriver

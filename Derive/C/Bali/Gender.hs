@@ -278,7 +278,7 @@ c_infer_damp_simple =
 
 infer_damp_simple :: RealTime -> (Score.Event, [Score.Event]) -> Score.Event
 infer_damp_simple gap (event, nexts)
-    | new_end > Score.event_end event =
+    | Score.event_duration event /= 0 && new_end > Score.event_end event =
         Score.set_duration (new_end - Score.event_start event) event
     | otherwise = event
     where

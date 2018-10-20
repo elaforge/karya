@@ -2238,7 +2238,7 @@ synth: im:
           * kantilan-isep-normal-95-109-127-open1.wav
           * kantilan-isep-normal-95-32-64-open1.wav
           * kantilan-isep-normal-95-65-108-open1.wav
-      - What should the mute protocol be?
+      * What should the mute protocol be?
         . Lowest level is zero dur becomes +mute or +loose+mute.
         . Then I want to scale dyn down so it sounds appropriate next to the
           equivalent open stroke.
@@ -2258,6 +2258,7 @@ synth: im:
         . Environ is just a generalization of Note.element, and I could take
           the same approach as controls, by only copying a whitelist.
       * apply hardcoded damping rules as a sampler preproc
+      - segfault on im/notes/test/im-wayang/untitled/b3/sampler
     guzheng:
       . Everything rings except when explicitly muted.
 

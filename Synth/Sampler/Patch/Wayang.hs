@@ -12,6 +12,7 @@ module Synth.Sampler.Patch.Wayang (
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -57,17 +58,19 @@ patches =
         ]
     where
     make (inst, tuning) =
-        (Patch.patch $
-            Text.intercalate "-" ["wayang", showt inst, showt tuning])
+        (Patch.patch $ Text.intercalate "-"
+            ["wayang", Text.toLower $ showt inst, Text.toLower $ showt tuning])
         { Patch._dir = "wayang"
         , Patch._convert = convert inst tuning
         , Patch._karyaPatch = ImInst.code #= WayangCode.code $
-            setRange inst $ setScale tuning $
+            setRange inst $ setTuning tuning $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
                     [ Control.supportPitch
                     , Control.supportDyn
                     , Control.supportVariation
+                    -- , Map.singleton Control.mute
+                    --     "Amount of mute. This becomes a shortened envelope."
                     ]
                 , Im.Patch.patch_attribute_map = const () <$> attributeMap
                 }
@@ -75,8 +78,8 @@ patches =
     setRange inst = ImInst.range $ BaliScales.instrument_range $ case inst of
         Pemade -> Wayang.pemade
         Kantilan -> Wayang.kantilan
-    setScale tuning = ImInst.default_scale Wayang.scale_id
-        . ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
+    setTuning tuning = -- ImInst.default_scale Wayang.scale_id
+        ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"
 
@@ -169,13 +172,22 @@ convert instrument tuning note = do
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
-        , envelope = Signal.from_pairs
-            [ (Note.start note, dynVal), (Note.end note, dynVal)
-            , (Note.end note + muteTime, 0)
-            ]
+        , envelope = if isMute articulation
+            then Signal.constant dynVal
+            else Signal.from_pairs
+                [ (Note.start note, dynVal), (Note.end note, dynVal)
+                , (Note.end note + muteTime, 0)
+                ]
         , ratio = Signal.constant $
             Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
         }
+
+isMute :: Articulation -> Bool
+isMute = \case
+    Mute -> True
+    LooseMute -> True
+    CalungMute -> True
+    _ -> False
 
 -- | I'm missing these samples, so substitute some others.
 workaround :: Instrument -> Tuning -> Articulation -> Dynamic -> Signal.Y

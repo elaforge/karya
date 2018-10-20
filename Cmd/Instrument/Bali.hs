@@ -80,6 +80,9 @@ zero_dur_reapply mute_call doc note = MidiInst.null_call $
         (\args -> Eval.reapply_call (Args.context args) mute_call [])
         (Sub.inverting note)
 
+reapply_mute :: Derive.NoteArgs -> Derive.NoteDeriver
+reapply_mute args = Eval.reapply_call (Args.context args) Symbols.mute []
+
 wrap :: Scale.Range -> ScoreTime -> Derive.Deriver a -> Derive.Deriver a
 wrap range start deriver = do
     (parse_p, show_p, _) <- Call.get_pitch_functions
