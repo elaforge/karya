@@ -8,7 +8,7 @@
 -- formats supported by libsndfile.
 module Util.Audio.File (
     -- * read
-    check, checkA, getInfo, read, readFrom, read44k
+    check, checkA, getInfo, read, readFrom, read44k, readUnknown
     , concat
     -- * write
     , write, writeCheckpoints
@@ -88,6 +88,19 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
 
 read44k :: FilePath -> Audio.AudioIO 44100 2
 read44k = read
+
+readUnknown :: FilePath -> IO (Sndfile.Format, Audio.UnknownAudioIO)
+readUnknown input = do
+    info <- getInfo input
+    case (someNat (Sndfile.samplerate info), someNat (Sndfile.channels info)) of
+        (TypeLits.SomeNat (_::Proxy rate), TypeLits.SomeNat (_::Proxy chan)) ->
+            return (Sndfile.format info,
+                Audio.UnknownAudio $ read @rate @chan input)
+
+someNat :: Int -> TypeLits.SomeNat
+someNat int = case TypeLits.someNatVal (fromIntegral int) of
+    Nothing -> error $ "not a natural: " <> show int
+    Just n -> n
 
 -- | Concatenate multiple files.
 concat :: forall rate channels.

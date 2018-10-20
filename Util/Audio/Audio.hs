@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DataKinds, KindSignatures, TypeOperators, TypeApplications #-}
 {- | This is a basic library for audio streaming.  It uses the @streaming@
     package to interleave streaming and IO, and represents signals as a stream
@@ -17,6 +18,7 @@ module Util.Audio.Audio (
     -- * types
     Audio(..), AudioIO, AudioId
     , NAudio(..), NAudioIO, NAudioId
+    , UnknownAudio(..), UnknownAudioIO
     , Sample, Frame(..), secondsToFrame, frameToSeconds
     , Duration(..)
     , Count, Channels, Rate, Seconds
@@ -115,6 +117,11 @@ data NAudio m (rate :: TypeLits.Nat) = NAudio
 
 type NAudioIO rate = NAudio (Resource.ResourceT IO) rate
 type NAudioId rate = NAudio Identity.Identity rate
+
+-- | This is an Audio with dynamic rate and channels.
+data UnknownAudio m = forall rate chan. (KnownNat rate, KnownNat chan) =>
+    UnknownAudio (Audio m rate chan)
+type UnknownAudioIO = UnknownAudio (Resource.ResourceT IO)
 
 -- | I hardcode the sample format to Float for now, since I have no need to
 -- work with any other format.

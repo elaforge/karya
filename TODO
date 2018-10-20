@@ -2107,11 +2107,21 @@ synth: im:
       - figure out tuning
       - separate ranges and tuning for trompong, reyong, reyong-trompong
       - test with dynamics to find dynFactor
-      - implement infer-damp
+      * implement infer-damp
         . This is for low level cutoff stuff, so it takes notes with +damp
           attrs and manages durations.
         . Maybe a case for per-instrument postproc.
         . Should wayang take the same approach?
+      * It turns out the reyong samples are 24bit 48k, I completely forgot
+        about that.
+        . 24bit is no problem since it just goes to floats, but I'm assuming
+          44.1k.  Would it be hard to support 48k?
+        . I could just resample, but to actually use the resolution I'd have
+          to do that after the main resample, and to be efficient I'd want to
+          fuse them.
+        . But since my output is always 44.1, it's always at least one
+          resample.
+        . Or it's just not worth the hassle, just convert them.
     wayang:
       . Same situation as reyong, except I also want to fade out based on
         duration.

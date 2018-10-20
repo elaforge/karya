@@ -308,6 +308,7 @@ hsBinaries =
     , plain "ness-submit" "Ness/Submit.hs"
     , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
+    , plain "resample" "Util/Audio/ResampleMain.hs"
     , (gui "seq" "App/Main.hs" ["fltk/fltk.a"])
         { hsRtsFlags =
             [ "-N"
