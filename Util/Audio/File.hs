@@ -24,9 +24,11 @@ import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile as Sndfile
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
 import qualified Streaming.Prelude as S
+import qualified System.Directory as Directory
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
+
 import Global
 
 
@@ -125,12 +127,15 @@ write :: forall rate channels.
     => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
     -> Resource.ResourceT IO ()
 write format fname audio = do
-    (key, handle) <- Resource.allocate (openWrite format fname audio)
+    (key, handle) <- Resource.allocate (openWrite format tmp audio)
         Sndfile.hClose
     S.mapM_ (liftIO . Sndfile.hPutBuffer handle
             . Sndfile.Buffer.Vector.toBuffer)
         (Audio._stream audio)
     Resource.release key
+    liftIO $ Directory.renameFile tmp fname
+    where
+    tmp = fname ++ ".write.tmp"
 
 -- | Write files in chunks to the given directory.  Run actions before
 -- and after writing each chunk.
@@ -156,9 +161,11 @@ writeCheckpoints size getFilename writeState format = go 0
                 Audio.assert (sum (map V.length chunks) == count) $
                     "expected size " <> pretty count <> " but got "
                     <> pretty (map V.length chunks)
+                let tmp = fname ++ ".write.tmp"
                 liftIO $ do
-                    Exception.bracket (openWrite format fname audio)
+                    Exception.bracket (openWrite format tmp audio)
                         Sndfile.hClose (\handle -> mapM_ (write handle) chunks)
+                    Directory.renameFile tmp fname
                     writeState fname
                 go (written+1) states audio
     go _ [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"

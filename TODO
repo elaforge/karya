@@ -2259,6 +2259,14 @@ synth: im:
           the same approach as controls, by only copying a whitelist.
       * apply hardcoded damping rules as a sampler preproc
       - segfault on im/notes/test/im-wayang/untitled/b3/sampler
+        . It's because 67.57nn,4e(wayang) is 67.60, so it resamples the lower
+          one.
+        - fix the crash
+          . It disappeared after I deleted the cache.
+          * Could it have been due to killing a sampler-im halfway through?
+            I should make it only move the files into place as they complete.
+        - make notes tune down too
+        - synchronize tuning of *wayang and sampler wayang
     guzheng:
       . Everything rings except when explicitly muted.
 

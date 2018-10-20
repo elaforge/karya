@@ -12,7 +12,6 @@ module Synth.Sampler.Patch.Wayang (
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -46,9 +45,6 @@ import qualified Synth.Shared.Signal as Signal
 import Global
 import Synth.Types
 
-
--- sample changes:
--- cut silence from pemade/umbang/normal/88-1-31-open{1,2,3}.wav
 
 patches :: [Patch.Patch]
 patches =

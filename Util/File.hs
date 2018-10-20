@@ -25,35 +25,20 @@ import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
 
--- | Read and decompress a gzipped file.
-readGz :: FilePath -> IO (Either String ByteString.ByteString)
-readGz fn = decompress =<< Lazy.readFile fn
+-- * read/write
 
-decompress :: Lazy.ByteString -> IO (Either String ByteString.ByteString)
-decompress bytes =
-    Exception.handle (return . handle) $
-        Right <$> Exception.evaluate (Lazy.toStrict (GZip.decompress bytes))
-    where handle (exc :: Zlib.Internal.DecompressError) = Left (show exc)
+writeLines :: FilePath -> [Text] -> IO ()
+writeLines fname lines = IO.withFile fname IO.WriteMode $ \hdl ->
+    mapM_ (Text.IO.hPutStrLn hdl) lines
 
--- | Write a gzipped file.  Try to do so atomically by writing to a tmp file
--- first and renaming it.
---
--- Like @mv@, this will refuse to overwrite a file if it isn't writable.
-writeGz :: Maybe FilePath
-    -- ^ If Just, and the file was written, move any old file to fn++suffix.
-    -> FilePath -> ByteString.ByteString -> IO Bool
-    -- ^ False if the file wasn't written because it wouldn't have changed.
-writeGz backupSuffix fn bytes = do
-    requireWritable fn
-    whenJust backupSuffix $ requireWritable . (fn++)
-    let tmp = fn ++ ".write.tmp"
-    Lazy.writeFile tmp $ GZip.compress $ Lazy.fromStrict bytes
-    ifM (sameContents fn tmp)
-        (Directory.removeFile tmp >> return False) $ do
-            whenJust backupSuffix $ \suffix ->
-                void $ ignoreEnoent $ Directory.renameFile fn (fn ++ suffix)
-            Directory.renameFile tmp fn
-            return True
+writeAtomic :: FilePath -> ByteString.ByteString -> IO ()
+writeAtomic fn bytes = do
+    ByteString.writeFile tmp bytes
+    Directory.renameFile tmp fn
+    where
+    tmp = fn ++ ".write.tmp"
+
+-- * query
 
 sameContents :: FilePath -> FilePath -> IO Bool
 sameContents fn1 fn2 = do
@@ -73,6 +58,8 @@ writable fn = orM
     [ not <$> orM [Directory.doesFileExist fn, Directory.doesDirectoryExist fn]
     , Directory.writable <$> Directory.getPermissions fn
     ]
+
+-- * directory
 
 -- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
 -- it prepends the directory.
@@ -100,9 +87,40 @@ listRecursive descend dir = do
 rmDirRecursive :: FilePath -> IO ()
 rmDirRecursive dir = void $ Process.rawSystem "rm" ["-rf", dir]
 
-writeLines :: FilePath -> [Text] -> IO ()
-writeLines fname lines = IO.withFile fname IO.WriteMode $ \hdl ->
-    mapM_ (Text.IO.hPutStrLn hdl) lines
+-- * compression
+
+-- | Read and decompress a gzipped file.
+readGz :: FilePath -> IO (Either String ByteString.ByteString)
+readGz fn = decompress =<< Lazy.readFile fn
+
+decompress :: Lazy.ByteString -> IO (Either String ByteString.ByteString)
+decompress bytes =
+    Exception.handle (return . handle) $
+        Right <$> Exception.evaluate (Lazy.toStrict (GZip.decompress bytes))
+    where handle (exc :: Zlib.Internal.DecompressError) = Left (show exc)
+
+-- | Write a gzipped file.  Try to do so atomically by writing to a tmp file
+-- first and renaming it.
+--
+-- Like @mv@, this will refuse to overwrite a file if it isn't writable.  If
+-- the file wouldn't have changed, abort the write and delete the tmp file.
+-- The mtime won't change, and the caller gets a False, which can be used to
+-- avoid rebuilds.
+writeGz :: Maybe FilePath
+    -- ^ If Just, and the file was written, move any old file to fn++suffix.
+    -> FilePath -> ByteString.ByteString -> IO Bool
+    -- ^ False if the file wasn't written because it wouldn't have changed.
+writeGz backupSuffix fn bytes = do
+    requireWritable fn
+    whenJust backupSuffix $ requireWritable . (fn++)
+    let tmp = fn ++ ".write.tmp"
+    Lazy.writeFile tmp $ GZip.compress $ Lazy.fromStrict bytes
+    ifM (sameContents fn tmp)
+        (Directory.removeFile tmp >> return False) $ do
+            whenJust backupSuffix $ \suffix ->
+                void $ ignoreEnoent $ Directory.renameFile fn (fn ++ suffix)
+            Directory.renameFile tmp fn
+            return True
 
 -- * IO errors
 

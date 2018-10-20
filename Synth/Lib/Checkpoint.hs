@@ -19,6 +19,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.File as File
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -118,7 +119,7 @@ getFilename outputDir stateRef (i, hash) = do
 writeState :: IORef.IORef State -> FilePath -> IO ()
 writeState stateRef fname = do
     state@(State stateBs) <- IORef.readIORef stateRef
-    ByteString.writeFile
+    File.writeAtomic
         (FilePath.replaceExtension fname (".state." <> encodeState state))
         stateBs
 
