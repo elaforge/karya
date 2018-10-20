@@ -54,6 +54,16 @@ split3 low high fm = (below, within, way_above)
 within :: Ord k => k -> k -> Map.Map k a -> Map.Map k a
 within low high fm = let (_, m, _) = split3 low high fm in m
 
+-- | Find the closest key.  If two are equidistant, favor the one below.
+lookup_closest :: (Ord k, Num k) => k -> Map.Map k v -> Maybe (k, v)
+lookup_closest key m = case (Map.lookupLT key m, Map.lookupGE key m) of
+    (Just (k0, v0), Just (k1, v1))
+        | key - k0 <= k1 - key -> Just (k0, v0)
+        | otherwise -> Just (k1, v1)
+    (Nothing, Just kv) -> Just kv
+    (Just kv, Nothing) -> Just kv
+    (Nothing, Nothing) -> Nothing
+
 invert :: Ord a => Map.Map k a -> Map.Map a k
 invert = Map.fromList . map (\(x, y) -> (y, x)) . Map.assocs
 

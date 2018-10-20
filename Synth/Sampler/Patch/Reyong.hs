@@ -5,10 +5,13 @@
 module Synth.Sampler.Patch.Reyong (patches, checkFilenames) where
 import qualified Data.Either as Either
 import qualified Data.List as List
+import qualified Data.Map as Map
+
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
+import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -111,7 +114,7 @@ allFilenames :: [FilePath]
 allFilenames = map fst3 $ Either.rights
     [ toFilename articulation (Left pitch) dyn variation
     | articulation <- Util.enumAll
-    , pitch <- map (snd . snd) nnKeys
+    , pitch <- map snd (Map.elems nnKeys)
     , dyn <- Util.enumAll
     , variation <- [0 .. variationsOf articulation - 1]
     ]
@@ -185,16 +188,17 @@ findPitch :: Either Pitch.Note Pitch.NoteNumber
 findPitch = \case
     Left sym -> do
         (sampleNn, (key, _)) <- tryJust ("invalid pitch: " <> pretty sym) $
-            List.find ((==sym) . snd . snd) nnKeys
+            List.find ((==sym) . snd . snd) (Map.toList nnKeys)
         return (sampleNn, sampleNn, key)
     Right noteNn -> return (sampleNn, noteNn, key)
-        where (sampleNn, (key, _)) = Util.findBelow fst noteNn nnKeys
+        where
+        Just (sampleNn, (key, _)) = Util.Map.lookup_closest noteNn nnKeys
 
 --             trompong---------------------
 --                      reyong-----------------------------
 -- 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
-nnKeys :: [(Pitch.NoteNumber, (Midi.Key, Pitch.Note))]
-nnKeys = zip reyongTuning $ take 15 $ drop 4
+nnKeys :: Map Pitch.NoteNumber (Midi.Key, Pitch.Note)
+nnKeys = Map.fromList $ zip reyongTuning $ take 15 $ drop 4
     [ (key+oct*12, Pitch.Note (showt (Midi.from_key oct) <> sym))
     | oct <- [3..], (key, sym) <- baseKeys
     ]

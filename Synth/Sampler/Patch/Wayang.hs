@@ -12,6 +12,7 @@ module Synth.Sampler.Patch.Wayang (
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
@@ -19,6 +20,7 @@ import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
+import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -266,11 +268,10 @@ variationsOf = \case
 
 -- * implementation
 
-data Instrument = Pemade | Kantilan deriving (Eq, Ord, Show)
-data Tuning = Umbang | Isep deriving (Eq, Ord, Show)
+data Instrument = Pemade | Kantilan deriving (Eq, Ord, Show, Enum, Bounded)
+data Tuning = Umbang | Isep deriving (Eq, Ord, Show, Enum, Bounded)
 
-data Dynamic = PP | MP | MF | FF
-    deriving (Eq, Ord, Enum, Bounded, Show)
+data Dynamic = PP | MP | MF | FF deriving (Eq, Ord, Show, Enum, Bounded)
 instance Pretty Dynamic where pretty = showt
 
 data Articulation = Mute | LooseMute | Open | CalungMute | Calung
@@ -282,12 +283,48 @@ findPitch :: Instrument -> Tuning -> Articulation
 findPitch instrument tuning articulation symPitch = case symPitch of
     Left sym -> do
         (sampleNn, (key, _)) <- tryJust ("invalid pitch: " <> pretty sym) $
-            List.find ((==sym) . snd . snd) keys
+            List.find ((==sym) . snd . snd) $ Map.toList keys
         return (sampleNn, sampleNn, key)
     Right noteNn -> return (sampleNn, noteNn, key)
-        where (sampleNn, (key, _)) = Util.findBelow fst noteNn keys
+        where
+        -- Only Nothing if keys was empty.
+        Just (sampleNn, (key, _)) = Util.Map.lookup_closest noteNn keys
     where
-    keys = instrumentKeys instrument tuning articulation
+    keys = keyMap instrument tuning articulation
+
+keyMap :: Instrument -> Tuning -> Articulation
+    -> Map Pitch.NoteNumber (Midi.Key, Pitch.Note)
+keyMap instrument tuning articulation =
+    fromMaybe (error "keyMap should have been complete") $
+        Map.lookup (instrument, tuning, octaveOf articulation) maps
+    where
+    -- Memoize the key maps.  This should be floated to a CAF.
+    maps = Map.fromList
+        [ ((instrument, tuning, octave), makeKeyMap instrument tuning octave)
+        | instrument <- Util.enumAll
+        , tuning <- Util.enumAll
+        , octave <- Seq.unique $ map octaveOf Util.enumAll
+        ]
+    octaveOf = \case
+        Mute -> -2
+        LooseMute -> -2
+        CalungMute -> -2
+        Open -> 2
+        Calung -> 2
+
+makeKeyMap :: Instrument -> Tuning -> Midi.Key
+    -> Map Pitch.NoteNumber (Midi.Key, Pitch.Note)
+makeKeyMap instrument tuning octave =
+    Map.fromList $ zip nns (zip (map (octave*12+) keys) notes)
+    where
+    (keys, notes) = unzip $ wayangKeys $ case instrument of
+        Pemade -> 3
+        Kantilan -> 4
+    nns = case (instrument, tuning) of
+        (Pemade, Umbang) -> map fst pemadeTuning
+        (Pemade, Isep) -> map snd pemadeTuning
+        (Kantilan, Umbang) -> map fst kantilanTuning
+        (Kantilan, Isep) -> map snd kantilanTuning
 
 instrumentKeys :: Instrument -> Tuning -> Articulation
     -> [(Pitch.NoteNumber, (Midi.Key, Pitch.Note))]

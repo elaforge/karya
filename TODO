@@ -2265,8 +2265,11 @@ synth: im:
           . It disappeared after I deleted the cache.
           * Could it have been due to killing a sampler-im halfway through?
             I should make it only move the files into place as they complete.
-        - make notes tune down too
+        * make notes tune down too
         - synchronize tuning of *wayang and sampler wayang
+          . I'll have to update all the wayng scores too.  This notion of
+            per-allocation tuning is a bit annoying because I want to be able
+            to say just use the standard one.
     guzheng:
       . Everything rings except when explicitly muted.
 
