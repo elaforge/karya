@@ -19,7 +19,6 @@ import qualified Streaming.Prelude as S
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -51,10 +50,8 @@ write_ chunkSize inst quality outputDir notes = Exception.handle handle $ do
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
     --     Seq.key_on Checkpoint._hash $ map toSpan notes
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
-    let start = case hashes of
-            (i, _) : _ -> AUtil.toSeconds (fromIntegral i * chunkSize)
-            _ -> 0
-    Log.debug $ "skipped " <> pretty skipped
+    let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
+    Log.debug $ inst <> ": skipped " <> pretty skipped
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
