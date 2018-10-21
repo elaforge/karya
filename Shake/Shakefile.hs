@@ -26,7 +26,7 @@ import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
-import Development.Shake ((?==), (?>), (?>>), (%>), need)
+import Development.Shake ((?==), (?>), (&?>), (%>), need)
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -1396,7 +1396,7 @@ docToHtml = (buildDocDir </>) . FilePath.takeFileName . (++".html")
 
 -- hsORule hsHiRule
 hsOHiRule :: InferConfig -> Shake.Rules ()
-hsOHiRule infer = matchHsObjHi ?>> \fns -> do
+hsOHiRule infer = matchHsObjHi &?> \fns -> do
     let Just obj = List.find (".hs.o" `List.isSuffixOf`) fns
     Shake.askOracleWith (Question () :: Question GhcQ) ("" :: String)
     let config = infer obj
