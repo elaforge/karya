@@ -17,7 +17,6 @@ import qualified Data.Vector.Storable as V
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -45,36 +44,30 @@ write = write_ (Audio.Frame Config.checkpointSize)
 write_ :: Audio.Frame -> Note.InstrumentName -> Resample.Quality -> FilePath
     -> [Sample.Note] -> IO (Either Error (Int, Int))
 write_ chunkSize inst quality outputDir notes = Exception.handle handle $ do
-    let allHashes = Checkpoint.noteHashes chunkSize (map toSpan notes)
     -- Debug.tracepM "overlap" $ map (map snd) $
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
     --     Seq.key_on Checkpoint._hash $ map toSpan notes
-    (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir allHashes
+    (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
+        Checkpoint.noteHashes chunkSize (map toSpan notes)
     let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
     Log.debug $ inst <> ": skipped " <> pretty skipped
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
     mapM_ (Checkpoint.linkOutput outputDir) skipped
+
     case maybe (Right []) unserializeStates mbState of
-        _ | null hashes -> return $ Right (0, length allHashes)
         Left err -> return $ Left $
             "unserializing " <> pretty mbState <> ": " <> err
         Right states -> do
             stateRef <- IORef.newIORef $
                 fromMaybe (Checkpoint.State mempty) mbState
             let notifyState = IORef.writeIORef stateRef
-            result <- AUtil.catchSndfile $ Resource.runResourceT $
-                Audio.File.writeCheckpoints chunkSize
-                    (Checkpoint.getFilename outputDir stateRef)
-                    (\fn -> Checkpoint.writeState stateRef fn
-                        >> Checkpoint.linkOutput outputDir fn)
-                    AUtil.outputFormat (Checkpoint.extendHashes hashes) $
+            Checkpoint.write outputDir (length skipped) chunkSize hashes
+                    stateRef $
                 render inst chunkSize quality states notifyState
                     (dropUntil (\_ n -> Sample.end n > start) notes)
                     (AUtil.toFrame start)
-            return $ second (\written -> (written, written + length skipped))
-                result
     where
     -- TODO surely there are other exceptions.  Or I could catch all non-async.
     handle (Audio.Exception err) = return $ Left err
@@ -120,8 +113,8 @@ render inst chunkSize quality states notifyState notes start = Audio.Audio $ do
     -- Debug.tracepM "renderChunk playing" playing
     Audio.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
-            liftIO $ Log.debug $ inst <> ": " <> showt (length playing)
-                <> " playing, " <> pretty (AUtil.toSeconds now)
+            liftIO $ Log.debug $ inst <> ": voices: " <> showt (length playing)
+                <> " time: " <> pretty (AUtil.toSeconds now)
             let (playingNotes, startingNotes, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             -- If notes started in the past, they should already be 'playing'.

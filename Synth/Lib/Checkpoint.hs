@@ -6,6 +6,7 @@
 -- rerendering when possible.
 module Synth.Lib.Checkpoint where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Base64.URL as Base64.URL
 import qualified Data.ByteString.Char8 as ByteString.Char8
@@ -18,7 +19,10 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Text.Read as Read
+
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.File as Audio.File
 import qualified Util.File as File
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -93,6 +97,29 @@ findLastState files = go "" initialState
         fname = filenameOf2 i hash state
     go _ _ [] = Right ([], ([], ""))
 
+-- ** write
+
+-- | Write the audio with checkpoints.
+write :: FilePath -> Int -> Audio.Frame -> [(Int, Note.Hash)]
+    -> IORef.IORef State -> AUtil.Audio
+    -> IO (Either Text (Int, Int))
+    -- ^ Either Error (writtenChunks, total)
+write outputDir skippedCount chunkSize hashes stateRef audio
+    | null hashes = return $ Right (0, skippedCount)
+    | otherwise = do
+        result <- AUtil.catchSndfile $ Resource.runResourceT $
+            Audio.File.writeCheckpoints chunkSize
+                (getFilename outputDir stateRef)
+                (\fn -> writeState stateRef fn
+                    >> linkOutput outputDir fn)
+                AUtil.outputFormat (extendHashes hashes)
+                audio
+        case result of
+            Left err -> return $ Left err
+            Right written -> do
+                clearRemainingOutput outputDir (written + skippedCount)
+                return $ Right (written, written + skippedCount)
+
 getFilename :: FilePath -> IORef.IORef State -> (Int, Note.Hash)
     -> IO FilePath
 getFilename outputDir stateRef (i, hash) = do
@@ -134,6 +161,20 @@ linkOutput outputDir fname = do
     Directory.createFileLink (cacheDir </> FilePath.takeFileName fname)
         (current <> ".tmp")
     Directory.renameFile (current <> ".tmp") current
+
+-- | Remove any remaining output symlinks past the final chunk.
+clearRemainingOutput :: FilePath -> Int -> IO ()
+clearRemainingOutput outputDir start =
+    mapM_ Directory.removeFile . outputPast start
+        =<< Directory.listDirectory outputDir
+
+outputPast :: Int -> [FilePath] -> [FilePath]
+outputPast start = map snd . filter ((>=start) . fst) . Seq.key_on_just isOutput
+    where
+    isOutput (c1:c2:c3 : ".wav")
+        | Just n <- Read.readMaybe [c1, c2, c3] = Just n
+        | otherwise = Nothing
+    isOutput _ = Nothing
 
 filenameToOutput :: FilePath -> FilePath
 filenameToOutput fname = case Seq.split "." fname of

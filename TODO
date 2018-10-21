@@ -2034,7 +2034,7 @@ synth: im:
       . I can't do it at the score level, because I don't know the decay, but
         for samples I do.
       . See audio:
-    - clear out ###.wav symlinks after the end!
+    * clear out ###.wav symlinks after the end!
     reyong:
       . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
       . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in
@@ -2049,12 +2049,6 @@ synth: im:
         Or $oct;[12356]-{0pp, 1mp, 2mf, 3ff}-open-1.wav if I want to sort by
         (pitch, dynamic).  And if I ever have saih pitu or pamero samples then
         ioeua won't work anyway.
-      Pitch calibration:
-        . Group samples by pitch, pick a representative, then render
-          a sequence against a test tone.
-        . Or I could do it in realtime with a reaktor patch.  Or do it the
-          other way: loop the note, and then adjust the test tone.
-        - Make a reaktor patch first.
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
           sound the same.  Record the negated number as the offset.  Reaktor
