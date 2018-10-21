@@ -53,14 +53,16 @@ patches = map add_doc $
         ]
         where
         wrap = if wrap_octaves then Just range else Nothing
-        code = Bali.gangsa_note wrap <> MidiInst.null_call DUtil.constant_pitch
+        code = Bali.gangsa_note 1 wrap
+            <> MidiInst.null_call DUtil.constant_pitch
             <> Bali.pasang_code
     tunggal wrap_octaves range name =
         [ MidiInst.code #= code $ gangsa_ks $ ranged_patch range name
         ]
         where
         wrap = if wrap_octaves then Just range else Nothing
-        code = Bali.gangsa_note wrap <> MidiInst.null_call DUtil.constant_pitch
+        code = Bali.gangsa_note 1 wrap
+            <> MidiInst.null_call DUtil.constant_pitch
 
     range_of = BaliScales.instrument_range
     ranged_patch range = MidiInst.range range . sc_patch

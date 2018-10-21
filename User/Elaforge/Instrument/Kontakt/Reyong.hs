@@ -25,7 +25,7 @@ patches =
     where
     patch name = MidiInst.code #= code $ set_params $
         MidiInst.named_patch (-24, 24) name []
-    code = Bali.zero_dur_mute <> MidiInst.null_call DUtil.constant_pitch
+    code = Bali.zero_dur_mute 1 <> MidiInst.null_call DUtil.constant_pitch
     set_params = MidiInst.patch
         %= MidiInst.add_flags [Patch.UseFinalNoteOff]
             . (Patch.defaults#Patch.decay #= Just 0)

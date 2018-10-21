@@ -15,6 +15,7 @@ import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Scale as Scale
@@ -26,7 +27,6 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
--- import qualified Synth.Sampler.Patch.ReyongCode as ReyongCode
 import qualified Synth.Sampler.Patch.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -51,9 +51,7 @@ makePatch name range = (Patch.patch name)
     { Patch._dir = "reyong"
     , Patch._convert = convert
     , Patch._preprocess = inferDuration
-    -- , _karyaPatch = ImInst.code #= ReyongCode.code $ ImInst.range range $
-    , Patch._karyaPatch = ImInst.range range $
-        ImInst.default_scale Legong.scale_id $
+    , Patch._karyaPatch = ImInst.code #= code $ ImInst.range range $
         ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
                 [ Control.supportPitch
@@ -63,18 +61,19 @@ makePatch name range = (Patch.patch name)
             , Im.Patch.patch_attribute_map = const () <$> attributeMap
             }
     }
+    where code = Bali.zero_dur_mute 0.65
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map
-    [ (cek <> open, CekOpen)
+    [ (cek <> loose, CekOpen)
     , (cek, CekClosed)
-    , (mute <> open, MuteOpen)
+    , (mute <> loose, MuteOpen)
     , (mute, MuteClosed)
     , (mempty, Open)
     ]
     where
     mute = Attrs.mute
-    open = Attrs.open
+    loose = Attrs.loose
     -- TODO from Derive.C.Bali.Reyong, or from a common attrs module
     cek = Attrs.attr "cek"
 
@@ -135,16 +134,25 @@ convert note = do
         <> pretty ((dyn, scale), (symPitch, sampleNn), var)
         <> ": " <> txt filename
     let dynVal = Num.scale dynFactor 1 scale
-    return $ (Note.duration note + muteTime,) $ Sample.Sample
+    let dur = if isMute articulation then 100 else Note.duration note + muteTime
+    return $ (dur,) $ Sample.Sample
         { filename = filename
         , offset = 0
-        , envelope = Signal.from_pairs
-            [ (Note.start note, dynVal), (Note.end note, dynVal)
-            , (Note.end note + muteTime, 0)
-            ]
+        , envelope = if isMute articulation
+            then Signal.constant dynVal
+            else Signal.from_pairs
+                [ (Note.start note, dynVal), (Note.end note, dynVal)
+                , (Note.end note + muteTime, 0)
+                ]
         , ratio = Signal.constant $
             Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
         }
+
+isMute :: Articulation -> Bool
+isMute = \case
+    MuteClosed -> True
+    MuteOpen -> True
+    _ -> False
 
 -- | Time to mute at the end of a note.
 muteTime :: RealTime

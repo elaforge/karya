@@ -66,7 +66,6 @@ applyEnvelope start sig
         if ApproxEq.eq 0.01 val 1 then id
             else Audio.gain (AUtil.dbToLinear (Num.d2f val))
     | otherwise = AUtil.volume $ clipEnd $ Audio.linear $
-        -- Debug.tracep "env" $
         map (first (RealTime.to_seconds . subtract start)) $
         Signal.clip_before_pairs start sig
     where

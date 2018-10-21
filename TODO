@@ -2034,6 +2034,7 @@ synth: im:
       . I can't do it at the score level, because I don't know the decay, but
         for samples I do.
       . See audio:
+    - clear out ###.wav symlinks after the end!
     reyong:
       . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
       . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in

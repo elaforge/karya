@@ -28,6 +28,8 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -50,12 +52,12 @@ pasang_thru _attrs input = do
         MidiThru.midi_thru_instrument inst attrs $
             InputNote.multiply_note_id 1 input
 
-zero_dur_mute :: MidiInst.Code
-zero_dur_mute = zero_dur_reapply Symbols.mute
+zero_dur_mute :: Signal.Y -> MidiInst.Code
+zero_dur_mute dyn = zero_dur_reapply Symbols.mute dyn
     zero_dur_mute_doc (Note.default_note Note.use_attributes)
 
-gangsa_note :: Maybe Scale.Range -> MidiInst.Code
-gangsa_note maybe_range = zero_dur_reapply Symbols.mute
+gangsa_note :: Signal.Y -> Maybe Scale.Range -> MidiInst.Code
+gangsa_note dyn maybe_range = zero_dur_reapply Symbols.mute dyn
     (zero_dur_mute_doc <> doc maybe_range)
     $ \args -> maybe id (\top -> wrap top (Args.start args)) maybe_range $
         Note.default_note Note.use_attributes args
@@ -71,13 +73,14 @@ zero_dur_mute_doc =
     " By default, this will emit a muted note, but the instrument can override\
     \ it as appropriate."
 
-zero_dur_reapply :: Expr.Symbol -> Doc.Doc
+zero_dur_reapply :: Expr.Symbol -> Signal.Y -> Doc.Doc
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> MidiInst.Code
-zero_dur_reapply mute_call doc note = MidiInst.null_call $
+zero_dur_reapply mute_call dyn doc note = MidiInst.null_call $
     DUtil.zero_duration "note"
         ("When the event has zero duration, dispatch to the "
             <> ShowVal.doc mute_call <> " call." <> doc)
-        (\args -> Eval.reapply_call (Args.context args) mute_call [])
+        (\args -> Call.multiply_dynamic dyn $
+            Eval.reapply_call (Args.context args) mute_call [])
         (Sub.inverting note)
 
 reapply_mute :: Derive.NoteArgs -> Derive.NoteDeriver
