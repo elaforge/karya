@@ -2105,7 +2105,7 @@ synth: im:
         . When a +mute damps an +open, it should actually damp very slightly
           before.
       * implement convert
-      - figure out tuning
+      * figure out tuning
       - separate ranges and tuning for trompong, reyong, reyong-trompong
       - test with dynamics to find dynFactor
       * implement infer-damp
