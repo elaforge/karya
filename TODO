@@ -1298,7 +1298,7 @@ synth: im:
         meanwhile I should be noticing that there are no im events and not
         starting play_cache.
       . Proper MIDI fallback would also fix this.
-    - If I delete an instrument and rerender, the old one is left around.
+    * If I delete an instrument and rerender, the old one is left around.
       This is because the cache won't delete existing files.  This will be
       fixed by making a new cache dir instead of just copying into the
       existing one.
@@ -2174,6 +2174,8 @@ synth: im:
         . Probably due to the load thread having to fill the ringbuffer.
         . I think the only real way around this is to have play wait for
           a fraction of a second.
+        . Effectively I want to add a bit of time to all play events.
+          play_cache needs to understand this specially and stream silence.
       * disable track and re-enable caches as intended, but doesn't relink
         the audio.
 

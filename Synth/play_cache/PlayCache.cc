@@ -51,7 +51,7 @@ createEffectInstance(VstHostCallback hostCallback)
 PlayCache::PlayCache(VstHostCallback hostCallback) :
     Plugin(hostCallback, numPrograms, numParameters, numInputs, numOutputs,
         'bdpm', 1, initialDelay, true),
-    offsetFrames(0), playing(false), delta(0), volume(1),
+    startFrame(0), playing(false), startOffset(0), volume(1),
     log(logFilename, std::ios::app)
 {
     if (!log.good()) {
@@ -173,9 +173,9 @@ PlayCache::getParameterName(int32_t index, char *text)
 
 // process
 
-// Start streaming samples from offsetFrames, starting at the given delta.
+// Start streaming samples from startFrame, starting startOffset from now.
 void
-PlayCache::start(int32_t delta)
+PlayCache::start(int32_t startOffset)
 {
     // Hopefully this should wind up statically allocated.
     static std::string samplesDir(4096, ' ');
@@ -185,15 +185,16 @@ PlayCache::start(int32_t delta)
         LOG("play received, but scorePath is empty");
         return;
     }
-    LOG("start playing at delta " << delta << " block '" << playConfig.scorePath
-        << "' from frame " << offsetFrames);
+    LOG("start playing at startOffset " << startOffset
+        << " block '" << playConfig.scorePath
+        << "' from frame " << startFrame);
 
     samplesDir.clear();
     samplesDir += cacheDir;
     samplesDir += playConfig.scorePath;
-    streamer->start(samplesDir, offsetFrames, playConfig.mutedInstruments);
+    streamer->start(samplesDir, startFrame, playConfig.mutedInstruments);
     this->playConfig.clear();
-    this->delta = delta;
+    this->startOffset = startOffset;
     this->playing = true;
 }
 
@@ -278,18 +279,18 @@ PlayCache::processEvents(const VstEventBlock *events)
                     || data[i] == ResetAllControllers)) {
             // See NOTE [play-im] for why I stop on these msgs, but not
             // NoteOff.
-            this->offsetFrames = 0;
+            this->startFrame = 0;
             this->playing = false;
             LOG("note off");
         } else if (status == NoteOn) {
             start(event->sampleOffset);
         } else if (status == Aftertouch && data[1] < 5) {
-            // Use aftertouch on keys 0--4 to set offsetFrames bits 0--35.
+            // Use aftertouch on keys 0--4 to set startFrame bits 0--35.
             unsigned int index = int(data[1]) * 7;
             unsigned int val = data[2];
             // Turn off bits in the range, then replace them.
-            this->offsetFrames &= ~(0x7f << index);
-            this->offsetFrames |= val << index;
+            this->startFrame &= ~(0x7f << index);
+            this->startFrame |= val << index;
         } else if (status == PitchBend) {
             playConfig.collect(log, data[1], data[2]);
         }
@@ -310,6 +311,15 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
     if (!this->playing)
         return;
 
+    // Leave some silence at the beginning if there is a startOffset.
+    if (startOffset > 0) {
+        int32_t offset = std::min(processFrames, startOffset);
+        out1 += offset;
+        out2 += offset;
+        processFrames -= offset;
+        startOffset -= offset;
+    }
+
     float *sampleVals;
     if (!streamer->read(processFrames, &sampleVals)) {
         LOG("out of samples");
@@ -317,26 +327,11 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
         return;
     }
 
-    // LOG("process frames " << processFrames << " delta: " << delta
-    //     << " offset: " << offsetFrames;
+    // LOG("process frames " << processFrames << " startOffset: " << startOffset
+    //     << " offset: " << startFrame;
 
-    if (this->delta > 0) {
-        if (delta >= processFrames) {
-            delta -= processFrames;
-            return;
-        }
-        memset(out1, 0, delta * sizeof(float));
-        memset(out2, 0, delta * sizeof(float));
-        out1 += delta;
-        out2 += delta;
-        processFrames -= delta;
-        this->delta = 0;
-    }
     for (int frame = 0; frame < processFrames; frame++) {
         (*out1++) = sampleVals[frame*2] * volume;
         (*out2++) = sampleVals[frame*2 + 1] * volume;
     }
-    // I don't actually use offsetFrames any more, so I don't technically need
-    // to update it.
-    this->offsetFrames += processFrames;
 }

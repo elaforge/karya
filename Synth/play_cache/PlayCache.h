@@ -83,19 +83,19 @@ public:
     virtual int32_t processEvents(const VstEventBlock *events) override;
 
 private:
-    void start(int32_t delta);
+    void start(int32_t startOffset);
 
     // I don't know why setSampleRate is a float, but I don't support that.
     int sampleRate;
     // processReplacing's frames arguent will never exceed this.
     int32_t maxBlockFrames;
     // Playing from this sample, in frames since the beginning of the score.
-    unsigned int offsetFrames;
-    // True if I am playing, or should start playing once delta is 0.
+    unsigned int startFrame;
+    // True if I am playing, or should start playing once startOffset is 0.
     bool playing;
     // When playing is set, this has the number of frames to wait before
     // starting.
-    int32_t delta;
+    int32_t startOffset;
 
     // parameters
     float volume;
