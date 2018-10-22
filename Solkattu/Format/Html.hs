@@ -437,7 +437,7 @@ formatTable tala _sectionIndex section rows =
         --     [ ("class", "tooltip")
         --     , ("style", "display:block")
         --     ] $
-        Just -- $ Doc.tag_class "span" "tooltiptext" (showh sectionIndex) <>
+        Just --  $ Doc.tag_class "span" "tooltiptext" (showh sectionIndex) <>
             sectionTags
         where
         -- Each ruler adds an additional row, except the first one, which has

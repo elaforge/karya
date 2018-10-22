@@ -48,9 +48,6 @@ newtype Abstraction = Abstraction (Set (Solkattu.GroupType, Named))
 
 data Named = Unnamed | Named deriving (Eq, Ord, Show)
 
--- data Abstract = GroupType !Solkattu.GroupType | NamedGroups
---     deriving (Eq, Ord, Show)
-
 isAbstract :: Abstraction -> Solkattu.Meta -> Bool
 isAbstract (Abstraction abstract) group = Set.member (gtype, isNamed) abstract
     where

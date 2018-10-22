@@ -123,7 +123,11 @@ bunch of extra dependencies.  First you need more non-haskell dependencies.
 Get the -dev versions as usual:
 
 - faust - you probably need the git version, distro version is likely too old
-- libsamplerate
+
+- libsamplerate - I use a local fork, with support for saving and restoring
+state.  Get the `local` branch from
+https://github.com/elaforge/libsamplerate/tree/local
+
 - libsndfile
 
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
