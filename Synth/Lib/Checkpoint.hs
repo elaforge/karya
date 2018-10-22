@@ -165,7 +165,7 @@ linkOutput outputDir fname = do
 -- | Remove any remaining output symlinks past the final chunk.
 clearRemainingOutput :: FilePath -> Int -> IO ()
 clearRemainingOutput outputDir start =
-    mapM_ Directory.removeFile . outputPast start
+    mapM_ (Directory.removeFile . (outputDir</>)) . outputPast start
         =<< Directory.listDirectory outputDir
 
 outputPast :: Int -> [FilePath] -> [FilePath]

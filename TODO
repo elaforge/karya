@@ -1749,7 +1749,7 @@ synth: im:
         . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
           have it take nn to nn breakpoints, and do that calculation internally.
     - I'm still getting crashes plus garbage output.
-      - Also: sampler-im: 005.wav: removeLink: does not exist
+      * Also: sampler-im: 005.wav: removeLink: does not exist
         But it's still there?
       . build/opt/sampler-im im/notes/test/im-reyong/untitled/b3/sampler
       . I think it segfaults but I don't see the msg?
