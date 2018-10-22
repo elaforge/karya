@@ -1342,7 +1342,7 @@ synth: im:
           state is the currently sounding samples and their offset.  If
           there are effects like reverb or filters then I save the state in
           the same way as the faust stuff.
-    - Atomic cache replacement.
+    * Atomic cache replacement.
       . Im synths write to a new cache dir instead of modifying the existing
         one.
       . If they're doing an incremental rerender, then hardlink over the
@@ -1359,6 +1359,7 @@ synth: im:
         since it's a fixed directory structure.
       . The synth generates a new cache dir, and play_cache GCs the old one
         when it stops.
+      . This happens at the checkpoint level now.
   performance
     - Profiling for time and space.  It should take constant space.
     - fast serialize / deserialize
@@ -2035,6 +2036,32 @@ synth: im:
         for samples I do.
       . See audio:
     * clear out ###.wav symlinks after the end!
+    * it sounds like the attack of the first note is cut off?
+      . It's not in the audio, so it must be play_cache.
+      . play_cache claims start at '000.wav' + 0
+      . Probably due to the load thread having to fill the ringbuffer.
+      . I think the only real way around this is to have play wait for
+        a fraction of a second.
+      . Effectively I want to add a bit of time to all play events.
+        play_cache needs to understand this specially and stream silence.
+      . Currently, processEvents calls start(), which starts the streamer,
+        which will try to make samples available at streamer->read().  But
+        since it's not blocking, the first read() will miss some.
+      . Streamer::read() uses a debt mechanism to keep frames marching even
+        if the ringbuffer isn't ready.
+      . I can pretend each start streaming has an extra 'latency' frames of
+        silence, then delay the non-im notes by 'latency' frames.
+      . Subtract latency from startOffset, and handle a negative offset
+        properly.
+      . I can't send a negative value, so add to it inside play_cache.
+      . I can just add to the startOffset.  But I think it only helps if it
+        bumps it past a time slice, which is 512 frames, which is 12ms.
+        That time might be a bit long... but if I delay the MIDI too maybe
+        it's not noticeable?
+      . Or I could try to reduce the time slice, maybe the DAW has a control
+        for that.
+      > Try a 512 frame delay, see if it's noticeably off from MIDI, and if
+        so delay the MIDI and see if it feels like a delay starting.
     reyong:
       . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
       . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in
@@ -2168,14 +2195,6 @@ synth: im:
           . len states /= len notes: [Nothing, Nothing, Nothing, Nothing]
             /= [Note { start = 3s ..}
           . I have to remove Playings more eagerly.
-      - it sounds like the attack of the first note is cut off?
-        . It's not in the audio, so it must be play_cache.
-        . play_cache claims start at '000.wav' + 0
-        . Probably due to the load thread having to fill the ringbuffer.
-        . I think the only real way around this is to have play wait for
-          a fraction of a second.
-        . Effectively I want to add a bit of time to all play events.
-          play_cache needs to understand this specially and stream silence.
       * disable track and re-enable caches as intended, but doesn't relink
         the audio.
 
@@ -2280,7 +2299,8 @@ synth: im:
     guzheng:
       . Everything rings except when explicitly muted.
 
-    - The sampler could render per-track since each note is independent.
+    / The sampler could render per-track since each note is independent.
+      . No wait, I was going to use disable for this.
     - bind to rubberband library for pitch change without time change
     - convolution
       . What are the options?  jconvolver, ...

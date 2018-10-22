@@ -144,6 +144,6 @@ renderDirect filename dur samples =
         _quality = Resample.SincFastest
         , _state = Nothing
         , _notifyState = const $ return ()
-        , _chunkSize = Audio.Frame Config.checkpointSize
+        , _chunkSize = Config.checkpointSize
         , _now = 0
         }

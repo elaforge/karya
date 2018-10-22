@@ -10,6 +10,7 @@
 
 #include <sndfile.h>
 
+#include "Synth/Shared/config.h"
 #include "PlayCache.h"
 #include "log.h"
 
@@ -194,7 +195,7 @@ PlayCache::start(int32_t startOffset)
     samplesDir += playConfig.scorePath;
     streamer->start(samplesDir, startFrame, playConfig.mutedInstruments);
     this->playConfig.clear();
-    this->startOffset = startOffset;
+    this->startOffset = startOffset + START_LATENCY_FRAMES;
     this->playing = true;
 }
 
@@ -311,6 +312,9 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
     if (!this->playing)
         return;
 
+    // LOG("process frames " << processFrames << " startOffset: " << startOffset
+    //     << " offset: " << startFrame);
+
     // Leave some silence at the beginning if there is a startOffset.
     if (startOffset > 0) {
         int32_t offset = std::min(processFrames, startOffset);
@@ -326,9 +330,6 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
         this->playing = false;
         return;
     }
-
-    // LOG("process frames " << processFrames << " startOffset: " << startOffset
-    //     << " offset: " << startFrame;
 
     for (int frame = 0; frame < processFrames; frame++) {
         (*out1++) = sampleVals[frame*2] * volume;

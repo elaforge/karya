@@ -37,7 +37,7 @@ type Error = Text
 
 write :: Note.InstrumentName -> Resample.Quality -> FilePath -> [Sample.Note]
     -> IO (Either Error (Int, Int))
-write = write_ (Audio.Frame Config.checkpointSize)
+write = write_ Config.checkpointSize
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
 -- repeated parts.

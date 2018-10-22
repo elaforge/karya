@@ -74,7 +74,7 @@ data Config = Config {
 
 defaultConfig :: Config
 defaultConfig = Config
-    { _chunkSize = Audio.Frame Config.checkpointSize
+    { _chunkSize = Config.checkpointSize
     -- TODO it should be longer, but since 'isBasicallySilent' is
     -- unimplemented every decay lasts this long.
     , _maxDecay = 2

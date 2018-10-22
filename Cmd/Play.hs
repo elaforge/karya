@@ -82,14 +82,6 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Vector
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Block as Block
-import qualified Ui.Id as Id
-import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-import qualified Ui.Zoom as Zoom
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PlayUtil as PlayUtil
@@ -102,10 +94,20 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Im.Play as Im.Play
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
+
+import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Shared.Config as Shared.Config
+import qualified Ui.Block as Block
+import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.Zoom as Zoom
 
 import Global
 import Types
@@ -391,17 +393,6 @@ from_realtime block_id repeat_at start_ = do
     let mtc = PlayUtil.shift_messages 1 start $ map LEvent.Event $
             generate_mtc maybe_sync start
 
-    -- Events can wind up before 0, say if there's a grace note on a note at 0.
-    -- To have them play correctly, perform_from will give me negative events
-    -- when starting from 0, and then I have to shift the start time back to
-    -- consider the first event the new 0.
-    msgs <- PlayUtil.perform_from start perf
-    let negative_start
-            | start == 0 && fst_msg < 0 = fst_msg
-            | otherwise = start
-            where fst_msg = PlayUtil.first_time msgs
-    msgs <- return $ PlayUtil.shift_messages multiplier negative_start msgs
-
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
     (im_insts, play_cache_addr) <- case lookup_im_config allocs of
         Right (im_insts, play_cache_addr) ->
@@ -411,7 +402,11 @@ from_realtime block_id repeat_at start_ = do
     muted <- Perf.infer_muted_instruments
     score_path <- Cmd.gets Cmd.score_path
     let im_msgs = maybe [] (im_play_msgs score_path block_id muted start)
-                play_cache_addr
+            play_cache_addr
+
+    msgs <- PlayUtil.perform_from start perf
+    let adjustment = start_adjustment start (not (null im_msgs)) msgs
+    msgs <- return $ PlayUtil.shift_messages multiplier adjustment msgs
 
     -- See doc for "Cmd.PlayC" for why I return a magic value.
     return $ Cmd.PlayMidiArgs
@@ -419,13 +414,28 @@ from_realtime block_id repeat_at start_ = do
         , play_name = pretty block_id
         , play_midi = im_msgs ++ merge_midi msgs mtc
         , play_inv_tempo =
-            Just $ Cmd.perf_inv_tempo perf . (+negative_start) . (/multiplier)
+            Just $ Cmd.perf_inv_tempo perf . (+adjustment) . (/multiplier)
         , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
         , play_im_end = if Set.null im_insts then Nothing
             else Score.event_end <$> Util.Vector.find_end
                 ((`Set.member` im_insts) . Score.event_instrument)
                 (Cmd.perf_events perf)
         }
+
+start_adjustment :: RealTime -> Bool -> [LEvent.LEvent Midi.WriteMessage]
+    -> RealTime
+start_adjustment start has_im msgs = negative_start - im_latency
+    where
+    -- Events can wind up before 0, say if there's a grace note on a note at 0.
+    -- To have them play correctly, perform_from will give me negative events
+    -- when starting from 0, and then I have to shift the start time back to
+    -- consider the first event the new 0.
+    negative_start
+        | start == 0 && fst_msg < 0 = fst_msg
+        | otherwise = start
+        where fst_msg = PlayUtil.first_time msgs
+    im_latency = if has_im
+        then AUtil.toSeconds Shared.Config.startLatency else 0
 
 lookup_im_config :: Map Score.Instrument UiConfig.Allocation
     -> Either (Maybe Text) (Set Score.Instrument, Patch.Addr)

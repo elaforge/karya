@@ -14,8 +14,10 @@ import qualified Data.Map as Map
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Util.Audio.Audio as Audio
 import qualified Util.Seq as Seq
 import qualified Ui.Id as Id
+
 import Global
 
 #include "config.h"
@@ -92,18 +94,26 @@ samplingRate = SAMPLING_RATE
 type SamplingRate = SAMPLING_RATE
 
 -- | Number of frames in each audio chunk.
-chunkSize :: Int
-chunkSize = samplingRate `div` 4
+chunkSize :: Audio.Frame
+chunkSize = Audio.Frame $ samplingRate `div` 4
 
 -- | Save an audio chunk and checkpoint in this many frames.  This should be
 -- an integral multiple of 'chunkSize', so checkpoint state lines up with audio
 -- output.
-checkpointSize :: Int
-checkpointSize = chunkSize * 4 * checkpointSeconds
+checkpointSize :: Audio.Frame
+checkpointSize = Audio.Frame $ samplingRate * checkpointSeconds
 
 checkpointSeconds :: Int
 checkpointSeconds = CHECKPOINT_SECONDS
 
+-- | play_cache delays play start by this many frames, so MIDI output should
+-- also be delayed by this much to match.
+--
+-- It has to cue up the sample streaming, which means it has to find and
+-- seek to the right file.  If playback starts immediately then the first
+-- chunk gets cut off, which cuts off note attacks.
+startLatency :: Audio.Frame
+startLatency = START_LATENCY_FRAMES
 
 -- * cache files
 
