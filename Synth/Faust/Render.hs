@@ -5,6 +5,7 @@
 {-# LANGUAGE DataKinds #-}
 -- | Render FAUST instruments.
 module Synth.Faust.Render where
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
@@ -12,6 +13,7 @@ import qualified Data.Vector.Storable as V
 
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
+import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.CallStack as CallStack
@@ -41,7 +43,7 @@ write = write_ defaultConfig
 
 write_ :: Config -> FilePath -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
-write_ config outputDir patch notes = do
+write_ config outputDir patch notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
@@ -56,6 +58,11 @@ write_ config outputDir patch notes = do
         renderPatch patch config mbState notifyState notes start
     where
     chunkSize = _chunkSize config
+    catch io = Exception.catches io
+        [ Exception.Handler $ \(Audio.Exception err) -> return $ Left err
+        , Exception.Handler $ \(exc :: IO.Error.IOError) ->
+            return $ Left $ txt $ Exception.displayException exc
+        ]
 
 toSpan :: Note.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span

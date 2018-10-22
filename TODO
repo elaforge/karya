@@ -1748,6 +1748,24 @@ synth: im:
         have to resample in Convert.makeSample, and it could be per-sample.
         . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
           have it take nn to nn breakpoints, and do that calculation internally.
+    - I'm still getting crashes plus garbage output.
+      - Also: sampler-im: 005.wav: removeLink: does not exist
+        But it's still there?
+      . build/opt/sampler-im im/notes/test/im-reyong/untitled/b3/sampler
+      . I think it segfaults but I don't see the msg?
+        Util/Process.hs:86 process failed: 1: build/opt/sampler-im im/
+      . To reproduce, I should be able to preserve inputs.  The notes are the
+        same, but the output cache changes.
+      . Though it doesn't get deleted, so I just need to know which are the
+        new files, and delete them.
+      . I also need the old link destinations.  Or not?  It doesn't read them,
+        so they shouldn't matter.
+      . I think the skipped msg gives me that: r: skipped
+        ["000.Tp9XUw.AAAAAA.wav", "001.yX0pZw.JpdE-g.wav"],
+        resume at [(2, N0DIJA)] state: uZayLg start: 8s
+      . Yes, this repros:
+        rm im/cache/test/im-reyong/untitled/b3/r/cache/*.N0DIJA.*
+      . Long hang after skip msg.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
@@ -1806,6 +1824,10 @@ synth: im:
         . Probably this should be opt-in, because of course I don't always
           want to stick to a realistic range.
       - test with dynamics to find dynFactor
+        . Or normalize, it still seems like it shouldn't inherently cause any
+          more hiss than not, if I have the scaling adjusted right.
+        . Try normalizing first, then cycle variations to make sure they are
+          self-consistent.
     wayang:
       - Variable mute, take a mute control where 1 is +mute, .75 is
         +mute+loose, and <.5 is open note with an envelope.

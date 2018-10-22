@@ -15,6 +15,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 
 import qualified Streaming.Prelude as S
+import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
@@ -43,7 +44,7 @@ write = write_ Config.checkpointSize
 -- repeated parts.
 write_ :: Audio.Frame -> Note.InstrumentName -> Resample.Quality -> FilePath
     -> [Sample.Note] -> IO (Either Error (Int, Int))
-write_ chunkSize inst quality outputDir notes = Exception.handle handle $ do
+write_ chunkSize inst quality outputDir notes = catch $ do
     -- Debug.tracepM "overlap" $ map (map snd) $
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
     --     Seq.key_on Checkpoint._hash $ map toSpan notes
@@ -69,8 +70,11 @@ write_ chunkSize inst quality outputDir notes = Exception.handle handle $ do
                     (dropUntil (\_ n -> Sample.end n > start) notes)
                     (AUtil.toFrame start)
     where
-    -- TODO surely there are other exceptions.  Or I could catch all non-async.
-    handle (Audio.Exception err) = return $ Left err
+    catch io = Exception.catches io
+        [ Exception.Handler $ \(Audio.Exception err) -> return $ Left err
+        , Exception.Handler $ \(exc :: IO.Error.IOError) ->
+            return $ Left $ txt $ Exception.displayException exc
+        ]
 
 toSpan :: Sample.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
