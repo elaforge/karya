@@ -5,15 +5,7 @@ LEGEND
   Use indent folding with indent=2.
 
 STATUS
-  + incremental rendering:
-    faust-im
-      * add getState / putState
-      + continue from checkpoints:
-    sampler-im
-      - start a stream with state, get final state
-        . Figure out note vs. sample duration
-        - I need accurate sample durations to determine overlap
-          + Use math to find integral of the ratio curve.
+  . sampler status:
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -1298,11 +1290,6 @@ synth: im:
         meanwhile I should be noticing that there are no im events and not
         starting play_cache.
       . Proper MIDI fallback would also fix this.
-    * If I delete an instrument and rerender, the old one is left around.
-      This is because the cache won't delete existing files.  This will be
-      fixed by making a new cache dir instead of just copying into the
-      existing one.
-      . I should be able to cache instruments that don't change.
   cleanup:
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
@@ -1342,24 +1329,6 @@ synth: im:
           state is the currently sounding samples and their offset.  If
           there are effects like reverb or filters then I save the state in
           the same way as the faust stuff.
-    * Atomic cache replacement.
-      . Im synths write to a new cache dir instead of modifying the existing
-        one.
-      . If they're doing an incremental rerender, then hardlink over the
-        unchanged outputs.  If there are a lot, maybe I want to symlink
-        directories of unchanged instruments, but then GC is more difficult.
-        Still, I can GC offline so performance is not such a concern there.
-      . When all im synths complete, move the new cache dir into place.
-        Presumably I can just use a serial number.
-      . Each time play_cache plays, it chooses the latest cache dir.
-      . I'll need some way to GC away the old ones.  If it's all hardlinks,
-        I can just delete the old ones.  play_cache can do that itself on
-        stop.  If there are symlinks I need something fancier that moves
-        the files instead of deleting, but that should be relatively easy
-        since it's a fixed directory structure.
-      . The synth generates a new cache dir, and play_cache GCs the old one
-        when it stops.
-      . This happens at the checkpoint level now.
   performance
     - Profiling for time and space.  It should take constant space.
     - fast serialize / deserialize
@@ -1518,67 +1487,15 @@ synth: im:
 
         - But first: make render incremental.  I need to do the whole save
           states thing for this.
-    sampler-im:
-      * figure out how to save libresample state
-        . there's src_clone, but I think I just need the size?
-        . I have to fork the library:
-          https://github.com/erikd/libsamplerate/issues/40
-        . 'local' branch at: https://github.com/elaforge/libsamplerate
-      chunk incremental:
-        . Currently I just map noteToSample notes.  Instead I want to iterate
-          over chunks, and only render if the inputs have changed.
-        . What if I just say inputs are the set of notes overlapping?
-        . For each chunk, hash notes in scope and compare to saved hash.  If no
-          match, then write the hash and write the chunk.
-        . Then I need to switch to chunk-based rendering.  How?
-        . Segment input notes into the groups in scope each chunk: [[Note]]
-        . I can hash the [Note] and that's the input.  If it matches I just
-          go to the next chunk.  If it doesn't match, I need to render the
-          chunk.
-        . For this, initialize the state, which means each sample and offset,
-          along with the resample SRC state.
-        . This seems maybe hard to reconcile with streams, since they have
-          implicit state inside.  What would it look like without streams?
-          . render prevState@(srcState, offset) sample = do
-              Resample.setState srcState
-              write chunkSize $ Resample.resample srcState (ratio sample) $
-                File.open (offset sample + offset)
-        . Maybe faust-im is easier, since they both have state, but faust uses
-          only one channel per instrument.
-          . I can write state and sample chunks easily enough when writing, but
-            the tricky thing is to resume in the middle.
-          . I need to initialize the streams, so they start with initial state
+    - come up with some means to expire old chunks
+      . I want to keep the last one because then I can toggle two things
+        quickly, but after that it's increasingly unlikely to need them.
+      . It's valid to remove the whole directory occasionally.
+      . Or I can delete everything with mtime >1hr ago, plus all symlinks.
+    - Restart skipping chunks if the state converges again.
+      . How likely is this to happen?
+    - if the synth returns progress, karya could mark it in the ruler
     faust:
-      notes:
-        . instrument stream has to take initial state, and return it at the end
-          . What to call chunks?  Sections?  Checkpoints?
-        . I could just call once for each section, but it seems wasteful to
-          save and restore state each time.  I want to call Resource.allocate
-          and Resource.release only when necessary.
-        . I could also put save state during the stream, then Audio doesn't
-          need a return value.  It needs to stop on its own, I guess when it
-          detects that the state is the same.
-        . But this is pre-mixed?  I guess for faust each patch is a single
-          audio stream, and if I have multiple voices then I need to save
-          state for all of them.
-        . In fact, there may be multiple stateful things in the stream, e.g.
-          filters and reverb, so I need some way to collect all the states
-          together and checkpoint in one place.  Also I have to know who
-          emitted those things, so when I reconstruct the graph, I can pass
-          the right bits back in.
-        . So the expression would look like:
-          . writeCheckpoints state dir $ reverb reverbState $ faust faustState
-            where
-            state = State { _reverbState :: Bytes, _faustState :: Bytes }
-            faustState = lens _faustState state
-            reverbState = lens _reverbState state
-        . I guess the state writing has to be in writeCheckpoints, which means
-          it has to somehow ask for it.  If I put 'state' in an mvar, then it
-          could send a signal to get them to update their fields,
-          at which point writeCheckpoints could serialize it.
-        . Alternately, I could stream state with every chunk:
-          Stream (Chunk, State), and each participant updates its own field.
-          Getting state should just be a pointer, no copying needed.
       either:
         / Generalize Audio to AudioState, which streams (Chunk, a).
           . I can lift audio transformers via 'first'.
@@ -1591,108 +1508,6 @@ synth: im:
             current states.
           . I don't have to send a signal because if getting state is
             copy-free I can just do it on every chunk.
-      * implement writeCheckpoints
-        . How do I control chunk size?  I know faust blocks will be
-          a multiple of Audio.chunkSize, so I might as well make a multiple
-          of that, and then accumulate until I get >= checkpoint size, then
-          write out a checkpoint.
-        . Or I could just set that to faust chuck size, why not?
-        . I control that by setting controls chunk size, which in turn is
-          Audio.linear, which is min chunkSize nextBreakpoint.
-        . But I did want to make Audio.linear use a constant chunk size, so
-          I don't have to reallocate in Audio.nonInterleaved.
-      * write [Note] hash with each checkpoint
-        . Only calculate the hash when the [Note] changes.
-        . How about I just store a hash with each Note, then I can remove from
-          the set without recalculating too.
-        . If I want to write notes incrementally anyway, why can't I use this
-          for rerender instead of hashes?
-      * continue from checkpoints:
-        . Find the first chunk where the hash doesn't match
-        . Crazy idea: could I use shake?  Make each audo chunk built from
-          the input notes and previous state.
-        . In general, the whole thing from score to incrementally recomputing
-          audio is like a build system.  I don't think the observation really
-          helps though.
-        . However, if I keep around old hashes, I could toggle between two
-          different results quickly.  E.g. track disable.
-        * In that case, maybe put the hash in the filename?  That way I can
-          have multiple versions in the same place.  I can expire old ones by
-          timestamp.
-        * I think I also need to put state in the hash, otherwise I will
-          overwrite output from a different run as soon as the notes are the
-          same again.
-        * How then do I know which ones to play?  They're the ones
-          corresponding to the current notes, but play_cache doesn't know
-          about that.  I guess I can mark them by renaming, e.g.
-          005-<hash>.old.wav, then play_cache ignores .old.wav like it
-          ignores .debug.wav.
-          . I put them in a cache/ subdir, and symlink in the current ones.
-        * skip already rendered checkpoints
-          . If I'm skipping parts of the stream, I want to skip generating
-            control signals in there.  So I think I need to restart the stream.
-            So, scan until I get a mismatch, then start a new audio stream,
-            then abort it when it matches again, repeat.
-          . If a filename matches, then I can skip.  But then I need the
-            state hash for the next one.  What if states are saved at the end?
-            Then if I find 000.abc.xyz.wav, then I can look for
-            001.bbc.{encode 000.abc.xyz.hash}.wav.
-          . I'd like to avoid the extra read and hash, since states can
-            be large.  What if I save as 000.abc.xyz.state.{my hash}, then
-            I look for a filename replace .wav -> .state.*.
-          . I keep the filename of the last hash, and when I can't find
-            file.wav, then I read its contents to initialize the stream.
-          . If the notes are completely the same, I don't want to do anything.
-            So I need to know the difference between out of notes, and Hash 0.
-            Otherwise, I'd still rerender the decay after the last note.
-            But, File.writeCheckpoints needs 0s afterwards, because it is
-            rendering the decay.
-          * print number of checkpoints rendered vs skipped
-          * The use of Audio.takeFrames in writeCheckpoints is too risky
-            . use uncons and assert the chunk size is as expected.
-            . Actually it's take >=n frames, so it can just result in greater
-              than expected chunks, not desynced state.
-            . Also I put in an assert about chunk size.
-          * isn't there an atomic way to replace the current chunk symlink?
-            . Create the link and rename into place?
-          - come up with some means to expire old chunks
-            . I want to keep the last one because then I can toggle two things
-              quickly, but after that it's increasingly unlikely to need them.
-            . It's valid to remove the whole directory occasionally.
-            . Or I can delete everything with mtime >1hr ago, plus all
-              symlinks.
-          * why does toggling output not seem to reuse the last render?
-            . The note hash is changing, why?
-            . 2m: ["AAAAAA", "9e51Dg", "-_EU6A"]
-              have 001.FnCUIA.aasnkw.wav
-              want 001.9e51Dg.aasnkw.wav
-              made 001.9e51Dg.AAAAAA.wav <- wrong, I should have set state
-            . 4m: ["AAAAAA", "9e51Dg", "-_EU6A"]
-              have 001.FnCUIA.aasnkw.wav
-              have 001.9e51Dg.AAAAAA.wav
-            . The problem is it goes:
-              fname <- getFilename =<< stateRef
-              samples <- Audio.take
-                putState
-                out <- render1
-                notifyState =<< getState
-                yield out
-              writeFile samples
-              writeState <- stateRef
-          * implement skipCheckpoints
-          * hook skipCheckpoints up to render
-          * test skipCheckpoints
-          - have render abort when the hash differs, restart skipCheckpoints
-          * test that audio produced by a rerender is the same as a render
-            from scratch
-      - if the synth returns progress, karya could mark it in the ruler
-      * tests for FaustIm
-        . It's easy to test the non-audio functions, but how to test
-          incremental rerender?
-        . I can do with and without and assert the audio output is the same.
-      / reaper crashes when playing back recorded MIDI
-        . Can't reproduce it now, maybe it only happens when I have a audio
-          "stem" track.
 
   - preview: midi thru:
     . Im instruments should have a midi thru-like preview sound.
@@ -1841,110 +1656,16 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
-    status:
-      . If I have constant pitches, I think incremental rendering should work,
-        but I haven't tried a real instrument yet.
+    sampler status:
+      . Dynamics for reyong:
+      . Non-constant pitch:
+    Non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict
         duration, but it turns out libsamplerate doesn't actually do that.
         But libsamplerate's algorithm for advancing samples seems to be the
         same for all quality levels, so I should be able to derive something
         from its loop.
-      . Abandon variable pitch for now, and make some instruments.  For that
-        I need frequencies for each of the notes.  I can use the kontakt
-        instrument and reaktor tuning instrument for that.
-      wayang: reyong:
-    * Get the paths right and hook this into SamplerIm.
-    * Instead of parsing all of the samples to a map, I should map a Note
-      directly to a filename.  That can happen at the karya level, and the
-      sampler just splits on track (not instrument!), and plays the sample in
-      Note.element.  I can get rid of "loading" entirely.
-      . I can still check the samples with a REPL function to enumerate all
-        the filenames.
-    * set Sample.duration correctly, at least for constant pitch notes
-    incremental render:
-      notes:
-        . save samples and positions, along with resample state.
-        . Or, since samples are all independent, rewind to the beginning of
-          each overlapping sample.  But to remove the samples from the old
-          output, I have to output each sample individually, at which point I've
-          just moved the sampler to realtime implementation in play cache.
-        . For samples maybe that's actually reasonable.  And I just have to mix
-          in realtime, sampler-im is still picking samples, resampling, applying
-          envelopes.  Still, it wouldn't work great with really long samples.
-        . So try true chunk-based incremental first, and see how hard it is.
-
-        . This way I'm not using AUtil.mix, so I have to recreate efficiently
-          skipping silence, as with faust.
-        . I also need to log errors since I'm converting Notes to Samples in the
-          stream.  I can do it in IO though.
-        . I have to render signals like with faust... but what signals are used?
-          Except for ones used to select Sample, maybe just volume at the
-          moment.  But in the future, I'd want to include faust blocks, for
-          e.g. filters.
-        . At that point, I should just merge sampler-im and faust-im.
-        . In fact, maybe I should do that now?  What would it look like?
-          I can't compose faust modules, but I don't think I want to: it should
-          be done in faust instead, as that's the whole reason for faust.  But
-          since faust can't do a sampler, then I do need modules, faust
-          + sampler.
-        . The reason to not compose in faust is that faust can't handle voice
-          allocation, so global effects will have to be separate.  Not to
-          mention if I want to insert VSTs.
-      * Write glue to get SRC state to State, then serialize to
-        Checkpoint.State, and back again.
-        . void src_get_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
-          size_t *size, void **private)
-        . void src_put_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
-          size_t size, void *private)
-      + make Sample -> Audio render function, can be initialized with State.
-        . Checkpoint.State deserializes to [State], and I start a render
-          function for each one.
-        . Those correspond to playing Notes, so I can drop those.  Future
-          Notes get rendered.
-        . Resample.SavedState is internal to Audio.Resample.resampleBy, so
-          I need to be able to get into that.  It's the same problem as
-          getting state from the faust stream, which I can solve the same way,
-          via a notifyState :: State -> IO ().
-        . But resampleBy needs to do the right chunk size, so I get state at
-          the right time.  I think this is really hard though, because the
-          whole thing about resampling is that it produces a variable amount
-          of output.
-        . No wait, I can ask for a specific amount of output.  So take
-          a chunkSize, ask for exactly that much output, and notifyState each
-          time.
-        * startSample must insert silence
-        * make sure notes and states are sorted by hash
-          . But how to get Note.Hash without recomputing it?  I need to sort
-            for every checkpoint I write, so I should at least try to avoid
-            recomputing.
-          . Currently I compute the note hashes to find the states to start
-            with, and then independently fast-forward the Notes to what should
-            be the same spot.  Can I use [(Index, Hash, [Note])]
-          . Well, it has to be [(Note, Hash)].
-          . I guess I can, skipCheckpoints has to keep [(Note, Hash)] around
-            and return that too.  But that contains duplicated Notes for
-            each overlap.  What I really want is non-duplicated Notes, and
-            [Hash] for each checkpoint.
-          . So maybe just keep [Hash] from skipCheckpoints, but still skip
-            Notes independently.  I could try to unduplicate the Notes, or
-            keep the original list, but it seems more complicated.
-          . Or, I could just put Hash in the Note as a lazy field, on
-            deserialize.  This is seeming simpler now.
-        * I think resample output won't have the right chunks, because they
-          should be globally aligned, not relative to the sample start.
-          . I have to adjust the size of the first chunk, so I have to keep
-            a global absolute frame and use that.
-          . I still need to merge silence + start of sample.  I guess the
-            checkpoint machinery can merge too-small chunks, and complain if
-            they don't add up to chunkSize.
-        * implement Render.pull
-      * Test restart from checkpoint like with faust.
-        . Test crashes with states /= notes.
-        . I think this is because I'm not treating correctly samples longer
-          than note duration.
-        . For now set samples to note duration by force, but I'll have to
-          figure out the real solution below.
       - I need accurate sample durations to determine overlap
         . E.g. a long note duration will emit lots of hash overlaps, but the
           actual sample is not so long.  Or the hashes don't overlap, but
@@ -2011,71 +1732,29 @@ synth: im:
           . I think the math is right, but libsamplerate doesn't match up.
           . Test other changing ratios.
           . If it's too much bother, check-in as-is for just constant ratios.
+    optimizations:
       - Sample should stream the envelope.
+      - RenderSample.applyEnvelope should be able to check for constant within
+        the sample's duration.
+      - Efficiently skip long silent gaps.
+        . To avoid writing empty checkpoints, I could link to a canonical
+          empty sample.
+        . Or it might be better to make a broken link, and have play_cache
+          know to skip those, that way it doesn't have to read a file.
+        . Link to "<silence>" or something to imply it's broken on purpose.
       - If the sampler is cheaper overall, maybe I should use larger chunk
         size?  Of course, my current faust instruments are really cheap too.
-
-    - if libsamplerate could handle the pitch curve directly, I wouldn't have
-      to resample in Convert.makeSample, and it could be per-sample.
-      . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
-        have it take nn to nn breakpoints, and do that calculation internally.
-    * support envelope
-      . Currently the note is always as long as the whole sample.  I should
-        respect note duration by stopping on end.
-      . But this depends on per-patch envelope, so I need to be able to
-        configure it.
+      - if libsamplerate could handle the pitch curve directly, I wouldn't
+        have to resample in Convert.makeSample, and it could be per-sample.
+        . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
+          have it take nn to nn breakpoints, and do that calculation internally.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
         envelopes and other synth type things.
-    * I should be able to optimize a constant envelope or pitch over
-      min sampleDuration envelopeDuration.
-      . This might be valuable since many samples could have a locally
-        constant pitch or dyn.
-      . I can't do it at the score level, because I don't know the decay, but
-        for samples I do.
-      . See audio:
-    * clear out ###.wav symlinks after the end!
-    * it sounds like the attack of the first note is cut off?
-      . It's not in the audio, so it must be play_cache.
-      . play_cache claims start at '000.wav' + 0
-      . Probably due to the load thread having to fill the ringbuffer.
-      . I think the only real way around this is to have play wait for
-        a fraction of a second.
-      . Effectively I want to add a bit of time to all play events.
-        play_cache needs to understand this specially and stream silence.
-      . Currently, processEvents calls start(), which starts the streamer,
-        which will try to make samples available at streamer->read().  But
-        since it's not blocking, the first read() will miss some.
-      . Streamer::read() uses a debt mechanism to keep frames marching even
-        if the ringbuffer isn't ready.
-      . I can pretend each start streaming has an extra 'latency' frames of
-        silence, then delay the non-im notes by 'latency' frames.
-      . Subtract latency from startOffset, and handle a negative offset
-        properly.
-      . I can't send a negative value, so add to it inside play_cache.
-      . I can just add to the startOffset.  But I think it only helps if it
-        bumps it past a time slice, which is 512 frames, which is 12ms.
-        That time might be a bit long... but if I delay the MIDI too maybe
-        it's not noticeable?
-      . Or I could try to reduce the time slice, maybe the DAW has a control
-        for that.
-      > Try a 512 frame delay, see if it's noticeably off from MIDI, and if
-        so delay the MIDI and see if it feels like a delay starting.
+    - An alternative to use-symbolic-pitch=t is that patches could export
+      their native scales.  That way other instruments could use them too.
     reyong:
-      . samples are: $nn-$lowVel-$highVel-$attrs+v$variation.wav
-      . I'll want a tuning mode to figure out actual pitch.  Or maybe I put in
-        the ideal pitch, to reflect instrument variation.  Of course I can
-        easily insert that back in, so lets go for accuracy.  The instrument
-        can define deviations.
-      . I need the same thing for dynamics, but there isn't such an absolute
-        measure.  But I can match all in one group to each other, then go pp
-        to ff to verify a smooth sounding range.
-      . Filenames should use the symbolic metadata:
-        $pitch-$dyn-$articulation-$variation.wav ==> 4e-mp-open-1.wav
-        Or $oct;[12356]-{0pp, 1mp, 2mf, 3ff}-open-1.wav if I want to sort by
-        (pitch, dynamic).  And if I ever have saih pitu or pamero samples then
-        ioeua won't work anyway.
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
           sound the same.  Record the negated number as the offset.  Reaktor
@@ -2122,185 +1801,23 @@ synth: im:
             amplify samples.
           . Actually, that might be hard.  I'd have to pick the softest within
             each group and adjust everyone down to match.
-      . Damping rules: +mute damp everything, all others overlap.
-        . When a +mute damps an +open, it should actually damp very slightly
-          before.
-      * implement convert
-      * figure out tuning
       - separate ranges and tuning for trompong, reyong, reyong-trompong
+        . I export range vars, but I could also prevent out of range notes.
+        . Probably this should be opt-in, because of course I don't always
+          want to stick to a realistic range.
       - test with dynamics to find dynFactor
-      * implement infer-damp
-        . This is for low level cutoff stuff, so it takes notes with +damp
-          attrs and manages durations.
-        . Maybe a case for per-instrument postproc.
-        . Should wayang take the same approach?
-      * It turns out the reyong samples are 24bit 48k, I completely forgot
-        about that.
-        . 24bit is no problem since it just goes to floats, but I'm assuming
-          44.1k.  Would it be hard to support 48k?
-        . I could just resample, but to actually use the resolution I'd have
-          to do that after the main resample, and to be efficient I'd want to
-          fuse them.
-        . But since my output is always 44.1, it's always at least one
-          resample.
-        . Or it's just not worth the hassle, just convert them.
     wayang:
-      . Same situation as reyong, except I also want to fade out based on
-        duration.
-      . Or model it as a hand-mute, which doesn't have its own sample.
-      * parse filenames into a patch
-      * write convert to pick the right sample
-      / Turn +stop or +damp or +mute+soft into durations.
-        Actually, don't I want to handle this stuff in the sequencer?  All
-        higher level stuff should be there.  The only thing the sampler can do
-        is shorten durations because it knows the lengths of the samples.
-      * crash rendering:
-        . chunk was >176400f: [176400f, 220500f, 264600f]
-        . chunkSize = 11025
-          checkpointSize = 176400
-        * now there's a segfault
-          . Only happens when I resample.
-      * now the notes seem to cut off early
-        . Because env is not lined up.
-        ? Also what's with the tons of silence on the end?
-          . Fixed, it was the bug below.
-      * also incremental is broken:
-        . len states /= len notes:
-          [Nothing, Nothing, Nothing, Nothing] /= [Note 3s]
-        . How many should be overlapping at 3s?  Just 1, or 2 since prev has
-          decay.
-        . No, it's 4 since it's everything within that chunk, not just at the
-          start.
-        . The sampler needs to also resume notes that overlap any part of the
-          chunk, not just its start.
-        . Wait, but I don't want to resume those, they may have changed!
-        . So I need to use overlap of the Span for change detection, but
-          only write states that overlap the start.
-        . Don't I already do this?  So where do the states come from?
-        . playing notes in renderChunk.
-          0-4 [ [ (gmKqbg, 0s+1.15s(gmKqbg)), (0y9KVw, 1s+1.15s(0y9KVw))
-                , (0GUQuA, 2s+1.15s(0GUQuA)), (8mDfQA, 3s+1.15s(8mDfQA))
-                ]
-          4-8 , [ (8mDfQA, 3s+1.15s(8mDfQA)), (EbLEwQ, 4s+1.15s(EbLEwQ))
-                , (rs8M4g, 5s+1.15s(rs8M4g)), (N7vLUw, 6s+2.15s(N7vLUw))
-                ]
-          8-12, [(N7vLUw, 6s+2.15s(N7vLUw))]
-              ]
-        . But I have Playings for all of them at 4, 8
-        . It's just that the audio doesn't run out at the expected end, so the
-          Playings stick around.  Why?
-        . Probably because I don't stop the sample when the envelope runs out!
-        * STILL buggy
-          . changed a note at 6s-8s
-          . len states /= len notes: [Nothing, Nothing, Nothing, Nothing]
-            /= [Note { start = 3s ..}
-          . I have to remove Playings more eagerly.
-      * disable track and re-enable caches as intended, but doesn't relink
-        the audio.
-
-      * wayang nns don't match up with Derive.Scale.Wayang, measure to see
-        what the actual values are.  Again.
-        . Also see logical pitch:
-      * It seems like umbang/isep are backwards in Scale.Wayang?
-        . They are, but if I fix this will it screw things up?  Why do they
-          work with >kontakt/wayang-etc?
-      * extend duration by decay time
-      write karya side
-        * set Control.variation
-        * add a wayang infer-damp similar to the reyong one
-          . Instead of using +damp notes, just extend durations.  I can do this
-            since I'm not MIDI and can have overlapping notes.
-      * logical pitch: I might need separate logical and actual tuning, since
-        even when the scale logically has certain frequencies, each instrument
-        will differ slightly.  I could do that by setting symbolic pitch as
-        Note.element or an env var.
-        . Alternately I could consistently use *wayang-p and *wayang-k, but
-          it seems like a bother.
-        . How to set Note.element?  It comes from EnvKey.patch_element.
-        . I could also add a RestrictedEnviron to Shared.Note.  ConstantPitch
-          would be appropriate.  And I could put variation there as well.
-      - But I also want a way to disable this.  symbolic-pitch=f?
-        . Maybe it would be better for the instrument itself to define
-          its original tuning, then you can ask for that.  This is basically
-          just the *wayang-pemade-umbang idea, except that the instrument
-          somehow brings it into scope.
-      * every single "random" number is divisible by 8.  Not by 16.
-        . Probably I don't have enough random bits, and I multiply by 8.
-      * Do dynamics.  Wayang is normalized, so they have to be absolute.
-        . create test scores to check for smooth transitions on each note.
-      * I think there are a bunch of samples with time at the beginning, how
-        to find them?
-        . The dynamic ranges tend to get them.
-        . How about play a bunch at once?
-        pemade umbang:
-          * pemade-umbang-calung-17-1-31-calung+mute1.wav
-          * pemade-umbang-calung-69-1-31-calung1.wav
-          * pemade-umbang-calung-69-32-64-calung1.wav
-          * pemade-umbang-calung-69-65-108-calung1.wav
-          . pemade-umbang-calung-71-1-31-calung1.wav
-          . pemade-umbang-calung-77-1-31-calung1.wav
-          * pemade-umbang-normal-65-1-31-open1.wav
-          * pemade-umbang-normal-69-32-64-open1.wav
-          . pemade-umbang-normal-72-1-31-open1.wav
-          . pemade-umbang-normal-77-1-31-open1.wav
-          * pemade-umbang-normal-83-1-31-open1.wav
-        pemade isep:
-          . pemade-isep-calung-23-1-31-calung+mute1.wav
-          * pemade-isep-calung-65-1-31-calung1.wav
-          * pemade-isep-normal-71-1-31-open1.wav
-          * pemade-isep-normal-76-1-31-open1.wav
-          * pemade-isep-normal-77-1-31-open1.wav
-          * pemade-isep-normal-81-1-31-open1.wav
-          * pemade-isep-normal-81-32-64-open1.wav
-        kantilan umbang:
-          / kantilan-umbang-calung-52-109-127-calung+mute1.wav
-          * kantilan-umbang-calung-77-1-31-calung1.wav
-          * kantilan-umbang-calung-81-65-108-calung1.wav
-          . kantilan-umbang-calung-93-1-31-calung1.wav
-          . kantilan-umbang-normal-100-1-31-open1.wav
-          . kantilan-umbang-normal-45-1-31-loose1.wav
-        kantilan isep:
-          . kantilan-isep-calung-45-1-31-calung+mute1.wav
-          * kantilan-isep-normal-95-109-127-open1.wav
-          * kantilan-isep-normal-95-32-64-open1.wav
-          * kantilan-isep-normal-95-65-108-open1.wav
-      * What should the mute protocol be?
-        . Lowest level is zero dur becomes +mute or +loose+mute.
-        . Then I want to scale dyn down so it sounds appropriate next to the
-          equivalent open stroke.
-        . Then variable mute.
-        . Then optionally turn on zero dur becomes a weak note.
       - Variable mute, take a mute control where 1 is +mute, .75 is
         +mute+loose, and <.5 is open note with an envelope.
-      / There's still a place for a [Score.Event] per-instrument postproc,
-        because then I can apply postproc before writing im, and I don't have
-        to pass the instrument name.
-        . Well, it's awkward because I don't have things grouped by
-          instrument.  But since this is im-specific anyway, I can just put it
-          as a preproc on the patch.
-        . That doesn't work because Note.Note doesn't have all the same stuff
-          as Score.Event, notably environ.  I could just put environ in
-          Note.Note.  Or do preproc in Perform.Im.Convert.
-        . Environ is just a generalization of Note.element, and I could take
-          the same approach as controls, by only copying a whitelist.
-      * apply hardcoded damping rules as a sampler preproc
-      - segfault on im/notes/test/im-wayang/untitled/b3/sampler
-        . It's because 67.57nn,4e(wayang) is 67.60, so it resamples the lower
-          one.
-        - fix the crash
-          . It disappeared after I deleted the cache.
-          * Could it have been due to killing a sampler-im halfway through?
-            I should make it only move the files into place as they complete.
-        * make notes tune down too
-        - synchronize tuning of *wayang and sampler wayang
-          . I'll have to update all the wayng scores too.  This notion of
-            per-allocation tuning is a bit annoying because I want to be able
-            to say just use the standard one.
+    rambat:
+      . I need to edit the samples first.
     guzheng:
       . Everything rings except when explicitly muted.
 
-    / The sampler could render per-track since each note is independent.
-      . No wait, I was going to use disable for this.
+    - synchronize tuning of *wayang and sampler wayang
+      . I'll have to update all the wayng scores too.  This notion of
+        per-allocation tuning is a bit annoying because I want to be able
+        to say just use the standard one.
     - bind to rubberband library for pitch change without time change
     - convolution
       . What are the options?  jconvolver, ...
@@ -2336,11 +1853,6 @@ synth: im:
         to pick the closest speed and use rubberband to fit.
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
-
-      . Problems to solve:
-        . Intrinsic pitch, used to select the sample.  I can use Note.element.
-      . Write down patch description for reyong, and mridangam, so I have a
-        concrete place to start.
   faust:
     - faust-stk/bowed.dsp?
     - Compare timing with pre-input signals.
@@ -2829,10 +2341,6 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
-  * get rid of the complicated sort order in .fix-imports
-    . This should be enough:
-      import-order-first: Util
-      import-order-last: Global Types Synth.Lib.Global
   - support cabal new-build
     . The advantage is that people can install dependencies without messing up
       their global package db.
@@ -3166,7 +2674,7 @@ performance:
       visible as outliers.
     . Profile MIDI and ly generation separately?
   keep track of history save scores and timing:
-    * I put saves and timing in a gitlab group: https://gitlab.com/karya-group
+    . https://gitlab.com/karya-group
     - I should have a way to commit saves on each karya commit, and keep track
       of which karya commit corresponds to which 'saves' commit.
       . This seems like submodules.
@@ -3720,11 +3228,6 @@ test: testing:
       . But no classify/coverage?
         . https://github.com/hedgehogqa/haskell-hedgehog/issues/127
         . https://hackage.haskell.org/package/tasty-hedgehog-coverage
-    * Integrate hedgehog into Util.Testing
-    * port Util.Segment_test quickchecks to hedgehog
-      . but I want to see some errors that require shrinking, to demo
-        hedgehog's automatic shrinking
-      . I can't get test_concat_dups to generate the 3 element list.
   - Write a test for Ui.Diff and Ui.Sync.
     . I think the easiest way to do this is make BlockCStub record its calls,
       then have a UI simulation that interprets those.  Then I can use
@@ -3864,75 +3367,10 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
-  * sarva doesn't work with trailing rests
-    . The problem is that I search by [sollu], but I want to get the trailing
-      rest too.  This isn't a problem for normal matches because realize_ will
-      then pass the rest through on the next step, but sarva does a cycle on
-      the output.
   - can I highlight karvais?  I guess I have to infer when they are, e.g.
     tri_ can put the group on, or join, though maybe it should be called
     karvai to emphasize that.
     . Or maybe it's enough that the non-karvai is highlighted.
-  * LSol.insert patterns are broken
-    * They get 5p 8n instead of 'p 5' and '4n'
-      . I need the original pattern matras, which means I think I have to
-        make GPattern Matra
-    * Also only get one matra.
-      . Because in Format, I have S.Attack and S.Sustain, so Abstracted can be
-        1 matra.  But LSol is working with Realize.Notes.
-      . But I can get this with the duration in AbstractedGroup.  I just need
-        noteDuration to understand.
-      . But then there's a weird inconsistency, where makeGroupsAbstractScore
-        adds a single AbstractedGroup with the whole dur, while
-        makeGroupsAbstract adds a bunch, each one with the whole dur.
-        noteDuration will add up too much.
-      . makeGroupsAbstract adds a bunch because Pattern had an integral Matra,
-        but Pattern is gone now.  Maybe I should add a FMatra arg to
-        Realize.Abstracted.
-      . Format still needs to expand to S.Attack and S.Sustain though.
-      ? Why is sarva right?
-      . Non-abstract but empty sarva is
-        'GSarvaT group [Abstract AbstractedSarva]' with tempo set right for
-        the duration.
-        Abstract is 'FNote (AbstractedGroup GSarvaT)', with tempo for one
-        matra.
-      . This is confusing, abstract and non-abstract empty sarva should be the
-        same, and non-abstract realized sarva should be a GSarvaT group.
-      . The AbstratedSarva doesn't work anyway because the duration may not
-        work for exactly one matra.
-      . I think GroupMeta is wrong too, I want to have arbitrary FMatras
-        duration for both sarva and abstracted groups.  So maybe generalize
-        GSarva.
-      . Solkattu: data SGroup = Reduction Split Side | Meta GroupMeta
-                  data GroupMeta = GroupMeta S.FMatra GroupType
-        Realize: data Group = Reduction [stroke] Side | Meta Solkattu.GroupMeta
-        Format: GroupMeta
-          but GroupType + GTheme, because I want to abstract those
-      . Reduction is implicitly GTheme.
-      . Realize.Meta must be FMatra because reductions may be fractional
-        matras.  But Solkattu.Meta must be Matra because it's in HasMatras.
-      . Oh bother, Realize.Note is HasMatras too.  And since I use
-        Realize.Abstract, I can't put FMatra in Format either.
-      . Why is HasMatras not FMatra?  Where is matrasOf used?
-        The most important place is S.normalizeSpeed, which relies on it
-        being integral.  Realize.Abstract should be post normalize, so this
-        could be a side-effect of reusing Realize.Note post-flatten.
-      . I think it only really works when Abstract is 1 matra as originally
-        intended.  The problems all came from trying to reuse it as a stand-in
-        for abstraction of any duration.  Can I go back to that original
-        state, and come up with some other solution for
-        Format.makeGroupsAbstractScore?  Such as return an ad-hoc type.
-      . I think the Meta refactors are worth keeping, so I don't want to just
-        revert.
-      . The invariant is not that matras are integral, but that they are
-        a fraction which can be decomposed into fractions of powers of two.
-        This is more restrictive than just rational, which is what I think
-        adding nadai would technically mean.  But since Tempo is in there, it
-        is with nadai.  Still, I keep the invariant with integral matras.
-  * explicit patterns in Solkattu2014.c_14_04_21.txt abstract to 5-- not 5p--
-  * move DslSollu into SolkattuGlobal
-  * tatakita.takadinna -> tkoo ktok
-    This is like a nakatiku, but a bit less common.
   David Nelson mridangam transcriptions:
     . http://www.ancient-future.com/atfp.html#MIDI
     . http://dpnelson.web.wesleyan.edu/publications.html
@@ -3959,119 +3397,7 @@ solkattu:
         k__t__k__n__o__ -> k_pt_pk_pn_ko_o
       . The general rule is before a rh stroke we get p, before lh get k.
         Except if o then follow with o unless it's p.
-  * concise stroke map:
-    . repeat 4 (strM "nknd_nd_") & strM "o_oo_oo_ __oo_oo_ o"
-  * Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
-    . I want to write the sarvalaghu as strokes not solkattu, not just ===
-      filler.  This is because sometimes it's hard to distinguish in recordings,
-      and also because sometimes it has motives related to the korvai.
-    . This is like the explicit stroke stuff back again.
-    . Solkattu is not appropriate because it's all one-off, so the stroke map
-      is awkward.
-    . Ideally I could write sarva (k.t.n.o...) and it becomes === or strokes
-      for mridangam.  I guess this would become a different kind of group.
-    . If I put full mridangam notation into StrokeMap, then the right side of
-      the StrokeMap becomes the same monoid oriented notation, and repeat etc.
-      is ok.  Then I can have a "Sarva Name" Note which is like Pattern except
-      of variable length.  That gets realized as cycling the strokes.
-    . I think this is just the same as a pattern or named group except the
-      variable length.
-    . I want to key by solkattu:
-      c_korvai = korvai ...
-        [ sarvaD sarva1 7 . su nakatiku ]
-        where
-        sarva1 = Sarva ^ na.ka.na.din.__.na.din.__
-        mridangam = makeMridangam
-          [ (sarva1, repeat 4 (n.k.n.d.__.n.d.__)
-              & (o.__.o.o.__.o.o.__ . __.__.o.o.__.o.o.__.o))
-          , ...
-          ]
-      . sarvaD :: Sequence -> Duration -> Sequence
-        Creates Sarva with the sequence as key.  This either realizes as ===
-        or by looking up the key in the StrokeMap, and cycling or trimming it
-        to fit the given duration.
-      . Add a Sarva tag as a convenient way to disambiguate.
-
-    * Let makeMridangam etc. take full mridangam sequence, not just [stroke].
-      . :s/\[\(.*\)\]/\=substitute(submatch(1), ', ', '.', 'g')/
-    * Make (&) pad with rests.
-    . Create something like Group but for Sarva, which can map to something
-      of any duration in the SolluMap, and is realized as cycling.
-      . It has to be variable length in the Sequence too, so it has to be like
-        a pattern, but with [sollu] for name and duration.
-      . If I want to use sollus as a key only, then I save [sollu] but I can't
-        use SolluMap because I can't record tempo changes, and I don't have
-        them in the sollus.
-      . Otherwise, I have to save Notes, and this is what groups are for.  So
-        maybe this should be a Solkattu.Group with _highlight -> _groupType
-        and it's Sarva.
-      * Then try to reuse findSequence but insist on exact match.
-      * Also I need to do the duration hack for these groups too, since the
-        duration is stored explicitly, not sollus - dropped.
-      * Test.
-      . sarva groups now behave like Space in that they can be split, e.g. by
-        Notation.splitM.  That makes it seem like Sarva should still go in
-        Space.  But the reason I backed off from that is that SolluMap is
-        keyed by [sollu].  That's appropriate for sollus because I explicitly
-        want to ignore rests, but sarva is like Patterns in that the rests and
-        tempo changes are in the strokes.  It would be confusing if
-          (ta.__.ka.din, ...)
-          (taka.__.din, ...)
-        were overlapping.
-      . But isn't that still the case with groups?  I'm still doing
-        replaceSollus, which means rhythm is taken from sollus, not strokes,
-        but sollu map is still keyed without rests.
-      . Sollus: input and output have no tempo structure, because output
-          strokes are mapped to input sollus.
-        Patterns: input is just duration, so output has a tempo structure.
-        Sarva: input is sollus, but just for disambiguation.  Tempo could
-          could come from either sollus or strokes, but for consistency should
-          come from sollus, since they have it in sollus.
-      . So by using SolluMap I inherit the behaviour where I can use the same
-        sollus with a different rhythm, even though it's not necessarily
-        useful for sarva.
-      * find places where Space splits, and make sure SarvaGroup can too.
-        . Since it has arbitrary duration, it should be easy.
-      * remove old Sarva
-      * I need to support empty sarva
-        . But then I need notes to carry the =s, and specifically to carry
-          (tempo, state).  I don't need tempo, but formatting does use state
-          to break avartanams at least.
-        . So I have to put in the dummies pre-normalize.
-        . In fact I have dummies for that purpose, Realize.Abstract, so maybe
-          I just have to put it in earlier, like when realize finds out it's
-          an empty sarva.
-        . S.simplify drops empty groups, and I can't special case it because
-          it's polymorphic.
-        . I could put in a dummy [NoSollu] but for now let's just not simplify
-          away empty groups.
-      - sarva sollu map needs to accept strokes > sollus for sarva
-        . Or I could repeat the sollus.
-      * abstract groups by Solkattu.GroupType, not name
-      * sollu map could strip rests, but that encourages putting them in
-        there, which is then confusing when they don't actually matter.
-        . I could verify that the rests are in the same places.  This means
-          that if you use rests in sollus, you have to put them in the strokes
-          too.
-        . Actually since I have sollus map to rest and rest map to sollus,
-          I can only verify that the length is the same.
-        . This seems like a shame, because it's rare to map sollu to a rest
-          and rarer to map rest to stroke.  Can I have some explicit way of
-          doing that?
-        . Tags on strokes otherwise have no meaning, so I could repurpose that
-          as a "don't check this" tag.
-      / sarva match should strip rests from the end
-      * Replace groupType with making Group a sum
-      * highlight realized sarva with a different color
-      * for html too
-      * put Sarva abstraction level in html
-  * realized patterns should be highlighted
-  * since Patterns are always wrapped in a group now, Realize.Pattern
-    itself seems redundant.
-    . Maybe I can always realize the pattern, but use the usual group
-      abstraction in Solkattu.Format to collapse it.
-  * get rid of Realize.Pattern
-    . This means getting rid of local pattern defs, in favor of pattern group.
+  - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
   - Duration is supposedly absolute, but it only works at the toplevel.
     So it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
     sarvaD is wrong.
@@ -4121,54 +3447,25 @@ solkattu:
     . e.g. Solkattu2013.c_13_07_23 groups go 18 19 20, they should go 18 16 14
     . They're right, I'm confused.
   format: output:
-    * I want to be able to abstract named groups, but not GFiller
     html:
       - index.html: sort by date, source
-      * table messed up on Mridangam2013.dinnagina_sequence
       - writeParts
-      * separate sections with a horizontal line
-      * now that I use globally max speed, I get too many rests, e.g. in
-        Solkattu2018.yt_mannargudi1.
       - Offset rests make empty cells like <td><b> </b></td><td colspan=7> </td>
         . It looks fine but seems messy.
       - color abstracted groups too
-      * Solkattu.Score.Solkattu2014.c_14_02_05.html at >=patterns abstraction
-        has wrong long rest position next to the pattern highlights
-        . All abstractions mess up neighboring rests.
       - start <hr> right next to the text, instead of in the next cell
         . <hr> wants to go below text, can I get it to go to the right of the
           next, or have another way to draw a horizontal line?
         . Also when the sym text is long it overlaps.
-      * section metadata display is really ugly
-        . I tried tooltip, but it's still full of useless info.
-          E.g. avartanams, end, max_speed, nadai, start
-        . I can try to attach x2 and type in some more clever way.
-        . Do what terminal does: number each section, and put 2x etc. on the
-          right.
       - sarva double dots are pretty ugly, how about single dots?
         . And can I stop them from clumping together at the breaks?
       - rests could be wider, since I have more space
         . But just doubling them leads to an ugly gap in between.  How can I
           emit a long underscore or double underscore?
-      * tala name incomplete, e.g. triputa -> triputa tisra jati
-      * show rulers on nadai changes
-        . formatting for Solkattu2018.yt_mannargudi2 is hopelessly messed up.
-      * carry rulersEach across sections
-        . I also need to only do <table> start and ends on a new ruler
-        * This gets ugly when the rulers normalize to a different speed.
-          I should make all sections use the same speed.
-        . E.g. Solkattu2018.yt_mannargudi1
-        . Maybe it's because it gets a new ruler because of the end time?
-        . Html is still messed up, sollus use 16 before onAkshara, but
-          the next section uses 8, why?
-        . Must have to do with normalization, so it's that all sections should
-          be normalized to the max speed.
-      * strip trailing rests for final note
       - Decrease font size for higher speed.
       - For high speed split avartanam.
       - I shoud be able to display nested groups.
       / use JS to switch between konnakol and mridangam
-      * use JS to switch between Format.Abstraction level
       db ideas:
         - similar_to should be a link
         - source should be a link, click on it to see everything from that
@@ -4176,15 +3473,6 @@ solkattu:
       - Can I align by structure?
         . E.g. reductions or tri would line up vertically.
     terminal:
-      / somehow the normalize to max speed caused some double rests to stop
-        working.
-        . E.g. Solkattu2014.c_14_06_06
-        . Also I'm not sure I love it... the compactness is nice and I don't
-          think I've been confused by it.  Maybe for html only?
-        . Maybe I should at least be sure I emit a ruler when the maxSpeed
-          changes.
-        . I disabled normalize to max speed.
-      * emphasized Symbols that cover an extension should retain emphasis
       - Solkattu2018.yt_mannargudi1 still seems messed up, it ends at
         arudi but starts on 2, not 4.
         . Acutally this is due to differing normalization.  The next section
@@ -4346,15 +3634,6 @@ solkattu:
     . Actually since align is used at the top level, I can assume s0.
   - extend Karvai to take a minimum number of Rests before it applies.
     Default to 2, but a chapu might require 3.
-  * This turns into a general way to represent unparsed expressions.
-    . Text shouldn't have ShowVal, it should be Symbol, and then CallId
-      should have a separate type, its ShowVal doesn't need quotes,
-      unless there is a space.
-    . Then Unparsed represents parseable text, so actually ShowVal
-      should return that.  Is it worth having a separate type over using
-      Text, though?
-    . I should be able to parse Expr Unparsed without the intervening
-      ShowVal by directly parsing the Unparsed vals.
   variation:
     - 345 x 345 x 345 can be transformed to 345 x 345 x 3333, or generally
       any arithmetic progression.
@@ -5166,8 +4445,6 @@ Perform:
   - Perform.Midi.Perform: should be possible to lead keyswitches as long as
     they don't precede the previous NoteOn, since I think samplers will only
     switch on the next NoteOn
-  Instrument
-    * some basic midi instrument defs for generic midi (dev, patch)
 
 Util.Format:
   HsPretty:
