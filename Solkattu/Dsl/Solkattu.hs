@@ -252,7 +252,9 @@ _mridangamStrokes =
     , (kpnp, k.p.n.p)
     , (oknp, o.k.n.p) -- fast version: pktp
     , (ktktoknp, k.t.k.t.o.k.n.p)
-    , (nakatiku, n.p.u.p.k.t.p.k) -- alternate: t.p.u.p.k.t.p.k
+    , (nakatiku, n.p.u.p.k.t.p.k)
+        -- alternate: t.p.u.p.k.t.p.k
+        -- alternate: t.p.u.o.k.t.p.k
     , (takadugutarikita, t.k.o.o.k.t.p.k)
     ]
     where Mridangam.Strokes {..} = Mridangam.notes

@@ -1509,13 +1509,32 @@ synth: im:
           . I don't have to send a signal because if getting state is
             copy-free I can just do it on every chunk.
 
-  - preview: midi thru:
-    . Im instruments should have a midi thru-like preview sound.
-    . This doesn't have to be performance-level of low latency,
-      probably < 100ms will do.  Still, the lower the better.
-    ? Experiment with how various latencies feel, so I know my target.
-    . If I do hybrid im and MIDI: below then I need to make play_cache into a
-      little sampler, which just means streaming through libsamplerate.
+  preview: midi thru:
+    . Get the Sampler.Patch, run its convert function, then send it to
+      play_cache.  play_cache only needs use filename, ratio, vol.
+      . I can use OSC: /start/path/to/sample <ratio> <vol>
+        Abort a sample on space: /stop
+      . The advantage is that I can use liblo for C++, and some haskell
+        library for karya.
+      - Implement with ignoring ratio, just stream the sample.
+        . I should be able to reuse Streamer.
+        . Start a separate thread, which listens on an OSC socket, creates
+          a Streamer, and has it start streaming.
+        . The main process() also mixes in any output from the realtime
+          Streamer.
+        . Since it's realtime, I don't want to keep track of debt in read(),
+          I just want to get samples as soon as they arrive.
+      - I need a "MIDI" thru which takes Input.Note, runs the patch convert,
+        and sends OSC.
+      - Add support for ratio.  libsamplerate with a cheap quality should be
+        able to do realtime.
+    overview:
+      . Im instruments should have a midi thru-like preview sound.
+      . This doesn't have to be performance-level of low latency,
+        probably < 100ms will do.  Still, the lower the better.
+      ? Experiment with how various latencies feel, so I know my target.
+      . If I do hybrid im and MIDI: below then I need to make play_cache into a
+        little sampler, which just means streaming through libsamplerate.
     possible designs:
       parallel MIDI:
         . Assign a parallel MIDI instrument for thru.
@@ -1535,6 +1554,8 @@ synth: im:
           play_cache open a socket, which takes a filename and pitch and
           immediately plays whatever it gets.  All I have to do is teach
           play_cache to resample and maybe scale volume.
+        . Maybe I just run the convert function, and then take only the
+          Sample.filename, and send it to play_cache.
       pure im:
         . I have to give a single Note to the im synthesizer, which then has
           to stream to the VST, which has a socket to immediately play
@@ -1546,7 +1567,7 @@ synth: im:
           doing realtime control, I don't actually care about the rest of
           the blocks.
         . This is more complicated, but is accurate for the instrument:
-          I get the right sounds so I can e.g.  see how sampler-im picks
+          I get the right sounds so I can e.g. see how sampler-im picks
           samples in realtime-ish.  However, if I go this far, it might not
           be that much more work to go for the full realtime interface.
       realtime interface:
@@ -1748,7 +1769,7 @@ synth: im:
         have to resample in Convert.makeSample, and it could be per-sample.
         . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
           have it take nn to nn breakpoints, and do that calculation internally.
-    - I'm still getting crashes plus garbage output.
+    * I'm still getting crashes plus garbage output.
       * Also: sampler-im: 005.wav: removeLink: does not exist
         But it's still there?
       . build/opt/sampler-im im/notes/test/im-reyong/untitled/b3/sampler
@@ -1760,12 +1781,23 @@ synth: im:
         new files, and delete them.
       . I also need the old link destinations.  Or not?  It doesn't read them,
         so they shouldn't matter.
-      . I think the skipped msg gives me that: r: skipped
-        ["000.Tp9XUw.AAAAAA.wav", "001.yX0pZw.JpdE-g.wav"],
-        resume at [(2, N0DIJA)] state: uZayLg start: 8s
+      . I think the skipped msg gives me that:
+        . r: skipped ["000.Tp9XUw.AAAAAA.wav", "001.yX0pZw.JpdE-g.wav"],
+          resume at [(2, N0DIJA)] state: uZayLg start: 8s
+        . *    Synth/Sampler/Render.hs:116 - r: voices: 6 time: 12s
       . Yes, this repros:
         rm im/cache/test/im-reyong/untitled/b3/r/cache/*.N0DIJA.*
-      . Long hang after skip msg.
+      . Long hang after skip msg.  Generated 002.wav 003.wav are noise.
+
+      . Why are states all different sizes?  Shouldn't they be according to
+        the resample quality?
+      . They are, each one is 716k, but there's one per voice.  So 6 voices
+        = 4.2mb
+
+      . The output state should be deterministic, but I think it varies each
+        time.  So something is going wrong, probably in struct save / restore.
+    - ok it doesn't crash now, but reyong when resumed gets an artifact
+      . does it happen with Linear?  I think that has little state.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and

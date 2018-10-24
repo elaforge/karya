@@ -137,11 +137,11 @@ getFilename outputDir stateRef (i, hash) = do
 
     -- $hash and $state at beginning of .wav
     000.$hash.$state.wav
-    -- file contains the state at the end of the .wav, cached in $stateHash
-    000.$hash.$state.state.$stateHash
+    -- file contains the state at the end of the .wav, cached in $endState
+    000.$hash.$state.state.$endState
 
-    001.$hash.$state.wav -- $state == previous $stateHash
-    001.$hash.$state.state.$stateHash -- as before
+    001.$hash.$state.wav -- $state == previous $endState
+    001.$hash.$state.state.$endState -- as before
 -}
 writeState :: IORef.IORef State -> FilePath -> IO ()
 writeState stateRef fname = do

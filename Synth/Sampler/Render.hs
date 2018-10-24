@@ -164,6 +164,7 @@ render inst chunkSize quality states notifyState notes start = Audio.Audio $ do
 pull :: Audio.Frame -> [Playing]
     -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
 pull chunkSize = fmap (trim . unzip) . mapM get
+    -- TODO this mapM could be concurrent
     where
     trim (chunks, playing) =
         (filter (not . V.null) chunks, Maybe.catMaybes playing)
@@ -239,9 +240,6 @@ overlappingNotes start chunkSize notes = (overlapping, starting, rest)
 instance Serialize.Serialize Resample.SavedState where
     put (Resample.SavedState a b) = Serialize.put a >> Serialize.put b
     get = Resample.SavedState <$> Serialize.get <*> Serialize.get
-
-instance Pretty Resample.SavedState where
-    pretty = pretty . serializeStates . (:[]) . Just
 
 -- | These will be sorted in order of Note hash.
 unserializeStates :: Checkpoint.State

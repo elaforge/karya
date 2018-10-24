@@ -11,6 +11,7 @@ module Util.Audio.Resample (
     , SavedState(..)
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Data.ByteString as ByteString
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
@@ -42,6 +43,13 @@ resample :: forall rate chan. (KnownNat chan, KnownNat rate)
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
 resample ctype ratio = resampleBy ctype (Signal.constant ratio)
 
+instance Pretty SavedState where
+    pretty (SavedState bs1 bs2) = Text.unwords
+        [ "((SavedState"
+        , showt (ByteString.length bs1)
+        , showt (ByteString.length bs2) <> "))"
+        ]
+
 -- | Configure the resampler.
 data Config = Config {
     _quality :: Quality
@@ -68,7 +76,7 @@ resampleBy2 config ratio audio = Audio.Audio $ do
         SampleRateC.delete
     liftIO $ case (_state config) of
         Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratio
-        Just saved -> SampleRateC.putState state saved
+        Just saved -> SampleRateC.putState (_quality config) state saved
     -- I have to collect chunks until I fill up the output chunk size.  The key
     -- thing is to not let the resample state get ahead of the chunk boundary.
     let align = _chunkSize config - (_now config `mod` _chunkSize config)
