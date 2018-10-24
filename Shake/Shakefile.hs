@@ -186,6 +186,7 @@ data Config = Config {
     , configFlags :: Flags
     -- | GHC version as returned by 'parseGhcVersion'.
     , ghcVersion :: (Int, Int, Int)
+    , ccVersion :: String
     -- | Absolute path to the root directory for the project.
     , rootDir :: FilePath
     } deriving (Show)
@@ -613,7 +614,6 @@ configure :: IO (Mode -> Config)
 configure = do
     env <- Environment.getEnvironment
     let midi = midiFromEnv env
-    ghcLib <- run ghcBinary ["--print-libdir"]
     let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
@@ -626,7 +626,9 @@ configure = do
         run (Config.fltkConfig localConfig) ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$>
         run (Config.fltkConfig localConfig) ["--version"]
+    ghcLib <- run ghcBinary ["--print-libdir"]
     let ghcVersion = parseGhcVersion ghcLib
+    ccVersion <- run "cc" ["--version"]
     sandbox <- Util.sandboxPackageDb
     -- TODO this breaks if you run from a different directory
     rootDir <- Directory.getCurrentDirectory
@@ -641,6 +643,7 @@ configure = do
             setConfigFlags sandbox fltkCs fltkLds mode ghcVersion
                 (lookup "GHC_PACKAGE_PATH" env) (osFlags midi)
         , ghcVersion = ghcVersion
+        , ccVersion = ccVersion
         , rootDir = rootDir
         }
     where
@@ -1468,6 +1471,12 @@ linkHs config rtsFlags output packages objs =
         [ fltkLd flags, midiLd flags, imLd flags, hLinkFlags flags
         , ["-with-rtsopts=" <> unwords rtsFlags | not (null rtsFlags)]
         , ["-lstdc++"], packageFlags flags packages, objs
+        -- Suppress "warning: text-based stub file" after OSX command line
+        -- tools update.
+        , concat
+            [ ["-optl", "-w"]
+            | "clang-1000.10.44.2" `List.isInfixOf` ccVersion config
+            ]
         , ["-o", output]
         ]
     )
