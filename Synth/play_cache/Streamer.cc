@@ -183,12 +183,12 @@ Streamer::read(sf_count_t frames, float **out)
         samples = jack_ringbuffer_read(
             ring, outputBuffer.data(), frames * channels);
         if (samples == 0 && mixDone.load())
-            return false;
+            return true;
     }
     debt += frames - (samples / channels);
     // LOG("read debt " << debt << " frames " << samples/channels);
     std::fill(outputBuffer.begin() + samples, outputBuffer.end(), 0);
     *out = outputBuffer.data();
     ready.post();
-    return true;
+    return false;
 }

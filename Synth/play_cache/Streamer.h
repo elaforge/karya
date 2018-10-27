@@ -29,6 +29,7 @@ public:
     // Thees functions are realtime-safe.
     void start(const std::string &dir, sf_count_t startOffset,
         const std::vector<std::string> &mutes);
+    // Return true if the read is done, and there are no samples in 'out'.
     bool read(sf_count_t frames, float **out);
 
     const int channels;

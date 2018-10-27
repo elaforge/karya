@@ -325,7 +325,7 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
     }
 
     float *sampleVals;
-    if (!streamer->read(processFrames, &sampleVals)) {
+    if (streamer->read(processFrames, &sampleVals)) {
         LOG("out of samples");
         this->playing = false;
         return;
