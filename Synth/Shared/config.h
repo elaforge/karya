@@ -11,10 +11,8 @@
 // Each audio checkpoint is exactly this many seconds, except the last one.
 #define CHECKPOINT_SECONDS 4
 
-
 // Delay play_cache start by this much.  Description in Config.hs
 //
-// It seems like 512 (~11ms) should be enough, because that will give a full
-// process() call for the streaming thread to get its act together, but in
-// practice it's still not consistently enough.
-#define START_LATENCY_FRAMES 1024
+// 512 (~11ms) should be enough, because that will give a full process() call
+// for the streaming thread to get its act together.
+#define START_LATENCY_FRAMES 512

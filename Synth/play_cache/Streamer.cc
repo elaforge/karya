@@ -5,6 +5,7 @@
 #include <dirent.h>
 #include <ostream>
 #include <string.h>
+#include <thread>
 
 #include "Streamer.h"
 #include "log.h"
@@ -131,6 +132,9 @@ Streamer::streamLoop()
             jack_ringbuffer_reset(ring);
             restart.store(false);
             mixDone.store(false);
+            // I just cued up a new Mix, so stream() should be able to
+            // immediately read from it.
+            ready.post();
         }
         stream();
     }
@@ -152,7 +156,8 @@ Streamer::stream()
             > readFrames)
         {
             // LOG("stream avail " << available);
-            done = mix->read(readFrames, &buffer);
+            // If start() hasn't been called yet, mix hasn't been initialized.
+            done = bool(mix) ? mix->read(readFrames, &buffer) : true;
             if (done)
                 break;
             else
@@ -189,6 +194,7 @@ Streamer::read(sf_count_t frames, float **out)
     // LOG("read debt " << debt << " frames " << samples/channels);
     std::fill(outputBuffer.begin() + samples, outputBuffer.end(), 0);
     *out = outputBuffer.data();
+    // Tell the stream thread there might be room for more samples.
     ready.post();
     return false;
 }

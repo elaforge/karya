@@ -147,8 +147,8 @@ fileOf generated mod
 parseImports :: B.ByteString -> [ModuleName]
 parseImports = Maybe.mapMaybe (parse . B.words) . B.lines
     where
-    parse (w1:w2:w3:_) | (w1, w2) == ("import", "qualified") = Just w3
-    parse (w1:w2:_) | w1 == "import" = Just w2
+    parse ("import" : "qualified" : mod : _) = Just mod
+    parse ("import" : mod : _) = Just mod
     parse _ = Nothing
 
 -- | Read the file, and preprocess with CPPHS if cppFlags are given.
