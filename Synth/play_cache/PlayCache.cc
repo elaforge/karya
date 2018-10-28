@@ -74,7 +74,7 @@ PlayCache::resume()
         || streamer->maxFrames != maxBlockFrames)
     {
         streamer.reset(
-            new Streamer(log, numOutputs, sampleRate, maxBlockFrames));
+            new Streamer(log, numOutputs, sampleRate, maxBlockFrames, true));
     }
     Plugin::resume();
 }

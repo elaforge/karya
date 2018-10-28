@@ -9,7 +9,7 @@
 #include <memory>
 #include <vector>
 
-#include "SampleDirectory.h"
+#include "Sample.h"
 
 
 // Read and mix together a list of samples.
@@ -24,7 +24,7 @@ public:
     bool read(sf_count_t frames, float **out);
 
 private:
-    std::vector<std::unique_ptr<SampleDirectory>> sampleDirs;
+    std::vector<std::unique_ptr<Sample>> samples;
     std::vector<float> buffer;
     std::ostream &log;
     const int channels;

@@ -4,12 +4,12 @@
 
 #include <algorithm>
 #include <dirent.h>
-#include <sndfile.h>
 #include <ostream>
+#include <sndfile.h>
 #include <sstream>
 #include <vector>
 
-#include "SampleDirectory.h"
+#include "Sample.h"
 #include "Synth/Shared/config.h"
 #include "log.h"
 
@@ -17,6 +17,7 @@ using std::string;
 
 
 // util
+
 
 static bool
 endsWith(const string &str, const string &suffix)
@@ -39,11 +40,15 @@ isSample(const string &str)
 
 
 static std::vector<string>
-listSamples(const string &dir)
+listSamples(std::ostream &log, const string &dir)
 {
-    DIR *d = opendir(dir.c_str());
     struct dirent *ent;
     std::vector<string> fnames;
+    DIR *d = opendir(dir.c_str());
+    if (!d) {
+        LOG("listSamples: not a dir: " << dir);
+        return fnames;
+    }
     while ((ent = readdir(d)) != nullptr) {
         if (ent->d_type != DT_REG && ent->d_type != DT_LNK)
             continue;
@@ -57,17 +62,17 @@ listSamples(const string &dir)
 
 
 static string
-findNthSample(const string &dir, int n)
+findNthSample(std::ostream &log, const string &dir, int n)
 {
-    std::vector<string> fnames = listSamples(dir);
+    std::vector<string> fnames = listSamples(log, dir);
     return n < fnames.size() ? fnames[n] : "";
 }
 
 
 static string
-findNextSample(const string &dir, const string &fname)
+findNextSample(std::ostream &log, const string &dir, const string &fname)
 {
-    std::vector<string> fnames = listSamples(dir);
+    std::vector<string> fnames = listSamples(log, dir);
     const auto next = std::find_if(
         fnames.begin(), fnames.end(),
         [&](const string &s) { return s > fname; });
@@ -78,21 +83,20 @@ findNextSample(const string &dir, const string &fname)
 static SNDFILE *
 openSample(
     std::ostream &log, int channels, int sampleRate,
-    const string &dir, const string &fname, sf_count_t offset)
+    const string &fname, sf_count_t offset)
 {
     SF_INFO info;
-    string path = dir + '/' + fname;
-    SNDFILE *sndfile = sf_open(path.c_str(), SFM_READ, &info);
+    SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
-        LOG(path << ": " << sf_strerror(sndfile));
+        LOG(fname << ": " << sf_strerror(sndfile));
     } else if (info.channels != channels) {
-        LOG(path << ": expected " << channels << " channels, got "
+        LOG(fname << ": expected " << channels << " channels, got "
             << info.channels);
     } else if (info.samplerate != sampleRate) {
-        LOG(path << ": expected srate of " << sampleRate << ", got "
+        LOG(fname << ": expected srate of " << sampleRate << ", got "
             << info.samplerate);
     } else if (offset > 0 && sf_seek(sndfile, offset, SEEK_SET) == -1) {
-        LOG(path << ": seek to " << offset << ": " << sf_strerror(sndfile));
+        LOG(fname << ": seek to " << offset << ": " << sf_strerror(sndfile));
     } else {
         return sndfile;
     }
@@ -111,10 +115,11 @@ SampleDirectory::SampleDirectory(
 {
     int filenum = offset / (CHECKPOINT_SECONDS * sampleRate);
     sf_count_t fileOffset = offset % (CHECKPOINT_SECONDS * sampleRate);
-    this->fname = findNthSample(dir, filenum);
+    this->fname = findNthSample(log, dir, filenum);
     LOG("dir " << dir << ": start at '" << fname << "' + " << fileOffset);
     if (!fname.empty()) {
-        sndfile = openSample(log, channels, sampleRate, dir, fname, fileOffset);
+        sndfile = openSample(
+            log, channels, sampleRate, dir + '/' + fname, fileOffset);
     }
 }
 
@@ -130,13 +135,13 @@ sf_count_t
 SampleDirectory::read(sf_count_t frames, float **out)
 {
     buffer.resize(frames * channels);
-    // TODO ensure size and clear?
     sf_count_t totalRead = 0;
     do {
         if (fname.empty())
             break;
         if (sndfile == nullptr) {
-            sndfile = openSample(log, channels, sampleRate, dir, fname, 0);
+            sndfile = openSample(
+                log, channels, sampleRate, dir + '/' + fname, 0);
             // This means the next read will try again, and maybe spam the log,
             // but otherwise I have to somehow remember this file is bad.
             if (sndfile == nullptr)
@@ -148,8 +153,51 @@ SampleDirectory::read(sf_count_t frames, float **out)
         if (delta < frames - totalRead) {
             sf_close(sndfile);
             sndfile = nullptr;
-            fname = findNextSample(dir, fname);
+            fname = findNextSample(log, dir, fname);
             LOG(dir << ": next sample: " << fname);
+        }
+        totalRead += delta;
+    } while (totalRead < frames);
+    *out = buffer.data();
+    return totalRead;
+}
+
+
+// SampleFile
+
+SampleFile::SampleFile(
+        std::ostream &log, int channels, int sampleRate,
+        const string &fname, sf_count_t offset) :
+    log(log), channels(channels), fname(fname), sndfile(nullptr)
+{
+    sf_count_t fileOffset = offset % (CHECKPOINT_SECONDS * sampleRate);
+    LOG(fname << " + " << fileOffset);
+    if (!fname.empty()) {
+        sndfile = openSample(log, channels, sampleRate, fname, fileOffset);
+    }
+}
+
+
+SampleFile::~SampleFile()
+{
+    if (sndfile)
+        sf_close(sndfile);
+}
+
+
+sf_count_t
+SampleFile::read(sf_count_t frames, float **out)
+{
+    buffer.resize(frames * channels);
+    sf_count_t totalRead = 0;
+    do {
+        if (!sndfile)
+            break;
+        sf_count_t delta = sf_readf_float(
+            sndfile, buffer.data() + totalRead * channels, frames - totalRead);
+        if (delta < frames - totalRead) {
+            sf_close(sndfile);
+            sndfile = nullptr;
         }
         totalRead += delta;
     } while (totalRead < frames);

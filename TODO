@@ -1290,6 +1290,11 @@ synth: im:
         meanwhile I should be noticing that there are no im events and not
         starting play_cache.
       . Proper MIDI fallback would also fix this.
+    - play cache doesn't like my samples:
+      . Synth/play_cache/Sample.cc:91
+        /Users/elaforge/src/seq/main/im/cache/test/im-wayang/untitled/b3/pemade-s/000.wav:
+        Error. Bad format field in SF_INFO struct when opening a RAW file for
+        read.
   cleanup:
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
@@ -1516,7 +1521,7 @@ synth: im:
         Abort a sample on space: /stop
       . The advantage is that I can use liblo for C++, and some haskell
         library for karya.
-      - Implement with ignoring ratio, just stream the sample.
+      + Implement with ignoring ratio, just stream the sample.
         . I should be able to reuse Streamer.
         . Start a separate thread, which listens on an OSC socket, creates
           a Streamer, and has it start streaming.
@@ -1524,6 +1529,9 @@ synth: im:
           Streamer.
         . Since it's realtime, I don't want to keep track of debt in read(),
           I just want to get samples as soon as they arrive.
+        . Also I play a file, not a directory, and I need to apply volume and
+          ratio.
+        - plug into PlayCache
       - I need a "MIDI" thru which takes Input.Note, runs the patch convert,
         and sends OSC.
       - Add support for ratio.  libsamplerate with a cheap quality should be
@@ -1788,16 +1796,15 @@ synth: im:
       . Yes, this repros:
         rm im/cache/test/im-reyong/untitled/b3/r/cache/*.N0DIJA.*
       . Long hang after skip msg.  Generated 002.wav 003.wav are noise.
-
       . Why are states all different sizes?  Shouldn't they be according to
         the resample quality?
       . They are, each one is 716k, but there's one per voice.  So 6 voices
         = 4.2mb
-
       . The output state should be deterministic, but I think it varies each
         time.  So something is going wrong, probably in struct save / restore.
     - ok it doesn't crash now, but reyong when resumed gets an artifact
-      . does it happen with Linear?  I think that has little state.
+      . does it happen with Linear?
+      . Maybe?  It's hard to tell, but it's on the attack, not after.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and

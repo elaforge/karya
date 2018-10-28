@@ -26,9 +26,10 @@ enum {
 
 Streamer::Streamer(
         std::ostream &log, int channels, int sampleRate,
-        int maxFrames)
+        int maxFrames, bool synchronized)
     : channels(channels), sampleRate(sampleRate), maxFrames(maxFrames),
-        log(log), threadQuit(false), mixDone(false), restart(false),
+        log(log), synchronized(synchronized), threadQuit(false),
+        mixDone(false), restarting(false),
         debt(0)
 {
     ring = jack_ringbuffer_create(ringBlocks * maxFrames * channels);
@@ -57,12 +58,12 @@ void
 Streamer::start(const string &dir, sf_count_t startOffset,
     const std::vector<string> &mutes)
 {
-    // I think the atomic restart.store with memory_order_seq_cst should cause
-    // these mutations to become visible to streamThread.
+    // I think the atomic restarting.store with memory_order_seq_cst should
+    // cause these mutations to become visible to streamThread.
     state.dir.assign(dir);
     state.startOffset = startOffset;
     state.mutes.assign(mutes.begin(), mutes.end());
-    restart.store(true);
+    restarting.store(true);
     // LOG("start: " << dir);
     ready.post();
 }
@@ -121,16 +122,23 @@ Streamer::streamLoop()
         ready.wait();
         if (threadQuit.load())
             break;
-        if (restart.load()) {
+        if (restarting.load()) {
             LOG("restart: " << state.dir);
-            std::vector<string> dirnames =
-                dirSamples(log, state.dir, state.mutes);
+            std::vector<string> dirnames;
+            if (synchronized) {
+                dirnames = dirSamples(log, state.dir, state.mutes);
+            } else {
+                // Empty means don't play anything.
+                if (!state.dir.empty())
+                    dirnames.push_back(state.dir);
+            }
+
             mix.reset(new Mix(
                 log, channels, sampleRate, dirnames, state.startOffset));
             // This is not safe, but since restart is true, read() shouldn't
             // touch it.
             jack_ringbuffer_reset(ring);
-            restart.store(false);
+            restarting.store(false);
             mixDone.store(false);
             // I just cued up a new Mix, so stream() should be able to
             // immediately read from it.
@@ -148,7 +156,7 @@ Streamer::stream()
         // LOG("stream wait");
         ready.wait();
         // LOG("stream resume");
-        if (restart.load() || threadQuit.load())
+        if (restarting.load() || threadQuit.load())
             break;
         float *buffer;
         sf_count_t available;
@@ -173,13 +181,13 @@ bool
 Streamer::read(sf_count_t frames, float **out)
 {
     size_t samples;
-    if (restart.load()) {
+    if (restarting.load()) {
         // This means streamLoop is restarting and will reset the ring.
         // So don't read stale samples, but also don't abort the play.
         samples = 0;
     } else {
         // Try to catch up.
-        if (debt > 0) {
+        if (synchronized && debt > 0) {
             size_t paid = jack_ringbuffer_read(
                 ring, outputBuffer.data(), debt * channels);
             debt -= paid / channels;

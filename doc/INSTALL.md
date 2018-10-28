@@ -139,6 +139,8 @@ Or, if you're doing it the stack way:
     cp data/all-deps.cabal karya.cabal
     vi stack.yaml # uncomment the stuff in there that says to
 
+- liblo - for OSC
+
 ## Misc
 
 `tools/run_profile` expects `ps2pdf` in the path, which is part of ghostscript.

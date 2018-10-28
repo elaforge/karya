@@ -115,6 +115,9 @@ checkpointSeconds = CHECKPOINT_SECONDS
 startLatency :: Audio.Frame
 startLatency = START_LATENCY_FRAMES
 
+oscPort :: Int
+oscPort = OSC_PORT
+
 -- * cache files
 
 {- Filenames have to be coordinated between the karya notes output, the

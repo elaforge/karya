@@ -115,6 +115,7 @@ synthPackages = concat
     [ w "hsndfile hsndfile-vector"
     , w "resourcet"
     , w "streaming"
+    , w "hosc"
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -461,8 +462,9 @@ ccBinaries =
         ]
     ] ++ if not (Config.enableIm localConfig) then [] else
     [ playCacheBinary
-    , (plain "test_play_cache" $
-            "Synth/play_cache/test_play_cache.cc.o" : playCacheDeps)
+    , (plain "test_play_cache_osc" (playCacheDeps ["Osc.cc"]))
+        { ccLinkFlags = const ["-llo", "-lsndfile"] }
+    , (plain "test_play_cache" $ (playCacheDeps ["test_play_cache.cc"]))
         { ccLinkFlags = const $ "-lsndfile" : case Util.platform of
             Util.Linux -> ["-lpthread"]
             Util.Mac -> []
@@ -491,9 +493,8 @@ playCacheBinary = CcBinary
     { ccName = case Util.platform of
         Util.Mac -> "play_cache"
         Util.Linux -> "play_cache.so"
-    , ccRelativeDeps = "Synth/play_cache/PlayCache.cc.o"
-        : "Synth/vst2/interface.cc.o"
-        : playCacheDeps
+    , ccRelativeDeps = "Synth/vst2/interface.cc.o"
+        : playCacheDeps ["PlayCache.cc"]
     , ccCompileFlags = \config -> platformCc ++
         [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
         ]
@@ -516,9 +517,9 @@ playCacheBinary = CcBinary
         -- aeffect.h is broken for linux, suppressing __cdecl fixes it.
         Util.Linux -> ["-fPIC", "-D__cdecl="]
 
-playCacheDeps :: [FilePath]
-playCacheDeps = map (("Synth/play_cache"</>) . (++".o"))
-    [ "Mix.cc", "SampleDirectory.cc", "Streamer.cc"
+playCacheDeps :: [FilePath] -> [FilePath]
+playCacheDeps extras = map (("Synth/play_cache"</>) . (++".o")) $ extras ++
+    [ "Mix.cc", "Sample.cc", "Streamer.cc"
     , "ringbuffer.cc"
     ]
 

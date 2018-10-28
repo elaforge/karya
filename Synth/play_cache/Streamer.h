@@ -10,6 +10,8 @@
 #include <thread>
 #include <vector>
 
+#include <sndfile.h>
+
 #include "Mix.h"
 #include "Semaphore.h"
 #include "ringbuffer.h"
@@ -23,7 +25,8 @@
 // then be realtime-safe.
 class Streamer {
 public:
-    Streamer(std::ostream &log, int channels, int sampleRate, int maxFrames);
+    Streamer(std::ostream &log, int channels, int sampleRate, int maxFrames,
+        bool synchronized);
     ~Streamer();
 
     // Thees functions are realtime-safe.
@@ -37,6 +40,11 @@ public:
     const int maxFrames;
 private:
     std::ostream &log;
+    // This is true for streaming from the cache and false for the OSC "MIDI
+    // thru" mechanism.  For thru, it doesn't matter that samples are
+    // synchronized to any start time, I just start streaming them when I get
+    // them.
+    const bool synchronized;
 
     // ** stream thread state
     void streamLoop();
@@ -55,7 +63,7 @@ private:
     // Goes to true when the Mix has run out of data.
     std::atomic<bool> mixDone;
     // Set to true to have the streamThread reload mix.
-    std::atomic<bool> restart;
+    std::atomic<bool> restarting;
     jack_ringbuffer_t *ring;
     // ring needs more data.
     Semaphore ready;
