@@ -10,7 +10,9 @@
 -- probably have some more robust configuration at some point.  Of course
 -- 'App.Config.app_dir' is just return '.' too.
 module Synth.Shared.Config where
+import qualified System.IO.Unsafe as Unsafe
 import qualified Data.Map as Map
+import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
@@ -22,6 +24,13 @@ import Global
 
 #include "config.h"
 
+
+-- TODO synchronize this with all the others uses of the data dir
+-- I need an absolute path, because this goes to PlayCache, which runs with
+-- who knows what CWD.
+getDataDir :: FilePath
+getDataDir = Unsafe.unsafePerformIO $ Directory.canonicalizePath "../data"
+{-# NOINLINE getDataDir #-}
 
 data Config = Config {
     -- | All of the data files used by the Im backend are based in this
@@ -62,6 +71,10 @@ sampler = Synth
     { binary = "build/opt/sampler-im"
     , notesDir = "sampler"
     }
+
+-- | Base directory for sampler patches.
+samplerRoot :: FilePath
+samplerRoot = getDataDir </> "sampler"
 
 faustName :: SynthName
 faustName = "faust"

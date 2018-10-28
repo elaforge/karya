@@ -45,6 +45,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Word as Word
 
+import qualified Sound.OSC as OSC
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
@@ -57,12 +58,43 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
+import qualified Cmd.InputNote as InputNote
+import qualified Cmd.Msg as Msg
+import Cmd.Msg (Performance(..)) -- avoid a circular import
+import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitTypes as SaveGitTypes
+import qualified Cmd.TimeStep as TimeStep
+
+import qualified Derive.Attrs as Attrs
+import qualified Derive.Derive as Derive
+import qualified Derive.Scale as Scale
+import qualified Derive.Scale.All as Scale.All
+import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
+import qualified Derive.TrackWarp as TrackWarp
+
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import qualified Midi.Interface as Interface
 import qualified Midi.Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
 import qualified Midi.State
 
+import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.Midi.Patch as Midi.Patch
+import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Midi.Perform as Midi.Perform
+import qualified Perform.Midi.Types as Midi.Types
+import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Transport as Transport
+
+import qualified Synth.Shared.Config as Shared.Config
+import qualified Synth.Shared.Osc as Shared.Osc
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -74,35 +106,6 @@ import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
-import qualified Cmd.InputNote as InputNote
-import qualified Cmd.Msg as Msg
-import Cmd.Msg (Performance(..)) -- avoid a circular import
-import qualified Cmd.SaveGit as SaveGit
-import qualified Cmd.SaveGitTypes as SaveGitTypes
-import qualified Cmd.TimeStep as TimeStep
-
-import qualified Derive.Attrs as Attrs
-import qualified Derive.Derive as Derive
-import qualified Derive.Scale.All as Scale.All
-import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
-import qualified Derive.TrackWarp as TrackWarp
-
-import qualified Perform.Im.Patch as Im.Patch
-import qualified Perform.Midi.Patch as Midi.Patch
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Midi.Perform as Midi.Perform
-import qualified Perform.Midi.Types as Midi.Types
-import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Transport as Transport
-
-import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
-
-import qualified Synth.Shared.Config as Shared.Config
-import qualified App.Config as Config
 import Global
 import Types
 
@@ -166,7 +169,7 @@ type RunCmd cmd_m val_m a =
     Ui.State -> State -> CmdT cmd_m a -> val_m (Result a)
 
 -- | The result of running a Cmd.
-type Result a = (State, [MidiThru], [Log.Msg],
+type Result a = (State, [Thru], [Log.Msg],
     Either Ui.Error (a, Ui.State, [Update.CmdUpdate]))
 
 run :: Monad m => a -> RunCmd m m a
@@ -205,7 +208,7 @@ lift_id cmd = do
             Nothing -> abort
             Just val -> do
                 put cmd_state
-                mapM_ write_midi thru
+                mapM_ write_thru thru
                 mapM_ Ui.update updates
                 Ui.unsafe_put ui_state
                 return val
@@ -243,10 +246,8 @@ sequence_cmds (cmd:cmds) msg = do
 
 type CmdStack m = Ui.StateT
     (MonadState.StateT State
-        (Logger.LoggerT MidiThru
+        (Logger.LoggerT Thru
             (Log.LogT m)))
-
-type MidiThru = Midi.Interface.Message
 
 newtype CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Ui.Error,
@@ -256,11 +257,8 @@ class (Log.LogMonad m, Ui.M m) => M m where
     -- Not in MonadState for the same reasons as 'Ui.Ui.M'.
     get :: m State
     put :: State -> m ()
-    -- | Log some midi to send out.  This is the midi thru mechanism.
-    -- You can give it a timestamp, but it should be 0 for thru, which
-    -- will cause it to go straight to the front of the queue.  Use 'midi'
-    -- for normal midi thru.
-    write_midi :: Midi.Interface.Message -> m ()
+    -- | Log a note to send out.  This is the midi or im thru mechanism.
+    write_thru :: Thru -> m ()
     -- | An abort is an exception to get out of CmdT, but it's considered the
     -- same as returning Continue.  It's so a command can back out if e.g. it's
     -- selected by the 'Keymap' but has an additional prerequisite such as
@@ -271,15 +269,27 @@ class (Log.LogMonad m, Ui.M m) => M m where
 instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
     get = (CmdT . lift) MonadState.get
     put st = (CmdT . lift) (MonadState.put st)
-    write_midi msg = (CmdT . lift . lift) (Logger.log msg)
+    write_thru msg = (CmdT . lift . lift) (Logger.log msg)
     abort = Except.throwError Ui.Abort
     catch_abort m = Except.catchError (fmap Just m) catch
         where
         catch Ui.Abort = return Nothing
         catch err = Except.throwError err
 
+data Thru =
+    -- | Send MIDI thru.  You can give it a timestamp, but it should be 0 for
+    -- thru, which will cause it to go straight to the front of the queue.  Use
+    -- 'midi' for normal midi thru.
+    MidiThru !Midi.Interface.Message
+    | ImThru !OSC.Message
+    deriving (Eq, Show)
+
+midi_thru :: Midi.WriteDevice -> Midi.Message -> Thru
+midi_thru dev msg =
+    MidiThru $ Midi.Interface.Midi $ Midi.WriteMessage dev 0 msg
+
 midi :: M m => Midi.WriteDevice -> Midi.Message -> m ()
-midi dev msg = write_midi $ Midi.Interface.Midi $ Midi.WriteMessage dev 0 msg
+midi dev msg = write_thru $ midi_thru dev msg
 
 -- | For some reason, newtype deriving doesn't work on MonadTrans.
 instance Trans.MonadTrans CmdT where
@@ -826,13 +836,15 @@ data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
     , inst_postproc :: !InstrumentPostproc
     , inst_cmds :: ![Msg.Msg -> CmdId Status]
-    -- | An optional specialized cmd to write MIDI thru.  This is separate
-    -- from 'inst_cmds' so it can be run wherever the instrument needs MIDI
-    -- thru, not just in the instrument's note track.  This way custom thru
-    -- works in the pitch track too.
+    -- | An optional specialized cmd to write Thru.  This is separate from
+    -- 'inst_cmds' so it can be run wherever the instrument needs special thru,
+    -- not just in the instrument's note track.  This way custom thru works in
+    -- the pitch track too.
     , inst_thru :: !(Maybe ThruFunction)
     }
-type ThruFunction = Attrs.Attributes -> InputNote.Input -> CmdId ()
+
+type ThruFunction =
+    Scale.Scale -> Attrs.Attributes -> InputNote.Input -> CmdId [Thru]
 
 -- | Process each event before conversion.  This is like a postproc call,
 -- but it can only map events 1:1 and you don't have to explicitly call it.
@@ -1366,6 +1378,8 @@ log_event block_id track_id event =
 -- | Turn off all sounding notes, reset controls.
 -- TODO clear out WriteDeviceState?
 all_notes_off :: M m => m ()
-all_notes_off = do
-    write_midi $ Midi.Interface.AllNotesOff 0
-    write_midi $ Interface.reset_controls 0
+all_notes_off = mapM_ write_thru
+    [ MidiThru $ Midi.Interface.AllNotesOff 0
+    , MidiThru $ Interface.reset_controls 0
+    , ImThru Shared.Osc.stop
+    ]

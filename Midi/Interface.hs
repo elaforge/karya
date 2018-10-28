@@ -76,7 +76,7 @@ data Message =
     -- care if they have sounding notes because control state persists after
     -- NoteOff.
     | AllDevices !RealTime ![Midi.Message]
-    deriving (Show)
+    deriving (Show, Eq)
 
 instance Pretty Message where
     pretty msg = case msg of

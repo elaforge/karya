@@ -462,13 +462,8 @@ ccBinaries =
         ]
     ] ++ if not (Config.enableIm localConfig) then [] else
     [ playCacheBinary
-    , (plain "test_play_cache_osc" (playCacheDeps ["test_osc.cc"]))
-        { ccLinkFlags = const ["-llo", "-lsndfile"] }
-    , (plain "test_play_cache" $ (playCacheDeps ["test_play_cache.cc"]))
-        { ccLinkFlags = const $ "-lsndfile" : case Util.platform of
-            Util.Linux -> ["-lpthread"]
-            Util.Mac -> []
-        }
+    , makePlayCacheBinary "test_play_cache_osc" "test_osc.cc" []
+    , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" []
     ]
     where
     fltk name deps = CcBinary
@@ -478,27 +473,19 @@ ccBinaries =
         , ccLinkFlags = fltkLd . configFlags
         , ccPostproc = makeBundle False
         }
-    plain name deps = CcBinary
-        { ccName = name
-        , ccRelativeDeps = deps
-        , ccCompileFlags = const []
-        , ccLinkFlags = const []
-        , ccPostproc = const $ return ()
-        }
 
 -- TODO This compiles under linux, but I have no idea if it actually produces
 -- a valid vst.
 playCacheBinary :: CcBinary
-playCacheBinary = CcBinary
-    { ccName = case Util.platform of
-        Util.Mac -> "play_cache"
-        Util.Linux -> "play_cache.so"
-    , ccRelativeDeps = "Synth/vst2/interface.cc.o"
-        : playCacheDeps ["PlayCache.cc"]
-    , ccCompileFlags = \config -> platformCc ++
-        [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
-        ]
-    , ccLinkFlags = const $ "-lsndfile" : "-llo" : platformLink
+playCacheBinary = binary
+    { ccLinkFlags = \config -> ccLinkFlags binary config
+        ++ case Util.platform of
+            Util.Mac -> ["-bundle"]
+            Util.Linux -> ["-lpthread", "-shared", "-Wl,-soname=play_cache.so"]
+    , ccCompileFlags = \config -> ccCompileFlags binary config
+        ++ case Util.platform of
+            Util.Mac -> []
+            Util.Linux -> ["-fPIC"]
     , ccPostproc = \fn -> case Util.platform of
         Util.Mac -> do
             let vst = fn ++ ".vst"
@@ -509,19 +496,24 @@ playCacheBinary = CcBinary
         Util.Linux -> return ()
     }
     where
-    platformLink = case Util.platform of
-        Util.Mac -> ["-bundle"]
-        Util.Linux -> ["-lpthread", "-shared", "-Wl,-soname=play_cache.so"]
-    platformCc = case Util.platform of
-        Util.Mac -> []
-        -- aeffect.h is broken for linux, suppressing __cdecl fixes it.
-        Util.Linux -> ["-fPIC", "-D__cdecl="]
+    binary = makePlayCacheBinary name "PlayCache.cc"
+        ["Synth/vst2/interface.cc.o"]
+    name = case Util.platform of
+        Util.Mac -> "play_cache"
+        Util.Linux -> "play_cache.so"
 
-playCacheDeps :: [FilePath] -> [FilePath]
-playCacheDeps extras = map (("Synth/play_cache"</>) . (++".o")) $ extras ++
-    [ "Mix.cc", "Osc.cc", "Sample.cc", "Streamer.cc"
-    , "ringbuffer.cc"
-    ]
+makePlayCacheBinary :: String -> FilePath -> [FilePath] -> CcBinary
+makePlayCacheBinary name main ccDeps = CcBinary
+    { ccName = name
+    , ccRelativeDeps = (ccDeps++) $ map (("Synth/play_cache"</>) . (++".o")) $
+        [main, "Mix.cc", "Osc.cc", "Sample.cc", "Streamer.cc", "ringbuffer.cc"]
+    , ccCompileFlags = \config ->
+        ["-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""]
+    , ccLinkFlags = const $ "-lsndfile" : "-llo" : case Util.platform of
+        Util.Mac -> []
+        Util.Linux -> ["-lpthread"]
+    , ccPostproc = const $ return ()
+    }
 
 
 {- | Since fltk.a is a library, not a binary, I can't just chase includes to

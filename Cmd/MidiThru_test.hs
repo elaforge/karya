@@ -5,28 +5,29 @@
 module Cmd.MidiThru_test where
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Util.Test
-
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import Cmd.CmdTest (note_off, control)
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.MidiThru as MidiThru
+import qualified Cmd.Perf as Perf
+import qualified Cmd.Selection as Selection
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 
+import qualified Instrument.Common as Common
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import qualified Instrument.Common as Common
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
+
 import Global
+import Util.Test
 
 
 test_midi_thru_instrument = do
@@ -129,8 +130,13 @@ run_thru cmd_state title setup (attrs, input) =
     CmdTest.run_with_performance (CmdTest.make_tracks tracks) cmd_state $ do
         CmdTest.set_point_sel 1 0
         setup
-        Cmd.lift_id $ MidiThru.midi_thru_instrument "i1" attrs input
-    where tracks = [(">i1" <> title, [])]
+        Cmd.lift_id $ do
+            scale <- Perf.get_scale =<< Selection.track
+            mapM_ Cmd.write_thru
+                =<< MidiThru.for_instrument inst scale attrs input
+    where
+    tracks = [(">i1" <> title, [])]
+    inst = "i1"
 
 e_midi :: CmdTest.Result a -> ([Midi.Message], [Text])
 e_midi result = (CmdTest.e_midi result, CmdTest.e_logs result)

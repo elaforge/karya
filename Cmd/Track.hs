@@ -118,7 +118,8 @@ input_cmds edit_mode track = universal ++ case Info.track_type track of
         _ -> []
     where
     universal =
-        [ PitchTrack.cmd_record_note_status, MidiThru.cmd_midi_thru
+        [ PitchTrack.cmd_record_note_status
+        , MidiThru.cmd_midi_thru
         , NoteEntry.floating_input_insert
         ]
     is_tempo = ParseTitle.is_tempo_track $

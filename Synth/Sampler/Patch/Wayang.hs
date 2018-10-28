@@ -58,9 +58,9 @@ patches =
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
             ["wayang", Text.toLower $ showt inst, Text.toLower $ showt tuning])
-        { Patch._dir = "wayang"
+        { Patch._dir = dir
         , Patch._convert = convert inst tuning
-        , Patch._karyaPatch = ImInst.code #= WayangCode.code $
+        , Patch._karyaPatch = ImInst.code #= code inst tuning $
             setRange inst $ setTuning tuning $
             ImInst.make_patch $ Im.Patch.patch
                 { Im.Patch.patch_controls = mconcat
@@ -80,6 +80,8 @@ patches =
         ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"
+    code inst tuning = WayangCode.code <> Util.thru dir (convert inst tuning)
+    dir = "wayang"
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map

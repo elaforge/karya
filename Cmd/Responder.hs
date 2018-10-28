@@ -26,7 +26,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.State.Strict as Monad.State
 import qualified Control.Monad.Trans as Trans
@@ -42,14 +41,9 @@ import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import qualified Midi.Interface as Interface
-import qualified Midi.Midi as Midi
-import qualified Ui.Diff as Diff
-import qualified Ui.Fltk as Fltk
-import qualified Ui.Sync as Sync
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.Update as Update
+import qualified App.Config as Config
+import qualified App.ReplProtocol as ReplProtocol
+import qualified App.StaticConfig as StaticConfig
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
@@ -68,11 +62,18 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
 
+import qualified Midi.Interface as Interface
+import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
-import qualified App.Config as Config
-import qualified App.ReplProtocol as ReplProtocol
-import qualified App.StaticConfig as StaticConfig
+import qualified Synth.Shared.Osc as Shared.Osc
+import qualified Ui.Diff as Diff
+import qualified Ui.Fltk as Fltk
+import qualified Ui.Sync as Sync
+import qualified Ui.Ui as Ui
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Update as Update
 
+import Control.Monad
 import Global
 import Types
 
@@ -492,19 +493,24 @@ run_cmd :: EitherCmd -> ResponderM
     (Either Ui.Error (Cmd.Status, Ui.State), Cmd.State)
 run_cmd cmd = do
     rstate <- Monad.State.get
-    (cmd_state, midi, logs, result) <- liftIO $ case cmd of
+    (cmd_state, thru, logs, result) <- liftIO $ case cmd of
         Left cmd ->
             Cmd.run_id_io (rstate_ui_to rstate) (rstate_cmd_to rstate) cmd
         Right cmd ->
             Cmd.run_io (rstate_ui_to rstate) (rstate_cmd_to rstate) cmd
     liftIO $ do
         mapM_ Log.write logs
-        mapM_ (Cmd.state_midi_writer (rstate_cmd_to rstate)) midi
+        mapM_ (write_thru (Cmd.state_midi_writer (rstate_cmd_to rstate))) thru
     case result of
         Left err -> return (Left err, cmd_state)
         Right (status, ui_state, updates) -> do
             save_updates updates
             return (Right (status, ui_state), cmd_state)
+
+write_thru :: (Interface.Message -> IO ()) -> Cmd.Thru -> IO ()
+write_thru midi_writer = \case
+    Cmd.MidiThru msg -> midi_writer msg
+    Cmd.ImThru osc -> Shared.Osc.send osc
 
 not_continue :: Cmd.Status -> Bool
 not_continue Cmd.Continue = False

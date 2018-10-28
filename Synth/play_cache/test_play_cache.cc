@@ -65,7 +65,7 @@ stream(const char *dir)
     sf_count_t startOffset = 0;
     std::vector<std::string> mutes;
 
-    Streamer streamer(std::cout, 2, 44100, maxFrames);
+    Streamer streamer(std::cout, 2, 44100, maxFrames, true);
     streamer.start(dir, startOffset, mutes);
 
     float *samples;

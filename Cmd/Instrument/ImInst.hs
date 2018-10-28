@@ -10,10 +10,13 @@ module Cmd.Instrument.ImInst (
 import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.EditUtil as EditUtil
+import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import Cmd.Instrument.MidiInst
        (Code, generator, transformer, both, null_call, note_calls,
-        note_generators, note_transformers, val_calls, postproc, cmd, thru)
+        note_generators, note_transformers, val_calls, postproc, cmd)
+import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
@@ -26,6 +29,7 @@ import qualified Instrument.InstTypes as InstTypes
 
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
+import qualified Synth.Shared.Osc as Osc
 
 import Global
 
@@ -80,3 +84,16 @@ default_scale = environ EnvKey.scale . Expr.scale_id_to_str
 range :: Scale.Range -> Patch -> Patch
 range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
     . environ EnvKey.instrument_top (Scale.range_top range)
+
+-- | Adapt a 'Osc.ThruFunction' to 'Cmd.ThruFunction'.
+thru :: Osc.ThruFunction -> Code
+thru thru_f = MidiInst.thru convert
+    where
+    convert scale attrs input = do
+        inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
+        MidiThru.convert_input inst scale input >>= \case
+            InputNote.NoteOn _ pitch velocity ->
+                case thru_f attrs pitch velocity of
+                    Left err -> Cmd.throw err
+                    Right plays -> return $ map (Cmd.ImThru . Osc.play) plays
+            _ -> return []

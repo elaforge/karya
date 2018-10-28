@@ -59,7 +59,8 @@
     Effectively, the short-circuit thread is another way to cache this.
 -}
 module Cmd.MidiThru (
-    cmd_midi_thru, midi_thru_instrument
+    cmd_midi_thru, for_instrument
+    , convert_input
     -- * util
     , channel_messages
 #ifdef TESTING
@@ -71,9 +72,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Midi.Midi as Midi
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -89,17 +87,24 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import Perform.Midi.Patch (Addr)
 import qualified Perform.Pitch as Pitch
 
-import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
 import Global
 
 
 -- | Send midi thru, addressing it to the given Instrument.
+--
+-- Actually, this handles 'Cmd.ImThru' as well, since it relies on the
+-- instrument itself providing the thru function in 'Cmd.inst_thru'.
 cmd_midi_thru :: Msg.Msg -> Cmd.CmdId Cmd.Status
 cmd_midi_thru msg = do
     input <- case msg of
@@ -107,17 +112,17 @@ cmd_midi_thru msg = do
         _ -> Cmd.abort
     score_inst <- Cmd.abort_unless =<< EditUtil.lookup_instrument
     attrs <- Cmd.get_instrument_attributes score_inst
-    midi_thru_instrument score_inst attrs input
+    scale <- Perf.get_scale =<< Selection.track
+    mapM_ Cmd.write_thru =<< for_instrument score_inst scale attrs input
     return Cmd.Continue
 
-midi_thru_instrument :: Score.Instrument -> Attrs.Attributes
-    -> InputNote.Input -> Cmd.CmdId ()
-midi_thru_instrument score_inst attrs input = do
+for_instrument :: Score.Instrument -> Cmd.ThruFunction
+for_instrument score_inst scale attrs input = do
     resolved <- Cmd.get_instrument score_inst
     let code_of = Common.common_code . Inst.inst_common . Cmd.inst_instrument
     case Cmd.inst_thru (code_of resolved) of
-        Nothing -> default_thru resolved score_inst attrs input
-        Just thru -> thru attrs input
+        Nothing -> default_thru resolved score_inst scale attrs input
+        Just thru -> thru scale attrs input
 
 -- | I used to keep track of the previous PitchBend to avoid sending extra ones.
 -- But it turns out I don't actually know the state of the MIDI channel, so
@@ -126,23 +131,24 @@ midi_thru_instrument score_inst attrs input = do
 -- I actually already do that a bit tracking with note_tracker, but it's simpler
 -- to just always send PitchBend, unless it becomes a problem.
 default_thru :: Cmd.ResolvedInstrument -> Score.Instrument -> Cmd.ThruFunction
-default_thru resolved score_inst attrs input = do
+default_thru resolved score_inst scale attrs input = do
+    input <- convert_input score_inst scale input
     (patch, config) <- Cmd.abort_unless $ Cmd.midi_instrument resolved
     let addrs = Patch.config_addrs config
-    unless (null addrs) $ do
-        scale <- Perf.get_scale =<< Selection.track
+    if null addrs then return [] else do
         (input_nn, ks) <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
             =<< input_to_nn score_inst (Patch.patch_attribute_map patch)
-                (Patch.settings#Patch.scale #$ config) scale attrs input
+                (Patch.settings#Patch.scale #$ config) attrs input
         wdev_state <- Cmd.get_wdev_state
-        let result = input_to_midi
-                (Patch.settings#Patch.pitch_bend_range #$ config)
-                wdev_state addrs input_nn
-        whenJust result $ \(thru_msgs, wdev_state) -> do
-            Cmd.modify_wdev_state (const wdev_state)
-            let ks_msgs = concatMap (keyswitch_to_midi thru_msgs) ks
-            mapM_ (uncurry Cmd.midi) (ks_msgs ++ thru_msgs)
+        maybe (return []) (to_msgs ks) $ input_to_midi
+            (Patch.settings#Patch.pitch_bend_range #$ config)
+            wdev_state addrs input_nn
+    where
+    to_msgs ks (thru_msgs, wdev_state) = do
+        Cmd.modify_wdev_state (const wdev_state)
+        let ks_msgs = concatMap (keyswitch_to_midi thru_msgs) ks
+        return $ map (uncurry Cmd.midi_thru) $ ks_msgs ++ thru_msgs
 
 -- | The keyswitch winds up being simultaneous with the note on.  Especially
 -- stupid VSTs like kontakt will sometimes miss a keyswitch if it doesn't have
@@ -164,44 +170,58 @@ keyswitch_to_midi msgs ks = case msum (map note_msg msgs) of
 
 -- | Realize the Input as a pitch in the given scale.
 input_to_nn :: Cmd.M m => Score.Instrument -> Patch.AttributeMap
-    -> Maybe Patch.Scale -> Scale.Scale -> Attrs.Attributes -> InputNote.Input
+    -> Maybe Patch.Scale -> Attrs.Attributes -> InputNote.InputNn
     -> m (Maybe (InputNote.InputNn, [Patch.Keyswitch]))
-input_to_nn inst attr_map patch_scale scale attrs inote = case inote of
-    InputNote.NoteOn note_id input vel ->
-        justm (convert input) $ \(nn, ks) ->
-            return $ Just (InputNote.NoteOn note_id nn vel, ks)
-    InputNote.PitchChange note_id input ->
-        justm (convert input) $ \(nn, _) ->
-            return $ Just (InputNote.PitchChange note_id nn, [])
-    InputNote.NoteOff note_id vel ->
-        return $ Just (InputNote.NoteOff note_id vel, ks)
+input_to_nn inst attr_map patch_scale attrs = \case
+    InputNote.NoteOn note_id nn vel -> justm (convert nn) $ \(nn, ks) ->
+        return $ Just (InputNote.NoteOn note_id nn vel, ks)
+    InputNote.PitchChange note_id input -> justm (convert input) $ \(nn, _) ->
+        return $ Just (InputNote.PitchChange note_id nn, [])
+    input@(InputNote.NoteOff {}) -> return $ Just (input, ks)
         where
         ks = maybe [] (fst . snd) $ Common.lookup_attributes attrs attr_map
-    InputNote.Control note_id control val ->
-        return $ Just (InputNote.Control note_id control val, [])
+    input@(InputNote.Control {}) -> return $ Just (input, [])
     where
-    convert input = do
-        (block_id, _, track_id, pos) <- Selection.get_insert
-        -- I ignore _logs, any interesting errors should be in 'result'.
-        (result, _logs) <- Perf.derive_at block_id track_id $
-            Derive.with_instrument inst $
-            filter_transposers scale $
-            Scale.scale_input_to_nn scale pos input
-        case result of
-            Left err -> throw $ "derive_at: " <> err
-            -- This just means the key isn't in the scale, it happens a lot so
-            -- no need to shout about it.
-            Right (Left BaseTypes.InvalidInput) -> Cmd.abort
-            Right (Left err) -> throw $ pretty err
-            Right (Right nn) -> do
-                let (result, not_found) =
-                        convert_pitch attr_map patch_scale attrs nn
-                when not_found $
-                    Log.warn $ "inst " <> pretty inst <> " doesn't have attrs "
-                        <> pretty attrs <> ", understood attrs are: "
-                        <> pretty (Common.mapped_attributes attr_map)
-                return result
-        where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
+    convert nn = do
+        let (result, not_found) = convert_pitch attr_map patch_scale attrs nn
+        when not_found $
+            Log.warn $ "inst " <> pretty inst <> " doesn't have attrs "
+                <> pretty attrs <> ", understood attrs are: "
+                <> pretty (Common.mapped_attributes attr_map)
+        return result
+
+-- | Convert a keyboard input into the NoteNumber desired by the scale.
+convert_input :: Cmd.M m => Score.Instrument -> Scale.Scale -> InputNote.Input
+    -> m InputNote.InputNn
+convert_input inst scale = \case
+    InputNote.NoteOn note_id input vel -> do
+        nn <- convert input
+        return $ InputNote.NoteOn note_id nn vel
+    InputNote.PitchChange note_id input ->
+        InputNote.PitchChange note_id <$> convert input
+    InputNote.NoteOff note_id vel -> return $ InputNote.NoteOff note_id vel
+    InputNote.Control note_id control val ->
+        return $ InputNote.Control note_id control val
+    where
+    convert = convert_input_pitch inst scale
+
+convert_input_pitch :: Cmd.M m => Score.Instrument -> Scale.Scale -> Pitch.Input
+    -> m Pitch.NoteNumber
+convert_input_pitch inst scale input = do
+    (block_id, _, track_id, pos) <- Selection.get_insert
+    -- I ignore _logs, any interesting errors should be in 'result'.
+    (result, _logs) <- Perf.derive_at block_id track_id $
+        Derive.with_instrument inst $
+        filter_transposers scale $
+        Scale.scale_input_to_nn scale pos input
+    case result of
+        Left err -> throw $ "derive_at: " <> err
+        -- This just means the key isn't in the scale, it happens a lot so
+        -- no need to shout about it.
+        Right (Left BaseTypes.InvalidInput) -> Cmd.abort
+        Right (Left err) -> throw $ pretty err
+        Right (Right nn) -> return nn
+    where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
 -- entered pitch and it's very confusing.  However, I retain 'Controls.octave'
@@ -308,8 +328,10 @@ channel_messages :: Cmd.M m => Maybe Score.Instrument -- ^ use this inst, or
 channel_messages maybe_inst first_addr msgs = do
     addrs <- get_addrs maybe_inst
     let addrs2 = if first_addr then take 1 addrs else addrs
-    sequence_ [Cmd.midi wdev (Midi.ChannelMessage chan msg)
-        | (wdev, chan) <- addrs2, msg <- msgs]
+    sequence_
+        [ Cmd.midi wdev (Midi.ChannelMessage chan msg)
+        | (wdev, chan) <- addrs2, msg <- msgs
+        ]
 
 get_addrs :: Cmd.M m => Maybe Score.Instrument -> m [Addr]
 get_addrs maybe_inst = do

@@ -278,7 +278,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
             , CmdTest.result_ui_state = Responder.state_ui rstate
             , CmdTest.result_updates = []
             , CmdTest.result_logs = []
-            , CmdTest.result_midi = midi
+            , CmdTest.result_thru = map Cmd.MidiThru midi
             }
     return $ Result
         { result_msg = msg

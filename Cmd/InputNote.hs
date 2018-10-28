@@ -98,8 +98,8 @@ input_id input = case input of
 --
 -- TODO This is a grody hack.  A better solution might be to make NoteId into
 -- a (Channel, Int) pair.
-multiply_note_id :: Int -> GenericInput x -> GenericInput x
-multiply_note_id multiplier input = case input of
+offset_note_id :: Int -> GenericInput x -> GenericInput x
+offset_note_id multiplier input = case input of
     NoteOn note_id pitch vel -> NoteOn (modify note_id) pitch vel
     NoteOff note_id vel -> NoteOff (modify note_id) vel
     Control note_id control val -> Control (modify note_id) control val

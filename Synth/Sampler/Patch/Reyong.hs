@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
-import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -48,7 +47,7 @@ patches =
 
 makePatch :: Note.PatchName -> Scale.Range -> Patch.Patch
 makePatch name range = (Patch.patch name)
-    { Patch._dir = "reyong"
+    { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = inferDuration
     , Patch._karyaPatch = ImInst.code #= code $ ImInst.range range $
@@ -61,7 +60,9 @@ makePatch name range = (Patch.patch name)
             , Im.Patch.patch_attribute_map = const () <$> attributeMap
             }
     }
-    where code = Bali.zero_dur_mute 0.65
+    where
+    code = Bali.zero_dur_mute 0.65 <> Util.thru dir convert
+    dir = "reyong"
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map
@@ -130,9 +131,9 @@ convert note = do
     let var = Util.variation (variationsOf articulation) note
     (filename, noteNn, sampleNn) <-
         tryRight $ toFilename articulation symPitch dyn var
-    Log.debug $ "note at " <> pretty (Note.start note) <> ": "
-        <> pretty ((dyn, scale), (symPitch, sampleNn), var)
-        <> ": " <> txt filename
+    -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
+    --     <> pretty ((dyn, scale), (symPitch, sampleNn), var)
+    --     <> ": " <> txt filename
     let dynVal = Num.scale dynFactor 1 scale
     let dur = if isMute articulation then 100 else Note.duration note + muteTime
     return $ (dur,) $ Sample.Sample

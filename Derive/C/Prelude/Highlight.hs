@@ -121,8 +121,8 @@ out_of_range deriver = do
             return $ maybe False (<nn) maybe_top
                 || maybe False (>nn) maybe_bottom
 
-initial_pitch :: Scale.Scale -> Score.Event -> Maybe Pitch.Pitch
-initial_pitch scale event = do
+_initial_pitch :: Scale.Scale -> Score.Event -> Maybe Pitch.Pitch
+_initial_pitch scale event = do
     note <- Score.initial_note event
     either (const Nothing) Just $ Scale.scale_read scale mempty note
 

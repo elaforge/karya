@@ -5,15 +5,20 @@
 module Synth.Sampler.Patch.Util where
 import qualified Control.Monad.Except as Except
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
+import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Osc as Osc
 import qualified Synth.Shared.Signal as Signal
 
 import Global
@@ -68,6 +73,24 @@ variation variations =
     pick . fromMaybe 0 . Note.initial Control.variation
     where
     pick var = round (var * fromIntegral (variations - 1))
+
+-- * thru
+
+thru :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
+    -> ImInst.Code
+thru dir convert = ImInst.thru $ thruFunction dir convert
+
+thruFunction :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
+    -> Osc.ThruFunction
+thruFunction dir convert attrs pitch velocity = do
+    ((_, sample), _logs) <- Patch.runConvert $ convert $ (Note.note "" "" 0 1)
+        { Note.attributes = attrs
+        , Note.controls = Map.fromList
+            [ (Control.pitch, Signal.constant (Pitch.nn_to_double pitch))
+            , (Control.dynamic, Signal.constant velocity)
+            ]
+        }
+    return [Sample.toOsc dir sample]
 
 -- * util
 

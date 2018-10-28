@@ -58,7 +58,7 @@ data Result val = Result {
     , result_ui_state :: Ui.State
     , result_updates :: [Update.CmdUpdate]
     , result_logs :: [Log.Msg]
-    , result_midi :: [Interface.Message]
+    , result_thru :: [Cmd.Thru]
     }
 
 result_failed :: Result a -> Maybe Text
@@ -111,12 +111,12 @@ run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
 
 run_io :: Ui.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
 run_io ustate1 cstate1 cmd = do
-    (cstate2, midi_msgs, logs, result) <-
+    (cstate2, thru, logs, result) <-
         Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
     let (val, ustate2, updates) = case result of
             Left err -> (Left (pretty err), ustate1, [])
             Right (v, ustate2, updates) -> (Right v, ustate2, updates)
-    return $ Result val cstate2 ustate2 updates logs midi_msgs
+    return $ Result val cstate2 ustate2 updates logs thru
 
 run_ui :: Ui.State -> Cmd.CmdId a -> Result a
 run_ui ustate = run ustate default_cmd_state
@@ -304,7 +304,10 @@ e_events block_id = maybe [] (Vector.toList . Cmd.perf_events)
     . e_performance block_id
 
 e_midi :: Result a -> [Midi.Message]
-e_midi result = [Midi.wmsg_msg msg | Interface.Midi msg <- result_midi result]
+e_midi result =
+    [ Midi.wmsg_msg msg
+    | Cmd.MidiThru (Interface.Midi msg) <- result_thru result
+    ]
 
 
 -- ** val

@@ -40,17 +40,22 @@ pasang_code = MidiInst.thru pasang_thru
 
 -- | Dispatch MIDI through to both polos and sangsih instruments.
 pasang_thru :: Cmd.ThruFunction
-pasang_thru _attrs input = do
+pasang_thru scale _attrs input = do
     track <- Selection.track
     polos <- Perf.lookup_val track Gangsa.inst_polos
     sangsih <- Perf.lookup_val track Gangsa.inst_sangsih
-    whenJust polos $ \inst -> do
-        attrs <- Cmd.get_instrument_attributes inst
-        MidiThru.midi_thru_instrument inst attrs input
-    whenJust sangsih $ \inst -> do
-        attrs <- Cmd.get_instrument_attributes inst
-        MidiThru.midi_thru_instrument inst attrs $
-            InputNote.multiply_note_id 1 input
+    p_thru <- case polos of
+        Nothing -> return []
+        Just inst -> do
+            attrs <- Cmd.get_instrument_attributes inst
+            MidiThru.for_instrument inst scale attrs input
+    s_thru <- case sangsih of
+        Nothing -> return []
+        Just inst -> do
+            attrs <- Cmd.get_instrument_attributes inst
+            MidiThru.for_instrument inst scale attrs $
+                InputNote.offset_note_id 1 input
+    return $ p_thru ++ s_thru
 
 zero_dur_mute :: Signal.Y -> MidiInst.Code
 zero_dur_mute dyn = zero_dur_reapply Symbols.mute dyn

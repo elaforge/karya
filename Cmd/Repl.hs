@@ -144,12 +144,12 @@ run_cmdio cmd = do
     case run_result of
         Left (exc :: Exception.SomeException) -> return
             (ReplProtocol.raw $ "IO exception: " <> showt exc, Cmd.Done)
-        Right (cmd_state, midi, cmd_result, logs) -> case cmd_result of
+        Right (cmd_state, thru, cmd_result, logs) -> case cmd_result of
             Left err -> return
                 (ReplProtocol.raw $ "State error: " <> pretty err, Cmd.Done)
             Right (ReplProtocol.CmdResult response eval_logs, ui_state,
                     updates) -> do
-                mapM_ Cmd.write_midi midi
+                mapM_ Cmd.write_thru thru
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
                 -- Should be safe, because I'm writing the updates.
                 Ui.unsafe_put ui_state
