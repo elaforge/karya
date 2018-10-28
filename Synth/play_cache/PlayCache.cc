@@ -70,11 +70,16 @@ PlayCache::~PlayCache()
 void
 PlayCache::resume()
 {
+    bool changed = false;
     if (!streamer.get() || streamer->sampleRate != sampleRate
-        || streamer->maxFrames != maxBlockFrames)
+            || streamer->maxFrames != maxBlockFrames)
     {
         streamer.reset(
             new Streamer(log, numOutputs, sampleRate, maxBlockFrames, true));
+        changed = true;
+    }
+    if (!osc.get() || changed) {
+        osc.reset(new Osc(log, numOutputs, sampleRate, maxBlockFrames));
     }
     Plugin::resume();
 }
@@ -308,31 +313,47 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
     memset(out1, 0, processFrames * sizeof(float));
     memset(out2, 0, processFrames * sizeof(float));
 
+    // if (!this->playing)
+    //     return;
+
+    float *oscSamples;
+    bool oscDone = !osc.get() || this->osc->read(processFrames, &oscSamples);
+
     // TODO fade out if this makes a nasty click.
-    if (!this->playing)
+    if (oscDone && !this->playing)
         return;
+
+    if (!oscDone) {
+        for (int frame = 0; frame < processFrames; frame++) {
+            out1[frame] += oscSamples[frame*2] * volume;
+            out2[frame] += oscSamples[frame*2 + 1] * volume;
+        }
+    }
 
     // LOG("process frames " << processFrames << " startOffset: " << startOffset
     //     << " offset: " << startFrame);
 
-    // Leave some silence at the beginning if there is a startOffset.
-    if (startOffset > 0) {
-        int32_t offset = std::min(processFrames, startOffset);
-        out1 += offset;
-        out2 += offset;
-        processFrames -= offset;
-        startOffset -= offset;
-    }
+    if (playing) {
+        // Leave some silence at the beginning if there is a startOffset.
+        if (startOffset > 0) {
+            int32_t offset = std::min(processFrames, startOffset);
+            out1 += offset;
+            out2 += offset;
+            processFrames -= offset;
+            startOffset -= offset;
+        }
 
-    float *sampleVals;
-    if (streamer->read(processFrames, &sampleVals)) {
-        LOG("out of samples");
-        this->playing = false;
-        return;
-    }
-
-    for (int frame = 0; frame < processFrames; frame++) {
-        (*out1++) = sampleVals[frame*2] * volume;
-        (*out2++) = sampleVals[frame*2 + 1] * volume;
+        float *streamSamples;
+        if (this->streamer->read(processFrames, &streamSamples)) {
+            LOG("out of samples");
+            this->playing = false;
+        } else {
+            for (int frame = 0; frame < processFrames; frame++) {
+                for (int frame = 0; frame < processFrames; frame++) {
+                    out1[frame] = streamSamples[frame*2] * volume;
+                    out2[frame] = streamSamples[frame*2 + 1] * volume;
+                }
+            }
+        }
     }
 }

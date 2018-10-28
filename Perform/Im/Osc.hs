@@ -13,7 +13,9 @@ import qualified Synth.Shared.Config as Config
 -- withTransport t (\fd -> let f = sendMessage fd in f m1 >> f m2)
 
 
-start = send $ play "../data/sampler/reyong/62-109-127-open+v1.flac" 1 1
+start = send $
+    play "/Users/elaforge/src/seq/data/sampler/reyong/62-109-127-open+v1.flac"
+        1 1
 stop1 = send stop
 
 send :: OSC.Message -> IO ()

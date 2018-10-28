@@ -462,7 +462,7 @@ ccBinaries =
         ]
     ] ++ if not (Config.enableIm localConfig) then [] else
     [ playCacheBinary
-    , (plain "test_play_cache_osc" (playCacheDeps ["Osc.cc"]))
+    , (plain "test_play_cache_osc" (playCacheDeps ["test_osc.cc"]))
         { ccLinkFlags = const ["-llo", "-lsndfile"] }
     , (plain "test_play_cache" $ (playCacheDeps ["test_play_cache.cc"]))
         { ccLinkFlags = const $ "-lsndfile" : case Util.platform of
@@ -498,7 +498,7 @@ playCacheBinary = CcBinary
     , ccCompileFlags = \config -> platformCc ++
         [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""
         ]
-    , ccLinkFlags = const $ "-lsndfile" : platformLink
+    , ccLinkFlags = const $ "-lsndfile" : "-llo" : platformLink
     , ccPostproc = \fn -> case Util.platform of
         Util.Mac -> do
             let vst = fn ++ ".vst"
@@ -519,7 +519,7 @@ playCacheBinary = CcBinary
 
 playCacheDeps :: [FilePath] -> [FilePath]
 playCacheDeps extras = map (("Synth/play_cache"</>) . (++".o")) $ extras ++
-    [ "Mix.cc", "Sample.cc", "Streamer.cc"
+    [ "Mix.cc", "Osc.cc", "Sample.cc", "Streamer.cc"
     , "ringbuffer.cc"
     ]
 

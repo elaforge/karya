@@ -9,6 +9,7 @@
 
 #include "Synth/vst2/interface.h"
 
+#include "Osc.h"
 #include "Streamer.h"
 
 
@@ -102,5 +103,6 @@ private:
 
     std::ofstream log;
     std::unique_ptr<Streamer> streamer;
+    std::unique_ptr<Osc> osc;
     PlayConfig playConfig;
 };

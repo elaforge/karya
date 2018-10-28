@@ -2,10 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#include <iostream>
-#include <fstream>
 #include <string>
-#include <stdio.h>
 #include <lo/lo.h>
 
 #include "Osc.h"
@@ -13,18 +10,33 @@
 #include "log.h"
 
 
+// Seriously?
+#define TO_STR(x) #x
+#define STR(x) TO_STR(x)
+
+
+// liblo somehow forgot to add a context argument, and here in 2018 C++ somehow
+// still has no way to easily create an explicit closure wrapper.
+//
+// Actually it has lo_server_set_error_context, but of course that has to be
+// called after lo_server_new, at which point it's too late to notice creation
+// errors.
+static std::ostream *errorLog;
+
 static void
 handleError(int num, const char *msg, const char *where)
 {
-    printf("ERROR: %s %s\n", msg, where);
+    std::ostream &log = *errorLog;
+    LOG("OSC error: " << msg << ", at: " << (where ? where : "?"));
 }
 
 
 Osc::Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames)
     : log(log), threadQuit(false), volume(1), ratio(1)
 {
-    std::string port = std::to_string(OSC_PORT);
-    this->server = lo_server_new(port.c_str(), handleError);
+    errorLog = &log;
+    this->server = lo_server_new(STR(OSC_PORT), handleError);
+
     lo_server_add_method(server, "/play", "sff", Osc::handlePlay, this);
     lo_server_add_method(server, "/stop", "", Osc::handleStop, this);
     streamer.reset(
@@ -39,16 +51,22 @@ Osc::~Osc()
     // TODO I might have to get it out of lo_server_recv.
     // The internal one uses polling and short timeouts, but maybe I can
     // send it a msg.
+    LOG("Osc quit");
+    {
+        // Send myself a random message to get lo_server_recv to return.
+        lo_address self = lo_address_new(nullptr, STR(OSC_PORT));
+        lo_send(self, "/quit", "");
+        lo_address_free(self);
+    }
     thread->join();
     lo_server_free(server);
 }
 
+
 bool
 Osc::read(sf_count_t frames, float **out)
 {
-    LOG("read");
     bool done = streamer->read(frames, out);
-    LOG("done? " << done);
     if (done)
         return true;
     if (volume != 1) {
@@ -59,13 +77,12 @@ Osc::read(sf_count_t frames, float **out)
     return false;
 }
 
+
 void
 Osc::loop()
 {
-    while (!threadQuit.load()) {
-        int bytes = lo_server_recv(this->server);
-        printf("recv bytes %d\n", bytes);
-    }
+    while (!threadQuit.load())
+        lo_server_recv(this->server);
 }
 
 
@@ -83,6 +100,7 @@ Osc::handlePlay(
 void
 Osc::play(const char *path, float ratio, float vol)
 {
+    LOG("play: " << path << " " << ratio << ", " << vol);
     std::vector<std::string> mutes;
     this->volume = vol;
     this->ratio = ratio;
@@ -106,33 +124,4 @@ Osc::stop()
 {
     std::vector<std::string> mutes;
     streamer->start("", 0, mutes);
-}
-
-
-int
-main(int argc, char **argv)
-{
-    Osc *osc = new Osc(std::cout, 2, 44100, 512);
-    for (;;) {
-        std::string input;
-        std::cout << "wait..." << std::flush;
-        std::getline(std::cin, input);
-        if (input == "q")
-            break;
-
-        // float left[8], right[8];
-        // float *samples[] = { left, right };
-        float *samples = nullptr;
-        bool done = osc->read(8, &samples);
-        if (done) {
-            std::cout << "done\n";
-        } else {
-            std::cout << "samples:";
-            for (int i = 0; i < 8; i++) {
-                std::cout << ' ' << samples[i*2] << ',' << samples[i*2+1];
-            }
-            std::cout << '\n';
-        }
-    }
-    exit(0);
 }

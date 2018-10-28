@@ -1527,7 +1527,7 @@ synth: im:
         Abort a sample on space: /stop
       . The advantage is that I can use liblo for C++, and some haskell
         library for karya.
-      + Implement with ignoring ratio, just stream the sample.
+      Implement with ignoring ratio, just stream the sample.
         . I should be able to reuse Streamer.
         . Start a separate thread, which listens on an OSC socket, creates
           a Streamer, and has it start streaming.
@@ -1537,7 +1537,7 @@ synth: im:
           I just want to get samples as soon as they arrive.
         . Also I play a file, not a directory, and I need to apply volume and
           ratio.
-        - plug into PlayCache
+        * plug into PlayCache
       - I need a "MIDI" thru which takes Input.Note, runs the patch convert,
         and sends OSC.
       - Add support for ratio.  libsamplerate with a cheap quality should be
