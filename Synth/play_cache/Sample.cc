@@ -86,6 +86,7 @@ openSample(
     const string &fname, sf_count_t offset)
 {
     SF_INFO info;
+    memset(&info, 0, sizeof info);
     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
         LOG(fname << ": " << sf_strerror(sndfile));

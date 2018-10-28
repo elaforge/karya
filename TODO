@@ -1290,11 +1290,17 @@ synth: im:
         meanwhile I should be noticing that there are no im events and not
         starting play_cache.
       . Proper MIDI fallback would also fix this.
-    - play cache doesn't like my samples:
+    * play cache doesn't like my samples:
       . Synth/play_cache/Sample.cc:91
-        /Users/elaforge/src/seq/main/im/cache/test/im-wayang/untitled/b3/pemade-s/000.wav:
+        /Users/elaforge/src/seq/main/
+          im/cache/test/im-wayang/untitled/b3/pemade-s/000.wav:
         Error. Bad format field in SF_INFO struct when opening a RAW file for
         read.
+      . It's AUtil.outputFormat, what's the problem?
+      . It doesn't happen when I run by myself, maybe it's threads?  Could
+        I be using a static data structure?
+      . It thinks it's RAW, but it's not, maybe I have to fill in SF_INFO
+        first.
   cleanup:
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
