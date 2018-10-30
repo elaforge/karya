@@ -29,15 +29,13 @@ private:
     std::unique_ptr<std::thread> thread;
     std::atomic<bool> threadQuit;
     std::unique_ptr<ResampleStreamer> streamer;
-    float volume;
-    // Resample ratio.  Not implemented yet.
-    float ratio;
+    double volume;
     void loop();
 
     static int handlePlay(
         const char *path, const char *types, lo_arg **argv,
         int argc, void *data, void *self);
-    void play(const char *path, float ratio, float vol);
+    void play(const char *path, double ratio, double vol);
 
     static int handleStop(
         const char *path, const char *types, lo_arg **argv,

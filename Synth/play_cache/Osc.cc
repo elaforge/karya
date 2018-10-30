@@ -32,12 +32,12 @@ handleError(int num, const char *msg, const char *where)
 
 
 Osc::Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames)
-    : log(log), threadQuit(false), volume(1), ratio(1)
+    : log(log), threadQuit(false), volume(1)
 {
     errorLog = &log;
     this->server = lo_server_new(STR(OSC_PORT), handleError);
 
-    lo_server_add_method(server, "/play", "sff", Osc::handlePlay, this);
+    lo_server_add_method(server, "/play", "sdd", Osc::handlePlay, this);
     lo_server_add_method(server, "/stop", "", Osc::handleStop, this);
     streamer.reset(
         new ResampleStreamer(log, channels, sampleRate, maxBlockFrames));
@@ -89,19 +89,18 @@ Osc::handlePlay(
     int argc, void *data, void *user_data)
 {
     Osc *self = static_cast<Osc *>(user_data);
-    self->play(&argv[0]->s, argv[1]->f, argv[2]->f);
+    self->play(&argv[0]->s, argv[1]->d, argv[2]->d);
     return 0;
 }
 
 
 void
-Osc::play(const char *path, float ratio, float vol)
+Osc::play(const char *path, double ratio, double vol)
 {
     LOG("play: " << path << " ratio:" << ratio << " vol:" << vol);
     std::vector<std::string> mutes;
     this->volume = vol;
-    this->ratio = ratio;
-    streamer->start(path);
+    streamer->start(path, ratio);
 }
 
 

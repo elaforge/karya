@@ -180,9 +180,10 @@ TracksStreamer::initialize()
 // ResampleStreamer
 
 void
-ResampleStreamer::start(const string &fname)
+ResampleStreamer::start(const string &fname, double ratio)
 {
-    this->fname = fname;
+    this->fname.assign(fname);
+    this->ratio = ratio;
     this->restart();
 }
 
@@ -190,7 +191,7 @@ ResampleStreamer::start(const string &fname)
 void
 ResampleStreamer::stop()
 {
-    this->fname = "";
+    this->fname.assign("");
     this->restart();
 }
 

@@ -8,7 +8,6 @@ import qualified Sound.OSC as OSC
 import qualified Sound.OSC.Transport.FD as OSC.Transport.FD
 import qualified Sound.OSC.Transport.FD.UDP as OSC.Transport.FD.UDP
 
-import qualified Util.Num as Num
 import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Config as Config
@@ -39,7 +38,7 @@ send msg =
 play :: Play -> OSC.Message
 play (Play fname ratio volume) = OSC.message "/play"
     [ OSC.ASCII_String (ByteString.Char8.pack fname)
-    , OSC.Float (Num.d2f ratio), OSC.Float (Num.d2f volume)
+    , OSC.Double ratio, OSC.Double volume
     ]
 
 stop :: OSC.Message
