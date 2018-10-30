@@ -19,7 +19,7 @@
 
 // Miscellaneous constants.
 enum {
-    numOutputs = 2,
+    channels = 2,
     numInputs = 0,
     numPrograms = 0,
     // How much inherent delay the plugin has.  I'm just streaming samples, so
@@ -50,7 +50,7 @@ createEffectInstance(VstHostCallback hostCallback)
 //         int32_t numOutChannels, int32_t uniqueID, int32_t version,
 //         int32_t initialDelay, bool isSynth) :
 PlayCache::PlayCache(VstHostCallback hostCallback) :
-    Plugin(hostCallback, numPrograms, numParameters, numInputs, numOutputs,
+    Plugin(hostCallback, numPrograms, numParameters, numInputs, channels,
         'bdpm', 1, initialDelay, true),
     startFrame(0), playing(false), startOffset(0), volume(1),
     log(logFilename, std::ios::app)
@@ -75,11 +75,11 @@ PlayCache::resume()
             || streamer->maxFrames != maxBlockFrames)
     {
         streamer.reset(
-            new Streamer(log, numOutputs, sampleRate, maxBlockFrames, true));
+            new TracksStreamer(log, channels, sampleRate, maxBlockFrames));
         changed = true;
     }
     if (!osc.get() || changed) {
-        osc.reset(new Osc(log, numOutputs, sampleRate, maxBlockFrames));
+        osc.reset(new Osc(log, channels, sampleRate, maxBlockFrames));
     }
     Plugin::resume();
 }
@@ -101,7 +101,7 @@ PlayCache::getManufacturerName(char *text)
 bool
 PlayCache::getOutputProperties(int32_t index, VstPinProperties *properties)
 {
-    if (index >= numOutputs)
+    if (index >= channels)
         return false;
     switch (index) {
     case 0:
@@ -317,7 +317,8 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
     //     return;
 
     float *oscSamples;
-    bool oscDone = !osc.get() || this->osc->read(processFrames, &oscSamples);
+    bool oscDone = !osc.get()
+        || this->osc->read(channels, processFrames, &oscSamples);
 
     // TODO fade out if this makes a nasty click.
     if (oscDone && !this->playing)
@@ -344,15 +345,13 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
         }
 
         float *streamSamples;
-        if (this->streamer->read(processFrames, &streamSamples)) {
+        if (this->streamer->read(channels, processFrames, &streamSamples)) {
             LOG("out of samples");
             this->playing = false;
         } else {
             for (int frame = 0; frame < processFrames; frame++) {
-                for (int frame = 0; frame < processFrames; frame++) {
-                    out1[frame] = streamSamples[frame*2] * volume;
-                    out2[frame] = streamSamples[frame*2 + 1] * volume;
-                }
+                out1[frame] = streamSamples[frame*2] * volume;
+                out2[frame] = streamSamples[frame*2 + 1] * volume;
             }
         }
     }

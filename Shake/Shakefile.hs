@@ -506,12 +506,16 @@ makePlayCacheBinary :: String -> FilePath -> [FilePath] -> CcBinary
 makePlayCacheBinary name main ccDeps = CcBinary
     { ccName = name
     , ccRelativeDeps = (ccDeps++) $ map (("Synth/play_cache"</>) . (++".o")) $
-        [main, "Mix.cc", "Osc.cc", "Sample.cc", "Streamer.cc", "ringbuffer.cc"]
+        [ main
+        , "Osc.cc", "Sample.cc", "Streamer.cc", "ringbuffer.cc"
+        , "Tracks.cc"
+        ]
     , ccCompileFlags = \config ->
         ["-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""]
-    , ccLinkFlags = const $ "-lsndfile" : "-llo" : case Util.platform of
-        Util.Mac -> []
-        Util.Linux -> ["-lpthread"]
+    , ccLinkFlags = const $ "-lsndfile" : "-llo" : "-lsamplerate"
+        : case Util.platform of
+            Util.Mac -> []
+            Util.Linux -> ["-lpthread"]
     , ccPostproc = const $ return ()
     }
 

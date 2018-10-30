@@ -12,7 +12,7 @@
 
 #include <sndfile.h>
 
-#include "Mix.h"
+#include "Audio.h"
 #include "Semaphore.h"
 #include "ringbuffer.h"
 
@@ -23,45 +23,42 @@
 // non-realtime context, at which point it starts up streamThread which will
 // handle non-realtime work.  The public methods, specifically read(), should
 // then be realtime-safe.
-class Streamer {
-public:
+//
+// A subclass is expected to provide a start() method and override
+// initialize().  The reason for the two step initialization is that start()
+// is called in a realtime context, and just copy its arguments to
+// pre-allocated storage, while initialize() is called from the non-realtime
+// thread.
+class Streamer : public Audio {
+protected:
     Streamer(std::ostream &log, int channels, int sampleRate, int maxFrames,
         bool synchronized);
-    ~Streamer();
+public:
+    virtual ~Streamer();
 
-    // Thees functions are realtime-safe.
-    void start(const std::string &dir, sf_count_t startOffset,
-        const std::vector<std::string> &mutes);
     // Return true if the read is done, and there are no samples in 'out'.
-    bool read(sf_count_t frames, float **out);
+    bool read(int channels, sf_count_t frames, float **out) override;
 
     const int channels;
     const int sampleRate;
     const int maxFrames;
-private:
+protected:
     std::ostream &log;
-    // This is true for streaming from the cache and false for the OSC "MIDI
-    // thru" mechanism.  For thru, it doesn't matter that samples are
-    // synchronized to any start time, I just start streaming them when I get
-    // them.
-    const bool synchronized;
 
     // ** stream thread state
+    void restart();
+    // Called on non-realtime thread.
+    virtual Audio *initialize() = 0;
+private:
     void streamLoop();
     void stream();
     std::unique_ptr<std::thread> streamThread;
-    std::unique_ptr<Mix> mix;
+    std::unique_ptr<Audio> audio;
 
     // ** communication with streamThread.
-    // Statically allocated state start() passes to streamLoop().
-    struct {
-        std::string dir;
-        sf_count_t startOffset;
-        std::vector<std::string> mutes;
-    } state;
     std::atomic<bool> threadQuit;
-    // Goes to true when the Mix has run out of data.
-    std::atomic<bool> mixDone;
+    // Goes to true when the Audio has run out of data.
+    std::atomic<bool> audioDone;
     // Set to true to have the streamThread reload mix.
     std::atomic<bool> restarting;
     jack_ringbuffer_t *ring;
@@ -69,8 +66,47 @@ private:
     Semaphore ready;
 
     // ** read() state
+
+    // This is true for streaming from the cache and false for the OSC "MIDI
+    // thru" mechanism.  For thru, it doesn't matter that samples are
+    // synchronized to any start time, I just start streaming them when I get
+    // them.
+    const bool synchronized;
     // Keep track if read() position gets ahead of what ring was able to
     // provide.
     sf_count_t debt;
     std::vector<float> outputBuffer;
+};
+
+
+class TracksStreamer : public Streamer {
+public:
+    TracksStreamer(std::ostream &log, int channels, int sampleRate,
+        int maxFrames);
+    void start(const std::string &dir, sf_count_t startOffset,
+        const std::vector<std::string> &mutes);
+
+private:
+    // Statically allocated state start() passes to streamLoop().
+    struct {
+        std::string dir;
+        sf_count_t startOffset;
+        std::vector<std::string> mutes;
+    } args;
+    Audio *initialize() override;
+};
+
+
+class ResampleStreamer : public Streamer {
+public:
+    ResampleStreamer(std::ostream &log, int channels, int sampleRate,
+            int maxFrames)
+        : Streamer(log, channels, sampleRate, maxFrames, false)
+    {}
+    void start(const std::string &fname);
+    void stop();
+
+private:
+    std::string fname;
+    Audio *initialize() override;
 };

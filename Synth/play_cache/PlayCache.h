@@ -102,7 +102,7 @@ private:
     float volume;
 
     std::ofstream log;
-    std::unique_ptr<Streamer> streamer;
+    std::unique_ptr<TracksStreamer> streamer;
     std::unique_ptr<Osc> osc;
     PlayConfig playConfig;
 };

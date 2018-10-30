@@ -1542,6 +1542,23 @@ synth: im:
         and sends OSC.
       - Add support for ratio.  libsamplerate with a cheap quality should be
         able to do realtime.
+        . I need to do the resampling in the streamer thread.
+        . Rename Sample to Audio or Stream
+        . I think I can change Streamer to take an abstract Audio in start(),
+          then make Mix into an Audio.  Then I can get rid of synchronized.
+        . Mix becomes Tracks, since it mixes tracks, and deals with the
+          directory structure.
+        . Now make a Resample : Audio, and
+          . Osc: Resample(ratio, SampleFile(fname))
+          . PlayCache: Tracks(dir, mutes), Track hardcodes SampleDirectory
+        . But I still need to call Streamer::start with no allocation.  How it
+          does that currently is dir and mutes are statically allocated and
+          just assigned on start().  The the actual initialization is delayed
+          until streamLoop(), which is non-realtime.  The pattern is pass
+          constructor and arguments, and call it in streamLoop.
+        . I could emulate that with a separate initialiaze method.  I can't
+          think of how to get it to work though.
+        . Alternately, use Streamer subclasses.
     overview:
       . Im instruments should have a midi thru-like preview sound.
       . This doesn't have to be performance-level of low latency,
@@ -3434,6 +3451,15 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  solkattu search feature:
+    . create an event with a duration and solkattu
+    . e.g. tat_taka takadinna nakadit_talang_ga
+    . This turns into a search for phrases with that duration (or power
+      multiple), and those solkattu.  If there are >1, I can pick any one.
+    . With a library of phrases, and small fragments, I should be able to
+      write percussion parts quickly.
+    . Still the problem of long text for events remains.  Maybe I can open vi
+      for individual events?
   - can I highlight karvais?  I guess I have to infer when they are, e.g.
     tri_ can put the group on, or join, though maybe it should be called
     karvai to emphasize that.

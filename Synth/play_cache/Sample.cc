@@ -85,8 +85,7 @@ openSample(
     std::ostream &log, int channels, int sampleRate,
     const string &fname, sf_count_t offset)
 {
-    SF_INFO info;
-    memset(&info, 0, sizeof info);
+    SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
         LOG(fname << ": " << sf_strerror(sndfile));
@@ -111,8 +110,7 @@ openSample(
 SampleDirectory::SampleDirectory(
         std::ostream &log, int channels, int sampleRate,
         const string &dir, sf_count_t offset) :
-    log(log), channels(channels), sampleRate(sampleRate), dir(dir),
-    sndfile(nullptr)
+    log(log), sampleRate(sampleRate), dir(dir), sndfile(nullptr)
 {
     int filenum = offset / (CHECKPOINT_SECONDS * sampleRate);
     sf_count_t fileOffset = offset % (CHECKPOINT_SECONDS * sampleRate);
@@ -132,8 +130,8 @@ SampleDirectory::~SampleDirectory()
 }
 
 
-sf_count_t
-SampleDirectory::read(sf_count_t frames, float **out)
+bool
+SampleDirectory::read(int channels, sf_count_t frames, float **out)
 {
     buffer.resize(frames * channels);
     sf_count_t totalRead = 0;
@@ -160,7 +158,7 @@ SampleDirectory::read(sf_count_t frames, float **out)
         totalRead += delta;
     } while (totalRead < frames);
     *out = buffer.data();
-    return totalRead;
+    return totalRead == 0;
 }
 
 
@@ -169,12 +167,11 @@ SampleDirectory::read(sf_count_t frames, float **out)
 SampleFile::SampleFile(
         std::ostream &log, int channels, int sampleRate,
         const string &fname, sf_count_t offset) :
-    log(log), channels(channels), fname(fname), sndfile(nullptr)
+    log(log), fname(fname), sndfile(nullptr)
 {
-    sf_count_t fileOffset = offset % (CHECKPOINT_SECONDS * sampleRate);
-    LOG(fname << " + " << fileOffset);
+    LOG(fname << " + " << offset);
     if (!fname.empty()) {
-        sndfile = openSample(log, channels, sampleRate, fname, fileOffset);
+        sndfile = openSample(log, channels, sampleRate, fname, offset);
     }
 }
 
@@ -186,9 +183,10 @@ SampleFile::~SampleFile()
 }
 
 
-sf_count_t
-SampleFile::read(sf_count_t frames, float **out)
+bool
+SampleFile::read(int channels, sf_count_t frames, float **out)
 {
+    // LOG("read " << frames);
     buffer.resize(frames * channels);
     sf_count_t totalRead = 0;
     do {
@@ -203,5 +201,5 @@ SampleFile::read(sf_count_t frames, float **out)
         totalRead += delta;
     } while (totalRead < frames);
     *out = buffer.data();
-    return totalRead;
+    return totalRead == 0;
 }

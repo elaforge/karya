@@ -2,12 +2,13 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#include <dirent.h>
 #include <ostream>
 #include <string.h>
 #include <thread>
 
 #include "Streamer.h"
+#include "Sample.h"
+#include "Tracks.h"
 #include "log.h"
 #include "ringbuffer.h"
 
@@ -28,17 +29,12 @@ Streamer::Streamer(
         std::ostream &log, int channels, int sampleRate,
         int maxFrames, bool synchronized)
     : channels(channels), sampleRate(sampleRate), maxFrames(maxFrames),
-        log(log), synchronized(synchronized), threadQuit(false),
-        mixDone(false), restarting(false),
-        debt(0)
+        log(log), threadQuit(false), audioDone(false), restarting(false),
+        synchronized(synchronized), debt(0)
 {
     ring = jack_ringbuffer_create(ringBlocks * maxFrames * channels);
     jack_ringbuffer_mlock(ring);
     outputBuffer.resize(maxFrames * channels);
-    // Assume file path and number of muted tracks won't go above this, so
-    // start() doesn't allocate.
-    state.dir.reserve(4096);
-    state.mutes.reserve(64);
 
     streamThread.reset(new std::thread(&Streamer::streamLoop, this));
 }
@@ -55,62 +51,10 @@ Streamer::~Streamer()
 
 
 void
-Streamer::start(const string &dir, sf_count_t startOffset,
-    const std::vector<string> &mutes)
+Streamer::restart()
 {
-    // I think the atomic restarting.store with memory_order_seq_cst should
-    // cause these mutations to become visible to streamThread.
-    state.dir.assign(dir);
-    state.startOffset = startOffset;
-    state.mutes.assign(mutes.begin(), mutes.end());
     restarting.store(true);
-    // LOG("start: " << dir);
     ready.post();
-}
-
-
-// See if the fname matches any of the muted instruments.
-static bool
-suffixMatch(const std::vector<string> &mutes, const char *fname)
-{
-    const char *endp = strrchr(fname, '.');
-    int end = endp ? endp - fname : strlen(fname);
-    for (const string &mute : mutes) {
-        if (mute.length() == end && strncmp(mute.c_str(), fname, end) == 0)
-            return true;
-    }
-    return false;
-}
-
-
-static std::vector<string>
-dirSamples(
-    std::ostream &log, const string &dir, const std::vector<string> &mutes)
-{
-    std::vector<string> fnames;
-    DIR *d = opendir(dir.c_str());
-    if (!d) {
-        LOG("can't open dir: " << dir);
-        return fnames;
-    }
-    struct dirent *ent;
-    while ((ent = readdir(d)) != nullptr) {
-        if (ent->d_type != DT_DIR)
-           continue;
-        string subdir(ent->d_name);
-        if (subdir.empty() || subdir[0] == '.')
-            continue;
-        if (suffixMatch(mutes, subdir.c_str()))
-            continue;
-        subdir = dir + "/" + subdir;
-        LOG("play sample dir: " << subdir);
-        fnames.push_back(subdir);
-    }
-    closedir(d);
-    if (fnames.empty()) {
-        LOG("no matching samples in " << dir);
-    }
-    return fnames;
 }
 
 
@@ -123,24 +67,13 @@ Streamer::streamLoop()
         if (threadQuit.load())
             break;
         if (restarting.load()) {
-            LOG("restart: " << state.dir);
-            std::vector<string> dirnames;
-            if (synchronized) {
-                dirnames = dirSamples(log, state.dir, state.mutes);
-            } else {
-                // Empty means don't play anything.
-                if (!state.dir.empty())
-                    dirnames.push_back(state.dir);
-            }
-
-            mix.reset(new Mix(
-                log, channels, sampleRate, dirnames, state.startOffset));
+            audio.reset(this->initialize());
             // This is not safe, but since restart is true, read() shouldn't
             // touch it.
             jack_ringbuffer_reset(ring);
             restarting.store(false);
-            mixDone.store(false);
-            // I just cued up a new Mix, so stream() should be able to
+            audioDone.store(false);
+            // I just cued up a new Audio, so stream() should be able to
             // immediately read from it.
             ready.post();
         }
@@ -164,8 +97,9 @@ Streamer::stream()
             > readFrames)
         {
             // LOG("stream avail " << available);
-            // If start() hasn't been called yet, mix hasn't been initialized.
-            done = bool(mix) ? mix->read(readFrames, &buffer) : true;
+            // If start() hasn't been called yet, audio hasn't been initialized.
+            done = bool(audio)
+                ? audio->read(channels, readFrames, &buffer) : true;
             if (done)
                 break;
             else
@@ -173,12 +107,12 @@ Streamer::stream()
         }
     }
     if (done)
-        mixDone.store(true);
+        audioDone.store(true);
 }
 
 
 bool
-Streamer::read(sf_count_t frames, float **out)
+Streamer::read(int channels, sf_count_t frames, float **out)
 {
     size_t samples;
     if (restarting.load()) {
@@ -195,7 +129,7 @@ Streamer::read(sf_count_t frames, float **out)
         }
         samples = jack_ringbuffer_read(
             ring, outputBuffer.data(), frames * channels);
-        if (samples == 0 && mixDone.load())
+        if (samples == 0 && audioDone.load())
             return true;
     }
     debt += frames - (samples / channels);
@@ -205,4 +139,65 @@ Streamer::read(sf_count_t frames, float **out)
     // Tell the stream thread there might be room for more samples.
     ready.post();
     return false;
+}
+
+
+// TracksStreamer
+
+TracksStreamer::TracksStreamer(
+        std::ostream &log, int channels, int sampleRate, int maxFrames)
+    : Streamer(log, channels, sampleRate, maxFrames, true)
+{
+    // Assume file path and number of muted tracks won't go above this, so
+    // start() doesn't allocate.
+    args.dir.reserve(4096);
+    args.mutes.reserve(64);
+}
+
+
+void
+TracksStreamer::start(const string &dir, sf_count_t startOffset,
+    const std::vector<string> &mutes)
+{
+    // I think the atomic restarting.store with memory_order_seq_cst should
+    // cause these mutations to become visible to streamThread.
+    args.dir.assign(dir);
+    args.startOffset = startOffset;
+    args.mutes.assign(mutes.begin(), mutes.end());
+    this->restart();
+}
+
+
+Audio *
+TracksStreamer::initialize()
+{
+    // LOG("restart: " << args.dir);
+    return new Tracks(
+        log, channels, sampleRate, args.dir, args.startOffset, args.mutes);
+}
+
+
+// ResampleStreamer
+
+void
+ResampleStreamer::start(const string &fname)
+{
+    this->fname = fname;
+    this->restart();
+}
+
+
+void
+ResampleStreamer::stop()
+{
+    this->fname = "";
+    this->restart();
+}
+
+
+Audio *
+ResampleStreamer::initialize()
+{
+    // TODO Resample(SampleFile(...))
+    return new SampleFile(log, channels, sampleRate, fname, 0);
 }

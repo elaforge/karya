@@ -20,7 +20,7 @@ class Osc {
 public:
     Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames);
     ~Osc();
-    bool read(sf_count_t frames, float **out);
+    bool read(int channels, sf_count_t frames, float **out);
 
 private:
     std::ostream &log;
@@ -28,7 +28,7 @@ private:
     lo_server server;
     std::unique_ptr<std::thread> thread;
     std::atomic<bool> threadQuit;
-    std::unique_ptr<Streamer> streamer;
+    std::unique_ptr<ResampleStreamer> streamer;
     float volume;
     // Resample ratio.  Not implemented yet.
     float ratio;

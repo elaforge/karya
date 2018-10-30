@@ -40,7 +40,7 @@ Osc::Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames)
     lo_server_add_method(server, "/play", "sff", Osc::handlePlay, this);
     lo_server_add_method(server, "/stop", "", Osc::handleStop, this);
     streamer.reset(
-        new Streamer(log, channels, sampleRate, maxBlockFrames, false));
+        new ResampleStreamer(log, channels, sampleRate, maxBlockFrames));
     thread.reset(new std::thread(&Osc::loop, this));
 }
 
@@ -48,9 +48,6 @@ Osc::Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames)
 Osc::~Osc()
 {
     threadQuit.store(true);
-    // TODO I might have to get it out of lo_server_recv.
-    // The internal one uses polling and short timeouts, but maybe I can
-    // send it a msg.
     LOG("Osc quit");
     {
         // Send myself a random message to get lo_server_recv to return.
@@ -64,13 +61,13 @@ Osc::~Osc()
 
 
 bool
-Osc::read(sf_count_t frames, float **out)
+Osc::read(int channels, sf_count_t frames, float **out)
 {
-    bool done = streamer->read(frames, out);
+    bool done = streamer->read(channels, frames, out);
     if (done)
         return true;
     if (volume != 1) {
-        for (int i = 0; i < streamer->channels * frames; i++) {
+        for (int i = 0; i < channels * frames; i++) {
             (*out)[i] *= this->volume;
         }
     }
@@ -100,11 +97,11 @@ Osc::handlePlay(
 void
 Osc::play(const char *path, float ratio, float vol)
 {
-    LOG("play: " << path << " " << ratio << ", " << vol);
+    LOG("play: " << path << " ratio:" << ratio << " vol:" << vol);
     std::vector<std::string> mutes;
     this->volume = vol;
     this->ratio = ratio;
-    streamer->start(path, 0, mutes);
+    streamer->start(path);
 }
 
 
@@ -123,5 +120,5 @@ void
 Osc::stop()
 {
     std::vector<std::string> mutes;
-    streamer->start("", 0, mutes);
+    streamer->stop();
 }
