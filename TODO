@@ -1540,7 +1540,7 @@ synth: im:
         * plug into PlayCache
       * I need a "MIDI" thru which takes Input.Note, runs the patch convert,
         and sends OSC.
-      - Add support for ratio.  libsamplerate with a cheap quality should be
+      * Add support for ratio.  libsamplerate with a cheap quality should be
         able to do realtime.
         . I need to do the resampling in the streamer thread.
         . Rename Sample to Audio or Stream

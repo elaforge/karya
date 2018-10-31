@@ -6,6 +6,7 @@
 #include <string.h>
 #include <thread>
 
+#include "Resample.h"
 #include "Streamer.h"
 #include "Sample.h"
 #include "Tracks.h"
@@ -199,6 +200,8 @@ ResampleStreamer::stop()
 Audio *
 ResampleStreamer::initialize()
 {
-    // TODO Resample(SampleFile(...))
-    return new SampleFile(log, channels, sampleRate, fname, 0);
+    Audio *audio = new SampleFile(log, channels, sampleRate, fname, 0);
+    if (ratio != 1)
+        audio = new Resample(log, channels, ratio, audio);
+    return audio;
 }

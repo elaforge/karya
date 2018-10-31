@@ -507,8 +507,8 @@ makePlayCacheBinary name main ccDeps = CcBinary
     { ccName = name
     , ccRelativeDeps = (ccDeps++) $ map (("Synth/play_cache"</>) . (++".o")) $
         [ main
-        , "Osc.cc", "Sample.cc", "Streamer.cc", "ringbuffer.cc"
-        , "Tracks.cc"
+        , "Osc.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
+        , "ringbuffer.cc"
         ]
     , ccCompileFlags = \config ->
         ["-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""]
