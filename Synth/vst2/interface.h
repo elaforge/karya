@@ -32,17 +32,15 @@ typedef int32_t pointer_sized_int;
 #endif
 
 #if __APPLE__
-
-#if __LP64__
-#pragma options align=power
-#else
-#pragma options align=mac68k
-#endif
-
+    #if __LP64__
+        #pragma options align=power
+    #else
+        #pragma options align=mac68k
+    #endif
 #elif __linux__
-#pragma pack(push, 8)
+    #pragma pack(push, 8)
 #else
-#error "not mac or linux"
+    #error "not mac or linux"
 #endif
 
 // This has to exactly match what is expected by VST hosts.
@@ -328,3 +326,5 @@ private:
     VstEffectInterface vst;
     const bool isSynth;
 };
+
+#pragma pack (pop)
