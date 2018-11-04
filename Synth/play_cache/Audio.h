@@ -7,6 +7,7 @@
 // only for sf_count_t
 #include <sndfile.h>
 
+
 // An abstract audio stream.
 class Audio {
 public:

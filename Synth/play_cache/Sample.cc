@@ -135,9 +135,7 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
 {
     buffer.resize(frames * channels);
     sf_count_t totalRead = 0;
-    do {
-        if (fname.empty())
-            break;
+    while (!fname.empty() && frames - totalRead > 0) {
         if (sndfile == nullptr) {
             sndfile = openSample(
                 log, channels, sampleRate, dir + '/' + fname, 0);
@@ -156,7 +154,8 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
             LOG(dir << ": next sample: " << fname);
         }
         totalRead += delta;
-    } while (totalRead < frames);
+    };
+    std::fill(buffer.begin() + totalRead * channels, buffer.end(), 0);
     *out = buffer.data();
     return totalRead == 0;
 }
@@ -189,9 +188,7 @@ SampleFile::read(int channels, sf_count_t frames, float **out)
     // LOG("read " << frames);
     buffer.resize(frames * channels);
     sf_count_t totalRead = 0;
-    do {
-        if (!sndfile)
-            break;
+    while (sndfile && frames - totalRead > 0) {
         sf_count_t delta = sf_readf_float(
             sndfile, buffer.data() + totalRead * channels, frames - totalRead);
         if (delta < frames - totalRead) {
@@ -199,7 +196,8 @@ SampleFile::read(int channels, sf_count_t frames, float **out)
             sndfile = nullptr;
         }
         totalRead += delta;
-    } while (totalRead < frames);
+    };
+    std::fill(buffer.begin() + totalRead * channels, buffer.end(), 0);
     *out = buffer.data();
     return totalRead == 0;
 }

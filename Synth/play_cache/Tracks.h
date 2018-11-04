@@ -12,7 +12,7 @@
 #include "Audio.h"
 
 
-// Read and mix together a list of samples.
+// Read and mix together samples from subdirectories.
 class Tracks : public Audio {
 public:
     Tracks(std::ostream &log, int channels, int sampleRate,
