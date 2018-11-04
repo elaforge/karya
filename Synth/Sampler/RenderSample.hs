@@ -9,7 +9,6 @@ import qualified Sound.File.Sndfile as Sndfile
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Debug as Debug
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import qualified Util.Test.ApproxEq as ApproxEq
@@ -79,6 +78,8 @@ applyEnvelope start sig
 
 -- * duration
 
+-- | Predict how long a sample will be if resampled with the given ratio
+-- signal.
 predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frame
 predictFileDuration ratio =
     fmap (predictDuration ratio . Audio.Frame . Sndfile.frames) . File.getInfo
@@ -90,8 +91,8 @@ toFrameF = fromIntegral
 
 predictDuration :: Signal.Signal -> Audio.Frame -> Audio.Frame
 predictDuration ratio sampleDur = case Signal.constant_val_from 0 ratio of
-    -- TODO I can also do this optimization if it's constant over the duration
-    -- of the sample.  But to know if that's the case I have to do an integral
+    -- I can also do this optimization if it's constant over the duration of
+    -- the sample.  But to know if that's the case I have to do an integral
     -- intersection and I think that's the same as the non-optimized case.
     Just y -> toFrame $ toFrameF sampleDur * y
     Nothing -> toFrame $
@@ -107,8 +108,8 @@ predictDuration ratio sampleDur = case Signal.constant_val_from 0 ratio of
         | otherwise = go (input - consumed) (output + generated)
             (if now >= x2 then rest else segments)
         where
-        now = Debug.tracesp "now"
-                (input, output, output+generated, head segments) $
+        now = -- Debug.tracesp "now"
+              --   (input, output, output+generated, head segments) $
             frameToSeconds (output + generated)
         -- The number of samples consumed by a ratio segment is the area under
         -- the curve.  But if I run out of input, I need to find the place
@@ -116,15 +117,15 @@ predictDuration ratio sampleDur = case Signal.constant_val_from 0 ratio of
 
         -- The min of where the curve crosess y (runs out of samples), or
         -- just the integral at (x2-x1).
-
-        consumed = Debug.trace_ret "consumed" (input, integralAt n k delta) $
-            min input (integralAt n k delta)
+        consumed =
+            -- Debug.trace_ret "consumed" (input, lineIntegral n k delta) $
+            min input (lineIntegral n k delta)
         generated
             | isNaN cross =
-                Debug.trace_ret "generated" ((n, k, input), (delta, cross)) $
+                -- Debug.trace_ret "generated" ((n, k, input), (delta, cross)) $
                     delta
             | otherwise =
-                Debug.trace_ret "generated" ((n, k, input), (delta, cross)) $
+                -- Debug.trace_ret "generated" ((n, k, input), (delta, cross)) $
                 min delta cross
             where cross = integralCrossesAt n k input
         -- The ratio multiplies the length of the output.  So it winds up being
@@ -134,16 +135,6 @@ predictDuration ratio sampleDur = case Signal.constant_val_from 0 ratio of
         n = (1/y2 - 1/y1) / delta
         k = 1 / y1
         delta = toFrameF $ AUtil.toFrame (x2 - x1)
-
-        -- So take the integral, solve for y=input, take min with (x2-x1).
-        -- Integral of nx + k = nx^2 / 2 + kx
-        -- integral x = n*x^2 / 2 + k*x
-        --     where
-        --     n = (y2 - y1) / (x2 - x1)
-        --     k = min y1 y2
-        -- consumed = min input (RealTime.to_seconds (x2 - x1))
-        -- generated = consumed * min y1 y2
-        --     + consumed * abs (y1-y2) / 2
 
     -- Unreached, because the last segment extends to RealTime.large.
     go _ _ [] = error "ran out of segments"
@@ -168,62 +159,6 @@ integralCrossesAt n k y
     -}
     | otherwise = (-2*k + sqrt ((2*k)^2 + 8*n*y)) / (2*n)
 
--- integralCrossesAt' :: Double -> Double -> Double -> (Double, Double)
-integralCrossesAt' n k y
-    | n == 0 = (y / k, y/k)
-    {-
-        nx^2/2 + kx = y
-        nx^2 + 2kx = 2y
-        nx^2 + 2kx - 2y = 0
-        -- quadratic formula, where a = n, b = 2k, c = -2y
-        x = (-2k ± sqrt ((2k)^2 - 4n(-2y))) / 2n
-
-        n=2 k=0
-        x = (0 + sqrt (0 - 4*2(-2y))) / 2*2
-        x = (sqrt (16y)) / 4
-
-        (-2*k + sqrt ((2*k)^2 + 8*n*y)) / 2*n
-        (sqrt (8*n*y)) / 2*n
-        (sqrt (8*2*y)) / 2*2
-        (sqrt (16*y)) / 4
-
-        -- I want the right side, so take + only:
-        x = (-2k + sqrt ((2k)^2 + 8ny)) / 2n
-    -}
-    | otherwise =
-        ( (-2*k + sqrt ((2*k)^2 + 8*n*y)) / (2*n)
-        , (-2*k - sqrt ((2*k)^2 + 8*n*y)) / (2*n)
-        )
-
-t0 = x0 9
-x0 = integralCrossesAt' n k
-x1 = integralAt n k
-
--- n = -1
--- k = 4
-n = 2
-k = 0
-
-c0 = integralCrossesAt 1 0 3
-c1 = integralCrossesAt 1 2 3
-c2 = integralCrossesAt 0 2 3
-
 -- | Integral of a line with slope @n@ and offset @k@ at @x@.
-integralAt :: Double -> Double -> Double -> Double
-integralAt n k x = (n * x^2) / 2 + k*x
-
--- t0 = quadratic 1 1 (-3)
--- x0 = head t0
--- fx x = x^2 + x - 3
--- quadratic a b c =
---     [ (-b + sqrt (b^2 - 4*a*c)) / 2*a
---     , (-b - sqrt (b^2 - 4*a*c)) / 2*a
---     ]
--- q0 = (-1 + sqrt (1^2 - 4*1*(-3))) / 2*1
-
-{-
-A constant segment means progress through sample at that rate.
-Iteratively, emit that much output, consume that much input.
-
-If I move to NN breakpoints, this won't work.
--}
+lineIntegral :: Double -> Double -> Double -> Double
+lineIntegral n k x = (n * x^2) / 2 + k*x
