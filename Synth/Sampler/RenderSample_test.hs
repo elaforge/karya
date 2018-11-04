@@ -11,33 +11,26 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
-import qualified Util.CallStack as CallStack
-import qualified Util.Test.Testing as Testing
-
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Shared.Signal as Signal
 
 import Global
+import Synth.Types
 import Util.Test
 
 
 test_predictDuration = do
-    let f = verify Resample.SincBestQuality
-    uncurry equal (f [(0, 1)] 42)
-    uncurry equal (f [(0, 2)] 42)
-    uncurry equal (f [(0, 0.5)] 42)
-    uncurry (close 2) (f [(0, 1), (21, 1), (21, 2)] 42)
+    let f = verify Resample.ZeroOrderHold
+    -- up octave, ratio = 0.5, duration *= 0.5
+    -- down octave, ratio = 2, duration *= 2
+    uncurry (equalf 1) (f [(0, 1)] 42)
+    uncurry (equalf 1) (f [(0, 2)] 42)
+    uncurry (equalf 1) (f [(0, 0.5)] 42)
 
-    -- uncurry equal (f [(0, 1), (100, 101)] 42)
-    -- -- TODO why so different?
-    -- uncurry equal (f [(0, 1), (100, 101)] 16)
-
-close :: (CallStack.Stack, Ord a, Num a, Show a) => a -> a -> a -> IO Bool
-close threshold a b
-    | abs (a - b) <= threshold = Testing.success $ pretty True
-    | otherwise = Testing.failure $ pretty False
-    where pretty = Testing.pretty_compare "~~" "/~" True a b
+    -- 21 consumes 21, next 21 consumes 42, so 63
+    equalf 1 (f [(0, 1), (21, 1), (21, 2)] 42) (63, 63)
+    uncurry (equalf 1) (f [(0, 1), (21, 2)] 42)
 
 test_actualDuration = do
     let f quality = actualDuration (mkConfig quality)
@@ -46,7 +39,6 @@ test_actualDuration = do
     equal (f low (Signal.constant 1) 42) (42 + 1)
     equal (f low (Signal.constant 2) 42) (84 + 1)
     equal (f low (Signal.constant 0.5) 42) (21 + 1)
-
     equal (f high (Signal.constant 1) 42) 42
     equal (f high (Signal.constant 2) 42) 84
     equal (f high (Signal.constant 0.5) 42) 21
@@ -55,11 +47,12 @@ test_actualDuration = do
 signal :: [(Audio.Frame, Signal.Y)] -> Signal.Signal
 signal = Signal.from_pairs . map (first AUtil.toSeconds)
 
-verify :: Resample.Quality -> [(Audio.Frame, Signal.Y)] -> Audio.Frame
-    -> (Audio.Frame, Audio.Frame) -- ^ (predicted, actual)
+verify :: Resample.Quality -> [(Audio.Frame, Signal.Y)]
+    -> Audio.Frame -- ^ sample duration
+    -> (Double, Double) -- ^ (predicted, actual)
 verify quality ratio dur =
-    ( RenderSample.predictDuration sig dur
-    , actualDuration (mkConfig quality) sig dur
+    ( realToFrac $ RenderSample.predictDuration sig dur
+    , realToFrac $ actualDuration (mkConfig quality) sig dur
     )
     where sig = signal ratio
 

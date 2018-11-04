@@ -31,6 +31,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import Global
+import Synth.Types
 
 
 -- TODO resampling is theoretically pure, so I could maybe unsafePerformIO the
@@ -80,12 +81,15 @@ resampleBy2 config ratio audio = Audio.Audio $ do
     -- I have to collect chunks until I fill up the output chunk size.  The key
     -- thing is to not let the resample state get ahead of the chunk boundary.
     let align = _chunkSize config - (_now config `mod` _chunkSize config)
-    Audio.loop1 (0, Audio._stream audio, [], align) $
-        \loop (now, audio, collect, chunkLeft) ->
-            resampleChunk chan rate state now chunkLeft ratio audio >>= \case
-                Nothing -> done key collect
-                Just (chunk, audio) ->
-                    loop =<< yield state now collect chunkLeft chunk audio
+    Audio.loop2 (segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
+        \loop prevSegment (now, audio, collect, chunkLeft) -> do
+            -- I keep track of the previous segment to detect discontinuities.
+            let segment = segmentAt (toSeconds now) ratio
+            resampleChunk chan rate state now chunkLeft prevSegment segment
+                audio >>= \case
+                    Nothing -> done key collect
+                    Just (chunk, audio) -> loop segment
+                        =<< yield state now collect chunkLeft chunk audio
     where
     done key collect = do
         liftIO $ _notifyState config Nothing
@@ -120,18 +124,29 @@ resampleBy2 config ratio audio = Audio.Audio $ do
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
+    toSeconds = RealTime.seconds . Audio.frameToSeconds rate
+
+type Segment = Segment.Segment Signal.Y
+
+segmentAt :: RealTime -> Signal.Control -> Segment
+segmentAt x0 ratio = case Signal.segment_at x0 ratio of
+    Just segment -> segment
+    Nothing
+        | Just (x, y) <- Signal.last ratio, x0 >= x ->
+            Segment.Segment 0 y RealTime.large y
+        | otherwise -> Segment.Segment 0 1 RealTime.large 1
 
 type Stream a =
     S.Stream (S.Of (V.Vector Audio.Sample)) (Resource.ResourceT IO) a
 
 -- | Generate no more than the given number of frames.
 resampleChunk :: KnownNat chan => Proxy chan -> Audio.Rate
-    -> SampleRateC.State -> Audio.Frame -> Audio.Frame -> Signal.Control
-    -> Stream () -> Stream (Maybe (V.Vector Audio.Sample, Stream ()))
-resampleChunk chan rate state start maxFrames ratio audio = do
+    -> SampleRateC.State -> Audio.Frame -> Audio.Frame
+    -> Segment -> Segment -> Stream ()
+    -> Stream (Maybe (V.Vector Audio.Sample, Stream ()))
+resampleChunk chan rate state start maxFrames prevSegment segment audio = do
     (inputChunk, audio) <- next audio
     (atEnd, audio) <- lift $ checkEnd audio
-    let segment = segmentAt start
     let inputFrames = maybe 0 (Audio.chunkFrames chan) inputChunk
     -- Never go past the next breapoint.
     let outputFrames = min maxFrames (toFrames (Segment._x2 segment) - start)
@@ -141,6 +156,10 @@ resampleChunk chan rate state start maxFrames ratio audio = do
         -- to say, outputFrames.
     let with = V.unsafeWith (fromMaybe V.empty inputChunk)
     (used, generated, outFP) <- liftIO $ with $ \chunkp -> do
+        when (segment /= prevSegment
+                && Segment._y2 prevSegment /= Segment._y1 segment) $ do
+            -- Debug.tracepM "setRatio" (prevSegment, segment)
+            SampleRateC.setRatio state (Segment._y1 segment)
         outp <- Foreign.mallocArray $ Audio.framesCount chan outputFrames
         result <- SampleRateC.process state $ SampleRateC.Input
             { data_in =
@@ -152,7 +171,13 @@ resampleChunk chan rate state start maxFrames ratio audio = do
             , src_ratio = destRatio
             , end_of_input = atEnd
             }
+        -- Debug.tracepM "segment" (start, start+outputFrames, segment)
+        -- Debug.tracepM "in, out, ->rat" (inputFrames, outputFrames, destRatio)
         outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
+        -- Debug.tracepM "used, gen"
+        --     ( SampleRateC.input_frames_used result
+        --     , SampleRateC.output_frames_generated result
+        --     )
         return
             ( Audio.Frame $ fromIntegral $
                 SampleRateC.input_frames_used result
@@ -172,13 +197,6 @@ resampleChunk chan rate state start maxFrames ratio audio = do
     where
     next audio = either (const (Nothing, audio)) (first Just) <$>
         lift (S.next audio)
-    segmentAt frame = case Signal.segment_at x0 ratio of
-        Just segment -> segment
-        Nothing
-            | Just (x, y) <- Signal.last ratio, x0 >= x ->
-                Segment.Segment 0 y RealTime.large y
-            | otherwise -> Segment.Segment 0 1 RealTime.large 1
-        where x0 = toSeconds frame
     toFrames = Audio.secondsToFrame rate . RealTime.to_seconds
     toSeconds = RealTime.seconds . Audio.frameToSeconds rate
 

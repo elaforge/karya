@@ -48,7 +48,7 @@ module Util.Audio.Audio (
     -- * conversions
     , dbToLinear, linearToDb
     -- * util
-    , loop1
+    , loop1, loop2
     , takeFramesGE, splitAt
     , next
 #ifdef TESTING
@@ -574,6 +574,12 @@ loop1 :: forall state a. state -> ((state -> a) -> state -> a) -> a
 loop1 state f = f again state
     where
     again :: state -> a
+    again = f again
+
+loop2 :: forall s1 s2 a. s1 -> s2 -> ((s1 -> s2 -> a) -> s1 -> s2 -> a) -> a
+loop2 s1 s2 f = f again s1 s2
+    where
+    again :: s1 -> s2 -> a
     again = f again
 
 -- | This is like 'S.breakWhen', except it breaks after the place where the

@@ -1280,9 +1280,11 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  . actually it looks like VST3 SDK now includes VST2 again?  E.g.
-    link from https://www.steinberg.net/en/company/developers.html has
-    a VST2_SDK in it.  All in a convenient 80mb zip file!
+  merge faust-im and sampler-im:
+    . First extend faust-im to be an Audio processor, so it can take inputs.
+    . Integrate sampler-im's multiple voice ability with faust.
+    . Patches now have to define a signal network, but it can probably be
+      hardcoded to 'sampler -> faust' or just 'faust'.
   bugs:
     - Shift-play plays im cache even when the instruments are gone, but not
       enter-play?
@@ -1502,10 +1504,12 @@ synth: im:
       . I want to keep the last one because then I can toggle two things
         quickly, but after that it's increasingly unlikely to need them.
       . It's valid to remove the whole directory occasionally.
-      . Or I can delete everything with mtime >1hr ago, plus all symlinks.
+      . Or I can delete everything with mtime >1hr ago and no symlinks.
     - Restart skipping chunks if the state converges again.
       . How likely is this to happen?
     - if the synth returns progress, karya could mark it in the ruler
+      . This means karya needs to listen to stdout, so
+        Util.Process.multipleSupervised needs to capture stdout.
     faust:
       either:
         / Generalize Audio to AudioState, which streams (Chunk, a).
@@ -1559,6 +1563,7 @@ synth: im:
         . I could emulate that with a separate initialiaze method.  I can't
           think of how to get it to work though.
         . Alternately, use Streamer subclasses.
+    - why two "streamLoop wait" after samples run out?
     overview:
       . Im instruments should have a midi thru-like preview sound.
       . This doesn't have to be performance-level of low latency,
@@ -1722,68 +1727,70 @@ synth: im:
         . E.g. a long note duration will emit lots of hash overlaps, but the
           actual sample is not so long.  Or the hashes don't overlap, but
           actually the sample rings.
-        Notes:
-          . Don't I have this same problem with the decay on faust instruments?
-            How to test that?
-          . For instance, dropUntil is wrong, because the samples might be still
-            running.
-          . I think this isn't a problem for faust, because the ringing note is
-            captured in the state, but samples don't do that.  It's
-            fundamentally a problem with samples, in that they are *all* state,
-            and the state is very large, so it's simultaneously not practical to
-            save it, and not necessary.
-          . I can get the duration of a sample pretty easily if the resample
-            ratio is constant, but if it's not then it's quite complicated,
-            something like an integral of the ratio curve.  At that point
-            I should just resample with ZOH and see how many samples.  That
-            requires effectively running each sample twice, even though the
-            resample is super cheap, I still have to stream the sample from
-            disk.
-            . Actually, I don't have to do that, since I don't need the samples
-              themselves.  I could extract the ZOH notion of how many samples to
-              skip or insert, and just simulate that.  Effectively this is just
-              the integral, but based on libsamplerate's own code, to make sure
-              I get the same answer.
-          . But otherwise, I have to assume that any note could last forever,
-            and that means none of the note overlap stuff with hashes works.
-            So I think I really do have to figure out note length.
-          . I could put an upper bound on sample length by using note duration,
-            cutting it off if it goes beyond that.  I can build some knowledge
-            of sample duration into the patch, e.g. I can start with the normal
-            constant ratio.  Still, it will be awkward if any sample that bends
-            down is cut off.
-          . I do get to know the sample duration after I play it.  That means I
-            can still do overlapping notes, but I have to use the Audio stream,
-            not the Note duration.
-        plan:
-          . Figure out if it's theoretically possible to save the duration from
-            the play through, and use those.
-          . Otherwise, pursue figuring out duration via looking at sample file
-            size and taking the integral of the ratio curve.  This should be
-            fast for constant ratios.
-          . Math approach:
-            . integral x = nx^2 / 2 + kx
-            where input size = 3
-            f(x) = 2 ==>    integral 2x             solve 2x = 3, x = 1.5
-            f(x) = 2x ==>   integral x^2            solve x^2 = 3, x = sqrt 3
-            f(x) = 2x+1 ==> integral x^2 + x        solve x^2+x = 3, x = 1.30277
-            f(x) = nx+k ==> integral nx^2/2 + kx    solve nx^2/2 + kx, x = ?
-            . I should be able to use the quadratic equation:
-                (-b + sqrt (b^2 - 4*a*c)) / 2*a
-              x^2 + x - 3 = 0 ==> x = (-1 + sqrt (1^2 - 4*1*(-3))) / 2*1
-                                      (-1 + sqrt 13) / 2
-              [1.3027756377319946, -2.302775637731995]
-        / Ok, first try to pull the duration from the play.
-          . The first time play, I think I have to record the durations.
-          . Then I have to use those in skipCheckpoints.
-          . Actually this way sounds error-prone, look at libsamplerate for
-            the sample-skipping algorithm.
-          . will be in data->output_frames_gen
-            priv->out_get / priv->channels
-        + Use math to find integral of the ratio curve.
-          . I think the math is right, but libsamplerate doesn't match up.
-          . Test other changing ratios.
-          . If it's too much bother, check-in as-is for just constant ratios.
+        . Actually never mind that, the values I get from libsamplerate are
+          unreasonable, what's going on?
+      Notes:
+        . Don't I have this same problem with the decay on faust instruments?
+          How to test that?
+        . For instance, dropUntil is wrong, because the samples might be still
+          running.
+        . I think this isn't a problem for faust, because the ringing note is
+          captured in the state, but samples don't do that.  It's
+          fundamentally a problem with samples, in that they are *all* state,
+          and the state is very large, so it's simultaneously not practical to
+          save it, and not necessary.
+        . I can get the duration of a sample pretty easily if the resample
+          ratio is constant, but if it's not then it's quite complicated,
+          something like an integral of the ratio curve.  At that point
+          I should just resample with ZOH and see how many samples.  That
+          requires effectively running each sample twice, even though the
+          resample is super cheap, I still have to stream the sample from
+          disk.
+          . Actually, I don't have to do that, since I don't need the samples
+            themselves.  I could extract the ZOH notion of how many samples to
+            skip or insert, and just simulate that.  Effectively this is just
+            the integral, but based on libsamplerate's own code, to make sure
+            I get the same answer.
+        . But otherwise, I have to assume that any note could last forever,
+          and that means none of the note overlap stuff with hashes works.
+          So I think I really do have to figure out note length.
+        . I could put an upper bound on sample length by using note duration,
+          cutting it off if it goes beyond that.  I can build some knowledge
+          of sample duration into the patch, e.g. I can start with the normal
+          constant ratio.  Still, it will be awkward if any sample that bends
+          down is cut off.
+        . I do get to know the sample duration after I play it.  That means I
+          can still do overlapping notes, but I have to use the Audio stream,
+          not the Note duration.
+      plan:
+        . Figure out if it's theoretically possible to save the duration from
+          the play through, and use those.
+        . Otherwise, pursue figuring out duration via looking at sample file
+          size and taking the integral of the ratio curve.  This should be
+          fast for constant ratios.
+        . Math approach:
+          . integral x = nx^2 / 2 + kx
+          where input size = 3
+          f(x) = 2 ==>    integral 2x             solve 2x = 3, x = 1.5
+          f(x) = 2x ==>   integral x^2            solve x^2 = 3, x = sqrt 3
+          f(x) = 2x+1 ==> integral x^2 + x        solve x^2+x = 3, x = 1.30277
+          f(x) = nx+k ==> integral nx^2/2 + kx    solve nx^2/2 + kx, x = ?
+          . I should be able to use the quadratic equation:
+              (-b + sqrt (b^2 - 4*a*c)) / 2*a
+            x^2 + x - 3 = 0 ==> x = (-1 + sqrt (1^2 - 4*1*(-3))) / 2*1
+                                    (-1 + sqrt 13) / 2
+            [1.3027756377319946, -2.302775637731995]
+      / Ok, first try to pull the duration from the play.
+        . The first time play, I think I have to record the durations.
+        . Then I have to use those in skipCheckpoints.
+        . Actually this way sounds error-prone, look at libsamplerate for
+          the sample-skipping algorithm.
+        . will be in data->output_frames_gen
+          priv->out_get / priv->channels
+      / Use math to find integral of the ratio curve.
+        . I think the math is right, but libsamplerate doesn't match up.
+        . Test other changing ratios.
+        . If it's too much bother, check-in as-is for just constant ratios.
     optimizations:
       - Sample should stream the envelope.
       - RenderSample.applyEnvelope should be able to check for constant within
