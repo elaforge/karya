@@ -1286,6 +1286,10 @@ synth: im:
     . Patches now have to define a signal network, but it can probably be
       hardcoded to 'sampler -> faust' or just 'faust'.
   bugs:
+    * disable track is not working now
+      . I think it just skips that instrument, and hence never clears out its
+        symlinks.
+      . Why did it work before?  Probably because it was the same instrument.
     - Shift-play plays im cache even when the instruments are gone, but not
       enter-play?
       . Properly I should clear out the cache when instruments go away, but

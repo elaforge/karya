@@ -169,12 +169,14 @@ clearRemainingOutput outputDir start =
         =<< Directory.listDirectory outputDir
 
 outputPast :: Int -> [FilePath] -> [FilePath]
-outputPast start = map snd . filter ((>=start) . fst) . Seq.key_on_just isOutput
-    where
-    isOutput (c1:c2:c3 : ".wav")
-        | Just n <- Read.readMaybe [c1, c2, c3] = Just n
-        | otherwise = Nothing
-    isOutput _ = Nothing
+outputPast start =
+    map snd . filter ((>=start) . fst) . Seq.key_on_just isOutputLink
+
+isOutputLink :: FilePath -> Maybe Int
+isOutputLink (c1:c2:c3 : ".wav")
+    | Just n <- Read.readMaybe [c1, c2, c3] = Just n
+    | otherwise = Nothing
+isOutputLink _ = Nothing
 
 filenameToOutput :: FilePath -> FilePath
 filenameToOutput fname = case Seq.split "." fname of

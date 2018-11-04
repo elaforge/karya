@@ -7,6 +7,9 @@ module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
+
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -21,6 +24,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Sampler.PatchDb as PatchDb
@@ -54,14 +58,33 @@ type Error = Text
 process :: Patch.Db -> Resample.Quality -> FilePath -> [Note.Note] -> IO ()
 process db quality notesFilename notes = do
     Log.notice $ "processing " <> txt notesFilename
-    by Note.patch notes $ \(patch, notes) -> case get patch of
+    clearUnusedInstruments
+        (Config.instrumentDirectory (Config.imDir Config.config) notesFilename)
+        instruments
+    Async.forConcurrently_ byPatchInst $ \(patch, notes) -> case get patch of
         Nothing -> Log.warn $ "patch not found: " <> patch
-        Just patch -> by Note.instrument notes $ \(inst, notes) ->
+        Just patch -> Async.forConcurrently_ notes $ \(inst, notes) ->
             realize quality notesFilename inst
                 =<< mapM makeNote (convert db patch notes)
     where
-    by key xs = Async.forConcurrently_ (Seq.keyed_group_sort key xs)
+    instruments = Set.fromList $ concatMap (map fst . snd) byPatchInst
+    byPatchInst :: [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]
+    byPatchInst = map (second (Seq.keyed_group_sort Note.instrument)) $
+        Seq.keyed_group_sort Note.patch notes
     get patch = Map.lookup patch (Patch._patches db)
+
+-- | Delete output links for instruments that have disappeared entirely.
+-- This often happens when I disable a track.
+clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
+clearUnusedInstruments instDir instruments = do
+    unused <- filter ((`Set.notMember` instruments) . txt) <$>
+        Directory.listDirectory instDir
+    unless (null unused) $
+        Log.notice $ "clearing unused instruments: " <> pretty unused
+    forM_ unused $ \dir -> do
+        links <- filter (Maybe.isJust . Checkpoint.isOutputLink) <$>
+            Directory.listDirectory (instDir </> dir)
+        mapM_ (Directory.removeFile . ((instDir </> dir) </>)) links
 
 convert :: Patch.Db -> Patch.Patch -> [Note.Note]
     -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]

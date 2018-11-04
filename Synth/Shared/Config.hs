@@ -169,7 +169,12 @@ outputDirectory :: FilePath
     -> Text -- ^ ScoreTypes.Instrument, but I don't want to import ScoreTypes.
     -> FilePath
 outputDirectory imDir notesFilename inst =
-    imDir </> cacheDir </> scorePathBlock </> untxt inst
+    instrumentDirectory imDir notesFilename </> untxt inst
+
+-- | Get the directory which contains each instrument subdir.
+instrumentDirectory :: FilePath -> FilePath -> FilePath
+instrumentDirectory imDir notesFilename =
+    imDir </> cacheDir </> scorePathBlock
     where
     -- Recover scorePath/ns/block from the path so I don't have to put it in
     -- a file or something.  TODO It's a bit sketchy though.
