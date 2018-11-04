@@ -77,14 +77,16 @@ process db quality notesFilename notes = do
 -- This often happens when I disable a track.
 clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
 clearUnusedInstruments instDir instruments = do
-    unused <- filter ((`Set.notMember` instruments) . txt) <$>
-        Directory.listDirectory instDir
+    unused <- filter ((`Set.notMember` instruments) . txt) <$> listDir instDir
     unless (null unused) $
         Log.notice $ "clearing unused instruments: " <> pretty unused
     forM_ unused $ \dir -> do
         links <- filter (Maybe.isJust . Checkpoint.isOutputLink) <$>
-            Directory.listDirectory (instDir </> dir)
+            listDir (instDir </> dir)
         mapM_ (Directory.removeFile . ((instDir </> dir) </>)) links
+
+listDir :: FilePath -> IO [FilePath]
+listDir = fmap (fromMaybe []) . File.ignoreEnoent . Directory.listDirectory
 
 convert :: Patch.Db -> Patch.Patch -> [Note.Note]
     -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]

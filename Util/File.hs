@@ -61,8 +61,7 @@ writable fn = orM
 
 -- * directory
 
--- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
--- it prepends the directory.
+-- | Like 'Directory.listDirectory' except prepend the directory.
 list :: FilePath -> IO [FilePath]
 list dir = do
     fns <- Directory.listDirectory dir
