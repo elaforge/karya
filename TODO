@@ -1286,6 +1286,11 @@ synth: im:
     . Patches now have to define a signal network, but it can probably be
       hardcoded to 'sampler -> faust' or just 'faust'.
   bugs:
+    - Assertion failed: (size == psrc->private_data_size), function
+      src_put_state, file src/samplerate.c, line 112.
+      . Ah, it's because I switched quality.  I should be able to detect
+      . But shouldn't it have gotten a different fingerprint?
+    - I think I crashed the DAW, but it seems to be uncommon?
     * disable track is not working now
       . I think it just skips that instrument, and hence never clears out its
         symlinks.
@@ -1845,6 +1850,8 @@ synth: im:
         envelopes and other synth type things.
     - An alternative to use-symbolic-pitch=t is that patches could export
       their native scales.  That way other instruments could use them too.
+      . Another alternative is that the scale could take instrument into
+        account.
     reyong:
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they

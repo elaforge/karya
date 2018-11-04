@@ -144,17 +144,17 @@ getState state = do
     } -> `()'
 #}
 
-putState :: Quality -> State -> SavedState -> IO ()
+putState :: Quality -> State -> SavedState -> IO Bool
 putState quality state (SavedState state1 state2) =
     Unsafe.unsafeUseAsCString state1 $ \state1p ->
     Unsafe.unsafeUseAsCStringLen state2 $ \(state2p, size2) ->
         src_put_state quality state (StateFlat (Foreign.castPtr state1p))
             (fromIntegral size2) (Foreign.castPtr state2p)
 
--- void src_put_state(
+-- int src_put_state(
 --     int converter_type,
 --     SRC_STATE *state, SRC_STATE_FLAT *saved1, size_t size, void *private) ;
 {#fun src_put_state
     { `Quality', `State', `StateFlat', id `CSize', id `Foreign.Ptr ()'
-    } -> `()'
+    } -> `Bool'
 #}

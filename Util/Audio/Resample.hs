@@ -77,7 +77,10 @@ resampleBy2 config ratio audio = Audio.Audio $ do
         SampleRateC.delete
     liftIO $ case (_state config) of
         Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratio
-        Just saved -> SampleRateC.putState (_quality config) state saved
+        Just saved -> do
+            failed <- SampleRateC.putState (_quality config) state saved
+            when failed $
+                Audio.throwIO $ "state is the wrong size: " <> pretty saved
     -- I have to collect chunks until I fill up the output chunk size.  The key
     -- thing is to not let the resample state get ahead of the chunk boundary.
     let align = _chunkSize config - (_now config `mod` _chunkSize config)
