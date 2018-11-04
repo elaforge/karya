@@ -32,11 +32,11 @@ static std::vector<string>
 dirSamples(
     std::ostream &log, const string &dir, const std::vector<string> &mutes)
 {
-    std::vector<string> fnames;
+    std::vector<string> dirs;
     DIR *d = opendir(dir.c_str());
     if (!d) {
         LOG("can't open dir: " << dir);
-        return fnames;
+        return dirs;
     }
     struct dirent *ent;
     while ((ent = readdir(d)) != nullptr) {
@@ -49,18 +49,19 @@ dirSamples(
             continue;
         subdir = dir + "/" + subdir;
         LOG("play sample dir: " << subdir);
-        fnames.push_back(subdir);
+        dirs.push_back(subdir);
     }
     closedir(d);
-    if (fnames.empty()) {
-        LOG("no matching samples in " << dir);
+    if (dirs.empty()) {
+        LOG("no sample dirs in " << dir);
     }
-    return fnames;
+    return dirs;
 }
 
 
 Tracks::Tracks(std::ostream &log, int channels, int sampleRate,
     const string &dir, sf_count_t startOffset, const std::vector<string> &mutes)
+    : log(log)
 {
     std::vector<string> dirnames(dirSamples(log, dir, mutes));
     audios.reserve(dirnames.size());
@@ -81,13 +82,12 @@ Tracks::read(int channels, sf_count_t frames, float **out)
     bool done = true;
     for (const auto &audio : audios) {
         float *sBuffer;
-        sf_count_t count = audio->read(channels, frames, &sBuffer);
-        // LOG("requested " << frames << " got " << count);
-        for (sf_count_t i = 0; i < count * channels; i++) {
-            buffer[i] += sBuffer[i];
-        }
-        if (count > 0)
+        if (!audio->read(channels, frames, &sBuffer)) {
+            for (sf_count_t i = 0; i < frames * channels; i++) {
+                buffer[i] += sBuffer[i];
+            }
             done = false;
+        }
     }
     *out = buffer.data();
     return done;

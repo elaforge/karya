@@ -100,11 +100,7 @@ private:
 class ResampleStreamer : public Streamer {
 public:
     ResampleStreamer(std::ostream &log, int channels, int sampleRate,
-            int maxFrames)
-        : Streamer(log, channels, sampleRate, maxFrames, false)
-    {
-        fname.reserve(4096);
-    }
+            int maxFrames);
     void start(const std::string &fname, double ratio);
     void stop();
 

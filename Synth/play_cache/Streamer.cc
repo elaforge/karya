@@ -97,10 +97,10 @@ Streamer::stream()
         while ((available = jack_ringbuffer_write_space(ring) / channels)
             > readFrames)
         {
-            // LOG("stream avail " << available);
             // If start() hasn't been called yet, audio hasn't been initialized.
             done = bool(audio)
                 ? audio->read(channels, readFrames, &buffer) : true;
+            // LOG("stream avail " << available << " done:" << done);
             if (done)
                 break;
             else
@@ -172,13 +172,20 @@ TracksStreamer::start(const string &dir, sf_count_t startOffset,
 Audio *
 TracksStreamer::initialize()
 {
-    // LOG("restart: " << args.dir);
+    // LOG("Tracks restart: " << args.dir);
     return new Tracks(
         log, channels, sampleRate, args.dir, args.startOffset, args.mutes);
 }
 
 
 // ResampleStreamer
+
+ResampleStreamer::ResampleStreamer(
+        std::ostream &log, int channels, int sampleRate, int maxFrames)
+    : Streamer(log, channels, sampleRate, maxFrames, false)
+{
+    fname.reserve(4096);
+}
 
 void
 ResampleStreamer::start(const string &fname, double ratio)

@@ -21,6 +21,7 @@ public:
     bool read(int channels, sf_count_t frames, float **out) override;
 
 private:
+    std::ostream &log;
     std::vector<std::unique_ptr<Audio>> audios;
     std::vector<float> buffer;
 };
