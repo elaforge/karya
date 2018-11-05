@@ -996,3 +996,18 @@ c_18_10_06 = date 2018 10 6 $ tirmanam $
         [ (kita.taka, t.k.o.o)
         , (dheem, od)
         ]
+
+
+c_18_10_22 :: Korvai
+c_18_10_22 = date 2018 10 22 $ korvaiS1 adi mridangam $ nadai 6 $
+    theme.thom.__6 . theme.thom.__3.takita.thom.__6
+    . theme.thom.__3.takita.thom.__3.takita.thom.__6
+        . tri (tri (ta.din.__) . tri p5)
+    where
+    theme = ta.__.ka.takita.taka.takadinna
+    mridangam = makeMridangam
+        [ (theme, k.__.p.k.t.k.t.k.k.o.o.k)
+        , (takita, k.p.k)
+        , (thom, od)
+        , (ta.din, k.od)
+        ]
