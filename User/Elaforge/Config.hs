@@ -5,14 +5,17 @@
 -- | Setup StaticConfig.
 module User.Elaforge.Config (load_static_config) where
 import qualified Data.Map as Map
-import qualified Network.BSD
 import qualified System.FilePath as FilePath
 
 import qualified Util.Log as Log
+import qualified Util.Network as Network
 import qualified Util.Seq as Seq
-import qualified Midi.Key as Key
-import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
+
+import qualified App.Config as Config
+import qualified App.LoadInstruments as LoadInstruments
+import qualified App.ParseArgs as ParseArgs
+import qualified App.StaticConfig as StaticConfig
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Controller as Controller
 import qualified Cmd.Load.Med as Load.Med
@@ -20,12 +23,11 @@ import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.C.All as C.All
-import qualified User.Elaforge.Config.Tammananny as Tammananny
+import qualified Midi.Key as Key
+import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
 import qualified User.Elaforge.Config.Hobbes as Hobbes
-import qualified App.Config as Config
-import qualified App.LoadInstruments as LoadInstruments
-import qualified App.ParseArgs as ParseArgs
-import qualified App.StaticConfig as StaticConfig
+import qualified User.Elaforge.Config.Tammananny as Tammananny
 
 import Global
 
@@ -67,7 +69,7 @@ global_cmds =
 
 get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
 get_midi_config db = do
-    full_host <- Network.BSD.getHostName
+    full_host <- Network.getHostName
     case takeWhile (/='.') full_host of
         "tammananny" -> return $ Tammananny.midi_config db
         "hobbes" -> return $ Hobbes.midi_config db

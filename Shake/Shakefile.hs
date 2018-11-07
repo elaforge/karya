@@ -1472,7 +1472,7 @@ linkHs config rtsFlags output packages objs =
         -- tools update.
         , concat
             [ ["-optl", "-w"]
-            | "clang-1000.10.44.2" `List.isInfixOf` ccVersion config
+            | "clang-1000.10.44" `List.isInfixOf` ccVersion config
             ]
         , ["-o", output]
         ]

@@ -21,12 +21,13 @@ module Cmd.Repl (
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Data.Text as Text
-import qualified Network
+import qualified Network.Socket as Socket
 
 import qualified System.Directory as Directory
 import qualified System.IO as IO
 import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.Network as Network
 
 import qualified Ui.Ui as Ui
 import qualified Ui.Id as Id
@@ -53,20 +54,21 @@ import Global
 -- the previous strategy of unconditionally deleting and recreating the single
 -- socket meant that accidentally starting the app twice in the same directory
 -- would make the first one unreachable.
-with_socket :: (Network.Socket -> IO a) -> IO a
+with_socket :: (Socket.Socket -> IO a) -> IO a
 with_socket app = do
-    (fname, socket) <- try_socket
-        (Config.repl_port : [Config.repl_port <> "." <> show n | n <- [1..4]])
+    (fname, socket) <- try_socket $
+        Config.repl_socket_name
+        : [Config.repl_socket_name <> "." <> show n | n <- [1..4]]
     app socket `Exception.finally`
         File.ignoreEnoent (Directory.removeFile fname)
     where
     -- Let the exception through on the last try.
-    try_socket [fname] = (fname,) <$> listen fname
-    try_socket (fname : fnames) = File.ignoreIOError (listen fname) >>= \case
-        Nothing -> try_socket fnames
-        Just socket -> return (fname, socket)
-    try_socket []= errorIO "no socket files?"
-    listen = Network.listenOn . Network.UnixSocket
+    try_socket [fname] = (fname,) <$> Network.listen (Network.Unix fname)
+    try_socket (fname : fnames) =
+        File.ignoreIOError (Network.listen (Network.Unix fname)) >>= \case
+            Nothing -> try_socket fnames
+            Just socket -> return (fname, socket)
+    try_socket [] = errorIO "no socket files?"
 
 -- | This is the persistent interpreter session which is stored in the global
 -- state.

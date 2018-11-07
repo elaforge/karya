@@ -19,12 +19,13 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.Text as Text
-import qualified Network
+import qualified Network.Socket as Socket
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 
 import qualified Util.Log as Log
+import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -86,7 +87,7 @@ raw msg = CmdResult (Raw msg) []
 -- * protocol
 
 initialize :: IO a -> IO a
-initialize app = Network.withSocketsDo $ do
+initialize app = Socket.withSocketsDo $ do
     Posix.installHandler Posix.sigPIPE (Posix.Catch sigpipe) Nothing
     app
     where
@@ -94,17 +95,16 @@ initialize app = Network.withSocketsDo $ do
         "caught SIGPIPE, reader must have closed the socket"
 
 -- | Client send and receive.
-query :: Network.PortID -> Query -> IO (Either Exception.IOException Response)
-query socket query = Exception.try $ do
-    hdl <- Network.connectTo "localhost" socket
+query :: Network.Addr -> Query -> IO (Either Exception.IOException Response)
+query addr query = Exception.try $ Network.withConnection addr $ \hdl -> do
     send hdl query
     IO.hFlush hdl
     receive hdl
 
 -- | Send a 'QCommand'.
-query_cmd :: Network.PortID -> Text -> IO CmdResult
-query_cmd socket cmd = do
-    response <- query socket (QCommand cmd)
+query_cmd :: Network.Addr -> Text -> IO CmdResult
+query_cmd addr cmd = do
+    response <- query addr (QCommand cmd)
     return $ case response of
         Right (RCommand result) -> result
         Right response -> raw $ "unexpected response: " <> showt response
@@ -112,9 +112,9 @@ query_cmd socket cmd = do
 
 -- | Ask for the current save filename.  Nothing for an error, and Just Nothing
 -- for no save file.
-query_save_file :: Network.PortID -> IO (Maybe (Maybe FilePath))
-query_save_file socket = do
-    response <- query socket QSaveFile
+query_save_file :: Network.Addr -> IO (Maybe (Maybe FilePath))
+query_save_file addr = do
+    response <- query addr QSaveFile
     case response of
         Right (RSaveFile fname) -> return (Just fname)
         Left exc | IO.Error.isDoesNotExistError exc -> return Nothing
@@ -122,9 +122,9 @@ query_save_file socket = do
             Log.error $ "unexpected response to QSaveFile: " <> showt response
             return Nothing
 
-query_completion :: Network.PortID -> Text -> IO [Text]
-query_completion socket prefix = do
-    response <- query socket (QCompletion prefix)
+query_completion :: Network.Addr -> Text -> IO [Text]
+query_completion addr prefix = do
+    response <- query addr (QCompletion prefix)
     case response of
         Right (RCompletion words) -> return words
         Left exc | IO.Error.isDoesNotExistError exc -> return []

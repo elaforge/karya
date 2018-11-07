@@ -33,9 +33,8 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
 import qualified Debug.Trace as Trace
-import qualified Network
+import qualified Network.Socket as Socket
 import qualified System.IO as IO
-import qualified System.Posix.IO as Posix.IO
 
 import qualified Util.Debug as Debug
 import qualified Util.Log as Log
@@ -175,7 +174,7 @@ send_derive_status loopback block_id status =
 -- | Create the MsgReader to pass to 'responder'.
 create_msg_reader ::
     (Midi.ReadMessage -> Midi.ReadMessage) -> TChan.TChan Midi.ReadMessage
-    -> Network.Socket -> TChan.TChan UiMsg.UiMsg -> TChan.TChan Msg.Msg
+    -> Socket.Socket -> TChan.TChan UiMsg.UiMsg -> TChan.TChan Msg.Msg
     -> IO MsgReader
 create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
     repl_chan <- TChan.newTChanIO
@@ -190,15 +189,11 @@ create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
 -- | Accept a connection on the socket, read everything that comes over, then
 -- place the socket and the read data on @output_chan@.  It's the caller's
 -- responsibility to close the handle after it uses it to reply.
-accept_loop :: Network.Socket -> TChan.TChan (IO.Handle, ReplProtocol.Query)
+accept_loop :: Socket.Socket -> TChan.TChan (IO.Handle, ReplProtocol.Query)
     -> IO ()
 accept_loop socket output_chan = forever $ catch_io_errors $ do
-    (hdl, _host, _port) <- Network.accept socket
-    -- Make sure subprocesses don't inherit this.
-    fd <- Posix.IO.handleToFd hdl -- Closes hdl as a side-effect.
-    Posix.IO.setFdOption fd Posix.IO.CloseOnExec True
-    hdl <- Posix.IO.fdToHandle fd
-    IO.hSetBuffering hdl IO.NoBuffering
+    (socket, _peer) <- Socket.accept socket
+    hdl <- Socket.socketToHandle socket IO.ReadWriteMode
     msg <- ReplProtocol.server_receive hdl
     STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
     where

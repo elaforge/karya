@@ -8,12 +8,12 @@ import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
 import qualified Data.Map.Strict as Map
 import qualified Data.String as String
-import qualified Network
 import qualified System.Info
 import qualified System.FilePath as FilePath
 
 import qualified Util.Array as Array
 import qualified Util.Thread as Thread
+import qualified Util.Network as Network
 
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
@@ -146,13 +146,11 @@ status_integrate_source = (8, "src")
 -- * repl
 
 -- | Unix socket to listen on for repl requests.
-repl_port :: FilePath
-repl_port = "seq-repl"
+repl_socket :: Network.Addr
+repl_socket = Network.Unix repl_socket_name
 
--- | PortID version of 'repl_port'.  The clients use filenames so they rely on
--- this being a unix socket.
-repl_socket :: Network.PortID
-repl_socket = Network.UnixSocket repl_port
+repl_socket_name :: FilePath
+repl_socket_name = "seq-repl"
 
 -- * input
 

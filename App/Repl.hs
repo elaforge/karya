@@ -27,7 +27,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Network
 import qualified System.Console.Haskeline as Haskeline
 import qualified System.Directory as Directory
 import qualified System.Environment
@@ -39,12 +38,14 @@ import qualified System.Process as Process
 
 import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.Network as Network
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
+
 import Global
 
 
@@ -59,20 +60,20 @@ initial_settings = Haskeline.defaultSettings
 history_suffix :: FilePath
 history_suffix = ".repl"
 
-complete :: Network.PortID -> (String, String)
+complete :: Network.Addr -> (String, String)
     -> IO (String, [Haskeline.Completion])
-complete socket =
+complete addr =
     Haskeline.completeQuotedWord (Just '\\') "\"" Haskeline.listFiles
-        (complete_identefier socket)
+        (complete_identefier addr)
     -- Like ghci, complete filenames within quotes.
     -- TODO or just disable completion?
 
-complete_identefier :: Network.PortID -> Haskeline.CompletionFunc IO
-complete_identefier socket =
+complete_identefier :: Network.Addr -> Haskeline.CompletionFunc IO
+complete_identefier addr =
     Haskeline.completeWord Nothing word_break_chars complete
     where
     complete prefix = do
-        words <- ReplProtocol.query_completion socket (txt prefix)
+        words <- ReplProtocol.query_completion addr (txt prefix)
         return $ map (Haskeline.simpleCompletion . untxt) words
     word_break_chars = " \t\n(),;[]`{}!#$%&*+/<=>?@\\^|-~"
 
@@ -81,23 +82,23 @@ type CurrentHistory = MVar.MVar (Maybe FilePath)
 main :: IO ()
 main = ReplProtocol.initialize $ do
     args <- System.Environment.getArgs
-    socket <- case args of
+    addr <- case args of
         [] -> return Config.repl_socket
-        [fn] -> return $ Network.UnixSocket fn
+        [fn] -> return $ Network.Unix fn
         _ -> errorIO "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
     Log.configure $ \state -> state { Log.state_log_level = Log.Notice }
     liftIO $ putStrLn "^D to quit"
-    repl socket $ Haskeline.setComplete (complete socket) initial_settings
+    repl addr $ Haskeline.setComplete (complete addr) initial_settings
 
-repl :: Network.PortID -> Haskeline.Settings IO -> IO ()
-repl socket settings = Exception.mask (loop settings)
+repl :: Network.Addr -> Haskeline.Settings IO -> IO ()
+repl addr settings = Exception.mask (loop settings)
     where
     loop old_settings restore = do
         let catch Haskeline.Interrupt = do
                 putStrLn "interrupted"
                 return Continue
-        maybe_save_fname <- ReplProtocol.query_save_file socket
+        maybe_save_fname <- ReplProtocol.query_save_file addr
         let (connection_error, settings) = case maybe_save_fname of
                 Nothing -> (True, old_settings)
                 Just fname -> (,) False $ old_settings
@@ -106,12 +107,12 @@ repl socket settings = Exception.mask (loop settings)
                     }
         status <- Exception.handle catch $ restore $
             Haskeline.runInputT settings $ Haskeline.withInterrupt $
-            read_eval_print socket connection_error
+            read_eval_print addr connection_error
                 (Haskeline.historyFile settings)
         case status of
             Continue -> loop settings restore
             Command cmd -> do
-                status <- liftIO $ send_command socket cmd
+                status <- liftIO $ send_command addr cmd
                 case status of
                     Continue -> loop settings restore
                     Command cmd -> do
@@ -120,23 +121,23 @@ repl socket settings = Exception.mask (loop settings)
                         loop settings restore
                     Quit -> return ()
             Quit -> return ()
-    read_eval_print socket connection_error history =
-        maybe (return Quit) (liftIO . eval socket history)
+    read_eval_print addr connection_error history =
+        maybe (return Quit) (liftIO . eval addr history)
             =<< get_input connection_error history
 
-eval :: Network.PortID -> Maybe FilePath -> Text -> IO Status
-eval socket maybe_history expr
+eval :: Network.Addr -> Maybe FilePath -> Text -> IO Status
+eval addr maybe_history expr
     | Text.strip expr `elem` [":h", ":H"] = case maybe_history of
         Nothing -> putStrLn "no history to edit" >> return Continue
         Just history ->
-            maybe (return Continue) (send_command socket) =<< edit_line history
-    | otherwise = send_command socket expr
+            maybe (return Continue) (send_command addr) =<< edit_line history
+    | otherwise = send_command addr expr
 
-send_command :: Network.PortID -> Text -> IO Status
-send_command socket expr
+send_command :: Network.Addr -> Text -> IO Status
+send_command addr expr
     | Text.null expr = return Continue
     | otherwise = do
-        result <- ReplProtocol.query_cmd socket (Text.strip expr)
+        result <- ReplProtocol.query_cmd addr (Text.strip expr)
         result <- print_logs result
         handle_result result
 
