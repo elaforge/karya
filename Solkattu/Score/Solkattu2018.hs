@@ -603,6 +603,7 @@ misra_to_mohra4 = date 2018 7 2 $ sudhindra $
         , (dim, od)
         , (thom, od)
         , (tarikita, p.k.t.k)
+        , (tarikita.taka, k.t.k.t.p.k)
         , (gu.gu.na.na, o.o.n.n)
         , (gu.gu.na.nang.gu, o.o.n.n.k)
         ]
@@ -948,7 +949,7 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $
 
 misra_trikalam :: Korvai
 misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
-    korvai Tala.misra_chapu mridangam $
+        korvai Tala.misra_chapu mridangam
     [ section $ theme
     , section $ nadai 6 theme
     , section $ su theme
@@ -1010,4 +1011,23 @@ c_18_10_22 = date 2018 10 22 $ korvaiS1 adi mridangam $ nadai 6 $
         , (takita, k.p.k)
         , (thom, od)
         , (ta.din, k.od)
+        ]
+
+
+c_18_10_29 :: Korvai
+c_18_10_29 = date 2018 10 29 $ koraippu $ ganesh $ korvaiS adi mridangam
+    [ r123 p5 (ta.din.__4)
+    , r123 takadinna (ta.__.din.__4)
+    , r123 takita (ta.__3.din.__4)
+    , r123 taka (ta.__4.din.__4)
+    , r123 ka (ta.__5.din.__4)
+    ]
+    where
+    r123 a b = restD 1
+        . su (concatMap (\n -> repeat n a . repeat n b) [1, 2, 3])
+    mridangam = makeMridangam
+        [ (ta.din, k.od)
+        , (takita, k.p.k)
+        , (taka, p.k)
+        , (ka, p)
         ]

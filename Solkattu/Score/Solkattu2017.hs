@@ -572,7 +572,7 @@ c_17_08_29 = date 2017 8 29 $ ganesh $
         ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_17_10_23 :: Korvai
-c_17_10_23 = date 2017 10 23 $ koraippu $ ganesh $
+c_17_10_23 = date 2017 10 23 $ ganesh $
     korvaiS adi (mridangam<>kendang1)
     [ sequence theme
     , sequence (theme2a.theme2b)

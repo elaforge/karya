@@ -82,9 +82,9 @@ lang = _sollu Solkattu.Lang
 -- * fragments
 
 tdgnt, td_gnt, t_d_gnt :: Sequence
-tdgnt = ta.din.gin.na.thom
-td_gnt = ta.din.__.gin.na.thom
-t_d_gnt = ta.__.din.__.gin.na.thom
+tdgnt = namedT Solkattu.GPattern "p5" $ ta.din.gin.na.thom
+td_gnt = namedT Solkattu.GPattern "p6" $ ta.din.__.gin.na.thom
+t_d_gnt = namedT Solkattu.GPattern "p7" $ ta.__.din.__.gin.na.thom
 
 takadinna, takita, kita, taka, tiku, diku, tari, dugu :: Sequence
 takadinna = ta.ka.din.na
