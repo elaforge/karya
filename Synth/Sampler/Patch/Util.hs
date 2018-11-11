@@ -69,10 +69,8 @@ findDynamic dynamicRange y =
 type Variation = Int
 
 variation :: Variation -> Note.Note -> Variation
-variation variations =
-    pick . fromMaybe 0 . Note.initial Control.variation
-    where
-    pick var = round (var * fromIntegral (variations - 1))
+variation variations = pick . fromMaybe 0 . Note.initial Control.variation
+    where pick var = round (var * fromIntegral (variations - 1))
 
 -- * thru
 

@@ -17,6 +17,8 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
+import qualified Derive.C.Prelude.Note as Prelude.Note
+import qualified Derive.Call as Call
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Legong as Legong
 
@@ -26,6 +28,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Code as Code
 import qualified Synth.Sampler.Patch.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -61,7 +64,12 @@ makePatch name range = (Patch.patch name)
             }
     }
     where
-    code = Bali.zero_dur_mute 0.65 <> Util.thru dir convert
+    code = note <> Util.thru dir convert
+    note = Bali.zero_dur_mute_with ""
+        (\args -> transform args . Call.multiply_dynamic 0.65)
+        (\args -> transform args $
+            Prelude.Note.default_note Prelude.Note.use_attributes args)
+        where transform args = Code.withSymbolicPitch args . Code.withVariation
     dir = "reyong"
 
 attributeMap :: Common.AttributeMap Articulation

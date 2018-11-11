@@ -21,7 +21,6 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
 import qualified Derive.ShowVal as ShowVal
@@ -58,12 +57,12 @@ pasang_thru scale _attrs input = do
     return $ p_thru ++ s_thru
 
 zero_dur_mute :: Signal.Y -> MidiInst.Code
-zero_dur_mute dyn = zero_dur_reapply Symbols.mute dyn
-    zero_dur_mute_doc (Note.default_note Note.use_attributes)
+zero_dur_mute dyn = zero_dur_mute_with "" (\_ -> Call.multiply_dynamic dyn)
+    (Note.default_note Note.use_attributes)
 
 gangsa_note :: Signal.Y -> Maybe Scale.Range -> MidiInst.Code
-gangsa_note dyn maybe_range = zero_dur_reapply Symbols.mute dyn
-    (zero_dur_mute_doc <> doc maybe_range)
+gangsa_note dyn maybe_range = zero_dur_mute_with (doc maybe_range)
+    (\_ -> Call.multiply_dynamic dyn)
     $ \args -> maybe id (\top -> wrap top (Args.start args)) maybe_range $
         Note.default_note Note.use_attributes args
     where
@@ -73,19 +72,17 @@ gangsa_note dyn maybe_range = zero_dur_reapply Symbols.mute dyn
         <> Doc.pretty top <> " will be transposed down by octaves until it\
         \ fits in the instrument's range."
 
-zero_dur_mute_doc :: Doc.Doc
-zero_dur_mute_doc =
-    " By default, this will emit a muted note, but the instrument can override\
-    \ it as appropriate."
-
-zero_dur_reapply :: Expr.Symbol -> Signal.Y -> Doc.Doc
-    -> (Derive.NoteArgs -> Derive.NoteDeriver) -> MidiInst.Code
-zero_dur_reapply mute_call dyn doc note = MidiInst.null_call $
-    DUtil.zero_duration "note"
+zero_dur_mute_with :: Doc.Doc
+    -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> (Derive.NoteArgs -> Derive.NoteDeriver)
+    -> MidiInst.Code
+zero_dur_mute_with doc transform note =
+    MidiInst.null_call $ DUtil.zero_duration "note"
         ("When the event has zero duration, dispatch to the "
-            <> ShowVal.doc mute_call <> " call." <> doc)
-        (\args -> Call.multiply_dynamic dyn $
-            Eval.reapply_call (Args.context args) mute_call [])
+            <> ShowVal.doc Symbols.mute <> " call." <> doc)
+        -- This only needs to invert if the transform needs it.  Otherwise,
+        -- mute should do that.
+        (Sub.inverting $ \args -> transform args $ reapply_mute args)
         (Sub.inverting note)
 
 reapply_mute :: Derive.NoteArgs -> Derive.NoteDeriver

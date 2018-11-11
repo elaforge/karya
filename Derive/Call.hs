@@ -498,6 +498,19 @@ pick :: NonEmpty a -> Double -> a
 pick (x :| xs) rnd = (x:xs) !! i
     where i = round (rnd * fromIntegral (length xs))
 
+-- * conditional
+
+if_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
+    -> Derive.Deriver a -> Derive.Deriver a -> Derive.Deriver a
+if_env key val is_set not_set =
+    ifM ((==val) <$> Derive.lookup_val key) is_set not_set
+
+when_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
+    -> (Derive.Deriver a -> Derive.Deriver a)
+    -> Derive.Deriver a -> Derive.Deriver a
+when_env key val transformer deriver =
+    if_env key val (transformer deriver) deriver
+
 -- * time
 
 -- | Get the real duration of time val at the given point in time.  RealTime is
