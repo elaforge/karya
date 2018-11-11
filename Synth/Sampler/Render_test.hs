@@ -25,6 +25,7 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
+import Synth.Types
 import Util.Test
 
 
@@ -107,17 +108,17 @@ renderSamples notes = do
     readSamples dir
 
 test_overlappingNotes = do
-    let f = (\(a, b, c) -> (map extract a, map extract b, map extract c))
-            . Render.overlappingNotes 0 1
-            . map (\(s, d) -> mkNote "" s d NN.c4)
-        extract n =
-            ( AUtil.toFrame (Sample.start n)
-            , AUtil.toFrame (Sample.duration n)
-            )
-    equal (f []) ([], [], [])
-    equal (f [(0, 0)]) ([], [(0, 0)], [])
-    equal (f [(-4, 4), (-2, 4), (0, 4), (4, 4)])
+    let f start size = extract
+            . Render.overlappingNotes start size
+            . map (\(s, d) -> mkNoteS "" s d NN.c4)
+        extract (a, b, c) = (map e a, map e b, map e c)
+            where e n = (Sample.start n, Sample.duration n)
+    equal (f 0 1 []) ([], [], [])
+    equal (f 0 1 [(0, 0)]) ([], [(0, 0)], [])
+    equal (f 0 1 [(-4, 4), (-2, 4), (0, 4), (4, 4)])
         ([(-2, 4)], [(0, 4)], [(4, 4)])
+    equal (f 4 4 [(0, 5), (1, 1), (3, 2)])
+        ([(0, 5), (3, 2)], [], [])
 
 
 write_ :: FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
@@ -150,6 +151,9 @@ triFilename dbDir = dbDir </> patchDir </> "tri.wav"
 triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]
 
+mkNoteS :: FilePath -> RealTime -> RealTime -> Pitch.NoteNumber -> Sample.Note
+mkNoteS dbDir start dur =
+    mkNote dbDir (AUtil.toFrame start) (AUtil.toFrame dur)
 
 mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Pitch.NoteNumber
     -> Sample.Note

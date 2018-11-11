@@ -1280,12 +1280,17 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  status:
+    . reyong dynamics:
+    . Non-constant pitch:
   merge faust-im and sampler-im:
     . First extend faust-im to be an Audio processor, so it can take inputs.
     . Integrate sampler-im's multiple voice ability with faust.
     . Patches now have to define a signal network, but it can probably be
       hardcoded to 'sampler -> faust' or just 'faust'.
-  bugs:
+    . I'd need some routing so I can get signals to those processors.
+  bug:
+    - OSC play seems to not work when play is going, or for a while after
     - Assertion failed: (size == psrc->private_data_size), function
       src_put_state, file src/samplerate.c, line 112.
       . Ah, it's because I switched quality.  I should be able to detect
@@ -1295,7 +1300,7 @@ synth: im:
       . I think it just skips that instrument, and hence never clears out its
         symlinks.
       . Why did it work before?  Probably because it was the same instrument.
-    - Shift-play plays im cache even when the instruments are gone, but not
+    / Shift-play plays im cache even when the instruments are gone, but not
       enter-play?
       . Properly I should clear out the cache when instruments go away, but
         meanwhile I should be noticing that there are no im events and not
@@ -1312,6 +1317,14 @@ synth: im:
         I be using a static data structure?
       . It thinks it's RAW, but it's not, maybe I have to fill in SF_INFO
         first.
+  progress:
+    . Parse output to display render progress, mark "done" and "in progress"
+      in the track background color.
+    . This means karya needs to watch stdout, so Process.multipleSupervised
+      needs to capture stdout.
+    . More fancy, I could render the wave in the background as it renders.
+      I'd need to research "peaks" file and generate one of those along with
+      the audio.
   cleanup:
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
@@ -1516,9 +1529,6 @@ synth: im:
       . Or I can delete everything with mtime >1hr ago and no symlinks.
     - Restart skipping chunks if the state converges again.
       . How likely is this to happen?
-    - if the synth returns progress, karya could mark it in the ruler
-      . This means karya needs to listen to stdout, so
-        Util.Process.multipleSupervised needs to capture stdout.
     faust:
       either:
         / Generalize Audio to AudioState, which streams (Chunk, a).
@@ -1532,7 +1542,6 @@ synth: im:
             current states.
           . I don't have to send a signal because if getting state is
             copy-free I can just do it on every chunk.
-
   preview: midi thru:
     . Get the Sampler.Patch, run its convert function, then send it to
       play_cache.  play_cache only needs use filename, ratio, vol.
@@ -1722,9 +1731,39 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
-    sampler status:
-      . Dynamics for reyong:
-      . Non-constant pitch:
+    bug:
+      - when editing reyong:
+        . run build/opt/sampler-im im/notes/test/im-reyong/untitled/b2/sampler
+        . at 176400f: len states 7 /= len notes 10:
+        . It means last time there were 7 notes at 4s, but after the skip
+          I now have 10 notes there.
+        . I have to look after preproc and fix duration.
+        . This is when starting samples, so I should be able to see what
+          are the 10 samples starting at 4.
+        * overlappingNotes was buggy, but now I get:
+          len states 7 /= len notes 6
+          [ (.75s, 6.08s, Right "64-65-108-open+v1.flac")
+          , (1.25s, 6.08s, Right "64-65-108-open+v1.flac")
+          , (1.75s, 3.15s, Right "62-65-108-open+v1.flac")
+          , (2.25s, 4.34s, Right "72-65-108-open+v1.flac")
+          , (2.75s, 6.08s, Right "64-65-108-open+v1.flac")
+          , (3s, 2.71s, Right "69-65-108-open+v1.flac")
+          ]
+        * fixed bugs, dropped too many notes, and backwards logic on putState
+        - now I get: "Internal psf_fseek() failed."
+          . This is from libsndfile, reading the flac.
+          . Because I wanted to seek to 176400, but the file has only 171257.
+          . Why did I do that?
+          . I think the sample has dur 177297 (4.02s), but the file has
+            171257 (3.88s).
+          . It's because ratio=1.035264923841376.  So I need to add to sample
+            start offset by the pre-ratio amount.
+          . 176400 / ratio = 170391, which is < 171257.
+          . But for a non-constant ratio, I think I have to map through the
+            inverse of that integral.
+          . This sounds really complicated, so how about I just store the
+            frame offset in the serialized state?
+
     Non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict
@@ -1796,10 +1835,11 @@ synth: im:
           the sample-skipping algorithm.
         . will be in data->output_frames_gen
           priv->out_get / priv->channels
-      / Use math to find integral of the ratio curve.
+      * Use math to find integral of the ratio curve.
         . I think the math is right, but libsamplerate doesn't match up.
         . Test other changing ratios.
         . If it's too much bother, check-in as-is for just constant ratios.
+        . No wait, it seems like it does match up.
     optimizations:
       - Sample should stream the envelope.
       - RenderSample.applyEnvelope should be able to check for constant within
@@ -1841,9 +1881,10 @@ synth: im:
         = 4.2mb
       . The output state should be deterministic, but I think it varies each
         time.  So something is going wrong, probably in struct save / restore.
-    - ok it doesn't crash now, but reyong when resumed gets an artifact
+    / ok it doesn't crash now, but reyong when resumed gets an artifact
       . does it happen with Linear?
       . Maybe?  It's hard to tell, but it's on the attack, not after.
+      . Or maybe it doesn't.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
@@ -1903,11 +1944,15 @@ synth: im:
         . I export range vars, but I could also prevent out of range notes.
         . Probably this should be opt-in, because of course I don't always
           want to stick to a realistic range.
-      - test with dynamics to find dynFactor
+      reyong dynamics:
         . Or normalize, it still seems like it shouldn't inherently cause any
           more hiss than not, if I have the scaling adjusted right.
         . Try normalizing first, then cycle variations to make sure they are
           self-consistent.
+        . I need to be able to explicitly assign variations to do it from
+          karya.
+        . I can do it by just setting %variation, but reyong doesn't do any of
+          that yet.
     wayang:
       - Variable mute, take a mute control where 1 is +mute, .75 is
         +mute+loose, and <.5 is open note with an envelope.
@@ -1921,8 +1966,14 @@ synth: im:
         per-allocation tuning is a bit annoying because I want to be able
         to say just use the standard one.
     - bind to rubberband library for pitch change without time change
+      . https://breakfastquay.com/rubberband/
     - convolution
-      . What are the options?  jconvolver, ...
+      . What are the options?  jconvolver,
+        http://tomszilagyi.github.io/plugins/ir.lv2/
+      . Since reverb is what you put on at the end, can I just do a realtime
+        one on the play-cache output?
+      . That won't work if I want to do fancy per-instrument variable reverb
+        effects.
     - integrate faust effects for reverb and filters
     features for an actual sampler:
       . see doc/dev_notes/synthesizer

@@ -66,8 +66,7 @@ write_ chunkSize inst quality outputDir notes = catch $ do
             let notifyState = IORef.writeIORef stateRef
             Checkpoint.write outputDir (length skipped) chunkSize hashes
                     stateRef $
-                render inst chunkSize quality states notifyState
-                    (dropUntil (\_ n -> Sample.end n > start) notes)
+                render inst chunkSize quality states notifyState notes
                     (AUtil.toFrame start)
     where
     catch io = Exception.catches io
@@ -229,10 +228,11 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
 -- that overlap the starting time.
 overlappingNotes :: RealTime -> Audio.Frame -> [Sample.Note]
     -> ([Sample.Note], [Sample.Note], [Sample.Note])
-    -- ^ (overlappingStart, overlappingRange, afterEnd)
-overlappingNotes start chunkSize notes = (overlapping, starting, rest)
+overlappingNotes start chunkSize notes =
+    (overlappingStart, overlappingChunk, rest)
     where
-    (starting, overlapping) = List.partition ((>=start) . Sample.start) here
+    (overlappingStart, overlappingChunk) =
+        List.partition ((<start) . Sample.start) $ filter (not . passed) here
     (here, rest) = span ((<end) . Sample.start) $ dropWhile passed notes
     passed n = Sample.end n <= start && Sample.start n < start
     end = start + AUtil.toSeconds chunkSize
@@ -261,14 +261,3 @@ data State = State
     , _offset :: !Audio.Frame
     , _resampleState :: !Resample.SavedState
     } deriving (Eq, Show)
-
--- TODO from Faust.Render
--- | Drop until this element and the next one matches.
-dropUntil :: (a -> a -> Bool) -> [a] -> [a]
-dropUntil match = go
-    where
-    go [] = []
-    go [x] = [x]
-    go (x1 : xs@(x2 : _))
-        | match x1 x2 = x1 : xs
-        | otherwise = go xs

@@ -110,8 +110,7 @@ write outputDir skippedCount chunkSize hashes stateRef audio
         result <- AUtil.catchSndfile $ Resource.runResourceT $
             Audio.File.writeCheckpoints chunkSize
                 (getFilename outputDir stateRef)
-                (\fn -> writeState stateRef fn
-                    >> linkOutput outputDir fn)
+                (\fn -> writeState stateRef fn >> linkOutput outputDir fn)
                 AUtil.outputFormat (extendHashes hashes)
                 audio
         case result of
