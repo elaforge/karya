@@ -99,12 +99,6 @@ resampleBy2 config ratio audio = Audio.Audio $ do
                     loop (used + framesUsed, segment)
                         =<< yield state (used + framesUsed) now collect
                             chunkLeft chunk audio
-
-            -- resampleChunk chan rate state now chunkLeft prevSegment segment
-            --     audio >>= \case
-            --         Nothing -> done key collect
-            --         Just (framesUsed, chunk, audio) -> loop segment
-            --             =<< yield state now collect chunkLeft chunk audio
     where
     done key collect = do
         liftIO $ _notifyState config Nothing

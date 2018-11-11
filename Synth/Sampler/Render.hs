@@ -38,15 +38,15 @@ import Synth.Lib.Global
 
 type Error = Text
 
-write :: Note.InstrumentName -> Resample.Quality -> FilePath -> [Sample.Note]
+write :: Resample.Quality -> FilePath -> [Sample.Note]
     -> IO (Either Error (Int, Int))
 write = write_ Config.checkpointSize
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
 -- repeated parts.
-write_ :: Audio.Frame -> Note.InstrumentName -> Resample.Quality -> FilePath
-    -> [Sample.Note] -> IO (Either Error (Int, Int))
-write_ chunkSize inst quality outputDir notes = catch $ do
+write_ :: Audio.Frame -> Resample.Quality -> FilePath -> [Sample.Note]
+    -> IO (Either Error (Int, Int))
+write_ chunkSize quality outputDir notes = catch $ do
     -- Debug.tracepM "notes" (map eNote notes)
     -- Debug.tracepM "overlap" $ map (map snd) $
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
@@ -54,11 +54,12 @@ write_ chunkSize inst quality outputDir notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
-    Log.debug $ inst <> ": skipped " <> pretty skipped
+    Log.debug $ txt outputDir <> ": skipped " <> pretty skipped
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
-    progress inst start "skipped"
+    when (start > 0) $
+        progress outputDir start "skipped"
     mapM_ (Checkpoint.linkOutput outputDir) skipped
 
     case maybe (Right []) unserializeStates mbState of
@@ -70,7 +71,7 @@ write_ chunkSize inst quality outputDir notes = catch $ do
             let notifyState = IORef.writeIORef stateRef
             Checkpoint.write outputDir (length skipped) chunkSize hashes
                     stateRef $
-                render inst chunkSize quality states notifyState notes
+                render outputDir chunkSize quality states notifyState notes
                     (AUtil.toFrame start)
     where
     catch io = Exception.catches io
@@ -82,9 +83,13 @@ write_ chunkSize inst quality outputDir notes = catch $ do
 -- | Emit a progress message.  The sequencer should be able to parse these to
 -- show render status.  It shows the end of the chunk being rendered, so it can
 -- highlight the time range which is in progress.
-progress :: Note.InstrumentName -> RealTime -> Text -> IO ()
-progress inst endTime extra =
-    Log.notice $ Text.unwords ["progress", inst, pretty endTime, extra]
+progress :: FilePath -> RealTime -> Text -> IO ()
+progress outputDir endTime extra =
+    Log.notice $ Text.unwords
+        ["progress", txt (dropDir (dropDir outputDir)), pretty endTime, extra]
+    where
+    -- The leading im/cache is clutter, so I can drop it.
+    dropDir = drop 1 . dropWhile (/='/')
 
 toSpan :: Sample.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
@@ -112,10 +117,11 @@ failedPlaying note = Playing
     , _noteRange = (0, 0)
     }
 
-render :: Note.InstrumentName -> Audio.Frame -> Resample.Quality
+render :: FilePath -> Audio.Frame -> Resample.Quality
     -> [Maybe State] -> (Checkpoint.State -> IO ())
     -> [Sample.Note] -> Audio.Frame -> Audio
-render inst chunkSize quality states notifyState notes start = Audio.Audio $ do
+render outputDir chunkSize quality states notifyState notes start =
+        Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing
     -- samples.
     let (overlappingStart, overlappingChunk, futureNotes) =
@@ -128,7 +134,7 @@ render inst chunkSize quality states notifyState notes start = Audio.Audio $ do
     -- Debug.tracepM "renderChunk playing" playing
     Audio.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
-            liftIO $ progress inst (AUtil.toSeconds (now + chunkSize))
+            liftIO $ progress outputDir (AUtil.toSeconds (now + chunkSize))
                 ("voices:" <> showt (length playing))
             let (overlappingStart, overlappingChunk, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes

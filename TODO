@@ -1318,13 +1318,15 @@ synth: im:
       . It thinks it's RAW, but it's not, maybe I have to fill in SF_INFO
         first.
   progress:
+    * I have to show (block, inst).
     . Parse output to display render progress, mark "done" and "in progress"
       in the track background color.
-    . This means karya needs to watch stdout, so Process.multipleSupervised
-      needs to capture stdout.
     . More fancy, I could render the wave in the background as it renders.
       I'd need to research "peaks" file and generate one of those along with
       the audio.
+    - This means karya needs to watch stdout, so Process.multipleSupervised
+      needs to capture stdout.
+      . Also it can serialize output, so concurrent subprocesses don't jumble.
   cleanup:
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.

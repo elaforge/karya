@@ -164,6 +164,9 @@ outputFilename imDir notesFilename inst =
     scorePathBlock = FilePath.joinPath $ Seq.rdrop 1 $ drop 2 $
         FilePath.splitPath notesFilename
 
+-- |
+-- > im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
+-- > im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
 outputDirectory :: FilePath
     -> FilePath -- ^ Names as produced by 'notesFilename'.
     -> Text -- ^ ScoreTypes.Instrument, but I don't want to import ScoreTypes.
@@ -172,9 +175,11 @@ outputDirectory imDir notesFilename inst =
     instrumentDirectory imDir notesFilename </> untxt inst
 
 -- | Get the directory which contains each instrument subdir.
+--
+-- > im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
+-- > im/cache/$scorePath/$scoreFname/$namespace/$block
 instrumentDirectory :: FilePath -> FilePath -> FilePath
-instrumentDirectory imDir notesFilename =
-    imDir </> cacheDir </> scorePathBlock
+instrumentDirectory imDir notesFilename = imDir </> cacheDir </> scorePathBlock
     where
     -- Recover scorePath/ns/block from the path so I don't have to put it in
     -- a file or something.  TODO It's a bit sketchy though.
