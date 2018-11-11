@@ -12,13 +12,16 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
 
 import qualified Streaming.Prelude as S
+import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -45,6 +48,7 @@ write = write_ Config.checkpointSize
 write_ :: Audio.Frame -> Note.InstrumentName -> Resample.Quality -> FilePath
     -> [Sample.Note] -> IO (Either Error (Int, Int))
 write_ chunkSize inst quality outputDir notes = catch $ do
+    Debug.tracepM "notes" (map eNote notes)
     -- Debug.tracepM "overlap" $ map (map snd) $
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
     --     Seq.key_on Checkpoint._hash $ map toSpan notes
@@ -55,6 +59,7 @@ write_ chunkSize inst quality outputDir notes = catch $ do
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
+    progress inst start "skipped"
     mapM_ (Checkpoint.linkOutput outputDir) skipped
 
     case maybe (Right []) unserializeStates mbState of
@@ -75,6 +80,13 @@ write_ chunkSize inst quality outputDir notes = catch $ do
             return $ Left $ txt $ Exception.displayException exc
         ]
 
+-- | Emit a progress message.  The sequencer should be able to parse these to
+-- show render status.  It shows the end of the chunk being rendered, so it can
+-- highlight the time range which is in progress.
+progress :: Note.InstrumentName -> RealTime -> Text -> IO ()
+progress inst endTime extra =
+    Log.notice $ Text.unwords ["progress", inst, pretty endTime, extra]
+
 toSpan :: Sample.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
     { _start = Sample.start note
@@ -85,58 +97,62 @@ toSpan note = Checkpoint.Span
 -- | A currently playing sample.
 data Playing = Playing {
     _noteHash :: !Note.Hash
-    , _getState :: IO (Maybe Resample.SavedState)
+    , _getState :: IO (Maybe State)
     , _audio :: !Audio
+    , _noteRange :: !(RealTime, RealTime)
     }
 
 instance Pretty Playing where
-    pretty p = "Playing:" <> "(" <> pretty (_noteHash p) <> ")"
+    pretty p = "Playing:" <> "(" <> pretty (_noteRange p) <> ")"
 
 failedPlaying :: Sample.Note -> Playing
 failedPlaying note = Playing
     { _noteHash = Sample.hash note
     , _getState = return Nothing
     , _audio = mempty
+    , _noteRange = (0, 0)
     }
 
 render :: Note.InstrumentName -> Audio.Frame -> Resample.Quality
-    -> [Maybe Resample.SavedState] -> (Checkpoint.State -> IO ())
+    -> [Maybe State] -> (Checkpoint.State -> IO ())
     -> [Sample.Note] -> Audio.Frame -> Audio
 render inst chunkSize quality states notifyState notes start = Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing
     -- samples.
-    let (playingNotes, startingNotes, futureNotes) =
+    let (overlappingStart, overlappingChunk, futureNotes) =
             overlappingNotes (AUtil.toSeconds start) chunkSize notes
-    -- Debug.tracepM "start, states" (start, states)
-    -- Debug.tracepM "playing, starting, future"
-    --     (playingNotes, startingNotes, futureNotes)
+    -- Debug.tracepM "started, chunk, future"
+    --     (map eNote overlappingStart, map eNote overlappingChunk, map eNote futureNotes)
     playing <- liftIO $
-        resumeSamples start quality chunkSize states playingNotes
-    playing <- renderChunk start playing startingNotes (null futureNotes)
+        resumeSamples start quality chunkSize states overlappingStart
+    playing <- renderChunk start playing overlappingChunk (null futureNotes)
     -- Debug.tracepM "renderChunk playing" playing
     Audio.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
-            liftIO $ Log.debug $ inst <> ": voices: " <> showt (length playing)
-                <> " time: " <> pretty (AUtil.toSeconds now)
-            let (playingNotes, startingNotes, futureNotes) =
+            liftIO $ progress inst (AUtil.toSeconds (now + chunkSize))
+                ("voices:" <> showt (length playing))
+            let (overlappingStart, overlappingChunk, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             -- If notes started in the past, they should already be 'playing'.
-            Audio.assert (null playingNotes) $
-                "playingNotes should be []: " <> pretty playingNotes
+            Audio.assert (null overlappingStart) $
+                "overlappingStart should be []: " <> pretty overlappingStart
             -- Debug.tracepM "playing, starting, future"
-            --     (now, playing, startingNotes, futureNotes)
-            playing <- renderChunk now playing startingNotes (null futureNotes)
+            --     (now, playing, overlappingChunk, futureNotes)
+            playing <- renderChunk now playing overlappingChunk
+                (null futureNotes)
             -- Debug.tracepM "playing, future" (now, playing, futureNotes)
             loop (now + chunkSize, playing, futureNotes)
     where
-    renderChunk now playing startingNotes noFuture = do
+    renderChunk now playing overlappingChunk noFuture = do
         starting <- liftIO $
-            mapM (startSample now quality chunkSize Nothing) startingNotes
+            mapM (startSample now quality chunkSize Nothing) overlappingChunk
         -- Debug.tracepM "playing, starting"
         --     (AUtil.toSeconds now, playing, starting)
         (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
         -- Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
         -- Record playing states for the start of the next chunk.
+        liftIO $ Debug.tracepM "save states" . (now,) =<<
+            mapM _getState (Seq.sort_on _noteHash playing)
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
         Audio.assert (all ((<=chunkSize) . AUtil.chunkFrames2) chunks) $
@@ -177,17 +193,22 @@ pull chunkSize = fmap (trim . unzip) . mapM get
             )
 
 resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
-    -> [Maybe Resample.SavedState] -> [Sample.Note] -> IO [Playing]
+    -> [Maybe State] -> [Sample.Note] -> IO [Playing]
 resumeSamples now quality chunkSize states notes = do
     Audio.assert (length states == length notes) $
-        "at " <> pretty now <> ": len states /= len notes: "
-        <> pretty states <> " /= " <> pretty notes
+        "at " <> pretty now <> ": len states " <> pretty (length states)
+        <> " /= len notes " <> pretty (length notes) <> ": "
+        <> pretty states <> " /= " <> pretty (map eNote notes)
+    Debug.tracepM "resume" $ map eNote notes
     mapM (uncurry (startSample now quality chunkSize . Just))
         (zip states (Seq.sort_on Sample.hash notes))
 
+eNote n = (Sample.start n, Sample.duration n,
+    FilePath.takeFileName . Sample.filename <$> Sample.sample n)
+
 -- | Convert 'Sample.Note' to a 'Playing'.
 startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
-    -> Maybe (Maybe Resample.SavedState)
+    -> Maybe (Maybe State)
     -- ^ If given, resume a playing sample which should have started in the
     -- <= now, otherwise start a new one which should start >= now.
     -- If Just Nothing, this is a resuming sample, but it wasn't resampled, so
@@ -199,29 +220,45 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
         return (failedPlaying note)
     Right sample -> do
         sampleStateRef <- IORef.newIORef Nothing
-        let config mbState = Resample.Config
+        let mkConfig mbState = Resample.Config
                 { _quality = quality
-                , _state = mbState
-                , _notifyState = IORef.writeIORef sampleStateRef
+                , _state = _resampleState <$> mbState
+                , _notifyState = IORef.writeIORef sampleStateRef . fmap mkState
                 , _chunkSize = chunkSize
                 , _now = now
                 }
+            mkState (used, rState) = State
+                { _filename = Sample.filename sample
+                , _offset = used
+                , _resampleState = rState
+                }
         let start = AUtil.toFrame (Sample.start note)
+        Debug.tracepM "startSample" (start, sample, mbMbState)
         case mbMbState of
-            Just _ -> Audio.assert (start < now) $
-                "resumeSample should start before " <> showt now
-                <> " but started at " <> showt start
             Nothing -> Audio.assert (start >= now && now-start < chunkSize) $
                 "note should have started between " <> showt now <> "--"
                 <> showt (now + chunkSize) <> " but started at " <> showt start
+            Just mbState -> do
+                Audio.assert (start < now) $
+                    "resumeSample should start before " <> showt now
+                    <> " but started at " <> showt start
+                whenJust mbState $ \state -> do
+                    Audio.assert (Sample.filename sample == _filename state) $
+                        "starting " <> pretty sample <> " but state was for "
+                        <> pretty state
         -- if AUtil.toFrame (Sample.start sample) < now
         --     then Debug.tracepM "resume" (now, sample)
         --     else Debug.tracepM "start" (now, sample)
+        let mbState = Monad.join mbMbState
         return $ Playing
             { _noteHash = Sample.hash note
             , _getState = IORef.readIORef sampleStateRef
-            , _audio = RenderSample.render
-                (config (Monad.join mbMbState)) (Sample.start note) sample
+            , _audio = RenderSample.render (mkConfig mbState)
+                (Sample.start note) $ sample
+                    { Sample.offset =
+                        maybe 0 _offset mbState + Sample.offset sample
+                    }
+            , _noteRange = (Sample.start note, Sample.duration note)
             }
 
 -- | This is similar to 'Note.splitOverlapping', but it differentiates notes
@@ -237,27 +274,28 @@ overlappingNotes start chunkSize notes =
     passed n = Sample.end n <= start && Sample.start n < start
     end = start + AUtil.toSeconds chunkSize
 
-instance Serialize.Serialize Resample.SavedState where
-    put (Resample.SavedState a b) = Serialize.put a >> Serialize.put b
-    get = Resample.SavedState <$> Serialize.get <*> Serialize.get
+data State = State {
+    -- | I don't actually need this, but it makes the Pretty instance easier to
+    -- read.
+    _filename :: !Sample.SamplePath
+    -- | This is the position in the sample where the state was saved.
+    , _offset :: !Audio.Frame
+    , _resampleState :: !Resample.SavedState
+    } deriving (Eq, Show)
+
+instance Pretty State where
+    pretty (State fname offset _) = pretty fname <> ":" <> pretty offset
+
+instance Serialize.Serialize State where
+    put (State a b c) = Serialize.put a >> Serialize.put b >> Serialize.put c
+    get = State <$> Serialize.get <*> Serialize.get <*> Serialize.get
 
 -- | These will be sorted in order of Note hash.
-unserializeStates :: Checkpoint.State
-    -> Either Error [Maybe Resample.SavedState]
+unserializeStates :: Checkpoint.State -> Either Error [Maybe State]
 unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 
 -- | If there is no resampling, the state will be Nothing.  It's necessary
 -- to remember that, so I can still line up notes with states in
 -- 'resumeSample'.
-serializeStates :: [Maybe Resample.SavedState] -> Checkpoint.State
+serializeStates :: [Maybe State] -> Checkpoint.State
 serializeStates = Checkpoint.State . Serialize.encode
-
--- Effectively, the synth is the combination of each sample render, which
--- means the state has to be:
--- I think I don't need this, I can get _filename and _offset from the Sample.
--- In fact, I have to, unless I also want to save the envelope.
-data State = State
-    { _filename :: !Sample.SamplePath
-    , _offset :: !Audio.Frame
-    , _resampleState :: !Resample.SavedState
-    } deriving (Eq, Show)

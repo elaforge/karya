@@ -72,6 +72,7 @@ import qualified Streaming.Prelude as S
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 import Global
 
 
@@ -129,7 +130,7 @@ type Sample = Float
 
 -- | Should be >=0.
 newtype Frame = Frame Int
-    deriving (Show, Eq, Ord, Num, Real, Enum, Integral)
+    deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Serialize.Serialize)
 
 instance Pretty Frame where
     pretty (Frame n) = pretty n <> "f"

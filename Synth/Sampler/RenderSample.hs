@@ -27,9 +27,8 @@ render :: Resample.Config -> RealTime -> Sample.Sample -> Audio
 render config start (Sample.Sample filename offset envelope ratio) =
     applyEnvelope (AUtil.toSeconds now) envelope $
     resample config ratio start $
-    File.readFrom (Audio.Frames readFrom) filename
+    File.readFrom (Audio.Frames offset) filename
     where
-    readFrom = AUtil.toFrame offset + max 0 (now - AUtil.toFrame start)
     now = Resample._now config
 
 resample :: Resample.Config -> Signal.Signal -> RealTime -> Audio -> Audio

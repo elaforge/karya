@@ -116,7 +116,7 @@ check code
 type CSize = {#type size_t #}
 {#pointer *SRC_STATE_FLAT as StateFlat newtype #}
 
-data SavedState = SavedState ByteString.ByteString ByteString.ByteString
+data SavedState = SavedState !ByteString.ByteString !ByteString.ByteString
     deriving (Eq, Show)
 
 -- | The second ByteString in SavedState is done without copying, so use it

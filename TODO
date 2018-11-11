@@ -1750,7 +1750,7 @@ synth: im:
           , (3s, 2.71s, Right "69-65-108-open+v1.flac")
           ]
         * fixed bugs, dropped too many notes, and backwards logic on putState
-        - now I get: "Internal psf_fseek() failed."
+        * now I get: "Internal psf_fseek() failed."
           . This is from libsndfile, reading the flac.
           . Because I wanted to seek to 176400, but the file has only 171257.
           . Why did I do that?
@@ -1763,7 +1763,6 @@ synth: im:
             inverse of that integral.
           . This sounds really complicated, so how about I just store the
             frame offset in the serialized state?
-
     Non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict

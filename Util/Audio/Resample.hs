@@ -8,7 +8,7 @@ module Util.Audio.Resample (
     , Config(..)
     , resampleBy2
     , Quality(..)
-    , SavedState(..)
+    , SavedState
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.ByteString as ByteString
@@ -26,6 +26,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.SampleRateC as SampleRateC
 import Util.Audio.SampleRateC (Quality(..), SavedState(..))
 import qualified Util.Segment as Segment
+import qualified Util.Serialize as Serialize
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -58,7 +59,7 @@ data Config = Config {
     -- | Called before yielding a chunk.  The final call is with Nothing,
     -- before yielding the final chunk.  At that point the state should be
     -- used up.
-    , _notifyState :: Maybe SavedState -> IO ()
+    , _notifyState :: Maybe (Audio.Frame, SavedState) -> IO ()
     , _chunkSize :: Audio.Frame
     -- | This affects the first chunk size.  This is so that chunk boundaries
     -- fall on multiples of chunkSize.
@@ -78,28 +79,39 @@ resampleBy2 config ratio audio = Audio.Audio $ do
     liftIO $ case (_state config) of
         Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratio
         Just saved -> do
-            failed <- SampleRateC.putState (_quality config) state saved
-            when failed $
+            ok <- SampleRateC.putState (_quality config) state saved
+            unless ok $
                 Audio.throwIO $ "state is the wrong size: " <> pretty saved
     -- I have to collect chunks until I fill up the output chunk size.  The key
     -- thing is to not let the resample state get ahead of the chunk boundary.
     let align = _chunkSize config - (_now config `mod` _chunkSize config)
-    Audio.loop2 (segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
-        \loop prevSegment (now, audio, collect, chunkLeft) -> do
-            -- I keep track of the previous segment to detect discontinuities.
+    let resampleC = resampleChunk chan rate state
+    -- I keep track of the number of samples used from upstream.  This gets
+    -- reported to '_notifyState' so I can restart the sample at the right
+    -- place.
+    -- I also keep track of the previous segment to detect discontinuities.
+    Audio.loop2 (0, segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
+        \loop (used, prevSegment) (now, audio, collect, chunkLeft) -> do
             let segment = segmentAt (toSeconds now) ratio
-            resampleChunk chan rate state now chunkLeft prevSegment segment
-                audio >>= \case
-                    Nothing -> done key collect
-                    Just (chunk, audio) -> loop segment
-                        =<< yield state now collect chunkLeft chunk audio
+            resampleC now chunkLeft prevSegment segment audio >>= \case
+                Nothing -> done key collect
+                Just (framesUsed, chunk, audio) ->
+                    loop (used + framesUsed, segment)
+                        =<< yield state (used + framesUsed) now collect
+                            chunkLeft chunk audio
+
+            -- resampleChunk chan rate state now chunkLeft prevSegment segment
+            --     audio >>= \case
+            --         Nothing -> done key collect
+            --         Just (framesUsed, chunk, audio) -> loop segment
+            --             =<< yield state now collect chunkLeft chunk audio
     where
     done key collect = do
         liftIO $ _notifyState config Nothing
         unless (null collect) $
             S.yield $ mconcat (reverse collect)
         lift $ Resource.release key
-    yield state now collect chunkLeft chunk audio
+    yield state now used collect chunkLeft chunk audio
         | chunkLeft - generated > 0 = return
             ( now + generated
             , audio
@@ -112,7 +124,9 @@ resampleBy2 config ratio audio = Audio.Audio $ do
                 [ "sum", pretty (sum sizes), "> chunkSize"
                 , pretty (_chunkSize config) <> ":", pretty sizes
                 ]
-            liftIO $ _notifyState config . Just =<< SampleRateC.getState state
+            liftIO $ do
+                rState <- SampleRateC.getState state
+                _notifyState config $ Just (used, rState)
             S.yield $ mconcat (reverse (chunk : collect))
             return
                 ( now + generated
@@ -146,7 +160,7 @@ type Stream a =
 resampleChunk :: KnownNat chan => Proxy chan -> Audio.Rate
     -> SampleRateC.State -> Audio.Frame -> Audio.Frame
     -> Segment -> Segment -> Stream ()
-    -> Stream (Maybe (V.Vector Audio.Sample, Stream ()))
+    -> Stream (Maybe (Audio.Frame, V.Vector Audio.Sample, Stream ()))
 resampleChunk chan rate state start maxFrames prevSegment segment audio = do
     (inputChunk, audio) <- next audio
     (atEnd, audio) <- lift $ checkEnd audio
@@ -196,7 +210,7 @@ resampleChunk chan rate state start maxFrames prevSegment segment audio = do
             Audio.framesCount chan generated
     return $ if Maybe.isNothing inputChunk && generated == 0
         then Nothing
-        else Just (outputChunk, recons audio)
+        else Just (used, outputChunk, recons audio)
     where
     next audio = either (const (Nothing, audio)) (first Just) <$>
         lift (S.next audio)
@@ -320,3 +334,7 @@ resampleRate ctype =
     where
     rateIn = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rateIn)
     rateOut = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rateOut)
+
+instance Serialize.Serialize SavedState where
+    put (SavedState a b) = Serialize.put a >> Serialize.put b
+    get = SavedState <$> Serialize.get <*> Serialize.get

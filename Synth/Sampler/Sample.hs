@@ -5,6 +5,7 @@
 module Synth.Sampler.Sample where
 import System.FilePath ((</>))
 
+import qualified Util.Audio.Audio as Audio
 import qualified Util.Pretty as Pretty
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Config as Config
@@ -41,7 +42,7 @@ data Sample = Sample {
     -- dir prepended before rendering.
     filename :: !SamplePath
     -- | Sample start offset.
-    , offset :: !RealTime
+    , offset :: !Audio.Frame
     -- | The sample ends when it runs out of samples, or when envelope ends
     -- on 0.
     , envelope :: !Signal.Signal

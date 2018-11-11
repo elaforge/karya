@@ -65,7 +65,14 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
     (key, handle) <- lift $ Resource.allocate (openRead fname) Sndfile.hClose
     whenJust (checkInfo rate channels (Sndfile.hInfo handle)) throw
     when (frame > 0) $
-        liftIO $ void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
+        liftIO $ do
+            let fileFrames = Sndfile.frames $ Sndfile.hInfo handle
+            -- Otherwise libsndfile will throw a much more confusing error:
+            -- "Internal psf_fseek() failed."
+            Audio.assert (0 <= frame && frame < fileFrames) $
+                "tried to seek to " <> pretty frame <> " in " <> showt fname
+                <> ", but it only has " <> pretty fileFrames
+            void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
     Fix.fix $ \loop ->
         liftIO (Sndfile.hGetBuffer handle size) >>= \case
             Nothing -> lift (Resource.release key) >> return ()
