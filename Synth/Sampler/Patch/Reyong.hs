@@ -97,11 +97,14 @@ inferDuration = map infer . Util.nexts
 
 -- | Open notes ring until a mute at the same pitch.
 inferEnd :: Note.Note -> [Note.Note] -> Maybe RealTime
-inferEnd note nexts
-    | articulationOf note /= Open = Nothing
-    | otherwise = case List.find isMute nexts of
-        Nothing -> Just 100
+inferEnd note nexts = case articulationOf note of
+    Open -> case List.find isMute nexts of
+        Nothing -> Just forever
         Just mute -> Just $ Note.start mute
+    CekClosed -> Just forever
+    CekOpen -> Just forever
+    MuteClosed -> Nothing
+    MuteOpen -> Nothing
     where
     pitch :: Either Text (Either Pitch.Note Pitch.NoteNumber)
     pitch = Util.symbolicPitch note
@@ -111,6 +114,9 @@ inferEnd note nexts
             MuteOpen -> True
             _ -> False
     articulationOf = Util.articulation Open attributeMap . Note.attributes
+    -- This should be longer than any sample, and will be clipped to sample
+    -- duration.
+    forever = 100
 
 -- * checks
 
