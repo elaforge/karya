@@ -1732,7 +1732,7 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
-      - when editing reyong:
+      * when editing reyong:
         . run build/opt/sampler-im im/notes/test/im-reyong/untitled/b2/sampler
         . at 176400f: len states 7 /= len notes 10:
         . It means last time there were 7 notes at 4s, but after the skip

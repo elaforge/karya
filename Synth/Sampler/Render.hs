@@ -21,7 +21,6 @@ import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -48,7 +47,7 @@ write = write_ Config.checkpointSize
 write_ :: Audio.Frame -> Note.InstrumentName -> Resample.Quality -> FilePath
     -> [Sample.Note] -> IO (Either Error (Int, Int))
 write_ chunkSize inst quality outputDir notes = catch $ do
-    Debug.tracepM "notes" (map eNote notes)
+    -- Debug.tracepM "notes" (map eNote notes)
     -- Debug.tracepM "overlap" $ map (map snd) $
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
     --     Seq.key_on Checkpoint._hash $ map toSpan notes
@@ -151,8 +150,8 @@ render inst chunkSize quality states notifyState notes start = Audio.Audio $ do
         (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
         -- Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
         -- Record playing states for the start of the next chunk.
-        liftIO $ Debug.tracepM "save states" . (now,) =<<
-            mapM _getState (Seq.sort_on _noteHash playing)
+        -- liftIO $ Debug.tracepM "save states" . (now,) =<<
+        --     mapM _getState (Seq.sort_on _noteHash playing)
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
         Audio.assert (all ((<=chunkSize) . AUtil.chunkFrames2) chunks) $
@@ -199,10 +198,12 @@ resumeSamples now quality chunkSize states notes = do
         "at " <> pretty now <> ": len states " <> pretty (length states)
         <> " /= len notes " <> pretty (length notes) <> ": "
         <> pretty states <> " /= " <> pretty (map eNote notes)
-    Debug.tracepM "resume" $ map eNote notes
+    -- Debug.tracepM "resume" $ map eNote notes
     mapM (uncurry (startSample now quality chunkSize . Just))
         (zip states (Seq.sort_on Sample.hash notes))
 
+-- | Extract from Note for pretty-printing.
+eNote :: Sample.Note -> (RealTime, RealTime, Either Text FilePath)
 eNote n = (Sample.start n, Sample.duration n,
     FilePath.takeFileName . Sample.filename <$> Sample.sample n)
 
@@ -233,7 +234,7 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
                 , _resampleState = rState
                 }
         let start = AUtil.toFrame (Sample.start note)
-        Debug.tracepM "startSample" (start, sample, mbMbState)
+        -- Debug.tracepM "startSample" (start, sample, mbMbState)
         case mbMbState of
             Nothing -> Audio.assert (start >= now && now-start < chunkSize) $
                 "note should have started between " <> showt now <> "--"
@@ -246,17 +247,19 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
                     Audio.assert (Sample.filename sample == _filename state) $
                         "starting " <> pretty sample <> " but state was for "
                         <> pretty state
-        -- if AUtil.toFrame (Sample.start sample) < now
-        --     then Debug.tracepM "resume" (now, sample)
-        --     else Debug.tracepM "start" (now, sample)
-        let mbState = Monad.join mbMbState
+        let offset = case mbMbState of
+                Just (Just state) -> _offset state
+                -- If Sample.start < now, then this is a resume.  I don't have
+                -- the offset because Resample produces that with State, but
+                -- I don't need it, since there is no resample then frames are
+                -- 1:1.
+                _ -> max 0 $ now - AUtil.toFrame (Sample.start note)
         return $ Playing
             { _noteHash = Sample.hash note
             , _getState = IORef.readIORef sampleStateRef
-            , _audio = RenderSample.render (mkConfig mbState)
+            , _audio = RenderSample.render (mkConfig (Monad.join mbMbState))
                 (Sample.start note) $ sample
-                    { Sample.offset =
-                        maybe 0 _offset mbState + Sample.offset sample
+                    { Sample.offset = offset + Sample.offset sample
                     }
             , _noteRange = (Sample.start note, Sample.duration note)
             }

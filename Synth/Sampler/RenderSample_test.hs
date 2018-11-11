@@ -30,7 +30,7 @@ test_predictDuration = do
 
     -- 21 consumes 21, next 21 consumes 42, so 63
     equalf 1 (f [(0, 1), (21, 1), (21, 2)] 42) (63, 63)
-    uncurry (equalf 1) (f [(0, 1), (21, 2)] 42)
+    uncurry (equalf 2) (f [(0, 1), (21, 2)] 42)
 
 test_actualDuration = do
     let f quality = actualDuration (mkConfig quality)
