@@ -64,14 +64,12 @@ bool
 Osc::read(int channels, sf_count_t frames, float **out)
 {
     bool done = streamer->read(channels, frames, out);
-    if (done)
-        return true;
-    if (volume != 1) {
+    if (!done && volume != 1) {
         for (int i = 0; i < channels * frames; i++) {
             (*out)[i] *= this->volume;
         }
     }
-    return false;
+    return done;
 }
 
 
@@ -98,7 +96,6 @@ void
 Osc::play(const char *path, double ratio, double vol)
 {
     LOG("play: " << path << " ratio:" << ratio << " vol:" << vol);
-    std::vector<std::string> mutes;
     this->volume = vol;
     streamer->start(path, ratio);
 }
@@ -118,6 +115,5 @@ Osc::handleStop(
 void
 Osc::stop()
 {
-    std::vector<std::string> mutes;
     streamer->stop();
 }

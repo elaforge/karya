@@ -1290,7 +1290,15 @@ synth: im:
       hardcoded to 'sampler -> faust' or just 'faust'.
     . I'd need some routing so I can get signals to those processors.
   bug:
-    - OSC play seems to not work when play is going, or for a while after
+    * OSC play seems to not work when play is going, or for a while after
+      . Synth/play_cache/Osc.cc:100 play:
+          /Users/elaforge/src/seq/data/sampler/reyong/48-65-108-open+v1.flac
+          ratio:1.04911 vol:1
+        Synth/play_cache/Sample.cc:171
+          /Users/elaforge/src/seq/data/sampler/reyong/48-65-108-open+v1.flac + 0
+      . I think the Streamer protocol is messy, since 'ready' is in stream()
+        to notify about space for more samples, and also in streamLoop() to
+        wait for a ::start().
     - Assertion failed: (size == psrc->private_data_size), function
       src_put_state, file src/samplerate.c, line 112.
       . Ah, it's because I switched quality.  I should be able to detect

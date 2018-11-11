@@ -313,26 +313,15 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
     memset(out1, 0, processFrames * sizeof(float));
     memset(out2, 0, processFrames * sizeof(float));
 
-    // if (!this->playing)
-    //     return;
-
     float *oscSamples;
     bool oscDone = !osc.get()
         || this->osc->read(channels, processFrames, &oscSamples);
-
-    // TODO fade out if this makes a nasty click.
-    if (oscDone && !this->playing)
-        return;
-
     if (!oscDone) {
         for (int frame = 0; frame < processFrames; frame++) {
             out1[frame] += oscSamples[frame*2] * volume;
             out2[frame] += oscSamples[frame*2 + 1] * volume;
         }
     }
-
-    // LOG("process frames " << processFrames << " startOffset: " << startOffset
-    //     << " offset: " << startFrame);
 
     if (playing) {
         // Leave some silence at the beginning if there is a startOffset.
@@ -350,8 +339,8 @@ PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
             this->playing = false;
         } else {
             for (int frame = 0; frame < processFrames; frame++) {
-                out1[frame] = streamSamples[frame*2] * volume;
-                out2[frame] = streamSamples[frame*2 + 1] * volume;
+                out1[frame] += streamSamples[frame*2] * volume;
+                out2[frame] += streamSamples[frame*2 + 1] * volume;
             }
         }
     }
