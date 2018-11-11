@@ -31,8 +31,8 @@
 // thread.
 class Streamer : public Audio {
 protected:
-    Streamer(std::ostream &log, int channels, int sampleRate, int maxFrames,
-        bool synchronized);
+    Streamer(const char *name, std::ostream &log, int channels, int sampleRate,
+        int maxFrames, bool synchronized);
 public:
     virtual ~Streamer();
 
@@ -43,6 +43,7 @@ public:
     const int sampleRate;
     const int maxFrames;
 protected:
+    const char *name;
     std::ostream &log;
 
     // ** stream thread state

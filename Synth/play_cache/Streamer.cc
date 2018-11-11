@@ -27,11 +27,11 @@ enum {
 
 
 Streamer::Streamer(
-        std::ostream &log, int channels, int sampleRate,
+        const char *name, std::ostream &log, int channels, int sampleRate,
         int maxFrames, bool synchronized)
     : channels(channels), sampleRate(sampleRate), maxFrames(maxFrames),
-        log(log), threadQuit(false), audioDone(false), restarting(false),
-        synchronized(synchronized), debt(0)
+        name(name), log(log), threadQuit(false), audioDone(false),
+        restarting(false), ready(0), synchronized(synchronized), debt(0)
 {
     ring = jack_ringbuffer_create(ringBlocks * maxFrames * channels);
     jack_ringbuffer_mlock(ring);
@@ -43,7 +43,7 @@ Streamer::Streamer(
 
 Streamer::~Streamer()
 {
-    LOG("stop");
+    LOG(name << ": stop");
     threadQuit.store(true);
     ready.post();
     streamThread->join();
@@ -63,52 +63,45 @@ void
 Streamer::streamLoop()
 {
     while (!threadQuit.load()) {
-        LOG("streamLoop wait");
+        // LOG(name << ": streamLoop wait");
         ready.wait();
+        // LOG(name << ": streamLoop resume");
         if (threadQuit.load())
             break;
         if (restarting.load()) {
+            LOG(name << ": restarting");
             audio.reset(this->initialize());
             // This is not safe, but since restart is true, read() shouldn't
             // touch it.
             jack_ringbuffer_reset(ring);
             restarting.store(false);
             audioDone.store(false);
-            // I just cued up a new Audio, so stream() should be able to
-            // immediately read from it.
-            ready.post();
         }
         stream();
     }
 }
 
+
+// Fill up the ringbuffer.
 void
 Streamer::stream()
 {
-    bool done = false;
-    while (!done) {
-        // LOG("stream wait");
-        ready.wait();
-        // LOG("stream resume");
-        if (restarting.load() || threadQuit.load())
-            break;
+    sf_count_t available;
+    while ((available = jack_ringbuffer_write_space(ring) / channels)
+        > readFrames)
+    {
         float *buffer;
-        sf_count_t available;
-        while ((available = jack_ringbuffer_write_space(ring) / channels)
-            > readFrames)
-        {
-            // If start() hasn't been called yet, audio hasn't been initialized.
-            done = bool(audio)
-                ? audio->read(channels, readFrames, &buffer) : true;
-            // LOG("stream avail " << available << " done:" << done);
-            if (done)
-                break;
-            else
-                jack_ringbuffer_write(ring, buffer, readFrames * channels);
+        // If start() hasn't been called yet, audio hasn't been initialized.
+        bool done =
+            bool(audio) ? audio->read(channels, readFrames, &buffer) : true;
+        // LOG(name << ": stream avail " << available << " done:" << done);
+        if (done) {
+            audioDone.store(true);
+            break;
+        } else {
+            jack_ringbuffer_write(ring, buffer, readFrames * channels);
         }
     }
-    if (done)
-        audioDone.store(true);
 }
 
 
@@ -138,6 +131,10 @@ Streamer::read(int channels, sf_count_t frames, float **out)
     std::fill(outputBuffer.begin() + samples, outputBuffer.end(), 0);
     *out = outputBuffer.data();
     // Tell the stream thread there might be room for more samples.
+    // If audioDone is true, then this will cause another stream() call even
+    // though it will definitely not find any more samples.  So I could not
+    // call ready.post() in that case, but I don't think a few extra stream()
+    // checks hurt anything.
     ready.post();
     return false;
 }
@@ -147,7 +144,7 @@ Streamer::read(int channels, sf_count_t frames, float **out)
 
 TracksStreamer::TracksStreamer(
         std::ostream &log, int channels, int sampleRate, int maxFrames)
-    : Streamer(log, channels, sampleRate, maxFrames, true)
+    : Streamer("tracks", log, channels, sampleRate, maxFrames, true)
 {
     // Assume file path and number of muted tracks won't go above this, so
     // start() doesn't allocate.
@@ -182,7 +179,7 @@ TracksStreamer::initialize()
 
 ResampleStreamer::ResampleStreamer(
         std::ostream &log, int channels, int sampleRate, int maxFrames)
-    : Streamer(log, channels, sampleRate, maxFrames, false)
+    : Streamer("osc", log, channels, sampleRate, maxFrames, false)
 {
     fname.reserve(4096);
 }
