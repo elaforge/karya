@@ -166,15 +166,13 @@ render outputDir chunkSize quality states notifyState notes start =
             <> " of " <> pretty playing
         -- If there's no output and no chance to be any more output, don't
         -- emit anything.
-        unless (null chunks && null playing && noFuture) $
-            S.yield $ if null chunks
-                then silentChunk
-                else Audio.zipWithN (+) (map padZero chunks)
+        unless (null chunks && null playing && noFuture) $ if null chunks
+            -- Since I'm inside Audio.Audio, I don't have srate available, so
+            -- I have to set it for Audio.silence2.
+            then Audio._stream @_ @Config.SamplingRate $
+                Audio.take (Audio.Frames chunkSize) Audio.silence2
+            else S.yield $ Audio.zipWithN (+) (map padZero chunks)
         return playing
-    silentChunk -- try to reuse existing memory
-        | V.length Audio.silentChunk <= size = V.take size Audio.silentChunk
-        | otherwise = V.replicate size 0
-        where size = Audio.framesCount (Proxy @AUtil.Channels) chunkSize
     padZero chunk
         | delta > 0 = chunk <> V.replicate (AUtil.framesCount2 delta) 0
         | otherwise = chunk

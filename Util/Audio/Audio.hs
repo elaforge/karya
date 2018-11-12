@@ -459,7 +459,7 @@ silence1 :: Monad m => Audio m rate 1
 silence1 = constant 0
 
 -- | The chan is hardcoded so I can be sure 'chunkSize' is divisible by it.
--- Otherwise, the stream would be invalid.
+-- Otherwise, the stream would be invalid, or I couldn't reuse 'silentChunk'.
 silence2 :: Monad m => Audio m rate 2
 silence2 = Audio $ constant_ 0
 

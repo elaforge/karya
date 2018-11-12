@@ -1290,6 +1290,15 @@ synth: im:
       hardcoded to 'sampler -> faust' or just 'faust'.
     . I'd need some routing so I can get signals to those processors.
   bug:
+    * If I delete notes from 0t--8t in bug-im-reyong:
+      . writing im/cache/test/im-reyong/untitled/b3/r: Util/Audio/File.hs:181:
+        assertion: expected size 352800 but got [5000, 5000, 352800]
+      . It comes from File.writeCheckpoints, so upstream added some chunks and
+        didn't re-sync.
+      . There's just one note and it has a ratio, so it looks like Resample
+        didn't synchronize to _now properly.
+      . Actually it does, the note starts on a checkpoint, so where doe the
+        extra [5000, 5000] come from?
     * OSC play seems to not work when play is going, or for a while after
       . Synth/play_cache/Osc.cc:100 play:
           /Users/elaforge/src/seq/data/sampler/reyong/48-65-108-open+v1.flac
@@ -1301,7 +1310,7 @@ synth: im:
         wait for a ::start().
     - Assertion failed: (size == psrc->private_data_size), function
       src_put_state, file src/samplerate.c, line 112.
-      . Ah, it's because I switched quality.  I should be able to detect
+      . Ah, it's because I switched quality.  I should be able to detect that.
       . But shouldn't it have gotten a different fingerprint?
     - I think I crashed the DAW, but it seems to be uncommon?
     * disable track is not working now
@@ -1336,6 +1345,7 @@ synth: im:
       needs to capture stdout.
       . Also it can serialize output, so concurrent subprocesses don't jumble.
   cleanup:
+    - replace Resample.resampleBy with resampleBy2
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control
