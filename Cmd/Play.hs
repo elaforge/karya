@@ -131,7 +131,9 @@ cmd_context_stop = gets Cmd.state_play_control >>= \case
             Maybe.isJust . Cmd.state_step . Cmd.state_play
         if step_playing
             then StepPlay.cmd_clear >> return True
-            else Cmd.all_notes_off >> return False
+            -- play_cache may still be streaming after the karya transport
+            -- stops.
+            else Cmd.all_notes_off >> stop_im >> return False
 
 cmd_stop :: Cmd.CmdT IO Cmd.Status
 cmd_stop = do
@@ -142,12 +144,19 @@ cmd_stop = do
 stop :: Transport.PlayControl -> Cmd.CmdT IO ()
 stop ctl = do
     liftIO $ Transport.stop_player ctl
-    -- Stop im note, if playing.  See NOTE [play-im].
+    stop_im
+
+-- | Stop im stream, if playing.  See NOTE [play-im].
+stop_im :: Cmd.CmdT IO ()
+stop_im = whenJustM im_addr $ \(wdev, chan) ->
+    Cmd.midi wdev $ Midi.ChannelMessage chan Im.Play.stop
+
+im_addr :: Cmd.M m => m (Maybe Patch.Addr)
+im_addr = do
     allocs <- Ui.config#Ui.allocations_map <#> Ui.get
-    case lookup_im_config allocs of
-        Right (_, (wdev, chan)) ->
-            Cmd.midi wdev $ Midi.ChannelMessage chan Im.Play.stop
-        Left _ -> return ()
+    return $ case lookup_im_config allocs of
+        Right (_, addr) -> Just addr
+        Left _ -> Nothing
 
 -- * play
 
