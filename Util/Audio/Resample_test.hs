@@ -52,7 +52,8 @@ resampleBy :: Source -> FilePath -> Resample.Quality
     -> [(Signal.X, Signal.Y)] -> IO ()
 resampleBy source out quality curve = write out $ Audio.gain 0.5 $ Audio.mix $
     -- (Audio.Frames 0, takes 2 $ Audio.sine 440) :
-    (Audio.Frames 0, Resample.resampleBy quality (Signal.from_pairs curve) $
+    (Audio.Frames 0, Resample.resampleBy (Resample.defaultConfig quality)
+            (Signal.from_pairs curve) $
         case source of
             Sine secs -> Audio.expandChannels $ takes secs $ Audio.sine 440
             -- Sine secs -> Audio.mergeChannels

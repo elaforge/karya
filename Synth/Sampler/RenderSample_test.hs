@@ -16,7 +16,6 @@ import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Shared.Signal as Signal
 
 import Global
-import Synth.Types
 import Util.Test
 
 
@@ -67,7 +66,7 @@ actualDuration config ratio dur =
 resample :: Resample.Config -> Signal.Signal -> AUtil.Audio
     -> IO [Storable.Vector Audio.Sample]
 resample config ratio = Resource.runResourceT . Audio.toSamples
-    . Audio.extractChannel 0 . Resample.resampleBy2 config ratio
+    . Audio.extractChannel 0 . Resample.resampleBy config ratio
 
 triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]

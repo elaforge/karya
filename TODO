@@ -1345,7 +1345,7 @@ synth: im:
       needs to capture stdout.
       . Also it can serialize output, so concurrent subprocesses don't jumble.
   cleanup:
-    - replace Resample.resampleBy with resampleBy2
+    * replace Resample.resampleBy with resampleBy2
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control

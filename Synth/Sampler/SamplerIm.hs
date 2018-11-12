@@ -131,7 +131,7 @@ realize quality notesFilename instrument notes = do
             (Config.imDir Config.config) notesFilename instrument
     Directory.createDirectoryIfMissing True output
     (result, elapsed) <- Thread.timeActionText $
-        Render.write instrument quality output notes
+        Render.write quality output notes
     case result of
         Left err -> Log.error $ instrument <> ": writing " <> txt output
             <> ": " <> err

@@ -43,7 +43,7 @@ resample config ratio start audio
         Audio.synchronizeToSize (Resample._now config)
             (Resample._chunkSize config) (silence <> audio)
     | otherwise = silence
-        <> Resample.resampleBy2 (addNow silenceF config)
+        <> Resample.resampleBy (addNow silenceF config)
             (Signal.shift (-start) ratio) audio
         -- The resample always starts at 0 in the ratio, so shift it back to
         -- account for when the sample starts.
