@@ -17,3 +17,12 @@ public:
     // all frames were read.
     virtual bool read(int channels, sf_count_t frames, float **out) = 0;
 };
+
+
+class AudioEmpty : public Audio {
+public:
+    AudioEmpty() {}
+    bool read(int channels, sf_count_t frames, float **out) override {
+        return true;
+    };
+};

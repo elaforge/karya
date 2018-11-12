@@ -204,8 +204,13 @@ ResampleStreamer::stop()
 Audio *
 ResampleStreamer::initialize()
 {
-    Audio *audio = new SampleFile(log, channels, sampleRate, fname, 0);
-    if (ratio != 1)
-        audio = new Resample(log, channels, ratio, audio);
+    Audio *audio;
+    if (fname.empty()) {
+        audio = new AudioEmpty();
+    } else {
+        audio = new SampleFile(log, channels, sampleRate, fname, 0);
+        if (ratio != 1)
+            audio = new Resample(log, channels, ratio, audio);
+    }
     return audio;
 }

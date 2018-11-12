@@ -1717,6 +1717,8 @@ synth: im:
       . Or why not just use faust integration?  I think it has the same
         algorithm?
   play_cache: PlayCache:
+    - OSC space should also stop any tracks streaming.
+      . But I already stop on AllNotesOff, why doesn't that get sent now?
     - What about writing play_cache in rust?  Just for fun I guess, though if
       it gains semi-sampler features then I'll wind up with more logic.  But
       I do need to bind to libsamplerate and libsndfile.

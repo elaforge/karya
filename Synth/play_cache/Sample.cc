@@ -168,8 +168,8 @@ SampleFile::SampleFile(
         const string &fname, sf_count_t offset) :
     log(log), fname(fname), sndfile(nullptr)
 {
-    LOG(fname << " + " << offset);
     if (!fname.empty()) {
+        LOG(fname << " + " << offset);
         sndfile = openSample(log, channels, sampleRate, fname, offset);
     }
 }
