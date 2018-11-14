@@ -13,14 +13,17 @@ module Cmd.Performance (
     SendStatus, update_performance, derive_blocks, performance, derive
 ) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.Chan as Chan
+import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.State.Strict as Monad.State
+
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
-import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
-import qualified System.Process as Process
+import qualified System.IO as IO
 
 import qualified Util.Log as Log
 import qualified Util.Map as Map
@@ -29,10 +32,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
-import qualified Ui.Block as Block
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
@@ -41,10 +41,13 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
-import qualified Perform.Im.Convert as Im.Convert
 import qualified Instrument.Inst as Inst
+import qualified Perform.Im.Convert as Im.Convert
 import qualified Synth.Shared.Config as Shared.Config
-import qualified App.Config as Config
+import qualified Ui.Block as Block
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
 import Global
 import Types
 
@@ -184,10 +187,12 @@ generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
+    stdout_lock <- liftIO $ MVar.newMVar ()
     thread_id <- liftIO $ Thread.start $ do
         let allocs = Ui.config#Ui.allocations #$ ui_state
             im_config = Cmd.config_im (Cmd.state_config cmd_state)
         evaluate_performance
+            stdout_lock
             (if im_allocated allocs then Just im_config else Nothing)
             (Cmd.state_resolve_instrument ui_state cmd_state)
             wait send_status (Cmd.score_path cmd_state) block_id perf
@@ -222,12 +227,12 @@ derive ui_state cmd_state block_id = (perf, logs)
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         PlayUtil.derive_block prev_cache damage block_id
 
-evaluate_performance :: Maybe Shared.Config.Config
+evaluate_performance :: MVar.MVar () -> Maybe Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Thread.Seconds -> SendStatus -> FilePath -> BlockId -> Cmd.Performance
     -> IO ()
-evaluate_performance im_config lookup_inst wait send_status score_path block_id
-        perf = do
+evaluate_performance stdout_lock im_config lookup_inst wait send_status
+        score_path block_id perf = do
     send_status block_id Msg.OutOfDate
     Thread.delay wait
     send_status block_id Msg.Deriving
@@ -244,24 +249,45 @@ evaluate_performance im_config lookup_inst wait send_status score_path block_id
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
-    subprocesses procs
+    subprocesses stdout_lock (Set.fromList procs)
     unless (null procs) $
         send_status block_id Msg.ImComplete
 
-subprocesses :: [Process.CreateProcess] -> IO ()
-subprocesses [] = return ()
-subprocesses procs = do
-    let names = map (showt . Util.Process.cmdOf) procs
-    Log.notice $ "starting: " <> Text.intercalate ", " names
-    Util.Process.multipleSupervised procs
-        -- I wait so I can kill the subprocess if I get killed.
+-- type Process = (Score.Instrument, FilePath, [String])
+type Process = (FilePath, [String])
+
+-- | Watch each subprocess, return when they all exit.
+subprocesses :: MVar.MVar () -> Set Process -> IO ()
+subprocesses stdout_lock procs =
+    Util.Process.multipleOutput (Set.toList procs) (\output -> go output procs)
+    where
+    go output procs
+        | Set.null procs = return ()
+        | otherwise = do
+            ((cmd, args), out) <- Chan.readChan output
+            case out of
+                Util.Process.Stderr line -> do
+                    put line
+                    go output procs
+                Util.Process.Stdout line -> do
+                    -- TODO interpret
+                    put line
+                    go output procs
+                Util.Process.Exit code -> do
+                    when (code /= Util.Process.ExitCode 0) $
+                        Log.warn $ "subprocess " <> txt cmd <> " " <> showt args
+                            <> " returned " <> showt code
+                    go output (Set.delete (cmd, args) procs)
+    -- These get called concurrently, so avoid jumbled output.
+    put line = MVar.withMVar stdout_lock $ \() ->
+        Text.IO.hPutStrLn IO.stdout line
 
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.
 evaluate_im :: Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> FilePath -> BlockId -> Vector.Vector Score.Event
-    -> IO ([Process.CreateProcess], Vector.Vector Score.Event)
+    -> IO ([Process], Vector.Vector Score.Event)
 evaluate_im config lookup_inst score_path block_id events = do
     cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
     return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
@@ -284,7 +310,7 @@ evaluate_im config lookup_inst score_path block_id events = do
                 changed <- Im.Convert.write lookup_inst fname events
                 let binary = Shared.Config.binary synth
                 return $ if null binary || not changed then Nothing
-                    else Just $ Process.proc binary [fname]
+                    else Just (binary, [fname])
             Nothing -> do
                 Log.warn $ "unknown im synth " <> synth_name <> " with "
                     <> showt (Vector.length events) <> " events"

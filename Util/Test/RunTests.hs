@@ -207,25 +207,28 @@ jobThread output queue =
         argv0 <- System.Environment.getExecutablePath
         -- Give each subprocess its own .tix, or they will stomp on each other
         -- and crash.
-        from <- Util.Process.conversation argv0 ["--subprocess"]
-            (Just (("HPCTIXFILE", output <> ".tix") : env)) to
-        whileJust (takeQueue queue) $ \(name, tests) -> do
-            put $ untxt name
-            Chan.writeChan to $ Util.Process.Text $
-                Text.unwords (map testName tests) <> "\n"
-            Fix.fix $ \loop -> Chan.readChan from >>= \case
-                Util.Process.Stdout line
-                    | line == testsCompleteLine -> return ()
-                    | otherwise -> Text.IO.hPutStrLn hdl line >> loop
-                Util.Process.Stderr line -> Text.IO.hPutStrLn hdl line >> loop
-                Util.Process.Exit n -> put $ "completed early: " <> show n
-        Chan.writeChan to Util.Process.EOF
-        final <- Chan.readChan from
-        case final of
-            Util.Process.Exit n
-                | n == 0 -> return ()
-                | otherwise -> put $ "completed " <> show n
-            _ -> put $ "expected Exit, but got " <> show final
+        Util.Process.conversation argv0 ["--subprocess"]
+                (Just (("HPCTIXFILE", output <> ".tix") : env)) to $ \from -> do
+            whileJust (takeQueue queue) $ \(name, tests) -> do
+                put $ untxt name
+                Chan.writeChan to $ Util.Process.Text $
+                    Text.unwords (map testName tests) <> "\n"
+                Fix.fix $ \loop -> Chan.readChan from >>= \case
+                    Util.Process.Stdout line
+                        | line == testsCompleteLine -> return ()
+                        | otherwise -> Text.IO.hPutStrLn hdl line >> loop
+                    Util.Process.Stderr line ->
+                        Text.IO.hPutStrLn hdl line >> loop
+                    Util.Process.Exit n -> put $ "completed early: " <> show n
+            Chan.writeChan to Util.Process.EOF
+            final <- Chan.readChan from
+            case final of
+                Util.Process.Exit (Util.Process.ExitCode n)
+                    | n == 0 -> return ()
+                    | otherwise -> put $ "completed " <> show n
+                Util.Process.Exit Util.Process.BinaryNotFound ->
+                    put $ "binary not found: " <> argv0
+                _ -> put $ "expected Exit, but got " <> show final
     where
     put = putStr . ((output <> ": ")<>) . (<>"\n")
 

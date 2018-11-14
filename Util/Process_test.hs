@@ -5,11 +5,16 @@
 module Util.Process_test where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
+import Control.Monad (replicateM)
+
+import qualified Data.IORef as IORef
+import qualified Data.List as List
 import qualified System.Process
 
 import qualified Util.Process as Process
-import Util.Test
 import qualified Util.Thread as Thread
+
+import Util.Test
 
 
 -- It's kind of annoying to test this automatically, so just make sure it looks
@@ -24,26 +29,60 @@ manual_test_supervised = do
 manual_test_supervised_no_binary =
     Process.supervised (System.Process.proc "aoeu" [])
 
-manual_test_multiple_supervised = do
-    let cmds = ["sleep 1; echo 1", "sleep 2; echo 2"]
-    tid <- Concurrent.forkIO $
-        Process.multipleSupervised (map System.Process.shell cmds)
-    -- Should see two 'killing' messages.
-    Thread.delay 0.1
-    Concurrent.killThread tid
-
 test_conversation_stdout = do
     input <- Chan.newChan
-    output <- Process.conversation "cat" ["-u"] Nothing input
-    Chan.writeChan input "hi there"
-    io_equal (Chan.readChan output) (Process.Stdout "hi there")
-    Chan.writeChan input Process.EOF
-    io_equal (Chan.readChan output) (Process.Exit 0)
+    Process.conversation "cat" ["-u"] Nothing input $ \output -> do
+        Chan.writeChan input "hi there"
+        io_equal (Chan.readChan output) (Process.Stdout "hi there")
+        Chan.writeChan input Process.EOF
+        io_equal (Chan.readChan output) (Process.Exit (Process.ExitCode 0))
 
 test_conversation_stderr = do
+    input <- noInput
+    Process.conversation "cat" ["no-such-file"] Nothing input $ \output -> do
+        io_equal (Chan.readChan output)
+            (Process.Stderr "cat: no-such-file: No such file or directory")
+        io_equal (Chan.readChan output) (Process.Exit (Process.ExitCode 1))
+
+test_conversation_not_found = do
+    input <- noInput
+    Process.conversation "no-such-bin" [] Nothing input $ \output ->
+        io_equal (Chan.readChan output) (Process.Exit Process.BinaryNotFound)
+
+noisySleep :: Int -> (FilePath, [String])
+noisySleep seconds =
+    ("sh", ["-c", "sleep " <> show seconds <> "; echo done " <> show seconds])
+
+test_multiple_supervised = do
+    -- If the thread that started the processes is killed, it kills them in
+    -- turn.
+    outputRef <- IORef.newIORef Nothing
+    tid <- Concurrent.forkIO $
+        Process.multipleOutput [noisySleep 1, noisySleep 2] $ \output -> do
+            IORef.writeIORef outputRef (Just output)
+            Thread.delay 4
+    Thread.delay 0.1
+    Just output <- IORef.readIORef outputRef
+    Concurrent.killThread tid
+    let sigterm = Process.Exit (Process.ExitCode (-15))
+    io_equal (snd <$> Chan.readChan output) sigterm
+    io_equal (snd <$> Chan.readChan output) sigterm
+
+noInput :: IO (Chan.Chan Process.TalkIn)
+noInput = do
     input <- Chan.newChan
-    output <- Process.conversation "cat" ["no-such-file"] Nothing input
-    Chan.writeChan input "hi there"
-    io_equal (Chan.readChan output)
-        (Process.Stderr "cat: no-such-file: No such file or directory")
-    io_equal (Chan.readChan output) (Process.Exit 1)
+    Chan.writeChan input Process.EOF
+    return input
+
+test_multiple = do
+    Process.multipleOutput [("cat", ["nofile1"]), ("cat", ["nofile2"])] $
+        \output -> do
+            outs <- replicateM 4 (Chan.readChan output)
+            equal (List.sort outs)
+                [ (("cat", ["nofile1"]),
+                    Process.Stderr "cat: nofile1: No such file or directory")
+                , (("cat", ["nofile1"]), Process.Exit (Process.ExitCode 1))
+                , (("cat", ["nofile2"]),
+                    Process.Stderr "cat: nofile2: No such file or directory")
+                , (("cat", ["nofile2"]), Process.Exit (Process.ExitCode 1))
+                ]

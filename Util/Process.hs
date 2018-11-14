@@ -6,16 +6,17 @@
 {-# LANGUAGE LambdaCase #-}
 -- | Utilities to deal with processes.
 module Util.Process where
-import Control.Monad (forever, void)
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import Control.Monad (forever, void)
+import qualified Control.Monad.Fix as Fix
 
-import qualified Data.String as String
 import qualified Data.ByteString as ByteString
 import Data.Monoid ((<>))
+import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
@@ -63,6 +64,7 @@ readProcessWithExitCode env cmd args stdin = do
 -- it's hardcoded to wait for the subprocess.
 --
 -- TODO use Process.withCreateProcess?
+-- TODO I think 'multipleOutput' makes this obsolete.
 supervised :: Process.CreateProcess -> IO ()
 supervised proc = Exception.mask $ \restore -> do
     -- Hopefully this mask means that I can't get killed after starting the
@@ -75,10 +77,6 @@ supervised proc = Exception.mask $ \restore -> do
             Log.warn $ "received exception, killing " <> showt (cmdOf proc)
                 <> maybe "" ((<>")") . (" (pid "<>) . showt) pid
             Process.terminateProcess hdl
-
--- | Start multiple processes, and kill them all if this thread is killed.
-multipleSupervised :: [Process.CreateProcess] -> IO ()
-multipleSupervised = Async.mapConcurrently_ supervised
 
 -- | Wait for the process (if it started) and log if it didn't exit
 -- successfully.
@@ -132,10 +130,13 @@ create proc = File.ignoreEnoent (Process.createProcess proc) >>= \case
 data TalkOut = Stdout !Text | Stderr !Text
     -- | This always terminates the conversation, and effectively marks the
     -- channel closed.
-    | Exit !Int
-    deriving (Eq, Show)
+    | Exit !Exit
+    deriving (Eq, Ord, Show)
 data TalkIn = Text !Text | EOF
     deriving (Eq, Show)
+
+data Exit = ExitCode !Int | BinaryNotFound
+    deriving (Eq, Ord, Show)
 
 instance String.IsString TalkIn where
     fromString = Text . Text.pack
@@ -143,27 +144,68 @@ instance String.IsString TalkIn where
 -- | Have a conversation with a subprocess.  This doesn't use ptys, so this
 -- will only work if the subprocess explicitly doesn't use block buffering.
 conversation :: FilePath -> [String] -> Maybe [(String, String)]
-    -> Chan.Chan TalkIn -> IO (Chan.Chan TalkOut)
-conversation cmd args env input = do
+    -> Chan.Chan TalkIn -> (Chan.Chan TalkOut -> IO a) -> IO a
+conversation cmd args env input action = do
     output <- Chan.newChan
-    Concurrent.forkIO $ Process.withCreateProcess proc $
+    conversationWith cmd args env (Chan.readChan input) (Chan.writeChan output)
+        (action output)
+
+-- | Get output from multiple subprocesses.  They'll be killed when the action
+-- returns, if they haven't already exited.
+multipleOutput :: [(FilePath, [String])]
+    -> (Chan.Chan ((FilePath, [String]), TalkOut) -> IO a)
+    -> IO a
+multipleOutput cmds action = do
+    output <- Chan.newChan
+    let run (cmd, args) = conversationWith cmd args Nothing (return EOF)
+            (Chan.writeChan output . ((cmd, args),))
+    foldr run (action output) cmds
+
+conversationWith :: FilePath -> [String] -> Maybe [(String, String)]
+    -> IO TalkIn -> (TalkOut -> IO ()) -> IO a -> IO a
+conversationWith cmd args env getInput notifyOutput action = do
+    -- Apparently binary not found is detected in createProcess.  I think in
+    -- previous versions it was detected in waitForProcess.
+    ok <- File.ignoreEnoent $ Process.withCreateProcess proc $
         \(Just stdin) (Just stdout) (Just stderr) pid -> do
             IO.hSetBuffering stdout IO.LineBuffering
             IO.hSetBuffering stderr IO.LineBuffering
-            outThread <- Async.async $ void $ File.ignoreEOF $ forever $
-                Chan.writeChan output . Stdout =<< Text.IO.hGetLine stdout
-            errThread <- Async.async $ void $ File.ignoreEOF $ forever $
-                Chan.writeChan output . Stderr =<< Text.IO.hGetLine stderr
-            Concurrent.forkIO $ forever $ Chan.readChan input >>= \case
-                Text t -> Text.IO.hPutStrLn stdin t >> IO.hFlush stdin
+            inThread <- Async.async $ Fix.fix $ \loop -> getInput >>= \case
+                Text t -> Text.IO.hPutStrLn stdin t >> IO.hFlush stdin >> loop
                 EOF -> IO.hClose stdin
+            outThread <- Async.async $ void $ File.ignoreEOF $ forever $
+                notifyOutput . Stdout =<< Text.IO.hGetLine stdout
+            errThread <- Async.async $ void $ File.ignoreEOF $ forever $
+                notifyOutput . Stderr =<< Text.IO.hGetLine stderr
             -- Ensure both stdout and stderr are flushed before exit.
-            Async.waitBoth outThread errThread
-            code <- Process.waitForProcess pid
-            Chan.writeChan output $ Exit $ case code of
-                System.Exit.ExitFailure code -> code
-                System.Exit.ExitSuccess -> 0
-    return output
+            complete <- Async.async $ do
+                Async.waitBoth outThread errThread
+                code <- Process.waitForProcess pid
+                notifyOutput $ Exit $ ExitCode $ case code of
+                    System.Exit.ExitFailure code -> code
+                    System.Exit.ExitSuccess -> 0
+            result <- action `Exception.onException` do
+                mapM_ Async.cancel [inThread, outThread, errThread, complete]
+                -- I could also just return and let withCreateProcess kill it,
+                -- but then I wouldn't get the exit code, and more importantly,
+                -- confirmation that it actually died.  Of course this means
+                -- I'm trusting that the process will actually exit on SIGTERM.
+                -- And for some reason trying to get 'complete' to do this
+                -- doesn't work.
+                -- TODO if it doesn't want to quit, I should probably timeout
+                -- and send a "didn't die" Exit msg.
+                Process.terminateProcess pid
+                code <- Process.waitForProcess pid
+                notifyOutput $ Exit $ ExitCode $ case code of
+                    System.Exit.ExitFailure code -> code
+                    System.Exit.ExitSuccess -> 0
+            Async.cancel complete
+            return result
+    case ok of
+        Nothing -> do
+            notifyOutput $ Exit BinaryNotFound
+            action
+        Just a -> return a
     where
     proc = (Process.proc cmd args)
         { Process.std_in = Process.CreatePipe

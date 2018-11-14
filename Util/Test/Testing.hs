@@ -236,7 +236,7 @@ highlight_ranges color ranges = mconcat . map hi . split_ranges ranges
     where hi (outside, inside) = outside <> highlight color inside
 
 split_ranges :: [(Int, Int)] -> Text -> [(Text, Text)] -- ^ (out, in) pairs
-split_ranges ranges = go 0 ranges
+split_ranges = go 0
     where
     go _ [] text
         | Text.null text = []
