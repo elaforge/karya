@@ -46,10 +46,12 @@ not iphone-ly.  Or don't do that.  This is just reminder to myself.
 
 - lilypond for the lilypond backend.  This is optional.
 
-- The bravura font for music symbols: <http://www.smufl.org/fonts/> and
-Noto for any other kind of symbol: <https://www.google.com/get/noto/>.
-I don't use fancy symbols very much, so they're not essential.  You'll probably
-get some complaints at startup if they're missing, you can ignore that.
+- The bravura font for music symbols:
+<https://github.com/steinbergmedia/bravura/tree/master/releases> (the main page
+is <http://www.smufl.org/fonts/>), and Noto for any other kind of symbol:
+<https://www.google.com/get/noto/>.  I don't use fancy symbols very much, so
+they're not essential.  You'll probably get some complaints at startup if
+they're missing, you can ignore that.
 
     OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
 

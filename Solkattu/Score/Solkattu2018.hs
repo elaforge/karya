@@ -1013,7 +1013,6 @@ c_18_10_22 = date 2018 10 22 $ korvaiS1 adi mridangam $ nadai 6 $
         , (ta.din, k.od)
         ]
 
-
 c_18_10_29 :: Korvai
 c_18_10_29 = date 2018 10 29 $ koraippu $ ganesh $ korvaiS adi mridangam
     [ r123 p5 (ta.din.__4)
