@@ -17,6 +17,7 @@ import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.CallStack as CallStack
+import qualified Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
@@ -126,7 +127,7 @@ render patch mbState notifyState inputs start end config =
             Resource.allocate (DriverC.initialize patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
         let nstream = Audio._nstream (Audio.zeroPadN (_chunkSize config) inputs)
-        Audio.loop1 (start, nstream) $ \loop (start, inputs) -> do
+        Util.Control.loop1 (start, nstream) $ \loop (start, inputs) -> do
             -- Audio.zeroPadN should have made this infinite.
             (controls, nextInputs) <-
                 maybe (CallStack.errorIO "end of endless stream") return

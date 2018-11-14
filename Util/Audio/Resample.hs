@@ -25,6 +25,7 @@ import qualified Streaming.Prelude as S
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.SampleRateC as SampleRateC
 import Util.Audio.SampleRateC (Quality(..), SavedState(..))
+import qualified Util.Control as Control
 import qualified Util.Segment as Segment
 import qualified Util.Serialize as Serialize
 
@@ -100,7 +101,7 @@ resampleBy config ratio audio = Audio.Audio $ do
     -- reported to '_notifyState' so I can restart the sample at the right
     -- place.
     -- I also keep track of the previous segment to detect discontinuities.
-    Audio.loop2 (0, segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
+    Control.loop2 (0, segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
         \loop (used, prevSegment) (now, audio, collect, chunkLeft) -> do
             let segment = segmentAt (toSeconds now) ratio
             resampleC now chunkLeft prevSegment segment audio >>= \case

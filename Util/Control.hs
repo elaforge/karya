@@ -2,18 +2,20 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Control flow and monadic utilities.
 module Util.Control (
     module Util.Control
     , module Data.Bifunctor, module Control.Monad.Extra, module Util.CallStack
 ) where
-import Data.Bifunctor (Bifunctor(bimap, first, second))
 import qualified Control.Monad as Monad
 import qualified Control.Monad.Except as Except
 import Control.Monad.Extra
        (whenJust, whenJustM, mapMaybeM, whenM, unlessM, ifM, notM, orM, andM,
         findM, anyM, allM)
+import qualified Control.Monad.Fix as Fix
 
+import Data.Bifunctor (Bifunctor(bimap, first, second))
 import qualified Data.Monoid as Monoid
 
 import Util.CallStack (errorStack, errorIO)
@@ -33,6 +35,26 @@ while_ :: Monad m => m Bool -> m a -> m ()
 while_ cond op = do
     b <- cond
     Monad.when b $ op >> while_ cond op
+
+-- | Loop with no arguments.  This is the same as 'Fix.fix' but the name is
+-- clearer.
+loop0 :: (a -> a) -> a
+loop0 = Fix.fix
+
+-- | Loop with a single state argument.
+loop1 :: forall state a. state -> ((state -> a) -> state -> a) -> a
+loop1 state f = f again state
+    where
+    again :: state -> a
+    again = f again
+
+-- | Loop with two state arguments.  You could use loop1 with a pair, but
+-- sometimes the currying is convenient.
+loop2 :: forall s1 s2 a. s1 -> s2 -> ((s1 -> s2 -> a) -> s1 -> s2 -> a) -> a
+loop2 s1 s2 f = f again s1 s2
+    where
+    again :: s1 -> s2 -> a
+    again = f again
 
 -- | This is 'Foldable.foldMap' specialized to lists.
 mconcatMap :: Monoid.Monoid b => (a -> b) -> [a] -> b

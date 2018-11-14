@@ -21,6 +21,7 @@ import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -132,7 +133,7 @@ render outputDir chunkSize quality states notifyState notes start =
         resumeSamples start quality chunkSize states overlappingStart
     playing <- renderChunk start playing overlappingChunk (null futureNotes)
     -- Debug.tracepM "renderChunk playing" playing
-    Audio.loop1 (start + chunkSize, playing, futureNotes) $
+    Control.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
             liftIO $ progress outputDir (AUtil.toSeconds (now + chunkSize))
                 ("voices:" <> showt (length playing))

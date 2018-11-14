@@ -48,7 +48,6 @@ module Util.Audio.Audio (
     -- * conversions
     , dbToLinear, linearToDb
     -- * util
-    , loop1, loop2
     , takeFramesGE, splitAt
     , next
 #ifdef TESTING
@@ -70,6 +69,7 @@ import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
 import qualified Util.CallStack as CallStack
+import qualified Util.Control as Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -191,7 +191,7 @@ take (Seconds seconds) audio
         (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
 take (Frames frames) (Audio audio)
     | frames <= 0 = mempty
-    | otherwise = Audio $ loop1 (0, audio) $
+    | otherwise = Audio $ Control.loop1 (0, audio) $
         \loop (now, audio) -> lift (S.uncons audio) >>= \case
             Nothing -> return ()
             Just (chunk, audio)
@@ -478,7 +478,7 @@ constant_ val = S.repeat chunk
 -- efficient, but it's just for testing.
 sine :: forall m rate. (Monad m, KnownNat rate) => Float -> Audio m rate 1
 sine frequency =
-    Audio $ loop1 0 $ \loop frame ->
+    Audio $ Control.loop1 0 $ \loop frame ->
         S.yield (gen frame) >> loop (frame + chunkSize)
     where
     gen start = V.generate (fromIntegral (end - start)) (val . (+start) . Frame)
@@ -568,20 +568,6 @@ dbToLinear x = 10**(x / 20)
 
 natVal :: KnownNat n => Proxy n -> Int
 natVal = fromIntegral . TypeLits.natVal
-
--- | A loop with state.  This is like fix, except it has a state argument.
--- The only reason it's here is that it's convenient for stream loops.
-loop1 :: forall state a. state -> ((state -> a) -> state -> a) -> a
-loop1 state f = f again state
-    where
-    again :: state -> a
-    again = f again
-
-loop2 :: forall s1 s2 a. s1 -> s2 -> ((s1 -> s2 -> a) -> s1 -> s2 -> a) -> a
-loop2 s1 s2 f = f again s1 s2
-    where
-    again :: s1 -> s2 -> a
-    again = f again
 
 -- | This is like 'S.breakWhen', except it breaks after the place where the
 -- predicate becomes true, not before it.
