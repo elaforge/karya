@@ -61,10 +61,11 @@ config = Config
     }
 
 data Synth = Synth {
+    -- | This should uniquely determine the synth, since it becomes the notes
+    -- filename.
+    synthName :: !FilePath
     -- | Path to the binary.  Don't run a binary if it's empty.
-    binary :: !FilePath
-    -- | Write serialized notes to this file.  Relative to 'notesParentDir'.
-    , notesDir :: !FilePath
+    , binary :: !FilePath
     } deriving (Eq, Show)
 
 type SynthName = Text
@@ -77,8 +78,8 @@ samplerName = "sampler"
 
 sampler :: Synth
 sampler = Synth
-    { binary = "build/opt/sampler-im"
-    , notesDir = "sampler"
+    { synthName = "sampler"
+    , binary = "build/opt/sampler-im"
     }
 
 -- | Base directory for sampler patches.
@@ -90,14 +91,14 @@ faustName = "faust"
 
 faust :: Synth
 faust = Synth
-    { binary = "build/opt/faust-im"
-    , notesDir = "faust"
+    { synthName = "faust"
+    , binary = "build/opt/faust-im"
     }
 
 ness ::Synth
 ness = Synth
-    { binary = ""
-    , notesDir = "ness"
+    { synthName = "ness"
+    , binary = ""
     }
 
 -- | All serialized notes are in im </> notesParentDir.
@@ -157,7 +158,7 @@ notesFilename :: FilePath -> Synth -> FilePath
     -> Id.BlockId -> FilePath
 notesFilename imDir synth scorePath blockId =
     imDir </> notesParentDir </> scorePath </> idFilename blockId
-    </> notesDir synth
+    </> synthName synth
 
 -- | Get the filename that should be used for the output of a certain block and
 -- instrument.

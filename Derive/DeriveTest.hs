@@ -487,8 +487,8 @@ cmd_config inst_db = Cmd.Config
         { imDir = Testing.tmp_base_dir </> "im"
         , synths = Map.fromList
             [ ("im-synth", Shared.Config.Synth
-                { binary = ""
-                , notesDir = "notes"
+                { synthName = "test-synth"
+                , binary = ""
                 })
             ]
         }
