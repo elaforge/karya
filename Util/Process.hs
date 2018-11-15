@@ -20,6 +20,7 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Time as Time
 
 import qualified System.Exit
 import qualified System.Exit as Exit
@@ -28,6 +29,7 @@ import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 import qualified System.Process.Internals as Internals
+import qualified System.Timeout as Timeout
 
 import qualified Util.File as File
 import qualified Util.Log as Log
@@ -135,7 +137,7 @@ data TalkOut = Stdout !Text | Stderr !Text
 data TalkIn = Text !Text | EOF
     deriving (Eq, Show)
 
-data Exit = ExitCode !Int | BinaryNotFound
+data Exit = ExitCode !Int | BinaryNotFound | KillTimeout
     deriving (Eq, Ord, Show)
 
 instance String.IsString TalkIn where
@@ -192,13 +194,12 @@ conversationWith cmd args env getInput notifyOutput action = do
                 -- I'm trusting that the process will actually exit on SIGTERM.
                 -- And for some reason trying to get 'complete' to do this
                 -- doesn't work.
-                -- TODO if it doesn't want to quit, I should probably timeout
-                -- and send a "didn't die" Exit msg.
                 Process.terminateProcess pid
-                code <- Process.waitForProcess pid
-                notifyOutput $ Exit $ ExitCode $ case code of
-                    System.Exit.ExitFailure code -> code
-                    System.Exit.ExitSuccess -> 0
+                code <- Timeout.timeout killTimeout $ Process.waitForProcess pid
+                notifyOutput $ Exit $ case code of
+                    Just (System.Exit.ExitFailure code) -> ExitCode code
+                    Just System.Exit.ExitSuccess -> ExitCode 0
+                    Nothing -> KillTimeout
             Async.cancel complete
             return result
     case ok of
@@ -207,6 +208,7 @@ conversationWith cmd args env getInput notifyOutput action = do
             action
         Just a -> return a
     where
+    killTimeout = toUsec 4
     proc = (Process.proc cmd args)
         { Process.std_in = Process.CreatePipe
         , Process.std_out = Process.CreatePipe
@@ -215,6 +217,8 @@ conversationWith cmd args env getInput notifyOutput action = do
         , Process.env = env
         }
 
+toUsec :: Time.NominalDiffTime -> Int
+toUsec = round . (*1000000)
 
 -- * util
 
