@@ -213,7 +213,7 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 progress :: FilePath -> RealTime -> RealTime -> Text -> IO ()
 progress outputDir start end extra = do
     Log.notice $ Text.unwords $
-        "progress" : nsBlockInst ++ [pretty end, extra]
+        "progress" : nsBlockInst ++ [pretty start <> "--" <> pretty end, extra]
     Log.with_stdio_lock $ do
         Text.IO.putStrLn $ Text.unwords $
             "progress" : nsBlockInst ++ [time start, time end]

@@ -58,8 +58,6 @@ write_ chunkSize quality outputDir notes = catch $ do
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
-    when (start > 0) $
-        Config.progress outputDir 0 start "skipped"
     mapM_ (Checkpoint.linkOutput outputDir) skipped
 
     case maybe (Right []) unserializeStates mbState of
@@ -123,9 +121,6 @@ render outputDir chunkSize quality states notifyState notes start =
     -- Debug.tracepM "renderChunk playing" playing
     Control.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
-            liftIO $ Config.progress outputDir
-                (AUtil.toSeconds now) (AUtil.toSeconds (now + chunkSize))
-                ("voices:" <> showt (length playing))
             let (overlappingStart, overlappingChunk, futureNotes) =
                     overlappingNotes (AUtil.toSeconds now) chunkSize notes
             -- If notes started in the past, they should already be 'playing'.
@@ -141,6 +136,7 @@ render outputDir chunkSize quality states notifyState notes start =
     renderChunk now playing overlappingChunk noFuture = do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) overlappingChunk
+        progress now playing starting
         -- Debug.tracepM "playing, starting"
         --     (AUtil.toSeconds now, playing, starting)
         (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
@@ -167,6 +163,10 @@ render outputDir chunkSize quality states notifyState notes start =
         | delta > 0 = chunk <> V.replicate (AUtil.framesCount2 delta) 0
         | otherwise = chunk
         where delta = chunkSize - AUtil.chunkFrames2 chunk
+
+    progress now playing starting = liftIO $ Config.progress outputDir
+        (AUtil.toSeconds now) (AUtil.toSeconds (now + chunkSize))
+        ("voices:" <> showt (length playing) <> "+" <> showt (length starting))
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
 pull :: Audio.Frame -> [Playing]
