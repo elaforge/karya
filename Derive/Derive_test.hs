@@ -12,15 +12,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import Util.Test
-
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
-import qualified Ui.Id as Id
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -32,15 +23,23 @@ import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Warp as Warp
 
+import qualified Instrument.Common as Common
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
 
-import qualified Instrument.Common as Common
+import qualified Ui.Id as Id
+import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
 import Global
 import Types
+import Util.Test
 
 
 test_basic = do
@@ -460,7 +459,8 @@ test_tempo_funcs2 = do
 -- | Map through inv tempo and sort the results since their order isn't
 -- relevant.
 inv_tempo :: Derive.Result -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
-inv_tempo res = map (second List.sort) . List.sort . r_inv_tempo res
+inv_tempo res =
+    map (second List.sort) . List.sort . r_inv_tempo res Transport.StopAtEnd
 
 test_tempo_funcs_multiple_subblocks = do
     -- A single score time can imply multiple real times.
@@ -514,7 +514,7 @@ test_make_inverse_tempo_func = do
         warp = Tempo.tempo_to_warp (Signal.constant 2)
         track_warps = [TrackWarp.TrackWarp
                 0 2 UiTest.default_block_id (Set.singleton track_id) warp]
-    let f = TrackWarp.inverse_tempo_func track_warps
+    let f = TrackWarp.inverse_tempo_func track_warps Transport.StopAtEnd
         with_block pos = [(UiTest.default_block_id, [(track_id, pos)])]
     -- Fast tempo means ScoreTime passes quickly relative to Timestamps.
     -- Second 2 at tempo 2 is trackpos 4, which is at the end of the block.
@@ -526,7 +526,7 @@ test_tempo_roundtrip = do
         warp = Tempo.tempo_to_warp (Signal.constant 0.987)
         track_warps = [TrackWarp.TrackWarp
                 0 10 UiTest.default_block_id (Set.singleton track_id) warp]
-    let inv = TrackWarp.inverse_tempo_func track_warps
+    let inv = TrackWarp.inverse_tempo_func track_warps Transport.StopAtEnd
         tempo = TrackWarp.tempo_func track_warps
     let rtimes = concatMap (tempo UiTest.default_block_id track_id)
             (Seq.range 0 3 1)

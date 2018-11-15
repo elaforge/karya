@@ -130,7 +130,7 @@ initialize view_id block_id play_tracks = do
 real_to_score :: BlockId -> Transport.InverseTempoFunction -> [RealTime]
     -> [Maybe ScoreTime]
 real_to_score block_id inv = map $ \t ->
-    case Seq.head $ filter ((==block_id) . fst) (inv t) of
+    case Seq.head $ filter ((==block_id) . fst) (inv Transport.StopAtEnd t) of
         -- If this block is being played multiple times then just pick the
         -- first one and the first track.  That's basically what the playback
         -- monitor does anyway.

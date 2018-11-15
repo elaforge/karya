@@ -60,7 +60,12 @@ show_short = \case
         OutOfDate -> "OutOfDate"
         Deriving -> "Deriving"
         DeriveComplete {} -> "DeriveComplete"
-        ImComplete -> "ImComplete"
+        ImStatus status -> case status of
+            ImProgress bid tid start end -> mconcat
+                [ "ImProgress:", pretty bid, pretty tid
+                , pretty start, "--", pretty end
+                ]
+            ImComplete -> "ImComplete"
         -- show_short is used for timing, and Show DeriveStatus can force stuff
         -- in Performance, so let's not use it.
     Socket _hdl query -> pretty query
@@ -81,14 +86,20 @@ data DeriveStatus =
     -- 'Cmd.state_current_performance' but not in 'Cmd.state_performance' yet.
     OutOfDate
     | Deriving
-    | DeriveComplete !Performance !ImStatus
-    | ImComplete
+    | DeriveComplete !Performance !ImStarted
+    | ImStatus !ImStatus
     deriving (Show)
 
 instance Pretty DeriveStatus where pretty = showt
 
-data ImStatus = ImStarted -- ^ im subprocess in progress
+data ImStarted = ImStarted -- ^ im subprocess in progress
     | ImUnnecessary -- ^ no im notes, so no subprocesses started
+    deriving (Show)
+
+data ImStatus =
+    -- | Active synthesis range for the give block and instrument.
+    ImProgress !BlockId !Score.Instrument !RealTime !RealTime
+    | ImComplete
     deriving (Show)
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.

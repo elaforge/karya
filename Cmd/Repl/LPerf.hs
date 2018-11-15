@@ -17,9 +17,7 @@ import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Ui as Ui
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -39,14 +37,18 @@ import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Warp as Warp
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import qualified Perform.Transport as Transport
 
-import qualified App.Config as Config
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Ui as Ui
+
 import Global
 import Types
 
@@ -55,8 +57,7 @@ get_root :: Cmd.M m => m Cmd.Performance
 get_root = Perf.get_root
 
 get :: Cmd.M m => BlockId -> m Cmd.Performance
-get block_id = Cmd.require ("no performance for " <> pretty block_id)
-    =<< Cmd.lookup_performance block_id
+get = Perf.get
 
 get_current :: Cmd.M m => BlockId -> m Cmd.Performance
 get_current block_id = Cmd.require ("no performance for " <> pretty block_id)
@@ -172,7 +173,8 @@ inverse_tempo_func :: Cmd.M m => RealTime
     -> m [(BlockId, [(TrackId, ScoreTime)])]
 inverse_tempo_func time = do
     perf <- get =<< Cmd.get_focused_block
-    return $ TrackWarp.inverse_tempo_func (Cmd.perf_warps perf) time
+    return $ TrackWarp.inverse_tempo_func (Cmd.perf_warps perf)
+        Transport.StopAtEnd time
 
 -- * block
 

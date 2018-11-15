@@ -177,12 +177,15 @@ step_play_selnum :: SelNum
 play_position_selnum :: SelNum
 -- | Display 'Color.Highlight's.  This has many possible colors.
 highlight_selnum :: SelNum
+-- | Show im progress, as communicated from external im synths.  This also has
+-- multiple colors.
+im_progress_selnum :: SelNum
 
 -- | The most number of SelNums that will be used.  The only reason this needs
 -- a constant is so 'Ui.Diff.refresh_selections' can emit updates for all
 -- selections.
 max_selnums :: SelNum
-max_selnums = 7
+max_selnums = 8
 
 -- This must be the same length as 'max_selnums'.
 [ (insert_selnum, _)
@@ -193,6 +196,7 @@ max_selnums = 7
     , (play_position_selnum, play_selection_color)
     , (step_play_selnum, _)
     , (highlight_selnum, _)
+    , (im_progress_selnum, _)
     ] = zip [0..] selection_colors
 
 -- | Colors that come from a SelNum.
@@ -247,6 +251,10 @@ busy_color = Color.rgb 0 1 1
 mute_color, solo_color :: Color.Color
 mute_color = Color.gray6
 solo_color = Color.rgb 1 0.75 0.75
+
+im_pending_color, im_working_color :: Color.Color
+im_pending_color = Color.rgba 0 0 0 0.15
+im_working_color = Color.rgba 1 0 0 0.15
 
 track_bg, ruler_bg :: Color.Color
 track_bg = Color.white

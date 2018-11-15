@@ -422,8 +422,8 @@ from_realtime block_id repeat_at start_ = do
         { play_sync = maybe_sync
         , play_name = pretty block_id
         , play_midi = im_msgs ++ merge_midi msgs mtc
-        , play_inv_tempo =
-            Just $ Cmd.perf_inv_tempo perf . (+adjustment) . (/multiplier)
+        , play_inv_tempo = Just $ \stop ->
+            Cmd.perf_inv_tempo perf stop . (+adjustment) . (/multiplier)
         , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
         , play_im_end = if Set.null im_insts then Nothing
             else Score.event_end <$> Util.Vector.find_end

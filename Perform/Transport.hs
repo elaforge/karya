@@ -15,7 +15,7 @@ module Perform.Transport (
     , PlayMonitorControl, play_monitor_control
     , player_stopped, poll_player_stopped, wait_player_stopped
     -- * play timing
-    , TempoFunction, ClosestWarpFunction, InverseTempoFunction
+    , TempoFunction, ClosestWarpFunction, InverseTempoFunction, Stop(..)
 ) where
 import qualified Control.Concurrent.MVar as MVar
 
@@ -119,4 +119,18 @@ type ClosestWarpFunction = BlockId -> TrackId -> RealTime -> Warp.Warp
 -- Since a given block may be playing in multiple places at the same time (e.g.
 -- for a block that is played like an instrument, if the notes overlap), the
 -- same BlockId may occur more than once in the output list.
-type InverseTempoFunction = RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
+type InverseTempoFunction =
+    Stop -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
+
+-- | Configure 'InverseTempoFunction'.  TODO think of better names
+data Stop =
+    -- | Stop emitting ScoreTime as soon as the events on the block end.
+    -- This is used by the play monitor, since I want it to stop as soon as
+    -- the score is "over" visually.
+    StopAtEnd
+    -- | Keep emitting score time for all blocks.  This is used to map from
+    -- RealTime to ScoreTime for a particular block, regardless of the notes on
+    -- it.  E.g. Msg.ImProgress uses this because synthesis continues as long
+    -- as the notes ring.
+    | NoStop
+    deriving (Eq, Show)

@@ -10,17 +10,26 @@
 -- probably have some more robust configuration at some point.  Of course
 -- 'App.Config.app_dir' is just return '.' too.
 module Synth.Shared.Config where
-import qualified System.IO.Unsafe as Unsafe
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified System.IO as IO
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Log as Log
+import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
+
+import qualified Perform.RealTime as RealTime
 import qualified Ui.Id as Id
 
 import Global
+import Synth.Types
 
 #include "config.h"
 
@@ -194,3 +203,37 @@ playFilename scorePath blockId = scorePath </> idFilename blockId
 idFilename :: Id.Ident a => a -> FilePath
 idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
     where (ns, name) = Id.un_id $ Id.unpack_id id
+
+-- * progress
+
+-- | Emit a progress message.  The sequencer should be able to parse these to
+-- show render status.  It shows the end of the chunk being rendered, so it can
+-- highlight the time range which is in progress.
+progress :: FilePath -> RealTime -> RealTime -> Text -> IO ()
+progress outputDir start end extra = do
+    Log.notice $ Text.unwords $
+        "progress" : nsBlockInst ++ [pretty end, extra]
+    Log.with_stdio_lock $ do
+        Text.IO.putStrLn $ Text.unwords $
+            "progress" : nsBlockInst ++ [time start, time end]
+        IO.hFlush IO.stdout
+    where
+    time = showt . RealTime.to_seconds
+    -- im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
+    -- -> [namespace, block, instrument]
+    nsBlockInst = Seq.rtake 3 . Text.splitOn "/" . txt $ outputDir
+
+-- | Parse the line emitted by 'progress'.
+parseProgress :: Text -> Maybe (Id.BlockId, Text, (RealTime, RealTime))
+parseProgress line = case Text.words line of
+    ["progress", namespace, block, instrument, start, end] -> do
+        start <- time start
+        end <- time end
+        return
+            ( Id.BlockId $ Id.id (Id.namespace namespace) block
+            , instrument
+            , (start, end)
+            )
+    _ -> Nothing
+    where
+    time = fmap RealTime.seconds . Parse.parse_maybe Parse.p_float

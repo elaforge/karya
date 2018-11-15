@@ -21,11 +21,12 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
 import qualified Derive.Stack as Stack
 import qualified Derive.Warp as Warp
 import qualified Perform.Transport as Transport
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+
 import Global
 import Types
 
@@ -169,7 +170,7 @@ closest_warp track_warps block_id track_id pos =
 -- | Take RealTime back to the TrackTimes on the various blocks that it
 -- corresponds to.
 inverse_tempo_func :: [TrackWarp] -> Transport.InverseTempoFunction
-inverse_tempo_func track_warps realtime = do
+inverse_tempo_func track_warps stop realtime = do
     (block_id, track_ids, pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
     where
@@ -180,5 +181,8 @@ inverse_tempo_func track_warps realtime = do
     -- ts <= tw_end means that you can get the ScoreTime for the end of
     -- a block.  This is useful because then "Cmd.StepPlay" can step to the
     -- very end.
-    track_pos = [(tw_block tw, tw_tracks tw, Warp.unwarp (tw_warp tw) ts)
-        | tw <- track_warps, tw_start tw <= ts && ts <= tw_end tw]
+    track_pos =
+        [ (tw_block tw, tw_tracks tw, Warp.unwarp (tw_warp tw) ts)
+        | tw <- track_warps
+        , tw_start tw <= ts && (stop == Transport.NoStop || ts <= tw_end tw)
+        ]

@@ -30,13 +30,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import qualified Ui.Block as Block
-import qualified Ui.Color as Color
-import qualified Ui.Fltk as Fltk
-import qualified Ui.Sync as Sync
-import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
@@ -45,7 +39,14 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
-import qualified App.Config as Config
+import qualified Ui.Block as Block
+import qualified Ui.Color as Color
+import qualified Ui.Fltk as Fltk
+import qualified Ui.Sync as Sync
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
 import Global
 import Types
 
@@ -95,19 +96,91 @@ cmd_play_msg ui_chan msg = do
                         (Cmd.perf_ui_state perf) (Cmd.perf_track_signals perf)
                     update_highlights ui_chan block_id (Cmd.perf_events perf)
             _ -> return ()
+        handle_im_status ui_chan block_id status
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
         Msg.Deriving {} -> Just Config.busy_color
         Msg.DeriveComplete _ Msg.ImStarted ->
             Just $ Color.brightness 0.5 Config.busy_color
         Msg.DeriveComplete _ Msg.ImUnnecessary -> Just Config.box_color
-        Msg.ImComplete -> Just Config.box_color
+        Msg.ImStatus (Msg.ImProgress {}) -> Nothing
+        Msg.ImStatus Msg.ImComplete -> Just Config.box_color
 
 set_all_play_boxes :: Ui.M m => Color.Color -> m ()
 set_all_play_boxes color =
     mapM_ (flip Ui.set_play_box color) =<< Ui.all_block_ids
 
 type Range = (TrackTime, TrackTime)
+
+-- ** handle im status
+
+handle_im_status :: Fltk.Channel -> BlockId -> Msg.DeriveStatus
+    -> Cmd.CmdT IO ()
+handle_im_status ui_chan block_id = \case
+    Msg.DeriveComplete _ Msg.ImStarted ->
+        start_im_progress ui_chan block_id
+    Msg.DeriveComplete _ Msg.ImUnnecessary ->
+        complete_im_progress ui_chan block_id
+    Msg.ImStatus Msg.ImComplete -> complete_im_progress ui_chan block_id
+    Msg.ImStatus (Msg.ImProgress progress_block instrument start end)
+        -- Only display progress for each block as its own toplevel.
+        -- If a block is child of another, I can see its prorgess in
+        -- its parent.
+        | progress_block == block_id ->
+            set_im_progress ui_chan block_id instrument start end
+    _ -> return ()
+
+start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
+start_im_progress ui_chan block_id = do
+    track_ids <- get_im_instrument_tracks block_id
+    let pending = ((0, end_of_track), Config.im_pending_color)
+    sels <- resolve_tracks
+        [((block_id, track_id), pending) | track_id <- track_ids]
+    liftIO $ Sync.set_im_progress ui_chan sels
+
+get_im_instrument_tracks :: Cmd.M m => BlockId -> m [TrackId]
+get_im_instrument_tracks block_id = do
+    track_ids <- Ui.track_ids_of block_id
+    insts <- mapM Perf.infer_instrument track_ids
+    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
+    let is_im inst = maybe False UiConfig.is_im_allocation $
+            Map.lookup inst allocs
+    return $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts
+
+complete_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
+complete_im_progress ui_chan block_id = do
+    view_ids <- Map.keys <$> Ui.views_of block_id
+    liftIO $ Sync.clear_im_progress ui_chan view_ids
+
+set_im_progress :: Fltk.Channel -> BlockId -> Score.Instrument -> RealTime
+    -> RealTime -> Cmd.CmdT IO ()
+set_im_progress ui_chan block_id instrument start end = do
+    sels <- resolve_tracks
+        =<< get_im_progress_selections block_id instrument start end
+    liftIO $ Sync.set_im_progress ui_chan sels
+
+get_im_progress_selections :: Cmd.M m => BlockId -> Score.Instrument
+    -> RealTime -> RealTime -> m [((BlockId, TrackId), (Range, Color.Color))]
+get_im_progress_selections block_id instrument start end = do
+    track_ids <- Perf.tracks_of_instrument block_id instrument
+    inv_tempo <- Perf.get_inverse_tempo block_id
+    return $ concatMap (track_sel inv_tempo) track_ids
+    where
+    track_sel inv_tempo track_id = fromMaybe [] $ do
+        start <- to_score inv_tempo block_id track_id start
+        end <- to_score inv_tempo block_id track_id end
+        return $ map ((block_id, track_id),)
+            [ ((start, end), Config.im_working_color)
+            , ((end, end_of_track), Config.im_pending_color)
+            ]
+
+end_of_track :: TrackTime
+end_of_track = 99999 -- TODO use a special to-end value?
+
+to_score :: Transport.InverseTempoFunction -> BlockId -> TrackId -> RealTime
+    -> Maybe ScoreTime
+to_score inv_tempo block_id track_id =
+    lookup track_id <=< lookup block_id . inv_tempo Transport.NoStop
 
 -- ** track signals
 
@@ -298,7 +371,7 @@ monitor_loop state = do
     let fail err = Log.error ("state error in play monitor: " <> showt err)
             >> return []
     ui_state <- MVar.readMVar (monitor_ui_state state)
-    let block_pos = monitor_inv_tempo_func state now
+    let block_pos = monitor_inv_tempo_func state Transport.StopAtEnd now
     play_pos <- fmap extend_to_track_0 $ either fail return $
         Ui.eval ui_state $ Perf.block_pos_to_play_pos block_pos
     Sync.set_play_position (monitor_ui_channel state) play_pos

@@ -30,7 +30,9 @@
 module Ui.Sync (
     sync
     , set_track_signals
-    , set_play_position, clear_play_position, set_highlights, clear_highlights
+    , set_play_position, clear_play_position
+    , set_highlights, clear_highlights
+    , set_im_progress, clear_im_progress
     , floating_input
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -145,15 +147,33 @@ set_play_position chan view_sels = unless (null view_sels) $
 clear_play_position :: Fltk.Channel -> [ViewId] -> IO ()
 clear_play_position = clear_selections Config.play_position_selnum
 
+-- ** event highlights
+
 type Range = (TrackTime, TrackTime)
 
 set_highlights :: Fltk.Channel -> [((ViewId, TrackNum), (Range, Color.Color))]
     -> IO ()
-set_highlights chan view_sels = unless (null view_sels) $
+set_highlights = set_selections Config.highlight_selnum
+
+clear_highlights :: Fltk.Channel -> [ViewId] -> IO ()
+clear_highlights = clear_selections Config.highlight_selnum
+
+set_im_progress :: Fltk.Channel -> [((ViewId, TrackNum), (Range, Color.Color))]
+    -> IO ()
+set_im_progress = set_selections Config.im_progress_selnum
+
+clear_im_progress :: Fltk.Channel -> [ViewId] -> IO ()
+clear_im_progress = clear_selections Config.im_progress_selnum
+
+-- ** selections
+
+set_selections :: Sel.Num -> Fltk.Channel
+    -> [((ViewId, TrackNum), (Range, Color.Color))] -> IO ()
+set_selections selnum chan view_sels = unless (null view_sels) $
     Fltk.send_action chan "set_highlights" $ sequence_ $ do
         (view_id, tracknum_sels) <- group_by_view view_sels
         (tracknum, range_colors) <- tracknum_sels
-        return $ set_selection_carefully view_id Config.highlight_selnum
+        return $ set_selection_carefully view_id selnum
             (Just [tracknum]) (map make_sel range_colors)
     where
     make_sel ((start, end), color) = BlockC.Selection
@@ -173,9 +193,6 @@ group_by_view view_sels = map (second Seq.group_fst) by_view
     (view_ids, tracknums) = unzip view_tracknums
     by_view :: [(ViewId, [(TrackNum, (Range, Color.Color))])]
     by_view = Seq.group_fst $ zip view_ids (zip tracknums range_colors)
-
-clear_highlights :: Fltk.Channel -> [ViewId] -> IO ()
-clear_highlights = clear_selections Config.highlight_selnum
 
 clear_selections :: Sel.Num -> Fltk.Channel -> [ViewId] -> IO ()
 clear_selections selnum chan view_ids = unless (null view_ids) $

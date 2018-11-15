@@ -15,15 +15,11 @@ import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
+import qualified Util.Map
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.BaseTypes as BaseTypes
@@ -41,14 +37,30 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
+import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Transport as Transport
-import qualified App.Config as Config
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+
 import Global
 import Types
 
+
+get :: Cmd.M m => BlockId -> m Cmd.Performance
+get block_id = Cmd.require ("no performance for " <> pretty block_id)
+    =<< Cmd.lookup_performance block_id
+
+lookup_root :: Cmd.M m => m (Maybe Cmd.Performance)
+lookup_root = justm Ui.lookup_root_id Cmd.lookup_performance
+
+get_root :: Cmd.M m => m Cmd.Performance
+get_root = Cmd.require "no root performance" =<< lookup_root
 
 -- * derive
 
@@ -282,12 +294,13 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
             return dyn
         Just track_id -> Map.lookup (block_id, track_id) track_dyns
 
--- * infer muted tracks
+-- * infer muted instruments
 
 infer_muted_instruments :: Cmd.M m => m (Set Score.Instrument)
 infer_muted_instruments = do
     allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
-    (<> PlayUtil.muted_instruments allocs) <$> infer_track_muted_instruments
+    (<> PlayUtil.muted_instruments allocs) . Map.keysSet <$>
+        infer_muted_instrument_tracks
 
 -- | Infer that instruments are muted if any of their tracks are muted.  This
 -- is just a heuristic because of course a track may have multiple instruments.
@@ -297,15 +310,21 @@ infer_muted_instruments = do
 --
 -- This should be in PlayUtil along with 'PlayUtil.muted_instruments', but
 -- can't due to using 'lookup_instrument' and circular imports.
-infer_track_muted_instruments :: Cmd.M m => m (Set Score.Instrument)
-infer_track_muted_instruments = do
-    muted <- PlayUtil.get_muted_tracks
-    Set.fromList <$> mapMaybeM infer_instrument (Set.toList muted)
+infer_muted_instrument_tracks :: Cmd.M m => m (Map Score.Instrument [TrackId])
+infer_muted_instrument_tracks = do
+    muted <- Set.toList <$> PlayUtil.get_muted_tracks
+    instruments <- mapM infer_instrument muted
+    return $ Util.Map.multimap $ Seq.map_maybe_fst id $ zip instruments muted
 
 infer_instrument :: Cmd.M m => TrackId -> m (Maybe Score.Instrument)
 infer_instrument track_id =
     justm (fmap fst . Seq.head <$> Ui.blocks_with_track_id track_id) $
         \block_id -> lookup_instrument (block_id, Just track_id)
+
+tracks_of_instrument :: Cmd.M m => BlockId -> Score.Instrument -> m [TrackId]
+tracks_of_instrument block_id instrument = do
+    track_ids <- Ui.track_ids_of block_id
+    filterM (fmap (== Just instrument) . infer_instrument) track_ids
 
 -- * default
 
@@ -370,10 +389,14 @@ get_realtimes perf block_id track_id ps =
     [(p, t) | (p, t : _)
         <- zip ps (map (Cmd.perf_tempo perf block_id track_id) ps)]
 
+get_inverse_tempo :: Cmd.M m => BlockId -> m Transport.InverseTempoFunction
+get_inverse_tempo block_id =
+    TrackWarp.inverse_tempo_func . Cmd.perf_warps <$> get block_id
+
 -- | Take a RealTime to all the ScoreTimes it corresponds to, if any.
 find_play_pos :: Ui.M m => Transport.InverseTempoFunction
     -> RealTime -> m [(ViewId, [(TrackNum, ScoreTime)])]
-find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
+find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo Transport.StopAtEnd
 
 -- | Do all the annoying shuffling around to convert the deriver-oriented
 -- blocks and tracks to the view-oriented views and tracknums.
@@ -410,14 +433,7 @@ sub_pos :: Cmd.M m => BlockId -> TrackId -> ScoreTime
 sub_pos block_id track_id pos = fmap (fromMaybe []) $
     justm (Cmd.lookup_performance block_id) $ \perf ->
     justm (lookup_realtime perf block_id (Just track_id) pos) $ \real ->
-    return $ Just $ filter ((/=block_id) . fst) (Cmd.perf_inv_tempo perf real)
+    return $ Just $ filter ((/=block_id) . fst) $
+        Cmd.perf_inv_tempo perf Transport.StopAtEnd real
     -- lookup_realtime gives Nothing if there's no tempo available which is
     -- likely for a newly added track.  Return [] in that case.
-
--- * util
-
-lookup_root :: Cmd.M m => m (Maybe Cmd.Performance)
-lookup_root = justm Ui.lookup_root_id Cmd.lookup_performance
-
-get_root :: Cmd.M m => m Cmd.Performance
-get_root = Cmd.require "no root performance" =<< lookup_root

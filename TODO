@@ -1,11 +1,10 @@
-ㄏㄨㄟˋㄖㄨˇ
 LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
   Use indent folding with indent=2.
 
 STATUS
-  . sampler status:
+  . synth: status:
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -1281,6 +1280,7 @@ vector: performance:
 
 synth: im:
   status:
+    . progress:
     . reyong dynamics:
     . Non-constant pitch:
   merge faust-im and sampler-im:
@@ -1341,17 +1341,24 @@ synth: im:
     . More fancy, I could render the wave in the background as it renders.
       I'd need to research "peaks" file and generate one of those along with
       the audio.
+      . Audacity does that, but are there any smaller simpler audio displays
+        I can use for reference?
     * This means karya needs to watch stdout, so Process.multipleSupervised
       needs to capture stdout.
       . Also it can serialize output, so concurrent subprocesses don't jumble.
-    - map from subprocess back to (BlockId, TrackId)
+    * map from subprocess back to (BlockId, TrackId)
       . Subprocess run with the path to the notes file, which is
         im/notes/$scorePath/$scoreFname/$namespace/$block/$synth
       . I need to go $block/$synth -> (BlockId, TrackId)
       . I can use the same way solo goes from TrackId -> Instrument -> Synth.
         Or just keep track of the source tracks for this synth.
       . Perf.infer_muted_instruments
-
+      . InverseTempoMap ends when the notes end.  This is on purpose, so the
+        playback stops.  But I need it to keep going because note decay does.
+    * implement track progress colors
+      . Use "raw selections" as does Sync.set_highlights
+      . on ImStarted, set all im inst tracks to in-progress color, clear as
+        I get ImProgress, clear all on ImComplete
   cleanup:
     * replace Resample.resampleBy with resampleBy2
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so

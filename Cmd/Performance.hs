@@ -14,7 +14,6 @@ module Cmd.Performance (
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
-import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Monad.State.Strict as Monad.State
 
 import qualified Data.Map.Strict as Map
@@ -187,12 +186,10 @@ generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
-    stdout_lock <- liftIO $ MVar.newMVar ()
     thread_id <- liftIO $ Thread.start $ do
         let allocs = Ui.config#Ui.allocations #$ ui_state
             im_config = Cmd.config_im (Cmd.state_config cmd_state)
         evaluate_performance
-            stdout_lock
             (if im_allocated allocs then Just im_config else Nothing)
             (Cmd.state_resolve_instrument ui_state cmd_state)
             wait send_status (Cmd.score_path cmd_state) block_id perf
@@ -227,12 +224,12 @@ derive ui_state cmd_state block_id = (perf, logs)
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         PlayUtil.derive_block prev_cache damage block_id
 
-evaluate_performance :: MVar.MVar () -> Maybe Shared.Config.Config
+evaluate_performance :: Maybe Shared.Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Thread.Seconds -> SendStatus -> FilePath -> BlockId -> Cmd.Performance
     -> IO ()
-evaluate_performance stdout_lock im_config lookup_inst wait send_status
-        score_path block_id perf = do
+evaluate_performance im_config lookup_inst wait send_status score_path block_id
+        perf = do
     send_status block_id Msg.OutOfDate
     Thread.delay wait
     send_status block_id Msg.Deriving
@@ -249,16 +246,15 @@ evaluate_performance stdout_lock im_config lookup_inst wait send_status
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
-    subprocesses stdout_lock (Set.fromList procs)
+    subprocesses (send_status block_id . Msg.ImStatus) (Set.fromList procs)
     unless (null procs) $
-        send_status block_id Msg.ImComplete
+        send_status block_id $ Msg.ImStatus Msg.ImComplete
 
--- type Process = (Score.Instrument, FilePath, [String])
 type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
-subprocesses :: MVar.MVar () -> Set Process -> IO ()
-subprocesses stdout_lock procs =
+subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO ()
+subprocesses send_status procs =
     Util.Process.multipleOutput (Set.toList procs) (\output -> go output procs)
     where
     go output procs
@@ -266,21 +262,20 @@ subprocesses stdout_lock procs =
         | otherwise = do
             ((cmd, args), out) <- Chan.readChan output
             case out of
-                Util.Process.Stderr line -> do
-                    put line
-                    go output procs
-                Util.Process.Stdout line -> do
-                    -- TODO interpret
-                    put line
-                    go output procs
+                Util.Process.Stderr line -> put line >> go output procs
+                Util.Process.Stdout line -> progress line >> go output procs
                 Util.Process.Exit code -> do
                     when (code /= Util.Process.ExitCode 0) $
                         Log.warn $ "subprocess " <> txt cmd <> " " <> showt args
                             <> " returned " <> showt code
                     go output (Set.delete (cmd, args) procs)
+    progress line = case Shared.Config.parseProgress line of
+        Just (blockId, instrument, (start, end)) ->
+            send_status $ Msg.ImProgress blockId
+                (Score.Instrument instrument) start end
+        Nothing -> put $ "couldn't parse: " <> line
     -- These get called concurrently, so avoid jumbled output.
-    put line = MVar.withMVar stdout_lock $ \() ->
-        Text.IO.hPutStrLn IO.stdout line
+    put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.

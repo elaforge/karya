@@ -12,6 +12,7 @@
 -}
 module Util.Log (
     configure
+    , with_stdio_lock
     -- * msgs
     , Msg(..), msg_string
     -- ** data
@@ -204,6 +205,14 @@ global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 -- Return the old state so you can restore it later.
 configure :: (State -> State) -> IO State
 configure f = MVar.modifyMVar global_state $ \old -> return (f old, old)
+
+-- | Reuse the log lock, presumably to write to stdout or stderr.  It doesn't
+-- really belong here, but stdout and stderr are already global, so reusing
+-- a lock for them doesn't seem like a big deal.
+with_stdio_lock :: IO () -> IO ()
+with_stdio_lock action = do
+    MVar.withMVar global_state $ \state -> action >> return state
+    return ()
 
 data Priority =
     -- | Logs to determine where things are hanging when debugging
