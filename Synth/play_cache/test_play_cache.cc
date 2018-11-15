@@ -65,13 +65,13 @@ stream(const char *dir)
     sf_count_t startOffset = 0;
     std::vector<std::string> mutes;
 
-    Streamer streamer(std::cout, 2, 44100, maxFrames, true);
+    TracksStreamer streamer(std::cout, 2, 44100, maxFrames);
     streamer.start(dir, startOffset, mutes);
 
     float *samples;
 
     for (int n = 0; n < 4; n++) {
-        streamer.read(256, &samples);
+        streamer.read(2, 256, &samples);
         std::cout << "smp: " << samples[0] << '\n';
         nap(1);
     }

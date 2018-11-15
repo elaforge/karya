@@ -22,7 +22,7 @@ main(int argc, char **argv)
         // float left[8], right[8];
         // float *samples[] = { left, right };
         float *samples = nullptr;
-        bool done = osc->read(8, &samples);
+        bool done = osc->read(2, 8, &samples);
         if (done) {
             std::cout << "done\n";
         } else {
