@@ -66,7 +66,7 @@ test_transpose_out_of_range = do
         ([(0, 50)], [])
     let (sig, errs) = run_with_title "> | %t-chrom = 200" "twelve" [(0, "4c")]
     equal sig []
-    strings_like errs ["260nn is out of range"]
+    strings_like errs ["260nn out of range"]
     where
     run_with_title inst_title pitch_title pitches =
         head $ DeriveTest.extract_events DeriveTest.e_nns_errors $

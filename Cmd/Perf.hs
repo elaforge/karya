@@ -84,13 +84,18 @@ derive_expr block_id track_id pos expr = do
 -- | Run an ad-hoc derivation in the context of the given track.
 derive_at :: Cmd.M m => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either Text a, [Log.Msg])
-derive_at block_id track_id deriver = do
+derive_at block_id track_id =
+    fmap (first (first pretty)) . derive_at_exc block_id track_id
+
+derive_at_exc :: Cmd.M m => BlockId -> TrackId
+    -> Derive.Deriver a -> m (Either Derive.Error a, [Log.Msg])
+derive_at_exc block_id track_id deriver = do
     ui_state <- Ui.get
     (_constant, aliases) <- PlayUtil.get_constant ui_state mempty mempty
     dynamic <- fromMaybe (PlayUtil.initial_dynamic aliases) <$>
         find_dynamic (block_id, Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
-    return (first pretty val, logs)
+    return (val, logs)
 
 -- | Like 'derive_at', but write logs and throw on a Left.
 get_derive_at :: Cmd.M m => BlockId -> TrackId -> Derive.Deriver a -> m a

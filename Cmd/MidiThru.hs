@@ -210,18 +210,19 @@ convert_input_pitch :: Cmd.M m => Score.Instrument -> Scale.Scale -> Pitch.Input
 convert_input_pitch inst scale input = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     -- I ignore _logs, any interesting errors should be in 'result'.
-    (result, _logs) <- Perf.derive_at block_id track_id $
+    (result, _logs) <- Perf.derive_at_exc block_id track_id $
         Derive.with_instrument inst $
         filter_transposers scale $
         Scale.scale_input_to_nn scale pos input
     case result of
-        Left err -> throw $ "derive_at: " <> err
+        Left (Derive.Error _ _ err) -> throw $ pretty err
         -- This just means the key isn't in the scale, it happens a lot so
         -- no need to shout about it.
         Right (Left BaseTypes.InvalidInput) -> Cmd.abort
         Right (Left err) -> throw $ pretty err
         Right (Right nn) -> return nn
-    where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
+    where
+    throw = Cmd.throw . (("scale_input_to_nn for " <> pretty input <> ": ") <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
 -- entered pitch and it's very confusing.  However, I retain 'Controls.octave'

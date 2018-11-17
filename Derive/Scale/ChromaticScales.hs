@@ -25,6 +25,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
+
 import Global
 
 
@@ -184,7 +185,8 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     return $ ScaleDegree.pitch_expr frac note
     where
     is_relative = TheoryFormat.fmt_relative (smap_fmt smap)
-    invalid_input (Left (BaseTypes.OutOfRange {})) = Left BaseTypes.InvalidInput
+    invalid_input (Left (BaseTypes.OutOfRangeError {})) =
+        Left BaseTypes.InvalidInput
     invalid_input x = x
     pc_per_octave = Theory.layout_pc_per_octave (smap_layout smap)
     -- Default to a key because otherwise you couldn't enter notes in an

@@ -100,7 +100,8 @@ show_degree pc = Text.singleton $ Char.chr $
 
 transpose :: Pitch.PitchClass -> Derive.Transpose
 transpose per_octave _transposition _key steps pitch
-    | Pitch.pitch_pc pitch + steps >= per_octave = Left BaseTypes.out_of_range
+    | Pitch.pitch_pc pitch + steps >= per_octave =
+        Left $ BaseTypes.OutOfRangeError BaseTypes.out_of_range
     | otherwise = Right $ Pitch.add_pc per_octave steps pitch
 
 note_to_call :: PSignal.Scale -> Degrees -> Pitch.Note
@@ -108,12 +109,16 @@ note_to_call :: PSignal.Scale -> Degrees -> Pitch.Note
 note_to_call scale degrees note = do
     pitch <- either (const Nothing) Just $ read_pitch per_octave note
     -- Pass 0 for per_octave, since I'll be handling the octave here.
-    Just $ Scales.note_to_call 0 scale (semis_to_nn pitch) (semis_to_note pitch)
+    Just $ Scales.note_to_call 0 (Just max_semi) scale
+        (semis_to_nn pitch) (semis_to_note pitch)
     where
-    semis_to_nn pitch config semis = justErr BaseTypes.out_of_range $ do
-        let a0 = Pitch.nn $ get a0_nn
-        nn <- degrees Vector.!? (Pitch.pitch_pc pitch + semis)
-        Just $ a0 + nn + Pitch.nn ((Pitch.pitch_octave pitch + octaves) * 12)
+    max_semi = Vector.length degrees
+    semis_to_nn pitch config semis =
+        justErr (BaseTypes.out_of_range_error semis (0, max_semi)) $ do
+            let a0 = Pitch.nn $ get a0_nn
+            nn <- degrees Vector.!? (Pitch.pitch_pc pitch + semis)
+            Just $ a0 + nn
+                + Pitch.nn ((Pitch.pitch_octave pitch + octaves) * 12)
         where
         octaves = floor $ get Controls.octave
         get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)

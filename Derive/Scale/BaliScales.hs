@@ -285,7 +285,9 @@ semis_to_nn offset laras default_laras =
         tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
         laras <- Scales.read_environ_default (\v -> Map.lookup v laras)
             (Just default_laras) laras_key env
-        justErr BaseTypes.out_of_range $ case Map.lookup c_ombak controls of
+        let err = BaseTypes.out_of_range_error fsemis
+                (0, Vector.length (laras_umbang laras))
+        justErr err $ case Map.lookup c_ombak controls of
             Nothing -> case tuning of
                 Umbang -> get_nn (laras_umbang laras) fsemis
                 Isep -> get_nn (laras_isep laras) fsemis

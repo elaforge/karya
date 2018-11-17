@@ -33,14 +33,13 @@ import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
 import qualified Util.Serialize as Serialize
 
-import qualified Ui.Ruler as Ruler
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
@@ -51,6 +50,9 @@ import qualified Derive.Warp as Warp
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 
 import Global
 import Types
@@ -153,7 +155,8 @@ pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
 pitch_nn pitch = do
     nn <- pitch_eval_nn pitch (pitch_config pitch)
     first (annotate_out_of_range pitch (Just nn)) $
-        if 0 <= nn && nn <= 127 then return nn else Left out_of_range
+        if 0 <= nn && nn <= 127 then return nn
+            else Left $ OutOfRangeError out_of_range
 
 -- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
 -- are documented by applying 'coerce'.
@@ -163,14 +166,15 @@ pitch_note pitch = first (annotate_out_of_range pitch Nothing) $
 
 annotate_out_of_range :: RawPitch a -> Maybe Pitch.NoteNumber -> PitchError
     -> PitchError
-annotate_out_of_range pitch maybe_nn (OutOfRange _ old) =
-    OutOfRange maybe_nn (filtered <> old)
+annotate_out_of_range pitch maybe_nn = modify_out_of_range $ \err -> err
+    { oor_nn = maybe_nn
+    , oor_transposers = filtered <> oor_transposers err
+    }
     where
     filtered = Map.filterWithKey (\k v -> k `Set.member` transposers && v /= 0)
         cmap
     PitchConfig _ cmap = pitch_config pitch
     transposers = pscale_transposers (pitch_scale pitch)
-annotate_out_of_range _ _ err = err
 
 {- | A PitchConfig is the data that can continue to influence the pitch's
     frequency.
@@ -254,7 +258,7 @@ data PitchError =
     -- transposition signals.  Other scales have unlimited range, in which case
     -- they're limited by the backend.  In this case 'pitch_nn' checks 0--127,
     -- which happens to be MIDI's limitation.
-    | OutOfRange !(Maybe Pitch.NoteNumber) !ScoreTypes.ControlValMap
+    | OutOfRangeError !OutOfRange
     -- | Input note doesn't map to a scale note.
     | InvalidInput
     -- | A required environ value was missing or had the wrong type or value.
@@ -268,15 +272,32 @@ data PitchError =
     | PitchError !Text
     deriving (Eq, Ord, Show)
 
-out_of_range :: PitchError
-out_of_range = OutOfRange Nothing mempty
+data OutOfRange = OutOfRange {
+    oor_nn :: !(Maybe Pitch.NoteNumber)
+    , oor_semi :: !(Maybe Pitch.FSemi)
+    , oor_valid :: !(Maybe (Int, Int))
+    , oor_transposers :: !ScoreTypes.ControlValMap
+    } deriving (Eq, Ord, Show)
+
+out_of_range :: OutOfRange
+out_of_range = OutOfRange Nothing Nothing Nothing mempty
+
+modify_out_of_range :: (OutOfRange -> OutOfRange) -> PitchError -> PitchError
+modify_out_of_range modify (OutOfRangeError err) = OutOfRangeError (modify err)
+modify_out_of_range _ err = err
+
+out_of_range_error :: Real a => a -> (Int, Int) -> PitchError
+out_of_range_error semi valid = OutOfRangeError $ OutOfRange
+    { oor_nn = Nothing
+    , oor_semi = Just (realToFrac semi)
+    , oor_valid = Just valid
+    , oor_transposers = mempty
+    }
 
 instance Pretty PitchError where
     pretty err = case err of
         UnparseableNote -> "unparseable note"
-        OutOfRange nn vals -> maybe "" ((<>" is ") . pretty) nn
-            <> "out of range"
-            <> if vals == mempty then "" else ": " <> pretty vals
+        OutOfRangeError err -> pretty err
         InvalidInput -> "invalid input"
         EnvironError key err ->
             "environ value for " <> pretty key <> ": "
@@ -285,6 +306,16 @@ instance Pretty PitchError where
             "control value for " <> pretty control <> ": " <> err
         NotImplemented -> "not implemented"
         PitchError msg -> msg
+
+instance Pretty OutOfRange where
+    pretty (OutOfRange nn semi valid transposers) =
+        Text.unwords $ filter (not . Text.null)
+            [ maybe "" pretty nn
+            , maybe "" (\semi -> "(semi: " <> pretty semi <> ")") semi
+            , "out of range"
+            , maybe "" pretty valid
+            , if transposers == mempty then "" else pretty transposers
+            ]
 
 instance Pretty PitchConfig where
     format (PitchConfig env controls) = Pretty.record "PitchConfig"

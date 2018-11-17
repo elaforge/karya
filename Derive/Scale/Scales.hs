@@ -134,7 +134,7 @@ transpose :: DegreeMap -> Derive.Transpose
 transpose dmap _transposition _environ steps pitch
     | Maybe.isJust $ dm_to_note dmap !? transposed =
         Right $ semis_to_pitch dmap transposed
-    | otherwise = Left BaseTypes.out_of_range
+    | otherwise = Left $ BaseTypes.OutOfRangeError BaseTypes.out_of_range
     where transposed = pitch_to_semis dmap pitch + steps
 
 -- | Transpose function for a non-transposing scale.
@@ -159,19 +159,22 @@ mapped_note_to_call :: DegreeMap -> PSignal.Scale
     -> Pitch.Note -> Maybe Derive.ValCall
 mapped_note_to_call dmap scale note = do
     semis <- Map.lookup note (dm_to_semis dmap)
-    Just $ note_to_call (dm_per_octave dmap) scale (semis_to_nn semis)
-        (semis_to_note semis)
+    Just $ note_to_call (dm_per_octave dmap) (Just max_semi)
+        scale (semis_to_nn semis) (semis_to_note semis)
     where
+    max_semi = Vector.length (dm_to_nn dmap)
     semis_to_nn semis _config transpose =
-        justErr BaseTypes.out_of_range $ dm_to_nn dmap !? (semis + transpose)
+        justErr err $ dm_to_nn dmap !? (semis + transpose)
+        where
+        err = BaseTypes.out_of_range_error (semis + transpose) (0, max_semi)
     semis_to_note semis transpose = dm_to_note dmap !? (semis + transpose)
 
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
-note_to_call :: Pitch.Semi -> PSignal.Scale -> SemisToNoteNumber
-    -> (Pitch.Semi -> Maybe Pitch.Note) -> Derive.ValCall
-note_to_call per_octave scale semis_to_nn semis_to_note =
+note_to_call :: Pitch.Semi -> Maybe Pitch.Semi -> PSignal.Scale
+    -> SemisToNoteNumber -> (Pitch.Semi -> Maybe Pitch.Note) -> Derive.ValCall
+note_to_call per_octave max_semi scale semis_to_nn semis_to_note =
     ScaleDegree.scale_degree scale pitch_nn pitch_note
     where
     pitch_nn :: Scale.PitchNn
@@ -184,8 +187,13 @@ note_to_call per_octave scale semis_to_nn semis_to_note =
             <*> semis_to_nn config (semis + 1)
             <*> pure (Pitch.NoteNumber frac)
     pitch_note :: Scale.PitchNote
-    pitch_note config = justErr BaseTypes.out_of_range $ semis_to_note transpose
-        where transpose = floor $ transposition config
+    pitch_note config = justErr err $ semis_to_note semis
+        where
+        semis = floor $ transposition config
+        err = BaseTypes.OutOfRangeError $ BaseTypes.out_of_range
+            { BaseTypes.oor_semi = Just (fromIntegral semis)
+            , BaseTypes.oor_valid = (0,) <$> max_semi
+            }
     transposition config =
         get Controls.octave * fromIntegral per_octave
             + get Controls.chromatic + get Controls.diatonic
@@ -214,7 +222,8 @@ type InputToNn = ScoreTime -> Pitch.Input
 mapped_input_to_nn :: DegreeMap -> InputToNn
 mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
     semis <- simple_kbd_to_scale dmap kbd pitch
-    justErr BaseTypes.out_of_range $ to_nn semis frac
+    justErr (BaseTypes.OutOfRangeError BaseTypes.out_of_range) $
+        to_nn semis frac
     where
     to_nn semis frac
         | frac == 0 = lookup semis
@@ -257,17 +266,18 @@ computed_input_to_nn input_to_note note_to_call pos input = do
     env <- Derive.get_environ
     case get_call env of
         Left err -> return $ Left err
-        Right call -> do
+        Right (note, call) -> do
             pitch <- Eval.apply_pitch pos call
             controls <- Derive.controls_at =<< Derive.real pos
-            nn <- Derive.require_right (("evaluating pitch: "<>) . pretty) $
+            nn <- Derive.require_right
+                    ((("evaluating note " <> pretty note <> ": ")<>) . pretty) $
                 PSignal.pitch_nn $
                 PSignal.apply_config (PSignal.PitchConfig env controls) pitch
             return $ Right nn
     where
     get_call env = do
         note <- input_to_note env input
-        justErr BaseTypes.UnparseableNote $ note_to_call note
+        (note,) <$> justErr BaseTypes.UnparseableNote (note_to_call note)
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Pitch.Frac -> Maybe Pitch.NoteNumber

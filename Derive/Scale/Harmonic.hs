@@ -89,7 +89,8 @@ note_to_call :: PSignal.Scale -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call scale note = do
     pitch <- either (const Nothing) Just $ read_pitch note
     -- Pass 0 for per_octave, since I'll be handling the octave here.
-    Just $ Scales.note_to_call 0 scale (semis_to_nn pitch) (semis_to_note pitch)
+    Just $ Scales.note_to_call 0 Nothing scale
+        (semis_to_nn pitch) (semis_to_note pitch)
     where
     semis_to_nn (Pitch.Pitch oct (Pitch.Degree pc _)) config semis =
         Right $ Pitch.hz_to_nn hz

@@ -141,7 +141,7 @@ note_numbers scale environ = go (notes scale environ)
         pitch <- Eval.eval_note scale note
         case PSignal.pitch_nn pitch of
             Right nn -> (nn:) <$> go notes
-            Left (BaseTypes.OutOfRange {}) -> return []
+            Left (BaseTypes.OutOfRangeError {}) -> return []
             Left err -> Derive.throw $ "note_numbers: " <> pretty err
 
 -- | Make a patch scale from the NoteNumbers.
