@@ -104,7 +104,7 @@ check code
     , SRC_SINC_FASTEST as SincFastest
     , SRC_ZERO_ORDER_HOLD as ZeroOrderHold
     , SRC_LINEAR as Linear
-    } deriving (Eq, Show)
+    } deriving (Eq, Show, Bounded)
 #}
 
 {#fun src_new { `Quality', `Int', id `Foreign.Ptr C.CInt' } -> `State' #}

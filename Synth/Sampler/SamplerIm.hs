@@ -10,8 +10,10 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
+import qualified System.Exit
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
@@ -40,18 +42,48 @@ import Global
 main :: IO ()
 main = do
     args <- Environment.getArgs
-    let quality
-            | "--fast" `elem` args = Resample.SincFastest
-            | otherwise = Resample.SincBestQuality
-    case filter (/="--fast") args of
-        ["--check"] -> do
+    (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
+        (flags, args, []) -> return (flags, args)
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
+    -- Or Resample.SincBestQuality or Resample.SincFastest
+    let quality = fromMaybe Resample.SincMediumQuality $
+            Seq.last [quality | Quality quality <- flags]
+    case args of
+        ["check"] -> do
             let (reference, samples) = Wayang.checkStarts
             mapM_ (renderStarts . (++[reference])) samples
         [notesFilename] -> do
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
             process PatchDb.db quality notesFilename notes
-        _ -> errorIO $ "usage: sampler [ --fast ] notes"
+        _ -> usage ""
+    where
+    usage msg = do
+        unless (null msg) $
+            putStrLn $ "ERROR: " ++ msg
+        putStr (GetOpt.usageInfo "sampler-im [ flags ] path/to/notes" options)
+        System.Exit.exitFailure
+
+data Flags = Quality Resample.Quality
+    deriving (Eq, Show)
+
+readEnum :: (Show a, Enum a, Bounded a) => String -> a
+readEnum str =
+    fromMaybe (error (show str <> " not in: " <> show (Map.keys toVal))) $
+        Map.lookup str toVal
+    where
+    toVal = Map.fromList $ Seq.key_on show [minBound .. maxBound]
+
+defaultQuality :: Resample.Quality
+defaultQuality = Resample.SincMediumQuality
+
+options :: [GetOpt.OptDescr Flags]
+options =
+    [ GetOpt.Option [] ["quality"]
+        (GetOpt.ReqArg (Quality . readEnum) (show defaultQuality))
+        ("resample quality: "
+            <> show [minBound .. maxBound :: Resample.Quality])
+    ]
 
 type Error = Text
 
