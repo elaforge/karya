@@ -18,8 +18,7 @@ module Derive.Scale.Wayang where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
-import qualified Midi.Key2 as Key2
-import qualified Midi.Midi as Midi
+import qualified Util.Seq as Seq
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -28,26 +27,32 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Midi.Key2 as Key2
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
+
 import Global
 
 
 scales :: [Scale.Definition]
 scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
-    [ BaliScales.make_scale scale_id
-        (BaliScales.scale_map config BaliScales.ioeua_absolute Nothing)
+    [ BaliScales.make_scale scale_id $
+        BaliScales.scale_map (config laras_sawan)
+            BaliScales.ioeua_absolute Nothing
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-pemade" (inst_scale_map pemade)
+        BaliScales.make_scale "wayang-pemade"
+            (inst_scale_map laras_sawan_pemade pemade)
     , Scales.add_doc
         "Kantilan scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-kantilan" (inst_scale_map kantilan)
+        BaliScales.make_scale "wayang-kantilan"
+            (inst_scale_map laras_sawan_kantilan kantilan)
     ]
     where
-    inst_scale_map = BaliScales.instrument_scale_map config
+    inst_scale_map laras = BaliScales.instrument_scale_map (config laras)
 
 pemade :: BaliScales.Instrument
 pemade = instrument 4 (Pitch.pitch 3 O) (Pitch.pitch 5 I)
@@ -59,10 +64,9 @@ instrument :: Pitch.Octave -> Pitch.Pitch -> Pitch.Pitch
     -> BaliScales.Instrument
 instrument = BaliScales.Instrument BaliScales.ioeua BaliScales.arrow_octaves
 
-config :: BaliScales.Config
-config = BaliScales.Config
+config :: BaliScales.Laras -> BaliScales.Config
+config default_laras = BaliScales.Config
     { config_layout = layout
-    , config_base_octave = base_oct
     , config_keys = mempty
     , config_default_key = default_key
     , config_laras = laras
@@ -83,39 +87,63 @@ scale_id = "wayang"
 
 data Pitch = I | O | E | U | A deriving (Eq, Enum, Show)
 
-default_laras :: Text
-default_laras = "sawan"
+-- default_laras :: Text
+-- default_laras = laras_sawan
 
 laras :: Map Text BaliScales.Laras
-laras = Map.fromList $ (default_laras, laras_sawan) : mcphee
+laras = Map.fromList $ Seq.key_on BaliScales.laras_name $
+    laras_sawan
+    : laras_sawan_pemade
+    : laras_sawan_kantilan
+    : mcphee
 
 laras_sawan :: BaliScales.Laras
-laras_sawan = BaliScales.laras (extend (BaliScales.inst_low pemade))
-    "Tuning from my gender wayang, made in Sawan, Singaraja."
-    [ (52.30,   53.00) -- 3o, pemade begin
-    , (54.55,   55.15)
-    , (57.35,   57.73)
-    , (59.85,   60.40)
+laras_sawan = BaliScales.laras "sawan" (Pitch.pitch 1 0)
+    (extend (BaliScales.inst_low pemade))
+    "Tuning from my gender wayang, made in Sawan, Singaraja." $
+    -- Of course the overlapping parts of the scales are a bit different, and
+    -- I have to pick one.  So I choose the pemade version.
+    BaliScales.laras_nns laras_sawan_pemade
+    ++ drop 5 (BaliScales.laras_nns laras_sawan_kantilan)
 
-    , (62.50,   62.95) -- 4i, pemade middle
-    , (64.45,   64.70) -- 4o, kantilan begin
-    , (67.26,   67.57)
-    , (69.25,   69.45)
-    , (71.81,   72.10)
+laras_sawan_pemade :: BaliScales.Laras
+laras_sawan_pemade = BaliScales.laras "sawan-pemade" (Pitch.pitch 3 1) id
+    "Sawan tuning for pemade."
+    [ (52.27, 52.94)
+    , (54.55, 55.15)
+    , (57.35, 57.90)
+    , (59.85, 60.32)
 
-    , (74.63,   74.83) -- 5i, pemade end, kantilan middle
-    , (76.73,   76.85)
-    , (79.35,   79.48)
-    , (81.51,   81.63)
-    , (84.00,   84.12)
-    , (86.78,   86.88) -- 6i, kantilan end
+    , (62.50, 63.00) -- 4i
+    , (64.45, 64.72)
+    , (67.29, 67.60)
+    , (69.25, 69.48)
+    , (71.83, 72.11)
+    , (74.66, 74.85) -- 5i
     ]
 
-mcphee :: [(Text, BaliScales.Laras)]
+laras_sawan_kantilan :: BaliScales.Laras
+laras_sawan_kantilan = BaliScales.laras "sawan-kantilan" (Pitch.pitch 4 1) id
+    "Sawan tuning for kantilan"
+    [ (64.31, 64.70)
+    , (67.13, 67.45)
+    , (69.22, 69.46)
+    , (71.81, 72.00)
+
+    , (74.57, 74.80) -- 5i
+    , (76.75, 76.88)
+    , (79.37, 79.50)
+    , (81.53, 81.65)
+    , (84.02, 84.13)
+    , (86.79, 86.90) -- 6i
+    ]
+
+mcphee :: [BaliScales.Laras]
 mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.slendro
     where
     make (name, (nns, doc)) =
-        (name, BaliScales.laras id doc (map (\nn -> (nn, nn)) nns))
+        BaliScales.laras name (Pitch.pitch 1 0) id doc
+            (map (\nn -> (nn, nn)) nns)
 
 -- | Extend down two octaves so that I start at 1i, and up two octaves to 8i.
 --

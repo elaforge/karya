@@ -27,9 +27,9 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
+import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
+
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -39,8 +39,11 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
+
 import Global
 
 
@@ -116,11 +119,10 @@ balinese_notation inst = inst
 config :: BaliScales.Config
 config = BaliScales.Config
     { config_layout = layout
-    , config_base_octave = base_octave
     , config_keys = all_keys
     , config_default_key = default_key
     , config_laras = laras
-    , config_default_laras = default_laras
+    , config_default_laras = laras_rambat
     }
     where
     layout = Theory.layout intervals
@@ -153,23 +155,17 @@ rambat_range = Scale.Range (Pitch.pitch 3 E) (Pitch.pitch 6 I)
 trompong_range = Scale.Range (Pitch.pitch 3 A) (Pitch.pitch 5 U)
 reyong_range = Scale.Range (Pitch.pitch 4 E) (Pitch.pitch 6 U)
 
--- | Lowest note start on this octave.
-base_octave :: Pitch.Octave
-base_octave = 3
-
 -- * laras
 
 data Pitch = I | O | E | Es | U | A | As
     deriving (Eq, Ord, Enum, Show, Bounded)
 
-default_laras :: Text
-default_laras = "rambat"
-
 laras :: Map Text BaliScales.Laras
-laras = Map.fromList $ (default_laras, laras_rambat) : mcphee
+laras = Map.fromList $ Seq.key_on BaliScales.laras_name $
+    laras_rambat : mcphee
 
 laras_rambat :: BaliScales.Laras
-laras_rambat = BaliScales.laras (extend 3 E)
+laras_rambat = BaliScales.laras "rambat" low_pitch (extend 3 E)
     "From my gender rambat, made in Blabatuh, Gianyar, tuned in\
     \ Munduk, Buleleng."
     $ map (second (Pitch.add_hz 4)) -- TODO until I measure real values
@@ -210,15 +206,20 @@ laras_rambat = BaliScales.laras (extend 3 E)
 extend :: Pitch.Octave -> Pitch -> [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend oct pc = Bali.extend_scale 7 low_pitch high_pitch (Pitch.pitch oct pc)
 
+-- | Lowest note starts on this octave.
+base_octave :: Pitch.Octave
+base_octave = 3
+
 low_pitch, high_pitch :: Pitch.Pitch
 low_pitch = Pitch.pitch base_octave I
 high_pitch = Pitch.pitch 7 I
 
-mcphee :: [(Text, BaliScales.Laras)]
+mcphee :: [BaliScales.Laras]
 mcphee = map (make . McPhee.extract low_pitch high_pitch) McPhee.saih_pitu
     where
     make (name, (nns, doc)) =
-        (name, BaliScales.laras id doc (map (\nn -> (nn, nn)) nns))
+        BaliScales.laras name low_pitch id doc
+            (map (\nn -> (nn, nn)) nns)
 
 -- * instrument integration
 

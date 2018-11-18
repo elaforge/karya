@@ -6,8 +6,7 @@ module Derive.Scale.Wayang_test where
 import qualified Data.Vector as Vector
 
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.UiTest as UiTest
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -16,7 +15,11 @@ import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
 import Global
+import Util.Test
 
 
 test_read = do
@@ -29,7 +32,7 @@ test_read = do
     let run scale pitch = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks "" $ scale_track scale [pitch]
     equal (run "wayang" "5i") (run "wayang-pemade" "i^")
-    equal (run "wayang" "5i") (run "wayang-kantilan" "i-")
+    equal (run "wayang" "6i") (run "wayang-kantilan" "i^")
 
 test_note_to_call = do
     let run laras = ScaleTest.note_to_call "wayang" ("laras=" <> laras)
@@ -50,7 +53,6 @@ scale_track scale_id pitches =
     ]
     where events = zip (Seq.range_ 0 1) pitches
 
-
 test_input_to_note = do
     let f scale = ScaleTest.input_to_note scale mempty
         wayang = ScaleTest.get_scale Wayang.scales "wayang"
@@ -66,3 +68,13 @@ test_input_to_note = do
         [ invalid, "o_", "e_", "u_", "a_", "i-", "o-", "e-", "u-", "a-"
         , "i^", invalid
         ]
+
+test_input_to_nn = do
+    let pemade = ScaleTest.get_scale Wayang.scales "wayang-pemade"
+        kantilan = ScaleTest.get_scale Wayang.scales "wayang-kantilan"
+    let run scale = DeriveTest.eval Ui.empty . Scale.scale_input_to_nn scale 0
+            . ScaleTest.ascii_kbd
+    equal (run pemade (4, 0, 0)) (Right (Right 62.5))
+    equal (run kantilan (4, 0, 0)) (Right (Left BaseTypes.InvalidInput))
+    equal (run pemade (5, 0, 0)) (Right (Right 74.66))
+    equal (run kantilan (5, 0, 0)) (Right (Right 74.57))

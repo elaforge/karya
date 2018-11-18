@@ -32,31 +32,29 @@ scale_id = "selisir"
 config :: BaliScales.Config
 config = BaliScales.Config
     { config_layout = layout
-    , config_base_octave = base_octave
     , config_keys = mempty
     , config_default_key = default_key
     , config_laras = laras
-    , config_default_laras = Legong.default_laras
+    , config_default_laras = laras_rambat
     }
     where
     layout = Theory.diatonic_layout 5
     default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
 
--- | Lowest note start on this octave.
-base_octave :: Pitch.Octave
-base_octave = 3
-
 laras :: Map Text BaliScales.Laras
-laras = (pitu_to_lima <$> Legong.laras)
-    <> Map.fromList (("pegulingan-teges", pegulingan_teges) : mcphee)
+laras = BaliScales.laras_map $ concat
+    [ map pitu_to_lima (Map.elems Legong.laras)
+    , [pegulingan_teges]
+    , mcphee
+    ]
 
-mcphee :: [(Text, BaliScales.Laras)]
+mcphee :: [BaliScales.Laras]
 mcphee =
     map (make . McPhee.extract Legong.low_pitch Legong.high_pitch)
         McPhee.selisir
     where
     make (name, (nns, doc)) =
-        (name, BaliScales.laras id doc (map (\nn -> (nn, nn)) nns))
+        BaliScales.laras name low_pitch id doc (map (\nn -> (nn, nn)) nns)
 
 -- | Exported for instruments to use.
 laras_rambat :: BaliScales.Laras
@@ -64,10 +62,9 @@ laras_rambat = pitu_to_lima Legong.laras_rambat
 
 -- | Strip extra notes to get back to saih lima.
 pitu_to_lima :: BaliScales.Laras -> BaliScales.Laras
-pitu_to_lima (BaliScales.Laras doc umbang isep) = BaliScales.Laras
-    { laras_doc = doc
-    , laras_umbang = strip umbang
-    , laras_isep = strip isep
+pitu_to_lima laras = laras
+    { BaliScales.laras_umbang = strip $ BaliScales.laras_umbang laras
+    , BaliScales.laras_isep = strip $ BaliScales.laras_isep laras
     }
     where
     strip = Vector.fromList
@@ -77,9 +74,12 @@ pitu_to_lima (BaliScales.Laras doc umbang isep) = BaliScales.Laras
 data Pitch = I | O | E | U | A
     deriving (Eq, Ord, Enum, Show, Bounded)
 
+low_pitch :: Pitch.Pitch
+low_pitch = Legong.low_pitch
+
 -- TODO what is the ombak?
 pegulingan_teges :: BaliScales.Laras
-pegulingan_teges = BaliScales.laras (extend 4 U)
+pegulingan_teges = BaliScales.laras "pegulingan-teges" low_pitch (extend 4 U)
     "From Teges Semar Pegulingan, via Bob Brown's 1972 recording."
     $ map (\nn -> (nn, nn))
     [ 69.55 -- 4u

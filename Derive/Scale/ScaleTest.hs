@@ -34,7 +34,11 @@ input_to_note :: Scale.Scale -> Env.Environ
 input_to_note scale env =
     either pretty Pitch.note_text
     . Scale.scale_input_to_note scale env
-    . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
+    . ascii_kbd
+
+ascii_kbd :: (Pitch.Octave, Pitch.PitchClass, Pitch.Accidentals)
+    -> Pitch.Input
+ascii_kbd (oct, pc, accs) = CmdTest.ascii_kbd $ CmdTest.pitch oct pc accs
 
 note_to_call :: Text -> Text -> [Text] -> ([Maybe Pitch.NoteNumber], [Text])
 note_to_call scale title =

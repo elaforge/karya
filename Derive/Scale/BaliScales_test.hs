@@ -13,9 +13,13 @@ test_ombak = do
     let run trans pitch = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks ""
                 [("> " <> trans, [(0, 1, "")]), ("*wayang", [(0, 0, pitch)])]
-    equal (run "" "4e") ([Just 67.26], [])
-    equal (run "| tuning = umbang" "4e") ([Just 67.26], [])
-    equal (run "| tuning = isep" "4e") ([Just 67.57], [])
+    equal (run "" "4e") ([Just 67.29], [])
+    equal (run "| tuning = umbang" "4e") ([Just 67.29], [])
+    equal (run "| tuning = isep" "4e") ([Just 67.6], [])
 
-    equalf 0.01 (run "| %ombak = 5" "4e") ([Just 67.306], [])
-    equalf 0.01 (run "| %ombak = 10" "4e") ([Just 67.198], [])
+    let both ombak =
+            ( run ("| tuning=umbang | %ombak=" <> showt ombak) "4e"
+            , run ("| tuning=isep | %ombak=" <> showt ombak) "4e"
+            )
+    equalf 0.01 (both 5)  (([Just 67.338], []), ([Just 67.553], []))
+    equalf 0.01 (both 10) (([Just 67.229], []), ([Just 67.66], []))

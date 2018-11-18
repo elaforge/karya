@@ -34,6 +34,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
+
 import Global
 
 
@@ -52,7 +53,7 @@ make_scale scale_id smap =
         <> " control is present, they will be tuned that many hz apart.\
         \\nThe " <> ShowVal.doc laras_key <> " env var chooses between\
         \ different tunings.  It defaults to "
-        <> ShowVal.doc (smap_default_laras smap)
+        <> ShowVal.doc (laras_name (smap_default_laras smap))
         <> ". Laras:\n"
         <> TextUtil.enumeration
             [ ShowVal.doc name <> " - " <> laras_doc laras
@@ -62,7 +63,7 @@ make_scale scale_id smap =
 data ScaleMap = ScaleMap {
     smap_chromatic :: !ChromaticScales.ScaleMap
     , smap_laras :: !LarasMap
-    , smap_default_laras :: !Text
+    , smap_default_laras :: !Laras
     }
 
 type LarasMap = Map Text Laras
@@ -70,13 +71,13 @@ type LarasMap = Map Text Laras
 scale_map :: Config -> TheoryFormat.Format -> Maybe (Pitch.Semi, Pitch.Semi)
     -- ^ If not given, use the complete range of the saih.
     -> ScaleMap
-scale_map (Config layout base_oct all_keys default_key laras default_laras)
+scale_map (Config layout all_keys default_key laras default_laras)
         fmt maybe_range =
     ScaleMap
         { smap_chromatic =
             (ChromaticScales.scale_map layout fmt all_keys default_key)
             { ChromaticScales.smap_semis_to_nn =
-                semis_to_nn offset laras default_laras
+                semis_to_nn layout laras default_laras
             -- Convert range to absolute.
             , ChromaticScales.smap_range = bimap (+offset) (+offset) range
             }
@@ -84,20 +85,19 @@ scale_map (Config layout base_oct all_keys default_key laras default_laras)
         , smap_default_laras = default_laras
         }
     where
-    offset = Theory.layout_semis_per_octave layout * base_oct
+    -- Each laras can start on a different note, but I use the default one
+    -- for the range as a whole.
+    offset = laras_offset layout default_laras
     range = fromMaybe (0, top) maybe_range
     top = maybe 0 (subtract 1 . Vector.length . laras_umbang) $
         Seq.head (Map.elems laras)
 
 data Config = Config {
     config_layout :: !Theory.Layout
-    -- | The octave where the saih starts.  It should be such that octave 4 is
-    -- close to middle C.
-    , config_base_octave :: !Pitch.Octave
     , config_keys :: !ChromaticScales.Keys
     , config_default_key :: !Theory.Key
     , config_laras :: !LarasMap
-    , config_default_laras :: !Text
+    , config_default_laras :: !Laras
     } deriving (Show)
 
 -- | This is a specialized version of 'scale_map' that uses base octave and
@@ -107,8 +107,8 @@ instrument_scale_map config
         (Instrument degrees relative_octaves center_oct low high) =
     scale_map config fmt (Just (to_pc low, to_pc high))
     where
-    to_pc p = Pitch.subtract_pitch per_oct p
-        (Pitch.pitch (config_base_octave config) 0)
+    to_pc p = Pitch.subtract_pitch per_oct p base_pitch
+    base_pitch = laras_base (config_default_laras config)
     fmt = relative_arrow degrees relative_octaves center_oct True
         (config_default_key config) (config_keys config)
     per_oct = Theory.layout_semis_per_octave (config_layout config)
@@ -131,19 +131,39 @@ instrument_range inst = Scale.Range (inst_low inst) (inst_high inst)
 -- since that's in the 'ScaleMap', and all saihs in one scale should have the
 -- same range.
 data Laras = Laras {
-    laras_doc :: Doc.Doc
+    laras_name :: Text
+    , laras_doc :: Doc.Doc
+    -- | The pitch where the laras starts.  It should be such that octave 4 is
+    -- close to middle C.
+    , laras_base :: Pitch.Pitch
     , laras_umbang :: Vector.Vector Pitch.NoteNumber
     , laras_isep :: Vector.Vector Pitch.NoteNumber
     } deriving (Eq, Show)
 
-laras :: ([Pitch.NoteNumber] -> [Pitch.NoteNumber]) -> Doc.Doc
-    -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Laras
-laras extend doc nns = Laras
-    { laras_doc = doc
+laras_map :: [Laras] -> Map Text Laras
+laras_map = Map.fromList . Seq.key_on laras_name
+
+laras :: Text -> Pitch.Pitch -> ([Pitch.NoteNumber] -> [Pitch.NoteNumber])
+    -> Doc.Doc -> [(Pitch.NoteNumber, Pitch.NoteNumber)] -> Laras
+laras name base_pitch extend doc nns = Laras
+    { laras_name = name
+    , laras_doc = doc
+    , laras_base = base_pitch
     , laras_umbang = Vector.fromList (extend umbang)
     , laras_isep = Vector.fromList (extend isep)
     }
     where (umbang, isep) = unzip nns
+
+laras_offset :: Theory.Layout -> Laras -> Pitch.Semi
+laras_offset layout laras =
+    Theory.layout_semis_per_octave layout * Pitch.pitch_octave base_pitch
+        + Pitch.pitch_pc base_pitch
+    where
+    base_pitch = laras_base laras
+
+laras_nns :: Laras -> [(Pitch.NoteNumber, Pitch.NoteNumber)]
+laras_nns laras =
+    zip (Vector.toList (laras_umbang laras)) (Vector.toList (laras_isep laras))
 
 -- * Format
 
@@ -277,14 +297,15 @@ c_ombak :: Score.Control
 c_ombak = "ombak"
 
 -- | Convert 'Pitch.FSemi' to 'Pitch.NoteNumber'.
-semis_to_nn :: Pitch.Semi -> LarasMap -> Text
+semis_to_nn :: Theory.Layout -> LarasMap -> Laras
     -> ChromaticScales.SemisToNoteNumber
-semis_to_nn offset laras default_laras =
+semis_to_nn layout laras default_laras =
     \(PSignal.PitchConfig env controls) fsemis_ -> do
-        let fsemis = fsemis_ - fromIntegral offset
-        tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
-        laras <- Scales.read_environ_default (\v -> Map.lookup v laras)
+        laras <- Scales.read_environ (\v -> Map.lookup v laras)
             (Just default_laras) laras_key env
+        let fsemis = fsemis_ - fromIntegral offset
+            offset = laras_offset layout laras
+        tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
         let err = BaseTypes.out_of_range_error fsemis
                 (0, Vector.length (laras_umbang laras))
         justErr err $ case Map.lookup c_ombak controls of
