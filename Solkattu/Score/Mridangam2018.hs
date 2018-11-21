@@ -174,3 +174,36 @@ e_misra_tisram = exercise $ date 2018 9 11 $ ganesh $
     where
     nang_kita = n . su (pk.nakatiku)
     ndk = n.d.k
+
+e_18_11_12 :: Korvai
+e_18_11_12 = exercise $ date 2018 11 12 $ ganesh $ korvai Tala.misra_chapu $
+    variations
+    [ kook.sarvaD_ 6 . kook.sarvaD_ 6
+    , pattern1 $ kook.od.__4 . kook.od.__4
+    , pattern1 $ repeat 2 (kook.o.__.k.__)
+    , pattern1 $ repeat 2 (kook.o.k.o.k)
+    , pattern1 $ repeat 2 (o.k.o.k.kook)
+    , pattern1 $ repeat 3 okko . kook
+    , pattern1 $ repeat 2 okko . repeat 2 kook
+    , pattern1 $ kook.okko.okko.kook
+    , pattern1 $ repeat 2 (k.o.o.k.o.o.__.k)
+    , pattern1 $ k.o.o.k.o.o.__.k.o.o.__.k.o.o.__.k
+    , pattern1 $ o.k.o.k.kook.o.o.__.k.o.o.__.k
+    , pattern1 $ okko.o.o.__.k.kook.kook
+    , pattern1 $ okko.o.o.__.k.kook.o.k.o.k
+    ]
+    where
+    pattern1 mid = kook.sarvaD_ 2 . mid . kook.sarvaD_ 6
+    okko = o.k.k.o
+
+e_18_11_19 :: Korvai
+e_18_11_19 = sarvalaghu $ date 2018 11 19 $ ganesh $ korvai adi $ variations
+    [ repeat 4 $ n.l.d.l.n.n.d.l
+    , repeat 4 $ n.l.d.l.n.d.su (p.l).d
+    , repeat 4 $ n.l.d.l.su (n.y.p.l).d.su (p.l)
+    , repeat 4 $ n.l.d.su (p.l.n.y.p.l).d.su (p.l)
+    , repeat 2 $ su $ repeat 3 (n.y.p.l.d.__.p.l) . (n.y.p.l.d.__.j.y)
+    , repeat 4 $ su $ d.__3.y.j.l.d.__.p.l.d.__.n.y.p.l
+    , repeat 4 $ su $ d.__3.y.j.l.d.__.p.k.t.k.n.y.p.l
+    , repeat 4 $ su $ d.__3.y.j.l.d.__.p.k.d.y.j.l.p.l
+    ]

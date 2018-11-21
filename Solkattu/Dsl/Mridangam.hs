@@ -11,11 +11,13 @@
 module Solkattu.Dsl.Mridangam (
     module Solkattu.Dsl.Mridangam
     , module Solkattu.Dsl.Generic
+    , module Solkattu.Dsl.Interactive
 ) where
 import Prelude hiding ((.))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
+import Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
 import qualified Solkattu.Format.Format as Format
