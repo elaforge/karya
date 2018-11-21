@@ -461,10 +461,12 @@ instance Semigroup Fingerprint where
 instance Monoid Fingerprint where
     mempty = Fingerprint [] 0
     mappend = (<>)
+instance Pretty Fingerprint where
+    pretty (Fingerprint files word) = pretty files <> ":" <> pretty word
 
 fingerprint :: [(FilePath, Text)] -> Fingerprint
 fingerprint files =
-    -- 'Ui.ky' gets "" for the filename.
+    -- The code in 'Ui.ky' gets "" for its filename.
     Fingerprint (filter (not . null) fnames)
         (foldl' CRC32.crc32Update 0 contents)
     where (fnames, contents) = unzip files

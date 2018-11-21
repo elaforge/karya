@@ -1280,11 +1280,29 @@ vector: performance:
 
 synth: im:
   status:
-    . progress:
     . reyong dynamics:
     . Non-constant pitch:
   merge faust-im and sampler-im:
-    . First extend faust-im to be an Audio processor, so it can take inputs.
+    - First extend faust-im to be an Audio processor, so it can take inputs.
+      . I wind up with separate generator and transformers.
+      . A generator goes until env goes to 0 and the signal decays to -96dB
+      . A transformer goes until the source signal runs out and the signal
+        decays to -96dB.
+      . Or they all go forever, and the consumer stops when the score runs out
+        and -96dB.  But then I don't stop instruments that actually do stop,
+        so let's not.
+      . So in the transformer I need to keep the audio inputs separate, since
+        the control inputs are zero padded out forever.
+      . Or I can zero-pad only controls, and when I run out inputs flip
+        a switch to watch for -96dB.
+      . No that doesn't work, because it's one NAudio, so they all end
+        together.  And I can't make controls end with the input signal.
+        I need some explicit signal.
+      . If the input is a sample, it has a definite end.  In fact, I could
+        supply it ahead of time.
+      . So transformer render gets an explicit end.
+    - Make a type distinction between generater and transformer Patch and
+      Instrument.
     . Integrate sampler-im's multiple voice ability with faust.
     . Patches now have to define a signal network, but it can probably be
       hardcoded to 'sampler -> faust' or just 'faust'.
@@ -1880,13 +1898,14 @@ synth: im:
       - Sample should stream the envelope.
       - RenderSample.applyEnvelope should be able to check for constant within
         the sample's duration.
-      - Efficiently skip long silent gaps.
+      * Efficiently skip long silent gaps.
         . To avoid writing empty checkpoints, I could link to a canonical
           empty sample.
         . Or it might be better to make a broken link, and have play_cache
           know to skip those, that way it doesn't have to read a file.
         . Link to "<silence>" or something to imply it's broken on purpose.
-      - If the sampler is cheaper overall, maybe I should use larger chunk
+        . I think I do this now, thanks to Audio.silence2.
+      / If the sampler is cheaper overall, maybe I should use larger chunk
         size?  Of course, my current faust instruments are really cheap too.
       - if libsamplerate could handle the pitch curve directly, I wouldn't
         have to resample in Convert.makeSample, and it could be per-sample.
@@ -1925,7 +1944,7 @@ synth: im:
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
         envelopes and other synth type things.
-    - An alternative to use-symbolic-pitch=t is that patches could export
+    / An alternative to use-symbolic-pitch=t is that patches could export
       their native scales.  That way other instruments could use them too.
       . Another alternative is that the scale could take instrument into
         account.
@@ -1997,12 +2016,13 @@ synth: im:
     guzheng:
       . Everything rings except when explicitly muted.
 
-    - synchronize tuning of *wayang and sampler wayang
+    * synchronize tuning of *wayang and sampler wayang
       . I'll have to update all the wayng scores too.  This notion of
         per-allocation tuning is a bit annoying because I want to be able
         to say just use the standard one.
     - bind to rubberband library for pitch change without time change
       . https://breakfastquay.com/rubberband/
+      . I'll only really use it if I have, say, mridangam sequences.
     - convolution
       . What are the options?  jconvolver,
         http://tomszilagyi.github.io/plugins/ir.lv2/

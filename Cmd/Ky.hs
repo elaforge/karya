@@ -16,11 +16,12 @@ module Cmd.Ky (
 import qualified Control.Monad.Except as Except
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Text as Text
+
 import qualified System.FilePath as FilePath
 
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
-import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Macro as Macro
@@ -32,6 +33,8 @@ import qualified Derive.Library as Library
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+
+import qualified Ui.Ui as Ui
 
 import Global
 
@@ -106,9 +109,12 @@ state_ky_paths cmd_state = maybe id (:) (Cmd.state_save_dir cmd_state)
 compile_library :: Log.LogMonad m => [FilePath] -> Library.Library
     -> m Derive.Builtins
 compile_library imports lib = do
-    let files = map (txt . FilePath.takeFileName) $ filter (not . null) imports
-    Log.notice $ "reloaded ky " <> pretty files
+    Log.notice $
+        "reloaded ky: [" <> Text.unwords (map show_import imports) <> "]"
     Library.compile_log lib
+    where
+    show_import "" = "<expr>"
+    show_import fname = txt (FilePath.takeFileName fname)
 
 compile_definitions :: Parse.Definitions -> Library.Library
 compile_definitions (Parse.Definitions (gnote, tnote) (gcontrol, tcontrol)

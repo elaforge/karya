@@ -433,6 +433,7 @@ is_whitespace c = c == ' ' || c == '\t'
 load_ky :: [FilePath] -> Text
     -> IO (Either Text (Definitions, [(FilePath, Text)]))
     -- ^ (all_definitions, [(import_filename, content)])
+    -- "" is used for the filename for the code in the ky parameter.
 load_ky paths ky = fmap (fmap annotate) . Except.runExceptT $ parse ky
     where
     parse content = do
