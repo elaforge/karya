@@ -8,12 +8,11 @@ prio-module-high: Perform.Pitch Util.Serialize
     Control.Monad.Trans.Resource
     System.IO
 prio-module-low: GHC.Environment GHC.Read GHC.MVar
-    GHC.IO
     LogView.Process
 prio-package-high:
 prio-package-low: haskell98 ghc ghc-prim darcs comonad basement
 
-unqualified: System.FilePath.(</>)
+unqualified: System.FilePath ((</>))
 
 language: BangPatterns DisambiguateRecordFields FlexibleContexts
     GeneralizedNewtypeDeriving LambdaCase MultiWayIf OverloadedStrings
