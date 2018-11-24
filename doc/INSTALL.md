@@ -1,6 +1,6 @@
 ## Installation
 
-- Install GHC.  At least 8.0 and 8.4 should work.  8.2 definitely does not
+- Install GHC.  At least 8.0 and 8.4.4 should work.  8.2 definitely does not
 work.  It should compile fine, but the REPL won't work.  Details at
 <https://ghc.haskell.org/trac/ghc/ticket/13604>.
 
@@ -104,7 +104,7 @@ dependencies.
 
 I don't use stack, but I added some basic support so hopefully this should work:
 
-    stack setup # install ghc, it's 8.0 or 8.4, right?
+    stack setup # stack.yaml uses 8.4.4
     stack install alex happy c2hs cpphs
     # Put ~/.local/bin in $PATH if stack warns you about that.
     stack install --only-dependencies

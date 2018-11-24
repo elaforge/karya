@@ -1,8 +1,8 @@
 # This is an optional stack config, if you want to install dependencies with
 # stack instead of cabal.
 
-# There's no LTS for ghc-8.4 yet.
-resolver: nightly-2018-04-30
+# This is for ghc-8.4.4.
+resolver: lts-12.19
 
 # User packages to be built.
 packages:
