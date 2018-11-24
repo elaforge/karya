@@ -2012,11 +2012,15 @@ synth: im:
       - Variable mute, take a mute control where 1 is +mute, .75 is
         +mute+loose, and <.5 is open note with an envelope.
     rambat:
-      . I need to edit the samples first.
+      - edit the samples
+      - write patch
+      - implement damping with hand simulation?  Wayang can get the same.
     guzheng:
       . Everything rings except when explicitly muted.
-    - mridangam:
-      . implement stop strokes
+    . mridangam:
+      - write patch
+        . implement stop strokes
+      - render directly from solkattu
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.

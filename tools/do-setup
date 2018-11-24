@@ -25,7 +25,7 @@ for dir in $data_dirs; do
     fi
 done
 if [[ ! -e save/default ]]; then
-    cp data/default.save save/default
+    cp doc/default.save save/default
 fi
 
 # Make a re-export module for each config hs.

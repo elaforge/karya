@@ -1,7 +1,7 @@
 #!/usr/local/bin/runghc
 {-# LANGUAGE OverloadedStrings #-}
 
--- Run this to freeze cabal deps and write to .config files.
+-- | Run this to freeze cabal deps and write to .config files.
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
@@ -15,7 +15,7 @@ main :: IO ()
 main = do
     global <- getGlobalPackags
     freeze global "karya.cabal" "cabal.config"
-    freeze global "data/all-deps.cabal" "data/all-deps.cabal.config"
+    freeze global "doc/cabal/all-deps.cabal" "doc/cabal/all-deps.cabal.config"
 
 -- Cabal is really awkward to script.
 freeze :: [Text] -> FilePath -> FilePath -> IO ()

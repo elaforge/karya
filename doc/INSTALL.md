@@ -134,11 +134,11 @@ https://github.com/elaforge/libsamplerate/tree/local
 
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 
-    cd data && cabal install --only-dependencies
+    cd doc/cabal && cabal install --only-dependencies
 
 Or, if you're doing it the stack way:
 
-    cp data/all-deps.cabal karya.cabal
+    cp doc/cabal/all-deps.cabal karya.cabal
     vi stack.yaml # uncomment the stuff in there that says to
 
 - liblo - for OSC
