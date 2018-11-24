@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Definitions for reyong and trompong.
 module Synth.Sampler.Patch.Reyong (patches, checkFilenames) where
 import qualified Data.Either as Either
 import qualified Data.List as List
@@ -11,9 +12,7 @@ import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
 import qualified Util.Map
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
@@ -99,10 +98,10 @@ inferDuration = map infer . Util.nexts
 inferEnd :: Note.Note -> [Note.Note] -> Maybe RealTime
 inferEnd note nexts = case articulationOf note of
     Open -> case List.find isMute nexts of
-        Nothing -> Just forever
+        Nothing -> Just Sample.forever
         Just mute -> Just $ Note.start mute
-    CekClosed -> Just forever
-    CekOpen -> Just forever
+    CekClosed -> Just Sample.forever
+    CekOpen -> Just Sample.forever
     MuteClosed -> Nothing
     MuteOpen -> Nothing
     where
@@ -114,9 +113,6 @@ inferEnd note nexts = case articulationOf note of
             MuteOpen -> True
             _ -> False
     articulationOf = Util.articulation Open attributeMap . Note.attributes
-    -- This should be longer than any sample, and will be clipped to sample
-    -- duration.
-    forever = 100
 
 -- * checks
 
@@ -140,7 +136,7 @@ convert :: Note.Note -> Patch.ConvertM (RealTime, Sample.Sample)
 convert note = do
     let articulation = Util.articulation Open attributeMap $
             Note.attributes note
-    let (dyn, scale) = Util.dynamic dynamicRange note
+    let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note
     let var = Util.variation (variationsOf articulation) note
     (filename, noteNn, sampleNn) <-
@@ -148,8 +144,9 @@ convert note = do
     -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
     --     <> pretty ((dyn, scale), (symPitch, sampleNn), var)
     --     <> ": " <> txt filename
-    let dynVal = Num.scale dynFactor 1 scale
-    let dur = if isMute articulation then 100 else Note.duration note + muteTime
+    let dur
+            | isMute articulation = Sample.forever
+            | otherwise = Note.duration note + muteTime
     return $ (dur,) $ Sample.Sample
         { filename = filename
         , offset = 0
@@ -173,11 +170,8 @@ isMute = \case
 muteTime :: RealTime
 muteTime = 0.085
 
--- | Reyong samples are not normalized, so each sample scales from this value
--- to 1 within its 'dynamicRange'
--- Since dyn signal is in dB, this is -x*96 dB.
-dynFactor :: Signal.Y
-dynFactor = 1 -- TODO adjust
+minDyn :: Signal.Y
+minDyn = 0.5
 
 {- |
     > 45-1-31-cek+{closed,open}+v{1..6}.wav

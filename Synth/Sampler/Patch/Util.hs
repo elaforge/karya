@@ -47,15 +47,24 @@ articulation :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
 articulation deflt attributeMap  =
     maybe deflt snd . (`Common.lookup_attributes` attributeMap)
 
-dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Note.Note
+-- | Get patch-specific dyn category, and note dynamic.
+--
+dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
+    -- ^ Min dyn.  This is for normalized samples, where 0 gets this dyn.
+    -> Note.Note -> (dyn, Signal.Y)
+dynamic dynToRange minDyn note =
+    (fst $ findDynamic dynToRange dyn, Num.scale minDyn 1 dyn)
+    where dyn = fromMaybe 0 $ Note.initial Control.dynamic note
+
+dynamicScale :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Note.Note
     -> (dyn, Signal.Y)
-dynamic dynamicRange =
-    findDynamic dynamicRange . fromMaybe 0 . Note.initial Control.dynamic
+dynamicScale dynToRange =
+    findDynamic dynToRange . fromMaybe 0 . Note.initial Control.dynamic
 
 -- | Convert to (Dynamic, DistanceFromPrevDynamic)
 findDynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
     -> (dyn, Signal.Y)
-findDynamic dynamicRange y =
+findDynamic dynToRange y =
     find 0 (Num.clamp 0 127 (round (y * 127))) rangeDynamics
     where
     find low val ((high, dyn) : rest)
@@ -64,7 +73,7 @@ findDynamic dynamicRange y =
         | otherwise = find high val rest
     find _ _ [] = error "empty rangeDynamics"
     int = fromIntegral
-    rangeDynamics = Seq.key_on (snd . dynamicRange) enumAll
+    rangeDynamics = Seq.key_on (snd . dynToRange) enumAll
 
 type Variation = Int
 

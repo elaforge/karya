@@ -21,7 +21,6 @@ import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Map
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -157,18 +156,16 @@ convert :: Instrument -> Tuning -> Note.Note
 convert instrument tuning note = do
     let articulation = Util.articulation Open attributeMap $
             Note.attributes note
-    let noteDyn = fromMaybe 0 $ Note.initial Control.dynamic note
-    let (dyn, scale) = Util.findDynamic dynamicRange noteDyn
+    let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note
-    (dyn, scale) <- pure $ workaround instrument tuning articulation dyn scale
+    dyn <- pure $ workaround instrument tuning articulation dyn
     let var = Util.variation (variationsOf articulation) note
     (filename, noteNn, sampleNn) <- tryRight $
         toFilename instrument tuning articulation
         symPitch dyn var
     Log.debug $ "note at " <> pretty (Note.start note) <> ": "
-        <> pretty ((dyn, scale), (symPitch, sampleNn), var)
+        <> pretty ((dyn, dynVal), (symPitch, sampleNn), var)
         <> ": " <> txt filename
-    let dynVal = Num.scale minDyn 1 noteDyn
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
@@ -190,10 +187,9 @@ isMute = \case
     _ -> False
 
 -- | I'm missing these samples, so substitute some others.
-workaround :: Instrument -> Tuning -> Articulation -> Dynamic -> Signal.Y
-    -> (Dynamic, Signal.Y)
-workaround Kantilan Umbang CalungMute FF scale = (MF, scale + 1)
-workaround _inst _tuning _articulation dyn scale = (dyn, scale)
+workaround :: Instrument -> Tuning -> Articulation -> Dynamic -> Dynamic
+workaround Kantilan Umbang CalungMute FF = MF
+workaround _inst _tuning _articulation dyn = dyn
 
 -- | Time to mute at the end of a note.
 muteTime :: RealTime

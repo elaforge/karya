@@ -259,7 +259,7 @@ test_crc32 = do
     not_equal (f [(0, 2)]) (f [(0, 1)])
     not_equal (f [(0, 1)]) (f [(1, 1)])
 
--- * quickcheck
+-- * hedgehog
 
 -- | Xs are ascending.
 test_from_samples_ascending = hedgehog $ property $ do

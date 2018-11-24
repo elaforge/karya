@@ -69,6 +69,11 @@ instance Pretty Sample where
         , ("ratio", Pretty.format ratio)
         ]
 
+-- | The duration of a note which plays the entire sample.  This should be
+-- longer than any sample, and will be clipped to sample duration.
+forever :: RealTime
+forever = 1000
+
 -- * util
 
 pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y

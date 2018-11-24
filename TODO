@@ -1280,8 +1280,9 @@ vector: performance:
 
 synth: im:
   status:
-    . reyong dynamics:
+    . mridangam:
     . Non-constant pitch:
+    . merge faust-im and sampler-im:
   merge faust-im and sampler-im:
     - First extend faust-im to be an Audio processor, so it can take inputs.
       . I wind up with separate generator and transformers.
@@ -2006,8 +2007,7 @@ synth: im:
           self-consistent.
         . I need to be able to explicitly assign variations to do it from
           karya.
-        . I can do it by just setting %variation, but reyong doesn't do any of
-          that yet.
+        . I can do it by just setting %variation.
     wayang:
       - Variable mute, take a mute control where 1 is +mute, .75 is
         +mute+loose, and <.5 is open note with an envelope.
@@ -2015,6 +2015,11 @@ synth: im:
       . I need to edit the samples first.
     guzheng:
       . Everything rings except when explicitly muted.
+    - mridangam:
+      . implement stop strokes
+    - record mridangam sequences like kita and dikutarikitataka and use
+      rubberband to fit them into shape
+      . Compare with rendering via samples and see what's different.
 
     * synchronize tuning of *wayang and sampler wayang
       . I'll have to update all the wayng scores too.  This notion of
