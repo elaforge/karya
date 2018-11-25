@@ -48,7 +48,6 @@ articulation deflt attributeMap  =
     maybe deflt snd . (`Common.lookup_attributes` attributeMap)
 
 -- | Get patch-specific dyn category, and note dynamic.
---
 dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
     -- ^ Min dyn.  This is for normalized samples, where 0 gets this dyn.
     -> Note.Note -> (dyn, Signal.Y)
@@ -85,11 +84,11 @@ variation variations = pick . fromMaybe 0 . Note.initial Control.variation
 
 thru :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
     -> ImInst.Code
-thru dir convert = ImInst.thru $ thruFunction dir convert
+thru sampleDir convert = ImInst.thru $ thruFunction sampleDir convert
 
 thruFunction :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
     -> Osc.ThruFunction
-thruFunction dir convert attrs pitch velocity = do
+thruFunction sampleDir convert attrs pitch velocity = do
     ((_, sample), _logs) <- Patch.runConvert $ convert $ (Note.note "" "" 0 1)
         { Note.attributes = attrs
         , Note.controls = Map.fromList
@@ -97,7 +96,7 @@ thruFunction dir convert attrs pitch velocity = do
             , (Control.dynamic, Signal.constant velocity)
             ]
         }
-    return [Sample.toOsc dir sample]
+    return [Sample.toOsc sampleDir sample]
 
 -- * util
 

@@ -6,18 +6,18 @@ module Perform.Midi.PerformTest where
 import qualified System.IO as IO
 
 import qualified Util.PPrint as PPrint
-import qualified Midi.Midi as Midi
+import qualified App.LoadInstruments as LoadInstruments
+import qualified App.Path as Path
 import qualified Cmd.Simple as Simple
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
-import qualified App.Config as Config
-import qualified App.LoadInstruments as LoadInstruments
 import Global
 import Types
 
@@ -31,7 +31,7 @@ dump_perf_events fname events =
 
 read_perf_events :: [Simple.ExactPerfEvent] -> IO [Types.Event]
 read_perf_events events = do
-    db <- LoadInstruments.load =<< Config.get_app_dir
+    db <- LoadInstruments.load =<< Path.get_app_dir
     return $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
 
 lookup_patch :: Inst.Db code -> InstTypes.Qualified -> Maybe Types.Patch

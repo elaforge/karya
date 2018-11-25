@@ -6,29 +6,32 @@
 module User.Elaforge.Instrument.Morpheus where
 import System.FilePath ((</>))
 
-import qualified Midi.Midi as Midi
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+
 import Global
 
 
 synth_name :: InstTypes.SynthName
 synth_name = "morpheus"
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
+load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
 load = MidiInst.load_synth (const mempty) synth_name "E-mu Morpheus"
 
-make_db :: FilePath -> IO ()
-make_db dir = do
-    patches <- map MidiInst.patch_from_pair <$>
-        Parse.patch_file (dir </> untxt synth_name)
+make_db :: Path.AppDir -> IO ()
+make_db app_dir = do
+    let fname = Path.absolute app_dir Config.instrument_dir </> untxt synth_name
+    patches <- map MidiInst.patch_from_pair <$> Parse.patch_file fname
     patches <- return $
         map (MidiInst.patch#Patch.defaults#Patch.pitch_bend_range #= (-12, 12))
             patches
-    MidiInst.save_synth dir synth_name patches
+    MidiInst.save_synth app_dir synth_name patches
 
 synth_controls :: [(Midi.Control, Score.Control)]
 synth_controls =

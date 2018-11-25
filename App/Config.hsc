@@ -4,12 +4,12 @@
 
 -- | Global static app defaults.
 module App.Config where
+import qualified App.Path as Path
+import App.Path ((</>))
 import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
 import qualified Data.Map.Strict as Map
-import qualified Data.String as String
 import qualified System.Info
-import qualified System.FilePath as FilePath
 
 import qualified Util.Array as Array
 import qualified Util.Thread as Thread
@@ -40,48 +40,43 @@ platform = case System.Info.os of
 
 -- * paths
 
--- | Paths which are intended to be relative to the app dir get this type,
--- so it's harder to accidentally use them directly.
-newtype RelativePath = RelativePath FilePath deriving (Show, String.IsString)
+-- | All local data is relative to this dir.
+data_dir :: Path.Relative
+data_dir = "data"
 
-(</>) :: RelativePath -> RelativePath -> RelativePath
-RelativePath a </> RelativePath b = RelativePath (a FilePath.</> b)
-
-make_path :: FilePath -> RelativePath -> FilePath
-make_path app_dir (RelativePath path) = app_dir FilePath.</> path
-
--- | All paths should be relative to this one.
--- I may later change this to an env var, a flag, or just leave it hardcoded.
-get_app_dir :: IO FilePath
-get_app_dir = return "."
-
--- | All code and data local to an installation (i.e. specific to a particular
--- configuration) should go here.
-local_dir :: RelativePath
-local_dir = "Local"
-
--- | These directories are searched for ky files containing local definitions.
--- The directory of the saved score is prepended to the list.
-ky_paths :: [RelativePath]
-ky_paths = [local_dir </> "ky"]
-
--- | Store instrument db code and data.
-instrument_dir :: RelativePath
-instrument_dir = "inst_db"
-
--- | Directory for instruments with slow patch loading to save their caches.
--- This should be below 'instrument_dir'.
-instrument_cache_dir :: RelativePath
-instrument_cache_dir = "db"
-
-log_dir :: RelativePath
-log_dir = "log"
+-- ** data, shared between repos
 
 -- | Saved scores are expected to be relative to this directory.  I use
 -- a symlink to have a path relative to the app dir, but point to a global
 -- directory.
-save_dir :: RelativePath
-save_dir = "save"
+save_dir :: Path.Relative
+save_dir = data_dir </> "save"
+
+-- | These directories are searched for ky files containing local definitions.
+-- The directory of the saved score is prepended to the list.
+ky_paths :: [Path.Relative]
+ky_paths = [local_dir </> "ky"]
+
+-- | Store instrument db code and data.
+instrument_dir :: Path.Relative
+instrument_dir = data_dir </> "inst_db"
+
+im_dir :: Path.Relative
+im_dir = data_dir </> "im"
+
+-- | Directory for instruments with slow patch loading to save their caches.
+instrument_cache_dir :: Path.Relative
+instrument_cache_dir = instrument_dir </> "db"
+
+-- ** data, local to a repo
+
+-- | All code and data local to an installation (i.e. specific to a particular
+-- configuration) should go here.
+local_dir :: Path.Relative
+local_dir = "Local"
+
+log_dir :: Path.Relative
+log_dir = "log"
 
 
 -- * status view

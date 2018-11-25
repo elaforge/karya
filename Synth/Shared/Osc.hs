@@ -41,8 +41,8 @@ send msg =
     open = OSC.Transport.FD.UDP.openUDP "127.0.0.1" Config.oscPort
 
 play :: Play -> OSC.Message
-play (Play fname ratio volume) = OSC.message "/play"
-    [ OSC.ASCII_String (ByteString.Char8.pack fname)
+play (Play sample ratio volume) = OSC.message "/play"
+    [ OSC.ASCII_String (ByteString.Char8.pack sample)
     , OSC.Double ratio, OSC.Double volume
     ]
 

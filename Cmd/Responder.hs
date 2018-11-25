@@ -40,7 +40,7 @@ import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified App.ReplProtocol as ReplProtocol
 import qualified App.StaticConfig as StaticConfig
 
@@ -119,7 +119,7 @@ responder config git_user ui_chan msg_reader midi_interface setup_cmd
     Log.debug "start responder"
     ui_state <- Ui.create
     monitor_state <- MVar.newMVar ui_state
-    app_dir <- Config.get_app_dir
+    app_dir <- Path.get_app_dir
     let cmd_state = setup_state $ Cmd.initial_state $
             StaticConfig.cmd_config app_dir midi_interface config git_user
     trace "respond initialize"

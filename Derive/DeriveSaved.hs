@@ -18,9 +18,10 @@ import qualified Util.Log as Log
 import qualified Util.Test.Testing as Testing
 import qualified Util.Thread as Thread
 
-import qualified Midi.Midi as Midi
-import qualified Midi.StubMidi as StubMidi
-import qualified Ui.Ui as Ui
+import qualified App.Config as Config
+import qualified App.Path as Path
+import qualified App.StaticConfig as StaticConfig
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Ky as Ky
 import qualified Cmd.Lilypond
@@ -38,9 +39,11 @@ import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Local.Config
+import qualified Midi.Midi as Midi
+import qualified Midi.StubMidi as StubMidi
 import qualified Synth.Shared.Config as Shared.Config
-import qualified App.Config as Config
-import qualified App.StaticConfig as StaticConfig
+import qualified Ui.Ui as Ui
+
 import Global
 import Types
 
@@ -170,8 +173,8 @@ load_score db fname = fmap fst $ time ("load " <> txt fname) (\_ _ _ -> "") $
                 state <- require_right $ first pretty <$>
                     Save.read_state_ db fname
                 return (state, FilePath.takeDirectory fname)
-        app_dir <- liftIO Config.get_app_dir
-        let paths = dir : map (Config.make_path app_dir) Config.ky_paths
+        app_dir <- liftIO Path.get_app_dir
+        let paths = dir : map (Path.absolute app_dir) Config.ky_paths
         (builtins, aliases) <- require_right $ Ky.load paths state
         return (state, builtins, aliases)
 
@@ -187,18 +190,18 @@ load_cmd_config = do
 cmd_config :: Cmd.InstrumentDb -> IO Cmd.Config
 cmd_config inst_db = do
     interface <- StubMidi.interface
-    app_dir <- Config.get_app_dir
+    app_dir <- Path.get_app_dir
     return $ Cmd.Config
         { config_app_dir = app_dir
         , config_midi_interface = interface
-        , config_ky_paths = map (Config.make_path app_dir) Config.ky_paths
+        , config_ky_paths = map (Path.absolute app_dir) Config.ky_paths
         , config_rdev_map = mempty
         , config_wdev_map = mempty
         , config_instrument_db = inst_db
         , config_builtins = C.All.builtins
         , config_highlight_colors = mempty
-        , config_im = Shared.Config.Config
-            (Shared.Config.imDir Shared.Config.config) mempty
+        , config_im = (Shared.Config.config app_dir)
+            { Shared.Config.synths = mempty }
         -- You shouldn't be saving any checkpoints from here, so I can use
         -- dummy values.
         , config_git_user = SaveGit.User "name" "email"

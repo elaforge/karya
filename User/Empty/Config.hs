@@ -5,20 +5,22 @@
 -- | Setup 'StaticConfig.StaticConfig'.  This is an empty example config, which
 -- you'll want to customize locally.
 module User.Empty.Config (load_static_config) where
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
-import qualified Derive.C.All as C.All
 import qualified App.Config as Config
 import qualified App.LoadInstruments as LoadInstruments
 import qualified App.ParseArgs as ParseArgs
+import qualified App.Path as Path
 import qualified App.StaticConfig as StaticConfig
+
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
+import qualified Derive.C.All as C.All
 
 import Global
 
 
 load_static_config :: IO StaticConfig.StaticConfig
 load_static_config = do
-    app_dir <- Config.get_app_dir
+    app_dir <- Path.get_app_dir
     instrument_db <- LoadInstruments.load app_dir
     midi <- get_midi_config instrument_db
     return $ StaticConfig.StaticConfig

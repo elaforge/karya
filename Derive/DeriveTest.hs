@@ -19,18 +19,8 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
-import qualified Midi.Midi as Midi
-import qualified Midi.StubMidi as StubMidi
-import qualified Ui.Block as Block
-import qualified Ui.Color as Color
-import qualified Ui.Id as Id
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-import qualified Ui.UiTest as UiTest
-
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -61,6 +51,12 @@ import qualified Derive.Stream as Stream
 import Derive.TestInstances ()
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
+import qualified Midi.Midi as Midi
+import qualified Midi.StubMidi as StubMidi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Patch as Patch
@@ -70,13 +66,18 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
-
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Synth.Shared.Control as Control
-import qualified App.Config as Config
+import qualified Ui.Block as Block
+import qualified Ui.Color as Color
+import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
+
 import Global
 import Types
 
@@ -475,7 +476,7 @@ default_cmd_state = Cmd.initial_state (cmd_config UiTest.default_db)
 -- | Config to initialize the Cmd.State.
 cmd_config :: Cmd.InstrumentDb -> Cmd.Config
 cmd_config inst_db = Cmd.Config
-    { config_app_dir = "."
+    { config_app_dir = Path.AppDir "."
     , config_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
     , config_ky_paths = []
     , config_rdev_map = mempty

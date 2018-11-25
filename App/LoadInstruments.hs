@@ -18,14 +18,15 @@
 module App.LoadInstruments where
 import System.FilePath ((</>))
 
-import qualified Util.Log as Log
+import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Perform.Im.Play
-import qualified Perform.Lilypond.Constants as Lilypond.Constants
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
+import qualified Perform.Im.Play
+import qualified Perform.Lilypond.Constants as Lilypond.Constants
+import qualified Util.Log as Log
 
 import qualified Local.Instrument
 import qualified App.Config as Config
@@ -70,18 +71,16 @@ synth_warnings = concat
 internal_synths :: [MidiInst.Synth]
 internal_synths = [Lilypond.Constants.ly_synth Cmd.empty_code]
 
-load :: FilePath -> IO (Inst.Db Cmd.InstrumentCode)
+load :: Path.AppDir -> IO (Inst.Db Cmd.InstrumentCode)
 load app_dir = do
-    loaded <- mapMaybeM
-        (($ Config.make_path app_dir Config.instrument_dir) . snd . snd)
-        all_loads
+    loaded <- mapMaybeM (($ app_dir) . snd . snd) all_loads
     let synths = concat
             [ im_synths
             , loaded
             , midi_synths
             , internal_synths
             ]
-    let annot_fn = Config.make_path app_dir Config.local_dir
+    let annot_fn = Path.absolute app_dir Config.local_dir
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \case
         -- The parsec error already includes the filename.

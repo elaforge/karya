@@ -13,7 +13,7 @@ module Util.Doc (
     , HtmlState, get_html_state
 ) where
 import qualified Data.Char as Char
-import Data.Semigroup (Semigroup, (<>))
+import Data.Semigroup ((<>), Semigroup)
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -24,6 +24,8 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
+
+import qualified App.Path as Path
 
 
 -- | This is for documentation text.  It can contain some simple markdown-like
@@ -116,12 +118,12 @@ html_doc (haddock_dir, files) (Doc doc) = Html . postproc . un_html . html $ doc
 -- | (haddock_dir, directory_tree)
 type HtmlState = (FilePath, Set.Set FilePath)
 
-get_html_state :: FilePath -> FilePath -> IO HtmlState
+get_html_state :: FilePath -> Path.AppDir -> IO HtmlState
 get_html_state haddock_dir app_dir = do
     files <- get_files app_dir
     -- The eventual output is in build/doc.
     return (haddock_dir, files)
     where
-    get_files dir = do
+    get_files (Path.AppDir dir) = do
         files <- File.listRecursive (maybe False Char.isUpper . Seq.head) dir
         return $ Set.fromList files

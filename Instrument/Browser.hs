@@ -43,14 +43,15 @@ import qualified Util.FltkUtil as FltkUtil
 import qualified Util.Format as Format
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
+import qualified App.LoadInstruments as LoadInstruments
+import qualified App.Path as Path
+import qualified App.ReplProtocol as ReplProtocol
+
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
-import qualified Perform.Im.Patch as Im.Patch
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Patch as Patch
-
 import qualified Instrument.BrowserC as BrowserC
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -58,9 +59,9 @@ import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Search as Search
 import qualified Instrument.Tag as Tag
 
-import qualified App.Config as Config
-import qualified App.LoadInstruments as LoadInstruments
-import qualified App.ReplProtocol as ReplProtocol
+import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Patch as Patch
 
 import Global
 
@@ -87,7 +88,7 @@ main = ReplProtocol.initialize $ do
         usage ("unparsed args: " ++ show args)
     when (Help `elem` flags) (usage "usage:")
 
-    db <- LoadInstruments.load =<< Config.get_app_dir
+    db <- LoadInstruments.load =<< Path.get_app_dir
     putStrLn $ "Loaded " ++ show (Inst.size db) ++ " instruments."
     let geometry = Seq.head [g | Geometry g <- flags]
         (x, y, w, h) = default_geometry geometry

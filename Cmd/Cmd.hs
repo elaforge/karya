@@ -47,7 +47,6 @@ import qualified Data.Word as Word
 
 import qualified Sound.OSC as OSC
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.GitTypes as GitTypes
@@ -59,6 +58,7 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import Cmd.Msg (Performance(..)) -- avoid a circular import
@@ -419,7 +419,7 @@ data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
 -- | Directory of the save file.
 state_save_dir :: State -> Maybe FilePath
-state_save_dir state = path state . Config.RelativePath <$>
+state_save_dir state = path state . Path.relative <$>
     case state_save_file state of
         Nothing -> Nothing
         Just (_, SaveState fn) -> Just $ FilePath.takeDirectory fn
@@ -438,7 +438,7 @@ score_path state = case state_save_file state of
     -- TODO this is easily fooled if app dir isn't cwd, maybe I should
     -- canonicalize paths.
     strip = dropWhile (=='/') . fst . Seq.drop_prefix save_dir
-    Config.RelativePath save_dir = Config.save_dir
+    save_dir = Path.unrelative Config.save_dir
 
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
@@ -519,7 +519,7 @@ reinit_state present cstate = cstate
 -- the "App.StaticConfig".
 data Config = Config {
     -- | App root, initialized from 'Config.get_app_dir'.
-    config_app_dir :: !FilePath
+    config_app_dir :: !Path.AppDir
     , config_midi_interface :: !Midi.Interface.Interface
     -- | Search path for local definition files, from 'Config.definition_path'.
     , config_ky_paths :: ![FilePath]
@@ -554,9 +554,8 @@ state_midi_writer state imsg = do
         (config_wdev_map (state_config state))
 
 -- | Convert a relative path to place it in the app dir.
-path :: State -> Config.RelativePath -> FilePath
-path state (Config.RelativePath path) =
-    config_app_dir (state_config state) </> path
+path :: State -> Path.Relative -> FilePath
+path state = Path.absolute (config_app_dir (state_config state))
 
 -- | This was previously in 'Config', and configured via StaticConfig.  But it
 -- turns out I don't really use StaticConfig.  It has a name here just so

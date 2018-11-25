@@ -82,8 +82,8 @@ pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn
     -- should be *2.  Number of frames is /2.  Ratio is 0.5.
 
 toOsc :: FilePath -> Sample -> Osc.Play
-toOsc dir sample = Osc.Play
-    { _sample = Config.samplerRoot </> dir </> filename sample
+toOsc sampleDir sample = Osc.Play
+    { _sample = Config.unsafeSamplerRoot </> sampleDir </> filename sample
     , _ratio = Signal.at start $ ratio sample
     , _volume = Signal.at start $ envelope sample
     }

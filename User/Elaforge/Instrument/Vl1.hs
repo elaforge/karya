@@ -24,36 +24,39 @@ import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
-import qualified Midi.CC as CC
-import qualified Midi.Encode
-import qualified Midi.Midi as Midi
-
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
 
+import qualified Midi.CC as CC
+import qualified Midi.Encode
+import qualified Midi.Midi as Midi
+
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Patch as Patch
 import qualified User.Elaforge.Instrument.Vl1Spec as Vl1Spec
+
 import Global
 
 
 synth_name :: InstTypes.SynthName
 synth_name = "vl1"
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
+load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
 load = MidiInst.load_synth (const mempty) synth_name "Yamaha Vl1"
 
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
-make_db :: FilePath -> IO ()
-make_db dir = do
-    let dirs = map ((dir </> untxt synth_name) </>)
-            ["vc", "sysex", "patchman1", "patchman2"]
+make_db :: Path.AppDir -> IO ()
+make_db app_dir = do
+    let dir = Path.absolute app_dir Config.instrument_dir </> untxt synth_name
+    let dirs = map (dir</>) ["vc", "sysex", "patchman1", "patchman2"]
     patches <- concatMapM parse_dir dirs
     builtins <- parse_builtins (dir </> untxt synth_name </> builtin)
-    MidiInst.save_synth dir synth_name (builtins ++ patches)
+    MidiInst.save_synth app_dir synth_name (builtins ++ patches)
 
 builtin :: FilePath
 builtin = "vl1v2-factory/vl1_ver2.all"

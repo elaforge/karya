@@ -8,11 +8,6 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
-import qualified Ui.Id as Id
-import qualified Synth.Shared.Config as Config
-import qualified Synth.Shared.Note as Note
-import Global
-import Ness.Global
 import qualified Ness.Guitar as Guitar
 import qualified Ness.Guitar.GConvert as GConvert
 import qualified Ness.Multiplate as Multiplate
@@ -21,6 +16,12 @@ import qualified Ness.Patches as Patches
 import Ness.Patches (Patch(..), Performance(..))
 import qualified Ness.Util as Util
 
+import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Note as Note
+import qualified Ui.Id as Id
+
+import Global
+import Ness.Global
 import Types
 
 
@@ -48,14 +49,14 @@ printPerformance block =
 run :: Text -> IO ()
 run block = do
     let blockId = mkBlockId block
-    let notesFilename = Config.notesFilename (Config.imDir Config.config)
-            Config.ness scorePath blockId
+    imDir <- getImDir
+    let notesFilename = Config.notesFilename imDir Config.ness scorePath blockId
     instPerformances <- either errorIO return =<< loadConvert block
     Util.submitInstruments "convert" $
-        map (nameScore notesFilename) instPerformances
+        map (nameScore imDir notesFilename) instPerformances
     where
-    nameScore notesFilename (inst, p) =
-        ( Config.outputFilename (Config.imDir Config.config) notesFilename inst
+    nameScore imDir notesFilename (inst, p) =
+        ( Config.outputFilename imDir notesFilename inst
         , inst
         , renderPerformance srate p
         )
@@ -66,9 +67,13 @@ run block = do
 type Error = Text
 
 loadConvert :: Text -> IO (Either Error [(Note.InstrumentName, Performance)])
-loadConvert b =
-    convert <$> load (Config.notesFilename (Config.imDir Config.config)
-        Config.ness scorePath (mkBlockId b))
+loadConvert b = do
+    imDir <- getImDir
+    convert <$> load (Config.notesFilename imDir Config.ness scorePath
+        (mkBlockId b))
+
+getImDir :: IO FilePath
+getImDir = Config.imDir <$> Config.getConfig
 
 renderPerformance :: SamplingRate -> Performance -> (Text, Text)
 renderPerformance sr (Guitar i s) = Guitar.renderAll sr (i, s)

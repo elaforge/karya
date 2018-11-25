@@ -37,7 +37,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
-import System.FilePath ((</>), (<.>))
+import System.FilePath ((</>))
 
 import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
@@ -47,8 +47,8 @@ import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Midi.Midi as Midi
-import qualified Ui.UiConfig as UiConfig
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.Call.Module as Module
@@ -62,17 +62,19 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Symbols as Symbols
 
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Pitch as Pitch
-
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Serialize
 import qualified Instrument.Tag as Tag
 
-import qualified App.Config as Config
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Pitch as Pitch
+
+import qualified Ui.UiConfig as UiConfig
+
 import Global
 import Types
 
@@ -345,7 +347,7 @@ merge_defaults inst alloc = case (Inst.inst_midi inst, backend) of
 -- parsing a directory full of sysexes.  These patches can export a @make_db@
 -- function, which will do the slow parts and save the results in a cache file.
 -- The @load@ function will simply read the cache file, if present.
-save_synth :: FilePath -> InstTypes.SynthName -> [Patch] -> IO ()
+save_synth :: Path.AppDir -> InstTypes.SynthName -> [Patch] -> IO ()
 save_synth app_dir synth_name patches = do
     -- Assume these are loaded from files, so I'll need to generate valid
     -- names.
@@ -360,7 +362,7 @@ save_synth app_dir synth_name patches = do
         (patch, common { Common.common_code = () })
 
 load_synth :: (Patch.Patch -> Code) -> InstTypes.SynthName -> Text
-    -> FilePath -> IO (Maybe Synth)
+    -> Path.AppDir -> IO (Maybe Synth)
 load_synth get_code synth_name doc app_dir = do
     let fname = db_path app_dir (untxt synth_name)
     Instrument.Serialize.unserialize fname >>= \case
@@ -375,9 +377,9 @@ load_synth get_code synth_name doc app_dir = do
     make (patch, common) = make_inst $ Patch patch $
         common { Common.common_code = get_code patch }
 
-db_path :: FilePath -> FilePath -> FilePath
+db_path :: Path.AppDir -> FilePath -> FilePath
 db_path app_dir name =
-    Config.make_path app_dir Config.instrument_cache_dir </> name <.> "db"
+    Path.absolute app_dir Config.instrument_cache_dir </> name ++ ".db"
 
 
 -- * generate_names
@@ -449,10 +451,9 @@ valid_instrument_chars = '-' : ['0'..'9'] ++ ['a'..'z']
 -- * types
 
 -- | Instrument definition modules that need to load from disk export a
--- function called @load@, with this signature.  The FilePath is the
--- 'Config.instrument_dir' and could hold cached instruments, as created by
--- 'MakeDb'.
-type Load = FilePath -> IO (Maybe Synth)
+-- function called @load@, with this signature.  Use the AppDir to find
+-- 'Config.instrument_dir'.
+type Load = Path.AppDir -> IO (Maybe Synth)
 
 
 {- | Some synths may require a more expensive load, e.g. they could parse
@@ -464,4 +465,4 @@ type Load = FilePath -> IO (Maybe Synth)
     You should use 'Cmd.Instrument.MidiInst.save_synth', which will put the
     file into 'Config.instrument_cache_dir' with the same name as the synth.
 -}
-type MakeDb = FilePath -> IO ()
+type MakeDb = Path.AppDir -> IO ()

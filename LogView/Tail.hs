@@ -28,12 +28,13 @@ import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
+import qualified App.Path as Path
+
 import Global
 
 
 log_filename :: IO FilePath
-log_filename = Config.get_app_dir >>= \app_dir -> return $
-    Config.make_path app_dir Config.log_dir </> "seq.log"
+log_filename = (</> "seq.log") <$> Path.get_absolute Config.log_dir
 
 -- * rotate
 

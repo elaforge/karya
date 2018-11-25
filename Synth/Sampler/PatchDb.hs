@@ -16,7 +16,7 @@ import qualified Synth.Shared.Config as Config
 
 
 db :: Patch.Db
-db = Patch.db Config.samplerRoot $ concat
+db = Patch.db Config.unsafeSamplerRoot $ concat
     [ Reyong.patches
     , Wayang.patches
     , [Patch.simple "test" "open.flac" 60]

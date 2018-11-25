@@ -14,7 +14,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Ui.Key as Key
+import qualified App.Path as Path
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
@@ -24,20 +24,23 @@ import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
 import qualified Derive.C.All as C.All
 import qualified Derive.Scale.All as Scale.All
+import qualified Ui.Key as Key
+
 import Global
 
 
 main :: IO ()
 main = do
     args <- Environment.getArgs
+    app_dir <- Path.get_app_dir
     case args of
         ["keymap"] -> Text.IO.putStr keymap_doc
         ["calls"] -> do
-            hstate <- Doc.get_html_state "../haddock" "."
+            hstate <- Doc.get_html_state "../haddock" app_dir
             Text.IO.putStr $ Doc.un_html $ CallDoc.doc_html hstate $
                 CallDoc.builtins C.All.builtins
         ["scales"] -> do
-            hstate <- Doc.get_html_state "../haddock" "."
+            hstate <- Doc.get_html_state "../haddock" app_dir
             Text.IO.putStr $ Doc.un_html $ CallDoc.scales_html hstate $
                 CallDoc.scale_docs Scale.All.docs
         _ -> error "usage: extract_doc [ keymap | calls | scales ]"

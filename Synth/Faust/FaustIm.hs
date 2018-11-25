@@ -87,13 +87,14 @@ process prefix patches notesFilename notes = do
     -- Signals.installHandler above will make SIGINT throw.
     let async :: Exception.AsyncException -> IO ()
         async exc = put $ "exception: " <> showt exc
+    config <- Config.getConfig
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
             let output
                     | useCheckpoints = Config.outputDirectory
-                        (Config.imDir Config.config) notesFilename inst
+                        (Config.imDir config) notesFilename inst
                     | otherwise = Config.outputFilename
-                        (Config.imDir Config.config) notesFilename inst
+                        (Config.imDir config) notesFilename inst
             put $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
             Directory.createDirectoryIfMissing True $

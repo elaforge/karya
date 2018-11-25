@@ -8,17 +8,19 @@ module App.StaticConfig where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Midi.Interface as Interface
-import qualified Midi.Midi as Midi
-import qualified Ui.Color as Color
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.SaveGit as SaveGit
 
 import qualified Derive.Derive as Derive
 import qualified Instrument.Inst as Inst
+import qualified Midi.Interface as Interface
+import qualified Midi.Midi as Midi
 import qualified Synth.Shared.Config as Shared.Config
-import qualified App.Config as Config
+import qualified Ui.Color as Color
+
 import Global
 
 
@@ -89,18 +91,18 @@ make_read_devices :: [Text] -> Set Midi.ReadDevice
 make_read_devices = Set.fromList . map Midi.read_device
 
 -- | Create a 'Cmd.Config' from a StaticConfig.
-cmd_config :: FilePath -> Interface.Interface -> StaticConfig
+cmd_config :: Path.AppDir -> Interface.Interface -> StaticConfig
     -> SaveGit.User -> Cmd.Config
 cmd_config app_dir interface config git_user = Cmd.Config
     { config_app_dir = app_dir
     , config_midi_interface = interface
-    , config_ky_paths = map (Config.make_path app_dir) Config.ky_paths
+    , config_ky_paths = map (Path.absolute app_dir) Config.ky_paths
     , config_rdev_map = rdev_map midi_config
     , config_wdev_map = wdev_map midi_config
     , config_instrument_db = instrument_db config
     , config_builtins = builtins config
     , config_highlight_colors = highlight_colors config
-    , config_im = Shared.Config.config
+    , config_im = Shared.Config.config app_dir
     , config_git_user = git_user
     }
     where midi_config = midi config

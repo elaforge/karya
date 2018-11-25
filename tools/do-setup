@@ -19,11 +19,11 @@ mkdir -p log
 
 for dir in $data_dirs; do
     mkdir -p $data/$dir
-    if [[ ! -e $dir ]]; then
-        echo ln -s $data/$dir
-        ln -s $data/$dir
-    fi
 done
+if [[ ! -e data ]]; then
+    ln -s $data data
+fi
+
 if [[ ! -e save/default ]]; then
     cp doc/default.save save/default
 fi

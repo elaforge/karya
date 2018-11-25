@@ -89,8 +89,9 @@ type Error = Text
 process :: Patch.Db -> Resample.Quality -> FilePath -> [Note.Note] -> IO ()
 process db quality notesFilename notes = do
     Log.notice $ "processing " <> txt notesFilename
+    config <- Config.getConfig
     clearUnusedInstruments
-        (Config.instrumentDirectory (Config.imDir Config.config) notesFilename)
+        (Config.instrumentDirectory (Config.imDir config) notesFilename)
         instruments
     Async.forConcurrently_ byPatchInst $ \(patch, notes) -> case get patch of
         Nothing -> Log.warn $ "patch not found: " <> patch
@@ -158,8 +159,9 @@ makeNote (errSample, logs, note) = do
 realize :: Resample.Quality -> FilePath -> Note.InstrumentName
     -> [Sample.Note] -> IO ()
 realize quality notesFilename instrument notes = do
+    config <- Config.getConfig
     let output = Config.outputDirectory
-            (Config.imDir Config.config) notesFilename instrument
+            (Config.imDir config) notesFilename instrument
     Directory.createDirectoryIfMissing True output
     (result, elapsed) <- Thread.timeActionText $
         Render.write quality output notes

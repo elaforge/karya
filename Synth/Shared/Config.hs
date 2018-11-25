@@ -5,16 +5,11 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
 -- | Shared config to coordinate between the sequencer and im subsystems.
---
--- TODO Currently paths rely on you being in the right directory, but should
--- probably have some more robust configuration at some point.  Of course
--- 'App.Config.app_dir' is just return '.' too.
 module Synth.Shared.Config where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
@@ -25,6 +20,8 @@ import qualified Util.Log as Log
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Perform.RealTime as RealTime
 import qualified Ui.Id as Id
 
@@ -33,13 +30,6 @@ import Synth.Types
 
 #include "config.h"
 
-
--- TODO synchronize this with all the others uses of the data dir
--- I need an absolute path, because this goes to PlayCache, which runs with
--- who knows what CWD.
-getDataDir :: FilePath
-getDataDir = Unsafe.unsafePerformIO $ Directory.canonicalizePath "../data"
-{-# NOINLINE getDataDir #-}
 
 data Config = Config {
     -- | All of the data files used by the Im backend are based in this
@@ -50,9 +40,12 @@ data Config = Config {
     }
     deriving (Eq, Show)
 
-config :: Config
-config = Config
-    { imDir = "im"
+getConfig :: IO Config
+getConfig = config <$> Path.get_app_dir
+
+config :: Path.AppDir -> Config
+config appDir = Config
+    { imDir = Path.absolute appDir Config.im_dir
     , synths = Map.fromList
         [ (samplerName, sampler)
         , (faustName, faust)
@@ -83,8 +76,21 @@ sampler = Synth
     }
 
 -- | Base directory for sampler patches.
-samplerRoot :: FilePath
-samplerRoot = getDataDir </> "sampler"
+samplerRoot :: Path.Relative
+samplerRoot = Config.data_dir Path.</> "sampler"
+
+-- | This is samplerRoot, but as an absolute path.
+--
+-- Technically, Path.get_app_dir is in IO, so I can't get an absolute path
+-- without IO.  However, I need to put the absolute path in the OSC play msgs
+-- (ultimately since play_cache runs with an unknown CWD), and it gets really
+-- annoying to try to get a Path.AppDir into the thru function's closure.  So
+-- unsafePerformIO it is.  I could probably just put that on app_dir, but this
+-- is the only thing that actually needs it.
+unsafeSamplerRoot :: FilePath
+unsafeSamplerRoot =
+    Path.absolute (Unsafe.unsafePerformIO Path.get_app_dir) samplerRoot
+{-# NOINLINE unsafeSamplerRoot #-}
 
 faustName :: SynthName
 faustName = "faust"

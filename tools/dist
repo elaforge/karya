@@ -5,5 +5,5 @@
 
 dir=$(basename $(pwd))
 cd ..
-tar --exclude $dir/build/ --exclude $dir/.hpc --exclude $dir/inst_db \
-    --exclude $dir/prof -czvf $dir.tgz $dir
+tar --exclude $dir/build/ --exclude $dir/.hpc --exclude $dir/data \
+    -czvf $dir.tgz $dir

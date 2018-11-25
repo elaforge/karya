@@ -14,34 +14,36 @@ import Data.Word (Word8)
 
 import System.FilePath ((</>))
 
-import qualified Midi.Encode
-import qualified Midi.Midi as Midi
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
 
-import User.Elaforge.Instrument.Z1Spec
+import qualified Midi.Encode
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+
 import Global
+import User.Elaforge.Instrument.Z1Spec
 
 
 synth_name :: InstTypes.SynthName
 synth_name = "z1"
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
+load :: Path.AppDir -> IO (Maybe MidiInst.Synth)
 load = MidiInst.load_synth (const mempty) synth_name "Korg Z1"
 
-make_db :: FilePath -> IO ()
-make_db dir = do
-    bank_a <- Sysex.parse_builtins 0 program_dump
-        (dir </> untxt synth_name </> "bank_a.syx")
-    bank_b <- Sysex.parse_builtins 1 program_dump
-        (dir </> untxt synth_name </> "bank_b.syx")
+make_db :: Path.AppDir -> IO ()
+make_db app_dir = do
+    let dir = Path.absolute app_dir Config.instrument_dir </> untxt synth_name
+    bank_a <- Sysex.parse_builtins 0 program_dump (dir </> "bank_a.syx")
+    bank_b <- Sysex.parse_builtins 1 program_dump (dir </> "bank_b.syx")
     sysex <- Sysex.parse_dir [current_program_dump, program_dump, sysex_manager]
-        (dir </> untxt synth_name </> "sysex")
-    MidiInst.save_synth dir synth_name $
+        (dir </> "sysex")
+    MidiInst.save_synth app_dir synth_name $
         map (override_pb . MidiInst.patch_from_pair) $
         concat [bank_a, bank_b, sysex]
     where
