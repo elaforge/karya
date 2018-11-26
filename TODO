@@ -26,7 +26,7 @@ STATUS
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
-  - move Triggered flag to Common
+  * move Triggered flag to Common
   - move Midi.Patch.patch_call_map to Common
   * Instead of using symlinks into the app dir, have a configurable data dir,
     and make everything relative to that.

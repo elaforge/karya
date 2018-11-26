@@ -45,8 +45,8 @@ instance Serialize InstrumentDb where
     get = InstrumentDb <$> get <*> get
 
 instance Serialize (Common.Common ()) where
-    put (Common.Common a b c d) = put a >> put b >> put c >> put d
-    get = Common.Common <$> get <*> get <*> get <*> get
+    put (Common.Common a b c d e) = put a >> put b >> put c >> put d >> put e
+    get = Common.Common <$> get <*> get <*> get <*> get <*> get
 
 instance Serialize Search.Index where
     put (Search.Index a b) = put a >> put b

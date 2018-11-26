@@ -4,8 +4,6 @@
 
 -- | Describe an Im 'Patch', from the sequencer's point of view.
 module Perform.Im.Patch where
-import qualified Data.Set as Set
-
 import qualified Util.Pretty as Pretty
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
@@ -19,28 +17,18 @@ data Patch = Patch {
     -- TODO maybe I need a separate one for pitch controls.
     patch_controls :: !(Map Control.Control Text)
     , patch_attribute_map :: !AttributeMap
-    , patch_flags :: !(Set Flag)
     } deriving (Show)
 
 patch :: Patch
 patch = Patch
     { patch_controls = mempty
     , patch_attribute_map = Common.AttributeMap []
-    , patch_flags = mempty
     }
 
-add_flag :: Flag -> Patch -> Patch
-add_flag flag patch =
-    patch { patch_flags = Set.insert flag (patch_flags patch) }
-
-has_flag :: Patch -> Flag -> Bool
-has_flag patch flag = Set.member flag (patch_flags patch)
-
 instance Pretty Patch where
-    format (Patch controls attr_map flags) = Pretty.record "Patch"
+    format (Patch controls attr_map) = Pretty.record "Patch"
         [ ("controls", Pretty.format controls)
         , ("attribute_map", Pretty.format attr_map)
-        , ("flags", Pretty.format flags)
         ]
 
 -- | Since the synth understands Attributes directly, this is just a list of

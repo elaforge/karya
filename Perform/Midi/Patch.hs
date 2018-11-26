@@ -377,17 +377,12 @@ nn_at scale key
 -- | Various instrument flags.  Add new ones at the bottom to avoid messing up
 -- serialization.
 data Flag =
-    -- | Patch doesn't pay attention to duration.  E.g., drum samples may not
-    -- pay attention to note off.  The UI can use this to create zero duration
-    -- events for this patch.  TODO this is actually not MIDI-specific, so it
-    -- should go in Instrument.Common.
-    Triggered
     -- | Patch uses continuous pressure control, assigned to CC 2 (breath),
     -- instead of trigger velocity.  This is used to support the @dyn@ control.
     -- Percussive instruments like pianos map it to MIDI velocity, and
     -- continuous instruments like winds always have maximum velocity and map
     -- @dyn@ to breath.
-    | Pressure
+    Pressure
     -- | If set, a keysitch has to be held while its note is playing.
     -- Otherwise, it will just be tapped before the note starts.
     | HoldKeyswitch

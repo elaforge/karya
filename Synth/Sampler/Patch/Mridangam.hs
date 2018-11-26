@@ -36,8 +36,8 @@ patches = (:[]) $ (Patch.patch name)
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = inferDuration
-    , Patch._karyaPatch = ImInst.code #= code $
-        pitchedDrum $ ImInst.make_patch $ Im.Patch.patch
+    , Patch._karyaPatch = pitchedDrum $ ImInst.code #= code $
+        ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
                 [ Control.supportPitch
                 , Control.supportDyn
@@ -51,7 +51,7 @@ patches = (:[]) $ (Patch.patch name)
     name = "mridangam-d"
 
 pitchedDrum :: ImInst.Patch -> ImInst.Patch
-pitchedDrum = ImInst.patch %= ImInst.add_flag Im.Patch.Triggered
+pitchedDrum = ImInst.triggered
     -- I should add Patch.call_map, but it's in Midi.Patch at the moment.
 
 -- | Notes ring until stopped by their stop note.

@@ -167,8 +167,9 @@ info_of synth_name name synth_doc (Inst.Inst backend common) tags =
         Inst.Im patch -> patch_fields patch
 
 common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
-common_fields tags (Common.Common code env _tags (Doc.Doc doc)) =
+common_fields tags (Common.Common code env _tags (Doc.Doc doc) flags) =
     [ ("Environ", if env == mempty then "" else pretty env)
+    , ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
     -- code
     , ("Cmds", show_cmds code)
     , ("Note generators",
@@ -218,9 +219,8 @@ instrument_fields name inst =
         } = settings
 
 patch_fields :: Im.Patch.Patch -> [(Text, Text)]
-patch_fields (Im.Patch.Patch controls attr_map flags) =
-    [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
-    , ("Attributes", Text.intercalate ", " $ map pretty $
+patch_fields (Im.Patch.Patch controls attr_map) =
+    [ ("Attributes", Text.intercalate ", " $ map pretty $
         Common.mapped_attributes attr_map)
     , ("Controls", Text.unlines
         [ pretty control <> "\t" <> doc

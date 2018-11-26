@@ -7,6 +7,8 @@
 module Cmd.Instrument.ImInst (
     module Cmd.Instrument.ImInst, module MidiInst
 ) where
+import qualified Data.Set as Set
+
 import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Cmd.Cmd as Cmd
@@ -14,8 +16,8 @@ import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import Cmd.Instrument.MidiInst
-       (Code, generator, transformer, both, null_call, note_calls,
-        note_generators, note_transformers, val_calls, postproc, cmd)
+       (both, cmd, generator, note_calls, note_generators, note_transformers,
+        null_call, postproc, transformer, val_calls, Code)
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
@@ -98,5 +100,8 @@ thru thru_f = MidiInst.thru convert
                     Right plays -> return $ map (Cmd.ImThru . Osc.play) plays
             _ -> return []
 
-add_flag :: Patch.Flag -> Patch.Patch -> Patch.Patch
-add_flag flag = Patch.add_flag flag
+add_flag :: Common.Flag -> Patch -> Patch
+add_flag flag = common#Common.flags %= Set.insert flag
+
+triggered :: Patch -> Patch
+triggered = add_flag Common.Triggered

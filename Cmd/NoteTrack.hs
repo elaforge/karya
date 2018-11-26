@@ -16,6 +16,7 @@
 module Cmd.NoteTrack where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
@@ -35,8 +36,8 @@ import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 
-import qualified Perform.Im.Patch as Im.Patch
-import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -328,12 +329,11 @@ ensure_note_event pos = do
 -- so I can make the duration 0.
 triggered_inst :: Cmd.M m => Maybe Score.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
-triggered_inst (Just inst) =
-    Cmd.lookup_backend inst >>= return . \case
-        Nothing -> False
-        Just (Cmd.Midi _ config) -> Patch.has_flag config Patch.Triggered
-        Just (Cmd.Im patch) -> Im.Patch.has_flag patch Im.Patch.Triggered
-        -- TODO Triggered should be in Instrument.Common
+triggered_inst (Just inst) = Set.member Common.Triggered <$> common_flags inst
+
+common_flags :: Cmd.M m => Score.Instrument -> m (Set Common.Flag)
+common_flags inst = maybe mempty flags <$> Cmd.lookup_instrument inst
+    where flags = Common.common_flags . Inst.inst_common . Cmd.inst_instrument
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Bool -> Bool
     -> EditUtil.Modify -> m ()

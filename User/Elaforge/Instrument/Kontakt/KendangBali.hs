@@ -8,11 +8,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Midi.Key as Key
-import qualified Midi.Key2 as Key2
-import qualified Midi.Midi as Midi
-
-import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -30,9 +25,14 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
+import qualified Midi.Key as Key
+import qualified Midi.Key2 as Key2
+import qualified Midi.Midi as Midi
+
+import qualified Ui.UiConfig as UiConfig
 import qualified User.Elaforge.Instrument.Kontakt.Util as Util
+
 import Global
 
 
@@ -42,8 +42,7 @@ patches =
         patch "kendang-bali"
     , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_notes $
         patch "kendang-bali-old"
-    , MidiInst.code #= pasang_code $
-        MidiInst.patch %= MidiInst.add_flag Patch.Triggered $
+    , MidiInst.code #= pasang_code $ MidiInst.triggered $
         patch "kendang-bali-pasang"
     ]
     where

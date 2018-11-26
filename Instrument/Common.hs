@@ -23,6 +23,7 @@ import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Tag as Tag
+
 import Global
 
 
@@ -42,6 +43,7 @@ data Common code = Common {
     , common_tags :: ![Tag.Tag]
     -- | So, instrument, tell me about yourself.
     , common_doc :: !Doc.Doc
+    , common_flags :: !(Set Flag)
     } deriving (Show)
 
 code = Lens.lens common_code (\f r -> r { common_code = f (common_code r) })
@@ -49,6 +51,7 @@ environ = Lens.lens common_environ
     (\f r -> r { common_environ = f (common_environ r) })
 tags = Lens.lens common_tags (\f r -> r { common_tags = f (common_tags r) })
 doc = Lens.lens common_doc (\f r -> r { common_doc = f (common_doc r) })
+flags = Lens.lens common_flags (\f r -> r { common_flags = f (common_flags r) })
 
 common :: code -> Common code
 common code = Common
@@ -56,15 +59,29 @@ common code = Common
     , common_environ = mempty
     , common_tags = []
     , common_doc = ""
+    , common_flags = mempty
     }
 
 instance Pretty code => Pretty (Common code) where
-    format (Common code env tags doc) = Pretty.record "Instrument"
+    format (Common code env tags doc flags) = Pretty.record "Instrument"
         [ ("code", Pretty.format code)
         , ("restricted_environ", Pretty.format env)
         , ("tags", Pretty.format tags)
         , ("doc", Pretty.format doc)
+        , ("flags", Pretty.format flags)
         ]
+
+data Flag =
+    -- | Patch doesn't pay attention to duration, e.g. percussion.  The UI can
+    -- use this to create zero duration events for this instrument.
+    Triggered
+    deriving (Eq, Ord, Show, Enum, Bounded)
+
+instance Pretty Flag where pretty = showt
+
+instance Serialize.Serialize Flag where
+    put = Serialize.put_enum
+    get = Serialize.get_enum
 
 -- * AttributeMap
 

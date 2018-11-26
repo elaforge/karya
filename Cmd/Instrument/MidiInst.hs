@@ -18,7 +18,7 @@ module Cmd.Instrument.MidiInst (
     , make_patch, patch_from_pair, named_patch, default_patch
     -- ** modify
     , code, doc, attribute_map, decay, synth_controls
-    , add_flag, add_flags, pressure
+    , add_flag, add_flags, pressure, add_common_flag, triggered
     -- ** environ
     , environ, default_scale, range, nn_range
     -- * allocations
@@ -278,6 +278,12 @@ add_flags flags = Patch.defaults#Patch.flags %= Set.union (Set.fromList flags)
 pressure :: Patch -> Patch
 pressure = patch %= (Patch.defaults#Patch.decay #= Just 0)
     . add_flag Patch.Pressure
+
+add_common_flag :: Common.Flag -> Patch -> Patch
+add_common_flag flag = common#Common.flags %= Set.insert flag
+
+triggered :: Patch -> Patch
+triggered = add_common_flag Common.Triggered
 
 -- ** environ
 
