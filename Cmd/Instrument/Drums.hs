@@ -19,13 +19,13 @@ import Global
 -- drum sets that don't fit in (e.g. have two or three snares), but at least
 -- this provides a standard base.
 data Note = Note {
-    note_name :: !Expr.Symbol
-    , note_attrs :: !Attributes
-    , note_char :: !Char
+    _name :: !Expr.Symbol
+    , _attributes :: !Attributes
+    , _char :: !Char
     -- | Scale the dynamic by this value.  This is for drums that have
     -- different symbols for soft strokes.
-    , note_dynamic :: !Signal.Y
-    , note_group :: !Group
+    , _dynamic :: !Signal.Y
+    , _group :: !Group
     } deriving (Eq, Show)
 
 -- | An arbitrary symbol.  A group can stop other groups from sounding.
@@ -33,15 +33,15 @@ type Group = Text
 
 note :: Char -> Expr.Symbol -> Attributes -> Note
 note char name attrs = Note
-    { note_name = name
-    , note_attrs = attrs
-    , note_char = char
-    , note_dynamic = 1
-    , note_group = ""
+    { _name = name
+    , _attributes = attrs
+    , _char = char
+    , _dynamic = 1
+    , _group = ""
     }
 
 note_dyn :: Char -> Expr.Symbol -> Attributes -> Signal.Y -> Note
-note_dyn char name attrs dyn = (note char name attrs) { note_dynamic = dyn }
+note_dyn char name attrs dyn = (note char name attrs) { _dynamic = dyn }
 
 instance Pretty Note where
     format (Note name attrs char dyn group) = Pretty.record "Note"

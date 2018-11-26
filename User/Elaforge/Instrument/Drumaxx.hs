@@ -22,7 +22,8 @@ synth = MidiInst.synth "drumaxx" "Imagine-Line Drumaxx" patches
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.code #= CUtil.drum_code Nothing (map fst note_keys) $
+    [ MidiInst.code #= CUtil.drum_code CUtil.MidiThru Nothing
+            (map fst note_keys) $
         CUtil.drum_patch note_keys $ MidiInst.default_patch pb_range []
     , MidiInst.code #= composite_code $
         MidiInst.doc #= composite_doc $
@@ -30,7 +31,7 @@ patches =
     ]
     where
     composite_code = MidiInst.note_generators
-        [(call, composite call) | call <- map (Drums.note_name . fst) note_keys]
+        [(call, composite call) | call <- map (Drums._name . fst) note_keys]
     composite call = DUtil.redirect_pitch "comb" ""
         (Just (Set.fromList ["mix", "fbk"])) call Nothing
     composite_doc = "This drum takes a pitch signal, which is then sent\

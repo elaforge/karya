@@ -18,14 +18,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Id as Id
-import qualified Ui.Key as Key
-import qualified Ui.Sel as Sel
-import qualified Ui.Types as Types
-import qualified Ui.Ui as Ui
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.Create as Create
@@ -42,8 +35,16 @@ import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 
+import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Patch as Patch
-import qualified App.Config as Config
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Id as Id
+import qualified Ui.Key as Key
+import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+
 import Global
 import Types
 
@@ -328,8 +329,11 @@ ensure_note_event pos = do
 triggered_inst :: Cmd.M m => Maybe Score.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
 triggered_inst (Just inst) =
-    maybe False (`Patch.has_flag` Patch.Triggered)
-        <$> Cmd.lookup_midi_config inst
+    Cmd.lookup_backend inst >>= return . \case
+        Nothing -> False
+        Just (Cmd.Midi _ config) -> Patch.has_flag config Patch.Triggered
+        Just (Cmd.Im patch) -> Im.Patch.has_flag patch Im.Patch.Triggered
+        -- TODO Triggered should be in Instrument.Common
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Bool -> Bool
     -> EditUtil.Modify -> m ()

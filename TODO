@@ -26,6 +26,8 @@ STATUS
     . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
+  - move Triggered flag to Common
+  - move Midi.Patch.patch_call_map to Common
   * Instead of using symlinks into the app dir, have a configurable data dir,
     and make everything relative to that.
     . Root is Config.app_dir
@@ -692,8 +694,8 @@ IN PROGRESS / branch: branches:
     notes:
       . I'd like to be able to edit e.g. solkattu dsl, then save triggers
         a score integrate.
-      . This is also the way to get text language to integrate in general.
-      . Also it's visualization for text language.
+      . This is also the way to get text score: to integrate in general.
+      . Also it's visualization for text score:.
       . StateConfig can have 'dsl_integrate :: Map Symbol Code', then repl cmds
         to edit them.  This is then haskell, which means I need some way to get
         it into the REPL, and some standard environment in which it is executed.
@@ -886,7 +888,7 @@ TASKS:
     . Music Analysis: Look for repeats or repeats with transposition.
     . Text score.
     . Solve how timing changes bubble up.  Text score can do it, or maybe
-      integrate from DSL (either text score or haskell) or have a purely
+      integrate from DSL (either text score: or haskell) or have a purely
       read-only block or track.
     . Simplify scale implementation 'Why are scales so complicated'
     . Something better than ControlFunctions for randomized signals.
@@ -2019,8 +2021,10 @@ synth: im:
     guzheng:
       . Everything rings except when explicitly muted.
     . mridangam:
-      - write patch
+      * write patch
         . implement stop strokes
+      - implement pitch
+      - implement variations as a probably range over neghboring velocities
       - render directly from solkattu
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
@@ -4872,7 +4876,8 @@ planning / research
     . Book: African Polyphony and Polyrhythm
     . https://github.com/ctford/african-polyphony-and-polyrhythm
     . kolmogorov music: https://www.youtube.com/watch?v=Qg3XOfioapI
-  text score: doc/dev_notes/text-score.md
+  text score:
+    . doc/dev_notes/text-score.md
     . Time problems:
       . I want to say "repeat n times".
       . I want sections with their own tempo, and then the caller just sequences

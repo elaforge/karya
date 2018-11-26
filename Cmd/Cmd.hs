@@ -1200,10 +1200,12 @@ get_midi_instrument inst =
         =<< get_instrument inst
 
 lookup_midi_config :: M m => Score.Instrument -> m (Maybe Patch.Config)
-lookup_midi_config inst = justm (lookup_instrument inst) $ \resolved ->
-    case inst_backend resolved of
-        Just (Midi _ config) -> return $ Just config
-        _ -> return Nothing
+lookup_midi_config inst = justm (lookup_backend inst) $ \case
+    Midi _ config -> return $ Just config
+    _ -> return Nothing
+
+lookup_backend :: M m => Score.Instrument -> m (Maybe Backend)
+lookup_backend inst = justm (lookup_instrument inst) (return . inst_backend)
 
 lookup_instrument :: M m => Score.Instrument -> m (Maybe ResolvedInstrument)
 lookup_instrument inst = do

@@ -35,7 +35,7 @@ patches =
     where
     patch name = MidiInst.named_patch (-24, 24) name [(4, pitch_control)]
     notes = map fst pitched_notes
-    code = MidiInst.cmd (CUtil.drum_cmd notes)
+    code = MidiInst.cmd (CUtil.drum_cmd CUtil.MidiThru notes)
         <> MidiInst.note_generators
             (replace_det $ CUtil.drum_calls Nothing (Just tuning_control) notes)
 

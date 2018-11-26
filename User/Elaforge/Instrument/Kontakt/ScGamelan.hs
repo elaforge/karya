@@ -34,8 +34,9 @@ synth_name = "kontakt"
 
 patches :: [MidiInst.Patch]
 patches = map add_doc $
-    CUtil.simple_drum Nothing gong_notes (sc_patch "gong")
-    : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "kempli")
+    CUtil.simple_drum CUtil.MidiThru Nothing gong_notes (sc_patch "gong")
+    : CUtil.simple_drum CUtil.MidiThru Nothing kempli_kajar_notes
+        (sc_patch "kempli")
     : reyong_ks (ranged_patch Legong.reyong_range "reyong")
     : ranged_patch Legong.trompong_range "trompong"
     : concat

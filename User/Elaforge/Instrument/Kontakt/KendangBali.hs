@@ -47,7 +47,8 @@ patches =
         patch "kendang-bali-pasang"
     ]
     where
-    tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
+    tunggal_code = CUtil.drum_code CUtil.MidiThru (Just "kendang-tune")
+        (map fst tunggal_notes)
     patch name = MidiInst.named_patch (-24, 24) name []
 
 pasang_code :: MidiInst.Code
@@ -205,7 +206,7 @@ pasang_env = Pasang
     <*> Sig.required_environ "lanang" Sig.Unprefixed "Lanang instrument."
 
 pasang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
-pasang_cmd = CUtil.insert_call $ Map.fromList
+pasang_cmd = CUtil.insert_call CUtil.MidiThru $ Map.fromList
     [(char, name) | (char, name, _) <- pasang_calls]
 
 c_pasang_calls :: [(Expr.Symbol, Derive.Generator Derive.Note)]

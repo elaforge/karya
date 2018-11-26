@@ -4,19 +4,20 @@
 
 -- | Pakhawaj patch.  The notation is based on mridangam notation.
 module User.Elaforge.Instrument.Kontakt.Pakhawaj where
-import qualified Midi.Key2 as Key2
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Instrument.Mridangam as Mridangam
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.India.Pakhawaj as Pakhawaj
 import Derive.C.India.Pakhawaj (Stroke(..))
 import qualified Derive.Expr as Expr
 
+import qualified Midi.Key2 as Key2
 import qualified Perform.NN as NN
-import qualified User.Elaforge.Instrument.Kontakt.Mridangam as Mridangam
 import qualified User.Elaforge.Instrument.Kontakt.Util as Util
+
 import Global
 
 
@@ -25,7 +26,8 @@ patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_notes]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
         MidiInst.named_patch (-24, 24) name []
-    code = Mridangam.make_code pitched_strokes NN.c4 all_notes both_calls
+    code = Mridangam.make_code CUtil.MidiThru pitched_strokes NN.c4 all_notes
+        both_calls
 
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
@@ -107,7 +109,7 @@ stops :: [(Drums.Group, [Drums.Group])]
     r_dheem = "r-dheem"
     l_closed = "l-closed"
     l_open = "l-open"
-    group name = map $ \n -> n { Drums.note_group = name }
+    group name = map $ \n -> n { Drums._group = name }
     n = Drums.note_dyn
     attr = Pakhawaj.stroke_to_attribute
 

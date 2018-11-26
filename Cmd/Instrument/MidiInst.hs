@@ -220,8 +220,6 @@ instance Pretty Patch where
         , ("common", Pretty.format common)
         ]
 
--- | Make a patch.  Get the name from Patch.patch_name.
--- TODO: pass the name independently
 make_patch :: Patch.Patch -> Patch
 make_patch p = Patch
     { patch_patch = p

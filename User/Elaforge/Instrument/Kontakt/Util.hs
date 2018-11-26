@@ -100,12 +100,12 @@ drum_mute_values notes =
     -- there's one at 0 is fine since it never changes.  This is fine, assuming
     -- that overlapping groups all belong to the same stop gorup.
     keyswitch_to_notes = Util.Map.multimap
-        [ (ks_of keyswitch, (Drums.note_group note, (low, high)))
+        [ (ks_of keyswitch, (Drums._group note, (low, high)))
         | (note, (keyswitch, low, high, _)) <- notes
         ]
     ks_of (Patch.Keyswitch ks : _) = ks
     ks_of _ = 0
-    groups = Seq.drop_dups id (List.sort (map (Drums.note_group . fst) notes))
+    groups = Seq.drop_dups id (List.sort (map (Drums._group . fst) notes))
     group_to_id = Map.fromList $ zip groups [0..]
     group_id g = Map.findWithDefault none g group_to_id
 

@@ -68,7 +68,7 @@ make_inst (Patch patch common) = Inst.Inst
         { Common.common_code = MidiInst.make_code (Common.common_code common) }
     }
 
--- TODO: these are copy paste from MidiInst, only 'commen' is different.
+-- TODO: these are copy paste from MidiInst, only 'common' is different.
 -- I should be able to share the code.
 
 -- | The instrument will also set the given environ when it comes into scope.
@@ -97,3 +97,6 @@ thru thru_f = MidiInst.thru convert
                     Left err -> Cmd.throw err
                     Right plays -> return $ map (Cmd.ImThru . Osc.play) plays
             _ -> return []
+
+add_flag :: Patch.Flag -> Patch.Patch -> Patch.Patch
+add_flag flag = Patch.add_flag flag

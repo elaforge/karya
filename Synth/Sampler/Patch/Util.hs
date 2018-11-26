@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
@@ -36,15 +37,21 @@ nexts xs = zip xs (drop 1 (List.tails xs))
 
 -- * convert
 
-symbolicPitch :: (Except.MonadError Text m) => Note.Note
+symbolicPitch :: Except.MonadError Text m => Note.Note
     -> m (Either Pitch.Note Pitch.NoteNumber)
 symbolicPitch note
     | Text.null (Note.element note) =
         Right <$> tryJust "no pitch" (Note.initialPitch note)
     | otherwise = return $ Left $ Pitch.Note $ Note.element note
 
-articulation :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
-articulation deflt attributeMap  =
+articulation :: Except.MonadError Text m => Common.AttributeMap a
+    -> Attrs.Attributes -> m a
+articulation attributeMap  =
+    maybe (Except.throwError "no attribute") (return . snd)
+    . (`Common.lookup_attributes` attributeMap)
+
+articulationDefault :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
+articulationDefault deflt attributeMap  =
     maybe deflt snd . (`Common.lookup_attributes` attributeMap)
 
 -- | Get patch-specific dyn category, and note dynamic.
@@ -85,6 +92,10 @@ variation variations = pick . fromMaybe 0 . Note.initial Control.variation
 thru :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
     -> ImInst.Code
 thru sampleDir convert = ImInst.thru $ thruFunction sampleDir convert
+
+imThruFunction :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
+    -> CUtil.Thru
+imThruFunction dir = CUtil.ImThru . thruFunction dir
 
 thruFunction :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
     -> Osc.ThruFunction

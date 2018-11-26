@@ -222,6 +222,7 @@ data Patch = Patch {
     , patch_control_map :: !Control.ControlMap
     , patch_initialize :: !InitializePatch
     , patch_attribute_map :: !AttributeMap
+    -- TODO this should move to Instrument.Common
     , patch_call_map :: !CallMap
     , patch_defaults :: !Settings
     } deriving (Eq, Show)

@@ -42,7 +42,7 @@ kajar_patch =
     MidiInst.code #= code $
         CUtil.pitched_drum_patch kajar_pitched_notes $ patch "kajar"
     where
-    code = MidiInst.cmd (CUtil.insert_call char_to_call)
+    code = MidiInst.cmd (CUtil.insert_call CUtil.MidiThru char_to_call)
         <> MidiInst.note_generators generators
     generators = concat
         [ CUtil.drum_calls Nothing (Just tuning_control) notes
@@ -51,7 +51,7 @@ kajar_patch =
             (Just (Left Meter.Q)))]
         ]
     char_to_call = Map.fromList $ concat
-        [ [(Drums.note_char n, Drums.note_name n) | n <- notes]
+        [ [(Drums._char n, Drums._name n) | n <- notes]
         , [(char, sym) | (char, sym, _) <- kajar_special]
         ]
     notes = map fst kajar_pitched_notes

@@ -154,7 +154,7 @@ checkStarts = (makeSample reference,)
 convert :: Instrument -> Tuning -> Note.Note
     -> Patch.ConvertM (RealTime, Sample.Sample)
 convert instrument tuning note = do
-    let articulation = Util.articulation Open attributeMap $
+    let articulation = Util.articulationDefault Open attributeMap $
             Note.attributes note
     let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note

@@ -183,6 +183,9 @@ heavy = attr "heavy"
 loose = attr "loose"
 tight = attr "tight"
 
+dry = attr "dry"
+wet = attr "wet"
+
 -- * misc
 
 -- Many of these attributes are meant to be combined with others.

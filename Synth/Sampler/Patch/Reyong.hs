@@ -112,7 +112,8 @@ inferEnd note nexts = case articulationOf note of
             MuteClosed -> True
             MuteOpen -> True
             _ -> False
-    articulationOf = Util.articulation Open attributeMap . Note.attributes
+    articulationOf =
+        Util.articulationDefault Open attributeMap . Note.attributes
 
 -- * checks
 
@@ -134,7 +135,7 @@ allFilenames = map fst3 $ Either.rights
 
 convert :: Note.Note -> Patch.ConvertM (RealTime, Sample.Sample)
 convert note = do
-    let articulation = Util.articulation Open attributeMap $
+    let articulation = Util.articulationDefault Open attributeMap $
             Note.attributes note
     let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note
