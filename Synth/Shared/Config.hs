@@ -181,8 +181,8 @@ outputFilename imDir notesFilename inst =
         FilePath.splitPath notesFilename
 
 -- |
--- > im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
--- > im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
+-- > .../im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
+-- > .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
 outputDirectory :: FilePath
     -> FilePath -- ^ Names as produced by 'notesFilename'.
     -> Text -- ^ ScoreTypes.Instrument, but I don't want to import ScoreTypes.
@@ -192,15 +192,16 @@ outputDirectory imDir notesFilename inst =
 
 -- | Get the directory which contains each instrument subdir.
 --
--- > im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
--- > im/cache/$scorePath/$scoreFname/$namespace/$block
+-- > .../im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
+-- > .../im/cache/$scorePath/$scoreFname/$namespace/$block
 instrumentDirectory :: FilePath -> FilePath -> FilePath
 instrumentDirectory imDir notesFilename = imDir </> cacheDir </> scorePathBlock
     where
-    -- Recover scorePath/ns/block from the path so I don't have to put it in
+    -- Derive scorePath/ns/block from the path so I don't have to put it in
     -- a file or something.  TODO It's a bit sketchy though.
-    scorePathBlock = FilePath.joinPath $ Seq.rdrop 1 $ drop 2 $
-        FilePath.splitPath notesFilename
+    scorePathBlock = FilePath.joinPath $
+        Seq.rdrop 1 $ drop 1 $ FilePath.splitPath $
+        dropWhile (=='/') $ drop (length imDir) notesFilename
 
 -- | This is text sent over MIDI to tell play_cache which directory to play
 -- from.  Relative to imDir/cacheDir.
