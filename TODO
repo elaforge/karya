@@ -27,7 +27,7 @@ STATUS
 
 UNSORTED
   * move Triggered flag to Common
-  - move Midi.Patch.patch_call_map to Common
+  * move Midi.Patch.patch_call_map to Common
   * Instead of using symlinks into the app dir, have a configurable data dir,
     and make everything relative to that.
     . Root is Config.app_dir

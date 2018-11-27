@@ -1172,6 +1172,9 @@ data ResolvedInstrument = ResolvedInstrument {
 inst_synth :: ResolvedInstrument -> InstTypes.SynthName
 inst_synth  = InstTypes.synth . inst_qualified
 
+inst_common :: ResolvedInstrument -> Common.Common InstrumentCode
+inst_common = Inst.inst_common . inst_instrument
+
 instance Pretty ResolvedInstrument where
     format (ResolvedInstrument instrument qualified common_config backend) =
         Pretty.record "ResolvedInstrument"

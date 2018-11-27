@@ -17,6 +17,7 @@ import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
@@ -252,10 +253,18 @@ drum_cmd thru = insert_call thru . notes_to_calls
 -- ** patch
 
 drum_patch :: [(Drums.Note, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
-drum_patch note_keys = (MidiInst.triggered .) $
-    MidiInst.patch %= (Patch.call_map #= make_call_map (map fst note_keys))
-        . (Patch.attribute_map #= Patch.unpitched_keymap
-            [(Drums._attributes note, key) | (note, key) <- note_keys])
+drum_patch note_keys =
+    MidiInst.triggered
+    . (MidiInst.common#Common.call_map #= make_call_map (map fst note_keys))
+    . (MidiInst.patch#Patch.attribute_map #= keymap)
+    where
+    keymap = Patch.unpitched_keymap
+        [(Drums._attributes note, key) | (note, key) <- note_keys]
+
+im_drum_patch :: [Drums.Note] -> ImInst.Patch -> ImInst.Patch
+im_drum_patch notes =
+    ImInst.triggered
+    . (ImInst.common#Common.call_map #= make_call_map notes)
 
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
 -- bottom of the key range, and winds up in 'Patch.PitchedKeymap'.
@@ -313,11 +322,12 @@ make_cc_keymap base_key range root_pitch =
 -- | Annotate a Patch with an 'Patch.AttributeMap' from the given
 -- PitchedNotes.
 pitched_drum_patch :: PitchedNotes -> MidiInst.Patch -> MidiInst.Patch
-pitched_drum_patch notes = (MidiInst.triggered .) $
-    MidiInst.patch %= (Patch.call_map #= make_call_map (map fst notes))
-        . (Patch.attribute_map #= make_attribute_map notes)
+pitched_drum_patch notes =
+    MidiInst.triggered
+    . (MidiInst.common#Common.call_map #= make_call_map (map fst notes))
+    . (MidiInst.patch#Patch.attribute_map #= make_attribute_map notes)
 
-make_call_map :: [Drums.Note] -> Patch.CallMap
+make_call_map :: [Drums.Note] -> Common.CallMap
 make_call_map = Map.fromList . map (\n -> (Drums._attributes n, Drums._name n))
 
 make_attribute_map :: PitchedNotes -> Patch.AttributeMap

@@ -45,17 +45,18 @@ instance Serialize InstrumentDb where
     get = InstrumentDb <$> get <*> get
 
 instance Serialize (Common.Common ()) where
-    put (Common.Common a b c d e) = put a >> put b >> put c >> put d >> put e
-    get = Common.Common <$> get <*> get <*> get <*> get <*> get
+    put (Common.Common a b c d e f) =
+        put a >> put b >> put c >> put d >> put e >> put f
+    get = Common.Common <$> get <*> get <*> get <*> get <*> get <*> get
 
 instance Serialize Search.Index where
     put (Search.Index a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
 
 instance Serialize Patch.Patch where
-    put (Patch.Patch a b c d e f) = put a >> put b >> put c
-        >> put d >> put e >> put f
-    get = Patch.Patch <$> get <*> get <*> get <*> get <*> get <*> get
+    put (Patch.Patch a b c d e) = put a >> put b >> put c
+        >> put d >> put e
+    get = Patch.Patch <$> get <*> get <*> get <*> get <*> get
 
 instance Serialize Patch.InitializePatch where
     put (Patch.InitializeMidi a) = put_tag 0 >> put a

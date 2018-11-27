@@ -55,7 +55,7 @@ make_db app_dir = do
     let dir = Path.absolute app_dir Config.instrument_dir </> untxt synth_name
     let dirs = map (dir</>) ["vc", "sysex", "patchman1", "patchman2"]
     patches <- concatMapM parse_dir dirs
-    builtins <- parse_builtins (dir </> untxt synth_name </> builtin)
+    builtins <- parse_builtins (dir </> builtin)
     MidiInst.save_synth app_dir synth_name (builtins ++ patches)
 
 builtin :: FilePath

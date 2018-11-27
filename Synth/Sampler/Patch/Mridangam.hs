@@ -12,6 +12,7 @@ import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
+import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.Mridangam as Mridangam
@@ -36,7 +37,8 @@ patches = (:[]) $ (Patch.patch name)
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = inferDuration
-    , Patch._karyaPatch = pitchedDrum $ ImInst.code #= code $
+    , Patch._karyaPatch = CUtil.im_drum_patch Mridangam.all_notes $
+        ImInst.code #= code $
         ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
                 [ Control.supportPitch
@@ -49,10 +51,6 @@ patches = (:[]) $ (Patch.patch name)
     code = Mridangam.code (Util.imThruFunction dir convert) sampleNn
     dir = untxt name
     name = "mridangam-d"
-
-pitchedDrum :: ImInst.Patch -> ImInst.Patch
-pitchedDrum = ImInst.triggered
-    -- I should add Patch.call_map, but it's in Midi.Patch at the moment.
 
 -- | Notes ring until stopped by their stop note.
 inferDuration :: [Note.Note] -> [Note.Note]

@@ -13,8 +13,6 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
-import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.Derive as Derive
@@ -28,12 +26,14 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 
-import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Inst as Inst
+import qualified Ui.Event as Event
+import qualified Ui.Ui as Ui
+
 import Global
 import Types
 
@@ -54,15 +54,13 @@ instance Pretty Track where
 -- | (note track, control tracks)
 type Tracks = [(Track, [Track])]
 type Config = (LookupCall, Pitch.ScaleId)
-type LookupCall = Score.Instrument -> Patch.CallMap
+type LookupCall = Score.Instrument -> Common.CallMap
 
 convert :: Cmd.M m => BlockId -> Stream.Stream Score.Event -> m Tracks
 convert source_block stream = do
     lookup_inst <- Cmd.get_lookup_instrument
-    -- TODO CallMap could go in Common but I don't know how much I care about
-    -- this feature.
-    let lookup_call = maybe mempty Patch.patch_call_map
-            . (Inst.inst_midi . Cmd.inst_instrument <=< lookup_inst)
+    let lookup_call = maybe mempty (Common.common_call_map . Cmd.inst_common)
+            . lookup_inst
     default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> Ui.tracknums_of source_block
     let (events, logs) = Stream.partition stream
@@ -140,13 +138,13 @@ integrate_track (lookup_call, default_scale_id)
 
 -- ** note
 
-note_events :: Score.Instrument -> Patch.CallMap -> [Score.Event]
+note_events :: Score.Instrument -> Common.CallMap -> [Score.Event]
     -> Track
 note_events inst call_map events =
     make_track note_title (map (note_event call_map) events)
     where note_title = ParseTitle.instrument_to_title inst
 
-note_event :: Patch.CallMap -> Score.Event -> Event.Event
+note_event :: Common.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))

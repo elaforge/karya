@@ -23,10 +23,9 @@ module Perform.Midi.Patch (
 
     -- * Patch
     , Patch(..), name, control_map
-    , initialize, attribute_map, call_map, defaults
+    , initialize, attribute_map, defaults
     , patch
     , default_name
-    , CallMap
     -- ** Scale
     , Scale(..) -- should just be Scale(scale_name), but Cmd.Serialize
     , make_scale
@@ -47,7 +46,6 @@ module Perform.Midi.Patch (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Unboxed
 
@@ -58,15 +56,14 @@ import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.Vector
 
-import qualified Midi.Midi as Midi
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
-
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Pitch as Pitch
+
 import Global
 import Types
 
@@ -222,19 +219,16 @@ data Patch = Patch {
     , patch_control_map :: !Control.ControlMap
     , patch_initialize :: !InitializePatch
     , patch_attribute_map :: !AttributeMap
-    -- TODO this should move to Instrument.Common
-    , patch_call_map :: !CallMap
     , patch_defaults :: !Settings
     } deriving (Eq, Show)
 
 instance Pretty Patch where
-    format (Patch name cmap init attr_map call_map defaults) =
+    format (Patch name cmap init attr_map defaults) =
         Pretty.record "Patch"
             [ ("name", Pretty.format name)
             , ("control_map", Pretty.format cmap)
             , ("initialize", Pretty.format init)
             , ("attribute_map", Pretty.format attr_map)
-            , ("call_map", Pretty.format call_map)
             , ("defaults", Pretty.format defaults)
             ]
 
@@ -245,8 +239,6 @@ initialize = Lens.lens patch_initialize
     (\f r -> r { patch_initialize = f (patch_initialize r) })
 attribute_map = Lens.lens patch_attribute_map
     (\f r -> r { patch_attribute_map = f (patch_attribute_map r) })
-call_map = Lens.lens patch_call_map
-    (\f r -> r { patch_call_map = f (patch_call_map r) })
 defaults = Lens.lens patch_defaults
     (\f r -> r { patch_defaults = f (patch_defaults r) })
 
@@ -257,7 +249,6 @@ patch pb_range name = Patch
     , patch_control_map = mempty
     , patch_initialize = NoInitialization
     , patch_attribute_map = Common.AttributeMap []
-    , patch_call_map = Map.empty
     , patch_defaults = make_settings pb_range
     }
 
@@ -265,10 +256,6 @@ patch pb_range name = Patch
 -- useful for softsynths whose patches all generally have the same config.
 default_name :: InstTypes.Name
 default_name = ""
-
--- | Map attributes to the names of the calls they should map to.  This
--- is used by the integrator to turn score events into UI events.
-type CallMap = Map Attrs.Attributes Expr.Symbol
 
 -- ** Scale
 

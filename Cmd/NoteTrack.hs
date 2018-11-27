@@ -37,7 +37,6 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -333,7 +332,7 @@ triggered_inst (Just inst) = Set.member Common.Triggered <$> common_flags inst
 
 common_flags :: Cmd.M m => Score.Instrument -> m (Set Common.Flag)
 common_flags inst = maybe mempty flags <$> Cmd.lookup_instrument inst
-    where flags = Common.common_flags . Inst.inst_common . Cmd.inst_instrument
+    where flags = Common.common_flags . Cmd.inst_common
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Bool -> Bool
     -> EditUtil.Modify -> m ()

@@ -18,6 +18,7 @@ import qualified Util.Serialize as Serialize
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -44,6 +45,7 @@ data Common code = Common {
     -- | So, instrument, tell me about yourself.
     , common_doc :: !Doc.Doc
     , common_flags :: !(Set Flag)
+    , common_call_map :: !CallMap
     } deriving (Show)
 
 code = Lens.lens common_code (\f r -> r { common_code = f (common_code r) })
@@ -52,6 +54,12 @@ environ = Lens.lens common_environ
 tags = Lens.lens common_tags (\f r -> r { common_tags = f (common_tags r) })
 doc = Lens.lens common_doc (\f r -> r { common_doc = f (common_doc r) })
 flags = Lens.lens common_flags (\f r -> r { common_flags = f (common_flags r) })
+call_map = Lens.lens common_call_map
+    (\f r -> r { common_call_map = f (common_call_map r) })
+
+-- | Map attributes to the names of the calls they should map to.  This
+-- is used by the integrator to turn score events into UI events.
+type CallMap = Map Attrs.Attributes Expr.Symbol
 
 common :: code -> Common code
 common code = Common
@@ -60,16 +68,19 @@ common code = Common
     , common_tags = []
     , common_doc = ""
     , common_flags = mempty
+    , common_call_map = mempty
     }
 
 instance Pretty code => Pretty (Common code) where
-    format (Common code env tags doc flags) = Pretty.record "Instrument"
-        [ ("code", Pretty.format code)
-        , ("restricted_environ", Pretty.format env)
-        , ("tags", Pretty.format tags)
-        , ("doc", Pretty.format doc)
-        , ("flags", Pretty.format flags)
-        ]
+    format (Common code env tags doc flags call_map) =
+        Pretty.record "Instrument"
+            [ ("code", Pretty.format code)
+            , ("restricted_environ", Pretty.format env)
+            , ("tags", Pretty.format tags)
+            , ("doc", Pretty.format doc)
+            , ("flags", Pretty.format flags)
+            , ("call_map", Pretty.format call_map)
+            ]
 
 data Flag =
     -- | Patch doesn't pay attention to duration, e.g. percussion.  The UI can
