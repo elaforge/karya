@@ -40,9 +40,11 @@ nexts xs = zip xs (drop 1 (List.tails xs))
 symbolicPitch :: Except.MonadError Text m => Note.Note
     -> m (Either Pitch.Note Pitch.NoteNumber)
 symbolicPitch note
-    | Text.null (Note.element note) =
-        Right <$> tryJust "no pitch" (Note.initialPitch note)
+    | Text.null (Note.element note) = Right <$> initialPitch note
     | otherwise = return $ Left $ Pitch.Note $ Note.element note
+
+initialPitch :: Except.MonadError Text m => Note.Note -> m Pitch.NoteNumber
+initialPitch = tryJust "no pitch" . Note.initialPitch
 
 articulation :: Except.MonadError Text m => Common.AttributeMap a
     -> Attrs.Attributes -> m a

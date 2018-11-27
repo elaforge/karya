@@ -97,7 +97,7 @@ convert note = do
     let dynVal = fromMaybe 0 $ Note.initial Control.dynamic note
     let filename = articulationDir articulation
             </> pickDynamic (articulationSamples articulation) dynVal
-    let noteNn = sampleNn -- TODO look at note pitch
+    noteNn <- Util.initialPitch note
     let noteDyn = Num.scale minDyn 1 dynVal
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename

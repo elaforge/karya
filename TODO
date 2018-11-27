@@ -1357,6 +1357,7 @@ synth: im:
       . It thinks it's RAW, but it's not, maybe I have to fill in SF_INFO
         first.
   progress:
+    - show where an error occured
     * I have to show (block, inst).
     . Parse output to display render progress, mark "done" and "in progress"
       in the track background color.
@@ -2023,9 +2024,15 @@ synth: im:
     . mridangam:
       * write patch
         . implement stop strokes
-      - implement pitch
+      * implement pitch
       - implement variations as a probably range over neghboring velocities
+        . Approximate normal distribution: sum (take n randoms) / n
       - render directly from solkattu
+        . Convert to a score first, so I can apply ky transforms.
+        . Then perform via im, and invoke sampler-im.
+        . This way I can make use of the cache.
+        . This non-interactive pipeline would be the same basis for all text
+          score.
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.

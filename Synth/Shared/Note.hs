@@ -81,7 +81,11 @@ note patch instrument start duration = Note
     }
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
-initialPitch = fmap Pitch.nn . initial Control.pitch
+initialPitch note = if nn == Just 0 then Nothing else nn
+    where nn = Pitch.nn <$> initial Control.pitch note
+    -- If the patch said it supports pitch, Control.pitch will always be
+    -- present even if that means it's empty.  That will show up as 0 pitch,
+    -- so convert that back into Nothing.
 
 initial :: Control.Control -> Note -> Maybe Signal.Y
 initial control note = Signal.at (start note) <$>
