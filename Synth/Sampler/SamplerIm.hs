@@ -166,8 +166,10 @@ realize quality notesFilename instrument notes = do
     (result, elapsed) <- Thread.timeActionText $
         Render.write quality output notes
     case result of
-        Left err -> Log.error $ instrument <> ": writing " <> txt output
-            <> ": " <> err
+        Left err -> do
+            Log.error $ instrument <> ": writing " <> txt output
+                <> ": " <> err
+            Config.emitFailure output err
         Right (rendered, total) ->
             Log.notice $ instrument <> " " <> showt rendered <> "/"
                 <> showt total <> " chunks: " <> txt output

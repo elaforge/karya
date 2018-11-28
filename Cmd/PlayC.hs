@@ -104,7 +104,7 @@ cmd_play_msg ui_chan msg = do
             Just $ Color.brightness 0.5 Config.busy_color
         Msg.DeriveComplete _ Msg.ImUnnecessary -> Just Config.box_color
         Msg.ImStatus (Msg.ImProgress {}) -> Nothing
-        Msg.ImStatus Msg.ImComplete -> Just Config.box_color
+        Msg.ImStatus (Msg.ImComplete _) -> Just Config.box_color
 
 set_all_play_boxes :: Ui.M m => Color.Color -> m ()
 set_all_play_boxes color =
@@ -121,7 +121,10 @@ handle_im_status ui_chan block_id = \case
         start_im_progress ui_chan block_id
     Msg.DeriveComplete _ Msg.ImUnnecessary ->
         complete_im_progress ui_chan block_id
-    Msg.ImStatus Msg.ImComplete -> complete_im_progress ui_chan block_id
+    Msg.ImStatus (Msg.ImComplete failed) -> unless failed $
+        complete_im_progress ui_chan block_id
+        -- If it failed, leave the the progress highlight in place, to indicate
+        -- where it crashed.
     Msg.ImStatus (Msg.ImProgress progress_block instrument start end)
         -- Only display progress for each block as its own toplevel.
         -- If a block is child of another, I can see its prorgess in

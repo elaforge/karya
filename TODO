@@ -298,6 +298,8 @@ UNSORTED
       [tag, length, ...] instead of [length, tag, ...], but the former makes
       more sense to me anyway, since the length will likely be different
       depending on tag/version.
+    . Or try persist, it seems to be compatible with cereal, but faster:
+      https://hackage.haskell.org/package/persist
   - Adding a new track puts a bit of extra padding on the right side.
   tabuh gari:
     - octaves notation for trompong
@@ -1312,6 +1314,12 @@ synth: im:
       hardcoded to 'sampler -> faust' or just 'faust'.
     . I'd need some routing so I can get signals to those processors.
   bug:
+    - crash on mridangam:
+      . **** Synth/Sampler/SamplerIm.hs:169 - m: writing
+        im/cache/save/test/im-mridangam/untitled/b1/m:
+        Util/Audio/File.hs:72: assertion: tried to seek to 30058 in
+        "data/sampler/mridangam-d/Thom/24-30-35-95-99-thom.wav",
+        but it only has 26335
     * If I delete notes from 0t--8t in bug-im-reyong:
       . writing im/cache/test/im-reyong/untitled/b3/r: Util/Audio/File.hs:181:
         assertion: expected size 352800 but got [5000, 5000, 352800]
@@ -1357,7 +1365,10 @@ synth: im:
       . It thinks it's RAW, but it's not, maybe I have to fill in SF_INFO
         first.
   progress:
-    - show where an error occured
+    * show where an error occured
+      . There will be a Error level log msg, and progress won't complete.
+      . So I need to check for one of those, forward to the karya log,
+        and put an error selection on the place where it crashed.
     * I have to show (block, inst).
     . Parse output to display render progress, mark "done" and "in progress"
       in the track background color.
@@ -2021,11 +2032,12 @@ synth: im:
       - implement damping with hand simulation?  Wayang can get the same.
     guzheng:
       . Everything rings except when explicitly muted.
-    . mridangam:
+    mridangam:
+      - calibrate dynamics
       * write patch
         . implement stop strokes
       * implement pitch
-      - implement variations as a probably range over neghboring velocities
+      - implement variations as a probably range over neighboring velocities
         . Approximate normal distribution: sum (take n randoms) / n
       - render directly from solkattu
         . Convert to a score first, so I can apply ky transforms.

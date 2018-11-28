@@ -24,6 +24,7 @@ import qualified Data.Vector as Vector
 
 import qualified System.IO as IO
 
+import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Process
@@ -31,7 +32,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
-import qualified App.Config as Config
+import qualified App.Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
@@ -42,7 +43,7 @@ import qualified Derive.Stream as Stream
 
 import qualified Instrument.Inst as Inst
 import qualified Perform.Im.Convert as Im.Convert
-import qualified Synth.Shared.Config as Shared.Config
+import qualified Synth.Shared.Config as Config
 import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -115,7 +116,7 @@ try_generate_performance send_status ui_state block_id = do
 derive_wait :: Cmd.State -> BlockId -> Thread.Seconds
 derive_wait cmd_state block_id
     | block_id `Set.member` Cmd.state_derive_immediately cmd_state = 0
-    | otherwise = Config.default_derive_wait
+    | otherwise = App.Config.default_derive_wait
 
 -- | Since caches are stored per-performance, score damage is also
 -- per-performance.  It accumulates in an existing performance and is cleared
@@ -224,7 +225,7 @@ derive ui_state cmd_state block_id = (perf, logs)
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         PlayUtil.derive_block prev_cache damage block_id
 
-evaluate_performance :: Maybe Shared.Config.Config
+evaluate_performance :: Maybe Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Thread.Seconds -> SendStatus -> FilePath -> BlockId -> Cmd.Performance
     -> IO ()
@@ -246,40 +247,51 @@ evaluate_performance im_config lookup_inst wait send_status score_path block_id
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
-    subprocesses (send_status block_id . Msg.ImStatus) (Set.fromList procs)
+    failure <- subprocesses (send_status block_id . Msg.ImStatus)
+        (Set.fromList procs)
     unless (null procs) $
-        send_status block_id $ Msg.ImStatus Msg.ImComplete
+        send_status block_id $ Msg.ImStatus $ Msg.ImComplete failure
 
 type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
-subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO ()
+subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
 subprocesses send_status procs =
-    Util.Process.multipleOutput (Set.toList procs) (\output -> go output procs)
+    Util.Process.multipleOutput (Set.toList procs) $ \chan ->
+        Control.loop1 (procs, False) $ \loop (procs, failures) -> if
+            | Set.null procs -> return failures
+            | otherwise -> do
+                ((cmd, args), out) <- Chan.readChan chan
+                case out of
+                    Util.Process.Stderr line ->
+                        put line >> loop (procs, failures)
+                    Util.Process.Stdout line -> do
+                        failed <- progress line
+                        loop (procs, failed || failures)
+                    Util.Process.Exit code -> do
+                        when (code /= Util.Process.ExitCode 0) $
+                            Log.warn $ "subprocess " <> txt cmd <> " "
+                                <> showt args <> " returned " <> showt code
+                        loop (Set.delete (cmd, args) procs, failures)
     where
-    go output procs
-        | Set.null procs = return ()
+    progress line
+        | Just (block_id, instrument, (start, end))
+                <- Config.parseProgress line = do
+            send_status $ Msg.ImProgress block_id instrument start end
+            return False
+        | Just (block_id, instrument, err) <- Config.parseFailure line = do
+            Log.warn $ "im failure: " <> pretty block_id <> ": "
+                <> pretty instrument <> ": " <> err
+            return True
         | otherwise = do
-            ((cmd, args), out) <- Chan.readChan output
-            case out of
-                Util.Process.Stderr line -> put line >> go output procs
-                Util.Process.Stdout line -> progress line >> go output procs
-                Util.Process.Exit code -> do
-                    when (code /= Util.Process.ExitCode 0) $
-                        Log.warn $ "subprocess " <> txt cmd <> " " <> showt args
-                            <> " returned " <> showt code
-                    go output (Set.delete (cmd, args) procs)
-    progress line = case Shared.Config.parseProgress line of
-        Just (blockId, instrument, (start, end)) ->
-            send_status $ Msg.ImProgress blockId
-                (Score.Instrument instrument) start end
-        Nothing -> put $ "couldn't parse: " <> line
+            put $ "couldn't parse: " <> line
+            return False
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- | If there are Im events, serialize them and return a CreateProcess to
 -- render them, and the non-Im events.
-evaluate_im :: Shared.Config.Config
+evaluate_im :: Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> FilePath -> BlockId -> Vector.Vector Score.Event
     -> IO ([Process], Vector.Vector Score.Event)
@@ -295,15 +307,15 @@ evaluate_im config lookup_inst score_path block_id events = do
         Nothing -> Nothing
 
     write_notes (Just synth_name, events) = do
-        case Map.lookup synth_name (Shared.Config.synths config) of
+        case Map.lookup synth_name (Config.synths config) of
             Just synth -> do
-                let fname = Shared.Config.notesFilename
-                        (Shared.Config.imDir config) synth score_path block_id
+                let fname = Config.notesFilename (Config.imDir config)
+                        synth score_path block_id
                 -- TODO It would be better to not reach this point at all if
                 -- the block hasn't changed, but until then at least I can
                 -- skip running the binary if the notes haven't changed.
                 changed <- Im.Convert.write lookup_inst fname events
-                let binary = Shared.Config.binary synth
+                let binary = Config.binary synth
                 return $ if null binary || not changed then Nothing
                     else Just (binary, [fname])
             Nothing -> do

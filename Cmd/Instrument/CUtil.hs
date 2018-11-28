@@ -11,7 +11,6 @@ import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Debug as Debug
 import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
@@ -123,7 +122,6 @@ insert_expr thru char_to_expr msg = do
 expr_im_thru :: Cmd.M m => Osc.ThruFunction -> BaseTypes.Expr -> m [Cmd.Thru]
 expr_im_thru thru_f expr = do
     (nn, dyn, attrs) <- expr_attributes expr
-    Debug.tracepM "im_thru" (expr, nn, attrs)
     plays <- Cmd.require_right ("thru_f: "<>) $ thru_f attrs nn dyn
     return $ map (Cmd.ImThru . Osc.play) plays
 

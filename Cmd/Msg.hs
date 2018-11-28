@@ -65,7 +65,8 @@ show_short = \case
                 [ "ImProgress:", pretty bid, pretty tid
                 , pretty start, "--", pretty end
                 ]
-            ImComplete -> "ImComplete"
+            ImComplete failed ->
+                "ImComplete" <> if failed then "(failed)" else ""
         -- show_short is used for timing, and Show DeriveStatus can force stuff
         -- in Performance, so let's not use it.
     Socket _hdl query -> pretty query
@@ -99,7 +100,8 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
 data ImStatus =
     -- | Active synthesis range for the give block and instrument.
     ImProgress !BlockId !Score.Instrument !RealTime !RealTime
-    | ImComplete
+    -- | True if the im subprocess failed.  The error will have been logged.
+    | ImComplete !Bool
     deriving (Show)
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.

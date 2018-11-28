@@ -164,7 +164,7 @@ render outputDir chunkSize quality states notifyState notes start =
         | otherwise = chunk
         where delta = chunkSize - AUtil.chunkFrames2 chunk
 
-    progress now playing starting = liftIO $ Config.progress outputDir
+    progress now playing starting = liftIO $ Config.emitProgress outputDir
         (AUtil.toSeconds now) (AUtil.toSeconds (now + chunkSize))
         ("voices:" <> showt (length playing) <> "+" <> showt (length starting))
 

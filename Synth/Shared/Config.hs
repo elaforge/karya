@@ -22,6 +22,7 @@ import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified App.Path as Path
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.RealTime as RealTime
 import qualified Ui.Id as Id
 
@@ -217,14 +218,11 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 -- | Emit a progress message.  The sequencer should be able to parse these to
 -- show render status.  It shows the end of the chunk being rendered, so it can
 -- highlight the time range which is in progress.
-progress :: FilePath -> RealTime -> RealTime -> Text -> IO ()
-progress outputDir start end extra = do
+emitProgress :: FilePath -> RealTime -> RealTime -> Text -> IO ()
+emitProgress outputDir start end extra = do
     Log.notice $ Text.unwords $
         "progress" : nsBlockInst ++ [pretty start <> "--" <> pretty end, extra]
-    Log.with_stdio_lock $ do
-        Text.IO.putStrLn $ Text.unwords $
-            "progress" : nsBlockInst ++ [time start, time end]
-        IO.hFlush IO.stdout
+    emitMessage outputDir "progress" [time start, time end]
     where
     time = showt . RealTime.to_seconds
     -- im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
@@ -232,16 +230,39 @@ progress outputDir start end extra = do
     nsBlockInst = Seq.rtake 3 . Text.splitOn "/" . txt $ outputDir
 
 -- | Parse the line emitted by 'progress'.
-parseProgress :: Text -> Maybe (Id.BlockId, Text, (RealTime, RealTime))
-parseProgress line = case Text.words line of
-    ["progress", namespace, block, instrument, start, end] -> do
-        start <- time start
-        end <- time end
-        return
-            ( Id.BlockId $ Id.id (Id.namespace namespace) block
-            , instrument
-            , (start, end)
-            )
-    _ -> Nothing
+parseProgress :: Text
+    -> Maybe (Id.BlockId, ScoreTypes.Instrument, (RealTime, RealTime))
+parseProgress line = do
+    ("progress", blockId, instrument, [start, end]) <- parseMessage line
+    start <- time start
+    end <- time end
+    return (blockId, instrument, (start, end))
     where
     time = fmap RealTime.seconds . Parse.parse_maybe Parse.p_float
+
+emitFailure :: FilePath -> Text -> IO ()
+emitFailure outputDir msg = emitMessage outputDir "failure" [msg]
+
+parseFailure :: Text -> Maybe (Id.BlockId, ScoreTypes.Instrument, Text)
+parseFailure line = do
+    ("failure", blockId, instrument, msg) <- parseMessage line
+    return (blockId, instrument, Text.unwords msg)
+
+emitMessage :: FilePath -> Text -> [Text] -> IO ()
+emitMessage outputDir msg words = Log.with_stdio_lock $ do
+    Text.IO.putStrLn $ Text.unwords $ msg : nsBlockInst ++ words
+    IO.hFlush IO.stdout
+    where
+    -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
+    -- -> [namespace, block, instrument]
+    nsBlockInst = Seq.rtake 3 . Text.splitOn "/" . txt $ outputDir
+
+parseMessage :: Text -> Maybe (Text, Id.BlockId, ScoreTypes.Instrument, [Text])
+parseMessage line = case Text.words line of
+    msg : namespace : block : instrument : args -> Just
+        (msg
+        , Id.BlockId $ Id.id (Id.namespace namespace) block
+        , ScoreTypes.Instrument instrument
+        , args
+        )
+    _ -> Nothing
