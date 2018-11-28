@@ -311,13 +311,15 @@ evaluate_im config lookup_inst score_path block_id events = do
             Just synth -> do
                 let fname = Config.notesFilename (Config.imDir config)
                         synth score_path block_id
+                    output_dir = Config.outputDirectory (Config.imDir config)
+                        score_path block_id
                 -- TODO It would be better to not reach this point at all if
                 -- the block hasn't changed, but until then at least I can
                 -- skip running the binary if the notes haven't changed.
                 changed <- Im.Convert.write lookup_inst fname events
                 let binary = Config.binary synth
                 return $ if null binary || not changed then Nothing
-                    else Just (binary, [fname])
+                    else Just (binary, [fname, output_dir])
             Nothing -> do
                 Log.warn $ "unknown im synth " <> synth_name <> " with "
                     <> showt (Vector.length events) <> " events"

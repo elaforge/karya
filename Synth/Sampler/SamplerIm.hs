@@ -9,6 +9,7 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
@@ -51,16 +52,19 @@ main = do
         ["check"] -> do
             let (reference, samples) = Wayang.checkStarts
             mapM_ (renderStarts . (++[reference])) samples
-        [notesFilename] -> do
+        [notesFilename, outputDir] -> do
+            Log.notice $ Text.unwords
+                ["sampler-im", txt notesFilename, txt outputDir]
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
-            process PatchDb.db quality notesFilename notes
+            process PatchDb.db quality notes outputDir
         _ -> usage ""
     where
     usage msg = do
         unless (null msg) $
             putStrLn $ "ERROR: " ++ msg
-        putStr (GetOpt.usageInfo "sampler-im [ flags ] path/to/notes" options)
+        putStr $ GetOpt.usageInfo
+            "sampler-im [ flags ] path/to/notes path/to/output/dir" options
         System.Exit.exitFailure
 
 data Flags = Quality Resample.Quality
@@ -86,17 +90,13 @@ options =
 
 type Error = Text
 
-process :: Patch.Db -> Resample.Quality -> FilePath -> [Note.Note] -> IO ()
-process db quality notesFilename notes = do
-    Log.notice $ "processing " <> txt notesFilename
-    config <- Config.getConfig
-    clearUnusedInstruments
-        (Config.instrumentDirectory (Config.imDir config) notesFilename)
-        instruments
+process :: Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath -> IO ()
+process db quality notes outputDir = do
+    clearUnusedInstruments outputDir instruments
     Async.forConcurrently_ byPatchInst $ \(patch, notes) -> case get patch of
         Nothing -> Log.warn $ "patch not found: " <> patch
         Just patch -> Async.forConcurrently_ notes $ \(inst, notes) ->
-            realize quality notesFilename inst
+            realize quality outputDir inst
                 =<< mapM makeNote (convert db patch notes)
     where
     instruments = Set.fromList $ concatMap (map fst . snd) byPatchInst
@@ -146,9 +146,9 @@ makeNote (errSample, logs, note) = do
             RenderSample.predictFileDuration (Sample.ratio sample)
                 (Sample.filename sample)
     let newDur = maybe id (min . AUtil.toSeconds) mbDur (Note.duration note)
-    when (newDur /= Note.duration note) $
-        Log.debug $ "sample " <> pretty errSample <> " dur "
-            <> pretty (Note.duration note) <> " -> " <> pretty newDur
+    -- when (newDur /= Note.duration note) $
+    --     Log.debug $ "sample " <> pretty errSample <> " dur "
+    --         <> pretty (Note.duration note) <> " -> " <> pretty newDur
     return $ Sample.Note
         { start = Note.start note
         , duration = newDur
@@ -158,21 +158,19 @@ makeNote (errSample, logs, note) = do
 
 realize :: Resample.Quality -> FilePath -> Note.InstrumentName
     -> [Sample.Note] -> IO ()
-realize quality notesFilename instrument notes = do
-    config <- Config.getConfig
-    let output = Config.outputDirectory
-            (Config.imDir config) notesFilename instrument
-    Directory.createDirectoryIfMissing True output
+realize quality outputDir instrument notes = do
+    let instDir = outputDir </> untxt instrument
+    Directory.createDirectoryIfMissing True instDir
     (result, elapsed) <- Thread.timeActionText $
-        Render.write quality output notes
+        Render.write quality instDir notes
     case result of
         Left err -> do
-            Log.error $ instrument <> ": writing " <> txt output
+            Log.error $ instrument <> ": writing " <> txt instDir
                 <> ": " <> err
-            Config.emitFailure output err
+            Config.emitFailure instDir err
         Right (rendered, total) ->
             Log.notice $ instrument <> " " <> showt rendered <> "/"
-                <> showt total <> " chunks: " <> txt output
+                <> showt total <> " chunks: " <> txt instDir
                 <> " (" <> elapsed <> ")"
 
 -- * one off testing

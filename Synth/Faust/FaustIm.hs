@@ -18,11 +18,13 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 import qualified Util.Thread as Thread
@@ -31,7 +33,6 @@ import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
-import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
 import Global
@@ -66,17 +67,19 @@ main = do
                     forM_ uiControls $ \(c, _, cdoc) ->
                         Text.IO.putStrLn $ "UI: " <> pretty c <> ": " <> cdoc
             putStrLn ""
-        [notesFilename] -> do
+        [notesFilename, outputDir] -> do
+            Log.notice $ Text.unwords
+                ["faust-im", txt notesFilename, txt outputDir]
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
             pid <- Posix.Process.getProcessID
             let prefix = showt pid <> ": " <> txt notesFilename
-            process prefix patches notesFilename notes
-        _ -> errorIO $ "usage: faust-im [notes | print-patches]"
+            process prefix patches notes outputDir
+        _ -> errorIO $ "usage: faust-im [print-patches | notes outputDir]"
 
-process :: Text -> Map Note.PatchName DriverC.Patch -> FilePath -> [Note.Note]
+process :: Text -> Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath
     -> IO ()
-process prefix patches notesFilename notes = do
+process prefix patches notes outputDir = do
     putLock <- MVar.newMVar ()
     let put msg = MVar.withMVar putLock $ const $
             Text.IO.putStrLn $ prefix <> ": " <> msg
@@ -87,14 +90,11 @@ process prefix patches notesFilename notes = do
     -- Signals.installHandler above will make SIGINT throw.
     let async :: Exception.AsyncException -> IO ()
         async exc = put $ "exception: " <> showt exc
-    config <- Config.getConfig
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
-            let output
-                    | useCheckpoints = Config.outputDirectory
-                        (Config.imDir config) notesFilename inst
-                    | otherwise = Config.outputFilename
-                        (Config.imDir config) notesFilename inst
+            let output = if useCheckpoints
+                    then outputDir </> untxt inst
+                    else outputDir </> untxt inst <> ".wav"
             put $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
             Directory.createDirectoryIfMissing True $

@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -154,7 +153,7 @@ oscPort = OSC_PORT
     synth cache output, and the play msg sent to play_cache:
 
     notes:  im/notes/scorePath/ns/block/synth
-    output: im/cache/scorePath/ns/block/inst.wav
+    output: im/cache/scorePath/ns/block/inst/###.wav
     play:   scorePath/ns/block, [inst] in mutes
 -}
 
@@ -167,42 +166,9 @@ notesFilename imDir synth scorePath blockId =
     imDir </> notesParentDir </> scorePath </> idFilename blockId
     </> synthName synth
 
--- | Get the filename that should be used for the output of a certain block and
--- instrument.
-outputFilename :: FilePath
-    -> FilePath -- ^ Names as produced by 'notesFilename'.
-    -> Text -- ^ ScoreTypes.Instrument, but I don't want to import ScoreTypes.
-    -> FilePath
-outputFilename imDir notesFilename inst =
-    imDir </> cacheDir </> scorePathBlock </> untxt inst <> ".wav"
-    where
-    -- Recover scorePath/ns/block from the path so I don't have to put it in
-    -- a file or something.  TODO It's a bit sketchy though.
-    scorePathBlock = FilePath.joinPath $ Seq.rdrop 1 $ drop 2 $
-        FilePath.splitPath notesFilename
-
--- |
--- > .../im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
--- > .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
-outputDirectory :: FilePath
-    -> FilePath -- ^ Names as produced by 'notesFilename'.
-    -> Text -- ^ ScoreTypes.Instrument, but I don't want to import ScoreTypes.
-    -> FilePath
-outputDirectory imDir notesFilename inst =
-    instrumentDirectory imDir notesFilename </> untxt inst
-
--- | Get the directory which contains each instrument subdir.
---
--- > .../im/notes/$scorePath/$scoreFname/$namespace/$block/sampler ->
--- > .../im/cache/$scorePath/$scoreFname/$namespace/$block
-instrumentDirectory :: FilePath -> FilePath -> FilePath
-instrumentDirectory imDir notesFilename = imDir </> cacheDir </> scorePathBlock
-    where
-    -- Derive scorePath/ns/block from the path so I don't have to put it in
-    -- a file or something.  TODO It's a bit sketchy though.
-    scorePathBlock = FilePath.joinPath $
-        Seq.rdrop 1 $ drop 1 $ FilePath.splitPath $
-        dropWhile (=='/') $ drop (length imDir) notesFilename
+outputDirectory :: FilePath -> FilePath -> Id.BlockId -> FilePath
+outputDirectory imDir scorePath blockId =
+    imDir </> cacheDir </> scorePath </> idFilename blockId
 
 -- | This is text sent over MIDI to tell play_cache which directory to play
 -- from.  Relative to imDir/cacheDir.
@@ -221,13 +187,11 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 emitProgress :: FilePath -> RealTime -> RealTime -> Text -> IO ()
 emitProgress outputDir start end extra = do
     Log.notice $ Text.unwords $
-        "progress" : nsBlockInst ++ [pretty start <> "--" <> pretty end, extra]
+        "progress" : nsBlockInst outputDir
+        ++ [pretty start <> "--" <> pretty end, extra]
     emitMessage outputDir "progress" [time start, time end]
     where
     time = showt . RealTime.to_seconds
-    -- im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
-    -- -> [namespace, block, instrument]
-    nsBlockInst = Seq.rtake 3 . Text.splitOn "/" . txt $ outputDir
 
 -- | Parse the line emitted by 'progress'.
 parseProgress :: Text
@@ -250,12 +214,13 @@ parseFailure line = do
 
 emitMessage :: FilePath -> Text -> [Text] -> IO ()
 emitMessage outputDir msg words = Log.with_stdio_lock $ do
-    Text.IO.putStrLn $ Text.unwords $ msg : nsBlockInst ++ words
+    Text.IO.putStrLn $ Text.unwords $ msg : nsBlockInst outputDir ++ words
     IO.hFlush IO.stdout
-    where
-    -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
-    -- -> [namespace, block, instrument]
-    nsBlockInst = Seq.rtake 3 . Text.splitOn "/" . txt $ outputDir
+
+-- | Infer [namespace, block, instrument] from
+-- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
+nsBlockInst :: FilePath -> [Text]
+nsBlockInst = Seq.rtake 3 . Text.splitOn "/" . txt
 
 parseMessage :: Text -> Maybe (Text, Id.BlockId, ScoreTypes.Instrument, [Text])
 parseMessage line = case Text.words line of
