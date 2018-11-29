@@ -20,7 +20,6 @@ import qualified Control.Monad.State.Strict as Monad.State
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import qualified Util.Ranges as Ranges
@@ -28,8 +27,14 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
+import qualified App.Config as Config
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Selection as Selection
+import qualified Cmd.Views as Views
+
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
+import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
@@ -40,11 +45,6 @@ import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Selection as Selection
-import qualified Cmd.Views as Views
-
-import qualified App.Config as Config
 import Global
 import Types
 
@@ -130,15 +130,9 @@ map_track_titles f = do
 
 -- * block
 
-new_block_id :: Ui.M m => m Id.Id
-new_block_id = do
-    ns <- Ui.get_namespace
-    require_id "block id" . generate_block_id Nothing ns
-        =<< Ui.gets Ui.state_blocks
-
 block_from_template :: Ui.M m => Bool -> BlockId -> m BlockId
 block_from_template copy_events template_id =
-    named_block_from_template copy_events template_id =<< new_block_id
+    named_block_from_template copy_events template_id =<< GenId.block_id Nothing
 
 -- | Create a block which is a copy of another.
 named_block_from_template :: Ui.M m => Bool -- ^ copy the events
@@ -185,9 +179,7 @@ block = sub_block Nothing
 -- you can call it from the parent by just writing @.b1@.
 sub_block :: Ui.M m => Maybe BlockId -> RulerId -> m BlockId
 sub_block maybe_parent ruler_id = do
-    ns <- Ui.get_namespace
-    block_id <- require_id "block id"
-        . generate_block_id maybe_parent ns =<< Ui.gets Ui.state_blocks
+    block_id <- GenId.block_id maybe_parent
     Ui.create_block block_id ""
         [Block.track (Block.RId ruler_id) Config.ruler_width]
 
@@ -211,14 +203,6 @@ destroy_block block_id = do
     orphans <- orphan_rulers
     mapM_ Ui.destroy_ruler (filter (`elem` orphans) ruler_ids)
 
--- ** util
-
-generate_block_id :: Maybe BlockId -> Id.Namespace -> Map BlockId _a
-    -> Maybe Id.Id
-generate_block_id maybe_parent ns blocks =
-    generate_id ns parent "b" Id.BlockId blocks
-    where parent = maybe (Id.global "") Id.unpack_id maybe_parent
-
 -- * view
 
 -- | Create a view with the default dimensions.
@@ -231,8 +215,7 @@ unfitted_view block_id = do
 
 sized_view :: Ui.M m => BlockId -> Rect.Rect -> m ViewId
 sized_view block_id rect = do
-    view_id <- require_id "view id" . generate_view_id block_id
-        =<< Ui.gets Ui.state_views
+    view_id <- GenId.view_id block_id
     block <- Ui.get_block block_id
     view_id <- Ui.create_view view_id $
         Block.view block block_id rect Config.zoom
@@ -283,12 +266,6 @@ view_screen view_id =
 
 block_view :: Cmd.M m => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
-
--- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
-generate_view_id :: BlockId -> Map ViewId _a -> Maybe Id.Id
-generate_view_id block_id views =
-    generate_id (Id.id_namespace ident) ident "v" Id.ViewId views
-    where ident = Id.unpack_id block_id
 
 -- | Destroy a view, along with the underlying block if there were no other
 -- views.
@@ -487,8 +464,7 @@ track block_id tracknum title events = do
 track_events :: Ui.M m =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> Track.Track -> m TrackId
 track_events block_id ruler_id tracknum width track = do
-    track_id <- require_id "track id" . generate_track_id block_id "t"
-        =<< Ui.gets Ui.state_tracks
+    track_id <- GenId.track_id block_id
     tid <- Ui.create_track track_id track
     Ui.insert_track block_id tracknum
         (Block.track (Block.TId tid ruler_id) width)
@@ -564,11 +540,6 @@ track_after block tracknum
     | otherwise = next_tracknum
     where next_tracknum = Ui.skip_unselectable_tracks block tracknum 1
 
-generate_track_id :: BlockId -> Text -> Map TrackId _a -> Maybe Id.Id
-generate_track_id block_id code tracks =
-    generate_id (Id.id_namespace ident) ident code Id.TrackId tracks
-    where ident = Id.unpack_id block_id
-
 -- * ruler
 
 -- | Create a ruler with the given name.
@@ -589,28 +560,6 @@ set_block_ruler ruler_id block_id =
     Transform.tracks block_id (Block.set_ruler_id ruler_id)
 
 -- * general util
-
-generate_id :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
-    -> Map a _b -> Maybe Id.Id
-generate_id ns parent_id code typ fm =
-    List.find (not . (`Map.member` fm) . typ) candidates
-    where candidates = ids_for ns (Id.id_name parent_id) code
-
--- | IDs are numbered, and they start at 1 instead of 0.
---
--- This is because usually tracknum 0 is the ruler, so counting with tracknums,
--- event tracks start at 1.  The actual TrackId should be irrelevant (and would
--- be out of date as soon as a track is swapped), but for testing it's very
--- convenient if they line up with the tracknums.  So even though it's purely
--- for testing and only for TrackIds, I start everything at 1 just for
--- consistency.
-ids_for :: Id.Namespace -> Text -> Text -> [Id.Id]
-ids_for ns parent code =
-    [Id.id ns (dotted parent <> code <> showt n) | n <- [1..]]
-    where dotted s = if Text.null s then "" else s <> "."
-
-require_id :: Ui.M m => Text -> Maybe a -> m a
-require_id msg = maybe (Ui.throw $ "somehow can't find ID for " <> msg) return
 
 -- | Find a place to fit the given rect.  This is like a tiny window manager.
 find_rect :: Maybe Rect.Rect -> (Int, Int) -> [Rect.Rect] -> (Int, Int)

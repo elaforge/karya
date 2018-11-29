@@ -198,7 +198,11 @@ data Allocation = Allocation {
     } deriving (Eq, Show)
 
 allocation :: InstTypes.Qualified -> Backend -> Allocation
-allocation qualified backend = Allocation qualified Common.empty_config backend
+allocation qualified backend = Allocation
+    { alloc_qualified = qualified
+    , alloc_config = Common.empty_config
+    , alloc_backend = backend
+    }
 
 instance Pretty Allocation where
     format (Allocation qualified config backend) = Pretty.record "Allocation"

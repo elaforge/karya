@@ -22,16 +22,17 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Zoom as Zoom
 
 import qualified Cmd.Cmd as Cmd
@@ -336,7 +337,7 @@ mk_tid_block :: CallStack.Stack => BlockId -> TrackNum -> TrackId
 mk_tid_block block_id i
     | i < 1 = errorStack $
         "mk_tid_block: event tracknums start at 1: " <> showt i
-    | otherwise = Id.TrackId $ Create.ids_for ns block_name "t" !! (i-1)
+    | otherwise = Id.TrackId $ GenId.ids_for ns block_name "t" !! (i-1)
     where (ns, block_name) = Id.un_id (Id.unpack_id block_id)
 
 mk_tid_name :: Text -> TrackNum -> TrackId
