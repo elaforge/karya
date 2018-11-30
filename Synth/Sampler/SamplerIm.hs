@@ -198,10 +198,11 @@ renderDirect filename dur samples =
         Audio.take (Audio.Seconds dur) $ Audio.mix $
         map ((Audio.Frames 0,) . RenderSample.render config 0) samples
     where
-    config = Resample.Config {
-        _quality = Resample.SincFastest
+    config = Resample.Config
+        { _quality = Resample.SincFastest
         , _state = Nothing
         , _notifyState = const $ return ()
         , _chunkSize = Config.checkpointSize
         , _now = 0
+        , _name = txt filename
         }

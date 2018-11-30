@@ -31,6 +31,7 @@ import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
 
 import Global
 import Synth.Lib.Global
@@ -54,16 +55,16 @@ write_ chunkSize quality outputDir notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
-    Log.debug $ txt outputDir <> ": skipped " <> pretty skipped
-        <> ", resume at " <> pretty (take 1 hashes)
-        <> " state: " <> pretty mbState
-        <> " start: " <> pretty start
     mapM_ (Checkpoint.linkOutput outputDir) skipped
 
     case maybe (Right []) unserializeStates mbState of
         Left err -> return $ Left $
             "unserializing " <> pretty mbState <> ": " <> err
         Right states -> do
+            Log.debug $ txt outputDir <> ": skipped " <> pretty skipped
+                <> ", resume at " <> pretty (take 1 hashes)
+                <> " states: " <> pretty states
+                <> " start: " <> pretty start
             stateRef <- IORef.newIORef $
                 fromMaybe (Checkpoint.State mempty) mbState
             let notifyState = IORef.writeIORef stateRef
@@ -114,7 +115,8 @@ render outputDir chunkSize quality states notifyState notes start =
     let (overlappingStart, overlappingChunk, futureNotes) =
             overlappingNotes (AUtil.toSeconds start) chunkSize notes
     -- Debug.tracepM "started, chunk, future"
-    --     (map eNote overlappingStart, map eNote overlappingChunk, map eNote futureNotes)
+    --     (map eNote overlappingStart, map eNote overlappingChunk,
+    --         map eNote futureNotes)
     playing <- liftIO $
         resumeSamples start quality chunkSize states overlappingStart
     playing <- renderChunk start playing overlappingChunk (null futureNotes)
@@ -197,9 +199,14 @@ resumeSamples now quality chunkSize states notes = do
         (zip states (Seq.sort_on Sample.hash notes))
 
 -- | Extract from Note for pretty-printing.
-eNote :: Sample.Note -> (RealTime, RealTime, Either Text FilePath)
-eNote n = (Sample.start n, Sample.duration n,
-    FilePath.takeFileName . Sample.filename <$> Sample.sample n)
+eNote :: Sample.Note
+    -> (RealTime, RealTime, Signal.Signal, Either Text FilePath)
+eNote n =
+    ( Sample.start n
+    , Sample.duration n
+    , either mempty Sample.ratio $ Sample.sample n
+    , FilePath.takeFileName . Sample.filename <$> Sample.sample n
+    )
 
 -- | Convert 'Sample.Note' to a 'Playing'.
 startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
@@ -221,6 +228,7 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
                 , _notifyState = IORef.writeIORef sampleStateRef . fmap mkState
                 , _chunkSize = chunkSize
                 , _now = now
+                , _name = txt $ FilePath.takeFileName $ Sample.filename sample
                 }
             mkState (used, rState) = State
                 { _filename = Sample.filename sample

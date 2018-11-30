@@ -66,6 +66,8 @@ data Config = Config {
     -- | This affects the first chunk size.  This is so that chunk boundaries
     -- fall on multiples of chunkSize.
     , _now :: Audio.Frame
+    -- | This is unused, but useful for debugging.
+    , _name :: Text
     }
 
 defaultConfig :: Quality -> Config
@@ -75,6 +77,7 @@ defaultConfig quality = Config
     , _notifyState = const $ return ()
     , _now = 0
     , _chunkSize = Audio.chunkSize
+    , _name = "default"
     }
 
 -- | Resample the audio by the given curve.  This doesn't actually change the
@@ -108,7 +111,7 @@ resampleBy config ratio audio = Audio.Audio $ do
                 Nothing -> done key collect
                 Just (framesUsed, chunk, audio) ->
                     loop (used + framesUsed, segment)
-                        =<< yield state (used + framesUsed) now collect
+                        =<< yield state now (used + framesUsed) collect
                             chunkLeft chunk audio
     where
     done key collect = do

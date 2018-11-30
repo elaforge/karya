@@ -82,4 +82,5 @@ mkConfig quality = Resample.Config
     , _notifyState = const $ return ()
     , _chunkSize = 8
     , _now = 0
+    , _name = "test"
     }
