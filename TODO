@@ -2055,14 +2055,21 @@ synth: im:
       * write patch
         . implement stop strokes
       * implement pitch
-      - implement variations as a probably range over neighboring velocities
+      - implement variations as a probability range over neighboring velocities
         . Approximate normal distribution: sum (take n randoms) / n
-      - render directly from solkattu
+      render from solkattu:
         . Convert to a score first, so I can apply ky transforms.
         . Then perform via im, and invoke sampler-im.
         . This way I can make use of the cache.
         . This non-interactive pipeline would be the same basis for all text
           score.
+        * Strokes -> Ui.State
+        * Ui.State -> [Score.Event]
+        * [Score.Event] -> write notes
+        * Run sampler-im/faust-im.
+        - Cmdline program that can stream and mix ###.wav, and start it as
+          soon as I see the first progress msg.
+        . Maybe adjust chunk size smaller for lower latency?
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.

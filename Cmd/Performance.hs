@@ -11,6 +11,7 @@
 -}
 module Cmd.Performance (
     SendStatus, update_performance, derive_blocks, performance, derive
+    , Process, evaluate_im
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
@@ -247,7 +248,7 @@ evaluate_performance im_config lookup_inst wait send_status score_path block_id
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
-    failure <- subprocesses (send_status block_id . Msg.ImStatus)
+    failure <- watch_subprocesses (send_status block_id . Msg.ImStatus)
         (Set.fromList procs)
     unless (null procs) $
         send_status block_id $ Msg.ImStatus $ Msg.ImComplete failure
@@ -255,25 +256,27 @@ evaluate_performance im_config lookup_inst wait send_status score_path block_id
 type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
-subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
-subprocesses send_status procs =
+watch_subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
+watch_subprocesses send_status procs =
     Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failures) -> if
             | Set.null procs -> return failures
             | otherwise -> do
                 ((cmd, args), out) <- Chan.readChan chan
-                case out of
-                    Util.Process.Stderr line ->
-                        put line >> loop (procs, failures)
-                    Util.Process.Stdout line -> do
-                        failed <- progress line
-                        loop (procs, failed || failures)
-                    Util.Process.Exit code -> do
-                        when (code /= Util.Process.ExitCode 0) $
-                            Log.warn $ "subprocess " <> txt cmd <> " "
-                                <> showt args <> " returned " <> showt code
-                        loop (Set.delete (cmd, args) procs, failures)
+                loop =<< process procs failures (cmd, args) out
     where
+    process procs failures (cmd, args) = \case
+        Util.Process.Stderr line ->
+            put line >> return (procs, failures)
+        Util.Process.Stdout line -> do
+            failed <- progress line
+            return (procs, failed || failures)
+        Util.Process.Exit code -> do
+            when (code /= Util.Process.ExitCode 0) $
+                Log.warn $ "subprocess " <> txt cmd <> " "
+                    <> showt args <> " returned " <> showt code
+            return (Set.delete (cmd, args) procs, failures)
+
     progress line
         | Just (block_id, instrument, (start, end))
                 <- Config.parseProgress line = do
@@ -289,8 +292,8 @@ subprocesses send_status procs =
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
--- | If there are Im events, serialize them and return a CreateProcess to
--- render them, and the non-Im events.
+-- | If there are im events, serialize them and return a Processes to render
+-- them, and the non-im events.
 evaluate_im :: Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> FilePath -> BlockId -> Vector.Vector Score.Event
