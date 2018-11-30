@@ -62,15 +62,17 @@ import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Segment as Segment
 import Util.Segment (X, Sample(..))
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Ui.ScoreTime as ScoreTime
+
 import Global
 import Types
 
@@ -83,8 +85,12 @@ import Types
 -- but it really is just documentation and anyone who wants to operate on
 -- a generic signal can take a @Signal kind@.
 newtype Signal kind = Signal Segment.NumSignal
-    deriving (Show, Pretty, Eq, DeepSeq.NFData, Serialize.Serialize,
-        CRC32.CRC32)
+    deriving (Show, Eq, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+
+instance Pretty (Signal kind) where
+    format sig = case constant_val sig of
+        Just y -> "Signal.constant" Pretty.<+> Pretty.format y
+        Nothing -> Pretty.format (_signal sig)
 
 _signal :: Signal kind -> Segment.NumSignal
 _signal (Signal sig) = sig
