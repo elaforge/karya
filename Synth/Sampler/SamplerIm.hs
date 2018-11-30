@@ -152,8 +152,8 @@ makeNote (errSample, logs, note) = do
     return $ Sample.Note
         { start = Note.start note
         , duration = newDur
-        , hash = Note.hash note
         , sample = errSample
+        , hash = Sample.makeHash (Note.start note) newDur errSample
         }
 
 realize :: Resample.Quality -> FilePath -> Note.InstrumentName

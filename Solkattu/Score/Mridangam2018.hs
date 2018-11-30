@@ -198,12 +198,12 @@ e_18_11_12 = exercise $ date 2018 11 12 $ ganesh $ korvai Tala.misra_chapu $
 
 e_18_11_19 :: Korvai
 e_18_11_19 = sarvalaghu $ date 2018 11 19 $ ganesh $ korvai adi $ variations
-    [ repeat 4 $ n.l.d.l.n.n.d.l
+    [ repeat 4 $ n.l.d.l.n.d.l.d
     , repeat 4 $ n.l.d.l.n.d.su (p.l).d
     , repeat 4 $ n.l.d.l.su (n.y.p.l).d.su (p.l)
     , repeat 4 $ n.l.d.su (p.l.n.y.p.l).d.su (p.l)
     , repeat 2 $ su $ repeat 3 (n.y.p.l.d.__.p.l) . (n.y.p.l.d.__.j.y)
-    , repeat 4 $ su $ d.__3.y.j.l.d.__.p.l.d.__.n.y.p.l
-    , repeat 4 $ su $ d.__3.y.j.l.d.__.p.k.t.k.n.y.p.l
-    , repeat 4 $ su $ d.__3.y.j.l.d.__.p.k.d.y.j.l.p.l
+    , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.l.d.__.n.y.p.l
+    , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.k.t.k.n.y.p.l
+    , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.k.d.y.j.l.p.l
     ]

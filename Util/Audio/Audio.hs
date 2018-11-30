@@ -59,6 +59,8 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Control.Monad.Trans as Trans
+import qualified Data.Digest.CRC32 as CRC32
+import Util.Crc32Instances ()
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
@@ -130,7 +132,8 @@ type Sample = Float
 
 -- | Should be >=0.
 newtype Frame = Frame Int
-    deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Serialize.Serialize)
+    deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Serialize.Serialize,
+        CRC32.CRC32)
 
 instance Pretty Frame where
     pretty (Frame n) = pretty n <> "f"

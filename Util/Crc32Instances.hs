@@ -23,6 +23,9 @@ instance (CRC32 a, CRC32 b) => CRC32 (a, b) where
     crc32Update n (a, b) = n `crc32Update` a `crc32Update` b
 instance (CRC32 a, CRC32 b, CRC32 c) => CRC32 (a, b, c) where
     crc32Update n (a, b, c) = n `crc32Update` a `crc32Update` b `crc32Update` c
+instance (CRC32 a, CRC32 b) => CRC32 (Either a b) where
+    crc32Update n (Left a) = n `crc32Update` a
+    crc32Update n (Right b) = n `crc32Update` b
 
 instance (CRC32 a, CRC32 b) => CRC32 (Map.Map a b) where
     crc32Update = Foldable.foldl' crc32Update

@@ -98,7 +98,7 @@ convert note = do
     let filename = articulationDir articulation
             </> pickDynamic (articulationSamples articulation) dynVal
     noteNn <- Util.initialPitch note
-    let noteDyn = Num.scale minDyn 1 dynVal
+    let noteDyn = Num.scale minDyn 1 dynVal + dynOffset
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
@@ -111,7 +111,10 @@ convert note = do
         }
 
 minDyn :: Signal.Y
-minDyn = 0.5
+minDyn = 0.4
+
+dynOffset :: Signal.Y
+dynOffset = 0.15
 
 sampleNn :: Pitch.NoteNumber
 sampleNn = 62.1

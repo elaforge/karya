@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Sample where
+import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.Word as Word
 import System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
@@ -27,14 +29,19 @@ data Note = Note {
     -- | This is the actual duration of the sample at the given 'ratio', not
     -- the requested 'Note.duration'.
     , duration :: !RealTime
-    -- | The hash of the source note.
-    , hash :: !Note.Hash
     -- | This is Left Error if the converter failed to find a sample.
     , sample :: Either Text Sample
+    -- | Hash of the other fields.  Putting it here means I can memoize its
+    -- creation but also that changing Note will make it out of sync.
+    , hash :: Note.Hash
     }
 
 end :: Note -> RealTime
 end note = start note + duration note
+
+makeHash :: RealTime -> RealTime -> Either Text Sample -> Note.Hash
+makeHash start dur sample = Note.Hash $ CRC32.crc32 (start, dur, sample)
+    -- TODO ensure envelope and ratio are clipped to (start, duration)?
 
 -- | The actual sample played by a 'Note'.
 data Sample = Sample {
@@ -54,11 +61,11 @@ modifyFilename :: (SamplePath -> SamplePath) -> Sample -> Sample
 modifyFilename modify sample = sample { filename = modify (filename sample) }
 
 instance Pretty Note where
-    format (Note start dur hash sample) = Pretty.record "Note"
+    format (Note start dur sample hash) = Pretty.record "Note"
         [ ("start", Pretty.format start)
         , ("duration", Pretty.format dur)
-        , ("hash", Pretty.format hash)
         , ("sample", Pretty.format sample)
+        , ("hash", Pretty.format hash)
         ]
 
 instance Pretty Sample where
@@ -68,6 +75,13 @@ instance Pretty Sample where
         , ("envelope", Pretty.format envelope)
         , ("ratio", Pretty.format ratio)
         ]
+
+instance CRC32.CRC32 Sample where
+    crc32Update n (Sample fname offset env ratio) =
+        n & fname & offset & env & ratio
+
+(&) :: CRC32.CRC32 a => Word.Word32 -> a -> Word.Word32
+(&) = CRC32.crc32Update
 
 -- | The duration of a note which plays the entire sample.  This should be
 -- longer than any sample, and will be clipped to sample duration.

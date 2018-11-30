@@ -1314,7 +1314,11 @@ synth: im:
       hardcoded to 'sampler -> faust' or just 'faust'.
     . I'd need some routing so I can get signals to those processors.
   bug:
-    - why does changing dynamic track previous chunks to rerender?
+    * why does changing dynamic track previous chunks to rerender?
+      . Probably because hash includes the whole signal.
+      . Since I know dyn is only used initially, I can simplify the dyn signal
+        to a constant.
+      . Hash Sample instead of Note.
     * crash on mridangam:
       . run build/opt/sampler-im \
           im/notes/save/test/im-mridangam/untitled/b1/sampler \
