@@ -22,10 +22,10 @@ import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Signal as Signal
+
 import Global
 
 
@@ -105,31 +105,29 @@ add_flag module_ name doc flags =
 
 -- | Make a modified version of an existing call.  Args are the same.
 modify_generator :: Module.Module -> Derive.CallName -> Doc.Doc
-    -> (Derive.Deriver (Stream.Stream a) -> Derive.Deriver (Stream.Stream a))
-    -> Derive.Generator a -> Derive.Generator a
+    -> Derive.TransformerF a -> Derive.Generator a -> Derive.Generator a
 modify_generator module_ name doc transform =
     modify_call module_ name doc $ \gfunc -> gfunc
-        { Derive.gfunc_f = transform . Derive.gfunc_f gfunc }
+        { Derive.gfunc_f = \args -> transform args (Derive.gfunc_f gfunc args)
+        }
 
 -- | Like 'modify_generator', but inherit metadata from the original call.
 modify_generator_ :: Doc.Doc
-    -> (Derive.Deriver (Stream.Stream a) -> Derive.Deriver (Stream.Stream a))
-    -> Derive.Generator a -> Derive.Generator a
+    -> Derive.TransformerF a -> Derive.Generator a -> Derive.Generator a
 modify_generator_ doc_prefix transform call =
     modify_generator (Derive.cdoc_module cdoc) (Derive.call_name call)
-        (doc_prefix <> "\n" <> Derive.cdoc_doc cdoc) transform call
+        (TextUtil.joinWith "\n" doc_prefix (Derive.cdoc_doc cdoc))
+        transform call
     where cdoc = Derive.call_doc call
 
 -- | Make a modified version of an existing call.  Args are the same.
 modify_transformer :: Module.Module -> Derive.CallName -> Doc.Doc
-    -> (Derive.Deriver (Stream.Stream a) -> Derive.Deriver (Stream.Stream a))
-    -> Derive.Transformer a -> Derive.Transformer a
+    -> Derive.TransformerF a -> Derive.Transformer a -> Derive.Transformer a
 modify_transformer module_ name doc transform =
-    modify_call module_ name doc (fmap transform .)
+    modify_call module_ name doc $ \tfunc args -> transform args . tfunc args
 
 modify_transformer_ :: Doc.Doc
-    -> (Derive.Deriver (Stream.Stream a) -> Derive.Deriver (Stream.Stream a))
-    -> Derive.Transformer a -> Derive.Transformer a
+    -> Derive.TransformerF a -> Derive.Transformer a -> Derive.Transformer a
 modify_transformer_ doc_prefix transform call =
     modify_transformer (Derive.cdoc_module cdoc) (Derive.call_name call)
         (TextUtil.joinWith "\n" doc_prefix (Derive.cdoc_doc cdoc))
@@ -138,7 +136,7 @@ modify_transformer_ doc_prefix transform call =
 
 -- | Modify a generator transformer pair, inheriting metadata.
 modify_calls_ :: Doc.Doc
-    -> (Derive.Deriver (Stream.Stream a) -> Derive.Deriver (Stream.Stream a))
+    -> Derive.TransformerF a
     -> Library.Calls a -> Library.Calls a
 modify_calls_ doc_prefix transform (Library.Calls gen trans) = Library.Calls
     { generator = modify_generator_ doc_prefix transform gen

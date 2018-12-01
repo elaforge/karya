@@ -299,11 +299,11 @@ dio8_patches =
         [ MidiInst.generator "g" $
             Make.modify_generator_
                 "Multiply %dyn by .65, since the grace samples are too loud."
-                (Call.multiply_dynamic 0.65) $
+                (\_ -> Call.multiply_dynamic 0.65) $
             GraceUtil.c_attr_grace $ Map.fromList $
             map Tuple.swap grace_intervals
         , MidiInst.both "o" $
-            Make.modify_calls_ "" (Call.add_constant Controls.octave (-1))
+            Make.modify_calls_ "" (\_ -> Call.add_constant Controls.octave (-1))
                 Articulation.c_harmonic
         ]
     grace_intervals =
