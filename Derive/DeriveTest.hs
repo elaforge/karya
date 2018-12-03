@@ -436,8 +436,8 @@ with_instrument_db allocs db = with_allocations allocs <> with_db
 -- | Use the db to infer 'Patch.Settings' for the allocations.  The simple
 -- version doesn't record the Patch.config_settings, so I get the defaults.
 allocs_from_db :: Cmd.InstrumentDb -> Simple.Allocations -> UiConfig.Allocations
-allocs_from_db db allocs = Testing.expect_right $
-        Simple.allocations (lookup_settings db) allocs
+allocs_from_db db allocs =
+    Testing.expect_right $ Simple.allocations (lookup_settings db) allocs
 
 -- | A further-simplified version of 'Simple.Allocations' for tests:
 -- [(Instrument, Qualified)]
@@ -445,11 +445,10 @@ type SimpleAllocations = [(Text, Text)]
 
 simple_allocs_from_db :: Cmd.InstrumentDb -> SimpleAllocations
     -> UiConfig.Allocations
-simple_allocs_from_db db allocs =
-    allocs_from_db db
-        [ (inst, (qual, [(UiTest.wdev_name, chan)]))
-        | (chan, (inst, qual)) <- zip [0..] allocs
-        ]
+simple_allocs_from_db db allocs = allocs_from_db db
+    [ (inst, (qual, Simple.Midi [(UiTest.wdev_name, chan)]))
+    | (chan, (inst, qual)) <- zip [0..] allocs
+    ]
 
 -- | This uses patch_defaults for settings, since I don't have a config.
 lookup_settings :: Cmd.InstrumentDb -> InstTypes.Qualified
@@ -462,8 +461,7 @@ lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
 lookup_qualified = flip Inst.lookup
 
 with_allocations :: UiConfig.Allocations -> Setup
-with_allocations allocations =
-    with_ui $ Ui.config#Ui.allocations %= (allocations <>)
+with_allocations allocs = with_ui $ Ui.config#Ui.allocations %= (allocs <>)
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }

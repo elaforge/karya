@@ -55,8 +55,8 @@ data Lookup = Lookup {
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: RealTime -> Lookup -> (Score.Instrument
-    -> Maybe Cmd.ResolvedInstrument)
+convert :: RealTime -> Lookup
+    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert srate lookup = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of

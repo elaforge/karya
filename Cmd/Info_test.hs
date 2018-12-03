@@ -36,7 +36,7 @@ test_track_status = do
             ustate = (Ui.config#Ui.allocations #= allocs) $
                 snd $ UiTest.run_mkview [(t, []) | t <- tracks]
             allocs = expect_right $ Simple.allocations (const $ Just mempty)
-                [("i", ("s/1", map ("wdev",) [0..3]))]
+                [("i", ("s/1", Simple.Midi $ map ("wdev",) [0..3]))]
     equal (f [">", "*"] 0) Nothing
     equal (f [">", "*"] 1) $ Just "> at 1: [] -- [* {collapse 2}]"
     equal (f [">", "*"] 2) $ Just "> at 1: [] -- [* {collapse 2}]"

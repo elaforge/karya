@@ -12,6 +12,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Cmd.Simple as Simple
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -103,7 +104,7 @@ test_attributes = do
     -- Test that attributes work, through derivation and performance.
     let convert_lookup = DeriveTest.make_convert_lookup allocs db
         allocs = DeriveTest.allocs_from_db db
-            [("i1", ("s/i1", [("wdev", 0)]))]
+            [("i1", ("s/i1", Simple.Midi [("wdev", 0)]))]
         db = UiTest.make_db [("s", [patch])]
             where
             patch = Patch.attribute_map #= attr_map $ Patch.patch (-1, 1) "i1"

@@ -66,10 +66,13 @@ type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 --
 -- This doesn't include 'Patch.config_settings', so it's assumed they're the
 -- same as 'Patch.patch_defaults'.
-type Allocations = [(Instrument, (Qualified, [(WriteDevice, Midi.Channel)]))]
+type Allocations = [(Instrument, (Qualified, Allocation))]
 type Instrument = Text
 type Qualified = Text
 type WriteDevice = Text
+
+data Allocation = Midi [(WriteDevice, Midi.Channel)] | Dummy | Im
+    deriving (Eq, Show)
 
 from_score :: ScoreTime -> Double
 from_score = ScoreTime.to_double
@@ -194,12 +197,12 @@ dump_selection = map (second (map event)) <$> Selection.events
 dump_allocations :: UiConfig.Allocations -> Allocations
 dump_allocations (UiConfig.Allocations allocs) = do
     (inst, alloc) <- Map.toList allocs
-    let addrs = case UiConfig.alloc_backend alloc of
-            UiConfig.Midi config -> addrs_of config
-            UiConfig.Im -> []
-            UiConfig.Dummy -> []
+    let simple_alloc = case UiConfig.alloc_backend alloc of
+            UiConfig.Midi config -> Midi $ addrs_of config
+            UiConfig.Im -> Im
+            UiConfig.Dummy -> Dummy
     let qualified = InstTypes.show_qualified $ UiConfig.alloc_qualified alloc
-    return (Score.instrument_name inst, (qualified, addrs))
+    return (Score.instrument_name inst, (qualified, simple_alloc))
     where
     addrs_of config =
         [ (Midi.write_device_text dev, chan)
@@ -211,13 +214,14 @@ allocations :: (InstTypes.Qualified -> Maybe Patch.Settings) -> Allocations
 allocations lookup_settings =
     fmap (UiConfig.Allocations . Map.fromList) . mapM make1
     where
-    make1 (inst, (qual, addrs)) = (Score.Instrument inst,) <$> alloc
+    make1 (inst, (qual, simple_alloc)) = (Score.Instrument inst,) <$> alloc
         where
         alloc = UiConfig.allocation qualified <$> backend
         qualified = InstTypes.parse_qualified qual
-        backend = case addrs of
-            [] -> Right UiConfig.Dummy
-            _ -> case lookup_settings qualified of
+        backend = case simple_alloc of
+            Dummy -> Right UiConfig.Dummy
+            Im -> Right UiConfig.Im
+            Midi addrs -> case lookup_settings qualified of
                 Nothing -> Left $ "no patch for " <> pretty qualified
                 Just settings -> Right $ UiConfig.Midi $
                     Patch.config settings

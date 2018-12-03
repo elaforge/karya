@@ -82,16 +82,17 @@ basicPackages = concat
     -- shakefile
     , [("shake", ">=0.16"), ("binary", ""), ("hashable", "")]
     -- Util
-    , w "async" -- Util.Process
-    , w "pretty haskell-src" -- Util.PPrint
     , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
     , [("Diff", ">=0.2")] -- Util.Test
-    , w "zlib" -- Util.File
-    , w "wcwidth" -- Util.Format
-    , w "dlist" -- Util.TimeVector
     , w "QuickCheck" -- Util.Test
-    , w "hedgehog" -- Util.Test
     , w "ansi-terminal colour" -- Util.StyledText
+    , w "async" -- Util.Process
+    , w "dlist" -- Util.TimeVector
+    , w "hedgehog" -- Util.Test
+    -- , w "math-functions" -- Util.Num
+    , w "pretty haskell-src" -- Util.PPrint
+    , w "wcwidth" -- Util.Format
+    , w "zlib" -- Util.File
     -- karya
     , w "old-locale"
     , w "attoparsec" -- Derive: tracklang parsing
