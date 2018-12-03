@@ -9,8 +9,8 @@ module Util.File where
 import qualified Codec.Compression.GZip as GZip
 import qualified Codec.Compression.Zlib.Internal as Zlib.Internal
 import qualified Control.Exception as Exception
-import Control.Monad (void, guard)
-import Control.Monad.Extra (whenM, orM, whenJust, ifM)
+import Control.Monad (guard, void)
+import Control.Monad.Extra (ifM, orM, whenJust, whenM)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
@@ -22,7 +22,6 @@ import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Error as Error
 import qualified System.IO.Error as IO.Error
-import qualified System.Process as Process
 
 
 -- * read/write
@@ -80,11 +79,6 @@ listRecursive descend dir = do
         fns <- list dir
         fmap concat $ mapM (listRecursive descend) fns
     maybeDescend False _ _ = return []
-
--- | 'Directory.recursiveRemoveDirectory' crashes if the dir doesn't exist, and
--- follows symlinks.
-rmDirRecursive :: FilePath -> IO ()
-rmDirRecursive dir = void $ Process.rawSystem "rm" ["-rf", dir]
 
 -- * compression
 

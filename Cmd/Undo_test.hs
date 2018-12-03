@@ -5,20 +5,13 @@
 module Cmd.Undo_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified System.Directory as Directory
 
-import qualified Util.File as File
 import qualified Util.Git as Git
 import qualified Util.Rect as Rect
-import Util.Test
 import qualified Util.Test.Testing as Testing
 
-import qualified Ui.Block as Block
-import qualified Ui.Id as Id
-import qualified Ui.Sel as Sel
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
-import qualified Ui.Update as Update
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Edit as Edit
@@ -28,9 +21,16 @@ import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Undo as Undo
 
-import qualified App.Config as Config
+import qualified Ui.Block as Block
+import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+import qualified Ui.Update as Update
+
 import Global
 import Types
+import Util.Test
 
 
 test_undo = Git.initialize $ do
@@ -238,7 +238,8 @@ read_log repo commits = do
 
 save_git :: SaveGit.Repo -> ResponderTest.States -> IO ResponderTest.Result
 save_git repo states = do
-    File.rmDirRecursive repo
+    whenM (Directory.doesDirectoryExist repo) $
+        Directory.removeDirectoryRecursive repo
     ResponderTest.respond_cmd states (Save.save_git_as repo)
 
 get_repo :: IO SaveGit.Repo
