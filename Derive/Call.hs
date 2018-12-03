@@ -498,6 +498,19 @@ pick :: NonEmpty a -> Double -> a
 pick (x :| xs) rnd = (x:xs) !! i
     where i = round (rnd * fromIntegral (length xs))
 
+-- TODO what I want is a bounded normal distribution.
+-- Unfortunately it seems to be really complicated to actually sample that.
+-- I could use anything with a similar shape actually.
+normal :: Double -> Derive.Deriver Double
+normal stddev = make_normal stddev <$> randoms
+
+-- | Approximation to a normal distribution between 0 and 1, inclusive.
+-- I can't use an actual normal distribution because I need it to be bounded.
+make_normal :: Double -> [Double] -> Double
+make_normal stddev rnds = sum (take samples rnds) / fromIntegral samples
+    where
+    samples = 12
+
 -- * conditional
 
 if_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val

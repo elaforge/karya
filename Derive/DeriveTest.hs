@@ -57,6 +57,7 @@ import qualified Instrument.InstTypes as InstTypes
 
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
+import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Patch as Patch
@@ -68,6 +69,8 @@ import qualified Perform.Signal as Signal
 
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
+
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
@@ -140,12 +143,14 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
         UiTest.default_allocations (Derive.r_events result)
     result = derive_blocks blocks
 
+-- TODO this tosses the logs from the stream, shouldn't I collect them into
+-- the output?
 perform :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform lookup allocations events =
+perform lookup allocs stream =
     ((fst (LEvent.partition perf_events), mmsgs), logs)
     where
-    (perf_events, perf) = perform_stream lookup allocations events
+    (perf_events, perf) = perform_stream lookup allocs stream
     (mmsgs, logs) = extract_logs perf
 
 perform_defaults :: Stream.Stream Score.Event
@@ -154,18 +159,18 @@ perform_defaults = perform default_convert_lookup UiTest.default_allocations
 
 perform_stream :: Lookup -> UiConfig.Allocations -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
-perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
+perform_stream (lookup_inst, lookup) allocs stream = (perf_events, midi)
     where
     perf_events = Convert.convert 1 lookup lookup_inst (Stream.events_of stream)
     (midi, _) = Perform.perform Perform.initial_state midi_allocs perf_events
-    midi_allocs = Perform.config <$> PlayUtil.midi_configs allocations
+    midi_allocs = Perform.config <$> PlayUtil.midi_configs allocs
 
 -- | Perform events with the given instrument db.
 perform_synths :: UiConfig.Allocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform_synths allocations synths =
-    perform (synths_to_convert_lookup allocations synths) allocations
+perform_synths allocs synths =
+    perform (synths_to_convert_lookup allocs synths) allocs
 
 perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
@@ -184,6 +189,27 @@ perform_result perform result = (val, map show_log (derive_logs ++ perf_logs))
     (events, derive_logs) = extract_logs $ Stream.to_list $
         Derive.r_events result
     (val, perf_logs) = perform (Stream.from_events events)
+
+-- ** perform im
+
+perform_im_synths :: SimpleAllocations -> [MidiInst.Synth]
+    -> Stream.Stream Score.Event -> ([Note.Note], [Text])
+perform_im_synths allocs synths =
+    perform_im (fst $ make_convert_lookup ui_allocs db)
+    where
+    db = synths_to_db synths
+    ui_allocs = im_allocs_from_db db allocs
+
+-- | Unlike 'perform', this includes the logs from the stream in the output.
+-- TODO change perform?
+perform_im :: (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> Stream.Stream Score.Event -> ([Note.Note], [Text])
+perform_im lookup_inst stream =
+    (perf_events, mapMaybe show_interesting_log $ derive_logs ++ perf_logs)
+    where
+    (events, derive_logs) = Stream.partition stream
+    (perf_events, perf_logs) =
+        LEvent.partition $ Im.Convert.convert lookup_inst events
 
 -- * derive
 
@@ -414,6 +440,11 @@ merge_allocs synths (UiConfig.Allocations allocs) =
             Nothing -> errorStack $ "no inst for alloc: " <> pretty alloc
     db = synths_to_db synths
 
+with_synths_im :: SimpleAllocations -> [MidiInst.Synth] -> Setup
+with_synths_im allocs synths =
+    with_instrument_db (im_allocs_from_db db allocs) db
+    where db = synths_to_db synths
+
 with_synths_simple :: SimpleAllocations -> [MidiInst.Synth] -> Setup
 with_synths_simple allocs synths =
     with_instrument_db (simple_allocs_from_db db allocs) db
@@ -449,6 +480,11 @@ simple_allocs_from_db db allocs = allocs_from_db db
     [ (inst, (qual, Simple.Midi [(UiTest.wdev_name, chan)]))
     | (chan, (inst, qual)) <- zip [0..] allocs
     ]
+
+im_allocs_from_db :: Cmd.InstrumentDb -> SimpleAllocations
+    -> UiConfig.Allocations
+im_allocs_from_db db allocs =
+    allocs_from_db db [(inst, (qual, Simple.Im)) | (inst, qual) <- allocs]
 
 -- | This uses patch_defaults for settings, since I don't have a config.
 lookup_settings :: Cmd.InstrumentDb -> InstTypes.Qualified

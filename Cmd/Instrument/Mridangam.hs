@@ -17,18 +17,22 @@ import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
+import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 
 import qualified Perform.Pitch as Pitch
 
+import Global
+
 
 -- * mridangam
 
-code :: CUtil.Thru -> Pitch.NoteNumber -> ImInst.Code
-code thru natural_nn =
-    make_code thru pitched_strokes natural_nn all_notes both_calls
+code :: CUtil.Thru -> Pitch.NoteNumber
+    -> Maybe (Derive.TransformerF Derive.Note) -> ImInst.Code
+code thru natural_nn transform =
+    make_code thru pitched_strokes natural_nn transform all_notes both_calls
 
 -- | Single symbols for two strokes together.  thom+x becomes a capital X,
 -- and there are a few ad-hoc capital letters for more common tha+x
@@ -143,14 +147,16 @@ gumki = Attrs.attr "gumki"
 
 -- | Make code for a pitched two-handed drum.  This isn't mridangam-specific.
 make_code :: CUtil.Thru -> [Attrs.Attributes] -> Pitch.NoteNumber
+    -> Maybe (Derive.TransformerF Derive.Note)
     -> [Drums.Note] -> [(Expr.Symbol, [Expr.Symbol], Maybe Char)] -> ImInst.Code
-make_code thru pitched_strokes natural_nn notes both = mconcat
+make_code thru pitched_strokes natural_nn transform notes both = mconcat
     [ ImInst.note_generators generators
     , ImInst.val_calls vals
     , ImInst.cmd (CUtil.insert_call thru char_to_call)
     ]
     where
-    generators = concat
+    add t = map (second (Make.modify_generator_ "" t))
+    generators = maybe id add transform $ concat
         [ CUtil.drum_calls (Just (pitched_strokes, natural_nn)) Nothing notes
         , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]
         ]

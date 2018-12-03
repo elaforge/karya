@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Convert 'Score.Event's to the low-level event format, 'Note.Note'.
-module Perform.Im.Convert (write) where
+module Perform.Im.Convert (write, convert) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector

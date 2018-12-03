@@ -32,7 +32,8 @@ patches =
     where
     patch name notes = CUtil.pitched_drum_patch notes $
         MidiInst.named_patch (-24, 24) name []
-    code natural_nn = MidiInst.code #= Mridangam.code CUtil.MidiThru natural_nn
+    code natural_nn = MidiInst.code
+        #= Mridangam.code CUtil.MidiThru natural_nn Nothing
 
 notes_d, notes_g :: CUtil.PitchedNotes
 (notes_d, _unmapped_notes_d) = make_notes Key.gs3

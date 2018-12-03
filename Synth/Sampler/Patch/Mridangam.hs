@@ -22,6 +22,7 @@ import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Code as Code
 import qualified Synth.Sampler.Patch.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
@@ -43,12 +44,14 @@ patches = (:[]) $ (Patch.patch name)
             { Im.Patch.patch_controls = mconcat
                 [ Control.supportPitch
                 , Control.supportDyn
+                , Control.supportVariation
                 ]
             , Im.Patch.patch_attribute_map = const () <$> attributeMap
             }
     }
     where
     code = Mridangam.code (Util.imThruFunction dir convert) sampleNn
+        (Just $ \_ -> Code.withVariationNormal 1)
     dir = untxt name
     name = "mridangam-d"
 
@@ -95,10 +98,12 @@ convert :: Note.Note -> Patch.ConvertM (RealTime, Sample.Sample)
 convert note = do
     articulation <- Util.articulation attributeMap (Note.attributes note)
     let dynVal = fromMaybe 0 $ Note.initial Control.dynamic note
+    let var = maybe 0 (subtract 1 . (*2)) $ Note.initial Control.variation note
     let filename = articulationDir articulation
-            </> pickDynamic (articulationSamples articulation) dynVal
+            </> pickDynamic (articulationSamples articulation)
+                (Num.clamp 0 1 (dynVal + var * variationRange))
     noteNn <- Util.initialPitch note
-    let noteDyn = Num.scale minDyn 1 dynVal + dynOffset
+    let noteDyn = Num.scale minDyn maxDyn dynVal
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
@@ -110,11 +115,15 @@ convert note = do
             Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
         }
 
+-- | A note may pick a sample of this much dyn difference on either side.
+variationRange :: Signal.Y
+variationRange = 0.15
+
 minDyn :: Signal.Y
 minDyn = 0.4
 
-dynOffset :: Signal.Y
-dynOffset = 0.15
+maxDyn :: Signal.Y
+maxDyn = 1.15
 
 sampleNn :: Pitch.NoteNumber
 sampleNn = 62.1

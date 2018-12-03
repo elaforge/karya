@@ -12,10 +12,9 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Ui.Ruler as Ruler
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -34,6 +33,9 @@ import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
+
 import Global
 import Types
 
@@ -113,16 +115,11 @@ c_cf_rnd01 = Make.modify_vcall (c_cf_rnd (+)) Module.prelude "cf-rnd01"
 cf_rnd :: Distribution -> Double -> Double -> [Double] -> Double
 cf_rnd dist low high rnds = Num.scale low high $ case dist of
     Uniform -> head rnds
-    Normal -> normal rnds
+    Normal -> Call.make_normal 1 rnds
     Bimodal
         | v >= 0.5 -> v - 0.5
         | otherwise -> v + 0.5
-        where v = normal rnds
-
--- | Approximation to a normal distribution between 0 and 1, inclusive.
--- This is similar to a gaussian distribution, but is bounded between 0 and 1.
-normal :: [Double] -> Double
-normal rnds = sum (take 12 rnds) / 12
+        where v = Call.make_normal 1 rnds
 
 random_stream :: Double -> [Double]
 random_stream =

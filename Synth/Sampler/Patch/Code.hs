@@ -21,6 +21,12 @@ withVariation deriver =
         n <- Call.random
         Derive.with_constant_control Controls.variation n deriver
 
+withVariationNormal :: Double -> Derive.Deriver a -> Derive.Deriver a
+withVariationNormal stddev deriver =
+    ifM (Derive.is_control_set Controls.variation) deriver $ do
+        n <- Call.normal stddev
+        Derive.with_constant_control Controls.variation n deriver
+
 withSymbolicPitch :: Derive.PassedArgs x -> Derive.Deriver a -> Derive.Deriver a
 withSymbolicPitch args =
     Call.when_env "symbolic-pitch" (Just True) (addSymbolicPitch args)
