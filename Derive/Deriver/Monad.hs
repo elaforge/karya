@@ -954,14 +954,14 @@ data Constant = Constant {
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
-    , state_lookup_instrument :: !(Score.Instrument -> Maybe Instrument)
+    , state_lookup_instrument :: !(Score.Instrument -> Either Text Instrument)
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
     }
 
 initial_constant :: Ui.State -> Builtins -> LookupScale
-    -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
+    -> (Score.Instrument -> Either Text Instrument) -> Cache -> ScoreDamage
     -> Constant
 initial_constant ui_state builtins lookup_scale lookup_inst cache score_damage =
     Constant

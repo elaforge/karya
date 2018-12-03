@@ -7,6 +7,7 @@
     "Derive.Deriver.Monad".
 -}
 module Derive.Deriver.Lib where
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
@@ -18,16 +19,10 @@ import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
-
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Deriver.Internal as Internal
-import Derive.Deriver.Monad
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
@@ -44,6 +39,12 @@ import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Ui.Event as Event
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
+
+import Derive.Deriver.Monad
 import Global
 import Types
 
@@ -468,23 +469,23 @@ with_instrument_aliases aliases deriver
         resolve inst = Map.findWithDefault inst inst old_aliases
 
 instrument_exists :: Score.Instrument -> Deriver Bool
-instrument_exists = (Maybe.isJust . snd <$>) . lookup_instrument
+instrument_exists = (Either.isRight . snd <$>) . lookup_instrument
 
 get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
 get_instrument score_inst = do
     (real_inst, result) <- lookup_instrument score_inst
     case result of
-        Nothing -> throw $ "no instrument named "
-            <> "'" <> ShowVal.show_val real_inst <> "'"
+        Left err -> throw $ "instrument "
+            <> "'" <> ShowVal.show_val real_inst <> "': " <> err
             <> if real_inst == score_inst then ""
                 else " (aliased from " <> ShowVal.show_val score_inst <> ")"
-        Just inst -> return (real_inst, inst)
+        Right inst -> return (real_inst, inst)
 
 -- | Look up the instrument.  Also return the instrument name after resolving
 -- any alias.  This is what goes in 'Score.event_instrument', since it's what
 -- the performer understands.
 lookup_instrument :: Score.Instrument
-    -> Deriver (Score.Instrument, Maybe Instrument)
+    -> Deriver (Score.Instrument, Either Text Instrument)
 lookup_instrument inst = do
     aliases <- Internal.get_dynamic state_instrument_aliases
     let real_inst = Map.findWithDefault inst inst aliases

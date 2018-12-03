@@ -9,7 +9,6 @@ import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Play as Play
 import qualified Solkattu.Tala as Tala
 
-import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 

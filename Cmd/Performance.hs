@@ -191,10 +191,12 @@ generate_performance ui_state wait send_status block_id = do
     thread_id <- liftIO $ Thread.start $ do
         let allocs = Ui.config#Ui.allocations #$ ui_state
             im_config = Cmd.config_im (Cmd.state_config cmd_state)
+        let lookup_inst = either (const Nothing) Just
+                . Cmd.state_resolve_instrument ui_state cmd_state
         evaluate_performance
             (if im_allocated allocs then Just im_config else Nothing)
-            (Cmd.state_resolve_instrument ui_state cmd_state)
-            wait send_status (Cmd.score_path cmd_state) block_id perf
+            lookup_inst wait send_status (Cmd.score_path cmd_state) block_id
+            perf
     Monad.State.modify $ modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert block_id
             thread_id (Cmd.state_performance_threads st)

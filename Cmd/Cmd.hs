@@ -1232,20 +1232,22 @@ get_lookup_instrument :: M m => m (Score.Instrument -> Maybe ResolvedInstrument)
 get_lookup_instrument = do
     ui_state <- Ui.get
     cmd_state <- get
-    return $ state_resolve_instrument ui_state cmd_state
+    return $ either (const Nothing) Just
+        . state_resolve_instrument ui_state cmd_state
 
 state_resolve_instrument :: Ui.State -> State -> Score.Instrument
-    -> Maybe ResolvedInstrument
+    -> Either Text ResolvedInstrument
 state_resolve_instrument ui_state cmd_state = \inst -> do
-    alloc <- Ui.allocation inst #$ ui_state
-    either (const Nothing) Just $
-        resolve_instrument (config_instrument_db (state_config cmd_state)) alloc
+    alloc <- justErr ("no alloc for " <> pretty inst) $
+        Ui.allocation inst #$ ui_state
+    let db = config_instrument_db (state_config cmd_state)
+    resolve_instrument db alloc
 
 resolve_instrument :: InstrumentDb -> UiConfig.Allocation
     -> Either Text ResolvedInstrument
 resolve_instrument db alloc = do
     let qualified = UiConfig.alloc_qualified alloc
-    inst <- justErr ("no instrument: " <> pretty qualified) $
+    inst <- justErr ("patch not in db: " <> pretty qualified) $
         Inst.lookup qualified db
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
