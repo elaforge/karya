@@ -46,6 +46,7 @@ import qualified Data.Text as Text
 import qualified Data.Word as Word
 
 import qualified Sound.OSC as OSC
+import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
 import qualified Util.CallStack as CallStack
@@ -1094,6 +1095,17 @@ invalidate_performances = do
         { state_performance = mempty
         , state_performance_threads = mempty
         }
+
+clear_im_cache :: BlockId -> CmdT IO ()
+clear_im_cache block_id = do
+    path <- gets score_path
+    liftIO $ do
+        config <- Shared.Config.getConfig
+        let imDir = Shared.Config.imDir config
+        Directory.removeDirectoryRecursive $
+            Shared.Config.notesDirectory imDir path block_id
+        Directory.removeDirectoryRecursive $
+            Shared.Config.outputDirectory imDir path block_id
 
 -- | Keys currently held down, as in 'state_keys_down'.
 keys_down :: M m => m (Map Modifier Modifier)

@@ -150,7 +150,9 @@ inst_controls block_id =
 
 -- | Clear out all caches and rederive from scratch.
 rederive :: Cmd.CmdT IO ()
-rederive = Cmd.invalidate_performances
+rederive = do
+    Cmd.invalidate_performances
+    Cmd.clear_im_cache =<< Cmd.get_focused_block
 
 compare_cached_events :: Cmd.M m => BlockId
     -> m [Either Simple.ScoreEvent Simple.ScoreEvent]
