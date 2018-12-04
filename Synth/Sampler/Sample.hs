@@ -4,11 +4,12 @@
 
 module Synth.Sampler.Sample where
 import qualified Data.Digest.CRC32 as CRC32
-import qualified Data.Word as Word
 import System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
+import Util.Crc32Instances ((&))
 import qualified Util.Pretty as Pretty
+
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
@@ -25,10 +26,12 @@ type SamplePath = FilePath
 -- | Low level representation of a note.  This corresponds to a single sample
 -- played.
 data Note = Note {
-    start :: !RealTime
+    start :: !Audio.Frame
     -- | This is the actual duration of the sample at the given 'ratio', not
-    -- the requested 'Note.duration'.
-    , duration :: !RealTime
+    -- the requested 'Note.duration'.  This could be Nothing if the sample is
+    -- a Left, or if Sample.filename doesn't exist.  TODO maybe move 'duration'
+    -- to Sample then.
+    , duration :: !(Maybe Audio.Frame)
     -- | This is Left Error if the converter failed to find a sample.
     , sample :: Either Text Sample
     -- | Hash of the other fields.  Putting it here means I can memoize its
@@ -36,10 +39,10 @@ data Note = Note {
     , hash :: Note.Hash
     }
 
-end :: Note -> RealTime
-end note = start note + duration note
+end :: Note -> Audio.Frame
+end note = start note + fromMaybe 0 (duration note)
 
-makeHash :: RealTime -> RealTime -> Either Text Sample -> Note.Hash
+makeHash :: Audio.Frame -> Maybe Audio.Frame -> Either Text Sample -> Note.Hash
 makeHash start dur sample = Note.Hash $ CRC32.crc32 (start, dur, sample)
     -- TODO ensure envelope and ratio are clipped to (start, duration)?
 
@@ -79,9 +82,6 @@ instance Pretty Sample where
 instance CRC32.CRC32 Sample where
     crc32Update n (Sample fname offset env ratio) =
         n & fname & offset & env & ratio
-
-(&) :: CRC32.CRC32 a => Word.Word32 -> a -> Word.Word32
-(&) = CRC32.crc32Update
 
 -- | The duration of a note which plays the entire sample.  This should be
 -- longer than any sample, and will be clipped to sample duration.

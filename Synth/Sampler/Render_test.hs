@@ -109,10 +109,14 @@ renderSamples notes = do
 
 test_overlappingNotes = do
     let f start size = extract
-            . Render.overlappingNotes start size
+            . Render.overlappingNotes (AUtil.toFrame start) (AUtil.toFrame size)
             . map (\(s, d) -> mkNoteS "" s d NN.c4)
         extract (a, b, c) = (map e a, map e b, map e c)
-            where e n = (Sample.start n, Sample.duration n)
+            where
+            e n =
+                ( AUtil.toSeconds (Sample.start n)
+                , AUtil.toSeconds (fromMaybe 0 (Sample.duration n))
+                )
     equal (f 0 1 []) ([], [], [])
     equal (f 0 1 [(0, 0)]) ([], [(0, 0)], [])
     equal (f 0 1 [(-4, 4), (-2, 4), (0, 4), (4, 4)])
@@ -152,15 +156,15 @@ triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]
 
 mkNoteS :: FilePath -> RealTime -> RealTime -> Pitch.NoteNumber -> Sample.Note
-mkNoteS dbDir start dur =
-    mkNote dbDir (AUtil.toFrame start) (AUtil.toFrame dur)
+mkNoteS dbDir start dur = mkNote dbDir (AUtil.toFrame start) (AUtil.toFrame dur)
 
 mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Pitch.NoteNumber
     -> Sample.Note
-mkNote dbDir startF durF nn = Sample.Note
+mkNote dbDir start dur nn = Sample.Note
     { start = start
-    , duration = dur
-    , hash = Note.hash $ Note.withPitch nn $ Note.note "patch" "inst" start dur
+    , duration = Just dur
+    , hash = Note.hash $ Note.withPitch nn $
+        Note.note "patch" "inst" (AUtil.toSeconds start) (AUtil.toSeconds dur)
     , sample = if null dbDir
         then Left "no patch"
         else Right $ Sample.Sample
@@ -171,9 +175,6 @@ mkNote dbDir startF durF nn = Sample.Note
                 Sample.pitchToRatio (Pitch.nn_to_hz NN.c4) nn
             }
     }
-    where
-    start = AUtil.toSeconds startF
-    dur = AUtil.toSeconds durF
 
 -- * TODO copy paste with Faust.Render_test
 

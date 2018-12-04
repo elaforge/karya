@@ -90,18 +90,18 @@ variation variations = pick . Note.initial0 Control.variation
 
 -- * thru
 
-thru :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
+thru :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
     -> ImInst.Code
 thru sampleDir convert = ImInst.thru $ thruFunction sampleDir convert
 
-imThruFunction :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
+imThruFunction :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
     -> CUtil.Thru
 imThruFunction dir = CUtil.ImThru . thruFunction dir
 
-thruFunction :: FilePath -> (Note.Note -> Patch.ConvertM (a, Sample.Sample))
+thruFunction :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
     -> Osc.ThruFunction
 thruFunction sampleDir convert attrs pitch velocity = do
-    ((_, sample), _logs) <- Patch.runConvert $ convert $ (Note.note "" "" 0 1)
+    (sample, _logs) <- Patch.runConvert $ convert $ (Note.note "" "" 0 1)
         { Note.attributes = attrs
         , Note.controls = Map.fromList
             [ (Control.pitch, Signal.constant (Pitch.nn_to_double pitch))

@@ -18,7 +18,6 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
-import Synth.Types
 
 
 db :: FilePath -> [Patch] -> Db
@@ -38,9 +37,8 @@ data Patch = Patch {
     -- | Root dir for samples, relative to '_rootDir'.  This is not the same
     -- as '_name' because multiple patches may share a sample directory.
     , _dir :: FilePath
-    -- | Find a sample.  Returns (newDuration, sample) since the decay time
-    -- might extend the duration.
-    , _convert :: Note.Note -> ConvertM (RealTime, Sample.Sample)
+    -- | Find a sample.
+    , _convert :: Note.Note -> ConvertM Sample.Sample
     , _preprocess :: [Note.Note] -> [Note.Note]
     -- | Karya configuration.
     --
@@ -66,7 +64,7 @@ simple name filename sampleNn = (patch name)
     { _convert = \note -> do
         pitch <- tryJust "no pitch" $ Note.initialPitch note
         dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note
-        return $ (Note.duration note,) $ Sample.Sample
+        return $ Sample.Sample
             { filename = filename
             , offset = 0
             , envelope = Signal.constant dyn
@@ -81,8 +79,7 @@ simple name filename sampleNn = (patch name)
 type ConvertM a = Log.LogT (Except.ExceptT Error Identity.Identity) a
 type Error = Text
 
-convert :: Patch -> Note.Note
-    -> Either Error ((RealTime, Sample.Sample), [Log.Msg])
+convert :: Patch -> Note.Note -> Either Error (Sample.Sample, [Log.Msg])
 convert note = runConvert . _convert note
 
 runConvert :: ConvertM a -> Either Error (a, [Log.Msg])

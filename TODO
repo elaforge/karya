@@ -1821,12 +1821,13 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
-      - yet another resume crash:
+      * yet another resume crash:
         . pemade-p: writing b5/pemade-p: Synth/Sampler/Render.hs:193: assertion:
-          at 352800f: len states 6 /= len notes 1: [Nothing, Nothing, Nothing,
-          Nothing, Nothing, Nothing] /= [(7.75s, .4s, Signal.constant 1, Right
-          "76-65-108-open1.flac")]
-        . After deleting a note.
+          at 352800f: len states 6 /= len notes 1:
+          [Nothing, Nothing, Nothing, Nothing, Nothing, Nothing] /=
+          [(7.75s, .4s, Signal.constant 1, Right "76-65-108-open1.flac")]
+        . After deleting a note.  Adding note will also do it.
+        . 1 seems right at 8s, why did I get 6?
       * when editing reyong:
         . run build/opt/sampler-im im/notes/test/im-reyong/untitled/b2/sampler
         . at 176400f: len states 7 /= len notes 10:

@@ -103,9 +103,16 @@ dump db notes = forM_ (byPatchInst notes) $ \(patch, notes) -> case get patch of
     Just patch -> forM_ notes $ \(inst, notes) -> do
         Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
         notes <- mapM makeSampleNote (convert db patch notes)
-        mapM_ (\n -> Pretty.pprint n >> putStrLn "") notes
+        mapM_ putNote notes
     where
     get patch = Map.lookup patch (Patch._patches db)
+    putNote n = Text.IO.putStrLn $ Text.unlines $
+        Seq.map_head (annotate n) $ Text.lines $ Pretty.formatted n
+    annotate n line =
+        Text.unwords [line, pretty s, "+", pretty dur, "=>", pretty (s+dur)]
+        where
+        s = AUtil.toSeconds $ Sample.start n
+        dur = AUtil.toSeconds $ fromMaybe 0 $ Sample.duration n
 
 process :: Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath -> IO ()
 process db quality notes outputDir = do
@@ -145,10 +152,10 @@ convert :: Patch.Db -> Patch.Patch -> [Note.Note]
 convert db patch =
     map update . Seq.key_on (Patch.convert patch) . Patch._preprocess patch
     where
-    update (Right ((dur, sample), logs), note) =
+    update (Right (sample, logs), note) =
         ( Right $ Sample.modifyFilename (patchDir</>) sample
         , logs
-        , note { Note.duration = dur }
+        , note
         )
     update (Left err, note) = (Left err, [], note)
     patchDir = Patch._rootDir db </> Patch._dir patch
@@ -158,23 +165,35 @@ makeSampleNote :: (Either Error Sample.Sample, [Log.Msg], Note.Note)
     -> IO Sample.Note
 makeSampleNote (errSample, logs, note) = do
     mapM_ Log.write logs
-    -- It's important to get an accurate duration if I can, because that
-    -- determines overlap, which affects caching.
-    mbDur <- case errSample of
-        Left _ -> return Nothing
-        Right sample -> File.ignoreEnoent $
-            RenderSample.predictFileDuration (Sample.ratio sample)
-                (Sample.filename sample)
-    let newDur = maybe id (min . AUtil.toSeconds) mbDur (Note.duration note)
-    -- when (newDur /= Note.duration note) $
-    --     Log.debug $ "sample " <> pretty errSample <> " dur "
-    --         <> pretty (Note.duration note) <> " -> " <> pretty newDur
+    mbDur <- actualDuration (Note.start note) errSample
+    -- TODO if I put duration into Sample
+    -- errSample <- case errSample of
+    --     Right sample -> actualDuration (Note.start note) sample >>=
+    --         return . \case
+    --             Nothing -> Left "no sample"
+    --             Just dur -> Right $ sample { Sample.duration = dur }
+    --     Left err -> return $ Left err
+    let start = AUtil.toFrame (Note.start note)
     return $ Sample.Note
-        { start = Note.start note
-        , duration = newDur
+        { start = start
+        , duration = mbDur
         , sample = errSample
-        , hash = Sample.makeHash (Note.start note) newDur errSample
+        , hash = Sample.makeHash start mbDur errSample
         }
+
+-- | It's important to get an accurate duration if I can, because that
+-- determines overlap, which affects caching.
+actualDuration :: RealTime -> Either x Sample.Sample -> IO (Maybe Audio.Frame)
+actualDuration _ (Left _) = return Nothing
+actualDuration start (Right sample) = do
+    fileDur <- File.ignoreEnoent $
+        RenderSample.predictFileDuration (Sample.ratio sample)
+            (Sample.filename sample)
+    let envDur = AUtil.toFrame <$>
+            RenderSample.envelopeDur start (Sample.envelope sample)
+    return $ case envDur of
+        Just dur -> Just $ maybe id min fileDur dur
+        Nothing -> fileDur
 
 realize :: Resample.Quality -> FilePath -> Note.InstrumentName
     -> [Sample.Note] -> IO ()

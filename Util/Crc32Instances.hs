@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables #-}
-module Util.Crc32Instances where
+module Util.Crc32Instances ((&), ptrIO) where
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
 import Data.Digest.CRC32
 import qualified Data.Map as Map
@@ -18,14 +18,21 @@ import qualified Foreign
 import qualified System.IO.Unsafe as Unsafe
 
 
+(&) :: CRC32 a => Word.Word32 -> a -> Word.Word32
+(&) = crc32Update
+
 instance CRC32 a => CRC32 [a] where crc32Update = List.foldl' crc32Update
 instance (CRC32 a, CRC32 b) => CRC32 (a, b) where
-    crc32Update n (a, b) = n `crc32Update` a `crc32Update` b
+    crc32Update n (a, b) = n & a & b
 instance (CRC32 a, CRC32 b, CRC32 c) => CRC32 (a, b, c) where
-    crc32Update n (a, b, c) = n `crc32Update` a `crc32Update` b `crc32Update` c
+    crc32Update n (a, b, c) = n & a & b & c
+
+instance CRC32 a => CRC32 (Maybe a) where
+    crc32Update n Nothing = n
+    crc32Update n (Just a) = n & a
 instance (CRC32 a, CRC32 b) => CRC32 (Either a b) where
-    crc32Update n (Left a) = n `crc32Update` a
-    crc32Update n (Right b) = n `crc32Update` b
+    crc32Update n (Left a) = n & a
+    crc32Update n (Right b) = n & b
 
 instance (CRC32 a, CRC32 b) => CRC32 (Map.Map a b) where
     crc32Update = Foldable.foldl' crc32Update
@@ -53,9 +60,6 @@ storable :: forall a. Foreign.Storable a => Word.Word32 -> a -> Word.Word32
 storable n d = Unsafe.unsafePerformIO $ Foreign.alloca $ \ptr -> do
     Foreign.poke ptr d
     ptrIO n ptr 1
-
-ptr :: Foreign.Storable a => Word.Word32 -> Foreign.Ptr a -> Int -> Word.Word32
-ptr n ptr len = Unsafe.unsafePerformIO $ ptrIO n ptr len
 
 ptrIO :: forall a. Foreign.Storable a => Word.Word32 -> Foreign.Ptr a -> Int
     -> IO Word.Word32

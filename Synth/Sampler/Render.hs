@@ -60,18 +60,18 @@ write_ chunkSize quality outputDir notes = catch $ do
     case maybe (Right []) unserializeStates mbState of
         Left err -> return $ Left $
             "unserializing " <> pretty mbState <> ": " <> err
-        Right states -> do
+        Right initialStates -> do
             Log.debug $ txt outputDir <> ": skipped " <> pretty skipped
                 <> ", resume at " <> pretty (take 1 hashes)
-                <> " states: " <> pretty states
+                <> " states: " <> pretty initialStates
                 <> " start: " <> pretty start
             stateRef <- IORef.newIORef $
                 fromMaybe (Checkpoint.State mempty) mbState
             let notifyState = IORef.writeIORef stateRef
             Checkpoint.write outputDir (length skipped) chunkSize hashes
                     stateRef $
-                render outputDir chunkSize quality states notifyState notes
-                    (AUtil.toFrame start)
+                render outputDir chunkSize quality initialStates notifyState
+                    notes (AUtil.toFrame start)
     where
     catch io = Exception.catches io
         [ Exception.Handler $ \(Audio.Exception err) -> return $ Left err
@@ -81,8 +81,8 @@ write_ chunkSize quality outputDir notes = catch $ do
 
 toSpan :: Sample.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
-    { _start = Sample.start note
-    , _duration = Sample.duration note
+    { _start = AUtil.toSeconds $ Sample.start note
+    , _duration = maybe 0 AUtil.toSeconds $ Sample.duration note
     , _hash = Sample.hash note
     }
 
@@ -91,11 +91,12 @@ data Playing = Playing {
     _noteHash :: !Note.Hash
     , _getState :: IO (Maybe State)
     , _audio :: !Audio
-    , _noteRange :: !(RealTime, RealTime)
+    , _noteRange :: !(Audio.Frame, Audio.Frame)
     }
 
 instance Pretty Playing where
-    pretty p = "Playing:" <> "(" <> pretty (_noteRange p) <> ")"
+    pretty p = "Playing:" <> "(" <> prettyF s <> "--" <> prettyF e <> ")"
+        where (s, e) = _noteRange p
 
 failedPlaying :: Sample.Note -> Playing
 failedPlaying note = Playing
@@ -105,26 +106,29 @@ failedPlaying note = Playing
     , _noteRange = (0, 0)
     }
 
+prettyF :: Audio.Frame -> Text
+prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
+
 render :: FilePath -> Audio.Frame -> Resample.Quality
     -> [Maybe State] -> (Checkpoint.State -> IO ())
     -> [Sample.Note] -> Audio.Frame -> Audio
-render outputDir chunkSize quality states notifyState notes start =
+render outputDir chunkSize quality initialStates notifyState notes start =
         Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing
     -- samples.
     let (overlappingStart, overlappingChunk, futureNotes) =
-            overlappingNotes (AUtil.toSeconds start) chunkSize notes
+            overlappingNotes start chunkSize notes
     -- Debug.tracepM "started, chunk, future"
     --     (map eNote overlappingStart, map eNote overlappingChunk,
     --         map eNote futureNotes)
     playing <- liftIO $
-        resumeSamples start quality chunkSize states overlappingStart
+        resumeSamples start quality chunkSize initialStates overlappingStart
     playing <- renderChunk start playing overlappingChunk (null futureNotes)
     -- Debug.tracepM "renderChunk playing" playing
     Control.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
             let (overlappingStart, overlappingChunk, futureNotes) =
-                    overlappingNotes (AUtil.toSeconds now) chunkSize notes
+                    overlappingNotes now chunkSize notes
             -- If notes started in the past, they should already be 'playing'.
             Audio.assert (null overlappingStart) $
                 "overlappingStart should be []: " <> pretty overlappingStart
@@ -146,6 +150,11 @@ render outputDir chunkSize quality states notifyState notes start =
         -- Record playing states for the start of the next chunk.
         -- liftIO $ Debug.tracepM "save states" . (now,) =<<
         --     mapM _getState (Seq.sort_on _noteHash playing)
+        let playingTooLong = filter ((<=now) . snd . _noteRange) playing
+        -- This means RenderSample.predictFileDuration was wrong.
+        Audio.assert (null playingTooLong) $
+            "notes still playing at " <> prettyF now <> ": "
+            <> pretty playingTooLong
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
         Audio.assert (all ((<=chunkSize) . AUtil.chunkFrames2) chunks) $
@@ -200,10 +209,10 @@ resumeSamples now quality chunkSize states notes = do
 
 -- | Extract from Note for pretty-printing.
 eNote :: Sample.Note
-    -> (RealTime, RealTime, Signal.Signal, Either Text FilePath)
+    -> (Text, Text, Signal.Signal, Either Text FilePath)
 eNote n =
-    ( Sample.start n
-    , Sample.duration n
+    ( prettyF $ Sample.start n
+    , maybe "Nothing" prettyF $ Sample.duration n
     , either mempty Sample.ratio $ Sample.sample n
     , FilePath.takeFileName . Sample.filename <$> Sample.sample n
     )
@@ -235,7 +244,7 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
                 , _offset = used
                 , _resampleState = rState
                 }
-        let start = AUtil.toFrame (Sample.start note)
+        let start = Sample.start note
         -- Debug.tracepM "startSample" (start, sample, mbMbState)
         case mbMbState of
             Nothing -> Audio.assert (start >= now && now-start < chunkSize) $
@@ -255,20 +264,24 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
                 -- the offset because Resample produces that with State, but
                 -- I don't need it, since there is no resample then frames are
                 -- 1:1.
-                _ -> max 0 $ now - AUtil.toFrame (Sample.start note)
+                _ -> max 0 $ now - Sample.start note
+        duration <- maybe
+            (Audio.throwIO $ "tried to start sample with no duration: "
+                <> pretty note) return $
+            Sample.duration note
         return $ Playing
             { _noteHash = Sample.hash note
             , _getState = IORef.readIORef sampleStateRef
-            , _audio = RenderSample.render (mkConfig (Monad.join mbMbState))
-                (Sample.start note) $ sample
-                    { Sample.offset = offset + Sample.offset sample
-                    }
-            , _noteRange = (Sample.start note, Sample.duration note)
+            , _audio = RenderSample.render
+                (mkConfig (Monad.join mbMbState))
+                (AUtil.toSeconds (Sample.start note))
+                (sample { Sample.offset = offset + Sample.offset sample })
+            , _noteRange = (Sample.start note, Sample.start note + duration)
             }
 
 -- | This is similar to 'Note.splitOverlapping', but it differentiates notes
 -- that overlap the starting time.
-overlappingNotes :: RealTime -> Audio.Frame -> [Sample.Note]
+overlappingNotes :: Audio.Frame -> Audio.Frame -> [Sample.Note]
     -> ([Sample.Note], [Sample.Note], [Sample.Note])
 overlappingNotes start chunkSize notes =
     (overlappingStart, overlappingChunk, rest)
@@ -277,7 +290,7 @@ overlappingNotes start chunkSize notes =
         List.partition ((<start) . Sample.start) $ filter (not . passed) here
     (here, rest) = span ((<end) . Sample.start) $ dropWhile passed notes
     passed n = Sample.end n <= start && Sample.start n < start
-    end = start + AUtil.toSeconds chunkSize
+    end = start + chunkSize
 
 data State = State {
     -- | I don't actually need this, but it makes the Pretty instance easier to

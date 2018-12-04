@@ -134,7 +134,7 @@ allFilenames = map fst3 $ Either.rights
 
 -- * convert
 
-convert :: Note.Note -> Patch.ConvertM (RealTime, Sample.Sample)
+convert :: Note.Note -> Patch.ConvertM Sample.Sample
 convert note = do
     let articulation = Util.articulationDefault Open attributeMap $
             Note.attributes note
@@ -146,10 +146,7 @@ convert note = do
     -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
     --     <> pretty ((dyn, scale), (symPitch, sampleNn), var)
     --     <> ": " <> txt filename
-    let dur
-            | isMute articulation = Sample.forever
-            | otherwise = Note.duration note + muteTime
-    return $ (dur,) $ Sample.Sample
+    return $ Sample.Sample
         { filename = filename
         , offset = 0
         , envelope = if isMute articulation

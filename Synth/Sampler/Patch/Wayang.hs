@@ -154,8 +154,7 @@ checkStarts = (makeSample reference,)
     a silent mute.  If the latter, I have to do it as a preprocess step, since
     it affects overlap calculation.
 -}
-convert :: Instrument -> Tuning -> Note.Note
-    -> Patch.ConvertM (RealTime, Sample.Sample)
+convert :: Instrument -> Tuning -> Note.Note -> Patch.ConvertM Sample.Sample
 convert instrument tuning note = do
     let articulation = Util.articulationDefault Open attributeMap $
             Note.attributes note
@@ -170,7 +169,7 @@ convert instrument tuning note = do
         <> pretty ((dyn, dynVal), (symPitch, sampleNn), var)
         <> ": " <> txt filename
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
-    return $ (Note.duration note + muteTime,) $ Sample.Sample
+    return $ Sample.Sample
         { filename = filename
         , offset = 0
         , envelope = if

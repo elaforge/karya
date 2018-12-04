@@ -21,7 +21,6 @@ import qualified Synth.Shared.Note as Note
 import qualified Ui.UiTest as UiTest
 
 import Global
-import Types
 import Util.Test
 
 
@@ -32,7 +31,7 @@ test_variations = do
     -- prettyp (run "%dyn=.75" [(0, 0, "k")])
 
     -- A normal-ish curve, centering around 95.25.
-    equal (first (histo . map (Sample.filename . snd)) $
+    equal (first (histo . map Sample.filename) $
             run "%dyn=.75" [(t, 0, "k") | t <- Seq.range 0 20 1])
         ( [ ("Ki/36-42-47-101-103-ki.wav", 1)
           , ("Ki/36-42-47-89-91-ki.wav", 1)
@@ -43,20 +42,19 @@ test_variations = do
         , []
         )
 
-runNotes :: Text -> [UiTest.EventSpec] -> ([(RealTime, Sample.Sample)], [Text])
+runNotes :: Text -> [UiTest.EventSpec] -> ([Sample.Sample], [Text])
 runNotes title events = (samples, logs ++ convert_logs)
     where
     (notes, logs) = derive title [(">m", events)]
     (samples, convert_logs) = convert (head Mridangam.patches) notes
 
-convert :: Patch.Patch -> [Note.Note] -> ([(RealTime, Sample.Sample)], [Text])
+convert :: Patch.Patch -> [Note.Note] -> ([Sample.Sample], [Text])
 convert patch notes = (Maybe.catMaybes samples, concat logs)
     where
     (samples, logs) = unzip (map convert1 (Patch._preprocess patch notes))
     convert1 note = case Patch.runConvert (Patch._convert patch note) of
         Left err -> (Nothing, [err])
-        Right ((dur, sample), logs) ->
-            (Just (dur, sample), map Log.msg_text logs)
+        Right (sample, logs) -> (Just sample, map Log.msg_text logs)
 
 derive :: Text -> [UiTest.TrackSpec] -> ([Note.Note], [Text])
 derive title = perform allocs . Derive.r_events

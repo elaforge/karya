@@ -2,8 +2,16 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Low level rendering of 'Sample.Sample's.
-module Synth.Sampler.RenderSample where
+module Synth.Sampler.RenderSample (
+    render
+    , envelopeDur
+    , predictFileDuration
+#ifdef TESTING
+    , module Synth.Sampler.RenderSample
+#endif
+) where
 import qualified Sound.File.Sndfile as Sndfile
 
 import qualified Util.Audio.Audio as Audio
@@ -67,13 +75,16 @@ applyEnvelope start sig
         map (first (RealTime.to_seconds . subtract start)) $
         Signal.clip_before_pairs start sig
     where
-    -- If the envelope ends on a 0, I can clip the sample short.  Not just for
-    -- performance, but because checkpoints rely on the note durations being
-    -- accurate.
-    clipEnd = maybe id (Audio.take . Audio.Seconds . RealTime.to_seconds) mbEnd
-    mbEnd = case Signal.last sig of
-        Just (x, 0) -> Just $ x - start
-        _ -> Nothing
+    clipEnd = maybe id (Audio.take . Audio.Seconds . RealTime.to_seconds)
+        (envelopeDur start sig)
+
+-- | If the envelope ends on a 0, I can clip the sample short.  Not just for
+-- performance, but because checkpoints rely on the note durations being
+-- accurate.
+envelopeDur :: RealTime -> Signal.Signal -> Maybe RealTime
+envelopeDur start sig = case Signal.last sig of
+    Just (x, 0) -> Just $ x - start
+    _ -> Nothing
 
 -- * duration
 

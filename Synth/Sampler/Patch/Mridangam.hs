@@ -94,7 +94,7 @@ attributeMap = Common.attribute_map
     , (Mridangam.tan, Tan)
     ]
 
-convert :: Note.Note -> Patch.ConvertM (RealTime, Sample.Sample)
+convert :: Note.Note -> Patch.ConvertM Sample.Sample
 convert note = do
     articulation <- Util.articulation attributeMap (Note.attributes note)
     let dynVal = Note.initial0 Control.dynamic note
@@ -104,7 +104,7 @@ convert note = do
                 (Num.clamp 0 1 (dynVal + var * variationRange))
     noteNn <- Util.initialPitch note
     let noteDyn = Num.scale minDyn maxDyn dynVal
-    return $ (Note.duration note + muteTime,) $ Sample.Sample
+    return $ Sample.Sample
         { filename = filename
         , offset = 0
         , envelope = Signal.from_pairs
