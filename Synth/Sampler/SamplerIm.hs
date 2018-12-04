@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
@@ -23,6 +24,7 @@ import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -38,6 +40,7 @@ import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
 import Global
+import Synth.Types
 
 
 main :: IO ()
@@ -52,6 +55,9 @@ main = do
         ["check"] -> do
             let (reference, samples) = Wayang.checkStarts
             mapM_ (renderStarts . (++[reference])) samples
+        ["dump", notesFilename] ->
+            dump PatchDb.db =<< either (errorIO . pretty) return
+                =<< Note.unserialize notesFilename
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
                 ["sampler-im", txt notesFilename, txt outputDir]
@@ -90,20 +96,34 @@ options =
 
 type Error = Text
 
+-- | Show the final Sample.Notes, which would have been rendered.
+dump :: Patch.Db -> [Note.Note] -> IO ()
+dump db notes = forM_ (byPatchInst notes) $ \(patch, notes) -> case get patch of
+    Nothing -> Text.IO.putStrLn $ "patch not found: " <> patch
+    Just patch -> forM_ notes $ \(inst, notes) -> do
+        Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
+        notes <- mapM makeSampleNote (convert db patch notes)
+        mapM_ (\n -> Pretty.pprint n >> putStrLn "") notes
+    where
+    get patch = Map.lookup patch (Patch._patches db)
+
 process :: Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath -> IO ()
 process db quality notes outputDir = do
     clearUnusedInstruments outputDir instruments
-    Async.forConcurrently_ byPatchInst $ \(patch, notes) -> case get patch of
+    Async.forConcurrently_ grouped $ \(patch, notes) -> case get patch of
         Nothing -> Log.warn $ "patch not found: " <> patch
         Just patch -> Async.forConcurrently_ notes $ \(inst, notes) ->
             realize quality outputDir inst
-                =<< mapM makeNote (convert db patch notes)
+                =<< mapM makeSampleNote (convert db patch notes)
     where
-    instruments = Set.fromList $ concatMap (map fst . snd) byPatchInst
-    byPatchInst :: [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]
-    byPatchInst = map (second (Seq.keyed_group_sort Note.instrument)) $
-        Seq.keyed_group_sort Note.patch notes
+    grouped = byPatchInst notes
+    instruments = Set.fromList $ concatMap (map fst . snd) grouped
     get patch = Map.lookup patch (Patch._patches db)
+
+byPatchInst :: [Note.Note]
+    -> [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]
+byPatchInst = map (second (Seq.keyed_group_sort Note.instrument))
+    . Seq.keyed_group_sort Note.patch
 
 -- | Delete output links for instruments that have disappeared entirely.
 -- This often happens when I disable a track.
@@ -134,9 +154,9 @@ convert db patch =
     patchDir = Patch._rootDir db </> Patch._dir patch
 
 -- TODO do this incrementally?  A stream?
-makeNote :: (Either Error Sample.Sample, [Log.Msg], Note.Note)
+makeSampleNote :: (Either Error Sample.Sample, [Log.Msg], Note.Note)
     -> IO Sample.Note
-makeNote (errSample, logs, note) = do
+makeSampleNote (errSample, logs, note) = do
     mapM_ Log.write logs
     -- It's important to get an accurate duration if I can, because that
     -- determines overlap, which affects caching.
