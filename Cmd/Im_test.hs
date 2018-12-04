@@ -47,7 +47,7 @@ test_respond = do
     let config = Cmd.config_im $ Cmd.state_config DeriveTest.default_cmd_state
         Just synth_config = Map.lookup "im-synth" (Config.synths config)
     notes <- Note.unserialize $ Config.notesFilename (Config.imDir config)
-        synth_config "#untitled" UiTest.default_block_id
+        "#untitled" UiTest.default_block_id synth_config
     right_equal (map Note.start <$> notes) [0, 1]
     right_equal (map (Map.toAscList . fmap Signal.to_pairs . Note.controls)
             <$> notes)

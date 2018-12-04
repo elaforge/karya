@@ -62,12 +62,11 @@ dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
     -> Note.Note -> (dyn, Signal.Y)
 dynamic dynToRange minDyn note =
     (fst $ findDynamic dynToRange dyn, Num.scale minDyn 1 dyn)
-    where dyn = fromMaybe 0 $ Note.initial Control.dynamic note
+    where dyn = Note.initial0 Control.dynamic note
 
 dynamicScale :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Note.Note
     -> (dyn, Signal.Y)
-dynamicScale dynToRange =
-    findDynamic dynToRange . fromMaybe 0 . Note.initial Control.dynamic
+dynamicScale dynToRange = findDynamic dynToRange . Note.initial0 Control.dynamic
 
 -- | Convert to (Dynamic, DistanceFromPrevDynamic)
 findDynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y
@@ -86,7 +85,7 @@ findDynamic dynToRange y =
 type Variation = Int
 
 variation :: Variation -> Note.Note -> Variation
-variation variations = pick . fromMaybe 0 . Note.initial Control.variation
+variation variations = pick . Note.initial0 Control.variation
     where pick var = round (var * fromIntegral (variations - 1))
 
 -- * thru

@@ -97,7 +97,7 @@ attributeMap = Common.attribute_map
 convert :: Note.Note -> Patch.ConvertM (RealTime, Sample.Sample)
 convert note = do
     articulation <- Util.articulation attributeMap (Note.attributes note)
-    let dynVal = fromMaybe 0 $ Note.initial Control.dynamic note
+    let dynVal = Note.initial0 Control.dynamic note
     let var = maybe 0 (subtract 1 . (*2)) $ Note.initial Control.variation note
     let filename = articulationDir articulation
             </> pickDynamic (articulationSamples articulation)

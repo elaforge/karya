@@ -21,6 +21,7 @@ import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Map
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -35,6 +36,8 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Util as Util
 import qualified Synth.Sampler.Patch.WayangCode as WayangCode
@@ -56,7 +59,7 @@ patches =
     where
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
-            ["wayang", Text.toLower $ showt inst, Text.toLower $ showt tuning])
+            ["wayang", Text.toLower (showt inst), Text.toLower (showt tuning)])
         { Patch._dir = dir
         , Patch._convert = convert inst tuning
         , Patch._karyaPatch = ImInst.code #= code inst tuning $
@@ -66,8 +69,8 @@ patches =
                     [ Control.supportPitch
                     , Control.supportDyn
                     , Control.supportVariation
-                    -- , Map.singleton Control.mute
-                    --     "Amount of mute. This becomes a shortened envelope."
+                    , Map.singleton Control.mute
+                        "Amount of mute. This becomes a shortened envelope."
                     ]
                 , Im.Patch.patch_attribute_map = const () <$> attributeMap
                 }
@@ -162,16 +165,22 @@ convert instrument tuning note = do
     let var = Util.variation (variationsOf articulation) note
     (filename, noteNn, sampleNn) <- tryRight $
         toFilename instrument tuning articulation
-        symPitch dyn var
+            symPitch dyn var
     Log.debug $ "note at " <> pretty (Note.start note) <> ": "
         <> pretty ((dyn, dynVal), (symPitch, sampleNn), var)
         <> ": " <> txt filename
+    let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     return $ (Note.duration note + muteTime,) $ Sample.Sample
         { filename = filename
         , offset = 0
-        , envelope = if isMute articulation
-            then Signal.constant dynVal
-            else Signal.from_pairs
+        , envelope = if
+            | isMute articulation -> Signal.constant dynVal
+            | variableMute > 0 -> Signal.from_pairs
+                [ (Note.start note, dynVal)
+                , (Note.start note
+                    + uncurry Num.scale variableMuteRange (1-variableMute), 0)
+                ]
+            | otherwise -> Signal.from_pairs
                 [ (Note.start note, dynVal), (Note.end note, dynVal)
                 , (Note.end note + muteTime, 0)
                 ]
@@ -189,7 +198,10 @@ isMute = \case
 -- | I'm missing these samples, so substitute some others.
 workaround :: Instrument -> Tuning -> Articulation -> Dynamic -> Dynamic
 workaround Kantilan Umbang CalungMute FF = MF
-workaround _inst _tuning _articulation dyn = dyn
+workaround _ _ _ dyn = dyn
+
+variableMuteRange :: (RealTime, RealTime)
+variableMuteRange = (0.85, 4)
 
 -- | Time to mute at the end of a note.
 muteTime :: RealTime

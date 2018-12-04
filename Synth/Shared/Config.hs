@@ -158,13 +158,16 @@ oscPort = OSC_PORT
 -}
 
 -- | Write serialized notes to this file.
-notesFilename :: FilePath -> Synth -> FilePath
+notesFilename :: FilePath -> FilePath
     -- ^ Path to the score, relative to the save dir.  This should uniquely
     -- identify this score.
-    -> Id.BlockId -> FilePath
-notesFilename imDir synth scorePath blockId =
+    -> Id.BlockId -> Synth -> FilePath
+notesFilename imDir scorePath blockId synth =
+    notesDirectory imDir scorePath blockId </> synthName synth
+
+notesDirectory :: FilePath -> FilePath -> Id.BlockId -> FilePath
+notesDirectory imDir scorePath blockId =
     imDir </> notesParentDir </> scorePath </> idFilename blockId
-    </> synthName synth
 
 outputDirectory :: FilePath -> FilePath -> Id.BlockId -> FilePath
 outputDirectory imDir scorePath blockId =

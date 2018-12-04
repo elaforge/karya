@@ -315,7 +315,7 @@ evaluate_im config lookup_inst score_path block_id events = do
         case Map.lookup synth_name (Config.synths config) of
             Just synth -> do
                 let fname = Config.notesFilename (Config.imDir config)
-                        synth score_path block_id
+                        score_path block_id synth
                     output_dir = Config.outputDirectory (Config.imDir config)
                         score_path block_id
                 -- TODO It would be better to not reach this point at all if

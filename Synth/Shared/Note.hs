@@ -91,6 +91,9 @@ initial :: Control.Control -> Note -> Maybe Signal.Y
 initial control note = Signal.at (start note) <$>
     Map.lookup control (controls note)
 
+initial0 :: Control.Control -> Note -> Signal.Y
+initial0 control =  fromMaybe 0 .initial control
+
 withControl :: Control.Control -> Signal.Signal -> Note -> Note
 withControl control signal note =
     note { controls = Map.insert control signal (controls note) }
