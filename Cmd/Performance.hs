@@ -326,7 +326,7 @@ evaluate_im config lookup_inst score_path block_id events = do
                 return $ if null binary || not changed then Nothing
                     else Just (binary, [fname, output_dir])
             Nothing -> do
-                Log.warn $ "unknown im synth " <> synth_name <> " with "
+                Log.warn $ "unknown im synth " <> showt synth_name <> " with "
                     <> showt (Vector.length events) <> " events"
                 return Nothing
     write_notes (Nothing, _) = return Nothing

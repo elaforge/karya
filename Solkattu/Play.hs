@@ -8,16 +8,21 @@ import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
+import System.FilePath ((</>))
 import qualified System.IO as IO
 
 import qualified Util.Control as Control
+import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.Process as Process
 import qualified Util.Process
+import qualified Util.TextUtil as TextUtil
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -27,16 +32,20 @@ import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ShowVal as ShowVal
 
+import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Solkattu.Db as Db
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 
+import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 import qualified Synth.Shared.Config as Config
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -50,23 +59,33 @@ import Global
 import Types
 
 
+test :: IO ()
+test = play_m "#=(natural)" 1 (Db.korvais!!30)
+
 play_m :: Text -> RealTime -> Korvai.Korvai -> IO ()
-play_m = play Korvai.mridangam (InstTypes.Qualified "sampler" "mridangam-d")
+play_m = play_instrument Korvai.mridangam
+    (InstTypes.Qualified "sampler" "mridangam-d")
 
-play :: Solkattu.Notation stroke => Korvai.Instrument stroke
+play_instrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai -> IO ()
-play instrument im_instrument transform akshara_dur korvai = do
+play_instrument instrument im_instrument transform akshara_dur korvai = do
     state <- either errorIO return $
-        realize instrument im_instrument transform akshara_dur korvai
-    procs <- derive_to_disk "solkattu" state
-    play_procs procs
+        to_state instrument im_instrument transform akshara_dur korvai
+    (procs, output_dir) <- derive_to_disk "solkattu" state
+    play_procs procs output_dir
 
-play_procs :: [Performance.Process] -> IO ()
-play_procs procs = do
+play_procs :: [Performance.Process] -> FilePath -> IO ()
+play_procs [] output_dir = do
+    outputs <- File.list output_dir
+    Process.call "bin/play" (filter (".wav" `List.isSuffixOf`) outputs)
+play_procs procs output_dir = do
     ready <- MVar.newEmptyMVar
+    putStrLn $ "start render: " <> prettys procs
     rendering <- Async.async $ watch_subprocesses ready (Set.fromList procs)
-    () <- MVar.takeMVar ready
-    -- TODO start play process
+    putStrLn "wait for ready"
+    MVar.takeMVar ready
+    outputs <- File.list output_dir
+    Process.call "bin/play" (filter (".wav" `List.isSuffixOf`) outputs)
     Async.wait rendering
 
 -- | This is analogous to 'Performance.watch_subprocesses', but notifies as
@@ -75,7 +94,7 @@ watch_subprocesses :: MVar.MVar () -> Set Performance.Process -> IO ()
 watch_subprocesses ready all_procs =
     Util.Process.multipleOutput (Set.toList all_procs) $ \chan ->
         Control.loop1 (all_procs, Set.empty) $ \loop (procs, started) -> if
-            | Set.null procs -> return ()
+            | Set.null procs -> MVar.tryPutMVar ready () >> return ()
             | otherwise -> do
                 ((cmd, args), out) <- Chan.readChan chan
                 loop =<< process procs started (cmd, args) out
@@ -89,9 +108,9 @@ watch_subprocesses ready all_procs =
             | Just (_, _, (s, _)) <- Config.parseProgress line, s > 0 -> do
                 let started2 = Set.insert (cmd, args) started
                 when (started2 == all_procs) $
-                    MVar.putMVar ready ()
+                    void $ MVar.tryPutMVar ready ()
                 return (procs, started2)
-            | otherwise -> put line >> return (procs, started)
+            | otherwise -> put ("?: " <> line) >> return (procs, started)
         Util.Process.Exit code -> do
             when (code /= Util.Process.ExitCode 0) $
                 Log.warn $ "subprocess " <> txt cmd <> " "
@@ -101,9 +120,9 @@ watch_subprocesses ready all_procs =
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- | Derive the Ui.State and write the im parts to disk.
-derive_to_disk :: FilePath -> Ui.State -> IO [Performance.Process]
+derive_to_disk :: FilePath -> Ui.State -> IO ([Performance.Process], FilePath)
 derive_to_disk score_path ui_state = do
-    cmd_state <- Cmd.initial_state <$> DeriveSaved.load_cmd_config
+    cmd_state <- load_cmd_state
     block_id <- either (errorIO . pretty) return $
         Ui.eval ui_state Ui.get_root_id
     let (events, logs) = derive cmd_state ui_state block_id
@@ -114,8 +133,16 @@ derive_to_disk score_path ui_state = do
     (procs, non_im) <- Performance.evaluate_im im_config lookup_inst score_path
         block_id events
     unless (null non_im) $
-        Log.warn $ "non im events: " <> pretty non_im
-    return procs
+        Log.warn $ "non-im events: " <> pretty non_im
+    config <- Config.getConfig
+    return
+        ( procs
+        , Config.outputDirectory (Config.imDir config) score_path block_id
+            </> "instrument"
+        )
+
+instrument_name :: ScoreTypes.Instrument
+instrument_name = "instrument"
 
 derive :: Cmd.State -> Ui.State -> BlockId
     -> (Vector.Vector Score.Event, [Log.Msg])
@@ -123,14 +150,18 @@ derive cmd_state ui_state block_id =
     (Msg.perf_events perf, logs ++ Msg.perf_logs perf)
     where (perf, logs) = Performance.derive ui_state cmd_state block_id
 
+load_cmd_state :: IO Cmd.State
+load_cmd_state = Cmd.initial_state <$> DeriveSaved.cmd_config db
+    where db = fst $ Inst.db [Sampler.PatchDb.synth]
 
--- * realize
+
+-- * to_state
 
 -- | Realize and convert to Ui.State.
-realize :: Solkattu.Notation stroke => Korvai.Instrument stroke
+to_state :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> InstTypes.Qualified -> Text -> RealTime -> Korvai.Korvai
     -> Either Text Ui.State
-realize instrument im_instrument transform akshara_dur korvai = do
+to_state instrument im_instrument transform akshara_dur korvai = do
     results <- sequence $ Korvai.realize instrument korvai
     let strokes = concatMap fst results
     first pretty $ make_state im_instrument transform $ make_tracks $
@@ -141,14 +172,19 @@ make_state :: InstTypes.Qualified -> Text -> [Track.Track]
     -> Either Ui.Error Ui.State
 make_state instrument transform tracks = Ui.exec Ui.empty $ do
     bid <- GenId.block_id Nothing
-    bid <- Ui.create_block bid transform []
+    bid <- Ui.create_block bid
+        (TextUtil.joinWith " | " ("inst=" <> ShowVal.show_val instrument_name)
+            transform)
+        []
     Ui.set_root_id bid
     tids <- forM tracks $ \t -> do
         tid <- GenId.track_id bid
         Ui.create_track tid t
     mapM_ (Ui.insert_track bid 999 . block_track) tids
-    allocate "inst" instrument
-    Ui.modify_config $ UiConfig.ky #= "inst=inst"
+    allocate instrument_name instrument
+    -- TODO this isn't having an effect, why not?
+    Ui.modify_config $
+        UiConfig.ky #= ("inst=" <> ShowVal.show_val instrument_name)
     where
     block_track tid = Block.track (Block.TId tid Ui.no_ruler) 40
 
