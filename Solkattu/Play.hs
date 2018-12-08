@@ -183,8 +183,9 @@ make_state instrument transform tracks = Ui.exec Ui.empty $ do
     mapM_ (Ui.insert_track bid 999 . block_track) tids
     allocate instrument_name instrument
     -- TODO this isn't having an effect, why not?
-    Ui.modify_config $
-        UiConfig.ky #= ("inst=" <> ShowVal.show_val instrument_name)
+    Ui.modify_config $ UiConfig.ky #=
+        "note transformer:\n\
+        \    GLOBAL = inst=" <> ShowVal.show_val instrument_name <> "\n"
     where
     block_track tid = Block.track (Block.TId tid Ui.no_ruler) 40
 

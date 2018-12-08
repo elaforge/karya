@@ -13,10 +13,11 @@ import qualified Solkattu.Tala as Tala
 import Solkattu.Dsl.Solkattu
 
 
-makeMohras :: Tala.Tala -> Korvai.StrokeMaps
+makeMohras :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> [((Sequence, Sequence, Sequence), (Sequence, Sequence, Sequence))]
     -> Korvai
-makeMohras tala smaps = mohra • korvai tala smaps • map (section • make)
+makeMohras tala smaps transform =
+    mohra • korvai tala smaps • map (section • make)
     where
     make ((a1_, a2_, a3_), (b1_, b2_, b3_)) =
           a123.b1 . a123.b1
@@ -24,18 +25,22 @@ makeMohras tala smaps = mohra • korvai tala smaps • map (section • make)
         . a1.b2 . a3.b3
         where
         a123 = a1.a2.a3
-        (a1, a2, a3) = (group a1_, group a2_, group a3_)
-        (b1, b2, b3) = (group b1_, group b2_, group b3_)
+        (a1, a2, a3) = (t a1_, t a2_, t a3_)
+        (b1, b2, b3) = (t b1_, t b2_, t b3_)
+        t = group • transform
 
-makeMohra :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
+makeMohra :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
+    -> (Sequence, Sequence, Sequence)
     -> (Sequence, Sequence, Sequence) -> Korvai
-makeMohra tala smaps as bs = makeMohras tala smaps [(as, bs)]
+makeMohra tala smaps transform as bs =
+    makeMohras tala smaps transform [(as, bs)]
 
 -- | Alternate melkalam and kirkalam.
-makeMohras2 :: Tala.Tala -> Korvai.StrokeMaps
+makeMohras2 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
     -> [((Sequence, Sequence, Sequence), (Sequence, Sequence, Sequence))]
     -> Korvai
-makeMohras2 tala smaps = mohra • korvai tala smaps • map (section • make)
+makeMohras2 tala smaps transform =
+    mohra • korvai tala smaps • map (section • make)
     where
     make ((a1_, a2_, a3_), (b1_, b2_, b3_)) =
         a123.b1 . su (a123.b1) . a123.b1 . su (a123.b1)
@@ -43,23 +48,26 @@ makeMohras2 tala smaps = mohra • korvai tala smaps • map (section • make)
         . a1.b2 . su (a1.b2)
         . a3.b3 . su (a3.b3)
         where
-        (a1, a2, a3) = (group a1_, group a2_, group a3_)
-        (b1, b2, b3) = (group b1_, group b2_, group b3_)
+        (a1, a2, a3) = (t a1_, t a2_, t a3_)
+        (b1, b2, b3) = (t b1_, t b2_, t b3_)
         a123 = a1.a2.a3
+        t = group • transform
 
 -- | Alternate melkalam and kirkalam.
-makeMohra2 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence, Sequence, Sequence)
-    -> (Sequence, Sequence, Sequence) -> Korvai
-makeMohra2 tala smaps as bs = makeMohras2 tala smaps [(as, bs)]
+makeMohra2 :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
+    -> (Sequence, Sequence, Sequence) -> (Sequence, Sequence, Sequence)
+    -> Korvai
+makeMohra2 tala smaps transform as bs =
+    makeMohras2 tala smaps transform [(as, bs)]
 
 c_mohra :: Korvai
-c_mohra = ganesh $ makeMohra adi mridangam (a1, a2, a1) (b1, b2, b3)
+c_mohra = ganesh $ makeMohra adi mridangam su (a1, a2, a1) (b1, b2, b3)
     where
-    a1 = su $ dit.__4      .tang.__.kita.nakatiku
-    a2 = su $ na.ka.dit.__2.tang.__.kita.nakatiku
-    b1 = su $ ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
-    b2 = su $ ta.langa.dheem.__4
-    b3 = su $ tri_ (dheem.__4) (ta.langa.din.__.tat.__)
+    a1 = dit.__4     .tang.__.kita.nakatiku
+    a2 = na.ka.dit.__.tang.__.kita.nakatiku
+    b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
+    b2 = ta.langa.dheem.__4
+    b3 = tri_ (dheem.__4) (ta.langa.din.__.tat.__)
     mridangam = makeMridangam
         [ (dit, k)
         , (tang.kita, u.p.k)
@@ -70,15 +78,15 @@ c_mohra = ganesh $ makeMohra adi mridangam (a1, a2, a1) (b1, b2, b3)
         ]
 
 c_mohra2 :: Korvai
-c_mohra2 = janahan $ makeMohra adi mridangam (a1, a2, a3) (b1, b2, b3)
+c_mohra2 = janahan $ makeMohra adi mridangam su (a1, a2, a3) (b1, b2, b3)
     where
     a_ = kitataka.nakatiku
-    a1 = su $ dit.__4.tang.__ . a_
-    a2 = su $ dit.__2.tang.__ . a_
-    a3 = su $ dit.tang . a_
-    b1 = su $ repeat 3 (ta.ga.ta.ga) . dhom.__4
-    b2 = su $ ta.ga.ta.ga . dhom.__4
-    b3 = su $ tri_ (dhom.__4) $ repeat 2 (ta.ga.ta.ga)
+    a1 = dit.__4.tang.__ . a_
+    a2 = dit.__2.tang.__ . a_
+    a3 = dit.tang . a_
+    b1 = repeat 3 (ta.ga.ta.ga) . dhom.__4
+    b2 = ta.ga.ta.ga . dhom.__4
+    b3 = tri_ (dhom.__4) $ repeat 2 (ta.ga.ta.ga)
     mridangam = makeMridangam
         [ (dit, t)
         , (tang, o)
@@ -91,15 +99,15 @@ c_mohra_youtube :: Korvai
 c_mohra_youtube = source "Melakkaveri Balaji" $
     recording "https://www.youtube.com/watch?v=eq-DZeJi8Sk"
             (Just ((0, 0, 59), (0, 2, 7))) $
-    makeMohra2 adi mridangam (a1, a2, a3) (b1, b2, b3)
+    makeMohra2 adi mridangam su (a1, a2, a3) (b1, b2, b3)
     where
     -- he says "tikutaka tarikita" instead of "nakatiku tarikita"
-    a1 =  su $ __.dhom.ta.ka.ta .__.ki.ta . nakatiku
-    a2 =  su $ ka.din.__.din.__. ta.ki.ta . nakatiku
-    a3 =  su $ ka.dhom.ta.ka.ta .__.ki.ta . nakatiku
-    b1 = su $ taka . tang.__3.ga . tang.__3.ga . tang.__3.ga . tang.__
-    b2 = su $ taka . tang.__3.ga.tang.__
-    b3 = su $ taka . tri_ (tang.__.kitataka) (tang.__3.ga.din.__)
+    a1 = __.dhom.ta.ka.ta .__.ki.ta . nakatiku
+    a2 = ka.din.__.din.__. ta.ki.ta . nakatiku
+    a3 = ka.dhom.ta.ka.ta .__.ki.ta . nakatiku
+    b1 = taka . tang.__3.ga . tang.__3.ga . tang.__3.ga . tang.__
+    b2 = taka . tang.__3.ga.tang.__
+    b3 = taka . tri_ (tang.__.kitataka) (tang.__3.ga.din.__)
     mridangam = makeMridangam
         [ (dhom.ta.ka.ta, o.k.p.u)
         , (ki.ta, p.k)

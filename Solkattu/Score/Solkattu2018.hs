@@ -610,7 +610,7 @@ misra_to_mohra4 = date 2018 7 2 $ sudhindra $
 
 misra_mohras :: Korvai
 misra_mohras = date 2018 7 11 $ sudhindra $
-    SolkattuMohra.makeMohras Tala.misra_chapu mridangam
+    SolkattuMohra.makeMohras Tala.misra_chapu mridangam id
         [ ((a1, a2, a1), (b1, b2, b3))
         , ((c1, a2, c1), (b1, b2, b3))
         ]
@@ -1029,4 +1029,26 @@ c_18_10_29 = date 2018 10 29 $ koraippu $ ganesh $ korvaiS adi mridangam
         , (takita, k.p.k)
         , (taka, p.k)
         , (ka, p)
+        ]
+
+tisra_mohra :: Korvai
+tisra_mohra = ganesh $ date 2018 12 7 $
+    comment "Also works for kanda jati triputa talam and rupaka." $
+    SolkattuMohra.makeMohra adi mridangam (su • nadai 6)
+        (a1, a2, a1) (b1, b2, b3)
+    where
+    a1 = gugu.mi.na.dit.__4.tang.__.kita.nakatiku
+    a2 = na.ka.dit.__.tang.__.kita.nakatiku
+    b1 = ta.langa.din.__.tat.__.gugu.tat.__.dheem.__3.ka
+    b2 = ta.langa.dheem.__3.ka
+    b3 = tri_ (dheem.__4) (ta.langa.gugu.tat.__)
+    mridangam = makeMridangam
+        [ (gugu.mi.na.dit, o.o.k.p.k)
+        , (tang.kita, u.p.k)
+        , (na.ka.dit, n.p.k)
+        , (talang.ga, p.u.k)
+        , (din.tat, o.k)
+        , (gugu.tat, o.o.k)
+        , (dheem, od)
+        , (ka, k)
         ]

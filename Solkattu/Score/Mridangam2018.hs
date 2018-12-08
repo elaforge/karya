@@ -207,3 +207,19 @@ e_18_11_19 = sarvalaghu $ date 2018 11 19 $ ganesh $ korvai adi $ variations
     , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.k.t.k.n.y.p.l
     , repeat 4 $ su $ d.__.p.y.j.l.d.__.p.k.d.y.j.l.p.l
     ]
+
+e_18_12_08 :: Korvai
+e_18_12_08 = exercise $ date 2018 12 8 $ ganesh $ korvai adi $ variations
+    [ repeat 3 (p.k.p.k.n.o.o.k) . end
+    , repeat 3 (su (p.t.p.k.p.t.p.k).n.o.o.k) . end
+    , repeat 3 (su (p.k.t.k.p.k.t.k).n.o.o.k) . end
+    , repeat 3 (su (p.k.t.k).p.k . n.o.o.k) . end
+    ]
+    where end = n.p.k.__.p.u.__.k
+
+e_18_12_08_b :: Korvai
+e_18_12_08_b = exercise $ date 2018 12 8 $ ganesh $ korvai adi $ variations
+    [nadai 6 $ a.b.a.b.a.b.a]
+    where
+    a = group $ n.p.k.t.p.k.t.p.k.t.p.k
+    b = n.p.k.__.u.__.p.k.nakatiku

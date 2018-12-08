@@ -88,7 +88,7 @@ tdgnt = ta.din.gin.na.thom
 td_gnt = ta.din.__.gin.na.thom
 t_d_gnt = ta.__.din.__.gin.na.thom
 
-takadinna, takita, kita, taka, tiku, diku, tari, dugu :: Sequence
+takadinna, takita, kita, taka, tiku, diku, tari, gugu, dugu :: Sequence
 takadinna = ta.ka.din.na
 takita = ta.ki.ta
 kita = ki.ta
@@ -97,6 +97,7 @@ naka = na.ka
 tiku = ti.ku
 diku = di.ku
 tari = ta.ri
+gugu = gu.gu
 dugu = du.gu
 
 jonu :: Sequence
