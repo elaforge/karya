@@ -60,7 +60,7 @@ readFrom :: forall rate channels.
     Audio.Duration -> FilePath -> Audio.AudioIO rate channels
 readFrom (Audio.Seconds secs) fname =
     readFrom (Audio.Frames (Audio.secondsToFrame rate secs)) fname
-    where rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
+    where rate = Audio.natVal (Proxy :: Proxy rate)
 readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
     (key, handle) <- lift $ Resource.allocate (openRead fname) Sndfile.hClose
     whenJust (checkInfo rate channels (Sndfile.hInfo handle)) throw
@@ -88,7 +88,7 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
     size = Audio.framesCount channels Audio.chunkSize
     rate = Proxy :: Proxy rate
     channels = Proxy :: Proxy channels
-    chan = fromIntegral $ TypeLits.natVal channels
+    chan = Audio.natVal channels
     throw msg = liftIO $
         Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType
             ("reading file: " <> msg) Nothing (Just fname)
@@ -121,15 +121,14 @@ checkInfo :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
     => Proxy rate -> Proxy channels -> Sndfile.Info -> Maybe String
 checkInfo rate_ channels_ info
-    | int (Sndfile.samplerate info) == rate
-            && int (Sndfile.channels info) == channels = Nothing
+    | Sndfile.samplerate info == rate && Sndfile.channels info == channels =
+        Nothing
     | otherwise = Just $
         "(rate, channels) " ++ show (rate, channels) ++ " /= "
             ++ show (Sndfile.samplerate info, Sndfile.channels info)
     where
-    int = fromIntegral
-    rate = TypeLits.natVal rate_
-    channels = TypeLits.natVal channels_
+    rate = Audio.natVal rate_
+    channels = Audio.natVal channels_
 
 openRead :: FilePath -> IO Sndfile.Handle
 openRead fname = annotate fname $
@@ -200,10 +199,8 @@ openWrite format fname _audio =
     annotate fname $ Sndfile.openFile fname Sndfile.WriteMode info
     where
     info = Sndfile.defaultInfo
-        { Sndfile.samplerate = fromIntegral $
-            TypeLits.natVal (Proxy :: Proxy rate)
-        , Sndfile.channels = fromIntegral $
-            TypeLits.natVal (Proxy :: Proxy channels)
+        { Sndfile.samplerate = Audio.natVal (Proxy :: Proxy rate)
+        , Sndfile.channels = Audio.natVal (Proxy :: Proxy channels)
         , Sndfile.format = format
         }
 

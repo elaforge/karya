@@ -50,6 +50,7 @@ module Util.Audio.Audio (
     -- * util
     , takeFramesGE, splitAt
     , next
+    , natVal
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif

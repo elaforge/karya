@@ -34,6 +34,8 @@ import qualified System.Timeout as Timeout
 import qualified Util.File as File
 import qualified Util.Log as Log
 
+import Global
+
 
 -- | Similar to 'Process.readProcessWithExitCode' but return ByteStrings
 -- instead of String.
@@ -158,6 +160,8 @@ multipleOutput :: [(FilePath, [String])]
     -> (Chan.Chan ((FilePath, [String]), TalkOut) -> IO a)
     -> IO a
 multipleOutput cmds action = do
+    when (null cmds) $
+        errorIO "no command given"
     output <- Chan.newChan
     let run (cmd, args) = conversationWith cmd args Nothing (return EOF)
             (Chan.writeChan output . ((cmd, args),))
@@ -259,6 +263,3 @@ handleToPid (Internals.ProcessHandle mvar _ _) =
     MVar.readMVar mvar >>= \x -> case x of
         Internals.OpenHandle pid -> return (Just pid)
         _ -> return Nothing
-
-showt :: Show a => a -> Text
-showt = Text.pack . show

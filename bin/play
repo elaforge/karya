@@ -1,8 +1,17 @@
 #!/bin/zsh
-# Extend afplay to play multiple files.  Sophisticated!
+# Play im output files.
 
-trap 'echo next' INT
-for f in "$@"; do
-    echo $f
-    afplay $f
-done
+# sox -m music.mp3 voice.wav mixed.flac
+
+# I don't think sox can concat and mix in one go, but I could maybe do it
+# with pipes:
+# sox --combine concatenate *.wav -t -g
+# writing to std
+
+# sox --combine mix
+
+if [[ $# -eq 0 ]]; then
+    exit 0
+fi
+
+sox --no-show-progress "$@" --default-device
