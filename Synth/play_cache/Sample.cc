@@ -82,14 +82,16 @@ findNextSample(std::ostream &log, const string &dir, const string &fname)
 
 static SNDFILE *
 openSample(
-    std::ostream &log, int channels, int sampleRate,
-    const string &fname, sf_count_t offset)
+    std::ostream &log, int channels, bool oneChannelOk, int sampleRate,
+    const string &fname, sf_count_t offset, int *fileChannels)
 {
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
         LOG(fname << ": " << sf_strerror(sndfile));
-    } else if (info.channels != channels) {
+    } else if (!(info.channels == channels
+        || (oneChannelOk && info.channels == 1)))
+    {
         LOG(fname << ": expected " << channels << " channels, got "
             << info.channels);
     } else if (info.samplerate != sampleRate) {
@@ -98,6 +100,8 @@ openSample(
     } else if (offset > 0 && sf_seek(sndfile, offset, SEEK_SET) == -1) {
         LOG(fname << ": seek to " << offset << ": " << sf_strerror(sndfile));
     } else {
+        if (fileChannels)
+            *fileChannels = info.channels;
         return sndfile;
     }
     sf_close(sndfile);
@@ -118,7 +122,8 @@ SampleDirectory::SampleDirectory(
     LOG("dir " << dir << ": start at '" << fname << "' + " << fileOffset);
     if (!fname.empty()) {
         sndfile = openSample(
-            log, channels, sampleRate, dir + '/' + fname, fileOffset);
+            log, channels, false, sampleRate, dir + '/' + fname, fileOffset,
+            nullptr);
     }
 }
 
@@ -138,7 +143,8 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
     while (!fname.empty() && frames - totalRead > 0) {
         if (sndfile == nullptr) {
             sndfile = openSample(
-                log, channels, sampleRate, dir + '/' + fname, 0);
+                log, channels, false, sampleRate, dir + '/' + fname, 0,
+                nullptr);
             // This means the next read will try again, and maybe spam the log,
             // but otherwise I have to somehow remember this file is bad.
             if (sndfile == nullptr)
@@ -164,13 +170,16 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
 // SampleFile
 
 SampleFile::SampleFile(
-        std::ostream &log, int channels, int sampleRate,
+        std::ostream &log, int channels, bool expandChannels, int sampleRate,
         const string &fname, sf_count_t offset) :
-    log(log), fname(fname), sndfile(nullptr)
+    log(log), expandChannels(expandChannels), fname(fname), sndfile(nullptr),
+    fileChannels(0)
 {
     if (!fname.empty()) {
         LOG(fname << " + " << offset);
-        sndfile = openSample(log, channels, sampleRate, fname, offset);
+        sndfile = openSample(
+            log, channels, expandChannels, sampleRate, fname, offset,
+            &this->fileChannels);
     }
 }
 
@@ -187,17 +196,24 @@ SampleFile::read(int channels, sf_count_t frames, float **out)
 {
     // LOG("read " << frames);
     buffer.resize(frames * channels);
-    sf_count_t totalRead = 0;
-    while (sndfile && frames - totalRead > 0) {
-        sf_count_t delta = sf_readf_float(
-            sndfile, buffer.data() + totalRead * channels, frames - totalRead);
-        if (delta < frames - totalRead) {
-            sf_close(sndfile);
-            sndfile = nullptr;
+    sf_count_t read;
+    if (expandChannels && fileChannels == 1 && channels != 1) {
+        expandBuffer.resize(frames);
+        read = sf_readf_float(sndfile, expandBuffer.data(), frames);
+        for (sf_count_t f = 0; f < read; f++) {
+            for (int c = 0; c < channels; c++) {
+                buffer[f*channels + c] = expandBuffer[f];
+            }
         }
-        totalRead += delta;
-    };
-    std::fill(buffer.begin() + totalRead * channels, buffer.end(), 0);
+    } else {
+        read = sf_readf_float(sndfile, buffer.data(), frames);
+    }
+    // sf_readf_float only reads less than asked if the file ended.
+    if (read < frames) {
+        sf_close(sndfile);
+        sndfile = nullptr;
+    }
+    std::fill(buffer.begin() + read * channels, buffer.end(), 0);
     *out = buffer.data();
-    return totalRead == 0;
+    return read == 0;
 }

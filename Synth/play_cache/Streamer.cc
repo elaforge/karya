@@ -208,7 +208,7 @@ ResampleStreamer::initialize()
     if (fname.empty()) {
         audio = new AudioEmpty();
     } else {
-        audio = new SampleFile(log, channels, sampleRate, fname, 0);
+        audio = new SampleFile(log, channels, true, sampleRate, fname, 0);
         if (ratio != 1)
             audio = new Resample(log, channels, ratio, audio);
     }

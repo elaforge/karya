@@ -37,14 +37,20 @@ private:
 // Just stream a single sample file.
 class SampleFile : public Audio {
 public:
-    SampleFile(std::ostream &log, int channels, int sampleRate,
+    // If expandChannels is true, then also accept mono input files, and
+    // expand them as required.
+    SampleFile(std::ostream &log,
+        int channels, bool expandChannels, int sampleRate,
         const std::string &fname, sf_count_t offset);
     ~SampleFile();
     bool read(int channels, sf_count_t frames, float **out) override;
 
 private:
     std::ostream &log;
+    const bool expandChannels;
     const std::string fname;
     SNDFILE *sndfile;
+    int fileChannels;
     std::vector<float> buffer;
+    std::vector<float> expandBuffer;
 };
