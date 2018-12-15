@@ -96,14 +96,12 @@ module Derive.Sig (
     -- * call
     , call, call0, callt, call0t
 ) where
-import qualified Control.Applicative as Applicative
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Ui.Event as Event
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
-import Derive.Derive (EnvironDefault(..), ArgName, CallName)
+import Derive.Derive (ArgName, CallName, EnvironDefault(..))
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
@@ -113,6 +111,8 @@ import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
 import qualified Perform.Signal as Signal
+import qualified Ui.Event as Event
+
 import Global
 
 
@@ -151,7 +151,7 @@ instance Functor Parser where
     fmap f parser =
         parser { parser_parser = fmap (fmap f) . parser_parser parser }
 
-instance Applicative.Applicative Parser where
+instance Applicative Parser where
     pure a = Parser mempty (\state -> Right (state, a))
     Parser doc1 parse1 <*> Parser doc2 parse2 =
         Parser (doc1 <> doc2) $ \state -> do

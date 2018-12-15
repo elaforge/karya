@@ -127,7 +127,6 @@ module Ui.Ui (
     -- * ID
     , read_id, namespace
 ) where
-import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
@@ -151,6 +150,9 @@ import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
+import qualified App.Config as Config
+import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.Stack as Stack
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -166,9 +168,6 @@ import Ui.UiConfig hiding (allocation, modify_allocation)
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
-import qualified Derive.ScoreTypes as ScoreTypes
-import qualified Derive.Stack as Stack
-import qualified App.Config as Config
 import Global
 import Types
 
@@ -298,7 +297,7 @@ type StateStack m = State.StateT State
         (Except.ExceptT Error m))
 newtype StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Error,
-        Applicative.Applicative)
+        Applicative)
 
 -- | Just a convenient abbreviation.
 type StateId a = StateT Identity.Identity a
@@ -307,7 +306,7 @@ instance Trans.MonadTrans StateT where
     lift = StateT . lift . lift . lift
 
 -- | Monads implementing this class can call the UI state functions directly.
-class (Applicative.Applicative m, Monad m) => M m where
+class (Applicative m, Monad m) => M m where
     -- Note that these aren't the MonadState get and put, and can't be, because
     -- when this monad is layered under another state monad (as it is with
     -- Cmd), MonadState couldn't tell which one you wanted.

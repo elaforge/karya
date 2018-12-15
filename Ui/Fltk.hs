@@ -10,7 +10,6 @@ module Ui.Fltk (
 #ifdef STUB_OUT_FLTK
 import Ui.FltkStub
 #else
-import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
@@ -33,7 +32,7 @@ import Global
 -- layer.  Since FLTK operations are wrapped in Fltk, and only this module can
 -- unwrap a Fltk, this should enforce that you can't cell them willy-nilly.
 newtype Fltk a = Fltk (IO a)
-    deriving (Applicative.Applicative, Functor, Monad, Trans.MonadIO)
+    deriving (Applicative, Functor, Monad, Trans.MonadIO)
 
 fltk :: IO a -> Fltk a
 fltk = Fltk

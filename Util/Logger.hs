@@ -19,7 +19,6 @@ module Util.Logger (
     , mapLogs
 ) where
 import Prelude hiding (log)
-import qualified Control.Applicative as Applicative
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
@@ -35,7 +34,7 @@ import qualified Data.Monoid as Monoid
 -- | This uses a plain list for now.  DList is not actually very efficient for
 -- appends because appending nil doesn't strictly eliminate the nil.
 newtype LoggerT w m a = LoggerT { runLoggerT :: Strict.StateT [w] m a }
-    deriving (Applicative.Applicative, Functor, Monad, Trans.MonadTrans,
+    deriving (Applicative, Functor, Monad, Trans.MonadTrans,
         Trans.MonadIO, Except.MonadError e, Reader.MonadReader r)
 
 type Logger w a = LoggerT w Identity.Identity a

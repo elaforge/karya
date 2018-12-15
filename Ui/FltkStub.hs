@@ -7,17 +7,17 @@
 module Ui.FltkStub (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
 ) where
-import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.Trans as Trans
 
 import qualified Ui.UiMsg as UiMsg
+
 import Global
 
 
 newtype Fltk a = Fltk (IO a)
-    deriving (Applicative.Applicative, Functor, Monad, Trans.MonadIO)
+    deriving (Applicative, Functor, Monad, Trans.MonadIO)
 
 fltk :: IO a -> Fltk a
 fltk = Fltk

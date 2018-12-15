@@ -31,7 +31,6 @@
 module Cmd.Cmd (
     module Cmd.Cmd, Performance(..)
 ) where
-import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
@@ -252,7 +251,7 @@ type CmdStack m = Ui.StateT
 
 newtype CmdT m a = CmdT (CmdStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Ui.Error,
-        Applicative.Applicative)
+        Applicative)
 
 class (Log.LogMonad m, Ui.M m) => M m where
     -- Not in MonadState for the same reasons as 'Ui.Ui.M'.
@@ -267,7 +266,7 @@ class (Log.LogMonad m, Ui.M m) => M m where
     abort :: m a
     catch_abort :: m a -> m (Maybe a)
 
-instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
+instance (Applicative m, Monad m) => M (CmdT m) where
     get = (CmdT . lift) MonadState.get
     put st = (CmdT . lift) (MonadState.put st)
     write_thru msg = (CmdT . lift . lift) (Logger.log msg)

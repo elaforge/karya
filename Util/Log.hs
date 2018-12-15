@@ -33,7 +33,6 @@ module Util.Log (
     , serialize, deserialize
 ) where
 import Prelude hiding (error, log)
-import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
@@ -63,7 +62,6 @@ import qualified GHC.Stack
 import qualified Numeric
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
-
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
@@ -71,9 +69,10 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Serialize as Serialize
-import Util.Serialize (get, put, get_tag, put_tag)
+import Util.Serialize (get, get_tag, put, put_tag)
 
 import qualified Derive.Stack as Stack
+
 import Global
 
 
@@ -328,7 +327,7 @@ write_msg = LogT . Logger.log
 
 type LogM m = Logger.LoggerT Msg m
 newtype LogT m a = LogT { run_log_t :: LogM m a }
-    deriving (Applicative.Applicative, Functor, Monad, Trans.MonadIO,
+    deriving (Applicative, Functor, Monad, Trans.MonadIO,
         Trans.MonadTrans, Except.MonadError e, State.MonadState st,
         Reader.MonadReader r)
 
