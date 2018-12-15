@@ -259,8 +259,9 @@ type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
 watch_subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
-watch_subprocesses send_status procs =
-    Util.Process.multipleOutput (Set.toList procs) $ \chan ->
+watch_subprocesses send_status procs
+    | Set.null procs = return True
+    | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failures) -> if
             | Set.null procs -> return failures
             | otherwise -> do

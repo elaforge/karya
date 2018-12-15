@@ -25,6 +25,7 @@ import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Code as Code
 import qualified Synth.Sampler.Patch.Util as Util
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
@@ -151,13 +152,14 @@ makeArticulationSamples = do
     putStrLn "articulationSamples = \\case"
     forM_ Util.enumAll $ \art -> do
         fns <- Seq.sort_on filenameVelocity <$>
-            Directory.listDirectory
-                ("data/sampler/mridangam-d" </> articulationDir art)
+            Directory.listDirectory (dir </> articulationDir art)
         putStrLn $ "    " <> show art <> " ->"
         let indent = replicate 8 ' '
         putStrLn $ indent <> "[ " <> show (head fns)
         mapM_ (\fn -> putStrLn $ indent <> ", " <> show fn) (tail fns)
         putStrLn $ indent <> "]"
+    where
+    dir = Config.unsafeSamplerRoot </> "mridangam-d"
 
 filenameVelocity :: FilePath -> Int
 filenameVelocity fname = case Seq.split "-" fname of

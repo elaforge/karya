@@ -4,6 +4,7 @@
 
 module Synth.Sampler.Patch.Util where
 import qualified Control.Monad.Except as Except
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -88,6 +89,10 @@ variation :: Variation -> Note.Note -> Variation
 variation variations = pick . Note.initial0 Control.variation
     where pick var = round (var * fromIntegral (variations - 1))
 
+chooseVariation :: [a] -> Note.Note -> a
+chooseVariation xs = pick . Note.initial0 Control.variation
+    where pick var = xs !! round (var * fromIntegral (length xs - 1))
+
 -- * thru
 
 thru :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
@@ -123,3 +128,9 @@ findBelow key val (x:xs) = go x xs
         | val < key x = x0
         | otherwise = go x xs
     go x0 [] = x0
+
+showLower :: Show a => a -> String
+showLower = map Char.toLower . show
+
+showtLower :: Show a => a -> Text
+showtLower = txt . showLower

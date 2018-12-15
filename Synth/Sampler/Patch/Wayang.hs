@@ -2,14 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Definitions for the wayang instrument family.
+-- | Definitions for the gender wayang instrument family.
 module Synth.Sampler.Patch.Wayang (
     patches
     -- * interactive
     , checkFilenames, checkStarts
     , showPitchTable
 ) where
-import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -59,7 +58,7 @@ patches =
     where
     make (inst, tuning) =
         (Patch.patch $ Text.intercalate "-"
-            ["wayang", Text.toLower (showt inst), Text.toLower (showt tuning)])
+            ["wayang", Util.showtLower inst, Util.showtLower tuning])
         { Patch._dir = dir
         , Patch._convert = convert inst tuning
         , Patch._karyaPatch = ImInst.code #= code inst tuning $
@@ -242,7 +241,7 @@ toFilename instrument tuning articulation symPitch dyn variation = do
         )
     where
     toDir :: Show a => a -> FilePath
-    toDir = map Char.toLower . show
+    toDir = Util.showLower
     panggul = case articulation of
         CalungMute -> "calung"
         Calung -> "calung"

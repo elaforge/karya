@@ -70,7 +70,11 @@ main = do
         unless (null msg) $
             putStrLn $ "ERROR: " ++ msg
         putStr $ GetOpt.usageInfo
-            "sampler-im [ flags ] path/to/notes path/to/output/dir" options
+            (unlines
+                [ "sampler-im [ flags ] path/to/notes path/to/output/dir"
+                , "sampler-im [ flags ] dump path/to/notes"
+                ])
+            options
         System.Exit.exitFailure
 
 data Flags = Quality Resample.Quality
