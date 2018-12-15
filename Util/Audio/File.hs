@@ -50,6 +50,9 @@ getInfo fname = Exception.bracket (openRead fname) Sndfile.hClose
 
 -- | Since the file is opened only when samples are demanded, a sample rate or
 -- channels mismatch will turn into an exception then, not when this is called.
+--
+-- As a special case, if the file channels is 1, it will be expanded to
+-- fit whatever channel count was requested.
 read :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     FilePath -> Audio.AudioIO rate channels
@@ -63,15 +66,17 @@ readFrom (Audio.Seconds secs) fname =
     where rate = Audio.natVal (Proxy :: Proxy rate)
 readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
     (key, handle) <- lift $ Resource.allocate (openRead fname) Sndfile.hClose
-    whenJust (checkInfo rate channels (Sndfile.hInfo handle)) throw
+    let info = Sndfile.hInfo handle
+        fileChan = Sndfile.channels info
+    when (Sndfile.samplerate info /= rate || fileChan `notElem` [1, chan]) $
+        throw $ formatError rate chan info
     when (frame > 0) $
         liftIO $ do
-            let fileFrames = Sndfile.frames $ Sndfile.hInfo handle
             -- Otherwise libsndfile will throw a much more confusing error:
             -- "Internal psf_fseek() failed."
-            Audio.assert (0 <= frame && frame < fileFrames) $
+            Audio.assert (0 <= frame && frame < Sndfile.frames info) $
                 "tried to seek to " <> pretty frame <> " in " <> showt fname
-                <> ", but it only has " <> pretty fileFrames
+                <> ", but it only has " <> pretty (Sndfile.frames info)
             void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
     Fix.fix $ \loop ->
         liftIO (Sndfile.hGetBuffer handle size) >>= \case
@@ -79,14 +84,16 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
             Just buf -> do
                 let chunk = Sndfile.Buffer.Vector.fromBuffer buf
                 -- Sndfile should enforce this, but let's be sure.
-                when (V.length chunk `mod` chan /= 0) $
+                when (fileChan /= 1 && V.length chunk `mod` chan /= 0) $
                     throw $ "chunk length " <> show (V.length chunk)
                         <> " not a multiple of channels " <> show chan
-                S.yield chunk
+                S.yield $ if fileChan == chan
+                    then chunk
+                    else Audio.expandV chan chunk
                 loop
     where
     size = Audio.framesCount channels Audio.chunkSize
-    rate = Proxy :: Proxy rate
+    rate = Audio.natVal (Proxy :: Proxy rate)
     channels = Proxy :: Proxy channels
     chan = Audio.natVal channels
     throw msg = liftIO $
@@ -123,12 +130,15 @@ checkInfo :: forall rate channels.
 checkInfo rate_ channels_ info
     | Sndfile.samplerate info == rate && Sndfile.channels info == channels =
         Nothing
-    | otherwise = Just $
-        "(rate, channels) " ++ show (rate, channels) ++ " /= "
-            ++ show (Sndfile.samplerate info, Sndfile.channels info)
+    | otherwise = Just $ formatError rate channels info
     where
     rate = Audio.natVal rate_
     channels = Audio.natVal channels_
+
+formatError :: Audio.Rate -> Audio.Channels -> Sndfile.Info -> String
+formatError rate channels info =
+    "requested (rate, channels) " ++ show (rate, channels)
+    ++ " but file had " ++ show (Sndfile.samplerate info, Sndfile.channels info)
 
 openRead :: FilePath -> IO Sndfile.Handle
 openRead fname = annotate fname $

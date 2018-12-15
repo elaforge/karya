@@ -32,8 +32,8 @@ module Util.Audio.Audio (
     , zipWithN
     -- * channels
     , mergeChannels, extractChannel
-    , expandChannels, mixChannels
-    , interleaveV, deinterleaveV
+    , expandChannels, expandV
+    , mixChannels, interleaveV, deinterleaveV
     -- ** non-interleaved
     , nonInterleaved, interleaved
     , synchronizeToSize
@@ -337,6 +337,10 @@ expandChannels :: forall m rate chan. (Monad m, KnownNat chan)
 expandChannels (Audio audio) = Audio $ S.map (expandV chan) audio
     where chan = natVal (Proxy :: Proxy chan)
 
+expandV :: Channels -> V.Vector Sample -> V.Vector Sample
+expandV chan chunk = V.generate (V.length chunk * chan) $
+        \i -> chunk V.! (i `div` chan)
+
 -- | Do the reverse of 'expandChannels', mixing all channels to a mono signal.
 mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate chan -> Audio m rate 1
@@ -344,10 +348,6 @@ mixChannels (Audio audio) = Audio $ S.map mix audio
     where
     mix = zipWithN (+) . deinterleaveV chan
     chan = natVal (Proxy @chan)
-
-expandV :: Channels -> V.Vector Sample -> V.Vector Sample
-expandV chan chunk = V.generate (V.length chunk * chan) $
-        \i -> chunk V.! (i `div` chan)
 
 deinterleaveV :: V.Storable a => Channels -> V.Vector a -> [V.Vector a]
 deinterleaveV channels v
