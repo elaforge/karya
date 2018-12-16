@@ -107,6 +107,8 @@ dump db notes = forM_ (byPatchInst notes) $ \(patch, notes) -> case get patch of
     Just patch -> forM_ notes $ \(inst, notes) -> do
         Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
         notes <- mapM makeSampleNote (convert db patch notes)
+        let hashes = dumpHashes notes
+        mapM_ putHash hashes
         mapM_ putNote notes
     where
     get patch = Map.lookup patch (Patch._patches db)
@@ -117,6 +119,17 @@ dump db notes = forM_ (byPatchInst notes) $ \(patch, notes) -> case get patch of
         where
         s = AUtil.toSeconds $ Sample.start n
         dur = AUtil.toSeconds $ fromMaybe 0 $ Sample.duration n
+    putHash (start, end, (hash, hashes)) = Text.IO.putStrLn $
+        pretty start <> "--" <> pretty end <> ": " <> pretty hash <> " "
+        <> pretty hashes
+
+dumpHashes :: [Sample.Note] -> [(RealTime, RealTime, (Note.Hash, [Note.Hash]))]
+dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
+    where
+    size = AUtil.toSeconds Config.checkpointSize
+    hashes = Seq.key_on mconcat $
+        Checkpoint.overlappingHashes 0 size $
+        map Render.toSpan notes
 
 process :: Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath -> IO ()
 process db quality notes outputDir = do
