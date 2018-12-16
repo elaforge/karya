@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Lib.Checkpoint_test where
-import qualified Data.Digest.CRC32 as CRC32
-
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 
@@ -22,13 +20,13 @@ test_hashOverlapping = do
     equal (f 0 1 [(0, 0)]) [Checkpoint._hash $ mkSpan (0, 0)]
 
     check_val (f 0 1 [(1, 2)]) $ \case
-        [Note.Hash 0, x1, x2] -> x1 == x2
+        [x0, x1, x2] -> x0 == mempty && x1 == x2
         _ -> False
     check_val (f 0 2 [(1, 2)]) $ \case
-        [x1, x2] -> x1 /= Note.Hash 0 && x1 == x2
+        [x1, x2] -> x1 /= mempty && x1 == x2
         _ -> False
     check_val (f 0 1 [(0, 3), (1, 1)]) $ \case
-        [x1, y1, x2] -> y1 /= Note.Hash 0 && x1 == x2
+        [x1, y1, x2] -> y1 /= mempty && x1 == x2
         _ -> False
 
 test_groupOverlapping = do
@@ -56,7 +54,7 @@ mkSpan :: (RealTime, RealTime) -> Checkpoint.Span
 mkSpan (s, d) = Checkpoint.Span
     { _start = s
     , _duration = d
-    , _hash = Note.Hash $ CRC32.crc32 (s, d)
+    , _hash = Note.hash (s, d)
     }
 
 eSpan :: Checkpoint.Span -> (RealTime, RealTime)

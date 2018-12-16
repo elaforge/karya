@@ -57,7 +57,6 @@ module Perform.Signal (
 import qualified Prelude
 import Prelude hiding (head, last, maximum, minimum, null, drop)
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 
@@ -85,7 +84,7 @@ import Types
 -- but it really is just documentation and anyone who wants to operate on
 -- a generic signal can take a @Signal kind@.
 newtype Signal kind = Signal Segment.NumSignal
-    deriving (Show, Eq, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+    deriving (Show, Eq, DeepSeq.NFData, Serialize.Serialize)
 
 instance Pretty (Signal kind) where
     format sig = case constant_val sig of

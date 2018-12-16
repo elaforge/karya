@@ -5,17 +5,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Util.Crc32Instances ((&), ptrIO) where
 import qualified Data.ByteString.Unsafe as ByteString.Unsafe
-import Data.Digest.CRC32
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Foldable as Foldable
 import qualified Data.Int as Int
 import qualified Data.List as List
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Word as Word
 
 import qualified Foreign
 import qualified System.IO.Unsafe as Unsafe
+
+import Data.Digest.CRC32
 
 
 (&) :: CRC32 a => Word.Word32 -> a -> Word.Word32
@@ -65,6 +66,5 @@ ptrIO :: forall a. Foreign.Storable a => Word.Word32 -> Foreign.Ptr a -> Int
     -> IO Word.Word32
 ptrIO n ptr len =
     crc32Update n <$>
-        ByteString.Unsafe.unsafePackCStringLen
-            (Foreign.castPtr ptr, len * Foreign.sizeOf val)
-    where val = error "Crc32Instances.sizeOf" :: a
+        ByteString.Unsafe.unsafePackCStringLen (Foreign.castPtr ptr, len * size)
+    where size = Foreign.sizeOf (error "Crc32Instances.sizeOf" :: a)

@@ -46,7 +46,7 @@ resample config ratio start audio
     | Just val <- Signal.constant_val_from start ratio,
             ApproxEq.eq closeEnough val 1 =
         Audio.assertIn (state == Nothing)
-            ("expected no state for un-resampled, got " <> showt state) $
+            ("expected no state for un-resampled, got " <> pretty state) $
         -- resampleBy synchronizes, but File.readFrom doesn't.
         Audio.synchronizeToSize (Resample._now config)
             (Resample._chunkSize config) (silence <> audio)

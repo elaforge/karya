@@ -54,7 +54,6 @@ import qualified Prelude
 import Prelude hiding ((==), (>), (<=), div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Aeson as Aeson
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Typeable as Typeable
@@ -82,8 +81,8 @@ import Global
 -- RealTime.
 newtype RealTime = RealTime Double deriving
     ( DeepSeq.NFData, Num, Fractional, Real, RealFrac, Eq, Ord
-    , Serialize.Serialize, CRC32.CRC32, ApproxEq.ApproxEq
-    , Typeable.Typeable, Aeson.ToJSON, Aeson.FromJSON
+    , Serialize.Serialize, ApproxEq.ApproxEq , Typeable.Typeable
+    , Aeson.ToJSON, Aeson.FromJSON
     )
 
 -- I could derive Storable, but technically speaking Double is not necessarily

@@ -4,7 +4,6 @@
 
 {-# LANGUAGE TypeApplications #-}
 module Util.Segment_test where
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.List as List
 import qualified Hedgehog
 import qualified Hedgehog.Gen as Gen
@@ -250,14 +249,6 @@ test_drop_discontinuity_at = do
     -- Don't get >2 2s in a row.
     equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1), (2, 0)])
         [(0, 0), (2, 0), (2, 0)]
-
-test_crc32 = do
-    let f = CRC32.crc32 . from_pairs
-    equal (f []) (f [])
-    not_equal (f [(0, 1)]) (CRC32.crc32 (Segment.shift 1 (from_pairs [(0, 1)])))
-    not_equal (f []) (f [(0, 1)])
-    not_equal (f [(0, 2)]) (f [(0, 1)])
-    not_equal (f [(0, 1)]) (f [(1, 1)])
 
 -- * hedgehog
 

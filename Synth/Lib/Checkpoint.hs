@@ -5,12 +5,11 @@
 -- | Functions to do incremental render.  It hashes 'Note.Note's to skip
 -- rerendering when possible.
 module Synth.Lib.Checkpoint where
+import qualified Crypto.Hash.MD5 as MD5
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.ByteString as ByteString
-import qualified Data.ByteString.Base64.URL as Base64.URL
 import qualified Data.ByteString.Char8 as ByteString.Char8
-import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Set as Set
@@ -25,7 +24,6 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.File as File
 import qualified Util.Seq as Seq
-import qualified Util.Serialize as Serialize
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Note as Note
@@ -50,12 +48,8 @@ instance Pretty State where
     pretty = txt . encodeState
 
 encodeState :: State -> String
-encodeState = ByteString.Char8.unpack . fingerprint . CRC32.crc32 . unstate
+encodeState = ByteString.Char8.unpack . Note.fingerprint . MD5.hash . unstate
     where unstate (State bs) = bs
-
-fingerprint :: Serialize.Serialize a => a -> ByteString.ByteString
-fingerprint = fst . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
-    . Serialize.encode
 
 -- * checkpoints
 
@@ -134,9 +128,9 @@ getFilename outputDir stateRef (i, hash) = do
 
     Each chunk writes two files:
 
-    -- $hash and $state at beginning of .wav
+    -- $hash over the chunk, and $state at beginning of .wav
     000.$hash.$state.wav
-    -- file contains the state at the end of the .wav, cached in $endState
+    -- file contains the state at the end of the .wav, fingerprint is $endState
     000.$hash.$state.state.$endState
 
     001.$hash.$state.wav -- $state == previous $endState
@@ -216,7 +210,7 @@ extendHashes :: [(Int, Note.Hash)] -> [(Int, Note.Hash)]
 extendHashes = go
     where
     go [] = []
-    go [(i, h)] = (i, h) : zip [i+1 ..] (repeat (Note.Hash 0))
+    go [(i, h)] = (i, h) : zip [i+1 ..] (repeat mempty)
     go (h : hs) = h : go hs
 
 noteHashes :: Audio.Frame -> [Span] -> [(Int, Note.Hash)]
@@ -237,6 +231,10 @@ hashOverlapping start size =
     map (mconcat . map fst) . groupOverlapping start size
     . Seq.key_on _hash
     -- Pair each Note with its Hash, then group Notes and combine the Hashes.
+
+overlappingHashes :: RealTime -> RealTime -> [Span] -> [[Note.Hash]]
+overlappingHashes start size =
+    map (map fst) . groupOverlapping start size . Seq.key_on _hash
 
 
 {- | Group all Spans that overlap the given range.  So:

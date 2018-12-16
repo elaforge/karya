@@ -4,11 +4,12 @@
 
 -- | The 'Note' type and support.
 module Synth.Shared.Note where
+import qualified Crypto.Hash.MD5 as MD5
+import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Base64.URL as Base64.URL
 import qualified Data.ByteString.Char8 as ByteString.Char8
-import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.Map.Strict as Map
-import qualified Data.Word as Word
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -115,34 +116,36 @@ notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
 
 -- * hash
 
-newtype Hash = Hash Word.Word32
+-- | The Hash is the MD5 digest of the note.
+--
+-- I used to use CRC32, but got a collision right away.
+newtype Hash = Hash ByteString.ByteString
     deriving (Show, Eq, Ord, Serialize.Serialize)
 
 instance Pretty Hash where pretty = txt . encodeHash
 
-hash :: Note -> Hash
-hash = Hash . CRC32.crc32
+hash :: Serialize.Serialize a => a -> Hash
+hash = Hash . MD5.hash . Serialize.encode
 
 -- | Encode to a short string which I can stick in a filename.
 encodeHash :: Hash -> String
-encodeHash hash = ByteString.Char8.unpack . fst
-    . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
-    . Serialize.encode $ hash
+encodeHash (Hash hash) = ByteString.Char8.unpack $ fingerprint hash
+
+fingerprint :: ByteString.ByteString -> ByteString.ByteString
+fingerprint = fst . ByteString.Char8.spanEnd (=='=') . Base64.URL.encode
 
 instance Semigroup Hash where
-    Hash h1 <> Hash h2 = Hash $ CRC32.crc32Update h1 h2
+    Hash h1 <> Hash h2
+        | h1 == "" = Hash h2
+        | h2 == "" = Hash h1
+        | otherwise = Hash $ MD5.hashlazy $ ByteString.Lazy.fromChunks [h1, h2]
 
 instance Monoid Hash where
-    mempty = Hash 0
+    mempty = Hash ""
     mappend = (<>)
-    -- Otherwise, the extra <>0 means that mconcat [x] /= x.  It's not wrong,
-    -- but it's less confusing when mconcat [x] == x.
-    mconcat (x:xs) = foldl' (<>) x xs
     mconcat [] = mempty
-
-instance CRC32.CRC32 Note where
-    crc32Update n (Note name inst element start dur controls attrs) =
-        n & name & inst & element & start & dur & controls & Attrs.to_set attrs
-        where
-        (&) :: CRC32.CRC32 a => Word.Word32 -> a -> Word.Word32
-        (&) = CRC32.crc32Update
+    -- It's less confusing when mconcat [x] == x.
+    mconcat [x] = x
+    mconcat xs =
+        Hash . MD5.hashlazy . ByteString.Lazy.fromChunks . map unhash $ xs
+        where unhash (Hash h) = h

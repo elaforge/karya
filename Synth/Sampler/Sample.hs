@@ -3,12 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Sample where
-import qualified Data.Digest.CRC32 as CRC32
 import System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
-import Util.Crc32Instances ((&))
 import qualified Util.Pretty as Pretty
+import qualified Util.Serialize as Serialize
 
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Config as Config
@@ -43,7 +42,7 @@ end :: Note -> Audio.Frame
 end note = start note + fromMaybe 0 (duration note)
 
 makeHash :: Audio.Frame -> Maybe Audio.Frame -> Either Text Sample -> Note.Hash
-makeHash start dur sample = Note.Hash $ CRC32.crc32 (start, dur, sample)
+makeHash start dur sample = Note.hash (start, dur, sample)
     -- TODO ensure envelope and ratio are clipped to (start, duration)?
 
 -- | The actual sample played by a 'Note'.
@@ -79,9 +78,10 @@ instance Pretty Sample where
         , ("ratio", Pretty.format ratio)
         ]
 
-instance CRC32.CRC32 Sample where
-    crc32Update n (Sample fname offset env ratio) =
-        n & fname & offset & env & ratio
+instance Serialize.Serialize Sample where
+    put (Sample a b c d) =
+        Serialize.put a >> Serialize.put b >> Serialize.put c >> Serialize.put d
+    get = fail "no get for Sample"
 
 -- | The duration of a note which plays the entire sample.  This should be
 -- longer than any sample, and will be clipped to sample duration.

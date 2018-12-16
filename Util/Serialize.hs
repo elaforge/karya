@@ -205,7 +205,23 @@ instance Serialize Time.UTCTime where
     put time = put (show time)
     get = get >>= return . read
 
--- * tuples
+-- * sums and products
+
+instance (Serialize a, Serialize b) => Serialize (Either a b) where
+    put (Left a) = put_tag 0 >> put a
+    put (Right b) = put_tag 1 >> put b
+    get = get_tag >>= \case
+        0 -> Left <$> get
+        1 -> Right <$> get
+        tag -> bad_tag "Either" tag
+
+instance Serialize a => Serialize (Maybe a) where
+    put Nothing = put_tag 0
+    put (Just a) = put_tag 1 >> put a
+    get = get_tag >>= \case
+        0 -> return Nothing
+        1 -> Just <$> get
+        tag -> bad_tag "Maybe" tag
 
 instance (Serialize a, Serialize b) => Serialize (a, b) where
     put (a, b) = put a >> put b
@@ -224,13 +240,6 @@ instance Serialize a => Serialize [a] where
 instance Serialize a => Serialize (NonEmpty a) where
     put = put . NonEmpty.toList
     get = fmap NonEmpty.fromList get
-
-instance Serialize a => Serialize (Maybe a) where
-    put Nothing = put_tag 0
-    put (Just a) = put_tag 1 >> put a
-    get = do
-        tag <- get_tag
-        if tag == 0 then return Nothing else Just <$> get
 
 instance (Ord a, Serialize a) => Serialize (Set a) where
     put = put . Set.toAscList
@@ -284,10 +293,10 @@ instance (Serialize a, Foreign.Storable a) =>
 instance Serialize CallStack.Caller where
     put (CallStack.Caller a b) = put_tag 0 >> put a >> put b
     put CallStack.NoCaller = put_tag 1
-    get = get_tag >>= \tag -> case tag of
+    get = get_tag >>= \case
         0 -> CallStack.Caller <$> get <*> get
         1 -> return CallStack.NoCaller
-        _ -> bad_tag "Caller" tag
+        tag -> bad_tag "Caller" tag
 
 -- * versions
 

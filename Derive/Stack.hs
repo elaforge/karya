@@ -220,10 +220,10 @@ instance CRC32.CRC32 Frame where
     crc32Update n frame = case frame of
         Block block_id -> n `CRC32.crc32Update` block_id
         Track track_id -> n + 1 `CRC32.crc32Update` track_id
-        Region s e ->
-            n + 2 `CRC32.crc32Update` s `CRC32.crc32Update` e
+        Region s e -> n + 2 `CRC32.crc32Update` s `CRC32.crc32Update` e
         Call call -> n + 3 `CRC32.crc32Update` call
         Serial i -> n + 4 `CRC32.crc32Update` i
+        -- TODO this should be n & [0-4] & ...
 
 instance Aeson.ToJSON Frame where
     toJSON frame = Aeson.Array $ case frame of

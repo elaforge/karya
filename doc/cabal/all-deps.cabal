@@ -46,6 +46,7 @@ library
         conduit-audio-samplerate,
         conduit-audio-sndfile,
         containers >=0.5,
+        cryptohash-md5,
         data-ordlist,
         deepseq,
         digest,

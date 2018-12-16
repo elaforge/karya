@@ -117,6 +117,7 @@ basicPackages = concat
 synthPackages :: [(Package, String)]
 synthPackages = concat
     [ w "hsndfile hsndfile-vector"
+    , w "cryptohash-md5" -- Synth.Shared.Note.hash
     , w "resourcet"
     , w "streaming"
     , w "hosc"

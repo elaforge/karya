@@ -1825,6 +1825,24 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
+      * resume crash when going from resample to no-resample:
+        . expected no state for un-resampled, got ((SavedState ...))
+        . I think it skipped the first chunk, but shouldn't have, because the
+          pitch changed.
+        . 000.ms4TXA.AAAAAA.state.ZgMklw
+          000.ms4TXA.AAAAAA.wav
+        . The note hash is indeed ms4TXA.  But the state should be empty,
+          since they both have constant 1 ratio.
+        . So how did that file get there?
+        . The audio is from 3i.
+        . Also hashes to 0s--4s: ms4TXA [a1GSqg, nPVpCQ]!
+        . Other is:      0s--4s: ms4TXA [HkX3Sg, 6eEM6Q]
+        . Why different hashes sum to the same?
+          0s--4s: ms4TXA [HkX3Sg, 6eEM6Q] (1544801946: [1257719070, 3909935593])
+          0s--4s: ms4TXA [a1GSqg, nPVpCQ] (1544801946: [2861715819, 157939100])
+        . Apparently these just collide!?
+          2861715819 + 157939100 = 1544801946
+          1257719070 + 3909935593 = 1544801946
       * yet another resume crash:
         . pemade-p: writing b5/pemade-p: Synth/Sampler/Render.hs:193: assertion:
           at 352800f: len states 6 /= len notes 1:
@@ -2056,13 +2074,32 @@ synth: im:
       * Variable mute, take a mute control where 1 is +mute, .75 is
         +mute+loose, and <.5 is open note with an envelope.
     rambat:
-      + edit the samples
+      * edit the samples
+      - edit and add calung samples
+      - get the tuning right
       * write patch
         . I'll need special treatment for short and long notes.
-      - implement damping with hand simulation?  Wayang can get the same.
-      - Also don't damp repeated pitches.
-        . Though with rambat this might have the effect of always choosing the
-          long sample.
+      implement damping with hand simulation?  Wayang can get the same.
+        . Also don't damp repeated pitches.
+          . Though with rambat this might have the effect of always choosing
+            the long sample.  Still, doubled short notes will be ok.
+        . I should be able to remove the  explicit duration changes in ngoret.
+          For that to work, I also need to say you can't damp even a neighbor
+          if the notes are too quick.  But it's a certain technique, so maybe
+          I shouldn't try to generalize.  Also jit-jeng is undamped but not
+          just because it's too fast.
+        - First infer hands:
+          . If there are (or will be) two notes ringing, then left for low and
+            right for high.
+          . If there is one note, then pick based on the center of the range.
+        - Infer damping based on assigned hands:
+          . A note is damped when there is a hand available to do so.
+          . You can always damp a neighbor of 1 or 2, >2 requires a bit of
+            time to move the hand there and back.
+          . You can damp two neighboring notes simultaneously.
+        - Damping is different for gangsa style.
+          . I think it's in the jumps, so gangsa can damp arbitrarily long
+            jumps, instead of just 1 or 2, but can only do one at a time.
     guzheng:
       . Everything rings except when explicitly muted.
     mridangam:
