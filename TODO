@@ -2076,7 +2076,7 @@ synth: im:
     rambat:
       * edit the samples
       - edit and add calung samples
-      - get the tuning right
+      * get the tuning right
       * write patch
         . I'll need special treatment for short and long notes.
       implement damping with hand simulation?  Wayang can get the same.

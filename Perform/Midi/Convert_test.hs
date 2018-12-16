@@ -93,7 +93,7 @@ test_convert_pitch = do
     equal (run [event]) [Left (0, [(0, 60.73)])]
     let insert = Score.modify_environ $
             Env.insert_val EnvKey.tuning (ShowVal.show_val BaliScales.Isep)
-    equal (run [insert event]) [Left (0, [(0, 60.982)])]
+    equal (run [insert event]) [Left (0, [(0, 60.69)])]
 
 test_patch_scale = do
     let run config patch pitch =
