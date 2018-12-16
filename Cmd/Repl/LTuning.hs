@@ -150,7 +150,7 @@ get_tuning inst scale = do
 realtime :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 realtime inst scale = do
     LInst.set_scale scale inst
-    LInst.modify_midi_config
+    LInst.modify_midi_config_
         (Patch.initialization %= Set.insert Patch.Tuning) inst
     LInst.initialize_realtime_tuning (Util.instrument inst)
 
@@ -158,7 +158,7 @@ realtime inst scale = do
 nrpn :: Cmd.M m => Util.Instrument -> Patch.Scale -> m ()
 nrpn inst scale = do
     LInst.set_scale scale inst
-    LInst.modify_midi_config
+    LInst.modify_midi_config_
         (Patch.initialization %= Set.insert Patch.NrpnTuning) inst
     LInst.initialize_nrpn_tuning (Util.instrument inst)
 

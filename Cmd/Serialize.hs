@@ -161,18 +161,6 @@ instance Serialize UiConfig.Backend where
         2 -> return UiConfig.Dummy
         _ -> bad_tag "UiConfig.Backend" tag
 
-instance Serialize Common.Config where
-    put (Common.Config a b c d) = Serialize.put_version 0
-        >> put a >> put b >> put c >> put d
-    get = Serialize.get_version >>= \v -> case v of
-        0 -> do
-            environ :: RestrictedEnviron.Environ <- get
-            controls :: ScoreTypes.ControlValMap <- get
-            mute :: Bool <- get
-            solo :: Bool <- get
-            return $ Common.Config environ controls mute solo
-        _ -> Serialize.bad_version "Common.Config" v
-
 -- | For backward compatibility.
 newtype MidiConfigs = MidiConfigs (Map Score.Instrument Patch.Config)
     deriving (Show)
@@ -449,14 +437,12 @@ instance Serialize Ruler.Ruler where
 
 instance Serialize Ruler.MeterConfig where
     put (Ruler.MeterConfig a b) = Serialize.put_version 0 >> put a >> put b
-    get = do
-        v <- Serialize.get_version
-        case v of
-            0 -> do
-                name :: Text <- get
-                start_measure :: Int <- get
-                return $ Ruler.MeterConfig name start_measure
-            _ -> Serialize.bad_version "Ruler.MeterConfig" v
+    get = Serialize.get_version >>= \case
+        0 -> do
+            name :: Text <- get
+            start_measure :: Int <- get
+            return $ Ruler.MeterConfig name start_measure
+        v -> Serialize.bad_version "Ruler.MeterConfig" v
 
 instance Serialize Ruler.Marklist where
     put mlist = put (Ruler.marklist_vec mlist)
@@ -479,33 +465,31 @@ instance Serialize Ruler.Mark where
 -- ** Track
 
 instance Serialize Track.Track where
-    put (Track.Track a b c d) = Serialize.put_version 4 >>
-        put a >> put b >> put c >> put d
-    get = do
-        v <- Serialize.get_version
-        case v of
-            4 -> do
-                title :: Text <- get
-                events :: Events.Events <- get
-                color :: Color.Color <- get
-                render :: Track.RenderConfig <- get
-                return $ Track.Track title events color render
-            _ -> Serialize.bad_version "Track.Track" v
+    put (Track.Track a b c d) = Serialize.put_version 4
+        >> put a >> put b >> put c >> put d
+    get = Serialize.get_version >>= \case
+        4 -> do
+            title :: Text <- get
+            events :: Events.Events <- get
+            color :: Color.Color <- get
+            render :: Track.RenderConfig <- get
+            return $ Track.Track title events color render
+        v -> Serialize.bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where
     put (Track.RenderConfig a b) = Serialize.put_version 1 >> put a >> put b
-    get = Serialize.get_version >>= \v -> case v of
+    get = Serialize.get_version >>= \case
         1 -> do
             style :: Track.RenderStyle <- get
             color :: Color.Color <- get
             return $ Track.RenderConfig style color
-        _ -> Serialize.bad_version "Track.RenderConfig" v
+        v -> Serialize.bad_version "Track.RenderConfig" v
 
 instance Serialize Track.RenderStyle where
     put Track.NoRender = put_tag 0
     put (Track.Line a) = put_tag 1 >> put a
     put (Track.Filled a) = put_tag 2 >> put a
-    get = get_tag >>= \tag -> case tag of
+    get = get_tag >>= \case
         0 -> return Track.NoRender
         1 -> do
             source :: Maybe Track.RenderSource <- get
@@ -513,7 +497,7 @@ instance Serialize Track.RenderStyle where
         2 -> do
             source :: Maybe Track.RenderSource <- get
             return $ Track.Filled source
-        _ -> bad_tag "Track.RenderStyle" tag
+        tag -> bad_tag "Track.RenderStyle" tag
 
 instance Serialize Track.RenderSource where
     put (Track.Control a) = put_tag 0 >> put a
@@ -523,45 +507,43 @@ instance Serialize Track.RenderSource where
         -- RenderSource isn't versioned so adjust here.
         let c = if a == Score.default_pitch then Nothing else Just a
         put c
-    get = get_tag >>= \tag -> case tag of
+    get = get_tag >>= \case
         0 -> do
             control :: Score.Control <- get
             return $ Track.Control control
         1 -> do
             control :: Maybe Score.PControl <- get
             return $ Track.Pitch (fromMaybe Score.default_pitch control)
-        _ -> bad_tag "Track.RenderSource" tag
+        tag -> bad_tag "Track.RenderSource" tag
 
 -- ** Perform.Midi.Patch
 
 instance Serialize Patch.Config where
     put (Patch.Config a b c d) = Serialize.put_version 9
         >> put a >> put b >> put c >> put d
-    get = do
-        v <- Serialize.get_version
-        case v of
-            7 -> do
-                alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                scale :: Maybe Patch.Scale <- get
-                control_defaults :: Score.ControlValMap <- get
-                let settings = old_settings { Patch.config_scale = scale }
-                return $ Patch.Config alloc control_defaults mempty settings
-            8 -> do
-                alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                scale :: Maybe Patch.Scale <- get
-                control_defaults :: Score.ControlValMap <- get
-                initialization :: Set Patch.Initialization <- get
-                let settings = old_settings { Patch.config_scale = scale }
-                return $ Patch.Config alloc control_defaults initialization
-                    settings
-            9 -> do
-                alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                control_defaults :: Score.ControlValMap <- get
-                initialization :: Set Patch.Initialization <- get
-                settings :: Patch.Settings <- get
-                return $ Patch.Config alloc control_defaults initialization
-                    settings
-            _ -> Serialize.bad_version "Patch.Config" v
+    get = Serialize.get_version >>= \case
+        7 -> do
+            alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+            scale :: Maybe Patch.Scale <- get
+            control_defaults :: Score.ControlValMap <- get
+            let settings = old_settings { Patch.config_scale = scale }
+            return $ Patch.Config alloc control_defaults mempty settings
+        8 -> do
+            alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+            scale :: Maybe Patch.Scale <- get
+            control_defaults :: Score.ControlValMap <- get
+            initialization :: Set Patch.Initialization <- get
+            let settings = old_settings { Patch.config_scale = scale }
+            return $ Patch.Config alloc control_defaults initialization
+                settings
+        9 -> do
+            alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+            control_defaults :: Score.ControlValMap <- get
+            initialization :: Set Patch.Initialization <- get
+            settings :: Patch.Settings <- get
+            return $ Patch.Config alloc control_defaults initialization
+                settings
+        v -> Serialize.bad_version "Patch.Config" v
 
 -- | This tags Settings which will have to be upgraded by merging with patch
 -- defaults.
@@ -578,25 +560,41 @@ instance Serialize Patch.Scale where
 
 instance Serialize Patch.Initialization where
     put a = Serialize.put_version 0 >> Serialize.put_enum a
-    get = do
-        v <- Serialize.get_version
-        case v of
-            0 -> Serialize.get_enum
-            _ -> Serialize.bad_version "Patch.Initialization" v
+    get = Serialize.get_version >>= \case
+        0 -> Serialize.get_enum
+        v -> Serialize.bad_version "Patch.Initialization" v
 
 instance Serialize Patch.Settings where
     put (Patch.Settings a b c d) = Serialize.put_version 0
         >> put a >> put b >> put c >> put d
-    get = do
-        v <- Serialize.get_version
-        case v of
-            0 -> do
-                flags :: Set Patch.Flag <- get
-                scale :: Maybe Patch.Scale <- get
-                decay :: Maybe RealTime <- get
-                pitch_bend_range :: Midi.Control.PbRange <- get
-                return $ Patch.Settings flags scale decay pitch_bend_range
-            _ -> Serialize.bad_version "Patch.Settings" v
+    get = Serialize.get_version >>= \case
+        0 -> do
+            flags :: Set Patch.Flag <- get
+            scale :: Maybe Patch.Scale <- get
+            decay :: Maybe RealTime <- get
+            pitch_bend_range :: Midi.Control.PbRange <- get
+            return $ Patch.Settings flags scale decay pitch_bend_range
+        v -> Serialize.bad_version "Patch.Settings" v
+
+-- ** Instrument.Common
+
+instance Serialize Common.Config where
+    put (Common.Config a b c d) = Serialize.put_version 0
+        >> put a >> put b >> put c >> put d
+    get = Serialize.get_version >>= \case
+        0 -> do
+            environ :: RestrictedEnviron.Environ <- get
+            controls :: ScoreTypes.ControlValMap <- get
+            mute :: Bool <- get
+            solo :: Bool <- get
+            return $ Common.Config environ controls mute solo
+        v -> Serialize.bad_version "Common.Config" v
+
+instance Serialize Common.Flag where
+    put a = Serialize.put_version 0 >> Serialize.put_enum a
+    get = Serialize.get_version >>= \case
+        0 -> Serialize.get_enum
+        v -> Serialize.bad_version "Common.Flag" v
 
 -- ** lilypond
 

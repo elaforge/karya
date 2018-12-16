@@ -12,18 +12,20 @@ import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 import qualified Util.Thread as Thread
 
-import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Simple as Simple
+
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.Stream as Stream
+
+import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
 
 import Global
 import Types
@@ -253,7 +255,7 @@ set_allocations = Ui.config#Ui.allocations #= allocs
         [ ("i1", ("s/1", dev [0, 1]))
         , ("i2", ("s/2", dev [2]))
         ]
-        where dev = map ("wdev",)
+        where dev = Simple.Midi . map ("wdev",)
 
 note_track inst = ctrack 1 inst [""]
 make_tempo n = track_take (ceiling (fromIntegral n / 10)) $

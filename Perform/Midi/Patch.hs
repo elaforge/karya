@@ -381,12 +381,32 @@ data Flag =
     -- NoteOffs until the final one.  This is for synthesizers which turn the
     -- note off on the first one, such as Kontakt.
     | UseFinalNoteOff
+    -- | Obsolete, don't use.
+    | Old_Triggered
     deriving (Eq, Ord, Read, Show, Bounded, Enum)
 
 instance Pretty Flag where pretty = showt
+
+-- TODO this should have had a version.  Add one when I next do an incompatible
+-- update, and remove Old_Triggered.
 instance Serialize.Serialize Flag where
-    put = Serialize.put_enum
-    get = Serialize.get_enum
+    -- The tag is Int rather than Word8, because this originally used
+    -- Serialize.put_enum and get_enum.  Those are dangerous for compatibility
+    -- though, because when I deleted a Flag it silently broke saves.
+    put = \case
+        Pressure -> tag 1
+        HoldKeyswitch -> tag 2
+        ResumePlay -> tag 3
+        UseFinalNoteOff -> tag 4
+        where
+        tag n = Serialize.put (n :: Int)
+    get = Serialize.get >>= \(tag :: Int) -> case tag of
+        0 -> return Old_Triggered
+        1 -> return Pressure
+        2 -> return HoldKeyswitch
+        3 -> return ResumePlay
+        4 -> return UseFinalNoteOff
+        _ -> Serialize.bad_tag "Flag" (fromIntegral tag)
 
 add_flag :: Flag -> Set Flag -> Set Flag
 add_flag = Set.insert

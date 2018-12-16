@@ -28,6 +28,8 @@ import qualified Instrument.Tag as Tag
 import Global
 
 
+-- | Attributes common to all instruments.  Unlike 'Config', these are
+-- part of the instrument itself and not configurable.
 data Common code = Common {
     -- | Cmds and Derive calls.  This is abstract so this can be defined
     -- without incurring a dependency on "Cmd.Cmd", which would wind up being
@@ -44,6 +46,12 @@ data Common code = Common {
     , common_tags :: ![Tag.Tag]
     -- | So, instrument, tell me about yourself.
     , common_doc :: !Doc.Doc
+    -- | Flags shared with all instruments.
+    --
+    -- TODO unlike midi flags, these are hardcoded and can't be changed
+    -- per-instrument.  I should probably do the same thing as Midi.Patch and
+    -- have a Settings which is copied as the default.  But it's a hassle and
+    -- I don't need it right now.
     , common_flags :: !(Set Flag)
     , common_call_map :: !CallMap
     } deriving (Show)
@@ -89,10 +97,6 @@ data Flag =
     deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance Pretty Flag where pretty = showt
-
-instance Serialize.Serialize Flag where
-    put = Serialize.put_enum
-    get = Serialize.get_enum
 
 -- * AttributeMap
 

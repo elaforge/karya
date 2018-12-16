@@ -306,7 +306,7 @@ clear_environ = modify_common_config_ $ Common.cenviron #= mempty
 -- ** Midi.Patch.Config
 
 set_addr :: Ui.M m => Text -> [Midi.Channel] -> Instrument -> m ()
-set_addr wdev chans = modify_midi_config $
+set_addr wdev chans = modify_midi_config_ $
     Patch.allocation #= [((dev, chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
@@ -325,7 +325,7 @@ set_tuning_scale tuning scale inst = do
 
 set_control_defaults :: Ui.M m => [(Score.Control, Signal.Y)] -> Instrument
     -> m ()
-set_control_defaults controls = modify_midi_config $
+set_control_defaults controls = modify_midi_config_ $
     Patch.control_defaults #= Map.fromList controls
 
 -- ** Midi.Patch.Config settings
@@ -335,7 +335,7 @@ get_scale inst =
     (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
 
 set_scale :: Ui.M m => Patch.Scale -> Instrument -> m ()
-set_scale scale = modify_midi_config $ Patch.settings#Patch.scale #= Just scale
+set_scale scale = modify_midi_config_ $ Patch.settings#Patch.scale #= Just scale
 
 copy_scale :: Cmd.M m => Instrument -> Instrument -> m ()
 copy_scale from to = do
@@ -343,15 +343,15 @@ copy_scale from to = do
     set_scale scale to
 
 add_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
-add_flag flag = modify_midi_config $
+add_flag flag = modify_midi_config_ $
     Patch.settings#Patch.flags %= Patch.add_flag flag
 
 remove_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
-remove_flag flag = modify_midi_config $
+remove_flag flag = modify_midi_config_ $
     Patch.settings#Patch.flags %= Patch.remove_flag flag
 
 set_decay :: Ui.M m => Maybe RealTime -> Instrument -> m ()
-set_decay decay = modify_midi_config $ Patch.settings#Patch.decay #= decay
+set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay
 
 -- * util
 
@@ -381,9 +381,9 @@ modify_config modify inst_ = do
     Ui.modify_config $ Ui.allocations_map %= Map.insert inst new
     return result
 
-modify_midi_config :: Ui.M m => (Patch.Config -> Patch.Config) -> Instrument
+modify_midi_config_ :: Ui.M m => (Patch.Config -> Patch.Config) -> Instrument
     -> m ()
-modify_midi_config modify =
+modify_midi_config_ modify =
     modify_config $ \common midi -> ((common, modify midi), ())
 
 modify_common_config :: Ui.M m => (Common.Config -> (Common.Config, a))
