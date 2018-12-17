@@ -576,6 +576,28 @@ instance Serialize Patch.Settings where
             return $ Patch.Settings flags scale decay pitch_bend_range
         v -> Serialize.bad_version "Patch.Settings" v
 
+-- TODO this should have had a version.  Add one when I next do an incompatible
+-- update, and remove Old_Triggered.
+instance Serialize Patch.Flag where
+    -- The tag is Int rather than Word8, because this originally used
+    -- Serialize.put_enum and get_enum.  Those are dangerous for compatibility
+    -- though, because when I deleted a Flag it silently broke saves.
+    put = \case
+        Patch.Old_Triggered -> tag 0
+        Patch.Pressure -> tag 1
+        Patch.HoldKeyswitch -> tag 2
+        Patch.ResumePlay -> tag 3
+        Patch.UseFinalNoteOff -> tag 4
+        where
+        tag n = Serialize.put (n :: Int)
+    get = Serialize.get >>= \(tag :: Int) -> case tag of
+        0 -> return Patch.Old_Triggered
+        1 -> return Patch.Pressure
+        2 -> return Patch.HoldKeyswitch
+        3 -> return Patch.ResumePlay
+        4 -> return Patch.UseFinalNoteOff
+        _ -> Serialize.bad_tag "Flag" (fromIntegral tag)
+
 -- ** Instrument.Common
 
 instance Serialize Common.Config where
