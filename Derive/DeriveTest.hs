@@ -426,17 +426,15 @@ with_scale scale = modify_constant $ \c ->
 with_synths :: UiConfig.Allocations -> [MidiInst.Synth] -> Setup
 with_synths allocs synths = with_instrument_db allocs (synths_to_db synths)
 
--- | Merge the incomplete Allocations with the Patch defaults.  Crash if it
--- doesn't like you.  TODO unused... maybe I don't really need this?
+-- | Merge the incomplete Allocations with the Patch defaults.
 merge_allocs :: CallStack.Stack => [MidiInst.Synth] -> UiConfig.Allocations
     -> UiConfig.Allocations
 merge_allocs synths (UiConfig.Allocations allocs) =
     UiConfig.Allocations (merge <$> allocs)
     where
     merge alloc =
-        case Inst.lookup (UiConfig.alloc_qualified alloc) db of
-            Just inst ->
-                Testing.expect_right $ MidiInst.merge_defaults inst alloc
+        case Cmd.inst_lookup (UiConfig.alloc_qualified alloc) db of
+            Just inst -> MidiInst.merge_defaults inst alloc
             Nothing -> errorStack $ "no inst for alloc: " <> pretty alloc
     db = synths_to_db synths
 
@@ -494,7 +492,7 @@ lookup_settings db = fmap Patch.patch_defaults . (Inst.inst_midi =<<)
 
 lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
     -> Maybe Cmd.Inst
-lookup_qualified = flip Inst.lookup
+lookup_qualified db qual = Cmd.inst_lookup qual db
 
 with_allocations :: UiConfig.Allocations -> Setup
 with_allocations allocs = with_ui $ Ui.config#Ui.allocations %= (allocs <>)
@@ -578,7 +576,7 @@ default_convert_lookup =
 
 synths_lookup_qualified :: [MidiInst.Synth] -> InstTypes.Qualified
     -> Maybe Cmd.Inst
-synths_lookup_qualified synth = \qualified -> Inst.lookup qualified db
+synths_lookup_qualified synth = \qualified -> Cmd.inst_lookup qualified db
     where db = synths_to_db synth
 
 synths_to_convert_lookup :: UiConfig.Allocations -> [MidiInst.Synth] -> Lookup

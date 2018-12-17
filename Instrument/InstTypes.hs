@@ -16,6 +16,11 @@ import Global
 -- of an instrument in a particular score.
 data Qualified = Qualified SynthName Name deriving (Show, Eq, Ord)
 
+-- | All Inst.Dummy instruments are the same, so a Qualified name isn't
+-- necessary.
+dummy :: Qualified
+dummy = Qualified "" ""
+
 synth :: Qualified -> SynthName
 synth (Qualified synth _) = synth
 

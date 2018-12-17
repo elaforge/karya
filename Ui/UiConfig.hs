@@ -144,20 +144,19 @@ verify_backends_match backend alloc =
     case (alloc_backend alloc, backend) of
         (Midi {}, Inst.Midi {}) -> Nothing
         (Im, Inst.Im {}) -> Nothing
-        -- I can make any patch into a dummy allocation by tossing the
-        -- non-common data.  This could be confusing since it does so silently,
-        -- but I tried to add an explicit Dummy Inst.Backend, but modifying
-        -- Cmd.Instrument.MidiInst to support declaring them got really
-        -- involved and I decided it was too complicated.
-        (Dummy, _) -> Nothing
-        (_, backend) -> Just $ "allocation type " <> allocation_type
-            <> " /= instrument type " <> backend_type backend
+        (Dummy, Inst.Dummy)
+            | alloc_qualified alloc /= InstTypes.dummy ->
+                Just $ "dummy alloc should have empty qualified, but got: "
+                    <> pretty (alloc_qualified alloc)
+            | otherwise -> Nothing
+        _ -> Just $ "allocation type " <> alloc_type
+            <> " /= instrument type " <> backend_type
     where
-    allocation_type = case alloc_backend alloc of
+    alloc_type = case alloc_backend alloc of
         Midi {} -> "midi"
         Im -> "im"
         Dummy -> "dummy"
-    backend_type backend = case backend of
+    backend_type = case backend of
         Inst.Dummy -> "dummy"
         Inst.Midi {} -> "midi"
         Inst.Im {} -> "im"

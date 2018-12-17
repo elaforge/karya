@@ -48,11 +48,7 @@ import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
 import qualified Util.Thread as Thread
 
-import qualified Ui.Id as Id
-import qualified Ui.Transform as Transform
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Play as Play
@@ -61,8 +57,11 @@ import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.Serialize
 
 import qualified Perform.Midi.Patch as Patch
-import qualified Instrument.Inst as Inst
-import qualified App.Config as Config
+import qualified Ui.Id as Id
+import qualified Ui.Transform as Transform
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
 import Global
 
 
@@ -264,8 +263,8 @@ alloc_settings = fmap Patch.config_settings . UiConfig.midi_config
 upgrade_allocation :: Cmd.InstrumentDb -> UiConfig.Allocation
     -> Either Text UiConfig.Allocation
 upgrade_allocation db alloc =
-    case Inst.lookup (UiConfig.alloc_qualified alloc) db of
-        Just inst -> MidiInst.merge_defaults inst alloc
+    case Cmd.inst_lookup (UiConfig.alloc_qualified alloc) db of
+        Just inst -> Right $ MidiInst.merge_defaults inst alloc
         Nothing -> Left "no inst for alloc"
 
 

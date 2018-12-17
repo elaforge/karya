@@ -235,8 +235,7 @@ merge :: Cmd.M m => UiConfig.Allocations -> m ()
 merge (UiConfig.Allocations alloc_map) = do
     let (names, allocs) = unzip (Map.toList alloc_map)
     insts <- mapM (Cmd.get_qualified . UiConfig.alloc_qualified) allocs
-    merged <- Cmd.require_right id $
-        mapM (uncurry MidiInst.merge_defaults) (zip insts allocs)
+    let merged = zipWith MidiInst.merge_defaults insts allocs
     existing <- Ui.get_config (Ui.allocations #$)
     let errors = mapMaybe (verify existing) (zip3 names merged insts)
     unless (null errors) $

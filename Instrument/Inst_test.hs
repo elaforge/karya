@@ -3,17 +3,19 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Instrument.Inst_test where
-import Util.Test
-import qualified Perform.Midi.Patch as Patch
+import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
+import qualified Perform.Midi.Patch as Patch
 import qualified User.Elaforge.Instrument.Kontakt as Kontakt
+
+import Util.Test
 
 
 test_lookup = do
     let db = fst $ Inst.db [Kontakt.synth]
-    let f synth name =
-            Inst.inst_midi =<< Inst.lookup (InstTypes.Qualified synth name) db
+    let f synth name = Inst.inst_midi
+            =<< Inst.lookup Cmd.empty_code (InstTypes.Qualified synth name) db
 
     let kontakt_inst name = Patch.patch Kontakt.pb_range name
     equal (Patch.patch_name <$> f "kontakt" "hang") $ Just "hang"

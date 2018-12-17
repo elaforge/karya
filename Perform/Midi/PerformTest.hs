@@ -8,6 +8,7 @@ import qualified System.IO as IO
 import qualified Util.PPrint as PPrint
 import qualified App.LoadInstruments as LoadInstruments
 import qualified App.Path as Path
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Simple as Simple
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -34,9 +35,9 @@ read_perf_events events = do
     db <- LoadInstruments.load =<< Path.get_app_dir
     return $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
 
-lookup_patch :: Inst.Db code -> InstTypes.Qualified -> Maybe Types.Patch
+lookup_patch :: Cmd.InstrumentDb -> InstTypes.Qualified -> Maybe Types.Patch
 lookup_patch db qualified = do
-    patch <- Inst.inst_midi =<< Inst.lookup qualified db
+    patch <- Inst.inst_midi =<< Cmd.inst_lookup qualified db
     let score_inst = Score.Instrument (InstTypes.show_qualified qualified)
     return $ Types.patch_from_settings score_inst mempty patch
 

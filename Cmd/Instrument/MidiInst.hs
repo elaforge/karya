@@ -330,19 +330,17 @@ config1 :: Midi.WriteDevice -> Midi.Channel -> Patch.Config
 config1 dev chan = config [(dev, chan)]
 
 -- | Merge an incomplete allocation with defaults from its instrument.
-merge_defaults :: Cmd.Inst -> UiConfig.Allocation
-    -> Either Text UiConfig.Allocation
-merge_defaults inst alloc = case (Inst.inst_midi inst, backend) of
-    (Just patch, UiConfig.Midi config) -> Right $ alloc
-        { UiConfig.alloc_backend =
-            UiConfig.Midi (Patch.merge_defaults patch config)
-        }
-    (Just _, UiConfig.Dummy) -> Right alloc
-    (Just _, UiConfig.Im) ->
-        Left $ pretty inst <> ": can't merge defaults from Midi to Im"
-    (Nothing, _) -> Left $ pretty inst
-        <> ": can't merge defaults for a non-Midi inst"
-    where backend = UiConfig.alloc_backend alloc
+merge_defaults :: Cmd.Inst -> UiConfig.Allocation -> UiConfig.Allocation
+merge_defaults inst alloc =
+    case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
+        (Inst.Midi patch, UiConfig.Midi config) -> alloc
+            { UiConfig.alloc_backend =
+                UiConfig.Midi (Patch.merge_defaults patch config)
+            }
+        -- Im doesn't have any default to merge yet.
+        (Inst.Im _, UiConfig.Im) -> alloc
+        -- If they don't match, UiConfig.verify_allocation should catch it.
+        _ -> alloc
 
 
 -- * db

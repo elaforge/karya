@@ -1259,7 +1259,7 @@ resolve_instrument :: InstrumentDb -> UiConfig.Allocation
 resolve_instrument db alloc = do
     let qualified = UiConfig.alloc_qualified alloc
     inst <- justErr ("patch not in db: " <> pretty qualified) $
-        Inst.lookup qualified db
+        inst_lookup qualified db
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
             return $ Just (Midi patch config)
@@ -1298,7 +1298,10 @@ lookup_qualified qualified = do
 
 state_lookup_qualified :: State -> InstTypes.Qualified -> Maybe Inst
 state_lookup_qualified state qualified =
-    Inst.lookup qualified $ config_instrument_db (state_config state)
+    inst_lookup qualified $ config_instrument_db (state_config state)
+
+inst_lookup :: InstTypes.Qualified -> InstrumentDb -> Maybe Inst
+inst_lookup = Inst.lookup empty_code
 
 -- ** misc
 

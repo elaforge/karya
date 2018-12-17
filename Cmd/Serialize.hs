@@ -589,8 +589,8 @@ instance Serialize Patch.Flag where
         Patch.ResumePlay -> tag 3
         Patch.UseFinalNoteOff -> tag 4
         where
-        tag n = Serialize.put (n :: Int)
-    get = Serialize.get >>= \(tag :: Int) -> case tag of
+        tag n = put (n :: Int)
+    get = get >>= \(tag :: Int) -> case tag of
         0 -> return Patch.Old_Triggered
         1 -> return Patch.Pressure
         2 -> return Patch.HoldKeyswitch

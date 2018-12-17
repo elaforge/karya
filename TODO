@@ -2079,27 +2079,6 @@ synth: im:
       * get the tuning right
       * write patch
         . I'll need special treatment for short and long notes.
-      implement damping with hand simulation?  Wayang can get the same.
-        . Also don't damp repeated pitches.
-          . Though with rambat this might have the effect of always choosing
-            the long sample.  Still, doubled short notes will be ok.
-        . I should be able to remove the  explicit duration changes in ngoret.
-          For that to work, I also need to say you can't damp even a neighbor
-          if the notes are too quick.  But it's a certain technique, so maybe
-          I shouldn't try to generalize.  Also jit-jeng is undamped but not
-          just because it's too fast.
-        - First infer hands:
-          . If there are (or will be) two notes ringing, then left for low and
-            right for high.
-          . If there is one note, then pick based on the center of the range.
-        - Infer damping based on assigned hands:
-          . A note is damped when there is a hand available to do so.
-          . You can always damp a neighbor of 1 or 2, >2 requires a bit of
-            time to move the hand there and back.
-          . You can damp two neighboring notes simultaneously.
-        - Damping is different for gangsa style.
-          . I think it's in the jumps, so gangsa can damp arbitrarily long
-            jumps, instead of just 1 or 2, but can only do one at a time.
     guzheng:
       . Everything rings except when explicitly muted.
     mridangam:
@@ -4329,15 +4308,44 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      infer damping for gender
+        . Also don't damp repeated pitches.
+          . Though with rambat this might have the effect of always choosing
+            the long sample.  Still, doubled short notes will be ok.  Even
+            short samples are usually around 3s.
+        . I should be able to remove the  explicit duration changes in ngoret.
+          For that to work, I also need to say you can't damp even a neighbor
+          if the notes are too quick.  But it's a certain technique, so maybe
+          I shouldn't try to generalize.  Also jit-jeng is undamped but not
+          just because it's too fast.
+        notes:
+          . The basic task is to set the duration for each note appropriately.
+          . Firstly I want to mark notes with explicit duration and not touch
+            those, and mark explicitly undamped notes, to extend them to the
+            next damp.
+          . So the first pass marks as infer-able.  Notes that touch the next
+            note (with a certain threshold) are infer-able.
+        - First infer hands:
+          . If there are (or will be) two notes ringing, then left for low and
+            right for high.
+          . If there is one note, then pick based on the center of the range.
+        - Infer damping based on assigned hands:
+          . A note is damped when there is a hand available to do so.
+          . You can always damp a neighbor of 1 or 2, >2 requires a bit of
+            time to move the hand there and back.
+          . You can damp two neighboring notes simultaneously.
+        - Damping is different for gangsa style.
+          . I think it's in the jumps, so gangsa can damp arbitrarily long
+            jumps, instead of just 1 or 2, but can only do one at a time.
       - loop in save/bali/teruna-jaya leads to long notes
       - >kantilan | unison prevents nyog from working
       - kajar: automatic hand muting as with reyong.
-      + add additional legong and wayang tunings.  Probably 'tuning' would be
+      * add additional legong and wayang tunings.  Probably 'tuning' would be
         the most appropriate, but it's already using for umbang/isep.  Maybe
         saih=umbang/isep?  Or keep tuning the same and use laras?  Kelamin
         would be cheeky but only appropriate to kendang and not even Balinese.
       legong scale:
-        - add isep to *legong
+        * add isep to *legong
         - pick better nns for pemero notes 4 and 7
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
