@@ -55,6 +55,12 @@ show_error = filter (not . Text.null) . Text.lines . txt
 text :: Text -> Parser st ()
 text txt = P.string (untxt txt) >> return ()
 
+p_int :: Parser st Int
+p_int = do
+    sign <- P.option 1 (P.char '-' >> return (-1))
+    (*sign) <$> p_nat
+    <?> "int"
+
 -- | Natural number including 0.
 p_nat :: Parser st Int
 p_nat = do

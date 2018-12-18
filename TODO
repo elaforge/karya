@@ -5000,6 +5000,40 @@ planning / research
     . kolmogorov music: https://www.youtube.com/watch?v=Qg3XOfioapI
   text score:
     . doc/dev_notes/text-score.md
+    parsing:
+      * (call | with | spaces)
+        . This goes on TNote.
+        . E.g.: {+pizz | %dyn=.5}/4c1
+        . This will get confused by parens in calls, e.g. legato.
+          Or I could escape with \ or something.
+        . (), [], and {} are nice because vim will highlight the match.
+        . I can fix it by putting <:> in matchpairs, but it probably gets
+          confused by operators.  Still, karya doesn't really use those.
+        . The advantage of brackets is they can be nested, but I don't need to
+          nest this.  What about backticks?  Or the obvious: quotes?  I can't
+          use ' because it's already for strings, but "s are claimed by quotes
+          which maybe I don't need?  Or I could special case "(?
+          "+pizz | %dyn=.5"/4c1
+      - [track1; track2]
+        . This goes on Score
+        . Figure out how this works.  How do I embed a block, e.g.
+          +pizz[a b c]/4s or t[a b c]4s?  Then "+a | +b"[a b c]/4s?
+        . The [a b c] becomes a new block, and modifies the call to
+          "+a | +b | new-block".  Then [a b c] by itself is shorthand for just
+          "new-block".
+      - block and track headers
+        . This goes on Score
+        . Use # block, ## track syntax
+      - annotations: rhythm=additive, default-call
+      - annotation for basic pulse/matra?
+      - fractional duration, e.g. 2/1
+        . This will likely conflict with call/pitch syntax.
+    rhythm check:
+      - combine ties
+      - check for additive
+      - check for div
+    pitch check:
+      - infer octaves
     . Time problems:
       . I want to say "repeat n times".
       . I want sections with their own tempo, and then the caller just sequences

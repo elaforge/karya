@@ -9,25 +9,43 @@ import qualified Derive.Text.TScore as TScore
 import Global
 
 
-test_p_score = do
+test_score = do
     let f = fmap (\(TScore.Score notes) -> notes) . parse TScore.p_score
-    let note p = TScore.TNote $
-            TScore.Note Nothing p 0 (TScore.Duration Nothing 0 False)
+    let bar = TScore.TBarline . TScore.Barline
+        no_dur = TScore.Duration Nothing 0 False
+        no_oct = TScore.Relative 0
+    -- TODO test roundtrip
     equal (f "") $ Right []
-    equal (f "||") $ Right [TScore.TBarline 2]
-    equal (f " | || ") $ Right [TScore.TBarline 1, TScore.TBarline 2]
-    equal (f "a") $ Right [note "a"]
-    equal (f "a -- hi") $ Right [note "a"]
-    equal (f " a b c") $ Right [note "a", note "b", note "c"]
+    equal (f "||") $ Right [bar 2]
+    equal (f " | || ") $ Right [bar 1, bar 2]
+    equal (f "a") $ Right [note "" no_oct "a" no_dur]
+    equal (f "a -- hi") $ Right [note "" no_oct "a" no_dur]
+    let rest = TScore.TRest . TScore.Rest
+    equal (f "_4 | _.") $ Right
+        [ rest (TScore.Duration (Just 4) 0 False)
+        , bar 1
+        , rest (TScore.Duration Nothing 1 False)
+        ]
 
-test_p_note = do
-    let f = parse TScore.p_note
-    equal (f "b") $ Right $
-        TScore.Note Nothing "b" 0 (TScore.Duration Nothing 0 False)
-    equal (f "a/b2.~") $ Right $
-        TScore.Note (Just "a") "b" 0 (TScore.Duration (Just 2) 1 True)
-    equal (f "a/b,~") $ Right $
-        TScore.Note (Just "a") "b" (-1) (TScore.Duration Nothing 0 True)
+    equal (f "a b/") $ Right
+        [ note "" no_oct "a" no_dur
+        , note "b" no_oct "" no_dur
+        ]
+    equal (f "\"a b\"/") $ Right [note "a b" no_oct "" no_dur]
+    equal (f "\"a \"() b\"/") $ Right [note "a \"() b" no_oct "" no_dur]
+
+test_note = do
+    let f = parse TScore.parse
+    let no_dur = TScore.Duration Nothing 0 False
+    left_like (f "") "unexpected end of input"
+    equal (f "a") $ Right $ note "" (TScore.Relative 0) "a" no_dur
+    equal (f "+pizz/") $ Right $ note "+pizz" (TScore.Relative 0) "" no_dur
+    equal (f "a/'b1.~") $ Right $
+        note "a" (TScore.Relative 1) "b" (TScore.Duration (Just 1) 1 True)
+
+note :: Text -> TScore.Octave -> Text -> TScore.Duration -> TScore.Token
+note call oct pitch dur = TScore.TNote $
+    TScore.Note (TScore.Call call) (TScore.Pitch oct pitch) dur
 
 parse :: TScore.Parser a -> Text -> Either String a
 parse p = first show . Parsec.parse (p <* Parsec.eof) ""

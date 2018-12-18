@@ -17,23 +17,32 @@
     Parse pitches, infer octaves.
 -}
 module Derive.Text.TScore where
-import qualified Data.Map.Strict as Map
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Numeric
 import qualified Text.Parsec as P
+import Text.Parsec ((<?>))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
+import qualified Util.Parse as Parse
 import qualified Util.Then as Then
 
 import qualified Derive.LEvent as LEvent
+
 import Global
 
 
-parse :: Parser a -> Text -> Either P.ParseError a
-parse p = P.parse (p <* P.eof) ""
+data Config = Config {
+    -- If true, "a" is parsed as "a/", if false, it's parsed as "/a".
+    _default_call :: Bool
+    } deriving (Eq, Show)
+
+-- * parse
+
+pparse :: Parser a -> Text -> Either P.ParseError a
+pparse p = P.parse (p <* P.eof) ""
 
 type Parser a = P.Parsec Text () a
 
@@ -42,18 +51,120 @@ data Score = Score [Token]
 
 data Token =
     -- | Higher count for larger divisions, e.g. anga vs. avartanam.
-    TBarline !Rank
-    | TNote Note
+    TBarline !Barline
+    | TNote !Note
+    | TRest !Rest
     deriving (Eq, Show)
 
 type Rank = Int
 
+class Element a where
+    parse :: Parser a
+    unparse :: a -> Text
+
+p_score :: Parser Score
+p_score = Score <$> (p_whitespace False *> P.many (lexeme True parse))
+
+instance Element Token where
+    parse = TBarline <$> parse <|> TNote <$> parse <|> TRest <$> parse
+    unparse (TBarline bar) = unparse bar
+    unparse (TNote note) = unparse note
+    unparse (TRest rest) = unparse rest
+
+-- ** barline
+
+newtype Barline = Barline Int
+    deriving (Eq, Show)
+
+instance Element Barline where
+    parse = Barline <$>
+        (length <$> P.many1 (P.char '|') <|> (P.char ';' *> pure 0))
+    unparse (Barline 0) = ";"
+    unparse (Barline n) = Text.replicate n "|"
+
+-- ** Note
+
 data Note = Note {
-    note_call :: !(Maybe Text)
-    , note_pitch :: !Text
-    , note_octave :: !Int
+    note_call :: !Call
+    , note_pitch :: !Pitch
     , note_duration :: !Duration
     } deriving (Eq, Show)
+
+empty_note :: Note
+empty_note = Note (Call "") (Pitch (Relative 0) "") (Duration Nothing 0 False)
+
+-- | Parse a note with a letter pitch.
+--
+-- > a a2 call/a2
+-- > a2.
+-- > a~ a2~
+-- > (call with spaces)/
+instance Element Note where
+    parse = do
+        call <- P.optionMaybe $ P.try $ parse <* P.char '/'
+        pitch <- parse
+        dur <- parse
+        let note = Note (fromMaybe (Call "") call) pitch dur
+        -- If I allow "" as a note, I can't get P.many of them.
+        guard (note /= empty_note)
+        return note
+    unparse (Note call pitch dur) = mconcat
+        [ if call == Call "" then "" else unparse call <> "/"
+        , unparse pitch
+        , unparse dur
+        ]
+
+newtype Call = Call Text
+    deriving (Eq, Show)
+
+-- |
+-- > word-without-slash
+-- > "word with spaces"
+-- > "with embedded "() quote"
+instance Element Call where
+    parse = (<?> "call") $ fmap (Call . txt) $
+        P.try (P.char '"' *> p_string <* P.char '"')
+        <|> P.many1 (P.satisfy (\c -> c /= '/' && c /= ' '))
+        where
+        p_string = mconcat <$>
+            P.many1 (P.try (P.string "\"(") <|> ((:[]) <$> P.satisfy (/='"')))
+    unparse (Call call)
+        | " " `Text.isInfixOf` call = "\"" <> call <> "\""
+        | otherwise = call
+
+newtype Rest = Rest Duration
+    deriving (Eq, Show)
+
+instance Element Rest where
+    -- TODO I could possibly forbid ~ tie for rests, but I don't see why
+    parse = Rest <$> (P.char '_' *> parse)
+    unparse (Rest dur) = "_" <> unparse dur
+
+-- ** Pitch
+
+data Pitch = Pitch {
+    pitch_octave :: !Octave
+    , pitch_call :: !Text
+    } deriving (Eq, Show)
+
+instance Element Pitch where
+    parse = Pitch <$> parse <*> (txt <$> P.many P.letter) <?> "pitch"
+    unparse (Pitch octave call) = unparse octave <> call
+
+data Octave = Absolute !Int | Relative !Int
+    deriving (Eq, Show)
+
+instance Element Octave where
+    parse = Absolute <$> Parse.p_int <|> Relative <$> p_relative <?> "octave"
+        where
+        p_relative = sum . map (\c -> if c == ',' then -1 else 1) <$>
+            P.many (P.oneOf ",'")
+    unparse (Absolute oct) = showt oct
+    unparse (Relative n)
+        | n >= 0 = Text.replicate n "'"
+        | otherwise = Text.replicate (-n) ","
+
+-- ** Duration
 
 data Duration = Duration {
     dur_duration :: !(Maybe Int)
@@ -61,66 +172,26 @@ data Duration = Duration {
     , dur_tie :: !Bool
     } deriving (Eq, Show)
 
--- | This should be the inverse of 'p_note'.
-show_note :: Note -> Text
-show_note (Note maybe_call pitch octave duration) =
-    maybe "" (<>"/") maybe_call <> pitch <> oct <> show_duration duration
-    where
-    oct
-        | octave >= 0 = Text.replicate octave "'"
-        | otherwise = Text.replicate (-octave) ","
+instance Element Duration where
+    parse = Duration
+        <$> P.optionMaybe Parse.p_nat
+        <*> (length <$> P.many (P.char '.'))
+        <*> P.option False (P.char '~' *> pure True)
+        <?> "duration"
+    unparse (Duration dur dots tie) = mconcat
+        [ maybe "" showt dur
+        , Text.replicate dots "."
+        , if tie then "~" else ""
+        ]
 
-show_duration :: Duration -> Text
-show_duration (Duration dur dots tie) =
-    maybe "" showt dur <> Text.replicate dots "." <> (if tie then "~" else "")
-
-p_score :: Parser Score
-p_score = Score <$> (p_whitespace False *> P.many (lexeme True p_token))
-
-p_token :: Parser Token
-p_token = p_barline <|> TNote <$> p_note
-
-p_barline :: Parser Token
-p_barline = TBarline . length <$> P.many1 (P.char '|')
-
-
--- | Parse a note with a letter pitch.
---
--- > a a2 call/a2
--- > a2.
--- > a~ a2~
-p_note :: Parser Note
-p_note = do
-    call <- P.optionMaybe $ P.try $ P.many1 (P.satisfy (/='/')) <* P.char '/'
-    pitch <- P.many1 P.letter
-    octave <- P.many (P.oneOf ",'")
-    duration <- p_duration
-    return $ Note
-        { note_call = txt <$> call
-        , note_pitch = txt pitch
-        , note_octave = sum $ map (\c -> if c == ',' then -1 else 1) octave
-        , note_duration = duration
-        }
-
-p_duration :: Parser Duration
-p_duration = Duration
-    <$> P.optionMaybe p_natural
-    <*> (length <$> P.many (P.char '.'))
-    <*> P.option False (P.char '~' *> pure True)
-
-p_natural :: Parser Int
-p_natural = do
-    i <- P.many1 P.digit
-    case Numeric.readDec i of
-        (n, _) : _ -> return n
-        _ -> mzero
+-- ** util
 
 p_whitespace :: Bool -> Parser ()
 p_whitespace required = do
     when required (void P.space <|> P.eof)
     P.spaces
-    P.optional $ P.string "--" >> P.skipMany (P.satisfy (/='\n'))
-        >> (void (P.char '\n') <|> P.eof)
+    P.optional $ P.string "--" *> P.skipMany (P.satisfy (/='\n'))
+        *> (void (P.char '\n') <|> P.eof)
 
 lexeme :: Bool -> Parser a -> Parser a
 lexeme required = (<* p_whitespace required)
@@ -198,7 +269,7 @@ additive_rhythm meter =
             warn state Nothing $ "extra beats at the end: " <> showt beat
         where beat = state_now state `mod` cycle_dur
     token state t = (state,) $ case t of
-        TBarline rank -> case Map.lookup beat expected_rank of
+        TBarline (Barline rank) -> case Map.lookup beat expected_rank of
              Just r | r == rank -> Nothing
              _ -> Just $ warn state Nothing $ "barline " <> showt rank
         TNote note -> Just $ LEvent.Event (state_now state, 1, note)
@@ -218,4 +289,4 @@ additive_rhythm meter =
             . ((showt measure <> "/" <> showt beat <> note_s <> ": ") <>)
         where
         (measure, beat) = state_now state `divMod` cycle_dur
-        note_s = maybe "" ((" "<>) . show_note) note
+        note_s = maybe "" ((" "<>) . unparse) note
