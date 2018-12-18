@@ -117,7 +117,8 @@ allocate backend instrument alloc (Allocations allocs) =
 verify_allocation :: Allocations -> Inst.Backend -> Score.Instrument
     -> Allocation -> Maybe Text
 verify_allocation allocs backend instrument alloc =
-    fmap (prefix<>) $ verify_backends_match backend alloc
+    fmap (prefix<>) $
+        verify_backends_match backend alloc
         <|> verify_no_overlapping_addrs allocs alloc
     where
     prefix = pretty instrument <> " from " <> pretty qualified <> ": "
@@ -144,11 +145,7 @@ verify_backends_match backend alloc =
     case (alloc_backend alloc, backend) of
         (Midi {}, Inst.Midi {}) -> Nothing
         (Im, Inst.Im {}) -> Nothing
-        (Dummy, Inst.Dummy)
-            | alloc_qualified alloc /= InstTypes.dummy ->
-                Just $ "dummy alloc should have empty qualified, but got: "
-                    <> pretty (alloc_qualified alloc)
-            | otherwise -> Nothing
+        (Dummy, Inst.Dummy) -> Nothing
         _ -> Just $ "allocation type " <> alloc_type
             <> " /= instrument type " <> backend_type
     where

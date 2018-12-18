@@ -9,17 +9,11 @@ module User.Elaforge.Repl where
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Repl.LInst as LInst
-
 import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as Kontakt.ScGamelan
-import qualified User.Elaforge.Instrument.Kontakt.Wayang as Kontakt.Wayang
 
 
 test_cmd :: Cmd.CmdL ()
 test_cmd = Log.notice "test command"
-
-
-wayang_allocations = Kontakt.Wayang.allocations
-sc_gamelan_allocations = Kontakt.ScGamelan.kebyar_allocations
 
 
 underwater = do

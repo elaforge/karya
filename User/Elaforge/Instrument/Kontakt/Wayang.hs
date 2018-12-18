@@ -4,9 +4,6 @@
 
 -- | Gender wayang patches.
 module User.Elaforge.Instrument.Kontakt.Wayang where
-import qualified Midi.Key2 as Key2
-import qualified Midi.Midi as Midi
-import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
@@ -19,11 +16,12 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Wayang as Wayang
-import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
+import qualified Midi.Key2 as Key2
+import qualified Perform.Midi.Patch as Patch
+
 import Global
 
 
@@ -79,29 +77,6 @@ patches = map (MidiInst.code #= code <> with_weak)
             (Wayang.instrument_scale False Wayang.laras_sawan tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
-
--- | Set up a gender wayang quartet.
---
--- There are two pasang instruments, which then rely on the kotekan calls to
--- split into inst-polos and inst-sangsih.  This uses the traditional setup
--- with polos on umbang.
-allocations :: Text -> UiConfig.Allocations
-allocations dev_ = MidiInst.allocations
-    [ ("p", "kontakt/wayang-pemade", pasang "p-umbang" "p-isep",
-        UiConfig.Dummy)
-    , ("k", "kontakt/wayang-kantilan", pasang "k-umbang" "k-isep",
-        UiConfig.Dummy)
-    , ("p-umbang", "kontakt/wayang-umbang", id, midi_channel 0)
-    , ("p-isep", "kontakt/wayang-isep", id, midi_channel 1)
-    , ("k-umbang", "kontakt/wayang-umbang", id, midi_channel 2)
-    , ("k-isep", "kontakt/wayang-isep", id, midi_channel 3)
-    ]
-    where
-    midi_channel chan = UiConfig.Midi (MidiInst.config1 dev chan)
-    pasang polos sangsih = Common.add_environ Gangsa.inst_polos (inst polos)
-        . Common.add_environ Gangsa.inst_sangsih (inst sangsih)
-    dev = Midi.write_device dev_
-    inst = Score.Instrument
 
 attribute_map :: Patch.AttributeMap
 attribute_map = Common.attribute_map

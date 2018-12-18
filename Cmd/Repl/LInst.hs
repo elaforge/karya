@@ -215,7 +215,7 @@ add_dummy inst qualified = do
 -- it's modifying an existing allocation and not changing the Qualified name.
 allocate :: Cmd.M m => Score.Instrument -> UiConfig.Allocation -> m ()
 allocate score_inst alloc = do
-    inst <- Cmd.get_qualified (UiConfig.alloc_qualified alloc)
+    inst <- Cmd.get_alloc_qualified alloc
     allocs <- Ui.config#Ui.allocations <#> Ui.get
     allocs <- Cmd.require_right id $
         UiConfig.allocate (Inst.inst_backend inst) score_inst alloc allocs
@@ -234,7 +234,7 @@ deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
 merge :: Cmd.M m => UiConfig.Allocations -> m ()
 merge (UiConfig.Allocations alloc_map) = do
     let (names, allocs) = unzip (Map.toList alloc_map)
-    insts <- mapM (Cmd.get_qualified . UiConfig.alloc_qualified) allocs
+    insts <- mapM Cmd.get_alloc_qualified allocs
     let merged = zipWith MidiInst.merge_defaults insts allocs
     existing <- Ui.get_config (Ui.allocations #$)
     let errors = mapMaybe (verify existing) (zip3 names merged insts)

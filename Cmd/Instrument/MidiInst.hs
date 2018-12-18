@@ -337,7 +337,7 @@ merge_defaults inst alloc =
             { UiConfig.alloc_backend =
                 UiConfig.Midi (Patch.merge_defaults patch config)
             }
-        -- Im doesn't have any default to merge yet.
+        -- Im doesn't have any defaults to merge yet.
         (Inst.Im _, UiConfig.Im) -> alloc
         -- If they don't match, UiConfig.verify_allocation should catch it.
         _ -> alloc

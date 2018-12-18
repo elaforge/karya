@@ -5,6 +5,7 @@ LEGEND
 
 STATUS
   . synth: status:
+  . infer gender damping:
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -21,11 +22,12 @@ STATUS
       . Can I get shake to not record 'compilation is NOT required' runs?
       . Or maybe the laptop was overheating.
   - Find out why MemoryLeak latency: went up.
-  - Organize reyong and wayang samples for a real sampler-im instrument.
-    . First come up with exact pitches for reyong.
-    . Ignore the dynamic calibration problem for now, just hardcode dyn ranges.
 
 UNSORTED
+  * dummy allocations should be able to get cmds and defaults from dummy insts
+    . I could make a separate DummyInst like MidiInst, but it seems like
+      a hassle.  Instead just have them be MIDI/Im insts, and just pull the
+      Common.Common.
   * move Triggered flag to Common
   * move Midi.Patch.patch_call_map to Common
   * Instead of using symlinks into the app dir, have a configurable data dir,
@@ -1289,7 +1291,7 @@ vector: performance:
 
 synth: im:
   status:
-    . mridangam:
+    . rambat:
     . Non-constant pitch:
     . merge faust-im and sampler-im:
   merge faust-im and sampler-im:
@@ -4308,7 +4310,7 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      infer damping for gender
+      infer gender damping:
         . Also don't damp repeated pitches.
           . Though with rambat this might have the effect of always choosing
             the long sample.  Still, doubled short notes will be ok.  Even

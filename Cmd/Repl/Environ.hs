@@ -54,6 +54,7 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
 
+import qualified Cmd.Repl.LAlloc as LAlloc
 import qualified Cmd.Repl.LBlock as LBlock
 import qualified Cmd.Repl.LCmd as LCmd
 import qualified Cmd.Repl.LControl as LControl

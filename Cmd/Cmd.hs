@@ -1290,6 +1290,23 @@ get_qualified qualified =
     require ("instrument not in db: " <> pretty qualified)
         =<< lookup_qualified qualified
 
+get_alloc_qualified :: M m => UiConfig.Allocation -> m Inst
+get_alloc_qualified alloc =
+    require ("instrument not in db: "
+            <> pretty (UiConfig.alloc_qualified alloc))
+        =<< lookup_alloc_qualified alloc
+
+-- | Lookup an 'InstTypes.Qualified' in the context of its Allocation.  This is
+-- because UiConfig.Dummy instruments can inherit a 'Common.Common' from any
+-- backend.
+lookup_alloc_qualified :: M m => UiConfig.Allocation -> m (Maybe Inst)
+lookup_alloc_qualified alloc =
+    fmap inherit <$> lookup_qualified (UiConfig.alloc_qualified alloc)
+    where
+    inherit inst = case UiConfig.alloc_backend alloc of
+        UiConfig.Dummy -> (Inst.backend #= Inst.Dummy) inst
+        _ -> inst
+
 -- | Look up an instrument that might not be allocated.
 lookup_qualified :: M m => InstTypes.Qualified -> m (Maybe Inst)
 lookup_qualified qualified = do
