@@ -104,6 +104,8 @@ basicPackages = concat
     , w "mersenne-random-pure64 digest random-shuffle"
     -- Instrument.Parse, could use attoparsec, but parsec errors are better
     , w "parsec"
+    -- should replace parsec, and maybe even attoparsec
+    , w "megaparsec parser-combinators"
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , [("aeson", ">=1.1.0.0")] -- serialize and unserialize log msgs
     , w "med-module" -- for Cmd.Load.Med

@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-
 {-
     Work done by the parser:
     Separate stanzas, notes and comments.
@@ -17,21 +16,27 @@
     Parse pitches, infer octaves.
 -}
 module Derive.Text.TScore where
+import qualified Control.Monad.Combinators as P
+import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+import qualified Data.Void as Void
 
-import qualified Text.Parsec as P
-import Text.Parsec ((<?>))
+import qualified Numeric
+import qualified Text.Megaparsec as P
+import           Text.Megaparsec ((<?>))
+import qualified Text.Megaparsec.Char as P
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
-import qualified Util.Parse as Parse
 import qualified Util.Then as Then
 
 import qualified Derive.LEvent as LEvent
+import qualified Ui.Id as Id
 
-import Global
+import           Global
 
 
 data Config = Config {
@@ -41,13 +46,100 @@ data Config = Config {
 
 -- * parse
 
-pparse :: Parser a -> Text -> Either P.ParseError a
-pparse p = P.parse (p <* P.eof) ""
+pparse :: Parser a -> Text -> Either String a
+pparse p = first P.errorBundlePretty . P.parse (p <* P.eof) "fname"
 
-type Parser a = P.Parsec Text () a
+type Parser a = P.Parsec Void.Void Text a
 
-data Score = Score [Token]
+class Element a where
+    parse :: Parser a
+    unparse :: a -> Text
+
+newtype Score = Score [Toplevel] deriving (Eq, Show)
+
+instance Element Score where
+    parse = p_whitespace False *> (Score <$> P.many (lexeme parse))
+    unparse (Score toplevels) = Text.unlines (map unparse toplevels)
+
+data Toplevel = ToplevelDirective !Directive | BlockDefinition !Block
     deriving (Eq, Show)
+
+instance Element Toplevel where
+    parse = ToplevelDirective <$> parse <|> BlockDefinition <$> parse
+    unparse (ToplevelDirective a) = unparse a
+    unparse (BlockDefinition a) = unparse a
+
+data Block = Block {
+    block_id :: !Id.BlockId
+    , block_directives :: ![Directive]
+    , block_title :: !Text
+    , block_tracks :: !Tracks
+    } deriving (Eq, Show)
+
+-- > ns/block = %directive "block title" [ ... ]
+instance Element Block where
+    parse = do
+        bid <- lexeme parse
+        keyword "="
+        directives <- P.many (lexeme parse)
+        title <- P.option "" (lexeme p_string)
+        tracks <- parse
+        return $ Block bid directives title tracks
+    unparse (Block bid directives title tracks) =
+        Text.unwords $ filter (not . Text.null) $ concat
+            [ [unparse bid, "="]
+            , map unparse directives
+            , [if Text.null title then "" else un_string title]
+            , [unparse tracks]
+            ]
+
+instance Element Id.BlockId where
+    parse = do
+        a <- P.takeWhile1P Nothing Id.is_id_char
+        mb <- P.optional $ P.try $
+            P.char '/' *> (P.takeWhile1P Nothing Id.is_id_char)
+        let bid = maybe (Id.id default_namespace a)
+                (\b -> Id.id (Id.namespace a) b) mb
+        maybe (fail $ "invalid BlockId: " <> prettys bid) return (Id.make bid)
+        <?> "BlockId"
+    unparse = Id.show_short default_namespace . Id.unpack_id
+
+default_namespace :: Id.Namespace
+default_namespace = Id.namespace "ns"
+
+newtype Tracks = Tracks [Track]
+    deriving (Eq, Show)
+
+instance Element Tracks where
+    parse = fmap Tracks $
+        keyword "[" *> P.sepBy1 parse (keyword "//") <* keyword "]"
+    unparse (Tracks tracks) = Text.unwords $
+        "[" : List.intersperse "//" (map unparse tracks) ++ ["]"]
+
+data Track = Track {
+    track_title :: !Text
+    , track_tokens :: ![Token]
+    } deriving (Eq, Show)
+
+instance Element Track where
+    parse = Track <$> (P.option "" (lexeme p_string)) <*> P.some (lexeme parse)
+    unparse (Track title tokens) =
+        (if Text.null title then "" else un_string title <> " ")
+        <> Text.unwords (map unparse tokens)
+
+data Directive = Directive !Text !(Maybe Text)
+    deriving (Eq, Show)
+
+instance Element Directive where
+    parse = do
+        P.char '%'
+        Directive
+            <$> not_in "= \n"
+            <*> P.optional (P.char '=' *> not_in " \n")
+        where
+        not_in :: [Char] -> Parser Text
+        not_in cs = P.takeWhile1P Nothing (`notElem` cs)
+    unparse (Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
 data Token =
     -- | Higher count for larger divisions, e.g. anga vs. avartanam.
@@ -57,13 +149,6 @@ data Token =
     deriving (Eq, Show)
 
 type Rank = Int
-
-class Element a where
-    parse :: Parser a
-    unparse :: a -> Text
-
-p_score :: Parser Score
-p_score = Score <$> (p_whitespace False *> P.many (lexeme True parse))
 
 instance Element Token where
     parse = TBarline <$> parse <|> TNote <$> parse <|> TRest <$> parse
@@ -78,7 +163,8 @@ newtype Barline = Barline Int
 
 instance Element Barline where
     parse = Barline <$>
-        (length <$> P.many1 (P.char '|') <|> (P.char ';' *> pure 0))
+        (Text.length <$> P.takeWhile1P Nothing (=='|')
+            <|> (P.char ';' *> pure 0))
     unparse (Barline 0) = ";"
     unparse (Barline n) = Text.replicate n "|"
 
@@ -98,10 +184,10 @@ empty_note = Note (Call "") (Pitch (Relative 0) "") (Duration Nothing 0 False)
 -- > a a2 call/a2
 -- > a2.
 -- > a~ a2~
--- > (call with spaces)/
+-- > "call with spaces"/
 instance Element Note where
     parse = do
-        call <- P.optionMaybe $ P.try $ parse <* P.char '/'
+        call <- P.optional $ P.try $ parse <* P.char '/'
         pitch <- parse
         dur <- parse
         let note = Note (fromMaybe (Call "") call) pitch dur
@@ -122,15 +208,18 @@ newtype Call = Call Text
 -- > "word with spaces"
 -- > "with embedded "() quote"
 instance Element Call where
-    parse = (<?> "call") $ fmap (Call . txt) $
-        P.try (P.char '"' *> p_string <* P.char '"')
-        <|> P.many1 (P.satisfy (\c -> c /= '/' && c /= ' '))
-        where
-        p_string = mconcat <$>
-            P.many1 (P.try (P.string "\"(") <|> ((:[]) <$> P.satisfy (/='"')))
+    parse = (<?> "call") $ fmap Call $
+        p_string <|> P.takeWhile1P Nothing (`notElem` [' ', '/'])
     unparse (Call call)
-        | " " `Text.isInfixOf` call = "\"" <> call <> "\""
+        | Text.any (`elem` [' ', '/']) call = "\"" <> call <> "\""
         | otherwise = call
+
+p_string :: Parser Text
+p_string = fmap mconcat $ P.between (P.char '"') (P.char '"') $
+    P.many (P.try (P.string "\"(") <|> (Text.singleton <$> P.satisfy (/='"')))
+
+un_string :: Text -> Text
+un_string str = "\"" <> str <> "\""
 
 newtype Rest = Rest Duration
     deriving (Eq, Show)
@@ -148,17 +237,18 @@ data Pitch = Pitch {
     } deriving (Eq, Show)
 
 instance Element Pitch where
-    parse = Pitch <$> parse <*> (txt <$> P.many P.letter) <?> "pitch"
+    parse = Pitch <$> parse <*> (P.takeWhileP Nothing Char.isLetter)
+        <?> "pitch"
     unparse (Pitch octave call) = unparse octave <> call
 
 data Octave = Absolute !Int | Relative !Int
     deriving (Eq, Show)
 
 instance Element Octave where
-    parse = Absolute <$> Parse.p_int <|> Relative <$> p_relative <?> "octave"
+    parse = Absolute <$> p_int <|> Relative <$> p_relative <?> "octave"
         where
-        p_relative = sum . map (\c -> if c == ',' then -1 else 1) <$>
-            P.many (P.oneOf ",'")
+        p_relative = Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
+            P.takeWhileP Nothing (`elem` (",'" :: String))
     unparse (Absolute oct) = showt oct
     unparse (Relative n)
         | n >= 0 = Text.replicate n "'"
@@ -174,8 +264,8 @@ data Duration = Duration {
 
 instance Element Duration where
     parse = Duration
-        <$> P.optionMaybe Parse.p_nat
-        <*> (length <$> P.many (P.char '.'))
+        <$> P.optional p_nat
+        <*> (Text.length <$> P.takeWhileP Nothing (=='.'))
         <*> P.option False (P.char '~' *> pure True)
         <?> "duration"
     unparse (Duration dur dots tie) = mconcat
@@ -188,14 +278,39 @@ instance Element Duration where
 
 p_whitespace :: Bool -> Parser ()
 p_whitespace required = do
-    when required (void P.space <|> P.eof)
-    P.spaces
-    P.optional $ P.string "--" *> P.skipMany (P.satisfy (/='\n'))
-        *> (void (P.char '\n') <|> P.eof)
+    if required then P.eof <|> P.space1 else P.space
+    P.option () $ do
+        P.string "--"
+        P.takeWhileP Nothing (/='\n')
+        P.option () (void $ P.char '\n')
 
-lexeme :: Bool -> Parser a -> Parser a
-lexeme required = (<* p_whitespace required)
+p_space :: Parser ()
+p_space = void $ P.takeWhile1P Nothing (==' ')
 
+lexeme :: Parser a -> Parser a
+lexeme = (<* p_whitespace False)
+
+keyword :: Text -> Parser ()
+keyword str = void $ lexeme (P.string str)
+
+-- spaced :: Parser a -> Parser [a]
+-- spaced p = P.many (lexeme True p)
+
+
+p_int :: Parser Int
+p_int = do
+    sign <- P.option 1 (P.char '-' >> return (-1))
+    (*sign) <$> p_nat
+    <?> "int"
+
+-- | Natural number including 0.
+p_nat :: Parser Int
+p_nat = do
+    i <- P.takeWhile1P Nothing (\c -> '0' <= c && c <= '9')
+    case Numeric.readDec (untxt i) of
+        (n, _) : _ -> return n
+        _ -> mzero -- this should never happen
+    <?> "nat"
 
 -- * rhythm
 
@@ -290,3 +405,59 @@ additive_rhythm meter =
         where
         (measure, beat) = state_now state `divMod` cycle_dur
         note_s = maybe "" ((" "<>) . unparse) note
+
+
+
+-- * scrap
+
+-- split on lines starting with '# ', then on '## '.  Then parse each section
+-- separately.
+-- This way is definitely more clunky than just a parser, but otherwise I think
+-- I have to make sure terminals end with \n.  But I need the
+-- I just don't want to parse a # in the middle of notes as a new track.
+-- Maybe I just have to do P.try on the final \n in p_whitespace?
+--
+-- How about take until \n# and then do a sub-parse?
+-- But is that so bad?  Just make notes end with \n.
+{-
+    # block1
+    % block1 directives
+    ## track1
+    % track1 directives1
+    track1 notes1
+    % track1 directives2
+    track1 notes2
+
+    ## track2
+    track2 notes
+
+    # block2
+    ## track3
+    track3 notes
+-}
+{-
+parse_score :: Text -> Either Text _
+parse_score =
+    verify . second (map block) . split "# " . zip [1 :: Int ..] . Text.lines
+    where
+    -- ([(Int, Text)], [([(Int, Text)], [NonEmpty (Int, Text)])])
+    verify (pre_block, blocks)
+        | not $ null $ filter (Text.null . Text.strip . snd) pre_block =
+            Left $ "junk before block definition: " <> pretty pre_block
+        | otherwise = mapM verify_block blocks
+    -- [[NonEmpty (Int, Text)]]
+    verify_block (block_directives, tracks) = Right tracks
+
+    -- ([(Int, Text)], [NonEmpty (Int, Text)])
+    -- (pre-block junk, [track])
+    block = split "## " . NonEmpty.toList
+    -- block = id -- second (map track) . split "## " . NonEmpty.toList
+    track = split "% "
+    split prefix = Seq.split_before_ne ((prefix `Text.isPrefixOf`) . snd)
+
+parse_lines :: Parser a -> [(Int, Text)] -> Either Text a
+parse_lines = undefined
+
+-- Block = [ Block title directives [Track] ]
+-- Track = [(Directives, Notes)]
+-}
