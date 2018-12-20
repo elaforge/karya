@@ -5060,6 +5060,7 @@ planning / research
       - fractional duration, e.g. 2/1
         . This will likely conflict with call/pitch syntax.
     rhythm check:
+      - I'll need a Directive for meter
       - combine ties
       - check for additive
       - check for div
