@@ -575,7 +575,7 @@ pshowt = Text.strip . Text.pack . pshow
 -- | Strict pshow, so I don't get debug traces interleaved with printing.
 pshow :: Show a => a -> String
 pshow val = s `DeepSeq.deepseq` s
-    where s = PPrint.pshow val
+    where s = PPrint.format_str (show val)
 
 -- * filesystem
 

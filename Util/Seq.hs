@@ -4,7 +4,7 @@
 
 module Util.Seq where
 import Prelude hiding (head, last, tail)
-import qualified Control.Arrow as Arrow
+import           Data.Bifunctor (first, second)
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import Data.Function
@@ -102,11 +102,11 @@ first_last start end xs = case xs of
 
 -- | Filter on the fst values returning Just.
 map_maybe_fst :: (a -> Maybe a2) -> [(a, b)] -> [(a2, b)]
-map_maybe_fst f xs = [(a, b) | (Just a, b) <- map (Arrow.first f) xs]
+map_maybe_fst f xs = [(a, b) | (Just a, b) <- map (first f) xs]
 
 -- | Filter on the snd values returning Just.
 map_maybe_snd :: (b -> Maybe b2) -> [(a, b)] -> [(a, b2)]
-map_maybe_snd f xs = [(a, b) | (a, Just b) <- map (Arrow.second f) xs]
+map_maybe_snd f xs = [(a, b) | (a, Just b) <- map (second f) xs]
 
 map_head :: (a -> a) -> [a] -> [a]
 map_head _ [] = []
@@ -367,7 +367,7 @@ zip_neighbors (x:xs) = (Nothing, x, head xs) : go x xs
 -- | This is like 'zip', but it returns the remainder of the longer argument
 -- instead of discarding it.
 zip_remainder :: [a] -> [b] -> ([(a, b)], Either [a] [b])
-zip_remainder (x:xs) (y:ys) = Arrow.first ((x, y) :) (zip_remainder xs ys)
+zip_remainder (x:xs) (y:ys) = first ((x, y) :) (zip_remainder xs ys)
 zip_remainder [] ys = ([], Right ys)
 zip_remainder xs [] = ([], Left xs)
 
@@ -665,7 +665,7 @@ span_while f = go
     where
     go [] = ([], [])
     go (a:as) = case f a of
-        Just b -> Arrow.first (b:) (go as)
+        Just b -> first (b:) (go as)
         Nothing -> ([], a : as)
 
 -- | 'span_while' from the end of the list.
@@ -689,7 +689,7 @@ ne_viewr (x :| xs) =
 
 -- | Split before places where the function matches.
 --
--- > > split_before (==1) [1,2,1]
+-- > > split_before (==1) [1, 2, 1]
 -- > [[], [1, 2], [1]]
 split_before :: (a -> Bool) -> [a] -> [[a]]
 split_before f = go
@@ -701,6 +701,17 @@ split_before f = go
         where (pre, post) = break f xs0
     cons1 x [] = [[x]]
     cons1 x (g:gs) = (x:g) : gs
+
+-- | Like 'split_before', but express the NonEmpty parts in the type.
+--
+-- > > split_before_ne (==1) [1, 2, 1]
+-- > ([], [1 :| [2], 1 :| []])
+split_before_ne :: (a -> Bool) -> [a] -> ([a], [NonEmpty a])
+split_before_ne f = second go . break f
+    where
+    go [] = []
+    go (x : xs) = (x :| pre) : go post
+        where (pre, post) = break f xs
 
 -- | Split after places where the function matches.
 split_after :: (a -> Bool) -> [a] -> [[a]]
