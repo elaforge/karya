@@ -21,6 +21,8 @@ module Cmd.Instrument.MidiInst (
     , add_flag, add_flags, pressure, add_common_flag, triggered
     -- ** environ
     , environ, default_scale, range, nn_range
+    -- ** per-allocation
+    , inst_range
     -- * allocations
     , allocations, config, config1
     , merge_defaults
@@ -304,6 +306,14 @@ range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
 nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
 nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
     . environ EnvKey.instrument_top top
+
+-- ** per-allocation
+
+-- | Like 'range', but set it in the allocation, not the patch.
+inst_range :: Scale.Range -> Common.Config -> Common.Config
+inst_range range =
+    Common.add_environ EnvKey.instrument_bottom (Scale.range_bottom range)
+    . Common.add_environ EnvKey.instrument_top (Scale.range_top range)
 
 -- * Allocations
 

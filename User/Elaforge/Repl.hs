@@ -9,7 +9,6 @@ module User.Elaforge.Repl where
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Repl.LInst as LInst
-import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as Kontakt.ScGamelan
 
 
 test_cmd :: Cmd.CmdL ()

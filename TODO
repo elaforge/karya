@@ -6,6 +6,7 @@ LEGEND
 STATUS
   . synth: status:
   . infer gender damping:
+  . tscore:
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -4310,12 +4311,18 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
+      - progress doesn't work for derived instruments
+        . Because it's for >ra-i and >ra-u, but I just have >ra.
+          . Perf.infer_instrument, uses EnvKey.instrument
+        . I need it to be in PlayC.get_im_instrument_tracks so it gets grayed.
+        . Then Perf.tracks_of_instrument needs to map >ra-i to >ra.
+        . Why not use TrackId directly?
       infer gender damping:
         . Also don't damp repeated pitches.
           . Though with rambat this might have the effect of always choosing
             the long sample.  Still, doubled short notes will be ok.  Even
             short samples are usually around 3s.
-        . I should be able to remove the  explicit duration changes in ngoret.
+        . I should be able to remove the explicit duration changes in ngoret.
           For that to work, I also need to say you can't damp even a neighbor
           if the notes are too quick.  But it's a certain technique, so maybe
           I shouldn't try to generalize.  Also jit-jeng is undamped but not

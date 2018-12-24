@@ -17,7 +17,8 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import Cmd.Instrument.MidiInst
        (allocations, both, cmd, generator, note_calls, note_generators,
-        note_transformers, null_call, postproc, transformer, val_calls, Code)
+        note_transformers, null_call, postproc, transformer, val_calls, Code,
+        inst_range)
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
@@ -84,7 +85,8 @@ default_scale = environ EnvKey.scale . Expr.scale_id_to_str
 
 -- | Set instrument range.
 range :: Scale.Range -> Patch -> Patch
-range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
+range range =
+    environ EnvKey.instrument_bottom (Scale.range_bottom range)
     . environ EnvKey.instrument_top (Scale.range_top range)
 
 -- | Adapt a 'Osc.ThruFunction' to 'Cmd.ThruFunction'.
