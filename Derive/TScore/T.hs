@@ -28,34 +28,59 @@ newtype Tracks = Tracks [Track]
 
 data Track = Track {
     track_title :: !Text
-    , track_tokens :: ![Token]
+    , track_tokens :: ![Token Pitch Duration]
     } deriving (Eq, Show)
 
 data Directive = Directive !Text !(Maybe Text)
     deriving (Eq, Show)
 
-data Token =
+data Token pitch dur =
     -- | Higher count for larger divisions, e.g. anga vs. avartanam.
     TBarline !Barline
-    | TNote !Note
-    | TRest !Rest
+    | TNote !(Note pitch dur)
+    | TRest !(Rest dur)
     deriving (Eq, Show)
 
+token_name :: Token pitch dur -> Text
+token_name = \case
+    TBarline {} -> "barline"
+    TNote {} -> "note"
+    TRest {} -> "rest"
+
+map_pitch :: Monad m => (pitch1 -> m pitch2) -> Token pitch1 dur
+    -> m (Token pitch2 dur)
+map_pitch f = \case
+    TNote note -> do
+        pitch <- f (note_pitch note)
+        return $ TNote $ note { note_pitch = pitch }
+    TBarline a -> return $ TBarline a
+    TRest a -> return $ TRest a
+
+map_duration :: Monad m => (dur1 -> m dur2) -> Token pitch dur1
+    -> m (Token pitch dur2)
+map_duration f = \case
+    TNote note -> do
+        dur <- f (note_duration note)
+        return $ TNote $ note { note_duration = dur }
+    TBarline a -> return $ TBarline a
+    TRest (Rest dur) -> TRest . Rest <$> f dur
+
+-- | Opposide from Ruler.Rank, higher numbers mean larger divisions.
 type Rank = Int
 
 newtype Barline = Barline Rank
     deriving (Eq, Show)
 
-data Note = Note {
+data Note pitch dur = Note {
     note_call :: !Call
-    , note_pitch :: !Pitch
-    , note_duration :: !Duration
+    , note_pitch :: !pitch
+    , note_duration :: !dur
     } deriving (Eq, Show)
 
 newtype Call = Call Text
     deriving (Eq, Show)
 
-newtype Rest = Rest Duration
+newtype Rest dur = Rest dur
     deriving (Eq, Show)
 
 data Pitch = Pitch {
@@ -67,7 +92,7 @@ data Octave = Absolute !Int | Relative !Int
     deriving (Eq, Show)
 
 data Duration = Duration {
-    dur_duration :: !(Maybe Int)
+    dur_int :: !(Maybe Int)
     , dur_dots :: !Int
     , dur_tie :: !Bool
     } deriving (Eq, Show)

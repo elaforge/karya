@@ -5052,20 +5052,28 @@ planning / research
         . I could use : to separate tracks if I want to use ; for Barline 0.
         . Or // or even just /?  / is already used to separate calls, so //.
           Of course I don't expect to see / by itself...
-      - annotations: rhythm=additive, default-call
+      - directives: rhythm=additive, default-call
         . For default-call I can almost do it as a postproc, except that
           I can't use numbers, or anything that doesn't parse as a pitch.
         . Otherwise I'll need a ReaderT for parse config.
-      - annotation for basic pulse/matra?
+      - directive for basic pulse/matra?
       - fractional duration, e.g. 2/1
         . This will likely conflict with call/pitch syntax.
+        . I could use dot.
     rhythm check:
       - I'll need a Directive for meter
-      - combine ties
-      - check for additive
-      - check for div
+      * combine ties
+      * check for additive
+      * check for multiplicative
     pitch check:
-      - infer octaves
+      * carry pitch from prev
+      * infer octaves
+        . absolute octave carries over
+        . no octave means pick the shortest distance
+      - put resolve_pitch before resolve_time
+        . This way ties work with inferred pitches.
+        . Then I have to plumb through TBarline etc. which is annoying.
+    - accidentals for pitch
     . Time problems:
       . I want to say "repeat n times".
       . I want sections with their own tempo, and then the caller just sequences

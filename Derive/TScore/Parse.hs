@@ -27,8 +27,8 @@ data Config = Config {
 
 -- * parse
 
-pparse :: Parser a -> Text -> Either String a
-pparse p = first P.errorBundlePretty . P.parse (p <* P.eof) ""
+parse_text :: Parser a -> Text -> Either String a
+parse_text p = first P.errorBundlePretty . P.parse (p <* P.eof) ""
 
 type Parser a = P.Parsec Void.Void Text a
 
@@ -100,11 +100,14 @@ instance Element T.Directive where
         not_in cs = P.takeWhile1P Nothing (`notElem` cs)
     unparse (T.Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
-instance Element T.Token where
+instance Element (T.Token T.Pitch T.Duration) where
     parse = T.TBarline <$> parse <|> T.TNote <$> parse <|> T.TRest <$> parse
     unparse (T.TBarline bar) = unparse bar
     unparse (T.TNote note) = unparse note
     unparse (T.TRest rest) = unparse rest
+
+p_tokens :: Parser [T.Token T.Pitch T.Duration]
+p_tokens = P.some (lexeme parse)
 
 -- ** barline
 
@@ -123,7 +126,7 @@ instance Element T.Barline where
 -- > a2.
 -- > a~ a2~
 -- > "call with spaces"/
-instance Element T.Note where
+instance Element (T.Note T.Pitch T.Duration) where
     parse = do
         call <- P.optional $ P.try $ parse <* P.char '/'
         pitch <- parse
@@ -138,7 +141,7 @@ instance Element T.Note where
         , unparse dur
         ]
 
-empty_note :: T.Note
+empty_note :: T.Note T.Pitch T.Duration
 empty_note = T.Note (T.Call "") (T.Pitch (T.Relative 0) "")
     (T.Duration Nothing 0 False)
 
@@ -160,7 +163,7 @@ p_string = fmap mconcat $ P.between (P.char '"') (P.char '"') $
 un_string :: Text -> Text
 un_string str = "\"" <> str <> "\""
 
-instance Element T.Rest where
+instance Element (T.Rest T.Duration) where
     -- TODO I could possibly forbid ~ tie for rests, but I don't see why
     parse = T.Rest <$> (P.char '_' *> parse)
     unparse (T.Rest dur) = "_" <> unparse dur

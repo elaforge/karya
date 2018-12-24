@@ -70,15 +70,15 @@ test_token = do
         token "a" (T.Relative 1) "b" (T.Duration (Just 1) 1 True)
 
 test_token_roundtrip = do
-    let p = Proxy @T.Token
+    let p = Proxy @(T.Token T.Pitch T.Duration)
     roundtrip p "a"
     roundtrip p "+pizz/"
     roundtrip p "\"a b\"/"
     roundtrip p "a/'b1.~"
 
-token :: Text -> T.Octave -> Text -> T.Duration -> T.Token
+token :: Text -> T.Octave -> Text -> T.Duration -> T.Token T.Pitch T.Duration
 token call oct pitch dur = T.TNote $
     T.Note (T.Call call) (T.Pitch oct pitch) dur
 
 parse :: Parse.Parser a -> Text -> Either String a
-parse = Parse.pparse
+parse = Parse.parse_text
