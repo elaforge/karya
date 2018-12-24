@@ -17,3 +17,6 @@ unqualified: System.FilePath ((</>))
 language: BangPatterns DisambiguateRecordFields FlexibleContexts
     GeneralizedNewtypeDeriving LambdaCase MultiWayIf OverloadedStrings
     ScopedTypeVariables TupleSections FlexibleInstances TypeSynonymInstances
+
+format:
+    leave-space-for-qualified

@@ -18,7 +18,7 @@ test_pipeline = do
     let f = map extract . Check.pipeline Check.sargam Check.meter_44 . parse
         extract = fmap $ unpitch . T.note_pitch . snd
         unpitch (Check.Pitch o pc) = (o, pc)
-    -- resolve_pitch happens before resolve_time
+    -- TODO resolve_pitch happens before resolve_time
     -- equal (f "4s ~") [Right (4, 0)]
 
     equal (f "4s r g") [Right (4, 0), Right (4, 1), Right (4, 2)]

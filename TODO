@@ -4630,6 +4630,108 @@ Derive:
       . Another option is to make Derivers polymorphic.  I can put the
         fields in TrackLang.Dynamic in a typeclass.
 
+text score:
+  . doc/dev_notes/text-score.md
+  status:
+    * implement basic pipeline
+    - parse directives, give them to Check
+    - convert Check output to Deriver that makes a score
+  parsing:
+    * "call | with | spaces"
+      . This goes on TNote.
+      . E.g.: {+pizz | %dyn=.5}/4c1
+      . This will get confused by parens in calls, e.g. legato.
+        Or I could escape with \ or something.
+      . (), [], and {} are nice because vim will highlight the match.
+      . I can fix it by putting <:> in matchpairs, but it probably gets
+        confused by operators.  Still, karya doesn't really use those.
+      . The advantage of brackets is they can be nested, but I don't need to
+        nest this.  What about backticks?  Or the obvious: quotes?  I can't
+        use ' because it's already for strings, but "s are claimed by quotes
+        which maybe I don't need?  Or I could special case "(?
+        "+pizz | %dyn=.5"/4c1
+    - embedded parallelism: [track1 // track2]
+      . This goes on Score
+      . Figure out how this works.  How do I embed a block, e.g.
+        +pizz[a b c]/4s or t[a b c]4s?  Then "+a | +b"[a b c]/4s?
+      . The [a b c] becomes a new block, and modifies the call to
+        "+a | +b | new-block".  Then [a b c] by itself is shorthand for just
+        "new-block".
+    * block and track headers
+      . This goes on Score
+      . Use # block, ## track syntax
+      . Using column-oriented # and ## is awkward with lexeme-oriented
+        parsing.  I think the easiest way to match # in the first column is
+        to match a \n previously, but lexeme will consume the \ns.
+      . It's actually easier to parse with split, maybe I can just
+        initialize the bits with source pos and parse separately.
+      . Using columns is awkward to parse, and maybe too wordy anyway, how
+        about:
+        . block = [ a b c ]
+        . block = [ a b c ; d e f ]
+        . block = [ >someinst: a b c ; control | x: x y z ]
+        . block = [ ">inst | t" ] -- ambigious
+        . block = [ >inst | stuff // ... ]
+        . This means I have to backtrack, but that's ok I think?  Just
+          collect until // or ]?  No, then quotes fool it.
+        . [(>inst | t) a b c // d e f ]
+        . Or maybe I can just use lack of space: [">inst | t" "x y"/4]
+          That kind of thing can be annoying because you can't wrap.
+        . But each track needs a title: ["t1" .. // "t2" ...]
+        . How about the first string is the title, and I can use "" to
+          disambiguate if the note also wants one.
+      . Ok then directives go where?
+        . Scope over definition: block = %directive %directive [ ... ]
+        . Scope over file: %directive %directive xyz = ...
+      . block = %directive "block title" [ ... ]
+
+      . I could use : to separate tracks if I want to use ; for Barline 0.
+      . Or // or even just /?  / is already used to separate calls, so //.
+        Of course I don't expect to see / by itself...
+    - directives: rhythm=additive, default-call
+      . For default-call I can almost do it as a postproc, except that
+        I can't use numbers, or anything that doesn't parse as a pitch.
+      . Otherwise I'll need a ReaderT for parse config.
+    - directive for basic pulse/matra?
+    - fractional duration, e.g. 2/1
+      . This will likely conflict with call/pitch syntax.
+      . I could use dot.
+  rhythm check:
+    - I'll need a Directive for meter
+    * combine ties
+    * check for additive
+    * check for multiplicative
+  pitch check:
+    * carry pitch from prev
+    * infer octaves
+      . absolute octave carries over
+      . no octave means pick the shortest distance
+    - put resolve_pitch before resolve_time
+      . This way ties work with inferred pitches.
+      . Then I have to plumb through TBarline etc. which is annoying.
+  - accidentals for pitch
+  . Time problems:
+    . I want to say "repeat n times".
+    . I want sections with their own tempo, and then the caller just sequences
+      them.  If I turn the whole thing into one call, then I can still fit it
+      into a global timeline, and apply transformations or tempo there.
+    . If there is meter information in the text score, I can derive a ruler.
+  . I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
+    have per_octave built-in, but I could still use Int for generic cases.
+  . Rhythmic framework: in the solkattu branch I extracted the rhythmic DSL
+    to 'Note a | TempoChange (Speed | Nadai)' and I have have generic
+    functions to get durations and check tala alignment using matras, and
+    flatten to (Time Ratio, a).
+  . This winds up being more general than haskore, but probably less general
+    than music-suite.  It looks like 'temporal-media' is analogous, though
+    with arbitrary time shift/stretch, and events have duration.  Also since
+    it uses (start, dur, note) events, it doesn't need rests, and can do
+    overlapping events.
+  . Henning Thielemann's LiveSequencer highlights score as it plays:
+    https://hackage.haskell.org/package/live-sequencer-0.0.6
+    . He does it with a custom gui widget and language, but I wonder if
+      I could do this with by sending highlighting info in real time to vim?
+
 pitch: scales: scale:
   - non octave equal temperaments, e.g. 12ed5
   just:
@@ -4998,103 +5100,6 @@ planning / research
     . Book: African Polyphony and Polyrhythm
     . https://github.com/ctford/african-polyphony-and-polyrhythm
     . kolmogorov music: https://www.youtube.com/watch?v=Qg3XOfioapI
-  text score:
-    . doc/dev_notes/text-score.md
-    parsing:
-      * (call | with | spaces)
-        . This goes on TNote.
-        . E.g.: {+pizz | %dyn=.5}/4c1
-        . This will get confused by parens in calls, e.g. legato.
-          Or I could escape with \ or something.
-        . (), [], and {} are nice because vim will highlight the match.
-        . I can fix it by putting <:> in matchpairs, but it probably gets
-          confused by operators.  Still, karya doesn't really use those.
-        . The advantage of brackets is they can be nested, but I don't need to
-          nest this.  What about backticks?  Or the obvious: quotes?  I can't
-          use ' because it's already for strings, but "s are claimed by quotes
-          which maybe I don't need?  Or I could special case "(?
-          "+pizz | %dyn=.5"/4c1
-      - embedded parallelism: [track1 // track2]
-        . This goes on Score
-        . Figure out how this works.  How do I embed a block, e.g.
-          +pizz[a b c]/4s or t[a b c]4s?  Then "+a | +b"[a b c]/4s?
-        . The [a b c] becomes a new block, and modifies the call to
-          "+a | +b | new-block".  Then [a b c] by itself is shorthand for just
-          "new-block".
-      * block and track headers
-        . This goes on Score
-        . Use # block, ## track syntax
-        . Using column-oriented # and ## is awkward with lexeme-oriented
-          parsing.  I think the easiest way to match # in the first column is
-          to match a \n previously, but lexeme will consume the \ns.
-        . It's actually easier to parse with split, maybe I can just
-          initialize the bits with source pos and parse separately.
-        . Using columns is awkward to parse, and maybe too wordy anyway, how
-          about:
-          . block = [ a b c ]
-          . block = [ a b c ; d e f ]
-          . block = [ >someinst: a b c ; control | x: x y z ]
-          . block = [ ">inst | t" ] -- ambigious
-          . block = [ >inst | stuff // ... ]
-          . This means I have to backtrack, but that's ok I think?  Just
-            collect until // or ]?  No, then quotes fool it.
-          . [(>inst | t) a b c // d e f ]
-          . Or maybe I can just use lack of space: [">inst | t" "x y"/4]
-            That kind of thing can be annoying because you can't wrap.
-          . But each track needs a title: ["t1" .. // "t2" ...]
-          . How about the first string is the title, and I can use "" to
-            disambiguate if the note also wants one.
-        . Ok then directives go where?
-          . Scope over definition: block = %directive %directive [ ... ]
-          . Scope over file: %directive %directive xyz = ...
-        . block = %directive "block title" [ ... ]
-
-        . I could use : to separate tracks if I want to use ; for Barline 0.
-        . Or // or even just /?  / is already used to separate calls, so //.
-          Of course I don't expect to see / by itself...
-      - directives: rhythm=additive, default-call
-        . For default-call I can almost do it as a postproc, except that
-          I can't use numbers, or anything that doesn't parse as a pitch.
-        . Otherwise I'll need a ReaderT for parse config.
-      - directive for basic pulse/matra?
-      - fractional duration, e.g. 2/1
-        . This will likely conflict with call/pitch syntax.
-        . I could use dot.
-    rhythm check:
-      - I'll need a Directive for meter
-      * combine ties
-      * check for additive
-      * check for multiplicative
-    pitch check:
-      * carry pitch from prev
-      * infer octaves
-        . absolute octave carries over
-        . no octave means pick the shortest distance
-      - put resolve_pitch before resolve_time
-        . This way ties work with inferred pitches.
-        . Then I have to plumb through TBarline etc. which is annoying.
-    - accidentals for pitch
-    . Time problems:
-      . I want to say "repeat n times".
-      . I want sections with their own tempo, and then the caller just sequences
-        them.  If I turn the whole thing into one call, then I can still fit it
-        into a global timeline, and apply transformations or tempo there.
-      . If there is meter information in the text score, I can derive a ruler.
-    . I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
-      have per_octave built-in, but I could still use Int for generic cases.
-    . Rhythmic framework: in the solkattu branch I extracted the rhythmic DSL
-      to 'Note a | TempoChange (Speed | Nadai)' and I have have generic
-      functions to get durations and check tala alignment using matras, and
-      flatten to (Time Ratio, a).
-    . This winds up being more general than haskore, but probably less general
-      than music-suite.  It looks like 'temporal-media' is analogous, though
-      with arbitrary time shift/stretch, and events have duration.  Also since
-      it uses (start, dur, note) events, it doesn't need rests, and can do
-      overlapping events.
-    . Henning Thielemann's LiveSequencer highlights score as it plays:
-      https://hackage.haskell.org/package/live-sequencer-0.0.6
-      . He does it with a custom gui widget and language, but I wonder if
-        I could do this with by sending highlighting info in real time to vim?
   cmj:
     . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
       Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/
