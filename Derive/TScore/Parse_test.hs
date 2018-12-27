@@ -14,6 +14,7 @@ import           Util.Test
 
 
 test_score = do
+    let f = second Parse.unparse . parse @T.Score Parse.parse
     let score =
             "block1 = %block1=directive \"block1 title\" [\n\
             \    \">inst1\" a\n\
@@ -21,12 +22,10 @@ test_score = do
             \    \">inst2\" b\n\
             \]\n\
             \block2 = [c]\n"
-    let f = second Parse.unparse . parse @T.Score Parse.parse
-    equal (f score) $ Right
+    right_equal (f score) $
         "block1 = %block1=directive \"block1 title\"\
         \ [ \">inst1\" a // \">inst2\" b ]\n\
         \block2 = [ c ]\n"
-    either putStrLn (putStrLn . untxt) (f score)
 
 roundtrip :: forall a. (Stack.HasCallStack, Parse.Element a)
     => Proxy a -> Text -> IO Bool
@@ -52,7 +51,6 @@ test_track = do
         , bar 1
         , rest (T.Duration Nothing 1 False)
         ]
-
     right_equal (f "a b/")
         [ token "" no_oct "a" no_dur
         , token "b" no_oct "" no_dur
@@ -68,6 +66,8 @@ test_token = do
     right_equal (f "+pizz/") $ token "+pizz" (T.Relative 0) "" no_dur
     right_equal (f "a/'b1.~") $
         token "a" (T.Relative 1) "b" (T.Duration (Just 1) 1 True)
+    right_equal (f "a'/a#4") $
+        token "a'" (T.Relative 0) "a#" (T.Duration (Just 4) 0 False)
 
 test_token_roundtrip = do
     let p = Proxy @(T.Token T.Pitch T.Duration)

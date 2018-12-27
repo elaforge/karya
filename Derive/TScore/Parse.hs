@@ -2,6 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{- |
+
+    %scale=sargam
+    block = %dur=mult [
+        ">inst1" | a1 | b2 c |
+        //
+        ">inst2" | p1 | m |
+    ]
+-}
 module Derive.TScore.Parse where
 import qualified Control.Monad.Combinators as P
 import qualified Data.Char as Char
@@ -14,18 +23,17 @@ import qualified Text.Megaparsec as P
 import           Text.Megaparsec ((<?>))
 import qualified Text.Megaparsec.Char as P
 
+import qualified Util.Debug as Debug
 import qualified Derive.TScore.T as T
 import qualified Ui.Id as Id
 
 import           Global
 
 
-data Config = Config {
-    -- If true, "a" is parsed as "a/", if false, it's parsed as "/a".
-    _default_call :: Bool
-    } deriving (Eq, Show)
-
 -- * parse
+
+parse_score :: Text -> Either String T.Score
+parse_score = parse_text parse
 
 parse_text :: Parser a -> Text -> Either String a
 parse_text p = first P.errorBundlePretty . P.parse (p <* P.eof) ""
@@ -142,8 +150,10 @@ instance Element (T.Note T.Pitch T.Duration) where
         ]
 
 empty_note :: T.Note T.Pitch T.Duration
-empty_note = T.Note (T.Call "") (T.Pitch (T.Relative 0) "")
-    (T.Duration Nothing 0 False)
+empty_note = T.Note (T.Call "") empty_pitch (T.Duration Nothing 0 False)
+
+empty_pitch :: T.Pitch
+empty_pitch = T.Pitch (T.Relative 0) ""
 
 -- |
 -- > word-without-slash
@@ -151,7 +161,7 @@ empty_note = T.Note (T.Call "") (T.Pitch (T.Relative 0) "")
 -- > "with embedded "() quote"
 instance Element T.Call where
     parse = (<?> "call") $ fmap T.Call $
-        p_string <|> P.takeWhile1P Nothing (`notElem` [' ', '/'])
+        p_string <|> P.takeWhile1P Nothing call_char
     unparse (T.Call call)
         | Text.any (`elem` [' ', '/']) call = "\"" <> call <> "\""
         | otherwise = call
@@ -168,11 +178,20 @@ instance Element (T.Rest T.Duration) where
     parse = T.Rest <$> (P.char '_' *> parse)
     unparse (T.Rest dur) = "_" <> unparse dur
 
+call_char :: Char -> Bool
+call_char c = c `notElem` [' ', '/']
+
+pitch_char :: Char -> Bool
+pitch_char c = c `notElem` (" \n-,'~./]_" :: [Char]) && not (Char.isDigit c)
+    -- TODO this breaks modularity because I have to just know all the
+    -- syntax that could come after, which is Duration, end of Tracks, Rest.
+    -- But the more I can get into Pitch, the more I can get into Call without
+    -- needing ""s.
+
 -- ** Pitch
 
 instance Element T.Pitch where
-    parse = T.Pitch <$> parse <*> (P.takeWhileP Nothing Char.isLetter)
-        <?> "pitch"
+    parse = T.Pitch <$> parse <*> (P.takeWhileP Nothing pitch_char) <?> "pitch"
     unparse (T.Pitch octave call) = unparse octave <> call
 
 instance Element T.Octave where

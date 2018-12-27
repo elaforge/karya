@@ -65,6 +65,13 @@ map_duration f = \case
     TBarline a -> return $ TBarline a
     TRest (Rest dur) -> TRest . Rest <$> f dur
 
+map_note :: Monad m => (Note pitch1 dur -> m (Note pitch2 dur))
+    -> Token pitch1 dur -> m (Token pitch2 dur)
+map_note f = \case
+    TNote note -> TNote <$> f note
+    TBarline a -> return $ TBarline a
+    TRest a -> return $ TRest a
+
 -- | Opposide from Ruler.Rank, higher numbers mean larger divisions.
 type Rank = Int
 

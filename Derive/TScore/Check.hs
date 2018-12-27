@@ -2,15 +2,26 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- deriving (Real) for Time emits this warning.
 {-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
-module Derive.TScore.Check where
+module Derive.TScore.Check (
+    Time(..), Error(..), Config(..), default_config
+    , parse_directives, process
+    , Pitch(..), PitchClass, Octave
+    , Meter(..)
+#ifdef TESTING
+    , module Derive.TScore.Check
+#endif
+) where
+import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
+import qualified Data.Vector as Vector
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -22,7 +33,7 @@ import qualified Derive.TScore.T as T
 import           Global
 
 
--- | Integral time.  This is the smallest time unit expressed.
+-- | This is the default "beat".
 newtype Time = Time Ratio.Rational
     deriving (Ord, Eq, Num, Enum, Real, Fractional, RealFrac, Pretty)
 
@@ -32,16 +43,63 @@ instance Show Time where
 data Error = Error !Time !Text
     deriving (Eq, Show)
 
--- * pipeline
+show_error :: Meter -> Error -> Text
+show_error meter (Error t msg) =
+    show_time (meter_duration meter) t <> ": " <> msg
 
-pipeline :: Scale -> Meter -> [T.Token T.Pitch T.Duration]
-    -> [Either Error (Time, T.Note Pitch Time)]
-pipeline scale meter = resolve_pitch scale . resolve_time . barlines meter
-    . multiplicative
+data Config = Config {
+    -- | If true, notes with no call get the pitch as their call.  This is
+    -- a hack so that e.g. "na" is interpreted as a call with no pitch.
+    -- Otherwise I'd have to let directives affect parsing.
+    config_default_call :: !Bool
+    , config_meter :: !Meter
+    , config_scale :: !Scale
+    , config_duration :: !DurationMode
+    } deriving (Eq, Show)
+
+default_config :: Config
+default_config = Config
+    { config_default_call = False
+    , config_meter = meter_44
+    , config_scale = scale_sargam
+    , config_duration = Multiplicative
+    }
+
+parse_directives :: Config -> [T.Directive] -> Either Text Config
+parse_directives = foldM (flip parse_directive)
+
+parse_directive :: T.Directive -> Config -> Either Text Config
+parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
+    ("meter", Just val) ->
+        set_config (\c a -> c { config_meter = a }) meter_map val
+    ("scale", Just val) ->
+        set_config (\c a -> c { config_scale = a }) scale_map val
+    ("dur", Just val) ->
+        set_config (\c a -> c { config_duration = a }) duration_map val
+    ("default-call", maybe_val) ->
+        set_config (\c a -> c { config_default_call = a }) bool_map
+            (fromMaybe "t" maybe_val)
+    _ -> Left $ "unknown directive name: " <> name
+    where
+    bool_map = Map.fromList [("f", False), ("t", True)]
+    set_config setter m k = fmap (setter config) (lookup k m)
+    lookup k m = maybe (Left $ "unknown directive val: " <> k) Right $
+        Map.lookup k m
+
+-- * process
+
+process :: Config -> [T.Token T.Pitch T.Duration]
+    -> [Either Error (Time, T.Note (Maybe Text) Time)]
+process (Config default_call meter scale duration) =
+    pitch_to_symbolic scale . resolve_pitch scale . resolve_time
+    . barlines meter . duration_mode duration
+    . (if default_call then pitch_to_call else id)
     -- TODO resolve pitch before time, so the pitches are right, so ties work.
     -- But then I still have TBarline and the like.
 
--- * meter
+-- * time
+
+-- ** meter
 
 data Meter = Meter {
     -- | Rank pattern.
@@ -59,6 +117,12 @@ data Meter = Meter {
 meter_duration :: Meter -> Time
 meter_duration m = meter_step m * fromIntegral (length (meter_pattern m))
 
+meter_map :: Map Text Meter
+meter_map = Map.fromList
+    [ ("adi", meter_adi)
+    , ("44", meter_44)
+    ]
+
 -- If I do akshara as 1, then kanda is 1/5th notes.  I'd want to reduce the
 -- pulse to 1/5, or write .1--.5?
 meter_adi :: Meter
@@ -75,7 +139,7 @@ meter_44 = Meter
     , meter_negative = False
     }
 
--- * resolve_time
+-- ** resolve_time
 
 -- | Remove TBarline and TRest, add start times, and resolve ties.
 resolve_time :: (Eq pitch, Parse.Element pitch)
@@ -146,7 +210,7 @@ is_tied (T.TNote note) = snd $ T.note_duration note
 is_tied (T.TRest (T.Rest (_, tied))) = tied
 is_tied _ = False
 
--- * barlines
+-- ** barlines
 
 barlines :: Meter -> [T.Token pitch (Time, tie)]
     -> [Either Error (T.Token pitch (Time, tie))]
@@ -184,7 +248,22 @@ duration_of = \case
     T.TNote note -> fst (T.note_duration note)
     T.TRest (T.Rest (dur, _)) -> dur
 
--- * resolve duration
+-- ** resolve duration
+
+duration_map :: Map Text DurationMode
+duration_map = Map.fromList
+    [ ("mul", Multiplicative)
+    , ("add", Additive)
+    ]
+
+data DurationMode = Multiplicative | Additive
+    deriving (Eq, Show)
+
+duration_mode :: DurationMode -> [T.Token pitch T.Duration]
+    -> [T.Token pitch (Time, Bool)]
+duration_mode = \case
+    Multiplicative -> multiplicative
+    Additive -> additive
 
 -- | Each number is the inverse of the number of beats, so 2 is 1/2, 8 is 1/8
 -- etc.
@@ -215,92 +294,134 @@ carry_duration mbDur = do
     State.put int
     return int
 
--- * resolve pitch
+-- * pitch
 
 type PitchDifference = (Octave, Text) -> (Octave, Text) -> Maybe Int
 
 data Scale = Scale {
-    scale_parse :: Text -> Maybe PitchClass
+    scale_degrees :: Vector.Vector Text
     , scale_per_octave :: !PitchClass
     , scale_initial_octave :: !Octave
-    }
+    } deriving (Eq, Show)
 
-type PitchClass = Int
-type Octave = Int
+scale_parse :: Scale -> Text -> Maybe PitchClass
+scale_parse scale = (`Vector.elemIndex` scale_degrees scale)
+
+scale_unparse :: Scale -> Pitch -> Maybe Text
+scale_unparse scale (Pitch oct pc) = (showt oct <>) <$>
+    scale_degrees scale Vector.!? pc
 
 data Pitch = Pitch !Octave !PitchClass
     deriving (Eq, Show)
 
+type PitchClass = Int
+type Octave = Int
+
 resolve_pitch :: Scale
     -> [Either Error (Time, T.Note T.Pitch dur)]
-    -> [Either Error (Time, T.Note Pitch dur)]
-resolve_pitch (Scale parse per_octave initial_octave) =
-    infer_octaves per_octave initial_octave . parse_pitch parse
+    -> [Either Error (Time, T.Note (Maybe Pitch) dur)]
+resolve_pitch scale@(Scale _ per_octave initial_octave) =
+    infer_octaves per_octave initial_octave . parse_pitch (scale_parse scale)
 
 parse_pitch :: (Text -> Maybe pitch)
     -> [Either Error (Time, T.Note T.Pitch dur)]
-    -> [Either Error (Time, T.Note (T.Octave, pitch) dur)]
+    -> [Either Error (Time, T.Note (Maybe (T.Octave, pitch)) dur)]
 parse_pitch parse = snd . mapRightE token Nothing
     where
     token maybe_prev (start, note)
         | Text.null call = case maybe_prev of
             Nothing ->
                 ( maybe_prev
-                , Left $ Error start "no pitch and no previous pitch"
+                , with_pitch Nothing
                 )
-            Just p -> with_pitch p
+            Just p -> (Just p, with_pitch (Just p))
         | otherwise = case parse call of
             Nothing ->
                 ( maybe_prev
                 , Left $ Error start $ "can't parse pitch: " <> call
                 )
-            Just p -> with_pitch p
+            Just p -> (Just p, with_pitch (Just p))
         where
         T.Pitch oct call = T.note_pitch note
-        with_pitch p =
-            (Just p, Right (start, note { T.note_pitch = (oct, p) }))
+        with_pitch p = Right (start, note { T.note_pitch = (oct,) <$> p })
 
 infer_octaves :: PitchClass -> Octave
-    -> [Either e (time, T.Note (T.Octave, PitchClass) dur)]
-    -> [Either e (time, T.Note Pitch dur)]
+    -> [Either e (time, T.Note (Maybe (T.Octave, PitchClass)) dur)]
+    -> [Either e (time, T.Note (Maybe Pitch) dur)]
 infer_octaves per_octave initial_oct =
     snd . mapRight infer (initial_oct, Nothing)
     where
-    infer (prev_oct, prev_pc) (start, note) = with_octave $ case oct of
-        T.Relative n -> n + case prev_pc of
-            Just prev ->
-                min_on3 (distance prev) (prev_oct-1) prev_oct (prev_oct+1)
-            Nothing -> prev_oct
-        T.Absolute o -> o
+    infer (prev_oct, prev_pc) (start, note) = case T.note_pitch note of
+        Nothing ->
+            ((prev_oct, prev_pc), (start, note { T.note_pitch = Nothing }))
+        Just (oct, pc) -> with_octave pc $ case oct of
+            T.Relative n -> n + case prev_pc of
+                Just prev ->
+                    min_on3 (distance prev pc)
+                        (prev_oct-1) prev_oct (prev_oct+1)
+                Nothing -> prev_oct
+            T.Absolute o -> o
         where
-        (oct, pc) = T.note_pitch note
-        with_octave o =
+        with_octave pc o =
             ( (o, Just pc)
-            , (start, note { T.note_pitch = Pitch o pc })
+            , (start, note { T.note_pitch = Just (Pitch o pc) })
             )
-        distance prev oct = abs $
+        distance prev pc oct = abs $
             pitch_diff per_octave (Pitch prev_oct prev) (Pitch oct pc)
     min_on3 key a b c = Seq.min_on key a (Seq.min_on key b c)
 
--- * pitch
+-- | Convert 'Pitch'es back to symbolic form.
+pitch_to_symbolic :: Scale -> [Either Error (Time, T.Note (Maybe Pitch) dur)]
+    -> [Either Error (Time, T.Note (Maybe Text) dur)]
+pitch_to_symbolic scale = map to_sym
+    where
+    to_sym (Left e) = Left e
+    to_sym (Right (t, note)) = do
+        sym <- case T.note_pitch note of
+            Nothing -> return Nothing
+            Just pitch -> Just <$> tryJust
+                (Error t ("bad pc: " <> showt (T.note_pitch note)))
+                (scale_unparse scale pitch)
+        return (t, note { T.note_pitch = sym })
 
-sargam :: Scale
-sargam = Scale
-    { scale_parse = (`List.elemIndex` degrees)
+-- ** scale
+
+scale_map :: Map Text Scale
+scale_map = Map.fromList
+    [ ("sargam", scale_sargam)
+    , ("ioeau", scale_ioeua)
+    ]
+
+scale_sargam :: Scale
+scale_sargam = Scale
+    { scale_degrees = degrees
     , scale_per_octave = 8
     , scale_initial_octave = 4
-    } where degrees = map Text.singleton "srgmpdn"
+    } where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
 
-ioeua :: Scale
-ioeua = Scale
-    { scale_parse = (`List.elemIndex` degrees)
+scale_ioeua :: Scale
+scale_ioeua = Scale
+    { scale_degrees = degrees
     , scale_per_octave = 5
     , scale_initial_octave = 4
-    } where degrees = map Text.singleton "ioeua"
+    } where degrees = Vector.fromList $ map Text.singleton "ioeua"
 
 pitch_diff :: PitchClass -> Pitch -> Pitch -> PitchClass
 pitch_diff per_octave (Pitch oct1 pc1) (Pitch oct2 pc2) = oct_diff + pc1 - pc2
     where oct_diff = per_octave * (oct1 - oct2)
+
+
+-- * parsing
+
+pitch_to_call :: [T.Token T.Pitch T.Duration] -> [T.Token T.Pitch T.Duration]
+pitch_to_call = Identity.runIdentity . mapM (T.map_note (return . to_call))
+    where
+    to_call note
+        | T.note_call note == T.Call "" = note
+            { T.note_call = T.Call $ Parse.unparse (T.note_pitch note)
+            , T.note_pitch = Parse.empty_pitch
+            }
+        | otherwise = note
 
 
 -- * util

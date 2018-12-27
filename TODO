@@ -6,7 +6,7 @@ LEGEND
 STATUS
   . synth: status:
   . infer gender damping:
-  . tscore:
+  . text score:
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -4316,7 +4316,10 @@ Derive:
           . Perf.infer_instrument, uses EnvKey.instrument
         . I need it to be in PlayC.get_im_instrument_tracks so it gets grayed.
         . Then Perf.tracks_of_instrument needs to map >ra-i to >ra.
-        . Why not use TrackId directly?
+        . Why not use TrackId directly?  The whole thing of using instrument
+          seems problematic.
+        . Or at least establish an explicit Instrument -> [TrackId] mapping
+          based on the actual events.
       infer gender damping:
         . Also don't damp repeated pitches.
           . Though with rambat this might have the effect of always choosing
@@ -4695,7 +4698,10 @@ text score:
       . I could use : to separate tracks if I want to use ; for Barline 0.
       . Or // or even just /?  / is already used to separate calls, so //.
         Of course I don't expect to see / by itself...
-    - directives: rhythm=additive, default-call
+    - some way to do logical sequence
+      . I could use + duration, but then I need some way to get it before
+        doing barline check.
+    - directives: dur={add,mul}, default-call
       . For default-call I can almost do it as a postproc, except that
         I can't use numbers, or anything that doesn't parse as a pitch.
       . Otherwise I'll need a ReaderT for parse config.
@@ -4704,7 +4710,7 @@ text score:
       . This will likely conflict with call/pitch syntax.
       . I could use dot.
   rhythm check:
-    - I'll need a Directive for meter
+    * I'll need a Directive for meter
     * combine ties
     * check for additive
     * check for multiplicative

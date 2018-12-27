@@ -14,22 +14,33 @@ import           Global
 import           Util.Test
 
 
-test_pipeline = do
-    let f = map extract . Check.pipeline Check.sargam Check.meter_44 . parse
-        extract = fmap $ unpitch . T.note_pitch . snd
-        unpitch (Check.Pitch o pc) = (o, pc)
+test_process = do
+    let f = map extract . Check.process config . parse
+        config = Check.default_config
+        extract = fmap $ fromMaybe "" . T.note_pitch . snd
     -- TODO resolve_pitch happens before resolve_time
     -- equal (f "4s ~") [Right (4, 0)]
 
-    equal (f "4s r g") [Right (4, 0), Right (4, 1), Right (4, 2)]
-    equal (f "4n s") [Right (4, 6), Right (5, 0)]
-    equal (f "4s n") [Right (4, 0), Right (3, 6)]
+    equal (f "4s r g") [Right "4s", Right "4r", Right "4g"]
+    equal (f "4n s") [Right "4n", Right "5s"]
+    equal (f "4s n") [Right "4s", Right "3n"]
     -- mid-point goes down.
-    equal (f "4p s") [Right (4, 4), Right (4, 0)]
-    equal (f "4n ,s") [Right (4, 6), Right (4, 0)]
-    equal (f "4s 'n") [Right (4, 0), Right (4, 6)]
-    equal (f "4s 's") [Right (4, 0), Right (5, 0)]
-    equal (f "4s ,s") [Right (4, 0), Right (3, 0)]
+    equal (f "4p s") [Right "4p", Right "4s"]
+    equal (f "4n ,s") [Right "4n", Right "4s"]
+    equal (f "4s 'n") [Right "4s", Right "4n"]
+    equal (f "4s 's") [Right "4s", Right "5s"]
+    equal (f "4s ,s") [Right "4s", Right "3s"]
+
+test_default_call = do
+    let f = map (fmap snd) . Check.process config . parse
+        config = Check.default_config { Check.config_default_call = True }
+        note call pitch = T.Note (T.Call call) pitch 1
+    equal (f "a b") [Right (note "a" Nothing), Right (note "b" Nothing)]
+    equal (f "a/s c")
+        [ Right (note "a" (Just "4s"))
+        , Right (note "c" (Just "4s"))
+        ]
+    equal (f "4a2") [Right (note "4a" Nothing) { T.note_duration = 1/2 }]
 
 test_resolve_time = do
     let f = map extract . Check.resolve_time . map Right
