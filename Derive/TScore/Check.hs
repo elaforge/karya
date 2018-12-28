@@ -3,11 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
--- deriving (Real) for Time emits this warning.
-{-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
-    Time(..), Error(..), Config(..), default_config
+    Error(..), Config(..), default_config
     , parse_directives, process
     , Pitch(..), PitchClass, Octave
     , Meter(..)
@@ -19,7 +17,6 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
@@ -33,15 +30,11 @@ import qualified Derive.TScore.T as T
 import           Global
 
 
--- | This is the default "beat".
-newtype Time = Time Ratio.Rational
-    deriving (Ord, Eq, Num, Enum, Real, Fractional, RealFrac, Pretty)
-
-instance Show Time where
-    show (Time t) = prettys t
-
-data Error = Error !Time !Text
+data Error = Error !T.Time !Text
     deriving (Eq, Show)
+
+instance Pretty Error where
+    pretty (Error t msg) = pretty t <> ": " <> msg
 
 show_error :: Meter -> Error -> Text
 show_error meter (Error t msg) =
@@ -89,7 +82,7 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 -- * process
 
 process :: Config -> [T.Token T.Pitch T.Duration]
-    -> [Either Error (Time, T.Note (Maybe Text) Time)]
+    -> [Either Error (T.Time, T.Note (Maybe Text) T.Time)]
 process (Config default_call meter scale duration) =
     pitch_to_symbolic scale . resolve_pitch scale . resolve_time
     . barlines meter . duration_mode duration
@@ -109,12 +102,12 @@ data Meter = Meter {
     -- 4/4: [1, 0, 0, 0]
     -- > | ssss ; rrrr ; gggg ; mmmm |
     meter_pattern :: [T.Rank]
-    , meter_step :: !Time
+    , meter_step :: !T.Time
     -- | If true, beats fall at the end of measures.
     , meter_negative :: !Bool
     } deriving (Eq, Show)
 
-meter_duration :: Meter -> Time
+meter_duration :: Meter -> T.Time
 meter_duration m = meter_step m * fromIntegral (length (meter_pattern m))
 
 meter_map :: Map Text Meter
@@ -143,8 +136,8 @@ meter_44 = Meter
 
 -- | Remove TBarline and TRest, add start times, and resolve ties.
 resolve_time :: (Eq pitch, Parse.Element pitch)
-    => [Either Error (T.Token pitch (Time, Bool))]
-    -> [Either Error (Time, T.Note pitch Time)]
+    => [Either Error (T.Token pitch (T.Time, Bool))]
+    -> [Either Error (T.Time, T.Note pitch T.Time)]
 resolve_time tokens = go . zip starts $ tokens
     where
     starts = scanl (\n -> (n+) . either (const 0) duration_of) 0 tokens
@@ -161,7 +154,7 @@ resolve_time tokens = go . zip starts $ tokens
             | is_tied t -> case tied_rests (sndRights pre) of
                 Just err -> Left err : go post
                 Nothing -> go post
-            | otherwise -> go post
+            | otherwise -> go ts
         where
         (pre, post) = Then.span any_tied (splitAt 1) ts
         any_tied (_, Left {}) = True
@@ -174,9 +167,9 @@ resolve_time tokens = go . zip starts $ tokens
     sndRights abs = [(a, b) | (a, Right b) <- abs]
 
 tied_notes :: (Eq pitch, Parse.Element pitch)
-    => Time -> T.Note pitch (Time, Bool)
-    -> [(Time, T.Token pitch (Time, Bool))]
-    -> Either Error Time
+    => T.Time -> T.Note pitch (T.Time, Bool)
+    -> [(T.Time, T.Token pitch (T.Time, Bool))]
+    -> Either Error T.Time
 tied_notes start note tied = case others of
     [] -> case Seq.last matches of
         -- Nothing -> Right $ start + dur_of note
@@ -197,7 +190,7 @@ tied_notes start note tied = case others of
     match (_, T.TBarline {}) = Just []
     match _ = Nothing
 
-tied_rests :: [(Time, T.Token pitch (Time, Bool))] -> Maybe Error
+tied_rests :: [(T.Time, T.Token pitch (T.Time, Bool))] -> Maybe Error
 tied_rests = fmap format . List.find (not . matches . snd)
     where
     format (start, token) =
@@ -212,8 +205,8 @@ is_tied _ = False
 
 -- ** barlines
 
-barlines :: Meter -> [T.Token pitch (Time, tie)]
-    -> [Either Error (T.Token pitch (Time, tie))]
+barlines :: Meter -> [T.Token pitch (T.Time, tie)]
+    -> [Either Error (T.Token pitch (T.Time, tie))]
 barlines meter = concat . snd . List.mapAccumL token 0 . zip [0..]
     where
     token now (i, token) = (now + dur, Right token : warning)
@@ -235,14 +228,14 @@ barlines meter = concat . snd . List.mapAccumL token 0 . zip [0..]
     cycle_dur = meter_duration meter
     expected_rank = Map.fromList $ zip (Seq.range_ 0 (meter_step meter))
         (meter_pattern meter)
-    warn :: Int -> Time -> Text -> Error
+    warn :: Int -> T.Time -> Text -> Error
     warn i now msg = Error now ("token " <> showt i <> ": " <> msg)
 
-show_time :: Time -> Time -> Text
+show_time :: T.Time -> T.Time -> Text
 show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat
     where (cycle, beat) = t `Num.fDivMod` cycle_dur
 
-duration_of :: T.Token pitch (Time, tie) -> Time
+duration_of :: T.Token pitch (T.Time, tie) -> T.Time
 duration_of = \case
     T.TBarline _ -> 0
     T.TNote note -> fst (T.note_duration note)
@@ -260,31 +253,31 @@ data DurationMode = Multiplicative | Additive
     deriving (Eq, Show)
 
 duration_mode :: DurationMode -> [T.Token pitch T.Duration]
-    -> [T.Token pitch (Time, Bool)]
+    -> [T.Token pitch (T.Time, Bool)]
 duration_mode = \case
     Multiplicative -> multiplicative
     Additive -> additive
 
 -- | Each number is the inverse of the number of beats, so 2 is 1/2, 8 is 1/8
 -- etc.
-multiplicative :: [T.Token pitch T.Duration] -> [T.Token pitch (Time, Bool)]
+multiplicative :: [T.Token pitch T.Duration] -> [T.Token pitch (T.Time, Bool)]
 multiplicative = run . mapM (T.map_duration convert)
     where
     run = fst . flip State.runState 1
     convert (T.Duration intDur dots tie) = do
         intDur <- carry_duration intDur
-        let dur = Time (1 / fromIntegral intDur)
+        let dur = T.Time (1 / fromIntegral intDur)
         let dotDur = sum $ take dots $ drop 1 $ iterate (/2) dur
         return (dur + dotDur, tie)
 
 -- | Each number is just the number of Time beats.
-additive :: [T.Token pitch T.Duration] -> [T.Token pitch (Time, Bool)]
+additive :: [T.Token pitch T.Duration] -> [T.Token pitch (T.Time, Bool)]
 additive = run . mapM (T.map_duration convert)
     where
     run = fst . flip State.runState 1
     convert (T.Duration intDur dots tie) = do
         intDur <- carry_duration intDur
-        let dur = Time (fromIntegral intDur)
+        let dur = T.Time (fromIntegral intDur)
         let dotDur = sum $ take dots $ drop 1 $ iterate (/2) dur
         return (dur + dotDur, tie)
 
@@ -318,14 +311,14 @@ type PitchClass = Int
 type Octave = Int
 
 resolve_pitch :: Scale
-    -> [Either Error (Time, T.Note T.Pitch dur)]
-    -> [Either Error (Time, T.Note (Maybe Pitch) dur)]
+    -> [Either Error (T.Time, T.Note T.Pitch dur)]
+    -> [Either Error (T.Time, T.Note (Maybe Pitch) dur)]
 resolve_pitch scale@(Scale _ per_octave initial_octave) =
     infer_octaves per_octave initial_octave . parse_pitch (scale_parse scale)
 
 parse_pitch :: (Text -> Maybe pitch)
-    -> [Either Error (Time, T.Note T.Pitch dur)]
-    -> [Either Error (Time, T.Note (Maybe (T.Octave, pitch)) dur)]
+    -> [Either Error (T.Time, T.Note T.Pitch dur)]
+    -> [Either Error (T.Time, T.Note (Maybe (T.Octave, pitch)) dur)]
 parse_pitch parse = snd . mapRightE token Nothing
     where
     token maybe_prev (start, note)
@@ -371,8 +364,8 @@ infer_octaves per_octave initial_oct =
     min_on3 key a b c = Seq.min_on key a (Seq.min_on key b c)
 
 -- | Convert 'Pitch'es back to symbolic form.
-pitch_to_symbolic :: Scale -> [Either Error (Time, T.Note (Maybe Pitch) dur)]
-    -> [Either Error (Time, T.Note (Maybe Text) dur)]
+pitch_to_symbolic :: Scale -> [Either Error (T.Time, T.Note (Maybe Pitch) dur)]
+    -> [Either Error (T.Time, T.Note (Maybe Text) dur)]
 pitch_to_symbolic scale = map to_sym
     where
     to_sym (Left e) = Left e

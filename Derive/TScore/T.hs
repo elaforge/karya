@@ -2,12 +2,24 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- deriving (Real) for Time emits this warning.
+{-# OPTIONS_GHC -fno-warn-identities #-}
 -- | Shared types for TScore.
 module Derive.TScore.T where
+import qualified Data.Ratio as Ratio
+import qualified Data.String as String
+
 import qualified Ui.Id as Id
 
 import           Global
 
+
+-- | This is the default "beat".
+newtype Time = Time Ratio.Rational
+    deriving (Ord, Eq, Num, Enum, Real, Fractional, RealFrac, Pretty)
+
+instance Show Time where
+    show (Time t) = prettys t
 
 -- * Score
 
@@ -84,8 +96,11 @@ data Note pitch dur = Note {
     , note_duration :: !dur
     } deriving (Eq, Show)
 
+instance (Pretty pitch, Pretty dur) => Pretty (Note pitch dur) where
+    pretty (Note call pitch dur) = pretty (call, pitch, dur)
+
 newtype Call = Call Text
-    deriving (Eq, Show)
+    deriving (Eq, Show, Pretty, String.IsString)
 
 newtype Rest dur = Rest dur
     deriving (Eq, Show)

@@ -6,11 +6,13 @@ module Cmd.Factor_test where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Factor as Factor
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_selection_alts = do
@@ -18,11 +20,12 @@ test_selection_alts = do
             CmdTest.set_sel 1 1 1 3
             Factor.selection_alts relative 3 (UiTest.mkid "sub")
         tracks = UiTest.regular_notes 4
+    let get_block = Seq.head <=< UiTest.extract_block_id UiTest.default_block_id
+            . CmdTest.result_ui_state
     let result = run True
     equal (CmdTest.result_val result)
         (Right $ Just $ map UiTest.bid ["b1-sub1", "b1-sub2", "b1-sub3"])
-    let blocks = UiTest.extract_block_ids (CmdTest.result_ui_state result)
-    equal (Seq.head =<< lookup UiTest.default_block_id blocks)
+    equal (get_block result)
         (Just (">", [(0, 1, ""), (1, 2, "alt -sub1 -sub2 -sub3"), (3, 1, "")]))
     equal (Map.keys (Ui.state_views (CmdTest.result_ui_state result)))
         (map UiTest.vid ["b1-sub1.v1", "b1-sub2.v1", "b1-sub3.v1", "v.b1"])
@@ -30,8 +33,7 @@ test_selection_alts = do
     let result = run False
     equal (CmdTest.result_val result)
         (Right $ Just $ map UiTest.bid ["sub1", "sub2", "sub3"])
-    let blocks = UiTest.extract_block_ids (CmdTest.result_ui_state result)
-    equal (Seq.head =<< lookup UiTest.default_block_id blocks)
+    equal (get_block result)
         (Just (">", [(0, 1, ""), (1, 2, "alt sub1 sub2 sub3"), (3, 1, "")]))
 
 test_selection = do

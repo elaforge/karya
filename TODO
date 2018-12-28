@@ -4644,9 +4644,13 @@ text score:
   . doc/dev_notes/text-score.md
   status:
     * implement basic pipeline
-    - parse directives, give them to Check
-    - convert Check output to Deriver that makes a score
+    * parse directives, give them to Check
+    * convert Check output to Deriver that makes a score
+    - implement integrate
+      . look at Solkattu/Play.hs, use common infrastructure
+      . Also where did the solkattu integrate from dsl go?  LSol?
   parsing:
+    - attach SourcePos to parsed types, so errors can use it
     * "call | with | spaces"
       . This goes on TNote.
       . E.g.: {+pizz | %dyn=.5}/4c1
@@ -4701,14 +4705,15 @@ text score:
     - some way to do logical sequence
       . I could use + duration, but then I need some way to get it before
         doing barline check.
-    - directives: dur={add,mul}, default-call
+    * directives: dur={add,mul}, default-call
       . For default-call I can almost do it as a postproc, except that
         I can't use numbers, or anything that doesn't parse as a pitch.
       . Otherwise I'll need a ReaderT for parse config.
     - directive for basic pulse/matra?
     - fractional duration, e.g. 2/1
       . This will likely conflict with call/pitch syntax.
-      . I could use dot.
+      . I could use dot... except duration already uses dot.  Maybe : by
+        analogy to bars:beats or ratios?
   rhythm check:
     * I'll need a Directive for meter
     * combine ties

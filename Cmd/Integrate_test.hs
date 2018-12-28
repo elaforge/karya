@@ -38,7 +38,7 @@ test_block_integrate = do
     res <- start states $ UiTest.insert_event 1 (1, 1, "")
     -- create a new block, integrate b1 to b2
     equal (e_tracks res)
-        [ ("b1",
+        [ ("b1 -- << | reverse",
             [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4d")])
             ])

@@ -114,6 +114,8 @@ instance Element (T.Token T.Pitch T.Duration) where
     unparse (T.TNote note) = unparse note
     unparse (T.TRest rest) = unparse rest
 
+instance Pretty (T.Token T.Pitch T.Duration) where pretty = unparse
+
 p_tokens :: Parser [T.Token T.Pitch T.Duration]
 p_tokens = P.some (lexeme parse)
 
@@ -125,6 +127,8 @@ instance Element T.Barline where
             <|> (P.char ';' *> pure 0))
     unparse (T.Barline 0) = ";"
     unparse (T.Barline n) = Text.replicate n "|"
+
+instance Pretty T.Barline where pretty = unparse
 
 -- ** Note
 

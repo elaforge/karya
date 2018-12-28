@@ -17,6 +17,17 @@ import           Util.Test
 test_process = do
     let f = map extract . Check.process config . parse
         config = Check.default_config
+        extract = fmap $ second
+            (\n -> (T.note_call n, T.note_pitch n, T.note_duration n))
+    equal (f "_ 4s") [Right (1, ("", Just "4s", 1))]
+    equal (f "na/ _ din/")
+        [ Right (0, ("na", Nothing, 1))
+        , Right (2, ("din", Nothing, 1))
+        ]
+
+test_resolve_pitch = do
+    let f = map extract . Check.process config . parse
+        config = Check.default_config
         extract = fmap $ fromMaybe "" . T.note_pitch . snd
     -- TODO resolve_pitch happens before resolve_time
     -- equal (f "4s ~") [Right (4, 0)]

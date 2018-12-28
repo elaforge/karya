@@ -449,6 +449,42 @@ add_pitches = go ""
 
 -- * state to spec
 
+-- | Get the names and tracks of the default block.
+extract_tracks :: Ui.State -> [TrackSpec]
+extract_tracks = extract_tracks_of default_block_id
+
+extract_blocks :: Ui.State -> [BlockSpec]
+extract_blocks state =
+    [ (TextUtil.joinWith " -- " (Id.ident_name bid) title, tracks)
+    | (bid, title, tracks) <- extract_block_ids state
+    ]
+
+extract_block_id :: BlockId -> Ui.State -> Maybe [TrackSpec]
+extract_block_id block_id state = Seq.head
+    [block | (bid, _, block) <- extract_block_ids state, bid == block_id]
+
+extract_block_ids :: Ui.State -> [(BlockId, Text, [TrackSpec])]
+extract_block_ids state =
+    [ (block_id, Block.block_title block, extract_tracks_of block_id state)
+    | (block_id, block) <- Map.toList (Ui.state_blocks state)
+    ]
+
+extract_skeleton :: Ui.State -> [(TrackNum, TrackNum)]
+extract_skeleton = maybe [] (Skeleton.flatten . Block.block_skeleton)
+    . Map.lookup default_block_id . Ui.state_blocks
+
+extract_track_ids :: Ui.State -> [(BlockId, [TrackId])]
+extract_track_ids state =
+    [(block_id, tracks_of block) | (block_id, block)
+        <- Map.toList (Ui.state_blocks state)]
+    where
+    tracks_of = Block.track_ids_of . map Block.tracklike_id . Block.block_tracks
+
+-- | Like 'dump_block' but strip out everything but the tracks.
+extract_tracks_of :: BlockId -> Ui.State -> [TrackSpec]
+extract_tracks_of block_id state = tracks
+    where ((_, tracks), _) = dump_block block_id state
+
 dump_blocks :: Ui.State -> [(BlockId, (BlockSpec, [Skeleton.Edge]))]
 dump_blocks state = zip block_ids (map (flip dump_block state) block_ids)
     where block_ids = Map.keys (Ui.state_blocks state)
@@ -463,34 +499,6 @@ dump_block block_id state =
     dump_track (_, title, events) = (title, map convert events)
     convert (start, dur, text) =
         (ScoreTime.from_double start, ScoreTime.from_double dur, text)
-
--- | Like 'dump_block' but strip out everything but the tracks.
-extract_tracks_of :: BlockId -> Ui.State -> [TrackSpec]
-extract_tracks_of block_id state = tracks
-    where ((_, tracks), _) = dump_block block_id state
-
--- | Get the names and tracks of the default block.
-extract_tracks :: Ui.State -> [TrackSpec]
-extract_tracks = extract_tracks_of default_block_id
-
-extract_blocks :: Ui.State -> [BlockSpec]
-extract_blocks = map (first Id.ident_name) . extract_block_ids
-
-extract_block_ids :: Ui.State -> [(BlockId, [TrackSpec])]
-extract_block_ids state =
-    zip block_ids (map (flip extract_tracks_of state) block_ids)
-    where block_ids = Map.keys (Ui.state_blocks state)
-
-extract_skeleton :: Ui.State -> [(TrackNum, TrackNum)]
-extract_skeleton = maybe [] (Skeleton.flatten . Block.block_skeleton)
-    . Map.lookup default_block_id . Ui.state_blocks
-
-extract_track_ids :: Ui.State -> [(BlockId, [TrackId])]
-extract_track_ids state =
-    [(block_id, tracks_of block) | (block_id, block)
-        <- Map.toList (Ui.state_blocks state)]
-    where
-    tracks_of = Block.track_ids_of . map Block.tracklike_id . Block.block_tracks
 
 -- * view
 

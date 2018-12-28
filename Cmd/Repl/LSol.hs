@@ -177,7 +177,7 @@ module_to_fname :: Text -> FilePath
 module_to_fname = untxt . (<>".hs") . Text.replace "." "/"
 
 -- | This can be called manually to reintegrate after a change, but is also
--- called automatically be 'edit'.
+-- called automatically by 'edit'.
 reintegrate :: Ui.M m => Block.SourceKey -> m ()
 reintegrate key = do
     (korvai, index, inst) <- Ui.require ("no korvai for " <> showt key) $
@@ -233,8 +233,6 @@ integrate_track korvai index instrument = do
         Just [Block.empty_destination track_id]
     reintegrate key
     return key
-
--- data NoteTrack = NoteTrack Events.Events Controls
 
 korvai_key :: Korvai.Korvai -> Index -> Text -> Maybe Block.SourceKey
 korvai_key korvai index instrument = do
