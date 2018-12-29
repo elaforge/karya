@@ -82,7 +82,7 @@ instance Element Id.BlockId where
     unparse = Id.show_short default_namespace . Id.unpack_id
 
 default_namespace :: Id.Namespace
-default_namespace = Id.namespace "ns"
+default_namespace = Id.namespace "tscore"
 
 instance Element T.Tracks where
     parse = fmap T.Tracks $

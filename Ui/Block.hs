@@ -137,7 +137,10 @@ type ScoreDestinations = [(TrackId, (TrackId, EventIndex))]
 -- can have destinations on multiple tracks within the block.
 type ManualDestinations = Map SourceKey [NoteDestination]
 
--- | Arbitrary text used to identify the source of this integration.
+-- | Arbitrary text used to identify the source of this integration.  Unlike
+-- automatic integrations, which come from another block or track, a manual
+-- integration can bring in events from anywhere, so it needs a unique key
+-- to identify the source.
 type SourceKey = Text
 
 instance Pretty TrackDestinations where

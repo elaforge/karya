@@ -9,8 +9,8 @@ import qualified Ui.UiTest as UiTest
 import           Util.Test
 
 
-test_score = do
-    let f = fmap UiTest.extract_blocks . TScore.score
+test_ui_state = do
+    let f = fmap UiTest.extract_blocks . TScore.ui_state
     right_equal (f "top = \"block title\" [s r g]")
         [ ( "top -- block title"
           , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])

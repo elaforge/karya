@@ -641,6 +641,8 @@ modify_block_meta :: M m => BlockId -> (Block.Meta -> Block.Meta) -> m ()
 modify_block_meta block_id f = modify_block block_id $ \block ->
     block { Block.block_meta = f (Block.block_meta block) }
 
+-- | Set or clear this block as an integrate destination.  The automatic
+-- integration system will update it from the given source block.
 set_integrated_block :: M m => BlockId
     -> Maybe (BlockId, Block.TrackDestinations) -> m ()
 set_integrated_block block_id integrated = do
@@ -660,9 +662,12 @@ modify_integrated_tracks block_id modify = do
     block <- get_block block_id
     validate "modify_integrated_tracks" (fix_integrated_tracks block_id block)
 
+-- | Set or clear the block's manual integration 'Block.NoteDestination's.
+-- This just attaches (or removes) the integrate information to the block so
+-- a future integration can use it to merge, and then call this function again.
 set_integrated_manual :: M m => BlockId -> Block.SourceKey
     -> Maybe [Block.NoteDestination] -> m ()
-set_integrated_manual block_id key dests = do
+set_integrated_manual block_id key dests =
     modify_block block_id $ \block -> block
         { Block.block_integrated_manual =
             maybe (Map.delete key) (Map.insert key) dests

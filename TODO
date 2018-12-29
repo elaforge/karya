@@ -25,6 +25,11 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - track integration should possibly be indexed by TrackId, so I don't have
+    the possibility of overlapping ones.
+    . I also want to be able to match on TrackId for the manual integration
+      in TScore.  I should refactor on the integration stuff to account for
+      all the variants in a less ad-hoc way.
   * dummy allocations should be able to get cmds and defaults from dummy insts
     . I could make a separate DummyInst like MidiInst, but it seems like
       a hassle.  Instead just have them be MIDI/Im insts, and just pull the
@@ -4640,15 +4645,35 @@ Derive:
       . Another option is to make Derivers polymorphic.  I can put the
         fields in TrackLang.Dynamic in a typeclass.
 
-text score:
+text score: tscore:
   . doc/dev_notes/text-score.md
   status:
     * implement basic pipeline
     * parse directives, give them to Check
     * convert Check output to Deriver that makes a score
-    - implement integrate
+    * implement integrate
       . look at Solkattu/Play.hs, use common infrastructure
       . Also where did the solkattu integrate from dsl go?  LSol?
+      . Ui.set_integrated_manual block_id key $
+            Just [Block.empty_destination track_id]
+      . This creates whole blocks, not just tracks.
+      . For each TrackId, if it exists, merge, otherwise make empty
+        destinations and merge.
+      . I actually don't need SourceKey, since I have BlockIds and TrackIds
+        already.
+      . For each track, get its manual destinations.  Create empty ones that
+        don't exist, and delete ones that are extra.  Then do
+        Merge.merge_tracks block_id [(note, controls)] [dest]
+      . This is actually a block integrate, so it feels repetetive, should I
+        just reimplement it, or try to reuse the block integrate?
+      . Reimplement, because it's easier than the usual block integrate, since
+        I have exact TrackIds.
+      . Well... unless I want to keep diffs even after adding a track in the
+        center.  But then I'll need way to keep track of track identity.
+        Never mind for now.
+      . Same diff thing for BlockIds.
+    - add Cmd.Repl.LTScore with 'edit' function to do the editor thing.
+
   parsing:
     - attach SourcePos to parsed types, so errors can use it
     * "call | with | spaces"

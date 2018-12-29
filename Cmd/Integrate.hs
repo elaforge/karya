@@ -244,8 +244,9 @@ needs_track_score_integrate updates state = Seq.unique $
 --
 -- If you are creating a new track, you need to have already done that and put
 -- an empty destination in it.
-manual_integrate :: Ui.M m => Block.SourceKey -> Convert.Track
-    -> [Convert.Track] -> m ()
+manual_integrate :: Ui.M m => Block.SourceKey -> Convert.Track -- ^ note track
+    -> [Convert.Track] -- ^ dependent control tracks
+    -> m ()
 manual_integrate key note controls = do
     block_dests <- manual_destinations key . Map.toList <$>
         Ui.gets Ui.state_blocks
