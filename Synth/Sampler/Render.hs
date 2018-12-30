@@ -33,21 +33,23 @@ import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Lib.Global
+import qualified Ui.Id as Id
+
+import           Global
+import           Synth.Lib.Global
 
 
 type Error = Text
 
-write :: Resample.Quality -> FilePath -> [Sample.Note]
+write :: Resample.Quality -> FilePath -> Set Id.TrackId -> [Sample.Note]
     -> IO (Either Error (Int, Int))
 write = write_ Config.checkpointSize
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
 -- repeated parts.
-write_ :: Audio.Frame -> Resample.Quality -> FilePath -> [Sample.Note]
-    -> IO (Either Error (Int, Int))
-write_ chunkSize quality outputDir notes = catch $ do
+write_ :: Audio.Frame -> Resample.Quality -> FilePath -> Set Id.TrackId
+    -> [Sample.Note] -> IO (Either Error (Int, Int))
+write_ chunkSize quality outputDir trackIds notes = catch $ do
     -- Debug.tracepM "notes" (map eNote notes)
     -- Debug.tracepM "overlap" $ map (map snd) $
     --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
@@ -71,7 +73,7 @@ write_ chunkSize quality outputDir notes = catch $ do
             Checkpoint.write outputDir (length skipped) chunkSize hashes
                     stateRef $
                 render outputDir chunkSize quality initialStates notifyState
-                    notes (AUtil.toFrame start)
+                    trackIds notes (AUtil.toFrame start)
     where
     catch io = Exception.catches io
         [ Exception.Handler $ \(Audio.Exception err) -> return $ Left err
@@ -111,9 +113,9 @@ prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
 
 render :: FilePath -> Audio.Frame -> Resample.Quality
     -> [Maybe State] -> (Checkpoint.State -> IO ())
-    -> [Sample.Note] -> Audio.Frame -> Audio
-render outputDir chunkSize quality initialStates notifyState notes start =
-        Audio.Audio $ do
+    -> Set Id.TrackId -> [Sample.Note] -> Audio.Frame -> Audio
+render outputDir chunkSize quality initialStates notifyState trackIds notes
+        start = Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing
     -- samples.
     let (overlappingStart, overlappingChunk, futureNotes) =
@@ -175,9 +177,11 @@ render outputDir chunkSize quality initialStates notifyState notes start =
         | otherwise = chunk
         where delta = chunkSize - AUtil.chunkFrames2 chunk
 
-    progress now playing starting = liftIO $ Config.emitProgress outputDir
-        (AUtil.toSeconds now) (AUtil.toSeconds (now + chunkSize))
-        ("voices:" <> showt (length playing) <> "+" <> showt (length starting))
+    progress now playing starting = liftIO $
+        Config.emitProgress outputDir trackIds
+            (AUtil.toSeconds now) (AUtil.toSeconds (now + chunkSize))
+            ("voices:" <> showt (length playing) <> "+"
+                <> showt (length starting))
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
 pull :: Audio.Frame -> [Playing]

@@ -6,7 +6,7 @@ module Derive.Stack (
     Stack, empty, length, from_outermost, from_innermost
     , block, call, add, member, outermost, innermost
     , block_of, track_of, region_of, call_of
-    , block_track_of, block_track_region_of
+    , block_track_of, block_tracks_of, block_track_region_of
     , match
     , Frame(..), Serial
     , format_ui, pretty_ui, pretty_ui_, pretty_ui_inner
@@ -127,6 +127,16 @@ block_track_of = find . innermost
         (track_id, frames) <- find_rest track_of frames
         (block_id, _) <- find_rest block_of frames
         return (block_id, track_id)
+
+-- | Get each block and the tracks under it, starting from the innermost.
+block_tracks_of :: Stack -> [(BlockId, [TrackId])]
+block_tracks_of = go [] . innermost
+    where
+    go track_ids (frame : frames) = case frame of
+        Track track_id -> go (track_id : track_ids) frames
+        Block block_id -> (block_id, track_ids) : go [] frames
+        _ -> go track_ids frames
+    go _ [] = []
 
 -- | Walk up the stack to discover the innermost Region, TrackId, then BlockId.
 block_track_region_of :: Stack

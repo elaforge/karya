@@ -1394,6 +1394,30 @@ synth: im:
       . It thinks it's RAW, but it's not, maybe I have to fill in SF_INFO
         first.
   progress:
+    * progress doesn't work for derived instruments
+      . Because it's for >ra-i and >ra-u, but I just have >ra.
+        . Perf.infer_instrument, uses EnvKey.instrument
+      . I need it to be in PlayC.get_im_instrument_tracks so it gets grayed.
+      . Then Perf.tracks_of_instrument needs to map >ra-i to >ra.
+      . Why not use TrackId directly?  The whole thing of using instrument
+        seems problematic.
+      . Or at least establish an explicit Instrument -> [TrackId] mapping
+        based on the actual events.
+      . But am I sure TrackId is enough?  Which one?  It will be paired with
+        RealTime, and then I only use it for the toplevel derivation.  So
+        I think I take the toplevel TrackId.
+      . Then many instruments could have that, so do I need multiple colors?
+        I think I want to make white be the max done, pink be min to max of
+        everyone in progress for that track.
+      . Since there's only one progress per synth run, can't I pass it as an
+        argument?
+      . Wait, that's not true.  The instrument comes from the serialized
+        notes.
+      . The top track is always the tempo track, which is not what I want.
+        But I don't want the bottom either, because it might not be on the
+        right block.  What I want is the bottom track on the block being
+        rendered.
+    - Should I use Config.busy_color?  It's the box color for Msg.Deriving.
     * show where an error occured
       . There will be a Error level log msg, and progress won't complete.
       . So I need to check for one of those, forward to the karya log,
@@ -4316,15 +4340,6 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      - progress doesn't work for derived instruments
-        . Because it's for >ra-i and >ra-u, but I just have >ra.
-          . Perf.infer_instrument, uses EnvKey.instrument
-        . I need it to be in PlayC.get_im_instrument_tracks so it gets grayed.
-        . Then Perf.tracks_of_instrument needs to map >ra-i to >ra.
-        . Why not use TrackId directly?  The whole thing of using instrument
-          seems problematic.
-        . Or at least establish an explicit Instrument -> [TrackId] mapping
-          based on the actual events.
       infer gender damping:
         . Also don't damp repeated pitches.
           . Though with rambat this might have the effect of always choosing
@@ -4654,8 +4669,6 @@ text score: tscore:
     * implement integrate
       . look at Solkattu/Play.hs, use common infrastructure
       . Also where did the solkattu integrate from dsl go?  LSol?
-      . Ui.set_integrated_manual block_id key $
-            Just [Block.empty_destination track_id]
       . This creates whole blocks, not just tracks.
       . For each TrackId, if it exists, merge, otherwise make empty
         destinations and merge.

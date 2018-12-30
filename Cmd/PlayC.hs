@@ -125,12 +125,12 @@ handle_im_status ui_chan block_id = \case
         complete_im_progress ui_chan block_id
         -- If it failed, leave the the progress highlight in place, to indicate
         -- where it crashed.
-    Msg.ImStatus (Msg.ImProgress progress_block instrument start end)
+    Msg.ImStatus (Msg.ImProgress progress_block track_ids start end)
         -- Only display progress for each block as its own toplevel.
         -- If a block is child of another, I can see its prorgess in
         -- its parent.
         | progress_block == block_id ->
-            set_im_progress ui_chan block_id instrument start end
+            set_im_progress ui_chan block_id track_ids start end
     _ -> return ()
 
 start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
@@ -155,17 +155,16 @@ complete_im_progress ui_chan block_id = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     liftIO $ Sync.clear_im_progress ui_chan view_ids
 
-set_im_progress :: Fltk.Channel -> BlockId -> Score.Instrument -> RealTime
+set_im_progress :: Fltk.Channel -> BlockId -> Set TrackId -> RealTime
     -> RealTime -> Cmd.CmdT IO ()
-set_im_progress ui_chan block_id instrument start end = do
+set_im_progress ui_chan block_id track_ids start end = do
     sels <- resolve_tracks
-        =<< get_im_progress_selections block_id instrument start end
+        =<< get_im_progress_selections block_id track_ids start end
     liftIO $ Sync.set_im_progress ui_chan sels
 
-get_im_progress_selections :: Cmd.M m => BlockId -> Score.Instrument
+get_im_progress_selections :: Cmd.M m => BlockId -> Set TrackId
     -> RealTime -> RealTime -> m [((BlockId, TrackId), (Range, Color.Color))]
-get_im_progress_selections block_id instrument start end = do
-    track_ids <- Perf.tracks_of_instrument block_id instrument
+get_im_progress_selections block_id track_ids start end = do
     inv_tempo <- Perf.get_inverse_tempo block_id
     return $ concatMap (track_sel inv_tempo) track_ids
     where

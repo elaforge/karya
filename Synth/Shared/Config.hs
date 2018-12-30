@@ -7,10 +7,11 @@
 -- | Shared config to coordinate between the sequencer and im subsystems.
 module Synth.Shared.Config where
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
@@ -21,12 +22,11 @@ import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
 import qualified App.Path as Path
-import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.RealTime as RealTime
 import qualified Ui.Id as Id
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 #include "config.h"
 
@@ -187,50 +187,57 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 -- | Emit a progress message.  The sequencer should be able to parse these to
 -- show render status.  It shows the end of the chunk being rendered, so it can
 -- highlight the time range which is in progress.
-emitProgress :: FilePath -> RealTime -> RealTime -> Text -> IO ()
-emitProgress outputDir start end extra = do
+emitProgress :: FilePath -> Set Id.TrackId -> RealTime -> RealTime -> Text
+    -> IO ()
+emitProgress outputDir trackIds start end extra = do
     Log.notice $ Text.unwords $
-        "progress" : nsBlockInst outputDir
-        ++ [pretty start <> "--" <> pretty end, extra]
-    emitMessage outputDir "progress" [time start, time end]
+        "progress" : pathToBlockId outputDir : tracks
+        : [pretty start <> "--" <> pretty end, extra]
+    emitMessage outputDir trackIds "progress" [time start, time end]
     where
     time = showt . RealTime.to_seconds
+    tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
 
 -- | Parse the line emitted by 'progress'.
 parseProgress :: Text
-    -> Maybe (Id.BlockId, ScoreTypes.Instrument, (RealTime, RealTime))
+    -> Maybe (Id.BlockId, Set Id.TrackId, (RealTime, RealTime))
 parseProgress line = do
-    ("progress", blockId, instrument, [start, end]) <- parseMessage line
+    ("progress", blockId, trackIds, [start, end]) <- parseMessage line
     start <- time start
     end <- time end
-    return (blockId, instrument, (start, end))
+    return (blockId, trackIds, (start, end))
     where
     time = fmap RealTime.seconds . Parse.parse_maybe Parse.p_float
 
-emitFailure :: FilePath -> Text -> IO ()
-emitFailure outputDir msg = emitMessage outputDir "failure" [msg]
+emitFailure :: FilePath -> Set Id.TrackId -> Text -> IO ()
+emitFailure outputDir trackIds msg =
+    emitMessage outputDir trackIds "failure" [msg]
 
-parseFailure :: Text -> Maybe (Id.BlockId, ScoreTypes.Instrument, Text)
+parseFailure :: Text -> Maybe (Id.BlockId, Set Id.TrackId, Text)
 parseFailure line = do
-    ("failure", blockId, instrument, msg) <- parseMessage line
-    return (blockId, instrument, Text.unwords msg)
+    ("failure", blockId, trackIds, msg) <- parseMessage line
+    return (blockId, trackIds, Text.unwords msg)
 
-emitMessage :: FilePath -> Text -> [Text] -> IO ()
-emitMessage outputDir msg words = Log.with_stdio_lock $ do
-    Text.IO.putStrLn $ Text.unwords $ msg : nsBlockInst outputDir ++ words
+emitMessage :: FilePath -> Set Id.TrackId -> Text -> [Text] -> IO ()
+emitMessage outputDir trackIds msg words = Log.with_stdio_lock $ do
+    Text.IO.putStrLn $ Text.unwords $
+        msg : pathToBlockId outputDir : tracks : words
     IO.hFlush IO.stdout
+    where
+    tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
 
--- | Infer [namespace, block, instrument] from
+-- | Infer namespace/block from
 -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
-nsBlockInst :: FilePath -> [Text]
-nsBlockInst = Seq.rtake 3 . Text.splitOn "/" . txt
+pathToBlockId :: FilePath -> Text
+pathToBlockId =
+    Text.intercalate "/" . take 2 . Seq.rtake 3 . Text.splitOn "/" . txt
 
-parseMessage :: Text -> Maybe (Text, Id.BlockId, ScoreTypes.Instrument, [Text])
+parseMessage :: Text -> Maybe (Text, Id.BlockId, Set Id.TrackId, [Text])
 parseMessage line = case Text.words line of
-    msg : namespace : block : instrument : args -> Just
-        (msg
-        , Id.BlockId $ Id.id (Id.namespace namespace) block
-        , ScoreTypes.Instrument instrument
+    msg : block : tracks : args -> Just
+        ( msg
+        , Id.BlockId (Id.read_id block)
+        , Set.fromList $ map (Id.TrackId . Id.read_id) (Text.splitOn "," tracks)
         , args
         )
     _ -> Nothing

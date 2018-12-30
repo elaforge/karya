@@ -49,8 +49,8 @@ import qualified Ui.Block as Block
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
@@ -281,13 +281,13 @@ watch_subprocesses send_status procs
             return (Set.delete (cmd, args) procs, failures)
 
     progress line
-        | Just (block_id, instrument, (start, end))
+        | Just (block_id, track_ids, (start, end))
                 <- Config.parseProgress line = do
-            send_status $ Msg.ImProgress block_id instrument start end
+            send_status $ Msg.ImProgress block_id track_ids start end
             return False
-        | Just (block_id, instrument, err) <- Config.parseFailure line = do
+        | Just (block_id, track_ids, err) <- Config.parseFailure line = do
             Log.warn $ "im failure: " <> pretty block_id <> ": "
-                <> pretty instrument <> ": " <> err
+                <> pretty track_ids <> ": " <> err
             return True
         | otherwise = do
             put $ "couldn't parse: " <> line
@@ -315,17 +315,18 @@ evaluate_im config lookup_inst score_path block_id events = do
     write_notes (Just synth_name, events) = do
         case Map.lookup synth_name (Config.synths config) of
             Just synth -> do
-                let fname = Config.notesFilename (Config.imDir config)
+                let notes_file = Config.notesFilename (Config.imDir config)
                         score_path block_id synth
                     output_dir = Config.outputDirectory (Config.imDir config)
                         score_path block_id
                 -- TODO It would be better to not reach this point at all if
                 -- the block hasn't changed, but until then at least I can
                 -- skip running the binary if the notes haven't changed.
-                changed <- Im.Convert.write lookup_inst fname events
+                changed <- Im.Convert.write block_id lookup_inst notes_file
+                    events
                 let binary = Config.binary synth
                 return $ if null binary || not changed then Nothing
-                    else Just (binary, [fname, output_dir])
+                    else Just (binary, [notes_file, output_dir])
             Nothing -> do
                 Log.warn $ "unknown im synth " <> showt synth_name <> " with "
                     <> showt (Vector.length events) <> " events"

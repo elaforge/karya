@@ -98,8 +98,8 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
     deriving (Show)
 
 data ImStatus =
-    -- | Active synthesis range for the give block and instrument.
-    ImProgress !BlockId !Score.Instrument !RealTime !RealTime
+    -- | Active synthesis range for the give block and tracks.
+    ImProgress !BlockId !(Set TrackId) !RealTime !RealTime
     -- | True if the im subprocess failed.  The error will have been logged.
     | ImComplete !Bool
     deriving (Show)

@@ -208,8 +208,8 @@ perform_im lookup_inst stream =
     (perf_events, mapMaybe show_interesting_log $ derive_logs ++ perf_logs)
     where
     (events, derive_logs) = Stream.partition stream
-    (perf_events, perf_logs) =
-        LEvent.partition $ Im.Convert.convert lookup_inst events
+    (perf_events, perf_logs) = LEvent.partition $
+        Im.Convert.convert UiTest.default_block_id lookup_inst events
 
 -- * derive
 

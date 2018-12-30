@@ -17,7 +17,7 @@ import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.Exit
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
@@ -39,8 +39,10 @@ import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
-import Global
-import Synth.Types
+import qualified Ui.Id as Id
+
+import           Global
+import           Synth.Types
 
 
 main :: IO ()
@@ -137,9 +139,10 @@ process db quality notes outputDir = do
     Async.forConcurrently_ grouped $ \(patch, notes) -> case get patch of
         Nothing -> Log.warn $ "patch not found: " <> patch
         Just patch -> Async.forConcurrently_ notes $ \(inst, notes) ->
-            realize quality outputDir inst
+            realize trackIds quality outputDir inst
                 =<< mapM makeSampleNote (convert db patch notes)
     where
+    trackIds = Set.fromList $ mapMaybe Note.trackId notes
     grouped = byPatchInst notes
     instruments = Set.fromList $ concatMap (map fst . snd) grouped
     get patch = Map.lookup patch (Patch._patches db)
@@ -212,18 +215,18 @@ actualDuration start (Right sample) = do
         Just dur -> Just $ maybe id min fileDur dur
         Nothing -> fileDur
 
-realize :: Resample.Quality -> FilePath -> Note.InstrumentName
-    -> [Sample.Note] -> IO ()
-realize quality outputDir instrument notes = do
+realize :: Set Id.TrackId -> Resample.Quality -> FilePath
+    -> Note.InstrumentName -> [Sample.Note] -> IO ()
+realize trackIds quality outputDir instrument notes = do
     let instDir = outputDir </> untxt instrument
     Directory.createDirectoryIfMissing True instDir
     (result, elapsed) <- Thread.timeActionText $
-        Render.write quality instDir notes
+        Render.write quality instDir trackIds notes
     case result of
         Left err -> do
             Log.error $ instrument <> ": writing " <> txt instDir
                 <> ": " <> err
-            Config.emitFailure instDir err
+            Config.emitFailure instDir trackIds err
         Right (rendered, total) ->
             Log.notice $ instrument <> " " <> showt rendered <> "/"
                 <> showt total <> " chunks: " <> txt instDir

@@ -13,15 +13,16 @@ import qualified Data.Map.Strict as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
-import Util.Serialize (get, put)
+import           Util.Serialize (get, put)
 
 import qualified Derive.Attrs as Attrs
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
+import qualified Ui.Id as Id
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 
 -- | High level representation of one note.  This will be converted into
@@ -30,6 +31,11 @@ data Note = Note {
     -- | Map this note to one of the synthesizer's patches.
     patch :: !PatchName
     , instrument :: !InstrumentName
+    -- | Display render progress on this track.
+    --
+    -- Previously, I inferred the track from the instrument, but that runs into
+    -- trouble when there isn't a 1:1 mapping from track to instrument.
+    , trackId :: !(Maybe Id.TrackId)
     -- | Address this note to a particular element within the patch.  What it
     -- is depends on the instrument.  For instance, it might the a particular
     -- string on a pipa.  The difference from 'attributes' is that each element
@@ -53,15 +59,16 @@ end :: Note -> RealTime
 end n = start n + duration n
 
 instance Serialize.Serialize Note where
-    put (Note a b c d e f g) =
-        put a *> put b *> put c *> put d *> put e *> put f *> put g
-    get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get
+    put (Note a b c d e f g h) =
+        put a *> put b *> put c *> put d *> put e *> put f *> put g *> put h
+    get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get <*> get
 
 instance Pretty Note where
-    format (Note patch inst element start dur controls attrs) =
+    format (Note patch inst trackId element start dur controls attrs) =
         Pretty.record "Note"
             [ ("patch", Pretty.format patch)
             , ("instrument", Pretty.format inst)
+            , ("trackId", Pretty.format trackId)
             , ("element", Pretty.format element)
             , ("start", Pretty.format start)
             , ("duration", Pretty.format dur)
@@ -74,6 +81,7 @@ note :: PatchName -> InstrumentName -> RealTime -> RealTime -> Note
 note patch instrument start duration = Note
     { patch = patch
     , instrument = instrument
+    , trackId = Nothing
     , element = ""
     , start = start
     , duration = duration
