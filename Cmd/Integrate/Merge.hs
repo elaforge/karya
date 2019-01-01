@@ -51,6 +51,10 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
+import qualified App.Config as Config
+import qualified Cmd.Create as Create
+import qualified Cmd.Integrate.Convert as Convert
+import qualified Derive.Stack as Stack
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -59,12 +63,8 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 
-import qualified Cmd.Create as Create
-import qualified Cmd.Integrate.Convert as Convert
-import qualified Derive.Stack as Stack
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * block
@@ -294,8 +294,8 @@ add_event_stacks block_id track_id = map add_stack . Events.ascending
     isn't present in the destination, and should be created.  Otherwise, it
     should be merged with the given Dest.
 
-    (Nothing, Left TrackNum) means the track is gone from both source and
-    destination, so this TrackPair can be ignored.
+    (Nothing, Left 0) means the track is gone from both source and destination,
+    so this TrackPair can be ignored.
 -}
 type TrackPair = (Maybe Convert.Track, Either TrackNum Dest)
 -- | Score integrate copies tracks 1:1, so the destination tracks always have

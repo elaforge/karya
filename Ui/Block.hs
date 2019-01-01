@@ -159,8 +159,11 @@ data NoteDestination = NoteDestination {
     } deriving (Eq, Show, Read)
 
 -- | Create an empty destination for the first integration.
-empty_destination :: TrackId -> NoteDestination
-empty_destination track_id = NoteDestination (track_id, mempty) mempty
+empty_destination :: TrackId -> [(Text, TrackId)] -> NoteDestination
+empty_destination note controls = NoteDestination
+    { dest_note = (note, mempty)
+    , dest_controls = Map.fromList $ map (second (,mempty)) controls
+    }
 
 -- | This is a picture of the integrated events that were used to create an
 -- integrated block.  By taking its difference against the current contents of

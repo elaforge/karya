@@ -95,10 +95,10 @@ ky = do
         , _on_send = Nothing
         }
 
-get_ky :: Cmd.CmdL Text
+get_ky :: Ui.M m => m Text
 get_ky = Ui.config#Ui.ky <#> Ui.get
 
-set_ky :: Text -> Cmd.CmdL ()
+set_ky :: Ui.M m => Text -> m ()
 set_ky = Ui.modify_config . (Ui.ky #=)
 
 -- ** meta

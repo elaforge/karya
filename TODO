@@ -1418,6 +1418,8 @@ synth: im:
         right block.  What I want is the bottom track on the block being
         rendered.
     - Should I use Config.busy_color?  It's the box color for Msg.Deriving.
+      . The correspondence isn't obvious, and the color looks different anyway
+        due to being transparent.
     * show where an error occured
       . There will be a Error level log msg, and progress won't complete.
       . So I need to check for one of those, forward to the karya log,
@@ -4685,8 +4687,16 @@ text score: tscore:
         center.  But then I'll need way to keep track of track identity.
         Never mind for now.
       . Same diff thing for BlockIds.
-    - add Cmd.Repl.LTScore with 'edit' function to do the editor thing.
-
+    * add Cmd.Repl.LTScore with 'edit' function to do the editor thing.
+    * automatically make a view for each new block
+    * also collapse by default
+    * how can I set instrument?
+    * I get two copies of each track
+      . Because I didn't add empty dests for everything, so it added new ones.
+      - This process is error-prone, where can I document it better?
+    - the final pitch event is misaligned
+      . I think it's due to no ruler?
+    - add a ruler, derived from the meter
   parsing:
     - attach SourcePos to parsed types, so errors can use it
     * "call | with | spaces"

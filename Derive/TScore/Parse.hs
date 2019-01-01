@@ -23,7 +23,7 @@ import qualified Text.Megaparsec as P
 import           Text.Megaparsec ((<?>))
 import qualified Text.Megaparsec.Char as P
 
-import qualified Util.Debug as Debug
+import qualified Util.TextUtil as TextUtil
 import qualified Derive.TScore.T as T
 import qualified Ui.Id as Id
 
@@ -92,10 +92,22 @@ instance Element T.Tracks where
 
 instance Element T.Track where
     parse = T.Track
-        <$> (P.option "" (lexeme p_string)) <*> P.some (lexeme parse)
+        <$> P.option "" (lexeme p_title) <*> P.some (lexeme parse)
+        where
+        p_title =
+            P.char '>' *> ((">"<>) <$> P.takeWhileP Nothing Id.is_id_char)
+            <|> p_space_title
+        p_space_title = do
+            t <- p_string
+            unless (">" `Text.isPrefixOf` t) $
+                fail $ "note track should start with >: " <> untxt t
+            return t
     unparse (T.Track title tokens) =
-        (if Text.null title then "" else un_string title <> " ")
-        <> Text.unwords (map unparse tokens)
+        TextUtil.join2 un_title (Text.unwords (map unparse tokens))
+        where
+        un_title
+            | " " `Text.isInfixOf` title = un_string title
+            | otherwise = title
 
 instance Element T.Directive where
     parse = do

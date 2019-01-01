@@ -59,6 +59,7 @@ data Config = Config {
     -- 'Derive.Parse.parse_ky'.  If the ky defines a note transformer called
     -- @GLOBAL@, it will be implicitly wrapped around every derivation.
     , config_ky :: !Text
+    , config_tscore :: !Text
     } deriving (Eq, Show)
 
 -- Ui.State already has a function called 'namespace'.
@@ -78,6 +79,8 @@ saved_views = Lens.lens config_saved_views
     (\f r -> r { config_saved_views = f (config_saved_views r) })
 ky = Lens.lens config_ky
     (\f r -> r { config_ky = f (config_ky r) })
+tscore = Lens.lens config_tscore
+    (\f r -> r { config_tscore = f (config_tscore r) })
 
 -- | Unwrap the newtype for convenience.
 allocations_map :: Lens Config (Map Score.Instrument Allocation)
@@ -96,6 +99,7 @@ empty_config = Config
     , config_default = empty_default
     , config_saved_views = mempty
     , config_ky = ""
+    , config_tscore = ""
     }
 
 -- | Insert an allocation into 'config_allocations' while checking it for
@@ -318,7 +322,8 @@ empty_default :: Default
 empty_default = Default { default_tempo = 1 }
 
 instance Pretty Config where
-    format (Config namespace meta root allocations lily dflt saved_views ky) =
+    format (Config namespace meta root allocations lily dflt saved_views ky
+            tscore) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
@@ -328,6 +333,7 @@ instance Pretty Config where
             , ("default", Pretty.format dflt)
             , ("saved_views", Pretty.format saved_views)
             , ("ky", Pretty.format ky)
+            , ("tscore", Pretty.format tscore)
             ]
 
 instance Pretty Meta where

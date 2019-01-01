@@ -5,8 +5,8 @@
 {-# LANGUAGE CPP #-}
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
-    Error(..), Config(..), default_config
-    , parse_directives, process
+    Error(..), show_error, Config(..), default_config
+    , parse_directive, parse_directives, process
     , Pitch(..), PitchClass, Octave
     , Meter(..)
 #ifdef TESTING
@@ -288,8 +288,6 @@ carry_duration mbDur = do
     return int
 
 -- * pitch
-
-type PitchDifference = (Octave, Text) -> (Octave, Text) -> Maybe Int
 
 data Scale = Scale {
     scale_degrees :: Vector.Vector Text

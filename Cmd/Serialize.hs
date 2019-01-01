@@ -80,10 +80,10 @@ instance Serialize Ui.State where
 
 instance Serialize Ui.Config where
     put (Ui.Config ns meta root allocs lilypond defaults
-            saved_views ky)
-        =  Serialize.put_version 13
+            saved_views ky tscore)
+        =  Serialize.put_version 14
             >> put ns >> put meta >> put root >> put allocs >> put lilypond
-            >> put defaults >> put saved_views >> put ky
+            >> put defaults >> put saved_views >> put ky >> put tscore
     get = Serialize.get_version >>= \v -> case v of
         11 -> do
             ns :: Id.Namespace <- get
@@ -98,6 +98,7 @@ instance Serialize Ui.Config where
             return $ Ui.Config ns meta root insts lilypond defaults saved_views
                 (upgrade_transform transform
                     (maybe "" (\fn -> "import '" <> txt fn <> "'\n") ky_file))
+                ""
         12 -> do
             ns :: Id.Namespace <- get
             meta :: Ui.Meta <- get
@@ -110,6 +111,7 @@ instance Serialize Ui.Config where
             ky :: Text <- get
             return $ Ui.Config ns meta root insts lilypond
                 defaults saved_views (upgrade_transform transform ky)
+                ""
         13 -> do
             ns :: Id.Namespace <- get
             meta :: Ui.Meta <- get
@@ -120,7 +122,19 @@ instance Serialize Ui.Config where
             saved_views :: Ui.SavedViews <- get
             ky :: Text <- get
             return $ Ui.Config ns meta root insts lilypond defaults saved_views
-                ky
+                ky ""
+        14 -> do
+            ns :: Id.Namespace <- get
+            meta :: Ui.Meta <- get
+            root :: Maybe BlockId <- get
+            insts :: UiConfig.Allocations <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: Ui.Default <- get
+            saved_views :: Ui.SavedViews <- get
+            ky :: Text <- get
+            tscore :: Text <- get
+            return $ Ui.Config ns meta root insts lilypond defaults saved_views
+                ky tscore
         _ -> Serialize.bad_version "Ui.Config" v
         where
         upgrade_transform global_transform ky

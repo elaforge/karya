@@ -24,7 +24,7 @@ test_score = do
             \block2 = [c]\n"
     right_equal (f score) $
         "block1 = %block1=directive \"block1 title\"\
-        \ [ \">inst1\" a // \">inst2\" b ]\n\
+        \ [ >inst1 a // >inst2 b ]\n\
         \block2 = [ c ]\n"
 
 roundtrip :: forall a. (Stack.HasCallStack, Parse.Element a)
@@ -55,8 +55,8 @@ test_track = do
         [ token "" no_oct "a" no_dur
         , token "b" no_oct "" no_dur
         ]
-    right_equal (f "\"\" \"a b\"/") [token "a b" no_oct "" no_dur]
-    right_equal (f "\"\" \"a \"() b\"/") [token "a \"() b" no_oct "" no_dur]
+    right_equal (f "> \"a b\"/") [token "a b" no_oct "" no_dur]
+    right_equal (f "> \"a \"() b\"/") [token "a \"() b" no_oct "" no_dur]
 
 test_token = do
     let f = parse Parse.parse
