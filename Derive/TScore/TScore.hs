@@ -38,13 +38,18 @@ type Error = Text
 type Block = (BlockId, Text, [Track])
 
 data Track = Track {
-    -- TODO use (Title, Events) instead of Track
-    track_note :: (TrackId, Track.Track)
-    , track_controls :: [(TrackId, Track.Track)]
+    _note :: !Track1
+    , _controls :: [Track1]
+    } deriving (Eq, Show)
+
+data Track1 = Track1 {
+    _track_id :: !TrackId
+    , _title :: !Text
+    , _events :: !Events.Events
     } deriving (Eq, Show)
 
 track_ids :: Track -> [TrackId]
-track_ids (Track note controls) = fst note : map fst controls
+track_ids (Track note controls) = _track_id note : map _track_id controls
 
 -- * integrate
 
@@ -73,20 +78,20 @@ integrate_block (block_id, title, tracks) = do
 
 integrate_track :: Ui.M m => BlockId -> Track -> m ()
 integrate_track block_id (Track note controls) = do
-    exists <- Maybe.isJust <$> Ui.lookup_track (fst note)
+    exists <- Maybe.isJust <$> Ui.lookup_track (_track_id note)
     dests <- if exists
         then Ui.require "no manual integration" . Map.lookup source_key
             . Block.block_integrated_manual =<< Ui.get_block block_id
         else do
-            forM_ (note : controls) $ \(track_id, track) -> do
-                Ui.create_track (Id.unpack_id track_id) $
-                    Track.track (Track.track_title track) mempty
+            forM_ (note : controls) $ \track -> do
+                Ui.create_track (Id.unpack_id (_track_id track)) $
+                    Track.track (_title track) mempty
                 Ui.insert_track block_id 999 $
-                    Block.track (Block.TId track_id Ui.no_ruler)
+                    Block.track (Block.TId (_track_id track) Ui.no_ruler)
                         Config.track_width
-            return [Block.empty_destination (fst note)
-                [(Track.track_title track, tid) | (tid, track) <- controls]]
-    Ui.set_track_title (fst note) (Track.track_title (snd note))
+            return [Block.empty_destination (_track_id note)
+                [(_title track, _track_id track) | track <- controls]]
+    Ui.set_track_title (_track_id note) (_title note)
     -- TODO I actually want to do Merge.score_merge here so I can match the
     -- TrackIds.  Then I don't have to toss track_id below.
     -- return ()
@@ -94,9 +99,9 @@ integrate_track block_id (Track note controls) = do
         [(convert note, map convert controls)] dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
     where
-    convert (_track_id, track) = Convert.Track
-        { track_title = Track.track_title track
-        , track_events = Events.ascending (Track.track_events track)
+    convert track = Convert.Track
+        { track_title = _title track
+        , track_events = Events.ascending (_events track)
         }
 
 source_key :: Block.SourceKey
@@ -114,9 +119,9 @@ ui_state text = do
 ui_block :: Ui.M m => Block -> m ()
 ui_block (block_id, title, tracks) = do
     track_ids <- sequence
-        [ Ui.create_track (Id.unpack_id track_id) track
+        [ Ui.create_track (Id.unpack_id track_id) (Track.track title events)
         | Track note controls <- tracks
-        , (track_id, track) <- note : controls
+        , Track1 track_id title events <- note : controls
         ]
     let tracks =
             [ Block.track (Block.TId tid Ui.no_ruler) Config.track_width
@@ -162,17 +167,17 @@ track_events config block_id tracknum (T.Track title tokens) = do
     tokens <- first (Check.show_error (Check.config_meter config)) $
         sequence $ Check.process config tokens
     let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
-    let notes = Events.from_list (map (uncurry note_event) tokens)
     return $ Track
-        { track_note =
-            ( make_track_id block_id tracknum False
-            , Track.track (if Text.null title then ">" else title) notes
-            )
-        , track_controls = if null pitches then [] else
-            [ ( make_track_id block_id tracknum True
-              , Track.track "*" (Events.from_list pitches)
-              )
-            ]
+        { _note = Track1
+            { _track_id = make_track_id block_id tracknum False
+            , _title = if Text.null title then ">" else title
+            , _events = Events.from_list $ map (uncurry note_event) tokens
+            }
+        , _controls = if null pitches then [] else (:[]) $ Track1
+            { _track_id = make_track_id block_id tracknum True
+            , _title = "*"
+            , _events = Events.from_list pitches
+            }
         }
 
 make_track_id :: BlockId -> TrackNum -> Bool -> TrackId
