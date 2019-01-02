@@ -4690,13 +4690,22 @@ text score: tscore:
     * add Cmd.Repl.LTScore with 'edit' function to do the editor thing.
     * automatically make a view for each new block
     * also collapse by default
+      - Do it new tracks on an existing block.
+      - Also adjust block size.
     * how can I set instrument?
     * I get two copies of each track
       . Because I didn't add empty dests for everything, so it added new ones.
       - This process is error-prone, where can I document it better?
     - the final pitch event is misaligned
-      . I think it's due to no ruler?
-    - add a ruler, derived from the meter
+      . It only happens when no ruler.
+    * add a ruler, derived from the meter
+      . Make one RulerId per block, and then modify it on each integrate.
+      . I don't have a single abstract meter that I can ask for an arbitrary
+        length.
+      . Meter.LabeledMeter?
+    - does reintegrate not work?  I changed n to s but nothing happened.
+  repl:
+    - communicate parse errors back to vim to highlight
   parsing:
     - attach SourcePos to parsed types, so errors can use it
     * "call | with | spaces"
@@ -4776,6 +4785,9 @@ text score: tscore:
       . This way ties work with inferred pitches.
       . Then I have to plumb through TBarline etc. which is annoying.
   - accidentals for pitch
+    . I think I just need to support *twelve and *twelve-r?
+    . Enharmonics make it not quite the same, since I use pitch difference.
+      I need a full Pitch.Pitch, and a layout etc.
   . Time problems:
     . I want to say "repeat n times".
     . I want sections with their own tempo, and then the caller just sequences

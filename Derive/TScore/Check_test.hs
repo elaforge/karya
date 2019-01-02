@@ -74,8 +74,10 @@ test_barlines = do
             . parse
     equal (f "| a4 b c e |") []
     equal (f "| a4 ; b ; c ; e |") []
-    equal (f "| a4 b | c e |") [Check.Error (1/2) "token 3: saw |, expected ;"]
-    equal (f "a8 | b") [Check.Error (1/8) "token 1: saw |, expected none"]
+    equal (f "| a4 b | c e |")
+        [Check.Error (1/2) "barline check: token 3: saw |, expected ;"]
+    equal (f "a8 | b")
+        [Check.Error (1/8) "barline check: token 1: saw |, expected none"]
 
 test_multiplicative = do
     let f = map (fmap fst . e_duration) . Check.multiplicative . parse

@@ -24,10 +24,15 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Meters as Meters
+import qualified Cmd.Ruler.Tala as Tala
+
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 
 import           Global
+import           Types
 
 
 data Error = Error !T.Time !Text
@@ -105,6 +110,7 @@ data Meter = Meter {
     , meter_step :: !T.Time
     -- | If true, beats fall at the end of measures.
     , meter_negative :: !Bool
+    , meter_labeled :: ![Meter.LabeledMark]
     } deriving (Eq, Show)
 
 meter_duration :: Meter -> T.Time
@@ -123,14 +129,21 @@ meter_adi = Meter
     { meter_pattern = [2, 0, 0, 0, 1, 0, 1, 0]
     , meter_step = 1
     , meter_negative = False
+    , meter_labeled = Tala.simple_meter Tala.adi_tala nadai 1 1
     }
+    where nadai = 4 -- TODO don't hardcode this
 
 meter_44 :: Meter
 meter_44 = Meter
     { meter_pattern = [1, 0, 0, 0]
     , meter_step = 1/4
     , meter_negative = False
+    , meter_labeled = make_labeled (1/16) Meters.m44
     }
+
+make_labeled :: TrackTime -> Meter.AbstractMeter -> [Meter.LabeledMark]
+make_labeled dur =
+    Meter.label_meter Meter.default_config . Meter.make_meter dur . (:[])
 
 -- ** resolve_time
 
@@ -229,7 +242,8 @@ barlines meter = concat . snd . List.mapAccumL token 0 . zip [0..]
     expected_rank = Map.fromList $ zip (Seq.range_ 0 (meter_step meter))
         (meter_pattern meter)
     warn :: Int -> T.Time -> Text -> Error
-    warn i now msg = Error now ("token " <> showt i <> ": " <> msg)
+    warn i now msg = Error now $
+        "barline check: token " <> showt i <> ": " <> msg
 
 show_time :: T.Time -> T.Time -> Text
 show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat

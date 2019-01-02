@@ -85,8 +85,7 @@ type Nadai = Int
 
 -- | Concatenate the rulers and make a meter.
 make_meter :: [Ruler] -> Meter.LabeledMeter
-make_meter rulers =
-    Meter.label_meter (make_config labels) meter
+make_meter rulers = Meter.label_meter (make_config labels) meter
     where
     meter = concatMap ruler_meter rulers
     labels = concatMap (tala_labels . ruler_tala) rulers

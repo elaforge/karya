@@ -3,11 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.TScore.TScore_test where
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
+import           Global
+import           Types
 import           Util.Test
 
 
@@ -20,8 +23,7 @@ test_ui_state = do
             ]
           )
         ]
-    right_equal
-            (f "top = %default-call [\"> | rh\" na din // >lh _ thom]")
+    right_equal (f "top = %default-call [\"> | rh\" na din // >lh _ thom]")
         [ ( "top"
           , [ ("> | rh", [(0, 1, "na"), (1, 1, "din")])
             , (">lh", [(1, 1, "thom")])
@@ -40,6 +42,10 @@ test_integrate = do
             ]
           )
         ]
+    let [(_rid, marks)] = UiTest.extract_rulers state
+    equal (filter (is_integral . fst) (e_marks marks))
+        [(0, "1"), (1, "2"), (2, "3"), (3, "4")]
+    -- pprint (filter (is_integral . (*4) . fst) (e_marks marks))
     let tid = TScore.make_track_id (UiTest.bid "tscore/top") 1 True
     state <- return $ expect_right $ Ui.exec state $ do
         Ui.insert_event tid (Event.event 1 0 "5p")
@@ -51,3 +57,9 @@ test_integrate = do
             ]
           )
         ]
+
+is_integral :: RealFrac a => a -> Bool
+is_integral = (==0) . snd . properFraction
+
+e_marks :: [Meter.LabeledMark] -> [(TrackTime, Meter.Label)]
+e_marks = map (second Meter.m_label) . TScore.scanl_on (+) Meter.m_duration 0

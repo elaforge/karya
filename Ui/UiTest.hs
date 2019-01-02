@@ -500,11 +500,15 @@ dump_block block_id state =
     convert (start, dur, text) =
         (ScoreTime.from_double start, ScoreTime.from_double dur, text)
 
+extract_rulers :: Ui.State -> [(RulerId, [Meter.LabeledMark])]
+extract_rulers =
+    map (second (map strip . Meter.ruler_meter)) . Map.toList . Ui.state_rulers
+    where strip m = m { Meter.m_label = Meter.strip_markup (Meter.m_label m) }
+
 -- * view
 
 select :: Ui.M m => ViewId -> Sel.Selection -> m ()
-select view_id sel =
-    Ui.set_selection view_id Config.insert_selnum (Just sel)
+select view_id sel = Ui.set_selection view_id Config.insert_selnum (Just sel)
 
 select_point :: Ui.M m => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =

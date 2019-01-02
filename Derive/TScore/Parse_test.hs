@@ -16,14 +16,16 @@ import           Util.Test
 test_score = do
     let f = second Parse.unparse . parse @T.Score Parse.parse
     let score =
-            "block1 = %block1=directive \"block1 title\" [\n\
+            "%meter=adi\n\
+            \block1 = %block1=directive \"block1 title\" [\n\
             \    \">inst1\" a\n\
             \    //\n\
             \    \">inst2\" b\n\
             \]\n\
             \block2 = [c]\n"
     right_equal (f score) $
-        "block1 = %block1=directive \"block1 title\"\
+        "%meter=adi\n\
+        \block1 = %block1=directive \"block1 title\"\
         \ [ >inst1 a // >inst2 b ]\n\
         \block2 = [ c ]\n"
 

@@ -10,10 +10,13 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
+import qualified Util.Then as Then
 import qualified App.Config as Config
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Merge as Merge
+import qualified Cmd.Ruler.Meter as Meter
+import qualified Cmd.Ruler.Modify as Ruler.Modify
 
 import qualified Derive.Stack as Stack
 import qualified Derive.TScore.Check as Check
@@ -24,6 +27,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
@@ -35,7 +39,12 @@ import           Types
 
 type Error = Text
 
-type Block = (BlockId, Text, [Track])
+data Block = Block {
+    _block_id :: !BlockId
+    , _block_title :: !Text
+    , _meter :: ![Meter.LabeledMark]
+    , _tracks :: ![Track]
+    } deriving (Eq, Show)
 
 data Track = Track {
     _note :: !Track1
@@ -55,29 +64,31 @@ track_ids (Track note controls) = _track_id note : map _track_id controls
 
 integrate :: Ui.M m => Text -> m [BlockId] -- ^ newly created blocks
 integrate text = do
-    blocks <- Ui.require_right id $ make_blocks text
+    blocks <- Ui.require_right ("make_blocks: "<>) $ make_blocks text
     -- TODO trim blocks that disappeared like with tracks?
     mapMaybeM integrate_block blocks
 
 integrate_block :: Ui.M m => Block -> m (Maybe BlockId)
-integrate_block (block_id, title, tracks) = do
+integrate_block block = do
+    let block_id = _block_id block
+    ruler_id <- ui_ruler block
     exists <- Maybe.isJust <$> Ui.lookup_block block_id
     if exists
-        then Ui.set_block_title block_id title
-        else void $ Ui.create_block (Id.unpack_id block_id) title
-            [Block.track (Block.RId Ui.no_ruler) Config.ruler_width]
+        then Ui.set_block_title block_id (_block_title block)
+        else void $ Ui.create_block (Id.unpack_id block_id) (_block_title block)
+            [Block.track (Block.RId ruler_id) Config.ruler_width]
     existing_tracks <- Set.fromList <$> Ui.track_ids_of block_id
     -- This will wipe out diffs... do I really want that?
-    let new = Set.fromList $ concatMap track_ids tracks
+    let new = Set.fromList $ concatMap track_ids (_tracks block)
     let gone = existing_tracks `Set.difference` new
     mapM_ Ui.destroy_track (Set.toList gone)
-    mapM_ (integrate_track block_id) tracks
+    mapM_ (integrate_track block_id ruler_id) (_tracks block)
     unless exists $
         BlockConfig.toggle_merge_all block_id
     return $ if exists then Nothing else Just block_id
 
-integrate_track :: Ui.M m => BlockId -> Track -> m ()
-integrate_track block_id (Track note controls) = do
+integrate_track :: Ui.M m => BlockId -> RulerId -> Track -> m ()
+integrate_track block_id ruler_id (Track note controls) = do
     exists <- Maybe.isJust <$> Ui.lookup_track (_track_id note)
     dests <- if exists
         then Ui.require "no manual integration" . Map.lookup source_key
@@ -87,14 +98,13 @@ integrate_track block_id (Track note controls) = do
                 Ui.create_track (Id.unpack_id (_track_id track)) $
                     Track.track (_title track) mempty
                 Ui.insert_track block_id 999 $
-                    Block.track (Block.TId (_track_id track) Ui.no_ruler)
+                    Block.track (Block.TId (_track_id track) ruler_id)
                         Config.track_width
             return [Block.empty_destination (_track_id note)
                 [(_title track, _track_id track) | track <- controls]]
     Ui.set_track_title (_track_id note) (_title note)
     -- TODO I actually want to do Merge.score_merge here so I can match the
     -- TrackIds.  Then I don't have to toss track_id below.
-    -- return ()
     new_dests <- Merge.merge_tracks block_id
         [(convert note, map convert controls)] dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
@@ -117,27 +127,52 @@ ui_state text = do
         mapM_ ui_block blocks
 
 ui_block :: Ui.M m => Block -> m ()
-ui_block (block_id, title, tracks) = do
+ui_block block = do
     track_ids <- sequence
         [ Ui.create_track (Id.unpack_id track_id) (Track.track title events)
-        | Track note controls <- tracks
+        | Track note controls <- _tracks block
         , Track1 track_id title events <- note : controls
         ]
+    ruler_id <- ui_ruler block
     let tracks =
-            [ Block.track (Block.TId tid Ui.no_ruler) Config.track_width
+            [ Block.track (Block.TId tid ruler_id) Config.track_width
             | tid <- track_ids
             ]
-    -- The first block becomes the root_id implicitly.
-    Ui.create_block (Id.unpack_id block_id) title $
-        Block.track (Block.RId Ui.no_ruler) Config.ruler_width : tracks
+    Ui.create_block (Id.unpack_id (_block_id block)) (_block_title block) $
+        Block.track (Block.RId ruler_id) Config.ruler_width : tracks
+    -- The first block will become the root_id implicitly.
     return ()
-    -- TODO map config_meter to a ruler
+
+ui_ruler :: Ui.M m => Block -> m RulerId
+ui_ruler block = make_ruler (_block_id block) (_meter block) end
+    where
+    end = maximum $ 0 :
+        [ Events.time_end (_events t1)
+        | Track note controls <- _tracks block, t1 <- note : controls
+        ]
+
+make_ruler :: Ui.M m => BlockId -> [Meter.LabeledMark] -> TrackTime -> m RulerId
+make_ruler block_id meter end = do
+    whenM (Maybe.isNothing <$> Ui.lookup_ruler ruler_id) $
+        void $ Ui.create_ruler (Id.unpack_id ruler_id) (Ruler.ruler [])
+    Ui.modify_ruler ruler_id (generate_ruler meter end)
+    return ruler_id
+    where
+    ruler_id = Id.RulerId $ Id.unpack_id block_id
+
+generate_ruler :: [Meter.LabeledMark] -> TrackTime
+    -> (Ruler.Ruler -> Either Text Ruler.Ruler)
+generate_ruler meter end = Ruler.Modify.meter (const generate)
+    where
+    generate = trim $ cycle $ Seq.rdrop 1 meter
+    trim = map snd . Then.takeWhile1 ((<end) . fst)
+        . scanl_on (+) Meter.m_duration 0
 
 -- * make_blocks
 
 make_blocks :: Text -> Either Error [Block]
 make_blocks text = do
-    T.Score defs <- first txt $ Parse.parse_score text
+    T.Score defs <- first (("parse: "<>) . txt) $ Parse.parse_score text
     fst <$> foldM collect ([], Check.default_config) defs
     where
     collect (accum, config) def = do
@@ -159,7 +194,12 @@ interpret_block config
         Check.parse_directives config directives
     tracks <- mapM (uncurry (track_events block_config block_id))
         (zip [1..] tracks)
-    return (block_id, title, tracks)
+    return $ Block
+        { _block_id = block_id
+        , _block_title = title
+        , _meter = Check.meter_labeled $ Check.config_meter config
+        , _tracks = tracks
+        }
 
 track_events :: Check.Config -> BlockId -> TrackNum -> T.Track
     -> Either Error Track
@@ -204,3 +244,9 @@ add_stack :: Event.Event -> Event.Event
 add_stack event =
     Event.stack_ #= Just (Event.Stack stack (Event.start event)) $ event
     where stack = Stack.add (Stack.Call source_key) Stack.empty
+
+-- * util
+
+scanl_on :: (accum -> key -> accum) -> (a -> key) -> accum -> [a]
+    -> [(accum, a)]
+scanl_on f key z xs = zip (scanl (\t -> f t . key) z xs) xs

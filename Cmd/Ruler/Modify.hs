@@ -28,8 +28,10 @@ start_and_meter :: (Meter.Start -> Meter.Start)
 start_and_meter modify_start modify ruler = Ruler.set_meter config new ruler
     where
     (old_config, mlist) = get_meter ruler
-    config = old_config { Ruler.config_start_measure =
-            modify_start (Ruler.config_start_measure old_config) }
+    config = old_config
+        { Ruler.config_start_measure =
+            modify_start (Ruler.config_start_measure old_config)
+        }
     measure_rank = Meter.config_measure_rank $
         Map.findWithDefault Meter.default_config (Ruler.config_name config)
             configs

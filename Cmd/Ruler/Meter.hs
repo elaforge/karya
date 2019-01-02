@@ -75,7 +75,7 @@ data LabeledMark = LabeledMark {
     m_rank :: !Ruler.Rank
     , m_duration :: !Duration
     , m_label :: !Label
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 instance Pretty LabeledMark where
     pretty (LabeledMark rank dur label) = pretty (rank, dur, label)
