@@ -51,7 +51,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
-import qualified App.Config as Config
 import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.Stack as Stack
@@ -220,7 +219,7 @@ merge_pair block_id pair = case pair of
     (Just (Convert.Track title events), Left tracknum) -> do
         -- Track was deleted or it doesn't exist yet, so create it.
         track_id <- Create.track block_id tracknum title
-            (Events.from_list (map unmodified events))
+            (Events.from_list (map Event.unmodified events))
         return $ Just (title, track_id, make_index events)
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.  Don't delete the track in case
@@ -240,7 +239,7 @@ score_merge_pair block_id pair = case pair of
         let stacked = add_event_stacks block_id source_id events
         title <- Ui.get_track_title source_id
         track_id <- Create.track block_id tracknum
-            title (Events.from_list (map unmodified stacked))
+            title (Events.from_list (map Event.unmodified stacked))
         return $ Just (source_id, (track_id, make_index stacked))
     (Nothing, Right (track_id, _)) -> do
         -- Integrate no longer wants the track.  Don't delete the track in case
@@ -483,20 +482,14 @@ apply deletes adds_edits = make . mapMaybe edit
     make events = Events.from_list (events ++ adds)
     edit event
         | Event.start event `Set.member` deletes = Nothing
-        | Just mods <- Map.lookup (Event.start event) edit_map =
-            Just $ if null mods
-                then unmodified event
-                else apply_modifications mods event
+        | Just mods@(_:_) <- Map.lookup (Event.start event) edit_map =
+            Just $ apply_modifications mods event
         -- A new event from the integrate.
-        | otherwise = Just (unmodified event)
-    edit_map = Map.fromList edits
+        | otherwise = Just $ Event.unmodified event
+    edit_map = Map.fromList $ filter (not . null . snd) edits
     (adds, edits) = Either.partitionEithers (map to_either adds_edits)
     to_either (Add event) = Left event
     to_either (Edit key mods) = Right (key, mods)
-
--- | Unmodified events get a special style to indicate such.
-unmodified :: Event.Event -> Event.Event
-unmodified = Event.style_ %= Config.unmodified_style
 
 apply_modifications :: [Modify] -> Event.Event -> Event.Event
 apply_modifications mods event = foldl' go event mods

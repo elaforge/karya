@@ -45,14 +45,12 @@ instance CStorable Style where
     sizeOf _ = #size EventStyle
     alignment = alignment . style_text_color
     peek = error "EventStyle peek unimplemented"
-    poke = poke_text_style
-
-poke_text_style stylep (Style font face size text_color event_color) = do
-    (#poke EventStyle, font) stylep
-        (CUtil.c_int (font_code font + face_code face))
-    (#poke EventStyle, size) stylep (CUtil.c_nat size)
-    (#poke EventStyle, text_color) stylep text_color
-    (#poke EventStyle, event_color) stylep event_color
+    poke stylep (Style font face size text_color event_color) = do
+        (#poke EventStyle, font) stylep
+            (CUtil.c_int (font_code font + face_code face))
+        (#poke EventStyle, size) stylep (CUtil.c_nat size)
+        (#poke EventStyle, text_color) stylep text_color
+        (#poke EventStyle, event_color) stylep event_color
 
 font_code :: Font -> Int
 font_code font = case font of

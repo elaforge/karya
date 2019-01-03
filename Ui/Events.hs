@@ -46,7 +46,7 @@ module Ui.Events (
 #endif
 ) where
 import qualified Prelude
-import Prelude hiding (head, last, length, null)
+import           Prelude hiding (head, last, length, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
@@ -56,12 +56,11 @@ import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.Event as Event
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Types as Types
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * Range
@@ -181,17 +180,11 @@ insert unsorted_events (Events events) =
     Events $ Map.unions [pre, overlapping, post]
     where
     new_events = Seq.sort_on fst $ Seq.key_on event_key $
-        map round_event unsorted_events
+        map Event.round unsorted_events
     start = Event.min $ snd $ Prelude.head new_events
     end = Event.max $ snd $ Prelude.last new_events
     (pre, within, post) = _split_overlapping start end events
     overlapping = merge_and_clip (Map.toAscList within) new_events
-
--- | Round event times as described in 'ScoreTime.round'.
-round_event :: Event.Event -> Event.Event
-round_event event =
-    Event.place (ScoreTime.round (Event.start event))
-        (ScoreTime.round (Event.duration event)) event
 
 -- | Remove events in the range.
 remove :: Range -> Events -> Events

@@ -30,6 +30,9 @@ import Types
 get :: Ui.M m => TrackId -> m Events.Events
 get = fmap Track.track_events . Ui.get_track
 
+events :: Ui.M m => TrackId -> m [Event.Event]
+events = fmap Events.ascending . get
+
 stretch :: ScoreTime -> Cmd.CmdL ()
 stretch factor = do
     start <- Selection.start

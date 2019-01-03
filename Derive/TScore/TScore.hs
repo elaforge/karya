@@ -274,9 +274,8 @@ pitch_event (start, pitch) = add_stack $ Event.event (track_time start) 0 pitch
 track_time :: T.Time -> TrackTime
 track_time = realToFrac
 
--- TODO add a stack to the events so I know where they came from?
--- I do it in LSol, but I think it's just so I can infer the SourceKey
--- from the events later.
+-- | A stack marks these events as being from an integration.  Event style uses
+-- this, but I think that's all since I have SourceKey hardcoded.
 add_stack :: Event.Event -> Event.Event
 add_stack event =
     Event.stack_ #= Just (Event.Stack stack (Event.start event)) $ event

@@ -64,7 +64,7 @@ set_events events = modify_events (const events)
 
 type SetStyle = (TrackBg, Event.EventStyle)
 
--- | High level SetStyle, with information provided automatically.
+-- | High level 'SetStyle', with information provided automatically.
 -- Bool is true if the track has note track children.
 --
 -- It's a bit awkward to have two SetStyles, but some information can only be

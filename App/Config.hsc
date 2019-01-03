@@ -406,7 +406,8 @@ styles =
     where faces = [[], [Style.Bold], [Style.Italic], [Style.Bold, Style.Italic]]
 
 set_face :: Bool -> Style.FontFace -> Style.StyleId -> Style.StyleId
-set_face set face (Style.StyleId style) = Style.StyleId $ n * 4 + case face of
+set_face set face (Style.StyleId style) =
+    Style.StyleId $ n * 4 + case face of
         Style.Bold -> set_bit c 0
         Style.Italic -> set_bit c 1
     where

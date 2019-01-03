@@ -4666,9 +4666,17 @@ text score: tscore:
   . doc/dev_notes/text-score.md
   status:
     - integrated events are italic, but they look very similar
-      . Also they seem to stay the same when modified.  Aren't they supposed
-        to be bold?
-      . Maybe use colored text instead, or in addition?
+      . Use text color?
+    * unmodified events aren't bolded
+      . Because I need to set Config.unmodified_style on events created via
+        integration.
+      . I think the only non-automatic thing in event style is modified, so
+        I could make that a flag.
+      . Ok, now unmodifieds are StyleId 1, but it still doesn't look bold to me.
+      . It isn't, should be 3, but it's 2.
+      . It goes 1 -> 2.
+      . No, it goes 1 -> 3.
+      . No, pitch track goes 1 -> 11 -> 10?
     * implement basic pipeline
     * parse directives, give them to Check
     * convert Check output to Deriver that makes a score

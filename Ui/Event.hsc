@@ -33,6 +33,7 @@ module Ui.Event (
     , orientation, orientation_of
     , is_negative, is_positive
     -- * modify
+    , unmodified
     , set_start, set_end
     , place, round
     -- * misc
@@ -40,26 +41,27 @@ module Ui.Event (
     -- * style
     , EventStyle
 ) where
-import Prelude hiding (round, min, max)
+import           Prelude hiding (round, min, max)
 import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import ForeignC
 
 import qualified Util.CUtil as CUtil
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
-import Util.Serialize (get, put)
+import           Util.Serialize (get, put)
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Style as Style
 import qualified Ui.Types as Types
 
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
-import Types
+
+import ForeignC
 import Global
+import Types
 
 
 -- * types
@@ -72,6 +74,12 @@ data Event = Event {
     -- want events to use styles consistently I set them automatically via
     -- 'EventStyle'.  This way is less flexible, but it's one less bit of state
     -- to get out of sync.
+    --
+    -- TODO the only actual information in here is 'unmodified', which is set
+    -- by integration.  It would be nicer to remove this entirely, or at least
+    -- replace with an unmodified flag, but it would then be a bit annoying
+    -- because then I couldn't use Storable Event, due to the extra StyleId
+    -- argument.  That and Serialize becomes incompatible.
     , _style :: !Style.StyleId
     -- | If this event was integrated from another event as by
     -- "Derive.Call.Integrate", this will have the stack of the source event.
@@ -141,34 +149,25 @@ stack :: Event -> Maybe Stack
 stack = _stack
 
 start_ :: Lens Event TrackTime
-start_ = event_lens _start (\val event -> event { _start = val })
+start_ = event_lens True _start (\val event -> event { _start = val })
 
 duration_ :: Lens Event TrackTime
-duration_ = event_lens_eq eq _duration (\val event -> event { _duration = val })
+duration_ =
+    event_lens_eq eq True _duration (\val event -> event { _duration = val })
     where eq a b = a == b && ScoreTime.is_negative a == ScoreTime.is_negative b
 
 text_ :: Lens Event Text
-text_ = event_lens _text (\val event -> event { _text = val })
+text_ = event_lens True _text (\val event -> event { _text = val })
 
 style_ :: Lens Event Style.StyleId
-style_ = event_lens _style (\val event -> event { _style = val })
+style_ = event_lens False _style (\val event -> event { _style = val })
+    -- It was counterproductive when setting the style would also cause
+    -- 'modified' to set the style to something else!
 
 stack_ :: Lens Event (Maybe Stack)
-stack_ = event_lens _stack (\val event -> event { _stack = val })
-
--- -- | The stack is a bit different in that clearing the stack will 'modified'
--- stack_ :: Lens Event (Maybe Stack)
--- stack_ = Lens.lens field update
---     where
---     field = _stack
---     update modify event = case (field event, val) of
---         (Nothing, Nothing) -> event
---         (Nothing, Just _) -> new
---         (Just _, Nothing) -> modified new
---         (Just _, Just _) -> new
---         where
---         val = modify (field event)
---         new = event { _stack = val }
+stack_ = event_lens False _stack (\val event -> event { _stack = val })
+    -- Stack sets the event as integrated, which is only done by integration,
+    -- and hence not considered 'modified'.
 
 -- | Return the position at the end of the event.  If it has a negative
 -- duration, this will be before the 'start'.
@@ -195,22 +194,19 @@ max e = Prelude.max (start e) (end e)
 
 -- ** lens
 
-event_lens :: Eq a => (Event -> a) -> (a -> Event -> Event) -> Lens.Lens Event a
+event_lens :: Eq a => Bool -> (Event -> a) -> (a -> Event -> Event)
+    -> Lens.Lens Event a
 event_lens = event_lens_eq (==)
 
-event_lens_eq :: (a -> a -> Bool) -> (Event -> a) -> (a -> Event -> Event)
-    -> Lens.Lens Event a
-event_lens_eq eq field set = Lens.lens field update
+event_lens_eq :: (a -> a -> Bool) -> Bool -> (Event -> a)
+    -> (a -> Event -> Event) -> Lens.Lens Event a
+event_lens_eq eq set_modified field set = Lens.lens field update
     where
     update modify event
         | field event `eq` val = event
-        | otherwise = modified (set val event)
+        | set_modified = modified (set val event)
+        | otherwise = set val event
         where val = modify (field event)
-
--- | If this was an integrated event, it might have the unmodified style.
--- Set it to modified now so I don't have to wait for the next integration.
-modified :: Event -> Event
-modified event = event { _style = Config.modified_style (style event) }
 
 -- ** Orientation
 
@@ -230,6 +226,15 @@ is_positive = not . is_negative
 
 -- * modify
 
+-- | If this was an integrated event, it might have the unmodified style.
+-- Set it to modified now so I don't have to wait for the next integration.
+modified :: Event -> Event
+modified = style_ %= Config.modified_style
+
+-- | Mark this is a generated event, which has not yet been modified.
+unmodified :: Event -> Event
+unmodified = style_ %= Config.unmodified_style
+
 -- | Move the start only.  This could invert the duration if the start moves
 -- past the end.
 set_start :: ScoreTime -> Event -> Event
@@ -243,12 +248,16 @@ place :: ScoreTime -> ScoreTime -> Event -> Event
 place start dur event = modified $ event { _start = start, _duration = dur }
 
 -- | Round event times as described in 'ScoreTime.round'.
+--
 -- TODO used by Events, do I really need this?
 round :: Event -> Event
 round event = event
     { _start = ScoreTime.round (start event)
     , _duration = ScoreTime.round (duration event)
     }
+    -- This directly modifies the Event to avoid 'modified', since this is
+    -- logically not a modification, just a tweak to (try to) avoid floating
+    -- point problems.
 
 -- * misc
 

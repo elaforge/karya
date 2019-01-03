@@ -124,6 +124,11 @@ test_insert = do
     equal_e (f [(2, -2, "new")] [(2, -2, "old")]) [(2, -2, "new")]
     equal_e (f [(1, -0, "new")] [(1, -0, "old")]) [(1, -0, "new")]
 
+test_from_list = do
+    let f = Events.ascending . Events.from_list
+    equal (f [Event.unmodified $ Event.event 0 1 "hi"])
+        [Event.unmodified $ Event.event 0 1 "hi"]
+
 test_from_list_qc = quickcheck $ Q.forAll gen_events $ \es -> do
     let events = map mkevent es
     q_equal (Events.ascending (Events.from_list events))

@@ -3,9 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.TScore.TScore_test where
+import qualified Data.Map as Map
+
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Style as Style
+import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
@@ -31,6 +36,10 @@ test_ui_state = do
           )
         ]
 
+e_events :: Ui.State -> [[Event.Event]]
+e_events = map (Events.ascending . Track.track_events) . Map.elems
+    . Ui.state_tracks
+
 test_integrate = do
     let run state = Ui.exec state . TScore.integrate
     let extract = UiTest.extract_blocks
@@ -42,10 +51,14 @@ test_integrate = do
             ]
           )
         ]
+    equal (map (map Event.style) (e_events state)) $ map (map Style.StyleId)
+        [ [1, 1, 1]
+        , [1, 1, 1]
+        ]
+
     let [(_rid, marks)] = UiTest.extract_rulers state
     equal (filter (is_integral . fst) (e_marks marks))
         [(0, "1"), (1, "2"), (2, "3"), (3, "4")]
-    -- pprint (filter (is_integral . (*4) . fst) (e_marks marks))
     let tid = TScore.make_track_id (UiTest.bid "tscore/top") 1 True
     state <- return $ expect_right $ Ui.exec state $ do
         Ui.insert_event tid (Event.event 1 0 "5p")
@@ -56,6 +69,10 @@ test_integrate = do
             , ("*", [(0, 0, "4s"), (1, 0, "5p"), (2, 0, "4s")])
             ]
           )
+        ]
+    equal (map (map Event.style) (e_events state)) $ map (map Style.StyleId)
+        [ [1, 1, 1]
+        , [1, 0, 1]
         ]
 
 test_integrate_2_tracks = do
