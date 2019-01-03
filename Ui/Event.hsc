@@ -24,7 +24,6 @@
 module Ui.Event (
     -- * types
     Event
-    , Text
     , Stack(..), IndexKey, event
     -- * access
     , start, duration, text, style, stack
@@ -60,7 +59,7 @@ import qualified Ui.Types as Types
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
 import Types
-import Global hiding (Text)
+import Global
 
 
 -- * types
@@ -78,9 +77,6 @@ data Event = Event {
     -- "Derive.Call.Integrate", this will have the stack of the source event.
     , _stack :: !(Maybe Stack)
     } deriving (Eq, Read, Show)
-
--- | TODO remove this, it dates from when event text was ByteString.
-type Text = Text.Text
 
 data Stack = Stack {
     -- | The stack is used so the event retains a reference to its generating
@@ -261,15 +257,16 @@ intern_event :: Map.Map Text (Text, Int) -> Event
 intern_event table event = case Map.lookup (text event) table of
     Nothing -> (Map.insert (text event) (text event, 1) table, event)
     Just (interned, count) ->
-        (Map.insert interned (interned, count+1) table,
-            event { _text = interned })
+        ( Map.insert interned (interned, count+1) table
+        , event { _text = interned }
+        )
 
 -- * style
 
 -- | This is called on events before they go to the UI, to be used for "syntax
 -- highlighting", i.e. it can set the style depending on the event, but the
 -- change in style won't be saved in the event itself.
-type EventStyle = Text.Text -- ^ track title
+type EventStyle = Text -- ^ track title
     -> Event -> Style.StyleId
 
 -- * serialize

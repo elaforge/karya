@@ -438,7 +438,7 @@ diff_event old new = concat
 --
 -- I don't check for suffixes because suffixing an event would change
 -- a generator to a transformer, which in unlikely.
-diff_text :: Event.Text -> Event.Text -> [Modify]
+diff_text :: Text -> Text -> [Modify]
 diff_text old new
     | old == new = []
     | old `Text.isSuffixOf` new && ends_with_pipe prefix = [Prefix prefix]

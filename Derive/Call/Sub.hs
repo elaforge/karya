@@ -271,8 +271,7 @@ sub_events_ include_end args =
 
 -- | Modify the text of sub note tracks before deriving them.  This can be
 -- used to implement an ad-hoc new language.
-modify_notes ::
-    ([GenericEvent Event.Text] -> Either Text [GenericEvent Event.Text])
+modify_notes :: ([GenericEvent Text] -> Either Text [GenericEvent Text])
     -> Derive.PassedArgs a -> Either Text (Derive.PassedArgs a)
 modify_notes modify =
     modify_sub_tracks $ modify_sub_notes (fmap to . modify . from)
