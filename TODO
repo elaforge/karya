@@ -4665,6 +4665,10 @@ Derive:
 text score: tscore:
   . doc/dev_notes/text-score.md
   status:
+    - integrated events are italic, but they look very similar
+      . Also they seem to stay the same when modified.  Aren't they supposed
+        to be bold?
+      . Maybe use colored text instead, or in addition?
     * implement basic pipeline
     * parse directives, give them to Check
     * convert Check output to Deriver that makes a score
@@ -4690,20 +4694,22 @@ text score: tscore:
     * add Cmd.Repl.LTScore with 'edit' function to do the editor thing.
     * automatically make a view for each new block
     * also collapse by default
-      - Do it new tracks on an existing block.
+      - Do it for new tracks on an existing block.
       - Also adjust block size.
+      . I should use standard Create functions to do this all automatically.
     * how can I set instrument?
     * I get two copies of each track
       . Because I didn't add empty dests for everything, so it added new ones.
       - This process is error-prone, where can I document it better?
     - the final pitch event is misaligned
-      . It only happens when no ruler.
+      . It only happens when no ruler, and it's a visual drawing artifact.
     * add a ruler, derived from the meter
       . Make one RulerId per block, and then modify it on each integrate.
       . I don't have a single abstract meter that I can ask for an arbitrary
         length.
       . Meter.LabeledMeter?
     - does reintegrate not work?  I changed n to s but nothing happened.
+      . It only works to add to the end, not to change things.
   repl:
     - communicate parse errors back to vim to highlight
   parsing:

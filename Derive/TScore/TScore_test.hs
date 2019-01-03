@@ -58,6 +58,31 @@ test_integrate = do
           )
         ]
 
+test_integrate_2_tracks = do
+    let run state = Ui.exec state . TScore.integrate
+    let extract = UiTest.extract_blocks
+    let state = expect_right $ run Ui.empty "top = [s r // g m]"
+    equal (extract state)
+        [ ( "top"
+          , [ (">", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4s"), (1, 0, "4r")])
+            , (">", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4g"), (1, 0, "4m")])
+            ]
+          )
+        ]
+    state <- return $ expect_right $ Ui.exec state $
+        TScore.integrate "top = [g r // g m]"
+    equal (extract state)
+        [ ( "top"
+          , [ (">", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4g"), (1, 0, "4r")])
+            , (">", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4g"), (1, 0, "4m")])
+            ]
+          )
+        ]
+
 is_integral :: RealFrac a => a -> Bool
 is_integral = (==0) . snd . properFraction
 

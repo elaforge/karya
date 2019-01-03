@@ -82,37 +82,74 @@ integrate_block block = do
     let new = Set.fromList $ concatMap track_ids (_tracks block)
     let gone = existing_tracks `Set.difference` new
     mapM_ Ui.destroy_track (Set.toList gone)
-    mapM_ (integrate_track block_id ruler_id) (_tracks block)
+    mapM_ (create_track block_id ruler_id) (_tracks block)
+
+    dests <- Map.findWithDefault [] source_key . Block.block_integrated_manual
+        <$> Ui.get_block (_block_id block)
+    dests <- return $ pair_destinations block dests
+    new_dests <- Merge.merge_tracks block_id
+        [ (convert note, map convert controls)
+        | Track note controls <- _tracks block
+        ]
+        dests
+    Ui.set_integrated_manual block_id source_key (Just new_dests)
+
     unless exists $
         BlockConfig.toggle_merge_all block_id
     return $ if exists then Nothing else Just block_id
-
-integrate_track :: Ui.M m => BlockId -> RulerId -> Track -> m ()
-integrate_track block_id ruler_id (Track note controls) = do
-    exists <- Maybe.isJust <$> Ui.lookup_track (_track_id note)
-    dests <- if exists
-        then Ui.require "no manual integration" . Map.lookup source_key
-            . Block.block_integrated_manual =<< Ui.get_block block_id
-        else do
-            forM_ (note : controls) $ \track -> do
-                Ui.create_track (Id.unpack_id (_track_id track)) $
-                    Track.track (_title track) mempty
-                Ui.insert_track block_id 999 $
-                    Block.track (Block.TId (_track_id track) ruler_id)
-                        Config.track_width
-            return [Block.empty_destination (_track_id note)
-                [(_title track, _track_id track) | track <- controls]]
-    Ui.set_track_title (_track_id note) (_title note)
-    -- TODO I actually want to do Merge.score_merge here so I can match the
-    -- TrackIds.  Then I don't have to toss track_id below.
-    new_dests <- Merge.merge_tracks block_id
-        [(convert note, map convert controls)] dests
-    Ui.set_integrated_manual block_id source_key (Just new_dests)
     where
     convert track = Convert.Track
         { track_title = _title track
         , track_events = Events.ascending (_events track)
         }
+
+-- | Pair dests by TrackId, and then make Block.empty_destination for the rest.
+pair_destinations :: Block -> [Block.NoteDestination] -> [Block.NoteDestination]
+pair_destinations block dests =
+    map (pair_note (destinations_by_track_id dests)) (_tracks block)
+    where
+    pair_note dests (Track note controls) =
+        case Map.lookup (_track_id note) dests of
+            Nothing -> Block.empty_destination (_track_id note)
+                [(_title track, _track_id track) | track <- controls]
+            Just (index, dest_controls) -> Block.NoteDestination
+                { dest_note = (_track_id note, index)
+                , dest_controls =
+                    Map.fromList $ map (pair_control dest_controls) controls
+                }
+    pair_control dest_controls control =
+        (_title control, (_track_id control, index))
+        where
+        index = Map.findWithDefault mempty (_track_id control) dest_controls
+
+-- | Re-index NoteDestinations by TrackId.
+destinations_by_track_id :: [Block.NoteDestination]
+    -> Map TrackId (Block.EventIndex, Map TrackId Block.EventIndex)
+destinations_by_track_id dests = Map.fromList $ do
+    Block.NoteDestination (track_id, index) controls <- dests
+    return (track_id, (index, Map.fromList (map control (Map.toList controls))))
+    where
+    -- I toss the original track name, because I'm indexing by TrackId.  If
+    -- tscore changed the name, I want to replace with the new one anyway.
+    control (_name, (track_id, index)) = (track_id, index)
+
+-- BUT I don't have persistent TrackIds for controls anyway, since tscore
+-- doesn't have explicit TrackIds like it does BlockIds.  At the moment though
+-- I think it doesn't matter, since I only every have [pitch] or [] for
+-- controls.  Actually I'll probably key on control name, so maybe I should
+-- do that... or get rid of TrackIds here entirely, and let integrate take care
+-- of it, like it wants to.
+
+create_track :: Ui.M m => BlockId -> RulerId -> Track -> m ()
+create_track block_id ruler_id (Track note controls) = do
+    exists <- Maybe.isJust <$> Ui.lookup_track (_track_id note)
+    unless exists $ forM_ (note : controls) $ \track -> do
+        Ui.create_track (Id.unpack_id (_track_id track)) $
+            Track.track (_title track) mempty
+        Ui.insert_track block_id 999 $
+            Block.track (Block.TId (_track_id track) ruler_id)
+                Config.track_width
+    Ui.set_track_title (_track_id note) (_title note)
 
 source_key :: Block.SourceKey
 source_key = "tscore"
