@@ -547,8 +547,7 @@ assign_positions (KotekanPattern above below) per_octave destination =
         (map (fmap (add pitch)) steps, add pitch last)
     add pitch steps = Pitch.add_pc per_octave steps pitch
     extract ((steps, _), _) = steps
-    distance (_, last) center =
-        abs $ Pitch.subtract_pitch per_octave last center
+    distance (_, last) center = abs $ Pitch.diff_pc per_octave last center
 
 -- | Find the value from the first list that is closest to the first element of
 -- the first list, and then zip them up.

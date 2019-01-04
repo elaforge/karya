@@ -36,11 +36,20 @@ test_resolve_pitch = do
     equal (f "4n s") [Right "4n", Right "5s"]
     equal (f "4s n") [Right "4s", Right "3n"]
     -- mid-point goes down.
-    equal (f "4p s") [Right "4p", Right "4s"]
+    equal (f "4m s") [Right "4m", Right "4s"]
     equal (f "4n ,s") [Right "4n", Right "4s"]
     equal (f "4s 'n") [Right "4s", Right "4n"]
     equal (f "4s 's") [Right "4s", Right "5s"]
     equal (f "4s ,s") [Right "4s", Right "3s"]
+
+test_resolve_pitch_twelve = do
+    let f = map extract . Check.process config . parse
+        config = Check.default_config
+            { Check.config_scale = Check.scale_twelve }
+        extract = fmap $ fromMaybe "" . T.note_pitch . snd
+    equal (f "4c e") [Right "4c", Right "4e"]
+    equal (f "4g c") [Right "4g", Right "5c"]
+    equal (f "4f c") [Right "4f", Right "4c"]
 
 test_default_call = do
     let f = map (fmap snd) . Check.process config . parse

@@ -107,7 +107,7 @@ instrument_scale_map config
         (Instrument degrees relative_octaves center_oct low high) =
     scale_map config fmt (Just (to_pc low, to_pc high))
     where
-    to_pc p = Pitch.subtract_pitch per_oct p base_pitch
+    to_pc p = Pitch.diff_pc per_oct p base_pitch
     base_pitch = laras_base (config_default_laras config)
     fmt = relative_arrow degrees relative_octaves center_oct True
         (config_default_key config) (config_keys config)

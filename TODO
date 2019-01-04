@@ -25,11 +25,14 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - integrated events are italic, but they look very similar
+    . Use text color?
   - track integration should possibly be indexed by TrackId, so I don't have
     the possibility of overlapping ones.
     . I also want to be able to match on TrackId for the manual integration
       in TScore.  I should refactor on the integration stuff to account for
       all the variants in a less ad-hoc way.
+    . Wait actually tscore shouldn't use TrackId.
   * dummy allocations should be able to get cmds and defaults from dummy insts
     . I could make a separate DummyInst like MidiInst, but it seems like
       a hassle.  Instead just have them be MIDI/Im insts, and just pull the
@@ -4665,8 +4668,6 @@ Derive:
 text score: tscore:
   . doc/dev_notes/text-score.md
   status:
-    - integrated events are italic, but they look very similar
-      . Use text color?
     * unmodified events aren't bolded
       . Because I need to set Config.unmodified_style on events created via
         integration.
@@ -4716,8 +4717,10 @@ text score: tscore:
       . I don't have a single abstract meter that I can ask for an arbitrary
         length.
       . Meter.LabeledMeter?
-    - does reintegrate not work?  I changed n to s but nothing happened.
+    * does reintegrate not work?  I changed n to s but nothing happened.
       . It only works to add to the end, not to change things.
+  integrate:
+    - don't generate TrackIds, let integrate do that
   repl:
     - communicate parse errors back to vim to highlight
   parsing:
@@ -4785,6 +4788,7 @@ text score: tscore:
       . This will likely conflict with call/pitch syntax.
       . I could use dot... except duration already uses dot.  Maybe : by
         analogy to bars:beats or ratios?
+      . Or use lilypond style *.
   rhythm check:
     * I'll need a Directive for meter
     * combine ties

@@ -23,9 +23,9 @@ extend_scale :: Pitch.PitchClass -> Pitch.Pitch -- ^ extend down to here
 extend_scale per_octave low high start nns =
     reverse (take to_low down) ++ nns ++ take to_high up
     where
-    to_low = Pitch.subtract_pitch per_octave start low
+    to_low = Pitch.diff_pc per_octave start low
     -- 'high' is inclusive, so +1.
-    to_high = Pitch.subtract_pitch per_octave high start - length nns + 1
+    to_high = Pitch.diff_pc per_octave high start - length nns + 1
     down =
         [ nn - 12 * fromIntegral oct
         | oct <- [1..], nn <- reverse (take per_octave nns)

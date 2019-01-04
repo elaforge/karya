@@ -16,7 +16,7 @@ module Perform.Pitch (
     , Pitch(..), pitch, Degree(..)
     , Octave, PitchClass, Accidentals, Semi, FSemi, Step
     , pitch_accidentals, pitch_pc
-    , add_octave, add_pc, subtract_pitch
+    , add_octave, add_pc, diff_pc
     , middle_octave, middle_c
 
     -- * Input
@@ -154,9 +154,8 @@ add_pc per_octave steps (Pitch octave (Degree pc accs)) =
     Pitch (oct + octave) (Degree pc2 accs)
     where (oct, pc2) = (pc + steps) `divMod` per_octave
 
-subtract_pitch :: PitchClass -> Pitch -> Pitch -> PitchClass
-subtract_pitch per_octave (Pitch oct1 (Degree pc1 _))
-        (Pitch oct2 (Degree pc2 _)) =
+diff_pc :: PitchClass -> Pitch -> Pitch -> PitchClass
+diff_pc per_octave (Pitch oct1 (Degree pc1 _)) (Pitch oct2 (Degree pc2 _)) =
     oct_diff + pc1 - pc2
     where oct_diff = per_octave * (oct1 - oct2)
 

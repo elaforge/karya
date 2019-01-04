@@ -7,7 +7,6 @@
 module Derive.TScore.Check (
     Error(..), show_error, Config(..), default_config
     , parse_directive, parse_directives, process
-    , Pitch(..), PitchClass, Octave
     , Meter(..)
 #ifdef TESTING
     , module Derive.TScore.Check
@@ -19,6 +18,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
+import qualified Data.Void as Void
+
+import qualified Text.Megaparsec as P
+import qualified Text.Megaparsec.Char as P
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -28,8 +31,11 @@ import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
 import qualified Cmd.Ruler.Tala as Tala
 
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
+
+import qualified Perform.Pitch as Pitch
 
 import           Global
 import           Types
@@ -53,7 +59,7 @@ data Config = Config {
     , config_meter :: !Meter
     , config_scale :: !Scale
     , config_duration :: !DurationMode
-    } deriving (Eq, Show)
+    }
 
 default_config :: Config
 default_config = Config
@@ -89,7 +95,7 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 process :: Config -> [T.Token T.Pitch T.Duration]
     -> [Either Error (T.Time, T.Note (Maybe Text) T.Time)]
 process (Config default_call meter scale duration) =
-    pitch_to_symbolic scale . resolve_pitch scale . resolve_time
+    resolve_pitch scale . resolve_time
     . barlines meter . duration_mode duration
     . (if default_call then pitch_to_call else id)
     -- TODO resolve pitch before time, so the pitches are right, so ties work.
@@ -304,34 +310,26 @@ carry_duration mbDur = do
 -- * pitch
 
 data Scale = Scale {
-    scale_degrees :: Vector.Vector Text
-    , scale_per_octave :: !PitchClass
-    , scale_initial_octave :: !Octave
-    } deriving (Eq, Show)
-
-scale_parse :: Scale -> Text -> Maybe PitchClass
-scale_parse scale = (`Vector.elemIndex` scale_degrees scale)
-
-scale_unparse :: Scale -> Pitch -> Maybe Text
-scale_unparse scale (Pitch oct pc) = (showt oct <>) <$>
-    scale_degrees scale Vector.!? pc
-
-data Pitch = Pitch !Octave !PitchClass
-    deriving (Eq, Show)
-
-type PitchClass = Int
-type Octave = Int
+    scale_parse :: Text -> Maybe Pitch.Degree
+    , scale_unparse :: Pitch.Degree -> Maybe Text
+    , scale_layout :: !Theory.Layout
+    , scale_initial_octave :: !Pitch.Octave
+    }
 
 resolve_pitch :: Scale
     -> [Either Error (T.Time, T.Note T.Pitch dur)]
-    -> [Either Error (T.Time, T.Note (Maybe Pitch) dur)]
-resolve_pitch scale@(Scale _ per_octave initial_octave) =
-    infer_octaves per_octave initial_octave . parse_pitch (scale_parse scale)
+    -> [Either Error (T.Time, T.Note (Maybe Text) dur)]
+resolve_pitch scale =
+    pitch_to_symbolic scale
+    . infer_octaves per_octave (scale_initial_octave scale)
+    . parse_pitches (scale_parse scale)
+    where
+    per_octave = Theory.layout_pc_per_octave (scale_layout scale)
 
-parse_pitch :: (Text -> Maybe pitch)
+parse_pitches :: (Text -> Maybe pitch)
     -> [Either Error (T.Time, T.Note T.Pitch dur)]
     -> [Either Error (T.Time, T.Note (Maybe (T.Octave, pitch)) dur)]
-parse_pitch parse = snd . mapRightE token Nothing
+parse_pitches parse = snd . map_right_e token Nothing
     where
     token maybe_prev (start, note)
         | Text.null call = case maybe_prev of
@@ -350,33 +348,33 @@ parse_pitch parse = snd . mapRightE token Nothing
         T.Pitch oct call = T.note_pitch note
         with_pitch p = Right (start, note { T.note_pitch = (oct,) <$> p })
 
-infer_octaves :: PitchClass -> Octave
-    -> [Either e (time, T.Note (Maybe (T.Octave, PitchClass)) dur)]
-    -> [Either e (time, T.Note (Maybe Pitch) dur)]
+infer_octaves :: Pitch.PitchClass -> Pitch.Octave
+    -> [Either e (time, T.Note (Maybe (T.Octave, Pitch.Degree)) dur)]
+    -> [Either e (time, T.Note (Maybe Pitch.Pitch) dur)]
 infer_octaves per_octave initial_oct =
-    snd . mapRight infer (initial_oct, Nothing)
+    snd . map_right infer (initial_oct, Nothing)
     where
-    infer (prev_oct, prev_pc) (start, note) = case T.note_pitch note of
+    infer (prev_oct, prev_degree) (start, note) = case T.note_pitch note of
         Nothing ->
-            ((prev_oct, prev_pc), (start, note { T.note_pitch = Nothing }))
-        Just (oct, pc) -> with_octave pc $ case oct of
-            T.Relative n -> n + case prev_pc of
-                Just prev ->
-                    min_on3 (distance prev pc)
-                        (prev_oct-1) prev_oct (prev_oct+1)
+            ((prev_oct, prev_degree), (start, note { T.note_pitch = Nothing }))
+        Just (oct, degree) -> with_octave degree $ case oct of
+            T.Relative n -> n + case prev_degree of
+                Just prev -> min_on3 (distance prev degree)
+                    (prev_oct-1) prev_oct (prev_oct+1)
                 Nothing -> prev_oct
-            T.Absolute o -> o
+            T.Absolute oct -> oct
         where
-        with_octave pc o =
-            ( (o, Just pc)
-            , (start, note { T.note_pitch = Just (Pitch o pc) })
+        with_octave degree oct =
+            ( (oct, Just degree)
+            , (start, note { T.note_pitch = Just (Pitch.Pitch oct degree) })
             )
-        distance prev pc oct = abs $
-            pitch_diff per_octave (Pitch prev_oct prev) (Pitch oct pc)
-    min_on3 key a b c = Seq.min_on key a (Seq.min_on key b c)
+        distance prev degree oct = abs $
+            Pitch.diff_pc per_octave (Pitch.Pitch prev_oct prev)
+                (Pitch.Pitch oct degree)
 
 -- | Convert 'Pitch'es back to symbolic form.
-pitch_to_symbolic :: Scale -> [Either Error (T.Time, T.Note (Maybe Pitch) dur)]
+pitch_to_symbolic :: Scale
+    -> [Either Error (T.Time, T.Note (Maybe Pitch.Pitch) dur)]
     -> [Either Error (T.Time, T.Note (Maybe Text) dur)]
 pitch_to_symbolic scale = map to_sym
     where
@@ -385,35 +383,65 @@ pitch_to_symbolic scale = map to_sym
         sym <- case T.note_pitch note of
             Nothing -> return Nothing
             Just pitch -> Just <$> tryJust
-                (Error t ("bad pc: " <> showt (T.note_pitch note)))
-                (scale_unparse scale pitch)
+                (Error t ("bad pitch: " <> pretty (T.note_pitch note)))
+                (unparse pitch)
         return (t, note { T.note_pitch = sym })
+    unparse (Pitch.Pitch oct degree) =
+        (showt oct <>) <$> scale_unparse scale degree
 
 -- ** scale
 
 scale_map :: Map Text Scale
 scale_map = Map.fromList
     [ ("sargam", scale_sargam)
-    , ("ioeau", scale_ioeua)
+    , ("bali", scale_ioeua)
+    , ("twelve", scale_twelve)
     ]
 
-scale_sargam :: Scale
-scale_sargam = Scale
-    { scale_degrees = degrees
-    , scale_per_octave = 8
+diatonic_scale :: [Text] -> Scale
+diatonic_scale degrees_ = Scale
+    { scale_parse = \s -> Pitch.Degree <$> Vector.elemIndex s degrees <*> pure 0
+    , scale_unparse = unparse
+    , scale_layout = Theory.diatonic_layout (Vector.length degrees)
     , scale_initial_octave = 4
-    } where degrees = Vector.fromList $ map Text.singleton "srgmpdn"
+    }
+    where
+    unparse (Pitch.Degree pc accs)
+        | accs == 0 = degrees Vector.!? pc
+        | otherwise = Nothing
+    degrees = Vector.fromList degrees_
+
+
+scale_sargam :: Scale
+scale_sargam = diatonic_scale $ map Text.singleton "srgmpdn"
 
 scale_ioeua :: Scale
-scale_ioeua = Scale
-    { scale_degrees = degrees
-    , scale_per_octave = 5
-    , scale_initial_octave = 4
-    } where degrees = Vector.fromList $ map Text.singleton "ioeua"
+scale_ioeua = diatonic_scale $ map Text.singleton "ioeua"
 
-pitch_diff :: PitchClass -> Pitch -> Pitch -> PitchClass
-pitch_diff per_octave (Pitch oct1 pc1) (Pitch oct2 pc2) = oct_diff + pc1 - pc2
-    where oct_diff = per_octave * (oct1 - oct2)
+scale_twelve :: Scale
+scale_twelve = Scale
+    { scale_parse = P.parseMaybe p_degree
+    , scale_unparse = unparse
+    , scale_layout = Theory.piano_layout
+    , scale_initial_octave = 4
+    }
+    where
+    p_degree :: Parser Pitch.Degree
+    p_degree = do
+        pc <- P.choice [P.string c *> pure i | (i, c) <- zip [0..] degrees]
+        accs <- P.choice $ map (\(n, c) -> P.string c *> pure n) accidentals
+        return $ Pitch.Degree pc accs
+    unparse (Pitch.Degree pc accs) = (<>)
+        <$> Seq.at degrees pc <*> lookup accs accidentals
+    accidentals =
+        [ (0, ""), (0, "n")
+        , (1, "#"), (2, "x")
+        , (-1, "b"), (-2, "bb")
+        ]
+    degrees = map Text.singleton "cdefgab"
+
+
+type Parser a = P.Parsec Void.Void Text a
 
 
 -- * parsing
@@ -434,17 +462,20 @@ pitch_to_call = Identity.runIdentity . mapM (T.map_note (return . to_call))
 -- TODO this is much like LEvent, but with any error, not just logs.
 
 -- | Like 'List.mapAccumL', but pass through lefts.
-mapRight :: (state -> a -> (state, b)) -> state -> [Either e a]
+map_right :: (state -> a -> (state, b)) -> state -> [Either e a]
     -> (state, [Either e b])
-mapRight f = mapRightE (\state -> second Right . f state)
+map_right f = map_right_e (\state -> second Right . f state)
 
--- | Like 'mapRight', but the function can also contribute Lefts.
-mapRightE :: (state -> a -> (state, Either e b)) -> state -> [Either e a]
+-- | Like 'map_right', but the function can also contribute Lefts.
+map_right_e :: (state -> a -> (state, Either e b)) -> state -> [Either e a]
     -> (state, [Either e b])
-mapRightE f = go
+map_right_e f = go
     where
     go !state [] = (state, [])
     go !state (ea : as) = case ea of
         Left e -> second (Left e :) (go state as)
         Right a -> second (eb:) (go state2 as)
             where (state2, eb) = f state a
+
+min_on3 :: Ord k => (a -> k) -> a -> a -> a -> a
+min_on3 key a b c = Seq.min_on key a (Seq.min_on key b c)
