@@ -2,8 +2,10 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor #-}
 -- | Parse tscore, check and postprocess it, and convert to Ui.State.
 module Derive.TScore.TScore where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -39,36 +41,125 @@ import           Types
 
 type Error = Text
 
-data Block = Block {
+data Block track = Block {
     _block_id :: !BlockId
     , _block_title :: !Text
     , _meter :: ![Meter.LabeledMark]
-    , _tracks :: ![Track]
+    , _tracks :: ![track]
+    } deriving (Eq, Show, Functor)
+
+data NTrack = NTrack {
+    _note :: !Track
+    , _controls :: [Track]
     } deriving (Eq, Show)
+
+type Token = T.Token T.Pitch T.NDuration T.Duration
 
 data Track = Track {
-    _note :: !Track1
-    , _controls :: [Track1]
-    } deriving (Eq, Show)
-
-data Track1 = Track1 {
     _track_id :: !TrackId
     , _title :: !Text
     , _events :: !Events.Events
     } deriving (Eq, Show)
 
-track_ids :: Track -> [TrackId]
-track_ids (Track note controls) = _track_id note : map _track_id controls
+track_ids :: NTrack -> [TrackId]
+track_ids (NTrack note controls) = _track_id note : map _track_id controls
 
--- * integrate
+-- * toplevel
 
 integrate :: Ui.M m => Text -> m [BlockId] -- ^ newly created blocks
 integrate text = do
-    blocks <- Ui.require_right ("make_blocks: "<>) $ make_blocks text
+    blocks <- Ui.require_right id $ track_blocks text
     -- TODO trim blocks that disappeared like with tracks?
     mapMaybeM integrate_block blocks
 
-integrate_block :: Ui.M m => Block -> m (Maybe BlockId)
+track_blocks :: Text -> Either Error [Block NTrack]
+track_blocks text = do
+    blocks <- parsed_blocks text
+    let tokens_of (_, _, ts) = ts
+    whenJust (check_recursion $ map (tokens_of <$>) blocks) Left
+    (errs, blocks) <- return $ partition_errors $ make_tracks blocks
+    unless (null errs) $
+        Left $ Text.intercalate "; " errs
+    return blocks
+
+partition_errors :: [Block (Either err track)] -> ([err], [Block track])
+partition_errors = first concat . unzip . map partition_block
+    where
+    partition_block block = (errs, block { _tracks = tracks })
+        where (errs, tracks) = Either.partitionEithers (_tracks block)
+
+-- * memo
+
+-- | Look for recursive block calls.  If there are none, it's safe to
+-- 'make_tracks'.
+check_recursion :: [Block [Token]] -> Maybe Error
+check_recursion blocks =
+    either Just (const Nothing) $ mapM_ (check_block []) blocks
+    where
+    by_block_id = Map.fromList $ Seq.key_on _block_id blocks
+    check_block stack_ block
+        | _block_id block `elem` stack_ =
+            Left $ "recursive loop: "
+                <> Text.intercalate ", " (map show_id (reverse stack))
+        | otherwise = mapM_ (check_track stack) (_tracks block)
+        where stack = _block_id block : stack_
+    check_track stack = mapM_ (check_call stack) . mapMaybe call_of
+    check_call stack call =
+        whenJust (Map.lookup (Check.call_block_id call) by_block_id) $
+            check_block stack
+    show_id = Id.show_short Parse.default_namespace . Id.unpack_id
+
+call_of :: T.Token pitch ndur rdur -> Maybe Text
+call_of (T.TNote note) = Just $ (\(T.Call a) -> a) $ T.note_call note
+call_of _ = Nothing
+
+type ParsedTrack = (Check.Config, Text, [Token])
+
+-- | Check and resolve pitches and durations with 'Check.process'.
+--
+-- This has to be interleaved across blocks because 'T.CallDuration' means the
+-- duration of a note can depend on the duration of other blocks, and so forth.
+-- I can get this interleaved and cached via a lazy memo table, but it's only
+-- safe because I previously did 'check_recursion'.
+make_tracks :: [Block ParsedTrack] -> [Block (Either Error NTrack)]
+make_tracks blocks = Map.elems memo
+    where
+    memo = Map.fromList
+        [ (_block_id block, resolve_block block)
+        | block <- blocks
+        ]
+    resolve_block block = block
+        { _tracks = zipWith (resolve (_block_id block)) [1..] (_tracks block)
+        }
+    resolve block_id tracknum (config, title, tokens) = do
+        tokens <- first (Check.show_error (Check.config_meter config)) $
+            sequence $ Check.process get_dur config tokens
+        let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
+        return $ NTrack
+            { _note = Track
+                { _track_id = make_track_id block_id tracknum False
+                , _title = if Text.null title then ">" else title
+                , _events = Events.from_list $ map (uncurry note_event) tokens
+                }
+            , _controls = if null pitches then [] else (:[]) $ Track
+                { _track_id = make_track_id block_id tracknum True
+                , _title = "*"
+                , _events = Events.from_list pitches
+                }
+            }
+    get_dur block_id = case Map.lookup block_id memo of
+        Nothing -> Left $ "no block: " <> pretty block_id
+        Just block -> bimap (("in block " <> pretty block_id <> ": ")<>)
+            (maximum . (0:) . map track_end)
+            (sequence (_tracks block))
+
+track_end :: NTrack -> T.Time
+track_end (NTrack note controls) = from_track_time $
+    maximum $ map (Events.time_end . _events) (note : controls)
+
+-- * integrate
+
+integrate_block :: Ui.M m => Block NTrack -> m (Maybe BlockId)
 integrate_block block = do
     let block_id = _block_id block
     ruler_id <- ui_ruler block
@@ -89,7 +180,7 @@ integrate_block block = do
     dests <- return $ pair_destinations block dests
     new_dests <- Merge.merge_tracks block_id
         [ (convert note, map convert controls)
-        | Track note controls <- _tracks block
+        | NTrack note controls <- _tracks block
         ]
         dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
@@ -104,11 +195,12 @@ integrate_block block = do
         }
 
 -- | Pair dests by TrackId, and then make Block.empty_destination for the rest.
-pair_destinations :: Block -> [Block.NoteDestination] -> [Block.NoteDestination]
+pair_destinations :: Block NTrack -> [Block.NoteDestination]
+    -> [Block.NoteDestination]
 pair_destinations block dests =
     map (pair_note (destinations_by_track_id dests)) (_tracks block)
     where
-    pair_note dests (Track note controls) =
+    pair_note dests (NTrack note controls) =
         case Map.lookup (_track_id note) dests of
             Nothing -> Block.empty_destination (_track_id note)
                 [(_title track, _track_id track) | track <- controls]
@@ -140,8 +232,8 @@ destinations_by_track_id dests = Map.fromList $ do
 -- do that... or get rid of TrackIds here entirely, and let integrate take care
 -- of it, like it wants to.
 
-create_track :: Ui.M m => BlockId -> RulerId -> Track -> m ()
-create_track block_id ruler_id (Track note controls) = do
+create_track :: Ui.M m => BlockId -> RulerId -> NTrack -> m ()
+create_track block_id ruler_id (NTrack note controls) = do
     exists <- Maybe.isJust <$> Ui.lookup_track (_track_id note)
     unless exists $ forM_ (note : controls) $ \track -> do
         Ui.create_track (Id.unpack_id (_track_id track)) $
@@ -158,17 +250,17 @@ source_key = "tscore"
 
 ui_state :: Text -> Either Error Ui.State
 ui_state text = do
-    blocks <- make_blocks text
+    blocks <- track_blocks text
     first pretty $ Ui.exec Ui.empty $ do
         Ui.set_namespace Parse.default_namespace
         mapM_ ui_block blocks
 
-ui_block :: Ui.M m => Block -> m ()
+ui_block :: Ui.M m => Block NTrack -> m ()
 ui_block block = do
     track_ids <- sequence
         [ Ui.create_track (Id.unpack_id track_id) (Track.track title events)
-        | Track note controls <- _tracks block
-        , Track1 track_id title events <- note : controls
+        | NTrack note controls <- _tracks block
+        , Track track_id title events <- note : controls
         ]
     ruler_id <- ui_ruler block
     let tracks =
@@ -180,12 +272,12 @@ ui_block block = do
     -- The first block will become the root_id implicitly.
     return ()
 
-ui_ruler :: Ui.M m => Block -> m RulerId
+ui_ruler :: Ui.M m => Block NTrack -> m RulerId
 ui_ruler block = make_ruler (_block_id block) (_meter block) end
     where
     end = maximum $ 0 :
         [ Events.time_end (_events t1)
-        | Track note controls <- _tracks block, t1 <- note : controls
+        | NTrack note controls <- _tracks block, t1 <- note : controls
         ]
 
 make_ruler :: Ui.M m => BlockId -> [Meter.LabeledMark] -> TrackTime -> m RulerId
@@ -207,55 +299,39 @@ generate_ruler meter end = Ruler.Modify.meter (const generate)
 
 -- * make_blocks
 
-make_blocks :: Text -> Either Error [Block]
-make_blocks text = do
+parsed_blocks :: Text -> Either Error [Block ParsedTrack]
+parsed_blocks text = do
     T.Score defs <- first (("parse: "<>) . txt) $ Parse.parse_score text
     fst <$> foldM collect ([], Check.default_config) defs
     where
     collect (accum, config) def = do
-        (block_id, config) <- interpret_toplevel config def
-        return (maybe id (:) block_id accum, config)
+        (block, config) <- interpret_toplevel config def
+        return (maybe id (:) block accum, config)
 
 interpret_toplevel :: Check.Config -> T.Toplevel
-    -> Either Error (Maybe Block, Check.Config)
+    -> Either Error (Maybe (Block ParsedTrack), Check.Config)
 interpret_toplevel config (T.ToplevelDirective dir) = (Nothing,) <$>
     first ("toplevel: " <>) (Check.parse_directive dir config)
 interpret_toplevel config (T.BlockDefinition block) = do
     block <- interpret_block config block
     return (Just block, config)
 
-interpret_block :: Check.Config -> T.Block -> Either Error Block
+interpret_block :: Check.Config -> T.Block -> Either Error (Block ParsedTrack)
 interpret_block config
         (T.Block block_id directives title (T.Tracks tracks)) = do
-    block_config <- first ((pretty block_id <> ": ")<>) $
+    config <- first ((pretty block_id <> ": ")<>) $
         Check.parse_directives config directives
-    tracks <- mapM (uncurry (track_events block_config block_id))
-        (zip [1..] tracks)
     return $ Block
         { _block_id = block_id
         , _block_title = title
         , _meter = Check.meter_labeled $ Check.config_meter config
-        , _tracks = tracks
+        , _tracks =
+            [ (config, title, Check.preprocess config tokens)
+            | T.Track title tokens <- tracks
+            ]
         }
 
-track_events :: Check.Config -> BlockId -> TrackNum -> T.Track
-    -> Either Error Track
-track_events config block_id tracknum (T.Track title tokens) = do
-    tokens <- first (Check.show_error (Check.config_meter config)) $
-        sequence $ Check.process config tokens
-    let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
-    return $ Track
-        { _note = Track1
-            { _track_id = make_track_id block_id tracknum False
-            , _title = if Text.null title then ">" else title
-            , _events = Events.from_list $ map (uncurry note_event) tokens
-            }
-        , _controls = if null pitches then [] else (:[]) $ Track1
-            { _track_id = make_track_id block_id tracknum True
-            , _title = "*"
-            , _events = Events.from_list pitches
-            }
-        }
+-- * local util
 
 make_track_id :: BlockId -> TrackNum -> Bool -> TrackId
 make_track_id block_id tracknum is_pitch =
@@ -273,6 +349,9 @@ pitch_event (start, pitch) = add_stack $ Event.event (track_time start) 0 pitch
 
 track_time :: T.Time -> TrackTime
 track_time = realToFrac
+
+from_track_time :: TrackTime -> T.Time
+from_track_time = realToFrac
 
 -- | A stack marks these events as being from an integration.  Event style uses
 -- this, but I think that's all since I have SourceKey hardcoded.

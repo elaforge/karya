@@ -7,6 +7,7 @@ STATUS
   . synth: status:
   . infer gender damping:
   . text score:
+  - make kendang sampler instrument
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -4672,6 +4673,30 @@ Derive:
 text score: tscore:
   . doc/dev_notes/text-score.md
   status:
+    - carry call durations like other durations
+    - call duration should support non-tscore calls too
+    * automatic call duration
+      . add to parser.  Use 0, then I don't have to carve out another symbol
+        from pitch_chars.
+      . I need to resolve duration_mode and CallDuration in parallel before
+        Check.barlines.  They both resolve to (Time, tie).
+      . To resolve, make a memo table Map BlockId Progress, with
+        Unknown | Thinking | Thunk Time.  Thinking is to detect recursion.
+        If it's not in the table, I have to do a derive.
+      . Thinking means I have to thread state all through TScore.  If I look
+        for recursion up-front I could avoid that, and rely on haskell
+        memoization.  Is it possible?
+      . Just do the call duration thing, with threaded state, but with no need
+        to get durations.
+      . Is that really so much better though?  If I can find a place to do
+        that, I can just resolve the durations.  And it's inaccurate: I only
+        care about loops with T.CallDuration on them.
+      . Then it seems I can either thread the state through TScore, or I can
+        break the parsing by doing at least parse and duration resolution
+        together.
+      . Then I need an intermediate Track1 which is Tokens instead of Events.
+      . Maybe just threading the state is not so bad.  But I still need to
+        do the parsing up front, so I know the set of BlockIds.
     * unmodified events aren't bolded
       . Because I need to set Config.unmodified_style on events created via
         integration.
@@ -4725,6 +4750,12 @@ text score: tscore:
       . It only works to add to the end, not to change things.
   integrate:
     - don't generate TrackIds, let integrate do that
+    / put scale in the score
+      . Or maybe not?  I don't want to clutter each block with one, but if I'm
+        integrating I can't go mess with UiConfig.ky.  And in any case, maybe
+        I want to be able to have a different scale, e.g. relative vs.
+        absolute.  Since tscore only cares about PitchClass distance, I don't
+        think it needs to care about key or relative or whatever.
   repl:
     - communicate parse errors back to vim to highlight
   parsing:
@@ -4788,17 +4819,27 @@ text score: tscore:
         I can't use numbers, or anything that doesn't parse as a pitch.
       . Otherwise I'll need a ReaderT for parse config.
     - directive for basic pulse/matra?
-    - fractional duration, e.g. 2/1
+    - longer durations, e.g. 2/1
       . This will likely conflict with call/pitch syntax.
       . I could use dot... except duration already uses dot.  Maybe : by
         analogy to bars:beats or ratios?
       . Or use lilypond style *.
+      . Wait, * is no good because I also want <1 for additive.  So back to :.
+        Then I can have both 5:1 and 1:5.  And :0 for 0-dur.
+    - support 0 dur notes
+      . Use :0?
   rhythm check:
     * I'll need a Directive for meter
     * combine ties
     * check for additive
     * check for multiplicative
+    proportional:
+      . I think this is like add, but everything has the same duration, and ~
+        continues the note.
+    mark:
+      . This replaces barline check with setting the durations.
   pitch check:
+    - put name in Scale so I can give it a Show, so Config can be in Show
     * carry pitch from prev
     * infer octaves
       . absolute octave carries over
@@ -4806,7 +4847,7 @@ text score: tscore:
     - put resolve_pitch before resolve_time
       . This way ties work with inferred pitches.
       . Then I have to plumb through TBarline etc. which is annoying.
-  - accidentals for pitch
+  * accidentals for pitch
     . I think I just need to support *twelve and *twelve-r?
     . Enharmonics make it not quite the same, since I use pitch difference.
       I need a full Pitch.Pitch, and a layout etc.

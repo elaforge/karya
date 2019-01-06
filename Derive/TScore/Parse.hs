@@ -120,15 +120,15 @@ instance Element T.Directive where
         not_in cs = P.takeWhile1P Nothing (`notElem` cs)
     unparse (T.Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
-instance Element (T.Token T.Pitch T.Duration) where
+instance Element (T.Token T.Pitch T.NDuration T.Duration) where
     parse = T.TBarline <$> parse <|> T.TNote <$> parse <|> T.TRest <$> parse
     unparse (T.TBarline bar) = unparse bar
     unparse (T.TNote note) = unparse note
     unparse (T.TRest rest) = unparse rest
 
-instance Pretty (T.Token T.Pitch T.Duration) where pretty = unparse
+instance Pretty (T.Token T.Pitch T.NDuration T.Duration) where pretty = unparse
 
-p_tokens :: Parser [T.Token T.Pitch T.Duration]
+p_tokens :: Parser [T.Token T.Pitch T.NDuration T.Duration]
 p_tokens = P.some (lexeme parse)
 
 -- ** barline
@@ -146,14 +146,21 @@ instance Pretty T.Barline where pretty = unparse
 
 -- | Parse a note with a letter pitch.
 --
+-- > <call><oct><pitch><dur><dots><tie>
+-- > call/  4    s      4    .     ~
+--
+-- oct is optional, but oct without pitch is not so useful, so pitch >=1 char.
+--
 -- > a a2 call/a2
 -- > a2.
 -- > a~ a2~
 -- > "call with spaces"/
-instance Element (T.Note T.Pitch T.Duration) where
+instance Element (T.Note T.Pitch T.NDuration) where
     parse = do
         call <- P.optional $ P.try $ parse <* P.char '/'
-        pitch <- parse
+        -- I need a try, because if it starts with a number it could be
+        -- an octave, or a duration.
+        pitch <- P.option empty_pitch $ P.try parse
         dur <- parse
         let note = T.Note (fromMaybe (T.Call "") call) pitch dur
         -- If I allow "" as a note, I can't get P.many of them.
@@ -165,14 +172,16 @@ instance Element (T.Note T.Pitch T.Duration) where
         , unparse dur
         ]
 
-empty_note :: T.Note T.Pitch T.Duration
-empty_note = T.Note (T.Call "") empty_pitch (T.Duration Nothing 0 False)
+empty_note :: T.Note T.Pitch T.NDuration
+empty_note =
+    T.Note (T.Call "") empty_pitch (T.NDuration (T.Duration Nothing 0 False))
 
 empty_pitch :: T.Pitch
 empty_pitch = T.Pitch (T.Relative 0) ""
 
 -- |
--- > word-without-slash
+-- > plain-word
+-- > "ns/block"
 -- > "word with spaces"
 -- > "with embedded "() quote"
 instance Element T.Call where
@@ -207,7 +216,7 @@ pitch_char c = c `notElem` (" \n-,'~./]_" :: [Char]) && not (Char.isDigit c)
 -- ** Pitch
 
 instance Element T.Pitch where
-    parse = T.Pitch <$> parse <*> (P.takeWhileP Nothing pitch_char) <?> "pitch"
+    parse = T.Pitch <$> parse <*> P.takeWhile1P Nothing pitch_char <?> "pitch"
     unparse (T.Pitch octave call) = unparse octave <> call
 
 instance Element T.Octave where
@@ -221,6 +230,11 @@ instance Element T.Octave where
         | otherwise = Text.replicate (-n) ","
 
 -- ** Duration
+
+instance Element T.NDuration where
+    parse = P.char '0' *> pure T.CallDuration <|> T.NDuration <$> parse
+    unparse T.CallDuration = "0"
+    unparse (T.NDuration a) = unparse a
 
 instance Element T.Duration where
     parse = T.Duration

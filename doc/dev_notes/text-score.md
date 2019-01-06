@@ -51,10 +51,11 @@ Even just a simple sequencing language could be pretty useful.
 
 In theory, in the distant future, with some editor integration I could use the
 tempo map and playback thread to highlight currently playing expressions.
+https://hackage.haskell.org/package/live-sequencer-0.0.6 is an example of this.
 
 ### implementation
 
-Initial implementation in `Derive/Text`.
+Initial implementation in `Derive/TScore`.
 
 If I wind up using a lot of text, I could store this as a normal file, or group
 of files, inside of .git.  If I then use a "checked out" repo, I can use diff.
@@ -116,13 +117,13 @@ markers ala gongche:
     , (1, 1+1/4, "d")
     ]
 
-    dur=prop  c - a - b c _ _ d -
+    dur=prop  c ~ a ~ b c _ _ d ~
     [(0, 2, "c"), (2, 2, "a"), (4, 1, "b"), (5, 1, "c"), (8, 2, "d")]
 
     dur=add   c2 a b1 c _2 d2
     [(0, 2, "c"), (2, 2, "a"), (4, 1, "b"), (5, 1, "c"), (8, 2, "d")]
 
-    dur=mark  c a | a b - c
+    dur=mark  c a | a b _ c
     [ (0, 1/2, "c"), (1/2, 1/2, "a"), (1, 1/4, "a"), (1+1/4, 2/4, "b")
     , (1+3/4, 1/4, "c")
     ]

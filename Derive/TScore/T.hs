@@ -40,49 +40,46 @@ newtype Tracks = Tracks [Track]
 
 data Track = Track {
     track_title :: !Text
-    , track_tokens :: ![Token Pitch Duration]
+    , track_tokens :: ![Token Pitch NDuration Duration]
     } deriving (Eq, Show)
 
 data Directive = Directive !Text !(Maybe Text)
     deriving (Eq, Show)
 
-data Token pitch dur =
+data Token pitch ndur rdur =
     -- | Higher count for larger divisions, e.g. anga vs. avartanam.
     TBarline !Barline
-    | TNote !(Note pitch dur)
-    | TRest !(Rest dur)
+    | TNote !(Note pitch ndur)
+    | TRest !(Rest rdur)
     deriving (Eq, Show)
 
-token_name :: Token pitch dur -> Text
+token_name :: Token pitch ndur rdur -> Text
 token_name = \case
     TBarline {} -> "barline"
     TNote {} -> "note"
     TRest {} -> "rest"
 
-map_pitch :: Monad m => (pitch1 -> m pitch2) -> Token pitch1 dur
-    -> m (Token pitch2 dur)
+map_pitch :: Applicative m => (pitch1 -> m pitch2) -> Token pitch1 ndur rdur
+    -> m (Token pitch2 ndur rdur)
 map_pitch f = \case
-    TNote note -> do
-        pitch <- f (note_pitch note)
-        return $ TNote $ note { note_pitch = pitch }
-    TBarline a -> return $ TBarline a
-    TRest a -> return $ TRest a
+    TNote note -> TNote . (\a -> note { note_pitch = a}) <$> f (note_pitch note)
+    TBarline a -> pure $ TBarline a
+    TRest a -> pure $ TRest a
 
-map_duration :: Monad m => (dur1 -> m dur2) -> Token pitch dur1
-    -> m (Token pitch dur2)
-map_duration f = \case
-    TNote note -> do
-        dur <- f (note_duration note)
-        return $ TNote $ note { note_duration = dur }
-    TBarline a -> return $ TBarline a
-    TRest (Rest dur) -> TRest . Rest <$> f dur
+map_note_duration :: Applicative m => (dur1 -> m dur2) -> Token pitch dur1 rdur
+    -> m (Token pitch dur2 rdur)
+map_note_duration f = \case
+    TNote note -> TNote . (\a -> note { note_duration = a }) <$>
+        f (note_duration note)
+    TBarline a -> pure $ TBarline a
+    TRest (Rest dur) -> pure $ TRest $ Rest dur
 
-map_note :: Monad m => (Note pitch1 dur -> m (Note pitch2 dur))
-    -> Token pitch1 dur -> m (Token pitch2 dur)
+map_note :: Applicative m => (Note pitch1 ndur -> m (Note pitch2 ndur))
+    -> Token pitch1 ndur rdur -> m (Token pitch2 ndur rdur)
 map_note f = \case
     TNote note -> TNote <$> f note
-    TBarline a -> return $ TBarline a
-    TRest a -> return $ TRest a
+    TBarline a -> pure $ TBarline a
+    TRest a -> pure $ TRest a
 
 -- | Opposide from Ruler.Rank, higher numbers mean larger divisions.
 type Rank = Int
@@ -111,6 +108,9 @@ data Pitch = Pitch {
     } deriving (Eq, Show)
 
 data Octave = Absolute !Int | Relative !Int
+    deriving (Eq, Show)
+
+data NDuration = NDuration !Duration | CallDuration
     deriving (Eq, Show)
 
 data Duration = Duration {

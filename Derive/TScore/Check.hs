@@ -6,7 +6,9 @@
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
     Error(..), show_error, Config(..), default_config
-    , parse_directive, parse_directives, process
+    , parse_directive, parse_directives
+    , preprocess, process
+    , call_block_id
     , Meter(..)
 #ifdef TESTING
     , module Derive.TScore.Check
@@ -36,6 +38,7 @@ import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 
 import qualified Perform.Pitch as Pitch
+import qualified Ui.Id as Id
 
 import           Global
 import           Types
@@ -92,16 +95,54 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 
 -- * process
 
-process :: Config -> [T.Token T.Pitch T.Duration]
-    -> [Either Error (T.Time, T.Note (Maybe Text) T.Time)]
-process (Config default_call meter scale duration) =
-    resolve_pitch scale . resolve_time
-    . barlines meter . duration_mode duration
-    . (if default_call then pitch_to_call else id)
+type Stream a = [Either Error a]
+type Token pitch dur = T.Token pitch dur dur
+
+type GetCallDuration = Id.BlockId -> Either Text T.Time
+
+-- | This goes before the recursion check, because it handles %default-call.
+-- The recursion check depends on that because it looks for block calls.
+preprocess :: Config -> [T.Token T.Pitch T.NDuration T.Duration]
+    -> [T.Token T.Pitch T.NDuration T.Duration]
+preprocess config
+    | config_default_call config = pitch_to_call
+    | otherwise = id
+
+process :: GetCallDuration -> Config
+    -> [T.Token T.Pitch T.NDuration T.Duration]
+    -> Stream (T.Time, T.Note (Maybe Text) T.Time)
+process get_dur (Config _default_call meter scale duration) =
+    resolve_pitch scale
+    . resolve_time
+    . check_barlines meter
+    . duration_mode duration
+    . resolve_call_duration get_dur
     -- TODO resolve pitch before time, so the pitches are right, so ties work.
     -- But then I still have TBarline and the like.
 
 -- * time
+
+resolve_call_duration :: GetCallDuration
+    -> [T.Token T.Pitch T.NDuration rdur]
+    -> Stream (T.Token T.Pitch (Either T.Time T.Duration) rdur)
+resolve_call_duration get_dur = map $ \case
+    T.TBarline a -> Right $ T.TBarline a
+    T.TRest a -> Right $ T.TRest a
+    T.TNote note ->
+        second set $ resolve (T.note_call note) (T.note_duration note)
+        where set dur = T.TNote $ note { T.note_duration = dur }
+    where
+    resolve _ (T.NDuration dur) = Right $ Right dur
+    resolve (T.Call call) T.CallDuration
+        -- TODO embed SrcPos in T.Token for a proper location
+        | Text.null call =
+            Left $ Error 0 "can't get call duration of empty call"
+        | otherwise = case get_dur (call_block_id call) of
+                Left err -> Left $ Error 0 err
+                Right time -> Right $ Left time
+
+call_block_id :: Text -> Id.BlockId
+call_block_id = Id.BlockId . Id.read_short Parse.default_namespace
 
 -- ** meter
 
@@ -155,8 +196,8 @@ make_labeled dur =
 
 -- | Remove TBarline and TRest, add start times, and resolve ties.
 resolve_time :: (Eq pitch, Parse.Element pitch)
-    => [Either Error (T.Token pitch (T.Time, Bool))]
-    -> [Either Error (T.Time, T.Note pitch T.Time)]
+    => Stream (Token pitch (T.Time, Bool))
+    -> Stream (T.Time, T.Note pitch T.Time)
 resolve_time tokens = go . zip starts $ tokens
     where
     starts = scanl (\n -> (n+) . either (const 0) duration_of) 0 tokens
@@ -187,11 +228,10 @@ resolve_time tokens = go . zip starts $ tokens
 
 tied_notes :: (Eq pitch, Parse.Element pitch)
     => T.Time -> T.Note pitch (T.Time, Bool)
-    -> [(T.Time, T.Token pitch (T.Time, Bool))]
+    -> [(T.Time, Token pitch (T.Time, Bool))]
     -> Either Error T.Time
 tied_notes start note tied = case others of
     [] -> case Seq.last matches of
-        -- Nothing -> Right $ start + dur_of note
         Nothing -> Left $ Error start "final note has a tie"
         Just (s, n)
             | snd $ T.note_duration n ->
@@ -209,7 +249,7 @@ tied_notes start note tied = case others of
     match (_, T.TBarline {}) = Just []
     match _ = Nothing
 
-tied_rests :: [(T.Time, T.Token pitch (T.Time, Bool))] -> Maybe Error
+tied_rests :: [(T.Time, Token pitch (T.Time, Bool))] -> Maybe Error
 tied_rests = fmap format . List.find (not . matches . snd)
     where
     format (start, token) =
@@ -222,13 +262,13 @@ is_tied (T.TNote note) = snd $ T.note_duration note
 is_tied (T.TRest (T.Rest (_, tied))) = tied
 is_tied _ = False
 
--- ** barlines
+-- ** check_barlines
 
-barlines :: Meter -> [T.Token pitch (T.Time, tie)]
-    -> [Either Error (T.Token pitch (T.Time, tie))]
-barlines meter = concat . snd . List.mapAccumL token 0 . zip [0..]
+check_barlines :: Meter
+    -> Stream (Token pitch (T.Time, tie)) -> Stream (Token pitch (T.Time, tie))
+check_barlines meter = snd . map_rights_e check_token 0 . zip_right [0..]
     where
-    token now (i, token) = (now + dur, Right token : warning)
+    check_token now (i, token) = (now + dur, Right token : warning)
         where
         dur = duration_of token
         warning = case token of
@@ -255,7 +295,7 @@ show_time :: T.Time -> T.Time -> Text
 show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat
     where (cycle, beat) = t `Num.fDivMod` cycle_dur
 
-duration_of :: T.Token pitch (T.Time, tie) -> T.Time
+duration_of :: Token pitch (T.Time, tie) -> T.Time
 duration_of = \case
     T.TBarline _ -> 0
     T.TNote note -> fst (T.note_duration note)
@@ -272,34 +312,47 @@ duration_map = Map.fromList
 data DurationMode = Multiplicative | Additive
     deriving (Eq, Show)
 
-duration_mode :: DurationMode -> [T.Token pitch T.Duration]
-    -> [T.Token pitch (T.Time, Bool)]
+duration_mode :: DurationMode
+    -> Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
+    -> Stream (Token pitch (T.Time, Bool))
 duration_mode = \case
     Multiplicative -> multiplicative
     Additive -> additive
 
 -- | Each number is the inverse of the number of beats, so 2 is 1/2, 8 is 1/8
 -- etc.
-multiplicative :: [T.Token pitch T.Duration] -> [T.Token pitch (T.Time, Bool)]
-multiplicative = run . mapM (T.map_duration convert)
+multiplicative :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
+    -> Stream (Token pitch (T.Time, Bool))
+multiplicative = flip State.evalState 1 . map_right_m (map_duration convert)
     where
-    run = fst . flip State.runState 1
-    convert (T.Duration intDur dots tie) = do
-        intDur <- carry_duration intDur
-        let dur = T.Time (1 / fromIntegral intDur)
-        let dotDur = sum $ take dots $ drop 1 $ iterate (/2) dur
-        return (dur + dotDur, tie)
+    convert (T.Duration idur dots tie) = do
+        idur <- carry_duration idur
+        let dur = T.Time (1 / fromIntegral idur)
+        let dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
+        return (dur + dot_dur, tie)
 
 -- | Each number is just the number of Time beats.
-additive :: [T.Token pitch T.Duration] -> [T.Token pitch (T.Time, Bool)]
-additive = run . mapM (T.map_duration convert)
+additive :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
+    -> Stream (Token pitch (T.Time, Bool))
+additive = flip State.evalState 1 . map_right_m (map_duration convert)
     where
-    run = fst . flip State.runState 1
-    convert (T.Duration intDur dots tie) = do
-        intDur <- carry_duration intDur
-        let dur = T.Time (fromIntegral intDur)
-        let dotDur = sum $ take dots $ drop 1 $ iterate (/2) dur
-        return (dur + dotDur, tie)
+    convert (T.Duration idur dots tie) = do
+        idur <- carry_duration idur
+        let dur = T.Time (fromIntegral idur)
+        let dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
+        return (dur + dot_dur, tie)
+
+map_duration :: Monad m => (dur1 -> m (dur2, Bool))
+    -> T.Token pitch (Either dur2 dur1) dur1
+    -> m (T.Token pitch (dur2, Bool) (dur2, Bool))
+map_duration f = \case
+    T.TBarline a -> return $ T.TBarline a
+    T.TNote note -> do
+        time <- case T.note_duration note of
+            Left time -> return (time, False)
+            Right dur -> f dur
+        return $ T.TNote $ note { T.note_duration = time }
+    T.TRest (T.Rest dur) -> T.TRest . T.Rest <$> f dur
 
 carry_duration :: State.MonadState Int m => Maybe Int -> m Int
 carry_duration mbDur = do
@@ -317,8 +370,8 @@ data Scale = Scale {
     }
 
 resolve_pitch :: Scale
-    -> [Either Error (T.Time, T.Note T.Pitch dur)]
-    -> [Either Error (T.Time, T.Note (Maybe Text) dur)]
+    -> Stream (T.Time, T.Note T.Pitch dur)
+    -> Stream (T.Time, T.Note (Maybe Text) dur)
 resolve_pitch scale =
     pitch_to_symbolic scale
     . infer_octaves per_octave (scale_initial_octave scale)
@@ -327,9 +380,9 @@ resolve_pitch scale =
     per_octave = Theory.layout_pc_per_octave (scale_layout scale)
 
 parse_pitches :: (Text -> Maybe pitch)
-    -> [Either Error (T.Time, T.Note T.Pitch dur)]
-    -> [Either Error (T.Time, T.Note (Maybe (T.Octave, pitch)) dur)]
-parse_pitches parse = snd . map_right_e token Nothing
+    -> Stream (T.Time, T.Note T.Pitch dur)
+    -> Stream (T.Time, T.Note (Maybe (T.Octave, pitch)) dur)
+parse_pitches parse = fst . map_right_e token Nothing
     where
     token maybe_prev (start, note)
         | Text.null call = case maybe_prev of
@@ -352,7 +405,7 @@ infer_octaves :: Pitch.PitchClass -> Pitch.Octave
     -> [Either e (time, T.Note (Maybe (T.Octave, Pitch.Degree)) dur)]
     -> [Either e (time, T.Note (Maybe Pitch.Pitch) dur)]
 infer_octaves per_octave initial_oct =
-    snd . map_right infer (initial_oct, Nothing)
+    fst . map_right infer (initial_oct, Nothing)
     where
     infer (prev_oct, prev_degree) (start, note) = case T.note_pitch note of
         Nothing ->
@@ -374,8 +427,8 @@ infer_octaves per_octave initial_oct =
 
 -- | Convert 'Pitch'es back to symbolic form.
 pitch_to_symbolic :: Scale
-    -> [Either Error (T.Time, T.Note (Maybe Pitch.Pitch) dur)]
-    -> [Either Error (T.Time, T.Note (Maybe Text) dur)]
+    -> Stream (T.Time, T.Note (Maybe Pitch.Pitch) dur)
+    -> Stream (T.Time, T.Note (Maybe Text) dur)
 pitch_to_symbolic scale = map to_sym
     where
     to_sym (Left e) = Left e
@@ -411,7 +464,6 @@ diatonic_scale degrees_ = Scale
         | otherwise = Nothing
     degrees = Vector.fromList degrees_
 
-
 scale_sargam :: Scale
 scale_sargam = diatonic_scale $ map Text.singleton "srgmpdn"
 
@@ -446,7 +498,8 @@ type Parser a = P.Parsec Void.Void Text a
 
 -- * parsing
 
-pitch_to_call :: [T.Token T.Pitch T.Duration] -> [T.Token T.Pitch T.Duration]
+pitch_to_call :: [T.Token T.Pitch T.NDuration T.Duration]
+    -> [T.Token T.Pitch T.NDuration T.Duration]
 pitch_to_call = Identity.runIdentity . mapM (T.map_note (return . to_call))
     where
     to_call note
@@ -462,20 +515,57 @@ pitch_to_call = Identity.runIdentity . mapM (T.map_note (return . to_call))
 -- TODO this is much like LEvent, but with any error, not just logs.
 
 -- | Like 'List.mapAccumL', but pass through lefts.
+-- TODO try monadic style for map_right and map_right_e
 map_right :: (state -> a -> (state, b)) -> state -> [Either e a]
-    -> (state, [Either e b])
+    -> ([Either e b], state)
 map_right f = map_right_e (\state -> second Right . f state)
 
--- | Like 'map_right', but the function can also contribute Lefts.
+-- | Like 'map_right_em', but adapted to use mapAccumL style state.
 map_right_e :: (state -> a -> (state, Either e b)) -> state -> [Either e a]
+    -> ([Either e b], state)
+map_right_e f state = flip State.runState state . map_right_em run
+    where
+    run a = do
+        state <- State.get
+        let (state2, eb) = f state a
+        State.put $! state2
+        return eb
+
+map_right_m :: Monad m => (a -> m b) -> [Either e a] -> m [Either e b]
+map_right_m f = map_right_em (fmap Right . f)
+
+-- TODO is this just traverse . traverse?
+-- No, that's (a -> f b) -> t1 (t2 a) -> f (t1 (t2 b))
+-- I want: (a -> m1 (m2 b)) -> [m2 a] -> m1 [m2 b]
+-- I don't think it's doable, I can't run m2 inside m1.
+map_right_em :: Monad m => (a -> m (Either e b))
+    -> [Either e a] -> m [Either e b]
+map_right_em f = go
+    where
+    go [] = return []
+    go (ea : eas) = case ea of
+        Left e -> (Left e :) <$> go eas
+        Right a -> do
+            eb <- f a
+            (eb:) <$> go eas
+
+-- | Like 'map_right_e', except the function can return a list of Eithers.
+map_rights_e :: (state -> a -> (state, [Either e b])) -> state -> [Either e a]
     -> (state, [Either e b])
-map_right_e f = go
+map_rights_e f = go
     where
     go !state [] = (state, [])
-    go !state (ea : as) = case ea of
-        Left e -> second (Left e :) (go state as)
-        Right a -> second (eb:) (go state2 as)
-            where (state2, eb) = f state a
+    go !state (ea : eas) = case ea of
+        Left e -> second (Left e :) (go state eas)
+        Right a -> second (ebs++) (go state2 eas)
+            where (state2, ebs) = f state a
+
+-- | This is the Either equivalent of 'Derive.LEvent.zip'.
+zip_right :: [b] -> [Either a c] -> [Either a (b, c)]
+zip_right (b:bs) (Right c : acs) = Right (b, c) : zip_right bs acs
+zip_right bs (Left a : acs) = Left a : zip_right bs acs
+zip_right [] _ = []
+zip_right _ [] = []
 
 min_on3 :: Ord k => (a -> k) -> a -> a -> a -> a
 min_on3 key a b c = Seq.min_on key a (Seq.min_on key b c)
