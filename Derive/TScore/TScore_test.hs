@@ -46,11 +46,14 @@ test_call_duration = do
         [ ("a", [(">", [(0, 2, "b")])])
         , ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
         ]
-    -- -- TODO CallDuration is carried like other durs.
-    -- right_equal (f "a = %default-call [b0 b]\nb = [s r]")
-    --     [ ("a", [(">", [(0, 2, "b"), (2, 2, "b")])])
-    --     , ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
-    --     ]
+    -- CallDuration is carried like other durs.
+    right_equal (f "a = %default-call [b0 b]\nb = [s r]")
+        [ ("a", [(">", [(0, 2, "b"), (2, 2, "b")])])
+        , ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
+        ]
+    -- Let's not allow carrying to non-calls, dots or ties, or rests.
+    left_like (f "a = [b/0 s]\nb = [s r]") "can't carry CallDuration"
+    left_like (f "a = [b/0 _]\nb = [s r]") "can't carry CallDuration"
 
 e_events :: Ui.State -> [[Event.Event]]
 e_events = map (Events.ascending . Track.track_events) . Map.elems

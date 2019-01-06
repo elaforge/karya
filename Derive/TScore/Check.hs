@@ -323,24 +323,24 @@ duration_mode = \case
 -- etc.
 multiplicative :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token pitch (T.Time, Bool))
-multiplicative = flip State.evalState 1 . map_right_m (map_duration convert)
+multiplicative =
+    flip State.evalState (Right 1) . map_right_em (carry_duration time_of)
     where
-    convert (T.Duration idur dots tie) = do
-        idur <- carry_duration idur
-        let dur = T.Time (1 / fromIntegral idur)
-        let dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
-        return (dur + dot_dur, tie)
+    time_of idur dots = dur + dot_dur
+        where
+        dur = T.Time (1 / fromIntegral idur)
+        dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
 
 -- | Each number is just the number of Time beats.
 additive :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token pitch (T.Time, Bool))
-additive = flip State.evalState 1 . map_right_m (map_duration convert)
+additive =
+    flip State.evalState (Right 1) . map_right_em (carry_duration time_of)
     where
-    convert (T.Duration idur dots tie) = do
-        idur <- carry_duration idur
-        let dur = T.Time (fromIntegral idur)
-        let dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
-        return (dur + dot_dur, tie)
+    time_of idur dots = dur + dot_dur
+        where
+        dur = T.Time (fromIntegral idur)
+        dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
 
 map_duration :: Monad m => (dur1 -> m (dur2, Bool))
     -> T.Token pitch (Either dur2 dur1) dur1
@@ -354,11 +354,37 @@ map_duration f = \case
         return $ T.TNote $ note { T.note_duration = time }
     T.TRest (T.Rest dur) -> T.TRest . T.Rest <$> f dur
 
-carry_duration :: State.MonadState Int m => Maybe Int -> m Int
-carry_duration mbDur = do
-    int <- maybe State.get return mbDur
-    State.put int
-    return int
+carry_duration :: State.MonadState (Either T.Time Int) m
+    => (Int -> Int -> T.Time)
+    -> T.Token pitch (Either T.Time T.Duration) T.Duration
+    -> m (Either Error (T.Token pitch (T.Time, Bool) (T.Time, Bool)))
+carry_duration time_of = \case
+    T.TBarline a -> return $ Right $ T.TBarline a
+    T.TNote note -> do
+        result <- case T.note_duration note of
+            Left time -> do
+                State.put $ Left time
+                return $ Right (time, False)
+            Right (T.Duration maybe_idur dots tie) -> do
+                time_dur <- maybe State.get (return . Right) maybe_idur
+                State.put time_dur
+                return $ case time_dur of
+                    Left time
+                        | dots /= 0 || tie -> Left
+                            "can't carry CallDuration to dots or tie"
+                        | T.note_call note == "" -> Left
+                            "can't carry CallDuration to non-call"
+                        | otherwise -> Right (time, False)
+                    Right idur -> Right (time_of idur dots, tie)
+        return $ case result of
+            Left err -> Left $ Error 0 err
+            Right (time, tie) -> Right $ T.TNote $
+                note { T.note_duration = (time, tie) }
+    T.TRest (T.Rest (T.Duration maybe_idur dots tie)) -> do
+        time_dur <- maybe State.get (return . Right) maybe_idur
+        return $ case time_dur of
+            Left _ -> Left $ Error 0 "can't carry CallDuration to a rest"
+            Right idur -> Right $ T.TRest $ T.Rest (time_of idur dots, tie)
 
 -- * pitch
 

@@ -4673,7 +4673,9 @@ Derive:
 text score: tscore:
   . doc/dev_notes/text-score.md
   status:
-    - carry call durations like other durations
+    * carry call durations like other durations
+      . I think I want to make this an error unless the current note is also
+        a CallDuration.  Otherwise it's confusing, what with ties and dots.
     - call duration should support non-tscore calls too
     * automatic call duration
       . add to parser.  Use 0, then I don't have to carve out another symbol
