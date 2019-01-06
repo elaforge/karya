@@ -266,12 +266,16 @@ is_tied _ = False
 
 check_barlines :: Meter
     -> Stream (Token pitch (T.Time, tie)) -> Stream (Token pitch (T.Time, tie))
-check_barlines meter = snd . map_rights_e check_token 0 . zip_right [0..]
+check_barlines meter =
+    fst . flip State.runState 0 . concat_rmap_e check_token . zip_right [0..]
     where
-    check_token now (i, token) = (now + dur, Right token : warning)
+    check_token (i, token) = do
+        now <- State.get
+        State.put (now + dur)
+        return $ Right token : warning now
         where
         dur = duration_of token
-        warning = case token of
+        warning now = case token of
             T.TBarline bar -> maybe [] ((:[]) . Left) (check now i bar)
             _ -> []
     check now i (T.Barline rank) = case Map.lookup beat expected_rank of
@@ -324,7 +328,7 @@ duration_mode = \case
 multiplicative :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token pitch (T.Time, Bool))
 multiplicative =
-    flip State.evalState (Right 1) . map_right_em (carry_duration time_of)
+    flip State.evalState (Right 1) . rmap_e (carry_duration time_of)
     where
     time_of idur dots = dur + dot_dur
         where
@@ -335,7 +339,7 @@ multiplicative =
 additive :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token pitch (T.Time, Bool))
 additive =
-    flip State.evalState (Right 1) . map_right_em (carry_duration time_of)
+    flip State.evalState (Right 1) . rmap_e (carry_duration time_of)
     where
     time_of idur dots = dur + dot_dur
         where
@@ -408,46 +412,40 @@ resolve_pitch scale =
 parse_pitches :: (Text -> Maybe pitch)
     -> Stream (T.Time, T.Note T.Pitch dur)
     -> Stream (T.Time, T.Note (Maybe (T.Octave, pitch)) dur)
-parse_pitches parse = fst . map_right_e token Nothing
+parse_pitches parse = fst . flip State.runState Nothing . rmap_e token
     where
-    token maybe_prev (start, note)
-        | Text.null call = case maybe_prev of
-            Nothing ->
-                ( maybe_prev
-                , with_pitch Nothing
-                )
-            Just p -> (Just p, with_pitch (Just p))
+    token (start, note)
+        | Text.null call = with_pitch =<< State.get
         | otherwise = case parse call of
             Nothing ->
-                ( maybe_prev
-                , Left $ Error start $ "can't parse pitch: " <> call
-                )
-            Just p -> (Just p, with_pitch (Just p))
+                return $ Left $ Error start $ "can't parse pitch: " <> call
+            Just p -> State.put (Just p) >> with_pitch (Just p)
         where
         T.Pitch oct call = T.note_pitch note
-        with_pitch p = Right (start, note { T.note_pitch = (oct,) <$> p })
+        with_pitch p =
+            return $ Right (start, note { T.note_pitch = (oct,) <$> p })
 
 infer_octaves :: Pitch.PitchClass -> Pitch.Octave
     -> [Either e (time, T.Note (Maybe (T.Octave, Pitch.Degree)) dur)]
     -> [Either e (time, T.Note (Maybe Pitch.Pitch) dur)]
 infer_octaves per_octave initial_oct =
-    fst . map_right infer (initial_oct, Nothing)
+    fst . flip State.runState (initial_oct, Nothing) . rmap infer
     where
-    infer (prev_oct, prev_degree) (start, note) = case T.note_pitch note of
-        Nothing ->
-            ((prev_oct, prev_degree), (start, note { T.note_pitch = Nothing }))
-        Just (oct, degree) -> with_octave degree $ case oct of
-            T.Relative n -> n + case prev_degree of
-                Just prev -> min_on3 (distance prev degree)
-                    (prev_oct-1) prev_oct (prev_oct+1)
-                Nothing -> prev_oct
-            T.Absolute oct -> oct
+    infer (start, note) = case T.note_pitch note of
+        Nothing -> return (start, note { T.note_pitch = Nothing })
+        Just (oct, degree) -> do
+            (prev_oct, prev_degree) <- State.get
+            oct <- return $ case oct of
+                T.Relative n -> n + case prev_degree of
+                    Just prev -> min_on3 (distance prev_oct prev degree)
+                        (prev_oct-1) prev_oct (prev_oct+1)
+                    Nothing -> prev_oct
+                T.Absolute oct -> oct
+            State.put (oct, Just degree)
+            return
+                (start, note { T.note_pitch = Just (Pitch.Pitch oct degree) })
         where
-        with_octave degree oct =
-            ( (oct, Just degree)
-            , (start, note { T.note_pitch = Just (Pitch.Pitch oct degree) })
-            )
-        distance prev degree oct = abs $
+        distance prev_oct prev degree oct = abs $
             Pitch.diff_pc per_octave (Pitch.Pitch prev_oct prev)
                 (Pitch.Pitch oct degree)
 
@@ -538,53 +536,25 @@ pitch_to_call = Identity.runIdentity . mapM (T.map_note (return . to_call))
 
 -- * util
 
--- TODO this is much like LEvent, but with any error, not just logs.
+-- | Like mapM, but pass through Lefts.
+rmap :: Monad m => (a -> m b) -> [Either e a] -> m [Either e b]
+rmap f = rmap_e (fmap Right . f)
 
--- | Like 'List.mapAccumL', but pass through lefts.
--- TODO try monadic style for map_right and map_right_e
-map_right :: (state -> a -> (state, b)) -> state -> [Either e a]
-    -> ([Either e b], state)
-map_right f = map_right_e (\state -> second Right . f state)
+-- | Like 'rmap', except the function can also return Lefts.
+rmap_e :: Monad m => (a -> m (Either e b)) -> [Either e a] -> m [Either e b]
+rmap_e f = concat_rmap_e (fmap (:[]) . f)
 
--- | Like 'map_right_em', but adapted to use mapAccumL style state.
-map_right_e :: (state -> a -> (state, Either e b)) -> state -> [Either e a]
-    -> ([Either e b], state)
-map_right_e f state = flip State.runState state . map_right_em run
-    where
-    run a = do
-        state <- State.get
-        let (state2, eb) = f state a
-        State.put $! state2
-        return eb
-
-map_right_m :: Monad m => (a -> m b) -> [Either e a] -> m [Either e b]
-map_right_m f = map_right_em (fmap Right . f)
-
--- TODO is this just traverse . traverse?
--- No, that's (a -> f b) -> t1 (t2 a) -> f (t1 (t2 b))
--- I want: (a -> m1 (m2 b)) -> [m2 a] -> m1 [m2 b]
--- I don't think it's doable, I can't run m2 inside m1.
-map_right_em :: Monad m => (a -> m (Either e b))
+-- | Like 'rmap_e', except the function can return a list.
+concat_rmap_e :: Monad m => (a -> m [Either e b])
     -> [Either e a] -> m [Either e b]
-map_right_em f = go
+concat_rmap_e f = go
     where
     go [] = return []
     go (ea : eas) = case ea of
         Left e -> (Left e :) <$> go eas
         Right a -> do
             eb <- f a
-            (eb:) <$> go eas
-
--- | Like 'map_right_e', except the function can return a list of Eithers.
-map_rights_e :: (state -> a -> (state, [Either e b])) -> state -> [Either e a]
-    -> (state, [Either e b])
-map_rights_e f = go
-    where
-    go !state [] = (state, [])
-    go !state (ea : eas) = case ea of
-        Left e -> second (Left e :) (go state eas)
-        Right a -> second (ebs++) (go state2 eas)
-            where (state2, ebs) = f state a
+            (eb++) <$> go eas
 
 -- | This is the Either equivalent of 'Derive.LEvent.zip'.
 zip_right :: [b] -> [Either a c] -> [Either a (b, c)]
