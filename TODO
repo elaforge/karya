@@ -25,6 +25,10 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
+    I can put another monad on top.
+    . I think I only switched to Ui.M because it was awkward pre-AMP.
+    . Rename to make it shorter: Monad m => Ui.T m a
   - integrated events are italic, but they look very similar
     . Use text color?
   - track integration should possibly be indexed by TrackId, so I don't have

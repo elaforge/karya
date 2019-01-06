@@ -325,6 +325,21 @@ instance Monad m => M (StateT m) where
     get_updates = (StateT . lift) Logger.peek
     throw_error = StateT . lift . lift . Except.throwError
 
+-- Basic level membership in the MTL club.
+instance M m => M (State.StateT state m) where
+    get = lift get
+    unsafe_put = lift . unsafe_put
+    update = lift . update
+    get_updates = lift get_updates
+    throw_error = lift . throw_error
+
+instance M m => M (Except.ExceptT exc m) where
+    get = lift get
+    unsafe_put = lift . unsafe_put
+    update = lift . update
+    get_updates = lift get_updates
+    throw_error = lift . throw_error
+
 throw :: (CallStack.Stack, M m) => Text -> m a
 throw msg = throw_error $ Error CallStack.callStack msg
 
