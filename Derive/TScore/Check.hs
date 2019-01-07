@@ -5,7 +5,7 @@
 {-# LANGUAGE CPP #-}
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
-    Error(..), show_error, Config(..), default_config
+    Config(..), default_config
     , parse_directive, parse_directives
     , preprocess, process
     , call_block_id
@@ -43,16 +43,6 @@ import qualified Ui.Id as Id
 import           Global
 import           Types
 
-
-data Error = Error !T.Time !Text
-    deriving (Eq, Show)
-
-instance Pretty Error where
-    pretty (Error t msg) = pretty t <> ": " <> msg
-
-show_error :: Meter -> Error -> Text
-show_error meter (Error t msg) =
-    show_time (meter_duration meter) t <> ": " <> msg
 
 data Config = Config {
     -- | If true, notes with no call get the pitch as their call.  This is
@@ -95,7 +85,7 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 
 -- * process
 
-type Stream a = [Either Error a]
+type Stream a = [Either T.Error a]
 type Token pitch dur = T.Token pitch dur dur
 
 type GetCallDuration = Id.BlockId -> Either Text T.Time
@@ -126,19 +116,18 @@ resolve_call_duration :: GetCallDuration
     -> [T.Token T.Pitch T.NDuration rdur]
     -> Stream (T.Token T.Pitch (Either T.Time T.Duration) rdur)
 resolve_call_duration get_dur = map $ \case
-    T.TBarline a -> Right $ T.TBarline a
-    T.TRest a -> Right $ T.TRest a
-    T.TNote note ->
-        second set $ resolve (T.note_call note) (T.note_duration note)
-        where set dur = T.TNote $ note { T.note_duration = dur }
+    T.TBarline pos a -> Right $ T.TBarline pos a
+    T.TRest pos a -> Right $ T.TRest pos a
+    T.TNote pos note ->
+        second set (resolve pos (T.note_call note) (T.note_duration note))
+        where set dur = T.TNote pos $ note { T.note_duration = dur }
     where
-    resolve _ (T.NDuration dur) = Right $ Right dur
-    resolve (T.Call call) T.CallDuration
-        -- TODO embed SrcPos in T.Token for a proper location
+    resolve _ _ (T.NDuration dur) = Right $ Right dur
+    resolve pos (T.Call call) T.CallDuration
         | Text.null call =
-            Left $ Error 0 "can't get call duration of empty call"
+            Left $ T.Error pos "can't get call duration of empty call"
         | otherwise = case get_dur (call_block_id call) of
-                Left err -> Left $ Error 0 err
+                Left err -> Left $ T.Error pos err
                 Right time -> Right $ Left time
 
 call_block_id :: Text -> Id.BlockId
@@ -202,8 +191,8 @@ resolve_time tokens = go . zip starts $ tokens
     where
     starts = scanl (\n -> (n+) . either (const 0) duration_of) 0 tokens
     go ((start, Right t) : ts) = case t of
-        T.TNote note
-            | is_tied t -> case tied_notes start note (sndRights pre) of
+        T.TNote _ note
+            | is_tied t -> case tied_notes note (sndRights pre) of
                 Left err -> Left err : go post
                 Right end -> Right (start, set_dur (end-start) note) : go post
             | otherwise ->
@@ -227,39 +216,39 @@ resolve_time tokens = go . zip starts $ tokens
     sndRights abs = [(a, b) | (a, Right b) <- abs]
 
 tied_notes :: (Eq pitch, Parse.Element pitch)
-    => T.Time -> T.Note pitch (T.Time, Bool)
-    -> [(T.Time, Token pitch (T.Time, Bool))]
-    -> Either Error T.Time
-tied_notes start note tied = case others of
+    => T.Note pitch dur -> [(T.Time, Token pitch (T.Time, Bool))]
+    -> Either T.Error T.Time
+tied_notes note tied = case others of
     [] -> case Seq.last matches of
-        Nothing -> Left $ Error start "final note has a tie"
+        Nothing -> Left $ T.Error (T.note_pos note) "final note has a tie"
         Just (s, n)
             | snd $ T.note_duration n ->
-                Left $ Error start "final note has a tie"
+                Left $ T.Error (T.note_pos n) "final note has a tie"
             | otherwise -> Right $ s + dur_of n
-    (t, bad) : _ -> Left $ Error t $ case bad of
-        T.TNote n -> "note tied to different pitch: "
+    (_, bad) : _ -> Left $ T.Error (T.token_pos bad) $ case bad of
+        T.TNote _ n -> "note tied to different pitch: "
             <> Parse.unparse (T.note_pitch note) <> " ~ "
             <> Parse.unparse (T.note_pitch n)
         _ -> "note tied to " <> T.token_name bad
     where
     (matches, others) = first concat $ Seq.partition_on match tied
     dur_of = fst . T.note_duration
-    match (s, T.TNote n) | T.note_pitch note == T.note_pitch n = Just [(s, n)]
+    match (s, T.TNote _ n) | T.note_pitch note == T.note_pitch n = Just [(s, n)]
     match (_, T.TBarline {}) = Just []
     match _ = Nothing
 
-tied_rests :: [(T.Time, Token pitch (T.Time, Bool))] -> Maybe Error
+tied_rests :: [(time, Token pitch (T.Time, Bool))] -> Maybe T.Error
 tied_rests = fmap format . List.find (not . matches . snd)
     where
-    format (start, token) =
-        Error start $ "rest tied to " <> T.token_name token
+    format (_, token) =
+        T.Error (T.token_pos token) $ "rest tied to " <> T.token_name token
     matches (T.TRest {}) = True
     matches (T.TBarline {}) = True
     matches _ = False
 
-is_tied (T.TNote note) = snd $ T.note_duration note
-is_tied (T.TRest (T.Rest (_, tied))) = tied
+is_tied :: T.Token pitch (a1, Bool) (a2, Bool) -> Bool
+is_tied (T.TNote _ note) = snd $ T.note_duration note
+is_tied (T.TRest _ (T.Rest (_, tied))) = tied
 is_tied _ = False
 
 -- ** check_barlines
@@ -276,24 +265,22 @@ check_barlines meter =
         where
         dur = duration_of token
         warning now = case token of
-            T.TBarline bar -> maybe [] ((:[]) . Left) (check now i bar)
+            T.TBarline pos bar -> maybe [] ((:[]) . Left) (check pos now i bar)
             _ -> []
-    check now i (T.Barline rank) = case Map.lookup beat expected_rank of
+    check pos now i (T.Barline rank) = case Map.lookup beat expected_rank of
         Just r
             | r == rank -> Nothing
-            | otherwise -> Just $ warn i now $
+            | otherwise -> Just $ T.Error pos $ warn i $
                 "saw " <> Parse.unparse (T.Barline rank)
                 <> ", expected " <> Parse.unparse (T.Barline r)
-        Nothing -> Just $ warn i now $
+        Nothing -> Just $ T.Error pos $ warn i $
             "saw " <> Parse.unparse (T.Barline rank) <> ", expected none"
         where
         beat = now `Num.fmod` cycle_dur
     cycle_dur = meter_duration meter
     expected_rank = Map.fromList $ zip (Seq.range_ 0 (meter_step meter))
         (meter_pattern meter)
-    warn :: Int -> T.Time -> Text -> Error
-    warn i now msg = Error now $
-        "barline check: token " <> showt i <> ": " <> msg
+    warn i msg = "barline check: token " <> showt i <> ": " <> msg
 
 show_time :: T.Time -> T.Time -> Text
 show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat
@@ -301,9 +288,9 @@ show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat
 
 duration_of :: Token pitch (T.Time, tie) -> T.Time
 duration_of = \case
-    T.TBarline _ -> 0
-    T.TNote note -> fst (T.note_duration note)
-    T.TRest (T.Rest (dur, _)) -> dur
+    T.TBarline {} -> 0
+    T.TNote _ note -> fst (T.note_duration note)
+    T.TRest _ (T.Rest (dur, _)) -> dur
 
 -- ** resolve duration
 
@@ -350,21 +337,21 @@ map_duration :: Monad m => (dur1 -> m (dur2, Bool))
     -> T.Token pitch (Either dur2 dur1) dur1
     -> m (T.Token pitch (dur2, Bool) (dur2, Bool))
 map_duration f = \case
-    T.TBarline a -> return $ T.TBarline a
-    T.TNote note -> do
+    T.TBarline pos a -> return $ T.TBarline pos a
+    T.TNote pos note -> do
         time <- case T.note_duration note of
             Left time -> return (time, False)
             Right dur -> f dur
-        return $ T.TNote $ note { T.note_duration = time }
-    T.TRest (T.Rest dur) -> T.TRest . T.Rest <$> f dur
+        return $ T.TNote pos $ note { T.note_duration = time }
+    T.TRest pos (T.Rest dur) -> T.TRest pos . T.Rest <$> f dur
 
 carry_duration :: State.MonadState (Either T.Time Int) m
     => (Int -> Int -> T.Time)
     -> T.Token pitch (Either T.Time T.Duration) T.Duration
-    -> m (Either Error (T.Token pitch (T.Time, Bool) (T.Time, Bool)))
+    -> m (Either T.Error (T.Token pitch (T.Time, Bool) (T.Time, Bool)))
 carry_duration time_of = \case
-    T.TBarline a -> return $ Right $ T.TBarline a
-    T.TNote note -> do
+    T.TBarline pos a -> return $ Right $ T.TBarline pos a
+    T.TNote pos note -> do
         result <- case T.note_duration note of
             Left time -> do
                 State.put $ Left time
@@ -381,14 +368,14 @@ carry_duration time_of = \case
                         | otherwise -> Right (time, False)
                     Right idur -> Right (time_of idur dots, tie)
         return $ case result of
-            Left err -> Left $ Error 0 err
-            Right (time, tie) -> Right $ T.TNote $
+            Left err -> Left $ T.Error pos err
+            Right (time, tie) -> Right $ T.TNote pos $
                 note { T.note_duration = (time, tie) }
-    T.TRest (T.Rest (T.Duration maybe_idur dots tie)) -> do
+    T.TRest pos (T.Rest (T.Duration maybe_idur dots tie)) -> do
         time_dur <- maybe State.get (return . Right) maybe_idur
         return $ case time_dur of
-            Left _ -> Left $ Error 0 "can't carry CallDuration to a rest"
-            Right idur -> Right $ T.TRest $ T.Rest (time_of idur dots, tie)
+            Left _ -> Left $ T.Error pos "can't carry CallDuration to a rest"
+            Right idur -> Right $ T.TRest pos $ T.Rest (time_of idur dots, tie)
 
 -- * pitch
 
@@ -417,8 +404,8 @@ parse_pitches parse = fst . flip State.runState Nothing . rmap_e token
     token (start, note)
         | Text.null call = with_pitch =<< State.get
         | otherwise = case parse call of
-            Nothing ->
-                return $ Left $ Error start $ "can't parse pitch: " <> call
+            Nothing -> return $ Left $ T.Error (T.note_pos note) $
+                "can't parse pitch: " <> call
             Just p -> State.put (Just p) >> with_pitch (Just p)
         where
         T.Pitch oct call = T.note_pitch note
@@ -460,7 +447,8 @@ pitch_to_symbolic scale = map to_sym
         sym <- case T.note_pitch note of
             Nothing -> return Nothing
             Just pitch -> Just <$> tryJust
-                (Error t ("bad pitch: " <> pretty (T.note_pitch note)))
+                (T.Error (T.note_pos note)
+                    ("bad pitch: " <> pretty (T.note_pitch note)))
                 (unparse pitch)
         return (t, note { T.note_pitch = sym })
     unparse (Pitch.Pitch oct degree) =
@@ -524,7 +512,8 @@ type Parser a = P.Parsec Void.Void Text a
 
 pitch_to_call :: [T.Token T.Pitch T.NDuration T.Duration]
     -> [T.Token T.Pitch T.NDuration T.Duration]
-pitch_to_call = Identity.runIdentity . mapM (T.map_note (return . to_call))
+pitch_to_call =
+    Identity.runIdentity . mapM (T.map_note (return . to_call))
     where
     to_call note
         | T.note_call note == T.Call "" = note

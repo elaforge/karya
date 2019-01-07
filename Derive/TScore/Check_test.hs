@@ -53,9 +53,10 @@ test_resolve_pitch_twelve = do
     equal (f "4f c") [Right "4f", Right "4c"]
 
 test_preprocess = do
-    let f = map (fmap snd) . process config . Check.preprocess config . parse
+    let f = map (fmap (strip_note . snd)) . process config
+            . Check.preprocess config . parse
         config = Check.default_config { Check.config_default_call = True }
-        note call pitch = T.Note (T.Call call) pitch 1
+        note call pitch = T.Note (T.Call call) pitch 1 (T.Pos 0)
     equal (f "a b") [Right (note "a" Nothing), Right (note "b" Nothing)]
     equal (f "a/s c")
         [ Right (note "a" (Just "4s"))
@@ -65,28 +66,27 @@ test_preprocess = do
 
 test_resolve_time = do
     let f = map extract . Check.resolve_time . Check.multiplicative . parse_cdur
-        extract = fmap (second T.note_duration)
+        extract = bimap error_msg (second T.note_duration)
     equal (f "a b c") [Right (0, 1), Right (1, 1), Right (2, 1)]
     equal (f "a~ a b") [Right (0, 2), Right (2, 1)]
     equal (f "a~ b c")
-        [ Left (Check.Error 1 "note tied to different pitch: a ~ b")
+        [ Left "note tied to different pitch: a ~ b"
         , Right (2, 1)
         ]
-    equal (f "a~ a~ _") [Left (Check.Error 2 "note tied to rest")]
-    equal (f "_~ a") [Left (Check.Error 1 "rest tied to note")]
+    equal (f "a~ a~ _") [Left "note tied to rest"]
+    equal (f "_~ a") [Left "rest tied to note"]
     equal (f "a~ | a") [Right (0, 2)]
     equal (f "_~ | _ a") [Right (2, 1)]
-    equal (f "a~") [Left (Check.Error 0 "final note has a tie")]
+    equal (f "a~") [Left "final note has a tie"]
 
 test_check_barlines = do
-    let f = Either.lefts . Check.check_barlines Check.meter_44
+    let f = map error_msg . Either.lefts
+            . Check.check_barlines Check.meter_44
             . Check.multiplicative . parse_cdur
     equal (f "| a4 b c e |") []
     equal (f "| a4 ; b ; c ; e |") []
-    equal (f "| a4 b | c e |")
-        [Check.Error (1/2) "barline check: token 3: saw |, expected ;"]
-    equal (f "a8 | b")
-        [Check.Error (1/8) "barline check: token 1: saw |, expected none"]
+    equal (f "| a4 b | c e |") ["barline check: token 3: saw |, expected ;"]
+    equal (f "a8 | b") ["barline check: token 1: saw |, expected none"]
 
 test_multiplicative = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.multiplicative . parse_cdur
@@ -98,9 +98,15 @@ test_multiplicative = do
 
 -- * implementation
 
+error_msg :: T.Error -> Text
+error_msg (T.Error _ msg) = msg
+
+strip_note :: T.Note pitch dur -> T.Note pitch dur
+strip_note note = note { T.note_pos = T.Pos 0 }
+
 e_ndur :: T.Token pitch ndur rdur -> Maybe ndur
 e_ndur = \case
-    T.TNote note -> Just $ T.note_duration note
+    T.TNote _ note -> Just $ T.note_duration note
     _ -> Nothing
 
 resolve_call_duration :: [T.Token T.Pitch T.NDuration rdur]

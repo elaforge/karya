@@ -39,8 +39,6 @@ import           Types
 
 -- * types
 
-type Error = Text
-
 data Block track = Block {
     _block_id :: !BlockId
     , _block_title :: !Text
@@ -67,17 +65,17 @@ track_ids (NTrack note controls) = _track_id note : map _track_id controls
 -- * toplevel
 
 integrate :: Ui.M m => Text -> m [BlockId] -- ^ newly created blocks
-integrate text = do
-    blocks <- Ui.require_right id $ track_blocks text
+integrate source = do
+    blocks <- Ui.require_right id $ track_blocks source
     -- TODO trim blocks that disappeared like with tracks?
     mapMaybeM integrate_block blocks
 
-track_blocks :: Text -> Either Error [Block NTrack]
-track_blocks text = do
-    blocks <- parsed_blocks text
+track_blocks :: Text -> Either Text [Block NTrack]
+track_blocks source = do
+    blocks <- first (T.show_error source) $ parsed_blocks source
     let tokens_of (_, _, ts) = ts
     whenJust (check_recursion $ map (tokens_of <$>) blocks) Left
-    (errs, blocks) <- return $ partition_errors $ make_tracks blocks
+    (errs, blocks) <- return $ partition_errors $ make_tracks source blocks
     unless (null errs) $
         Left $ Text.intercalate "; " errs
     return blocks
@@ -92,7 +90,7 @@ partition_errors = first concat . unzip . map partition_block
 
 -- | Look for recursive block calls.  If there are none, it's safe to
 -- 'make_tracks'.
-check_recursion :: [Block [Token]] -> Maybe Error
+check_recursion :: [Block [Token]] -> Maybe Text
 check_recursion blocks =
     either Just (const Nothing) $ mapM_ (check_block []) blocks
     where
@@ -110,7 +108,7 @@ check_recursion blocks =
     show_id = Id.show_short Parse.default_namespace . Id.unpack_id
 
 call_of :: T.Token pitch ndur rdur -> Maybe Text
-call_of (T.TNote note) = Just $ (\(T.Call a) -> a) $ T.note_call note
+call_of (T.TNote _ note) = Just $ (\(T.Call a) -> a) $ T.note_call note
 call_of _ = Nothing
 
 type ParsedTrack = (Check.Config, Text, [Token])
@@ -121,8 +119,8 @@ type ParsedTrack = (Check.Config, Text, [Token])
 -- duration of a note can depend on the duration of other blocks, and so forth.
 -- I can get this interleaved and cached via a lazy memo table, but it's only
 -- safe because I previously did 'check_recursion'.
-make_tracks :: [Block ParsedTrack] -> [Block (Either Error NTrack)]
-make_tracks blocks = Map.elems memo
+make_tracks :: Text -> [Block ParsedTrack] -> [Block (Either Text NTrack)]
+make_tracks source blocks = Map.elems memo
     where
     memo = Map.fromList
         [ (_block_id block, resolve_block block)
@@ -132,7 +130,7 @@ make_tracks blocks = Map.elems memo
         { _tracks = zipWith (resolve (_block_id block)) [1..] (_tracks block)
         }
     resolve block_id tracknum (config, title, tokens) = do
-        tokens <- first (Check.show_error (Check.config_meter config)) $
+        tokens <- first (T.show_error source) $
             sequence $ Check.process get_dur config tokens
         let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
         return $ NTrack
@@ -248,7 +246,7 @@ source_key = "tscore"
 
 -- * ui_state
 
-ui_state :: Text -> Either Error Ui.State
+ui_state :: Text -> Either Text Ui.State
 ui_state text = do
     blocks <- track_blocks text
     first pretty $ Ui.exec Ui.empty $ do
@@ -299,28 +297,27 @@ generate_ruler meter end = Ruler.Modify.meter (const generate)
 
 -- * make_blocks
 
-parsed_blocks :: Text -> Either Error [Block ParsedTrack]
+parsed_blocks :: Text -> Either T.Error [Block ParsedTrack]
 parsed_blocks text = do
-    T.Score defs <- first (("parse: "<>) . txt) $ Parse.parse_score text
+    T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score text
     fst <$> foldM collect ([], Check.default_config) defs
     where
     collect (accum, config) def = do
         (block, config) <- interpret_toplevel config def
         return (maybe id (:) block accum, config)
 
-interpret_toplevel :: Check.Config -> T.Toplevel
-    -> Either Error (Maybe (Block ParsedTrack), Check.Config)
-interpret_toplevel config (T.ToplevelDirective dir) = (Nothing,) <$>
-    first ("toplevel: " <>) (Check.parse_directive dir config)
-interpret_toplevel config (T.BlockDefinition block) = do
-    block <- interpret_block config block
+interpret_toplevel :: Check.Config -> (T.Pos, T.Toplevel)
+    -> Either T.Error (Maybe (Block ParsedTrack), Check.Config)
+interpret_toplevel config (pos, T.ToplevelDirective dir) = (Nothing,) <$>
+    first (T.Error pos) (Check.parse_directive dir config)
+interpret_toplevel config (pos, T.BlockDefinition block) = do
+    block <- first (T.Error pos) $ interpret_block config block
     return (Just block, config)
 
-interpret_block :: Check.Config -> T.Block -> Either Error (Block ParsedTrack)
+interpret_block :: Check.Config -> T.Block -> Either Text (Block ParsedTrack)
 interpret_block config
         (T.Block block_id directives title (T.Tracks tracks)) = do
-    config <- first ((pretty block_id <> ": ")<>) $
-        Check.parse_directives config directives
+    config <- Check.parse_directives config directives
     return $ Block
         { _block_id = block_id
         , _block_title = title
@@ -341,7 +338,7 @@ make_track_id block_id tracknum is_pitch =
     (ns, ident) = Id.un_id $ Id.unpack_id block_id
 
 note_event :: T.Time -> T.Note (Maybe Text) T.Time -> Event.Event
-note_event start (T.Note (T.Call call) _ dur) =
+note_event start (T.Note (T.Call call) _pitch dur _pos) =
     add_stack $ Event.event (track_time start) (track_time dur) call
 
 pitch_event :: (T.Time, Text) -> Event.Event

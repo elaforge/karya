@@ -29,6 +29,31 @@ test_score = do
         \ [ >inst1 a // >inst2 b ]\n\
         \block2 = [ c ]\n"
 
+test_pos = do
+    let f = fmap (\(T.Score defs) -> defs) . parse Parse.parse
+    let score =
+            "%meter=adi\n\
+            \block1 = %block1=directive \"block1 title\" [\n\
+            \    \">inst1\" a b\n\
+            \]\n"
+    let show_pos pos = putStr $ untxt $
+            T.show_error score (T.Error (T.Pos pos) "some error")
+    let Right defs = f score
+
+    show_pos 0
+    show_pos 11
+    equal (map fst defs) $ map T.Pos [0, 11]
+    let untracks (T.Tracks a) = a
+    let tokens = concatMap T.track_tokens $ concat
+            [ untracks $ T.block_tracks block
+            | (_, T.BlockDefinition block) <- defs
+            ]
+    show_pos 68
+    show_pos 70
+    equal (map (\t -> (T.token_pos t, Parse.unparse t)) tokens)
+        [(T.Pos 68, "a"), (T.Pos 70, "b")]
+
+
 roundtrip :: forall a. (Stack.HasCallStack, Parse.Element a)
     => Proxy a -> Text -> IO Bool
 roundtrip Proxy t =
@@ -40,12 +65,13 @@ test_parse = do
     roundtrip (Proxy @T.Directive) "%a=b"
 
 test_track = do
-    let f = fmap T.track_tokens . parse Parse.parse
-    let bar = T.TBarline . T.Barline
+    let f = fmap (map strip_token . T.track_tokens) . parse Parse.parse
+    let bar = T.TBarline no_pos . T.Barline
+    let rest = T.TRest no_pos . T.Rest
+
     right_equal (f "| ||") [bar 1, bar 2]
     right_equal (f "a") [token "" no_oct "a" no_dur]
     right_equal (f "a -- hi") [token "" no_oct "a" no_dur]
-    let rest = T.TRest . T.Rest
     right_equal (f "_4 | _.")
         [ rest (T.Duration (Just 4) 0 False)
         , bar 1
@@ -59,7 +85,7 @@ test_track = do
     right_equal (f "> \"a \"() b\"/") [token "a \"() b" no_oct "" no_dur]
 
 test_token = do
-    let f = parse Parse.parse
+    let f = fmap strip_token . parse Parse.parse
         dur i dots tie = T.NDuration (T.Duration i dots tie)
     left_like (f "") "unexpected end of input"
     right_equal (f "a") $ token "" no_oct "a" no_dur
@@ -79,16 +105,27 @@ test_token_roundtrip = do
     roundtrip p "\"a b\"/"
     roundtrip p "a/'b1.~"
 
+-- * implementation
+
+strip_token :: T.Token pitch ndur rdur -> T.Token pitch ndur rdur
+strip_token = \case
+    T.TBarline _ a -> T.TBarline no_pos a
+    T.TNote _ a -> T.TNote no_pos (a { T.note_pos = no_pos })
+    T.TRest _ a -> T.TRest no_pos a
+
 no_oct :: T.Octave
 no_oct = T.Relative 0
 
 no_dur :: T.NDuration
 no_dur = T.NDuration $ T.Duration Nothing 0 False
 
+no_pos :: T.Pos
+no_pos = T.Pos 0
+
 token :: Text -> T.Octave -> Text -> T.NDuration
     -> T.Token T.Pitch T.NDuration T.Duration
-token call oct pitch dur = T.TNote $
-    T.Note (T.Call call) (T.Pitch oct pitch) dur
+token call oct pitch dur = T.TNote no_pos $
+    T.Note (T.Call call) (T.Pitch oct pitch) dur no_pos
 
 parse :: Parse.Parser a -> Text -> Either String a
 parse = Parse.parse_text

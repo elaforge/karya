@@ -4761,7 +4761,7 @@ text score: tscore:
   repl:
     - communicate parse errors back to vim to highlight
   parsing:
-    - attach SourcePos to parsed types, so errors can use it
+    * attach SourcePos to parsed types, so errors can use it
     * "call | with | spaces"
       . This goes on TNote.
       . E.g.: {+pizz | %dyn=.5}/4c1
@@ -4828,6 +4828,9 @@ text score: tscore:
       . Or use lilypond style *.
       . Wait, * is no good because I also want <1 for additive.  So back to :.
         Then I can have both 5:1 and 1:5.  And :0 for 0-dur.
+      . How to handle nadai?  How about akshara:nadai?  In that case
+        resolve_time needs to know the nadai.
+        For multiplicative I don't think it can work without lots of ties.
     - support 0 dur notes
       . Use :0?
   rhythm check:

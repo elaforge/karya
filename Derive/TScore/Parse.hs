@@ -40,9 +40,16 @@ parse_text p = first P.errorBundlePretty . P.parse (p <* P.eof) ""
 
 type Parser a = P.Parsec Void.Void Text a
 
+get_pos :: Parser T.Pos
+get_pos = T.Pos . P.stateOffset <$> P.getParserState
+
 class Element a where
     parse :: Parser a
     unparse :: a -> Text
+
+instance Element a => Element (T.Pos, a) where
+    parse = (,) <$> get_pos <*> parse
+    unparse = unparse . snd
 
 instance Element T.Score where
     parse = p_whitespace False *> (T.Score <$> P.many (lexeme parse))
@@ -121,10 +128,12 @@ instance Element T.Directive where
     unparse (T.Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
 instance Element (T.Token T.Pitch T.NDuration T.Duration) where
-    parse = T.TBarline <$> parse <|> T.TNote <$> parse <|> T.TRest <$> parse
-    unparse (T.TBarline bar) = unparse bar
-    unparse (T.TNote note) = unparse note
-    unparse (T.TRest rest) = unparse rest
+    parse = T.TBarline <$> get_pos <*> parse
+        <|> T.TNote <$> get_pos <*> parse
+        <|> T.TRest <$> get_pos <*> parse
+    unparse (T.TBarline _ bar) = unparse bar
+    unparse (T.TNote _ note) = unparse note
+    unparse (T.TRest _ rest) = unparse rest
 
 instance Pretty (T.Token T.Pitch T.NDuration T.Duration) where pretty = unparse
 
@@ -162,19 +171,32 @@ instance Element (T.Note T.Pitch T.NDuration) where
         -- an octave, or a duration.
         pitch <- P.option empty_pitch $ P.try parse
         dur <- parse
-        let note = T.Note (fromMaybe (T.Call "") call) pitch dur
+        let note = T.Note
+                { note_call = fromMaybe (T.Call "") call
+                , note_pitch = pitch
+                , note_duration = dur
+                , note_pos = T.Pos 0
+                }
         -- If I allow "" as a note, I can't get P.many of them.
         guard (note /= empty_note)
-        return note
-    unparse (T.Note call pitch dur) = mconcat
+        pos <- get_pos
+        return $ note { T.note_pos = pos }
+    unparse (T.Note call pitch dur _pos) = mconcat
         [ if call == T.Call "" then "" else unparse call <> "/"
         , unparse pitch
         , unparse dur
         ]
 
 empty_note :: T.Note T.Pitch T.NDuration
-empty_note =
-    T.Note (T.Call "") empty_pitch (T.NDuration (T.Duration Nothing 0 False))
+empty_note = T.Note
+    { note_call = T.Call ""
+    , note_pitch = empty_pitch
+    , note_duration = empty_duration
+    , note_pos = T.Pos 0
+    }
+
+empty_duration :: T.NDuration
+empty_duration = T.NDuration (T.Duration Nothing 0 False)
 
 empty_pitch :: T.Pitch
 empty_pitch = T.Pitch (T.Relative 0) ""
