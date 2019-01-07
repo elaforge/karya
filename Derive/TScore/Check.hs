@@ -52,7 +52,7 @@ data Config = Config {
     , config_meter :: !Meter
     , config_scale :: !Scale
     , config_duration :: !DurationMode
-    }
+    } deriving (Show)
 
 default_config :: Config
 default_config = Config
@@ -380,11 +380,15 @@ carry_duration time_of = \case
 -- * pitch
 
 data Scale = Scale {
-    scale_parse :: Text -> Maybe Pitch.Degree
+    scale_name :: !Text
+    , scale_parse :: Text -> Maybe Pitch.Degree
     , scale_unparse :: Pitch.Degree -> Maybe Text
     , scale_layout :: !Theory.Layout
     , scale_initial_octave :: !Pitch.Octave
     }
+
+instance Show Scale where
+    show scale = "((" <> untxt (scale_name scale) <> "))"
 
 resolve_pitch :: Scale
     -> Stream (T.Time, T.Note T.Pitch dur)
@@ -457,15 +461,16 @@ pitch_to_symbolic scale = map to_sym
 -- ** scale
 
 scale_map :: Map Text Scale
-scale_map = Map.fromList
-    [ ("sargam", scale_sargam)
-    , ("bali", scale_ioeua)
-    , ("twelve", scale_twelve)
+scale_map = Map.fromList $ Seq.key_on scale_name
+    [ scale_sargam
+    , scale_bali
+    , scale_twelve
     ]
 
-diatonic_scale :: [Text] -> Scale
-diatonic_scale degrees_ = Scale
-    { scale_parse = \s -> Pitch.Degree <$> Vector.elemIndex s degrees <*> pure 0
+diatonic_scale :: Text -> [Text] -> Scale
+diatonic_scale name degrees_ = Scale
+    { scale_name = name
+    , scale_parse = \s -> Pitch.Degree <$> Vector.elemIndex s degrees <*> pure 0
     , scale_unparse = unparse
     , scale_layout = Theory.diatonic_layout (Vector.length degrees)
     , scale_initial_octave = 4
@@ -477,14 +482,15 @@ diatonic_scale degrees_ = Scale
     degrees = Vector.fromList degrees_
 
 scale_sargam :: Scale
-scale_sargam = diatonic_scale $ map Text.singleton "srgmpdn"
+scale_sargam = diatonic_scale "sargam" $ map Text.singleton "srgmpdn"
 
-scale_ioeua :: Scale
-scale_ioeua = diatonic_scale $ map Text.singleton "ioeua"
+scale_bali :: Scale
+scale_bali = diatonic_scale "bali" $ map Text.singleton "ioeua"
 
 scale_twelve :: Scale
 scale_twelve = Scale
-    { scale_parse = P.parseMaybe p_degree
+    { scale_name = "twelve"
+    , scale_parse = P.parseMaybe p_degree
     , scale_unparse = unparse
     , scale_layout = Theory.piano_layout
     , scale_initial_octave = 4

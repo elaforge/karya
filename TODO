@@ -4813,7 +4813,7 @@ text score: tscore:
       . I could use : to separate tracks if I want to use ; for Barline 0.
       . Or // or even just /?  / is already used to separate calls, so //.
         Of course I don't expect to see / by itself...
-    - some way to do logical sequence
+    * some way to do logical sequence
       . I could use + duration, but then I need some way to get it before
         doing barline check.
     * directives: dur={add,mul}, default-call
@@ -4844,7 +4844,7 @@ text score: tscore:
     mark:
       . This replaces barline check with setting the durations.
   pitch check:
-    - put name in Scale so I can give it a Show, so Config can be in Show
+    * put name in Scale so I can give it a Show, so Config can be in Show
     * carry pitch from prev
     * infer octaves
       . absolute octave carries over
