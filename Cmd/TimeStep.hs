@@ -22,7 +22,7 @@ module Cmd.TimeStep (
     -- * step
     , snap
     , step_from, rewind, advance, direction
-    , get_points_from, drop_before
+    , get_points_from
 
 #ifdef TESTING
     , ascending_points, descending_points
@@ -185,7 +185,7 @@ snap tstep block_id tracknum prev_pos pos =
     where
     snap_from p
         | pos > p = -- Advance p until one before pos.
-            Seq.head . drop_before pos <$>
+            Seq.head . Seq.drop_before id pos <$>
                 get_points_from Advance block_id tracknum p tstep
         | otherwise = -- Rewind p until before pos.
             Seq.head . dropWhile (>pos) <$>
@@ -193,15 +193,6 @@ snap tstep block_id tracknum prev_pos pos =
     is_relative (Duration {}) = True
     is_relative (RelativeMark {}) = True
     is_relative _ = False
-
--- | Drop until the last element before or equal to the given element.
-drop_before :: Ord a => a -> [a] -> [a]
-drop_before _ [] = []
-drop_before p (x:xs)
-    | p < x = x : xs
-    | otherwise = case xs of
-        next : _ | p >= next -> drop_before p xs
-        _ -> x : xs
 
 -- * step
 

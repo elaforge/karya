@@ -293,7 +293,7 @@ generate_ruler meter end = Ruler.Modify.meter (const generate)
     where
     generate = trim $ cycle $ Seq.rdrop 1 meter
     trim = map snd . Then.takeWhile1 ((<end) . fst)
-        . scanl_on (+) Meter.m_duration 0
+        . Seq.scanl_on (+) Meter.m_duration 0
 
 -- * make_blocks
 
@@ -356,9 +356,3 @@ add_stack :: Event.Event -> Event.Event
 add_stack event =
     Event.stack_ #= Just (Event.Stack stack (Event.start event)) $ event
     where stack = Stack.add (Stack.Call source_key) Stack.empty
-
--- * util
-
-scanl_on :: (accum -> key -> accum) -> (a -> key) -> accum -> [a]
-    -> [(accum, a)]
-scanl_on f key z xs = zip (scanl (\t -> f t . key) z xs) xs

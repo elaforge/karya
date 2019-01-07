@@ -124,10 +124,3 @@ default_ui_state = UiTest.exec Ui.empty $ do
         ])
     Ui.modify_ruler UiTest.default_ruler_id $
         const $ Right (UiTest.mkruler_44 7 1)
-
-test_drop_before = do
-    let f n = Seq.head $ TimeStep.drop_before n [1..4]
-    equal (f 0) (Just 1)
-    equal (f 1) (Just 1)
-    equal (f 1.5) (Just 1)
-    equal (f 2) (Just 2)

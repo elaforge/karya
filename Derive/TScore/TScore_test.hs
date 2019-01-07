@@ -5,6 +5,7 @@
 module Derive.TScore.TScore_test where
 import qualified Data.Map as Map
 
+import qualified Util.Seq as Seq
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
@@ -134,4 +135,4 @@ is_integral :: RealFrac a => a -> Bool
 is_integral = (==0) . snd . properFraction
 
 e_marks :: [Meter.LabeledMark] -> [(TrackTime, Meter.Label)]
-e_marks = map (second Meter.m_label) . TScore.scanl_on (+) Meter.m_duration 0
+e_marks = map (second Meter.m_label) . Seq.scanl_on (+) Meter.m_duration 0

@@ -10,6 +10,7 @@ import qualified Data.Ratio as Ratio
 import qualified Data.String as String
 import qualified Data.Text as Text
 
+import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 import qualified Ui.Id as Id
 
@@ -153,23 +154,8 @@ show_error source (Error pos msg) =
 -- | Find the line and position on that line.
 find_pos :: Text -> Pos -> Maybe (Int, Int, Text)
 find_pos source (Pos pos) =
-    case drop_before (fst . snd) pos (zip [1..] lines) of
+    case Seq.drop_before (fst . snd) pos (zip [1..] lines) of
         (line_num, (start, line)) : _ -> Just (line_num, pos - start, line)
         _ -> Nothing
     where
-    lines = scanl_on (+) ((+1) . Text.length) 0 $ Text.lines source
-
--- * seq
-
-scanl_on :: (accum -> key -> accum) -> (a -> key) -> accum -> [a]
-    -> [(accum, a)]
-scanl_on f key z xs = zip (scanl (\t -> f t . key) z xs) xs
-
--- | Drop until the last element before or equal to the given element.
-drop_before :: Ord key => (a -> key) -> key -> [a] -> [a]
-drop_before _ _ [] = []
-drop_before key p (x:xs)
-    | p < key x = x : xs
-    | otherwise = case xs of
-        next : _ | p >= key next -> drop_before key p xs
-        _ -> x : xs
+    lines = Seq.scanl_on (+) ((+1) . Text.length) 0 $ Text.lines source

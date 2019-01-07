@@ -70,3 +70,10 @@ test_split_after = do
     equal (f []) []
     equal (f [1, 2, 3, 1, 2]) [[1], [2, 3, 1], [2]]
     equal (f [2, 3, 1, 2]) [[2, 3, 1], [2]]
+
+test_drop_before = do
+    let f n = Seq.head $ Seq.drop_before id n [1..4]
+    equal (f 0) (Just 1)
+    equal (f 1) (Just 1)
+    equal (f 1.5) (Just 1)
+    equal (f 2) (Just 2)

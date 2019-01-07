@@ -11,20 +11,20 @@ import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Sel as Sel
-import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Sel as Sel
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 get :: Ui.M m => TrackId -> m Events.Events
@@ -168,9 +168,9 @@ quantize_event mode points_ event = (start_points, quantize_event event)
     quantize_start = Event.start_ %= quantize start_points
     quantize_end event = Event.end_ %= quantize (end_points event) $ event
     zero = Event.duration event == 0
-    start_points = TimeStep.drop_before (Event.start event) points_
+    start_points = Seq.drop_before id (Event.start event) points_
     end_points e = dropWhile (<= Event.start e) $
-        TimeStep.drop_before (Event.end e) start_points
+        Seq.drop_before id (Event.end e) start_points
 
 quantize :: [TrackTime] -> TrackTime -> TrackTime
 quantize points t = case points of

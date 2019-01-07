@@ -130,6 +130,11 @@ map_last _ [] = []
 map_last f [x] = [f x]
 map_last f (x:xs) = x : map_last f xs
 
+-- | This is like 'scanl', but you can scan with a key function.  E.g. to
+-- accumulate line lengths: @scanl_on length (+) 0@.
+scanl_on :: (accum -> key -> accum) -> (a -> key) -> accum -> [a]
+    -> [(accum, a)]
+scanl_on f key z xs = zip (scanl (\t -> f t . key) z xs) xs
 
 -- * permutations
 
@@ -537,6 +542,20 @@ tail :: [a] -> Maybe [a]
 tail [] = Nothing
 tail (_:xs) = Just xs
 
+-- | Drop until the last element before or equal to the given element.
+drop_before :: Ord key => (a -> key) -> key -> [a] -> [a]
+drop_before key p = go
+    where
+    go [] = []
+    go (x0 : xs)
+        | p < key x0 = x0 : xs
+        | otherwise = case xs of
+            x1 : _ | p >= key x1 -> go xs
+            _ -> x0 : xs
+
+
+-- ** duplicates
+
 -- | Drop adjacent elts if they are equal after applying the key function.
 -- The first elt is kept.
 drop_dups :: Eq k => (a -> k) -> [a] -> [a]
@@ -592,6 +611,8 @@ unique_on f xs = go Set.empty xs
 -- | Like 'unique', but sort the list, and should be more efficient.
 unique_sort :: Ord a => [a] -> [a]
 unique_sort = Set.toList . Set.fromList
+
+-- ** right variants
 
 rtake :: Int -> [a] -> [a]
 rtake n = snd . foldr go (n, [])
