@@ -25,7 +25,7 @@ import qualified Util.SourceControl as SourceControl
 
 import qualified Solkattu.All as All -- generated
 import Solkattu.Dsl.Solkattu
-       (index, realize, realizep, realizeM, realizeK1, realizeR)
+       (index, realize, realizep, realizeM, realizek, realizekp, realizeR)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Html as Html
 import qualified Solkattu.Format.Terminal as Terminal

@@ -5,12 +5,13 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | Mohras.
 module Solkattu.Score.SolkattuMohra where
-import Prelude hiding ((.), (^), repeat)
+import           Prelude hiding ((.), (^), repeat)
 
+import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Tala as Tala
 
-import Solkattu.Dsl.Solkattu
+import           Solkattu.Dsl.Solkattu
 
 
 makeMohras :: Tala.Tala -> Korvai.StrokeMaps -> (Sequence -> Sequence)
@@ -61,7 +62,8 @@ makeMohra2 tala smaps transform as bs =
     makeMohras2 tala smaps transform [(as, bs)]
 
 c_mohra :: Korvai
-c_mohra = ganesh $ makeMohra adi mridangam su (a1, a2, a1) (b1, b2, b3)
+c_mohra = ganesh $ makeMohra adi (mridangam<>kendang)
+    su (a1, a2, a1) (b1, b2, b3)
     where
     a1 = dit.__4     .tang.__.kita.nakatiku
     a2 = na.ka.dit.__.tang.__.kita.nakatiku
@@ -71,11 +73,19 @@ c_mohra = ganesh $ makeMohra adi mridangam su (a1, a2, a1) (b1, b2, b3)
     mridangam = makeMridangam
         [ (dit, k)
         , (tang.kita, u.p.k)
+        , (na.ka, n.p)
         , (ta.langa, p.u.__.k)
         , (din.tat, o.k)
         , (dheem, od)
-        , (na.ka, n.p)
         ]
+    kendang = makeKendang1
+        [ (dit, pk)
+        , (tang.kita, o.p.k)
+        , (na.ka, t.k)
+        , (ta.langa, u.u.__.p)
+        , (din.tat, o.p)
+        , (dheem, a)
+        ] where KendangTunggal.Strokes {..} = KendangTunggal.notes
 
 c_mohra2 :: Korvai
 c_mohra2 = janahan $ makeMohra adi mridangam su (a1, a2, a3) (b1, b2, b3)

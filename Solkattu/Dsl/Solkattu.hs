@@ -321,8 +321,9 @@ realizep = realizeM Format.defaultAbstraction
 realizeM :: Abstraction -> Korvai.Korvai -> IO ()
 realizeM = _printInstrument Korvai.mridangam
 
-realizeK1 :: Abstraction -> Korvai.Korvai -> IO ()
-realizeK1 = _printInstrument Korvai.kendangTunggal
+realizek, realizekp :: Korvai.Korvai -> IO ()
+realizek = _printInstrument Korvai.kendangTunggal mempty
+realizekp = _printInstrument Korvai.kendangTunggal Format.defaultAbstraction
 
 realizeR :: Abstraction -> Korvai.Korvai -> IO ()
 realizeR = _printInstrument Korvai.reyong
