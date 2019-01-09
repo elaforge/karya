@@ -22,6 +22,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Deriver.DeriveM as DeriveM
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -44,9 +45,9 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
-import Derive.Deriver.Monad
-import Global
-import Types
+import           Derive.Deriver.Monad
+import           Global
+import           Types
 
 
 -- * derive
@@ -795,46 +796,7 @@ modify_pitch pcontrol f
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
 
-
--- * 'Mode'
-
-get_mode :: Deriver Mode
-get_mode = gets (state_mode . state_dynamic)
-
-is_lilypond_mode :: Deriver Bool
-is_lilypond_mode = Maybe.isJust <$> lookup_lilypond_config
-
-lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
-lookup_lilypond_config = get_mode >>= \mode -> return $ case mode of
-    Lilypond config -> Just config
-    _ -> Nothing
-
--- | Get the 'CallDuration' of the given deriver.
-get_score_duration :: Deriver a -> Deriver (CallDuration ScoreTime)
-get_score_duration deriver = do
-    state <- get
-    let (_, out, _) = run (set_mode state) deriver
-    return $ collect_score_duration $ state_collect out
-    where
-    set_mode state = state
-        { state_collect = mempty
-        , state_dynamic = (state_dynamic state)
-            { state_mode = ScoreDurationQuery }
-        }
-
-get_real_duration :: Deriver a -> Deriver (CallDuration RealTime)
-get_real_duration deriver = do
-    state <- get
-    let (_, out, _) = run (set_mode state) deriver
-    return $ collect_real_duration $ state_collect out
-    where
-    set_mode state = state
-        { state_collect = mempty
-        , state_dynamic = (state_dynamic state)
-            { state_mode = RealDurationQuery }
-        }
-
--- * postproc
+-- * run monad
 
 -- | If the deriver throws, log the error and return Nothing.
 catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
@@ -855,6 +817,62 @@ catch collect deriver = do
             when collect $ Internal.merge_collect (state_collect state2)
             Internal.set_threaded (state_threaded state2)
             return $ Just val
+
+-- | Embed a LogId into Deriver.  This is for computations that need logging
+-- but not a full Deriver.
+run_logs :: Log.LogId a -> Deriver a
+run_logs action = do
+    let (val, logs) = Log.run_id action
+    mapM_ Log.write logs
+    return val
+
+run_rethrow :: (State -> State) -> Deriver a -> Deriver (a, State)
+run_rethrow with_state deriver = do
+    state <- get
+    let (val, state2, logs) = run (with_state state) deriver
+    mapM_ Log.write logs
+    val <- case val of
+        Left err -> DeriveM.throw err
+        Right val -> return val
+    return (val, state2)
+
+-- * 'Mode'
+
+get_mode :: Deriver Mode
+get_mode = gets (state_mode . state_dynamic)
+
+is_lilypond_mode :: Deriver Bool
+is_lilypond_mode = Maybe.isJust <$> lookup_lilypond_config
+
+lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
+lookup_lilypond_config = get_mode >>= \mode -> return $ case mode of
+    Lilypond config -> Just config
+    _ -> Nothing
+
+-- | Get the 'CallDuration' of the given deriver.
+get_score_duration :: Deriver a -> Deriver (CallDuration ScoreTime)
+get_score_duration deriver = do
+    (_val, out) <- run_rethrow set_mode deriver
+    return $ collect_score_duration $ state_collect out
+    where
+    set_mode state = state
+        { state_collect = mempty
+        , state_dynamic = (state_dynamic state)
+            { state_mode = ScoreDurationQuery }
+        }
+
+get_real_duration :: Deriver a -> Deriver (CallDuration RealTime)
+get_real_duration deriver = do
+    (_val, out) <- run_rethrow set_mode deriver
+    return $ collect_real_duration $ state_collect out
+    where
+    set_mode state = state
+        { state_collect = mempty
+        , state_dynamic = (state_dynamic state)
+            { state_mode = RealDurationQuery }
+        }
+
+-- * postproc
 
 -- | Replace the 'state_stack' with the one from the event.  This is useful
 -- for transformers, so they can show a stack trace to the event they are
@@ -885,14 +903,6 @@ shift_control shift deriver = do
     where
     nudge delay = Map.map (fmap (Signal.shift delay))
     nudge_pitch = PSignal.shift
-
--- | Embed a LogId into Deriver.  This is for computations that need logging
--- but not a full Deriver.
-run_logs :: Log.LogId a -> Deriver a
-run_logs action = do
-    let (val, logs) = Log.run_id action
-    mapM_ Log.write logs
-    return val
 
 -- * call
 

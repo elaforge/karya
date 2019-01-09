@@ -100,8 +100,8 @@ derive_notes derive_tracks tinfo = do
 track_info :: TrackTree.Track -> [TrackTree.EventsNode]
     -> EvalTrack.TrackInfo Score.Event
 track_info track subs = EvalTrack.TrackInfo
-    { EvalTrack.tinfo_track = track
-    , EvalTrack.tinfo_sub_tracks = subs
-    , EvalTrack.tinfo_type = ParseTitle.NoteTrack
-    , EvalTrack.tinfo_get_last_val = Seq.last
+    { tinfo_track = track
+    , tinfo_sub_tracks = subs
+    , tinfo_type = ParseTitle.NoteTrack
+    , tinfo_get_last_val = Seq.last
     }

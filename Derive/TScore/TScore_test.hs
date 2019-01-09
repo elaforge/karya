@@ -6,6 +6,7 @@ module Derive.TScore.TScore_test where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
+import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
@@ -21,7 +22,7 @@ import           Util.Test
 
 
 test_ui_state = do
-    let f = fmap UiTest.extract_blocks . TScore.ui_state
+    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
     right_equal (f "top = \"block title\" [s r g]")
         [ ( "top -- block title"
           , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -38,7 +39,7 @@ test_ui_state = do
         ]
 
 test_call_duration = do
-    let f = fmap UiTest.extract_blocks . TScore.ui_state
+    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
     right_equal (f "a = [b/]\nb = [s r]")
         [ ("a", [(">", [(0, 1, "b")])])
         , ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
@@ -56,12 +57,36 @@ test_call_duration = do
     left_like (f "a = [b/0 s]\nb = [s r]") "can't carry CallDuration"
     left_like (f "a = [b/0 _]\nb = [s r]") "can't carry CallDuration"
 
+test_ext_call_duration = do
+    let f blocks source = extract $
+            CmdTest.run_blocks blocks (TScore.cmd_integrate source)
+        extract = CmdTest.trace_logs
+            . CmdTest.extract_ui_state UiTest.extract_blocks
+    let blocks = [("top=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])]
+        top = ("top", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+
+    -- pprint $ Ui.state_blocks $ snd $ UiTest.run Ui.empty $
+    --     UiTest.mkblocks blocks
+
+    -- It uses the root block's namespace, not tscore.
+    right_equal (f blocks "a = [top/0 s1]")
+        [ top
+        , ("a", UiTest.note_track [(0, 2, "top --"), (2, 1, "4s")])
+        ]
+
+    -- TODO
+    -- -- Use block title for context.
+    -- right_equal (f blocks "a = \"import india.mridangam\" [\">\" \"4n\"/0 s1]")
+    --     [ top
+    --     , ("a -- import india.mridangam", [])
+    --     ]
+
 e_events :: Ui.State -> [[Event.Event]]
 e_events = map (Events.ascending . Track.track_events) . Map.elems
     . Ui.state_tracks
 
 test_integrate = do
-    let run state = Ui.exec state . TScore.integrate
+    let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = \"block title\" [s r g]"
     equal (extract state)
@@ -82,7 +107,7 @@ test_integrate = do
     let tid = TScore.make_track_id (UiTest.bid "tscore/top") 1 True
     state <- return $ expect_right $ Ui.exec state $ do
         Ui.insert_event tid (Event.event 1 0 "5p")
-        TScore.integrate "top = \"block title\" [s r s]"
+        TScore.integrate get_ext_dur "top = \"block title\" [s r s]"
     equal (extract state)
         [ ( "top -- block title"
           , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -96,7 +121,7 @@ test_integrate = do
         ]
 
 test_integrate_2_tracks = do
-    let run state = Ui.exec state . TScore.integrate
+    let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = [s r // g m]"
     equal (extract state)
@@ -109,7 +134,7 @@ test_integrate_2_tracks = do
           )
         ]
     state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate "top = [g r // g m]"
+        TScore.integrate get_ext_dur "top = [g r // g m]"
     equal (extract state)
         [ ( "top"
           , [ (">", [(0, 1, ""), (1, 1, "")])
@@ -127,6 +152,9 @@ test_check_recursion = do
     equal (f "b1 = [b2/]") Nothing
     equal (f "b1 = [b1/]") $ Just "recursive loop: b1, b1"
     equal (f "b1 = [b2/]\nb2 = [b1/]") $ Just "recursive loop: b2, b1, b2"
+
+get_ext_dur :: TScore.GetExternalCallDuration
+get_ext_dur = \_ -> (Left "not supported", [])
 
 parsed_blocks :: Text -> [TScore.Block TScore.ParsedTrack]
 parsed_blocks = expect_right . TScore.parsed_blocks

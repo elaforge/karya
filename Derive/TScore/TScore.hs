@@ -5,21 +5,28 @@
 {-# LANGUAGE DeriveFunctor #-}
 -- | Parse tscore, check and postprocess it, and convert to Ui.State.
 module Derive.TScore.TScore where
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
+
 import qualified App.Config as Config
 import qualified Cmd.BlockConfig as BlockConfig
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Cmd.Integrate.Merge as Merge
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Ruler.Modify
 
+import qualified Derive.Derive as Derive
+import qualified Derive.Note
 import qualified Derive.Stack as Stack
 import qualified Derive.TScore.Check as Check
 import qualified Derive.TScore.Parse as Parse
@@ -31,6 +38,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 
 import           Global
@@ -64,18 +72,27 @@ track_ids (NTrack note controls) = _track_id note : map _track_id controls
 
 -- * toplevel
 
-integrate :: Ui.M m => Text -> m [BlockId] -- ^ newly created blocks
-integrate source = do
-    blocks <- Ui.require_right id $ track_blocks source
+cmd_integrate :: Cmd.M m => Text -> m [BlockId]
+cmd_integrate source = do
+    ui_state <- Ui.get
+    cmd_state <- Cmd.get
+    let get_ext_dur = get_external_duration ui_state cmd_state
+    integrate get_ext_dur source
+
+integrate :: Ui.M m => GetExternalCallDuration -> Text
+    -> m [BlockId] -- ^ newly created blocks
+integrate get_ext_dur source = do
+    blocks <- Ui.require_right id $ (track_blocks get_ext_dur) source
     -- TODO trim blocks that disappeared like with tracks?
     mapMaybeM integrate_block blocks
 
-track_blocks :: Text -> Either Text [Block NTrack]
-track_blocks source = do
+track_blocks :: GetExternalCallDuration -> Text -> Either Text [Block NTrack]
+track_blocks get_ext_dur source = do
     blocks <- first (T.show_error source) $ parsed_blocks source
     let tokens_of (_, _, ts) = ts
     whenJust (check_recursion $ map (tokens_of <$>) blocks) Left
-    (errs, blocks) <- return $ partition_errors $ make_tracks source blocks
+    (errs, blocks) <- return $
+        partition_errors $ make_tracks get_ext_dur source blocks
     unless (null errs) $
         Left $ Text.intercalate "; " errs
     return blocks
@@ -85,6 +102,51 @@ partition_errors = first concat . unzip . map partition_block
     where
     partition_block block = (errs, block { _tracks = tracks })
         where (errs, tracks) = Either.partitionEithers (_tracks block)
+
+-- | Get the duration of a block call from the tracklang performance, not
+-- tscore.
+type GetExternalCallDuration = Text -> (Either Text TrackTime, [Log.Msg])
+
+-- TODO I'll need some way to get the logs out, but I'd prefer to not make
+-- everything monadic.
+get_external_duration :: Ui.State -> Cmd.State -> Text
+    -> (Either Text TrackTime, [Log.Msg])
+get_external_duration ui_state cmd_state call =
+    first adapt $ Identity.runIdentity $
+        Cmd.eval ui_state cmd_state (lookup_call_duration call)
+    where
+    adapt (Left err) = Left (txt err)
+    adapt (Right Nothing) = Left "call doesn't support CallDuration"
+    adapt (Right (Just dur)) = Right dur
+
+lookup_call_duration :: Cmd.M m => Text -> m (Maybe TrackTime)
+lookup_call_duration call = do
+    -- I need BlockId, TrackId to get the Dynamic, for deriving context.
+    -- I think it shouldn't really matter for call duration, but of course it
+    -- could.  If I pick the root block then I get global transform and
+    -- whatever transform is in the root.
+    (block_id, track_id) <- root_block
+    dur <- Perf.get_derive_at block_id track_id $
+        Derive.get_score_duration deriver
+    return $ case dur of
+        Derive.Unknown -> Nothing
+        Derive.CallDuration dur -> Just dur
+    where
+    -- I think if I have a root block with a performance then I don't need
+    -- with_default_imported, but for tests I don't have a Performance.
+    -- TODO it would be better to get a Performance for tests.
+    deriver = Derive.with_default_imported $
+        Perf.derive_event (Derive.Note.track_info track [])
+            (Event.event 0 1 call)
+    track = TrackTree.make_track "title" mempty 1
+
+root_block :: Ui.M m => m (BlockId, TrackId)
+root_block = do
+    block_id <- Ui.get_root_id
+    track_id <- Ui.require "root block has no tracks" . Seq.head
+        =<< Ui.track_ids_of block_id
+    return (block_id, track_id)
+
 
 -- * memo
 
@@ -119,8 +181,9 @@ type ParsedTrack = (Check.Config, Text, [Token])
 -- duration of a note can depend on the duration of other blocks, and so forth.
 -- I can get this interleaved and cached via a lazy memo table, but it's only
 -- safe because I previously did 'check_recursion'.
-make_tracks :: Text -> [Block ParsedTrack] -> [Block (Either Text NTrack)]
-make_tracks source blocks = Map.elems memo
+make_tracks :: GetExternalCallDuration -> Text -> [Block ParsedTrack]
+    -> [Block (Either Text NTrack)]
+make_tracks get_ext_dur source blocks = Map.elems memo
     where
     memo = Map.fromList
         [ (_block_id block, resolve_block block)
@@ -145,11 +208,23 @@ make_tracks source blocks = Map.elems memo
                 , _events = Events.from_list pitches
                 }
             }
-    get_dur block_id = case Map.lookup block_id memo of
-        Nothing -> Left $ "no block: " <> pretty block_id
+    -- I could memoize external calls in the same way, but a tracklang call
+    -- duration is set manually, so it can't affect another call duration, so
+    -- the recursive thing doesn't happen.  Which is good, because there's
+    -- a phase difference between tscore and tracklang (that's the
+    -- integration), so it wouldn't be reliable anyway.  So a non-memoized
+    -- lookup shouldn't have the same quadratic performance.
+    get_dur call = case Map.lookup block_id memo of
+        Nothing -> case get_ext_dur call of
+            -- TODO I should save the logs so I can write them, but I think
+            -- I have to put everything in LogMonad.
+            (Left err, logs) -> Left $ "call " <> pretty call <> ": " <> err
+            (Right dur, logs) -> Right $ from_track_time dur
         Just block -> bimap (("in block " <> pretty block_id <> ": ")<>)
             (maximum . (0:) . map track_end)
             (sequence (_tracks block))
+        where
+        block_id = Check.call_block_id call
 
 track_end :: NTrack -> T.Time
 track_end (NTrack note controls) = from_track_time $
@@ -246,9 +321,9 @@ source_key = "tscore"
 
 -- * ui_state
 
-ui_state :: Text -> Either Text Ui.State
-ui_state text = do
-    blocks <- track_blocks text
+ui_state :: GetExternalCallDuration -> Text -> Either Text Ui.State
+ui_state get_ext_dur source = do
+    blocks <- track_blocks get_ext_dur source
     first pretty $ Ui.exec Ui.empty $ do
         Ui.set_namespace Parse.default_namespace
         mapM_ ui_block blocks
@@ -298,8 +373,8 @@ generate_ruler meter end = Ruler.Modify.meter (const generate)
 -- * make_blocks
 
 parsed_blocks :: Text -> Either T.Error [Block ParsedTrack]
-parsed_blocks text = do
-    T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score text
+parsed_blocks source = do
+    T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score source
     fst <$> foldM collect ([], Check.default_config) defs
     where
     collect (accum, config) def = do

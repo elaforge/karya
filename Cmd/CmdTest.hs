@@ -74,6 +74,10 @@ result_ok res = case result_val res of
 run_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks tracks = run (make_tracks tracks) default_cmd_state
 
+run_blocks :: [UiTest.BlockSpec] -> Cmd.CmdId a -> Result a
+run_blocks blocks = run (snd $ UiTest.run Ui.empty $ UiTest.mkblocks blocks)
+    default_cmd_state
+
 -- | Like 'run_tracks', but the ruler only extends to the end of the last
 -- event.
 run_tracks_ruler :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a

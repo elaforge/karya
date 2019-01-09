@@ -88,7 +88,7 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 type Stream a = [Either T.Error a]
 type Token pitch dur = T.Token pitch dur dur
 
-type GetCallDuration = Id.BlockId -> Either Text T.Time
+type GetCallDuration = Text -> Either Text T.Time
 
 -- | This goes before the recursion check, because it handles %default-call.
 -- The recursion check depends on that because it looks for block calls.
@@ -126,7 +126,7 @@ resolve_call_duration get_dur = map $ \case
     resolve pos (T.Call call) T.CallDuration
         | Text.null call =
             Left $ T.Error pos "can't get call duration of empty call"
-        | otherwise = case get_dur (call_block_id call) of
+        | otherwise = case get_dur call of
                 Left err -> Left $ T.Error pos err
                 Right time -> Right $ Left time
 

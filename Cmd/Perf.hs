@@ -48,8 +48,8 @@ import qualified Ui.Event as Event
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 get :: Cmd.M m => BlockId -> m Cmd.Performance
@@ -102,7 +102,8 @@ get_derive_at :: Cmd.M m => BlockId -> TrackId -> Derive.Deriver a -> m a
 get_derive_at block_id track_id deriver = do
     (result, logs) <- derive_at block_id track_id deriver
     mapM_ Log.write logs
-    Cmd.require_right (("derive_at " <> pretty (block_id, track_id)) <>) result
+    let prefix = "derive_at " <> pretty block_id <> " " <> pretty track_id
+    Cmd.require_right ((prefix <> ": ") <>) result
 
 -- | Return the NoteDeriver of a particular event on a particular track,
 -- or Nothing if the track isn't a NoteTrack.

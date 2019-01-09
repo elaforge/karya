@@ -4676,7 +4676,10 @@ text score: tscore:
     * carry call durations like other durations
       . I think I want to make this an error unless the current note is also
         a CallDuration.  Otherwise it's confusing, what with ties and dots.
-    - call duration should support non-tscore calls too
+    * call duration should support non-tscore calls too
+      - Save logs that come out of the CallDuration query.
+      - Use the title of the current block, so it can pick up imports, e.g.
+        import india.mridangam, for n8.
     * automatic call duration
       . add to parser.  Use 0, then I don't have to carve out another symbol
         from pitch_chars.

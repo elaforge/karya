@@ -169,8 +169,12 @@ type RunCmd cmd_m val_m a =
     Ui.State -> State -> CmdT cmd_m a -> val_m (Result a)
 
 -- | The result of running a Cmd.
-type Result a = (State, [Thru], [Log.Msg],
-    Either Ui.Error (a, Ui.State, [Update.CmdUpdate]))
+type Result a =
+    ( State
+    , [Thru]
+    , [Log.Msg]
+    , Either Ui.Error (a, Ui.State, [Update.CmdUpdate])
+    )
 
 run :: Monad m => a -> RunCmd m m a
 run abort_val ustate cstate cmd = do
@@ -185,6 +189,25 @@ run abort_val ustate cstate cmd = do
         Left Ui.Abort -> (cstate, [], logs, Right (abort_val, ustate, []))
         Left _ -> (cstate, [], logs, ui_result)
         _ -> (cstate2, midi, logs, ui_result)
+
+-- | Like 'run', but write logs, and discard MIDI thru and updates.
+run_ :: Monad m => Ui.State -> State -> CmdT m a
+    -> m (Either String (a, State, Ui.State), [Log.Msg])
+run_ ui_state cmd_state cmd = do
+    (cmd_state, _thru, logs, result) <-
+        run Nothing ui_state cmd_state (liftM Just cmd)
+    return $ (, logs) $ case result of
+        Left err -> Left $ prettys err
+        Right (val, ui_state, _updates) -> case val of
+            Nothing -> Left "aborted"
+            Just v -> Right (v, cmd_state, ui_state)
+
+-- | Like 'run_', but discard all the final states.
+eval :: Monad m => Ui.State -> State -> CmdT m a
+    -> m (Either String a, [Log.Msg])
+eval ui_state cmd_state = fmap (first (second val_of)) . run_ ui_state cmd_state
+    where
+    val_of (a, _, _) = a
 
 -- | Run the given command in Identity, but return it in IO, just as
 -- a convenient way to have a uniform return type with 'run' (provided it is
@@ -217,19 +240,6 @@ lift_id cmd = do
 run_id :: Ui.State -> State -> CmdT Identity.Identity a -> Result (Maybe a)
 run_id ui_state cmd_state cmd =
     Identity.runIdentity (run Nothing ui_state cmd_state (fmap Just cmd))
-
--- | Like 'run', but write logs, and discard MIDI thru and updates.
-run_val :: Log.LogMonad m => Ui.State -> State -> CmdT m a
-    -> m (Either String (a, State, Ui.State))
-run_val ui_state cmd_state cmd = do
-    (cmd_state, _thru, logs, result) <-
-        run Nothing ui_state cmd_state (liftM Just cmd)
-    mapM_ Log.write logs
-    return $ case result of
-        Left err -> Left $ prettys err
-        Right (val, ui_state, _updates) -> case val of
-            Nothing -> Left "aborted"
-            Just v -> Right (v, cmd_state, ui_state)
 
 -- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.

@@ -36,5 +36,5 @@ set tscore = do
 
 integrate :: Cmd.M m => m ()
 integrate = do
-    new_blocks <- TScore.integrate =<< get
+    new_blocks <- TScore.cmd_integrate =<< get
     mapM_ Create.view new_blocks
