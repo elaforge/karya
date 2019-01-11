@@ -115,7 +115,14 @@ import Types
 
 modify_play_multiplier :: Cmd.M m => (RealTime -> RealTime) -> m ()
 modify_play_multiplier f = Cmd.modify_play_state $ \st ->
-    st { Cmd.state_play_multiplier = f (Cmd.state_play_multiplier st) }
+    st { Cmd.state_play_multiplier = to_1 $ f (Cmd.state_play_multiplier st) }
+    where
+    -- Set to 1 if I'm this close.  Otherwise repeated multiplies don't
+    -- necessarily come back exactly.
+    to_1 val
+        | abs (1 - val) <= threshold = 1
+        | otherwise = val
+    threshold = 0.01
 
 -- * stop
 

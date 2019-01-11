@@ -305,17 +305,6 @@ UNSORTED
           I'd have to do something about exceptions, maybe put it in as
           a Metadata too.  If I can make the whole derivation fully streaming
           then this might be a big win.
-  - binary-serialise-cbor is out and implemented by serialise, try switching
-    save format to that.
-    . But figure out how to use the built-in versioning first.
-    . I can, but the encodeListLen stuff is awkward.  Can I get rid of that?
-      Maybe make instances for ()?  Of course there already are such
-      instances, so maybe just use them?  The result is it goes
-      [tag, length, ...] instead of [length, tag, ...], but the former makes
-      more sense to me anyway, since the length will likely be different
-      depending on tag/version.
-    . Or try persist, it seems to be compatible with cereal, but faster:
-      https://hackage.haskell.org/package/persist
   - Adding a new track puts a bit of extra padding on the right side.
   tabuh gari:
     - octaves notation for trompong
@@ -1867,6 +1856,19 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
+      - im not affected by play speed, it should rerender
+        . Play speed is just a way to easily set tempo, taking advantage of the
+          fact that it's efficient for MIDI.  I guess it could fall back on
+          tempo if it detects an im track.
+        . But it's different in that the tempo change is invisible to the
+          usual ScoreTime / RealTime thing.
+        . I can multiply times of notes in Perform.Im.Convert.
+        * I also want play speed to go back to 1 exactly, maybe round if it's
+          close.
+      - sudden quit when renaming block in save/kendang/sinom-ladrang-bug:
+        LBlock.rename @awak
+        . What can cause a quit with no error?
+        . Renaming might confuse im caching?
       * resume crash when going from resample to no-resample:
         . expected no state for un-resampled, got ((SavedState ...))
         . I think it skipped the first chunk, but shouldn't have, because the
@@ -2053,6 +2055,7 @@ synth: im:
       their native scales.  That way other instruments could use them too.
       . Another alternative is that the scale could take instrument into
         account.
+    kendang-legong:
     reyong:
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
@@ -2350,7 +2353,7 @@ synth: im:
         . I also need to turn ScoreDamage into RealTime.  Maybe not trivial?
       . Actually first let's not bother with incremental, and just rewrite the
         whole dump each time.  The real saving is in not rerendering audio.
-    - synthesizers break output into chunks of n seconds.
+    * synthesizers break output into chunks of n seconds.
       . Chunk = (startTime, InstrumentState, samples)
       . InstrumentState = Map (Instrument, Voice) DspState
       . Voice = Int -- assigned by polyphony, but how can I keep it stable?
@@ -2697,6 +2700,35 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  - better serialize
+    - I want a more systematic and safer approach to versions
+      . I want everything to be versioned.  Since it's manual I was
+        inconsistent about it, which has always been a problem.
+      . But when I serialize repeated things, I want to only store the version
+        once, e.g. Event shouldn't have a version, but Events should.
+        I currently do this, but it's all manual.
+      . The other problem is that I have serializes where I care about versions
+        (Cmd.Serialize) and where I don't (Instrument.Serialize).  Conveniences
+        like put_enum are ok for the latter but not for the former.  Since they
+        use the same Serialize class they can get confused.
+      . A manual approach would be: split into Serialize and SerializeVersion.
+        SerializeVersion can use the Serialize implementation, but *might* add
+        a version.  Dangerous things like put_enum are simply not in
+        SerializeVersion.
+    - binary is known to be slow, use something faster?
+      . binary-serialise-cbor is out and implemented by serialise, try switching
+        save format to that.
+      . But figure out how to use the built-in versioning first.
+      . I can, but the encodeListLen stuff is awkward.  Can I get rid of that?
+        Maybe make instances for ()?  Of course there already are such
+        instances, so maybe just use them?  The result is it goes
+        [tag, length, ...] instead of [length, tag, ...], but the former makes
+        more sense to me anyway, since the length will likely be different
+        depending on tag/version.
+      . Or try persist, it seems to be compatible with cereal, but faster:
+        https://hackage.haskell.org/package/persist
+      . There's also store, with emphasis on performance, but has an insane
+        dependency list, and incompatible interface.
   - support cabal new-build
     . The advantage is that people can install dependencies without messing up
       their global package db.
@@ -3458,6 +3490,28 @@ fltk:
         if (contains(Fl::focus())) return 1; // it called Fl::focus for us
         Fl::focus(this);
         return 1;
+    . still happening:
+      fltk/Block.cc:858 FOCUS WARNING on keydown:meta_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("[") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:control_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("/") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:meta_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:'s' ("S") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:meta_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on push:(77, 225) - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:control_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("/") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:''' ("'") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:control_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("/") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:unknown ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on keydown:down ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      fltk/Block.cc:858 FOCUS WARNING on push:(68, 565) - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
