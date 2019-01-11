@@ -34,13 +34,24 @@ import           Types
 
 -- | Serialize the events to the given patch.  This is done atomically because
 -- this is run from the derive thread, which can be killed at any time.
-write :: BlockId -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> FilePath -> Vector.Vector Score.Event -> IO Bool
+write :: RealTime -> BlockId
+    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument) -> FilePath
+    -> Vector.Vector Score.Event -> IO Bool
     -- ^ False if the file would have been the same as an existing one.
-write block_id lookup_inst filename events = do
-    notes <- LEvent.write_logs $
-        convert block_id lookup_inst (Vector.toList events)
-    Note.serialize filename notes
+write play_multiplier block_id lookup_inst filename events = do
+    notes <- LEvent.write_logs $ convert block_id lookup_inst $
+        Vector.toList events
+    -- The so-called play multiplier is actually a divider.
+    Note.serialize filename $ multiply_time (1/play_multiplier) notes
+
+multiply_time :: RealTime -> [Note.Note] -> [Note.Note]
+multiply_time n
+    | n == 1 = id
+    | otherwise = map $ \note -> note
+        { Note.start = n * Note.start note
+        , Note.duration = n * Note.duration note
+        , Note.controls = Signal.map_x (*n) <$> Note.controls note
+        }
 
 convert :: BlockId -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]

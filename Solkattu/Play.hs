@@ -131,7 +131,7 @@ derive_to_disk score_path ui_state = do
         lookup_inst = either (const Nothing) Just
             . Cmd.state_resolve_instrument ui_state cmd_state
     (procs, non_im) <- Performance.evaluate_im im_config lookup_inst score_path
-        block_id events
+        1 block_id events
     unless (null non_im) $
         Log.warn $ "non-im events: " <> pretty non_im
     config <- Config.getConfig

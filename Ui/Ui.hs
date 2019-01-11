@@ -40,6 +40,7 @@ module Ui.Ui (
     , throw_error, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
     , gets, unsafe_modify, put, modify
+    , update_all_tracks
     -- ** errors
     , Error(..)
     , require, require_right
@@ -366,6 +367,14 @@ modify :: M m => (State -> State) -> m ()
 modify f = do
     state <- get
     put $! f state
+
+-- | Emit track updates for all tracks.  Use this when events have changed but
+-- I don't know which ones, e.g. when loading a file or restoring a previous
+-- state.
+update_all_tracks :: M m => m ()
+update_all_tracks = do
+    st <- get
+    mapM_ (update . Update.CmdTrackAllEvents) (Map.keys (state_tracks st))
 
 -- | Run the given StateT with the given initial state, and return a new
 -- state along with updates.  Normally updates are produced by 'Ui.Diff.diff',
@@ -1395,14 +1404,6 @@ range_from :: M m => TrackId -> TrackTime -> m Events.Range
 range_from track_id start =
     Events.Range start . (+1) <$> track_event_end track_id
     -- +1 to get a final 0 dur positive event.
-
--- | Emit track updates for all tracks.  Use this when events have changed but
--- I don't know which ones, e.g. when loading a file or restoring a previous
--- state.
-update_all_tracks :: M m => m ()
-update_all_tracks = do
-    st <- get
-    mapM_ (update . Update.CmdTrackAllEvents) (Map.keys (state_tracks st))
 
 -- ** util
 

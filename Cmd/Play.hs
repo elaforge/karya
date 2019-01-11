@@ -109,13 +109,15 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Zoom as Zoom
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 modify_play_multiplier :: Cmd.M m => (RealTime -> RealTime) -> m ()
-modify_play_multiplier f = Cmd.modify_play_state $ \st ->
-    st { Cmd.state_play_multiplier = to_1 $ f (Cmd.state_play_multiplier st) }
+modify_play_multiplier f = do
+    Cmd.modify_play_state $ \st -> st
+        { Cmd.state_play_multiplier = to_1 $ f (Cmd.state_play_multiplier st) }
+    whenM has_im $ Ui.update_all_tracks
     where
     -- Set to 1 if I'm this close.  Otherwise repeated multiplies don't
     -- necessarily come back exactly.
@@ -164,6 +166,9 @@ im_addr = do
     return $ case lookup_im_config allocs of
         Right (_, addr) -> Just addr
         Left _ -> Nothing
+
+has_im :: Cmd.M m => m Bool
+has_im = Maybe.isJust <$> im_addr
 
 -- * play
 
@@ -417,7 +422,8 @@ from_realtime block_id repeat_at start_ = do
         Left (Just msg) -> Cmd.throw msg
     muted <- Perf.infer_muted_instruments
     score_path <- Cmd.gets Cmd.score_path
-    let im_msgs = maybe [] (im_play_msgs score_path block_id muted start)
+    let im_msgs = maybe []
+            (im_play_msgs score_path block_id muted (start * multiplier))
             play_cache_addr
 
     msgs <- PlayUtil.perform_from start perf

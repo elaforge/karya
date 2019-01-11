@@ -1856,7 +1856,7 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
-      - im not affected by play speed, it should rerender
+      * im not affected by play speed, it should rerender
         . Play speed is just a way to easily set tempo, taking advantage of the
           fact that it's efficient for MIDI.  I guess it could fall back on
           tempo if it detects an im track.

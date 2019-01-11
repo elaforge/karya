@@ -181,8 +181,7 @@ continue_all :: Thread.Seconds -> Result -> IO [Result]
 continue_all timeout prev_result = go Set.empty (result_states prev_result)
     where
     loopback = result_loopback prev_result
-    expected_blocks = Set.fromList $
-        Performance.derive_blocks (result_ui_state prev_result)
+    expected_blocks = Performance.derive_blocks (result_ui_state prev_result)
     go complete_blocks states
         | complete_blocks == expected_blocks = return []
         | otherwise = do

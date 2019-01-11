@@ -29,7 +29,6 @@ import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Process
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 import qualified Util.Vector
 
@@ -58,8 +57,8 @@ type StateM = Monad.State.StateT Cmd.State IO ()
 
 {- | Update the performances by rederiving if necessary.  This means figuring
     out ScoreDamage, and if there has been damage, killing any in-progress
-    derivation and starting derivation for the focused and root blocks.  This
-    updates performances for the root block and all visible blocks.
+    derivation and starting derivation.  This updates performances for the root
+    block and all visible blocks.
 
     The majority of the calls here will bring neither score damage nor
     a changed view id, and thus this will do nothing.
@@ -99,8 +98,8 @@ run_update send_status ui_state = do
         (derive_blocks ui_state)
 
 -- | Which blocks should get derived?
-derive_blocks :: Ui.State -> [BlockId]
-derive_blocks ui_state = Seq.unique $ maybe id (:) root_id visible
+derive_blocks :: Ui.State -> Set BlockId
+derive_blocks ui_state = Set.fromList $ maybe id (:) root_id visible
     where
     root_id = Ui.config_root (Ui.state_config ui_state)
     visible = map Block.view_block $ Map.elems $ Ui.state_views ui_state
@@ -195,8 +194,8 @@ generate_performance ui_state wait send_status block_id = do
                 . Cmd.state_resolve_instrument ui_state cmd_state
         evaluate_performance
             (if im_allocated allocs then Just im_config else Nothing)
-            lookup_inst wait send_status (Cmd.score_path cmd_state) block_id
-            perf
+            lookup_inst wait send_status (Cmd.score_path cmd_state)
+            (Cmd.state_play_multiplier (Cmd.state_play cmd_state)) block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert block_id
             thread_id (Cmd.state_performance_threads st)
@@ -230,10 +229,10 @@ derive ui_state cmd_state block_id = (perf, logs)
 
 evaluate_performance :: Maybe Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> Thread.Seconds -> SendStatus -> FilePath -> BlockId -> Cmd.Performance
-    -> IO ()
-evaluate_performance im_config lookup_inst wait send_status score_path block_id
-        perf = do
+    -> Thread.Seconds -> SendStatus -> FilePath -> RealTime -> BlockId
+    -> Cmd.Performance -> IO ()
+evaluate_performance im_config lookup_inst wait send_status score_path
+        play_multiplier block_id perf = do
     send_status block_id Msg.OutOfDate
     Thread.delay wait
     send_status block_id Msg.Deriving
@@ -245,8 +244,8 @@ evaluate_performance im_config lookup_inst wait send_status score_path block_id
             <> pretty cpu_secs <> " cpu, " <> pretty wall_secs <> " wall"
     (procs, events) <-  case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
-        Just config -> evaluate_im config lookup_inst score_path block_id
-            (Cmd.perf_events perf)
+        Just config -> evaluate_im config lookup_inst score_path
+            play_multiplier block_id (Cmd.perf_events perf)
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
@@ -299,9 +298,9 @@ watch_subprocesses send_status procs
 -- them, and the non-im events.
 evaluate_im :: Config.Config
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> FilePath -> BlockId -> Vector.Vector Score.Event
+    -> FilePath -> RealTime -> BlockId -> Vector.Vector Score.Event
     -> IO ([Process], Vector.Vector Score.Event)
-evaluate_im config lookup_inst score_path block_id events = do
+evaluate_im config lookup_inst score_path play_multiplier block_id events = do
     cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
     return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
@@ -322,8 +321,8 @@ evaluate_im config lookup_inst score_path block_id events = do
                 -- TODO It would be better to not reach this point at all if
                 -- the block hasn't changed, but until then at least I can
                 -- skip running the binary if the notes haven't changed.
-                changed <- Im.Convert.write block_id lookup_inst notes_file
-                    events
+                changed <- Im.Convert.write play_multiplier block_id
+                    lookup_inst notes_file events
                 let binary = Config.binary synth
                 return $ if null binary || not changed then Nothing
                     else Just (binary, [notes_file, output_dir])
