@@ -545,7 +545,7 @@ invert_events :: Cmd.M m => m ()
 invert_events =
     ModifyEvents.modify_selected False modify =<< Selection.events_at_point
     where
-    modify = ModifyEvents.event $ \e ->
+    modify = ModifyEvents.track $ ModifyEvents.event $ \e ->
         Event.start_ %= (+ Event.duration e) $ Event.duration_ %= negate $ e
 
 invert_notes :: Cmd.M m => m ()
@@ -569,6 +569,20 @@ invert_notes = ModifyNotes.selection $ ModifyNotes.note invert
         start = ModifyNotes.note_start note
 
 -- * modify text
+
+cmd_toggle_commented :: Cmd.M m => m ()
+cmd_toggle_commented = ModifyEvents.selection_tracks toggle
+    where
+    toggle block_id track_events
+        | all (all (is_commented) . snd) track_events =
+            modify $ Text.drop (Text.length cmt)
+        | otherwise = modify $ \t ->
+            if cmt `Text.isPrefixOf` t then t else "--|" <> t
+        where
+        modify f = ModifyEvents.track (ModifyEvents.text f)
+            block_id track_events
+    is_commented = (cmt `Text.isPrefixOf`) . Event.text
+    cmt = "--|"
 
 -- | Strip off the first transformer, and then the generator.
 strip_call :: Cmd.M m => m ()

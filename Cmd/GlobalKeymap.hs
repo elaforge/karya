@@ -460,6 +460,7 @@ event_bindings = concat
     , bind_key_status [] (Key.Char 'I') "replace first call"
         Edit.replace_first_call
 
+    , plain_char 'C' "toggle commented" Edit.cmd_toggle_commented
     , command_char ',' "strip transformer" Edit.strip_call
     ]
     where

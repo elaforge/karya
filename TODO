@@ -26,6 +26,10 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * It would be useful to be able to mute a part of a track.
+    . Maybe I could make "muted" be an event attribute?
+    . Or comment them out?  A comment selected cmd?
+  - How about a special text style for --| commented events, like light gray?
   - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
     I can put another monad on top.
     . I think I only switched to Ui.M because it was awkward pre-AMP.
@@ -1856,6 +1860,7 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
+      - after a play speed change, I get some of the old render after the end.
       * im not affected by play speed, it should rerender
         . Play speed is just a way to easily set tempo, taking advantage of the
           fact that it's efficient for MIDI.  I guess it could fall back on

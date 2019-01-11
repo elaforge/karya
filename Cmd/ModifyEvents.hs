@@ -25,9 +25,23 @@ import Global
 import Types
 
 
+-- | Map a function over multiple tracks.  It has access to all selected
+-- events.  Omit a TrackId from the output to leave it unchanged.
+type Tracks m = BlockId -> [(TrackId, [Event.Event])]
+    -> m [(TrackId, [Event.Event])]
+
 -- | Map a function over events on a certain track.  Returning Nothing will
 -- leave the track unchanged.
 type Track m = BlockId -> TrackId -> [Event.Event] -> m (Maybe [Event.Event])
+
+-- | Map a Track transformer over multiple tracks.
+track :: Monad m => Track m -> Tracks m
+track modify = \block_id track_events -> do
+    outs <- mapM (uncurry (modify block_id)) track_events
+    return
+        [ (track_id, events)
+        | (track_id, Just events) <- zip (map fst track_events) outs
+        ]
 
 -- | Map a function over a set of events.
 events :: Monad m => ([Event.Event] -> m [Event.Event]) -> Track m
@@ -63,9 +77,12 @@ failable_text f block_id track_id events = do
 
 -- * modify selections
 
+selection_tracks :: Cmd.M m => Tracks m -> m ()
+selection_tracks modify = modify_selected True modify =<< Selection.events
+
 -- | Map a function over the selected events, as per 'Selection.events'.
 selection :: Cmd.M m => Track m -> m ()
-selection modify = modify_selected True modify =<< Selection.events
+selection modify = modify_selected True (track modify) =<< Selection.events
 
 -- | Like 'selection', but don't apply to collapsed tracks.  This is
 -- appropriate for operations that often apply to note tracks.  If you select
@@ -73,17 +90,18 @@ selection modify = modify_selected True modify =<< Selection.events
 -- be selected and if you accidentally modify those you won't see the
 -- modifications.
 selection_visible :: Cmd.M m => Track m -> m ()
-selection_visible modify = modify_selected False modify =<< Selection.events
+selection_visible modify =
+    modify_selected False (track modify) =<< Selection.events
 
 -- | Like 'selection', but only operate on the 'Selection.point_track'.
 selected_track :: Cmd.M m => Track m -> m ()
 selected_track modify =
-    modify_selected False modify . (:[]) =<< Selection.track_events
+    modify_selected False (track modify) . (:[]) =<< Selection.track_events
     -- Don't affect collapsed tracks because why would the point selection be
     -- on one of those?
 
 modify_selected :: Cmd.M m => Bool -- ^ If False, omit collapsed tracks.
-    -> Track m -> Selection.SelectedEvents -> m ()
+    -> Tracks m -> Selection.SelectedEvents -> m ()
 modify_selected include_collapsed modify selected = do
     block_id <- Cmd.get_focused_block
     let wanted track_id
@@ -91,12 +109,12 @@ modify_selected include_collapsed modify selected = do
             | otherwise = do
                 tracknum <- Ui.get_tracknum_of block_id track_id
                 not <$> Ui.track_collapsed block_id tracknum
-    forM_ selected $ \(track_id, events) ->
-        whenM (wanted track_id) $ do
-            maybe_new_events <- modify block_id track_id events
-            whenJust maybe_new_events $ \new_events -> do
-                Ui.remove_events track_id events
-                Ui.insert_block_events block_id track_id new_events
+    selected <- filterM (wanted . fst) selected
+    new <- modify block_id selected
+    forM_ new $ \(track_id, new_events) -> do
+        let events = fromMaybe [] $ lookup track_id selected
+        Ui.remove_events track_id events
+        Ui.insert_block_events block_id track_id new_events
 
 -- | Advance the selection if it was a point.  This is convenient for applying
 -- a transformation repeatedly.
