@@ -416,12 +416,12 @@ resolve_strokes soft_dyn keymap =
     check_dups . Either.partitionEithers . map resolve
     where
     resolve (char, call, attrs, group) =
-        maybe (Right $ "unmapped: " <> pretty attrs) (Left . (note,)) $
+        maybe (Left $ "unmapped: " <> pretty attrs) (Right . (note,)) $
             Map.lookup (Attrs.remove Attrs.soft attrs) keymap
         where
         note = (Drums.note_dyn char call attrs dyn) { Drums._group = group }
         dyn = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
-    check_dups (notes, msgs) = (notes3, dup_msgs ++ msgs)
+    check_dups (msgs, notes) = (notes3, dup_msgs ++ msgs)
         where
         dup_msgs = map ((">1 call with same name: "<>) . extract) by_name
             ++ map ((">1 call mapped to same key: "<>) . extract) by_key

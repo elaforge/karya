@@ -5,13 +5,10 @@
 module Synth.Sampler.Patch.Mridangam where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.Map
 import qualified Util.Num as Num
-import qualified Util.Seq as Seq
-
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -25,17 +22,16 @@ import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Code as Code
 import qualified Synth.Sampler.Patch.Util as Util
 import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 
 patches :: [Patch.Patch]
-patches = (:[]) $ (Patch.patch name)
+patches = (:[]) $ (Patch.patch patchName)
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = inferDuration
@@ -53,8 +49,10 @@ patches = (:[]) $ (Patch.patch name)
     where
     code = Mridangam.code (Util.imThruFunction dir convert) sampleNn
         (Just $ \_ -> Code.withVariationNormal 1)
-    dir = untxt name
-    name = "mridangam-d"
+    dir = untxt patchName
+
+patchName :: Text
+patchName = "mridangam-d"
 
 -- | Notes ring until stopped by their stop note.
 inferDuration :: [Note.Note] -> [Note.Note]
@@ -100,9 +98,9 @@ convert note = do
     articulation <- Util.articulation attributeMap (Note.attributes note)
     let dynVal = Note.initial0 Control.dynamic note
     let var = maybe 0 (subtract 1 . (*2)) $ Note.initial Control.variation note
-    let filename = articulationDir articulation
-            </> pickDynamic (articulationSamples articulation)
-                (Num.clamp 0 1 (dynVal + var * variationRange))
+    let filename = show articulation
+            </> Util.pickDynamicVariation variationRange
+                (articulationSamples articulation) dynVal var
     noteNn <- Util.initialPitch note
     let noteDyn = Num.scale minDyn maxDyn dynVal
     return $ Sample.Sample
@@ -133,38 +131,15 @@ sampleNn = 62.1
 muteTime :: RealTime
 muteTime = 0.05
 
-pickDynamic :: [a] -> Double -> a
-pickDynamic dyns val =
-    dyns !! round (Num.clamp 0 1 val * fromIntegral (length dyns - 1))
-
 data Articulation = Tha | Thom | Gumki | GumkiUp
     | Ki | Ta | Nam | Din | Chapu | Dheem
     | Kin | Tan
     deriving (Eq, Show, Enum, Bounded)
 
-articulationDir :: Articulation -> FilePath
-articulationDir = show
-
--- | Generate 'articulationSamples'.  Could have been TH but not worth it.
+-- | Generate 'articulationSamples'.
 makeArticulationSamples :: IO ()
-makeArticulationSamples = do
-    putStrLn "articulationSamples :: Articulation -> [FilePath]"
-    putStrLn "articulationSamples = \\case"
-    forM_ Util.enumAll $ \art -> do
-        fns <- Seq.sort_on filenameVelocity <$>
-            Directory.listDirectory (dir </> articulationDir art)
-        putStrLn $ "    " <> show art <> " ->"
-        let indent = replicate 8 ' '
-        putStrLn $ indent <> "[ " <> show (head fns)
-        mapM_ (\fn -> putStrLn $ indent <> ", " <> show fn) (tail fns)
-        putStrLn $ indent <> "]"
-    where
-    dir = Config.unsafeSamplerRoot </> "mridangam-d"
-
-filenameVelocity :: FilePath -> Int
-filenameVelocity fname = case Seq.split "-" fname of
-    _ : _ : _ : lowVel : _ -> read lowVel
-    _ -> error fname
+makeArticulationSamples = Util.makeFileList (untxt patchName)
+    (map show (Util.enumAll :: [Articulation])) "articulationSamples"
 
 articulationSamples :: Articulation -> [FilePath]
 articulationSamples = \case

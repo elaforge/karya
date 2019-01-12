@@ -6,15 +6,17 @@ module User.Elaforge.Instrument.Kontakt.KendangBali_test where
 import qualified Data.List as List
 
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.UiTest as UiTest
+import qualified Cmd.Instrument.KendangBali as K
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Ui.UiTest as UiTest
 import qualified User.Elaforge.Instrument.Kontakt.KendangBali as KendangBali
 import qualified User.Elaforge.Instrument.Kontakt.KontaktTest as KontaktTest
-import Global
+
+import           Global
+import           Util.Test
 
 
 test_kendang = do
@@ -42,13 +44,10 @@ test_kendang = do
 
 test_pasang_calls = do
     -- every pasang call dispatch to a valid tunggal call
-    let tunggal =
-            [ KendangBali.to_call note
-            | (_, note, _) <- KendangBali.tunggal_strokes
-            ]
-    forM_ KendangBali.pasang_calls $ \(_, _, pstroke) ->
-        forM_ (KendangBali.notes_of pstroke) $ \note -> do
-            let sym = KendangBali.to_call note
+    let tunggal = [K.to_call note | (_, note, _) <- K.tunggal_strokes]
+    forM_ K.pasang_calls $ \(_, _, pstroke) ->
+        forM_ (K.notes_of pstroke) $ \note -> do
+            let sym = K.to_call note
             equal (Just sym) (List.find (==sym) tunggal)
 
 test_resolve = do

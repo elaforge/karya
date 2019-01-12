@@ -9,6 +9,9 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified System.Directory as Directory
+import           System.FilePath ((</>))
+
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.CUtil as CUtil
@@ -18,12 +21,13 @@ import qualified Instrument.Common as Common
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Osc as Osc
 import qualified Synth.Shared.Signal as Signal
 
-import Global
+import           Global
 
 
 -- * preprocess
@@ -93,6 +97,15 @@ chooseVariation :: [a] -> Note.Note -> a
 chooseVariation xs = pick . Note.initial0 Control.variation
     where pick var = xs !! round (var * fromIntegral (length xs - 1))
 
+-- | Pick from a list of dynamic variations.
+pickDynamicVariation :: Double -> [a] -> Double -> Double -> a
+pickDynamicVariation variationRange samples dyn var =
+    pickVariation samples (Num.clamp 0 1 (dyn + var * variationRange))
+
+pickVariation :: [a] -> Double -> a
+pickVariation xs val =
+    xs !! round (Num.clamp 0 1 val * fromIntegral (length xs - 1))
+
 -- * thru
 
 thru :: FilePath -> (Note.Note -> Patch.ConvertM Sample.Sample)
@@ -114,6 +127,32 @@ thruFunction sampleDir convert attrs pitch velocity = do
             ]
         }
     return [Sample.toOsc sampleDir sample]
+
+-- * misc
+
+-- | Generate 'articulationSamples'.  This could have been TH but it seems not
+-- worth it.
+--
+-- This expects a subdirectory for each articulation, whose name is the same
+-- as the Articulation constructor, and sorts by the 4th field e.g.
+-- {Thom,Nam,...}/x-x-x-$vel-...
+makeFileList :: FilePath -> [FilePath] -> String -> IO ()
+makeFileList dir articulations variableName = do
+    putStrLn $ variableName <> " :: Articulation -> [FilePath]"
+    putStrLn $ variableName <> " = \\case"
+    forM_ articulations $ \art -> do
+        fns <- Seq.sort_on filenameVelocity <$>
+            Directory.listDirectory (Config.unsafeSamplerRoot </> dir </> art)
+        putStrLn $ "    " <> art <> " ->"
+        let indent = replicate 8 ' '
+        putStrLn $ indent <> "[ " <> show (head fns)
+        mapM_ (\fn -> putStrLn $ indent <> ", " <> show fn) (tail fns)
+        putStrLn $ indent <> "]"
+
+filenameVelocity :: FilePath -> Int
+filenameVelocity fname = case Seq.split "-" fname of
+    _ : _ : _ : lowVel : _ -> read lowVel
+    _ -> error fname
 
 -- * util
 

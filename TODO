@@ -61,15 +61,6 @@ UNSORTED
       saving those.
     ? It's the first cmd only, what is it doing that's more work?
     . Try with 8.0.2.  Yes, still happens there.
-  ci:
-    - cache shake output
-      . branch travis
-      . For some reason shake doesn't reuse the .o files.  Asked on
-        shake-build-system how to find out why shake wanted to rebuild.
-        No answer yet.
-    - Build with data/all-deps.cabal
-      . branch travis-all-deps
-      . I need a ppa for faust, the ubuntu one is too old.
   - Check out pretty-show or pretty-simple or ghci-pretty
     . https://www.reddit.com/r/haskell/comments/8ilw75/there_are_too_many_prettyprinting_libraries/
     . http://teh.id.au/posts/2017/02/13/interactive-print/index.html
@@ -2061,6 +2052,8 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     kendang-legong:
+      * implement
+      - add pasang
     reyong:
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
@@ -2705,6 +2698,19 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  ci:
+    - fix travis
+      . It won't compile without my hacked libsamplerate.
+      . I think I can get travis to clone from the github repo.
+      . In the longer term, can I write a nix expression?
+    - cache shake output
+      . branch travis
+      . For some reason shake doesn't reuse the .o files.  Asked on
+        shake-build-system how to find out why shake wanted to rebuild.
+        No answer yet.
+    - Build with data/all-deps.cabal
+      . branch travis-all-deps
+      . I need a ppa for faust, the ubuntu one is too old.
   - better serialize
     - I want a more systematic and safer approach to versions
       . I want everything to be versioned.  Since it's manual I was

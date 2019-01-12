@@ -10,6 +10,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Instrument.Inst as Inst
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.KendangBali as KendangBali
 import qualified Synth.Sampler.Patch.Mridangam as Mridangam
 import qualified Synth.Sampler.Patch.Rambat as Rambat
 import qualified Synth.Sampler.Patch.Reyong as Reyong
@@ -19,7 +20,8 @@ import qualified Synth.Shared.Config as Config
 
 db :: Patch.Db
 db = Patch.db Config.unsafeSamplerRoot $ concat
-    [ Mridangam.patches
+    [ KendangBali.patches
+    , Mridangam.patches
     , Rambat.patches
     , Reyong.patches
     , Wayang.patches

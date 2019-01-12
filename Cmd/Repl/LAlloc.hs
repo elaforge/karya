@@ -17,6 +17,7 @@ import qualified Derive.Score as Score
 import qualified Instrument.Common as Common
 import qualified Midi.Midi as Midi
 import qualified Ui.UiConfig as UiConfig
+import qualified User.Elaforge.Instrument.Kontakt.KendangBali as KendangBali
 import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
 
 import           Global
@@ -95,5 +96,10 @@ make_pasang range polos_tuning umbang isep =
         BaliScales.Umbang -> (umbang, isep)
         BaliScales.Isep -> (isep, umbang)
 
-kebyar :: Text -> UiConfig.Allocations
+type Device = Text
+
+kebyar :: Device -> UiConfig.Allocations
 kebyar = ScGamelan.kebyar_allocations
+
+kendang_kontakt :: Device -> UiConfig.Allocations
+kendang_kontakt = KendangBali.allocations "k"
