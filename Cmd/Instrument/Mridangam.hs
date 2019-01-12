@@ -51,8 +51,7 @@ both_calls = make_both left_notes right_notes special_names
 -- | Strokes which have a pitch, which should change with the sruti.
 pitched_strokes :: [Attrs.Attributes]
 pitched_strokes =
-    [ thom, gumki
-    , nam, din
+    [ nam, din
     , kin, tan
     , chapu
     , dheem

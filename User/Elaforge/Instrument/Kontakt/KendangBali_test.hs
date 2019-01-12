@@ -34,7 +34,7 @@ test_kendang = do
     -- Soft attributes.
     let e_dyn e = (DeriveTest.e_attributes e, Score.initial_dynamic e)
     equal (run e_dyn "k" [".", "..", "-", "+"])
-        ([("+ka+soft", 0.3), ("+ka", 1), ("+de+soft", 0.3), ("+de", 1)], [])
+        ([("+ka+soft", 0.4), ("+ka", 1), ("+de+soft", 0.4), ("+de", 1)], [])
 
     -- Both strokes.
     let run_both stroke = run e_instrument "pasang" [stroke]

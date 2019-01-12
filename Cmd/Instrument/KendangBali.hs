@@ -46,8 +46,9 @@ tunggal_notes = do
         , _dynamic = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
         , _group = group
         }
-    where
-    soft_dyn = 0.3
+
+soft_dyn :: Double
+soft_dyn = 0.4
 
 tunggal_strokes :: [(Char, Note, Drums.Group)]
 stops :: [(Drums.Group, [Drums.Group])]

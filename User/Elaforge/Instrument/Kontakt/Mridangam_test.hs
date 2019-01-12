@@ -41,9 +41,9 @@ test_mridangam = do
     equal logs []
     let extract = mapMaybe Midi.channel_message . DeriveTest.extract_midi_msg
     equal (extract midi)
-        [ Midi.ControlChange 102 2, Midi.NoteOn Key.c1 127
+        [ Midi.ControlChange 102 2, Midi.NoteOn Key.fs1 127
         , Midi.NoteOn Key.c4 127
-        , Midi.NoteOff Key.c1 127, Midi.NoteOff Key.c4 127
+        , Midi.NoteOff Key.fs1 127, Midi.NoteOff Key.c4 127
         , Midi.NoteOn Key.c5 127, Midi.NoteOff Key.c5 127
         ]
 

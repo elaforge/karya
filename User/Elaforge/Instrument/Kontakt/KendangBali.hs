@@ -41,10 +41,11 @@ patches =
     patch name = MidiInst.named_patch (-24, 24) name []
 
 tunggal_notes :: CUtil.PitchedNotes
-(tunggal_notes, resolve_errors) = CUtil.resolve_strokes 0.4 tunggal_keymap
-    [ (char, K.to_call note, attrs, group)
-    | (char, note@(K.Note _ attrs), group) <- K.tunggal_strokes
-    ]
+(tunggal_notes, resolve_errors) =
+    CUtil.resolve_strokes K.soft_dyn tunggal_keymap
+        [ (char, K.to_call note, attrs, group)
+        | (char, note@(K.Note _ attrs), group) <- K.tunggal_strokes
+        ]
 
 tunggal_keymap :: Map Attrs.Attributes CUtil.KeyswitchRange
 tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 Key.fs3
@@ -85,7 +86,7 @@ old_tunggal_notes = map (first make_note)
     where
     make_note attrs =
         Drums.note_dyn char (K.to_call (K.Note stroke attrs)) attrs
-            (if Attrs.contain attrs soft then 0.3 else 1)
+            (if Attrs.contain attrs soft then K.soft_dyn else 1)
         where
         Just (char, (K.Note stroke _), _) =
             List.find ((==attrs) . attrs_of) K.tunggal_strokes
