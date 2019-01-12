@@ -11,17 +11,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Ruler as Ruler
-import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.Sel as Sel
-import qualified Ui.Types as Types
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.Zoom as Zoom
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -34,9 +24,19 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.Pitch as Pitch
-import qualified App.Config as Config
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.Zoom as Zoom
+
+import           Global
+import           Types
 
 
 -- * global editing state
@@ -529,11 +529,12 @@ lookup_call_duration block_id track_id event =
     Perf.lookup_note_deriver block_id track_id event >>= \case
         Nothing -> return Nothing
         Just deriver -> do
-            dur <- Perf.get_derive_at block_id track_id $
+            result <- Perf.get_derive_at block_id track_id $
                 Derive.get_score_duration deriver
-            return $ Just $ case dur of
-                Derive.Unknown -> Event.duration event
-                Derive.CallDuration dur -> dur
+            return $ case result of
+                Left _ -> Nothing
+                Right Derive.Unknown -> Just $ Event.duration event
+                Right (Derive.CallDuration dur) -> Just dur
 
 cmd_invert_orientation :: Cmd.M m => m ()
 cmd_invert_orientation = do

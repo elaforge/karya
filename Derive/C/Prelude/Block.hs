@@ -114,7 +114,7 @@ c_block block_id = Derive.with_score_duration get_score_duration $
         Derive.block_logical_range block_id
     get_real_duration :: BlockId
         -> Derive.Deriver (Derive.CallDuration RealTime)
-    get_real_duration block_id =
+    get_real_duration block_id = fmap (either (const Derive.Unknown) id) $
         Derive.get_real_duration $ Internal.with_stack_block block_id $
             d_block block_id
 

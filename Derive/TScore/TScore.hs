@@ -126,11 +126,12 @@ lookup_call_duration call = do
     -- could.  If I pick the root block then I get global transform and
     -- whatever transform is in the root.
     (block_id, track_id) <- root_block
-    dur <- Perf.get_derive_at block_id track_id $
+    result <- Perf.get_derive_at block_id track_id $
         Derive.get_score_duration deriver
-    return $ case dur of
-        Derive.Unknown -> Nothing
-        Derive.CallDuration dur -> Just dur
+    case result of
+        Left err -> Cmd.throw $ pretty err
+        Right Derive.Unknown -> return Nothing
+        Right (Derive.CallDuration dur) -> return $ Just dur
     where
     -- I think if I have a root block with a performance then I don't need
     -- with_default_imported, but for tests I don't have a Performance.

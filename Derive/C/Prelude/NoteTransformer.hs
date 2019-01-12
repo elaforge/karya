@@ -152,19 +152,19 @@ calls_to_derivers args calls = zip (NonEmpty.toList calls)
 
 get_score_duration :: (BaseTypes.Quoted, Derive.Deriver a)
     -> Derive.Deriver ScoreTime
-get_score_duration (quoted, d) =
-    Derive.get_score_duration d >>= \dur -> case dur of
-        Derive.Unknown -> Derive.throw $ "unknown score duration for "
-            <> ShowVal.show_val quoted
-        Derive.CallDuration dur -> return dur
+get_score_duration (quoted, d) = Derive.get_score_duration d >>= \case
+    Left err -> Derive.throw $ "get score dur: " <> pretty err
+    Right Derive.Unknown -> Derive.throw $ "unknown score duration for "
+        <> ShowVal.show_val quoted
+    Right (Derive.CallDuration dur) -> return dur
 
 get_real_duration :: (BaseTypes.Quoted, Derive.Deriver a)
     -> Derive.Deriver RealTime
-get_real_duration (quoted, d) =
-    Derive.get_real_duration d >>= \dur -> case dur of
-        Derive.Unknown -> Derive.throw $ "unknown real duration for "
-            <> ShowVal.show_val quoted
-        Derive.CallDuration dur -> return dur
+get_real_duration (quoted, d) = Derive.get_real_duration d >>= \case
+    Left err -> Derive.throw $ "get real dur: " <> pretty err
+    Right Derive.Unknown -> Derive.throw $ "unknown real duration for "
+        <> ShowVal.show_val quoted
+    Right (Derive.CallDuration dur) -> return dur
 
 
 -- * transformers
@@ -290,9 +290,10 @@ unstretch :: ScoreTime -> ScoreTime
     -> (ScoreTime -> Derive.Deriver a -> Derive.Deriver a)
     -> Derive.Deriver a -> Derive.Deriver a
 unstretch start event_dur process deriver = do
-    dur <- Derive.get_score_duration deriver >>= \d -> case d of
-        Derive.CallDuration dur -> return dur
-        Derive.Unknown -> return event_dur
+    dur <- Derive.get_score_duration deriver >>= \case
+        Left _ -> return event_dur
+        Right Derive.Unknown -> return event_dur
+        Right (Derive.CallDuration dur) -> return dur
     process dur $ flatten dur deriver
     where
     flatten dur = Derive.stretch (1 / (event_dur/dur)) . Derive.at (-start)

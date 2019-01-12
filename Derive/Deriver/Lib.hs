@@ -22,7 +22,6 @@ import qualified Util.Seq as Seq
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Deriver.DeriveM as DeriveM
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -826,14 +825,11 @@ run_logs action = do
     mapM_ Log.write logs
     return val
 
-run_rethrow :: (State -> State) -> Deriver a -> Deriver (a, State)
-run_rethrow with_state deriver = do
+run_try :: (State -> State) -> Deriver a -> Deriver (Either Error a, State)
+run_try with_state deriver = do
     state <- get
     let (val, state2, logs) = run (with_state state) deriver
     mapM_ Log.write logs
-    val <- case val of
-        Left err -> DeriveM.throw err
-        Right val -> return val
     return (val, state2)
 
 -- * 'Mode'
@@ -850,10 +846,13 @@ lookup_lilypond_config = get_mode >>= \mode -> return $ case mode of
     _ -> Nothing
 
 -- | Get the 'CallDuration' of the given deriver.
-get_score_duration :: Deriver a -> Deriver (CallDuration ScoreTime)
+get_score_duration :: Deriver a
+    -> Deriver (Either Error (CallDuration ScoreTime))
 get_score_duration deriver = do
-    (_val, out) <- run_rethrow set_mode deriver
-    return $ collect_score_duration $ state_collect out
+    (val, out) <- run_try set_mode deriver
+    return $ case val of
+        Left err -> Left err
+        Right _ -> Right $ collect_score_duration $ state_collect out
     where
     set_mode state = state
         { state_collect = mempty
@@ -861,10 +860,12 @@ get_score_duration deriver = do
             { state_mode = ScoreDurationQuery }
         }
 
-get_real_duration :: Deriver a -> Deriver (CallDuration RealTime)
+get_real_duration :: Deriver a -> Deriver (Either Error (CallDuration RealTime))
 get_real_duration deriver = do
-    (_val, out) <- run_rethrow set_mode deriver
-    return $ collect_real_duration $ state_collect out
+    (val, out) <- run_try set_mode deriver
+    return $ case val of
+        Left err -> Left err
+        Right _ -> Right $ collect_real_duration $ state_collect out
     where
     set_mode state = state
         { state_collect = mempty
