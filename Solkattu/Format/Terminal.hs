@@ -140,7 +140,9 @@ formatResults config korvai results =
         . Text.lines
         where
         tagsText = Format.showTags tags
-    sectionNumber section = Text.justifyLeft leader ' ' (showt section <> ":")
+    sectionNumber section = Styled.toText $
+        Styled.bg (Styled.bright Styled.yellow) $
+        Text.justifyLeft leader ' ' (showt section <> ":")
     leader = 4
 
 

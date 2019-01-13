@@ -147,6 +147,28 @@ namita_dimita = sarvalaghu $ korvaiS1 adi $
     rh = l.d.d.l.d.d.l.n
     lh = __3.o.__3.o.__.o
 
+namita_dimita_seq :: Korvai
+namita_dimita_seq = korvaiS adi $
+    [ sequence t1 t1_end
+    , sequence t2 t2_end
+    , sequence t3 t3_end
+    ]
+    where
+    sequence t end =
+          (lh&rh) . (lh&rh) . o&rh . t
+        . (lh&rh) . t . o&rh . t
+        . repeat 4 t
+        . tri_ (od.__.k.p.k) end
+    t1 =     group $ n.l.d.od.n.o.od.__
+    t1_end = group $ n.l.d.od.n .__.od.l.od.n.__ .od.l.od.n.__ .od.l
+    t2 =     group $ su $ on.__.ktpk.p&t.__.k.__.on.__.ktpk
+    t2_end = group $ su $ tri (on.__.ktpk.p&t.__.k.__) . on.__.ktpk
+    t3 =     group $ su $ on.__.ktpk.p.u.__.k.on.__.ktpk
+    t3_end = group $ su $ tri (on.__.ktpk.p.u.__.k) . on.__.ktpk
+
+    rh = n.l.d.d.l.d.d.l
+    lh = o.__3.o.__3.o.__
+
 -- ** sarvalaghu fills
 
 namita_dimita_dimi :: [Sequence]
