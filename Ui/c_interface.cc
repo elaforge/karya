@@ -220,27 +220,28 @@ remove_track(BlockWindow *view, int tracknum)
 
 void
 update_track(BlockWindow *view, int tracknum,
-        Tracklike *track, Marklist **marklists, int nmarklists,
-        double start, double end)
+    Tracklike *track, Marklist **marklists, int nmarklists,
+    double start, double end)
 {
     RulerConfig *old_ruler = track->ruler;
     if (track->ruler) {
         // Substitute a complete ruler for the semi-constructed one.
         RulerConfig &partial = *track->ruler;
-        RulerConfig config(partial.bg, partial.show_names, partial.use_alpha,
+        RulerConfig config(
+            partial.bg, partial.show_names, partial.use_alpha,
             partial.full_width, partial.align_to_bottom,
             partial.last_mark_pos);
         for (int i = 0; i < nmarklists; i++)
             config.marklists.push_back(marklists[i]);
         track->ruler = &config;
-        view->block.update_track(tracknum, *track,
-            ScoreTime(start), ScoreTime(end));
+        view->block.update_track(
+            tracknum, *track, ScoreTime(start), ScoreTime(end));
         // No one should be reading this afterwards, but don't leave it
         // pointing to out of scope memory.
         track->ruler = old_ruler;
     } else {
-        view->block.update_track(tracknum, *track,
-            ScoreTime(start), ScoreTime(end));
+        view->block.update_track(
+            tracknum, *track, ScoreTime(start), ScoreTime(end));
     }
 }
 

@@ -10,16 +10,16 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Integrate as Integrate
+import qualified Cmd.Internal as Internal
+
 import qualified Ui.Diff as Diff
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Integrate as Integrate
-import qualified Cmd.Internal as Internal
-
-import Global
+import           Global
 
 
 type Sync = Track.TrackSignals -> Track.SetStyleHigh -> Ui.State

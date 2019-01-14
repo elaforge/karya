@@ -1861,10 +1861,29 @@ synth: im:
         . I can multiply times of notes in Perform.Im.Convert.
         * I also want play speed to go back to 1 exactly, maybe round if it's
           close.
-      - sudden quit when renaming block in save/kendang/sinom-ladrang-bug:
+      + sudden quit when renaming block in save/kendang/sinom-ladrang-bug:
         LBlock.rename @awak
         . What can cause a quit with no error?
         . Renaming might confuse im caching?
+        . It only happens with the name sinom-ladrang, and goes away when I
+          print the length of the actions.
+        . Maybe there's an exception from pure code that length forces?
+        . No, printing anything there makes it not happen.
+        . In fact, just adding a commented out line there makes it not happen.
+          This really seems like memory corruption.
+        . But I don't get a core dump?
+        . And what does it have to do with im?  How about if I remove the im
+          instruments?  Yes, also happens.
+        . Delete sm/*?  That fixes it.
+        . What about in debug mode?  Still happens.
+        . With sm/* I get a bunch of TrackAllEvents which shouldn't have any
+          effect.  They should all be filtered out due to no ViewId.
+        . They do, but I still get a bunch of dups for visible ones, I should
+          be able to unique those at least.  That shouldn't cause this problem
+          though.
+        . I think it wants to do a coredump, if I do
+          'limit coredumpsize unlimited' then I get max cpu usage, run out of
+          memory, and run out of disk space.
       * resume crash when going from resample to no-resample:
         . expected no state for un-resampled, got ((SavedState ...))
         . I think it skipped the first chunk, but shouldn't have, because the

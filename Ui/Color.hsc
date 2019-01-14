@@ -91,21 +91,17 @@ alpha a' (Color r g b _a) = rgba r g b a'
 
 instance CStorable Color where
     sizeOf _ = #size Color
-    alignment _ = alignment (0 :: CDouble)
-    peek = peek_color
-    poke = poke_color
-
-peek_color colorp = do
-    r <- (#peek Color, r) colorp :: IO CUChar
-    g <- (#peek Color, g) colorp :: IO CUChar
-    b <- (#peek Color, b) colorp :: IO CUChar
-    a <- (#peek Color, a) colorp :: IO CUChar
-    return $ Color (d r) (d g) (d b) (d a)
-    where d uchar = fromIntegral uchar / 255.0
-
-poke_color colorp (Color r g b a) = do
-    (#poke Color, r) colorp (c r)
-    (#poke Color, g) colorp (c g)
-    (#poke Color, b) colorp (c b)
-    (#poke Color, a) colorp (c a)
-    where c double = CUtil.c_uchar (floor (double*255))
+    alignment _ = alignment (0 :: CUChar)
+    peek colorp = do
+        r <- (#peek Color, r) colorp :: IO CUChar
+        g <- (#peek Color, g) colorp :: IO CUChar
+        b <- (#peek Color, b) colorp :: IO CUChar
+        a <- (#peek Color, a) colorp :: IO CUChar
+        return $ Color (d r) (d g) (d b) (d a)
+        where d uchar = fromIntegral uchar / 255.0
+    poke colorp (Color r g b a) = do
+        (#poke Color, r) colorp (c r)
+        (#poke Color, g) colorp (c g)
+        (#poke Color, b) colorp (c b)
+        (#poke Color, a) colorp (c a)
+        where c double = CUtil.c_uchar (floor (double*255))
