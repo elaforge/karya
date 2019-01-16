@@ -98,11 +98,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
-
+import qualified App.Config as Config
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
@@ -117,8 +113,13 @@ import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+
+import           Global
+import           Types
 
 
 -- | Per-track parameters, to cut down on the number of arguments taken by
@@ -415,7 +416,8 @@ unwarp warp control = case Warp.is_linear warp of
 derive_event :: Derive.CallableExpr d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
 derive_event ctx event
-    | "--|" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty
+    | Config.event_comment `Text.isPrefixOf` Text.dropWhile (==' ') text =
+        return Stream.empty
     | otherwise = with_event_region (Derive.ctx_track_shifted ctx) event $
         case Parse.parse_expr text of
             Left err -> Log.warn err >> return Stream.empty

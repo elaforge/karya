@@ -245,19 +245,21 @@ set_style = (track_bg, event_style)
 -- for now but it's easy to put in StaticConfig if needed.
 event_style :: Bool -> Event.EventStyle
 event_style has_note_children title event =
-    integrated $ Config.event_style
-        (syntax (Parse.parse_expr (Event.text event)))
-        (Event.style event)
+    integrated $
+        Config.event_style (style_of (Event.text event)) (Event.style event)
     where
     integrated
         | Maybe.isNothing (Event.stack event) = id
         | otherwise = Config.integrated_style
-    syntax (Left _) = Config.Error
-    syntax (Right _)
-        | ParseTitle.is_note_track title = if has_note_children
-            then Config.Parent else Config.Default
-        | ParseTitle.is_pitch_track title = Config.Pitch
-        | otherwise = Config.Control
+    style_of text
+        | Config.event_comment `Text.isPrefixOf` text = Config.Commented
+        | otherwise = case Parse.parse_expr text of
+            Left _ -> Config.Error
+            Right _
+                | ParseTitle.is_note_track title -> if has_note_children
+                    then Config.Parent else Config.Default
+                | ParseTitle.is_pitch_track title -> Config.Pitch
+                | otherwise -> Config.Control
 
 -- | Set the track background color.
 track_bg :: Track.Track -> Color.Color

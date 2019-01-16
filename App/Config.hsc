@@ -398,6 +398,12 @@ bravura = "Bravura"
 
 -- * event style
 
+-- | The comment for tracklang is --, but if an event starts with this comment,
+-- the whole event is ignored.  A normal comment would mean the event exists,
+-- but has no expression.
+event_comment :: Text
+event_comment = "--|"
+
 -- | Like Symbols, these are sent to the UI layer at startup and then remain
 -- static.
 styles :: [Style.Style]
@@ -418,7 +424,7 @@ event_style :: Style -> Style.StyleId -> Style.StyleId
 event_style style (Style.StyleId code) =
     Style.StyleId $ fromIntegral (fromEnum style) * 4 + code `mod` 4
 
-data Style = Default | Control | Pitch | Parent | Error
+data Style = Default | Control | Pitch | Parent | Error | Commented
     deriving (Enum, Show)
 
 default_style :: Style.StyleId
@@ -426,10 +432,21 @@ default_style = Style.StyleId 0
 
 plain_styles :: [Style.Style]
 plain_styles =
-    [ plain note_color, plain control_color, plain pitch_color
-    , plain parent_color, plain parse_error_color
+    [ plain note_color
+    , plain control_color
+    , plain pitch_color
+    , plain parent_color
+    , plain parse_error_color
+    , (plain Color.gray8) { Style.style_text_color = Color.gray4 }
     ]
-    where plain = Style.Style Style.Helvetica [] 12 Color.black
+    where
+    plain event_color = Style.Style
+        { style_font = Style.Helvetica
+        , style_face = []
+        , style_size = 12
+        , style_text_color = Color.black
+        , style_event_color = event_color
+        }
 
 -- | Events on note tracks.
 note_color :: Color.Color
