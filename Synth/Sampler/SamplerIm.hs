@@ -104,16 +104,15 @@ type Error = Text
 
 -- | Show the final Sample.Notes, which would have been rendered.
 dump :: Patch.Db -> [Note.Note] -> IO ()
-dump db notes = forM_ (byPatchInst notes) $ \(patch, notes) -> case get patch of
-    Nothing -> Text.IO.putStrLn $ "patch not found: " <> patch
-    Just patch -> forM_ notes $ \(inst, notes) -> do
-        Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
-        notes <- mapM makeSampleNote (convert db patch notes)
-        let hashes = dumpHashes notes
-        mapM_ putHash hashes
-        mapM_ putNote notes
+dump db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
+    whenJustM (getPatch db patchName) $ \patch ->
+        forM_ notes $ \(inst, notes) -> do
+            Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
+            notes <- mapM makeSampleNote (convert db patch notes)
+            let hashes = dumpHashes notes
+            mapM_ putHash hashes
+            mapM_ putNote notes
     where
-    get patch = Map.lookup patch (Patch._patches db)
     putNote n = Text.IO.putStrLn $ Text.unlines $
         Seq.map_head (annotate n) $ Text.lines $ Pretty.formatted n
     annotate n line =
@@ -136,16 +135,26 @@ dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
 process :: Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath -> IO ()
 process db quality notes outputDir = do
     clearUnusedInstruments outputDir instruments
-    Async.forConcurrently_ grouped $ \(patch, notes) -> case get patch of
-        Nothing -> Log.warn $ "patch not found: " <> patch
-        Just patch -> Async.forConcurrently_ notes $ \(inst, notes) ->
-            realize trackIds quality outputDir inst
-                =<< mapM makeSampleNote (convert db patch notes)
+    Async.forConcurrently_ grouped $ \(patchName, notes) ->
+        whenJustM (getPatch db patchName) $ \patch ->
+            Async.forConcurrently_ notes $ \(inst, notes) ->
+                realize trackIds quality outputDir inst
+                    =<< mapM makeSampleNote (convert db patch notes)
     where
     trackIds = Set.fromList $ mapMaybe Note.trackId notes
     grouped = byPatchInst notes
     instruments = Set.fromList $ concatMap (map fst . snd) grouped
-    get patch = Map.lookup patch (Patch._patches db)
+
+getPatch :: Log.LogMonad m => Patch.Db -> Note.PatchName
+    -> m (Maybe Patch.Patch)
+getPatch db name = case Map.lookup name (Patch._patches db) of
+    Nothing -> do
+        Log.warn $ "patch not found: " <> name
+        return Nothing
+    Just (Patch.DbDummy {}) -> do
+        Log.warn $ "dummy patch: " <> name
+        return Nothing
+    Just (Patch.DbPatch patch) -> return $ Just patch
 
 byPatchInst :: [Note.Note]
     -> [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]

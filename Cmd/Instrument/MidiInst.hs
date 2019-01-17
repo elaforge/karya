@@ -325,8 +325,11 @@ allocations = UiConfig.make_allocations . map make
     where
     make (name, qualified, set_config, backend) =
         ( name
-        , UiConfig.Allocation (InstTypes.parse_qualified qualified)
-            (set_config Common.empty_config) backend
+        , UiConfig.Allocation
+            { alloc_qualified = InstTypes.parse_qualified qualified
+            , alloc_config = set_config Common.empty_config
+            , alloc_backend = backend
+            }
         )
 
 -- | Create an incomplete Config.  It's incomplete because it doesn't have

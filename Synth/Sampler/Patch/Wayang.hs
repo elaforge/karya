@@ -49,9 +49,9 @@ import Global
 import Synth.Types
 
 
-patches :: [Patch.Patch]
+patches :: [Patch.DbPatch]
 patches =
-    map make
+    map (Patch.DbPatch . make)
         [ (Pemade, Umbang), (Pemade, Isep)
         , (Kantilan, Umbang), (Kantilan, Isep)
         ]

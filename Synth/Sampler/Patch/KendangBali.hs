@@ -5,6 +5,8 @@
 module Synth.Sampler.Patch.KendangBali where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+
 import           System.FilePath ((</>))
 
 import qualified Util.Map
@@ -17,6 +19,7 @@ import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.KendangBali as K
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Score as Score
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
@@ -26,12 +29,14 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
+import qualified Ui.UiConfig as UiConfig
+
 import           Global
 import           Synth.Types
 
 
-patches :: [Patch.Patch]
-patches = map make [Wadon, Lanang]
+patches :: [Patch.DbPatch]
+patches = pasang : map (Patch.DbPatch . make) [Wadon, Lanang]
     where
     make tuning = (Patch.patch name)
         { Patch._dir = dir
@@ -53,6 +58,29 @@ patches = map make [Wadon, Lanang]
             K.tunggal_notes
         thru = Util.imThruFunction dir (convert tuning)
     dir = untxt patchName
+
+    -- TODO thru doesn't work for this, because I have to evaluate the call,
+    -- and only MidiThru does that.
+    pasang = Patch.dummy "kendang-bali-pasang" $
+        Common.code #= K.pasang_code $
+        Common.flags %= Set.insert Common.Triggered $
+        Common.common mempty
+
+-- | @LInst.merge $ KendangBali.allocations ...@
+allocations :: Text -> UiConfig.Allocations
+allocations name =
+    ImInst.im_allocations
+        [ (inst $ name <> "-w", "sampler/kendang-bali-wadon", id)
+        , (inst $ name <> "-l", "sampler/kendang-bali-lanang", id)
+        ]
+    <> ImInst.dummy_allocations
+        [ ( inst name, "sampler/kendang-bali-pasang"
+          , Common.add_environ "wadon" (inst $ name <> "-w")
+            . Common.add_environ "lanang" (inst $ name <> "-l")
+          )
+        ]
+    where
+    inst = Score.Instrument
 
 patchName :: Text
 patchName = "kendang-bali"

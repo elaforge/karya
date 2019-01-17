@@ -103,13 +103,11 @@ write_ksp = mapM_ (uncurry Util.write)
 -- | @LInst.merge $ KendangBali.allocations ...@
 allocations :: Text -> Text -> UiConfig.Allocations
 allocations name dev_ = MidiInst.allocations
-    [ (Score.Instrument $ name <> "-w", "kontakt/kendang-bali", id,
-        midi_channel 0)
-    , (Score.Instrument $ name <> "-l", "kontakt/kendang-bali", id,
-        midi_channel 1)
-    , ( Score.Instrument name, "kontakt/kendang-bali-pasang"
-      , Common.add_environ "w" (inst $ name <> "-w")
-        . Common.add_environ "l" (inst $ name <> "-l")
+    [ (inst $ name <> "-w", "kontakt/kendang-bali", id, midi_channel 0)
+    , (inst $ name <> "-l", "kontakt/kendang-bali", id, midi_channel 1)
+    , ( inst name, "kontakt/kendang-bali-pasang"
+      , Common.add_environ "wadon" (inst $ name <> "-w")
+        . Common.add_environ "lanang" (inst $ name <> "-l")
       , UiConfig.Dummy
       )
     ]

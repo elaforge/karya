@@ -137,7 +137,7 @@ chunkSize = 4
 mkDb :: FilePath -> Patch.Db
 mkDb dir = Patch.db
     (dir </> patchDir)
-    [Patch.simple "test" "tri.wav" NN.c4]
+    [Patch.DbPatch $ Patch.simple "test" "tri.wav" NN.c4]
 
 writeDb :: FilePath -> IO ()
 writeDb dbDir = do

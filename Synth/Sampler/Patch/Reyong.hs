@@ -38,8 +38,8 @@ import Global
 import Synth.Types
 
 
-patches :: [Patch.Patch]
-patches =
+patches :: [Patch.DbPatch]
+patches = map Patch.DbPatch
     [ makePatch "reyong-trompong"
         (Scale.Range
             (Scale.range_bottom Legong.trompong_range)

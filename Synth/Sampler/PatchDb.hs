@@ -17,6 +17,8 @@ import qualified Synth.Sampler.Patch.Reyong as Reyong
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Shared.Config as Config
 
+import           Global
+
 
 db :: Patch.Db
 db = Patch.db Config.unsafeSamplerRoot $ concat
@@ -25,12 +27,20 @@ db = Patch.db Config.unsafeSamplerRoot $ concat
     , Rambat.patches
     , Reyong.patches
     , Wayang.patches
-    , [Patch.simple "test" "open.flac" 60]
+    , [Patch.DbPatch $ Patch.simple "test" "open.flac" 60]
     ]
 
 -- | Declaration for "Local.Instrument".
 synth :: Inst.SynthDecl Cmd.InstrumentCode
-synth = ImInst.synth Config.samplerName "音 sampler"
-    [ (name, Patch._karyaPatch patch)
-    | (name, patch) <- Map.toList (Patch._patches db)
-    ]
+synth = Inst.SynthDecl Config.samplerName "音 sampler" $
+    map (second make) (Map.toList (Patch._patches db))
+    where
+    make (Patch.DbPatch p) = Inst.Inst
+        { inst_backend = Inst.Im patch
+        , inst_common = ImInst.make_code <$> common
+        }
+        where ImInst.Patch patch common = Patch._karyaPatch p
+    make (Patch.DbDummy (Patch.Dummy _ common)) = Inst.Inst
+        { inst_backend = Inst.Dummy
+        , inst_common = ImInst.make_code <$> common
+        }

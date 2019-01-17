@@ -49,8 +49,8 @@ import Synth.Types
 
 -- Like Wayang, but support short notes.
 
-patches :: [Patch.Patch]
-patches = [make Umbang, make Isep]
+patches :: [Patch.DbPatch]
+patches = map Patch.DbPatch [make Umbang, make Isep]
     where
     make tuning =
         (Patch.patch $ Text.intercalate "-" ["rambat", Util.showtLower tuning])

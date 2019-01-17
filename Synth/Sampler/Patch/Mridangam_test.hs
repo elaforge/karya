@@ -29,7 +29,6 @@ test_variations = do
         -- extract = Sample.filename . snd
     let histo = map (second length) . Seq.keyed_group_sort id
     -- prettyp (run "%dyn=.75" [(0, 0, "k")])
-
     -- A normal-ish curve, centering around 95.25.
     equal (first (histo . map Sample.filename) $
             run "%dyn=.75" [(t, 0, "k") | t <- Seq.range 0 20 1])
@@ -46,7 +45,9 @@ runNotes :: Text -> [UiTest.EventSpec] -> ([Sample.Sample], [Text])
 runNotes title events = (samples, logs ++ convert_logs)
     where
     (notes, logs) = derive title [(">m", events)]
-    (samples, convert_logs) = convert (head Mridangam.patches) notes
+    (samples, convert_logs) = convert patch notes
+    Just (Patch.DbPatch patch) =
+        Patch.lookupPatch "mridangam-d" Mridangam.patches
 
 convert :: Patch.Patch -> [Note.Note] -> ([Sample.Sample], [Text])
 convert patch notes = (Maybe.catMaybes samples, concat logs)
@@ -58,12 +59,12 @@ convert patch notes = (Maybe.catMaybes samples, concat logs)
 
 derive :: Text -> [UiTest.TrackSpec] -> ([Note.Note], [Text])
 derive title = perform allocs . Derive.r_events
-    . DeriveTest.derive_tracks_setup (with_synth allocs) title
+    . DeriveTest.derive_tracks_setup (withSynth allocs) title
     where
     allocs = [("m", "sampler/mridangam-d")]
 
-with_synth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
-with_synth allocs = DeriveTest.with_synths_im allocs [PatchDb.synth]
+withSynth :: DeriveTest.SimpleAllocations -> DeriveTest.Setup
+withSynth allocs = DeriveTest.with_synths_im allocs [PatchDb.synth]
 
 perform :: DeriveTest.SimpleAllocations -> Stream.Stream Score.Event
     -> ([Note.Note], [Text])

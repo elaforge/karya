@@ -16,6 +16,7 @@ import qualified Derive.Score as Score
 
 import qualified Instrument.Common as Common
 import qualified Midi.Midi as Midi
+import qualified Synth.Sampler.Patch.KendangBali as Sampler.Patch.KendangBali
 import qualified Ui.UiConfig as UiConfig
 import qualified User.Elaforge.Instrument.Kontakt.KendangBali as KendangBali
 import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
@@ -103,3 +104,6 @@ kebyar = ScGamelan.kebyar_allocations
 
 kendang_kontakt :: Device -> UiConfig.Allocations
 kendang_kontakt = KendangBali.allocations "k"
+
+kendang_im :: UiConfig.Allocations
+kendang_im = Sampler.Patch.KendangBali.allocations "k"

@@ -54,7 +54,7 @@ data Common code = Common {
     -- I don't need it right now.
     , common_flags :: !(Set Flag)
     , common_call_map :: !CallMap
-    } deriving (Show)
+    } deriving (Show, Functor)
 
 code = Lens.lens common_code (\f r -> r { common_code = f (common_code r) })
 environ = Lens.lens common_environ

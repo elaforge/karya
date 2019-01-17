@@ -5,11 +5,13 @@
 module Synth.Sampler.Patch where
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
+import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Sample as Sample
@@ -17,20 +19,29 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
+import           Global
 
 
-db :: FilePath -> [Patch] -> Db
+db :: FilePath -> [DbPatch] -> Db
 db rootDir patches = Db
     { _rootDir = rootDir
-    , _patches = Map.fromList $ Seq.key_on _name patches
+    , _patches = Map.fromList $ Seq.key_on patchName patches
     }
 
 data Db = Db {
     -- | Base directory for patches.  Samples are in '_rootDir' / '_dir'.
     _rootDir :: !FilePath
-    , _patches :: !(Map Note.PatchName Patch)
+    , _patches :: !(Map Note.PatchName DbPatch)
     }
+
+data DbPatch = DbPatch !Patch | DbDummy !Dummy
+
+patchName :: DbPatch -> Note.PatchName
+patchName (DbPatch p) = _name p
+patchName (DbDummy (Dummy name _)) = name
+
+lookupPatch :: Note.PatchName -> [DbPatch] -> Maybe DbPatch
+lookupPatch name = List.find ((==name) . patchName)
 
 data Patch = Patch {
     _name :: Note.PatchName
@@ -48,6 +59,11 @@ data Patch = Patch {
     -- code doesn't seem like a problem.
     , _karyaPatch :: ImInst.Patch
     }
+
+data Dummy = Dummy !Note.PatchName !(Common.Common ImInst.Code)
+
+dummy :: Note.PatchName -> Common.Common ImInst.Code -> DbPatch
+dummy name = DbDummy . Dummy name
 
 patch :: Note.PatchName -> Patch
 patch name = Patch

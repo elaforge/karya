@@ -15,16 +15,17 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import Cmd.Instrument.MidiInst
-       (allocations, both, cmd, generator, note_calls, note_generators,
-        note_transformers, null_call, postproc, transformer, val_calls, Code,
-        inst_range)
+import           Cmd.Instrument.MidiInst
+    (allocations, both, cmd, generator, inst_range, make_code, note_calls,
+     note_generators, note_transformers, null_call, postproc, transformer,
+     val_calls, Code)
 import qualified Cmd.MidiThru as MidiThru
 
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
+import qualified Derive.Score as Score
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -33,8 +34,9 @@ import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Osc as Osc
+import qualified Ui.UiConfig as UiConfig
 
-import Global
+import           Global
 
 
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
@@ -107,3 +109,25 @@ add_flag flag = common#Common.flags %= Set.insert flag
 
 triggered :: Patch -> Patch
 triggered = add_flag Common.Triggered
+
+im_allocations :: [(Score.Instrument, Text, Common.Config -> Common.Config)]
+    -- ^ (inst, qualified, set_config)
+    -> UiConfig.Allocations
+im_allocations = UiConfig.make_allocations . map (_make_allocation UiConfig.Im)
+
+dummy_allocations :: [(Score.Instrument, Text, Common.Config -> Common.Config)]
+    -- ^ (inst, qualified, set_config)
+    -> UiConfig.Allocations
+dummy_allocations =
+    UiConfig.make_allocations . map (_make_allocation UiConfig.Dummy)
+
+_make_allocation :: UiConfig.Backend
+    -> (a, Text, Common.Config -> Common.Config) -> (a, UiConfig.Allocation)
+_make_allocation backend (name, qualified, set_config) =
+    ( name
+    , UiConfig.Allocation
+        { alloc_qualified = InstTypes.parse_qualified qualified
+        , alloc_config = set_config Common.empty_config
+        , alloc_backend = backend
+        }
+    )

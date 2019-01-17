@@ -2074,7 +2074,11 @@ synth: im:
         account.
     kendang-legong:
       * implement
-      - add pasang
+      * add pasang
+        . This is a dummy instrument, how can I put that in PatchDb?  It would
+          have a _karyaInstrument, but nothing else.
+      - Ok that's done, but I think thru won't work with it.  MidiThru does
+        an eval, I should do the same for im thru.
     reyong:
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
