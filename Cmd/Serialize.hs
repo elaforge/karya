@@ -16,14 +16,26 @@ module Cmd.Serialize (
     allocations_magic, score_magic, views_magic
     , is_old_settings
 ) where
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
-import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
+import           Util.Serialize (bad_tag, get, get_tag, put, put_tag, Serialize)
 
-import Midi.Instances ()
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
+
+import qualified Instrument.Common as Common
+import qualified Instrument.InstTypes as InstTypes
+import           Midi.Instances ()
+import qualified Perform.Lilypond.Types as Lilypond
+import qualified Perform.Midi.Control as Midi.Control
+import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Signal as Signal
+
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
@@ -37,19 +49,8 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.Zoom as Zoom
 
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
-import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
-
-import qualified Perform.Lilypond.Types as Lilypond
-import qualified Perform.Midi.Control as Midi.Control
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Signal as Signal
-
-import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
-import Global
-import Types
+import           Global
+import           Types
 
 
 allocations_magic :: Serialize.Magic UiConfig.Allocations
@@ -579,14 +580,22 @@ instance Serialize Patch.Initialization where
         v -> Serialize.bad_version "Patch.Initialization" v
 
 instance Serialize Patch.Settings where
-    put (Patch.Settings a b c d) = Serialize.put_version 0
+    put (Patch.Settings a b c d) = Serialize.put_version 1
         >> put a >> put b >> put c >> put d
     get = Serialize.get_version >>= \case
         0 -> do
             flags :: Set Patch.Flag <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
-            pitch_bend_range :: Midi.Control.PbRange <- get
+            _pitch_bend_range :: Midi.Control.PbRange <- get
+            return $ Patch.Settings
+                (if Set.null flags then Nothing else Just flags)
+                scale decay Nothing
+        1 -> do
+            flags :: Maybe (Set Patch.Flag) <- get
+            scale :: Maybe Patch.Scale <- get
+            decay :: Maybe RealTime <- get
+            pitch_bend_range :: Maybe Midi.Control.PbRange <- get
             return $ Patch.Settings flags scale decay pitch_bend_range
         v -> Serialize.bad_version "Patch.Settings" v
 
@@ -610,16 +619,26 @@ instance Serialize Patch.Flag where
         2 -> return Patch.HoldKeyswitch
         3 -> return Patch.ResumePlay
         4 -> return Patch.UseFinalNoteOff
+        5 -> return Patch.Old_Triggered
         _ -> Serialize.bad_tag "Flag" (fromIntegral tag)
 
 -- ** Instrument.Common
 
 instance Serialize Common.Config where
-    put (Common.Config a b c d) = Serialize.put_version 0
+    put (Common.Config a b c d) = Serialize.put_version 1
         >> put a >> put b >> put c >> put d
     get = Serialize.get_version >>= \case
         0 -> do
             environ :: RestrictedEnviron.Environ <- get
+            controls :: ScoreTypes.ControlValMap <- get
+            mute :: Bool <- get
+            solo :: Bool <- get
+            return $ Common.Config
+                (if RestrictedEnviron.null environ then Nothing
+                    else Just environ)
+                controls mute solo
+        1 -> do
+            environ :: Maybe RestrictedEnviron.Environ <- get
             controls :: ScoreTypes.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get

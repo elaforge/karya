@@ -9,7 +9,7 @@
 module Perform.Midi.Patch (
     -- * Config
     Config(..), config_addrs
-    , patch_to_config, merge_defaults
+    , merge_defaults
     , allocation, control_defaults, initialization, settings
     , config
     , Initialization(..), Addr, Voices
@@ -18,7 +18,7 @@ module Perform.Midi.Patch (
     -- Midi.Control.PbRange.
     , Control.PbRange
     -- ** Settings
-    , Settings(..), make_settings
+    , Settings(..)
     , pitch_bend_range, decay, scale, flags
 
     -- * Patch
@@ -69,7 +69,7 @@ import Types
 
 -- * Config
 
--- | Configuration for one instrument on a score.
+-- | Configuration for one MIDI instrument allocation.
 data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
     -- that it can be multiplexed across multiple channels.  In addition,
@@ -104,16 +104,13 @@ settings = Lens.lens config_settings
 config_addrs :: Config -> [Addr]
 config_addrs = map fst . config_allocation
 
-config :: Settings -> [(Addr, Maybe Voices)] -> Config
-config settings alloc = Config
+config :: [(Addr, Maybe Voices)] -> Config
+config alloc = Config
     { config_allocation = alloc
     , config_control_defaults = mempty
     , config_initialization = mempty
-    , config_settings = settings
+    , config_settings = mempty
     }
-
-patch_to_config :: Patch -> [(Addr, Maybe Voices)] -> Config
-patch_to_config patch = config (patch_defaults patch)
 
 merge_defaults :: Patch -> Config -> Config
 merge_defaults patch = settings %= (<> patch_defaults patch)
@@ -143,21 +140,22 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 type Voices = Int
 
 has_flag :: Config -> Flag -> Bool
-has_flag config flag = Set.member flag (settings#flags #$ config)
+has_flag config flag = maybe False (Set.member flag) (settings#flags #$ config)
 
 -- ** Settings
 
 -- | This has instrument configuration which has built-in defaults but can also
--- be modified per score.  When the instrument is allocated, 'patch_defaults'
--- is copied to 'config_settings'.
+-- be modified per score.  When the instrument is looked up
+-- (Cmd.resolve_instrument), 'patch_defaults' is merged with 'config_settings'
+-- via 'merge_defaults'.
 data Settings = Settings {
-    config_flags :: !(Set Flag)
+    config_flags :: !(Maybe (Set Flag))
     , config_scale :: !(Maybe Scale)
     -- | Time from NoteOff to inaudible, in seconds.  This can be used to
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
     , config_decay :: !(Maybe RealTime)
-    , config_pitch_bend_range :: !Control.PbRange
+    , config_pitch_bend_range :: !(Maybe Control.PbRange)
     } deriving (Eq, Read, Show)
 
 instance Pretty Settings where
@@ -171,27 +169,16 @@ instance Pretty Settings where
 instance Semigroup Settings where
     (<>)    (Settings flags1 scale1 decay1 pb_range1)
             (Settings flags2 scale2 decay2 pb_range2) =
-        Settings (flags1 <> flags2) (scale1 <|> scale2) (decay1 <|> decay2)
-            (if pb_range1 == no_pb_range then pb_range2 else pb_range1)
+        Settings (flags1 <|> flags2) (scale1 <|> scale2) (decay1 <|> decay2)
+            (pb_range1 <|> pb_range2)
 instance Monoid Settings where
-    mempty = make_settings no_pb_range
+    mempty = Settings
+        { config_flags = Nothing
+        , config_scale = Nothing
+        , config_decay = Nothing
+        , config_pitch_bend_range = Nothing
+        }
     mappend = (<>)
-
--- | This is a special magic value to indicate an incomplete Settings, which
--- is what mempty is.  Normally 'Config' should be initialized from Settings in
--- 'patch_defaults', but 'Cmd.Instrument.MidiInst.config' is used to create
--- template allocations which are merged with the patch defaults when the
--- allocation is created.
-no_pb_range :: Control.PbRange
-no_pb_range = (100, -100)
-
-make_settings :: Control.PbRange -> Settings
-make_settings pb_range = Settings
-    { config_flags = Set.empty
-    , config_scale = Nothing
-    , config_decay = Nothing
-    , config_pitch_bend_range = pb_range
-    }
 
 pitch_bend_range = Lens.lens config_pitch_bend_range
     (\f r -> r { config_pitch_bend_range = f (config_pitch_bend_range r) })
@@ -248,7 +235,7 @@ patch pb_range name = Patch
     , patch_control_map = mempty
     , patch_initialize = NoInitialization
     , patch_attribute_map = Common.AttributeMap []
-    , patch_defaults = make_settings pb_range
+    , patch_defaults = mempty { config_pitch_bend_range = Just pb_range }
     }
 
 -- | This is a convention for the default instrument of a synth.  This is

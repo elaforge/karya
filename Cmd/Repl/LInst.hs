@@ -4,7 +4,7 @@
 
 -- | REPL Cmds dealing with instruments and MIDI config.
 module Cmd.Repl.LInst where
-import Prelude hiding (lookup)
+import           Prelude hiding (lookup)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -14,17 +14,10 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Midi.Interface as Interface
-import qualified Midi.Midi as Midi
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
-import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Repl.Util as Util
-import Cmd.Repl.Util (Instrument)
+import           Cmd.Repl.Util (Instrument)
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 
@@ -37,17 +30,23 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
+import qualified Midi.Interface as Interface
+import qualified Midi.Midi as Midi
 import qualified Perform.Im.Play as Im.Play
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * get
@@ -77,19 +76,16 @@ list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
     let (names, allocs) = unzip $ Map.toAscList alloc_map
-    patches <- map (fmap fst . (Cmd.midi_instrument =<<)) <$>
-        mapM Cmd.lookup_instrument names
     return $ Text.unlines $ TextUtil.formatColumns 1
-        [ pretty_alloc maybe_patch name alloc
-        | (name, alloc, maybe_patch) <- zip3 names allocs patches
+        [ pretty_alloc name alloc
+        | (name, alloc) <- zip names allocs
         , matches name
         ]
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
 
-pretty_alloc :: Maybe Patch.Patch -> Score.Instrument -> UiConfig.Allocation
-    -> [Text]
-pretty_alloc maybe_patch inst alloc =
+pretty_alloc :: Score.Instrument -> UiConfig.Allocation -> [Text]
+pretty_alloc inst alloc =
     [ ShowVal.show_val inst
     , InstTypes.show_qualified (UiConfig.alloc_qualified alloc)
     , case UiConfig.alloc_backend alloc of
@@ -121,27 +117,23 @@ pretty_alloc maybe_patch inst alloc =
             ++ ["solo" | Common.config_solo config]
     show_midi_config config = join
         [ show_controls "defaults:" (Patch.config_control_defaults config)
-        , pretty_settings (Patch.patch_defaults <$> maybe_patch)
-            (Patch.config_settings config)
+        , pretty_settings (Patch.config_settings config)
         ]
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = msg <> pretty controls
     join = Text.unwords . filter (not . Text.null)
 
-pretty_settings :: Maybe Patch.Settings -> Patch.Settings -> Text
-pretty_settings maybe_defaults settings =
+pretty_settings :: Patch.Settings -> Text
+pretty_settings settings =
     Text.unwords $ filter (not . Text.null)
         [ if_changed Patch.config_flags pretty
-        , if_changed Patch.config_scale $
-            maybe "" (("("<>) . (<>")") . show_scale)
+        , if_changed Patch.config_scale $ (("("<>) . (<>")") . show_scale)
         , if_changed Patch.config_decay $ ("decay="<>) . pretty
         , if_changed Patch.config_pitch_bend_range $ ("pb="<>) . pretty
         ]
     where
-    if_changed get fmt
-        | Just defaults <- maybe_defaults, get defaults == get settings = ""
-        | otherwise = fmt (get settings)
+    if_changed get fmt = maybe "" fmt (get settings)
 
 show_scale :: Patch.Scale -> Text
 show_scale scale = "scale " <> Patch.scale_name scale <> " "
@@ -175,11 +167,8 @@ add_config :: Instrument -> Qualified -> [(Patch.Addr, Maybe Patch.Voices)]
     -> Cmd.CmdL ()
 add_config inst qualified allocs = do
     qualified <- parse_qualified qualified
-    patch <- Cmd.require ("not a midi instrument: " <> pretty qualified)
-        . Inst.inst_midi =<< Cmd.get_qualified qualified
-    let config = Patch.patch_to_config patch allocs
-    allocate (Util.instrument inst) $
-        UiConfig.allocation qualified (UiConfig.Midi config)
+    allocate (Util.instrument inst) $ UiConfig.allocation qualified $
+        UiConfig.Midi $ Patch.config allocs
 
 -- | Allocate a new Im instrument.
 add_im :: Instrument -> Qualified -> Cmd.CmdL ()
@@ -196,8 +185,7 @@ add_play_cache wdev chan =
     allocate (Util.instrument "play-cache") $
         UiConfig.allocation Im.Play.qualified (UiConfig.Midi config)
     where
-    config = Patch.config (Patch.make_settings (0, 0))
-        [((Midi.write_device wdev, chan), Nothing)]
+    config = Patch.config [((Midi.write_device wdev, chan), Nothing)]
 
 -- | Create a dummy instrument.  This is used for instruments which are
 -- expected to be converted into other instruments during derivation.  For
@@ -229,19 +217,18 @@ deallocate :: Cmd.M m => Score.Instrument -> m ()
 deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
 
 -- | Merge the given configs into the existing ones.  This also merges
--- 'Patch.config_defaults' into 'Patch.config_settings'.  This way functions
+-- 'Patch.patch_defaults' into 'Patch.config_settings'.  This way functions
 -- that create Allocations don't have to find the relevant Patch.
 merge :: Cmd.M m => UiConfig.Allocations -> m ()
 merge (UiConfig.Allocations alloc_map) = do
     let (names, allocs) = unzip (Map.toList alloc_map)
     insts <- mapM Cmd.get_alloc_qualified allocs
-    let merged = zipWith MidiInst.merge_defaults insts allocs
     existing <- Ui.get_config (Ui.allocations #$)
-    let errors = mapMaybe (verify existing) (zip3 names merged insts)
+    let errors = mapMaybe (verify existing) (zip3 names allocs insts)
     unless (null errors) $
         Cmd.throw $ "merged allocations: " <> Text.intercalate "\n" errors
     Ui.modify_config $ Ui.allocations
-        %= (UiConfig.Allocations (Map.fromList (zip names merged)) <>)
+        %= (UiConfig.Allocations (Map.fromList (zip names allocs)) <>)
     where
     verify allocs (name, alloc, inst) =
         UiConfig.verify_allocation allocs (Inst.inst_backend inst) name alloc
@@ -343,11 +330,12 @@ copy_scale from to = do
 
 add_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
 add_flag flag = modify_midi_config_ $
-    Patch.settings#Patch.flags %= Patch.add_flag flag
+    Patch.settings#Patch.flags %= Just . Patch.add_flag flag . fromMaybe mempty
 
 remove_flag :: Ui.M m => Patch.Flag -> Instrument -> m ()
 remove_flag flag = modify_midi_config_ $
-    Patch.settings#Patch.flags %= Patch.remove_flag flag
+    Patch.settings#Patch.flags
+        %= Just . Patch.remove_flag flag . fromMaybe mempty
 
 set_decay :: Ui.M m => Maybe RealTime -> Instrument -> m ()
 set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay

@@ -25,7 +25,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -110,12 +110,14 @@ add_flag flag = common#Common.flags %= Set.insert flag
 triggered :: Patch -> Patch
 triggered = add_flag Common.Triggered
 
-im_allocations :: [(Score.Instrument, Text, Common.Config -> Common.Config)]
+im_allocations
+    :: [(ScoreTypes.Instrument, Text, Common.Config -> Common.Config)]
     -- ^ (inst, qualified, set_config)
     -> UiConfig.Allocations
 im_allocations = UiConfig.make_allocations . map (_make_allocation UiConfig.Im)
 
-dummy_allocations :: [(Score.Instrument, Text, Common.Config -> Common.Config)]
+dummy_allocations
+    :: [(ScoreTypes.Instrument, Text, Common.Config -> Common.Config)]
     -- ^ (inst, qualified, set_config)
     -> UiConfig.Allocations
 dummy_allocations =

@@ -114,14 +114,12 @@ dump_state = do
         , blocks
         )
 
-load_state :: Ui.M m => (InstTypes.Qualified -> Maybe Patch.Settings)
-    -> State -> m Ui.State
-load_state lookup_settings (ky, allocs, blocks) =
+load_state :: Ui.M m => State -> m Ui.State
+load_state (ky, allocs, blocks) =
     Ui.exec_rethrow "convert state" Ui.empty $ do
         mapM_ make_block blocks
-        allocs <- Ui.require_right id $ allocations lookup_settings allocs
-        Ui.modify $
-            (Ui.config#Ui.ky #= ky) . (Ui.config#Ui.allocations #= allocs)
+        Ui.modify $ (Ui.config#Ui.ky #= ky)
+            . (Ui.config#Ui.allocations #= allocations allocs)
 
 -- * block
 
@@ -209,25 +207,20 @@ dump_allocations (UiConfig.Allocations allocs) = do
         | (dev, chan) <- Patch.config_addrs config
         ]
 
-allocations :: (InstTypes.Qualified -> Maybe Patch.Settings) -> Allocations
-    -> Either Text UiConfig.Allocations
-allocations lookup_settings =
-    fmap (UiConfig.Allocations . Map.fromList) . mapM make1
+allocations :: Allocations -> UiConfig.Allocations
+allocations = UiConfig.Allocations . Map.fromList . map make1
     where
-    make1 (inst, (qual, simple_alloc)) = (Score.Instrument inst,) <$> alloc
+    make1 (inst, (qual, simple_alloc)) =
+        (Score.Instrument inst, UiConfig.allocation qualified backend)
         where
-        alloc = UiConfig.allocation qualified <$> backend
         qualified = InstTypes.parse_qualified qual
         backend = case simple_alloc of
-            Dummy -> Right UiConfig.Dummy
-            Im -> Right UiConfig.Im
-            Midi addrs -> case lookup_settings qualified of
-                Nothing -> Left $ "no patch for " <> pretty qualified
-                Just settings -> Right $ UiConfig.Midi $
-                    Patch.config settings
-                        [ ((Midi.write_device dev, chan), Nothing)
-                        | (dev,chan) <- addrs
-                        ]
+            Dummy -> UiConfig.Dummy
+            Im -> UiConfig.Im
+            Midi addrs -> UiConfig.Midi $ Patch.config
+                [ ((Midi.write_device dev, chan), Nothing)
+                | (dev,chan) <- addrs
+                ]
 
 
 -- * ExactPerfEvent

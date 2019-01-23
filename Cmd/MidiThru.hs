@@ -128,8 +128,8 @@ for_instrument score_inst scale attrs input = do
 -- But it turns out I don't actually know the state of the MIDI channel, so
 -- now I always send PitchBend.  I'm not sure why I ever thought it could work.
 -- I could still do this by tracking channel state at the Midi.Interface level.
--- I actually already do that a bit tracking with note_tracker, but it's simpler
--- to just always send PitchBend, unless it becomes a problem.
+-- I actually already do that a bit of tracking with note_tracker, but it's
+-- simpler to just always send PitchBend, unless it becomes a problem.
 default_thru :: Cmd.ResolvedInstrument -> Score.Instrument -> Cmd.ThruFunction
 default_thru resolved score_inst scale attrs input = do
     input <- convert_input score_inst scale input
@@ -141,8 +141,9 @@ default_thru resolved score_inst scale attrs input = do
             =<< input_to_nn score_inst (Patch.patch_attribute_map patch)
                 (Patch.settings#Patch.scale #$ config) attrs input
         wdev_state <- Cmd.get_wdev_state
-        maybe (return []) (to_msgs ks) $ input_to_midi
-            (Patch.settings#Patch.pitch_bend_range #$ config)
+        pb_range <- Cmd.require "no pb range" $
+            Patch.settings#Patch.pitch_bend_range #$ config
+        maybe (return []) (to_msgs ks) $ input_to_midi pb_range
             wdev_state addrs input_nn
     where
     to_msgs ks (thru_msgs, wdev_state) = do
@@ -241,8 +242,7 @@ filter_transposers scale = Derive.with_controls transposers
 -- It's different because it works with a scalar NoteNumber instead of
 -- a Score.Event with a pitch signal, which makes it hard to share code.
 convert_pitch :: Patch.AttributeMap -> Maybe Patch.Scale -> Attrs.Attributes
-    -> Pitch.NoteNumber
-    -> (Maybe (Pitch.NoteNumber, [Patch.Keyswitch]), Bool)
+    -> Pitch.NoteNumber -> (Maybe (Pitch.NoteNumber, [Patch.Keyswitch]), Bool)
     -- ^ The Bool is True if the attrs were non-empty but not found.
 convert_pitch attr_map patch_scale attrs nn =
     case Common.lookup_attributes attrs attr_map of

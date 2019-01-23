@@ -57,20 +57,20 @@ convert :: BlockId -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]
 convert block_id = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
-        Just (Cmd.Im patch) -> convert_event block_id event patch name
-            where InstTypes.Qualified _ name = Cmd.inst_qualified resolved
+        Just (Cmd.Im patch) -> convert_event block_id event patch patch_name
+            where InstTypes.Qualified _ patch_name = Cmd.inst_qualified resolved
         _ -> []
 
 convert_event :: BlockId -> Score.Event -> Patch.Patch -> InstTypes.Name
     -> [LEvent.LEvent Note.Note]
-convert_event block_id event patch name = run $ do
+convert_event block_id event patch patch_name = run $ do
     let supported = Patch.patch_controls patch
     let controls = Score.event_controls event
     pitch <- if Map.member Control.pitch supported
         then Just . convert_signal <$> convert_pitch event
         else return Nothing
     return $ Note.Note
-        { patch = name
+        { patch = patch_name
         , instrument = ScoreTypes.instrument_name (Score.event_instrument event)
         , trackId = event_track_id block_id event
         , element = fromMaybe "" $ Env.maybe_val EnvKey.patch_element $

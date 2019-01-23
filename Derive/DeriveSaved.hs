@@ -149,8 +149,7 @@ perform cmd_state ui_state events =
 
 load_score_states :: Cmd.Config -> FilePath -> IO (Ui.State, Cmd.State)
 load_score_states cmd_config fname = do
-    (ui_state, library, aliases) <- either errorIO return
-        =<< load_score (Cmd.config_instrument_db cmd_config) fname
+    (ui_state, library, aliases) <- either errorIO return =<< load_score fname
     return (ui_state,
         add_library library aliases (Cmd.initial_state cmd_config))
 
@@ -160,9 +159,9 @@ add_library builtins aliases state =
     state { Cmd.state_ky_cache = Just $ Cmd.PermanentKy (builtins, aliases) }
 
 -- | Load a score and its accompanying local definitions library, if it has one.
-load_score :: Cmd.InstrumentDb -> FilePath
+load_score :: FilePath
     -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
-load_score db fname = fmap fst $ time ("load " <> txt fname) (\_ _ _ -> "") $
+load_score fname = fmap fst $ time ("load " <> txt fname) (\_ _ _ -> "") $
     Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of
@@ -171,7 +170,7 @@ load_score db fname = fmap fst $ time ("load " <> txt fname) (\_ _ _ -> "") $
                 return (state, FilePath.takeDirectory repo)
             Cmd.SaveState fname -> do
                 state <- require_right $ first pretty <$>
-                    Save.read_state_ db fname
+                    Save.read_state_ fname
                 return (state, FilePath.takeDirectory fname)
         app_dir <- liftIO Path.get_app_dir
         let paths = dir : map (Path.absolute app_dir) Config.ky_paths

@@ -147,7 +147,8 @@ test_convert_dynamic = do
             )
         clookup = DeriveTest.make_convert_lookup allocs UiTest.default_db
         allocs = UiTest.modify_midi_config "i2"
-            (Patch.settings#Patch.flags %= Patch.add_flag Patch.Pressure)
+            (Patch.settings#Patch.flags
+                %= Just . Patch.add_flag Patch.Pressure . fromMaybe mempty)
             UiTest.default_allocations
     -- >i1 is non-Pressure, >i2 is Pressure.
     equal (run ">i1" [("dyn", [(0, 0, "1")])])
@@ -232,12 +233,12 @@ nn_signal = map (second Pitch.nn) . MSignal.to_pairs
 
 perform :: Patch.Patch -> DeriveTest.SimpleAllocations -> [UiTest.TrackSpec]
     -> (([Types.Event], [Midi.WriteMessage]), [Text])
-perform patch allocs tracks =
+perform patch allocs_ tracks =
     DeriveTest.perform_result perform $
         DeriveTest.derive_tracks_setup
-            (DeriveTest.with_instrument_db allocations db) "" tracks
+            (DeriveTest.with_instrument_db allocs db) "" tracks
     where
     perform = DeriveTest.perform
-        (DeriveTest.make_convert_lookup allocations db) allocations
-    allocations = DeriveTest.simple_allocs_from_db db allocs
+        (DeriveTest.make_convert_lookup allocs db) allocs
+    allocs = DeriveTest.simple_allocs allocs_
     db = UiTest.make_db [("s", [patch])]

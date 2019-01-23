@@ -25,7 +25,6 @@ module Cmd.Instrument.MidiInst (
     , inst_range
     -- * allocations
     , allocations, config, config1
-    , merge_defaults
 
     -- * db
     , save_synth, load_synth
@@ -271,10 +270,12 @@ synth_controls controls = map $
     patch # Patch.control_map %= (Control.control_map controls <>)
 
 add_flag :: Patch.Flag -> Patch.Patch -> Patch.Patch
-add_flag flag = Patch.defaults#Patch.flags %= Patch.add_flag flag
+add_flag flag =
+    Patch.defaults#Patch.flags %= Just . Patch.add_flag flag . fromMaybe mempty
 
 add_flags :: [Patch.Flag] -> Patch.Patch -> Patch.Patch
-add_flags flags = Patch.defaults#Patch.flags %= Set.union (Set.fromList flags)
+add_flags flags = Patch.defaults#Patch.flags
+    %= Just . Set.union (Set.fromList flags) . fromMaybe mempty
 
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
@@ -336,24 +337,11 @@ allocations = UiConfig.make_allocations . map make
 -- the Settings from 'Patch.patch_defaults', so it'll need to have those
 -- applied when it gets applied to 'UiConfig.state_allocations'.
 config :: [Patch.Addr] -> Patch.Config
-config = Patch.config mempty . map (, Nothing)
+config = Patch.config . map (, Nothing)
 
 -- | Specialize 'config' for a single Addr.
 config1 :: Midi.WriteDevice -> Midi.Channel -> Patch.Config
 config1 dev chan = config [(dev, chan)]
-
--- | Merge an incomplete allocation with defaults from its instrument.
-merge_defaults :: Cmd.Inst -> UiConfig.Allocation -> UiConfig.Allocation
-merge_defaults inst alloc =
-    case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
-        (Inst.Midi patch, UiConfig.Midi config) -> alloc
-            { UiConfig.alloc_backend =
-                UiConfig.Midi (Patch.merge_defaults patch config)
-            }
-        -- Im doesn't have any defaults to merge yet.
-        (Inst.Im _, UiConfig.Im) -> alloc
-        -- If they don't match, UiConfig.verify_allocation should catch it.
-        _ -> alloc
 
 
 -- * db

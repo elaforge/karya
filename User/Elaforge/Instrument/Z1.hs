@@ -53,7 +53,7 @@ make_db app_dir = do
     -- Each patch has its own pb range, but you can override them in the
     -- multiset.
     override_pb = MidiInst.patch#Patch.defaults#Patch.pitch_bend_range
-        #= (-24, 24)
+        #= Just (-24, 24)
 
 synth_controls :: [(Midi.Control, Score.Control)]
 synth_controls =

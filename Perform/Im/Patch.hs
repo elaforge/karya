@@ -37,11 +37,3 @@ type AttributeMap = Common.AttributeMap ()
 
 attribute_map :: [Attrs.Attributes] -> AttributeMap
 attribute_map = Common.attribute_map . map (\a -> (a, ()))
-
-data Flag =
-    -- | Patch doesn't pay attention to duration, e.g. percussion.  The UI can
-    -- use this to create zero duration events for this instrument.
-    Triggered
-    deriving (Eq, Ord, Show)
-
-instance Pretty Flag where pretty = showt

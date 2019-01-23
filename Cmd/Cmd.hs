@@ -61,13 +61,14 @@ import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
-import Cmd.Msg (Performance(..)) -- avoid a circular import
+import           Cmd.Msg (Performance(..)) -- avoid a circular import
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
@@ -106,8 +107,8 @@ import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 type CmdId = CmdT Identity.Identity
@@ -878,12 +879,13 @@ instance Pretty InstrumentCode where
 
 make_derive_instrument :: ResolvedInstrument -> Derive.Instrument
 make_derive_instrument resolved = Derive.Instrument
-    { inst_calls = inst_calls $ Common.common_code common
-    , inst_environ = Common.get_environ (inst_common_config resolved)
+    { inst_calls = inst_calls $ Common.common_code $ Inst.inst_common $
+        inst_instrument resolved
+    , inst_environ = maybe mempty RestrictedEnviron.convert $
+        Common.config_environ $ inst_common_config resolved
     , inst_controls = Common.config_controls (inst_common_config resolved)
     , inst_attributes = Inst.inst_attributes (inst_instrument resolved)
     }
-    where common = Inst.inst_common (inst_instrument resolved)
 
 empty_code :: InstrumentCode
 empty_code = InstrumentCode
@@ -1272,7 +1274,7 @@ resolve_instrument db alloc = do
         inst_lookup qualified db
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
-            return $ Just (Midi patch config)
+            return $ Just $ Midi patch $ Patch.merge_defaults patch config
         (Inst.Im patch, UiConfig.Im) -> return $ Just (Im patch)
         (_, UiConfig.Dummy) -> return Nothing
         -- 'UiConfig.verify_allocation' should have prevented this.
@@ -1281,17 +1283,19 @@ resolve_instrument db alloc = do
     return $ ResolvedInstrument
         { inst_instrument = inst
         , inst_qualified = qualified
-        , inst_common_config = merge_environ (Inst.inst_common inst) $
-            UiConfig.alloc_config alloc
+        , inst_common_config =
+            merge_environ (Inst.inst_common inst) (UiConfig.alloc_config alloc)
         , inst_backend = backend
         }
     where
-    -- TODO Merge the patch environ into the local config's environ.  This
-    -- is inconsistent with how Patch.Settings works, which copies over the
-    -- patch settings when the config is created and lets you modify it.  To
-    -- avoid confusion I should make Common also use a Defaults type.
-    -- TODO write a test for this
-    merge_environ common = Common.cenviron %= (<> Common.common_environ common)
+    -- If the Common.config_environ is Nothing, inherit from
+    -- Common.common_environ.  This means the config_environ of
+    -- a ResolvedInstrument is always Just, but I can't be bothered to make
+    -- a whole new type.
+    merge_environ :: Common.Common InstrumentCode -> Common.Config
+        -> Common.Config
+    merge_environ common =
+        Common.cenviron %= Just . fromMaybe (Common.common_environ common)
 
 -- ** lookup qualified name
 

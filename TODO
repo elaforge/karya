@@ -26,6 +26,33 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * Instead of having instrument allocations store settings directly and copy
+    from the patch defaults, store only differences and fall through to the
+    patch defaults.  Otherwise, all scores break if I change patch flags, or
+    environ, or patch scale.
+    . It's Common.Config and maybe Midi.Patch.Config.
+    . Comprises: environ, then flags, scale, decay, pb_range
+      So environ and flags become Maybe.
+    . I can get rid of MidiInst.merge_defaults
+    . I still want to merge though, so I don't have to look up the patch and
+      merge every time.  But I want to do it when I load the score, not when
+      I allocate the instrument.
+    . This would go in Cmd.Save.upgrade_state.
+    . It seems cleaner to put the merged alloc in Cmd state, since it's just
+      a cache.  In fact, I already do some merging in Cmd.resolve_instrument,
+      I can do the merge there, and try to cache the whole thing if it seems
+      too expensive.
+    . Why does LInst.list after LAlloc.kebyar show scale?
+      Because it's not part of the patch, it's in the allocations!  I guess
+      this is appropriate if I want the same sample set to accommodate
+      different tunings, since it's already retuned.  But I should use
+      LTuning.nrpn to tune on startup.  But I still want to avoid embedding
+      the scale in the alloc!
+  - What to do with dummy-only instruments like kontakt/wayang-pemade?
+    . They're confusing because kontakt/wayang-pemade is not actually
+      a playable instrument.
+    . Actually, it is, it's the version without the scale, so it would work
+      for any tuning.
   + sudden quit when renaming block in save/kendang/sinom-ladrang-bug:
     LBlock.rename @awak
     . What can cause a quit with no error?
@@ -2079,6 +2106,63 @@ synth: im:
           have a _karyaInstrument, but nothing else.
       - Ok that's done, but I think thru won't work with it.  MidiThru does
         an eval, I should do the same for im thru.
+        . The im version of that is eval to Score.Event, then convert.  Don't
+          I already have to do that though?
+        . No, it directly gets pitch, dynamic, attrs and makes a new Note for
+          it.
+        . I could continue down this path by having a special thru for kendang
+          pasang that dispatches samples, but that seems less sustainable than
+          evaluating the expression.
+        . Does it evaluate?  I see scale_input_to_nn.  It's because it comes
+          from attrs and pitch only, not a real event.  Then how does kendang
+          pasang work?  Or rather, how should it work?
+        . The instrument turns keys into attrs.
+        . The eval isn't in MidiThru, it's in CUtil.expr_midi_thru!
+        . Actually im thru already evals the expr, so the attrs should be
+          correct, I just need the instrument.  MIDI works because it already
+          has the instrument address in the MIDI channel.
+        . Just having inst is not that helpful, because I need to map it to
+          its thru function.
+        . If the instrument has changed, then look it up and dispatch.
+        . To do this like MIDI, I have to go to Score.Event, then to
+          Note.Note, then somehow look up patch.  That's tricky because
+          normally I do that through an entirely separate process.
+        . Or, pass the Note to the thru function?  The key thing is I have
+          PatchName, not InstrumentName.  That just comes from resolving the
+          instrument.  I can do that in CUtil.
+        . There's still a disconnect, because PatchName is still across the
+          whole synth, and in fact I might get an entirely different synth.
+        . For the kendang pasang case, I can stuff the tuning into the attrs,
+          but this is specific to kendang pasang.  If I have a generic dummy
+          instrument that's not part of any synth, it won't work.
+        . To really eval, I need to have the thru function in the patch map.
+          Which I actually do... so why not look up instrument, and get the
+          thru function out of that?
+
+        How does thru work?
+          . I get an InputNote Msg, which goes to MidiThru.cmd_midi_thru
+          . If the inst has a ThruFunction, it calls it directly.  Otherwise,
+            it uses scale_input_to_nn to get a pitch and creates the pitch
+            with MIDI.
+          . For drums, instead a key generates an expr, which I evaluate to
+            produce (nn, dyn, attrs).  For MIDI, I run Perform to get the MIDI
+            and write it.  For im, I call a provided function to convert to
+            OSC.
+          . That means drums don't have a ThruFunction, since it comes by
+            another route.  This is confusing, but it's a result of how I have
+            a built-in default pitch-oriented MidiThru.
+        How should thru work?
+          . There are two kinds: pitch oriented keyboard, and Attributes
+            oriented drums.  Then there are two backends, MIDI and Osc.  It's
+            all keyed off of an instrument.
+          . So each patch can have a field for thru.  If it's pitch and MIDI,
+            then invoke the whole NoteEntry.cmds_with_input set.  Actually,
+            this set is complicated, because it's pitched note entry, not just
+            thru.  So actually each patch has a field for general note entry.
+            But it's not keyed by instrument, but by track, since there are
+            control tracks too.  So I only want Info.Note tracks with an
+            instrument, the others continue to use the same Cmd.Track
+            mechanism.
     reyong:
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they

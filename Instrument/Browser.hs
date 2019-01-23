@@ -199,7 +199,8 @@ common_fields tags common =
 instrument_fields :: InstTypes.Name -> Patch.Patch -> [(Text, Text)]
 instrument_fields name patch =
     -- important properties
-    [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
+    [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList $
+        fromMaybe mempty flags)
     , ("Controls", show_control_map control_map)
     -- implementation details
     , ("Attribute map", show_attribute_map attr_map)

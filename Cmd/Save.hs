@@ -28,9 +28,8 @@ module Cmd.Save (
     -- * misc
     , save_views
 ) where
-import Prelude hiding (read)
+import           Prelude hiding (read)
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -38,7 +37,7 @@ import qualified Data.Time as Time
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.File as File
 import qualified Util.Git as Git
@@ -50,19 +49,16 @@ import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.Serialize
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Ui.Id as Id
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
 
-import Global
+import           Global
 
 
 -- * universal
@@ -94,12 +90,12 @@ read path = do
         Cmd.SaveState fn -> read_state fn
 
 -- | Low level 'read'.
-read_ :: Cmd.InstrumentDb -> FilePath -> IO (Either Text Ui.State)
-read_ db path = infer_save_type path >>= \case
+read_ :: FilePath -> IO (Either Text Ui.State)
+read_ path = infer_save_type path >>= \case
     Left err -> return $ Left $ "read " <> showt path <> ": " <> err
     Right save -> case save of
-        Cmd.SaveState fname -> first pretty <$> read_state_ db fname
-        Cmd.SaveRepo repo -> fmap extract <$> read_git_ db repo Nothing
+        Cmd.SaveState fname -> first pretty <$> read_state_ fname
+        Cmd.SaveRepo repo -> fmap extract <$> read_git_ repo Nothing
             where extract (state, _, _) = state
 
 -- | Like 'load', but don't set SaveFile, so you can't overwrite the loaded
@@ -210,62 +206,19 @@ read_state fname = do
     writable <- liftIO $ File.writable fname
     Log.notice $ "read state from " <> showt fname
         <> if writable then "" else " (ro)"
-    db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
-    state <- Cmd.require_right mkmsg =<< liftIO (read_state_ db fname)
+    state <- Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
     return (state, Just
         (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
 
 -- | Low level 'read_state'.
-read_state_ :: Cmd.InstrumentDb -> FilePath
+read_state_ :: FilePath
     -> IO (Either Serialize.UnserializeError Ui.State)
-read_state_ db fname =
-    Serialize.unserialize Cmd.Serialize.score_magic fname >>= \case
-        Right state -> mapM_ Log.write logs >> return (Right upgraded)
-            where (upgraded, logs) = upgrade_state db state
-        Left err -> return $ Left err
+read_state_ = Serialize.unserialize Cmd.Serialize.score_magic
 
 -- | Low level 'read_git'.
-read_git_ :: Cmd.InstrumentDb -> SaveGit.Repo -> Maybe SaveGit.Commit
+read_git_ :: SaveGit.Repo -> Maybe SaveGit.Commit
     -> IO (Either Text (Ui.State, SaveGit.Commit, [Text]))
-read_git_ db repo maybe_commit = SaveGit.load repo maybe_commit >>= \case
-    Right (state, commit, names) -> do
-        mapM_ Log.write logs
-        return $ Right (upgraded, commit, names)
-        where (upgraded, logs) = upgrade_state db state
-    Left err -> return $ Left err
-
-
--- * upgrade
-
-upgrade_state :: Cmd.InstrumentDb -> Ui.State -> (Ui.State, [Log.Msg])
-upgrade_state db state = Identity.runIdentity $ Log.run $ do
-    upgraded <- forM allocs $ \alloc -> if is_old alloc
-        then case upgrade_allocation db alloc of
-            Left err -> do
-                Log.warn $ "upgrading " <> pretty alloc <> ": " <> err
-                return alloc
-            Right new -> do
-                Log.warn $ "upgraded old alloc: " <> pretty alloc
-                    <> " to: " <> pretty (alloc_settings new)
-                return new
-        else return alloc
-    return $ Ui.config#UiConfig.allocations
-        #= UiConfig.Allocations upgraded $ state
-    where
-    UiConfig.Allocations allocs = Ui.config#Ui.allocations #$ state
-    is_old = maybe False (Cmd.Serialize.is_old_settings . Patch.config_settings)
-        . UiConfig.midi_config . UiConfig.alloc_backend
-
-alloc_settings :: UiConfig.Allocation -> Maybe Patch.Settings
-alloc_settings = fmap Patch.config_settings . UiConfig.midi_config
-    . UiConfig.alloc_backend
-
-upgrade_allocation :: Cmd.InstrumentDb -> UiConfig.Allocation
-    -> Either Text UiConfig.Allocation
-upgrade_allocation db alloc =
-    case Cmd.inst_lookup (UiConfig.alloc_qualified alloc) db of
-        Just inst -> Right $ MidiInst.merge_defaults inst alloc
-        Nothing -> Left "no inst for alloc"
+read_git_ = SaveGit.load
 
 
 -- ** path
@@ -330,10 +283,9 @@ load_git repo maybe_commit = do
 read_git :: FilePath -> Maybe SaveGit.Commit
     -> Cmd.CmdT IO (Ui.State, StateSaveFile)
 read_git repo maybe_commit = do
-    db <- Cmd.gets $ Cmd.config_instrument_db . Cmd.state_config
     (state, commit, names) <- Cmd.require_right
         (("load git " <> txt repo <> ": ") <>)
-        =<< liftIO (read_git_ db repo maybe_commit)
+        =<< liftIO (read_git_ repo maybe_commit)
     writable <- liftIO $ File.writable repo
     Log.notice $ "read from " <> showt repo <> ", at " <> pretty commit
         <> " names: " <> showt names

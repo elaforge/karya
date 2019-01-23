@@ -63,7 +63,8 @@ type Call = Text
 
 insert_call :: Cmd.M m => Thru -> Map Char Expr.Symbol -> Msg.Msg
     -> m Cmd.Status
-insert_call thru = insert_expr thru . Map.fromList
+insert_call thru =
+    insert_expr thru . Map.fromList
         . map (bimap Keymap.physical_key to_expr) . Map.toList
     where to_expr call = Expr.generator0 call
 

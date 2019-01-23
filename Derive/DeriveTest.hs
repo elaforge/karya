@@ -175,11 +175,11 @@ perform_synths allocs synths =
 perform_synths_simple :: SimpleAllocations -> [MidiInst.Synth]
     -> Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
-perform_synths_simple simple_allocs synths =
+perform_synths_simple allocs_ synths =
     perform (make_convert_lookup allocs db) allocs
     where
     db = synths_to_db synths
-    allocs = simple_allocs_from_db db simple_allocs
+    allocs = simple_allocs allocs_
 
 -- | Chain a 'perform' from a Derive.Result.
 perform_result :: (Stream.Stream Score.Event -> (a, [Log.Msg]))
@@ -198,7 +198,7 @@ perform_im_synths allocs synths =
     perform_im (fst $ make_convert_lookup ui_allocs db)
     where
     db = synths_to_db synths
-    ui_allocs = im_allocs_from_db db allocs
+    ui_allocs = im_allocs allocs
 
 -- | Unlike 'perform', this includes the logs from the stream in the output.
 -- TODO change perform?
@@ -259,10 +259,8 @@ derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
 derive_dump synths dump@(_, simple_allocs, _) =
     derive_block_setup (with_synths allocs synths) state
     where
-    db = synths_to_db synths
-    allocs = allocs_from_db db simple_allocs
-    state = UiTest.eval Ui.empty
-        (Simple.load_state (lookup_settings db) dump)
+    allocs = Simple.allocations simple_allocs
+    state = UiTest.eval Ui.empty (Simple.load_state dump)
 
 -- | Derive a block in the same way that the app does.
 derive_block_standard :: Setup -> Cmd.State -> Derive.Cache
@@ -281,7 +279,7 @@ perform_dump synths (_, simple_allocs, _) =
     where
     db = synths_to_db synths
     lookup = make_convert_lookup allocs db
-    allocs = allocs_from_db db simple_allocs
+    allocs = Simple.allocations simple_allocs
 
 derive :: Ui.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
@@ -426,26 +424,14 @@ with_scale scale = modify_constant $ \c ->
 with_synths :: UiConfig.Allocations -> [MidiInst.Synth] -> Setup
 with_synths allocs synths = with_instrument_db allocs (synths_to_db synths)
 
--- | Merge the incomplete Allocations with the Patch defaults.
-merge_allocs :: CallStack.Stack => [MidiInst.Synth] -> UiConfig.Allocations
-    -> UiConfig.Allocations
-merge_allocs synths (UiConfig.Allocations allocs) =
-    UiConfig.Allocations (merge <$> allocs)
-    where
-    merge alloc =
-        case Cmd.inst_lookup (UiConfig.alloc_qualified alloc) db of
-            Just inst -> MidiInst.merge_defaults inst alloc
-            Nothing -> errorStack $ "no inst for alloc: " <> pretty alloc
-    db = synths_to_db synths
-
 with_synths_im :: SimpleAllocations -> [MidiInst.Synth] -> Setup
 with_synths_im allocs synths =
-    with_instrument_db (im_allocs_from_db db allocs) db
+    with_instrument_db (im_allocs allocs) db
     where db = synths_to_db synths
 
 with_synths_simple :: SimpleAllocations -> [MidiInst.Synth] -> Setup
 with_synths_simple allocs synths =
-    with_instrument_db (simple_allocs_from_db db allocs) db
+    with_instrument_db (simple_allocs allocs) db
     where db = synths_to_db synths
 
 -- | Add a single instrument with a MIDI patch.
@@ -462,33 +448,19 @@ with_instrument_db allocs db = with_allocations allocs <> with_db
     with_db = with_cmd $ set_cmd_config $ \state -> state
         { Cmd.config_instrument_db = db }
 
--- | Use the db to infer 'Patch.Settings' for the allocations.  The simple
--- version doesn't record the Patch.config_settings, so I get the defaults.
-allocs_from_db :: Cmd.InstrumentDb -> Simple.Allocations -> UiConfig.Allocations
-allocs_from_db db allocs =
-    Testing.expect_right $ Simple.allocations (lookup_settings db) allocs
-
 -- | A further-simplified version of 'Simple.Allocations' for tests:
 -- [(Instrument, Qualified)]
 type SimpleAllocations = [(Text, Text)]
 
-simple_allocs_from_db :: Cmd.InstrumentDb -> SimpleAllocations
-    -> UiConfig.Allocations
-simple_allocs_from_db db allocs = allocs_from_db db
+simple_allocs :: SimpleAllocations -> UiConfig.Allocations
+simple_allocs allocs = Simple.allocations
     [ (inst, (qual, Simple.Midi [(UiTest.wdev_name, chan)]))
     | (chan, (inst, qual)) <- zip [0..] allocs
     ]
 
-im_allocs_from_db :: Cmd.InstrumentDb -> SimpleAllocations
-    -> UiConfig.Allocations
-im_allocs_from_db db allocs =
-    allocs_from_db db [(inst, (qual, Simple.Im)) | (inst, qual) <- allocs]
-
--- | This uses patch_defaults for settings, since I don't have a config.
-lookup_settings :: Cmd.InstrumentDb -> InstTypes.Qualified
-    -> Maybe Patch.Settings
-lookup_settings db = fmap Patch.patch_defaults . (Inst.inst_midi =<<)
-    . lookup_qualified db
+im_allocs :: SimpleAllocations -> UiConfig.Allocations
+im_allocs allocs =
+    Simple.allocations [(inst, (qual, Simple.Im)) | (inst, qual) <- allocs]
 
 lookup_qualified :: Cmd.InstrumentDb -> InstTypes.Qualified
     -> Maybe Cmd.Inst
@@ -955,4 +927,4 @@ make_damage block tracknum s e = Derive.ScoreDamage
 -- normally a Config will have its 'Patch.config_settings' initialized from
 -- the Patch.
 simple_midi_config :: Patch.Config
-simple_midi_config = Patch.config mempty [((UiTest.wdev, 0), Nothing)]
+simple_midi_config = Patch.config [((UiTest.wdev, 0), Nothing)]

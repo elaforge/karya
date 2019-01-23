@@ -56,10 +56,14 @@ patch_from_settings :: Score.Instrument -> Patch.Settings -> Patch.Patch
 patch_from_settings score_inst settings patch = Patch
     { patch_name = score_inst
     , patch_keyswitch = mempty
-    , patch_hold_keyswitch =
-        Set.member Patch.HoldKeyswitch (Patch.config_flags settings)
+    , patch_hold_keyswitch = maybe False (Set.member Patch.HoldKeyswitch)
+        (Patch.config_flags settings)
     , patch_control_map = Patch.patch_control_map patch
-    , patch_pitch_bend_range = Patch.config_pitch_bend_range settings
+    -- This should definitely be Just because the Patch.patch constructor
+    -- requires it.  It's Maybe so Patch.config_settings can optionally replace
+    -- it.
+    , patch_pitch_bend_range = fromMaybe (-100, 100) $
+        Patch.config_pitch_bend_range settings
     , patch_decay = Patch.config_decay settings
     }
 

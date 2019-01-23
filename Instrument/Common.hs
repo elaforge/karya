@@ -16,7 +16,6 @@ import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
@@ -25,7 +24,7 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Tag as Tag
 
-import Global
+import           Global
 
 
 -- | Attributes common to all instruments.  Unlike 'Config', these are
@@ -164,8 +163,9 @@ sort_attribute_map (AttributeMap table) = AttributeMap (sort table)
 -- | Configuration for a specific allocation of an instrument in a specific
 -- score.
 data Config = Config {
-    -- | This is a local version of 'common_environ'.
-    config_environ :: !RestrictedEnviron.Environ
+    -- | This is a local version of 'common_environ'.  If Nothing, inherit
+    -- 'common_environ'.
+    config_environ :: !(Maybe RestrictedEnviron.Environ)
     -- | This is the control equivalent to 'config_environ'.  These
     -- controls are merged using their default mergers in the note call.
     -- Being in the note call means that the merge should only happen once.
@@ -185,7 +185,7 @@ data Config = Config {
 
 empty_config :: Config
 empty_config = Config
-    { config_environ = mempty
+    { config_environ = Nothing
     , config_controls = mempty
     , config_mute = False
     , config_solo = False
@@ -210,8 +210,6 @@ instance Pretty Config where
 
 add_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
     -> Config -> Config
-add_environ key val = cenviron %= (RestrictedEnviron.from_list [(key, v)] <>)
+add_environ key val = cenviron
+    %= (Just . (RestrictedEnviron.from_list [(key, v)] <>) . fromMaybe mempty)
     where v = RestrictedEnviron.to_val val
-
-get_environ :: Config -> BaseTypes.Environ
-get_environ = RestrictedEnviron.convert . config_environ

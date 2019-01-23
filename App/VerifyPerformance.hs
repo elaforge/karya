@@ -110,7 +110,7 @@ main = Git.initialize $ do
             return $ sum $ map snd results
         Save -> do
             when (null args) $ usage "no inputs"
-            run_error $ concat <$> mapM (save cmd_config out_dir) args
+            run_error $ concat <$> mapM (save out_dir) args
         Profile -> do
             when (null args) $ usage "no inputs"
             run_error $ concat <$> mapM (perform Nothing cmd_config) args
@@ -164,10 +164,9 @@ require_right io = tryRight =<< liftIO io
 -- * implementation
 
 -- | Extract saved performances and write them to disk.
-save :: Cmd.Config -> FilePath -> FilePath -> Error [Text]
-save cmd_config out_dir fname = do
-    (state, _defs_lib, _aliases, block_id) <-
-        load (Cmd.config_instrument_db cmd_config) fname
+save :: FilePath -> FilePath -> Error [Text]
+save out_dir fname = do
+    (state, _defs_lib, _aliases, block_id) <- load fname
     let meta = Ui.config#Ui.meta #$ state
         look = Map.lookup block_id
     midi <- case look (Ui.meta_midi_performances meta) of
@@ -190,8 +189,7 @@ save cmd_config out_dir fname = do
 -- | Perform to MIDI and write to disk.
 perform :: Maybe FilePath -> Cmd.Config -> FilePath -> Error [Text]
 perform maybe_out_dir cmd_config fname = do
-    (state, library, aliases, block_id) <-
-        load (Cmd.config_instrument_db cmd_config) fname
+    (state, library, aliases, block_id) <- load fname
     (msgs, _, _) <- perform_block fname
         (make_cmd_state library aliases cmd_config) state block_id
     whenJust maybe_out_dir $ \out_dir -> do
@@ -210,8 +208,7 @@ type Timings = [(Text, Thread.Seconds)]
 
 verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
 verify_performance out_dir cmd_config fname = do
-    (state, library, aliases, block_id) <-
-        load (Cmd.config_instrument_db cmd_config) fname
+    (state, library, aliases, block_id) <- load fname
     let meta = Ui.config#Ui.meta #$ state
     let cmd_state = make_cmd_state library aliases cmd_config
     let midi_perf = Map.lookup block_id (Ui.meta_midi_performances meta)
@@ -272,11 +269,10 @@ verify_lilypond out_dir fname cmd_state state block_id performance = do
 -- * util
 
 -- | Load a score and get its root block id.
-load :: Cmd.InstrumentDb -> FilePath
+load :: FilePath
     -> Error (Ui.State, Derive.Builtins, Derive.InstrumentAliases, BlockId)
-load db fname = do
-     (state, builtins, aliases) <- require_right $
-        DeriveSaved.load_score db fname
+load fname = do
+     (state, builtins, aliases) <- require_right $ DeriveSaved.load_score fname
      block_id <- require_right $ return $ get_root state
      return (state, builtins, aliases, block_id)
 

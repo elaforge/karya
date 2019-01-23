@@ -606,13 +606,10 @@ midi_allocation qualified config = UiConfig.allocation
 
 -- | Make Simple.Allocations from (inst, qualified, [chan]).
 midi_allocations :: [(Text, Text, [Midi.Channel])] -> UiConfig.Allocations
-midi_allocations allocs = either errorStack id $
-    Simple.allocations (const $ Just settings)
-        [ (inst, (qualified, Simple.Midi $ map (wdev_name,) chans))
-        | (inst, qualified, chans) <- allocs
-        ]
-    where settings = Patch.patch_defaults $ make_patch "test"
-    -- Since the lookup is just const, it should never return Left.
+midi_allocations allocs = Simple.allocations
+    [ (inst, (qualified, Simple.Midi $ map (wdev_name,) chans))
+    | (inst, qualified, chans) <- allocs
+    ]
 
 set_default_allocations :: Ui.State -> Ui.State
 set_default_allocations = Ui.config#Ui.allocations #= default_allocations

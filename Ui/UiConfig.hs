@@ -51,7 +51,8 @@ data Config = Config {
         -- TODO I'm not a big fan of this name, since it's generic and not
         -- obviously related to instruments.  However the previous name,
         -- 'aliases', was too and I somehow lived through that.  I tried
-        -- 'instruments', but it seemed too easy to confuse with Score.Inst.
+        -- 'instruments', but it seemed too easy to confuse with
+        -- 'Score.Instrument'.
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews

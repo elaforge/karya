@@ -103,7 +103,7 @@ test_round_pitch = do
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
     let convert_lookup = DeriveTest.make_convert_lookup allocs db
-        allocs = DeriveTest.allocs_from_db db
+        allocs = Simple.allocations
             [("i1", ("s/i1", Simple.Midi [("wdev", 0)]))]
         db = UiTest.make_db [("s", [patch])]
             where

@@ -52,7 +52,7 @@ test_serialize = do
             , Track.Line (Just (Track.Pitch "there"))
             ]
     equal rstyle (recode rstyle)
-    let config = Patch.config mempty []
+    let config = Patch.config []
     equal config (recode config)
     equal Lilypond.empty_staff_config (recode Lilypond.empty_staff_config)
 

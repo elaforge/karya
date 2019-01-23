@@ -6,7 +6,7 @@
 -- | This is a serializable subset of 'BaseTypes.Val' and 'BaseTypes.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.RestrictedEnviron where
-import Prelude hiding (lookup)
+import Prelude hiding (lookup, null)
 import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
@@ -48,6 +48,9 @@ convert (Environ env) = BaseTypes.Environ $ convert_val <$> env
 
 lookup :: EnvKey.Key -> Environ -> Maybe Val
 lookup key (Environ env) = Map.lookup key env
+
+null :: Environ -> Bool
+null (Environ env) = Map.null env
 
 -- * val
 
