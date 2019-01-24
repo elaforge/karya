@@ -40,22 +40,32 @@ test_ui_state = do
 
 test_call_duration = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+    let b_block = ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
     right_equal (f "a = [b/]\nb = [s r]")
         [ ("a", [(">", [(0, 1, "b")])])
-        , ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
+        , b_block
         ]
     right_equal (f "a = [b/0]\nb = [s r]")
         [ ("a", [(">", [(0, 2, "b")])])
-        , ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
+        , b_block
         ]
     -- CallDuration is carried like other durs.
     right_equal (f "a = %default-call [b0 b]\nb = [s r]")
         [ ("a", [(">", [(0, 2, "b"), (2, 2, "b")])])
-        , ("b", UiTest.note_track [(0, 1, "4s"), (1, 1, "4r")])
+        , b_block
         ]
-    -- Let's not allow carrying to non-calls, dots or ties, or rests.
-    left_like (f "a = [b/0 s]\nb = [s r]") "can't carry CallDuration"
-    left_like (f "a = [b/0 _]\nb = [s r]") "can't carry CallDuration"
+    -- The default dur carries past CallDuration.
+    right_equal (f "a = [b/0 s]\nb = [s r]")
+        [ ("a",
+            [ (">", [(0, 2, "b"), (2, 1, "")])
+            , ("*", [(2, 0, "4s")])
+            ])
+        , b_block
+        ]
+    right_equal (f "a = [b/0 _ b/]\nb = [s r]")
+        [ ("a", [(">", [(0, 2, "b"), (3, 2, "b")])])
+        , b_block
+        ]
 
 test_ext_call_duration = do
     let f blocks source = extract $

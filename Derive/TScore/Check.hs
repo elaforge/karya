@@ -18,6 +18,7 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import qualified Data.Void as Void
@@ -107,10 +108,30 @@ process get_dur (Config _default_call meter scale duration) =
     . check_barlines meter
     . duration_mode duration
     . resolve_call_duration get_dur
+    . carry_call_duration
     -- TODO resolve pitch before time, so the pitches are right, so ties work.
     -- But then I still have TBarline and the like.
 
 -- * time
+
+-- | Carry CallDuration if the next note has no duration, but does have a call.
+carry_call_duration :: [T.Token T.Pitch T.NDuration T.Duration]
+    -> [T.Token T.Pitch T.NDuration T.Duration]
+carry_call_duration = flip State.evalState False . mapM (T.map_note carry)
+    where
+    carry note = do
+        dur <- case T.note_duration note of
+            T.CallDuration -> do
+                State.put True
+                return T.CallDuration
+            T.NDuration dur
+                | can_carry note dur -> ifM State.get
+                    (State.put True >> return T.CallDuration)
+                    (return $ T.NDuration dur)
+                | otherwise -> State.put False >> return (T.NDuration dur)
+        return $ note { T.note_duration = dur }
+    can_carry note dur = T.note_call note /= ""
+        && all Maybe.isNothing [T.dur_int1 dur, T.dur_int2 dur]
 
 resolve_call_duration :: GetCallDuration
     -> [T.Token T.Pitch T.NDuration rdur]
@@ -143,6 +164,7 @@ data Meter = Meter {
     -- 4/4: [1, 0, 0, 0]
     -- > | ssss ; rrrr ; gggg ; mmmm |
     meter_pattern :: [T.Rank]
+    -- | This is the duration one one element of 'meter_pattern'.
     , meter_step :: !T.Time
     -- | If true, beats fall at the end of measures.
     , meter_negative :: !Bool
@@ -311,71 +333,60 @@ duration_mode = \case
     Additive -> additive
 
 -- | Each number is the inverse of the number of beats, so 2 is 1/2, 8 is 1/8
--- etc.
+-- etc.  If there are two numbers, you can set both numerator and denominator.
+-- This carrier both values or none.
 multiplicative :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token pitch (T.Time, Bool))
 multiplicative =
-    flip State.evalState (Right 1) . rmap_e (carry_duration time_of)
+    flip State.evalState (1, Nothing) . rmap_e (map_duration carry time_of)
     where
-    time_of idur dots = dur + dot_dur
+    time_of int1 mb_int2 dots = dur + dot_dur
         where
-        dur = T.Time (1 / fromIntegral idur)
+        dur = T.Time $ case mb_int2 of
+            Nothing -> 1 / fromIntegral int1
+            Just int2 -> fromIntegral int1 / fromIntegral int2
         dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
+    carry Nothing Nothing = State.get
+    carry Nothing (Just int2) = return (int2, Nothing)
+    carry (Just int1) mb_int2 = return (int1, mb_int2)
 
--- | Each number is just the number of Time beats.
+-- | Each number is just the number of Time beats.  If there are two numbers,
+-- int1 corresponds to a higher level of division, which is meter specific.
+-- E.g. akshara:matra.
 additive :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token pitch (T.Time, Bool))
-additive =
-    flip State.evalState (Right 1) . rmap_e (carry_duration time_of)
+additive = flip State.evalState (1, 4) . rmap_e (map_duration carry time_of)
     where
-    time_of idur dots = dur + dot_dur
+    time_of int1 int2 dots = dur + dot_dur
         where
-        dur = T.Time (fromIntegral idur)
+        dur = fromIntegral int1 / fromIntegral int2
         dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
+    carry int1 int2 = do
+        (p_int1, p_int2) <- State.get
+        return (fromMaybe p_int1 int1, fromMaybe p_int2 int2)
 
-map_duration :: Monad m => (dur1 -> m (dur2, Bool))
-    -> T.Token pitch (Either dur2 dur1) dur1
-    -> m (T.Token pitch (dur2, Bool) (dur2, Bool))
-map_duration f = \case
-    T.TBarline pos a -> return $ T.TBarline pos a
-    T.TNote pos note -> do
-        time <- case T.note_duration note of
-            Left time -> return (time, False)
-            Right dur -> f dur
-        return $ T.TNote pos $ note { T.note_duration = time }
-    T.TRest pos (T.Rest dur) -> T.TRest pos . T.Rest <$> f dur
-
-carry_duration :: State.MonadState (Either T.Time Int) m
-    => (Int -> Int -> T.Time)
-    -> T.Token pitch (Either T.Time T.Duration) T.Duration
-    -> m (Either T.Error (T.Token pitch (T.Time, Bool) (T.Time, Bool)))
-carry_duration time_of = \case
+map_duration :: State.MonadState (int1, int2) m
+    => (Maybe Int -> Maybe Int -> m (int1, int2))
+    -> (int1 -> int2 -> Int -> time)
+    -> T.Token pitch (Either time T.Duration) T.Duration
+    -> m (Either T.Error (T.Token pitch (time, Bool) (time, Bool)))
+map_duration carry time_of = \case
     T.TBarline pos a -> return $ Right $ T.TBarline pos a
     T.TNote pos note -> do
         result <- case T.note_duration note of
-            Left time -> do
-                State.put $ Left time
-                return $ Right (time, False)
-            Right (T.Duration maybe_idur dots tie) -> do
-                time_dur <- maybe State.get (return . Right) maybe_idur
-                State.put time_dur
-                return $ case time_dur of
-                    Left time
-                        | dots /= 0 || tie -> Left
-                            "can't carry CallDuration to dots or tie"
-                        | T.note_call note == "" -> Left
-                            "can't carry CallDuration to non-call"
-                        | otherwise -> Right (time, False)
-                    Right idur -> Right (time_of idur dots, tie)
+            Left time -> return $ Right (time, False)
+            Right (T.Duration mb_int1 mb_int2 dots tie) -> do
+                (int1, int2) <- carry mb_int1 mb_int2
+                State.put (int1, int2)
+                return $ Right (time_of int1 int2 dots, tie)
         return $ case result of
             Left err -> Left $ T.Error pos err
             Right (time, tie) -> Right $ T.TNote pos $
                 note { T.note_duration = (time, tie) }
-    T.TRest pos (T.Rest (T.Duration maybe_idur dots tie)) -> do
-        time_dur <- maybe State.get (return . Right) maybe_idur
-        return $ case time_dur of
-            Left _ -> Left $ T.Error pos "can't carry CallDuration to a rest"
-            Right idur -> Right $ T.TRest pos $ T.Rest (time_of idur dots, tie)
+    T.TRest pos (T.Rest (T.Duration mb_int1 mb_int2 dots tie)) -> do
+        (int1, int2) <- carry mb_int1 mb_int2
+        State.put (int1, int2)
+        return $ Right $ T.TRest pos $ T.Rest (time_of int1 int2 dots, tie)
 
 -- * pitch
 

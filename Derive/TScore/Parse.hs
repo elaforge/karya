@@ -5,7 +5,8 @@
 {- |
 
     %scale=sargam
-    block = %dur=mult [
+    root = [melody/0 melody]
+    melody = %dur=mult [
         ">inst1" | a1 | b2 c |
         //
         ">inst2" | p1 | m |
@@ -196,7 +197,12 @@ empty_note = T.Note
     }
 
 empty_duration :: T.NDuration
-empty_duration = T.NDuration (T.Duration Nothing 0 False)
+empty_duration = T.NDuration $ T.Duration
+    { dur_int1 = Nothing
+    , dur_int2 = Nothing
+    , dur_dots = 0
+    , dur_tie = False
+    }
 
 empty_pitch :: T.Pitch
 empty_pitch = T.Pitch (T.Relative 0) ""
@@ -229,7 +235,7 @@ call_char :: Char -> Bool
 call_char c = c `notElem` [' ', '/']
 
 pitch_char :: Char -> Bool
-pitch_char c = c `notElem` (" \n-,'~./]_" :: [Char]) && not (Char.isDigit c)
+pitch_char c = c `notElem` (" \n-,'~./]_:" :: [Char]) && not (Char.isDigit c)
     -- TODO this breaks modularity because I have to just know all the
     -- syntax that could come after, which is Duration, end of Tracks, Rest.
     -- But the more I can get into Pitch, the more I can get into Call without
@@ -261,11 +267,13 @@ instance Element T.NDuration where
 instance Element T.Duration where
     parse = T.Duration
         <$> P.optional p_nat
+        <*> P.optional (P.char ':' *> p_nat)
         <*> (Text.length <$> P.takeWhileP Nothing (=='.'))
         <*> P.option False (P.char '~' *> pure True)
         <?> "duration"
-    unparse (T.Duration dur dots tie) = mconcat
-        [ maybe "" showt dur
+    unparse (T.Duration int1 int2 dots tie) = mconcat
+        [ maybe "" showt int1
+        , maybe "" ((":"<>) . showt) int2
         , Text.replicate dots "."
         , if tie then "~" else ""
         ]

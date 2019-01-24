@@ -73,9 +73,9 @@ test_track = do
     right_equal (f "a") [token "" no_oct "a" no_dur]
     right_equal (f "a -- hi") [token "" no_oct "a" no_dur]
     right_equal (f "_4 | _.")
-        [ rest (T.Duration (Just 4) 0 False)
+        [ rest (T.Duration (Just 4) Nothing 0 False)
         , bar 1
-        , rest (T.Duration Nothing 1 False)
+        , rest (T.Duration Nothing Nothing 1 False)
         ]
     right_equal (f "a b/")
         [ token "" no_oct "a" no_dur
@@ -86,17 +86,19 @@ test_track = do
 
 test_token = do
     let f = fmap strip_token . parse Parse.parse
-        dur i dots tie = T.NDuration (T.Duration i dots tie)
+        dur int1 int2 dots tie = T.NDuration (T.Duration int1 int2 dots tie)
     left_like (f "") "unexpected end of input"
     right_equal (f "a") $ token "" no_oct "a" no_dur
     right_equal (f "+pizz/") $ token "+pizz" no_oct "" no_dur
     right_equal (f "a/'b1.~") $
-        token "a" (T.Relative 1) "b" (dur (Just 1) 1 True)
+        token "a" (T.Relative 1) "b" (dur (Just 1) Nothing 1 True)
     right_equal (f "a'/a#4") $
-        token "a'" no_oct "a#" (dur (Just 4) 0 False)
+        token "a'" no_oct "a#" (dur (Just 4) Nothing 0 False)
     right_equal (f "a0") $ token "" no_oct "a" T.CallDuration
     right_equal (f "a/a0") $ token "a" no_oct "a" T.CallDuration
-    right_equal (f "a/1") $ token "a" no_oct "" (dur (Just 1) 0 False)
+    right_equal (f "a/1") $ token "a" no_oct "" (dur (Just 1) Nothing 0 False)
+    right_equal (f "a1:2") $ token "" no_oct "a" (dur (Just 1) (Just 2) 0 False)
+    right_equal (f "a:2") $ token "" no_oct "a" (dur Nothing (Just 2) 0 False)
 
 test_token_roundtrip = do
     let p = Proxy @(T.Token T.Pitch T.NDuration T.Duration)
@@ -117,7 +119,7 @@ no_oct :: T.Octave
 no_oct = T.Relative 0
 
 no_dur :: T.NDuration
-no_dur = T.NDuration $ T.Duration Nothing 0 False
+no_dur = Parse.empty_duration
 
 no_pos :: T.Pos
 no_pos = T.Pos 0

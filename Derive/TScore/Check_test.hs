@@ -94,6 +94,20 @@ test_multiplicative = do
     equal (f "a b c") (rjs [1, 1, 1])
     equal (f "a2 b.") (rjs [1/2, 3/4])
     equal (f "a1..") (rjs [1 + 3/4])
+    equal (f "a2:1 b") (rjs [2, 2])
+    -- Even though I can differentiate :2 from just 2, it becomes 1:2, just
+    -- like plain 2.  I could make it like 2:1, but that seems confusing.
+    equal (f "a:2 b") (rjs [1/2, 1/2])
+    -- The numerator defaults back to 1 if you don't carry both.
+    equal (f "a2:1 b2") (rjs [2, 1/2])
+
+test_additive = do
+    let f = map (fmap (fmap fst . e_ndur)) . Check.additive . parse_cdur
+        rjs = map (Right . Just)
+    equal (f "a b") (rjs [1/4, 1/4])
+    equal (f "a2:3 b") (rjs [2/3, 2/3])
+    equal (f "a:6 b") (rjs [1/6, 1/6])
+    equal (f "a:6 b2") (rjs [1/6, 2/6])
 
 
 -- * implementation

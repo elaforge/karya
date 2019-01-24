@@ -3,7 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveFunctor #-}
--- | Parse tscore, check and postprocess it, and convert to Ui.State.
+-- | This ties together the lower level tscore components.
+--
+-- Parse tscore, check and postprocess it, convert to Ui.State, and integrate.
 module Derive.TScore.TScore where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either

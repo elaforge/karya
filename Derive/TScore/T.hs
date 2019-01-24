@@ -125,7 +125,10 @@ data NDuration = NDuration !Duration | CallDuration
     deriving (Eq, Show)
 
 data Duration = Duration {
-    dur_int :: !(Maybe Int)
+    -- | Durations are specified as two optional integers: int1, or int1:int2.
+    -- The interpretation is up to the dur Directive.
+    dur_int1 :: !(Maybe Int)
+    , dur_int2 :: !(Maybe Int)
     , dur_dots :: !Int
     , dur_tie :: !Bool
     } deriving (Eq, Show)

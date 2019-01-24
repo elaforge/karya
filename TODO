@@ -4998,7 +4998,7 @@ text score: tscore:
         I can't use numbers, or anything that doesn't parse as a pitch.
       . Otherwise I'll need a ReaderT for parse config.
     - directive for basic pulse/matra?
-    - longer durations, e.g. 2/1
+    * longer durations, e.g. 2/1
       . This will likely conflict with call/pitch syntax.
       . I could use dot... except duration already uses dot.  Maybe : by
         analogy to bars:beats or ratios?
@@ -5008,8 +5008,28 @@ text score: tscore:
       . How to handle nadai?  How about akshara:nadai?  In that case
         resolve_time needs to know the nadai.
         For multiplicative I don't think it can work without lots of ties.
+      . Ok, so for dur=mult, 2:1 means two whole notes.  For dur=add,
+        2:1 is 2 higher level units and 1 lower level ones, e.g.
+        akshara:matra.
+      . It's awkward to put nadai in the meter, because it can change.  How
+        about, 1 dur is a matra, and you can how long 1 dur is with :?  So
+        1:4 is chatusram, 1:6 is tisram, etc.  Effectively it's int1 * 1/int2.
+      . For this to be useful I have to carry the int2 separately, which means
+        I guess I need to move carry out of carry_duration.
+    - Just akshara:matra isn't necessarily good enough because what about
+      1/2 matra etc?  mult is apporpriate at this.
+      . I could make : into a list, so e.g. akshara:dur:denom.  Or I could
+        hijack . to subtract instead of adding dur, then 1. is speed 2, and
+        1.. is speed 3, etc.  Probably lots of dots get hard to read though.
+      . I can get this by doubling the nadai, e.g. :8 or whatever, but it
+        still seems like I'd want an easy 'su' type annotation.
+        Maybe . could be su, and I carry it?  Then I need an undot for sd.
     - support 0 dur notes
-      . Use :0?
+      . Use :0?  Or just 0 dur?  No that's taken by CallDuration. :0 should be
+        unambiguous, but it still looks like it's stealing syntax from
+        duration.
+      . It would be carried separately, but then how do I turn it off?  Maybe
+        I just need inline directives.
   rhythm check:
     * I'll need a Directive for meter
     * combine ties
