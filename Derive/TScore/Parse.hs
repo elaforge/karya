@@ -158,6 +158,7 @@ instance Pretty T.Barline where pretty = unparse
 --
 -- > <call><oct><pitch><dur><dots><tie>
 -- > call/  4    s      4    .     ~
+-- >        ,    s      :1
 --
 -- oct is optional, but oct without pitch is not so useful, so pitch >=1 char.
 --
@@ -175,6 +176,7 @@ instance Element (T.Note T.Pitch T.NDuration) where
         let note = T.Note
                 { note_call = fromMaybe (T.Call "") call
                 , note_pitch = pitch
+                , note_zero_duration = False -- TODO
                 , note_duration = dur
                 , note_pos = T.Pos 0
                 }
@@ -182,7 +184,7 @@ instance Element (T.Note T.Pitch T.NDuration) where
         guard (note /= empty_note)
         pos <- get_pos
         return $ note { T.note_pos = pos }
-    unparse (T.Note call pitch dur _pos) = mconcat
+    unparse (T.Note call pitch _zero_dur dur _pos) = mconcat
         [ if call == T.Call "" then "" else unparse call <> "/"
         , unparse pitch
         , unparse dur
@@ -192,6 +194,7 @@ empty_note :: T.Note T.Pitch T.NDuration
 empty_note = T.Note
     { note_call = T.Call ""
     , note_pitch = empty_pitch
+    , note_zero_duration = False
     , note_duration = empty_duration
     , note_pos = T.Pos 0
     }

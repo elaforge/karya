@@ -5030,6 +5030,20 @@ text score: tscore:
         duration.
       . It would be carried separately, but then how do I turn it off?  Maybe
         I just need inline directives.
+      . For percussion, I could do it for the whole block, but e.g. zero dur
+        for damp should be per-note.  So maybe a whole-block directive, and
+        then a per-note annotation that doesn't carry?
+      . Maybe bare ':': 4s:.  Then I don't need to add another non-pitch char.
+        No, then it's ambiguous with duration.  Maybe _?  4s_.
+      . On the other hand, if I want mute, can't I just do a mute/4s kind of
+        thing?  I treat zero-dur as notation in tracklang because it looks
+        nice, but maybe that's not so relevant in tscore.  On the other hand,
+        it generates tracklang, so it should generate normal looking tracklang.
+      . Also there is notation where non-zero dur is the exception, e.g.
+        mridangam.  I want to write "n d p6/6".  Or maybe I want strokes to
+        give a CallDuration of 0?  Then I can do "n0 d p6" and it just works.
+      . So put this on hold now, deal with it if I'm actually writing such
+        parts.
   rhythm check:
     * I'll need a Directive for meter
     * combine ties

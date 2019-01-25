@@ -416,8 +416,12 @@ make_track_id block_id tracknum is_pitch =
     (ns, ident) = Id.un_id $ Id.unpack_id block_id
 
 note_event :: T.Time -> T.Note (Maybe Text) T.Time -> Event.Event
-note_event start (T.Note (T.Call call) _pitch dur _pos) =
-    add_stack $ Event.event (track_time start) (track_time dur) call
+note_event start note = add_stack $
+    Event.event (track_time start)
+        (if T.note_zero_duration note then 0
+            else track_time (T.note_duration note))
+        call
+    where T.Call call = T.note_call note
 
 pitch_event :: (T.Time, Text) -> Event.Event
 pitch_event (start, pitch) = add_stack $ Event.event (track_time start) 0 pitch

@@ -56,7 +56,13 @@ test_preprocess = do
     let f = map (fmap (strip_note . snd)) . process config
             . Check.preprocess config . parse
         config = Check.default_config { Check.config_default_call = True }
-        note call pitch = T.Note (T.Call call) pitch 1 (T.Pos 0)
+        note call pitch = T.Note
+            { note_call = T.Call call
+            , note_pitch = pitch
+            , note_zero_duration = False
+            , note_duration = 1
+            , note_pos = T.Pos 0
+            }
     equal (f "a b") [Right (note "a" Nothing), Right (note "b" Nothing)]
     equal (f "a/s c")
         [ Right (note "a" (Just "4s"))

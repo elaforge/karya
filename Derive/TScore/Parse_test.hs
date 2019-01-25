@@ -145,8 +145,13 @@ no_pos = T.Pos 0
 
 token :: Text -> T.Octave -> Text -> T.NDuration
     -> T.Token T.Pitch T.NDuration T.Duration
-token call oct pitch dur = T.TNote no_pos $
-    T.Note (T.Call call) (T.Pitch oct pitch) dur no_pos
+token call oct pitch dur = T.TNote no_pos $ T.Note
+    { note_call = T.Call call
+    , note_pitch = T.Pitch oct pitch
+    , note_zero_duration = False
+    , note_duration = dur
+    , note_pos = no_pos
+    }
 
 parse :: Parse.Parser a -> Text -> Either String a
 parse = Parse.parse_text

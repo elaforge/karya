@@ -100,12 +100,16 @@ newtype Barline = Barline Rank
 data Note pitch dur = Note {
     note_call :: !Call
     , note_pitch :: !pitch
+    -- | The generated event should have 0 duration.  TODO there's no syntax
+    -- for this yet.
+    , note_zero_duration :: !Bool
     , note_duration :: !dur
     , note_pos :: !Pos
     } deriving (Eq, Show)
 
 instance (Pretty pitch, Pretty dur) => Pretty (Note pitch dur) where
-    pretty (Note call pitch dur _pos) = pretty (call, pitch, dur)
+    pretty (Note call pitch zero_dur dur _pos) =
+        pretty (call, pitch, zero_dur, dur)
 
 newtype Call = Call Text
     deriving (Eq, Show, Pretty, String.IsString)
