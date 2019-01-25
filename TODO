@@ -26,28 +26,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  * Instead of having instrument allocations store settings directly and copy
-    from the patch defaults, store only differences and fall through to the
-    patch defaults.  Otherwise, all scores break if I change patch flags, or
-    environ, or patch scale.
-    . It's Common.Config and maybe Midi.Patch.Config.
-    . Comprises: environ, then flags, scale, decay, pb_range
-      So environ and flags become Maybe.
-    . I can get rid of MidiInst.merge_defaults
-    . I still want to merge though, so I don't have to look up the patch and
-      merge every time.  But I want to do it when I load the score, not when
-      I allocate the instrument.
-    . This would go in Cmd.Save.upgrade_state.
-    . It seems cleaner to put the merged alloc in Cmd state, since it's just
-      a cache.  In fact, I already do some merging in Cmd.resolve_instrument,
-      I can do the merge there, and try to cache the whole thing if it seems
-      too expensive.
-    . Why does LInst.list after LAlloc.kebyar show scale?
-      Because it's not part of the patch, it's in the allocations!  I guess
-      this is appropriate if I want the same sample set to accommodate
-      different tunings, since it's already retuned.  But I should use
-      LTuning.nrpn to tune on startup.  But I still want to avoid embedding
-      the scale in the alloc!
+  - use LTuning.nrpn for gong-kebyar patch and allocations
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
       a playable instrument.
@@ -78,10 +57,6 @@ UNSORTED
       memory, and run out of disk space.
     . Wait until I'm home, free up disk space, and try again.
       About Mac -> Storage -> Manage to see files sorted by size.
-  * It would be useful to be able to mute a part of a track.
-    . Maybe I could make "muted" be an event attribute?
-    . Or comment them out?  A comment selected cmd?
-  * How about a special text style for --| commented events, like light gray?
   - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
     I can put another monad on top.
     . I think I only switched to Ui.M because it was awkward pre-AMP.
@@ -94,15 +69,6 @@ UNSORTED
       in TScore.  I should refactor on the integration stuff to account for
       all the variants in a less ad-hoc way.
     . Wait actually tscore shouldn't use TrackId.
-  * dummy allocations should be able to get cmds and defaults from dummy insts
-    . I could make a separate DummyInst like MidiInst, but it seems like
-      a hassle.  Instead just have them be MIDI/Im insts, and just pull the
-      Common.Common.
-  * move Triggered flag to Common
-  * move Midi.Patch.patch_call_map to Common
-  * Instead of using symlinks into the app dir, have a configurable data dir,
-    and make everything relative to that.
-    . Root is Config.app_dir
   / sometimes I want to see the control curve without event text in the way
     . E.g. when reading wayang patterns.
     . Maybe I just need to learn to read better.
@@ -1370,131 +1336,18 @@ synth: im:
       hardcoded to 'sampler -> faust' or just 'faust'.
     . I'd need some routing so I can get signals to those processors.
   bug:
-    * why does changing dynamic track previous chunks to rerender?
-      . Probably because hash includes the whole signal.
-      . Since I know dyn is only used initially, I can simplify the dyn signal
-        to a constant.
-      . Hash Sample instead of Note.
-    * crash on mridangam:
-      . run build/opt/sampler-im \
-          im/notes/save/test/im-mridangam/untitled/b1/sampler \
-          im/cache/save/test/im-mridangam/untitled/b1/
-      . **** Synth/Sampler/SamplerIm.hs:169 - m: writing
-        im/cache/save/test/im-mridangam/untitled/b1/m:
-        Util/Audio/File.hs:72: assertion: tried to seek to 30058 in
-        "data/sampler/mridangam-d/Thom/24-30-35-95-99-thom.wav",
-        but it only has 26335
-      . Surely due to the resume, perhaps getting the state with the wrong
-        sample.
-      . > "mridangam-d/Thom/24-30-35-95-99-thom.wav":30058f
-          "mridangam-d/Thom/24-30-35-104-107-thom.wav":20011f
-          "mridangam-d/Thom/24-30-35-90-94-thom.wav":40058f
-      . (7.5s, .6s, Signal.constant 1.005, Right "24-30-35-95-99-thom.wav")
-      . So it's .5s in, * 1.005, which doesn't make 26335 big enough.
-      . Hmm, these are 48k samples, I wonder if that is it.
-      . But I get frame offset from sndfile directly?
-    * If I delete notes from 0t--8t in bug-im-reyong:
-      . writing im/cache/test/im-reyong/untitled/b3/r: Util/Audio/File.hs:181:
-        assertion: expected size 352800 but got [5000, 5000, 352800]
-      . It comes from File.writeCheckpoints, so upstream added some chunks and
-        didn't re-sync.
-      . There's just one note and it has a ratio, so it looks like Resample
-        didn't synchronize to _now properly.
-      . Actually it does, the note starts on a checkpoint, so where doe the
-        extra [5000, 5000] come from?
-    * OSC play seems to not work when play is going, or for a while after
-      . Synth/play_cache/Osc.cc:100 play:
-          /Users/elaforge/src/seq/data/sampler/reyong/48-65-108-open+v1.flac
-          ratio:1.04911 vol:1
-        Synth/play_cache/Sample.cc:171
-          /Users/elaforge/src/seq/data/sampler/reyong/48-65-108-open+v1.flac + 0
-      . I think the Streamer protocol is messy, since 'ready' is in stream()
-        to notify about space for more samples, and also in streamLoop() to
-        wait for a ::start().
-    - Assertion failed: (size == psrc->private_data_size), function
-      src_put_state, file src/samplerate.c, line 112.
-      . Ah, it's because I switched quality.  I should be able to detect that.
-      . But shouldn't it have gotten a different fingerprint?
     - I think I crashed the DAW, but it seems to be uncommon?
-    * disable track is not working now
-      . I think it just skips that instrument, and hence never clears out its
-        symlinks.
-      . Why did it work before?  Probably because it was the same instrument.
-    / Shift-play plays im cache even when the instruments are gone, but not
-      enter-play?
-      . Properly I should clear out the cache when instruments go away, but
-        meanwhile I should be noticing that there are no im events and not
-        starting play_cache.
-      . Proper MIDI fallback would also fix this.
-    * play cache doesn't like my samples:
-      . Synth/play_cache/Sample.cc:91
-        /Users/elaforge/src/seq/main/
-          im/cache/test/im-wayang/untitled/b3/pemade-s/000.wav:
-        Error. Bad format field in SF_INFO struct when opening a RAW file for
-        read.
-      . It's AUtil.outputFormat, what's the problem?
-      . It doesn't happen when I run by myself, maybe it's threads?  Could
-        I be using a static data structure?
-      . It thinks it's RAW, but it's not, maybe I have to fill in SF_INFO
-        first.
   progress:
-    * progress doesn't work for derived instruments
-      . Because it's for >ra-i and >ra-u, but I just have >ra.
-        . Perf.infer_instrument, uses EnvKey.instrument
-      . I need it to be in PlayC.get_im_instrument_tracks so it gets grayed.
-      . Then Perf.tracks_of_instrument needs to map >ra-i to >ra.
-      . Why not use TrackId directly?  The whole thing of using instrument
-        seems problematic.
-      . Or at least establish an explicit Instrument -> [TrackId] mapping
-        based on the actual events.
-      . But am I sure TrackId is enough?  Which one?  It will be paired with
-        RealTime, and then I only use it for the toplevel derivation.  So
-        I think I take the toplevel TrackId.
-      . Then many instruments could have that, so do I need multiple colors?
-        I think I want to make white be the max done, pink be min to max of
-        everyone in progress for that track.
-      . Since there's only one progress per synth run, can't I pass it as an
-        argument?
-      . Wait, that's not true.  The instrument comes from the serialized
-        notes.
-      . The top track is always the tempo track, which is not what I want.
-        But I don't want the bottom either, because it might not be on the
-        right block.  What I want is the bottom track on the block being
-        rendered.
     - Should I use Config.busy_color?  It's the box color for Msg.Deriving.
       . The correspondence isn't obvious, and the color looks different anyway
         due to being transparent.
-    * show where an error occured
-      . There will be a Error level log msg, and progress won't complete.
-      . So I need to check for one of those, forward to the karya log,
-        and put an error selection on the place where it crashed.
-    * I have to show (block, inst).
-    . Parse output to display render progress, mark "done" and "in progress"
-      in the track background color.
-    . More fancy, I could render the wave in the background as it renders.
+    - More fancy, I could render the wave in the background as it renders.
       I'd need to research "peaks" file and generate one of those along with
       the audio.
       . Audacity does that, but are there any smaller simpler audio displays
         I can use for reference?
       . https://github.com/rncbc/qtractor/blob/master/src/qtractorAudioPeak.h
-    * This means karya needs to watch stdout, so Process.multipleSupervised
-      needs to capture stdout.
-      . Also it can serialize output, so concurrent subprocesses don't jumble.
-    * map from subprocess back to (BlockId, TrackId)
-      . Subprocess run with the path to the notes file, which is
-        im/notes/$scorePath/$scoreFname/$namespace/$block/$synth
-      . I need to go $block/$synth -> (BlockId, TrackId)
-      . I can use the same way solo goes from TrackId -> Instrument -> Synth.
-        Or just keep track of the source tracks for this synth.
-      . Perf.infer_muted_instruments
-      . InverseTempoMap ends when the notes end.  This is on purpose, so the
-        playback stops.  But I need it to keep going because note decay does.
-    * implement track progress colors
-      . Use "raw selections" as does Sync.set_highlights
-      . on ImStarted, set all im inst tracks to in-progress color, clear as
-        I get ImProgress, clear all on ImComplete
   cleanup:
-    * replace Resample.resampleBy with resampleBy2
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control
@@ -1507,12 +1360,6 @@ synth: im:
     - Also move callers from Score to ScoreTypes.  Can I give it a shorter
       name?  Base types modules should have short names.
   overview:
-    * Cmd.Performance will serialize im notes and start the binary.
-    * sampler-im or faust-im will read the notes and render wav files for each
-      instrument.
-    * Cmd.Play.from_realtime can emit the im protocol from Perform.Im.Play,
-      which will mix together the unmuted instruments, starting at the given
-      time.
     + incremental rendering:
       . Overview: Karya has to emit damage ranges, and the synth has to
         rerender just those sections.  The cache becomes a sequence of wav
@@ -1698,58 +1545,7 @@ synth: im:
       . Or I can delete everything with mtime >1hr ago and no symlinks.
     - Restart skipping chunks if the state converges again.
       . How likely is this to happen?
-    faust:
-      either:
-        / Generalize Audio to AudioState, which streams (Chunk, a).
-          . I can lift audio transformers via 'first'.
-          . Actually, it's NAudio that needs that.  But then I interleave to
-            Audio, so do they both need it?  Bother!
-      or:
-        * Pass an IO action to each function to update a State with the
-          current state.
-          . writeCheckpoints can then look at it after getting a chunk for the
-            current states.
-          . I don't have to send a signal because if getting state is
-            copy-free I can just do it on every chunk.
   preview: midi thru:
-    . Get the Sampler.Patch, run its convert function, then send it to
-      play_cache.  play_cache only needs use filename, ratio, vol.
-      . I can use OSC: /start/path/to/sample <ratio> <vol>
-        Abort a sample on space: /stop
-      . The advantage is that I can use liblo for C++, and some haskell
-        library for karya.
-      Implement with ignoring ratio, just stream the sample.
-        . I should be able to reuse Streamer.
-        . Start a separate thread, which listens on an OSC socket, creates
-          a Streamer, and has it start streaming.
-        . The main process() also mixes in any output from the realtime
-          Streamer.
-        . Since it's realtime, I don't want to keep track of debt in read(),
-          I just want to get samples as soon as they arrive.
-        . Also I play a file, not a directory, and I need to apply volume and
-          ratio.
-        * plug into PlayCache
-      * I need a "MIDI" thru which takes Input.Note, runs the patch convert,
-        and sends OSC.
-      * Add support for ratio.  libsamplerate with a cheap quality should be
-        able to do realtime.
-        . I need to do the resampling in the streamer thread.
-        . Rename Sample to Audio or Stream
-        . I think I can change Streamer to take an abstract Audio in start(),
-          then make Mix into an Audio.  Then I can get rid of synchronized.
-        . Mix becomes Tracks, since it mixes tracks, and deals with the
-          directory structure.
-        . Now make a Resample : Audio, and
-          . Osc: Resample(ratio, SampleFile(fname))
-          . PlayCache: Tracks(dir, mutes), Track hardcodes SampleDirectory
-        . But I still need to call Streamer::start with no allocation.  How it
-          does that currently is dir and mutes are statically allocated and
-          just assigned on start().  The the actual initialization is delayed
-          until streamLoop(), which is non-realtime.  The pattern is pass
-          constructor and arguments, and call it in streamLoop.
-        . I could emulate that with a separate initialiaze method.  I can't
-          think of how to get it to work though.
-        . Alternately, use Streamer subclasses.
     - why two "streamLoop wait" after samples run out?
     overview:
       . Im instruments should have a midi thru-like preview sound.
@@ -1876,8 +1672,6 @@ synth: im:
       . Or why not just use faust integration?  I think it has the same
         algorithm?
   play_cache: PlayCache:
-    * OSC space should also stop any tracks streaming.
-      . But I already stop on AllNotesOff, why doesn't that get sent now?
     - What about writing play_cache in rust?  Just for fun I guess, though if
       it gains semi-sampler features then I'll wind up with more logic.  But
       I do need to bind to libsamplerate and libsndfile.
@@ -1904,71 +1698,6 @@ synth: im:
   sampler: sampler-im:
     bug:
       - after a play speed change, I get some of the old render after the end.
-      * im not affected by play speed, it should rerender
-        . Play speed is just a way to easily set tempo, taking advantage of the
-          fact that it's efficient for MIDI.  I guess it could fall back on
-          tempo if it detects an im track.
-        . But it's different in that the tempo change is invisible to the
-          usual ScoreTime / RealTime thing.
-        . I can multiply times of notes in Perform.Im.Convert.
-        * I also want play speed to go back to 1 exactly, maybe round if it's
-          close.
-      * resume crash when going from resample to no-resample:
-        . expected no state for un-resampled, got ((SavedState ...))
-        . I think it skipped the first chunk, but shouldn't have, because the
-          pitch changed.
-        . 000.ms4TXA.AAAAAA.state.ZgMklw
-          000.ms4TXA.AAAAAA.wav
-        . The note hash is indeed ms4TXA.  But the state should be empty,
-          since they both have constant 1 ratio.
-        . So how did that file get there?
-        . The audio is from 3i.
-        . Also hashes to 0s--4s: ms4TXA [a1GSqg, nPVpCQ]!
-        . Other is:      0s--4s: ms4TXA [HkX3Sg, 6eEM6Q]
-        . Why different hashes sum to the same?
-          0s--4s: ms4TXA [HkX3Sg, 6eEM6Q] (1544801946: [1257719070, 3909935593])
-          0s--4s: ms4TXA [a1GSqg, nPVpCQ] (1544801946: [2861715819, 157939100])
-        . Apparently these just collide!?
-          2861715819 + 157939100 = 1544801946
-          1257719070 + 3909935593 = 1544801946
-      * yet another resume crash:
-        . pemade-p: writing b5/pemade-p: Synth/Sampler/Render.hs:193: assertion:
-          at 352800f: len states 6 /= len notes 1:
-          [Nothing, Nothing, Nothing, Nothing, Nothing, Nothing] /=
-          [(7.75s, .4s, Signal.constant 1, Right "76-65-108-open1.flac")]
-        . After deleting a note.  Adding note will also do it.
-        . 1 seems right at 8s, why did I get 6?
-      * when editing reyong:
-        . run build/opt/sampler-im im/notes/test/im-reyong/untitled/b2/sampler
-        . at 176400f: len states 7 /= len notes 10:
-        . It means last time there were 7 notes at 4s, but after the skip
-          I now have 10 notes there.
-        . I have to look after preproc and fix duration.
-        . This is when starting samples, so I should be able to see what
-          are the 10 samples starting at 4.
-        * overlappingNotes was buggy, but now I get:
-          len states 7 /= len notes 6
-          [ (.75s, 6.08s, Right "64-65-108-open+v1.flac")
-          , (1.25s, 6.08s, Right "64-65-108-open+v1.flac")
-          , (1.75s, 3.15s, Right "62-65-108-open+v1.flac")
-          , (2.25s, 4.34s, Right "72-65-108-open+v1.flac")
-          , (2.75s, 6.08s, Right "64-65-108-open+v1.flac")
-          , (3s, 2.71s, Right "69-65-108-open+v1.flac")
-          ]
-        * fixed bugs, dropped too many notes, and backwards logic on putState
-        * now I get: "Internal psf_fseek() failed."
-          . This is from libsndfile, reading the flac.
-          . Because I wanted to seek to 176400, but the file has only 171257.
-          . Why did I do that?
-          . I think the sample has dur 177297 (4.02s), but the file has
-            171257 (3.88s).
-          . It's because ratio=1.035264923841376.  So I need to add to sample
-            start offset by the pre-ratio amount.
-          . 176400 / ratio = 170391, which is < 171257.
-          . But for a non-constant ratio, I think I have to map through the
-            inverse of that integral.
-          . This sounds really complicated, so how about I just store the
-            frame offset in the serialized state?
     Non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict
@@ -2049,48 +1778,18 @@ synth: im:
       - Sample should stream the envelope.
       - RenderSample.applyEnvelope should be able to check for constant within
         the sample's duration.
-      * Efficiently skip long silent gaps.
+      - Efficiently skip long silent gaps.
         . To avoid writing empty checkpoints, I could link to a canonical
           empty sample.
         . Or it might be better to make a broken link, and have play_cache
           know to skip those, that way it doesn't have to read a file.
         . Link to "<silence>" or something to imply it's broken on purpose.
-        . I think I do this now, thanks to Audio.silence2.
-      / If the sampler is cheaper overall, maybe I should use larger chunk
-        size?  Of course, my current faust instruments are really cheap too.
+        . I already do this at the synthesis level, due to Audio.silence2, but
+          I still write a file.
       - if libsamplerate could handle the pitch curve directly, I wouldn't
         have to resample in Convert.makeSample, and it could be per-sample.
         . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
           have it take nn to nn breakpoints, and do that calculation internally.
-    * I'm still getting crashes plus garbage output.
-      * Also: sampler-im: 005.wav: removeLink: does not exist
-        But it's still there?
-      . build/opt/sampler-im im/notes/test/im-reyong/untitled/b3/sampler
-      . I think it segfaults but I don't see the msg?
-        Util/Process.hs:86 process failed: 1: build/opt/sampler-im im/
-      . To reproduce, I should be able to preserve inputs.  The notes are the
-        same, but the output cache changes.
-      . Though it doesn't get deleted, so I just need to know which are the
-        new files, and delete them.
-      . I also need the old link destinations.  Or not?  It doesn't read them,
-        so they shouldn't matter.
-      . I think the skipped msg gives me that:
-        . r: skipped ["000.Tp9XUw.AAAAAA.wav", "001.yX0pZw.JpdE-g.wav"],
-          resume at [(2, N0DIJA)] state: uZayLg start: 8s
-        . *    Synth/Sampler/Render.hs:116 - r: voices: 6 time: 12s
-      . Yes, this repros:
-        rm im/cache/test/im-reyong/untitled/b3/r/cache/*.N0DIJA.*
-      . Long hang after skip msg.  Generated 002.wav 003.wav are noise.
-      . Why are states all different sizes?  Shouldn't they be according to
-        the resample quality?
-      . They are, each one is 716k, but there's one per voice.  So 6 voices
-        = 4.2mb
-      . The output state should be deterministic, but I think it varies each
-        time.  So something is going wrong, probably in struct save / restore.
-    / ok it doesn't crash now, but reyong when resumed gets an artifact
-      . does it happen with Linear?
-      . Maybe?  It's hard to tell, but it's on the attack, not after.
-      . Or maybe it doesn't.
     - support Control.volume
       . Currently dynamic is exactly the same though, so I just multiply them.
       . Will dynamic ever be different?  Only if I implement filters and
@@ -2100,12 +1799,8 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     kendang-legong:
-      * implement
-      * add pasang
-        . This is a dummy instrument, how can I put that in PatchDb?  It would
-          have a _karyaInstrument, but nothing else.
-      - Ok that's done, but I think thru won't work with it.  MidiThru does
-        an eval, I should do the same for im thru.
+      - Thru doesn't work with pasang.
+        . MidiThru does an eval, I should do the same for im thru.
         . The im version of that is eval to Score.Event, then convert.  Don't
           I already have to do that though?
         . No, it directly gets pitch, dynamic, attrs and makes a new Note for
@@ -2222,22 +1917,11 @@ synth: im:
         . I need to be able to explicitly assign variations to do it from
           karya.
         . I can do it by just setting %variation.
-    wayang:
-      * Variable mute, take a mute control where 1 is +mute, .75 is
-        +mute+loose, and <.5 is open note with an envelope.
     rambat:
-      * edit the samples
       - edit and add calung samples
-      * get the tuning right
-      * write patch
-        . I'll need special treatment for short and long notes.
     guzheng:
       . Everything rings except when explicitly muted.
     mridangam:
-      * calibrate dynamics
-      * write patch
-        . implement stop strokes
-      * implement pitch
       * implement variations as a probability range over neighboring velocities
         . Approximate normal distribution: sum (take n randoms) / n
         . normalCumulative mean stddev x =
@@ -2262,10 +1946,6 @@ synth: im:
         . This way I can make use of the cache.
         . This non-interactive pipeline would be the same basis for all text
           score.
-        * Strokes -> Ui.State
-        * Ui.State -> [Score.Event]
-        * [Score.Event] -> write notes
-        * Run sampler-im/faust-im.
         - Cmdline program that can stream and mix ###.wav, and start it as
           soon as I see the first progress msg.
         . Maybe adjust chunk size smaller for lower latency?
@@ -2273,10 +1953,6 @@ synth: im:
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.
 
-    * synchronize tuning of *wayang and sampler wayang
-      . I'll have to update all the wayng scores too.  This notion of
-        per-allocation tuning is a bit annoying because I want to be able
-        to say just use the standard one.
     - bind to rubberband library for pitch change without time change
       . https://breakfastquay.com/rubberband/
       . I'll only really use it if I have, say, mridangam sequences.
@@ -4847,86 +4523,15 @@ Derive:
 text score: tscore:
   . doc/dev_notes/text-score.md
   status:
-    * carry call durations like other durations
-      . I think I want to make this an error unless the current note is also
-        a CallDuration.  Otherwise it's confusing, what with ties and dots.
-    * call duration should support non-tscore calls too
-      - Save logs that come out of the CallDuration query.
-      - Use the title of the current block, so it can pick up imports, e.g.
-        import india.mridangam, for n8.
-    * automatic call duration
-      . add to parser.  Use 0, then I don't have to carve out another symbol
-        from pitch_chars.
-      . I need to resolve duration_mode and CallDuration in parallel before
-        Check.barlines.  They both resolve to (Time, tie).
-      . To resolve, make a memo table Map BlockId Progress, with
-        Unknown | Thinking | Thunk Time.  Thinking is to detect recursion.
-        If it's not in the table, I have to do a derive.
-      . Thinking means I have to thread state all through TScore.  If I look
-        for recursion up-front I could avoid that, and rely on haskell
-        memoization.  Is it possible?
-      . Just do the call duration thing, with threaded state, but with no need
-        to get durations.
-      . Is that really so much better though?  If I can find a place to do
-        that, I can just resolve the durations.  And it's inaccurate: I only
-        care about loops with T.CallDuration on them.
-      . Then it seems I can either thread the state through TScore, or I can
-        break the parsing by doing at least parse and duration resolution
-        together.
-      . Then I need an intermediate Track1 which is Tokens instead of Events.
-      . Maybe just threading the state is not so bad.  But I still need to
-        do the parsing up front, so I know the set of BlockIds.
-    * unmodified events aren't bolded
-      . Because I need to set Config.unmodified_style on events created via
-        integration.
-      . I think the only non-automatic thing in event style is modified, so
-        I could make that a flag.
-      . Ok, now unmodifieds are StyleId 1, but it still doesn't look bold to me.
-      . It isn't, should be 3, but it's 2.
-      . It goes 1 -> 2.
-      . No, it goes 1 -> 3.
-      . No, pitch track goes 1 -> 11 -> 10?
-    * implement basic pipeline
-    * parse directives, give them to Check
-    * convert Check output to Deriver that makes a score
-    * implement integrate
-      . look at Solkattu/Play.hs, use common infrastructure
-      . Also where did the solkattu integrate from dsl go?  LSol?
-      . This creates whole blocks, not just tracks.
-      . For each TrackId, if it exists, merge, otherwise make empty
-        destinations and merge.
-      . I actually don't need SourceKey, since I have BlockIds and TrackIds
-        already.
-      . For each track, get its manual destinations.  Create empty ones that
-        don't exist, and delete ones that are extra.  Then do
-        Merge.merge_tracks block_id [(note, controls)] [dest]
-      . This is actually a block integrate, so it feels repetetive, should I
-        just reimplement it, or try to reuse the block integrate?
-      . Reimplement, because it's easier than the usual block integrate, since
-        I have exact TrackIds.
-      . Well... unless I want to keep diffs even after adding a track in the
-        center.  But then I'll need way to keep track of track identity.
-        Never mind for now.
-      . Same diff thing for BlockIds.
-    * add Cmd.Repl.LTScore with 'edit' function to do the editor thing.
-    * automatically make a view for each new block
-    * also collapse by default
-      - Do it for new tracks on an existing block.
-      - Also adjust block size.
+    - Save logs that come out of the CallDuration query.
+    - Use the title of the current block, so it can pick up imports, e.g.
+      import india.mridangam, for n8.
+    - Collapse new tracks on an existing block.
+    - Also adjust block view size.
       . I should use standard Create functions to do this all automatically.
-    * how can I set instrument?
-    * I get two copies of each track
-      . Because I didn't add empty dests for everything, so it added new ones.
-      - This process is error-prone, where can I document it better?
-    - the final pitch event is misaligned
+    - Manual integrate is error-prone, where can I document it better?
+    - fltk: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
-    * add a ruler, derived from the meter
-      . Make one RulerId per block, and then modify it on each integrate.
-      . I don't have a single abstract meter that I can ask for an arbitrary
-        length.
-      . Meter.LabeledMeter?
-    * does reintegrate not work?  I changed n to s but nothing happened.
-      . It only works to add to the end, not to change things.
   integrate:
     - don't generate TrackIds, let integrate do that
     / put scale in the score
@@ -4938,20 +4543,6 @@ text score: tscore:
   repl:
     - communicate parse errors back to vim to highlight
   parsing:
-    * attach SourcePos to parsed types, so errors can use it
-    * "call | with | spaces"
-      . This goes on TNote.
-      . E.g.: {+pizz | %dyn=.5}/4c1
-      . This will get confused by parens in calls, e.g. legato.
-        Or I could escape with \ or something.
-      . (), [], and {} are nice because vim will highlight the match.
-      . I can fix it by putting <:> in matchpairs, but it probably gets
-        confused by operators.  Still, karya doesn't really use those.
-      . The advantage of brackets is they can be nested, but I don't need to
-        nest this.  What about backticks?  Or the obvious: quotes?  I can't
-        use ' because it's already for strings, but "s are claimed by quotes
-        which maybe I don't need?  Or I could special case "(?
-        "+pizz | %dyn=.5"/4c1
     - embedded parallelism: [track1 // track2]
       . This goes on Score
       . Figure out how this works.  How do I embed a block, e.g.
@@ -4959,63 +4550,7 @@ text score: tscore:
       . The [a b c] becomes a new block, and modifies the call to
         "+a | +b | new-block".  Then [a b c] by itself is shorthand for just
         "new-block".
-    * block and track headers
-      . This goes on Score
-      . Use # block, ## track syntax
-      . Using column-oriented # and ## is awkward with lexeme-oriented
-        parsing.  I think the easiest way to match # in the first column is
-        to match a \n previously, but lexeme will consume the \ns.
-      . It's actually easier to parse with split, maybe I can just
-        initialize the bits with source pos and parse separately.
-      . Using columns is awkward to parse, and maybe too wordy anyway, how
-        about:
-        . block = [ a b c ]
-        . block = [ a b c ; d e f ]
-        . block = [ >someinst: a b c ; control | x: x y z ]
-        . block = [ ">inst | t" ] -- ambigious
-        . block = [ >inst | stuff // ... ]
-        . This means I have to backtrack, but that's ok I think?  Just
-          collect until // or ]?  No, then quotes fool it.
-        . [(>inst | t) a b c // d e f ]
-        . Or maybe I can just use lack of space: [">inst | t" "x y"/4]
-          That kind of thing can be annoying because you can't wrap.
-        . But each track needs a title: ["t1" .. // "t2" ...]
-        . How about the first string is the title, and I can use "" to
-          disambiguate if the note also wants one.
-      . Ok then directives go where?
-        . Scope over definition: block = %directive %directive [ ... ]
-        . Scope over file: %directive %directive xyz = ...
-      . block = %directive "block title" [ ... ]
-
-      . I could use : to separate tracks if I want to use ; for Barline 0.
-      . Or // or even just /?  / is already used to separate calls, so //.
-        Of course I don't expect to see / by itself...
-    * some way to do logical sequence
-      . I could use + duration, but then I need some way to get it before
-        doing barline check.
-    * directives: dur={add,mul}, default-call
-      . For default-call I can almost do it as a postproc, except that
-        I can't use numbers, or anything that doesn't parse as a pitch.
-      . Otherwise I'll need a ReaderT for parse config.
     - directive for basic pulse/matra?
-    * longer durations, e.g. 2/1
-      . This will likely conflict with call/pitch syntax.
-      . I could use dot... except duration already uses dot.  Maybe : by
-        analogy to bars:beats or ratios?
-      . Or use lilypond style *.
-      . Wait, * is no good because I also want <1 for additive.  So back to :.
-        Then I can have both 5:1 and 1:5.  And :0 for 0-dur.
-      . How to handle nadai?  How about akshara:nadai?  In that case
-        resolve_time needs to know the nadai.
-        For multiplicative I don't think it can work without lots of ties.
-      . Ok, so for dur=mult, 2:1 means two whole notes.  For dur=add,
-        2:1 is 2 higher level units and 1 lower level ones, e.g.
-        akshara:matra.
-      . It's awkward to put nadai in the meter, because it can change.  How
-        about, 1 dur is a matra, and you can how long 1 dur is with :?  So
-        1:4 is chatusram, 1:6 is tisram, etc.  Effectively it's int1 * 1/int2.
-      . For this to be useful I have to carry the int2 separately, which means
-        I guess I need to move carry out of carry_duration.
     - Just akshara:matra isn't necessarily good enough because what about
       1/2 matra etc?  mult is apporpriate at this.
       . I could make : into a list, so e.g. akshara:dur:denom.  Or I could
@@ -5045,49 +4580,37 @@ text score: tscore:
       . So put this on hold now, deal with it if I'm actually writing such
         parts.
   rhythm check:
-    * I'll need a Directive for meter
-    * combine ties
-    * check for additive
-    * check for multiplicative
-    proportional:
+    proportional durations:
       . I think this is like add, but everything has the same duration, and ~
         continues the note.
-    mark:
+    mark durations ala gongche:
       . This replaces barline check with setting the durations.
   pitch check:
-    * put name in Scale so I can give it a Show, so Config can be in Show
-    * carry pitch from prev
-    * infer octaves
-      . absolute octave carries over
-      . no octave means pick the shortest distance
     - put resolve_pitch before resolve_time
       . This way ties work with inferred pitches.
       . Then I have to plumb through TBarline etc. which is annoying.
-  * accidentals for pitch
-    . I think I just need to support *twelve and *twelve-r?
-    . Enharmonics make it not quite the same, since I use pitch difference.
-      I need a full Pitch.Pitch, and a layout etc.
-  . Time problems:
+  Time problems:
     . I want to say "repeat n times".
     . I want sections with their own tempo, and then the caller just sequences
       them.  If I turn the whole thing into one call, then I can still fit it
       into a global timeline, and apply transformations or tempo there.
     . If there is meter information in the text score, I can derive a ruler.
-  . I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
-    have per_octave built-in, but I could still use Int for generic cases.
-  . Rhythmic framework: in the solkattu branch I extracted the rhythmic DSL
-    to 'Note a | TempoChange (Speed | Nadai)' and I have have generic
-    functions to get durations and check tala alignment using matras, and
-    flatten to (Time Ratio, a).
-  . This winds up being more general than haskore, but probably less general
-    than music-suite.  It looks like 'temporal-media' is analogous, though
-    with arbitrary time shift/stretch, and events have duration.  Also since
-    it uses (start, dur, note) events, it doesn't need rests, and can do
-    overlapping events.
-  . Henning Thielemann's LiveSequencer highlights score as it plays:
-    https://hackage.haskell.org/package/live-sequencer-0.0.6
-    . He does it with a custom gui widget and language, but I wonder if
-      I could do this with by sending highlighting info in real time to vim?
+  notes:
+    . I could generalize Pitch.Pitch to 'Pitch pc'.  Then Bounded types would
+      have per_octave built-in, but I could still use Int for generic cases.
+    . Rhythmic framework: in the solkattu branch I extracted the rhythmic DSL
+      to 'Note a | TempoChange (Speed | Nadai)' and I have have generic
+      functions to get durations and check tala alignment using matras, and
+      flatten to (Time Ratio, a).
+    . This winds up being more general than haskore, but probably less general
+      than music-suite.  It looks like 'temporal-media' is analogous, though
+      with arbitrary time shift/stretch, and events have duration.  Also since
+      it uses (start, dur, note) events, it doesn't need rests, and can do
+      overlapping events.
+    . Henning Thielemann's LiveSequencer highlights score as it plays:
+      https://hackage.haskell.org/package/live-sequencer-0.0.6
+      . He does it with a custom gui widget and language, but I wonder if
+        I could do this with by sending highlighting info in real time to vim?
 
 pitch: scales: scale:
   - non octave equal temperaments, e.g. 12ed5

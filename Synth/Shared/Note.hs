@@ -126,7 +126,9 @@ notesMagic = Serialize.Magic 'n' 'o' 't' 'e'
 
 -- | The Hash is the MD5 digest of the note.
 --
--- I used to use CRC32, but got a collision right away.
+-- I used to use CRC32, but got a collision right away:
+-- > 2861715819 & 157939100 = 1544801946
+-- > 1257719070 & 3909935593 = 1544801946
 newtype Hash = Hash ByteString.ByteString
     deriving (Show, Eq, Ord, Serialize.Serialize)
 
