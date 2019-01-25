@@ -53,7 +53,7 @@ instance Element a => Element (T.Pos, a) where
     unparse = unparse . snd
 
 instance Element T.Score where
-    parse = p_whitespace False *> (T.Score <$> P.many (lexeme parse))
+    parse = p_whitespace *> (T.Score <$> P.many (lexeme parse))
     unparse (T.Score toplevels) = Text.unlines (map unparse toplevels)
 
 instance Element T.Toplevel where
@@ -94,7 +94,7 @@ default_namespace = Id.namespace "tscore"
 
 instance Element T.Tracks where
     parse = fmap T.Tracks $
-        keyword "[" *> P.sepBy1 parse (keyword "//") <* keyword "]"
+        keyword "[" *> P.sepBy1 (lexeme parse) (keyword "//") <* keyword "]"
     unparse (T.Tracks tracks) = Text.unwords $
         "[" : List.intersperse "//" (map unparse tracks) ++ ["]"]
 
@@ -130,8 +130,8 @@ instance Element T.Directive where
 
 instance Element (T.Token T.Pitch T.NDuration T.Duration) where
     parse = T.TBarline <$> get_pos <*> parse
-        <|> T.TNote <$> get_pos <*> parse
         <|> T.TRest <$> get_pos <*> parse
+        <|> T.TNote <$> get_pos <*> parse
     unparse (T.TBarline _ bar) = unparse bar
     unparse (T.TNote _ note) = unparse note
     unparse (T.TRest _ rest) = unparse rest
@@ -221,13 +221,13 @@ instance Element T.Call where
 
 p_string :: Parser Text
 p_string = fmap mconcat $ P.between (P.char '"') (P.char '"') $
-    P.many (P.try (P.string "\"(") <|> (Text.singleton <$> P.satisfy (/='"')))
+    P.many $ P.try (P.string "\"(") <|> (Text.singleton <$> P.satisfy (/='"'))
 
 un_string :: Text -> Text
 un_string str = "\"" <> str <> "\""
 
 instance Element (T.Rest T.Duration) where
-    -- TODO I could possibly forbid ~ tie for rests, but I don't see why
+    -- I could possibly forbid ~ tie for rests, but I don't see why
     parse = T.Rest <$> (P.char '_' *> parse)
     unparse (T.Rest dur) = "_" <> unparse dur
 
@@ -235,11 +235,19 @@ call_char :: Char -> Bool
 call_char c = c `notElem` [' ', '/']
 
 pitch_char :: Char -> Bool
-pitch_char c = c `notElem` (" \n-,'~./]_:" :: [Char]) && not (Char.isDigit c)
-    -- TODO this breaks modularity because I have to just know all the
-    -- syntax that could come after, which is Duration, end of Tracks, Rest.
-    -- But the more I can get into Pitch, the more I can get into Call without
-    -- needing ""s.
+pitch_char c = c `notElem` exclude && not (Char.isDigit c)
+    where
+    -- This breaks modularity because I have to just know all the syntax that
+    -- could come after, which is Duration, end of Tracks, Rest.  But the more
+    -- I can get into Pitch, the more I can get into Call without needing ""s.
+    exclude :: [Char]
+    exclude =
+        [ ' ', '\n', '\t'
+        , '~', '.' -- pitch is followed by T.NDuration
+        , ':' -- T.Duration
+        , '/' -- Don't mistake the T.Tracks separator for a note.
+        , ']' -- end of T.Tracks
+        ]
 
 -- ** Pitch
 
@@ -280,10 +288,10 @@ instance Element T.Duration where
 
 -- ** util
 
-p_whitespace :: Bool -> Parser ()
-p_whitespace required = do
-    if required then P.eof <|> P.space1 else P.space
-    P.option () $ do
+p_whitespace :: Parser ()
+p_whitespace = void $ P.many $ P.space1 <|> p_comment
+    where
+    p_comment = do
         P.string "--"
         P.takeWhileP Nothing (/='\n')
         P.option () (void $ P.char '\n')
@@ -292,7 +300,7 @@ p_space :: Parser ()
 p_space = void $ P.takeWhile1P Nothing (==' ')
 
 lexeme :: Parser a -> Parser a
-lexeme = (<* p_whitespace False)
+lexeme = (<* p_whitespace)
 
 keyword :: Text -> Parser ()
 keyword str = void $ lexeme (P.string str)
