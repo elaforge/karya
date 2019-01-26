@@ -303,7 +303,7 @@ type ScoreTrackPair = (Maybe (TrackId, Events.Events), Either TrackNum Dest)
 type Dest = (TrackId, Block.EventIndex)
 
 {- | Match up new tracks and integrated tracks so I know who to diff against
-    whom.  This is called once for each integrate source track.
+    whom.  This is called once for each integrate source block.
 
     Note tracks are simply zipped up, so if a note track is added at the
     beginning it will look like everything changed and the diff won't work
@@ -349,6 +349,8 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
     is_valid (Nothing, Left _) = False
     is_valid _ = True
 
+-- | Pair up the controls based on the track title, which should be the control
+-- name.
 pair_destination :: (Convert.Track, [Convert.Track]) -> Block.NoteDestination
     -> [Seq.Paired Convert.Track (TrackId, Block.EventIndex)]
 pair_destination (note, controls)

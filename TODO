@@ -6,7 +6,7 @@ LEGEND
 STATUS
   . synth: status:
   . infer gender damping:
-  . text score:
+  . text score: tscore:
   - make kendang sampler instrument
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
@@ -4523,6 +4523,7 @@ Derive:
 text score: tscore:
   . doc/dev_notes/text-score.md
   status:
+    - How to do repeats?
     - Save logs that come out of the CallDuration query.
     - Use the title of the current block, so it can pick up imports, e.g.
       import india.mridangam, for n8.
@@ -4533,7 +4534,8 @@ text score: tscore:
     - fltk: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
   integrate:
-    - don't generate TrackIds, let integrate do that
+    * don't generate TrackIds, let integrate do that
+      . Ok, but merge wants empty NoteDestinations, or it makes new tracks.
     / put scale in the score
       . Or maybe not?  I don't want to clutter each block with one, but if I'm
         integrating I can't go mess with UiConfig.ky.  And in any case, maybe

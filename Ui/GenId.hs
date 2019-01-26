@@ -28,7 +28,7 @@ block_id maybe_parent = do
         =<< Ui.gets Ui.state_blocks
 
 track_id :: Ui.M m => BlockId -> m Id.Id
-track_id block_id = require_id "track id" . generate_track_id block_id "t"
+track_id block_id = require_id "track id" . generate_track_id block_id
     =<< Ui.gets Ui.state_tracks
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
@@ -43,9 +43,9 @@ generate_block_id maybe_parent ns blocks =
     generate_id ns parent "b" Id.BlockId blocks
     where parent = maybe (Id.global "") Id.unpack_id maybe_parent
 
-generate_track_id :: BlockId -> Text -> Map TrackId _a -> Maybe Id.Id
-generate_track_id bid code tracks =
-    generate_id (Id.id_namespace ident) ident code Id.TrackId tracks
+generate_track_id :: BlockId -> Map TrackId _a -> Maybe Id.Id
+generate_track_id bid tracks =
+    generate_id (Id.id_namespace ident) ident "t" Id.TrackId tracks
     where ident = Id.unpack_id bid
 
 generate_id :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
@@ -53,6 +53,11 @@ generate_id :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
 generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates
     where candidates = ids_for ns (Id.id_name parent_id) code
+
+-- | Guess a TrackId generated from GenId.  Useful for tests.
+track_id_at :: BlockId -> TrackNum -> TrackId
+track_id_at bid tracknum = Id.TrackId $ id_at ns ident "t" tracknum
+    where (ns, ident) = Id.un_id $ Id.unpack_id bid
 
 -- | IDs are numbered, and they start at 1 instead of 0.
 --
@@ -63,8 +68,11 @@ generate_id ns parent_id code typ fm =
 -- for testing and only for TrackIds, I start everything at 1 just for
 -- consistency.
 ids_for :: Id.Namespace -> Text -> Text -> [Id.Id]
-ids_for ns parent code =
-    [Id.id ns (dotted parent <> code <> showt n) | n <- [1..]]
+ids_for ns parent code = map (id_at ns parent code) [1..]
+
+id_at :: Id.Namespace -> Text -> Text -> Int -> Id.Id
+id_at ns parent code n =
+    Id.id ns (dotted parent <> code <> showt n)
     where dotted s = if Text.null s then "" else s <> "."
 
 require_id :: Ui.M m => Text -> Maybe a -> m a

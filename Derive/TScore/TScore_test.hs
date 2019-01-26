@@ -11,6 +11,7 @@ import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.GenId as GenId
 import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
@@ -106,15 +107,17 @@ test_integrate = do
             ]
           )
         ]
+
+    -- Make sure style and ruler are as expected.
     equal (map (map Event.style) (e_events state)) $ map (map Style.StyleId)
         [ [1, 1, 1]
         , [1, 1, 1]
         ]
-
     let [(_rid, marks)] = UiTest.extract_rulers state
     equal (filter (is_integral . fst) (e_marks marks))
         [(0, "1"), (1, "2"), (2, "3"), (3, "4")]
-    let tid = TScore.make_track_id (UiTest.bid "tscore/top") 1 True
+
+    let tid = GenId.track_id_at (UiTest.bid "tscore/top") 2
     state <- return $ expect_right $ Ui.exec state $ do
         Ui.insert_event tid (Event.event 1 0 "5p")
         TScore.integrate get_ext_dur "top = \"block title\" [s r s]"

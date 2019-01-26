@@ -11,7 +11,6 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -37,6 +36,7 @@ import qualified Derive.TScore.T as T
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
@@ -64,13 +64,9 @@ data NTrack = NTrack {
 type Token = T.Token T.Pitch T.NDuration T.Duration
 
 data Track = Track {
-    _track_id :: !TrackId
-    , _title :: !Text
+    _title :: !Text
     , _events :: !Events.Events
     } deriving (Eq, Show)
-
-track_ids :: NTrack -> [TrackId]
-track_ids (NTrack note controls) = _track_id note : map _track_id controls
 
 -- * toplevel
 
@@ -192,22 +188,18 @@ make_tracks get_ext_dur source blocks = Map.elems memo
         [ (_block_id block, resolve_block block)
         | block <- blocks
         ]
-    resolve_block block = block
-        { _tracks = zipWith (resolve (_block_id block)) [1..] (_tracks block)
-        }
-    resolve block_id tracknum (config, title, tokens) = do
+    resolve_block block = block { _tracks = map resolve (_tracks block) }
+    resolve (config, title, tokens) = do
         tokens <- first (T.show_error source) $
             sequence $ Check.process get_dur config tokens
         let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
         return $ NTrack
             { _note = Track
-                { _track_id = make_track_id block_id tracknum False
-                , _title = if Text.null title then ">" else title
+                { _title = if Text.null title then ">" else title
                 , _events = Events.from_list $ map (uncurry note_event) tokens
                 }
             , _controls = if null pitches then [] else (:[]) $ Track
-                { _track_id = make_track_id block_id tracknum True
-                , _title = "*"
+                { _title = "*"
                 , _events = Events.from_list pitches
                 }
             }
@@ -244,16 +236,8 @@ integrate_block block = do
         then Ui.set_block_title block_id (_block_title block)
         else void $ Ui.create_block (Id.unpack_id block_id) (_block_title block)
             [Block.track (Block.RId ruler_id) Config.ruler_width]
-    existing_tracks <- Set.fromList <$> Ui.track_ids_of block_id
-    -- This will wipe out diffs... do I really want that?
-    let new = Set.fromList $ concatMap track_ids (_tracks block)
-    let gone = existing_tracks `Set.difference` new
-    mapM_ Ui.destroy_track (Set.toList gone)
-    mapM_ (create_track block_id ruler_id) (_tracks block)
-
     dests <- Map.findWithDefault [] source_key . Block.block_integrated_manual
         <$> Ui.get_block (_block_id block)
-    dests <- return $ pair_destinations block dests
     new_dests <- Merge.merge_tracks block_id
         [ (convert note, map convert controls)
         | NTrack note controls <- _tracks block
@@ -270,55 +254,6 @@ integrate_block block = do
         , track_events = Events.ascending (_events track)
         }
 
--- | Pair dests by TrackId, and then make Block.empty_destination for the rest.
-pair_destinations :: Block NTrack -> [Block.NoteDestination]
-    -> [Block.NoteDestination]
-pair_destinations block dests =
-    map (pair_note (destinations_by_track_id dests)) (_tracks block)
-    where
-    pair_note dests (NTrack note controls) =
-        case Map.lookup (_track_id note) dests of
-            Nothing -> Block.empty_destination (_track_id note)
-                [(_title track, _track_id track) | track <- controls]
-            Just (index, dest_controls) -> Block.NoteDestination
-                { dest_note = (_track_id note, index)
-                , dest_controls =
-                    Map.fromList $ map (pair_control dest_controls) controls
-                }
-    pair_control dest_controls control =
-        (_title control, (_track_id control, index))
-        where
-        index = Map.findWithDefault mempty (_track_id control) dest_controls
-
--- | Re-index NoteDestinations by TrackId.
-destinations_by_track_id :: [Block.NoteDestination]
-    -> Map TrackId (Block.EventIndex, Map TrackId Block.EventIndex)
-destinations_by_track_id dests = Map.fromList $ do
-    Block.NoteDestination (track_id, index) controls <- dests
-    return (track_id, (index, Map.fromList (map control (Map.toList controls))))
-    where
-    -- I toss the original track name, because I'm indexing by TrackId.  If
-    -- tscore changed the name, I want to replace with the new one anyway.
-    control (_name, (track_id, index)) = (track_id, index)
-
--- BUT I don't have persistent TrackIds for controls anyway, since tscore
--- doesn't have explicit TrackIds like it does BlockIds.  At the moment though
--- I think it doesn't matter, since I only every have [pitch] or [] for
--- controls.  Actually I'll probably key on control name, so maybe I should
--- do that... or get rid of TrackIds here entirely, and let integrate take care
--- of it, like it wants to.
-
-create_track :: Ui.M m => BlockId -> RulerId -> NTrack -> m ()
-create_track block_id ruler_id (NTrack note controls) = do
-    exists <- Maybe.isJust <$> Ui.lookup_track (_track_id note)
-    unless exists $ forM_ (note : controls) $ \track -> do
-        Ui.create_track (Id.unpack_id (_track_id track)) $
-            Track.track (_title track) mempty
-        Ui.insert_track block_id 999 $
-            Block.track (Block.TId (_track_id track) ruler_id)
-                Config.track_width
-    Ui.set_track_title (_track_id note) (_title note)
-
 source_key :: Block.SourceKey
 source_key = "tscore"
 
@@ -333,11 +268,10 @@ ui_state get_ext_dur source = do
 
 ui_block :: Ui.M m => Block NTrack -> m ()
 ui_block block = do
-    track_ids <- sequence
-        [ Ui.create_track (Id.unpack_id track_id) (Track.track title events)
-        | NTrack note controls <- _tracks block
-        , Track track_id title events <- note : controls
-        ]
+    track_ids <- fmap concat $ forM (_tracks block) $ \(NTrack note controls) ->
+        forM (note : controls) $ \(Track title events) -> do
+            track_id <- GenId.track_id (_block_id block)
+            Ui.create_track track_id (Track.track title events)
     ruler_id <- ui_ruler block
     let tracks =
             [ Block.track (Block.TId tid ruler_id) Config.track_width
