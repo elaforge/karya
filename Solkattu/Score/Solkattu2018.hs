@@ -930,12 +930,20 @@ adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
         ]
 
 adi_muktayi :: Korvai
-adi_muktayi = date 2018 8 3 $ sudhindra $ korvai1 adi mridangam $
-    x3 $ section $ su $
-    t0 . oknp.t0 . ktktoknp.t0
+adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam $
+    [ x3 $ section $ su $
+      t0 . oknp.t0 . ktktoknp.t0
         . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
         .__.__. ktktoknp.tri (sd (tat.__.di.__.p6))
+    -- same thing as above, but with other ending
+    , x3 $ commentS "ganesh's variation" $ section $ su $
+      t0 . oknp.t0 . ktktoknp.t0
+        . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
+        .__.__. ktktoknp. tisram13 (sd (tat.__.di.__.p6))
+    ]
     where
+    -- A general pattern: instead of tri, do 1, then 3 in tisram.
+    tisram13 x = x . tri (nadai 6 x)
     t0 = dit.__4.tang.__.taka.dikutarikitataka.din.__4.tat.__4.din.__4
     mridangam = makeMridangam
         [ (dit.tang.taka, k.u.p.k)

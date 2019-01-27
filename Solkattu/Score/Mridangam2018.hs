@@ -223,3 +223,41 @@ e_18_12_08_b = exercise $ date 2018 12 8 $ ganesh $ korvai adi $ variations
     where
     a = group $ n.p.k.t.p.k.t.p.k.t.p.k
     b = n.p.k.__.u.__.p.k.nakatiku
+
+p5_variations :: Korvai
+p5_variations = exercise $ korvai adi $ variations $
+    map (sd • nadai 5 • repeat 4)
+    [ k.t.k.n.o
+    , k.t.k.su kt.o
+    , k.t.k.su (k.n).o
+    , su $ k.t.p.k.p.k.t.k.n.o
+    , su $ k.t.k.t.p.k.p.t.o.__
+    , su $ n.__.k.t.p.k.p.t.o.__
+    , su $ u.__.k.t.p.k.p.t.o.__
+    , su $ k.__.t.__.k.t.__.k.n.o
+    , su $ k.p.k.od.__.k.t.k.n.o
+    ]
+
+exercises_18_12_19 :: [Part]
+exercises_18_12_19 =
+    [ K e_npkt All -- 80mm, push to 90 or 100
+    , K e_18_11_19 (Index 5) --  n.j.p.j.d.__ -- 60mm, go to 80 or 90
+    , K e_18_12_19 All
+    , K p5_variations All -- 120mm to 160mm
+    -- , Left $ repeat 2 (k.o.o.k.o.k) . k.o.o.k -- 120mm to 140
+    ]
+
+e_npkt :: Korvai
+e_npkt = exercise $ ganesh $ korvai1 adi $ section $
+    repeat 2 $ su $ repeat 2 (n.p.k . tri (t.p.k)) . nakatiku
+
+e_18_12_19 :: Korvai -- 65mm, to 85mm
+e_18_12_19 = exercise $ date 2018 12 19 $ ganesh $ korvai adi $ variations
+    [ repeat 4 $ (o.o.__.o.o) & (rh.rh) . rh . n.o. su (kt.o.k)
+    , repeat 8 $ (o.o.__.o) & rh . n.o. su (kt.o.k)
+    , repeat 4 $ (o.o) & rh2 . rh2 . rh2 . su (n.o.od.__.kt.o.k)
+    , repeat 8 $ (o.o) & rh2 . su (n.o.od.__.kt.o.k)
+    ]
+    where
+    rh = n.d.l.d
+    rh2 = n.d. su (kt.pk)

@@ -11,6 +11,7 @@ import Global
 
 data Part = K !Korvai.Korvai !Index | Comment !Text
     deriving (Eq, Show)
+-- | The indices start at 1, since the section display also does.
 data Index = All | Index !Int | Range !Int !Int
     deriving (Eq, Show)
 
@@ -31,5 +32,5 @@ index idx korvai = case Korvai.korvaiSections korvai of
     where
     get xs = case idx of
         All -> xs
-        Index i -> [xs !! i]
+        Index i -> [xs !! (i-1)]
         Range i j -> take (max 0 (j-1)) $ drop i xs
