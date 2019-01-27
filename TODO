@@ -4555,7 +4555,7 @@ text score: tscore:
       . Don't integrate generated blocks, just replace them.  This way I don't
         have to worry about making the names stable.
     * Also support in or after string, so I can do t[a b]/ or "+a |"[a b]/.
-    - parameterize T.note_call, so I can replace T.Call with Text, and avoid
+    * parameterize T.note_call, so I can replace T.Call with Text, and avoid
       the unsafe pattern match in Check.resolve_call_duration.
     - Don't emit the pitch if it's the same as the previous and this note has
       a call.

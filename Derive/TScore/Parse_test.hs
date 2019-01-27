@@ -134,14 +134,10 @@ test_token = do
     right_equal (f "\"x y\"[b]/") $
         token (sub "x y" [[pitch "b" no_dur]]) no_oct "" no_dur
 
-test_p_subblock = do
-    let f = parse Parse.p_subblock
-    pprint (f "\"a b\"[a]")
-
 test_token_roundtrip = do
     -- Lots of things can roundtrip but still not parse correctly, so this is
     -- not as good as 'test_token'.
-    let p = Proxy @(T.Token T.Pitch T.NDuration T.Duration)
+    let p = Proxy @(T.Token T.Call T.Pitch T.NDuration T.Duration)
     roundtrip p "4a"
     roundtrip p "a."
     roundtrip p "a~"
@@ -152,7 +148,7 @@ test_token_roundtrip = do
 
 -- * implementation
 
-strip_pos :: T.Token pitch ndur rdur -> T.Token pitch ndur rdur
+strip_pos :: T.Token T.Call pitch ndur rdur -> T.Token T.Call pitch ndur rdur
 strip_pos = \case
     T.TBarline _ a -> T.TBarline no_pos a
     T.TNote _ a -> T.TNote no_pos (strip_note a)
@@ -177,11 +173,12 @@ no_dur = Parse.empty_duration
 no_pos :: T.Pos
 no_pos = T.Pos 0
 
-tracks :: [(Text, [T.Token T.Pitch T.NDuration T.Duration])] -> T.Tracks
+tracks :: [(Text, [T.Token call T.Pitch T.NDuration T.Duration])]
+    -> T.Tracks call
 tracks = T.Tracks . map (uncurry T.Track)
 
-token :: T.Call -> T.Octave -> Text -> T.NDuration
-    -> T.Token T.Pitch T.NDuration T.Duration
+token :: call -> T.Octave -> Text -> T.NDuration
+    -> T.Token call T.Pitch T.NDuration T.Duration
 token call oct pitch dur = T.TNote no_pos $ T.Note
     { note_call = call
     , note_pitch = T.Pitch oct pitch

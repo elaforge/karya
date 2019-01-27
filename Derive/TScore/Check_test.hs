@@ -57,7 +57,7 @@ test_preprocess = do
             . Check.preprocess config . parse
         config = Check.default_config { Check.config_default_call = True }
         note call pitch = T.Note
-            { note_call = T.Call call
+            { note_call = call
             , note_pitch = pitch
             , note_zero_duration = False
             , note_duration = 1
@@ -121,29 +121,38 @@ test_additive = do
 error_msg :: T.Error -> Text
 error_msg (T.Error _ msg) = msg
 
-strip_note :: T.Note pitch dur -> T.Note pitch dur
+strip_note :: T.Note call pitch dur -> T.Note call pitch dur
 strip_note note = note { T.note_pos = T.Pos 0 }
 
-e_ndur :: T.Token pitch ndur rdur -> Maybe ndur
+e_ndur :: T.Token call pitch ndur rdur -> Maybe ndur
 e_ndur = \case
     T.TNote _ note -> Just $ T.note_duration note
     _ -> Nothing
 
-resolve_call_duration :: [T.Token T.Pitch T.NDuration rdur]
-    -> Check.Stream (T.Token T.Pitch (Either T.Time T.Duration) rdur)
+parse_cdur :: Text
+    -> Check.Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration)
+        T.Duration)
+parse_cdur = resolve_call_duration . parse
+
+resolve_call_duration :: [T.Token T.CallT T.Pitch T.NDuration rdur]
+    -> Check.Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
 resolve_call_duration =
     map (Right . Identity.runIdentity . T.map_note_duration resolve)
     where
     resolve (T.NDuration dur) = pure $ Right dur
     resolve T.CallDuration = pure $ Left 0
 
-parse_cdur :: Text
-    -> Check.Stream (T.Token T.Pitch (Either T.Time T.Duration) T.Duration)
-parse_cdur = resolve_call_duration . parse
+-- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
+convert_call :: T.Token T.Call pitch ndur rdur
+    -> T.Token T.CallT pitch ndur rdur
+convert_call = T.map_call $ \case
+    T.Call call -> call
+    sub@(T.SubBlock {}) -> "((" <> Parse.unparse sub <> "))"
 
-parse :: Text -> [T.Token T.Pitch T.NDuration T.Duration]
-parse = Testing.expect_right . Parse.parse_text Parse.p_tokens
+parse :: Text -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+parse = map convert_call
+    . Testing.expect_right . Parse.parse_text Parse.p_tokens
 
-process :: Check.Config -> [T.Token T.Pitch T.NDuration T.Duration]
-    -> Check.Stream (T.Time, T.Note (Maybe Text) T.Time)
+process :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+    -> Check.Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
 process = Check.process (const $ Left "get_dur not supported")

@@ -77,7 +77,7 @@ data ParsedTrack = ParsedTrack {
     , track_tokens :: ![Token]
     } deriving (Show)
 
-type Token = T.Token T.Pitch T.NDuration T.Duration
+type Token = T.Token T.CallT T.Pitch T.NDuration T.Duration
 
 -- | A complete track, ready to be integrated or directly put in a block.
 data Track = Track {
@@ -201,10 +201,8 @@ check_recursion blocks =
                 check_block stack
     show_id = Id.show_short Parse.default_namespace . Id.unpack_id
 
-call_of :: T.Token pitch ndur rdur -> Maybe Text
-call_of (T.TNote _ note) = case T.note_call note of
-    T.Call a -> Just a
-    T.SubBlock {} -> Nothing -- sub-block calls can't recurse
+call_of :: T.Token T.CallT pitch ndur rdur -> Maybe T.CallT
+call_of (T.TNote _ note) = Just $ T.note_call note
 call_of _ = Nothing
 
 -- | Check and resolve pitches and durations with 'Check.process'.
@@ -360,7 +358,7 @@ interpret_toplevel config (pos, T.BlockDefinition block) = do
     subs <- first (T.Error pos) $ mapM (interpret_block config True) subs
     return (block : subs, config)
 
-interpret_block :: Check.Config -> Bool -> T.Block
+interpret_block :: Check.Config -> Bool -> T.Block T.CallT
     -> Either Text (Block ParsedTrack)
 interpret_block config is_sub
         (T.Block block_id directives title (T.Tracks tracks)) = do
@@ -382,15 +380,15 @@ interpret_block config is_sub
 
 -- * sub-blocks
 
--- | Replace T.SubBlock with T.Call, and return the generated blocks.
-resolve_sub_block :: T.Block -> (T.Block, [T.Block])
+-- | Replace T.SubBlock with T.CallT, and return the generated blocks.
+resolve_sub_block :: T.Block T.Call -> (T.Block T.CallT, [T.Block T.CallT])
 resolve_sub_block block = Logger.runId $ do
     tracks <- resolve_sub_tracks (T.block_id block) (T.block_tracks block)
     return $ block { T.block_tracks = tracks }
 
-type ResolveM a = Logger.Logger T.Block a
+type ResolveM a = Logger.Logger (T.Block T.CallT) a
 
-resolve_sub_tracks :: BlockId -> T.Tracks -> ResolveM T.Tracks
+resolve_sub_tracks :: BlockId -> T.Tracks T.Call -> ResolveM (T.Tracks T.CallT)
 resolve_sub_tracks block_id (T.Tracks tracks) =
     T.Tracks <$> mapM resolve (zip [1..] tracks)
     where
@@ -399,19 +397,22 @@ resolve_sub_tracks block_id (T.Tracks tracks) =
         return $ track { T.track_tokens = tokens }
 
 resolve_sub_tokens :: BlockId -> TrackNum
-    -> [T.Token pitch ndur rdur] -> ResolveM [T.Token pitch ndur rdur]
+    -> [T.Token T.Call pitch ndur rdur]
+    -> ResolveM [T.Token T.CallT pitch ndur rdur]
 resolve_sub_tokens block_id tracknum = fmap snd . Seq.mapAccumLM resolve [1..]
     where
     resolve (n:ns) (T.TNote pos note) = case T.note_call note of
         T.SubBlock prefix tracks -> do
-            call <- T.Call . TextUtil.joinWith " | " prefix <$>
+            call <- TextUtil.joinWith " | " prefix <$>
                 resolve_sub_tracks_to_call block_id tracknum n tracks
             return (ns, T.TNote pos (note { T.note_call = call }))
-        T.Call _ -> return (n:ns, T.TNote pos note)
-    resolve ns token = return (ns, token)
+        T.Call call -> return (n:ns, T.TNote pos (note { T.note_call = call }))
+    resolve [] (T.TNote {}) = error "unreached, infinite list"
+    resolve ns (T.TBarline pos bar) = return (ns, T.TBarline pos bar)
+    resolve ns (T.TRest pos rest) = return (ns, T.TRest pos rest)
 
-resolve_sub_tracks_to_call :: BlockId -> TrackNum -> Int -> T.Tracks
-    -> ResolveM Text
+resolve_sub_tracks_to_call :: BlockId -> TrackNum -> Int -> T.Tracks T.Call
+    -> ResolveM T.CallT
 resolve_sub_tracks_to_call parent_block_id tracknum callnum tracks = do
     tracks <- resolve_sub_tracks block_id tracks
     Logger.log $ T.Block
@@ -440,13 +441,12 @@ sub_meta = "is_sub"
 
 -- * local util
 
-note_event :: T.Time -> T.Note (Maybe Text) T.Time -> Event.Event
+note_event :: T.Time -> T.Note T.CallT (Maybe Text) T.Time -> Event.Event
 note_event start note = add_stack $
     Event.event (track_time start)
         (if T.note_zero_duration note then 0
             else track_time (T.note_duration note))
-        call
-    where T.Call call = T.note_call note
+        (T.note_call note)
 
 pitch_event :: (T.Time, Text) -> Event.Event
 pitch_event (start, pitch) = add_stack $ Event.event (track_time start) 0 pitch

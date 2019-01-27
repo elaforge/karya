@@ -28,64 +28,73 @@ instance Show Time where
 
 newtype Score = Score [(Pos, Toplevel)] deriving (Eq, Show)
 
-data Toplevel = ToplevelDirective !Directive | BlockDefinition !Block
+data Toplevel = ToplevelDirective !Directive | BlockDefinition !(Block Call)
     deriving (Eq, Show)
 
-data Block = Block {
+-- | call is a parameter, because 'SubBlock' will later be resolved to 'CallT'.
+data Block call = Block {
     block_id :: !Id.BlockId
     , block_directives :: ![Directive]
     , block_title :: !Text
-    , block_tracks :: !Tracks
+    , block_tracks :: !(Tracks call)
     } deriving (Eq, Show)
 
-newtype Tracks = Tracks [Track]
+newtype Tracks call = Tracks [Track call]
     deriving (Eq, Show)
 
-data Track = Track {
+data Track call = Track {
     track_title :: !Text
-    , track_tokens :: ![Token Pitch NDuration Duration]
+    , track_tokens :: ![Token call Pitch NDuration Duration]
     } deriving (Eq, Show)
 
 data Directive = Directive !Text !(Maybe Text)
     deriving (Eq, Show)
 
-data Token pitch ndur rdur =
+data Token call pitch ndur rdur =
     -- | Higher count for larger divisions, e.g. anga vs. avartanam.
     TBarline !Pos !Barline
-    | TNote !Pos !(Note pitch ndur)
+    | TNote !Pos !(Note call pitch ndur)
     | TRest !Pos !(Rest rdur)
     deriving (Eq, Show)
 
-token_pos :: Token pitch ndur rdur -> Pos
+token_pos :: Token call pitch ndur rdur -> Pos
 token_pos = \case
     TBarline pos _ -> pos
     TNote pos _ -> pos
     TRest pos _ -> pos
 
-token_name :: Token pitch ndur rdur -> Text
+token_name :: Token call pitch ndur rdur -> Text
 token_name = \case
     TBarline {} -> "barline"
     TNote {} -> "note"
     TRest {} -> "rest"
 
-map_pitch :: Applicative m => (pitch1 -> m pitch2) -> Token pitch1 ndur rdur
-    -> m (Token pitch2 ndur rdur)
+map_call :: (call1 -> call2)
+    -> Token call1 pitch ndur rdur -> Token call2 pitch ndur rdur
+map_call f = \case
+    TNote pos note -> TNote pos (note { note_call = f (note_call note) })
+    TBarline pos a -> TBarline pos a
+    TRest pos a -> TRest pos a
+
+map_pitch :: Applicative m => (pitch1 -> m pitch2)
+    -> Token call pitch1 ndur rdur -> m (Token call pitch2 ndur rdur)
 map_pitch f = \case
     TNote pos note ->
         TNote pos . (\a -> note { note_pitch = a}) <$> f (note_pitch note)
     TBarline pos a -> pure $ TBarline pos a
     TRest pos a -> pure $ TRest pos a
 
-map_note_duration :: Applicative m => (dur1 -> m dur2) -> Token pitch dur1 rdur
-    -> m (Token pitch dur2 rdur)
+map_note_duration :: Applicative m => (dur1 -> m dur2)
+    -> Token call pitch dur1 rdur -> m (Token call pitch dur2 rdur)
 map_note_duration f = \case
     TNote pos note -> TNote pos . (\a -> note { note_duration = a }) <$>
         f (note_duration note)
     TBarline pos a -> pure $ TBarline pos a
     TRest pos (Rest dur) -> pure $ TRest pos (Rest dur)
 
-map_note :: Applicative m => (Note pitch1 ndur -> m (Note pitch2 ndur))
-    -> Token pitch1 ndur rdur -> m (Token pitch2 ndur rdur)
+map_note :: Applicative m
+    => (Note call1 pitch1 ndur -> m (Note call2 pitch2 ndur))
+    -> Token call1 pitch1 ndur rdur -> m (Token call2 pitch2 ndur rdur)
 map_note f = \case
     TNote pos note -> TNote pos <$> f note
     TBarline pos a -> pure $ TBarline pos a
@@ -97,8 +106,8 @@ type Rank = Int
 newtype Barline = Barline Rank
     deriving (Eq, Show)
 
-data Note pitch dur = Note {
-    note_call :: !Call
+data Note call pitch dur = Note {
+    note_call :: !call
     , note_pitch :: !pitch
     -- | The generated event should have 0 duration.  TODO there's no syntax
     -- for this yet.
@@ -107,11 +116,14 @@ data Note pitch dur = Note {
     , note_pos :: !Pos
     } deriving (Eq, Show)
 
-data Call = Call !Text | SubBlock !Text !Tracks
+data Call = Call !CallT | SubBlock !CallT !(Tracks Call)
     deriving (Eq, Show)
 
 instance String.IsString Call where
     fromString = Call . txt
+
+-- | Tracklang expression.  This goes into the event text.
+type CallT = Text
 
 newtype Rest dur = Rest dur
     deriving (Eq, Show)

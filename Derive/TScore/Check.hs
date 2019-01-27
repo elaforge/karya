@@ -89,21 +89,21 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 -- * process
 
 type Stream a = [Either T.Error a]
-type Token pitch dur = T.Token pitch dur dur
+type Token call pitch dur = T.Token call pitch dur dur
 
 type GetCallDuration = Text -> Either Text T.Time
 
 -- | This goes before the recursion check, because it handles %default-call.
 -- The recursion check depends on that because it looks for block calls.
-preprocess :: Config -> [T.Token T.Pitch T.NDuration T.Duration]
-    -> [T.Token T.Pitch T.NDuration T.Duration]
+preprocess :: Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
 preprocess config
     | config_default_call config = pitch_to_call
     | otherwise = id
 
 process :: GetCallDuration -> Config
-    -> [T.Token T.Pitch T.NDuration T.Duration]
-    -> Stream (T.Time, T.Note (Maybe Text) T.Time)
+    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+    -> Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
 process get_dur (Config _default_call meter scale duration) =
     resolve_pitch scale
     . resolve_time
@@ -117,8 +117,8 @@ process get_dur (Config _default_call meter scale duration) =
 -- * time
 
 -- | Carry CallDuration if the next note has no duration, but does have a call.
-carry_call_duration :: [T.Token T.Pitch T.NDuration T.Duration]
-    -> [T.Token T.Pitch T.NDuration T.Duration]
+carry_call_duration :: [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
 carry_call_duration = flip State.evalState False . mapM (T.map_note carry)
     where
     carry note = do
@@ -136,8 +136,8 @@ carry_call_duration = flip State.evalState False . mapM (T.map_note carry)
         && all Maybe.isNothing [T.dur_int1 dur, T.dur_int2 dur]
 
 resolve_call_duration :: GetCallDuration
-    -> [T.Token T.Pitch T.NDuration rdur]
-    -> Stream (T.Token T.Pitch (Either T.Time T.Duration) rdur)
+    -> [T.Token T.CallT T.Pitch T.NDuration rdur]
+    -> Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
 resolve_call_duration get_dur = map $ \case
     T.TBarline pos a -> Right $ T.TBarline pos a
     T.TRest pos a -> Right $ T.TRest pos a
@@ -146,7 +146,7 @@ resolve_call_duration get_dur = map $ \case
         where set dur = T.TNote pos $ note { T.note_duration = dur }
     where
     resolve _ _ (T.NDuration dur) = Right $ Right dur
-    resolve pos (T.Call call) T.CallDuration
+    resolve pos call T.CallDuration
         | Text.null call =
             Left $ T.Error pos "can't get call duration of empty call"
         | otherwise = case get_dur call of
@@ -210,8 +210,8 @@ make_labeled dur =
 
 -- | Remove TBarline and TRest, add start times, and resolve ties.
 resolve_time :: (Eq pitch, Parse.Element pitch)
-    => Stream (Token pitch (T.Time, Bool))
-    -> Stream (T.Time, T.Note pitch T.Time)
+    => Stream (Token call pitch (T.Time, Bool))
+    -> Stream (T.Time, T.Note call pitch T.Time)
 resolve_time tokens = go . zip starts $ tokens
     where
     starts = scanl (\n -> (n+) . either (const 0) duration_of) 0 tokens
@@ -241,7 +241,7 @@ resolve_time tokens = go . zip starts $ tokens
     sndRights abs = [(a, b) | (a, Right b) <- abs]
 
 tied_notes :: (Eq pitch, Parse.Element pitch)
-    => T.Note pitch dur -> [(T.Time, Token pitch (T.Time, Bool))]
+    => T.Note call pitch dur -> [(T.Time, Token call pitch (T.Time, Bool))]
     -> Either T.Error T.Time
 tied_notes note tied = case others of
     [] -> case Seq.last matches of
@@ -262,7 +262,7 @@ tied_notes note tied = case others of
     match (_, T.TBarline {}) = Just []
     match _ = Nothing
 
-tied_rests :: [(time, Token pitch (T.Time, Bool))] -> Maybe T.Error
+tied_rests :: [(time, Token call pitch (T.Time, Bool))] -> Maybe T.Error
 tied_rests = fmap format . List.find (not . matches . snd)
     where
     format (_, token) =
@@ -271,15 +271,15 @@ tied_rests = fmap format . List.find (not . matches . snd)
     matches (T.TBarline {}) = True
     matches _ = False
 
-is_tied :: T.Token pitch (a1, Bool) (a2, Bool) -> Bool
+is_tied :: T.Token call pitch (a1, Bool) (a2, Bool) -> Bool
 is_tied (T.TNote _ note) = snd $ T.note_duration note
 is_tied (T.TRest _ (T.Rest (_, tied))) = tied
 is_tied _ = False
 
 -- ** check_barlines
 
-check_barlines :: Meter
-    -> Stream (Token pitch (T.Time, tie)) -> Stream (Token pitch (T.Time, tie))
+check_barlines :: Meter -> Stream (Token call pitch (T.Time, tie))
+    -> Stream (Token call pitch (T.Time, tie))
 check_barlines meter =
     fst . flip State.runState 0 . concat_rmap_e check_token . zip_right [0..]
     where
@@ -311,7 +311,7 @@ show_time :: T.Time -> T.Time -> Text
 show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat
     where (cycle, beat) = t `Num.fDivMod` cycle_dur
 
-duration_of :: Token pitch (T.Time, tie) -> T.Time
+duration_of :: Token call pitch (T.Time, tie) -> T.Time
 duration_of = \case
     T.TBarline {} -> 0
     T.TNote _ note -> fst (T.note_duration note)
@@ -329,8 +329,8 @@ data DurationMode = Multiplicative | Additive
     deriving (Eq, Show)
 
 duration_mode :: DurationMode
-    -> Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
-    -> Stream (Token pitch (T.Time, Bool))
+    -> Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
+    -> Stream (Token call pitch (T.Time, Bool))
 duration_mode = \case
     Multiplicative -> multiplicative
     Additive -> additive
@@ -338,8 +338,9 @@ duration_mode = \case
 -- | Each number is the inverse of the number of beats, so 2 is 1/2, 8 is 1/8
 -- etc.  If there are two numbers, you can set both numerator and denominator.
 -- This carrier both values or none.
-multiplicative :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
-    -> Stream (Token pitch (T.Time, Bool))
+multiplicative
+    :: Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
+    -> Stream (Token call pitch (T.Time, Bool))
 multiplicative =
     flip State.evalState (1, Nothing) . rmap_e (map_duration carry time_of)
     where
@@ -356,8 +357,8 @@ multiplicative =
 -- | Each number is just the number of Time beats.  If there are two numbers,
 -- int1 corresponds to a higher level of division, which is meter specific.
 -- E.g. akshara:matra.
-additive :: Stream (T.Token pitch (Either T.Time T.Duration) T.Duration)
-    -> Stream (Token pitch (T.Time, Bool))
+additive :: Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
+    -> Stream (Token call pitch (T.Time, Bool))
 additive = flip State.evalState (1, 4) . rmap_e (map_duration carry time_of)
     where
     time_of int1 int2 dots = dur + dot_dur
@@ -371,8 +372,8 @@ additive = flip State.evalState (1, 4) . rmap_e (map_duration carry time_of)
 map_duration :: State.MonadState (int1, int2) m
     => (Maybe Int -> Maybe Int -> m (int1, int2))
     -> (int1 -> int2 -> Int -> time)
-    -> T.Token pitch (Either time T.Duration) T.Duration
-    -> m (Either T.Error (T.Token pitch (time, Bool) (time, Bool)))
+    -> T.Token call pitch (Either time T.Duration) T.Duration
+    -> m (Either T.Error (T.Token call pitch (time, Bool) (time, Bool)))
 map_duration carry time_of = \case
     T.TBarline pos a -> return $ Right $ T.TBarline pos a
     T.TNote pos note -> do
@@ -405,8 +406,8 @@ instance Show Scale where
     show scale = "((" <> untxt (scale_name scale) <> "))"
 
 resolve_pitch :: Scale
-    -> Stream (T.Time, T.Note T.Pitch dur)
-    -> Stream (T.Time, T.Note (Maybe Text) dur)
+    -> Stream (T.Time, T.Note call T.Pitch dur)
+    -> Stream (T.Time, T.Note call (Maybe Text) dur)
 resolve_pitch scale =
     pitch_to_symbolic scale
     . infer_octaves per_octave (scale_initial_octave scale)
@@ -415,8 +416,8 @@ resolve_pitch scale =
     per_octave = Theory.layout_pc_per_octave (scale_layout scale)
 
 parse_pitches :: (Text -> Maybe pitch)
-    -> Stream (T.Time, T.Note T.Pitch dur)
-    -> Stream (T.Time, T.Note (Maybe (T.Octave, pitch)) dur)
+    -> Stream (T.Time, T.Note call T.Pitch dur)
+    -> Stream (T.Time, T.Note call (Maybe (T.Octave, pitch)) dur)
 parse_pitches parse = fst . flip State.runState Nothing . rmap_e token
     where
     token (start, note)
@@ -431,8 +432,8 @@ parse_pitches parse = fst . flip State.runState Nothing . rmap_e token
             return $ Right (start, note { T.note_pitch = (oct,) <$> p })
 
 infer_octaves :: Pitch.PitchClass -> Pitch.Octave
-    -> [Either e (time, T.Note (Maybe (T.Octave, Pitch.Degree)) dur)]
-    -> [Either e (time, T.Note (Maybe Pitch.Pitch) dur)]
+    -> [Either e (time, T.Note call (Maybe (T.Octave, Pitch.Degree)) dur)]
+    -> [Either e (time, T.Note call (Maybe Pitch.Pitch) dur)]
 infer_octaves per_octave initial_oct =
     fst . flip State.runState (initial_oct, Nothing) . rmap infer
     where
@@ -456,8 +457,8 @@ infer_octaves per_octave initial_oct =
 
 -- | Convert 'Pitch'es back to symbolic form.
 pitch_to_symbolic :: Scale
-    -> Stream (T.Time, T.Note (Maybe Pitch.Pitch) dur)
-    -> Stream (T.Time, T.Note (Maybe Text) dur)
+    -> Stream (T.Time, T.Note call (Maybe Pitch.Pitch) dur)
+    -> Stream (T.Time, T.Note call (Maybe Text) dur)
 pitch_to_symbolic scale = map to_sym
     where
     to_sym (Left e) = Left e
@@ -530,14 +531,14 @@ type Parser a = P.Parsec Void.Void Text a
 
 -- * parsing
 
-pitch_to_call :: [T.Token T.Pitch T.NDuration T.Duration]
-    -> [T.Token T.Pitch T.NDuration T.Duration]
+pitch_to_call :: [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
 pitch_to_call =
     Identity.runIdentity . mapM (T.map_note (return . to_call))
     where
     to_call note
-        | T.note_call note == T.Call "" = note
-            { T.note_call = T.Call $ Parse.unparse (T.note_pitch note)
+        | T.note_call note == "" = note
+            { T.note_call = Parse.unparse (T.note_pitch note)
             , T.note_pitch = Parse.empty_pitch
             }
         | otherwise = note

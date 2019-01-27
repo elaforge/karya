@@ -62,7 +62,7 @@ instance Element T.Toplevel where
     unparse (T.BlockDefinition a) = unparse a
 
 -- > ns/block = %directive "block title" [ ... ]
-instance Element T.Block where
+instance Element (T.Block T.Call) where
     parse = do
         bid <- lexeme parse
         keyword "="
@@ -92,13 +92,13 @@ instance Element Id.BlockId where
 default_namespace :: Id.Namespace
 default_namespace = Id.namespace "tscore"
 
-instance Element T.Tracks where
+instance Element (T.Tracks T.Call) where
     parse = fmap T.Tracks $
         keyword "[" *> P.sepBy1 (lexeme parse) (keyword "//") <* keyword "]"
     unparse (T.Tracks tracks) = Text.unwords $
         "[" : List.intersperse "//" (map unparse tracks) ++ ["]"]
 
-instance Element T.Track where
+instance Element (T.Track T.Call) where
     parse = T.Track
         <$> P.option "" (lexeme p_title) <*> P.some (lexeme parse)
         where
@@ -128,7 +128,7 @@ instance Element T.Directive where
         not_in cs = P.takeWhile1P Nothing (`notElem` cs)
     unparse (T.Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
-instance Element (T.Token T.Pitch T.NDuration T.Duration) where
+instance Element (T.Token T.Call T.Pitch T.NDuration T.Duration) where
     parse = T.TBarline <$> get_pos <*> parse
         <|> T.TRest <$> get_pos <*> parse
         <|> T.TNote <$> get_pos <*> parse
@@ -136,9 +136,10 @@ instance Element (T.Token T.Pitch T.NDuration T.Duration) where
     unparse (T.TNote _ note) = unparse note
     unparse (T.TRest _ rest) = unparse rest
 
-instance Pretty (T.Token T.Pitch T.NDuration T.Duration) where pretty = unparse
+instance Pretty (T.Token T.Call T.Pitch T.NDuration T.Duration) where
+    pretty = unparse
 
-p_tokens :: Parser [T.Token T.Pitch T.NDuration T.Duration]
+p_tokens :: Parser [T.Token T.Call T.Pitch T.NDuration T.Duration]
 p_tokens = P.some (lexeme parse)
 
 -- ** barline
@@ -166,7 +167,7 @@ instance Pretty T.Barline where pretty = unparse
 -- > a2.
 -- > a~ a2~
 -- > "call with spaces"/
-instance Element (T.Note T.Pitch T.NDuration) where
+instance Element (T.Note T.Call T.Pitch T.NDuration) where
     parse = do
         call <- P.optional $ P.try $ parse <* P.char '/'
         -- I need a try, because if it starts with a number it could be
@@ -190,7 +191,7 @@ instance Element (T.Note T.Pitch T.NDuration) where
         , unparse dur
         ]
 
-empty_note :: T.Note T.Pitch T.NDuration
+empty_note :: T.Note T.Call T.Pitch T.NDuration
 empty_note = T.Note
     { note_call = T.Call ""
     , note_pitch = empty_pitch
@@ -231,7 +232,7 @@ instance Element T.Call where
         (if Text.null prefix then "" else unparse (T.Call prefix))
         <> unparse tracks
 
-p_subblock :: Parser (Text, T.Tracks)
+p_subblock :: Parser (Text, T.Tracks T.Call)
 p_subblock = (,)
     <$> (p_string <|> P.takeWhile1P Nothing call_char <|> pure "")
     <*> parse
