@@ -17,6 +17,7 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 import qualified Util.Then as Then
 
 import qualified App.Config as Config
@@ -402,8 +403,8 @@ resolve_sub_tokens :: BlockId -> TrackNum
 resolve_sub_tokens block_id tracknum = fmap snd . Seq.mapAccumLM resolve [1..]
     where
     resolve (n:ns) (T.TNote pos note) = case T.note_call note of
-        T.SubBlock tracks -> do
-            call <- T.Call <$>
+        T.SubBlock prefix tracks -> do
+            call <- T.Call . TextUtil.joinWith " | " prefix <$>
                 resolve_sub_tracks_to_call block_id tracknum n tracks
             return (ns, T.TNote pos (note { T.note_call = call }))
         T.Call _ -> return (n:ns, T.TNote pos note)

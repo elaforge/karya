@@ -107,7 +107,7 @@ data Note pitch dur = Note {
     , note_pos :: !Pos
     } deriving (Eq, Show)
 
-data Call = Call !Text | SubBlock !Tracks
+data Call = Call !Text | SubBlock !Text !Tracks
     deriving (Eq, Show)
 
 instance String.IsString Call where

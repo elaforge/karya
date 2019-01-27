@@ -216,16 +216,25 @@ empty_pitch = T.Pitch (T.Relative 0) ""
 -- > "word with spaces"
 -- > "with embedded "() quote"
 -- > [sub // block]
+-- > plain-word[sub // block]
+-- > "spaces word"[sub]
 instance Element T.Call where
     parse =
-        T.SubBlock <$> parse
+        uncurry T.SubBlock <$> P.try p_subblock
         <|> T.Call <$> p_string
         <|> T.Call <$> P.takeWhile1P Nothing call_char
         <?> "call"
     unparse (T.Call call)
         | Text.any (`elem` [' ', '/']) call = "\"" <> call <> "\""
         | otherwise = call
-    unparse (T.SubBlock tracks) = unparse tracks
+    unparse (T.SubBlock prefix tracks) =
+        (if Text.null prefix then "" else unparse (T.Call prefix))
+        <> unparse tracks
+
+p_subblock :: Parser (Text, T.Tracks)
+p_subblock = (,)
+    <$> (p_string <|> P.takeWhile1P Nothing call_char <|> pure "")
+    <*> parse
 
 p_string :: Parser Text
 p_string = fmap mconcat $ P.between (P.char '"') (P.char '"') $
@@ -244,6 +253,7 @@ call_char = (`notElem` exclude)
     where
     exclude =
         [ ' ', '/'
+        , '['
         , ']' -- so a Note inside a SubBlock doesn't eat the ]
         ]
 

@@ -40,9 +40,13 @@ test_ui_state = do
         ]
     -- sub-blocks
     right_equal (f "top = [s [r [g m]/]/]")
-        [ ("top", UiTest.note_track [(0, 1, "4s"), (1, 1, "-1c1 -- 4s")])
-        , ("top-1c1", UiTest.note_track [(0, 1, "4r"), (1, 1, "-1c1 -- 4r")])
-        , ("top-1c1-1c1", UiTest.note_track [(0, 1, "4g"), (1, 1, "4m")])
+        [ ("top", UiTest.note_track1 ["4s", "-1c1 -- 4s"])
+        , ("top-1c1", UiTest.note_track1 ["4r", "-1c1 -- 4r"])
+        , ("top-1c1-1c1", UiTest.note_track1 ["4g", "4m"])
+        ]
+    right_equal (f "top = [s +pizz[r g]/]")
+        [ ("top", UiTest.note_track1 ["4s", "+pizz | -1c1 -- 4s"])
+        , ("top-1c1", UiTest.note_track [(0, 1, "4r"), (1, 1, "4g")])
         ]
 
 test_call_duration = do

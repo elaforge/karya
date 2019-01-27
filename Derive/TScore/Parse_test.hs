@@ -77,6 +77,8 @@ test_parse = do
     let p = Proxy @T.Score
     roundtrip p "b = [ a ]"
     roundtrip p "b = [ [ x y ]/ ]"
+    roundtrip p "b = [ >hi a[ x y ]/4 ]"
+    roundtrip p "b = [ >hi \"a b\"[ x y ]/ ]"
 
 test_track = do
     let f = fmap (map strip_pos . T.track_tokens) . parse Parse.parse
@@ -117,16 +119,24 @@ test_token = do
     right_equal (f "a1:2") $ pitch "a" (dur (Just 1) (Just 2) 0 False)
     right_equal (f "a:2") $ pitch "a" (dur Nothing (Just 2) 0 False)
 
-    let sub = T.SubBlock . tracks
+    let sub prefix = T.SubBlock prefix . tracks . zip (repeat "")
     right_equal (f "[a]/2") $ token
-        (sub [("", [pitch "a" no_dur])])
+        (sub "" [[pitch "a" no_dur]])
         no_oct "" (idur 2)
     right_equal (f "[a // b2]/") $ token
-        (sub [("", [pitch "a" no_dur]), ("", [pitch "b" (idur 2)])])
+        (sub "" [[pitch "a" no_dur], [pitch "b" (idur 2)]])
         no_oct "" no_dur
     right_equal (f "[[x]/]/") $ token
-        (sub [("", [token (sub [("", [pitch "x" no_dur])]) no_oct "" no_dur])])
+        (sub "" [[token (sub "" [[pitch "x" no_dur]]) no_oct "" no_dur]])
         no_oct "" no_dur
+    right_equal (f "a[b]/") $
+        token (sub "a" [[pitch "b" no_dur]]) no_oct "" no_dur
+    right_equal (f "\"x y\"[b]/") $
+        token (sub "x y" [[pitch "b" no_dur]]) no_oct "" no_dur
+
+test_p_subblock = do
+    let f = parse Parse.p_subblock
+    pprint (f "\"a b\"[a]")
 
 test_token_roundtrip = do
     -- Lots of things can roundtrip but still not parse correctly, so this is
@@ -150,8 +160,8 @@ strip_pos = \case
     where
     strip_note note = note
         { T.note_call = case T.note_call note of
-            T.SubBlock (T.Tracks tracks) ->
-                T.SubBlock $ T.Tracks $ map strip_track tracks
+            T.SubBlock prefix (T.Tracks tracks) ->
+                T.SubBlock prefix $ T.Tracks $ map strip_track tracks
             call -> call
         , T.note_pos = no_pos
         }
