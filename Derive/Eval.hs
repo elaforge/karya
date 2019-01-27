@@ -276,9 +276,9 @@ block_id_to_call :: Bool -> BlockId -> BlockId -> Text
 block_id_to_call relative parent child
     | Id.ident_namespace parent /= Id.ident_namespace child =
         Id.show_id (Id.unpack_id child)
-    | relative && (parent_name <> relative_separator)
-            `Text.isPrefixOf` child_name =
-        snd $ Text.breakOn relative_separator child_name
+    | relative, Just suffix <- Text.stripPrefix
+            (parent_name <> relative_separator) child_name =
+        relative_separator <> suffix
     | otherwise = child_name
     where
     child_name = Id.ident_name child

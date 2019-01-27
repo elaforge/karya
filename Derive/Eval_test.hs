@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Eval_test where
-import Util.Test
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Derive.Attrs as Attrs
@@ -13,6 +12,10 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Eval as Eval
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Sig as Sig
+
+import qualified Ui.UiTest as UiTest
+
+import           Util.Test
 
 
 test_recursive_call = do
@@ -43,3 +46,10 @@ test_reapply_generator = do
             [ Drums.note 'a' "a" (Attrs.attr "a")
             , Drums.note 'b' "b" (Attrs.attr "b")
             ]
+
+test_block_id_to_call = do
+    let f parent child = Eval.block_id_to_call True
+            (UiTest.bid parent) (UiTest.bid child)
+    equal (f "foo" "bar") "bar"
+    equal (f "foo" "foo-bar") "-bar"
+    equal (f "foo-bar" "foo-bar-baz") "-baz"
