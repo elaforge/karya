@@ -9,11 +9,13 @@
 module Derive.TScore.TScore where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
@@ -27,6 +29,7 @@ import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Modify as Ruler.Modify
 
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.Note
 import qualified Derive.Stack as Stack
 import qualified Derive.TScore.Check as Check
@@ -53,16 +56,29 @@ data Block track = Block {
     _block_id :: !BlockId
     , _block_title :: !Text
     , _meter :: ![Meter.LabeledMark]
+    -- | True if this was created via T.SubBlock.
+    , _is_sub :: !Bool
     , _tracks :: ![track]
     } deriving (Eq, Show, Functor)
 
+-- | A tscore track consists of multiple tracklang tracks, since it includes
+-- both rhythm and pitch.
 data NTrack = NTrack {
     _note :: !Track
-    , _controls :: [Track]
+    , _controls :: ![Track]
     } deriving (Eq, Show)
+
+-- | This track has been parsed, and directives propagated to Check.Config,
+-- but not yet converted to a Track.
+data ParsedTrack = ParsedTrack {
+    track_config :: !Check.Config
+    , track_title :: !Text
+    , track_tokens :: ![Token]
+    } deriving (Show)
 
 type Token = T.Token T.Pitch T.NDuration T.Duration
 
+-- | A complete track, ready to be integrated or directly put in a block.
 data Track = Track {
     _title :: !Text
     , _events :: !Events.Events
@@ -80,15 +96,28 @@ cmd_integrate source = do
 integrate :: Ui.M m => GetExternalCallDuration -> Text
     -> m [BlockId] -- ^ newly created blocks
 integrate get_ext_dur source = do
-    blocks <- Ui.require_right id $ (track_blocks get_ext_dur) source
-    -- TODO trim blocks that disappeared like with tracks?
-    mapMaybeM integrate_block blocks
+    blocks <- Ui.require_right id $ track_blocks get_ext_dur source
+    let (subs, parents) = List.partition _is_sub blocks
+    -- Unlike normal blocks, sub-blocks aren't integrated, but deleted and
+    -- created from scratch each time.  This is so I don't have to worry about
+    -- making their generated BlockIds stable.
+    destroy_subs
+    sub_ids <- mapM ui_block subs
+    -- Mark them as sub blocks so I can delete them on the next integrate.
+    mapM_ (flip Ui.modify_block_meta (Map.insert sub_meta "")) sub_ids
+    mapMaybeM integrate_block parents
+
+destroy_subs :: Ui.M m => m ()
+destroy_subs = do
+    blocks <- filter (is_sub_block . snd) . Map.toList <$>
+        Ui.gets Ui.state_blocks
+    mapM_ (Ui.destroy_block . fst) blocks
+    mapM_ Ui.destroy_track $ concatMap (Block.block_track_ids . snd) blocks
 
 track_blocks :: GetExternalCallDuration -> Text -> Either Text [Block NTrack]
 track_blocks get_ext_dur source = do
-    blocks <- first (T.show_error source) $ parsed_blocks source
-    let tokens_of (_, _, ts) = ts
-    whenJust (check_recursion $ map (tokens_of <$>) blocks) Left
+    blocks <- first (T.show_error source) (parsed_blocks source)
+    whenJust (check_recursion $ map (track_tokens <$>) blocks) Left
     (errs, blocks) <- return $
         partition_errors $ make_tracks get_ext_dur source blocks
     unless (null errs) $
@@ -160,19 +189,22 @@ check_recursion blocks =
         | _block_id block `elem` stack_ =
             Left $ "recursive loop: "
                 <> Text.intercalate ", " (map show_id (reverse stack))
-        | otherwise = mapM_ (check_track stack) (_tracks block)
+        | otherwise =
+            mapM_ (check_track stack (_block_id block)) (_tracks block)
         where stack = _block_id block : stack_
-    check_track stack = mapM_ (check_call stack) . mapMaybe call_of
-    check_call stack call =
-        whenJust (Map.lookup (Check.call_block_id call) by_block_id) $
-            check_block stack
+    check_track stack parent =
+        mapM_ (check_call stack parent) . mapMaybe call_of
+    check_call stack parent call =
+        whenJust (Check.call_block_id parent call) $ \block_id ->
+            whenJust (Map.lookup block_id by_block_id) $
+                check_block stack
     show_id = Id.show_short Parse.default_namespace . Id.unpack_id
 
 call_of :: T.Token pitch ndur rdur -> Maybe Text
-call_of (T.TNote _ note) = Just $ (\(T.Call a) -> a) $ T.note_call note
+call_of (T.TNote _ note) = case T.note_call note of
+    T.Call a -> Just a
+    T.SubBlock {} -> Nothing -- sub-block calls can't recurse
 call_of _ = Nothing
-
-type ParsedTrack = (Check.Config, Text, [Token])
 
 -- | Check and resolve pitches and durations with 'Check.process'.
 --
@@ -188,10 +220,11 @@ make_tracks get_ext_dur source blocks = Map.elems memo
         [ (_block_id block, resolve_block block)
         | block <- blocks
         ]
-    resolve_block block = block { _tracks = map resolve (_tracks block) }
-    resolve (config, title, tokens) = do
+    resolve_block block = block
+        { _tracks = map (resolve (_block_id block)) (_tracks block) }
+    resolve block_id (ParsedTrack config title tokens) = do
         tokens <- first (T.show_error source) $
-            sequence $ Check.process get_dur config tokens
+            sequence $ Check.process (get_dur block_id) config tokens
         let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
         return $ NTrack
             { _note = Track
@@ -203,23 +236,23 @@ make_tracks get_ext_dur source blocks = Map.elems memo
                 , _events = Events.from_list pitches
                 }
             }
-    -- I could memoize external calls in the same way, but a tracklang call
-    -- duration is set manually, so it can't affect another call duration, so
-    -- the recursive thing doesn't happen.  Which is good, because there's
-    -- a phase difference between tscore and tracklang (that's the
-    -- integration), so it wouldn't be reliable anyway.  So a non-memoized
+    -- I could memoize external calls in the same way as internal ones, but
+    -- a tracklang call duration is set manually, so it can't affect another
+    -- call duration, so the recursive thing doesn't happen.  Which is good,
+    -- because there's a phase difference between tscore and tracklang (that's
+    -- the integration), so it wouldn't be reliable anyway.  So a non-memoized
     -- lookup shouldn't have the same quadratic performance.
-    get_dur call = case Map.lookup block_id memo of
-        Nothing -> case get_ext_dur call of
-            -- TODO I should save the logs so I can write them, but I think
-            -- I have to put everything in LogMonad.
-            (Left err, logs) -> Left $ "call " <> pretty call <> ": " <> err
-            (Right dur, logs) -> Right $ from_track_time dur
-        Just block -> bimap (("in block " <> pretty block_id <> ": ")<>)
-            (maximum . (0:) . map track_end)
-            (sequence (_tracks block))
-        where
-        block_id = Check.call_block_id call
+    get_dur parent call = case Check.call_block_id parent call of
+        Nothing -> Left $ "not a block call: " <> showt call
+        Just block_id -> case Map.lookup block_id memo of
+            Nothing -> case get_ext_dur call of
+                -- TODO I should save the logs so I can write them, but I think
+                -- I have to put everything in LogMonad.
+                (Left err, logs) -> Left $ "call " <> showt call <> ": " <> err
+                (Right dur, logs) -> Right $ from_track_time dur
+            Just block -> bimap (("in block " <> pretty block_id <> ": ")<>)
+                (maximum . (0:) . map track_end)
+                (sequence (_tracks block))
 
 track_end :: NTrack -> T.Time
 track_end (NTrack note controls) = from_track_time $
@@ -266,7 +299,7 @@ ui_state get_ext_dur source = do
         Ui.set_namespace Parse.default_namespace
         mapM_ ui_block blocks
 
-ui_block :: Ui.M m => Block NTrack -> m ()
+ui_block :: Ui.M m => Block NTrack -> m BlockId
 ui_block block = do
     track_ids <- fmap concat $ forM (_tracks block) $ \(NTrack note controls) ->
         forM (note : controls) $ \(Track title events) -> do
@@ -279,8 +312,6 @@ ui_block block = do
             ]
     Ui.create_block (Id.unpack_id (_block_id block)) (_block_title block) $
         Block.track (Block.RId ruler_id) Config.ruler_width : tracks
-    -- The first block will become the root_id implicitly.
-    return ()
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
 ui_ruler block = make_ruler (_block_id block) (_meter block) end
@@ -315,39 +346,98 @@ parsed_blocks source = do
     fst <$> foldM collect ([], Check.default_config) defs
     where
     collect (accum, config) def = do
-        (block, config) <- interpret_toplevel config def
-        return (maybe id (:) block accum, config)
+        (blocks, config) <- interpret_toplevel config def
+        return (blocks ++ accum, config)
 
 interpret_toplevel :: Check.Config -> (T.Pos, T.Toplevel)
-    -> Either T.Error (Maybe (Block ParsedTrack), Check.Config)
-interpret_toplevel config (pos, T.ToplevelDirective dir) = (Nothing,) <$>
+    -> Either T.Error ([Block ParsedTrack], Check.Config)
+interpret_toplevel config (pos, T.ToplevelDirective dir) = ([],) <$>
     first (T.Error pos) (Check.parse_directive dir config)
 interpret_toplevel config (pos, T.BlockDefinition block) = do
-    block <- first (T.Error pos) $ interpret_block config block
-    return (Just block, config)
+    (block, subs) <- return $ resolve_sub_block block
+    block <- first (T.Error pos) $ interpret_block config False block
+    subs <- first (T.Error pos) $ mapM (interpret_block config True) subs
+    return (block : subs, config)
 
-interpret_block :: Check.Config -> T.Block -> Either Text (Block ParsedTrack)
-interpret_block config
+interpret_block :: Check.Config -> Bool -> T.Block
+    -> Either Text (Block ParsedTrack)
+interpret_block config is_sub
         (T.Block block_id directives title (T.Tracks tracks)) = do
     config <- Check.parse_directives config directives
     return $ Block
         { _block_id = block_id
         , _block_title = title
+        , _is_sub = is_sub
         , _meter = Check.meter_labeled $ Check.config_meter config
         , _tracks =
-            [ (config, title, Check.preprocess config tokens)
+            [ ParsedTrack
+                { track_config = config
+                , track_title = title
+                , track_tokens = Check.preprocess config tokens
+                }
             | T.Track title tokens <- tracks
             ]
         }
 
--- * local util
+-- * sub-blocks
 
-make_track_id :: BlockId -> TrackNum -> Bool -> TrackId
-make_track_id block_id tracknum is_pitch =
-    Id.TrackId $ Id.id ns $
-        ident <> ".t" <> showt tracknum <> if is_pitch then ".pitch" else ""
+-- | Replace T.SubBlock with T.Call, and return the generated blocks.
+resolve_sub_block :: T.Block -> (T.Block, [T.Block])
+resolve_sub_block block = Logger.runId $ do
+    tracks <- resolve_sub_tracks (T.block_id block) (T.block_tracks block)
+    return $ block { T.block_tracks = tracks }
+
+type ResolveM a = Logger.Logger T.Block a
+
+resolve_sub_tracks :: BlockId -> T.Tracks -> ResolveM T.Tracks
+resolve_sub_tracks block_id (T.Tracks tracks) =
+    T.Tracks <$> mapM resolve (zip [1..] tracks)
     where
-    (ns, ident) = Id.un_id $ Id.unpack_id block_id
+    resolve (tracknum, track) = do
+        tokens <- resolve_sub_tokens block_id tracknum (T.track_tokens track)
+        return $ track { T.track_tokens = tokens }
+
+resolve_sub_tokens :: BlockId -> TrackNum
+    -> [T.Token pitch ndur rdur] -> ResolveM [T.Token pitch ndur rdur]
+resolve_sub_tokens block_id tracknum = fmap snd . Seq.mapAccumLM resolve [1..]
+    where
+    resolve (n:ns) (T.TNote pos note) = case T.note_call note of
+        T.SubBlock tracks -> do
+            call <- T.Call <$>
+                resolve_sub_tracks_to_call block_id tracknum n tracks
+            return (ns, T.TNote pos (note { T.note_call = call }))
+        T.Call _ -> return (n:ns, T.TNote pos note)
+    resolve ns token = return (ns, token)
+
+resolve_sub_tracks_to_call :: BlockId -> TrackNum -> Int -> T.Tracks
+    -> ResolveM Text
+resolve_sub_tracks_to_call parent_block_id tracknum callnum tracks = do
+    tracks <- resolve_sub_tracks block_id tracks
+    Logger.log $ T.Block
+        { block_id = block_id
+        , block_directives = []
+        , block_title = ""
+        , block_tracks = tracks
+        }
+    return $ Eval.block_id_to_call True parent_block_id block_id
+    where
+    block_id = make_relative parent_block_id tracknum callnum
+
+make_relative :: BlockId -> TrackNum -> Int -> BlockId
+make_relative parent tracknum callnum =
+    Id.BlockId $ Id.set_name relative (Id.unpack_id parent)
+    where
+    relative = Eval.make_relative parent
+        (showt tracknum <> "c" <> showt callnum)
+
+is_sub_block :: Block.Block -> Bool
+is_sub_block = Map.member sub_meta . Block.block_meta
+
+-- | This marks a sub-block.
+sub_meta :: Text
+sub_meta = "is_sub"
+
+-- * local util
 
 note_event :: T.Time -> T.Note (Maybe Text) T.Time -> Event.Event
 note_event start note = add_stack $

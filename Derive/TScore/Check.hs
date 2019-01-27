@@ -34,6 +34,8 @@ import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
 import qualified Cmd.Ruler.Tala as Tala
 
+import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
@@ -148,11 +150,12 @@ resolve_call_duration get_dur = map $ \case
         | Text.null call =
             Left $ T.Error pos "can't get call duration of empty call"
         | otherwise = case get_dur call of
-                Left err -> Left $ T.Error pos err
-                Right time -> Right $ Left time
+            Left err -> Left $ T.Error pos err
+            Right time -> Right $ Left time
 
-call_block_id :: Text -> Id.BlockId
-call_block_id = Id.BlockId . Id.read_short Parse.default_namespace
+call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
+call_block_id parent =
+    Eval.call_to_block_id Parse.default_namespace (Just parent) . Expr.Symbol
 
 -- ** meter
 

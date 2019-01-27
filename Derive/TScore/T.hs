@@ -107,12 +107,11 @@ data Note pitch dur = Note {
     , note_pos :: !Pos
     } deriving (Eq, Show)
 
-instance (Pretty pitch, Pretty dur) => Pretty (Note pitch dur) where
-    pretty (Note call pitch zero_dur dur _pos) =
-        pretty (call, pitch, zero_dur, dur)
+data Call = Call !Text | SubBlock !Tracks
+    deriving (Eq, Show)
 
-newtype Call = Call Text
-    deriving (Eq, Show, Pretty, String.IsString)
+instance String.IsString Call where
+    fromString = Call . txt
 
 newtype Rest dur = Rest dur
     deriving (Eq, Show)

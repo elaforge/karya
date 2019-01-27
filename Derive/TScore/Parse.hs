@@ -2,15 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- |
+{- | Parse the tscore language:
 
-    %scale=sargam
-    root = [melody/0 melody]
-    melody = %dur=mult [
-        ">inst1" | a1 | b2 c |
-        //
-        ">inst2" | p1 | m |
-    ]
+    > %scale=sargam
+    > root = [melody/0 melody]
+    > melody = %dur=mult [
+    >     ">inst1" | a1 | b2 [ c~ c // e f ]/ |
+    >     //
+    >     ">inst2" | p1 | m |
+    > ]
 -}
 module Derive.TScore.Parse where
 import qualified Control.Monad.Combinators as P
@@ -215,12 +215,17 @@ empty_pitch = T.Pitch (T.Relative 0) ""
 -- > "ns/block"
 -- > "word with spaces"
 -- > "with embedded "() quote"
+-- > [sub // block]
 instance Element T.Call where
-    parse = (<?> "call") $ fmap T.Call $
-        p_string <|> P.takeWhile1P Nothing call_char
+    parse =
+        T.SubBlock <$> parse
+        <|> T.Call <$> p_string
+        <|> T.Call <$> P.takeWhile1P Nothing call_char
+        <?> "call"
     unparse (T.Call call)
         | Text.any (`elem` [' ', '/']) call = "\"" <> call <> "\""
         | otherwise = call
+    unparse (T.SubBlock tracks) = unparse tracks
 
 p_string :: Parser Text
 p_string = fmap mconcat $ P.between (P.char '"') (P.char '"') $
@@ -235,7 +240,12 @@ instance Element (T.Rest T.Duration) where
     unparse (T.Rest dur) = "_" <> unparse dur
 
 call_char :: Char -> Bool
-call_char c = c `notElem` [' ', '/']
+call_char = (`notElem` exclude)
+    where
+    exclude =
+        [ ' ', '/'
+        , ']' -- so a Note inside a SubBlock doesn't eat the ]
+        ]
 
 pitch_char :: Char -> Bool
 pitch_char c = c `notElem` exclude && not (Char.isDigit c)
@@ -243,7 +253,6 @@ pitch_char c = c `notElem` exclude && not (Char.isDigit c)
     -- This breaks modularity because I have to just know all the syntax that
     -- could come after, which is Duration, end of Tracks, Rest.  But the more
     -- I can get into Pitch, the more I can get into Call without needing ""s.
-    exclude :: [Char]
     exclude =
         [ ' ', '\n', '\t'
         , '~', '.' -- pitch is followed by T.NDuration

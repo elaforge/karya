@@ -4533,6 +4533,33 @@ text score: tscore:
     - Manual integrate is error-prone, where can I document it better?
     - fltk: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
+  embedded parallelism: [track1 // track2]:
+    notes:
+      . This goes on Score
+      . Figure out how this works.  How do I embed a block, e.g.
+        +pizz[a b c]/4s or t[a b c]4s?  Then "+a | +b"[a b c]/4s?
+      . The [a b c] becomes a new block, and modifies the call to
+        "+a | +b | new-block".  Then [a b c] by itself is shorthand for just
+        "new-block".
+      . Since this is substituting a call, it's an alternate Call syntax.
+        I'll need some way to name the block.  A hash of the contents would be
+        stable, but ugly.  But do I need it to be stable?  If I don't
+        integrate sub-blocks then maybe I can just replace them.  In that
+        case, I can simply count from the top of the track, or maybe use a-z
+        base 26.
+    * parsing
+    * check
+      . To resolve CallDuration, I need to turn SubBlocks into Calls.  Do
+        I have to make Call a parameter then?
+    * integrate
+      . Don't integrate generated blocks, just replace them.  This way I don't
+        have to worry about making the names stable.
+    - Also support in or after string, so I can do t[a b]/ or "+a |"[a b]/.
+    - parameterize T.note_call, so I can replace T.Call with Text, and avoid
+      the unsafe pattern match in Check.resolve_call_duration.
+    - Don't emit the pitch if it's the same as the previous and this note has
+      a call.
+      . Actually I think I'd want to do it if the pitch was fully carried.
   integrate:
     * don't generate TrackIds, let integrate do that
       . Ok, but merge wants empty NoteDestinations, or it makes new tracks.
@@ -4545,13 +4572,6 @@ text score: tscore:
   repl:
     - communicate parse errors back to vim to highlight
   parsing:
-    - embedded parallelism: [track1 // track2]
-      . This goes on Score
-      . Figure out how this works.  How do I embed a block, e.g.
-        +pizz[a b c]/4s or t[a b c]4s?  Then "+a | +b"[a b c]/4s?
-      . The [a b c] becomes a new block, and modifies the call to
-        "+a | +b | new-block".  Then [a b c] by itself is shorthand for just
-        "new-block".
     - directive for basic pulse/matra?
     - Just akshara:matra isn't necessarily good enough because what about
       1/2 matra etc?  mult is apporpriate at this.
@@ -4968,7 +4988,7 @@ long term:
   - dense / efficient control signals
   - stable api
   - solution for per score haskell
-  - text score
+  + text score
   + non-realtime synthesizer: doc/dev_notes/synthesizer
     - include audio inline, so I can write signal transforms like event
       transforms

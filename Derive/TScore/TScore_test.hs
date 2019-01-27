@@ -38,6 +38,12 @@ test_ui_state = do
             ]
           )
         ]
+    -- sub-blocks
+    right_equal (f "top = [s [r [g m]/]/]")
+        [ ("top", UiTest.note_track [(0, 1, "4s"), (1, 1, "-1c1 -- 4s")])
+        , ("top-1c1", UiTest.note_track [(0, 1, "4r"), (1, 1, "-1c1 -- 4r")])
+        , ("top-1c1-1c1", UiTest.note_track [(0, 1, "4g"), (1, 1, "4m")])
+        ]
 
 test_call_duration = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
@@ -66,6 +72,11 @@ test_call_duration = do
     right_equal (f "a = [b/0 _ b/]\nb = [s r]")
         [ ("a", [(">", [(0, 2, "b"), (3, 2, "b")])])
         , b_block
+        ]
+    -- Works for sub-blocks.
+    right_equal (f "a = [[s r]/0 g]")
+        [ ("a", UiTest.note_track [(0, 2, "-1c1 --"), (2, 1, "4g")])
+        , ("a-1c1", UiTest.note_track1 ["4s", "4r"])
         ]
 
 test_ext_call_duration = do
@@ -101,11 +112,8 @@ test_integrate = do
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = \"block title\" [s r g]"
     equal (extract state)
-        [ ( "top -- block title"
-          , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
-            , ("*", [(0, 0, "4s"), (1, 0, "4r"), (2, 0, "4g")])
-            ]
-          )
+        [ ("top -- block title",
+            UiTest.note_track [(0, 1, "4s"), (1, 1, "4r"), (2, 1, "4g")])
         ]
 
     -- Make sure style and ruler are as expected.
@@ -158,9 +166,26 @@ test_integrate_2_tracks = do
           )
         ]
 
+test_integrate_sub_block = do
+    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let extract = UiTest.extract_blocks
+    let state = expect_right $ run Ui.empty "top = [s [r]/]"
+    equal (extract state)
+        [ ("top", UiTest.note_track [(0, 1, "4s"), (1, 1, "-1c1 -- 4s")])
+        , ("top-1c1", UiTest.note_track [(0, 1, "4r")])
+        ]
+    state <- return $ expect_right $ Ui.exec state $
+        TScore.integrate get_ext_dur "top = [s [g]/ [r]/]"
+    equal (extract state)
+        [ ("top", UiTest.note_track
+            [(0, 1, "4s"), (1, 1, "-1c1 -- 4s"), (2, 1, "-1c2 -- 4s")])
+        , ("top-1c1", UiTest.note_track [(0, 1, "4g")])
+        , ("top-1c2", UiTest.note_track [(0, 1, "4r")])
+        ]
+
 test_check_recursion = do
-    let f = TScore.check_recursion . map (tokens_of <$>) . parsed_blocks
-        tokens_of (_, _, ts) = ts
+    let f = TScore.check_recursion . map (TScore.track_tokens <$>)
+            . parsed_blocks
     equal (f "b1 = [a]") Nothing
     equal (f "b1 = [b2/]") Nothing
     equal (f "b1 = [b1/]") $ Just "recursive loop: b1, b1"

@@ -76,9 +76,10 @@ test_parse = do
     roundtrip (Proxy @T.Directive) "%a=b"
     let p = Proxy @T.Score
     roundtrip p "b = [ a ]"
+    roundtrip p "b = [ [ x y ]/ ]"
 
 test_track = do
-    let f = fmap (map strip_token . T.track_tokens) . parse Parse.parse
+    let f = fmap (map strip_pos . T.track_tokens) . parse Parse.parse
     let bar = T.TBarline no_pos . T.Barline
     let rest = T.TRest no_pos . T.Rest
     right_equal (f "| ||") [bar 1, bar 2]
@@ -97,22 +98,35 @@ test_track = do
     right_equal (f "> \"a \"() b\"/") [token "a \"() b" no_oct "" no_dur]
 
 test_token = do
-    let f = fmap strip_token . parse Parse.parse
+    let f = fmap strip_pos . parse Parse.parse
         dur int1 int2 dots tie = T.NDuration (T.Duration int1 int2 dots tie)
+        idur int1 = dur (Just int1) Nothing 0 False
+        pitch p dur = token "" no_oct p dur
     left_like (f "") "unexpected end of input"
-    right_equal (f "a") $ token "" no_oct "a" no_dur
+    right_equal (f "a") $ pitch "a" no_dur
     right_equal (f "a/") $ token "a" no_oct "" no_dur
-    right_equal (f "a.") $ token "" no_oct "a" (dur Nothing Nothing 1 False)
+    right_equal (f "a.") $ pitch "a" (dur Nothing Nothing 1 False)
     right_equal (f "+pizz/") $ token "+pizz" no_oct "" no_dur
     right_equal (f "a/'b1.~") $
         token "a" (T.Relative 1) "b" (dur (Just 1) Nothing 1 True)
     right_equal (f "a'/a#4") $
         token "a'" no_oct "a#" (dur (Just 4) Nothing 0 False)
-    right_equal (f "a0") $ token "" no_oct "a" T.CallDuration
+    right_equal (f "a0") $ pitch "a" T.CallDuration
     right_equal (f "a/a0") $ token "a" no_oct "a" T.CallDuration
-    right_equal (f "a/1") $ token "a" no_oct "" (dur (Just 1) Nothing 0 False)
-    right_equal (f "a1:2") $ token "" no_oct "a" (dur (Just 1) (Just 2) 0 False)
-    right_equal (f "a:2") $ token "" no_oct "a" (dur Nothing (Just 2) 0 False)
+    right_equal (f "a/1") $ token "a" no_oct "" (idur 1)
+    right_equal (f "a1:2") $ pitch "a" (dur (Just 1) (Just 2) 0 False)
+    right_equal (f "a:2") $ pitch "a" (dur Nothing (Just 2) 0 False)
+
+    let sub = T.SubBlock . tracks
+    right_equal (f "[a]/2") $ token
+        (sub [("", [pitch "a" no_dur])])
+        no_oct "" (idur 2)
+    right_equal (f "[a // b2]/") $ token
+        (sub [("", [pitch "a" no_dur]), ("", [pitch "b" (idur 2)])])
+        no_oct "" no_dur
+    right_equal (f "[[x]/]/") $ token
+        (sub [("", [token (sub [("", [pitch "x" no_dur])]) no_oct "" no_dur])])
+        no_oct "" no_dur
 
 test_token_roundtrip = do
     -- Lots of things can roundtrip but still not parse correctly, so this is
@@ -128,11 +142,21 @@ test_token_roundtrip = do
 
 -- * implementation
 
-strip_token :: T.Token pitch ndur rdur -> T.Token pitch ndur rdur
-strip_token = \case
+strip_pos :: T.Token pitch ndur rdur -> T.Token pitch ndur rdur
+strip_pos = \case
     T.TBarline _ a -> T.TBarline no_pos a
-    T.TNote _ a -> T.TNote no_pos (a { T.note_pos = no_pos })
+    T.TNote _ a -> T.TNote no_pos (strip_note a)
     T.TRest _ a -> T.TRest no_pos a
+    where
+    strip_note note = note
+        { T.note_call = case T.note_call note of
+            T.SubBlock (T.Tracks tracks) ->
+                T.SubBlock $ T.Tracks $ map strip_track tracks
+            call -> call
+        , T.note_pos = no_pos
+        }
+    strip_track track =
+        track { T.track_tokens = map strip_pos (T.track_tokens track) }
 
 no_oct :: T.Octave
 no_oct = T.Relative 0
@@ -143,10 +167,13 @@ no_dur = Parse.empty_duration
 no_pos :: T.Pos
 no_pos = T.Pos 0
 
-token :: Text -> T.Octave -> Text -> T.NDuration
+tracks :: [(Text, [T.Token T.Pitch T.NDuration T.Duration])] -> T.Tracks
+tracks = T.Tracks . map (uncurry T.Track)
+
+token :: T.Call -> T.Octave -> Text -> T.NDuration
     -> T.Token T.Pitch T.NDuration T.Duration
 token call oct pitch dur = T.TNote no_pos $ T.Note
-    { note_call = T.Call call
+    { note_call = call
     , note_pitch = T.Pitch oct pitch
     , note_zero_duration = False
     , note_duration = dur
