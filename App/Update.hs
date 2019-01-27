@@ -25,14 +25,12 @@ main :: IO ()
 main = Git.initialize $ do
     args <- Environment.getArgs
     case args of
-        [from_fn, to_fn] -> do
-            cmd_config <- DeriveSaved.load_cmd_config
-            update (Cmd.config_instrument_db cmd_config) from_fn to_fn
+        [from_fn, to_fn] -> update from_fn to_fn
         _ -> fail_with "usage: update from_fn to_fn"
 
-update :: Cmd.InstrumentDb -> FilePath -> FilePath -> IO ()
-update db from_fn to_fn = do
-    result <- Save.read_ db from_fn
+update :: FilePath -> FilePath -> IO ()
+update from_fn to_fn = do
+    result <- Save.read_ from_fn
     case result of
         Left err -> fail_with $ "Reading " <> showt from_fn <> ": " <> err
         Right state -> Save.write_state to_fn state

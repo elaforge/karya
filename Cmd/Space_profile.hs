@@ -9,22 +9,19 @@ module Cmd.Space_profile where
 import qualified Data.Map as Map
 
 import qualified Util.Memory as Memory
-import Util.Test
 import qualified Util.Thread as Thread
-
+import qualified Cmd.Save as Save
 import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Save as Save
-import qualified Derive.DeriveSaved as DeriveSaved
-import Global
+
+import           Global
+import           Util.Test
 
 
 profile_load = do
     -- Check memory usage for just the state data.
     start_mem <- Memory.rssVsize
-    cmd_config <- DeriveSaved.load_cmd_config
-    state <- load (Cmd.config_instrument_db cmd_config) "save/bloom"
+    state <- load "save/bloom"
     let (state2, table) = Transform.intern_text state
     putStrLn $ "loaded blocks: " ++ show (Map.size (Ui.state_blocks state))
     print_memory_diff start_mem =<< Memory.rssVsize
@@ -36,10 +33,10 @@ profile_load = do
 
 -- Check memory usage after a bunch of changes.
 
-load :: Cmd.InstrumentDb -> FilePath -> IO Ui.State
-load db fname = do
+load :: FilePath -> IO Ui.State
+load fname = do
     result <- Thread.printTimer ("unserialize " <> showt fname)
-        (const "") (Save.read_state_ db fname)
+        (const "") (Save.read_state_ fname)
     return $ expect_right result
 
 print_memory_diff :: (Memory.Size, Memory.Size) -> (Memory.Size, Memory.Size)

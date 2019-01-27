@@ -50,13 +50,12 @@ run :: Text -> IO ()
 run block = do
     let blockId = mkBlockId block
     imDir <- getImDir
-    let notesFilename = Config.notesFilename imDir Config.ness scorePath blockId
     instPerformances <- either errorIO return =<< loadConvert block
     Util.submitInstruments "convert" $
-        map (nameScore imDir notesFilename) instPerformances
+        map (nameScore blockId imDir) instPerformances
     where
-    nameScore imDir notesFilename (inst, p) =
-        ( Config.outputFilename imDir notesFilename inst
+    nameScore blockId imDir (inst, p) =
+        ( Config.outputDirectory imDir scorePath blockId
         , inst
         , renderPerformance srate p
         )
@@ -69,8 +68,8 @@ type Error = Text
 loadConvert :: Text -> IO (Either Error [(Note.InstrumentName, Performance)])
 loadConvert b = do
     imDir <- getImDir
-    convert <$> load (Config.notesFilename imDir Config.ness scorePath
-        (mkBlockId b))
+    convert <$> load (Config.notesFilename imDir scorePath (mkBlockId b)
+        Config.ness)
 
 getImDir :: IO FilePath
 getImDir = Config.imDir <$> Config.getConfig

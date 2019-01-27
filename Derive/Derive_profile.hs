@@ -162,7 +162,7 @@ derive_saved :: Bool -> FilePath -> IO ()
 derive_saved with_perform fname = do
     cmd_config <- DeriveSaved.load_cmd_config
     (ui_state, library, aliases) <- either errorIO return
-        =<< DeriveSaved.load_score (Cmd.config_instrument_db cmd_config) fname
+        =<< DeriveSaved.load_score fname
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         Ui.config#Ui.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library aliases
@@ -251,7 +251,7 @@ inst2 = ">i2"
 set_allocations :: Ui.State -> Ui.State
 set_allocations = Ui.config#Ui.allocations #= allocs
     where
-    allocs = DeriveTest.allocs_from_db UiTest.default_db
+    allocs = Simple.allocations
         [ ("i1", ("s/1", dev [0, 1]))
         , ("i2", ("s/2", dev [2]))
         ]

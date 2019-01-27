@@ -14,8 +14,8 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 write :: [Note.Note] -> IO Bool
@@ -49,6 +49,7 @@ make (start, pitch, dyn, attrs) = Note.Note
     { patch = "test"
     , instrument = "test-inst"
     , element = ""
+    , trackId = Nothing
     , start = start
     , duration = 0 -- the sampler uses envelope, not duration
     , controls = Map.fromList $
