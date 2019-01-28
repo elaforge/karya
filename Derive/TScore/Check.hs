@@ -26,6 +26,7 @@ import qualified Data.Void as Void
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 
+import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
@@ -91,7 +92,7 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 type Stream a = [Either T.Error a]
 type Token call pitch dur = T.Token call pitch dur dur
 
-type GetCallDuration = Text -> Either Text T.Time
+type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 
 -- | This goes before the recursion check, because it handles %default-call.
 -- The recursion check depends on that because it looks for block calls.
@@ -138,20 +139,21 @@ carry_call_duration = flip State.evalState False . mapM (T.map_note carry)
 resolve_call_duration :: GetCallDuration
     -> [T.Token T.CallT T.Pitch T.NDuration rdur]
     -> Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
-resolve_call_duration get_dur = map $ \case
-    T.TBarline pos a -> Right $ T.TBarline pos a
-    T.TRest pos a -> Right $ T.TRest pos a
+resolve_call_duration get_dur = concatMap $ \case
+    T.TBarline pos a -> [Right $ T.TBarline pos a]
+    T.TRest pos a -> [Right $ T.TRest pos a]
     T.TNote pos note ->
-        second set (resolve pos (T.note_call note) (T.note_duration note))
+        map (second set) (resolve pos (T.note_call note) (T.note_duration note))
         where set dur = T.TNote pos $ note { T.note_duration = dur }
     where
-    resolve _ _ (T.NDuration dur) = Right $ Right dur
+    resolve _ _ (T.NDuration dur) = [Right $ Right dur]
     resolve pos call T.CallDuration
         | Text.null call =
-            Left $ T.Error pos "can't get call duration of empty call"
+            [Left $ T.Error pos "can't get call duration of empty call"]
         | otherwise = case get_dur call of
-            Left err -> Left $ T.Error pos err
-            Right time -> Right $ Left time
+            (Left err, logs) -> Left (T.Error pos err) : map to_error logs
+            (Right time, logs) -> Right (Left time) : map to_error logs
+        where to_error = Left . T.Error pos . Log.format_msg
 
 call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
 call_block_id parent =

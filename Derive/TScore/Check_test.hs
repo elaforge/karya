@@ -155,4 +155,4 @@ parse = map convert_call
 
 process :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
     -> Check.Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
-process = Check.process (const $ Left "get_dur not supported")
+process = Check.process (const $ (Left "get_dur not supported", []))

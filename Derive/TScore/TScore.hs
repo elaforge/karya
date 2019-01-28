@@ -242,16 +242,19 @@ make_tracks get_ext_dur source blocks = Map.elems memo
     -- the integration), so it wouldn't be reliable anyway.  So a non-memoized
     -- lookup shouldn't have the same quadratic performance.
     get_dur parent call = case Check.call_block_id parent call of
-        Nothing -> Left $ "not a block call: " <> showt call
+        Nothing -> (Left $ "not a block call: " <> showt call, [])
         Just block_id -> case Map.lookup block_id memo of
-            Nothing -> case get_ext_dur call of
-                -- TODO I should save the logs so I can write them, but I think
-                -- I have to put everything in LogMonad.
-                (Left err, logs) -> Left $ "call " <> showt call <> ": " <> err
-                (Right dur, logs) -> Right $ from_track_time dur
-            Just block -> bimap (("in block " <> pretty block_id <> ": ")<>)
-                (maximum . (0:) . map track_end)
-                (sequence (_tracks block))
+            Nothing ->
+                ( bimap (("call " <> showt call <> ": ")<>) from_track_time
+                    result
+                , logs
+                )
+                where (result, logs) = get_ext_dur call
+            Just block ->
+                ( bimap (("in block " <> pretty block_id <> ": ")<>)
+                    (maximum . (0:) . map track_end) (sequence (_tracks block))
+                , []
+                )
 
 track_end :: NTrack -> T.Time
 track_end (NTrack note controls) = from_track_time $

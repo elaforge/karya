@@ -4526,7 +4526,7 @@ text score: tscore:
   - Use block title for context whun resolving CallDuration
     . Otherwise I can't use mridangam strokes, etc.
   cleanup:
-    - Save logs that come out of the CallDuration query.
+    * Save logs that come out of the CallDuration query.
     - Collapse new tracks on an existing block.
     - Also adjust block view size.
       . I should use standard Create functions to do this all automatically.
