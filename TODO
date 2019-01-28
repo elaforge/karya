@@ -4522,6 +4522,16 @@ Derive:
 
 text score: tscore:
   . doc/dev_notes/text-score.md
+  - Syntax to repeat the last note.
+    . Maybe a plain '~'?  This would mean I can't make a carry note plus tie,
+      but maybe I could do without?
+    . Actually if I'm using it like proprtional notation, I'd want ~ to be
+      a tie from the previous note, e.g. '4s ~' -> '4s~ <>'.
+    . I could also use a plain ., since carry + dot doesn't seem useful.
+      Then if I have it repeat exactly instead of carry, I can do
+      '4s~ . .'... except the final one shouldn't be tied.
+    . Maybe . is repeat previos, and ~ is repeat previous, and add tie to
+      previous.
   - How to do repeats?
   - Use block title for context whun resolving CallDuration
     . Otherwise I can't use mridangam strokes, etc.
@@ -4533,7 +4543,7 @@ text score: tscore:
     - Manual integrate is error-prone, where can I document it better?
     - fltk: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
-    - Don't emit the pitch if it's the same as the previous and this note has
+    * Don't emit the pitch if it's the same as the previous and this note has
       a call.
       . Actually I think I'd want to do it if the pitch was fully carried.
   embedded parallelism: [track1 // track2]:
@@ -4606,7 +4616,7 @@ text score: tscore:
           %default-call-dur [ n1 d p6/ ]
         I still need the trailing / because otherwise the 6 looks like
         a duration.  Besides it's likely [ n1 d "p 6"/ ]
-      . In this case, I can do a %default-0dur and $default-call-dur will
+      . In this case, I can do a %default-0dur and %default-call-dur will
         override for calls.
       . Another way to look at it is that duration is orthogonal to increment.
         I can configure notes to be increment dur *n, or +n, so I can have 0,
@@ -4615,6 +4625,10 @@ text score: tscore:
         directly setting note duration.
       . I could have a *n or +n suffix, which is carried too:
         4s*.5 r g, n1*0 d d n n.
+      . >1 can't go on a single track, which means I'd have to integrate to
+        possibly multiple tracks, and it would look like a mess.  So it's best
+        to use tracklang mechanisms, e.g. %sustain or staccato.  I could still
+        use the *0 syntax though.
   rhythm check:
     proportional durations:
       . I think this is like add, but everything has the same duration, and ~

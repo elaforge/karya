@@ -40,12 +40,12 @@ test_ui_state = do
         ]
     -- sub-blocks
     right_equal (f "top = [s [r [g m]/]/]")
-        [ ("top", UiTest.note_track1 ["4s", "-1c1 -- 4s"])
-        , ("top-1c1", UiTest.note_track1 ["4r", "-1c1 -- 4r"])
+        [ ("top", UiTest.note_track1 ["4s", "-1c1 --"])
+        , ("top-1c1", UiTest.note_track1 ["4r", "-1c1 --"])
         , ("top-1c1-1c1", UiTest.note_track1 ["4g", "4m"])
         ]
     right_equal (f "top = [s +pizz[r g]/]")
-        [ ("top", UiTest.note_track1 ["4s", "+pizz | -1c1 -- 4s"])
+        [ ("top", UiTest.note_track1 ["4s", "+pizz | -1c1 --"])
         , ("top-1c1", UiTest.note_track [(0, 1, "4r"), (1, 1, "4g")])
         ]
 
@@ -175,14 +175,14 @@ test_integrate_sub_block = do
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = [s [r]/]"
     equal (extract state)
-        [ ("top", UiTest.note_track [(0, 1, "4s"), (1, 1, "-1c1 -- 4s")])
+        [ ("top", UiTest.note_track [(0, 1, "4s"), (1, 1, "-1c1 --")])
         , ("top-1c1", UiTest.note_track [(0, 1, "4r")])
         ]
     state <- return $ expect_right $ Ui.exec state $
         TScore.integrate get_ext_dur "top = [s [g]/ [r]/]"
     equal (extract state)
         [ ("top", UiTest.note_track
-            [(0, 1, "4s"), (1, 1, "-1c1 -- 4s"), (2, 1, "-1c2 -- 4s")])
+            [(0, 1, "4s"), (1, 1, "-1c1 --"), (2, 1, "-1c2 --")])
         , ("top-1c1", UiTest.note_track [(0, 1, "4g")])
         , ("top-1c2", UiTest.note_track [(0, 1, "4r")])
         ]

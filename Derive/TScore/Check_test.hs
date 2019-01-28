@@ -42,6 +42,10 @@ test_resolve_pitch = do
     equal (f "4s 'n") [Right "4s", Right "4n"]
     equal (f "4s 's") [Right "4s", Right "5s"]
     equal (f "4s ,s") [Right "4s", Right "3s"]
+    -- If the pitch is carried it remains empty, since the tracklang pitch
+    -- track will carry it, but is still carried for octave inference.
+    equal (f "5s c/ r") [Right "5s", Right "", Right "5r"]
+    equal (f "5s 4 r") [Right "5s", Right "", Right "5r"]
 
 test_resolve_pitch_twelve = do
     let f = map extract . process config . parse
@@ -66,7 +70,7 @@ test_preprocess = do
     equal (f "a b") [Right (note "a" Nothing), Right (note "b" Nothing)]
     equal (f "a/s c")
         [ Right (note "a" (Just "4s"))
-        , Right (note "c" (Just "4s"))
+        , Right (note "c" Nothing)
         ]
     equal (f "4a2") [Right (note "4a" Nothing) { T.note_duration = 1/2 }]
 

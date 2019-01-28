@@ -418,12 +418,14 @@ resolve_pitch scale =
     per_octave = Theory.layout_pc_per_octave (scale_layout scale)
 
 parse_pitches :: (Text -> Maybe pitch)
-    -> Stream (T.Time, T.Note call T.Pitch dur)
-    -> Stream (T.Time, T.Note call (Maybe (T.Octave, pitch)) dur)
+    -> Stream (time, T.Note call T.Pitch dur)
+    -> Stream (time, T.Note call (Maybe (T.Octave, pitch)) dur)
 parse_pitches parse = fst . flip State.runState Nothing . rmap_e token
     where
     token (start, note)
-        | Text.null call = with_pitch =<< State.get
+        | Text.null call =
+            -- If there's a previous pitch, the pitch track will carry it.
+            return $ Right (start, note { T.note_pitch = Nothing })
         | otherwise = case parse call of
             Nothing -> return $ Left $ T.Error (T.note_pos note) $
                 "can't parse pitch: " <> call
@@ -466,7 +468,7 @@ pitch_to_symbolic scale = map to_sym
     to_sym (Left e) = Left e
     to_sym (Right (t, note)) = do
         sym <- case T.note_pitch note of
-            Nothing -> return Nothing
+            Nothing -> Right Nothing
             Just pitch -> Just <$> tryJust
                 (T.Error (T.note_pos note)
                     ("bad pitch: " <> pretty (T.note_pitch note)))
