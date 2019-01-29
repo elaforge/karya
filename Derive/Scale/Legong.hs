@@ -114,7 +114,7 @@ balinese_notation inst = inst
 -- Beratha's definition.  McPhee's book has different names for gambuh, but
 -- Beratha's is probably more modern.
 --
--- This are assigned with @key=...@.  McPhee calls them tekepan (suling) or
+-- These are assigned with @key=...@.  McPhee calls them tekepan (suling) or
 -- ambah.  Or I could use patutan / pathet.
 config :: BaliScales.Config
 config = BaliScales.Config

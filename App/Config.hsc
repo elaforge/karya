@@ -249,7 +249,9 @@ solo_color = Color.rgb 1 0.75 0.75
 
 im_pending_color, im_working_color :: Color.Color
 im_pending_color = Color.rgba 0 0 0 0.15
-im_working_color = Color.rgba 1 0 0 0.15
+im_working_color = Color.alpha 0.15 busy_color
+    -- The status box uses this color when im is rendering, so use it for the
+    -- progress display too.
 
 track_bg, ruler_bg :: Color.Color
 track_bg = Color.white
