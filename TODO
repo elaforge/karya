@@ -26,13 +26,21 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - my hacked libsamplerate is hard to use on linux
+    . Beacuse you can only have one dynamic library with that name, and e.g.
+      jack and many other things want the standard libsamplerate.
+    . Rename it to libsamplerate-hacked or something.
+    . Also Shake.Config.globalIncludes and globalLibDirs don't apply to
+      haskell builds.
+    . And on linux I still get undefined reference to 'src_put_state'.  This
+      must be something different about linux from os x.
   - use LTuning.nrpn for gong-kebyar patch and allocations
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
       a playable instrument.
     . Actually, it is, it's the version without the scale, so it would work
       for any tuning.
-  + sudden quit when renaming block in save/kendang/sinom-ladrang-bug:
+  + crash: sudden quit when renaming block in save/kendang/sinom-ladrang:
     LBlock.rename @awak
     . What can cause a quit with no error?
     . Renaming might confuse im caching?
@@ -55,8 +63,18 @@ UNSORTED
     . I think it wants to do a coredump, if I do
       'limit coredumpsize unlimited' then I get max cpu usage, run out of
       memory, and run out of disk space.
-    . Wait until I'm home, free up disk space, and try again.
-      About Mac -> Storage -> Manage to see files sorted by size.
+    . It actually renders, then when I click it crashes, and creates an
+      infinite sized core dump, just hidden in /cores (? the other one was
+      1tb).  The huge size is likely due to ghc's allocation strategy.
+    - Does it happen on linux?
+    - Does it happen on the other mac?
+    + Try compiling with -debug.
+      . With -DS it becomes a segfault.
+      . With -Di -Dw it doesn't crash.
+    - Try using gdb.  Compile with -g, though it could be in c++.
+      . Need to install gdb.
+    - Could it be due to out of date callback foreign ptrs?
+      . I could debug that by not calling them.
   - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
     I can put another monad on top.
     . I think I only switched to Ui.M because it was awkward pre-AMP.
@@ -4522,6 +4540,8 @@ Derive:
 
 text score: tscore:
   . doc/dev_notes/text-score.md
+  * %default-call is inconvenient, because b1 parses as b/1, not b1/.
+    . I think I have to put a flag in the parser after all.
   - Syntax to repeat the last note.
     . Maybe a plain '~'?  This would mean I can't make a carry note plus tie,
       but maybe I could do without?
@@ -4533,8 +4553,9 @@ text score: tscore:
     . Maybe . is repeat previos, and ~ is repeat previous, and add tie to
       previous.
   - How to do repeats?
-  - Use block title for context whun resolving CallDuration
+  - Use block title for context when resolving CallDuration
     . Otherwise I can't use mridangam strokes, etc.
+    . Add a test first.
   cleanup:
     * Save logs that come out of the CallDuration query.
     - Collapse new tracks on an existing block.

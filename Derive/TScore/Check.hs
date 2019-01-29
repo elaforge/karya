@@ -7,14 +7,13 @@
 module Derive.TScore.Check (
     Config(..), default_config
     , parse_directive, parse_directives
-    , preprocess, process
+    , process
     , call_block_id
     , Meter(..)
 #ifdef TESTING
     , module Derive.TScore.Check
 #endif
 ) where
-import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -49,19 +48,14 @@ import           Types
 
 
 data Config = Config {
-    -- | If true, notes with no call get the pitch as their call.  This is
-    -- a hack so that e.g. "na" is interpreted as a call with no pitch.
-    -- Otherwise I'd have to let directives affect parsing.
-    config_default_call :: !Bool
-    , config_meter :: !Meter
+    config_meter :: !Meter
     , config_scale :: !Scale
     , config_duration :: !DurationMode
     } deriving (Show)
 
 default_config :: Config
 default_config = Config
-    { config_default_call = False
-    , config_meter = meter_44
+    { config_meter = meter_44
     , config_scale = scale_sargam
     , config_duration = Multiplicative
     }
@@ -77,15 +71,12 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
         set_config (\c a -> c { config_scale = a }) scale_map val
     ("dur", Just val) ->
         set_config (\c a -> c { config_duration = a }) duration_map val
-    ("default-call", maybe_val) ->
-        set_config (\c a -> c { config_default_call = a }) bool_map
-            (fromMaybe "t" maybe_val)
-    _ -> Left $ "unknown directive name: " <> name
+    _   | name == Parse.default_call -> Right config
+        | otherwise -> Left $ "unknown directive name: " <> name
     where
-    bool_map = Map.fromList [("f", False), ("t", True)]
     set_config setter m k = fmap (setter config) (lookup k m)
-    lookup k m = maybe (Left $ "unknown directive val: " <> k) Right $
-        Map.lookup k m
+    lookup k m = tryJust ("unknown directive val: " <> k) (Map.lookup k m)
+
 
 -- * process
 
@@ -94,18 +85,10 @@ type Token call pitch dur = T.Token call pitch dur dur
 
 type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 
--- | This goes before the recursion check, because it handles %default-call.
--- The recursion check depends on that because it looks for block calls.
-preprocess :: Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-preprocess config
-    | config_default_call config = pitch_to_call
-    | otherwise = id
-
 process :: GetCallDuration -> Config
     -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
     -> Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
-process get_dur (Config _default_call meter scale duration) =
+process get_dur (Config meter scale duration) =
     resolve_pitch scale
     . resolve_time
     . check_barlines meter
@@ -211,7 +194,7 @@ make_labeled dur =
 -- ** resolve_time
 
 -- | Remove TBarline and TRest, add start times, and resolve ties.
-resolve_time :: (Eq pitch, Parse.Element pitch)
+resolve_time :: (Eq pitch, Pretty pitch)
     => Stream (Token call pitch (T.Time, Bool))
     -> Stream (T.Time, T.Note call pitch T.Time)
 resolve_time tokens = go . zip starts $ tokens
@@ -242,7 +225,7 @@ resolve_time tokens = go . zip starts $ tokens
     is_barline _ = False
     sndRights abs = [(a, b) | (a, Right b) <- abs]
 
-tied_notes :: (Eq pitch, Parse.Element pitch)
+tied_notes :: (Eq pitch, Pretty pitch)
     => T.Note call pitch dur -> [(T.Time, Token call pitch (T.Time, Bool))]
     -> Either T.Error T.Time
 tied_notes note tied = case others of
@@ -254,8 +237,8 @@ tied_notes note tied = case others of
             | otherwise -> Right $ s + dur_of n
     (_, bad) : _ -> Left $ T.Error (T.token_pos bad) $ case bad of
         T.TNote _ n -> "note tied to different pitch: "
-            <> Parse.unparse (T.note_pitch note) <> " ~ "
-            <> Parse.unparse (T.note_pitch n)
+            <> pretty (T.note_pitch note) <> " ~ "
+            <> pretty (T.note_pitch n)
         _ -> "note tied to " <> T.token_name bad
     where
     (matches, others) = first concat $ Seq.partition_on match tied
@@ -298,10 +281,10 @@ check_barlines meter =
         Just r
             | r == rank -> Nothing
             | otherwise -> Just $ T.Error pos $ warn i $
-                "saw " <> Parse.unparse (T.Barline rank)
-                <> ", expected " <> Parse.unparse (T.Barline r)
+                "saw " <> pretty (T.Barline rank)
+                <> ", expected " <> pretty (T.Barline r)
         Nothing -> Just $ T.Error pos $ warn i $
-            "saw " <> Parse.unparse (T.Barline rank) <> ", expected none"
+            "saw " <> pretty (T.Barline rank) <> ", expected none"
         where
         beat = now `Num.fmod` cycle_dur
     cycle_dur = meter_duration meter
@@ -529,23 +512,7 @@ scale_twelve = Scale
         ]
     degrees = map Text.singleton "cdefgab"
 
-
 type Parser a = P.Parsec Void.Void Text a
-
-
--- * parsing
-
-pitch_to_call :: [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-pitch_to_call =
-    Identity.runIdentity . mapM (T.map_note (return . to_call))
-    where
-    to_call note
-        | T.note_call note == "" = note
-            { T.note_call = Parse.unparse (T.note_pitch note)
-            , T.note_pitch = Parse.empty_pitch
-            }
-        | otherwise = note
 
 
 -- * util

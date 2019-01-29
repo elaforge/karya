@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.TScore.Check_test where
+import qualified Control.Monad.Combinators as P
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
 
@@ -55,24 +56,6 @@ test_resolve_pitch_twelve = do
     equal (f "4c e") [Right "4c", Right "4e"]
     equal (f "4g c") [Right "4g", Right "5c"]
     equal (f "4f c") [Right "4f", Right "4c"]
-
-test_preprocess = do
-    let f = map (fmap (strip_note . snd)) . process config
-            . Check.preprocess config . parse
-        config = Check.default_config { Check.config_default_call = True }
-        note call pitch = T.Note
-            { note_call = call
-            , note_pitch = pitch
-            , note_zero_duration = False
-            , note_duration = 1
-            , note_pos = T.Pos 0
-            }
-    equal (f "a b") [Right (note "a" Nothing), Right (note "b" Nothing)]
-    equal (f "a/s c")
-        [ Right (note "a" (Just "4s"))
-        , Right (note "c" Nothing)
-        ]
-    equal (f "4a2") [Right (note "4a" Nothing) { T.note_duration = 1/2 }]
 
 test_resolve_time = do
     let f = map extract . Check.resolve_time . Check.multiplicative . parse_cdur
@@ -151,11 +134,12 @@ convert_call :: T.Token T.Call pitch ndur rdur
     -> T.Token T.CallT pitch ndur rdur
 convert_call = T.map_call $ \case
     T.Call call -> call
-    sub@(T.SubBlock {}) -> "((" <> Parse.unparse sub <> "))"
+    sub@(T.SubBlock {}) -> "((" <> pretty sub <> "))"
 
 parse :: Text -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-parse = map convert_call
-    . Testing.expect_right . Parse.parse_text Parse.p_tokens
+parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
+    where
+    p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
 
 process :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
     -> Check.Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)

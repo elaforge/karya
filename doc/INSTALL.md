@@ -129,6 +129,7 @@ Get the -dev versions as usual:
 - libsamplerate - I use a local fork, with support for saving and restoring
 state.  Get the `local` branch from
 https://github.com/elaforge/libsamplerate/tree/local
+Make configure with ./autogen.sh, ./configure, sudo make install.
 
 - libsndfile
 

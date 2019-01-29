@@ -375,7 +375,7 @@ interpret_block config is_sub
             [ ParsedTrack
                 { track_config = config
                 , track_title = title
-                , track_tokens = Check.preprocess config tokens
+                , track_tokens = tokens
                 }
             | T.Track title tokens <- tracks
             ]

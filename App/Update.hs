@@ -15,10 +15,9 @@ import qualified System.Exit as Exit
 import qualified System.IO as IO
 
 import qualified Util.Git as Git
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Save as Save
-import qualified Derive.DeriveSaved as DeriveSaved
-import Global
+
+import           Global
 
 
 main :: IO ()
