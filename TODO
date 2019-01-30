@@ -8,6 +8,7 @@ STATUS
   . infer gender damping:
   . text score: tscore:
   - make kendang sampler instrument
+    . Make thru work for it, and refactor thru in general.
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -26,14 +27,19 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - my hacked libsamplerate is hard to use on linux
+  my hacked libsamplerate is hard to use on linux
     . Beacuse you can only have one dynamic library with that name, and e.g.
       jack and many other things want the standard libsamplerate.
-    . Rename it to libsamplerate-hacked or something.
-    . Also Shake.Config.globalIncludes and globalLibDirs don't apply to
+    . Rename it to libsamplerate-resume or something.
+    . That's actually a big hassle, the name seems to be in tons of places,
+      and I'd also have to rename samplerate.h.
+    - I should just link the static library, in place.  Also add -I so I
+      get the right samplerate.h.
+    * Also Shake.Config.globalIncludes and globalLibDirs don't apply to
       haskell builds.
-    . And on linux I still get undefined reference to 'src_put_state'.  This
-      must be something different about linux from os x.
+    - Even with the hacked libsamplerate, on linux I still get undefined
+      reference to 'src_put_state'.  There must be something different about
+      linux from os x.
   - use LTuning.nrpn for gong-kebyar patch and allocations
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually

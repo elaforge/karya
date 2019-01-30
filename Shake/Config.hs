@@ -33,11 +33,11 @@ data Config = Config {
     -- probably be in /usr/local/bin.
     , fltkConfig :: FilePath
     -- | Extra -I flags that all compiles get, including haskell cpp and
-    -- hsc2hs.  E.g. ["-I/Users/me/homebrew/include"]
-    , globalIncludes :: [Flag]
-    -- | Extra -L flags for the C++ link.
-    -- E.g. ["-I/Users/me/homebrew/include"]
-    , globalLibDirs :: [Flag]
+    -- hsc2hs.  Without the -I:  ["/Users/me/homebrew/include"]
+    , globalIncludes :: [FilePath]
+    -- | Extra -L flags for the C++ link, without the leading -L:
+    -- ["/Users/me/homebrew/lib"]
+    , globalLibDirs :: [FilePath]
     } deriving (Show)
 
 

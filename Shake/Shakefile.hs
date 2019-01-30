@@ -661,9 +661,10 @@ configure = do
             , define flags
             , Config.extraDefines localConfig
             ]
-        , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
+        , cInclude = map ("-I"<>) $
+            [".", "" ++ modeToDir mode, "fltk"]
             ++ Config.globalIncludes localConfig
-        , cLibDirs = Config.globalLibDirs localConfig
+        , cLibDirs = map ("-L"<>) $ Config.globalLibDirs localConfig
         , fltkCc = fltkCs
         , fltkLd = fltkLds
         , imLd = if not (Config.enableIm localConfig) then []
@@ -682,10 +683,13 @@ configure = do
                 -- SCCs anyway?
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
             ]
-        , hLinkFlags = ["-rtsopts", "-threaded"]
-            ++ ["-eventlog" | Config.enableEventLog localConfig && mode == Opt]
-            ++ ["-dynamic" | mode /= Profile]
-            ++ ["-prof" | mode == Profile]
+        , hLinkFlags = concat
+            [ ["-rtsopts", "-threaded"]
+            , ["-eventlog" | Config.enableEventLog localConfig && mode == Opt]
+            , ["-dynamic" | mode /= Profile]
+            , ["-prof" | mode == Profile]
+            , map ("-L"<>) (Config.globalLibDirs localConfig)
+            ]
         , sandboxFlags = case sandbox of
             Nothing -> []
             Just path -> ["-no-user-package-db", "-package-db", path]
