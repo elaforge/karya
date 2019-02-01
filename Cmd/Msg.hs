@@ -100,7 +100,9 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
 data ImStatus =
     -- | Active synthesis range for the give block and tracks.
     ImProgress !BlockId !(Set TrackId) !RealTime !RealTime
-    -- | True if the im subprocess failed.  The error will have been logged.
+    -- | True if the im subprocess had a failure.  The error will have been
+    -- logged, and this flag will leave a visual indicator on the track that
+    -- something went wrong.
     | ImComplete !Bool
     deriving (Show)
 

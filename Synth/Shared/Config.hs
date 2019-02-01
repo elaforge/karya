@@ -209,6 +209,9 @@ parseProgress line = do
     where
     time = fmap RealTime.seconds . Parse.parse_maybe Parse.p_float
 
+-- | A failure will cause karya to log the msg and mark the track as
+-- incomplete.  It should be fatal, so don't emit any 'emitProgress'
+-- afterwards.
 emitFailure :: FilePath -> Set Id.TrackId -> Text -> IO ()
 emitFailure outputDir trackIds msg =
     emitMessage outputDir trackIds "failure" [msg]

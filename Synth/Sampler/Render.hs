@@ -14,6 +14,7 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 
+import qualified Sound.File.Sndfile as Sndfile
 import qualified Streaming.Prelude as S
 import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
@@ -70,15 +71,22 @@ write_ chunkSize quality outputDir trackIds notes = catch $ do
             stateRef <- IORef.newIORef $
                 fromMaybe (Checkpoint.State mempty) mbState
             let notifyState = IORef.writeIORef stateRef
-            Checkpoint.write outputDir (length skipped) chunkSize hashes
+            (Checkpoint.write outputDir (length skipped) chunkSize hashes
                     stateRef $
                 render outputDir chunkSize quality initialStates notifyState
-                    trackIds notes (AUtil.toFrame start)
+                    trackIds notes (AUtil.toFrame start))
     where
     catch io = Exception.catches io
+        -- Exceptions in haskell are really disorganized.
         [ Exception.Handler $ \(Audio.Exception err) -> return $ Left err
         , Exception.Handler $ \(exc :: IO.Error.IOError) ->
             return $ Left $ txt $ Exception.displayException exc
+        , Exception.Handler $ \exc ->
+            return $ Left $ txt $ Sndfile.errorString exc
+        , Exception.Handler $ \(Resource.ResourceCleanupException origExc
+                firstExc _) ->
+            return $ Left $ txt $ Exception.displayException
+                (fromMaybe firstExc origExc)
         ]
 
 toSpan :: Sample.Note -> Checkpoint.Span
@@ -207,7 +215,6 @@ resumeSamples now quality chunkSize states notes = do
         "at " <> pretty now <> ": len states " <> pretty (length states)
         <> " /= len notes " <> pretty (length notes) <> ": "
         <> pretty states <> " /= " <> pretty (map eNote notes)
-    -- Debug.tracepM "resume" $ map eNote notes
     mapM (uncurry (startSample now quality chunkSize . Just))
         (zip states (Seq.sort_on Sample.hash notes))
 
@@ -230,9 +237,12 @@ startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -- there's no resampler state.
     -> Sample.Note -> IO Playing
 startSample now quality chunkSize mbMbState note = case Sample.sample note of
-    Left err -> do
-        Log.warn $ pretty note <> ": " <> err
-        return (failedPlaying note)
+    -- Just crash on a failed sample.  I used to keep rendering, but then
+    -- I need to mark where it failed, and it gets complicated.
+    Left err -> Audio.throwIO $
+        "note at " <> pretty (Sample.start note)
+        <> ", dur: " <> pretty (Sample.duration note)
+        <> ": " <> err
     Right sample -> do
         sampleStateRef <- IORef.newIORef Nothing
         let mkConfig mbState = Resample.Config

@@ -1362,7 +1362,12 @@ synth: im:
   bug:
     - I think I crashed the DAW, but it seems to be uncommon?
   progress:
-    - Should I use Config.busy_color?  It's the box color for Msg.Deriving.
+    * Handle non-fatal errors, e.g. sample not found.
+      . I can leave the in-progress highlight, or better, add a warning
+        highlight to show where it happened.
+      . It would be simpler to have all be fatal, it's not like I ever want to
+        accept a missing sample.
+    * Should I use Config.busy_color?  It's the box color for Msg.Deriving.
       . The correspondence isn't obvious, and the color looks different anyway
         due to being transparent.
     - More fancy, I could render the wave in the background as it renders.
@@ -4559,6 +4564,8 @@ text score: tscore:
     . Maybe . is repeat previos, and ~ is repeat previous, and add tie to
       previous.
   - How to do repeats?
+    . If I have a repeat last note thing above, then just attach a number to
+      it.
   - Use block title for context when resolving CallDuration
     . Otherwise I can't use mridangam strokes, etc.
     . Add a test first.

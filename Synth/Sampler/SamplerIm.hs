@@ -5,7 +5,9 @@
 -- | Offline sampler.
 module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
+import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
+
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -194,35 +196,34 @@ makeSampleNote :: (Either Error Sample.Sample, [Log.Msg], Note.Note)
     -> IO Sample.Note
 makeSampleNote (errSample, logs, note) = do
     mapM_ Log.write logs
-    mbDur <- actualDuration (Note.start note) errSample
-    -- TODO if I put duration into Sample
-    -- errSample <- case errSample of
-    --     Right sample -> actualDuration (Note.start note) sample >>=
-    --         return . \case
-    --             Nothing -> Left "no sample"
-    --             Just dur -> Right $ sample { Sample.duration = dur }
-    --     Left err -> return $ Left err
+    errDur <- case errSample of
+        Left err -> return $ Left err
+        Right sample -> first Audio.exceptionText <$>
+            actualDuration (Note.start note) sample
     let start = AUtil.toFrame (Note.start note)
+    let mbDur = either (const Nothing) Just errDur
     return $ Sample.Note
         { start = start
         , duration = mbDur
-        , sample = errSample
+        , sample = either Left (const errSample) errDur
         , hash = Sample.makeHash start mbDur errSample
         }
 
 -- | It's important to get an accurate duration if I can, because that
 -- determines overlap, which affects caching.
-actualDuration :: RealTime -> Either x Sample.Sample -> IO (Maybe Audio.Frame)
-actualDuration _ (Left _) = return Nothing
-actualDuration start (Right sample) = do
-    fileDur <- File.ignoreEnoent $
+actualDuration :: RealTime -> Sample.Sample
+    -> IO (Either Audio.Exception Audio.Frame)
+actualDuration start sample = do
+    excFileDur <- Exception.try $
         RenderSample.predictFileDuration (Sample.ratio sample)
             (Sample.filename sample)
     let envDur = AUtil.toFrame <$>
             RenderSample.envelopeDur start (Sample.envelope sample)
-    return $ case envDur of
-        Just dur -> Just $ maybe id min fileDur dur
-        Nothing -> fileDur
+    return $ case excFileDur of
+        Left exc -> Left exc
+        Right fileDur -> case envDur of
+            Just dur -> Right $ min fileDur dur
+            Nothing -> Right fileDur
 
 realize :: Set Id.TrackId -> Resample.Quality -> FilePath
     -> Note.InstrumentName -> [Sample.Note] -> IO ()

@@ -14,12 +14,13 @@ module Util.Audio.File (
     , write, writeCheckpoints
     , wavFormat
 ) where
-import Prelude hiding (concat, read)
+import           Prelude hiding (concat, read)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Fix as Fix
 import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified Data.Vector.Storable as V
+import qualified GHC.Stack as Stack
 import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile as Sndfile
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
@@ -29,7 +30,7 @@ import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
 
-import Global
+import           Global
 
 
 -- | Check if rate and channels match the file.
@@ -145,9 +146,10 @@ openRead fname = annotate fname $
     Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
 
 -- Sndfile's errors don't include the filename.
-annotate :: FilePath -> IO a -> IO a
-annotate fname = Exception.handle $ \exc -> Exception.throwIO $
-    exc { Sndfile.errorString = fname <> ": " <> Sndfile.errorString exc }
+annotate :: Stack.HasCallStack => FilePath -> IO a -> IO a
+annotate fname = Exception.handle $ \exc ->
+    Audio.throwIO $ txt $ "opening " <> show fname
+        <> ": " <> Sndfile.errorString exc
 
 -- * write
 

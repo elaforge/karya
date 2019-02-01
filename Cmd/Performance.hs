@@ -261,23 +261,23 @@ watch_subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
 watch_subprocesses send_status procs
     | Set.null procs = return True
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
-        Control.loop1 (procs, False) $ \loop (procs, failures) -> if
-            | Set.null procs -> return failures
+        Control.loop1 (procs, False) $ \loop (procs, failed) -> if
+            | Set.null procs -> return failed
             | otherwise -> do
                 ((cmd, args), out) <- Chan.readChan chan
-                loop =<< process procs failures (cmd, args) out
+                loop =<< process procs failed (cmd, args) out
     where
-    process procs failures (cmd, args) = \case
+    process procs failure (cmd, args) = \case
         Util.Process.Stderr line ->
-            put line >> return (procs, failures)
+            put line >> return (procs, failure)
         Util.Process.Stdout line -> do
             failed <- progress line
-            return (procs, failed || failures)
+            return (procs, failed || failure)
         Util.Process.Exit code -> do
             when (code /= Util.Process.ExitCode 0) $
                 Log.warn $ "subprocess " <> txt cmd <> " "
                     <> showt args <> " returned " <> showt code
-            return (Set.delete (cmd, args) procs, failures)
+            return (Set.delete (cmd, args) procs, failure)
 
     progress line
         | Just (block_id, track_ids, (start, end))

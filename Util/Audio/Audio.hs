@@ -42,7 +42,7 @@ module Util.Audio.Audio (
     , silence1, silence2, sine
     , linear
     -- * error
-    , Exception(..), throw, throwIO, assert, assertIn
+    , Exception(..), exceptionText, throw, throwIO, assert, assertIn
     -- * constants
     , chunkSize, silentChunk
     -- * conversions
@@ -533,7 +533,11 @@ linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
 newtype Exception = Exception Text
     deriving (Show)
 
-instance Exception.Exception Exception
+exceptionText :: Exception -> Text
+exceptionText (Exception msg) = msg
+
+instance Exception.Exception Exception where
+    displayException (Exception msg) = untxt msg
 
 throw :: Stack.HasCallStack => Text -> AudioIO rate chan
 throw = Audio . throwIO
