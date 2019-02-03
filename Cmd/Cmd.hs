@@ -49,6 +49,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 
 import qualified Util.CallStack as CallStack
+import qualified Util.File as File
 import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
@@ -1113,10 +1114,11 @@ clear_im_cache block_id = do
     liftIO $ do
         config <- Shared.Config.getConfig
         let imDir = Shared.Config.imDir config
-        Directory.removeDirectoryRecursive $
+        File.ignoreEnoent $ Directory.removeDirectoryRecursive $
             Shared.Config.notesDirectory imDir path block_id
-        Directory.removeDirectoryRecursive $
+        File.ignoreEnoent $ Directory.removeDirectoryRecursive $
             Shared.Config.outputDirectory imDir path block_id
+    return ()
 
 -- | Keys currently held down, as in 'state_keys_down'.
 keys_down :: M m => m (Map Modifier Modifier)
