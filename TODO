@@ -1361,6 +1361,7 @@ synth: im:
     . I'd need some routing so I can get signals to those processors.
   bug:
     - I think I crashed the DAW, but it seems to be uncommon?
+      . Synth/play_cache/Osc.cc:30 OSC error: cannot find free port, at: ?
   progress:
     * Handle non-fatal errors, e.g. sample not found.
       . I can leave the in-progress highlight, or better, add a warning
@@ -1726,8 +1727,6 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
-      - b2/ru got its symlinks cleared for some reason.
-        . Because there are no >ru notes.
       * after a play speed change, I get some of the old render after the end.
     Non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
@@ -1949,7 +1948,7 @@ synth: im:
           karya.
         . I can do it by just setting %variation.
     rambat:
-      - edit and add calung samples
+      * edit and add calung samples
     guzheng:
       . Everything rings except when explicitly muted.
     mridangam:

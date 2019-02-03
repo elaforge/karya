@@ -140,7 +140,7 @@ toFilename tuning art symPitch dyn dur = do
         )
 
 -- If the dur is under the min dur, then I can choose OpenShort in addition to
--- Open
+-- Open.
 possibleArticulations :: Tuning -> Pitch -> Dynamic -> RealTime
     -> Articulation -> [Articulation]
 possibleArticulations tuning pitch dyn dur art
@@ -157,13 +157,20 @@ filenamesOf tuning pitch dyn art =
 -- if there's a min dur, then Open -> 1, OpenShort -> 4
 -- otherwise all 4
 variationsOf :: Tuning -> Pitch -> Dynamic -> Articulation -> Int
-variationsOf tuning pitch dyn
-    | hasShort = \case
-        Open -> 1
+variationsOf tuning pitch dyn art = case art of
+    Open -> if hasShort then 1 else 4
+    OpenShort -> if hasShort then 4 else 0
+    Calung -> case tuning of
+        -- I started with 4 open vars.
+        Isep | pitch `elem` [Pitch 3 E, Pitch 3 U] -> 4
+        -- var3 sample has a click and clunk.
+        Umbang | pitch == Pitch 3 A, dyn == PP -> 2
+        _ -> 3
+    MuteCalung -> case tuning of
+        -- Forgot this sample.
+        Isep | pitch == Pitch 4 I && dyn == FF -> 3
         _ -> 4
-    | otherwise = \case
-        OpenShort -> 0
-        _ -> 4
+    _ -> 4
     where
     hasShort = Maybe.isJust $ minDurationOf (tuning, pitch, dyn)
 
