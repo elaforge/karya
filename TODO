@@ -1726,7 +1726,9 @@ synth: im:
       . What's so bad about global though?
   sampler: sampler-im:
     bug:
-      - after a play speed change, I get some of the old render after the end.
+      - b2/ru got its symlinks cleared for some reason.
+        . Because there are no >ru notes.
+      * after a play speed change, I get some of the old render after the end.
     Non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict

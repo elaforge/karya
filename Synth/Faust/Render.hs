@@ -55,8 +55,14 @@ write_ config outputDir patch notes = catch $ do
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
     mapM_ (Checkpoint.linkOutput outputDir) skipped
-    Checkpoint.write outputDir (length skipped) chunkSize hashes stateRef $
+    result <- Checkpoint.write outputDir (length skipped) chunkSize hashes
+            stateRef $
         renderPatch patch config mbState notifyState notes start
+    case result of
+        Right (_, total) ->
+            Checkpoint.clearRemainingOutput outputDir total
+        _ -> return ()
+    return result
     where
     chunkSize = _chunkSize config
     catch io = Exception.catches io

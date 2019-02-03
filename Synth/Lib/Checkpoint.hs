@@ -107,11 +107,9 @@ write outputDir skippedCount chunkSize hashes stateRef audio
                 (\fn -> writeState stateRef fn >> linkOutput outputDir fn)
                 AUtil.outputFormat (extendHashes hashes)
                 audio
-        case result of
-            Left err -> return $ Left err
-            Right written -> do
-                clearRemainingOutput outputDir (written + skippedCount)
-                return $ Right (written, written + skippedCount)
+        return $ case result of
+            Left err -> Left err
+            Right written -> Right (written, written + skippedCount)
 
 getFilename :: FilePath -> IORef.IORef State -> (Int, Note.Hash)
     -> IO FilePath

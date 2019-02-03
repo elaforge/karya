@@ -71,10 +71,15 @@ write_ chunkSize quality outputDir trackIds notes = catch $ do
             stateRef <- IORef.newIORef $
                 fromMaybe (Checkpoint.State mempty) mbState
             let notifyState = IORef.writeIORef stateRef
-            (Checkpoint.write outputDir (length skipped) chunkSize hashes
-                    stateRef $
+            result <- Checkpoint.write outputDir (length skipped) chunkSize
+                    hashes stateRef $
                 render outputDir chunkSize quality initialStates notifyState
-                    trackIds notes (AUtil.toFrame start))
+                    trackIds notes (AUtil.toFrame start)
+            case result of
+                Right (_, total) ->
+                    Checkpoint.clearRemainingOutput outputDir total
+                _ -> return ()
+            return result
     where
     catch io = Exception.catches io
         -- Exceptions in haskell are really disorganized.
