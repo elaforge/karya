@@ -25,23 +25,23 @@ class PlayConfig {
 public:
     PlayConfig() {
         // Try to avoid some allocation, not that I'm consistent about that.
-        scorePath.reserve(64);
-        mutedInstruments.reserve(8);
+        score_path.reserve(64);
+        muted_instruments.reserve(8);
         clear();
     }
     void collect(std::ofstream &log, unsigned char d1, unsigned char d2);
     void clear() {
-        scorePath.clear();
-        mutedInstruments.clear();
-        instrumentIndex = -1;
+        score_path.clear();
+        muted_instruments.clear();
+        instrument_index = -1;
     }
 
     // Current playing block.
-    std::string scorePath;
-    std::vector<std::string> mutedInstruments;
+    std::string score_path;
+    std::vector<std::string> muted_instruments;
 private:
     void collect1(unsigned char d);
-    int instrumentIndex;
+    int instrument_index;
 };
 
 // This is a simple VST that understands MIDI messages to play from a certain
@@ -49,54 +49,54 @@ private:
 // offline synthesizers will be maintaining the cache.
 class PlayCache : public Plugin {
 public:
-    PlayCache(VstHostCallback hostCallback);
+    PlayCache(VstHostCallback host_callback);
     virtual ~PlayCache();
     virtual void resume() override;
 
     // configure
 
-    virtual void getPluginName(char *name) override;
-    virtual void getManufacturerName(char *text) override;
+    virtual void get_plugin_name(char *name) override;
+    virtual void get_manufacturer_name(char *text) override;
 
-    virtual int32_t getNumMidiInputChannels() override { return 1; }
-    virtual int32_t getNumMidiOutputChannels() override { return 0; }
+    virtual int32_t get_num_midi_input_channels() override { return 1; }
+    virtual int32_t get_num_midi_output_channels() override { return 0; }
 
-    virtual bool getOutputProperties(
+    virtual bool get_output_properties(
         int32_t index, VstPinProperties *properties) override;
 
-    virtual void setSampleRate(float sampleRate) override {
-        this->sampleRate = sampleRate;
+    virtual void set_sample_rate(float sample_rate) override {
+        this->sample_rate = sample_rate;
     }
-    virtual void setBlockSize(int32_t blockSize) override {
-        this->maxBlockFrames = blockSize;
+    virtual void set_block_size(int32_t block_size) override {
+        this->max_block_frames = block_size;
     }
 
-    virtual void setParameter(int32_t index, float value) override;
-    virtual float getParameter(int32_t index) override;
-    virtual void getParameterLabel(int32_t index, char *label) override;
-    virtual void getParameterText(int32_t index, char *text) override;
-    virtual void getParameterName(int32_t index, char *text) override;
+    virtual void set_parameter(int32_t index, float value) override;
+    virtual float get_parameter(int32_t index) override;
+    virtual void get_parameter_label(int32_t index, char *label) override;
+    virtual void get_parameter_text(int32_t index, char *text) override;
+    virtual void get_parameter_name(int32_t index, char *text) override;
 
     // process
 
     virtual void process(float **_inputs, float **outputs, int32_t frames)
         override;
-    virtual int32_t processEvents(const VstEventBlock *events) override;
+    virtual int32_t process_events(const VstEventBlock *events) override;
 
 private:
-    void start(int32_t startOffset);
+    void start(int32_t start_offset);
 
-    // I don't know why setSampleRate is a float, but I don't support that.
-    int sampleRate;
-    // processReplacing's frames arguent will never exceed this.
-    int32_t maxBlockFrames;
+    // I don't know why set_sample_rate is a float, but I don't support that.
+    int sample_rate;
+    // process_replacing's frames arguent will never exceed this.
+    int32_t max_block_frames;
     // Playing from this sample, in frames since the beginning of the score.
-    unsigned int startFrame;
-    // True if I am playing, or should start playing once startOffset is 0.
+    unsigned int start_frame;
+    // True if I am playing, or should start playing once start_offset is 0.
     bool playing;
     // When playing is set, this has the number of frames to wait before
     // starting.
-    int32_t startOffset;
+    int32_t start_offset;
 
     // parameters
     float volume;
@@ -104,5 +104,5 @@ private:
     std::ofstream log;
     std::unique_ptr<TracksStreamer> streamer;
     std::unique_ptr<Osc> osc;
-    PlayConfig playConfig;
+    PlayConfig play_config;
 };

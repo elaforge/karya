@@ -45,39 +45,39 @@ typedef int32_t pointer_sized_int;
 
 // This has to exactly match what is expected by VST hosts.
 struct VstEffectInterface {
-    int32_t interfaceIdentifier;
-    pointer_sized_int (VSTINTERFACECALL* dispatchFunction)
+    int32_t interface_identifier;
+    pointer_sized_int (VSTINTERFACECALL* dispatch_function)
         (VstEffectInterface*, int32_t op, int32_t index,
          pointer_sized_int value, void* ptr, float opt);
-    void (VSTINTERFACECALL* processAudioFunction)
+    void (VSTINTERFACECALL* process_audio_function)
         (VstEffectInterface*, float** inputs, float** outputs,
-         int32_t numSamples);
-    void (VSTINTERFACECALL* setParameterValueFunction)
-        (VstEffectInterface*, int32_t parameterIndex, float value);
-    float (VSTINTERFACECALL* getParameterValueFunction)
-        (VstEffectInterface*, int32_t parameterIndex);
-    int32_t numPrograms;
-    int32_t numParameters;
-    int32_t numInputChannels;
-    int32_t numOutputChannels;
+         int32_t num_samples);
+    void (VSTINTERFACECALL* set_parameter_value_function)
+        (VstEffectInterface*, int32_t parameter_index, float value);
+    float (VSTINTERFACECALL* get_parameter_value_function)
+        (VstEffectInterface*, int32_t parameter_index);
+    int32_t num_programs;
+    int32_t num_parameters;
+    int32_t num_input_channels;
+    int32_t num_output_channels;
     int32_t flags;
-    pointer_sized_int hostSpace1;
-    pointer_sized_int hostSpace2;
+    pointer_sized_int host_space1;
+    pointer_sized_int host_space2;
     int32_t latency;
     int32_t deprecated1;
     int32_t deprecated2;
     float deprecated3;
-    void* effectPointer;
-    void* userPointer;
-    int32_t plugInIdentifier;
-    int32_t plugInVersion;
-    void (VSTINTERFACECALL* processAudioInplaceFunction)
+    void* effect_pointer;
+    void* user_pointer;
+    int32_t plug_in_identifier;
+    int32_t plug_in_version;
+    void (VSTINTERFACECALL* process_audio_inplace_function)
         (VstEffectInterface*, float** inputs, float** outputs,
-         int32_t numSamples);
-    void (VSTINTERFACECALL* processDoubleAudioInplaceFunction)
+         int32_t num_samples);
+    void (VSTINTERFACECALL* process_double_audio_inplace_function)
         (VstEffectInterface*, double** inputs, double** outputs,
-         int32_t numSamples);
-    char emptySpace[56];
+         int32_t num_samples);
+    char empty_space[56];
 };
 
 typedef pointer_sized_int (VSTINTERFACECALL* VstHostCallback)(
@@ -114,7 +114,7 @@ namespace Op {
         DrawEditor,
         GetMouse,
         EditorIdle = GetMouse + 2,
-        effEditorTop,
+        EffEditorTop,
         SleepEditor,
         Identify,
         GetData,
@@ -216,8 +216,8 @@ namespace Max {
 struct VstPinProperties {
     char text[Max::ParameterOrPinLabelLength];
     int32_t flags;
-    int32_t configurationType;
-    char shortText[Max::ParameterOrPinShortLabelLength];
+    int32_t configuration_type;
+    char short_text[Max::ParameterOrPinShortLabelLength];
     char unused[48];
 
     enum VstPinInfoFlags {
@@ -230,7 +230,7 @@ struct VstPinProperties {
 struct VstEvent {
     int32_t type;
     int32_t size;
-    int32_t sampleOffset;
+    int32_t sample_offset;
     int32_t flags;
     char content[16];
 };
@@ -240,7 +240,7 @@ struct VstEventBlock {
         Midi  = 1,
         SysEx = 6
     };
-    int32_t numberOfEvents;
+    int32_t number_of_events;
     pointer_sized_int future;
     // Variable length.
     VstEvent *events[2];
@@ -252,13 +252,13 @@ struct VstMidiEvent {
     };
     int32_t type;
     int32_t size;
-    int32_t sampleOffset;
+    int32_t sample_offset;
     int32_t flags;
-    int32_t noteSampleLength;
-    int32_t noteSampleOffset;
-    char midiData[4];
+    int32_t note_sample_length;
+    int32_t note_sample_offset;
+    char midi_data[4];
     char tuning;
-    char noteVelocityOff;
+    char note_velocity_off;
     char future1;
     char future2;
 };
@@ -266,11 +266,11 @@ struct VstMidiEvent {
 struct VstSysExEvent {
     int32_t type;
     int32_t size;
-    int32_t offsetSamples;
+    int32_t offset_samples;
     int32_t flags;
-    int32_t sysExDumpSize;
+    int32_t sys_ex_dump_size;
     pointer_sized_int future1;
-    char *sysExDump;
+    char *sys_ex_dump;
     pointer_sized_int future2;
 };
 
@@ -280,51 +280,51 @@ struct VstSysExEvent {
 
 class Plugin {
 public:
-    Plugin(VstHostCallback hostCallback,
-        int32_t numPrograms, int32_t numParameters, int32_t numInChannels,
-        int32_t numOutChannels, int32_t uniqueID, int32_t version,
-        int32_t initialDelay, bool isSynth);
+    Plugin(VstHostCallback host_callback,
+        int32_t num_programs, int32_t num_parameters, int32_t num_in_channels,
+        int32_t num_out_channels, int32_t unique_id, int32_t version,
+        int32_t initial_delay, bool is_synth);
     virtual ~Plugin() {}
-    VstEffectInterface *getVst() { return &vst; }
+    VstEffectInterface *get_vst() { return &vst; }
 
     virtual void process(float **inputs, float **outputs, int32_t frames) = 0;
-    virtual int32_t processEvents(const VstEventBlock *events) { return 0; }
+    virtual int32_t process_events(const VstEventBlock *events) { return 0; }
 
     virtual void open() {}
     virtual void close() {}
     virtual void suspend() {}
     virtual void resume();
 
-    virtual void setParameter(int32_t index, float value) {}
-    virtual float getParameter(int32_t index) { return 0; }
-    virtual void getParameterLabel(int32_t index, char *label) {}
-    virtual void getParameterText(int32_t index, char *text) {}
-    virtual void getParameterName(int32_t index, char *text) {}
+    virtual void set_parameter(int32_t index, float value) {}
+    virtual float get_parameter(int32_t index) { return 0; }
+    virtual void get_parameter_label(int32_t index, char *label) {}
+    virtual void get_parameter_text(int32_t index, char *text) {}
+    virtual void get_parameter_name(int32_t index, char *text) {}
 
-    virtual void setSampleRate(float sampleRate) = 0;
-    virtual void setBlockSize(int32_t maxBlockSize) = 0;
+    virtual void set_sample_rate(float sample_rate) = 0;
+    virtual void set_block_size(int32_t max_block_size) = 0;
 
-    virtual int32_t getNumMidiInputChannels() { return 0; }
-    virtual int32_t getNumMidiOutputChannels() { return 0; }
-    virtual bool getOutputProperties(
+    virtual int32_t get_num_midi_input_channels() { return 0; }
+    virtual int32_t get_num_midi_output_channels() { return 0; }
+    virtual bool get_output_properties(
             int32_t index, VstPinProperties *properties) {
         return false;
     }
-    virtual bool getInputProperties(
+    virtual bool get_input_properties(
             int32_t index, VstPinProperties *properties) {
         return false;
     }
 
-    virtual bool setBypass(bool bypass) { return false; }
-    virtual void getPluginName(char *name) = 0;
-    virtual void getManufacturerName(char *name) = 0;
+    virtual bool set_bypass(bool bypass) { return false; }
+    virtual void get_plugin_name(char *name) = 0;
+    virtual void get_manufacturer_name(char *name) = 0;
 
-    int canDo(const char *text);
+    int can_do(const char *text);
 private:
     // Needed to talk to the host, e.g. send MIDI.
-    const VstHostCallback hostCallback;
+    const VstHostCallback host_callback;
     VstEffectInterface vst;
-    const bool isSynth;
+    const bool is_synth;
 };
 
 #pragma pack (pop)

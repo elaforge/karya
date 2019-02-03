@@ -18,7 +18,7 @@
 // gets them.
 class Osc {
 public:
-    Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames);
+    Osc(std::ostream &log, int channels, int sample_rate, int max_block_frames);
     ~Osc();
     bool read(int channels, sf_count_t frames, float **out);
 
@@ -27,19 +27,19 @@ private:
 
     lo_server server;
     std::unique_ptr<std::thread> thread;
-    std::atomic<bool> threadQuit;
+    std::atomic<bool> thread_quit;
     std::unique_ptr<ResampleStreamer> streamer;
     double volume;
 
     lo_server new_server();
     void loop();
 
-    static int handlePlay(
+    static int handle_play(
         const char *path, const char *types, lo_arg **argv,
         int argc, void *data, void *self);
     void play(const char *path, double ratio, double vol);
 
-    static int handleStop(
+    static int handle_stop(
         const char *path, const char *types, lo_arg **argv,
         int argc, void *data, void *self);
     void stop();

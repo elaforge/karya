@@ -18,14 +18,14 @@
 // offset.
 class SampleDirectory : public Audio {
 public:
-    SampleDirectory(std::ostream &log, int channels, int sampleRate,
+    SampleDirectory(std::ostream &log, int channels, int sample_rate,
         const std::string &dir, sf_count_t offset);
     ~SampleDirectory();
     bool read(int channels, sf_count_t frames, float **out) override;
 
 private:
     std::ostream &log;
-    const int sampleRate;
+    const int sample_rate;
     const std::string dir;
 
     std::string fname;
@@ -37,20 +37,20 @@ private:
 // Just stream a single sample file.
 class SampleFile : public Audio {
 public:
-    // If expandChannels is true, then also accept mono input files, and
+    // If expand_channels is true, then also accept mono input files, and
     // expand them as required.
     SampleFile(std::ostream &log,
-        int channels, bool expandChannels, int sampleRate,
+        int channels, bool expand_channels, int sample_rate,
         const std::string &fname, sf_count_t offset);
     ~SampleFile();
     bool read(int channels, sf_count_t frames, float **out) override;
 
 private:
     std::ostream &log;
-    const bool expandChannels;
+    const bool expand_channels;
     const std::string fname;
     SNDFILE *sndfile;
-    int fileChannels;
+    int file_channels;
     std::vector<float> buffer;
-    std::vector<float> expandBuffer;
+    std::vector<float> expand_buffer;
 };

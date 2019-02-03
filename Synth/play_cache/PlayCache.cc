@@ -20,44 +20,44 @@
 // Miscellaneous constants.
 enum {
     channels = 2,
-    numInputs = 0,
-    numPrograms = 0,
+    num_inputs = 0,
+    num_programs = 0,
     // How much inherent delay the plugin has.  I'm just streaming samples, so
     // it's 0.
-    initialDelay = 0
+    initial_delay = 0
 };
 
 // VST parameters.
 enum {
-    pVolume = 0,
-    numParameters
+    p_volume = 0,
+    num_parameters
 };
 
 // VST_BASE_DIR must be defined when compiling.
-static const char *logFilename = VST_BASE_DIR "/PlayCache.log";
-static const char *cacheDir = VST_BASE_DIR "/cache/";
+static const char *log_filename = VST_BASE_DIR "/PlayCache.log";
+static const char *cache_dir = VST_BASE_DIR "/cache/";
 
 
 // Magic function name, called by VSTMain, which is called by the host.
 VstEffectInterface *
-createEffectInstance(VstHostCallback hostCallback)
+create_effect_instance(VstHostCallback host_callback)
 {
-    return (new PlayCache(hostCallback))->getVst();
+    return (new PlayCache(host_callback))->get_vst();
 }
 
-// Plugin::Plugin(VstHostCallback hostCallback,
-//         int32_t numPrograms, int32_t numParameters, int32_t numInChannels,
-//         int32_t numOutChannels, int32_t uniqueID, int32_t version,
-//         int32_t initialDelay, bool isSynth) :
-PlayCache::PlayCache(VstHostCallback hostCallback) :
-    Plugin(hostCallback, numPrograms, numParameters, numInputs, channels,
-        'bdpm', 1, initialDelay, true),
-    startFrame(0), playing(false), startOffset(0), volume(1),
-    log(logFilename, std::ios::app)
+// Plugin::Plugin(VstHostCallback host_callback,
+//     int32_t num_programs, int32_t num_parameters, int32_t num_in_channels,
+//     int32_t num_out_channels, int32_t unique_id, int32_t version,
+//     int32_t initial_delay, bool is_synth) :
+PlayCache::PlayCache(VstHostCallback host_callback) :
+    Plugin(host_callback, num_programs, num_parameters, num_inputs, channels,
+        'bdpm', 1, initial_delay, true),
+    start_frame(0), playing(false), start_offset(0), volume(1),
+    log(log_filename, std::ios::app)
 {
     if (!log.good()) {
         // Wait, how am I supposed to report this?  Can I put it in the GUI?
-        // LOG("couldn't open " << logFilename);
+        // LOG("couldn't open " << log_filename);
     }
     LOG("started");
 }
@@ -71,15 +71,15 @@ void
 PlayCache::resume()
 {
     bool changed = false;
-    if (!streamer.get() || streamer->sampleRate != sampleRate
-            || streamer->maxFrames != maxBlockFrames)
+    if (!streamer.get() || streamer->sample_rate != sample_rate
+            || streamer->max_frames != max_block_frames)
     {
         streamer.reset(
-            new TracksStreamer(log, channels, sampleRate, maxBlockFrames));
+            new TracksStreamer(log, channels, sample_rate, max_block_frames));
         changed = true;
     }
     if (!osc.get() || changed) {
-        osc.reset(new Osc(log, channels, sampleRate, maxBlockFrames));
+        osc.reset(new Osc(log, channels, sample_rate, max_block_frames));
     }
     Plugin::resume();
 }
@@ -87,19 +87,19 @@ PlayCache::resume()
 // configure
 
 void
-PlayCache::getPluginName(char *name)
+PlayCache::get_plugin_name(char *name)
 {
     strncpy(name, "PlayCache", Max::PlugInNameStringLength);
 }
 
 void
-PlayCache::getManufacturerName(char *text)
+PlayCache::get_manufacturer_name(char *text)
 {
     strncpy(text, "Karya", Max::ManufacturerStringLength);
 }
 
 bool
-PlayCache::getOutputProperties(int32_t index, VstPinProperties *properties)
+PlayCache::get_output_properties(int32_t index, VstPinProperties *properties)
 {
     if (index >= channels)
         return false;
@@ -119,20 +119,20 @@ PlayCache::getOutputProperties(int32_t index, VstPinProperties *properties)
 // parameters
 
 void
-PlayCache::setParameter(int32_t index, float value)
+PlayCache::set_parameter(int32_t index, float value)
 {
     switch (index) {
-    case pVolume:
+    case p_volume:
         this->volume = value;
         break;
     }
 }
 
 float
-PlayCache::getParameter(int32_t index)
+PlayCache::get_parameter(int32_t index)
 {
     switch (index) {
-    case pVolume:
+    case p_volume:
         return this->volume;
     default:
         return 0;
@@ -140,37 +140,37 @@ PlayCache::getParameter(int32_t index)
 }
 
 void
-PlayCache::getParameterLabel(int32_t index, char *label)
+PlayCache::get_parameter_label(int32_t index, char *label)
 {
     switch (index) {
-    case pVolume:
+    case p_volume:
         strncpy(label, "dB", Max::ParameterOrPinLabelLength);
         break;
     }
 }
 
 static float
-linearToDb(float f)
+linear_to_db(float f)
 {
     return log10(f) * 20;
 }
 
 void
-PlayCache::getParameterText(int32_t index, char *text)
+PlayCache::get_parameter_text(int32_t index, char *text)
 {
     switch (index) {
-    case pVolume:
+    case p_volume:
         snprintf(text, Max::ParameterOrPinLabelLength, "%.2fdB",
-            linearToDb(this->volume));
+            linear_to_db(this->volume));
         break;
     }
 }
 
 void
-PlayCache::getParameterName(int32_t index, char *text)
+PlayCache::get_parameter_name(int32_t index, char *text)
 {
     switch (index) {
-    case pVolume:
+    case p_volume:
         strncpy(text, "volume", Max::ParameterOrPinLabelLength);
         break;
     }
@@ -179,28 +179,28 @@ PlayCache::getParameterName(int32_t index, char *text)
 
 // process
 
-// Start streaming samples from startFrame, starting startOffset from now.
+// Start streaming samples from start_frame, starting start_offset from now.
 void
-PlayCache::start(int32_t startOffset)
+PlayCache::start(int32_t start_offset)
 {
     // Hopefully this should wind up statically allocated.
-    static std::string samplesDir(4096, ' ');
+    static std::string samples_dir(4096, ' ');
 
     // This can happen if the DAW gets a NoteOn before the config msgs.
-    if (playConfig.scorePath.empty()) {
-        LOG("play received, but scorePath is empty");
+    if (play_config.score_path.empty()) {
+        LOG("play received, but score_path is empty");
         return;
     }
-    LOG("start playing at startOffset " << startOffset
-        << " block '" << playConfig.scorePath
-        << "' from frame " << startFrame);
+    LOG("start playing at start_offset " << start_offset
+        << " block '" << play_config.score_path
+        << "' from frame " << start_frame);
 
-    samplesDir.clear();
-    samplesDir += cacheDir;
-    samplesDir += playConfig.scorePath;
-    streamer->start(samplesDir, startFrame, playConfig.mutedInstruments);
-    this->playConfig.clear();
-    this->startOffset = startOffset + START_LATENCY_FRAMES;
+    samples_dir.clear();
+    samples_dir += cache_dir;
+    samples_dir += play_config.score_path;
+    streamer->start(samples_dir, start_frame, play_config.muted_instruments);
+    this->play_config.clear();
+    this->start_offset = start_offset + START_LATENCY_FRAMES;
     this->playing = true;
 }
 
@@ -231,10 +231,10 @@ PlayConfig::collect(std::ofstream &log, unsigned char d1, unsigned char d2)
     // LOG("collect: " << int(d1) << ", " << int(d2));
     collect1(d1);
     collect1(d2);
-    if (instrumentIndex == -1) {
-        // LOG("scorePath: '" << scorePath << "'");
+    if (instrument_index == -1) {
+        // LOG("score_path: '" << score_path << "'");
     } else {
-        // LOG("muted: '" << mutedInstruments[instrumentIndex] << "'");
+        // LOG("muted: '" << muted_instruments[instrument_index] << "'");
     }
 }
 
@@ -243,7 +243,7 @@ PlayConfig::collect1(unsigned char d)
 {
     switch (d) {
     case 0:
-        instrumentIndex++;
+        instrument_index++;
         break;
     case 0x7f:
         // This is sent at the beginning as an explicit clear, in case stray
@@ -254,14 +254,14 @@ PlayConfig::collect1(unsigned char d)
         // Encode pads with space if there is an odd number of characters.
         break;
     default:
-        if (instrumentIndex == -1) {
-            scorePath.push_back(d);
+        if (instrument_index == -1) {
+            score_path.push_back(d);
         } else {
             // TODO there's allocation here, but no point worrying about it
             // while Samples are still loaded in the audio thread.
-            while (instrumentIndex >= mutedInstruments.size())
-                mutedInstruments.push_back(std::string());
-            mutedInstruments[instrumentIndex].push_back(d);
+            while (instrument_index >= muted_instruments.size())
+                muted_instruments.push_back(std::string());
+            muted_instruments[instrument_index].push_back(d);
         }
         break;
     }
@@ -269,14 +269,14 @@ PlayConfig::collect1(unsigned char d)
 
 
 int32_t
-PlayCache::processEvents(const VstEventBlock *events)
+PlayCache::process_events(const VstEventBlock *events)
 {
-    for (int32_t i = 0; i < events->numberOfEvents; i++) {
+    for (int32_t i = 0; i < events->number_of_events; i++) {
         if (events->events[i]->type != VstEventBlock::Midi)
             continue;
 
         VstMidiEvent *event = (VstMidiEvent *) events->events[i];
-        const char *data = event->midiData;
+        const char *data = event->midi_data;
 
         // Parse the protocol emitted by Perform.Im.Play.
         int status = data[0] & 0xf0;
@@ -285,62 +285,62 @@ PlayCache::processEvents(const VstEventBlock *events)
                     || data[i] == ResetAllControllers)) {
             // See NOTE [play-im] for why I stop on these msgs, but not
             // NoteOff.
-            this->startFrame = 0;
+            this->start_frame = 0;
             this->playing = false;
             LOG("note off");
         } else if (status == NoteOn) {
-            start(event->sampleOffset);
+            start(event->sample_offset);
         } else if (status == Aftertouch && data[1] < 5) {
-            // Use aftertouch on keys 0--4 to set startFrame bits 0--35.
+            // Use aftertouch on keys 0--4 to set start_frame bits 0--35.
             unsigned int index = int(data[1]) * 7;
             unsigned int val = data[2];
             // Turn off bits in the range, then replace them.
-            this->startFrame &= ~(0x7f << index);
-            this->startFrame |= val << index;
+            this->start_frame &= ~(0x7f << index);
+            this->start_frame |= val << index;
         } else if (status == PitchBend) {
-            playConfig.collect(log, data[1], data[2]);
+            play_config.collect(log, data[1], data[2]);
         }
     }
     return 1;
 }
 
 void
-PlayCache::process(float **_inputs, float **outputs, int32_t processFrames)
+PlayCache::process(float **_inputs, float **outputs, int32_t process_frames)
 {
     float *out1 = outputs[0];
     float *out2 = outputs[1];
 
-    memset(out1, 0, processFrames * sizeof(float));
-    memset(out2, 0, processFrames * sizeof(float));
+    memset(out1, 0, process_frames * sizeof(float));
+    memset(out2, 0, process_frames * sizeof(float));
 
-    float *oscSamples;
-    bool oscDone = !osc.get()
-        || this->osc->read(channels, processFrames, &oscSamples);
-    if (!oscDone) {
-        for (int frame = 0; frame < processFrames; frame++) {
-            out1[frame] += oscSamples[frame*2] * volume;
-            out2[frame] += oscSamples[frame*2 + 1] * volume;
+    float *osc_samples;
+    bool osc_done = !osc.get()
+        || this->osc->read(channels, process_frames, &osc_samples);
+    if (!osc_done) {
+        for (int frame = 0; frame < process_frames; frame++) {
+            out1[frame] += osc_samples[frame*2] * volume;
+            out2[frame] += osc_samples[frame*2 + 1] * volume;
         }
     }
 
     if (playing) {
-        // Leave some silence at the beginning if there is a startOffset.
-        if (startOffset > 0) {
-            int32_t offset = std::min(processFrames, startOffset);
+        // Leave some silence at the beginning if there is a start_offset.
+        if (start_offset > 0) {
+            int32_t offset = std::min(process_frames, start_offset);
             out1 += offset;
             out2 += offset;
-            processFrames -= offset;
-            startOffset -= offset;
+            process_frames -= offset;
+            start_offset -= offset;
         }
 
-        float *streamSamples;
-        if (this->streamer->read(channels, processFrames, &streamSamples)) {
+        float *stream_samples;
+        if (this->streamer->read(channels, process_frames, &stream_samples)) {
             LOG("out of samples");
             this->playing = false;
         } else {
-            for (int frame = 0; frame < processFrames; frame++) {
-                out1[frame] += streamSamples[frame*2] * volume;
-                out2[frame] += streamSamples[frame*2 + 1] * volume;
+            for (int frame = 0; frame < process_frames; frame++) {
+                out1[frame] += stream_samples[frame*2] * volume;
+                out2[frame] += stream_samples[frame*2 + 1] * volume;
             }
         }
     }

@@ -16,7 +16,7 @@ using std::string;
 
 // See if the fname matches any of the muted instruments.
 static bool
-suffixMatch(const std::vector<string> &mutes, const char *fname)
+suffix_match(const std::vector<string> &mutes, const char *fname)
 {
     const char *endp = strrchr(fname, '.');
     int end = endp ? endp - fname : strlen(fname);
@@ -29,7 +29,7 @@ suffixMatch(const std::vector<string> &mutes, const char *fname)
 
 
 static std::vector<string>
-dirSamples(
+dir_samples(
     std::ostream &log, const string &dir, const std::vector<string> &mutes)
 {
     std::vector<string> dirs;
@@ -45,7 +45,7 @@ dirSamples(
         string subdir(ent->d_name);
         if (subdir.empty() || subdir[0] == '.')
             continue;
-        if (suffixMatch(mutes, subdir.c_str()))
+        if (suffix_match(mutes, subdir.c_str()))
             continue;
         subdir = dir + "/" + subdir;
         LOG("play sample dir: " << subdir);
@@ -59,16 +59,17 @@ dirSamples(
 }
 
 
-Tracks::Tracks(std::ostream &log, int channels, int sampleRate,
-    const string &dir, sf_count_t startOffset, const std::vector<string> &mutes)
+Tracks::Tracks(std::ostream &log, int channels, int sample_rate,
+    const string &dir, sf_count_t start_offset,
+    const std::vector<string> &mutes)
     : log(log)
 {
-    std::vector<string> dirnames(dirSamples(log, dir, mutes));
+    std::vector<string> dirnames(dir_samples(log, dir, mutes));
     audios.reserve(dirnames.size());
     for (const auto &dirname : dirnames) {
         std::unique_ptr<Audio> sample(
             new SampleDirectory(
-                log, channels, sampleRate, dirname, startOffset));
+                log, channels, sample_rate, dirname, start_offset));
         audios.push_back(std::move(sample));
     }
 }
@@ -81,10 +82,10 @@ Tracks::read(int channels, sf_count_t frames, float **out)
     std::fill(buffer.begin(), buffer.end(), 0);
     bool done = true;
     for (const auto &audio : audios) {
-        float *sBuffer;
-        if (!audio->read(channels, frames, &sBuffer)) {
+        float *s_buffer;
+        if (!audio->read(channels, frames, &s_buffer)) {
             for (sf_count_t i = 0; i < frames * channels; i++) {
-                buffer[i] += sBuffer[i];
+                buffer[i] += s_buffer[i];
             }
             done = false;
         }

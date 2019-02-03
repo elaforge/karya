@@ -7,49 +7,50 @@
 // initialize
 
 // Implemented by the plugin.  Presumably looks like
-// return new PluginSubclass(hostCallback)->getVst();
-extern VstEffectInterface *createEffectInstance(VstHostCallback hostCallback);
+// return new PluginSubclass(host_callback)->get_vst();
+extern VstEffectInterface *create_effect_instance(
+    VstHostCallback host_callback);
 
 static VstEffectInterface *
-pluginEntryPoint(VstHostCallback hostCallback)
+plugin_entry_point(VstHostCallback host_callback)
 {
-    if (hostCallback(0, HostOp::VstVersion, 0, 0, 0, 0) == 0)
+    if (host_callback(0, HostOp::VstVersion, 0, 0, 0, 0) == 0)
         return nullptr;
     else
-        return createEffectInstance(hostCallback);
+        return create_effect_instance(host_callback);
 }
 
 #define EXPORTED_FUNCTION extern "C" __attribute__ ((visibility("default")))
 
 EXPORTED_FUNCTION VstEffectInterface *
-VSTPluginMain(VstHostCallback hostCallback);
+VSTPluginMain(VstHostCallback host_callback);
 
 EXPORTED_FUNCTION VstEffectInterface *
-VSTPluginMain(VstHostCallback hostCallback)
+VSTPluginMain(VstHostCallback host_callback)
 {
-    return pluginEntryPoint(hostCallback);
+    return plugin_entry_point(host_callback);
 }
 
 #if __APPLE__
 
 // Evidently this is for old hosts.  Maybe unnecessary.
-EXPORTED_FUNCTION VstEffectInterface *main_macho(VstHostCallback hostCallback);
+EXPORTED_FUNCTION VstEffectInterface *main_macho(VstHostCallback host_callback);
 
 EXPORTED_FUNCTION VstEffectInterface *
-main_macho(VstHostCallback hostCallback)
+main_macho(VstHostCallback host_callback)
 {
-    return pluginEntryPoint(hostCallback);
+    return plugin_entry_point(host_callback);
 }
 
 #elif __linux__
 
 EXPORTED_FUNCTION VstEffectInterface *
-main_plugin(VstHostCallback hostCallback) asm ("main");
+main_plugin(VstHostCallback host_callback) asm ("main");
 
 EXPORTED_FUNCTION VstEffectInterface *
-main_plugin(VstHostCallback hostCallback)
+main_plugin(VstHostCallback host_callback)
 {
-    return VSTPluginMain(hostCallback);
+    return VSTPluginMain(host_callback);
 }
 
 #else
@@ -59,11 +60,11 @@ main_plugin(VstHostCallback hostCallback)
 
 
 static pointer_sized_int
-dispatcherCB(
+dispatcher_cb(
     VstEffectInterface *vst, int32_t op, int32_t index, pointer_sized_int value,
     void *ptr, float opt)
 {
-    Plugin *plugin = static_cast<Plugin *>(vst->effectPointer);
+    Plugin *plugin = static_cast<Plugin *>(vst->effect_pointer);
 
     switch (op) {
     case Op::Open:
@@ -84,22 +85,22 @@ dispatcherCB(
         * (char *) ptr = '\0';
         return 0;
     case Op::GetParameterLabel:
-        plugin->getParameterLabel(index, (char *) ptr);
+        plugin->get_parameter_label(index, (char *) ptr);
         return 0;
     case Op::GetParameterText:
-        plugin->getParameterText(index, (char *) ptr);
+        plugin->get_parameter_text(index, (char *) ptr);
         return 0;
     case Op::GetParameterName:
-        plugin->getParameterName(index, (char *) ptr);
+        plugin->get_parameter_name(index, (char *) ptr);
         return 0;
     // deprecated
     // case Op::Identify:
     //     return BigEndian('NvEf');
     case Op::SetSampleRate:
-        plugin->setSampleRate(opt);
+        plugin->set_sample_rate(opt);
         return 0;
     case Op::SetBlockSize:
-        plugin->setBlockSize((int32_t) value);
+        plugin->set_block_size((int32_t) value);
         return 0;
     case Op::ResumeSuspend:
         if (value)
@@ -108,44 +109,44 @@ dispatcherCB(
             plugin->suspend();
         return 0;
     case Op::GetOutputPinProperties:
-        return plugin->getOutputProperties(
+        return plugin->get_output_properties(
             index, (VstPinProperties *) ptr) ? 1 : 0;
     case Op::GetInputPinProperties:
-        return plugin->getInputProperties(
+        return plugin->get_input_properties(
             index, (VstPinProperties *) ptr) ? 1 : 0;
 
     case Op::SetBypass:
-        return plugin->setBypass(value ? true : false) ? 1 : 0;
+        return plugin->set_bypass(value ? true : false) ? 1 : 0;
 
     case Op::GetPlugInName:
     case Op::GetManufacturerProductName:
-        plugin->getPluginName((char *) ptr);
+        plugin->get_plugin_name((char *) ptr);
         return 1;
 
     case Op::GetManufacturerName:
-        plugin->getManufacturerName((char *) ptr);
+        plugin->get_manufacturer_name((char *) ptr);
         return 1;
 
     case Op::GetManufacturerVersion:
         return 1;
 
     case Op::CanPlugInDo:
-        plugin->canDo((const char *) ptr);
+        plugin->can_do((const char *) ptr);
         return 1;
 
     case Op::PreAudioProcessingEvents:
-        return plugin->processEvents((VstEventBlock *) ptr);
+        return plugin->process_events((VstEventBlock *) ptr);
     case Op::GetNumMidiInputChannels:
-        return plugin->getNumMidiInputChannels();
+        return plugin->get_num_midi_input_channels();
     case Op::GetNumMidiOutputChannels:
-        return plugin->getNumMidiOutputChannels();
+        return plugin->get_num_midi_output_channels();
     }
     return 0;
 }
 
 
 int
-Plugin::canDo(const char *text)
+Plugin::can_do(const char *text)
 {
     auto matches = [=](const char *s) { return strcmp(text, s) == 0; };
 
@@ -153,63 +154,64 @@ Plugin::canDo(const char *text)
          || matches("receiveVstMidiEvent")
          || matches("receiveVstMidiEvents"))
     {
-        return isSynth ? 1 : -1;
+        return is_synth ? 1 : -1;
     }
     return 0;
 }
 
 
 static void
-setParameterCB(VstEffectInterface *vst, int32_t index, float value)
+set_parameter_cb(VstEffectInterface *vst, int32_t index, float value)
 {
-    static_cast<Plugin *>(vst->effectPointer)->setParameter(index, value);
+    static_cast<Plugin *>(vst->effect_pointer)->set_parameter(index, value);
 }
 
 static float
-getParameterCB(VstEffectInterface *vst, int32_t index)
+get_parameter_cb(VstEffectInterface *vst, int32_t index)
 {
-    return static_cast<Plugin *>(vst->effectPointer)->getParameter(index);
+    return static_cast<Plugin *>(vst->effect_pointer)->get_parameter(index);
 }
 
 static void
-processReplacingCB(
+process_replacing_cb(
     VstEffectInterface *vst, float **inputs, float **outputs, int32_t frames)
 {
-    static_cast<Plugin *>(vst->effectPointer)->process(inputs, outputs, frames);
+    static_cast<Plugin *>(vst->effect_pointer)->process(
+        inputs, outputs, frames);
 }
 
-Plugin::Plugin(VstHostCallback hostCallback,
-        int32_t numPrograms, int32_t numParameters, int32_t numInChannels,
-        int32_t numOutChannels, int32_t uniqueID, int32_t version,
-        int32_t initialDelay, bool isSynth) :
-    hostCallback(hostCallback), isSynth(isSynth)
+Plugin::Plugin(VstHostCallback host_callback,
+        int32_t num_programs, int32_t num_parameters, int32_t num_in_channels,
+        int32_t num_out_channels, int32_t unique_id, int32_t version,
+        int32_t initial_delay, bool is_synth) :
+    host_callback(host_callback), is_synth(is_synth)
 {
     memset(&vst, 0, sizeof vst);
-    vst.interfaceIdentifier = 'VstP';
-    vst.dispatchFunction = dispatcherCB;
-    vst.processAudioFunction = nullptr; // obsolete
-    vst.setParameterValueFunction = setParameterCB;
-    vst.getParameterValueFunction = getParameterCB;
-    vst.numPrograms = numPrograms;
-    vst.numParameters = numParameters;
-    vst.numInputChannels = numInChannels;
-    vst.numOutputChannels = numOutChannels;
+    vst.interface_identifier = 'VstP';
+    vst.dispatch_function = dispatcher_cb;
+    vst.process_audio_function = nullptr; // obsolete
+    vst.set_parameter_value_function = set_parameter_cb;
+    vst.get_parameter_value_function = get_parameter_cb;
+    vst.num_programs = num_programs;
+    vst.num_parameters = num_parameters;
+    vst.num_input_channels = num_in_channels;
+    vst.num_output_channels = num_out_channels;
 
     vst.flags |= Flag::InplaceAudio;
-    if (isSynth)
+    if (is_synth)
         vst.flags |= Flag::IsSynth;
 
-    // Also called setInitialDelay.
-    vst.latency = initialDelay;
+    // Also called set_initial_delay.
+    vst.latency = initial_delay;
 
-    vst.effectPointer = this;
-    vst.userPointer = nullptr;
+    vst.effect_pointer = this;
+    vst.user_pointer = nullptr;
 
-    vst.plugInIdentifier = uniqueID;
-    vst.plugInVersion = version;
+    vst.plug_in_identifier = unique_id;
+    vst.plug_in_version = version;
 
-    vst.processAudioInplaceFunction = processReplacingCB;
-    vst.processDoubleAudioInplaceFunction = nullptr;
+    vst.process_audio_inplace_function = process_replacing_cb;
+    vst.process_double_audio_inplace_function = nullptr;
 }
 
 void
@@ -218,7 +220,7 @@ Plugin::resume()
     // If this plug-in is a synth or it can receive midi events we need to
     // tell the host that we want midi. In the SDK this method is marked as
     // deprecated, but some hosts rely on this behaviour.
-    if (isSynth && hostCallback != nullptr) {
-        hostCallback(&vst, HostOp::PlugInWantsMidi, 0, 1, 0, 0);
+    if (is_synth && host_callback != nullptr) {
+        host_callback(&vst, HostOp::PlugInWantsMidi, 0, 1, 0, 0);
     }
 }

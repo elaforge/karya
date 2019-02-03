@@ -20,7 +20,7 @@
 // Stream samples from disk.
 //
 // This has a realtime and a non-realtime API.  The class must be created in a
-// non-realtime context, at which point it starts up streamThread which will
+// non-realtime context, at which point it starts up stream_thread which will
 // handle non-realtime work.  The public methods, specifically read(), should
 // then be realtime-safe.
 //
@@ -31,8 +31,8 @@
 // thread.
 class Streamer : public Audio {
 protected:
-    Streamer(const char *name, std::ostream &log, int channels, int sampleRate,
-        int maxFrames, bool synchronized);
+    Streamer(const char *name, std::ostream &log, int channels, int sample_rate,
+        int max_frames, bool synchronized);
 public:
     virtual ~Streamer();
 
@@ -40,8 +40,8 @@ public:
     bool read(int channels, sf_count_t frames, float **out) override;
 
     const int channels;
-    const int sampleRate;
-    const int maxFrames;
+    const int sample_rate;
+    const int max_frames;
 protected:
     const char *name;
     std::ostream &log;
@@ -51,16 +51,16 @@ protected:
     // Called on non-realtime thread.
     virtual Audio *initialize() = 0;
 private:
-    void streamLoop();
+    void stream_loop();
     void stream();
-    std::unique_ptr<std::thread> streamThread;
+    std::unique_ptr<std::thread> stream_thread;
     std::unique_ptr<Audio> audio;
 
-    // ** communication with streamThread.
-    std::atomic<bool> threadQuit;
+    // ** communication with stream_thread.
+    std::atomic<bool> thread_quit;
     // Goes to true when the Audio has run out of data.
-    std::atomic<bool> audioDone;
-    // Set to true to have the streamThread reload mix.
+    std::atomic<bool> audio_done;
+    // Set to true to have the stream_thread reload mix.
     std::atomic<bool> restarting;
     jack_ringbuffer_t *ring;
     // ring needs more data.
@@ -76,22 +76,22 @@ private:
     // Keep track if read() position gets ahead of what ring was able to
     // provide.
     sf_count_t debt;
-    std::vector<float> outputBuffer;
+    std::vector<float> output_buffer;
 };
 
 
 class TracksStreamer : public Streamer {
 public:
-    TracksStreamer(std::ostream &log, int channels, int sampleRate,
-        int maxFrames);
-    void start(const std::string &dir, sf_count_t startOffset,
+    TracksStreamer(std::ostream &log, int channels, int sample_rate,
+        int max_frames);
+    void start(const std::string &dir, sf_count_t start_offset,
         const std::vector<std::string> &mutes);
 
 private:
-    // Statically allocated state start() passes to streamLoop().
+    // Statically allocated state start() passes to stream_loop().
     struct {
         std::string dir;
-        sf_count_t startOffset;
+        sf_count_t start_offset;
         std::vector<std::string> mutes;
     } args;
     Audio *initialize() override;
@@ -100,8 +100,8 @@ private:
 
 class ResampleStreamer : public Streamer {
 public:
-    ResampleStreamer(std::ostream &log, int channels, int sampleRate,
-            int maxFrames);
+    ResampleStreamer(std::ostream &log, int channels, int sample_rate,
+            int max_frames);
     void start(const std::string &fname, double ratio);
     void stop();
 

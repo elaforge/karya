@@ -20,7 +20,7 @@ using std::string;
 
 
 static bool
-endsWith(const string &str, const string &suffix)
+ends_with(const string &str, const string &suffix)
 {
     return str.compare(
             str.length() - std::min(str.length(), suffix.length()),
@@ -31,29 +31,29 @@ endsWith(const string &str, const string &suffix)
 
 
 static bool
-isSample(const string &str)
+is_sample(const string &str)
 {
     // Don't try to load random junk, e.g. reaper .repeaks files.
     // I write .debug.wav for debugging.
-    return endsWith(str, ".wav") && !endsWith(str, ".debug.wav");
+    return ends_with(str, ".wav") && !ends_with(str, ".debug.wav");
 }
 
 
 static std::vector<string>
-listSamples(std::ostream &log, const string &dir)
+list_samples(std::ostream &log, const string &dir)
 {
     struct dirent *ent;
     std::vector<string> fnames;
     DIR *d = opendir(dir.c_str());
     if (!d) {
-        LOG("listSamples: not a dir: " << dir);
+        LOG("list_samples: not a dir: " << dir);
         return fnames;
     }
     while ((ent = readdir(d)) != nullptr) {
         if (ent->d_type != DT_REG && ent->d_type != DT_LNK)
             continue;
         string fname(ent->d_name);
-        if (isSample(fname))
+        if (is_sample(fname))
             fnames.push_back(fname);
     }
     std::sort(fnames.begin(), fnames.end());
@@ -62,17 +62,17 @@ listSamples(std::ostream &log, const string &dir)
 
 
 static string
-findNthSample(std::ostream &log, const string &dir, int n)
+find_nth_sample(std::ostream &log, const string &dir, int n)
 {
-    std::vector<string> fnames = listSamples(log, dir);
+    std::vector<string> fnames = list_samples(log, dir);
     return n < fnames.size() ? fnames[n] : "";
 }
 
 
 static string
-findNextSample(std::ostream &log, const string &dir, const string &fname)
+find_next_sample(std::ostream &log, const string &dir, const string &fname)
 {
-    std::vector<string> fnames = listSamples(log, dir);
+    std::vector<string> fnames = list_samples(log, dir);
     const auto next = std::find_if(
         fnames.begin(), fnames.end(),
         [&](const string &s) { return s > fname; });
@@ -81,27 +81,27 @@ findNextSample(std::ostream &log, const string &dir, const string &fname)
 
 
 static SNDFILE *
-openSample(
-    std::ostream &log, int channels, bool oneChannelOk, int sampleRate,
-    const string &fname, sf_count_t offset, int *fileChannels)
+open_sample(
+    std::ostream &log, int channels, bool one_channel_ok, int sample_rate,
+    const string &fname, sf_count_t offset, int *file_channels)
 {
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(fname.c_str(), SFM_READ, &info);
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
         LOG(fname << ": " << sf_strerror(sndfile));
     } else if (!(info.channels == channels
-        || (oneChannelOk && info.channels == 1)))
+        || (one_channel_ok && info.channels == 1)))
     {
         LOG(fname << ": expected " << channels << " channels, got "
             << info.channels);
-    } else if (info.samplerate != sampleRate) {
-        LOG(fname << ": expected srate of " << sampleRate << ", got "
+    } else if (info.samplerate != sample_rate) {
+        LOG(fname << ": expected srate of " << sample_rate << ", got "
             << info.samplerate);
     } else if (offset > 0 && sf_seek(sndfile, offset, SEEK_SET) == -1) {
         LOG(fname << ": seek to " << offset << ": " << sf_strerror(sndfile));
     } else {
-        if (fileChannels)
-            *fileChannels = info.channels;
+        if (file_channels)
+            *file_channels = info.channels;
         return sndfile;
     }
     sf_close(sndfile);
@@ -112,17 +112,17 @@ openSample(
 // SampleDirectory
 
 SampleDirectory::SampleDirectory(
-        std::ostream &log, int channels, int sampleRate,
+        std::ostream &log, int channels, int sample_rate,
         const string &dir, sf_count_t offset) :
-    log(log), sampleRate(sampleRate), dir(dir), sndfile(nullptr)
+    log(log), sample_rate(sample_rate), dir(dir), sndfile(nullptr)
 {
-    int filenum = offset / (CHECKPOINT_SECONDS * sampleRate);
-    sf_count_t fileOffset = offset % (CHECKPOINT_SECONDS * sampleRate);
-    this->fname = findNthSample(log, dir, filenum);
-    LOG("dir " << dir << ": start at '" << fname << "' + " << fileOffset);
+    int filenum = offset / (CHECKPOINT_SECONDS * sample_rate);
+    sf_count_t file_offset = offset % (CHECKPOINT_SECONDS * sample_rate);
+    this->fname = find_nth_sample(log, dir, filenum);
+    LOG("dir " << dir << ": start at '" << fname << "' + " << file_offset);
     if (!fname.empty()) {
-        sndfile = openSample(
-            log, channels, false, sampleRate, dir + '/' + fname, fileOffset,
+        sndfile = open_sample(
+            log, channels, false, sample_rate, dir + '/' + fname, file_offset,
             nullptr);
     }
 }
@@ -139,11 +139,11 @@ bool
 SampleDirectory::read(int channels, sf_count_t frames, float **out)
 {
     buffer.resize(frames * channels);
-    sf_count_t totalRead = 0;
-    while (!fname.empty() && frames - totalRead > 0) {
+    sf_count_t total_read = 0;
+    while (!fname.empty() && frames - total_read > 0) {
         if (sndfile == nullptr) {
-            sndfile = openSample(
-                log, channels, false, sampleRate, dir + '/' + fname, 0,
+            sndfile = open_sample(
+                log, channels, false, sample_rate, dir + '/' + fname, 0,
                 nullptr);
             // This means the next read will try again, and maybe spam the log,
             // but otherwise I have to somehow remember this file is bad.
@@ -152,34 +152,35 @@ SampleDirectory::read(int channels, sf_count_t frames, float **out)
         }
         // TODO read could fail, handle that
         sf_count_t delta = sf_readf_float(
-            sndfile, buffer.data() + totalRead * channels, frames - totalRead);
-        if (delta < frames - totalRead) {
+            sndfile, buffer.data() + total_read * channels,
+            frames - total_read);
+        if (delta < frames - total_read) {
             sf_close(sndfile);
             sndfile = nullptr;
-            fname = findNextSample(log, dir, fname);
+            fname = find_next_sample(log, dir, fname);
             LOG(dir << ": next sample: " << fname);
         }
-        totalRead += delta;
+        total_read += delta;
     };
-    std::fill(buffer.begin() + totalRead * channels, buffer.end(), 0);
+    std::fill(buffer.begin() + total_read * channels, buffer.end(), 0);
     *out = buffer.data();
-    return totalRead == 0;
+    return total_read == 0;
 }
 
 
 // SampleFile
 
 SampleFile::SampleFile(
-        std::ostream &log, int channels, bool expandChannels, int sampleRate,
+        std::ostream &log, int channels, bool expand_channels, int sample_rate,
         const string &fname, sf_count_t offset) :
-    log(log), expandChannels(expandChannels), fname(fname), sndfile(nullptr),
-    fileChannels(0)
+    log(log), expand_channels(expand_channels), fname(fname), sndfile(nullptr),
+    file_channels(0)
 {
     if (!fname.empty()) {
         LOG(fname << " + " << offset);
-        sndfile = openSample(
-            log, channels, expandChannels, sampleRate, fname, offset,
-            &this->fileChannels);
+        sndfile = open_sample(
+            log, channels, expand_channels, sample_rate, fname, offset,
+            &this->file_channels);
     }
 }
 
@@ -197,12 +198,12 @@ SampleFile::read(int channels, sf_count_t frames, float **out)
     // LOG("read " << frames);
     buffer.resize(frames * channels);
     sf_count_t read;
-    if (expandChannels && fileChannels == 1 && channels != 1) {
-        expandBuffer.resize(frames);
-        read = sf_readf_float(sndfile, expandBuffer.data(), frames);
+    if (expand_channels && file_channels == 1 && channels != 1) {
+        expand_buffer.resize(frames);
+        read = sf_readf_float(sndfile, expand_buffer.data(), frames);
         for (sf_count_t f = 0; f < read; f++) {
             for (int c = 0; c < channels; c++) {
-                buffer[f*channels + c] = expandBuffer[f];
+                buffer[f*channels + c] = expand_buffer[f];
             }
         }
     } else {

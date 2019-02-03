@@ -22,31 +22,31 @@
 // Actually it has lo_server_set_error_context, but of course that has to be
 // called after lo_server_new, at which point it's too late to notice creation
 // errors.
-static std::ostream *errorLog;
+static std::ostream *error_log;
 
 static void
-handleError(int num, const char *msg, const char *where)
+handle_error(int num, const char *msg, const char *where)
 {
-    std::ostream &log = *errorLog;
+    std::ostream &log = *error_log;
     LOG("OSC error: " << msg << ", at: " << (where ? where : "<nowhere>"));
 }
 
 
 
-Osc::Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames)
-    : log(log), threadQuit(false), volume(1)
+Osc::Osc(std::ostream &log, int channels, int sample_rate, int max_block_frames)
+    : log(log), thread_quit(false), volume(1)
 {
-    errorLog = &log;
+    error_log = &log;
     this->server = new_server();
     streamer.reset(
-        new ResampleStreamer(log, channels, sampleRate, maxBlockFrames));
+        new ResampleStreamer(log, channels, sample_rate, max_block_frames));
     thread.reset(new std::thread(&Osc::loop, this));
 }
 
 
 Osc::~Osc()
 {
-    threadQuit.store(true);
+    thread_quit.store(true);
     LOG("Osc quit");
     {
         // Send myself a random message to get lo_server_recv to return.
@@ -82,10 +82,10 @@ lo_server
 Osc::new_server()
 {
     lo_server server =
-        lo_server_new_with_proto(STR(OSC_PORT), LO_UDP, handleError);
+        lo_server_new_with_proto(STR(OSC_PORT), LO_UDP, handle_error);
     if (server) {
-        lo_server_add_method(server, "/play", "sdd", Osc::handlePlay, this);
-        lo_server_add_method(server, "/stop", "", Osc::handleStop, this);
+        lo_server_add_method(server, "/play", "sdd", Osc::handle_play, this);
+        lo_server_add_method(server, "/stop", "", Osc::handle_stop, this);
     }
     return server;
 }
@@ -94,7 +94,7 @@ Osc::new_server()
 void
 Osc::loop()
 {
-    while (!threadQuit.load()) {
+    while (!thread_quit.load()) {
         while (!this->server) {
             // see Osc::new_server
             LOG("server failed to connect, retrying...");
@@ -109,7 +109,7 @@ Osc::loop()
 
 
 int
-Osc::handlePlay(
+Osc::handle_play(
     const char *path, const char *types, lo_arg **argv,
     int argc, void *data, void *user_data)
 {
@@ -129,7 +129,7 @@ Osc::play(const char *path, double ratio, double vol)
 
 
 int
-Osc::handleStop(
+Osc::handle_stop(
     const char *path, const char *types, lo_arg **argv,
     int argc, void *data, void *user_data)
 {

@@ -41,18 +41,18 @@ Resample::read(int channels, sf_count_t frames, float **out)
         if (data.input_frames == 0) {
             // Guess how many frames it will need.  It's not always right
             // though.
-            // sf_count_t inputFrames = ceil(frames * 1/ratio);
-            sf_count_t inputFrames = frames;
+            // sf_count_t input_frames = ceil(frames * 1/ratio);
+            sf_count_t input_frames = frames;
             float *input;
             data.end_of_input =
-                audio->read(channels, inputFrames, &input);
-            // LOG("read " << inputFrames << " done:" << data.end_of_input);
+                audio->read(channels, input_frames, &input);
+            // LOG("read " << input_frames << " done:" << data.end_of_input);
             if (data.end_of_input) {
                 data.data_in = nullptr;
                 data.input_frames = 0;
             } else {
                 data.data_in = input;
-                data.input_frames = inputFrames;
+                data.input_frames = input_frames;
             }
         }
         // LOG("in:" << data.input_frames << " out:" << data.output_frames);
@@ -68,7 +68,7 @@ Resample::read(int channels, sf_count_t frames, float **out)
 
         if (data.data_in)
             data.data_in += data.input_frames_used * channels;
-        // outPosition += data.output_frames_gen;
+        // out_position += data.output_frames_gen;
         data.data_out += data.output_frames_gen * channels;
         data.input_frames -= data.input_frames_used;
         data.output_frames -= data.output_frames_gen;
