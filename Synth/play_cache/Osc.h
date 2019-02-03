@@ -30,6 +30,8 @@ private:
     std::atomic<bool> threadQuit;
     std::unique_ptr<ResampleStreamer> streamer;
     double volume;
+
+    lo_server new_server();
     void loop();
 
     static int handlePlay(

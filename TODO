@@ -1360,7 +1360,7 @@ synth: im:
       hardcoded to 'sampler -> faust' or just 'faust'.
     . I'd need some routing so I can get signals to those processors.
   bug:
-    - I think I crashed the DAW, but it seems to be uncommon?
+    * I think I crashed the DAW, but it seems to be uncommon?
       . Synth/play_cache/Osc.cc:30 OSC error: cannot find free port, at: ?
   progress:
     * Handle non-fatal errors, e.g. sample not found.

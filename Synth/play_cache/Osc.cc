@@ -3,6 +3,7 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <string>
+#include <unistd.h>
 #include <lo/lo.h>
 
 #include "Osc.h"
@@ -27,18 +28,16 @@ static void
 handleError(int num, const char *msg, const char *where)
 {
     std::ostream &log = *errorLog;
-    LOG("OSC error: " << msg << ", at: " << (where ? where : "?"));
+    LOG("OSC error: " << msg << ", at: " << (where ? where : "<nowhere>"));
 }
+
 
 
 Osc::Osc(std::ostream &log, int channels, int sampleRate, int maxBlockFrames)
     : log(log), threadQuit(false), volume(1)
 {
     errorLog = &log;
-    this->server = lo_server_new(STR(OSC_PORT), handleError);
-
-    lo_server_add_method(server, "/play", "sdd", Osc::handlePlay, this);
-    lo_server_add_method(server, "/stop", "", Osc::handleStop, this);
+    this->server = new_server();
     streamer.reset(
         new ResampleStreamer(log, channels, sampleRate, maxBlockFrames));
     thread.reset(new std::thread(&Osc::loop, this));
@@ -56,7 +55,8 @@ Osc::~Osc()
         lo_address_free(self);
     }
     thread->join();
-    lo_server_free(server);
+    if (this->server)
+        lo_server_free(server);
 }
 
 
@@ -73,11 +73,38 @@ Osc::read(int channels, sf_count_t frames, float **out)
 }
 
 
+// Sometimes I get "cannot find free port".  The liblo source is byzantine, but
+// it looks like I got EADDRINUSE which is related to the more byzantine BSD
+// socket rules, but perhaps the old connection is lingering.  I think
+// SO_REUSEADDR should prevent this, but it seems like liblo only uses that for
+// TCP.
+lo_server
+Osc::new_server()
+{
+    lo_server server =
+        lo_server_new_with_proto(STR(OSC_PORT), LO_UDP, handleError);
+    if (server) {
+        lo_server_add_method(server, "/play", "sdd", Osc::handlePlay, this);
+        lo_server_add_method(server, "/stop", "", Osc::handleStop, this);
+    }
+    return server;
+}
+
+
 void
 Osc::loop()
 {
-    while (!threadQuit.load())
-        lo_server_recv(this->server);
+    while (!threadQuit.load()) {
+        while (!this->server) {
+            // see Osc::new_server
+            LOG("server failed to connect, retrying...");
+            this->server = new_server();
+            if (!server)
+                sleep(1);
+
+        }
+        lo_server_recv(server);
+    }
 }
 
 
