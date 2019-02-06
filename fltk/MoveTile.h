@@ -22,8 +22,7 @@
     > 2*grab_area.
 */
 
-#ifndef __MOVE_TILE_H
-#define __MOVE_TILE_H
+#pragma once
 
 #include <vector>
 
@@ -84,5 +83,3 @@ private:
     // Allow dragging of panes this many pixels from the widget edges.
     const int grab_area;
 };
-
-#endif

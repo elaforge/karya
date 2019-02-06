@@ -6,8 +6,7 @@
     even -0.
 */
 
-#ifndef __EVENT_H
-#define __EVENT_H
+#pragma once
 
 #include <ostream>
 #include <string>
@@ -45,5 +44,3 @@ operator<<(std::ostream &os, const Event &e)
     return os << "Event(" << e.start << ", " << e.duration << ", "
         << int(e.style_id) << " '" << (e.text ? e.text : "") << "'" << ")";
 }
-
-#endif

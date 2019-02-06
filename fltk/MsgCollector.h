@@ -2,8 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#ifndef __MSG_COLLECTOR_H
-#define __MSG_COLLECTOR_H
+#pragma once
 
 #include <vector>
 #include <map>
@@ -240,5 +239,3 @@ private:
     // Map Fl::event_key() to Fl::event_text().
     std::map<int, int> keys_down;
 };
-
-#endif

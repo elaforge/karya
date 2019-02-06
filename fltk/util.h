@@ -2,8 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#ifndef __UTIL_H
-#define __UTIL_H
+#pragma once
 
 #include <string>
 #include <string.h>
@@ -140,5 +139,3 @@ operator<<(std::ostream &os, const std::pair<T, U> &p)
 {
     return os << "(" << p.first << ", " << p.second << ")";
 }
-
-#endif

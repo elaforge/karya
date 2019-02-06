@@ -2,6 +2,8 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#pragma once
+
 /*
 Fl_Scroll does random extraneous crap like wanting to keep track of scrollbars
 and not resizing its children.  This is just the bare minimum scrolling widget,
@@ -9,8 +11,6 @@ that also resizes like a normal Fl_Group.
 
 Actualy, for now it's just Fl_Scroll that modifies resize();
 */
-#ifndef __SIMPLE_SCROLL_H
-#define __SIMPLE_SCROLL_H
 
 #include <FL/Fl_Scroll.H>
 
@@ -36,5 +36,3 @@ protected:
 private:
     IPoint offset;
 };
-
-#endif

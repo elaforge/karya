@@ -2,6 +2,8 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#pragma once
+
 /*
     A track can be one of three types: an EventTrack, containing note data, a
     RulerTrack, or a Divider, which is meant to visually break up tracks or
@@ -11,9 +13,6 @@
     base class with the various kinds of tracks as subclasses, but Tracklike
     is a struct with pointers to all of them, intended to be a sum type.
 */
-
-#ifndef __TRACK_H
-#define __TRACK_H
 
 #include <vector>
 #include <FL/Fl_Widget.H>
@@ -147,5 +146,3 @@ private:
     Fl_Box box;
     Fl_Box *title_box;
 };
-
-#endif

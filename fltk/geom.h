@@ -4,8 +4,7 @@
 
 // generic utilities
 
-#ifndef __GEOM_UTIL_H
-#define __GEOM_UTIL_H
+#pragma once
 
 #include <iostream>
 #include <stdexcept>
@@ -153,5 +152,3 @@ typedef RectTmpl<int> IRect;
 typedef RectTmpl<double> DRect;
 
 }
-
-#endif

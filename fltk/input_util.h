@@ -2,8 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#ifndef __INPUT_UTIL_H
-#define __INPUT_UTIL_H
+#pragma once
 
 #include <FL/Fl_Input.H>
 
@@ -19,5 +18,3 @@ bool handle(Fl_Input *input, int evt, bool multiline);
 bool strip_value(Fl_Input *w);
 
 }
-
-#endif

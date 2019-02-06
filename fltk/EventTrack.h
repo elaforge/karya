@@ -7,8 +7,7 @@
     Events don't overlap.
 */
 
-#ifndef __EVENT_TRACK_H
-#define __EVENT_TRACK_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -171,5 +170,3 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &os, const EventTrack::TextBox &box);
-
-#endif

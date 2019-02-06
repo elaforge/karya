@@ -2,9 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-
-#ifndef __SELECTION_OVERLAY_H
-#define __SELECTION_OVERLAY_H
+#pragma once
 
 #include <vector>
 
@@ -26,5 +24,3 @@ private:
     // Selections indexed by selnum.
     std::vector<std::vector<Selection>> selections;
 };
-
-#endif

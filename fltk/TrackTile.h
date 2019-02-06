@@ -2,6 +2,8 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#pragma once
+
 /* This adds track-specific stuff to a MoveTile.
 
     Fill the rightmost track edge until the right edge of the window with a pad
@@ -15,9 +17,6 @@
        |                  \       \      \
     (Track::title_widget, Track)  ...  FloatingInput (floating_input, temporary)
 */
-
-#ifndef __TRACK_TILE_H
-#define __TRACK_TILE_H
 
 #include <math.h>
 
@@ -93,5 +92,3 @@ private:
     static void title_input_cb_dispatch(Fl_Widget *w, void *arg);
     void title_input_cb(Fl_Widget *title);
 };
-
-#endif

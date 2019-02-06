@@ -2,8 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#ifndef __FLOATING_INPUT_H
-#define __FLOATING_INPUT_H
+#pragma once
 
 #include <FL/Fl_Double_Window.H>
 #include "WrappedInput.h"
@@ -32,5 +31,3 @@ private:
     Fl_Window *owner_;
     bool ready;
 };
-
-#endif

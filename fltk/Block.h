@@ -2,8 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#ifndef __BLOCK_H
-#define __BLOCK_H
+#pragma once
 
 /*
       _________ block (Group) ___
@@ -231,5 +230,3 @@ public:
 protected:
     int handle(int evt) override;
 };
-
-#endif

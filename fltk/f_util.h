@@ -4,8 +4,7 @@
 
 // FLTK utilities
 
-#ifndef __F_UTIL_H
-#define __F_UTIL_H
+#pragma once
 
 #include <ostream>
 
@@ -86,5 +85,3 @@ void draw_rect(const IRect &rect, Color color);
 void draw_rectf(const IRect &rect, Color color);
 
 }
-
-#endif

@@ -2,8 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-#ifndef __SKELETON_DISPLAY_H
-#define __SKELETON_DISPLAY_H
+#pragma once
 
 #include <FL/Fl_Box.H>
 #include <vector>
@@ -96,5 +95,3 @@ private:
     std::vector<Track> tracks;
     std::vector<SkeletonEdge> edges;
 };
-
-#endif

@@ -2,16 +2,19 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-/*
-    A Scrollbar with some additions
-    It has an optional overlay ruler.
-*/
+#pragma once
+
 #include <FL/Fl_Scroll.H>
 
 #include "Color.h"
 #include "Scrollbar.h"
 #include "RulerTrack.h"
 
+
+/*
+    A Scrollbar with some additions
+    It has an optional overlay ruler.
+*/
 class SeqScrollbar : public Scrollbar {
 public:
     SeqScrollbar(int x, int y, int w, int h) :

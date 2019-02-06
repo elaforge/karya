@@ -2,10 +2,10 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#pragma once
+
 // This has constants which are not worth putting under host control by putting
 // in a *Config class.
-#ifndef __CONFIG_H
-#define __CONFIG_H
 
 #include <FL/Enumerations.H>
 
@@ -78,5 +78,3 @@ namespace font_size {
 };
 
 }
-
-#endif

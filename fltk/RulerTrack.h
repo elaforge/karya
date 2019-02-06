@@ -8,8 +8,7 @@
     for the event track overlay, and alpha for the ruler track.
 */
 
-#ifndef __RULER_H
-#define __RULER_H
+#pragma once
 
 #include <FL/Fl_Box.H>
 
@@ -45,5 +44,3 @@ private:
     RulerOverlay ruler_overlay;
     SelectionOverlay selection_overlay;
 };
-
-#endif
