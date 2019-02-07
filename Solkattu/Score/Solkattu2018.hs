@@ -745,6 +745,13 @@ adi_tani =
     , K adi_muktayi All
     ]
 
+adi_tani_misra :: [Part]
+adi_tani_misra =
+    [ -- K adi_tani1_misra All
+      K c_18_09_25_misra All
+    , K misra_trikalam All
+    ]
+
 adi_tani1 :: Korvai
 adi_tani1 = date 2018 8 3 $ sudhindra $ korvai adi mridangam
     [ section $ repeat 6 (tam.__4) . tri_ din tkdn
@@ -958,7 +965,22 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam $
 misra_trikalam :: Korvai
 misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
         korvai Tala.misra_chapu mridangam
-    [ section $ theme
+    [ devel $ sd $
+        let din_nana = din.__3.na.__.na.__
+        in
+           tat.__3.din_nana.din.__.kttk
+        . din.taka.din_nana.tam.__4
+        .  __.taka.din_nana.din.__.kttk
+        . din.taka.din_nana.dim.__4
+
+        . tat.__3.din_nana.din.__.kttk
+        . din.taka.din.__.tat.din.__.p6
+        . ta.taka.din_nana.din.__.kttk
+        . din.taka.din.__.tat.din.__.p6
+
+        . tat.__3.din_nana.din.__.p6.tam.__4.p6
+        . ta.taka.din_nana.din.__.p6.dim.__4.p6
+    , section $ theme
     , section $ nadai 6 theme
     , section $ su theme
     ]
@@ -973,12 +995,17 @@ misra_trikalam = trikalam $ date 2018 8 20 $ ganesh $
         , tat.__3.din.__3.p6
         , ta.taka.din.__3
         ] ++ [sd $ tri123 (tam.__3) p6]
-    mridangam = makeMridangam
+    mridangam = makeMridangam0
         [ (tat, k)
         , (din, od)
         , (na, on)
         , (tam, v)
         , (ta.taka, k.k.o)
+
+        , (kttk, k.t.o.k)
+        , (din.taka, o.k.o)
+        , (dim, i)
+        , (taka.din, k.o.od)
         ]
 
 c_18_09_25 :: Korvai
@@ -995,6 +1022,20 @@ c_18_09_25 = date 2018 9 25 $ ganesh $ korvaiS1 adi mridangam $
         , (p5, k.__.t.__.k.t.__.k.n.o)
         ]
 
+c_18_09_25_misra :: Korvai
+c_18_09_25_misra = date 2018 9 25 $ ganesh $
+        korvaiS1 Tala.misra_chapu mridangam $ sd $
+    tri (su (takadugutarikita.nakatiku).din.__3.tat.__3.din.__3)
+    . tri_ (tam.__4) p5
+    . sandi p5 (tri p5)
+    where
+    p5 = pattern $ su $ ta.__.di.__.ta.di.__.ki.ta.thom
+    mridangam = makeMridangam
+        [ (din.tat.din, od.k.od)
+        , (tam, u), (mid^tam, i)
+        , (p5, k.__.t.__.k.t.__.k.n.o)
+        ]
+
 c_18_10_06 :: Korvai
 c_18_10_06 = date 2018 10 6 $ tirmanam $
     comment "practice in urukalai/rendaikalai adi, rupaka, kanda, misra" $
@@ -1005,7 +1046,6 @@ c_18_10_06 = date 2018 10 6 $ tirmanam $
         [ (kita.taka, t.k.o.o)
         , (dheem, od)
         ]
-
 
 c_18_10_22 :: Korvai
 c_18_10_22 = date 2018 10 22 $ korvaiS1 adi mridangam $ nadai 6 $
