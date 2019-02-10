@@ -458,7 +458,7 @@ ccDeps config binary = map (oDir config </>) (ccRelativeDeps binary)
 
 ccBinaries :: [CcBinary]
 ccBinaries =
-    [ fltk "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"]
+    [ withSndfile $ fltk "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"]
     , fltk "test_browser"
         [ "Instrument/test_browser.cc.o", "Instrument/browser_ui.cc.o"
         , "fltk/f_util.cc.o"
@@ -473,6 +473,7 @@ ccBinaries =
     , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" []
     ]
     where
+    withSndfile bin = bin { ccLinkFlags = ("-lsndfile":) . ccLinkFlags bin }
     fltk name deps = CcBinary
         { ccName = name
         , ccRelativeDeps = deps
@@ -544,6 +545,7 @@ fltkDeps config = map (srcToObj config . ("fltk"</>))
     , "FloatingInput.cc"
     , "MoveTile.cc"
     , "MsgCollector.cc"
+    , "PeakCache.cc"
     , "RulerOverlay.cc"
     , "RulerTrack.cc"
     , "Scrollbar.cc"

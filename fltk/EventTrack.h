@@ -10,15 +10,17 @@
 #pragma once
 
 #include <string>
+#include <memory>
 #include <vector>
 
 #include "AbbreviatedInput.h"
 #include "Event.h"
 #include "FloatingInput.h"
-#include "Track.h"
+#include "PeakCache.h"
 #include "RulerOverlay.h"
 #include "SelectionOverlay.h"
 #include "TimeVector.h"
+#include "Track.h"
 #include "global.h"
 
 
@@ -88,8 +90,9 @@ class EventTrackConfig {
 public:
     // Get events from start to end, ordered by pos.  Return the ScoreTime in
     // pos, the events in 'events', and the count.
-    typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
-            Event **ret_events, int **ret_ranks);
+    typedef int (*FindEvents)(
+        const ScoreTime *start_pos, const ScoreTime *end_pos,
+        Event **ret_events, int **ret_ranks);
 
     EventTrackConfig(Color bg_color, FindEvents find_events,
             ScoreTime time_end, RenderConfig render_config) :
@@ -119,12 +122,15 @@ public:
     virtual void set_title_focus() override;
     virtual void set_selection(int selnum, const std::vector<Selection> &sels)
         override;
+    virtual void set_zoom(const Zoom &new_zoom) override;
     virtual void set_event_brightness(double d) override;
     virtual ScoreTime time_end() const override;
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
         override;
     // For the moment, only EventTracks can draw a signal.
     virtual void set_track_signal(const TrackSignal &tsig) override;
+    virtual void set_waveform(int chunknum, const PeakCache::Params &params)
+        override;
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;
 
@@ -144,6 +150,7 @@ protected:
 
 private:
     void draw_area();
+    void draw_waveforms(int min_y, int max_y, ScoreTime start);
     void draw_signal(int min_y, int max_y, ScoreTime start);
     void draw_event_boxes(
         const Event *events, const int *ranks, int count,
@@ -156,9 +163,16 @@ private:
     void focus_title();
     void unfocus_title();
 
+    void update_zoom_cache();
+
     EventTrackConfig config;
     double brightness;
     Color bg_color;
+    // Downsampled waveform peak cache for each chunk, indexed by chunknum.
+    std::vector<std::unique_ptr<PeakCache>> peaks;
+    // Peaks adapted for this zoom level.  These are cleared every time the
+    // zoom changes.
+    std::vector<std::unique_ptr<std::vector<float>>> zoom_cache;
 
     // This only ever displays the text, since as soon as you try to focus on
     // it, 'floating_input' will pop up in front.

@@ -564,6 +564,15 @@ Block::set_track_signal(int tracknum, const TrackSignal &tsig)
 }
 
 
+void
+Block::set_waveform(int tracknum, int chunknum, const PeakCache::Params &params)
+{
+    this->track_at(tracknum)->set_waveform(chunknum, params);
+    // There may be a floating input box that needs to be redrawn.
+    this->track_tile.redraw();
+}
+
+
 int
 Block::get_track_width(int tracknum) const
 {

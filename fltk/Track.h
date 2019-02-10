@@ -20,6 +20,7 @@
 #include <FL/Fl_Box.H>
 
 #include "Color.h"
+#include "PeakCache.h"
 #include "Selection.h"
 #include "f_util.h"
 #include "global.h"
@@ -94,6 +95,7 @@ public:
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
     {}
     virtual void set_track_signal(const TrackSignal &tsig) = 0;
+    virtual void set_waveform(int chunknum, const PeakCache::Params &params) {}
 
     // This is called before the object is deleted.
     virtual void finalize_callbacks() {}

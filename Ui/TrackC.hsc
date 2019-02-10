@@ -113,8 +113,9 @@ encode_style style = case style of
     Track.Line {} -> (#const RenderConfig::render_line)
     Track.Filled {} -> (#const RenderConfig::render_filled)
 
--- typedef int (*FindEvents)(ScoreTime *start_pos, ScoreTime *end_pos,
---         Event **ret_events, int **ret_ranks);
+-- typedef int (*FindEvents)(
+--     const ScoreTime *start_pos, const ScoreTime *end_pos,
+--     Event **ret_events, int **ret_ranks);
 type FindEvents = Ptr ScoreTime -> Ptr ScoreTime
     -> Ptr (Ptr Event.Event) -> Ptr (Ptr CInt) -> IO Int
 

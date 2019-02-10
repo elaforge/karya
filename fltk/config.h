@@ -26,6 +26,9 @@ extern const Color abbreviation_color;
 // Mark the playing end of events with this.
 extern const Color event_trigger_color;
 
+// Draw track waveforms with this color.
+extern const Color waveform_color;
+
 extern const Color skeleton_display_bg;
 extern const Color focus_skeleton_display_bg;
 extern const Color block_bg;

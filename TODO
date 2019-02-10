@@ -4,11 +4,13 @@ LEGEND
   Use indent folding with indent=2.
 
 STATUS
-  . synth: status:
+  . synth status:
+    . waveform display:
   . infer gender damping:
   . text score: tscore:
   - make kendang sampler instrument
     . Make thru work for it, and refactor thru in general.
+    . refactor thru:
   - use ghc package:
   - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
@@ -1330,9 +1332,8 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  status:
-    . rambat:
-    . Non-constant pitch:
+  synth status:
+    . non-constant pitch:
     . merge faust-im and sampler-im:
   merge faust-im and sampler-im:
     - First extend faust-im to be an Audio processor, so it can take inputs.
@@ -1359,6 +1360,24 @@ synth: im:
     . Patches now have to define a signal network, but it can probably be
       hardcoded to 'sampler -> faust' or just 'faust'.
     . I'd need some routing so I can get signals to those processors.
+    . Later I'll want to integrate my own synth as well.  I guess as long as
+      it produces an audio stream it's fine.
+    . Does this mean everything goes into one binary?  I think so, unless
+      I want to reinvent plugins.
+    . In that case, do I still want to divide up notes files?  I think
+      I should, because then I get better caching.  That also implies
+      running multiple copies of im?  Actually there's no need, just have it
+      read all the note files in the directory.
+    . In that case, should I split up by instrument?  I think I already have
+      to do the work when I split im from non-im events.
+    Actually, merge faust and sampler before doing audio transformer.
+      . How does multiple vs. single voice stuff work?
+      . Multiple means it allocates a new instrument for each note, which is
+        how the sampler does it.  Mono mode for sampler wouldn't make so much
+        sense because each note can be a different sample, at which point the
+        resample state no longer applies.
+      . For faust, I could just build it into instruments.  Do all-mono for
+        now.
   bug:
     * I think I crashed the DAW, but it seems to be uncommon?
       . Synth/play_cache/Osc.cc:30 OSC error: cannot find free port, at: ?
@@ -1371,12 +1390,88 @@ synth: im:
     * Should I use Config.busy_color?  It's the box color for Msg.Deriving.
       . The correspondence isn't obvious, and the color looks different anyway
         due to being transparent.
-    - More fancy, I could render the wave in the background as it renders.
-      I'd need to research "peaks" file and generate one of those along with
-      the audio.
+    waveform display:
+      . More fancy, I could render the wave in the background as it renders.
+        I'd need to research "peaks" file and generate one of those along with
+        the audio.
+      . Actually I can probably just keep an in-memory cache.
       . Audacity does that, but are there any smaller simpler audio displays
         I can use for reference?
-      . https://github.com/rncbc/qtractor/blob/master/src/qtractorAudioPeak.h
+        . https://github.com/rncbc/qtractor/blob/master/src/qtractorAudioPeak.h
+        . https://stackoverflow.com/questions/41814166/plot-an-audio-waveform-in-c-qt?rq=1
+        . https://stackoverflow.com/questions/37554058/fast-display-of-waveform-in-c-c#
+        . https://github.com/nzaillian/WaveformWidget
+      haskell:
+        - Synthesizer generates 000.wav, emits a progress saying it's
+          working on 001.wav.  I either infer or explicitly emit the
+          completed 000.wav and time range.
+        . One tricky thing is I want to only emit completes for chunks that
+          actually changed, so maybe at least include a flag saying if the
+          previous chunk was rendered or skipped.
+        - The first progress has to clear chunks after it, fltk:
+          clear_track_waveform(tracknum, start_chunknum)
+        - Check if the track wants to draw a waveform.
+        - Map the chunk time to shift, and an array of breakpoints for zoom
+          ratio.  The ratios are at a constant interval, and if they run out,
+          keep that ratio.  That way a constant (shift, stretch) is efficient.
+        . Call fltk: set_track_waveform(tracknum, 0, "000.wav", shift, ratios)
+      fltk:
+        * Fltk track inserts into internal state:
+          peaks[0] = ("000.wav", shift, ratios)
+        * Then it reads 000.wav and accumulates max(abs(sample[i])) for each
+          period, which is some constant period (like 1024), scaled by the
+          current interpolated point in ratios.  That goes in a peaks cache.
+        . Float is easiest, since that's what the wav file is in.  Then
+          a 1.3mb chunk becomes .65k in memory (/1024/2), which seems pretty
+          ok.  Otherwise, bytes could reduce further, and still be plenty
+          for the track width.
+        * Then do the same thing on the peaks cache, but for the current zoom
+          level.  There's one for each chunk.
+          . Since I get a direct params.shift value from haskell, I have an
+            exact start.  I could get an exact end too, then the ratios are
+            just saying how to warp it in the middle.  In fact, why not put
+            them as breakpoints, so each .5s should be at what ScoreTime?
+            Then I have ([start, start+n, ...], end) and don't get
+            imprecision.
+          . Start with just ([start], end) and do the warping later.  Then
+            ::read() just has to fit in that time range.
+          . If the warp positions are at regular RealTime intervals, then I
+            get a variable amount, and it could be a lot for high speed.
+            Speeds doesn't have this problem, since I can put them in at
+            regular ScoreTimes.  Maybe I can have an absolute start and end,
+            and then an array of speeds?
+          . What if a chunk is short?  I know the constant RealTime for each
+            chunk length, so I just use that instead of asking the file, and
+            be aware I might run out.
+          . With speeds I don't need to know chunk length, or rather fltk
+            doesn't have to know it since haskell does.
+
+          . Zoom cache is too small.
+            . Audio is 176400 / 44100 = 4s
+            . Peaks has 360, 360 / 90 = 4s
+            . Zoom = 1 has period 90, 360/90 = 4s, but it gets 3
+            . Zoom = 60 has period 1.5, 360/1.5 = 240/60 = 4s, but it gets 144
+            . So reduce is wrong.
+        * Use those as polygon points when drawing the track background.
+        * When zoom changes, redo the 2nd level cache.
+        . If any of the calculation steps cause a hiccup, consider
+          a background thread.
+        - Figure out amplitude_scale based on global max.
+        - Multiple tracks will have the same audio, so I want a global cache.
+          . Even if I have haskell tell it all tracks at once, it still has
+            to share among multiple tracks, so I still need ref counting.
+          . PeakCache hashes Params and hands out auto_ptrs.
+          . zoom_cache does the same thing.
+          . I could take start out of Params, but I don't think I ever have
+            the same audio at different places.
+      notes:
+        . If I load at srate/1024, that's about 43 samples/sec.  Each text
+          line is 12 pixels so about 3.5 lines for 1 second before it gets
+          chunky.  If that's too low, I might have to reduce to 512.  What
+          I could do is have one at 128, 256, 512, 1024, 2046, and choose, but
+          I'd want to do it lazily, at which point zooms might get laggy.
+
+
   cleanup:
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
@@ -1728,7 +1823,7 @@ synth: im:
   sampler: sampler-im:
     bug:
       * after a play speed change, I get some of the old render after the end.
-    Non-constant pitch:
+    non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict
         duration, but it turns out libsamplerate doesn't actually do that.
@@ -1829,7 +1924,7 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     kendang-legong:
-      - Thru doesn't work with pasang.
+      - Thru doesn't work with pasang. refactor thru:
         . MidiThru does an eval, I should do the same for im thru.
         . The im version of that is eval to Score.Event, then convert.  Don't
           I already have to do that though?

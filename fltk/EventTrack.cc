@@ -209,6 +209,16 @@ EventTrack::set_selection(int selnum, const std::vector<Selection> &news)
 
 
 void
+EventTrack::set_zoom(const Zoom &new_zoom)
+{
+    bool changed = zoom.factor != new_zoom.factor;
+    Track::set_zoom(new_zoom);
+    if (changed)
+        update_zoom_cache();
+}
+
+
+void
 EventTrack::title_input_focus_cb(Fl_Widget *_w, void *arg)
 {
     int evt = Fl::event();
@@ -322,6 +332,30 @@ EventTrack::set_track_signal(const TrackSignal &tsig)
 
 
 void
+EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
+{
+    this->peaks.resize(std::max(peaks.size(), size_t(chunknum+1)));
+    peaks[chunknum].reset(new PeakCache(params));
+    peaks[chunknum]->load();
+    this->zoom_cache.resize(std::max(zoom_cache.size(), size_t(chunknum+1)));
+    zoom_cache[chunknum] = peaks[chunknum]->get(this->zoom.factor);
+}
+
+
+void
+EventTrack::update_zoom_cache()
+{
+    // TODO this can happen extra times if no draw happens in between, maybe I
+    // should do it lazily?
+    // DEBUG("update_zoom_cache, chunks: " << peaks.size());
+    for (int i = 0; i < peaks.size(); i++) {
+        zoom_cache[i] = peaks[i]->get(zoom.factor);
+    }
+    // DEBUG("done");
+}
+
+
+void
 EventTrack::finalize_callbacks()
 {
     Config::free_haskell_fun_ptr(
@@ -332,9 +366,8 @@ EventTrack::finalize_callbacks()
 
 
 // TODO: parts of this are the same as RulerTrack::draw
-// Drawing order:
-// EventTrack: bg -> events -> ruler -> text -> trigger -> selection
-// RulerTrack: bg ->           ruler ->                    selection
+// This just figures out the area to draw, the actual work is done in
+// draw_area().
 void
 EventTrack::draw()
 {
@@ -471,6 +504,9 @@ compute_text_box(
 }
 
 
+// Drawing order:
+// EventTrack: bg -> events -> wave -> signal -> ruler -> text -> trigger -> sel
+// RulerTrack: bg ->                             ruler ->                 -> sel
 void
 EventTrack::draw_area()
 {
@@ -483,10 +519,12 @@ EventTrack::draw_area()
 
     // Calculate bounds.
 
-    ScoreTime start = this->zoom.to_time(clip.y - y_start);
-    ScoreTime end = start + this->zoom.to_time(clip.h);
-    start = start + this->zoom.offset;
-    end = end + this->zoom.offset;
+    const ScoreTime start = this->zoom.to_time(clip.y - y_start) + zoom.offset;
+    const ScoreTime end = start + this->zoom.to_time(clip.h);
+    // DEBUG("START " << clip.y << " - " << y_start << " to time "
+    //     << zoom.to_time(clip.y - y_start));
+    // start = start + this->zoom.offset;
+    // end = end + this->zoom.offset;
 
     // The results are sorted by (event_start, rank), so lower ranks always
     // come first.
@@ -516,6 +554,7 @@ EventTrack::draw_area()
     // Actually start drawing.
 
     this->draw_event_boxes(events, ranks, count, triggers);
+    this->draw_waveforms(clip.y, clip.b(), start);
     this->draw_signal(clip.y, clip.b(), start);
 
     IRect box(x(), track_start(), w(), h() - (y()-track_start()));
@@ -590,6 +629,75 @@ EventTrack::draw_event_boxes(
             }
         }
     }
+}
+
+
+// min_y and max_y are already in absolute pixels
+void
+EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
+{
+    const double amplitude_scale = 4; // TODO
+    if (peaks.empty())
+        return;
+
+    const int min_x = x() + 2;
+    const int max_x = x() + w() - 2;
+
+    const std::vector<float> *cache = nullptr;
+    double y = min_y;
+    int i = 0;
+    int chunknum = -1; // -1 means uninitialized
+    const ScoreTime *next_start = nullptr;
+    double pixels_per_peak = PeakCache::pixels_per_peak(zoom.factor);
+    ScoreTime time = start;
+    ScoreTime time_per_peak = zoom.to_time_d(pixels_per_peak);
+
+    fl_line_style(FL_SOLID | FL_CAP_ROUND, 1);
+    fl_color(Config::waveform_color.fl());
+    fl_begin_polygon();
+    for (; y < max_y; y += pixels_per_peak, i++, time = time+time_per_peak) {
+        if (y < min_y)
+            continue; // TODO just skip it in one step
+        // if (next_start)
+        //     DEBUG("y " << y << " time " << time << " next: " << *next_start);
+        // else
+        //     DEBUG("y " << y << " time " << time << " is last");
+        while (chunknum == -1 || (next_start && time >= *next_start)) {
+            chunknum++;
+            i = 0;
+            if (chunknum >= peaks.size())
+                break;
+            time = peaks[chunknum]->params.start;
+            y = zoom.to_pixels_d(time - zoom.offset) + track_start();
+            next_start = chunknum+1 < peaks.size()
+                ? &peaks[chunknum+1]->params.start : nullptr;
+            cache = chunknum < zoom_cache.size()
+                ? &*zoom_cache[chunknum] : nullptr;
+            // DEBUG("new chunknum: " << chunknum << " y: " << y);
+        }
+        if (!cache) {
+            DEBUG("no cache at " << chunknum << " size: " << zoom_cache.size());
+            break;
+        }
+        // Out of peaks on the last chunk.
+        if (!next_start && i >= cache->size())
+            break;
+        // i > cache->size() means I ran out of cached peaks before getting to
+        // the next chunk start.  This can happen for a sample or two due to
+        // pixel roundoff (TODO where exactly?)
+        if (i < cache->size()) {
+            float x = (*cache)[i];
+            x *= amplitude_scale;
+            x = x * (max_x - min_x) + min_x;
+            // DEBUG("v: (" << x << ", " << y << ") " << x_);
+            fl_vertex(x, y);
+        }
+    }
+    // DEBUG("v: (" << min_x << ", " << y << ")");
+    fl_vertex(min_x, y);
+    // DEBUG("v: (" << min_x << ", " << min_y << ")");
+    fl_vertex(min_x, min_y);
+    fl_end_polygon();
 }
 
 

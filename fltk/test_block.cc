@@ -19,11 +19,15 @@
 enum Events { Negative, Symbols, Normal };
 static const Events t1_use_events = Normal;
 // Turn this off just draw a single track.
-static const bool many_tracks = true;
+static const bool many_tracks = false;
 
 // Visible windows.
 static std::vector<BlockWindow *> windows;
 
+const char *audio_chunk0 =
+    "im/cache/save/test/im-rambat/untitled/b2/ri/000.wav";
+const char *audio_chunk1 =
+    "im/cache/save/test/im-rambat/untitled/b2/ri/001.wav";
 
 Color selection_colors[] = {
     Color(0, 0, 255, 90),
@@ -45,11 +49,12 @@ Marklist *m44_set(ScoreTime *last_pos)
     char name[32];
     Color major = Color(116, 70, 0, 90);
     Color minor = Color(225, 100, 50, 90);
+    ScoreTime each_mark(1);
 
     int length = 64;
     PosMark *marks = (PosMark *) calloc(sizeof(PosMark), length);
     for (int i = 0; i < length; i++) {
-        ScoreTime t = ScoreTime(i*8);
+        ScoreTime t = ScoreTime(i).multiply(each_mark);
         if (i % 4 == 0) {
             sprintf(name, "`+2/%d`", i / 4);
             Mark m(1, 3, major, strdup(name), 0, 0);
@@ -151,7 +156,7 @@ void t1_set()
 }
 
 int
-t1_find_events(ScoreTime *start_pos, ScoreTime *end_pos,
+t1_find_events(const ScoreTime *start_pos, const ScoreTime *end_pos,
         Event **ret_events, int **ret_ranks)
 {
     size_t count = 0;
@@ -183,7 +188,7 @@ t1_find_events(ScoreTime *start_pos, ScoreTime *end_pos,
 }
 
 int
-t1_no_events(ScoreTime *start_pos, ScoreTime *end_pos,
+t1_no_events(const ScoreTime *start_pos, const ScoreTime *end_pos,
         Event **ret_events, int **ret_ranks)
 {
     return 0;
@@ -358,7 +363,7 @@ timeout_func(void *unused)
 
     std::cout << n << "------------\n";
     if (n == 0) {
-        Block *block = &windows[0]->block;
+        // Block *block = &windows[0]->block;
         // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
         return;
     } else if (n == 1) {
@@ -449,13 +454,20 @@ main(int argc, char **argv)
         view.block.insert_track(0, Tracklike(&ruler), 20);
         view.block.insert_track(1, Tracklike(&track1, &no_ruler), 40);
         view.block.track_at(1)->set_title("track title");
-        // view.block.set_track_signal(1, *control_track_signal());
+
+        view.block.set_track_signal(1, *control_track_signal());
+        std::vector<double> ratios;
+        view.block.set_waveform(
+            1, 0, PeakCache::Params(audio_chunk0, ScoreTime(0), ratios));
+        view.block.set_waveform(
+            1, 1, PeakCache::Params(audio_chunk1, ScoreTime(4), ratios));
     }
     view.block.set_title("clocky blocky");
 
     Fl::add_timeout(1, timeout_func, nullptr);
 
-    view.block.set_zoom(Zoom(ScoreTime(0), 1.6));
+    // view.block.set_zoom(Zoom(ScoreTime(0), 1.6));
+    view.block.set_zoom(Zoom(ScoreTime(1.5), 60));
 
     std::vector<Selection> sels;
     sels.push_back(

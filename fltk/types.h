@@ -48,15 +48,18 @@ public:
 
     // Basic arithmetic and comparisons work on a ScoreTime.
     ScoreTime operator-() const { return ScoreTime(-_val); }
-#define OP(X) \
-ScoreTime operator X(const ScoreTime &o) const { \
-    ScoreTime r(_val X o._val); return r; \
-}
-    OP(+) OP(-)
-#undef OP
+
+    ScoreTime operator+(const ScoreTime &o) const {
+        return ScoreTime(_val + o._val);
+    }
+    ScoreTime operator-(const ScoreTime &o) const {
+        return ScoreTime(_val - o._val);
+    }
+
 #define OP(X) bool operator X(const ScoreTime &o) const {return _val X o._val;}
     OP(==) OP(!=) OP(<) OP(<=) OP(>) OP(>=)
 #undef OP
+
     // The only reason this isn't private is so the haskell FFI can see it.
     double _val;
 private:
@@ -87,16 +90,22 @@ struct Zoom {
     // the zoom offset into account, so you'll have to subtract that from 'pos'
     // if you want a scroll position.
     int to_pixels(const ScoreTime pos) const {
+        double scaled = to_pixels_d(pos);
         // A ScoreTime is not guaranteed to fit in an int.
-        double scaled = pos.scale(this->factor);
         return int(round(std::max(double(-max_pixels),
                                   std::min(double(max_pixels), scaled))));
+    }
+    double to_pixels_d(const ScoreTime pos) const {
+        return pos.scale(this->factor);
     }
 
     // Given the current zoom, this many pixels corresponds to how much
     // trackpos?
     ScoreTime to_time(int pixels) const {
-        return ScoreTime(double(pixels) / factor);
+        return to_time_d(double(pixels));
+    }
+    ScoreTime to_time_d(double pixels) const {
+        return ScoreTime(pixels / factor);
     }
 
     ScoreTime offset;
