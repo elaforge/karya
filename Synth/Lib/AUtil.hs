@@ -34,8 +34,8 @@ toFrame = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds
 toSeconds :: Audio.Frame -> RealTime.RealTime
 toSeconds = RealTime.seconds . Audio.frameToSeconds Config.samplingRate
 
-chunkFrames2 :: Storable.Vector Audio.Sample -> Audio.Frame
-chunkFrames2 = Audio.chunkFrames (Proxy @2)
+blockFrames2 :: Storable.Vector Audio.Sample -> Audio.Frame
+blockFrames2 = Audio.blockFrames (Proxy @2)
 
 framesCount2 :: Audio.Frame -> Audio.Count
 framesCount2 = Audio.framesCount (Proxy @2)

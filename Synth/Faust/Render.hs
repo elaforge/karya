@@ -88,7 +88,7 @@ data Config = Config {
 
 defaultConfig :: Config
 defaultConfig = Config
-    { _chunkSize = Config.checkpointSize
+    { _chunkSize = Config.chunkSize
     -- TODO it should be longer, but since 'isBasicallySilent' is
     -- unimplemented every decay lasts this long.
     , _maxDecay = 2
@@ -121,7 +121,7 @@ interleave naudio = case Audio.interleaved naudio of
 -- | Render a FAUST instrument incrementally.
 --
 -- Chunk size is determined by the size of the @inputs@ chunks, or
--- Audio.chunkSize if they're empty or run out.  The inputs will go to zero
+-- Audio.blockSize if they're empty or run out.  The inputs will go to zero
 -- if they end before the given time.
 render :: DriverC.Patch -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk

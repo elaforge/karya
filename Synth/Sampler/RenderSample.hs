@@ -49,7 +49,7 @@ resample config ratio start audio
             ("expected no state for un-resampled, got " <> pretty state) $
         -- resampleBy synchronizes, but File.readFrom doesn't.
         Audio.synchronizeToSize (Resample._now config)
-            (Resample._chunkSize config) (silence <> audio)
+            (Resample._blockSize config) (silence <> audio)
     | otherwise = silence
         <> Resample.resampleBy (addNow silenceF config)
             (Signal.shift (-start) ratio) audio

@@ -123,18 +123,18 @@ samplingRate = SAMPLING_RATE
 
 type SamplingRate = SAMPLING_RATE
 
--- | Number of frames in each audio chunk.
-chunkSize :: Audio.Frame
-chunkSize = Audio.Frame $ samplingRate `div` 4
+-- | Number of frames in each audio block.
+blockSize :: Audio.Frame
+blockSize = Audio.Frame $ samplingRate `div` 4
 
 -- | Save an audio chunk and checkpoint in this many frames.  This should be
--- an integral multiple of 'chunkSize', so checkpoint state lines up with audio
+-- an integral multiple of 'blockSize', so checkpoint state lines up with audio
 -- output.
-checkpointSize :: Audio.Frame
-checkpointSize = Audio.Frame $ samplingRate * checkpointSeconds
+chunkSize :: Audio.Frame
+chunkSize = Audio.Frame $ samplingRate * chunkSeconds
 
-checkpointSeconds :: Int
-checkpointSeconds = CHECKPOINT_SECONDS
+chunkSeconds :: Int
+chunkSeconds = CHUNK_SECONDS
 
 -- | play_cache delays play start by this many frames, so MIDI output should
 -- also be delayed by this much to match.

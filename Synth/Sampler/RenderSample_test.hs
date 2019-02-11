@@ -58,7 +58,7 @@ verify quality ratio dur =
 actualDuration :: Resample.Config -> Signal.Signal -> Audio.Frame
     -> Audio.Frame
 actualDuration config ratio dur =
-    sum . map (Audio.chunkFrames (Proxy @1))
+    sum . map (Audio.blockFrames (Proxy @1))
     . Unsafe.unsafePerformIO
     . resample config ratio
     . Audio.take (Audio.Frames dur) $ Audio.silence2
@@ -80,7 +80,7 @@ mkConfig quality = Resample.Config
     { _quality = quality
     , _state = Nothing
     , _notifyState = const $ return ()
-    , _chunkSize = 8
+    , _blockSize = 8
     , _now = 0
     , _name = "test"
     }

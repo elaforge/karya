@@ -32,7 +32,7 @@ test_mix = do
     equal (f [(0, [[1, 2]]), (4, [[3]])]) [1, 2, 0, 0, 3]
     equal (f [(2, [[1, 2]]), (2, [[3]])]) [0, 0, 4, 2]
 
-    -- Deal with empty chunks.
+    -- Deal with empty blocks.
     equal (f [(0, [[1], [], [3]]), (0, [[], [2], []])]) [3, 3]
 
 test_mix2 = do
@@ -70,7 +70,7 @@ test_interleaved = do
 interleaved :: forall outChan. (TypeLits.KnownNat outChan)
     => Proxy outChan -> [[Audio.Sample]] -> Either Text [Audio.Sample]
 interleaved Proxy = fmap (concat . toSamples @10 @outChan)
-    . Audio.interleaved . Audio.nonInterleaved 0 Audio.chunkSize
+    . Audio.interleaved . Audio.nonInterleaved 0 Audio.blockSize
     . map fromSamples . map (:[])
 
 test_synchronizeToSize = do
@@ -143,32 +143,32 @@ test_linear = do
     -- Infinite final sample.
     equal (f 7 [(0, 0), (4, 4)]) [0, 1, 2, 3, 4, 4, 4]
 
-test_linear_chunk_size = do
-    let f wanted = map V.length . toChunks
+test_linear_block_size = do
+    let f wanted = map V.length . toBlocks
             . Audio.take (Audio.Frames (Audio.Frame wanted)) . Audio.linear
-    let size = Audio.framesCount (Proxy @1) Audio.chunkSize
+    let size = Audio.framesCount (Proxy @1) Audio.blockSize
     equal (f (2*size+1) []) [size, size, 1]
-    -- The breakpoint splits the chunk, but it lines up on size again when it
+    -- The breakpoint splits the block, but it lines up on size again when it
     -- becomes continuous.
     equal (f (3*size) [(0, 1), (fromIntegral size / 2, 0)])
         [size `div` 2, size `div` 2, size, size]
 
 _test_linear_big = do
     let f wanted = toSamples @44100 @1 . Audio.take (Audio.Seconds wanted)
-            . Audio.synchronizeToSize 0 Audio.chunkSize
+            . Audio.synchronizeToSize 0 Audio.blockSize
             . Audio.linear
-    let chunks = f 0.55
+    let blocks = f 0.55
             [ (0, 0), (0, 1), (0.25, 1), (0.25, 0), (0.5, 0)
             , (0.5, 1), (0.75, 1), (0.75, 0)
             ]
-    mapM_ (putStrLn . untxt) $ snd $ List.mapAccumL annotate 0 chunks
+    mapM_ (putStrLn . untxt) $ snd $ List.mapAccumL annotate 0 blocks
     where
-    annotate frame chunk = (frame + len,) $ Text.unwords
+    annotate frame block = (frame + len,) $ Text.unwords
         [ showt frame, showt len
         , pretty (fromIntegral frame / 44100 :: Double)
-        , pretty (take 4 chunk), "...", pretty (Seq.rtake 4 chunk)
+        , pretty (take 4 block), "...", pretty (Seq.rtake 4 block)
         ]
-        where len = length chunk
+        where len = length block
 
 unstream :: S.Stream (S.Of a) Identity.Identity () -> [a]
 unstream = Identity.runIdentity . S.toList_
@@ -198,8 +198,8 @@ fromSamplesN = Audio.fromSamples . map V.fromList
 toSamples :: Audio.AudioId rate channels -> [[Audio.Sample]]
 toSamples = map V.toList . Identity.runIdentity . Audio.toSamples
 
-toChunks :: Audio.AudioId 1 1 -> [V.Vector Audio.Sample]
-toChunks = Identity.runIdentity . S.toList_ . Audio._stream
+toBlocks :: Audio.AudioId 1 1 -> [V.Vector Audio.Sample]
+toBlocks = Identity.runIdentity . S.toList_ . Audio._stream
 
 
 -- * util

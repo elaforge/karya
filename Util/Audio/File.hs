@@ -83,17 +83,17 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
         liftIO (Sndfile.hGetBuffer handle size) >>= \case
             Nothing -> lift (Resource.release key) >> return ()
             Just buf -> do
-                let chunk = Sndfile.Buffer.Vector.fromBuffer buf
+                let block = Sndfile.Buffer.Vector.fromBuffer buf
                 -- Sndfile should enforce this, but let's be sure.
-                when (fileChan /= 1 && V.length chunk `mod` chan /= 0) $
-                    throw $ "chunk length " <> show (V.length chunk)
+                when (fileChan /= 1 && V.length block `mod` chan /= 0) $
+                    throw $ "block length " <> show (V.length block)
                         <> " not a multiple of channels " <> show chan
                 S.yield $ if fileChan == chan
-                    then chunk
-                    else Audio.expandV chan chunk
+                    then block
+                    else Audio.expandV chan block
                 loop
     where
-    size = Audio.framesCount channels Audio.chunkSize
+    size = Audio.framesCount channels Audio.blockSize
     rate = Audio.natVal (Proxy :: Proxy rate)
     channels = Proxy :: Proxy channels
     chan = Audio.natVal channels
@@ -184,18 +184,18 @@ writeCheckpoints size getFilename writeState format = go 0
     where
     go !written (state : states) audio = do
         fname <- liftIO $ getFilename state
-        (chunks, audio) <- Audio.takeFramesGE size audio
-        if null chunks
+        (blocks, audio) <- Audio.takeFramesGE size audio
+        if null blocks
             then return written
             else do
                 let count = Audio.framesCount chan size
-                Audio.assert (sum (map V.length chunks) == count) $
+                Audio.assert (sum (map V.length blocks) == count) $
                     "expected size " <> pretty count <> " but got "
-                    <> pretty (map V.length chunks)
+                    <> pretty (map V.length blocks)
                 let tmp = fname ++ ".write.tmp"
                 liftIO $ do
                     Exception.bracket (openWrite format tmp audio)
-                        Sndfile.hClose (\handle -> mapM_ (write handle) chunks)
+                        Sndfile.hClose (\handle -> mapM_ (write handle) blocks)
                     Directory.renameFile tmp fname
                     writeState fname
                 go (written+1) states audio

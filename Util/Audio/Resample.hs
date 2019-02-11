@@ -58,13 +58,13 @@ instance Pretty SavedState where
 data Config = Config {
     _quality :: Quality
     , _state :: Maybe SavedState
-    -- | Called before yielding a chunk.  The final call is with Nothing,
-    -- before yielding the final chunk.  At that point the state should be
+    -- | Called before yielding a block.  The final call is with Nothing,
+    -- before yielding the final block.  At that point the state should be
     -- used up.
     , _notifyState :: Maybe (Audio.Frame, SavedState) -> IO ()
-    , _chunkSize :: Audio.Frame
-    -- | This affects the first chunk size.  This is so that chunk boundaries
-    -- fall on multiples of chunkSize.
+    , _blockSize :: Audio.Frame
+    -- | This affects the first block size.  This is so that block boundaries
+    -- fall on multiples of blockSize.
     , _now :: Audio.Frame
     -- | This is unused, but useful for debugging.
     , _name :: Text
@@ -76,7 +76,7 @@ defaultConfig quality = Config
     , _state = Nothing
     , _notifyState = const $ return ()
     , _now = 0
-    , _chunkSize = Audio.chunkSize
+    , _blockSize = Audio.blockSize
     , _name = "default"
     }
 
@@ -96,55 +96,55 @@ resampleBy config ratio audio = Audio.Audio $ do
             ok <- SampleRateC.putState (_quality config) state saved
             unless ok $
                 Audio.throwIO $ "state is the wrong size: " <> pretty saved
-    -- I have to collect chunks until I fill up the output chunk size.  The key
-    -- thing is to not let the resample state get ahead of the chunk boundary.
-    let align = _chunkSize config - (_now config `mod` _chunkSize config)
-    let resampleC = resampleChunk chan rate state
+    -- I have to collect blocks until I fill up the output block size.  The key
+    -- thing is to not let the resample state get ahead of the block boundary.
+    let align = _blockSize config - (_now config `mod` _blockSize config)
+    let resampleC = resampleBlock chan rate state
     -- I keep track of the number of samples used from upstream.  This gets
     -- reported to '_notifyState' so I can restart the sample at the right
     -- place.
     -- I also keep track of the previous segment to detect discontinuities.
     Control.loop2 (0, segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
-        \loop (used, prevSegment) (now, audio, collect, chunkLeft) -> do
+        \loop (used, prevSegment) (now, audio, collect, blockLeft) -> do
             let segment = segmentAt (toSeconds now) ratio
-            resampleC now chunkLeft prevSegment segment audio >>= \case
+            resampleC now blockLeft prevSegment segment audio >>= \case
                 Nothing -> done key collect
-                Just (framesUsed, chunk, audio) ->
+                Just (framesUsed, block, audio) ->
                     loop (used + framesUsed, segment)
                         =<< yield state now (used + framesUsed) collect
-                            chunkLeft chunk audio
+                            blockLeft block audio
     where
     done key collect = do
         liftIO $ _notifyState config Nothing
         unless (null collect) $
             S.yield $ mconcat (reverse collect)
         lift $ Resource.release key
-    yield state now used collect chunkLeft chunk audio
-        | chunkLeft - generated > 0 = return
+    yield state now used collect blockLeft block audio
+        | blockLeft - generated > 0 = return
             ( now + generated
             , audio
-            , chunk : collect
-            , chunkLeft - generated
+            , block : collect
+            , blockLeft - generated
             )
-        | chunkLeft - generated == 0 = do
-            let sizes = map (Audio.chunkFrames chan) (chunk:collect)
-            Audio.assert (sum sizes <= _chunkSize config) $ Text.unwords
-                [ "sum", pretty (sum sizes), "> chunkSize"
-                , pretty (_chunkSize config) <> ":", pretty sizes
+        | blockLeft - generated == 0 = do
+            let sizes = map (Audio.blockFrames chan) (block:collect)
+            Audio.assert (sum sizes <= _blockSize config) $ Text.unwords
+                [ "sum", pretty (sum sizes), "> blockSize"
+                , pretty (_blockSize config) <> ":", pretty sizes
                 ]
             liftIO $ do
                 rState <- SampleRateC.getState state
                 _notifyState config $ Just (used, rState)
-            S.yield $ mconcat (reverse (chunk : collect))
+            S.yield $ mconcat (reverse (block : collect))
             return
                 ( now + generated
                 , audio
                 , []
-                , _chunkSize config
+                , _blockSize config
                 )
-        | otherwise = Audio.throwIO $ "resampleChunk generated too much: "
-            <> pretty (chunkLeft, generated)
-        where generated = Audio.chunkFrames chan chunk
+        | otherwise = Audio.throwIO $ "resampleBlock generated too much: "
+            <> pretty (blockLeft, generated)
+        where generated = Audio.blockFrames chan block
 
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
@@ -165,22 +165,22 @@ type Stream a =
     S.Stream (S.Of (V.Vector Audio.Sample)) (Resource.ResourceT IO) a
 
 -- | Generate no more than the given number of frames.
-resampleChunk :: KnownNat chan => Proxy chan -> Audio.Rate
+resampleBlock :: KnownNat chan => Proxy chan -> Audio.Rate
     -> SampleRateC.State -> Audio.Frame -> Audio.Frame
     -> Segment -> Segment -> Stream ()
     -> Stream (Maybe (Audio.Frame, V.Vector Audio.Sample, Stream ()))
-resampleChunk chan rate state start maxFrames prevSegment segment audio = do
-    (inputChunk, audio) <- next audio
+resampleBlock chan rate state start maxFrames prevSegment segment audio = do
+    (inputBlock, audio) <- next audio
     (atEnd, audio) <- lift $ checkEnd audio
-    let inputFrames = maybe 0 (Audio.chunkFrames chan) inputChunk
+    let inputFrames = maybe 0 (Audio.blockFrames chan) inputBlock
     -- Never go past the next breapoint.
     let outputFrames = min maxFrames (toFrames (Segment._x2 segment) - start)
     let destRatio = Segment.num_interpolate_s segment $
             toSeconds $ start + outputFrames
         -- Progress through the ratio signal proceeds in real time, which is
         -- to say, outputFrames.
-    let with = V.unsafeWith (fromMaybe V.empty inputChunk)
-    (used, generated, outFP) <- liftIO $ with $ \chunkp -> do
+    let with = V.unsafeWith (fromMaybe V.empty inputBlock)
+    (used, generated, outFP) <- liftIO $ with $ \blockp -> do
         when (segment /= prevSegment
                 && Segment._y2 prevSegment /= Segment._y1 segment) $ do
             -- Debug.tracepM "setRatio" (prevSegment, segment)
@@ -189,7 +189,7 @@ resampleChunk chan rate state start maxFrames prevSegment segment audio = do
         result <- SampleRateC.process state $ SampleRateC.Input
             { data_in =
                 (Foreign.castPtr :: Foreign.Ptr Float -> Foreign.Ptr C.CFloat)
-                chunkp
+                blockp
             , data_out = Foreign.castPtr outp
             , input_frames = fromIntegral inputFrames
             , output_frames = fromIntegral outputFrames
@@ -212,13 +212,13 @@ resampleChunk chan rate state start maxFrames prevSegment segment audio = do
             )
 
     -- Stick unconsumed input back on the stream.
-    let left = maybe V.empty (V.drop (Audio.framesCount chan used)) inputChunk
+    let left = maybe V.empty (V.drop (Audio.framesCount chan used)) inputBlock
         recons = if V.null left then id else S.cons left
-    let outputChunk = V.unsafeFromForeignPtr0 outFP $
+    let outputBlock = V.unsafeFromForeignPtr0 outFP $
             Audio.framesCount chan generated
-    return $ if Maybe.isNothing inputChunk && generated == 0
+    return $ if Maybe.isNothing inputBlock && generated == 0
         then Nothing
-        else Just (used, outputChunk, recons audio)
+        else Just (used, outputBlock, recons audio)
     where
     next audio = either (const (Nothing, audio)) (first Just) <$>
         lift (S.next audio)

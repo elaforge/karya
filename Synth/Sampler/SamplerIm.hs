@@ -129,7 +129,7 @@ dump db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
 dumpHashes :: [Sample.Note] -> [(RealTime, RealTime, (Note.Hash, [Note.Hash]))]
 dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
     where
-    size = AUtil.toSeconds Config.checkpointSize
+    size = AUtil.toSeconds Config.chunkSize
     hashes = Seq.key_on mconcat $
         Checkpoint.overlappingHashes 0 size $
         map Render.toSpan notes
@@ -271,7 +271,7 @@ renderDirect filename dur samples =
         { _quality = Resample.SincFastest
         , _state = Nothing
         , _notifyState = const $ return ()
-        , _chunkSize = Config.checkpointSize
+        , _blockSize = Config.chunkSize
         , _now = 0
         , _name = txt filename
         }

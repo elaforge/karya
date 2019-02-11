@@ -116,8 +116,8 @@ SampleDirectory::SampleDirectory(
         const string &dir, sf_count_t offset) :
     log(log), sample_rate(sample_rate), dir(dir), sndfile(nullptr)
 {
-    int filenum = offset / (CHECKPOINT_SECONDS * sample_rate);
-    sf_count_t file_offset = offset % (CHECKPOINT_SECONDS * sample_rate);
+    int filenum = offset / (CHUNK_SECONDS * sample_rate);
+    sf_count_t file_offset = offset % (CHUNK_SECONDS * sample_rate);
     this->fname = find_nth_sample(log, dir, filenum);
     LOG("dir " << dir << ": start at '" << fname << "' + " << file_offset);
     if (!fname.empty()) {

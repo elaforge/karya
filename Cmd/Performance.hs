@@ -314,7 +314,7 @@ im_progress im_dir score_path (Config.Progress block_id track_ids instrument
                 { _filename = filename
                 -- TODO I need inv_tempo_map
                 , _start = RealTime.to_score $
-                    start - fromIntegral Config.checkpointSeconds
+                    start - fromIntegral Config.chunkSeconds
                 , _ratios = [1]
                 }
         }

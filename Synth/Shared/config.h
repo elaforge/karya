@@ -9,7 +9,7 @@
 #define SAMPLING_RATE 44100
 
 // Each audio checkpoint is exactly this many seconds, except the last one.
-#define CHECKPOINT_SECONDS 4
+#define CHUNK_SECONDS 4
 
 // Delay play_cache start by this much.  Description in Config.hs
 //

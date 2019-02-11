@@ -1336,11 +1336,12 @@ synth: im:
   - rename Shared.Config.cacheDir to something like audio, so it's not
     confusingly the same as Checkpoint.cacheDir.
   - use the same ChunkNum in Config and Checkpoint.
-  - It's confusing how the 000.wav files are called chunks in fltk and by
+  * It's confusing how the 000.wav files are called chunks in fltk and by
     ChunkNum, but are called checkpoints in Checkpoint, while Config.chunkSize
     is the render-level audio stream chunk.
     . Checkpoint seems better, but CheckpointNum is long.
     . It's super confusing how it's call chunkSize in Syth.Sampler.Render.
+    . Or rename the Audio concept to block, and checkpoint to chunk.
   synth status:
     . non-constant pitch:
     . merge faust-im and sampler-im:
@@ -1433,6 +1434,19 @@ synth: im:
             chunknum... which I could infer.  If it really bothers me, emit
             a skipped msg.
           . Do the global cache below first.
+          . The "unchaged notes" shortcut will prevent this from working.
+            I need to get chunk starts, ratios, etc.
+          . I can just list the directory, but it seems special-case.
+          . Or I disable the changed check, but skip evaluate_im entirely if
+            the block hasn't changed.
+          . Or do I already do that?  I won't get there unless there is
+            damage, but I rerender if there is any damage at all, and rely on
+            the cache.  I do the same for im, but the cache is more expensive,
+            since it means serializing all notes and then running
+            a subprocess.  How could I skip serializing?
+          . I would have to know if the damage affects any im notes.
+          . Or just disable the change check for the first run.  I would have
+            to remember if there was a previous Performance.
       fltk:
         * Fltk track inserts into internal state:
           peaks[0] = ("000.wav", shift, ratios)

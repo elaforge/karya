@@ -14,7 +14,7 @@
 
 // Stream from a directory of samples.  Files are in sorted order, and are
 // opened and closed on demand.  Each *.wav file is expected to be
-// CHECKPOINT_SECONDS long, which is used to find the initial sample given the
+// CHUNK_SECONDS long, which is used to find the initial sample given the
 // offset.
 class SampleDirectory : public Audio {
 public:

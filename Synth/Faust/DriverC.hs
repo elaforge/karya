@@ -205,11 +205,11 @@ patchOutputs = fromIntegral . c_faust_num_outputs
 foreign import ccall "faust_num_inputs" c_faust_num_inputs :: Patch -> CInt
 foreign import ccall "faust_num_outputs" c_faust_num_outputs :: Patch -> CInt
 
--- | Render chunk of time and return samples.  The chunk size is determined by
--- the input controls, or 'Audio.chunkSize' if there are none.
+-- | Render chunk of time and return samples.  The block size is determined by
+-- the input controls, or 'Audio.blockSize' if there are none.
 render :: Instrument -> [V.Vector Float] -- ^ the length must be equal to the
     -- the patchInputs, and each vector must have the same length
-    -> IO [V.Vector Float] -- ^ one chunk of samples for each output channel
+    -> IO [V.Vector Float] -- ^ one block of samples for each output channel
 render inst controls = do
     let inputs = patchInputs (asPatch inst)
     unless (length controls == inputs) $
@@ -218,7 +218,7 @@ render inst controls = do
     unless (all ((== V.length (head controls)) . V.length) controls) $
         errorIO $ "all controls don't have the same length: "
             <> pretty (map V.length controls)
-    let Audio.Frame frames = maybe Audio.chunkSize (Audio.Frame . V.length)
+    let Audio.Frame frames = maybe Audio.blockSize (Audio.Frame . V.length)
             (Seq.head controls)
     let outputs = patchOutputs (asPatch inst)
     outFptrs <- mapM Foreign.mallocForeignPtrArray (replicate outputs frames)

@@ -44,7 +44,7 @@ type Error = Text
 
 write :: Resample.Quality -> FilePath -> Set Id.TrackId -> [Sample.Note]
     -> IO (Either Error (Int, Int))
-write = write_ Config.checkpointSize
+write = write_ Config.chunkSize
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
 -- repeated parts.
@@ -161,7 +161,7 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
         progress renderedPrevChunk now playing starting
         -- Debug.tracepM "playing, starting"
         --     (AUtil.toSeconds now, playing, starting)
-        (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
+        (blocks, playing) <- lift $ pull chunkSize (playing ++ starting)
         -- Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
         -- Record playing states for the start of the next chunk.
         -- liftIO $ Debug.tracepM "save states" . (now,) =<<
@@ -173,23 +173,23 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
             <> pretty playingTooLong
         liftIO $ notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
-        Audio.assert (all ((<=chunkSize) . AUtil.chunkFrames2) chunks) $
+        Audio.assert (all ((<=chunkSize) . AUtil.blockFrames2) blocks) $
             "chunk was >" <> pretty chunkSize <> ": "
-            <> pretty (map AUtil.chunkFrames2 chunks)
+            <> pretty (map AUtil.blockFrames2 blocks)
             <> " of " <> pretty playing
         -- If there's no output and no chance to be any more output, don't
         -- emit anything.
-        unless (null chunks && null playing && noFuture) $ if null chunks
+        unless (null blocks && null playing && noFuture) $ if null blocks
             -- Since I'm inside Audio.Audio, I don't have srate available, so
             -- I have to set it for Audio.silence2.
             then Audio._stream @_ @Config.SamplingRate $
                 Audio.take (Audio.Frames chunkSize) Audio.silence2
-            else S.yield $ Audio.zipWithN (+) (map padZero chunks)
+            else S.yield $ Audio.zipWithN (+) (map padZero blocks)
         return playing
     padZero chunk
         | delta > 0 = chunk <> V.replicate (AUtil.framesCount2 delta) 0
         | otherwise = chunk
-        where delta = chunkSize - AUtil.chunkFrames2 chunk
+        where delta = chunkSize - AUtil.blockFrames2 chunk
 
     progress renderedPrevChunk now playing starting = liftIO $
         Config.emitProgress msg $ Config.Progress
@@ -220,7 +220,7 @@ pull chunkSize = fmap (trim . unzip) . mapM get
             Audio.takeFramesGE chunkSize (_audio playing)
         return
             ( chunk
-            , if AUtil.chunkFrames2 chunk < chunkSize
+            , if AUtil.blockFrames2 chunk < chunkSize
                 then Nothing else Just (playing { _audio = audio })
             )
 
@@ -265,7 +265,7 @@ startSample now quality chunkSize mbMbState note = case Sample.sample note of
                 { _quality = quality
                 , _state = _resampleState <$> mbState
                 , _notifyState = IORef.writeIORef sampleStateRef . fmap mkState
-                , _chunkSize = chunkSize
+                , _blockSize = chunkSize
                 , _now = now
                 , _name = txt $ FilePath.takeFileName $ Sample.filename sample
                 }
