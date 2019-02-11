@@ -2,15 +2,16 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include "Block.h"
+#include "EventTrack.h"
+#include "MsgCollector.h"
+#include "SkeletonDisplay.h"
+#include "SymbolTable.h"
+#include "Track.h"
+#include "Zoom.h"
 #include "config.h"
 #include "geom.h"
-#include "types.h"
-#include "MsgCollector.h"
-#include "SymbolTable.h"
-#include "Block.h"
-#include "Track.h"
-#include "EventTrack.h"
-#include "SkeletonDisplay.h"
+
 
 extern "C" {
 

@@ -22,6 +22,7 @@
 #include "Color.h"
 #include "PeakCache.h"
 #include "Selection.h"
+#include "Zoom.h"
 #include "f_util.h"
 #include "global.h"
 

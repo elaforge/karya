@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "Zoom.h"
 #include "types.h"
 
 

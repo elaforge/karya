@@ -6,8 +6,8 @@
 
 #include <vector>
 
-#include "types.h"
 #include "Selection.h"
+#include "Zoom.h"
 
 
 // This holds the set of selections for a single track, and can draw them.

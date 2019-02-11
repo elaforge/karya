@@ -9,6 +9,8 @@
 
 #include "Block.h"
 #include "Track.h"
+#include "Zoom.h"
+
 
 /* UiMsgs are how the fltk layer communicates with the haskell layer.
 

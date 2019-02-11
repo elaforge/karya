@@ -21,6 +21,7 @@
 #include "SelectionOverlay.h"
 #include "TimeVector.h"
 #include "Track.h"
+#include "Zoom.h"
 #include "global.h"
 
 
