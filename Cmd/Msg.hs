@@ -3,30 +3,31 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Msg where
-import Control.DeepSeq (deepseq)
-import Control.Monad
+import           Control.DeepSeq (deepseq)
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import qualified Midi.Midi as Midi
-import qualified Ui.Id as Id
-import qualified Ui.Key as Key
-import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-
+import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.InputNote as InputNote
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
-import qualified App.ReplProtocol as ReplProtocol
-import Global
-import Types
+import qualified Ui.Id as Id
+import qualified Ui.Key as Key
+import qualified Ui.Track as Track
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiMsg as UiMsg
+
+import           Control.Monad
+import           Global
+import           Types
 
 
 data Msg =
@@ -61,9 +62,10 @@ show_short = \case
         Deriving -> "Deriving"
         DeriveComplete {} -> "DeriveComplete"
         ImStatus status -> case status of
-            ImProgress bid tid start end -> mconcat
-                [ "ImProgress:", pretty bid, pretty tid
-                , pretty start, "--", pretty end
+            ImProgress progress -> mconcat
+                [ "ImProgress:", pretty (im_block_id progress)
+                , pretty (im_track_ids progress)
+                , pretty (im_start progress), "--", pretty (im_end progress)
                 ]
             ImComplete failed ->
                 "ImComplete" <> if failed then "(failed)" else ""
@@ -98,13 +100,24 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
     deriving (Show)
 
 data ImStatus =
-    -- | Active synthesis range for the give block and tracks.
-    ImProgress !BlockId !(Set TrackId) !RealTime !RealTime
+    ImProgress !ImProgressT
     -- | True if the im subprocess had a failure.  The error will have been
     -- logged, and this flag will leave a visual indicator on the track that
     -- something went wrong.
     | ImComplete !Bool
     deriving (Show)
+
+-- | Active synthesis range for the give block and tracks.
+data ImProgressT = ImProgressT {
+    im_block_id :: !BlockId
+    , im_track_ids :: !(Set TrackId)
+    , im_start :: !RealTime
+    , im_end :: !RealTime
+    -- | The current chunknum.
+    , im_chunknum :: !Types.ChunkNum
+    -- | Previous chunk, which is now complete.  This is at im_chunknum me - 1.
+    , im_prev_waveform :: !(Maybe Track.WaveformChunk)
+    } deriving (Show)
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 

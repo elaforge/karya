@@ -24,10 +24,8 @@ static const bool many_tracks = false;
 // Visible windows.
 static std::vector<BlockWindow *> windows;
 
-const char *audio_chunk0 =
-    "im/cache/save/test/im-rambat/untitled/b2/ri/000.wav";
-const char *audio_chunk1 =
-    "im/cache/save/test/im-rambat/untitled/b2/ri/001.wav";
+const char *audio_chunk0 = "data/000.wav";
+const char *audio_chunk1 = "data/001.wav";
 
 Color selection_colors[] = {
     Color(0, 0, 255, 90),

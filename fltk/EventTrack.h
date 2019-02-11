@@ -131,6 +131,7 @@ public:
     virtual void set_track_signal(const TrackSignal &tsig) override;
     virtual void set_waveform(int chunknum, const PeakCache::Params &params)
         override;
+    virtual void clear_waveforms(int chunknum) override;
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;
 

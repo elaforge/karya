@@ -32,8 +32,12 @@ import Global
 import Synth.Lib.Global
 
 
+-- | This subdirectory in the outputDirectory </> instrument has the
+-- fingerprinted audio files.
 cacheDir :: FilePath
 cacheDir = "cache"
+
+type ChunkNum = Int -- TODO same as Cofig.ChunkNum and Ui.Types.ChunkNum
 
 -- * state
 
@@ -54,8 +58,8 @@ encodeState = ByteString.Char8.unpack . Note.fingerprint . MD5.hash . unstate
 -- * checkpoints
 
 -- | Find where the checkpoints begin to differ from the given 'Note.Hash's.
-skipCheckpoints :: FilePath -> [(Int, Note.Hash)]
-    -> IO ([FilePath], [(Int, Note.Hash)], Maybe State)
+skipCheckpoints :: FilePath -> [(ChunkNum, Note.Hash)]
+    -> IO ([FilePath], [(ChunkNum, Note.Hash)], Maybe State)
     -- ^ (skipped chunks, remaining notes, state at that point)
 skipCheckpoints outputDir hashes = do
     Directory.createDirectoryIfMissing False (outputDir </> cacheDir)
@@ -73,12 +77,12 @@ skipCheckpoints outputDir hashes = do
 -- Since the output state of the previous filename needs to match the input
 -- state of the next one as described in 'writeState', this has to follow the
 -- files in sequence.
-findLastState :: Set FilePath -> [(Int, Note.Hash)]
-    -> Either Text ([FilePath], ([(Int, Note.Hash)], FilePath))
+findLastState :: Set FilePath -> [(ChunkNum, Note.Hash)]
+    -> Either Text ([FilePath], ([(ChunkNum, Note.Hash)], FilePath))
 findLastState files = go "" initialState
     where
     initialState = encodeState $ State mempty
-    go prevStateFname state ((i, hash) : hashes)
+    go prevStateFname state ((chunknum, hash) : hashes)
         | fname `Set.member` files = do
             let prefix = FilePath.replaceExtension fname ".state."
             (stateFname, nextState) <- case Set.lookupGT prefix files of
@@ -86,17 +90,17 @@ findLastState files = go "" initialState
                     Right (stateFname, drop (length prefix) stateFname)
                 _ -> Left $ "no state: " <> txt prefix
             first (fname:) <$> go stateFname nextState hashes
-        | otherwise = Right ([], ((i, hash) : hashes, prevStateFname))
+        | otherwise = Right ([], ((chunknum, hash) : hashes, prevStateFname))
         where
-        fname = filenameOf2 i hash state
+        fname = filenameOf2 chunknum hash state
     go _ _ [] = Right ([], ([], ""))
 
 -- ** write
 
 -- | Write the audio with checkpoints.
-write :: FilePath -> Int -> Audio.Frame -> [(Int, Note.Hash)]
+write :: FilePath -> ChunkNum -> Audio.Frame -> [(ChunkNum, Note.Hash)]
     -> IORef.IORef State -> AUtil.Audio
-    -> IO (Either Text (Int, Int))
+    -> IO (Either Text (ChunkNum, ChunkNum))
     -- ^ Either Error (writtenChunks, total)
 write outputDir skippedCount chunkSize hashes stateRef audio
     | null hashes = return $ Right (0, skippedCount)
@@ -111,11 +115,11 @@ write outputDir skippedCount chunkSize hashes stateRef audio
             Left err -> Left err
             Right written -> Right (written, written + skippedCount)
 
-getFilename :: FilePath -> IORef.IORef State -> (Int, Note.Hash)
+getFilename :: FilePath -> IORef.IORef State -> (ChunkNum, Note.Hash)
     -> IO FilePath
-getFilename outputDir stateRef (i, hash) = do
+getFilename outputDir stateRef (chunknum, hash) = do
     state <- IORef.readIORef stateRef
-    let fname = outputDir </> cacheDir </> filenameOf i hash state
+    let fname = outputDir </> cacheDir </> filenameOf chunknum hash state
     -- XXX 'state' is actually an unsafe pointer to the underlying C state, so
     -- I have to make sure I'm done with it before returning.  This is super
     -- sketchy, but it works now and it is non-copying.
@@ -154,16 +158,16 @@ linkOutput outputDir fname = do
     Directory.renameFile (current <> ".tmp") current
 
 -- | Remove any remaining output symlinks past the final chunk.
-clearRemainingOutput :: FilePath -> Int -> IO ()
+clearRemainingOutput :: FilePath -> ChunkNum -> IO ()
 clearRemainingOutput outputDir start =
     mapM_ (Directory.removeFile . (outputDir</>)) . outputPast start
         =<< Directory.listDirectory outputDir
 
-outputPast :: Int -> [FilePath] -> [FilePath]
+outputPast :: ChunkNum -> [FilePath] -> [FilePath]
 outputPast start =
     map snd . filter ((>=start) . fst) . Seq.key_on_just isOutputLink
 
-isOutputLink :: FilePath -> Maybe Int
+isOutputLink :: FilePath -> Maybe ChunkNum
 isOutputLink (c1:c2:c3 : ".wav")
     | Just n <- Read.readMaybe [c1, c2, c3] = Just n
     | otherwise = Nothing
@@ -175,14 +179,14 @@ filenameToOutput fname = case Seq.split "." fname of
     _ -> fname
 
 -- | 000.$hash.$state.wav
-filenameOf :: Int -> Note.Hash -> State -> FilePath
-filenameOf i hash state = filenameOf2 i hash (encodeState state)
+filenameOf :: ChunkNum -> Note.Hash -> State -> FilePath
+filenameOf chunknum hash state = filenameOf2 chunknum hash (encodeState state)
 
 -- | 'filenameOf' but with 'State' already encoded.
-filenameOf2 :: Int -> Note.Hash -> String -> FilePath
-filenameOf2 i hash encodedState =
+filenameOf2 :: ChunkNum -> Note.Hash -> String -> FilePath
+filenameOf2 chunknum hash encodedState =
     ByteString.Char8.unpack (ByteString.Char8.intercalate "."
-        [ zeroPad 3 i
+        [ zeroPad 3 chunknum
         , ByteString.Char8.pack $ Note.encodeHash hash
         ]) <> "." <> encodedState <> ".wav"
 

@@ -43,8 +43,10 @@ import qualified Derive.Stream as Stream
 
 import qualified Instrument.Inst as Inst
 import qualified Perform.Im.Convert as Im.Convert
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Config as Config
 import qualified Ui.Block as Block
+import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
@@ -249,17 +251,20 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
-    failure <- watch_subprocesses (send_status block_id . Msg.ImStatus)
-        (Set.fromList procs)
+    failed <- case im_config of
+        Just config -> watch_subprocesses config score_path
+            (send_status block_id . Msg.ImStatus) (Set.fromList procs)
+        Nothing -> return False
     unless (null procs) $
-        send_status block_id $ Msg.ImStatus $ Msg.ImComplete failure
+        send_status block_id $ Msg.ImStatus $ Msg.ImComplete failed
 
 type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
-watch_subprocesses :: (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
-watch_subprocesses send_status procs
-    | Set.null procs = return True
+watch_subprocesses :: Config.Config -> FilePath -> (Msg.ImStatus -> IO ())
+    -> Set Process -> IO Bool
+watch_subprocesses config score_path send_status procs
+    | Set.null procs = return False
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
             | Set.null procs -> return failed
@@ -280,9 +285,9 @@ watch_subprocesses send_status procs
             return (Set.delete (cmd, args) procs, failure)
 
     progress line
-        | Just (block_id, track_ids, (start, end))
-                <- Config.parseProgress line = do
-            send_status $ Msg.ImProgress block_id track_ids start end
+        | Just progress <- Config.parseProgress line = do
+            send_status $ Msg.ImProgress $
+                im_progress (Config.imDir config) score_path progress
             return False
         | Just (block_id, track_ids, err) <- Config.parseFailure line = do
             Log.warn $ "im failure: " <> pretty block_id <> ": "
@@ -293,6 +298,35 @@ watch_subprocesses send_status procs
             return False
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
+
+im_progress :: FilePath -> FilePath -> Config.Progress -> Msg.ImProgressT
+im_progress im_dir score_path (Config.Progress block_id track_ids instrument
+        renderedPrevChunk chunknum (start, end)) =
+    Msg.ImProgressT
+        { im_block_id = block_id
+        , im_track_ids = track_ids
+        , im_start = start
+        , im_end = end
+        , im_chunknum = chunknum
+        , im_prev_waveform = case mb_filename of
+            Nothing -> Nothing
+            Just filename -> Just $ Track.WaveformChunk
+                { _filename = filename
+                -- TODO I need inv_tempo_map
+                , _start = RealTime.to_score $
+                    start - fromIntegral Config.checkpointSeconds
+                , _ratios = [1]
+                }
+        }
+        where
+        -- If the prev chunk was just re-rendered, infer the chunk path
+        -- and stash it in 'Msg.ImProgressT' so I can have the UI display
+        -- it.
+        mb_filename
+            | renderedPrevChunk = Just $
+                Config.chunkPath im_dir score_path block_id instrument
+                    (chunknum - 1)
+            | otherwise = Nothing
 
 -- | If there are im events, serialize them and return a Processes to render
 -- them, and the non-im events.

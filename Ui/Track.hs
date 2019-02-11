@@ -7,16 +7,16 @@ module Ui.Track where
 import qualified Control.DeepSeq as DeepSeq
 
 import qualified Util.Pretty as Pretty
+import qualified App.Config as Config
+import qualified Derive.Score as Score
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 
-import qualified Derive.Score as Score
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * track
@@ -151,3 +151,18 @@ instance DeepSeq.NFData TrackSignal where
 signal_at :: ScoreTime -> TrackSignal -> Signal.Y
 signal_at x (TrackSignal sig shift stretch) = Signal.at warped sig
     where warped = RealTime.from_score $ x * stretch + shift
+
+-- * waveform
+
+data WaveformChunk = WaveformChunk {
+    _filename :: !FilePath
+    , _start :: !TrackTime
+    , _ratios :: ![Double]
+    } deriving (Show)
+
+instance Pretty WaveformChunk where
+    format (WaveformChunk filename start ratios) = Pretty.record "WaveformChunk"
+        [ ("filename", Pretty.format filename)
+        , ("start", Pretty.format start)
+        , ("ratios", Pretty.format ratios)
+        ]

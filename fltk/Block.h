@@ -143,6 +143,7 @@ public:
     void set_track_signal(int tracknum, const TrackSignal &tsig);
     void set_waveform(int tracknum, int chunknum,
         const PeakCache::Params &params);
+    void clear_waveforms(int tracknum, int chunknum);
 
     Track *track_at(int tracknum) {
         if (tracknum == 0)

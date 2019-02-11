@@ -259,6 +259,21 @@ set_track_signal(BlockWindow *view, int tracknum, TrackSignal *tsig)
 }
 
 void
+set_waveform(BlockWindow *view, int tracknum, int chunknum,
+    const char *filename, double start, double *ratiosp, int ratios_len)
+{
+    std::vector<double> ratios(ratiosp, ratiosp + ratios_len);
+    PeakCache::Params params(filename, ScoreTime(start), ratios);
+    view->block.set_waveform(tracknum, chunknum, params);
+}
+
+void
+clear_waveforms(BlockWindow *view, int tracknum, int chunknum)
+{
+    view->block.clear_waveforms(tracknum, chunknum);
+}
+
+void
 set_track_title(BlockWindow *view, int tracknum, const char *title)
 {
     view->block.track_at(tracknum)->set_title(title);

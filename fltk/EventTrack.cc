@@ -334,11 +334,20 @@ EventTrack::set_track_signal(const TrackSignal &tsig)
 void
 EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
+    DEBUG("set_waveform " << chunknum << " start " << params.start);
     this->peaks.resize(std::max(peaks.size(), size_t(chunknum+1)));
     peaks[chunknum].reset(new PeakCache(params));
     peaks[chunknum]->load();
     this->zoom_cache.resize(std::max(zoom_cache.size(), size_t(chunknum+1)));
     zoom_cache[chunknum] = peaks[chunknum]->get(this->zoom.factor);
+}
+
+
+void
+EventTrack::clear_waveforms(int chunknum)
+{
+    this->peaks.resize(std::min(peaks.size(), size_t(chunknum)));
+    this->zoom_cache.resize(peaks.size());
 }
 
 
@@ -349,7 +358,9 @@ EventTrack::update_zoom_cache()
     // should do it lazily?
     // DEBUG("update_zoom_cache, chunks: " << peaks.size());
     for (int i = 0; i < peaks.size(); i++) {
-        zoom_cache[i] = peaks[i]->get(zoom.factor);
+        // Skip unset PeakCaches.
+        if (peaks[i].get())
+            zoom_cache[i] = peaks[i]->get(zoom.factor);
     }
     // DEBUG("done");
 }
@@ -632,6 +643,18 @@ EventTrack::draw_event_boxes(
 }
 
 
+static const ScoreTime *
+get_next_start(
+    const std::vector<std::unique_ptr<PeakCache>> &peaks, int chunknum)
+{
+    for (; chunknum < peaks.size(); chunknum++) {
+        if (peaks[chunknum].get())
+            return &peaks[chunknum]->params.start;
+    }
+    return nullptr;
+}
+
+
 // min_y and max_y are already in absolute pixels
 void
 EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
@@ -645,12 +668,15 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
 
     const std::vector<float> *cache = nullptr;
     double y = min_y;
-    int i = 0;
     int chunknum = -1; // -1 means uninitialized
-    const ScoreTime *next_start = nullptr;
-    double pixels_per_peak = PeakCache::pixels_per_peak(zoom.factor);
+    int i = 0; // peak index within a chunk, reset when I reach a new chunk
+    const ScoreTime *next_start = get_next_start(peaks, 0);
+    const double pixels_per_peak = PeakCache::pixels_per_peak(zoom.factor);
     ScoreTime time = start;
-    ScoreTime time_per_peak = zoom.to_time_d(pixels_per_peak);
+    const ScoreTime time_per_peak = zoom.to_time_d(pixels_per_peak);
+    // Trigger a transition from zero.  Useful when the first chunk starts >
+    // min_y.  It also suppresses redundant vertices at 0.
+    bool at_zero = true;
 
     fl_line_style(FL_SOLID | FL_CAP_ROUND, 1);
     fl_color(Config::waveform_color.fl());
@@ -667,17 +693,17 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
             i = 0;
             if (chunknum >= peaks.size())
                 break;
-            time = peaks[chunknum]->params.start;
-            y = zoom.to_pixels_d(time - zoom.offset) + track_start();
-            next_start = chunknum+1 < peaks.size()
-                ? &peaks[chunknum+1]->params.start : nullptr;
+            if (peaks[chunknum].get()) {
+                time = peaks[chunknum]->params.start;
+                y = zoom.to_pixels_d(time - zoom.offset) + track_start();
+                next_start = get_next_start(peaks, chunknum+1);
+            } else {
+                // Someone put in waveform chunks out of order, and this one is
+                // missing.
+            }
             cache = chunknum < zoom_cache.size()
                 ? &*zoom_cache[chunknum] : nullptr;
-            // DEBUG("new chunknum: " << chunknum << " y: " << y);
-        }
-        if (!cache) {
-            DEBUG("no cache at " << chunknum << " size: " << zoom_cache.size());
-            break;
+            DEBUG("new chunknum: " << chunknum << " y: " << y);
         }
         // Out of peaks on the last chunk.
         if (!next_start && i >= cache->size())
@@ -685,12 +711,20 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
         // i > cache->size() means I ran out of cached peaks before getting to
         // the next chunk start.  This can happen for a sample or two due to
         // pixel roundoff (TODO where exactly?)
-        if (i < cache->size()) {
+        if (cache && i < cache->size()) {
             float x = (*cache)[i];
             x *= amplitude_scale;
             x = x * (max_x - min_x) + min_x;
             // DEBUG("v: (" << x << ", " << y << ") " << x_);
+            if (at_zero) {
+                fl_vertex(min_x, y);
+                at_zero = false;
+            }
             fl_vertex(x, y);
+        } else if (!at_zero) {
+            // DEBUG("v: (" << min_x << ", " << y << ")");
+            fl_vertex(min_x, y);
+            at_zero = true;
         }
     }
     // DEBUG("v: (" << min_x << ", " << y << ")");

@@ -1332,6 +1332,15 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  - replace Synth.Shared.Config.emitProgress with a JSON thing
+  - rename Shared.Config.cacheDir to something like audio, so it's not
+    confusingly the same as Checkpoint.cacheDir.
+  - use the same ChunkNum in Config and Checkpoint.
+  - It's confusing how the 000.wav files are called chunks in fltk and by
+    ChunkNum, but are called checkpoints in Checkpoint, while Config.chunkSize
+    is the render-level audio stream chunk.
+    . Checkpoint seems better, but CheckpointNum is long.
+    . It's super confusing how it's call chunkSize in Syth.Sampler.Render.
   synth status:
     . non-constant pitch:
     . merge faust-im and sampler-im:
@@ -1402,19 +1411,28 @@ synth: im:
         . https://stackoverflow.com/questions/37554058/fast-display-of-waveform-in-c-c#
         . https://github.com/nzaillian/WaveformWidget
       haskell:
-        - Synthesizer generates 000.wav, emits a progress saying it's
+        * Synthesizer generates 000.wav, emits a progress saying it's
           working on 001.wav.  I either infer or explicitly emit the
           completed 000.wav and time range.
         . One tricky thing is I want to only emit completes for chunks that
           actually changed, so maybe at least include a flag saying if the
           previous chunk was rendered or skipped.
-        - The first progress has to clear chunks after it, fltk:
+        * The first progress has to clear chunks after it, fltk:
           clear_track_waveform(tracknum, start_chunknum)
         - Check if the track wants to draw a waveform.
         - Map the chunk time to shift, and an array of breakpoints for zoom
           ratio.  The ratios are at a constant interval, and if they run out,
           keep that ratio.  That way a constant (shift, stretch) is efficient.
         . Call fltk: set_track_waveform(tracknum, 0, "000.wav", shift, ratios)
+        - When I reload a new score that hits the cache then I won't get any
+          waveforms.  How about I always emit loads, and fltk can skip if it
+          hasn't changed?
+          . How to tell if it's changed then?  I could do mtime.
+          . This would get rid of the renderedPrevChunk stuff, but I'd also
+            need progress msgs for skipped chunks too, but only for the
+            chunknum... which I could infer.  If it really bothers me, emit
+            a skipped msg.
+          . Do the global cache below first.
       fltk:
         * Fltk track inserts into internal state:
           peaks[0] = ("000.wav", shift, ratios)
@@ -1470,8 +1488,6 @@ synth: im:
           chunky.  If that's too low, I might have to reduce to 512.  What
           I could do is have one at 128, 256, 512, 1024, 2046, and choose, but
           I'd want to do it lazily, at which point zooms might get laggy.
-
-
   cleanup:
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.

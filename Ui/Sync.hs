@@ -33,6 +33,7 @@ module Ui.Sync (
     , set_play_position, clear_play_position
     , set_highlights, clear_highlights
     , set_im_progress, clear_im_progress
+    , set_waveform, clear_waveforms
     , floating_input
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -43,6 +44,9 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified App.Config as Config
+import qualified Cmd.Cmd as Cmd
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
@@ -53,14 +57,12 @@ import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
-import qualified Cmd.Cmd as Cmd
-import qualified Derive.ParseTitle as ParseTitle
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Sync with the ui by applying the given updates to it.
@@ -164,6 +166,23 @@ set_im_progress = set_selections Config.im_progress_selnum
 
 clear_im_progress :: Fltk.Channel -> [ViewId] -> IO ()
 clear_im_progress = clear_selections Config.im_progress_selnum
+
+-- ** waveform
+
+set_waveform :: Fltk.Channel
+    -> [((ViewId, TrackNum), (Types.ChunkNum, Track.WaveformChunk))] -> IO ()
+set_waveform chan by_view = Fltk.send_action chan "set_waveform" $ sequence_
+    [ BlockC.set_waveform view_id tracknum chunknum waveform
+    | ((view_id, tracknum), (chunknum, waveform)) <- by_view
+    ]
+
+clear_waveforms :: Fltk.Channel -> [((ViewId, TrackNum), Types.ChunkNum)]
+    -> IO ()
+clear_waveforms chan by_view = Fltk.send_action chan "clear_waveforms" $
+    sequence_
+        [ BlockC.clear_waveforms view_id tracknum chunknum
+        | ((view_id, tracknum), chunknum) <- by_view
+        ]
 
 -- ** selections
 

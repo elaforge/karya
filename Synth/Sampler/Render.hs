@@ -138,7 +138,8 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
     --         map eNote futureNotes)
     playing <- liftIO $
         resumeSamples start quality chunkSize initialStates overlappingStart
-    playing <- renderChunk start playing overlappingChunk (null futureNotes)
+    playing <- renderChunk False start playing overlappingChunk
+        (null futureNotes)
     -- Debug.tracepM "renderChunk playing" playing
     Control.loop1 (start + chunkSize, playing, futureNotes) $
         \loop (now, playing, notes) -> unless (null playing && null notes) $ do
@@ -149,15 +150,15 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
                 "overlappingStart should be []: " <> pretty overlappingStart
             -- Debug.tracepM "playing, starting, future"
             --     (now, playing, overlappingChunk, futureNotes)
-            playing <- renderChunk now playing overlappingChunk
+            playing <- renderChunk True now playing overlappingChunk
                 (null futureNotes)
             -- Debug.tracepM "playing, future" (now, playing, futureNotes)
             loop (now + chunkSize, playing, futureNotes)
     where
-    renderChunk now playing overlappingChunk noFuture = do
+    renderChunk renderedPrevChunk now playing overlappingChunk noFuture = do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) overlappingChunk
-        progress now playing starting
+        progress renderedPrevChunk now playing starting
         -- Debug.tracepM "playing, starting"
         --     (AUtil.toSeconds now, playing, starting)
         (chunks, playing) <- lift $ pull chunkSize (playing ++ starting)
@@ -190,11 +191,21 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
         | otherwise = chunk
         where delta = chunkSize - AUtil.chunkFrames2 chunk
 
-    progress now playing starting = liftIO $
-        Config.emitProgress outputDir trackIds
-            (AUtil.toSeconds now) (AUtil.toSeconds (now + chunkSize))
-            ("voices:" <> showt (length playing) <> "+"
-                <> showt (length starting))
+    progress renderedPrevChunk now playing starting = liftIO $
+        Config.emitProgress msg $ Config.Progress
+            { _blockId = Config.pathToBlockId2 outputDir
+            , _trackIds = trackIds
+            , _instrument = txt $ FilePath.takeFileName outputDir
+            , _renderedPrevChunk = renderedPrevChunk
+            , _chunknum = inferChunkNum chunkSize now
+            , _range = (AUtil.toSeconds now, AUtil.toSeconds (now + chunkSize))
+            }
+        where
+        msg = "voices:" <> showt (length playing) <> "+"
+            <> showt (length starting)
+
+inferChunkNum :: Audio.Frame -> Audio.Frame -> Config.ChunkNum
+inferChunkNum chunkSize now = fromIntegral $ now `div` chunkSize
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
 pull :: Audio.Frame -> [Playing]

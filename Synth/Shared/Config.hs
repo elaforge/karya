@@ -17,6 +17,7 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 
@@ -173,6 +174,16 @@ outputDirectory :: FilePath -> FilePath -> Id.BlockId -> FilePath
 outputDirectory imDir scorePath blockId =
     imDir </> cacheDir </> scorePath </> idFilename blockId
 
+type ChunkNum = Int -- TODO same as Checkpoint.ChunkNum
+type InstrumentName = Text -- TODO Note.InstrumentName
+
+-- | Get the filename for a particular checkpoint.
+chunkPath :: FilePath -> FilePath -> Id.BlockId -> Text -> ChunkNum -> FilePath
+chunkPath imDir scorePath blockId instrument chunknum =
+    outputDirectory imDir scorePath blockId
+        </> untxt instrument
+        </> untxt (Num.zeroPad 3 chunknum <> ".wav")
+
 -- | This is text sent over MIDI to tell play_cache which directory to play
 -- from.  Relative to imDir/cacheDir.
 playFilename :: FilePath -> Id.BlockId -> FilePath
@@ -184,28 +195,57 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 
 -- * progress
 
+data Progress = Progress {
+    _blockId :: !Id.BlockId
+    , _trackIds :: !(Set Id.TrackId)
+    , _instrument :: !InstrumentName
+    , _renderedPrevChunk :: !Bool
+    , _chunknum :: !ChunkNum
+    , _range :: !(RealTime, RealTime)
+    } deriving (Show)
+
 -- | Emit a progress message.  The sequencer should be able to parse these to
 -- show render status.  It shows the end of the chunk being rendered, so it can
 -- highlight the time range which is in progress.
-emitProgress :: FilePath -> Set Id.TrackId -> RealTime -> RealTime -> Text
-    -> IO ()
-emitProgress outputDir trackIds start end extra = do
-    Log.notice $ Text.unwords $
-        "progress" : pathToBlockId outputDir : tracks
-        : [pretty start <> "--" <> pretty end, extra]
-    emitMessage outputDir trackIds "progress" [time start, time end]
+--
+-- TODO this is getting out of hand, use JSON or something.
+emitProgress :: Text -> Progress -> IO ()
+emitProgress extra
+        (Progress blockId trackIds inst renderedPrevChunk chunknum range) = do
+    let (start, end) = range
+    Log.notice $ Text.unwords
+        [ "progress", Id.ident_text blockId, tracks, inst
+        , showt renderedPrevChunk, showt chunknum
+        , pretty start <> "--" <> pretty end
+        , extra
+        ]
+    emitMessage2 blockId trackIds "progress"
+        [inst, showt renderedPrevChunk, showt chunknum, time start, time end]
     where
     time = showt . RealTime.to_seconds
     tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
 
--- | Parse the line emitted by 'progress'.
-parseProgress :: Text
-    -> Maybe (Id.BlockId, Set Id.TrackId, (RealTime, RealTime))
+-- | Parse the line emitted by 'emitProgress'.
+parseProgress :: Text -> Maybe Progress
 parseProgress line = do
-    ("progress", blockId, trackIds, [start, end]) <- parseMessage line
+    ("progress", blockId, trackIds,
+            [inst, renderedPrevChunk, chunknum, start, end])
+        <- parseMessage line
+    renderedPrevChunk <- case renderedPrevChunk of
+        "False" -> Just False
+        "True" -> Just True
+        _ -> Nothing
+    chunknum <- Parse.parse_maybe Parse.p_nat chunknum
     start <- time start
     end <- time end
-    return (blockId, trackIds, (start, end))
+    return $ Progress
+        { _blockId = blockId
+        , _trackIds = trackIds
+        , _instrument = inst
+        , _renderedPrevChunk = renderedPrevChunk
+        , _chunknum = chunknum
+        , _range = (start, end)
+        }
     where
     time = fmap RealTime.seconds . Parse.parse_maybe Parse.p_float
 
@@ -229,11 +269,23 @@ emitMessage outputDir trackIds msg words = Log.with_stdio_lock $ do
     where
     tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
 
+emitMessage2 :: Id.BlockId -> Set Id.TrackId -> Text -> [Text] -> IO ()
+emitMessage2 blockId trackIds msg words = Log.with_stdio_lock $ do
+    Text.IO.putStrLn $ Text.unwords $ msg : Id.ident_text blockId : tracks
+        : words
+    IO.hFlush IO.stdout
+    where
+    tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
+
 -- | Infer namespace/block from
 -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
 pathToBlockId :: FilePath -> Text
 pathToBlockId =
     Text.intercalate "/" . take 2 . Seq.rtake 3 . Text.splitOn "/" . txt
+
+pathToBlockId2 :: FilePath -> Id.BlockId
+pathToBlockId2 = Id.BlockId . Id.read_id
+    . Text.intercalate "/" . take 2 . Seq.rtake 3 . Text.splitOn "/" . txt
 
 parseMessage :: Text -> Maybe (Text, Id.BlockId, Set Id.TrackId, [Text])
 parseMessage line = case Text.words line of

@@ -96,6 +96,7 @@ public:
     {}
     virtual void set_track_signal(const TrackSignal &tsig) = 0;
     virtual void set_waveform(int chunknum, const PeakCache::Params &params) {}
+    virtual void clear_waveforms(int chunknum) {}
 
     // This is called before the object is deleted.
     virtual void finalize_callbacks() {}

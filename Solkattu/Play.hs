@@ -105,7 +105,8 @@ watch_subprocesses ready all_procs =
             -- I can start playing when I see the first progress for each
             -- process, and for each instrument.  Since I only have one
             -- instrument the first suffices.
-            | Just (_, _, (s, _)) <- Config.parseProgress line, s > 0 -> do
+            | Just progress <- Config.parseProgress line,
+                    (fst (Config._range progress)) > 0 -> do
                 let started2 = Set.insert (cmd, args) started
                 when (started2 == all_procs) $
                     void $ MVar.tryPutMVar ready ()

@@ -125,12 +125,12 @@ handle_im_status ui_chan block_id = \case
         complete_im_progress ui_chan block_id
         -- If it failed, leave the the progress highlight in place, to indicate
         -- where it crashed.
-    Msg.ImStatus (Msg.ImProgress progress_block track_ids start end)
+    Msg.ImStatus (Msg.ImProgress progress)
         -- Only display progress for each block as its own toplevel.
         -- If a block is child of another, I can see its prorgess in
         -- its parent.
-        | progress_block == block_id ->
-            set_im_progress ui_chan block_id track_ids start end
+        | Msg.im_block_id progress == block_id ->
+            set_im_progress ui_chan progress
     _ -> return ()
 
 start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
@@ -155,12 +155,26 @@ complete_im_progress ui_chan block_id = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     liftIO $ Sync.clear_im_progress ui_chan view_ids
 
-set_im_progress :: Fltk.Channel -> BlockId -> Set TrackId -> RealTime
-    -> RealTime -> Cmd.CmdT IO ()
-set_im_progress ui_chan block_id track_ids start end = do
+set_im_progress :: Fltk.Channel -> Msg.ImProgressT -> Cmd.CmdT IO ()
+set_im_progress ui_chan
+        (Msg.ImProgressT block_id track_ids start end chunknum mb_waveform) = do
     sels <- resolve_tracks
         =<< get_im_progress_selections block_id track_ids start end
     liftIO $ Sync.set_im_progress ui_chan sels
+    case mb_waveform of
+        Nothing -> do
+            by_view <- resolve_tracks
+                [ ((block_id, track_id), chunknum)
+                | track_id <- Set.toList track_ids
+                ]
+            liftIO $ Sync.clear_waveforms ui_chan by_view
+        Just waveform -> do
+            by_view <- resolve_tracks
+                -- chunknum-1 because the waveform is the previous chunk.
+                [ ((block_id, track_id), (chunknum-1, waveform))
+                | track_id <- Set.toList track_ids
+                ]
+            liftIO $ Sync.set_waveform ui_chan by_view
 
 get_im_progress_selections :: Cmd.M m => BlockId -> Set TrackId
     -> RealTime -> RealTime -> m [((BlockId, TrackId), (Range, Color.Color))]
