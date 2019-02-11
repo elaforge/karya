@@ -16,7 +16,6 @@ import Control.Monad.Extra
 import qualified Control.Monad.Fix as Fix
 
 import Data.Bifunctor (Bifunctor(bimap, first, second))
-import qualified Data.Monoid as Monoid
 
 import Util.CallStack (errorStack, errorIO)
 
@@ -57,8 +56,8 @@ loop2 s1 s2 f = f again s1 s2
     again = f again
 
 -- | This is 'Foldable.foldMap' specialized to lists.
-mconcatMap :: Monoid.Monoid b => (a -> b) -> [a] -> b
-mconcatMap f = Monoid.mconcat . map f
+mconcatMap :: Monoid b => (a -> b) -> [a] -> b
+mconcatMap f = mconcat . map f
 
 -- | This is actually a mconcatMapM.
 --
@@ -67,8 +66,8 @@ mconcatMap f = Monoid.mconcat . map f
 -- > foldMapA :: (Applicative f, Traversable t, Monoid m) =>
 -- >    (a -> f m) -> t a -> f m
 -- > foldMapA f = fmap Foldable.fold . traverse f
-concatMapM :: (Monad m, Monoid.Monoid b) => (a -> m b) -> [a] -> m b
-concatMapM f = Monad.liftM Monoid.mconcat . mapM f
+concatMapM :: (Monad m, Monoid b) => (a -> m b) -> [a] -> m b
+concatMapM f = Monad.liftM mconcat . mapM f
 
 -- | Run the second action only if the first action returns Just.
 --
