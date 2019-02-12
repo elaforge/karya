@@ -101,17 +101,17 @@ watch_subprocesses ready all_procs =
     where
     process procs started (cmd, args) = \case
         Util.Process.Stderr line -> put line >> return (procs, started)
-        Util.Process.Stdout line
-            -- I can start playing when I see the first progress for each
-            -- process, and for each instrument.  Since I only have one
-            -- instrument the first suffices.
-            | Just progress <- Config.parseProgress line,
-                    (fst (Config._range progress)) > 0 -> do
-                let started2 = Set.insert (cmd, args) started
-                when (started2 == all_procs) $
-                    void $ MVar.tryPutMVar ready ()
-                return (procs, started2)
-            | otherwise -> put ("?: " <> line) >> return (procs, started)
+        Util.Process.Stdout line -> case Config.parseMessage line of
+            Just (Config.Message { Config._payload = Config.ProgressT p })
+                | fst (Config._range p) > 0 -> do
+                    -- I can start playing when I see the first progress for
+                    -- each process, and for each instrument.  Since I only
+                    -- have one instrument the first suffices.
+                    let started2 = Set.insert (cmd, args) started
+                    when (started2 == all_procs) $
+                        void $ MVar.tryPutMVar ready ()
+                    return (procs, started2)
+            _ -> put ("?: " <> line) >> return (procs, started)
         Util.Process.Exit code -> do
             when (code /= Util.Process.ExitCode 0) $
                 Log.warn $ "subprocess " <> txt cmd <> " "

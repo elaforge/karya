@@ -27,16 +27,19 @@ module Ui.Id (
     , BlockId(..), ViewId(..), TrackId(..), RulerId(..)
 ) where
 import qualified Prelude
-import Prelude hiding (id)
+import           Prelude hiding (id)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Aeson as Aeson
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
+
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
-import Util.Crc32Instances () -- Text instance
+import           Util.Crc32Instances () -- Text instance
 import qualified Util.Serialize as Serialize
-import Global
+
+import           Global
 
 
 -- | IDs come in two parts, a namespace and a name.
@@ -46,6 +49,12 @@ import Global
 -- implicit, the merged score should still be playable.
 data Id = Id !Namespace !Text
     deriving (Eq, Ord, Show, Read)
+
+instance Aeson.ToJSON Id where
+    toJSON = Aeson.String . ident_text
+instance Aeson.FromJSON Id where
+    parseJSON (Aeson.String a) = pure $ read_id a
+    parseJSON _ = fail "expecting String"
 
 -- | The Namespace should pass 'valid_symbol', and is guaranteed to not contain
 -- \/s.  This is because the git backend uses the namespace for a directory
@@ -285,3 +294,15 @@ instance Ident RulerId where
     unpack_id (RulerId a) = a
     constructor_name _ = "rid"
     make = fmap RulerId . valid_id
+
+instance Aeson.ToJSON BlockId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.FromJSON BlockId where parseJSON = fmap BlockId . Aeson.parseJSON
+
+instance Aeson.ToJSON ViewId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.FromJSON ViewId where parseJSON = fmap ViewId . Aeson.parseJSON
+
+instance Aeson.ToJSON TrackId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.FromJSON TrackId where parseJSON = fmap TrackId . Aeson.parseJSON
+
+instance Aeson.ToJSON RulerId where toJSON = Aeson.toJSON . unpack_id
+instance Aeson.FromJSON RulerId where parseJSON = fmap RulerId . Aeson.parseJSON

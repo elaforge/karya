@@ -284,24 +284,28 @@ watch_subprocesses config score_path send_status procs
                     <> showt args <> " returned " <> showt code
             return (Set.delete (cmd, args) procs, failure)
 
-    progress line
-        | Just progress <- Config.parseProgress line = do
-            send_status $ Msg.ImProgress $
-                im_progress (Config.imDir config) score_path progress
-            return False
-        | Just (block_id, track_ids, err) <- Config.parseFailure line = do
-            Log.warn $ "im failure: " <> pretty block_id <> ": "
-                <> pretty track_ids <> ": " <> err
-            return True
-        | otherwise = do
+    progress line = case Config.parseMessage line of
+        Nothing -> do
             put $ "couldn't parse: " <> line
             return False
+        Just (Config.Message block_id track_ids instrument p) -> case p of
+            Config.ProgressT progress -> do
+                send_status $ Msg.ImProgress $
+                    im_progress (Config.imDir config) score_path
+                        block_id track_ids instrument progress
+                return False
+            Config.FailureT err -> do
+                Log.warn $ "im failure: "
+                    <> pretty block_id <> ": "
+                    <> pretty track_ids <> ": " <> err
+                return True
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
-im_progress :: FilePath -> FilePath -> Config.Progress -> Msg.ImProgressT
-im_progress im_dir score_path (Config.Progress block_id track_ids instrument
-        renderedPrevChunk chunknum (start, end)) =
+im_progress :: FilePath -> FilePath -> BlockId -> Set TrackId
+    -> Config.InstrumentName -> Config.Progress -> Msg.ImProgressT
+im_progress im_dir score_path block_id track_ids instrument
+        (Config.Progress renderedPrevChunk chunknum (start, end)) =
     Msg.ImProgressT
         { im_block_id = block_id
         , im_track_ids = track_ids

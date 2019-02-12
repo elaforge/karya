@@ -4,31 +4,45 @@
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
 module Util.TextUtil where
-import Prelude hiding (lines)
-import Control.Arrow (first)
-import Control.Monad (liftM)
+import           Prelude hiding (lines)
+import           Control.Arrow (first)
+import           Control.Monad (liftM)
 import qualified Control.Monad.Identity as Identity
 
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import Data.Monoid ((<>))
+import           Data.Monoid ((<>))
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
+import qualified Data.Text.Encoding as Encoding
+import qualified Data.Text.Encoding.Error as Encoding.Error
+import qualified Data.Text.Lazy as Text.Lazy
+import qualified Data.Text.Lazy.Encoding as Lazy.Encoding
 
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 
+-- * conversion
+
 class Textlike a where
     toText :: a -> Text
     fromText :: Text -> a
+
+    toByteString :: a -> ByteString.ByteString
+    toByteString = Encoding.encodeUtf8 . toText
+
+    toLazyByteString :: a -> ByteString.Lazy.ByteString
+    toLazyByteString = Lazy.Encoding.encodeUtf8 . Text.Lazy.fromStrict . toText
 
 instance Textlike Text where
     toText = id
@@ -37,6 +51,21 @@ instance Textlike Text where
 instance Textlike String where
     toText = Text.pack
     fromText = Text.unpack
+
+instance Textlike ByteString.ByteString where
+    toText = Encoding.decodeUtf8With Encoding.Error.lenientDecode
+    fromText = toByteString
+    toByteString = id
+    toLazyByteString = ByteString.Lazy.fromStrict
+
+instance Textlike ByteString.Lazy.ByteString where
+    toText = toText . ByteString.Lazy.toStrict
+    fromText = ByteString.Lazy.fromStrict . fromText
+    toByteString = ByteString.Lazy.toStrict
+    toLazyByteString = id
+
+
+-- * operations
 
 -- | Replace substrings simultaneously.
 replaceMany :: [(Text, Text)] -> Text -> Text

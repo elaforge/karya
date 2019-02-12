@@ -4,13 +4,15 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 -- | Shared config to coordinate between the sequencer and im subsystems.
 module Synth.Shared.Config where
+import qualified Data.Aeson as Aeson
+import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 
+import qualified GHC.Generics as Generics
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -18,12 +20,11 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Log as Log
 import qualified Util.Num as Num
-import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified App.Config as Config
 import qualified App.Path as Path
-import qualified Perform.RealTime as RealTime
 import qualified Ui.Id as Id
 
 import           Global
@@ -195,104 +196,65 @@ idFilename id = untxt $ Id.un_namespace ns <> "/" <> name
 
 -- * progress
 
-data Progress = Progress {
+data Message = Message {
     _blockId :: !Id.BlockId
     , _trackIds :: !(Set Id.TrackId)
     , _instrument :: !InstrumentName
-    , _renderedPrevChunk :: !Bool
+    , _payload :: !MessageT
+    }
+    deriving (Show, Generics.Generic)
+
+instance Aeson.ToJSON Message where
+    toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+instance Aeson.FromJSON Message
+
+data MessageT =
+    ProgressT !Progress
+    -- | A failure will cause karya to log the msg and mark the track as
+    -- incomplete.  It should be fatal, so don't emit any 'emitProgress'
+    -- afterwards.
+    | FailureT !Text
+    deriving (Show, Generics.Generic)
+
+instance Aeson.ToJSON MessageT where
+    toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+instance Aeson.FromJSON MessageT
+
+-- | A progress message.  The sequencer should be able to parse these to show
+-- render status.  It shows the end of the chunk being rendered, so it can
+-- highlight the time range which is in progress.
+data Progress = Progress {
+    _renderedPrevChunk :: !Bool
     , _chunknum :: !ChunkNum
     , _range :: !(RealTime, RealTime)
-    } deriving (Show)
+    } deriving (Show, Generics.Generic)
 
--- | Emit a progress message.  The sequencer should be able to parse these to
--- show render status.  It shows the end of the chunk being rendered, so it can
--- highlight the time range which is in progress.
---
--- TODO this is getting out of hand, use JSON or something.
-emitProgress :: Text -> Progress -> IO ()
-emitProgress extra
-        (Progress blockId trackIds inst renderedPrevChunk chunknum range) = do
-    let (start, end) = range
+instance Aeson.ToJSON Progress where
+    toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
+instance Aeson.FromJSON Progress
+
+emitMessage :: Text -> Message -> IO ()
+emitMessage extra msg = do
+    let json = Aeson.encode msg
     Log.notice $ Text.unwords
-        [ "progress", Id.ident_text blockId, tracks, inst
-        , showt renderedPrevChunk, showt chunknum
-        , pretty start <> "--" <> pretty end
+        [ "message", Id.ident_text (_blockId msg)
+        -- , tracks, inst
+        -- , showt renderedPrevChunk, showt chunknum
+        , case _payload msg of
+            ProgressT progress -> pretty start <> "--" <> pretty end
+                where (start, end) = _range progress
+            FailureT err -> err
         , extra
         ]
-    emitMessage2 blockId trackIds "progress"
-        [inst, showt renderedPrevChunk, showt chunknum, time start, time end]
-    where
-    time = showt . RealTime.to_seconds
-    tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
+    Log.with_stdio_lock $ do
+        ByteString.Lazy.Char8.putStrLn json
+        IO.hFlush IO.stdout
 
--- | Parse the line emitted by 'emitProgress'.
-parseProgress :: Text -> Maybe Progress
-parseProgress line = do
-    ("progress", blockId, trackIds,
-            [inst, renderedPrevChunk, chunknum, start, end])
-        <- parseMessage line
-    renderedPrevChunk <- case renderedPrevChunk of
-        "False" -> Just False
-        "True" -> Just True
-        _ -> Nothing
-    chunknum <- Parse.parse_maybe Parse.p_nat chunknum
-    start <- time start
-    end <- time end
-    return $ Progress
-        { _blockId = blockId
-        , _trackIds = trackIds
-        , _instrument = inst
-        , _renderedPrevChunk = renderedPrevChunk
-        , _chunknum = chunknum
-        , _range = (start, end)
-        }
-    where
-    time = fmap RealTime.seconds . Parse.parse_maybe Parse.p_float
-
--- | A failure will cause karya to log the msg and mark the track as
--- incomplete.  It should be fatal, so don't emit any 'emitProgress'
--- afterwards.
-emitFailure :: FilePath -> Set Id.TrackId -> Text -> IO ()
-emitFailure outputDir trackIds msg =
-    emitMessage outputDir trackIds "failure" [msg]
-
-parseFailure :: Text -> Maybe (Id.BlockId, Set Id.TrackId, Text)
-parseFailure line = do
-    ("failure", blockId, trackIds, msg) <- parseMessage line
-    return (blockId, trackIds, Text.unwords msg)
-
-emitMessage :: FilePath -> Set Id.TrackId -> Text -> [Text] -> IO ()
-emitMessage outputDir trackIds msg words = Log.with_stdio_lock $ do
-    Text.IO.putStrLn $ Text.unwords $
-        msg : pathToBlockId outputDir : tracks : words
-    IO.hFlush IO.stdout
-    where
-    tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
-
-emitMessage2 :: Id.BlockId -> Set Id.TrackId -> Text -> [Text] -> IO ()
-emitMessage2 blockId trackIds msg words = Log.with_stdio_lock $ do
-    Text.IO.putStrLn $ Text.unwords $ msg : Id.ident_text blockId : tracks
-        : words
-    IO.hFlush IO.stdout
-    where
-    tracks = Text.intercalate "," $ map Id.ident_text $ Set.toList trackIds
+parseMessage :: Text -> Maybe Message
+parseMessage = Aeson.decode . TextUtil.toLazyByteString
 
 -- | Infer namespace/block from
 -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument
-pathToBlockId :: FilePath -> Text
-pathToBlockId =
-    Text.intercalate "/" . take 2 . Seq.rtake 3 . Text.splitOn "/" . txt
-
-pathToBlockId2 :: FilePath -> Id.BlockId
-pathToBlockId2 = Id.BlockId . Id.read_id
+pathToBlockId :: FilePath -> Id.BlockId
+pathToBlockId = Id.BlockId . Id.read_id
     . Text.intercalate "/" . take 2 . Seq.rtake 3 . Text.splitOn "/" . txt
-
-parseMessage :: Text -> Maybe (Text, Id.BlockId, Set Id.TrackId, [Text])
-parseMessage line = case Text.words line of
-    msg : block : tracks : args -> Just
-        ( msg
-        , Id.BlockId (Id.read_id block)
-        , Set.fromList $ map (Id.TrackId . Id.read_id) (Text.splitOn "," tracks)
-        , args
-        )
-    _ -> Nothing

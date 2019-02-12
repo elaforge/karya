@@ -192,13 +192,16 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
         where delta = chunkSize - AUtil.blockFrames2 chunk
 
     progress renderedPrevChunk now playing starting = liftIO $
-        Config.emitProgress msg $ Config.Progress
-            { _blockId = Config.pathToBlockId2 outputDir
+        Config.emitMessage msg $ Config.Message
+            { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir
-            , _renderedPrevChunk = renderedPrevChunk
-            , _chunknum = inferChunkNum chunkSize now
-            , _range = (AUtil.toSeconds now, AUtil.toSeconds (now + chunkSize))
+            , _payload = Config.ProgressT $ Config.Progress
+                { _renderedPrevChunk = renderedPrevChunk
+                , _chunknum = inferChunkNum chunkSize now
+                , _range =
+                    (AUtil.toSeconds now, AUtil.toSeconds (now + chunkSize))
+                }
             }
         where
         msg = "voices:" <> showt (length playing) <> "+"

@@ -1332,7 +1332,7 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  - replace Synth.Shared.Config.emitProgress with a JSON thing
+  * replace Synth.Shared.Config.emitProgress with a JSON thing
   - rename Shared.Config.cacheDir to something like audio, so it's not
     confusingly the same as Checkpoint.cacheDir.
   - use the same ChunkNum in Config and Checkpoint.
