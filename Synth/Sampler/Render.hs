@@ -59,6 +59,12 @@ write_ chunkSize quality outputDir trackIds notes = catch $ do
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
     mapM_ (Checkpoint.linkOutput outputDir) skipped
+    unless (null skipped) $ Config.emitMessage "" $ Config.Message
+        { _blockId = Config.pathToBlockId outputDir
+        , _trackIds = trackIds
+        , _instrument = txt $ FilePath.takeFileName outputDir
+        , _payload = Config.SkippedT (length skipped)
+        }
 
     case maybe (Right []) unserializeStates mbState of
         Left err -> return $ Left $

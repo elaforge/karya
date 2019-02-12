@@ -22,6 +22,7 @@ module Util.Log (
     , Priority(..), State(..)
     , write_json, write_formatted
     , msg, msg_call_stack
+    , log
     , timer, debug, notice, warn, error
     , debug_stack, notice_stack, warn_stack, error_stack
     , add_prefix

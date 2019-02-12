@@ -109,9 +109,8 @@ update_entire_track update_ruler view_id tracknum tracklike merged set_style =
 set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
 set_track_signal view_id tracknum tsig = fltk $ return ()
 
-set_waveform :: ViewId -> TrackNum -> Types.ChunkNum
-    -> Track.WaveformChunk -> Fltk ()
-set_waveform _ _ _ _ = fltk $ return ()
+set_waveform :: ViewId -> TrackNum -> Track.WaveformChunk -> Fltk ()
+set_waveform _ _ _ = fltk $ return ()
 
 clear_waveforms :: ViewId -> TrackNum -> Types.ChunkNum -> Fltk ()
 clear_waveforms _ _ _ = fltk $ return ()

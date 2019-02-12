@@ -43,7 +43,6 @@ import qualified Derive.Stream as Stream
 
 import qualified Instrument.Inst as Inst
 import qualified Perform.Im.Convert as Im.Convert
-import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Config as Config
 import qualified Ui.Block as Block
 import qualified Ui.Track as Track
@@ -288,49 +287,50 @@ watch_subprocesses config score_path send_status procs
         Nothing -> do
             put $ "couldn't parse: " <> line
             return False
-        Just (Config.Message block_id track_ids instrument p) -> case p of
-            Config.ProgressT progress -> do
-                send_status $ Msg.ImProgress $
-                    im_progress (Config.imDir config) score_path
-                        block_id track_ids instrument progress
-                return False
-            Config.FailureT err -> do
-                Log.warn $ "im failure: "
-                    <> pretty block_id <> ": "
-                    <> pretty track_ids <> ": " <> err
+        Just msg -> case emit_progress (Config.imDir config) score_path msg of
+            Left err -> do
+                Log.warn err
                 return True
+            Right progress -> do
+                send_status $ Msg.ImProgress progress
+                return False
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
-im_progress :: FilePath -> FilePath -> BlockId -> Set TrackId
-    -> Config.InstrumentName -> Config.Progress -> Msg.ImProgressT
-im_progress im_dir score_path block_id track_ids instrument
-        (Config.Progress renderedPrevChunk chunknum (start, end)) =
-    Msg.ImProgressT
+emit_progress :: FilePath -> FilePath -> Config.Message
+    -> Either Text Msg.ImProgressT
+emit_progress im_dir score_path
+        (Config.Message block_id track_ids instrument p) = case p of
+    Config.ProgressT progress -> Right $ Msg.ImProgressT
         { im_block_id = block_id
         , im_track_ids = track_ids
-        , im_start = start
-        , im_end = end
-        , im_chunknum = chunknum
-        , im_prev_waveform = case mb_filename of
-            Nothing -> Nothing
-            Just filename -> Just $ Track.WaveformChunk
-                { _filename = filename
-                -- TODO I need inv_tempo_map
-                , _start = RealTime.to_score $
-                    start - fromIntegral Config.chunkSeconds
-                , _ratios = [1]
-                }
+        , im_rendering_range = Just $ Config._range progress
+        , im_waveforms = if Config._renderedPrevChunk progress
+            then [make_chunk (Config._chunknum progress - 1)]
+            else []
         }
-        where
-        -- If the prev chunk was just re-rendered, infer the chunk path
-        -- and stash it in 'Msg.ImProgressT' so I can have the UI display
-        -- it.
-        mb_filename
-            | renderedPrevChunk = Just $
-                Config.chunkPath im_dir score_path block_id instrument
-                    (chunknum - 1)
-            | otherwise = Nothing
+    Config.SkippedT chunknum -> Right $ Msg.ImProgressT
+        { im_block_id = block_id
+        , im_track_ids = track_ids
+        -- This signals to PlayC.set_im_progress that this is an update for
+        -- the initial skip.
+        , im_rendering_range = Nothing
+        -- Make sure previous chunks are loaded.  If they're already loaded,
+        -- PeakCache will notice and not reload.
+        , im_waveforms = map make_chunk [0 .. chunknum-1]
+        }
+    Config.FailureT err -> Left $
+        "im failure: " <> pretty block_id <> ": "
+            <> pretty track_ids <> ": " <> err
+    where
+    make_chunk chunknum = Track.WaveformChunk
+        { _filename = Config.chunkPath im_dir score_path block_id
+            instrument chunknum
+        , _chunknum = chunknum
+        -- TODO I need inv_tempo_map
+        , _start = fromIntegral $ chunknum * Config.chunkSeconds
+        , _ratios = [1]
+        }
 
 -- | If there are im events, serialize them and return a Processes to render
 -- them, and the non-im events.
@@ -362,7 +362,12 @@ evaluate_im config lookup_inst score_path play_multiplier block_id events = do
                 changed <- Im.Convert.write play_multiplier block_id
                     lookup_inst notes_file events
                 let binary = Config.binary synth
-                return $ if null binary || not changed then Nothing
+                -- TODO this is temporarily disabled because it prevents the
+                -- initial waveforms from being loaded if it's a cache hit.
+                -- But without it, I rerender even when im notes didn't change.
+                -- Come up with a way to get both.
+                return $ if null binary --  || not changed
+                    then Nothing
                     else Just (binary, [notes_file, output_dir])
             Nothing -> do
                 Log.warn $ "unknown im synth " <> showt synth_name <> " with "

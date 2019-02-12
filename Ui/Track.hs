@@ -14,6 +14,7 @@ import qualified Perform.Signal as Signal
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Types as Types
 
 import           Global
 import           Types
@@ -156,13 +157,16 @@ signal_at x (TrackSignal sig shift stretch) = Signal.at warped sig
 
 data WaveformChunk = WaveformChunk {
     _filename :: !FilePath
+    , _chunknum :: Types.ChunkNum
     , _start :: !TrackTime
     , _ratios :: ![Double]
     } deriving (Show)
 
 instance Pretty WaveformChunk where
-    format (WaveformChunk filename start ratios) = Pretty.record "WaveformChunk"
-        [ ("filename", Pretty.format filename)
-        , ("start", Pretty.format start)
-        , ("ratios", Pretty.format ratios)
-        ]
+    format (WaveformChunk filename chunknum start ratios) =
+        Pretty.record "WaveformChunk"
+            [ ("filename", Pretty.format filename)
+            , ("chunknum", Pretty.format chunknum)
+            , ("start", Pretty.format start)
+            , ("ratios", Pretty.format ratios)
+            ]

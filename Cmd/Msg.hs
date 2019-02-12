@@ -21,7 +21,6 @@ import qualified Perform.Transport as Transport
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 
@@ -65,7 +64,8 @@ show_short = \case
             ImProgress progress -> mconcat
                 [ "ImProgress:", pretty (im_block_id progress)
                 , pretty (im_track_ids progress)
-                , pretty (im_start progress), "--", pretty (im_end progress)
+                , maybe "" (\(start, end) -> pretty start <> "--" <> pretty end)
+                    (im_rendering_range progress)
                 ]
             ImComplete failed ->
                 "ImComplete" <> if failed then "(failed)" else ""
@@ -111,12 +111,10 @@ data ImStatus =
 data ImProgressT = ImProgressT {
     im_block_id :: !BlockId
     , im_track_ids :: !(Set TrackId)
-    , im_start :: !RealTime
-    , im_end :: !RealTime
-    -- | The current chunknum.
-    , im_chunknum :: !Types.ChunkNum
-    -- | Previous chunk, which is now complete.  This is at im_chunknum me - 1.
-    , im_prev_waveform :: !(Maybe Track.WaveformChunk)
+    -- | If set, this (start, end) range is currently being rendered.
+    , im_rendering_range :: !(Maybe (RealTime, RealTime))
+    -- | Previous chunks, which are now complete.
+    , im_waveforms :: ![Track.WaveformChunk]
     } deriving (Show)
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.

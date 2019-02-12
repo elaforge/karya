@@ -210,6 +210,8 @@ instance Aeson.FromJSON Message
 
 data MessageT =
     ProgressT !Progress
+    -- | Cache hit on the first n chunks.
+    | SkippedT !ChunkNum
     -- | A failure will cause karya to log the msg and mark the track as
     -- incomplete.  It should be fatal, so don't emit any 'emitProgress'
     -- afterwards.
@@ -236,16 +238,20 @@ instance Aeson.FromJSON Progress
 emitMessage :: Text -> Message -> IO ()
 emitMessage extra msg = do
     let json = Aeson.encode msg
-    Log.notice $ Text.unwords
-        [ "message", Id.ident_text (_blockId msg)
-        -- , tracks, inst
-        -- , showt renderedPrevChunk, showt chunknum
+    let prio = case _payload msg of
+            ProgressT {} -> Log.Notice
+            SkippedT {} -> Log.Notice
+            FailureT {} -> Log.Warn
+    Log.log prio $ Text.unwords $
+        [ Id.ident_text (_blockId msg)
         , case _payload msg of
-            ProgressT progress -> pretty start <> "--" <> pretty end
+            ProgressT progress ->
+                showt (_chunknum progress) <> " "
+                    <> pretty start <> "--" <> pretty end
                 where (start, end) = _range progress
+            SkippedT chunknum -> "skipped to " <> showt chunknum
             FailureT err -> err
-        , extra
-        ]
+        ] ++ if Text.null extra then [] else [extra]
     Log.with_stdio_lock $ do
         ByteString.Lazy.Char8.putStrLn json
         IO.hFlush IO.stdout

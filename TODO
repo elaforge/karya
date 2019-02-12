@@ -1425,7 +1425,7 @@ synth: im:
           ratio.  The ratios are at a constant interval, and if they run out,
           keep that ratio.  That way a constant (shift, stretch) is efficient.
         . Call fltk: set_track_waveform(tracknum, 0, "000.wav", shift, ratios)
-        - When I reload a new score that hits the cache then I won't get any
+        * When I reload a new score that hits the cache then I won't get any
           waveforms.  How about I always emit loads, and fltk can skip if it
           hasn't changed?
           . How to tell if it's changed then?  I could do mtime.
@@ -1433,20 +1433,34 @@ synth: im:
             need progress msgs for skipped chunks too, but only for the
             chunknum... which I could infer.  If it really bothers me, emit
             a skipped msg.
-          . Do the global cache below first.
-          . The "unchaged notes" shortcut will prevent this from working.
-            I need to get chunk starts, ratios, etc.
-          . I can just list the directory, but it seems special-case.
-          . Or I disable the changed check, but skip evaluate_im entirely if
-            the block hasn't changed.
-          . Or do I already do that?  I won't get there unless there is
-            damage, but I rerender if there is any damage at all, and rely on
-            the cache.  I do the same for im, but the cache is more expensive,
-            since it means serializing all notes and then running
-            a subprocess.  How could I skip serializing?
-          . I would have to know if the damage affects any im notes.
-          . Or just disable the change check for the first run.  I would have
-            to remember if there was a previous Performance.
+          . It depends on the global cache to be efficient.
+          . I still don't get any progress on a total cache hit.
+          . How to make sure extra chunks at the end are cleared?  If I clear
+            first, then I'll reload unnecessarily.  I think I have to add
+            a mechanism say what the final chunk was, and turn that into
+            a clear, or clear first but have some way to not reload.
+          . I know if there will be skipping, it will be the starting chunk,
+            and it will be the same as before.  But I have to send the
+            filenames at least, in case this is the first load.  Only the
+            first ImProgressT with im_rendering_range == Nothing will clear
+            things after it.
+        - The "unchanged notes" shortcut will prevent this from working.
+          I need to get chunk starts, ratios, etc.
+        . I can just list the directory, but it seems special-case.
+        . Or I disable the changed check, but skip evaluate_im entirely if
+          the block hasn't changed.
+        . Or do I already do that?  I won't get there unless there is
+          damage, but I rerender if there is any damage at all, and rely on
+          the cache.  I do the same for im, but the cache is more expensive,
+          since it means serializing all notes and then running
+          a subprocess.  How could I skip serializing?
+        . I would have to know if the damage affects any im notes.
+        . Or just disable the change check for the first run.  I would have
+          to remember if there was a previous Performance.
+        . That change check is already kind of annoying because it doesn't
+          check that the audio output exists.
+        . Another way would be go directly to the files: look in the output
+          directory and send over all the files even if I skipped.
       fltk:
         * Fltk track inserts into internal state:
           peaks[0] = ("000.wav", shift, ratios)
@@ -1496,6 +1510,10 @@ synth: im:
           . zoom_cache does the same thing.
           . I could take start out of Params, but I don't think I ever have
             the same audio at different places.
+        - Draw is still buggy, I get jagged zero transitions when the
+          selection triggers short redraws.
+        - The offset is definitely messed up, I get totally misaligned
+          waveforms.
       notes:
         . If I load at srate/1024, that's about 43 samples/sec.  Each text
           line is 12 pixels so about 3.5 lines for 1 second before it gets

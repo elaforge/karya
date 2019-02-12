@@ -119,8 +119,7 @@ handle_im_status :: Fltk.Channel -> BlockId -> Msg.DeriveStatus
 handle_im_status ui_chan block_id = \case
     Msg.DeriveComplete _ Msg.ImStarted ->
         start_im_progress ui_chan block_id
-    Msg.DeriveComplete _ Msg.ImUnnecessary ->
-        complete_im_progress ui_chan block_id
+    Msg.DeriveComplete _ Msg.ImUnnecessary -> return ()
     Msg.ImStatus (Msg.ImComplete failed) -> unless failed $
         complete_im_progress ui_chan block_id
         -- If it failed, leave the the progress highlight in place, to indicate
@@ -157,24 +156,30 @@ complete_im_progress ui_chan block_id = do
 
 set_im_progress :: Fltk.Channel -> Msg.ImProgressT -> Cmd.CmdT IO ()
 set_im_progress ui_chan
-        (Msg.ImProgressT block_id track_ids start end chunknum mb_waveform) = do
-    sels <- resolve_tracks
-        =<< get_im_progress_selections block_id track_ids start end
-    liftIO $ Sync.set_im_progress ui_chan sels
-    case mb_waveform of
-        Nothing -> do
-            by_view <- resolve_tracks
-                [ ((block_id, track_id), chunknum)
-                | track_id <- Set.toList track_ids
-                ]
-            liftIO $ Sync.clear_waveforms ui_chan by_view
-        Just waveform -> do
-            by_view <- resolve_tracks
-                -- chunknum-1 because the waveform is the previous chunk.
-                [ ((block_id, track_id), (chunknum-1, waveform))
-                | track_id <- Set.toList track_ids
-                ]
-            liftIO $ Sync.set_waveform ui_chan by_view
+        (Msg.ImProgressT block_id track_ids mb_range waveforms) = do
+    -- There is some tricky footwork in here to clear stale chunks, load ones
+    -- in case this is a new track, but not reload any ones that are already
+    -- loaded.  mb_range==Nothing signifies that this is the initial skip,
+    -- so load the given waveforms (PeakCache will avoid reloading if they're
+    -- already present), and then clear the rest.  Otherwise, this is an
+    -- incremental update, and there should only be a single waveform, which is
+    -- the just-completed chunk.
+    let last_chunknum = maximum $ 0 : map ((+1) . Track._chunknum) waveforms
+    by_view <- resolve_tracks
+        [ ((block_id, track_id), (waveforms, last_chunknum))
+        | track_id <- Set.toList track_ids
+        ]
+    unless (null waveforms) $
+        liftIO $ Sync.set_waveforms ui_chan (map (second fst) by_view)
+    case mb_range of
+        -- Since this is the initial skip, I have to clear waveforms after it,
+        -- to avoid leaving old ones lying around.
+        Nothing -> liftIO $
+            Sync.clear_waveforms ui_chan (map (second snd) by_view)
+        Just (start, end) -> do
+            sels <- resolve_tracks
+                =<< get_im_progress_selections block_id track_ids start end
+            liftIO $ Sync.set_im_progress ui_chan sels
 
 get_im_progress_selections :: Cmd.M m => BlockId -> Set TrackId
     -> RealTime -> RealTime -> m [((BlockId, TrackId), (Range, Color.Color))]

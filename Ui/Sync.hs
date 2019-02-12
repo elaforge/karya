@@ -33,7 +33,7 @@ module Ui.Sync (
     , set_play_position, clear_play_position
     , set_highlights, clear_highlights
     , set_im_progress, clear_im_progress
-    , set_waveform, clear_waveforms
+    , set_waveforms, clear_waveforms
     , floating_input
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -169,17 +169,20 @@ clear_im_progress = clear_selections Config.im_progress_selnum
 
 -- ** waveform
 
-set_waveform :: Fltk.Channel
-    -> [((ViewId, TrackNum), (Types.ChunkNum, Track.WaveformChunk))] -> IO ()
-set_waveform chan by_view = Fltk.send_action chan "set_waveform" $ sequence_
-    [ BlockC.set_waveform view_id tracknum chunknum waveform
-    | ((view_id, tracknum), (chunknum, waveform)) <- by_view
-    ]
+set_waveforms :: Fltk.Channel
+    -> [((ViewId, TrackNum), [Track.WaveformChunk])] -> IO ()
+set_waveforms chan by_view
+    | all (null . snd) by_view = return ()
+    | otherwise = Fltk.send_action chan "set_waveforms" $ sequence_
+        [ BlockC.set_waveform view_id tracknum waveform
+        | ((view_id, tracknum), waveforms) <- by_view
+        , waveform <- waveforms
+        ]
 
 clear_waveforms :: Fltk.Channel -> [((ViewId, TrackNum), Types.ChunkNum)]
     -> IO ()
-clear_waveforms chan by_view = Fltk.send_action chan "clear_waveforms" $
-    sequence_
+clear_waveforms chan by_view =
+    Fltk.send_action chan "clear_waveforms" $ sequence_
         [ BlockC.clear_waveforms view_id tracknum chunknum
         | ((view_id, tracknum), chunknum) <- by_view
         ]

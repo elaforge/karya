@@ -343,10 +343,9 @@ set_track_signal view_id tracknum tsig =
 foreign import ccall "set_track_signal"
     c_set_track_signal :: Ptr CView -> CInt -> Ptr Track.TrackSignal -> IO ()
 
-set_waveform :: ViewId -> TrackNum -> Types.ChunkNum
-    -> Track.WaveformChunk -> Fltk ()
-set_waveform view_id tracknum chunknum
-        (Track.WaveformChunk filename start ratios) =
+set_waveform :: ViewId -> TrackNum -> Track.WaveformChunk -> Fltk ()
+set_waveform view_id tracknum
+        (Track.WaveformChunk filename chunknum start ratios) =
     fltk "set_waveform" (view_id, tracknum, chunknum) $
         whenJustM (PtrMap.lookup view_id) $ \viewp ->
         withCString filename $ \filenamep ->

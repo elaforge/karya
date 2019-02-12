@@ -703,7 +703,7 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
             }
             cache = chunknum < zoom_cache.size()
                 ? &*zoom_cache[chunknum] : nullptr;
-            DEBUG("new chunknum: " << chunknum << " y: " << y);
+            // DEBUG("new chunknum: " << chunknum << " y: " << y);
         }
         // Out of peaks on the last chunk.
         if (!next_start && i >= cache->size())
