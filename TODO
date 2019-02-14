@@ -1461,6 +1461,18 @@ synth: im:
           check that the audio output exists.
         . Another way would be go directly to the files: look in the output
           directory and send over all the files even if I skipped.
+      - In im-rambat-test: Why is track 5 loading ru?  It should be >ri.
+        . Track 3 should be ri, 5=ri, 7=ru
+          set_waveform 5:0 start 0t im-rambat-test/untitled/b1/ru/000.wav
+          set_waveform 7:0 start 0t im-rambat-test/untitled/b1/ru/000.wav
+          set_waveform 3:0 start 0t im-rambat-test/untitled/b1/ru/000.wav
+        . Then it switches to ri:
+          set_waveform 5:0 start 0t im-rambat-test/untitled/b1/ri/000.wav
+          set_waveform 5:1 start 4t im-rambat-test/untitled/b1/ri/001.wav
+        . 7 also switches to ri.  Then 3 switches to ri.
+        . So I think they all get all blocks.  Probably a problem in
+          PlayC.resolve_tracks.
+
       fltk:
         * Fltk track inserts into internal state:
           peaks[0] = ("000.wav", shift, ratios)
@@ -1503,13 +1515,19 @@ synth: im:
         . If any of the calculation steps cause a hiccup, consider
           a background thread.
         - Figure out amplitude_scale based on global max.
-        - Multiple tracks will have the same audio, so I want a global cache.
+        * Multiple tracks will have the same audio, so I want a global cache.
           . Even if I have haskell tell it all tracks at once, it still has
             to share among multiple tracks, so I still need ref counting.
           . PeakCache hashes Params and hands out auto_ptrs.
           . zoom_cache does the same thing.
           . I could take start out of Params, but I don't think I ever have
             the same audio at different places.
+          . I need a truly global PeakCache then, and something like a hash
+            table with weak pointers in it.  Effectively this is just an
+            auto_ptr whose ref count is one too low.  Is one of those in the
+            stdlib?
+          . Otherwise, I can maintain a refcount manually and have each cache
+            delete from it in the destructor.
         - Draw is still buggy, I get jagged zero transitions when the
           selection triggers short redraws.
         - The offset is definitely messed up, I get totally misaligned

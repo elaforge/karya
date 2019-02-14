@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <unordered_map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,11 +13,26 @@
 #include "types.h"
 
 
-// either a separate ZoomedPeakCache, which PeakCache can produce.  Or each
-// PeakCache has an internal one, and you ask by zoom.
-// If it has an internal one, then I have a dangling pointer if I return it.
+// This is a global cache for loaded audio files.  The samples are downsampled
+// to an intermediate form, and then downsampled again for a specific zoom.
+// The cache keeps 'PeakCache::Entry's by weak_ptr, and each Entry keeps a
+// single zoom cache by zoom factor.
+//
+// All of this downsampling happens synchronously, but so far it seems to be
+// fast enough to not introduce a noticeable hiccup.
+//
+// API:
+// std::shared_ptr<PeakCache::Entry> entry = PeakCache::get()->load(params);
+// std::shared_ptr<std::vector<float>> peaks = entry->at_zoom(zoom.factor);
+// ScoreTime chunk_start = entry->start;
 class PeakCache {
 public:
+    // Get the global instance.
+    static PeakCache *get();
+    // The number of pixels covered by each peak, which is >1 if the zoom was
+    // high enough that peaks would have had to be upsampled.
+    static double pixels_per_peak(double zoom_factor);
+
     struct Params {
         Params(const std::string &filename, ScoreTime start,
                 const std::vector<double> &ratios)
@@ -25,21 +41,54 @@ public:
         std::string filename;
         ScoreTime start;
         std::vector<double> ratios;
+
+        // All this just to use unordered_map.  C++ sure is a pain.
+        bool operator==(const Params &that) const {
+            return filename == that.filename && start == that.start
+                && ratios == that.ratios;
+        }
+        size_t hash() const {
+            size_t val = ratios.size();
+            // Magic courtesy of stack overflow "how to specialize std::hash".
+            // Ultimately it comes from boost combine_hash.
+            for (double d : ratios) {
+                val ^= std::hash<double>()(d)
+                    + 0x9e3779b9 + (val << 6) + (val >> 2);
+            }
+            return std::hash<std::string>()(filename)
+                ^ std::hash<double>()(start.to_real())
+                ^ val;
+        }
     };
 
-    PeakCache(const Params &params) : params(params) {}
-    // Load params.filename into peaks.
-    void load();
-    // Return peaks downsampled to have 1/pixel at the given zoom_factor.
-    std::unique_ptr<std::vector<float>> get(double zoom_factor);
-    // The number of pixels covered by each peak, which is >1 if the zoom was
-    // high enough that peaks would have had to be upsampled.
-    static double pixels_per_peak(double zoom_factor);
+    class Entry {
+    public:
+        Entry(ScoreTime start, std::vector<float> *peaks)
+            : start(start), peaks(peaks), cached_zoom(0)
+        {}
 
-    const Params params;
+        const ScoreTime start;
+        // Get peaks adapted for this zoom level.
+        std::shared_ptr<const std::vector<float>> at_zoom(double zoom_factor);
+
+    private:
+        // Maximum values of each chunk of samples.  This is the absolute value
+        // of all channels, so it's mono and only positive.
+        // std::vector<float> peaks;
+        std::unique_ptr<std::vector<float>> peaks;
+        double cached_zoom;
+        std::shared_ptr<const std::vector<float>> zoom_cache;
+    };
+
+    // Load the file and downsample its peaks.  Use a cached Entry if
+    // one is still alive.
+    std::shared_ptr<Entry> load(const Params &params);
 
 private:
-    // Maximum values of each chunk of samples.  This is the absolute value of
-    // all channels, so it's mono and only positive.
-    std::vector<float> peaks;
+    // C++ isn't done being a pain yet!  I can't specialize std::hash because
+    // of order of declaration issues.
+    struct HashParams {
+        size_t operator()(const Params &p) const { return p.hash(); }
+    };
+    std::unordered_map<Params, std::weak_ptr<Entry>, HashParams> cache;
 };

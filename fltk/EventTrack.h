@@ -123,7 +123,6 @@ public:
     virtual void set_title_focus() override;
     virtual void set_selection(int selnum, const std::vector<Selection> &sels)
         override;
-    virtual void set_zoom(const Zoom &new_zoom) override;
     virtual void set_event_brightness(double d) override;
     virtual ScoreTime time_end() const override;
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
@@ -165,16 +164,11 @@ private:
     void focus_title();
     void unfocus_title();
 
-    void update_zoom_cache();
-
     EventTrackConfig config;
     double brightness;
     Color bg_color;
     // Downsampled waveform peak cache for each chunk, indexed by chunknum.
-    std::vector<std::unique_ptr<PeakCache>> peaks;
-    // Peaks adapted for this zoom level.  These are cleared every time the
-    // zoom changes.
-    std::vector<std::unique_ptr<std::vector<float>>> zoom_cache;
+    std::vector<std::shared_ptr<PeakCache::Entry>> peaks;
 
     // This only ever displays the text, since as soon as you try to focus on
     // it, 'floating_input' will pop up in front.

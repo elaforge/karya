@@ -209,16 +209,6 @@ EventTrack::set_selection(int selnum, const std::vector<Selection> &news)
 
 
 void
-EventTrack::set_zoom(const Zoom &new_zoom)
-{
-    bool changed = zoom.factor != new_zoom.factor;
-    Track::set_zoom(new_zoom);
-    if (changed)
-        update_zoom_cache();
-}
-
-
-void
 EventTrack::title_input_focus_cb(Fl_Widget *_w, void *arg)
 {
     int evt = Fl::event();
@@ -334,12 +324,8 @@ EventTrack::set_track_signal(const TrackSignal &tsig)
 void
 EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
-    DEBUG("set_waveform " << chunknum << " start " << params.start);
     this->peaks.resize(std::max(peaks.size(), size_t(chunknum+1)));
-    peaks[chunknum].reset(new PeakCache(params));
-    peaks[chunknum]->load();
-    this->zoom_cache.resize(std::max(zoom_cache.size(), size_t(chunknum+1)));
-    zoom_cache[chunknum] = peaks[chunknum]->get(this->zoom.factor);
+    peaks[chunknum] = PeakCache::get()->load(params);
 }
 
 
@@ -347,22 +333,6 @@ void
 EventTrack::clear_waveforms(int chunknum)
 {
     this->peaks.resize(std::min(peaks.size(), size_t(chunknum)));
-    this->zoom_cache.resize(peaks.size());
-}
-
-
-void
-EventTrack::update_zoom_cache()
-{
-    // TODO this can happen extra times if no draw happens in between, maybe I
-    // should do it lazily?
-    // DEBUG("update_zoom_cache, chunks: " << peaks.size());
-    for (int i = 0; i < peaks.size(); i++) {
-        // Skip unset PeakCaches.
-        if (peaks[i].get())
-            zoom_cache[i] = peaks[i]->get(zoom.factor);
-    }
-    // DEBUG("done");
 }
 
 
@@ -645,11 +615,12 @@ EventTrack::draw_event_boxes(
 
 static const ScoreTime *
 get_next_start(
-    const std::vector<std::unique_ptr<PeakCache>> &peaks, int chunknum)
+    std::vector<std::shared_ptr<PeakCache::Entry>> &peaks,
+    int chunknum)
 {
     for (; chunknum < peaks.size(); chunknum++) {
         if (peaks[chunknum].get())
-            return &peaks[chunknum]->params.start;
+            return &peaks[chunknum]->start;
     }
     return nullptr;
 }
@@ -666,7 +637,7 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
     const int min_x = x() + 2;
     const int max_x = x() + w() - 2;
 
-    const std::vector<float> *cache = nullptr;
+    std::shared_ptr<const std::vector<float>> cache;
     double y = min_y;
     int chunknum = -1; // -1 means uninitialized
     int i = 0; // peak index within a chunk, reset when I reach a new chunk
@@ -694,16 +665,15 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
             if (chunknum >= peaks.size())
                 break;
             if (peaks[chunknum].get()) {
-                time = peaks[chunknum]->params.start;
+                time = peaks[chunknum]->start;
                 y = zoom.to_pixels_d(time - zoom.offset) + track_start();
                 next_start = get_next_start(peaks, chunknum+1);
+                cache = peaks[chunknum]->at_zoom(zoom.factor);
             } else {
                 // Someone put in waveform chunks out of order, and this one is
                 // missing.
+                cache = nullptr;
             }
-            cache = chunknum < zoom_cache.size()
-                ? &*zoom_cache[chunknum] : nullptr;
-            // DEBUG("new chunknum: " << chunknum << " y: " << y);
         }
         // Out of peaks on the last chunk.
         if (!next_start && i >= cache->size())
@@ -711,7 +681,7 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
         // i > cache->size() means I ran out of cached peaks before getting to
         // the next chunk start.  This can happen for a sample or two due to
         // pixel roundoff (TODO where exactly?)
-        if (cache && i < cache->size()) {
+        if (cache.get() && i < cache->size()) {
             float x = (*cache)[i];
             x *= amplitude_scale;
             x = x * (max_x - min_x) + min_x;
