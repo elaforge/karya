@@ -140,10 +140,10 @@ process db quality notes outputDir = do
     Async.forConcurrently_ grouped $ \(patchName, notes) ->
         whenJustM (getPatch db patchName) $ \patch ->
             Async.forConcurrently_ notes $ \(inst, notes) ->
-                realize trackIds quality outputDir inst
+                realize (trackIds notes) quality outputDir inst
                     =<< mapM makeSampleNote (convert db patch notes)
     where
-    trackIds = Set.fromList $ mapMaybe Note.trackId notes
+    trackIds notes = Set.fromList $ mapMaybe Note.trackId notes
     grouped = byPatchInst notes
     instruments = Set.fromList $ concatMap (map fst . snd) grouped
 

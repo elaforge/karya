@@ -10,6 +10,7 @@ module Synth.Shared.Config where
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified GHC.Generics as Generics
@@ -244,6 +245,7 @@ emitMessage extra msg = do
             FailureT {} -> Log.Warn
     Log.log prio $ Text.unwords $
         [ Id.ident_text (_blockId msg)
+        , pretty (Set.map Id.ident_text (_trackIds msg))
         , case _payload msg of
             ProgressT progress ->
                 showt (_chunknum progress) <> " "

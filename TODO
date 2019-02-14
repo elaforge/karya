@@ -1461,7 +1461,7 @@ synth: im:
           check that the audio output exists.
         . Another way would be go directly to the files: look in the output
           directory and send over all the files even if I skipped.
-      - In im-rambat-test: Why is track 5 loading ru?  It should be >ri.
+      * In im-rambat-test: Why is track 5 loading >ru?  It should be >ri.
         . Track 3 should be ri, 5=ri, 7=ru
           set_waveform 5:0 start 0t im-rambat-test/untitled/b1/ru/000.wav
           set_waveform 7:0 start 0t im-rambat-test/untitled/b1/ru/000.wav
@@ -1472,7 +1472,7 @@ synth: im:
         . 7 also switches to ri.  Then 3 switches to ri.
         . So I think they all get all blocks.  Probably a problem in
           PlayC.resolve_tracks.
-
+        . Synth emits t11, t13, t2: ru, t11, t13, t2: ri
       fltk:
         * Fltk track inserts into internal state:
           peaks[0] = ("000.wav", shift, ratios)
