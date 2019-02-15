@@ -1420,7 +1420,7 @@ synth: im:
           previous chunk was rendered or skipped.
         * The first progress has to clear chunks after it, fltk:
           clear_track_waveform(tracknum, start_chunknum)
-        - Check if the track wants to draw a waveform.
+        * Check if the track wants to draw a waveform.
         - Map the chunk time to shift, and an array of breakpoints for zoom
           ratio.  The ratios are at a constant interval, and if they run out,
           keep that ratio.  That way a constant (shift, stretch) is efficient.

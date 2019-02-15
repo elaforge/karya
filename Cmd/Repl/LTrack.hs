@@ -146,6 +146,18 @@ drop_dups :: Cmd.CmdL ()
 drop_dups = ModifyEvents.selection $ ModifyEvents.events $
     return . Seq.drop_dups Event.text
 
+-- * waveform
+
+waveform :: Cmd.CmdT IO ()
+waveform = do
+    mapM_ toggle_waveform =<< Selection.track_ids
+    -- Invalidate to force it to add or remove waveforms.  It's a big hammer
+    -- but it works and it should be uncommon to toggle this.
+    Cmd.invalidate_performances
+
+toggle_waveform :: TrackId -> Cmd.CmdT IO ()
+toggle_waveform track_id = Ui.modify_waveform track_id not
+
 
 -- * signal render
 

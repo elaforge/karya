@@ -103,7 +103,7 @@ module Ui.Ui (
     , create_track, destroy_track
     , get_track_title, set_track_title, modify_track_title
     , set_track_bg
-    , modify_track_render, set_render_style
+    , modify_track_render, set_render_style, modify_waveform
     , blocks_with_track_id
     -- ** events
     , insert_events, insert_block_events, insert_event
@@ -1248,8 +1248,8 @@ set_track_title :: M m => TrackId -> Text -> m ()
 set_track_title track_id text = modify_track_title track_id (const text)
 
 modify_track_title :: M m => TrackId -> (Text -> Text) -> m ()
-modify_track_title track_id f = modify_track track_id $ \track ->
-    track { Track.track_title = f (Track.track_title track) }
+modify_track_title track_id modify = modify_track track_id $ \track ->
+    track { Track.track_title = modify (Track.track_title track) }
 
 set_track_bg :: M m => TrackId -> Color.Color -> m ()
 set_track_bg track_id color = modify_track track_id $ \track ->
@@ -1257,12 +1257,16 @@ set_track_bg track_id color = modify_track track_id $ \track ->
 
 modify_track_render :: M m => TrackId
     -> (Track.RenderConfig -> Track.RenderConfig) -> m ()
-modify_track_render track_id f = modify_track track_id $ \track ->
-    track { Track.track_render = f (Track.track_render track) }
+modify_track_render track_id modify = modify_track track_id $ \track ->
+    track { Track.track_render = modify (Track.track_render track) }
 
 set_render_style :: M m => Track.RenderStyle -> TrackId -> m ()
 set_render_style style track_id = modify_track_render track_id $
     \render -> render { Track.render_style = style }
+
+modify_waveform :: M m => TrackId -> (Bool -> Bool) -> m ()
+modify_waveform track_id modify = modify_track track_id $ \track ->
+    track { Track.track_waveform = modify (Track.track_waveform track) }
 
 -- | Find @track_id@ in all the blocks it exists in, and return the track info
 -- for each tracknum at which @track_id@ lives.  Blocks with no matching tracks

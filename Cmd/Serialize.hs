@@ -480,15 +480,22 @@ instance Serialize Ruler.Mark where
 -- ** Track
 
 instance Serialize Track.Track where
-    put (Track.Track a b c d) = Serialize.put_version 4
-        >> put a >> put b >> put c >> put d
+    put (Track.Track a b c d e) = Serialize.put_version 5
+        >> put a >> put b >> put c >> put d >> put e
     get = Serialize.get_version >>= \case
         4 -> do
             title :: Text <- get
             events :: Events.Events <- get
             color :: Color.Color <- get
             render :: Track.RenderConfig <- get
-            return $ Track.Track title events color render
+            return $ Track.Track title events color render True
+        5 -> do
+            title :: Text <- get
+            events :: Events.Events <- get
+            color :: Color.Color <- get
+            render :: Track.RenderConfig <- get
+            waveform :: Bool <- get
+            return $ Track.Track title events color render waveform
         v -> Serialize.bad_version "Track.Track" v
 
 instance Serialize Track.RenderConfig where

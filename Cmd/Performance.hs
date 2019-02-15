@@ -257,19 +257,26 @@ evaluate_performance im_config lookup_inst wait send_status score_path
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
     failed <- case im_config of
-        Just config -> watch_subprocesses config (Cmd.perf_inv_tempo perf)
+        Just config -> watch_subprocesses config
+            (Cmd.perf_inv_tempo perf)
+            (state_wants_waveform (Cmd.perf_ui_state perf))
             score_path (send_status block_id . Msg.ImStatus)
             (Set.fromList procs)
         Nothing -> return False
     unless (null procs) $
         send_status block_id $ Msg.ImStatus $ Msg.ImComplete failed
 
+state_wants_waveform :: Ui.State -> TrackId -> Bool
+state_wants_waveform state track_id = maybe False Track.track_waveform $
+    Map.lookup track_id (Ui.state_tracks state)
+
 type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
 watch_subprocesses :: Config.Config -> Transport.InverseTempoFunction
-    -> FilePath -> (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
-watch_subprocesses config inv_tempo score_path send_status procs
+    -> (TrackId -> Bool) -> FilePath -> (Msg.ImStatus -> IO ()) -> Set Process
+    -> IO Bool
+watch_subprocesses config inv_tempo wants_waveform score_path send_status procs
     | Set.null procs = return False
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
@@ -294,47 +301,61 @@ watch_subprocesses config inv_tempo score_path send_status procs
         Nothing -> do
             put $ "couldn't parse: " <> line
             return False
-        Just msg ->
-            case make_progress inv_tempo (Config.imDir config) score_path msg of
-                Left err -> do
-                    Log.warn err
-                    return True
-                Right progress -> do
-                    send_status $ Msg.ImProgress progress
-                    return False
+        Just msg -> case make msg of
+            Left err -> do
+                Log.warn err
+                return True
+            Right msgs -> do
+                mapM_ (send_status . Msg.ImProgress) msgs
+                return False
+        where
+        make = make_progress inv_tempo wants_waveform (Config.imDir config)
+            score_path
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
-make_progress :: Transport.InverseTempoFunction -> FilePath -> FilePath
-    -> Config.Message -> Either Text Msg.ImProgressT
-make_progress inv_tempo im_dir score_path
+make_progress :: Transport.InverseTempoFunction -> (TrackId -> Bool)
+    -> FilePath -> FilePath -> Config.Message -> Either Text [Msg.ImProgressT]
+make_progress inv_tempo wants_waveform im_dir score_path
         (Config.Message block_id track_ids instrument p) = case p of
     Config.ProgressT progress -> do
-        waveforms <- if Config._renderedPrevChunk progress
+        waveforms <- if not (null with) && Config._renderedPrevChunk progress
             then (:[]) <$> make_chunk (Config._chunknum progress - 1)
             else return []
-        return $ Msg.ImProgressT
-            { im_block_id = block_id
-            , im_track_ids = track_ids
-            , im_rendering_range = Just $ Config._range progress
-            , im_waveforms = waveforms
-            }
+        return $ make_both (Just (Config._range progress)) waveforms
     Config.SkippedT chunknum -> do
-        waveforms <- mapM make_chunk [0 .. chunknum-1]
-        return $ Msg.ImProgressT
-            { im_block_id = block_id
-            , im_track_ids = track_ids
-            -- This signals to PlayC.set_im_progress that this is an update for
-            -- the initial skip.
-            , im_rendering_range = Nothing
-            -- Make sure previous chunks are loaded.  If they're already loaded,
-            -- PeakCache will notice and not reload.
-            , im_waveforms = waveforms
-            }
+        waveforms <- if null with then return []
+            else mapM make_chunk [0 .. chunknum-1]
+        -- range=Nothing signals to PlayC.set_im_progress that this is an
+        -- update for the initial skip.  Send waveforms to make sure skipped
+        -- chunks are loaded.  If they're already loaded, PeakCache will notice
+        -- and not reload.
+        return $ make_both Nothing waveforms
     Config.FailureT err -> Left $
         "im failure: " <> pretty block_id <> ": "
             <> pretty track_ids <> ": " <> err
     where
+    -- Emit explicit waveforms=[] for the tracks that have im but turned off
+    -- waveforms.  This is so they still get the rendering range, and for
+    -- SkippedT, clear out any waveform that might already be there.
+    make_both range waveforms =
+        [ Msg.ImProgressT
+            { im_block_id = block_id
+            , im_track_ids = with
+            , im_rendering_range = range
+            , im_waveforms = waveforms
+            }
+        | not (null with)
+        ] ++
+        [ Msg.ImProgressT
+            { im_block_id = block_id
+            , im_track_ids = without
+            , im_rendering_range = range
+            , im_waveforms = []
+            }
+        | not (null without)
+        ]
+    (with, without) = Set.partition wants_waveform track_ids
     make_chunk chunknum = do
         start <- to_score $ time_at chunknum
         end <- to_score $ time_at (chunknum+1)

@@ -32,10 +32,13 @@ data Track = Track {
     -- 'TrackBg'.
     , track_bg :: !Color.Color
     , track_render :: !RenderConfig
+    -- | If True, and this track has im notes, display the waveform on the
+    -- track.
+    , track_waveform :: !Bool
     } deriving (Eq, Show, Read)
 
 instance Pretty Track where
-    format (Track title events _bg render) = Pretty.record "Track"
+    format (Track title events _bg render _waveform) = Pretty.record "Track"
         [ ("title", Pretty.format title)
         , ("render", Pretty.format render)
         , ("events", Pretty.format events)
@@ -48,6 +51,7 @@ track title events = Track
     , track_events = events
     , track_bg = Config.track_bg
     , track_render = line_render
+    , track_waveform = True
     }
 
 empty :: Track
