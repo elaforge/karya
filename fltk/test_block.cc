@@ -296,9 +296,10 @@ add_symbols()
     // NotoMono, Noto{Sans,Serif}-{Bold,BoldItalic,Italic}
     // OS X has font character substitution, so it can figure out which font
     // has the glyphs.
-    Fl_Font chinese = t->font("NotoSerif");
-    Fl_Font tamil = t->font("NotoSerif");
-    Fl_Font bali = t->font("NotoSans");
+    bool new_names = false; // It seems new noto versions changed the names.
+    Fl_Font chinese = t->font(new_names ? "NotoSerif-Regular" : "NotoSerif");
+    Fl_Font tamil = t->font(new_names ? "NotoSerif-Regular" : "NotoSerif");
+    Fl_Font bali = t->font(new_names ? "NotoSans-Regular" : "NotoSans");
 #endif
     Fl_Font bravura = t->font("Bravura");
 
@@ -490,6 +491,8 @@ main(int argc, char **argv)
     StyleTable::get()->put(1, EventStyle(FL_HELVETICA, 12, Color::black,
         Color::rgb_normalized(0.8, 1, 0.9)));
 
+    // show_fonts();
+    // return 0;
     add_symbols();
 
     // view.show();

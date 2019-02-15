@@ -17,6 +17,7 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Monad.State.Strict as Monad.State
 
+import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -26,6 +27,7 @@ import qualified Data.Vector as Vector
 import qualified System.IO as IO
 
 import qualified Util.Control as Control
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Process
@@ -43,8 +45,12 @@ import qualified Derive.Stream as Stream
 
 import qualified Instrument.Inst as Inst
 import qualified Perform.Im.Convert as Im.Convert
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Transport as Transport
+
 import qualified Synth.Shared.Config as Config
 import qualified Ui.Block as Block
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
@@ -251,8 +257,9 @@ evaluate_performance im_config lookup_inst wait send_status score_path
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
     failed <- case im_config of
-        Just config -> watch_subprocesses config score_path
-            (send_status block_id . Msg.ImStatus) (Set.fromList procs)
+        Just config -> watch_subprocesses config (Cmd.perf_inv_tempo perf)
+            score_path (send_status block_id . Msg.ImStatus)
+            (Set.fromList procs)
         Nothing -> return False
     unless (null procs) $
         send_status block_id $ Msg.ImStatus $ Msg.ImComplete failed
@@ -260,9 +267,9 @@ evaluate_performance im_config lookup_inst wait send_status score_path
 type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
-watch_subprocesses :: Config.Config -> FilePath -> (Msg.ImStatus -> IO ())
-    -> Set Process -> IO Bool
-watch_subprocesses config score_path send_status procs
+watch_subprocesses :: Config.Config -> Transport.InverseTempoFunction
+    -> FilePath -> (Msg.ImStatus -> IO ()) -> Set Process -> IO Bool
+watch_subprocesses config inv_tempo score_path send_status procs
     | Set.null procs = return False
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
@@ -287,50 +294,76 @@ watch_subprocesses config score_path send_status procs
         Nothing -> do
             put $ "couldn't parse: " <> line
             return False
-        Just msg -> case emit_progress (Config.imDir config) score_path msg of
-            Left err -> do
-                Log.warn err
-                return True
-            Right progress -> do
-                send_status $ Msg.ImProgress progress
-                return False
+        Just msg ->
+            case make_progress inv_tempo (Config.imDir config) score_path msg of
+                Left err -> do
+                    Log.warn err
+                    return True
+                Right progress -> do
+                    send_status $ Msg.ImProgress progress
+                    return False
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
-emit_progress :: FilePath -> FilePath -> Config.Message
-    -> Either Text Msg.ImProgressT
-emit_progress im_dir score_path
+make_progress :: Transport.InverseTempoFunction -> FilePath -> FilePath
+    -> Config.Message -> Either Text Msg.ImProgressT
+make_progress inv_tempo im_dir score_path
         (Config.Message block_id track_ids instrument p) = case p of
-    Config.ProgressT progress -> Right $ Msg.ImProgressT
-        { im_block_id = block_id
-        , im_track_ids = track_ids
-        , im_rendering_range = Just $ Config._range progress
-        , im_waveforms = if Config._renderedPrevChunk progress
-            then [make_chunk (Config._chunknum progress - 1)]
-            else []
-        }
-    Config.SkippedT chunknum -> Right $ Msg.ImProgressT
-        { im_block_id = block_id
-        , im_track_ids = track_ids
-        -- This signals to PlayC.set_im_progress that this is an update for
-        -- the initial skip.
-        , im_rendering_range = Nothing
-        -- Make sure previous chunks are loaded.  If they're already loaded,
-        -- PeakCache will notice and not reload.
-        , im_waveforms = map make_chunk [0 .. chunknum-1]
-        }
+    Config.ProgressT progress -> do
+        waveforms <- if Config._renderedPrevChunk progress
+            then (:[]) <$> make_chunk (Config._chunknum progress - 1)
+            else return []
+        return $ Msg.ImProgressT
+            { im_block_id = block_id
+            , im_track_ids = track_ids
+            , im_rendering_range = Just $ Config._range progress
+            , im_waveforms = waveforms
+            }
+    Config.SkippedT chunknum -> do
+        waveforms <- mapM make_chunk [0 .. chunknum-1]
+        return $ Msg.ImProgressT
+            { im_block_id = block_id
+            , im_track_ids = track_ids
+            -- This signals to PlayC.set_im_progress that this is an update for
+            -- the initial skip.
+            , im_rendering_range = Nothing
+            -- Make sure previous chunks are loaded.  If they're already loaded,
+            -- PeakCache will notice and not reload.
+            , im_waveforms = waveforms
+            }
     Config.FailureT err -> Left $
         "im failure: " <> pretty block_id <> ": "
             <> pretty track_ids <> ": " <> err
     where
-    make_chunk chunknum = Track.WaveformChunk
-        { _filename = Config.chunkPath im_dir score_path block_id
-            instrument chunknum
-        , _chunknum = chunknum
-        -- TODO I need inv_tempo_map
-        , _start = fromIntegral $ chunknum * Config.chunkSeconds
-        , _ratios = [1]
-        }
+    make_chunk chunknum = do
+        start <- to_score $ time_at chunknum
+        end <- to_score $ time_at (chunknum+1)
+        -- ratio=2 means half as long.  So 2s -> 1t is 2/1
+        let ratio = fromIntegral Config.chunkSeconds
+                / ScoreTime.to_double (end - start)
+        Debug.tracepM "start, ratio"
+            ((time_at chunknum, time_at (chunknum+1)), (start, end), ratio)
+        return $ Track.WaveformChunk
+            { _filename = Config.chunkPath im_dir score_path block_id
+                instrument chunknum
+            , _chunknum = chunknum
+            , _start = start
+            , _ratios = [ratio]
+            }
+    time_at chunknum = RealTime.seconds $
+        fromIntegral $ chunknum * Config.chunkSeconds
+    -- If this fails, it means I don't have any tempo info for this
+    -- (block_id, track_id), which likely means the block or track failed
+    -- to derive, at which point I shouldn't have gotten any notes from it.
+    -- So this shouldn't happen.
+    to_score t = tryJust ("no ScoreTime for " <> pretty t) $
+        real_to_score inv_tempo block_id track_ids t
+
+real_to_score :: Transport.InverseTempoFunction -> BlockId -> Set TrackId
+    -> RealTime -> Maybe ScoreTime
+real_to_score inv_tempo block_id track_ids =
+    fmap snd . List.find ((`Set.member` track_ids) . fst) <=< lookup block_id
+        . inv_tempo Transport.NoStop
 
 -- | If there are im events, serialize them and return a Processes to render
 -- them, and the non-im events.

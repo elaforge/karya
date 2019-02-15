@@ -1446,21 +1446,21 @@ synth: im:
             things after it.
         - The "unchanged notes" shortcut will prevent this from working.
           I need to get chunk starts, ratios, etc.
-        . I can just list the directory, but it seems special-case.
-        . Or I disable the changed check, but skip evaluate_im entirely if
-          the block hasn't changed.
-        . Or do I already do that?  I won't get there unless there is
-          damage, but I rerender if there is any damage at all, and rely on
-          the cache.  I do the same for im, but the cache is more expensive,
-          since it means serializing all notes and then running
-          a subprocess.  How could I skip serializing?
-        . I would have to know if the damage affects any im notes.
-        . Or just disable the change check for the first run.  I would have
-          to remember if there was a previous Performance.
-        . That change check is already kind of annoying because it doesn't
-          check that the audio output exists.
-        . Another way would be go directly to the files: look in the output
-          directory and send over all the files even if I skipped.
+          . I can just list the directory, but it seems special-case.
+          . Or I disable the changed check, but skip evaluate_im entirely if
+            the block hasn't changed.
+          . Or do I already do that?  I won't get there unless there is
+            damage, but I rerender if there is any damage at all, and rely on
+            the cache.  I do the same for im, but the cache is more expensive,
+            since it means serializing all notes and then running
+            a subprocess.  How could I skip serializing?
+          . I would have to know if the damage affects any im notes.
+          . Or just disable the change check for the first run.  I would have
+            to remember if there was a previous Performance.
+          . That change check is already kind of annoying because it doesn't
+            check that the audio output exists.
+          . Another way would be go directly to the files: look in the output
+            directory and send over all the files even if I skipped.
       * In im-rambat-test: Why is track 5 loading >ru?  It should be >ri.
         . Track 3 should be ri, 5=ri, 7=ru
           set_waveform 5:0 start 0t im-rambat-test/untitled/b1/ru/000.wav
@@ -1530,8 +1530,11 @@ synth: im:
             delete from it in the destructor.
         - Draw is still buggy, I get jagged zero transitions when the
           selection triggers short redraws.
-        - The offset is definitely messed up, I get totally misaligned
+        * The offset is definitely messed up, I get totally misaligned
           waveforms.
+          . It happens when tempo /= 1, so it's ratios.
+          . But even after setting tempo to 1 it's still 2x short?
+        - It doesn't understand playback speed.
       notes:
         . If I load at srate/1024, that's about 43 samples/sec.  Each text
           line is 12 pixels so about 3.5 lines for 1 second before it gets

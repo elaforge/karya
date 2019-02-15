@@ -104,7 +104,7 @@ PeakCache::Entry::at_zoom(double zoom_factor)
 
 
 static double
-ratio_at(const std::vector<double> &ratios, sf_count_t frame)
+period_at(const std::vector<double> &ratios, sf_count_t frame)
 {
     // Use frames_per_ratio to get an index into ratios, then interpolate.
     if (ratios.empty()) {
@@ -114,21 +114,10 @@ ratio_at(const std::vector<double> &ratios, sf_count_t frame)
     double frac = fmod(frame / double(frames_per_ratio), 1);
     if (i < ratios.size()-1) {
         double r1 = ratios[i], r2 = ratios[i+1];
-        return frac * (r2-r1) + r1;
+        return (frac * (r2-r1) + r1);
     } else {
         return ratios[ratios.size()-1];
     }
-}
-
-
-// Like modf(), but returns the integral part and stores the fractional part,
-// instead of the other way around.
-static int
-proper_frac(double d, double *frac)
-{
-    double i;
-    *frac = modf(d, &i);
-    return floor(i);
 }
 
 
@@ -141,9 +130,7 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
     DEBUG("load " << filename);
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(filename.c_str(), SFM_READ, &info);
-    // std::unique_ptr<std::vector<float>> peaks = new std::vector<float>();
     std::vector<float> *peaks = new std::vector<float>();
-    // Noisy * peaks = new Noisy();
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
         // TODO should be LOG
         DEBUG("opening " << filename << ": " << sf_strerror(sndfile));
@@ -154,11 +141,12 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
     sf_count_t frame = 0;
     sf_count_t frames_left = 0;
     // How many frames to consume in this period
-    double period = sampling_rate / reduced_sampling_rate
-        * ratio_at(ratios, frame);
+    double srate = sampling_rate / reduced_sampling_rate;
+    double period = srate * period_at(ratios, frame);
+    DEBUG("period " << srate << " * "
+        << period_at(ratios, frame) << " = " << period);
     unsigned int index = 0;
     float accum = 0;
-    double frac = 0;
     for (;;) {
         if (frames_left == 0) {
             frames_left += sf_readf_float(
@@ -167,8 +155,7 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
                 break;
             index = 0;
         }
-        sf_count_t consume = proper_frac(
-            std::min(period + frac, double(frames_left)), &frac);
+        sf_count_t consume = floor(std::min(period, double(frames_left)));
         // TODO can I vectorize?  at least fabsf has it.
         for (; index < consume * info.channels; index++) {
             accum = std::max(accum, fabsf(buffer[index]));
@@ -176,11 +163,10 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
         frames_left -= consume;
         period -= consume;
         frame += consume;
-        if (period == 0) {
+        if (period < 1) {
             peaks->push_back(accum);
             accum = 0;
-            period = sampling_rate / reduced_sampling_rate
-                * ratio_at(ratios, frame);
+            period += srate * period_at(ratios, frame);
         }
     }
     DEBUG("load frames: " << frame << ", peaks: " << peaks->size());
