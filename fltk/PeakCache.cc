@@ -48,15 +48,22 @@ PeakCache::pixels_per_peak(double zoom_factor)
 }
 
 
-static std::vector<float> *
-reduce(const std::vector<float> &peaks, double period)
+static std::shared_ptr<const std::vector<float>>
+reduce_zoom(
+    std::shared_ptr<const std::vector<float>> peaks, double zoom_factor)
 {
-    std::vector<float> *out = new std::vector<float>();
-    out->reserve(ceil(peaks.size() / period));
+    // zoom_factor is the number of pixels in ScoreTime(1).  So that's the
+    // desired sampling rate.  E.g. zoom=2 means ScoreTime(1) is 2 pixels.
+    double period = reduced_sampling_rate / zoom_factor;
+    if (period <= 1) {
+        return peaks;
+    }
+    std::shared_ptr<std::vector<float>> out(new std::vector<float>());
+    out->reserve(ceil(peaks->size() / period));
     double left = period;
     float accum = 0;
     ASSERT(period >= 1);
-    for (float n : peaks) {
+    for (float n : *peaks) {
         if (left < 1) {
             out->push_back(accum);
             accum = n;
@@ -65,30 +72,9 @@ reduce(const std::vector<float> &peaks, double period)
         accum = std::max(accum, n);
         left--;
     }
-    if (!peaks.empty())
+    if (!peaks->empty())
         out->push_back(accum);
     return out;
-}
-
-
-static std::vector<float> *
-reduce_zoom(const std::vector<float> &peaks, double zoom_factor)
-{
-    // zoom_factor is the number of pixels in ScoreTime(1).  So that's the
-    // desired sampling rate.  E.g. zoom=2 means ScoreTime(1) is 2 pixels.
-    double period = reduced_sampling_rate / zoom_factor;
-    if (period <= 1) {
-        // DEBUG("PeakCache::get, zoom: " << zoom_factor
-        //     << ", period: " << period);
-        return new std::vector<float>(peaks);
-    } else {
-        return reduce(peaks, period);
-        // auto p = std::unique_ptr<std::vector<float>>(
-        //     new std::vector<float>(reduce(peaks, period)));
-        // DEBUG("PeakCache::get, zoom: " << zoom_factor
-        //     << ", period: " << period << " size: " << p->size());
-        // return p;
-    }
 }
 
 
@@ -96,7 +82,7 @@ std::shared_ptr<const std::vector<float>>
 PeakCache::Entry::at_zoom(double zoom_factor)
 {
     if (zoom_factor != cached_zoom || !zoom_cache.get()) {
-        zoom_cache.reset(reduce_zoom(*peaks, zoom_factor));
+        zoom_cache = reduce_zoom(peaks, zoom_factor);
         cached_zoom = zoom_factor;
     }
     return zoom_cache;

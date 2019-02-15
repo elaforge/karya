@@ -74,8 +74,7 @@ public:
     private:
         // Maximum values of each chunk of samples.  This is the absolute value
         // of all channels, so it's mono and only positive.
-        // std::vector<float> peaks;
-        std::unique_ptr<std::vector<float>> peaks;
+        std::shared_ptr<std::vector<float>> peaks;
         double cached_zoom;
         std::shared_ptr<const std::vector<float>> zoom_cache;
     };
