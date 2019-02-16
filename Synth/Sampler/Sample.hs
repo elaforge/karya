@@ -16,7 +16,7 @@ import qualified Synth.Shared.Osc as Osc
 import qualified Synth.Shared.Signal as Signal
 
 import Global
-import Synth.Lib.Global
+import Synth.Types
 
 
 -- | Path to a sample, relative to the instrument db root.

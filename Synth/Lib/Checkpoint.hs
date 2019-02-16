@@ -29,7 +29,7 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Note as Note
 
 import Global
-import Synth.Lib.Global
+import Synth.Types
 
 
 -- | This subdirectory in the outputDirectory </> instrument has the

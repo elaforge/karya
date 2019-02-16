@@ -31,7 +31,7 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import Global
-import Synth.Lib.Global
+import Synth.Types
 
 
 type Error = Text
@@ -98,7 +98,7 @@ defaultConfig = Config
 -- a single element, they should either not overlap, or be ok if overlaps
 -- cut each other off.
 renderPatch :: DriverC.Patch -> Config -> Maybe Checkpoint.State
-    -> (Checkpoint.State -> IO ()) -> [Note.Note] -> RealTime -> Audio
+    -> (Checkpoint.State -> IO ()) -> [Note.Note] -> RealTime -> AUtil.Audio
 renderPatch patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
         render patch mbState notifyState inputs
@@ -111,7 +111,7 @@ renderPatch patch config mbState notifyState notes_ start =
     final = maybe 0 Note.end (Seq.last notes)
     notes = dropUntil (\_ n -> Note.end n > start) notes_
 
-interleave :: NAudio -> Audio
+interleave :: AUtil.NAudio -> AUtil.Audio
 interleave naudio = case Audio.interleaved naudio of
     Right audio -> audio
     -- All faust instruments are required to have 1 or 2 outputs.  This should
@@ -125,8 +125,8 @@ interleave naudio = case Audio.interleaved naudio of
 -- if they end before the given time.
 render :: DriverC.Patch -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
-    -> NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
-    -> Config -> NAudio
+    -> AUtil.NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
+    -> Config -> AUtil.NAudio
 render patch mbState notifyState inputs start end config =
     Audio.NAudio (DriverC.patchOutputs patch) $ do
         (key, inst) <- lift $
@@ -173,7 +173,7 @@ isBasicallySilent _samples = False -- TODO RMS < -n dB
 -- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
 renderControls :: Audio.Frame -> [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
-    -> [Note.Note] -> RealTime -> NAudio
+    -> [Note.Note] -> RealTime -> AUtil.NAudio
 renderControls chunkSize controls notes start =
     Audio.nonInterleaved now chunkSize $
         map (fromMaybe Audio.silence1 . renderControl chunkSize notes start)

@@ -28,10 +28,10 @@ import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Signal as Signal
 
 import Global
-import Synth.Lib.Global
+import Synth.Types
 
 
-render :: Resample.Config -> RealTime -> Sample.Sample -> Audio
+render :: Resample.Config -> RealTime -> Sample.Sample -> AUtil.Audio
 render config start (Sample.Sample filename offset envelope ratio) =
     applyEnvelope (AUtil.toSeconds now) envelope $
     resample config ratio start $
@@ -39,7 +39,8 @@ render config start (Sample.Sample filename offset envelope ratio) =
     where
     now = Resample._now config
 
-resample :: Resample.Config -> Signal.Signal -> RealTime -> Audio -> Audio
+resample :: Resample.Config -> Signal.Signal -> RealTime -> AUtil.Audio
+    -> AUtil.Audio
 resample config ratio start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
@@ -66,7 +67,7 @@ resample config ratio start audio
 addNow :: Audio.Frame -> Resample.Config -> Resample.Config
 addNow frames config = config { Resample._now = frames + Resample._now config }
 
-applyEnvelope :: RealTime -> Signal.Signal -> Audio -> Audio
+applyEnvelope :: RealTime -> Signal.Signal -> AUtil.Audio -> AUtil.Audio
 applyEnvelope start sig
     | Just val <- Signal.constant_val_from start sig =
         if ApproxEq.eq 0.01 val 1 then id

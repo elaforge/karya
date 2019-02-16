@@ -37,7 +37,6 @@ import qualified Synth.Shared.Signal as Signal
 import qualified Ui.Id as Id
 
 import           Global
-import           Synth.Lib.Global
 
 
 type Error = Text
@@ -111,7 +110,7 @@ toSpan note = Checkpoint.Span
 data Playing = Playing {
     _noteHash :: !Note.Hash
     , _getState :: IO (Maybe State)
-    , _audio :: !Audio
+    , _audio :: !AUtil.Audio
     , _noteRange :: !(Audio.Frame, Audio.Frame)
     }
 
@@ -132,7 +131,7 @@ prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
 
 render :: FilePath -> Audio.Frame -> Resample.Quality
     -> [Maybe State] -> (Checkpoint.State -> IO ())
-    -> Set Id.TrackId -> [Sample.Note] -> Audio.Frame -> Audio
+    -> Set Id.TrackId -> [Sample.Note] -> Audio.Frame -> AUtil.Audio
 render outputDir chunkSize quality initialStates notifyState trackIds notes
         start = Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing

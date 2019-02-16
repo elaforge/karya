@@ -6,7 +6,7 @@ module Synth.Lib.Checkpoint_test where
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 
-import Synth.Lib.Global
+import Synth.Types
 import Util.Test
 
 
