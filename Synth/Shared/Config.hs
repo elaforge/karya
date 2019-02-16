@@ -34,6 +34,13 @@ import           Synth.Types
 #include "config.h"
 
 
+-- | Index into the audio chunks for a single instrument render.
+-- This is the same as 'Ui.Types.ChunkNum'.
+type ChunkNum = Int
+-- | This is the same as 'Synth.Shared.Note.InstrumentName' but I don't want to
+-- import that here.
+type InstrumentName = Text
+
 data Config = Config {
     -- | All of the data files used by the Im backend are based in this
     -- directory.  Everything in here should be temporary files, used for
@@ -175,9 +182,6 @@ notesDirectory imDir scorePath blockId =
 outputDirectory :: FilePath -> FilePath -> Id.BlockId -> FilePath
 outputDirectory imDir scorePath blockId =
     imDir </> cacheDir </> scorePath </> idFilename blockId
-
-type ChunkNum = Int -- TODO same as Checkpoint.ChunkNum
-type InstrumentName = Text -- TODO Note.InstrumentName
 
 -- | Get the filename for a particular checkpoint.
 chunkPath :: FilePath -> FilePath -> Id.BlockId -> Text -> ChunkNum -> FilePath

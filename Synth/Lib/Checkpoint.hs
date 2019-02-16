@@ -24,6 +24,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.File as File
 import qualified Util.Seq as Seq
+import qualified Synth.Shared.Config as Config
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Note as Note
@@ -36,8 +37,6 @@ import Synth.Types
 -- fingerprinted audio files.
 checkpointDir :: FilePath
 checkpointDir = "checkpoint"
-
-type ChunkNum = Int -- TODO same as Cofig.ChunkNum and Ui.Types.ChunkNum
 
 -- * state
 
@@ -58,8 +57,8 @@ encodeState = ByteString.Char8.unpack . Note.fingerprint . MD5.hash . unstate
 -- * checkpoints
 
 -- | Find where the checkpoints begin to differ from the given 'Note.Hash's.
-skipCheckpoints :: FilePath -> [(ChunkNum, Note.Hash)]
-    -> IO ([FilePath], [(ChunkNum, Note.Hash)], Maybe State)
+skipCheckpoints :: FilePath -> [(Config.ChunkNum, Note.Hash)]
+    -> IO ([FilePath], [(Config.ChunkNum, Note.Hash)], Maybe State)
     -- ^ (skipped chunks, remaining notes, state at that point)
 skipCheckpoints outputDir hashes = do
     Directory.createDirectoryIfMissing False (outputDir </> checkpointDir)
@@ -77,8 +76,8 @@ skipCheckpoints outputDir hashes = do
 -- Since the output state of the previous filename needs to match the input
 -- state of the next one as described in 'writeState', this has to follow the
 -- files in sequence.
-findLastState :: Set FilePath -> [(ChunkNum, Note.Hash)]
-    -> Either Text ([FilePath], ([(ChunkNum, Note.Hash)], FilePath))
+findLastState :: Set FilePath -> [(Config.ChunkNum, Note.Hash)]
+    -> Either Text ([FilePath], ([(Config.ChunkNum, Note.Hash)], FilePath))
 findLastState files = go "" initialState
     where
     initialState = encodeState $ State mempty
@@ -98,9 +97,9 @@ findLastState files = go "" initialState
 -- ** write
 
 -- | Write the audio with checkpoints.
-write :: FilePath -> ChunkNum -> Audio.Frame -> [(ChunkNum, Note.Hash)]
-    -> IORef.IORef State -> AUtil.Audio
-    -> IO (Either Text (ChunkNum, ChunkNum))
+write :: FilePath -> Config.ChunkNum -> Audio.Frame
+    -> [(Config.ChunkNum, Note.Hash)] -> IORef.IORef State -> AUtil.Audio
+    -> IO (Either Text (Config.ChunkNum, Config.ChunkNum))
     -- ^ Either Error (writtenChunks, total)
 write outputDir skippedCount chunkSize hashes stateRef audio
     | null hashes = return $ Right (0, skippedCount)
@@ -115,7 +114,7 @@ write outputDir skippedCount chunkSize hashes stateRef audio
             Left err -> Left err
             Right written -> Right (written, written + skippedCount)
 
-getFilename :: FilePath -> IORef.IORef State -> (ChunkNum, Note.Hash)
+getFilename :: FilePath -> IORef.IORef State -> (Config.ChunkNum, Note.Hash)
     -> IO FilePath
 getFilename outputDir stateRef (chunknum, hash) = do
     state <- IORef.readIORef stateRef
@@ -158,16 +157,16 @@ linkOutput outputDir fname = do
     Directory.renameFile (current <> ".tmp") current
 
 -- | Remove any remaining output symlinks past the final chunk.
-clearRemainingOutput :: FilePath -> ChunkNum -> IO ()
+clearRemainingOutput :: FilePath -> Config.ChunkNum -> IO ()
 clearRemainingOutput outputDir start =
     mapM_ (Directory.removeFile . (outputDir</>)) . outputPast start
         =<< Directory.listDirectory outputDir
 
-outputPast :: ChunkNum -> [FilePath] -> [FilePath]
+outputPast :: Config.ChunkNum -> [FilePath] -> [FilePath]
 outputPast start =
     map snd . filter ((>=start) . fst) . Seq.key_on_just isOutputLink
 
-isOutputLink :: FilePath -> Maybe ChunkNum
+isOutputLink :: FilePath -> Maybe Config.ChunkNum
 isOutputLink (c1:c2:c3 : ".wav")
     | Just n <- Read.readMaybe [c1, c2, c3] = Just n
     | otherwise = Nothing
@@ -179,11 +178,11 @@ filenameToOutput fname = case Seq.split "." fname of
     _ -> fname
 
 -- | 000.$hash.$state.wav
-filenameOf :: ChunkNum -> Note.Hash -> State -> FilePath
+filenameOf :: Config.ChunkNum -> Note.Hash -> State -> FilePath
 filenameOf chunknum hash state = filenameOf2 chunknum hash (encodeState state)
 
 -- | 'filenameOf' but with 'State' already encoded.
-filenameOf2 :: ChunkNum -> Note.Hash -> String -> FilePath
+filenameOf2 :: Config.ChunkNum -> Note.Hash -> String -> FilePath
 filenameOf2 chunknum hash encodedState =
     ByteString.Char8.unpack (ByteString.Char8.intercalate "."
         [ zeroPad 3 chunknum

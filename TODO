@@ -1335,7 +1335,7 @@ synth: im:
   * replace Synth.Shared.Config.emitProgress with a JSON thing
   * rename Shared.Config.cacheDir to something like audio, so it's not
     confusingly the same as Checkpoint.cacheDir.
-  - use the same ChunkNum in Config and Checkpoint.
+  * use the same ChunkNum in Config and Checkpoint.
   * It's confusing how the 000.wav files are called chunks in fltk and by
     ChunkNum, but are called checkpoints in Checkpoint, while Config.chunkSize
     is the render-level audio stream chunk.
