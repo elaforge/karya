@@ -84,8 +84,8 @@ public:
         std::shared_ptr<const std::vector<float>> zoom_cache;
     };
 
-    // Load the file and downsample its peaks.  Use a cached Entry if
-    // one is still alive.
+    // Load the file and downsample its peaks.  Use a cached Entry if one is
+    // still alive.
     std::shared_ptr<Entry> load(const Params &params);
     // Keep track of the max value from peaks.  I scale peaks automatically
     // because the the track is narrow so I want to see as much detail as

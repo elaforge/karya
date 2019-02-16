@@ -1505,7 +1505,10 @@ synth: im:
           PlayC.resolve_tracks.
         . Synth emits t11, t13, t2: ru, t11, t13, t2: ri
       fltk:
-        - Measure how much time I spend resampling.
+        * Measure how much time I spend resampling.
+          . The metrics are easy, but it's a pain to call anything from
+            haskell, I have to go all the way through sync.
+          . Never mind, I'll just print them from fltk.
         * Draw is still buggy, I get jagged zero transitions when the
           selection triggers short redraws.
         * Fltk track inserts into internal state:

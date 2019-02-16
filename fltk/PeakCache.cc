@@ -2,6 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include <chrono>
 #include <math.h>
 #include <sndfile.h>
 
@@ -23,6 +24,9 @@ enum {
     // Each Params::ratios breakpoint is this many frames apart.
     frames_per_ratio = sampling_rate / 2,
 };
+
+// If true, print some stats about resampling times.
+const static bool print_metrics = false;
 
 
 PeakCache *
@@ -78,7 +82,17 @@ std::shared_ptr<const std::vector<float>>
 PeakCache::Entry::at_zoom(double zoom_factor)
 {
     if (zoom_factor != cached_zoom || !zoom_cache.get()) {
+        auto start = std::chrono::steady_clock::now();
         zoom_cache = reduce_zoom(peaks, zoom_factor);
+        if (print_metrics) {
+            // Zooming a track with 43 chunks takes 0.1ms.  So I think I don't
+            // have to worry about zoom times.
+            auto end = std::chrono::steady_clock::now();
+            std::chrono::duration<double> dur = end - start;
+            DEBUG("METRIC zoom " << peaks->size() << " to "
+                << zoom_cache->size() << " dur: " << dur.count());
+        }
+
         cached_zoom = zoom_factor;
     }
     return zoom_cache;
@@ -109,7 +123,7 @@ period_at(const std::vector<double> &ratios, sf_count_t frame)
 static std::vector<float> *
 load_file(const std::string &filename, const std::vector<double> &ratios)
 {
-    DEBUG("load " << filename);
+    // DEBUG("load " << filename);
     SF_INFO info = {0};
     SNDFILE *sndfile = sf_open(filename.c_str(), SFM_READ, &info);
     std::vector<float> *peaks = new std::vector<float>();
@@ -129,8 +143,8 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
     // How many frames to consume in this period
     double srate = sampling_rate / reduced_sampling_rate;
     double period = srate * period_at(ratios, frame);
-    DEBUG("period " << srate << " * "
-        << period_at(ratios, frame) << " = " << period);
+    // DEBUG("period " << srate << " * "
+    //     << period_at(ratios, frame) << " = " << period);
     unsigned int index = 0;
     float accum = 0;
     for (;;) {
@@ -155,7 +169,7 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
             period += srate * period_at(ratios, frame);
         }
     }
-    DEBUG("load frames: " << frame << ", peaks: " << peaks->size());
+    // DEBUG("load frames: " << frame << ", peaks: " << peaks->size());
     sf_close(sndfile);
     return peaks;
 }
@@ -168,11 +182,24 @@ PeakCache::load(const Params &params)
     auto found = cache.find(params);
     if (found != cache.end()) {
         entry = found->second.lock();
-        DEBUG("reused " << params.filename);
+        // DEBUG("reused " << params.filename);
     }
     if (!entry) {
-        entry.reset(new PeakCache::Entry(
-            params.start, load_file(params.filename, params.ratios)));
+        auto start = std::chrono::steady_clock::now();
+        std::vector<float> *peaks = load_file(params.filename, params.ratios);
+        if (print_metrics) {
+            // Loading a 3s chunk takes around 3ms.
+            static double total_dur;
+            static int total_count;
+            auto end = std::chrono::steady_clock::now();
+            std::chrono::duration<double> dur = end - start;
+            total_dur += dur.count();
+            total_count++;
+            DEBUG("METRIC load " << params.filename << ": " << dur.count()
+                << " total_dur: " << total_dur << " of " << total_count);
+        }
+
+        entry.reset(new PeakCache::Entry(params.start, peaks));
         cache[params] = entry;
 
         // Update max_peak.

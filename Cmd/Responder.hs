@@ -322,8 +322,10 @@ post_cmd state ui_from ui_to cmd_to cmd_updates status = do
                 -- Otherwise there's no way to quit!
                 Log.error $ "failed to write views while quitting: "
                     <> showt exc
-    return (is_quit status,
-        state { state_ui = ui_to, state_cmd = cmd_to })
+    return
+        ( is_quit status
+        , state { state_ui = ui_to, state_cmd = cmd_to }
+        )
     where
     is_quit Cmd.Quit = True
     is_quit _ = False
@@ -340,7 +342,7 @@ handle_special_status ui_chan ui_state cmd_state transport_info status =
     case status of
         Cmd.PlayMidi args -> do
             play_ctl <- PlayC.play ui_chan ui_state transport_info args
-            return $ cmd_state
+            return $! cmd_state
                 { Cmd.state_play = (Cmd.state_play cmd_state)
                     { Cmd.state_play_control = Just play_ctl }
                 }
