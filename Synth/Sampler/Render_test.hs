@@ -35,9 +35,9 @@ test_write_noop = do
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.cacheDir)) []
-
-    -- One failed note produces no output.
-    io_equal (write [mkNote "" 0 16 NN.c4]) (Right (0, 0))
+    -- Failed note produces aborts the render.
+    result <- write [mkNote "" 0 16 NN.c4]
+    left_like result "no patch"
     io_equal (listWavs dir) []
 
 test_write_simple = do
