@@ -1444,7 +1444,7 @@ synth: im:
             filenames at least, in case this is the first load.  Only the
             first ImProgressT with im_rendering_range == Nothing will clear
             things after it.
-        - The "unchanged notes" shortcut will prevent this from working.
+        * The "unchanged notes" shortcut will prevent this from working.
           I need to get chunk starts, ratios, etc.
           . I can just list the directory, but it seems special-case.
           . Or I disable the changed check, but skip evaluate_im entirely if
@@ -1461,6 +1461,37 @@ synth: im:
             check that the audio output exists.
           . Another way would be go directly to the files: look in the output
             directory and send over all the files even if I skipped.
+          . Another way would be make damage detection notice if it affects
+            im notes, then skip evaluate_im entirely.  The changed is a detect
+            at the filesystem level, but I could also stash a per-block
+            fingerprint.  That way I always do a run the first time, and I can
+            also include the track waveform fields.
+          . But I might do more work, because now it turns into fprint
+            everything, then write everything, while the other one is
+            write everything, then do a byte level compare.
+          . Can I look for damage on tracks with im?  I could see if output
+            from damaged root blocks has im.
+          . Don't I already do it?  Undamaged blocks don't get to the changed
+            check.
+          . The thing I want to avoid is that I modify block B and it
+            re-performs block A, even though A doesn't import B.  Then the key
+            is to know the dependencies, which is in the derive cache.
+          . I'd have to make the damage check more sophisticated than
+            'Cmd.perf_damage perf /= mempty'.  Either that, or put it
+            only in performances that warrant it, instead of all of them.
+          . If it's the latter, then I need a call graph, or at least
+            a reachable set, and only add the damage if it's in the set.
+          . The reachable set would be Derive.collect_block_deps after the
+            whole derive, as long as I don't clear it anywhere in the middle.
+            If I do, I might need a collect_all_block_deps that doesn't do
+            that.
+          . If I add a new block dep, e.g. by adding an event, the dep doesn't
+            show up in the event add damage, but afterwards.  That means
+            if there was also damage on the child, it won't be assigned
+            to the parent (or the parent's root) as it should.
+          . That might not be a dealbreaker in normal use, because I add one
+            event at a time.  Programmatic transformation should usually just
+            damage everything.
       * In im-rambat-test: Why is track 5 loading >ru?  It should be >ri.
         . Track 3 should be ri, 5=ri, 7=ru
           set_waveform 5:0 start 0t im-rambat-test/untitled/b1/ru/000.wav

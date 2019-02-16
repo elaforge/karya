@@ -150,6 +150,7 @@ data Performance = Performance {
     , perf_damage :: Derive.ScoreDamage
     , perf_warps :: [TrackWarp.TrackWarp]
     , perf_track_signals :: Track.TrackSignals
+    , perf_block_deps :: Derive.BlockDeps
     -- | This is the score state at the time of the performance.  It's needed
     -- to interpret 'perf_track_signals', because at the time signals are sent
     -- (in 'Cmd.PlayC.cmd_play_msg'), the Ui.State may have unsynced changes.
@@ -159,9 +160,10 @@ data Performance = Performance {
 -- | Force a Performance so that it can be used without a lag.
 force_performance :: Performance -> ()
 force_performance (Performance _cache events logs _logs_written track_dyn
-        _integrated _damage warps track_sigs ui_state) =
+        _integrated _damage warps track_sigs block_deps ui_state) =
     logs `deepseq` events `deepseq` warps `deepseq` track_dyn
-        `deepseq` track_sigs `deepseq` ui_state `deepseq` ()
+        `deepseq` track_sigs `deepseq` block_deps `deepseq` ui_state
+        `deepseq` ()
 
 instance Show Performance where
     show perf = "((Performance " <> show (Vector.length (perf_events perf))
@@ -171,7 +173,7 @@ instance Show Performance where
 
 instance Pretty Performance where
     format (Performance cache events logs logs_written track_dynamic
-            integrated damage warps track_signals _ui_state) =
+            integrated damage warps track_signals block_deps _ui_state) =
         Pretty.record "Performance"
         [ ("cache", Pretty.format $ Map.keys $ (\(Derive.Cache c) -> c) cache)
         , ("events", Pretty.format (Vector.length events))
@@ -182,6 +184,7 @@ instance Pretty Performance where
         , ("damage", Pretty.format damage)
         , ("warps", Pretty.format warps)
         , ("track_signals", Pretty.format track_signals)
+        , ("block_deps", Pretty.format block_deps)
         ]
 
 -- * views

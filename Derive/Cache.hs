@@ -120,8 +120,6 @@ should_cache track
     | TrackTree.track_sliced track == TrackTree.NotSliced =
         TrackTree.track_id track
     | otherwise = Nothing
--- should_cache track = TrackTree.track_sliced track == TrackTree.NotSliced
---     && Maybe.isJust (TrackTree.track_id track)
 
 caching_deriver :: Cacheable d => Type -> Range
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)

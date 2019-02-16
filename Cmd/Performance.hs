@@ -129,28 +129,41 @@ derive_wait cmd_state block_id
 -- per-performance.  It accumulates in an existing performance and is cleared
 -- when a new performance is created from the old one.
 insert_damage :: Derive.ScoreDamage -> Cmd.State -> Cmd.State
-insert_damage damage = modify_play_state $ \st -> st
-    -- Damage update is tricky.  Damage in 'Cmd.state_current_performance'
-    -- is a signal that the performance for that block is out of date and needs
-    -- to be updated.  Technically all I need is a Bool since it just checks
-    -- (damage /= mempty).  But this signal has to go in the current
-    -- performance, since it's updated (and hence the damage is cleared)
-    -- synchronously, and otherwise I'd get stuck in a loop killing and
-    -- starting new derivations.
-    --
-    -- However, the derivation is relative to 'Cmd.state_performance', so the
-    -- damage is also relative to it.  So this damage is actually used for
-    -- derivation, not as a out-of-date flag.  When state_current_performance
-    -- is promoted to state_performance, the damage is also cleared.
-    { Cmd.state_current_performance =
-        Map.map update (Cmd.state_current_performance st)
-    , Cmd.state_performance = Map.map update (Cmd.state_performance st)
-    }
+insert_damage damage
+    | damage == mempty = id
+    | otherwise = modify_play_state $ \st -> st
+        -- Damage update is tricky.  Damage in 'Cmd.state_current_performance'
+        -- is a signal that the performance for that block is out of date and
+        -- needs to be updated.  Technically all I need is a Bool since it just
+        -- checks (damage /= mempty).  But this signal has to go in the current
+        -- performance, since it's updated (and hence the damage is cleared)
+        -- synchronously, and otherwise I'd get stuck in a loop killing and
+        -- starting new derivations.
+        --
+        -- However, the derivation is relative to 'Cmd.state_performance', so
+        -- the damage is also relative to it.  So this damage is actually used
+        -- for derivation, not as a out-of-date flag.  When
+        -- state_current_performance is promoted to state_performance, the
+        -- damage is also cleared.
+        { Cmd.state_current_performance =
+            update <$> Cmd.state_current_performance st
+        , Cmd.state_performance = update <$> Cmd.state_performance st
+        }
     where
-    update perf = perf { Cmd.perf_damage = damage <> Cmd.perf_damage perf }
+    update perf
+        | dependency_damaged perf =
+            let !accum = damage <> Cmd.perf_damage perf
+            in perf { Cmd.perf_damage = accum }
+        | otherwise = perf
+    dependency_damaged perf = not $ Set.disjoint damaged_blocks deps
+        where Derive.BlockDeps deps = Cmd.perf_block_deps perf
+    damaged_blocks =
+        Derive.sdamage_track_blocks damage <> Derive.sdamage_blocks damage
 
 -- | Kill all performance threads with damage.  If they are still deriving
--- they're now out of date and should stop.
+-- they're now out of date and should stop.  Whether or not they finished
+-- deriving, this will remove them from 'Cmd.state_performance_threads',
+-- which will cause them to rederive.
 kill_threads :: StateM
 kill_threads = do
     play_state <- Monad.State.gets Cmd.state_play
@@ -410,17 +423,17 @@ evaluate_im config lookup_inst score_path play_multiplier block_id events = do
                         score_path block_id synth
                     output_dir = Config.outputDirectory (Config.imDir config)
                         score_path block_id
-                -- TODO It would be better to not reach this point at all if
-                -- the block hasn't changed, but until then at least I can
-                -- skip running the binary if the notes haven't changed.
-                changed <- Im.Convert.write play_multiplier block_id
+                -- I used to get the changed flag out of Im.Convert.write and
+                -- skip the subprocess if it hadn't changed.  But that gets in
+                -- the way of getting waveforms on the first run (assuming the
+                -- notes haven't been touched since).  In any case, I'm now
+                -- more careful in insert_damage, so we shouldn't even get here
+                -- unless there was damage on the block, and if there was but
+                -- notes haven't changed, the im synth should hit its cache.
+                Im.Convert.write play_multiplier block_id
                     lookup_inst notes_file events
                 let binary = Config.binary synth
-                -- TODO this is temporarily disabled because it prevents the
-                -- initial waveforms from being loaded if it's a cache hit.
-                -- But without it, I rerender even when im notes didn't change.
-                -- Come up with a way to get both.
-                return $ if null binary --  || not changed
+                return $ if null binary
                     then Nothing
                     else Just (binary, [notes_file, output_dir])
             Nothing -> do
@@ -450,6 +463,7 @@ broken_performance msg = Cmd.Performance
     , perf_damage = mempty
     , perf_warps = mempty
     , perf_track_signals = mempty
+    , perf_block_deps = mempty
     , perf_ui_state = Ui.empty
     }
 
@@ -465,6 +479,8 @@ performance state result = Cmd.Performance
     , perf_damage = mempty
     , perf_warps = Derive.r_track_warps result
     , perf_track_signals = Derive.r_track_signals result
+    , perf_block_deps = Derive.collect_block_deps $ Derive.state_collect $
+        Derive.r_state result
     , perf_ui_state = state
     }
     where (events, logs) = Stream.partition (Derive.r_events result)

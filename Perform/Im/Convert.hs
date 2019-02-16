@@ -36,13 +36,13 @@ import           Types
 -- this is run from the derive thread, which can be killed at any time.
 write :: RealTime -> BlockId
     -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument) -> FilePath
-    -> Vector.Vector Score.Event -> IO Bool
-    -- ^ False if the file would have been the same as an existing one.
+    -> Vector.Vector Score.Event -> IO ()
 write play_multiplier block_id lookup_inst filename events = do
     notes <- LEvent.write_logs $ convert block_id lookup_inst $
         Vector.toList events
     -- The so-called play multiplier is actually a divider.
     Note.serialize filename $ multiply_time (1/play_multiplier) notes
+    return ()
 
 multiply_time :: RealTime -> [Note.Note] -> [Note.Note]
 multiply_time n

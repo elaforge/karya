@@ -418,6 +418,24 @@ test_collect = do
     equal (Derive.collect_block_deps collect)
         (mk_block_deps ["top", "sub"])
 
+test_block_deps = do
+    let run root blocks =
+            extract $ Derive.collect_block_deps $ Derive.state_collect $
+            Derive.r_state $
+            DeriveTest.derive_block_setup mempty
+                (snd (UiTest.run_mkblocks blocks)) (UiTest.bid root)
+        extract (Derive.BlockDeps deps) = deps
+    let blocks =
+            [ ("top", [(">", [(0, 1, "b1")])])
+            , ("b1", [(">", [(0, 1, "b2")])])
+            , ("b2", UiTest.regular_notes 2)
+            , ("b3", [(">", [(0, 1, "b2")])])
+            ]
+    equal (run "top" blocks)
+        (Set.fromList $ map UiTest.bid ["top", "b1", "b2"])
+    equal (run "b3" blocks)
+        (Set.fromList $ map UiTest.bid ["b3", "b2"])
+
 test_collect_indirect_call = do
     let run note = DeriveTest.derive_blocks
             [ ("top -- ^t = \"(sub)", [(">", [(0, 1, note)])])

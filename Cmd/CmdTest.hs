@@ -168,11 +168,19 @@ extract_derive_result res =
     msg = "extract_derive_result: cmd failed so result is probably not right: "
     mkres = do
         Cmd.Performance cache events logs _logs_written track_dyn integrated
-            _damage warps tsigs _ui_state <- Perf.get_root
+            _damage warps tsigs _block_deps _ui_state <- Perf.get_root
         let stream = Stream.merge_logs logs $
                 Stream.from_sorted_events (Vector.toList events)
-        return $ Derive.Result stream cache warps tsigs track_dyn integrated
-            (errorStack "can't fake a Derive.State for an extracted Result")
+        return $ Derive.Result
+            { r_events = stream
+            , r_cache = cache
+            , r_track_warps = warps
+            , r_track_signals = tsigs
+            , r_track_dynamic = track_dyn
+            , r_integrated = integrated
+            , r_state =
+                errorStack "can't fake a Derive.State for an extracted Result"
+            }
 
 -- | Update the performances based on the UI state change and updates.  This
 -- manually runs that part of the responder, and is needed for tests that rely
