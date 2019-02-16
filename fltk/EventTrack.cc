@@ -631,7 +631,7 @@ void
 EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
 {
     const float amplitude_scale = 1 / PeakCache::get()->max_peak();
-    DEBUG("peak " << (1/amplitude_scale));
+    // DEBUG("peak " << (1/amplitude_scale));
     if (peaks.empty())
         return;
 

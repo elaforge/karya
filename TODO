@@ -1505,6 +1505,9 @@ synth: im:
           PlayC.resolve_tracks.
         . Synth emits t11, t13, t2: ru, t11, t13, t2: ri
       fltk:
+        - Measure how much time I spend resampling.
+        - Draw is still buggy, I get jagged zero transitions when the
+          selection triggers short redraws.
         * Fltk track inserts into internal state:
           peaks[0] = ("000.wav", shift, ratios)
         * Then it reads 000.wav and accumulates max(abs(sample[i])) for each
@@ -1563,8 +1566,6 @@ synth: im:
             stdlib?
           . Otherwise, I can maintain a refcount manually and have each cache
             delete from it in the destructor.
-        - Draw is still buggy, I get jagged zero transitions when the
-          selection triggers short redraws.
         * The offset is definitely messed up, I get totally misaligned
           waveforms.
           . It happens when tempo /= 1, so it's ratios.

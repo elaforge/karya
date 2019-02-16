@@ -14,16 +14,12 @@
 
 
 enum {
-    // Store a max value for each group of this many frames.
-    // Reduced sampling rate is sampling_rate / sample_period
-    // sample_period = 512,
-
-    reduced_sampling_rate = 90,
+    // Store a max value at this sampling rate.
+    reduced_sampling_rate = 120,
     // Read this many frames at once when reading the file.
     read_buffer_frames = 256,
 
     sampling_rate = SAMPLING_RATE,
-    // chunk_frames = sampling_rate / 4, // TODO from Shared.Config.chunkSize
     // Each Params::ratios breakpoint is this many frames apart.
     frames_per_ratio = sampling_rate / 2,
 };
@@ -120,6 +116,10 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
     if (sf_error(sndfile) != SF_ERR_NO_ERROR) {
         // TODO should be LOG
         DEBUG("opening " << filename << ": " << sf_strerror(sndfile));
+        return peaks;
+    } else if (info.samplerate != sampling_rate) {
+        DEBUG(filename << ": expected srate of " << sampling_rate << ", got "
+            << info.samplerate);
         return peaks;
     }
 
