@@ -1506,7 +1506,7 @@ synth: im:
         . Synth emits t11, t13, t2: ru, t11, t13, t2: ri
       fltk:
         - Measure how much time I spend resampling.
-        - Draw is still buggy, I get jagged zero transitions when the
+        * Draw is still buggy, I get jagged zero transitions when the
           selection triggers short redraws.
         * Fltk track inserts into internal state:
           peaks[0] = ("000.wav", shift, ratios)
@@ -1928,6 +1928,7 @@ synth: im:
   sampler: sampler-im:
     bug:
       * after a play speed change, I get some of the old render after the end.
+    - stereo placement for patches, or individual samples
     non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict

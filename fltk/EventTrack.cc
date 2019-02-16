@@ -631,7 +631,6 @@ void
 EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
 {
     const float amplitude_scale = 1 / PeakCache::get()->max_peak();
-    // DEBUG("peak " << (1/amplitude_scale));
     if (peaks.empty())
         return;
 
@@ -653,7 +652,9 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
     fl_line_style(FL_SOLID | FL_CAP_ROUND, 1);
     fl_color(Config::waveform_color.fl());
     fl_begin_polygon();
-    for (; y < max_y; y += pixels_per_peak, i++, time = time+time_per_peak) {
+    // Go over max_y for a little bit.  Otherwise, the slope on the last sample
+    // seems to want to go to 0.
+    for (; y < max_y+2; y += pixels_per_peak, i++, time = time+time_per_peak) {
         if (y < min_y)
             continue; // TODO just skip it in one step
         // if (next_start)
