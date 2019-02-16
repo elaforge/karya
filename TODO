@@ -1514,7 +1514,11 @@ synth: im:
         * When zoom changes, redo the 2nd level cache.
         . If any of the calculation steps cause a hiccup, consider
           a background thread.
-        - Figure out amplitude_scale based on global max.
+        * Figure out amplitude_scale based on global max.
+          . I can do it incrementally whenever I add a chunk, but I have to
+            scan everything whenever I delete one?
+          . Not quite, if each chunk has a max, then scanning everything is
+            cheap.
         * Multiple tracks will have the same audio, so I want a global cache.
           . Even if I have haskell tell it all tracks at once, it still has
             to share among multiple tracks, so I still need ref counting.
@@ -1534,7 +1538,7 @@ synth: im:
           waveforms.
           . It happens when tempo /= 1, so it's ratios.
           . But even after setting tempo to 1 it's still 2x short?
-        - It doesn't understand playback speed.
+        * It doesn't understand playback speed.
       notes:
         . If I load at srate/1024, that's about 43 samples/sec.  Each text
           line is 12 pixels so about 3.5 lines for 1 second before it gets

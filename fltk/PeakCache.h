@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <unordered_map>
 #include <memory>
 #include <string>
@@ -63,18 +64,22 @@ public:
 
     class Entry {
     public:
-        Entry(ScoreTime start, std::vector<float> *peaks)
-            : start(start), peaks(peaks), cached_zoom(0)
+        Entry(ScoreTime start, std::vector<float> *peaks) :
+            start(start),
+            max_peak(peaks->empty() ? 0
+                : *std::max_element(peaks->begin(), peaks->end())),
+            peaks(peaks), cached_zoom(0)
         {}
 
         const ScoreTime start;
+        const float max_peak;
         // Get peaks adapted for this zoom level.
         std::shared_ptr<const std::vector<float>> at_zoom(double zoom_factor);
 
     private:
-        // Maximum values of each chunk of samples.  This is the absolute value
-        // of all channels, so it's mono and only positive.
-        std::shared_ptr<std::vector<float>> peaks;
+        // Maximum absolute values of each chunk of samples.  This is mono and
+        // only positive.
+        const std::shared_ptr<const std::vector<float>> peaks;
         double cached_zoom;
         std::shared_ptr<const std::vector<float>> zoom_cache;
     };
@@ -82,6 +87,10 @@ public:
     // Load the file and downsample its peaks.  Use a cached Entry if
     // one is still alive.
     std::shared_ptr<Entry> load(const Params &params);
+    // Keep track of the max value from peaks.  I scale peaks automatically
+    // because the the track is narrow so I want to see as much detail as
+    // possible.
+    float max_peak() const { return cache_max_peak; }
 
 private:
     // C++ isn't done being a pain yet!  I can't specialize std::hash because
@@ -90,4 +99,5 @@ private:
         size_t operator()(const Params &p) const { return p.hash(); }
     };
     std::unordered_map<Params, std::weak_ptr<Entry>, HashParams> cache;
+    float cache_max_peak;
 };
