@@ -34,7 +34,7 @@ test_write_noop = do
     let write = write_ dir
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
-    io_equal (Directory.listDirectory (dir </> Checkpoint.cacheDir)) []
+    io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
     -- Failed note produces aborts the render.
     result <- write [mkNote "" 0 16 NN.c4]
     left_like result "no patch"

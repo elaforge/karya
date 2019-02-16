@@ -39,7 +39,7 @@ test_write_incremental = do
     let write = Render.write_ config dir patch
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
-    io_equal (Directory.listDirectory (dir </> Checkpoint.cacheDir)) []
+    io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
 
     let dur = AUtil.toSeconds (Render._chunkSize config)
     let oldNotes = mkNotes (dur/2) [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
@@ -49,12 +49,12 @@ test_write_incremental = do
     io_equal (write oldNotes) (Right (3, 3))
     wavs <- listWavs dir
     equal_on length wavs 3
-    io_equal (length <$> listWavs (dir </> Checkpoint.cacheDir)) 3
+    io_equal (length <$> listWavs (dir </> Checkpoint.checkpointDir)) 3
     states <- filter (".state." `List.isInfixOf`) <$>
-        Directory.listDirectory (dir </> Checkpoint.cacheDir)
+        Directory.listDirectory (dir </> Checkpoint.checkpointDir)
     -- All of them have states, since they are at the end of each chunk.
     io_equal (mapM (Directory.getFileSize
-            . ((dir </> Checkpoint.cacheDir) </>)) states)
+            . ((dir </> Checkpoint.checkpointDir) </>)) states)
         [40, 40, 40]
 
     let skipCheckpoints = Checkpoint.skipCheckpoints dir
@@ -73,7 +73,7 @@ test_write_incremental = do
     equal remainingHashes []
 
     -- Only 1 was rerendered, so now there are 4.
-    wavs <- listWavs (dir </> Checkpoint.cacheDir)
+    wavs <- listWavs (dir </> Checkpoint.checkpointDir)
     equal_on length wavs 4
 
     incremental <- readSamples dir
@@ -88,7 +88,7 @@ test_write_incremental = do
     equal state Nothing
     -- Should have rendered 0 more files, since Render.renderPatch should exit
     -- immediately, due to start >= end.
-    wavs <- listWavs (dir </> Checkpoint.cacheDir)
+    wavs <- listWavs (dir </> Checkpoint.checkpointDir)
     equal_on length wavs 4
 
 test_write_incremental_offset = do

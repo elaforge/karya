@@ -34,8 +34,8 @@ import Synth.Lib.Global
 
 -- | This subdirectory in the outputDirectory </> instrument has the
 -- fingerprinted audio files.
-cacheDir :: FilePath
-cacheDir = "cache"
+checkpointDir :: FilePath
+checkpointDir = "checkpoint"
 
 type ChunkNum = Int -- TODO same as Cofig.ChunkNum and Ui.Types.ChunkNum
 
@@ -62,14 +62,14 @@ skipCheckpoints :: FilePath -> [(ChunkNum, Note.Hash)]
     -> IO ([FilePath], [(ChunkNum, Note.Hash)], Maybe State)
     -- ^ (skipped chunks, remaining notes, state at that point)
 skipCheckpoints outputDir hashes = do
-    Directory.createDirectoryIfMissing False (outputDir </> cacheDir)
-    files <- Directory.listDirectory (outputDir </> cacheDir)
+    Directory.createDirectoryIfMissing False (outputDir </> checkpointDir)
+    files <- Directory.listDirectory (outputDir </> checkpointDir)
     (skipped, (hashes, stateFname)) <- either errorIO return $
         findLastState (Set.fromList files) hashes
     mbState <- if null stateFname
         then return Nothing
         else Just . State
-            <$> ByteString.readFile (outputDir </> cacheDir </> stateFname)
+            <$> ByteString.readFile (outputDir </> checkpointDir </> stateFname)
     return (skipped, hashes, mbState)
 
 -- | Find the first 'Note.Hash' that doesn't have a matching filename.
@@ -119,14 +119,14 @@ getFilename :: FilePath -> IORef.IORef State -> (ChunkNum, Note.Hash)
     -> IO FilePath
 getFilename outputDir stateRef (chunknum, hash) = do
     state <- IORef.readIORef stateRef
-    let fname = outputDir </> cacheDir </> filenameOf chunknum hash state
+    let fname = outputDir </> checkpointDir </> filenameOf chunknum hash state
     -- XXX 'state' is actually an unsafe pointer to the underlying C state, so
     -- I have to make sure I'm done with it before returning.  This is super
     -- sketchy, but it works now and it is non-copying.
     fname `DeepSeq.deepseq` return fname
 
-{- | Write synth state to the cache.  The filename is derived from the audio
-    chunk filename, which presumably has already been written.
+{- | Write synth state to the checkpointDir.  The filename is derived from the
+    audio chunk filename, which presumably has already been written.
 
     Each chunk writes two files:
 
@@ -145,15 +145,15 @@ writeState stateRef fname = do
         (FilePath.replaceExtension fname (".state." <> encodeState state))
         stateBs
 
--- | Link the audio chunk output (presumably already written) from the cache to
--- its position in the output sequence.
+-- | Link the audio chunk output (presumably already written) from the
+-- checkpointDir to its position in the output sequence.
 --
--- > 000.wav -> cache/000.$hash.$state.wav
+-- > 000.wav -> checkpoint/000.$hash.$state.wav
 linkOutput :: FilePath -> FilePath -> IO ()
 linkOutput outputDir fname = do
     let current = outputDir </> filenameToOutput (FilePath.takeFileName fname)
     -- Atomically replace the old link, if any.
-    Directory.createFileLink (cacheDir </> FilePath.takeFileName fname)
+    Directory.createFileLink (checkpointDir </> FilePath.takeFileName fname)
         (current <> ".tmp")
     Directory.renameFile (current <> ".tmp") current
 
