@@ -29,19 +29,6 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  my hacked libsamplerate is hard to use on linux
-    . Beacuse you can only have one dynamic library with that name, and e.g.
-      jack and many other things want the standard libsamplerate.
-    . Rename it to libsamplerate-resume or something.
-    . That's actually a big hassle, the name seems to be in tons of places,
-      and I'd also have to rename samplerate.h.
-    - I should just link the static library, in place.  Also add -I so I
-      get the right samplerate.h.
-    * Also Shake.Config.globalIncludes and globalLibDirs don't apply to
-      haskell builds.
-    - Even with the hacked libsamplerate, on linux I still get undefined
-      reference to 'src_put_state'.  There must be something different about
-      linux from os x.
   - use LTuning.nrpn for gong-kebyar patch and allocations
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
@@ -2399,6 +2386,24 @@ synth: im:
     . hackage accelerate
 
 shakefile: build:
+  my hacked libsamplerate is hard to use on linux
+    . Beacuse you can only have one dynamic library with that name, and e.g.
+      jack and many other things want the standard libsamplerate.
+    . Rename it to libsamplerate-resume or something.
+    . That's actually a big hassle, the name seems to be in tons of places,
+      and I'd also have to rename samplerate.h.
+    * I should just link the static library, in place.  Also add -I so I
+      get the right samplerate.h.
+    * Also Shake.Config.globalIncludes and globalLibDirs don't apply to
+      haskell builds.
+    - Even with the hacked libsamplerate, on linux I still get undefined
+      reference to 'src_put_state'.  There must be something different about
+      linux from os x.
+  . It's a pain to propagate all the bits of config around.
+    . blaze gets around by using string deps and putting in a lookup step.
+    . I could use Reader Config, but then it all becomes monadic.
+    . I could drop it in a global variable, but then it's in IO, unless I want
+      to put unsafePerformIO everywhere.
   - ghc --make now supports -j, use that instead of each file
     . I'll still need to chase #includes though, I think?  Actually --make
       should be able to handle it, if it causes the source to change.

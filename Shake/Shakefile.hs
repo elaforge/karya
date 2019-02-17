@@ -14,26 +14,24 @@
 -- | Shakefile for seq and associated binaries.
 module Shake.Shakefile where
 import qualified Control.DeepSeq as DeepSeq
-import Control.Monad
-import Control.Monad.Trans (liftIO)
-
+import           Control.Monad.Trans (liftIO)
 import qualified Data.Binary as Binary
 import qualified Data.Char as Char
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import Data.Semigroup (Semigroup, (<>))
+import           Data.Semigroup ((<>), Semigroup)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
-import Development.Shake ((?==), (?>), (&?>), (%>), need)
+import           Development.Shake (need, (%>), (&?>), (?==), (?>))
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
@@ -44,12 +42,15 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 
-import Local.ShakeConfig (localConfig)
+import           Local.ShakeConfig (localConfig)
+import qualified Shake.C as C
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.Config as Config
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
 import qualified Shake.Util as Util
+
+import           Control.Monad
 
 
 -- * config
@@ -191,12 +192,17 @@ data Config = Config {
     , ghcLib :: FilePath
     , fltkVersion :: String
     , midiConfig :: MidiConfig
+    , cLibs :: CLibs
     , configFlags :: Flags
     -- | GHC version as returned by 'parseGhcVersion'.
     , ghcVersion :: (Int, Int, Int)
     , ccVersion :: String
     -- | Absolute path to the root directory for the project.
     , rootDir :: FilePath
+    } deriving (Show)
+
+data CLibs = CLibs {
+    _libfltk :: C.ExternalLibrary
     } deriving (Show)
 
 buildDir :: Config -> FilePath
@@ -238,13 +244,6 @@ data Flags = Flags {
     -- | Linker flags to link in whatever MIDI driver we are using today.
     -- There should be corresponding flags in 'define' to enable said driver.
     , midiLd :: [Flag]
-    -- | Linker flags for im synthesizers.  TODO I really need a modular
-    -- package system, putting everything in global config is getting old.
-    , imLd :: [Flag]
-    -- | Additional flags needed when compiling fltk.
-    , fltkCc :: [Flag]
-    -- | Additional flags needed when linking fltk.
-    , fltkLd :: [Flag]
     -- | GHC-specific flags.  Unlike 'globalCcFlags', this *isn't* the complete
     -- list.
     , hcFlags :: [Flag]
@@ -260,13 +259,13 @@ data Flags = Flags {
 
 -- TODO surely there is a GHC.Generic way to do this
 instance Semigroup Flags where
-    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 k1 l1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 k2 l2) =
+    (<>)    (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2) (i1<>i2) (j1<>j2) (k1<>k2) (l1<>l2)
+            (h1<>h2) (i1<>i2)
 
 instance Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] [] [] [] []
+    mempty = Flags [] [] [] [] [] [] [] [] []
     mappend = (<>)
 
 -- * binaries
@@ -434,31 +433,22 @@ criterionHsSuffix = "_criterion.hs"
 
 -- ** cc
 
-{- | Describe a C++ binary target.  Unlike 'HsBinary', this has all the
-    binary's obj file dependencies explicitly listed.  This is because C source
-    files import separate include files, so I can't infer all the dependencies
-    just by chasing imports, unless I want to assume that each name.h has
-    a corresponding name.cc.  In any case, I have relatively little C++ and it
-    changes rarely, so I don't mind a hardcoded list.  An explicit list of deps
-    means I can also give compile flags per source file, instead of having
-    a global list of flags that applies to all sources.
--}
-data CcBinary = CcBinary {
-    ccName :: String
-    -- | Object files required, relative to build/<mode>/obj.
-    , ccRelativeDeps :: [FilePath]
-    , ccCompileFlags :: Config -> [Flag]
-    , ccLinkFlags :: Config -> [Flag]
-    -- | Run this after building, with a complete path to the binary.
-    , ccPostproc :: FilePath -> Shake.Action ()
-    }
+ccDeps :: Config -> C.Binary config -> [FilePath]
+ccDeps config binary = map (oDir config </>) (C.binObjs binary)
 
-ccDeps :: Config -> CcBinary -> [FilePath]
-ccDeps config binary = map (oDir config </>) (ccRelativeDeps binary)
+libsamplerate :: C.ExternalLibrary
+libsamplerate = Config.libsamplerate localConfig
 
-ccBinaries :: [CcBinary]
+libsndfile :: C.ExternalLibrary
+libsndfile = C.library "sndfile"
+
+-- I don't quite like this, because now everything is dependent on Config,
+-- when I want minimal dependency.  Return strings with ${var} in them would
+-- delay the dependency.
+ccBinaries :: [C.Binary Config]
 ccBinaries =
-    [ withSndfile $ fltk "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"]
+    [ (fltk "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"])
+        { C.binLibraries = \c -> [libsamplerate, libsndfile, libfltk c] }
     , fltk "test_browser"
         [ "Instrument/test_browser.cc.o", "Instrument/browser_ui.cc.o"
         , "fltk/f_util.cc.o"
@@ -473,28 +463,23 @@ ccBinaries =
     , makePlayCacheBinary "test_play_cache" "test_play_cache.cc" []
     ]
     where
-    withSndfile bin = bin { ccLinkFlags = ("-lsndfile":) . ccLinkFlags bin }
-    fltk name deps = CcBinary
-        { ccName = name
-        , ccRelativeDeps = deps
-        , ccCompileFlags = fltkCc . configFlags
-        , ccLinkFlags = fltkLd . configFlags
-        , ccPostproc = makeBundle False
+    libfltk = _libfltk . cLibs
+    fltk name objs = (C.binary name objs)
+        { C.binLibraries = \config -> [libfltk config]
+        , C.binPostproc = makeBundle False
         }
 
 -- TODO This compiles under linux, but I have no idea if it actually produces
 -- a valid vst.
-playCacheBinary :: CcBinary
+playCacheBinary :: C.Binary Config
 playCacheBinary = binary
-    { ccLinkFlags = \config -> ccLinkFlags binary config
-        ++ case Util.platform of
-            Util.Mac -> ["-bundle"]
-            Util.Linux -> ["-lpthread", "-shared", "-Wl,-soname=play_cache.so"]
-    , ccCompileFlags = \config -> ccCompileFlags binary config
-        ++ case Util.platform of
-            Util.Mac -> []
-            Util.Linux -> ["-fPIC"]
-    , ccPostproc = \fn -> case Util.platform of
+    { C.binLink = \c -> C.binLink binary c ++ case Util.platform of
+        Util.Mac -> ["-bundle"]
+        Util.Linux -> ["-shared", "-Wl,-soname=play_cache.so"]
+    , C.binCompile = \c -> C.binCompile binary c ++ case Util.platform of
+        Util.Mac -> []
+        Util.Linux -> ["-fPIC"]
+    , C.binPostproc = \fn -> case Util.platform of
         Util.Mac -> do
             let vst = fn ++ ".vst"
             Util.system "rm" ["-rf", vst]
@@ -504,27 +489,29 @@ playCacheBinary = binary
         Util.Linux -> return ()
     }
     where
-    binary = makePlayCacheBinary name "PlayCache.cc"
-        ["Synth/vst2/interface.cc.o"]
+    binary = makePlayCacheBinary name
+        "PlayCache.cc" ["Synth/vst2/interface.cc.o"]
     name = case Util.platform of
         Util.Mac -> "play_cache"
         Util.Linux -> "play_cache.so"
 
-makePlayCacheBinary :: String -> FilePath -> [FilePath] -> CcBinary
-makePlayCacheBinary name main ccDeps = CcBinary
-    { ccName = name
-    , ccRelativeDeps = (ccDeps++) $ map (("Synth/play_cache"</>) . (++".o")) $
+makePlayCacheBinary :: String -> FilePath -> [FilePath] -> C.Binary Config
+makePlayCacheBinary name main objs = (C.binary name [])
+    { C.binObjs = (objs++) $ map (("Synth/play_cache"</>) . (++".o")) $
         [ main
         , "Osc.cc", "Resample.cc", "Sample.cc", "Streamer.cc", "Tracks.cc"
         , "ringbuffer.cc"
         ]
-    , ccCompileFlags = \config ->
-        ["-DVST_BASE_DIR=\"" ++ (rootDir config </> "im") ++ "\""]
-    , ccLinkFlags = const $ "-lsndfile" : "-llo" : "-lsamplerate"
-        : case Util.platform of
-            Util.Mac -> []
-            Util.Linux -> ["-lpthread"]
-    , ccPostproc = const $ return ()
+    -- TODO I need config for VST_BASE_DIR
+    -- that means I need to split out rootDir to a independent Config
+    -- that could even be static, then I don't need an argument.
+    , C.binCompile = \c ->
+        ["-DVST_BASE_DIR=\"" <> (rootDir c </> "im") <> "\""]
+    , C.binLibraries = const $
+        [ libsndfile
+        , C.library "lo"
+        , libsamplerate
+        ] ++ [C.library "pthread" | Util.platform == Util.Linux]
     }
 
 
@@ -533,7 +520,7 @@ makePlayCacheBinary name main ccDeps = CcBinary
     directory changes so rarely it seems not a great burden to just hardcode
     them all here.
 
-    'ccORule' has a special hack to give these 'fltkCc' flags, since I don't
+    'ccORule' has a special hack to give these '_libfltk' flags, since I don't
     have a separate CcLibrary target.
 -}
 fltkDeps :: Config -> [FilePath]
@@ -645,15 +632,21 @@ configure = do
         , ghcLib = ghcLib
         , fltkVersion = fltkVersion
         , midiConfig = midi
+        , cLibs = CLibs
+            { _libfltk = C.ExternalLibrary
+                { libLink = fltkLds
+                , libCompile = fltkCs
+                }
+            }
         , configFlags = setCcFlags mode $
-            setConfigFlags sandbox fltkCs fltkLds mode ghcVersion
+            setConfigFlags sandbox mode ghcVersion
                 (lookup "GHC_PACKAGE_PATH" env) (osFlags midi)
         , ghcVersion = ghcVersion
         , ccVersion = ccVersion
         , rootDir = rootDir
         }
     where
-    setConfigFlags sandbox fltkCs fltkLds mode ghcVersion ghcPackagePath flags =
+    setConfigFlags sandbox mode ghcVersion ghcPackagePath flags =
         flags
         { define = concat
             [ ["-DTESTING" | mode `elem` [Test, Profile]]
@@ -667,10 +660,6 @@ configure = do
             [".", "" ++ modeToDir mode, "fltk"]
             ++ Config.globalIncludes localConfig
         , cLibDirs = map ("-L"<>) $ Config.globalLibDirs localConfig
-        , fltkCc = fltkCs
-        , fltkLd = fltkLds
-        , imLd = if not (Config.enableIm localConfig) then []
-            else ["-lsamplerate"]
         , hcFlags = concat
             -- This is necessary for ghci loading to work in 7.8.
             -- Except for profiling, where it wants "p_dyn" libraries, which
@@ -831,15 +820,16 @@ main = do
             let config = infer fn
             need (fltkDeps config)
             Util.system "ar" $ ["-rs", fn] ++ fltkDeps config
-        forM_ ccBinaries $ \binary -> matchBuildDir (ccName binary) ?> \fn -> do
+        forM_ ccBinaries $ \binary -> matchBuildDir (C.binName binary)
+                ?> \fn -> do
             let config = infer fn
             let objs = ccDeps config binary
             need objs
             let flags = cLibDirs (configFlags config)
-                    ++ ccCompileFlags binary config
-                    ++ ccLinkFlags binary config
+                    ++ C.binCompileFlags binary config
+                    ++ C.binLinkFlags binary config
             Util.cmdline $ linkCc flags fn objs
-            ccPostproc binary fn
+            C.binPostproc binary fn
         forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
             let config = infer fn
             hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
@@ -972,7 +962,7 @@ dispatch modeConfig targets = do
     handled <- mapM hardcoded targets
     Shake.want [target | (False, target) <- zip handled targets]
     where
-    allBinaries = map hsName hsBinaries ++ map ccName ccBinaries
+    allBinaries = map hsName hsBinaries ++ map C.binName ccBinaries
     hardcoded target = case target of
         -- I should probably run this in staunch mode, -k.
         "validate" -> action $ do
@@ -1037,7 +1027,7 @@ dispatch modeConfig targets = do
             -- This is missing runProfile, but at the moment I can't be
             -- bothered to get that to compile in build/test.
         where
-        cantBuild = [ccName playCacheBinary]
+        cantBuild = [C.binName playCacheBinary]
 
 fastTests :: Shake.Action ()
 fastTests = do
@@ -1460,7 +1450,11 @@ compileHs packages config hs =
     ( "GHC " <> show (buildMode config)
     , hs
     , ghcBinary : "-c" : concat
-        [ ghcFlags config, hcFlags (configFlags config)
+        [ if not (Config.enableIm localConfig) then []
+            else C.libCompile libsamplerate
+            -- Put this first to make sure I don't see the system header.
+        , ghcFlags config
+        , hcFlags (configFlags config)
         , packageFlags (configFlags config) packages, mainIs
         , [hs, "-o", srcToObj config hs]
         ]
@@ -1478,7 +1472,11 @@ linkHs config rtsFlags output packages objs =
     ( "LD-HS"
     , output
     , ghcBinary : concat
-        [ fltkLd flags, midiLd flags, imLd flags, hLinkFlags flags
+        [ C.libLink (_libfltk (cLibs config))
+        , midiLd flags
+        , if not (Config.enableIm localConfig) then []
+            else C.libLink libsamplerate
+        , hLinkFlags flags
         , ["-with-rtsopts=" <> unwords rtsFlags | not (null rtsFlags)]
         , ["-lstdc++"], packageFlags flags packages, objs
         -- Suppress "warning: text-based stub file" after OSX command line
@@ -1490,7 +1488,8 @@ linkHs config rtsFlags output packages objs =
         , ["-o", output]
         ]
     )
-    where flags = configFlags config
+    where
+    flags = configFlags config
 
 -- | ghci has to be called with the same flags that the .o files were compiled
 -- with or it won't load them.
@@ -1560,20 +1559,21 @@ ccORule infer = matchObj "**/*.cc.o" ?> \obj -> do
     -- global flags.  This is a hack that only works because I only have
     -- one C++ library.  If I ever have another one I'll need a CcLibrary
     -- target.
-    let flags = Maybe.fromMaybe (fltkCc (configFlags config)) $
+    let flags = Maybe.fromMaybe (C.libCompile (_libfltk (cLibs config))) $
             findFlags config obj
         localIncludes = filter ("-I" `List.isPrefixOf`) flags
     includes <- includesOf "ccORule" config localIncludes cc
     logDeps config "*.cc.o" obj (cc:includes)
     Util.cmdline $ compileCc config flags cc obj
 
--- | Find which CcBinary has the obj file in its 'ccDeps' and get its
--- 'ccCompileFlags'.  This assumes that each obj file only occurs in one
--- CcBinary.  Another way to do this would be to create explicit rules for each
--- Mode for each source file, but I wonder if that would add to startup
+-- | Find which 'C.Binary' has the obj file in its 'C.binObjs' and get its
+-- 'C.binCompileFlags'.  This assumes that each obj file only occurs in one
+-- 'C.Binary'.  Another way to do this would be to create explicit rules for
+-- each Mode for each source file, but I wonder if that would add to startup
 -- overhead.
 findFlags :: Config -> FilePath -> Maybe [Flag]
-findFlags config obj = ($config) . ccCompileFlags <$> List.find find ccBinaries
+findFlags config obj =
+    ($config) . C.binCompileFlags <$> List.find find ccBinaries
     where find binary = obj `elem` ccDeps config binary
 
 compileCc :: Config -> [Flag] -> FilePath -> FilePath -> Util.Cmdline
@@ -1604,11 +1604,14 @@ hsc2hs :: Config -> FilePath -> FilePath -> Util.Cmdline
 hsc2hs config hs hsc =
     ( "hsc2hs"
     , hs
-    , ["hsc2hs", "-I" ++ ghcLib config </> "include"]
+    , concat
+        [ ["hsc2hs", "-I" ++ ghcLib config </> "include"]
         -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
-        ++ words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
-        ++ cInclude flags ++ fltkCc flags ++ define flags
-        ++ [hsc, "-o", hs]
+        , words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
+        , cInclude flags ++ C.libCompile (_libfltk (cLibs config))
+        , define flags
+        , [hsc, "-o", hs]
+        ]
     )
     where flags = configFlags config
 
@@ -1631,7 +1634,7 @@ c2hs config hs chs =
       , "--cppopts="
         <> unwords (filter (`notElem` platformDefines) (define flags))
         -- TODO if I use c2hs more extensively I might also want
-        -- cInclude flags ++ fltkCc flags
+        -- cInclude flags ++ _libfltk flags, as with hsc2hs
       , chs
       ]
     )

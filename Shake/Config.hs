@@ -5,6 +5,7 @@
 -- | Shakefile config which is likely to be different on each system.
 -- Customize this in Local.ShakeConfig.
 module Shake.Config where
+import qualified Shake.C as C
 
 
 type Flag = String
@@ -32,6 +33,7 @@ data Config = Config {
     -- | Path to the fltk installation.  If you @make install@ then it'll
     -- probably be in /usr/local/bin.
     , fltkConfig :: FilePath
+    , libsamplerate :: C.ExternalLibrary
     -- | Extra -I flags that all compiles get, including haskell cpp and
     -- hsc2hs.  Without the -I:  ["/Users/me/homebrew/include"]
     , globalIncludes :: [FilePath]
@@ -48,6 +50,10 @@ defaultConfig = Config
     , enableIm = False
     , extraDefines = []
     , fltkConfig = "fltk-config"
+    , libsamplerate = C.ExternalLibrary
+        { C.libLink = ["/usr/local/src/libsamplerate/src/.libs/libsamplerate.a"]
+        , C.libCompile = ["-I/usr/local/src/libsamplerate"]
+        }
     , globalIncludes = []
     , globalLibDirs = []
     }

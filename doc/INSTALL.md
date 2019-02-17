@@ -124,14 +124,23 @@ These are all names for the incomplete offline synthesizer.  It requires a
 bunch of extra dependencies.  First you need more non-haskell dependencies.
 Get the -dev versions as usual:
 
-- faust - you probably need the git version, distro version is likely too old
+- faust - Faust had major stdlib changes a few years back, and if you use a
+conservative distro, the bundled one may be too old.  Install by hand to be
+sure.  I'm using `2.5.34`.
 
 - libsamplerate - I use a local fork, with support for saving and restoring
 state.  Get the `local` branch from
-https://github.com/elaforge/libsamplerate/tree/local
-Make configure with ./autogen.sh, ./configure, sudo make install.
+https://github.com/elaforge/libsamplerate/tree/local and clone to
+`/usr/local/src/libsamplerate`, unless you want mess with config.  Build with
+the usual `./autogen.sh && ./configure && make`.  Don't install, the shakefile
+will link directly to it.  The reason is that it's common to have standard
+libsamplerate installed, and I don't want to mess up your system.
 
-- libsndfile
+    If you cloned someplace other than `/usr/local/src/libsamplerate`, you'll
+need to update Local/ShakeConfig.hs update the `libsamplerate` field with
+the link and compile flags.
+
+- libsndfile - Standard install, use your package manager or whatever.
 
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 
