@@ -321,11 +321,27 @@ EventTrack::set_track_signal(const TrackSignal &tsig)
 }
 
 
+static float
+get_max_peak(const std::vector<std::shared_ptr<PeakCache::Entry>> &peaks)
+{
+    float max = 0;
+    for (const auto &entry : peaks) {
+        max = std::max(max, entry->max_peak);
+    }
+    return max;
+}
+
+
 void
 EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
     this->peaks.resize(std::max(peaks.size(), size_t(chunknum+1)));
     peaks[chunknum] = PeakCache::get()->load(params);
+    float new_peak = get_max_peak(peaks);
+    if (new_peak != this->max_peak) {
+        this->max_peak = new_peak;
+        this->redraw();
+    }
 }
 
 
@@ -333,6 +349,11 @@ void
 EventTrack::clear_waveforms(int chunknum)
 {
     this->peaks.resize(std::min(peaks.size(), size_t(chunknum)));
+    float new_peak = get_max_peak(peaks);
+    if (new_peak != this->max_peak) {
+        this->max_peak = new_peak;
+        this->redraw();
+    }
 }
 
 
@@ -630,7 +651,7 @@ get_next_start(
 void
 EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
 {
-    const float amplitude_scale = 1 / PeakCache::get()->max_peak();
+    const float amplitude_scale = max_peak == 0 ? 1 : 1 / max_peak;
     if (peaks.empty())
         return;
 

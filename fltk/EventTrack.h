@@ -170,6 +170,14 @@ private:
     // Downsampled waveform peak cache for each chunk, indexed by chunknum.
     std::vector<std::shared_ptr<PeakCache::Entry>> peaks;
 
+    // Keep track of the maximum peak.  I scale peaks automatically because the
+    // the track is narrow so I want to see as much detail as possible, but
+    // I still want to see relative loudness differences.
+    //
+    // I used to have a global peak in PeakCache, but a single block with high
+    // amplitude would make the rest become tiny.
+    float max_peak;
+
     // This only ever displays the text, since as soon as you try to focus on
     // it, 'floating_input' will pop up in front.
     AbbreviatedInput title_input;

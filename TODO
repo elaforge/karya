@@ -1393,9 +1393,10 @@ synth: im:
     waveform display:
       - definitely still buggy, incremental editing gets it in a broken state
         . Deleting notes didn't clear later waveforms.
-      - global peak is buggy in that future loads don't update earlier ones
+      * global peak is buggy in that future loads don't update earlier ones
         . But maybe I don't want it anyway, since a loud track makes every
           other one tiny.
+        . How about per-track peak, and do a redraw if it changed?
       - handle variable tempo
         . I can do this with speeds at regular ScoreTime, or breakpoints at
           regular RealTime.

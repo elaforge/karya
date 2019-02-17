@@ -201,14 +201,6 @@ PeakCache::load(const Params &params)
 
         entry.reset(new PeakCache::Entry(params.start, peaks));
         cache[params] = entry;
-
-        // Update max_peak.
-        this->cache_max_peak = 0;
-        for (const auto &entry : cache) {
-            std::shared_ptr<Entry> p(entry.second.lock());
-            if (p)
-                cache_max_peak = std::max(cache_max_peak, p->max_peak);
-        }
     }
     return entry;
 }

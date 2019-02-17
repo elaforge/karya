@@ -87,10 +87,6 @@ public:
     // Load the file and downsample its peaks.  Use a cached Entry if one is
     // still alive.
     std::shared_ptr<Entry> load(const Params &params);
-    // Keep track of the max value from peaks.  I scale peaks automatically
-    // because the the track is narrow so I want to see as much detail as
-    // possible.
-    float max_peak() const { return cache_max_peak; }
 
 private:
     // C++ isn't done being a pain yet!  I can't specialize std::hash because
@@ -99,5 +95,4 @@ private:
         size_t operator()(const Params &p) const { return p.hash(); }
     };
     std::unordered_map<Params, std::weak_ptr<Entry>, HashParams> cache;
-    float cache_max_peak;
 };
