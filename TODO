@@ -29,7 +29,9 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - use LTuning.nrpn for gong-kebyar patch and allocations
+  * use LTuning.nrpn for gong-kebyar patch and allocations
+    . Ok, but as long as I'm using *legong, it's still more convenient to load
+      the hardcoded one.
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
       a playable instrument.
@@ -61,8 +63,8 @@ UNSORTED
     . It actually renders, then when I click it crashes, and creates an
       infinite sized core dump, just hidden in /cores (? the other one was
       1tb).  The huge size is likely due to ghc's allocation strategy.
-    - Does it happen on linux?
-    - Does it happen on the other mac?
+    * Does it happen on linux?  nope.
+    * Does it happen on the other mac? nope
     + Try compiling with -debug.
       . With -DS it becomes a segfault.
       . With -Di -Dw it doesn't crash.
@@ -548,7 +550,6 @@ UNSORTED
   - Perf.lookup_instrument on a pitch track could look at its note track.
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
     I have a warning for when a non-inverting call has a note track below it?
-
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two

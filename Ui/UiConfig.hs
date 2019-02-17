@@ -217,6 +217,11 @@ is_im_allocation alloc = case alloc_backend alloc of
     Im -> True
     _ -> False
 
+is_midi_allocation :: Allocation -> Bool
+is_midi_allocation alloc = case alloc_backend alloc of
+    Midi {} -> True
+    _ -> False
+
 -- | Backend-specific config.  This should match the 'Inst.Backend' of the
 -- instrument in question, ensured by 'verify_allocation'.
 --

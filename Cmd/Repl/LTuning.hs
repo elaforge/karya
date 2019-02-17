@@ -10,9 +10,17 @@
     > LTuning.write_ksp (Just "wayang") "charu.ksp"
     >       =<< LTuning.scale True "raga" "key=charukesi"
 
+    nrpn tuning is a lot less hassle than copy pasting KSP everywhere:
+
+    > LTuning.nrpn "pemade" =<< LTuning.selection True
+
     Don't forget to set the score to the same scale or things will sound
     confusing.  Also, reaper won't receive sysex on a track unless you set it
     to receive all channels.
+
+    To retune all instruments that do tuning via either 'nrpn' or 'realtime':
+
+    > LTuning.retune =<< LTuning.selection True
 -}
 module Cmd.Repl.LTuning where
 import qualified Data.Maybe as Maybe
@@ -132,6 +140,16 @@ all_inputs =
     [(key, InputNote.nn_to_input (Midi.from_key key)) | key <- [0..127]]
 
 -- * retune
+
+-- | All instruments with initialization get the new scale.
+retune :: Cmd.M m => Patch.Scale -> m [Util.Instrument]
+retune scale = do
+    insts <- LInst.list_midi
+    flags <- mapM (LInst.init_flags . Util.instrument) insts
+    fmap concat $ forM (zip insts flags) $ \(inst, inits) -> if
+        | Set.member Patch.Tuning inits -> realtime inst scale >> return [inst]
+        | Set.member Patch.NrpnTuning inits -> nrpn inst scale >> return [inst]
+        | otherwise -> return []
 
 -- | Show tuning map for debugging.
 get_tuning :: Cmd.M m => Util.Instrument -> Patch.Scale -> m Text

@@ -68,6 +68,16 @@ allocated = Ui.get_config $ Map.keys . (UiConfig.allocations_map #$)
 list :: Cmd.M m => m Text
 list = list_like ""
 
+list_midi :: Cmd.M m => m [Instrument]
+list_midi = do
+    alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
+    return
+        [ Score.instrument_name inst
+        | (inst, alloc) <- Map.toAscList alloc_map
+        , UiConfig.is_midi_allocation alloc
+        ]
+
+
 -- | Pretty print matching instruments:
 --
 -- > >pno - pianoteq/ loop1 [0..15]
@@ -502,10 +512,15 @@ initialize_all = mapM_ initialize_inst =<< allocated
 need_initialization :: Ui.M m => m Text
 need_initialization = fmap Text.unlines . mapMaybeM show1 =<< allocated
     where
-    show1 inst = justm (lookup_midi_config inst) $ \(_, _, config) -> do
-        let inits = Patch.config_initialization config
+    show1 inst = do
+        inits <- init_flags inst
         return $ if null inits then Nothing
             else Just $ pretty inst <> ": " <> pretty inits
+
+init_flags :: Ui.M m => Score.Instrument -> m (Set Patch.Initialization)
+init_flags inst = lookup_midi_config inst >>= return . \case
+    Nothing -> mempty
+    Just (_, _, config) -> Patch.config_initialization config
 
 -- | Initialize an instrument according to its 'Patch.config_initialization'.
 initialize_inst :: Cmd.M m => Score.Instrument -> m ()

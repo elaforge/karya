@@ -186,6 +186,8 @@ pitch_bend_range range = rpn (0, 0) (semitones, cents) ++ cancel_rpn
     source and destination NoteNumbers into separate NRPN numbers because
     msb and lsb arrive separately, so they pretty much have to be used as
     msb and lsb of a single number.
+
+    The KSP for this is User/Elaforge/Instrument/Kontakt/ksp/nrpn_tuning.ksp.
 -}
 nrpn_tuning :: [(Key, NoteNumber)] -> [ChannelMessage]
 nrpn_tuning = concatMap retune_key
