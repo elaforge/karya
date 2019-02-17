@@ -510,7 +510,14 @@ makePlayCacheBinary name main objs = (C.binary name [])
     , C.binLibraries = const $
         [ libsndfile
         , C.library "lo"
-        , libsamplerate
+        , case Util.platform of
+            -- This is the system libsamplerate, not the hacked static one at
+            -- 'libsamplerate'.  The reason is that linux doesn't like to put
+            -- a .a lib in .so, its wants to recompile with -fPIC.  In any
+            -- case, play_cache doesn't need hacked libsamplerate.
+            Util.Linux -> C.library "samplerate"
+            -- Meanwhile OS X doesn't seem to care, so just use the same one.
+            Util.Mac -> libsamplerate
         ] ++ [C.library "pthread" | Util.platform == Util.Linux]
     }
 

@@ -106,7 +106,7 @@ period_at(const std::vector<double> &ratios, sf_count_t frame)
     if (ratios.empty()) {
         return 1;
     }
-    int i = floor(frame / double(frames_per_ratio));
+    size_t i = floor(frame / double(frames_per_ratio));
     double frac = fmod(frame / double(frames_per_ratio), 1);
     if (i < ratios.size()-1) {
         double r1 = ratios[i], r2 = ratios[i+1];
