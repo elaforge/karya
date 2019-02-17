@@ -502,5 +502,6 @@ empty_performance = Cmd.Performance
     , perf_damage = mempty
     , perf_warps = []
     , perf_track_signals = mempty
+    , perf_block_deps = mempty
     , perf_ui_state = Ui.empty
     }
