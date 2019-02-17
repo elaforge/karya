@@ -167,11 +167,8 @@ mkNote dbDir start dur nn = Sample.Note
         Note.note "patch" "inst" (AUtil.toSeconds start) (AUtil.toSeconds dur)
     , sample = if null dbDir
         then Left "no patch"
-        else Right $ Sample.Sample
-            { filename = triFilename dbDir
-            , offset = 0
-            , envelope = Signal.constant 1
-            , ratio = Signal.constant $
+        else Right $ (Sample.make (triFilename dbDir))
+            { Sample.ratio = Signal.constant $
                 Sample.pitchToRatio (Pitch.nn_to_hz NN.c4) nn
             }
     }

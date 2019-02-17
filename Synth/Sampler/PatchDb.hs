@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Instrument.Inst as Inst
+import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.KendangBali as KendangBali
 import qualified Synth.Sampler.Patch.Mridangam as Mridangam
@@ -36,7 +37,10 @@ synth = Inst.SynthDecl Config.samplerName "音 sampler" $
     map (second make) (Map.toList (Patch._patches db))
     where
     make (Patch.DbPatch p) = Inst.Inst
-        { inst_backend = Inst.Im patch
+        { inst_backend = Inst.Im $ patch
+            { Im.Patch.patch_controls = Im.Patch.patch_controls patch
+                <> Patch.standardControls
+            }
         , inst_common = ImInst.make_code <$> common
         }
         where ImInst.Patch patch common = Patch._karyaPatch p

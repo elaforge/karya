@@ -108,11 +108,9 @@ convert tuning note = do
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     (filenames, noteNn, sampleNn) <- tryRight $
         toFilename tuning art symPitch dyn (Note.duration note)
-    return $ Sample.Sample
-        { filename = Util.chooseVariation filenames note
-        , offset = 0
+    return $ (Sample.make (Util.chooseVariation filenames note))
         -- TODO duplicate from Wayang
-        , envelope = if
+        { Sample.envelope = if
             | isMute art -> Signal.constant dynVal
             | variableMute > 0 -> Signal.from_pairs
                 [ (Note.start note, dynVal)
@@ -123,7 +121,7 @@ convert tuning note = do
                 [ (Note.start note, dynVal), (Note.end note, dynVal)
                 , (Note.end note + muteTime, 0)
                 ]
-        , ratio = Signal.constant $
+        , Sample.ratio = Signal.constant $
             Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
         }
 

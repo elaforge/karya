@@ -27,6 +27,7 @@ module Util.Audio.Audio (
     , fromSamples, fromSampleLists, toSamples
     -- * transform
     , take, mapSamples, gain, multiply
+    , pan, panConstant
     -- * mix
     , mix
     , zipWithN
@@ -74,6 +75,8 @@ import qualified Util.Control as Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
+import qualified Util.Test.ApproxEq as ApproxEq
+
 import Global
 
 
@@ -225,6 +228,38 @@ multiply audio1 audio2 =
         Right ((_, Nothing), _) -> Left ()
         -- Since they have the same channels, there's no need to deinterleave.
         Right ((Just a1, Just a2), audio) -> Right (V.zipWith (*) a1 a2, audio)
+
+-- | Pan a stereo signal with a mono one.  The pan signal goes from -1 to 1.
+--
+-- TODO This is linear panning, try constant power or -4.5dB:
+-- http://www.cs.cmu.edu/~music/icm-online/readings/panlaws/
+pan :: Monad m => Audio m rate 1 -> Audio m rate 2 -> Audio m rate 2
+pan pos audio = Audio $ S.unfoldr (fmap merge . S.next) $ synchronize pos audio
+    where
+    merge = \case
+        Left () -> Left ()
+        Right ((Nothing, _), _) -> Left ()
+        Right ((_, Nothing), _) -> Left ()
+        Right ((Just pos, Just stereo), audio) -> Right
+            ( interleaveV
+                [ V.zipWith (*) (V.map ((2-) . (+1)) pos) left
+                , V.zipWith (*) (V.map (+1) pos) right
+                ]
+            , audio
+            )
+            where [left, right] = deinterleaveV 2 stereo
+
+-- | Like 'pan', but more efficient.  TODO also linear pan, as in 'pan'.
+panConstant :: Monad m => Sample -> Audio m rate 2 -> Audio m rate 2
+panConstant pos
+    | ApproxEq.eq 0.01 pos 0 = id
+    | otherwise = Audio . S.map pan . _stream
+    where
+    pan stereo = interleaveV
+        [ V.map (* (2 - (pos+1))) left
+        , V.map (* (pos+1)) right
+        ]
+        where [left, right] = deinterleaveV 2 stereo
 
 -- * mix
 

@@ -103,14 +103,12 @@ convert note = do
                 (articulationSamples articulation) dynVal var
     noteNn <- Util.initialPitch note
     let noteDyn = Num.scale minDyn maxDyn dynVal
-    return $ Sample.Sample
-        { filename = filename
-        , offset = 0
-        , envelope = Signal.from_pairs
+    return $ (Sample.make filename)
+        { Sample.envelope = Signal.from_pairs
             [ (Note.start note, noteDyn), (Note.end note, noteDyn)
             , (Note.end note + muteTime, 0)
             ]
-        , ratio = Signal.constant $
+        , Sample.ratio = Signal.constant $
             Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
         }
 

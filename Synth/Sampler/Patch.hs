@@ -80,11 +80,9 @@ simple name filename sampleNn = (patch name)
     { _convert = \note -> do
         pitch <- tryJust "no pitch" $ Note.initialPitch note
         dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note
-        return $ Sample.Sample
-            { filename = filename
-            , offset = 0
-            , envelope = Signal.constant dyn
-            , ratio = Signal.constant $
+        return $ (Sample.make filename)
+            { Sample.envelope = Signal.constant dyn
+            , Sample.ratio = Signal.constant $
                 Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) pitch
             }
     , _karyaPatch = ImInst.make_patch $ Im.Patch.patch
@@ -96,7 +94,25 @@ type ConvertM a = Log.LogT (Except.ExceptT Error Identity.Identity) a
 type Error = Text
 
 convert :: Patch -> Note.Note -> Either Error (Sample.Sample, [Log.Msg])
-convert note = runConvert . _convert note
+convert patch note =
+    first (applyStandard note) <$> runConvert (_convert patch note)
 
 runConvert :: ConvertM a -> Either Error (a, [Log.Msg])
 runConvert = Identity.runIdentity . Except.runExceptT . Log.run
+
+-- | Apply standard controls that all patches support.
+applyStandard :: Note.Note -> Sample.Sample -> Sample.Sample
+applyStandard note =
+    apply Control.volume (\sig sample -> sample
+        { Sample.envelope = Signal.sig_multiply sig (Sample.envelope sample) })
+    . apply Control.pan (\sig sample -> sample
+        { Sample.pan = Signal.sig_add sig (Sample.pan sample) })
+    where
+    apply c set = maybe id set (Map.lookup c (Note.controls note))
+
+
+standardControls :: Map Control.Control Text
+standardControls = Map.fromList
+    [ (Control.volume, "Low level volume, in dB.")
+    , (Control.pan, "Pan, where -1 is left, and 1 is right.")
+    ]

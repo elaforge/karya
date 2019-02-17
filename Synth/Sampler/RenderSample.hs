@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds, KindSignatures, TypeOperators, TypeApplications #-}
 -- | Low level rendering of 'Sample.Sample's.
 module Synth.Sampler.RenderSample (
     render
@@ -32,11 +33,13 @@ import Synth.Types
 
 
 render :: Resample.Config -> RealTime -> Sample.Sample -> AUtil.Audio
-render config start (Sample.Sample filename offset envelope ratio) =
-    applyEnvelope (AUtil.toSeconds now) envelope $
+render config start (Sample.Sample filename offset envelope pan ratio) =
+    applyPan nowS pan $
+    applyEnvelope nowS envelope $
     resample config ratio start $
     File.readFrom (Audio.Frames offset) filename
     where
+    nowS = AUtil.toSeconds now
     now = Resample._now config
 
 resample :: Resample.Config -> Signal.Signal -> RealTime -> AUtil.Audio
@@ -72,12 +75,21 @@ applyEnvelope start sig
     | Just val <- Signal.constant_val_from start sig =
         if ApproxEq.eq 0.01 val 1 then id
             else Audio.gain (AUtil.dbToLinear (Num.d2f val))
-    | otherwise = AUtil.volume $ clipEnd $ Audio.linear $
-        map (first (RealTime.to_seconds . subtract start)) $
-        Signal.clip_before_pairs start sig
+    | otherwise = AUtil.volume $ clipEnd $ realizeSignal start sig
     where
     clipEnd = maybe id (Audio.take . Audio.Seconds . RealTime.to_seconds)
         (envelopeDur start sig)
+
+applyPan :: RealTime -> Signal.Signal -> AUtil.Audio -> AUtil.Audio
+applyPan start sig
+    | Just val <- Signal.constant_val_from start sig =
+        Audio.panConstant (Num.d2f val)
+    | otherwise = Audio.pan (realizeSignal start sig)
+
+realizeSignal :: RealTime -> Signal.Signal -> AUtil.Audio1
+realizeSignal start sig = Audio.linear $
+    map (first (RealTime.to_seconds . subtract start)) $
+    Signal.clip_before_pairs start sig
 
 -- | If the envelope ends on a 0, I can clip the sample short.  Not just for
 -- performance, but because checkpoints rely on the note durations being

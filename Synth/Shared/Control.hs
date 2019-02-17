@@ -45,6 +45,12 @@ volume = "vol"
 minimumDb :: Double
 minimumDb = -96
 
+-- | -1 means pan left, 1 means pan right.  Unlike other controls, the range is
+-- -1 to 1 instead of 0 to 1.  This is so adding signals is the same as adding
+-- pan, and a 0 signal has no effect.
+pan :: Control
+pan = "pan"
+
 -- | Pitch in NoteNumbers.
 pitch :: Control
 pitch = "pitch"

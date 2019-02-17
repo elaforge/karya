@@ -133,14 +133,11 @@ convert tuning note = do
             </> Util.pickDynamicVariation variationRange
                 (getSamples articulation) dynVal var
     let noteDyn = Num.scale minDyn maxDyn dynVal
-    return $ Sample.Sample
-        { filename = filename
-        , offset = 0
-        , envelope = Signal.from_pairs
+    return $ (Sample.make filename)
+        { Sample.envelope = Signal.from_pairs
             [ (Note.start note, noteDyn), (Note.end note, noteDyn)
             , (Note.end note + muteTime, 0)
             ]
-        , ratio = Signal.constant 1
         }
 
 -- | A note may pick a sample of this much dyn difference on either side.

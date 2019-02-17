@@ -130,12 +130,10 @@ checkStarts = (makeSample reference,)
         map (toFilename instrument tuning articulation (Left pitch) dyn)
             [0 .. variationsOf articulation - 1]
     fst3 (a, _, _) = a
-    makeSample fname = Sample.Sample
-        { filename = fname
-        , offset = 0
-        , envelope = Signal.from_pairs
+    makeSample fname = (Sample.make fname)
+        { Sample.envelope = Signal.from_pairs
             [(0, 1), (0 + dur, 1), (0 + dur + muteTime, 0)]
-        , ratio = Signal.constant 1
+        , Sample.ratio = Signal.constant 1
         }
     dur = 1
 
@@ -168,10 +166,8 @@ convert instrument tuning note = do
         <> pretty ((dyn, dynVal), (symPitch, sampleNn), var)
         <> ": " <> txt filename
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
-    return $ Sample.Sample
-        { filename = filename
-        , offset = 0
-        , envelope = if
+    return $ (Sample.make filename)
+        { Sample.envelope = if
             | isMute articulation -> Signal.constant dynVal
             | variableMute > 0 -> Signal.from_pairs
                 [ (Note.start note, dynVal)
@@ -182,7 +178,7 @@ convert instrument tuning note = do
                 [ (Note.start note, dynVal), (Note.end note, dynVal)
                 , (Note.end note + muteTime, 0)
                 ]
-        , ratio = Signal.constant $
+        , Sample.ratio = Signal.constant $
             Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
         }
 

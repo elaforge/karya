@@ -55,9 +55,19 @@ data Sample = Sample {
     -- | The sample ends when it runs out of samples, or when envelope ends
     -- on 0.
     , envelope :: !Signal.Signal
+    , pan :: !Signal.Signal
     -- | Sample rate conversion ratio.  This controls the pitch.
     , ratio :: !Signal.Signal
     } deriving (Show)
+
+make :: SamplePath -> Sample
+make filename = Sample
+    { filename = filename
+    , offset = 0
+    , envelope = Signal.constant 1
+    , pan = Signal.constant 0
+    , ratio = Signal.constant 1
+    }
 
 modifyFilename :: (SamplePath -> SamplePath) -> Sample -> Sample
 modifyFilename modify sample = sample { filename = modify (filename sample) }
@@ -71,16 +81,18 @@ instance Pretty Note where
         ]
 
 instance Pretty Sample where
-    format (Sample filename offset envelope ratio) = Pretty.record "Sample"
+    format (Sample filename offset envelope pan ratio) = Pretty.record "Sample"
         [ ("filename", Pretty.format filename)
         , ("offset", Pretty.format offset)
         , ("envelope", Pretty.format envelope)
+        , ("pan", Pretty.format pan)
         , ("ratio", Pretty.format ratio)
         ]
 
 instance Serialize.Serialize Sample where
-    put (Sample a b c d) =
+    put (Sample a b c d e) =
         Serialize.put a >> Serialize.put b >> Serialize.put c >> Serialize.put d
+        >> Serialize.put e
     get = fail "no get for Sample"
 
 -- | The duration of a note which plays the entire sample.  This should be
