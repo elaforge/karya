@@ -182,10 +182,10 @@ write_current_state :: FilePath -> Cmd.CmdT IO FilePath
 write_current_state fname = do
     fname <- expand_filename fname
     state <- Ui.get
-    ((), _, wall_secs) <- rethrow_io "write_current_state" $
+    ((), metric) <- rethrow_io "write_current_state" $
         Thread.timeAction $ write_state fname state
     Log.notice $ "wrote state to " <> showt fname <> ", took "
-        <> pretty wall_secs
+        <> Thread.showMetric metric
     return fname
 
 write_state :: FilePath -> Ui.State -> IO ()

@@ -261,7 +261,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
     ui_chan <- MVar.newMVar []
     let rstate = make_rstate ui_chan update_chan loopback_chan
             ui_state (set_cmd_state interface) maybe_cmd
-    ((rstate, midi, updates), cpu_secs, _secs) <- Thread.timeAction $ do
+    ((rstate, midi, updates), metric) <- Thread.timeAction $ do
         (_quit, rstate) <- Responder.respond rstate msg
         midi <- get_vals midi_chan
         Thread.force midi
@@ -284,7 +284,7 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
         , result_cmd = cmd_result
         , result_updates = updates
         , result_loopback = loopback_chan
-        , result_time = realToFrac cpu_secs
+        , result_time = realToFrac $ Thread.metricCpu metric
         }
     where
     set_cmd_state interface = cmd_state

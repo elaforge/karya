@@ -9,7 +9,8 @@ module Util.Thread (
     -- * Flag
     , Flag, flag, set, wait, poll
     -- * timing
-    , force, timeAction, timeActionText, printTimer, currentCPU
+    , force, timeAction, timeActionText, printTimer, currentCpu
+    , Metric(..), metric, diffMetric, showMetric
 ) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
@@ -17,8 +18,9 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
-import Data.Monoid ((<>))
+import           Data.Monoid ((<>))
 import qualified Data.Text as Text
+import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
@@ -94,28 +96,21 @@ force x = Exception.evaluate (DeepSeq.rnf x)
 
 -- | Time an IO action in CPU and wall seconds.  Technically not thread
 -- related, but I don't have a better place at the moment.
-timeAction :: Trans.MonadIO m
-    => m a -> m (a, Seconds, Seconds) -- ^ (a, cpu, wall)
+timeAction :: Trans.MonadIO m => m a -> m (a, Metric Seconds)
 timeAction action = do
-    startCpu <- Trans.liftIO CPUTime.getCPUTime
-    start <- Trans.liftIO Time.getCurrentTime
+    start <- Trans.liftIO metric
     !val <- action
-    endCpu <- Trans.liftIO CPUTime.getCPUTime
-    end <- Trans.liftIO Time.getCurrentTime
-    let elapsed = end `Time.diffUTCTime` start
-    return (val, cpuToSec (endCpu - startCpu), elapsed)
+    end <- Trans.liftIO metric
+    return (val, diffMetric start end)
 
 -- | Like 'timeAction', but return a Text msg instead of the values.
-timeActionText :: Trans.MonadIO m => m a -> m (a, Text.Text)
-timeActionText = fmap fmt . timeAction
-    where
-    fmt (val, cpu, wall) = (,) val $ Text.pack $ Printf.printf
-        "%.2f cpu / %.2fs" (toSecs cpu) (toSecs wall)
+timeActionText :: Trans.MonadIO m => m a -> m (a, Text)
+timeActionText = fmap (fmap showMetric) . timeAction
 
 cpuToSec :: Integer -> Seconds
 cpuToSec s = fromIntegral s / fromIntegral (10^12)
 
-printTimer :: Text.Text -> (a -> String) -> IO a -> IO a
+printTimer :: Text -> (a -> String) -> IO a -> IO a
 printTimer msg showVal action = do
     Text.IO.putStr $ msg <> " - "
     IO.hFlush IO.stdout
@@ -133,8 +128,26 @@ printTimer msg showVal action = do
             putStrLn $ "threw exception: " <> show exc
             Exception.throwIO exc
 
-currentCPU :: IO Seconds
-currentCPU = cpuToSec <$> CPUTime.getCPUTime
+currentCpu :: IO Seconds
+currentCpu = cpuToSec <$> CPUTime.getCPUTime
 
 toSecs :: Seconds -> Double
 toSecs = realToFrac
+
+-- * Metric
+
+data Metric time = Metric {
+    metricCpu :: Seconds
+    , metricWall :: time
+    } deriving (Show)
+
+metric :: IO (Metric Time.UTCTime)
+metric = Metric <$> currentCpu <*> Time.getCurrentTime
+
+diffMetric :: Metric Time.UTCTime -> Metric Time.UTCTime -> Metric Seconds
+diffMetric (Metric cpu1 time1) (Metric cpu2 time2) =
+    Metric (cpu2-cpu1) (time2 `Time.diffUTCTime` time1)
+
+showMetric :: Metric Seconds -> Text
+showMetric (Metric cpu wall) =
+    Text.pack $ Printf.printf "%.2f cpu / %.2fs" (toSecs cpu) (toSecs wall)

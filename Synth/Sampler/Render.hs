@@ -25,6 +25,7 @@ import qualified Util.Control as Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
+import qualified Util.Thread as Thread
 
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
@@ -143,27 +144,29 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
     --         map eNote futureNotes)
     playing <- liftIO $
         resumeSamples start quality chunkSize initialStates overlappingStart
-    playing <- renderChunk False start playing overlappingChunk
+    (playing, metric) <- renderChunk Nothing start playing overlappingChunk
         (null futureNotes)
     -- Debug.tracepM "renderChunk playing" playing
-    Control.loop1 (start + chunkSize, playing, futureNotes) $
-        \loop (now, playing, notes) -> unless (null playing && null notes) $ do
-            let (overlappingStart, overlappingChunk, futureNotes) =
-                    overlappingNotes now chunkSize notes
-            -- If notes started in the past, they should already be 'playing'.
-            Audio.assert (null overlappingStart) $
-                "overlappingStart should be []: " <> pretty overlappingStart
-            -- Debug.tracepM "playing, starting, future"
-            --     (now, playing, overlappingChunk, futureNotes)
-            playing <- renderChunk True now playing overlappingChunk
-                (null futureNotes)
-            -- Debug.tracepM "playing, future" (now, playing, futureNotes)
-            loop (now + chunkSize, playing, futureNotes)
+    Control.loop1 (metric, start + chunkSize, playing, futureNotes) $
+        \loop (metric, now, playing, notes) ->
+            unless (null playing && null notes) $ do
+                let (overlappingStart, overlappingChunk, futureNotes) =
+                        overlappingNotes now chunkSize notes
+                -- If notes started in the past, they should already be
+                -- 'playing'.
+                Audio.assert (null overlappingStart) $
+                    "overlappingStart should be []: " <> pretty overlappingStart
+                -- Debug.tracepM "playing, starting, future"
+                --     (now, playing, overlappingChunk, futureNotes)
+                (playing, metric) <- renderChunk (Just metric) now playing
+                    overlappingChunk (null futureNotes)
+                -- Debug.tracepM "playing, future" (now, playing, futureNotes)
+                loop (metric, now + chunkSize, playing, futureNotes)
     where
-    renderChunk renderedPrevChunk now playing overlappingChunk noFuture = do
+    renderChunk prevMetric now playing overlappingChunk noFuture = do
         starting <- liftIO $
             mapM (startSample now quality chunkSize Nothing) overlappingChunk
-        progress renderedPrevChunk now playing starting
+        metric <- progress prevMetric now playing starting
         -- Debug.tracepM "playing, starting"
         --     (AUtil.toSeconds now, playing, starting)
         (blocks, playing) <- lift $ pull chunkSize (playing ++ starting)
@@ -190,24 +193,32 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
             then Audio._stream @_ @Config.SamplingRate $
                 Audio.take (Audio.Frames chunkSize) Audio.silence2
             else S.yield $ Audio.zipWithN (+) (map padZero blocks)
-        return playing
+        return (playing, metric)
     padZero chunk
         | delta > 0 = chunk <> V.replicate (AUtil.framesCount2 delta) 0
         | otherwise = chunk
         where delta = chunkSize - AUtil.blockFrames2 chunk
 
-    progress renderedPrevChunk now playing starting = liftIO $
+    progress prevMetric now playing starting = liftIO $ do
+        metric <- liftIO Thread.metric
+        whenJust prevMetric $ \prev ->
+            Log.notice $ "chunk "
+                <> pretty (AUtil.toSeconds (now-chunkSize)) <> "--"
+                <> pretty (AUtil.toSeconds now)
+                <> ": elapsed: " <> Thread.showMetric
+                (Thread.diffMetric prev metric)
         Config.emitMessage msg $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir
             , _payload = Config.ProgressT $ Config.Progress
-                { _renderedPrevChunk = renderedPrevChunk
+                { _renderedPrevChunk = Maybe.isJust prevMetric
                 , _chunknum = inferChunkNum chunkSize now
                 , _range =
                     (AUtil.toSeconds now, AUtil.toSeconds (now + chunkSize))
                 }
             }
+        return metric
         where
         msg = "voices:" <> showt (length playing) <> "+"
             <> showt (length starting)

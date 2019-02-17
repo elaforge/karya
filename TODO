@@ -1937,6 +1937,22 @@ synth: im:
     bug:
       * after a play speed change, I get some of the old render after the end.
     - stereo placement for patches, or individual samples
+    - It looks like File.readFrom duplicates to 2 channels, but it would be
+      more efficient to do resampling and envelope on the mono signal.
+    * Put in timing metrics, so I can get a report of how much time each stage
+      spends per-chunk.
+      . But put them where?
+      . I want to do the (timestamp, name) style.  I think the most natural
+        thing is to stream them with the audio stream.  Maybe chunks now
+        become something like LEvent, with a custom payload, but I'd want at
+        least metrics.
+      . Like LEvent, I'll have to do some basic combinators, like map etc.
+        that skip the logs.
+      . Is it so much better than, say, just doing end-to-end timing by hand?
+        Maybe it will become more valuable, as the processing gets more
+        complicated.  But faust will always be a black box, and in fact,
+        I'd like to avoid having more thane 2 or 3 "ugens" in haskell.
+      . At least I can log final time for each chunk.
     non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict

@@ -121,10 +121,10 @@ timed_lilypond fname ui_state cmd_state block_id = case result of
     config = Ui.config#Ui.lilypond #$ ui_state
     boring = Cache.is_cache_log
 
-timer_msg :: (a -> Int) -> CPU -> Thread.Seconds -> a -> String
-timer_msg len cpu_secs secs events =
+timer_msg :: (a -> Int) -> Thread.Metric Thread.Seconds -> a -> String
+timer_msg len (Thread.Metric cpu_secs wall_secs) events =
     Printf.printf "events: %d (%d / cpu, %d / sec)"
-        events_len (per cpu_secs) (per secs)
+        events_len (per cpu_secs) (per wall_secs)
     where
     events_len = len events
     per :: Thread.Seconds -> Int
@@ -161,7 +161,7 @@ add_library builtins aliases state =
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: FilePath
     -> IO (Either Text (Ui.State, Derive.Builtins, Derive.InstrumentAliases))
-load_score fname = fmap fst $ time ("load " <> txt fname) (\_ _ _ -> "") $
+load_score fname = fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $
     Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of
@@ -212,7 +212,8 @@ type CPU = Thread.Seconds
 
 -- TODO this is mostly duplicated with Thread.printTimer, except I use
 -- the timing info in the msg.
-time :: Text -> (CPU -> Thread.Seconds -> a -> String) -> IO a -> IO (a, CPU)
+time :: Text -> (Thread.Metric Thread.Seconds -> a -> String) -> IO a
+    -> IO (a, CPU)
 time msg show_val op = do
     Text.IO.putStr $ msg <> " - "
     IO.hFlush IO.stdout
@@ -220,11 +221,9 @@ time msg show_val op = do
         !val <- op
         return val
     case result of
-        Right (val, cpu_secs, secs) -> do
-            Printf.printf "time: %.2fs cpu %.2fs wall - %s\n"
-                (toSecs cpu_secs) (toSecs secs)
-                (show_val cpu_secs secs val)
-            return (val, cpu_secs)
+        Right (val, metric) -> do
+            putStrLn $ show_val metric val
+            return (val, Thread.metricCpu metric)
         Left (exc :: Exception.SomeException) -> do
             -- Complete the line so the exception doesn't interrupt it.  This
             -- is important if it's a 'failure' line!

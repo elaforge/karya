@@ -27,7 +27,6 @@ import qualified Data.Vector as Vector
 import qualified System.IO as IO
 
 import qualified Util.Control as Control
-import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Process
@@ -257,11 +256,10 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     Thread.delay wait
     send_status block_id Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
-    ((), cpu_secs, wall_secs) <- Thread.timeAction $
-        return $! Msg.force_performance perf
-    when (wall_secs > 1) $
+    ((), metric) <- Thread.timeAction $ return $! Msg.force_performance perf
+    when (Thread.metricWall metric > 1) $
         Log.notice $ "derived " <> showt block_id <> " in "
-            <> pretty cpu_secs <> " cpu, " <> pretty wall_secs <> " wall"
+            <> Thread.showMetric metric
     (procs, events) <-  case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
         Just config -> evaluate_im config lookup_inst score_path
@@ -375,8 +373,8 @@ make_progress inv_tempo wants_waveform im_dir score_path
         -- ratio=2 means half as long.  So 2s -> 1t is 2/1
         let ratio = fromIntegral Config.chunkSeconds
                 / ScoreTime.to_double (end - start)
-        Debug.tracepM "start, ratio"
-            ((time_at chunknum, time_at (chunknum+1)), (start, end), ratio)
+        -- Debug.tracepM "start, ratio"
+        --     ((time_at chunknum, time_at (chunknum+1)), (start, end), ratio)
         return $ Track.WaveformChunk
             { _filename = Config.chunkPath im_dir score_path block_id
                 instrument chunknum
