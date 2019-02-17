@@ -15,7 +15,7 @@ data ExternalLibrary = ExternalLibrary {
     -- | Add to the link line, e.g. ["-L/path/to/lib", "-lthing"] or
     -- ["/path/to/libthing.a"].
     libLink :: [Flag]
-    -- | Add to the compile line, e.g. [-I/path/to/include].
+    -- | Add to the compile line, e.g. ["-I/path/to/include"].
     , libCompile :: [Flag]
     } deriving (Show)
 

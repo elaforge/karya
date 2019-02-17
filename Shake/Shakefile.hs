@@ -663,9 +663,14 @@ configure = do
             , define flags
             , Config.extraDefines localConfig
             ]
-        , cInclude = map ("-I"<>) $
-            [".", "" ++ modeToDir mode, "fltk"]
-            ++ Config.globalIncludes localConfig
+        , cInclude =
+            map ("-I"<>) [".", "" ++ modeToDir mode, "fltk"]
+            -- Put this first to make sure I don't see the system header.
+            -- TODO this breaks the idea of modular libraries, but the haskell
+            -- flags really have to be global, because any difference in CPP
+            -- flags causes ghc to not want to load .o files.
+            ++ concat [C.libCompile libsamplerate | Config.enableIm localConfig]
+            ++ map ("-I"<>) (Config.globalIncludes localConfig)
         , cLibDirs = map ("-L"<>) $ Config.globalLibDirs localConfig
         , hcFlags = concat
             -- This is necessary for ghci loading to work in 7.8.
@@ -1457,11 +1462,7 @@ compileHs packages config hs =
     ( "GHC " <> show (buildMode config)
     , hs
     , ghcBinary : "-c" : concat
-        [ if not (Config.enableIm localConfig) then []
-            else C.libCompile libsamplerate
-            -- Put this first to make sure I don't see the system header.
-        , ghcFlags config
-        , hcFlags (configFlags config)
+        [ ghcFlags config, hcFlags (configFlags config)
         , packageFlags (configFlags config) packages, mainIs
         , [hs, "-o", srcToObj config hs]
         ]
