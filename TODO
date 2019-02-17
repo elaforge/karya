@@ -68,6 +68,8 @@ UNSORTED
       . With -Di -Dw it doesn't crash.
     - Try using gdb.  Compile with -g, though it could be in c++.
       . Need to install gdb.
+      . Need to do a giant runaround to sign the binary:
+        https://ghc.haskell.org/trac/ghc/wiki/Debugging/CompiledCode
     - Could it be due to out of date callback foreign ptrs?
       . I could debug that by not calling them.
   - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
@@ -1388,6 +1390,20 @@ synth: im:
       . The correspondence isn't obvious, and the color looks different anyway
         due to being transparent.
     waveform display:
+      - definitely still buggy, incremental editing gets it in a broken state
+        . Deleting notes didn't clear later waveforms.
+      - global peak is buggy in that future loads don't update earlier ones
+        . But maybe I don't want it anyway, since a loud track makes every
+          other one tiny.
+      - handle variable tempo
+        . I can do this with speeds at regular ScoreTime, or breakpoints at
+          regular RealTime.
+        . Speeds seems nice because it's ScoreTime resolution, which is what
+          I want.  Also it doesn't care how long the chunk is supposed to be.
+        . On the other hand, ScoreTime is totally arbitrary.  If I choose
+          0.25t, it will be too low if a note is shorter than that.  RealTime
+          determines where I'm likely to have zoom set.
+        . Can I detect constant tempo and only emit one point?
       . More fancy, I could render the wave in the background as it renders.
         I'd need to research "peaks" file and generate one of those along with
         the audio.
@@ -1408,7 +1424,7 @@ synth: im:
         * The first progress has to clear chunks after it, fltk:
           clear_track_waveform(tracknum, start_chunknum)
         * Check if the track wants to draw a waveform.
-        - Map the chunk time to shift, and an array of breakpoints for zoom
+        . Map the chunk time to shift, and an array of breakpoints for zoom
           ratio.  The ratios are at a constant interval, and if they run out,
           keep that ratio.  That way a constant (shift, stretch) is efficient.
         . Call fltk: set_track_waveform(tracknum, 0, "000.wav", shift, ratios)
@@ -2396,9 +2412,11 @@ shakefile: build:
       get the right samplerate.h.
     * Also Shake.Config.globalIncludes and globalLibDirs don't apply to
       haskell builds.
-    - Even with the hacked libsamplerate, on linux I still get undefined
+    * Even with the hacked libsamplerate, on linux I still get undefined
       reference to 'src_put_state'.  There must be something different about
-      linux from os x.
+      linux from os x.  It's not just my functions, src_new is there too.
+      . Turns out this is just link line order, I guess clang ld is not so
+        fussy.
   . It's a pain to propagate all the bits of config around.
     . blaze gets around by using string deps and putting in a lookup step.
     . I could use Reader Config, but then it all becomes monadic.

@@ -1472,10 +1472,7 @@ linkHs config rtsFlags output packages objs =
     ( "LD-HS"
     , output
     , ghcBinary : concat
-        [ C.libLink (_libfltk (cLibs config))
-        , midiLd flags
-        , if not (Config.enableIm localConfig) then []
-            else C.libLink libsamplerate
+        [ midiLd flags
         , hLinkFlags flags
         , ["-with-rtsopts=" <> unwords rtsFlags | not (null rtsFlags)]
         , ["-lstdc++"], packageFlags flags packages, objs
@@ -1485,6 +1482,10 @@ linkHs config rtsFlags output packages objs =
             [ ["-optl", "-w"]
             | "clang-1000.10.44" `List.isInfixOf` ccVersion config
             ]
+        -- Libs have to go last, or traditional unix ld can't see them.
+        , C.libLink (_libfltk (cLibs config))
+        , if not (Config.enableIm localConfig) then []
+            else C.libLink libsamplerate
         , ["-o", output]
         ]
     )
