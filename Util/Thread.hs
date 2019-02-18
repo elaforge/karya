@@ -9,7 +9,9 @@ module Util.Thread (
     -- * Flag
     , Flag, flag, set, wait, poll
     -- * timing
-    , force, timeAction, timeActionText, printTimer, currentCpu
+    , force, timeAction, timeActionText
+    , printTimer, printTimer_, printTimerVal
+    , currentCpu
     , Metric(..), metric, diffMetric, showMetric
 ) where
 import qualified Control.Concurrent as Concurrent
@@ -127,6 +129,16 @@ printTimer msg showVal action = do
             -- is important if it's a 'failure' line!
             putStrLn $ "threw exception: " <> show exc
             Exception.throwIO exc
+
+printTimer_ :: Trans.MonadIO m => Text -> m a -> m a
+printTimer_ msg action = do
+    (a, metric) <- timeAction action
+    Trans.liftIO $ Text.IO.hPutStrLn IO.stderr $
+        msg <> ": " <> showMetric metric
+    return a
+
+printTimerVal :: (DeepSeq.NFData a, Trans.MonadIO m) => Text -> a -> m a
+printTimerVal msg val = printTimer_ msg $ return $ DeepSeq.rnf val `seq` val
 
 currentCpu :: IO Seconds
 currentCpu = cpuToSec <$> CPUTime.getCPUTime

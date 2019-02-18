@@ -1393,6 +1393,7 @@ synth: im:
     waveform display:
       - definitely still buggy, incremental editing gets it in a broken state
         . Deleting notes didn't clear later waveforms.
+        . A cache hit doesn't reset waveforms, when they have changed.
       * global peak is buggy in that future loads don't update earlier ones
         . But maybe I don't want it anyway, since a loud track makes every
           other one tiny.
@@ -1945,6 +1946,33 @@ synth: im:
       . But the patch might set it too, so I have to apply after that.
     - It looks like File.readFrom duplicates to 2 channels, but it would be
       more efficient to do resampling and envelope on the mono signal.
+      . before:
+        15.44s user 2.48s system 334% cpu 5.356 total
+        15.92s user 2.50s system 339% cpu 5.427 total
+      . after:
+        23.07s user 2.87s system 403% cpu 6.423 total
+        23.09s user 2.92s system 405% cpu 6.410 total
+      . It takes longer!?
+        Before: 97 chunks, 20000 each, 1.01s, usually around 0.012
+        After: 191 chunks, 5000 each, 1.32s, usually around 0.005
+      . So I get hurt by more smaller chunks, but also most time is not
+        resampling!
+      . Why are chunks smaller?  They are 1/4, I expect 1/2.
+      . Actually, why am I resampling at all?  Aren't I using symbolic pitch?
+      . Mostly I'm not, time is all in mixing?
+      . Time is the same without pan and envelope.
+    sampler profiling:
+      times:
+        . original: 4.789
+        . mixN:     3.035
+        . mix in C: 2.569
+      . half time in pull (file read?), half time in mix
+      . 176400 frames *2 chan * 4 bytes = 1378k per block.  43 blocks is 57mb!
+      - why are there 43 voices in the example?  I expect 3 plus a few!
+        . Maybe envelope isn't cutting them off?
+      * lots of time spent mixing, and for blocks smaller than the chunk size
+        . Maybe zipWithN could be more efficient, and also not require
+          padZero.
     * Put in timing metrics, so I can get a report of how much time each stage
       spends per-chunk.
       . But put them where?

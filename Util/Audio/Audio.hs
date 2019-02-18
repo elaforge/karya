@@ -30,7 +30,7 @@ module Util.Audio.Audio (
     , pan, panConstant
     -- * mix
     , mix
-    , zipWithN
+    , mixV
     -- * channels
     , mergeChannels, extractChannel
     , expandChannels, expandV
@@ -65,7 +65,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
 import qualified GHC.TypeLits as TypeLits
-import GHC.TypeLits (KnownNat)
+import           GHC.TypeLits (KnownNat)
 import qualified GHC.Stack as Stack
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
@@ -76,6 +76,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.Test.ApproxEq as ApproxEq
+import qualified Util.VectorC as VectorC
 
 import Global
 
@@ -280,7 +281,7 @@ mix = Audio . S.map merge . synchronizeBlocks . map pad
             count : _ -> V.replicate count 0
             -- 'synchronizeBlocks' shouldn't emit empty blocks.
             [] -> V.empty
-        | otherwise = zipWithN (+) vs
+        | otherwise = mixV 0 vs
         where vs = [v | Block v <- blocks]
     chan = Proxy :: Proxy chan
     rate = natVal (Proxy :: Proxy rate)
@@ -298,15 +299,10 @@ blockCount :: Block -> Count
 blockCount (Block v) = V.length v
 blockCount (Silence c) = c
 
-zipWithN :: V.Storable a => (a -> a -> a) -> [V.Vector a] -> V.Vector a
-zipWithN f vs = case vs of
-    [] -> V.empty
-    [v1] -> v1
-    [v1, v2] -> V.zipWith f v1 v2
-    v1 : v2 : vs -> V.zipWith f (V.zipWith f v1 v2) (zipWithN f vs)
-    -- TODO is this actually efficient?  I'm not sure how nested zipWiths fuse.
-    -- Otherwise, I could construct a new 'f' and zipWith4 etc. on that.
-    -- Or split in halves and make a balanced tree.
+-- | Add vectors of samples.  The output will be the max of the longest vector
+-- and the provided minimum length.
+mixV :: Int -> [V.Vector Sample] -> V.Vector Sample
+mixV = VectorC.mixFloats
 
 -- | Synchronize block size for all streams: pull from each one, then split
 -- each to the shortest one.
@@ -378,7 +374,7 @@ mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate chan -> Audio m rate 1
 mixChannels (Audio audio) = Audio $ S.map mix audio
     where
-    mix = zipWithN (+) . deinterleaveV chan
+    mix = mixV 0 . deinterleaveV chan
     chan = natVal (Proxy @chan)
 
 deinterleaveV :: V.Storable a => Channels -> V.Vector a -> [V.Vector a]

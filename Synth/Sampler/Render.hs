@@ -169,7 +169,8 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
         metric <- progress prevMetric now playing starting
         -- Debug.tracepM "playing, starting"
         --     (AUtil.toSeconds now, playing, starting)
-        (blocks, playing) <- lift $ pull chunkSize (playing ++ starting)
+        (blocks, playing) <- Thread.printTimer_ "pull" $
+            lift $ pull chunkSize (playing ++ starting)
         -- Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
         -- Record playing states for the start of the next chunk.
         -- liftIO $ Debug.tracepM "save states" . (now,) =<<
@@ -179,8 +180,10 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
         Audio.assert (null playingTooLong) $
             "notes still playing at " <> prettyF now <> ": "
             <> pretty playingTooLong
-        liftIO $ notifyState . serializeStates
+        liftIO $ Thread.printTimer_ "notifyState" $
+            notifyState . serializeStates
             =<< mapM _getState (Seq.sort_on _noteHash playing)
+        liftIO $ putStrLn $ "blocks: " <> show (map V.length blocks)
         Audio.assert (all ((<=chunkSize) . AUtil.blockFrames2) blocks) $
             "chunk was >" <> pretty chunkSize <> ": "
             <> pretty (map AUtil.blockFrames2 blocks)
@@ -191,13 +194,12 @@ render outputDir chunkSize quality initialStates notifyState trackIds notes
             -- Since I'm inside Audio.Audio, I don't have srate available, so
             -- I have to set it for Audio.silence2.
             then Audio._stream @_ @Config.SamplingRate $
-                Audio.take (Audio.Frames chunkSize) Audio.silence2
-            else S.yield $ Audio.zipWithN (+) (map padZero blocks)
+                Audio.take (Audio.Frames chunkSize) (Audio.silence @_ @2)
+            else do
+                mixed <- Thread.printTimerVal "mixC" $
+                    Audio.mixV (AUtil.framesCount2 chunkSize) blocks
+                S.yield mixed
         return (playing, metric)
-    padZero chunk
-        | delta > 0 = chunk <> V.replicate (AUtil.framesCount2 delta) 0
-        | otherwise = chunk
-        where delta = chunkSize - AUtil.blockFrames2 chunk
 
     progress prevMetric now playing starting = liftIO $ do
         metric <- liftIO Thread.metric

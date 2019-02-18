@@ -422,6 +422,7 @@ hsToCc = Map.fromList $
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
     , ("Synth/Faust/DriverC.hs",
         map ("Synth/Faust"</>) ["driver.cc", "Patch.cc"])
+    , ("Util/VectorC.hs", ["Util/vectorc.cc"])
     ] ++
     [ (hsc, ["Ui/c_interface.cc"])
     | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
