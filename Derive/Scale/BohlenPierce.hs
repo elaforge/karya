@@ -5,7 +5,7 @@
 module Derive.Scale.BohlenPierce where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
-import Data.Ratio ((%))
+import           Data.Ratio ((%))
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
@@ -22,7 +22,8 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -151,7 +152,7 @@ pc_per_octave :: Pitch.PitchClass
 pc_per_octave = length lambda_intervals
 
 semis_per_octave :: Int
-semis_per_octave = sum lambda_intervals
+semis_per_octave = Num.sum lambda_intervals
 
 all_keys :: ChromaticScales.Keys
 all_keys = ChromaticScales.make_keys absolute_fmt $

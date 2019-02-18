@@ -7,7 +7,9 @@ module Solkattu.Tala where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Global
+import qualified Util.Num as Num
+
+import           Global
 
 
 -- | An akshara is one count of the talam.
@@ -33,7 +35,7 @@ tala_angas :: Tala -> [Akshara]
 tala_angas tala = map (anga_aksharas (_jati tala)) (_angas tala)
 
 tala_aksharas :: Tala -> Akshara
-tala_aksharas = sum . tala_angas
+tala_aksharas = Num.sum . tala_angas
 
 tala_labels :: Tala -> [Text]
 tala_labels tala = concatMap (anga_labels (_jati tala)) (_angas tala)

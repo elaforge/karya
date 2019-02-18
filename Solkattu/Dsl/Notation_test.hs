@@ -7,17 +7,19 @@
 module Solkattu.Dsl.Notation_test where
 import qualified Data.Tuple as Tuple
 
+import qualified Util.Num as Num
 import qualified Solkattu.Dsl.Solkattu as G
-import Solkattu.Dsl.Solkattu (su, sd, __, di, ta, ka, ki, taka, din, gin, na)
+import           Solkattu.Dsl.Solkattu
+       (__, di, din, gin, ka, ki, na, sd, su, ta, taka)
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Solkattu.Dsl.Notation
-import Util.Test
+import           Global
+import           Solkattu.Dsl.Notation
+import           Util.Test
 
 
 -- Many of the Notation functions are indirectly tested in Realize_test.
@@ -56,7 +58,7 @@ test_takeDrop = do
     equal (extract $ dropM_ 2 (takeM 2 tdgn)) []
 
 test_spaceM = do
-    let f = sum . map (S.noteFMatra S.defaultTempo) . spaceM Solkattu.Rest
+    let f = Num.sum . map (S.noteFMatra S.defaultTempo) . spaceM Solkattu.Rest
     equal (f 0) 0
     equal (f 1) 1
     equal (f 3) 3

@@ -334,7 +334,7 @@ multiplicative =
         dur = T.Time $ case mb_int2 of
             Nothing -> 1 / fromIntegral int1
             Just int2 -> fromIntegral int1 / fromIntegral int2
-        dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
+        dot_dur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
     carry Nothing Nothing = State.get
     carry Nothing (Just int2) = return (int2, Nothing)
     carry (Just int1) mb_int2 = return (int1, mb_int2)
@@ -349,7 +349,7 @@ additive = flip State.evalState (1, 4) . rmap_e (map_duration carry time_of)
     time_of int1 int2 dots = dur + dot_dur
         where
         dur = fromIntegral int1 / fromIntegral int2
-        dot_dur = sum $ take dots $ drop 1 $ iterate (/2) dur
+        dot_dur = Num.sum $ take dots $ drop 1 $ iterate (/2) dur
     carry int1 int2 = do
         (p_int1, p_int2) <- State.get
         return (fromMaybe p_int1 int1, fromMaybe p_int2 int2)

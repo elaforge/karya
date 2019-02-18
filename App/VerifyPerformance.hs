@@ -19,26 +19,28 @@ import qualified Data.Vector as Vector
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO as IO
 
 import qualified Util.File as File
 import qualified Util.Git as Git
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
 import qualified Util.SourceControl as SourceControl
 import qualified Util.Thread as Thread
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
-import Global
-import Types
+import qualified Midi.Midi as Midi
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 data Flag = Help | Mode Mode | Output !FilePath
@@ -107,7 +109,7 @@ main = Git.initialize $ do
                     putStr $ "    passed:\n" <> unlines (map fst ok)
                 unless (null failed) $
                     putStr $ "    failed:\n" <> unlines (map fst failed)
-            return $ sum $ map snd results
+            return $ Num.sum $ map snd results
         Save -> do
             when (null args) $ usage "no inputs"
             run_error $ concat <$> mapM (save out_dir) args

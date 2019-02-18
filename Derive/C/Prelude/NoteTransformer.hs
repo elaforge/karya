@@ -7,7 +7,9 @@ module Derive.C.Prelude.NoteTransformer (library) where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -23,8 +25,9 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -67,7 +70,7 @@ c_sequence = Derive.with_score_duration score_duration $
     score_duration args = do
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
-        return $ Derive.CallDuration (sum durs)
+        return $ Derive.CallDuration (Num.sum durs)
 
 sequence_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [ScoreTime] -> Derive.NoteDeriver
@@ -78,7 +81,7 @@ sequence_derivers start event_dur derivers unstretched_durs = mconcat
     where
     durs = map (*stretch) unstretched_durs
     stretch = if total_dur == 0 then 1 else event_dur / total_dur
-        where total_dur = sum unstretched_durs
+        where total_dur = Num.sum unstretched_durs
 
 c_sequence_realtime :: Derive.Generator Derive.Note
 c_sequence_realtime = Derive.with_score_duration score_duration $
@@ -100,7 +103,7 @@ c_sequence_realtime = Derive.with_score_duration score_duration $
     score_duration args = do
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_real_duration (calls_to_derivers args calls)
-        end <- Call.score_duration (Args.start args) (sum durs)
+        end <- Call.score_duration (Args.start args) (Num.sum durs)
         return $ Derive.CallDuration $ end - Args.start args
 
 sequence_derivers_realtime :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
@@ -109,7 +112,7 @@ sequence_derivers_realtime start event_dur derivers r_durs = do
     r_start <- Derive.real start
     starts <- mapM Derive.score $ scanl (+) r_start r_durs
     let unstretched_durs = zipWith (-) (drop 1 starts) starts
-    let total_dur = sum unstretched_durs
+    let total_dur = Num.sum unstretched_durs
         stretch = if total_dur == 0 then 1 else event_dur / total_dur
     let durs = map (*stretch) unstretched_durs
     mconcat

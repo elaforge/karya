@@ -13,7 +13,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -33,8 +32,10 @@ import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -224,7 +225,8 @@ interpolate_tracks at = mapMaybe interpolate1
     where
     interpolate1 events = interpolate_events (at start) events
         where
-        start = sum (map Sub.event_start events) / fromIntegral (length events)
+        start = Num.sum (map Sub.event_start events)
+            / fromIntegral (length events)
 
 interpolate_events :: Double -> [Sub.GenericEvent a]
     -> Maybe (Sub.GenericEvent a)

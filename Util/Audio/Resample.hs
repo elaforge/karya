@@ -19,21 +19,23 @@ import qualified Data.Vector.Storable as V
 import qualified Foreign
 import qualified Foreign.C as C
 import qualified GHC.TypeLits as TypeLits
-import GHC.TypeLits (KnownNat)
+import           GHC.TypeLits (KnownNat)
 import qualified Streaming.Prelude as S
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.SampleRateC as SampleRateC
-import Util.Audio.SampleRateC (Quality(..), SavedState(..))
+import           Util.Audio.SampleRateC (Quality(..), SavedState(..))
 import qualified Util.Control as Control
+import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import qualified Util.Serialize as Serialize
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 
 -- TODO resampling is theoretically pure, so I could maybe unsafePerformIO the
@@ -128,8 +130,8 @@ resampleBy config ratio audio = Audio.Audio $ do
             )
         | blockLeft - generated == 0 = do
             let sizes = map (Audio.blockFrames chan) (block:collect)
-            Audio.assert (sum sizes <= _blockSize config) $ Text.unwords
-                [ "sum", pretty (sum sizes), "> blockSize"
+            Audio.assert (Num.sum sizes <= _blockSize config) $ Text.unwords
+                [ "sum", pretty (Num.sum sizes), "> blockSize"
                 , pretty (_blockSize config) <> ":", pretty sizes
                 ]
             liftIO $ do

@@ -79,6 +79,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Vector
 
@@ -340,7 +341,7 @@ record_cache_stats :: Cmd.M m => [Log.Msg] -> m ()
 record_cache_stats logs = do
     let (rederived, cached) = extract_cache_stats get_block_id logs
     Cmd.set_global_status "~C" $ "[" <> showt (length cached) <> " / "
-        <> showt (sum (map snd cached)) <> "] "
+        <> showt (Num.sum (map snd cached)) <> "] "
         <> elide (Text.unwords (map (Id.ident_name . fst) cached))
     status_keys <- Cmd.gets (Map.keysSet . Cmd.state_global_status)
     let keys = map (("~X "<>) . fst) rederived

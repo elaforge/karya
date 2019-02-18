@@ -29,8 +29,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
@@ -38,7 +40,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
-import Global
+import           Global
 
 
 -- | Control what is rendered as strokes, and what is rendered as abstract
@@ -127,7 +129,7 @@ makeGroupsAbstract abstraction = concatMap combine
                     }
                 else group
         fmatras = S.durationFMatra tempo $
-            sum $ map (S.matraDuration . fst) tempoNotes
+            Num.sum $ map (S.matraDuration . fst) tempoNotes
         replace n (tempo, (state, _)) = S.FNote tempo (state, n)
     combine n = [n]
 

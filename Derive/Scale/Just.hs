@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
+import qualified Util.Num as Num
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
@@ -22,7 +23,8 @@ import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -193,7 +195,7 @@ parse_ratios intervals = Scales.read_environ_ parse Nothing just_ratios
         check (Map.lookup sym tunings)
     parse (Left ratios) = check $ Vector.fromList (1:ratios)
     check ratios
-        | Vector.length ratios == sum intervals =
+        | Vector.length ratios == Num.sum intervals =
             Right $ select intervals ratios
         | otherwise = Left $ Just $
             "length should be sum " <> pretty intervals <> " - 1, but was "

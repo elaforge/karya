@@ -7,12 +7,14 @@
 -- | Miscellaneous functions on numbers.  Things that could have gone in
 -- Numeric.
 module Util.Num where
-import Data.Bifunctor (second)
+import           Prelude hiding (sum)
+import           Data.Bifunctor (second)
 import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
-import Data.Monoid ((<>))
+import qualified Data.List as List
+import           Data.Monoid ((<>))
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.Lazy as Text.Lazy
 import qualified Data.Text.Lazy.Builder as Text.Lazy.Builder
 import qualified Data.Text.Lazy.Builder.RealFloat as Lazy.Builder.RealFloat
@@ -107,6 +109,10 @@ readDigit c = case c of
     _ -> Nothing
 
 -- * transform
+
+-- | Prelude sum is lazy, for silly reasons.
+sum :: (Foldable t, Num a) => t a -> a
+sum = List.foldl' (+) 0
 
 roundDigits :: (RealFrac a, Fractional b) => Int -> a -> b
 roundDigits digits = (/ (10^digits)) . fromIntegral . round . (* (10^digits))

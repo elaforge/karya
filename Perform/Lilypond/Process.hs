@@ -28,6 +28,7 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
@@ -44,12 +45,12 @@ import qualified Derive.Typecheck as Typecheck
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
-import Perform.Lilypond.Types
-       (Event(..), event_end, event_attributes, ToLily, to_lily, Time)
+import           Perform.Lilypond.Types
+       (event_attributes, event_end, to_lily, Time, ToLily, Event(..))
 import qualified Perform.Pitch as Pitch
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Automatically add lilypond code for certain attributes.
@@ -124,7 +125,7 @@ process config start meters events_ = first to_log $ do
     let (free_codes, events) = Seq.partition_on free_code events_
     chunks <- either (Left . ConvertError Nothing) return $
         collect_chunks events
-    let end = start + sum (map Meter.measure_time meters)
+    let end = start + Num.sum (map Meter.measure_time meters)
     -- Debug.tracepM "meters" (start, end, length meters,
     --     zip [1 :: Int ..] (_meter_starts start meters))
     chunks <- return $ merge_note_code_chunks $

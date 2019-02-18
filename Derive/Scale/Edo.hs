@@ -6,6 +6,7 @@
 module Derive.Scale.Edo where
 import qualified Data.Map as Map
 
+import qualified Util.Num as Num
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
@@ -18,7 +19,8 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -77,7 +79,7 @@ parse_intervals divisions =
         (Left $ Just $ "not one of: " <> pretty (Map.keys named_intervals))
         Right (Map.lookup sym named_intervals)
     check intervals
-        | sum intervals == divisions = Right intervals
+        | Num.sum intervals == divisions = Right intervals
         | otherwise = Left $ Just $ "sum " <> pretty intervals
             <> " should equal divisions " <> pretty divisions
 

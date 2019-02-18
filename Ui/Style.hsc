@@ -11,11 +11,13 @@ module Ui.Style (
 ) where
 import qualified Data.List as List
 import qualified Data.Word as Word
-import ForeignC
 
-import qualified Util.CUtil as CUtil
-import qualified Util.Serialize as Serialize
 import qualified Ui.Color as Color
+import qualified Util.CUtil as CUtil
+import qualified Util.Num as Num
+import qualified Util.Serialize as Serialize
+
+import           ForeignC
 
 
 data Style = Style {
@@ -59,7 +61,7 @@ font_code font = case font of
     Courier -> #const FL_COURIER
 
 face_code :: [FontFace] -> Int
-face_code = sum . map code . List.nub
+face_code = Num.sum . map code . List.nub
     where
     code face = case face of
         Bold -> #const FL_BOLD

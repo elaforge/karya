@@ -9,7 +9,7 @@
 -- TODO the SizeOf part can maybe be replaced by the weigh package.
 module Util.Memory where
 import qualified Data.Map as Map
-import Data.Monoid ((<>))
+import           Data.Monoid ((<>))
 import qualified Data.Word as Word
 
 import qualified Foreign
@@ -18,6 +18,7 @@ import qualified System.Mem
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Process as Process
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
 
@@ -57,7 +58,7 @@ class SizeOf a where
     sizeOf :: a -> Size
 
 instance SizeOf a => SizeOf [a] where
-    sizeOf xs = fromBytes (length xs) * taggedBox + sum (map sizeOf xs)
+    sizeOf xs = fromBytes (length xs) * taggedBox + Num.sum (map sizeOf xs)
 
 instance SizeOf Char where
     sizeOf _ = fromWords 0 -- chars from 0--255 are interned
@@ -68,8 +69,8 @@ instance SizeOf Double where sizeOf = boxedStorable
 instance SizeOf Float where sizeOf = boxedStorable
 
 instance (SizeOf k, SizeOf a) => SizeOf (Map.Map k a) where
-    sizeOf m = fromBytes nodes * taggedBox + sum (map sizeOf (Map.keys m))
-            + sum (map sizeOf (Map.elems m))
+    sizeOf m = fromBytes nodes * taggedBox + Num.sum (map sizeOf (Map.keys m))
+            + Num.sum (map sizeOf (Map.elems m))
         where
         nodes = Map.size m + ceiling (logBase 2 (fromIntegral (Map.size m)))
 

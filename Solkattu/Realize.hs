@@ -20,6 +20,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Map
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -31,7 +32,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
-import Global
+import           Global
 
 
 type Error = Text
@@ -325,7 +326,7 @@ patternMap pairs
         | otherwise = Nothing
         where
         notesMatras = notesDuration / S.matraDuration S.defaultTempo
-        notesDuration = sum $ map (S.durationOf S.defaultTempo) notes
+        notesDuration = Num.sum $ map (S.durationOf S.defaultTempo) notes
 
 lookupPattern :: Solkattu.Pattern -> PatternMap stroke -> Maybe [SNote stroke]
 lookupPattern p (PatternMap pmap) = Map.lookup p pmap
@@ -730,7 +731,7 @@ justifyLeft n c text
     where len = textLength text
 
 textLength :: Text -> Int
-textLength = sum . map len . untxt
+textLength = Num.sum . map len . untxt
     where
     -- Combining characters don't contribute to the width.  I'm sure it's way
     -- more complicated than this, but for the moment this seems to work.

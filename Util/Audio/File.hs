@@ -29,6 +29,7 @@ import qualified System.Directory as Directory
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Num as Num
 
 import           Global
 
@@ -189,7 +190,7 @@ writeCheckpoints size getFilename writeState format = go 0
             then return written
             else do
                 let count = Audio.framesCount chan size
-                Audio.assert (sum (map V.length blocks) == count) $
+                Audio.assert (Num.sum (map V.length blocks) == count) $
                     "expected size " <> pretty count <> " but got "
                     <> pretty (map V.length blocks)
                 let tmp = fname ++ ".write.tmp"

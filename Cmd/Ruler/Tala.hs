@@ -25,16 +25,17 @@ module Cmd.Ruler.Tala (
 ) where
 import qualified Data.Set as Set
 
-import qualified Ui.Ruler as Ruler
+import qualified Util.Num as Num
 import qualified Cmd.Ruler.Meter as Meter
-import Cmd.Ruler.Meter (AbstractMeter(..))
+import           Cmd.Ruler.Meter (AbstractMeter(..))
 import qualified Solkattu.Tala as Tala
-import Solkattu.Tala
-       (Tala(..), adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala,
-        triputa_tala, ata_tala, eka_tala, misra_chapu, khanda_chapu,
-        rupaka_fast)
+import           Solkattu.Tala
+       (adi_tala, ata_tala, dhruva_tala, eka_tala, jhampa_tala, khanda_chapu,
+        matya_tala, misra_chapu, rupaka_fast, rupaka_tala, triputa_tala,
+        Tala(..))
+import qualified Ui.Ruler as Ruler
 
-import Global
+import           Global
 
 
 ruler :: Meter.LabeledMeter -> Ruler.Ruler
@@ -138,7 +139,7 @@ tala_to_meter tala = D
 
 anga_claps :: Tala -> Int
 anga_claps tala =
-    sum (map (Tala.anga_aksharas (Tala._jati tala)) (Tala._angas tala))
+    Num.sum (map (Tala.anga_aksharas (Tala._jati tala)) (Tala._angas tala))
 
 tala_labels :: Tala -> [Meter.Label]
 tala_labels tala = map Meter.big_label $ concatMap mk (Tala._angas tala)

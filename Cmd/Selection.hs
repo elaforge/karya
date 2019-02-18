@@ -14,15 +14,25 @@
     functions.
 -}
 module Cmd.Selection where
-import Prelude hiding (lookup)
+import           Prelude hiding (lookup)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified App.Config as Config
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
+import qualified Cmd.Perf as Perf
+import qualified Cmd.TimeStep as TimeStep
+
+import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.Warp as Warp
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Transport as Transport
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -34,18 +44,8 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Zoom as Zoom
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
-import qualified Cmd.Perf as Perf
-import qualified Cmd.TimeStep as TimeStep
-
-import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Warp as Warp
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Transport as Transport
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * cmds
@@ -513,8 +513,8 @@ auto_track_scroll block view sel
     where
     -- Pesky ruler track doesn't count towards the track scroll.
     widths = map Block.display_track_width (drop 1 (Block.block_tracks block))
-    track_start = sum (take (cur_tracknum-1) widths)
-    track_end = sum (take cur_tracknum widths)
+    track_start = Num.sum (take (cur_tracknum-1) widths)
+    track_end = Num.sum (take cur_tracknum widths)
     view_start = Block.view_track_scroll view
     view_end = view_start + visible
     -- Visible does include the pesky ruler.

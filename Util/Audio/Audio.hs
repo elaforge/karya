@@ -366,8 +366,8 @@ expandChannels (Audio audio) = Audio $ S.map (expandV chan) audio
     where chan = natVal (Proxy :: Proxy chan)
 
 expandV :: Channels -> V.Vector Sample -> V.Vector Sample
-expandV chan block = V.generate (V.length block * chan) $
-        \i -> block V.! (i `div` chan)
+expandV chan block =
+    V.generate (V.length block * chan) $ \i -> block V.! (i `div` chan)
 
 -- | Do the reverse of 'expandChannels', mixing all channels to a mono signal.
 mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
@@ -387,7 +387,7 @@ deinterleaveV channels v
 
 interleaveV :: V.Storable a => [V.Vector a] -> V.Vector a
 interleaveV vs = V.create $ do
-    out <- VM.new (sum (map V.length vs))
+    out <- VM.new $ Num.sum (map V.length vs)
     forM_ (zip [0..] vs) $ \(vi, v) ->
         forM_ (Seq.range' 0 (V.length v) 1) $ \i ->
             VM.write out (i*stride + vi) (V.unsafeIndex v i)

@@ -7,16 +7,16 @@
 module Cmd.Views where
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
+import qualified App.Config as Config
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Internal as Internal
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui
 import qualified Ui.Zoom as Zoom
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Internal as Internal
-import qualified App.Config as Config
-import Types
-import Global
+import           Global
+import           Types
 
 
 maximize_and_zoom :: Cmd.M m => ViewId -> m ()
@@ -86,7 +86,7 @@ contents_rect view = do
     block_end <- Ui.block_end (Block.view_block view)
     block <- Ui.get_block (Block.view_block view)
     let (x, y) = Rect.upper_left (Block.track_rect view)
-        w = sum $ map Block.display_track_width (Block.block_tracks block)
+        w = Num.sum $ map Block.display_track_width (Block.block_tracks block)
         h = Zoom.to_pixels (Block.view_zoom view) block_end
     return $ Block.set_track_rect view $ Rect.xywh x y (max w 40) (max h 40)
 

@@ -21,19 +21,20 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
-import Data.Vector.Unboxed ((!))
+import           Data.Vector.Unboxed ((!))
 
 import qualified Text.Parsec as Parsec
 
+import qualified Util.Num as Num
 import qualified Util.Parse as Parse
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Ruler.Meter as Meter
-import Cmd.Ruler.Meter (AbstractMeter(..))
+import           Cmd.Ruler.Meter (AbstractMeter(..))
 import qualified Perform.Lilypond.Types as Types
-import Perform.Lilypond.Types (Time, Duration(..), NoteDuration(..))
-import Global
+import           Perform.Lilypond.Types (Time, Duration(..), NoteDuration(..))
+
+import           Global
 
 
 data Meter = Meter {
@@ -48,7 +49,7 @@ type Ranks = Vector.Vector Rank
 type Rank = Int
 
 time_num :: Meter -> Int
-time_num = sum . meter_nums
+time_num = Num.sum . meter_nums
 
 rank_at :: Meter -> Time -> Int
 rank_at meter t = v ! (time_index t `mod` Vector.length v)
@@ -64,7 +65,7 @@ instance Pretty Meter where pretty = unparse_meter
 
 instance Types.ToLily Meter where
     to_lily (Meter nums denom _) =
-        showt (sum nums) <> "/" <> Types.to_lily denom
+        showt (Num.sum nums) <> "/" <> Types.to_lily denom
 
 is_binary :: Meter -> Bool
 is_binary meter = case meter_nums meter of
@@ -130,8 +131,8 @@ make_meter nums denom meters = Meter nums denom <$> vector
         | otherwise = Right $ to_vector $ subdivides (replicate exp 2) meters
     (exp, frac) = properFraction $
         logBase 2 (fromIntegral expected / fromIntegral ranks)
-    expected = sum nums * time_index (Types.dur_to_time denom)
-    ranks = sum $ map abstract_length meters
+    expected = Num.sum nums * time_index (Types.dur_to_time denom)
+    ranks = Num.sum $ map abstract_length meters
     to_vector = Vector.fromList . map fst . Meter.make_meter 1
 
 subdivides :: [Int] -> [AbstractMeter] -> [AbstractMeter]
@@ -141,7 +142,7 @@ subdivide :: Int -> [AbstractMeter] -> [AbstractMeter]
 subdivide n = map (Meter.subdivide n)
 
 abstract_length :: AbstractMeter -> Int
-abstract_length (D ds) = sum $ map abstract_length ds
+abstract_length (D ds) = Num.sum $ map abstract_length ds
 abstract_length T = 1
 
 -- * allowed time

@@ -9,8 +9,14 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Lens as Lens
+import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.Selection as Selection
+import qualified Cmd.Views as Views
 
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
@@ -18,13 +24,8 @@ import qualified Ui.Sel as Sel
 import qualified Ui.Ui as Ui
 import qualified Ui.Zoom as Zoom
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Create as Create
-import qualified Cmd.Selection as Selection
-import qualified Cmd.Views as Views
-
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * zoom
@@ -194,7 +195,8 @@ horizontal_tile_rects screen rects = zipWith place rects xs
     xs = scanl (+) (Rect.rx screen) (map (subtract overlap . Rect.rw) rects)
     overlap = case rects of
         _ : _ : _ -> max 0 $
-            (sum (map Rect.rw rects) - Rect.rw screen) `div` (length rects - 1)
+            (Num.sum (map Rect.rw rects) - Rect.rw screen)
+                `div` (length rects - 1)
         -- 0 or 1 rects are not going to have any overlap.
         _ -> 0
 

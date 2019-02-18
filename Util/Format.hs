@@ -24,16 +24,17 @@ module Util.Format (
     , module Util.Format
 #endif
 ) where
-import Prelude hiding (unlines)
-import qualified Data.List as List
+import           Prelude hiding (unlines)
 import qualified Data.Char.WCWidth as WCWidth
-import Data.Semigroup (Semigroup, (<>))
+import qualified Data.List as List
+import           Data.Semigroup ((<>), Semigroup)
 import qualified Data.String as String
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 
@@ -99,7 +100,7 @@ text t = case make t of
     merge breaks = case Seq.span_while isHard breaks of
         ([], []) -> []
         ([], x : xs) -> x : merge xs
-        (hs, rest) -> Break (Hard (sum hs)) : merge rest
+        (hs, rest) -> Break (Hard (Num.sum hs)) : merge rest
     isHard (Break (Hard n)) = Just n
     isHard _ = Nothing
     make = filter (not . isEmpty) . List.intersperse (newline 1) . map Text
@@ -577,7 +578,7 @@ instance Monoid B where
     mempty = B mempty 0
     mappend = (<>)
     mconcat [] = mempty
-    mconcat bs = B (mconcat builders) (sum lens)
+    mconcat bs = B (mconcat builders) (Num.sum lens)
         where (builders, lens) = unzip [(b, len) | B b len <- bs, len /= 0]
 
 bFromText :: Text -> B

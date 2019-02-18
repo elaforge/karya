@@ -18,6 +18,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified Util.File as File
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
 import qualified Util.TextUtil as TextUtil
@@ -30,7 +31,7 @@ import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tags as Tags
 import qualified Solkattu.Tala as Tala
 
-import Global
+import           Global
 
 
 type Error = Text
@@ -177,7 +178,7 @@ format config prevRuler tala notes =
         Just n -> (fmt n width tala notes, n)
         Nothing -> case fmt 1 width tala notes of
             [line] : _
-                | sum (map (symLength . snd) line) <= width `div` 2 ->
+                | Num.sum (map (symLength . snd) line) <= width `div` 2 ->
                     (fmt 2 width tala notes, 2)
             result -> (result, 1)
         where fmt = formatLines (_abstraction config)
@@ -333,7 +334,7 @@ breakLine maxWidth notes
     | even aksharas = breakAt (aksharas `div` 2) notes
     | otherwise = breakBefore maxWidth notes
     where
-    width = sum $ map (symLength . snd) notes
+    width = Num.sum $ map (symLength . snd) notes
     aksharas = Seq.count (Format.onAkshara . fst) notes
     breakAt akshara =
         pairToList . break ((==akshara) . S.stateAkshara . fst)
@@ -351,7 +352,7 @@ breakBefore maxWidth =
             ([], post:posts) -> post : go posts
             (pre, post) -> concat pre : go post
     -- drop 1 so it's the width at the end of each section.
-    runningWidth = drop 1 . scanl (+) 0 . map (sum . map (symLength . snd))
+    runningWidth = drop 1 . scanl (+) 0 . map (Num.sum . map (symLength . snd))
 
 -- ** formatting
 

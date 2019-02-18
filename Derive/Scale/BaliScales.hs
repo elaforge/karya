@@ -13,7 +13,7 @@ import qualified Data.Attoparsec.Text as A
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
-import Data.Vector ((!?))
+import           Data.Vector ((!?))
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
@@ -35,7 +35,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 
-import Global
+import           Global
 
 
 -- | Top level scale constructor.
@@ -245,7 +245,7 @@ set_relative_octaves (high, middle, low) center =
                 | c == high = 1
                 | c == low = -1
                 | otherwise = 0
-        let oct = sum $ map oct_value oct_str
+        let oct = Num.sum $ map oct_value oct_str
         return $ TheoryFormat.RelativePitch (center + oct) pc acc
     t = Text.singleton
 

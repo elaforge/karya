@@ -35,8 +35,8 @@ import qualified Solkattu.Solkattu as Solkattu
 
 import qualified Ui.Types as Types
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -100,7 +100,7 @@ stretch_to_range (start, end) dur_notes =
     where
     starts = scanl (+) start $ map ((*factor) . realToFrac) durs
     (durs, notes) = unzip dur_notes
-    factor = (end - start) / realToFrac (sum durs)
+    factor = (end - start) / realToFrac (Num.sum durs)
 
 -- TODO make this into a Typecheck
 -- actually I think I maybe don't support that?

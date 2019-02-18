@@ -13,13 +13,10 @@ import qualified System.IO as IO
 
 import qualified Util.Log as Log
 import qualified Util.Memory as Memory
+import qualified Util.Num as Num
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
-
-import qualified Ui.Id as Id
-import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
@@ -36,8 +33,12 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Warp as Warp
 
 import qualified Perform.Midi.Types as Types
-import Global
-import Types
+import qualified Ui.Id as Id
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- | GHC's opinion on allocated memory.
@@ -170,5 +171,5 @@ format_stats (rederived, cached) =
         untxt because <> ": [" <> show (length ids) <> "] "
         <> unwords (map (untxt . Id.ident_name) ids)
     format_cached cached =
-        show (length cached) <> " [" <> show (sum (map snd cached)) <> "] "
+        show (length cached) <> " [" <> show (Num.sum (map snd cached)) <> "] "
         <> unwords (map (untxt . Id.ident_name . fst) cached)

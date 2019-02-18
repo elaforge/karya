@@ -11,9 +11,9 @@ module Instrument.Sysex where
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Writer.Strict as Writer
 import qualified Data.Bits as Bits
-import Data.Bits ((.&.), (.|.))
+import           Data.Bits ((.&.), (.|.))
 import qualified Data.ByteString as B
-import Data.ByteString (ByteString)
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Builder as Builder
 import qualified Data.Either as Either
@@ -21,7 +21,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Serialize.Get as Get
 import qualified Data.Text as Text
-import Data.Word (Word8)
+import           Data.Word (Word8)
 
 import qualified Numeric
 import qualified System.FilePath as FilePath
@@ -33,12 +33,13 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Tag as Tag
 import qualified Midi.Encode
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
-import qualified Instrument.Common as Common
-import qualified Instrument.Tag as Tag
-import Global
+
+import           Global
 
 
 -- * parse files
@@ -595,7 +596,7 @@ type Bits = Int
 type Bytes = Int
 
 spec_bytes :: Config -> Specs -> Int
-spec_bytes config = sum . map (bytes_of . snd)
+spec_bytes config = Num.sum . map (bytes_of . snd)
     where
     bytes_of (Bits {}) = 1
     bytes_of (Num range) = range_bytes config (num_range range)
@@ -615,7 +616,7 @@ validate specs = msum (map check specs)
         | total /= 8 = Just $
             show (map fst bits) <> " - bits should sum to 8: " <> show total
         | otherwise = Nothing
-        where total = sum [n | (_, (n, _)) <- bits]
+        where total = Num.sum [n | (_, (n, _)) <- bits]
     check (name, Union enum_name _bytes fields) = case lookup_spec enum_name of
         Just (Left (_, Enum enums))
             | List.sort enums /= List.sort (map fst fields) -> Just $

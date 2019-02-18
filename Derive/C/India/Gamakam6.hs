@@ -10,12 +10,11 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -31,8 +30,11 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 module_ :: Module.Module
@@ -219,7 +221,7 @@ pitch_sequence state total_dur code = do
 slice_time :: ScoreTime -> [Double] -> [ScoreTime]
 slice_time dur slices =
     scanl (+) 0 $ map ((*one) . ScoreTime.from_double) slices
-    where one = dur / ScoreTime.from_double (sum slices)
+    where one = dur / ScoreTime.from_double (Num.sum slices)
 
 eval_call :: ((RealTime, RealTime), Call) -> M Signal.Control
 eval_call ((start, end), call) = case call of

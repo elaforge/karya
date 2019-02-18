@@ -11,8 +11,9 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Ui.ScoreTime as ScoreTime
+
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -24,8 +25,10 @@ import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -194,7 +197,7 @@ add_last_note_flags = fmap $ Post.emap1_ $ Score.add_flags $
     Flags.infer_duration <> Flags.strong
 
 sum_duration :: [Sub.GenericEvent a] -> ScoreTime
-sum_duration = sum . map Sub.event_duration
+sum_duration = Num.sum . map Sub.event_duration
 
 -- | Sekaran derivation via direct substitution of the sub-events.
 sekar_direct :: (ScoreTime, ScoreTime) -> NonEmpty Pattern -> [Sub.RestEvent]

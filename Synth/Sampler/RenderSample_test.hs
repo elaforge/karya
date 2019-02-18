@@ -11,12 +11,14 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Num as Num
+
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
 test_predictDuration = do
@@ -58,7 +60,7 @@ verify quality ratio dur =
 actualDuration :: Resample.Config -> Signal.Signal -> Audio.Frame
     -> Audio.Frame
 actualDuration config ratio dur =
-    sum . map (Audio.blockFrames (Proxy @1))
+    Num.sum . map (Audio.blockFrames (Proxy @1))
     . Unsafe.unsafePerformIO
     . resample config ratio
     . Audio.take (Audio.Frames dur) $ Audio.silence2

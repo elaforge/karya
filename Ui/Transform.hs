@@ -11,15 +11,17 @@ import qualified Data.Text as Text
 
 import qualified Util.Map as Map
 import qualified Util.Memory as Memory
+import qualified Util.Num as Num
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Transform TracklikeIds.
@@ -200,8 +202,8 @@ intern_text state =
 
 intern_stats :: Map Text Int -> (Memory.Size, Int)
 intern_stats table =
-    (Memory.fromBytes $ sum (map stats (Map.toList table)), total_hits)
+    (Memory.fromBytes $ Num.sum (map stats (Map.toList table)), total_hits)
     where
-    total_hits = sum (Map.elems table) - Map.size table
+    total_hits = Num.sum (Map.elems table) - Map.size table
     stats (text, hits) = size * (hits - 1)
         where size = Text.length text * 2 + 3 * 4 -- pointer + length + start

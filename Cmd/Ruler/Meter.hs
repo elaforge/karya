@@ -21,12 +21,13 @@
     amount of time.
 -}
 module Cmd.Ruler.Meter where
-import Prelude hiding (repeat)
+import           Prelude hiding (repeat)
 import qualified Data.List as List
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -35,8 +36,8 @@ import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * Ruler.Ruler
@@ -156,7 +157,7 @@ strip_ranks max_rank = strip
     where
     strip [] = []
     strip (LabeledMark rank dur label : rest) =
-        LabeledMark rank (dur + sum (map m_duration pre)) label : strip post
+        LabeledMark rank (dur + Num.sum (map m_duration pre)) label : strip post
         where (pre, post) = span ((>max_rank) . m_rank) rest
 
 scale :: Duration -> LabeledMeter -> LabeledMeter
@@ -165,7 +166,7 @@ scale dur meter =
     where factor = if dur == 0 then 1 else dur / time_end meter
 
 time_end :: LabeledMeter -> Duration
-time_end = sum . map m_duration
+time_end = Num.sum . map m_duration
 
 
 -- ** meter constants
@@ -283,7 +284,7 @@ replace_t val (D ts) = D (map (replace_t val) ts)
 replace_t val T = val
 
 meter_length :: AbstractMeter -> Duration
-meter_length (D ms) = sum (map meter_length ms)
+meter_length (D ms) = Num.sum (map meter_length ms)
 meter_length T = 1
 
 
@@ -307,7 +308,7 @@ make_meter stretch meters = group0 marks
 -- | Like 'make_meter', but stretch the meter to fit in the given duration.
 fit_meter :: Duration -> [AbstractMeter] -> Meter
 fit_meter dur meters = make_meter stretch meters
-    where stretch = dur / sum (map meter_length meters)
+    where stretch = dur / Num.sum (map meter_length meters)
 
 -- ** marklist conversion
 
@@ -465,7 +466,7 @@ rank_durs = map rank_dur . List.tails
     where
     rank_dur [] = 0
     rank_dur ((rank, dur) : meter) = total
-        where total = dur + sum (map snd (takeWhile ((>rank) . fst) meter))
+        where total = dur + Num.sum (map snd (takeWhile ((>rank) . fst) meter))
 
 -- | Given a mark duration and the number of pixels it needs to display,
 -- return the appropriate zoom factor.

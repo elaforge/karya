@@ -9,18 +9,19 @@ import qualified Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
+import qualified Util.Num as Num
 import qualified Util.Segment as Segment
-import Util.Segment (Segment(Segment))
-import Util.Segment (X)
+import           Util.Segment (Segment(Segment))
+import           Util.Segment (X)
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
 import qualified Perform.RealTime as RealTime
-import Perform.RealTime (large)
+import           Perform.RealTime (large)
 import qualified Ui.Types as Types
 
-import Types
-import Util.Test
+import           Types
+import           Util.Test
 
 
 type Y = Double
@@ -220,7 +221,7 @@ test_linear_operator = do
 
 test_linear_operator2 = do
     let f s1 s2 = to_segments $
-            Segment._linear_operator2 sum (from_pairs s1) (from_pairs s2)
+            Segment._linear_operator2 Num.sum (from_pairs s1) (from_pairs s2)
     -- Degenerate.
     equal (f [] []) []
     equal (f [(0, 1)] []) [((0, 1), (large, 1))]

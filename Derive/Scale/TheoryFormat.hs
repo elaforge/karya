@@ -22,14 +22,16 @@ module Derive.Scale.TheoryFormat where
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
-import Data.Vector ((!))
+import           Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 
+import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 -- * types
@@ -439,7 +441,7 @@ symbol_accidentals = AccidentalFormat "`n`" "`#`" "`##`" "`b`" "`bb`"
 
 p_accidentals :: AccidentalFormat -> A.Parser (Maybe Pitch.Accidentals)
 p_accidentals (AccidentalFormat natural sharp1 sharp2 flat1 flat2) =
-    p_natural <|> Just . sum <$> A.many1 p_acc <|> pure Nothing
+    p_natural <|> Just . Num.sum <$> A.many1 p_acc <|> pure Nothing
     where
     p_natural = A.string natural *> return (Just 0)
     p_acc = A.choice

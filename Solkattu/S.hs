@@ -43,10 +43,13 @@ import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Ratio as Ratio
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Solkattu.Tala as Tala
-import Global
+
+import           Global
 
 
 data Note g a = Note !a
@@ -445,9 +448,9 @@ showPosition state = showt (stateAvartanam state + 1)
 durationOf :: HasMatras a => Tempo -> Note g a -> Duration
 durationOf tempo n = case n of
     TempoChange change notes ->
-        sum $ map (durationOf (changeTempo change tempo)) notes
+        Num.sum $ map (durationOf (changeTempo change tempo)) notes
     Note n -> noteDuration tempo n
-    Group _ notes -> sum $ map (durationOf tempo) notes
+    Group _ notes -> Num.sum $ map (durationOf tempo) notes
 
 noteDuration :: HasMatras a => Tempo -> a -> Duration
 noteDuration tempo n = matraDuration tempo * fromIntegral (matrasOf n)

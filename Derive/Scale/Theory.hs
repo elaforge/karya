@@ -57,7 +57,8 @@ import qualified Util.Seq as Seq
 import qualified Util.Vector as Vector
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 -- * constants
@@ -401,7 +402,7 @@ get_enharmonics intervals (Pitch.Degree note_pc note_accs) =
         , (-2, diffs [-2, -1])
         , (-1, diffs [-1])
         ]
-    diffs = sum . map (layout_at intervals . (note_pc+))
+    diffs = Num.sum . map (layout_at intervals . (note_pc+))
     mknote intervals pc accs = (oct, Pitch.Degree pc2 accs)
         where (oct, pc2) = pc `divMod` Vector.length intervals
 

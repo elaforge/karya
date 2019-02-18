@@ -37,21 +37,23 @@ module Instrument.Inst (
     , SynthDecl(..), db, merge
     , annotate
 ) where
-import Prelude hiding (lookup)
+import           Prelude hiding (lookup)
 import qualified Data.Map as Map
 
 import qualified Util.Lens as Lens
 import qualified Util.Map
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
 import qualified Derive.Attrs as Attrs
-import qualified Perform.Im.Patch as Im.Patch
-import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
 
-import Global
+import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.Midi.Patch as Midi.Patch
+
+import           Global
 
 
 -- * Inst
@@ -113,7 +115,7 @@ empty = Db mempty
 
 -- | Number of 'Inst's in the db.
 size :: Db code -> Int
-size (Db db) = sum $ map (Map.size . synth_insts) $ Map.elems db
+size (Db db) = Num.sum $ map (Map.size . synth_insts) $ Map.elems db
 
 synth_names :: Db code -> [InstTypes.SynthName]
 synth_names (Db db) = Map.keys db

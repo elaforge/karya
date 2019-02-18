@@ -17,7 +17,6 @@ import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import qualified Util.Num as Num
 import qualified Util.Random as Random
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
@@ -42,8 +41,10 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 -- * signals
@@ -486,7 +487,7 @@ _random_generator = do
 pick_weighted :: NonEmpty (Double, a) -> Double -> a
 pick_weighted weights rnd_ = go 0 weights
     where
-    rnd = rnd_ * sum (fmap fst weights)
+    rnd = rnd_ * Num.sum (fmap fst weights)
     go collect ((weight, a) :| weights) = case weights of
         [] -> a
         w : ws
@@ -507,7 +508,7 @@ normal stddev = make_normal stddev <$> randoms
 -- | Approximation to a normal distribution between 0 and 1, inclusive.
 -- I can't use an actual normal distribution because I need it to be bounded.
 make_normal :: Double -> [Double] -> Double
-make_normal stddev rnds = sum (take samples rnds) / fromIntegral samples
+make_normal stddev rnds = Num.sum (take samples rnds) / fromIntegral samples
     where
     samples = 12
 

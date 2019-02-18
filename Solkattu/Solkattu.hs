@@ -67,12 +67,14 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Derive.Expr as Expr
 import qualified Solkattu.S as S
 import qualified Solkattu.Tala as Tala
-import Global
+
+import           Global
 
 
 {- | Render a concrete stroke to text representing it.  This is used for ASCII
@@ -299,7 +301,7 @@ _durationOf :: (S.HasMatras a, Num dur, Ord dur)
     => (S.Tempo -> S.Duration -> dur) -> S.Tempo -> [S.Note Group a] -> dur
 _durationOf convert = go
     where
-    go tempo = sum . map (get tempo)
+    go tempo = Num.sum . map (get tempo)
     get tempo n = case n of
         S.Note n -> convert tempo $ S.noteDuration tempo n
         S.TempoChange change notes -> go (S.changeTempo change tempo) notes
