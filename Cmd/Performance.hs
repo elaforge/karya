@@ -24,6 +24,9 @@ import qualified Data.Set as Set
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
+import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
+import           System.FilePath ((</>))
 import qualified System.IO as IO
 
 import qualified Util.Control as Control
@@ -316,26 +319,41 @@ watch_subprocesses config inv_tempo wants_waveform score_path send_status procs
             Left err -> do
                 Log.warn err
                 return True
-            Right msgs -> do
-                mapM_ send_status msgs
+            Right (Just msg) -> do
+                msg <- case msg of
+                    -- The PeakCache uses the filename as a key, so I can get
+                    -- false hits if I use the symlinks, which all look like
+                    -- 000.wav.
+                    Msg.ImWaveformsCompleted block_id track_ids waveforms -> do
+                        fns <- mapM (resolveLink . Track._filename) waveforms
+                        return $ Msg.ImWaveformsCompleted block_id track_ids
+                            [ wave { Track._filename = fn }
+                            | (fn, wave) <- zip fns waveforms
+                            ]
+                    _ -> return msg
+                send_status msg
                 return False
+            Right Nothing -> return False
         where
         make = make_progress inv_tempo wants_waveform (Config.imDir config)
             score_path
+        -- filename <- resolveLink $ Config.chunkPath im_dir score_path block_id
+        --     instrument chunknum
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 make_progress :: Transport.InverseTempoFunction -> (TrackId -> Bool)
-    -> FilePath -> FilePath -> Config.Message -> Either Text [Msg.ImStatus]
+    -> FilePath -> FilePath -> Config.Message
+    -> Either Text (Maybe Msg.ImStatus)
 make_progress inv_tempo wants_waveform im_dir score_path
         (Config.Message block_id track_ids instrument p) = case p of
     Config.RenderingRange start end ->
-        return [Msg.ImRenderingRange block_id track_ids start end]
+        return $ Just $ Msg.ImRenderingRange block_id track_ids start end
     Config.WaveformsCompleted chunknums
-        | Set.null with -> return []
+        | Set.null with -> return Nothing
         | otherwise -> do
             waveforms <- mapM make_waveform chunknums
-            return $ (:[]) $ Msg.ImWaveformsCompleted block_id with waveforms
+            return $ Just $ Msg.ImWaveformsCompleted block_id with waveforms
         where with = Set.filter wants_waveform track_ids
     Config.Failure err -> Left $
         "im failure: " <> pretty block_id <> ": "
@@ -364,6 +382,10 @@ make_progress inv_tempo wants_waveform im_dir score_path
     -- So this shouldn't happen.
     to_score t = tryJust ("no ScoreTime for " <> pretty t) $
         real_to_score inv_tempo block_id track_ids t
+
+resolveLink :: FilePath -> IO FilePath
+resolveLink fname = (FilePath.takeDirectory fname </>) <$>
+    Directory.getSymbolicLinkTarget fname
 
 real_to_score :: Transport.InverseTempoFunction -> BlockId -> Set TrackId
     -> RealTime -> Maybe ScoreTime

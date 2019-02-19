@@ -1391,7 +1391,7 @@ synth: im:
       . The correspondence isn't obvious, and the color looks different anyway
         due to being transparent.
     waveform display:
-      - definitely still buggy, incremental editing gets it in a broken state
+      * definitely still buggy, incremental editing gets it in a broken state
         . Deleting notes didn't clear later waveforms.
         . A cache hit doesn't reset waveforms, when they have changed.
         . If I'm using the symlink filename as a cache key, it can
