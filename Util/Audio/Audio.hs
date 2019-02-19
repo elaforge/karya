@@ -70,11 +70,11 @@ import qualified GHC.Stack as Stack
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
+import           Util.Audio.AudioT (Frame(..))
 import qualified Util.CallStack as CallStack
 import qualified Util.Control as Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.Serialize as Serialize
 import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Util.VectorC as VectorC
 
@@ -132,13 +132,6 @@ type UnknownAudioIO = UnknownAudio (Resource.ResourceT IO)
 -- | I hardcode the sample format to Float for now, since I have no need to
 -- work with any other format.
 type Sample = Float
-
--- | Should be >=0.
-newtype Frame = Frame Int
-    deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Serialize.Serialize)
-
-instance Pretty Frame where
-    pretty (Frame n) = pretty n <> "f"
 
 data Duration = Frames !Frame | Seconds !Seconds
     deriving (Eq, Show)

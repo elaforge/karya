@@ -19,7 +19,7 @@ import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
-import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.AudioT as AudioT
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -140,15 +140,15 @@ type SamplingRate = SAMPLING_RATE
 -- synthesizer with smaller state should use small chunks, fast rendering or
 -- large state imply large chunks.  I could in theory adjust this per
 -- synthesizer, though currently karya relies on it being constant.
-chunkSize :: Audio.Frame
-chunkSize = Audio.Frame $ samplingRate * chunkSeconds
+chunkSize :: AudioT.Frame
+chunkSize = AudioT.Frame $ samplingRate * chunkSeconds
 
 -- | Number of frames in each audio block.  A chunk corresponds to the output
 -- file size, and the block is the internal processing size.
 --
 -- To make sure checkpoint states line up with the file boundaries, this must
 -- divide into 'chunkSize'.
-blockSize :: Audio.Frame
+blockSize :: AudioT.Frame
 blockSize = Exception.assert (chunkSize `mod` by == 0) $ chunkSize `div` by
     where by = 16
 
@@ -161,7 +161,7 @@ chunkSeconds = CHUNK_SECONDS
 -- It has to cue up the sample streaming, which means it has to find and
 -- seek to the right file.  If playback starts immediately then the first
 -- chunk gets cut off, which cuts off note attacks.
-startLatency :: Audio.Frame
+startLatency :: AudioT.Frame
 startLatency = START_LATENCY_FRAMES
 
 oscPort :: Int
