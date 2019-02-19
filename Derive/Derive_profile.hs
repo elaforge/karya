@@ -213,7 +213,7 @@ run_profile :: String
 run_profile fname maybe_lookup ui_state = do
     block_id <- maybe (errorIO $ txt fname <> ": no root block") return $
         Ui.config#Ui.root #$ ui_state
-    start_cpu <- Thread.currentCPU
+    start_cpu <- Thread.currentCpu
     let section = time_section start_cpu
     let result = DeriveTest.derive_block ui_state block_id
     let events = Stream.to_list $ Derive.r_events result
@@ -232,9 +232,10 @@ time_section :: Thread.Seconds -> String -> IO [a] -> IO ()
 time_section start_cpu title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    (vals, cpu_secs, _secs) <- Thread.timeAction op
-    cur_cpu <- Thread.currentCPU
+    (vals, metric) <- Thread.timeAction op
+    cur_cpu <- Thread.currentCpu
     let len = length vals
+    let cpu_secs = Thread.metricCpu metric
     Printf.printf "%d vals -> %.2f (%.2f / sec) (running: %.2f)\n"
         len (secs cpu_secs) (fromIntegral len / secs cpu_secs)
         (secs (cur_cpu - start_cpu))

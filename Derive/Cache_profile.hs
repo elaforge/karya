@@ -74,8 +74,8 @@ time_section :: String -> IO a -> IO a
 time_section title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    (val, cpu_secs, _) <- Thread.timeAction op
-    Printf.printf "%.2f\n" (realToFrac cpu_secs :: Double)
+    (val, metric) <- Thread.timeAction op
+    Printf.printf "%.2f\n" (realToFrac (Thread.metricCpu metric) :: Double)
     return val
 
 eval_derivation :: Derive.Cache -> Ui.State -> Ui.State

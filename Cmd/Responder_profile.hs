@@ -52,7 +52,7 @@ profile_null_cmd = do
     let states = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
     let key = CmdTest.keypress Key.ShiftL
     let keys = take (10*1024) (cycle key)
-    (_, cpu, _) <- Thread.timeAction $ ResponderTest.thread False states keys
+    cpu <- time_cpu $ ResponderTest.thread False states keys
     Printf.printf "%.2f sec, %.4f sec per cmd\n"
         (secs cpu) (secs cpu / (10*1024))
 
@@ -70,7 +70,7 @@ profile_selection = do
     let one_cycle = take (256*2) (cycle (CmdTest.keypress Key.Down))
             ++ take (256*2) (cycle (CmdTest.keypress Key.Up))
     let keys = take (10*1024) (cycle one_cycle)
-    (_, cpu, _) <- Thread.timeAction $ ResponderTest.thread False states keys
+    cpu <- time_cpu $ ResponderTest.thread False states keys
     Printf.printf "%.2f sec, %.4f sec per cmd\n"
         (secs cpu) (secs cpu / (10*1024))
 
@@ -80,10 +80,12 @@ profile_thru = do
     let key = [CmdTest.make_midi (Midi.NoteOn 60 20),
             CmdTest.make_midi (Midi.NoteOff 60 20)]
         keys = take ncmds (cycle key)
-    (_, cpu, _) <- Thread.timeAction $
-        ResponderTest.thread False (ui_state, cmd_state) keys
+    cpu <- time_cpu $ ResponderTest.thread False (ui_state, cmd_state) keys
     Printf.printf "%.2f sec, %.4f sec per cmd\n"
         (secs cpu) (secs cpu / fromIntegral ncmds)
+
+time_cpu :: IO a -> IO Thread.Seconds
+time_cpu = fmap (Thread.metricCpu . snd) . Thread.timeAction
 
 secs :: Thread.Seconds -> Double
 secs = realToFrac
