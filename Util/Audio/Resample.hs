@@ -26,7 +26,6 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.SampleRateC as SampleRateC
 import           Util.Audio.SampleRateC (Quality(..), SavedState(..))
 import qualified Util.Control as Control
-import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Segment as Segment
 import qualified Util.Serialize as Serialize

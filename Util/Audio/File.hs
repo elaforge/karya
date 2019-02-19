@@ -80,21 +80,20 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
                 "tried to seek to " <> pretty frame <> " in " <> showt fname
                 <> ", but it only has " <> pretty (Sndfile.frames info)
             void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
-    Fix.fix $ \loop ->
-        liftIO (Sndfile.hGetBuffer handle size) >>= \case
-            Nothing -> lift (Resource.release key) >> return ()
-            Just buf -> do
-                let block = Sndfile.Buffer.Vector.fromBuffer buf
-                -- Sndfile should enforce this, but let's be sure.
-                when (fileChan /= 1 && V.length block `mod` chan /= 0) $
-                    throw $ "block length " <> show (V.length block)
-                        <> " not a multiple of channels " <> show chan
-                S.yield $ if fileChan == chan
-                    then block
-                    else Audio.expandV chan block
-                loop
+    let size = fromIntegral Audio.blockSize
+    Fix.fix $ \loop -> liftIO (Sndfile.hGetBuffer handle size) >>= \case
+        Nothing -> lift (Resource.release key) >> return ()
+        Just buf -> do
+            let block = Sndfile.Buffer.Vector.fromBuffer buf
+            -- Sndfile should enforce this, but let's be sure.
+            when (fileChan /= 1 && V.length block `mod` chan /= 0) $
+                throw $ "block length " <> show (V.length block)
+                    <> " not a multiple of channels " <> show chan
+            S.yield $ if fileChan == chan
+                then block
+                else Audio.expandV chan block
+            loop
     where
-    size = Audio.framesCount channels Audio.blockSize
     rate = Audio.natVal (Proxy :: Proxy rate)
     channels = Proxy :: Proxy channels
     chan = Audio.natVal channels

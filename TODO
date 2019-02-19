@@ -1946,7 +1946,7 @@ synth: im:
     * stereo placement for patches, or individual samples
       . This is like volume, I want everyone to handle it the same way.
       . But the patch might set it too, so I have to apply after that.
-    - It looks like File.readFrom duplicates to 2 channels, but it would be
+    / It looks like File.readFrom duplicates to 2 channels, but it would be
       more efficient to do resampling and envelope on the mono signal.
       . before:
         15.44s user 2.48s system 334% cpu 5.356 total
@@ -1963,6 +1963,12 @@ synth: im:
       . Actually, why am I resampling at all?  Aren't I using symbolic pitch?
       . Mostly I'm not, time is all in mixing?
       . Time is the same without pan and envelope.
+      . It seems mono is very slightly faster, 0.65 - 0.638
+      . Block size also dosen't seem to make a difference.
+      . SincFastest: 0.415
+      . SincMedium: 0.454
+      . SincBest: 0.651
+      . Revert the change, the speed difference is tiny.
     sampler profiling:
       times:
         . original:     4.789

@@ -13,6 +13,7 @@ module Synth.Sampler.RenderSample (
     , module Synth.Sampler.RenderSample
 #endif
 ) where
+import           GHC.TypeLits (KnownNat)
 import qualified Sound.File.Sndfile as Sndfile
 
 import qualified Util.Audio.Audio as Audio
@@ -28,8 +29,8 @@ import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 
 render :: Resample.Config -> RealTime -> Sample.Sample -> AUtil.Audio
@@ -42,8 +43,12 @@ render config start (Sample.Sample filename offset envelope pan ratio) =
     nowS = AUtil.toSeconds now
     now = Resample._now config
 
-resample :: Resample.Config -> Signal.Signal -> RealTime -> AUtil.Audio
-    -> AUtil.Audio
+-- | This is polymorphic in chan, though it's only used with 2.  I experimented
+-- reading mono files as 1, and expanding the channel after resample and
+-- envelope, but the time improvement was tiny, so I dropped it.
+resample :: (KnownNat rate, KnownNat chan)
+    => Resample.Config -> Signal.Signal -> RealTime
+    -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
 resample config ratio start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
