@@ -178,7 +178,7 @@ renderControls :: Audio.Frame -> [Control.Control]
     -> [Note.Note] -> RealTime -> AUtil.NAudio
 renderControls chunkSize controls notes start =
     Audio.nonInterleaved now chunkSize $
-        map (fromMaybe Audio.silence1 . renderControl chunkSize notes start)
+        map (fromMaybe Audio.silence . renderControl chunkSize notes start)
             controls
     where now = 0 -- for the moment, faust always starts at 0
 

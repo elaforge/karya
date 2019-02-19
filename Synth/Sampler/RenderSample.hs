@@ -60,7 +60,7 @@ resample config ratio start audio
         -- The resample always starts at 0 in the ratio, so shift it back to
         -- account for when the sample starts.
     where
-    silence = Audio.take (Audio.Frames silenceF) Audio.silence2
+    silence = Audio.take (Audio.Frames silenceF) Audio.silence
     silenceF = max 0 (AUtil.toFrame start - Resample._now config)
     state = Resample._state config
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this

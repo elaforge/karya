@@ -40,7 +40,7 @@ module Util.Audio.Audio (
     , synchronizeToSize
     , zeroPadN
     -- * generate
-    , silence1, silence2, sine
+    , silence, sine
     , linear
     -- * error
     , Exception(..), exceptionText, throw, throwIO, assert, assertIn
@@ -487,24 +487,18 @@ zeroPadN size_ naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
 -- * generate
 
 -- | Silence.  Forever.
-silence1 :: Monad m => Audio m rate 1
-silence1 = constant 0
-
--- | The chan is hardcoded so I can be sure 'blockSize' is divisible by it.
--- Otherwise, the stream would be invalid, or I couldn't reuse 'silentBlock'.
-silence2 :: Monad m => Audio m rate 2
-silence2 = Audio $ constant_ 0
+silence :: (Monad m, KnownNat chan) => Audio m rate chan
+silence = constant 0
 
 -- | An infinite constant stream, which reuses the same buffer.
-constant :: Monad m => Float -> Audio m rate 1
-constant = Audio . constant_
-
-constant_ :: Monad m => Float -> S.Stream (S.Of (V.Vector Sample)) m r
-constant_ val = S.repeat block
+constant :: forall m rate chan. (Monad m, KnownNat chan)
+    => Sample -> Audio m rate chan
+constant val = Audio $ S.repeat block
     where
     block
-        | val == 0 = silentBlock
-        | otherwise = V.replicate (framesCount (Proxy @1) blockSize) val
+        | val == 0 = V.take (framesCount (Proxy @chan) frames) silentBlock
+        | otherwise = V.replicate (framesCount (Proxy @chan) blockSize) val
+        where frames = blockFrames (Proxy @chan) silentBlock
 
 -- | Generate a test tone at the given frequency, forever.  This is not
 -- efficient, but it's just for testing.
@@ -536,7 +530,7 @@ linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
         -- TODO I could avoid all reallocation by always using blockSize, but
         -- then the interpolate stuff gets a bit more complicated.  Not sure
         -- if worth it.
-        []  | leftover == 0 -> constant_ (Num.d2f prevY)
+        []  | leftover == 0 -> _stream $ constant @_ @_ @1 (Num.d2f prevY)
             | otherwise -> do
                 S.yield $ V.replicate (toCount leftover) (Num.d2f prevY)
                 loop (start + leftover, prevX, prevY, [])
