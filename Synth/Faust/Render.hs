@@ -30,21 +30,23 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Types
+import qualified Ui.Id as Id
+
+import           Global
+import           Synth.Types
 
 
 type Error = Text
 
 -- * write
 
-write :: FilePath -> DriverC.Patch -> [Note.Note]
+write :: FilePath -> Set Id.TrackId -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int))
 write = write_ defaultConfig
 
-write_ :: Config -> FilePath -> DriverC.Patch -> [Note.Note]
+write_ :: Config -> FilePath -> Set Id.TrackId -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
-write_ config outputDir patch notes = catch $ do
+write_ config outputDir trackIds patch notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
@@ -55,8 +57,8 @@ write_ config outputDir patch notes = catch $ do
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
     mapM_ (Checkpoint.linkOutput outputDir) skipped
-    result <- Checkpoint.write outputDir (length skipped) chunkSize hashes
-            stateRef $
+    result <- Checkpoint.write outputDir trackIds (length skipped) chunkSize
+            hashes stateRef $
         renderPatch patch config mbState notifyState notes start
     case result of
         Right (_, total) ->

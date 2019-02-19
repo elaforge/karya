@@ -241,7 +241,7 @@ realize trackIds quality outputDir instrument notes = do
                 { _blockId = Config.pathToBlockId instDir
                 , _trackIds = trackIds
                 , _instrument = instrument
-                , _payload = Config.FailureT err
+                , _payload = Config.Failure err
                 }
         Right (rendered, total) ->
             Log.notice $ instrument <> " " <> showt rendered <> "/"

@@ -129,6 +129,9 @@ public:
         override;
     // For the moment, only EventTracks can draw a signal.
     virtual void set_track_signal(const TrackSignal &tsig) override;
+    // Set waveform for this chunknum.  Under the assumption that I only ever
+    // set waveforms in increasing chunknum, each set will clear the ones above
+    // it, to avoid being left with stale chunks at the end.
     virtual void set_waveform(int chunknum, const PeakCache::Params &params)
         override;
     virtual void clear_waveforms(int chunknum) override;

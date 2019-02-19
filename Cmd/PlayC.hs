@@ -103,8 +103,8 @@ cmd_play_msg ui_chan msg = do
         Msg.DeriveComplete _ Msg.ImStarted ->
             Just $ Color.brightness 0.5 Config.busy_color
         Msg.DeriveComplete _ Msg.ImUnnecessary -> Just Config.box_color
-        Msg.ImStatus (Msg.ImProgress {}) -> Nothing
         Msg.ImStatus (Msg.ImComplete _) -> Just Config.box_color
+        Msg.ImStatus _ -> Nothing
 
 set_all_play_boxes :: Ui.M m => Color.Color -> m ()
 set_all_play_boxes color =
@@ -116,20 +116,25 @@ type Range = (TrackTime, TrackTime)
 
 handle_im_status :: Fltk.Channel -> BlockId -> Msg.DeriveStatus
     -> Cmd.CmdT IO ()
-handle_im_status ui_chan block_id = \case
+handle_im_status ui_chan root_block_id = \case
     Msg.DeriveComplete _ Msg.ImStarted ->
-        start_im_progress ui_chan block_id
+        start_im_progress ui_chan root_block_id
     Msg.DeriveComplete _ Msg.ImUnnecessary -> return ()
-    Msg.ImStatus (Msg.ImComplete failed) -> unless failed $
-        complete_im_progress ui_chan block_id
-        -- If it failed, leave the the progress highlight in place, to indicate
-        -- where it crashed.
-    Msg.ImStatus (Msg.ImProgress progress)
-        -- Only display progress for each block as its own toplevel.
-        -- If a block is child of another, I can see its prorgess in
-        -- its parent.
-        | Msg.im_block_id progress == block_id ->
-            set_im_progress ui_chan progress
+    Msg.ImStatus status -> case status of
+        Msg.ImRenderingRange block_id track_ids start end
+            -- Only display progress for each block as its own toplevel.
+            -- If a block is child of another, I can see its prorgess in
+            -- its parent.
+            | block_id /= root_block_id -> return ()
+            | otherwise ->
+                im_rendering_range ui_chan block_id track_ids start end
+        Msg.ImWaveformsCompleted block_id track_ids waveforms ->
+            im_waveforms_completed ui_chan block_id track_ids waveforms
+        Msg.ImComplete failed
+            -- If it failed, leave the the progress highlight in place, to
+            -- indicate where it crashed.
+            | failed -> return ()
+            | otherwise -> im_complete ui_chan root_block_id
     _ -> return ()
 
 start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
@@ -149,37 +154,29 @@ get_im_instrument_tracks block_id = do
             Map.lookup inst allocs
     return $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts
 
-complete_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
-complete_im_progress ui_chan block_id = do
+im_complete :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
+im_complete ui_chan block_id = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     liftIO $ Sync.clear_im_progress ui_chan view_ids
 
-set_im_progress :: Fltk.Channel -> Msg.ImProgressT -> Cmd.CmdT IO ()
-set_im_progress ui_chan
-        (Msg.ImProgressT block_id track_ids mb_range waveforms) = do
-    -- There is some tricky footwork in here to clear stale chunks, load ones
-    -- in case this is a new track, but not reload any ones that are already
-    -- loaded.  mb_range==Nothing signifies that this is the initial skip,
-    -- so load the given waveforms (PeakCache will avoid reloading if they're
-    -- already present), and then clear the rest.  Otherwise, this is an
-    -- incremental update, and there should only be a single waveform, which is
-    -- the just-completed chunk.
-    let last_chunknum = maximum $ 0 : map ((+1) . Track._chunknum) waveforms
+im_rendering_range :: Fltk.Channel -> BlockId -> Set TrackId -> RealTime
+    -> RealTime -> Cmd.CmdT IO ()
+im_rendering_range ui_chan block_id track_ids start end = do
+    sels <- resolve_tracks
+        =<< get_im_progress_selections block_id track_ids start end
+    liftIO $ Sync.set_im_progress ui_chan sels
+
+im_waveforms_completed :: Fltk.Channel -> BlockId -> Set TrackId
+    -> [Track.WaveformChunk] -> Cmd.CmdT IO ()
+im_waveforms_completed ui_chan block_id track_ids waveforms = do
     by_view <- resolve_tracks
-        [ ((block_id, track_id), (waveforms, last_chunknum))
+        [ ((block_id, track_id), waveforms)
         | track_id <- Set.toList track_ids
         ]
-    unless (null waveforms) $
-        liftIO $ Sync.set_waveforms ui_chan (map (second fst) by_view)
-    case mb_range of
-        -- Since this is the initial skip, I have to clear waveforms after it,
-        -- to avoid leaving old ones lying around.
-        Nothing -> liftIO $
-            Sync.clear_waveforms ui_chan (map (second snd) by_view)
-        Just (start, end) -> do
-            sels <- resolve_tracks
-                =<< get_im_progress_selections block_id track_ids start end
-            liftIO $ Sync.set_im_progress ui_chan sels
+    -- Under the assumption that I only ever set waveforms in increasing
+    -- chunknum, each set will clear the ones above it, to avoid being left
+    -- with stale chunks at the end.
+    liftIO $ Sync.set_waveforms ui_chan by_view
 
 get_im_progress_selections :: Cmd.M m => BlockId -> Set TrackId
     -> RealTime -> RealTime -> m [((BlockId, TrackId), (Range, Color.Color))]

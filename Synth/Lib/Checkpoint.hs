@@ -5,9 +5,9 @@
 -- | Functions to do incremental render.  It hashes 'Note.Note's to skip
 -- rerendering when possible.
 module Synth.Lib.Checkpoint where
-import qualified Crypto.Hash.MD5 as MD5
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Crypto.Hash.MD5 as MD5
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.IORef as IORef
@@ -16,7 +16,7 @@ import qualified Data.Set as Set
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Text.Read as Read
 
@@ -24,13 +24,15 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.File as File
 import qualified Util.Seq as Seq
-import qualified Synth.Shared.Config as Config
 
 import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
 
-import Global
-import Synth.Types
+import qualified Ui.Id as Id
+
+import           Global
+import           Synth.Types
 
 
 -- | This subdirectory in the outputDirectory </> instrument has the
@@ -97,22 +99,31 @@ findLastState files = go "" initialState
 -- ** write
 
 -- | Write the audio with checkpoints.
-write :: FilePath -> Config.ChunkNum -> Audio.Frame
+write :: FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frame
     -> [(Config.ChunkNum, Note.Hash)] -> IORef.IORef State -> AUtil.Audio
     -> IO (Either Text (Config.ChunkNum, Config.ChunkNum))
     -- ^ Either Error (writtenChunks, total)
-write outputDir skippedCount chunkSize hashes stateRef audio
+write outputDir trackIds skippedCount chunkSize hashes stateRef audio
     | null hashes = return $ Right (0, skippedCount)
     | otherwise = do
         result <- AUtil.catchSndfile $ Resource.runResourceT $
-            Audio.File.writeCheckpoints chunkSize
-                (getFilename outputDir stateRef)
-                (\fn -> writeState stateRef fn >> linkOutput outputDir fn)
+            Audio.File.writeCheckpoints
+                chunkSize (getFilename outputDir stateRef) chunkComplete
                 AUtil.outputFormat (extendHashes hashes)
                 audio
         return $ case result of
             Left err -> Left err
             Right written -> Right (written, written + skippedCount)
+    where
+    chunkComplete chunknum fname = do
+        writeState stateRef fname
+        linkOutput outputDir fname
+        Config.emitMessage "" $ Config.Message
+            { _blockId = Config.pathToBlockId outputDir
+            , _trackIds = trackIds
+            , _instrument = txt $ FilePath.takeFileName outputDir
+            , _payload = Config.WaveformsCompleted [chunknum]
+            }
 
 getFilename :: FilePath -> IORef.IORef State -> (Config.ChunkNum, Note.Hash)
     -> IO FilePath

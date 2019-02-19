@@ -36,7 +36,7 @@ import Types
 test_write_incremental = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch
-    let write = Render.write_ config dir patch
+    let write = Render.write_ config dir mempty patch
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
@@ -97,7 +97,7 @@ test_write_incremental_offset = do
     -- I want to keep the test.
     dir <- Testing.tmp_dir "write"
     patch <- getPatch
-    let write = Render.write_ config dir patch
+    let write = Render.write_ config dir mempty patch
     let dur = AUtil.toSeconds (Render._chunkSize config)
     let notes = drop 1 $ mkNotes (dur/2) [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
 
@@ -116,7 +116,7 @@ test_write_incremental_offset = do
 renderSamples :: DriverC.Patch -> [Note.Note] -> IO [Float]
 renderSamples patch notes = do
     dir <- Testing.tmp_dir "renderSamples"
-    io_equal (Render.write_ config dir patch notes) (Right (3, 3))
+    io_equal (Render.write_ config dir mempty patch notes) (Right (3, 3))
     readSamples dir
 
 readSamples :: FilePath -> IO [Float]

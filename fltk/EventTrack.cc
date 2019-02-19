@@ -335,7 +335,8 @@ get_max_peak(const std::vector<std::shared_ptr<PeakCache::Entry>> &peaks)
 void
 EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
-    this->peaks.resize(std::max(peaks.size(), size_t(chunknum+1)));
+    // Clear any chunks above.
+    this->peaks.resize(size_t(chunknum+1));
     peaks[chunknum] = PeakCache::get()->load(params);
     float new_peak = get_max_peak(peaks);
     if (new_peak != this->max_peak) {

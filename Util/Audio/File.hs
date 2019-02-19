@@ -175,33 +175,44 @@ writeCheckpoints :: forall rate chan state.
     (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frame
     -> (state -> IO FilePath) -- ^ get filename for this state
-    -> (FilePath -> IO ()) -- ^ write state after the computation
+    -> (Int -> FilePath -> IO ()) -- ^ write state after the computation
     -> Sndfile.Format -> [state]
     -- ^ Some render-specific state for each checkpoint.  Shouldn't run out
     -- before the audio runs out.
     -> Audio.AudioIO rate chan -> Resource.ResourceT IO Int
     -- ^ number of checkpoints written
-writeCheckpoints size getFilename writeState format = go 0
+writeCheckpoints size getFilename chunkComplete format = go 0
     where
     go !written (state : states) audio = do
         fname <- liftIO $ getFilename state
         (blocks, audio) <- Audio.takeFramesGE size audio
         if null blocks
-            then return written
+            then return chunknum
             else do
-                let count = Audio.framesCount chan size
-                Audio.assert (Num.sum (map V.length blocks) == count) $
-                    "expected size " <> pretty count <> " but got "
-                    <> pretty (map V.length blocks)
+                -- The blocks should sum to 'size', except the last one, which
+                -- could be smaller.  But I can't pull from 'audio' without
+                -- changing the state, so I have to wait until the next loop to
+                -- see if this one was short.
+                Audio.assert (written `mod` size == 0) $
+                    "non-final chunk was too short, expected " <> pretty size
+                    <> ", but last chunk was " <> pretty (written `mod` size)
+                let blockSize = Num.sum $ map V.length blocks
+                -- In count, not frames, in case I somehow get an odd count.
+                Audio.assert (blockSize <= sizeCount) $
+                    "chunk too long, expected " <> pretty sizeCount
+                    <> ", but got " <> pretty (map V.length blocks)
                 let tmp = fname ++ ".write.tmp"
                 liftIO $ do
                     Exception.bracket (openWrite format tmp audio)
                         Sndfile.hClose (\handle -> mapM_ (write handle) blocks)
                     Directory.renameFile tmp fname
-                    writeState fname
-                go (written+1) states audio
+                    chunkComplete  chunknum fname
+                go (written + size) states audio
+        where
+        chunknum = fromIntegral $ written `div` size
     go _ [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
     write handle = Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer
+    sizeCount = Audio.framesCount chan size
     chan = Proxy @chan
 
 openWrite :: forall rate channels.

@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- | Shared config to coordinate between the sequencer and im subsystems.
 module Synth.Shared.Config where
+import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
 import qualified Data.Map as Map
@@ -132,15 +133,24 @@ samplingRate = SAMPLING_RATE
 
 type SamplingRate = SAMPLING_RATE
 
--- | Number of frames in each audio block.
-blockSize :: Audio.Frame
-blockSize = Audio.Frame $ samplingRate `div` 4
-
--- | Save an audio chunk and checkpoint in this many frames.  This should be
--- an integral multiple of 'blockSize', so checkpoint state lines up with audio
--- output.
+-- | Save an audio chunk and checkpoint in this many frames.
+--
+-- A smaller size will lead to more checkpoints, which means finer grained
+-- caching, but more overhead saving the intermediate states.  So a slower
+-- synthesizer with smaller state should use small chunks, fast rendering or
+-- large state imply large chunks.  I could in theory adjust this per
+-- synthesizer, though currently karya relies on it being constant.
 chunkSize :: Audio.Frame
 chunkSize = Audio.Frame $ samplingRate * chunkSeconds
+
+-- | Number of frames in each audio block.  A chunk corresponds to the output
+-- file size, and the block is the internal processing size.
+--
+-- To make sure checkpoint states line up with the file boundaries, this must
+-- divide into 'chunkSize'.
+blockSize :: Audio.Frame
+blockSize = Exception.assert (chunkSize `mod` by == 0) $ chunkSize `div` by
+    where by = 16
 
 chunkSeconds :: Int
 chunkSeconds = CHUNK_SECONDS
@@ -205,7 +215,7 @@ data Message = Message {
     _blockId :: !Id.BlockId
     , _trackIds :: !(Set Id.TrackId)
     , _instrument :: !InstrumentName
-    , _payload :: !MessageT
+    , _payload :: !Payload
     }
     deriving (Show, Generics.Generic)
 
@@ -213,53 +223,36 @@ instance Aeson.ToJSON Message where
     toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance Aeson.FromJSON Message
 
-data MessageT =
-    ProgressT !Progress
-    -- | Cache hit on the first n chunks.
-    | SkippedT !ChunkNum
+data Payload =
+    RenderingRange !RealTime !RealTime
+    -- | Completed waveforms.
+    | WaveformsCompleted ![ChunkNum]
     -- | A failure will cause karya to log the msg and mark the track as
     -- incomplete.  It should be fatal, so don't emit any 'emitProgress'
     -- afterwards.
-    | FailureT !Text
+    | Failure !Text
     deriving (Show, Generics.Generic)
 
-instance Aeson.ToJSON MessageT where
+instance Aeson.ToJSON Payload where
     toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
-instance Aeson.FromJSON MessageT
-
--- | A progress message.  The sequencer should be able to parse these to show
--- render status.  It shows the end of the chunk being rendered, so it can
--- highlight the time range which is in progress.
-data Progress = Progress {
-    _renderedPrevChunk :: !Bool
-    , _chunknum :: !ChunkNum
-    , _range :: !(RealTime, RealTime)
-    } deriving (Show, Generics.Generic)
-
-instance Aeson.ToJSON Progress where
-    toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
-instance Aeson.FromJSON Progress
+instance Aeson.FromJSON Payload
 
 emitMessage :: Text -> Message -> IO ()
 emitMessage extra msg = do
-    let json = Aeson.encode msg
     let prio = case _payload msg of
-            ProgressT {} -> Log.Notice
-            SkippedT {} -> Log.Notice
-            FailureT {} -> Log.Warn
+            RenderingRange {} -> Log.Notice
+            WaveformsCompleted {} -> Log.Notice
+            Failure {} -> Log.Warn
     Log.log prio $ Text.unwords $
         [ Id.ident_text (_blockId msg)
         , pretty (Set.map Id.ident_text (_trackIds msg))
         , case _payload msg of
-            ProgressT progress ->
-                showt (_chunknum progress) <> " "
-                    <> pretty start <> "--" <> pretty end
-                where (start, end) = _range progress
-            SkippedT chunknum -> "skipped to " <> showt chunknum
-            FailureT err -> err
+            RenderingRange start end -> pretty start <> "--" <> pretty end
+            WaveformsCompleted chunknums -> "completed: " <> pretty chunknums
+            Failure err -> err
         ] ++ if Text.null extra then [] else [extra]
     Log.with_stdio_lock $ do
-        ByteString.Lazy.Char8.putStrLn json
+        ByteString.Lazy.Char8.putStrLn $ Aeson.encode msg
         IO.hFlush IO.stdout
 
 parseMessage :: Text -> Maybe Message

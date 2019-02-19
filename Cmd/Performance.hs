@@ -317,7 +317,7 @@ watch_subprocesses config inv_tempo wants_waveform score_path send_status procs
                 Log.warn err
                 return True
             Right msgs -> do
-                mapM_ (send_status . Msg.ImProgress) msgs
+                mapM_ send_status msgs
                 return False
         where
         make = make_progress inv_tempo wants_waveform (Config.imDir config)
@@ -326,48 +326,22 @@ watch_subprocesses config inv_tempo wants_waveform score_path send_status procs
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 make_progress :: Transport.InverseTempoFunction -> (TrackId -> Bool)
-    -> FilePath -> FilePath -> Config.Message -> Either Text [Msg.ImProgressT]
+    -> FilePath -> FilePath -> Config.Message -> Either Text [Msg.ImStatus]
 make_progress inv_tempo wants_waveform im_dir score_path
         (Config.Message block_id track_ids instrument p) = case p of
-    Config.ProgressT progress -> do
-        waveforms <- if not (null with) && Config._renderedPrevChunk progress
-            then (:[]) <$> make_chunk (Config._chunknum progress - 1)
-            else return []
-        return $ make_both (Just (Config._range progress)) waveforms
-    Config.SkippedT chunknum -> do
-        waveforms <- if null with then return []
-            else mapM make_chunk [0 .. chunknum-1]
-        -- range=Nothing signals to PlayC.set_im_progress that this is an
-        -- update for the initial skip.  Send waveforms to make sure skipped
-        -- chunks are loaded.  If they're already loaded, PeakCache will notice
-        -- and not reload.
-        return $ make_both Nothing waveforms
-    Config.FailureT err -> Left $
+    Config.RenderingRange start end ->
+        return [Msg.ImRenderingRange block_id track_ids start end]
+    Config.WaveformsCompleted chunknums
+        | Set.null with -> return []
+        | otherwise -> do
+            waveforms <- mapM make_waveform chunknums
+            return $ (:[]) $ Msg.ImWaveformsCompleted block_id with waveforms
+        where with = Set.filter wants_waveform track_ids
+    Config.Failure err -> Left $
         "im failure: " <> pretty block_id <> ": "
             <> pretty track_ids <> ": " <> err
     where
-    -- Emit explicit waveforms=[] for the tracks that have im but turned off
-    -- waveforms.  This is so they still get the rendering range, and for
-    -- SkippedT, clear out any waveform that might already be there.
-    make_both range waveforms =
-        [ Msg.ImProgressT
-            { im_block_id = block_id
-            , im_track_ids = with
-            , im_rendering_range = range
-            , im_waveforms = waveforms
-            }
-        | not (null with)
-        ] ++
-        [ Msg.ImProgressT
-            { im_block_id = block_id
-            , im_track_ids = without
-            , im_rendering_range = range
-            , im_waveforms = []
-            }
-        | not (null without)
-        ]
-    (with, without) = Set.partition wants_waveform track_ids
-    make_chunk chunknum = do
+    make_waveform chunknum = do
         start <- to_score $ time_at chunknum
         end <- to_score $ time_at (chunknum+1)
         -- ratio=2 means half as long.  So 2s -> 1t is 2/1

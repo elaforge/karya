@@ -5,7 +5,9 @@
 module Cmd.Msg where
 import           Control.DeepSeq (deepseq)
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Vector as Vector
+
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
@@ -56,21 +58,13 @@ show_short = \case
     Midi midi -> pretty midi
     InputNote note -> pretty note
     Transport status -> pretty status
+    -- show_short is used for timing, and Show DeriveStatus can force stuff in
+    -- Performance, so let's avoid the Show instance.
     DeriveStatus bid status -> Id.ident_text bid <> ":" <> case status of
         OutOfDate -> "OutOfDate"
         Deriving -> "Deriving"
         DeriveComplete {} -> "DeriveComplete"
-        ImStatus status -> case status of
-            ImProgress progress -> mconcat
-                [ "ImProgress:", pretty (im_block_id progress)
-                , pretty (im_track_ids progress)
-                , maybe "" (\(start, end) -> pretty start <> "--" <> pretty end)
-                    (im_rendering_range progress)
-                ]
-            ImComplete failed ->
-                "ImComplete" <> if failed then "(failed)" else ""
-        -- show_short is used for timing, and Show DeriveStatus can force stuff
-        -- in Performance, so let's not use it.
+        ImStatus status -> pretty status
     Socket _hdl query -> pretty query
 
 instance Pretty Msg where
@@ -93,29 +87,37 @@ data DeriveStatus =
     | ImStatus !ImStatus
     deriving (Show)
 
-instance Pretty DeriveStatus where pretty = showt
+instance Pretty DeriveStatus where
+    pretty = \case
+        ImStatus status -> pretty status
+        status -> showt status
 
 data ImStarted = ImStarted -- ^ im subprocess in progress
     | ImUnnecessary -- ^ no im notes, so no subprocesses started
     deriving (Show)
 
 data ImStatus =
-    ImProgress !ImProgressT
+    -- | start--end currently being rendered.
+    ImRenderingRange !BlockId !(Set TrackId) !RealTime !RealTime
+    -- | Waveforms written for these chunks.
+    | ImWaveformsCompleted !BlockId !(Set TrackId) ![Track.WaveformChunk]
     -- | True if the im subprocess had a failure.  The error will have been
     -- logged, and this flag will leave a visual indicator on the track that
     -- something went wrong.
     | ImComplete !Bool
     deriving (Show)
 
--- | Active synthesis range for the give block and tracks.
-data ImProgressT = ImProgressT {
-    im_block_id :: !BlockId
-    , im_track_ids :: !(Set TrackId)
-    -- | If set, this (start, end) range is currently being rendered.
-    , im_rendering_range :: !(Maybe (RealTime, RealTime))
-    -- | Previous chunks, which are now complete.
-    , im_waveforms :: ![Track.WaveformChunk]
-    } deriving (Show)
+instance Pretty ImStatus where
+    pretty = \case
+        ImRenderingRange block_id track_ids start end -> mconcat
+            [ pretty block_id, ":", pretty track_ids, ":"
+            , pretty start, "--", pretty end
+            ]
+        ImWaveformsCompleted block_id track_ids waves -> mconcat
+            [ pretty block_id, ":", pretty track_ids, ":"
+            , Text.intercalate "," (map (txt . Track._filename) waves)
+            ]
+        ImComplete failed -> "ImComplete" <> if failed then "(failed)" else ""
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 

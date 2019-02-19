@@ -12,13 +12,14 @@ import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified Data.Either as Either
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
@@ -35,7 +36,7 @@ import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Shared.Note as Note
 
-import Global
+import           Global
 
 
 -- | If True, write control signals to separate files for visualization.
@@ -100,7 +101,8 @@ process prefix patches notes outputDir = do
             Directory.createDirectoryIfMissing True $
                 if useCheckpoints then output else FilePath.takeDirectory output
             (result, elapsed) <- Thread.timeActionText $ if useCheckpoints
-                then Render.write output patch notes
+                then Render.write output
+                    (Set.fromList $ mapMaybe Note.trackId notes) patch notes
                 else fmap (second (\() -> (0, 0))) $ AUtil.catchSndfile $
                     Resource.runResourceT $
                     Audio.File.write AUtil.outputFormat output $

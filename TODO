@@ -1394,6 +1394,8 @@ synth: im:
       - definitely still buggy, incremental editing gets it in a broken state
         . Deleting notes didn't clear later waveforms.
         . A cache hit doesn't reset waveforms, when they have changed.
+        . If I'm using the symlink filename as a cache key, it can
+          definitely be fooled.  Maybe I need to readlink on it?
       * global peak is buggy in that future loads don't update earlier ones
         . But maybe I don't want it anyway, since a loud track makes every
           other one tiny.
@@ -1963,17 +1965,28 @@ synth: im:
       . Time is the same without pan and envelope.
     sampler profiling:
       times:
-        . original: 4.789
-        . mixN:     3.035
-        . mix in C: 2.569
+        . original:     4.789
+        . mixN:         3.035
+        . mix in C:     2.569
+        . small blocks: 0.910
       . half time in pull (file read?), half time in mix
       . 176400 frames *2 chan * 4 bytes = 1378k per block.  43 blocks is 57mb!
-      - why are there 43 voices in the example?  I expect 3 plus a few!
+      * why are there 43 voices in the example?  I expect 3 plus a few!
         . Maybe envelope isn't cutting them off?
+        . They're not overlapping, it's just how many notes are in the chunk.
+        . Can I figure out the actual overlapping?  I can't as long as I'm
+          prepending 0s in RenderSample.resample, because they look just like
+          the sample.
+        . Don't prepend 0s?  For it to work, I have to go all the way down to
+          mix.
+        . I think I'm pulling chunkSize, which is 4s, when I meant to pull
+          Config.blockSize.
+        . I can emit a progress every block, but waveform needs to wait until
+          I get to the end.  I think only File.writeCheckpoints knows that.
       * lots of time spent mixing, and for blocks smaller than the chunk size
         . Maybe zipWithN could be more efficient, and also not require
           padZero.
-    * Put in timing metrics, so I can get a report of how much time each stage
+    / Put in timing metrics, so I can get a report of how much time each stage
       spends per-chunk.
       . But put them where?
       . I want to do the (timestamp, name) style.  I think the most natural
@@ -1987,6 +2000,7 @@ synth: im:
         complicated.  But faust will always be a black box, and in fact,
         I'd like to avoid having more thane 2 or 3 "ugens" in haskell.
       . At least I can log final time for each chunk.
+      . Turns out I already do that :/
     non-constant pitch:
       . I need to get sample duration after applying the pitch curve so I can
         accurately determine overlap.  I figured out the math to predict
