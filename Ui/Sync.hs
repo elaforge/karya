@@ -33,7 +33,7 @@ module Ui.Sync (
     , set_play_position, clear_play_position
     , set_highlights, clear_highlights
     , set_im_progress, clear_im_progress
-    , set_waveforms, clear_waveforms
+    , set_waveforms
     , floating_input
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -57,7 +57,6 @@ import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Sel as Sel
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
@@ -177,14 +176,6 @@ set_waveforms chan by_view
         [ BlockC.set_waveform view_id tracknum waveform
         | ((view_id, tracknum), waveforms) <- by_view
         , waveform <- waveforms
-        ]
-
-clear_waveforms :: Fltk.Channel -> [((ViewId, TrackNum), Types.ChunkNum)]
-    -> IO ()
-clear_waveforms chan by_view =
-    Fltk.send_action chan "clear_waveforms" $ sequence_
-        [ BlockC.clear_waveforms view_id tracknum chunknum
-        | ((view_id, tracknum), chunknum) <- by_view
         ]
 
 -- ** selections

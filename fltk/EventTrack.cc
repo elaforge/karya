@@ -347,18 +347,6 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 
 
 void
-EventTrack::clear_waveforms(int chunknum)
-{
-    this->peaks.resize(std::min(peaks.size(), size_t(chunknum)));
-    float new_peak = get_max_peak(peaks);
-    if (new_peak != this->max_peak) {
-        this->max_peak = new_peak;
-        this->redraw();
-    }
-}
-
-
-void
 EventTrack::finalize_callbacks()
 {
     Config::free_haskell_fun_ptr(

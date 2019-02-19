@@ -134,7 +134,6 @@ public:
     // it, to avoid being left with stale chunks at the end.
     virtual void set_waveform(int chunknum, const PeakCache::Params &params)
         override;
-    virtual void clear_waveforms(int chunknum) override;
     virtual void finalize_callbacks() override;
     virtual std::string dump() const override;
 

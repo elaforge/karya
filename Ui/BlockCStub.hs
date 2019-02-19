@@ -112,9 +112,6 @@ set_track_signal view_id tracknum tsig = fltk $ return ()
 set_waveform :: ViewId -> TrackNum -> Track.WaveformChunk -> Fltk ()
 set_waveform _ _ _ = fltk $ return ()
 
-clear_waveforms :: ViewId -> TrackNum -> Types.ChunkNum -> Fltk ()
-clear_waveforms _ _ _ = fltk $ return ()
-
 set_track_title :: ViewId -> TrackNum -> Text -> Fltk ()
 set_track_title view_id tracknum title = fltk $ return ()
 

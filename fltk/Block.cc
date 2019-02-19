@@ -573,14 +573,6 @@ Block::set_waveform(int tracknum, int chunknum, const PeakCache::Params &params)
 }
 
 
-void
-Block::clear_waveforms(int tracknum, int chunknum)
-{
-    this->track_at(tracknum)->clear_waveforms(chunknum);
-    this->track_tile.redraw();
-}
-
-
 int
 Block::get_track_width(int tracknum) const
 {

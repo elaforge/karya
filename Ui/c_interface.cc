@@ -268,12 +268,6 @@ set_waveform(BlockWindow *view, int tracknum, int chunknum,
 }
 
 void
-clear_waveforms(BlockWindow *view, int tracknum, int chunknum)
-{
-    view->block.clear_waveforms(tracknum, chunknum);
-}
-
-void
 set_track_title(BlockWindow *view, int tracknum, const char *title)
 {
     view->block.track_at(tracknum)->set_title(title);
