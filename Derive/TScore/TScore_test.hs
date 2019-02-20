@@ -90,22 +90,21 @@ test_ext_call_duration = do
             . CmdTest.extract_ui_state UiTest.extract_blocks
     let blocks = [("top=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])]
         top = ("top", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
-
-    -- pprint $ Ui.state_blocks $ snd $ UiTest.run Ui.empty $
-    --     UiTest.mkblocks blocks
-
     -- It uses the root block's namespace, not tscore.
     right_equal (f blocks "a = [top/0 s1]")
         [ top
         , ("a", UiTest.note_track [(0, 2, "top --"), (2, 1, "4s")])
         ]
-
-    -- TODO
-    -- -- Use block title for context.
-    -- right_equal (f blocks "a = \"import india.mridangam\" [\">\" \"4n\"/0 s1]")
-    --     [ top
-    --     , ("a -- import india.mridangam", [])
-    --     ]
+    -- Use block title for context.
+    right_equal
+        (f blocks "a = \"import india.mridangam | dur=1\"\
+            \ [\">\" \"tir tD '_'\"/0 s1]")
+        [ top
+        , ("a -- import india.mridangam | dur=1",
+            [ (">", [(0, 8, "tir tD '_'"), (8, 1, "")])
+            , ("*", [(8, 0, "4s")])
+            ])
+        ]
 
 e_events :: Ui.State -> [[Event.Event]]
 e_events = map (Events.ascending . Track.track_events) . Map.elems
@@ -196,7 +195,7 @@ test_check_recursion = do
     equal (f "b1 = [b2/]\nb2 = [b1/]") $ Just "recursive loop: b2, b1, b2"
 
 get_ext_dur :: TScore.GetExternalCallDuration
-get_ext_dur = \_ -> (Left "not supported", [])
+get_ext_dur = \_ _ -> (Left "not supported", [])
 
 parsed_blocks :: Text -> [TScore.Block TScore.ParsedTrack]
 parsed_blocks = expect_right . TScore.parsed_blocks

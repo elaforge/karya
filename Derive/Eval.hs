@@ -143,8 +143,7 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 -- ** transformer
 
 eval_transformers :: (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
-    => Derive.Context d
-    -> [BaseTypes.Call] -> Derive.Deriver (Stream.Stream d)
+    => Derive.Context d -> [BaseTypes.Call] -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
 eval_transformers ctx calls deriver = go calls
     where

@@ -6,6 +6,7 @@ LEGEND
 STATUS
   . synth status:
     . waveform display:
+      Just tempo changes is left, unless bugs come up.
   . infer gender damping:
   . text score: tscore:
   - make kendang sampler instrument
@@ -1378,6 +1379,8 @@ synth: im:
         resample state no longer applies.
       . For faust, I could just build it into instruments.  Do all-mono for
         now.
+      . Should I serialize to different files, or split them up in the
+        sampler?  How about split by patch?
   bug:
     * I think I crashed the DAW, but it seems to be uncommon?
       . Synth/play_cache/Osc.cc:30 OSC error: cannot find free port, at: ?
@@ -4862,14 +4865,15 @@ text score: tscore:
     . I could also use a plain ., since carry + dot doesn't seem useful.
       Then if I have it repeat exactly instead of carry, I can do
       '4s~ . .'... except the final one shouldn't be tied.
-    . Maybe . is repeat previos, and ~ is repeat previous, and add tie to
+    . Maybe . is repeat previous, and ~ is repeat previous, and add tie to
       previous.
   - How to do repeats?
     . If I have a repeat last note thing above, then just attach a number to
       it.
-  - Use block title for context when resolving CallDuration
+  * Use block title for context when resolving CallDuration
     . Otherwise I can't use mridangam strokes, etc.
-    . Add a test first.
+  - I think track titles can't have transformers, e.g. [ "> | t" a b c ... ]
+    . At least get_ext_dur doesn't like them.
   cleanup:
     * Save logs that come out of the CallDuration query.
     - Collapse new tracks on an existing block.

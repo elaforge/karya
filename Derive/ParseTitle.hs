@@ -52,13 +52,14 @@ track_type title
 
 -- ** note track
 
+-- TODO this is actually unused, and I think track-call is unimplemented?
 parse_note_track :: Text -> Either Text (Score.Instrument, Maybe TrackCall)
 parse_note_track = ParseText.parse p_note_track
 
 -- > >inst !track-call
 p_note_track :: A.Parser (Score.Instrument, Maybe TrackCall)
 p_note_track = (,)
-    <$> (A.char '>' *> (Score.Instrument <$> Parse.p_identifier True ""))
+    <$> lexeme (A.char '>' *> (Score.Instrument <$> Parse.p_identifier True ""))
     <*> ParseText.optional p_track_call
 
 -- ** control track

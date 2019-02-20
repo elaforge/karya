@@ -32,6 +32,8 @@ import qualified Cmd.Ruler.Modify as Ruler.Modify
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Note
+import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TScore.Check as Check
 import qualified Derive.TScore.Parse as Parse
@@ -133,22 +135,22 @@ partition_errors = first concat . unzip . map partition_block
 
 -- | Get the duration of a block call from the tracklang performance, not
 -- tscore.
-type GetExternalCallDuration = Text -> (Either Text TrackTime, [Log.Msg])
+type GetExternalCallDuration =
+    [Text] -> Text -> (Either Text TrackTime, [Log.Msg])
 
 -- TODO I'll need some way to get the logs out, but I'd prefer to not make
 -- everything monadic.
-get_external_duration :: Ui.State -> Cmd.State -> Text
-    -> (Either Text TrackTime, [Log.Msg])
-get_external_duration ui_state cmd_state call =
+get_external_duration :: Ui.State -> Cmd.State -> GetExternalCallDuration
+get_external_duration ui_state cmd_state transformers call =
     first adapt $ Identity.runIdentity $
-        Cmd.eval ui_state cmd_state (lookup_call_duration call)
+        Cmd.eval ui_state cmd_state (lookup_call_duration transformers call)
     where
     adapt (Left err) = Left (txt err)
     adapt (Right Nothing) = Left "call doesn't support CallDuration"
     adapt (Right (Just dur)) = Right dur
 
-lookup_call_duration :: Cmd.M m => Text -> m (Maybe TrackTime)
-lookup_call_duration call = do
+lookup_call_duration :: Cmd.M m => [Text] -> Text -> m (Maybe TrackTime)
+lookup_call_duration transformers call = do
     -- I need BlockId, TrackId to get the Dynamic, for deriving context.
     -- I think it shouldn't really matter for call duration, but of course it
     -- could.  If I pick the root block then I get global transform and
@@ -164,7 +166,12 @@ lookup_call_duration call = do
     -- I think if I have a root block with a performance then I don't need
     -- with_default_imported, but for tests I don't have a Performance.
     -- TODO it would be better to get a Performance for tests.
+
+    transform = map (Eval.eval_transform_expr "lookup_call_duration") $
+        filter (not . Text.null) transformers
+    -- Eval.eval_transform_expr
     deriver = Derive.with_default_imported $
+        foldr (.) id transform $
         Perf.derive_event (Derive.Note.track_info track [])
             (Event.event 0 1 call)
     track = TrackTree.make_track "title" mempty 1
@@ -220,10 +227,13 @@ make_tracks get_ext_dur source blocks = Map.elems memo
         | block <- blocks
         ]
     resolve_block block = block
-        { _tracks = map (resolve (_block_id block)) (_tracks block) }
-    resolve block_id (ParsedTrack config title tokens) = do
-        tokens <- first (T.show_error source) $
-            sequence $ Check.process (get_dur block_id) config tokens
+        { _tracks = map (resolve (_block_id block) (_block_title block))
+            (_tracks block)
+        }
+    resolve block_id block_title (ParsedTrack config title tokens) = do
+        tokens <- first (T.show_error source) $ sequence $
+            Check.process (get_dur (to_transformers block_title title) block_id)
+                config tokens
         let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
         return $ NTrack
             { _note = Track
@@ -241,7 +251,7 @@ make_tracks get_ext_dur source blocks = Map.elems memo
     -- because there's a phase difference between tscore and tracklang (that's
     -- the integration), so it wouldn't be reliable anyway.  So a non-memoized
     -- lookup shouldn't have the same quadratic performance.
-    get_dur parent call = case Check.call_block_id parent call of
+    get_dur transformers parent call = case Check.call_block_id parent call of
         Nothing -> (Left $ "not a block call: " <> showt call, [])
         Just block_id -> case Map.lookup block_id memo of
             Nothing ->
@@ -249,12 +259,16 @@ make_tracks get_ext_dur source blocks = Map.elems memo
                     result
                 , logs
                 )
-                where (result, logs) = get_ext_dur call
+                where (result, logs) = get_ext_dur transformers call
             Just block ->
                 ( bimap (("in block " <> pretty block_id <> ": ")<>)
                     (maximum . (0:) . map track_end) (sequence (_tracks block))
                 , []
                 )
+    to_transformers block_title track_title = block_title
+        : if track_title == "" then [] else [note_to_transform track_title]
+    note_to_transform = either (const "") ShowVal.show_val
+        . ParseTitle.parse_note
 
 track_end :: NTrack -> T.Time
 track_end (NTrack note controls) = from_track_time $
