@@ -4,27 +4,26 @@
 
 module Shake.Progress (report) where
 import qualified Control.Concurrent as Concurrent
-import Control.Monad
-import qualified Data.Maybe as Maybe
 import qualified Development.Shake as Shake
+import qualified System.Console.Regions as Regions
 import qualified Text.Printf as Printf
+
+import           Control.Monad
 
 
 report :: IO Shake.Progress -> IO ()
-report progress = void $ Concurrent.forkIO (loop "")
+report getProgress =
+    void $ Concurrent.forkIO $ Regions.withConsoleRegion Regions.Linear loop
     where
-    loop prev = do
-        cur <- progress
-        let msg = Maybe.fromMaybe "" (format cur)
-        when (not (null msg) && msg /= prev) $
-            putStrLn msg
-        Concurrent.threadDelay $ 4 * 10^6
-        loop msg
-    format cur
-        | Shake.countTodo cur == 0 = Nothing
-        | otherwise = Just $ Printf.printf
-            "====== skip %03d / built %03d / todo %03d -- %.1fs ======"
-            (Shake.countSkipped cur) (Shake.countBuilt cur)
-            (Shake.countTodo cur) (fst (Shake.timeTodo cur))
-            ++ if snd (Shake.timeTodo cur) == 0 then ""
-                else Printf.printf " (%d unknown)" (snd (Shake.timeTodo cur))
+    loop region = do
+        progress <- getProgress
+        Regions.setConsoleRegion region $ format progress
+        Concurrent.threadDelay $ 1 * 10^6
+        loop region
+    format progress = Printf.printf
+        (banner "skip %03d / built %03d / todo %03d -- %.1fs")
+        (Shake.countSkipped progress) (Shake.countBuilt progress)
+        (Shake.countTodo progress) (fst (Shake.timeTodo progress))
+        ++ if snd (Shake.timeTodo progress) == 0 then ""
+            else Printf.printf " (%d unknown)" (snd (Shake.timeTodo progress))
+    banner msg = unwords [replicate 6 '=', msg, replicate 6 '=']

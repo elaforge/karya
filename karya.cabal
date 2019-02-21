@@ -42,6 +42,7 @@ library
         c-storable,
         cereal,
         colour,
+        concurrent-output,
         containers >=0.5,
         data-ordlist,
         deepseq,

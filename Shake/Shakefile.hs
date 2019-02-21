@@ -28,6 +28,8 @@ import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
 import           Development.Shake (need, (%>), (&?>), (?==), (?>))
+import qualified System.Console.Concurrent as Concurrent
+import qualified System.Console.Regions as Regions
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -81,7 +83,8 @@ basicPackages = concat
     , [("extra", ">=1.3")]
     , w "c-storable"
     -- shakefile
-    , [("shake", ">=0.16"), ("binary", ""), ("hashable", "")]
+    , [("shake", ">=0.16")]
+    , w "binary hashable concurrent-output"
     -- Util
     , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
     , [("Diff", ">=0.2")] -- Util.Test
@@ -815,7 +818,7 @@ inferConfig modeConfig = maybe (modeConfig Debug) modeConfig . targetToMode
 -- * rules
 
 main :: IO ()
-main = do
+main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     env <- Environment.getEnvironment
     modeConfig <- configure
@@ -1462,7 +1465,8 @@ compileHs :: [Package] -> Config -> FilePath -> Util.Cmdline
 compileHs packages config hs =
     ( "GHC " <> show (buildMode config)
     , hs
-    , ghcBinary : "-c" : concat
+    -- color=always since I'll be reading the output via pipe.
+    , ghcBinary : "-c" : "-fdiagnostics-color=always" : concat
         [ ghcFlags config, hcFlags (configFlags config)
         , packageFlags (configFlags config) packages, mainIs
         , [hs, "-o", srcToObj config hs]

@@ -17,26 +17,33 @@ module Shake.Util (
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import Control.Monad
 import qualified Control.Monad.Trans as Trans
-import Control.Monad.Trans (liftIO)
+import           Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
 import qualified Data.Maybe as Maybe
-import Data.Monoid ((<>))
+import           Data.Monoid ((<>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Time as Time
 
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as FilePath
+import qualified System.CPUTime as CPUTime
+import qualified System.Console.Concurrent as Concurrent
+import qualified System.Console.Regions as Regions
 import qualified System.Exit as Exit
 import qualified System.FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.Info
 import qualified System.Process as Process
 
+import qualified Text.Printf as Printf
+
 import qualified Util.File as File
 import qualified Util.Seq as Seq
+
+import           Control.Monad
 
 
 -- * shake specific
@@ -52,17 +59,56 @@ type Cmdline = (String, String, [String])
 -- a progress indication, while the keys just make any compiler errors scroll
 -- off the screen.
 cmdline :: Cmdline -> Shake.Action ()
-cmdline = doCmdline False
+cmdline cmd@(abbr, _, _) =
+    Shake.traced ("cmdline:"<>abbr) . liftIO $ doCmdline False cmd
 
-doCmdline :: Bool -> Cmdline -> Shake.Action ()
+data Metric = Metric {
+    metricCpu :: !Double
+    , metricWall :: !Time.UTCTime
+    } deriving (Show)
+
+metric :: IO Metric
+metric = Metric <$> (cpuToSec <$> CPUTime.getCPUTime) <*> Time.getCurrentTime
+    where cpuToSec s = fromIntegral s / fromIntegral (10^12)
+
+diffMetric :: Metric -> Metric -> String
+diffMetric (Metric cpu1 time1) (Metric cpu2 time2) =
+    Printf.printf "%.2f cpu / %.2fs" (cpu1-cpu2)
+        (toSecs (time1 `Time.diffUTCTime` time2))
+    where
+    toSecs :: Time.NominalDiffTime -> Double
+    toSecs = realToFrac
+
+doCmdline :: Bool -> Cmdline -> IO ()
 doCmdline staunch (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
-    let desc = abbr ++ if null output then "" else ": " ++ output
-    putQuietNormal desc (unwords (cmd:args))
-    res <- Shake.traced ("cmdline: " ++ desc) $
-        Process.rawSystem "nice" (cmd : args)
-    when (not staunch && res /= Exit.ExitSuccess) $
-        errorIO $ "Failed:\n" ++ unwords (cmd : args)
+    let desc = abbr <> if null output then "" else ": " <> output
+    start <- metric
+    notRequired <- Regions.withConsoleRegion Regions.Linear $ \region -> (do
+        Regions.setConsoleRegion region desc
+        -- Concurrent.createProcessConcurrent doesn't get along with ghc's
+        -- colorized stderr, for some reason.
+        (exit, stdout, stderr) <- Process.readCreateProcessWithExitCode
+            (Process.proc "nice" (cmd : args)) ""
+        unless (null stdout || stdout == ghcNotRequired) $
+            Concurrent.outputConcurrent stdout
+        unless (null stderr) $
+            Concurrent.outputConcurrent stderr
+        when (not staunch && exit /= Exit.ExitSuccess) $
+            errorIO $ "Failed:\n" ++ unwords (cmd : args)
+        return $ stdout == ghcNotRequired
+        ) `Exception.onException` do
+            timing <- showMetric start
+            Concurrent.outputConcurrent $ unwords [desc, timing, "(aborted)"]
+                <> "\n"
+    timing <- showMetric start
+    Concurrent.outputConcurrent $ unwords [desc, timing]
+        <> (if notRequired then " (skipped)" else "") <> "\n"
+    where
+    ghcNotRequired = "compilation IS NOT required\n"
+    showMetric start = do
+        end <- metric
+        return $ unwords ["-", diffMetric end start]
 doCmdline _ (abbr, output, []) =
     errorIO $ "0 args for cmdline: " ++ show (abbr, output)
 
@@ -71,7 +117,8 @@ system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
 
 -- | Like 'system', but don't ignore the exit code.
 staunchSystem :: FilePath -> [String] -> Shake.Action ()
-staunchSystem cmd args = doCmdline True (unwords (cmd:args), "", cmd:args)
+staunchSystem cmd args =
+    liftIO $ doCmdline True (unwords (cmd:args), "", cmd:args)
 
 -- | Run a shell command, and crash if it fails.
 shell :: String -> Shake.Action ()

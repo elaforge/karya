@@ -4,11 +4,14 @@ LEGEND
   Use indent folding with indent=2.
 
 STATUS
+  . shakefile concurrent:
+    . Use concurrent-output to show how long each build takes.
   . synth status:
     . waveform display:
       Just tempo changes is left, unless bugs come up.
   . infer gender damping:
   . text score: tscore:
+    . Take a break on this until I actually use it.
   - make kendang sampler instrument
     . Make thru work for it, and refactor thru in general.
     . refactor thru:
@@ -2478,6 +2481,17 @@ synth: im:
     . hackage accelerate
 
 shakefile: build:
+  * use concurrent-output to see start and duration for cmds
+    * It makes ghc turn off colors, but if I turn theme on, they only show up
+      at the end.  concurrent-output must be treating ANSI codes differently?
+    * Can I catch "compilation IS NOT required" and replace with an inline
+      symbol?  I think it's monitoring the output, but maybe doesn't give
+      access to that?
+    . It seems to suppress normal shake output when I ^c.  But just for the ^c
+      errors, compile error gets output as usual.
+    * Can I get the progress back?  I want to put it at the bottom.
+      . It's naturally at the top, but that seems ok too.
+    - read output incrementally, so I can see tests as they run
   my hacked libsamplerate is hard to use on linux
     . Beacuse you can only have one dynamic library with that name, and e.g.
       jack and many other things want the standard libsamplerate.

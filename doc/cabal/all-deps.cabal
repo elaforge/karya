@@ -42,6 +42,7 @@ library
         c-storable,
         cereal,
         colour,
+        concurrent-output,
         conduit-audio,
         conduit-audio-samplerate,
         conduit-audio-sndfile,
