@@ -124,13 +124,14 @@ verify_allocation :: Allocations -> Inst.Backend -> Score.Instrument
 verify_allocation allocs backend instrument alloc =
     fmap (prefix<>) $
         verify_backends_match backend alloc
-        <|> verify_no_overlapping_addrs allocs alloc
+        <|> verify_no_overlapping_addrs allocs alloc instrument
     where
     prefix = pretty instrument <> " from " <> pretty qualified <> ": "
     qualified = alloc_qualified alloc
 
-verify_no_overlapping_addrs :: Allocations -> Allocation -> Maybe Text
-verify_no_overlapping_addrs (Allocations allocs) alloc
+verify_no_overlapping_addrs :: Allocations -> Allocation
+    -> Score.Instrument -> Maybe Text
+verify_no_overlapping_addrs (Allocations allocs) alloc instrument
     | null overlaps = Nothing
     | otherwise = Just $ "instruments with overlapping channel allocations: "
         <> Text.intercalate ", "
@@ -140,7 +141,10 @@ verify_no_overlapping_addrs (Allocations allocs) alloc
     where
     overlaps = mapMaybe find (addrs_of alloc)
     find addr = (addr,) . fst <$>
-        List.find ((addr `elem`) . addrs_of . snd) (Map.toList allocs)
+        List.find ((addr `elem`) . addrs_of . snd)
+            (filter ((/=instrument) . fst) (Map.toList allocs))
+            -- Don't count this instrument as an overlap, since I'll be
+            -- replacing it.
     addrs_of alloc = case alloc_backend alloc of
         Midi config -> map fst (Patch.config_allocation config)
         _ -> []
