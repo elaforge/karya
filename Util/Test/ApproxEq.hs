@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | ApproxEq class for comparing floating point numbers.
-module Util.Test.ApproxEq (ApproxEq(eq), compare) where
+module Util.Test.ApproxEq (ApproxEq(eq), neq, compare) where
 import Prelude hiding (compare)
 import qualified Data.Text as Text
 
@@ -18,6 +18,9 @@ compare eta a b
 
 class ApproxEq a where
     eq :: Double -> a -> a -> Bool
+
+neq :: ApproxEq a => Double -> a -> a -> Bool
+neq eta x y = not $ eq eta x y
 
 instance ApproxEq Float where
     eq eta x y = abs (x - y) <= Num.d2f eta

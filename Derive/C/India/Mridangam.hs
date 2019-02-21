@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -49,7 +50,7 @@ library = Library.generators
     -- There are various other ways to play this.
     , ("tari", c_sequence (p "n+u+kt+k")) -- naka tiku tari kita
     -- This is the name I use in Solkattu.
-    , ("4n", c_sequence (p "n+u+kt+k"))
+    , ("8n", c_sequence (p "n+u+kt+k"))
     , ("tk", c_sequence (p "k+"))
     , ("tknk", c_sequence (p "k+n+"))
     ]
@@ -60,16 +61,25 @@ module_ :: Module.Module
 module_ = "india" <> "mridangam"
 
 c_sequence :: Sig.Parser [Stroke] -> Derive.Generator Derive.Note
-c_sequence sequence_arg = Derive.generator module_ "sequence" Tags.inst
+c_sequence sequence_arg = Derive.with_score_duration score_duration $
+    Derive.generator module_ "sequence" Tags.inst
     "Play a sequence of mridangam strokes. Each one takes the given `dur`, and\
     \ if the event is longer than the sequence, it is repeated to fill up\
     \ available space. If a whole cycle doesn't fit, clip from the end for a\
     \ positive event, or from the beginning for a negative one.\
     \ If `dur` is 0, then stretch to the sequence to fit the event."
-    $ Sig.call ((,) <$> sequence_arg <*> dur_arg) $ \(sequence, dur) ->
+    $ Sig.call signature $ \(sequence, dur) ->
     Sub.inverting $ \args -> do
         let seq = map (1,) $ map (realize_stroke (Args.context args)) sequence
         m_sequence seq dur (Args.range args) (Args.orientation args)
+    where
+    signature = (,) <$> sequence_arg <*> dur_arg
+    score_duration args = do
+        (sequence, matra_dur) <- Sig.parse_or_throw signature args
+        return $ Derive.CallDuration $ if
+            | matra_dur == 0 -> Args.duration args
+            | otherwise -> (if Args.negative args then negate else id) $
+                fromIntegral (length sequence) * matra_dur
 
 sequence_arg :: Sig.Parser [Stroke]
 sequence_arg = parse_sequence <$> Sig.required_env "sequence" Sig.Unprefixed
@@ -122,23 +132,32 @@ instance ShowVal.ShowVal Stroke where
 -- * c_pattern
 
 c_pattern :: Derive.Generator Derive.Note
-c_pattern = Derive.generator module_ "pattern" Tags.inst
+c_pattern = Derive.with_score_duration score_duration $
+    Derive.generator module_ "pattern" Tags.inst
     "Like `seq`, but pick a standard pattern."
-    $ Sig.call ((,,)
-    <$> (fmap Typecheck.positive
-        <$> Sig.required "n" "Number of strokes. If not given, and dur > 0,\
-            \ then infer the number of strokes as the event_duration / dur.")
-    <*> Sig.defaulted_env "var" Sig.Both default_variation
-        ("Variation name. Possibilities are: "
-            <> Doc.commas (map Doc.literal (Map.keys variations)))
-    <*> dur_arg
-    ) $ \(maybe_strokes, variation, dur) -> Sub.inverting $ \args -> do
-        strokes <- maybe (infer_strokes dur (Args.duration args)) return
+    $ Sig.call signature $ \(maybe_strokes, variation, matra_dur) ->
+    Sub.inverting $ \args -> do
+        strokes <- maybe (infer_strokes matra_dur (Args.duration args)) return
             maybe_strokes
         notes <- Derive.require_right id $ infer_pattern strokes variation
         notes <- return $
             map (second (realize_mstroke (Args.context args))) notes
-        m_sequence notes dur (Args.range args) (Args.orientation args)
+        m_sequence notes matra_dur (Args.range args) (Args.orientation args)
+    where
+    signature = (,,)
+        <$> (fmap Typecheck.positive
+            <$> Sig.required "n" "Number of strokes. If not given, and\
+                \ dur > 0, then infer the number of strokes as the\
+                \ event_duration / dur.")
+        <*> Sig.defaulted_env "var" Sig.Both default_variation
+            ("Variation name. Possibilities are: "
+                <> Doc.commas (map Doc.literal (Map.keys variations)))
+        <*> dur_arg
+    score_duration args = do
+        (maybe_strokes, _, matra_dur) <- Sig.parse_or_throw signature args
+        return $ Derive.CallDuration $ case maybe_strokes of
+            Nothing -> Args.duration args
+            Just strokes -> fromIntegral strokes * matra_dur
 
 infer_pattern :: S.Matra -> Text
     -> Either Text [(S.Duration, Realize.Note Mridangam.Stroke)]
@@ -252,7 +271,7 @@ stretch_karvai sequence karvai matra_dur event_dur = if
             Nothing -> Right [(karvai_dur, Rest)]
             Just (ks, k) ->
                 Right $ map (matra_dur,) ks ++ [(stretch_dur, k)]
-    | to_dur strokes /= event_dur ->
+    | ApproxEq.neq 0.001 (to_dur strokes) event_dur ->
         Left $ "expected " <> pretty strokes <> "*" <> pretty matra_dur
             <> " = " <> pretty (to_dur strokes)
     | otherwise -> Right $ map (matra_dur,) karvai

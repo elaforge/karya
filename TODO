@@ -33,6 +33,8 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - being able to put 's in bare symbols can lead to confusing errors, e.g.
+    call 'arg 1' arg2' is valid.
   * use LTuning.nrpn for gong-kebyar patch and allocations
     . Ok, but as long as I'm using *legong, it's still more convenient to load
       the hardcoded one.
@@ -2492,6 +2494,9 @@ shakefile: build:
     * Can I get the progress back?  I want to put it at the bottom.
       . It's naturally at the top, but that seems ok too.
     - read output incrementally, so I can see tests as they run
+      . It's a bit of a hassle because I have to reimplement the fiddly
+        withForkWait stuff in System.Process.
+      . Then again, Util.Process doesn't do that and it seems fine.
   my hacked libsamplerate is hard to use on linux
     . Beacuse you can only have one dynamic library with that name, and e.g.
       jack and many other things want the standard libsamplerate.
