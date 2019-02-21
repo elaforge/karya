@@ -750,6 +750,8 @@ adi_tani_misra =
     [ -- K adi_tani1_misra All
       K c_18_09_25_misra All
     , K misra_trikalam All
+    -- K e_sarva1_tisra All
+    , K e_adi_tisra_misra All
     ]
 
 adi_tani1 :: Korvai
@@ -832,6 +834,27 @@ e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
 -- n.l.d.d
 -- increase the speed
 -- also n.d.d.d
+
+e_adi_tisra_misra :: Korvai
+e_adi_tisra_misra = korvai Tala.misra_chapu mridangam $ map (smap (nadai 3))
+    [ section $ sarva 7
+    , section $ sarva 6 . tarikitadiku
+    , section $ sarva 2 . tarikitadiku . sarva 3 . tarikitadiku
+    , section $ sarva 1 . tarikitadiku . sarva 1 . tarikitadiku
+        . sarva 1 . tarikitadiku
+        . tarikitadiku . sarva 1 . tarikitadiku . sarva 1
+        . tri_ (__.__3) tarikitadiku
+    ]
+    where
+    -- Duration is off due to map nadai 6.  TODO this is pretty awkward.
+    sarva dur = sarvaD sarvaSollu (dur * 1.5)
+    sarvaSollu = repeat 4 $ taka.ta.ta.dim.__
+    tarikitadiku = named "6npkt" $ su $ tari.kita.taka.diku.kita.taka
+    mridangam = makeMridangam
+        [ (sarvaSollu, let rh = n.k.n.n.d.__ in
+              rh & strM "o_ooo_" . rh & strM "__ooo_" . rh & o . rh)
+        , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
+        ]
 
 e_adi_tisra :: Korvai
 e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
