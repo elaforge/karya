@@ -16,7 +16,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Derive.ScoreTypes as ScoreTypes
-import qualified Derive.ShowVal as ShowVal
+import           Derive.ShowVal (ShowVal(show_val))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -37,22 +37,44 @@ instance String.IsString (Call val) where
 instance String.IsString (Expr val) where
     fromString = generator0 . String.fromString
 
-instance ShowVal.ShowVal val => ShowVal.ShowVal (Expr val) where
-    show_val = Text.strip . Text.intercalate " | " . map ShowVal.show_val
-        . NonEmpty.toList
+-- These ShowVal instances are tested in Derive.Parse_test:
 
-instance ShowVal.ShowVal val => ShowVal.ShowVal (Call val) where
-    show_val (Call (Symbol sym) terms) =
-        sym <> if null terms then ""
-            else " " <> Text.unwords (map ShowVal.show_val terms)
-instance ShowVal.ShowVal val => Pretty (Call val) where
-    pretty = ShowVal.show_val
+instance ShowVal (Expr Text) where show_val = show_val_expr
+instance ShowVal (Call Text) where show_val = show_val_call (Just . id)
+instance ShowVal (Term Text) where show_val = show_val_term
 
-instance ShowVal.ShowVal val => ShowVal.ShowVal (Term val) where
-    show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
-    show_val (Literal val) = ShowVal.show_val val
-instance ShowVal.ShowVal val => Pretty (Term val) where
-    pretty = ShowVal.show_val
+instance ShowVal (Expr MiniVal) where show_val = show_val_expr
+instance ShowVal (Call MiniVal) where
+    show_val = show_val_call $ \case
+        VStr (Str op) -> Just op
+        _ -> Nothing
+instance ShowVal (Term MiniVal) where show_val = show_val_term
+
+-- Previously I used 'instance ShowVal val => ShowVal (Expr val)', but that
+-- doesn't let me have a specialized version for Call Val, unless I want to do
+-- overlapping instances, which I don't.
+
+show_val_expr :: ShowVal (Call val) => Expr val -> Text
+show_val_expr = Text.strip . Text.intercalate " | " . map show_val
+    . NonEmpty.toList
+
+show_val_call :: ShowVal (Term val) => (val -> Maybe Text) -> Call val -> Text
+show_val_call literal_str_of = \case
+    -- This inverts 'Derive.Parse.p_equal'.
+    Call (Symbol "=") [lhs, rhs] ->
+        Text.unwords [show_val lhs, "=", show_val rhs]
+    Call (Symbol "=") [lhs, rhs, Literal op]
+        | Just op <- literal_str_of op -> Text.unwords
+            [ show_val lhs
+            , "=" <> op
+            , show_val rhs
+            ]
+    Call (Symbol sym) terms -> Text.unwords $ sym : map show_val terms
+
+show_val_term :: (ShowVal val, ShowVal (Call val)) => Term val -> Text
+show_val_term = \case
+    ValCall call -> "(" <> show_val call <> ")"
+    Literal val -> show_val val
 
 -- | Name of a call, used to look it up in the namespace.
 --
@@ -67,7 +89,7 @@ newtype Symbol = Symbol Text
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
 
-instance ShowVal.ShowVal Symbol where
+instance ShowVal Symbol where
     show_val (Symbol sym) = sym
 
 expr :: [Call val] -> Call val -> Expr val
@@ -138,8 +160,8 @@ class ToExpr a where
 
 newtype Str = Str Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
-        Serialize.Serialize, ShowVal.ShowVal)
-instance Pretty Str where pretty = ShowVal.show_val
+        Serialize.Serialize, ShowVal)
+instance Pretty Str where pretty = show_val
 
 unstr :: Str -> Text
 unstr (Str str) = str
@@ -153,11 +175,11 @@ data MiniVal = VNum !(ScoreTypes.Typed Signal.Y) | VStr !Str
 instance String.IsString MiniVal where
     fromString = VStr. String.fromString
 
-instance ShowVal.ShowVal MiniVal where
-    show_val (VNum v) = ShowVal.show_val v
-    show_val (VStr v) = ShowVal.show_val v
+instance ShowVal MiniVal where
+    show_val (VNum v) = show_val v
+    show_val (VStr v) = show_val v
 
-instance Pretty MiniVal where pretty = ShowVal.show_val
+instance Pretty MiniVal where pretty = show_val
 
 num :: Double -> MiniVal
 num = VNum . ScoreTypes.untyped

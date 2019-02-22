@@ -14,6 +14,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
@@ -168,7 +169,7 @@ lookup_call_duration transformers call = do
     -- TODO it would be better to get a Performance for tests.
 
     transform = map (Eval.eval_transform_expr "lookup_call_duration") $
-        filter (not . Text.null) transformers
+        filter (not . Text.null) (Debug.trace "trans" transformers)
     -- Eval.eval_transform_expr
     deriver = Derive.with_default_imported $
         foldr (.) id transform $

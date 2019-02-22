@@ -192,7 +192,7 @@ p_unparsed_expr = do
     -- but I still want to allow comments, for consistency.
     strip_comment = fst . Text.breakOn "--"
 
--- | This is a magic call name that surpresses normal parsing.  Instead, the
+-- | This is a magic call name that suppresses normal parsing.  Instead, the
 -- rest of the event expression is passed as a string.  The only characters
 -- that can't be used are ) and |, so an unparsed call can still be included in
 -- a sub expression.

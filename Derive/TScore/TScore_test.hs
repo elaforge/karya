@@ -97,11 +97,19 @@ test_ext_call_duration = do
         ]
     -- Use block title for context.
     right_equal
-        (f blocks "a = \"import india.mridangam | dur=1\"\
-            \ [\">\" \"8n\"/0 s1]")
+        (f blocks "a = \"import india.mridangam | dur=1\" [> \"8n\"/0 s1]")
         [ top
         , ("a -- import india.mridangam | dur=1",
             [ (">", [(0, 8, "8n"), (8, 1, "")])
+            , ("*", [(8, 0, "4s")])
+            ])
+        ]
+    -- Use the track title too.
+    right_equal
+        (f blocks "a = \"import india.mridangam\" [\"> | dur=1\" \"8n\"/0 s1]")
+        [ top
+        , ("a -- import india.mridangam",
+            [ ("> | dur=1", [(0, 8, "8n"), (8, 1, "")])
             , ("*", [(8, 0, "4s")])
             ])
         ]

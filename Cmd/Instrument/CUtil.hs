@@ -134,13 +134,15 @@ expr_attributes expr = do
         =<< Perf.derive_expr block_id track_id pos expr
     events <- Cmd.require_right ("CUtil.expr_attributes: "<>) result
     case events of
-        [] -> Cmd.throw $ "expected events when evaluating " <> pretty expr
+        [] -> Cmd.throw $ "expected events when evaluating: "
+            <> ShowVal.show_val expr
         [event] -> return
             ( fromMaybe 0 (Score.initial_nn event)
             , Score.initial_dynamic event
             , Score.event_attributes event
             )
-        events -> Cmd.throw $ "multiple events when events " <> pretty expr
+        events -> Cmd.throw $ "multiple events when evaluating: "
+            <> ShowVal.show_val expr
             <> ": " <> Text.intercalate ", " (map Score.short_event events)
 
 {- | Emit MIDI thru for an arbitrary expresison.

@@ -12,7 +12,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Trill as Trill
@@ -38,8 +37,10 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Event as Event
+
+import           Global
+import           Types
 
 
 module_ :: Module.Module
@@ -349,7 +350,7 @@ data Expr =
 instance Pretty Expr where
     format (EvaluatedExpr sym vals) =
         ("(" <> Pretty.format sym) Pretty.<+> (Pretty.format vals <> ")")
-    format (QuotedExpr quoted) = Pretty.format quoted
+    format (QuotedExpr quoted) = Pretty.text $ ShowVal.show_val quoted
 
 -- | Parse the sequence call's arguments and substitute aliases.  If there is
 -- no begin, @set-pitch@ will be added, and if there is no middle, @-@ will be

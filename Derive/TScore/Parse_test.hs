@@ -103,12 +103,7 @@ test_pos = do
     equal (map (\t -> (T.token_pos t, unparse t)) tokens)
         [(T.Pos 68, "a"), (T.Pos 70, "b")]
 
-roundtrip :: forall a. (Stack.HasCallStack, Parse.Element a)
-    => Proxy a -> Text -> IO Bool
-roundtrip Proxy t =
-    right_equal (Text.strip <$> second unparse (parse @a t)) t
-
-test_parse = do
+test_roundtrip = do
     roundtrip (Proxy @Id.BlockId) "block1"
     roundtrip (Proxy @Id.BlockId) "x/a"
     roundtrip (Proxy @T.Directive) "%a=b"
@@ -119,23 +114,32 @@ test_parse = do
     roundtrip p "b = [ >hi \"a b\"[ x y ]/ ]"
 
 test_track = do
-    let f = fmap (map strip_pos . T.track_tokens) . parse
+    let parse_track = fmap extract . parse
+        extract (T.Track title tokens) = (title, map strip_pos tokens)
     let bar = T.TBarline no_pos . T.Barline
     let rest = T.TRest no_pos . T.Rest
-    right_equal (f "| ||") [bar 1, bar 2]
-    right_equal (f "a") [tnote "" no_oct "a" no_dur]
-    right_equal (f "a -- hi") [tnote "" no_oct "a" no_dur]
-    right_equal (f "_4 | _.")
+    let title = fmap fst . parse_track
+        tokens = fmap snd . parse_track
+    right_equal (title "> a") ">"
+    right_equal (title ">inst a") ">inst"
+    right_equal (title "\">inst | trans\" a") ">inst | trans"
+    right_equal (title "\"> | trans\" a") "> | trans"
+    -- right_equal (title "\"> | dur=1\" \"8n\"/0") "> | trans"
+
+    right_equal (tokens "| ||") [bar 1, bar 2]
+    right_equal (tokens "a") [tnote "" no_oct "a" no_dur]
+    right_equal (tokens "a -- hi") [tnote "" no_oct "a" no_dur]
+    right_equal (tokens "_4 | _.")
         [ rest (T.Duration (Just 4) Nothing 0 False)
         , bar 1
         , rest (T.Duration Nothing Nothing 1 False)
         ]
-    right_equal (f "a b/")
+    right_equal (tokens "a b/")
         [ tnote "" no_oct "a" no_dur
         , tnote "b" no_oct "" no_dur
         ]
-    right_equal (f "> \"a b\"/") [tnote "a b" no_oct "" no_dur]
-    right_equal (f "> \"a \"() b\"/") [tnote "a \"() b" no_oct "" no_dur]
+    right_equal (tokens "> \"a b\"/") [tnote "a b" no_oct "" no_dur]
+    right_equal (tokens "> \"a \"() b\"/") [tnote "a \"() b" no_oct "" no_dur]
 
 test_token = do
     let f = fmap strip_pos . parse
@@ -183,6 +187,11 @@ test_token_roundtrip = do
     roundtrip p "a/'b1.~"
 
 -- * implementation
+
+roundtrip :: forall a. (Stack.HasCallStack, Parse.Element a)
+    => Proxy a -> Text -> IO Bool
+roundtrip Proxy t =
+    right_equal (Text.strip <$> second unparse (parse @a t)) t
 
 strip_pos :: T.Token T.Call pitch ndur rdur -> T.Token T.Call pitch ndur rdur
 strip_pos = \case

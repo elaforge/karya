@@ -616,6 +616,13 @@ type Expr = Expr.Expr Val
 type Call = Expr.Call Val
 type Term = Expr.Term Val
 
+instance ShowVal.ShowVal (Expr.Expr Val) where show_val = Expr.show_val_expr
+instance ShowVal.ShowVal (Expr.Call Val) where
+    show_val = Expr.show_val_call $ \case
+        VStr (Expr.Str op) -> Just op
+        _ -> Nothing
+instance ShowVal.ShowVal (Expr.Term Val) where show_val = Expr.show_val_term
+
 calls_equal :: Call -> Call -> Maybe Bool
 calls_equal (Expr.Call sym1 args1) (Expr.Call sym2 args2)
     | sym1 /= sym2 = Just False

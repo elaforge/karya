@@ -8,25 +8,26 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified GHC.Stack as Stack
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.ParseText as ParseText
-import Util.Test
 import qualified Util.Test.Testing as Testing
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes (Ref(..), Val(..))
-import Derive.Expr (Call(..), Term(..))
+import           Derive.BaseTypes (Ref(..), Val(..))
 import qualified Derive.Expr as Expr
+import           Derive.Expr (Call(..), Term(..))
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import Derive.TestInstances ()
+import           Derive.TestInstances ()
 
 import qualified Perform.Signal as Signal
-import Global
+
+import           Global
+import           Util.Test
 
 
 test_parse_expr = do
@@ -71,6 +72,19 @@ test_parse_expr = do
 
     equal (f "a;b") $ Right
         [Call "a" [Literal VSeparator, Literal (VStr "b")]]
+
+test_show_val = do
+    roundtrip "a b"
+    roundtrip "a | b"
+    roundtrip "a 4 | c 'd e' | f"
+    roundtrip "a (b c)"
+    roundtrip "a = b"
+    roundtrip "a = 'hi there'"
+    roundtrip "a =+ 4"
+
+roundtrip :: Stack.HasCallStack => Text -> IO Bool
+roundtrip t =
+    right_equal (Text.strip . ShowVal.show_val <$> Parse.parse_expr t) t
 
 test_unparsed_call = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
