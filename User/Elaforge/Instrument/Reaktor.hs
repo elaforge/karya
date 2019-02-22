@@ -117,7 +117,7 @@ patches =
         -- 0 momentarily sounds like a direction change then that's good
         -- enough.
         MidiInst.patch # Patch.attribute_map #=
-            Patch.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
+            Patch.cc_keyswitches [(CC.cc20, [(Attrs.pizz, 127), (mempty, 0)])] $
         MidiInst.pressure $ MidiInst.named_patch (-24, 24) "serenade"
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)

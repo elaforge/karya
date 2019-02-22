@@ -154,6 +154,9 @@ hz = "t-hz"
 vol :: Control
 vol = "vol"
 
+pan :: Control
+pan = "pan"
+
 -- | Sustain pedal.
 pedal :: Control
 pedal = "pedal"

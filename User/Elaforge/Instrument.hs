@@ -29,6 +29,7 @@ import qualified User.Elaforge.Instrument.Morphine as Morphine
 import qualified User.Elaforge.Instrument.Pianoteq as Pianoteq
 import qualified User.Elaforge.Instrument.Reaktor as Reaktor
 import qualified User.Elaforge.Instrument.Spicy as Spicy
+import qualified User.Elaforge.Instrument.Swam as Swam
 import qualified User.Elaforge.Instrument.Tassman as Tassman
 import qualified User.Elaforge.Instrument.Vl1 as Vl1
 import qualified User.Elaforge.Instrument.Vsl as Vsl
@@ -39,8 +40,8 @@ import qualified User.Elaforge.Instrument.Z1 as Z1
 midi_synths :: [MidiInst.Synth]
 midi_synths =
     [ Derailer.synth, Drumaxx.synth, Fm8.synth, Kontakt.synth, Massive.synth
-    , Morphine.synth, Pianoteq.synth, Reaktor.synth, Spicy.synth, Tassman.synth
-    , Vsl.synth
+    , Morphine.synth, Pianoteq.synth, Reaktor.synth, Spicy.synth, Swam.synth
+    , Tassman.synth, Vsl.synth
     ]
 
 -- | Each synth that caches to disk has a function to make the cache, and one

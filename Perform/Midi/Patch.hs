@@ -459,9 +459,15 @@ keyswitches attr_ks =
 single_keyswitches :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
 single_keyswitches = keyswitches . map (second ((:[]) . Keyswitch))
 
-cc_keyswitches :: Midi.Control -> [(Attrs.Attributes, Midi.ControlValue)]
+-- | An AttributeMap that uses 'ControlSwitch'es.  Each CC can have attrs at
+-- several values.
+cc_keyswitches :: [(Midi.Control, [(Attrs.Attributes, Midi.ControlValue)])]
     -> AttributeMap
-cc_keyswitches cc = keyswitches . map (second ((:[]) . ControlSwitch cc))
+cc_keyswitches ks = keyswitches
+    [ (attrs, [ControlSwitch cc val])
+    | (cc, attrControls) <- ks
+    , (attrs, val) <- attrControls
+    ]
 
 keymap :: [(Attrs.Attributes, Keymap)] -> AttributeMap
 keymap table =

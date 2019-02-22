@@ -31,6 +31,23 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  swam strings
+    - map 2nd and 3rd harmonic via CC.
+      . I guess it's just like vsl, the call turns into note + attrs, except
+        I have only natural harmonics, and I have a +harm+third.
+    - Will it really match all the mempty cc keyswitches and send one for each?
+      . No, it looks like the first one shadows the rest.
+    - how to do modal settings?
+      . fingering: mid, bridge, nut
+    - bow gesture
+      . If I want to control direction, maybe I just set to bipolar, then do
+        my own algorithm to select direction.  Then the usual dyn pressure
+        control won't work.
+    - tremolo
+      . Can I just do it manually?  What should tremolo mode be then?
+    - polyphony
+      . How does it work?
+    - add gestures, e.g. harsh attacks, tremolo, etc.
   - replace parsec with megaparsec
   - support zynaddsubfx
   - being able to put 's in bare symbols can lead to confusing errors, e.g.

@@ -1805,7 +1805,6 @@ straight = attr "straight"
 acc = attr "acc" -- accelerando
 rit = attr "rit" -- ritardando
 secco = attr "secco"
-legno = attr "legno"
 harsh = attr "harsh"
 art = Attrs.artificial -- artificial harmonics
 nat = Attrs.natural -- natural harmonics
@@ -1858,12 +1857,6 @@ maj = attr "maj"
 aug = attr "aug"
 chrom = attr "chrom"
 pent = attr "pent"
-
-third = attr "third"
-fourth = attr "fourth"
-fifth = attr "fifth"
-sixth = attr "sixth"
-seventh = attr "seventh"
 oct = attr "oct"
 
 -- ** rhythm

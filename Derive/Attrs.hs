@@ -92,7 +92,7 @@ arpeggio = attr "arp"
 legato = attr "legato"
 porta = attr "porta" -- portamento
 gliss = attr "gliss" -- glissando
-mute = attr "mute" -- brass mute, string mute, or guitar palm mute
+mute = attr "mute" -- generic muted note
 
 vib = attr "vib" -- vibrato
 nv = attr "nv" -- no vibrato
@@ -115,10 +115,13 @@ whole = attr "whole"
 
 -- * strings
 
+arco = attr "arco"
 pizz = attr "pizz" -- pizzicato
 pizz_right = attr "pizz-right"
 snap = attr "snap" -- snap pizz, aka Bartok pizz
 harm = attr "harm"
+legno = attr "legno"
+sord = attr "sord" -- con sordino
 
 -- Artificial or natural, presumably for harmonics.
 natural = attr "nat"
@@ -134,8 +137,6 @@ bisbig = attr "bisbig" -- bisbigliando
 flutter = attr "flutter"
 
 -- * drums
-
--- ** western
 
 snare = attr "snare" -- snare
 stick = attr "stick"
@@ -198,3 +199,13 @@ v3 = attr "v3"
 v4 = attr "v4"
 v5 = attr "v5"
 v6 = attr "v6"
+
+-- | Ordinal numbers, either for intervals, or for the nth of something (e.g.
+-- harm <> third).
+first = attr "first"
+second = attr "second"
+third = attr "third"
+fourth = attr "fourth"
+fifth = attr "fifth"
+sixth = attr "sixth"
+seventh = attr "seventh"
