@@ -14,8 +14,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.TextUtil as TextUtil
-import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
@@ -24,6 +24,8 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 
+import qualified Instrument.Common as Common
+import qualified Midi.Midi as Midi
 import qualified Perform.ConvertUtil as ConvertUtil
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.MSignal as MSignal
@@ -33,9 +35,8 @@ import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | This is the sampling rate used to convert linear segments from
@@ -116,11 +117,13 @@ convert_midi_pitch :: Log.LogMonad m => RealTime -> Score.Instrument
     -> m (Types.Patch, PitchSignal)
 convert_midi_pitch srate inst patch config controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
-        Nothing -> (perf_patch,) . round_sig <$> get_signal
+        Nothing -> (set_keyswitches mode_ks,) . round_sig <$> get_signal
         Just (_, (keyswitches, maybe_keymap)) -> do
             sig <- maybe get_signal set_keymap maybe_keymap
-            return (set_keyswitches keyswitches, round_sig sig)
+            return (set_keyswitches (keyswitches ++ mode_ks), round_sig sig)
     where
+    mode_ks = mode_keyswitches (Score.event_environ event)
+        (Patch.patch_mode_map patch)
     set_keyswitches [] = perf_patch
     set_keyswitches keyswitches =
         perf_patch { Types.patch_keyswitch = keyswitches }
@@ -139,6 +142,14 @@ convert_midi_pitch srate inst patch config controls event =
 
     perf_patch = Types.patch inst config patch
     attr_map = Patch.patch_attribute_map patch
+
+mode_keyswitches :: BaseTypes.Environ -> Patch.ModeMap -> [Patch.Keyswitch]
+mode_keyswitches (BaseTypes.Environ env) (Patch.ModeMap modes) =
+    concat $ Map.elems $ Map.intersectionWith merge env modes
+    where
+    merge val mode_vals =
+        maybe [] (\mini -> Map.findWithDefault [] mini mode_vals)
+            (BaseTypes.val_to_mini val)
 
 convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
     -> PitchSignal -> PitchSignal

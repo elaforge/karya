@@ -204,6 +204,7 @@ instrument_fields name patch =
     , ("Controls", show_control_map control_map)
     -- implementation details
     , ("Attribute map", show_attribute_map attr_map)
+    , ("Mode map", show_mode_map mode_map)
     , ("Pitchbend range", pretty pb_range)
     , ("Decay", if decay == Nothing then "" else pretty decay)
     , ("Scale", maybe "" pretty scale)
@@ -216,6 +217,7 @@ instrument_fields name patch =
         , patch_control_map = control_map
         , patch_initialize = initialize
         , patch_attribute_map = attr_map
+        , patch_mode_map = mode_map
         , patch_defaults = settings
         } = patch
     Patch.Settings
@@ -261,6 +263,15 @@ show_attribute_map (Common.AttributeMap table) =
         -- Still not quite right for lining up columns.
         txt (Printf.printf "%-*s\t" longest (prettys attrs))
             <> pretty keyswitches <> maybe "" ((" "<>) . pretty) maybe_keymap
+
+show_mode_map :: Patch.ModeMap -> Text
+show_mode_map (Patch.ModeMap table) = Text.unlines
+    [ key <> " " <> Text.intercalate ", "
+        [ "=" <> pretty val <> ": " <> pretty ks
+        | (val, ks) <- Map.toList modes
+        ]
+    | (key, modes) <- Map.toAscList table
+    ]
 
 show_control_map :: Control.ControlMap -> Text
 show_control_map cmap =

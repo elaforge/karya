@@ -170,7 +170,7 @@ unstr (Str str) = str
 -- RestrictedEnviron.Val.
 -- TODO NOTE [val-and-minival]
 data MiniVal = VNum !(ScoreTypes.Typed Signal.Y) | VStr !Str
-    deriving (Eq, Show)
+    deriving (Eq, Ord, Show)
 
 instance String.IsString MiniVal where
     fromString = VStr. String.fromString
@@ -180,6 +180,15 @@ instance ShowVal MiniVal where
     show_val (VStr v) = show_val v
 
 instance Pretty MiniVal where pretty = show_val
+
+instance Serialize.Serialize MiniVal where
+    put (VNum a) = Serialize.put_tag 0 >> Serialize.put a
+    put (VStr a) = Serialize.put_tag 1 >> Serialize.put a
+    get = Serialize.get_tag >>= \case
+        0 -> VNum <$> Serialize.get
+        1 -> VStr <$> Serialize.get
+        tag -> Serialize.bad_tag "MiniVal" tag
+
 
 num :: Double -> MiniVal
 num = VNum . ScoreTypes.untyped

@@ -23,7 +23,7 @@ module Perform.Midi.Patch (
 
     -- * Patch
     , Patch(..), name, control_map
-    , initialize, attribute_map, defaults
+    , initialize, attribute_map, mode_map, defaults
     , patch
     , default_name
     -- ** Scale
@@ -40,12 +40,16 @@ module Perform.Midi.Patch (
     , AttributeMap, Keymap(..), Keyswitch(..)
     , keyswitches, single_keyswitches, cc_keyswitches, keymap, unpitched_keymap
     , keyswitch_on, keyswitch_off
+    -- ** ModeMap
+    , ModeMap(..)
+    , make_mode_map, cc_mode_map
 #ifdef TESTING
     , module Perform.Midi.Patch
 #endif
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Unboxed
 
@@ -56,7 +60,10 @@ import qualified Util.Seq as Seq
 import qualified Util.Vector
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
+
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Midi.Midi as Midi
@@ -205,16 +212,18 @@ data Patch = Patch {
     , patch_control_map :: !Control.ControlMap
     , patch_initialize :: !InitializePatch
     , patch_attribute_map :: !AttributeMap
+    , patch_mode_map :: !ModeMap
     , patch_defaults :: !Settings
     } deriving (Eq, Show)
 
 instance Pretty Patch where
-    format (Patch name cmap init attr_map defaults) =
+    format (Patch name cmap init attr_map mode_map defaults) =
         Pretty.record "Patch"
             [ ("name", Pretty.format name)
             , ("control_map", Pretty.format cmap)
             , ("initialize", Pretty.format init)
             , ("attribute_map", Pretty.format attr_map)
+            , ("mode_map", Pretty.format mode_map)
             , ("defaults", Pretty.format defaults)
             ]
 
@@ -225,6 +234,8 @@ initialize = Lens.lens patch_initialize
     (\f r -> r { patch_initialize = f (patch_initialize r) })
 attribute_map = Lens.lens patch_attribute_map
     (\f r -> r { patch_attribute_map = f (patch_attribute_map r) })
+mode_map = Lens.lens patch_mode_map
+    (\f r -> r { patch_mode_map = f (patch_mode_map r) })
 defaults = Lens.lens patch_defaults
     (\f r -> r { patch_defaults = f (patch_defaults r) })
 
@@ -235,6 +246,7 @@ patch pb_range name = Patch
     , patch_control_map = mempty
     , patch_initialize = NoInitialization
     , patch_attribute_map = Common.AttributeMap []
+    , patch_mode_map = ModeMap mempty
     , patch_defaults = mempty { config_pitch_bend_range = Just pb_range }
     }
 
@@ -502,3 +514,22 @@ keyswitch_off ks = case ks of
     Keyswitch key -> Just $ Midi.NoteOff key 64
     ControlSwitch {} -> Nothing
     Aftertouch {} -> Nothing
+
+-- ** ModeMap
+
+-- | The ModeMap is like the 'AttributeMap', but it's triggered by the
+-- event Environ, rather than Attributes.  This is suitable for modes which
+-- have mutually exclusive settings.
+newtype ModeMap = ModeMap (Map EnvKey.Key (Map Expr.MiniVal [Keyswitch]))
+    deriving (Eq, Show, Pretty)
+
+make_mode_map :: [(EnvKey.Key, [(Expr.MiniVal, [Keyswitch])])] -> ModeMap
+make_mode_map = ModeMap . Map.fromList . map (second Map.fromList)
+
+-- | Construct a ModeMap that uses MIDI CC.
+cc_mode_map :: [(EnvKey.Key, Midi.Control, [(Expr.MiniVal, Midi.ControlValue)])]
+    -> ModeMap
+cc_mode_map modes = make_mode_map
+    [ (key, [(val, [ControlSwitch cc cc_val]) | (val, cc_val) <- vals])
+    | (key, cc, vals) <- modes
+    ]

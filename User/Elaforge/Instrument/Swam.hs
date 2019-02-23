@@ -23,6 +23,7 @@ synth =
 
 string :: InstTypes.Name -> MidiInst.Patch
 string name = MidiInst.pressure $
+    MidiInst.patch#Patch.mode_map #= modes $
     MidiInst.patch#Patch.attribute_map #= keyswitches $
     MidiInst.named_patch (-24, 24) name controls
     where
@@ -33,7 +34,6 @@ string name = MidiInst.pressure $
         , (15, "bow-force")
         , (16, "bow-pos")
         , (17, "bow-noise")
-
         -- <64 or >=64
         , (64, Controls.pedal) -- called sustain, but I use that elsewhere
         ]
@@ -43,9 +43,9 @@ string name = MidiInst.pressure $
         , (39, [(mempty, 10), (Attrs.harm, 60), (Attrs.harm<>Attrs.third, 100)])
         , (65, [(mempty, 0), (Attrs.mute, 127)]) -- con sord
         ]
-    modes =
+    modes = Patch.cc_mode_map
         [ ("gesture", 33, [("expr", 10), ("bipolar", 60), ("bowing", 100)])
-        , ("alt-fingering", 36, [("mid", 10), ("bridge", 60), ("nut", 100)])
-        , ("bow-lift", 37, [("off", 10), ("on", 80)])
-        , ("bow-start", 38, [("down", 10), ("up", 80)])
+        , ("fingering", 36, [("mid", 10), ("bridge", 60), ("nut", 100)])
+        , ("bow-lift", 37, [("f", 10), ("t", 80)])
+        , ("bow-start", 38, [("d", 10), ("u", 80)])
         ]

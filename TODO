@@ -38,13 +38,16 @@ UNSORTED
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
   swam strings
+    - It seems like +pizz+harm chooses just pizz.
+      . This is right for some instruments, but how can I tell it they aren't
+        exclusive?
     - map 2nd and 3rd harmonic via CC.
       . I guess it's just like vsl, the call turns into note + attrs, except
         I have only natural harmonics, and I have a +harm+third.
     * Will it really match all the mempty cc keyswitches and send one for each?
       . No, it looks like the first one shadows the rest.
       . But maybe I can just collect the memptys together?
-    - how to do modal settings?
+    * how to do modal settings?
       . fingering: mid, bridge, nut
       . This is like a CC keyswitch, but coming from env, instead of
         attributes.

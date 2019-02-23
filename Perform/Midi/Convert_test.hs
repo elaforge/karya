@@ -226,6 +226,29 @@ test_pitched_keymap = do
         , [(3, NN.c3)]
         ]
 
+test_keyswitches = do
+    let run event = extract $
+            perform patch [("i1", "s/")] [(">i1 | #=(4c)", [(0, 1, event)])]
+        patch =
+            Patch.attribute_map #= Patch.single_keyswitches [(Attrs.pizz, 42)] $
+            Patch.mode_map #= Patch.make_mode_map
+                [ ( "mode"
+                  , [ ("x", [Patch.ControlSwitch 1 2])
+                    , ("y", [Patch.ControlSwitch 1 3])
+                    ]
+                  )
+                ] $
+            UiTest.make_patch ""
+        extract ((events, _), logs) =
+            (map (Types.patch_keyswitch . Types.event_patch) events, logs)
+    equal (run "") ([[]], [])
+    equal (run "+pizz") ([[Patch.Keyswitch 42]], [])
+    equal (run "mode=x | +pizz")
+        ([[Patch.Keyswitch 42, Patch.ControlSwitch 1 2]], [])
+    equal (run "mode=y |") ([[Patch.ControlSwitch 1 3]], [])
+    -- No warning, but it's consistent with no warning for unrecognized attrs.
+    equal (run "mode=z |") ([[]], [])
+
 -- * implementation
 
 nn_signal :: MSignal.Signal -> [(Signal.X, Pitch.NoteNumber)]

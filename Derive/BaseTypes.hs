@@ -471,6 +471,12 @@ lists_equal eq = go
         (\t -> if t then go as bs else Just False) (eq a b)
     go _ _ = Just False
 
+val_to_mini :: Val -> Maybe Expr.MiniVal
+val_to_mini = \case
+    VStr a -> Just (Expr.VStr a)
+    VNum a -> Just (Expr.VNum a)
+    _ -> Nothing
+
 -- | This instance is actually invalid due to showing VPitch, which has no
 -- literal, and for 'Val', showing 'PControlRef', which amounts to the same
 -- thing.  I use this to treat any Val as a Str to re-evaluate it.  Being
