@@ -1594,8 +1594,14 @@ compileCc :: Config -> [Flag] -> FilePath -> FilePath -> Util.Cmdline
 compileCc config flags cc obj =
     ( "C++ " <> show (buildMode config)
     , obj
-    , ["g++", "-c"] ++ globalCcFlags (configFlags config) ++ flags
-        ++ ["-o", obj, cc]
+    , concat
+        -- -fdiagnostics-color=always is the gcc way to say it, but clang
+        -- understands it too.
+        [ ["g++", "-c", "-fdiagnostics-color=always"]
+        , globalCcFlags (configFlags config)
+        , flags
+        , ["-o", obj, cc]
+        ]
     )
 
 linkCc :: [Flag] -> FilePath -> [FilePath] -> Util.Cmdline
