@@ -38,9 +38,17 @@ UNSORTED
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
   swam strings
-    - It seems like +pizz+harm chooses just pizz.
+    * It seems like +pizz+harm chooses just pizz.
       . This is right for some instruments, but how can I tell it they aren't
         exclusive?
+      . Well, they're exclusive within the same CC, but each different CC is
+        independent.
+      . They way to do it would be find all attrs that match, and emit all the
+        switches.  Maybe I can just assume that control switches are
+        independent.  Or at least ones with different CC numbers.  This makes
+        attr search dependent on the actual keyswitches found.
+      . The alternative would be to encode all the combinations as attrs, it's
+        reasonable with a low number, it just clutters up the docs.
     - map 2nd and 3rd harmonic via CC.
       . I guess it's just like vsl, the call turns into note + attrs, except
         I have only natural harmonics, and I have a +harm+third.

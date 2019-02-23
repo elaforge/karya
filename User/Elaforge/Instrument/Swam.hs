@@ -38,7 +38,7 @@ string name = MidiInst.pressure $
         , (64, Controls.pedal) -- called sustain, but I use that elsewhere
         ]
     -- CC breakpoints are <=42, <=84, >=85
-    keyswitches = Patch.cc_keyswitches
+    keyswitches = Patch.cc_keyswitches_permute
         [ (32, [(mempty, 10), (Attrs.pizz, 60), (Attrs.legno, 100)])
         , (39, [(mempty, 10), (Attrs.harm, 60), (Attrs.harm<>Attrs.third, 100)])
         , (65, [(mempty, 0), (Attrs.mute, 127)]) -- con sord

@@ -38,7 +38,8 @@ module Perform.Midi.Patch (
     , InitializePatch(..)
     -- ** AttributeMap
     , AttributeMap, Keymap(..), Keyswitch(..)
-    , keyswitches, single_keyswitches, cc_keyswitches, keymap, unpitched_keymap
+    , keyswitches, single_keyswitches, cc_keyswitches, cc_keyswitches_permute
+    , keymap, unpitched_keymap
     , keyswitch_on, keyswitch_off
     -- ** ModeMap
     , ModeMap(..)
@@ -482,9 +483,19 @@ cc_keyswitches :: [(Midi.Control, [(Attrs.Attributes, Midi.ControlValue)])]
     -> AttributeMap
 cc_keyswitches ks = keyswitches
     [ (attrs, [ControlSwitch cc val])
-    | (cc, attrControls) <- ks
-    , (attrs, val) <- attrControls
+    | (cc, attr_controls) <- ks
+    , (attrs, val) <- attr_controls
     ]
+
+-- | Like 'cc_keyswitches', except that all the controls are orthogonal, so
+-- every cross-control combination of attributes is valid.
+cc_keyswitches_permute
+    :: [(Midi.Control, [(Attrs.Attributes, Midi.ControlValue)])] -> AttributeMap
+cc_keyswitches_permute ks =
+    keyswitches $ map (first mconcat . unzip) $ Seq.cartesian
+        [ [(attrs, ControlSwitch cc val) | (attrs, val) <- attr_controls]
+        | (cc, attr_controls) <- ks
+        ]
 
 -- | An AttributeMap with just 'Keyswitch'es.
 keyswitches :: [(Attrs.Attributes, [Keyswitch])] -> AttributeMap
