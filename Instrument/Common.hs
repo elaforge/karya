@@ -112,7 +112,7 @@ instance Pretty Flag where pretty = showt
 
     This also means that if a previous attr is a subset of a later one, the
     later one will never be selected.  'overlapping_attributes' will check for
-    that, but normally you use a constructor that calls 'sort_attributes' to
+    that, but normally you use a constructor that calls 'sort_attribute_map' to
     make sure that can't happen.
 -}
 newtype AttributeMap a = AttributeMap [(Attrs.Attributes, a)]

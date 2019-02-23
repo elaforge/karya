@@ -31,14 +31,23 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - rhythmic interpolation
+    . Match notes in two derivers, then interpolate rhythms:
+      '%pos=.5 | r-interpolate b1 b2'
+    . What to do if the notes don't match?  If it's pitches I could also
+      interpolate the pitches.
+    . The use is something like chatusram -> tisram transition.
   swam strings
     - map 2nd and 3rd harmonic via CC.
       . I guess it's just like vsl, the call turns into note + attrs, except
         I have only natural harmonics, and I have a +harm+third.
-    - Will it really match all the mempty cc keyswitches and send one for each?
+    * Will it really match all the mempty cc keyswitches and send one for each?
       . No, it looks like the first one shadows the rest.
+      . But maybe I can just collect the memptys together?
     - how to do modal settings?
       . fingering: mid, bridge, nut
+      . This is like a CC keyswitch, but coming from env, instead of
+        attributes.
     - bow gesture
       . If I want to control direction, maybe I just set to bipolar, then do
         my own algorithm to select direction.  Then the usual dyn pressure
@@ -97,6 +106,8 @@ UNSORTED
         https://ghc.haskell.org/trac/ghc/wiki/Debugging/CompiledCode
     - Could it be due to out of date callback foreign ptrs?
       . I could debug that by not calling them.
+    - Maybe it's due to library versions?  Try to reproduce with the same
+      versions.
   - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
     I can put another monad on top.
     . I think I only switched to Ui.M because it was awkward pre-AMP.

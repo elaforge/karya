@@ -63,8 +63,8 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * Config
@@ -450,10 +450,15 @@ instance Pretty Keyswitch where
         "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
     format (Aftertouch val) = "at:" <> Pretty.format val
 
--- | An AttributeMap with just keyswitches.
-keyswitches :: [(Attrs.Attributes, [Keyswitch])] -> AttributeMap
-keyswitches attr_ks =
-    Common.attribute_map [(attrs, (ks, Nothing)) | (attrs, ks) <- attr_ks]
+-- | Merge keyswitches for the mempty attrs.  This is because a patch may have
+-- several kinds of state, which need to be undone to go back to the default
+-- state.  There's less reason to overlap for non-empty attrs.
+combine_empty :: [(Attrs.Attributes, [ks])] -> [(Attrs.Attributes, [ks])]
+combine_empty attr_ks
+    | null empty = nonempty
+    | otherwise = (mempty, concatMap snd empty) : nonempty
+    where
+    (empty, nonempty) = List.partition ((==mempty) . fst) attr_ks
 
 -- | An AttributeMap with a single Midi.Key keyswitch per Attribute.
 single_keyswitches :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
@@ -469,6 +474,14 @@ cc_keyswitches ks = keyswitches
     , (attrs, val) <- attrControls
     ]
 
+-- | An AttributeMap with just 'Keyswitch'es.
+keyswitches :: [(Attrs.Attributes, [Keyswitch])] -> AttributeMap
+keyswitches attr_ks = Common.attribute_map
+    [ (attrs, (ks, Nothing))
+    | (attrs, ks) <- combine_empty attr_ks
+    ]
+
+-- | An AttributeMap with just 'Keymap's.
 keymap :: [(Attrs.Attributes, Keymap)] -> AttributeMap
 keymap table =
     Common.attribute_map [(attr, ([], Just keymap)) | (attr, keymap) <- table]
