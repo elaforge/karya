@@ -49,9 +49,9 @@ UNSORTED
         attr search dependent on the actual keyswitches found.
       . The alternative would be to encode all the combinations as attrs, it's
         reasonable with a low number, it just clutters up the docs.
-    - map 2nd and 3rd harmonic via CC.
+    * map 2nd and 3rd harmonic via CC.
       . I guess it's just like vsl, the call turns into note + attrs, except
-        I have only natural harmonics, and I have a +harm+third.
+        I have a +harm+third, and it chooses natural vs. artificial for me.
     * Will it really match all the mempty cc keyswitches and send one for each?
       . No, it looks like the first one shadows the rest.
       . But maybe I can just collect the memptys together?

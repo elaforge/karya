@@ -112,18 +112,12 @@ make_pattern_attr call = Derive.PatternCall
 c_harmonic :: Library.Calls Derive.Note
 c_harmonic = Make.transform_notes Module.prelude "harmonic"
     (Tags.attr <> Tags.ly)
-    "Harmonic, with lilypond for artificial harmonic notation."
-    ((,,,)
+    "Harmonic, with lilypond for natural and artificial harmonic notation."
+    ((,)
     <$> Sig.defaulted "type" Nothing "Type of harmonic."
-    <*> Sig.environ_key EnvKey.open_strings [] "Pitches of open strings."
-    <*> Sig.environ_key EnvKey.string Nothing "Play on this string."
-    <*> Sig.environ_key "harmonic-force-diamond" False
-        "If true, use string+diamond notation even for the 2nd natural\
-        \ harmonic."
-    ) $ \(htype, open_strings, string, force_diamond) deriver ->
-        Ly.when_lilypond
-            (lily_harmonic force_diamond (fromMaybe Natural htype) open_strings
-                string deriver)
+    <*> lily_harmonic_sig
+    ) $ \(htype, lily_args) deriver -> Ly.when_lilypond
+            (lily_harmonic lily_args (fromMaybe Natural htype) deriver)
             (Call.add_attributes (Attrs.harm <> harm_attrs htype) deriver)
     where
     harm_attrs htype = case htype of
@@ -140,9 +134,18 @@ instance ShowVal.ShowVal HarmonicType where
     show_val Natural = "nat"
     show_val Artificial = "art"
 
-lily_harmonic :: Bool -> HarmonicType -> [PSignal.Pitch]
-    -> Maybe PSignal.Pitch -> Derive.NoteDeriver -> Derive.NoteDeriver
-lily_harmonic force_diamond htype open_strings string deriver = do
+-- | Args for 'lily_harmonic'.
+lily_harmonic_sig :: Sig.Parser ([PSignal.Pitch], Maybe PSignal.Pitch, Bool)
+lily_harmonic_sig = (,,)
+    <$> Sig.environ_key EnvKey.open_strings [] "Pitches of open strings."
+    <*> Sig.environ_key EnvKey.string Nothing "Play on this string."
+    <*> Sig.environ_key "harmonic-force-diamond" False
+        "If true, use string+diamond notation even for the 2nd natural\
+        \ harmonic."
+
+lily_harmonic :: ([PSignal.Pitch], Maybe PSignal.Pitch, Bool)
+    -> HarmonicType -> Derive.NoteDeriver -> Derive.NoteDeriver
+lily_harmonic (open_strings, string, force_diamond) htype deriver = do
     open_strings <- mapM StringUtil.string open_strings
     string <- traverse StringUtil.string string
     Post.emap_m_ id
