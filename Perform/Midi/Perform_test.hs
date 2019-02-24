@@ -604,20 +604,14 @@ test_post_process_drop_dup_controls = do
 
     -- TODO keyswitches
 
-test_post_process_use_final_note_off = do
+test_post_process_avoid_overlaps = do
     let f = extract . fst . perform configs
             . map (\(a, b, c, d) -> mkevent (a, b, c, d, []))
         extract = map (first (Num.roundDigits 1))
             . PerformTest.extract_msg_ts PerformTest.e_note_on_off
         configs = Map.fromList
-            [ (Types.patch_name patch1, Perform.Config
-                { _addrs = [((dev1, 0), Nothing)]
-                , _use_final_note_off = True
-                })
-            , (Types.patch_name patch2, Perform.Config
-                { _addrs = [((dev1, 1), Nothing)]
-                , _use_final_note_off = False
-                })
+            [ (Types.patch_name patch1, Perform.Config [((dev1, 0), Nothing)])
+            , (Types.patch_name patch2, Perform.Config [((dev1, 1), Nothing)])
             ]
 
     -- No overlap.
@@ -640,27 +634,22 @@ test_post_process_use_final_note_off = do
         , (3, (1, False, 60))
         ]
 
-    -- Overlap, duration extended.
+    -- Avoid overlapping notes.
     equal (f [(patch1, "a", 0, 2), (patch1, "a", 1, 2)])
         [ (0, (0, True, 60))
+        , (1, (0, False, 60))
         , (1, (0, True, 60))
-        , (3, (0, False, 60)), (3, (0, False, 60))
+        , (3, (0, False, 60))
         ]
 
     -- Multiple overlaps.
     equal (f [(patch1, "a", 0, 2), (patch1, "a", 1, 2), (patch1, "a", 2, 2)])
         [ (0, (0, True, 60))
+        , (1, (0, False, 60))
         , (1, (0, True, 60))
+        , (2, (0, False, 60))
         , (2, (0, True, 60))
-        , (4, (0, False, 60)), (4, (0, False, 60)), (4, (0, False, 60))
-        ]
-
-    -- patch2 avoids overlapping notes
-    equal (f [(patch2, "a", 0, 2), (patch2, "a", 1, 2)])
-        [ (0, (1, True, 60))
-        , (1, (1, False, 60))
-        , (1, (1, True, 60))
-        , (3, (1, False, 60))
+        , (4, (0, False, 60))
         ]
 
 -- * control

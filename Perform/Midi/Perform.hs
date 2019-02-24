@@ -20,7 +20,6 @@ module Perform.Midi.Perform (
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
@@ -126,18 +125,16 @@ initial_state :: State
 initial_state = State [] empty_allot_state empty_perform_state
 
 type Configs = Map Score.Instrument Config
-data Config = Config {
-    _addrs :: ![(Patch.Addr, Maybe Patch.Voices)]
-    , _use_final_note_off :: !Bool
+newtype Config = Config {
+    _addrs :: [(Patch.Addr, Maybe Patch.Voices)]
     } deriving (Show, Eq)
 
 empty_config :: Config
-empty_config = Config [] False
+empty_config = Config []
 
 config :: Patch.Config -> Config
 config patch_config = Config
     { _addrs = Patch.config_allocation patch_config
-    , _use_final_note_off = Patch.has_flag patch_config Patch.UseFinalNoteOff
     }
 
 addrs_config :: [(Patch.Addr, Maybe Patch.Voices)] -> Config
@@ -156,12 +153,7 @@ perform state configs events = (final_msgs, final_state)
     (event_allotted, allot_state) =
         allot (state_allot state) configs event_channels
     (msgs, perform_state) = perform_notes (state_perform state) event_allotted
-    (final_msgs, _) = post_process mempty use_final_note_off msgs
-    use_final_note_off = Set.fromList
-        [ addr | (_, config) <- Map.toList configs
-        , _use_final_note_off config
-        , (addr, _) <- _addrs config
-        ]
+    (final_msgs, _) = post_process mempty msgs
 
 -- * channelize
 
@@ -747,10 +739,8 @@ type PostprocState = Map Patch.Addr AddrState
 type AddrState = (Maybe Midi.PitchBendValue, Map Midi.Control Midi.ControlValue)
 
 -- | Some context free post-processing on the midi stream.
-post_process :: PostprocState -> Set Patch.Addr -> MidiEvents
-    -> (MidiEvents, PostprocState)
-post_process state use_final_note_off =
-    first (move_note_offs use_final_note_off) . drop_dup_controls state . resort
+post_process :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)
+post_process state = first avoid_overlaps . drop_dup_controls state . resort
 
 {- |
     Overlapping notes with the same key number are undefined in MIDI.
@@ -772,16 +762,12 @@ post_process state use_final_note_off =
 
     This was originally for kontakt, which doesn't count NoteOns and turns the
     note off on the first NoteOff, but I think the first method makes this
-    obsolete, so it's disabled.  If I don't notice any problems, I'll remove it
-    entirely.
+    obsolete, so it's disabled.
 -}
-move_note_offs :: Set Patch.Addr -> MidiEvents -> MidiEvents
-move_note_offs use_final_note_off events =
-    concat $ snd $ LEvent.map_accum move initial events
+avoid_overlaps :: MidiEvents -> MidiEvents
+avoid_overlaps events = concat $ snd $ LEvent.map_accum move initial events
     where
-    -- Map the 'msg_key' to (count, held_note_offs).
-    initial :: Map (Midi.WriteDevice, Midi.Channel, Midi.Key)
-        (Int, [Midi.ChannelMessage])
+    initial :: Map (Midi.WriteDevice, Midi.Channel, Midi.Key) NoteOnState
     initial = Map.empty
 
     move state wmsg _ = case msg_key wmsg of
@@ -793,12 +779,9 @@ move_note_offs use_final_note_off events =
                 where
                 off = make_msg wmsg $
                     Midi.ChannelMessage chan $ Midi.NoteOff key 100
-                (state2, emit_off) = note_on hold_note_offs skey state
+                (state2, emit_off) = note_on skey state
             _ -> (state, [wmsg])
         Nothing -> (state, [wmsg])
-        where
-        hold_note_offs =
-            maybe False (`Set.member` use_final_note_off) (midi_addr wmsg)
     -- Overlapping notes with the same (dev, chan, key) are affected.
     msg_key wmsg = case Midi.wmsg_msg wmsg of
         Midi.ChannelMessage chan msg@(Midi.NoteOn key _) ->
@@ -808,37 +791,30 @@ move_note_offs use_final_note_off events =
         _ -> Nothing
         where dev = Midi.wmsg_dev wmsg
 
-    -- When I see a NoteOn, increment count.
-    note_on hold_note_offs skey state
-        | hold_note_offs =
-            (Map.alter (Just . maybe (1, []) (first (+1))) skey state, False)
-        | otherwise = case Map.lookup skey state of
-            Just (count, _) | count > 0 ->
-                -- -1 means the next NoteOff will get skipped, but the one
-                -- after that emitted.
-                (Map.insert skey (-1, []) state, True)
-            _ -> (Map.insert skey (1, []) state, False)
+    -- When I see NoteOn, emit NoteOff if a note with that key is already on.
+    note_on skey state = case Map.lookup skey state of
+        Just Playing -> (Map.insert skey SuppressNoteOff state, True)
+        _ -> (Map.insert skey Playing state, False)
 
-    -- When I see a NoteOff, decrement count.  If it's >0, hold the NoteOff.
-    -- If it's 0, emit all held msgs and the current one.
+    -- When I see a NoteOff, drop it if SuppressNoteOff or there's nothing
+    -- playing, otherwise emit it normally and update the state.
     note_off skey msg state = case Map.lookup skey state of
-        Just (count, held)
-            | count == -1 -> (Map.insert skey (1, []) state, [])
-            -- NoteOff with no NoteOn, just drop it.
-            | count == 0 -> (state, [])
-            | count == 1 -> (Map.delete skey state, msg : held)
-            | otherwise -> (Map.insert skey (count-1, msg : held) state, [])
+        Just SuppressNoteOff -> (Map.insert skey Playing state, [])
+        Just NotPlaying -> (state, [])
+        Just Playing -> (Map.delete skey state, [msg])
         Nothing -> (state, [])
 
     make_msg wmsg = Midi.WriteMessage (Midi.wmsg_dev wmsg) (Midi.wmsg_ts wmsg)
 
+data NoteOnState = Playing | NotPlaying
+    -- | This means the next NoteOff will get skipped, but the one after that
+    -- emitted.
+    | SuppressNoteOff
+    deriving (Show)
+
 cons_if :: Bool -> a -> [a] -> [a]
 cons_if True x = (x:)
 cons_if False _ = id
-
-midi_addr :: Midi.WriteMessage -> Maybe Patch.Addr
-midi_addr msg =
-    (Midi.wmsg_dev msg,) <$> Midi.message_channel (Midi.wmsg_msg msg)
 
 -- | Having to deal with Log is ugly... can't I get that out with fmap?
 drop_dup_controls :: PostprocState -> MidiEvents -> (MidiEvents, PostprocState)

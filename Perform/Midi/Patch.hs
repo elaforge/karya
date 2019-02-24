@@ -379,6 +379,9 @@ data Flag =
     -- | If there are overlapping notes with the same MIDI key, delay all
     -- NoteOffs until the final one.  This is for synthesizers which turn the
     -- note off on the first one, such as Kontakt.
+    --
+    -- TODO: this is disabled, remove it entirely if I really don't seem to
+    -- need it.  'Perform.Midi.Perform.avoid_overlaps'.
     | UseFinalNoteOff
     -- | Obsolete, don't use.
     | Old_Triggered
