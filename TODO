@@ -42,6 +42,7 @@ UNSORTED
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
   swam strings
+    - techniques: trompong tumpuk, double strokes, noltol
     * grace notes don't work right
       . Probably the extra attack, I want just one attack.
       . It's that the first note overlaps with the last one, when they're the
@@ -108,7 +109,8 @@ UNSORTED
     - add gestures, e.g. harsh attacks, tremolo, etc.
   - replace parsec with megaparsec
   - support zynaddsubfx
-  - num literal 0 should work as either 0c or 0d.
+  * num literal 0 should work as either 0c or 0d.
+    . I'll just change grace note defaulting.
   - being able to put 's in bare symbols can lead to confusing errors, e.g.
     call 'arg 1' arg2' is valid.
   * use LTuning.nrpn for gong-kebyar patch and allocations

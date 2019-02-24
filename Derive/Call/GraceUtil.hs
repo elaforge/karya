@@ -288,8 +288,8 @@ resolve_pitches base = either Derive.throw return . check_pitches base
 check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch (Score.Typed Signal.Y)]
     -> Either Text [PSignal.Pitch]
 check_pitches base pitches = do
-    make <- case types of
-        t : ts
+    make <- case map Score.type_of $ Either.rights pitches of
+        t_ : ts_
             | all (==t) ts -> case t of
                 Score.Diatonic -> Right Pitch.Diatonic
                 Score.Chromatic -> Right Pitch.Chromatic
@@ -297,13 +297,13 @@ check_pitches base pitches = do
                 _ -> Left $ "expected transpose type, but got " <> pretty t
             | otherwise ->
                 Left $ "arguments should all have the same type, got "
-                    <> pretty types
+                    <> pretty (t:ts)
+            where
+            t = deflt Score.Diatonic t_
+            ts = map (deflt t) ts_
         [] -> Right Pitch.Diatonic
     return $ map (either id (resolve make . Score.typed_val)) pitches
     where
     resolve make n = Pitches.transpose (make n) base
-    types = snd . List.mapAccumL type_of Score.Diatonic . Either.rights $
-        pitches
-    type_of deflt n = case Score.type_of n of
-        Score.Untyped -> (deflt, deflt)
-        t -> (t, t)
+    deflt typ Score.Untyped = typ
+    deflt _ typ = typ

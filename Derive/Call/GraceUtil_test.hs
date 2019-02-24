@@ -5,12 +5,13 @@
 module Derive.Call.GraceUtil_test where
 import qualified Data.Map as Map
 
-import Util.Test
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.DeriveTest as DeriveTest
-import Global
+
+import           Global
+import           Util.Test
 
 
 test_grace_attr = do

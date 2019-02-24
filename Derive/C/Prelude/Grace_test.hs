@@ -88,6 +88,19 @@ test_grace = do
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+pizz", "+legato", "+legato"], [])
 
+test_grace_transpose = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks "grace-dur=1 | %legato-overlap=0"
+            . UiTest.note_track
+    -- default to diatonic
+    equal (run [(0, 2, "g 2 1 -- 4c")])
+        ([(-2, 1, "4e"), (-1, 1, "4d"), (0, 2, "4c")], [])
+    -- otherwise, the first one sets the default
+    equal (run [(0, 2, "g 2c 1 -- 4c")])
+        ([(-2, 1, "4d"), (-1, 1, "4c#"), (0, 2, "4c")], [])
+    strings_like (snd $ run [(0, 2, "g 2c 1d -- 4c")])
+        ["arguments should all have the same type"]
+
 test_grace_hold = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks "grace-dur=1"
