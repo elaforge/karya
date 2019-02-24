@@ -99,8 +99,8 @@ reset_pitch :: RealTime -> Message
 reset_pitch time = AllDevices time $ all_channels (Midi.PitchBend 0)
 
 reset_controls :: RealTime -> Message
-reset_controls time = AllDevices time $ concatMap all_channels
-    [Midi.ResetAllControls, Midi.PitchBend 0]
+reset_controls time = AllDevices time $
+    concatMap all_channels [Midi.ResetAllControls, Midi.PitchBend 0]
 
 all_channels :: Midi.ChannelMessage -> [Midi.Message]
 all_channels msg = [Midi.ChannelMessage chan msg | chan <- [0..15]]
@@ -108,7 +108,7 @@ all_channels msg = [Midi.ChannelMessage chan msg | chan <- [0..15]]
 -- * implementation
 
 type TrackerM a = State.StateT State IO a
-type State = Map Midi.WriteDevice (Vector.Vector (Mutable.IOVector Bool))
+type State = Map Midi.WriteDevice (Vector.Vector (Mutable.IOVector Int))
 
 run :: State -> TrackerM Bool -> IO (State, Bool)
 run state = fmap Tuple.swap . flip State.runStateT state
@@ -144,29 +144,30 @@ note_tracker write = do
     handle_msg (AllDevices time msgs) = send_devices time msgs
 
 -- if dev in state:
---      state[dev][chan][key] = False
+--      state[dev][chan][key] -= 1
 note_off :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
 note_off dev chan key = when (Num.inRange 0 128 key) $ do
     state <- State.get
     whenJust (Map.lookup dev state) $ \chans -> liftIO $
-        Mutable.write (chans ! fromIntegral chan) (Midi.from_key key) False
+        Mutable.modify (chans ! fromIntegral chan) (subtract 1)
+            (Midi.from_key key)
 
 -- if dev not in state:
 --      state[dev] = [[0]*128] * 16
--- state[dev][chan][key] = True
+-- state[dev][chan][key] += 1
 note_on :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
 note_on dev chan key = when (Num.inRange 0 128 key) $ do
     state <- State.get
     case Map.lookup dev state of
         Nothing -> do
             chans <- liftIO $ Vector.fromList <$>
-                replicateM 16 (Mutable.replicate 128 False)
+                replicateM 16 (Mutable.replicate 128 0)
             set chans
             State.modify (Map.insert dev chans)
         Just chans -> set chans
     where
     set chans = liftIO $
-        Mutable.write (chans ! fromIntegral chan) (Midi.from_key key) True
+        Mutable.modify (chans ! fromIntegral chan) (+1) (Midi.from_key key)
 
 -- | Send the given messages on all devices.
 send_devices :: RealTime -> [Midi.Message] -> TrackerM [Midi.WriteMessage]
@@ -182,9 +183,12 @@ all_notes_off time = do
     msgs <- liftIO $ forM (Map.toList state) $ \(dev, chans) ->
         forM (zip [0..] (Vector.toList chans)) $ \(chan, notes) -> do
             keys <- Unboxed.toList <$> Unboxed.freeze notes
-            let on = [Midi.Key (fromIntegral i) | (i, True) <- zip [0..] keys]
-            liftIO $ Mutable.set notes False
-            return $ map (note_off dev chan) on
+            liftIO $ Mutable.set notes 0
+            return $ map (note_off dev chan)
+                [ Midi.Key (fromIntegral i)
+                | (i, count) <- zip [0..] keys
+                , _ <- [0 .. count-1]
+                ]
     return (concat (concat msgs))
     where
     note_off dev chan key = Midi.WriteMessage dev time $

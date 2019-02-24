@@ -23,6 +23,12 @@ test_note_tracker = do
     -- Note off is emitted.
     io_equal (f (end_with_off [(dev1, 0, note_on 10)]))
         [(dev1, 0, note_on 10), (dev1, 0, note_off 10)]
+    -- Nested NoteOns emit multiple NoteOffs.  Most synths don't care about
+    -- this, but some (SWAM strings at least) actually track them.
+    io_equal (f (end_with_off [(dev1, 0, note_on 10), (dev1, 0, note_on 10)]))
+        [ (dev1, 0, note_on 10), (dev1, 0, note_on 10)
+        , (dev1, 0, note_off 10), (dev1, 0, note_off 10)
+        ]
     io_equal (f (end_with_off [(dev1, 0, note_on 1), (dev1, 0, note_on 2)]))
         [ (dev1, 0, note_on 1), (dev1, 0, note_on 2)
         , (dev1, 0, note_off 1), (dev1, 0, note_off 2)
