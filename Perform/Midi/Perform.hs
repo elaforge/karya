@@ -29,18 +29,18 @@ import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Midi.Midi as Midi
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as T
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
-import Perform.RealTime (RealTime)
+import           Perform.RealTime (RealTime)
 
-import Global
+import           Global
 
 
 -- * constants
@@ -752,27 +752,55 @@ post_process :: PostprocState -> Set Patch.Addr -> MidiEvents
 post_process state use_final_note_off =
     first (move_note_offs use_final_note_off) . drop_dup_controls state . resort
 
+{- |
+    Overlapping notes with the same key number are undefined in MIDI.
+    I have two strategies for them.  One is that an overlapping NoteOn will
+    cause a NoteOff, and then the next NoteOff will be suppressed, which is
+    effectively moving the overlapping note's NoteOff to right before the
+    NoteOn.  So where + is NoteOn and | is NoteOff:
+
+    > 0   1   2   3   5   6   7   8
+    > +---+---|---|
+    > +--|+-------|
+
+    The other is Patch.UseFinalNoteOff, which accumulates the NoteOffs to the
+    end:
+
+    > 0   1   2   3   5   6   7   8
+    > +---+---|---|
+    > +---+-------||
+
+    This was originally for kontakt, which doesn't count NoteOns and turns the
+    note off on the first NoteOff, but I think the first method makes this
+    obsolete, so it's disabled.  If I don't notice any problems, I'll remove it
+    entirely.
+-}
 move_note_offs :: Set Patch.Addr -> MidiEvents -> MidiEvents
-move_note_offs use_final_note_off events
-    | Set.null use_final_note_off = events
-    | otherwise = concat $ snd $ LEvent.map_accum move initial events
+move_note_offs use_final_note_off events =
+    concat $ snd $ LEvent.map_accum move initial events
     where
-    -- Map the 'state_key' to (count, held_note_offs).
+    -- Map the 'msg_key' to (count, held_note_offs).
     initial :: Map (Midi.WriteDevice, Midi.Channel, Midi.Key)
         (Int, [Midi.ChannelMessage])
     initial = Map.empty
 
-    move state wmsg _
-        | maybe True (`Set.notMember` use_final_note_off) (midi_addr wmsg) =
-            (state, [wmsg])
-    move state wmsg _ = case state_key wmsg of
-        Just (skey, Midi.NoteOn {}) -> (note_on skey state, [wmsg])
-        Just (skey@(_, chan, _), msg@(Midi.NoteOff {})) ->
-            (state2, same_time wmsg $ map (Midi.ChannelMessage chan) offs)
-            where (state2, offs) = note_off skey msg state
-        _ -> (state, [wmsg])
+    move state wmsg _ = case msg_key wmsg of
+        Just (skey@(_, chan, key), msg) -> case msg of
+            Midi.NoteOff {} ->
+                (state2, map (make_msg wmsg . Midi.ChannelMessage chan) offs)
+                where (state2, offs) = note_off skey msg state
+            Midi.NoteOn {} -> (state2, cons_if emit_off off [wmsg])
+                where
+                off = make_msg wmsg $
+                    Midi.ChannelMessage chan $ Midi.NoteOff key 100
+                (state2, emit_off) = note_on hold_note_offs skey state
+            _ -> (state, [wmsg])
+        Nothing -> (state, [wmsg])
+        where
+        hold_note_offs =
+            maybe False (`Set.member` use_final_note_off) (midi_addr wmsg)
     -- Overlapping notes with the same (dev, chan, key) are affected.
-    state_key wmsg = case Midi.wmsg_msg wmsg of
+    msg_key wmsg = case Midi.wmsg_msg wmsg of
         Midi.ChannelMessage chan msg@(Midi.NoteOn key _) ->
             Just ((dev, chan, key), msg)
         Midi.ChannelMessage chan msg@(Midi.NoteOff key _) ->
@@ -781,16 +809,32 @@ move_note_offs use_final_note_off events
         where dev = Midi.wmsg_dev wmsg
 
     -- When I see a NoteOn, increment count.
-    note_on = Map.alter (Just . maybe (1, []) (first (+1)))
+    note_on hold_note_offs skey state
+        | hold_note_offs =
+            (Map.alter (Just . maybe (1, []) (first (+1))) skey state, False)
+        | otherwise = case Map.lookup skey state of
+            Just (count, _) | count > 0 ->
+                -- -1 means the next NoteOff will get skipped, but the one
+                -- after that emitted.
+                (Map.insert skey (-1, []) state, True)
+            _ -> (Map.insert skey (1, []) state, False)
+
     -- When I see a NoteOff, decrement count.  If it's >0, hold the NoteOff.
     -- If it's 0, emit all held msgs and the current one.
     note_off skey msg state = case Map.lookup skey state of
         Just (count, held)
-            | count - 1 <= 0 -> (Map.delete skey state, msg : held)
+            | count == -1 -> (Map.insert skey (1, []) state, [])
+            -- NoteOff with no NoteOn, just drop it.
+            | count == 0 -> (state, [])
+            | count == 1 -> (Map.delete skey state, msg : held)
             | otherwise -> (Map.insert skey (count-1, msg : held) state, [])
-        Nothing -> (state, [msg])
-    same_time wmsg =
-        map (Midi.WriteMessage (Midi.wmsg_dev wmsg) (Midi.wmsg_ts wmsg))
+        Nothing -> (state, [])
+
+    make_msg wmsg = Midi.WriteMessage (Midi.wmsg_dev wmsg) (Midi.wmsg_ts wmsg)
+
+cons_if :: Bool -> a -> [a] -> [a]
+cons_if True x = (x:)
+cons_if False _ = id
 
 midi_addr :: Midi.WriteMessage -> Maybe Patch.Addr
 midi_addr msg =

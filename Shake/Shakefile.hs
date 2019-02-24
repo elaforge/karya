@@ -1595,8 +1595,8 @@ compileCc config flags cc obj =
     ( "C++ " <> show (buildMode config)
     , obj
     , concat
-        -- -fdiagnostics-color=always is the gcc way to say it, but clang
-        -- understands it too.
+        -- color=always since I'll be reading the output via pipe.
+        -- This is the gcc flag, but clang understands it too.
         [ ["g++", "-c", "-fdiagnostics-color=always"]
         , globalCcFlags (configFlags config)
         , flags

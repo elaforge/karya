@@ -31,13 +31,42 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - use Data.Map.Strict in Perform?  Or even HashMap?
   - rhythmic interpolation
     . Match notes in two derivers, then interpolate rhythms:
       '%pos=.5 | r-interpolate b1 b2'
     . What to do if the notes don't match?  If it's pitches I could also
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
+  - do I really notice flag changes in instrument defs, or are they still
+    hardcoded in the alloc?
   swam strings
+    * grace notes don't work right
+      . Probably the extra attack, I want just one attack.
+      . It's that the first note overlaps with the last one, when they're the
+        same pitch.  Usually MIDI nonsense.
+      . I could do a grace note which uses just pitch and merges the notes.
+        I'd want to merge the dyns too.  Rearticulate.slur_n does this.
+        Or I could put a postproc on to avoid MIDI overlap, since the issue is
+        that swam doesn't understand nested notes.  Like Idiom.avoid_overlap.
+      . Should this be a MIDI perform thing?  It's easiest done there.
+      . UseFinalNoteOff is similar, but it extends NoteOffs instead of
+        shortening them.  Should I always shorten if UseFinalNoteOff isn't
+        set?  I think overlapping notes are undefined in MIDI.
+      . Actually the problem is when I do the space I only get one NoteOff,
+        but swam is waiting for 2.  Why don't I use AllNotesOff?  I thought
+        I did at some point, since it's certainly simpler than remembering
+        NoteOns.  Maybe some synths don't support it.
+      . Yes, that's it, "This is necessary because some synthesizers do not
+        support AllNotesOff", change from 2012.
+      . I could extend Midi.Interface to count numbers of NoteOns, or I could
+        extend Perform to shorten NoteOffs if UseFinalNoteOff is not set.
+      . Still doesn't work... well, works sometimes.  I think because of the
+        cancel timing.  Just not doing overlaps should fix it all.
+      * Wait, that's not the only problem, because the overlap still causes
+        swam to not do legato.
+      . That seems to fix it... can I get rid of UseFinalNoteOff?  It seems
+        like it should subsume that.
     * It seems like +pizz+harm chooses just pizz.
       . This is right for some instruments, but how can I tell it they aren't
         exclusive?
@@ -63,13 +92,22 @@ UNSORTED
       . If I want to control direction, maybe I just set to bipolar, then do
         my own algorithm to select direction.  Then the usual dyn pressure
         control won't work.
+      . I think I can support up bow and down bow symbols, and then maybe use
+        the bow-start control.
     - tremolo
       . Can I just do it manually?  What should tremolo mode be then?
+      . I need to tell it to switch bow directions.  So I need a special trem
+        call that sets gesture=bipolar.
+      . Single-direction tremolo is also interesting sounding, so I can have
+        a setting to keep that.
     - polyphony
-      . How does it work?
+      . I'll need at least mono, double, and double-hold, and to set the
+        strings.  It should be possible to infer from the score, but try it
+        manually first and see how it goes.
     - add gestures, e.g. harsh attacks, tremolo, etc.
   - replace parsec with megaparsec
   - support zynaddsubfx
+  - num literal 0 should work as either 0c or 0d.
   - being able to put 's in bare symbols can lead to confusing errors, e.g.
     call 'arg 1' arg2' is valid.
   * use LTuning.nrpn for gong-kebyar patch and allocations

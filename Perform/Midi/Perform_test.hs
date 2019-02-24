@@ -241,20 +241,6 @@ test_control_lead_time = do
         run_inst1 = extract . perform config2 . mkevents_patch
         extract = first e_ts_chan_msg
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
-        mkvol sig = (Controls.vol, MSignal.from_pairs sig)
-
-    -- Even overlapping notes get a 'min_cc_lead' lead time.
-    equal (run
-            [ (patch2, "a", 0, 2, [mkvol [(0, 0.5)]])
-            , (patch2, "a", 1, 1, [mkvol [(1, 0.25)]])
-            ])
-        ([ (-min_cc_lead, 2, ControlChange 7 64), (-min_cc_lead, 2, PitchBend 0)
-         , (0, 2, NoteOn Key.c4 100)
-         , (1 - min_cc_lead, 2, ControlChange 7 32)
-         , (1, 2, NoteOn Key.c4 100), (2 - gap, 2, NoteOff Key.c4 100)
-         , (2 - gap, 2, NoteOff Key.c4 100)
-         ], [])
-
     equal (run_inst1 [("a", 0, 4, []), ("b2", 4, 4, [])])
         ([ (-min_cc_lead, 0, PitchBend 0)
          , (0, 0, NoteOn 60 100)
@@ -624,11 +610,16 @@ test_post_process_use_final_note_off = do
         extract = map (first (Num.roundDigits 1))
             . PerformTest.extract_msg_ts PerformTest.e_note_on_off
         configs = Map.fromList
-            [ (Types.patch_name patch1,
-                Perform.Config [((dev1, 0), Nothing)] True)
-            , (Types.patch_name patch2,
-                Perform.Config [((dev1, 1), Nothing)] False)
+            [ (Types.patch_name patch1, Perform.Config
+                { _addrs = [((dev1, 0), Nothing)]
+                , _use_final_note_off = True
+                })
+            , (Types.patch_name patch2, Perform.Config
+                { _addrs = [((dev1, 1), Nothing)]
+                , _use_final_note_off = False
+                })
             ]
+
     -- No overlap.
     equal (f [(patch1, "a", 0, 1), (patch1, "a", 1, 1)])
         [ (0, (0, True, 60)), (1, (0, False, 60))
@@ -662,6 +653,14 @@ test_post_process_use_final_note_off = do
         , (1, (0, True, 60))
         , (2, (0, True, 60))
         , (4, (0, False, 60)), (4, (0, False, 60)), (4, (0, False, 60))
+        ]
+
+    -- patch2 avoids overlapping notes
+    equal (f [(patch2, "a", 0, 2), (patch2, "a", 1, 2)])
+        [ (0, (1, True, 60))
+        , (1, (1, False, 60))
+        , (1, (1, True, 60))
+        , (3, (1, False, 60))
         ]
 
 -- * control
