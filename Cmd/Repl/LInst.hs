@@ -347,6 +347,14 @@ remove_flag flag = modify_midi_config_ $
     Patch.settings#Patch.flags
         %= Just . Patch.remove_flag flag . fromMaybe mempty
 
+-- | Reset all settings back to instrument defaults.
+reset_settings :: Ui.M m => Instrument -> m ()
+reset_settings = modify_midi_config_ $ Patch.settings #= mempty
+
+reset_flags :: Ui.M m => Instrument -> m ()
+reset_flags = modify_midi_config_ $
+    Patch.settings#Patch.flags #= Nothing
+
 set_decay :: Ui.M m => Maybe RealTime -> Instrument -> m ()
 set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay
 
