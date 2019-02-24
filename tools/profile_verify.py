@@ -29,7 +29,7 @@ verify_binary = 'build/profile/verify_performance'
 scratch_dir = 'build/verify-profile'
 
 # Write json results to this directory.
-timing_dir = 'prof/timing'
+timing_dir = 'data/prof/timing'
 
 
 def main():

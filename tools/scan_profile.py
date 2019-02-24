@@ -11,7 +11,7 @@ If this doesn't suffice, probably the next step is sqlite.
 import sys, os, json
 
 # Read json results from this directory.
-timing_dir = 'prof/timing'
+timing_dir = 'data/prof/timing'
 
 patch_name_column = True
 
