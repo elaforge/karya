@@ -204,6 +204,9 @@ get_pitch :: RealTime -> Derive.Deriver PSignal.Pitch
 get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
     =<< Derive.pitch_at pos
 
+get_pitch_here :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
+get_pitch_here = get_pitch <=< Args.real_start
+
 -- | Get the symbolic version of the transposed pitch.  Since it's transposed,
 -- if you turn it back to a 'PSignal.Pitch', you should use
 -- 'with_transposed_pitch'.

@@ -95,6 +95,24 @@ test_grace_hold = do
     equal (run [(0, 2, "g- 2 1 -- 4c")])
         ([(-2, 4, "4e"), (-1, 3, "4d"), (0, 2, "4c")], [])
 
+test_grace_pitch = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks "grace-dur=1"
+        extract e = (DeriveTest.e_start_dur e, DeriveTest.e_nns e)
+    equal (run $ UiTest.note_track [(0, 2, "g_ 2 1 -- 4c")])
+        ( [((-2, 4),
+            [ (-2, NN.e4), (-1, NN.e4), (-1, NN.d4)
+            , (0, NN.d4), (0, NN.c4)
+            ])]
+        , []
+        )
+    -- Don't destroy any later pitch curve.
+    equal (run [(">", [(0, 2, "g_ 1")]), ("*", [(0, 0, "4c"), (1, 0, "3c")])])
+        ( [((-1, 3),
+            [(-1, NN.d4), (0, NN.d4), (0, NN.c4), (1, NN.c4), (1, NN.c3)])]
+        , []
+        )
+
 test_basic_grace = do
     let run = DeriveTest.extract extract . derive_tracks . UiTest.note_track
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)

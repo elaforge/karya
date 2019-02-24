@@ -200,7 +200,7 @@ note_trill use_attributes neighbor speed (start_dir, end_dir, hold, adjust) args
         -- (who_first, transitions) <- get_trill_transitions
         --     (Args.range_or_next args) start_dir end_dir
         --     adjust hold speed neighbor_low
-        -- base <- Call.get_pitch =<< Args.real_start args
+        -- base <- Call.get_pitch_here args
         -- let pitches = cycle $ case who_first of
         --         Unison -> [base, neighbor]
         --         Neighbor -> [neighbor, base]

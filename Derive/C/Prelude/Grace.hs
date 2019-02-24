@@ -24,8 +24,9 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -33,6 +34,7 @@ library = mconcat
     [ Library.generators -- Note
         [ ("g", c_grace)
         , ("g-", c_grace_hold)
+        , ("g_", c_grace_pitch)
         , ("grace", c_basic_grace)
         , ("roll", c_roll)
         , ("`mordent`", c_mordent (Pitch.Diatonic 1))
@@ -66,6 +68,27 @@ c_grace_hold = GraceUtil.make_grace Module.prelude
     set_end end event =
         event { Sub.event_duration = end - Sub.event_start event }
 
+c_grace_pitch :: Derive.Generator Derive.Note
+c_grace_pitch = GraceUtil.make_grace_pitch Module.prelude
+    "Grace notes realized as one note with a pitch curve, rather than\
+    \ separate notes." $
+    \_args events -> if null events then mempty else do
+        pitch <- Derive.get_pitch
+        let start = Sub.event_start (head events)
+        rstarts <- mapM (Derive.real . Sub.event_start) events
+        Derive.place start (Sub.event_end (last events) - start) $
+            Derive.with_pitch
+                (mksig rstarts (map Sub.event_note events) <> pitch)
+                Call.note
+    where
+    mksig starts pitches = PSignal.from_pairs $ concat
+        [ (start, p) : maybe [] ((:[]) . (, p)) mb_end
+        | ((start, mb_end), p) <- zip (pairs starts) pitches
+        ]
+    pairs (x1:x2:xs) = (x1, Just x2) : pairs (x2:xs)
+    pairs [x] = [(x, Nothing)]
+    pairs [] = []
+
 c_basic_grace :: Derive.Generator Derive.Note
 c_basic_grace = Derive.generator Module.prelude "basic-grace"
     (Tags.ornament <> Tags.ly)
@@ -85,7 +108,7 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
         pitches <- GraceUtil.resolve_pitches base pitches
         let apply = Eval.eval_quoted_transformers (Args.context args)
         Ly.when_lilypond (GraceUtil.lily_grace args start pitches) $
-            Sub.derive =<< GraceUtil.basic_grace args pitches
+            Sub.derive =<< GraceUtil.basic_grace_transform args pitches
                 (maybe id apply maybe_transform) grace_dur place
 
 
@@ -121,11 +144,11 @@ c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
 c_mordent default_neighbor = Derive.generator Module.prelude "mordent"
     Tags.ornament
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> Sig.defaulted "neighbor" (Typecheck.DefaultDiatonic default_neighbor)
         "Neighbor pitch."
-    <*> GraceUtil.grace_envs
-    ) $ \(Typecheck.DefaultDiatonic neighbor, (grace_dur, dyn, place)) ->
+    <*> GraceUtil.grace_dyn_env <*> GraceUtil.grace_envs
+    ) $ \(Typecheck.DefaultDiatonic neighbor, dyn, (grace_dur, place)) ->
     Sub.inverting $ \args ->
         Ly.when_lilypond (lily_mordent args neighbor) $ do
             pitch <- Call.get_pitch =<< Args.real_start args

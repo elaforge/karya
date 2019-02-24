@@ -603,7 +603,7 @@ c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
     $ Sig.call ((,,,)
     <$> dur_env <*> kotekan_env <*> pasang_env <*> infer_initial_final_env)
     $ \(dur, kotekan, pasang, initial_final) -> Sub.inverting $ \args -> do
-        pitch <- Call.get_pitch =<< Args.real_start args
+        pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern_args args initial_final
             dur pitch under_threshold Repeat (gender_norot pasang)
@@ -1287,7 +1287,7 @@ pasang_key e = (inst, get EnvKey.hand)
 
 -- | Get pitch for a kotekan call.
 get_pitch :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
-get_pitch args = Call.get_pitch =<< Args.real_start args
+get_pitch = Call.get_pitch_here
 
 style_arg :: KotekanStyle -> Sig.Parser KotekanStyle
 style_arg deflt = Sig.defaulted_env "style" Sig.Both deflt "Kotekan style."

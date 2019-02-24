@@ -31,6 +31,9 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * implement pitch-oriented grace call
+    . It would merge the notes and just do a pitch curve.
+    . This is similar to the pitch call, except it can put grace notes before.
   - use Data.Map.Strict in Perform?  Or even HashMap?
   - rhythmic interpolation
     . Match notes in two derivers, then interpolate rhythms:
@@ -38,8 +41,6 @@ UNSORTED
     . What to do if the notes don't match?  If it's pitches I could also
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
-  - do I really notice flag changes in instrument defs, or are they still
-    hardcoded in the alloc?
   swam strings
     * grace notes don't work right
       . Probably the extra attack, I want just one attack.
