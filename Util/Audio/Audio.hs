@@ -32,7 +32,7 @@ module Util.Audio.Audio (
     , mix
     , mixV
     -- * channels
-    , mergeChannels, extractChannel
+    , mergeChannels, extractChannel, splitChannels
     , expandChannels, expandV
     , mixChannels, interleaveV, deinterleaveV
     -- ** non-interleaved
@@ -319,6 +319,9 @@ synchronizeBlocks = S.unfoldr unfold
 
 -- * channels
 
+-- | 'splitChannels' is the inverse of this, but it converts to NAudio, since
+-- [Audio] would amount to an unzip, which streams don't support in
+-- a straightforward way.
 mergeChannels :: forall m rate chan1 chan2.
     (Monad m, KnownNat chan1, KnownNat chan2)
     => Audio m rate chan1 -> Audio m rate chan2
@@ -341,12 +344,16 @@ mergeChannels audio1 audio2 =
 
 -- | Extract a single channel.  It will crash unless 0 <= idx < chan.
 --
--- I don't have a splitChannels because it amounts to an unzip, and requires
--- using the stream return value, which Audio doesn't do.  And I don't need
--- splitChannels.
+-- See 'splitChannels' to get them all.
 extractChannel :: forall m rate chan. (Monad m, KnownNat chan)
     => Channels -> Audio m rate chan -> Audio m rate 1
 extractChannel idx = Audio . S.map ((!!idx) . deinterleaveV chan) . _stream
+    where chan = natVal (Proxy @chan)
+
+-- | De-interleave the audio.
+splitChannels :: forall m rate chan. (Monad m, KnownNat chan)
+    => Audio m rate chan -> NAudio m rate
+splitChannels = NAudio chan . S.map (deinterleaveV chan) . _stream
     where chan = natVal (Proxy @chan)
 
 -- | Take a single channel signal to multiple channels by copying samples.
