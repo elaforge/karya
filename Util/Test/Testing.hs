@@ -564,7 +564,7 @@ prettyp val = s `DeepSeq.deepseq` Text.IO.putStr s
     where s = Pretty.formatted val
 
 pprint :: Show a => a -> IO ()
-pprint = putStr . pshow
+pprint = putStrLn . pshow
 
 showt :: Show a => a -> Text
 showt = Text.pack . show
@@ -575,7 +575,7 @@ pshowt = Text.strip . Text.pack . pshow
 -- | Strict pshow, so I don't get debug traces interleaved with printing.
 pshow :: Show a => a -> String
 pshow val = s `DeepSeq.deepseq` s
-    where s = PPrint.format_str (show val)
+    where s = Seq.rstrip $ PPrint.format_str (show val)
 
 -- * filesystem
 
