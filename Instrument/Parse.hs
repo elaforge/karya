@@ -4,27 +4,30 @@
 
 -- | Functions to parse MIDI patch files.
 module Instrument.Parse where
+import qualified Control.Monad.State.Strict as State
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Text.Parsec as Parsec
-import Text.Parsec ((<?>))
-
+import qualified Util.P as P
+import           Util.P ((<?>))
 import qualified Util.Parse as Parse
-import qualified Midi.Midi as Midi
-import qualified Ui.Id as Id
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Patch as Patch
+
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
 import qualified Instrument.Tag as Tag
 
-import Global
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Patch as Patch
+import qualified Ui.Id as Id
+
+import           Global
 
 
-type Parser st a = Parsec.Parsec Text st a
+type Parser st a = Parse.ParserS st a
 
 -- * annotation file
 
@@ -41,34 +44,33 @@ parse_annotations fn = do
     return $ bimap show (Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(InstTypes.Qualified, [Annotation])]
-p_annotation_file = concat <$> Parsec.many line <* Parsec.eof
-    where
-    line = ((:[]) <$> Parsec.try p_annotation_line) <|> (p_eol >> return [])
+p_annotation_file = concat <$> P.many line <* P.eof
+    where line = ((:[]) <$> P.try p_annotation_line) <|> (p_eol >> return [])
 
 p_annotation_line :: Parser st (InstTypes.Qualified, [Annotation])
 p_annotation_line =
-    ((,) <$> lexeme p_qualified <*> Parsec.many (lexeme p_tag)) <* p_eol
+    ((,) <$> lexeme p_qualified <*> P.many (lexeme p_tag)) <* p_eol
 
 p_qualified :: Parser st InstTypes.Qualified
 p_qualified =
-    InstTypes.Qualified <$> chars <*> (Parsec.char '/' *> chars) <?> "qualified"
-    where chars = txt <$> Parsec.many1 (Parsec.satisfy Id.is_id_char)
+    InstTypes.Qualified <$> chars <*> (P.char '/' *> chars) <?> "qualified"
+    where chars = P.takeWhile1 Id.is_id_char
 
 p_tag :: Parser st Tag.Tag
 p_tag =
-    (,) <$> (txt <$> Parsec.many1 tag_char)
-    <*> (txt <$> Parsec.option "" (Parsec.char '=' *> Parsec.many1 tag_char))
-    where tag_char = Parsec.alphaNum <|> Parsec.char '-'
+    (,) <$> P.takeWhile1 tag_char
+    <*> P.option "" (P.char '=' *> P.takeWhile1 tag_char)
+    where tag_char c = Char.isAlphaNum c || c == '-'
 
 lexeme :: Parser st a -> Parser st a
 lexeme p = p <* p_whitespace
 
 p_eol :: Parser st ()
-p_eol = p_whitespace <* Parsec.char '\n'
+p_eol = p_whitespace <* P.char '\n'
 
 p_whitespace :: Parser st ()
-p_whitespace = Parsec.skipMany (Parsec.oneOf " \t") >> Parsec.optional comment
-    where comment = Parsec.string "#" >> Parsec.skipMany (Parsec.noneOf "\n")
+p_whitespace = P.skipMany (P.oneOfC " \t") >> P.option () comment
+    where comment = P.char '#' >> P.skipMany (P.satisfy (/='\n'))
 
 
 -- * patch file
@@ -87,10 +89,10 @@ p_whitespace = Parsec.skipMany (Parsec.oneOf " \t") >> Parsec.optional comment
     Comments start with @#@, and blank lines are ignored.
 -}
 patch_file :: FilePath -> IO [Sysex.Patch]
-patch_file fn = either (errorIO . ("parse patches: " <>) . showt) return
+patch_file fn = either (errorIO . ("parse patches: " <>)) return
     =<< parse_patch_file fn
 
-parse_patch_file :: String -> IO (Either Parsec.ParseError [Sysex.Patch])
+parse_patch_file :: String -> IO (Either Text [Sysex.Patch])
 parse_patch_file fn =
     fmap (map (second (Sysex.add_file fn))) <$>
         Parse.file mempty p_patch_file empty_state fn
@@ -112,7 +114,7 @@ data PatchLine = PatchLine {
 
 p_patch_file :: Parser State [Sysex.Patch]
 p_patch_file = do
-    patches <- Maybe.catMaybes <$> Parsec.many p_line
+    patches <- Maybe.catMaybes <$> P.many p_line
     return $ map (make_patch (-2, 2)) (inherit_prev_category patches)
     where
     inherit_prev_category = snd . List.mapAccumL inherit Nothing
@@ -134,24 +136,25 @@ make_patch pb_range (PatchLine name bank patch_num tags) = (patch, common)
     common = (Common.common ()) { Common.common_tags = tags }
 
 p_line :: Parser State (Maybe PatchLine)
-p_line = Parsec.try (p_bank_decl >> return Nothing)
-    <|> (p_eol >> return Nothing) <|> fmap Just p_patch_line
+p_line =
+    (p_bank_decl >> return Nothing)
+    <|> (p_eol >> return Nothing)
+    <|> fmap Just p_patch_line
 
 p_patch_line :: Parser State PatchLine
 p_patch_line = do
-    name <- Parsec.many1 (Parsec.noneOf "\n,")
-    tags <- Parsec.option [] $ comma >> Parsec.sepBy1 p_tag comma
+    name <- P.takeWhile1 (`notElem` ['\n', ','])
+    tags <- P.option [] $ comma >> P.sepBy1 p_tag comma
     p_eol
-    st <- Parsec.getState
-    Parsec.setState $ st { state_patch_num = state_patch_num st + 1 }
-    return $ PatchLine (txt name) (state_bank st) (state_patch_num st) tags
+    st <- State.get
+    State.put $ st { state_patch_num = state_patch_num st + 1 }
+    return $ PatchLine name (state_bank st) (state_patch_num st) tags
     where
-    comma = lexeme (Parsec.char ',')
+    comma = lexeme (P.char ',')
 
 p_bank_decl :: Parser State ()
 p_bank_decl = do
-    Parsec.string "*bank"
-    Parsec.skipMany1 Parsec.space
+    P.string "*bank"
+    P.space1
     n <- Parse.p_nat
-    st <- Parsec.getState
-    Parsec.setState (st { state_bank = n, state_patch_num = 0 })
+    State.modify' $ \st -> st { state_bank = n, state_patch_num = 0 }

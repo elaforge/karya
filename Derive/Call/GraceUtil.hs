@@ -5,7 +5,6 @@
 -- | Functions to emit grace-note like things.
 module Derive.Call.GraceUtil where
 import qualified Data.Either as Either
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 

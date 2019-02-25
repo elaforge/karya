@@ -13,18 +13,15 @@
     > ]
 -}
 module Derive.TScore.Parse where
-import qualified Control.Monad.Combinators as P
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Void as Void
 
-import qualified Numeric
-import qualified Text.Megaparsec as P
-import           Text.Megaparsec ((<?>))
-import qualified Text.Megaparsec.Char as P
-
 import qualified Util.Control as Control
+import qualified Util.P as P
+import           Util.P ((<?>))
+import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -123,9 +120,8 @@ instance Element (T.Block T.Call) where
 
 instance Element Id.BlockId where
     parse _ = do
-        a <- P.takeWhile1P Nothing Id.is_id_char
-        mb <- P.optional $ P.try $
-            P.char '/' *> (P.takeWhile1P Nothing Id.is_id_char)
+        a <- P.takeWhile1 Id.is_id_char
+        mb <- P.optional $ P.try $ P.char '/' *> (P.takeWhile1 Id.is_id_char)
         let bid = maybe (Id.id default_namespace a)
                 (\b -> Id.id (Id.namespace a) b) mb
         maybe (fail $ "invalid BlockId: " <> prettys bid) return (Id.make bid)
@@ -146,8 +142,7 @@ instance Element (T.Track T.Call) where
     parse config = T.Track
         <$> P.option "" (lexeme p_title) <*> P.some (lexeme (parse config))
         where
-        p_title =
-            P.char '>' *> ((">"<>) <$> P.takeWhileP Nothing Id.is_id_char)
+        p_title = P.char '>' *> ((">"<>) <$> P.takeWhile Id.is_id_char)
             <|> p_space_title
         p_space_title = do
             t <- p_string
@@ -169,7 +164,7 @@ instance Element T.Directive where
             <*> P.optional (P.char '=' *> not_in " \n")
         where
         not_in :: [Char] -> Parser Text
-        not_in cs = P.takeWhile1P Nothing (`notElem` cs)
+        not_in cs = P.takeWhile1 (`notElem` cs)
     unparse _ (T.Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
 instance Element (T.Token T.Call T.Pitch T.NDuration T.Duration) where
@@ -187,8 +182,7 @@ instance Pretty (T.Token T.Call T.Pitch T.NDuration T.Duration) where
 
 instance Element T.Barline where
     parse _ = T.Barline <$>
-        (Text.length <$> P.takeWhile1P Nothing (=='|')
-            <|> (P.char ';' *> pure 0))
+        (Text.length <$> P.takeWhile1 (=='|') <|> (P.char ';' *> pure 0))
     unparse _ (T.Barline 0) = ";"
     unparse _ (T.Barline n) = Text.replicate n "|"
 
@@ -282,7 +276,7 @@ instance Element T.Call where
     parse config =
         uncurry T.SubBlock <$> P.try (p_subblock config)
         <|> T.Call <$> p_string
-        <|> T.Call <$> P.takeWhile1P Nothing call_char
+        <|> T.Call <$> P.takeWhile1 call_char
         <?> "call"
     unparse _ (T.Call call)
         | Text.any (`elem` [' ', '/']) call = "\"" <> call <> "\""
@@ -295,7 +289,7 @@ instance Pretty T.Call where pretty = unparse default_config
 
 p_subblock :: Config -> Parser (Text, T.Tracks T.Call)
 p_subblock config = (,)
-    <$> (p_string <|> P.takeWhile1P Nothing call_char <|> pure "")
+    <$> (p_string <|> P.takeWhile1 call_char <|> pure "")
     <*> parse config
 
 p_string :: Parser Text
@@ -337,16 +331,17 @@ pitch_char c = c `notElem` exclude && not (Char.isDigit c)
 
 instance Element T.Pitch where
     parse config = T.Pitch <$>
-        parse config <*> P.takeWhile1P Nothing pitch_char <?> "pitch"
+        parse config <*> P.takeWhile1 pitch_char <?> "pitch"
     unparse config (T.Pitch octave call) = unparse config octave <> call
 
 instance Pretty T.Pitch where pretty = unparse default_config
 
 instance Element T.Octave where
-    parse _ = T.Absolute <$> p_int <|> T.Relative <$> p_relative <?> "octave"
+    parse _ =
+        T.Absolute <$> Parse.p_int <|> T.Relative <$> p_relative <?> "octave"
         where
         p_relative = Text.foldl' (\n c -> n + if c == ',' then -1 else 1) 0 <$>
-            P.takeWhileP Nothing (`elem` (",'" :: String))
+            P.takeWhile (`elem` (",'" :: String))
     unparse _ (T.Absolute oct) = showt oct
     unparse _ (T.Relative n)
         | n >= 0 = Text.replicate n "'"
@@ -364,9 +359,9 @@ instance Element T.NDuration where
 
 instance Element T.Duration where
     parse _ = T.Duration
-        <$> P.optional p_nat
-        <*> P.optional (P.char ':' *> p_nat)
-        <*> (Text.length <$> P.takeWhileP Nothing (=='.'))
+        <$> P.optional Parse.p_nat
+        <*> P.optional (P.char ':' *> Parse.p_nat)
+        <*> (Text.length <$> P.takeWhile (=='.'))
         <*> P.option False (P.char '~' *> pure True)
         <?> "duration"
     unparse _ (T.Duration int1 int2 dots tie) = mconcat
@@ -383,31 +378,14 @@ p_whitespace = void $ P.many $ P.space1 <|> p_comment
     where
     p_comment = do
         P.string "--"
-        P.takeWhileP Nothing (/='\n')
+        P.takeWhile (/='\n')
         P.option () (void $ P.char '\n')
 
 p_space :: Parser ()
-p_space = void $ P.takeWhile1P Nothing (==' ')
+p_space = void $ P.takeWhile1 (==' ')
 
 lexeme :: Parser a -> Parser a
 lexeme = (<* p_whitespace)
 
 keyword :: Text -> Parser ()
 keyword str = void $ lexeme (P.string str)
-
--- ** from Util.Parse, but with megaparsec
-
-p_int :: Parser Int
-p_int = do
-    sign <- P.option 1 (P.char '-' >> return (-1))
-    (*sign) <$> p_nat
-    <?> "int"
-
--- | Natural number including 0.
-p_nat :: Parser Int
-p_nat = do
-    i <- P.takeWhile1P Nothing (\c -> '0' <= c && c <= '9')
-    case Numeric.readDec (untxt i) of
-        (n, _) : _ -> return n
-        _ -> mzero -- this should never happen
-    <?> "nat"

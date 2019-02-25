@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Instrument.Parse_test where
-import qualified Text.Parsec as Parsec
+import qualified Util.Parse
 
 import Util.Test
 import qualified Midi.Midi as Midi
@@ -16,8 +16,8 @@ import Global
 
 
 test_parse_annotations = do
-    let f = bimap show (map extract)
-            .  Parsec.runParser Parse.p_annotation_file () "test"
+    let f = second (map extract)
+            . Util.Parse.parseS () "" Parse.p_annotation_file
         extract (qualified, annots) =
             (InstTypes.show_qualified qualified, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
@@ -27,12 +27,12 @@ test_parse_annotations = do
     equal (f "s/1 a=b c=d # comment\n") $
         Right [("s/1", [("a", "b"), ("c", "d")])]
     equal (f "# empty\n") $ Right []
-    left_like (f "bad inst\n") "unexpected \" \""
+    left_like (f "bad inst\n") "unexpected 'b'"
 
 test_parse_patch_file = do
-    let parse f = extract f
-            . Parsec.runParser Parse.p_patch_file Parse.empty_state "test"
-        extract f = bimap show (map f)
+    let parse ex = extract ex
+            . Util.Parse.parseS Parse.empty_state "" Parse.p_patch_file
+        extract ex = second (map ex)
 
     let e_init (patch, _) = case Patch.patch_initialize patch of
             Patch.InitializeMidi msgs -> [m | Midi.ChannelMessage _ m <- msgs]
@@ -40,7 +40,7 @@ test_parse_patch_file = do
         e_tags = Common.common_tags . snd
 
     let cc = Midi.ControlChange
-    equal (parse e_init patch_file) $ Right
+    right_equal (parse e_init patch_file)
         [ [cc 0 0, cc 32 0, Midi.ProgramChange 0]
         , [cc 0 0, cc 32 0, Midi.ProgramChange 1]
         , [cc 0 0, cc 32 1, Midi.ProgramChange 0]
@@ -51,7 +51,7 @@ test_parse_patch_file = do
 
     equal (parse e_tags "p1, tag\np2, tag2=b\n") $ Right
         [[("tag", "")], [("tag2", "b")]]
-    left_like (parse e_tags "p0\np1, bad_tag=blah") "unexpected \"_\""
+    left_like (parse e_tags "p0\np1, bad_tag=blah") "unexpected '_'"
     left_like (parse e_tags "p, tag=") "unexpected end of input"
 
 

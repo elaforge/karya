@@ -23,9 +23,8 @@ import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
 import           Data.Vector.Unboxed ((!))
 
-import qualified Text.Parsec as Parsec
-
 import qualified Util.Num as Num
+import qualified Util.P as P
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
 
@@ -118,9 +117,9 @@ default_divisions [num] denom = Map.findWithDefault [num] (num, denom) defaults
         ]
 default_divisions nums _ = nums
 
-p_meter :: Parse.Parser () ([Int], Int)
-p_meter = (,) <$> Parsec.sepBy1 Parse.p_positive (Parsec.char '+')
-    <*> (Parsec.char '/' *> Parse.p_positive)
+p_meter :: Parse.Parser ([Int], Int)
+p_meter = (,) <$> P.sepBy1 Parse.p_positive (P.char '+')
+    <*> (P.char '/' *> Parse.p_positive)
 
 make_meter :: [Int] -> Duration -> [AbstractMeter] -> Either Text Meter
 make_meter nums denom meters = Meter nums denom <$> vector

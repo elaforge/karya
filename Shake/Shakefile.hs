@@ -106,9 +106,8 @@ basicPackages = concat
     , w "ghc-paths haskeline terminfo" -- REPL
     -- Derive: score randomization
     , w "mersenne-random-pure64 digest random-shuffle"
-    -- Instrument.Parse, could use attoparsec, but parsec errors are better
-    , w "parsec"
-    -- should replace parsec, and maybe even attoparsec
+    -- Has better errors that attoparsec.  TODO: try replacing attoparsec with
+    -- this, see if it's fast enough.
     , w "megaparsec parser-combinators"
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , [("aeson", ">=1.1.0.0")] -- serialize and unserialize log msgs

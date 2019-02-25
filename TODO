@@ -107,7 +107,7 @@ UNSORTED
         strings.  It should be possible to infer from the score, but try it
         manually first and see how it goes.
     - add gestures, e.g. harsh attacks, tremolo, etc.
-  - replace parsec with megaparsec
+  * replace parsec with megaparsec
   - support zynaddsubfx
   * num literal 0 should work as either 0c or 0d.
     . I'll just change grace note defaulting.

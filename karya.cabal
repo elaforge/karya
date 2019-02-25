@@ -67,7 +67,6 @@ library
         mtl >=2.2.1,
         network,
         old-locale,
-        parsec,
         parser-combinators,
         pcre-heavy >=0.2,
         pcre-light >=0.4,

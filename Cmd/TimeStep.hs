@@ -32,19 +32,19 @@ import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Text.Parsec as P
-
+import qualified Util.P as P
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
+
+import qualified Cmd.Ruler.Meter as Meter
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Ui as Ui
 
-import qualified Cmd.Ruler.Meter as Meter
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | A TimeStep is the union of a set of Steps.
@@ -150,7 +150,7 @@ parse_time_step = Parse.parse p_time_step
     p_marklists =
         P.try ((NamedMarklists <$> P.sepBy p_name (P.char ',')) <* P.char '|')
         <|> return AllMarklists
-    p_name = txt <$> P.many1 (P.lower <|> P.char '-')
+    p_name = txt <$> P.some (P.lowerChar <|> P.char '-')
     p_tracks = P.option CurrentTrack $
         P.try (TrackNums <$> (str "s:" *> p_tracknums))
         <|> P.char 's' *> return AllTracks
@@ -160,9 +160,9 @@ parse_time_step = Parse.parse p_time_step
 show_rank :: Ruler.Rank -> Text
 show_rank rank = fromMaybe ("R" <> showt rank) $ lookup rank Meter.rank_names
 
-parse_rank :: Parse.Parser st Ruler.Rank
+parse_rank :: Parse.Parser Ruler.Rank
 parse_rank = P.choice $ map P.try
-    [Parse.text name *> return rank | (rank, name) <- Meter.rank_names]
+    [P.string name *> return rank | (rank, name) <- Meter.rank_names]
     ++ [P.char 'R' *> Parse.p_nat]
 
 show_direction :: Direction -> Text
