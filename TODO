@@ -41,8 +41,63 @@ UNSORTED
     . What to do if the notes don't match?  If it's pitches I could also
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
+  / I think cc keyswitches should combine by default, so I don't need
+    Patch.cc_keyswitches_permute.
+    . Maybe they shouldn't be in the AttributeMap then?  Keymaps are also in
+      the AttributeMap, and those are exclusive.
+    . Keymaps are mostly for percussion strokes, but maybe Attributes are not
+      really suited because strokes are exclusive... except true modifiers
+      like variations.
+    . Patch.Aftertouch is used by Reyong, for exclusive: cek, mute, open.
+    . Patch.ControlSwitch used by:
+      CUtil.make_cc_keymap, used by mridangam and pakhawaj, which tret them
+      exclusively.
+    . Ok, so maybe all other uses are actually exclusive.  I can go with
+      permutations for now, but if I wind up with more, then I would have
+      a separate "inclusive" attribute map.
+    . This only applies to MIDI, and not many MIDI instruments are that
+      expressive.  If I do my own instrumens, it'll be in im, and so I can do
+      inclusive attributes or controls.
   swam strings
-    - techniques: trompong tumpuk, double strokes, noltol
+    - simulate hand position and shifts
+      . This won't work well because swam also wants to do that, and even with
+        the hand position setting I think I can't get it to use the string
+        I want.
+    techniques:
+      - trompong tumpuk, double strokes, noltol
+      - damp with short stroke and bow-lift=f
+      - staccato with short stroke and bow-lift=t
+      - randomization in pitch, pressure, bow pos, open string tuning
+      - trill at 1.5nn?
+      implement with attrs, since they can combine:
+        * harsh attack
+        * flautando
+        * sul pont, sul tasto
+        . The problem with doing these as instrument postproc is that I can't
+          see the curves in the track.  Well, actually I could if I put them
+          in the note track, and likely that's the only place I'd get them
+          anyway if I want the convenience of an attr, because I likely don't
+          even have a visible bow-force track.
+        . But why attr at all, why not just a call?  With a call I get
+          arguments and defaults and docs.
+        . But it's less convenient because it applies once to the whole
+          deriver, not to each note inside like attrs do.  But I could just
+          map then.
+      - tremolo
+        . Can I just do it manually?  What should tremolo mode be then?
+        . I need to tell it to switch bow directions.  So I need a special trem
+          call that sets gesture=bipolar.
+        . Single-direction tremolo is also interesting sounding, so I can have
+          a setting to keep that.
+      bow gesture
+        . If I want to control direction, maybe I just set to bipolar, then do
+          my own algorithm to select direction.  Then the usual dyn pressure
+          control won't work.
+        * I'll want a bipolar control, so I can do -1 to 1 and have it map to
+          0-64-127.
+          . Oh but it's only bipolar when gesture=bipolar.
+        . I think I can support up bow and down bow symbols, and then maybe use
+          the bow-start control.
     * grace notes don't work right
       . Probably the extra attack, I want just one attack.
       . It's that the first note overlaps with the last one, when they're the
@@ -90,23 +145,10 @@ UNSORTED
       . fingering: mid, bridge, nut
       . This is like a CC keyswitch, but coming from env, instead of
         attributes.
-    - bow gesture
-      . If I want to control direction, maybe I just set to bipolar, then do
-        my own algorithm to select direction.  Then the usual dyn pressure
-        control won't work.
-      . I think I can support up bow and down bow symbols, and then maybe use
-        the bow-start control.
-    - tremolo
-      . Can I just do it manually?  What should tremolo mode be then?
-      . I need to tell it to switch bow directions.  So I need a special trem
-        call that sets gesture=bipolar.
-      . Single-direction tremolo is also interesting sounding, so I can have
-        a setting to keep that.
     - polyphony
       . I'll need at least mono, double, and double-hold, and to set the
         strings.  It should be possible to infer from the score, but try it
         manually first and see how it goes.
-    - add gestures, e.g. harsh attacks, tremolo, etc.
   * replace parsec with megaparsec
   - support zynaddsubfx
   * num literal 0 should work as either 0c or 0d.

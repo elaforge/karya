@@ -4,6 +4,10 @@
 
 -- | Audio Modeling's SWAM.
 module User.Elaforge.Instrument.Swam where
+import qualified Data.Map as Map
+
+import qualified Util.Doc as Doc
+import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Articulation as Articulation
@@ -11,18 +15,24 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
+import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.InstTypes as InstTypes
 import qualified Midi.CC as CC
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 import           Global
 
@@ -97,6 +107,14 @@ synth =
     - auto - try to detect, but add latency.
 -}
 
+c_pont :: Library.Calls Derive.Note
+c_pont = Make.transform_notes Module.instrument "pont" mempty
+    "Sul ponticello." (Sig.defaulted "val" 1 "How much.") $
+    \val -> fmap (Post.emap1_ (pont val))
+    where
+    pont val =
+        Score.modify_control c_bow_pos (Signal.sig_add (Signal.constant val))
+
 string :: InstTypes.Name -> [Pitch.NoteNumber] -> MidiInst.Patch
 string name open_strings = MidiInst.pressure $
     MidiInst.code #= code $
@@ -107,7 +125,12 @@ string name open_strings = MidiInst.pressure $
     where
     code = MidiInst.note_calls
         [ MidiInst.both "o" c_harmonic
+        , MidiInst.both "harsh" c_harsh
+        , control_call "pont" "Sul ponticello." c_bow_pos (-1)
+        , control_call "tasto" "Sul tasto." c_bow_pos 1
+        , control_call "flaut" "Flautando." c_bow_force (-1)
         ]
+        <> MidiInst.postproc ((,[]) . postproc)
     controls =
         [ (CC.mod, Controls.vib)
         , (CC.vib_speed, Controls.vib_speed)
@@ -119,8 +142,8 @@ string name open_strings = MidiInst.pressure $
         -- When there's a string crossing on a portamento, this is ratio of
         -- string 1 to string 2.
         , (14, "port-split")
-        , (15, "bow-force")
-        , (16, "bow-pos")
+        , (15, c_bow_force)
+        , (16, c_bow_pos)
         , (17, "bow-noise")
         , (20, "trem-speed")
         -- <64 or >=64
@@ -143,6 +166,98 @@ string name open_strings = MidiInst.pressure $
         , ("bow-lift", 37, [("f", 10), ("t", 80)])
         , ("bow-start", 38, [("d", 10), ("u", 80)])
         ]
+
+c_bow_force :: Score.Control
+c_bow_force = "bow-force"
+
+c_bow_direction :: Score.Control
+c_bow_direction = "bow-dir"
+
+c_bow_pos :: Score.Control
+c_bow_pos = "bow-pos"
+
+postproc :: Score.Event -> Score.Event
+postproc =
+    -- constant_attr Attrs.pont c_bow_pos 0
+    -- . constant_attr Attrs.tasto c_bow_pos 1
+    -- . constant_attr Attrs.flaut c_bow_force (-0.75)
+    -- . when_attr (Attrs.attr "harsh") harsh_attack
+    bipolar_controls [c_bow_force, c_bow_pos]
+    . bipolar_expression
+
+-- harsh_attack :: Score.Event -> Score.Event
+-- harsh_attack event =
+--     Score.modify_control c_bow_force (Signal.sig_add attack) event
+--     where
+--     attack = Signal.from_pairs [(start, 1), (start+dur, 0)]
+--     start = Score.event_start event
+--     dur = 0.25
+--     -- possibly move from the bridge?
+
+-- constant_attr :: Attrs.Attributes -> Score.Control -> Signal.Y
+--     -> Score.Event -> Score.Event
+-- constant_attr attr control val = when_attr attr
+--     (Score.modify_control control (Signal.sig_add (Signal.constant val)))
+
+when_attr :: Attrs.Attributes -> (Score.Event -> Score.Event)
+    -> Score.Event -> Score.Event
+when_attr attr modify event
+    | Score.has_attribute attr event = modify event
+    | otherwise = event
+
+bipolar_controls :: [Score.Control] -> Score.Event -> Score.Event
+bipolar_controls controls event
+    | null sigs = event
+    | otherwise = event
+        { Score.event_controls = sigs <> Score.event_controls event }
+    where
+    sigs = Map.fromList $ map (second normalize) $ Seq.map_maybe_snd id $
+        Seq.key_on_snd (\c -> Map.lookup c (Score.event_controls event))
+            controls
+
+-- | When gesture=bipolar, the expression control is 0--62 for downbow, 64-127
+-- for upbow.
+bipolar_expression :: Score.Event -> Score.Event
+bipolar_expression = when_val "gesture" ("bipolar" :: Text) $ \event ->
+    maybe event
+        (\sig -> Score.set_control Controls.dynamic (normalize sig) event)
+        (Map.lookup c_bow_direction (Score.event_controls event))
+
+when_val :: (Typecheck.Typecheck val, Eq val) => EnvKey.Key -> val
+    -> (Score.Event -> Score.Event) -> Score.Event -> Score.Event
+when_val key val modify event =
+    case Env.maybe_val key (Score.event_environ event) of
+        Just v | v == val -> modify event
+        _ -> event
+
+-- Normalize -1--1 to 0--1.
+normalize :: Score.Typed Signal.Control -> Score.Typed Signal.Control
+normalize = fmap (Signal.scalar_divide 2 . Signal.scalar_add 1)
+
+-- * calls
+
+control_call :: Expr.Symbol -> Doc.Doc -> Score.Control
+    -> Signal.Y -> MidiInst.Call Derive.Note
+control_call name doc control val = MidiInst.both name $
+    Make.transform_notes Module.instrument (sym_to_name name) mempty doc
+    (Sig.defaulted "val" val "How much.") $
+    \val -> fmap $ Post.emap1_ $ Score.modify_control control $
+        Signal.sig_add (Signal.constant val)
+    where
+    sym_to_name (Expr.Symbol a) = Derive.CallName a
+
+c_harsh :: Library.Calls Derive.Note
+c_harsh = Make.transform_notes Module.instrument "harsh" mempty
+    "Harsh attack." ((,)
+    <$> Sig.defaulted "val" 1 "How much bow pressure."
+    <*> Sig.defaulted "dur" 0.15 "How long."
+    ) $ \(val, dur) -> fmap $ Post.emap1_ (attack val dur)
+    where
+    attack val dur event =
+        Score.modify_control c_bow_force (Signal.sig_add sig) event
+        where
+        start = Score.event_start event
+        sig = Signal.from_pairs [(start, val), (start+dur, 0)]
 
 c_harmonic :: Library.Calls Derive.Note
 c_harmonic = Make.transform_notes Module.instrument "harmonic"

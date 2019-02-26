@@ -404,8 +404,7 @@ modify_control control modify event = event
 
 set_control :: Control -> Typed Signal.Control -> Event -> Event
 set_control control signal event = event
-    { event_controls = Map.insert control signal (event_controls event)
-    }
+    { event_controls = Map.insert control signal (event_controls event) }
 
 event_controls_at :: RealTime -> Event -> ControlValMap
 event_controls_at t event =

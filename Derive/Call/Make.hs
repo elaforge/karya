@@ -52,25 +52,35 @@ control_note module_ name control val = transform_notes module_ name mempty
         <> ShowVal.show_val val) <> ".")
     Sig.no_args $ \() -> Derive.with_constant_control control val
 
--- | The generator either derives subs or derives a new Call.note if there are
--- no subs, and then applies the transform.  The transformer call just applies
--- the transform.
+-- | 'transform_notes_args' without the PassedArgs.
 transform_notes :: Module.Module -> Derive.CallName -> Tags.Tags -> Doc.Doc
     -> Sig.Parser a -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Library.Calls Derive.Note
 transform_notes module_ name tags transform_doc sig transform =
+    transform_notes_args module_ name tags transform_doc sig
+        (\params _args deriver -> transform params deriver)
+
+-- | The generator either derives subs or derives a new Call.note if there are
+-- no subs, and then applies the transform.  The transformer call just applies
+-- the transform.
+transform_notes_args :: Module.Module -> Derive.CallName -> Tags.Tags
+    -> Doc.Doc -> Sig.Parser a
+    -> (a -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver
+        -> Derive.NoteDeriver)
+    -> Library.Calls Derive.Note
+transform_notes_args module_ name tags transform_doc sig transform =
     Library.Calls generator transformer
     where
     generator = Derive.generator module_ name (tags <> Tags.subs)
         (transform_doc <> "\n" <> generator_doc) $
         Sig.call sig $ \params args -> Sub.sub_events args >>= \case
-            [] -> transform params $ Sub.inverting Call.placed_note args
-            subs -> mconcat $ map (transform params . Sub.derive) subs
+            [] -> transform params args $ Sub.inverting Call.placed_note args
+            subs -> mconcat $ map (transform params args . Sub.derive) subs
     generator_doc = "If there are notes in child tracks, apply the\
         \ transformation to them. Otherwise apply the transformation to the\
         \ null note call."
     transformer = Derive.transformer module_ name tags transform_doc $
-        Sig.callt sig $ \params _args deriver -> transform params deriver
+        Sig.callt sig $ \params args deriver -> transform params args deriver
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.
