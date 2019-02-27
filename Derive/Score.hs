@@ -14,7 +14,9 @@ module Derive.Score (
     -- * Event
     , Event(..)
     , short_event, short_events
-    , empty_event, event_end, event_min, event_max, event_scale_id
+    , empty_event, event_end, event_min, event_max
+    , events_overlap
+    , event_scale_id
     , copy, normalize
     -- ** flags
     , has_flags, add_flags, remove_flags
@@ -58,7 +60,7 @@ module Derive.Score (
     , parse_generic_control
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import Control.DeepSeq (rnf)
+import           Control.DeepSeq (rnf)
 import qualified Data.Dynamic as Dynamic
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -69,27 +71,28 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
-import qualified Ui.Color as Color
-import qualified Ui.Id as Id
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes
-       (ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap)
+import           Derive.BaseTypes
+       (ControlFunctionMap, ControlMap, PitchMap, ControlFunction(..))
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as ScoreTypes
-import Derive.ScoreTypes
-       (Instrument(..), instrument_name, empty_instrument, Control,
-        control_name, PControl, pcontrol_name, Type(..), Typed(..),
-        ControlValMap, TypedControlValMap, untyped, merge_typed, type_to_code,
-        code_to_type)
+import           Derive.ScoreTypes
+       (code_to_type, control_name, empty_instrument, instrument_name,
+        merge_typed, pcontrol_name, type_to_code, untyped, Control,
+        ControlValMap, PControl, TypedControlValMap, Instrument(..), Type(..),
+        Typed(..))
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Color as Color
+import qualified Ui.Id as Id
+
+import           Global
+import           Types
 
 
 -- * Event
@@ -176,6 +179,10 @@ event_end event = event_start event + event_duration event
 event_min, event_max :: Event -> RealTime
 event_min event = min (event_start event) (event_end event)
 event_max event = max (event_start event) (event_end event)
+
+events_overlap :: Event -> Event -> Bool
+events_overlap e1 e2 =
+    not $ event_end e1 <= event_end e2 || event_start e1 >= event_end e2
 
 event_scale_id :: Event -> Pitch.ScaleId
 event_scale_id = PSignal.sig_scale_id . event_pitch

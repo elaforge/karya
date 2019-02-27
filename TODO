@@ -112,7 +112,7 @@ UNSORTED
           map then.
         . Set a +bow-change attribute, which makes bow direction reverse on
           each stroke.
-      - tremolo
+      * tremolo
         . Can I just do it manually?  What should tremolo mode be then?
         . I need to tell it to switch bow directions.  So I need a special trem
           call that sets gesture=bipolar.

@@ -3,8 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Audio Modeling's SWAM.
-module User.Elaforge.Instrument.Swam where
+module User.Elaforge.Instrument.Swam (synth) where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
@@ -24,6 +25,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
@@ -107,14 +109,6 @@ synth =
     - auto - try to detect, but add latency.
 -}
 
-c_pont :: Library.Calls Derive.Note
-c_pont = Make.transform_notes Module.instrument "pont" mempty
-    "Sul ponticello." (Sig.defaulted "val" 1 "How much.") $
-    \val -> fmap (Post.emap1_ (pont val))
-    where
-    pont val =
-        Score.modify_control c_bow_pos (Signal.sig_add (Signal.constant val))
-
 string :: InstTypes.Name -> [Pitch.NoteNumber] -> MidiInst.Patch
 string name open_strings = MidiInst.pressure $
     MidiInst.code #= code $
@@ -123,16 +117,19 @@ string name open_strings = MidiInst.pressure $
     MidiInst.patch#Patch.attribute_map #= keyswitches $
     MidiInst.patch#Patch.defaults#Patch.control_defaults #= Just (Map.fromList
         -- defaults apply after the bipolar conversion
-        [ (c_bow_force, 0.5), (c_bow_pos, 0.5)
+        [ (bow_force, 0.5), (bow_pos, 0.5)
         ]) $
     MidiInst.named_patch (-24, 24) name controls
     where
     code = MidiInst.note_calls
         [ MidiInst.both "o" c_harmonic
         , MidiInst.both "harsh" c_harsh
-        , control_call "pont" "Sul ponticello." c_bow_pos (-1)
-        , control_call "tasto" "Sul tasto." c_bow_pos 1
-        , control_call "flaut" "Flautando." c_bow_force (-1)
+        , control_call "pont" "Sul ponticello." bow_pos (-1)
+        , control_call "tasto" "Sul tasto." bow_pos 1
+        , control_call "flaut" "Flautando." bow_force (-1)
+        , MidiInst.transformer "bow" c_bow
+        , MidiInst.transformer "`downbow`" (c_bow_direction (pure Down))
+        , MidiInst.transformer "`upbow`" (c_bow_direction (pure Up))
         ]
         <> MidiInst.postproc ((,[]) . postproc)
     controls =
@@ -146,8 +143,8 @@ string name open_strings = MidiInst.pressure $
         -- When there's a string crossing on a portamento, this is ratio of
         -- string 1 to string 2.
         , (14, "port-split")
-        , (15, c_bow_force)
-        , (16, c_bow_pos)
+        , (15, bow_force)
+        , (16, bow_pos)
         , (17, "bow-noise")
         , (20, "trem-speed")
         -- <64 or >=64
@@ -171,43 +168,19 @@ string name open_strings = MidiInst.pressure $
         , ("bow-start", 38, [("d", 10), ("u", 80)])
         ]
 
-c_bow_force :: Score.Control
-c_bow_force = "bow-force"
+bow_force :: Score.Control
+bow_force = "bow-force"
 
-c_bow_direction :: Score.Control
-c_bow_direction = "bow-dir"
+bow_direction :: Score.Control
+bow_direction = "bow-dir"
 
-c_bow_pos :: Score.Control
-c_bow_pos = "bow-pos"
+bow_pos :: Score.Control
+bow_pos = "bow-pos"
 
 postproc :: Score.Event -> Score.Event
 postproc =
-    -- constant_attr Attrs.pont c_bow_pos 0
-    -- . constant_attr Attrs.tasto c_bow_pos 1
-    -- . constant_attr Attrs.flaut c_bow_force (-0.75)
-    -- . when_attr (Attrs.attr "harsh") harsh_attack
-    bipolar_controls [c_bow_force, c_bow_pos]
+    bipolar_controls [bow_force, bow_pos]
     . bipolar_expression
-
--- harsh_attack :: Score.Event -> Score.Event
--- harsh_attack event =
---     Score.modify_control c_bow_force (Signal.sig_add attack) event
---     where
---     attack = Signal.from_pairs [(start, 1), (start+dur, 0)]
---     start = Score.event_start event
---     dur = 0.25
---     -- possibly move from the bridge?
-
--- constant_attr :: Attrs.Attributes -> Score.Control -> Signal.Y
---     -> Score.Event -> Score.Event
--- constant_attr attr control val = when_attr attr
---     (Score.modify_control control (Signal.sig_add (Signal.constant val)))
-
-when_attr :: Attrs.Attributes -> (Score.Event -> Score.Event)
-    -> Score.Event -> Score.Event
-when_attr attr modify event
-    | Score.has_attribute attr event = modify event
-    | otherwise = event
 
 bipolar_controls :: [Score.Control] -> Score.Event -> Score.Event
 bipolar_controls controls event
@@ -225,7 +198,7 @@ bipolar_expression :: Score.Event -> Score.Event
 bipolar_expression = when_val "gesture" ("bipolar" :: Text) $ \event ->
     maybe event
         (\sig -> Score.set_control Controls.dynamic (normalize sig) event)
-        (Map.lookup c_bow_direction (Score.event_controls event))
+        (Map.lookup bow_direction (Score.event_controls event))
 
 when_val :: (Typecheck.Typecheck val, Eq val) => EnvKey.Key -> val
     -> (Score.Event -> Score.Event) -> Score.Event -> Score.Event
@@ -239,6 +212,46 @@ normalize :: Score.Typed Signal.Control -> Score.Typed Signal.Control
 normalize = fmap (Signal.scalar_divide 2 . Signal.scalar_add 1)
 
 -- * calls
+
+-- Up and Down mean set gesture=bipolar, and leave dyn alone or invert it.
+-- Alternate means each non-overlapping note gets inverted direction
+c_bow :: Derive.Transformer Derive.Note
+c_bow = c_bow_direction (Sig.defaulted "dir" Alternate "Bow direction.")
+
+c_bow_direction :: Sig.Parser BowDirection -> Derive.Transformer Score.Event
+c_bow_direction sig = Derive.transformer Module.instrument "bow" mempty
+    "Set bow direction, either to up or down, or alternate. Alternate means\
+    \ the bow changes as soon as there is a non-overlapping note." $
+    Sig.callt sig $
+    \dir _args -> bow dir . Derive.with_val "gesture" ("bipolar" :: Text)
+    where
+    bow dir deriver = case dir of
+        Down -> Post.emap1_ invert_dyn <$> deriver
+        Up -> deriver
+        Alternate -> snd . Post.emap1 alternate_bowing Call.Down
+            . Post.prev_by Score.event_instrument <$> deriver
+
+alternate_bowing :: Call.UpDown -> (Maybe Score.Event, Score.Event)
+    -> (Call.UpDown, Score.Event)
+alternate_bowing dir (prev, event)
+    | maybe True (Score.events_overlap event) prev = (dir, set dir event)
+    | otherwise = (rev dir, set (rev dir) event)
+    where
+    rev Call.Up = Call.Down
+    rev Call.Down = Call.Up
+    set Call.Down = invert_dyn
+    set Call.Up = id
+
+invert_dyn :: Score.Event -> Score.Event
+invert_dyn = Score.modify_control Controls.dynamic (Signal.scalar_multiply (-1))
+
+data BowDirection = Down | Up | Alternate
+    deriving (Eq, Show, Enum, Bounded)
+
+instance Typecheck.Typecheck BowDirection
+instance Typecheck.TypecheckSymbol BowDirection
+instance Typecheck.ToVal BowDirection
+instance ShowVal.ShowVal BowDirection where show_val = Text.toLower . showt
 
 control_call :: Expr.Symbol -> Doc.Doc -> Score.Control
     -> Signal.Y -> MidiInst.Call Derive.Note
@@ -258,7 +271,7 @@ c_harsh = Make.transform_notes Module.instrument "harsh" mempty
     ) $ \(val, dur) -> fmap $ Post.emap1_ (attack val dur)
     where
     attack val dur event =
-        Score.modify_control c_bow_force (Signal.sig_add sig) event
+        Score.modify_control bow_force (Signal.sig_add sig) event
         where
         start = Score.event_start event
         sig = Signal.from_pairs [(start, val), (start+dur, 0)]

@@ -47,4 +47,5 @@ perform :: Stream.Stream Score.Event
     -> (([Midi.Types.Event], [Midi.WriteMessage]), [Log.Msg])
 perform = DeriveTest.perform_synths_simple allocs [Pianoteq.synth]
 
+allocs :: DeriveTest.SimpleAllocations
 allocs = [("harp", "pianoteq/harp")]

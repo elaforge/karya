@@ -53,7 +53,7 @@ test_event_serial = do
             . DeriveTest.derive_tracks_setup with_calls ""
             . UiTest.note_track
         extract = fromMaybe (error "no control")
-            . DeriveTest.e_start_control "serial"
+            . DeriveTest.e_initial_control "serial"
         with_calls = CallTest.with_note_generator Symbols.null_note note
             <> CallTest.with_note_generator "notes" notes
     equal (run [(0, 1, "notes 1 -- 4c"), (1, 1, "notes 1 -- 4d")])

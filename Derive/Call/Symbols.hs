@@ -3,17 +3,17 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Symbols used in calls.
-module Derive.Call.Symbols where
+module Derive.Call.Symbols (symbols) where
 import qualified Ui.Symbol as Symbol
 import qualified App.Config as Config
 import Global
 
 
 symbols :: [Symbol.Symbol]
-symbols = misc_symbols ++ staff_symbols
+symbols = misc ++ bravura
 
-misc_symbols :: [Symbol.Symbol]
-misc_symbols =
+misc :: [Symbol.Symbol]
+misc =
     [ Symbol.Symbol "0x" True
         [Symbol.glyph_at (-2) (0, -0.4) (Symbol.glyph "x")]
     , simple "up" "↑"
@@ -31,8 +31,8 @@ simple name text = Symbol.symbol name [Symbol.glyph text]
 --
 -- TODO if I do more of these, I could load glyphnames.json to address these by
 -- name.  I probably don't want to load every single glyph as-is though.
-staff_symbols :: [Symbol.Symbol]
-staff_symbols =
+bravura :: [Symbol.Symbol]
+bravura =
     [ symbol "tr" "\xe566"
     , symbol "mordent" "\xe56c" -- ornamentMordent
     , symbol "rmordent" "\xe56d" -- ornamentMordentInverted
@@ -47,6 +47,12 @@ staff_symbols =
         ]
     , symbol "ped" "\xe650" -- keyboardPedalPed
     , symbol "ped-up" "\xe655" -- keyboardPedalUp
+
+    -- Standard unicode also has them, though as combining characters:
+    -- MUSICAL SYMBOL COMBINING DOWN BOW: U+1D1AA
+    -- MUSICAL SYMBOL COMBINING UP BOW: U+1D1AB
+    , symbol "upbow" "\xe612" -- stringsUpBow
+    , symbol "downbow" "\xe610" -- stringsDownBow
     ]
     where
     arp_glyph rotate align str = (glyph str)

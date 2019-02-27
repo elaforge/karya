@@ -81,7 +81,7 @@ emap1_ = fmap
 emap1_ord_ :: (a -> Score.Event) -> Stream a -> Stream Score.Event
 emap1_ord_ f = Stream.sort . fmap f
 
--- | 1:1 non-monadic map with state.
+-- | 1:1 non-monadic map with state.  This is like mapAccumL.
 emap1 :: (state -> a -> (state, b)) -> state -> Stream a -> (state, Stream b)
 emap1 f state =
     second Stream.from_sorted_list . List.mapAccumL go state . Stream.to_list

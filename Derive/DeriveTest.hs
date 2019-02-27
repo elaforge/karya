@@ -672,8 +672,8 @@ e_control_constant :: Score.Control -> Score.Event -> Maybe Signal.Y
 e_control_constant control = Signal.constant_val . Score.typed_val
     <=< Map.lookup control . Score.event_controls
 
-e_start_control :: Score.Control -> Score.Event -> Maybe Signal.Y
-e_start_control control event =
+e_initial_control :: Score.Control -> Score.Event -> Maybe Signal.Y
+e_initial_control control event =
     Score.typed_val <$> Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
