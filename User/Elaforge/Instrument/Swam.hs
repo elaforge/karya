@@ -115,10 +115,8 @@ string name open_strings = MidiInst.pressure $
     MidiInst.environ EnvKey.open_strings open_strings $
     MidiInst.patch#Patch.mode_map #= modes $
     MidiInst.patch#Patch.attribute_map #= keyswitches $
-    MidiInst.patch#Patch.defaults#Patch.control_defaults #= Just (Map.fromList
-        -- defaults apply after the bipolar conversion
-        [ (bow_force, 0.5), (bow_pos, 0.5)
-        ]) $
+    -- defaults apply after the bipolar conversion
+    MidiInst.control_defaults [(bow_force, 0.5), (bow_pos, 0.5)] $
     MidiInst.named_patch (-24, 24) name controls
     where
     code = MidiInst.note_calls

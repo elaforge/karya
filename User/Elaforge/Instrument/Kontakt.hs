@@ -271,9 +271,9 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 
 dio8_patches :: [MidiInst.Patch]
 dio8_patches =
-    [ MidiInst.code #= pedal_down $
+    [ pedal_down $
         MidiInst.attribute_map #= santur_ks $ patch "santur" []
-    , MidiInst.code #= (qanun_calls <> pedal_down) $
+    , MidiInst.code #= qanun_calls $ pedal_down $
         MidiInst.attribute_map #= qanun_ks $ patch "qanun" []
     ]
     where
@@ -293,8 +293,7 @@ dio8_patches =
           ]
         ]
     ks_from key attrs = Patch.single_keyswitches $ zip attrs [key..]
-    pedal_down = MidiInst.postproc $
-        DUtil.default_controls [(Controls.pedal, 1)]
+    pedal_down = MidiInst.control_defaults [(Controls.pedal, 1)]
     qanun_calls = MidiInst.note_calls
         [ MidiInst.generator "g" $
             Make.modify_generator_

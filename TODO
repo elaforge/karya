@@ -31,6 +31,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - >pianoteq/harp could use Patch.cc_keyswitches_permute
   - should I use Cmd.get_lookup_instrument_memoized for derive?
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
@@ -81,9 +82,12 @@ UNSORTED
       . I still need per-note like Common.config_controls, because it's for
         per-instrument transposition and I can't make that global.
       * So, move Patch.config_control_defaults to Settings.
-    - Make it apply at the toplevel, instead of MIDI convert.
+    * Doesn't this now obsolete DUtil.default_controls?
+    / Make it apply at the toplevel, instead of MIDI convert.
       . Then it shows up in LPerf.sel_events, and it's not confusingly
         post-postproc.
+      . Actually I probably can't do this, because instruments could easily
+        have conflicting defaults.
     - Now it's not resetting ModeMap stuff.  There should be a default state
       for each of those.
     - simulate hand position and shifts

@@ -19,6 +19,7 @@ module Cmd.Instrument.MidiInst (
     -- ** modify
     , code, doc, attribute_map, decay, synth_controls
     , add_flag, add_flags, pressure, add_common_flag, triggered
+    , control_defaults
     -- ** environ
     , environ, default_scale, range, nn_range
     -- ** per-allocation
@@ -38,7 +39,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
@@ -73,11 +74,12 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 import qualified Ui.UiConfig as UiConfig
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
@@ -287,6 +289,10 @@ add_common_flag flag = common#Common.flags %= Set.insert flag
 
 triggered :: Patch -> Patch
 triggered = add_common_flag Common.Triggered
+
+control_defaults :: [(Score.Control, Signal.Y)] -> Patch -> Patch
+control_defaults controls =
+    patch#Patch.defaults#Patch.control_defaults #= Just (Map.fromList controls)
 
 -- ** environ
 

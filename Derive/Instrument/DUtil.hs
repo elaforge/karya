@@ -13,7 +13,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
-import qualified Cmd.Cmd as Cmd
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
@@ -36,8 +35,9 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 generator :: Derive.CallName -> Doc.Doc
@@ -318,10 +318,3 @@ move_val old_key new_key convert event =
                 )
             Right new ->
                 (Score.modify_environ (Env.insert_val new_key new) event, [])
-
--- | Set a default value on controls which are not already explicitly set.
-default_controls :: [(Score.Control, Signal.Y)] -> Cmd.InstrumentPostproc
-default_controls controls event = (,[]) $ foldr reset event controls
-    where
-    reset (c, val) = Score.modify_control c $ \old -> if old == mempty
-        then Signal.constant val else old
