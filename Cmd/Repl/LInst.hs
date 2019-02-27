@@ -125,10 +125,7 @@ pretty_alloc inst alloc =
         where
         flags = ["mute" | Common.config_mute config]
             ++ ["solo" | Common.config_solo config]
-    show_midi_config config = join
-        [ show_controls "defaults:" (Patch.config_control_defaults config)
-        , pretty_settings (Patch.config_settings config)
-        ]
+    show_midi_config = pretty_settings . Patch.config_settings
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = msg <> pretty controls
@@ -141,6 +138,7 @@ pretty_settings settings =
         , if_changed Patch.config_scale $ (("("<>) . (<>")") . show_scale)
         , if_changed Patch.config_decay $ ("decay="<>) . pretty
         , if_changed Patch.config_pitch_bend_range $ ("pb="<>) . pretty
+        , if_changed Patch.config_control_defaults $ ("controls="<>) . pretty
         ]
     where
     if_changed get fmt = maybe "" fmt (get settings)
@@ -322,7 +320,7 @@ set_tuning_scale tuning scale inst = do
 set_control_defaults :: Ui.M m => [(Score.Control, Signal.Y)] -> Instrument
     -> m ()
 set_control_defaults controls = modify_midi_config_ $
-    Patch.control_defaults #= Map.fromList controls
+    Patch.settings#Patch.control_defaults #= Just (Map.fromList controls)
 
 -- ** Midi.Patch.Config settings
 

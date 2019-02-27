@@ -1,4 +1,4 @@
--- Copyright 2013 Evan Laforge
+-- Copyright 2019 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -121,6 +121,10 @@ string name open_strings = MidiInst.pressure $
     MidiInst.environ EnvKey.open_strings open_strings $
     MidiInst.patch#Patch.mode_map #= modes $
     MidiInst.patch#Patch.attribute_map #= keyswitches $
+    MidiInst.patch#Patch.defaults#Patch.control_defaults #= Just (Map.fromList
+        -- defaults apply after the bipolar conversion
+        [ (c_bow_force, 0.5), (c_bow_pos, 0.5)
+        ]) $
     MidiInst.named_patch (-24, 24) name controls
     where
     code = MidiInst.note_calls

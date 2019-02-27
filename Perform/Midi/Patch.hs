@@ -89,21 +89,12 @@ data Config = Config {
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
     config_allocation :: ![(Addr, Maybe Voices)]
-    -- | Default controls for this instrument, will always be set unless
-    -- explicitly replaced.  This hopefully avoids the problem where
-    -- a synthesizer starts in an undefined state.  This is different from
-    -- 'Common.config_controls' in that these are meant to provide a default
-    -- for synthesizer state, so these are only applied during conversion, and
-    -- thus should only contain controls the MIDI instrument understands.
-    , config_control_defaults :: !Score.ControlValMap
     , config_initialization :: !(Set Initialization)
     , config_settings :: !Settings
     } deriving (Eq, Read, Show)
 
 allocation = Lens.lens config_allocation
     (\f r -> r { config_allocation = f (config_allocation r) })
-control_defaults = Lens.lens config_control_defaults
-    (\f r -> r { config_control_defaults = f (config_control_defaults r) })
 initialization = Lens.lens config_initialization
     (\f r -> r { config_initialization = f (config_initialization r) })
 settings = Lens.lens config_settings
@@ -115,7 +106,6 @@ config_addrs = map fst . config_allocation
 config :: [(Addr, Maybe Voices)] -> Config
 config alloc = Config
     { config_allocation = alloc
-    , config_control_defaults = mempty
     , config_initialization = mempty
     , config_settings = mempty
     }
@@ -124,11 +114,10 @@ merge_defaults :: Patch -> Config -> Config
 merge_defaults patch = settings %= (<> patch_defaults patch)
 
 instance Pretty Config where
-    format (Config alloc scale control_defaults initialization) =
+    format (Config alloc scale initialization) =
         Pretty.record "Config"
             [ ("allocation", Pretty.format alloc)
             , ("scale", Pretty.format scale)
-            , ("control_defaults", Pretty.format control_defaults)
             , ("initialization", Pretty.format initialization)
             ]
 
@@ -164,27 +153,37 @@ data Settings = Settings {
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
     , config_decay :: !(Maybe RealTime)
     , config_pitch_bend_range :: !(Maybe Control.PbRange)
+    -- | Default controls for this instrument, will always be set unless
+    -- explicitly replaced.  This hopefully avoids the problem where
+    -- a synthesizer starts in an undefined state.  This is different from
+    -- 'Common.config_controls' in that these are meant to provide a default
+    -- for synthesizer state, so these are only applied during conversion, and
+    -- thus should only contain controls the MIDI instrument understands.
+    , config_control_defaults :: !(Maybe Score.ControlValMap)
     } deriving (Eq, Read, Show)
 
 instance Pretty Settings where
-    format (Settings flags scale decay pb_range) = Pretty.record "Settings"
-        [ ("flags", Pretty.format flags)
-        , ("scale", Pretty.format scale)
-        , ("decay", Pretty.format decay)
-        , ("pitch_bend_range", Pretty.format pb_range)
-        ]
+    format (Settings flags scale decay pb_range control_defaults) =
+        Pretty.record "Settings"
+            [ ("flags", Pretty.format flags)
+            , ("scale", Pretty.format scale)
+            , ("decay", Pretty.format decay)
+            , ("pitch_bend_range", Pretty.format pb_range)
+            , ("control_defaults", Pretty.format control_defaults)
+            ]
 
 instance Semigroup Settings where
-    (<>)    (Settings flags1 scale1 decay1 pb_range1)
-            (Settings flags2 scale2 decay2 pb_range2) =
+    (<>)    (Settings flags1 scale1 decay1 pb_range1 cdefaults1)
+            (Settings flags2 scale2 decay2 pb_range2 cdefaults2) =
         Settings (flags1 <|> flags2) (scale1 <|> scale2) (decay1 <|> decay2)
-            (pb_range1 <|> pb_range2)
+            (pb_range1 <|> pb_range2) (cdefaults1 <|> cdefaults2)
 instance Monoid Settings where
     mempty = Settings
         { config_flags = Nothing
         , config_scale = Nothing
         , config_decay = Nothing
         , config_pitch_bend_range = Nothing
+        , config_control_defaults = Nothing
         }
     mappend = (<>)
 
@@ -196,6 +195,8 @@ scale = Lens.lens config_scale
     (\f r -> r { config_scale = f (config_scale r) })
 flags = Lens.lens config_flags
     (\f r -> r { config_flags = f (config_flags r) })
+control_defaults = Lens.lens config_control_defaults
+    (\f r -> r { config_control_defaults = f (config_control_defaults r) })
 
 -- * Patch
 

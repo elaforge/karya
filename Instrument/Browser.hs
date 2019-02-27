@@ -202,6 +202,7 @@ instrument_fields name patch =
     [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList $
         fromMaybe mempty flags)
     , ("Controls", show_control_map control_map)
+    , ("Control defaults", pretty control_defaults)
     -- implementation details
     , ("Attribute map", show_attribute_map attr_map)
     , ("Mode map", show_mode_map mode_map)
@@ -220,12 +221,7 @@ instrument_fields name patch =
         , patch_mode_map = mode_map
         , patch_defaults = settings
         } = patch
-    Patch.Settings
-        { config_flags = flags
-        , config_scale = scale
-        , config_decay = decay
-        , config_pitch_bend_range = pb_range
-        } = settings
+    Patch.Settings flags scale decay pb_range control_defaults = settings
 
 patch_fields :: Im.Patch.Patch -> [(Text, Text)]
 patch_fields (Im.Patch.Patch controls attr_map) =

@@ -541,31 +541,44 @@ instance Serialize Track.RenderSource where
 -- ** Perform.Midi.Patch
 
 instance Serialize Patch.Config where
-    put (Patch.Config a b c d) = Serialize.put_version 9
-        >> put a >> put b >> put c >> put d
+    put (Patch.Config a b c) = Serialize.put_version 10
+        >> put a >> put b >> put c
     get = Serialize.get_version >>= \case
         7 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
             control_defaults :: Score.ControlValMap <- get
-            let settings = old_settings { Patch.config_scale = scale }
-            return $ Patch.Config alloc control_defaults mempty settings
+            let settings = old_settings
+                    { Patch.config_scale = scale
+                    , Patch.config_control_defaults = nonempty control_defaults
+                    }
+            return $ Patch.Config alloc mempty settings
         8 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
             control_defaults :: Score.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
-            let settings = old_settings { Patch.config_scale = scale }
-            return $ Patch.Config alloc control_defaults initialization
-                settings
+            let settings = old_settings
+                    { Patch.config_scale = scale
+                    , Patch.config_control_defaults = nonempty control_defaults
+                    }
+            return $ Patch.Config alloc initialization settings
         9 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             control_defaults :: Score.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
             settings :: Patch.Settings <- get
-            return $ Patch.Config alloc control_defaults initialization
-                settings
+            return $ Patch.Config alloc initialization
+                (settings { Patch.config_control_defaults
+                    = nonempty control_defaults })
+        10 -> do
+            alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
+            initialization :: Set Patch.Initialization <- get
+            settings :: Patch.Settings <- get
+            return $ Patch.Config alloc initialization settings
         v -> Serialize.bad_version "Patch.Config" v
+        where
+        nonempty x = if x == mempty then Nothing else Just x
 
 -- | This tags Settings which will have to be upgraded by merging with patch
 -- defaults.
@@ -587,8 +600,8 @@ instance Serialize Patch.Initialization where
         v -> Serialize.bad_version "Patch.Initialization" v
 
 instance Serialize Patch.Settings where
-    put (Patch.Settings a b c d) = Serialize.put_version 1
-        >> put a >> put b >> put c >> put d
+    put (Patch.Settings a b c d e) = Serialize.put_version 2
+        >> put a >> put b >> put c >> put d >> put e
     get = Serialize.get_version >>= \case
         0 -> do
             flags :: Set Patch.Flag <- get
@@ -597,13 +610,21 @@ instance Serialize Patch.Settings where
             _pitch_bend_range :: Midi.Control.PbRange <- get
             return $ Patch.Settings
                 (if Set.null flags then Nothing else Just flags)
-                scale decay Nothing
+                scale decay Nothing Nothing
         1 -> do
             flags :: Maybe (Set Patch.Flag) <- get
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
             pitch_bend_range :: Maybe Midi.Control.PbRange <- get
+            return $ Patch.Settings flags scale decay pitch_bend_range Nothing
+        2 -> do
+            flags :: Maybe (Set Patch.Flag) <- get
+            scale :: Maybe Patch.Scale <- get
+            decay :: Maybe RealTime <- get
+            pitch_bend_range :: Maybe Midi.Control.PbRange <- get
+            control_defaults :: Maybe Score.ControlValMap <- get
             return $ Patch.Settings flags scale decay pitch_bend_range
+                control_defaults
         v -> Serialize.bad_version "Patch.Settings" v
 
 -- TODO this should have had a version.  Add one when I next do an incompatible

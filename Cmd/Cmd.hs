@@ -42,6 +42,7 @@ import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Tuple as Tuple
 import qualified Data.Word as Word
 
 import qualified Sound.OSC as OSC
@@ -1260,6 +1261,20 @@ get_lookup_instrument = do
     return $ either (const Nothing) Just
         . state_resolve_instrument ui_state cmd_state
 
+-- | Like 'get_lookup_instrument', but memoize instrument resolution in case
+-- you're going to do it a lot.  'instrument_resolve' has to merge some things
+-- so it's not exactly free.
+get_lookup_instrument_memoized :: M m
+    => m (Score.Instrument -> Maybe ResolvedInstrument)
+get_lookup_instrument_memoized = do
+    ui_state <- Ui.get
+    cmd_state <- get
+    let insts = Map.keys $ Ui.config#Ui.allocations_map #$ ui_state
+    let memo = Map.fromList $ map Tuple.swap $ Seq.key_on_just resolve insts
+        resolve = either (const Nothing) Just
+            . state_resolve_instrument ui_state cmd_state
+    return $ \inst -> Map.lookup inst memo
+
 state_resolve_instrument :: Ui.State -> State -> Score.Instrument
     -> Either Text ResolvedInstrument
 state_resolve_instrument ui_state cmd_state = \inst -> do
@@ -1276,7 +1291,7 @@ resolve_instrument db alloc = do
         inst_lookup qualified db
     backend <- case (Inst.inst_backend inst, UiConfig.alloc_backend alloc) of
         (Inst.Midi patch, UiConfig.Midi config) ->
-            return $ Just $ Midi patch $ Patch.merge_defaults patch config
+            return $ Just $ Midi patch (Patch.merge_defaults patch config)
         (Inst.Im patch, UiConfig.Im) -> return $ Just (Im patch)
         (_, UiConfig.Dummy) -> return Nothing
         -- 'UiConfig.verify_allocation' should have prevented this.

@@ -344,14 +344,14 @@ midi_config _ = Nothing
 
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
-    allocs <- Ui.config#Ui.allocations_map <#> Ui.get
+    lookup_inst <- Cmd.get_lookup_instrument_memoized
     return $ Convert.Lookup
         { lookup_scale = Cmd.lookup_scale
-        , lookup_control_defaults = \inst -> case lookup_config inst allocs of
-            Just config -> Score.untyped . Signal.constant <$>
-                Patch.config_control_defaults config
-            _ -> mempty
+        , lookup_control_defaults = \inst -> fromMaybe mempty $ do
+            inst <- lookup_inst inst
+            defaults <- case Cmd.inst_backend inst of
+                Just (Cmd.Midi _ config) -> Patch.config_control_defaults $
+                    Patch.config_settings config
+                _ -> Nothing
+            return $ Score.untyped . Signal.constant <$> defaults
         }
-    where
-    lookup_config inst allocs =
-        midi_config . UiConfig.alloc_backend =<< Map.lookup inst allocs

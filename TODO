@@ -31,6 +31,10 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - should I use Cmd.get_lookup_instrument_memoized for derive?
+  - do I ever get negative Score.Events?
+    . It would simplify to rule that out.  E.g. Score.events_overlap
+    . Score.event_min implies I do, but only Derive.Note uses it so maybe no?
   * implement pitch-oriented grace call
     . It would merge the notes and just do a pitch curve.
     . This is similar to the pitch call, except it can put grace notes before.
@@ -56,9 +60,32 @@ UNSORTED
       permutations for now, but if I wind up with more, then I would have
       a separate "inclusive" attribute map.
     . This only applies to MIDI, and not many MIDI instruments are that
-      expressive.  If I do my own instrumens, it'll be in im, and so I can do
+      expressive.  If I do my own instruments, it'll be in im, and so I can do
       inclusive attributes or controls.
   swam strings
+    it's not resetting bow-pos and bow-force:
+      . I guess this is a general problem, I don't reset CCs for any
+        instrument.  I think it's on purpose, just because an instrument
+        supports a CC doesn't mean I want to reset it on every note... only
+        if I'm going to use it.  In fact maybe I originally did, but it was
+        annoying when I couldn't tweak controls and play the score?
+      . Anyway, clearly some controls should be set, and I think the control
+        default mechanism is intended for that.
+      . Well, except both versions are in Config, so they can't come with the
+        instrument.
+      . Patch.config_control_defaults is right, because Common.config_controls
+        will override existing settings.
+      . An alternate approach would be look at all instruments, collect their
+        default control values, and set that on block derivation.  That way
+        its only set once, and I can still override it.
+      . I still need per-note like Common.config_controls, because it's for
+        per-instrument transposition and I can't make that global.
+      * So, move Patch.config_control_defaults to Settings.
+    - Make it apply at the toplevel, instead of MIDI convert.
+      . Then it shows up in LPerf.sel_events, and it's not confusingly
+        post-postproc.
+    - Now it's not resetting ModeMap stuff.  There should be a default state
+      for each of those.
     - simulate hand position and shifts
       . This won't work well because swam also wants to do that, and even with
         the hand position setting I think I can't get it to use the string
@@ -83,12 +110,17 @@ UNSORTED
         . But it's less convenient because it applies once to the whole
           deriver, not to each note inside like attrs do.  But I could just
           map then.
+        . Set a +bow-change attribute, which makes bow direction reverse on
+          each stroke.
       - tremolo
         . Can I just do it manually?  What should tremolo mode be then?
         . I need to tell it to switch bow directions.  So I need a special trem
           call that sets gesture=bipolar.
         . Single-direction tremolo is also interesting sounding, so I can have
           a setting to keep that.
+        . alt-bow transformer forces alternate bowing for non-overlapping
+          events.  This is like swam's built-in bow change, except swam seems
+          to require a long pause at 0 to change.
       bow gesture
         . If I want to control direction, maybe I just set to bipolar, then do
           my own algorithm to select direction.  Then the usual dyn pressure
