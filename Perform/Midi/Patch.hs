@@ -64,12 +64,14 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
 
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 import           Global
 import           Types
@@ -543,8 +545,24 @@ make_mode_map = ModeMap . Map.fromList . map (second Map.fromList)
 
 -- | Construct a ModeMap that uses MIDI CC.
 cc_mode_map :: [(EnvKey.Key, Midi.Control, [(Expr.MiniVal, Midi.ControlValue)])]
-    -> ModeMap
-cc_mode_map modes = make_mode_map
-    [ (key, [(val, [ControlSwitch cc cc_val]) | (val, cc_val) <- vals])
-    | (key, cc, vals) <- modes
-    ]
+    ->  ( ModeMap
+        , [(Midi.Control, Score.Control)]
+        , [(Score.Control, Signal.Y)]
+        )
+    -- ^ Since the controls are by number, not name, also emit the (cc, name)
+    -- association, so they can be defaulted, and control defaults, so notes
+    -- don't get stuck in the last mode.
+cc_mode_map modes =
+    ( make_mode_map
+        [ (key, [(val, [ControlSwitch cc cc_val]) | (val, cc_val) <- vals])
+        | (key, cc, vals) <- modes
+        ]
+    , [(cc, control key) | (key, cc, _) <- modes]
+    , [ (control key, cval_to_val val)
+      | (key, _, vals) <- modes, (_, val) <- take 1 vals
+      ]
+    )
+    where
+    control = ScoreTypes.Control
+    -- This is the inverse of Perform.Midi.Control.val_to_cc.
+    cval_to_val v = fromIntegral v / 0x7f

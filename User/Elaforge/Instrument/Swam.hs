@@ -116,7 +116,9 @@ string name open_strings = MidiInst.pressure $
     MidiInst.patch#Patch.mode_map #= modes $
     MidiInst.patch#Patch.attribute_map #= keyswitches $
     -- defaults apply after the bipolar conversion
-    MidiInst.control_defaults [(bow_force, 0.5), (bow_pos, 0.5)] $
+    MidiInst.control_defaults (
+        [ (bow_force, 0.5), (bow_pos, 0.5)
+        ] ++ mode_defaults) $
     MidiInst.named_patch (-24, 24) name controls
     where
     code = MidiInst.note_calls
@@ -130,7 +132,7 @@ string name open_strings = MidiInst.pressure $
         , MidiInst.transformer "`upbow`" (c_bow_direction (pure Up))
         ]
         <> MidiInst.postproc ((,[]) . postproc)
-    controls =
+    controls = mode_controls ++
         [ (CC.mod, Controls.vib)
         , (CC.vib_speed, Controls.vib_speed)
         , (CC.pan, Controls.pan)
@@ -146,7 +148,8 @@ string name open_strings = MidiInst.pressure $
         , (17, "bow-noise")
         , (20, "trem-speed")
         -- <64 or >=64
-        , (64, Controls.pedal) -- called sustain, but I use that elsewhere
+        -- called sustain, but I use that name for something else
+        , (64, Controls.pedal)
         ]
     -- CC breakpoints are <=42, <=84, >=85
     keyswitches = Patch.cc_keyswitches_permute
@@ -155,7 +158,7 @@ string name open_strings = MidiInst.pressure $
         , (41, [(mempty, 10), (Attrs.trem, 60), (Attrs.attr "trem-fast", 100)])
         , (65, [(mempty, 0), (Attrs.mute, 127)]) -- con sord
         ]
-    modes = Patch.cc_mode_map
+    (modes, mode_controls, mode_defaults) = Patch.cc_mode_map
         [ ("gesture", 33, [("expr", 10), ("bipolar", 60), ("bowing", 100)])
         -- Which strings to select for double-stops mode.
         , ("str-select", 34, [("4-3", 10), ("3-2", 80), ("2-1", 100)])

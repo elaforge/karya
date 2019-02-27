@@ -88,7 +88,7 @@ UNSORTED
         post-postproc.
       . Actually I probably can't do this, because instruments could easily
         have conflicting defaults.
-    - Now it's not resetting ModeMap stuff.  There should be a default state
+    * Now it's not resetting ModeMap stuff.  There should be a default state
       for each of those.
     - simulate hand position and shifts
       . This won't work well because swam also wants to do that, and even with
