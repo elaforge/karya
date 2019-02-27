@@ -4122,6 +4122,11 @@ solkattu:
         k__t__k__n__o__ -> k_pt_pk_pn_ko_o
       . The general rule is before a rh stroke we get p, before lh get k.
         Except if o then follow with o unless it's p.
+    - fillers for karvai:
+      . tang.__.gu -> tang.oknp
+      . din.__3.tat.__3.din.__3 -> din.din.__.tat.tat.__.din.din.__
+        4: din.__.din.__ etc., 5: din.__.din.__3 etc.
+      . tk, tktu - these fill 1 and 2 respectively
   - Transcribing ad-hoc things and sarvalaghu mixed with korvai is awkward.
   - Duration is supposedly absolute, but it only works at the toplevel.
     So it's awkward when everything is in tisram, I do 'map (nadai 6)' and now
@@ -4294,7 +4299,6 @@ solkattu:
         . Well, if I turn nakatiku into a named group, I need some place to
           attach the name.  In that case, why not Pattern Name Matras?
     / support tags on patterns, e.g. (2^p5, [something else])
-  - Ornaments to fill in karvai, e.g. with taka and takatiku
   - Mark for variations, e.g. mark a 'tri_ x 345' for 345.x.345.x.3333.
     end4 (tri_ x (p6, tk.p6, tknk.p6)) -> can play final as p6.p6.p6.p6
     . Variation markers put a branch in the realization, so now I have

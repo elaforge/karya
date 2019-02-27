@@ -752,6 +752,7 @@ adi_tani_misra =
     , K misra_trikalam All
     -- K e_sarva1_tisra All
     , K e_adi_tisra_misra All
+    , K c_18_08_03_misra All
     ]
 
 adi_tani1 :: Korvai
@@ -836,7 +837,8 @@ e_sarva1_tisra = exercise $ date 2018 7 25 $ sudhindra $
 -- also n.d.d.d
 
 e_adi_tisra_misra :: Korvai
-e_adi_tisra_misra = korvai Tala.misra_chapu mridangam $ map (smap (nadai 3))
+e_adi_tisra_misra = date 2019 2 26 $ ganesh $
+    korvai Tala.misra_chapu mridangam $ map (smap (nadai 3))
     [ section $ sarva 7
     , section $ sarva 6 . tarikitadiku
     , section $ sarva 2 . tarikitadiku . sarva 3 . tarikitadiku
@@ -844,16 +846,43 @@ e_adi_tisra_misra = korvai Tala.misra_chapu mridangam $ map (smap (nadai 3))
         . sarva 1 . tarikitadiku
         . tarikitadiku . sarva 1 . tarikitadiku . sarva 1
         . tri_ (__.__3) tarikitadiku
+
+    , section $ repeat 5 takadinnakttk . tri dinnakttk
+    , section $ repeat 5 takadinnakttk . din_trktkt
+    , section $ repeat 2 $ takadinnakttk . tang.kttk . din_trktkt
+    , section $ din.__3 . repeat 4 tarikitadiku . takeM 3 tarikitadiku . trktkt3
+    , section $ repeat 2 $ din.__3 . tarikitadiku . trktkt3
+    , section $ din.__3 . repeat 2 tarikitadiku . rtakeM 3 tarikitadiku
+        . tri_ (din.__3) tarikitadiku
     ]
     where
+    -- TODO share the where-clause with e_adi_tirsa, except this adds tang.kttk
+
     -- Duration is off due to map nadai 6.  TODO this is pretty awkward.
     sarva dur = sarvaD sarvaSollu (dur * 1.5)
     sarvaSollu = repeat 4 $ taka.ta.ta.dim.__
     tarikitadiku = named "6npkt" $ su $ tari.kita.taka.diku.kita.taka
+    dinnakttk = group $ din.na.kttk
+    trktkt3 = tri trktkt
+    trktkt = named "4npkt" $ trkt.kttk
+    takadinnakttk = group $ taka.dinnakttk
+    -- TODO this uses trkt.kttk instead of trktkt above because being a group
+    -- will prevent the full din_trktkt match.
+    din_trktkt = din.__.trkt.kttk.tarikitadiku
     mridangam = makeMridangam
         [ (sarvaSollu, let rh = n.k.n.n.d.__ in
               rh & strM "o_ooo_" . rh & strM "__ooo_" . rh & o . rh)
         , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
+        , (dinnakttk, o.n.k.t.o.k)
+        , (taka, o.k)
+        -- High speed variant of trktkt drops the tha.
+        -- Say din.__.tari.kita.kita.taka,
+        -- play din.__.nang.__.kita.kita.taka
+        , (din.trkt.kttk, od.on.__.k.t.k.t.p.k)
+        , (trktkt, n.p.k.t.k.t.p.k)
+        , (din, od)
+
+        , (tang.kttk, on.k.t.o.k)
         ]
 
 e_adi_tisra :: Korvai
@@ -864,18 +893,19 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     , section $ repeat 2 $ sarva 3 . tarikitadiku
     , section $ sarva 1.tarikitadiku.sarva 1.tarikitadiku
         . tri_ (tang.__.gu) tarikitadiku
-    , x2 $ section $ sarva 6 . tri dinna
-    , section $ repeat 2 (sarva 2 . tri dinna)
-    , section $ sarva 2 . repeat 3 (tri dinna)
+
+    , x2 $ section $ sarva 6 . tri dinnakttk
+    , section $ repeat 2 (sarva 2 . tri dinnakttk)
+    , section $ sarva 2 . repeat 3 (tri dinnakttk)
     , x2 $ section $ sarva 6 . trktkt3
     , section $ repeat 3 (sarva 2 . trktkt3) . trktkt3 . trktkt3
-    , x2 $ section $ sarva 6 . repeat 2 takadinna
-    , section $ repeat 2 $ sarva 2 . repeat 2 takadinna
-    , section $ repeat 8 takadinna
-    , x2 $ section $ repeat 6 takadinna . tri dinna
-    , section $ repeat 6 takadinna . trktkt3
-    , section $ repeat 6 takadinna . din_trktkt
-    , section $ repeat 2 $ repeat 2 takadinna . din_trktkt
+    , x2 $ section $ sarva 6 . repeat 2 takadinnakttk
+    , section $ repeat 2 $ sarva 2 . repeat 2 takadinnakttk
+    , section $ repeat 8 takadinnakttk
+    , x2 $ section $ repeat 6 takadinnakttk . tri dinnakttk
+    , section $ repeat 6 takadinnakttk . trktkt3
+    , section $ repeat 6 takadinnakttk . din_trktkt
+    , section $ repeat 2 $ repeat 2 takadinnakttk . din_trktkt
     , x2 $ section $ repeat 4 $ din_trktkt
     , x2 $ section $ repeat 2 $ din.__ . repeat 4 trktkt . tarikitadiku
     , section $ repeat 4 tarikitadiku
@@ -886,10 +916,10 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
     sarva dur = sarvaD sarvaSollu (dur * 1.5)
     sarvaSollu = repeat 4 $ taka.ta.ta.dim.__
     tarikitadiku = named "6npkt" $ su $ tari.kita.taka.diku.kita.taka
-    dinna = group $ din.na.kttk
+    dinnakttk = group $ din.na.kttk
     trktkt3 = tri trktkt
     trktkt = named "4npkt" $ trkt.kttk
-    takadinna = group $ taka.dinna
+    takadinnakttk = group $ taka.dinnakttk
     -- TODO this uses trkt.kttk instead of trktkt above because being a group
     -- will prevent the full din_trktkt match.
     din_trktkt = din.__.trkt.kttk.tarikitadiku
@@ -898,7 +928,7 @@ e_adi_tisra = exercise $ date 2018 7 30 $ sudhindra $
               rh & strM "o_ooo_" . rh & strM "__ooo_" . rh & o . rh)
         , (tarikitadiku, n.p.k.t.p.k.t.p.k.t.p.k)
         , (tang.__.gu, od.__.o)
-        , (dinna, o.n.k.t.o.k)
+        , (dinnakttk, o.n.k.t.o.k)
         , (taka, o.k)
         -- High speed variant of trktkt drops the tha.
         -- Say din.__.tari.kita.kita.taka,
@@ -920,6 +950,23 @@ c_18_08_03 = date 2018 8 3 $ sudhindra $
     dit_tang = dit.__.tang.su (kita.nakatiku) -- spoken taka.tari.kita.taka
     mridangam = makeMridangam
         [ (dit.tang.kita, k.u.p.k)
+        , (din, od)
+        , (tat, k)
+        , (din.gu, od.lt o)
+        ]
+
+c_18_08_03_misra :: Korvai
+c_18_08_03_misra = date 2012 2 26 $ ganesh $
+    korvai1 Tala.misra_chapu mridangam $ section $ nadai 3 $
+    takita_tang.din.__3.tat.__3.din.__3
+    . takita_tang.din.__4.tat.__4.din.__4
+    . takita_tang.din.__5.tat.__5.din.__5
+    . tri123 dingu p6
+    where
+    -- alternate starts: dit.__3, tat.tat.__
+    takita_tang = takita.tang.su (kita.nakatiku) -- spoken taka.tari.kita.taka
+    mridangam = makeMridangam
+        [ (takita.tang.kita, o.k.o.u.p.k)
         , (din, od)
         , (tat, k)
         , (din.gu, od.lt o)
