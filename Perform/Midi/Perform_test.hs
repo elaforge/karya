@@ -342,7 +342,7 @@ test_keyswitch_share_chan = do
     let f evts = first extract $ perform config1 (map make evts)
         extract = map snd . e_note_ons
         make (ks, pitch, start) = mkevent (ks_inst ks, pitch, start, 1, [])
-        ks_inst ks = patch1 { Types.patch_keyswitch = ks }
+        ks_inst ks = patch1 { Types.patch_keyswitches = ks }
         ks1 = [Patch.Keyswitch Key.c1]
         ks2 = [Patch.Keyswitch Key.d1]
 
@@ -419,8 +419,8 @@ test_keyswitch = do
         e_note = mapMaybe $ \wmsg ->
             (,) (Midi.wmsg_ts wmsg) <$> note_key (Midi.wmsg_msg wmsg)
         ks_inst ks hold = patch1
-            { Types.patch_keyswitch = ks
-            , Types.patch_hold_keyswitch = hold
+            { Types.patch_keyswitches = ks
+            , Types.patch_hold_keyswitches = hold
             }
         with_addr (ks, hold, pitch, start, dur) =
             (mkevent (ks_inst ks hold, pitch, start, dur, []), (dev1, 0))
@@ -502,7 +502,7 @@ test_keyswitch_aftertouch = do
         with_addr (ks, pitch, start, dur) =
             (mkevent (ks_inst ks, pitch, start, dur, []), (dev1, 0))
         ks_inst ks = patch1
-            { Types.patch_keyswitch = [Patch.Aftertouch ks] }
+            { Types.patch_keyswitches = [Patch.Aftertouch ks] }
         e_at = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
             Midi.ChannelMessage _ (Midi.Aftertouch k v) -> Just (k, v)
             _ -> Nothing

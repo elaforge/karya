@@ -63,7 +63,7 @@ UNSORTED
     . This only applies to MIDI, and not many MIDI instruments are that
       expressive.  If I do my own instruments, it'll be in im, and so I can do
       inclusive attributes or controls.
-  swam strings
+  swam: strings
     it's not resetting bow-pos and bow-force:
       . I guess this is a general problem, I don't reset CCs for any
         instrument.  I think it's on purpose, just because an instrument
@@ -90,6 +90,12 @@ UNSORTED
         have conflicting defaults.
     * Now it's not resetting ModeMap stuff.  There should be a default state
       for each of those.
+      . It doesn't work, because cc keyswitches are different from controls.
+        I should merge them.
+      . I'm a bit iffy about the whole idea of cc keyswitches, as opposed to
+        plain controls.
+      . I wanted to change Keyswitch to Midi.Key in MIDI Event, but aftertouch
+        has no control equivalent.
     - simulate hand position and shifts
       . This won't work well because swam also wants to do that, and even with
         the hand position setting I think I can't get it to use the string
@@ -98,6 +104,7 @@ UNSORTED
       - trompong tumpuk, double strokes, noltol
       - damp with short stroke and bow-lift=f
       - staccato with short stroke and bow-lift=t
+        +spiccato
       - randomization in pitch, pressure, bow pos, open string tuning
       - trill at 1.5nn?
       implement with attrs, since they can combine:

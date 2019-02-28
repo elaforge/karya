@@ -16,8 +16,8 @@ import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | The Patch is derived from a 'Patch.Patch' and contains all the data
@@ -32,10 +32,10 @@ data Patch = Patch {
     -- level, each instrument of each note is specialized to the particular
     -- keyswitches intended.  So this is normally empty, but filled in by
     -- convert prior to perform.
-    , patch_keyswitch :: ![Patch.Keyswitch]
+    , patch_keyswitches :: ![Patch.Keyswitch]
     -- | If true, the keysitch has to be held while the note is playing.
     -- Otherwise, it will just be tapped before the note starts.
-    , patch_hold_keyswitch :: !Bool
+    , patch_hold_keyswitches :: !Bool
 
     -- | Map control names to a control number.  Some controls are shared by
     -- all midi instruments, but some instruments have special controls.
@@ -55,8 +55,8 @@ patch_from_settings :: Score.Instrument -> Patch.Settings -> Patch.Patch
     -> Patch
 patch_from_settings score_inst settings patch = Patch
     { patch_name = score_inst
-    , patch_keyswitch = mempty
-    , patch_hold_keyswitch = maybe False (Set.member Patch.HoldKeyswitch)
+    , patch_keyswitches = []
+    , patch_hold_keyswitches = maybe False (Set.member Patch.HoldKeyswitch)
         (Patch.config_flags settings)
     , patch_control_map = Patch.patch_control_map patch
     -- This should definitely be Just because the Patch.patch constructor
@@ -69,14 +69,14 @@ patch_from_settings score_inst settings patch = Patch
 
 instance DeepSeq.NFData Patch where
     -- don't bother with the rest since instruments are constructed all at once
-    rnf inst = DeepSeq.rnf (patch_keyswitch inst)
+    rnf inst = DeepSeq.rnf (patch_keyswitches inst)
 
 instance Pretty Patch where
-    format (Patch name keyswitch hold_keyswitch cmap pb_range decay) =
+    format (Patch name keyswitches hold_keyswitches cmap pb_range decay) =
         Pretty.record "Patch"
             [ ("name", Pretty.format name)
-            , ("keyswitch", Pretty.format keyswitch)
-            , ("hold_keyswitch", Pretty.format hold_keyswitch)
+            , ("keyswitches", Pretty.format keyswitches)
+            , ("hold_keyswitches", Pretty.format hold_keyswitches)
             , ("control_map", Pretty.format cmap)
             , ("pb_range", Pretty.format pb_range)
             , ("decay", Pretty.format decay)
@@ -115,7 +115,7 @@ instance Pretty Event where
             [ ("start", Pretty.format start)
             , ("duration", Pretty.format dur)
             , ("patch", Pretty.format (patch_name patch))
-            , ("keyswitch", Pretty.format (patch_keyswitch patch))
+            , ("keyswitches", Pretty.format (patch_keyswitches patch))
             , ("controls", Pretty.format controls)
             , ("pitch", Pretty.format pitch)
             , ("velocity", Pretty.format (svel, evel))

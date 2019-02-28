@@ -523,7 +523,7 @@ chan_state_msgs midi_key addr@(wdev, chan) start maybe_old_inst new_inst
 
 same_keyswitches :: Maybe T.Patch -> T.Patch -> Bool
 same_keyswitches maybe_old new =
-    go (maybe [] T.patch_keyswitch maybe_old) (T.patch_keyswitch new)
+    go (maybe [] T.patch_keyswitches maybe_old) (T.patch_keyswitches new)
     where
     go [] [] = True
     -- To actually get this right I'd have to either change the Instrument
@@ -556,15 +556,15 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
     -- I have to emit a NoteOff for it.
     prev_ks_off = Maybe.fromMaybe [] $ do
         old <- maybe_old_inst
-        guard (T.patch_hold_keyswitch old)
+        guard (T.patch_hold_keyswitches old)
         -- I apply the adjacent_note_gap to the ks note off too.  It's probably
         -- unnecessary, but this way the note and the ks go off at the same
         -- time.
         return $ mapMaybe (ks_off (start-adjacent_note_gap))
-            (T.patch_keyswitch old)
+            (T.patch_keyswitches old)
 
-    new_ks = T.patch_keyswitch new_inst
-    is_hold = T.patch_hold_keyswitch new_inst
+    new_ks = T.patch_keyswitches new_inst
+    is_hold = T.patch_hold_keyswitches new_inst
     ks_start = start - keyswitch_lead_time
 
     new_ks_on

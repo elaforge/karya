@@ -240,7 +240,7 @@ test_keyswitches = do
                 ] $
             UiTest.make_patch ""
         extract ((events, _), logs) =
-            (map (Types.patch_keyswitch . Types.event_patch) events, logs)
+            (map (Types.patch_keyswitches . Types.event_patch) events, logs)
     equal (run "") ([[]], [])
     equal (run "+pizz") ([[Patch.Keyswitch 42]], [])
     equal (run "mode=x | +pizz")

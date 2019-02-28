@@ -125,8 +125,8 @@ convert_midi_pitch srate inst patch config controls event =
     mode_ks = mode_keyswitches (Score.event_environ event)
         (Patch.patch_mode_map patch)
     set_keyswitches [] = perf_patch
-    set_keyswitches keyswitches =
-        perf_patch { Types.patch_keyswitch = keyswitches }
+    set_keyswitches keyswitches = perf_patch
+        { Types.patch_keyswitches = keyswitches }
 
     -- A PitchedKeymap is mapped through the Patch.Scale.
     set_keymap (Patch.PitchedKeymap low high low_pitch) =

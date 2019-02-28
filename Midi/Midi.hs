@@ -49,27 +49,28 @@ module Midi.Midi (
     , yamaha_code, korg_code
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import Control.DeepSeq (rnf)
+import           Control.DeepSeq (rnf)
 import qualified Data.Bits as Bits
-import Data.Bits ((.&.), (.|.))
+import           Data.Bits ((.&.), (.|.))
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text.Encoding as Encoding
-import Data.Word (Word8)
+import           Data.Word (Word8)
 
 import qualified Foreign.C
 
 import qualified Util.CUtil as CUtil
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import Util.Pretty (format, (<+>))
+import           Util.Pretty (format, (<+>))
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
 import qualified Midi.CC as CC
-import Perform.RealTime (RealTime)
-import Global
+import           Perform.RealTime (RealTime)
+
+import           Global
 
 
 -- | Declared abstract here so I can switch to a more compact representation
@@ -323,7 +324,8 @@ type ControlValue = Word7
 type PitchBendValue = Float
 type Manufacturer = Word7
 
-newtype Key = Key Int deriving (Eq, Ord, Num, Enum, Show, Read)
+newtype Key = Key Int
+    deriving (Eq, Ord, Num, Enum, Show, Read, DeepSeq.NFData)
     -- This was initially a Word7 to match MIDI's range, but unlike the other
     -- types, I sometimes do math on these, and Word7's tiny range is kind of
     -- scary for that.
