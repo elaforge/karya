@@ -8,12 +8,15 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
-import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
+
+import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
+
+import           Global
 
 
 type ControlMap = Map Score.Control Midi.Control
@@ -33,11 +36,11 @@ control_constructor :: ControlMap -> Score.Control -> Midi.Key
     -> Maybe (Signal.Y -> Midi.ChannelMessage)
 control_constructor cmap cont key
     | Just cc <- Map.lookup cont cmap =
-        Just $ Midi.ControlChange cc . val_to_cc
+        Just $ Midi.ControlChange cc . val_to_cval
     | Just cc <- Map.lookup cont universal_control_map =
-        Just $ Midi.ControlChange cc . val_to_cc
-    | cont == Controls.pressure = Just $ Midi.ChannelPressure . val_to_cc
-    | cont == Controls.aftertouch = Just $ Midi.Aftertouch key . val_to_cc
+        Just $ Midi.ControlChange cc . val_to_cval
+    | cont == Controls.pressure = Just $ Midi.ChannelPressure . val_to_cval
+    | cont == Controls.aftertouch = Just $ Midi.Aftertouch key . val_to_cval
     | otherwise = Nothing
 
 -- | True if the given control will be used by the MIDI performer.
@@ -106,10 +109,16 @@ universal_control_map = control_map $
     , (67, "soft-pedal")
     ]
 
+cc_to_control :: Midi.Control -> Score.Control
+cc_to_control = ScoreTypes.Control . ("cc"<>) . showt
+
 -- * util
 
 val_to_pb :: Signal.Y -> Int
 val_to_pb val = round $ (Num.clamp (-1) 1 val + 1) * 0x2000 - 0x2000
 
-val_to_cc :: Signal.Y -> Midi.ControlValue
-val_to_cc val = round $ Num.clamp 0 1 val * 0x7f
+val_to_cval :: Signal.Y -> Midi.ControlValue
+val_to_cval val = round $ Num.clamp 0 1 val * 0x7f
+
+cval_to_val :: Midi.ControlValue -> Signal.Y
+cval_to_val v = fromIntegral v / 0x7f

@@ -13,7 +13,9 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
@@ -70,11 +72,12 @@ convert_event :: RealTime -> Lookup -> Score.Event -> Patch.Patch
 convert_event srate lookup event patch config = run $ do
     let inst = Score.event_instrument event
     let event_controls = Score.event_controls event
-    (perf_patch, pitch) <-
+    ((perf_patch, ks_controls), pitch) <-
         convert_midi_pitch srate inst patch config event_controls event
-    let controls = convert_controls srate (Types.patch_control_map perf_patch) $
-            convert_dynamic pressure
-                (event_controls <> lookup_control_defaults lookup inst)
+    let controls = make_controls ks_controls
+            <> convert_controls srate (Types.patch_control_map perf_patch)
+                (convert_dynamic pressure
+                    (event_controls <> lookup_control_defaults lookup inst))
         pressure = Patch.has_flag config Patch.Pressure
         velocity = fromMaybe Perform.default_velocity $
             Env.maybe_val EnvKey.attack_val env
@@ -100,6 +103,16 @@ convert_event srate lookup event patch config = run $ do
         , event_stack = Score.event_stack event
         }
 
+-- TODO it's awkward how I have to go from (Midi.Control, Midi.ControlValue)
+-- up to (Score.Control, Signal) only to go back down to
+-- (Midi.Control, Midi.ControlValue)
+make_controls :: [(Midi.Control, Midi.ControlValue)]
+    -> Map Score.Control MSignal.Signal
+make_controls controls = Map.fromList
+    [ (Control.cc_to_control cc, MSignal.constant $ Control.cval_to_val cval)
+    | (cc, cval) <- controls
+    ]
+
 run :: Log.LogId a -> [LEvent.LEvent a]
 run action = LEvent.Event note : map LEvent.Log logs
     where (note, logs) = Log.run_id action
@@ -114,7 +127,7 @@ type PitchSignal = MSignal.Signal
 -- so maybe I want to put it back in again someday.
 convert_midi_pitch :: Log.LogMonad m => RealTime -> Score.Instrument
     -> Patch.Patch -> Patch.Config -> Score.ControlMap -> Score.Event
-    -> m (Types.Patch, PitchSignal)
+    -> m ((Types.Patch, [(Midi.Control, Midi.ControlValue)]), PitchSignal)
 convert_midi_pitch srate inst patch config controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
         Nothing -> (set_keyswitches mode_ks,) . round_sig <$> get_signal
@@ -124,9 +137,12 @@ convert_midi_pitch srate inst patch config controls event =
     where
     mode_ks = mode_keyswitches (Score.event_environ event)
         (Patch.patch_mode_map patch)
-    set_keyswitches [] = perf_patch
-    set_keyswitches keyswitches = perf_patch
-        { Types.patch_keyswitches = keyswitches }
+    set_keyswitches [] = (perf_patch, [])
+    set_keyswitches keyswitches =
+        (perf_patch { Types.patch_keyswitches = ks }, ccs)
+        where (ccs, ks) = Seq.partition_on is_control_switch keyswitches
+    is_control_switch (Patch.ControlSwitch cc ccval) = Just (cc, ccval)
+    is_control_switch _ = Nothing
 
     -- A PitchedKeymap is mapped through the Patch.Scale.
     set_keymap (Patch.PitchedKeymap low high low_pitch) =

@@ -96,13 +96,24 @@ UNSORTED
         plain controls.
       . I wanted to change Keyswitch to Midi.Key in MIDI Event, but aftertouch
         has no control equivalent.
+      . What if I just got rid of Patch.ControlSwitch?  The only other use is
+        kendang and mridangam switches, but maybe those are legit?  Why don't
+        I have issues resetting mridangam strokes?
+      . Maybe I just don't use them in swam.  I can use postproc to turn attrs
+        into controls.
+    - It's awkward how Patch.ControlSwitch is in low level cc num and val,
+      because I have to convert to Score.Control and back again.
+      . Also it's error prone how I have to both assign controls and defaults.
+      . Can't I put in default modes as defaults just like keyswitches?
     - simulate hand position and shifts
       . This won't work well because swam also wants to do that, and even with
         the hand position setting I think I can't get it to use the string
         I want.
     techniques:
       - trompong tumpuk, double strokes, noltol
-      - damp with short stroke and bow-lift=f
+      * damp with short stroke and bow-lift=f
+        . Is there a way to damp pizz?
+        . Experiment with increased or decreased pressure or position.
       - staccato with short stroke and bow-lift=t
         +spiccato
       - randomization in pitch, pressure, bow pos, open string tuning

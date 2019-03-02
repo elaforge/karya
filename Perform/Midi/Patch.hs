@@ -558,11 +558,9 @@ cc_mode_map modes =
         | (key, cc, vals) <- modes
         ]
     , [(cc, control key) | (key, cc, _) <- modes]
-    , [ (control key, cval_to_val val)
+    , [ (control key, Control.cval_to_val val)
       | (key, _, vals) <- modes, (_, val) <- take 1 vals
       ]
     )
     where
     control = ScoreTypes.Control
-    -- This is the inverse of Perform.Midi.Control.val_to_cc.
-    cval_to_val v = fromIntegral v / 0x7f

@@ -172,9 +172,6 @@ string name open_strings = MidiInst.pressure $
 bow_force :: Score.Control
 bow_force = "bow-force"
 
-bow_direction :: Score.Control
-bow_direction = "bow-dir"
-
 bow_pos :: Score.Control
 bow_pos = "bow-pos"
 
@@ -196,10 +193,8 @@ bipolar_controls controls event
 -- | When gesture=bipolar, the expression control is 0--62 for downbow, 64-127
 -- for upbow.
 bipolar_expression :: Score.Event -> Score.Event
-bipolar_expression = when_val "gesture" ("bipolar" :: Text) $ \event ->
-    maybe event
-        (\sig -> Score.set_control Controls.dynamic (normalize sig) event)
-        (Map.lookup bow_direction (Score.event_controls event))
+bipolar_expression = when_val "gesture" ("bipolar" :: Text) $
+    bipolar_controls [Controls.dynamic]
 
 when_val :: (Typecheck.Typecheck val, Eq val) => EnvKey.Key -> val
     -> (Score.Event -> Score.Event) -> Score.Event -> Score.Event
@@ -219,7 +214,7 @@ normalize = fmap (Signal.scalar_divide 2 . Signal.scalar_add 1)
 c_bow :: Derive.Transformer Derive.Note
 c_bow = c_bow_direction (Sig.defaulted "dir" Alternate "Bow direction.")
 
-c_bow_direction :: Sig.Parser BowDirection -> Derive.Transformer Score.Event
+c_bow_direction :: Sig.Parser BowDirection -> Derive.Transformer Derive.Note
 c_bow_direction sig = Derive.transformer Module.instrument "bow" mempty
     "Set bow direction, either to up or down, or alternate. Alternate means\
     \ the bow changes as soon as there is a non-overlapping note." $

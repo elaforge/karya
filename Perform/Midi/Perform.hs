@@ -606,9 +606,9 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
             -- NoteOn with 0 velocity is interpreted as NoteOff.  This messes
             -- up notes that are supposed to start from 0, e.g. via breath
             -- control.
-            max 1 (Control.val_to_cc (T.event_start_velocity event))
+            max 1 (Control.val_to_cval (T.event_start_velocity event))
         , LEvent.Event $ chan_msg note_off $ Midi.NoteOff midi_nn $
-            Control.val_to_cc (T.event_end_velocity event)
+            Control.val_to_cval (T.event_end_velocity event)
         ]
     note_on = T.event_start event
     -- Subtract the adjacent_note_gap, but still have at least
@@ -675,8 +675,10 @@ type ClipRange = (RealTime, RealTime)
 
 make_clip_warnings :: T.Event -> (Score.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
-    [event_warning event (pretty control <> " clipped: "
-        <> pretty (s, e)) | (s, e) <- clip_warns]
+    [ event_warning event $ pretty control <> " clipped: "
+        <> pretty s <> "--" <> pretty e
+    | (s, e) <- clip_warns
+    ]
 
 perform_pitch :: Control.PbRange -> Midi.Key -> RealTime -> RealTime
     -> Maybe RealTime -> MSignal.Signal -> [(RealTime, Midi.ChannelMessage)]
