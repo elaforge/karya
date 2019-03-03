@@ -67,6 +67,7 @@ void update_track(BlockWindow *view, int tracknum,
 void set_track_signal(BlockWindow *view, int tracknum, TrackSignal *tsig);
 void set_waveform(BlockWindow *view, int tracknum, int chunknum,
     const char *filename, double start, double *ratiosp, int ratios_len);
+void clear_waveforms(BlockWindow *view);
 void set_track_title(BlockWindow *view, int tracknum, const char *title);
 void set_track_title_focus(BlockWindow *view, int tracknum);
 void set_block_title_focus(BlockWindow *view);

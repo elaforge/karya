@@ -145,6 +145,7 @@ public:
     // Dispatch to EventTrack::set_waveform.
     void set_waveform(int tracknum, int chunknum,
         const PeakCache::Params &params);
+    void clear_waveforms();
 
     Track *track_at(int tracknum) {
         if (tracknum == 0)

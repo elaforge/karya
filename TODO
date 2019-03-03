@@ -1568,6 +1568,9 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  - since the checkpoint size is smaller, logs are spammy
+  - save_state_as "`d`/something" caused it to emit:
+    sampler-im /Users/elaforge/src/seq/main/data/im/notes/Users/elaforge/src/seq/main/save/test/im-bug/untitled/b1/sampler
   * replace Synth.Shared.Config.emitProgress with a JSON thing
   * rename Shared.Config.cacheDir to something like audio, so it's not
     confusingly the same as Checkpoint.cacheDir.
@@ -1639,8 +1642,11 @@ synth: im:
       . The correspondence isn't obvious, and the color looks different anyway
         due to being transparent.
     waveform display:
-      - it doesn't clear tracks when I delete the notes, or they're no longer
+      - percussion is too thin, tends to become invisible when quiet
+        . Use log display instead of linear?
+      * it doesn't clear tracks when I delete the notes, or they're no longer
         attached to that track.
+        . I should clear the entire block.
       * definitely still buggy, incremental editing gets it in a broken state
         . Deleting notes didn't clear later waveforms.
         . A cache hit doesn't reset waveforms, when they have changed.

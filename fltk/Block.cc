@@ -573,6 +573,18 @@ Block::set_waveform(int tracknum, int chunknum, const PeakCache::Params &params)
 }
 
 
+void
+Block::clear_waveforms()
+{
+    const std::vector<double> ratios;
+    const PeakCache::Params params("", ScoreTime(0), ratios);
+    for (int i = 0; i < tracks(); i++) {
+        this->track_at(i)->set_waveform(-1, params);
+    }
+    this->track_tile.redraw();
+}
+
+
 int
 Block::get_track_width(int tracknum) const
 {

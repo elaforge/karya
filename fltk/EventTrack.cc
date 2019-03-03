@@ -337,11 +337,14 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
     // Clear any chunks above.
     this->peaks.resize(size_t(chunknum+1));
-    peaks[chunknum] = PeakCache::get()->load(params);
-    float new_peak = get_max_peak(peaks);
-    if (new_peak != this->max_peak) {
-        this->max_peak = new_peak;
-        this->redraw();
+    // chunknum=-1 means clear all.
+    if (chunknum >= 0) {
+        peaks[chunknum] = PeakCache::get()->load(params);
+        float new_peak = get_max_peak(peaks);
+        if (new_peak != this->max_peak) {
+            this->max_peak = new_peak;
+            this->redraw();
+        }
     }
 }
 

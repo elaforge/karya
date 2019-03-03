@@ -52,7 +52,7 @@ module Ui.BlockC (
     -- ** Track operations
     , tracks, insert_track, remove_track, update_track, update_entire_track
     , set_track_signal
-    , set_waveform
+    , set_waveform, clear_waveforms
     , set_track_title, set_track_title_focus, set_block_title_focus
 
     -- * debugging
@@ -360,6 +360,11 @@ foreign import ccall "set_waveform"
         -> Ptr CDouble -> CInt -> IO ()
     -- void set_waveform(BlockWindow *view, int tracknum, int chunknum,
     --     const char *filename, double start, double *ratiosp, int ratios_len)
+
+clear_waveforms :: ViewId -> Fltk ()
+clear_waveforms view_id = fltk "clear_waveforms" view_id $
+    whenJustM (PtrMap.lookup view_id) c_clear_waveforms
+foreign import ccall "clear_waveforms" c_clear_waveforms :: Ptr CView -> IO ()
 
 -- | Convert a Tracklike into the set of pointers that c++ knows it as.
 -- A set of event lists can be merged into event tracks.

@@ -143,7 +143,10 @@ start_im_progress ui_chan block_id = do
     let pending = ((0, end_of_track), Config.im_pending_color)
     sels <- resolve_tracks
         [((block_id, track_id), pending) | track_id <- track_ids]
-    liftIO $ Sync.set_im_progress ui_chan sels
+    view_ids <- Map.keys <$> Ui.views_of block_id
+    liftIO $ do
+        Sync.clear_waveforms ui_chan view_ids
+        Sync.set_im_progress ui_chan sels
 
 get_im_instrument_tracks :: Cmd.M m => BlockId -> m [TrackId]
 get_im_instrument_tracks block_id = do
