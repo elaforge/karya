@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Articulation as Articulation
 import qualified Derive.Call as Call
@@ -17,6 +18,7 @@ import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -128,6 +130,7 @@ string name open_strings = MidiInst.pressure $
         , MidiInst.transformer "bow" c_bow
         , MidiInst.transformer "`downbow`" (c_bow_direction (pure Down))
         , MidiInst.transformer "`upbow`" (c_bow_direction (pure Up))
+        , MidiInst.generator "damp" c_damp
         ]
         <> MidiInst.postproc ((,[]) . postproc)
     controls = mode_controls ++
@@ -163,7 +166,7 @@ string name open_strings = MidiInst.pressure $
         , ("poly-mode", 35, [("mono-sx", 10), ("mono", 40),
             ("double", 60), ("double-hold", 80), ("auto", 120)])
         , ("fingering", 36, [("mid", 10), ("bridge", 60), ("nut", 100)])
-        , ("bow-lift", 37, [("f", 10), ("t", 80)])
+        , ("bow-lift", 37, [("t", 10), ("f", 80)])
         , ("bow-start", 38, [("d", 10), ("u", 80)])
         ]
 
@@ -291,3 +294,16 @@ c_harmonic = Make.transform_notes Module.instrument "harmonic"
     -- be realistic.
     htype 2 = Articulation.Natural
     htype _ = Articulation.Artificial
+
+-- | Emit a short note with reduced dyn, bow-lift=f.
+c_damp :: Derive.Generator Derive.Note
+c_damp = Derive.generator Module.instrument "damp" mempty
+    "Emit a damped stroke." $
+    Sig.call ((,)
+    <$> Sig.defaulted "dur" (Typecheck.real 0.05) "Duration."
+    <*> Sig.defaulted "dyn" 0.5 "Dynamic scale."
+    ) $ \(dur, dyn) -> Sub.inverting $ \args -> do
+        dur <- Derive.score dur
+        Derive.place (Args.start args) dur $
+            Derive.with_val "bow-lift" ("f" :: Text) $
+            Call.multiply_dynamic dyn Call.note

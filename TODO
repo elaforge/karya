@@ -31,7 +31,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - revise how MIDI channel state works with keyswitches and controls
+  revise how MIDI channel state works with keyswitches and controls
     notes:
       . There are several mechanisms to set state: controls, Patch.Keyswitch,
         Patch.ControlSwitch, Patch.Aftertouch, and Patch.ModeMap.
@@ -77,7 +77,7 @@ UNSORTED
         because I have to convert to Score.Control and back again.
         . Also it's error prone how I have to both assign controls and defaults.
         . Can't I put in default modes as defaults just like keyswitches?
-    - ModeMap can reset to defaults, just like keyswitches do.
+    * ModeMap can reset to defaults, just like keyswitches do.
       . Keyswitches do it by assigning a attrs=mempty, but that's under the
         exclusive assumption.
     * Also, ModeMap is only used for cc, I don't need a full Patch.Keyswitch.
