@@ -262,11 +262,11 @@ show_attribute_map (Common.AttributeMap table) =
 
 show_mode_map :: Patch.ModeMap -> Text
 show_mode_map (Patch.ModeMap table) = Text.unlines
-    [ key <> " " <> Text.intercalate ", "
-        [ "=" <> pretty val <> ": " <> pretty ks
+    [ key <> ": " <> Text.intercalate ", "
+        [ pretty val <> "=" <> pretty ks
         | (val, ks) <- Map.toList modes
-        ]
-    | (key, modes) <- Map.toAscList table
+        ] <> " [default: " <> pretty deflt <> "]"
+    | (key, (deflt, modes)) <- Map.toAscList table
     ]
 
 show_control_map :: Control.ControlMap -> Text

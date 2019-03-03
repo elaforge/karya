@@ -231,15 +231,8 @@ test_keyswitches = do
             perform patch [("i1", "s/")] [(">i1 | #=(4c)", [(0, 1, event)])]
         patch =
             Patch.attribute_map #= Patch.single_keyswitches [(Attrs.pizz, 42)] $
-            Patch.defaults#Patch.control_defaults
-                #= Just (Map.fromList [("cc1", 0.5)]) $
             Patch.mode_map #= Patch.make_mode_map
-                [ ( "mode"
-                  , [ ("x", [Patch.ControlSwitch 1 2])
-                    , ("y", [Patch.ControlSwitch 1 3])
-                    ]
-                  )
-                ] $
+                [("mode", [ ("x", ("cc1", 2)), ("y", ("cc1", 3))])] $
             UiTest.make_patch ""
         extract ((_, midi), logs) =
             ( filter wanted $ mapMaybe (Midi.channel_message . Midi.wmsg_msg)
@@ -249,16 +242,14 @@ test_keyswitches = do
         wanted (Midi.NoteOn {}) = True
         wanted (Midi.ControlChange {}) = True
         wanted _ = False
-        -- extract ((events, _), logs) =
-        --     (map (Types.patch_keyswitches . Types.event_patch) events, logs)
     let note = Midi.NoteOn 60 127
-    equal (run "") ([Midi.ControlChange 1 64, note], [])
-    equal (run "+pizz") ([Midi.NoteOn 42 64, Midi.ControlChange 1 64, note], [])
+    equal (run "") ([Midi.ControlChange 1 2, note], [])
+    equal (run "+pizz") ([Midi.NoteOn 42 64, Midi.ControlChange 1 2, note], [])
     equal (run "mode=x | +pizz")
         ([Midi.NoteOn 42 64, Midi.ControlChange 1 2, note], [])
     equal (run "mode=y |") ([Midi.ControlChange 1 3, note], [])
     -- No warning, but it's consistent with no warning for unrecognized attrs.
-    equal (run "mode=z |") ([Midi.ControlChange 1 64, note], [])
+    equal (run "mode=z |") ([Midi.ControlChange 1 2, note], [])
 
 -- * implementation
 

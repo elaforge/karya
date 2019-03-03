@@ -10,6 +10,7 @@
 -}
 module Perform.Midi.Convert where
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -74,10 +75,15 @@ convert_event srate lookup event patch config = run $ do
     let event_controls = Score.event_controls event
     ((perf_patch, ks_controls), pitch) <-
         convert_midi_pitch srate inst patch config event_controls event
-    let controls = make_controls ks_controls
-            <> convert_controls srate (Types.patch_control_map perf_patch)
+    let mode_controls = mode_keyswitches (Score.event_environ event)
+            (Patch.patch_mode_map patch)
+    let controls = mconcat
+            [ make_controls ks_controls
+            , MSignal.constant <$> mode_controls
+            , convert_controls srate (Types.patch_control_map perf_patch)
                 (convert_dynamic pressure
                     (event_controls <> lookup_control_defaults lookup inst))
+            ]
         pressure = Patch.has_flag config Patch.Pressure
         velocity = fromMaybe Perform.default_velocity $
             Env.maybe_val EnvKey.attack_val env
@@ -130,13 +136,11 @@ convert_midi_pitch :: Log.LogMonad m => RealTime -> Score.Instrument
     -> m ((Types.Patch, [(Midi.Control, Midi.ControlValue)]), PitchSignal)
 convert_midi_pitch srate inst patch config controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
-        Nothing -> (set_keyswitches mode_ks,) . round_sig <$> get_signal
+        Nothing -> ((perf_patch, []),) . round_sig <$> get_signal
         Just (_, (keyswitches, maybe_keymap)) -> do
             sig <- maybe get_signal set_keymap maybe_keymap
-            return (set_keyswitches (keyswitches ++ mode_ks), round_sig sig)
+            return (set_keyswitches keyswitches, round_sig sig)
     where
-    mode_ks = mode_keyswitches (Score.event_environ event)
-        (Patch.patch_mode_map patch)
     set_keyswitches [] = (perf_patch, [])
     set_keyswitches keyswitches =
         (perf_patch { Types.patch_keyswitches = ks }, ccs)
@@ -159,13 +163,16 @@ convert_midi_pitch srate inst patch config controls event =
     perf_patch = Types.patch inst config patch
     attr_map = Patch.patch_attribute_map patch
 
-mode_keyswitches :: BaseTypes.Environ -> Patch.ModeMap -> [Patch.Keyswitch]
+mode_keyswitches :: Env.Environ -> Patch.ModeMap -> Map Score.Control Signal.Y
 mode_keyswitches (BaseTypes.Environ env) (Patch.ModeMap modes) =
-    concat $ Map.elems $ Map.intersectionWith merge env modes
+    Map.fromList $ map get (Map.toList modes)
     where
-    merge val mode_vals =
-        maybe [] (\mini -> Map.findWithDefault [] mini mode_vals)
-            (BaseTypes.val_to_mini val)
+    -- for each mode, if set, use that, if unset, use first
+    get (key, (deflt, mini_to_control)) = fromMaybe deflt $ do
+        mini <- BaseTypes.val_to_mini =<< Map.lookup key env
+        -- If the lookup fails, then they set a mode, but I don't recognize it.
+        -- TODO warn about this?
+        Map.lookup mini mini_to_control
 
 convert_pitched_keymap :: Signal.Y -> Signal.Y -> Midi.Key
     -> PitchSignal -> PitchSignal

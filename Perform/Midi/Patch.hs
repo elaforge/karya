@@ -537,30 +537,29 @@ keyswitch_off ks = case ks of
 -- | The ModeMap is like the 'AttributeMap', but it's triggered by the
 -- event Environ, rather than Attributes.  This is suitable for modes which
 -- have mutually exclusive settings.
-newtype ModeMap = ModeMap (Map EnvKey.Key (Map Expr.MiniVal [Keyswitch]))
+newtype ModeMap =
+    -- map Key to (default, val_to_switch)
+    ModeMap (Map EnvKey.Key
+        ((Score.Control, Signal.Y), Map Expr.MiniVal (Score.Control, Signal.Y)))
     deriving (Eq, Show, Pretty)
 
-make_mode_map :: [(EnvKey.Key, [(Expr.MiniVal, [Keyswitch])])] -> ModeMap
-make_mode_map = ModeMap . Map.fromList . map (second Map.fromList)
+make_mode_map
+    :: [(EnvKey.Key, [(Expr.MiniVal, (Score.Control, Midi.ControlValue))])]
+    -> ModeMap
+make_mode_map =
+    ModeMap . Map.fromList . Seq.map_maybe_snd
+        (env_val . map (second (second Control.cval_to_val)))
+    where
+    env_val [] = Nothing
+    env_val modes@((_, deflt) : _) = Just ((deflt, Map.fromList modes))
 
 -- | Construct a ModeMap that uses MIDI CC.
 cc_mode_map :: [(EnvKey.Key, Midi.Control, [(Expr.MiniVal, Midi.ControlValue)])]
-    ->  ( ModeMap
-        , [(Midi.Control, Score.Control)]
-        , [(Score.Control, Signal.Y)]
-        )
-    -- ^ Since the controls are by number, not name, also emit the (cc, name)
-    -- association, so they can be defaulted, and control defaults, so notes
-    -- don't get stuck in the last mode.
-cc_mode_map modes =
-    ( make_mode_map
-        [ (key, [(val, [ControlSwitch cc cc_val]) | (val, cc_val) <- vals])
-        | (key, cc, vals) <- modes
-        ]
-    , [(cc, control key) | (key, cc, _) <- modes]
-    , [ (control key, Control.cval_to_val val)
-      | (key, _, vals) <- modes, (_, val) <- take 1 vals
-      ]
-    )
+    -> (ModeMap, [(Midi.Control, Score.Control)])
+cc_mode_map modes = (, controls) $ make_mode_map
+    [ (key, [(mini_val, (control key, cval)) | (mini_val, cval) <- vals])
+    | (key, _, vals) <- modes
+    ]
     where
+    controls = [(cc, control key) | (key, cc, _) <- modes]
     control = ScoreTypes.Control

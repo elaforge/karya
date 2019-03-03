@@ -116,9 +116,7 @@ string name open_strings = MidiInst.pressure $
     MidiInst.patch#Patch.mode_map #= modes $
     MidiInst.patch#Patch.attribute_map #= keyswitches $
     -- defaults apply after the bipolar conversion
-    MidiInst.control_defaults (
-        [ (bow_force, 0.5), (bow_pos, 0.5)
-        ] ++ mode_defaults) $
+    MidiInst.control_defaults [(bow_force, 0.5), (bow_pos, 0.5)] $
     MidiInst.named_patch (-24, 24) name controls
     where
     code = MidiInst.note_calls
@@ -158,7 +156,7 @@ string name open_strings = MidiInst.pressure $
         , (41, [(mempty, 10), (Attrs.trem, 60), (Attrs.attr "trem-fast", 100)])
         , (65, [(mempty, 0), (Attrs.mute, 127)]) -- con sord
         ]
-    (modes, mode_controls, mode_defaults) = Patch.cc_mode_map
+    (modes, mode_controls) = Patch.cc_mode_map
         [ ("gesture", 33, [("expr", 10), ("bipolar", 60), ("bowing", 100)])
         -- Which strings to select for double-stops mode.
         , ("str-select", 34, [("4-3", 10), ("3-2", 80), ("2-1", 100)])
@@ -176,9 +174,7 @@ bow_pos :: Score.Control
 bow_pos = "bow-pos"
 
 postproc :: Score.Event -> Score.Event
-postproc =
-    bipolar_controls [bow_force, bow_pos]
-    . bipolar_expression
+postproc = bipolar_controls [bow_force, bow_pos] . bipolar_expression
 
 bipolar_controls :: [Score.Control] -> Score.Event -> Score.Event
 bipolar_controls controls event

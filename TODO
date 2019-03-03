@@ -31,7 +31,56 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - >pianoteq/harp could use Patch.cc_keyswitches_permute
+  - revise how MIDI channel state works with keyswitches and controls
+    notes:
+      . There are several mechanisms to set state: controls, Patch.Keyswitch,
+        Patch.ControlSwitch, Patch.Aftertouch, and Patch.ModeMap.
+        Patch.control_defaults is the way to initialize state for controls,
+        while Keyswitch and (I think) Aftertouch is handled by the keyswitch
+        mechanism in Midi.Perform.
+      . The problem is that I have to manually put ModeMap and ControlSwitch
+        in control_defaults, otherwise the channel gets stuck in the last state.
+        E.g. Patch.cc_mode_map has to return controls and defaults.
+      . Also ControlSwitch keyswitches are no longer handled like other
+        keyswitches, but are merged with controls in Midi.Convert.
+      . Historically, keyswitches were just keyswitches, which are exclusive.
+        But ControlSwitches were introduced to be non-exclusive.
+    other issues:
+      / I think cc keyswitches should combine by default, so I don't need
+        Patch.cc_keyswitches_permute.
+        . Maybe they shouldn't be in the AttributeMap then?  Keymaps are also in
+          the AttributeMap, and those are exclusive.
+        . Keymaps are mostly for percussion strokes, but maybe Attributes are
+          not really suited because strokes are exclusive... except true
+          modifiers like variations.
+        . Patch.Aftertouch is used by Reyong, for exclusive: cek, mute, open.
+        . Patch.ControlSwitch used by:
+          CUtil.make_cc_keymap, used by mridangam and pakhawaj, which tret them
+          exclusively.
+        . Ok, so maybe all other uses are actually exclusive.  I can go with
+          permutations for now, but if I wind up with more, then I would have
+          a separate "inclusive" attribute map.
+        . This only applies to MIDI, and not many MIDI instruments are that
+          expressive.  If I do my own instruments, it'll be in im, and so
+          I can do inclusive attributes or controls.
+      . >pianoteq/harp could use Patch.cc_keyswitches_permute
+      . I wanted to change Keyswitch to Midi.Key in MIDI Event, but aftertouch
+        has no control equivalent.
+      . What if I just got rid of Patch.ControlSwitch?  The only other use is
+        kendang and mridangam switches, but maybe those are legit?  Why don't
+        I have issues resetting mridangam strokes?
+        . Maybe I do!  The fact that I get the wrong kin/tan implies that
+          they're not being set for thru at least.
+      . Maybe I just don't use them in swam.  I can use postproc to turn attrs
+        into controls.
+      . It's awkward how Patch.ControlSwitch is in low level cc num and val,
+        because I have to convert to Score.Control and back again.
+        . Also it's error prone how I have to both assign controls and defaults.
+        . Can't I put in default modes as defaults just like keyswitches?
+    - ModeMap can reset to defaults, just like keyswitches do.
+      . Keyswitches do it by assigning a attrs=mempty, but that's under the
+        exclusive assumption.
+    * Also, ModeMap is only used for cc, I don't need a full Patch.Keyswitch.
   - should I use Cmd.get_lookup_instrument_memoized for derive?
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
@@ -46,23 +95,6 @@ UNSORTED
     . What to do if the notes don't match?  If it's pitches I could also
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
-  / I think cc keyswitches should combine by default, so I don't need
-    Patch.cc_keyswitches_permute.
-    . Maybe they shouldn't be in the AttributeMap then?  Keymaps are also in
-      the AttributeMap, and those are exclusive.
-    . Keymaps are mostly for percussion strokes, but maybe Attributes are not
-      really suited because strokes are exclusive... except true modifiers
-      like variations.
-    . Patch.Aftertouch is used by Reyong, for exclusive: cek, mute, open.
-    . Patch.ControlSwitch used by:
-      CUtil.make_cc_keymap, used by mridangam and pakhawaj, which tret them
-      exclusively.
-    . Ok, so maybe all other uses are actually exclusive.  I can go with
-      permutations for now, but if I wind up with more, then I would have
-      a separate "inclusive" attribute map.
-    . This only applies to MIDI, and not many MIDI instruments are that
-      expressive.  If I do my own instruments, it'll be in im, and so I can do
-      inclusive attributes or controls.
   swam: strings
     it's not resetting bow-pos and bow-force:
       . I guess this is a general problem, I don't reset CCs for any
@@ -94,17 +126,6 @@ UNSORTED
         I should merge them.
       . I'm a bit iffy about the whole idea of cc keyswitches, as opposed to
         plain controls.
-      . I wanted to change Keyswitch to Midi.Key in MIDI Event, but aftertouch
-        has no control equivalent.
-      . What if I just got rid of Patch.ControlSwitch?  The only other use is
-        kendang and mridangam switches, but maybe those are legit?  Why don't
-        I have issues resetting mridangam strokes?
-      . Maybe I just don't use them in swam.  I can use postproc to turn attrs
-        into controls.
-    - It's awkward how Patch.ControlSwitch is in low level cc num and val,
-      because I have to convert to Score.Control and back again.
-      . Also it's error prone how I have to both assign controls and defaults.
-      . Can't I put in default modes as defaults just like keyswitches?
     - simulate hand position and shifts
       . This won't work well because swam also wants to do that, and even with
         the hand position setting I think I can't get it to use the string
