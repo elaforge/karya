@@ -10,7 +10,6 @@
 -}
 module Perform.Midi.Convert where
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -54,7 +53,7 @@ default_srate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
 
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
-    , lookup_control_defaults :: Score.Instrument -> Score.ControlMap
+    , lookup_control_defaults :: Score.Instrument -> Map Score.Control Signal.Y
     }
 
 -- | Convert Score events to Perform events, emitting warnings that may have
@@ -81,8 +80,8 @@ convert_event srate lookup event patch config = run $ do
             [ make_controls ks_controls
             , MSignal.constant <$> mode_controls
             , convert_controls srate (Types.patch_control_map perf_patch)
-                (convert_dynamic pressure
-                    (event_controls <> lookup_control_defaults lookup inst))
+                (convert_dynamic pressure event_controls)
+            , MSignal.constant <$> lookup_control_defaults lookup inst
             ]
         pressure = Patch.has_flag config Patch.Pressure
         velocity = fromMaybe Perform.default_velocity $

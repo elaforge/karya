@@ -27,12 +27,7 @@ import qualified Util.Log as Log
 import qualified Util.Tree as Tree
 import qualified Util.Vector
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Block as Block
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Block as Prelude.Block
@@ -43,16 +38,20 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
+import qualified Instrument.Common as Common
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
-import qualified App.Config as Config
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
+import           Global
+import           Types
 
 
 -- | There are a few environ values that almost everything relies on.
@@ -353,5 +352,5 @@ get_convert_lookup = do
                 Just (Cmd.Midi _ config) -> Patch.config_control_defaults $
                     Patch.config_settings config
                 _ -> Nothing
-            return $ Score.untyped . Signal.constant <$> defaults
+            return defaults
         }
