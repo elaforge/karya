@@ -405,11 +405,17 @@ zip_padded [] bs = map Second bs
 zip_padded as [] = map First as
 zip_padded (a:as) (b:bs) = Both a b : zip_padded as bs
 
+-- | Like 'zip', but the first list is padded with Nothings.
+zip_padded_fst :: [a] -> [b] -> [(Maybe a, b)]
+zip_padded_fst _ [] = []
+zip_padded_fst (a:as) (b:bs) = (Just a, b) : zip_padded_fst as bs
+zip_padded_fst [] (b:bs) = map ((,) Nothing) (b:bs)
+
 -- | Like 'zip', but the second list is padded with Nothings.
 zip_padded_snd :: [a] -> [b] -> [(a, Maybe b)]
 zip_padded_snd [] _ = []
-zip_padded_snd (x:xs) (y:ys) = (x, Just y) : zip_padded_snd xs ys
-zip_padded_snd (x:xs) [] = [(x, Nothing) | x <- x : xs]
+zip_padded_snd (a:as) (b:bs) = (a, Just b) : zip_padded_snd as bs
+zip_padded_snd (a:as) [] = [(a, Nothing) | a <- a : as]
 
 -- | Return the reversed inits paired with the tails.  This is like a zipper
 -- moving focus along the input list.
@@ -423,12 +429,12 @@ zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 --
 -- Kind of like an edit distance, or a diff.
 equal_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [Paired a b]
-equal_pairs _ [] ys = map Second ys
-equal_pairs _ xs [] = map First xs
-equal_pairs eq (x:xs) (y:ys)
-    | x `eq` y = Both x y : equal_pairs eq xs ys
-    | any (eq x) ys = Second y : equal_pairs eq (x:xs) ys
-    | otherwise = First x : equal_pairs eq xs (y:ys)
+equal_pairs _ [] bs = map Second bs
+equal_pairs _ as [] = map First as
+equal_pairs eq (a:as) (b:bs)
+    | a `eq` b = Both a b : equal_pairs eq as bs
+    | any (eq a) bs = Second b : equal_pairs eq (a:as) bs
+    | otherwise = First a : equal_pairs eq as (b:bs)
 
 -- | This is like 'equal_pairs', except that the index of each pair in the
 -- /right/ list is included.  In other words, given @(i, Second y)@,

@@ -30,6 +30,25 @@ STATUS
       . Or maybe the laptop was overheating.
   - Find out why MemoryLeak latency: went up.
 
+things to unify:
+  - default args and controls:
+    . Instead of defaulting to a ControlRef with a different name, use
+      a control with the same rules as argument defaulting.
+  - controls and env:
+    . something=4 should be the same as %something=4.  I can remove the
+      % and # syntax.
+  - signal arguments:
+    . They should all coerce to SignalFunction, with no need for
+      Call.to_function.
+  - controls and ControlFunctions:
+    . See NOTE [fix-control-functions]
+  - deriver arguments, transformers, and parent calls:
+    . unify deriver parents:
+    . I should be able to take {Note,Control,Pitch}Deriver args, which
+      then coerce from Sym, QuotedExpr, or a sub-track.  If the arg is
+      the last one, I should also be able to get a corresponding
+      transformer.
+
 UNSORTED
   revise how MIDI channel state works with keyswitches and controls
     notes:
@@ -89,12 +108,36 @@ UNSORTED
     . It would merge the notes and just do a pitch curve.
     . This is similar to the pitch call, except it can put grace notes before.
   - use Data.Map.Strict in Perform?  Or even HashMap?
-  - rhythmic interpolation
+  * rhythmic interpolation
     . Match notes in two derivers, then interpolate rhythms:
       '%pos=.5 | r-interpolate b1 b2'
     . What to do if the notes don't match?  If it's pitches I could also
       interpolate the pitches.
     . The use is something like chatusram -> tisram transition.
+    . I already have an interpolate call, but it goes by score event.
+    . Uses:
+      1. transition from rhythm to another, e.g. chatusram -> tisram
+      2. modified pattern as an effect, e.g. p6 evened out halfway to p5
+      3. consistent warp on all notes, ala microrhythm
+    . For 1 and 2 I think both arg form 'interp b1 b2' and parent form would
+      be useful.
+    . For 3, I would want to apply to a whole track, and loop the model
+      rhythm.  I would also want it to work even when the source is missing
+      a note.  So this is more of a warp, where I map each timestep of the
+      source to a different place, then apply that as a continuous warp.
+  - unify deriver parents:
+    . Wasn't I going to unify block arg and child track somehow?
+    . See Parent.c_event_interpolate for the awkwardness.
+    . I could do it by having a "deriver" arg that has a special typecheck
+      rule: if present, then take it as a symbol, if not present, then require
+      a child track at that position and return it as a deriver.
+    . I could almost do as a Maybe Symbol, then
+        resolve_deriver :: Args -> Maybe Symbol -> NoteDeriver
+      but how would it know which sub track to look at?
+    . I would have to either keep an index, or modify.
+    . I also want to unify with transformer, so I can say 'call a b' is the
+      same as 'call a |'.
+
   swam: strings
     it's not resetting bow-pos and bow-force:
       . I guess this is a general problem, I don't reset CCs for any
@@ -1596,6 +1639,8 @@ synth: im:
       . The correspondence isn't obvious, and the color looks different anyway
         due to being transparent.
     waveform display:
+      - it doesn't clear tracks when I delete the notes, or they're no longer
+        attached to that track.
       * definitely still buggy, incremental editing gets it in a broken state
         . Deleting notes didn't clear later waveforms.
         . A cache hit doesn't reset waveforms, when they have changed.

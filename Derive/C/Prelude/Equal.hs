@@ -143,15 +143,16 @@ equal_doc =
     \ kinds of values.\
     \\nSet an environ value by setting a plain symbol or unset it by assigning\
     \ to `_`: `x = 42` or `x = _`.\
-    \\nAlias instrument names like: `>alias = >inst`.\
-    \\nIf the lhs is prefixed with `>>`, `^`, `*`, `.`, or `-`, it will add\
-    \ a new name for a ^note, *pitch, .control, or -val call, respectively.\
-    \ It sets the generator by default, but will set the transformer if you\
-    \ prefix another `-`. `>>` is special cased to only create a note\
-    \ transformer, whose name will be prefixed with `>`. This is used to set\
-    \ an instrument transformer, which can apply a transformer when an\
-    \ instrument is set by the title of a note track, as implemented by\
-    \ by `note-track`.\
+    \\nPrefixes:\
+    \\n- `>>` - Create a note transformer, whose name will be prefixed with\
+    \ `>`.  This is used to set an instrument transformer, which can apply\
+    \ a transformer when an instrument is set by the title of a note track, as\
+    \ implemented by by `note-track`.\
+    \\n- `-val` - Bind a val call.\
+    \\n- `^note`, `*pitch`, `.control` - Bind the respective call type\
+    \ generator.\
+    \\n- `^-note`, `*-pitch`, `.-control` - As above, but bind transformer.\
+    \\n- `>alias = >inst` - alias instrument name\
     \\nE.g.: set note generator: `^phrase = some-block`,\
     \ note transformer: `^-mute = +mute+loose`,\
     \ control transfomrer: `.-i = t`, val call: `-4c = (5c)`.\
@@ -167,7 +168,7 @@ equal_doc =
     \ `%a = .5 add` or `%a = %b add`.  However, the second example throws an\
     \ error if `%b` is a ControlFunction. `%a = .5 default` will combine with\
     \ `a`'s default merge function. Assigning to `_` unsets the control, and\
-    \ any ControlFunction.\n\
+    \ any ControlFunction.\\n\
     \ The `=` operator can be suffixed with symbol, which will become the last\
     \ argument, so `%x=+1` becomes `%x = 1 '+'`.  Note that the order\
     \ is backwards from the usual `+=`, which is ultimately because the first\

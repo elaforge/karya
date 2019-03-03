@@ -218,8 +218,8 @@ test_interpolate = do
     equal (run [(4, 0, "1")]) ([(4, 1, "4d"), (7, 1, "4e")], [])
     equal (run [(4, 0, "0"), (6, 0, "1")]) ([(4, 2, "4c"), (7, 1, "4e")], [])
 
-test_interpolate_events = do
-    let f at = fmap unevent . Parent.interpolate_events at . map mkevent
+test_interpolate_subs = do
+    let f at = fmap unevent . Parent.interpolate_subs at . map mkevent
         mkevent (s, d, n) = Sub.Event s d n
         unevent (Sub.Event s d n) = (s, d, n)
         events = [(0, 1, 'a'), (1, 2, 'b'), (2, 3, 'c'), (3, 4, 'd')]
@@ -232,6 +232,27 @@ test_interpolate_events = do
     -- x-x-x-x
     equal (f 0.5 (take 4 events)) $ Just (1.5, 2.5, 'b')
     equal (f 2 (take 4 events)) $ Just (3, 4, 'd')
+
+test_event_interpolate = do
+    let run at = DeriveTest.extract Score.event_start $
+            DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
+                [ ("at", UiTest.control_track at)
+                , (">", [(4, 4, "e-interpolate")])
+                , (">", [(4, 2, ""), (6, 1, "")])
+                , (">", [(4, 1, ""), (7, 1, "")])
+                ]
+            where skel = [(1, 2), (2, 3), (2, 4)]
+    equal (run [(4, "0")]) ([4, 7], [])
+    equal (run [(4, ".5")]) ([4, 6.5], [])
+    equal (run [(4, "1")]) ([4, 6], [])
+
+    let run = DeriveTest.extract Score.event_start . DeriveTest.derive_blocks
+    equal (run
+        [ ("top -- %at=.5", [(">", [(4, 4, "e-interpolate b1 b2")])])
+        , ("b1=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
+        , ("b2=ruler", [(">", [(0, 1, ""), (1.5, 0.5, "")])])
+        ])
+        ([4, 6.5], [])
 
 test_cycle = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""

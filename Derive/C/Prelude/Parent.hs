@@ -7,9 +7,10 @@
 module Derive.C.Prelude.Parent (
     library
     -- testing
-    , interpolate_events
+    , interpolate_subs
 ) where
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -18,10 +19,12 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
@@ -47,6 +50,7 @@ library = Library.generators
     , ("`arp-down`", c_real_arpeggio ToLeft)
     , ("`arp-rnd`", c_real_arpeggio Random)
     , ("interpolate", c_interpolate)
+    , ("e-interpolate", c_event_interpolate)
     , ("cycle", c_cycle)
     , ("cycle-t", c_cycle_t)
     ]
@@ -223,14 +227,13 @@ c_interpolate = Derive.generator Module.prelude "interpolate" Tags.subs
 interpolate_tracks :: (ScoreTime -> Signal.Y) -> [[Sub.Event]] -> [Sub.Event]
 interpolate_tracks at = mapMaybe interpolate1
     where
-    interpolate1 events = interpolate_events (at start) events
+    interpolate1 events = interpolate_subs (at start) events
         where
         start = Num.sum (map Sub.event_start events)
             / fromIntegral (length events)
 
-interpolate_events :: Double -> [Sub.GenericEvent a]
-    -> Maybe (Sub.GenericEvent a)
-interpolate_events at events = case drop i events of
+interpolate_subs :: Double -> [Sub.GenericEvent a] -> Maybe (Sub.GenericEvent a)
+interpolate_subs at events = case drop i events of
     [] -> Seq.last events
     [event] -> Just event
     e1 : e2 : _ -> Just $ Sub.Event
@@ -247,6 +250,65 @@ interpolate_events at events = case drop i events of
 all_equal :: Eq a => [a] -> Bool
 all_equal [] = True
 all_equal (x:xs) = all (==x) xs
+
+-- UI should be: call with two args, like 'interp b1 b2'
+
+c_event_interpolate :: Derive.Generator Derive.Note
+c_event_interpolate = Derive.generator Module.prelude "e-interpolate" Tags.subs
+    "Interpolate rhythms of the transformed sequence."
+    $ Sig.call ((,,)
+    <$> Sig.defaulted "model" Nothing "rhythm model"
+    <*> Sig.defaulted "notes" Nothing "source deriver"
+    <*> Sig.defaulted "at" (Sig.control "at" 0) "interpolate position"
+    ) $ \(mb_model, mb_notes, at) args -> do
+        at <- Call.to_function at
+        (model, notes) <- resolve_derivers2 args
+            ("model", mb_model) ("notes", mb_notes)
+        let start_dur e = (Score.event_start e, Score.event_duration e)
+        (model_starts, model_logs) <-
+            first (map start_dur) . Stream.partition <$> model
+        Stream.merge_logs model_logs
+            . Post.apply (interpolate_events at model_starts) <$> notes
+
+interpolate_events :: (RealTime -> Signal.Y) -> [(RealTime, RealTime)]
+    -> [Score.Event] -> [Score.Event]
+interpolate_events at ms = map interpolate . Seq.zip_padded_fst ms
+    where
+    interpolate (Just (to_start, to_dur), event) =
+        Score.place
+            (Num.scale (Score.event_start event) to_start frac)
+            (Num.scale (Score.event_duration event) to_dur frac)
+            event
+        where
+        frac = RealTime.seconds $ at (Score.event_start event)
+    interpolate (Nothing, event) = event
+
+resolve_derivers2 :: Derive.NoteArgs
+    -> (Text, Maybe BaseTypes.Quoted) -> (Text, Maybe BaseTypes.Quoted)
+    -> Derive.Deriver (Derive.NoteDeriver, Derive.NoteDeriver)
+resolve_derivers2 args sym1 sym2 = resolve_derivers args [sym1, sym2] >>= \case
+    [d1, d2] -> return (d1, d2)
+    ds -> Derive.throw $ "expected 2, got " <> showt (length ds)
+
+-- TODO this is awkward... maybe it should be built into Derive.Sig.
+resolve_derivers :: Derive.NoteArgs -> [(Text, Maybe BaseTypes.Quoted)]
+    -> Derive.Deriver [Derive.NoteDeriver]
+resolve_derivers args syms
+    | all (Maybe.isJust . snd) syms = return $ map eval $ mapMaybe snd syms
+    | otherwise = do
+        tracks <- Sub.sub_events args
+        go syms tracks
+    where
+    eval = Eval.eval_quoted (Args.context args)
+    go ((_, Just sym) : syms) tracks = (eval sym :) <$> go syms tracks
+    go ((_, Nothing) : syms) (track : tracks) =
+        (Sub.derive track :) <$> go syms tracks
+    go [] [] = return []
+    go ((arg_name, Nothing) : _) [] =
+        Derive.throw $ "arg not given, expected a track: " <> arg_name
+    go [] tracks
+        | null (filter (not . null) tracks) = return []
+        | otherwise = Derive.throw $ "extra tracks: " <> showt (length tracks)
 
 -- * cycle
 
