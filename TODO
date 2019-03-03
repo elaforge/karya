@@ -1174,7 +1174,7 @@ documentation:
     maybe I could run a link checker against the final output.  Otherwise
     'Module.function' references get out of date.
   calldoc: CallDoc:
-    - each call should have type (note, pitch, control), so I can see
+    * each call should have type (note, pitch, control), so I can see
       what it is after a search
     - collapse control for modules, option to collapse / expand all
       . Haddock:

@@ -295,20 +295,27 @@ hide_empty_javascript = Seq.join "\n"
     ]
 
 call_bindings_html :: Doc.HtmlState -> Text -> CallBindings -> Doc.Html
-call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
-    "<div class=call tags=\"" <> html (Text.unwords tags) <> "\">"
-    <> mconcatMap show_bind (zip (True : repeat False) binds)
+call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) = mconcat
+    [ "<div class=call tags=\"" <> html (Text.unwords tags) <> "\">"
+    , mconcatMap (show_bind (Derive.cdoc_module call_doc))
+        (zip (True : repeat False) binds)
         <> show_call_doc call_doc
-    <> "</div>\n\n"
+    , "</div>\n\n"
+    ]
     where
     tags = "kind:" <> call_kind : binding_tags bindings
-    show_bind (first, (sym, Derive.CallName name)) =
+    show_bind module_ (first, (sym, Derive.CallName name)) =
         "<dt>" <> tag "code" (html sym)
         -- This used to be &mdash;, but that's too hard to use text search on.
         <> " -- " <> tag "b" (html name)
-        <> (if first then show_ctype else "") <> "\n"
-    show_ctype = "<div style='float:right'>"
-        <> tag "em" (html (pretty ctype)) <> "</div>"
+        <> (if first then show_ctype module_ else "") <> "\n"
+    show_ctype module_ = mconcat
+        [ "<div style='float:right'>"
+        , tag "code" (html (pretty module_))
+        , " : "
+        , tag "em" (html (call_kind <> " " <> pretty ctype))
+        , "</div>"
+        ]
     show_call_doc (Derive.CallDoc _module tags doc args) =
         "<dd> <dl class=compact>\n"
         <> Doc.html_doc hstate doc
