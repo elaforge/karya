@@ -10,20 +10,21 @@ import qualified Data.Text as Text
 
 import qualified Util.File as File
 import qualified Util.Log as Log
-import qualified Ui.Block as Block
-import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
-import qualified Ui.Transform as Transform
-import qualified Ui.Update as Update
-
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
-import qualified App.Config as Config
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Id as Id
+import qualified Ui.Transform as Transform
+import qualified Ui.Ui as Ui
+import qualified Ui.Update as Update
+
+import           Global
+import           Types
 
 
 {- [undo-and-updates]
@@ -215,7 +216,7 @@ save_history cmd_state hist collect uncommitted = do
     let user = Cmd.config_git_user $ Cmd.state_config cmd_state
     entries <- case Internal.can_checkpoint cmd_state of
         Just (repo, prev_commit) ->
-            commit_entries user repo prev_commit uncommitted
+            commit_entries user (Path.to_path repo) prev_commit uncommitted
         _ -> return $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_updates (Cmd.hist_present hist) entries
     return $ cmd_state
@@ -238,7 +239,7 @@ save_history cmd_state hist collect uncommitted = do
 -- only do this if I would have written something.  For that I need the diffs.
 check_save_history :: Cmd.State -> IO (Maybe Text)
 check_save_history cmd_state = case Internal.can_checkpoint cmd_state of
-    Just (repo, _) -> ifM (File.writable repo) (return Nothing)
+    Just (repo, _) -> ifM (File.writable (Path.to_path repo)) (return Nothing)
         (return $ Just $ "repo not writable: " <> showt repo)
     Nothing -> return Nothing
 

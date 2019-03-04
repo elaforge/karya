@@ -426,17 +426,16 @@ data State = State {
     , state_debug_ui_msgs :: !Bool
     } deriving (Show)
 
-data SaveFile = SaveState !FilePath | SaveRepo !GitTypes.Repo
+data SaveFile = SaveState !Path.Canonical | SaveRepo !Path.Canonical
     deriving (Show, Eq)
 data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
--- | Directory of the save file.
+-- | Absolute directory of the save file.
 state_save_dir :: State -> Maybe FilePath
-state_save_dir state = path state . Path.relative <$>
-    case state_save_file state of
-        Nothing -> Nothing
-        Just (_, SaveState fn) -> Just $ FilePath.takeDirectory fn
-        Just (_, SaveRepo repo) -> Just $ FilePath.takeDirectory repo
+state_save_dir state = case state_save_file state of
+    Nothing -> Nothing
+    Just (_, SaveState fn) -> Just $ FilePath.takeDirectory $ Path.to_path fn
+    Just (_, SaveRepo repo) -> Just $ FilePath.takeDirectory $ Path.to_path repo
 
 -- | Unique name for this score, for the global im cache.
 score_path :: State -> FilePath
@@ -447,11 +446,7 @@ score_path state = case state_save_file state of
     Just (_, SaveState fn) -> strip fn
     Just (_, SaveRepo repo) -> strip repo
     where
-    -- All my scores are in the save directory, so get rid of some redundancy.
-    -- TODO this is easily fooled if app dir isn't cwd, maybe I should
-    -- canonicalize paths.
-    strip = dropWhile (=='/') . fst . Seq.drop_prefix save_dir
-    save_dir = Path.unrelative Config.save_dir
+    strip = Path.drop_prefix (config_save_dir (state_config state))
 
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.
@@ -533,6 +528,7 @@ reinit_state present cstate = cstate
 data Config = Config {
     -- | App root, initialized from 'Config.get_app_dir'.
     config_app_dir :: !Path.AppDir
+    , config_save_dir :: !Path.Canonical
     , config_midi_interface :: !Midi.Interface.Interface
     -- | Search path for local definition files, from 'Config.definition_path'.
     , config_ky_paths :: ![FilePath]
@@ -567,8 +563,8 @@ state_midi_writer state imsg = do
         (config_wdev_map (state_config state))
 
 -- | Convert a relative path to place it in the app dir.
-path :: State -> Path.Relative -> FilePath
-path state = Path.absolute (config_app_dir (state_config state))
+to_absolute :: State -> Path.Relative -> FilePath
+to_absolute state = Path.to_absolute (config_app_dir (state_config state))
 
 -- | This was previously in 'Config', and configured via StaticConfig.  But it
 -- turns out I don't really use StaticConfig.  It has a name here just so

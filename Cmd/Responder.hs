@@ -40,6 +40,7 @@ import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
+import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified App.ReplProtocol as ReplProtocol
 import qualified App.StaticConfig as StaticConfig
@@ -72,9 +73,9 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
-import Control.Monad
-import Global
-import Types
+import           Control.Monad
+import           Global
+import           Types
 
 
 data State = State {
@@ -120,8 +121,10 @@ responder config git_user ui_chan msg_reader midi_interface setup_cmd
     ui_state <- Ui.create
     monitor_state <- MVar.newMVar ui_state
     app_dir <- Path.get_app_dir
+    save_dir <- Path.canonical $ Path.to_absolute app_dir Config.save_dir
     let cmd_state = setup_state $ Cmd.initial_state $
-            StaticConfig.cmd_config app_dir midi_interface config git_user
+            StaticConfig.cmd_config app_dir save_dir midi_interface config
+                git_user
     trace "respond initialize"
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config

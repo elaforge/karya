@@ -48,6 +48,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
@@ -70,8 +71,8 @@ save = Cmd.gets Cmd.state_save_file >>= \case
     Nothing -> save_git
     -- Try to override Cmd.Writable on an explicit save.  If it's still
     -- read only, this should throw an exception.
-    Just (_, Cmd.SaveRepo repo) -> save_git_as repo
-    Just (_, Cmd.SaveState fn) -> save_state_as fn
+    Just (_, Cmd.SaveRepo repo) -> save_git_as (Path.to_path repo)
+    Just (_, Cmd.SaveState fn) -> save_state_as (Path.to_path fn)
 
 -- | Like 'read', but replace the current state and set 'Cmd.state_save_file'.
 load :: FilePath -> Cmd.CmdT IO ()
@@ -86,16 +87,17 @@ read path = do
     path <- expand_filename path
     save <- Cmd.require_right ("read: "<>) =<< liftIO (infer_save_type path)
     case save of
-        Cmd.SaveRepo repo -> read_git repo Nothing
-        Cmd.SaveState fn -> read_state fn
+        Cmd.SaveRepo repo -> read_git (Path.to_path repo) Nothing
+        Cmd.SaveState fn -> read_state (Path.to_path fn)
 
 -- | Low level 'read'.
 read_ :: FilePath -> IO (Either Text Ui.State)
 read_ path = infer_save_type path >>= \case
     Left err -> return $ Left $ "read " <> showt path <> ": " <> err
     Right save -> case save of
-        Cmd.SaveState fname -> first pretty <$> read_state_ fname
-        Cmd.SaveRepo repo -> fmap extract <$> read_git_ repo Nothing
+        Cmd.SaveState fname -> first pretty <$> read_state_ (Path.to_path fname)
+        Cmd.SaveRepo repo ->
+            fmap extract <$> read_git_ (Path.to_path repo) Nothing
             where extract (state, _, _) = state
 
 -- | Like 'load', but don't set SaveFile, so you can't overwrite the loaded
@@ -113,18 +115,18 @@ load_template fn = do
 -- both are present, the git repo is preferred.
 infer_save_type :: FilePath -> IO (Either Text Cmd.SaveFile)
 infer_save_type path = fmap prepend $ cond
-    [ (return $ SaveGit.is_git path, ok $ Cmd.SaveRepo path)
+    [ (return $ SaveGit.is_git path,
+        Right . Cmd.SaveRepo <$> Path.canonical path)
     , (is_dir path, cond
-        [ (is_dir git_fn, ok $ Cmd.SaveRepo git_fn)
-        , (is_file state_fn, ok $ Cmd.SaveState state_fn)
+        [ (is_dir git_fn, Right . Cmd.SaveRepo <$> Path.canonical git_fn)
+        , (is_file state_fn, Right . Cmd.SaveState <$> Path.canonical state_fn)
         ] $ return $ Left $ "directory contains neither " <> txt git_fn
             <> " nor " <> txt state_fn)
-    , (is_file path, ok $ Cmd.SaveState path)
+    , (is_file path, Right . Cmd.SaveState <$> Path.canonical path)
     ] $ return $ Left "file not found"
     where
     prepend (Left err) = Left $ txt path <> ": " <> err
     prepend (Right val) = Right val
-    ok = return . Right
     git_fn = path </> default_git
     state_fn = path </> default_state
     is_dir = Directory.doesDirectoryExist
@@ -229,8 +231,8 @@ get_state_path = do
     return $ make_state_path . snd <$> Cmd.state_save_file state
 
 make_state_path :: Cmd.SaveFile -> FilePath
-make_state_path (Cmd.SaveState fn) = fn
-make_state_path (Cmd.SaveRepo repo) = state_path_for_repo repo
+make_state_path (Cmd.SaveState fn) = Path.to_path fn
+make_state_path (Cmd.SaveRepo repo) = state_path_for_repo (Path.to_path repo)
 
 -- | Get a state save path based on a repo path.  This is for saving a backup
 -- state, or when switching from SaveRepo to SaveState.
@@ -240,7 +242,8 @@ state_path_for_repo repo = FilePath.replaceExtension repo ".state"
 -- | Figure out a path for a save state based on the namespace.
 infer_state_path :: Id.Namespace -> Cmd.State -> FilePath
 infer_state_path ns state =
-    Cmd.path state Config.save_dir </> untxt (Id.un_namespace ns)
+    Cmd.to_absolute state Config.save_dir
+        </> untxt (Id.un_namespace ns)
         </> default_state
 
 default_state :: FilePath
@@ -303,8 +306,8 @@ revert maybe_ref = do
             whenJust maybe_ref $ \ref -> Cmd.throw $
                 "can't revert to a commit when the save file isn't git: "
                 <> txt ref
-            load fn
-        (_, Cmd.SaveRepo repo) -> revert_git repo
+            load (Path.to_path fn)
+        (_, Cmd.SaveRepo repo) -> revert_git (Path.to_path repo)
     Log.notice $ "revert to " <> showt save_file
     where
     revert_git repo = do
@@ -335,11 +338,11 @@ get_git_path = do
 
 make_git_path :: Id.Namespace -> Cmd.State -> Git.Repo
 make_git_path ns state = case Cmd.state_save_file state of
-    Nothing -> Cmd.path state Config.save_dir </> untxt (Id.un_namespace ns)
-        </> default_git
+    Nothing -> Cmd.to_absolute state Config.save_dir
+        </> untxt (Id.un_namespace ns) </> default_git
     Just (_, Cmd.SaveState fn) ->
-        FilePath.replaceExtension fn SaveGit.git_suffix
-    Just (_, Cmd.SaveRepo repo) -> repo
+        FilePath.replaceExtension (Path.to_path fn) SaveGit.git_suffix
+    Just (_, Cmd.SaveRepo repo) -> Path.to_path repo
 
 default_git :: FilePath
 default_git = "save" ++ SaveGit.git_suffix
@@ -378,7 +381,7 @@ load_allocations fname = do
 save_views :: Cmd.State -> Ui.State -> IO ()
 save_views cmd_state ui_state = case Cmd.state_save_file cmd_state of
     Just (Cmd.ReadWrite, Cmd.SaveRepo repo) ->
-        SaveGit.save_views repo $ Ui.state_views ui_state
+        SaveGit.save_views (Path.to_path repo) $ Ui.state_views ui_state
     _ -> return ()
 
 -- | This is just like 'Cmd.SaveFile', except SaveRepo has more data.
@@ -398,6 +401,15 @@ type StateSaveFile = Maybe (Cmd.Writable, SaveFile)
 -- 'Cmd.state_save_file'!
 set_save_file :: StateSaveFile -> Bool -> Cmd.CmdT IO ()
 set_save_file save_file clear_history = do
+    (maybe_commit, file) <- case save_file of
+        Nothing -> return (Nothing, Nothing)
+        Just (writable, save) -> case save of
+            SaveState fname -> do
+                path <- liftIO $ Path.canonical fname
+                return (Nothing, Just (writable, Cmd.SaveState path))
+            SaveRepo repo commit _ -> do
+                path <- liftIO $ Path.canonical repo
+                return (Just commit, Just (writable, Cmd.SaveRepo path))
     cmd_state <- Cmd.get
     when (file /= Cmd.state_save_file cmd_state) $ do
         ui_state <- Ui.get
@@ -418,12 +430,6 @@ set_save_file save_file clear_history = do
     -- mark that the state is synced to disk.
     Cmd.modify $ \st -> st { Cmd.state_saved = Nothing }
     where
-    (maybe_commit, file) = case save_file of
-        Nothing -> (Nothing, Nothing)
-        Just (writable, save) -> case save of
-            SaveState fname -> (Nothing, Just (writable, Cmd.SaveState fname))
-            SaveRepo repo commit _ ->
-                (Just commit, Just (writable, Cmd.SaveRepo repo))
     clear entry = entry { Cmd.hist_commit = Nothing }
 
 set_state :: StateSaveFile -> Bool -> Ui.State -> Cmd.CmdT IO ()

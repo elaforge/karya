@@ -26,7 +26,8 @@ load = MidiInst.load_synth (const mempty) synth_name "E-mu Morpheus"
 
 make_db :: Path.AppDir -> IO ()
 make_db app_dir = do
-    let fname = Path.absolute app_dir Config.instrument_dir </> untxt synth_name
+    let fname = Path.to_absolute app_dir Config.instrument_dir
+            </> untxt synth_name
     patches <- map MidiInst.patch_from_pair <$> Parse.patch_file fname
     patches <- return $
         map (MidiInst.patch#Patch.defaults#Patch.pitch_bend_range

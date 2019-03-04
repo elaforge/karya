@@ -7,7 +7,7 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
 import qualified Data.Vector.Storable as Vector
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
@@ -24,9 +24,9 @@ import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Types
-import Util.Test
+import           Global
+import           Synth.Types
+import           Util.Test
 
 
 test_write_noop = do
@@ -135,8 +135,7 @@ chunkSize :: Audio.Frame
 chunkSize = 4
 
 mkDb :: FilePath -> Patch.Db
-mkDb dir = Patch.db
-    (dir </> patchDir)
+mkDb dir = Patch.db (dir </> patchDir)
     [Patch.DbPatch $ Patch.simple "test" "tri.wav" NN.c4]
 
 writeDb :: FilePath -> IO ()

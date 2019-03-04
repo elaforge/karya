@@ -52,7 +52,8 @@ load = MidiInst.load_synth (const mempty) synth_name "Yamaha Vl1"
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: Path.AppDir -> IO ()
 make_db app_dir = do
-    let dir = Path.absolute app_dir Config.instrument_dir </> untxt synth_name
+    let dir = Path.to_absolute app_dir Config.instrument_dir
+            </> untxt synth_name
     let dirs = map (dir</>) ["vc", "sysex", "patchman1", "patchman2"]
     patches <- concatMapM parse_dir dirs
     builtins <- parse_builtins (dir </> builtin)

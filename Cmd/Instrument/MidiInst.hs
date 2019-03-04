@@ -388,7 +388,7 @@ load_synth get_code synth_name doc app_dir = do
 
 db_path :: Path.AppDir -> FilePath -> FilePath
 db_path app_dir name =
-    Path.absolute app_dir Config.instrument_cache_dir </> name ++ ".db"
+    Path.to_absolute app_dir Config.instrument_cache_dir </> name ++ ".db"
 
 
 -- * generate_names

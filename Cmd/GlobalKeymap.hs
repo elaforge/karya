@@ -44,11 +44,8 @@
 module Cmd.GlobalKeymap (pure_cmds, io_cmds, all_cmd_map, cmd_map_errors) where
 import qualified Control.Monad.Identity as Identity
 
-import qualified Ui.Block as Block
-import qualified Ui.Key as Key
-import qualified Ui.Ruler as Ruler
-import qualified Ui.Ui as Ui
-
+import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.Clip as Clip
 import qualified Cmd.Cmd as Cmd
@@ -56,10 +53,10 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Edit as Edit
 import qualified Cmd.Factor as Factor
 import qualified Cmd.Keymap as Keymap
-import Cmd.Keymap
-       (plain_key, plain_char, shift_char, bind_key, bind_key_status,
-        bind_repeatable, bind_click, bind_drag, command_char, SimpleMod(..),
-        really_control)
+import           Cmd.Keymap
+       (bind_click, bind_drag, bind_key, bind_key_status, bind_repeatable,
+        command_char, plain_char, plain_key, really_control, shift_char,
+        SimpleMod(..))
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Play as Play
@@ -75,8 +72,12 @@ import qualified Cmd.ViewConfig as ViewConfig
 import qualified Cmd.Views as Views
 
 import qualified Derive.Scale as Scale
-import qualified App.Config as Config
-import Global
+import qualified Ui.Block as Block
+import qualified Ui.Key as Key
+import qualified Ui.Ruler as Ruler
+import qualified Ui.Ui as Ui
+
+import           Global
 
 
 -- | Cmds that don't use IO.  Exported from the module for the responder.
@@ -119,8 +120,9 @@ file_bindings = concat
     [ command_char 'S' "save" $ Cmd.gets Cmd.state_save_file >>= \case
         Just (_, Cmd.SaveRepo repo) -> do
             -- Even when using git, write a standalone state as a safeguard.
-            Save.write_current_state $ Save.state_path_for_repo repo
-            Save.save_git_as repo
+            Save.write_current_state $
+                Save.state_path_for_repo (Path.to_path repo)
+            Save.save_git_as (Path.to_path repo)
         _ -> Save.save_state
     ]
 

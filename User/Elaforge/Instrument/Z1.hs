@@ -38,7 +38,8 @@ load = MidiInst.load_synth (const mempty) synth_name "Korg Z1"
 
 make_db :: Path.AppDir -> IO ()
 make_db app_dir = do
-    let dir = Path.absolute app_dir Config.instrument_dir </> untxt synth_name
+    let dir = Path.to_absolute app_dir Config.instrument_dir
+            </> untxt synth_name
     bank_a <- Sysex.parse_builtins 0 program_dump (dir </> "bank_a.syx")
     bank_b <- Sysex.parse_builtins 1 program_dump (dir </> "bank_b.syx")
     sysex <- Sysex.parse_dir [current_program_dump, program_dump, sysex_manager]

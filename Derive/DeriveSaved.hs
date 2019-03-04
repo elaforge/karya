@@ -44,8 +44,8 @@ import qualified Midi.StubMidi as StubMidi
 import qualified Synth.Shared.Config as Shared.Config
 import qualified Ui.Ui as Ui
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
@@ -166,14 +166,15 @@ load_score fname = fmap fst $ time ("load " <> txt fname) (\_ _ -> "") $
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of
             Cmd.SaveRepo repo -> do
-                (state, _, _) <- require_right $ SaveGit.load repo Nothing
-                return (state, FilePath.takeDirectory repo)
+                (state, _, _) <- require_right $
+                    SaveGit.load (Path.to_path repo) Nothing
+                return (state, FilePath.takeDirectory (Path.to_path repo))
             Cmd.SaveState fname -> do
                 state <- require_right $ first pretty <$>
-                    Save.read_state_ fname
-                return (state, FilePath.takeDirectory fname)
+                    Save.read_state_ (Path.to_path fname)
+                return (state, FilePath.takeDirectory (Path.to_path fname))
         app_dir <- liftIO Path.get_app_dir
-        let paths = dir : map (Path.absolute app_dir) Config.ky_paths
+        let paths = dir : map (Path.to_absolute app_dir) Config.ky_paths
         (builtins, aliases) <- require_right $ Ky.load paths state
         return (state, builtins, aliases)
 
@@ -190,10 +191,12 @@ cmd_config :: Cmd.InstrumentDb -> IO Cmd.Config
 cmd_config inst_db = do
     interface <- StubMidi.interface
     app_dir <- Path.get_app_dir
+    save_dir <- Path.canonical $ Path.to_absolute app_dir Config.save_dir
     return $ Cmd.Config
         { config_app_dir = app_dir
+        , config_save_dir = save_dir
         , config_midi_interface = interface
-        , config_ky_paths = map (Path.absolute app_dir) Config.ky_paths
+        , config_ky_paths = map (Path.to_absolute app_dir) Config.ky_paths
         , config_rdev_map = mempty
         , config_wdev_map = mempty
         , config_instrument_db = inst_db

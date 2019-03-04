@@ -22,18 +22,23 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import qualified Data.Text as Text
 import qualified Network.Socket as Socket
-
 import qualified System.Directory as Directory
 import qualified System.IO as IO
+
+import qualified App.Config as Config
+import qualified App.Path as Path
+import qualified App.ReplProtocol as ReplProtocol
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
+import qualified Cmd.Repl.Fast as Fast
+import qualified Derive.Parse as Parse
+import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Network as Network
 
-import qualified Ui.Ui as Ui
-import qualified Ui.Id as Id
-import qualified Cmd.Repl.Fast as Fast
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Msg as Msg
+import Global
 
 #include "hsconfig.h"
 #if defined(INTERPRETER_GHC)
@@ -41,11 +46,6 @@ import qualified Cmd.ReplGhc as ReplImpl
 #else
 import qualified Cmd.ReplStub as ReplImpl
 #endif
-
-import qualified Derive.Parse as Parse
-import qualified App.Config as Config
-import qualified App.ReplProtocol as ReplProtocol
-import Global
 
 
 -- | Acquire a new unix socket, and delete when done.
@@ -100,8 +100,8 @@ respond session msg = do
         IO.hClose response_hdl
     return status
     where
-    name_of (Cmd.SaveState fname) = fname
-    name_of (Cmd.SaveRepo fname) = fname
+    name_of (Cmd.SaveState fname) = Path.to_path fname
+    name_of (Cmd.SaveRepo fname) = Path.to_path fname
     warn_io_errors (exc :: IOError) =
         Log.warn $ "caught exception from socket write: " <> showt exc
 

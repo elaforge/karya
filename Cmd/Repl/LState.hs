@@ -11,7 +11,7 @@ import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.Posix as Posix
 
 import qualified Util.File as File
@@ -21,10 +21,9 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.SourceControl as SourceControl
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Id as Id
-import qualified Ui.Transform as Transform
-import qualified Ui.Ui as Ui
+import qualified App.Config as Config
+import qualified App.Path as Path
+import qualified App.ReplProtocol as ReplProtocol
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -41,11 +40,14 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stream as Stream
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Signal as Signal
-import qualified App.Config as Config
-import qualified App.ReplProtocol as ReplProtocol
-import Global
-import Types
+import qualified Ui.Id as Id
+import qualified Ui.Transform as Transform
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- | Find text in block titles, track titles, or events.
@@ -195,22 +197,27 @@ rename ns = do
     Create.rename_project ns
     Cmd.gets Cmd.state_save_file >>= \case
         Nothing -> return ()
-        Just (_, Cmd.SaveState fn) -> Cmd.modify $ \st -> st
-            { Cmd.state_save_file =
-                -- Assume the new name is new, and thus defaults to ReadWrite.
-                Just (Cmd.ReadWrite, Cmd.SaveState $ replace_dir ns fn)
-            }
-        Just (_, Cmd.SaveRepo repo) -> do
-            -- System.Directory.renameDirectory deletes the destination
-            -- diretory for some reason.  I'd rather throw an exception.
-            let old_dir = FilePath.takeDirectory repo
-                new_dir = FilePath.replaceFileName old_dir
-                    (untxt (Id.un_namespace ns))
-            Cmd.rethrow_io $ File.ignoreEnoent $ Posix.rename old_dir new_dir
+        Just (_, Cmd.SaveState fn) -> do
+            new_path <- liftIO $ Path.canonical $
+                replace_dir ns (Path.to_path fn)
             Cmd.modify $ \st -> st
                 { Cmd.state_save_file =
-                    Just (Cmd.ReadWrite,
-                        Cmd.SaveState $ new_dir </> FilePath.takeFileName repo)
+                    -- Assume the new name is new, and thus defaults to
+                    -- ReadWrite.
+                    Just (Cmd.ReadWrite, Cmd.SaveState new_path)
+                }
+        Just (_, Cmd.SaveRepo repo) -> do
+            let old_dir = FilePath.takeDirectory (Path.to_path repo)
+                new_dir = FilePath.replaceFileName old_dir
+                    (untxt (Id.un_namespace ns))
+            -- System.Directory.renameDirectory deletes the destination
+            -- diretory for some reason.  I'd rather throw an exception.
+            Cmd.rethrow_io $ File.ignoreEnoent $ Posix.rename old_dir new_dir
+            new_path <- liftIO $ Path.canonical $
+                new_dir </> FilePath.takeFileName (Path.to_path repo)
+            Cmd.modify $ \st -> st
+                { Cmd.state_save_file =
+                    Just (Cmd.ReadWrite, Cmd.SaveState new_path)
                 }
     where
     replace_dir ns path = new_dir </> FilePath.takeFileName path

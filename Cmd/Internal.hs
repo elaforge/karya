@@ -19,6 +19,7 @@ import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
 import qualified App.Config as Config
+import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
@@ -49,8 +50,8 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * record keys
@@ -287,7 +288,7 @@ sync_status ui_from cmd_from = do
             || Cmd.state_saved cmd_from /= Cmd.state_saved cmd_to) $
         sync_edit_state (save_status cmd_to) edit_state
     sync_play_state $ Cmd.state_play cmd_to
-    sync_save_file $ Cmd.state_save_file cmd_to
+    sync_save_file (Cmd.score_path cmd_to) (fst <$> Cmd.state_save_file cmd_to)
     sync_defaults $ Ui.config#Ui.default_ #$ ui_to
 
     run_selection_hooks (mapMaybe selection_update updates)
@@ -331,7 +332,7 @@ update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
 -- late to make Ui.State changes.
 --
 -- This is not defined in Cmd.Undo to avoid a circular import.
-can_checkpoint :: Cmd.State -> Maybe (GitTypes.Repo, GitTypes.Commit)
+can_checkpoint :: Cmd.State -> Maybe (Path.Canonical, GitTypes.Commit)
     -- ^ I need both a repo and a previous commit to checkpoint.
 can_checkpoint cmd_state = case (Cmd.state_save_file cmd_state, prev) of
     (Just (Cmd.ReadWrite, Cmd.SaveRepo repo), Just commit) ->
@@ -461,16 +462,12 @@ sync_play_state st = do
     Cmd.set_global_status "play-mult" $
         ShowVal.show_val (Cmd.state_play_multiplier st)
 
-sync_save_file :: Cmd.M m => Maybe (Cmd.Writable, Cmd.SaveFile) -> m ()
-sync_save_file save = Cmd.set_global_status "save" $ case save of
-    Nothing -> ""
-    Just (writable, save_file) -> name_of save_file
-        <> case writable of
-            Cmd.ReadWrite -> ""
-            Cmd.ReadOnly -> " (ro)"
-    where
-    name_of (Cmd.SaveState fn) = txt fn
-    name_of (Cmd.SaveRepo repo) = txt repo
+sync_save_file :: Cmd.M m => FilePath -> Maybe Cmd.Writable -> m ()
+sync_save_file score_path writable =
+    Cmd.set_global_status "save" $ case writable of
+        Nothing -> ""
+        Just Cmd.ReadWrite -> txt score_path
+        Just Cmd.ReadOnly -> txt score_path <> " (ro)"
 
 sync_defaults :: Cmd.M m => Ui.Default -> m ()
 sync_defaults (Ui.Default tempo) =

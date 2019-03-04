@@ -481,6 +481,7 @@ default_cmd_state = Cmd.initial_state (cmd_config UiTest.default_db)
 cmd_config :: Cmd.InstrumentDb -> Cmd.Config
 cmd_config inst_db = Cmd.Config
     { config_app_dir = Path.AppDir "."
+    , config_save_dir = Path.make_canonical "."
     , config_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
     , config_ky_paths = []
     , config_rdev_map = mempty

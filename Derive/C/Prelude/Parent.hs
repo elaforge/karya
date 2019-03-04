@@ -24,7 +24,6 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score

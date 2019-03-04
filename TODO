@@ -1569,8 +1569,21 @@ vector: performance:
 
 synth: im:
   - since the checkpoint size is smaller, logs are spammy
-  - save_state_as "`d`/something" caused it to emit:
+  - sampler crashes when volume=0 in test/im-rambat-simple
+  * save_state_as "`d`/something" caused it to emit:
     sampler-im /Users/elaforge/src/seq/main/data/im/notes/Users/elaforge/src/seq/main/save/test/im-bug/untitled/b1/sampler
+    . Make SaveState and SaveRepo Absolute, to get out the symlink
+      differences.
+    . After all that it doesn't work!  Because data/save is not in the
+      app_dir.  What a pain.
+    . It worked before because I would refer to paths via the data symlink,
+      but canonicalization destroys that.  Of course, it was always brittle.
+    . So the score path is relative to the canonicalized "data/save".
+    . I could make a Path.Absolute config_save_dir, but the idea behind AppDir
+      and the data symlink was that everything is relative to that, so I only
+      need AppDir.
+    . I could make save files Path.Relative, but then they can't accommodate
+      a file outside data/save.
   * replace Synth.Shared.Config.emitProgress with a JSON thing
   * rename Shared.Config.cacheDir to something like audio, so it's not
     confusingly the same as Checkpoint.cacheDir.

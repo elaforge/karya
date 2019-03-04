@@ -91,12 +91,13 @@ make_read_devices :: [Text] -> Set Midi.ReadDevice
 make_read_devices = Set.fromList . map Midi.read_device
 
 -- | Create a 'Cmd.Config' from a StaticConfig.
-cmd_config :: Path.AppDir -> Interface.Interface -> StaticConfig
-    -> SaveGit.User -> Cmd.Config
-cmd_config app_dir interface config git_user = Cmd.Config
+cmd_config :: Path.AppDir -> Path.Canonical -> Interface.Interface
+    -> StaticConfig -> SaveGit.User -> Cmd.Config
+cmd_config app_dir save_dir interface config git_user = Cmd.Config
     { config_app_dir = app_dir
+    , config_save_dir = save_dir
     , config_midi_interface = interface
-    , config_ky_paths = map (Path.absolute app_dir) Config.ky_paths
+    , config_ky_paths = map (Path.to_absolute app_dir) Config.ky_paths
     , config_rdev_map = rdev_map midi_config
     , config_wdev_map = wdev_map midi_config
     , config_instrument_db = instrument_db config

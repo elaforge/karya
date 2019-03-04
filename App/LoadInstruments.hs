@@ -80,7 +80,7 @@ load app_dir = do
             , midi_synths
             , internal_synths
             ]
-    let annot_fn = Path.absolute app_dir Config.local_dir
+    let annot_fn = Path.to_absolute app_dir Config.local_dir
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \case
         -- The parsec error already includes the filename.

@@ -56,7 +56,7 @@ getConfig = config <$> Path.get_app_dir
 
 config :: Path.AppDir -> Config
 config appDir = Config
-    { imDir = Path.absolute appDir Config.im_dir
+    { imDir = Path.to_absolute appDir Config.im_dir
     , synths = Map.fromList
         [ (samplerName, sampler)
         , (faustName, faust)
@@ -100,7 +100,7 @@ samplerRoot = Config.data_dir Path.</> "sampler"
 -- is the only thing that actually needs it.
 unsafeSamplerRoot :: FilePath
 unsafeSamplerRoot =
-    Path.absolute (Unsafe.unsafePerformIO Path.get_app_dir) samplerRoot
+    Path.to_absolute (Unsafe.unsafePerformIO Path.get_app_dir) samplerRoot
 {-# NOINLINE unsafeSamplerRoot #-}
 
 faustName :: SynthName
