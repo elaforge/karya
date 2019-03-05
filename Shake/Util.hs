@@ -72,9 +72,9 @@ metric = Metric <$> (cpuToSec <$> CPUTime.getCPUTime) <*> Time.getCurrentTime
     where cpuToSec s = fromIntegral s / fromIntegral (10^12)
 
 diffMetric :: Metric -> Metric -> String
-diffMetric (Metric cpu1 time1) (Metric cpu2 time2) =
-    Printf.printf "%.2f cpu / %.2fs" (cpu1-cpu2)
-        (toSecs (time1 `Time.diffUTCTime` time2))
+diffMetric (Metric _cpu1 time1) (Metric _cpu2 time2) =
+    -- I used to print the cpu time too, but it's always really low.
+    Printf.printf "%.2fs" (toSecs (time1 `Time.diffUTCTime` time2))
     where
     toSecs :: Time.NominalDiffTime -> Double
     toSecs = realToFrac
