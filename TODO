@@ -1565,7 +1565,7 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  - since the checkpoint size is smaller, logs are spammy
+  * since the checkpoint size is smaller, logs are spammy
   - sampler crashes when volume=0 in test/im-rambat-simple
   * save_state_as "`d`/something" caused it to emit:
     sampler-im /Users/elaforge/src/seq/main/data/im/notes/Users/elaforge/src
@@ -2756,6 +2756,7 @@ shakefile: build:
       . It's a bit of a hassle because I have to reimplement the fiddly
         withForkWait stuff in System.Process.
       . Then again, Util.Process doesn't do that and it seems fine.
+      . I especially want to see incremental output for haddock.
   my hacked libsamplerate is hard to use on linux
     . Beacuse you can only have one dynamic library with that name, and e.g.
       jack and many other things want the standard libsamplerate.
@@ -3103,7 +3104,7 @@ cleanup:
     * are there things in Derive.Score which should move to ScoreT?
       . Yeah, everything in the util section.
     * rename BaseTypes to BaseT?  Or to DeriveT
-    - make PSignal not re-export DeriveT
+    / make PSignal not re-export DeriveT
       . This is not so clearly the right thing because many things are meant
         to have PSignal context, e.g. PSignal._signal.
     * make Derive.Score not re-export DeriveT

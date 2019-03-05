@@ -240,8 +240,8 @@ instance Aeson.FromJSON Payload
 emitMessage :: Text -> Message -> IO ()
 emitMessage extra msg = do
     let prio = case _payload msg of
-            RenderingRange {} -> Log.Notice
-            WaveformsCompleted {} -> Log.Notice
+            RenderingRange {} -> Log.Debug
+            WaveformsCompleted {} -> Log.Debug
             Failure {} -> Log.Warn
     Log.log prio $ Text.unwords $
         [ Id.ident_text (_blockId msg)

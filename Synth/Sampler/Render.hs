@@ -199,7 +199,7 @@ render outputDir blockSize quality initialStates notifyState trackIds notes
     progress prevMetric now playing starting = liftIO $ do
         metric <- liftIO Thread.metric
         whenJust prevMetric $ \prev ->
-            Log.notice $ "chunk "
+            Log.debug $ "chunk "
                 <> pretty (AUtil.toSeconds (now-blockSize)) <> "--"
                 <> pretty (AUtil.toSeconds now)
                 <> ": elapsed: " <> Thread.showMetric
