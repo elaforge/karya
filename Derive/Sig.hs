@@ -63,7 +63,7 @@
     On the subject of controls, controls (and numeric vals in general) have
     another layer of complexity since they carry types.  For example, here's
     a gloriously complicated argument: @defaulted \"speed\" (typed_control
-    \"tremolo-speed\" 10 Score.Real)@.  This argument defaults to
+    \"tremolo-speed\" 10 ScoreT.Real)@.  This argument defaults to
     @%tremolo-speed,10s@.  If it's not given, it will have the value @10s@.  If
     the @%tremolo-speed@ control is in scope but untyped, its values will be
     interpreted as RealTime.  If it's in scope and typed (e.g. with
@@ -105,7 +105,7 @@ import Derive.Derive (ArgName, CallName, EnvironDefault(..))
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
-import qualified Derive.ScoreTypes as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
@@ -488,19 +488,20 @@ increment_argnum n state = state { state_argnum = n + state_argnum state }
 
 -- | The argument's value is taken from the given signal, with the given
 -- default.  If the value isn't given, the default is Untyped.
-control :: Score.Control -> Signal.Y -> BaseTypes.ControlRef
-control name deflt = typed_control name deflt Score.Untyped
+control :: ScoreT.Control -> Signal.Y -> BaseTypes.ControlRef
+control name deflt = typed_control name deflt ScoreT.Untyped
 
 -- | Like 'control', but the default can have a type.
-typed_control :: Score.Control -> Signal.Y -> Score.Type -> BaseTypes.ControlRef
+typed_control :: ScoreT.Control -> Signal.Y -> ScoreT.Type
+    -> BaseTypes.ControlRef
 typed_control name deflt typ =
-    BaseTypes.DefaultedControl name (Score.Typed typ (Signal.constant deflt))
+    BaseTypes.DefaultedControl name (ScoreT.Typed typ (Signal.constant deflt))
 
-required_control :: Score.Control -> BaseTypes.ControlRef
+required_control :: ScoreT.Control -> BaseTypes.ControlRef
 required_control = BaseTypes.LiteralControl
 
 -- | Pitch signal.  There's no default because that would depend on the scale.
-pitch :: Score.PControl -> BaseTypes.PControlRef
+pitch :: ScoreT.PControl -> BaseTypes.PControlRef
 pitch = BaseTypes.LiteralControl
 
 -- ** util

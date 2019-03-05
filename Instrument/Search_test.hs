@@ -9,7 +9,7 @@ import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
@@ -59,7 +59,7 @@ z1_patches =
 fm8_patches :: [(Patch.Patch, Text)]
 fm8_patches = [(mkpatch "" [], "fm")]
 
-mkpatch :: InstTypes.Name -> [(Midi.Control, ScoreTypes.Control)] -> Patch.Patch
+mkpatch :: InstTypes.Name -> [(Midi.Control, ScoreT.Control)] -> Patch.Patch
 mkpatch name controls = (Patch.patch (-2, 2) name)
     { Patch.patch_control_map = Control.control_map controls }
 

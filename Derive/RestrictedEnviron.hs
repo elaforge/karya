@@ -19,7 +19,7 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
@@ -61,7 +61,7 @@ null (Environ env) = Map.null env
 -- Namely: 'BaseTypes.VPitch', 'BaseTypes.VControlFunction'.
 -- NOTE [val-and-minival].
 data Val =
-    VNum !(ScoreTypes.Typed Signal.Y)
+    VNum !(ScoreT.Typed Signal.Y)
     | VAttributes !Attrs.Attributes
     | VControlRef !BaseTypes.ControlRef
     | VConstantPitch !ConstantPitch
@@ -99,19 +99,19 @@ class ToVal a where
 -- ** VNum
 
 instance ToVal Val where to_val = id
-instance ToVal Double where to_val = VNum . ScoreTypes.untyped
-instance ToVal Int where to_val = VNum . ScoreTypes.untyped . fromIntegral
+instance ToVal Double where to_val = VNum . ScoreT.untyped
+instance ToVal Int where to_val = VNum . ScoreT.untyped . fromIntegral
 instance ToVal Pitch.NoteNumber where
-    to_val = VNum . ScoreTypes.Typed ScoreTypes.Nn . Pitch.nn_to_double
+    to_val = VNum . ScoreT.Typed ScoreT.Nn . Pitch.nn_to_double
 instance ToVal Pitch.Transpose where
     to_val n = case n of
-        Pitch.Diatonic n -> VNum $ ScoreTypes.Typed ScoreTypes.Diatonic n
-        Pitch.Chromatic n -> VNum $ ScoreTypes.Typed ScoreTypes.Chromatic n
-        Pitch.Nn n -> VNum $ ScoreTypes.Typed ScoreTypes.Nn n
+        Pitch.Diatonic n -> VNum $ ScoreT.Typed ScoreT.Diatonic n
+        Pitch.Chromatic n -> VNum $ ScoreT.Typed ScoreT.Chromatic n
+        Pitch.Nn n -> VNum $ ScoreT.Typed ScoreT.Nn n
 instance ToVal ScoreTime where
-    to_val = VNum . ScoreTypes.Typed ScoreTypes.Score . ScoreTime.to_double
+    to_val = VNum . ScoreT.Typed ScoreT.Score . ScoreTime.to_double
 instance ToVal RealTime where
-    to_val = VNum . ScoreTypes.Typed ScoreTypes.Real . RealTime.to_seconds
+    to_val = VNum . ScoreT.Typed ScoreT.Real . RealTime.to_seconds
 
 instance ToVal a => ToVal [a] where to_val = VList . map to_val
 
@@ -120,8 +120,8 @@ instance ToVal a => ToVal [a] where to_val = VList . map to_val
 instance ToVal Attrs.Attributes where to_val = VAttributes
 instance ToVal BaseTypes.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
-instance ToVal ScoreTypes.Instrument where
-    to_val (ScoreTypes.Instrument a) = VStr (Expr.Str a)
+instance ToVal ScoreT.Instrument where
+    to_val (ScoreT.Instrument a) = VStr (Expr.Str a)
 instance ToVal Expr.Str where to_val = VStr
 instance ToVal Text where to_val = VStr . Expr.Str
 instance ToVal Expr where to_val = VQuoted

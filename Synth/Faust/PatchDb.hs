@@ -13,7 +13,7 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Util.Doc as Doc
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Im.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
 import qualified Synth.Faust.DriverC as DriverC
@@ -60,5 +60,5 @@ makePatch doc controls = do
         DUtil.constant_controls constantPitch
             (Set.fromList (map control constantControls))
 
-control :: Control.Control -> ScoreTypes.Control
-control (Control.Control c) = ScoreTypes.Control c
+control :: Control.Control -> ScoreT.Control
+control (Control.Control c) = ScoreT.Control c

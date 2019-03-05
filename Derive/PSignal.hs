@@ -60,8 +60,8 @@ import Derive.BaseTypes
        (PSignal(..), _signal, interpolate, Transposed, Pitch, pitch, coerce,
         pitch_nn, pitch_note, RawPitch(..), Scale(..), PitchConfig(..),
         PitchError(..))
-import qualified Derive.ScoreTypes as ScoreTypes
-import qualified Derive.ScoreTypes as Score
+import qualified Derive.ScoreT as ScoreT
+import qualified Derive.ScoreT as Score
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -168,7 +168,7 @@ clip_before x = modify $ Segment.clip_before interpolate x
 shift :: RealTime -> PSignal -> PSignal
 shift x = modify (Segment.shift x)
 
-type ControlMap = Map Score.Control (ScoreTypes.Typed Signal.Control)
+type ControlMap = Map Score.Control (ScoreT.Typed Signal.Control)
 
 -- | Resample the signal according to the 'sig_transposers' and apply the given
 -- controls to the signal.
@@ -219,13 +219,13 @@ apply_controls cmap psig = case Seq.head (to_pairs psig) of
 
 -- | Separate transposing from non-transposing controls.
 --
--- This discards the ScoreTypes.Type, since 'apply' doesn't use that.  The
+-- This discards the ScoreT.Type, since 'apply' doesn't use that.  The
 -- usual type distinctions like chromatic or diatonic instead get separate
 -- controls.
 unzip_controls :: PSignal -> ControlMap
     -> (([Score.Control], [Signal.Control]), ControlMap)
 unzip_controls psig cmap =
-    ( second (map ScoreTypes.typed_val) (unzip transposers)
+    ( second (map ScoreT.typed_val) (unzip transposers)
     , Map.fromAscList non_transposers
     )
     where
@@ -238,7 +238,7 @@ controls_at :: RealTime -> ControlMap -> Map Score.Control Signal.Y
 controls_at t = Map.map (Signal.at t . Score.typed_val)
 
 -- | 'apply_controls' specialized for a single control.
-apply_control :: Score.Control -> ScoreTypes.Typed Signal.Control
+apply_control :: Score.Control -> ScoreT.Typed Signal.Control
     -> PSignal -> PSignal
 apply_control cont sig = apply_controls (Map.singleton cont sig)
 

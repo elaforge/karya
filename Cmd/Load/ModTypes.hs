@@ -8,7 +8,7 @@ import qualified Data.Bits as Bits
 import Data.Bits ((.&.))
 import Data.Word (Word8)
 
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -26,7 +26,7 @@ data Tempo = Tempo {
     } deriving (Eq, Show)
 
 data Instrument = Instrument {
-    _instrument_name :: !ScoreTypes.Instrument
+    _instrument_name :: !ScoreT.Instrument
     , _volume :: !(Maybe Double)
     } deriving (Eq, Show)
 

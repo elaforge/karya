@@ -16,7 +16,7 @@ import qualified Data.Text as Text
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Instrument.Common as Common
@@ -74,7 +74,7 @@ encode_play_config :: FilePath -> BlockId -> Set Score.Instrument
 encode_play_config score_path block_id muted =
     encode_text $ Text.intercalate "\0" $
         txt (Shared.Config.playFilename score_path block_id)
-            : map ScoreTypes.instrument_name (Set.toList muted)
+            : map ScoreT.instrument_name (Set.toList muted)
 
 -- | Encode text in MIDI.  This uses a PitchBend to encode a pair of
 -- characters, with a leading '\DEL' to mark the start of the sequence, and

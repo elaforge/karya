@@ -31,7 +31,7 @@ import qualified Cmd.Performance as Performance
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Inst as Inst
@@ -143,7 +143,7 @@ derive_to_disk score_path ui_state = do
             </> "instrument"
         )
 
-instrument_name :: ScoreTypes.Instrument
+instrument_name :: ScoreT.Instrument
 instrument_name = "instrument"
 
 derive :: Cmd.State -> Ui.State -> BlockId
@@ -191,7 +191,7 @@ make_state instrument transform tracks = Ui.exec Ui.empty $ do
     where
     block_track tid = Block.track (Block.TId tid Ui.no_ruler) 40
 
-allocate :: Ui.M m => ScoreTypes.Instrument -> InstTypes.Qualified -> m ()
+allocate :: Ui.M m => ScoreT.Instrument -> InstTypes.Qualified -> m ()
 allocate inst qualified = do
     let alloc = UiConfig.allocation qualified UiConfig.Im
     -- I just trust that this is an im synth and it exists.
@@ -205,7 +205,7 @@ allocate inst qualified = do
 data NoteTrack = NoteTrack Events.Events Controls
     deriving (Eq, Show)
 type Controls = Map Control Events.Events
-data Control = Pitch Pitch.ScaleId | Control ScoreTypes.Control
+data Control = Pitch Pitch.ScaleId | Control ScoreT.Control
     deriving (Eq, Ord, Show)
 
 make_tracks :: NoteTrack -> [Track.Track]
@@ -215,7 +215,7 @@ make_tracks (NoteTrack events controls) =
 
 control_to_title :: Control -> Text
 control_to_title control = case control of
-    Control c -> ParseTitle.control_to_title $ ScoreTypes.untyped c
+    Control c -> ParseTitle.control_to_title $ ScoreT.untyped c
     Pitch scale_id -> ParseTitle.scale_to_title scale_id
 
 to_note_track :: ToScore.ToScore stroke -> TrackTime -> TrackTime
@@ -230,7 +230,7 @@ to_note_track to_score stretch shift strokes =
         | null pitches = Nothing
         | otherwise = Just (Pitch Pitch.empty_scale, mk_events pitches)
     control_tracks = Map.fromList $ maybe id (:) pitch_track $
-        [ (Control (ScoreTypes.Control control), mk_events events)
+        [ (Control (ScoreT.Control control), mk_events events)
         | (control, events) <- controls
         , control /= "*"
         ]

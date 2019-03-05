@@ -13,7 +13,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
@@ -41,7 +41,7 @@ data Config = Config {
     , config_dotted_rests :: !Bool
     -- | Map each instrument to its long name and short name.  The order is
     -- the order they should appear in the score.
-    , config_staves :: ![(ScoreTypes.Instrument, StaffConfig)]
+    , config_staves :: ![(ScoreT.Instrument, StaffConfig)]
     } deriving (Eq, Read, Show)
 
 quarter_duration = Lens.lens config_quarter_duration
@@ -120,9 +120,9 @@ empty_staff_config = StaffConfig
     , staff_add_bass_staff = False
     }
 
-default_staff_config :: ScoreTypes.Instrument -> StaffConfig
+default_staff_config :: ScoreT.Instrument -> StaffConfig
 default_staff_config inst =
-    empty_staff_config { staff_long = ScoreTypes.instrument_name inst }
+    empty_staff_config { staff_long = ScoreT.instrument_name inst }
 
 -- | This is emitted for every staff, regardless of its 'staff_code'.
 global_staff_code :: [Text]
@@ -263,7 +263,7 @@ data Event = Event {
     event_start :: !Time
     , event_duration :: !Time
     , event_pitch :: !(Maybe Pitch)
-    , event_instrument :: !ScoreTypes.Instrument
+    , event_instrument :: !ScoreT.Instrument
     , event_environ :: !BaseTypes.Environ
     , event_stack :: !Stack.Stack
     -- | True if this event is the tied continuation of a previous note.  In

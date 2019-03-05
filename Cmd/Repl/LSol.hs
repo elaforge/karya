@@ -31,7 +31,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Expr as Expr
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 
@@ -120,7 +120,7 @@ to_note_track to_score stretch shift strokes =
     pitch_track = if null pitches then Nothing
         else Just (ModifyNotes.Pitch Pitch.empty_scale, mk_events pitches)
     control_tracks = Map.fromList $ maybe id (:) pitch_track $
-        [ (ModifyNotes.Control (ScoreTypes.Control control), mk_events events)
+        [ (ModifyNotes.Control (ScoreT.Control control), mk_events events)
         | (control, events) <- controls
         , control /= "*"
         ]

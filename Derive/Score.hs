@@ -78,8 +78,8 @@ import           Derive.BaseTypes
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
-import qualified Derive.ScoreTypes as ScoreTypes
-import           Derive.ScoreTypes
+import qualified Derive.ScoreT as ScoreT
+import           Derive.ScoreT
        (code_to_type, control_name, empty_instrument, instrument_name,
         merge_typed, pcontrol_name, type_to_code, untyped, Control,
         ControlValMap, PControl, TypedControlValMap, Instrument(..), Type(..),
@@ -484,21 +484,21 @@ nn_signal event =
 control :: Text -> Either Text Control
 control name
     | Text.null name = Left "empty control name"
-    | Id.valid_symbol name = Right $ ScoreTypes.Control name
+    | Id.valid_symbol name = Right $ ScoreT.Control name
     | otherwise = Left $ "invalid characters in control: " <> showt name
 
 unchecked_control :: Text -> Control
-unchecked_control = ScoreTypes.Control
+unchecked_control = ScoreT.Control
 
 -- | Use this constructor when making a PControl from user input.  Literals
 -- can use the IsString instance.
 pcontrol :: Text -> Either Text PControl
 pcontrol name
-    | Text.null name || Id.valid_symbol name = Right $ ScoreTypes.PControl name
+    | Text.null name || Id.valid_symbol name = Right $ ScoreT.PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
 
 unchecked_pcontrol :: Text -> PControl
-unchecked_pcontrol = ScoreTypes.PControl
+unchecked_pcontrol = ScoreT.PControl
 
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control

@@ -432,9 +432,6 @@ UNSORTED
       to all new note tracks.  I sort of get around this with the insert-above
       etc. cmds, maybe I just need to make those smarter, or understand them
       better?
-  . Simplify or unify various types in Derive.ScoreTypes,
-    Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
-    and move simple types to Derive.T.
   . What would I actually need to have a useful TrackTime?
     . TrackTimes come from Events, and they are absolute measures.  Addition
       and subtraction yields ScoreTimes:
@@ -3096,6 +3093,16 @@ local: plugins:
       I can load dynamically at runtime.
 
 cleanup:
+  remove Derive.Score re-exports:
+    * rename ScoreTypes to ScoreT
+      . Simplify or unify various types in Derive.ScoreTypes,
+        Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
+        and move simple types to Derive.T.
+    - remove re-exports from Derive.Score
+    - rename BaseTypes to BaseT?
+  - Derive.Score is more like ScoreEvent... but Score.event_start is nicer
+    than ScoreEvent.event_start.  If I made it just Event, I could say
+    ScoreEvent.start.
   ci:
     - fix travis
       . It won't compile without my hacked libsamplerate.
@@ -3178,7 +3185,7 @@ cleanup:
     . I should be able to do those things with Pitch by adding more function
       fields.  Or alternately, typeclass + existential, but I'm not sure if
       that's any better.
-  - switch from parsec to megaparsec?
+  * switch from parsec to megaparsec?
     . Save it for a big ghc upgrade, since it requires a newer semigroups.
   - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
     conventions like get_ vs. lookup_, but what about it actually being in the

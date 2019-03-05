@@ -21,7 +21,7 @@ import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
@@ -76,8 +76,8 @@ make_string str = RestrictedEnviron.ConstantPitch Twelve.scale_id
     -- TODO Twelve.scale_id may well be wrong, which can cause parsing errors.
     -- The string should also give the scale.
 
-control :: Control.Control -> ScoreTypes.Control
-control (Control.Control c) = ScoreTypes.Control c
+control :: Control.Control -> ScoreT.Control
+control (Control.Control c) = ScoreT.Control c
 
 multiplate :: Multiplate.Instrument -> ImInst.Patch
 multiplate inst = ImInst.code #= code $ ImInst.make_patch patch

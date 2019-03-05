@@ -28,7 +28,7 @@ import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.Ruler.Meters as Meters
 
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import Derive.ShowVal (show_val)
 
@@ -211,7 +211,7 @@ convert_track state block_len = go . zip [0..]
         where
         instrument = fromMaybe no_instrument $
             IntMap.lookup instnum (_instruments state)
-        no_instrument = M.Instrument (ScoreTypes.Instrument (showt instnum))
+        no_instrument = M.Instrument (ScoreT.Instrument (showt instnum))
             Nothing
     go [] = []
 

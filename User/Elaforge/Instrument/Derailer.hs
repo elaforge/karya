@@ -5,7 +5,7 @@
 -- | PA3 Derailer.
 module User.Elaforge.Instrument.Derailer where
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import Global
 
 
@@ -14,7 +14,7 @@ synth =
     MidiInst.synth "derailer" "PA3 Derailer." $
         MidiInst.synth_controls controls patches
     where
-    controls = map (second ScoreTypes.Control) $ concat
+    controls = map (second ScoreT.Control) $ concat
         [ [ (cc, "drone" <> showt n <> "-mass")
           | (n, cc) <- zip [1..5] [21..25]
           ]

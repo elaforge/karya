@@ -13,7 +13,7 @@ import qualified Sound.MED.Generic.PlaySeq as PlaySeq
 
 import qualified Util.Seq as Seq
 import qualified Cmd.Load.ModTypes as M
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import Global
 
 
@@ -34,7 +34,7 @@ convert inst_map med = M.Module
 instrument :: Map Text Text -> Instrument.MEDInstrument -> M.Instrument
 instrument inst_map inst = M.Instrument
     { _instrument_name = maybe "none"
-        (ScoreTypes.Instrument . find . txt) (Instrument.name inst)
+        (ScoreT.Instrument . find . txt) (Instrument.name inst)
     , _volume = M.volume <$> Instrument.svol inst
     }
     where

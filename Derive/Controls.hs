@@ -12,7 +12,7 @@ import Prelude hiding (null)
 
 import qualified Derive.Score as Score
 import Derive.Score (Control)
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Shared.Control
@@ -197,4 +197,4 @@ variation :: Control
 variation = from_shared Shared.Control.variation
 
 from_shared :: Shared.Control.Control -> Control
-from_shared (Shared.Control.Control a) = ScoreTypes.Control a
+from_shared (Shared.Control.Control a) = ScoreT.Control a

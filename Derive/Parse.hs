@@ -48,7 +48,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
 
@@ -259,8 +259,7 @@ p_num = do
     typ <- A.choice $ map suffix codes
     return $ Score.Typed typ num
     where
-    codes = zip ScoreTypes.all_types $
-        map Score.type_to_code ScoreTypes.all_types
+    codes = zip ScoreT.all_types $ map Score.type_to_code ScoreT.all_types
 
 p_untyped_num :: A.Parser Signal.Y
 p_untyped_num = p_ratio <|> ParseText.p_float
@@ -322,7 +321,7 @@ p_control_ref = do
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
 -- because pitches don't have literals.  Instead, use the @pitch-control@ val
 -- call.
-p_pcontrol :: A.Parser ScoreTypes.PControl
+p_pcontrol :: A.Parser ScoreT.PControl
 p_pcontrol = do
     A.char '#'
     Score.unchecked_pcontrol <$> p_identifier True ""

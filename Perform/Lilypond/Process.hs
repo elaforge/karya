@@ -38,7 +38,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Derive.Typecheck as Typecheck
 
@@ -224,7 +224,7 @@ rest_event start dur = Event
     { event_start = start
     , event_duration = dur
     , event_pitch = Nothing
-    , event_instrument = ScoreTypes.empty_instrument
+    , event_instrument = ScoreT.empty_instrument
     , event_environ = mempty
     , event_stack = Stack.empty
     , event_clipped = False

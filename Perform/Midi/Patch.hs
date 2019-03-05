@@ -64,7 +64,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
@@ -562,4 +562,4 @@ cc_mode_map modes = (, controls) $ make_mode_map
     ]
     where
     controls = [(cc, control key) | (key, cc, _) <- modes]
-    control = ScoreTypes.Control
+    control = ScoreT.Control

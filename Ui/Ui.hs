@@ -152,7 +152,7 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified App.Config as Config
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -467,7 +467,7 @@ modify_config :: M m => (Config -> Config) -> m ()
 modify_config f = unsafe_modify $ \st ->
     st { state_config = f (state_config st) }
 
-modify_allocation :: M m => ScoreTypes.Instrument -> (Allocation -> Allocation)
+modify_allocation :: M m => ScoreT.Instrument -> (Allocation -> Allocation)
     -> m ()
 modify_allocation inst modify = do
     allocs <- config#allocations <#> get
@@ -491,7 +491,7 @@ with_config f action = do
 
 -- | TODO use this for read only.  If used for write it bypasses
 -- 'UiConfig.allocate'.
-allocation :: ScoreTypes.Instrument -> Lens State (Maybe Allocation)
+allocation :: ScoreT.Instrument -> Lens State (Maybe Allocation)
 allocation inst = config # allocations_map # Lens.map inst
 
 -- * view

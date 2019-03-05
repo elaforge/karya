@@ -19,7 +19,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Tag as Tag
@@ -175,7 +175,7 @@ data Config = Config {
     --
     -- This can be useful to set a per-instrument transposition, or dynamic
     -- level.
-    , config_controls :: !ScoreTypes.ControlValMap
+    , config_controls :: !ScoreT.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
     , config_mute :: !Bool
     -- | If any instrument is soloed, all instruments except soloed ones are

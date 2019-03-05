@@ -14,7 +14,7 @@
     TrackLang because it just added a few small utilities but no additional
     dependencies, and since modules started directly using BaseTypes anyway
     to avoid dependencies.  Many Score types are further divided into
-    "Derive.ScoreTypes", once again to avoid circular imports.
+    "Derive.ScoreT", once again to avoid circular imports.
 
     Perhaps the simplest would be to get rid of all the re-export guff.
 
@@ -43,7 +43,7 @@ import qualified Util.Serialize as Serialize
 import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Warp as Warp
 
@@ -195,7 +195,7 @@ annotate_out_of_range pitch maybe_nn = modify_out_of_range $ \err -> err
     is created.  Otherwise, you can't evaluate a pitch with a different key by
     setting the environ.
 -}
-data PitchConfig = PitchConfig !Environ !ScoreTypes.ControlValMap
+data PitchConfig = PitchConfig !Environ !ScoreT.ControlValMap
     deriving (Show)
 
 instance Semigroup PitchConfig where
@@ -222,7 +222,7 @@ data Scale = Scale {
     -- event_pitch, but the scale at event creation time is not guaranteed to
     -- be the same as the one when the pitch was created, so the safest thing
     -- to do is keep it with the pitch itself.
-    , pscale_transposers :: !(Set ScoreTypes.Control)
+    , pscale_transposers :: !(Set ScoreT.Control)
     } deriving (Show)
 
 instance Pretty Scale where
@@ -265,7 +265,7 @@ data PitchError =
     -- Nothing if the value is missing, otherwise a Text description.
     | EnvironError !EnvKey.Key !(Maybe Text)
     -- | Same as EnvironError, but for control vals.
-    | ControlError !ScoreTypes.Control !Text
+    | ControlError !ScoreT.Control !Text
     -- | The scale doesn't implement that operation.
     | NotImplemented
     -- | Other kind of error.
@@ -276,7 +276,7 @@ data OutOfRange = OutOfRange {
     oor_nn :: !(Maybe Pitch.NoteNumber)
     , oor_semi :: !(Maybe Pitch.FSemi)
     , oor_valid :: !(Maybe (Int, Int))
-    , oor_transposers :: !ScoreTypes.ControlValMap
+    , oor_transposers :: !ScoreT.ControlValMap
     } deriving (Eq, Ord, Show)
 
 out_of_range :: OutOfRange
@@ -383,7 +383,7 @@ data Val =
     -- ratio.
     --
     -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
-    VNum !(ScoreTypes.Typed Signal.Y)
+    VNum !(ScoreT.Typed Signal.Y)
     -- | A set of Attributes for an instrument.
     --
     -- Literal: @+attr@, @+attr1+attr2@.
@@ -524,22 +524,22 @@ show_call_val val = ShowVal.show_val val
 
 -- | Make an untyped VNum.
 num :: Double -> Val
-num = VNum . ScoreTypes.untyped
+num = VNum . ScoreT.untyped
 
 str :: Text -> Val
 str = VStr . Expr.Str
 
 score_time :: ScoreTime -> Val
-score_time = VNum . ScoreTypes.Typed ScoreTypes.Score . ScoreTime.to_double
+score_time = VNum . ScoreT.Typed ScoreT.Score . ScoreTime.to_double
 
 real_time :: RealTime -> Val
-real_time = VNum . ScoreTypes.Typed ScoreTypes.Real . RealTime.to_seconds
+real_time = VNum . ScoreT.Typed ScoreT.Real . RealTime.to_seconds
 
 transposition :: Pitch.Transpose -> Val
 transposition t = VNum $ case t of
-    Pitch.Diatonic d -> ScoreTypes.Typed ScoreTypes.Diatonic d
-    Pitch.Chromatic d -> ScoreTypes.Typed ScoreTypes.Chromatic d
-    Pitch.Nn d -> ScoreTypes.Typed ScoreTypes.Nn d
+    Pitch.Diatonic d -> ScoreT.Typed ScoreT.Diatonic d
+    Pitch.Chromatic d -> ScoreT.Typed ScoreT.Chromatic d
+    Pitch.Nn d -> ScoreT.Typed ScoreT.Nn d
 
 to_scale_id :: Val -> Maybe Pitch.ScaleId
 to_scale_id (VStr (Expr.Str a)) = Just (Pitch.ScaleId a)
@@ -562,8 +562,8 @@ data Ref control val =
     | LiteralControl control
     deriving (Eq, Read, Show)
 
-type ControlRef = Ref ScoreTypes.Control (ScoreTypes.Typed Signal.Control)
-type PControlRef = Ref ScoreTypes.PControl PSignal
+type ControlRef = Ref ScoreT.Control (ScoreT.Typed Signal.Control)
+type PControlRef = Ref ScoreT.PControl PSignal
 
 instance (Serialize.Serialize val, Serialize.Serialize control) =>
         Serialize.Serialize (Ref control val) where
@@ -582,8 +582,8 @@ instance (Serialize.Serialize val, Serialize.Serialize control) =>
 -- arbitrary signal.  Non-constant signals will turn into a constant of
 -- whatever was at 0.
 instance ShowVal.ShowVal ControlRef where
-    show_val = show_control $ \(ScoreTypes.Typed typ sig) ->
-        ShowVal.show_val (Signal.at 0 sig) <> ScoreTypes.type_to_code typ
+    show_val = show_control $ \(ScoreT.Typed typ sig) ->
+        ShowVal.show_val (Signal.at 0 sig) <> ScoreT.type_to_code typ
 
 instance Pretty ControlRef where pretty = ShowVal.show_val
 
@@ -609,12 +609,12 @@ show_control sig_text control = case control of
     LiteralControl control -> ShowVal.show_val control
 
 -- | Defaulted control from a RealTime.
-real_control :: ScoreTypes.Control -> RealTime -> ControlRef
+real_control :: ScoreT.Control -> RealTime -> ControlRef
 real_control c deflt = DefaultedControl c $
-    ScoreTypes.untyped $ Signal.constant (RealTime.to_seconds deflt)
+    ScoreT.untyped $ Signal.constant (RealTime.to_seconds deflt)
 
 constant_control :: Signal.Y -> ControlRef
-constant_control = ControlSignal . ScoreTypes.untyped . Signal.constant
+constant_control = ControlSignal . ScoreT.untyped . Signal.constant
 
 -- * Expr
 
@@ -657,9 +657,9 @@ map_str f = call
 
 -- ** ControlMap
 
-type ControlMap = Map ScoreTypes.Control (ScoreTypes.Typed Signal.Control)
-type ControlFunctionMap = Map ScoreTypes.Control ControlFunction
-type PitchMap = Map ScoreTypes.PControl PSignal
+type ControlMap = Map ScoreT.Control (ScoreT.Typed Signal.Control)
+type ControlFunctionMap = Map ScoreT.Control ControlFunction
+type PitchMap = Map ScoreT.PControl PSignal
 
 -- * ControlFunction
 
@@ -699,8 +699,7 @@ data ControlFunction =
     -- ControlFunctions that represent a control signal, the RealTime is the
     -- desired X value, otherwise it's just some number.
     ControlFunction !Text
-        !(ScoreTypes.Control -> Dynamic -> RealTime
-            -> ScoreTypes.Typed Signal.Y)
+        !(ScoreT.Control -> Dynamic -> RealTime -> ScoreT.Typed Signal.Y)
 
 instance Show ControlFunction where show = untxt . ShowVal.show_val
 instance Pretty ControlFunction where pretty = showt
@@ -710,15 +709,14 @@ instance ShowVal.ShowVal ControlFunction where
 instance DeepSeq.NFData ControlFunction where
     rnf (ControlFunction a b) = a `seq` b `seq` ()
 
-call_control_function :: ControlFunction -> ScoreTypes.Control -> Dynamic
-    -> RealTime -> (ScoreTypes.Typed Signal.Y)
+call_control_function :: ControlFunction -> ScoreT.Control -> Dynamic
+    -> RealTime -> (ScoreT.Typed Signal.Y)
 call_control_function (ControlFunction _ f) = f
 
 -- | Modify the underlying function, presumably to compose something onto the
 -- input or output.
 modify_control_function ::
-    ((RealTime -> ScoreTypes.Typed Signal.Y)
-        -> (RealTime -> ScoreTypes.Typed Signal.Y))
+    ((RealTime -> ScoreT.Typed Signal.Y) -> (RealTime -> ScoreT.Typed Signal.Y))
     -> ControlFunction -> ControlFunction
 modify_control_function modify (ControlFunction name f) =
     ControlFunction name (\dyn control -> modify (f dyn control))

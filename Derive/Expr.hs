@@ -15,7 +15,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import           Derive.ShowVal (ShowVal(show_val))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -169,7 +169,7 @@ unstr (Str str) = str
 -- | Yes, it's yet another Val variant.  This one is even more mini than
 -- RestrictedEnviron.Val.
 -- TODO NOTE [val-and-minival]
-data MiniVal = VNum !(ScoreTypes.Typed Signal.Y) | VStr !Str
+data MiniVal = VNum !(ScoreT.Typed Signal.Y) | VStr !Str
     deriving (Eq, Ord, Show)
 
 instance String.IsString MiniVal where
@@ -191,4 +191,4 @@ instance Serialize.Serialize MiniVal where
 
 
 num :: Double -> MiniVal
-num = VNum . ScoreTypes.untyped
+num = VNum . ScoreT.untyped

@@ -15,7 +15,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Instrument.Common as Common
@@ -71,7 +71,7 @@ convert_event block_id event patch patch_name = run $ do
         else return Nothing
     return $ Note.Note
         { patch = patch_name
-        , instrument = ScoreTypes.instrument_name (Score.event_instrument event)
+        , instrument = ScoreT.instrument_name (Score.event_instrument event)
         , trackId = event_track_id block_id event
         , element = fromMaybe "" $ Env.maybe_val EnvKey.patch_element $
             Score.event_environ event
@@ -105,12 +105,12 @@ convert_controls :: Map Control.Control a -> Score.ControlMap
     -> Map Control.Control Signal.Signal
 convert_controls supported controls = Map.fromList
     [ (to_control c, convert_signal sig)
-    | (c, ScoreTypes.Typed _ sig) <- Map.toList controls
+    | (c, ScoreT.Typed _ sig) <- Map.toList controls
     , Map.member (to_control c) supported
     ]
 
-to_control :: ScoreTypes.Control -> Control.Control
-to_control = Control.Control . ScoreTypes.control_name
+to_control :: ScoreT.Control -> Control.Control
+to_control = Control.Control . ScoreT.control_name
 
 convert_pitch :: Log.LogMonad m => Score.Event -> m Perform.Signal.NoteNumber
 convert_pitch event = do

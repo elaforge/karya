@@ -15,7 +15,7 @@ import qualified Cmd.Load.Med as Med
 import qualified Cmd.Load.Mod as Mod
 import qualified Cmd.Load.ModTypes as M
 
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Pitch as Pitch
 import Global
 import Types
@@ -40,7 +40,7 @@ tempo :: M.Tempo
 tempo = M.Tempo 33 6
 
 inst :: M.Instrument
-inst = M.Instrument (ScoreTypes.Instrument "inst") (Just 0.5)
+inst = M.Instrument (ScoreT.Instrument "inst") (Just 0.5)
 
 initial_state :: Mod.State
 initial_state = Mod.State

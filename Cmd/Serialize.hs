@@ -26,7 +26,7 @@ import           Util.Serialize (bad_tag, get, get_tag, put, put_tag, Serialize)
 
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
@@ -658,7 +658,7 @@ instance Serialize Common.Config where
     get = Serialize.get_version >>= \case
         0 -> do
             environ :: RestrictedEnviron.Environ <- get
-            controls :: ScoreTypes.ControlValMap <- get
+            controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get
             return $ Common.Config
@@ -667,7 +667,7 @@ instance Serialize Common.Config where
                 controls mute solo
         1 -> do
             environ :: Maybe RestrictedEnviron.Environ <- get
-            controls :: ScoreTypes.ControlValMap <- get
+            controls :: ScoreT.ControlValMap <- get
             mute :: Bool <- get
             solo :: Bool <- get
             return $ Common.Config environ controls mute solo
