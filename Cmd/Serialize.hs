@@ -25,9 +25,7 @@ import qualified Util.Serialize as Serialize
 import           Util.Serialize (bad_tag, get, get_tag, put, put_tag, Serialize)
 
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
-
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import           Midi.Instances ()
@@ -527,7 +525,7 @@ instance Serialize Track.RenderSource where
         put_tag 1
         -- It used to be @Maybe ScoreT.Control@ but changed to ScoreT.PControl.
         -- RenderSource isn't versioned so adjust here.
-        let c = if a == Score.default_pitch then Nothing else Just a
+        let c = if a == ScoreT.default_pitch then Nothing else Just a
         put c
     get = get_tag >>= \case
         0 -> do
@@ -535,7 +533,7 @@ instance Serialize Track.RenderSource where
             return $ Track.Control control
         1 -> do
             control :: Maybe ScoreT.PControl <- get
-            return $ Track.Pitch (fromMaybe Score.default_pitch control)
+            return $ Track.Pitch (fromMaybe ScoreT.default_pitch control)
         tag -> bad_tag "Track.RenderSource" tag
 
 -- ** Perform.Midi.Patch

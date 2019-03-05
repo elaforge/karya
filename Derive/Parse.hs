@@ -46,7 +46,6 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
@@ -312,7 +311,7 @@ p_attributes = A.char '+'
 p_control_ref :: A.Parser DeriveT.ControlRef
 p_control_ref = do
     A.char '%'
-    control <- Score.unchecked_control <$> A.option "" (p_identifier False ",")
+    control <- ScoreT.unchecked_control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> DeriveT.LiteralControl control
@@ -325,7 +324,7 @@ p_control_ref = do
 p_pcontrol :: A.Parser ScoreT.PControl
 p_pcontrol = do
     A.char '#'
-    Score.unchecked_pcontrol <$> p_identifier True ""
+    ScoreT.unchecked_pcontrol <$> p_identifier True ""
     <?> "pitch control"
 
 p_quoted :: A.Parser DeriveT.Quoted

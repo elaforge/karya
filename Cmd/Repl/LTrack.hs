@@ -9,23 +9,23 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Ui as Ui
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Types as Types
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
-import Global
-import Types
+import qualified Derive.ScoreT as ScoreT
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- | List all tracks, along with the number of blocks each one appears in.
@@ -183,7 +183,7 @@ note_render :: Cmd.M m => (Maybe Track.RenderSource -> Track.RenderStyle)
     -> Text -- ^ Either a control name, or a #-prefixed pitch name.
     -> m ()
 note_render mode control_name = do
-    control <- Cmd.require_right id $ Score.parse_generic_control control_name
+    control <- Cmd.require_right id $ ScoreT.parse_generic_control control_name
     track_ids <- Selection.track_ids
     track_ids <- filterM is_note track_ids
     mapM_ (Ui.set_render_style

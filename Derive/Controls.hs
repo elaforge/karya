@@ -10,10 +10,8 @@
 module Derive.Controls where
 import           Prelude hiding (null)
 
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import           Derive.ScoreT (Control)
-
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Shared.Control
 
@@ -38,7 +36,7 @@ tempo = "tempo"
 
 -- | Converted into velocity or breath depending on the instrument.
 dynamic :: Control
-dynamic = Score.c_dynamic
+dynamic = "dyn"
 
 -- ** generally understood by the note deriver
 
@@ -180,7 +178,7 @@ vib = "vib"
 vib_speed = "vib-speed"
 
 mc :: Int -> Control
-mc = Score.unchecked_control . ("mc"<>) . showt
+mc = ScoreT.unchecked_control . ("mc"<>) . showt
 
 -- | Macro controls.  Many synths have general-purpose "change the timbre"
 -- knobs.

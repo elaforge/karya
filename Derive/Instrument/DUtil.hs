@@ -212,7 +212,7 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
     <*> Sig.required_environ "unpitched" Sig.Prefixed
         ("This instrument gets controls: " <> show_controls unpitched_controls)
     ) $ \(pitched, unpitched) -> Sub.inverting $ \args -> composite_call args
-        [ Composite pitched_call pitched (Pitch Score.default_pitch)
+        [ Composite pitched_call pitched (Pitch ScoreT.default_pitch)
             pitched_controls
         , Composite unpitched_call unpitched NoPitch unpitched_controls
         ]
@@ -230,7 +230,7 @@ double_pitch name base_controls pcontrol secondary_controls =
         ("Instrument that gets " <> ShowVal.doc pcontrol
             <> ", and controls: " <> show_controls secondary_controls)
     ) $ \(inst1, inst2) -> Sub.inverting $ \args -> composite_call args
-        [ Composite "" inst1 (Pitch Score.default_pitch) base_controls
+        [ Composite "" inst1 (Pitch ScoreT.default_pitch) base_controls
         , Composite "" inst2 (Pitch pcontrol) secondary_controls
         ]
 
@@ -244,7 +244,7 @@ composite_call args composites = mconcatMap (split args) composites
     with_pitch p deriver = case p of
         NoPitch -> Derive.with_pitch mempty deriver
         Pitch control
-            | control == Score.default_pitch -> deriver
+            | control == ScoreT.default_pitch -> deriver
             | otherwise -> do
                 sig <- Derive.get_named_pitch control
                 Derive.with_pitch (fromMaybe mempty sig) deriver

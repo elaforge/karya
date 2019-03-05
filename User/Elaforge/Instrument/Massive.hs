@@ -5,16 +5,19 @@
 -- | Native Instruments' Massive softsynth.
 module User.Elaforge.Instrument.Massive where
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.Score as Score
-import Global
+import qualified Derive.ScoreT as ScoreT
+
+import           Global
 
 
 synth :: MidiInst.Synth
 synth = MidiInst.synth "massive" "Native Instrument Massive" $
     MidiInst.synth_controls controls patches
     where
-    controls = (1, "macro1")
-        : [(18 + n, Score.unchecked_control $ "macro" <> showt n) | n <- [2..8]]
+    controls = (1, "macro1") :
+        [ (18 + n, ScoreT.unchecked_control $ "macro" <> showt n)
+        | n <- [2..8]
+        ]
 
 patches :: [MidiInst.Patch]
 patches = [MidiInst.default_patch (-24, 24) []]

@@ -4,19 +4,8 @@
 
 {- | This module defines basic tracklang types.
 
-    They all have to pretty much be here to avoid circular imports.  But to
-    avoid this module becoming even larger than it already is, subsets are
-    re-exported from "Derive.Score" and "Derive.PSignal".  PSignal is types
-    related directly to pitches.  Score is for types required for
-    'Derive.Score.Event'.  There is a third subset, which is types related to
-    'Val', which used to be re-exported from a TrackLang module, but are now
-    intended to be imported directly from here.  I eventually got rid of
-    TrackLang because it just added a few small utilities but no additional
-    dependencies, and since modules started directly using DeriveT anyway
-    to avoid dependencies.  Many Score types are further divided into
-    "Derive.ScoreT", once again to avoid circular imports.
-
-    Perhaps the simplest would be to get rid of all the re-export guff.
+    The Derive.PSignal section is re-exported from "Derive.PSignal".  I'd rather
+    move it to PSignal, but it needs to be here to avoid circular imports.
 
     Here are the names for various aspects of signals:
 
@@ -58,12 +47,18 @@ import Global
 import Types
 
 
--- This file is pretty much unreducable, as far as dependencies go:
--- For TrackLang: ControlFunction -> Environ -> Val <- ControlFunction
--- For PSignal: PitchConfig -> Environ -> Val <- Pitch <- PitchConfig
---
--- So 'ControlFunction', 'Pitch', and 'Val' must all be together.  'Signal'
--- also gets dragged in, and winds up being everything in this file.
+{-
+    This file is pretty much unreducable, as far as dependencies go:
+    For TrackLang: ControlFunction -> Environ -> Val <- ControlFunction
+    For PSignal: PitchConfig -> Environ -> Val <- Pitch <- PitchConfig
+
+    So 'ControlFunction', 'Pitch', and 'Val' must all be together.  'Signal'
+    also gets dragged in, and winds up being everything in this file.
+
+    The real key is Val, which has a ControlFunction, which means
+    ControlFunction can't be in Deriver (since Deriver.Monad imports this),
+    and PControlRef, which requires PSignal.
+-}
 
 -- * Derive.PSignal
 
@@ -433,7 +428,8 @@ data Val =
     -- Literal: @_@
     | VNotGiven
     -- | A token used as a separator when calls want to parse their argument
-    -- lists via their own complicated means.
+    -- lists via their own complicated means.  TODO only used by old gamakam,
+    -- get rid of this
     --
     -- Literal: @;@
     | VSeparator

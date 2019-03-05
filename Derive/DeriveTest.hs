@@ -31,6 +31,7 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
+import qualified Derive.Controls as Controls
 import           Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -680,11 +681,11 @@ e_initial_control control event = ScoreT.typed_val <$>
     Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn = Seq.drop_dups id . e_control Score.c_dynamic
+e_dyn = Seq.drop_dups id . e_control Controls.dynamic
 
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn_rounded = Seq.drop_dups id . map (second (Num.roundDigits 2))
-    . e_control Score.c_dynamic
+    . e_control Controls.dynamic
 
 -- | Like 'e_nns', but drop discontinuities.
 --

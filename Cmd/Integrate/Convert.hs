@@ -15,6 +15,7 @@ import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -213,7 +214,7 @@ control_track events control =
     -- Don't emit a dyn track if it's just the default.
     -- TODO generalize this to everything in in Derive.initial_controls
     drop_dyn [event]
-        | ScoreT.typed_val control == Score.c_dynamic
+        | ScoreT.typed_val control == Controls.dynamic
             && Event.text event == default_dyn = []
     drop_dyn events = events
     default_dyn = ShowVal.show_hex_val Derive.default_dynamic

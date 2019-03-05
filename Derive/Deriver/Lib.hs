@@ -755,7 +755,7 @@ get_pitch = Internal.get_dynamic state_pitch
 
 get_named_pitch :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
 get_named_pitch name
-    | name == Score.default_pitch = Just <$> Internal.get_dynamic state_pitch
+    | name == ScoreT.default_pitch = Just <$> Internal.get_dynamic state_pitch
     | otherwise = Map.lookup name <$> Internal.get_dynamic state_pitches
 
 named_nn_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
@@ -777,7 +777,7 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
 -- *** with signal
 
 with_pitch :: PSignal.PSignal -> Deriver a -> Deriver a
-with_pitch = modify_pitch Score.default_pitch . const
+with_pitch = modify_pitch ScoreT.default_pitch . const
 
 with_named_pitch :: ScoreT.PControl -> PSignal.PSignal -> Deriver a -> Deriver a
 with_named_pitch pcontrol = modify_pitch pcontrol . const
@@ -786,12 +786,12 @@ with_constant_pitch :: PSignal.Pitch -> Deriver a -> Deriver a
 with_constant_pitch = with_pitch . PSignal.constant
 
 remove_pitch :: Deriver a -> Deriver a
-remove_pitch = modify_pitch Score.default_pitch (const mempty)
+remove_pitch = modify_pitch ScoreT.default_pitch (const mempty)
 
 modify_pitch :: ScoreT.PControl -> (Maybe PSignal.PSignal -> PSignal.PSignal)
     -> Deriver a -> Deriver a
 modify_pitch pcontrol f
-    | pcontrol == Score.default_pitch = Internal.local $ \state ->
+    | pcontrol == ScoreT.default_pitch = Internal.local $ \state ->
         state { state_pitch = f (Just (state_pitch state)) }
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }

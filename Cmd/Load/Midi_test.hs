@@ -6,12 +6,13 @@ module Cmd.Load.Midi_test where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-import Util.Test
+import qualified Cmd.Load.Midi as Midi
+import qualified Derive.Controls as Controls
 import qualified Midi.Key as Key
 import qualified Midi.Midi as M
 import qualified Ui.Skeleton as Skeleton
-import qualified Cmd.Load.Midi as Midi
-import qualified Derive.Score as Score
+
+import           Util.Test
 
 
 test_convert_tracks = do
@@ -44,7 +45,7 @@ test_split_track = do
         extract (Midi.NoteTrack notes pitches controls) =
             (Map.toList notes, Map.toList pitches,
                 Map.toList (Map.map Map.toList controls))
-        dyn ps = [(Score.c_dynamic, [(p, (0, "`0x`ff")) | p <- ps])]
+        dyn ps = [(Controls.dynamic, [(p, (0, "`0x`ff")) | p <- ps])]
         notes ps = [(p, (d, "")) | (p, d) <- ps]
         pitches ps = [(p, (0, n)) | (p, n) <- ps]
     equal (f [(0, on Key.c4), (1, off Key.c4)])

@@ -27,7 +27,6 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
@@ -240,7 +239,7 @@ vl1_patch name elt1 maybe_elt2 =
     cmap = Map.toList $ Map.mapMaybe highest_prio $
         Map.unionsWith (++) (map Map.fromList cc_groups)
     highest_prio cs = List.find (`elem` cs)
-        (map (Score.unchecked_control . fst) vl1_control_map)
+        (map (ScoreT.unchecked_control . fst) vl1_control_map)
 
 extract_element :: Int -> Sysex.RMap -> Either String ElementInfo
 extract_element n rmap = do
@@ -272,7 +271,7 @@ extract_element n rmap = do
         [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_sort fst by_cc]
         where
         by_cc =
-            [ (cc, Score.unchecked_control name)
+            [ (cc, ScoreT.unchecked_control name)
             | (name, cc, depths) <- controls, valid_control cc
             , maximum (map abs depths) >= 32
             ]

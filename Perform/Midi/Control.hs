@@ -9,9 +9,7 @@ import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
 import qualified Derive.Controls as Controls
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
-
 import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -96,7 +94,7 @@ pb_from_nn pb_range key (Pitch.NoteNumber nn)
 -- these names if it wishes.
 universal_control_map :: ControlMap
 universal_control_map = control_map $
-    [(n, Score.unchecked_control $ "cc" <> showt n) | n <- [0..127]] ++
+    [(n, ScoreT.unchecked_control $ "cc" <> showt n) | n <- [0..127]] ++
     [ (1, "mod")
     , (2, "breath")
     , (4, "foot")

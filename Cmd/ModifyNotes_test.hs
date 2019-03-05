@@ -6,8 +6,11 @@ module Cmd.ModifyNotes_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Test
 import qualified Util.Test.Testing as Testing
+import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.ModifyNotes as ModifyNotes
+import qualified Derive.ScoreT as ScoreT
+import qualified Perform.Pitch as Pitch
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
@@ -15,12 +18,9 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Cmd.CmdTest as CmdTest
-import qualified Cmd.ModifyNotes as ModifyNotes
-import qualified Derive.Score as Score
-import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 test_selected_notes = do
@@ -199,7 +199,7 @@ mkcontrols = Map.fromList . map mk
         where
         control = case Text.uncons name of
             Just ('*', s) -> ModifyNotes.Pitch (Pitch.ScaleId s)
-            _ -> ModifyNotes.Control (Score.unchecked_control name)
+            _ -> ModifyNotes.Control (ScoreT.unchecked_control name)
 
 mkstate :: [UiTest.TrackSpec] -> [Skeleton.Edge] -> Ui.State
 mkstate tracks skel = UiTest.exec Ui.empty $ do

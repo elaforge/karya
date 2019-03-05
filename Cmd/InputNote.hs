@@ -40,7 +40,6 @@ import qualified Util.Num as Num
 import qualified App.Config as Config
 import qualified Derive.Controls as Controls
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Midi.Midi as Midi
@@ -224,7 +223,7 @@ input_to_nn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac
     where nn = fromIntegral (pitch_to_nn pitch)
 
 cc_to_control :: Midi.Control -> ScoreT.Control
-cc_to_control cc = fromMaybe (Score.unchecked_control ("cc" <> showt cc))
+cc_to_control cc = fromMaybe (ScoreT.unchecked_control ("cc" <> showt cc))
     (Map.lookup cc cc_control)
 
 control_to_cc :: ScoreT.Control -> Maybe Midi.Control

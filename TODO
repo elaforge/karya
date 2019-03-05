@@ -3100,7 +3100,8 @@ cleanup:
         Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
         and move simple types to Derive.T.
     * remove re-exports from Derive.Score
-    - are there things in Derive.Score which should move to ScoreT?
+    * are there things in Derive.Score which should move to ScoreT?
+      . Yeah, everything in the util section.
     * rename BaseTypes to BaseT?  Or to DeriveT
     - make PSignal not re-export DeriveT
       . This is not so clearly the right thing because many things are meant
@@ -3109,6 +3110,9 @@ cleanup:
   - Derive.Score is more like ScoreEvent... but Score.event_start is nicer
     than ScoreEvent.event_start.  If I made it just Event, I could say
     ScoreEvent.start.
+    . That's not really better than Score.event_start.  Maybe SEvent.start?
+      I'm not ready to abandon record prefixes though, they're still the only
+      thing that consistently works.
   ci:
     - fix travis
       . It won't compile without my hacked libsamplerate.

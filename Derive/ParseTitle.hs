@@ -22,7 +22,6 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import           Derive.Parse (lexeme)
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
@@ -109,7 +108,7 @@ p_pitch :: A.Parser ControlType
 p_pitch = Pitch
     <$> lexeme p_scale_id
     <*> (lexeme $ (Left <$> p_track_call)
-        <|> (Right <$> A.option Score.default_pitch (lexeme Parse.p_pcontrol)))
+        <|> (Right <$> A.option ScoreT.default_pitch (lexeme Parse.p_pcontrol)))
 
 -- | (!track-call | % | control:typ) merge
 p_control :: A.Parser ControlType
@@ -117,14 +116,14 @@ p_control = Control
     <$> (lexeme $ A.choice
         [ Left <$> p_track_call
         , A.char '%'
-            *> pure (Right $ ScoreT.untyped $ Score.unchecked_control "")
+            *> pure (Right $ ScoreT.untyped $ ScoreT.unchecked_control "")
         , Right <$> p_typed_control
         ])
     <*> ParseText.optional (lexeme p_merge)
 
 p_typed_control :: A.Parser (ScoreT.Typed ScoreT.Control)
 p_typed_control = (flip ScoreT.Typed)
-    <$> (Score.unchecked_control <$> Parse.p_identifier False ":")
+    <$> (ScoreT.unchecked_control <$> Parse.p_identifier False ":")
     <*> A.option ScoreT.Untyped p_type_annotation
 
 p_type_annotation :: A.Parser ScoreT.Type
@@ -242,7 +241,7 @@ title_to_scale title = case parse_control_type title of
 
 scale_to_title :: Pitch.ScaleId -> Text
 scale_to_title scale_id =
-    ShowVal.show_val (Pitch scale_id (Right Score.default_pitch))
+    ShowVal.show_val (Pitch scale_id (Right ScoreT.default_pitch))
 
 is_pitch_track :: Text -> Bool
 is_pitch_track = ("*" `Text.isPrefixOf`)

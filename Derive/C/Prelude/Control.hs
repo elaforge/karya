@@ -21,7 +21,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.Parse as Parse
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
@@ -160,7 +160,7 @@ set_absolute val pos = do
         Derive.throw $ "merge not set for " <> pretty control
     set (Just control) (Just merge) =
         maybe (return val) (Derive.require_right id . invert_merge merge val)
-            =<< Derive.untyped_control_at (Score.unchecked_control control) pos
+            =<< Derive.untyped_control_at (ScoreT.unchecked_control control) pos
 
 -- | Figure out what value to emit which, once merged with the signal in scope,
 -- will become the given absolute value.  TODO this is kind of a crazy hack and

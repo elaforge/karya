@@ -19,7 +19,7 @@ newtype Control = Control Text
 
 instance Pretty Control where pretty (Control c) = c
 
--- | This should come from 'Derive.Score.c_dynamic'.  Unlike score-level dyn,
+-- | This should come from 'Derive.Controls.dynamic'.  Unlike score-level dyn,
 -- whose meaning is abstract, this should be more or less on a dB scale, where
 -- 0 corresponds to 'minimumDb'.
 --
@@ -27,7 +27,7 @@ instance Pretty Control where pretty (Control c) = c
 -- control over the sound they produce, while other backends, like MIDI, are up
 -- to the whims of the synthesizer's interpretation.
 dynamic :: Control
-dynamic = "dyn" -- TODO this and Score.c_dynamic should come from the same place
+dynamic = "dyn" -- TODO unify with Controls.dynamic
 
 -- | This is similar to 'dynamic', but this always maps to physical volume,
 -- for the case where an instrument distinguishes between dynamic level and

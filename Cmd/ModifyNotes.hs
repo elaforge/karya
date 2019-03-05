@@ -157,7 +157,7 @@ title_to_control title = ParseTitle.parse_control_type title >>= \case
     ParseTitle.Control (Right (ScoreT.Typed ScoreT.Untyped c)) Nothing ->
         return $ Control c
     ParseTitle.Pitch scale_id (Right pcontrol)
-        | pcontrol == Score.default_pitch -> return $ Pitch scale_id
+        | pcontrol == ScoreT.default_pitch -> return $ Pitch scale_id
     _ -> Left $ "complicated controls unsupported: " <> title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.

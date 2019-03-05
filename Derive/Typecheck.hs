@@ -20,7 +20,6 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Deriver.Monad as Derive
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.ValType as ValType
@@ -558,7 +557,7 @@ instance ToVal Text where to_val = VStr . Expr.Str
 
 instance Typecheck ScoreT.Control where
     from_val (VStr (Expr.Str s)) =
-        Val $ either (const Nothing) Just (Score.control s)
+        Val $ either (const Nothing) Just (ScoreT.control s)
     from_val _ = Val Nothing
     to_type _ = ValType.TControl
 instance ToVal ScoreT.Control where
@@ -567,7 +566,7 @@ instance ToVal ScoreT.Control where
 instance Typecheck ScoreT.PControl where
     from_val (VStr (Expr.Str s))
         | Just name <- Text.stripPrefix "#" s =
-            Val $ either (const Nothing) Just (Score.pcontrol name)
+            Val $ either (const Nothing) Just (ScoreT.pcontrol name)
     from_val _ = Val Nothing
     to_type _ = ValType.TPControl
 instance ToVal ScoreT.PControl where

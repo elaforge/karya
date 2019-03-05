@@ -3,15 +3,17 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Note_test where
-import Util.Test
+import qualified Derive.Controls as Controls
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.ScoreT as ScoreT
+
+import qualified Perform.NN as NN
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
-import qualified Perform.NN as NN
-import Global
+import           Global
+import           Util.Test
 
 
 test_sub_tracks = do
@@ -59,7 +61,7 @@ test_derive_track_signals = do
         setup tracknum source =
             DeriveTest.with_tsig_sources [(UiTest.mk_tid tracknum, source)]
             <> DeriveTest.with_linear
-        pitch = Just (Track.Pitch Score.default_pitch)
+        pitch = Just (Track.Pitch ScoreT.default_pitch)
     equal (run 1 pitch $ UiTest.regular_notes 4)
         [((UiTest.default_block_id, UiTest.mk_tid 1),
             [(0, 48), (1, 48), (1, 50), (2, 50), (2, 52), (3, 52), (3, 53)])]
@@ -87,8 +89,8 @@ test_stash_signal = do
                 ("tempo", tempo) : (">", [(0, 1, ""), (1, 1, "")]) : tracks
         want control = DeriveTest.with_ui $ \state -> UiTest.exec state $
             Ui.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
-        draw_dyn = Track.Control Score.c_dynamic
-        draw_pitch = Track.Pitch Score.default_pitch
+        draw_dyn = Track.Control Controls.dynamic
+        draw_pitch = Track.Pitch ScoreT.default_pitch
     equal (run draw_dyn [(0, 0, "1")] [("dyn", [(0, 0, ".5"), (1, 0, "1")])])
         (Just [(0, 0.5), (1, 0.5), (1, 1)])
     equal (run draw_pitch [(0, 0, "1")] [("*", [(0, 0, "4c"), (1, 0, "4d")])])

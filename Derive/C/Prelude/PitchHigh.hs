@@ -19,13 +19,13 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import           Derive.Sig (defaulted)
@@ -105,7 +105,7 @@ make_note_fade name doc pitch_dir align align_fade =
                         -- pitch, I can't just merge normally.
                         AlignStart -> PSignal.prepend slide pitch_sig
                         AlignEnd -> pitch_sig <> slide
-                Call.multiply_control Score.c_dynamic (ScoreT.untyped dyn) $
+                Call.multiply_control Controls.dynamic (ScoreT.untyped dyn) $
                     Derive.with_pitch merged deriver
 
 fade_args :: Sig.Parser (Either Pitch.Transpose PSignal.Pitch,

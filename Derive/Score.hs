@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveDataTypeable #-}
-{- | This has the basic data structures for the deriver level.
+{- | This has Score.Event, which is the main output of the deriver.
 
     The events here are generated from UI Events, and will eventually be
     transformed into Perform Events, which are specific to the performance
@@ -36,16 +36,10 @@ module Derive.Score (
     , modify_control
     , set_control, event_controls_at
     -- *** pitch
-    , default_pitch, set_pitch, set_named_pitch, event_named_pitch
+    , set_pitch, set_named_pitch, event_named_pitch
     , transposed_at, pitch_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
     , nn_signal
-
-    -- * util
-    , control, unchecked_control
-    , pcontrol, unchecked_pcontrol
-    , c_dynamic
-    , parse_generic_control
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import           Control.DeepSeq (rnf)
@@ -60,6 +54,7 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Controls as Controls
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
@@ -70,7 +65,6 @@ import qualified Derive.Stack as Stack
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Ui.Color as Color
-import qualified Ui.Id as Id
 
 import           Global
 import           Types
@@ -354,7 +348,7 @@ event_control control = Map.lookup control . event_controls
 initial_dynamic :: Event -> Signal.Y
 initial_dynamic event = maybe 0 ScoreT.typed_val $
      -- Derive.initial_controls should mean this is never Nothing.
-    control_at (event_start event) c_dynamic event
+    control_at (event_start event) Controls.dynamic event
 
 -- | Use this instead of 'modify_control_vals' because it also sets
 -- 'EnvKey.dynamic_val'.  This is only valid for linear functions like (+) or
@@ -363,7 +357,7 @@ modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
     modify_environ_key EnvKey.dynamic_val
             (DeriveT.VNum . ScoreT.untyped . modify . num_of)
-        . modify_control_vals c_dynamic modify
+        . modify_control_vals Controls.dynamic modify
     where
     num_of (Just (DeriveT.VNum n)) = ScoreT.typed_val n
     num_of _ = 0
@@ -374,7 +368,7 @@ set_dynamic :: Signal.Y -> Event -> Event
 set_dynamic dyn =
     modify_environ_key EnvKey.dynamic_val
             (const $ DeriveT.VNum $ ScoreT.untyped dyn)
-        . set_control c_dynamic (ScoreT.untyped (Signal.constant dyn))
+        . set_control Controls.dynamic (ScoreT.untyped (Signal.constant dyn))
 
 modify_control_vals :: ScoreT.Control -> (Signal.Y -> Signal.Y) -> Event
     -> Event
@@ -403,21 +397,18 @@ event_controls_at t event =
 
 -- *** pitch
 
-default_pitch :: ScoreT.PControl
-default_pitch = ""
-
 set_pitch :: PSignal.PSignal -> Event -> Event
-set_pitch = set_named_pitch default_pitch
+set_pitch = set_named_pitch ScoreT.default_pitch
 
 set_named_pitch :: ScoreT.PControl -> PSignal.PSignal -> Event -> Event
 set_named_pitch pcontrol signal event
-    | pcontrol == default_pitch = event { event_pitch = signal }
+    | pcontrol == ScoreT.default_pitch = event { event_pitch = signal }
     | otherwise = event
         { event_pitches = Map.insert pcontrol signal (event_pitches event) }
 
 event_named_pitch :: ScoreT.PControl -> Event -> Maybe PSignal.PSignal
 event_named_pitch pcontrol
-    | pcontrol == default_pitch = Just . event_pitch
+    | pcontrol == ScoreT.default_pitch = Just . event_pitch
     | otherwise = Map.lookup pcontrol . event_pitches
 
 -- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
@@ -459,38 +450,3 @@ nn_signal event =
     PSignal.to_nn $ PSignal.apply_controls (event_controls event) $
         PSignal.apply_environ (event_environ event) $
         event_pitch event
-
-
--- * util
-
--- | Use this constructor when making a Control from user input.  Literals
--- can use the IsString instance.
-control :: Text -> Either Text ScoreT.Control
-control name
-    | Text.null name = Left "empty control name"
-    | Id.valid_symbol name = Right $ ScoreT.Control name
-    | otherwise = Left $ "invalid characters in control: " <> showt name
-
-unchecked_control :: Text -> ScoreT.Control
-unchecked_control = ScoreT.Control
-
--- | Use this constructor when making a PControl from user input.  Literals
--- can use the IsString instance.
-pcontrol :: Text -> Either Text ScoreT.PControl
-pcontrol name
-    | Text.null name || Id.valid_symbol name = Right $ ScoreT.PControl name
-    | otherwise = Left $ "invalid characters in pitch control: " <> showt name
-
-unchecked_pcontrol :: Text -> ScoreT.PControl
-unchecked_pcontrol = ScoreT.PControl
-
--- | Converted into velocity or breath depending on the instrument.
-c_dynamic :: ScoreT.Control
-c_dynamic = "dyn"
-
--- | Parse either a ScoreT.Control or PControl.
-parse_generic_control :: Text
-    -> Either Text (Either ScoreT.Control ScoreT.PControl)
-parse_generic_control name = case Text.uncons name of
-    Just ('#', rest) -> Right <$> pcontrol rest
-    _ -> Left <$> control name

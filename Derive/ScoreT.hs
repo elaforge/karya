@@ -11,13 +11,15 @@ import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
+import qualified Ui.Id as Id
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
 
 
 -- | An Instrument is identified by a plain string.  This will be looked up in
@@ -41,6 +43,8 @@ instance Pretty Instrument where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = ShowVal.show_val inst
 
+-- ** Control
+
 -- | A control is an abstract parameter that influences derivation.  Some of
 -- them affect performance and will be rendered as MIDI controls or note
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and
@@ -57,6 +61,19 @@ control_name (Control name) = name
 instance Pretty Control where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Control where show_val (Control c) = Text.cons '%' c
 
+-- | Use this constructor when making a Control from user input.  Literals
+-- can use the IsString instance.
+control :: Text -> Either Text Control
+control name
+    | Text.null name = Left "empty control name"
+    | Id.valid_symbol name = Right $ Control name
+    | otherwise = Left $ "invalid characters in control: " <> showt name
+
+unchecked_control :: Text -> Control
+unchecked_control = Control
+
+-- ** PControl
+
 -- | The pitch control version of 'Control'.  Unlike Control, this is allowed
 -- to be null, which is the name of the default pitch signal.
 --
@@ -70,8 +87,29 @@ newtype PControl = PControl Text
 pcontrol_name :: PControl -> Text
 pcontrol_name (PControl name) = name
 
+default_pitch :: PControl
+default_pitch = ""
+
 instance Pretty PControl where pretty = ShowVal.show_val
 instance ShowVal.ShowVal PControl where show_val (PControl c) = Text.cons '#' c
+
+
+-- | Use this constructor when making a PControl from user input.  Literals
+-- can use the IsString instance.
+pcontrol :: Text -> Either Text PControl
+pcontrol name
+    | Text.null name || Id.valid_symbol name = Right $ PControl name
+    | otherwise = Left $ "invalid characters in pitch control: " <> showt name
+
+unchecked_pcontrol :: Text -> PControl
+unchecked_pcontrol = PControl
+
+-- | Parse either a Control or PControl.
+parse_generic_control :: Text
+    -> Either Text (Either Control PControl)
+parse_generic_control name = case Text.uncons name of
+    Just ('#', rest) -> Right <$> pcontrol rest
+    _ -> Left <$> control name
 
 
 -- ** Type

@@ -30,11 +30,11 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Controls as Controls
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
@@ -136,7 +136,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
         when (advance_mode && not chord_mode) Selection.advance
 
     is_pitch = ParseTitle.is_pitch_track
-    is_dyn = (== Just Score.c_dynamic) . ParseTitle.title_to_control
+    is_dyn = (== Just Controls.dynamic) . ParseTitle.title_to_control
     set_temp_sel pos maybe_tracknum = Selection.set_current
         Config.temporary_insert_selnum $
             fmap (\num -> Sel.point num pos Sel.Positive) maybe_tracknum
@@ -315,7 +315,7 @@ create_dyn_track block_id (ControlTrack note dyn) = do
     tid <- Create.empty_track block_id dyn
     Ui.splice_skeleton_below block_id dyn note
     Ui.set_track_title tid $
-        ParseTitle.control_to_title (ScoreT.untyped Score.c_dynamic)
+        ParseTitle.control_to_title (ScoreT.untyped Controls.dynamic)
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.

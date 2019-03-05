@@ -708,7 +708,7 @@ data EditState = EditState {
     -- When chord mode is off, the note is considered entered as soon as
     -- its NoteOn is received.
     , state_chord :: Bool
-    -- | Try to find or create a 'Score.c_dynamic' track for to record
+    -- | Try to find or create a 'Controls.dynamic' track for to record
     -- 'InputNote.Input' velocity, similar to how a pitch track is edited and
     -- created.
     , state_record_velocity :: Bool
