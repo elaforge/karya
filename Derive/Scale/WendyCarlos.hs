@@ -13,9 +13,9 @@ import qualified Data.Vector as Vector
 
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
@@ -80,8 +80,8 @@ make_scale scale_id degrees = Scale.Scale
         \ `a0`. If it's not set, it defaults to 0, which is `c-1`."
 
 read_pitch :: Pitch.PitchClass -> Pitch.Note
-    -> Either BaseTypes.PitchError Pitch.Pitch
-read_pitch per_octave note = justErr BaseTypes.UnparseableNote $
+    -> Either DeriveT.PitchError Pitch.Pitch
+read_pitch per_octave note = justErr DeriveT.UnparseableNote $
     ParseText.maybe_parse (Pitch.pitch <$> ParseText.p_int <*> p_degree)
         (Pitch.note_text note)
     where
@@ -102,7 +102,7 @@ show_degree pc = Text.singleton $ Char.chr $
 transpose :: Pitch.PitchClass -> Derive.Transpose
 transpose per_octave _transposition _key steps pitch
     | Pitch.pitch_pc pitch + steps >= per_octave =
-        Left $ BaseTypes.OutOfRangeError BaseTypes.out_of_range
+        Left $ DeriveT.OutOfRangeError DeriveT.out_of_range
     | otherwise = Right $ Pitch.add_pc per_octave steps pitch
 
 note_to_call :: PSignal.Scale -> Degrees -> Pitch.Note
@@ -115,7 +115,7 @@ note_to_call scale degrees note = do
     where
     max_semi = Vector.length degrees
     semis_to_nn pitch config semis =
-        justErr (BaseTypes.out_of_range_error semis (0, max_semi)) $ do
+        justErr (DeriveT.out_of_range_error semis (0, max_semi)) $ do
             let a0 = Pitch.nn $ get a0_nn
             nn <- degrees Vector.!? (Pitch.pitch_pc pitch + semis)
             Just $ a0 + nn

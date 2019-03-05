@@ -14,14 +14,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Id as Id
-import qualified Ui.Sel as Sel
-import qualified Ui.Track as Track
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.BlockConfig as BlockConfig
 import qualified Cmd.BlockResize as BlockResize
 import qualified Cmd.CallDoc as CallDoc
@@ -31,15 +23,23 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 
-import Global hiding (pretty)
-import Types
+import           Global hiding (pretty)
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
+import qualified Ui.Track as Track
+import qualified Ui.Ui as Ui
+
+import           Types
 
 
 -- | All BlockIds, along with the count of views for each one.
@@ -182,9 +182,9 @@ map_symbol f text =
     either (const text) (ShowVal.show_val . map_text f) (Parse.parse_expr text)
 
 -- | Transform both Symbols and Strs.
-map_text :: (Text -> Text) -> BaseTypes.Expr -> BaseTypes.Expr
+map_text :: (Text -> Text) -> DeriveT.Expr -> DeriveT.Expr
 map_text f = fmap $ Expr.map_symbol (Expr.Symbol . f . Expr.unsym)
-    . BaseTypes.map_str (Expr.Str . f . Expr.unstr)
+    . DeriveT.map_str (Expr.Str . f . Expr.unstr)
 
 -- * create
 

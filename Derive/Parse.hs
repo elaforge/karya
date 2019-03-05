@@ -44,7 +44,7 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -57,11 +57,11 @@ import qualified Ui.Id as Id
 import           Global
 
 
-parse_expr :: Text -> Either Text BaseTypes.Expr
+parse_expr :: Text -> Either Text DeriveT.Expr
 parse_expr = parse (p_expr True)
 
 -- | Parse a single Val.
-parse_val :: Text -> Either Text BaseTypes.Val
+parse_val :: Text -> Either Text DeriveT.Val
 parse_val = ParseText.parse (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
@@ -168,7 +168,7 @@ p_hs_string =
 
 -- * toplevel parsers
 
-p_expr :: Bool -> A.Parser BaseTypes.Expr
+p_expr :: Bool -> A.Parser DeriveT.Expr
 p_expr toplevel = do
     -- It definitely matches at least one, because p_null_call always matches.
     c : cs <- A.sepBy1 (p_toplevel_call toplevel) p_pipe
@@ -176,17 +176,17 @@ p_expr toplevel = do
 
 -- | A toplevel call has a few special syntactic forms, other than the plain
 -- @call arg arg ...@ form parsed by 'p_call'.
-p_toplevel_call :: Bool -> A.Parser BaseTypes.Call
+p_toplevel_call :: Bool -> A.Parser DeriveT.Call
 p_toplevel_call toplevel =
     p_unparsed_expr <|> p_equal <|> p_call toplevel <|> p_null_call
 
 -- | Parse a 'unparsed_call'.
-p_unparsed_expr :: A.Parser BaseTypes.Call
+p_unparsed_expr :: A.Parser DeriveT.Call
 p_unparsed_expr = do
     A.string $ Expr.unsym unparsed_call
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
     let arg = Expr.Str $ Text.strip $ strip_comment text
-    return $ Expr.Call unparsed_call [Expr.Literal $ BaseTypes.VStr arg]
+    return $ Expr.Call unparsed_call [Expr.Literal $ DeriveT.VStr arg]
     where
     -- Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
     -- tokenization is suppressed for 'unparsed_call' so that doesn't happen,
@@ -203,12 +203,12 @@ unparsed_call = "!"
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
 
-p_equal :: A.Parser (Expr.Call BaseTypes.Val)
+p_equal :: A.Parser (Expr.Call DeriveT.Val)
 p_equal = do
     (lhs, sym, rhs) <- p_equal_generic p_term
     return $ Expr.Call Symbols.equal $
         literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
-    where literal = Expr.Literal . BaseTypes.VStr
+    where literal = Expr.Literal . DeriveT.VStr
 
 p_equal_generic :: A.Parser a -> A.Parser (Expr.Str, Maybe Expr.Str, [a])
 p_equal_generic rhs_term = do
@@ -221,7 +221,7 @@ p_equal_generic rhs_term = do
     rhs <- A.many1 rhs_term
     return (Expr.Str lhs, Expr.Str <$> sym, rhs)
 
-p_call :: Bool -> A.Parser (Expr.Call BaseTypes.Val)
+p_call :: Bool -> A.Parser (Expr.Call DeriveT.Val)
 p_call toplevel = Expr.Call <$> lexeme (p_symbol toplevel) <*> A.many p_term
 
 p_null_call :: A.Parser (Expr.Call a)
@@ -234,24 +234,24 @@ p_symbol :: Bool -- ^ A call at the top level can allow a ).
     -> A.Parser Expr.Symbol
 p_symbol toplevel = Expr.Symbol <$> p_word toplevel
 
-p_term :: A.Parser (Expr.Term BaseTypes.Val)
+p_term :: A.Parser (Expr.Term DeriveT.Val)
 p_term = lexeme $ Expr.Literal <$> p_val <|> Expr.ValCall <$> p_sub_call
 
-p_sub_call :: A.Parser (Expr.Call BaseTypes.Val)
+p_sub_call :: A.Parser (Expr.Call DeriveT.Val)
 p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 
-p_val :: A.Parser BaseTypes.Val
+p_val :: A.Parser DeriveT.Val
 p_val =
-    BaseTypes.VAttributes <$> p_attributes
-    <|> BaseTypes.VNum . ScoreT.untyped <$> p_hex
-    <|> BaseTypes.VNum <$> p_num
-    <|> BaseTypes.VStr <$> p_str
-    <|> BaseTypes.VControlRef <$> p_control_ref
-    <|> BaseTypes.VPControlRef . BaseTypes.LiteralControl <$> p_pcontrol
-    <|> BaseTypes.VQuoted <$> p_quoted
-    <|> (A.char '_' >> return BaseTypes.VNotGiven)
-    <|> (A.char ';' >> return BaseTypes.VSeparator)
-    <|> BaseTypes.VStr <$> p_unquoted_str
+    DeriveT.VAttributes <$> p_attributes
+    <|> DeriveT.VNum . ScoreT.untyped <$> p_hex
+    <|> DeriveT.VNum <$> p_num
+    <|> DeriveT.VStr <$> p_str
+    <|> DeriveT.VControlRef <$> p_control_ref
+    <|> DeriveT.VPControlRef . DeriveT.LiteralControl <$> p_pcontrol
+    <|> DeriveT.VQuoted <$> p_quoted
+    <|> (A.char '_' >> return DeriveT.VNotGiven)
+    <|> (A.char ';' >> return DeriveT.VSeparator)
+    <|> DeriveT.VStr <$> p_unquoted_str
 
 p_num :: A.Parser (ScoreT.Typed Signal.Y)
 p_num = do
@@ -309,14 +309,14 @@ p_attributes :: A.Parser Attrs.Attributes
 p_attributes = A.char '+'
     *> (Attrs.attrs <$> A.sepBy (p_identifier False "+") (A.char '+'))
 
-p_control_ref :: A.Parser BaseTypes.ControlRef
+p_control_ref :: A.Parser DeriveT.ControlRef
 p_control_ref = do
     A.char '%'
     control <- Score.unchecked_control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
     return $ case deflt of
-        Nothing -> BaseTypes.LiteralControl control
-        Just val -> BaseTypes.DefaultedControl control (Signal.constant <$> val)
+        Nothing -> DeriveT.LiteralControl control
+        Just val -> DeriveT.DefaultedControl control (Signal.constant <$> val)
     <?> "control"
 
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
@@ -328,8 +328,8 @@ p_pcontrol = do
     Score.unchecked_pcontrol <$> p_identifier True ""
     <?> "pitch control"
 
-p_quoted :: A.Parser BaseTypes.Quoted
-p_quoted = ParseText.between "\"(" ")" (BaseTypes.Quoted <$> p_expr False)
+p_quoted :: A.Parser DeriveT.Quoted
+p_quoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> p_expr False)
 
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be
@@ -616,7 +616,7 @@ newtype Expr = Expr (NonEmpty Call)
     deriving (Show)
 data Call = Call !Expr.Symbol ![Term]
     deriving (Show)
-data Term = VarTerm !Var | ValCall !Call | Literal !BaseTypes.Val
+data Term = VarTerm !Var | ValCall !Call | Literal !DeriveT.Val
     deriving (Show)
 -- | A variable to be substituted via the "Derive.Call.Macro" mechanism.
 newtype Var = Var Text deriving (Show)
@@ -654,7 +654,7 @@ p_toplevel_call_ky =
     <|> p_call_ky
     <|> call_to_ky <$> p_null_call
 
-call_to_ky :: BaseTypes.Call -> Call
+call_to_ky :: DeriveT.Call -> Call
 call_to_ky (Expr.Call sym args) = Call sym (map convert args)
     where
     convert (Expr.Literal val) = Literal val
@@ -665,7 +665,7 @@ p_equal_ky = do
     (lhs, sym, rhs) <- p_equal_generic p_term_ky
     return $ Call Symbols.equal $
         literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
-    where literal = Literal . BaseTypes.VStr
+    where literal = Literal . DeriveT.VStr
 
 p_sub_call_ky :: A.Parser Call
 p_sub_call_ky = ParseText.between (A.char '(') (A.char ')') p_call_ky

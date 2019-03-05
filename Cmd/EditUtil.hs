@@ -14,7 +14,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
 
@@ -206,7 +206,7 @@ input_to_note input = do
     case Scale.scale_input_to_note scale env input of
         -- This just means the key isn't in the scale, it happens a lot so no
         -- need to shout about it.
-        Left BaseTypes.InvalidInput -> Cmd.abort
+        Left DeriveT.InvalidInput -> Cmd.abort
         Left err -> Cmd.throw $ "input_to_note " <> pretty input <> " for "
             <> pretty (Scale.scale_id scale) <> ": " <> pretty err
         Right note -> return note

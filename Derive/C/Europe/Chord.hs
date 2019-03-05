@@ -8,11 +8,11 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
@@ -21,7 +21,8 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 library :: Library.Library
@@ -36,7 +37,7 @@ library = Library.generators
 
 data Direction = Unison | Up | Down deriving (Show)
 
-time_env :: Sig.Parser BaseTypes.Duration
+time_env :: Sig.Parser DeriveT.Duration
 time_env = Typecheck._real <$>
     Sig.environ "time" Sig.Prefixed (Typecheck.real 0.08)
     "Time between notes, if they aren't unison."
@@ -84,7 +85,7 @@ c_stack dir = Derive.generator Module.europe "stack" mempty
         from_intervals dir base intervals time args
 
 from_intervals :: Direction -> PSignal.Pitch -> [PSignal.Pitch]
-    -> BaseTypes.Duration -> Derive.PassedArgs a -> Derive.NoteDeriver
+    -> DeriveT.Duration -> Derive.PassedArgs a -> Derive.NoteDeriver
 from_intervals dir base intervals time args = do
     let start = Args.start args
     dur <- min (Args.duration args / fromIntegral (length intervals + 1)) <$>

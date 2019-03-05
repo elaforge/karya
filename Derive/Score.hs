@@ -10,7 +10,7 @@
     backend.
 -}
 module Derive.Score (
-    module Derive.BaseTypes
+    module Derive.DeriveT
     -- * Event
     , Event(..)
     , short_event, short_events
@@ -61,8 +61,8 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
-import           Derive.BaseTypes (ControlMap, PitchMap, ControlFunction(..))
+import qualified Derive.DeriveT as DeriveT
+import           Derive.DeriveT (ControlMap, PitchMap, ControlFunction(..))
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
@@ -96,7 +96,7 @@ data Event = Event {
     , event_stack :: !Stack.Stack
     , event_highlight :: !Color.Highlight
     , event_instrument :: !ScoreT.Instrument
-    , event_environ :: !BaseTypes.Environ
+    , event_environ :: !DeriveT.Environ
     -- | Flags have their own field rather than being in 'event_environ', this
     -- emphasizes that they're meant to be used by calls and not from the
     -- score.
@@ -214,19 +214,19 @@ add_log_msg msg event = event { event_logs = msg : event_logs event }
 
 -- ** environ
 
-modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
+modify_environ :: (DeriveT.Environ -> DeriveT.Environ) -> Event -> Event
 modify_environ f event = event { event_environ = f (event_environ event) }
 
 -- | Modify the value at the given key.
 modify_environ_key :: EnvKey.Key
-    -> (Maybe BaseTypes.Val -> BaseTypes.Val) -> Event -> Event
-modify_environ_key name modify = modify_environ $ \(BaseTypes.Environ env) ->
-    BaseTypes.Environ $ Map.alter (Just . modify) name env
+    -> (Maybe DeriveT.Val -> DeriveT.Val) -> Event -> Event
+modify_environ_key name modify = modify_environ $ \(DeriveT.Environ env) ->
+    DeriveT.Environ $ Map.alter (Just . modify) name env
 
 -- ** attributes
 
 event_attributes :: Event -> Attrs.Attributes
-event_attributes = BaseTypes.environ_attributes . event_environ
+event_attributes = DeriveT.environ_attributes . event_environ
 
 has_attribute :: Attrs.Attributes -> Event -> Bool
 has_attribute attr = (`Attrs.contain` attr) . event_attributes
@@ -237,8 +237,8 @@ intersecting_attributes attrs event =
 
 modify_attributes :: (Attrs.Attributes -> Attrs.Attributes) -> Event -> Event
 modify_attributes modify = modify_environ $ \env ->
-    BaseTypes.insert EnvKey.attributes
-        (BaseTypes.VAttributes (modify (BaseTypes.environ_attributes env))) env
+    DeriveT.insert EnvKey.attributes
+        (DeriveT.VAttributes (modify (DeriveT.environ_attributes env))) env
 
 add_attributes :: Attrs.Attributes -> Event -> Event
 add_attributes attrs
@@ -335,7 +335,7 @@ set_duration = duration . const
 -- | Set the instrument on an event, and also update its environ from the
 -- instrument.  You should really rederive with the new instrument, but this
 -- way can be more convenient, if somewhat sketchy.
-set_instrument :: ScoreT.Instrument -> BaseTypes.Environ -> Event -> Event
+set_instrument :: ScoreT.Instrument -> DeriveT.Environ -> Event -> Event
 set_instrument score_inst inst_environ event = event
     { event_instrument = score_inst
     , event_environ = inst_environ <> event_environ event
@@ -364,10 +364,10 @@ initial_dynamic event = maybe 0 ScoreT.typed_val $
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
     modify_environ_key EnvKey.dynamic_val
-            (BaseTypes.VNum . ScoreT.untyped . modify . num_of)
+            (DeriveT.VNum . ScoreT.untyped . modify . num_of)
         . modify_control_vals c_dynamic modify
     where
-    num_of (Just (BaseTypes.VNum n)) = ScoreT.typed_val n
+    num_of (Just (DeriveT.VNum n)) = ScoreT.typed_val n
     num_of _ = 0
 
 -- | Use this instead of 'set_control' because it also sets
@@ -375,7 +375,7 @@ modify_dynamic modify =
 set_dynamic :: Signal.Y -> Event -> Event
 set_dynamic dyn =
     modify_environ_key EnvKey.dynamic_val
-            (const $ BaseTypes.VNum $ ScoreT.untyped dyn)
+            (const $ DeriveT.VNum $ ScoreT.untyped dyn)
         . set_control c_dynamic (ScoreT.untyped (Signal.constant dyn))
 
 modify_control_vals :: ScoreT.Control -> (Signal.Y -> Signal.Y) -> Event

@@ -9,13 +9,13 @@ module Derive.Call.Make where
 import qualified Util.Doc as Doc
 import qualified Util.TextUtil as TextUtil
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.Flags as Flags
 import qualified Derive.Library as Library
@@ -177,7 +177,7 @@ constant_val module_ name doc val = Derive.val_call module_  name mempty
 
 -- | Make a new ValCall from an existing one, by mapping over its output.
 modify_vcall :: Derive.ValCall -> Module.Module -> Derive.CallName -> Doc.Doc
-    -> (BaseTypes.Val -> BaseTypes.Val) -> Derive.ValCall
+    -> (DeriveT.Val -> DeriveT.Val) -> Derive.ValCall
 modify_vcall vcall module_ name doc f = Derive.ValCall
     { vcall_name = name
     , vcall_doc = Derive.CallDoc

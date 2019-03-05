@@ -235,7 +235,7 @@ instance Read NoteNumber where
 
 instance ShowVal.ShowVal NoteNumber where
     show_val (NoteNumber nn) = ShowVal.show_val nn <> "nn"
-    -- The suffix should be the same as BaseTypes.type_to_code Nn
+    -- The suffix should be the same as DeriveT.type_to_code Nn
 
 instance Pretty NoteNumber where pretty = showt
 

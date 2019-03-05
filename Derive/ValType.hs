@@ -10,7 +10,7 @@ module Derive.ValType where
 import qualified Data.Text as Text
 
 import qualified Util.TextUtil as TextUtil
-import           Derive.BaseTypes (Val(..))
+import           Derive.DeriveT (Val(..))
 import qualified Derive.ScoreT as ScoreT
 import qualified Ui.Id as Id
 

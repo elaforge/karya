@@ -7,7 +7,6 @@
 module Derive.C.Prelude.Grace (library) where
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Ly as Ly
@@ -15,6 +14,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
@@ -127,7 +127,7 @@ c_roll = Derive.generator Module.prelude "roll" Tags.ornament
     ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
     Sub.inverting $ roll times time dyn_scale
 
-roll :: Int -> BaseTypes.Duration -> Signal.Y -> Derive.PassedArgs a
+roll :: Int -> DeriveT.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
 roll times time dyn_scale args = do
     start <- Args.real_start args
@@ -189,7 +189,7 @@ c_grace_p = Derive.generator1 Module.prelude "grace" Tags.ornament
         ps <- (++[pitch]) <$> GraceUtil.resolve_pitches pitch pitches
         grace_p grace_dur ps (Args.range_or_next args)
 
-grace_p :: BaseTypes.Duration -> [PSignal.Pitch]
+grace_p :: DeriveT.Duration -> [PSignal.Pitch]
     -> (ScoreTime, ScoreTime) -> Derive.Deriver PSignal.PSignal
 grace_p grace_dur pitches (start, end) = do
     real_dur <- Call.real_duration start grace_dur

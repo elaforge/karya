@@ -40,7 +40,6 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Bali.Gender as Gender
 import qualified Derive.C.Post.Postproc as Postproc
 import qualified Derive.Call as Call
@@ -52,6 +51,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
@@ -990,7 +990,7 @@ kotekan_note inst steps = KotekanNote
 muted_note :: KotekanNote -> KotekanNote
 muted_note note = note { note_muted = True }
 
-under_threshold_function :: BaseTypes.ControlRef -> ScoreTime
+under_threshold_function :: DeriveT.ControlRef -> ScoreTime
     -> Derive.Deriver (ScoreTime -> Bool) -- ^ say if a note at this time
     -- with the given duration would be under the kotekan threshold
 under_threshold_function kotekan dur = do
@@ -1297,11 +1297,11 @@ style_arg deflt = Sig.defaulted_env "style" Sig.Both deflt "Kotekan style."
 
 dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed
-    (BaseTypes.quoted "ts" [BaseTypes.str "s"]) "Duration of derived notes."
+    (DeriveT.quoted "ts" [DeriveT.str "s"]) "Duration of derived notes."
 
-kotekan_env :: Sig.Parser BaseTypes.ControlRef
+kotekan_env :: Sig.Parser DeriveT.ControlRef
 kotekan_env =
-    Sig.environ "kotekan" Sig.Unprefixed (BaseTypes.constant_control 0.15)
+    Sig.environ "kotekan" Sig.Unprefixed (DeriveT.constant_control 0.15)
         "If note durations are below this, divide the parts between polos and\
         \ sangsih."
 

@@ -28,13 +28,13 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -84,7 +84,7 @@ data Thru = MidiThru | ImThru !Osc.ThruFunction
 -- the insertion point.  Since this shadows the default note entry cmd, it
 -- has to handle thru on its own.
 insert_expr :: Cmd.M m => Thru -- ^ Evaluate the expression and emit MIDI thru.
-    -> Map Char BaseTypes.Expr -> Msg.Msg -> m Cmd.Status
+    -> Map Char DeriveT.Expr -> Msg.Msg -> m Cmd.Status
 insert_expr thru char_to_expr msg = do
     unlessM Cmd.is_kbd_entry Cmd.abort
     EditUtil.fallthrough msg
@@ -121,13 +121,13 @@ insert_expr thru char_to_expr msg = do
         suppressed = Cmd.suppress_history Cmd.ValEdit
             ("keymap: " <> ShowVal.show_val expr)
 
-expr_im_thru :: Cmd.M m => Osc.ThruFunction -> BaseTypes.Expr -> m [Cmd.Thru]
+expr_im_thru :: Cmd.M m => Osc.ThruFunction -> DeriveT.Expr -> m [Cmd.Thru]
 expr_im_thru thru_f expr = do
     (nn, dyn, attrs) <- expr_attributes expr
     plays <- Cmd.require_right ("thru_f: "<>) $ thru_f attrs nn dyn
     return $ map (Cmd.ImThru . Osc.play) plays
 
-expr_attributes :: Cmd.M m => BaseTypes.Expr
+expr_attributes :: Cmd.M m => DeriveT.Expr
     -> m (Pitch.NoteNumber, Signal.Y, Attrs.Attributes)
 expr_attributes expr = do
     (block_id, _, track_id, pos) <- Selection.get_insert
@@ -157,7 +157,7 @@ expr_attributes expr = do
     real time.  Still, perhaps it would be possible to integrate them better
     than I have.
 -}
-expr_midi_thru :: Cmd.M m => UiMsg.KbdState -> BaseTypes.Expr -> m ()
+expr_midi_thru :: Cmd.M m => UiMsg.KbdState -> DeriveT.Expr -> m ()
 expr_midi_thru kstate expr = case kstate of
     UiMsg.KeyRepeat -> return ()
     UiMsg.KeyDown -> do
@@ -185,7 +185,7 @@ expr_midi_thru kstate expr = case kstate of
         mapM_ (uncurry Cmd.midi) note_offs
 
 -- | Call a note call and return the MIDI msgs it produces.
-expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> BaseTypes.Expr
+expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> DeriveT.Expr
     -> m [Midi.WriteMessage]
 expr_to_midi block_id track_id pos expr = do
     result <- LEvent.write_snd_prefix "CUtil.expr_to_midi"

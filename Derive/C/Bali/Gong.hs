@@ -10,7 +10,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -19,6 +18,7 @@ import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
@@ -151,7 +151,7 @@ nruk_generator :: Module.Module -> Derive.CallName -> Doc.Doc
 nruk_generator mod name doc deriver = Derive.generator mod name Tags.inst doc $
     Sig.call nruk_args $ \params args -> nruk params args (deriver args)
 
-nruk_args :: Sig.Parser (Speed.Speed, Speed.Speed, Signal.Y, BaseTypes.Duration)
+nruk_args :: Sig.Parser (Speed.Speed, Speed.Speed, Signal.Y, DeriveT.Duration)
 nruk_args = (,,,)
     <$> Sig.defaulted "start" (Speed.Real 4) "Start speed."
     <*> Sig.defaulted "end" (Speed.Real 19) "End speed."
@@ -159,7 +159,7 @@ nruk_args = (,,,)
         "Dyn multiplier when the stroke duration reaches 0."
     <*> Trill.hold_env
 
-nruk :: (Speed.Speed, Speed.Speed, Signal.Y, BaseTypes.Duration)
+nruk :: (Speed.Speed, Speed.Speed, Signal.Y, DeriveT.Duration)
     -> Derive.PassedArgs a -> Derive.NoteDeriver -> Derive.NoteDeriver
 nruk (start_speed, end_speed, end_dyn, hold) args deriver = do
     starts <- Trill.tremolo_starts_curve curve hold start_speed end_speed
@@ -200,7 +200,7 @@ c_cycle :: Derive.Generator Derive.Note
 c_cycle = make_cycle "cycle" Nothing Nothing
 
 make_cycle :: Derive.CallName
-    -> Maybe (Either Text [BaseTypes.Quoted])
+    -> Maybe (Either Text [DeriveT.Quoted])
     -> Maybe (Either Meter.RankName Typecheck.DefaultScore)
     -> Derive.Generator Score.Event
 make_cycle name default_strokes default_dur =
@@ -212,11 +212,11 @@ make_cycle name default_strokes default_dur =
         \ A string is taken as a timestep."
     ) $ \(strokes, dur) args -> do
         strokes <- return $ case strokes of
-            Left str -> map (BaseTypes.quoted0 . Expr.Symbol . Text.singleton)
+            Left str -> map (DeriveT.quoted0 . Expr.Symbol . Text.singleton)
                 (Text.unpack str)
             Right strs -> strs
         dur <- case dur of
-            Left ts -> BaseTypes.ScoreDuration <$>
+            Left ts -> DeriveT.ScoreDuration <$>
                 Call.timestep_duration args ts
             Right (Typecheck.DefaultScore dur) -> return dur
         dur <- Derive.score dur
@@ -225,7 +225,7 @@ make_cycle name default_strokes default_dur =
                 (Args.orientation args) strokes dur
 
 call_cycle :: Derive.Context Score.Event -> (TrackTime, TrackTime)
-    -> Types.Orientation -> [BaseTypes.Quoted]
+    -> Types.Orientation -> [DeriveT.Quoted]
     -> ScoreTime -> Derive.NoteDeriver
 call_cycle ctx (start, end) orient calls dur =
     mconcat [Derive.at t $ Eval.eval_quoted ctx call | (t, call) <- ts]

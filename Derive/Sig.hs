@@ -25,10 +25,10 @@
     3. If it's omitted, and not in the dynamic environ, the default will be
     used, provided there is one.
 
-    In addition, an arg may be a 'BaseTypes.VPControlRef' or
-    'BaseTypes.ControlRef', which introduces yet another way to provide the
+    In addition, an arg may be a 'DeriveT.VPControlRef' or
+    'DeriveT.ControlRef', which introduces yet another way to provide the
     value.  An argument @required_control \"c\"@ will pass
-    a 'BaseTypes.LiteralControl'.  Technically it's then up to the call to
+    a 'DeriveT.LiteralControl'.  Technically it's then up to the call to
     decide what to do with it, but it will likely look it up at its chosen
     point in time, which means you can provide the value by providing a @c@
     control track or binding it explicitly e.g. @%c = .5 | call@.
@@ -99,9 +99,9 @@ module Derive.Sig (
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
-import Derive.Derive (ArgName, CallName, EnvironDefault(..))
+import           Derive.Derive (ArgName, CallName, EnvironDefault(..))
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
@@ -113,7 +113,7 @@ import qualified Derive.ValType as ValType
 import qualified Perform.Signal as Signal
 import qualified Ui.Event as Event
 
-import Global
+import           Global
 
 
 type Error = Derive.CallError
@@ -129,7 +129,7 @@ parser arg_doc = Parser [arg_doc]
 
 -- | Keep track of state when parsing arguments.
 data State = State {
-    state_vals :: ![BaseTypes.Val]
+    state_vals :: ![DeriveT.Val]
     -- | This has to be incremented every time a Val is taken.  Pairing argnums
     -- in state_vals doesn't work because when I run out I don't know where
     -- I am.
@@ -184,7 +184,7 @@ parse parser args = parse_vals parser
     (Derive.passed_vals args)
 
 parse_vals :: Parser a -> Derive.Context Derive.Tagged -> CallName
-    -> [BaseTypes.Val] -> Derive.Deriver (Either Error a)
+    -> [DeriveT.Val] -> Derive.Deriver (Either Error a)
 parse_vals parser ctx name vals =
     run_parser parser . make_state <$> Derive.get
     where
@@ -237,20 +237,20 @@ defaulted_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => ArgName
 defaulted_env name env_default deflt =
     defaulted_env_ name env_default (Left deflt)
 
--- | The defaulted value can be a 'BaseTypes.Quoted', which will be evaluated
+-- | The defaulted value can be a 'DeriveT.Quoted', which will be evaluated
 -- if needed.
 defaulted_env_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    ArgName -> Derive.EnvironDefault -> BaseTypes.Quoted -> Doc.Doc -> Parser a
+    ArgName -> Derive.EnvironDefault -> DeriveT.Quoted -> Doc.Doc -> Parser a
 defaulted_env_quoted name env_default quoted =
     defaulted_env_ name env_default (Right quoted)
 
 defaulted_env_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    ArgName -> Derive.EnvironDefault -> Either a BaseTypes.Quoted -> Doc.Doc
+    ArgName -> Derive.EnvironDefault -> Either a DeriveT.Quoted -> Doc.Doc
     -> Parser a
 defaulted_env_ name env_default deflt_quoted doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> deflt state1
-        Just (state, BaseTypes.VNotGiven) -> deflt state
+        Just (state, DeriveT.VNotGiven) -> deflt state
         Just (state, val) -> (,) state <$>
             check_arg state arg_doc (argnum_error state1) name val
     where
@@ -276,7 +276,7 @@ maybe_defaulted name (Just deflt) doc = defaulted name deflt doc
 
 -- | Eval a Quoted default value.
 eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
-    -> Derive.ErrorPlace -> ArgName -> State -> Either a BaseTypes.Quoted
+    -> Derive.ErrorPlace -> ArgName -> State -> Either a DeriveT.Quoted
     -> Either Error (State, a)
 eval_default _ _ _ state (Left a) = return (state, a)
 eval_default arg_doc place name state (Right quoted) =
@@ -305,17 +305,17 @@ environ_key :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     Env.Key -> a -> Doc.Doc -> Parser a
 environ_key key = environ (Derive.ArgName key) Unprefixed
 
--- | This is like 'environ', but the default is a 'BaseTypes.Quoted', which
+-- | This is like 'environ', but the default is a 'DeriveT.Quoted', which
 -- will be evaluated if needed.
 environ_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
-    ArgName -> Derive.EnvironDefault -> BaseTypes.Quoted -> Doc.Doc -> Parser a
+    ArgName -> Derive.EnvironDefault -> DeriveT.Quoted -> Doc.Doc -> Parser a
 environ_quoted name env_default = environ_ name env_default . Right
 
 -- Internal function that handles both quoted and unquoted default.
 environ_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     ArgName -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
-    -> Either a BaseTypes.Quoted -> Doc.Doc -> Parser a
+    -> Either a DeriveT.Quoted -> Doc.Doc -> Parser a
 environ_ name env_default quoted doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> deflt state
@@ -367,7 +367,7 @@ optional_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
 optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> Right (state1, deflt)
-        Just (state, BaseTypes.VNotGiven) -> Right (state, deflt)
+        Just (state, DeriveT.VNotGiven) -> Right (state, deflt)
         Just (state, val) ->
             case check_arg state arg_doc (argnum_error state1) name val of
                 Right a -> Right (state, a)
@@ -409,7 +409,7 @@ many name doc = parser arg_doc $ \state -> do
         }
 
 -- | 'many' specialized to Vals, to avoid a type annotation.
-many_vals :: ArgName -> Doc.Doc -> Parser [BaseTypes.Val]
+many_vals :: ArgName -> Doc.Doc -> Parser [DeriveT.Val]
 many_vals name doc = many name doc
 
 -- | Collect the rest of the arguments, but there must be at least one.
@@ -464,7 +464,7 @@ non_empty name (Parser docs p) =
         Right (state, x : xs) -> Right (state, x :| xs)
 
 -- | Require one Val for each ArgDoc given, but otherwise do no typechecking.
-required_vals :: [Derive.ArgDoc] -> Parser [BaseTypes.Val]
+required_vals :: [Derive.ArgDoc] -> Parser [DeriveT.Val]
 required_vals docs = Parser docs parser
     where
     -- I don't check the number of arguments because this is used for call
@@ -488,36 +488,36 @@ increment_argnum n state = state { state_argnum = n + state_argnum state }
 
 -- | The argument's value is taken from the given signal, with the given
 -- default.  If the value isn't given, the default is Untyped.
-control :: ScoreT.Control -> Signal.Y -> BaseTypes.ControlRef
+control :: ScoreT.Control -> Signal.Y -> DeriveT.ControlRef
 control name deflt = typed_control name deflt ScoreT.Untyped
 
 -- | Like 'control', but the default can have a type.
 typed_control :: ScoreT.Control -> Signal.Y -> ScoreT.Type
-    -> BaseTypes.ControlRef
+    -> DeriveT.ControlRef
 typed_control name deflt typ =
-    BaseTypes.DefaultedControl name (ScoreT.Typed typ (Signal.constant deflt))
+    DeriveT.DefaultedControl name (ScoreT.Typed typ (Signal.constant deflt))
 
-required_control :: ScoreT.Control -> BaseTypes.ControlRef
-required_control = BaseTypes.LiteralControl
+required_control :: ScoreT.Control -> DeriveT.ControlRef
+required_control = DeriveT.LiteralControl
 
 -- | Pitch signal.  There's no default because that would depend on the scale.
-pitch :: ScoreT.PControl -> BaseTypes.PControlRef
-pitch = BaseTypes.LiteralControl
+pitch :: ScoreT.PControl -> DeriveT.PControlRef
+pitch = DeriveT.LiteralControl
 
 -- ** util
 
 get_val :: Derive.EnvironDefault -> State -> ArgName
-    -> Maybe (State, BaseTypes.Val)
+    -> Maybe (State, DeriveT.Val)
 get_val env_default state name = case state_vals state of
     [] -> (,) next <$> lookup_default env_default state name
     v : vs -> Just (next { state_vals = vs }, case v of
-        BaseTypes.VNotGiven -> fromMaybe BaseTypes.VNotGiven $
+        DeriveT.VNotGiven -> fromMaybe DeriveT.VNotGiven $
             lookup_default env_default state name
         _ -> v)
     where next = increment_argnum 1 state
 
 check_arg :: forall a. Typecheck.Typecheck a => State -> Derive.ArgDoc
-    -> Derive.ErrorPlace -> ArgName -> BaseTypes.Val -> Either Error a
+    -> Derive.ErrorPlace -> ArgName -> DeriveT.Val -> Either Error a
 check_arg state arg_doc place name val =
     maybe from_quoted Right =<<
         promote_error Derive.Literal val (from_val state val)
@@ -525,7 +525,7 @@ check_arg state arg_doc place name val =
     -- 'val' failed to typecheck, so try to coerce a Quoted to a new qval and
     -- typecheck that.
     from_quoted = case val of
-        BaseTypes.VQuoted quoted -> do
+        DeriveT.VQuoted quoted -> do
             let source = Derive.Quoted quoted
             qval <- promote_error source val $ eval_quoted state quoted
             maybe_a <- promote_error source qval $ from_val state qval
@@ -538,7 +538,7 @@ check_arg state arg_doc place name val =
         (Derive.arg_type arg_doc) (Just val)
 
 -- | Typecheck a Val, evaluating if necessary.
-from_val :: Typecheck.Typecheck a => State -> BaseTypes.Val
+from_val :: Typecheck.Typecheck a => State -> DeriveT.Val
     -> Either Derive.Error (Maybe a)
 from_val state val = run state $ Typecheck.from_val_eval start val
     where start = Event.start $ Derive.ctx_event $ state_context state
@@ -548,8 +548,8 @@ run state deriver = result
     where
     (result, _state, _logs) = Derive.run (state_derive state) deriver
 
-eval_quoted :: State -> BaseTypes.Quoted -> Either Derive.Error BaseTypes.Val
-eval_quoted state (BaseTypes.Quoted expr) = result
+eval_quoted :: State -> DeriveT.Quoted -> Either Derive.Error DeriveT.Val
+eval_quoted state (DeriveT.Quoted expr) = result
     where
     (result, _state, _logs) = Derive.run (state_derive state) $ do
         call <- case expr of
@@ -558,7 +558,7 @@ eval_quoted state (BaseTypes.Quoted expr) = result
         Eval.eval (state_context state) (Expr.ValCall call)
 
 lookup_default :: Derive.EnvironDefault -> State -> ArgName
-    -> Maybe BaseTypes.Val
+    -> Maybe DeriveT.Val
 lookup_default env_default state name =
     msum $ map lookup $ environ_keys (state_call_name state) name env_default
     where lookup key = Env.lookup key (state_environ state)
@@ -611,5 +611,5 @@ call0t f = (go, [])
     go args deriver = parse (pure ()) args >>= require_right
         >>= \() -> f args deriver
 
-state_environ :: State -> BaseTypes.Environ
+state_environ :: State -> DeriveT.Environ
 state_environ = Derive.state_environ . Derive.state_dynamic . state_derive

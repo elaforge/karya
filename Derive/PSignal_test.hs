@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
@@ -41,7 +41,7 @@ test_interpolate = do
         g4 = Pitches.transpose_c 7 c4
 
     equal (show_pitch g4) ("67nn", "4g")
-    equal (show_pitch $ BaseTypes.interpolate
+    equal (show_pitch $ DeriveT.interpolate
             (Segment.Sample 0 g4) (Segment.Sample 10 g4) 5)
         ("67nn", "4g")
 

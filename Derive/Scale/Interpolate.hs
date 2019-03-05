@@ -6,9 +6,9 @@
 module Derive.Scale.Interpolate where
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
@@ -28,7 +28,7 @@ import           Global
 scales :: [Scale.Definition]
 scales = scale_make $ \env (Scale.LookupScale lookup) -> do
     (from_id, to_id) <- environ_from_to env
-    let find msg scale_id = fromMaybe (Left $ BaseTypes.PitchError msg) $
+    let find msg scale_id = fromMaybe (Left $ DeriveT.PitchError msg) $
             lookup env2 scale_id
         -- This should avoid an infinite loop if from_id is itself
         -- interpolate.
@@ -107,14 +107,14 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
 
 rename_environ :: Env.Key -> Env.Key -> Derive.Deriver a -> Derive.Deriver a
 rename_environ from to deriver = do
-    maybe_val :: Maybe BaseTypes.Val <- Derive.lookup_val from
+    maybe_val :: Maybe DeriveT.Val <- Derive.lookup_val from
     maybe id (Derive.with_val to) maybe_val deriver
 
 
 -- * util
 
 environ_from_to :: Env.Environ
-    -> Either BaseTypes.PitchError (Pitch.ScaleId, Pitch.ScaleId)
+    -> Either DeriveT.PitchError (Pitch.ScaleId, Pitch.ScaleId)
 environ_from_to env = do
     from <- Scales.read_environ (Just . Expr.str_to_scale_id) Nothing
         scale_from env

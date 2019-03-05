@@ -11,7 +11,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -166,7 +166,7 @@ just_intervals = "just-intervals"
 
 make_just :: Pitch.ScaleId -> TheoryFormat.Format
     -> Env.Environ -> Scale.LookupScale
-    -> Either BaseTypes.PitchError Scale.Scale
+    -> Either DeriveT.PitchError Scale.Scale
 make_just scale_id fmt env _ = do
     intervals <- parse_intervals env
     ratios <- parse_ratios intervals env
@@ -177,7 +177,7 @@ make_just scale_id fmt env _ = do
     let smap = JustScales.scale_map Map.empty default_key Nothing fmt
     return $ JustScales.make_scale scale_id smap "unused doc" []
 
-parse_intervals :: Env.Environ -> Either BaseTypes.PitchError [Pitch.Semi]
+parse_intervals :: Env.Environ -> Either DeriveT.PitchError [Pitch.Semi]
 parse_intervals =
     Scales.read_environ_ parse (Just (Right (replicate 7 1))) just_intervals
     where
@@ -187,7 +187,7 @@ parse_intervals =
         Right (Map.lookup sym all_named_intervals)
 
 parse_ratios :: [Pitch.Semi] -> Env.Environ
-    -> Either BaseTypes.PitchError JustScales.Ratios
+    -> Either DeriveT.PitchError JustScales.Ratios
 parse_ratios intervals = Scales.read_environ_ parse Nothing just_ratios
     where
     parse (Right sym) = maybe

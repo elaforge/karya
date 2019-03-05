@@ -33,12 +33,8 @@ import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
-import qualified Ui.Event as Event
-import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
-
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
@@ -48,22 +44,26 @@ import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- * eval / apply
 
 -- | Apply a toplevel expression.
 eval_toplevel :: Derive.CallableExpr d => Derive.Context d
-    -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
+    -> DeriveT.Expr -> Derive.Deriver (Stream.Stream d)
 eval_toplevel ctx expr =
     eval_transformers ctx transform_calls (eval_generator ctx generator_call)
     where (transform_calls, generator_call) = Expr.split expr
 
-eval_quoted :: Derive.CallableExpr d => Derive.Context d -> BaseTypes.Quoted
+eval_quoted :: Derive.CallableExpr d => Derive.Context d -> DeriveT.Quoted
     -> Derive.Deriver (Stream.Stream d)
-eval_quoted ctx (BaseTypes.Quoted expr) = eval_toplevel ctx expr
+eval_quoted ctx (DeriveT.Quoted expr) = eval_toplevel ctx expr
 
 -- | This is like 'eval_quoted', except that the 'Derive.ctx_event' is set to
 -- (0, 1) normalized time.  This is important if you want to place the
@@ -73,7 +73,7 @@ eval_quoted ctx (BaseTypes.Quoted expr) = eval_toplevel ctx expr
 -- TODO this awkwardness is because events evaluate in track time, not in
 -- normalized time.  Details in "Derive.EvalTrack".
 eval_quoted_normalized :: Derive.CallableExpr d => Derive.Context d
-    -> BaseTypes.Quoted -> Derive.Deriver (Stream.Stream d)
+    -> DeriveT.Quoted -> Derive.Deriver (Stream.Stream d)
 eval_quoted_normalized = eval_quoted . normalize_event
 
 normalize_event :: Derive.Context val -> Derive.Context val
@@ -89,15 +89,15 @@ eval_expr_val :: Derive.CallableExpr d => Derive.Context d
 eval_expr_val ctx expr = eval_toplevel ctx (convert_minival expr)
 
 -- TODO find a better place for this, or get rid of MiniVal
-convert_minival :: Expr.Expr Expr.MiniVal -> BaseTypes.Expr
+convert_minival :: Expr.Expr Expr.MiniVal -> DeriveT.Expr
 convert_minival = fmap $ fmap $ \case
-    Expr.VNum v -> BaseTypes.VNum v
-    Expr.VStr v -> BaseTypes.VStr v
+    Expr.VNum v -> DeriveT.VNum v
+    Expr.VStr v -> DeriveT.VStr v
 
 -- ** generator
 
 eval_generator :: (Derive.Callable (Derive.Generator d), Derive.Taggable d)
-    => Derive.Context d -> BaseTypes.Call -> Derive.Deriver (Stream.Stream d)
+    => Derive.Context d -> DeriveT.Call -> Derive.Deriver (Stream.Stream d)
 eval_generator ctx (Expr.Call sym args) = do
     vals <- mapM (eval ctx) args
     call <- get_generator sym
@@ -105,7 +105,7 @@ eval_generator ctx (Expr.Call sym args) = do
 
 -- | Like 'eval_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
-apply_generator :: Derive.Context d -> Derive.Generator d -> [BaseTypes.Val]
+apply_generator :: Derive.Context d -> Derive.Generator d -> [DeriveT.Val]
     -> Derive.Deriver (Stream.Stream d)
 apply_generator ctx call args = do
     let passed = Derive.PassedArgs
@@ -143,7 +143,7 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 -- ** transformer
 
 eval_transformers :: (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
-    => Derive.Context d -> [BaseTypes.Call] -> Derive.Deriver (Stream.Stream d)
+    => Derive.Context d -> [DeriveT.Call] -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
 eval_transformers ctx calls deriver = go calls
     where
@@ -170,15 +170,15 @@ eval_transform_expr name expr_str deriver
 -- | The same as 'eval_transformers', but get them out of a Quoted.
 eval_quoted_transformers ::
     (Derive.Callable (Derive.Transformer d), Derive.Taggable d)
-    => Derive.Context d -> BaseTypes.Quoted -> Derive.Deriver (Stream.Stream d)
+    => Derive.Context d -> DeriveT.Quoted -> Derive.Deriver (Stream.Stream d)
     -> Derive.Deriver (Stream.Stream d)
-eval_quoted_transformers ctx (BaseTypes.Quoted expr) =
+eval_quoted_transformers ctx (DeriveT.Quoted expr) =
     eval_transformers ctx (NonEmpty.toList expr)
 
 -- | The transformer version of 'apply_generator'.  Like 'eval_transformers',
--- but apply only one, and apply to already evaluated 'BaseTypes.Val's.  This
+-- but apply only one, and apply to already evaluated 'DeriveT.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
-apply_transformer :: Derive.Context d -> Derive.Transformer d -> [BaseTypes.Val]
+apply_transformer :: Derive.Context d -> Derive.Transformer d -> [DeriveT.Val]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 apply_transformer ctx call args deriver =
     Internal.with_stack_call (Derive.call_name call) $
@@ -192,22 +192,22 @@ apply_transformer ctx call args deriver =
 
 -- | A list version of 'apply_transformer'.
 apply_transformers :: Derive.Context d
-    -> [(Derive.Transformer d, [BaseTypes.Val])]
+    -> [(Derive.Transformer d, [DeriveT.Val])]
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 apply_transformers ctx calls deriver = foldr apply deriver calls
     where apply (sym, args) = apply_transformer ctx sym args
 
 -- ** val call
 
-eval :: Derive.Taggable a => Derive.Context a -> BaseTypes.Term
-    -> Derive.Deriver BaseTypes.Val
+eval :: Derive.Taggable a => Derive.Context a -> DeriveT.Term
+    -> Derive.Deriver DeriveT.Val
 eval _ (Expr.Literal val) = return val
 eval ctx (Expr.ValCall (Expr.Call sym terms)) = do
     call <- get_val_call sym
     apply (Derive.tag_context ctx) call terms
 
 apply :: Derive.Context Derive.Tagged -> Derive.ValCall
-    -> [BaseTypes.Term] -> Derive.Deriver BaseTypes.Val
+    -> [DeriveT.Term] -> Derive.Deriver DeriveT.Val
 apply ctx call args = do
     vals <- mapM (eval ctx) args
     let passed = Derive.PassedArgs
@@ -309,16 +309,16 @@ relative_separator = "-"
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: Derive.CallableExpr d => Bool -> BaseTypes.Expr
+eval_one :: Derive.CallableExpr d => Bool -> DeriveT.Expr
     -> Derive.Deriver (Stream.Stream d)
 eval_one collect = eval_one_at collect 0 1
 
-eval_one_call :: Derive.CallableExpr d => Bool -> BaseTypes.Call
+eval_one_call :: Derive.CallableExpr d => Bool -> DeriveT.Call
     -> Derive.Deriver (Stream.Stream d)
 eval_one_call collect = eval_one collect . (:| [])
 
 eval_one_at :: Derive.CallableExpr d => Bool -> ScoreTime -> ScoreTime
-    -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
+    -> DeriveT.Expr -> Derive.Deriver (Stream.Stream d)
 eval_one_at collect start dur expr = eval_expr collect ctx expr
     where
     -- Set the event start and duration instead of using Derive.place since
@@ -363,18 +363,18 @@ reapply_generator_normalized args = reapply_generator $ args
 -- 'Derive.ctx_sub_tracks', which means if inversion hasn't happened yet, which
 -- may be what you or may be surprising.  For instance, it will likely override
 -- any pitch you try to set.
-reapply :: Derive.CallableExpr d => Derive.Context d -> BaseTypes.Expr
+reapply :: Derive.CallableExpr d => Derive.Context d -> DeriveT.Expr
     -> Derive.Deriver (Stream.Stream d)
 reapply = eval_expr True
 
 reapply_call :: Derive.CallableExpr d => Derive.Context d -> Expr.Symbol
-    -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)
+    -> [DeriveT.Term] -> Derive.Deriver (Stream.Stream d)
 reapply_call ctx sym call_args =
     reapply ctx (Expr.generator $ Expr.Call sym call_args)
 
 -- | A version of 'eval' specialized to evaluate pitch calls.  It's unknown if
 -- this pitch has been transposed or not.
-eval_pitch :: ScoreTime -> BaseTypes.PitchCall
+eval_pitch :: ScoreTime -> DeriveT.PitchCall
     -> Derive.Deriver (PSignal.RawPitch a)
 eval_pitch pos call = do
     pitch <- Typecheck.typecheck ("eval pitch " <> ShowVal.show_val call) pos
@@ -405,6 +405,6 @@ apply_pitch pos call = do
 -- | Evaluate a single expression, catching an exception if it throws.
 eval_expr :: Derive.CallableExpr d => Bool -- ^ See 'Derive.catch'.  This
     -- should be True for evals that generate notes for eventual output.
-    -> Derive.Context d -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
+    -> Derive.Context d -> DeriveT.Expr -> Derive.Deriver (Stream.Stream d)
 eval_expr collect ctx expr =
     fromMaybe Stream.empty <$> Derive.catch collect (eval_toplevel ctx expr)

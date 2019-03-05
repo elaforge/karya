@@ -17,9 +17,9 @@ import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
@@ -165,12 +165,12 @@ convert_midi_pitch srate inst patch config controls event =
     attr_map = Patch.patch_attribute_map patch
 
 mode_keyswitches :: Env.Environ -> Patch.ModeMap -> Map ScoreT.Control Signal.Y
-mode_keyswitches (BaseTypes.Environ env) (Patch.ModeMap modes) =
+mode_keyswitches (DeriveT.Environ env) (Patch.ModeMap modes) =
     Map.fromList $ map get (Map.toList modes)
     where
     -- for each mode, if set, use that, if unset, use first
     get (key, (deflt, mini_to_control)) = fromMaybe deflt $ do
-        mini <- BaseTypes.val_to_mini =<< Map.lookup key env
+        mini <- DeriveT.val_to_mini =<< Map.lookup key env
         -- If the lookup fails, then they set a mode, but I don't recognize it.
         -- TODO warn about this?
         Map.lookup mini mini_to_control

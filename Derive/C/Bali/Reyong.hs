@@ -22,7 +22,6 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.C.Bali.Gender as Gender
 import qualified Derive.C.Post.Postproc as Postproc
@@ -36,6 +35,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.Library as Library
@@ -131,7 +131,7 @@ reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = make_pattern $ parse_kotekan above below
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
-c_ngoret = Gender.ngoret module_ False (pure (BaseTypes.constant_control 0))
+c_ngoret = Gender.ngoret module_ False (pure (DeriveT.constant_control 0))
 
 voices_env :: Sig.Parser [Voice]
 voices_env = Sig.environ "voices" Sig.Both []
@@ -151,7 +151,7 @@ c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
         notes <- Derive.require_right id $ parse_tumpuk (untxt notes)
         tumpuk args place dur notes
 
-tumpuk :: Derive.PassedArgs Score.Event -> BaseTypes.ControlRef -> RealTime
+tumpuk :: Derive.PassedArgs Score.Event -> DeriveT.ControlRef -> RealTime
     -> [TumpukNote] -> Derive.NoteDeriver
 tumpuk args place dur notes = do
     (start, end) <- Args.real_range args
@@ -161,7 +161,7 @@ tumpuk args place dur notes = do
     realize_tumpuk prev start end place (Args.prev_event_pitch args) pitch dur
         notes
 
-place_env :: Sig.Parser BaseTypes.ControlRef
+place_env :: Sig.Parser DeriveT.ControlRef
 place_env = Sig.environ "place" Sig.Both (Sig.control "place" 1)
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."

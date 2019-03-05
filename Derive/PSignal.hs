@@ -55,8 +55,8 @@ import qualified Util.Segment as Segment
 import           Util.Segment (Sample(..))
 import qualified Util.Seq as Seq
 
-import qualified Derive.BaseTypes as BaseTypes
-import           Derive.BaseTypes
+import qualified Derive.DeriveT as DeriveT
+import           Derive.DeriveT
        (_signal, coerce, interpolate, pitch, pitch_nn, pitch_note, Pitch,
         Transposed, PSignal(..), RawPitch(..), Scale(..), PitchConfig(..),
         PitchError(..))
@@ -69,7 +69,7 @@ import           Global
 import           Types
 
 
--- Signal imported from BaseTypes.
+-- Signal imported from DeriveT.
 
 -- | Set of transposers for the signal.  Transposers are documented in
 -- 'pscale_transposers'.
@@ -244,7 +244,7 @@ apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 -- | Apply an environ to all the pitches in the signal.  Unlike
 -- 'apply_controls', this doesn't have to resample the signal.
-apply_environ :: BaseTypes.Environ -> PSignal -> PSignal
+apply_environ :: DeriveT.Environ -> PSignal -> PSignal
 apply_environ env =
     modify $ Segment.map_y_linear $ apply_config (PitchConfig env mempty)
 

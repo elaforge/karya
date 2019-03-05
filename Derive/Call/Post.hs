@@ -35,9 +35,9 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.NoteUtil as NoteUtil
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -201,13 +201,13 @@ has_instrument wanted = (`Set.member` set) . Score.event_instrument
 
 -- ** unthreaded state
 
-control :: (ScoreT.Typed Signal.Y -> a) -> BaseTypes.ControlRef
+control :: (ScoreT.Typed Signal.Y -> a) -> DeriveT.ControlRef
     -> Stream Score.Event -> Derive.Deriver [a]
 control f c events = do
     sig <- Typecheck.to_typed_function c
     return $ map (f . sig . Score.event_start) (Stream.events_of events)
 
-time_control :: BaseTypes.ControlRef -> Stream Score.Event
+time_control :: DeriveT.ControlRef -> Stream Score.Event
     -> Derive.Deriver [RealTime]
 time_control = control (RealTime.seconds . ScoreT.typed_val)
 
@@ -342,19 +342,19 @@ derive_signal deriver = do
     TODO this stuff is now unused, but maybe I'll find a use for it again some
     day.
 -}
-make_delayed :: Derive.PassedArgs a -> RealTime -> [BaseTypes.Val]
+make_delayed :: Derive.PassedArgs a -> RealTime -> [DeriveT.Val]
     -> Derive.NoteDeriver
 make_delayed args start event_args = do
     dyn <- Internal.get_dynamic id
     Stream.from_event . delayed_event event_args <$>
         NoteUtil.make_event args dyn start 0 mempty
 
-delayed_event :: [BaseTypes.Val] -> Score.Event -> Score.Event
+delayed_event :: [DeriveT.Val] -> Score.Event -> Score.Event
 delayed_event args = Score.modify_environ $
-    Env.insert_val EnvKey.args (BaseTypes.VList args)
+    Env.insert_val EnvKey.args (DeriveT.VList args)
 
 -- | Return the args if this is a delayed event created by the given call.
-delayed_args :: Expr.Symbol -> Score.Event -> Maybe [BaseTypes.Val]
+delayed_args :: Expr.Symbol -> Score.Event -> Maybe [DeriveT.Val]
 delayed_args (Expr.Symbol call) event
     | Seq.head (Stack.innermost (Score.event_stack event))
             == Just (Stack.Call call) =

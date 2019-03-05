@@ -10,10 +10,10 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.Expr as Expr
@@ -113,7 +113,7 @@ lookup_map calls = Derive.CallMap
 -- * calls
 
 -- | Run a val call, and return what it returned.
-run_val :: Maybe Text -> Text -> (Maybe BaseTypes.Val, [Text])
+run_val :: Maybe Text -> Text -> (Maybe DeriveT.Val, [Text])
 run_val transform call = extract $ DeriveTest.derive_tracks_setup
         (with_note_generator "capture" c_capture) ""
         [(">", [(0, 1, maybe "" (<> " | ") transform
@@ -124,7 +124,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_setup
     c_capture :: Derive.Generator Derive.Note
     c_capture = Derive.generator module_ "capture" mempty "Capture env." $
         Sig.call (Sig.required "val" "Val.") $ \val _args ->
-            Derive.with_val "capture" (val :: BaseTypes.Val) Call.note
+            Derive.with_val "capture" (val :: DeriveT.Val) Call.note
 
 c_show_args :: Derive.CallableExpr d => Derive.Generator d
 c_show_args = Derive.generator module_ "show-args" mempty "doc" $
@@ -157,8 +157,8 @@ transformer_args = Derive.transformer module_ "test" mempty "test doc"
 module_ :: Module.Module
 module_ = "test-module"
 
-expr :: Text -> BaseTypes.Expr
+expr :: Text -> DeriveT.Expr
 expr = either (errorStack . ("CallTest.expr: " <>)) id . Parse.parse_expr
 
-val :: Text -> BaseTypes.Val
+val :: Text -> DeriveT.Val
 val = either (errorStack . ("CallTest.val: " <>)) id . Parse.parse_val

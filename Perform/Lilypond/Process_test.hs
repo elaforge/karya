@@ -7,25 +7,25 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import Util.Test
-
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
-import Perform.Lilypond.Constants (Attach(..), Position(..), Distribution(..))
+import           Perform.Lilypond.Constants
+       (Attach(..), Position(..), Distribution(..))
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
-import Perform.Lilypond.LilypondTest (a3, b3, c3, d3, e3, f3)
+import           Perform.Lilypond.LilypondTest (a3, b3, c3, d3, e3, f3)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
-import Perform.Lilypond.Process (Voice(..))
+import           Perform.Lilypond.Process (Voice(..))
 import qualified Perform.Lilypond.Types as Types
 
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 test_simple = do
@@ -99,7 +99,7 @@ test_dotted_rests = do
     equal (run "3+3/8" [(1.5, 0.5, a3)]) $ Right "r4. a8 r4"
     equal (run "4/4" [(3, 1, a3)]) $ Right "r2 r4 a4"
 
-free_code :: Constants.FreeCodePosition -> Text -> [(Env.Key, BaseTypes.Val)]
+free_code :: Constants.FreeCodePosition -> Text -> [(Env.Key, DeriveT.Val)]
 free_code pos code = [(Constants.free_code_key pos, Typecheck.to_val code)]
 
 mk_free_code :: RealTime -> Constants.FreeCodePosition -> Text -> Types.Event
@@ -133,7 +133,7 @@ test_free_code_tuplet = do
     equal (run $ triplet ++ [append 4, e (4, 4, f3)]) $
         Right "\\tuplet 3/2 { c2 d2 e2 } | f1 post"
 
-note_code :: Constants.CodePosition -> Text -> [(Env.Key, BaseTypes.Val)]
+note_code :: Constants.CodePosition -> Text -> [(Env.Key, DeriveT.Val)]
 note_code pos code = [(Constants.position_key pos, Typecheck.to_val code)]
 
 test_note_code = do
@@ -282,7 +282,7 @@ test_simplify_voices = do
 test_free_code_voices = do
     let run = LilypondTest.extract_lys []
             . process_44 . map LilypondTest.environ_event
-        v n = (EnvKey.voice, BaseTypes.num n)
+        v n = (EnvKey.voice, DeriveT.num n)
         append = free_code Constants.FreeAppend "post"
     -- Code events are assigned to the first voice.
     equal (run
@@ -373,7 +373,7 @@ test_convert_tremolo = do
             ( start, dur, Nothing
             , [(Constants.v_tremolo, Typecheck.to_val ("" :: Text))]
             )
-        attr a = [(EnvKey.attributes, BaseTypes.VAttributes a)]
+        attr a = [(EnvKey.attributes, DeriveT.VAttributes a)]
         extract = Text.unwords . map Types.to_lily . strip_ly . map expect_right
     equal (run [tremolo 0 4, (0, 4, Just c3, []), (0, 4, Just d3, [])]) $
         Right "\\repeat tremolo 16 { c32( d32) }"

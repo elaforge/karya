@@ -22,9 +22,9 @@ import qualified Util.Tree
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -73,7 +73,7 @@ derive_note_call block_id track_id pos call =
 
 -- | Derive an expression.
 derive_expr :: (Cmd.M m, Derive.CallableExpr d) => BlockId -> TrackId
-    -> TrackTime -> BaseTypes.Expr -> m (Either Text [d], [Log.Msg])
+    -> TrackTime -> DeriveT.Expr -> m (Either Text [d], [Log.Msg])
 derive_expr block_id track_id pos expr = do
     (result, logs) <- derive_at block_id track_id
         (Eval.eval_one_at False pos 1 expr)

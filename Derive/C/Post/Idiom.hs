@@ -11,7 +11,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
@@ -19,6 +18,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
@@ -55,7 +55,7 @@ c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
     \time _args deriver -> Ly.when_lilypond deriver $
         pizz_arp time =<< deriver
 
-pizz_arp :: BaseTypes.ControlRef -> Stream.Stream Score.Event
+pizz_arp :: DeriveT.ControlRef -> Stream.Stream Score.Event
     -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do

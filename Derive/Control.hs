@@ -34,11 +34,11 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Map
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
@@ -83,7 +83,7 @@ d_control_track config track deriver = do
 
 -- * eval_track
 
-eval_track :: Config -> TrackTree.Track -> [BaseTypes.Call]
+eval_track :: Config -> TrackTree.Track -> [DeriveT.Call]
     -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
 eval_track config track expr ctype deriver = case ctype of
     ParseTitle.Tempo maybe_sym -> do

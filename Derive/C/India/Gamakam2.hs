@@ -13,7 +13,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -23,6 +22,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
@@ -341,11 +341,11 @@ with_empty_collect = fmap (second Derive.collect_control_mods)
 data Expr =
     -- | This is a call which was embedded in the argument list of the sequence
     -- call, so its arguments have already been evaluated.
-    EvaluatedExpr Expr.Symbol [BaseTypes.Val]
+    EvaluatedExpr Expr.Symbol [DeriveT.Val]
     -- | A call and its arguments can be protected from evaluation by quoting
     -- it.  This is also necessary to use a transformer, since @;@ has higher
     -- precedence than @|@ (actually it's just a value, not an operator).
-    | QuotedExpr !BaseTypes.Expr
+    | QuotedExpr !DeriveT.Expr
     deriving Show
 
 instance Pretty Expr where
@@ -363,7 +363,7 @@ instance Pretty Expr where
 -- > ; middle1;
 -- > begin1; middle2
 -- > begin1; middle2; middle3; ...; end_n
-parse_sequence :: [BaseTypes.Val] -> (Expr, [Expr], Maybe Expr)
+parse_sequence :: [DeriveT.Val] -> (Expr, [Expr], Maybe Expr)
 parse_sequence exprs = postproc $
     case Seq.map_tail (drop 1) $ Seq.split_before is_separator exprs of
         [] -> (Nothing, [], Nothing)
@@ -381,10 +381,10 @@ parse_sequence exprs = postproc $
     add_hold xs = xs
     to_expr [] = Nothing
     to_expr (call : args) = Just $ case call of
-        BaseTypes.VQuoted (BaseTypes.Quoted expr) -> QuotedExpr expr
-        BaseTypes.VStr (Expr.Str sym) -> EvaluatedExpr (Expr.Symbol sym) args
+        DeriveT.VQuoted (DeriveT.Quoted expr) -> QuotedExpr expr
+        DeriveT.VStr (Expr.Str sym) -> EvaluatedExpr (Expr.Symbol sym) args
         _ -> EvaluatedExpr (Expr.Symbol (ShowVal.show_val call)) args
-    is_separator BaseTypes.VSeparator = True
+    is_separator DeriveT.VSeparator = True
     is_separator _ = False
 
 -- * start
@@ -444,7 +444,7 @@ c_from pitch_from fade = generator1 "from" mempty
 -- | Get the end time, given a start and a duration.  Don't go beyond the
 -- maximum, which is the event's duration, if given explicitly, or the next
 -- event if it's 0.
-get_end :: RealTime -> BaseTypes.Duration -> Derive.PassedArgs a
+get_end :: RealTime -> DeriveT.Duration -> Derive.PassedArgs a
     -> Derive.Deriver RealTime
 get_end start dur args = do
     time_end <- (start +) <$> Call.real_duration start dur
@@ -503,7 +503,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         -- the duration into intervals-1 parts.
         let len = NonEmpty.length intervals - 1
         end <- get_end start
-            (BaseTypes.multiply_duration time_ (fromIntegral len)) args
+            (DeriveT.multiply_duration time_ (fromIntegral len)) args
         let time = (end - start) / fromIntegral len
         pitch <- Call.get_pitch start
         srate <- Call.get_srate
@@ -593,7 +593,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
         -- 'end_dir' may reduce the number of transitions, to a minimum of 2,
         -- which winds up sounding like a single transition: [0, 1].
         let num_transitions = cycles * 2 + if even == Just True then 0 else 1
-        let speed = BaseTypes.constant_control $
+        let speed = DeriveT.constant_control $
                 (num_transitions - 1) / RealTime.to_seconds (end - start)
         transpose <- kampita_transpose curve even adjust pitches speed
             transition hold lilt (Args.range args)
@@ -601,7 +601,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
 
 -- ** implementation
 
-resolve_pitches :: KampitaArgs -> (BaseTypes.ControlRef, BaseTypes.ControlRef)
+resolve_pitches :: KampitaArgs -> (DeriveT.ControlRef, DeriveT.ControlRef)
     -> Derive.Deriver ((Typecheck.Function, Typecheck.Function), ScoreT.Control)
 resolve_pitches kam_args (pitch1, pitch2) = do
     (pitch1, control1) <- Call.to_transpose_function Typecheck.Nn pitch1
@@ -615,7 +615,7 @@ resolve_pitches kam_args (pitch1, pitch2) = do
     return ((pitch1, pitch2), control1)
 
 kampita_pitch_args :: KampitaArgs
-    -> Sig.Parser (BaseTypes.ControlRef, BaseTypes.ControlRef)
+    -> Sig.Parser (DeriveT.ControlRef, DeriveT.ControlRef)
 kampita_pitch_args kam_args = case kam_args of
     Kampita0 p1 p2 -> (,) <$> pure (control p1) <*> pure (control p2)
     Kampita1 p1 -> (,) <$> pure (control p1)
@@ -626,10 +626,10 @@ kampita_pitch_args kam_args = case kam_args of
         <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
     where
     control val =
-        BaseTypes.ControlSignal $ ScoreT.untyped (Signal.constant val)
+        DeriveT.ControlSignal $ ScoreT.untyped (Signal.constant val)
     sig name deflt = Sig.typed_control name deflt ScoreT.Nn
 
-kampita_env :: Sig.Parser (RealTime, BaseTypes.Duration, Double, Trill.Adjust)
+kampita_env :: Sig.Parser (RealTime, DeriveT.Duration, Double, Trill.Adjust)
 kampita_env = (,,,)
     <$> Sig.defaulted_env "transition" Sig.Both default_transition_
         "Time for each slide."
@@ -656,8 +656,8 @@ kampita start args control transpose = do
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
-    -> (Typecheck.Function, Typecheck.Function) -> BaseTypes.ControlRef
-    -> RealTime -> BaseTypes.Duration -> Double -> (ScoreTime, ScoreTime)
+    -> (Typecheck.Function, Typecheck.Function) -> DeriveT.ControlRef
+    -> RealTime -> DeriveT.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
 kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
         (start, end) = do
@@ -679,7 +679,7 @@ trill_from_transitions val1 val2 transitions =
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
-    -> BaseTypes.ControlRef -> (ScoreTime, ScoreTime)
+    -> DeriveT.ControlRef -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [RealTime]
 trill_transitions = Trill.adjusted_transitions include_end
     where
@@ -747,7 +747,7 @@ c_fade fade_in = generator1 "fade" mempty
 
 -- | Subtract the duration from the given end time, but don't go past the
 -- start.
-align_to_end :: RealTime -> RealTime -> BaseTypes.Duration
+align_to_end :: RealTime -> RealTime -> DeriveT.Duration
     -> Derive.Deriver RealTime
 align_to_end start end dur = do
     dur <- min (end - start) <$> Call.real_duration start dur

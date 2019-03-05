@@ -19,9 +19,9 @@ import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Seq as Seq
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -295,7 +295,7 @@ get_val key = do
 -- and instrument are.
 with_val :: Typecheck.ToVal val => Env.Key -> val -> Deriver a -> Deriver a
 with_val key val deriver
-    | key == EnvKey.scale, Just scale_id <- BaseTypes.to_scale_id v = do
+    | key == EnvKey.scale, Just scale_id <- DeriveT.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
     | key == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
@@ -414,7 +414,7 @@ val_to_pitch (ValCall name doc vcall) = Call
     where
     convert_args args = args { passed_ctx = tag_context (passed_ctx args) }
     pitch_call args = vcall args >>= \val -> case val of
-        BaseTypes.VPitch pitch -> do
+        DeriveT.VPitch pitch -> do
             -- Previously I dispatched to '', which is normally
             -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
             -- you can then override '', but is also less efficient.
@@ -517,7 +517,7 @@ lookup_control_signal control = Map.lookup control <$> get_controls
 get_controls :: Deriver Score.ControlMap
 get_controls = Internal.get_dynamic state_controls
 
-get_control_functions :: Deriver BaseTypes.ControlFunctionMap
+get_control_functions :: Deriver DeriveT.ControlFunctionMap
 get_control_functions = Internal.get_dynamic state_control_functions
 
 -- | Get the control value at the given time, taking 'state_control_functions'
@@ -538,7 +538,7 @@ lookup_control_function control = do
         Nothing -> return Nothing
         Just f -> do
             dyn <- Internal.get_control_function_dynamic
-            return $ Just $ BaseTypes.call_control_function f control dyn
+            return $ Just $ DeriveT.call_control_function f control dyn
 
 untyped_control_at :: ScoreT.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap ScoreT.typed_val) . control_at cont
@@ -554,7 +554,7 @@ controls_at pos = do
 
 state_controls_at :: RealTime -> Ruler.Marklists
     -- ^ Ruler marklists from the same track as the Dynamic.  Needed by
-    -- control functions, via 'BaseTypes.dyn_ruler'.
+    -- control functions, via 'DeriveT.dyn_ruler'.
     -> Dynamic -> Int -- ^ 'state_event_serial'
     -> ScoreT.ControlValMap
 state_controls_at pos ruler dyn serial = Map.fromList $
@@ -569,7 +569,7 @@ state_controls_at pos ruler dyn serial = Map.fromList $
         Seq.Second (k, sig) -> (k, Signal.at pos (ScoreT.typed_val sig))
         where
         call control f = ScoreT.typed_val $
-            BaseTypes.call_control_function f control cf_dyn pos
+            DeriveT.call_control_function f control cf_dyn pos
 
 -- *** control signal
 
@@ -600,7 +600,7 @@ remove_controls controls
             Util.Map.delete_keys controls (state_control_functions state)
         }
 
-with_control_function :: ScoreT.Control -> BaseTypes.ControlFunction
+with_control_function :: ScoreT.Control -> DeriveT.ControlFunction
     -> Deriver a -> Deriver a
 with_control_function control f = Internal.local $ \state -> state
     { state_control_functions =
@@ -608,7 +608,7 @@ with_control_function control f = Internal.local $ \state -> state
     }
 
 -- | Replace the controls entirely.
-with_control_maps :: Score.ControlMap -> BaseTypes.ControlFunctionMap
+with_control_maps :: Score.ControlMap -> DeriveT.ControlFunctionMap
     -> Deriver a -> Deriver a
 with_control_maps cmap cfuncs = Internal.local $ \state -> state
     { state_controls = cmap
@@ -909,8 +909,8 @@ shift_control shift deriver = do
 -- * call
 
 -- | Wrap 'make_val_call' with a 'Typecheck.to_val' to automatically convert
--- to a 'BaseTypes.Val'.  This is not in "Derive.Deriver.Monad" to avoid
--- a circular import with "Derive.BaseTypes".
+-- to a 'DeriveT.Val'.  This is not in "Derive.Deriver.Monad" to avoid
+-- a circular import with "Derive.DeriveT".
 val_call :: Typecheck.ToVal a => Module.Module -> CallName -> Tags.Tags
     -> Doc.Doc -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
 val_call module_ name tags doc (call, arg_docs) =

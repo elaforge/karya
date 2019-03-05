@@ -19,10 +19,10 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
@@ -116,7 +116,7 @@ parse_relative_interval named_intervals note =
         <|> parse_num)
     where
     parse_num = case Parse.parse_val (Pitch.note_text note) of
-        Right (BaseTypes.VNum (ScoreT.Typed ScoreT.Untyped num)) -> Just num
+        Right (DeriveT.VNum (ScoreT.Typed ScoreT.Untyped num)) -> Just num
         _ -> Nothing
     unsign val = if val < 0 then recip (abs val) else val
 

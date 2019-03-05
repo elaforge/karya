@@ -13,9 +13,9 @@ import qualified Data.Text as Text
 import qualified Util.TextUtil as TextUtil
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
-import           Derive.BaseTypes (Val(..))
 import qualified Derive.Controls as Controls
+import qualified Derive.DeriveT as DeriveT
+import           Derive.DeriveT (Val(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Deriver.Monad as Derive
 import qualified Derive.Expr as Expr
@@ -44,7 +44,7 @@ type Function = RealTime -> Signal.Y
 
 -- | Either RealTime or ScoreTime, but untyped defaults to RealTime.
 -- This has a short accessor to make unwrapping more concise.
-newtype DefaultReal = DefaultReal { _real :: BaseTypes.Duration }
+newtype DefaultReal = DefaultReal { _real :: DeriveT.Duration }
     deriving (Eq, Show, ShowVal.ShowVal)
 instance Internal.Time DefaultReal where
     real = Internal.real . _real
@@ -53,7 +53,7 @@ instance Internal.Time DefaultReal where
 
 -- | Same as 'DefaultReal' but untyped defaults to ScoreTime.
 -- This has a short accessor to make unwrapping more concise.
-newtype DefaultScore = DefaultScore { _score :: BaseTypes.Duration }
+newtype DefaultScore = DefaultScore { _score :: DeriveT.Duration }
     deriving (Eq, Show, ShowVal.ShowVal)
 
 instance Internal.Time DefaultScore where
@@ -66,10 +66,10 @@ instance Internal.Time DefaultScore where
 -- inference do its thing, but there's no good definition for the rest of
 -- the methods in Integral and Fractional.
 real :: RealTime -> DefaultReal
-real = DefaultReal . BaseTypes.RealDuration
+real = DefaultReal . DeriveT.RealDuration
 
 score :: ScoreTime -> DefaultScore
-score = DefaultScore . BaseTypes.ScoreDuration
+score = DefaultScore . DeriveT.ScoreDuration
 
 -- | An annotation that says this value must be >0.  Instances only exist
 -- for numeric types.
@@ -101,7 +101,7 @@ diatonic = DefaultDiatonic . Pitch.Diatonic
 -- * typecheck utils
 
 -- | Typecheck a single Val, and throw if it's the wrong type.
-typecheck :: forall a. Typecheck a => Text -> ScoreTime -> BaseTypes.Val
+typecheck :: forall a. Typecheck a => Text -> ScoreTime -> DeriveT.Val
     -> Derive.Deriver a
 typecheck msg pos val = from_val_eval pos val >>= \case
     Just a -> return a
@@ -109,7 +109,7 @@ typecheck msg pos val = from_val_eval pos val >>= \case
         TextUtil.joinWith ": " msg $ type_error_msg (Proxy :: Proxy a) val
     -- TODO throw a TypeError directly?
 
-typecheck_simple :: forall a. Typecheck a => BaseTypes.Val -> Either Text a
+typecheck_simple :: forall a. Typecheck a => DeriveT.Val -> Either Text a
 typecheck_simple val =
     justErr (type_error_msg (Proxy :: Proxy a) val) (from_val_simple val)
 
@@ -287,8 +287,8 @@ num_to_checked_function make check_type = num_to_function $ \f ->
     make (ScoreT.typed_val . f) <$> check_type (ScoreT.type_of (f 0))
 
 -- | Evaluate a control function with no backing control.
-control_function :: BaseTypes.ControlFunction -> Derive.Deriver TypedFunction
-control_function cf = BaseTypes.call_control_function cf Controls.null <$>
+control_function :: DeriveT.ControlFunction -> Derive.Deriver TypedFunction
+control_function cf = DeriveT.call_control_function cf Controls.null <$>
     Internal.get_control_function_dynamic
 
 -- *** eval only
@@ -398,14 +398,14 @@ instance TypecheckNum Integer where num_type _ = ValType.TInt
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
 --
--- This is different from 'BaseTypes.Duration', which does not default an
+-- This is different from 'DeriveT.Duration', which does not default an
 -- untyped literal, so you have to supply the type explicitly.  The rationale
 -- is that many scales don't have diatonic or chromatic, and it would be
 -- annoying to have to specify one or the other when it was definitely
 -- irrelevant.  But the RealTime ScoreTime distinction is universal, there is
 -- no single default that is appropriate for all calls.  So they have to
 -- specify a default by taking a 'DefaultScore' or 'DefaultReal', or require
--- the caller to distinguish with 'BaseTypes.Duration'.
+-- the caller to distinguish with 'DeriveT.Duration'.
 instance Typecheck Pitch.Transpose where
     from_val = num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
         ScoreT.Untyped -> Just (Pitch.Chromatic val)
@@ -468,29 +468,28 @@ instance ToVal RealTime where
     to_val a = VNum $ ScoreT.Typed ScoreT.Real (RealTime.to_seconds a)
 instance TypecheckNum RealTime where num_type _ = ValType.TRealTime
 
-instance Typecheck BaseTypes.Duration where
+instance Typecheck DeriveT.Duration where
     from_val = num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
         -- Untyped is abiguous, and there doesn't seem to be a natural
         -- default.
-        ScoreT.Score ->
-            Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
-        ScoreT.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
+        ScoreT.Score -> Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
+        ScoreT.Real -> Just $ DeriveT.RealDuration (RealTime.seconds val)
         _ -> Nothing
     to_type = num_to_type
 
-instance ToVal BaseTypes.Duration where
-    to_val (BaseTypes.ScoreDuration a) = to_val a
-    to_val (BaseTypes.RealDuration a) = to_val a
-instance TypecheckNum BaseTypes.Duration where num_type _ = ValType.TTime
+instance ToVal DeriveT.Duration where
+    to_val (DeriveT.ScoreDuration a) = to_val a
+    to_val (DeriveT.RealDuration a) = to_val a
+instance TypecheckNum DeriveT.Duration where num_type _ = ValType.TTime
 
 instance Typecheck DefaultReal where
     from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultReal <$> case typ of
             ScoreT.Untyped ->
-                Just $ BaseTypes.RealDuration (RealTime.seconds val)
+                Just $ DeriveT.RealDuration (RealTime.seconds val)
             ScoreT.Score ->
-                Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
-            ScoreT.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
+                Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
+            ScoreT.Real -> Just $ DeriveT.RealDuration (RealTime.seconds val)
             _ -> Nothing
     to_type = num_to_type
 instance ToVal DefaultReal where to_val (DefaultReal a) = to_val a
@@ -500,10 +499,10 @@ instance Typecheck DefaultScore where
     from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultScore <$> case typ of
             ScoreT.Untyped ->
-                Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
+                Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
             ScoreT.Score ->
-                Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
-            ScoreT.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
+                Just $ DeriveT.ScoreDuration (ScoreTime.from_double val)
+            ScoreT.Real -> Just $ DeriveT.RealDuration (RealTime.seconds val)
             _ -> Nothing
     to_type = num_to_type
 
@@ -583,21 +582,21 @@ instance Typecheck Attrs.Attributes where
 instance ToVal Attrs.Attributes where to_val = VAttributes
 
 -- | Use a 'TypedFunction' or 'Function' instead of this.
-instance Typecheck BaseTypes.ControlRef where
+instance Typecheck DeriveT.ControlRef where
     from_val (VControlRef a) = Val $ Just a
-    from_val (VNum a) = Val $ Just $ BaseTypes.ControlSignal $
+    from_val (VNum a) = Val $ Just $ DeriveT.ControlSignal $
         Signal.constant <$> a
     from_val _ = Val Nothing
     to_type _ = ValType.TControlRef
-instance ToVal BaseTypes.ControlRef where to_val = VControlRef
+instance ToVal DeriveT.ControlRef where to_val = VControlRef
 
-instance Typecheck BaseTypes.PControlRef where
+instance Typecheck DeriveT.PControlRef where
     from_val (VPControlRef a) = Val $ Just a
-    from_val (VPitch a) = Val $ Just $ BaseTypes.ControlSignal $
+    from_val (VPitch a) = Val $ Just $ DeriveT.ControlSignal $
         PSignal.constant a
     from_val _ = Val Nothing
     to_type _ = ValType.TPControlRef
-instance ToVal BaseTypes.PControlRef where to_val = VPControlRef
+instance ToVal DeriveT.PControlRef where to_val = VPControlRef
 
 instance Typecheck PSignal.Pitch where
     from_val (VPitch a) = Val $ Just a
@@ -620,17 +619,17 @@ instance Typecheck ScoreT.Instrument where
 instance ToVal ScoreT.Instrument where
     to_val (ScoreT.Instrument a) = VStr (Expr.Str a)
 
-instance Typecheck BaseTypes.ControlFunction where
+instance Typecheck DeriveT.ControlFunction where
     from_val (VControlFunction a) = Val $ Just a
     from_val _ = Val Nothing
     to_type _ = ValType.TControlFunction
-instance ToVal BaseTypes.ControlFunction where to_val = VControlFunction
+instance ToVal DeriveT.ControlFunction where to_val = VControlFunction
 
 -- | Anything except a pitch can be coerced to a quoted, using ShowVal.  This
 -- means you can write a lot of things without quotes.
 --
 -- Pitches have to be quoted because they explicitly have an invalid ShowVal.
-instance Typecheck BaseTypes.Quoted where
+instance Typecheck DeriveT.Quoted where
     from_val val = case val of
         VQuoted a -> Val $ Just a
         VPitch {} -> Val Nothing
@@ -638,9 +637,9 @@ instance Typecheck BaseTypes.Quoted where
         _ -> to_quoted $ ShowVal.show_val val
         where
         to_quoted sym = Val $ Just $
-            BaseTypes.Quoted (Expr.Call (Expr.Symbol sym) [] :| [])
+            DeriveT.Quoted (Expr.Call (Expr.Symbol sym) [] :| [])
     to_type _ = ValType.TQuoted
-instance ToVal BaseTypes.Quoted where to_val = VQuoted
+instance ToVal DeriveT.Quoted where to_val = VQuoted
 
 data NotGiven = NotGiven deriving (Show, Eq)
 
@@ -661,7 +660,7 @@ instance ToVal NotGiven where
 -- every possible combination:
 -- any type: ScoreT.Real
 -- time type without value: Real
--- time type with value: BaseTypes.RealDuration
+-- time type with value: DeriveT.RealDuration
 --
 -- This means I wind up with a lot of duplication here to handle time types and
 -- transpose types.  Surely there's a better way?  Maybe put the two kinds into
@@ -703,46 +702,46 @@ transpose_control Nn = Controls.nn
 
 -- ** to_typed_function
 
--- | Convert a 'BaseTypes.ControlRef' to a function.
+-- | Convert a 'DeriveT.ControlRef' to a function.
 --
 -- If a signal exists but doesn't have a type, the type will be inherited from
 -- the default.  This way a call can cause a signal parameter to default to
 -- a certain type.
-to_typed_function :: BaseTypes.ControlRef -> Derive.Deriver TypedFunction
+to_typed_function :: DeriveT.ControlRef -> Derive.Deriver TypedFunction
 to_typed_function control =
     convert_to_function control =<< to_signal_or_function control
 
-to_function :: BaseTypes.ControlRef -> Derive.Deriver Function
+to_function :: DeriveT.ControlRef -> Derive.Deriver Function
 to_function = fmap (ScoreT.typed_val .) . to_typed_function
 
-convert_to_function :: BaseTypes.ControlRef
-    -> Either (ScoreT.Typed Signal.Control) BaseTypes.ControlFunction
+convert_to_function :: DeriveT.ControlRef
+    -> Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction
     -> Derive.Deriver TypedFunction
 convert_to_function control =
     either (return . signal_function) from_function
     where
     signal_function sig t = Signal.at t <$> sig
-    from_function f = BaseTypes.call_control_function f score_control <$>
+    from_function f = DeriveT.call_control_function f score_control <$>
         Internal.get_control_function_dynamic
     score_control = case control of
-        BaseTypes.ControlSignal {} -> Controls.null
-        BaseTypes.DefaultedControl cont _ -> cont
-        BaseTypes.LiteralControl cont -> cont
+        DeriveT.ControlSignal {} -> Controls.null
+        DeriveT.DefaultedControl cont _ -> cont
+        DeriveT.LiteralControl cont -> cont
 
-to_signal_or_function :: BaseTypes.ControlRef
+to_signal_or_function :: DeriveT.ControlRef
     -> Derive.Deriver (Either (ScoreT.Typed Signal.Control)
-        BaseTypes.ControlFunction)
+        DeriveT.ControlFunction)
 to_signal_or_function control = case control of
-    BaseTypes.ControlSignal sig -> return $ Left sig
-    BaseTypes.DefaultedControl cont deflt ->
+    DeriveT.ControlSignal sig -> return $ Left sig
+    DeriveT.DefaultedControl cont deflt ->
         get_control (ScoreT.type_of deflt) (return (Left deflt)) cont
-    BaseTypes.LiteralControl cont ->
+    DeriveT.LiteralControl cont ->
         get_control ScoreT.Untyped (Derive.throw $ "not found: " <> showt cont)
             cont
     where
     get_control default_type deflt cont = get_function cont >>= \case
         Just f -> return $ Right $
-            BaseTypes.modify_control_function (inherit_type default_type .) f
+            DeriveT.modify_control_function (inherit_type default_type .) f
         Nothing -> get_control_signal cont >>= \case
             Just sig -> return $ Left sig
             Nothing -> deflt

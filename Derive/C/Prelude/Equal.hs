@@ -17,12 +17,12 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
@@ -77,9 +77,9 @@ is_empty_expr :: Expr.Expr a -> Bool
 is_empty_expr (Expr.Call "" [] :| []) = True
 is_empty_expr _ = False
 
-equal_expr :: BaseTypes.Call -> Maybe (Text, BaseTypes.Val)
+equal_expr :: DeriveT.Call -> Maybe (Text, DeriveT.Val)
 equal_expr (Expr.Call (Expr.Symbol "=")
-        [Expr.Literal (BaseTypes.VStr (Expr.Str lhs)), Expr.Literal val]) =
+        [Expr.Literal (DeriveT.VStr (Expr.Str lhs)), Expr.Literal val]) =
     Just (lhs, val)
 equal_expr _ = Nothing
 
@@ -99,7 +99,7 @@ c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
         transform <- Derive.require_right id $ parse_equal merge lhs rhs
         transform . Sub.derive . concat =<< Sub.sub_events args
 
-equal_args :: Sig.Parser (Text, BaseTypes.Val, Merge)
+equal_args :: Sig.Parser (Text, DeriveT.Val, Merge)
 equal_args = (,,)
     <$> Sig.required "lhs" "Assign to this. This looks like a Str, but\
         \ can actualy contain any characters except `=`, due to the special\
@@ -178,7 +178,7 @@ equal_doc =
     -- Previously > was for binding note calls, but that was taken by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 
-parse_equal :: Merge -> Text -> BaseTypes.Val
+parse_equal :: Merge -> Text -> DeriveT.Val
     -> Either Text (Derive.Deriver a -> Derive.Deriver a)
 parse_equal Set lhs rhs
     -- Assign to call.
@@ -201,7 +201,7 @@ parse_equal Set lhs rhs
 parse_equal Set lhs rhs
     -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
-        BaseTypes.VStr (Expr.Str inst) -> Right $
+        DeriveT.VStr (Expr.Str inst) -> Right $
             Derive.with_instrument_alias (ScoreT.Instrument new)
                 (ScoreT.Instrument inst)
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
@@ -209,7 +209,7 @@ parse_equal Set lhs rhs
 parse_equal merge lhs rhs
     -- Assign to control.
     | Just control <- is_control =<< parse_val lhs = case rhs of
-        BaseTypes.VControlRef rhs -> Right $ \deriver ->
+        DeriveT.VControlRef rhs -> Right $ \deriver ->
             Typecheck.to_signal_or_function rhs >>= \case
                 Left sig -> do
                     merger <- get_merger control merge
@@ -217,38 +217,38 @@ parse_equal merge lhs rhs
                 Right f -> case merge of
                     Set -> Derive.with_control_function control f deriver
                     merge -> Derive.throw_arg_error $ merge_error merge
-        BaseTypes.VNum rhs -> Right $ \deriver -> do
+        DeriveT.VNum rhs -> Right $ \deriver -> do
             merger <- get_merger control merge
             Derive.with_merged_control merger control (fmap Signal.constant rhs)
                 deriver
-        BaseTypes.VControlFunction f -> case merge of
+        DeriveT.VControlFunction f -> case merge of
             Set -> Right $ Derive.with_control_function control f
             merge -> Left $ merge_error merge
-        BaseTypes.VNotGiven -> Right $ Derive.remove_controls [control]
+        DeriveT.VNotGiven -> Right $ Derive.remove_controls [control]
         _ -> Left $ "binding a control expected a control, num, control\
             \ function, or _, but got " <> pretty (ValType.type_of rhs)
     where
-    is_control (BaseTypes.VControlRef (BaseTypes.LiteralControl c)) = Just c
+    is_control (DeriveT.VControlRef (DeriveT.LiteralControl c)) = Just c
     is_control _ = Nothing
 parse_equal _ lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
-        BaseTypes.VPitch rhs -> Right $ \deriver ->
+        DeriveT.VPitch rhs -> Right $ \deriver ->
             Derive.with_named_pitch control (PSignal.constant rhs) deriver
-        BaseTypes.VPControlRef rhs -> Right $ \deriver -> do
+        DeriveT.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
             Derive.with_named_pitch control sig deriver
-        BaseTypes.VNum (ScoreT.Typed ScoreT.Nn nn) -> Right $ \deriver ->
+        DeriveT.VNum (ScoreT.Typed ScoreT.Nn nn) -> Right $ \deriver ->
             Derive.with_named_pitch control
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
         _ -> Left $ "binding a pitch signal expected a pitch, pitch"
             <> " control, or nn, but got " <> pretty (ValType.type_of rhs)
     where
-    is_pitch (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) = Just c
+    is_pitch (DeriveT.VPControlRef (DeriveT.LiteralControl c)) = Just c
     is_pitch _ = Nothing
 parse_equal Set lhs val = Right $ Derive.with_val lhs val
 parse_equal (Merge merge) lhs
-        (BaseTypes.VNum (ScoreT.Typed ScoreT.Untyped val)) =
+        (DeriveT.VNum (ScoreT.Typed ScoreT.Untyped val)) =
     Right $ \deriver -> do
         merger <- Derive.get_control_merge merge
         Derive.with_merged_numeric_val merger lhs val deriver
@@ -265,14 +265,14 @@ get_merger control merge = case merge of
     Default -> Derive.get_default_merger control
     Merge merge -> Derive.get_control_merge merge
 
-parse_val :: Text -> Maybe BaseTypes.Val
+parse_val :: Text -> Maybe DeriveT.Val
 parse_val = either (const Nothing) Just . Parse.parse_val
 
 -- | Look up a call with the given Symbol and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
 -- they're not sufficiently polymorphic.
 override_call :: (Derive.CallableExpr d1, Derive.CallableExpr d2)
-    => Text -> BaseTypes.Val
+    => Text -> DeriveT.Val
     -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Generator d1))
     -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Transformer d2))
     -> Derive.Deriver a -> Derive.Deriver a
@@ -289,7 +289,7 @@ override_call lhs rhs generator transformer deriver
 
 -- | Make an expression into a transformer and stick it into the
 -- 'Derive.PrioOverride' slot.
-override_transformer :: Derive.CallableExpr d => Text -> BaseTypes.Val
+override_transformer :: Derive.CallableExpr d => Text -> DeriveT.Val
     -> Lens Derive.Scopes (Derive.ScopePriority (Derive.Transformer d))
     -> Derive.Deriver a -> Derive.Deriver a
 override_transformer lhs rhs transformer deriver =
@@ -300,7 +300,7 @@ override_transformer lhs rhs transformer deriver =
             (Derive.single_call (Expr.Symbol lhs) call))
         deriver
 
-override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a
+override_val_call :: Text -> DeriveT.Val -> Derive.Deriver a
     -> Derive.Deriver a
 override_val_call lhs rhs deriver = do
     call <- resolve_source quoted_val_call rhs
@@ -311,11 +311,11 @@ override_val_call lhs rhs deriver = do
 -- | A VQuoted becomes a call, a Str is expected to name a call, and
 -- everything else is turned into a Str via ShowVal.  This will cause
 -- a parse error for un-showable Vals, but what else is new?
-resolve_source :: Derive.Callable call => (BaseTypes.Quoted -> call)
-    -> BaseTypes.Val -> Derive.Deriver call
+resolve_source :: Derive.Callable call => (DeriveT.Quoted -> call)
+    -> DeriveT.Val -> Derive.Deriver call
 resolve_source make_call rhs = case rhs of
-    BaseTypes.VQuoted quoted -> return $ make_call quoted
-    BaseTypes.VStr (Expr.Str sym) -> get_call (Expr.Symbol sym)
+    DeriveT.VQuoted quoted -> return $ make_call quoted
+    DeriveT.VStr (Expr.Str sym) -> get_call (Expr.Symbol sym)
     _ -> get_call (Expr.Symbol (ShowVal.show_val rhs))
 
 get_call :: forall call. Derive.Callable call => Expr.Symbol
@@ -331,28 +331,28 @@ get_call sym = maybe (Derive.throw $ Eval.unknown_symbol name sym) return
 -- function definiion, but is really just macro expansion, with all the
 -- variable capture problems implied.  But since the only variables I have are
 -- calls maybe it's not so bad.
-quoted_generator :: Derive.CallableExpr d => BaseTypes.Quoted
+quoted_generator :: Derive.CallableExpr d => DeriveT.Quoted
     -> Derive.Generator d
-quoted_generator quoted@(BaseTypes.Quoted expr) =
+quoted_generator quoted@(DeriveT.Quoted expr) =
     Derive.generator quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0 $ \args -> Eval.eval_expr True (Args.context args) expr
 
 quoted_transformer :: Derive.CallableExpr d
-    => BaseTypes.Quoted -> Derive.Transformer d
-quoted_transformer quoted@(BaseTypes.Quoted expr) =
+    => DeriveT.Quoted -> Derive.Transformer d
+quoted_transformer quoted@(DeriveT.Quoted expr) =
     Derive.transformer quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0t $ \args deriver ->
         Eval.eval_transformers (Args.context args) (NonEmpty.toList expr)
             deriver
 
-quoted_val_call :: BaseTypes.Quoted -> Derive.ValCall
+quoted_val_call :: DeriveT.Quoted -> Derive.ValCall
 quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.doc quoted)
     $ Sig.call0 $ \args -> do
         call <- case quoted of
-            BaseTypes.Quoted (call :| []) -> return $ Expr.ValCall call
+            DeriveT.Quoted (call :| []) -> return $ Expr.ValCall call
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
                 <> ShowVal.show_val quoted

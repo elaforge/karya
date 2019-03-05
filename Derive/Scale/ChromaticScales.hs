@@ -11,10 +11,10 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -43,7 +43,7 @@ data ScaleMap = ScaleMap {
     }
 
 type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.FSemi
-    -> Either BaseTypes.PitchError Pitch.NoteNumber
+    -> Either DeriveT.PitchError Pitch.NoteNumber
 
 twelve_doc :: Doc.Doc
 twelve_doc = "Scales in the \"twelve\" family use European style note naming.\
@@ -173,7 +173,7 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
             else Theory.layout_intervals (smap_layout smap)
     unless (Theory.contains_degree intervals (Pitch.pitch_degree pitch)
             && in_range smap pitch) $
-        Left BaseTypes.InvalidInput
+        Left DeriveT.InvalidInput
     -- Relative scales don't need to figure out enharmonic spelling, and
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
     let pick_enharmonic = if is_relative then id else Theory.pick_enharmonic key
@@ -185,8 +185,8 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     return $ ScaleDegree.pitch_expr frac note
     where
     is_relative = TheoryFormat.fmt_relative (smap_fmt smap)
-    invalid_input (Left (BaseTypes.OutOfRangeError {})) =
-        Left BaseTypes.InvalidInput
+    invalid_input (Left (DeriveT.OutOfRangeError {})) =
+        Left DeriveT.InvalidInput
     invalid_input x = x
     pc_per_octave = Theory.layout_pc_per_octave (smap_layout smap)
     -- Default to a key because otherwise you couldn't enter notes in an
@@ -253,7 +253,7 @@ key_tonic :: Theory.Key -> Pitch.PitchClass
 key_tonic = Pitch.degree_pc . Theory.key_tonic
 
 show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
-    -> Either BaseTypes.PitchError Pitch.Note
+    -> Either DeriveT.PitchError Pitch.Note
 show_pitch smap key = Right . TheoryFormat.show_pitch (smap_fmt smap) key
     -- Previously this would check for OutOfRange, but it meant I couldn't
     -- transpose a pitch to out of range even if I was going to later transpose
@@ -263,14 +263,14 @@ show_pitch smap key = Right . TheoryFormat.show_pitch (smap_fmt smap) key
     -- boundless.
 
 read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
-    -> Either BaseTypes.PitchError Pitch.Pitch
+    -> Either DeriveT.PitchError Pitch.Pitch
 read_pitch smap = TheoryFormat.read_pitch (smap_fmt smap)
 
 read_environ_key :: ScaleMap -> Env.Environ
-    -> Either BaseTypes.PitchError Theory.Key
+    -> Either DeriveT.PitchError Theory.Key
 read_environ_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
     . Scales.environ_key
 
 read_key :: ScaleMap -> Maybe Pitch.Key
-    -> Either BaseTypes.PitchError Theory.Key
+    -> Either DeriveT.PitchError Theory.Key
 read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)

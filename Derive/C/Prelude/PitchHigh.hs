@@ -12,7 +12,6 @@
 module Derive.C.Prelude.PitchHigh (library) where
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Pitch as Call.Pitch
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -21,6 +20,7 @@ import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
@@ -197,7 +197,7 @@ pitch_fade align curve pitch pitch_dir interval
 --        <--pp
 -- @
 pitch_fade_ranges :: Align -> Align
-    -> BaseTypes.Duration -> BaseTypes.Duration
+    -> DeriveT.Duration -> DeriveT.Duration
     -> ScoreTime -> ScoreTime
     -> Derive.Deriver ((RealTime, RealTime), (RealTime, RealTime))
 pitch_fade_ranges align align_fade fade_time pitch_time start end = do

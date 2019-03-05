@@ -5,11 +5,11 @@
 module Derive.C.Prelude.Trill_test where
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -305,7 +305,7 @@ test_moving_trill = do
 
 test_real_trill = do
     let f neighbor speed = fst <$> Trill.get_trill_control (0, 1)
-            Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
+            Nothing Nothing Trill.Shorten (DeriveT.RealDuration 0)
             (mkcontrol ScoreT.Chromatic neighbor) (mkcontrol ScoreT.Real speed)
         run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
         cnst = Signal.constant
@@ -324,7 +324,7 @@ test_real_trill = do
 
 test_score_trill = do
     let f dur neighbor speed = fst <$> Trill.get_trill_control (0, dur)
-            Nothing Nothing Trill.Shorten (BaseTypes.RealDuration 0)
+            Nothing Nothing Trill.Shorten (DeriveT.RealDuration 0)
             (mkcontrol ScoreT.Chromatic neighbor) (mkcontrol ScoreT.Score speed)
         run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
         cnst = Signal.constant
@@ -339,8 +339,8 @@ test_score_trill = do
     equal (run $ Derive.stretch 2 $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (1, 1)]
 
-mkcontrol :: ScoreT.Type -> Signal.Control -> BaseTypes.ControlRef
-mkcontrol typ = BaseTypes.ControlSignal . ScoreT.Typed typ
+mkcontrol :: ScoreT.Type -> Signal.Control -> DeriveT.ControlRef
+mkcontrol typ = DeriveT.ControlSignal . ScoreT.Typed typ
 
 test_pitch_trill = do
     equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")])

@@ -14,7 +14,7 @@ import qualified Data.Word as Word
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
@@ -121,7 +121,7 @@ modify_collect f = modify $ \st -> st { state_collect = f (state_collect st) }
 
 -- * environ
 
-get_environ :: Deriver BaseTypes.Environ
+get_environ :: Deriver DeriveT.Environ
 get_environ = get_dynamic state_environ
 
 -- | Figure out the current block and track, and record the current environ
@@ -267,11 +267,11 @@ add_stack_frame frame st = st
     -- easy for the seed to change.
     _should_update_seed (Stack.Call {}) = False
     _should_update_seed _ = True
-    update_seed env = BaseTypes.insert
-        EnvKey.seed (BaseTypes.VNum (ScoreT.untyped (seed old))) env
+    update_seed env = DeriveT.insert
+        EnvKey.seed (DeriveT.VNum (ScoreT.untyped (seed old))) env
         where
-        old = case BaseTypes.lookup EnvKey.seed env of
-            Just (BaseTypes.VNum n) -> ScoreT.typed_val n
+        old = case DeriveT.lookup EnvKey.seed env of
+            Just (DeriveT.VNum n) -> ScoreT.typed_val n
             _ -> 0
     seed :: Double -> Double
     seed n = i2d (CRC32.crc32Update (floor n) frame)
@@ -289,23 +289,23 @@ get_stack = get_dynamic state_stack
 class Time a where
     real :: a -> Deriver RealTime
     score :: a -> Deriver ScoreTime
-    to_duration :: a -> BaseTypes.Duration
+    to_duration :: a -> DeriveT.Duration
 
 instance Time ScoreTime where
     real = score_to_real
     score = return
-    to_duration = BaseTypes.ScoreDuration
+    to_duration = DeriveT.ScoreDuration
 
 instance Time RealTime where
     real = return
     score = real_to_score
-    to_duration = BaseTypes.RealDuration
+    to_duration = DeriveT.RealDuration
 
-instance Time BaseTypes.Duration where
-    real (BaseTypes.RealDuration t) = real t
-    real (BaseTypes.ScoreDuration t) = real t
-    score (BaseTypes.RealDuration t) = score t
-    score (BaseTypes.ScoreDuration t) = score t
+instance Time DeriveT.Duration where
+    real (DeriveT.RealDuration t) = real t
+    real (DeriveT.ScoreDuration t) = real t
+    score (DeriveT.RealDuration t) = score t
+    score (DeriveT.ScoreDuration t) = score t
     to_duration = id
 
 -- * warp
@@ -387,7 +387,7 @@ record_empty_track block_id track_id =
 
 -- * ControlFunction
 
-get_control_function_dynamic :: Deriver BaseTypes.Dynamic
+get_control_function_dynamic :: Deriver DeriveT.Dynamic
 get_control_function_dynamic = do
     ruler <- get_ruler
     state <- get
@@ -395,8 +395,8 @@ get_control_function_dynamic = do
         (state_event_serial (state_threaded state))
 
 convert_dynamic :: Ruler.Marklists -> Dynamic -> Stack.Serial
-    -> BaseTypes.Dynamic
-convert_dynamic ruler dyn serial = BaseTypes.Dynamic
+    -> DeriveT.Dynamic
+convert_dynamic ruler dyn serial = DeriveT.Dynamic
     { dyn_controls = state_controls dyn
     , dyn_control_functions = state_control_functions dyn
     , dyn_pitches = state_pitches dyn

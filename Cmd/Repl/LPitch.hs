@@ -16,8 +16,8 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
@@ -25,7 +25,8 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 -- | Turn an nn back to a human-readable note name.
@@ -118,7 +119,7 @@ sharps_to_flats = PitchTrack.pitch_tracks $ \scale env note -> first pretty $ do
     if Pitch.pitch_accidentals pitch <= 0 then return note else do
         notes <- Scale.scale_enharmonics scale env note
         pitches <- mapM (Scale.scale_read scale env) notes
-        justErr (BaseTypes.PitchError $ "no flats for " <> pretty note) $
+        justErr (DeriveT.PitchError $ "no flats for " <> pretty note) $
             e_sharps_to_flats (zip pitches notes)
 
 e_sharps_to_flats :: [(Pitch.Pitch, a)] -> Maybe a

@@ -11,9 +11,9 @@ import qualified Data.Text as Text
 
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
@@ -64,8 +64,8 @@ scales = (:[]) $ Scale.Simple $ Scale.Scale
 unity_control :: ScoreT.Control
 unity_control = "unity"
 
-read_pitch :: Pitch.Note -> Either BaseTypes.PitchError Pitch.Pitch
-read_pitch note = justErr BaseTypes.UnparseableNote $
+read_pitch :: Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
+read_pitch note = justErr DeriveT.UnparseableNote $
     ParseText.maybe_parse (Pitch.pitch <$> p_octave <*> ParseText.p_int)
         (Pitch.note_text note)
     where
@@ -110,7 +110,7 @@ note_to_call scale note = do
 
 input_to_note :: Scales.InputToNote
 input_to_note _ input =
-    show_pitch <$> justErr BaseTypes.InvalidInput (input_to_pitch input)
+    show_pitch <$> justErr DeriveT.InvalidInput (input_to_pitch input)
 
 input_to_pitch :: Pitch.Input -> Maybe Pitch.Pitch
 input_to_pitch (Pitch.Input kbd p@(Pitch.Pitch oct (Pitch.Degree pc acc)) _) =

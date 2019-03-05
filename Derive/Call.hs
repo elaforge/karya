@@ -21,9 +21,9 @@ import qualified Cmd.Ruler.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
@@ -52,22 +52,22 @@ import           Types
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
-control_at :: BaseTypes.ControlRef -> RealTime -> Derive.Deriver Signal.Y
+control_at :: DeriveT.ControlRef -> RealTime -> Derive.Deriver Signal.Y
 control_at control pos = ScoreT.typed_val <$> typed_control_at control pos
 
-typed_control_at :: BaseTypes.ControlRef -> RealTime
+typed_control_at :: DeriveT.ControlRef -> RealTime
     -> Derive.Deriver (ScoreT.Typed Signal.Y)
 typed_control_at control pos = case control of
-    BaseTypes.ControlSignal sig -> return $ Signal.at pos <$> sig
-    BaseTypes.DefaultedControl cont deflt ->
+    DeriveT.ControlSignal sig -> return $ Signal.at pos <$> sig
+    DeriveT.DefaultedControl cont deflt ->
         fromMaybe (Signal.at pos <$> deflt) <$> Derive.control_at cont pos
-    BaseTypes.LiteralControl cont ->
+    DeriveT.LiteralControl cont ->
         Derive.require ("not found and no default: " <> ShowVal.show_val cont)
             =<< Derive.control_at cont pos
 
 -- TODO callers should use Typecheck.DefaultRealTimeFunction
-time_control_at :: Typecheck.TimeType -> BaseTypes.ControlRef -> RealTime
-    -> Derive.Deriver BaseTypes.Duration
+time_control_at :: Typecheck.TimeType -> DeriveT.ControlRef -> RealTime
+    -> Derive.Deriver DeriveT.Duration
 time_control_at default_type control pos = do
     ScoreT.Typed typ val <- typed_control_at control pos
     time_type <- case typ of
@@ -77,18 +77,18 @@ time_control_at default_type control pos = do
         _ -> Derive.throw $ "expected time type for "
             <> ShowVal.show_val control <> " but got " <> pretty typ
     return $ case time_type of
-        Typecheck.Real -> BaseTypes.RealDuration (RealTime.seconds val)
-        Typecheck.Score -> BaseTypes.ScoreDuration (ScoreTime.from_double val)
+        Typecheck.Real -> DeriveT.RealDuration (RealTime.seconds val)
+        Typecheck.Score -> DeriveT.ScoreDuration (ScoreTime.from_double val)
 
-real_time_at :: BaseTypes.ControlRef -> RealTime -> Derive.Deriver RealTime
+real_time_at :: DeriveT.ControlRef -> RealTime -> Derive.Deriver RealTime
 real_time_at control pos = do
     val <- time_control_at Typecheck.Real control pos
     case val of
-        BaseTypes.RealDuration t -> return t
-        BaseTypes.ScoreDuration t -> Derive.throw $ "expected RealTime for "
+        DeriveT.RealDuration t -> return t
+        DeriveT.ScoreDuration t -> Derive.throw $ "expected RealTime for "
             <> ShowVal.show_val control <> " but got " <> ShowVal.show_val t
 
-transpose_control_at :: Typecheck.TransposeType -> BaseTypes.ControlRef
+transpose_control_at :: Typecheck.TransposeType -> DeriveT.ControlRef
     -> RealTime -> Derive.Deriver (Signal.Y, Typecheck.TransposeType)
 transpose_control_at default_type control pos = do
     ScoreT.Typed typ val <- typed_control_at control pos
@@ -103,23 +103,23 @@ transpose_control_at default_type control pos = do
 
 -- * function and signal
 
-to_function :: BaseTypes.ControlRef -> Derive.Deriver Typecheck.Function
+to_function :: DeriveT.ControlRef -> Derive.Deriver Typecheck.Function
 to_function = fmap (ScoreT.typed_val .) . Typecheck.to_typed_function
 
 -- | Convert a ControlRef to a control signal.  If there is
--- a 'BaseTypes.ControlFunction' it will be ignored.
-to_typed_signal :: BaseTypes.ControlRef
+-- a 'DeriveT.ControlFunction' it will be ignored.
+to_typed_signal :: DeriveT.ControlRef
     -> Derive.Deriver (ScoreT.Typed Signal.Control)
 to_typed_signal control =
     either return (const $ Derive.throw $ "not found: " <> pretty control)
         =<< Typecheck.to_signal_or_function control
 
-to_signal :: BaseTypes.ControlRef -> Derive.Deriver Signal.Control
+to_signal :: DeriveT.ControlRef -> Derive.Deriver Signal.Control
 to_signal = fmap ScoreT.typed_val . to_typed_signal
 
 -- | Version of 'to_function' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
-to_transpose_function :: Typecheck.TransposeType -> BaseTypes.ControlRef
+to_transpose_function :: Typecheck.TransposeType -> DeriveT.ControlRef
     -> Derive.Deriver (Typecheck.Function, ScoreT.Control)
     -- ^ (signal, appropriate transpose control)
 to_transpose_function default_type control = do
@@ -139,7 +139,7 @@ to_transpose_function default_type control = do
 
 -- | Version of 'to_function' that will complain if the control isn't a time
 -- type.
-to_time_function :: Typecheck.TimeType -> BaseTypes.ControlRef
+to_time_function :: Typecheck.TimeType -> DeriveT.ControlRef
     -> Derive.Deriver (Typecheck.Function, Typecheck.TimeType)
 to_time_function default_type control = do
     sig <- Typecheck.to_typed_function control
@@ -153,13 +153,13 @@ to_time_function default_type control = do
             <> ShowVal.show_val control <> " but got " <> pretty typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
-pitch_at :: RealTime -> BaseTypes.PControlRef -> Derive.Deriver PSignal.Pitch
+pitch_at :: RealTime -> DeriveT.PControlRef -> Derive.Deriver PSignal.Pitch
 pitch_at pos control = case control of
-    BaseTypes.ControlSignal sig -> require sig
-    BaseTypes.DefaultedControl cont deflt -> do
+    DeriveT.ControlSignal sig -> require sig
+    DeriveT.DefaultedControl cont deflt -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
         maybe (require deflt) return maybe_pitch
-    BaseTypes.LiteralControl cont -> do
+    DeriveT.LiteralControl cont -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
         Derive.require ("pitch not found and no default given: " <> showt cont)
             maybe_pitch
@@ -167,16 +167,16 @@ pitch_at pos control = case control of
     require = Derive.require ("ControlSignal pitch at " <> pretty pos)
         . PSignal.at pos
 
-to_psignal :: BaseTypes.PControlRef -> Derive.Deriver PSignal.PSignal
+to_psignal :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
 to_psignal control = case control of
-    BaseTypes.ControlSignal sig -> return sig
-    BaseTypes.DefaultedControl cont deflt ->
+    DeriveT.ControlSignal sig -> return sig
+    DeriveT.DefaultedControl cont deflt ->
         maybe (return deflt) return =<< Derive.get_named_pitch cont
-    BaseTypes.LiteralControl cont ->
+    DeriveT.LiteralControl cont ->
         Derive.require ("not found: " <> showt cont)
             =<< Derive.get_named_pitch cont
 
-nn_at :: RealTime -> BaseTypes.PControlRef
+nn_at :: RealTime -> DeriveT.PControlRef
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
     Derive.logged_pitch_nn ("Util.nn_at " <> pretty (pos, control))
@@ -236,7 +236,7 @@ with_transposed_pitch pitch =
 without_transpose :: Derive.Deriver a -> Derive.Deriver a
 without_transpose = Derive.remove_controls Controls.transposers
 
-with_symbolic_pitch :: BaseTypes.PitchCall -> ScoreTime -> Derive.Deriver a
+with_symbolic_pitch :: DeriveT.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a
 with_symbolic_pitch call pos deriver = do
     pitch <- Eval.eval_pitch pos call
@@ -537,8 +537,8 @@ when_env key val transformer deriver =
 real_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver RealTime
 real_duration start dur = case Derive.to_duration dur of
-    BaseTypes.RealDuration t -> return t
-    BaseTypes.ScoreDuration t
+    DeriveT.RealDuration t -> return t
+    DeriveT.ScoreDuration t
         | t == 0 -> return 0
         | otherwise -> do
             -- I'm adding score to real, so I want the amount of real time in
@@ -555,8 +555,8 @@ real_duration start dur = case Derive.to_duration dur of
 score_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver ScoreTime
 score_duration start dur = case Derive.to_duration dur of
-    BaseTypes.ScoreDuration t -> return t
-    BaseTypes.RealDuration t
+    DeriveT.ScoreDuration t -> return t
+    DeriveT.RealDuration t
         | t == 0 -> return 0
         | otherwise -> do
             -- I'm adding real to score, so I want the amount of amount of

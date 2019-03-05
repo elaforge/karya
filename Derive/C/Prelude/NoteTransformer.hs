@@ -11,10 +11,10 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Library as Library
@@ -147,13 +147,13 @@ parallel_derivers start event_dur derivers durs =
     call_dur = fromMaybe 0 (Seq.maximum durs)
 
 calls_to_derivers :: Derive.CallableExpr d => Derive.PassedArgs d
-    -> NonEmpty BaseTypes.Quoted
-    -> [(BaseTypes.Quoted, Derive.Deriver (Stream.Stream d))]
+    -> NonEmpty DeriveT.Quoted
+    -> [(DeriveT.Quoted, Derive.Deriver (Stream.Stream d))]
 calls_to_derivers args calls = zip (NonEmpty.toList calls)
     (map (Eval.eval_quoted_normalized (Args.context args))
         (NonEmpty.toList calls))
 
-get_score_duration :: (BaseTypes.Quoted, Derive.Deriver a)
+get_score_duration :: (DeriveT.Quoted, Derive.Deriver a)
     -> Derive.Deriver ScoreTime
 get_score_duration (quoted, d) = Derive.get_score_duration d >>= \case
     Left err -> Derive.throw $ "get score dur: " <> pretty err
@@ -161,7 +161,7 @@ get_score_duration (quoted, d) = Derive.get_score_duration d >>= \case
         <> ShowVal.show_val quoted
     Right (Derive.CallDuration dur) -> return dur
 
-get_real_duration :: (BaseTypes.Quoted, Derive.Deriver a)
+get_real_duration :: (DeriveT.Quoted, Derive.Deriver a)
     -> Derive.Deriver RealTime
 get_real_duration (quoted, d) = Derive.get_real_duration d >>= \case
     Left err -> Derive.throw $ "get real dur: " <> pretty err

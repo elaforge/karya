@@ -11,7 +11,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Test.ApproxEq as ApproxEq
 
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -59,8 +59,8 @@ standard_curves =
 -- | Left for an explicit time arg.  Right is for an implicit time, inferred
 -- from the args, along with an extra bit of documentation to describe it.
 type InterpolatorTime a =
-    Either (Sig.Parser BaseTypes.Duration) (GetTime a, Text)
-type GetTime a = Derive.PassedArgs a -> Derive.Deriver BaseTypes.Duration
+    Either (Sig.Parser DeriveT.Duration) (GetTime a, Text)
+type GetTime a = Derive.PassedArgs a -> Derive.Deriver DeriveT.Duration
 
 interpolator_call :: Text -> CurveD
     -> InterpolatorTime Derive.Control -> Derive.Generator Derive.Control
@@ -69,14 +69,14 @@ interpolator_call name_suffix (CurveD name get_arg curve) interpolator_time =
         Tags.prev doc
     $ Sig.call ((,,,)
     <$> Sig.required "to" "Destination value."
-    <*> either id (const $ pure $ BaseTypes.RealDuration 0) interpolator_time
+    <*> either id (const $ pure $ DeriveT.RealDuration 0) interpolator_time
     <*> get_arg <*> from_env
     ) $ \(to, time, curve_arg, from) args -> do
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
-            else BaseTypes.RealDuration <$> Args.real_duration args
+            else DeriveT.RealDuration <$> Args.real_duration args
         (start, end) <- Call.duration_from_start args time
         make_segment_from (curve curve_arg)
             (min start end) (prev_val from args) (max start end) to
@@ -112,13 +112,13 @@ interpolator_variations_ make (Expr.Symbol sym) curve =
     prev_time_arg = invert . Typecheck._real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination, starting before the event."
-    invert (BaseTypes.RealDuration t) = BaseTypes.RealDuration (-t)
-    invert (BaseTypes.ScoreDuration t) = BaseTypes.ScoreDuration (-t)
+    invert (DeriveT.RealDuration t) = DeriveT.RealDuration (-t)
+    invert (DeriveT.ScoreDuration t) = DeriveT.ScoreDuration (-t)
 
     next = Right (next, "If the event's duration is 0, interpolate from this\
             \ event to the next.")
         where
-        next args = return $ BaseTypes.ScoreDuration $
+        next args = return $ DeriveT.ScoreDuration $
             Args.next args - Args.start args
     prev = Right (get_prev_val,
         "If the event's duration is 0, interpolate from the\
@@ -128,10 +128,10 @@ default_interpolation_time :: Typecheck.DefaultReal
 default_interpolation_time = Typecheck.real 0.1
 
 get_prev_val :: Derive.Taggable a => Derive.PassedArgs a
-    -> Derive.Deriver BaseTypes.Duration
+    -> Derive.Deriver DeriveT.Duration
 get_prev_val args = do
     start <- Args.real_start args
-    return $ BaseTypes.RealDuration $ case Args.prev_val_end args of
+    return $ DeriveT.RealDuration $ case Args.prev_val_end args of
         -- It's likely the callee won't use the duration if there's no
         -- prev val.
         Nothing -> 0
@@ -154,7 +154,7 @@ curve_arg :: Sig.Parser Curve
 curve_arg = cf_to_curve <$>
     Sig.defaulted "curve" cf_linear "Curve function."
 
-cf_linear :: BaseTypes.ControlFunction
+cf_linear :: DeriveT.ControlFunction
 cf_linear = curve_to_cf "" Linear
 
 -- | A ControlFunction is a generic function, so it can't retain the
@@ -175,25 +175,24 @@ make_curve_call doc (CurveD name get_arg curve) =
         return $ curve_to_cf name (curve arg)
 
 -- | Stuff a curve function into a ControlFunction.
-curve_to_cf :: Text -> Curve -> BaseTypes.ControlFunction
-curve_to_cf name (Function curvef) = BaseTypes.ControlFunction name $
+curve_to_cf :: Text -> Curve -> DeriveT.ControlFunction
+curve_to_cf name (Function curvef) = DeriveT.ControlFunction name $
     \_ _ -> ScoreT.untyped . curvef . RealTime.to_seconds
-curve_to_cf _ Linear = BaseTypes.ControlFunction cf_linear_name $
+curve_to_cf _ Linear = DeriveT.ControlFunction cf_linear_name $
     \_ _ -> ScoreT.untyped . RealTime.to_seconds
 
 -- | Convert a ControlFunction back into a curve function.
-cf_to_curve :: BaseTypes.ControlFunction -> Curve
-cf_to_curve cf@(BaseTypes.ControlFunction name _)
+cf_to_curve :: DeriveT.ControlFunction -> Curve
+cf_to_curve cf@(DeriveT.ControlFunction name _)
     | name == cf_linear_name = Linear
     | otherwise = Function $ ScoreT.typed_val
-        . BaseTypes.call_control_function cf Controls.null
-            BaseTypes.empty_dynamic
+        . DeriveT.call_control_function cf Controls.null DeriveT.empty_dynamic
         . RealTime.seconds
 
 -- * interpolate
 
 -- | Given a placement, start, and duration, return the range thus implied.
-place_range :: Typecheck.Normalized -> ScoreTime -> BaseTypes.Duration
+place_range :: Typecheck.Normalized -> ScoreTime -> DeriveT.Duration
     -> Derive.Deriver (RealTime, RealTime)
 place_range (Typecheck.Normalized place) start dur = do
     start <- Derive.real start

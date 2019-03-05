@@ -6,7 +6,6 @@
 module Derive.C.Lily (library) where
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Make as Make
@@ -14,6 +13,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
@@ -26,8 +26,8 @@ import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -109,13 +109,13 @@ c_unless_ly = transformer "unless-ly"
     \ not in lilypond mode."
     $ Sig.callt (Sig.many_vals "arg" "Call expression.") (when_ly True)
 
-when_ly :: Bool -> [BaseTypes.Val] -> Derive.PassedArgs Score.Event
+when_ly :: Bool -> [DeriveT.Val] -> Derive.PassedArgs Score.Event
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 when_ly inverted vals args deriver = case vals of
     [] -> when_lily deriver mempty
     call : vals -> when_lily (apply args (to_sym call) vals deriver) deriver
     where
-    to_sym = Expr.Symbol . BaseTypes.show_call_val
+    to_sym = Expr.Symbol . DeriveT.show_call_val
     when_lily = if inverted then flip Ly.when_lilypond else Ly.when_lilypond
     apply args sym vals deriver = do
         call <- Eval.get_transformer sym

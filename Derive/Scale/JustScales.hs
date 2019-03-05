@@ -15,10 +15,10 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -209,7 +209,7 @@ pitch_nn smap relative (PSignal.PitchConfig env controls) = do
         Nothing -> return ""
         Just deflt -> Scales.read_environ id (Just deflt) EnvKey.tuning env
     ratios <- tryJust
-        (BaseTypes.EnvironError EnvKey.tuning
+        (DeriveT.EnvironError EnvKey.tuning
             (Just $ "unknown: " <> pretty tuning))
         (Map.lookup tuning (key_ratios key))
     pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
@@ -290,7 +290,7 @@ instance Pretty Key where
     pretty (Key tonic ratios) =
         "(Key " <> showt tonic <> " [" <> show_ratios ratios <> "])"
 
-read_key :: ScaleMap -> Maybe Pitch.Key -> Either BaseTypes.PitchError Key
+read_key :: ScaleMap -> Maybe Pitch.Key -> Either DeriveT.PitchError Key
 read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
 
 make_keys :: [Text] -> [(Text, [(Tuning, Ratios)])] -> Keys

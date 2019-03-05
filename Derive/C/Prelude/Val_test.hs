@@ -3,23 +3,24 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Prelude.Val_test where
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.NN as NN
-import Global
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_env = do
     let run = CallTest.run_val
     equal (run Nothing "e x") (Nothing, ["Error: environ val not found: \"x\""])
-    equal (run Nothing "e x 42") (Just (BaseTypes.num 42), [])
-    equal (run (Just "x = 42") "e x") (Just (BaseTypes.num 42), [])
+    equal (run Nothing "e x 42") (Just (DeriveT.num 42), [])
+    equal (run (Just "x = 42") "e x") (Just (DeriveT.num 42), [])
     equal (run (Just "x = 42") "e x str")
         (Nothing, ["Error: env \"x\" expected Str but got Num"])
 

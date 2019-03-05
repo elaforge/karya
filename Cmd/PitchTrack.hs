@@ -11,11 +11,10 @@ module Cmd.PitchTrack (module Cmd.PitchTrack, module Cmd.ControlTrack) where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
-import qualified Ui.Key as Key
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
-import Cmd.ControlTrack (Event(..))
+import           Cmd.ControlTrack (Event(..))
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -23,7 +22,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
@@ -32,8 +31,10 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Pitch as Pitch
-import qualified App.Config as Config
-import Global
+import qualified Ui.Event as Event
+import qualified Ui.Key as Key
+
+import           Global
 
 
 -- * entry
@@ -205,7 +206,7 @@ transpose :: Scale.Transposition -> Pitch.Octave -> Pitch.Step -> ModifyPitch
 transpose transposition octaves steps = \scale env note ->
     case Scale.transpose transposition scale env octaves steps note of
         -- Leave non-pitches alone.
-        Left BaseTypes.UnparseableNote -> Right note
+        Left DeriveT.UnparseableNote -> Right note
         Left err -> Left (pretty err)
         Right note2 -> Right note2
 

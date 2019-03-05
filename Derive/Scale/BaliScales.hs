@@ -20,7 +20,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
@@ -306,7 +306,7 @@ semis_to_nn layout laras default_laras =
         let fsemis = fsemis_ - fromIntegral offset
             offset = laras_offset layout laras
         tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
-        let err = BaseTypes.out_of_range_error fsemis
+        let err = DeriveT.out_of_range_error fsemis
                 (0, Vector.length (laras_umbang laras))
         justErr err $ case Map.lookup c_ombak controls of
             Nothing -> case tuning of

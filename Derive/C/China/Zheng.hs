@@ -5,7 +5,6 @@
 -- | Calls for 箏.
 module Derive.C.China.Zheng (library) where
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Idiom.String as String
 import qualified Derive.C.India.Gamakam as Gamakam
 import qualified Derive.C.Prelude.Trill as Trill
@@ -15,6 +14,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
@@ -72,7 +72,7 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
         trill_signal start_dir pitch neighbor speed hold args
 
 trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
-    -> BaseTypes.ControlRef -> BaseTypes.ControlRef -> BaseTypes.Duration
+    -> DeriveT.ControlRef -> DeriveT.ControlRef -> DeriveT.Duration
     -> Derive.PassedArgs a -> Derive.Deriver PSignal.PSignal
 trill_signal start_dir pitch neighbor speed hold args = do
     (neighbor, control) <- Call.to_transpose_function Typecheck.Nn neighbor
@@ -86,11 +86,11 @@ trill_signal start_dir pitch neighbor speed hold args = do
     transition = 0.08
     lilt = 0
 
-neighbor_arg :: Sig.Parser BaseTypes.ControlRef
+neighbor_arg :: Sig.Parser DeriveT.ControlRef
 neighbor_arg = Sig.defaulted "neighbor"
     (Sig.typed_control "tr-neighbor" 1 ScoreT.Nn)
     "Alternate with a pitch at this interval."
 
-speed_arg :: Sig.Parser BaseTypes.ControlRef
+speed_arg :: Sig.Parser DeriveT.ControlRef
 speed_arg = Sig.defaulted "speed" (Sig.typed_control "tr-speed" 20 ScoreT.Real)
     "Alternate pitches at this speed."

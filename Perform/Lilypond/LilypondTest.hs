@@ -14,10 +14,10 @@ import qualified Util.Seq as Seq
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -119,10 +119,10 @@ simple_event (start, dur, pitch) =
 attrs_event :: (RealTime, RealTime, Types.Pitch, Attrs.Attributes)
     -> Types.Event
 attrs_event (start, dur, pitch, attrs) = environ_event
-    (start, dur, Just pitch, [(EnvKey.attributes, BaseTypes.VAttributes attrs)])
+    (start, dur, Just pitch, [(EnvKey.attributes, DeriveT.VAttributes attrs)])
 
 environ_event ::
-    (RealTime, RealTime, Maybe Types.Pitch, [(Env.Key, BaseTypes.Val)])
+    (RealTime, RealTime, Maybe Types.Pitch, [(Env.Key, DeriveT.Val)])
     -> Types.Event
 environ_event (start, dur, pitch, env) =
     mkevent start dur pitch default_inst env
@@ -133,7 +133,7 @@ voice_event (start, dur, pitch, maybe_voice) =
         maybe [] ((:[]) . (,) EnvKey.voice . Typecheck.to_val) maybe_voice
 
 mkevent :: RealTime -> RealTime -> Maybe Types.Pitch -> ScoreT.Instrument
-    -> [(Env.Key, BaseTypes.Val)] -> Types.Event
+    -> [(Env.Key, DeriveT.Val)] -> Types.Event
 mkevent start dur pitch inst env = Types.Event
     { event_start = Types.real_to_time 1 start
     , event_duration = Types.real_to_time 1 dur

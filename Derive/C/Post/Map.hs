@@ -4,11 +4,11 @@
 
 module Derive.C.Post.Map (library) where
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
@@ -43,7 +43,7 @@ c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc
         Post.emap_m_ id mapper =<< deriver
 
 map_control :: Derive.Context Derive.Control -> ScoreT.Control
-    -> BaseTypes.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
+    -> DeriveT.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_control ctx control transformer event = do
     let ScoreT.Typed typ sig = fromMaybe mempty $
             Score.event_control control event
@@ -53,7 +53,7 @@ map_control ctx control transformer event = do
     return [Score.set_control control (ScoreT.Typed typ sig) event]
 
 map_pcontrol :: Derive.Context Derive.Pitch -> ScoreT.PControl
-    -> BaseTypes.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
+    -> DeriveT.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_pcontrol ctx control transformer event = do
     let sig = fromMaybe mempty $ Score.event_named_pitch control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $

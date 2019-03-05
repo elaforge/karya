@@ -8,10 +8,10 @@ import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
@@ -75,8 +75,8 @@ c_if_c cmp = Derive.generator Module.prelude "if-c<" mempty
         Eval.eval_quoted (Args.context args) $ maybe final snd $
             List.find (cmp val . fst) tests
 
-typecheck_tests :: ScoreTime -> [BaseTypes.Val]
-    -> Derive.Deriver ([(Signal.Y, BaseTypes.Quoted)], BaseTypes.Quoted)
+typecheck_tests :: ScoreTime -> [DeriveT.Val]
+    -> Derive.Deriver ([(Signal.Y, DeriveT.Quoted)], DeriveT.Quoted)
 typecheck_tests start = go
     where
     go [] = Derive.throw "not enough values"
@@ -87,7 +87,7 @@ typecheck_tests start = go
         checked <- (,) <$> typecheck val <*> typecheck result
         (rest, final) <- go rest
         return (checked : rest, final)
-    typecheck :: Typecheck.Typecheck a => BaseTypes.Val -> Derive.Deriver a
+    typecheck :: Typecheck.Typecheck a => DeriveT.Val -> Derive.Deriver a
     typecheck = Typecheck.typecheck "" start
 
 -- * transformer
@@ -114,7 +114,7 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
             deriver (return Stream.empty)
     where invert = if inverted then (not <$>) else id
 
-has_control :: BaseTypes.ControlRef -> Int -> RealTime -> Derive.Deriver Bool
+has_control :: DeriveT.ControlRef -> Int -> RealTime -> Derive.Deriver Bool
 has_control control val pos = do
     cval <- Call.control_at control pos
     return $ round cval == val
@@ -133,12 +133,12 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
             (return Stream.empty)
     where invert = if inverted then (not <$>) else id
 
-has_environ :: Env.Key -> Maybe BaseTypes.Val -> Derive.Deriver Bool
+has_environ :: Env.Key -> Maybe DeriveT.Val -> Derive.Deriver Bool
 has_environ name maybe_val = Derive.lookup_val name >>= \case
     Nothing -> return False
     Just env_val -> case maybe_val of
         Nothing -> return True
-        Just val -> case BaseTypes.vals_equal val env_val of
+        Just val -> case DeriveT.vals_equal val env_val of
             Nothing -> Derive.throw $ "vals can't be compared: "
                 <> ShowVal.show_val val <> " " <> ShowVal.show_val env_val
             Just t -> return t

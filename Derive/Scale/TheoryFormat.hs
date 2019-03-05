@@ -27,7 +27,7 @@ import qualified Data.Vector.Unboxed as Unboxed
 
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
 
@@ -70,7 +70,7 @@ data KeyConfig key = KeyConfig {
     -- or missing key would mean you couldn't even display notes.
     , key_default :: key
     }
-type ParseKey key = Maybe Pitch.Key -> Either BaseTypes.PitchError key
+type ParseKey key = Maybe Pitch.Key -> Either DeriveT.PitchError key
 
 -- | This is a just-parsed pitch.  It hasn't yet been adjusted according to the
 -- key, so it's not yet an absolute 'Pitch.Pitch'.  It also represents
@@ -174,7 +174,7 @@ data Format = Format {
     -- to give all pattern_lookup calls access to the env in scope.  But
     -- I don't need the env to recognize if it's a valid call or not.
     , fmt_to_absolute :: Maybe Pitch.Key -> RelativePitch
-        -> Either BaseTypes.PitchError Pitch.Pitch
+        -> Either DeriveT.PitchError Pitch.Pitch
     , fmt_pattern :: !Text
     -- TODO why do I need this?  can I have keys with different octaves?
     -- It's used only by JustScales
@@ -238,22 +238,22 @@ show_pitch fmt key = fmt_show fmt key . Right
 
 -- | 'show_pitch' adapted to 'Scale.scale_show'.
 scale_show_pitch :: Format -> Maybe Pitch.Key -> Pitch.Pitch
-    -> Either BaseTypes.PitchError Pitch.Note
+    -> Either DeriveT.PitchError Pitch.Note
 scale_show_pitch fmt key = Right . show_pitch fmt key
 
 show_degree :: Format -> Maybe Pitch.Key -> Pitch.Degree -> Text
 show_degree fmt key = Pitch.note_text . fmt_show fmt key . Left
 
 read_pitch :: Format -> Maybe Pitch.Key -> Pitch.Note
-    -> Either BaseTypes.PitchError Pitch.Pitch
+    -> Either DeriveT.PitchError Pitch.Pitch
 read_pitch fmt key = fmt_to_absolute fmt key <=< read_relative_pitch fmt
 
 -- | Parse a Note, but don't adjust it for the key.  This means that relative
 -- pitches will likely be incorrect.  'ToAbsolute' documents why this needs
 -- to be separate.
 read_relative_pitch :: Format -> Pitch.Note
-    -> Either BaseTypes.PitchError RelativePitch
-read_relative_pitch fmt = justErr BaseTypes.UnparseableNote
+    -> Either DeriveT.PitchError RelativePitch
+read_relative_pitch fmt = justErr DeriveT.UnparseableNote
     . ParseText.maybe_parse (fmt_read fmt)
     . Pitch.note_text
 

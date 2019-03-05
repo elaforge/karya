@@ -11,7 +11,6 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.GraceUtil as GraceUtil
@@ -24,6 +23,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Library as Library
@@ -402,6 +402,6 @@ highest_harmonic = 13
 touch_interval :: Int -> Pitch.NoteNumber -> Pitch.NoteNumber
 touch_interval harmonic = Pitch.modify_hz (* fromIntegral harmonic)
 
-finger_arg :: Sig.Parser BaseTypes.ControlRef
-finger_arg = Sig.defaulted "finger" (BaseTypes.constant_control 0.035)
+finger_arg :: Sig.Parser DeriveT.ControlRef
+finger_arg = Sig.defaulted "finger" (DeriveT.constant_control 0.035)
     "Weight of the finger touching the string, in newtons."

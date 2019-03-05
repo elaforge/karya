@@ -15,8 +15,8 @@ import           System.FilePath ((</>))
 import qualified Util.ParseText as ParseText
 import qualified Util.Test.Testing as Testing
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
-import           Derive.BaseTypes (Ref(..), Val(..))
+import qualified Derive.DeriveT as DeriveT
+import           Derive.DeriveT (Ref(..), Val(..))
 import qualified Derive.Expr as Expr
 import           Derive.Expr (Call(..), Term(..))
 import qualified Derive.Parse as Parse
@@ -88,13 +88,13 @@ roundtrip t =
 
 test_unparsed_call = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
-        vsym = Literal . BaseTypes.VStr
+        vsym = Literal . DeriveT.VStr
         null_call = Call "" []
     equal (f "!<>\"('|") $ Right
         [Call Parse.unparsed_call [vsym "<>\"('"], null_call]
     equal (f "hi \"(!blah)") $ Right
-        [Call "hi" [Literal $ BaseTypes.VQuoted $
-            BaseTypes.Quoted (Call "!" [vsym "blah"] :| [])]]
+        [Call "hi" [Literal $ DeriveT.VQuoted $
+            DeriveT.Quoted (Call "!" [vsym "blah"] :| [])]]
     -- ! takes precedence over =
     equal (f "!a=b") $ Right [Call "!" [vsym "a=b"]]
     -- But comments are still comments.
@@ -138,11 +138,11 @@ invertible_vals =
     , ("#", Just $ VPControlRef $ LiteralControl "")
     , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
 
-    , ("\"(a b)", Just $ VQuoted $ BaseTypes.Quoted $
+    , ("\"(a b)", Just $ VQuoted $ DeriveT.Quoted $
         Call (Expr.Symbol "a") [Literal (VStr "b")] :| [])
-    , ("\"()", Just $ VQuoted $ BaseTypes.Quoted $
+    , ("\"()", Just $ VQuoted $ DeriveT.Quoted $
         Call (Expr.Symbol "") [] :| [])
-    , ("\"(a |)", Just $ VQuoted $ BaseTypes.Quoted $
+    , ("\"(a |)", Just $ VQuoted $ DeriveT.Quoted $
         Call "a" [] :| [Call "" []])
 
     , ("$bad", Nothing)

@@ -29,9 +29,9 @@ import qualified Util.Vector
 
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
@@ -60,11 +60,11 @@ initial_environ :: Env.Environ
 initial_environ = Env.from_list
     -- Control interpolators rely on this.
     -- TODO 66+2/3, change to a whole number when I'm ready to update verify
-    [ (EnvKey.srate, BaseTypes.num (1/0.015))
+    [ (EnvKey.srate, DeriveT.num (1/0.015))
     -- Looking up any val call relies on having a scale in scope.
-    , (EnvKey.scale, BaseTypes.str Config.default_scale_id)
-    , (EnvKey.attributes, BaseTypes.VAttributes mempty)
-    , (EnvKey.seed, BaseTypes.num 0)
+    , (EnvKey.scale, DeriveT.str Config.default_scale_id)
+    , (EnvKey.attributes, DeriveT.VAttributes mempty)
+    , (EnvKey.seed, DeriveT.num 0)
     ]
 
 -- | Derive with the cache.

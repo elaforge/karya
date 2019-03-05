@@ -11,20 +11,20 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -135,7 +135,7 @@ c_tempo_alternate_continuous =
     ) $ \((bottom, pairs), timestep, interval) args ->
         tempo_alternate_continuous bottom pairs timestep interval args
 
-breakpoints_arg :: Sig.Parser (BaseTypes.Quoted, [(RealTime, BaseTypes.Quoted)])
+breakpoints_arg :: Sig.Parser (DeriveT.Quoted, [(RealTime, DeriveT.Quoted)])
 breakpoints_arg = Sig.check check $ (,)
     <$> Sig.required_env "bottom" Sig.None "Default alternate."
     <*> Sig.many_pairs "threshold,expr"
@@ -148,7 +148,7 @@ breakpoints_arg = Sig.check check $ (,)
         | otherwise = Just $ "thresholds should be in ascending order: "
             <> pretty (map fst pairs)
 
-tempo_alternate_continuous :: BaseTypes.Quoted -> [(RealTime, BaseTypes.Quoted)]
+tempo_alternate_continuous :: DeriveT.Quoted -> [(RealTime, DeriveT.Quoted)]
     -> Meter.RankName -> Meter.RankName -> Derive.NoteArgs -> Derive.NoteDeriver
 tempo_alternate_continuous bottom pairs timestep interval args = do
     interval <- Call.meter_duration (Args.start args) interval 1
@@ -222,14 +222,14 @@ c_val_alternate :: Derive.ValCall
 c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random
     "Pick one of the arguments randomly."
     $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ ->
-        Call.pick (vals :: NonEmpty BaseTypes.Val) <$> Call.random
+        Call.pick (vals :: NonEmpty DeriveT.Val) <$> Call.random
 
 c_val_alternate_weighted :: Derive.ValCall
 c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
     Tags.random "Pick one of the arguments randomly."
     $ Sig.call (Sig.many1_pairs "val" "(weight, val) pairs.") $
     \pairs _args -> do
-        let vals :: NonEmpty BaseTypes.Val
+        let vals :: NonEmpty DeriveT.Val
             (weights, vals) = NonEmpty.unzip pairs
         Call.pick_weighted (NonEmpty.zip weights vals) <$> Call.random
 

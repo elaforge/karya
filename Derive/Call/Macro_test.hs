@@ -3,20 +3,20 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Macro_test where
-import Util.Test
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Macro as Macro
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
-import Global
+import           Global
+import           Util.Test
 
 
 test_generator = do
@@ -50,7 +50,7 @@ with_id = CallTest.with_val_call "id" c_id
 c_id :: Derive.ValCall
 c_id = Derive.val_call "test" "id" mempty "doc" $
     Sig.call (Sig.required "a" "arg") $ \val _args ->
-        return (val :: BaseTypes.Val)
+        return (val :: DeriveT.Val)
 
 test_transformer = do
     let run expr call = DeriveTest.extract DeriveTest.e_attributes $

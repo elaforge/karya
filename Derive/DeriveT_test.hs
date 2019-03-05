@@ -2,15 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.BaseTypes_test where
+module Derive.DeriveT_test where
 import Util.Test
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 
 
 test_map_str = do
-    let f modify = fmap (ShowVal.show_val . fmap (BaseTypes.map_str modify))
+    let f modify = fmap (ShowVal.show_val . fmap (DeriveT.map_str modify))
             . Parse.parse_expr
     -- Mostly this is testing that show_val is a proper inverse of
     -- Parse.parse_expr.

@@ -12,7 +12,6 @@ module Derive.C.Bali.Gender (
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -20,6 +19,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
@@ -83,7 +83,7 @@ interval_arg = Typecheck.default_diatonic <$> Sig.required "interval"
 -- behaviour.
 ngoret :: Module.Module -> Bool
     -- ^ Extend the previous note's duration to the end of the grace note.
-    -> Sig.Parser BaseTypes.ControlRef
+    -> Sig.Parser DeriveT.ControlRef
     -- ^ Time grace note overlaps with this one.
     -> Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
@@ -235,7 +235,7 @@ c_weak = Derive.generator module_ "weak" Tags.inst
         \ then play it open but softly."
     ) $ \strength -> Sub.inverting (weak strength)
 
-weak :: BaseTypes.ControlRef -> Derive.PassedArgs a -> Derive.NoteDeriver
+weak :: DeriveT.ControlRef -> Derive.PassedArgs a -> Derive.NoteDeriver
 weak strength args = do
     strength <- Call.control_at strength =<< Args.real_start args
     -- This biases %mute values to be lower, and 0 before it unmutes.

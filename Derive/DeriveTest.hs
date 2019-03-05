@@ -29,11 +29,11 @@ import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Simple as Simple
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import           Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -537,9 +537,9 @@ default_dynamic = Derive.initial_dynamic default_environ
 default_environ :: Env.Environ
 default_environ = Env.from_list
     -- tests are easier to write and read with integral interpolation
-    [ (EnvKey.srate, BaseTypes.num 1)
-    , (EnvKey.scale, BaseTypes.VStr (Expr.scale_id_to_str Twelve.scale_id))
-    , (EnvKey.attributes, BaseTypes.VAttributes mempty)
+    [ (EnvKey.srate, DeriveT.num 1)
+    , (EnvKey.scale, DeriveT.VStr (Expr.scale_id_to_str Twelve.scale_id))
+    , (EnvKey.attributes, DeriveT.VAttributes mempty)
     ]
 
 -- *** instrument defaults
@@ -820,7 +820,7 @@ e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
 
 -- * call
 
-passed_args :: Derive.CallName -> [BaseTypes.Val] -> Derive.PassedArgs derived
+passed_args :: Derive.CallName -> [DeriveT.Val] -> Derive.PassedArgs derived
 passed_args name vals = Derive.PassedArgs
     { Derive.passed_vals = vals
     , Derive.passed_call_name = name

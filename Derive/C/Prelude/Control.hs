@@ -10,13 +10,13 @@ import qualified Data.Map as Map
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
@@ -28,8 +28,9 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -129,7 +130,7 @@ c_porta = generator1 "porta" mempty
         let maybe_from = from <|> (snd <$> Args.prev_control args)
         time <- if Args.duration args == 0
             then return time
-            else BaseTypes.RealDuration <$> Args.real_duration args
+            else DeriveT.RealDuration <$> Args.real_duration args
         (start, end) <- ControlUtil.place_range place (Args.start args) time
         ControlUtil.make_segment_from curve start maybe_from end to
 

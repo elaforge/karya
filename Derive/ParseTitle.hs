@@ -18,7 +18,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
 import qualified Util.ParseText as ParseText
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import           Derive.Parse (lexeme)
@@ -35,7 +35,7 @@ import           Global
 -- * blocks
 
 -- | A block title is a normal expression, applied as a transform.
-parse_block :: Text -> Either Text BaseTypes.Expr
+parse_block :: Text -> Either Text DeriveT.Expr
 parse_block = Parse.parse_expr
 
 -- * tracks
@@ -72,7 +72,7 @@ p_note_track = (,)
 parse_control_type :: Text -> Either Text ControlType
 parse_control_type = fmap fst . parse_control_title
 
-parse_control_title :: Text -> Either Text (ControlType, [BaseTypes.Call])
+parse_control_title :: Text -> Either Text (ControlType, [DeriveT.Call])
 parse_control_title = ParseText.parse p_control_title
 
 data ControlType =
@@ -91,7 +91,7 @@ type TrackCall = Expr.Symbol
 instance ShowVal.ShowVal ControlType where
     show_val = control_type_to_title
 
-p_control_title :: A.Parser (ControlType, [BaseTypes.Call])
+p_control_title :: A.Parser (ControlType, [DeriveT.Call])
 p_control_title = do
     ctype <- p_control_type
     expr <- A.option [] (Parse.p_pipe >> NonEmpty.toList <$> Parse.p_expr True)
@@ -202,13 +202,13 @@ is_tempo_track title = case parse_control_type title of
 
 -- | Parse a note track like @>inst@ as @note-track inst@.  Other than
 -- this, note track titles are normal expressions.
-parse_note :: Text -> Either Text BaseTypes.Expr
+parse_note :: Text -> Either Text DeriveT.Expr
 parse_note title = case Text.uncons title of
     Just ('>', rest) -> Parse.parse_expr (prefix <> rest)
         where prefix = Expr.unsym Symbols.note_track <> " "
     _ -> Left $ "note track title should start with >: " <> showt title
 
-unparse_note :: BaseTypes.Expr -> Text
+unparse_note :: DeriveT.Expr -> Text
 unparse_note = strip . ShowVal.show_val
     where
     strip t = maybe t ((">"<>) . Text.stripStart) $

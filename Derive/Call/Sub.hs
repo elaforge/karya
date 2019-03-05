@@ -26,14 +26,10 @@ import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.TrackTree as TrackTree
-
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
@@ -44,8 +40,12 @@ import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.TrackTree as TrackTree
+
+import           Global
+import           Types
 
 
 -- * inversion
@@ -373,7 +373,7 @@ strip_rests events = [Event s d n | Event s d (Just n) <- events]
 -- because they expect a track structure in 'Derive.ctx_sub_tracks'.  This
 -- bypasses that and directly passes 'Event's to the note parent, courtesy
 -- of 'Derive.ctx_sub_events'.
-reapply :: Derive.Context Score.Event -> BaseTypes.Expr -> [[Event]]
+reapply :: Derive.Context Score.Event -> DeriveT.Expr -> [[Event]]
     -> Derive.NoteDeriver
 reapply ctx expr notes = Eval.reapply subs expr
     where
@@ -383,7 +383,7 @@ reapply ctx expr notes = Eval.reapply subs expr
         }
 
 reapply_call :: Derive.Context Score.Event -> Expr.Symbol
-    -> [BaseTypes.Term] -> [[Event]] -> Derive.NoteDeriver
+    -> [DeriveT.Term] -> [[Event]] -> Derive.NoteDeriver
 reapply_call ctx sym call_args =
     reapply ctx $ Expr.generator $ Expr.Call sym call_args
 

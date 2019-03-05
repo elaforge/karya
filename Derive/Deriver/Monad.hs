@@ -154,10 +154,10 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.DeriveM as DeriveM
 import           Derive.Deriver.DeriveM (get, gets, modify, put, run)
 import qualified Derive.EnvKey as EnvKey
@@ -225,7 +225,7 @@ data CallError =
     TypeError !ErrorPlace !EvalSource
         !ArgName
         !ValType.Type -- expected type
-        !(Maybe BaseTypes.Val) -- received val
+        !(Maybe DeriveT.Val) -- received val
         !(Maybe Error) -- derive error
     -- | Couldn't even call the thing because the name was not found.
     | CallNotFound !Expr.Symbol
@@ -240,8 +240,8 @@ data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !EnvKey.Key
 data EvalSource =
     -- | The value in error came from a literal expression.
     Literal
-    -- | The value in error came from a 'BaseTypes.VQuoted' bit of code.
-    | Quoted !BaseTypes.Quoted
+    -- | The value in error came from a 'DeriveT.VQuoted' bit of code.
+    | Quoted !DeriveT.Quoted
     deriving (Show)
 
 instance Pretty CallError where
@@ -464,11 +464,11 @@ initial_threaded = Threaded mempty 0
 data Dynamic = Dynamic {
     -- | Derivers can modify it for sub-derivers, or look at it, whether to
     -- attach to an Event or to handle internally.
-    state_controls :: !BaseTypes.ControlMap
+    state_controls :: !DeriveT.ControlMap
     -- | Function variant of controls.  Normally they modify a backing
     -- 'Signal.Control', but could be synthesized as well.  See
-    -- 'BaseTypes.ControlFunction' for details.
-    , state_control_functions :: !BaseTypes.ControlFunctionMap
+    -- 'DeriveT.ControlFunction' for details.
+    , state_control_functions :: !DeriveT.ControlFunctionMap
     , state_control_merge_defaults :: !(Map ScoreT.Control Merger)
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
@@ -477,7 +477,7 @@ data Dynamic = Dynamic {
     -- because it's convenient to guarentee that the main pitch signal is
     -- always present.
     , state_pitch :: !PSignal.PSignal
-    , state_environ :: !BaseTypes.Environ
+    , state_environ :: !DeriveT.Environ
     , state_warp :: !Warp.Warp
     -- | Calls currently in scope.
     , state_scopes :: !Scopes
@@ -547,7 +547,7 @@ instance Pretty Inversion where
     pretty NotInverted = "NotInverted"
     pretty (InversionInProgress {}) = "InversionInProgress"
 
-initial_dynamic :: BaseTypes.Environ -> Dynamic
+initial_dynamic :: DeriveT.Environ -> Dynamic
 initial_dynamic environ = Dynamic
     { state_controls = initial_controls
     , state_control_functions = mempty
@@ -579,7 +579,7 @@ strip_dynamic dyn = dyn
     }
 
 -- | Initial control environment.
-initial_controls :: BaseTypes.ControlMap
+initial_controls :: DeriveT.ControlMap
 initial_controls = Map.fromList
     [ (Controls.dynamic, ScoreT.untyped (Signal.constant default_dynamic))
     ]
@@ -986,7 +986,7 @@ data Instrument = Instrument {
     inst_calls :: !InstrumentCalls
     -- | Merge this with the 'state_environ' when the instrument comes into
     -- scope.
-    , inst_environ :: !BaseTypes.Environ
+    , inst_environ :: !DeriveT.Environ
     -- | Like 'inst_environ', merge these controls.
     , inst_controls :: !ScoreT.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
@@ -1034,7 +1034,7 @@ data Merger =
     -- TODO I thought I'd need this but I don't.  If it turns out to never be
     -- useful I can delete it.
 
--- It's not really a 'BaseTypes.Val', so this is a bit wrong for ShowVal.  But
+-- It's not really a 'DeriveT.Val', so this is a bit wrong for ShowVal.  But
 -- I want to express that this is meant to be valid syntax for the track title.
 instance ShowVal.ShowVal Merger where
     show_val Set = "set"
@@ -1277,7 +1277,7 @@ instance Pretty (PatternCall call) where
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs {
-    passed_vals :: ![BaseTypes.Val]
+    passed_vals :: ![DeriveT.Val]
     -- | Used by "Derive.Sig" to look for default arg values in the
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
@@ -1578,14 +1578,14 @@ transformer = make_call
 data ValCall = ValCall {
     vcall_name :: !CallName
     , vcall_doc :: !CallDoc
-    , vcall_call :: PassedArgs Tagged -> Deriver BaseTypes.Val
+    , vcall_call :: PassedArgs Tagged -> Deriver DeriveT.Val
     }
 
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
 make_val_call :: Module.Module -> CallName -> Tags.Tags -> Doc.Doc
-    -> WithArgDoc (PassedArgs Tagged -> Deriver BaseTypes.Val) -> ValCall
+    -> WithArgDoc (PassedArgs Tagged -> Deriver DeriveT.Val) -> ValCall
 make_val_call module_ name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
     , vcall_doc = CallDoc
@@ -1772,10 +1772,10 @@ data Scale = Scale {
     -- in this set, the pitch won't be reevaluated when they change.
     , scale_transposers :: !(Set ScoreT.Control)
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
-    , scale_read :: BaseTypes.Environ -> Pitch.Note
-        -> Either BaseTypes.PitchError Pitch.Pitch
-    , scale_show :: BaseTypes.Environ -> Pitch.Pitch
-        -> Either BaseTypes.PitchError Pitch.Note
+    , scale_read :: DeriveT.Environ -> Pitch.Note
+        -> Either DeriveT.PitchError Pitch.Pitch
+    , scale_show :: DeriveT.Environ -> Pitch.Pitch
+        -> Either DeriveT.PitchError Pitch.Note
     -- | Bottom pitch of the scale, if there is one.  You can find the top
     -- pitch by transposing until you get OutOfRange.  TODO that's a dumb way,
     -- if I explicitly need the top I should just add it.
@@ -1789,8 +1789,8 @@ data Scale = Scale {
     , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
 
     -- | Used by note input.
-    , scale_input_to_note :: !(BaseTypes.Environ -> Pitch.Input
-        -> Either BaseTypes.PitchError Pitch.Note)
+    , scale_input_to_note :: !(DeriveT.Environ -> Pitch.Input
+        -> Either DeriveT.PitchError Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
     -- efficiently by the scale.
@@ -1803,7 +1803,7 @@ data Scale = Scale {
     -- If controls had (shift, stretch) I could normalize them efficiently
     -- and the pitch would just always look at time 0.  But they don't.
     , scale_input_to_nn :: !(ScoreTime -> Pitch.Input
-        -> Deriver (Either BaseTypes.PitchError Pitch.NoteNumber))
+        -> Deriver (Either DeriveT.PitchError Pitch.NoteNumber))
 
     -- | Documentation for all of the ValCalls that 'scale_note_to_call' can
     -- return.
@@ -1815,8 +1815,8 @@ instance Pretty Scale where
 
 -- | A scale can configure itself by looking in the environment and by looking
 -- up other scales.
-newtype LookupScale = LookupScale (BaseTypes.Environ
-    -> Pitch.ScaleId -> Maybe (Either BaseTypes.PitchError Scale))
+newtype LookupScale = LookupScale (DeriveT.Environ
+    -> Pitch.ScaleId -> Maybe (Either DeriveT.PitchError Scale))
 instance Show LookupScale where show _ = "((LookupScale))"
 
 -- | Scales may ignore Transposition if they don't support it.
@@ -1828,16 +1828,16 @@ instance Show LookupScale where show _ = "((LookupScale))"
 -- want to make the Key type concrete, since each scale has a different one.
 --
 -- TODO could make the key an existential type and export scale_parse_key?
-type Transpose = Transposition -> BaseTypes.Environ -> Pitch.Step -> Pitch.Pitch
-    -> Either BaseTypes.PitchError Pitch.Pitch
+type Transpose = Transposition -> DeriveT.Environ -> Pitch.Step -> Pitch.Pitch
+    -> Either DeriveT.PitchError Pitch.Pitch
 
 data Transposition = Chromatic | Diatonic deriving (Show)
 
 -- | Get the enharmonics of the note.  The given note is omitted, and the
 -- enharmonics are in ascending order until they wrap around, so if you always
 -- take the head of the list you will cycle through all of the enharmonics.
-type Enharmonics = BaseTypes.Environ -> Pitch.Note
-    -> Either BaseTypes.PitchError [Pitch.Note]
+type Enharmonics = DeriveT.Environ -> Pitch.Note
+    -> Either DeriveT.PitchError [Pitch.Note]
 
 -- | The number of chromatic intervals between each 'Pitch.PitchClass',
 -- starting from 0, as returned by 'scale_read'.  The length is the number of

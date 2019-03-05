@@ -7,7 +7,7 @@ module Derive.Scale.Edo where
 import qualified Data.Map as Map
 
 import qualified Util.Num as Num
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -41,7 +41,7 @@ make scale_id = Scale.Make scale_id (pattern, call_doc) (make_edo scale_id)
         \ start from A, rather than the conventional C."
 
 make_edo :: Pitch.ScaleId -> Env.Environ -> Scale.LookupScale
-    -> Either BaseTypes.PitchError Scale.Scale
+    -> Either DeriveT.PitchError Scale.Scale
 make_edo scale_id env _ = do
     divisions <- parse_divisions env
     intervals <- parse_intervals divisions env
@@ -64,12 +64,11 @@ edo_divisions = "edo-divisions"
 edo_intervals :: Env.Key
 edo_intervals = "edo-intervals"
 
-parse_divisions :: Env.Environ -> Either BaseTypes.PitchError Int
+parse_divisions :: Env.Environ -> Either DeriveT.PitchError Int
 parse_divisions =
     Scales.read_environ (Just . Typecheck.positive) Nothing edo_divisions
 
-parse_intervals :: Int -> Env.Environ
-    -> Either BaseTypes.PitchError [Pitch.Semi]
+parse_intervals :: Int -> Env.Environ -> Either DeriveT.PitchError [Pitch.Semi]
 parse_intervals divisions =
     Scales.read_environ_ (check <=< parse)
         (Just (Right (replicate divisions 1))) edo_intervals

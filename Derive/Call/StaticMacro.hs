@@ -21,27 +21,27 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
 import qualified Util.TextUtil as TextUtil
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
-import Global
+import           Global
 
 
 data Call call = Call !call ![Arg] deriving (Show)
 data Arg = Var | Given !Term deriving (Show)
-data Term = ValCall !Derive.ValCall ![Arg] | Literal !BaseTypes.Val
+data Term = ValCall !Derive.ValCall ![Arg] | Literal !DeriveT.Val
     deriving (Show)
 
 -- | A Term whose Vars have been filled in.
 data ResolvedTerm =
-    RValCall !Derive.ValCall ![ResolvedTerm] | RLiteral !BaseTypes.Val
+    RValCall !Derive.ValCall ![ResolvedTerm] | RLiteral !DeriveT.Val
     deriving (Show)
 
 call :: Derive.ValCall -> [Arg] -> Arg
@@ -71,7 +71,7 @@ generator module_ name tags doc trans gen = do
     where call_docs = map call_doc trans ++ [call_doc gen]
 
 generator_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
-    -> Call (Derive.Generator d) -> [BaseTypes.Val] -> Derive.Context d
+    -> Call (Derive.Generator d) -> [DeriveT.Val] -> Derive.Context d
     -> Derive.Deriver (Stream.Stream d)
 generator_macro trans gen vals ctx = do
     let (tcalls, trans_args) = unzip (map split trans)
@@ -99,7 +99,7 @@ transformer module_ name tags doc trans = do
     where call_docs = map call_doc trans
 
 transformer_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]
-    -> [BaseTypes.Val] -> Derive.Context d
+    -> [DeriveT.Val] -> Derive.Context d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro trans vals ctx deriver = do
     let (tcalls, trans_args) = unzip (map split trans)
@@ -112,7 +112,7 @@ transformer_macro trans vals ctx deriver = do
     split (Call call args) = (call, args)
 
 eval_term :: Derive.Taggable a => Derive.Context a -> ResolvedTerm
-    -> Derive.Deriver BaseTypes.Val
+    -> Derive.Deriver DeriveT.Val
 eval_term _ (RLiteral val) = return val
 eval_term ctx (RValCall call terms) = do
     vals <- mapM (eval_term ctx) terms
@@ -124,7 +124,7 @@ eval_term ctx (RValCall call terms) = do
     Derive.vcall_call call passed
 
 -- | Substitute the given Vals into the non-'Given' Args.
-substitute_vars :: [BaseTypes.Val] -> [Arg] -> ([BaseTypes.Val], [ResolvedTerm])
+substitute_vars :: [DeriveT.Val] -> [Arg] -> ([DeriveT.Val], [ResolvedTerm])
     -- ^ (remaining_vals, substituted)
 substitute_vars all_vals args = run (mapM subst_arg args)
     where
@@ -136,7 +136,7 @@ substitute_vars all_vals args = run (mapM subst_arg args)
         vals <- Monad.State.get
         case vals of
             -- This allows the sub-call look in the environ for a default.
-            [] -> return BaseTypes.VNotGiven
+            [] -> return DeriveT.VNotGiven
             v : vs -> Monad.State.put vs >> return v
     run = Tuple.swap . Identity.runIdentity
         . flip Monad.State.runStateT all_vals

@@ -10,13 +10,7 @@ module Derive.C.Prelude.Block (
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
-import qualified Ui.Block as Block
-import qualified Ui.Event as Event
-import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
-
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
 import qualified Derive.Call.BlockUtil as BlockUtil
 import qualified Derive.Call.Module as Module
@@ -24,6 +18,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
@@ -35,8 +30,13 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Event as Event
+import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -166,7 +166,7 @@ d_block block_id = do
                 where ctx = Derive.dummy_context 0 1 "block title"
 
 -- | Given a block id, produce a call expression that will call that block.
-call_from_block_id :: BlockId -> BaseTypes.Call
+call_from_block_id :: BlockId -> DeriveT.Call
 call_from_block_id block_id =
     Expr.call0 (Expr.Symbol $ Id.show_id $ Id.unpack_id block_id)
 

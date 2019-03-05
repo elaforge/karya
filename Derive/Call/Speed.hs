@@ -4,10 +4,10 @@
 
 -- | Utilities dealing with speeds.
 module Derive.Call.Speed where
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
@@ -44,7 +44,7 @@ instance ShowVal.ShowVal Speed where
     show_val (Score s) = ShowVal.show_val s
     show_val (Real s) = ShowVal.show_val s
 
-arg :: Sig.Parser BaseTypes.ControlRef
+arg :: Sig.Parser DeriveT.ControlRef
 arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 ScoreT.Real)
     "Repeat at this speed.  If it's a RealTime, the value is the number of\
     \ repeats per second, which will be unaffected by the tempo. If it's\
@@ -52,7 +52,7 @@ arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 ScoreT.Real)
     \ unit, and will stretch along with tempo changes."
 
 -- | Get start times until the end of the range, at the given speed.
-starts :: Derive.Time t => BaseTypes.ControlRef -> (t, t)
+starts :: Derive.Time t => DeriveT.ControlRef -> (t, t)
     -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
 starts speed (start_, end_) include_end = do
@@ -82,9 +82,9 @@ starts_curve curve start_speed end_speed (start, end) include_end = do
     Derive.require_right id $
         take_until end <$> duration_starts dur_at start end
 
-speed_to_duration :: Speed -> BaseTypes.Duration
-speed_to_duration (Score t) = BaseTypes.ScoreDuration (1/t)
-speed_to_duration (Real t) = BaseTypes.RealDuration (1/t)
+speed_to_duration :: Speed -> DeriveT.Duration
+speed_to_duration (Score t) = DeriveT.ScoreDuration (1/t)
+speed_to_duration (Real t) = DeriveT.RealDuration (1/t)
 
 -- | Emit RealTimes at the given speed, which may change over time.  The speed
 -- is taken as hertz in real time, and must be >0.

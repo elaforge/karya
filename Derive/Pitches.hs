@@ -9,15 +9,16 @@
 -- modules like "Derive.Score".
 module Derive.Pitches where
 import qualified Util.Segment as Segment
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
-import Global
+
+import           Global
 
 
 scale :: Scale.Scale -> PSignal.Scale
@@ -67,5 +68,5 @@ modify_hz scale modify pitch =
             PSignal.apply_config config pitch
         return $ Pitch.modify_hz modify nn
 
-equal :: BaseTypes.RawPitch a -> BaseTypes.RawPitch a -> Bool
-equal = BaseTypes.pitches_equal
+equal :: DeriveT.RawPitch a -> DeriveT.RawPitch a -> Bool
+equal = DeriveT.pitches_equal

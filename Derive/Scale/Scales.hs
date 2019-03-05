@@ -18,10 +18,10 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
@@ -66,15 +66,15 @@ empty_scale scale_id pattern doc = Scale.Scale
     , scale_pattern = pattern
     , scale_symbols = []
     , scale_transposers = standard_transposers
-    , scale_read = \_ _ -> Left BaseTypes.NotImplemented
-    , scale_show = \_ _ -> Left BaseTypes.NotImplemented
+    , scale_read = \_ _ -> Left DeriveT.NotImplemented
+    , scale_show = \_ _ -> Left DeriveT.NotImplemented
     , scale_bottom = Pitch.pitch 1 0
     , scale_layout = Scale.layout []
-    , scale_transpose = \_ _ _ _ -> Left BaseTypes.NotImplemented
+    , scale_transpose = \_ _ _ _ -> Left DeriveT.NotImplemented
     , scale_enharmonics = no_enharmonics
     , scale_note_to_call = const Nothing
-    , scale_input_to_note = \_ _ -> Left BaseTypes.NotImplemented
-    , scale_input_to_nn = \ _ _ -> return $ Left BaseTypes.NotImplemented
+    , scale_input_to_note = \_ _ -> Left DeriveT.NotImplemented
+    , scale_input_to_nn = \ _ _ -> return $ Left DeriveT.NotImplemented
     , scale_call_doc = doc
     }
 
@@ -117,16 +117,16 @@ degree_map per_octave start_octave start_pc notes_ nns_ = DegreeMap
     (notes, nns) = unzip $ zip notes_ nns_
 
 type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.Semi
-    -> Either BaseTypes.PitchError Pitch.NoteNumber
+    -> Either DeriveT.PitchError Pitch.NoteNumber
 
 -- * scale functions
 
-read_note :: DegreeMap -> Pitch.Note -> Either BaseTypes.PitchError Pitch.Pitch
+read_note :: DegreeMap -> Pitch.Note -> Either DeriveT.PitchError Pitch.Pitch
 read_note dmap note = semis_to_pitch dmap <$>
-    justErr BaseTypes.UnparseableNote (Map.lookup note (dm_to_semis dmap))
+    justErr DeriveT.UnparseableNote (Map.lookup note (dm_to_semis dmap))
 
-show_pitch :: DegreeMap -> Pitch.Pitch -> Either BaseTypes.PitchError Pitch.Note
-show_pitch dmap pitch = justErr BaseTypes.UnparseableNote $
+show_pitch :: DegreeMap -> Pitch.Pitch -> Either DeriveT.PitchError Pitch.Note
+show_pitch dmap pitch = justErr DeriveT.UnparseableNote $
     dm_to_note dmap !? pitch_to_semis dmap pitch
 
 -- ** transpose
@@ -135,12 +135,12 @@ transpose :: DegreeMap -> Derive.Transpose
 transpose dmap _transposition _environ steps pitch
     | Maybe.isJust $ dm_to_note dmap !? transposed =
         Right $ semis_to_pitch dmap transposed
-    | otherwise = Left $ BaseTypes.OutOfRangeError BaseTypes.out_of_range
+    | otherwise = Left $ DeriveT.OutOfRangeError DeriveT.out_of_range
     where transposed = pitch_to_semis dmap pitch + steps
 
 -- | Transpose function for a non-transposing scale.
 non_transposing :: Derive.Transpose
-non_transposing _ _ _ _ = Left BaseTypes.NotImplemented
+non_transposing _ _ _ _ = Left DeriveT.NotImplemented
 
 -- | Indicate that this scale responds to the standard set of transpose
 -- signals.  It still has to implement the support in its
@@ -167,7 +167,7 @@ mapped_note_to_call dmap scale note = do
     semis_to_nn semis _config transpose =
         justErr err $ dm_to_nn dmap !? (semis + transpose)
         where
-        err = BaseTypes.out_of_range_error (semis + transpose) (0, max_semi)
+        err = DeriveT.out_of_range_error (semis + transpose) (0, max_semi)
     semis_to_note semis transpose = dm_to_note dmap !? (semis + transpose)
 
 -- | Create a note call that respects chromatic and diatonic transposition.
@@ -191,9 +191,9 @@ note_to_call per_octave max_semi scale semis_to_nn semis_to_note =
     pitch_note config = justErr err $ semis_to_note semis
         where
         semis = floor $ transposition config
-        err = BaseTypes.OutOfRangeError $ BaseTypes.out_of_range
-            { BaseTypes.oor_semi = Just (fromIntegral semis)
-            , BaseTypes.oor_valid = (0,) <$> max_semi
+        err = DeriveT.OutOfRangeError $ DeriveT.out_of_range
+            { DeriveT.oor_semi = Just (fromIntegral semis)
+            , DeriveT.oor_valid = (0,) <$> max_semi
             }
     transposition config =
         get Controls.octave * fromIntegral per_octave
@@ -206,24 +206,24 @@ add_pc dmap = Pitch.add_pc (dm_per_octave dmap)
 -- ** input
 
 type InputToNote = Env.Environ -> Pitch.Input
-    -> Either BaseTypes.PitchError Pitch.Note
+    -> Either DeriveT.PitchError Pitch.Note
 
 -- | Input to note for simple scales without keys.
 input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _environ (Pitch.Input kbd pitch frac) = do
     steps <- simple_kbd_to_scale dmap kbd pitch
-    note <- justErr BaseTypes.UnparseableNote $ dm_to_note dmap !? steps
+    note <- justErr DeriveT.UnparseableNote $ dm_to_note dmap !? steps
     return $ ScaleDegree.pitch_expr frac note
 
 type InputToNn = ScoreTime -> Pitch.Input
-    -> Derive.Deriver (Either BaseTypes.PitchError Pitch.NoteNumber)
+    -> Derive.Deriver (Either DeriveT.PitchError Pitch.NoteNumber)
 
 -- | Input to NoteNumber for scales that have a direct relationship between
 -- Degree and NoteNumber.
 mapped_input_to_nn :: DegreeMap -> InputToNn
 mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
     semis <- simple_kbd_to_scale dmap kbd pitch
-    justErr (BaseTypes.OutOfRangeError BaseTypes.out_of_range) $
+    justErr (DeriveT.OutOfRangeError DeriveT.out_of_range) $
         to_nn semis frac
     where
     to_nn semis frac
@@ -278,7 +278,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
     where
     get_call env = do
         note <- input_to_note env input
-        (note,) <$> justErr BaseTypes.UnparseableNote (note_to_call note)
+        (note,) <$> justErr DeriveT.UnparseableNote (note_to_call note)
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Pitch.Frac -> Maybe Pitch.NoteNumber
@@ -292,7 +292,7 @@ make_nn mprev nn mnext frac
 -- *** diatonic
 
 simple_kbd_to_scale :: DegreeMap -> Pitch.KbdType -> Pitch.Pitch
-    -> Either BaseTypes.PitchError Pitch.Semi
+    -> Either DeriveT.PitchError Pitch.Semi
 simple_kbd_to_scale dmap kbd pitch =
     pitch_to_semis dmap <$> kbd_to_scale kbd (dm_per_octave dmap) 0 pitch
 
@@ -310,9 +310,9 @@ semis_to_pitch dmap semis =
     per_oct = dm_per_octave dmap
 
 kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
-    -> Pitch.Pitch -> Either BaseTypes.PitchError Pitch.Pitch
+    -> Pitch.Pitch -> Either DeriveT.PitchError Pitch.Pitch
 kbd_to_scale kbd pc_per_octave tonic =
-    justErr BaseTypes.InvalidInput . lookup_kbd_to_scale kbd pc_per_octave tonic
+    justErr DeriveT.InvalidInput . lookup_kbd_to_scale kbd pc_per_octave tonic
 
 -- | Convert an absolute Pitch in the input keyboard's layout to a relative
 -- Pitch within a scale with the given number of diatonic steps per octave, or
@@ -449,14 +449,14 @@ no_enharmonics _ _ = Right []
 read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     (a -> Maybe val) -> Maybe val
     -- ^ if Just, a missing value gets this, otherwise it's an error
-    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
+    -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
 read_environ parse maybe_deflt =
     read_environ_ (maybe (Left Nothing) Right . parse) (Right <$> maybe_deflt)
 
 -- | Like 'read_environ', except the default is given to the parse function.
 read_environ_default :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     (a -> Maybe val) -> Maybe a
-    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
+    -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
 read_environ_default parse maybe_deflt name =
     read_environ_ (maybe (Left Nothing) Right . parse)
         (parse_default <$> maybe_deflt) name
@@ -465,16 +465,16 @@ read_environ_default parse maybe_deflt name =
         Just a -> Right a
         Nothing -> environ_error $
             "can't parse default: " <> ShowVal.show_val val
-    environ_error = Left . BaseTypes.EnvironError name . Just
+    environ_error = Left . DeriveT.EnvironError name . Just
 
 read_environ_ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     (a -> Either (Maybe Text) val) -> Maybe (Either PSignal.PitchError val)
-    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
+    -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
 read_environ_ parse maybe_deflt name env = case Env.get_val name env of
     Left (Env.WrongType expected) ->
         environ_error ("expected type " <> pretty expected)
     Left Env.NotFound -> case maybe_deflt of
-        Nothing -> Left $ BaseTypes.EnvironError name Nothing
+        Nothing -> Left $ DeriveT.EnvironError name Nothing
         Just deflt -> deflt
     Right val -> parse_val val
     where
@@ -482,12 +482,12 @@ read_environ_ parse maybe_deflt name env = case Env.get_val name env of
         Right a -> Right a
         Left msg -> environ_error $ ShowVal.show_val val <> ": "
             <> fromMaybe "can't parse" msg
-    environ_error = Left . BaseTypes.EnvironError name . Just
+    environ_error = Left . DeriveT.EnvironError name . Just
 
 -- | This is 'read_environ', but for instances of 'Typecheck.TypecheckSymbol'.
 parse_environ :: Typecheck.TypecheckSymbol val => Maybe val
     -- ^ if Just, a missing value gets this, otherwise it's an error
-    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
+    -> Env.Key -> Env.Environ -> Either DeriveT.PitchError val
 parse_environ = read_environ Typecheck.parse_symbol
 
 
@@ -498,7 +498,7 @@ environ_key = fmap Pitch.Key . Env.maybe_val EnvKey.key
 
 -- | Find a key in a map, or throw a ScaleError.
 get_key :: key -> Map Pitch.Key key -> Maybe Pitch.Key
-    -> Either BaseTypes.PitchError key
+    -> Either DeriveT.PitchError key
 get_key deflt _ Nothing = Right deflt
 get_key _ keys (Just key) = justErr (key_error key) (Map.lookup key keys)
 
@@ -506,6 +506,6 @@ lookup_key :: key -> Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
 lookup_key deflt _ Nothing = Just deflt
 lookup_key _ keys (Just key) = Map.lookup key keys
 
-key_error :: Pitch.Key -> BaseTypes.PitchError
+key_error :: Pitch.Key -> DeriveT.PitchError
 key_error (Pitch.Key key) =
-    BaseTypes.EnvironError EnvKey.key (Just $ "unknown key: " <> key)
+    DeriveT.EnvironError EnvKey.key (Just $ "unknown key: " <> key)

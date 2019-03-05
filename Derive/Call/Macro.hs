@@ -21,10 +21,10 @@ import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
@@ -33,7 +33,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.ValType as ValType
 
-import Global
+import           Global
 
 
 generator :: Derive.CallableExpr d => Module.Module -> Derive.CallName
@@ -65,7 +65,7 @@ extract_vars (Parse.Expr calls) = concatMap extract_call (NonEmpty.toList calls)
         Parse.Literal _ -> []
         Parse.ValCall call -> extract_call call
 
-generator_macro :: Derive.CallableExpr d => Parse.Expr -> [BaseTypes.Val]
+generator_macro :: Derive.CallableExpr d => Parse.Expr -> [DeriveT.Val]
     -> Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d)
 generator_macro expr vals args = do
     expr <- Derive.require_right id $ substitute_vars vals expr
@@ -79,7 +79,7 @@ generator_macro expr vals args = do
         Eval.apply_generator ctx gen_call gen_args
 
 transformer_macro :: Derive.CallableExpr d => Parse.Expr
-    -> [BaseTypes.Val] -> Derive.PassedArgs d
+    -> [DeriveT.Val] -> Derive.PassedArgs d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro expr vals args deriver = do
     calls <- Derive.require_right id $ substitute_vars vals expr
@@ -89,21 +89,21 @@ transformer_macro expr vals args deriver = do
     trans_calls <- mapM Eval.get_transformer trans_calls
     Eval.apply_transformers ctx (zip trans_calls trans_args) deriver
 
-val_macro :: Parse.Call -> [BaseTypes.Val] -> Derive.PassedArgs Derive.Tagged
-    -> Derive.Deriver BaseTypes.Val
+val_macro :: Parse.Call -> [DeriveT.Val] -> Derive.PassedArgs Derive.Tagged
+    -> Derive.Deriver DeriveT.Val
 val_macro call_expr vals args = do
     call_expr :| _ <- Derive.require_right id $
         substitute_vars vals (Parse.Expr (call_expr :| []))
     Eval.eval (Derive.passed_ctx args) (Expr.ValCall call_expr)
 
-split_expr :: BaseTypes.Expr -> ([BaseTypes.Call], BaseTypes.Call)
+split_expr :: DeriveT.Expr -> ([DeriveT.Call], DeriveT.Call)
 split_expr = Seq.ne_viewr
 
-eval_args :: Derive.Taggable a => Derive.Context a -> BaseTypes.Call
-    -> Derive.Deriver (Expr.Symbol, [BaseTypes.Val])
+eval_args :: Derive.Taggable a => Derive.Context a -> DeriveT.Call
+    -> Derive.Deriver (Expr.Symbol, [DeriveT.Val])
 eval_args ctx (Expr.Call sym args) = (,) sym <$> mapM (Eval.eval ctx) args
 
-substitute_vars :: [BaseTypes.Val] -> Parse.Expr -> Either Text BaseTypes.Expr
+substitute_vars :: [DeriveT.Val] -> Parse.Expr -> Either Text DeriveT.Expr
 substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
     where
     sub_call (Parse.Call sym args) = Expr.Call sym <$> mapM sub_arg args
@@ -129,7 +129,7 @@ substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
 -- TODO these are all required, but should I support optional args?  But isn't
 -- the whole point of doing this in haskell that I don't get tied up in more
 -- and more hacky language features?
-make_signature :: [(Parse.Var, Expr.Symbol, Int)] -> Sig.Parser [BaseTypes.Val]
+make_signature :: [(Parse.Var, Expr.Symbol, Int)] -> Sig.Parser [DeriveT.Val]
 make_signature vars = Sig.required_vals (map doc vars)
     where
     doc (Parse.Var var, call, argnum) = Derive.ArgDoc

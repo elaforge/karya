@@ -3,19 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DefaultSignatures #-}
--- | This is a serializable subset of 'BaseTypes.Val' and 'BaseTypes.Environ'.
+-- | This is a serializable subset of 'DeriveT.Val' and 'DeriveT.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.RestrictedEnviron where
-import Prelude hiding (lookup, null)
+import           Prelude hiding (lookup, null)
 import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
-import Util.Serialize (get, put)
+import           Util.Serialize (get, put)
 
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
@@ -26,8 +25,10 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 -- * Environ
@@ -43,8 +44,8 @@ instance Pretty Environ where
 from_list :: [(EnvKey.Key, Val)] -> Environ
 from_list = Environ . Map.fromList
 
-convert :: Environ -> BaseTypes.Environ
-convert (Environ env) = BaseTypes.Environ $ convert_val <$> env
+convert :: Environ -> DeriveT.Environ
+convert (Environ env) = DeriveT.Environ $ convert_val <$> env
 
 lookup :: EnvKey.Key -> Environ -> Maybe Val
 lookup key (Environ env) = Map.lookup key env
@@ -54,16 +55,16 @@ null (Environ env) = Map.null env
 
 -- * val
 
--- | This is like 'BaseTypes.Val', except missing fields that can't be
+-- | This is like 'DeriveT.Val', except missing fields that can't be
 -- serialized, or require Deriver and hence couldn't go in a module below
 -- Deriver without incurring a circular dependency.
 --
--- Namely: 'BaseTypes.VPitch', 'BaseTypes.VControlFunction'.
+-- Namely: 'DeriveT.VPitch', 'DeriveT.VControlFunction'.
 -- NOTE [val-and-minival].
 data Val =
     VNum !(ScoreT.Typed Signal.Y)
     | VAttributes !Attrs.Attributes
-    | VControlRef !BaseTypes.ControlRef
+    | VControlRef !DeriveT.ControlRef
     | VConstantPitch !ConstantPitch
     | VNotePitch !Pitch.Pitch
     | VStr !Expr.Str
@@ -71,18 +72,18 @@ data Val =
     | VList ![Val]
     deriving (Eq, Show)
 
-convert_val :: Val -> BaseTypes.Val
+convert_val :: Val -> DeriveT.Val
 convert_val val = case val of
-    VNum v -> BaseTypes.VNum v
-    VAttributes v -> BaseTypes.VAttributes v
-    VControlRef v -> BaseTypes.VControlRef v
+    VNum v -> DeriveT.VNum v
+    VAttributes v -> DeriveT.VAttributes v
+    VControlRef v -> DeriveT.VControlRef v
     VConstantPitch (ConstantPitch scale_id note nn) ->
-        BaseTypes.VPitch $ PSignal.constant_pitch scale_id note nn
-    VNotePitch v -> BaseTypes.VNotePitch v
-    VStr v -> BaseTypes.VStr v
-    VQuoted v -> BaseTypes.VQuoted $ BaseTypes.Quoted $
+        DeriveT.VPitch $ PSignal.constant_pitch scale_id note nn
+    VNotePitch v -> DeriveT.VNotePitch v
+    VStr v -> DeriveT.VStr v
+    VQuoted v -> DeriveT.VQuoted $ DeriveT.Quoted $
         Expr.map_literals convert_val v
-    VList v -> BaseTypes.VList $ map convert_val v
+    VList v -> DeriveT.VList $ map convert_val v
 
 instance Pretty Val where format = Pretty.format . convert_val
 
@@ -118,7 +119,7 @@ instance ToVal a => ToVal [a] where to_val = VList . map to_val
 -- ** rest
 
 instance ToVal Attrs.Attributes where to_val = VAttributes
-instance ToVal BaseTypes.ControlRef where to_val = VControlRef
+instance ToVal DeriveT.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 instance ToVal ScoreT.Instrument where
     to_val (ScoreT.Instrument a) = VStr (Expr.Str a)

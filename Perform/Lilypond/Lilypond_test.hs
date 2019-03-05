@@ -3,12 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.Lilypond_test where
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Ly as Ly
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Typecheck as Typecheck
 
@@ -17,7 +15,10 @@ import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Lilypond.Types as Types
 
-import Global
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_convert_sections = do
@@ -131,7 +132,7 @@ test_key = do
 test_ly_prepend_append = do
     let f env = LilypondTest.convert_measures [] $
             map LilypondTest.environ_event [(0, 12, Just LilypondTest.a3, env)]
-        str :: EnvKey.Key -> Text -> [(EnvKey.Key, BaseTypes.Val)]
+        str :: EnvKey.Key -> Text -> [(EnvKey.Key, DeriveT.Val)]
         str key val = [(key, Typecheck.to_val val)]
     let key pos dist = Constants.position_key $
             Constants.CodePosition Constants.Chord pos dist

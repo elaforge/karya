@@ -12,7 +12,6 @@ module Derive.C.Prelude.Pitch (
 ) where
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -21,19 +20,21 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required)
+import           Derive.Sig (defaulted, required)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -176,7 +177,7 @@ c_porta = generator1 "porta" mempty
         let maybe_from = from <|> (snd <$> Args.prev_pitch args)
         time <- if Args.duration args == 0
             then return time
-            else BaseTypes.RealDuration <$> Args.real_duration args
+            else DeriveT.RealDuration <$> Args.real_duration args
         (start, end) <- ControlUtil.place_range place (Args.start args) time
         PitchUtil.make_segment_from curve start maybe_from end to
 

@@ -6,18 +6,18 @@ module Derive.Env (
     module Derive.Env
     , Key, Environ, lookup, insert
 ) where
-import Prelude hiding (null, lookup)
+import           Prelude hiding (null, lookup)
 import qualified Data.Map as Map
 
-import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes (Environ(..), lookup, insert)
+import qualified Derive.DeriveT as DeriveT
+import           Derive.DeriveT (insert, lookup, Environ(..))
 import qualified Derive.EnvKey as EnvKey
-import Derive.EnvKey (Key)
+import           Derive.EnvKey (Key)
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
-import Global
+import           Global
 
 
 -- * basic functions
@@ -25,10 +25,10 @@ import Global
 null :: Environ -> Bool
 null (Environ env) = Map.null env
 
-from_list :: [(Key, BaseTypes.Val)] -> Environ
+from_list :: [(Key, DeriveT.Val)] -> Environ
 from_list = Environ . Map.fromList
 
-to_list :: Environ -> [(Key, BaseTypes.Val)]
+to_list :: Environ -> [(Key, DeriveT.Val)]
 to_list (Environ env) = Map.toList env
 
 delete :: Key -> Environ -> Environ
@@ -44,11 +44,11 @@ is_set key (Environ env) = Map.member key env
 -- ever be overwritten by a Val of the same type.  The idea is that being
 -- inconsistent with types will just lead to confusion.
 --
--- 'BaseTypes.VNotGiven' is another special case, it deletes the given key.
+-- 'DeriveT.VNotGiven' is another special case, it deletes the given key.
 put_val :: Typecheck.ToVal a => Key -> a -> Environ
     -> Either ValType.Type Environ
 put_val key val environ
-    | BaseTypes.VNotGiven <- new_val = Right $ delete key environ
+    | DeriveT.VNotGiven <- new_val = Right $ delete key environ
     | otherwise = case lookup key environ of
         Nothing -> case Map.lookup key hardcoded_types of
             Just expected | not $

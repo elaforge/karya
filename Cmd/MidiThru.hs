@@ -81,9 +81,9 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Scale as Scale
 import qualified Derive.ScoreT as ScoreT
 
@@ -219,7 +219,7 @@ convert_input_pitch inst scale input = do
         Left (Derive.Error _ _ err) -> throw $ pretty err
         -- This just means the key isn't in the scale, it happens a lot so
         -- no need to shout about it.
-        Right (Left BaseTypes.InvalidInput) -> Cmd.abort
+        Right (Left DeriveT.InvalidInput) -> Cmd.abort
         Right (Left err) -> throw $ pretty err
         Right (Right nn) -> return nn
     where

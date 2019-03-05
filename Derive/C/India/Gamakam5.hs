@@ -29,11 +29,11 @@ import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
@@ -618,7 +618,7 @@ apply_arg call name arg = call
     -- I've already hardcoded the argument, but 'eval_pitch' will want to apply
     -- it anyway, since it can't tell the difference from an alias call and
     -- a normal call.
-    ignore = Sig.defaulted "ignore" (BaseTypes.num 0) ""
+    ignore = Sig.defaulted "ignore" (DeriveT.num 0) ""
 
 -- ** PitchCall implementation
 

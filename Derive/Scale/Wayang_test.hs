@@ -6,7 +6,7 @@ module Derive.Scale.Wayang_test where
 import qualified Data.Vector as Vector
 
 import qualified Util.Seq as Seq
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -18,8 +18,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import Global
-import Util.Test
+import           Global
+import           Util.Test
 
 
 test_read = do
@@ -75,6 +75,6 @@ test_input_to_nn = do
     let run scale = DeriveTest.eval Ui.empty . Scale.scale_input_to_nn scale 0
             . ScaleTest.ascii_kbd
     equal (run pemade (4, 0, 0)) (Right (Right 62.5))
-    equal (run kantilan (4, 0, 0)) (Right (Left BaseTypes.InvalidInput))
+    equal (run kantilan (4, 0, 0)) (Right (Left DeriveT.InvalidInput))
     equal (run pemade (5, 0, 0)) (Right (Right 74.66))
     equal (run kantilan (5, 0, 0)) (Right (Right 74.57))

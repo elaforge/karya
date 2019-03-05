@@ -17,19 +17,20 @@ import qualified Data.Attoparsec.Text as A
 
 import qualified Util.ParseText as ParseText
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted)
+import           Derive.Sig (defaulted)
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -41,8 +42,8 @@ scale = Scale.Scale
     , scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
     , scale_symbols = []
     , scale_transposers = mempty
-    , scale_read = \_ _ -> Left BaseTypes.NotImplemented
-    , scale_show = \_ _ -> Left BaseTypes.NotImplemented
+    , scale_read = \_ _ -> Left DeriveT.NotImplemented
+    , scale_show = \_ _ -> Left DeriveT.NotImplemented
     , scale_bottom = Pitch.pitch 0 0
     , scale_layout = Scale.no_octaves
     , scale_transpose = Scales.non_transposing
@@ -51,7 +52,7 @@ scale = Scale.Scale
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
-    , scale_input_to_note = \_ _ -> Left BaseTypes.InvalidInput
+    , scale_input_to_note = \_ _ -> Left DeriveT.InvalidInput
     , scale_input_to_nn = Scales.direct_input_to_nn
     , scale_call_doc = Derive.extract_val_doc $ note_call (Pitch.Note "1/1") id
     }
@@ -78,7 +79,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
             pscale (const $ return out_nn) (const $ return note)
             (PSignal.PitchConfig env mempty)
     where
-    pcontrol_ref = BaseTypes.LiteralControl control :: BaseTypes.PControlRef
+    pcontrol_ref = DeriveT.LiteralControl control :: DeriveT.PControlRef
     control = "ratio-source"
     pcontrol = "ratio-source" -- TODO remove
     pscale = Pitches.scale scale

@@ -12,7 +12,7 @@
     'Val', which used to be re-exported from a TrackLang module, but are now
     intended to be imported directly from here.  I eventually got rid of
     TrackLang because it just added a few small utilities but no additional
-    dependencies, and since modules started directly using BaseTypes anyway
+    dependencies, and since modules started directly using DeriveT anyway
     to avoid dependencies.  Many Score types are further divided into
     "Derive.ScoreT", once again to avoid circular imports.
 
@@ -24,9 +24,9 @@
     > scalar    Signal.Y                  PSignal.Y
     > name      ScoreT.Control            ScoreT.PControl
     > signal    Signal.Control            PSignal.PSignal
-    > ref       BaseTypes.ControlRef      BaseTypes.PControlRef   Ref
+    > ref       DeriveT.ControlRef        DeriveT.PControlRef     Ref
 -}
-module Derive.BaseTypes where
+module Derive.DeriveT where
 import Prelude hiding (lookup)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Coerce as Coerce
@@ -576,7 +576,7 @@ instance (Serialize.Serialize val, Serialize.Serialize control) =>
         0 -> ControlSignal <$> Serialize.get
         1 -> DefaultedControl <$> Serialize.get <*> Serialize.get
         2 -> LiteralControl <$> Serialize.get
-        n -> Serialize.bad_tag "BaseTypes.Ref" n
+        n -> Serialize.bad_tag "DeriveT.Ref" n
 
 -- | This can only represent constant signals, since there's no literal for an
 -- arbitrary signal.  Non-constant signals will turn into a constant of

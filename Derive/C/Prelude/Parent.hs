@@ -15,7 +15,6 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
@@ -23,6 +22,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Eval as Eval
 import qualified Derive.Flags as Flags
 import qualified Derive.Library as Library
@@ -283,14 +283,14 @@ interpolate_events at ms = map interpolate . Seq.zip_padded_fst ms
     interpolate (Nothing, event) = event
 
 resolve_derivers2 :: Derive.NoteArgs
-    -> (Text, Maybe BaseTypes.Quoted) -> (Text, Maybe BaseTypes.Quoted)
+    -> (Text, Maybe DeriveT.Quoted) -> (Text, Maybe DeriveT.Quoted)
     -> Derive.Deriver (Derive.NoteDeriver, Derive.NoteDeriver)
 resolve_derivers2 args sym1 sym2 = resolve_derivers args [sym1, sym2] >>= \case
     [d1, d2] -> return (d1, d2)
     ds -> Derive.throw $ "expected 2, got " <> showt (length ds)
 
 -- TODO this is awkward... maybe it should be built into Derive.Sig.
-resolve_derivers :: Derive.NoteArgs -> [(Text, Maybe BaseTypes.Quoted)]
+resolve_derivers :: Derive.NoteArgs -> [(Text, Maybe DeriveT.Quoted)]
     -> Derive.Deriver [Derive.NoteDeriver]
 resolve_derivers args syms
     | all (Maybe.isJust . snd) syms = return $ map eval $ mapMaybe snd syms
@@ -321,7 +321,7 @@ c_cycle = Derive.generator Module.prelude "cycle" Tags.subs
         mconcatMap (Sub.derive . cycle_call (Args.context args) transformers)
             tracks
 
-cycle_call :: Derive.Context Score.Event -> NonEmpty BaseTypes.Quoted
+cycle_call :: Derive.Context Score.Event -> NonEmpty DeriveT.Quoted
     -> [Sub.Event] -> [Sub.Event]
 cycle_call ctx transformers =
     zipWith apply (cycle (NonEmpty.toList transformers))
@@ -342,7 +342,7 @@ c_cycle_t = Derive.generator Module.prelude "cycle-t" Tags.subs
             tracks
 
 cycle_t :: Derive.Context Score.Event -> ScoreTime
-    -> NonEmpty (BaseTypes.Quoted, Double) -> [Sub.Event] -> [Sub.Event]
+    -> NonEmpty (DeriveT.Quoted, Double) -> [Sub.Event] -> [Sub.Event]
 cycle_t ctx start transformers =
     go (zip (cycle ts) (tail (scanl (+) start (cycle durs))))
     where
