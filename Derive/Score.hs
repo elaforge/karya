@@ -10,9 +10,8 @@
     backend.
 -}
 module Derive.Score (
-    module Derive.DeriveT
     -- * Event
-    , Event(..)
+    Event(..)
     , short_event, short_events
     , empty_event, event_end, event_min, event_max
     , events_overlap
@@ -62,7 +61,6 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveT as DeriveT
-import           Derive.DeriveT (ControlMap, PitchMap, ControlFunction(..))
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
@@ -86,10 +84,10 @@ data Event = Event {
     -- | This is the text of the call that created the event.  It's basically
     -- just for debugging.
     , event_text :: !Text
-    , event_controls :: !ControlMap
+    , event_controls :: !DeriveT.ControlMap
     , event_pitch :: !PSignal.PSignal
     -- | Named pitch signals.
-    , event_pitches :: !PitchMap
+    , event_pitches :: !DeriveT.PitchMap
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.

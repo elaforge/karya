@@ -133,7 +133,7 @@ type PitchSignal = MSignal.Signal
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
 convert_midi_pitch :: Log.LogMonad m => RealTime -> ScoreT.Instrument
-    -> Patch.Patch -> Patch.Config -> Score.ControlMap -> Score.Event
+    -> Patch.Patch -> Patch.Config -> DeriveT.ControlMap -> Score.Event
     -> m ((Types.Patch, [(Midi.Control, Midi.ControlValue)]), PitchSignal)
 convert_midi_pitch srate inst patch config controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
@@ -185,7 +185,7 @@ convert_pitched_keymap low high low_pitch sig = clipped
 
 -- | Get the flattened Signal.NoteNumber from an event.
 convert_event_pitch :: Log.LogMonad m => RealTime -> Types.Patch
-    -> Score.ControlMap -> Score.Event -> m PitchSignal
+    -> DeriveT.ControlMap -> Score.Event -> m PitchSignal
 convert_event_pitch srate patch controls event =
     fmap (Signal.to_piecewise_constant srate) $
         convert_pitch (Score.event_environ event) controls note_end $
@@ -195,7 +195,7 @@ convert_event_pitch srate patch controls event =
         + fromMaybe Types.default_decay (Types.patch_decay patch)
 
 convert_pitch :: Log.LogMonad m => Env.Environ
-    -> Score.ControlMap -> RealTime -> PSignal.PSignal -> m Signal.NoteNumber
+    -> DeriveT.ControlMap -> RealTime -> PSignal.PSignal -> m Signal.NoteNumber
 convert_pitch env controls note_end psig = do
     -- Trim controls to avoid applying out of range transpositions.
     -- TODO was drop_at_after
@@ -239,7 +239,7 @@ convert_scale (Just scale) = MSignal.map_err $ \(MSignal.Sample x y) ->
 -- controls, since those will inhibit channel sharing later.
 convert_controls :: RealTime
     -> Control.ControlMap -- ^ Instrument's control map.
-    -> Score.ControlMap -- ^ Controls to convert.
+    -> DeriveT.ControlMap -- ^ Controls to convert.
     -> Map ScoreT.Control MSignal.Signal
 convert_controls srate inst_cmap =
     Map.fromAscList
@@ -249,7 +249,7 @@ convert_controls srate inst_cmap =
 
 -- | If it's a 'Patch.Pressure' instrument, move the 'Controls.dynamic'
 -- control to 'Controls.breath'.
-convert_dynamic :: Bool -> Score.ControlMap -> Score.ControlMap
+convert_dynamic :: Bool -> DeriveT.ControlMap -> DeriveT.ControlMap
 convert_dynamic pressure controls
     | pressure = maybe controls
         (\sig -> Map.insert Controls.breath sig controls)

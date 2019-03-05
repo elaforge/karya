@@ -28,6 +28,7 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -71,7 +72,7 @@ environ :: Cmd.M m => m (Maybe Env.Environ)
 environ = Perf.lookup_environ =<< Selection.track
 
 -- | Controls in scope at the insert point.
-controls :: Cmd.M m => Bool -> m Score.ControlMap
+controls :: Cmd.M m => Bool -> m DeriveT.ControlMap
 controls from_root = Derive.state_controls <$> dynamic from_root
 
 -- | The control vals at the insertion point, taking the control functions into

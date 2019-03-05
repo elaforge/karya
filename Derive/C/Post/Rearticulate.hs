@@ -11,6 +11,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
@@ -21,8 +22,9 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -66,7 +68,7 @@ merge_pitch :: PSignal.PSignal -> [(RealTime, PSignal.PSignal)]
 merge_pitch sig sigs =
     mconcat $ sig : [PSignal.clip_before start sig | (start, sig) <- sigs]
 
-merge_controls :: Score.Event -> [Score.Event] -> Score.ControlMap
+merge_controls :: Score.Event -> [Score.Event] -> DeriveT.ControlMap
 merge_controls event events = Util.Map.mconcat $ clip event : map clip events
     where
     clip event = fmap (Signal.clip_before (Score.event_start event)) <$>

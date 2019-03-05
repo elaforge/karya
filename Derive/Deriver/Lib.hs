@@ -514,7 +514,7 @@ lookup_control_signal :: ScoreT.Control
     -> Deriver (Maybe (ScoreT.Typed Signal.Control))
 lookup_control_signal control = Map.lookup control <$> get_controls
 
-get_controls :: Deriver Score.ControlMap
+get_controls :: Deriver DeriveT.ControlMap
 get_controls = Internal.get_dynamic state_controls
 
 get_control_functions :: Deriver DeriveT.ControlFunctionMap
@@ -608,7 +608,7 @@ with_control_function control f = Internal.local $ \state -> state
     }
 
 -- | Replace the controls entirely.
-with_control_maps :: Score.ControlMap -> DeriveT.ControlFunctionMap
+with_control_maps :: DeriveT.ControlMap -> DeriveT.ControlFunctionMap
     -> Deriver a -> Deriver a
 with_control_maps cmap cfuncs = Internal.local $ \state -> state
     { state_controls = cmap

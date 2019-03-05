@@ -3103,7 +3103,9 @@ cleanup:
     - are there things in Derive.Score which should move to ScoreT?
     * rename BaseTypes to BaseT?  Or to DeriveT
     - make PSignal not re-export DeriveT
-    - make Derive.Score not re-export DeriveT
+      . This is not so clearly the right thing because many things are meant
+        to have PSignal context, e.g. PSignal._signal.
+    * make Derive.Score not re-export DeriveT
   - Derive.Score is more like ScoreEvent... but Score.event_start is nicer
     than ScoreEvent.event_start.  If I made it just Event, I could say
     ScoreEvent.start.

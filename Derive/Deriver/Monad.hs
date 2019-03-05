@@ -471,7 +471,7 @@ data Dynamic = Dynamic {
     , state_control_functions :: !DeriveT.ControlFunctionMap
     , state_control_merge_defaults :: !(Map ScoreT.Control Merger)
     -- | Named pitch signals.
-    , state_pitches :: !Score.PitchMap
+    , state_pitches :: !DeriveT.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
     -- that's applied to notes by default.  It's split off from 'state_pitches'
     -- because it's convenient to guarentee that the main pitch signal is

@@ -37,6 +37,7 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
@@ -159,7 +160,7 @@ data State = State {
 initial_state :: State
 initial_state = State 0 mempty
 
-state_control_map :: State -> Score.ControlMap
+state_control_map :: State -> DeriveT.ControlMap
 state_control_map = Map.map (ScoreT.untyped . Signal.constant) . state_controls
 
 state_psignal :: State -> PSignal.PSignal

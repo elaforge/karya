@@ -11,6 +11,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -99,7 +100,7 @@ get_start_offset start = do
 -- as-is and rely on the performer to trim the end according to the
 -- instrument's decay time.  This is so that a note whose decay persists
 -- outside of its block can still see control changes after its block ends.
-trim_controls :: RealTime -> Score.ControlMap -> Score.ControlMap
+trim_controls :: RealTime -> DeriveT.ControlMap -> DeriveT.ControlMap
 trim_controls start = Map.map (fmap (Signal.drop_before start))
 
 -- | For inverted tracks, this trimming should already be done by
