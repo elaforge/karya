@@ -93,6 +93,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Cache as Cache
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Midi.Midi as Midi
@@ -460,8 +461,8 @@ start_adjustment start has_im msgs = negative_start - im_latency
     im_latency = if has_im
         then AUtil.toSeconds Shared.Config.startLatency else 0
 
-lookup_im_config :: Map Score.Instrument UiConfig.Allocation
-    -> Either (Maybe Text) (Set Score.Instrument, Patch.Addr)
+lookup_im_config :: Map ScoreT.Instrument UiConfig.Allocation
+    -> Either (Maybe Text) (Set ScoreT.Instrument, Patch.Addr)
 lookup_im_config allocs = do
     when (Set.null im_insts) $ Left Nothing
     alloc <- justErr (Just "im allocations but no play-cache alloc, so they\
@@ -500,7 +501,7 @@ lookup_play_cache_addr = do
                 _ -> Ui.throw $
                         pretty Im.Play.qualified <> " with non-MIDI allocation"
 
-im_play_msgs :: FilePath -> BlockId -> Set Score.Instrument -> RealTime
+im_play_msgs :: FilePath -> BlockId -> Set ScoreT.Instrument -> RealTime
     -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
 im_play_msgs score_path block_id muted start (wdev, chan) =
     zipWith msg ts $ Im.Play.encode_time start

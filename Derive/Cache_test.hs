@@ -10,8 +10,18 @@ import qualified Data.Set as Set
 import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
-import Util.Test
 
+import qualified Derive.Cache as Cache
+import qualified Derive.Controls as Controls
+import qualified Derive.Derive as Derive
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
+import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
+import qualified Derive.TrackWarp as TrackWarp
+
+import qualified Instrument.Common as Common
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
@@ -23,18 +33,9 @@ import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
-import qualified Derive.Cache as Cache
-import qualified Derive.Controls as Controls
-import qualified Derive.Derive as Derive
-import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
-import qualified Derive.Stream as Stream
-import qualified Derive.TrackWarp as TrackWarp
-
-import qualified Instrument.Common as Common
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 -- * other functions
@@ -203,7 +204,7 @@ test_config_damage = do
     equal (diff_events cached uncached) []
     equal (DeriveTest.extract DeriveTest.e_pitch cached) (["5c"], [])
 
-modify_alloc_config :: Ui.M m => Score.Instrument
+modify_alloc_config :: Ui.M m => ScoreT.Instrument
     -> (Common.Config -> Common.Config) -> m ()
 modify_alloc_config inst modify =
     Ui.modify_config $ Ui.allocations_map %= Map.alter mod inst

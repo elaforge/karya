@@ -27,6 +27,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -170,16 +171,16 @@ string name open_strings = MidiInst.pressure $
         , ("bow-start", 38, [("d", 10), ("u", 80)])
         ]
 
-bow_force :: Score.Control
+bow_force :: ScoreT.Control
 bow_force = "bow-force"
 
-bow_pos :: Score.Control
+bow_pos :: ScoreT.Control
 bow_pos = "bow-pos"
 
 postproc :: Score.Event -> Score.Event
 postproc = bipolar_controls [bow_force, bow_pos] . bipolar_expression
 
-bipolar_controls :: [Score.Control] -> Score.Event -> Score.Event
+bipolar_controls :: [ScoreT.Control] -> Score.Event -> Score.Event
 bipolar_controls controls event
     | null sigs = event
     | otherwise = event
@@ -203,7 +204,7 @@ when_val key val modify event =
         _ -> event
 
 -- Normalize -1--1 to 0--1.
-normalize :: Score.Typed Signal.Control -> Score.Typed Signal.Control
+normalize :: ScoreT.Typed Signal.Control -> ScoreT.Typed Signal.Control
 normalize = fmap (Signal.scalar_divide 2 . Signal.scalar_add 1)
 
 -- * calls
@@ -248,7 +249,7 @@ instance Typecheck.TypecheckSymbol BowDirection
 instance Typecheck.ToVal BowDirection
 instance ShowVal.ShowVal BowDirection where show_val = Text.toLower . showt
 
-control_call :: Expr.Symbol -> Doc.Doc -> Score.Control
+control_call :: Expr.Symbol -> Doc.Doc -> ScoreT.Control
     -> Signal.Y -> MidiInst.Call Derive.Note
 control_call name doc control val = MidiInst.both name $
     Make.transform_notes Module.instrument (sym_to_name name) mempty doc

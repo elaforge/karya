@@ -10,8 +10,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -21,14 +19,18 @@ import qualified Derive.Env as Env
 import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
 
 
 transform :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> Derive.Result
@@ -55,7 +57,7 @@ run_control_dur events = extract $
     DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("cont", events)]
     where
     extract = Seq.drop_dups id . head . DeriveTest.extract_events
-        (Signal.to_pairs . Score.typed_val . get . Score.event_controls)
+        (Signal.to_pairs . ScoreT.typed_val . get . Score.event_controls)
     get fm = case Map.lookup "cont" fm of
         Nothing -> errorStack "expected a 'cont' control"
         Just c -> c

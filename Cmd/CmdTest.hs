@@ -15,17 +15,7 @@ import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
-import qualified Midi.Interface as Interface
-import qualified Midi.Midi as Midi
-import qualified Ui.Diff as Diff
-import qualified Ui.Key as Key
-import qualified Ui.Sel as Sel
-import qualified Ui.Types as Types
-import qualified Ui.Ui as Ui
-import qualified Ui.UiMsg as UiMsg
-import qualified Ui.UiTest as UiTest
-import qualified Ui.Update as Update
-
+import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -40,13 +30,24 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
+import qualified Midi.Interface as Interface
+import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import qualified App.Config as Config
-import Global
-import Types
+import qualified Ui.Diff as Diff
+import qualified Ui.Key as Key
+import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiMsg as UiMsg
+import qualified Ui.UiTest as UiTest
+import qualified Ui.Update as Update
+
+import           Global
+import           Types
 
 
 -- * running cmds
@@ -439,7 +440,7 @@ pitch_change_nn :: Int -> Pitch.NoteNumber -> InputNote.Input
 pitch_change_nn note_id nn =
     InputNote.PitchChange (InputNote.NoteId note_id) (InputNote.nn_to_input nn)
 
-control :: Int -> Score.Control -> Signal.Y -> InputNote.GenericInput a
+control :: Int -> ScoreT.Control -> Signal.Y -> InputNote.GenericInput a
 control note_id cont val =
     InputNote.Control (InputNote.NoteId note_id) cont val
 
@@ -449,7 +450,7 @@ m_note_on = Msg.InputNote . note_on_nn
 m_note_off :: Int -> Msg.Msg
 m_note_off = Msg.InputNote . note_off
 
-m_control :: Int -> Score.Control -> Signal.Y -> Msg.Msg
+m_control :: Int -> ScoreT.Control -> Signal.Y -> Msg.Msg
 m_control note_id cont val = Msg.InputNote (control note_id cont val)
 
 m_pitch_change :: Int -> Pitch.NoteNumber -> Msg.Msg

@@ -12,7 +12,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Wayang as Wayang
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Midi.Midi as Midi
@@ -67,7 +67,7 @@ pasang_im base range polos_tuning umbang_qual isep_qual =
     umbang = inst $ base <> "-u"
     isep = inst $ base <> "-i"
     pasang = make_pasang range polos_tuning umbang isep
-    inst = Score.Instrument
+    inst = ScoreT.Instrument
 
 pasang_midi :: Midi.WriteDevice -> Midi.Channel -> Text
     -> Scale.Range -> BaliScales.Tuning
@@ -84,10 +84,10 @@ pasang_midi dev chan base range polos_tuning umbang_qual isep_qual =
     pasang = make_pasang range polos_tuning umbang isep
     midi_channel relative_chan =
         UiConfig.Midi (MidiInst.config1 dev (chan + relative_chan))
-    inst = Score.Instrument
+    inst = ScoreT.Instrument
 
-make_pasang :: Scale.Range -> BaliScales.Tuning -> Score.Instrument
-    -> Score.Instrument -> Common.Config -> Common.Config
+make_pasang :: Scale.Range -> BaliScales.Tuning -> ScoreT.Instrument
+    -> ScoreT.Instrument -> Common.Config -> Common.Config
 make_pasang range polos_tuning umbang isep =
     MidiInst.inst_range range
     . Common.add_environ Gangsa.inst_polos polos

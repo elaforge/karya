@@ -61,7 +61,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Symbols as Symbols
 
 import qualified Instrument.Common as Common
@@ -239,13 +239,13 @@ patch_from_pair (patch, common) = (make_patch patch)
 --
 -- TODO I don't love the name, but 'patch' is already taken by the lens.
 named_patch :: Control.PbRange -> InstTypes.Name
-    -> [(Midi.Control, Score.Control)] -> Patch
+    -> [(Midi.Control, ScoreT.Control)] -> Patch
 named_patch pb_range name controls =
     make_patch $ (Patch.patch pb_range name)
         { Patch.patch_control_map = Control.control_map controls }
 
 -- | Make a default patch for the synth.
-default_patch :: Control.PbRange -> [(Midi.Control, Score.Control)] -> Patch
+default_patch :: Control.PbRange -> [(Midi.Control, ScoreT.Control)] -> Patch
 default_patch pb_range controls = Patch
     { patch_patch = (Patch.patch pb_range Patch.default_name)
         { Patch.patch_control_map = Control.control_map controls }
@@ -267,7 +267,7 @@ decay :: Lens Patch (Maybe RealTime)
 decay = patch # Patch.defaults # Patch.decay
 
 -- | Annotate all the patches with some global controls.
-synth_controls :: [(Midi.Control, Score.Control)] -> [Patch] -> [Patch]
+synth_controls :: [(Midi.Control, ScoreT.Control)] -> [Patch] -> [Patch]
 synth_controls controls = map $
     patch # Patch.control_map %= (Control.control_map controls <>)
 
@@ -290,7 +290,7 @@ add_common_flag flag = common#Common.flags %= Set.insert flag
 triggered :: Patch -> Patch
 triggered = add_common_flag Common.Triggered
 
-control_defaults :: [(Score.Control, Signal.Y)] -> Patch -> Patch
+control_defaults :: [(ScoreT.Control, Signal.Y)] -> Patch -> Patch
 control_defaults controls =
     patch#Patch.defaults#Patch.control_defaults #= Just (Map.fromList controls)
 
@@ -325,7 +325,8 @@ inst_range range =
 -- * Allocations
 
 allocations ::
-    [(Score.Instrument, Text, Common.Config -> Common.Config, UiConfig.Backend)]
+    [(ScoreT.Instrument, Text,
+        Common.Config -> Common.Config, UiConfig.Backend)]
     -- ^ (inst, qualified, set_config, backend)
     -> UiConfig.Allocations
 allocations = UiConfig.make_allocations . map make

@@ -11,18 +11,18 @@ import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Tree as Tree
+import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.ScoreT as ScoreT
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
 
-import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | A TrackTree is the Skeleton resolved to the tracks it references.
@@ -259,7 +259,7 @@ track_voices tracks = map (fmap only_inst) $ count_occurrences inst_of tracks
     where
     inst_of = not_empty <=< ParseTitle.title_to_instrument . Ui.track_title
         where
-        not_empty inst = if inst == Score.empty_instrument
+        not_empty inst = if inst == ScoreT.empty_instrument
             then Nothing else Just inst
     only_inst (track, voice)
         | Just _ <- inst_of track = (track, Just voice)

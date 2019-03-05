@@ -5,7 +5,7 @@
 -- | Operations on control tracks.
 module Cmd.Repl.LControl where
 import qualified Prelude
-import Prelude hiding (round)
+import           Prelude hiding (round)
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -14,12 +14,13 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Parse
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- | Multiply the controls in the selection by the given amount.
@@ -55,7 +56,7 @@ block_to_hex block_id = ModifyEvents.block block_id $
 to_hex :: Text -> Text
 to_hex text =
     case Derive.Parse.parse_val (ControlTrack.event_val event) of
-        Right (BaseTypes.VNum (Score.Typed Score.Untyped n))
+        Right (BaseTypes.VNum (ScoreT.Typed ScoreT.Untyped n))
             | 0 <= n && n <= 1 -> ControlTrack.unparse $
                 event { ControlTrack.event_val = ShowVal.show_hex_val n }
         _ -> text

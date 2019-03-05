@@ -17,7 +17,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -25,7 +25,7 @@ import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
 
-import Global
+import           Global
 
 
 type Error = Text
@@ -191,7 +191,7 @@ write_voice (voice, lys) = do
     output "} "
     State.gets output_bar
 
-sort_staves :: [(Score.Instrument, Types.StaffConfig)] -> [StaffGroup]
+sort_staves :: [(ScoreT.Instrument, Types.StaffConfig)] -> [StaffGroup]
     -> [(StaffGroup, Types.StaffConfig)]
 sort_staves inst_configs = map lookup_name . Seq.sort_on inst_key
     where
@@ -232,7 +232,7 @@ type Movement = (Title, [StaffGroup])
 
 -- | If the staff group has >1 staff, it is bracketed as a grand staff.
 data StaffGroup =
-    StaffGroup Score.Instrument [[Either Process.Voices Process.Ly]]
+    StaffGroup ScoreT.Instrument [[Either Process.Voices Process.Ly]]
     deriving (Show)
 
 instance Pretty StaffGroup where
@@ -283,7 +283,7 @@ convert_staff_groups config start global events = do
 
 -- | Split events by instrument, and if they have 'EnvKey.hand', further split
 -- into right and left hand.
-split_events :: [Types.Event] -> [(Score.Instrument, [[Types.Event]])]
+split_events :: [Types.Event] -> [(ScoreT.Instrument, [[Types.Event]])]
 split_events events =
     [ (inst, Seq.group_sort (lookup_hand . Types.event_environ) events)
     | (inst, events) <- by_inst
@@ -300,7 +300,7 @@ split_events events =
 -- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
 -- go below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
-staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> Score.Instrument
+staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> ScoreT.Instrument
     -> [[Types.Event]] -> Either Log.Msg StaffGroup
 staff_group config start meters inst staves = do
     staff_measures <- forM (zip [1..] staves) $ \(i, es) ->
@@ -310,7 +310,7 @@ staff_group config start meters inst staves = do
     annotate i = first (Log.add_prefix (pretty inst <> ":" <> showt i))
 
 -- | Global FreeCode events get distributed to all staves.
-distribute_global :: [Types.Event] -> Score.Instrument -> [Types.Event]
+distribute_global :: [Types.Event] -> ScoreT.Instrument -> [Types.Event]
     -> [Types.Event]
 distribute_global codes inst =
     Seq.merge_on Types.event_start

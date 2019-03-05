@@ -30,6 +30,7 @@ import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -510,7 +511,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         let transition = fromMaybe time maybe_transition
         let sig = jaru curve srate start time transition $
                 NonEmpty.toList intervals ++ if append_zero then [0] else []
-        return $ PSignal.apply_control control (Score.untyped sig) $
+        return $ PSignal.apply_control control (ScoreT.untyped sig) $
             PSignal.from_sample start pitch
     where
     parse intervals
@@ -563,7 +564,7 @@ c_kampita doc kam_args end_dir = generator1 "kam" mempty
     <> if doc == "" then "" else "\n" <> doc)
     $ Sig.call ((,,,)
     <$> kampita_pitch_args kam_args
-    <*> Sig.defaulted "speed" (Sig.typed_control "kam-speed" 6 Score.Real)
+    <*> Sig.defaulted "speed" (Sig.typed_control "kam-speed" 6 ScoreT.Real)
         "Alternate pitches at this speed."
     <*> kampita_env <*> ControlUtil.curve_env
     ) $ \(pitches, speed, (transition, hold, lilt, adjust), curve) args -> do
@@ -601,7 +602,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
 -- ** implementation
 
 resolve_pitches :: KampitaArgs -> (BaseTypes.ControlRef, BaseTypes.ControlRef)
-    -> Derive.Deriver ((Typecheck.Function, Typecheck.Function), Score.Control)
+    -> Derive.Deriver ((Typecheck.Function, Typecheck.Function), ScoreT.Control)
 resolve_pitches kam_args (pitch1, pitch2) = do
     (pitch1, control1) <- Call.to_transpose_function Typecheck.Nn pitch1
     (pitch2, control2) <- Call.to_transpose_function Typecheck.Nn pitch2
@@ -625,8 +626,8 @@ kampita_pitch_args kam_args = case kam_args of
         <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
     where
     control val =
-        BaseTypes.ControlSignal $ Score.untyped (Signal.constant val)
-    sig name deflt = Sig.typed_control name deflt Score.Nn
+        BaseTypes.ControlSignal $ ScoreT.untyped (Signal.constant val)
+    sig name deflt = Sig.typed_control name deflt ScoreT.Nn
 
 kampita_env :: Sig.Parser (RealTime, BaseTypes.Duration, Double, Trill.Adjust)
 kampita_env = (,,,)
@@ -646,11 +647,11 @@ default_transition = Typecheck.real default_transition_
 default_transition_ :: RealTime
 default_transition_ = 0.12
 
-kampita :: RealTime -> Derive.PitchArgs -> Score.Control -> Signal.Control
+kampita :: RealTime -> Derive.PitchArgs -> ScoreT.Control -> Signal.Control
     -> Derive.Deriver PSignal.PSignal
 kampita start args control transpose = do
     pitch <- prev_pitch start args
-    return $ PSignal.apply_control control (Score.untyped transpose) $
+    return $ PSignal.apply_control control (ScoreT.untyped transpose) $
         PSignal.from_sample start pitch
 
 -- | You don't think there are too many arguments, do you?

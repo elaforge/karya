@@ -10,7 +10,24 @@ module Cmd.Simple where
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
+import qualified App.Config as Config
+import qualified Cmd.Clip as Clip
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Selection as Selection
+
+import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
+import qualified Derive.Stack as Stack
+
+import qualified Instrument.InstTypes as InstTypes
 import qualified Midi.Midi as Midi
+import qualified Perform.Midi.MSignal as MSignal
+import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Midi.Types as Midi.Types
+import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -22,23 +39,8 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
-import qualified Cmd.Clip as Clip
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Selection as Selection
-
-import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
-import qualified Perform.Midi.MSignal as MSignal
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Midi.Types as Midi.Types
-import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-
-import qualified Instrument.InstTypes as InstTypes
-import qualified App.Config as Config
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Dump a score, or part of a score, to paste into a test.
@@ -94,7 +96,7 @@ score_event evt =
 
 perf_event :: Midi.Types.Event -> PerfEvent
 perf_event evt =
-    ( untxt $ Score.instrument_name $ Midi.Types.patch_name $
+    ( untxt $ ScoreT.instrument_name $ Midi.Types.patch_name $
         Midi.Types.event_patch evt
     , from_real start
     , from_real (Midi.Types.event_duration evt)
@@ -200,7 +202,7 @@ dump_allocations (UiConfig.Allocations allocs) = do
             UiConfig.Im -> Im
             UiConfig.Dummy -> Dummy
     let qualified = InstTypes.show_qualified $ UiConfig.alloc_qualified alloc
-    return (Score.instrument_name inst, (qualified, simple_alloc))
+    return (ScoreT.instrument_name inst, (qualified, simple_alloc))
     where
     addrs_of config =
         [ (Midi.write_device_text dev, chan)
@@ -211,7 +213,7 @@ allocations :: Allocations -> UiConfig.Allocations
 allocations = UiConfig.Allocations . Map.fromList . map make1
     where
     make1 (inst, (qual, simple_alloc)) =
-        (Score.Instrument inst, UiConfig.allocation qualified backend)
+        (ScoreT.Instrument inst, UiConfig.allocation qualified backend)
         where
         qualified = InstTypes.parse_qualified qual
         backend = case simple_alloc of
@@ -234,9 +236,9 @@ type ExactPerfEvent =
 dump_exact_perf_event :: Midi.Types.Event -> ExactPerfEvent
 dump_exact_perf_event (Midi.Types.Event start dur patch controls pitch svel evel
         stack) =
-    ( Score.instrument_name (Midi.Types.patch_name patch)
+    ( ScoreT.instrument_name (Midi.Types.patch_name patch)
     , start, dur
-    , map (bimap Score.control_name MSignal.to_pairs) (Map.toList controls)
+    , map (bimap ScoreT.control_name MSignal.to_pairs) (Map.toList controls)
     , MSignal.to_pairs pitch
     , (svel, evel)
     , stack
@@ -259,6 +261,6 @@ load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
         }
 
 control_map :: [(Text, [(RealTime, Signal.Y)])]
-    -> Map Score.Control MSignal.Signal
+    -> Map ScoreT.Control MSignal.Signal
 control_map kvs = Map.fromList
     [(Score.unchecked_control k, MSignal.from_pairs vs) | (k, vs) <- kvs]

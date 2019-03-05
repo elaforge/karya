@@ -18,13 +18,14 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 module_ :: Module.Module
@@ -78,7 +79,7 @@ trill_signal start_dir pitch neighbor speed hold args = do
     transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor
         speed transition hold lilt args
     start <- Args.real_start args
-    return $ PSignal.apply_control control (Score.untyped transpose) $
+    return $ PSignal.apply_control control (ScoreT.untyped transpose) $
         PSignal.from_sample start pitch
     where
     transition :: RealTime
@@ -87,9 +88,9 @@ trill_signal start_dir pitch neighbor speed hold args = do
 
 neighbor_arg :: Sig.Parser BaseTypes.ControlRef
 neighbor_arg = Sig.defaulted "neighbor"
-    (Sig.typed_control "tr-neighbor" 1 Score.Nn)
+    (Sig.typed_control "tr-neighbor" 1 ScoreT.Nn)
     "Alternate with a pitch at this interval."
 
 speed_arg :: Sig.Parser BaseTypes.ControlRef
-speed_arg = Sig.defaulted "speed" (Sig.typed_control "tr-speed" 20 Score.Real)
+speed_arg = Sig.defaulted "speed" (Sig.typed_control "tr-speed" 20 ScoreT.Real)
     "Alternate pitches at this speed."

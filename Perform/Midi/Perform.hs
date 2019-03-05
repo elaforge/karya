@@ -29,7 +29,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.MSignal as MSignal
@@ -124,7 +124,7 @@ instance Pretty State where
 initial_state :: State
 initial_state = State [] empty_allot_state empty_perform_state
 
-type Configs = Map Score.Instrument Config
+type Configs = Map ScoreT.Instrument Config
 newtype Config = Config {
     _addrs :: [(Patch.Addr, Maybe Patch.Voices)]
     } deriving (Show, Eq)
@@ -288,7 +288,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     worry about that only if it ever becomes a problem.
 -}
 controls_equal :: RealTime -> RealTime
-    -> Map Score.Control MSignal.Signal -> Map Score.Control MSignal.Signal
+    -> Map ScoreT.Control MSignal.Signal -> Map ScoreT.Control MSignal.Signal
     -> Bool
 controls_equal start end cs1 cs2 = start >= end || all eq pairs
     where
@@ -341,7 +341,7 @@ empty_allot_state = AllotState Map.empty Map.empty
 
 -- | Channelize makes sure that a (inst, ichan) key identifies events that can
 -- share channels.
-type AllotKey = (Score.Instrument, Channel)
+type AllotKey = (ScoreT.Instrument, Channel)
 
 data Allotted = Allotted {
     _allotted_addr :: !Patch.Addr
@@ -392,7 +392,7 @@ allot_event configs state (event, ichan) =
     no_alloc = event_warning event ("no allocation for " <> pretty inst)
 
 -- | Record this addr as now being allotted, and add its voice allocation.
-update_allot_state :: (Score.Instrument, Channel) -> RealTime
+update_allot_state :: (ScoreT.Instrument, Channel) -> RealTime
     -> Maybe (Patch.Voices, Maybe AllotKey) -> Patch.Addr
     -> [RealTime] -> AllotState -> AllotState
 update_allot_state inst_chan end maybe_new_allot addr voices state = state
@@ -412,7 +412,7 @@ update_allot_state inst_chan end maybe_new_allot addr voices state = state
 -- I initially feared keeping track of voice allocation would be wasteful for
 -- addrs with no limitation, but profiling revealed no detectable difference.
 -- So either it's not important or my profiles are broken.
-steal_addr :: Configs -> Score.Instrument -> AllotState
+steal_addr :: Configs -> ScoreT.Instrument -> AllotState
     -> Maybe (Patch.Addr, Patch.Voices, Maybe AllotKey)
 steal_addr configs inst state = case _addrs <$> Map.lookup inst configs of
     Just addr_voices -> case Seq.minimum_on (fst . snd) avail of
@@ -673,7 +673,7 @@ event_midi_key event =
 
 type ClipRange = (RealTime, RealTime)
 
-make_clip_warnings :: T.Event -> (Score.Control, [ClipRange]) -> [Log.Msg]
+make_clip_warnings :: T.Event -> (ScoreT.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
     [ event_warning event $ pretty control <> " clipped: "
         <> pretty s <> "--" <> pretty e
@@ -691,7 +691,7 @@ perform_pitch pb_range nn prev_note_off start end sig =
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
 perform_control :: Control.ControlMap -> RealTime -> RealTime -> Maybe RealTime
-    -> Midi.Key -> (Score.Control, MSignal.Signal)
+    -> Midi.Key -> (ScoreT.Control, MSignal.Signal)
     -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
 perform_control cmap prev_note_off start end midi_key (control, sig) =
     case Control.control_constructor cmap control midi_key of

@@ -22,14 +22,16 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, control)
+import           Derive.Sig (control, defaulted)
 import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -198,16 +200,16 @@ c_apply_attributes = Derive.transformer Module.prelude "apply-attributes"
 apply_attributes :: Score.Event -> Score.Event
 apply_attributes event = Score.add_attributes (mconcat attrs_to_apply) event
     where
-    controls :: [(Attrs.Attributes, Score.Control)]
+    controls :: [(Attrs.Attributes, ScoreT.Control)]
     controls = Seq.key_on_just control_attributes $ Map.keys $
         Score.event_controls event
     attrs_to_apply = map fst $ filter ((>0) . get . snd) controls
-    get c = maybe 0 Score.typed_val $
+    get c = maybe 0 ScoreT.typed_val $
         Score.control_at (Score.event_start event) c event
 
-control_attributes :: Score.Control -> Maybe Attrs.Attributes
+control_attributes :: ScoreT.Control -> Maybe Attrs.Attributes
 control_attributes = fmap (Attrs.attrs . Text.split (=='-'))
-    . Text.stripPrefix control_prefix . Score.control_name
+    . Text.stripPrefix control_prefix . ScoreT.control_name
 
 control_prefix :: Text
 control_prefix = "attr-"

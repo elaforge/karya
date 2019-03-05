@@ -4,18 +4,18 @@
 
 -- | E-mu morpheus module.
 module User.Elaforge.Instrument.Morpheus where
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 
-import Global
+import           Global
 
 
 synth_name :: InstTypes.SynthName
@@ -35,7 +35,7 @@ make_db app_dir = do
             patches
     MidiInst.save_synth app_dir synth_name patches
 
-synth_controls :: [(Midi.Control, Score.Control)]
+synth_controls :: [(Midi.Control, ScoreT.Control)]
 synth_controls =
     -- Definitions depend on the preset.
     [ (1, "a"), (2, "b"), (3, "c"), (4, "d")

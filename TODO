@@ -1568,7 +1568,8 @@ synth: im:
   - since the checkpoint size is smaller, logs are spammy
   - sampler crashes when volume=0 in test/im-rambat-simple
   * save_state_as "`d`/something" caused it to emit:
-    sampler-im /Users/elaforge/src/seq/main/data/im/notes/Users/elaforge/src/seq/main/save/test/im-bug/untitled/b1/sampler
+    sampler-im /Users/elaforge/src/seq/main/data/im/notes/Users/elaforge/src
+      /seq/main/save/test/im-bug/untitled/b1/sampler
     . Make SaveState and SaveRepo Absolute, to get out the symlink
       differences.
     . After all that it doesn't work!  Because data/save is not in the
@@ -3098,8 +3099,9 @@ cleanup:
       . Simplify or unify various types in Derive.ScoreTypes,
         Derive.BaseTypes, and Derive.Score.  Maybe get rid of type aliases
         and move simple types to Derive.T.
-    - remove re-exports from Derive.Score
-    - rename BaseTypes to BaseT?
+    * remove re-exports from Derive.Score
+    - are there things in Derive.Score which should move to ScoreT?
+    - rename BaseTypes to BaseT?  Or to DeriveT
   - Derive.Score is more like ScoreEvent... but Score.event_start is nicer
     than ScoreEvent.event_start.  If I made it just Event, I could say
     ScoreEvent.start.

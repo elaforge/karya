@@ -29,7 +29,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Midi.Midi as Midi
@@ -448,7 +448,7 @@ sync_recorded_actions actions = Cmd.set_global_status "rec" $
         (i, act) <- Map.toAscList actions]
 
 sync_instrument_attributes :: Cmd.M m =>
-    Map Score.Instrument Attrs.Attributes -> m ()
+    Map ScoreT.Instrument Attrs.Attributes -> m ()
 sync_instrument_attributes inst_attrs =
     Cmd.set_global_status "attrs" $ Text.unwords
         [ ShowVal.show_val inst <> ":" <> ShowVal.show_val attrs

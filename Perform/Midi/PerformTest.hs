@@ -11,7 +11,7 @@ import qualified App.Path as Path
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Simple as Simple
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Midi.Midi as Midi
@@ -19,8 +19,8 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 
@@ -38,7 +38,7 @@ read_perf_events events = do
 lookup_patch :: Cmd.InstrumentDb -> InstTypes.Qualified -> Maybe Types.Patch
 lookup_patch db qualified = do
     patch <- Inst.inst_midi =<< Cmd.inst_lookup qualified db
-    let score_inst = Score.Instrument (InstTypes.show_qualified qualified)
+    let score_inst = ScoreT.Instrument (InstTypes.show_qualified qualified)
     return $ Types.patch_from_settings score_inst mempty patch
 
 empty_event :: Types.Event
@@ -59,7 +59,7 @@ patch2 = mkpatch "patch2"
 
 mkpatch :: Text -> Types.Patch
 mkpatch name =
-    Types.patch_from_settings (Score.Instrument name)
+    Types.patch_from_settings (ScoreT.Instrument name)
         (Patch.patch_defaults patch) patch
     where patch = Patch.patch (-1, 1) name
 

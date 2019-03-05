@@ -333,7 +333,7 @@ data Transpose = Chromatic Double | Diatonic Double
 
 instance Pretty Transpose where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Transpose where
-    -- TODO convert to a Score.Typed Signal.Y and use its ShowVal
+    -- TODO convert to a ScoreT.Typed Signal.Y and use its ShowVal
     show_val (Chromatic d) = ShowVal.show_val d <> "c"
     show_val (Diatonic d) = ShowVal.show_val d <> "d"
     show_val (Nn d) = ShowVal.show_val d <> "nn"

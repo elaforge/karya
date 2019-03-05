@@ -35,6 +35,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Ui.Event as Event
@@ -45,8 +46,8 @@ import qualified Ui.Sel as Sel
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * val edit
@@ -314,7 +315,7 @@ create_dyn_track block_id (ControlTrack note dyn) = do
     tid <- Create.empty_track block_id dyn
     Ui.splice_skeleton_below block_id dyn note
     Ui.set_track_title tid $
-        ParseTitle.control_to_title (Score.untyped Score.c_dynamic)
+        ParseTitle.control_to_title (ScoreT.untyped Score.c_dynamic)
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.
@@ -326,11 +327,11 @@ ensure_note_event pos = do
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.
-triggered_inst :: Cmd.M m => Maybe Score.Instrument -> m Bool
+triggered_inst :: Cmd.M m => Maybe ScoreT.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
 triggered_inst (Just inst) = Set.member Common.Triggered <$> common_flags inst
 
-common_flags :: Cmd.M m => Score.Instrument -> m (Set Common.Flag)
+common_flags :: Cmd.M m => ScoreT.Instrument -> m (Set Common.Flag)
 common_flags inst = maybe mempty flags <$> Cmd.lookup_instrument inst
     where flags = Common.common_flags . Cmd.inst_common
 

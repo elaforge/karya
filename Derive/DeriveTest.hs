@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.CallStack as CallStack
@@ -32,7 +32,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
-import Derive.DDebug () -- just make sure it compiles
+import           Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
@@ -45,10 +45,11 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
-import Derive.TestInstances ()
+import           Derive.TestInstances ()
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.Common as Common
@@ -81,8 +82,8 @@ import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 import qualified Ui.UiTest as UiTest
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Simulate the linear interpolate call, to check deriver output that
@@ -202,7 +203,7 @@ perform_im_synths allocs synths =
 
 -- | Unlike 'perform', this includes the logs from the stream in the output.
 -- TODO change perform?
-perform_im :: (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+perform_im :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Stream.Stream Score.Event -> ([Note.Note], [Text])
 perform_im lookup_inst stream =
     (perf_events, mapMaybe show_interesting_log $ derive_logs ++ perf_logs)
@@ -375,7 +376,7 @@ with_tsig_sources track_ids = with_ui $ Ui.tracks %= Map.mapWithKey enable
             Track.RenderConfig (Track.Line source) Color.blue }
         Nothing -> track
 
-with_midi_config :: Score.Instrument -> Text -> Common.Config -> Patch.Config
+with_midi_config :: ScoreT.Instrument -> Text -> Common.Config -> Patch.Config
     -> Setup
 with_midi_config inst qualified common_config midi_config = with_ui $
     Ui.config#Ui.allocations_map %= Map.insert inst
@@ -559,10 +560,11 @@ synths_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
 synths_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
     where (db, warns) = Inst.db synths
 
-type Lookup = (Score.Instrument -> Maybe Cmd.ResolvedInstrument, Convert.Lookup)
+type Lookup =
+    (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument, Convert.Lookup)
 
 -- | Make a Lookp for a single patch.
-make_convert_lookup_for :: Score.Instrument -> Patch.Config -> Patch.Patch
+make_convert_lookup_for :: ScoreT.Instrument -> Patch.Config -> Patch.Patch
     -> Lookup
 make_convert_lookup_for inst patch_config patch =
     make_convert_lookup allocs inst_db
@@ -659,23 +661,23 @@ e_everything e =
     )
 
 e_instrument :: Score.Event -> Text
-e_instrument = Score.instrument_name . Score.event_instrument
+e_instrument = ScoreT.instrument_name . Score.event_instrument
 
-e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
+e_control :: ScoreT.Control -> Score.Event -> [(RealTime, Signal.Y)]
 e_control control event = Seq.drop_dups id $
-    maybe [] (Signal.to_pairs . Score.typed_val) $
+    maybe [] (Signal.to_pairs . ScoreT.typed_val) $
     Map.lookup control (Score.event_controls event)
 
-e_control_vals :: Score.Control -> Score.Event -> [Signal.Y]
+e_control_vals :: ScoreT.Control -> Score.Event -> [Signal.Y]
 e_control_vals control = map snd . Seq.drop_initial_dups fst . e_control control
 
-e_control_constant :: Score.Control -> Score.Event -> Maybe Signal.Y
-e_control_constant control = Signal.constant_val . Score.typed_val
+e_control_constant :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
+e_control_constant control = Signal.constant_val . ScoreT.typed_val
     <=< Map.lookup control . Score.event_controls
 
-e_initial_control :: Score.Control -> Score.Event -> Maybe Signal.Y
-e_initial_control control event =
-    Score.typed_val <$> Score.control_at (Score.event_start event) control event
+e_initial_control :: ScoreT.Control -> Score.Event -> Maybe Signal.Y
+e_initial_control control event = ScoreT.typed_val <$>
+    Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = Seq.drop_dups id . e_control Score.c_dynamic
@@ -857,21 +859,21 @@ mkscale scale_id notes =
 -- * mkevents
 
 -- | (start, dur, pitch12, controls, inst)
-type EventSpec = (RealTime, RealTime, Text, Controls, Score.Instrument)
-type Controls = [(Score.Control, [(RealTime, Signal.Y)])]
-type ControlVals = [(Score.Control, Signal.Y)]
+type EventSpec = (RealTime, RealTime, Text, Controls, ScoreT.Instrument)
+type Controls = [(ScoreT.Control, [(RealTime, Signal.Y)])]
+type ControlVals = [(ScoreT.Control, Signal.Y)]
 
 mkevent :: CallStack.Stack => EventSpec -> Score.Event
 mkevent = mkevent_scale Twelve.scale
 
 -- | Make an event with a non-twelve scale.
 mkevent_scale :: CallStack.Stack => Scale.Scale
-    -> (RealTime, RealTime, Text, Controls, Score.Instrument)
+    -> (RealTime, RealTime, Text, Controls, ScoreT.Instrument)
     -> Score.Event
 mkevent_scale scale = mkevent_scale_key scale Nothing
 
 mkevent_scale_key :: CallStack.Stack => Scale.Scale -> Maybe Text
-    -> (RealTime, RealTime, Text, Controls, Score.Instrument)
+    -> (RealTime, RealTime, Text, Controls, ScoreT.Instrument)
     -> Score.Event
 mkevent_scale_key scale key (start, dur, pitch, controls, inst) =
     maybe id (\k -> Score.modify_environ (Env.insert_val EnvKey.key k)) key $
@@ -890,7 +892,7 @@ psignal = PSignal.from_pairs . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap
 mkcontrols cs = Map.fromList
-    [(c, Score.untyped (Signal.from_pairs sig)) | (c, sig) <- cs]
+    [(c, ScoreT.untyped (Signal.from_pairs sig)) | (c, sig) <- cs]
 
 mkcontrols_const :: ControlVals -> Score.ControlMap
 mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]

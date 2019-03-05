@@ -13,10 +13,11 @@ import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
-import Global
+import           Global
 
 
 library :: Library.Library
@@ -41,17 +42,17 @@ c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc
                     transformer
         Post.emap_m_ id mapper =<< deriver
 
-map_control :: Derive.Context Derive.Control -> Score.Control
+map_control :: Derive.Context Derive.Control -> ScoreT.Control
     -> BaseTypes.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_control ctx control transformer event = do
-    let Score.Typed typ sig = fromMaybe mempty $
+    let ScoreT.Typed typ sig = fromMaybe mempty $
             Score.event_control control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
         Eval.eval_quoted_transformers ctx transformer $
             return $ Stream.from_event sig
-    return [Score.set_control control (Score.Typed typ sig) event]
+    return [Score.set_control control (ScoreT.Typed typ sig) event]
 
-map_pcontrol :: Derive.Context Derive.Pitch -> Score.PControl
+map_pcontrol :: Derive.Context Derive.Pitch -> ScoreT.PControl
     -> BaseTypes.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_pcontrol ctx control transformer event = do
     let sig = fromMaybe mempty $ Score.event_named_pitch control event

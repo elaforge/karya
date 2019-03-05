@@ -21,12 +21,12 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 
-import Global
+import           Global
 
 
 -- | This contains all that is needed to define a modal key system.  It fills
@@ -200,7 +200,7 @@ in_range smap pitch = bottom <= semis && semis <= top
     (bottom, top) = smap_range smap
     semis = Theory.pitch_to_semis (smap_layout smap) pitch
 
-call_doc :: Set Score.Control -> ScaleMap -> Doc.Doc -> Derive.DocumentedCall
+call_doc :: Set ScoreT.Control -> ScaleMap -> Doc.Doc -> Derive.DocumentedCall
 call_doc transposers smap doc =
     Scales.annotate_call_doc transposers doc fields call_doc
     where

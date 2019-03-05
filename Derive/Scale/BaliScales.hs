@@ -29,7 +29,7 @@ import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
@@ -293,7 +293,7 @@ instance ShowVal.ShowVal Tuning where
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new
 -- umbang and isep tunings based on the given number.
-c_ombak :: Score.Control
+c_ombak :: ScoreT.Control
 c_ombak = "ombak"
 
 -- | Convert 'Pitch.FSemi' to 'Pitch.NoteNumber'.

@@ -19,6 +19,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackWarp as TrackWarp
@@ -38,9 +39,9 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 
-import Global
-import Types
-import Util.Test
+import           Global
+import           Types
+import           Util.Test
 
 
 test_basic = do
@@ -395,7 +396,7 @@ test_real_to_score_round_trip = do
 
 test_shift_control = do
     let controls = Map.fromList
-            [("cont", Score.untyped $
+            [("cont", ScoreT.untyped $
                 Signal.from_pairs [(0, 1), (2, 2), (4, 0)])]
         psig = DeriveTest.psignal [(0, "4c")]
     let set_controls = DeriveTest.modify_dynamic $ \st -> st
@@ -412,7 +413,7 @@ test_shift_control = do
             extract (conts, pitch) =
                 (unsignal conts, first Signal.to_pairs (PSignal.to_nn pitch))
             unsignal =
-                Signal.to_pairs . Score.typed_val . snd . head . Map.toList
+                Signal.to_pairs . ScoreT.typed_val . snd . head . Map.toList
     equal (run id) $ Right ([(0, 1), (2, 2), (4, 0)], ([(0, 60)], []))
     equal (run $ Derive.shift_control 2) $
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))

@@ -8,24 +8,24 @@ module Perform.Im.Play (
     , encode_time, encode_play_config, decode_time, start, stop
 ) where
 import qualified Data.Bits as Bits
-import Data.Bits ((.&.), (.|.))
+import           Data.Bits ((.&.), (.|.))
 import qualified Data.Char as Char
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.RealTime as RealTime
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Config as Shared.Config
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 play_cache_synth :: Inst.SynthDecl Cmd.InstrumentCode
@@ -69,7 +69,7 @@ encode_time t = [at 0, at 1, at 2, at 3]
 
 -- | Send the block to play, along with muted instruments, if any.  Each
 -- is separated by a \0.
-encode_play_config :: FilePath -> BlockId -> Set Score.Instrument
+encode_play_config :: FilePath -> BlockId -> Set ScoreT.Instrument
     -> [Midi.ChannelMessage]
 encode_play_config score_path block_id muted =
     encode_text $ Text.intercalate "\0" $

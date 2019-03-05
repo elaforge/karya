@@ -30,20 +30,19 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Expr as Expr
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
 import qualified Solkattu.Db as Db
-import Solkattu.Db hiding (realize, search, searchp)
+import           Solkattu.Db hiding (realize, search, searchp)
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Metadata as Metadata
 import qualified Solkattu.Part as Part
-import Solkattu.Part (Index(..))
+import           Solkattu.Part (Index(..))
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
@@ -53,8 +52,8 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 type KorvaiIndex = Int
@@ -201,7 +200,7 @@ convert_note_track key (ModifyNotes.NoteTrack notes controls) =
     convert (ModifyNotes.Pitch scale_id, events) =
         convert_track (ParseTitle.scale_to_title scale_id) events
     convert (ModifyNotes.Control control, events) =
-        convert_track (ParseTitle.control_to_title (Score.untyped control))
+        convert_track (ParseTitle.control_to_title (ScoreT.untyped control))
             events
     convert_track title = Convert.Track title
         . map (add_stack key) . Events.ascending

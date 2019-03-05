@@ -9,7 +9,6 @@ module User.Elaforge.Instrument.Kontakt.Gong (
 ) where
 import qualified Data.Map as Map
 
-import qualified Midi.Key as Key
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -23,12 +22,14 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
-import qualified Perform.RealTime as RealTime
 import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Key as Key
+import qualified Perform.RealTime as RealTime
 import qualified User.Elaforge.Instrument.Kontakt.Util as Util
-import Global
+
+import           Global
 
 
 patches :: [MidiInst.Patch]
@@ -56,7 +57,7 @@ kajar_patch =
         ]
     notes = map fst kajar_pitched_notes
 
-tuning_control :: Score.Control
+tuning_control :: ScoreT.Control
 tuning_control = "kajar-tune"
 
 kajar_pitched_notes :: CUtil.PitchedNotes

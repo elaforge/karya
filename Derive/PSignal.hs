@@ -45,28 +45,28 @@ module Derive.PSignal (
     -- ** create
     , constant_pitch, nn_pitch
 ) where
-import Prelude hiding (head, last, null)
+import           Prelude hiding (head, last, null)
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
 import qualified Util.Segment as Segment
-import Util.Segment (Sample(..))
+import           Util.Segment (Sample(..))
 import qualified Util.Seq as Seq
 
 import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes
-       (PSignal(..), _signal, interpolate, Transposed, Pitch, pitch, coerce,
-        pitch_nn, pitch_note, RawPitch(..), Scale(..), PitchConfig(..),
+import           Derive.BaseTypes
+       (_signal, coerce, interpolate, pitch, pitch_nn, pitch_note, Pitch,
+        Transposed, PSignal(..), RawPitch(..), Scale(..), PitchConfig(..),
         PitchError(..))
 import qualified Derive.ScoreT as ScoreT
-import qualified Derive.ScoreT as Score
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- Signal imported from BaseTypes.
@@ -76,7 +76,7 @@ import Types
 --
 -- A Signal can contain pitches from multiple scales, though I don't think this
 -- should ever happen.  But if it does, the first pitch wins.
-sig_transposers :: PSignal -> Set Score.Control
+sig_transposers :: PSignal -> Set ScoreT.Control
 sig_transposers = pscale_transposers . sig_scale
 
 -- | Get the scale id of the signal.
@@ -168,7 +168,7 @@ clip_before x = modify $ Segment.clip_before interpolate x
 shift :: RealTime -> PSignal -> PSignal
 shift x = modify (Segment.shift x)
 
-type ControlMap = Map Score.Control (ScoreT.Typed Signal.Control)
+type ControlMap = Map ScoreT.Control (ScoreT.Typed Signal.Control)
 
 -- | Resample the signal according to the 'sig_transposers' and apply the given
 -- controls to the signal.
@@ -223,7 +223,7 @@ apply_controls cmap psig = case Seq.head (to_pairs psig) of
 -- usual type distinctions like chromatic or diatonic instead get separate
 -- controls.
 unzip_controls :: PSignal -> ControlMap
-    -> (([Score.Control], [Signal.Control]), ControlMap)
+    -> (([ScoreT.Control], [Signal.Control]), ControlMap)
 unzip_controls psig cmap =
     ( second (map ScoreT.typed_val) (unzip transposers)
     , Map.fromAscList non_transposers
@@ -234,11 +234,11 @@ unzip_controls psig cmap =
         Map.toAscList cmap
 
 -- | Not exported, use the one in Derive.Score instead.
-controls_at :: RealTime -> ControlMap -> Map Score.Control Signal.Y
-controls_at t = Map.map (Signal.at t . Score.typed_val)
+controls_at :: RealTime -> ControlMap -> Map ScoreT.Control Signal.Y
+controls_at t = Map.map (Signal.at t . ScoreT.typed_val)
 
 -- | 'apply_controls' specialized for a single control.
-apply_control :: Score.Control -> ScoreT.Typed Signal.Control
+apply_control :: ScoreT.Control -> ScoreT.Typed Signal.Control
     -> PSignal -> PSignal
 apply_control cont sig = apply_controls (Map.singleton cont sig)
 
@@ -266,10 +266,10 @@ symbolic_pitch = either showt Pitch.note_text . pitch_note . coerce
 pitch_scale_id :: RawPitch a -> Pitch.ScaleId
 pitch_scale_id = pscale_scale_id . pitch_scale
 
-pitch_transposers :: Pitch -> Set Score.Control
+pitch_transposers :: Pitch -> Set ScoreT.Control
 pitch_transposers = pscale_transposers . pitch_scale
 
-pitch_controls :: PitchConfig -> Map Score.Control Signal.Y
+pitch_controls :: PitchConfig -> Map ScoreT.Control Signal.Y
 pitch_controls (PitchConfig _ controls) = controls
 
 -- | Apply a config to a pitch.
@@ -277,12 +277,12 @@ apply_config :: PitchConfig -> RawPitch a -> RawPitch b
 apply_config c pitch = pitch { pitch_config = c <> pitch_config pitch }
 
 -- | Apply just the controls part of a config to a pitch.
-apply :: Map Score.Control Signal.Y -> Pitch -> Transposed
+apply :: Map ScoreT.Control Signal.Y -> Pitch -> Transposed
 apply controls
     | Map.null controls = coerce
     | otherwise = apply_config (PitchConfig mempty controls)
 
-add_control :: Score.Control -> Double -> RawPitch a -> RawPitch a
+add_control :: ScoreT.Control -> Double -> RawPitch a -> RawPitch a
 add_control control val pitch =
     pitch { pitch_config = config <> pitch_config pitch }
     where config = PitchConfig mempty (Map.singleton control val)

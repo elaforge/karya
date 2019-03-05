@@ -31,11 +31,6 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-
 import qualified Derive.Cache as Cache
 import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
@@ -49,14 +44,20 @@ import qualified Derive.Note as Note
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.Tempo as Tempo
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 note_deriver :: BlockId -> Derive.NoteDeriver
@@ -130,7 +131,7 @@ derive_control_tree block_range tree = do
             Just signal -> return $ Stream.from_sorted_list $
                 -- The calling control itself will be providing the type since
                 -- types are at the level of the signal as a whole.
-                LEvent.Event (Score.typed_val signal) : map LEvent.Log logs
+                LEvent.Event (ScoreT.typed_val signal) : map LEvent.Log logs
         (events, logs) -> do
             msg <- complain events
             return $ Stream.from_logs $ msg : logs

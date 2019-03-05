@@ -13,7 +13,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
 import           Derive.Attrs (soft)
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Midi.Key as Key
@@ -114,4 +114,4 @@ allocations name dev_ = MidiInst.allocations
     where
     midi_channel = UiConfig.Midi . MidiInst.config1 dev
     dev = Midi.write_device dev_
-    inst = Score.Instrument
+    inst = ScoreT.Instrument

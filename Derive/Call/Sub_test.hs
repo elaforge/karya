@@ -3,11 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Sub_test where
-import Util.Test
-import qualified Ui.Event as Event
-import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.UiTest as UiTest
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.NoteUtil as NoteUtil
@@ -15,13 +10,18 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Slice_test as Slice_test
 
 import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
-import Global
+import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_inverting = do
@@ -93,7 +93,7 @@ test_under_invert = do
         (if under_invert then Sub.under_invert else ($)) $
         \args deriver -> do
             val <- Derive.untyped_control_at "c" =<< Args.real_start args
-            let sig = Score.untyped (Signal.constant (fromMaybe 0 val))
+            let sig = ScoreT.untyped (Signal.constant (fromMaybe 0 val))
             Derive.with_control "out" sig deriver
     gen :: Derive.Generator Derive.Note
     gen = Derive.generator1 "mod" "gen" mempty "doc" $ Sig.call0 $ \args -> do

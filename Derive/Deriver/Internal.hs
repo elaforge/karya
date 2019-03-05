@@ -14,21 +14,21 @@ import qualified Data.Word as Word
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
+import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.EnvKey as EnvKey
+import qualified Derive.ScoreT as ScoreT
+import qualified Derive.Stack as Stack
+import qualified Derive.TrackWarp as TrackWarp
+import qualified Derive.Warp as Warp
+
 import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
-import qualified Derive.BaseTypes as BaseTypes
-import Derive.Deriver.Monad
-import qualified Derive.EnvKey as EnvKey
-import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
-import qualified Derive.TrackWarp as TrackWarp
-import qualified Derive.Warp as Warp
-
-import Global
-import Types
+import           Derive.Deriver.Monad
+import           Global
+import           Types
 
 
 -- * generic state access
@@ -144,7 +144,7 @@ record_track_dynamic_for block_id track_id = do
 
 -- * misc Dynamic state
 
-with_default_merge :: Map Score.Control Merger -> Deriver a -> Deriver a
+with_default_merge :: Map ScoreT.Control Merger -> Deriver a -> Deriver a
 with_default_merge defaults = local $ \st -> st
     { state_control_merge_defaults =
         defaults <> state_control_merge_defaults st
@@ -268,10 +268,10 @@ add_stack_frame frame st = st
     _should_update_seed (Stack.Call {}) = False
     _should_update_seed _ = True
     update_seed env = BaseTypes.insert
-        EnvKey.seed (BaseTypes.VNum (Score.untyped (seed old))) env
+        EnvKey.seed (BaseTypes.VNum (ScoreT.untyped (seed old))) env
         where
         old = case BaseTypes.lookup EnvKey.seed env of
-            Just (BaseTypes.VNum n) -> Score.typed_val n
+            Just (BaseTypes.VNum n) -> ScoreT.typed_val n
             _ -> 0
     seed :: Double -> Double
     seed n = i2d (CRC32.crc32Update (floor n) frame)

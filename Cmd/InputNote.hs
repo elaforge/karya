@@ -10,7 +10,7 @@
     takes the internal representation, in the form of
     'Perform.Midi.Perform.Event', to MIDI output.
 
-    The overlapping part is that this module maps 'Derive.Score.Control's to
+    The overlapping part is that this module maps 'Derive.ScoreT.Control's to
     and from MIDI while Play uses 'Perform.Midi.Control.Control'.  They
     use the same control names, though, so I can reuse code from Control.
 
@@ -37,17 +37,18 @@ import qualified Data.Text as Text
 
 import qualified Util.Map as Map
 import qualified Util.Num as Num
-import qualified Midi.Midi as Midi
+import qualified App.Config as Config
 import qualified Derive.Controls as Controls
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified App.Config as Config
-import Global
+import           Global
 
 
 -- | Since the ASCII keyboard isn't pressure sensitive, this is the default
@@ -69,9 +70,9 @@ data GenericInput pitch =
     -- | Controls coming from MIDI are mapped to control names, since this is
     -- a superset of MIDI CC numbers, and may include non-MIDI as well.  But
     -- for MidiThru to map back to a CC number, I need 1:1 mapping between
-    -- Score.Controls and CC numbers.  This is what 'cc_to_control' and
+    -- ScoreT.Controls and CC numbers.  This is what 'cc_to_control' and
     -- 'control_to_cc' provide.
-    | Control NoteId Score.Control Signal.Y
+    | Control NoteId ScoreT.Control Signal.Y
     -- | Pitch could also be a Control, but this way the pitch is typed.
     | PitchChange NoteId pitch
     deriving (Eq, Show)
@@ -222,17 +223,17 @@ input_to_nn :: Pitch.Input -> Pitch.NoteNumber
 input_to_nn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac
     where nn = fromIntegral (pitch_to_nn pitch)
 
-cc_to_control :: Midi.Control -> Score.Control
+cc_to_control :: Midi.Control -> ScoreT.Control
 cc_to_control cc = fromMaybe (Score.unchecked_control ("cc" <> showt cc))
     (Map.lookup cc cc_control)
 
-control_to_cc :: Score.Control -> Maybe Midi.Control
+control_to_cc :: ScoreT.Control -> Maybe Midi.Control
 control_to_cc = flip Map.lookup control_cc
 
-cc_control :: Map Midi.Control Score.Control
+cc_control :: Map Midi.Control ScoreT.Control
 cc_control = Map.invert control_cc
 
-control_cc :: Map Score.Control Midi.Control
+control_cc :: Map ScoreT.Control Midi.Control
 control_cc = Control.universal_control_map
 
 -- * from ascii

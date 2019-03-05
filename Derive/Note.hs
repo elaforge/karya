@@ -12,8 +12,6 @@ import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import qualified Util.Seq as Seq
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -22,11 +20,15 @@ import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+
+import           Global
+import           Types
 
 
 -- * note track
@@ -67,7 +69,7 @@ extract_track_signal source events = mconcat $ case source of
     -- Since these signals will be concatenated into one signal, I don't
     -- want one event's control at 0 to wipe out the previous events.
     extract_control control event =
-        Signal.clip_before (Score.event_min event) . Score.typed_val <$>
+        Signal.clip_before (Score.event_min event) . ScoreT.typed_val <$>
             Score.event_control control event
     extract_pitch pcontrol event =
         convert event <$> Score.event_named_pitch pcontrol event

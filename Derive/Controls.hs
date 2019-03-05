@@ -8,16 +8,16 @@
 -- set of controls, they're easier to remember if they reuse some conventional
 -- names.
 module Derive.Controls where
-import Prelude hiding (null)
+import           Prelude hiding (null)
 
 import qualified Derive.Score as Score
-import Derive.Score (Control)
 import qualified Derive.ScoreT as ScoreT
+import           Derive.ScoreT (Control)
 
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Shared.Control
 
-import Global
+import           Global
 
 
 -- | These controls should be combined with addition by default instead of
@@ -118,11 +118,11 @@ transpose_control t = case t of
     Pitch.Chromatic d -> (d, chromatic)
     Pitch.Nn d -> (d, nn)
 
-transpose_type :: Score.Type -> Maybe Control
+transpose_type :: ScoreT.Type -> Maybe Control
 transpose_type t = case t of
-    Score.Diatonic -> Just diatonic
-    Score.Chromatic -> Just chromatic
-    Score.Nn -> Just nn
+    ScoreT.Diatonic -> Just diatonic
+    ScoreT.Chromatic -> Just chromatic
+    ScoreT.Nn -> Just nn
     _ -> Nothing
 
 -- | Transpose by this many octaves.

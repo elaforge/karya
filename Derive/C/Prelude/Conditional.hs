@@ -16,15 +16,16 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Library as Library
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -98,7 +99,7 @@ c_solo = Derive.transformer Module.prelude "solo" mempty
     $ Sig.callt (Sig.required "inst" "Instrument.")
     $ \inst _args deriver ->
         ifM (has_environ EnvKey.instrument
-                (Just (Typecheck.to_val (inst :: Score.Instrument))))
+                (Just (Typecheck.to_val (inst :: ScoreT.Instrument))))
             deriver mempty
 
 c_when_c :: Derive.Taggable d => Bool -> Derive.Transformer d

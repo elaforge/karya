@@ -10,10 +10,11 @@ module Derive.ValType where
 import qualified Data.Text as Text
 
 import qualified Util.TextUtil as TextUtil
+import           Derive.BaseTypes (Val(..))
+import qualified Derive.ScoreT as ScoreT
 import qualified Ui.Id as Id
-import Derive.BaseTypes (Val(..))
-import qualified Derive.Score as Score
-import Global
+
+import           Global
 
 
 data Type =
@@ -148,7 +149,7 @@ infer_type_of :: Bool -- ^ If True, infer the most specific type possible.
     -- 1 it doesn't mean it's intended to be a TPositive.
     -> Val -> Type
 infer_type_of specific val = case val of
-    VNum (Score.Typed typ val) -> TNum (to_num_type typ) $ if specific
+    VNum (ScoreT.Typed typ val) -> TNum (to_num_type typ) $ if specific
         then (if val > 0 then TPositive
             else if val >= 0 then TNonNegative else TAny)
         else TAny
@@ -164,11 +165,11 @@ infer_type_of specific val = case val of
     VSeparator -> TSeparator
     VList {} -> TList TVal
 
-to_num_type :: Score.Type -> NumType
+to_num_type :: ScoreT.Type -> NumType
 to_num_type typ = case typ of
-    Score.Untyped -> TUntyped
-    Score.Real -> TRealTime
-    Score.Score -> TScoreTime
-    Score.Diatonic -> TTranspose
-    Score.Chromatic -> TTranspose
-    Score.Nn -> TNoteNumber
+    ScoreT.Untyped -> TUntyped
+    ScoreT.Real -> TRealTime
+    ScoreT.Score -> TScoreTime
+    ScoreT.Diatonic -> TTranspose
+    ScoreT.Chromatic -> TTranspose
+    ScoreT.Nn -> TNoteNumber

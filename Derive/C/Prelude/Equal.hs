@@ -29,7 +29,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -37,7 +37,8 @@ import qualified Derive.ValType as ValType
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
+
+import           Global
 
 
 -- * note
@@ -201,8 +202,8 @@ parse_equal Set lhs rhs
     -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
         BaseTypes.VStr (Expr.Str inst) -> Right $
-            Derive.with_instrument_alias (Score.Instrument new)
-                (Score.Instrument inst)
+            Derive.with_instrument_alias (ScoreT.Instrument new)
+                (ScoreT.Instrument inst)
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
             <> pretty (ValType.type_of rhs)
 parse_equal merge lhs rhs
@@ -237,7 +238,7 @@ parse_equal _ lhs rhs
         BaseTypes.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
             Derive.with_named_pitch control sig deriver
-        BaseTypes.VNum (Score.Typed Score.Nn nn) -> Right $ \deriver ->
+        BaseTypes.VNum (ScoreT.Typed ScoreT.Nn nn) -> Right $ \deriver ->
             Derive.with_named_pitch control
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
         _ -> Left $ "binding a pitch signal expected a pitch, pitch"
@@ -246,7 +247,8 @@ parse_equal _ lhs rhs
     is_pitch (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) = Just c
     is_pitch _ = Nothing
 parse_equal Set lhs val = Right $ Derive.with_val lhs val
-parse_equal (Merge merge) lhs (BaseTypes.VNum (Score.Typed Score.Untyped val)) =
+parse_equal (Merge merge) lhs
+        (BaseTypes.VNum (ScoreT.Typed ScoreT.Untyped val)) =
     Right $ \deriver -> do
         merger <- Derive.get_control_merge merge
         Derive.with_merged_numeric_val merger lhs val deriver
@@ -257,7 +259,7 @@ merge_error merge = "merge is only supported when assigning to a control or\
     \ untyped numeric env: " <> ShowVal.show_val merge
 
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
-get_merger :: Score.Control -> Merge -> Derive.Deriver Derive.Merger
+get_merger :: ScoreT.Control -> Merge -> Derive.Deriver Derive.Merger
 get_merger control merge = case merge of
     Set -> return Derive.Set
     Default -> Derive.get_default_merger control

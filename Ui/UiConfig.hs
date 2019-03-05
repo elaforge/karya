@@ -16,7 +16,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
@@ -29,8 +29,8 @@ import qualified Perform.Signal as Signal
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Miscellaneous config data.
@@ -52,7 +52,7 @@ data Config = Config {
         -- obviously related to instruments.  However the previous name,
         -- 'aliases', was too and I somehow lived through that.  I tried
         -- 'instruments', but it seemed too easy to confuse with
-        -- 'Score.Instrument'.
+        -- 'ScoreT.Instrument'.
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews
@@ -84,7 +84,7 @@ tscore = Lens.lens config_tscore
     (\f r -> r { config_tscore = f (config_tscore r) })
 
 -- | Unwrap the newtype for convenience.
-allocations_map :: Lens Config (Map Score.Instrument Allocation)
+allocations_map :: Lens Config (Map ScoreT.Instrument Allocation)
 allocations_map = Lens.lens (open . config_allocations)
     (\f r -> r { config_allocations =
         Allocations $ f $ open $ config_allocations r })
@@ -112,14 +112,14 @@ empty_config = Config
 -- modification when the backend doesn't change.
 allocate :: Inst.Backend -- ^ This should the result of looking up
     -- 'alloc_qualified' in the instrument db.
-    -> Score.Instrument -> Allocation -> Allocations
+    -> ScoreT.Instrument -> Allocation -> Allocations
     -> Either Text Allocations
 allocate backend instrument alloc (Allocations allocs) =
     maybe (Right inserted) Left $
         verify_allocation (Allocations allocs) backend instrument alloc
     where inserted = Allocations $ Map.insert instrument alloc allocs
 
-verify_allocation :: Allocations -> Inst.Backend -> Score.Instrument
+verify_allocation :: Allocations -> Inst.Backend -> ScoreT.Instrument
     -> Allocation -> Maybe Text
 verify_allocation allocs backend instrument alloc =
     fmap (prefix<>) $
@@ -130,7 +130,7 @@ verify_allocation allocs backend instrument alloc =
     qualified = alloc_qualified alloc
 
 verify_no_overlapping_addrs :: Allocations -> Allocation
-    -> Score.Instrument -> Maybe Text
+    -> ScoreT.Instrument -> Maybe Text
 verify_no_overlapping_addrs (Allocations allocs) alloc instrument
     | null overlaps = Nothing
     | otherwise = Just $ "instruments with overlapping channel allocations: "
@@ -167,24 +167,24 @@ verify_backends_match backend alloc =
         Inst.Midi {} -> "midi"
         Inst.Im {} -> "im"
 
-newtype Allocations = Allocations (Map Score.Instrument Allocation)
+newtype Allocations = Allocations (Map ScoreT.Instrument Allocation)
     deriving (Eq, Show, Pretty, Semigroup, Monoid)
 
 -- | Make Allocations with no verification.  This should probably only be used
 -- for tests, allocations from user input should use 'allocate'.
-make_allocations :: [(Score.Instrument, Allocation)] -> Allocations
+make_allocations :: [(ScoreT.Instrument, Allocation)] -> Allocations
 make_allocations = Allocations . Map.fromList
 
 -- | This is 'make_allocations' specialized for MIDI instruments.  Like
 -- 'make_allocations', it also does no verification.
-midi_allocations :: [(Score.Instrument, (InstTypes.Qualified, Patch.Config))]
+midi_allocations :: [(ScoreT.Instrument, (InstTypes.Qualified, Patch.Config))]
     -> Allocations
 midi_allocations allocs = Allocations $ Map.fromList
     [ (inst, allocation qual (Midi config))
     | (inst, (qual, config)) <- allocs
     ]
 
-modify_allocation :: Score.Instrument -> (Allocation -> Either Text Allocation)
+modify_allocation :: ScoreT.Instrument -> (Allocation -> Either Text Allocation)
     -> Allocations -> Either Text Allocations
 modify_allocation instrument modify (Allocations allocs) = do
     alloc <- justErr ("no allocation for " <> pretty instrument) $

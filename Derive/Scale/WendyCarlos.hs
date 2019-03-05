@@ -19,11 +19,12 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 -- TODO letters might be hard to use with so many of them.  Maybe I should use
@@ -42,7 +43,7 @@ scales = map Scale.Simple
 type Degrees = Vector.Vector Pitch.NoteNumber
 
 -- | Frequency for a0.
-a0_nn :: Score.Control
+a0_nn :: ScoreT.Control
 a0_nn = "a0-nn"
 
 make_scale :: Pitch.ScaleId -> Degrees -> Scale.Scale

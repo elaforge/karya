@@ -44,7 +44,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Patch as Patch
@@ -622,7 +622,7 @@ default_allocations = midi_allocations
     , ("i3", "s/3", [4])
     ]
 
-modify_midi_config :: CallStack.Stack => Score.Instrument
+modify_midi_config :: CallStack.Stack => ScoreT.Instrument
     -> (Patch.Config -> Patch.Config)
     -> UiConfig.Allocations -> UiConfig.Allocations
 modify_midi_config inst modify =
@@ -634,10 +634,10 @@ modify_midi_config inst modify =
         return $ alloc
             { UiConfig.alloc_backend = UiConfig.Midi (modify config) }
 
-i1, i2, i3 :: Score.Instrument
-i1 = Score.Instrument "i1"
-i2 = Score.Instrument "i2"
-i3 = Score.Instrument "i3"
+i1, i2, i3 :: ScoreT.Instrument
+i1 = ScoreT.Instrument "i1"
+i2 = ScoreT.Instrument "i2"
+i3 = ScoreT.Instrument "i3"
 
 i1_qualified :: InstTypes.Qualified
 i1_qualified = InstTypes.Qualified "s" "1"

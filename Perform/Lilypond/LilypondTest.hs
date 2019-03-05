@@ -10,10 +10,7 @@ import qualified Data.Text.Lazy as Text.Lazy
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import Util.Test
 
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
 import qualified Derive.Attrs as Attrs
@@ -26,6 +23,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
@@ -36,8 +34,12 @@ import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
 
-import Global
-import Types
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 default_config :: Types.Config
@@ -130,7 +132,7 @@ voice_event (start, dur, pitch, maybe_voice) =
     mkevent start dur (Just pitch) default_inst $
         maybe [] ((:[]) . (,) EnvKey.voice . Typecheck.to_val) maybe_voice
 
-mkevent :: RealTime -> RealTime -> Maybe Types.Pitch -> Score.Instrument
+mkevent :: RealTime -> RealTime -> Maybe Types.Pitch -> ScoreT.Instrument
     -> [(Env.Key, BaseTypes.Val)] -> Types.Event
 mkevent start dur pitch inst env = Types.Event
     { event_start = Types.real_to_time 1 start
@@ -142,7 +144,7 @@ mkevent start dur pitch inst env = Types.Event
     , event_clipped = False
     }
 
-default_inst :: Score.Instrument
+default_inst :: ScoreT.Instrument
 default_inst = "test"
 
 -- * pitches
@@ -185,7 +187,7 @@ convert_staves wanted events =
     (global, normal) = List.partition
         ((==Constants.ly_global) . Types.event_instrument) events
     extract_staves (Lilypond.StaffGroup inst staves) =
-        (Score.instrument_name inst, map show_staff staves)
+        (ScoreT.instrument_name inst, map show_staff staves)
     show_staff = Text.unwords . mapMaybe (either show_voices show_ly)
     show_ly ly
         | is_wanted code = Just code

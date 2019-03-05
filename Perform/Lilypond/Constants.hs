@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Derive.Env as Env
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
@@ -16,16 +16,16 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * ly-global instrument
 
 -- | This is a pseudo-instrument used to mark notes which are actually global
 -- lilypond directives.  E.g., meter changes, page breaks, movement titles.
-ly_global :: Score.Instrument
-ly_global = Score.Instrument "ly-global"
+ly_global :: ScoreT.Instrument
+ly_global = ScoreT.Instrument "ly-global"
 
 ly_qualified :: InstTypes.Qualified
 ly_qualified = InstTypes.Qualified "ly" "global"

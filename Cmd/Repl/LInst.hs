@@ -26,7 +26,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
@@ -61,7 +61,7 @@ get_allocation :: Ui.M m => Instrument -> m UiConfig.Allocation
 get_allocation = get_instrument_allocation . Util.instrument
 
 -- | List all allocated instruments.
-allocated :: Ui.M m => m [Score.Instrument]
+allocated :: Ui.M m => m [ScoreT.Instrument]
 allocated = Ui.get_config $ Map.keys . (UiConfig.allocations_map #$)
 
 -- | List all allocated instrument configs all purty-like.
@@ -72,7 +72,7 @@ list_midi :: Cmd.M m => m [Instrument]
 list_midi = do
     alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
     return
-        [ Score.instrument_name inst
+        [ ScoreT.instrument_name inst
         | (inst, alloc) <- Map.toAscList alloc_map
         , UiConfig.is_midi_allocation alloc
         ]
@@ -92,9 +92,9 @@ list_like pattern = do
         , matches name
         ]
     where
-    matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
+    matches inst = pattern `Text.isInfixOf` ScoreT.instrument_name inst
 
-pretty_alloc :: Score.Instrument -> UiConfig.Allocation -> [Text]
+pretty_alloc :: ScoreT.Instrument -> UiConfig.Allocation -> [Text]
 pretty_alloc inst alloc =
     [ ShowVal.show_val inst
     , InstTypes.show_qualified (UiConfig.alloc_qualified alloc)
@@ -209,7 +209,7 @@ add_dummy inst qualified = do
 
 -- | All allocations should go through this to verify their validity, unless
 -- it's modifying an existing allocation and not changing the Qualified name.
-allocate :: Cmd.M m => Score.Instrument -> UiConfig.Allocation -> m ()
+allocate :: Cmd.M m => ScoreT.Instrument -> UiConfig.Allocation -> m ()
 allocate score_inst alloc = do
     inst <- Cmd.get_alloc_qualified alloc
     allocs <- Ui.config#Ui.allocations <#> Ui.get
@@ -221,7 +221,7 @@ allocate score_inst alloc = do
 remove :: Instrument -> Cmd.CmdL ()
 remove = deallocate . Util.instrument
 
-deallocate :: Cmd.M m => Score.Instrument -> m ()
+deallocate :: Cmd.M m => ScoreT.Instrument -> m ()
 deallocate inst = Ui.modify_config $ Ui.allocations_map %= Map.delete inst
 
 -- | Merge the given configs into the existing ones.  This also merges
@@ -266,8 +266,8 @@ copy :: Ui.M m => Instrument -> Instrument -> m ()
 copy from to = modify_allocations from $ Map.insert (Util.instrument to)
 
 modify_allocations :: Ui.M m => Instrument
-    -> (UiConfig.Allocation -> Map Score.Instrument UiConfig.Allocation
-        -> Map Score.Instrument UiConfig.Allocation)
+    -> (UiConfig.Allocation -> Map ScoreT.Instrument UiConfig.Allocation
+        -> Map ScoreT.Instrument UiConfig.Allocation)
     -> m ()
 modify_allocations inst modify = do
     alloc <- get_allocation inst
@@ -304,11 +304,11 @@ set_addr wdev chans = modify_midi_config_ $
     Patch.allocation #= [((dev, chan), Nothing) | chan <- chans]
     where dev = Midi.write_device wdev
 
-set_controls :: Ui.M m => [(Score.Control, Signal.Y)] -> Instrument -> m ()
+set_controls :: Ui.M m => [(ScoreT.Control, Signal.Y)] -> Instrument -> m ()
 set_controls controls = modify_common_config_ $
     Common.controls #= Map.fromList controls
 
-set_control :: Ui.M m => Score.Control -> Maybe Signal.Y -> Instrument -> m ()
+set_control :: Ui.M m => ScoreT.Control -> Maybe Signal.Y -> Instrument -> m ()
 set_control control val = modify_common_config_ $
     Common.controls # Lens.map control #= val
 
@@ -317,14 +317,14 @@ set_tuning_scale tuning scale inst = do
     set_scale scale inst
     add_environ EnvKey.tuning tuning inst
 
-set_control_defaults :: Ui.M m => [(Score.Control, Signal.Y)] -> Instrument
+set_control_defaults :: Ui.M m => [(ScoreT.Control, Signal.Y)] -> Instrument
     -> m ()
 set_control_defaults controls = modify_midi_config_ $
     Patch.settings#Patch.control_defaults #= Just (Map.fromList controls)
 
 -- ** Midi.Patch.Config settings
 
-get_scale :: Cmd.M m => Score.Instrument -> m (Maybe Patch.Scale)
+get_scale :: Cmd.M m => ScoreT.Instrument -> m (Maybe Patch.Scale)
 get_scale inst =
     (Patch.settings#Patch.scale #$) . snd <$> Cmd.get_midi_instrument inst
 
@@ -358,13 +358,13 @@ set_decay decay = modify_midi_config_ $ Patch.settings#Patch.decay #= decay
 
 -- * util
 
-get_midi_config :: Ui.M m => Score.Instrument
+get_midi_config :: Ui.M m => ScoreT.Instrument
     -> m (InstTypes.Qualified, Common.Config, Patch.Config)
 get_midi_config inst =
     Ui.require ("not a midi instrument: " <> pretty inst) =<<
         lookup_midi_config inst
 
-lookup_midi_config :: Ui.M m => Score.Instrument
+lookup_midi_config :: Ui.M m => ScoreT.Instrument
     -> m (Maybe (InstTypes.Qualified, Common.Config, Patch.Config))
 lookup_midi_config inst = do
     UiConfig.Allocation qualified config backend
@@ -404,7 +404,8 @@ modify_common_config_ :: Ui.M m => (Common.Config -> Common.Config)
 modify_common_config_ modify =
     modify_common_config $ \config -> (modify config, ())
 
-get_instrument_allocation :: Ui.M m => Score.Instrument -> m UiConfig.Allocation
+get_instrument_allocation :: Ui.M m => ScoreT.Instrument
+    -> m UiConfig.Allocation
 get_instrument_allocation inst =
     Ui.require ("no allocation for " <> pretty inst)
         =<< Ui.allocation inst <#> Ui.get
@@ -431,7 +432,7 @@ change_instrument :: Qualified -> Cmd.CmdL ()
 change_instrument new_qualified = do
     new_qualified <- parse_qualified new_qualified
     let new_inst = case new_qualified of
-            InstTypes.Qualified _ name -> Score.Instrument name
+            InstTypes.Qualified _ name -> ScoreT.Instrument name
     track_id <- snd <$> Selection.event_track
     old_inst <- Cmd.require "must select a note track"
         =<< ParseTitle.title_to_instrument <$> Ui.get_track_title track_id
@@ -446,14 +447,14 @@ change_instrument new_qualified = do
     initialize_midi new_inst addr
     return ()
 
-block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
+block_instruments :: BlockId -> Cmd.CmdL [ScoreT.Instrument]
 block_instruments block_id = do
     titles <- fmap (map Ui.track_title) (TrackTree.tracks_of block_id)
     return $ mapMaybe ParseTitle.title_to_instrument titles
 
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
-device_of :: Score.Instrument -> Cmd.CmdL Midi.WriteDevice
+device_of :: ScoreT.Instrument -> Cmd.CmdL Midi.WriteDevice
 device_of inst = do
     InstTypes.Qualified synth _ <-
         Cmd.inst_qualified <$> Cmd.get_instrument inst
@@ -523,13 +524,13 @@ need_initialization = fmap Text.unlines . mapMaybeM show1 =<< allocated
         return $ if null inits then Nothing
             else Just $ pretty inst <> ": " <> pretty inits
 
-init_flags :: Ui.M m => Score.Instrument -> m (Set Patch.Initialization)
+init_flags :: Ui.M m => ScoreT.Instrument -> m (Set Patch.Initialization)
 init_flags inst = lookup_midi_config inst >>= return . \case
     Nothing -> mempty
     Just (_, _, config) -> Patch.config_initialization config
 
 -- | Initialize an instrument according to its 'Patch.config_initialization'.
-initialize_inst :: Cmd.M m => Score.Instrument -> m ()
+initialize_inst :: Cmd.M m => ScoreT.Instrument -> m ()
 initialize_inst inst =
     whenJustM (lookup_midi_config inst) $ \(_, _, config) -> do
         let inits = Patch.config_initialization config
@@ -542,7 +543,7 @@ initialize_inst inst =
 
 -- | Send a MIDI tuning message to retune the synth to its 'Patch.Scale'.  Very
 -- few synths support this, I only know of pianoteq.
-initialize_realtime_tuning :: Cmd.M m => Score.Instrument -> m ()
+initialize_realtime_tuning :: Cmd.M m => ScoreT.Instrument -> m ()
 initialize_realtime_tuning inst = do
     keys <- get_tuning_map inst
     (_, _, config) <- get_midi_config inst
@@ -550,14 +551,15 @@ initialize_realtime_tuning inst = do
     mapM_ (flip Cmd.midi msg) (Seq.unique (map fst (Patch.config_addrs config)))
 
 -- | Like 'initialize_realtime_tuning', except use 'Midi.nrpn_tuning'.
-initialize_nrpn_tuning :: Cmd.M m => Score.Instrument -> m ()
+initialize_nrpn_tuning :: Cmd.M m => ScoreT.Instrument -> m ()
 initialize_nrpn_tuning inst = do
     keys <- get_tuning_map inst
     (_, _, config) <- get_midi_config inst
     forM_ (Seq.unique (Patch.config_addrs config)) $ \(dev, chan) ->
         mapM_ (Cmd.midi dev . Midi.ChannelMessage chan) (Midi.nrpn_tuning keys)
 
-get_tuning_map :: Cmd.M m => Score.Instrument -> m [(Midi.Key, Midi.NoteNumber)]
+get_tuning_map :: Cmd.M m => ScoreT.Instrument
+    -> m [(Midi.Key, Midi.NoteNumber)]
 get_tuning_map inst = get_scale inst >>= \case
     Nothing -> return []
     Just scale -> do
@@ -566,12 +568,12 @@ get_tuning_map inst = get_scale inst >>= \case
         return $ map (second Pitch.nn_to_double) $
             Patch.scale_nns (Just attr_map) scale
 
-initialize_midi :: Cmd.M m => Score.Instrument -> Patch.Addr -> m ()
+initialize_midi :: Cmd.M m => ScoreT.Instrument -> Patch.Addr -> m ()
 initialize_midi inst addr = do
     (patch, _) <- Cmd.get_midi_instrument inst
     send_initialize (Patch.patch_initialize patch) inst addr
 
-send_initialize :: Cmd.M m => Patch.InitializePatch -> Score.Instrument
+send_initialize :: Cmd.M m => Patch.InitializePatch -> ScoreT.Instrument
     -> Patch.Addr -> m ()
 send_initialize init inst (dev, chan) = case init of
     Patch.InitializeMidi msgs -> do

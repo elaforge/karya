@@ -135,7 +135,7 @@ module Derive.Deriver.Monad (
     , invalidate_damaged
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import Control.DeepSeq (rnf)
+import           Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.String as String
@@ -153,24 +153,19 @@ import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 
-import qualified Ui.Event as Event
-import qualified Ui.Symbol as Symbol
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.DeriveM as DeriveM
-import Derive.Deriver.DeriveM (get, gets, modify, put, run)
+import           Derive.Deriver.DeriveM (get, gets, modify, put, run)
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
@@ -182,8 +177,14 @@ import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Symbol as Symbol
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 type Deriver = DeriveM.Deriver State Error
@@ -467,8 +468,8 @@ data Dynamic = Dynamic {
     -- | Function variant of controls.  Normally they modify a backing
     -- 'Signal.Control', but could be synthesized as well.  See
     -- 'BaseTypes.ControlFunction' for details.
-    , state_control_functions :: !Score.ControlFunctionMap
-    , state_control_merge_defaults :: !(Map Score.Control Merger)
+    , state_control_functions :: !BaseTypes.ControlFunctionMap
+    , state_control_merge_defaults :: !(Map ScoreT.Control Merger)
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -521,7 +522,7 @@ data Dynamic = Dynamic {
 -- looking in 'state_lookup_instrument'.  The alias destination is always the
 -- final instrument, not another alias, so you never have to look up multiple
 -- times.
-type InstrumentAliases = Map Score.Instrument Score.Instrument
+type InstrumentAliases = Map ScoreT.Instrument ScoreT.Instrument
 
 {- | When a note call inverts, it stashes its actual note-generating code so
     it can re-invoke track evaluation on the control tracks below it.  It's
@@ -580,10 +581,10 @@ strip_dynamic dyn = dyn
 -- | Initial control environment.
 initial_controls :: BaseTypes.ControlMap
 initial_controls = Map.fromList
-    [ (Controls.dynamic, Score.untyped (Signal.constant default_dynamic))
+    [ (Controls.dynamic, ScoreT.untyped (Signal.constant default_dynamic))
     ]
 
-initial_control_merge_defaults :: Map Score.Control Merger
+initial_control_merge_defaults :: Map ScoreT.Control Merger
 initial_control_merge_defaults =
     Map.fromList [(c, merge_add) | c <- Controls.additive_controls]
 
@@ -854,7 +855,8 @@ data TrackCall d = TrackCall {
     , tcall_doc :: !CallDoc
     , tcall_func :: !(TrackCallFunc d)
     }
-type TrackCallFunc d = TrackTree.Track -> Deriver (Score.Typed Score.Control, d)
+type TrackCallFunc d =
+    TrackTree.Track -> Deriver (ScoreT.Typed ScoreT.Control, d)
 
 instance Show (TrackCall d) where
     show tcall = "((TrackCall " <> show (tcall_name tcall) <> "))"
@@ -954,14 +956,14 @@ data Constant = Constant {
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
-    , state_lookup_instrument :: !(Score.Instrument -> Either Text Instrument)
+    , state_lookup_instrument :: !(ScoreT.Instrument -> Either Text Instrument)
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
     }
 
 initial_constant :: Ui.State -> Builtins -> LookupScale
-    -> (Score.Instrument -> Either Text Instrument) -> Cache -> ScoreDamage
+    -> (ScoreT.Instrument -> Either Text Instrument) -> Cache -> ScoreDamage
     -> Constant
 initial_constant ui_state builtins lookup_scale lookup_inst cache score_damage =
     Constant
@@ -986,7 +988,7 @@ data Instrument = Instrument {
     -- scope.
     , inst_environ :: !BaseTypes.Environ
     -- | Like 'inst_environ', merge these controls.
-    , inst_controls :: !Score.ControlValMap
+    , inst_controls :: !ScoreT.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
     -- order of priority.  It corresponds to 'Perform.Midi.Patch.AttributeMap'.
     , inst_attributes :: ![Attrs.Attributes]
@@ -1169,7 +1171,7 @@ instance DeepSeq.NFData Collect where
 -- dynamics.  The modifications are a secondary return value from control
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [NOTE control-modification]
-data ControlMod = ControlMod !Score.Control !Signal.Control !Merger
+data ControlMod = ControlMod !ScoreT.Control !Signal.Control !Merger
     deriving (Show)
 
 instance Pretty ControlMod where
@@ -1768,7 +1770,7 @@ data Scale = Scale {
     -- This is used by 'PSignal.apply_controls' to know when to reevaluate
     -- a given pitch.  Other controls can affect the pitch, but if they aren't
     -- in this set, the pitch won't be reevaluated when they change.
-    , scale_transposers :: !(Set Score.Control)
+    , scale_transposers :: !(Set ScoreT.Control)
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
     , scale_read :: BaseTypes.Environ -> Pitch.Note
         -> Either BaseTypes.PitchError Pitch.Pitch

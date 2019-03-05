@@ -20,7 +20,7 @@ import           Derive.BaseTypes (Ref(..), Val(..))
 import qualified Derive.Expr as Expr
 import           Derive.Expr (Call(..), Term(..))
 import qualified Derive.Parse as Parse
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import           Derive.TestInstances ()
 
@@ -32,7 +32,7 @@ import           Util.Test
 
 test_parse_expr = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
-        vnum = VNum . Score.untyped
+        vnum = VNum . ScoreT.untyped
     equal (f "a | b") $ Right [Call "a" [], Call "b" []]
     equal (f "a | b | c") $ Right $ [Call "a" [], Call "b" [], Call "c" []]
     -- Any word in call position is a symbol.
@@ -103,13 +103,13 @@ test_unparsed_call = do
 -- | Vals whose 'ShowVal.show_val' is the inverse of 'Parse.parse_val'.
 invertible_vals :: [(Text, Maybe Val)]
 invertible_vals =
-    [ ("0", Just (VNum (Score.untyped 0)))
+    [ ("0", Just (VNum (ScoreT.untyped 0)))
     , ("0.", Nothing)
-    , (".2", Just (VNum (Score.untyped 0.2)))
-    , ("1c", Just (VNum (Score.Typed Score.Chromatic 1)))
-    , ("-1d", Just (VNum (Score.Typed Score.Diatonic (-1))))
-    , ("-.5d", Just (VNum (Score.Typed Score.Diatonic (-0.5))))
-    , ("42nn", Just (VNum (Score.Typed Score.Nn 42)))
+    , (".2", Just (VNum (ScoreT.untyped 0.2)))
+    , ("1c", Just (VNum (ScoreT.Typed ScoreT.Chromatic 1)))
+    , ("-1d", Just (VNum (ScoreT.Typed ScoreT.Diatonic (-1))))
+    , ("-.5d", Just (VNum (ScoreT.Typed ScoreT.Diatonic (-0.5))))
+    , ("42nn", Just (VNum (ScoreT.Typed ScoreT.Nn 42)))
     , ("1q", Nothing)
 
     , ("+", attrs [])
@@ -128,10 +128,10 @@ invertible_vals =
     , ("%", Just $ VControlRef $ LiteralControl "")
     , ("%sig", Just $ VControlRef $ LiteralControl "sig")
     , ("%sig,0", Just $ VControlRef $
-        DefaultedControl "sig" (Score.untyped (Signal.constant 0)))
+        DefaultedControl "sig" (ScoreT.untyped (Signal.constant 0)))
     , ("%sig,4s", Just $ VControlRef $
         DefaultedControl "sig"
-        (Score.Typed Score.Real (Signal.constant 4)))
+        (ScoreT.Typed ScoreT.Real (Signal.constant 4)))
     , ("%sig,4q", Nothing)
     , ("%sig,", Nothing)
 
@@ -156,12 +156,12 @@ invertible_vals =
 -- | Vals whose 'ShowVal.show_val' doesn't reproduce the parsed val.
 noninvertible_vals :: [(Text, Maybe Val)]
 noninvertible_vals =
-    [ ("3/2", num (Score.untyped 1.5))
-    , ("-3/2", num (Score.untyped (-1.5)))
-    , ("3/2d", num (Score.Typed Score.Diatonic 1.5))
-    , ("0x00", num (Score.untyped 0))
-    , ("0xff", num (Score.untyped 1))
-    , ("-0xff", num (Score.untyped (-1)))
+    [ ("3/2", num (ScoreT.untyped 1.5))
+    , ("-3/2", num (ScoreT.untyped (-1.5)))
+    , ("3/2d", num (ScoreT.Typed ScoreT.Diatonic 1.5))
+    , ("0x00", num (ScoreT.untyped 0))
+    , ("0xff", num (ScoreT.untyped 1))
+    , ("-0xff", num (ScoreT.untyped (-1)))
     ]
     where num = Just . VNum
 
@@ -190,7 +190,7 @@ test_parse_num = do
 
 test_p_equal = do
     let eq a b = Right (Call "=" [Literal (VStr a), b])
-        num = Literal . VNum . Score.untyped
+        num = Literal . VNum . ScoreT.untyped
     let f = ParseText.parse Parse.p_equal
     equal (f "a = b") (eq "a" (Literal (VStr "b")))
     equal (f "a=b") (eq "a" (Literal (VStr "b")))
@@ -305,7 +305,7 @@ test_parse_ky = do
 
     let aliases = Parse.def_aliases . snd
     equal (f aliases "alias:\na = b\n")
-        (Right [(Score.Instrument "a", Score.Instrument "b")])
+        (Right [(ScoreT.Instrument "a", ScoreT.Instrument "b")])
 
 test_split_sections = do
     let f = second Map.toList . Parse.split_sections . Text.lines

@@ -6,9 +6,6 @@
 module User.Elaforge.Instrument.Kontakt.ScGamelan where
 import qualified Data.List as List
 
-import qualified Midi.Key2 as Key2
-import qualified Midi.Midi as Midi
-import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -21,12 +18,16 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
-import Global
+import qualified Midi.Key2 as Key2
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+import qualified Ui.UiConfig as UiConfig
+
+import           Global
 
 
 synth_name :: InstTypes.SynthName
@@ -125,7 +126,7 @@ kebyar_allocations dev_ = make_config $ concat
     ]
     where
     -- (inst, qualified, gets_chan, environ, scale)
-    make_config :: [(Score.Instrument, Text, Bool,
+    make_config :: [(ScoreT.Instrument, Text, Bool,
             [(EnvKey.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
         -> UiConfig.Allocations
     make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
@@ -151,15 +152,15 @@ kebyar_allocations dev_ = make_config $ concat
     -- sangsih, but since I don't have that many sample sets I have
     -- a mini-ensemble with only one pair of each gangsa.
     pasang name =
-        [ (Score.Instrument name, sc_qualified name <> "-pasang", False,
+        [ (ScoreT.Instrument name, sc_qualified name <> "-pasang", False,
             polos_sangsih name, Nothing)
-        , umbang_patch (Score.Instrument $ name <> "-p") name
-        , isep_patch (Score.Instrument $ name <> "-s") name
+        , umbang_patch (ScoreT.Instrument $ name <> "-p") name
+        , isep_patch (ScoreT.Instrument $ name <> "-s") name
         ]
     sc_qualified name = synth_name <> "/sc-" <> name
     polos_sangsih name =
-        [ (Gangsa.inst_polos, to_val $ Score.Instrument $ name <> "-p")
-        , (Gangsa.inst_sangsih, to_val $ Score.Instrument $ name <> "-s")
+        [ (Gangsa.inst_polos, to_val $ ScoreT.Instrument $ name <> "-p")
+        , (Gangsa.inst_sangsih, to_val $ ScoreT.Instrument $ name <> "-s")
         ]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
@@ -176,4 +177,4 @@ kebyar_allocations dev_ = make_config $ concat
             Legong.laras_rambat BaliScales.Isep
         )
     tuning val = [(EnvKey.tuning, to_val val)]
-    patch name = (Score.Instrument name, sc_qualified name, True, [], Nothing)
+    patch name = (ScoreT.Instrument name, sc_qualified name, True, [], Nothing)

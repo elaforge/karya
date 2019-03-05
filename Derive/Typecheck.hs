@@ -11,17 +11,17 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
 import qualified Util.TextUtil as TextUtil
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import Derive.BaseTypes (Val(..))
+import           Derive.BaseTypes (Val(..))
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Deriver.Monad as Derive
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.ValType as ValType
 
@@ -29,13 +29,15 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 -- * signal functions
 
-type TypedFunction = RealTime -> Score.Typed Signal.Y
+type TypedFunction = RealTime -> ScoreT.Typed Signal.Y
 type Function = RealTime -> Signal.Y
 
 -- * type wrappers
@@ -258,9 +260,9 @@ instance (ToVal a, ToVal b) => ToVal (Either a b) where
 
 -- ** numeric types
 
--- | Coerce any numeric value to a Score.Typed Signal.Y, and check it against
+-- | Coerce any numeric value to a ScoreT.Typed Signal.Y, and check it against
 -- the given function.
-num_to_scalar :: (Score.Typed Signal.Y -> Maybe a) -> Val -> Checked a
+num_to_scalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
 num_to_scalar check val = case val of
     VNum a -> Val $ check a
     VControlRef cref -> Eval $ \p ->
@@ -280,9 +282,9 @@ num_to_function check val = case val of
 -- | Like 'num_to_function', but take a constructor with a type argument,
 -- and a separate function to verify the type.
 num_to_checked_function :: (Function -> typ -> b)
-    -> (Score.Type -> Maybe typ) -> Val -> Checked b
+    -> (ScoreT.Type -> Maybe typ) -> Val -> Checked b
 num_to_checked_function make check_type = num_to_function $ \f ->
-    make (Score.typed_val . f) <$> check_type (Score.type_of (f 0))
+    make (ScoreT.typed_val . f) <$> check_type (ScoreT.type_of (f 0))
 
 -- | Evaluate a control function with no backing control.
 control_function :: BaseTypes.ControlFunction -> Derive.Deriver TypedFunction
@@ -303,7 +305,7 @@ instance ShowVal.ShowVal TypedFunction where
     show_val _ = "((TypedFunction))"
 
 instance Typecheck Function where
-    from_val = num_to_function (Just . fmap Score.typed_val)
+    from_val = num_to_function (Just . fmap ScoreT.typed_val)
     to_type _ = ValType.TOther "untyped number or signal"
 
 instance ShowVal.ShowVal Function where
@@ -323,7 +325,7 @@ instance Typecheck DefaultRealTimeFunction where
 -- convenient than separate data types.
 
 data TransposeFunctionDiatonic =
-    TransposeFunctionDiatonic !Function !Score.Control
+    TransposeFunctionDiatonic !Function !ScoreT.Control
 instance ShowVal.ShowVal TransposeFunctionDiatonic where
     show_val _ = "((TransposeFunctionDiatonic))"
 instance Typecheck TransposeFunctionDiatonic where
@@ -332,7 +334,7 @@ instance Typecheck TransposeFunctionDiatonic where
     to_type _ = ValType.TOther "transpose number or signal, default diatonic"
 
 data TransposeFunctionChromatic =
-    TransposeFunctionChromatic !Function !Score.Control
+    TransposeFunctionChromatic !Function !ScoreT.Control
 instance ShowVal.ShowVal TransposeFunctionChromatic where
     show_val _ = "((TransposeFunctionChromatic))"
 instance Typecheck TransposeFunctionChromatic where
@@ -340,7 +342,7 @@ instance Typecheck TransposeFunctionChromatic where
         (type_to_control Chromatic)
     to_type _ = ValType.TOther "transpose number or signal, default chromatic"
 
-data TransposeFunctionNn = TransposeFunctionNn !Function !Score.Control
+data TransposeFunctionNn = TransposeFunctionNn !Function !ScoreT.Control
 instance ShowVal.ShowVal TransposeFunctionNn where
     show_val _ = "((TransposeFunctionNn))"
 instance Typecheck TransposeFunctionNn where
@@ -348,29 +350,30 @@ instance Typecheck TransposeFunctionNn where
         (type_to_control Nn)
     to_type _ = ValType.TOther "transpose number or signal, default nn"
 
-type_to_control :: TransposeType -> Score.Type -> Maybe Score.Control
+type_to_control :: TransposeType -> ScoreT.Type -> Maybe ScoreT.Control
 type_to_control deflt = fmap transpose_control . transpose_type deflt
 
 -- *** scalar
 
-instance Typecheck (Score.Typed Signal.Y) where
+instance Typecheck (ScoreT.Typed Signal.Y) where
     from_val = num_to_scalar Just
     to_type = num_to_type
-instance ToVal (Score.Typed Signal.Y) where to_val = VNum
-instance TypecheckNum (Score.Typed Signal.Y) where num_type _ = ValType.TUntyped
+instance ToVal (ScoreT.Typed Signal.Y) where to_val = VNum
+instance TypecheckNum (ScoreT.Typed Signal.Y) where
+    num_type _ = ValType.TUntyped
 
 instance Typecheck Double where
-    from_val = num_to_scalar (Just . Score.typed_val)
+    from_val = num_to_scalar (Just . ScoreT.typed_val)
     to_type = num_to_type
-instance ToVal Double where to_val = VNum . Score.untyped
+instance ToVal Double where to_val = VNum . ScoreT.untyped
 instance TypecheckNum Double where num_type _ = ValType.TUntyped
 
 instance Typecheck (Ratio.Ratio Int) where
     from_val = num_to_scalar $
-        Just . realToFrac . flip Ratio.approxRational 0.001 . Score.typed_val
+        Just . realToFrac . flip Ratio.approxRational 0.001 . ScoreT.typed_val
     to_type = num_to_type
 instance ToVal (Ratio.Ratio Int) where
-    to_val = VNum . Score.untyped . realToFrac
+    to_val = VNum . ScoreT.untyped . realToFrac
 instance TypecheckNum (Ratio.Ratio Int) where num_type _ = ValType.TUntyped
 
 instance Typecheck Int where
@@ -382,13 +385,13 @@ instance Typecheck Integer where
     to_type = num_to_type
 
 from_integral_val :: Integral a => Val -> Checked a
-from_integral_val = num_to_scalar (check . Score.typed_val)
+from_integral_val = num_to_scalar (check . ScoreT.typed_val)
     where
     check a = if frac == 0 then Just int else Nothing
         where (int, frac) = properFraction a
 
-instance ToVal Int where to_val = VNum . Score.untyped . fromIntegral
-instance ToVal Integer where to_val = VNum . Score.untyped . fromIntegral
+instance ToVal Int where to_val = VNum . ScoreT.untyped . fromIntegral
+instance ToVal Integer where to_val = VNum . ScoreT.untyped . fromIntegral
 instance TypecheckNum Int where num_type _ = ValType.TInt
 instance TypecheckNum Integer where num_type _ = ValType.TInt
 
@@ -404,28 +407,28 @@ instance TypecheckNum Integer where num_type _ = ValType.TInt
 -- specify a default by taking a 'DefaultScore' or 'DefaultReal', or require
 -- the caller to distinguish with 'BaseTypes.Duration'.
 instance Typecheck Pitch.Transpose where
-    from_val = num_to_scalar $ \(Score.Typed typ val) -> case typ of
-        Score.Untyped -> Just (Pitch.Chromatic val)
-        Score.Chromatic -> Just (Pitch.Chromatic val)
-        Score.Diatonic -> Just (Pitch.Diatonic val)
-        Score.Nn -> Just (Pitch.Nn val)
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
+        ScoreT.Untyped -> Just (Pitch.Chromatic val)
+        ScoreT.Chromatic -> Just (Pitch.Chromatic val)
+        ScoreT.Diatonic -> Just (Pitch.Diatonic val)
+        ScoreT.Nn -> Just (Pitch.Nn val)
         _ -> Nothing
     to_type = num_to_type
 instance TypecheckNum Pitch.Transpose where num_type _ = ValType.TTranspose
 
 instance ToVal Pitch.Transpose where
-    to_val (Pitch.Chromatic a) = VNum $ Score.Typed Score.Chromatic a
-    to_val (Pitch.Diatonic a) = VNum $ Score.Typed Score.Diatonic a
-    to_val (Pitch.Nn a) = VNum $ Score.Typed Score.Nn a
+    to_val (Pitch.Chromatic a) = VNum $ ScoreT.Typed ScoreT.Chromatic a
+    to_val (Pitch.Diatonic a) = VNum $ ScoreT.Typed ScoreT.Diatonic a
+    to_val (Pitch.Nn a) = VNum $ ScoreT.Typed ScoreT.Nn a
 
 -- | But some calls want to default to diatonic, not chromatic.
 instance Typecheck DefaultDiatonic where
-    from_val = num_to_scalar $ \(Score.Typed typ val) ->
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultDiatonic <$> case typ of
-            Score.Untyped -> Just (Pitch.Diatonic val)
-            Score.Chromatic -> Just (Pitch.Chromatic val)
-            Score.Diatonic -> Just (Pitch.Diatonic val)
-            Score.Nn -> Just (Pitch.Nn val)
+            ScoreT.Untyped -> Just (Pitch.Diatonic val)
+            ScoreT.Chromatic -> Just (Pitch.Chromatic val)
+            ScoreT.Diatonic -> Just (Pitch.Diatonic val)
+            ScoreT.Nn -> Just (Pitch.Nn val)
             _ -> Nothing
     to_type = num_to_type
 instance ToVal DefaultDiatonic where to_val (DefaultDiatonic a) = to_val a
@@ -433,45 +436,45 @@ instance TypecheckNum DefaultDiatonic where
     num_type _ = ValType.TDefaultDiatonic
 
 instance Typecheck Pitch.NoteNumber where
-    from_val = num_to_scalar $ \(Score.Typed typ val) ->
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         Pitch.nn <$> case typ of
-            Score.Untyped -> Just val
-            Score.Nn -> Just val
+            ScoreT.Untyped -> Just val
+            ScoreT.Nn -> Just val
             _ -> Nothing
     to_type = num_to_type
 instance ToVal Pitch.NoteNumber where
-    to_val = VNum . Score.Typed Score.Nn . Pitch.nn_to_double
+    to_val = VNum . ScoreT.Typed ScoreT.Nn . Pitch.nn_to_double
 instance TypecheckNum Pitch.NoteNumber where num_type _ = ValType.TNoteNumber
 
 instance Typecheck ScoreTime where
-    from_val = num_to_scalar $ \(Score.Typed typ val) ->
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         ScoreTime.from_double <$> case typ of
-            Score.Untyped -> Just val
-            Score.Score -> Just val
+            ScoreT.Untyped -> Just val
+            ScoreT.Score -> Just val
             _ -> Nothing
     to_type = num_to_type
 instance ToVal ScoreTime where
-    to_val a = VNum $ Score.Typed Score.Score (ScoreTime.to_double a)
+    to_val a = VNum $ ScoreT.Typed ScoreT.Score (ScoreTime.to_double a)
 instance TypecheckNum ScoreTime where num_type _ = ValType.TScoreTime
 
 instance Typecheck RealTime where
-    from_val = num_to_scalar $ \(Score.Typed typ val) ->
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         RealTime.seconds <$> case typ of
-            Score.Untyped -> Just val
-            Score.Real -> Just val
+            ScoreT.Untyped -> Just val
+            ScoreT.Real -> Just val
             _ -> Nothing
     to_type = num_to_type
 instance ToVal RealTime where
-    to_val a = VNum $ Score.Typed Score.Real (RealTime.to_seconds a)
+    to_val a = VNum $ ScoreT.Typed ScoreT.Real (RealTime.to_seconds a)
 instance TypecheckNum RealTime where num_type _ = ValType.TRealTime
 
 instance Typecheck BaseTypes.Duration where
-    from_val = num_to_scalar $ \(Score.Typed typ val) -> case typ of
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
         -- Untyped is abiguous, and there doesn't seem to be a natural
         -- default.
-        Score.Score ->
+        ScoreT.Score ->
             Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
-        Score.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
+        ScoreT.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
         _ -> Nothing
     to_type = num_to_type
 
@@ -481,26 +484,26 @@ instance ToVal BaseTypes.Duration where
 instance TypecheckNum BaseTypes.Duration where num_type _ = ValType.TTime
 
 instance Typecheck DefaultReal where
-    from_val = num_to_scalar $ \(Score.Typed typ val) ->
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultReal <$> case typ of
-            Score.Untyped ->
+            ScoreT.Untyped ->
                 Just $ BaseTypes.RealDuration (RealTime.seconds val)
-            Score.Score ->
+            ScoreT.Score ->
                 Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
-            Score.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
+            ScoreT.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
             _ -> Nothing
     to_type = num_to_type
 instance ToVal DefaultReal where to_val (DefaultReal a) = to_val a
 instance TypecheckNum DefaultReal where num_type _ = ValType.TDefaultReal
 
 instance Typecheck DefaultScore where
-    from_val = num_to_scalar $ \(Score.Typed typ val) ->
+    from_val = num_to_scalar $ \(ScoreT.Typed typ val) ->
         DefaultScore <$> case typ of
-            Score.Untyped ->
+            ScoreT.Untyped ->
                 Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
-            Score.Score ->
+            ScoreT.Score ->
                 Just $ BaseTypes.ScoreDuration (ScoreTime.from_double val)
-            Score.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
+            ScoreT.Real -> Just $ BaseTypes.RealDuration (RealTime.seconds val)
             _ -> Nothing
     to_type = num_to_type
 
@@ -509,7 +512,7 @@ instance TypecheckNum DefaultScore where num_type _ = ValType.TDefaultScore
 
 instance TypecheckNum a => Typecheck (Positive a) where
     from_val v@(VNum val)
-        | Score.typed_val val > 0 = Positive <$> from_val v
+        | ScoreT.typed_val val > 0 = Positive <$> from_val v
         | otherwise = Val Nothing
     from_val _ = Val Nothing
     to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TPositive
@@ -518,7 +521,7 @@ instance ToVal a => ToVal (Positive a) where
 
 instance TypecheckNum a => Typecheck (NonNegative a) where
     from_val v@(VNum val)
-        | Score.typed_val val >= 0 = NonNegative <$> from_val v
+        | ScoreT.typed_val val >= 0 = NonNegative <$> from_val v
         | otherwise = Val Nothing
     from_val _ = Val Nothing
     to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TNonNegative
@@ -526,13 +529,13 @@ instance ToVal a => ToVal (NonNegative a) where
     to_val (NonNegative val) = to_val val
 
 instance Typecheck Normalized where
-    from_val = num_to_scalar (check . Score.typed_val)
+    from_val = num_to_scalar (check . ScoreT.typed_val)
         where
         check a
             | a <= a && a <= 1 = Just (Normalized a)
             | otherwise = Nothing
     to_type _ = ValType.TNum ValType.TUntyped ValType.TNormalized
-instance ToVal Normalized where to_val = VNum . Score.untyped . normalized
+instance ToVal Normalized where to_val = VNum . ScoreT.untyped . normalized
 
 -- ** text\/symbol
 
@@ -554,22 +557,22 @@ instance Typecheck Text where
     to_type _ = ValType.TStr Nothing
 instance ToVal Text where to_val = VStr . Expr.Str
 
-instance Typecheck Score.Control where
+instance Typecheck ScoreT.Control where
     from_val (VStr (Expr.Str s)) =
         Val $ either (const Nothing) Just (Score.control s)
     from_val _ = Val Nothing
     to_type _ = ValType.TControl
-instance ToVal Score.Control where
-    to_val c = VStr (Expr.Str (Score.control_name c))
+instance ToVal ScoreT.Control where
+    to_val c = VStr (Expr.Str (ScoreT.control_name c))
 
-instance Typecheck Score.PControl where
+instance Typecheck ScoreT.PControl where
     from_val (VStr (Expr.Str s))
         | Just name <- Text.stripPrefix "#" s =
             Val $ either (const Nothing) Just (Score.pcontrol name)
     from_val _ = Val Nothing
     to_type _ = ValType.TPControl
-instance ToVal Score.PControl where
-    to_val c = VStr (Expr.Str (Score.pcontrol_name c))
+instance ToVal ScoreT.PControl where
+    to_val c = VStr (Expr.Str (ScoreT.pcontrol_name c))
 
 -- ** other types
 
@@ -598,7 +601,7 @@ instance ToVal BaseTypes.PControlRef where to_val = VPControlRef
 
 instance Typecheck PSignal.Pitch where
     from_val (VPitch a) = Val $ Just a
-    from_val (VNum (Score.Typed Score.Nn nn)) =
+    from_val (VNum (ScoreT.Typed ScoreT.Nn nn)) =
         Val $ Just $ PSignal.nn_pitch (Pitch.nn nn)
     from_val _ = Val Nothing
     to_type _ = ValType.TPitch
@@ -610,12 +613,12 @@ instance Typecheck Pitch.Pitch where
     to_type _ = ValType.TNotePitch
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 
-instance Typecheck Score.Instrument where
-    from_val (VStr (Expr.Str a)) = Val $ Just (Score.Instrument a)
+instance Typecheck ScoreT.Instrument where
+    from_val (VStr (Expr.Str a)) = Val $ Just (ScoreT.Instrument a)
     from_val _ = Val Nothing
     to_type _ = ValType.TStr Nothing
-instance ToVal Score.Instrument where
-    to_val (Score.Instrument a) = VStr (Expr.Str a)
+instance ToVal ScoreT.Instrument where
+    to_val (ScoreT.Instrument a) = VStr (Expr.Str a)
 
 instance Typecheck BaseTypes.ControlFunction where
     from_val (VControlFunction a) = Val $ Just a
@@ -656,7 +659,7 @@ instance ToVal NotGiven where
 
 -- TODO There are four types that divide into two kinds.  Then I have
 -- every possible combination:
--- any type: Score.Real
+-- any type: ScoreT.Real
 -- time type without value: Real
 -- time type with value: BaseTypes.RealDuration
 --
@@ -668,23 +671,23 @@ data TimeType = Real | Score deriving (Eq, Show)
 
 instance Pretty TimeType where pretty = showt
 
-time_type :: TimeType -> Score.Type -> Maybe TimeType
+time_type :: TimeType -> ScoreT.Type -> Maybe TimeType
 time_type deflt typ = case typ of
-    Score.Untyped -> Just deflt
-    Score.Real -> Just Real
-    Score.Score -> Just Score
+    ScoreT.Untyped -> Just deflt
+    ScoreT.Real -> Just Real
+    ScoreT.Score -> Just Score
     _ -> Nothing
 
 data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
 
 instance Pretty TransposeType where pretty = showt
 
-transpose_type :: TransposeType -> Score.Type -> Maybe TransposeType
+transpose_type :: TransposeType -> ScoreT.Type -> Maybe TransposeType
 transpose_type deflt typ = case typ of
-    Score.Untyped -> Just deflt
-    Score.Diatonic -> Just Diatonic
-    Score.Chromatic -> Just Chromatic
-    Score.Nn -> Just Nn
+    ScoreT.Untyped -> Just deflt
+    ScoreT.Diatonic -> Just Diatonic
+    ScoreT.Chromatic -> Just Chromatic
+    ScoreT.Nn -> Just Nn
     _ -> Nothing
 
 to_transpose :: TransposeType -> Double -> Pitch.Transpose
@@ -693,7 +696,7 @@ to_transpose typ val = case typ of
     Chromatic -> Pitch.Chromatic val
     Nn -> Pitch.Nn val
 
-transpose_control :: TransposeType -> Score.Control
+transpose_control :: TransposeType -> ScoreT.Control
 transpose_control Diatonic = Controls.diatonic
 transpose_control Chromatic = Controls.chromatic
 transpose_control Nn = Controls.nn
@@ -710,10 +713,10 @@ to_typed_function control =
     convert_to_function control =<< to_signal_or_function control
 
 to_function :: BaseTypes.ControlRef -> Derive.Deriver Function
-to_function = fmap (Score.typed_val .) . to_typed_function
+to_function = fmap (ScoreT.typed_val .) . to_typed_function
 
 convert_to_function :: BaseTypes.ControlRef
-    -> Either (Score.Typed Signal.Control) BaseTypes.ControlFunction
+    -> Either (ScoreT.Typed Signal.Control) BaseTypes.ControlFunction
     -> Derive.Deriver TypedFunction
 convert_to_function control =
     either (return . signal_function) from_function
@@ -727,14 +730,14 @@ convert_to_function control =
         BaseTypes.LiteralControl cont -> cont
 
 to_signal_or_function :: BaseTypes.ControlRef
-    -> Derive.Deriver (Either (Score.Typed Signal.Control)
+    -> Derive.Deriver (Either (ScoreT.Typed Signal.Control)
         BaseTypes.ControlFunction)
 to_signal_or_function control = case control of
     BaseTypes.ControlSignal sig -> return $ Left sig
     BaseTypes.DefaultedControl cont deflt ->
-        get_control (Score.type_of deflt) (return (Left deflt)) cont
+        get_control (ScoreT.type_of deflt) (return (Left deflt)) cont
     BaseTypes.LiteralControl cont ->
-        get_control Score.Untyped (Derive.throw $ "not found: " <> showt cont)
+        get_control ScoreT.Untyped (Derive.throw $ "not found: " <> showt cont)
             cont
     where
     get_control default_type deflt cont = get_function cont >>= \case
@@ -748,6 +751,6 @@ to_signal_or_function control = case control of
     -- If the signal was untyped, it gets the type of the default, since
     -- presumably the caller expects that type.
     inherit_type default_type val =
-        val { Score.type_of = Score.type_of val <> default_type }
+        val { ScoreT.type_of = ScoreT.type_of val <> default_type }
     get_control_signal control = Map.lookup control <$>
         Internal.get_dynamic Derive.state_controls

@@ -7,11 +7,6 @@ import qualified Data.Map as Map
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import Util.Test
-
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
@@ -23,8 +18,12 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Instrument.Common as Common
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
@@ -34,14 +33,16 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
-import Global
-import Types
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_convert = do
     let run = convert DeriveTest.default_convert_lookup e_pitch
-    let noinst n = mkevent n "4c" (Score.Instrument "noinst")
+    let noinst n = mkevent n "4c" (ScoreT.Instrument "noinst")
         nopitch n = Score.set_pitch mempty $ mkevent n "4c" UiTest.i1
         good n = mkevent n "4c" UiTest.i1
 
@@ -172,7 +173,7 @@ test_release_velocity = do
     equal (run [(0, 1, "%dyn=.5 | %release-vel=.25 | -- 4c")])
         ([Left (0.5, 0.25)], [])
 
-mkevent :: RealTime -> Text -> Score.Instrument -> Score.Event
+mkevent :: RealTime -> Text -> ScoreT.Instrument -> Score.Event
 mkevent start pitch inst = DeriveTest.mkevent (start, 1, pitch, [], inst)
 
 convert :: DeriveTest.Lookup -> (Types.Event -> a) -> [Score.Event]

@@ -3,21 +3,22 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Speed_test where
-import Util.Test
-import qualified Ui.Ui as Ui
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
-import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Signal as Signal
-import Types
+import qualified Ui.Ui as Ui
+
+import           Types
+import           Util.Test
 
 
 test_starts = do
     let f speed range include_end =
             DeriveTest.eval Ui.empty (Speed.starts speed range include_end)
-        score_control = BaseTypes.ControlSignal . Score.Typed Score.Score
+        score_control = BaseTypes.ControlSignal . ScoreT.Typed ScoreT.Score
             . Signal.constant
     equal (f (BaseTypes.constant_control 1) (1 :: RealTime, 4) True)
         (Right [1, 2, 3, 4])

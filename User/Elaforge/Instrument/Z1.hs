@@ -5,19 +5,19 @@
 -- | Korg Z1 keyboard.
 module User.Elaforge.Instrument.Z1 where
 import qualified Data.Bits as Bits
-import Data.Bits ((.|.))
+import           Data.Bits ((.|.))
 import qualified Data.ByteString as B
-import Data.ByteString (ByteString)
+import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Text as Text
-import Data.Word (Word8)
+import           Data.Word (Word8)
 
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
@@ -26,8 +26,8 @@ import qualified Midi.Encode
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 
-import Global
-import User.Elaforge.Instrument.Z1Spec
+import           Global
+import           User.Elaforge.Instrument.Z1Spec
 
 
 synth_name :: InstTypes.SynthName
@@ -56,7 +56,7 @@ make_db app_dir = do
     override_pb = MidiInst.patch#Patch.defaults#Patch.pitch_bend_range
         #= Just (-24, 24)
 
-synth_controls :: [(Midi.Control, Score.Control)]
+synth_controls :: [(Midi.Control, ScoreT.Control)]
 synth_controls =
     -- The PE controls are the "performance expression" knobs whose effect
     -- depends on the instrument.

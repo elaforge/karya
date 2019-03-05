@@ -5,15 +5,17 @@
 module Cmd.Integrate.Convert_test where
 import qualified Data.Map as Map
 
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Pitch as Pitch
-import Global
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_integrate = do
@@ -73,7 +75,7 @@ test_integrate = do
 test_split_overlapping = do
     let f = map (map extract) . Convert.split_overlapping . map mkevent
         mkevent (s, e) =
-            DeriveTest.mkevent (s, e, "4c", [], Score.empty_instrument)
+            DeriveTest.mkevent (s, e, "4c", [], ScoreT.empty_instrument)
         extract e = (Score.event_start e, Score.event_duration e)
     equal (f [(0, 1), (1, 1)]) [[(0, 1), (1, 1)]]
     equal (f [(0, 1), (0.5, 1), (1, 1)]) [[(0, 1), (1, 1)], [(0.5, 1)]]

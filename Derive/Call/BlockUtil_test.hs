@@ -5,8 +5,6 @@
 module Derive.Call.BlockUtil_test where
 import qualified Data.Map as Map
 
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
@@ -15,8 +13,12 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Signal as Signal
+import qualified Ui.UiTest as UiTest
+
+import           Util.Test
 
 
 test_compile = do
@@ -30,7 +32,7 @@ test_compile = do
         ["*unknown scale: bogus-scale"]
 
     let mkcont vals = Map.union Derive.initial_controls
-            (Map.singleton "c1" (Score.untyped (Signal.from_pairs vals)))
+            (Map.singleton "c1" (ScoreT.untyped (Signal.from_pairs vals)))
         no_pitch = []
     let (events, logs) = derive
             [ ("*", [(0, 0, ".1")])

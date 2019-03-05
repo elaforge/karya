@@ -5,7 +5,7 @@
 module Derive.Scale.JustScales where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
-import Data.Ratio ((%))
+import           Data.Ratio ((%))
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
@@ -25,18 +25,19 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 type Ratios = Vector.Vector (Ratio.Ratio Int)
 
 -- | Hz frequency of 1/1.
-just_base_control :: Score.Control
+just_base_control :: ScoreT.Control
 just_base_control = "just-base"
 
 -- | Bundle up data needed to construct a just scale.

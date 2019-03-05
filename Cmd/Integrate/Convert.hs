@@ -22,6 +22,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
@@ -34,8 +35,8 @@ import qualified Perform.Signal as Signal
 import qualified Ui.Event as Event
 import qualified Ui.Ui as Ui
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | A simplified description of a UI track, as collected by
@@ -54,7 +55,7 @@ instance Pretty Track where
 -- | (note track, control tracks)
 type Tracks = [(Track, [Track])]
 type Config = (LookupCall, Pitch.ScaleId)
-type LookupCall = Score.Instrument -> Common.CallMap
+type LookupCall = ScoreT.Instrument -> Common.CallMap
 
 convert :: Cmd.M m => BlockId -> Stream.Stream Score.Event -> m Tracks
 convert source_block stream = do
@@ -122,7 +123,7 @@ track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
 
 -- | This determines how tracks are split when integration recreates track
 -- structure.
-type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId, Voice)
+type TrackKey = (Maybe TrackNum, ScoreT.Instrument, Pitch.ScaleId, Voice)
 type Voice = Int
 
 integrate_track :: Config -> (TrackKey, [Score.Event])
@@ -138,7 +139,7 @@ integrate_track (lookup_call, default_scale_id)
 
 -- ** note
 
-note_events :: Score.Instrument -> Common.CallMap -> [Score.Event]
+note_events :: ScoreT.Instrument -> Common.CallMap -> [Score.Event]
     -> Track
 note_events inst call_map events =
     make_track note_title (map (note_event call_map) events)
@@ -201,31 +202,31 @@ control_events events =
     controls = List.sort $ Seq.unique $ concatMap
         (map typed_control . Map.toList . Score.event_controls)
         events
-    typed_control (control, sig) = Score.Typed (Score.type_of sig) control
+    typed_control (control, sig) = ScoreT.Typed (ScoreT.type_of sig) control
 
-control_track :: [Score.Event] -> Score.Typed Score.Control -> Track
+control_track :: [Score.Event] -> ScoreT.Typed ScoreT.Control -> Track
 control_track events control =
     make_track (ParseTitle.control_to_title control) ui_events
     where
     ui_events = drop_dyn $ tidy_controls $
-        map (signal_events (Score.typed_val control)) events
+        map (signal_events (ScoreT.typed_val control)) events
     -- Don't emit a dyn track if it's just the default.
     -- TODO generalize this to everything in in Derive.initial_controls
     drop_dyn [event]
-        | Score.typed_val control == Score.c_dynamic
+        | ScoreT.typed_val control == Score.c_dynamic
             && Event.text event == default_dyn = []
     drop_dyn events = events
     default_dyn = ShowVal.show_hex_val Derive.default_dynamic
     tidy_controls = clip_to_zero . drop_dups . clip_concat
 
-signal_events :: Score.Control -> Score.Event -> [Event.Event]
+signal_events :: ScoreT.Control -> Score.Event -> [Event.Event]
 signal_events control event = case Score.event_control control event of
     Nothing -> []
     Just sig ->
         [ ui_event (Score.event_stack event)
             (RealTime.to_score x) 0 (ShowVal.show_hex_val y)
         | (x, y) <- Signal.to_pairs $
-            Signal.clip_before start (Score.typed_val sig)
+            Signal.clip_before start (ScoreT.typed_val sig)
         ]
     where start = Score.event_start event
 

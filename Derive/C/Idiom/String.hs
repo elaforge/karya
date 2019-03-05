@@ -31,9 +31,10 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (control)
+import           Derive.Sig (control)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
@@ -41,8 +42,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -107,8 +108,8 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
             open_strings <- mapM StringUtil.string open_strings
             release_delay <- Typecheck.to_typed_function release_delay
             config <- make_config
-                (const (Score.untyped 0)) release_delay
-                (const (Score.untyped 0)) open_strings
+                (const (ScoreT.untyped 0)) release_delay
+                (const (ScoreT.untyped 0)) open_strings
             string_idiom config =<< deriver
 
 data Config = Config {

@@ -6,10 +6,10 @@
 -- instruments you'll want to put some basic configuration in here.
 -- See User\/Elaforge\/Instrument for examples.
 module User.Empty.Instrument (midi_synths, all_loads) where
-import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Midi as Midi
 
 
 -- | Synth declarations for each synth that is declared purely.
@@ -28,7 +28,7 @@ generic_synth =
         MidiInst.synth_controls controls patches
     where
     -- Special control names, e.g.: (16, "morph-x"), (17, "morph-y")
-    controls :: [(Midi.Control, Score.Control)]
+    controls :: [(Midi.Control, ScoreT.Control)]
     controls = []
 
     patches :: [MidiInst.Patch]

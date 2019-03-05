@@ -16,12 +16,13 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -69,7 +70,7 @@ doc = Derive.extract_val_doc $ interpolated_degree dummy dummy
 scale_id :: Pitch.ScaleId
 scale_id = "interpolate"
 
-scale_at :: Score.Control
+scale_at :: ScoreT.Control
 scale_at = "scale-at"
 
 note_to_call :: Scale.Scale -> Scale.Scale -> Pitch.Note -> Maybe Derive.ValCall

@@ -4,10 +4,11 @@
 
 module Derive.ParseTitle_test where
 import qualified Util.ParseText as ParseText
-import Util.Test
 import qualified Derive.ParseTitle as ParseTitle
-import Derive.ParseTitle (ControlType(..))
-import qualified Derive.Score as Score
+import           Derive.ParseTitle (ControlType(..))
+import qualified Derive.ScoreT as ScoreT
+
+import           Util.Test
 
 
 test_parse_control_title = do
@@ -28,15 +29,16 @@ test_p_pitch = do
 
 test_p_control = do
     let f = ParseText.parse ParseTitle.p_control_type
-    equal (f "c") $ Right $ Control (Right (Score.untyped "c")) Nothing
+    equal (f "c") $ Right $ Control (Right (ScoreT.untyped "c")) Nothing
     equal (f "c:nn") $ Right $
-        Control (Right (Score.Typed Score.Nn "c")) Nothing
-    equal (f "%") $ Right $ Control (Right (Score.untyped "")) Nothing
+        Control (Right (ScoreT.Typed ScoreT.Nn "c")) Nothing
+    equal (f "%") $ Right $ Control (Right (ScoreT.untyped "")) Nothing
     equal (f "!tc") $ Right $ Control (Left "tc") Nothing
     equal (f "!tc add") $ Right $ Control (Left "tc") (Just "add")
-    equal (f "c add") $ Right $ Control (Right (Score.untyped "c")) (Just "add")
+    equal (f "c add") $ Right $ Control (Right (ScoreT.untyped "c"))
+        (Just "add")
     equal (f "c:nn add") $ Right $
-        Control (Right (Score.Typed Score.Nn "c")) (Just "add")
+        Control (Right (ScoreT.Typed ScoreT.Nn "c")) (Just "add")
     left_like (f "c:z add") "parse error"
 
 test_parse_unparse_control = do

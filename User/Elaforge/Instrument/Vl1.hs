@@ -4,19 +4,19 @@
 
 -- | Yamaha VL1 synthesizer.
 module User.Elaforge.Instrument.Vl1 where
-import Data.Bits ((.&.))
+import           Data.Bits ((.&.))
 import qualified Data.ByteString as B
-import Data.ByteString (ByteString)
+import           Data.ByteString (ByteString)
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import Data.Word (Word8)
+import           Data.Word (Word8)
 
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified Text.Printf as Printf
 
 import qualified Util.Doc as Doc
@@ -28,6 +28,7 @@ import qualified App.Config as Config
 import qualified App.Path as Path
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
@@ -40,7 +41,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified User.Elaforge.Instrument.Vl1Spec as Vl1Spec
 
-import Global
+import           Global
 
 
 synth_name :: InstTypes.SynthName
@@ -208,7 +209,7 @@ checksum bytes = (2^7 - val) .&. 0x7f
 
 -- | Each voice has two elements, each with their own PbRange, name, and
 -- controls.
-type ElementInfo = (Control.PbRange, Text, [(Midi.Control, [Score.Control])])
+type ElementInfo = (Control.PbRange, Text, [(Midi.Control, [ScoreT.Control])])
 
 record_to_patch :: Sysex.RMap -> Either String MidiInst.Patch
 record_to_patch rmap = do
@@ -266,7 +267,7 @@ extract_element n rmap = do
     clean = Text.map $ \c -> if c == ' ' then '-' else c
 
     process_controls :: [(Text, Midi.Control, [Word8])]
-        -> [(Midi.Control, [Score.Control])]
+        -> [(Midi.Control, [ScoreT.Control])]
     process_controls controls =
         [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_sort fst by_cc]
         where

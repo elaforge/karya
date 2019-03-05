@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
 import qualified Util.TimeVector as TimeVector
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.MSignal as MSignal
@@ -26,7 +26,7 @@ import           Types
 data Patch = Patch {
     -- | The name for the instrument as used in the score.  It should globally
     -- identify the instrument within this score.
-    patch_name :: !Score.Instrument
+    patch_name :: !ScoreT.Instrument
     -- | Keyswitches required by this instrument.  At higher levels, a single
     -- instrument can respond to a variety of keyswitches, but at the perform
     -- level, each instrument of each note is specialized to the particular
@@ -47,11 +47,11 @@ data Patch = Patch {
     , patch_decay :: !(Maybe RealTime)
     } deriving (Eq, Ord, Show)
 
-patch :: Score.Instrument -> Patch.Config -> Patch.Patch -> Patch
+patch :: ScoreT.Instrument -> Patch.Config -> Patch.Patch -> Patch
 patch score_inst config =
     patch_from_settings score_inst (Patch.config_settings config)
 
-patch_from_settings :: Score.Instrument -> Patch.Settings -> Patch.Patch
+patch_from_settings :: ScoreT.Instrument -> Patch.Settings -> Patch.Patch
     -> Patch
 patch_from_settings score_inst settings patch = Patch
     { patch_name = score_inst
@@ -94,7 +94,7 @@ data Event = Event {
     event_start :: !RealTime
     , event_duration :: !RealTime
     , event_patch :: !Patch
-    , event_controls :: !(Map Score.Control MSignal.Signal)
+    , event_controls :: !(Map ScoreT.Control MSignal.Signal)
     , event_pitch :: !MSignal.Signal
     , event_start_velocity :: !MSignal.Y
     , event_end_velocity :: !MSignal.Y
@@ -134,5 +134,5 @@ show_short event =
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event
 
-event_instrument :: Event -> Score.Instrument
+event_instrument :: Event -> ScoreT.Instrument
 event_instrument = patch_name . event_patch

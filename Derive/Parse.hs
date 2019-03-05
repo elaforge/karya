@@ -24,11 +24,11 @@ module Derive.Parse (
     , module Derive.Parse
 #endif
 ) where
-import Prelude hiding (lex)
+import           Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
 import qualified Control.Monad.Except as Except
 import qualified Data.Attoparsec.Text as A
-import Data.Attoparsec.Text ((<?>))
+import           Data.Attoparsec.Text ((<?>))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -37,13 +37,12 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Traversable as Traversable
 
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.File as File
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
-import qualified Ui.Id as Id
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Expr as Expr
@@ -53,7 +52,9 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
 
 import qualified Perform.Signal as Signal
-import Global
+import qualified Ui.Id as Id
+
+import           Global
 
 
 parse_expr :: Text -> Either Text BaseTypes.Expr
@@ -242,7 +243,7 @@ p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 p_val :: A.Parser BaseTypes.Val
 p_val =
     BaseTypes.VAttributes <$> p_attributes
-    <|> BaseTypes.VNum . Score.untyped <$> p_hex
+    <|> BaseTypes.VNum . ScoreT.untyped <$> p_hex
     <|> BaseTypes.VNum <$> p_num
     <|> BaseTypes.VStr <$> p_str
     <|> BaseTypes.VControlRef <$> p_control_ref
@@ -252,14 +253,14 @@ p_val =
     <|> (A.char ';' >> return BaseTypes.VSeparator)
     <|> BaseTypes.VStr <$> p_unquoted_str
 
-p_num :: A.Parser (Score.Typed Signal.Y)
+p_num :: A.Parser (ScoreT.Typed Signal.Y)
 p_num = do
     num <- p_untyped_num
     let suffix (typ, suf) = A.string suf >> return typ
     typ <- A.choice $ map suffix codes
-    return $ Score.Typed typ num
+    return $ ScoreT.Typed typ num
     where
-    codes = zip ScoreT.all_types $ map Score.type_to_code ScoreT.all_types
+    codes = zip ScoreT.all_types $ map ScoreT.type_to_code ScoreT.all_types
 
 p_untyped_num :: A.Parser Signal.Y
 p_untyped_num = p_ratio <|> ParseText.p_float
@@ -475,7 +476,7 @@ data Definitions = Definitions {
     , def_control :: !([Definition], [Definition])
     , def_pitch :: !([Definition], [Definition])
     , def_val :: ![Definition]
-    , def_aliases :: ![(Score.Instrument, Score.Instrument)]
+    , def_aliases :: ![(ScoreT.Instrument, ScoreT.Instrument)]
     } deriving (Show)
 
 instance Semigroup Definitions where
@@ -565,9 +566,9 @@ parse_ky filename text = do
 
 -- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (Expr.Symbol, Expr)
-    -> Either Text (Score.Instrument, Score.Instrument)
+    -> Either Text (ScoreT.Instrument, ScoreT.Instrument)
 parse_alias (lhs, Expr (Call rhs [] :| [])) = Right (convert lhs, convert rhs)
-    where convert (Expr.Symbol a) = Score.Instrument a
+    where convert (Expr.Symbol a) = ScoreT.Instrument a
 parse_alias (_, expr) = Left $ "rhs of alias should be an instrument: "
     <> ShowVal.show_val expr
 

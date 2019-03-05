@@ -27,16 +27,17 @@ import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (control, typed_control)
+import           Derive.Sig (control, typed_control)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -68,7 +69,8 @@ gender_ngoret :: Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
 gender_ngoret = ngoret module_ True damp_arg
     where
-    damp_arg = Sig.defaulted "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
+    damp_arg =
+        Sig.defaulted "damp" (typed_control "ngoret-damp" 0.5 ScoreT.Real)
         "Time that the grace note overlaps with this one. So the total\
         \ duration is time+damp, though it will be clipped to the\
         \ end of the current note."
@@ -94,7 +96,7 @@ ngoret module_ late_damping damp_arg interval_arg =
     \\nThis requires the `realize-ngoret` postproc."
     ) $ Sig.call ((,,,,)
     <$> interval_arg
-    <*> Sig.defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
+    <*> Sig.defaulted "time" (typed_control "ngoret-time" 0.1 ScoreT.Real)
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
         \ the previous note and this one."

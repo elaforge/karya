@@ -51,7 +51,7 @@ import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.BrowserC as BrowserC
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -63,7 +63,7 @@ import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 
-import Global
+import           Global
 
 
 data Flag = Help | Geometry FltkUtil.Geometry
@@ -271,7 +271,7 @@ show_mode_map (Patch.ModeMap table) = Text.unlines
 
 show_control_map :: Control.ControlMap -> Text
 show_control_map cmap =
-    Text.intercalate ", " [Score.control_name cont <> " (" <> showt num <> ")"
+    Text.intercalate ", " [ScoreT.control_name cont <> " (" <> showt num <> ")"
         | (cont, num) <- Map.toList cmap]
 
 show_cmds :: Cmd.InstrumentCode -> Text

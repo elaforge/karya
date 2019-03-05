@@ -53,12 +53,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Types as Types
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
@@ -66,11 +60,18 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- | This represents a single event on a note track.
@@ -138,7 +139,7 @@ type Controls = Map Control Events.Events
 -- support all the forms of control tracks.  Put Pitch first so it sorts first,
 -- to support the convention of putting the pitch track right after the note
 -- track.
-data Control = Pitch Pitch.ScaleId | Control Score.Control
+data Control = Pitch Pitch.ScaleId | Control ScoreT.Control
     deriving (Eq, Ord, Show)
 
 instance Pretty Control where
@@ -146,14 +147,14 @@ instance Pretty Control where
 
 control_to_title :: Control -> Text
 control_to_title control = case control of
-    Control c -> ParseTitle.control_to_title $ Score.untyped c
+    Control c -> ParseTitle.control_to_title $ ScoreT.untyped c
     Pitch scale_id -> ParseTitle.scale_to_title scale_id
 
 type Error = Text
 
 title_to_control :: Text -> Either Error Control
 title_to_control title = ParseTitle.parse_control_type title >>= \case
-    ParseTitle.Control (Right (Score.Typed Score.Untyped c)) Nothing ->
+    ParseTitle.Control (Right (ScoreT.Typed ScoreT.Untyped c)) Nothing ->
         return $ Control c
     ParseTitle.Pitch scale_id (Right pcontrol)
         | pcontrol == Score.default_pitch -> return $ Pitch scale_id
@@ -229,7 +230,7 @@ annotate_nns modify = annotate_controls (modify . map (second (eval <=< fst)))
     where eval = either (const Nothing) Just . PSignal.pitch_nn
 
 annotate_controls :: Cmd.M m =>
-    Annotated (Maybe PSignal.Transposed, Score.ControlValMap) m
+    Annotated (Maybe PSignal.Transposed, ScoreT.ControlValMap) m
     -> ModifyNotes m
 annotate_controls modify block_id note_track_ids = do
     events <- Cmd.perf_events <$> Cmd.get_performance block_id
@@ -240,7 +241,7 @@ annotate_controls modify block_id note_track_ids = do
 -- inaccurate, and inefficient too.  Shouldn't I look up the signal directly
 -- from the performance?
 find_controls :: [(Note, TrackId)] -> Vector.Vector Score.Event
-    -> [(Note, (Maybe PSignal.Transposed, Score.ControlValMap))]
+    -> [(Note, (Maybe PSignal.Transposed, ScoreT.ControlValMap))]
 find_controls note_track_ids events =
     zip (map fst note_track_ids) $
         map (extract . convert events) note_track_ids

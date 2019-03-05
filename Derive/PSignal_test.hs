@@ -8,9 +8,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
-import Util.Test
-
-import qualified Ui.Ui as Ui
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
@@ -19,12 +16,16 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_at = do
@@ -123,9 +124,9 @@ env_pitch env =
     pitch_note (PSignal.PitchConfig env _) =
         Right $ Pitch.Note $ fromMaybe "?" $ Env.maybe_val "tuning" env
 
-mkcontrols :: [(Score.Control, [(Signal.X, Signal.Y)])]
-    -> Map Score.Control (Score.Typed Signal.Control)
-mkcontrols = Map.fromList . map (second (Score.untyped . Signal.from_pairs))
+mkcontrols :: [(ScoreT.Control, [(Signal.X, Signal.Y)])]
+    -> Map ScoreT.Control (ScoreT.Typed Signal.Control)
+mkcontrols = Map.fromList . map (second (ScoreT.untyped . Signal.from_pairs))
 
 twelve_signal :: [(RealTime, Pitch.Note)] -> PSignal.PSignal
 twelve_signal = PSignal.from_pairs . map (second twelve)
@@ -149,7 +150,7 @@ mkpitch nn =
         get c = Pitch.NoteNumber $ Map.findWithDefault 0 c $
             PSignal.pitch_controls config
 
-trans1, trans2 :: Score.Control
+trans1, trans2 :: ScoreT.Control
 trans1 = "trans1"
 trans2 = "trans2"
 

@@ -18,11 +18,12 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 -- TODO There's no easy way to enter negative harmonics.  Maybe I'd need some
 -- kind of alternate input mode that could affect input_to_note.
@@ -60,7 +61,7 @@ scales = (:[]) $ Scale.Simple $ Scale.Scale
     scale_id = "harmonic"
 
 -- | Frequency for 一1.
-unity_control :: Score.Control
+unity_control :: ScoreT.Control
 unity_control = "unity"
 
 read_pitch :: Pitch.Note -> Either BaseTypes.PitchError Pitch.Pitch

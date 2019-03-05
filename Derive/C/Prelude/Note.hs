@@ -32,7 +32,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.Library as Library
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
@@ -41,8 +41,9 @@ import qualified Derive.Symbols as Symbols
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -121,7 +122,7 @@ apply_instrument_controls deriver = Call.lookup_instrument >>= \case
     Nothing -> deriver
     Just inst -> do
         (_inst, derive_inst) <- Derive.get_instrument inst
-        let controls = Score.untyped . Signal.constant <$>
+        let controls = ScoreT.untyped . Signal.constant <$>
                 Derive.inst_controls derive_inst
         Derive.with_merged_controls (Map.toList controls) deriver
 
@@ -137,10 +138,10 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
         "Set this instrument and run the transformer, if it exists."
     ) $ \inst args deriver -> note_track (Derive.passed_ctx args) inst deriver
 
-note_track :: Derive.Context Derive.Note -> Maybe Score.Instrument
+note_track :: Derive.Context Derive.Note -> Maybe ScoreT.Instrument
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_track ctx inst deriver = do
-    let sym = Expr.Symbol $ ">" <> maybe "" Score.instrument_name inst
+    let sym = Expr.Symbol $ ">" <> maybe "" ScoreT.instrument_name inst
     maybe_call <- Derive.lookup_call sym
     let transform = maybe id (call_transformer ctx) maybe_call
     maybe id Derive.with_instrument inst $ transform deriver
@@ -248,7 +249,7 @@ min_duration = 1 / 64
     which could be negative.  They clip at a minimum duration to keep from
     going negative.
 -}
-duration_attributes :: Config -> Score.ControlValMap -> Attrs.Attributes
+duration_attributes :: Config -> ScoreT.ControlValMap -> Attrs.Attributes
     -> RealTime -> RealTime -> RealTime -- ^ new end
 duration_attributes config controls attrs start end
     | start >= end = end -- don't mess with 0 dur or negative notes

@@ -22,7 +22,7 @@
 
     >           numbers                   pitches                 both
     > scalar    Signal.Y                  PSignal.Y
-    > name      Score.Control             Score.PControl
+    > name      ScoreT.Control            ScoreT.PControl
     > signal    Signal.Control            PSignal.PSignal
     > ref       BaseTypes.ControlRef      BaseTypes.PControlRef   Ref
 -}
@@ -764,7 +764,7 @@ empty_dynamic = Dynamic
       in a function?  That function would need (RandomSeed, RealTime).  But
       that doesn't work for notes that take a slice of the signal.  I think
       I only want to randomize Signal.at access.
-    . Or a separate 'Map Score.Control ValCall' and the Signal.at functions in
+    . Or a separate 'Map ScoreT.Control ValCall' and the Signal.at functions in
       derive first look in there.  This is similar to the -rnd control idea,
       except more flexible.  I could use it not just for different
       distributions, but to invert a signal, combine two signals, etc.  Or

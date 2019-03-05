@@ -37,6 +37,16 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 
+import qualified Derive.PSignal as PSignal
+import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
+
+import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
@@ -44,17 +54,8 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.PSignal as PSignal
-import qualified Derive.Scale as Scale
-import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Score as Score
-
-import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
-import qualified Perform.Signal as Signal
-
-import Global
-import Types
+import           Global
+import           Types
 
 
 type Block = (UiTest.BlockSpec, [Skeleton.Edge])
@@ -152,14 +153,14 @@ type NoteTrack = (Events, [Sample])
 
 data State = State {
     state_pitch :: Pitch.NoteNumber
-    , state_controls :: Map Score.Control Signal.Y
+    , state_controls :: Map ScoreT.Control Signal.Y
     } deriving (Show)
 
 initial_state :: State
 initial_state = State 0 mempty
 
 state_control_map :: State -> Score.ControlMap
-state_control_map = Map.map (Score.untyped . Signal.constant) . state_controls
+state_control_map = Map.map (ScoreT.untyped . Signal.constant) . state_controls
 
 state_psignal :: State -> PSignal.PSignal
 state_psignal = PSignal.constant . mknote . state_pitch

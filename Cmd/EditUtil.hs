@@ -9,13 +9,6 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Key as Key
-import qualified Ui.Sel as Sel
-import qualified Ui.Types as Types
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
@@ -23,11 +16,18 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Key as Key
+import qualified Ui.Sel as Sel
+import qualified Ui.Types as Types
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- | block tracknum start duration
@@ -126,7 +126,7 @@ soft_insert text = modify_event True True $ \old_text ->
     if Text.null (fromMaybe "" old_text) then (Just text, True)
         else (old_text, False)
 
-lookup_instrument :: Cmd.M m => m (Maybe Score.Instrument)
+lookup_instrument :: Cmd.M m => m (Maybe ScoreT.Instrument)
 lookup_instrument = Perf.lookup_instrument =<< Selection.track
 
 -- * msgs

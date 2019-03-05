@@ -33,25 +33,14 @@ module Derive.Score (
     -- ** modify events
     , move, place, move_start, duration, set_duration, set_instrument
     -- *** control
-    , Control, control_name
-    , ControlValMap, TypedControlValMap
     , control_at, event_control, initial_dynamic, modify_dynamic, set_dynamic
     , modify_control
     , set_control, event_controls_at
     -- *** pitch
-    , PControl, pcontrol_name
     , default_pitch, set_pitch, set_named_pitch, event_named_pitch
     , transposed_at, pitch_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
     , nn_signal
-
-    -- * Type
-    , Type(..), Typed(..)
-    , untyped, merge_typed, type_to_code, code_to_type
-
-    -- * instrument
-    , Instrument(..)
-    , instrument_name, empty_instrument
 
     -- * util
     , control, unchecked_control
@@ -73,17 +62,11 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
-import           Derive.BaseTypes
-       (ControlFunctionMap, ControlMap, PitchMap, ControlFunction(..))
+import           Derive.BaseTypes (ControlMap, PitchMap, ControlFunction(..))
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreT as ScoreT
-import           Derive.ScoreT
-       (code_to_type, control_name, empty_instrument, instrument_name,
-        merge_typed, pcontrol_name, type_to_code, untyped, Control,
-        ControlValMap, PControl, TypedControlValMap, Instrument(..), Type(..),
-        Typed(..))
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
@@ -112,7 +95,7 @@ data Event = Event {
     -- UI can be highlighted.
     , event_stack :: !Stack.Stack
     , event_highlight :: !Color.Highlight
-    , event_instrument :: !Instrument
+    , event_instrument :: !ScoreT.Instrument
     , event_environ :: !BaseTypes.Environ
     -- | Flags have their own field rather than being in 'event_environ', this
     -- emphasizes that they're meant to be used by calls and not from the
@@ -164,7 +147,7 @@ empty_event = Event
     , event_pitches = mempty
     , event_stack = Stack.empty
     , event_highlight = Color.NoHighlight
-    , event_instrument = empty_instrument
+    , event_instrument = ScoreT.empty_instrument
     , event_environ = mempty
     , event_flags = mempty
     , event_delayed_args = mempty
@@ -352,7 +335,7 @@ set_duration = duration . const
 -- | Set the instrument on an event, and also update its environ from the
 -- instrument.  You should really rederive with the new instrument, but this
 -- way can be more convenient, if somewhat sketchy.
-set_instrument :: Instrument -> BaseTypes.Environ -> Event -> Event
+set_instrument :: ScoreT.Instrument -> BaseTypes.Environ -> Event -> Event
 set_instrument score_inst inst_environ event = event
     { event_instrument = score_inst
     , event_environ = inst_environ <> event_environ event
@@ -362,15 +345,16 @@ set_instrument score_inst inst_environ event = event
 
 -- | Get a control value from the event, or Nothing if that control isn't
 -- present.
-control_at :: RealTime -> Control -> Event -> Maybe (Typed Signal.Y)
+control_at :: RealTime -> ScoreT.Control -> Event
+    -> Maybe (ScoreT.Typed Signal.Y)
 control_at pos control event =
     fmap (Signal.at pos) <$> Map.lookup control (event_controls event)
 
-event_control :: Control -> Event -> Maybe (Typed Signal.Control)
+event_control :: ScoreT.Control -> Event -> Maybe (ScoreT.Typed Signal.Control)
 event_control control = Map.lookup control . event_controls
 
 initial_dynamic :: Event -> Signal.Y
-initial_dynamic event = maybe 0 typed_val $
+initial_dynamic event = maybe 0 ScoreT.typed_val $
      -- Derive.initial_controls should mean this is never Nothing.
     control_at (event_start event) c_dynamic event
 
@@ -380,20 +364,22 @@ initial_dynamic event = maybe 0 typed_val $
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
     modify_environ_key EnvKey.dynamic_val
-            (BaseTypes.VNum . untyped . modify . num_of)
+            (BaseTypes.VNum . ScoreT.untyped . modify . num_of)
         . modify_control_vals c_dynamic modify
     where
-    num_of (Just (BaseTypes.VNum n)) = typed_val n
+    num_of (Just (BaseTypes.VNum n)) = ScoreT.typed_val n
     num_of _ = 0
 
 -- | Use this instead of 'set_control' because it also sets
 -- 'EnvKey.dynamic_val'.
 set_dynamic :: Signal.Y -> Event -> Event
 set_dynamic dyn =
-    modify_environ_key EnvKey.dynamic_val (const $ BaseTypes.VNum $ untyped dyn)
-        . set_control c_dynamic (untyped (Signal.constant dyn))
+    modify_environ_key EnvKey.dynamic_val
+            (const $ BaseTypes.VNum $ ScoreT.untyped dyn)
+        . set_control c_dynamic (ScoreT.untyped (Signal.constant dyn))
 
-modify_control_vals :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
+modify_control_vals :: ScoreT.Control -> (Signal.Y -> Signal.Y) -> Event
+    -> Event
 modify_control_vals control modify event = event
     { event_controls = Map.adjust (fmap (Signal.map_y_linear modify)) control
         (event_controls event)
@@ -401,7 +387,7 @@ modify_control_vals control modify event = event
 
 -- | Modify a control.  If there is no existing control, the modify function
 -- gets an empty signal.
-modify_control :: Control -> (Signal.Control -> Signal.Control) -> Event
+modify_control :: ScoreT.Control -> (Signal.Control -> Signal.Control) -> Event
     -> Event
 modify_control control modify event = event
     { event_controls =
@@ -409,29 +395,29 @@ modify_control control modify event = event
     }
     where alter old = modify <$> fromMaybe mempty old
 
-set_control :: Control -> Typed Signal.Control -> Event -> Event
+set_control :: ScoreT.Control -> ScoreT.Typed Signal.Control -> Event -> Event
 set_control control signal event = event
     { event_controls = Map.insert control signal (event_controls event) }
 
-event_controls_at :: RealTime -> Event -> ControlValMap
+event_controls_at :: RealTime -> Event -> ScoreT.ControlValMap
 event_controls_at t event =
-    typed_val . fmap (Signal.at t) <$> event_controls event
+    ScoreT.typed_val . fmap (Signal.at t) <$> event_controls event
 
 -- *** pitch
 
-default_pitch :: PControl
+default_pitch :: ScoreT.PControl
 default_pitch = ""
 
 set_pitch :: PSignal.PSignal -> Event -> Event
 set_pitch = set_named_pitch default_pitch
 
-set_named_pitch :: PControl -> PSignal.PSignal -> Event -> Event
+set_named_pitch :: ScoreT.PControl -> PSignal.PSignal -> Event -> Event
 set_named_pitch pcontrol signal event
     | pcontrol == default_pitch = event { event_pitch = signal }
     | otherwise = event
         { event_pitches = Map.insert pcontrol signal (event_pitches event) }
 
-event_named_pitch :: PControl -> Event -> Maybe PSignal.PSignal
+event_named_pitch :: ScoreT.PControl -> Event -> Maybe PSignal.PSignal
 event_named_pitch pcontrol
     | pcontrol == default_pitch = Just . event_pitch
     | otherwise = Map.lookup pcontrol . event_pitches
@@ -481,31 +467,32 @@ nn_signal event =
 
 -- | Use this constructor when making a Control from user input.  Literals
 -- can use the IsString instance.
-control :: Text -> Either Text Control
+control :: Text -> Either Text ScoreT.Control
 control name
     | Text.null name = Left "empty control name"
     | Id.valid_symbol name = Right $ ScoreT.Control name
     | otherwise = Left $ "invalid characters in control: " <> showt name
 
-unchecked_control :: Text -> Control
+unchecked_control :: Text -> ScoreT.Control
 unchecked_control = ScoreT.Control
 
 -- | Use this constructor when making a PControl from user input.  Literals
 -- can use the IsString instance.
-pcontrol :: Text -> Either Text PControl
+pcontrol :: Text -> Either Text ScoreT.PControl
 pcontrol name
     | Text.null name || Id.valid_symbol name = Right $ ScoreT.PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
 
-unchecked_pcontrol :: Text -> PControl
+unchecked_pcontrol :: Text -> ScoreT.PControl
 unchecked_pcontrol = ScoreT.PControl
 
 -- | Converted into velocity or breath depending on the instrument.
-c_dynamic :: Control
+c_dynamic :: ScoreT.Control
 c_dynamic = "dyn"
 
--- | Parse either a Control or PControl.
-parse_generic_control :: Text -> Either Text (Either Control PControl)
+-- | Parse either a ScoreT.Control or PControl.
+parse_generic_control :: Text
+    -> Either Text (Either ScoreT.Control ScoreT.PControl)
 parse_generic_control name = case Text.uncons name of
     Just ('#', rest) -> Right <$> pcontrol rest
     _ -> Left <$> control name

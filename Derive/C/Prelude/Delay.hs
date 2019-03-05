@@ -15,15 +15,17 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, typed_control, control)
+import           Derive.Sig (control, defaulted, typed_control)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -40,7 +42,8 @@ c_delay = Derive.transformer Module.prelude "delay" Tags.ly
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ Sig.callt
-    ( defaulted "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
+    ( defaulted "time" (typed_control "delay-time" 0.1 ScoreT.Real)
+        "Delay time."
     ) $ \time args deriver -> Ly.when_lilypond deriver $ do
         start <- Args.real_start args
         delay <- Call.score_duration start
@@ -94,8 +97,8 @@ c_event_echo = Derive.transformer Module.prelude "event echo" Tags.postproc
     ) $ \(delay, feedback, times) _args deriver -> do
         events <- deriver
         delay <- Post.time_control delay events
-        feedback <- Post.control Score.typed_val feedback events
-        times <- Post.control (floor . Score.typed_val) times events
+        feedback <- Post.control ScoreT.typed_val feedback events
+        times <- Post.control (floor . ScoreT.typed_val) times events
         return $ Post.emap_asc_ (Post.uncurry4 echo_event)
             (Stream.zip4 delay feedback times events)
 

@@ -25,10 +25,6 @@ import qualified Util.Process
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import qualified Ui.Events as Events
-import qualified Ui.Id as Id
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lilypond
 import qualified Cmd.Repl.LPerf as LPerf
@@ -39,11 +35,16 @@ import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Lilypond as Lilypond
-import Global
-import Types
+import qualified Ui.Events as Events
+import qualified Ui.Id as Id
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 -- * config
@@ -126,7 +127,7 @@ block_inst maybe_title inst block_id = do
     with_config (solo_instrument (Util.instrument inst) config) $
         block_title (title <> " - " <> inst) block_id
 
-solo_instrument :: Score.Instrument -> Lilypond.Config -> Lilypond.Config
+solo_instrument :: ScoreT.Instrument -> Lilypond.Config -> Lilypond.Config
 solo_instrument inst = Lilypond.staves %= map solo
     where
     solo staff

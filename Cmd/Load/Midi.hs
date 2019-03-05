@@ -23,28 +23,29 @@ import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Skeleton as Skeleton
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Derive.Attrs as Attrs
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Instrument.Common as Common
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
-import qualified Instrument.Common as Common
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Skeleton as Skeleton
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 type Warn = Text
@@ -121,7 +122,7 @@ extract_message (time, msg) = case msg of
 -- * convert
 
 -- | (note, pitch, controls)
-data NoteTrack = NoteTrack Track Track (Map Score.Control Track)
+data NoteTrack = NoteTrack Track Track (Map ScoreT.Control Track)
     deriving (Show)
 -- | Map start (dur, text)
 type Track = Map ScoreTime (ScoreTime, Text)
@@ -146,7 +147,7 @@ convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
     convert (inst, NoteTrack notes pitches controls) =
         (ParseTitle.instrument_to_title inst, notes)
         : ("*", pitches)
-        : [(ParseTitle.control_to_title (Score.untyped control), track)
+        : [(ParseTitle.control_to_title (ScoreT.untyped control), track)
             | (control, track) <- Map.toAscList controls]
 
 note_track_edges :: [NoteTrack] -> [Skeleton.Edge]
@@ -159,8 +160,8 @@ note_track_edges = concat . snd . List.mapAccumL edges 1
         ns = [n .. end-1]
 
 -- | Take flat MIDI msgs to a list of tracks where events don't overlap.
-convert_track :: (Text, [Midi]) -> ([(Score.Instrument, NoteTrack)], [Warn])
-convert_track (title, msgs) = (map (Score.Instrument title,) tracks, warns)
+convert_track :: (Text, [Midi]) -> ([(ScoreT.Instrument, NoteTrack)], [Warn])
+convert_track (title, msgs) = (map (ScoreT.Instrument title,) tracks, warns)
     where
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []
@@ -246,7 +247,7 @@ note_to_track (start, end, key, vel, controls) =
         (Map.singleton (score start) (0, show_val vel))
     score = RealTime.to_score
 
-convert_controls :: [MidiControl] -> Map Score.Control Track
+convert_controls :: [MidiControl] -> Map ScoreT.Control Track
 convert_controls cs =
     Map.fromList [(cc_to_control cc, convert msgs)
         | (cc, msgs) <- Seq.keyed_group_sort (fst . snd) cs]
@@ -260,7 +261,7 @@ key_to_pitch = maybe "?" Pitch.note_text . Twelve.show_nn . Midi.from_key
 
 -- | This is the same as 'Cmd.InputNote.cc_to_control', but I don't want the
 -- dependency.
-cc_to_control :: Midi.Control -> Score.Control
+cc_to_control :: Midi.Control -> ScoreT.Control
 cc_to_control cc =
     fromMaybe (Score.unchecked_control ("cc" <> showt cc))
         (Map.lookup cc cc_control)

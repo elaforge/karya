@@ -45,16 +45,17 @@ import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
-import Derive.Stream (Stream)
+import           Derive.Stream (Stream)
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * map events
@@ -194,13 +195,13 @@ emap_asc_m_ event_of f =
 only :: (a -> event) -> (event -> Bool) -> (a -> event) -> a -> event
 only event_of match f a = if match (event_of a) then f a else event_of a
 
-has_instrument :: [Score.Instrument] -> Score.Event -> Bool
+has_instrument :: [ScoreT.Instrument] -> Score.Event -> Bool
 has_instrument wanted = (`Set.member` set) . Score.event_instrument
     where set = Set.fromList wanted
 
 -- ** unthreaded state
 
-control :: (Score.Typed Signal.Y -> a) -> BaseTypes.ControlRef
+control :: (ScoreT.Typed Signal.Y -> a) -> BaseTypes.ControlRef
     -> Stream Score.Event -> Derive.Deriver [a]
 control f c events = do
     sig <- Typecheck.to_typed_function c
@@ -208,7 +209,7 @@ control f c events = do
 
 time_control :: BaseTypes.ControlRef -> Stream Score.Event
     -> Derive.Deriver [RealTime]
-time_control = control (RealTime.seconds . Score.typed_val)
+time_control = control (RealTime.seconds . ScoreT.typed_val)
 
 -- | Zip each event up with its neighbors.
 neighbors :: Stream a -> Stream ([a], a, [a])
@@ -243,13 +244,13 @@ prev_by :: Eq key => (a -> key) -> Stream a -> Stream (Maybe a, a)
 prev_by key = emap1_ extract . neighbors_by key
     where extract (p, e, _) = (p, e)
 
-hand_key :: Score.Event -> (Score.Instrument, Maybe Text)
+hand_key :: Score.Event -> (ScoreT.Instrument, Maybe Text)
 hand_key e =
     ( Score.event_instrument e
     , Env.maybe_val EnvKey.hand $ Score.event_environ e
     )
 
-voice_key :: Score.Event -> (Score.Instrument, Int)
+voice_key :: Score.Event -> (ScoreT.Instrument, Int)
 voice_key e =
     ( Score.event_instrument e
     , fromMaybe 0 $ Env.maybe_val EnvKey.voice $ Score.event_environ e
@@ -373,7 +374,7 @@ put_environ name val event =
 add_environ :: Typecheck.ToVal a => Env.Key -> a -> Score.Event -> Score.Event
 add_environ name val = Score.modify_environ $ Env.insert_val name val
 
-set_instrument :: (Score.Instrument, Derive.Instrument)
+set_instrument :: (ScoreT.Instrument, Derive.Instrument)
     -- ^ unaliased instrument name, from 'Derive.get_instrument'
     -> Score.Event -> Score.Event
 set_instrument (score_inst, inst) =

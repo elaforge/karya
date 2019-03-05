@@ -5,22 +5,24 @@ module Derive.C.Bali.Reyong_test where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa_test as Gangsa_test
 import qualified Derive.C.Bali.Reyong as Reyong
-import Derive.C.Bali.Reyong (Hand(..))
+import           Derive.C.Bali.Reyong (Hand(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 title :: Text
@@ -309,7 +311,7 @@ test_assign_hands = do
 
 mkevents :: [(RealTime, Text)] -> [Score.Event]
 mkevents = map $
-    DeriveTest.mkevent . (\(t, p) -> (t, 1, p, [], Score.empty_instrument))
+    DeriveTest.mkevent . (\(t, p) -> (t, 1, p, [], ScoreT.empty_instrument))
 
 show_pitch :: Maybe Pitch.Pitch -> Text
 show_pitch Nothing = "-"

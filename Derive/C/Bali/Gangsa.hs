@@ -38,8 +38,6 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
-import qualified Ui.Types as Types
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -62,6 +60,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -71,8 +70,11 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Types as Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -195,9 +197,9 @@ mute_postproc mute_attr event = (,[]) $
             -- partial mutes are from .75--1.
             | otherwise -> set_mod (1 - mute**2) $ Score.set_duration 0 event
             where
-            mute = Score.typed_val tval
+            mute = ScoreT.typed_val tval
     where
-    set_mod = Score.set_control Controls.mod . Score.untyped . Signal.constant
+    set_mod = Score.set_control Controls.mod . ScoreT.untyped . Signal.constant
     -- Use the mute_attr above this threshold.
     threshold = 0.85
 
@@ -205,7 +207,7 @@ mute_postproc mute_attr event = (,[]) $
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
 c_ngoret = Gender.ngoret module_ False $ Sig.defaulted "damp"
-    (Sig.typed_control "ngoret-damp" 0.15 Score.Real)
+    (Sig.typed_control "ngoret-damp" 0.15 ScoreT.Real)
     "Time that the grace note overlaps with this one. So the total\
     \ duration is time+damp, though it will be clipped to the\
     \ end of the current note."
@@ -290,7 +292,7 @@ parse_pattern destination = map (fmap (subtract destination) . parse1)
     parse1 c = Just $ fromMaybe
         (CallStack.errorStack $ "not a digit: " <> showt c) $ Num.readDigit c
 
-kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang Score.Instrument
+kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang ScoreT.Instrument
     -> Cycle
 kotekan_pattern pattern style pasang = Realization
     { interlocking = realize (interlocking realization)
@@ -300,8 +302,8 @@ kotekan_pattern pattern style pasang = Realization
     realization = pattern_steps style pasang pattern
     realize = map (map (uncurry kotekan_note))
 
-pattern_steps :: KotekanStyle -> Pasang Score.Instrument -> KotekanPattern
-    -> Realization [[(Maybe Score.Instrument, Pitch.Step)]]
+pattern_steps :: KotekanStyle -> Pasang ScoreT.Instrument -> KotekanPattern
+    -> Realization [[(Maybe ScoreT.Instrument, Pitch.Step)]]
 pattern_steps style pasang (KotekanPattern telu pat itelu ipat) = Realization
     { interlocking = case style of
         Telu -> interlocking itelu
@@ -539,7 +541,7 @@ infer_prepare args Nothing
         return Nothing
     | otherwise = Args.lookup_next_pitch args
 
-gangsa_norot :: NorotStyle -> Pasang Score.Instrument
+gangsa_norot :: NorotStyle -> Pasang ScoreT.Instrument
     -> Pasang (Pitch.Step, Pitch.Step) -> Cycle
 gangsa_norot style pasang steps = Realization
     { interlocking = map (:[]) [s (fst pstep), p (snd pstep)]
@@ -557,7 +559,7 @@ gangsa_norot style pasang steps = Realization
     pstep = polos steps
     sstep = sangsih steps
 
-gangsa_norot_prepare :: NorotStyle -> Pasang Score.Instrument
+gangsa_norot_prepare :: NorotStyle -> Pasang ScoreT.Instrument
     -> Pasang (Pitch.Step, Pitch.Step) -> Cycle
 gangsa_norot_prepare style pasang steps = Realization
     { interlocking =
@@ -608,7 +610,7 @@ c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
         realize_kotekan_pattern_args args initial_final
             dur pitch under_threshold Repeat (gender_norot pasang)
 
-gender_norot :: Pasang Score.Instrument -> Cycle
+gender_norot :: Pasang ScoreT.Instrument -> Cycle
 gender_norot pasang = Realization
     { interlocking = [[s 1], [p 0], [s 1], [p 0]]
     , non_interlocking =
@@ -735,7 +737,7 @@ c_kotekan_explicit =
         (Right . Just) (Num.readDigit c)
 
 realize_explicit :: (ScoreTime, ScoreTime) -> ScoreTime -> PSignal.Pitch
-    -> [Maybe Pitch.Step] -> Score.Instrument -> Derive.NoteDeriver
+    -> [Maybe Pitch.Step] -> ScoreT.Instrument -> Derive.NoteDeriver
 realize_explicit (start, end) dur pitch notes inst = mconcat
     [ Derive.place t dur (note t transpose)
     | (t, Just transpose) <- zip (tail (Seq.range_ start dur)) notes
@@ -754,8 +756,8 @@ kernel_doc = "Polos part in transposition steps.\
     \ avoid needing quotes. Starting with `k` will also require the length to\
     \ be a multiple of 4."
 
-realize_kernel :: Bool -> Call.UpDown -> KotekanStyle -> Pasang Score.Instrument
-    -> Kernel -> Cycle
+realize_kernel :: Bool -> Call.UpDown -> KotekanStyle
+    -> Pasang ScoreT.Instrument -> Kernel -> Cycle
 realize_kernel inverted sangsih_above style pasang kernel =
     end_on_zero $ kernel_to_pattern
         ((if inverted then invert else id) kernel) sangsih_above style pasang
@@ -845,7 +847,7 @@ end_on_zero realization = Realization
         return $ note_steps final
 
 kernel_to_pattern :: Kernel -> Call.UpDown -> KotekanStyle
-    -> Pasang Score.Instrument -> Cycle
+    -> Pasang ScoreT.Instrument -> Cycle
 kernel_to_pattern kernel sangsih_above kotekan_style pasang = Realization
     { interlocking = map interlock kernel
     , non_interlocking = map non_interlock kernel
@@ -969,7 +971,7 @@ add_flag flag n = n { note_flags = flag <> note_flags n }
 data KotekanNote = KotekanNote {
     -- | If Nothing, retain the instrument in scope.  Presumably it will be
     -- later split into polos and sangsih by a @unison@ or @kempyung@ call.
-    note_instrument :: !(Maybe Score.Instrument)
+    note_instrument :: !(Maybe ScoreT.Instrument)
     , note_steps :: !Pitch.Step
     , note_muted :: !Bool
     } deriving (Show)
@@ -978,7 +980,7 @@ instance Pretty KotekanNote where
     format (KotekanNote inst steps muted) =
         Pretty.format (inst, steps, if muted then "+mute" else "+open" :: Text)
 
-kotekan_note :: Maybe Score.Instrument -> Pitch.Step -> KotekanNote
+kotekan_note :: Maybe ScoreT.Instrument -> Pitch.Step -> KotekanNote
 kotekan_note inst steps = KotekanNote
     { note_instrument = inst
     , note_steps = steps
@@ -1160,7 +1162,7 @@ c_nyogcag = Make.transform_notes module_ "nyog" Tags.postproc
             <*> Derive.get_instrument (sangsih pasang)
         snd . Post.emap_asc (nyogcag inst pasang) True <$> deriver
 
-nyogcag :: Score.Instrument -> Pasang (Score.Instrument, Derive.Instrument)
+nyogcag :: ScoreT.Instrument -> Pasang (ScoreT.Instrument, Derive.Instrument)
     -> Bool -> Score.Event -> (Bool, [Score.Event])
 nyogcag pasang_inst pasang is_polos event =
     ( next_is_polos
@@ -1275,7 +1277,8 @@ cancel_strong_final events
 -- sangsih together are considered one voice, a sangsih start is note end for
 -- a polos note.
 pasang_key :: Postproc.Key
-    (Either Score.Instrument (Score.Instrument, Score.Instrument), Maybe Text)
+    (Either ScoreT.Instrument (ScoreT.Instrument, ScoreT.Instrument),
+        Maybe Text)
 pasang_key e = (inst, get EnvKey.hand)
     where
     inst = case (get inst_polos, get inst_sangsih) of
@@ -1340,7 +1343,7 @@ pitch_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> Score.Event -> Bool
 pitch_too_high scale maybe_top =
     maybe False (note_too_high scale maybe_top) . Score.initial_pitch
 
-pasang_env :: Sig.Parser (Pasang Score.Instrument)
+pasang_env :: Sig.Parser (Pasang ScoreT.Instrument)
 pasang_env = Pasang
     <$> Sig.required_environ (Derive.ArgName inst_polos)
         Sig.Unprefixed "Polos instrument."

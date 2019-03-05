@@ -7,7 +7,7 @@ module Cmd.Repl.LPerf where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
-import Data.Ratio ((%))
+import           Data.Ratio ((%))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
@@ -32,6 +32,7 @@ import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
@@ -49,8 +50,8 @@ import qualified Perform.Transport as Transport
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 get_root :: Cmd.M m => m Cmd.Performance
@@ -75,7 +76,7 @@ controls from_root = Derive.state_controls <$> dynamic from_root
 
 -- | The control vals at the insertion point, taking the control functions into
 -- account.
-control_vals :: Cmd.M m => Bool -> m Score.ControlValMap
+control_vals :: Cmd.M m => Bool -> m ScoreT.ControlValMap
 control_vals from_root = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     ruler_id <- fromMaybe Ui.no_ruler <$>
@@ -88,13 +89,13 @@ control_vals from_root = do
     return $ Derive.state_controls_at pos mlists dyn 0
 
 -- | Like 'control_vals', but without control functions.
-raw_control_vals :: Cmd.M m => Bool -> m Score.TypedControlValMap
+raw_control_vals :: Cmd.M m => Bool -> m ScoreT.TypedControlValMap
 raw_control_vals from_root = do
     dyn <- dynamic from_root
     pos <- get_realtime from_root
     return $ fmap (fmap (Signal.at pos)) (Derive.state_controls dyn)
 
-aliases :: Cmd.M m => m (Map Score.Instrument Score.Instrument)
+aliases :: Cmd.M m => m (Map ScoreT.Instrument ScoreT.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic True
 
 warp :: Cmd.M m => Bool -> m Warp.Warp
@@ -122,13 +123,13 @@ get_realtime from_root = do
 -- * analysis
 
 type ControlVals =
-    Map Score.Control ((RealTime, Signal.Y), (RealTime, Signal.Y))
+    Map ScoreT.Control ((RealTime, Signal.Y), (RealTime, Signal.Y))
 
 -- | Get the first and last values for each instrument.  This can be used to
 -- show which controls the each instrument uses, which in turn can be used
 -- to set its 'Instrument.config_controls', to make sure it is always
 -- initialized consistently.
-inst_controls :: Cmd.M m => BlockId -> m (Map Score.Instrument ControlVals)
+inst_controls :: Cmd.M m => BlockId -> m (Map ScoreT.Instrument ControlVals)
 inst_controls block_id =
     foldl' merge mempty . LEvent.events_of <$> block_midi_events block_id
     where
@@ -250,13 +251,14 @@ extract_debug block_id tag = do
     where
     stack = maybe "" Stack.pretty_ui . Log.msg_stack
 
-control :: Score.Control -> Score.Event -> Maybe (Score.Typed Signal.Y)
+control :: ScoreT.Control -> Score.Event -> Maybe (ScoreT.Typed Signal.Y)
 control c e = Score.control_at (Score.event_start e) c e
 
-event_controls :: Score.Event -> Score.ControlValMap
+event_controls :: Score.Event -> ScoreT.ControlValMap
 event_controls e = Score.event_controls_at (Score.event_start e) e
 
-only_controls :: [Score.Control] -> [LEvent.LEvent Score.Event] -> [Score.Event]
+only_controls :: [ScoreT.Control] -> [LEvent.LEvent Score.Event]
+    -> [Score.Event]
 only_controls controls = map strip . LEvent.events_of
     where
     strip e = e
@@ -404,7 +406,7 @@ convert events = do
 
 -- | Filter on events with a certain instrument.
 midi_event_inst :: Types.Event -> Text
-midi_event_inst = Score.instrument_name . Types.patch_name . Types.event_patch
+midi_event_inst = ScoreT.instrument_name . Types.patch_name . Types.event_patch
 
 -- * midi
 

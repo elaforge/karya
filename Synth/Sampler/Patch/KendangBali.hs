@@ -19,7 +19,7 @@ import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Cmd.Instrument.KendangBali as K
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
@@ -80,7 +80,7 @@ allocations name =
           )
         ]
     where
-    inst = Score.Instrument
+    inst = ScoreT.Instrument
 
 patchName :: Text
 patchName = "kendang-bali"

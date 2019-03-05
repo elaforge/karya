@@ -10,8 +10,6 @@ import qualified Util.Doc as Doc
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
-import qualified Ui.Event as Event
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -29,7 +27,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -40,8 +38,11 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -94,7 +95,7 @@ next_val event start ttype = case ttype of
     where
     eval_control start event = do
         signal <- eval event
-        return $ BaseTypes.VNum $ Score.untyped $
+        return $ BaseTypes.VNum $ ScoreT.untyped $
             Signal.at start (signal :: Signal.Control)
     eval event = mconcat . Stream.events_of <$>
         (either Derive.throw return =<< Eval.eval_event event)
@@ -254,7 +255,7 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
     <*> Sig.defaulted "default" Nothing
         "Default pitch, if the signal is not set."
     ) $ \(pcontrol, maybe_default) _ -> return $ case maybe_default of
-        Nothing -> BaseTypes.LiteralControl (pcontrol :: Score.PControl)
+        Nothing -> BaseTypes.LiteralControl (pcontrol :: ScoreT.PControl)
         Just pitch -> BaseTypes.DefaultedControl pcontrol
             (PSignal.constant pitch)
 
@@ -298,7 +299,7 @@ c_down_from = val_call "down-from" mempty
     ) $ \(from, speed) args -> do
         (start, end) <- Args.real_range_or_next args
         return $ BaseTypes.VControlRef $ BaseTypes.ControlSignal $
-            Score.untyped $
+            ScoreT.untyped $
             ControlUtil.slope_to_limit (Just 0) Nothing from (-speed) start end
 
 -- ** implementation
@@ -311,7 +312,7 @@ breakpoints argnum curve vals args = do
     vals <- num_or_pitch (Args.start args) argnum vals
     return $ case vals of
         Left nums -> BaseTypes.VControlRef $ BaseTypes.ControlSignal $
-            Score.untyped $ ControlUtil.breakpoints srate curve $
+            ScoreT.untyped $ ControlUtil.breakpoints srate curve $
             ControlUtil.distribute start end nums
         Right pitches -> BaseTypes.VPControlRef $ BaseTypes.ControlSignal $
             PitchUtil.breakpoints srate curve $
@@ -326,7 +327,7 @@ num_or_pitch :: ScoreTime -> Int -> NonEmpty BaseTypes.Val
 num_or_pitch start argnum (val :| vals) = case val of
     BaseTypes.VNum num -> do
         vals <- mapM (expect tnum) (zip [argnum + 1 ..] vals)
-        return $ Left (Score.typed_val num : vals)
+        return $ Left (ScoreT.typed_val num : vals)
     BaseTypes.VPitch pitch -> do
         vals <- mapM (expect ValType.TPitch) (zip [argnum + 1 ..] vals)
         return $ Right (pitch : vals)

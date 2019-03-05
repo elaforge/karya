@@ -24,6 +24,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -66,7 +67,7 @@ grace_place_doc =
 default_grace_dur :: Typecheck.DefaultReal
 default_grace_dur = Typecheck.real (1/12)
 
-grace_pitches_arg :: Sig.Parser [Either PSignal.Pitch (Score.Typed Signal.Y)]
+grace_pitches_arg :: Sig.Parser [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
 grace_pitches_arg = Sig.many "pitch" grace_pitches_doc
 
 grace_pitches_doc :: Doc.Doc
@@ -280,29 +281,29 @@ fit_after start end notes dur = take notes $ Seq.range_ start step
         | otherwise = dur
 
 resolve_pitches :: PSignal.Pitch
-    -> [Either PSignal.Pitch (Score.Typed Signal.Y)]
+    -> [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
     -> Derive.Deriver [PSignal.Pitch]
 resolve_pitches base = either Derive.throw return . check_pitches base
 
-check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch (Score.Typed Signal.Y)]
+check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch (ScoreT.Typed Signal.Y)]
     -> Either Text [PSignal.Pitch]
 check_pitches base pitches = do
-    make <- case map Score.type_of $ Either.rights pitches of
+    make <- case map ScoreT.type_of $ Either.rights pitches of
         t_ : ts_
             | all (==t) ts -> case t of
-                Score.Diatonic -> Right Pitch.Diatonic
-                Score.Chromatic -> Right Pitch.Chromatic
-                Score.Nn -> Right Pitch.Nn
+                ScoreT.Diatonic -> Right Pitch.Diatonic
+                ScoreT.Chromatic -> Right Pitch.Chromatic
+                ScoreT.Nn -> Right Pitch.Nn
                 _ -> Left $ "expected transpose type, but got " <> pretty t
             | otherwise ->
                 Left $ "arguments should all have the same type, got "
                     <> pretty (t:ts)
             where
-            t = deflt Score.Diatonic t_
+            t = deflt ScoreT.Diatonic t_
             ts = map (deflt t) ts_
         [] -> Right Pitch.Diatonic
-    return $ map (either id (resolve make . Score.typed_val)) pitches
+    return $ map (either id (resolve make . ScoreT.typed_val)) pitches
     where
     resolve make n = Pitches.transpose (make n) base
-    deflt typ Score.Untyped = typ
+    deflt typ ScoreT.Untyped = typ
     deflt _ typ = typ

@@ -63,7 +63,6 @@ import qualified Util.Vector
 import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
-import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
@@ -161,7 +160,7 @@ data Settings = Settings {
     -- 'Common.config_controls' in that these are meant to provide a default
     -- for synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
-    , config_control_defaults :: !(Maybe Score.ControlValMap)
+    , config_control_defaults :: !(Maybe ScoreT.ControlValMap)
     } deriving (Eq, Read, Show)
 
 instance Pretty Settings where
@@ -540,11 +539,12 @@ keyswitch_off ks = case ks of
 newtype ModeMap =
     -- map Key to (default, val_to_switch)
     ModeMap (Map EnvKey.Key
-        ((Score.Control, Signal.Y), Map Expr.MiniVal (Score.Control, Signal.Y)))
+        ((ScoreT.Control, Signal.Y),
+            Map Expr.MiniVal (ScoreT.Control, Signal.Y)))
     deriving (Eq, Show, Pretty)
 
 make_mode_map
-    :: [(EnvKey.Key, [(Expr.MiniVal, (Score.Control, Midi.ControlValue))])]
+    :: [(EnvKey.Key, [(Expr.MiniVal, (ScoreT.Control, Midi.ControlValue))])]
     -> ModeMap
 make_mode_map =
     ModeMap . Map.fromList . Seq.map_maybe_snd
@@ -555,7 +555,7 @@ make_mode_map =
 
 -- | Construct a ModeMap that uses MIDI CC.
 cc_mode_map :: [(EnvKey.Key, Midi.Control, [(Expr.MiniVal, Midi.ControlValue)])]
-    -> (ModeMap, [(Midi.Control, Score.Control)])
+    -> (ModeMap, [(Midi.Control, ScoreT.Control)])
 cc_mode_map modes = (, controls) $ make_mode_map
     [ (key, [(mini_val, (control key, cval)) | (mini_val, cval) <- vals])
     | (key, _, vals) <- modes

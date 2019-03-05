@@ -33,6 +33,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Symbols as Symbols
 import qualified Derive.Typecheck as Typecheck
@@ -52,10 +53,10 @@ import           Types
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
 control_at :: BaseTypes.ControlRef -> RealTime -> Derive.Deriver Signal.Y
-control_at control pos = Score.typed_val <$> typed_control_at control pos
+control_at control pos = ScoreT.typed_val <$> typed_control_at control pos
 
 typed_control_at :: BaseTypes.ControlRef -> RealTime
-    -> Derive.Deriver (Score.Typed Signal.Y)
+    -> Derive.Deriver (ScoreT.Typed Signal.Y)
 typed_control_at control pos = case control of
     BaseTypes.ControlSignal sig -> return $ Signal.at pos <$> sig
     BaseTypes.DefaultedControl cont deflt ->
@@ -68,11 +69,11 @@ typed_control_at control pos = case control of
 time_control_at :: Typecheck.TimeType -> BaseTypes.ControlRef -> RealTime
     -> Derive.Deriver BaseTypes.Duration
 time_control_at default_type control pos = do
-    Score.Typed typ val <- typed_control_at control pos
+    ScoreT.Typed typ val <- typed_control_at control pos
     time_type <- case typ of
-        Score.Untyped -> return default_type
-        Score.Score -> return Typecheck.Score
-        Score.Real -> return Typecheck.Real
+        ScoreT.Untyped -> return default_type
+        ScoreT.Score -> return Typecheck.Score
+        ScoreT.Real -> return Typecheck.Real
         _ -> Derive.throw $ "expected time type for "
             <> ShowVal.show_val control <> " but got " <> pretty typ
     return $ case time_type of
@@ -90,11 +91,11 @@ real_time_at control pos = do
 transpose_control_at :: Typecheck.TransposeType -> BaseTypes.ControlRef
     -> RealTime -> Derive.Deriver (Signal.Y, Typecheck.TransposeType)
 transpose_control_at default_type control pos = do
-    Score.Typed typ val <- typed_control_at control pos
+    ScoreT.Typed typ val <- typed_control_at control pos
     transpose_type <- case typ of
-        Score.Untyped -> return default_type
-        Score.Chromatic -> return Typecheck.Chromatic
-        Score.Diatonic -> return Typecheck.Diatonic
+        ScoreT.Untyped -> return default_type
+        ScoreT.Chromatic -> return Typecheck.Chromatic
+        ScoreT.Diatonic -> return Typecheck.Diatonic
         _ -> Derive.throw $ "expected transpose type for "
             <> ShowVal.show_val control <> " but got " <> pretty typ
     return (val, transpose_type)
@@ -103,33 +104,33 @@ transpose_control_at default_type control pos = do
 -- * function and signal
 
 to_function :: BaseTypes.ControlRef -> Derive.Deriver Typecheck.Function
-to_function = fmap (Score.typed_val .) . Typecheck.to_typed_function
+to_function = fmap (ScoreT.typed_val .) . Typecheck.to_typed_function
 
 -- | Convert a ControlRef to a control signal.  If there is
 -- a 'BaseTypes.ControlFunction' it will be ignored.
 to_typed_signal :: BaseTypes.ControlRef
-    -> Derive.Deriver (Score.Typed Signal.Control)
+    -> Derive.Deriver (ScoreT.Typed Signal.Control)
 to_typed_signal control =
     either return (const $ Derive.throw $ "not found: " <> pretty control)
         =<< Typecheck.to_signal_or_function control
 
 to_signal :: BaseTypes.ControlRef -> Derive.Deriver Signal.Control
-to_signal = fmap Score.typed_val . to_typed_signal
+to_signal = fmap ScoreT.typed_val . to_typed_signal
 
 -- | Version of 'to_function' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
 to_transpose_function :: Typecheck.TransposeType -> BaseTypes.ControlRef
-    -> Derive.Deriver (Typecheck.Function, Score.Control)
+    -> Derive.Deriver (Typecheck.Function, ScoreT.Control)
     -- ^ (signal, appropriate transpose control)
 to_transpose_function default_type control = do
     sig <- Typecheck.to_typed_function control
-    -- Previously, I directly returned Score.Typed Signal.Control so I could
+    -- Previously, I directly returned ScoreT.Typed Signal.Control so I could
     -- look at their types.  A function is more powerful but I have to actually
     -- call it to find the type.
-    let typ = Score.type_of (sig 0)
-        untyped = Score.typed_val . sig
+    let typ = ScoreT.type_of (sig 0)
+        untyped = ScoreT.typed_val . sig
     case typ of
-        Score.Untyped ->
+        ScoreT.Untyped ->
             return (untyped, Typecheck.transpose_control default_type)
         _ -> case Controls.transpose_type typ of
             Just control -> return (untyped, control)
@@ -142,12 +143,12 @@ to_time_function :: Typecheck.TimeType -> BaseTypes.ControlRef
     -> Derive.Deriver (Typecheck.Function, Typecheck.TimeType)
 to_time_function default_type control = do
     sig <- Typecheck.to_typed_function control
-    let typ = Score.type_of (sig 0)
-        untyped = Score.typed_val . sig
+    let typ = ScoreT.type_of (sig 0)
+        untyped = ScoreT.typed_val . sig
     case typ of
-        Score.Untyped -> return (untyped, default_type)
-        Score.Score -> return (untyped, Typecheck.Score)
-        Score.Real -> return (untyped, Typecheck.Real)
+        ScoreT.Untyped -> return (untyped, default_type)
+        ScoreT.Score -> return (untyped, Typecheck.Score)
+        ScoreT.Real -> return (untyped, Typecheck.Real)
         _ -> Derive.throw $ "expected time type for "
             <> ShowVal.show_val control <> " but got " <> pretty typ
 
@@ -221,7 +222,7 @@ get_symbolic_pitch :: RealTime -> Derive.Deriver Pitch.Note
 get_symbolic_pitch = Pitches.pitch_note <=< get_transposed
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y
-dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
+dynamic pos = maybe Derive.default_dynamic ScoreT.typed_val <$>
     Derive.control_at Controls.dynamic pos
 
 with_pitch :: PSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
@@ -248,26 +249,26 @@ with_dynamic = with_constant Controls.dynamic
 multiply_dynamic :: Signal.Y -> Derive.Deriver a -> Derive.Deriver a
 multiply_dynamic = multiply_constant Controls.dynamic
 
-with_constant :: Score.Control -> Signal.Y -> Derive.Deriver a
+with_constant :: ScoreT.Control -> Signal.Y -> Derive.Deriver a
     -> Derive.Deriver a
-with_constant control = Derive.with_control control . Score.untyped
+with_constant control = Derive.with_control control . ScoreT.untyped
     . Signal.constant
 
-add_control, multiply_control :: Score.Control -> Score.Typed Signal.Control
+add_control, multiply_control :: ScoreT.Control -> ScoreT.Typed Signal.Control
     -> Derive.Deriver a -> Derive.Deriver a
 add_control = Derive.with_merged_control Derive.merge_add
 multiply_control = Derive.with_merged_control Derive.merge_mul
 
-add_constant, multiply_constant :: Score.Control -> Signal.Y
+add_constant, multiply_constant :: ScoreT.Control -> Signal.Y
     -> Derive.Deriver a -> Derive.Deriver a
 multiply_constant control val
     | val == 1 = id
     | otherwise = Derive.with_merged_control Derive.merge_mul control
-        (Score.untyped (Signal.constant val))
+        (ScoreT.untyped (Signal.constant val))
 add_constant control val
     | val == 0 = id
     | otherwise = Derive.with_merged_control Derive.merge_add control
-        (Score.untyped (Signal.constant val))
+        (ScoreT.untyped (Signal.constant val))
 
 -- * environ
 
@@ -286,10 +287,10 @@ get_scale_id = Expr.str_to_scale_id <$> Derive.get_val EnvKey.scale
 lookup_key :: Derive.Deriver (Maybe Pitch.Key)
 lookup_key = fmap Pitch.Key <$> Derive.lookup_val EnvKey.key
 
-get_instrument :: Derive.Deriver Score.Instrument
+get_instrument :: Derive.Deriver ScoreT.Instrument
 get_instrument = Derive.get_val EnvKey.instrument
 
-lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
+lookup_instrument :: Derive.Deriver (Maybe ScoreT.Instrument)
 lookup_instrument = Derive.lookup_val EnvKey.instrument
 
 get_attributes :: Derive.Deriver Attrs.Attributes
@@ -582,18 +583,18 @@ duration_from_end args t = do
     dur <- real_duration end t
     return (end - dur, end)
 
--- | This is 'real_duration', but takes a Score.Typed Signal.Y.
+-- | This is 'real_duration', but takes a ScoreT.Typed Signal.Y.
 typed_real_duration :: Derive.Time t => Typecheck.TimeType -> t
-    -> Score.Typed Signal.Y -> Derive.Deriver RealTime
-typed_real_duration default_type from (Score.Typed typ val)
-    | typ == Score.Real
-        || typ == Score.Untyped && default_type == Typecheck.Real =
+    -> ScoreT.Typed Signal.Y -> Derive.Deriver RealTime
+typed_real_duration default_type from (ScoreT.Typed typ val)
+    | typ == ScoreT.Real
+        || typ == ScoreT.Untyped && default_type == Typecheck.Real =
             return (RealTime.seconds val)
-    | typ == Score.Score
-        || typ == Score.Untyped && default_type == Typecheck.Score =
+    | typ == ScoreT.Score
+        || typ == ScoreT.Untyped && default_type == Typecheck.Score =
             real_duration from (ScoreTime.from_double val)
     | otherwise = Derive.throw $
-        "expected time type for " <> ShowVal.show_val (Score.Typed typ val)
+        "expected time type for " <> ShowVal.show_val (ScoreT.Typed typ val)
 
 -- ** timestep
 

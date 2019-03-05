@@ -11,16 +11,19 @@ import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
+
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import Global
+
+import           Global
 
 
 -- | Wrapper that performs common operations for convert functions.
 -- Warn if the input isn't sorted, look up the instrument, and run
 -- 'Cmd.inst_postproc'.
 convert :: (Score.Event -> Cmd.ResolvedInstrument -> [LEvent.LEvent a])
-    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent a]
 convert process lookup_inst = go Nothing Set.empty
     where

@@ -25,6 +25,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Midi.Midi as Midi
@@ -53,13 +54,14 @@ default_srate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
 
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
-    , lookup_control_defaults :: Score.Instrument -> Map Score.Control Signal.Y
+    , lookup_control_defaults
+        :: ScoreT.Instrument -> Map ScoreT.Control Signal.Y
     }
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
 convert :: RealTime -> Lookup
-    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert srate lookup = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of
@@ -109,10 +111,10 @@ convert_event srate lookup event patch config = run $ do
         }
 
 -- TODO it's awkward how I have to go from (Midi.Control, Midi.ControlValue)
--- up to (Score.Control, Signal) only to go back down to
+-- up to (ScoreT.Control, Signal) only to go back down to
 -- (Midi.Control, Midi.ControlValue)
 make_controls :: [(Midi.Control, Midi.ControlValue)]
-    -> Map Score.Control MSignal.Signal
+    -> Map ScoreT.Control MSignal.Signal
 make_controls controls = Map.fromList
     [ (Control.cc_to_control cc, MSignal.constant $ Control.cval_to_val cval)
     | (cc, cval) <- controls
@@ -130,7 +132,7 @@ type PitchSignal = MSignal.Signal
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Log.LogMonad m => RealTime -> Score.Instrument
+convert_midi_pitch :: Log.LogMonad m => RealTime -> ScoreT.Instrument
     -> Patch.Patch -> Patch.Config -> Score.ControlMap -> Score.Event
     -> m ((Types.Patch, [(Midi.Control, Midi.ControlValue)]), PitchSignal)
 convert_midi_pitch srate inst patch config controls event =
@@ -162,7 +164,7 @@ convert_midi_pitch srate inst patch config controls event =
     perf_patch = Types.patch inst config patch
     attr_map = Patch.patch_attribute_map patch
 
-mode_keyswitches :: Env.Environ -> Patch.ModeMap -> Map Score.Control Signal.Y
+mode_keyswitches :: Env.Environ -> Patch.ModeMap -> Map ScoreT.Control Signal.Y
 mode_keyswitches (BaseTypes.Environ env) (Patch.ModeMap modes) =
     Map.fromList $ map get (Map.toList modes)
     where
@@ -238,10 +240,10 @@ convert_scale (Just scale) = MSignal.map_err $ \(MSignal.Sample x y) ->
 convert_controls :: RealTime
     -> Control.ControlMap -- ^ Instrument's control map.
     -> Score.ControlMap -- ^ Controls to convert.
-    -> Map Score.Control MSignal.Signal
+    -> Map ScoreT.Control MSignal.Signal
 convert_controls srate inst_cmap =
     Map.fromAscList
-        . map (second (Signal.to_piecewise_constant srate . Score.typed_val))
+        . map (second (Signal.to_piecewise_constant srate . ScoreT.typed_val))
         . filter (Control.is_midi_control inst_cmap . fst)
         . Map.toAscList
 

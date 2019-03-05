@@ -21,7 +21,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -29,8 +29,9 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -169,6 +170,6 @@ c_cf_sample = Derive.transformer Module.prelude "cf-sample"
         start <- Args.real_start args
         vals <- mapM (flip Derive.control_at start) (NonEmpty.toList controls)
         foldr (uncurry Call.with_constant) deriver
-            [ (c, Score.typed_val v)
+            [ (c, ScoreT.typed_val v)
             | (c, Just v) <- zip (NonEmpty.toList controls) vals
             ]

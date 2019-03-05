@@ -8,7 +8,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Ui.Types as Types
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
@@ -28,13 +27,16 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Types as Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -66,7 +68,7 @@ c_pokok = Derive.transformer module_ "pokok" (Tags.inst <> Tags.under_invert)
         note <- pokok (Args.start args) octave insts range
         deriver <> note
 
-pokok :: ScoreTime -> Call.UpDown -> [Score.Instrument] -> Scale.Range
+pokok :: ScoreTime -> Call.UpDown -> [ScoreT.Instrument] -> Scale.Range
     -> Derive.Deriver Derive.NoteDeriver
 pokok start octave insts range = do
     (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
@@ -99,7 +101,7 @@ restrict range octave pitch
     with_oct oct = pitch { Pitch.pitch_octave = oct }
     oct_of = Pitch.pitch_octave
 
-realize_note :: ScoreTime -> [Score.Instrument] -> Pitch.Note
+realize_note :: ScoreTime -> [ScoreT.Instrument] -> Pitch.Note
     -> Derive.NoteDeriver
 realize_note start instruments note =
     Call.add_flags Flags.infer_duration $
@@ -113,7 +115,7 @@ range_env = Scale.Range
     <$> Sig.required_environ "bottom" Sig.Prefixed "Bottom of the range."
     <*> Sig.required_environ "top" Sig.Prefixed "Top of the range."
 
-make_pokok :: Text -> Scale.Range -> [Score.Instrument]
+make_pokok :: Text -> Scale.Range -> [ScoreT.Instrument]
     -> Derive.Transformer Derive.Note
 make_pokok name range default_insts = Derive.transformer module_
     (Derive.CallName name) (Tags.inst <> Tags.under_invert)

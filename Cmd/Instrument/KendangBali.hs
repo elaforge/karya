@@ -20,6 +20,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
@@ -113,7 +114,7 @@ to_call (Note stroke attrs) = Expr.Symbol $ case stroke of
 
 -- * pasang
 
-data Pasang = Pasang { wadon :: Score.Instrument, lanang :: Score.Instrument }
+data Pasang = Pasang { wadon :: ScoreT.Instrument, lanang :: ScoreT.Instrument }
     deriving (Show)
 
 pasang_env :: Sig.Parser Pasang

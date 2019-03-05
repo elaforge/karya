@@ -12,10 +12,6 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Memory as Memory
-import Util.Test
-
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.ResponderTest as ResponderTest
@@ -24,7 +20,11 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.Score as Score
 
-import Global
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 -- | Don't leak more than this much on each run.
@@ -187,16 +187,17 @@ strip_event event = event
 strip_dynamic :: Derive.Dynamic -> Derive.Dynamic
 strip_dynamic dyn = dyn
     -- { Derive.state_controls = mempty -- !Score.ControlMap
-    -- , Derive.state_control_functions = mempty -- :: !Score.ControlFunctionMap
+    -- , Derive.state_control_functions = mempty
+    --      -- :: !BaseTypes.ControlFunctionMap
     -- , Derive.state_control_merge_defaults = mempty
-    --     -- Map Score.Control (Merger Signal.Control)
+    --     -- Map ScoreT.Control (Merger Signal.Control)
     -- , Derive.state_pitches = mempty -- :: !Score.PitchMap
     -- , Derive.state_pitch = mempty -- :: !PSignal.PSignal
     -- , Derive.state_environ = mempty -- :: !BaseTypes.Environ
     -- -- , Derive.state_warp = -- :: !Score.Warp
     -- -- , Derive.state_scopes = mempty -- :: !Scopes
     -- , Derive.state_instrument_aliases = mempty
-    --     -- :: !(Map Score.Instrument Score.Instrument)
+    --     -- :: !(Map ScoreT.Instrument ScoreT.Instrument)
 
     -- , Derive.state_control_damage :: !ControlDamage
     -- , Derive.state_under_invert = id -- !(NoteDeriver -> NoteDeriver)

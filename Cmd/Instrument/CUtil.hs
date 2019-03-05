@@ -39,6 +39,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
@@ -52,8 +53,8 @@ import qualified Perform.Signal as Signal
 import qualified Synth.Shared.Osc as Osc
 import qualified Ui.UiMsg as UiMsg
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- | Text of the event to create.
@@ -228,7 +229,7 @@ keyswitches inputs = \msg -> do
 -- | Create an unpitched drum instrument.  This is an instrument with an
 -- enumeration of symbols and no pitch or duration.  Each key maps to its
 -- own symbol.
-simple_drum :: Thru -> Maybe Score.Control -> [(Drums.Note, Midi.Key)]
+simple_drum :: Thru -> Maybe ScoreT.Control -> [(Drums.Note, Midi.Key)]
     -> MidiInst.Patch -> MidiInst.Patch
 simple_drum thru tune_control note_keys patch =
     MidiInst.code #= code $ drum_patch note_keys patch
@@ -239,7 +240,7 @@ simple_drum thru tune_control note_keys patch =
 -- | Construct code from drum notes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
 drum_code :: Thru
-    -> Maybe Score.Control -- ^ If given, this control indicates semitone
+    -> Maybe ScoreT.Control -- ^ If given, this control indicates semitone
     -- offsets above or below the natural pitch.  Actual pitched drums which
     -- are tuned to a definite note should use 'pitched_drum_patch' and a
     -- pitch track.
@@ -362,7 +363,7 @@ drum_calls :: Maybe ([Attrs.Attributes], Pitch.NoteNumber)
     -- ^ If Just, only strokes which are a superset of one of these move with
     -- the pitch, otherwise the stay at the given NoteNumber.  If Nothing, all
     -- strokes move with the pitch.
-    -> Maybe Score.Control -> [Drums.Note]
+    -> Maybe ScoreT.Control -> [Drums.Note]
     -> [(Expr.Symbol, Derive.Generator Derive.Note)]
 drum_calls pitched_strokes maybe_tuning_control = map $ \note ->
     ( Drums._name note
@@ -376,7 +377,7 @@ drum_calls pitched_strokes maybe_tuning_control = map $ \note ->
         _ -> id
     is_pitched pitched attrs = any (Attrs.contain attrs) pitched
 
-drum_call :: Maybe Score.Control -> Signal.Y -> Attrs.Attributes
+drum_call :: Maybe ScoreT.Control -> Signal.Y -> Attrs.Attributes
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 drum_call maybe_tuning_control dyn attrs transform =
@@ -394,7 +395,7 @@ drum_call maybe_tuning_control dyn attrs transform =
             \ adjusted with " <> ShowVal.doc control <> ", in semitones\
             \ from the natural pitch."
 
-tuning_control :: Derive.NoteArgs -> Score.Control -> Derive.Deriver a
+tuning_control :: Derive.NoteArgs -> ScoreT.Control -> Derive.Deriver a
     -> Derive.Deriver a
 tuning_control args control deriver = do
     tuning <- fromMaybe 0 <$>

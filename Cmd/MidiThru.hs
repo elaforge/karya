@@ -75,7 +75,7 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
-import Cmd.InputNote (NoteId)
+import           Cmd.InputNote (NoteId)
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
@@ -85,20 +85,20 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
-import Perform.Midi.Patch (Addr)
+import           Perform.Midi.Patch (Addr)
 import qualified Perform.Pitch as Pitch
 
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
-import Global
+import           Global
 
 
 -- | Send midi thru, addressing it to the given Instrument.
@@ -116,7 +116,7 @@ cmd_midi_thru msg = do
     mapM_ Cmd.write_thru =<< for_instrument score_inst scale attrs input
     return Cmd.Continue
 
-for_instrument :: Score.Instrument -> Cmd.ThruFunction
+for_instrument :: ScoreT.Instrument -> Cmd.ThruFunction
 for_instrument score_inst scale attrs input = do
     resolved <- Cmd.get_instrument score_inst
     let code_of = Common.common_code . Inst.inst_common . Cmd.inst_instrument
@@ -130,7 +130,7 @@ for_instrument score_inst scale attrs input = do
 -- I could still do this by tracking channel state at the Midi.Interface level.
 -- I actually already do that a bit of tracking with note_tracker, but it's
 -- simpler to just always send PitchBend, unless it becomes a problem.
-default_thru :: Cmd.ResolvedInstrument -> Score.Instrument -> Cmd.ThruFunction
+default_thru :: Cmd.ResolvedInstrument -> ScoreT.Instrument -> Cmd.ThruFunction
 default_thru resolved score_inst scale attrs input = do
     input <- convert_input score_inst scale input
     (patch, config) <- Cmd.abort_unless $ Cmd.midi_instrument resolved
@@ -170,7 +170,7 @@ keyswitch_to_midi msgs ks = case msum (map note_msg msgs) of
     note_msg _ = Nothing
 
 -- | Realize the Input as a pitch in the given scale.
-input_to_nn :: Cmd.M m => Score.Instrument -> Patch.AttributeMap
+input_to_nn :: Cmd.M m => ScoreT.Instrument -> Patch.AttributeMap
     -> Maybe Patch.Scale -> Attrs.Attributes -> InputNote.InputNn
     -> m (Maybe (InputNote.InputNn, [Patch.Keyswitch]))
 input_to_nn inst attr_map patch_scale attrs = \case
@@ -192,7 +192,7 @@ input_to_nn inst attr_map patch_scale attrs = \case
         return result
 
 -- | Convert a keyboard input into the NoteNumber desired by the scale.
-convert_input :: Cmd.M m => Score.Instrument -> Scale.Scale -> InputNote.Input
+convert_input :: Cmd.M m => ScoreT.Instrument -> Scale.Scale -> InputNote.Input
     -> m InputNote.InputNn
 convert_input inst scale = \case
     InputNote.NoteOn note_id input vel -> do
@@ -206,8 +206,8 @@ convert_input inst scale = \case
     where
     convert = convert_input_pitch inst scale
 
-convert_input_pitch :: Cmd.M m => Score.Instrument -> Scale.Scale -> Pitch.Input
-    -> m Pitch.NoteNumber
+convert_input_pitch :: Cmd.M m => ScoreT.Instrument -> Scale.Scale
+    -> Pitch.Input -> m Pitch.NoteNumber
 convert_input_pitch inst scale input = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     -- I ignore _logs, any interesting errors should be in 'result'.
@@ -236,7 +236,7 @@ filter_transposers scale = Derive.with_controls transposers
     transposers = zip
         (filter (`notElem` [Controls.octave, Controls.hz])
             (Set.toList (Scale.scale_transposers scale)))
-        (repeat (Score.untyped mempty))
+        (repeat (ScoreT.untyped mempty))
 
 -- | This is a midi thru version of 'Perform.Midi.Convert.convert_midi_pitch'.
 -- It's different because it works with a scalar NoteNumber instead of
@@ -323,7 +323,7 @@ with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)
 -- instrument.  This bypasses all of the WriteDeviceState stuff so it won't
 -- cooperate with addr allocation, but hopefully this won't cause problems for
 -- simple uses like keymapped instruments.
-channel_messages :: Cmd.M m => Maybe Score.Instrument -- ^ use this inst, or
+channel_messages :: Cmd.M m => Maybe ScoreT.Instrument -- ^ use this inst, or
     -- the one on the selected track if Nothing.
     -> Bool -> [Midi.ChannelMessage] -> m ()
 channel_messages maybe_inst first_addr msgs = do
@@ -334,7 +334,7 @@ channel_messages maybe_inst first_addr msgs = do
         | (wdev, chan) <- addrs2, msg <- msgs
         ]
 
-get_addrs :: Cmd.M m => Maybe Score.Instrument -> m [Addr]
+get_addrs :: Cmd.M m => Maybe ScoreT.Instrument -> m [Addr]
 get_addrs maybe_inst = do
     inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
         return maybe_inst

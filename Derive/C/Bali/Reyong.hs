@@ -20,7 +20,6 @@ import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Ui.Types as Types
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -43,6 +42,7 @@ import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
@@ -50,8 +50,10 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.Types as Types
+
+import           Global
+import           Types
 
 
 {-
@@ -715,14 +717,14 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
 -- by infer-damp.
-damp_control :: Score.Control
+damp_control :: ScoreT.Control
 damp_control = "damp"
 
 -- | Divide notes into voices.  Assign each note to a hand.  The end of each
 -- note needs a free hand to damp.  That can be the same hand if the next note
 -- with that hand is a sufficiently long time from now, or the opposite hand if
 -- it is not too busy.
-infer_damp_voices :: Set Score.Instrument -> (RealTime -> RealTime)
+infer_damp_voices :: Set ScoreT.Instrument -> (RealTime -> RealTime)
     -- ^ duration required to damp
     -> [Score.Event] -> Log.LogId [Score.Event]
 infer_damp_voices damped_insts dur_at events = do
@@ -749,7 +751,7 @@ set_damp damp_dyn event
                 Score.event_duration = 0 }
     | otherwise = Nothing
     where
-    damp = damp_dyn * maybe 1 Score.typed_val
+    damp = damp_dyn * maybe 1 ScoreT.typed_val
         (Score.control_at (Score.event_end event) damp_control event)
 
 infer_damp :: (RealTime -> RealTime) -> [Score.Event]

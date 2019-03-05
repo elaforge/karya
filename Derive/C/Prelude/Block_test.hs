@@ -6,9 +6,6 @@ module Derive.C.Prelude.Block_test where
 import qualified Data.Map as Map
 
 import qualified Util.Log as Log
-import Util.Test
-import qualified Ui.Ruler as Ruler
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
@@ -16,10 +13,15 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
-import Global
+import qualified Ui.Ruler as Ruler
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_block = do
@@ -120,7 +122,7 @@ test_control_scope = do
             [ (">", [(0, 2, ""), (2, 0, "")])
             , ("local", [(0, 0, "2"), (2, 0, "3")])
             ]
-        extract = map (second (Signal.to_pairs . Score.typed_val))
+        extract = map (second (Signal.to_pairs . ScoreT.typed_val))
                 . filter ((`elem` wanted) . fst) . Map.toList
                 . Score.event_controls
             where wanted = ["pedal", "dia", "local"]

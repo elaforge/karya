@@ -34,11 +34,6 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Map
-import qualified Ui.Block as Block
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Types as Types
-
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
@@ -53,15 +48,20 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
 import qualified Derive.Tempo as Tempo
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Types as Types
+
+import           Global
+import           Types
 
 
 data Config = Config {
@@ -95,14 +95,14 @@ eval_track config track expr ctype deriver = case ctype of
                     (in_normal_mode $ derive_control True track transform)
         tempo_call config maybe_sym track sig_deriver deriver
     ParseTitle.Control (Right typed_control) maybe_merge -> do
-        let control = Score.typed_val typed_control
+        let control = ScoreT.typed_val typed_control
         merger <- get_merger control maybe_merge
         let sig_deriver = with_control_env control merger
                 (derive_control False track transform)
         control_call track typed_control merger sig_deriver deriver
     ParseTitle.Control (Left tcall) maybe_merge -> do
         (typed_control, sig) <- track_call tcall track
-        merger <- get_merger (Score.typed_val typed_control) maybe_merge
+        merger <- get_merger (ScoreT.typed_val typed_control) maybe_merge
         control_call track typed_control merger (return (sig, [])) deriver
     ParseTitle.Pitch scale_id pcontrol_tcall -> case pcontrol_tcall of
         Right pcontrol -> pitch_call config track pcontrol scale_id
@@ -119,7 +119,7 @@ eval_track config track expr ctype deriver = case ctype of
         ParseTitle.Pitch {} -> "pitch track"
 
 track_call :: Derive.CallableExpr d => Expr.Symbol -> TrackTree.Track
-    -> Derive.Deriver (Score.Typed Score.Control, d)
+    -> Derive.Deriver (ScoreT.Typed ScoreT.Control, d)
 track_call sym track = do
     call <- Eval.get_track_call sym
     Derive.tcall_func call track
@@ -139,7 +139,8 @@ in_normal_mode deriver = Derive.get_mode >>= \mode -> case mode of
 -- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default.
 -- Since the control call emits signal which then goes in a control track,
 -- a merge operator would wind up being applied twice.
-get_merger :: Score.Control -> Maybe Expr.Symbol -> Derive.Deriver Derive.Merger
+get_merger :: ScoreT.Control -> Maybe Expr.Symbol
+    -> Derive.Deriver Derive.Merger
 get_merger control merge = case merge of
     Nothing
         | control == Controls.null -> return Derive.Set
@@ -194,7 +195,7 @@ dispatch_tempo config sym block_range maybe_track_id signal deriver =
                 "unknown tempo modifier: " <> ShowVal.show_val sym
     where toplevel = config_toplevel_tempo config
 
-control_call :: TrackTree.Track -> Score.Typed Score.Control -> Derive.Merger
+control_call :: TrackTree.Track -> ScoreT.Typed ScoreT.Control -> Derive.Merger
     -- TODO doesn't need to be a Deriver
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
@@ -212,15 +213,15 @@ control_call track control merger sig_deriver deriver = do
     with_damage = with_control_damage
         (TrackTree.block_track_id track) (TrackTree.track_range track)
 
-with_merger :: Score.Typed Score.Control -> Derive.Merger -> Signal.Control
+with_merger :: ScoreT.Typed ScoreT.Control -> Derive.Merger -> Signal.Control
     -> Derive.Deriver a -> Derive.Deriver a
-with_merger (Score.Typed typ control) merger signal =
-    Derive.with_merged_control merger control (Score.Typed typ signal)
+with_merger (ScoreT.Typed typ control) merger signal =
+    Derive.with_merged_control merger control (ScoreT.Typed typ signal)
 
 merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
 merge_logs logs = fmap (Stream.merge_logs logs)
 
-pitch_call :: Config -> TrackTree.Track -> Score.PControl
+pitch_call :: Config -> TrackTree.Track -> ScoreT.PControl
     -> Pitch.ScaleId -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 pitch_call config track pcontrol scale_id transform deriver = do
@@ -439,12 +440,12 @@ psignal_to_nn sig = do
     controls <- Internal.get_dynamic Derive.state_controls
     return $ PSignal.to_nn $ PSignal.apply_controls controls sig
 
-with_control_env :: Score.Control -> Derive.Merger -> Derive.Deriver a
+with_control_env :: ScoreT.Control -> Derive.Merger -> Derive.Deriver a
     -> Derive.Deriver a
 with_control_env control merger = Derive.with_vals
-    [ (EnvKey.control, Score.control_name control)
+    [ (EnvKey.control, ScoreT.control_name control)
     , (EnvKey.merge, ShowVal.show_val merger)
     ]
 
-with_pitch_env :: Score.PControl -> Derive.Deriver a -> Derive.Deriver a
-with_pitch_env = Derive.with_val EnvKey.control . Score.pcontrol_name
+with_pitch_env :: ScoreT.PControl -> Derive.Deriver a -> Derive.Deriver a
+with_pitch_env = Derive.with_val EnvKey.control . ScoreT.pcontrol_name

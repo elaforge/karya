@@ -8,19 +8,20 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
-import qualified Ui.UiConfig as UiConfig
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
-import Global
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+import qualified Ui.UiConfig as UiConfig
+
+import           Global
 
 
 synth_name :: InstTypes.SynthName
@@ -40,7 +41,7 @@ patches = (:[]) $
 
 
 -- | WARNING: changing these while playing tends to crash the VST.
-controls :: [(Midi.Control, Score.Control)]
+controls :: [(Midi.Control, ScoreT.Control)]
 controls =
     [ (20, "position") -- 0 for bridge, 1 for middle
     , (21, "finger") -- 0 for finger plucking, 1 for pick
@@ -82,7 +83,7 @@ note_call = Note.transformed_note
                 Derive.with_instrument (string_inst inst string) deriver
             _ -> deriver
     string_inst inst string =
-        Score.Instrument $ Score.instrument_name inst <> "-" <> string
+        ScoreT.Instrument $ ScoreT.instrument_name inst <> "-" <> string
 
 strings :: [Text]
 strings = ["e1", "a", "d", "g", "b", "e2"]
@@ -95,7 +96,7 @@ allocations dev_name name = UiConfig.midi_allocations $
         | (string, chan) <- zip strings [1..]]
     where
     inst name chan =
-        ( Score.Instrument name
+        ( ScoreT.Instrument name
         , (InstTypes.Qualified synth_name name, MidiInst.config1 dev chan)
         )
     dev = Midi.write_device dev_name

@@ -29,6 +29,7 @@ import qualified Derive.Expr as Expr
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
@@ -175,7 +176,7 @@ data Composite = Composite {
     -- | Dispatch to this call.
     c_call :: !Expr.Symbol
     -- | And this instrument.
-    , c_instrument :: !Score.Instrument
+    , c_instrument :: !ScoreT.Instrument
     , c_pitch :: !Pitch
     , c_controls :: !Controls
     } deriving (Show)
@@ -190,10 +191,10 @@ instance Pretty Composite where
             NoPitch -> "(no pitch)"
             Pitch control -> ShowVal.show_val control
 
-data Pitch = NoPitch | Pitch Score.PControl deriving (Show)
+data Pitch = NoPitch | Pitch ScoreT.PControl deriving (Show)
 -- | If Nothing, then this Composite gets all the controls that are not given
 -- to other instruments.  Otherwise, it only gets the named ones.
-type Controls = Maybe (Set Score.Control)
+type Controls = Maybe (Set ScoreT.Control)
 
 show_controls :: Controls -> Doc.Doc
 show_controls = Doc.Doc . maybe "(all)" pretty
@@ -216,7 +217,7 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
         , Composite unpitched_call unpitched NoPitch unpitched_controls
         ]
 
-double_pitch :: Derive.CallName -> Controls -> Score.PControl -> Controls
+double_pitch :: Derive.CallName -> Controls -> ScoreT.PControl -> Controls
     -> Derive.Generator Derive.Note
 double_pitch name base_controls pcontrol secondary_controls =
     generator name ("A composite instrument that has two pitch signals.\n"
@@ -260,7 +261,7 @@ composite_call args composites = mconcatMap (split args) composites
 constant_pitch :: Derive.Generator Derive.Note
 constant_pitch = constant_controls True mempty
 
-constant_controls :: Bool -> Set Score.Control -> Derive.Generator Derive.Note
+constant_controls :: Bool -> Set ScoreT.Control -> Derive.Generator Derive.Note
 constant_controls constant_pitch controls =
     Note.transformed_note doc mempty $ \args ->
         (if constant_pitch then set_constant_pitch args else id)
@@ -276,13 +277,13 @@ constant_controls constant_pitch controls =
           ]
         ]
 
-set_constant_controls :: Set Score.Control -> Derive.PassedArgs b
+set_constant_controls :: Set ScoreT.Control -> Derive.PassedArgs b
     -> Derive.Deriver a -> Derive.Deriver a
 set_constant_controls controls args deriver
     | Set.null controls = deriver
     | otherwise = do
         vals <- Derive.controls_at =<< Args.real_start args
-        let sampled = Score.untyped . Signal.constant <$>
+        let sampled = ScoreT.untyped . Signal.constant <$>
                 Map.filterWithKey (\k _ -> k `Set.member` controls) vals
         Derive.with_controls (Map.toList sampled) deriver
 

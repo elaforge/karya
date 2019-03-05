@@ -20,13 +20,14 @@ import qualified Derive.Env as Env
 import qualified Derive.Flags as Flags
 import qualified Derive.Library as Library
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Signal as Signal
 
-import Global
+import           Global
 
 
 -- | This is a specialization of 'transform_notes' that adds Attributes.
@@ -45,7 +46,7 @@ environ_note module_ name tags doc key val =
         \() -> Derive.with_val key val
 
 -- | This is a specialization of 'transform_notes' that sets a control.
-control_note :: Module.Module -> Derive.CallName -> Score.Control -> Signal.Y
+control_note :: Module.Module -> Derive.CallName -> ScoreT.Control -> Signal.Y
     -> Library.Calls Derive.Note
 control_note module_ name control val = transform_notes module_ name mempty
     ("Note with " <> Doc.literal (ShowVal.show_val control <> " = "

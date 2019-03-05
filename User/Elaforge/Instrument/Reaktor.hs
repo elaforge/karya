@@ -7,17 +7,18 @@ module User.Elaforge.Instrument.Reaktor where
 import qualified Data.Set as Set
 
 import qualified Util.Doc as Doc
-import qualified Midi.CC as CC
-import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
-import Global
+import qualified Midi.CC as CC
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
+
+import           Global
 
 
 synth :: MidiInst.Synth
@@ -28,7 +29,7 @@ resonant_filter = MidiInst.null_call $
     DUtil.double_pitch "res" Nothing "res"
         (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 
-patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
+patch :: InstTypes.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
 patch = MidiInst.named_patch (-96, 96)
 
 patches :: [MidiInst.Patch]

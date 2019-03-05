@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
-import Data.Vector ((!?))
+import           Data.Vector ((!?))
 
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
@@ -28,13 +28,14 @@ import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- | Make a simple scale where there is a direct mapping from input to note to
@@ -144,7 +145,7 @@ non_transposing _ _ _ _ = Left BaseTypes.NotImplemented
 -- | Indicate that this scale responds to the standard set of transpose
 -- signals.  It still has to implement the support in its
 -- 'Scale.scale_note_to_call'.
-standard_transposers :: Set Score.Control
+standard_transposers :: Set ScoreT.Control
 standard_transposers = Set.fromList
     [ Controls.octave, Controls.chromatic, Controls.diatonic
     , Controls.nn, Controls.hz
@@ -387,7 +388,7 @@ adjust_octave pc_per_octave kbd_per_octave oct pc =
 
 -- ** call_doc
 
-call_doc :: Set Score.Control -> DegreeMap -> Doc.Doc -> Derive.DocumentedCall
+call_doc :: Set ScoreT.Control -> DegreeMap -> Doc.Doc -> Derive.DocumentedCall
 call_doc transposers dmap doc =
     annotate_call_doc transposers doc fields default_scale_degree_doc
     where
@@ -410,7 +411,7 @@ scale_degree_doc scale_degree =
     Derive.extract_val_doc $ scale_degree PSignal.no_scale err err
     where err _ = Left $ PSignal.PitchError "it was just an example!"
 
-annotate_call_doc :: Set Score.Control -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
+annotate_call_doc :: Set ScoreT.Control -> Doc.Doc -> [(Doc.Doc, Doc.Doc)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall
 annotate_call_doc transposers doc fields = prepend_doc extra_doc
     where

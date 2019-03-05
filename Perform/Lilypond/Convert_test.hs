@@ -3,21 +3,22 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.Convert_test where
-import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Types as Types
+
+import           Util.Test
 
 
 test_convert = do
     let f scale key = map (fmap extract) . Convert.convert config . map mkevent
             where
             mkevent (start, dur, pitch) = DeriveTest.mkevent_scale_key scale key
-                (start, dur, pitch, [], Score.empty_instrument)
+                (start, dur, pitch, [], ScoreT.empty_instrument)
         config = Types.default_config { Types.config_quarter_duration = 0.05 }
         extract e = (Types.event_start e, Types.event_duration e,
             maybe "" Types.to_lily (Types.event_pitch e))

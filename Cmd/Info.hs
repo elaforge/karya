@@ -17,19 +17,19 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
-import qualified Ui.Block as Block
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.Midi.Patch as Patch
-import Global
-import Types
+import qualified Ui.Block as Block
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+
+import           Global
+import           Types
 
 
 -- * track info
@@ -123,14 +123,14 @@ note_of_pitch block_id tracknum = do
 -- first.  This is useful for new tracks which don't have a performance yet.
 -- But if the track title doesn't specify an instrument it falls back on
 -- 'Perf.lookup_instrument'.
-get_instrument_of :: Cmd.M m => BlockId -> TrackNum -> m Score.Instrument
+get_instrument_of :: Cmd.M m => BlockId -> TrackNum -> m ScoreT.Instrument
 get_instrument_of block_id tracknum =
     Ui.require ("get_instrument_of expected a note track: "
             <> showt (block_id, tracknum))
         =<< lookup_instrument_of block_id tracknum
 
 lookup_instrument_of :: Cmd.M m => BlockId -> TrackNum
-    -> m (Maybe Score.Instrument)
+    -> m (Maybe ScoreT.Instrument)
 lookup_instrument_of block_id tracknum = do
     track_id <- Ui.get_event_track_at block_id tracknum
     track <- Ui.get_track track_id
@@ -138,12 +138,12 @@ lookup_instrument_of block_id tracknum = do
         Nothing -> Perf.lookup_instrument (block_id, Just track_id)
         Just inst -> Just <$> get_default_instrument block_id track_id inst
 
--- | If the instrument is 'Score.empty_instrument', look up what it really is
+-- | If the instrument is 'ScoreT.empty_instrument', look up what it really is
 -- in the performance.
 get_default_instrument :: Cmd.M m => BlockId -> TrackId
-    -> Score.Instrument -> m Score.Instrument
+    -> ScoreT.Instrument -> m ScoreT.Instrument
 get_default_instrument block_id track_id inst
-    | inst == Score.empty_instrument =
+    | inst == ScoreT.empty_instrument =
         fromMaybe inst <$> Perf.lookup_instrument (block_id, Just track_id)
     | otherwise = return inst
 
@@ -211,7 +211,7 @@ get_track_status block_id tracknum = do
 -- may be multiple ones, pick the first one.  First try children, then
 -- parents.
 find_note_track :: TrackTree.TrackTree -> TrackNum
-    -> Maybe (Ui.TrackInfo, Score.Instrument)
+    -> Maybe (Ui.TrackInfo, ScoreT.Instrument)
 find_note_track tree tracknum = case paths_of tree tracknum of
         Nothing -> Nothing
         Just (track, parents, children) ->

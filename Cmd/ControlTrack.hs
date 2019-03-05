@@ -7,11 +7,6 @@ module Cmd.ControlTrack where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
-import qualified Ui.Events as Events
-import qualified Ui.Key as Key
-import qualified Ui.Ui as Ui
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -20,12 +15,17 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Parse as Parse
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.Events as Events
+import qualified Ui.Key as Key
+import qualified Ui.Ui as Ui
+
+import           Global
+import           Types
 
 
 {- | Accept keystrokes and modify the val field of the event.  Also accept
@@ -256,6 +256,6 @@ modify_val f text = case Parse.parse_val (event_val event) of
     where
     event = parse text
     show_val num
-        | Score.Typed Score.Untyped n <- num,
+        | ScoreT.Typed ScoreT.Untyped n <- num,
             ShowVal.is_hex_val (event_val event) = ShowVal.show_hex_val n
         | otherwise = ShowVal.show_val (BaseTypes.VNum num)

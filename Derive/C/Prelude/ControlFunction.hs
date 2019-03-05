@@ -25,7 +25,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -36,8 +36,8 @@ import qualified Perform.Signal as Signal
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -84,7 +84,7 @@ c_cf_rnd combine = val_call "cf-rnd"
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(low, high, distribution) _args -> return $!
         BaseTypes.ControlFunction "cf-rnd" $ \control dyn pos ->
-            Score.untyped $ combine
+            ScoreT.untyped $ combine
                 (cf_rnd distribution low high (random_stream (dyn_seed dyn)))
                 (dyn_control dyn control pos)
 
@@ -100,7 +100,7 @@ c_cf_rnd_around combine = val_call "cf-rnd-a"
     <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(range, center, distribution) _args -> return $!
         BaseTypes.ControlFunction "cf-rnd-a" $ \control dyn pos ->
-            Score.untyped $ combine
+            ScoreT.untyped $ combine
                 (cf_rnd distribution (center-range) (center+range)
                     (random_stream (dyn_seed dyn)))
                 (dyn_control dyn control pos)
@@ -143,11 +143,11 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
         BaseTypes.ControlFunction "cf-swing" (cf_swing_ rank amount)
     where
     cf_swing_ rank amount control dyn pos
-        | Just marks <- maybe_marks = Score.untyped $
+        | Just marks <- maybe_marks = ScoreT.untyped $
             dyn_control dyn control pos + RealTime.to_seconds
                 (cf_swing (real dyn) (Meter.name_to_rank rank)
                     (to_function dyn 0 amount) marks (score dyn pos))
-        | otherwise = Score.untyped 0
+        | otherwise = ScoreT.untyped 0
         where
         maybe_marks = snd <$> Map.lookup Ruler.meter (BaseTypes.dyn_ruler dyn)
 
@@ -207,8 +207,8 @@ dyn_seed dyn = fromIntegral (BaseTypes.dyn_event_serial dyn) + seed dyn
     where
     seed = fromMaybe 0 . Env.maybe_val EnvKey.seed . BaseTypes.dyn_environ
 
-dyn_control :: BaseTypes.Dynamic -> Score.Control -> RealTime -> Double
-dyn_control dyn control pos = maybe 0 (Signal.at pos . Score.typed_val) $
+dyn_control :: BaseTypes.Dynamic -> ScoreT.Control -> RealTime -> Double
+dyn_control dyn control pos = maybe 0 (Signal.at pos . ScoreT.typed_val) $
     Map.lookup control $ BaseTypes.dyn_controls dyn
 
 real :: BaseTypes.Dynamic -> ScoreTime -> RealTime
@@ -222,9 +222,9 @@ score dyn = Warp.unwarp (BaseTypes.dyn_warp dyn)
 to_function :: BaseTypes.Dynamic -> Signal.Y -> BaseTypes.ControlRef
     -> Typecheck.Function
 to_function dyn deflt =
-    (Score.typed_val .) . to_typed_function dyn (Score.untyped deflt)
+    (ScoreT.typed_val .) . to_typed_function dyn (ScoreT.untyped deflt)
 
-to_typed_function :: BaseTypes.Dynamic -> Score.Typed Signal.Y
+to_typed_function :: BaseTypes.Dynamic -> ScoreT.Typed Signal.Y
     -> BaseTypes.ControlRef -> Typecheck.TypedFunction
 to_typed_function dyn deflt control =
     case to_signal_or_function dyn control of
@@ -238,13 +238,13 @@ to_typed_function dyn deflt control =
         BaseTypes.LiteralControl cont -> cont
 
 to_signal_or_function :: BaseTypes.Dynamic -> BaseTypes.ControlRef
-    -> Maybe (Either (Score.Typed Signal.Control) BaseTypes.ControlFunction)
+    -> Maybe (Either (ScoreT.Typed Signal.Control) BaseTypes.ControlFunction)
 to_signal_or_function dyn control = case control of
     BaseTypes.ControlSignal sig -> return $ Left sig
     BaseTypes.DefaultedControl cont deflt ->
-        get_control (Score.type_of deflt) (return $ Left deflt) cont
+        get_control (ScoreT.type_of deflt) (return $ Left deflt) cont
     BaseTypes.LiteralControl cont ->
-        get_control Score.Untyped Nothing cont
+        get_control ScoreT.Untyped Nothing cont
     where
     get_control default_type deflt cont = case get_function cont of
         Just f -> return $ Right $
@@ -259,7 +259,7 @@ to_signal_or_function dyn control = case control of
     -- If the signal was untyped, it gets the type of the default, since
     -- presumably the caller expects that type.
     inherit_type default_type val =
-        val { Score.type_of = Score.type_of val <> default_type }
+        val { ScoreT.type_of = ScoreT.type_of val <> default_type }
 
 -- * misc
 

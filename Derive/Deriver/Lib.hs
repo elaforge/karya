@@ -28,6 +28,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Expr as Expr
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
@@ -350,8 +351,8 @@ with_merged_numeric_val merger key val = case merger of
             else deriver
     Merger name merge ident -> Internal.localm $ \state -> do
         (typ, old) <- case Env.checked_val2 key (state_environ state) of
-            Nothing -> return (Score.Untyped, ident)
-            Just (Right (Score.Typed typ old)) -> return (typ, old)
+            Nothing -> return (ScoreT.Untyped, ident)
+            Just (Right (ScoreT.Typed typ old)) -> return (typ, old)
             Just (Left err) -> throw err
         -- This is a hack to reuse Merger, which is defined on Signal, not Y.
         -- It could be defined on Y, but then I'd have to directly use
@@ -360,7 +361,7 @@ with_merged_numeric_val merger key val = case merger of
         new <- require ("merger " <> name <> " produced an empty signal") $
             Signal.constant_val $
             merge (Signal.constant old) (Signal.constant val)
-        return $! insert_env key (Score.Typed typ new) state
+        return $! insert_env key (ScoreT.Typed typ new) state
 
 modify_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
     -> (Maybe val -> val) -> Deriver a -> Deriver a
@@ -426,7 +427,7 @@ val_to_pitch (ValCall name doc vcall) = Call
 -- assigning the instrument to the 'EnvKey.instrument' field where note calls
 -- can inherit it, this also brings the 'Instrument' fields into scope, which
 -- is the per-instrument calls and per-instrument environ.
-with_instrument :: Score.Instrument -> Deriver d -> Deriver d
+with_instrument :: ScoreT.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
     -- Previously, I would just substitute an empty instrument instead of
     -- throwing, but it turned out to be error prone, since a misspelled
@@ -448,12 +449,12 @@ with_instrument inst deriver = do
             }
     replace = replace_priority PrioInstrument
 
-with_instrument_alias :: Score.Instrument -> Score.Instrument
+with_instrument_alias :: ScoreT.Instrument -> ScoreT.Instrument
     -> Deriver a -> Deriver a
 with_instrument_alias alias inst =
     with_instrument_aliases (Map.singleton alias inst)
 
-with_instrument_aliases :: Map Score.Instrument Score.Instrument
+with_instrument_aliases :: Map ScoreT.Instrument ScoreT.Instrument
     -> Deriver a -> Deriver a
 with_instrument_aliases aliases deriver
     | Map.null aliases = deriver
@@ -468,10 +469,10 @@ with_instrument_aliases aliases deriver
         old_aliases = state_instrument_aliases state
         resolve inst = Map.findWithDefault inst inst old_aliases
 
-instrument_exists :: Score.Instrument -> Deriver Bool
+instrument_exists :: ScoreT.Instrument -> Deriver Bool
 instrument_exists = (Either.isRight . snd <$>) . lookup_instrument
 
-get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
+get_instrument :: ScoreT.Instrument -> Deriver (ScoreT.Instrument, Instrument)
 get_instrument score_inst = do
     (real_inst, result) <- lookup_instrument score_inst
     case result of
@@ -484,8 +485,8 @@ get_instrument score_inst = do
 -- | Look up the instrument.  Also return the instrument name after resolving
 -- any alias.  This is what goes in 'Score.event_instrument', since it's what
 -- the performer understands.
-lookup_instrument :: Score.Instrument
-    -> Deriver (Score.Instrument, Either Text Instrument)
+lookup_instrument :: ScoreT.Instrument
+    -> Deriver (ScoreT.Instrument, Either Text Instrument)
 lookup_instrument inst = do
     aliases <- Internal.get_dynamic state_instrument_aliases
     let real_inst = Map.findWithDefault inst inst aliases
@@ -496,41 +497,41 @@ lookup_instrument inst = do
 -- ** control
 
 -- | Return an entire signal.
-lookup_control :: Score.Control
-    -> Deriver (Maybe (RealTime -> Score.Typed Signal.Y))
+lookup_control :: ScoreT.Control
+    -> Deriver (Maybe (RealTime -> ScoreT.Typed Signal.Y))
 lookup_control control = lookup_control_function control >>= \case
     Just f -> return $ Just f
     Nothing -> lookup_control_signal control >>= return . fmap signal_function
 
-is_control_set :: Score.Control -> Deriver Bool
+is_control_set :: ScoreT.Control -> Deriver Bool
 is_control_set = fmap Maybe.isJust . lookup_control
 
-signal_function :: Score.Typed Signal.Control
-    -> (RealTime -> Score.Typed Signal.Y)
+signal_function :: ScoreT.Typed Signal.Control
+    -> (RealTime -> ScoreT.Typed Signal.Y)
 signal_function sig t = Signal.at t <$> sig
 
-lookup_control_signal :: Score.Control
-    -> Deriver (Maybe (Score.Typed Signal.Control))
+lookup_control_signal :: ScoreT.Control
+    -> Deriver (Maybe (ScoreT.Typed Signal.Control))
 lookup_control_signal control = Map.lookup control <$> get_controls
 
 get_controls :: Deriver Score.ControlMap
 get_controls = Internal.get_dynamic state_controls
 
-get_control_functions :: Deriver Score.ControlFunctionMap
+get_control_functions :: Deriver BaseTypes.ControlFunctionMap
 get_control_functions = Internal.get_dynamic state_control_functions
 
 -- | Get the control value at the given time, taking 'state_control_functions'
 -- into account.
-control_at :: Score.Control -> RealTime
-    -> Deriver (Maybe (Score.Typed Signal.Y))
+control_at :: ScoreT.Control -> RealTime
+    -> Deriver (Maybe (ScoreT.Typed Signal.Y))
 control_at control pos = lookup_control_function control >>= \case
     Just f -> return $ Just $ f pos
     Nothing -> do
         maybe_sig <- Map.lookup control <$> get_controls
         return $ fmap (Signal.at pos) <$> maybe_sig
 
-lookup_control_function :: Score.Control
-    -> Deriver (Maybe (RealTime -> Score.Typed Signal.Y))
+lookup_control_function :: ScoreT.Control
+    -> Deriver (Maybe (RealTime -> ScoreT.Typed Signal.Y))
 lookup_control_function control = do
     functions <- Internal.get_dynamic state_control_functions
     case Map.lookup control functions of
@@ -539,12 +540,12 @@ lookup_control_function control = do
             dyn <- Internal.get_control_function_dynamic
             return $ Just $ BaseTypes.call_control_function f control dyn
 
-untyped_control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
-untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
+untyped_control_at :: ScoreT.Control -> RealTime -> Deriver (Maybe Signal.Y)
+untyped_control_at cont = fmap (fmap ScoreT.typed_val) . control_at cont
 
 -- | Get a ControlValMap at the given time, taking 'state_control_functions'
 -- into account.
-controls_at :: RealTime -> Deriver Score.ControlValMap
+controls_at :: RealTime -> Deriver ScoreT.ControlValMap
 controls_at pos = do
     state <- get
     ruler <- Internal.get_ruler
@@ -555,7 +556,7 @@ state_controls_at :: RealTime -> Ruler.Marklists
     -- ^ Ruler marklists from the same track as the Dynamic.  Needed by
     -- control functions, via 'BaseTypes.dyn_ruler'.
     -> Dynamic -> Int -- ^ 'state_event_serial'
-    -> Score.ControlValMap
+    -> ScoreT.ControlValMap
 state_controls_at pos ruler dyn serial = Map.fromList $
     map (resolve (Internal.convert_dynamic ruler dyn serial) pos) $
     Seq.equal_pairs (\a b -> fst a == fst b)
@@ -565,22 +566,22 @@ state_controls_at pos ruler dyn serial = Map.fromList $
     resolve cf_dyn pos p = case p of
         Seq.Both (k, f) _ -> (k, call k f)
         Seq.First (k, f) -> (k, call k f)
-        Seq.Second (k, sig) -> (k, Signal.at pos (Score.typed_val sig))
+        Seq.Second (k, sig) -> (k, Signal.at pos (ScoreT.typed_val sig))
         where
-        call control f = Score.typed_val $
+        call control f = ScoreT.typed_val $
             BaseTypes.call_control_function f control cf_dyn pos
 
 -- *** control signal
 
-with_control :: Score.Control -> Score.Typed Signal.Control
+with_control :: ScoreT.Control -> ScoreT.Typed Signal.Control
     -> Deriver a -> Deriver a
 with_control control signal = with_controls [(control, signal)]
 
-with_constant_control :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
+with_constant_control :: ScoreT.Control -> Signal.Y -> Deriver a -> Deriver a
 with_constant_control control val =
-    with_control control (Score.untyped (Signal.constant val))
+    with_control control (ScoreT.untyped (Signal.constant val))
 
-with_controls :: [(Score.Control, Score.Typed Signal.Control)]
+with_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
     -> Deriver a -> Deriver a
 with_controls controls
     | null controls = id
@@ -590,7 +591,7 @@ with_controls controls
 
 -- | Remove both controls and control functions.  Use this when a control has
 -- already been applied, and you don't want it to affect further derivation.
-remove_controls :: [Score.Control] -> Deriver a -> Deriver a
+remove_controls :: [ScoreT.Control] -> Deriver a -> Deriver a
 remove_controls controls
     | null controls = id
     | otherwise = Internal.local $ \state-> state
@@ -599,7 +600,7 @@ remove_controls controls
             Util.Map.delete_keys controls (state_control_functions state)
         }
 
-with_control_function :: Score.Control -> BaseTypes.ControlFunction
+with_control_function :: ScoreT.Control -> BaseTypes.ControlFunction
     -> Deriver a -> Deriver a
 with_control_function control f = Internal.local $ \state -> state
     { state_control_functions =
@@ -607,7 +608,7 @@ with_control_function control f = Internal.local $ \state -> state
     }
 
 -- | Replace the controls entirely.
-with_control_maps :: Score.ControlMap -> Score.ControlFunctionMap
+with_control_maps :: Score.ControlMap -> BaseTypes.ControlFunctionMap
     -> Deriver a -> Deriver a
 with_control_maps cmap cfuncs = Internal.local $ \state -> state
     { state_controls = cmap
@@ -621,7 +622,7 @@ with_control_maps cmap cfuncs = Internal.local $ \state -> state
 --
 -- As documetned in 'merge', this acts like a Set if there is no existing
 -- control.
-with_merged_control :: Merger -> Score.Control -> Score.Typed Signal.Control
+with_merged_control :: Merger -> ScoreT.Control -> ScoreT.Typed Signal.Control
     -> Deriver a -> Deriver a
 with_merged_control merger control signal deriver = do
     controls <- get_controls
@@ -630,7 +631,7 @@ with_merged_control merger control signal deriver = do
 
 -- | Like 'with_controls', but merge them with their respective default
 -- 'Merger's.
-with_merged_controls :: [(Score.Control, Score.Typed Signal.Control)]
+with_merged_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
     -> Deriver a -> Deriver a
 with_merged_controls control_vals deriver
     | null control_vals = deriver
@@ -642,7 +643,7 @@ with_merged_controls control_vals deriver
             merged = zipWith3 merge mergers old_vals new_vals
         with_controls (zip controls merged) deriver
 
-resolve_merge :: Merge -> Score.Control -> Deriver Merger
+resolve_merge :: Merge -> ScoreT.Control -> Deriver Merger
 resolve_merge DefaultMerge control = get_default_merger control
 resolve_merge (Merge merger) _ = return merger
 
@@ -653,7 +654,7 @@ get_control_merge name = do
         (Map.lookup name mergers)
 
 -- | Get the default merger for this control, or 'merge_mul' if there is none.
-get_default_merger :: Score.Control -> Deriver Merger
+get_default_merger :: ScoreT.Control -> Deriver Merger
 get_default_merger control = do
     defaults <- Internal.get_dynamic state_control_merge_defaults
     return $ Map.findWithDefault default_merge control defaults
@@ -666,15 +667,15 @@ get_default_merger control = do
 -- Since the default merge for control tracks is multiplication, whose identity
 -- is 1, this means the first control track will set the value, instead of
 -- being multiplied to 0.
-merge :: Merger -> Maybe (Score.Typed Signal.Control)
-    -> Score.Typed Signal.Control -> Score.Typed Signal.Control
+merge :: Merger -> Maybe (ScoreT.Typed Signal.Control)
+    -> ScoreT.Typed Signal.Control -> ScoreT.Typed Signal.Control
 merge Set _ new = new
 merge Unset (Just old) _ = old
 merge Unset Nothing new = new
 merge (Merger _ merger ident) maybe_old new =
-    Score.Typed (Score.type_of old <> Score.type_of new)
-        (merger (Score.typed_val old) (Score.typed_val new))
-    where old = fromMaybe (Score.untyped (Signal.constant ident)) maybe_old
+    ScoreT.Typed (ScoreT.type_of old <> ScoreT.type_of new)
+        (merger (ScoreT.typed_val old) (ScoreT.typed_val new))
+    where old = fromMaybe (ScoreT.untyped (Signal.constant ident)) maybe_old
     -- Using ident is *not* the same as just emitting the 'new' signal for
     -- subtraction!
 
@@ -689,7 +690,7 @@ merge_vals merger old new = case merger of
 -- *** ControlMod
 
 -- | Emit a 'ControlMod'.
-modify_control :: Merger -> Score.Control -> Signal.Control -> Deriver ()
+modify_control :: Merger -> ScoreT.Control -> Signal.Control -> Deriver ()
 modify_control merger control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =
         ControlMod control signal merger : collect_control_mods collect }
@@ -712,7 +713,7 @@ with_control_mods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
 with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
     where
     apply (ControlMod control signal merger) =
-        with_merged_control merger control $ Score.untyped $
+        with_merged_control merger control $ ScoreT.untyped $
             Signal.clip_after end signal
             -- TODO is clip_after necessary?  Document end better, with
             -- a reference to a test which demonstrates the issue.
@@ -731,7 +732,7 @@ pitch_at :: RealTime -> Deriver (Maybe PSignal.Pitch)
 pitch_at pos = PSignal.at pos <$> get_pitch
 
 -- | Like 'pitch_at', this is a raw pitch.
-named_pitch_at :: Score.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
+named_pitch_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
 named_pitch_at name pos = do
     psig <- get_named_pitch name
     return $ maybe Nothing (PSignal.at pos) psig
@@ -752,12 +753,12 @@ nn_at pos = justm (pitch_at pos) $ \pitch ->
 get_pitch :: Deriver PSignal.PSignal
 get_pitch = Internal.get_dynamic state_pitch
 
-get_named_pitch :: Score.PControl -> Deriver (Maybe PSignal.PSignal)
+get_named_pitch :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
 get_named_pitch name
     | name == Score.default_pitch = Just <$> Internal.get_dynamic state_pitch
     | otherwise = Map.lookup name <$> Internal.get_dynamic state_pitches
 
-named_nn_at :: Score.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
+named_nn_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
     controls <- controls_at pos
     justm (named_pitch_at name pos) $ \pitch ->
@@ -778,7 +779,7 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
 with_pitch :: PSignal.PSignal -> Deriver a -> Deriver a
 with_pitch = modify_pitch Score.default_pitch . const
 
-with_named_pitch :: Score.PControl -> PSignal.PSignal -> Deriver a -> Deriver a
+with_named_pitch :: ScoreT.PControl -> PSignal.PSignal -> Deriver a -> Deriver a
 with_named_pitch pcontrol = modify_pitch pcontrol . const
 
 with_constant_pitch :: PSignal.Pitch -> Deriver a -> Deriver a
@@ -787,7 +788,7 @@ with_constant_pitch = with_pitch . PSignal.constant
 remove_pitch :: Deriver a -> Deriver a
 remove_pitch = modify_pitch Score.default_pitch (const mempty)
 
-modify_pitch :: Score.PControl -> (Maybe PSignal.PSignal -> PSignal.PSignal)
+modify_pitch :: ScoreT.PControl -> (Maybe PSignal.PSignal -> PSignal.PSignal)
     -> Deriver a -> Deriver a
 modify_pitch pcontrol f
     | pcontrol == Score.default_pitch = Internal.local $ \state ->

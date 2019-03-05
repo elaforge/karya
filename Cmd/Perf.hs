@@ -36,6 +36,7 @@ import qualified Derive.Note
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Typecheck as Typecheck
@@ -249,7 +250,7 @@ scale_from_titles block_id track_id = do
         _ -> Nothing
 
 -- | Find the instrument in scope.
-lookup_instrument :: Cmd.M m => Track -> m (Maybe Score.Instrument)
+lookup_instrument :: Cmd.M m => Track -> m (Maybe ScoreT.Instrument)
 lookup_instrument track = lookup_val track EnvKey.instrument
 
 -- | Lookup value from the deriver's EnvKey at the given block and (possibly)
@@ -302,7 +303,7 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
 
 -- * infer muted instruments
 
-infer_muted_instruments :: Cmd.M m => m (Set Score.Instrument)
+infer_muted_instruments :: Cmd.M m => m (Set ScoreT.Instrument)
 infer_muted_instruments = do
     allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
     (<> PlayUtil.muted_instruments allocs) . Map.keysSet <$>
@@ -316,18 +317,18 @@ infer_muted_instruments = do
 --
 -- This should be in PlayUtil along with 'PlayUtil.muted_instruments', but
 -- can't due to using 'lookup_instrument' and circular imports.
-infer_muted_instrument_tracks :: Cmd.M m => m (Map Score.Instrument [TrackId])
+infer_muted_instrument_tracks :: Cmd.M m => m (Map ScoreT.Instrument [TrackId])
 infer_muted_instrument_tracks = do
     muted <- Set.toList <$> PlayUtil.get_muted_tracks
     instruments <- mapM infer_instrument muted
     return $ Util.Map.multimap $ Seq.map_maybe_fst id $ zip instruments muted
 
-infer_instrument :: Cmd.M m => TrackId -> m (Maybe Score.Instrument)
+infer_instrument :: Cmd.M m => TrackId -> m (Maybe ScoreT.Instrument)
 infer_instrument track_id =
     justm (fmap fst . Seq.head <$> Ui.blocks_with_track_id track_id) $
         \block_id -> lookup_instrument (block_id, Just track_id)
 
-tracks_of_instrument :: Cmd.M m => BlockId -> Score.Instrument -> m [TrackId]
+tracks_of_instrument :: Cmd.M m => BlockId -> ScoreT.Instrument -> m [TrackId]
 tracks_of_instrument block_id instrument = do
     track_ids <- Ui.track_ids_of block_id
     filterM (fmap (== Just instrument) . infer_instrument) track_ids

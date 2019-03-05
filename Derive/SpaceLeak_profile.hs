@@ -9,10 +9,10 @@ import qualified Util.Thread as Thread
 import qualified Derive.C.Post.Postproc as Postproc
 import qualified Derive.Call.Post as Post
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
-import Global
+import           Global
 
 
 profile_cancel = do
@@ -20,7 +20,7 @@ profile_cancel = do
             (Postproc.cancel_strong_weak Postproc.infer_duration_merged)
             Post.hand_key 2
         make = Stream.from_sorted_events . map DeriveTest.mkevent
-        inst = Score.Instrument "i1"
+        inst = ScoreT.Instrument "i1"
     let events = make [(s, 1, "4c", [], inst) | s <- Seq.range 0 (1024 * 50) 1]
     -- With force, run with -K2905K
     Thread.force events

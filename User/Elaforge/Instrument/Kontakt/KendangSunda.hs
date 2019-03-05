@@ -7,7 +7,6 @@ module User.Elaforge.Instrument.Kontakt.KendangSunda (
     patches, write_ksp, pitch_control
     , resolve_errors
 ) where
-import qualified Midi.Key as Key
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -20,11 +19,13 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 
+import qualified Midi.Key as Key
 import qualified User.Elaforge.Instrument.Kontakt.Util as Util
-import Global
+
+import           Global
 
 
 patches :: [MidiInst.Patch]
@@ -94,10 +95,10 @@ c_det vague_pitch = Derive.generator Module.instrument name Tags.attr doc $
         Just Middle -> Attrs.middle
         Just High -> Attrs.high
 
-tuning_control :: Score.Control
+tuning_control :: ScoreT.Control
 tuning_control = "kendang-tune"
 
-pitch_control :: Score.Control
+pitch_control :: ScoreT.Control
 pitch_control = "pitch"
 
 pitched_notes :: CUtil.PitchedNotes

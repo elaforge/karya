@@ -8,10 +8,6 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import Util.Test
-
-import qualified Ui.Event as Event
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -27,6 +23,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
@@ -37,8 +34,12 @@ import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.Event as Event
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 module_ :: Module.Module
@@ -293,7 +294,7 @@ test_track_dynamic = do
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             ]
-    let e_dyn dyn = Signal.to_pairs . Score.typed_val <$>
+    let e_dyn dyn = Signal.to_pairs . ScoreT.typed_val <$>
             Map.lookup Controls.dynamic (Derive.state_controls dyn)
         e_scale = env_lookup EnvKey.scale . Derive.state_environ
         all_tracks = [(block_id, n) | n <- [1..5]]
@@ -320,7 +321,7 @@ test_track_dynamic_consistent = do
             , ("sub=ruler", [(">", [(0, 1, "")])])
             ]
         e_env = env_lookup "env" . Derive.state_environ
-        e_control = fmap (Signal.to_pairs . Score.typed_val) . Map.lookup "c"
+        e_control = fmap (Signal.to_pairs . ScoreT.typed_val) . Map.lookup "c"
             . Derive.state_controls
     -- %c is only set in the env=b branch, so it shouldn't be set when env=a.
     equal (run e_env) (Just "a")

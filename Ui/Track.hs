@@ -8,7 +8,7 @@ import qualified Control.DeepSeq as DeepSeq
 
 import qualified Util.Pretty as Pretty
 import qualified App.Config as Config
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Ui.Color as Color
@@ -108,7 +108,7 @@ data RenderStyle = NoRender | Line !(Maybe RenderSource)
     | Filled !(Maybe RenderSource)
     deriving (Eq, Read, Show)
 
-data RenderSource = Control Score.Control | Pitch Score.PControl
+data RenderSource = Control ScoreT.Control | Pitch ScoreT.PControl
     deriving (Eq, Read, Show)
 
 instance Pretty RenderSource where

@@ -149,7 +149,7 @@ instance Serialize.Serialize UiConfig.Allocations where
         v <- Serialize.get_version
         case v of
             1 -> do
-                configs :: Map Score.Instrument UiConfig.Allocation <- get
+                configs :: Map ScoreT.Instrument UiConfig.Allocation <- get
                 return $ UiConfig.Allocations configs
             _ -> Serialize.bad_version "UiConfig.Allocations" v
 
@@ -177,7 +177,7 @@ instance Serialize UiConfig.Backend where
         _ -> bad_tag "UiConfig.Backend" tag
 
 -- | For backward compatibility.
-newtype MidiConfigs = MidiConfigs (Map Score.Instrument Patch.Config)
+newtype MidiConfigs = MidiConfigs (Map ScoreT.Instrument Patch.Config)
     deriving (Show)
 
 instance Serialize MidiConfigs where
@@ -186,7 +186,7 @@ instance Serialize MidiConfigs where
         v <- Serialize.get_version
         case v of
             5 -> do
-                insts :: Map Score.Instrument Patch.Config <- get
+                insts :: Map ScoreT.Instrument Patch.Config <- get
                 return $ MidiConfigs insts
             _ -> Serialize.bad_version "Patch.MidiConfigs" v
 
@@ -525,16 +525,16 @@ instance Serialize Track.RenderSource where
     put (Track.Control a) = put_tag 0 >> put a
     put (Track.Pitch a) = do
         put_tag 1
-        -- It used to be @Maybe Score.Control@ but changed to Score.PControl.
+        -- It used to be @Maybe ScoreT.Control@ but changed to ScoreT.PControl.
         -- RenderSource isn't versioned so adjust here.
         let c = if a == Score.default_pitch then Nothing else Just a
         put c
     get = get_tag >>= \case
         0 -> do
-            control :: Score.Control <- get
+            control :: ScoreT.Control <- get
             return $ Track.Control control
         1 -> do
-            control :: Maybe Score.PControl <- get
+            control :: Maybe ScoreT.PControl <- get
             return $ Track.Pitch (fromMaybe Score.default_pitch control)
         tag -> bad_tag "Track.RenderSource" tag
 
@@ -547,7 +547,7 @@ instance Serialize Patch.Config where
         7 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
-            control_defaults :: Score.ControlValMap <- get
+            control_defaults :: ScoreT.ControlValMap <- get
             let settings = old_settings
                     { Patch.config_scale = scale
                     , Patch.config_control_defaults = nonempty control_defaults
@@ -556,7 +556,7 @@ instance Serialize Patch.Config where
         8 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
             scale :: Maybe Patch.Scale <- get
-            control_defaults :: Score.ControlValMap <- get
+            control_defaults :: ScoreT.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
             let settings = old_settings
                     { Patch.config_scale = scale
@@ -565,7 +565,7 @@ instance Serialize Patch.Config where
             return $ Patch.Config alloc initialization settings
         9 -> do
             alloc :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-            control_defaults :: Score.ControlValMap <- get
+            control_defaults :: ScoreT.ControlValMap <- get
             initialization :: Set Patch.Initialization <- get
             settings :: Patch.Settings <- get
             return $ Patch.Config alloc initialization
@@ -622,7 +622,7 @@ instance Serialize Patch.Settings where
             scale :: Maybe Patch.Scale <- get
             decay :: Maybe RealTime <- get
             pitch_bend_range :: Maybe Midi.Control.PbRange <- get
-            control_defaults :: Maybe Score.ControlValMap <- get
+            control_defaults :: Maybe ScoreT.ControlValMap <- get
             return $ Patch.Settings flags scale decay pitch_bend_range
                 control_defaults
         v -> Serialize.bad_version "Patch.Settings" v
@@ -691,7 +691,7 @@ instance Serialize Lilypond.Config where
                 quarter :: RealTime <- get
                 quantize :: Lilypond.Duration <- get
                 dotted_rests :: Bool <- get
-                staves :: [(Score.Instrument, Lilypond.StaffConfig)] <- get
+                staves :: [(ScoreT.Instrument, Lilypond.StaffConfig)] <- get
                 return $ Lilypond.Config quarter quantize dotted_rests staves
             _ -> Serialize.bad_version "Lilypond.Config" v
 

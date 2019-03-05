@@ -14,16 +14,17 @@ import qualified Data.Text as Text
 
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
-import qualified Midi.Midi as Midi
-import qualified Derive.Score as Score
-import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Patch as Patch
+import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
 
-import Global
+import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Patch as Patch
+
+import           Global
 
 
 type Search = Query -> [InstTypes.Qualified]
@@ -157,4 +158,4 @@ normalize_tags =
     Seq.drop_dups id . List.sort . map (bimap Text.toLower Text.toLower)
 
 control_tags :: Control.ControlMap -> [Tag.Tag]
-control_tags = map ((,) Tag.control . Score.control_name) . Map.keys
+control_tags = map ((,) Tag.control . ScoreT.control_name) . Map.keys

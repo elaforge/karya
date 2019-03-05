@@ -74,6 +74,7 @@ import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
@@ -729,7 +730,7 @@ data EditState = EditState {
     -- of notes per octave.
     , state_kbd_entry_octave :: !Pitch.Octave
     , state_recorded_actions :: !RecordedActions
-    , state_instrument_attributes :: !(Map Score.Instrument Attrs.Attributes)
+    , state_instrument_attributes :: !(Map ScoreT.Instrument Attrs.Attributes)
     -- | See 'set_edit_box'.
     , state_edit_box :: !(Block.Box, Block.Box)
     } deriving (Eq, Show)
@@ -1218,21 +1219,21 @@ midi_instrument inst = case inst_backend inst of
     Just (Midi patch config) -> Just (patch, config)
     _ -> Nothing
 
-get_midi_instrument :: (CallStack.Stack, M m) => Score.Instrument
+get_midi_instrument :: (CallStack.Stack, M m) => ScoreT.Instrument
     -> m (Patch.Patch, Patch.Config)
 get_midi_instrument inst =
     require ("not a midi instrument: " <> pretty inst) . midi_instrument
         =<< get_instrument inst
 
-lookup_midi_config :: M m => Score.Instrument -> m (Maybe Patch.Config)
+lookup_midi_config :: M m => ScoreT.Instrument -> m (Maybe Patch.Config)
 lookup_midi_config inst = justm (lookup_backend inst) $ \case
     Midi _ config -> return $ Just config
     _ -> return Nothing
 
-lookup_backend :: M m => Score.Instrument -> m (Maybe Backend)
+lookup_backend :: M m => ScoreT.Instrument -> m (Maybe Backend)
 lookup_backend inst = justm (lookup_instrument inst) (return . inst_backend)
 
-lookup_instrument :: M m => Score.Instrument -> m (Maybe ResolvedInstrument)
+lookup_instrument :: M m => ScoreT.Instrument -> m (Maybe ResolvedInstrument)
 lookup_instrument inst = do
     ui_state <- Ui.get
     db <- gets $ config_instrument_db . state_config
@@ -1245,12 +1246,13 @@ lookup_instrument inst = do
                 return Nothing
             Right val -> return (Just val)
 
-get_instrument :: (CallStack.Stack, M m) => Score.Instrument
+get_instrument :: (CallStack.Stack, M m) => ScoreT.Instrument
     -> m ResolvedInstrument
 get_instrument inst = require ("instrument not found: " <> pretty inst)
     =<< lookup_instrument inst
 
-get_lookup_instrument :: M m => m (Score.Instrument -> Maybe ResolvedInstrument)
+get_lookup_instrument :: M m
+    => m (ScoreT.Instrument -> Maybe ResolvedInstrument)
 get_lookup_instrument = do
     ui_state <- Ui.get
     cmd_state <- get
@@ -1261,7 +1263,7 @@ get_lookup_instrument = do
 -- you're going to do it a lot.  'instrument_resolve' has to merge some things
 -- so it's not exactly free.
 get_lookup_instrument_memoized :: M m
-    => m (Score.Instrument -> Maybe ResolvedInstrument)
+    => m (ScoreT.Instrument -> Maybe ResolvedInstrument)
 get_lookup_instrument_memoized = do
     ui_state <- Ui.get
     cmd_state <- get
@@ -1271,7 +1273,7 @@ get_lookup_instrument_memoized = do
             . state_resolve_instrument ui_state cmd_state
     return $ \inst -> Map.lookup inst memo
 
-state_resolve_instrument :: Ui.State -> State -> Score.Instrument
+state_resolve_instrument :: Ui.State -> State -> ScoreT.Instrument
     -> Either Text ResolvedInstrument
 state_resolve_instrument ui_state cmd_state = \inst -> do
     alloc <- justErr ("no alloc for " <> pretty inst) $
@@ -1404,11 +1406,12 @@ set_note_text text = do
     set_status Config.status_note_text $
         if Text.null text then Nothing else Just text
 
-get_instrument_attributes :: M m => Score.Instrument -> m Attrs.Attributes
+get_instrument_attributes :: M m => ScoreT.Instrument -> m Attrs.Attributes
 get_instrument_attributes inst = fromMaybe mempty <$>
     gets (Map.lookup inst . state_instrument_attributes . state_edit)
 
-set_instrument_attributes :: M m => Score.Instrument -> Attrs.Attributes -> m ()
+set_instrument_attributes :: M m => ScoreT.Instrument -> Attrs.Attributes
+    -> m ()
 set_instrument_attributes inst attrs = modify_edit_state $ \st -> st
     { state_instrument_attributes =
         Map.insert inst attrs (state_instrument_attributes st)

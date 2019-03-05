@@ -38,9 +38,10 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted)
+import           Derive.Sig (defaulted)
 import qualified Derive.Symbols as Symbols
 import qualified Derive.Typecheck as Typecheck
 
@@ -49,8 +50,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -248,7 +249,7 @@ c_slur direction = Derive.generator Module.prelude "legato"
     \\nThe `^` and `_` variants are the same in normal performance, but force\
     \ lilypond slurs to go above or below, respectively."
     $ Sig.call ((,,)
-    <$> defaulted "overlap" (Sig.typed_control "legato-overlap" 0.1 Score.Real)
+    <$> defaulted "overlap" (Sig.typed_control "legato-overlap" 0.1 ScoreT.Real)
         "All notes but the last have their durations extended by this amount."
     <*> defaulted "detach" Nothing "Shorten the final note by this amount,\
         \ by setting `%sus-abs`.\

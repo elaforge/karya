@@ -7,10 +7,6 @@
 module Derive.Call.NoteUtil (make_event, make_event_control_vals) where
 import qualified Data.Map as Map
 
-import qualified Ui.Color as Color
-import qualified Ui.Event as Event
-import qualified Ui.ScoreTime as ScoreTime
-
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
@@ -21,11 +17,16 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.Color as Color
+import qualified Ui.Event as Event
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 -- | This is the canonical way to make a Score.Event.  It handles all the
@@ -39,7 +40,7 @@ make_event args dyn start dur flags = do
 
 -- | Specialized version of 'make_event' just so I can avoid calling
 -- Derive.controls_at twice.
-make_event_control_vals :: Score.ControlValMap -> Derive.PassedArgs a
+make_event_control_vals :: ScoreT.ControlValMap -> Derive.PassedArgs a
     -> Derive.Dynamic -> RealTime -> RealTime -> Flags.Flags
     -> Derive.Deriver Score.Event
 make_event_control_vals control_vals args dyn start dur flags = do
@@ -56,7 +57,7 @@ make_event_control_vals control_vals args dyn start dur flags = do
         , event_pitches = Derive.state_pitches dyn
         , event_stack = Derive.state_stack dyn
         , event_highlight = Color.NoHighlight
-        , event_instrument = fromMaybe Score.empty_instrument $
+        , event_instrument = fromMaybe ScoreT.empty_instrument $
             Env.maybe_val EnvKey.instrument environ
         , event_environ = stash_convert_values control_vals offset environ
         , event_flags = flags
@@ -69,7 +70,7 @@ make_event_control_vals control_vals args dyn start dur flags = do
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
-stash_convert_values :: Score.ControlValMap -> RealTime -> Env.Environ
+stash_convert_values :: ScoreT.ControlValMap -> RealTime -> Env.Environ
     -> Env.Environ
 stash_convert_values vals offset =
     stash_start_offset

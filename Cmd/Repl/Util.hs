@@ -6,17 +6,18 @@ module Cmd.Repl.Util where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Derive.ScoreT as ScoreT
 import qualified Ui.Id as Id
-import qualified Derive.Score as Score
-import Global
+
+import           Global
 
 
 type Instrument = Text
 
--- | Create a 'Score.Instrument'.  Drop a leading @>@, since I often
+-- | Create a 'ScoreT.Instrument'.  Drop a leading @>@, since I often
 -- accidentally include one.
-instrument :: Instrument -> Score.Instrument
-instrument = Score.Instrument . Text.dropWhile (=='>')
+instrument :: Instrument -> ScoreT.Instrument
+instrument = ScoreT.Instrument . Text.dropWhile (=='>')
 
 match_map :: Id.Ident id => Text -> Map id a -> Map id a
 match_map match = Map.filterWithKey (\k _ -> match_id match k)

@@ -5,13 +5,6 @@
 module Derive.Control_test where
 import qualified Data.Map as Map
 
-import Util.Test
-import qualified Ui.Events as Events
-import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
-
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Sub as Sub
@@ -19,13 +12,21 @@ import qualified Derive.Control as Control
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.Events as Events
+import qualified Ui.Track as Track
+import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 derive :: (Score.Event -> a) -> UiTest.TrackSpec -> ([a], [Text])
@@ -128,17 +129,17 @@ test_control_merge = do
             , ("cont" <> add_suf <> " add", [(0, 0, "1")])
             ]
         extract = DeriveTest.extract $
-            (\(Score.Typed typ sig) -> (typ, map (at sig) [0..5]))
+            (\(ScoreT.Typed typ sig) -> (typ, map (at sig) [0..5]))
                 . (Map.! "cont") . Score.event_controls
         at sig t = Signal.at (RealTime.seconds t) sig
-    equal (run "" "") ([(Score.Untyped, [1, 2, 3, 2, 1, 1])], [])
+    equal (run "" "") ([(ScoreT.Untyped, [1, 2, 3, 2, 1, 1])], [])
     -- No type on the relative signal means it gets the absolute signal's
     -- type.
-    equal (run ":d" "") ([(Score.Diatonic, [1, 2, 3, 2, 1, 1])], [])
+    equal (run ":d" "") ([(ScoreT.Diatonic, [1, 2, 3, 2, 1, 1])], [])
     -- And vice versa.
-    equal (run "" ":d") ([(Score.Diatonic, [1, 2, 3, 2, 1, 1])], [])
+    equal (run "" ":d") ([(ScoreT.Diatonic, [1, 2, 3, 2, 1, 1])], [])
     -- If they both have types, the absolute signal wins.
-    equal (run ":c" ":d") ([(Score.Chromatic, [1, 2, 3, 2, 1, 1])], [])
+    equal (run ":c" ":d") ([(ScoreT.Chromatic, [1, 2, 3, 2, 1, 1])], [])
 
     -- Putting relative and absolute in the wrong order is ok since addition
     -- is a monoid.
@@ -160,7 +161,7 @@ test_default_merge = do
                 , (c, [(0, 0, ".5")])
                 , (c, [(0, 0, ".5")])
                 ]
-                where c = Score.control_name control
+                where c = ScoreT.control_name control
     equal (run "dyn") ([[(0, 0.25)]], [])
     equal (run "t-dia") ([[(0, 1)]], [])
 

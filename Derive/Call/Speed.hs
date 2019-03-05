@@ -4,13 +4,12 @@
 
 -- | Utilities dealing with speeds.
 module Derive.Call.Speed where
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -19,8 +18,10 @@ import qualified Derive.Warp as Warp
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 data Speed = Score !ScoreTime | Real !RealTime
@@ -28,10 +29,10 @@ data Speed = Score !ScoreTime | Real !RealTime
 
 -- TODO this is a lot of boilerplate just to participate in Typecheck.
 instance Typecheck.Typecheck Speed where
-    from_val = Typecheck.num_to_scalar $ \(Score.Typed typ val) -> case typ of
-        Score.Untyped -> Just $ Real (RealTime.seconds val)
-        Score.Real -> Just $ Real (RealTime.seconds val)
-        Score.Score -> Just $ Score (ScoreTime.from_double val)
+    from_val = Typecheck.num_to_scalar $ \(ScoreT.Typed typ val) -> case typ of
+        ScoreT.Untyped -> Just $ Real (RealTime.seconds val)
+        ScoreT.Real -> Just $ Real (RealTime.seconds val)
+        ScoreT.Score -> Just $ Score (ScoreTime.from_double val)
         _ -> Nothing
     to_type = Typecheck.num_to_type
 instance Typecheck.ToVal Speed where
@@ -44,7 +45,7 @@ instance ShowVal.ShowVal Speed where
     show_val (Real s) = ShowVal.show_val s
 
 arg :: Sig.Parser BaseTypes.ControlRef
-arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 Score.Real)
+arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 ScoreT.Real)
     "Repeat at this speed.  If it's a RealTime, the value is the number of\
     \ repeats per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of repeats per ScoreTime\

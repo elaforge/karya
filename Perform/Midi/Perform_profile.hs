@@ -11,12 +11,13 @@ import qualified Util.Test.Testing as Testing
 import qualified Util.Thread as Thread
 import qualified Util.TimeVector as TimeVector
 
-import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
+import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Perform as Perform
@@ -25,8 +26,7 @@ import qualified Perform.Midi.Types as Types
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.InstTypes as InstTypes
-import Global
+import           Global
 
 
 total_events :: Int
@@ -97,7 +97,7 @@ run_multiple arg action = forM_ [1..6] $ \n -> do
     IO.hFlush IO.stdout
     Thread.printTimer (showt n) id (action arg)
 
-mkevent :: Double -> Double -> [(Score.Control, MSignal.Signal)]
+mkevent :: Double -> Double -> [(ScoreT.Control, MSignal.Signal)]
     -> MSignal.Signal -> Types.Event
 mkevent start dur controls pitch_sig = PerformTest.empty_event
     { Types.event_start = RealTime.seconds start
@@ -115,7 +115,7 @@ mkpatch name = (PerformTest.mkpatch name) { Types.patch_decay = Just 1 }
 
 configs :: Perform.Configs
 configs = Map.fromList
-    [ (Score.Instrument "patch1",
+    [ (ScoreT.Instrument "patch1",
         Perform.addrs_config [((dev, n), Nothing) | n <- [0..8]])
     ]
     where dev = Midi.write_device "dev1"

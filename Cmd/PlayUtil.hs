@@ -36,6 +36,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 
 import qualified Instrument.Common as Common
@@ -148,7 +149,7 @@ perform_from start perf = do
     let (extra, events) = events_from resume_insts start $ Cmd.perf_events perf
     perform_events_list (extra ++ Vector.toList events)
 
-has_flag :: Cmd.M m => Patch.Flag -> Score.Instrument -> m Bool
+has_flag :: Cmd.M m => Patch.Flag -> ScoreT.Instrument -> m Bool
 has_flag flag inst =
     maybe False (`Patch.has_flag` flag) <$> Cmd.lookup_midi_config inst
 
@@ -167,7 +168,7 @@ first_time msgs = case LEvent.events_of msgs of
 
 -- | As a special case, a start <= 0 will get all events, including negative
 -- ones.  This is so notes pushed before 0 won't be clipped on a play from 0.
-events_from :: Set Score.Instrument -- ^ scan back for starts of these
+events_from :: Set ScoreT.Instrument -- ^ scan back for starts of these
     -> RealTime -> Vector.Vector Score.Event
     -> ([Score.Event], Vector.Vector Score.Event)
     -- ^ (extra events before start, events from start)
@@ -186,8 +187,8 @@ default_scan_back :: RealTime
 default_scan_back = 0.075
 
 -- | Starting from the index, look back for overlapping events in the given set.
-scan_for_starts :: RealTime -> Set Score.Instrument -> Vector.Vector Score.Event
-    -> RealTime -> Int -> [Score.Event]
+scan_for_starts :: RealTime -> Set ScoreT.Instrument
+    -> Vector.Vector Score.Event -> RealTime -> Int -> [Score.Event]
 scan_for_starts scan_back resume_insts events pos index =
     reverse $ mapMaybe (set_start scan_back pos) $
         scan (resume_insts `Set.difference` present_here) back
@@ -250,7 +251,7 @@ filter_instrument_muted allocs =
     filter ((`Set.notMember` muted) . Score.event_instrument)
     where muted = muted_instruments allocs
 
-muted_instruments :: UiConfig.Allocations -> Set Score.Instrument
+muted_instruments :: UiConfig.Allocations -> Set ScoreT.Instrument
 muted_instruments (UiConfig.Allocations allocs)
     | not (null soloed) = instruments Set.\\ Set.fromList soloed
     | otherwise = Set.fromList muted
@@ -330,7 +331,7 @@ solo_to_mute tree blocks soloed = Set.fromList
             (Block.block_tracks block)
         ]
 
-midi_configs :: UiConfig.Allocations -> Map Score.Instrument Patch.Config
+midi_configs :: UiConfig.Allocations -> Map ScoreT.Instrument Patch.Config
 midi_configs (UiConfig.Allocations allocs) = Map.fromAscList
     [ (inst, config)
     | (inst, alloc) <- Map.toAscList allocs

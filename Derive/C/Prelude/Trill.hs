@@ -59,7 +59,6 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
@@ -80,7 +79,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -92,8 +91,10 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -148,7 +149,7 @@ c_note_trill use_attributes hardcoded_start hardcoded_end =
 
 neighbor_arg :: Sig.Parser Neighbor
 neighbor_arg = Sig.defaulted "neighbor"
-    (Left $ Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
+    (Left $ Sig.typed_control "tr-neighbor" 1 ScoreT.Diatonic)
     "Alternate with a pitch at this interval."
 
 type Neighbor = Either BaseTypes.ControlRef PSignal.Pitch
@@ -187,7 +188,8 @@ note_trill use_attributes neighbor speed (start_dir, end_dir, hold, adjust) args
     --             (x, maybe_next) <- Seq.zip_next xs
     --             let next = fromMaybe end maybe_next
     --             return $ Sub.Event x (next-x) Call.note
-    --     Call.add_control control (Score.untyped transpose) (Sub.derive notes)
+    --     Call.add_control control (ScoreT.untyped transpose)
+    --         (Sub.derive notes)
 
         -- TODO this is an implementation that directly uses the neighbor pitch
         -- instead of the roundabout signal thing.  But I still need the signal
@@ -219,7 +221,7 @@ neighbor_to_signal start (Right neighbor) = do
     base <- Call.get_pitch start
     diff <- Call.nn_difference start neighbor base
     return $ BaseTypes.ControlSignal $
-        Score.Typed Score.Nn (Signal.constant (realToFrac diff))
+        ScoreT.Typed ScoreT.Nn (Signal.constant (realToFrac diff))
 
 trill_attributes :: Neighbor -> ScoreTime
     -> Derive.Deriver (Maybe Attrs.Attributes)
@@ -484,7 +486,7 @@ c_pitch_trill hardcoded_start hardcoded_end =
             start_dir end_dir adjust hold neighbor speed
         transpose <- smooth_trill transition transpose
         start <- Args.real_start args
-        return $ PSignal.apply_control control (Score.untyped transpose) $
+        return $ PSignal.apply_control control (ScoreT.untyped transpose) $
             PSignal.from_sample start note
 
 c_xcut_pitch :: Bool -> Derive.Generator Derive.Pitch
@@ -494,7 +496,7 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
     $ Sig.call ((,,)
     <$> Sig.defaulted "val1" (Sig.pitch "xcut1") "First pitch."
     <*> Sig.defaulted "val2" (Sig.pitch "xcut2") "Second pitch."
-    <*> Sig.defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
+    <*> Sig.defaulted "speed" (Sig.typed_control "xcut-speed" 14 ScoreT.Real)
         "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
@@ -559,7 +561,7 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
     "Emit a sine wave. The default version is centered on the `offset`,\
     \ and the `+` and `-` variants are above and below it, respectively."
     $ Sig.call ((,,)
-    <$> Sig.defaulted "speed" (Sig.typed_control "sine-speed" 1 Score.Real)
+    <$> Sig.defaulted "speed" (Sig.typed_control "sine-speed" 1 ScoreT.Real)
         "Frequency."
     <*> Sig.defaulted "amp" 1 "Amplitude, measured center to peak."
     <*> Sig.defaulted "offset" 0 "Center point."
@@ -596,7 +598,7 @@ c_xcut_control hold = Derive.generator1 Module.prelude "xcut" mempty
     $ Sig.call ((,,)
     <$> Sig.defaulted "val1" (Sig.control "xcut1" 1) "First value."
     <*> Sig.defaulted "val2" (Sig.control "xcut2" 0) "Second value."
-    <*> Sig.defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
+    <*> Sig.defaulted "speed" (Sig.typed_control "xcut-speed" 14 ScoreT.Real)
         "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
@@ -617,7 +619,7 @@ xcut_control hold val1 val2 = mconcat . map slice . zip (cycle [val1, val2])
 
 trill_speed_arg :: Sig.Parser BaseTypes.ControlRef
 trill_speed_arg =
-    Sig.defaulted "speed" (Sig.typed_control "tr-speed" 14 Score.Real)
+    Sig.defaulted "speed" (Sig.typed_control "tr-speed" 14 ScoreT.Real)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of cycles per ScoreTime\
@@ -715,7 +717,7 @@ adjust_env = Sig.environ "adjust" Sig.Both Shorten
 get_trill_control :: (ScoreTime, ScoreTime) -> Maybe Direction
     -> Maybe Direction -> Adjust -> BaseTypes.Duration
     -> BaseTypes.ControlRef -> BaseTypes.ControlRef
-    -> Derive.Deriver ([(RealTime, Signal.Y)], Score.Control)
+    -> Derive.Deriver ([(RealTime, Signal.Y)], ScoreT.Control)
 get_trill_control (start, end) start_dir end_dir adjust hold neighbor speed = do
     (neighbor_sig, control) <-
         Call.to_transpose_function Typecheck.Diatonic neighbor
@@ -776,7 +778,7 @@ smooth_trill time transitions = do
     -- much difference.
     time_at <- Typecheck.convert_to_function time sig_function
     return $ ControlUtil.smooth_relative ControlUtil.Linear srate
-        (Score.typed_val . time_at) transitions
+        (ScoreT.typed_val . time_at) transitions
 
 -- | Get trill transition times, adjusted for all the various fancy parameters
 -- that trills have.

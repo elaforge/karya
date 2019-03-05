@@ -35,7 +35,7 @@ import           Types
 -- | Serialize the events to the given patch.  This is done atomically because
 -- this is run from the derive thread, which can be killed at any time.
 write :: RealTime -> BlockId
-    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument) -> FilePath
+    -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument) -> FilePath
     -> Vector.Vector Score.Event -> IO ()
 write play_multiplier block_id lookup_inst filename events = do
     notes <- LEvent.write_logs $ convert block_id lookup_inst $
@@ -53,7 +53,7 @@ multiply_time n
         , Note.controls = Signal.map_x (*n) <$> Note.controls note
         }
 
-convert :: BlockId -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+convert :: BlockId -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]
 convert block_id = ConvertUtil.convert $ \event resolved ->
     case Cmd.inst_backend resolved of

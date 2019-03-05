@@ -7,11 +7,6 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.Ui as Ui
-import qualified Ui.UiConfig as UiConfig
-import qualified Ui.UiTest as UiTest
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Bali.Gangsa as Gangsa
 import qualified Derive.Derive as Derive
@@ -20,14 +15,21 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 
+import qualified Instrument.Common as Common
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Types as Types
-import qualified Instrument.Common as Common
+import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
+import qualified Ui.UiTest as UiTest
+
 import qualified User.Elaforge.Instrument.Kontakt as Kontakt
 import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
-import Global
-import Types
+
+import           Global
+import           Types
+import           Util.Test
 
 
 -- * norot
@@ -300,7 +302,7 @@ test_unison_tuning = do
             Common.add_environ EnvKey.tuning tuning
     equal (run [(0, 1, "4i")]) ([("i1", Just 62.5), ("i2", Just 63)], [])
 
-modify_config :: Score.Instrument -> (Common.Config -> Common.Config)
+modify_config :: ScoreT.Instrument -> (Common.Config -> Common.Config)
     -> Ui.State -> Ui.State
 modify_config inst modify = Ui.allocation inst %= fmap update
     where
@@ -475,12 +477,12 @@ derive_tracks = DeriveTest.derive_tracks block_title
 -- * extract
 
 e_by_inst :: (Score.Event -> a) -> Derive.Result
-    -> ([(Score.Instrument, [a])], [Text])
+    -> ([(ScoreT.Instrument, [a])], [Text])
 e_by_inst extract = first Seq.group_fst
     . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
 
 e_pattern :: RealTime -- ^ expect the first note at this time
-    -> Derive.Result -> ([(Score.Instrument, Text)], [Text])
+    -> Derive.Result -> ([(ScoreT.Instrument, Text)], [Text])
 e_pattern start = first (convert_to_pattern pitch_digit start)
     . e_by_inst DeriveTest.e_start_note
 
@@ -522,11 +524,11 @@ block_title :: Text
 block_title =
     "import bali.gangsa | inst = i3 | inst-polos = i1 | inst-sangsih = i2"
 
-polos :: Score.Instrument
+polos :: ScoreT.Instrument
 polos = "i1"
 
-sangsih :: Score.Instrument
+sangsih :: ScoreT.Instrument
 sangsih = "i2"
 
-pasang :: Score.Instrument
+pasang :: ScoreT.Instrument
 pasang = "i3"

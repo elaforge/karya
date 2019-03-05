@@ -10,7 +10,7 @@ import qualified Data.Tuple as Tuple
 import qualified Util.Num as Num
 import qualified Derive.Controls as Controls
 import qualified Derive.Score as Score
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.ScoreT as ScoreT
 
 import qualified Midi.Midi as Midi
 import qualified Perform.Pitch as Pitch
@@ -19,9 +19,9 @@ import qualified Perform.Signal as Signal
 import           Global
 
 
-type ControlMap = Map Score.Control Midi.Control
+type ControlMap = Map ScoreT.Control Midi.Control
 
-control_map :: [(Midi.Control, Score.Control)] -> ControlMap
+control_map :: [(Midi.Control, ScoreT.Control)] -> ControlMap
 control_map = Map.fromList . map Tuple.swap
 
 empty_map :: ControlMap
@@ -32,7 +32,7 @@ empty_map = control_map []
 type PbRange = (Int, Int)
 
 -- | Convert from a control to a function that creates its MIDI message.
-control_constructor :: ControlMap -> Score.Control -> Midi.Key
+control_constructor :: ControlMap -> ScoreT.Control -> Midi.Key
     -> Maybe (Signal.Y -> Midi.ChannelMessage)
 control_constructor cmap cont key
     | Just cc <- Map.lookup cont cmap =
@@ -44,9 +44,9 @@ control_constructor cmap cont key
     | otherwise = Nothing
 
 -- | True if the given control will be used by the MIDI performer.
--- Takes a Score.Control because being a MIDI control is a precondition for
+-- Takes a ScoreT.Control because being a MIDI control is a precondition for
 -- conversion into 'Control'.
-is_midi_control :: ControlMap -> Score.Control -> Bool
+is_midi_control :: ControlMap -> ScoreT.Control -> Bool
 is_midi_control cmap control =
     Map.member control universal_control_map
     || Map.member control cmap
@@ -55,7 +55,7 @@ is_midi_control cmap control =
 -- | True for controls that must have a channel to themselves.  Midi controls
 -- are a subset of what I consider controls, since I include all variable note
 -- parameters.
-is_channel_control :: Score.Control -> Bool
+is_channel_control :: ScoreT.Control -> Bool
 is_channel_control = (/= Controls.aftertouch)
 
 -- | Given a NoteNumber, return the midi note number and pitch bend amount to
@@ -109,8 +109,8 @@ universal_control_map = control_map $
     , (67, "soft-pedal")
     ]
 
-cc_to_control :: Midi.Control -> Score.Control
-cc_to_control = ScoreTypes.Control . ("cc"<>) . showt
+cc_to_control :: Midi.Control -> ScoreT.Control
+cc_to_control = ScoreT.Control . ("cc"<>) . showt
 
 -- * util
 

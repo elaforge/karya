@@ -10,11 +10,6 @@ module User.Elaforge.Instrument.Kontakt where
 import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
-import qualified Midi.CC as CC
-import qualified Midi.Key as Key
-import qualified Midi.Key2 as Key2
-import qualified Midi.Midi as Midi
-
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -38,14 +33,19 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Selisir as Selisir
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
+
+import qualified Instrument.InstTypes as InstTypes
+import qualified Midi.CC as CC
+import qualified Midi.Key as Key
+import qualified Midi.Key2 as Key2
+import qualified Midi.Midi as Midi
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 
-import qualified Instrument.InstTypes as InstTypes
 import qualified User.Elaforge.Instrument.Kontakt.Gong as Gong
 import qualified User.Elaforge.Instrument.Kontakt.KendangBali as KendangBali
 import qualified User.Elaforge.Instrument.Kontakt.KendangSunda as KendangSunda
@@ -56,7 +56,7 @@ import qualified User.Elaforge.Instrument.Kontakt.ScGamelan as ScGamelan
 import qualified User.Elaforge.Instrument.Kontakt.Wayang as Wayang
 import qualified User.Elaforge.Instrument.Reaktor as Reaktor
 
-import Global
+import           Global
 
 
 synth :: MidiInst.Synth
@@ -78,7 +78,7 @@ patches =
     , Wayang.patches
     ]
 
-patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
+patch :: InstTypes.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
 patch = MidiInst.named_patch pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get

@@ -12,19 +12,18 @@ import qualified Data.Text as Text
 import qualified Util.CallStack as CallStack
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.Thread as Thread
 import qualified Util.TimeVector as TimeVector
-
-import qualified Midi.Key as Key
-import qualified Midi.Midi as Midi
-import Midi.Midi (ChannelMessage(..))
 
 import qualified Cmd.Simple as Simple
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
+
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
+import           Midi.Midi (ChannelMessage(..))
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
@@ -32,13 +31,14 @@ import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
-import Perform.Midi.PerformTest (patch1, patch2)
+import           Perform.Midi.PerformTest (patch1, patch2)
 import qualified Perform.Midi.Types as Types
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 gap :: RealTime
@@ -322,7 +322,7 @@ test_msgs_sorted = do
     -- pprint msgs
 
 -- Bad signal that goes over 1 at 1 and 3.
-badsig :: Score.Control -> (Score.Control, MSignal.Signal)
+badsig :: ScoreT.Control -> (ScoreT.Control, MSignal.Signal)
 badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
@@ -844,7 +844,7 @@ test_allot_warn = do
     let f = mapMaybe extract . allot config1
             . map (\(evt, chan) -> (mkevent evt, chan))
         extract (LEvent.Event (e, (dev, chan))) = Just $ Left
-            ( Score.instrument_name $ Types.patch_name $ Types.event_patch e
+            ( ScoreT.instrument_name $ Types.patch_name $ Types.event_patch e
             , pretty dev
             , chan
             )
@@ -870,7 +870,7 @@ secs = RealTime.seconds
 --
 -- (inst, text, start, dur, controls)
 type EventSpec = (Types.Patch, Text, RealTime, RealTime, [Control])
-type Control = (Score.Control, MSignal.Signal)
+type Control = (ScoreT.Control, MSignal.Signal)
 
 mkevents :: [EventSpec] -> [Types.Event]
 mkevents = map mkevent

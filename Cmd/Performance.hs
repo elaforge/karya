@@ -43,6 +43,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stream as Stream
 
 import qualified Instrument.Inst as Inst
@@ -250,7 +251,7 @@ derive ui_state cmd_state block_id = (perf, logs)
         PlayUtil.derive_block prev_cache damage block_id
 
 evaluate_performance :: Maybe Config.Config
-    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> Thread.Seconds -> SendStatus -> FilePath -> RealTime -> BlockId
     -> Cmd.Performance -> IO ()
 evaluate_performance im_config lookup_inst wait send_status score_path
@@ -396,7 +397,7 @@ real_to_score inv_tempo block_id track_ids =
 -- | If there are im events, serialize them and return a Processes to render
 -- them, and the non-im events.
 evaluate_im :: Config.Config
-    -> (Score.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> FilePath -> RealTime -> BlockId -> Vector.Vector Score.Event
     -> IO ([Process], Vector.Vector Score.Event)
 evaluate_im config lookup_inst score_path play_multiplier block_id events = do

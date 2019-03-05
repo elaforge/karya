@@ -53,15 +53,16 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, defaulted_env, required)
+import           Derive.Sig (defaulted, defaulted_env, required)
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -106,12 +107,12 @@ jaru_time_default :: RealTime
 jaru_time_default = 0.15
 
 speed_arg :: Sig.Parser BaseTypes.ControlRef
-speed_arg = defaulted "speed" (Sig.typed_control "tr-speed" 6 Score.Real)
+speed_arg = defaulted "speed" (Sig.typed_control "tr-speed" 6 ScoreT.Real)
     "Alternate pitches at this speed."
 
 neighbor_arg :: Sig.Parser BaseTypes.ControlRef
 neighbor_arg = defaulted "neighbor"
-    (Sig.typed_control "tr-neighbor" 1 Score.Untyped)
+    (Sig.typed_control "tr-neighbor" 1 ScoreT.Untyped)
     "Alternate between 0 and this value."
 
 lilt_env :: Sig.Parser Double
@@ -130,7 +131,7 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
     \ the vocal microtonal trills common in Carnatic music."
     $ Sig.call ((,,,,,,)
     <$> required "pitch" "Base pitch."
-    <*> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Nn)
+    <*> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 ScoreT.Nn)
         "Alternate with a pitch at this interval."
     <*> speed_arg
     <*> defaulted_env "transition" Sig.Both transition_default
@@ -141,7 +142,7 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
         transpose <- kampita start_dir end_dir adjust neighbor speed
             transition hold lilt args
         start <- Args.real_start args
-        return $ PSignal.apply_control control (Score.untyped transpose) $
+        return $ PSignal.apply_control control (ScoreT.untyped transpose) $
             PSignal.from_sample start pitch
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
@@ -180,7 +181,7 @@ c_dip = generator1 "dip" mempty
         transpose <- dip high low speed dyn_scale transition
             (Args.range_or_next args)
         start <- Args.real_start args
-        return $ PSignal.apply_control control (Score.untyped transpose) $
+        return $ PSignal.apply_control control (ScoreT.untyped transpose) $
             PSignal.from_sample start pitch
 
 c_jaru :: Derive.Generator Derive.Pitch
@@ -199,7 +200,7 @@ c_jaru = generator1 "jaru" mempty
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
         let sig = jaru srate start time transition (NonEmpty.toList intervals)
-        return $ PSignal.apply_control control (Score.untyped sig) $
+        return $ PSignal.apply_control control (ScoreT.untyped sig) $
             PSignal.from_sample start pitch
     where
     parse intervals
@@ -225,7 +226,7 @@ c_jaru_intervals transpose intervals = generator1 "jaru" mempty
         let sig = jaru srate start time (fromMaybe time maybe_transition)
                 intervals
         return $ PSignal.apply_control (Typecheck.transpose_control transpose)
-            (Score.untyped sig) (PSignal.from_sample start pitch)
+            (ScoreT.untyped sig) (PSignal.from_sample start pitch)
 
 
 -- * control calls

@@ -18,14 +18,15 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Expr as Expr
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-import Global
-import Types
+
+import           Global
+import           Types
 
 
 -- | Sampling rate.
@@ -176,15 +177,15 @@ make_curve_call doc (CurveD name get_arg curve) =
 -- | Stuff a curve function into a ControlFunction.
 curve_to_cf :: Text -> Curve -> BaseTypes.ControlFunction
 curve_to_cf name (Function curvef) = BaseTypes.ControlFunction name $
-    \_ _ -> Score.untyped . curvef . RealTime.to_seconds
+    \_ _ -> ScoreT.untyped . curvef . RealTime.to_seconds
 curve_to_cf _ Linear = BaseTypes.ControlFunction cf_linear_name $
-    \_ _ -> Score.untyped . RealTime.to_seconds
+    \_ _ -> ScoreT.untyped . RealTime.to_seconds
 
 -- | Convert a ControlFunction back into a curve function.
 cf_to_curve :: BaseTypes.ControlFunction -> Curve
 cf_to_curve cf@(BaseTypes.ControlFunction name _)
     | name == cf_linear_name = Linear
-    | otherwise = Function $ Score.typed_val
+    | otherwise = Function $ ScoreT.typed_val
         . BaseTypes.call_control_function cf Controls.null
             BaseTypes.empty_dynamic
         . RealTime.seconds
@@ -410,11 +411,11 @@ split_samples_relative time_at = concatMap split . Seq.zip_next
 
 -- * control mod
 
-modify :: Score.Control -> RealTime -> Signal.Control -> Derive.Deriver ()
+modify :: ScoreT.Control -> RealTime -> Signal.Control -> Derive.Deriver ()
 modify = modify_with Derive.DefaultMerge
 
 -- | Modify the signal only in the given range.
-modify_with :: Derive.Merge -> Score.Control -> RealTime
+modify_with :: Derive.Merge -> ScoreT.Control -> RealTime
     -- ^ Where the modification should end.  I don't need a start time since
     -- signals already have an implicit start time.
     -> Signal.Control -> Derive.Deriver ()
@@ -432,7 +433,7 @@ modify_with merge control end sig = do
             -- There's no identity for Set, so I have to slice the signal
             -- myself.
             maybe_old <- Derive.lookup_control_signal control
-            return $ case Score.typed_val <$> maybe_old of
+            return $ case ScoreT.typed_val <$> maybe_old of
                 Nothing -> sig
                 Just old -> old <> sig <> Signal.clip_before end old
         Derive.Unset -> return sig

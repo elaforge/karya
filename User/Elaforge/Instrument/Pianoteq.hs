@@ -12,7 +12,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
+import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Common as Common
@@ -75,7 +75,7 @@ harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
         \ default unless " <> ShowVal.doc damp <> " is 1.  The `ped`\
         \ control call is useful to quickly damp ringing notes."
 
-gliss :: Score.Control
+gliss :: ScoreT.Control
 gliss = "gliss"
 
 c_grace :: Derive.Generator Derive.Note
@@ -84,5 +84,5 @@ c_grace = GraceUtil.make_grace Module.instrument
         <> ShowVal.doc gliss <> " and doesn't use `(`.")
     (Derive.with_constant_control gliss 1) (\_args events -> Sub.derive events)
 
-patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
+patch :: InstTypes.Name -> [(Midi.Control, ScoreT.Control)] -> MidiInst.Patch
 patch = MidiInst.named_patch pb_range
