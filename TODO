@@ -104,6 +104,14 @@ UNSORTED
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
     . Score.event_min implies I do, but only Derive.Note uses it so maybe no?
+    . I think the main opportunity to get them is if default note makes them.
+    . It does!  Negative notes make negative Score.Events... then what?
+    . Midi perform doesn't understand them, they wind up with minimal
+      durations.
+    . I guess I rely on postproc to flip them around, but which one?
+    . Postproc.make_cancel seems like it should do it, but I don't see
+      anything about negative duration, just weak and strong cancellation.
+  - Also a negative selection should get a negative event, but it doesn't.
   * implement pitch-oriented grace call
     . It would merge the notes and just do a pitch curve.
     . This is similar to the pitch call, except it can put grace notes before.
@@ -121,10 +129,13 @@ UNSORTED
       3. consistent warp on all notes, ala microrhythm
     . For 1 and 2 I think both arg form 'interp b1 b2' and parent form would
       be useful.
-    . For 3, I would want to apply to a whole track, and loop the model
-      rhythm.  I would also want it to work even when the source is missing
-      a note.  So this is more of a warp, where I map each timestep of the
-      source to a different place, then apply that as a continuous warp.
+  - For 3, I would want to apply to a whole track, and loop the model
+    rhythm.  I would also want it to work even when the source is missing
+    a note.  So this is more of a warp, where I map each timestep of the
+    source to a different place, then apply that as a continuous warp.
+    . This is a way to make a local warp map, then apply that to a child
+      deriver.
+    . Derive the model in linear time, then how to infer its time step?
   - unify deriver parents:
     . Wasn't I going to unify block arg and child track somehow?
     . See Parent.c_event_interpolate for the awkwardness.
@@ -269,6 +280,17 @@ UNSORTED
         manually first and see how it goes.
   * replace parsec with megaparsec
   - support zynaddsubfx
+    . The old binaries don't have VST.  The new ones do, but the UI seems
+      buggy, most UI elements don't respond to the mouse.
+    - First have to compile zynaddsubfx
+      . It doesn't like fltk 1.4: have to add include <FL/platform.H>
+      . It requires libmxml 2.12, not 3
+      . It requires fftw3, brew wants gcc, so compile myself.
+      . For some reason, I get HAS_X11, which is wrong.  This apparently is
+        from fluid, and uses Pixmap, which is presumably X11-only.
+      . And clang segfaults on
+        src/CMakeFiles/zynaddsubfx_core.dir/Params/PADnoteParameters.cpp.o
+        whut?
   * num literal 0 should work as either 0c or 0d.
     . I'll just change grace note defaulting.
   - being able to put 's in bare symbols can lead to confusing errors, e.g.
@@ -1141,11 +1163,11 @@ IN PROGRESS / branch: branches:
       . selisir, wayang -pemade etc.: Relative octave variants.
       . belaganjur, angklung:
       misc notes:
-        . Simplest is an absolute scale with no key and no octave structure, just
-          a mapping from symbol to pitch.
-        . Then we have a relative diatonic scale.  This has a key which influences
-          the note names, since they are relative to a certain pitch, but no other
-          structure.
+        . Simplest is an absolute scale with no key and no octave structure,
+          just a mapping from symbol to pitch.
+        . Then we have a relative diatonic scale.  This has a key which
+          influences the note names, since they are relative to a certain
+          pitch, but no other structure.
   - rewrite shakefile so I can disable features like 'im' and not require
     their dependencies for tests, haddock, etc.
     . I'd like to generalize this to a shake haskell build system, so I can
@@ -2497,7 +2519,11 @@ synth: im:
     rambat:
       * edit and add calung samples
     guzheng:
-      . Everything rings except when explicitly muted.
+      - Everything rings except when explicitly muted.
+        . Do it at the score level.  Have a transformer that lengthens all
+          notes until a damp?
+        . Or do it MIDI style, with a pedal control.  Notes are extended until
+          max of pedal up and note duration.
     mridangam:
       * implement variations as a probability range over neighboring velocities
         . Approximate normal distribution: sum (take n randoms) / n

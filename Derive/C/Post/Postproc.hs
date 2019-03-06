@@ -140,7 +140,6 @@ infer_duration_single key final_dur = Post.emap1_ infer . Post.nexts_by key
                 Score.set_duration final_dur event
         where
         next = List.find ((> Score.event_start event) . Score.event_start) nexts
-
     set_end end event = Score.set_duration (end - Score.event_start event) event
 
 merge_groups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]

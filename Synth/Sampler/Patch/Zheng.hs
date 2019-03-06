@@ -1,0 +1,177 @@
+module Synth.Sampler.Patch.Zheng where
+import qualified Data.Char as Char
+import qualified Data.Map as Map
+import qualified System.Directory as Directory
+import           System.FilePath ((</>))
+import qualified Text.Read as Read
+
+import qualified Util.Map
+import qualified Util.Num as Num
+import qualified Util.PPrint as PPrint
+import qualified Util.Seq as Seq
+
+import qualified Cmd.Instrument.ImInst as ImInst
+import qualified Derive.Attrs as Attrs
+import qualified Derive.Derive as Derive
+import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.ShowVal as ShowVal
+
+import qualified Instrument.Common as Common
+import qualified Midi.Midi as Midi
+import qualified Perform.Im.Patch as Im.Patch
+import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
+
+import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Util as Util
+import qualified Synth.Sampler.Patch.ZhengSamples as ZhengSamples
+import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
+
+import           Global
+
+
+patches :: [Patch.DbPatch]
+patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
+    { Patch._dir = dir
+    , Patch._convert = convert
+    , Patch._karyaPatch =
+        ImInst.code #= code $
+        ImInst.nn_range range $
+        ImInst.make_patch $ Im.Patch.patch
+            { Im.Patch.patch_controls = mconcat
+                [ Control.supportPitch
+                , Control.supportDyn
+                , Control.supportVariation
+                ]
+            , Im.Patch.patch_attribute_map = const () <$> attributeMap
+            }
+    }
+    where
+    dir = "zheng"
+    -- copy paste from User.Elaforge.Instrument.Kontakt
+    -- TODO put it in a shared module
+    code = ImInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
+        <> ImInst.note_transformers [("standard-strings", standard_strings)]
+        -- <> MidiInst.null_call c_highlight_strings
+        <> Util.thru dir convert
+    standard_strings = DUtil.transformer0 "standard-strings"
+        ("Set " <> ShowVal.doc EnvKey.open_strings
+            <> " to standard pitches: " <> ShowVal.doc strings)
+        $ \_ deriver -> Derive.with_val EnvKey.open_strings
+            (map Twelve.nn_pitch strings) deriver
+    strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
+        concatMap ((\nns oct -> map (oct+) nns) notes) octaves
+        where
+        notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
+        octaves = map fromIntegral [0, 12 ..]
+    -- Let's say the top string can bend a minor third.
+    range = (head strings, last strings + 3)
+
+convert :: Note.Note -> Patch.ConvertM Sample.Sample
+convert note = do
+    art <- Util.articulation attributeMap (Note.attributes note)
+    let dynVal = Note.initial0 Control.dynamic note
+    let var = Note.initial0 Control.variation note
+    noteNn <- Util.initialPitch note
+    (key, filename) <- tryJust "no sample" $ toFilename noteNn art dynVal var
+    return $ (Sample.make filename)
+        { Sample.envelope = Signal.constant 1
+        , Sample.ratio = Signal.constant $
+            Sample.pitchToRatio (Pitch.nn_to_hz (Midi.from_key key)) noteNn
+        }
+
+toFilename :: Pitch.NoteNumber -> Articulation -> Signal.Y -> Signal.Y
+    -> Maybe (Midi.Key, FilePath)
+toFilename nn art dyn var = do
+    (key, velToFiles) <- Util.Map.lookup_closest (Midi.to_key (round nn))
+        (samples art)
+    -- TODO pick some from neighbors, since I lost variations due to combining
+    -- them
+    -- TODO also scale by difference from maxVel
+    (_maxVel, filenames) <- Map.lookupGE
+        (round (Num.clamp 0 127 (Num.scale 0 127 dyn)))
+        velToFiles
+    return (key, Util.pickVariation filenames var)
+
+data Articulation = RightHand | LeftHand | Harmonic
+    deriving (Eq, Ord, Show, Enum)
+
+attributeMap :: Common.AttributeMap Articulation
+attributeMap = Common.attribute_map
+    [ (Attrs.harm, Harmonic)
+    , (Attrs.left, LeftHand)
+    , (mempty, RightHand)
+    ]
+
+samples :: Articulation -> Map Midi.Key (Map MaxVelocity [FilePath])
+samples art = fromMaybe (error ("unknown articulation: " <> show art)) $
+    Map.lookup (fromEnum art) ZhengSamples.samples
+
+-- * make samples
+
+data Sample = Sample {
+    _key :: !Midi.Key
+    , _articulation :: !Articulation
+    , _variation :: !Util.Variation
+    , _maxVelocity :: !MaxVelocity
+    } deriving (Show)
+
+type MaxVelocity = Int
+
+parseFilename :: FilePath -> Maybe Sample
+parseFilename ('S':'C':'G':'Z':key1:key2:_:art:'-':rest) = do
+    key <- Midi.Key <$> Read.readMaybe (key1:key2:"")
+    art <- case art of
+        'R' -> Just RightHand
+        'L' -> Just LeftHand
+        'H' -> Just Harmonic
+        _ -> Nothing
+    (var, maxVel) <- case art of
+        Harmonic -> (0,) <$> Read.readMaybe (takeWhile Char.isDigit rest)
+        _ -> case rest of
+            n : rest -> (fromEnum n - fromEnum 'A',) <$>
+                Read.readMaybe (takeWhile Char.isDigit rest)
+            _ -> Nothing
+    -- Harmonics are given an octave below their sounding pitch.
+    return $ Sample (if art == Harmonic then key + 12 else key) art var maxVel
+parseFilename _ = Nothing
+
+makeSampleMap :: [FilePath]
+    -> Map Articulation (Map Midi.Key (Map MaxVelocity [FilePath]))
+makeSampleMap =
+    fmap (fmap (fmap (map snd)))
+    . fmap (fmap (groupOn _maxVelocity))
+    . fmap (groupOn _key)
+    . groupOn _articulation
+    . Seq.key_on_just parseFilename
+    where
+    groupOn key = Map.fromList . Seq.keyed_group_sort (key . fst)
+
+makeSamples :: [FilePath] -> String
+makeSamples = PPrint.pshow . Map.mapKeys fromEnum . makeSampleMap
+
+-- | Call this to generate ZhengSamples, which is imported as 'samples'.
+writeSamplesModule :: FilePath -> IO ()
+writeSamplesModule output = do
+    fns <- Directory.listDirectory (Config.unsafeSamplerRoot </> "zheng")
+    writeFile output $ samplesModuleHeader <> makeSamples fns
+
+samplesModuleHeader :: String
+samplesModuleHeader =
+    "-- Copyright 2018 Evan Laforge\n\
+    \-- This program is distributed under the terms of the GNU General Public\n\
+    \-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt\n\
+    \\n\
+    \-- | This module was generated by Zheng.writeSamplesModule.\n\
+    \module Synth.Sampler.Patch.ZhengSamples where\n\
+    \import Data.Map (Map, fromList)\n\
+    \import Midi.Midi (Key(Key))\n\
+    \\n\
+    \samples :: Map Int (Map Key (Map Int [FilePath]))\n\
+    \samples = "

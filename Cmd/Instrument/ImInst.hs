@@ -91,6 +91,11 @@ range range =
     environ EnvKey.instrument_bottom (Scale.range_bottom range)
     . environ EnvKey.instrument_top (Scale.range_top range)
 
+nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
+nn_range (bottom, top) =
+    environ EnvKey.instrument_bottom bottom
+    . environ EnvKey.instrument_top top
+
 -- | Adapt a 'Osc.ThruFunction' to 'Cmd.ThruFunction'.
 thru :: Osc.ThruFunction -> Code
 thru thru_f = MidiInst.thru convert

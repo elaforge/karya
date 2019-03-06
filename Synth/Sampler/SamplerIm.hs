@@ -54,7 +54,7 @@ main = do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
-    let quality = fromMaybe Resample.SincMediumQuality $
+    let quality = fromMaybe defaultQuality $
             Seq.last [quality | Quality quality <- flags]
     case args of
         ["check"] -> do

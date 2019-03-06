@@ -16,6 +16,7 @@ import qualified Synth.Sampler.Patch.Mridangam as Mridangam
 import qualified Synth.Sampler.Patch.Rambat as Rambat
 import qualified Synth.Sampler.Patch.Reyong as Reyong
 import qualified Synth.Sampler.Patch.Wayang as Wayang
+import qualified Synth.Sampler.Patch.Zheng as Zheng
 import qualified Synth.Shared.Config as Config
 
 import           Global
@@ -28,6 +29,7 @@ db = Patch.db Config.unsafeSamplerRoot $ concat
     , Rambat.patches
     , Reyong.patches
     , Wayang.patches
+    , Zheng.patches
     , [Patch.DbPatch $ Patch.simple "test" "open.flac" 60]
     ]
 
