@@ -1,3 +1,8 @@
 #!/bin/sh
 # Grep through Haksell.
-grep -n "$@" $(tools/all_hs.py)
+
+if which rg >/dev/null; then
+    rg -n --type haskell "$@"
+else
+    grep -n "$@" $(tools/all_hs.py)
+fi

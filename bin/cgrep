@@ -1,3 +1,8 @@
 #!/bin/zsh
 # Grep through C++.
-grep -n -- "$@" */*.(c|cc|h) Synth/**/*.(c|cc|h)
+
+if which rg >/dev/null; then
+    rg -n --type c --type cpp "$@"
+else
+    grep -n -- "$@" */*.(c|cc|h) Synth/**/*.(c|cc|h)
+fi
