@@ -17,6 +17,11 @@ fi
 
 mkdir -p log
 
+# Get rid of OS X window restore state.  It doesn't actually work, but it makes
+# an annoying "restore state?" dialog on startup after a crash.
+dir=~/Library/Saved\ Application\ State
+rm -rf $dir/elaforge.seq.{seq,logview,browser}.savedState
+
 build/$mode/logview $geometry &
 
 if [[ -e seq-repl ]]; then

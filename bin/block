@@ -1,2 +1,4 @@
 #!/bin/zsh
+dir=~/Library/Saved\ Application\ State
+rm -rf $dir/elaforge.seq.test_block.savedState
 bin/mk build/debug/test_block && build/debug/test_block "$@"
