@@ -1,4 +1,8 @@
 #!/bin/zsh
 # ghci with flags to import test modules
 
-exec tools/do-ghci build/test/ghci-flags "$@"
+objs=(
+    build/test/obj/Util/vectorc.cc.o
+)
+
+exec tools/do-ghci build/test/ghci-flags $objs "$@"
