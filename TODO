@@ -288,9 +288,12 @@ UNSORTED
       . It requires fftw3, brew wants gcc, so compile myself.
       . For some reason, I get HAS_X11, which is wrong.  This apparently is
         from fluid, and uses Pixmap, which is presumably X11-only.
+        Who is setting that?
+        . It's because some macs have /usr/X11.  Don't know how to get cmake
+          to not latch on to that.
       . And clang segfaults on
         src/CMakeFiles/zynaddsubfx_core.dir/Params/PADnoteParameters.cpp.o
-        whut?
+        whut?  How to get cmake to show me what it's running?
   * num literal 0 should work as either 0c or 0d.
     . I'll just change grace note defaulting.
   - being able to put 's in bare symbols can lead to confusing errors, e.g.
@@ -2231,6 +2234,12 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      - writing im/cache/test/im-zheng/untitled/b1/zh:
+        Synth/Sampler/Render.hs:180: assertion: notes still playing at
+        363825f(8.25s): [Playing:(115762f(2.62s)--355809f(8.06s))]
+        . cmd was:
+          sampler-im im/notes/test/im-zheng/untitled/b1/sampler \
+            im/cache/test/im-zheng/untitled/b1
       * after a play speed change, I get some of the old render after the end.
     * stereo placement for patches, or individual samples
       . This is like volume, I want everyone to handle it the same way.
@@ -2769,7 +2778,7 @@ synth: im:
 
 shakefile: build:
   * use concurrent-output to see start and duration for cmds
-    * It makes ghc turn off colors, but if I turn theme on, they only show up
+    * It makes ghc turn off colors, but if I turn them on, they only show up
       at the end.  concurrent-output must be treating ANSI codes differently?
     * Can I catch "compilation IS NOT required" and replace with an inline
       symbol?  I think it's monitoring the output, but maybe doesn't give
@@ -2778,7 +2787,7 @@ shakefile: build:
       errors, compile error gets output as usual.
     * Can I get the progress back?  I want to put it at the bottom.
       . It's naturally at the top, but that seems ok too.
-    - read output incrementally, so I can see tests as they run
+    * read output incrementally, so I can see tests as they run
       . It's a bit of a hassle because I have to reimplement the fiddly
         withForkWait stuff in System.Process.
       . Then again, Util.Process doesn't do that and it seems fine.

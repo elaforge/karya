@@ -15,12 +15,15 @@ module Shake.Util (
     -- * general
     , ifM, whenM, errorIO
 ) where
+import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 import           Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
+import qualified Data.Function as Function
+import qualified Data.IORef as IORef
 import qualified Data.Maybe as Maybe
 import           Data.Monoid ((<>))
 import qualified Data.Text as Text
@@ -35,6 +38,7 @@ import qualified System.Console.Regions as Regions
 import qualified System.Exit as Exit
 import qualified System.FilePath
 import           System.FilePath ((</>))
+import qualified System.IO as IO
 import qualified System.Info
 import qualified System.Process as Process
 
@@ -80,23 +84,18 @@ diffMetric (Metric _cpu1 time1) (Metric _cpu2 time2) =
     toSecs = realToFrac
 
 doCmdline :: Bool -> Cmdline -> IO ()
+doCmdline _ (abbr, output, []) =
+    errorIO $ "0 args for cmdline: " ++ show (abbr, output)
 doCmdline staunch (abbr, output, cmd_:args) = do
     let cmd = FilePath.toNative cmd_
-    let desc = abbr <> if null output then "" else ": " <> output
+    let desc = ellipsis 127 abbr <> if null output then "" else ": " <> output
     start <- metric
     notRequired <- Regions.withConsoleRegion Regions.Linear $ \region -> (do
         Regions.setConsoleRegion region desc
-        -- Concurrent.createProcessConcurrent doesn't get along with ghc's
-        -- colorized stderr, for some reason.
-        (exit, stdout, stderr) <- Process.readCreateProcessWithExitCode
-            (Process.proc "nice" (cmd : args)) ""
-        unless (null stdout || stdout == ghcNotRequired) $
-            Concurrent.outputConcurrent stdout
-        unless (null stderr) $
-            Concurrent.outputConcurrent stderr
+        (exit, ghcNotRequired) <- createProcessConcurrent "nice" (cmd:args)
         when (not staunch && exit /= Exit.ExitSuccess) $
             errorIO $ "Failed:\n" ++ unwords (cmd : args)
-        return $ stdout == ghcNotRequired
+        return ghcNotRequired
         ) `Exception.onException` do
             timing <- showMetric start
             Concurrent.outputConcurrent $ unwords [desc, timing, "(aborted)"]
@@ -105,12 +104,45 @@ doCmdline staunch (abbr, output, cmd_:args) = do
     Concurrent.outputConcurrent $ unwords [desc, timing]
         <> (if notRequired then " (skipped)" else "") <> "\n"
     where
-    ghcNotRequired = "compilation IS NOT required\n"
     showMetric start = do
         end <- metric
         return $ unwords ["-", diffMetric end start]
-doCmdline _ (abbr, output, []) =
-    errorIO $ "0 args for cmdline: " ++ show (abbr, output)
+
+-- | Some command lines are really long.
+ellipsis :: Int -> String -> String
+ellipsis len line
+    | lineLen > len = take len line <> "... [" <> show lineLen <> " chars]"
+    | otherwise = line
+    where lineLen = length line
+
+-- | This is basically like 'Concurrent.createProcessConcurrent', except that
+-- one doesn't get along with ghc's colorized stderr, for some reason.  I tried
+-- to see why, but its implementation is crazy complicated due to it wanting
+-- to buffer in temp files if the output is too large.
+createProcessConcurrent :: FilePath -> [String] -> IO (Exit.ExitCode, Bool)
+createProcessConcurrent cmd args = do
+    let proc = (Process.proc cmd args)
+            { Process.std_in = Process.NoStream
+            , Process.std_out = Process.CreatePipe
+            , Process.std_err = Process.CreatePipe
+            }
+    ghcNotRequired <- IORef.newIORef False
+    Process.withCreateProcess proc $ \Nothing (Just outh) (Just errh) pid -> do
+        outWriter <- Async.async (streamHandle ghcNotRequired outh)
+        errWriter <- Async.async (streamHandle ghcNotRequired errh)
+        Async.wait outWriter
+        Async.wait errWriter
+        (,) <$> Process.waitForProcess pid <*> IORef.readIORef ghcNotRequired
+    where
+    streamHandle ghcNotRequired hdl = Function.fix $ \loop ->
+        File.ignoreEOF (Text.IO.hGetLine hdl) >>= \x -> case x of
+            Nothing -> IO.hClose hdl
+            Just line -> do
+                -- This shows up on ghc's stdout.
+                if line == "compilation IS NOT required"
+                    then IORef.writeIORef ghcNotRequired True
+                    else Concurrent.outputConcurrent (line <> "\n")
+                loop
 
 system :: FilePath -> [String] -> Shake.Action ()
 system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
