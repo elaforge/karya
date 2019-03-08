@@ -1,3 +1,6 @@
+-- Copyright 2019 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Synth.Sampler.Patch.Zheng where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
@@ -12,6 +15,7 @@ import qualified Util.Seq as Seq
 
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
+import qualified Derive.C.Prelude.Highlight as Highlight
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
@@ -40,9 +44,7 @@ patches :: [Patch.DbPatch]
 patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
     { Patch._dir = dir
     , Patch._convert = convert
-    , Patch._karyaPatch =
-        ImInst.code #= code $
-        ImInst.nn_range range $
+    , Patch._karyaPatch = ImInst.code #= code $ ImInst.nn_range range $
         ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
                 [ Control.supportPitch
@@ -54,24 +56,26 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
     }
     where
     dir = "zheng"
-    -- copy paste from User.Elaforge.Instrument.Kontakt
-    -- TODO put it in a shared module
     code = ImInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
         <> ImInst.note_transformers [("standard-strings", standard_strings)]
-        -- <> MidiInst.null_call c_highlight_strings
+        <> ImInst.null_call Highlight.c_highlight_strings_note
         <> Util.thru dir convert
+    -- copy paste from User.Elaforge.Instrument.Kontakt
+    -- TODO put it in a shared module?
+    -- This can't go in the automatic env because it uses DeriveT.Pitch, which
+    -- is not serializable, hence not in RestrictedEnviron.
     standard_strings = DUtil.transformer0 "standard-strings"
         ("Set " <> ShowVal.doc EnvKey.open_strings
-            <> " to standard pitches: " <> ShowVal.doc strings)
-        $ \_ deriver -> Derive.with_val EnvKey.open_strings
-            (map Twelve.nn_pitch strings) deriver
-    strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
+            <> " to standard pitches: " <> ShowVal.doc open_strings)
+        $ \_ -> Derive.with_val EnvKey.open_strings
+            (map Twelve.nn_pitch open_strings)
+    open_strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
         concatMap ((\nns oct -> map (oct+) nns) notes) octaves
         where
         notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
         octaves = map fromIntegral [0, 12 ..]
     -- Let's say the top string can bend a minor third.
-    range = (head strings, last strings + 3)
+    range = (head open_strings, last open_strings + 3)
 
 convert :: Note.Note -> Patch.ConvertM Sample.Sample
 convert note = do
@@ -164,7 +168,7 @@ writeSamplesModule output = do
 
 samplesModuleHeader :: String
 samplesModuleHeader =
-    "-- Copyright 2018 Evan Laforge\n\
+    "-- Copyright 2019 Evan Laforge\n\
     \-- This program is distributed under the terms of the GNU General Public\n\
     \-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt\n\
     \\n\

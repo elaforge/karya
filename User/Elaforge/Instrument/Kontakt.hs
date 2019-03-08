@@ -16,11 +16,9 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
-import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Articulation as Articulation
 import qualified Derive.C.Prelude.Highlight as Highlight
-import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call as Call
 import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Make as Make
@@ -202,34 +200,28 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
     MidiInst.attribute_map #= Patch.single_keyswitches ks $
     patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]
     where
-    code = MidiInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
-        <> MidiInst.note_transformers [("standard-strings", standard_strings)]
-        <> MidiInst.null_call c_highlight_strings
-    standard_strings = DUtil.transformer0 "standard-strings"
-        ("Set " <> ShowVal.doc EnvKey.open_strings
-            <> " to standard pitches: " <> ShowVal.doc strings)
-        $ \_ deriver -> Derive.with_val EnvKey.open_strings
-            (map Twelve.nn_pitch strings) deriver
     ks =
         [ (Attrs.harm, Key2.as5)
         , (Attrs.left, Key2.b5) -- left hand, no pick
         , (mempty, Key2.c6) -- right hand, picked
         ]
-    strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
+    code = MidiInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
+        <> MidiInst.note_transformers [("standard-strings", standard_strings)]
+        <> MidiInst.null_call Highlight.c_highlight_strings_note
+    -- This can't go in the automatic env because it uses DeriveT.Pitch, which
+    -- is not serializable, hence not in RestrictedEnviron.
+    standard_strings = DUtil.transformer0 "standard-strings"
+        ("Set " <> ShowVal.doc EnvKey.open_strings
+            <> " to standard pitches: " <> ShowVal.doc open_strings)
+        $ \_ -> Derive.with_val EnvKey.open_strings
+            (map Twelve.nn_pitch open_strings)
+    open_strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
         concatMap ((\nns oct -> map (oct+) nns) notes) octaves
         where
         notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
         octaves = map fromIntegral [0, 12 ..]
     -- Let's say the top string can bend a minor third.
-    range = (head strings, last strings + 3)
-
-c_highlight_strings :: Derive.Generator Derive.Note
-c_highlight_strings = Note.transformed_note
-    ("Highlight any notes whose initial pitch either is or isn't in "
-    <> ShowVal.doc EnvKey.open_strings <> ".") mempty $ \args deriver -> do
-        start <- Args.real_start args
-        Highlight.out_of_range $
-            Highlight.open_strings start Highlight.warn_non_open deriver
+    range = (head open_strings, last open_strings + 3)
 
 -- * hang
 

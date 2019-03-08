@@ -5,13 +5,14 @@
 -- | Calls to highlight events.
 module Derive.C.Prelude.Highlight (
     library
+    , c_highlight_strings_note
     , out_of_range, open_strings, warn_non_open
 ) where
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Test.ApproxEq as ApproxEq
-import qualified Ui.Color as Color
 import qualified Derive.Args as Args
+import qualified Derive.C.Prelude.Note as Note
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Derive as Derive
@@ -25,8 +26,10 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.Color as Color
+
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -49,6 +52,15 @@ instance Typecheck.TypecheckSymbol Color.Highlight
 
 
 -- * open strings
+
+-- | This is a generator that goes on null call, not a transformer over
+-- everything.
+c_highlight_strings_note :: Derive.Generator Derive.Note
+c_highlight_strings_note = Note.transformed_note
+    ("Highlight any notes whose initial pitch isn't in "
+    <> ShowVal.doc EnvKey.open_strings <> ".") mempty $ \args deriver -> do
+        pos <- Args.real_start args
+        out_of_range $ open_strings pos warn_non_open deriver
 
 c_highlight_strings :: Derive.Transformer Derive.Note
 c_highlight_strings = Derive.transformer Module.prelude "highlight-strings"
