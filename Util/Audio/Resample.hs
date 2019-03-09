@@ -101,18 +101,18 @@ resampleBy config ratio audio = Audio.Audio $ do
     -- thing is to not let the resample state get ahead of the block boundary.
     let align = _blockSize config - (_now config `mod` _blockSize config)
     let resampleC = resampleBlock chan rate state
-    -- I keep track of the number of samples used from upstream.  This gets
+    -- I keep track of the number of samples read from upstream.  This gets
     -- reported to '_notifyState' so I can restart the sample at the right
     -- place.
     -- I also keep track of the previous segment to detect discontinuities.
     Control.loop2 (0, segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
-        \loop (used, prevSegment) (now, audio, collect, blockLeft) -> do
+        \loop (framesRead, prevSegment) (now, audio, collect, blockLeft) -> do
             let segment = segmentAt (toSeconds now) ratio
             resampleC now blockLeft prevSegment segment audio >>= \case
                 Nothing -> done key collect
-                Just (framesUsed, block, audio) ->
-                    loop (used + framesUsed, segment)
-                        =<< yield state now (used + framesUsed) collect
+                Just (blockRead, block, audio) ->
+                    loop (framesRead + blockRead, segment)
+                        =<< yield state now (framesRead + blockRead) collect
                             blockLeft block audio
     where
     done key collect = do
@@ -217,9 +217,11 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
         recons = if V.null left then id else S.cons left
     let outputBlock = V.unsafeFromForeignPtr0 outFP $
             Audio.framesCount chan generated
+    let framesRead = Audio.countFrames chan $
+            maybe 0 V.length inputBlock - V.length left
     return $ if Maybe.isNothing inputBlock && generated == 0
         then Nothing
-        else Just (used, outputBlock, recons audio)
+        else Just (framesRead, outputBlock, recons audio)
     where
     next audio = either (const (Nothing, audio)) (first Just) <$>
         lift (S.next audio)

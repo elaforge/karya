@@ -30,25 +30,6 @@ STATUS
       . Or maybe the laptop was overheating.
   - Find out why MemoryLeak latency: went up.
 
-things to unify:
-  - default args and controls:
-    . Instead of defaulting to a ControlRef with a different name, use
-      a control with the same rules as argument defaulting.
-  - controls and env:
-    . something=4 should be the same as %something=4.  I can remove the
-      % and # syntax.
-  - signal arguments:
-    . They should all coerce to SignalFunction, with no need for
-      Call.to_function.
-  - controls and ControlFunctions:
-    . See NOTE [fix-control-functions]
-  - deriver arguments, transformers, and parent calls:
-    . unify deriver parents:
-    . I should be able to take {Note,Control,Pitch}Deriver args, which
-      then coerce from Sym, QuotedExpr, or a sub-track.  If the arg is
-      the last one, I should also be able to get a corresponding
-      transformer.
-
 UNSORTED
   revise how MIDI channel state works with keyswitches and controls
     notes:
@@ -1228,6 +1209,25 @@ TASKS:
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
       X config?
 
+things to unify:
+  - default args and controls:
+    . Instead of defaulting to a ControlRef with a different name, use
+      a control with the same rules as argument defaulting.
+  - controls and env:
+    . something=4 should be the same as %something=4.  I can remove the
+      % and # syntax.
+  - signal arguments:
+    . They should all coerce to SignalFunction, with no need for
+      Call.to_function.
+  - controls and ControlFunctions:
+    . See NOTE [fix-control-functions]
+  - deriver arguments, transformers, and parent calls:
+    . unify deriver parents:
+    . I should be able to take {Note,Control,Pitch}Deriver args, which
+      then coerce from Sym, QuotedExpr, or a sub-track.  If the arg is
+      the last one, I should also be able to get a corresponding
+      transformer.
+
 ----------------------------------------------------------------------
 
 documentation:
@@ -2212,7 +2212,7 @@ synth: im:
       . probably afplay stops working though, because Apple.  But libsndfile
         maybe comes with a demo player?
       . flac doesn't support float samples, so nevermind
-    - I should use under_scores for all C++, currently play_cache is camelCase.
+    * I should use under_scores for all C++, currently play_cache is camelCase.
       . Actually it's kind of forced by the VST interface, which is camelCase.
       . Of course I control that too, so I could change Synth/vst2/* to
         under_scores as well.
@@ -2235,11 +2235,85 @@ synth: im:
         what way?
     bug:
       - writing im/cache/test/im-zheng/untitled/b1/zh:
-        Synth/Sampler/Render.hs:180: assertion: notes still playing at
-        363825f(8.25s): [Playing:(115762f(2.62s)--355809f(8.06s))]
+        notes still playing at 363825f(8.25s):
+          [Playing:(115762f(2.62s)--355809f(8.06s))]
         . cmd was:
           sampler-im im/notes/test/im-zheng/untitled/b1/sampler \
             im/cache/test/im-zheng/untitled/b1
+        . This means the stream still had samples at 8.25s even though the
+          sample promised only 8.06s.
+        . Only happens on the restart.  So I can find the resuming sample,
+          and what's different in its state:
+        . resume: SCGZ66FR-B051.flac:189320f
+          expected to play 115762f -- 355809f, so 240047f long: 5.44s
+          resumed at 189320f, so 50727 (1.15s) left.  Resume at 8s, so should
+          end at 9.15.
+        . So why did it resume there?  Should have resumed later.
+        . What should the resume be?
+          . note was start = 115762f, duration = 240047f, ratio = .943
+            2.62s + 5.44s => 8.06s
+          . file dur: 254320 * 0.943 = 239823.75, that's 223f less than dur
+            Probably Pretty roundoff, without: 0.9438743126816934 = 240046,
+            but I round up to 240047.
+          . resumed at 189320f, but should have resumed at 237038.
+
+        . If I write a new resume, what do I write for that sample?
+          at 4s: SCGZ66FR-B051.flac: 65000f
+          at 8s: SCGZ66FR-B051.flac: 254320f
+          at 12s: done
+        . That doesn't match either, why do I get 254320f?
+        . These frames are input frames, as counted by Resample.  The offset
+          is also input frames.  The playing time is output frames.
+        . The second time, it loads back: SCGZ66FR-B051.flac: 254320f
+          . This time I'm trying to seek too far, file is only 254320f
+          . Why do I report the end of the file?  Am I really done?
+        . Resample keeps an unknown number of samples inside, so input samples
+          could be unreliable... it's actually consumed samples.  From
+          SampleRateC.input_frames_used.
+        . If my theory is correct, the problem should go away with ZOH
+          resampling, since it should have no internal state.
+        . But if this is so, then how do I know how many input samples I've
+          consumed?
+        . libsamplerate should have an internal field with that, export it?
+          Is it last_position?  That's the index into the input buffer,
+          I think.  It is rounded to sample with fmod_one, which is lrint,
+          which is round.
+        . But what I want to do is restore exactly the situation... so
+          I actually want Resample loop's state.
+        . That's just the file position.  So just ask for file position?
+          Well not exactly, it's how many frames read from the file.  The
+          actual file position is likely a bit ahead.
+        . Still used frames seems like the right thing, can I catch it in the
+          act of saying "x used frames" but really its position is something
+          else?  I guess I know what happens, it uses the samples, but their
+          in the internal buffer.  So I really want to seek to the place where
+          the file was, which is the sum of samples pulled.  And if it's at
+          the end, don't bother reopening the file, but still restore state.
+        . Isn't it the same though?  I use framesUsed to chop the inputBlock
+          and put things back on the stream.
+        . Make sure I don't do any ratio multiplying to the resume frames.
+          Nope!
+        . Exactly at the end is different case though.  I think it's actually
+          ok, resample can't tell it's at the end.  I should just not open the
+          file.
+
+        . Also, what happens if I just disable the check?  Could the check be
+          wrong, but audio is right?  I might not be able to hear it if it's
+          wrong though, due to the long decay.
+
+        - Can I simplify all of this into just a callback?  Pull instead of
+          push.
+          . Checkpoint.write reads from stateRef, which is ByteString
+            That is written by notifyState, which on each block, does
+            a _getState, and serializes it.
+          . _getState in turn reads another ioref, which is written to by
+            Resample.
+          . The result is that the iorefs are written on each block, though
+            the serialize is be lazy.
+
+          . Start from File.writeCheckpoints: already a callback
+            Checkpoint.write:
+
       * after a play speed change, I get some of the old render after the end.
     * stereo placement for patches, or individual samples
       . This is like volume, I want everyone to handle it the same way.

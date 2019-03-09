@@ -293,7 +293,7 @@ startSample now quality blockSize mbMbState note = case Sample.sample note of
                 <> showt (now + blockSize) <> " but started at " <> showt start
             Just mbState -> do
                 Audio.assert (start < now) $
-                    "resumeSample should start before " <> showt now
+                    "resume sample should start before " <> showt now
                     <> " but started at " <> showt start
                 whenJust mbState $ \state -> do
                     Audio.assert (Sample.filename sample == _filename state) $
@@ -302,9 +302,9 @@ startSample now quality blockSize mbMbState note = case Sample.sample note of
         let offset = case mbMbState of
                 Just (Just state) -> _offset state
                 -- If Sample.start < now, then this is a resume.  I don't have
-                -- the offset because Resample produces that with State, but
-                -- I don't need it, since there is no resample then frames are
-                -- 1:1.
+                -- the offset because I'm not resampling and that Resample
+                -- produces that with State, but I don't need it.  I'm not
+                -- resampling so frames are 1:1.
                 _ -> max 0 $ now - Sample.start note
         duration <- maybe
             (Audio.throwIO $ "tried to start sample with no duration: "
@@ -355,6 +355,6 @@ unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 
 -- | If there is no resampling, the state will be Nothing.  It's necessary
 -- to remember that, so I can still line up notes with states in
--- 'resumeSample'.
+-- 'resumeSamples'.
 serializeStates :: [Maybe State] -> Checkpoint.State
 serializeStates = Checkpoint.State . Serialize.encode

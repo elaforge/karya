@@ -76,7 +76,10 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
         liftIO $ do
             -- Otherwise libsndfile will throw a much more confusing error:
             -- "Internal psf_fseek() failed."
-            Audio.assert (0 <= frame && frame < Sndfile.frames info) $
+            -- It's ok to seek to the end of the file though, and that happens
+            -- when the resample consumed all samples, but they're in its
+            -- internal buffer.
+            Audio.assert (0 <= frame && frame <= Sndfile.frames info) $
                 "tried to seek to " <> pretty frame <> " in " <> showt fname
                 <> ", but it only has " <> pretty (Sndfile.frames info)
             void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
@@ -196,7 +199,8 @@ writeCheckpoints size getFilename chunkComplete format = go 0
                     "non-final chunk was too short, expected " <> pretty size
                     <> ", but last chunk was " <> pretty (written `mod` size)
                 let blockSize = Num.sum $ map V.length blocks
-                -- In count, not frames, in case I somehow get an odd count.
+                -- Show the error with count, not frames, in case I somehow get
+                -- an odd count.
                 Audio.assert (blockSize <= sizeCount) $
                     "chunk too long, expected " <> pretty sizeCount
                     <> ", but got " <> pretty (map V.length blocks)
@@ -205,7 +209,7 @@ writeCheckpoints size getFilename chunkComplete format = go 0
                     Exception.bracket (openWrite format tmp audio)
                         Sndfile.hClose (\handle -> mapM_ (write handle) blocks)
                     Directory.renameFile tmp fname
-                    chunkComplete  chunknum fname
+                    chunkComplete chunknum fname
                 go (written + size) states audio
         where
         chunknum = fromIntegral $ written `div` size

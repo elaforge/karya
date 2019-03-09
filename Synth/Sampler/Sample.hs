@@ -36,7 +36,7 @@ data Note = Note {
     -- | Hash of the other fields.  Putting it here means I can memoize its
     -- creation but also that changing Note will make it out of sync.
     , hash :: Note.Hash
-    }
+    } deriving (Show)
 
 end :: Note -> Audio.Frame
 end note = start note + fromMaybe 0 (duration note)
