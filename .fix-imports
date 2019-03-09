@@ -9,6 +9,7 @@ prio-module-high: Perform.Pitch Util.Serialize
     System.IO
 prio-module-low: GHC.Environment GHC.Read GHC.MVar
     LogView.Process
+    App.PPrint
 prio-package-high:
 prio-package-low: haskell98 ghc ghc-prim darcs comonad basement
 

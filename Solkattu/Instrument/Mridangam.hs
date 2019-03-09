@@ -293,8 +293,8 @@ families567 = map Solkattu.check $ map patterns $ map (zip [5..]) $
       , kpnp.k.t.p.k.p.k.t.k.n.o
       ]
     , [ k.t.k.t.p.k.p.t.o.__
-      , p.__.k.t.k.t.p.k.p.t.o.__
-      , k.__.p.__.k.t.k.t.p.k.p.t.o.__
+      , kp.k.t.k.t.p.k.p.t.o.__
+      , kpnp.k.t.k.t.p.k.p.t.o.__
       ]
     , [ n.__.k.t.p.k.p.t.o.__
       , p.__.n.__.k.t.p.k.p.t.o.__
