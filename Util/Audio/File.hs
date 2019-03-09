@@ -177,7 +177,7 @@ writeCheckpoints :: forall rate chan state.
     (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
     => Audio.Frame
     -> (state -> IO FilePath) -- ^ get filename for this state
-    -> (Int -> FilePath -> IO ()) -- ^ write state after the computation
+    -> (FilePath -> IO ()) -- ^ write state after the computation
     -> Sndfile.Format -> [state]
     -- ^ Some render-specific state for each checkpoint.  Shouldn't run out
     -- before the audio runs out.
@@ -209,7 +209,7 @@ writeCheckpoints size getFilename chunkComplete format = go 0
                     Exception.bracket (openWrite format tmp audio)
                         Sndfile.hClose (\handle -> mapM_ (write handle) blocks)
                     Directory.renameFile tmp fname
-                    chunkComplete chunknum fname
+                    chunkComplete fname
                 go (written + size) states audio
         where
         chunknum = fromIntegral $ written `div` size

@@ -2234,6 +2234,8 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      * not getting the final waveform
+        . It's getting the completed msg, but chunknum is [1].
       - writing im/cache/test/im-zheng/untitled/b1/zh:
         notes still playing at 363825f(8.25s):
           [Playing:(115762f(2.62s)--355809f(8.06s))]

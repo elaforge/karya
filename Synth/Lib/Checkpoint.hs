@@ -115,9 +115,9 @@ write outputDir trackIds skippedCount chunkSize hashes stateRef audio
             Left err -> Left err
             Right written -> Right (written, written + skippedCount)
     where
-    chunkComplete chunknum fname = do
+    chunkComplete fname = do
         writeState stateRef fname
-        linkOutput outputDir fname
+        chunknum <- linkOutput outputDir fname
         Config.emitMessage "" $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
@@ -159,13 +159,15 @@ writeState stateRef fname = do
 -- checkpointDir to its position in the output sequence.
 --
 -- > 000.wav -> checkpoint/000.$hash.$state.wav
-linkOutput :: FilePath -> FilePath -> IO ()
+linkOutput :: FilePath -> FilePath -> IO Config.ChunkNum
 linkOutput outputDir fname = do
     let current = outputDir </> filenameToOutput (FilePath.takeFileName fname)
     -- Atomically replace the old link, if any.
     Directory.createFileLink (checkpointDir </> FilePath.takeFileName fname)
         (current <> ".tmp")
     Directory.renameFile (current <> ".tmp") current
+    return $ fromMaybe (error $ "no parse: " <> show current) $
+        isOutputLink $ FilePath.takeFileName current
 
 -- | Remove any remaining output symlinks past the final chunk.
 clearRemainingOutput :: FilePath -> Config.ChunkNum -> IO ()
