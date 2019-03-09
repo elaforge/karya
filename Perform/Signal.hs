@@ -31,6 +31,7 @@ module Perform.Signal (
     , at, at_maybe, segment_at
     , head, last
     , minimum, maximum
+    , find
 
     -- * transform
     , drop_after, drop_before
@@ -345,6 +346,9 @@ scalar_max val sig
 minimum, maximum :: Signal kind -> Y
 minimum = fromMaybe 0 . Segment.minimum . _signal
 maximum = fromMaybe 0 . Segment.maximum . _signal
+
+find :: (X -> Y -> Bool) -> Signal kind -> Maybe (X, Y)
+find f = Segment.find f . _signal
 
 -- | Map Xs.  The slopes will definitely change unless the function is adding
 -- a constant, but presumably that's what you want.

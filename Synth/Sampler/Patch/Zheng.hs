@@ -27,6 +27,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Util as Util
@@ -38,18 +39,23 @@ import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
 import           Global
+import           Synth.Types
 
 
 patches :: [Patch.DbPatch]
 patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
     { Patch._dir = dir
     , Patch._convert = convert
+    , Patch._preprocess = inferDuration
     , Patch._karyaPatch = ImInst.code #= code $ ImInst.nn_range range $
         ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
                 [ Control.supportPitch
                 , Control.supportDyn
                 , Control.supportVariation
+                ] <> Map.fromList
+                [ (c_damp, "Notes don't ring when this is 1.")
+                , (c_damp_time, "Time in seconds to 0.")
                 ]
             , Im.Patch.patch_attribute_map = const () <$> attributeMap
             }
@@ -83,25 +89,42 @@ convert note = do
     let dynVal = Note.initial0 Control.dynamic note
     let var = Note.initial0 Control.variation note
     noteNn <- Util.initialPitch note
-    (key, filename) <- tryJust "no sample" $ toFilename noteNn art dynVal var
+    (key, sampleDyn, filename) <- tryJust "no sample" $
+        toFilename noteNn art dynVal var
+    -- The bottom of the scale should be enough to smooth out the volume
+    -- differences between each velocity group.  It's surely highly variable,
+    -- but this seems to sound ok in practice.
+    let vol = Num.scale 0 1 (1 - (sampleDyn - dynVal))
+    let dampTime = maybe defaultDampTime RealTime.seconds $
+            Note.controlAt (Note.end note) c_damp_time note
     return $ (Sample.make filename)
-        { Sample.envelope = Signal.constant 1
+        { Sample.envelope = Signal.from_pairs
+            [ (Note.start note, vol), (Note.end note, vol)
+            , (Note.end note + dampTime, 0)
+            ]
         , Sample.ratio = Signal.constant $
             Sample.pitchToRatio (Pitch.nn_to_hz (Midi.from_key key)) noteNn
         }
 
+defaultDampTime :: RealTime
+defaultDampTime = 0.75
+
 toFilename :: Pitch.NoteNumber -> Articulation -> Signal.Y -> Signal.Y
-    -> Maybe (Midi.Key, FilePath)
+    -> Maybe (Midi.Key, Signal.Y, FilePath)
 toFilename nn art dyn var = do
     (key, velToFiles) <- Util.Map.lookup_closest (Midi.to_key (round nn))
         (samples art)
     -- TODO pick some from neighbors, since I lost variations due to combining
     -- them
     -- TODO also scale by difference from maxVel
-    (_maxVel, filenames) <- Map.lookupGE
+    (sampleVel, filenames) <- Map.lookupGE
         (round (Num.clamp 0 127 (Num.scale 0 127 dyn)))
         velToFiles
-    return (key, Util.pickVariation filenames var)
+    return
+        ( key
+        , Num.normalize 0 127 (fromIntegral sampleVel)
+        , Util.pickVariation filenames var
+        )
 
 data Articulation = RightHand | LeftHand | Harmonic
     deriving (Eq, Ord, Show, Enum)
@@ -116,6 +139,34 @@ attributeMap = Common.attribute_map
 samples :: Articulation -> Map Midi.Key (Map MaxVelocity [FilePath])
 samples art = fromMaybe (error ("unknown articulation: " <> show art)) $
     Map.lookup (fromEnum art) ZhengSamples.samples
+
+-- * preprocess
+
+c_damp :: Control.Control
+c_damp = "damp"
+
+c_damp_time :: Control.Control
+c_damp_time = "damp-time"
+
+-- | Interpret the 'c_damp' control.  Each note extends until there's a note
+-- with a c_damp with 1.
+inferDuration :: [Note.Note] -> [Note.Note]
+inferDuration = map infer . Util.nexts
+    where
+    -- It would be more efficient to find the next damp, then remember it until
+    -- I pass it.  But the difference probably doesn't matter.
+    infer (note, nexts) = note
+        { Note.duration = maybe Sample.forever (\end -> end - Note.start note)
+            (inferEnd note nexts)
+        }
+
+inferEnd :: Note.Note -> [Note.Note] -> Maybe RealTime
+inferEnd note nexts = case mapMaybe dampedAt (note : nexts) of
+    [] -> Nothing
+    end : _ -> Just $ max end (Note.end note)
+    where
+    dampedAt = fmap fst . Signal.find (\_ y -> y >= 1)
+        . fromMaybe mempty . Map.lookup c_damp . Note.controls
 
 -- * make samples
 

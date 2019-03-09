@@ -2315,7 +2315,6 @@ synth: im:
 
           . Start from File.writeCheckpoints: already a callback
             Checkpoint.write:
-
       * after a play speed change, I get some of the old render after the end.
     * stereo placement for patches, or individual samples
       . This is like volume, I want everyone to handle it the same way.
@@ -2603,12 +2602,27 @@ synth: im:
         . I can do it by just setting %variation.
     rambat:
       * edit and add calung samples
-    guzheng:
-      - Everything rings except when explicitly muted.
+    zheng:
+      * Everything rings except when explicitly muted.
         . Do it at the score level.  Have a transformer that lengthens all
           notes until a damp?
         . Or do it MIDI style, with a pedal control.  Notes are extended until
           max of pedal up and note duration.
+      - Do bends per-string.  This means merge together the pitch curves.
+        . I should do this post duration calculation, and only collect signal
+          over the note duration.
+        . Like pedal, this is less efficient than the traditional imperative
+          way because I duplicate that work.  I could recover that by doing
+          a single per-string merge up front, but I'd need to make the signal
+          lazy.  Same goes with damp actually.
+        . I would have to go through and assign strings, to come up with
+          a single pitch curve per string.  This is the same as ness guitar,
+          and I guess I'd want to do it the same way, by assigning the string
+          at the score level.
+        . MIDI could get this "for free" by putting each string on its own
+          channel.  Of course if there are 21 or 200 then you run out.
+        . So only do the pitch curve merge if Note.element is set, and look
+          for equal Note.elements.
     mridangam:
       * implement variations as a probability range over neighboring velocities
         . Approximate normal distribution: sum (take n randoms) / n
@@ -3914,6 +3928,7 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - the skeleton arcs are looking pretty unrounded
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where

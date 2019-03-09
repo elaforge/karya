@@ -96,12 +96,14 @@ initialPitch note = if nn == Just 0 then Nothing else nn
     -- present even if that means it's empty.  That will show up as 0 pitch,
     -- so convert that back into Nothing.
 
+controlAt :: RealTime -> Control.Control -> Note -> Maybe Signal.Y
+controlAt t control = fmap (Signal.at t) . Map.lookup control . controls
+
 initial :: Control.Control -> Note -> Maybe Signal.Y
-initial control note = Signal.at (start note) <$>
-    Map.lookup control (controls note)
+initial control note = controlAt (start note) control note
 
 initial0 :: Control.Control -> Note -> Signal.Y
-initial0 control =  fromMaybe 0 .initial control
+initial0 control =  fromMaybe 0 . initial control
 
 withControl :: Control.Control -> Signal.Signal -> Note -> Note
 withControl control signal note =

@@ -8,9 +8,10 @@ module Synth.Shared.Control where
 import qualified Data.Map as Map
 import qualified Data.String as String
 
+import qualified Util.Num as Num
 import qualified Util.Serialize as Serialize
 
-import Global
+import           Global
 
 
 -- | Unlike 'Derive.ScoreTypes.Control', pitch is just another control.
@@ -44,6 +45,10 @@ volume = "vol"
 -- inaudible.
 minimumDb :: Double
 minimumDb = -96
+
+-- | Get 'volume' value for the given dB.
+dbToVolume :: Double -> Double
+dbToVolume = Num.normalize minimumDb 0
 
 -- | -1 means pan left, 1 means pan right.  Unlike other controls, the range is
 -- -1 to 1 instead of 0 to 1.  This is so adding signals is the same as adding

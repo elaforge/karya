@@ -23,6 +23,7 @@ module Util.Segment (
     , at, at_negative, segment_at
     , head, last
     , maximum, minimum
+    , find
 
     -- * concat
     , concat, prepend
@@ -318,6 +319,10 @@ maximum sig
     | otherwise = Just $ sy $ V.maximumBy (\a b -> compare (sy a) (sy b)) $
         _vector sig
 
+find :: V.Vector v (Sample y) => (X -> y -> Bool) -> Signal (v (Sample y))
+    -> Maybe (X, y)
+find f sig = first (+ _offset sig) . TimeVector.to_pair <$>
+    V.find (\(Sample x y) -> f (x + _offset sig) y) (_vector sig)
 
 -- * concat
 
