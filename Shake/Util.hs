@@ -141,8 +141,17 @@ createProcessConcurrent cmd args = do
                 -- This shows up on ghc's stdout.
                 if line == "compilation IS NOT required"
                     then IORef.writeIORef ghcNotRequired True
+                    else if ignoreLine line then return ()
                     else Concurrent.outputConcurrent (line <> "\n")
                 loop
+    -- A bug in OS X 10.13.6 causes harmless but annoying warnings.
+    -- This is supposedly a solution:
+    -- https://gist.github.com/wawiesel/eba461de5f5e38f7f0ac93ae3676b484
+    -- No solution from Apple as of 2019-03-09:
+    -- https://github.com/golang/go/issues/26073
+    --
+    -- It seems simpler and safer to just ignore it.
+    ignoreLine = ("ld: warning: text-based stub file " `Text.isPrefixOf`)
 
 system :: FilePath -> [String] -> Shake.Action ()
 system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
