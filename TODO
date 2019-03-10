@@ -260,10 +260,10 @@ UNSORTED
         strings.  It should be possible to infer from the score, but try it
         manually first and see how it goes.
   * replace parsec with megaparsec
-  - support zynaddsubfx
+  - support zynsubaddfx
     . The old binaries don't have VST.  The new ones do, but the UI seems
       buggy, most UI elements don't respond to the mouse.
-    - First have to compile zynaddsubfx
+    + First have to compile zynsubaddfx
       . It doesn't like fltk 1.4: have to add include <FL/platform.H>
       . It requires libmxml 2.12, not 3
       . It requires fftw3, brew wants gcc, so compile myself.
@@ -272,9 +272,16 @@ UNSORTED
         Who is setting that?
         . It's because some macs have /usr/X11.  Don't know how to get cmake
           to not latch on to that.
-      . And clang segfaults on
-        src/CMakeFiles/zynaddsubfx_core.dir/Params/PADnoteParameters.cpp.o
-        whut?  How to get cmake to show me what it's running?
+      . clang segfaults:
+        . whut?  How to get cmake to show me what it's running?
+        . make VERBOSE=1, or cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .
+        . on the lambda at src/Params/PADnoteParameters.cpp:904:
+            auto thread_cb = [basefreq, bwadjust, &cb, do_abort,
+                      samplesize, samplemax, spectrumsize,
+                      &adj, &profile, this_c](
+                      unsigned nthreads, unsigned threadno)
+            { ... }
+        . upgrade clang fixed it
   * num literal 0 should work as either 0c or 0d.
     . I'll just change grace note defaulting.
   - being able to put 's in bare symbols can lead to confusing errors, e.g.
@@ -1881,6 +1888,7 @@ synth: im:
           I could do is have one at 128, 256, 512, 1024, 2046, and choose, but
           I'd want to do it lazily, at which point zooms might get laggy.
   cleanup:
+    - put state callback into the audio stream: NOTE [audio-state]
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
       im and seq can use the same types.
       . On the other hand, maybe they should remain different.  Synth Control
@@ -1890,7 +1898,7 @@ synth: im:
     - I can maybe also just replace unchecked_control with Control, and
       make both Instrument and Control have checked_* constructors.  I can't
       really enforce Id.valid rules, except at score parsing time.
-    - Also move callers from Score to ScoreTypes.  Can I give it a shorter
+    * Also move callers from Score to ScoreTypes.  Can I give it a shorter
       name?  Base types modules should have short names.
   overview:
     + incremental rendering:
@@ -2303,7 +2311,7 @@ synth: im:
           wrong, but audio is right?  I might not be able to hear it if it's
           wrong though, due to the long decay.
 
-        - Can I simplify all of this into just a callback?  Pull instead of
+        / Can I simplify all of this into just a callback?  Pull instead of
           push.
           . Checkpoint.write reads from stateRef, which is ByteString
             That is written by notifyState, which on each block, does
@@ -2312,9 +2320,16 @@ synth: im:
             Resample.
           . The result is that the iorefs are written on each block, though
             the serialize is be lazy.
+          . File.writeCheckpoints calls chunkComplete
+            Checkpoint.chunkComplete calls getState
+            getState needs the [Playing] set, which changes on each loop step.
+            I would have to have 'render' return the state in the Audio
+            stream, which was the design I decided against.  So unless
+            I change that, I'm stuck with IORef.
+          . But at least could I ask Resample directly?  I think it's the same
+            problem: the Playing _audio field is just an Audio stream, and
+            there's no way to get anything out other than audio chunks.
 
-          . Start from File.writeCheckpoints: already a callback
-            Checkpoint.write:
       * after a play speed change, I get some of the old render after the end.
     * stereo placement for patches, or individual samples
       . This is like volume, I want everyone to handle it the same way.

@@ -51,10 +51,6 @@ write = write_ Config.chunkSize Config.blockSize
 write_ :: Audio.Frame -> Audio.Frame -> Resample.Quality -> FilePath
     -> Set Id.TrackId -> [Sample.Note] -> IO (Either Error (Int, Int))
 write_ chunkSize blockSize quality outputDir trackIds notes = catch $ do
-    -- Debug.tracepM "notes" (map eNote notes)
-    -- Debug.tracepM "overlap" $ map (map snd) $
-    --     Checkpoint.groupOverlapping 0 (AUtil.toSeconds chunkSize) $
-    --     Seq.key_on Checkpoint._hash $ map toSpan notes
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
@@ -74,11 +70,13 @@ write_ chunkSize blockSize quality outputDir trackIds notes = catch $ do
                 <> ", resume at " <> pretty (take 1 hashes)
                 <> " states: " <> pretty initialStates
                 <> " start: " <> pretty start
+            -- See NOTE [audio-state].
             stateRef <- IORef.newIORef $
                 fromMaybe (Checkpoint.State mempty) mbState
             let notifyState = IORef.writeIORef stateRef
+                getState = IORef.readIORef stateRef
             result <- Checkpoint.write outputDir trackIds (length skipped)
-                    chunkSize hashes stateRef $
+                    chunkSize hashes getState $
                 render outputDir blockSize quality initialStates notifyState
                     trackIds notes (AUtil.toFrame start)
             case result of
@@ -110,6 +108,8 @@ toSpan note = Checkpoint.Span
 -- | A currently playing sample.
 data Playing = Playing {
     _noteHash :: !Note.Hash
+    -- | Get the current state of the resample, or Nothing if this isn't
+    -- resampling.  NOTE [audio-state]
     , _getState :: IO (Maybe State)
     , _audio :: !AUtil.Audio
     , _noteRange :: !(Audio.Frame, Audio.Frame)
@@ -139,14 +139,10 @@ render outputDir blockSize quality initialStates notifyState trackIds notes
     -- samples.
     let (overlappingStart, overlappingChunk, futureNotes) =
             overlappingNotes start blockSize notes
-    -- Debug.tracepM "started, chunk, future"
-    --     (map eNote overlappingStart, map eNote overlappingChunk,
-    --         map eNote futureNotes)
     playing <- liftIO $
         resumeSamples start quality blockSize initialStates overlappingStart
     (playing, metric) <- renderBlock Nothing start playing overlappingChunk
         (null futureNotes)
-    -- Debug.tracepM "renderChunk playing" playing
     Control.loop1 (metric, start + blockSize, playing, futureNotes) $
         \loop (metric, now, playing, notes) ->
             unless (null playing && null notes) $ do
@@ -156,25 +152,16 @@ render outputDir blockSize quality initialStates notifyState trackIds notes
                 -- 'playing'.
                 Audio.assert (null overlappingStart) $
                     "overlappingStart should be []: " <> pretty overlappingStart
-                -- Debug.tracepM "playing, starting, future"
-                --     (now, playing, overlappingChunk, futureNotes)
                 (playing, metric) <- renderBlock (Just metric) now playing
                     overlappingChunk (null futureNotes)
-                -- Debug.tracepM "playing, future" (now, playing, futureNotes)
                 loop (metric, now + blockSize, playing, futureNotes)
     where
     renderBlock prevMetric now playing overlappingChunk noFuture = do
         starting <- liftIO $
             mapM (startSample now quality blockSize Nothing) overlappingChunk
         metric <- progress prevMetric now playing starting
-        -- Debug.tracepM "playing, starting"
-        --     (AUtil.toSeconds now, playing, starting)
-        (blocks, playing) <- -- Thread.printTimer_ "pull" $
-            lift $ pull blockSize (playing ++ starting)
-        -- Debug.tracepM "still playing" (AUtil.toSeconds now, playing)
+        (blocks, playing) <- lift $ pull blockSize (playing ++ starting)
         -- Record playing states for the start of the next chunk.
-        -- liftIO $ Debug.tracepM "save states" . (now,) =<<
-        --     mapM _getState (Seq.sort_on _noteHash playing)
         let playingTooLong = filter ((<=now) . snd . _noteRange) playing
         -- This means RenderSample.predictFileDuration was wrong.
         Audio.assert (null playingTooLong) $
@@ -271,6 +258,7 @@ startSample now quality blockSize mbMbState note = case Sample.sample note of
         <> ", dur: " <> pretty (Sample.duration note)
         <> ": " <> err
     Right sample -> do
+        -- NOTE [audio-state]
         sampleStateRef <- IORef.newIORef Nothing
         let mkConfig mbState = Resample.Config
                 { _quality = quality
@@ -286,7 +274,6 @@ startSample now quality blockSize mbMbState note = case Sample.sample note of
                 , _resampleState = rState
                 }
         let start = Sample.start note
-        -- Debug.tracepM "startSample" (start, sample, mbMbState)
         case mbMbState of
             Nothing -> Audio.assert (start >= now && now-start < blockSize) $
                 "note should have started between " <> showt now <> "--"
@@ -358,3 +345,39 @@ unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 -- 'resumeSamples'.
 serializeStates :: [Maybe State] -> Checkpoint.State
 serializeStates = Checkpoint.State . Serialize.encode
+
+{- NOTE [audio-state]
+
+    Whne I write an audio checkpoint, I have to write the state of the audio
+    generators and processors.  I do this via @notifyState@ and @getState@
+    functions, which are just wrappers around IORef.
+
+    This is pretty indirect and confusing, but the reason I have to do it is an
+    Audio.Audio stream is only an effectful lazy list of audio chunks, with no
+    way to query its internal state.  So it would have to either return a
+    "query state" callback (a "pull" model), or take an IORef pointer, which it
+    will update with new state on each audio chunk (a "push" model).
+
+    However, I think even the "query state" callback will turn into the IORef,
+    because it will need to get the current state of the audio processing loop,
+    which means someone in there will need to be a mutable pointer, updated
+    each time through the loop.
+
+    But IORefs, like all mutable variables, are hard to understand and don't
+    compose well.  In the sampler case, Resample gets
+    a 'Resample._notifyState', which the loop in 'render' reads via the
+    '_getState' fields, and merges to a 'Checkpoint.State' (via
+    'serializeStates').  Then 'Checkpoint.write' reads that at the end of
+    each chunk, in the callback from 'File.writeCheckpoints'.  Since this is
+    the push model, I get a state for each block, but only use it on each
+    chunk.  That's probably ok, since state is (dangerously) copy-free, and
+    'serializeStates' is lazy.
+
+    A way to get away from these IORefs entirely would be that Audio streams
+    (IO (Maybe State), Vector Sample).  It would complicate all of the audio
+    processing functions.  Many could just fmap over the vector though.  In
+    fact, maybe it's safer, because it's accurately representing that if you
+    split the block, you have to put the state on the first one, but not the
+    second, or if you drop that part of the block, you no longer have its
+    state.  TODO think about making this change
+-}

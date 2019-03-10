@@ -50,15 +50,16 @@ write_ config outputDir trackIds patch notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
-    let notifyState = IORef.writeIORef stateRef
     let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
     Log.debug $ "skipped " <> pretty skipped
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
     mapM_ (Checkpoint.linkOutput outputDir) skipped
+    let notifyState = IORef.writeIORef stateRef
+        getState = IORef.readIORef stateRef
     result <- Checkpoint.write outputDir trackIds (length skipped) chunkSize
-            hashes stateRef $
+            hashes getState $
         renderPatch patch config mbState notifyState notes start
     case result of
         Right (_, total) ->

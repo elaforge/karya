@@ -10,7 +10,6 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Crypto.Hash.MD5 as MD5
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
-import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Set as Set
 
@@ -100,15 +99,16 @@ findLastState files = go "" initialState
 
 -- | Write the audio with checkpoints.
 write :: FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frame
-    -> [(Config.ChunkNum, Note.Hash)] -> IORef.IORef State -> AUtil.Audio
+    -> [(Config.ChunkNum, Note.Hash)] -> IO State
+    -> AUtil.Audio -- ^ get current audio state, see NOTE [audio-state]
     -> IO (Either Text (Config.ChunkNum, Config.ChunkNum))
     -- ^ Either Error (writtenChunks, total)
-write outputDir trackIds skippedCount chunkSize hashes stateRef audio
+write outputDir trackIds skippedCount chunkSize hashes getState audio
     | null hashes = return $ Right (0, skippedCount)
     | otherwise = do
         result <- AUtil.catchSndfile $ Resource.runResourceT $
             Audio.File.writeCheckpoints
-                chunkSize (getFilename outputDir stateRef) chunkComplete
+                chunkSize (getFilename outputDir getState) chunkComplete
                 AUtil.outputFormat (extendHashes hashes)
                 audio
         return $ case result of
@@ -116,7 +116,7 @@ write outputDir trackIds skippedCount chunkSize hashes stateRef audio
             Right written -> Right (written, written + skippedCount)
     where
     chunkComplete fname = do
-        writeState stateRef fname
+        writeState getState fname
         chunknum <- linkOutput outputDir fname
         Config.emitMessage "" $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
@@ -125,10 +125,10 @@ write outputDir trackIds skippedCount chunkSize hashes stateRef audio
             , _payload = Config.WaveformsCompleted [chunknum]
             }
 
-getFilename :: FilePath -> IORef.IORef State -> (Config.ChunkNum, Note.Hash)
+getFilename :: FilePath -> IO State -> (Config.ChunkNum, Note.Hash)
     -> IO FilePath
-getFilename outputDir stateRef (chunknum, hash) = do
-    state <- IORef.readIORef stateRef
+getFilename outputDir getState (chunknum, hash) = do
+    state <- getState
     let fname = outputDir </> checkpointDir </> filenameOf chunknum hash state
     -- XXX 'state' is actually an unsafe pointer to the underlying C state, so
     -- I have to make sure I'm done with it before returning.  This is super
@@ -148,9 +148,9 @@ getFilename outputDir stateRef (chunknum, hash) = do
     001.$hash.$state.wav -- $state == previous $endState
     001.$hash.$state.state.$endState -- as before
 -}
-writeState :: IORef.IORef State -> FilePath -> IO ()
-writeState stateRef fname = do
-    state@(State stateBs) <- IORef.readIORef stateRef
+writeState :: IO State -> FilePath -> IO ()
+writeState getState fname = do
+    state@(State stateBs) <- getState
     File.writeAtomic
         (FilePath.replaceExtension fname (".state." <> encodeState state))
         stateBs
