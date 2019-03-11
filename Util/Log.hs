@@ -303,10 +303,10 @@ format_msg :: Msg -> Text
 format_msg (Msg _date caller prio stack text _data) =
     log_msg <> maybe "" ((" "<>) . pretty) stack
     where
-    prio_stars Timer = "-"
-    prio_stars prio = Text.replicate (fromEnum prio) "*"
+    prio_symbol Timer = "/"
+    prio_symbol prio = Text.replicate (fromEnum prio) "-"
     log_msg = mconcat
-        [ Text.justifyLeft 5 ' ' (prio_stars prio)
+        [ Text.justifyLeft 5 ' ' (prio_symbol prio)
         , CallStack.showCaller caller
         , " - "
         , text
