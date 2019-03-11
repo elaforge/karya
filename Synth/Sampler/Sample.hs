@@ -3,7 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Sample where
-import System.FilePath ((</>))
+import qualified Data.Map as Map
+import           System.FilePath ((</>))
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Pretty as Pretty
@@ -11,12 +12,13 @@ import qualified Util.Serialize as Serialize
 
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Config as Config
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Osc as Osc
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 
 -- | Path to a sample, relative to the instrument db root.
@@ -102,10 +104,18 @@ forever = 1000
 
 -- * util
 
-pitchToRatio :: Pitch.Hz -> Pitch.NoteNumber -> Signal.Y
-pitchToRatio sampleHz nn = sampleHz / Pitch.nn_to_hz nn
+pitchToRatio :: Pitch.NoteNumber -> Pitch.NoteNumber -> Signal.Y
+pitchToRatio sampleNn nn = Pitch.nn_to_hz sampleNn / Pitch.nn_to_hz nn
     -- When I go up *2, I should be skipping every other sample.  So srate
     -- should be *2.  Number of frames is /2.  Ratio is 0.5.
+
+pitchToRatioSignal :: Pitch.NoteNumber -> Note.Note -> Signal.Signal
+pitchToRatioSignal sampleNn =
+    Signal.map_y srate (pitchToRatio sampleNn . Pitch.nn) . fromMaybe mempty
+    . Map.lookup Control.pitch . Note.controls
+
+srate :: RealTime
+srate = 1/8
 
 toOsc :: FilePath -> Sample -> Osc.Play
 toOsc sampleDir sample = Osc.Play

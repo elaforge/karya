@@ -8,6 +8,7 @@ import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 import qualified Text.Read as Read
 
+import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.PPrint as PPrint
@@ -19,6 +20,7 @@ import qualified Derive.C.Prelude.Highlight as Highlight
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ShowVal as ShowVal
 
@@ -66,6 +68,8 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
         <> ImInst.note_transformers [("standard-strings", standard_strings)]
         <> ImInst.null_call Highlight.c_highlight_strings_note
         <> Util.thru dir convert
+        <> ImInst.postproc
+            (DUtil.move_val EnvKey.string EnvKey.patch_element show_string)
     -- copy paste from User.Elaforge.Instrument.Kontakt
     -- TODO put it in a shared module?
     -- This can't go in the automatic env because it uses DeriveT.Pitch, which
@@ -82,6 +86,10 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
         octaves = map fromIntegral [0, 12 ..]
     -- Let's say the top string can bend a minor third.
     range = (head open_strings, last open_strings + 3)
+
+show_string :: PSignal.Pitch -> Either Log.Msg Text
+show_string = bimap (Log.msg Log.Warn Nothing . pretty) Pitch.note_text
+    . PSignal.pitch_note . PSignal.coerce
 
 convert :: Note.Note -> Patch.ConvertM Sample.Sample
 convert note = do
@@ -102,8 +110,7 @@ convert note = do
             [ (Note.start note, vol), (Note.end note, vol)
             , (Note.end note + dampTime, 0)
             ]
-        , Sample.ratio = Signal.constant $
-            Sample.pitchToRatio (Pitch.nn_to_hz (Midi.from_key key)) noteNn
+        , Sample.ratio = Sample.pitchToRatioSignal (Midi.from_key key) note
         }
 
 defaultDampTime :: RealTime

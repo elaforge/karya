@@ -108,8 +108,7 @@ convert note = do
             [ (Note.start note, noteDyn), (Note.end note, noteDyn)
             , (Note.end note + muteTime, 0)
             ]
-        , Sample.ratio = Signal.constant $
-            Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
+        , Sample.ratio = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
 
 -- | A note may pick a sample of this much dyn difference on either side.

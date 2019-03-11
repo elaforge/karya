@@ -83,7 +83,7 @@ simple name filename sampleNn = (patch name)
         return $ (Sample.make filename)
             { Sample.envelope = Signal.constant dyn
             , Sample.ratio = Signal.constant $
-                Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) pitch
+                Sample.pitchToRatio sampleNn pitch
             }
     , _karyaPatch = ImInst.make_patch $ Im.Patch.patch
         { Im.Patch.patch_controls = Control.supportPitch <> Control.supportDyn

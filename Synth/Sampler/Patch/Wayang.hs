@@ -178,8 +178,7 @@ convert instrument tuning note = do
                 [ (Note.start note, dynVal), (Note.end note, dynVal)
                 , (Note.end note + muteTime, 0)
                 ]
-        , Sample.ratio = Signal.constant $
-            Sample.pitchToRatio (Pitch.nn_to_hz sampleNn) noteNn
+        , Sample.ratio = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
 
 isMute :: Articulation -> Bool
