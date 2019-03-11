@@ -11,14 +11,13 @@ import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
-import Control.Monad (forever, void)
+import           Control.Monad (forever, void)
 import qualified Control.Monad.Fix as Fix
 
 import qualified Data.ByteString as ByteString
-import Data.Monoid ((<>))
 import qualified Data.String as String
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
@@ -28,13 +27,12 @@ import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
-import qualified System.Process.Internals as Internals
 import qualified System.Timeout as Timeout
 
 import qualified Util.File as File
 import qualified Util.Log as Log
 
-import Global
+import           Global
 
 
 -- | Similar to 'Process.readProcessWithExitCode' but return ByteStrings
@@ -77,7 +75,7 @@ supervised proc = Exception.mask $ \restore -> do
     Exception.onException (restore (waitAndLog proc hdl)) $ case hdl of
         Nothing -> return ()
         Just hdl -> do
-            pid <- handleToPid hdl
+            pid <- Process.getPid hdl
             Log.warn $ "received exception, killing " <> showt (cmdOf proc)
                 <> maybe "" ((<>")") . (" (pid "<>) . showt) pid
             Process.terminateProcess hdl
@@ -253,13 +251,3 @@ commandName pid = do
 exit :: Int -> IO a
 exit 0 = Exit.exitSuccess
 exit n = Exit.exitWith $ Exit.ExitFailure n
-
-handleToPid :: Internals.ProcessHandle -> IO (Maybe Posix.ProcessID)
-#if GHC_VERSION < 80200
-handleToPid (Internals.ProcessHandle mvar _) =
-#else
-handleToPid (Internals.ProcessHandle mvar _ _) =
-#endif
-    MVar.readMVar mvar >>= \x -> case x of
-        Internals.OpenHandle pid -> return (Just pid)
-        _ -> return Nothing
