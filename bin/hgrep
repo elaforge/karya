@@ -1,8 +1,15 @@
-#!/bin/sh
+#!/bin/zsh
 # Grep through Haksell.
 
-if which rg >/dev/null; then
-    rg -n --type haskell "$@"
+if [[ -d $1 ]]; then
+    dir=$1
+    shift
 else
-    grep -n "$@" $(tools/all_hs.py)
+    dir=.
+fi
+
+if which rg >/dev/null; then
+    rg -n --type haskell "$@" $dir
+else
+    grep -n "$@" $dir/**/*.hs*
 fi
