@@ -4,6 +4,7 @@
 
 -- | Utilities for cmd tests.
 module Cmd.CmdTest where
+import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -13,8 +14,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Debug as Debug
 import qualified Util.Log as Log
-import qualified Util.Thread as Thread
-
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
@@ -482,7 +481,7 @@ set_env :: Cmd.M m => BlockId -> BlockId -> TrackId
 set_env root_id block_id track_id environ =
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert root_id
-            (Unsafe.unsafePerformIO (Thread.start (return ())))
+            (Cmd.Thread $ Unsafe.unsafePerformIO $ Async.async (return ()))
             (Cmd.state_performance_threads st)
         , Cmd.state_performance = Map.insert root_id perf
             (Cmd.state_performance st)

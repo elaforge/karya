@@ -2244,6 +2244,9 @@ synth: im:
     bug:
       - sampler-im goes on endless loop for save/test/im-zheng
         . during gliss, so maybe to do with overlapping notes?
+      * and doesn't this mean that app quit doesn't kill the subprocess?
+        . Nope, in fact the finally handler never gets called.  Maybe because
+          I exit without killing outstanding threads?
       * not getting the final waveform
         . It's getting the completed msg, but chunknum is [1].
       - writing im/cache/test/im-zheng/untitled/b1/zh:

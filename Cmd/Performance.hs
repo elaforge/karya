@@ -13,7 +13,7 @@ module Cmd.Performance (
     SendStatus, update_performance, derive_blocks, performance, derive
     , Process, evaluate_im
 ) where
-import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Monad.State.Strict as Monad.State
 
@@ -177,7 +177,7 @@ kill_threads = do
             , Cmd.perf_damage perf /= mempty
             ]
         kill = filter ((`elem` with_damage) . fst) $ Map.toList threads
-    liftIO $ mapM_ (Concurrent.killThread . snd) kill
+    liftIO $ mapM_ (Cmd.kill_thread . snd) kill
     Monad.State.modify $ modify_play_state $ const $ play_state
         { Cmd.state_performance_threads = Map.delete_keys (map fst kill)
             (Cmd.state_performance_threads play_state)
@@ -210,7 +210,7 @@ generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
-    thread_id <- liftIO $ Thread.start $ do
+    thread_id <- liftIO $ Async.async $ do
         let allocs = Ui.config#Ui.allocations #$ ui_state
             im_config = Cmd.config_im (Cmd.state_config cmd_state)
         let lookup_inst = either (const Nothing) Just
@@ -221,7 +221,7 @@ generate_performance ui_state wait send_status block_id = do
             (Cmd.state_play_multiplier (Cmd.state_play cmd_state)) block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert block_id
-            thread_id (Cmd.state_performance_threads st)
+            (Cmd.Thread thread_id) (Cmd.state_performance_threads st)
         , Cmd.state_current_performance = Map.insert block_id
             perf (Cmd.state_current_performance st)
         }

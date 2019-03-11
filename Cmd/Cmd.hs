@@ -31,7 +31,7 @@
 module Cmd.Cmd (
     module Cmd.Cmd, Performance(..)
 ) where
-import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.Async as Async
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
@@ -593,7 +593,7 @@ data PlayState = PlayState {
     -- | Keep track of current thread working on each performance.  If a
     -- new performance is needed before the old one is complete, it can be
     -- killed off.
-    , state_performance_threads :: !(Map BlockId Concurrent.ThreadId)
+    , state_performance_threads :: !(Map BlockId Thread)
     -- | Some play commands start playing from a short distance before the
     -- cursor.
     , state_play_step :: !TimeStep.TimeStep
@@ -608,6 +608,23 @@ data PlayState = PlayState {
     -- and stop.
     , state_sync :: !(Maybe SyncConfig)
     } deriving (Show)
+
+-- | Wrap Async to make it showable.  I use Async instead of ThreadId because
+-- I want to make sure they can run their finalizers when the app quits, and
+-- I can wait on an Async, but not on a ThreadId.  At the moment, the
+-- finalizers are killing im subprocesses.
+newtype Thread = Thread (Async.Async ())
+
+instance Show Thread where
+    show = show . Async.asyncThreadId . u
+        where u (Thread t) = t
+
+kill_thread :: Thread -> IO ()
+kill_thread (Thread async) = Async.cancel async
+
+kill_performance_threads :: State -> IO ()
+kill_performance_threads =
+    mapM_ kill_thread . Map.elems . state_performance_threads . state_play
 
 initial_play_state :: PlayState
 initial_play_state = PlayState
@@ -1099,8 +1116,7 @@ get_performance block_id = abort_unless =<< lookup_performance block_id
 -- coming in should be ignored, right?  Why not Ui.update_all_tracks?
 invalidate_performances :: CmdT IO ()
 invalidate_performances = do
-    threads <- gets (Map.elems . state_performance_threads . state_play)
-    liftIO $ mapM_ Concurrent.killThread threads
+    liftIO . kill_performance_threads =<< get
     modify_play_state $ \state -> state
         { state_performance = mempty
         , state_performance_threads = mempty

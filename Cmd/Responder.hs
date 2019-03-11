@@ -216,22 +216,28 @@ timeout :: Thread.Seconds
 timeout = 5
 
 respond_loop :: State -> MsgReader -> IO ()
-respond_loop rstate msg_reader = do
+respond_loop state msg_reader = do
     trace "wait"
-    msg <- msg_reader
+    msg <- msg_reader `Exception.onException` kill_threads state
     trace $ "respond " <> untxt (Msg.show_short msg)
-    when (Cmd.state_debug_ui_msgs (state_cmd rstate)) $
+    when (Cmd.state_debug_ui_msgs (state_cmd state)) $
         Debug.putp "msg" msg
-    result <- Exception.try $ Thread.timeout timeout $ respond rstate msg
+    result <- Exception.try $ Thread.timeout timeout $ respond state msg
     case result of
         Left (exc :: Exception.SomeException) -> do
             Log.error $ "exception caught in respond_loop: " <> showt exc
-            respond_loop rstate msg_reader
+            respond_loop state msg_reader
         Right Nothing -> do
             Log.error "respond timed out, derive might be stuck"
-            respond_loop rstate msg_reader
-        Right (Just (quit, rstate)) -> unless quit $
-            respond_loop rstate msg_reader
+            respond_loop state msg_reader
+        Right (Just (quit, state))
+            | quit -> kill_threads state
+            | otherwise -> respond_loop state msg_reader
+
+-- | Kill any active performance threads.  If they are managing subprocesses,
+-- this will make sure the subprocesses die too.
+kill_threads :: State -> IO ()
+kill_threads = Cmd.kill_performance_threads. state_cmd
 
 -- | State maintained for a single responder cycle.
 data RState = RState {
