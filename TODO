@@ -2242,6 +2242,8 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      - sampler-im goes on endless loop for save/test/im-zheng
+        . during gliss, so maybe to do with overlapping notes?
       * not getting the final waveform
         . It's getting the completed msg, but chunknum is [1].
       - writing im/cache/test/im-zheng/untitled/b1/zh:
@@ -2396,19 +2398,14 @@ synth: im:
       . At least I can log final time for each chunk.
       . Turns out I already do that :/
     non-constant pitch:
-      . I need to get sample duration after applying the pitch curve so I can
-        accurately determine overlap.  I figured out the math to predict
-        duration, but it turns out libsamplerate doesn't actually do that.
-        But libsamplerate's algorithm for advancing samples seems to be the
-        same for all quality levels, so I should be able to derive something
-        from its loop.
-      - I need accurate sample durations to determine overlap
-        . E.g. a long note duration will emit lots of hash overlaps, but the
-          actual sample is not so long.  Or the hashes don't overlap, but
-          actually the sample rings.
-        . Actually never mind that, the values I get from libsamplerate are
-          unreasonable, what's going on?
+      - predicted lengths tend to be off, sometimes by 2000+ frames.
       Notes:
+        . I need to get sample duration after applying the pitch curve so I can
+          accurately determine overlap.  I figured out the math to predict
+          duration, but it turns out libsamplerate doesn't actually do that.
+          But libsamplerate's algorithm for advancing samples seems to be the
+          same for all quality levels, so I should be able to derive something
+          from its loop.
         . Don't I have this same problem with the decay on faust instruments?
           How to test that?
         . For instance, dropUntil is wrong, because the samples might be still

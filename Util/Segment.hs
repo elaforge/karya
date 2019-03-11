@@ -259,12 +259,14 @@ null = V.null . _vector
 -- | The arguments may seem backwards, but I've always done it this way, and it
 -- seems to be more convenient in practice.
 at :: V.Vector v (Sample y) => Interpolate y -> X -> SignalS v y -> Maybe y
-at interpolate x (Signal offset vec)
+at interpolate x_ (Signal offset vec)
     | i < 0 = Nothing
     | i + 1 == V.length vec = Just (sy (V.unsafeIndex vec i))
     | otherwise =
         Just $ interpolate (V.unsafeIndex vec i) (V.unsafeIndex vec (i+1)) x
-    where i = TimeVector.highest_index (x - offset) vec
+    where
+    i = TimeVector.highest_index x vec
+    x = x_ - offset
 
 -- | Like 'at', but if the x matches a discontinuity, take the value before
 -- instead of after.

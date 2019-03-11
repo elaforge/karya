@@ -126,6 +126,8 @@ test_shift = do
     equal (at 2 (from_pairs [(2, 2)])) (Just 2)
     equal (at 2 (shift 2 (from_pairs [(2, 2)]))) Nothing
     equal (at 0 (shift (-2) (from_pairs [(2, 2)]))) (Just 2)
+    equal (at 0 (shift (-1) (from_pairs [(1, 1), (2, 0.5)]))) (Just 1)
+    equal (at 0.5 (shift (-1) (from_pairs [(1, 1), (2, 0.5)]))) (Just 0.75)
 
     let shifted = shift 2 (from_pairs [(2, 2)])
     equal (to_pairs shifted) [(4, 2)]
@@ -134,9 +136,9 @@ test_shift = do
     equal (Segment.drop_after 3 shifted) Segment.empty
     equal (Segment.drop_after 4 shifted) shifted
 
-    let shifted2 = shift 2 (from_pairs [(2, 2), (3, 3)])
-    equal (to_pairs $ Segment.drop_before 5 shifted2) [(5, 3)]
-    equal (Segment.drop_before 4 shifted2) shifted2
+    let shifted = shift 2 (from_pairs [(2, 2), (3, 3)])
+    equal (to_pairs $ Segment.drop_before 5 shifted) [(5, 3)]
+    equal (Segment.drop_before 4 shifted) shifted
 
 test_drop_after_clip_after = do
     let f x sig =
