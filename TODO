@@ -2242,8 +2242,29 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
-      - sampler-im goes on endless loop for save/test/im-zheng
+      * sampler-im goes on endless loop for save/test/im-zheng
         . during gliss, so maybe to do with overlapping notes?
+        . at what time? at 10s, hash: V2JONJiRuqyLV1zLMPtoDg
+          Note 9.95s + 3.61s => 13.56s
+          { start = 438795f, duration = 159546f
+          , sample = Right Sample
+            { filename = "data/sampler/zheng/SCGZ80AR-A083.flac"
+            , offset = 0f
+            , envelope = Signal 0s <9.95s:.973, 1009.95s:.973, 1010.7s:0>
+            , pan = Signal.constant 0, ratio = Signal.constant .943
+            }
+          , hash = V2JONJiRuqyLV1zLMPtoDg
+          }
+        . libsamplerate isn't giving me samples even though there is input
+        . Segment x2 looks fishy:
+          { _x1 = -1.0000000000995e11, _y1 = 0.9438743126816933
+          , _x2 = 7.499999999999929e-2, _y2 = 0.9438743126816933
+          }
+        . Because I asked for 0 output frames, likely due to fishy output
+          segment.  now = 3307f, 7.498866213151928e-2
+        . Actually it's correct, just happens to be <1 frame from the end.
+      - why do constant ratios get some many dummy samples?
+
       * and doesn't this mean that app quit doesn't kill the subprocess?
         . Nope, in fact the finally handler never gets called.  Maybe because
           I exit without killing outstanding threads?

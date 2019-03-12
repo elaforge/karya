@@ -9,16 +9,24 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Segment as Segment
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import           Util.Test
 
 
 -- TODO
 -- because I don't have a proper package system, to run these from ghci you
 -- must pass -lsamplerate
 
-test_compile_me = do
-    print 1
+test_segmentAt = do
+    let f = Resample.segmentAt 2
+    let sig = Signal.from_pairs [(0, 0), (1.25, 1), (4, 0)]
+    equal (f 0 sig) $ Segment.Segment 0 0 1.25 1
+    equal (f 1 sig) $ Segment.Segment 1.25 1 4 0
+    equal (f 3.75 sig) $ Segment.Segment 4 0 RealTime.large 0
 
 {- It's hard to test these automatically, so I tested by ear.
     Test for each of:

@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | Resample audio signals via libsamplerate.
 module Util.Audio.Resample (
     resample, resampleRate
@@ -9,6 +10,9 @@ module Util.Audio.Resample (
     , resampleBy
     , Quality(..)
     , SavedState
+#ifdef TESTING
+    , module Util.Audio.Resample
+#endif
 ) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.ByteString as ByteString
@@ -86,13 +90,13 @@ defaultConfig quality = Config
 resampleBy :: forall rate chan. (KnownNat rate, KnownNat chan)
     => Config -> Signal.Control
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
-resampleBy config ratio audio = Audio.Audio $ do
+resampleBy config ratios audio = Audio.Audio $ do
     (key, state) <- lift $ Resource.allocate
         (SampleRateC.new (_quality config)
             (fromIntegral (TypeLits.natVal chan)))
         SampleRateC.delete
     liftIO $ case (_state config) of
-        Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratio
+        Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratios
         Just saved -> do
             ok <- SampleRateC.putState (_quality config) state saved
             unless ok $
@@ -100,20 +104,22 @@ resampleBy config ratio audio = Audio.Audio $ do
     -- I have to collect blocks until I fill up the output block size.  The key
     -- thing is to not let the resample state get ahead of the block boundary.
     let align = _blockSize config - (_now config `mod` _blockSize config)
-    let resampleC = resampleBlock chan rate state
     -- I keep track of the number of samples read from upstream.  This gets
     -- reported to '_notifyState' so I can restart the sample at the right
     -- place.
     -- I also keep track of the previous segment to detect discontinuities.
-    Control.loop2 (0, segmentAt 0 ratio) (0, Audio._stream audio, [], align) $
+    let initialState = (0, segmentAt rate 0 ratios)
+    Control.loop2 initialState (0, Audio._stream audio, [], align) $
         \loop (framesRead, prevSegment) (now, audio, collect, blockLeft) -> do
-            let segment = segmentAt (toSeconds now) ratio
-            resampleC now blockLeft prevSegment segment audio >>= \case
+            let segment = segmentAt rate (toSeconds now) ratios
+            result <- resampleBlock chan rate state now blockLeft prevSegment
+                segment audio
+            case result of
                 Nothing -> done key collect
-                Just (blockRead, block, audio) ->
-                    loop (framesRead + blockRead, segment)
-                        =<< yield state now (framesRead + blockRead) collect
-                            blockLeft block audio
+                Just (blockRead, block, audio) -> do
+                    nextState <- yield state now (framesRead + blockRead)
+                        collect blockLeft block audio
+                    loop (framesRead + blockRead, segment) nextState
     where
     done key collect = do
         liftIO $ _notifyState config Nothing
@@ -154,13 +160,20 @@ resampleBy config ratio audio = Audio.Audio $ do
 
 type Segment = Segment.Segment Signal.Y
 
-segmentAt :: RealTime -> Signal.Control -> Segment
-segmentAt x0 ratio = case Signal.segment_at x0 ratio of
-    Just segment -> segment
+segmentAt :: Audio.Rate -> RealTime -> Signal.Control -> Segment
+segmentAt rate x0 ratios = case Signal.segment_at x0 ratios of
+    Just segment
+        -- If the difference is less than a sample, I don't want it, because
+        -- resampleBlock will then give 0 input samples, which will loop
+        -- forever.
+        | Segment._x2 segment - eta < x0 -> segmentAt rate (x0+eta) ratios
+        | otherwise -> segment
     Nothing
-        | Just (x, y) <- Signal.last ratio, x0 >= x ->
+        | Just (x, y) <- Signal.last ratios, x0 >= x ->
             Segment.Segment 0 y RealTime.large y
         | otherwise -> Segment.Segment 0 1 RealTime.large 1
+    where
+    eta = 1 / fromIntegral rate
 
 type Stream a =
     S.Stream (S.Of (V.Vector Audio.Sample)) (Resource.ResourceT IO) a
@@ -178,7 +191,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
     let outputFrames = min maxFrames (toFrames (Segment._x2 segment) - start)
     let destRatio = Segment.num_interpolate_s segment $
             toSeconds $ start + outputFrames
-        -- Progress through the ratio signal proceeds in real time, which is
+        -- Progress through the ratios signal proceeds in real time, which is
         -- to say, outputFrames.
     let with = V.unsafeWith (fromMaybe V.empty inputBlock)
     (used, generated, outFP) <- liftIO $ with $ \blockp -> do
