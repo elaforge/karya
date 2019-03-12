@@ -26,6 +26,7 @@ import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.File as File
 import qualified Util.Log as Log
+import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -60,9 +61,8 @@ main = do
         ["check"] -> do
             let (reference, samples) = Wayang.checkStarts
             mapM_ (renderStarts . (++[reference])) samples
-        ["dump", notesFilename] ->
-            dump PatchDb.db =<< either (errorIO . pretty) return
-                =<< Note.unserialize notesFilename
+        ["dump", notesFilename] -> dumpNotes False notesFilename
+        ["dumps", notesFilename] -> dumpNotes True notesFilename
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
                 ["sampler-im", txt notesFilename, txt outputDir]
@@ -71,13 +71,16 @@ main = do
             process PatchDb.db quality notes outputDir
         _ -> usage ""
     where
+    dumpNotes useShow notesFilename =
+        dump useShow PatchDb.db =<< either (errorIO . pretty) return
+            =<< Note.unserialize notesFilename
     usage msg = do
         unless (null msg) $
             putStrLn $ "ERROR: " ++ msg
         putStr $ GetOpt.usageInfo
             (unlines
                 [ "sampler-im [ flags ] path/to/notes path/to/output/dir"
-                , "sampler-im [ flags ] dump path/to/notes"
+                , "sampler-im [ flags ] dump[s] path/to/notes"
                 ])
             options
         System.Exit.exitFailure
@@ -106,8 +109,8 @@ options =
 type Error = Text
 
 -- | Show the final Sample.Notes, which would have been rendered.
-dump :: Patch.Db -> [Note.Note] -> IO ()
-dump db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
+dump :: Bool -> Patch.Db -> [Note.Note] -> IO ()
+dump useShow db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
     whenJustM (getPatch db patchName) $ \patch ->
         forM_ notes $ \(inst, notes) -> do
             Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
@@ -116,8 +119,11 @@ dump db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
             mapM_ putHash hashes
             mapM_ putNote notes
     where
-    putNote n = Text.IO.putStrLn $ Text.unlines $
-        Seq.map_head (annotate n) $ Text.lines $ Pretty.formatted n
+    putNote n
+        | useShow = PPrint.pprint n
+        | otherwise = Text.IO.putStrLn $ Text.unlines $
+            Seq.map_tail (Text.drop 4) $ -- dedent
+            Seq.map_head (annotate n) $ Text.lines $ Pretty.formatted n
     annotate n line =
         Text.unwords [line, pretty s, "+", pretty dur, "=>", pretty (s+dur)]
         where
