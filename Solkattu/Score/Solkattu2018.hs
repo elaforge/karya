@@ -753,6 +753,10 @@ adi_tani_misra =
     -- K e_sarva1_tisra All
     , K e_adi_tisra_misra All
     , K c_18_08_03_misra All
+    , K adi_tani2_misra All
+    -- TODO there's another one
+    , K misra_mohras (Index 0) -- or !! 1
+    , K adi_muktayi_misra All
     ]
 
 adi_tani1 :: Korvai
@@ -956,7 +960,7 @@ c_18_08_03 = date 2018 8 3 $ sudhindra $
         ]
 
 c_18_08_03_misra :: Korvai
-c_18_08_03_misra = date 2012 2 26 $ ganesh $
+c_18_08_03_misra = date 2019 2 26 $ ganesh $
     korvai1 Tala.misra_chapu mridangam $ section $ nadai 3 $
     takita_tang.din.__3.tat.__3.din.__3
     . takita_tang.din.__4.tat.__4.din.__4
@@ -1006,8 +1010,36 @@ adi_tani2 = date 2018 8 3 $ sudhindra $ korvai adi mridangam $ map section
         , (taka, p.k)
         ]
 
+adi_tani2_misra :: Korvai
+adi_tani2_misra = date 2019 4 6 $ ganesh $ korvai Tala.misra_chapu mridangam $
+    map (section • sd)
+    [ repeat 4 (din.__.gu.trkt.tk) . dim.__.tat.__
+        . repeat 4 (2^din.__.gu.trkt.tk) . su dikutarikitataka
+    , su $ tri (faran1.dikutarikitataka) . dikutarikitataka
+    , su $ repeat 2 $ tri (takeM 4 faran1) . faran1.dikutarikitataka
+    , su $ repeat 2 $ repeat 2 (takeM 6 faran1) . faran1.dikutarikitataka
+    , su $ repeat 2 $ repeat 2 (takeM 6 faran2) . faran1.dikutarikitataka
+    , su $ tri (faran1.dikutarikitataka) . dikutarikitataka
+    , su $ repeat 2 dikutarikitataka
+        . tri (tri_ (tam.__4) dikutarikitataka)
+    ]
+    where
+    faran1 = ta.ta.kita.tari.kita
+    faran2 = ta.ta.ki.tang.__.gu
+    mridangam = makeMridangam
+        [ (tam, od)
+        , (dim, od)
+        , (din.gu, od.__)
+        , (tari.kita.taka, k.t.k.t.p.k)
+        , (tat, k)
+        , (faran1, o.o.k.t.p.k.t.k)
+        , (faran2, o.o.k.t.__.k)
+
+        , (2^din.gu, d.__)
+        ]
+
 adi_muktayi :: Korvai
-adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam $
+adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam
     [ x3 $ section $ su $
       t0 . oknp.t0 . ktktoknp.t0
         . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
@@ -1022,6 +1054,22 @@ adi_muktayi = date 2018 8 3 $ sudhindra $ korvai adi mridangam $
     -- A general pattern: instead of tri, do 1, then 3 in tisram.
     tisram13 x = x . tri (nadai 6 x)
     t0 = dit.__4.tang.__.taka.dikutarikitataka.din.__4.tat.__4.din.__4
+    mridangam = makeMridangam
+        [ (dit.tang.taka, k.u.p.k)
+        , (din, od)
+        , (tat, k)
+        , (tat.di, k.t)
+        ]
+
+adi_muktayi_misra :: Korvai
+adi_muktayi_misra = date 2019 2 26 $ ganesh $ korvai Tala.misra_chapu mridangam
+    [ x3 $ section $ t0 6 . t0 8 . t0 10
+        . tri (sd p6) .__.__. oknp.tri (sd (tat.__.p6))
+        .__.__. ktktoknp.tri (sd (tat.__.di.__.p6))
+    ]
+    where
+    t0 gap = dit.__4.tang.__.taka.dikutarikitataka
+        . din.__n gap.tat.__n gap.din.__n gap
     mridangam = makeMridangam
         [ (dit.tang.taka, k.u.p.k)
         , (din, od)
