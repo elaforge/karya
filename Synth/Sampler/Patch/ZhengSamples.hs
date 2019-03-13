@@ -350,7 +350,7 @@ samples = fromList
            (127,
             ["SCGZ78FR-A127.flac", "SCGZ78FR-C127.flac",
              "SCGZ78FR-B127.flac"])]),
-       (Key 80,
+       (Key 81,
         fromList
           [(22, ["SCGZ80AR-C022.flac"]), (26, ["SCGZ80AR-B026.flac"]),
            (39, ["SCGZ80AR-B039.flac"]), (40, ["SCGZ80AR-C040.flac"]),
@@ -591,7 +591,7 @@ samples = fromList
            (115, ["SCGZ78FL-A115.flac"]),
            (124, ["SCGZ78FL-B124.flac", "SCGZ78FL-A124.flac"]),
            (127, ["SCGZ78FL-A127.flac", "SCGZ78FL-B127.flac"])]),
-       (Key 80,
+       (Key 81,
         fromList
           [(40, ["SCGZ80AL-A040.flac", "SCGZ80AL-B040.flac"]),
            (56, ["SCGZ80AL-A056.flac", "SCGZ80AL-B056.flac"]),
@@ -713,7 +713,7 @@ samples = fromList
           [(60, ["SCGZ78FH-060.flac"]), (86, ["SCGZ78FH-086.flac"]),
            (113, ["SCGZ78FH-113.flac"]), (124, ["SCGZ78FH-124.flac"]),
            (127, ["SCGZ78FH-127.flac"])]),
-       (Key 92,
+       (Key 93,
         fromList
           [(60, ["SCGZ80AH-060.flac"]), (81, ["SCGZ80AH-081.flac"]),
            (99, ["SCGZ80AH-099.flac"]), (113, ["SCGZ80AH-113.flac"]),

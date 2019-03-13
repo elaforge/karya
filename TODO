@@ -2263,8 +2263,16 @@ synth: im:
         . Because I asked for 0 output frames, likely due to fishy output
           segment.  now = 3307f, 7.498866213151928e-2
         . Actually it's correct, just happens to be <1 frame from the end.
-      - why do constant ratios get some many dummy samples?
-
+      - why do constant ratios get so many dummy samples?
+        . They're already in the notes file.
+        . Probably due to pitch track sets?  Since I know that im notes will
+          never go before the start, maybe I can turn all those into constant.
+        ? Why do they get the extra samples in the first place?
+      - assertion: notes still playing at 617400f(14s):
+        [Playing:(485100f(11s)--616430f(13.97s))]
+      * why down zheng gliss down not sound like open strings?
+        . Maybe the sample pitches are off.
+        . 80 is actually 81
       * and doesn't this mean that app quit doesn't kill the subprocess?
         . Nope, in fact the finally handler never gets called.  Maybe because
           I exit without killing outstanding threads?

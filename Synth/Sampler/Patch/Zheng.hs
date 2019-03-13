@@ -200,8 +200,11 @@ parseFilename ('S':'C':'G':'Z':key1:key2:_:art:'-':rest) = do
             n : rest -> (fromEnum n - fromEnum 'A',) <$>
                 Read.readMaybe (takeWhile Char.isDigit rest)
             _ -> Nothing
+    -- One sample is mislabeled.
+    key <- return $ if key == 80 then 81 else key
     -- Harmonics are given an octave below their sounding pitch.
-    return $ Sample (if art == Harmonic then key + 12 else key) art var maxVel
+    key <- return $ if art == Harmonic then key + 12 else key
+    return $ Sample key art var maxVel
 parseFilename _ = Nothing
 
 makeSampleMap :: [FilePath]
@@ -219,10 +222,12 @@ makeSamples :: [FilePath] -> String
 makeSamples = PPrint.pshow . Map.mapKeys fromEnum . makeSampleMap
 
 -- | Call this to generate ZhengSamples, which is imported as 'samples'.
-writeSamplesModule :: FilePath -> IO ()
-writeSamplesModule output = do
+writeSamplesModule :: IO ()
+writeSamplesModule = do
     fns <- Directory.listDirectory (Config.unsafeSamplerRoot </> "zheng")
     writeFile output $ samplesModuleHeader <> makeSamples fns
+    where
+    output = "Synth/Sampler/Patch/ZhengSamples.hs"
 
 samplesModuleHeader :: String
 samplesModuleHeader =
