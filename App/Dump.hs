@@ -15,12 +15,19 @@ import qualified System.Environment as Environment
 import qualified System.IO as IO
 
 import qualified Util.Git as Git
+import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
+import qualified Cmd.DiffPerformance as DiffPerformance
+import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.Serialize
+
+import qualified Derive.Stack as Stack
 import qualified Midi.Midi as Midi
+import qualified Synth.Shared.Note
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -28,25 +35,25 @@ import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
-import qualified Cmd.DiffPerformance as DiffPerformance
-import qualified Cmd.SaveGit as SaveGit
-import qualified Cmd.Serialize
-
-import qualified Derive.Stack as Stack
-import qualified Synth.Shared.Note
-import Global
+import           Global
 
 
-data Flag = DumpAll | DumpAllocations | DumpConfig | DumpCalls
+data Mode = DumpAll | DumpAllocations | DumpConfig | DumpCalls
+    deriving (Eq, Show)
+
+data Flag = Mode !Mode | PPrint
     deriving (Eq, Show)
 
 options :: [GetOpt.OptDescr Flag]
 options =
-    [ GetOpt.Option [] ["allocations"] (GetOpt.NoArg DumpAllocations)
+    [ GetOpt.Option [] ["allocations"] (GetOpt.NoArg (Mode DumpAllocations))
         "dump allocations"
-    , GetOpt.Option [] ["config"] (GetOpt.NoArg DumpConfig) "dump config"
-    , GetOpt.Option [] ["calls"] (GetOpt.NoArg DumpCalls)
+    , GetOpt.Option [] ["config"] (GetOpt.NoArg (Mode DumpConfig))
+        "dump config"
+    , GetOpt.Option [] ["calls"] (GetOpt.NoArg (Mode DumpCalls))
         "Dump call text. Use this with grep to find where calls are used."
+    , GetOpt.Option [] ["pprint"] (GetOpt.NoArg PPrint)
+        "Use haskell pprint instead of Pretty."
     ]
 
 usage_doc :: String
@@ -58,8 +65,9 @@ main = Git.initialize $ do
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors: " ++ unwords errs
-    let flag = fromMaybe DumpAll (Seq.last flags)
-    ok <- mapM (dump_file flag) args
+    let mode = fromMaybe DumpAll (Seq.last [m | Mode m <- flags])
+        pprint = any (==PPrint) flags
+    ok <- mapM (dump_file pprint mode) args
     Process.exit $ length (filter not ok)
     where
     usage msg = do
@@ -67,28 +75,32 @@ main = Git.initialize $ do
         putStr (GetOpt.usageInfo msg options)
         Process.exit 1
 
-dump_file :: Flag -> FilePath -> IO Bool
-dump_file flag fname = dump flag fname >>= \case
+dump_file :: Bool -> Mode -> FilePath -> IO Bool
+dump_file pprint mode fname = dump pprint mode fname >>= \case
     Right lines -> do
         let prefix = txt fname <> ": "
         mapM_ Text.IO.putStrLn $
-            if flag == DumpCalls then map (prefix<>) lines else lines
+            if mode == DumpCalls then map (prefix<>) lines else lines
         return True
     Left err -> do
         Text.IO.hPutStrLn IO.stderr $ txt fname <> ": " <> err
         return False
 
-dump :: Flag -> FilePath -> IO (Either Text [Text])
-dump flag fname
-    | [repo, commit] <- Seq.split "," fname = dump_git flag repo (Just commit)
-    | SaveGit.is_git fname = dump_git flag fname Nothing
-dump flag fname =
-    try fname Cmd.Serialize.score_magic (dump_score flag) $
-    try fname Cmd.Serialize.allocations_magic ((:[]) . Pretty.formatted) $
-    try fname Cmd.Serialize.views_magic ((:[]) . Pretty.formatted) $
+dump :: Bool -> Mode -> FilePath -> IO (Either Text [Text])
+dump pprint mode fname
+    | [repo, commit] <- Seq.split "," fname =
+        dump_git pprint mode repo (Just commit)
+    | SaveGit.is_git fname = dump_git pprint mode fname Nothing
+dump pprint mode fname =
+    try fname Cmd.Serialize.score_magic (dump_score pprint mode) $
+    try fname Cmd.Serialize.allocations_magic ((:[]) . format pprint) $
+    try fname Cmd.Serialize.views_magic ((:[]) . format pprint) $
     try fname DiffPerformance.midi_magic dump_midi $
-    try fname Synth.Shared.Note.notesMagic (map Pretty.formatted) $
+    try fname Synth.Shared.Note.notesMagic (map (format pprint)) $
     return $ Left "no magic codes match"
+
+format :: (Show a, Pretty a) => Bool -> a -> Text
+format pprint = if pprint then txt . PPrint.pshow else Pretty.formatted
 
 -- | Try to unserialize the file, and try the passed continuation if it failed
 -- with Serialize.BadMagic.
@@ -102,8 +114,8 @@ try fname magic dump next = do
         Left err -> return $ Left (pretty err)
 
 -- | Either a commit hash or a save point ref.
-dump_git :: Flag -> FilePath -> Maybe String -> IO (Either Text [Text])
-dump_git flag repo maybe_arg = Except.runExceptT $ do
+dump_git :: Bool -> Mode -> FilePath -> Maybe String -> IO (Either Text [Text])
+dump_git pprint mode repo maybe_arg = Except.runExceptT $ do
     maybe_commit <- case maybe_arg of
         Nothing -> return Nothing
         Just arg -> do
@@ -115,18 +127,18 @@ dump_git flag repo maybe_arg = Except.runExceptT $ do
         =<< liftIO (SaveGit.load repo maybe_commit)
     let header = "commit: " <> pretty commit <> ", names: "
             <> Text.intercalate ", " names
-    return $ header : dump_score flag state
+    return $ header : dump_score pprint mode state
 
-dump_score :: Flag -> Ui.State -> [Text]
-dump_score flag state = case flag of
-    DumpAll -> format state
-    DumpAllocations -> format $
+dump_score :: Bool -> Mode -> Ui.State -> [Text]
+dump_score pprint mode state = case mode of
+    DumpAll -> fmt state
+    DumpAllocations -> fmt $
         UiConfig.config_allocations $ Ui.state_config state
-    DumpConfig -> format $ Ui.state_config state
+    DumpConfig -> fmt $ Ui.state_config state
     DumpCalls -> extract_calls state ++ extract_event_text state
     where
-    format :: Pretty a => a -> [Text]
-    format = (:[]) . strip_name . Pretty.formatted
+    fmt :: (Show a, Pretty a) => a -> [Text]
+    fmt = (:[]) . strip_name . format pprint
 
 dump_midi :: Vector.Vector Midi.WriteMessage -> [Text]
 dump_midi = map Pretty.formatted . Vector.toList
