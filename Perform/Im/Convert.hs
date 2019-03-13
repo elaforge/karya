@@ -42,7 +42,8 @@ write play_multiplier block_id lookup_inst filename events = do
     notes <- LEvent.write_logs $ convert block_id lookup_inst $
         Vector.toList events
     -- The so-called play multiplier is actually a divider.
-    Note.serialize filename $ multiply_time (1/play_multiplier) notes
+    Note.serialize filename $ map clean_controls $
+        multiply_time (1/play_multiplier) notes
     return ()
 
 multiply_time :: RealTime -> [Note.Note] -> [Note.Note]
@@ -53,6 +54,16 @@ multiply_time n
         , Note.duration = n * Note.duration note
         , Note.controls = Signal.map_x (*n) <$> Note.controls note
         }
+
+-- | Normalize constant signals to have a single sample.  It's more efficient
+-- to serialize fewer samples, and fewer bogus breakpoints can make the
+-- synthesizer more efficient.
+clean_controls :: Note.Note -> Note.Note
+clean_controls note = note { Note.controls = clean <$> Note.controls note }
+    where
+    clean sig = case Signal.constant_val_from (Note.start note) sig of
+        Nothing -> sig
+        Just y -> Signal.constant y
 
 convert :: BlockId -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Note.Note]
