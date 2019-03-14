@@ -53,7 +53,8 @@ write_ :: Audio.Frame -> Audio.Frame -> Resample.Quality -> FilePath
 write_ chunkSize blockSize quality outputDir trackIds notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
-    let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
+    let startFrame = fromIntegral (length skipped) * chunkSize
+        start = AUtil.toSeconds startFrame
     mapM_ (Checkpoint.linkOutput outputDir) skipped
     unless (null skipped) $ Config.emitMessage "" $ Config.Message
         { _blockId = Config.pathToBlockId outputDir
@@ -78,7 +79,7 @@ write_ chunkSize blockSize quality outputDir trackIds notes = catch $ do
             result <- Checkpoint.write outputDir trackIds (length skipped)
                     chunkSize hashes getState $
                 render outputDir blockSize quality initialStates notifyState
-                    trackIds notes (AUtil.toFrame start)
+                    trackIds notes startFrame
             case result of
                 Right (_, total) ->
                     Checkpoint.clearRemainingOutput outputDir total

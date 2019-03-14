@@ -95,14 +95,14 @@ type Error = Text
 
 convert :: Patch -> Note.Note -> Either Error (Sample.Sample, [Log.Msg])
 convert patch note =
-    first (applyStandard note) <$> runConvert (_convert patch note)
+    first (applyStandardControls note) <$> runConvert (_convert patch note)
 
 runConvert :: ConvertM a -> Either Error (a, [Log.Msg])
 runConvert = Identity.runIdentity . Except.runExceptT . Log.run
 
 -- | Apply standard controls that all patches support.
-applyStandard :: Note.Note -> Sample.Sample -> Sample.Sample
-applyStandard note =
+applyStandardControls :: Note.Note -> Sample.Sample -> Sample.Sample
+applyStandardControls note =
     apply Control.volume (\sig sample -> sample
         { Sample.envelope = Signal.sig_multiply sig (Sample.envelope sample) })
     . apply Control.pan (\sig sample -> sample

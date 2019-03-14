@@ -31,6 +31,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Patch as Patch
@@ -209,7 +210,10 @@ makeSampleNote (errSample, logs, note) = do
         Left err -> return $ Left err
         Right sample -> first Audio.exceptionText <$>
             actualDuration (Note.start note) sample
-    let start = AUtil.toFrame (Note.start note)
+    -- Round the frame up.  Otherwise, since frames are integral, I might round
+    -- a note to start before its signal, at which point I get an extraneous 0.
+    let start = Audio.secondsToFrameCeil Config.samplingRate
+            (RealTime.to_seconds (Note.start note))
     let mbDur = either (const Nothing) Just errDur
     return $ Sample.Note
         { start = start

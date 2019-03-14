@@ -19,7 +19,7 @@ module Util.Audio.Audio (
     Audio(..), AudioIO, AudioId
     , NAudio(..), NAudioIO, NAudioId
     , UnknownAudio(..), UnknownAudioIO
-    , Sample, Frame(..), secondsToFrame, frameToSeconds
+    , Sample, Frame(..), secondsToFrame, secondsToFrameCeil, frameToSeconds
     , Duration(..)
     , Count, Channels, Rate, Seconds
     , framesCount, countFrames, blockFrames
@@ -145,6 +145,9 @@ type Seconds = Double
 
 secondsToFrame :: Rate -> Seconds -> Frame
 secondsToFrame rate seconds = Frame $ round $ fromIntegral rate * seconds
+
+secondsToFrameCeil :: Rate -> Seconds -> Frame
+secondsToFrameCeil rate seconds = Frame $ ceiling $ fromIntegral rate * seconds
 
 frameToSeconds :: Rate -> Frame -> Seconds
 frameToSeconds rate (Frame frames) = fromIntegral frames / fromIntegral rate

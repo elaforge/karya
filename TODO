@@ -2242,6 +2242,20 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      * bad resample ratio
+        . Util/Audio/SampleRateC.chs:50: SRC ratio outside [1/256, 256] range.
+        . Exception should give note.
+        . It's probably setRatio on line 44, why does c2hs get the line number
+          wrong?
+        . Probably actually HasCallStack doesn't know about LINE pragmas.
+          Still it's wrong even in the generated file.  GHC gets it wrong too,
+          maybe c2hs does mess up LINEs.
+        . signal offset -9.12498866213152, but the first sample is 9.125
+          Clearly yet again it's floating point eta, but why offset like that?
+          Must be Note.start like that?  Which note is it?
+        . 9.125 * 44100 = 402412.5, and it rounds down.  Once again, frames are
+          lower resolution.
+        . Can I get around by just rounding up?
       * sampler-im goes on endless loop for save/test/im-zheng
         . during gliss, so maybe to do with overlapping notes?
         . at what time? at 10s, hash: V2JONJiRuqyLV1zLMPtoDg
