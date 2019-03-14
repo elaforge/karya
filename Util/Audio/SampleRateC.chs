@@ -34,14 +34,14 @@ new :: Quality -> Channels -> IO State
 new quality channels = Foreign.alloca $ \errp -> do
     State state <- src_new quality channels errp
     when (state == Foreign.nullPtr) $
-        throw =<< Foreign.peek errp
+        throw "new" =<< Foreign.peek errp
     return $ State state
 
 delete :: State -> IO ()
 delete state = src_delete state >> return ()
 
 setRatio :: State -> Double -> IO ()
-setRatio state ratio = check =<< src_set_ratio state ratio
+setRatio state ratio = check "setRatio" =<< src_set_ratio state ratio
 
 -- | This corresponds to the input part of SRC_DATA.
 data Input = Input {
@@ -68,7 +68,7 @@ process state (Input {..}) =
         {#set SRC_DATA.output_frames #} datap $ fromIntegral output_frames
         {#set SRC_DATA.src_ratio    #} datap $ realToFrac src_ratio
         {#set SRC_DATA.end_of_input #} datap $ Foreign.fromBool end_of_input
-        check =<< src_process state (Data datap)
+        check "process" =<< src_process state (Data datap)
         Output
             <$> (fromIntegral <$> {#get SRC_DATA.input_frames_used #} datap)
             <*> (fromIntegral <$> {#get SRC_DATA.output_frames_gen #} datap)
@@ -78,18 +78,18 @@ process state (Input {..}) =
 newtype Exception = Exception Text.Text deriving (Eq, Show)
 instance Exception.Exception Exception
 
-throw :: Stack.HasCallStack => C.CInt -> IO ()
-throw code = do
+throw :: Stack.HasCallStack => Text.Text -> C.CInt -> IO ()
+throw caller code = do
     errp <- src_strerror code
     err <- if errp == Foreign.nullPtr
         then return "src_strerror returned null"
         else C.peekCString errp
-    CallStack.throw Exception (Text.pack err)
+    CallStack.throw Exception $ caller <> ": " <> Text.pack err
 
-check :: Stack.HasCallStack => Int -> IO ()
-check code
+check :: Stack.HasCallStack => Text.Text -> Int -> IO ()
+check caller code
     | code == 0 = return ()
-    | otherwise = throw (fromIntegral code)
+    | otherwise = throw caller (fromIntegral code)
 
 -- * bindings
 
