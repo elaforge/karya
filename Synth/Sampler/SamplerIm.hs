@@ -41,6 +41,7 @@ import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Note as Note
+import qualified Synth.Shared.Signal as Signal
 
 import qualified Ui.Id as Id
 
@@ -223,7 +224,8 @@ actualDuration :: RealTime -> Sample.Sample
     -> IO (Either Audio.Exception Audio.Frame)
 actualDuration start sample = do
     excFileDur <- Exception.try $
-        RenderSample.predictFileDuration (Sample.ratio sample)
+        RenderSample.predictFileDuration
+            (Signal.shift (- start) (Sample.ratio sample))
             (Sample.filename sample)
     let envDur = AUtil.toFrame <$>
             RenderSample.envelopeDur start (Sample.envelope sample)

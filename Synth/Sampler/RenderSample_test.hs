@@ -22,7 +22,7 @@ import           Util.Test
 
 
 test_predictDuration = do
-    let f = verify Resample.ZeroOrderHold
+    let f = verify Resample.ZeroOrderHold . signal
     -- up octave, ratio = 0.5, duration *= 0.5
     -- down octave, ratio = 2, duration *= 2
     uncurry (equalf 1) (f [(0, 1)] 42)
@@ -48,27 +48,27 @@ test_actualDuration = do
 signal :: [(Audio.Frame, Signal.Y)] -> Signal.Signal
 signal = Signal.from_pairs . map (first AUtil.toSeconds)
 
-verify :: Resample.Quality -> [(Audio.Frame, Signal.Y)]
+verify :: Resample.Quality -> Signal.Signal
     -> Audio.Frame -- ^ sample duration
     -> (Double, Double) -- ^ (predicted, actual)
-verify quality ratio dur =
-    ( realToFrac $ RenderSample.predictDuration sig dur
-    , realToFrac $ actualDuration (mkConfig quality) sig dur
+verify quality ratios dur =
+    ( realToFrac $ RenderSample.predictDuration ratios dur
+    , realToFrac $ actualDuration (mkConfig quality) ratios dur
     )
-    where sig = signal ratio
+    -- where sig = signal ratios
 
 actualDuration :: Resample.Config -> Signal.Signal -> Audio.Frame
     -> Audio.Frame
-actualDuration config ratio dur =
+actualDuration config ratios dur =
     Num.sum . map (Audio.blockFrames (Proxy @1))
     . Unsafe.unsafePerformIO
-    . resample config ratio
+    . resample config ratios
     . Audio.take (Audio.Frames dur) $ Audio.silence
 
 resample :: Resample.Config -> Signal.Signal -> AUtil.Audio
     -> IO [Storable.Vector Audio.Sample]
-resample config ratio = Resource.runResourceT . Audio.toSamples
-    . Audio.extractChannel 0 . Resample.resampleBy config ratio
+resample config ratios = Resource.runResourceT . Audio.toSamples
+    . Audio.extractChannel 0 . Resample.resampleBy config ratios
 
 triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]

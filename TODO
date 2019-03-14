@@ -2269,8 +2269,16 @@ synth: im:
           never go before the start, maybe I can turn all those into constant.
         ? Why do they get the extra samples in the first place?
         . bent-string does it.  Probably not worth fixing.
-      - assertion: notes still playing at 617400f(14s):
-        [Playing:(485100f(11s)--616430f(13.97s))]
+      * assertion: notes still playing at 617400f(14s):
+          [Playing:ypQwr8hR2XVzmj9nclRFgg(485100f(11s)--616430f(13.97s))]
+        . /Users/elaforge/src/karya/data/sampler/zheng/SCGZ86DR-B085.flac
+          frames: 123959
+        . It has non-constant pitch, so it's likely
+          RenderSample.predictFileDuration is not the same.
+        . Likely the same as writing im/cache/test/im-zheng/untitled/b1/zh:
+        . Reproduce as a standalone test that does predict, and then runs it,
+          to get the exact difference.
+        . I think predictFileDuration doesn't shift back the ratios.
       * why down zheng gliss down not sound like open strings?
         . Maybe the sample pitches are off.
         . 80 is actually 81
@@ -2279,7 +2287,7 @@ synth: im:
           I exit without killing outstanding threads?
       * not getting the final waveform
         . It's getting the completed msg, but chunknum is [1].
-      - writing im/cache/test/im-zheng/untitled/b1/zh:
+      / writing im/cache/test/im-zheng/untitled/b1/zh:
         notes still playing at 363825f(8.25s):
           [Playing:(115762f(2.62s)--355809f(8.06s))]
         . cmd was:
@@ -2341,11 +2349,9 @@ synth: im:
         . Exactly at the end is different case though.  I think it's actually
           ok, resample can't tell it's at the end.  I should just not open the
           file.
-
         . Also, what happens if I just disable the check?  Could the check be
           wrong, but audio is right?  I might not be able to hear it if it's
           wrong though, due to the long decay.
-
         / Can I simplify all of this into just a callback?  Pull instead of
           push.
           . Checkpoint.write reads from stateRef, which is ByteString
@@ -2364,7 +2370,6 @@ synth: im:
           . But at least could I ask Resample directly?  I think it's the same
             problem: the Playing _audio field is just an Audio stream, and
             there's no way to get anything out other than audio chunks.
-
       * after a play speed change, I get some of the old render after the end.
     * stereo placement for patches, or individual samples
       . This is like volume, I want everyone to handle it the same way.

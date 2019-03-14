@@ -116,7 +116,9 @@ data Playing = Playing {
     }
 
 instance Pretty Playing where
-    pretty p = "Playing:" <> "(" <> prettyF s <> "--" <> prettyF e <> ")"
+    pretty p =
+        "Playing:" <> pretty (_noteHash p)
+            <> "(" <> prettyF s <> "--" <> prettyF e <> ")"
         where (s, e) = _noteRange p
 
 failedPlaying :: Sample.Note -> Playing

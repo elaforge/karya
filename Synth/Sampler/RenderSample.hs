@@ -34,10 +34,10 @@ import           Synth.Types
 
 
 render :: Resample.Config -> RealTime -> Sample.Sample -> AUtil.Audio
-render config start (Sample.Sample filename offset envelope pan ratio) =
+render config start (Sample.Sample filename offset envelope pan ratios) =
     applyPan nowS pan $
     applyEnvelope nowS envelope $
-    resample config ratio start $
+    resample config ratios start $
     File.readFrom (Audio.Frames offset) filename
     where
     nowS = AUtil.toSeconds now
@@ -49,10 +49,10 @@ render config start (Sample.Sample filename offset envelope pan ratio) =
 resample :: (KnownNat rate, KnownNat chan)
     => Resample.Config -> Signal.Signal -> RealTime
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
-resample config ratio start audio
+resample config ratios start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
-    | Just val <- Signal.constant_val_from start ratio,
+    | Just val <- Signal.constant_val_from start ratios,
             ApproxEq.eq closeEnough val 1 =
         Audio.assertIn (state == Nothing)
             ("expected no state for un-resampled, got " <> pretty state) $
@@ -61,8 +61,8 @@ resample config ratio start audio
             (Resample._blockSize config) (silence <> audio)
     | otherwise = silence
         <> Resample.resampleBy (addNow silenceF config)
-            (Signal.shift (-start) ratio) audio
-        -- The resample always starts at 0 in the ratio, so shift it back to
+            (Signal.shift (-start) ratios) audio
+        -- The resample always starts at 0 in the ratios, so shift it back to
         -- account for when the sample starts.
     where
     silence = Audio.take (Audio.Frames silenceF) Audio.silence
@@ -109,8 +109,8 @@ envelopeDur start sig = case Signal.last sig of
 -- | Predict how long a sample will be if resampled with the given ratio
 -- signal.
 predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frame
-predictFileDuration ratio =
-    fmap (predictDuration ratio . Audio.Frame . Sndfile.frames) . File.getInfo
+predictFileDuration ratios =
+    fmap (predictDuration ratios . Audio.Frame . Sndfile.frames) . File.getInfo
 
 type FrameF = Double
 
@@ -118,13 +118,13 @@ toFrameF :: Audio.Frame -> FrameF
 toFrameF = fromIntegral
 
 predictDuration :: Signal.Signal -> Audio.Frame -> Audio.Frame
-predictDuration ratio sampleDur = case Signal.constant_val_from 0 ratio of
+predictDuration ratios sampleDur = case Signal.constant_val_from 0 ratios of
     -- I can also do this optimization if it's constant over the duration of
     -- the sample.  But to know if that's the case I have to do an integral
     -- intersection and I think that's the same as the non-optimized case.
     Just y -> toFrame $ toFrameF sampleDur * y
     Nothing -> toFrame $
-        go (toFrameF sampleDur) 0 (Signal.clip_before_segments 0 ratio)
+        go (toFrameF sampleDur) 0 (Signal.clip_before_segments 0 ratios)
     where
     toFrame = Audio.Frame . ceiling
     go !input !output segments@(Segment.Segment x1 y1 x2 y2 : rest)
