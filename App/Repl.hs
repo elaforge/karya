@@ -87,7 +87,7 @@ main = ReplProtocol.initialize $ do
         [fn] -> return $ Network.Unix fn
         _ -> errorIO "usage: repl [ unix-socket ]"
     -- I don't want to see "thread started" logs.
-    Log.configure $ \state -> state { Log.state_log_level = Log.Notice }
+    Log.configure $ \state -> state { Log.state_priority = Log.Notice }
     liftIO $ putStrLn "^D to quit"
     repl addr $ Haskeline.setComplete (complete addr) initial_settings
 

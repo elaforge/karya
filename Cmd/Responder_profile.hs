@@ -26,7 +26,7 @@ import Global
 
 profile_edits_middle = do
     -- Test editing a large score in the middle as a real user would.
-    Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
+    Log.configure $ \st -> st { Log.state_priority = Log.Warn }
     let edit_block_id = UiTest.bid "b1.5.0"
     let (view_id, ui_state) = UiTest.run Ui.empty $ do
             Ui.modify_config $ Ui.allocations #= UiTest.default_allocations
@@ -57,7 +57,7 @@ profile_null_cmd = do
         (secs cpu) (secs cpu / (10*1024))
 
 profile_selection = do
-    Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
+    Log.configure $ \st -> st { Log.state_priority = Log.Warn }
     let (ui_state, cmd_state) = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
     let ui_state2 = ui_state { Ui.state_rulers =
             Map.insert (UiTest.rid "b1.r0") (UiTest.mkruler_44 256 1)

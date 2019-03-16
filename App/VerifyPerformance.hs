@@ -83,7 +83,7 @@ main :: IO ()
 main = Git.initialize $ do
     args <- System.Environment.getArgs
     Log.configure $ \state -> state
-        { Log.state_log_level = Log.Warn
+        { Log.state_priority = Log.Warn
         , Log.state_write_msg = Log.write_formatted IO.stderr
         }
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of

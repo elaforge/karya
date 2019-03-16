@@ -52,7 +52,7 @@ import           Synth.Types
 
 main :: IO ()
 main = do
-    Log.configure $ \st -> st { Log.state_log_level = Log.Notice }
+    Log.configure $ \st -> st { Log.state_priority = Log.Notice }
     args <- Environment.getArgs
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)

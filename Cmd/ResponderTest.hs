@@ -226,7 +226,7 @@ configure_logging = do
     Log.configure $ \state -> state
         { Log.state_write_msg = Log.write_formatted IO.stdout
         -- Otherwise the status updates get spammy.
-        , Log.state_log_level = Log.Notice
+        , Log.state_priority = Log.Notice
         }
     return ()
 

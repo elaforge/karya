@@ -33,7 +33,7 @@ module Util.Log (
     , format_msg
     , serialize, deserialize
 ) where
-import Prelude hiding (error, log)
+import           Prelude hiding (error, log)
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Error as Error
@@ -47,9 +47,10 @@ import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Writer.Lazy as Writer
 
 import qualified Data.Aeson as Aeson
-import Data.Aeson (parseJSON, toJSON)
+import           Data.Aeson (parseJSON, toJSON)
 import qualified Data.Aeson.Types as Aeson.Types
 import qualified Data.ByteString.Lazy as ByteString.Lazy
+import qualified Data.Char as Char
 import qualified Data.Dynamic as Dynamic
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
@@ -61,8 +62,10 @@ import qualified Data.Vector as Vector
 import qualified GHC.Generics as Generics
 import qualified GHC.Stack
 import qualified Numeric
+import qualified System.Environment as Environment
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
+
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
@@ -70,11 +73,11 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Serialize as Serialize
-import Util.Serialize (get, get_tag, put, put_tag)
+import           Util.Serialize (get, get_tag, put, put_tag)
 
 import qualified Derive.Stack as Stack
 
-import Global
+import           Global
 
 
 data Msg = Msg {
@@ -178,7 +181,7 @@ no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 -- | Logging state.  Don't log if a handle is Nothing.
 data State = State {
     state_write_msg :: Msg -> IO ()
-    , state_log_level :: Priority
+    , state_priority :: Priority
     }
 
 -- | Write logs as JSON to the given handle.
@@ -194,7 +197,7 @@ write_formatted hdl = Text.IO.hPutStrLn hdl . format_msg
 initial_state :: State
 initial_state = State
     { state_write_msg = write_formatted IO.stderr
-    , state_log_level = Debug
+    , state_priority = Debug
     }
 
 {-# NOINLINE global_state #-}
@@ -202,9 +205,24 @@ global_state :: MVar.MVar State
 global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 
 -- | Configure the logging system by modifying its internal state.
--- Return the old state so you can restore it later.
-configure :: (State -> State) -> IO State
-configure f = MVar.modifyMVar global_state $ \old -> return (f old, old)
+configure :: (State -> State) -> IO ()
+configure f = MVar.modifyMVar_ global_state (with_log_config . f)
+
+with_log_config :: State -> IO State
+with_log_config state = do
+    config_str <- fromMaybe "" <$> Environment.lookupEnv "LOG_CONFIG"
+    either errorIO return $ parse_log_config config_str state
+
+parse_log_config :: String -> State -> Either Text State
+parse_log_config str state
+    | str == "" = Right state
+    | Just prio <- Map.lookup (lower str) priorities =
+        Right $ state { state_priority = prio }
+    | otherwise = Left $ "can't parse LOG_CONFIG: " <> Text.pack (show str)
+    where
+    priorities = Map.fromList $ zip (map (lower . show) ps) ps
+        where ps = [minBound .. maxBound] :: [Priority]
+    lower = map Char.toLower
 
 -- | Reuse the log lock, presumably to write to stdout or stderr.  It doesn't
 -- really belong here, but stdout and stderr are already global, so reusing
