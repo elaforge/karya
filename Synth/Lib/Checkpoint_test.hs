@@ -3,11 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Lib.Checkpoint_test where
+import qualified Data.Set as Set
+import qualified System.FilePath as FilePath
+
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 
-import Synth.Types
-import Util.Test
+import           Global
+import           Synth.Types
+import           Util.Test
 
 
 -- Many functions in Checkpoint are tested by caller tests, e.g.
@@ -49,6 +53,23 @@ test_groupOverlapping = do
     -- this is the Checkpoint.groupOverlapping haddock example
     equal (f 0 2 [(1, 2), (2, 1), (3, 2), (4, 1)])
         [[(1, 2)], [(1, 2), (2, 1), (3, 2)], [(3, 2), (4, 1)]]
+
+test_findLastState = do
+    let f files = Checkpoint.findLastState (Set.fromList files)
+            . map (second (Note.Hash))
+    let initialState = Checkpoint.encodeState $ Checkpoint.State mempty
+    let fn chunk hash state =
+            Checkpoint.filenameOf2 chunk (Note.Hash hash) state
+    let wav1 = fn 0 "a" initialState
+    equal (f [] [(0, "a")]) ([], ([(0, Note.Hash "a")], ""))
+    -- .wav is present, but not .state, don't skip the .wav.
+    equal (f [wav1] [(0, "a"), (1, "b")])
+        ([], ([(0, Note.Hash "a"), (1, Note.Hash "b")], ""))
+    let state1 = FilePath.replaceExtension wav1 ".state.b"
+    equal (f [wav1, state1] [(0, "a"), (1, "b")])
+        ([wav1], ([(1, Note.Hash "b")], state1))
+
+-- filenameOf2 :: Config.ChunkNum -> Note.Hash -> String -> FilePath
 
 mkSpan :: (RealTime, RealTime) -> Checkpoint.Span
 mkSpan (s, d) = Checkpoint.Span

@@ -64,13 +64,13 @@ skipCheckpoints :: FilePath -> [(Config.ChunkNum, Note.Hash)]
 skipCheckpoints outputDir hashes = do
     Directory.createDirectoryIfMissing False (outputDir </> checkpointDir)
     files <- Directory.listDirectory (outputDir </> checkpointDir)
-    (skipped, (hashes, stateFname)) <- either errorIO return $
-        findLastState (Set.fromList files) hashes
+    let (skipped, (remainingHashes, stateFname)) =
+            findLastState (Set.fromList files) hashes
     mbState <- if null stateFname
         then return Nothing
         else Just . State
             <$> ByteString.readFile (outputDir </> checkpointDir </> stateFname)
-    return (skipped, hashes, mbState)
+    return (skipped, remainingHashes, mbState)
 
 -- | Find the first 'Note.Hash' that doesn't have a matching filename.
 --
@@ -78,22 +78,28 @@ skipCheckpoints outputDir hashes = do
 -- state of the next one as described in 'writeState', this has to follow the
 -- files in sequence.
 findLastState :: Set FilePath -> [(Config.ChunkNum, Note.Hash)]
-    -> Either Text ([FilePath], ([(Config.ChunkNum, Note.Hash)], FilePath))
+    -> ([FilePath], ([(Config.ChunkNum, Note.Hash)], FilePath))
+    -- ^ ([skipped], (remainingHashes, resumeState))
 findLastState files = go "" initialState
     where
     initialState = encodeState $ State mempty
     go prevStateFname state ((chunknum, hash) : hashes)
-        | fname `Set.member` files = do
-            let prefix = FilePath.replaceExtension fname ".state."
-            (stateFname, nextState) <- case Set.lookupGT prefix files of
-                Just stateFname | prefix `List.isPrefixOf` stateFname ->
-                    Right (stateFname, drop (length prefix) stateFname)
-                _ -> Left $ "no state: " <> txt prefix
-            first (fname:) <$> go stateFname nextState hashes
-        | otherwise = Right ([], ((chunknum, hash) : hashes, prevStateFname))
+        | fname `Set.member` files = case Set.lookupGT prefix files of
+            Just stateFname | prefix `List.isPrefixOf` stateFname ->
+                first (fname:) $ go stateFname nextState hashes
+                where nextState = drop (length prefix) stateFname
+            -- I didn't find a corresponding .state file for the .wav.  This
+            -- can happen if a previous render was killed while writing them.
+            -- Since the files are written atomically, the .state file marks
+            -- the end of the transaction, so I should just be able to ignore
+            -- an orphaned .wav.
+            _ -> done
+        | otherwise = done
         where
+        done = ([], ((chunknum, hash) : hashes, prevStateFname))
+        prefix = FilePath.replaceExtension fname ".state."
         fname = filenameOf2 chunknum hash state
-    go _ _ [] = Right ([], ([], ""))
+    go _ _ [] = ([], ([], ""))
 
 -- ** write
 

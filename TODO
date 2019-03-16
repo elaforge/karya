@@ -2237,11 +2237,51 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    -  AUtil.volume does dbToLinear per-sample, which is inefficient.
+      . Do it to the Signal, before realizeSignal.
+      . Use the same srate as DbSignal.from_signal.
+    - it's too confusing to map dB to the -96 - 0 volume range.  Just make
+      envelope be in dB.
+      . That might be confusing too, since it's different from all other
+        signals, and since signal is monomorphic, I can't easily make
+        a newtype for it.
+      . Also, I use envleope = 0 end the sample, and dB never goes to 0.  I'd
+        have to say -96 is 0.
+      . It would be nice if I could make Decibel a newtype, to remind myself
+        to do the conversion.  But it goes into a Signal, which is untyped.
+        . I could either use the signal phantom type, and have it optionally
+          influence the Y value accepted by from_pairs.  I think I can do it
+          with type families and coerce, where
+            from_pairs :: Coercible (YOf kind) Y => [(X, YOf kind)]
+              -> Signal kind
+          . This would also be useful for Signal.NoteNumber, though I think
+            I don't have the problem of not remembering it's NN, it's just
+            that I have to coervert away from Pitch.NoteNumber.
+        . Or I could just wrap the envelope Signal in a newtype.
+          . But this means I have to duplicate the whole signal API.  If it
+            gets to be more than a few functions, then evaluate the polymorphic
+            signal.
+      - dbToLinear is not linear, so RenderSample has to resample the envelope
+        before multiplying.
     - Signal.sig_multiply is not a linear operator!  It's ok for a constant,
       but 0.5*0.5 is 0.25.
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      - it's pretty easy to get zheng to get a "still playing" by editing
+        . It happens with constant ratio, so probably not duration related.
+        . Seems to happen when I kill a running one.
+        . But just running prev and last doesn't do it.
+        . still playing at 551250f(12.5s):
+          [Playing:xEPhxBXurMoBA-jyFL-_iQ(132300f(3s)--546150f(12.38s))]
+        . Let's redo this with ratio=1 to make things easier.
+      * I also got "no state with prefix", the .wav exists be the .state is
+        gone.
+        . Is there any circumstance under which I write the chunk, but not the
+          state?  Can I get killed in between?
+        . Yes, it renames the .wav, then write state, then make symlink
+        . If I have some sign it's complete, then I can delete incomplete
+          transactions.
       * bad resample ratio
         . Util/Audio/SampleRateC.chs:50: SRC ratio outside [1/256, 256] range.
         . Exception should give note.
@@ -2672,6 +2712,8 @@ synth: im:
           notes until a damp?
         . Or do it MIDI style, with a pedal control.  Notes are extended until
           max of pedal up and note duration.
+      - harmonics are much softer
+        . 67nn louder
       - Do bends per-string.  This means merge together the pitch curves.
         . I should do this post duration calculation, and only collect signal
           over the note duration.
