@@ -163,7 +163,7 @@ render outputDir blockSize quality initialStates notifyState trackIds notes
         starting <- liftIO $
             mapM (startSample now quality blockSize Nothing) overlappingChunk
         metric <- progress prevMetric now playing starting
-        (blocks, playing) <- lift $ pull blockSize (playing ++ starting)
+        (blocks, playing) <- lift $ pull blockSize now (playing ++ starting)
         -- Record playing states for the start of the next chunk.
         let playingTooLong = filter ((<=now) . snd . _noteRange) playing
         -- This means RenderSample.predictFileDuration was wrong.
@@ -209,9 +209,9 @@ inferChunkNum :: Audio.Frame -> Audio.Frame -> Config.ChunkNum
 inferChunkNum chunkSize now = fromIntegral $ now `div` chunkSize
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
-pull :: Audio.Frame -> [Playing]
+pull :: Audio.Frame -> Audio.Frame -> [Playing]
     -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
-pull blockSize = fmap (trim . unzip) . mapM get
+pull blockSize now = fmap (trim . unzip) . mapM get
     -- TODO this mapM could be concurrent
     where
     trim (chunks, playing) =
@@ -219,10 +219,17 @@ pull blockSize = fmap (trim . unzip) . mapM get
     get playing = do
         (chunk, audio) <- first mconcat <$>
             Audio.takeFramesGE blockSize (_audio playing)
+        let done = AUtil.blockFrames2 chunk < blockSize
+            end = now + AUtil.blockFrames2 chunk
+        when done $ liftIO $ Log.debug $
+            let diff = snd (_noteRange playing) - end in
+            pretty (_noteHash playing) <> ": expected "
+            <> pretty (_noteRange playing)
+            <> " diff: " <> pretty diff
+            <> " " <> pretty (AUtil.toSeconds diff)
         return
             ( chunk
-            , if AUtil.blockFrames2 chunk < blockSize
-                then Nothing else Just (playing { _audio = audio })
+            , if done then Nothing else Just (playing { _audio = audio })
             )
 
 resumeSamples :: Audio.Frame -> Resample.Quality -> Audio.Frame
