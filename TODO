@@ -2268,18 +2268,35 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
-      - hard crash when rendering wayang
-        . remove waveform render
-        . That fixes it.  Probably has to do with progress in two different
-          places.  That's probably due to multiple, but how?
-        . Or maybe just the two different instruments?
-        . Yes, I get two:
-          {"_blockId":"im/bug-cache", "_trackIds":["wayang/score.t01"],
-            "_instrument":"p-isep", "_payload":{"tag":"WaveformsCompleted",
-            "contents":[0]}}
-          but with different instruments.
+      rendering wayang gets out of order progress updates:
+        . Happens with multiple instruments on one track.
         . Ideally I could show both at once, with shades.  Or maybe I could
           show a point for each position, but grey for minimum.
+        . Or maybe I can just live with the jumpiness.
+        - For audio I'd want to mix them together.
+          I could do the latter by making only -1 clear them, otherwise it
+          will mix in with an existing one.
+          . I think I want to keep an Entry as a single cached file, and have
+            another layer to mix them.
+          . But I want to use the same cache.  So maybe have Entry have a set
+            of filenames?
+          . Will this destroy the caching?  Because I load A, then A+B, and
+            A is deleted.  Then the next time I load A, and A+B is deleted,
+            then repeat.  I'd need A+B to keep the A cache alive, by holding
+            a shared_ptr to it.
+          . The other way would be to merge the waveforms together on the
+            haskell side.  I'd have to know what to expect and wait for them
+            all though.  Knowing what to expect seems complicated, since I'd
+            need to know the extents of im events by instrument.
+          . If I do shared_ptr, then each Entry needs children.  I loop the
+            filenames, loading each one, then make an Entry with them mixed.
+          . This doesn't even work!  When I replace A+B with A, I lose A+B and
+            B at once.
+          . I think I'd need to switch to a completely different scheme.
+            Either abandon caching entirely, and just reload everything (turns
+            out that's faster than I thought it would be).  Or, retain
+            everything and only do a gc when told, which would be at
+            ImComplete.
       * I should also fix the waveform crash, why should coflicting waveforms
         cause a crash?
         . It will result in a lot of BlockC.set_waveform

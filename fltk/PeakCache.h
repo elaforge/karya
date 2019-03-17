@@ -39,9 +39,9 @@ public:
                 const std::vector<double> &ratios)
             : filename(filename), start(start), ratios(ratios)
         {}
-        std::string filename;
-        ScoreTime start;
-        std::vector<double> ratios;
+        const std::string filename;
+        const ScoreTime start;
+        const std::vector<double> ratios;
 
         // All this just to use unordered_map.  C++ sure is a pain.
         bool operator==(const Params &that) const {

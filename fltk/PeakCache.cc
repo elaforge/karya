@@ -92,7 +92,6 @@ PeakCache::Entry::at_zoom(double zoom_factor)
             DEBUG("METRIC zoom " << peaks->size() << " to "
                 << zoom_cache->size() << " dur: " << dur.count());
         }
-
         cached_zoom = zoom_factor;
     }
     return zoom_cache;
@@ -118,7 +117,7 @@ period_at(const std::vector<double> &ratios, sf_count_t frame)
 
 
 // Originally I returned the vector directly and relied on return value
-// optimization, but there wes still a copy.  unique_ptr didn't believe that
+// optimization, but there was still a copy.  unique_ptr didn't believe that
 // I wasn't making a copy either, so raw pointer given to Entry is it.
 static std::vector<float> *
 load_file(const std::string &filename, const std::vector<double> &ratios)
@@ -178,29 +177,27 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
 std::shared_ptr<PeakCache::Entry>
 PeakCache::load(const Params &params)
 {
-    std::shared_ptr<Entry> entry;
     auto found = cache.find(params);
     if (found != cache.end()) {
-        entry = found->second.lock();
         // DEBUG("reused " << params.filename);
+        return found->second.lock();
     }
-    if (!entry) {
-        auto start = std::chrono::steady_clock::now();
-        std::vector<float> *peaks = load_file(params.filename, params.ratios);
-        if (print_metrics) {
-            // Loading a 3s chunk takes around 3ms.
-            static double total_dur;
-            static int total_count;
-            auto end = std::chrono::steady_clock::now();
-            std::chrono::duration<double> dur = end - start;
-            total_dur += dur.count();
-            total_count++;
-            DEBUG("METRIC load " << params.filename << ": " << dur.count()
-                << " total_dur: " << total_dur << " of " << total_count);
-        }
 
-        entry.reset(new PeakCache::Entry(params.start, peaks));
-        cache[params] = entry;
+    auto start = std::chrono::steady_clock::now();
+    std::vector<float> *peaks = load_file(params.filename, params.ratios);
+    std::shared_ptr<Entry> entry(new PeakCache::Entry(params.start, peaks));
+
+    if (print_metrics) {
+        // Loading a 3s chunk takes around 3ms.
+        static double total_dur;
+        static int total_count;
+        auto end = std::chrono::steady_clock::now();
+        std::chrono::duration<double> dur = end - start;
+        total_dur += dur.count();
+        total_count++;
+        DEBUG("METRIC load " << params.filename << ": " << dur.count()
+            << " total_dur: " << total_dur << " of " << total_count);
     }
+    cache[params] = entry;
     return entry;
 }

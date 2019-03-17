@@ -322,10 +322,10 @@ EventTrack::set_track_signal(const TrackSignal &tsig)
 
 
 static float
-get_max_peak(const std::vector<std::shared_ptr<PeakCache::Entry>> &peaks)
+get_max_peak(const std::vector<std::shared_ptr<PeakCache::Entry>> &peak_entries)
 {
     float max = 0;
-    for (const auto &entry : peaks) {
+    for (const auto &entry : peak_entries) {
         if (entry.get())
             max = std::max(max, entry->max_peak);
     }
@@ -336,12 +336,15 @@ get_max_peak(const std::vector<std::shared_ptr<PeakCache::Entry>> &peaks)
 void
 EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
-    // Clear any chunks above.
-    this->peaks.resize(size_t(chunknum+1));
     // chunknum=-1 means clear all.
+    if (chunknum < 0) {
+        this->peak_entries.resize(0);
+    } else if (chunknum >= peak_entries.size()) {
+        this->peak_entries.resize(size_t(chunknum+1));
+    }
     if (chunknum >= 0) {
-        peaks[chunknum] = PeakCache::get()->load(params);
-        float new_peak = get_max_peak(peaks);
+        peak_entries[chunknum] = PeakCache::get()->load(params);
+        float new_peak = get_max_peak(peak_entries);
         if (new_peak != this->max_peak) {
             this->max_peak = new_peak;
             this->redraw();
@@ -629,12 +632,12 @@ EventTrack::draw_event_boxes(
 
 static const ScoreTime *
 get_next_start(
-    std::vector<std::shared_ptr<PeakCache::Entry>> &peaks,
+    std::vector<std::shared_ptr<PeakCache::Entry>> &peak_entries,
     int chunknum)
 {
-    for (; chunknum < peaks.size(); chunknum++) {
-        if (peaks[chunknum].get())
-            return &peaks[chunknum]->start;
+    for (; chunknum < peak_entries.size(); chunknum++) {
+        if (peak_entries[chunknum].get())
+            return &peak_entries[chunknum]->start;
     }
     return nullptr;
 }
@@ -645,7 +648,7 @@ void
 EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
 {
     const float amplitude_scale = max_peak == 0 ? 1 : 1 / max_peak;
-    if (peaks.empty())
+    if (peak_entries.empty())
         return;
 
     const int min_x = x() + 2;
@@ -655,7 +658,7 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
     double y = min_y;
     int chunknum = -1; // -1 means uninitialized
     int i = 0; // peak index within a chunk, reset when I reach a new chunk
-    const ScoreTime *next_start = get_next_start(peaks, 0);
+    const ScoreTime *next_start = get_next_start(peak_entries, 0);
     const double pixels_per_peak = PeakCache::pixels_per_peak(zoom.factor);
     ScoreTime time = start;
     const ScoreTime time_per_peak = zoom.to_time_d(pixels_per_peak);
@@ -678,13 +681,13 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
         while (chunknum == -1 || (next_start && time >= *next_start)) {
             chunknum++;
             i = 0;
-            if (chunknum >= peaks.size())
+            if (chunknum >= peak_entries.size())
                 break;
-            if (peaks[chunknum].get()) {
-                time = peaks[chunknum]->start;
+            if (peak_entries[chunknum].get()) {
+                time = peak_entries[chunknum]->start;
                 y = zoom.to_pixels_d(time - zoom.offset) + track_start();
-                next_start = get_next_start(peaks, chunknum+1);
-                cache = peaks[chunknum]->at_zoom(zoom.factor);
+                next_start = get_next_start(peak_entries, chunknum+1);
+                cache = peak_entries[chunknum]->at_zoom(zoom.factor);
             } else {
                 // Someone put in waveform chunks out of order, and this one is
                 // missing.

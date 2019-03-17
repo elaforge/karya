@@ -4,12 +4,13 @@
 
 #pragma once
 
-#include <string>
+#include <execinfo.h>
+#include <iostream>
+#include <set>
 #include <string.h>
+#include <string>
 #include <utility>
 #include <vector>
-#include <iostream>
-#include <execinfo.h>
 
 
 #define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \
@@ -138,4 +139,19 @@ template <class T, class U> inline std::ostream &
 operator<<(std::ostream &os, const std::pair<T, U> &p)
 {
     return os << "(" << p.first << ", " << p.second << ")";
+}
+
+template <class T> inline std::ostream &
+operator<<(std::ostream &os, const std::set<T> &set)
+{
+    os << "{";
+    bool first = true;
+    for (const T &val : set) {
+        if (!first) {
+            os << ", ";
+            first = false;
+        }
+        os << val;
+    }
+    return os << "}";
 }
