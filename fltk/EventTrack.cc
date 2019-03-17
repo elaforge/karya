@@ -326,7 +326,8 @@ get_max_peak(const std::vector<std::shared_ptr<PeakCache::Entry>> &peaks)
 {
     float max = 0;
     for (const auto &entry : peaks) {
-        max = std::max(max, entry->max_peak);
+        if (entry.get())
+            max = std::max(max, entry->max_peak);
     }
     return max;
 }
@@ -691,7 +692,7 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
             }
         }
         // Out of peaks on the last chunk.
-        if (!next_start && i >= cache->size())
+        if (!next_start && cache.get() && i >= cache->size())
             break;
         // i > cache->size() means I ran out of cached peaks before getting to
         // the next chunk start.  This can happen for a sample or two due to

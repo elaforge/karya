@@ -2268,13 +2268,35 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
-      - it's pretty easy to get zheng to get a "still playing" by editing
+      - hard crash when rendering wayang
+        . remove waveform render
+        . That fixes it.  Probably has to do with progress in two different
+          places.  That's probably due to multiple, but how?
+        . Or maybe just the two different instruments?
+        . Yes, I get two:
+          {"_blockId":"im/bug-cache", "_trackIds":["wayang/score.t01"],
+            "_instrument":"p-isep", "_payload":{"tag":"WaveformsCompleted",
+            "contents":[0]}}
+          but with different instruments.
+        . Ideally I could show both at once, with shades.  Or maybe I could
+          show a point for each position, but grey for minimum.
+      * I should also fix the waveform crash, why should coflicting waveforms
+        cause a crash?
+        . It will result in a lot of BlockC.set_waveform
+        . I could record and replay the sequence.
+        . It seems to segfault when the sequence is not in order.
+      - also got one of these:
+        assertion: at 0f: len states 0 /= len notes 1: []
+        /= [("-905f(-.02s)", "57653f(1.3s)", Signal.constant .998,
+          Right "83-65-108-open1.flac")]
+      * it's pretty easy to get zheng to get a "still playing" by editing
         . It happens with constant ratio, so probably not duration related.
         . Seems to happen when I kill a running one.
         . But just running prev and last doesn't do it.
         . still playing at 551250f(12.5s):
           [Playing:xEPhxBXurMoBA-jyFL-_iQ(132300f(3s)--546150f(12.38s))]
         . Let's redo this with ratio=1 to make things easier.
+        . Solved I think?
       * I also got "no state with prefix", the .wav exists be the .state is
         gone.
         . Is there any circumstance under which I write the chunk, but not the
