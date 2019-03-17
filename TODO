@@ -2302,10 +2302,24 @@ synth: im:
         . It will result in a lot of BlockC.set_waveform
         . I could record and replay the sequence.
         . It seems to segfault when the sequence is not in order.
-      - also got one of these:
-        assertion: at 0f: len states 0 /= len notes 1: []
-        /= [("-905f(-.02s)", "57653f(1.3s)", Signal.constant .998,
-          Right "83-65-108-open1.flac")]
+      wayang/p1:
+        * assertion: at 0f: len states 0 /= len notes 1: []
+          /= [("-905f(-.02s)", "57653f(1.3s)", Signal.constant .998,
+            Right "83-65-108-open1.flac")]
+          . I'll bet this has to do with the negative start time.
+          . I think I can bump it up to 0 as I do for MIDI.
+          . Ok that works but now the waveforms are off.
+            I need to shift them back by the adjust amount.
+          - Also I have to to the same adjust for everyone.
+        - when I add a new track, I lose the waveforms
+          . Or just collapse or expand.
+
+        - mute seems pretty abrupt.  Could it be that it's linear?  I think
+          the usual envelope decay is log.  Or maybe that's just doing it by
+          dB?
+        - symbolic-pitch=t
+          It seems to miss ngoret pitches.  I get: Error: no pitch at 236.72s
+
       * it's pretty easy to get zheng to get a "still playing" by editing
         . It happens with constant ratio, so probably not duration related.
         . Seems to happen when I kill a running one.

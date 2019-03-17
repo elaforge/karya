@@ -264,10 +264,14 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     when (Thread.metricWall metric > 1) $
         Log.notice $ "derived " <> showt block_id <> " in "
             <> Thread.showMetric metric
+    -- This should match the adjust0 in 'Cmd.Play.start_adjustment'.
+    let adjust0 = case Vector.toList (Cmd.perf_events perf) of
+            event : _ -> max (- Score.event_start event) 0
+            _ -> 0
     (procs, events) <-  case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
         Just config -> evaluate_im config lookup_inst score_path
-            play_multiplier block_id (Cmd.perf_events perf)
+            adjust0 play_multiplier block_id (Cmd.perf_events perf)
     send_status block_id $ Msg.DeriveComplete
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
@@ -275,7 +279,8 @@ evaluate_performance im_config lookup_inst wait send_status score_path
         Just config -> watch_subprocesses config
             (Cmd.perf_inv_tempo perf)
             (state_wants_waveform (Cmd.perf_ui_state perf))
-            score_path (send_status block_id . Msg.ImStatus)
+            score_path adjust0
+            (send_status block_id . Msg.ImStatus)
             (Set.fromList procs)
         Nothing -> return False
     unless (null procs) $
@@ -289,9 +294,10 @@ type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
 watch_subprocesses :: Config.Config -> Transport.InverseTempoFunction
-    -> (TrackId -> Bool) -> FilePath -> (Msg.ImStatus -> IO ()) -> Set Process
-    -> IO Bool
-watch_subprocesses config inv_tempo wants_waveform score_path send_status procs
+    -> (TrackId -> Bool) -> FilePath -> RealTime -> (Msg.ImStatus -> IO ())
+    -> Set Process -> IO Bool
+watch_subprocesses config inv_tempo wants_waveform score_path adjust0
+        send_status procs
     | Set.null procs = return False
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
@@ -337,16 +343,14 @@ watch_subprocesses config inv_tempo wants_waveform score_path send_status procs
             Right Nothing -> return False
         where
         make = make_progress inv_tempo wants_waveform (Config.imDir config)
-            score_path
-        -- filename <- resolveLink $ Config.chunkPath im_dir score_path block_id
-        --     instrument chunknum
+            score_path adjust0
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
-make_progress :: Transport.InverseTempoFunction -> (TrackId -> Bool)
-    -> FilePath -> FilePath -> Config.Message
+make_progress :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
+    -> FilePath -> RealTime -> Config.Message
     -> Either Text (Maybe Msg.ImStatus)
-make_progress inv_tempo wants_waveform im_dir score_path
+make_progress inv_tempo wants_waveform im_dir score_path adjust0
         (Config.Message block_id track_ids instrument p) = case p of
     Config.RenderingRange start end ->
         return $ Just $ Msg.ImRenderingRange block_id track_ids start end
@@ -363,6 +367,7 @@ make_progress inv_tempo wants_waveform im_dir score_path
     make_waveform chunknum = do
         start <- to_score $ time_at chunknum
         end <- to_score $ time_at (chunknum+1)
+        adjust0 <- to_score adjust0
         -- ratio=2 means half as long.  So 2s -> 1t is 2/1
         let ratio = fromIntegral Config.chunkSeconds
                 / ScoreTime.to_double (end - start)
@@ -372,7 +377,7 @@ make_progress inv_tempo wants_waveform im_dir score_path
             { _filename = Config.chunkPath im_dir score_path block_id
                 instrument chunknum
             , _chunknum = chunknum
-            , _start = start
+            , _start = start - adjust0
             , _ratios = [ratio]
             }
     time_at chunknum = RealTime.seconds $
@@ -398,9 +403,10 @@ real_to_score inv_tempo block_id track_ids =
 -- them, and the non-im events.
 evaluate_im :: Config.Config
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
-    -> FilePath -> RealTime -> BlockId -> Vector.Vector Score.Event
+    -> FilePath -> RealTime -> RealTime -> BlockId -> Vector.Vector Score.Event
     -> IO ([Process], Vector.Vector Score.Event)
-evaluate_im config lookup_inst score_path play_multiplier block_id events = do
+evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
+        events = do
     cmds <- Maybe.catMaybes <$> mapM write_notes by_synth
     return (cmds, fromMaybe mempty $ lookup Nothing by_synth)
     where
@@ -425,7 +431,7 @@ evaluate_im config lookup_inst score_path play_multiplier block_id events = do
                 -- more careful in insert_damage, so we shouldn't even get here
                 -- unless there was damage on the block, and if there was but
                 -- notes haven't changed, the im synth should hit its cache.
-                Im.Convert.write play_multiplier block_id
+                Im.Convert.write adjust0 play_multiplier block_id
                     lookup_inst notes_file events
                 let binary = Config.binary synth
                 return $ if null binary

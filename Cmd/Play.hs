@@ -77,6 +77,7 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
@@ -429,8 +430,9 @@ from_realtime block_id repeat_at start_ = do
             play_cache_addr
 
     msgs <- PlayUtil.perform_from start perf
-    let adjustment = start_adjustment start (not (null im_msgs)) msgs
-    msgs <- return $ PlayUtil.shift_messages multiplier adjustment msgs
+    let adjust0 = get_adjust0 start (not (null im_msgs)) msgs
+            (Cmd.perf_events perf)
+    msgs <- return $ PlayUtil.shift_messages multiplier adjust0 msgs
 
     -- See doc for "Cmd.PlayC" for why I return a magic value.
     return $ Cmd.PlayMidiArgs
@@ -438,7 +440,7 @@ from_realtime block_id repeat_at start_ = do
         , play_name = pretty block_id
         , play_midi = im_msgs ++ merge_midi msgs mtc
         , play_inv_tempo = Just $ \stop ->
-            Cmd.perf_inv_tempo perf stop . (+adjustment) . (/multiplier)
+            Cmd.perf_inv_tempo perf stop . (+adjust0) . (/multiplier)
         , play_repeat_at = (*multiplier) . subtract start <$> repeat_at
         , play_im_end = if Set.null im_insts then Nothing
             else Score.event_end <$> Util.Vector.find_end
@@ -446,9 +448,9 @@ from_realtime block_id repeat_at start_ = do
                 (Cmd.perf_events perf)
         }
 
-start_adjustment :: RealTime -> Bool -> [LEvent.LEvent Midi.WriteMessage]
-    -> RealTime
-start_adjustment start has_im msgs = negative_start - im_latency
+get_adjust0 :: RealTime -> Bool -> [LEvent.LEvent Midi.WriteMessage]
+    -> Vector.Vector Score.Event -> RealTime
+get_adjust0 start has_im msgs events = negative_start - im_latency
     where
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
@@ -457,7 +459,12 @@ start_adjustment start has_im msgs = negative_start - im_latency
     negative_start
         | start == 0 && fst_msg < 0 = fst_msg
         | otherwise = start
-        where fst_msg = PlayUtil.first_time msgs
+    -- The first MIDI msg will incorporate any possible leading controls.
+    -- The first Score.Event should be after that, unless there's an im
+    -- event at negative time.
+    fst_msg = min first_score (PlayUtil.first_time msgs)
+    first_score = maybe 0 Score.event_start $ Seq.head $ Vector.toList $
+        Vector.take 1 events
     im_latency = if has_im
         then AUtil.toSeconds Shared.Config.startLatency else 0
 

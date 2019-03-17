@@ -118,7 +118,8 @@ dump useShow db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
             Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
             notes <- mapM makeSampleNote (convert db patch notes)
             let hashes = dumpHashes notes
-            mapM_ putHash hashes
+            when False $ -- maybe I'll want this again someday
+                mapM_ putHash hashes
             mapM_ putNote notes
     where
     putNote n
@@ -144,13 +145,16 @@ dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
         map Render.toSpan notes
 
 process :: Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath -> IO ()
-process db quality notes outputDir = do
-    clearUnusedInstruments outputDir instruments
-    Async.forConcurrently_ grouped $ \(patchName, notes) ->
-        whenJustM (getPatch db patchName) $ \patch ->
-            Async.forConcurrently_ notes $ \(inst, notes) ->
-                realize (trackIds notes) quality outputDir inst
-                    =<< mapM makeSampleNote (convert db patch notes)
+process db quality notes outputDir
+    | n : _ <- notes, Note.start n < 0 =
+        errorIO $ "notes start <0: " <> pretty n
+    | otherwise = do
+        clearUnusedInstruments outputDir instruments
+        Async.forConcurrently_ grouped $ \(patchName, notes) ->
+            whenJustM (getPatch db patchName) $ \patch ->
+                Async.forConcurrently_ notes $ \(inst, notes) ->
+                    realize (trackIds notes) quality outputDir inst
+                        =<< mapM makeSampleNote (convert db patch notes)
     where
     trackIds notes = Set.fromList $ mapMaybe Note.trackId notes
     grouped = byPatchInst notes
