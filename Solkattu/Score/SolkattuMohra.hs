@@ -130,3 +130,23 @@ c_mohra_youtube = source "Melakkaveri Balaji" $
         , (kitataka, p.k.k.o)
         , (ga.din, o.od)
         ]
+
+-- | Misra version of 'c_mohra'.
+misra1 :: Korvai
+misra1 = date 2019 4 14 $ ganesh $ makeMohra Tala.misra_chapu mridangam id
+    (a1, a2, a1) (b1, b2, b3)
+    where
+    a1 = tam.__.taka.nakatiku
+    a2 = na.ka.dit.__.tang.__.kita.nakatiku
+    b1 = ta.langa.din.__.tat.__.din.__.tat.__.dheem.__4
+    b2 = ta.langa.dheem.__4
+    b3 = tri_ (dheem.__4) (ta.langa.din.__.tat.__)
+    mridangam = makeMridangam
+        [ (tam.taka, on.p.k)
+        , (dit, k)
+        , (tang.kita, u.p.k)
+        , (na.ka, n.p)
+        , (ta.langa, p.u.__.k)
+        , (din.tat, o.k)
+        , (dheem, od)
+        ]
