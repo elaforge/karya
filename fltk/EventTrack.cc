@@ -339,17 +339,15 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
     // chunknum=-1 means clear all.
     if (chunknum < 0) {
         this->peak_entries.resize(0);
-    } else if (chunknum >= peak_entries.size()) {
-        this->peak_entries.resize(size_t(chunknum+1));
-    }
-    if (chunknum >= 0) {
+    } else {
+        if (chunknum >= peak_entries.size())
+            this->peak_entries.resize(size_t(chunknum+1));
         peak_entries[chunknum] = PeakCache::get()->load(params);
-        float new_peak = get_max_peak(peak_entries);
-        if (new_peak != this->max_peak) {
-            this->max_peak = new_peak;
-            this->redraw();
-        }
     }
+    float new_peak = get_max_peak(peak_entries);
+    if (new_peak != this->max_peak)
+        this->max_peak = new_peak;
+    this->redraw();
 }
 
 
@@ -704,7 +702,7 @@ EventTrack::draw_waveforms(int min_y, int max_y, ScoreTime start)
             float x = (*cache)[i];
             x *= amplitude_scale;
             x = x * (max_x - min_x) + min_x;
-            // DEBUG("v: (" << x << ", " << y << ") " << x_);
+            // DEBUG("v: (" << x << ", " << y << ")");
             if (at_zero) {
                 fl_vertex(min_x, y);
                 at_zero = false;

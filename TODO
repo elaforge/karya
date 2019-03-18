@@ -2268,6 +2268,17 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      - fix waveform caching
+        . Ok, so:
+          . take clear off of ImStarted
+          . Instead of WaveformCompleted, send a InitialSkip, which will
+            send clear_waveforms at the skip chunknum.
+          . From then on, load normally.
+        . I think the cache is still useful if multiple tracks share
+          waveforms.
+        . In fact, then I do mixed waveforms by loading 1 file from cache,
+          then EventTrack::peak_entries has MixedPeaks which is a new mixed
+          buffer if necessary.
       rendering wayang gets out of order progress updates:
         . Happens with multiple instruments on one track.
         . Ideally I could show both at once, with shades.  Or maybe I could
@@ -2310,10 +2321,17 @@ synth: im:
           . I think I can bump it up to 0 as I do for MIDI.
           . Ok that works but now the waveforms are off.
             I need to shift them back by the adjust amount.
-          - Also I have to to the same adjust for everyone.
-        - when I add a new track, I lose the waveforms
+          . Also I have to to the same adjust for everyone.
+        * when I add a new track, I lose the waveforms
           . Or just collapse or expand.
-
+          . It looks like the initial clear broke caching.
+          . The only way caching can work is if I get an initial set of
+            waveforms as the init, and everything past that is cleared.
+            That's what I originally had, with no need for caching at all,
+            just leave them in place, except that super annoying
+            initialization thing.
+          . If I can leave in place, then I can lose the caching, and also
+            have mixing work.  Can I just put a flag on saying this is a skip?
         - mute seems pretty abrupt.  Could it be that it's linear?  I think
           the usual envelope decay is log.  Or maybe that's just doing it by
           dB?

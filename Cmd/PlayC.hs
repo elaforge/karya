@@ -176,9 +176,6 @@ im_waveforms_completed ui_chan block_id track_ids waveforms = do
         [ ((block_id, track_id), waveforms)
         | track_id <- Set.toList track_ids
         ]
-    -- Under the assumption that I only ever set waveforms in increasing
-    -- chunknum, each set will clear the ones above it, to avoid being left
-    -- with stale chunks at the end.
     liftIO $ Sync.set_waveforms ui_chan by_view
 
 get_im_progress_selections :: Cmd.M m => BlockId -> Set TrackId
