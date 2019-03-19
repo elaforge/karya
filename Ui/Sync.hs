@@ -33,7 +33,7 @@ module Ui.Sync (
     , set_play_position, clear_play_position
     , set_highlights, clear_highlights
     , set_im_progress, clear_im_progress
-    , set_waveforms, clear_waveforms
+    , set_waveforms, clear_waveforms, gc_waveforms
     , floating_input
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -182,6 +182,9 @@ clear_waveforms :: Fltk.Channel -> [ViewId] -> IO ()
 clear_waveforms _ [] = return ()
 clear_waveforms chan view_ids = Fltk.send_action chan "clear_waveforms" $
     mapM_ BlockC.clear_waveforms view_ids
+
+gc_waveforms :: Fltk.Channel -> IO ()
+gc_waveforms chan = Fltk.send_action chan "gc_waveforms" $ BlockC.gc_waveforms
 
 -- ** selections
 

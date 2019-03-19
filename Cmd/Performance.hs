@@ -268,7 +268,7 @@ evaluate_performance im_config lookup_inst wait send_status score_path
     let adjust0 = case Vector.toList (Cmd.perf_events perf) of
             event : _ -> max (- Score.event_start event) 0
             _ -> 0
-    (procs, events) <-  case im_config of
+    (procs, events) <- case im_config of
         Nothing -> return ([], Cmd.perf_events perf)
         Just config -> evaluate_im config lookup_inst score_path
             adjust0 play_multiplier block_id (Cmd.perf_events perf)

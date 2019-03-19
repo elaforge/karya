@@ -2269,7 +2269,7 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
-      - fix waveform caching
+      * fix waveform caching
         . Ok, so:
           . take clear off of ImStarted
             add clear_waveforms(tracknum, chunknum)
@@ -2306,6 +2306,14 @@ synth: im:
           tracks are cleared, but roots keep the entries alive, until
           ImComplete and the next gc, at which point everything that was only
           kept alive by a root will be deleted.
+        . This still isn't enough for multiple instruments, I need to only gc
+          after *all* im runs completed.
+      - Even after that, it's *STILL* not enough for wayang/p1-im.
+        Multiple instruments replace the chunk each time, so the replaced one
+        is deleted on GC, with no refs.  So to reuse them, I need to load them
+        all *and* retain references to the parents.  Good lord this is way
+        more complicated than it should be.
+
       rendering wayang gets out of order progress updates:
         . Happens with multiple instruments on one track.
         . Ideally I could show both at once, with shades.  Or maybe I could

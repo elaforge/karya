@@ -40,6 +40,7 @@ import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
@@ -625,6 +626,15 @@ kill_thread (Thread async) = Async.cancel async
 kill_performance_threads :: State -> IO ()
 kill_performance_threads =
     mapM_ kill_thread . Map.elems . state_performance_threads . state_play
+
+-- | Get currently evaluating root BlockIds.
+running_threads :: CmdT IO [BlockId]
+running_threads = do
+    threads <- gets $ Map.toAscList . state_performance_threads . state_play
+    alive <- liftIO $ filterM (is_alive . snd) threads
+    return $ map fst alive
+    where
+    is_alive (Thread async) = Maybe.isNothing <$> Async.poll async
 
 initial_play_state :: PlayState
 initial_play_state = PlayState

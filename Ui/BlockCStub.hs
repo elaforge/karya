@@ -115,6 +115,9 @@ set_waveform _ _ _ = fltk $ return ()
 clear_waveforms :: ViewId -> Fltk ()
 clear_waveforms _ = fltk $ return ()
 
+gc_waveforms :: Fltk ()
+gc_waveforms = fltk $ return ()
+
 set_track_title :: ViewId -> TrackNum -> Text -> Fltk ()
 set_track_title view_id tracknum title = fltk $ return ()
 

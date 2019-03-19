@@ -274,6 +274,12 @@ clear_waveforms(BlockWindow *view)
 }
 
 void
+gc_waveforms()
+{
+    PeakCache::get()->gc();
+}
+
+void
 set_track_title(BlockWindow *view, int tracknum, const char *title)
 {
     view->block.track_at(tracknum)->set_title(title);

@@ -125,11 +125,19 @@ handle_im_status ui_chan root_block_id = \case
             im_rendering_range ui_chan block_id track_ids start end
         Msg.ImWaveformsCompleted waveforms ->
             im_waveforms_completed ui_chan block_id track_ids waveforms
-        Msg.ImComplete failed
+        Msg.ImComplete failed -> do
             -- If it failed, leave the the progress highlight in place, to
             -- indicate where it crashed.
-            | failed -> return ()
-            | otherwise -> im_complete ui_chan root_block_id
+            unless failed $
+                clear_im_progress ui_chan root_block_id
+            -- I can only GC if the last im thread completed.  This is because
+            -- cache entries don't have BlockId, so I don't want to clear the
+            -- entries of another block while it's still running.  It seems a
+            -- bit sketchy though, since the evaluation thread could get
+            -- pre-empted arbitrarily long before exiting.
+            running <- Cmd.running_threads
+            when (null running) $
+                liftIO $ Sync.gc_waveforms ui_chan
     _ -> return ()
 
 start_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
@@ -152,8 +160,8 @@ get_im_instrument_tracks block_id = do
             Map.lookup inst allocs
     return $ map fst $ filter (maybe False is_im . snd) $ zip track_ids insts
 
-im_complete :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
-im_complete ui_chan block_id = do
+clear_im_progress :: Fltk.Channel -> BlockId -> Cmd.CmdT IO ()
+clear_im_progress ui_chan block_id = do
     view_ids <- Map.keys <$> Ui.views_of block_id
     liftIO $ Sync.clear_im_progress ui_chan view_ids
 

@@ -201,7 +201,30 @@ PeakCache::load(const Params &params)
             DEBUG("METRIC load " << params.filename << ": " << dur.count()
                 << " total_dur: " << total_dur << " of " << total_count);
         }
+        gc_roots.push_back(entry);
         cache[params] = entry;
     }
     return entry;
+}
+
+
+void
+PeakCache::gc()
+{
+    // DEBUG("start gc");
+    gc_roots.clear();
+    auto it = cache.begin();
+    // int del = 0, kept = 0;
+    while (it != cache.end()) {
+        std::shared_ptr<Entry> entry(it->second.lock());
+        if (entry.get()) {
+            gc_roots.push_back(entry);
+            ++it;
+            // kept++;
+        } else {
+            it = cache.erase(it);
+            // del++;
+        }
+    }
+    // DEBUG("end gc, del " << del << " kept " << kept);
 }
