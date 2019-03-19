@@ -276,15 +276,16 @@ evaluate_performance im_config lookup_inst wait send_status score_path
         (perf { Cmd.perf_events = events })
         (if null procs then Msg.ImUnnecessary else Msg.ImStarted)
     failed <- case im_config of
-        Just config -> watch_subprocesses config
+        Just config -> watch_subprocesses block_id config
             (Cmd.perf_inv_tempo perf)
             (state_wants_waveform (Cmd.perf_ui_state perf))
             score_path adjust0
-            (send_status block_id . Msg.ImStatus)
+            (send_status block_id)
             (Set.fromList procs)
         Nothing -> return False
     unless (null procs) $
-        send_status block_id $ Msg.ImStatus $ Msg.ImComplete failed
+        send_status block_id $ Msg.ImStatus block_id Set.empty $
+            Msg.ImComplete failed
 
 state_wants_waveform :: Ui.State -> TrackId -> Bool
 state_wants_waveform state track_id = maybe False Track.track_waveform $
@@ -293,11 +294,12 @@ state_wants_waveform state track_id = maybe False Track.track_waveform $
 type Process = (FilePath, [String])
 
 -- | Watch each subprocess, return when they all exit.
-watch_subprocesses :: Config.Config -> Transport.InverseTempoFunction
-    -> (TrackId -> Bool) -> FilePath -> RealTime -> (Msg.ImStatus -> IO ())
+watch_subprocesses :: BlockId -> Config.Config -> Transport.InverseTempoFunction
+    -> (TrackId -> Bool) -> FilePath -> RealTime
+    -> (Msg.DeriveStatus -> IO ())
     -> Set Process -> IO Bool
-watch_subprocesses config inv_tempo wants_waveform score_path adjust0
-        send_status procs
+watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
+        adjust0 send_status procs
     | Set.null procs = return False
     | otherwise = Util.Process.multipleOutput (Set.toList procs) $ \chan ->
         Control.loop1 (procs, False) $ \loop (procs, failed) -> if
@@ -322,48 +324,57 @@ watch_subprocesses config inv_tempo wants_waveform score_path adjust0
         Nothing -> do
             put $ "couldn't parse: " <> line
             return False
-        Just msg -> case make msg of
-            Left err -> do
-                Log.warn err
-                return True
-            Right (Just msg) -> do
-                msg <- case msg of
-                    -- The PeakCache uses the filename as a key, so I can get
-                    -- false hits if I use the symlinks, which all look like
-                    -- 000.wav.
-                    Msg.ImWaveformsCompleted block_id track_ids waveforms -> do
-                        fns <- mapM (resolveLink . Track._filename) waveforms
-                        return $ Msg.ImWaveformsCompleted block_id track_ids
-                            [ wave { Track._filename = fn }
-                            | (fn, wave) <- zip fns waveforms
-                            ]
-                    _ -> return msg
-                send_status msg
-                return False
-            Right Nothing -> return False
+        Just msg
+            -- This is an update for a child block.  I only display progress
+            -- for each block as its own toplevel.  If a block is child of
+            -- another, I can see its prorgess in the parent.
+            | Config._blockId msg /= root_block_id -> return False
+            | otherwise -> emit_status $
+                make_status inv_tempo wants_waveform (Config.imDir config)
+                    score_path adjust0 msg
+
+    emit_status (Left err) = do
+        Log.warn err
+        return True
+    emit_status (Right (Just status)) = do
+        status <- case status of
+            -- The PeakCache uses the filename as a key, so I can get false
+            -- hits if I use the symlinks, which all look like 000.wav.
+            Msg.ImStatus block_id track_ids
+                    (Msg.ImWaveformsCompleted waveforms) -> do
+                fns <- mapM (resolveLink . Track._filename)
+                    waveforms
+                return $ Msg.ImStatus block_id track_ids $
+                    Msg.ImWaveformsCompleted
+                        [ wave { Track._filename = fn }
+                        | (fn, wave) <- zip fns waveforms
+                        ]
+            _ -> return status
+        send_status status
+        return False
+    emit_status (Right Nothing) = return False
         where
-        make = make_progress inv_tempo wants_waveform (Config.imDir config)
-            score_path adjust0
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
-make_progress :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
+make_status :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
     -> FilePath -> RealTime -> Config.Message
-    -> Either Text (Maybe Msg.ImStatus)
-make_progress inv_tempo wants_waveform im_dir score_path adjust0
-        (Config.Message block_id track_ids instrument p) = case p of
-    Config.RenderingRange start end ->
-        return $ Just $ Msg.ImRenderingRange block_id track_ids start end
-    Config.WaveformsCompleted chunknums
-        | Set.null with -> return Nothing
-        | otherwise -> do
-            waveforms <- mapM make_waveform chunknums
-            return $ Just $ Msg.ImWaveformsCompleted block_id with waveforms
-        where with = Set.filter wants_waveform track_ids
-    Config.Failure err -> Left $
-        "im failure: " <> pretty block_id <> ": "
-            <> pretty track_ids <> ": " <> err
+    -> Either Text (Maybe Msg.DeriveStatus)
+make_status inv_tempo wants_waveform im_dir score_path adjust0
+        (Config.Message block_id track_ids instrument payload) =
+    fmap (Msg.ImStatus block_id wanted_track_ids) <$> case payload of
+        Config.RenderingRange start end ->
+            Right $ Just $ Msg.ImRenderingRange start end
+        Config.WaveformsCompleted chunknums
+            | Set.null wanted_track_ids -> Right Nothing
+            | otherwise -> do
+                waveforms <- mapM make_waveform chunknums
+                Right $ Just $ Msg.ImWaveformsCompleted waveforms
+        Config.Failure err -> Left $
+            "im failure: " <> pretty block_id <> ": "
+                <> pretty track_ids <> ": " <> err
     where
+    wanted_track_ids = Set.filter wants_waveform track_ids
     make_waveform chunknum = do
         start <- to_score $ time_at chunknum
         end <- to_score $ time_at (chunknum+1)

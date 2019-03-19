@@ -2271,7 +2271,8 @@ synth: im:
       - fix waveform caching
         . Ok, so:
           . take clear off of ImStarted
-          . Instead of WaveformCompleted, send a InitialSkip, which will
+            add clear_waveforms(tracknum, chunknum)
+          . Instead of WaveformCompleted, send a Start ChunkNum, which will
             send clear_waveforms at the skip chunknum.
           . From then on, load normally.
         . I think the cache is still useful if multiple tracks share
@@ -2279,6 +2280,31 @@ synth: im:
         . In fact, then I do mixed waveforms by loading 1 file from cache,
           then EventTrack::peak_entries has MixedPeaks which is a new mixed
           buffer if necessary.
+        . I definitely do want to do this, because a null change on a large
+          score will otherwise reload every single chunk, which does hiccup
+          the UI.
+        . The reason this doesn't work is the same reason the original scheme
+          doesn't work: the initial render doesn't send waveform updates.
+          In fact, this just *is* the original scheme, only with a totally
+          unnecessary ImStarted.
+        . Unless I can use ImStarted with waveforms to only add them if there
+          isn't already something on the track.  At this point it should just
+          be a flag on WaveformsCompleted then.
+        . But it's still going to be wrong when I reuse cache, which is also
+          the reason I moved away from the original scheme.
+        . Ok, so I *must* always give the chunks to load.  But I have to clear
+          to avoid trailing junk.  To reuse a cache, I have to know that
+          I will eventually wind up with the same files on a chunk.  Since
+          that requires seeing into the future, it's incompatible with wanting
+          to display incrementally.
+        . I think the manual gc is the only option then.  Rather than tracing
+          from each event track, I can keep a 'roots' list of shared_ptrs to
+          all cache entries, and empty it on gc.  So load a bunch of files,
+          accumulate in roots and cache.  When render is complete, clear the
+          roots, then repopulate from live cache entries.  On the next render,
+          tracks are cleared, but roots keep the entries alive, until
+          ImComplete and the next gc, at which point everything that was only
+          kept alive by a root will be deleted.
       rendering wayang gets out of order progress updates:
         . Happens with multiple instruments on one track.
         . Ideally I could show both at once, with shades.  Or maybe I could

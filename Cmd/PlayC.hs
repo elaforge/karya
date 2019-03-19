@@ -47,8 +47,8 @@ import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * cmd_play_msg
@@ -103,8 +103,8 @@ cmd_play_msg ui_chan msg = do
         Msg.DeriveComplete _ Msg.ImStarted ->
             Just $ Color.brightness 0.5 Config.busy_color
         Msg.DeriveComplete _ Msg.ImUnnecessary -> Just Config.box_color
-        Msg.ImStatus (Msg.ImComplete _) -> Just Config.box_color
-        Msg.ImStatus _ -> Nothing
+        Msg.ImStatus _ _ (Msg.ImComplete {}) -> Just Config.box_color
+        Msg.ImStatus {} -> Nothing
 
 set_all_play_boxes :: Ui.M m => Color.Color -> m ()
 set_all_play_boxes color =
@@ -120,15 +120,10 @@ handle_im_status ui_chan root_block_id = \case
     Msg.DeriveComplete _ Msg.ImStarted ->
         start_im_progress ui_chan root_block_id
     Msg.DeriveComplete _ Msg.ImUnnecessary -> return ()
-    Msg.ImStatus status -> case status of
-        Msg.ImRenderingRange block_id track_ids start end
-            -- Only display progress for each block as its own toplevel.
-            -- If a block is child of another, I can see its prorgess in
-            -- its parent.
-            | block_id /= root_block_id -> return ()
-            | otherwise ->
-                im_rendering_range ui_chan block_id track_ids start end
-        Msg.ImWaveformsCompleted block_id track_ids waveforms ->
+    Msg.ImStatus block_id track_ids status -> case status of
+        Msg.ImRenderingRange start end ->
+            im_rendering_range ui_chan block_id track_ids start end
+        Msg.ImWaveformsCompleted waveforms ->
             im_waveforms_completed ui_chan block_id track_ids waveforms
         Msg.ImComplete failed
             -- If it failed, leave the the progress highlight in place, to

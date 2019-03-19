@@ -64,7 +64,7 @@ show_short = \case
         OutOfDate -> "OutOfDate"
         Deriving -> "Deriving"
         DeriveComplete {} -> "DeriveComplete"
-        ImStatus status -> pretty status
+        status@(ImStatus {}) -> pretty status
     Socket _hdl query -> pretty query
 
 instance Pretty Msg where
@@ -84,12 +84,13 @@ data DeriveStatus =
     OutOfDate
     | Deriving
     | DeriveComplete !Performance !ImStarted
-    | ImStatus !ImStatus
+    | ImStatus !BlockId !(Set TrackId) !ImStatus
     deriving (Show)
 
 instance Pretty DeriveStatus where
     pretty = \case
-        ImStatus status -> pretty status
+        ImStatus block_id track_ids status ->
+            pretty block_id <> ":" <> pretty track_ids <> ":" <> pretty status
         status -> showt status
 
 data ImStarted = ImStarted -- ^ im subprocess in progress
@@ -98,9 +99,9 @@ data ImStarted = ImStarted -- ^ im subprocess in progress
 
 data ImStatus =
     -- | start--end currently being rendered.
-    ImRenderingRange !BlockId !(Set TrackId) !RealTime !RealTime
+    ImRenderingRange !RealTime !RealTime
     -- | Waveforms written for these chunks.
-    | ImWaveformsCompleted !BlockId !(Set TrackId) ![Track.WaveformChunk]
+    | ImWaveformsCompleted ![Track.WaveformChunk]
     -- | True if the im subprocess had a failure.  The error will have been
     -- logged, and this flag will leave a visual indicator on the track that
     -- something went wrong.
@@ -109,14 +110,9 @@ data ImStatus =
 
 instance Pretty ImStatus where
     pretty = \case
-        ImRenderingRange block_id track_ids start end -> mconcat
-            [ pretty block_id, ":", pretty track_ids, ":"
-            , pretty start, "--", pretty end
-            ]
-        ImWaveformsCompleted block_id track_ids waves -> mconcat
-            [ pretty block_id, ":", pretty track_ids, ":"
-            , Text.intercalate "," (map (txt . Track._filename) waves)
-            ]
+        ImRenderingRange start end -> pretty start <> "--" <> pretty end
+        ImWaveformsCompleted waves ->
+            Text.intercalate "," (map (txt . Track._filename) waves)
         ImComplete failed -> "ImComplete" <> if failed then "(failed)" else ""
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
