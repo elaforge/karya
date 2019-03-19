@@ -338,7 +338,7 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
 {
     // chunknum=-1 means clear all.
     if (chunknum < 0) {
-        this->peak_entries.resize(0);
+        this->peak_entries.clear();
     } else {
         if (chunknum >= peak_entries.size())
             this->peak_entries.resize(size_t(chunknum+1));

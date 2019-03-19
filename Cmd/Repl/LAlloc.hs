@@ -64,8 +64,8 @@ pasang_im base range polos_tuning umbang_qual isep_qual =
         , (isep, isep_qual, id, UiConfig.Im)
         ]
     where
-    umbang = inst $ base <> "-u"
-    isep = inst $ base <> "-i"
+    umbang = inst $ base <> "-umbang"
+    isep = inst $ base <> "-isep"
     pasang = make_pasang range polos_tuning umbang isep
     inst = ScoreT.Instrument
 

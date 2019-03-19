@@ -31,6 +31,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - try unsafeDupableIO in Crc32Instances
   revise how MIDI channel state works with keyswitches and controls
     notes:
       . There are several mechanisms to set state: controls, Patch.Keyswitch,
