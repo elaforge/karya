@@ -322,12 +322,13 @@ EventTrack::set_track_signal(const TrackSignal &tsig)
 
 
 static float
-get_max_peak(const std::vector<std::shared_ptr<PeakCache::Entry>> &peak_entries)
+get_max_peak(
+    const std::vector<std::unique_ptr<PeakCache::MixedEntry>> &peak_entries)
 {
     float max = 0;
     for (const auto &entry : peak_entries) {
         if (entry.get())
-            max = std::max(max, entry->max_peak);
+            max = std::max(max, entry->max_peak());
     }
     return max;
 }
@@ -342,7 +343,10 @@ EventTrack::set_waveform(int chunknum, const PeakCache::Params &params)
     } else {
         if (chunknum >= peak_entries.size())
             this->peak_entries.resize(size_t(chunknum+1));
-        peak_entries[chunknum] = PeakCache::get()->load(params);
+        if (!peak_entries[chunknum].get())
+            peak_entries[chunknum].reset(
+                new PeakCache::MixedEntry(params.start));
+        peak_entries[chunknum]->add(PeakCache::get()->load(params));
     }
     float new_peak = get_max_peak(peak_entries);
     if (new_peak != this->max_peak)
@@ -630,7 +634,7 @@ EventTrack::draw_event_boxes(
 
 static const ScoreTime *
 get_next_start(
-    std::vector<std::shared_ptr<PeakCache::Entry>> &peak_entries,
+    std::vector<std::unique_ptr<PeakCache::MixedEntry>> &peak_entries,
     int chunknum)
 {
     for (; chunknum < peak_entries.size(); chunknum++) {

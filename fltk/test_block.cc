@@ -26,6 +26,7 @@ static std::vector<BlockWindow *> windows;
 
 const char *audio_chunk0 = "data/000.wav";
 const char *audio_chunk1 = "data/001.wav";
+const char *audio_chunk1_rev = "data/001-rev.wav";
 
 Color selection_colors[] = {
     Color(0, 0, 255, 90),
@@ -296,7 +297,9 @@ add_symbols()
     // NotoMono, Noto{Sans,Serif}-{Bold,BoldItalic,Italic}
     // OS X has font character substitution, so it can figure out which font
     // has the glyphs.
-    bool new_names = false; // It seems new noto versions changed the names.
+    // It seems new noto versions changed the names.
+    bool new_names =
+        t->font("NotoSerif-Regular") != SymbolTable::font_not_found;
     Fl_Font chinese = t->font(new_names ? "NotoSerif-Regular" : "NotoSerif");
     Fl_Font tamil = t->font(new_names ? "NotoSerif-Regular" : "NotoSerif");
     Fl_Font bali = t->font(new_names ? "NotoSans-Regular" : "NotoSans");
@@ -359,10 +362,16 @@ static void
 timeout_func(void *unused)
 {
     static int n;
+    Block &block = windows[0]->block;
 
     std::cout << n << "------------\n";
     if (n == 0) {
-        // Block *block = &windows[0]->block;
+        // std::vector<double> ratios;
+        // block.clear_waveforms();
+        // block.set_waveform(
+        //     1, 0, PeakCache::Params(audio_chunk0, ScoreTime(0), ratios));
+        // PeakCache::get()->gc();
+
         // block.floating_open(1, ScoreTime(16), "floaty boaty", 20, 20);
         return;
     } else if (n == 1) {
@@ -460,13 +469,17 @@ main(int argc, char **argv)
             1, 0, PeakCache::Params(audio_chunk0, ScoreTime(0), ratios));
         view.block.set_waveform(
             1, 1, PeakCache::Params(audio_chunk1, ScoreTime(4), ratios));
+        view.block.set_waveform(
+            1, 1, PeakCache::Params(audio_chunk1_rev, ScoreTime(4), ratios));
+
+        PeakCache::get()->gc();
     }
     view.block.set_title("clocky blocky");
 
     Fl::add_timeout(1, timeout_func, nullptr);
 
     // view.block.set_zoom(Zoom(ScoreTime(0), 1.6));
-    view.block.set_zoom(Zoom(ScoreTime(1.5), 60));
+    view.block.set_zoom(Zoom(ScoreTime(0), 60));
 
     std::vector<Selection> sels;
     sels.push_back(

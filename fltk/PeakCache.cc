@@ -48,22 +48,47 @@ PeakCache::pixels_per_peak(double zoom_factor)
 }
 
 
+void
+PeakCache::MixedEntry::add(std::shared_ptr<const Entry> entry)
+{
+    ASSERT(this->start == entry->start);
+    if (this->peaks_n.empty()) {
+        if (!this->peaks1.get()) {
+            this->peaks1 = entry->peaks;
+        } else {
+            ASSERT(this->peaks1->size() == entry->peaks->size());
+            this->peaks_n = *peaks1;
+            peaks1.reset();
+            for (int i = 0; i < peaks_n.size(); i++)
+                peaks_n[i] += (*entry->peaks)[i];
+        }
+    } else {
+        ASSERT(this->peaks_n.size() == entry->peaks->size());
+        for (int i = 0; i < peaks_n.size(); i++)
+            peaks_n[i] += (*entry->peaks)[i];
+    }
+    sources.push_back(entry);
+    this->_max_peak = peaks().empty()
+        ? 0 : *std::max_element(peaks().begin(), peaks().end());
+}
+
+
 static std::shared_ptr<const std::vector<float>>
-reduce_zoom(
-    std::shared_ptr<const std::vector<float>> peaks, double zoom_factor)
+reduce_zoom(const std::vector<float> &peaks, double zoom_factor)
 {
     // zoom_factor is the number of pixels in ScoreTime(1).  So that's the
     // desired sampling rate.  E.g. zoom=2 means ScoreTime(1) is 2 pixels.
     double period = reduced_sampling_rate / zoom_factor;
-    if (period <= 1) {
-        return peaks;
-    }
     std::shared_ptr<std::vector<float>> out(new std::vector<float>());
-    out->reserve(ceil(peaks->size() / period));
+    if (period <= 1) {
+        *out = peaks;
+        return out;
+    }
+    out->reserve(ceil(peaks.size() / period));
     double left = period;
     float accum = 0;
     ASSERT(period >= 1);
-    for (float n : *peaks) {
+    for (float n : peaks) {
         if (left < 1) {
             out->push_back(accum);
             accum = n;
@@ -72,27 +97,27 @@ reduce_zoom(
         accum = std::max(accum, n);
         left--;
     }
-    if (!peaks->empty())
+    if (!peaks.empty())
         out->push_back(accum);
     return out;
 }
 
 
 std::shared_ptr<const std::vector<float>>
-PeakCache::Entry::at_zoom(double zoom_factor)
+PeakCache::MixedEntry::at_zoom(double zoom_factor)
 {
     if (zoom_factor != cached_zoom || !zoom_cache.get()) {
         auto start = std::chrono::steady_clock::now();
-        zoom_cache = reduce_zoom(peaks, zoom_factor);
+        this->zoom_cache = reduce_zoom(peaks(), zoom_factor);
+        this->cached_zoom = zoom_factor;
         if (print_metrics) {
             // Zooming a track with 43 chunks takes 0.1ms.  So I think I don't
             // have to worry about zoom times.
             auto end = std::chrono::steady_clock::now();
             std::chrono::duration<double> dur = end - start;
-            DEBUG("METRIC zoom " << peaks->size() << " to "
+            DEBUG("METRIC zoom " << peaks().size() << " to "
                 << zoom_cache->size() << " dur: " << dur.count());
         }
-        cached_zoom = zoom_factor;
     }
     return zoom_cache;
 }
@@ -173,7 +198,7 @@ load_file(const std::string &filename, const std::vector<double> &ratios)
 }
 
 
-std::shared_ptr<PeakCache::Entry>
+std::shared_ptr<const PeakCache::Entry>
 PeakCache::load(const Params &params)
 {
     auto found = cache.find(params);

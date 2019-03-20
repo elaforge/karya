@@ -170,7 +170,7 @@ private:
     double brightness;
     Color bg_color;
     // Downsampled waveform peak cache for each chunk, indexed by chunknum.
-    std::vector<std::shared_ptr<PeakCache::Entry>> peak_entries;
+    std::vector<std::unique_ptr<PeakCache::MixedEntry>> peak_entries;
 
     // Keep track of the maximum peak.  I scale peaks automatically because the
     // the track is narrow so I want to see as much detail as possible, but

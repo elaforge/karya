@@ -65,28 +65,49 @@ public:
     class Entry {
     public:
         Entry(ScoreTime start, std::vector<float> *peaks) :
-            start(start),
-            max_peak(peaks->empty() ? 0
-                : *std::max_element(peaks->begin(), peaks->end())),
-            peaks(peaks), cached_zoom(0)
+            start(start), peaks(peaks)
         {}
+        ~Entry() {
+            DEBUG("~Entry " << start);
+        }
 
         const ScoreTime start;
-        const float max_peak;
-        // Get peaks adapted for this zoom level.
-        std::shared_ptr<const std::vector<float>> at_zoom(double zoom_factor);
-
-    private:
         // Maximum absolute values of each chunk of samples.  This is mono and
         // only positive.
         const std::shared_ptr<const std::vector<float>> peaks;
+    };
+
+    // This consists of >=1 Entry, with the peaks added together.
+    // Unlike Entry, this isn't cached, so on each refresh they'll have to be
+    // recreated and remixed, but loading an 480 element Entry from a 1.3mb
+    // file is the expensive step.
+    class MixedEntry {
+    public:
+        MixedEntry(ScoreTime start) : start(start), cached_zoom(0) {}
+        void add(std::shared_ptr<const Entry> entry);
+        float max_peak() const { return _max_peak; };
+        // Get peaks adapted for this zoom level.
+        std::shared_ptr<const std::vector<float>> at_zoom(double zoom_factor);
+
+        const ScoreTime start;
+    private:
+        const std::vector<float> &peaks() const {
+            return peaks1.get() ? *peaks1 : peaks_n;
+        };
+        float _max_peak;
+        std::shared_ptr<const std::vector<float>> peaks1;
+        std::vector<float> peaks_n;
+        // If this hasn't changed, 'at_zoom' can reuse 'zoom_cache'.
         double cached_zoom;
         std::shared_ptr<const std::vector<float>> zoom_cache;
+        // Keep the source Entrys alive in the 'cache'.
+        std::vector<std::shared_ptr<const Entry>> sources;
     };
 
     // Load the file and downsample its peaks.  Use a cached Entry if one is
-    // still alive.
-    std::shared_ptr<Entry> load(const Params &params);
+    // still alive.  The returned Entry will stay alive at least until the next
+    // 'gc'.
+    std::shared_ptr<const Entry> load(const Params &params);
     // Remove cache entries which are only kept alive by gc_roots, and
     // re-initialize gc_roots with the current live set.
     void gc();

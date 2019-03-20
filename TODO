@@ -2308,18 +2308,17 @@ synth: im:
           kept alive by a root will be deleted.
         . This still isn't enough for multiple instruments, I need to only gc
           after *all* im runs completed.
-      - Even after that, it's *STILL* not enough for wayang/p1-im.
+      * Even after that, it's *STILL* not enough for wayang/p1-im.
         Multiple instruments replace the chunk each time, so the replaced one
         is deleted on GC, with no refs.  So to reuse them, I need to load them
         all *and* retain references to the parents.  Good lord this is way
         more complicated than it should be.
-
       rendering wayang gets out of order progress updates:
         . Happens with multiple instruments on one track.
         . Ideally I could show both at once, with shades.  Or maybe I could
           show a point for each position, but grey for minimum.
         . Or maybe I can just live with the jumpiness.
-        - For audio I'd want to mix them together.
+        * For audio I'd want to mix them together.
           I could do the latter by making only -1 clear them, otherwise it
           will mix in with an existing one.
           . I think I want to keep an Entry as a single cached file, and have
