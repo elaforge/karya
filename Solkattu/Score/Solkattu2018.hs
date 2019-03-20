@@ -745,7 +745,7 @@ adi_tani =
     , K adi_muktayi All
     ]
 
-adi_tani_misra :: [Part]
+adi_tani_misra :: [Part] -- realizePartsM (patterns<>namedThemes) adi_tani_misra
 adi_tani_misra =
     [ -- K adi_tani1_misra All
       K c_18_09_25_misra All

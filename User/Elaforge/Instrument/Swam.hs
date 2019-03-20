@@ -30,6 +30,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Instrument.InstTypes as InstTypes
@@ -125,6 +126,7 @@ string name open_strings = MidiInst.pressure $
     code = MidiInst.note_calls
         [ MidiInst.both "o" c_harmonic
         , MidiInst.both "harsh" c_harsh
+        , MidiInst.both "spic" c_spiccato
         , control_call "pont" "Sul ponticello." bow_pos (-1)
         , control_call "tasto" "Sul tasto." bow_pos 1
         , control_call "flaut" "Flautando." bow_force (-1)
@@ -272,6 +274,19 @@ c_harsh = Make.transform_notes Module.instrument "harsh" mempty
         start = Score.event_start event
         sig = Signal.from_pairs [(start, val), (start+dur, 0)]
 
+c_spiccato :: Library.Calls Derive.Note
+c_spiccato = Make.transform_notes Module.instrument "spic" mempty "Spiccato."
+    (Sig.defaulted "dur" (Sig.typed_control "spic-dur" 0.05 ScoreT.Real)
+        "How long."
+    ) $ \dur deriver -> do
+        events <- Derive.with_val "bow-lift" (ShowVal.show_val True) deriver
+        -- This is a lot of work to make spic-dur be a signal, but it seems not
+        -- actually that useful, since if I want variable durations I can just
+        -- use sus-set directly.
+        durs <- Post.duration_control Typecheck.Real dur events
+        return $ Post.emap1_ (uncurry Score.set_duration)
+            (Stream.zip durs events)
+
 c_harmonic :: Library.Calls Derive.Note
 c_harmonic = Make.transform_notes Module.instrument "harmonic"
     (Tags.attr <> Tags.ly)
@@ -306,5 +321,5 @@ c_damp = Derive.generator Module.instrument "damp" mempty
     ) $ \(dur, dyn) -> Sub.inverting $ \args -> do
         dur <- Derive.score dur
         Derive.place (Args.start args) dur $
-            Derive.with_val "bow-lift" ("f" :: Text) $
+            Derive.with_val "bow-lift" (ShowVal.show_val False) $
             Call.multiply_dynamic dyn Call.note

@@ -35,6 +35,7 @@ import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Derive.Call as Call
 import qualified Derive.Call.NoteUtil as NoteUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -53,6 +54,7 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import qualified Ui.ScoreTime as ScoreTime
 
 import           Global
 import           Types
@@ -210,6 +212,18 @@ control f c events = do
 time_control :: DeriveT.ControlRef -> Stream Score.Event
     -> Derive.Deriver [RealTime]
 time_control = control (RealTime.seconds . ScoreT.typed_val)
+
+-- | Take a typed signal to RealTime durations.
+duration_control :: Typecheck.TimeType -> DeriveT.ControlRef
+    -> Stream Score.Event -> Derive.Deriver [RealTime]
+duration_control default_type control events = do
+    (sig, time) <- Call.to_time_function default_type control
+    let starts = map Score.event_start (Stream.events_of events)
+    case time of
+        Typecheck.Real -> return $ map (RealTime.seconds . sig) starts
+        Typecheck.Score ->
+            mapM (\t -> Call.real_duration t (ScoreTime.from_double (sig t)))
+                starts
 
 -- | Zip each event up with its neighbors.
 neighbors :: Stream a -> Stream ([a], a, [a])
