@@ -180,10 +180,9 @@ byPatchInst = map (second (Seq.keyed_group_sort Note.instrument))
 -- This often happens when I disable a track.
 clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
 clearUnusedInstruments instDir instruments = do
-    dirs <- filterM Directory.doesDirectoryExist =<< listDir instDir
+    dirs <- filterM (Directory.doesDirectoryExist . (instDir</>))
+        =<< listDir instDir
     let unused = filter ((`Set.notMember` instruments) . txt) dirs
-    unless (null unused) $
-        Log.notice $ "clearing unused instruments: " <> pretty unused
     forM_ unused $ \dir -> do
         links <- filter (Maybe.isJust . Checkpoint.isOutputLink) <$>
             listDir (instDir </> dir)

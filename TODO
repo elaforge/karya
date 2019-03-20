@@ -2269,6 +2269,10 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      * deleting notes didn't delete the chunks
+        . It's because I didn't clear out disappeared instruments.
+      - fltk/PeakCache.cc:59 add():
+        'this->peaks1->size() == entry->peaks->size()'
       * fix waveform caching
         . Ok, so:
           . take clear off of ImStarted
