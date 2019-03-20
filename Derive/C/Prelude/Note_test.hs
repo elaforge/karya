@@ -5,15 +5,17 @@
 module Derive.C.Prelude.Note_test where
 import qualified Data.Map as Map
 
-import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
-import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
-import Global
+import qualified Perform.Midi.Patch as Patch
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_note_track_call = do
@@ -24,6 +26,24 @@ test_note_track_call = do
         trans = CallTest.transformer $ \_ -> Derive.with_val "x" (42 :: Int)
     equal (run [(">i1", [(0, 1, "")])]) ([Just 42], [])
     equal (run [(">i2", [(0, 1, "")])]) ([Nothing], [])
+
+test_sustain_controls = do
+    let run title = DeriveTest.extract DeriveTest.e_start_dur
+            . DeriveTest.derive_tracks title . UiTest.note_track $ [(0, 1, "")]
+    equal (run "") ([(0, 1)], [])
+    equal (run "%sus-set = .25") ([(0, 0.25)], [])
+    equal (run "%sus-abs = .25") ([(0, 1.25)], [])
+    equal (run "%sus = .5") ([(0, 0.5)], [])
+    -- First %sus, then %sus-abs.
+    equal (run "%sus=.5 | %sus-abs=-.25") ([(0, 0.25)], [])
+    -- %sus-set overrides them all.
+    equal (run "%sus=.5 | %sus-abs=-.25 | %sus-set=.75") ([(0, 0.75)], [])
+    equal (run ".") ([(0, 0.5)], [])
+    -- First staccato will override %sus-abs.  Not sure why, but it was on
+    -- purpose.
+    equal (run ". | %sus-abs=-.25") ([(0, 0.5)], [])
+    -- %sus and staccato multiply.
+    equal (run ". | %sus=.5") ([(0, 0.25)], [])
 
 test_orphan_notes = do
     -- Slice out orphans that aren't covered by a parent event.

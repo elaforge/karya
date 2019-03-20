@@ -253,15 +253,17 @@ duration_attributes :: Config -> ScoreT.ControlValMap -> Attrs.Attributes
     -> RealTime -> RealTime -> RealTime -- ^ new end
 duration_attributes config controls attrs start end
     | start >= end = end -- don't mess with 0 dur or negative notes
+    | Just set_dur <- Map.lookup Controls.sustain_set controls, use_sustain =
+        start + max min_duration (RealTime.seconds set_dur)
     | otherwise = start + max min_duration (dur * sustain + sustain_abs)
     where
     has = Attrs.contain attrs
     dur = end - start
     staccato = config_staccato config && has Attrs.staccato
     sustain = if staccato then sustain_ * 0.5 else sustain_
-    sustain_abs = if staccato || not (config_sustain config)
-        then 0 else lookup_time 0 Controls.sustain_abs
-    sustain_ = if config_sustain config
-        then lookup_time 1 Controls.sustain else 1
+    sustain_ = if use_sustain then lookup_time 1 Controls.sustain else 1
+    sustain_abs = if staccato || not use_sustain then 0
+        else lookup_time 0 Controls.sustain_abs
+    use_sustain = config_sustain config
     lookup_time deflt control = maybe deflt RealTime.seconds
         (Map.lookup control controls)

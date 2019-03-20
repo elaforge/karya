@@ -50,6 +50,9 @@ sustain = "sus"
 sustain_abs :: Control
 sustain_abs = "sus-abs"
 
+sustain_set :: Control
+sustain_set = "sus-set"
+
 -- | Start offset, in RealTime.  This is added to event start times.  The end
 -- times stay the same, so it changes note duration, and is limited to not
 -- force a note to 0 duration.

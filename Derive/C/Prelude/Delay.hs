@@ -17,7 +17,6 @@ import qualified Derive.Library as Library
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Sig as Sig
-import           Derive.Sig (control, defaulted, typed_control)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
@@ -42,7 +41,7 @@ c_delay = Derive.transformer Module.prelude "delay" Tags.ly
     ("Simple abstract delay. As with `echo`, abstract means it happens in the\
     \ score, so events may not be delayed evenly if the tempo is changing."
     ) $ Sig.callt
-    ( defaulted "time" (typed_control "delay-time" 0.1 ScoreT.Real)
+    ( Sig.defaulted "time" (Sig.typed_control "delay-time" 0.1 ScoreT.Real)
         "Delay time."
     ) $ \time args deriver -> Ly.when_lilypond deriver $ do
         start <- Args.real_start args
@@ -60,10 +59,10 @@ c_echo = Derive.transformer Module.prelude "echo" mempty
     \ so you can't vary them over the scope of the echo like you can\
     \ with `e-echo`."
     ) $ Sig.callt ((,,)
-    <$> defaulted "delay" (control "echo-delay" 1) "Delay time."
-    <*> defaulted "feedback" (control "echo-feedback" 0.4)
+    <$> Sig.defaulted "delay" (Sig.control "echo-delay" 1) "Delay time."
+    <*> Sig.defaulted "feedback" (Sig.control "echo-feedback" 0.4)
         "The %dyn of each echo is multiplied by this amount."
-    <*> defaulted "times" (control "echo-times" 1)
+    <*> Sig.defaulted "times" (Sig.control "echo-times" 1)
         "Number of echoes, not counting the original."
     ) $ \(delay, feedback, times) args deriver -> do
         now <- Args.real_start args
@@ -89,10 +88,10 @@ c_event_echo = Derive.transformer Module.prelude "event echo" Tags.postproc
     \ parameter signals are sampled at every event, so they can vary\
     \ over the course of the echo."
     ) $ Sig.callt ((,,)
-    <$> defaulted "delay" (control "echo-delay" 1) "Delay time."
-    <*> defaulted "feedback" (control "echo-feedback" 0.4)
+    <$> Sig.defaulted "delay" (Sig.control "echo-delay" 1) "Delay time."
+    <*> Sig.defaulted "feedback" (Sig.control "echo-feedback" 0.4)
         "The %dyn of each echo is multiplied by this amount."
-    <*> defaulted "times" (control "echo-times" 1)
+    <*> Sig.defaulted "times" (Sig.control "echo-times" 1)
         "Number of echoes, not counting the original."
     ) $ \(delay, feedback, times) _args deriver -> do
         events <- deriver
