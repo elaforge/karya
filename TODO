@@ -2271,8 +2271,10 @@ synth: im:
     bug:
       * deleting notes didn't delete the chunks
         . It's because I didn't clear out disappeared instruments.
-      - fltk/PeakCache.cc:59 add():
+      * fltk/PeakCache.cc:59 add():
         'this->peaks1->size() == entry->peaks->size()'
+        . just add a note to wayang/bug
+        . Why is it adding, isn't it a single note?
       * fix waveform caching
         . Ok, so:
           . take clear off of ImStarted

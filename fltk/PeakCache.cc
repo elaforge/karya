@@ -56,8 +56,9 @@ PeakCache::MixedEntry::add(std::shared_ptr<const Entry> entry)
         if (!this->peaks1.get()) {
             this->peaks1 = entry->peaks;
         } else {
-            ASSERT(this->peaks1->size() == entry->peaks->size());
             this->peaks_n = *peaks1;
+            // These can have different sizes if one has run out of samples.
+            peaks_n.resize(std::max(peaks1->size(), entry->peaks->size()));
             peaks1.reset();
             for (int i = 0; i < peaks_n.size(); i++)
                 peaks_n[i] += (*entry->peaks)[i];

@@ -67,9 +67,6 @@ public:
         Entry(ScoreTime start, std::vector<float> *peaks) :
             start(start), peaks(peaks)
         {}
-        ~Entry() {
-            DEBUG("~Entry " << start);
-        }
 
         const ScoreTime start;
         // Maximum absolute values of each chunk of samples.  This is mono and
