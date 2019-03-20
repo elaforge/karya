@@ -198,7 +198,7 @@ variableMuteRange = (0.85, 4)
 
 -- | Time to mute at the end of a note.
 muteTime :: RealTime
-muteTime = 0.15
+muteTime = 0.35
 
 -- | Wayang samples are normalized, so it just scales by Control.dynamic, where
 -- 0 gets this value.

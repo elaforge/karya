@@ -27,7 +27,7 @@ code = mconcat
 note :: Derive.Generator Derive.Note
 note = DUtil.zero_duration "note"
     "When zero duration, and use-weak=t, use the `weak` call.\
-    \ When use-symbolic-pitch=t, tell the samples to use pitch by name rather\
+    \ When `symbolic-pitch=t`, tell the samples to use pitch by name rather\
     \ than nn."
     (Sub.inverting $ \args -> transform args $
         Call.if_env "use-weak" (Just True)
