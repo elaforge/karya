@@ -1598,7 +1598,7 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  - garbage collection for im/cache
+  * garbage collection for im/cache
     . I think I just delete checkpoint/*.wav that doesn't have a symlink
   * since the checkpoint size is smaller, logs are spammy
   - sampler crashes when volume=0 in test/im-rambat-simple
@@ -2271,6 +2271,9 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      - add 5c at 49.5t of im-zheng @b3:
+        notes still playing at 2447550f(55.5s):
+        [Playing:r67NHd42kGAPZSp7Zhr6JA(1874250f(42.5s)--2443052f(55.39s))]
       * deleting notes didn't delete the chunks
         . It's because I didn't clear out disappeared instruments.
       * fltk/PeakCache.cc:59 add():

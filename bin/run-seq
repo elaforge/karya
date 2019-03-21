@@ -1,6 +1,8 @@
 #!/bin/zsh
 # Run seq.  First make sure it's built and logview is running.
 
+set -eu
+
 if [[ -z $mode ]]; then
     echo $0: no mode
     exit 1
@@ -10,9 +12,14 @@ if ! repl=t bin/mk build/$mode/logview build/$mode/seq; then
     exit 1
 fi
 
+# Keep the cache dir from getting too big.
+tools/im-gc.py
+
 # TODO This is hardcoded for my system, but should be in some local config.
 if [[ $OSTYPE = linux-gnu ]]; then
     geometry='--geometry=628x300+1290+900'
+else
+    geometry=
 fi
 
 mkdir -p log
