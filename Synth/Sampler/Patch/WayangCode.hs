@@ -29,14 +29,13 @@ note = DUtil.zero_duration "note"
     "When zero duration, and use-weak=t, use the `weak` call.\
     \ When `symbolic-pitch=t`, tell the samples to use pitch by name rather\
     \ than nn."
-    (Sub.inverting $ \args -> transform args $
-        Call.if_env "use-weak" (Just True)
-            (weakCall args)
-            (Call.multiply_dynamic 0.65 (Bali.reapply_mute args)))
-    (Sub.inverting $ \args -> transform args (note args))
+    (Sub.inverting $ \args -> transform $ Call.if_env "use-weak" (Just True)
+        (weakCall args)
+        (Call.multiply_dynamic 0.65 (Bali.reapply_mute args)))
+    (Sub.inverting $ \args -> transform (note args))
     where
     note = Note.default_note Note.use_attributes
-    transform args = Code.withSymbolicPitch args . Code.withVariation
+    transform = Code.withVariation
 
 weakCall :: Derive.PassedArgs a -> Derive.NoteDeriver
 weakCall args =

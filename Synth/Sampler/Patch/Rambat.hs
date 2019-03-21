@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 
 import qualified Sound.File.Sndfile as Sndfile
 import qualified System.FilePath as FilePath
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified Text.Read as Read
 
 import qualified Util.Audio.Audio as Audio
@@ -26,6 +26,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Prelude.Note
 import qualified Derive.Call as Call
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.Legong as Legong
 
 import qualified Instrument.Common as Common
@@ -43,8 +44,8 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 
 -- Like Wayang, but support short notes.
@@ -75,12 +76,14 @@ patches = map Patch.DbPatch [make Umbang, make Isep]
 
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"
-    code tuning = note <> Util.thru dir (convert tuning)
+    code tuning = note
+        <> Util.thru dir (convert tuning)
+        <> ImInst.postproc DUtil.with_symbolic_pitch
     note = Bali.zero_dur_mute_with ""
-        (\args -> transform args . Call.multiply_dynamic 0.65)
-        (\args -> transform args $
+        (\_args -> transform . Call.multiply_dynamic 0.65)
+        (\args -> transform $
             Prelude.Note.default_note Prelude.Note.use_attributes args)
-        where transform args = Code.withSymbolicPitch args . Code.withVariation
+        where transform = Code.withVariation
     dir = "rambat"
 
 attributeMap :: Common.AttributeMap Articulation

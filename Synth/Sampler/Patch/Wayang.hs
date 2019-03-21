@@ -16,7 +16,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Util.Map
@@ -27,6 +27,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Wayang as Wayang
 
@@ -45,8 +46,8 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Synth.Types
+import           Global
+import           Synth.Types
 
 
 patches :: [Patch.DbPatch]
@@ -81,7 +82,9 @@ patches =
         ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
     tuningVal Umbang = "umbang"
     tuningVal Isep = "isep"
-    code inst tuning = WayangCode.code <> Util.thru dir (convert inst tuning)
+    code inst tuning = WayangCode.code
+        <> Util.thru dir (convert inst tuning)
+        <> ImInst.postproc DUtil.with_symbolic_pitch
     dir = "wayang"
 
 attributeMap :: Common.AttributeMap Articulation

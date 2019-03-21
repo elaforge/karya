@@ -1598,6 +1598,8 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  - garbage collection for im/cache
+    . I think I just delete checkpoint/*.wav that doesn't have a symlink
   * since the checkpoint size is smaller, logs are spammy
   - sampler crashes when volume=0 in test/im-rambat-simple
   * save_state_as "`d`/something" caused it to emit:
@@ -2375,7 +2377,7 @@ synth: im:
         - mute seems pretty abrupt.  Could it be that it's linear?  I think
           the usual envelope decay is log.  Or maybe that's just doing it by
           dB?
-        - symbolic-pitch=t
+        * symbolic-pitch=t
           It seems to miss ngoret pitches.  I get: Error: no pitch at 236.72s
 
       * it's pretty easy to get zheng to get a "still playing" by editing

@@ -212,8 +212,8 @@ modify_environ f event = event { event_environ = f (event_environ event) }
 -- | Modify the value at the given key.
 modify_environ_key :: EnvKey.Key
     -> (Maybe DeriveT.Val -> DeriveT.Val) -> Event -> Event
-modify_environ_key name modify = modify_environ $ \(DeriveT.Environ env) ->
-    DeriveT.Environ $ Map.alter (Just . modify) name env
+modify_environ_key key modify = modify_environ $ \(DeriveT.Environ env) ->
+    DeriveT.Environ $ Map.alter (Just . modify) key env
 
 -- ** attributes
 

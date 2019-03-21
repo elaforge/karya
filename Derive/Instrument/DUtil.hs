@@ -13,6 +13,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Note
@@ -35,6 +36,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import           Global
@@ -302,9 +304,8 @@ set_constant_pitch args deriver = do
 
 -- | Move an environ val from one key to another.  This is meant to be put in
 -- 'Cmd.Cmd.inst_postproc', because doing it in the note call may be too early.
-move_val :: (Typecheck.Typecheck old, Typecheck.ToVal new) =>
-    EnvKey.Key -> EnvKey.Key -> (old -> Either Log.Msg new)
-    -> Score.Event -> (Score.Event, [Log.Msg])
+move_val :: (Typecheck.Typecheck old, Typecheck.ToVal new) => EnvKey.Key
+    -> EnvKey.Key -> (old -> Either Log.Msg new) -> Cmd.InstrumentPostproc
 move_val old_key new_key convert event =
     case Env.checked_val2 old_key (Score.event_environ event) of
         Nothing -> (event, [])
@@ -319,3 +320,25 @@ move_val old_key new_key convert event =
                 )
             Right new ->
                 (Score.modify_environ (Env.insert_val new_key new) event, [])
+
+with_symbolic_pitch :: Cmd.InstrumentPostproc
+with_symbolic_pitch = when_env "symbolic-pitch" (Just True) add_symbolic_pitch
+
+add_symbolic_pitch :: Cmd.InstrumentPostproc
+add_symbolic_pitch event = Log.run_id $ case Score.initial_note event of
+    Nothing -> do
+        Log.warn $ "no symbolic pitch for " <> Score.short_event event
+        return event
+    Just note ->
+        return $ set_environ EnvKey.patch_element (Pitch.note_text note) event
+
+set_environ :: Typecheck.ToVal key => EnvKey.Key -> key -> Score.Event
+    -> Score.Event
+set_environ key val =
+    Score.modify_environ_key key (const (Typecheck.to_val val))
+
+when_env :: (Eq val, Typecheck.Typecheck val) => EnvKey.Key -> Maybe val
+    -> Cmd.InstrumentPostproc -> Cmd.InstrumentPostproc
+when_env key val postproc event
+    | val == Env.maybe_val key (Score.event_environ event) = postproc event
+    | otherwise = (event, [])

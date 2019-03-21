@@ -27,10 +27,6 @@ withVariationNormal stddev deriver =
         n <- Call.normal stddev
         Derive.with_constant_control Controls.variation n deriver
 
-withSymbolicPitch :: Derive.PassedArgs x -> Derive.Deriver a -> Derive.Deriver a
-withSymbolicPitch args =
-    Call.when_env "symbolic-pitch" (Just True) (addSymbolicPitch args)
-
 addSymbolicPitch :: Derive.PassedArgs x -> Derive.Deriver a -> Derive.Deriver a
 addSymbolicPitch args deriver = do
     note <- Call.get_symbolic_pitch =<< Args.real_start args
