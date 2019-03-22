@@ -28,7 +28,7 @@ type SamplePath = FilePath
 -- played.
 data Note = Note {
     start :: !Audio.Frame
-    -- | This is the actual duration of the sample at the given 'ratio', not
+    -- | This is the actual duration of the sample at the given 'ratios', not
     -- the requested 'Note.duration'.  This could be Nothing if the sample is
     -- a Left, or if Sample.filename doesn't exist.  TODO maybe move 'duration'
     -- to Sample then.
@@ -45,7 +45,7 @@ end note = start note + fromMaybe 0 (duration note)
 
 makeHash :: Audio.Frame -> Maybe Audio.Frame -> Either Text Sample -> Note.Hash
 makeHash start dur sample = Note.hash (start, dur, sample)
-    -- TODO ensure envelope and ratio are clipped to (start, duration)?
+    -- TODO ensure envelope and ratios are clipped to (start, duration)?
 
 -- | The actual sample played by a 'Note'.
 data Sample = Sample {
@@ -59,7 +59,7 @@ data Sample = Sample {
     , envelope :: !Signal.Signal
     , pan :: !Signal.Signal
     -- | Sample rate conversion ratio.  This controls the pitch.
-    , ratio :: !Signal.Signal
+    , ratios :: !Signal.Signal
     } deriving (Show)
 
 make :: SamplePath -> Sample
@@ -68,7 +68,7 @@ make filename = Sample
     , offset = 0
     , envelope = Signal.constant 1
     , pan = Signal.constant 0
-    , ratio = Signal.constant 1
+    , ratios = Signal.constant 1
     }
 
 modifyFilename :: (SamplePath -> SamplePath) -> Sample -> Sample
@@ -83,12 +83,12 @@ instance Pretty Note where
         ]
 
 instance Pretty Sample where
-    format (Sample filename offset envelope pan ratio) = Pretty.record "Sample"
+    format (Sample filename offset envelope pan ratios) = Pretty.record "Sample"
         [ ("filename", Pretty.format filename)
         , ("offset", Pretty.format offset)
         , ("envelope", Pretty.format envelope)
         , ("pan", Pretty.format pan)
-        , ("ratio", Pretty.format ratio)
+        , ("ratios", Pretty.format ratios)
         ]
 
 instance Serialize.Serialize Sample where
@@ -120,7 +120,7 @@ srate = 1/8
 toOsc :: FilePath -> Sample -> Osc.Play
 toOsc sampleDir sample = Osc.Play
     { _sample = Config.unsafeSamplerRoot </> sampleDir </> filename sample
-    , _ratio = Signal.at start $ ratio sample
+    , _ratio = Signal.at start $ ratios sample
     , _volume = Signal.at start $ envelope sample
     }
     where start = 0

@@ -167,7 +167,7 @@ mkNote dbDir start dur nn = Sample.Note
     , sample = if null dbDir
         then Left "no patch"
         else Right $ (Sample.make (triFilename dbDir))
-            { Sample.ratio = Signal.constant $ Sample.pitchToRatio NN.c4 nn }
+            { Sample.ratios = Signal.constant $ Sample.pitchToRatio NN.c4 nn }
     }
 
 -- * TODO copy paste with Faust.Render_test

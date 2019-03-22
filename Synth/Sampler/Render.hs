@@ -248,17 +248,17 @@ eNote :: Sample.Note
 eNote n =
     ( prettyF $ Sample.start n
     , maybe "Nothing" prettyF $ Sample.duration n
-    , either mempty Sample.ratio $ Sample.sample n
+    , either mempty Sample.ratios $ Sample.sample n
     , FilePath.takeFileName . Sample.filename <$> Sample.sample n
     )
 
 -- | Convert 'Sample.Note' to a 'Playing'.
 startSample :: Audio.Frame -> Resample.Quality -> Audio.Frame
     -> Maybe (Maybe State)
-    -- ^ If given, resume a playing sample which should have started in the
-    -- <= now, otherwise start a new one which should start >= now.
-    -- If Just Nothing, this is a resuming sample, but it wasn't resampled, so
-    -- there's no resampler state.
+    -- ^ If Just Just, resume a playing sample which should have started <=now,
+    -- otherwise start a new one which should start >= now.  If Just Nothing,
+    -- this is a resuming sample, but it wasn't resampled, so there's no
+    -- resampler state.
     -> Sample.Note -> IO Playing
 startSample now quality blockSize mbMbState note = case Sample.sample note of
     -- Just crash on a failed sample.  I used to keep rendering, but then

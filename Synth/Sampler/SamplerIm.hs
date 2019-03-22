@@ -232,7 +232,7 @@ actualDuration :: RealTime -> Sample.Sample
 actualDuration start sample = do
     excFileDur <- Exception.try $
         RenderSample.predictFileDuration
-            (Signal.shift (- start) (Sample.ratio sample))
+            (Signal.shift (- start) (Sample.ratios sample))
             (Sample.filename sample)
     let envDur = AUtil.toFrame <$>
             RenderSample.envelopeDur start (Sample.envelope sample)

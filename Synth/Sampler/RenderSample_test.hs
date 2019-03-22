@@ -55,7 +55,6 @@ verify quality ratios dur =
     ( realToFrac $ RenderSample.predictDuration ratios dur
     , realToFrac $ actualDuration (mkConfig quality) ratios dur
     )
-    -- where sig = signal ratios
 
 actualDuration :: Resample.Config -> Signal.Signal -> Audio.Frame
     -> Audio.Frame

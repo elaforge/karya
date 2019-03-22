@@ -136,7 +136,7 @@ checkStarts = (makeSample reference,)
     makeSample fname = (Sample.make fname)
         { Sample.envelope = Signal.from_pairs
             [(0, 1), (0 + dur, 1), (0 + dur + muteTime, 0)]
-        , Sample.ratio = Signal.constant 1
+        , Sample.ratios = Signal.constant 1
         }
     dur = 1
 
@@ -181,7 +181,7 @@ convert instrument tuning note = do
                 [ (Note.start note, dynVal), (Note.end note, dynVal)
                 , (Note.end note + muteTime, 0)
                 ]
-        , Sample.ratio = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
+        , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
 
 isMute :: Articulation -> Bool

@@ -110,7 +110,7 @@ convert note = do
             [ (Note.start note, vol), (Note.end note, vol)
             , (Note.end note + dampTime, 0)
             ]
-        , Sample.ratio = Sample.pitchToRatioSignal (Midi.from_key key) note
+        , Sample.ratios = Sample.pitchToRatioSignal (Midi.from_key key) note
         }
 
 defaultDampTime :: RealTime

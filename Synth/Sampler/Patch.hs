@@ -82,7 +82,7 @@ simple name filename sampleNn = (patch name)
         dyn <- tryJust "no dyn" $ Note.initial Control.dynamic note
         return $ (Sample.make filename)
             { Sample.envelope = Signal.constant dyn
-            , Sample.ratio = Signal.constant $
+            , Sample.ratios = Signal.constant $
                 Sample.pitchToRatio sampleNn pitch
             }
     , _karyaPatch = ImInst.make_patch $ Im.Patch.patch
