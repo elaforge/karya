@@ -95,6 +95,7 @@ resampleBy config ratios audio = Audio.Audio $ do
         (SampleRateC.new (_quality config)
             (fromIntegral (TypeLits.natVal chan)))
         SampleRateC.delete
+    -- Debug.tracepM "RESAMPLE: now, ratios" (_now config, ratios)
     liftIO $ case (_state config) of
         Nothing -> SampleRateC.setRatio state $ Signal.at 0 ratios
         Just saved -> do
@@ -108,7 +109,9 @@ resampleBy config ratios audio = Audio.Audio $ do
     -- reported to '_notifyState' so I can restart the sample at the right
     -- place.
     -- I also keep track of the previous segment to detect discontinuities.
-    let initialState = (0, segmentAt rate 0 ratios)
+    -- Use frame -1 for the initial prevSegment.  If I happen to be starting on
+    -- a discontinuity, I need to do a setRatio.
+    let initialState = (0, segmentAt rate (toSeconds (-1)) ratios)
     Control.loop2 initialState (0, Audio._stream audio, [], align) $
         \loop (framesRead, prevSegment) (now, audio, collect, blockLeft) -> do
             let segment = segmentAt rate (toSeconds now) ratios
@@ -184,20 +187,27 @@ resampleBlock :: KnownNat chan => Proxy chan -> Audio.Rate
     -> Segment -> Segment -> Stream ()
     -> Stream (Maybe (Audio.Frame, V.Vector Audio.Sample, Stream ()))
 resampleBlock chan rate state start maxFrames prevSegment segment audio = do
+    -- 'start' is the *output* frame.  It indexes ratios, because that's
+    -- RealTime.
     (inputBlock, audio) <- next audio
     (atEnd, audio) <- lift $ checkEnd audio
     let inputFrames = maybe 0 (Audio.blockFrames chan) inputBlock
-    -- Never go past the next breapoint.
+    -- Never go past the next breakpoint.
     let outputFrames = min maxFrames (toFrames (Segment._x2 segment) - start)
+
+    -- Debug.tracepM "(start, end), (prev, segment)"
+    --     ((start, start+outputFrames), (showSeg prevSegment, showSeg segment))
+
     let destRatio = Segment.num_interpolate_s segment $
             toSeconds $ start + outputFrames
         -- Progress through the ratios signal proceeds in real time, which is
         -- to say, outputFrames.
     let with = V.unsafeWith (fromMaybe V.empty inputBlock)
     (used, generated, outFP) <- liftIO $ with $ \blockp -> do
+        -- Discontinuity in the ratios signal.
         when (segment /= prevSegment
                 && Segment._y2 prevSegment /= Segment._y1 segment) $ do
-            -- Debug.tracepM "setRatio" (prevSegment, segment)
+            -- Debug.tracepM "setRatio" (Segment._y1 segment)
             SampleRateC.setRatio state (Segment._y1 segment)
         outp <- Foreign.mallocArray $ Audio.framesCount chan outputFrames
         result <- SampleRateC.process state $ SampleRateC.Input
@@ -210,13 +220,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
             , src_ratio = destRatio
             , end_of_input = atEnd
             }
-        -- Debug.tracepM "segment" (start, start+outputFrames, segment)
-        -- Debug.tracepM "in, out, ->rat" (inputFrames, outputFrames, destRatio)
         outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
-        -- Debug.tracepM "used, gen"
-        --     ( SampleRateC.input_frames_used result
-        --     , SampleRateC.output_frames_generated result
-        --     )
         return
             ( Audio.Frame $ fromIntegral $
                 SampleRateC.input_frames_used result
@@ -230,6 +234,12 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
         recons = if V.null left then id else S.cons left
     let outputBlock = V.unsafeFromForeignPtr0 outFP $
             Audio.framesCount chan generated
+
+    -- srcRatio <- liftIO $ SampleRateC.getRatio state
+    -- Debug.tracepM "OUTPUT"
+    --     ((srcRatio, destRatio), (used, generated),
+    --         (oneChan <$> inputBlock, oneChan outputBlock))
+
     let framesRead = Audio.countFrames chan $
             maybe 0 V.length inputBlock - V.length left
     return $ if Maybe.isNothing inputBlock && generated == 0
@@ -240,6 +250,11 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
         lift (S.next audio)
     toFrames = Audio.secondsToFrame rate . RealTime.to_seconds
     toSeconds = RealTime.seconds . Audio.frameToSeconds rate
+
+    -- showSeg (Segment.Segment x1 y1 x2 y2) =
+    --     pretty (toFrames x1, y1) <> "--" <> pretty (toFrames x2, y2)
+    -- oneChan :: V.Vector Audio.Sample -> V.Vector Audio.Sample
+    -- oneChan = head . Audio.deinterleaveV 2
 
 -- | True if this stream is empty.  It also returns the stream since it has to
 -- peek an element to check, and if it's not empty, it conses the element back

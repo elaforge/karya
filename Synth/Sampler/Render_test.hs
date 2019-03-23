@@ -20,7 +20,9 @@ import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Render as Render
+import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
@@ -59,6 +61,51 @@ test_write_freq = do
     io_equal (write [mkNote dir 0 8 NN.c5]) (Right (1, 1))
     io_equal (length <$> listWavs dir) 1
     io_equal (readSamples dir) [1, 2, 4, 2]
+
+-- Can I do it without the whole directory and file?
+-- I'd have to replace File.readFrom in RenderSample, and with something that
+-- uses a Vector.  That's just Audio.drop . Audio.fromSamples
+-- But I'd also need to replace File.writeCheckpoints, which means threading
+-- through Checkpoint too.  And I'd still want to keep the file-oriented tests
+-- around, to exercise those functions more, so... let's keep the tmp files.
+
+test_write_ratios = do
+    (write, dir) <- tmpDb
+
+    let notes = [mkNoteNn dir 0 8 [(0, 2), (4, 2), (4, 4), (8, 4), (8, 2)]]
+    -- libsamplerate writes an extra sample at the start.  I don't really know
+    -- why, but it's "documented" as "Calculate samples before first sample in
+    -- input array."
+    let expected = [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4, 3, 3, 2, 2, 1, 1, 0, 0]
+    io_equal (write notes) (Right (5, 5))
+    io_equal (readSamples dir) expected
+    -- No work, all chunks reused.
+    io_equal (write notes) (Right (0, 5))
+    rmPrefixes (dir </> "checkpoint") ["002", "003", "004"]
+    io_equal (write notes) (Right (3, 5))
+    io_equal (readSamples dir) expected
+
+    -- frame   0   .   4   .   8   .  12   .  16   .  20
+    -- input   1 2 3 4 3 2 1 0
+    -- chunk   0       1       2       3       4      5
+    -- ratio   2-------4-------2------------------------
+    -- output  1 1 1 1 2 2 2 2 3 3 4 4 3 3 2 2 1 1 0 0
+
+{-
+    . 0 - rat 2: (2, 4) 1 2 -> 1 1 1 1      file: 0
+    . 1 - rat 4: (1, 4) 3   -> 2 2 2 2      file: 2
+    . 2 - rat 2: (2, 4) 4 3 -> 3 3 4 4      file: 3
+    . 3 - rat 2: (2, 4) 2 1 -> 3 3 2 2
+    . 4 - rat 2: (1, 2) 0   -> 1 1 0
+
+    Now resume at 3f: rat=4, but I index ratios by output, so should look
+    for segment at 4+4=8, which is 2.  Which I do.
+    . Fixed now.  Resume at rat 2->2:
+    . 2 - rat 2: (2, 4) 4 3 -> 3 3 4 4
+    . 3 - rat 2: (2, 4) 2 1 -> 3 3 2 2
+    . 4 - rat 2: (1, 3) 0   -> 1 1 0
+-}
+
 
 test_write_incremental = do
     -- Resume after changing a later note, results same as rerender from
@@ -172,16 +219,27 @@ mkNoteSec dbDir start dur =
 
 mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Pitch.NoteNumber
     -> Sample.Note
-mkNote dbDir start dur nn = Sample.Note
+mkNote dbDir start dur nn =
+    mkNoteNn dbDir start dur [(start, Sample.pitchToRatio NN.c4 nn)]
+
+mkNoteNn :: FilePath -> Audio.Frame -> Audio.Frame
+    -> [(Audio.Frame, Double)] -> Sample.Note
+mkNoteNn dbDir start dur ratios_ = Sample.Note
     { start = start
-    , duration = Just dur
-    , hash = Note.hash $ Note.withPitch nn $
-        Note.note "patch" "inst" (AUtil.toSeconds start) (AUtil.toSeconds dur)
+    , duration = Just $
+        RenderSample.predictDuration (Signal.shift (-startS) ratios) dur
+    , hash = Note.hash note
     , sample = if null dbDir
         then Left "no patch"
         else Right $ (Sample.make (triFilename dbDir))
-            { Sample.ratios = Signal.constant $ Sample.pitchToRatio NN.c4 nn }
+            { Sample.ratios = ratios }
     }
+    where
+    startS = AUtil.toSeconds start
+    -- I don't put the pitch on, but it just affects hash, which is unlikely to
+    -- be relevant in a test.
+    note = Note.note "patch" "inst" startS (AUtil.toSeconds dur)
+    ratios = Signal.from_pairs $ map (first AUtil.toSeconds) ratios_
 
 -- * TODO copy paste with Faust.Render_test
 

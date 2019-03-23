@@ -2271,9 +2271,41 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
-      - add 5c at 49.5t of im-zheng @b3:
+      * add 5c at 49.5t of im-zheng @b3:
         notes still playing at 2447550f(55.5s):
         [Playing:r67NHd42kGAPZSp7Zhr6JA(1874250f(42.5s)--2443052f(55.39s))]
+        . Note 42.5s + 12.89s => 55.39s
+          { start = 1874250f, duration = 568802f
+          , sample = Right Sample
+            { filename = "data/sampler/zheng/SCGZ47BH-081.flac"
+            , offset = 0f
+            , envelope = Signal 0s <42.5s:.989, 1042.5s:.989, 1043.25s:0>
+            , pan = Signal.constant 0
+            , ratio =
+                Signal 0s < 42.5s:.943, 42.75s:.943, 42.75s:.943
+                , 42.85s:.943, 48.22s:.943, 48.22s:.943, 48.37s:.838
+                >
+            }
+          , hash = r67NHd42kGAPZSp7Zhr6JA
+          }
+        . resume at data/sampler/zheng/SCGZ47BH-081.flac:185000f
+        . Either the state was written wrong, in which case I think any note
+          after would crash, or the duration is guessed wrong.  If the latter,
+          the original would have crashed.  So must be written wrong.
+        . predict = 568802
+          actual =  568327
+        . Prediction is 475 short.  So should end at 2442577 (55.387)
+          Does it advance ratios based on start time?
+        . I think not.  It starts at Sample.start and uses offset, but only
+          shifts ratios by start.  I think I have to shift ratios in the
+          caller.
+        . Now it's: notes still playing at 2304225f(52.25s):
+          [Playing:r0uRfYblcae8-77OF_QBZw(2094750f(47.5s)--2301603f(52.19s))]
+        . resume at 6f, so it should be at ratio=2, but without will start at
+          1?
+        . Not fixed after all, now I get:
+          . setRatio: SRC ratio outside [1/256, 256] range.
+        . Add the silence to the shift.
       * deleting notes didn't delete the chunks
         . It's because I didn't clear out disappeared instruments.
       * fltk/PeakCache.cc:59 add():
@@ -3503,6 +3535,8 @@ cleanup:
         https://hackage.haskell.org/package/persist
       . There's also store, with emphasis on performance, but has an insane
         dependency list, and incompatible interface.
+      . winery is a generic structure thing like cbor, but stores structure
+        just once.
   - support cabal new-build
     . The advantage is that people can install dependencies without messing up
       their global package db.

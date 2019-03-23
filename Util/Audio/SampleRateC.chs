@@ -13,6 +13,7 @@ module Util.Audio.SampleRateC (
     -- * SavedState
     , SavedState(..)
     , getState, putState
+    , getRatio
 ) where
 import qualified Control.Exception as Exception
 import Control.Monad (when)
@@ -158,3 +159,6 @@ putState quality state (SavedState state1 state2) =
     { `Quality', `State', `StateFlat', id `CSize', id `Foreign.Ptr ()'
     } -> `Bool'
 #}
+
+getRatio :: State -> IO Double
+getRatio (State state) = realToFrac <$> {#get SRC_PRIVATE.last_ratio #} state

@@ -34,6 +34,8 @@ import           Synth.Types
 
 render :: Resample.Config -> RealTime -> Sample.Sample -> AUtil.Audio
 render config start (Sample.Sample filename offset envelope pan ratios) =
+    -- The sample stream thinks it's starting at a relative frame 0, so
+    -- I need to shift all the signals back so they also line up to frame 0.
     applyPan nowS pan $
     applyEnvelope nowS envelope $
     resample config ratios start $
@@ -51,16 +53,21 @@ resample :: (KnownNat rate, KnownNat chan)
 resample config ratios start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
-    | Just val <- Signal.constant_val_from start ratios,
+    | Just val <- Signal.constant_val_from 0 ratios,
             ApproxEq.eq closeEnough val 1 =
         Audio.assertIn (state == Nothing)
             ("expected no state for un-resampled, got " <> pretty state) $
         -- resampleBy synchronizes, but File.readFrom doesn't.
         Audio.synchronizeToSize (Resample._now config)
             (Resample._blockSize config) (silence <> audio)
-    | otherwise = silence
-        <> Resample.resampleBy (addNow silenceF config)
-            (Signal.shift (-start) ratios) audio
+    | otherwise =
+        -- If I'm prepending silence, tweak resample's idea of _now.  It uses
+        -- that to align its output blocks.  Also, since that's the real sample
+        -- start time, I use it to shift ratios to 0, as mentioned in 'render'.
+        let config2 = addNow silenceF config
+        in silence <> Resample.resampleBy config2
+            (Signal.shift (- (AUtil.toSeconds (Resample._now config2))) ratios)
+            audio
         -- The resample always starts at 0 in the ratios, so shift it back to
         -- account for when the sample starts.
     where
