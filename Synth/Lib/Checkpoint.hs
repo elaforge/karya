@@ -65,7 +65,7 @@ skipCheckpoints outputDir hashes = do
     Directory.createDirectoryIfMissing False (outputDir </> checkpointDir)
     files <- Directory.listDirectory (outputDir </> checkpointDir)
     let (skipped, (remainingHashes, stateFname)) =
-            findLastState (Set.fromList files) hashes
+            findLastState (Set.fromList files) (extendHashes hashes)
     mbState <- if null stateFname
         then return Nothing
         else Just . State
@@ -115,8 +115,7 @@ write outputDir trackIds skippedCount chunkSize hashes getState audio
         result <- AUtil.catchSndfile $ Resource.runResourceT $
             Audio.File.writeCheckpoints
                 chunkSize (getFilename outputDir getState) chunkComplete
-                AUtil.outputFormat (extendHashes hashes)
-                audio
+                AUtil.outputFormat (extendHashes hashes) audio
         return $ case result of
             Left err -> Left err
             Right written -> Right (written, written + skippedCount)

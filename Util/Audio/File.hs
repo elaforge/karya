@@ -8,7 +8,8 @@
 -- formats supported by libsndfile.
 module Util.Audio.File (
     -- * read
-    check, checkA, getInfo, read, readFrom, read44k, readUnknown
+    check, checkA, getInfo, duration
+    , read, readFrom, read44k, readUnknown
     , concat
     -- * write
     , write, writeCheckpoints
@@ -49,6 +50,9 @@ checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy channels)
 getInfo :: FilePath -> IO Sndfile.Info
 getInfo fname = Exception.bracket (openRead fname) Sndfile.hClose
     (return . Sndfile.hInfo)
+
+duration :: FilePath -> IO Audio.Frame
+duration = fmap (Audio.Frame . Sndfile.frames) . getInfo
 
 -- | Since the file is opened only when samples are demanded, a sample rate or
 -- channels mismatch will turn into an exception then, not when this is called.

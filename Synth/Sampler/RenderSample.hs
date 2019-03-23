@@ -14,7 +14,6 @@ module Synth.Sampler.RenderSample (
 #endif
 ) where
 import           GHC.TypeLits (KnownNat)
-import qualified Sound.File.Sndfile as Sndfile
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
@@ -109,8 +108,7 @@ envelopeDur start sig = case Signal.last sig of
 -- | Predict how long a sample will be if resampled with the given ratio
 -- signal.
 predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frame
-predictFileDuration ratios =
-    fmap (predictDuration ratios . Audio.Frame . Sndfile.frames) . File.getInfo
+predictFileDuration ratios = fmap (predictDuration ratios) . File.duration
 
 type FrameF = Double
 
