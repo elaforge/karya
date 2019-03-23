@@ -15,14 +15,12 @@ import qualified Util.Audio.Resample as Resample
 import qualified Util.Test.Testing as Testing
 
 import qualified Perform.NN as NN
-import qualified Perform.Pitch as Pitch
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Render as Render
 import qualified Synth.Sampler.RenderSample as RenderSample
 import qualified Synth.Sampler.Sample as Sample
-import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
@@ -38,7 +36,7 @@ test_write_noop = do
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
     -- Failed note produces aborts the render.
-    result <- write [mkNote "" 0 16 NN.c4]
+    result <- write [mkNote1 "" 0 16]
     left_like result "no patch"
     io_equal (listWavs dir) []
 
@@ -46,19 +44,19 @@ test_write_simple = do
     (write, dir) <- tmpDb
     -- A single note that spans two checkpoints.  Dur is determined by the
     -- sample length.
-    io_equal (write [mkNote dir 0 8 NN.c4]) (Right (2, 2))
+    io_equal (write [mkNote1 dir 0 8]) (Right (2, 2))
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) triangle
 
 test_write_simple_offset = do
     (write, dir) <- tmpDb
-    io_equal (write [mkNote dir 8 8 NN.c4]) (Right (4, 4))
+    io_equal (write [mkNote1 dir 8 8]) (Right (4, 4))
     io_equal (readSamples dir) (replicate 8 0 ++ triangle)
 
 test_write_freq = do
     (write, dir) <- tmpDb
     -- Freq*2 is half as many samples.
-    io_equal (write [mkNote dir 0 8 NN.c5]) (Right (1, 1))
+    io_equal (write [mkNote dir 0 8 0.5]) (Right (1, 1))
     io_equal (length <$> listWavs dir) 1
     io_equal (readSamples dir) [1, 2, 4, 2]
 
@@ -72,7 +70,7 @@ test_write_freq = do
 test_write_ratios = do
     (write, dir) <- tmpDb
 
-    let notes = [mkNoteNn dir 0 8 [(0, 2), (4, 2), (4, 4), (8, 4), (8, 2)]]
+    let notes = [mkNoteRatios dir 0 8 [(0, 2), (4, 2), (4, 4), (8, 4), (8, 2)]]
     -- libsamplerate writes an extra sample at the start.  I don't really know
     -- why, but it's "documented" as "Calculate samples before first sample in
     -- input array."
@@ -115,8 +113,8 @@ test_write_incremental = do
     -- 12343210
     --     12343210
     let oldNotes =
-            [ mkNote dir 0 8 NN.c4
-            , mkNote dir 4 8 NN.c4
+            [ mkNote1 dir 0 8
+            , mkNote1 dir 4 8
             ]
     -- 0   4   8   12   16
     -- 12343210
@@ -124,12 +122,14 @@ test_write_incremental = do
     -- ====3210
     --     0012
     let newNotes =
-            [ mkNote dir 0 8 NN.c4
-            , mkNote dir 6 8 NN.c4
+            [ mkNote1 dir 0 8
+            , mkNote1 dir 6 8
             ]
+
     io_equal (write oldNotes) (Right (3, 3))
     io_equal (readSamples dir)
         (zipWith (+) (triangle ++ repeat 0) (replicate 4 0 ++ triangle))
+
     -- resume 0 note at -4
     io_equal (write newNotes) (Right (3, 4))
     let expected =
@@ -149,7 +149,7 @@ renderSamples notes = do
 test_overlappingNotes = do
     let f start size = extract
             . Render.overlappingNotes (AUtil.toFrame start) (AUtil.toFrame size)
-            . map (\(s, d) -> mkNoteSec "" s d NN.c4)
+            . map (\(s, d) -> mkNoteSec "" s d 1)
         extract (a, b, c) = (map e a, map e b, map e c)
             where
             e n =
@@ -213,18 +213,21 @@ triFilename dbDir = dbDir </> patchDir </> "tri.wav"
 triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]
 
-mkNoteSec :: FilePath -> RealTime -> RealTime -> Pitch.NoteNumber -> Sample.Note
+mkNoteSec :: FilePath -> RealTime -> RealTime -> Double -> Sample.Note
 mkNoteSec dbDir start dur =
     mkNote dbDir (AUtil.toFrame start) (AUtil.toFrame dur)
 
-mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Pitch.NoteNumber
-    -> Sample.Note
-mkNote dbDir start dur nn =
-    mkNoteNn dbDir start dur [(start, Sample.pitchToRatio NN.c4 nn)]
+-- | mkNote where ratio=1.
+mkNote1 :: FilePath -> Audio.Frame -> Audio.Frame -> Sample.Note
+mkNote1 dbDir start dur = mkNote dbDir start dur 1
 
-mkNoteNn :: FilePath -> Audio.Frame -> Audio.Frame
+-- | Make a note with a constant ratio.
+mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Double -> Sample.Note
+mkNote dbDir start dur ratio = mkNoteRatios dbDir start dur [(start, ratio)]
+
+mkNoteRatios :: FilePath -> Audio.Frame -> Audio.Frame
     -> [(Audio.Frame, Double)] -> Sample.Note
-mkNoteNn dbDir start dur ratios_ = Sample.Note
+mkNoteRatios dbDir start dur ratios_ = Sample.Note
     { start = start
     , duration = Just $
         RenderSample.predictDuration (Signal.shift (-startS) ratios) dur

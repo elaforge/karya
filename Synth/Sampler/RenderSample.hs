@@ -50,7 +50,7 @@ render config start (Sample.Sample filename offset envelope pan ratios) =
 resample :: (KnownNat rate, KnownNat chan)
     => Resample.Config -> Signal.Signal -> RealTime
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan
-resample config ratios start audio
+resample config ratiosUnshifted start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
     | Just val <- Signal.constant_val_from 0 ratios,
@@ -65,12 +65,12 @@ resample config ratios start audio
         -- that to align its output blocks.  Also, since that's the real sample
         -- start time, I use it to shift ratios to 0, as mentioned in 'render'.
         let config2 = addNow silenceF config
-        in silence <> Resample.resampleBy config2
-            (Signal.shift (- (AUtil.toSeconds (Resample._now config2))) ratios)
-            audio
-        -- The resample always starts at 0 in the ratios, so shift it back to
-        -- account for when the sample starts.
+        in silence <> Resample.resampleBy config2 ratios audio
     where
+    sampleStart = AUtil.toSeconds $ Resample._now config + silenceF
+    -- The resample always starts at 0 in the ratios, so shift it back to
+    -- account for when the sample starts.
+    ratios = Signal.shift (-sampleStart) ratiosUnshifted
     silence = Audio.take (Audio.Frames silenceF) Audio.silence
     silenceF = max 0 (AUtil.toFrame start - Resample._now config)
     state = Resample._state config
