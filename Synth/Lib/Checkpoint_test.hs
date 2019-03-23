@@ -57,17 +57,27 @@ test_groupOverlapping = do
 test_findLastState = do
     let f files = Checkpoint.findLastState (Set.fromList files)
             . map (second (Note.Hash))
-    let initialState = Checkpoint.encodeState $ Checkpoint.State mempty
+    let mkstate = Checkpoint.encodeState . Checkpoint.State
     let fn chunk hash state =
             Checkpoint.filenameOf2 chunk (Note.Hash hash) state
-    let wav1 = fn 0 "a" initialState
+    let wav0 = fn 0 "a" (mkstate "")
+    let state0 = FilePath.replaceExtension wav0 (".state." <> mkstate "1")
+
     equal (f [] [(0, "a")]) ([], ([(0, Note.Hash "a")], ""))
     -- .wav is present, but not .state, don't skip the .wav.
-    equal (f [wav1] [(0, "a"), (1, "b")])
+    equal (f [wav0] [(0, "a"), (1, "b")])
         ([], ([(0, Note.Hash "a"), (1, Note.Hash "b")], ""))
-    let state1 = FilePath.replaceExtension wav1 ".state.b"
-    equal (f [wav1, state1] [(0, "a"), (1, "b")])
-        ([wav1], ([(1, Note.Hash "b")], state1))
+    equal (f [wav0, state0] [(0, "a"), (1, "b")])
+        ([wav0], ([(1, Note.Hash "b")], state0))
+
+    -- There's no note hash for wav1, which means it's in the decay.  I still
+    -- find all the corresponding wavs, but don't return any continuation
+    -- hashes or the final successor-less state.
+    let wav1 = fn 1 "" (mkstate "1")
+    let state1 = FilePath.replaceExtension wav1 (".state." <> mkstate "2")
+    pprint [wav0, state0, wav1, state1]
+    equal (f [wav0, state0, wav1, state1] [(0, "a")])
+        ([wav0, wav1], ([], ""))
 
 -- filenameOf2 :: Config.ChunkNum -> Note.Hash -> String -> FilePath
 

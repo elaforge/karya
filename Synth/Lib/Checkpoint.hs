@@ -65,7 +65,7 @@ skipCheckpoints outputDir hashes = do
     Directory.createDirectoryIfMissing False (outputDir </> checkpointDir)
     files <- Directory.listDirectory (outputDir </> checkpointDir)
     let (skipped, (remainingHashes, stateFname)) =
-            findLastState (Set.fromList files) (extendHashes hashes)
+            findLastState (Set.fromList files) hashes
     mbState <- if null stateFname
         then return Nothing
         else Just . State
@@ -86,7 +86,13 @@ findLastState files = go "" initialState
     go prevStateFname state ((chunknum, hash) : hashes)
         | fname `Set.member` files = case Set.lookupGT prefix files of
             Just stateFname | prefix `List.isPrefixOf` stateFname ->
-                first (fname:) $ go stateFname nextState hashes
+                first (fname:) $ go stateFname nextState $
+                    -- I ran out of notes, but there are still chunks.  This
+                    -- indicates that there is a decay after the last note,
+                    -- so keep following chunks with empty note hash.  They
+                    -- were rendered in the first place beceause 'extendHash'
+                    -- does the same thing for 'write'.
+                    if null hashes then [(chunknum+1, mempty)] else hashes
                 where nextState = drop (length prefix) stateFname
             -- I didn't find a corresponding .state file for the .wav.  This
             -- can happen if a previous render was killed while writing them.
@@ -96,7 +102,12 @@ findLastState files = go "" initialState
             _ -> done
         | otherwise = done
         where
-        done = ([], ((chunknum, hash) : hashes, prevStateFname))
+        done
+            -- This means I'm "in the decay", as above, so don't return one
+            -- of my made-up empty note hashes.  This way 'write' will notice
+            -- null hashes, and skip all work.
+            | hash == mempty && null hashes = ([], ([], ""))
+            | otherwise = ([], ((chunknum, hash) : hashes, prevStateFname))
         prefix = FilePath.replaceExtension fname ".state."
         fname = filenameOf2 chunknum hash state
     go _ _ [] = ([], ([], ""))
@@ -216,7 +227,7 @@ zeroPad digits n =
 
 -- * hash
 
--- | Extend the [(index, hash)] list with 0 hashes.
+-- | Extend the [(index, hash)] list with mempty hashes.
 --
 -- 'Audio.File.writeCheckpoints' needs this because it still wants states
 -- while rendering the decay of the last note.  Previously, I just had

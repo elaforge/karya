@@ -2271,6 +2271,9 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      * now there's a loop in
+        'build/test/RunTests-Synth.Faust.Render test_write_increm'
+        . Probably extendHashes.
       * add 5c at 49.5t of im-zheng @b3:
         notes still playing at 2447550f(55.5s):
         [Playing:r67NHd42kGAPZSp7Zhr6JA(1874250f(42.5s)--2443052f(55.39s))]
