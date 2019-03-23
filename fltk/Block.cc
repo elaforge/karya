@@ -877,6 +877,8 @@ check_focus(int evt)
             << " getKey: " << os
             << " lastKey: " << key
             << " lastMain: " << main);
+        // It turns out the OS is right, so fix the problem.
+        Fl::focus(os);
     }
 }
 #else

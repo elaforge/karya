@@ -2417,7 +2417,6 @@ synth: im:
           dB?
         * symbolic-pitch=t
           It seems to miss ngoret pitches.  I get: Error: no pitch at 236.72s
-
       * it's pretty easy to get zheng to get a "still playing" by editing
         . It happens with constant ratio, so probably not duration related.
         . Seems to happen when I kill a running one.
@@ -2642,6 +2641,8 @@ synth: im:
       . Turns out I already do that :/
     non-constant pitch:
       - predicted lengths tend to be off, sometimes by 2000+ frames.
+        . I fixed a bunch of bugs with ratio placement, and they're still off,
+          but not by so much.
       Notes:
         . I need to get sample duration after applying the pitch curve so I can
           accurately determine overlap.  I figured out the math to predict
@@ -4303,27 +4304,18 @@ fltk:
         Fl::focus(this);
         return 1;
     . still happening:
-      fltk/Block.cc:858 FOCUS WARNING on keydown:meta_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("[") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:control_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("/") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:meta_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:'s' ("S") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:meta_l ("") - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on push:(77, 225) - Fl::focus(): 0x7f8376969e00:'' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:control_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("/") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:''' ("'") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:shift_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:control_l ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:'{' ("/") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:unknown ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on keydown:down ("") - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
-      fltk/Block.cc:858 FOCUS WARNING on push:(68, 565) - Fl::focus(): 0x7f8376969e00:'%dyn=.75' getKey: 0x7f8377838000:'%dyn=.75' lastKey: 0x7f8377838000:'%dyn=.75' lastMain: 0x7f8377838000:'%dyn=.75'
+      . fltk/Block.cc:858 FOCUS WARNING on push:(68, 565) -
+        Fl::focus(): 0x7f8376969e00:'%dyn=.75'
+        getKey:      0x7f8377838000:'%dyn=.75'
+        lastKey:     0x7f8377838000:'%dyn=.75'
+        lastMain:    0x7f8377838000:'%dyn=.75'
+      . fltk/Block.cc:879 FOCUS WARNING on keydown:'a' ("a") -
+        Fl::focus(): 0x7fb9e680fa00:'inst = zh | ... '
+        getKey:   0x7fb9e50be000:'inst = zh | scale = just | ...'
+        lastKey:  0x7fb9e50be000:'inst = zh | scale = just | ...'
+        lastMain: 0x7fb9e50be000:'inst = zh | scale = just | ...'
+      . What does it mean?  Fl::focus() was no fa00, but OS focus was all on
+        another window.
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
