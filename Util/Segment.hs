@@ -164,7 +164,7 @@ constant_val_num from sig = case TimeVector.uncons (_vector sig) of
     -- I compare multiple samples because a track might have redundant
     -- values, but I still want to detect if it's constant.
     Just (Sample x y, rest)
-        | x <= from && V.all ((==y) . sy) rest -> Just y
+        | x <= (from - _offset sig) && V.all ((==y) . sy) rest -> Just y
         | V.all ((==0) . sy) (_vector sig) -> Just 0
         | otherwise -> Nothing
     Nothing -> Just 0
@@ -553,9 +553,10 @@ num_interpolate_s (Segment x1 y1 x2 y2) = TimeVector.y_at x1 y1 x2 y2
 -- | Swap X and Y.  Y must be non-decreasing or this will break 'Signal'
 -- invariants.
 invert :: NumSignal -> NumSignal
-invert sig = sig { _vector = V.map swap (_vector sig) }
+invert sig = Signal 0 (V.map swap (_vector sig))
     where
-    swap (Sample x y) = Sample (RealTime.seconds y) (RealTime.to_seconds x)
+    swap (Sample x y) =
+        Sample (RealTime.seconds y) (RealTime.to_seconds (x + _offset sig))
 
 -- | Integrate the signal.
 --

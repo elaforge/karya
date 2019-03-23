@@ -49,6 +49,12 @@ test_constant_val = do
     equal (f $ from_pairs [(0, 0)]) Nothing
     equal (f $ from_pairs [(3, 2)]) Nothing
 
+test_constant_val_num = do
+    let f = Segment.constant_val_num
+    equal (f 0 $ from_pairs [(2, 1)]) Nothing
+    equal (f 0 $ Segment.shift (-2) (from_pairs [(2, 1)])) (Just 1)
+    equal (f 0 $ Segment.shift (-2) (from_pairs [(2, 1), (4, 1)])) (Just 1)
+
 test_concat = do
     let f = to_pairs . num_concat . map from_pairs
     equal (f []) []
@@ -252,6 +258,12 @@ test_drop_discontinuity_at = do
     -- Don't get >2 2s in a row.
     equal (f 1 [(0, 0), (1, 0), (1, 1), (2, 1), (2, 0)])
         [(0, 0), (2, 0), (2, 0)]
+
+test_invert = do
+    let f = to_pairs . Segment.invert
+    equal (f $ from_pairs [(0, 1), (1, 2)]) [(1, 0), (2, 1)]
+    equal (f $ Segment.shift (-2) $ from_pairs [(2, 1), (3, 2)])
+        [(1, 0), (2, 1)]
 
 -- * hedgehog
 
