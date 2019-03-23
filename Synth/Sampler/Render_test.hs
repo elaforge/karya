@@ -41,9 +41,7 @@ test_write_noop = do
     io_equal (listWavs dir) []
 
 test_write_simple = do
-    dir <- Testing.tmp_dir "write"
-    let write = write_ dir
-    writeDb dir
+    (write, dir) <- tmpDb
     -- A single note that spans two checkpoints.  Dur is determined by the
     -- sample length.
     io_equal (write [mkNote dir 0 8 NN.c4]) (Right (2, 2))
@@ -51,16 +49,12 @@ test_write_simple = do
     io_equal (readSamples dir) triangle
 
 test_write_simple_offset = do
-    dir <- Testing.tmp_dir "write"
-    let write = write_ dir
-    writeDb dir
+    (write, dir) <- tmpDb
     io_equal (write [mkNote dir 8 8 NN.c4]) (Right (4, 4))
     io_equal (readSamples dir) (replicate 8 0 ++ triangle)
 
 test_write_freq = do
-    dir <- Testing.tmp_dir "write"
-    let write = write_ dir
-    writeDb dir
+    (write, dir) <- tmpDb
     -- Freq*2 is half as many samples.
     io_equal (write [mkNote dir 0 8 NN.c5]) (Right (1, 1))
     io_equal (length <$> listWavs dir) 1
@@ -69,9 +63,7 @@ test_write_freq = do
 test_write_incremental = do
     -- Resume after changing a later note, results same as rerender from
     -- scratch.
-    dir <- Testing.tmp_dir "write"
-    let write = write_ dir
-    writeDb dir
+    (write, dir) <- tmpDb
     -- 0   4   8   12   16
     -- 12343210
     --     12343210
@@ -110,7 +102,7 @@ renderSamples notes = do
 test_overlappingNotes = do
     let f start size = extract
             . Render.overlappingNotes (AUtil.toFrame start) (AUtil.toFrame size)
-            . map (\(s, d) -> mkNoteS "" s d NN.c4)
+            . map (\(s, d) -> mkNoteSec "" s d NN.c4)
         extract (a, b, c) = (map e a, map e b, map e c)
             where
             e n =
@@ -124,9 +116,29 @@ test_overlappingNotes = do
     equal (f 4 4 [(0, 5), (1, 1), (3, 2)])
         ([(0, 5), (3, 2)], [], [])
 
+-- * implementation
+
+tmpDb :: IO ([Sample.Note] -> IO (Either Text (Int, Int)), FilePath)
+tmpDb = do
+    dir <- Testing.tmp_dir "write"
+    let write = write_ dir
+    writeDb dir
+    return (write, dir)
+
+rmPrefixes :: FilePath -> [String] -> IO ()
+rmPrefixes dir prefixes =
+    mapM_ (Directory.removeFile . (dir</>))
+        . filter (\fn -> any (`List.isPrefixOf` fn) prefixes)
+        =<< Directory.listDirectory dir
 
 write_ :: FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
-write_ outDir = Render.write_ chunkSize chunkSize Resample.Linear outDir mempty
+write_ outDir = Render.writeConfig config outDir mempty
+    where
+    config = Render.Config
+        { _quality = Resample.ZeroOrderHold
+        , _chunkSize = chunkSize
+        , _blockSize = chunkSize
+        }
 
 patchDir :: FilePath
 patchDir = "patch"
@@ -154,8 +166,9 @@ triFilename dbDir = dbDir </> patchDir </> "tri.wav"
 triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]
 
-mkNoteS :: FilePath -> RealTime -> RealTime -> Pitch.NoteNumber -> Sample.Note
-mkNoteS dbDir start dur = mkNote dbDir (AUtil.toFrame start) (AUtil.toFrame dur)
+mkNoteSec :: FilePath -> RealTime -> RealTime -> Pitch.NoteNumber -> Sample.Note
+mkNoteSec dbDir start dur =
+    mkNote dbDir (AUtil.toFrame start) (AUtil.toFrame dur)
 
 mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Pitch.NoteNumber
     -> Sample.Note
