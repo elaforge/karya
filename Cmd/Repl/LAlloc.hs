@@ -31,11 +31,11 @@ rambat_im =
     pasang_im "ra" Legong.rambat_range BaliScales.Umbang
         "sampler/rambat-umbang" "sampler/rambat-isep"
 
-wayang_im :: UiConfig.Allocations
-wayang_im =
-    pasang_im "p" (range Wayang.pemade) BaliScales.Umbang
+wayang_im :: Text -> Text -> UiConfig.Allocations
+wayang_im pemade kantilan =
+    pasang_im pemade (range Wayang.pemade) BaliScales.Umbang
         "sampler/wayang-pemade-umbang" "sampler/wayang-pemade-isep"
-    <> pasang_im "k" (range Wayang.kantilan) BaliScales.Umbang
+    <> pasang_im kantilan (range Wayang.kantilan) BaliScales.Umbang
         "sampler/wayang-kantilan-umbang" "sampler/wayang-kantilan-isep"
     where
     range = BaliScales.instrument_range

@@ -17,6 +17,8 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Highlight as Highlight
+import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
@@ -64,8 +66,10 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
     }
     where
     dir = "zheng"
-    code = ImInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
-        <> ImInst.note_transformers [("standard-strings", standard_strings)]
+    code = ImInst.note_calls
+        [ ImInst.both "左" (Make.attributed_note Module.instrument Attrs.left)
+        , ImInst.transformer "standard-strings" standard_strings
+        ]
         <> ImInst.null_call Highlight.c_highlight_strings_note
         <> Util.thru dir convert
         <> ImInst.postproc

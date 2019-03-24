@@ -205,8 +205,10 @@ guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
         , (Attrs.left, Key2.b5) -- left hand, no pick
         , (mempty, Key2.c6) -- right hand, picked
         ]
-    code = MidiInst.note_generators [("左", DUtil.attributes_note Attrs.left)]
-        <> MidiInst.note_transformers [("standard-strings", standard_strings)]
+    code = MidiInst.note_calls
+        [ MidiInst.both "左" (Make.attributed_note Module.instrument Attrs.left)
+        , MidiInst.transformer "standard-strings" standard_strings
+        ]
         <> MidiInst.null_call Highlight.c_highlight_strings_note
     -- This can't go in the automatic env because it uses DeriveT.Pitch, which
     -- is not serializable, hence not in RestrictedEnviron.

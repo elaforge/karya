@@ -4188,7 +4188,10 @@ performance:
       can I make this more efficient?
 
 fltk:
-  - the skeleton arcs are looking pretty unrounded
+  / the skeleton arcs are looking pretty unrounded
+    . Definitely got jagged at some point.  This doesn't happen on X.
+    . Looks like fltk bug in 1.4, send email.
+    . Recompiled and it fixed itself.
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where
