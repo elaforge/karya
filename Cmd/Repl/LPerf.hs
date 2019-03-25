@@ -222,14 +222,14 @@ block_midi block_id = do
 sel_events :: Cmd.M m => m [Score.Event]
 sel_events = get_sel_events False block_events
 
-sel_midi_events :: Cmd.M m => m (Events Types.Event)
+sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
 sel_midi_events = convert =<< get_sel_events False block_events_unnormalized
 
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.M m => m [Score.Event]
 root_sel_events = get_sel_events True block_events
 
-root_sel_midi_events :: Cmd.M m => m (Events Types.Event)
+root_sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
 root_sel_midi_events = convert =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
@@ -329,25 +329,23 @@ perform_from = do
 
 -- ** implementation
 
-type Events d = [LEvent.LEvent d]
-
 -- | Like 'get_sel_events_logs', but filter out the LEvent.Logs.
 get_sel_events :: Cmd.M m => Bool -- ^ from root
-    -> (BlockId -> m (Events Score.Event)) -> m [Score.Event]
+    -> (BlockId -> m [LEvent.LEvent Score.Event]) -> m [Score.Event]
 get_sel_events from_root =
     LEvent.write_logs <=< get_sel Score.event_start Score.event_stack from_root
 
 
 -- | Get events derived in the selected range.
 get_sel_events_logs :: Cmd.M m => Bool -- ^ from root
-    -> (BlockId -> m (Events Score.Event)) -- ^ derive events in the
+    -> (BlockId -> m [LEvent.LEvent Score.Event]) -- ^ derive events in the
     -- given block, e.g. via 'block_events' or 'block_events_unnormalized'
-    -> m (Events Score.Event)
+    -> m [LEvent.LEvent Score.Event]
 get_sel_events_logs = get_sel Score.event_start Score.event_stack
 
 get_sel :: Cmd.M m => (d -> RealTime) -> (d -> Stack.Stack)
     -> Bool -- ^ from root
-    -> (BlockId -> m (Events d)) -> m (Events d)
+    -> (BlockId -> m [LEvent.LEvent d]) -> m [LEvent.LEvent d]
 get_sel event_start event_stack from_root derive_events = do
     (block_id, start, end) <-
         if from_root then Selection.realtime else Selection.local_realtime
@@ -362,7 +360,8 @@ score_in_selection track_ids start end =
     in_tracks Score.event_stack track_ids
     . in_range Score.event_start start end
 
-in_tracks :: (d -> Stack.Stack) -> [TrackId] -> Events d -> Events d
+in_tracks :: (d -> Stack.Stack) -> [TrackId] -> [LEvent.LEvent d]
+    -> [LEvent.LEvent d]
 in_tracks event_stack track_ids =
     filter $ LEvent.log_or (has . tracks_of . event_stack)
     where
@@ -398,7 +397,7 @@ stack_in_score_range block_ids track_ids start end = any match . Stack.to_ui
 
 -- * Midi.Types.Event
 
-convert :: Cmd.M m => [Score.Event] -> m (Events Types.Event)
+convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Types.Event]
 convert events = do
     lookup <- PlayUtil.get_convert_lookup
     lookup_inst <- Cmd.get_lookup_instrument
