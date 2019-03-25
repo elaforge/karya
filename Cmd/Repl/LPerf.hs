@@ -40,6 +40,7 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Warp as Warp
 
 import qualified Midi.Midi as Midi
+import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.Midi.Convert as Midi.Convert
 import qualified Perform.Midi.MSignal as MSignal
 import qualified Perform.Midi.Perform as Perform
@@ -48,6 +49,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
 
+import qualified Synth.Shared.Note as Note
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
@@ -225,12 +227,22 @@ sel_events = get_sel_events False block_events
 sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
 sel_midi_events = convert =<< get_sel_events False block_events_unnormalized
 
+sel_im_events :: Cmd.M m => m [LEvent.LEvent Note.Note]
+sel_im_events = do
+    block_id <- Cmd.get_focused_block
+    im_convert block_id =<< get_sel_events False block_events_unnormalized
+
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.M m => m [Score.Event]
 root_sel_events = get_sel_events True block_events
 
 root_sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
 root_sel_midi_events = convert =<< get_sel_events True block_events_unnormalized
+
+root_sel_im_events :: Cmd.M m => m [LEvent.LEvent Note.Note]
+root_sel_im_events = do
+    block_id <- Ui.get_root_id
+    im_convert block_id =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
 
@@ -403,6 +415,11 @@ convert events = do
     lookup_inst <- Cmd.get_lookup_instrument
     return $ Midi.Convert.convert Midi.Convert.default_srate lookup lookup_inst
         events
+
+im_convert :: Cmd.M m => BlockId -> [Score.Event] -> m [LEvent.LEvent Note.Note]
+im_convert block_id events = do
+    lookup_inst <- Cmd.get_lookup_instrument
+    return $ Im.Convert.convert block_id lookup_inst events
 
 -- | Filter on events with a certain instrument.
 midi_event_inst :: Types.Event -> Text
