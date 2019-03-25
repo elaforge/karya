@@ -13,12 +13,14 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Derive.Args as Args
 import qualified Derive.C.Prelude.Note as Note
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Library as Library
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -60,7 +62,7 @@ c_highlight_strings_note = Note.transformed_note
     ("Highlight any notes whose initial pitch isn't in "
     <> ShowVal.doc EnvKey.open_strings <> ".") mempty $ \args deriver -> do
         pos <- Args.real_start args
-        out_of_range $ open_strings pos warn_non_open deriver
+        out_of_range (Args.start args) $ open_strings pos warn_non_open deriver
 
 c_highlight_strings :: Derive.Transformer Derive.Note
 c_highlight_strings = Derive.transformer Module.prelude "highlight-strings"
@@ -111,27 +113,42 @@ c_highlight_out_of_range = Derive.transformer Module.prelude
         <> ShowVal.doc EnvKey.instrument_bottom <> " or above "
         <> ShowVal.doc EnvKey.instrument_top <> ". The range must be \
         \ in NNs.")
-    -- TODO support Pitch.Pitch
-    $ Sig.call0t $ const out_of_range
+    $ Sig.call0t $ \args deriver -> out_of_range (Args.start args) deriver
 
 -- | Highlight with 'Color.Warning' if there is 'EnvKey.instrument_top' or
 -- 'EnvKey.instrument_bottom' and the pitch is above or below it,
 -- respectively.
-out_of_range :: Derive.NoteDeriver -> Derive.NoteDeriver
-out_of_range deriver = do
-    maybe_top <- Derive.lookup_val EnvKey.instrument_top
-    maybe_bottom <- Derive.lookup_val EnvKey.instrument_bottom
+out_of_range :: ScoreTime -> Derive.NoteDeriver -> Derive.NoteDeriver
+out_of_range pos deriver = do
+    (maybe_top, maybe_bottom) <- get_instrument_range pos
     if all Maybe.isNothing [maybe_top, maybe_bottom] then deriver
         else Post.emap1_ (apply maybe_top maybe_bottom) <$> deriver
     where
     apply maybe_top maybe_bottom event
-        | out_of_range = add_highlight Color.Error event
+        | is_oor = add_highlight Color.Error event
         | otherwise = event
         where
-        out_of_range = fromMaybe False $ do
+        is_oor = fromMaybe False $ do
             nn <- Score.initial_nn event
             return $ maybe False (<nn) maybe_top
                 || maybe False (>nn) maybe_bottom
+
+get_instrument_range :: ScoreTime
+    -> Derive.Deriver (Maybe Pitch.NoteNumber, Maybe Pitch.NoteNumber)
+get_instrument_range pos = do
+    (_parse_p, show_p, _) <- Call.get_pitch_functions
+    maybe_top <- get show_p EnvKey.instrument_top
+    maybe_bottom <- get show_p EnvKey.instrument_bottom
+    return (maybe_top, maybe_bottom)
+    where
+    get show_p key =
+        maybe (return Nothing)
+            (fmap Just . either (resolve_pitch show_p pos) return)
+        =<< Derive.lookup_val key
+
+resolve_pitch :: (Pitch.Pitch -> Maybe Pitch.Note) -> ScoreTime -> Pitch.Pitch
+    -> Derive.Deriver Pitch.NoteNumber
+resolve_pitch show_p pos = Pitches.pitch_nn <=< Call.eval_pitch show_p pos
 
 _initial_pitch :: Scale.Scale -> Score.Event -> Maybe Pitch.Pitch
 _initial_pitch scale event = do

@@ -41,10 +41,9 @@ import           Synth.Types
 
 patches :: [Patch.DbPatch]
 patches = map Patch.DbPatch
-    [ makePatch "reyong-trompong"
-        (Scale.Range
-            (Scale.range_bottom Legong.trompong_range)
-            (Scale.range_top Legong.reyong_range))
+    [ makePatch "reyong-trompong" $ Scale.Range
+        (Scale.range_bottom Legong.trompong_range)
+        (Scale.range_top Legong.reyong_range)
     , makePatch "reyong" Legong.reyong_range
     , makePatch "trompong" Legong.trompong_range
     ]

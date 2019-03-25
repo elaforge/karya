@@ -1598,6 +1598,9 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  - can I get a LPerf.sel_sampler_events?
+    . Since it's a separate process, I'd have to serialize the events, then
+      run 'sampler-im dump fname'.
   * garbage collection for im/cache
     . I think I just delete checkpoint/*.wav that doesn't have a symlink
   * since the checkpoint size is smaller, logs are spammy
@@ -2844,10 +2847,11 @@ synth: im:
             amplify samples.
           . Actually, that might be hard.  I'd have to pick the softest within
             each group and adjust everyone down to match.
-      - separate ranges and tuning for trompong, reyong, reyong-trompong
+      * separate ranges and tuning for trompong, reyong, reyong-trompong
         . I export range vars, but I could also prevent out of range notes.
         . Probably this should be opt-in, because of course I don't always
           want to stick to a realistic range.
+        . Do hightlight then.
       reyong dynamics:
         . Or normalize, it still seems like it shouldn't inherently cause any
           more hiss than not, if I have the scaling adjusted right.
@@ -2912,7 +2916,6 @@ synth: im:
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.
-
     - bind to rubberband library for pitch change without time change
       . https://breakfastquay.com/rubberband/
       . I'll only really use it if I have, say, mridangam sequences.
@@ -3123,6 +3126,8 @@ synth: im:
     . http://futhark-lang.org/index.html
     . http://halide-lang.org/
     . hackage accelerate
+    . look for code from "gpu-accelerated modal processors and digital
+      waveguides" paper.
 
 shakefile: build:
   * use concurrent-output to see start and duration for cmds
