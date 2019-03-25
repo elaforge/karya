@@ -91,10 +91,10 @@ test_convert_pitch = do
                 PSignal.from_sample 0 (DeriveTest.mkpitch legong "4i")
             }
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
-    equal (run [event]) [Left (0, [(0, 60.73)])]
+    equal (run [event]) [Left (0, [(0, 59.91)])]
     let insert = Score.modify_environ $
             Env.insert_val EnvKey.tuning (ShowVal.show_val BaliScales.Isep)
-    equal (run [insert event]) [Left (0, [(0, 60.69)])]
+    equal (run [insert event]) [Left (0, [(0, 60.4)])]
 
 test_patch_scale = do
     let run config patch pitch =

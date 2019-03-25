@@ -79,7 +79,7 @@ test_patch_scale = do
     -- No Patch.Scale means it assumes the patch is in 12TET and needs a tweak.
     let db = UiTest.default_db
     io_equal (e_pitches <$> run cstate db Nothing (mempty, c4))
-        ([Midi.PitchBend 0.365, Midi.NoteOn Key.c4 127], [])
+        ([Midi.PitchBend 0.455, Midi.NoteOn Key.b3 127], [])
 
     io_equal (e_pitches <$> run cstate db (Just legong) (mempty, c4))
         ([Midi.PitchBend 0, Midi.NoteOn Key.c4 127], [])
