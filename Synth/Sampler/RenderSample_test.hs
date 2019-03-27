@@ -44,6 +44,31 @@ test_actualDuration = do
     equal (f high (Signal.constant 2) 42) 84
     equal (f high (Signal.constant 0.5) 42) 21
 
+test_envelopeDur = do
+    let f start = RenderSample.envelopeDuration start . Signal.from_pairs
+    equal (f 0 [(0, 0), (1, 0), (2, 0)]) (Just 0)
+    equal (f 0 [(0, 0), (1, 1)]) Nothing
+    equal (f 0 [(0, 1), (1, 0), (2, 0)]) (Just 1)
+    equal (f 0 [(0, 0), (1, 1), (2, 0)]) (Just 2)
+    equal (f 5 [(0, 0), (1, 1), (2, 0)]) (Just 0)
+    equal (f 1 [(0, 0), (1, 1), (2, 0)]) (Just 1)
+    equal (f 1 []) Nothing
+
+checkDuration = do
+    let ratios = Signal.shift (-42.5) $ Signal.from_pairs
+            [ (42.5, 0.9438743126816925)
+            , (42.75, 0.9438743126816925)
+            , (42.75, 0.9438743126816925)
+            , (42.85, 0.9438743126816925)
+            , (48.225, 0.9438743126816925)
+            , (48.225, 0.9438743126816925)
+            , (48.375, 0.8389993890503937)
+            ]
+    let dur = 643495
+    pprint (verify Resample.SincMediumQuality ratios dur)
+    -- predict = 568802.0
+    -- actual =  568327.0
+
 -- | Signal.from_pairs but on Frame instead of RealTime.
 signal :: [(Audio.Frame, Signal.Y)] -> Signal.Signal
 signal = Signal.from_pairs . map (first AUtil.toSeconds)

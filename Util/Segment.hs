@@ -12,8 +12,8 @@ module Util.Segment (
     , empty
     , constant, constant_val, constant_val_num
     , from_vector, to_vector
-    , from_samples, to_samples
-    , from_pairs, to_pairs
+    , from_samples, to_samples, to_samples_desc
+    , from_pairs, to_pairs, to_pairs_desc
     , from_segments, to_segments, samples_to_segments
     , unfoldr
     , with_ptr
@@ -56,7 +56,7 @@ module Util.Segment (
     , module Util.Segment
 #endif
 ) where
-import Prelude hiding (concat, head, last, maximum, minimum, null)
+import           Prelude hiding (concat, head, last, maximum, minimum, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -69,11 +69,13 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
-import Util.TimeVector (X, Sample(..))
+import           Util.TimeVector (X, Sample(..))
+import qualified Util.Vector
 
-import qualified Ui.Types as Types
 import qualified Perform.RealTime as RealTime
-import Global
+import qualified Ui.Types as Types
+
+import           Global
 
 
 {- | A signal modeled as segments.  Presumably the segments are linear, but
@@ -214,11 +216,21 @@ to_samples sig =
 -- TODO verify that TimeVector.map_x fuses with V.toList so there is no extra
 -- vector.
 
+to_samples_desc :: V.Vector v (Sample y) => SignalS v y -> [Sample y]
+to_samples_desc (Signal offset vec) =
+    (if offset == 0 then id else map (plus offset)) $
+        Util.Vector.to_reverse_list vec
+    where
+    plus n (Sample x y) = Sample (n+x) y
+
 from_pairs :: V.Vector v (Sample y) => [(X, y)] -> SignalS v y
 from_pairs = from_samples . map (uncurry Sample)
 
 to_pairs :: V.Vector v (Sample y) => SignalS v y -> [(X, y)]
 to_pairs = map TimeVector.to_pair . to_samples
+
+to_pairs_desc :: V.Vector v (Sample y) => SignalS v y -> [(X, y)]
+to_pairs_desc = map TimeVector.to_pair . to_samples_desc
 
 from_segments :: V.Vector v (Sample y) => [Segment y] -> SignalS v y
 from_segments = from_samples . to_list

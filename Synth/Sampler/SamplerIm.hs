@@ -153,7 +153,12 @@ process db quality notes outputDir
         Async.forConcurrently_ grouped $ \(patchName, notes) ->
             whenJustM (getPatch db patchName) $ \patch ->
                 Async.forConcurrently_ notes $ \(inst, notes) ->
+                    -- Omit samples with 0 duration.  This can happen naturally
+                    -- if they have 0 volume.  Include ones with Nothing
+                    -- duration, since that's an error that Render will report
+                    -- later.
                     realize (trackIds notes) quality outputDir inst
+                        . filter (maybe True (>0) . Sample.duration)
                         =<< mapM makeSampleNote (convert db patch notes)
     where
     trackIds notes = Set.fromList $ mapMaybe Note.trackId notes
@@ -235,7 +240,7 @@ actualDuration start sample = do
             (Signal.shift (-start) (Sample.ratios sample))
             (Sample.filename sample)
     let envDur = AUtil.toFrame <$>
-            RenderSample.envelopeDur start (Sample.envelope sample)
+            RenderSample.envelopeDuration start (Sample.envelope sample)
     return $ case excFileDur of
         Left exc -> Left exc
         Right fileDur -> case envDur of

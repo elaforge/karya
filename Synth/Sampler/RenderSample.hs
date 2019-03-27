@@ -7,7 +7,7 @@
 -- | Low level rendering of 'Sample.Sample's.
 module Synth.Sampler.RenderSample (
     render
-    , envelopeDur
+    , envelopeDuration
     , predictFileDuration
 #ifdef TESTING
     , module Synth.Sampler.RenderSample
@@ -89,7 +89,7 @@ applyEnvelope start sig
     | otherwise = AUtil.volume $ clipEnd $ realizeSignal start sig
     where
     clipEnd = maybe id (Audio.take . Audio.Seconds . RealTime.to_seconds)
-        (envelopeDur start sig)
+        (envelopeDuration start sig)
 
 applyPan :: RealTime -> Signal.Signal -> AUtil.Audio -> AUtil.Audio
 applyPan start sig
@@ -102,13 +102,19 @@ realizeSignal start sig = Audio.linear $
     map (first (RealTime.to_seconds . subtract start)) $
     Signal.clip_before_pairs start sig
 
--- | If the envelope ends on a 0, I can clip the sample short.  Not just for
+-- | Get the duration implied by the envelope, or Nothing if the envelope won't
+-- shorten the duration.
+--
+-- If the envelope ends on a 0, I can clip the sample short.  Not just for
 -- performance, but because checkpoints rely on the note durations being
 -- accurate.
-envelopeDur :: RealTime -> Signal.Signal -> Maybe RealTime
-envelopeDur start sig = case Signal.last sig of
-    Just (x, 0) -> Just $ x - start
-    _ -> Nothing
+envelopeDuration :: RealTime -> Signal.Signal -> Maybe RealTime
+envelopeDuration start = go . Signal.to_pairs_desc
+    where
+    go [(_, 0)] = Just 0
+    go ((_, 0) : xys@((_, 0) : _)) = go xys
+    go ((x, 0) : _) = Just $ max 0 (x - start)
+    go _ = Nothing
 
 -- * duration
 

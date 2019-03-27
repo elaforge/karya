@@ -18,7 +18,8 @@ module Perform.Signal (
 
     -- * construct / destruct
     , from_sample, from_pairs, from_segments
-    , to_samples, to_pairs, to_pairs_unique, to_segments, to_vector
+    , to_samples, to_pairs, to_pairs_desc
+    , to_pairs_unique, to_segments, to_vector
     , constant, constant_val, constant_val_from
     , prepend
     , unfoldr
@@ -170,6 +171,9 @@ to_pairs :: Signal kind -> [(X, Y)]
 to_pairs = Seq.drop_dups id . Segment.to_pairs . _signal
     -- Since Segment functions don't have Eq y, they can emit duplicate
     -- samples.  They should be harmless but they clutter tests.
+
+to_pairs_desc :: Signal kind -> [(X, Y)]
+to_pairs_desc = Seq.drop_dups id . Segment.to_pairs_desc . _signal
 
 -- | Like 'to_pairs', but filter out explicit discontinuities.  This is because
 -- tests were written before they existed, so a lot will break.
