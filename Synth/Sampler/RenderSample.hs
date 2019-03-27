@@ -46,7 +46,8 @@ render config start (Sample.Sample filename offset envelope pan ratios) =
 
 -- | This is polymorphic in chan, though it's only used with 2.  I experimented
 -- reading mono files as 1, and expanding the channel after resample and
--- envelope, but the time improvement was tiny, so I dropped it.
+-- envelope, but the time improvement was tiny, so I dropped it.  It seems like
+-- even fancy resampling is cheap compared to read and write time.
 resample :: (KnownNat rate, KnownNat chan)
     => Resample.Config -> Signal.Signal -> RealTime
     -> Audio.AudioIO rate chan -> Audio.AudioIO rate chan

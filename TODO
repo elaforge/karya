@@ -31,6 +31,16 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - do a smooth trill, 'trs'
+    . It winds up being 'tr-transition=1 | tr-curve = (cf-sigmoid .5 .5)
+      | include-end=t.
+
+    . tr: note:
+      . note:        neighbor, speed, trill_env
+      . pitch: base, neighbor, speed, transition_env, curve_env, trill_env
+      . control:     neighbor, speed, transition_env, curve_env, trill_env
+  - can I replace the trill hold arg with a 'd' call for control calls?
+    That won't work for the note trill though.
   - try unsafeDupableIO in Crc32Instances
   revise how MIDI channel state works with keyswitches and controls
   - should I use Cmd.get_lookup_instrument_memoized for derive?

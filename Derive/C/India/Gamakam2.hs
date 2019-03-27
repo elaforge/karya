@@ -681,12 +681,22 @@ trill_from_transitions val1 val2 transitions =
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
     -> DeriveT.ControlRef -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [RealTime]
-trill_transitions = Trill.adjusted_transitions include_end
+trill_transitions even adjust bias hold speed start_end =
+    Trill.adjusted_transitions config hold even start_end
     where
-    -- Trills usually omit the transition that coincides with the end because
-    -- that would create a zero duration note.  But these trills are smoothed
-    -- and thus will still have a segment leading to the cut-off transition.
-    include_end = True
+    config = Trill.Config
+        { _start_dir = Nothing
+        , _end_dir = Nothing
+        , _adjust = adjust
+        , _hold = DeriveT.ScoreDuration 0
+        , _speed = speed
+        , _bias = bias
+        -- Trills usually omit the transition that coincides with the end
+        -- because that would create a zero duration note.  But these trills
+        -- are smoothed and thus will still have a segment leading to the
+        -- cut-off transition.
+        , _include_end = True
+        }
 
 end_wants_even_transitions :: RealTime
     -> (Typecheck.Function, Typecheck.Function)

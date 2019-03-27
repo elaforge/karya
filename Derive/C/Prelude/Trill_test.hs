@@ -279,12 +279,19 @@ test_trill_start_end = do
         ([[(0, 62), (3, 60)]], [])
 
 test_trill_hold = do
-    let run text = DeriveTest.extract DeriveTest.e_nns_old $ derive_tracks
-            [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-    equal (run "hold = 1 | tr (4c) 1 1") ([[(0, 60), (2, 62)]], [])
+    let run call dur = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
+            [(">", [(0, dur, "")]), ("*", [(0, 0, call), (dur, 0, "--|")])]
+    equal (run "hold=1 | tr (4c) 1 1" 3)
+        ([[(0, NN.c4), (2, NN.c4), (2, NN.d4)]], [])
     -- Still respects start and end restrictions.
-    equal (run "hold = 1 | tr__ (4c) 1 1") ([[(0, 60)]], [])
-    equal (run "hold = 4 | tr (4c) 1 1") ([[(0, 60)]], [])
+    equal (run "hold=1 | tr__ (4c) 1 1" 3) ([[(0, NN.c4)]], [])
+    equal (run "hold=4 | tr (4c) 1 1" 3) ([[(0, NN.c4)]], [])
+
+    equal (run "tr-transition=1 | tr (4c) 1 1" 4)
+        ([[(0, NN.c4), (1, NN.d4), (2, NN.c4), (3, NN.d4)]], [])
+    -- -- Hold is flat.
+    -- equal (run "hold=2 | tr-transition=1 | tr (4c) 1 1" 5)
+    --     ([[(0, NN.c4), (2, NN.c4), (3, NN.d4), (4, NN.c4)]], [])
 
 test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
@@ -304,9 +311,17 @@ test_moving_trill = do
         ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
 
 test_real_trill = do
-    let f neighbor speed = fst <$> Trill.get_trill_control (0, 1)
-            Nothing Nothing Trill.Shorten (DeriveT.RealDuration 0)
-            (mkcontrol ScoreT.Chromatic neighbor) (mkcontrol ScoreT.Real speed)
+    let f neighbor speed = fst <$> Trill.get_trill_control (config speed)
+            (0, 1) (mkcontrol ScoreT.Chromatic neighbor)
+        config speed = Trill.Config
+            { _start_dir = Nothing
+            , _end_dir = Nothing
+            , _adjust = Trill.Shorten
+            , _hold = DeriveT.RealDuration 0
+            , _speed = mkcontrol ScoreT.Real speed
+            , _bias = 0
+            , _include_end = False
+            }
         run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
         cnst = Signal.constant
     equal (run $ f (cnst 1) (cnst 2)) $ Right [(0, 0), (0.5, 1)]
@@ -323,9 +338,18 @@ test_real_trill = do
         Right [(0, 0), (0.5, 1), (0.75, 0)]
 
 test_score_trill = do
-    let f dur neighbor speed = fst <$> Trill.get_trill_control (0, dur)
-            Nothing Nothing Trill.Shorten (DeriveT.RealDuration 0)
-            (mkcontrol ScoreT.Chromatic neighbor) (mkcontrol ScoreT.Score speed)
+    let f dur neighbor speed = fst <$>
+            Trill.get_trill_control (config speed) (0, dur)
+                (mkcontrol ScoreT.Chromatic neighbor)
+        config speed = Trill.Config
+            { _start_dir = Nothing
+            , _end_dir = Nothing
+            , _adjust = Trill.Shorten
+            , _hold = DeriveT.RealDuration 0
+            , _speed = mkcontrol ScoreT.Score speed
+            , _bias = 0
+            , _include_end = False
+            }
         run = DeriveTest.extract_run id . DeriveTest.run Ui.empty
         cnst = Signal.constant
     equal (run $ f 1 (cnst 1) (cnst 2)) $
