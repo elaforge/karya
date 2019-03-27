@@ -508,6 +508,25 @@ pick (x :| xs) rnd = (x:xs) !! i
 -- I could use anything with a similar shape actually.
 normal :: Double -> Derive.Deriver Double
 normal stddev = make_normal stddev <$> randoms
+{- notes:
+    . Approximate normal distribution: sum (take n randoms) / n
+    . normalCumulative mean stddev x =
+          SpecFunctions.erfc ((mean - x) / ndCdfDenom) / 2
+          where
+          ndCdfDenom = Constants.m_sqrt_2 * stddev
+    . Make a with_variation, so the choice is in the call, not the patch.
+    . I want to give center and width, and then pick according to that
+      distribution.  Alternately, if I can map a uniform 0-1.
+    . Truncated normal distribution seems best, and I can map a uniformly
+      distributed value through its cumulative probability function.
+    . This is called "inverse transform sampling".  It's possible for
+      truncated normal, but complicated:
+      https://www.christophlassner.de/blog/2013/08/12/Generation-of-Truncated-Gaussian-Samples/
+    . Rejection sampling just means I do a 2d normal distribution until
+      I get something under the PDF.  Theoretically unbound time.
+    . I don't care about the exact statistical properties, just that it
+      has a similar shape.
+-}
 
 -- | Approximation to a normal distribution between 0 and 1, inclusive.
 -- I can't use an actual normal distribution because I need it to be bounded.

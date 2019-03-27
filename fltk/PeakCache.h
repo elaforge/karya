@@ -22,10 +22,13 @@
 // All of this downsampling happens synchronously, but so far it seems to be
 // fast enough to not introduce a noticeable hiccup.
 //
-// API:
-// std::shared_ptr<PeakCache::Entry> entry = PeakCache::get()->load(params);
-// std::shared_ptr<std::vector<float>> peaks = entry->at_zoom(zoom.factor);
-// ScoreTime chunk_start = entry->start;
+// You get load Entry from a file (which is cached), mix multiple Entries into
+// a MixedEntry, then ask MixedEntry for peaks at your zoom.
+//
+// MixedEntry *mixed = new MixedEntry(start);
+// mixed->add(PeakCache::get()->load(params));
+// std::shared_ptr<std::vector<float>> peaks = mixed->at_zoom(zoom.factor);
+// ScoreTime chunk_start = mixed->start;
 class PeakCache {
 public:
     // Get the global instance.
@@ -105,8 +108,23 @@ public:
     // still alive.  The returned Entry will stay alive at least until the next
     // 'gc'.
     std::shared_ptr<const Entry> load(const Params &params);
+
     // Remove cache entries which are only kept alive by gc_roots, and
     // re-initialize gc_roots with the current live set.
+    //
+    // The reason for manually-triggered GC is that when the synthesizer hits
+    // its cache, many waveform chunks will stay the same, so I don't want to
+    // reload those.  But the rendering and hence waveform display process is
+    // incremental, so karya will clear all waveforms and rebuild the
+    // 'MixedEntry's over time.  And since output from multiple instruments
+    // can coexist in one MixedEntry, I only know I can GC unused 'Entry's
+    // once all renders are complete.
+    //
+    // I went through several attempts before coming to this design, since I
+    // really wanted to just not unload the re-used waveforms in the first
+    // place, and avoid all this complexity.  But since I have one way
+    // communication from synthesizer -> karya -> fltk, it just doesn't work to
+    // try to know fltk's state and only send the right things to it.
     void gc();
 
 private:

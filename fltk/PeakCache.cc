@@ -15,7 +15,9 @@
 
 
 enum {
-    // Store a max value at this sampling rate.
+    // Store a max value at this sampling rate.  This should be small enough to
+    // make display fast, and large enough to retain resolution in the
+    // waveform.
     reduced_sampling_rate = 120,
     // Read this many frames at once when reading the file.
     read_buffer_frames = 256,
