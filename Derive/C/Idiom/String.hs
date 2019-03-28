@@ -326,7 +326,9 @@ make_gliss name is_absolute = Derive.generator module_ name mempty
 gliss_pitches :: [PSignal.Pitch] -> PSignal.Transposed -> Int
     -> Derive.Deriver [PSignal.Pitch]
 gliss_pitches open_strings dest_pitch gliss_start = do
-    dest_nn <- Pitches.pitch_nn dest_pitch
+    -- Round the NN so a slightly off note start doesn't make this string get
+    -- doubled.
+    dest_nn <- Num.roundDigits 2 <$> Pitches.pitch_nn dest_pitch
     -- TODO shouldn't need to eval them all
     open_nns <- mapM (Pitches.pitch_nn . PSignal.coerce) open_strings
     let strings = Seq.sort_on snd $ zip open_strings open_nns

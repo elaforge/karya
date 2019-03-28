@@ -31,19 +31,22 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - do a smooth trill, 'trs'
+  - get rid of Signal.to_pairs_unique and DeriveTest.e_nns_old
+  * do a smooth trill, 'trs'
     . It winds up being 'tr-transition=1 | tr-curve = (cf-sigmoid .5 .5)
       | include-end=t.
-
     . tr: note:
       . note:        neighbor, speed, trill_env
       . pitch: base, neighbor, speed, transition_env, curve_env, trill_env
       . control:     neighbor, speed, transition_env, curve_env, trill_env
-  - can I replace the trill hold arg with a 'd' call for control calls?
-    That won't work for the note trill though.
+    * why does new trill confuse zheng gliss?
+  - make tr hold flat?
+    . can I replace the trill hold arg with a 'd' call for control calls?
+      That won't work for the note trill though.
   - try unsafeDupableIO in Crc32Instances
   revise how MIDI channel state works with keyswitches and controls
   - should I use Cmd.get_lookup_instrument_memoized for derive?
+    . probably, but try profiling first?
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
     . Score.event_min implies I do, but only Derive.Note uses it so maybe no?
@@ -54,7 +57,8 @@ UNSORTED
     . I guess I rely on postproc to flip them around, but which one?
     . Postproc.make_cancel seems like it should do it, but I don't see
       anything about negative duration, just weak and strong cancellation.
-  - Also a negative selection should get a negative event, but it doesn't.
+  / Also a negative selection should get a negative event, but it doesn't.
+    . But it does!
   - use Data.Map.Strict in Perform?  Or even HashMap?
   - rhythmic interpolation
     . Match notes in two derivers, then interpolate rhythms:
@@ -3353,10 +3357,9 @@ performance:
       can I make this more efficient?
 
 fltk:
-  / the skeleton arcs are looking pretty unrounded
-    . Definitely got jagged at some point.  This doesn't happen on X.
-    . Looks like fltk bug in 1.4, send email.
-    . Recompiled and it fixed itself.
+  - remove the vertical box line between tracks to reduce visual clutter.
+    . I would make it white there.
+    . I think those lines are part of the track widgets.
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where

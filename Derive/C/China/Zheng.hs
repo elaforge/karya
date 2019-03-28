@@ -6,9 +6,9 @@
 module Derive.C.China.Zheng (library) where
 import qualified Derive.Args as Args
 import qualified Derive.C.Idiom.String as String
-import qualified Derive.C.India.Gamakam as Gamakam
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call as Call
+import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -23,9 +23,6 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
-
-import           Global
-import           Types
 
 
 module_ :: Module.Module
@@ -75,16 +72,25 @@ trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
     -> DeriveT.ControlRef -> DeriveT.ControlRef -> DeriveT.Duration
     -> Derive.PassedArgs a -> Derive.Deriver PSignal.PSignal
 trill_signal start_dir pitch neighbor speed hold args = do
-    (neighbor, control) <- Call.to_transpose_function Typecheck.Nn neighbor
-    transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor
-        speed transition hold lilt args
+    (transpose, control) <- Trill.get_trill_control_smooth config Typecheck.Nn
+        curve (Args.range_or_next args) neighbor
     start <- Args.real_start args
     return $ PSignal.apply_control control (ScoreT.untyped transpose) $
         PSignal.from_sample start pitch
     where
-    transition :: RealTime
-    transition = 0.08
-    lilt = 0
+    config = Trill.Config
+        { _speed = speed
+        , _start_dir = start_dir
+        , _end_dir = Nothing
+        , _hold = hold
+        , _adjust = Trill.Stretch
+        , _bias = 0
+        , _include_end = True
+        }
+    curve = ControlUtil.Linear
+    -- A sigmoid curve looks nice, but as far as I can tell, it sounds the same
+    -- as linear, and linear should be cheaper.
+    -- curve = ControlUtil.Function $ ControlUtil.sigmoid 0.5 0.5
 
 neighbor_arg :: Sig.Parser DeriveT.ControlRef
 neighbor_arg = Sig.defaulted "neighbor"

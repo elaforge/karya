@@ -49,6 +49,7 @@ module Derive.C.Prelude.Trill (
     , Direction(..), direction_affix
     , AbsoluteMode(..)
     , Adjust(..), adjust_env
+    , get_trill_control_smooth
 
     -- testing
     , full_notes, chord_tremolo, get_trill_control, xcut_control
@@ -101,17 +102,19 @@ import           Types
 library :: Library.Library
 library = mconcat
     -- Note
-    [ make_trills (c_note_trill False)
+    [ make_trills "tr" (c_note_trill False)
     , Library.generators [("trem", c_tremolo_generator Nothing)]
     , Library.transformers [("trem", c_tremolo_transformer)]
     -- Pitch
-    , make_trills c_pitch_trill
+    , make_trills "tr" c_pitch_trill
+    , make_trills "trs" c_pitch_trill_smooth
     , Library.generators
         [ ("xcut", c_xcut_pitch False)
         , ("xcut-h", c_xcut_pitch True)
         ]
     -- Control
-    , make_trills c_control_trill
+    , make_trills "tr" c_control_trill
+    , make_trills "trs" c_control_trill_smooth
     , Library.generators $
         [ ("saw", c_saw)
         , ("sine", c_sine Bipolar)
@@ -122,8 +125,8 @@ library = mconcat
         ]
     ]
     where
-    make_trills make = Library.generators
-        [(name, make start end) | (name, start, end) <- trill_variations]
+    make_trills prefix make = Library.generators
+        [(name, make start end) | (name, start, end) <- trill_variations prefix]
 
 -- * note calls
 
@@ -166,7 +169,7 @@ note_trill use_attributes neighbor config args
     where
     trill_notes = do
         neighbor <- neighbor_to_signal (Args.start args) neighbor
-        (transpose, control) <- get_trill_control config
+        (transpose, control) <- get_trill_control config Typecheck.Diatonic
             (Args.range_or_next args) neighbor
         Sub.derive =<< mapM (note control) (Seq.zip_next transpose)
     note control ((x, transpose), next) = do
@@ -400,9 +403,10 @@ tremolo_starts_curve :: ControlUtil.CurveF -> DeriveT.Duration
 tremolo_starts_curve curvef hold start_speed end_speed (start, end) = do
     hold <- Call.score_duration start hold
     real_range <- (,) <$> Derive.real start <*> Derive.real end
-    (add_hold (start, end) hold . full_notes end <$>) $ mapM Derive.score
-        =<< Speed.starts_curve curvef start_speed end_speed real_range True
-        -- include_end=True because the end time is also included.
+    (add_hold (start, end) hold . full_notes end <$>) $
+        mapM Derive.score =<< Speed.starts_curve curvef start_speed end_speed
+            real_range include_end
+    where include_end = True -- because the end time is also included.
 
 -- | Add the hold time to the first tremolo note.
 add_hold :: (ScoreTime, ScoreTime) -> ScoreTime -> [ScoreTime] -> [ScoreTime]
@@ -482,12 +486,32 @@ c_pitch_trill hardcoded_start hardcoded_end =
     <*> transition_env
     ) $ \(note, neighbor, config, curve, transition) args -> do
         neighbor <- neighbor_to_signal (Args.start args) neighbor
-        (transpose, control) <- get_trill_control config
+        (transpose, control) <- get_trill_control config Typecheck.Diatonic
             (Args.range_or_next args) neighbor
         transpose <- smooth_trill transition curve transpose
         start <- Args.real_start args
         return $ PSignal.apply_control control (ScoreT.untyped transpose) $
             PSignal.from_sample start note
+
+c_pitch_trill_smooth :: Maybe Direction -> Maybe Direction
+    -> Derive.Generator Derive.Pitch
+c_pitch_trill_smooth hardcoded_start hardcoded_end =
+    Derive.generator1 Module.prelude "tr" mempty
+    ("Generate a pitch signal of alternating pitches."
+    <> direction_doc hardcoded_start hardcoded_end
+    ) $ Sig.call ((,,)
+    <$> Sig.required "note" "Base pitch."
+    <*> neighbor_arg
+    <*> config_arg hardcoded_start hardcoded_end
+    ) $ \(note, neighbor, config) args -> do
+        neighbor <- neighbor_to_signal (Args.start args) neighbor
+        (transpose, control) <- get_trill_control_smooth config
+            Typecheck.Diatonic curve (Args.range_or_next args) neighbor
+        start <- Args.real_start args
+        return $ PSignal.apply_control control (ScoreT.untyped transpose) $
+            PSignal.from_sample start note
+    where
+    curve = ControlUtil.Function $ ControlUtil.sigmoid 0.5 0.5
 
 c_xcut_pitch :: Bool -> Derive.Generator Derive.Pitch
 c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
@@ -528,8 +552,27 @@ c_control_trill hardcoded_start hardcoded_end =
     <*> config_arg hardcoded_start hardcoded_end
     <*> transition_env
     ) $ \(neighbor, config, transition) args -> do
-        (sig, _) <- get_trill_control config (Args.range_or_next args) neighbor
-        smooth_trill transition ControlUtil.Linear sig
+        (transpose, _) <- get_trill_control config Typecheck.Diatonic
+            (Args.range_or_next args) neighbor
+        smooth_trill transition ControlUtil.Linear transpose
+
+c_control_trill_smooth :: Maybe Direction -> Maybe Direction
+    -> Derive.Generator Derive.Control
+c_control_trill_smooth hardcoded_start hardcoded_end =
+    Derive.generator1 Module.prelude "tr" mempty
+    ("The control version of the pitch trill. It generates a signal of values\
+    \ alternating with 0, which can be used as a transposition signal."
+    <> direction_doc hardcoded_start hardcoded_end
+    ) $ Sig.call ((,)
+    <$> Sig.defaulted "neighbor" (Sig.control "tr-neighbor" 1)
+        "Alternate with this value."
+    <*> config_arg hardcoded_start hardcoded_end
+    ) $ \(neighbor, config) args -> do
+        (transpose, _) <- get_trill_control_smooth config Typecheck.Diatonic
+            curve (Args.range_or_next args) neighbor
+        return transpose
+    where
+    curve = ControlUtil.Function $ ControlUtil.sigmoid 0.5 0.5
 
 c_saw :: Derive.Generator Derive.Control
 c_saw = Derive.generator1 Module.prelude "saw" mempty
@@ -649,7 +692,7 @@ transition_env =
 config_arg :: Maybe Direction -> Maybe Direction -> Sig.Parser Config
 config_arg start_dir end_dir =
     Config <$> trill_speed_arg <*> start <*> end <*> hold_env <*> adjust_env
-        <*> pure 0 <*> pure False
+        <*> bias <*> pure False
     where
     start = case start_dir of
         Nothing -> Sig.environ "tr-start" Sig.Unprefixed Nothing
@@ -661,6 +704,9 @@ config_arg start_dir end_dir =
             "Which note the trill ends with. If not given, it can end with\
             \ either."
         Just dir -> pure $ Just dir
+    bias = Typecheck.normalized_bipolar <$>
+        Sig.environ "tr-bias" Sig.Unprefixed (Typecheck.NormalizedBipolar 0)
+            "Offset every other transition by this amount."
 
 data Config = Config {
     -- | transition speed
@@ -684,9 +730,9 @@ hold_env = Typecheck._real <$>
     Sig.environ (Derive.ArgName EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first note."
 
-trill_variations :: [(Expr.Symbol, Maybe Direction, Maybe Direction)]
-trill_variations =
-    [ (Expr.Symbol $ "tr"
+trill_variations :: Text -> [(Expr.Symbol, Maybe Direction, Maybe Direction)]
+trill_variations prefix =
+    [ (Expr.Symbol $ prefix
             <> (if start == Nothing && end /= Nothing
                 then "-" else direction_affix start)
             <> direction_affix end,
@@ -727,12 +773,12 @@ adjust_env = Sig.environ "adjust" Sig.Both Shorten
 -- ** transitions
 
 -- | A signal that alternates between the base and neighbor values.
-get_trill_control :: Config -> (ScoreTime, ScoreTime)
+get_trill_control :: Config -> Typecheck.TransposeType -> (ScoreTime, ScoreTime)
     -> DeriveT.ControlRef
     -> Derive.Deriver ([(RealTime, Signal.Y)], ScoreT.Control)
-get_trill_control config (start, end) neighbor = do
+get_trill_control config default_neighbor (start, end) neighbor = do
     (neighbor_sig, control) <-
-        Call.to_transpose_function Typecheck.Diatonic neighbor
+        Call.to_transpose_function default_neighbor neighbor
     real_start <- Derive.real start
     let neighbor_low = neighbor_sig real_start < 0
     (who_first, transitions) <- get_trill_transitions config (start, end)
@@ -741,6 +787,22 @@ get_trill_control config (start, end) neighbor = do
             Unison -> (const 0, neighbor_sig)
             Neighbor -> (neighbor_sig, const 0)
     return (trill_from_transitions val1 val2 transitions, control)
+
+-- | Like 'get_trill_control', but for a curved trill.
+get_trill_control_smooth :: Config -> Typecheck.TransposeType
+    -> ControlUtil.Curve -> (ScoreTime, ScoreTime) -> DeriveT.ControlRef
+    -> Derive.Deriver (Signal.Control, ScoreT.Control)
+get_trill_control_smooth config default_neighbor curve range neighbor = do
+    (transpose, control) <- get_trill_control
+        -- Trills usually omit the transition that coincides with the end
+        -- because that would create a zero duration note.  But these
+        -- trills are smoothed and thus will still have a segment leading
+        -- to the cut-off transition.
+        (config { _include_end = True }) default_neighbor
+        range neighbor
+    let transition = DeriveT.constant_control 1
+    signal <- smooth_trill transition curve transpose
+    return (signal, control)
 
 
 -- | The points in time where the trill should transition between pitches.

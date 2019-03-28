@@ -57,6 +57,8 @@ data NumValue = TAny
     | TPositive
     -- | 0 <= a <= 1
     | TNormalized
+    -- | -1 <= a <= 1
+    | TNormalizedBipolar
     deriving (Eq, Ord, Show)
 
 -- | This typechecking already exists in the Typecheck instances, but all it
@@ -140,6 +142,7 @@ instance Pretty NumValue where
         TNonNegative -> ">=0"
         TPositive -> ">0"
         TNormalized -> "0 <= x <= 1"
+        TNormalizedBipolar -> "-1 <= x <= 1"
 
 type_of :: Val -> Type
 type_of = infer_type_of True

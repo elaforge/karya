@@ -13,6 +13,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.NN as NN
@@ -312,7 +313,7 @@ test_moving_trill = do
 
 test_real_trill = do
     let f neighbor speed = fst <$> Trill.get_trill_control (config speed)
-            (0, 1) (mkcontrol ScoreT.Chromatic neighbor)
+            Typecheck.Diatonic (0, 1) (mkcontrol ScoreT.Chromatic neighbor)
         config speed = Trill.Config
             { _start_dir = Nothing
             , _end_dir = Nothing
@@ -339,7 +340,7 @@ test_real_trill = do
 
 test_score_trill = do
     let f dur neighbor speed = fst <$>
-            Trill.get_trill_control (config speed) (0, dur)
+            Trill.get_trill_control (config speed) Typecheck.Diatonic (0, dur)
                 (mkcontrol ScoreT.Chromatic neighbor)
         config speed = Trill.Config
             { _start_dir = Nothing

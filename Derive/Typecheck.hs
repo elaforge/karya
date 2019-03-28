@@ -88,6 +88,10 @@ newtype NonNegative a = NonNegative { non_negative :: a }
 newtype Normalized = Normalized { normalized :: Double }
     deriving (Show, Eq, ShowVal.ShowVal, Pretty)
 
+-- | -1 <= x <= 1
+newtype NormalizedBipolar = NormalizedBipolar { normalized_bipolar :: Double }
+    deriving (Show, Eq, ShowVal.ShowVal, Pretty)
+
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.
 newtype DefaultDiatonic =
@@ -530,10 +534,20 @@ instance Typecheck Normalized where
     from_val = num_to_scalar (check . ScoreT.typed_val)
         where
         check a
-            | a <= a && a <= 1 = Just (Normalized a)
+            | 0 <= a && a <= 1 = Just (Normalized a)
             | otherwise = Nothing
     to_type _ = ValType.TNum ValType.TUntyped ValType.TNormalized
 instance ToVal Normalized where to_val = VNum . ScoreT.untyped . normalized
+
+instance Typecheck NormalizedBipolar where
+    from_val = num_to_scalar (check . ScoreT.typed_val)
+        where
+        check a
+            | -1 <= a && a <= 1 = Just (NormalizedBipolar a)
+            | otherwise = Nothing
+    to_type _ = ValType.TNum ValType.TUntyped ValType.TNormalizedBipolar
+instance ToVal NormalizedBipolar where
+    to_val = VNum . ScoreT.untyped . normalized_bipolar
 
 -- ** text\/symbol
 
