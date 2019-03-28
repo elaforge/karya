@@ -3357,7 +3357,7 @@ performance:
       can I make this more efficient?
 
 fltk:
-  - remove the vertical box line between tracks to reduce visual clutter.
+  * remove the vertical box line between tracks to reduce visual clutter.
     . I would make it white there.
     . I think those lines are part of the track widgets.
   - Floating input in the wrong place for negative events with multiple lines.

@@ -161,8 +161,10 @@ EventTrack::EventTrack(const EventTrackConfig &config,
 {
     end(); // make sure no one else falls in
     this->add(bg_box);
-    // create event widgets
-    bg_box.box(FL_THIN_DOWN_BOX);
+    // FL_FLAT_BOX means there is no vertical line dividing tracks.  This
+    // reduces clutter, and the visual gap seems to be enough to distinguish
+    // track from track, especially if there are things on it.
+    bg_box.box(FL_FLAT_BOX);
     bg_box.color(config.bg_color.brightness(this->brightness).fl());
 
     title_input.callback(title_input_focus_cb, static_cast<void *>(this));
