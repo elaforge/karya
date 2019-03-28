@@ -7,9 +7,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.Ui as Ui
-import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
@@ -21,7 +18,11 @@ import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-import Global
+import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_note_to_call = do
@@ -68,14 +69,14 @@ test_note_to_call = do
     equalf 0.001 (runt "limit-7" ["4d"]) ([Just (440 * 8/7)], [])
 
 test_transpose_smooth = do
-    let run = DeriveTest.extract DeriveTest.e_nns_old $
+    let run = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks "scale=raga | key=kharaharapriya"
             [ ("*", [(0, 0, "4g")])
             , ("t-dia",
                 [(0, 0, "-1"), (1, 0, "-.7"), (2, 0, "-.4"), (3, 0, "0")])
             , (">", [(0, 8, "")])
             ]
-    let [nns] = map (map snd) (fst run)
+    let [nns] = map (Seq.drop_dups id . map snd) (fst run)
         diffs = zipWith (-) (drop 1 nns) nns
     -- Diatonic transpose changes pitch smoothly.  This tests the bug fixed
     -- by split_fraction.

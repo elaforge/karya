@@ -5,12 +5,14 @@
 module Derive.Instrument.DUtil_test where
 import qualified Data.Set as Set
 
-import Util.Test
+import qualified Util.Seq as Seq
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Instrument.DUtil as DUtil
 
 import qualified Perform.NN as NN
+
+import           Util.Test
 
 
 test_composite = do
@@ -37,7 +39,7 @@ test_constant_controls = do
     let run extract pitch controls tracks = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup (with pitch controls) "" $
                 (">", [(0, 4, "a")]) : tracks
-        e_nn = map snd . DeriveTest.e_nns_old
+        e_nn = Seq.drop_dups id . map snd . DeriveTest.e_nns
         e_c = DeriveTest.e_control_vals "c"
         with pitch controls = CallTest.with_note_generator "a" $
             DUtil.constant_controls pitch (Set.fromList controls)

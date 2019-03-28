@@ -125,7 +125,7 @@ c_roll = Derive.generator Module.prelude "roll" Tags.ornament
         "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
     ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
-    Sub.inverting $ roll times time dyn_scale
+    Sub.inverting $ roll (round (times :: Double)) time dyn_scale
 
 roll :: Int -> DeriveT.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver

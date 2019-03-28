@@ -55,7 +55,7 @@ test_back_to_back_controls = do
         ([[(0, 0), (2, 2)], [(2, 4)]], [])
 
 test_back_to_back_pitches = do
-    let run events = DeriveTest.extract DeriveTest.e_nns_old $
+    let run events = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks ""
                 [(">", [(0, 2, ""), (2, 2, "")]), ("*", events)]
     equal (run [(0, 0, "4c"), (2, 0, "i (4d)")])
@@ -75,9 +75,9 @@ test_track_expression = do
     equal (run ("cont | sh .5", [(0, 0, "0"), (4, 0, "i 1")]))
         ([[(0, 0), (2, 0), (2, 0.5), (4, 0.5), (4, 1)]], [])
 
-    let run_pitch = derive DeriveTest.e_nns_old
+    let run_pitch = derive DeriveTest.e_nns
     equal (run_pitch ("* | sh .5", [(0, 0, "4c"), (4, 0, "i (4d)")]))
-        ([[(0, NN.c4), (2, NN.cs4), (4, NN.d4)]], [])
+        ([[(0, NN.c4), (2, NN.c4), (2, NN.cs4), (4, NN.cs4), (4, NN.d4)]], [])
 
 test_derive_control = do
     let ex (sig, logs) = (Signal.to_pairs sig, map DeriveTest.show_log logs)
@@ -103,7 +103,7 @@ mktrack events_end events = TrackTree.make_track ">" evts events_end
     where evts = Events.from_list (map UiTest.make_event events)
 
 test_pitch_track = do
-    let run = derive DeriveTest.e_nns_old
+    let run = derive DeriveTest.e_nns
 
     let (val, logs) = run ("*no-scale", [(0, 0, "1"), (1, 0, "2")])
     equal val []
@@ -114,10 +114,10 @@ test_pitch_track = do
     strings_like logs ["not found: 1", "not found: 2"]
     let (val, logs) = run
             ("*twelve", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4hc")])
-    equal val [[(0, 60), (1, 62)]]
+    equal val [[(0, 60), (1, 60), (1, 62)]]
     strings_like logs ["not found: 4hc"]
     equal (run ("*twelve", [(0, 0, "4c"), (1, 0, "4d")]))
-        ([[(0, 60), (1, 62)]], [])
+        ([[(0, 60), (1, 60), (1, 62)]], [])
     equal (run ("*twelve", [(0, 0, "4c"), (2, 0, "i (4d)")]))
         ([[(0, 60), (2, 62)]], [])
 
@@ -166,17 +166,17 @@ test_default_merge = do
     equal (run "t-dia") ([[(0, 1)]], [])
 
 test_trim_signal = do
-    let run = DeriveTest.extract DeriveTest.e_nns_old
+    let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks_setup
                 (CallTest.with_note_generator "g" c_note) ""
         c_note = CallTest.generator $ Sub.inverting $ \_args -> Call.note
     equal (run [(">", [(0, 4, "g")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
-        ([[(0, NN.c4), (1, NN.d4)]], [])
+        ([[(0, NN.c4), (1, NN.c4), (1, NN.d4)]], [])
     equal (run
             [ (">", [(0, 4, "g"), (4, 4, "g")])
             , ("*", [(0, 0, "4c"), (4, 0, "4d")])
             ])
-        ([[(0, NN.c4)], [(4, NN.d4)]], [])
+        ([[(0, NN.c4), (4, NN.c4)], [(4, NN.d4)]], [])
     equal (run
             [ (">", [(4, -4, "g"), (4, 4, "g")])
             , ("*", [(0, 0, "4c"), (4, 0, "4d")])

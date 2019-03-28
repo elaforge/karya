@@ -64,13 +64,17 @@ test_linear_next = do
           ]
         ]
 
-    let (result, logs) = run DeriveTest.e_nns_old ("*",
-            [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (4, 0, "2c")])
+    let (result, logs) = run DeriveTest.e_nns
+            ("*"
+            , [(0, 0, "xcut (i> (4c) (5c)) (i> (5c) (4c)) 2"), (2, 0, "2c")]
+            )
     equal logs []
     equal result
-        [ [ (0, 60), (0.5, 70.5), (1, 63), (1.5, 67.5)
-          , (2, 66), (2.5, 64.5), (3, 69), (3.5, 61.5)
-          , (4, NN.c2)
+        [ [ (0,   60), (0.5, 63)
+          , (0.5, 69), (1, 66)
+          ,            (1.5, 69)
+          , (1.5, 63), (2, 60)
+          , (2, NN.c2)
           ]
         ]
     strings_like

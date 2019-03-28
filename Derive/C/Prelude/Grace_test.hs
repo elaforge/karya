@@ -167,11 +167,11 @@ test_roll = do
     equal (run DeriveTest.e_note $ tracks "roll 2 .5")
         ([(1, 0.5, "4c"), (1.5, 0.5, "4c"), (2, 1, "4c")], [])
     -- The final note should not lose whatever pitch it has.
-    let extract e = (Score.event_start e, DeriveTest.e_nns_old e)
+    let extract e = (Score.event_start e, DeriveTest.e_nns e)
     equal (run extract
             [(">", [(0, 2, "roll 1 .5")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])])
         ( [ (-0.5, [(-RealTime.larger, NN.c4)])
-          , (0, [(0, NN.c4), (1, NN.d4)])
+          , (0, [(0, NN.c4), (1, NN.c4), (1, NN.d4)])
           ]
         , []
         )

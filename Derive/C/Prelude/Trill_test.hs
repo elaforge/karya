@@ -211,28 +211,29 @@ test_chord_tremolo_function = do
 test_trill = do
     let run text = extract $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-        extract = DeriveTest.extract DeriveTest.e_nns_old
+        extract = DeriveTest.extract DeriveTest.e_nns
+    let flat = DeriveTest.flat_segments
     -- Defaults to diatonic.
     equal (run "tr (4c) 1 1")
-        ([[(0, 60), (1, 62), (2, 60)]], [])
+        ([flat [(0, 60), (1, 62), (2, 60)]], [])
     equal (run "tr (4c) 1c 1")
-        ([[(0, 60), (1, 61), (2, 60)]], [])
+        ([flat [(0, 60), (1, 61), (2, 60)]], [])
     equal (run "tr (4c) 1d 1")
-        ([[(0, 60), (1, 62), (2, 60)]], [])
+        ([flat [(0, 60), (1, 62), (2, 60)]], [])
     equal (run "tr (4c) -1d 1")
-        ([[(0, 60), (1, 59), (2, 60)]], [])
+        ([flat [(0, 60), (1, 59), (2, 60)]], [])
 
     let run_neighbor suffix val = extract $ derive_tracks
             [ (">", [(0, 3, "")])
             , ("tr-neighbor" <> suffix, [(0, 0, val)])
             , ("*", [(0, 0, "tr (4c) _ 1"), (3, 0, "--|")])
             ]
-    equal (run_neighbor "" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
-    equal (run_neighbor "" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
-    equal (run_neighbor ":d" "1") ([[(0, 60), (1, 62), (2, 60)]], [])
-    equal (run_neighbor ":d" "-2") ([[(0, 60), (1, 57), (2, 60)]], [])
-    equal (run_neighbor ":c" "1") ([[(0, 60), (1, 61), (2, 60)]], [])
-    equal (run_neighbor ":c" "-2") ([[(0, 60), (1, 58), (2, 60)]], [])
+    equal (run_neighbor "" "1") ([flat [(0, 60), (1, 62), (2, 60)]], [])
+    equal (run_neighbor "" "-2") ([flat [(0, 60), (1, 57), (2, 60)]], [])
+    equal (run_neighbor ":d" "1") ([flat [(0, 60), (1, 62), (2, 60)]], [])
+    equal (run_neighbor ":d" "-2") ([flat [(0, 60), (1, 57), (2, 60)]], [])
+    equal (run_neighbor ":c" "1") ([flat [(0, 60), (1, 61), (2, 60)]], [])
+    equal (run_neighbor ":c" "-2") ([flat [(0, 60), (1, 58), (2, 60)]], [])
 
     let run_speed suffix = extract $ derive_tracks
             [ ("tempo", [(0, 0, "2")])
@@ -240,7 +241,7 @@ test_trill = do
             , ("tr-speed" <> suffix, [(0, 0, "2")])
             , ("*", [(0, 0, "tr (4c) 1"), (3, 0, "--|")])
             ]
-        trill xs = [zip xs (cycle [60, 62])]
+        trill xs = [flat $ zip xs (cycle [60, 62])]
     -- 3 at tempo 2 means the trill should end at 1.5.
     equal (run_speed "") (trill [0, 0.5, 1], [])
     equal (run_speed ":s") (trill [0, 0.5, 1], [])
@@ -266,7 +267,7 @@ e_nns_exact e
 test_trill_start_end = do
     let run ex text = DeriveTest.extract ex $ derive_tracks
             [(">", [(0, 3, "")]), ("*", [(0, 0, text), (3, 0, "--|")])]
-        nns = map snd . DeriveTest.e_nns_old
+        nns = Seq.drop_dups id . map snd . DeriveTest.e_nns
     equal (run nns "tr (4c) 1 1") ([[60, 62, 60]], [])
     equal (run nns "tr-start = high | tr (4c) 1 1") ([[62, 60, 62]], [])
     -- Default is ignored for high and low variants.
@@ -274,10 +275,10 @@ test_trill_start_end = do
     equal (run nns "tr-mode = high | tr_ (4c) 1 1") ([[60, 62, 60]], [])
 
     -- Start, end, and adjust.
-    equal (run DeriveTest.e_nns_old "tr-adjust = shorten | tr^_ (4c) 1 1")
-        ([[(0, 62), (1, 60)]], [])
-    equal (run DeriveTest.e_nns_old "tr-adjust = stretch | tr^_ (4c) 1 1")
-        ([[(0, 62), (3, 60)]], [])
+    equal (run DeriveTest.e_nns "tr-adjust = shorten | tr^_ (4c) 1 1")
+        ([[(0, 62), (1, 62), (1, 60)]], [])
+    equal (run DeriveTest.e_nns "tr-adjust = stretch | tr^_ (4c) 1 1")
+        ([[(0, 62), (3, 62), (3, 60)]], [])
 
 test_trill_hold = do
     let run call dur = DeriveTest.extract DeriveTest.e_nns $ derive_tracks
@@ -298,18 +299,36 @@ test_moving_trill = do
     -- Ensure a diatonic trill on a moving base note remains correct.
     let run tracks = extract $ derive_tracks $
             (">", [(0, 6, "")]) : tracks
-        extract = DeriveTest.extract DeriveTest.e_nns_old
+        extract = DeriveTest.extract DeriveTest.e_nns
     -- Trill transitions from 2 semitones to 1 semitone.
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
         , ("t-dia", [(0, 0, "tr 1 1"), (6, 0, "--|")])
         ])
-        ([[(0, 69), (1, 71.25), (2, 70), (3, 71.75), (4, 71), (5, 72)]], [])
+        ( [ [ (0, 69), (1, 69.5)
+            , (1, 71.25), (2, 71.5)
+            , (2, 70), (3, 70.5)
+            , (3, 71.75), (4, 72)
+            , (4, 71), (5, 71)
+            , (5, 72)
+            ]
+          ]
+        , []
+        )
     equal (run
         [ ("*", [(0, 0, "4a"), (4, 0, "i (4b)")])
         , ("t-chrom", [(0, 0, "tr 1 1"), (6, 0, "--|")])
         ])
-        ([[(0, 69), (1, 70.5), (2, 70), (3, 71.5), (4, 71), (5, 72)]], [])
+        ( [ [ (0, 69), (1, 69.5)
+            , (1, 70.5), (2, 71)
+            , (2, 70), (3, 70.5)
+            , (3, 71.5), (4, 72)
+            , (4, 71), (5, 71)
+            , (5, 72)
+            ]
+          ]
+        , []
+        )
 
 test_real_trill = do
     let f neighbor speed = fst <$> Trill.get_trill_control (config speed)
@@ -378,17 +397,18 @@ test_pitch_trill = do
         ]
 
 test_xcut_pitch = do
-    let f tracks = DeriveTest.extract DeriveTest.e_nns_old $
+    let f tracks = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks_linear "" $
             (">", [(0, 4, "")]) : tracks
+    let flat = DeriveTest.flat_segments
     equal (f
             [ ("* #xcut1", [(0, 0, "4c")])
             , ("* #xcut2", [(0, 0, "5c")])
             , ("*", [(0, 0, "xcut _ _ 1"), (4, 0, "--|")])
             ])
-        ([[(0, 60), (1, 72), (2, 60), (3, 72)]], [])
+        ([flat [(0, 60), (1, 72), (2, 60), (3, 72)]], [])
     equal (f [("*", [(0, 0, "xcut (4c) (5c) 1"), (4, 0, "--|")])])
-        ([[(0, 60), (1, 72), (2, 60), (3, 72)]], [])
+        ([flat [(0, 60), (1, 72), (2, 60), (3, 72)]], [])
 
 
 -- * control calls

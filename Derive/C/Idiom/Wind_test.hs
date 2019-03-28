@@ -23,7 +23,7 @@ test_wind = do
             . UiTest.note_track . mknotes
         extract e =
             ( Score.event_start e
-            , map (second Pitch.nn_to_hz) $ DeriveTest.e_nns_old e
+            , map (second Pitch.nn_to_hz) $ DeriveTest.e_nns e
             )
         mknotes ns = [(t, 1, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
     equalf 0.01 (run ["set (nn 100)"]) ([(0, [(0, 100)])], [])
@@ -32,15 +32,15 @@ test_wind = do
     -- harmonics of f2: 10 20 30 40
     -- f1 * h1 to f2 * h1, go to f2 * h1
     equalf 0.01 (run ["set (nn 70)", "set (nn 100)"])
-        ([(0, [(0, 70), (1, 100)]), (1, [(1, 100)])], [])
+        ([(0, [(0, 70), (1, 70), (1, 100)]), (1, [(1, 100)])], [])
 
     -- f1 * h2 + 1 to f2 * h3, so go to f2 * h2
     equalf 0.01 (run ["set (nn 150)", "set (nn 300)"])
-        ([(0, [(0, 150), (1, 200)]), (1, [(1, 300)])], [])
+        ([(0, [(0, 150), (1, 150), (1, 200)]), (1, [(1, 300)])], [])
 
     -- f1 * h2 to f1 * h3
     equalf 0.01 (run ["set (nn 140)", "set (nn 210)"])
-        ([(0, [(0, 140), (1, 140)]), (1, [(1, 210)])], [])
+        ([(0, [(0, 140), (1, 140), (1, 140)]), (1, [(1, 210)])], [])
 
 test_find_harmonic = do
     let f = Wind.find_harmonic

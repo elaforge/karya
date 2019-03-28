@@ -459,7 +459,7 @@ test_two_level_orphans = do
 test_orphan_ranges = do
     -- These test TrackTree.track_end, indirectly by making sure it clips
     -- or doesn't clip signal correctly.
-    let run = DeriveTest.extract DeriveTest.e_nns_old
+    let run = DeriveTest.extract DeriveTest.e_nns
             . DeriveTest.derive_tracks_linear ""
     -- Each note has only its control.
     equal (run
@@ -468,7 +468,7 @@ test_orphan_ranges = do
         , (">", [(1, 1, "--a"), (2, 1, "--b")])
         , ("*", [(1, 0, "4c"), (2, 0, "4d")])
         ])
-        ([[(1, 60)], [(2, 62)]], [])
+        ([[(1, 60), (2, 60)], [(2, 62)]], [])
 
     -- The note has the pitch after its end.
     equal (run
@@ -476,7 +476,7 @@ test_orphan_ranges = do
         , (">", [])
         , (">", [(0, 1, "")])
         ])
-        ([[(0, 60), (10, 62)]], [])
+        ([[(0, 60), (10, 60), (10, 62)]], [])
 
 -- * misc
 

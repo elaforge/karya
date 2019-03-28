@@ -549,14 +549,14 @@ test_named_pitch = do
 test_block_end = do
     -- Make sure the pitch for the sub block event is trimmed to the end
     -- of the block, since there's no next event for it.
-    let res = DeriveTest.extract DeriveTest.e_nns_old $ DeriveTest.derive_blocks
+    let res = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_blocks
             [ ("p",
                 [ (">i1", [(0, 1, "sub"), (1, 1, "")])
                 , ("*twelve", [(0, 0, "5d"), (1, 0, "5e")])
                 ])
             , ("sub", [(">", [(0, 1, "")])])
             ]
-    equal res ([[(0, 74)], [(1, 76)]], [])
+    equal res ([[(0, 74), (1, 74)], [(1, 76)]], [])
 
 -- * regression
 
@@ -590,11 +590,13 @@ test_regress_event_end1 = do
     -- wound up with too much pitch signal.
     let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_nns_old e)
+                DeriveTest.e_nns e)
     equal (DeriveTest.extract extract res)
-        ([ (0, 2, [(0, 60)])
-        , (2, 2, [(2, 62)])
-        ], [])
+        ( [ (0, 2, [(0, 60), (2, 60)])
+          , (2, 2, [(2, 62)])
+          ]
+        , []
+        )
     where
     blocks = [(("b0", b0), [(1, 2), (2, 3)])]
     b0 =
@@ -606,11 +608,13 @@ test_regress_event_end1 = do
 test_regress_event_end2 = do
     let res = derive_blocks blocks
         extract e = (Score.event_start e, Score.event_duration e,
-                DeriveTest.e_nns_old e)
+                DeriveTest.e_nns e)
     equal (DeriveTest.extract extract res)
-        ([ (5, 2, [(5, 60)])
-        , (7, 2, [(7, 62)])
-        ], [])
+        ( [ (5, 2, [(5, 60), (7, 60)])
+          , (7, 2, [(7, 62)])
+          ]
+        , []
+        )
     where
     blocks = [(("b0",
        [(">", [(5, 0, "`arp-up`")]),

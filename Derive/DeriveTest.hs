@@ -717,6 +717,12 @@ e_nns_errors =
     bimap (map (second Pitch.nn) . Signal.to_pairs) (map pretty)
     . PSignal.to_nn . Score.event_pitch . Score.normalize
 
+flat_segments :: [(x, y)] -> [(x, y)]
+flat_segments = concatMap make . Seq.zip_next
+    where
+    make ((x0, y), Just (x1, _)) = [(x0, y), (x1, y)]
+    make (xy, Nothing) = [xy]
+
 e_pitch :: Score.Event -> Text
 e_pitch e = maybe "?" Pitch.note_text (Score.initial_note e)
 

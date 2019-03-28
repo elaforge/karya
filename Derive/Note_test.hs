@@ -34,15 +34,15 @@ test_sub_tracks = do
         , ((2, 2, ""), [(2, 2)], [(0, 3), (6, 3), (6, 4)])
         ]
 
-    let extract_p e = (DeriveTest.e_event e, DeriveTest.e_nns_old e)
+    let extract_p e = (DeriveTest.e_event e, DeriveTest.e_nns e)
     let (events, logs) = DeriveTest.extract extract_p $ run
             [ (">", [(0, 2, ""), (2, 2, "")])
             , ("*", [(0, 0, "4c"), (2, 0, "4d"), (3, 0, "4e")])
             ]
     equal logs []
     equal events
-        [ ((0, 2, ""), [(0, NN.c4)])
-        , ((2, 2, ""), [(2, NN.d4), (3, NN.e4)])
+        [ ((0, 2, ""), [(0, NN.c4), (2, NN.c4)])
+        , ((2, 2, ""), [(2, NN.d4), (3, NN.d4), (3, NN.e4)])
         ]
 
     -- controls that straddle the note are properly sliced and clipped

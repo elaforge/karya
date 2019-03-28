@@ -23,7 +23,7 @@ import           Util.Test
 
 test_compile = do
     let controls = map Score.event_controls
-        pitches = map DeriveTest.e_nns_old
+        pitches = map DeriveTest.e_nns
 
     let derive tracks = DeriveTest.extract id $ DeriveTest.derive_tracks "" $
             ("tempo", [(0, 0, "2")]) : tracks
@@ -54,7 +54,7 @@ test_compile = do
     -- TODO well, not any more.  Since segments are continuous now, it's up to
     -- the performer to clip at the end time.
     equal (pitches events)
-        [ [(0, 60)]
+        [ [(0, 60), (2, 60)]
         , [(2, 62), (4, 64)]
         , [(4, 64)]
         ]
