@@ -226,7 +226,7 @@ newtype NoteNumber = NoteNumber Double
         Serialize.Serialize, Typeable.Typeable)
 
 instance Show NoteNumber where
-    show (NoteNumber nn) = untxt $ Num.showFloat0 (Just 3) nn <> "nn"
+    show (NoteNumber nn) = show nn <> "nn"
 instance Read NoteNumber where
     readPrec = do
         n <- Read.readPrec
@@ -237,7 +237,8 @@ instance ShowVal.ShowVal NoteNumber where
     show_val (NoteNumber nn) = ShowVal.show_val nn <> "nn"
     -- The suffix should be the same as DeriveT.type_to_code Nn
 
-instance Pretty NoteNumber where pretty = showt
+instance Pretty NoteNumber where
+    pretty (NoteNumber nn) = Num.showFloat0 (Just 3) nn <> "nn"
 
 nn :: Real a => a -> NoteNumber
 nn = NoteNumber . realToFrac
