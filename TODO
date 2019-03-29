@@ -2673,6 +2673,9 @@ cleanup:
       I'm not ready to abandon record prefixes though, they're still the only
       thing that consistently works.
   ci:
+    - find an alternative to travis
+      . https://circleci.com/
+      . https://azure.microsoft.com/en-us/services/devops/pipelines/?cdn=disable
     - fix travis
       . It won't compile without my hacked libsamplerate.
       . I think I can get travis to clone from the github repo.

@@ -45,18 +45,18 @@ test_resolve_pitch = do
     equal (f "5s 4 r") [Right "5s", Right "", Right "5r"]
 
 test_resolve_repeats = do
-    let f = map (fmap extract) . check Check.default_config . parse
+    let f = map (bimap pretty extract) . check Check.default_config . parse
         extract = strip_note . snd
     let sa = Right . mk_pnote "4s"
     equal (f "4r4 . .") $ replicate 3 (Right $ mk_pnote "4r" (1/4))
     equal (f "3s1 | .") $ replicate 2 (Right $ mk_pnote "3s" 1)
-
     equal (f "4s4 ~") [sa (2/4)]
     equal (f "4s4 ~ .") [sa (2/4), sa (1/4)]
     equal (f "4s4 . ~") [sa (1/4), sa (2/4)]
     equal (f "4s4 ~ ~") [sa (3/4)]
     equal (f "4s4 . .") [sa (1/4), sa (1/4), sa (1/4)]
     equal (f "4s4~ . .") [sa (2/4), sa (1/4)]
+    equal (f ".") [Left "0: repeat with no previous note"]
 
 test_resolve_pitch_twelve = do
     let f = map extract . check config . parse

@@ -14,7 +14,9 @@ module Derive.TScore.Check (
     , module Derive.TScore.Check
 #endif
 ) where
+import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -96,15 +98,16 @@ check get_dur (Config meter scale duration) =
     . resolve_call_duration get_dur
     . carry_call_duration
     . resolve_repeats
+    . map Right
     -- TODO resolve pitch before time, so the pitches are right, so ties work.
     -- But then I still have TBarline and the like.
 
 -- * time
 
 -- | Carry CallDuration if the next note has no duration, but does have a call.
-carry_call_duration :: [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-carry_call_duration = flip State.evalState False . mapM (T.map_note carry)
+carry_call_duration :: Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
+    -> Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
+carry_call_duration = flip State.evalState False . rmap (T.map_note carry)
     where
     carry note = do
         dur <- case T.note_duration note of
@@ -121,9 +124,9 @@ carry_call_duration = flip State.evalState False . mapM (T.map_note carry)
         && all Maybe.isNothing [T.dur_int1 dur, T.dur_int2 dur]
 
 resolve_call_duration :: GetCallDuration
-    -> [T.Token T.CallT T.Pitch T.NDuration rdur]
+    -> Stream (T.Token T.CallT T.Pitch T.NDuration rdur)
     -> Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
-resolve_call_duration get_dur = concatMap $ \case
+resolve_call_duration get_dur = concat_rmap_e_id $ \case
     T.TBarline pos a -> [Right $ T.TBarline pos a]
     T.TRest pos a -> [Right $ T.TRest pos a]
     T.TNote pos note ->
@@ -146,12 +149,10 @@ call_block_id parent =
 -- TODO resolve_dot happens backwards, why?
 -- I think something in the check pipeline does a foldr?
 
--- TODO use Stream for errors
-resolve_repeats :: [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+resolve_repeats :: Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
+    -> Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
 resolve_repeats =
-    snd . List.mapAccumL resolve_dot Nothing
-        . map resolve_tie . zip_next_note
+    rmap_state resolve_dot Nothing . map (fmap resolve_tie) . zip_next_note
     where
     resolve_tie (T.TNote pos note, Just next)
         | strip next == Parse.tie_note = T.TNote pos $ set_tie True note
@@ -171,12 +172,14 @@ resolve_repeats =
     -- note.
     resolve_dot mb_prev token@(T.TNote pos note)
         | strip note `elem` repeat_notes = case mb_prev of
-            Just prev -> (mb_prev, T.TNote pos (set_tie tied (set_dots 0 prev)))
+            Just prev ->
+                (mb_prev, Right $ T.TNote pos (set_tie tied (set_dots 0 prev)))
                 where tied = strip note `elem` [tie_dot_note, Parse.tie_note]
-            Nothing -> (mb_prev, token) -- TODO emit error
+            Nothing ->
+                (mb_prev, Left $ T.Error pos "repeat with no previous note")
 
-        | otherwise = (Just note, token)
-    resolve_dot mb_prev token = (mb_prev, token)
+        | otherwise = (Just note, Right token)
+    resolve_dot mb_prev token = (mb_prev, Right token)
 
     strip note = note { T.note_pos = T.Pos 0 }
     repeat_notes = [Parse.dot_note, Parse.tie_note, tie_dot_note]
@@ -184,9 +187,9 @@ resolve_repeats =
     set_tie tie = modify_duration $ \dur -> dur { T.dur_tie = tie }
     set_dots n = modify_duration $ \dur -> dur { T.dur_dots = n }
 
-zip_next_note :: [T.Token call pitch ndur rdur]
-    -> [(T.Token call pitch ndur rdur, Maybe (T.Note call pitch ndur))]
-zip_next_note = map (second (msum . map note_of)) . Seq.zip_nexts
+zip_next_note :: Stream (T.Token call pitch ndur rdur)
+    -> Stream (T.Token call pitch ndur rdur, Maybe (T.Note call pitch ndur))
+zip_next_note = map (second (second (msum . map note_of))) . rzip_nexts
     where
     note_of (T.TNote _ n) = Just n
     note_of _ = Nothing
@@ -576,11 +579,25 @@ type Parser a = P.Parsec Void.Void Text a
 
 -- | Like mapM, but pass through Lefts.
 rmap :: Monad m => (a -> m b) -> [Either e a] -> m [Either e b]
-rmap f = rmap_e (fmap Right . f)
+rmap = traverse . traverse
 
 -- | Like 'rmap', except the function can also return Lefts.
 rmap_e :: Monad m => (a -> m (Either e b)) -> [Either e a] -> m [Either e b]
 rmap_e f = concat_rmap_e (fmap (:[]) . f)
+
+-- | Like List.mapAccumL, but for Rights.
+rmap_state :: (state -> a -> (state, Either e b)) -> state -> [Either e a]
+    -> [Either e b]
+rmap_state f state as = State.evalState (rmap_e go as) state
+    where
+    go a = do
+        st <- State.get
+        let (st2, b) = f st a
+        State.put $! st2
+        return b
+
+concat_rmap_e_id :: (a -> [Either e b]) -> [Either e a] -> [Either e b]
+concat_rmap_e_id f = Identity.runIdentity . concat_rmap_e (return . f)
 
 -- | Like 'rmap_e', except the function can return a list.
 concat_rmap_e :: Monad m => (a -> m [Either e b])
@@ -593,6 +610,11 @@ concat_rmap_e f = go
         Right a -> do
             eb <- f a
             (eb++) <$> go eas
+
+rzip_nexts :: [Either e a] -> [Either e (a, [a])]
+rzip_nexts (Left e : eas) = Left e : rzip_nexts eas
+rzip_nexts (Right a : eas) = Right (a, Either.rights eas) : rzip_nexts eas
+rzip_nexts [] = []
 
 -- | This is the Either equivalent of 'Derive.LEvent.zip'.
 zip_right :: [b] -> [Either a c] -> [Either a (b, c)]
