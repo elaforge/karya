@@ -342,10 +342,12 @@ UNSORTED
     . Probably not hard with generics-sop, but what about stories of
       GHC.Generics hurting compile and runtime?
     . How about monoid is_empty that doesn't use Eq?
-  - Attributes are not necessarily suited to fundamentally exclusive
+  * Attributes are not necessarily suited to fundamentally exclusive
     articulations, like striking technique.  For NESS strings I use the
     'element' field, maybe I should be using environ for that at the score
     level.
+    . Note.element addresses this, but there's only one.  If I want >1 then
+      I need environ at the im level.
   - Switching to Symbols.default_note means any event created via Call.note
     winds up with event_text="NOTE", which is not as informative as the
     original text.
@@ -4702,7 +4704,26 @@ Derive:
 
 text score: tscore:
   . doc/dev_notes/text-score.md
-  - Syntax to repeat the last note.
+  negative durations:
+    . So I can put beats at the end:
+       e o u e | i o a i | ~ o ~ e |
+         o-2 e |   o   i |   ~   e |
+      "k//"/e-4 |"k\\"/i | k-12-1-21/e |
+    . realize as:
+      _ e o u | e i o a | i ~ o ~ | e ~
+      _ _ o ~ | e ~ o ~ | i ~ ~ ~ | e ~
+        e oe o| e i oi o| i eu e u| e ~
+    . or more naturally:
+      e o u e | i o a i | ~ o ~ e |
+      _ o ~ e | ~ o ~ i | ~ ~ ~ e |
+      e oe oe | i oi oi | eu e ue |
+    . As usual, this works as long as I don't have rests.  Actualy it seems
+      fine, it's just a rule about where barlines go:
+      _ o _ e2 |   o1 _ i2 |   o   e |
+    . Right after the downbeat note, regardless of its duration.  So can I do
+      it just as a barcheck rule?
+    . Probably not, because what about sequencing blocks?
+  * Syntax to repeat the last note.
     . Maybe a plain '~'?  This would mean I can't make a carry note plus tie,
       but maybe I could do without?
     . Actually if I'm using it like proprtional notation, I'd want ~ to be
@@ -4712,9 +4733,15 @@ text score: tscore:
       '4s~ . .'... except the final one shouldn't be tied.
     . Maybe . is repeat previous, and ~ is repeat previous, and add tie to
       previous.
-  - How to do repeats?
+  - How to do numbered repeats?
     . If I have a repeat last note thing above, then just attach a number to
-      it.
+      it: '4s .4' or '4s ~4'
+    . I'd need to make this a special token and parse, rather than reusing
+      the normal doted or tied note syntax.
+    . What if I keep hijacking?  '4s 4.' or '4s 4~'.  This seems confusingly
+      reusing something reasonable, why should '4s 4' be completely different
+      from '4s 4.'?
+    . What about the : syntax, did I implement that?
   cleanup:
     - Collapse new tracks on an existing block.
     - Also adjust block view size.
@@ -4722,20 +4749,6 @@ text score: tscore:
     - Manual integrate is error-prone, where can I document it better?
     - fltk: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
-  embedded parallelism: [track1 // track2]:
-    notes:
-      . This goes on Score
-      . Figure out how this works.  How do I embed a block, e.g.
-        +pizz[a b c]/4s or t[a b c]4s?  Then "+a | +b"[a b c]/4s?
-      . The [a b c] becomes a new block, and modifies the call to
-        "+a | +b | new-block".  Then [a b c] by itself is shorthand for just
-        "new-block".
-      . Since this is substituting a call, it's an alternate Call syntax.
-        I'll need some way to name the block.  A hash of the contents would be
-        stable, but ugly.  But do I need it to be stable?  If I don't
-        integrate sub-blocks then maybe I can just replace them.  In that
-        case, I can simply count from the top of the track, or maybe use a-z
-        base 26.
   repl:
     - communicate parse errors back to vim to highlight
   parsing:

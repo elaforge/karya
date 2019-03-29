@@ -7,9 +7,9 @@
     > %scale=sargam
     > root = %default-call [melody/0 melody]
     > melody = %dur=mult [
-    >     ">inst1" | a1 | b2 [ c~ c // e f ]/ |
+    >     >inst1 | a1 | b2 [ c~ c // e f ]/ |
     >     //
-    >     ">inst2" | p1 | m |
+    >     >inst2 | p1 | m |
     > ]
 -}
 module Derive.TScore.Parse where
@@ -178,6 +178,12 @@ instance Element (T.Token T.Call T.Pitch T.NDuration T.Duration) where
 instance Pretty (T.Token T.Call T.Pitch T.NDuration T.Duration) where
     pretty = unparse default_config
 
+instance Pretty (T.Token T.CallT T.Pitch T.NDuration T.Duration) where
+    pretty = \case
+        T.TNote _ note -> pretty note
+        T.TBarline _ bar -> pretty bar
+        T.TRest _ rest -> pretty rest
+
 -- ** barline
 
 instance Element T.Barline where
@@ -208,7 +214,7 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
         -- when it fails, to parse //.
         | _default_call config = P.try $ do
             call <- P.optional $ parse config
-            (pitch, dur) <- P.option (empty_pitch, empty_duration) $ do
+            (pitch, dur) <- P.option (empty_pitch, empty_nduration) $ do
                 P.char '/'
                 (,) <$> P.option empty_pitch (P.try (parse config))
                     <*> parse config
@@ -236,7 +242,7 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
     unparse config (T.Note call pitch _zero_dur dur _pos)
         | _default_call config =
             unparse config call
-            <> if pitch == empty_pitch && dur == empty_duration then ""
+            <> if pitch == empty_pitch && dur == empty_nduration then ""
                 else "/" <> unparse config pitch <> unparse config dur
         | otherwise = mconcat
             [ if call == T.Call "" then "" else unparse config call <> "/"
@@ -244,17 +250,33 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
             , unparse config dur
             ]
 
+-- | This is the output from Check.check.
+instance Pretty (T.Note T.CallT (Maybe Text) T.Time) where
+    pretty (T.Note call pitch _zero_dur dur _pos) = mconcat
+        [ if call == "" then "" else call <> "/"
+        , fromMaybe "" pitch, pretty dur
+        ]
+
+instance Pretty (T.Note T.CallT T.Pitch T.NDuration) where
+    pretty (T.Note call pitch _zero_dur dur _pos) = mconcat
+        [ if call == "" then "" else call <> "/"
+        , unparse default_config pitch, unparse default_config dur
+        ]
+
 empty_note :: T.Note T.Call T.Pitch T.NDuration
 empty_note = T.Note
     { note_call = T.Call ""
     , note_pitch = empty_pitch
     , note_zero_duration = False
-    , note_duration = empty_duration
+    , note_duration = empty_nduration
     , note_pos = T.Pos 0
     }
 
-empty_duration :: T.NDuration
-empty_duration = T.NDuration $ T.Duration
+empty_nduration :: T.NDuration
+empty_nduration = T.NDuration empty_duration
+
+empty_duration :: T.Duration
+empty_duration = T.Duration
     { dur_int1 = Nothing
     , dur_int2 = Nothing
     , dur_dots = 0
@@ -263,6 +285,22 @@ empty_duration = T.NDuration $ T.Duration
 
 empty_pitch :: T.Pitch
 empty_pitch = T.Pitch (T.Relative 0) ""
+
+-- | This note is treated specially by the Check layer, to repeat of the
+-- previous note.
+dot_note :: T.Note T.CallT T.Pitch T.NDuration
+dot_note = empty_note
+    { T.note_call = ""
+    , T.note_duration = T.NDuration $ empty_duration { T.dur_dots = 1 }
+    }
+
+-- | This note is treated specially by the Check layer, to repeat of the
+-- previous note, plus put a tie on the previous note.
+tie_note :: T.Note T.CallT T.Pitch T.NDuration
+tie_note = empty_note
+    { T.note_call = ""
+    , T.note_duration = T.NDuration $ empty_duration { T.dur_tie = True }
+    }
 
 -- |
 -- > plain-word
@@ -303,6 +341,9 @@ instance Element (T.Rest T.Duration) where
     -- I could possibly forbid ~ tie for rests, but I don't see why
     parse config = T.Rest <$> (P.char '_' *> parse config)
     unparse config (T.Rest dur) = "_" <> unparse config dur
+
+instance Pretty (T.Rest T.Duration) where
+    pretty = unparse default_config
 
 call_char :: Char -> Bool
 call_char = (`notElem` exclude)

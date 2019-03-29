@@ -152,7 +152,7 @@ data Duration = Duration {
 -- * error
 
 -- | Character position in the input.
-newtype Pos = Pos Int deriving (Eq, Show)
+newtype Pos = Pos Int deriving (Eq, Show, Pretty)
 
 data Error = Error !Pos !Text
     deriving (Eq, Show)

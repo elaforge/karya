@@ -7,7 +7,7 @@
 module Derive.TScore.Check (
     Config(..), default_config
     , parse_directive, parse_directives
-    , process
+    , check
     , call_block_id
     , Meter(..)
 #ifdef TESTING
@@ -78,23 +78,24 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
     lookup k m = tryJust ("unknown directive val: " <> k) (Map.lookup k m)
 
 
--- * process
+-- * check
 
 type Stream a = [Either T.Error a]
 type Token call pitch dur = T.Token call pitch dur dur
 
 type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 
-process :: GetCallDuration -> Config
+check :: GetCallDuration -> Config
     -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
     -> Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
-process get_dur (Config meter scale duration) =
+check get_dur (Config meter scale duration) =
     resolve_pitch scale
     . resolve_time
     . check_barlines meter
     . duration_mode duration
     . resolve_call_duration get_dur
     . carry_call_duration
+    . resolve_repeats
     -- TODO resolve pitch before time, so the pitches are right, so ties work.
     -- But then I still have TBarline and the like.
 
@@ -141,6 +142,62 @@ resolve_call_duration get_dur = concatMap $ \case
 call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
 call_block_id parent =
     Eval.call_to_block_id Parse.default_namespace (Just parent) . Expr.Symbol
+
+-- TODO resolve_dot happens backwards, why?
+-- I think something in the check pipeline does a foldr?
+
+-- TODO use Stream for errors
+resolve_repeats :: [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+resolve_repeats =
+    snd . List.mapAccumL resolve_dot Nothing
+        . map resolve_tie . zip_next_note
+    where
+    resolve_tie (T.TNote pos note, Just next)
+        | strip next == Parse.tie_note = T.TNote pos $ set_tie True note
+    resolve_tie (T.TNote pos note, _)
+        -- Normalize Parse.tie_note to a Parse.dot_note, since the tie part has
+        -- been handled in the previous equation.  It's important to do this
+        -- here, so I only normalize "original" 'Parse.tie_note's, not tied
+        -- notes created by the previous equation, which is what happens with
+        -- two 'Parse.tie_note's in a row.
+        | strip note == Parse.tie_note = T.TNote pos Parse.dot_note
+    resolve_tie (token, _) = token
+    -- x ~ .    (tie, no, no)
+    -- x . ~    (no, tie, no)
+    -- x ~ ~    (tie, tie, no)
+    -- x~ . .   (tie, no, no)
+    -- So don't inherit the tie from the prev note, get it from the current
+    -- note.
+    resolve_dot mb_prev token@(T.TNote pos note)
+        | strip note `elem` repeat_notes = case mb_prev of
+            Just prev -> (mb_prev, T.TNote pos (set_tie tied (set_dots 0 prev)))
+                where tied = strip note `elem` [tie_dot_note, Parse.tie_note]
+            Nothing -> (mb_prev, token) -- TODO emit error
+
+        | otherwise = (Just note, token)
+    resolve_dot mb_prev token = (mb_prev, token)
+
+    strip note = note { T.note_pos = T.Pos 0 }
+    repeat_notes = [Parse.dot_note, Parse.tie_note, tie_dot_note]
+    tie_dot_note = set_tie True Parse.dot_note
+    set_tie tie = modify_duration $ \dur -> dur { T.dur_tie = tie }
+    set_dots n = modify_duration $ \dur -> dur { T.dur_dots = n }
+
+zip_next_note :: [T.Token call pitch ndur rdur]
+    -> [(T.Token call pitch ndur rdur, Maybe (T.Note call pitch ndur))]
+zip_next_note = map (second (msum . map note_of)) . Seq.zip_nexts
+    where
+    note_of (T.TNote _ n) = Just n
+    note_of _ = Nothing
+
+modify_duration :: (T.Duration -> T.Duration) -> T.Note call pitch T.NDuration
+    -> T.Note call pitch T.NDuration
+modify_duration modify note =
+    note { T.note_duration = set (T.note_duration note) }
+    where
+    set (T.NDuration dur) = T.NDuration (modify dur)
+    set T.CallDuration = T.CallDuration
 
 -- ** meter
 

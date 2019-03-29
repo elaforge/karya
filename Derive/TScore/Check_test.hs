@@ -7,17 +7,17 @@ import qualified Control.Monad.Combinators as P
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
 
+import           Util.Test hiding (check)
 import qualified Util.Test.Testing as Testing
 import qualified Derive.TScore.Check as Check
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
 
 import           Global
-import           Util.Test
 
 
 test_process = do
-    let f = map extract . process config . parse
+    let f = map extract . check config . parse
         config = Check.default_config
         extract = fmap $ second
             (\n -> (T.note_call n, T.note_pitch n, T.note_duration n))
@@ -28,12 +28,8 @@ test_process = do
         ]
 
 test_resolve_pitch = do
-    let f = map extract . process config . parse
-        config = Check.default_config
+    let f = map extract . check Check.default_config . parse
         extract = fmap $ fromMaybe "" . T.note_pitch . snd
-    -- TODO resolve_pitch happens before resolve_time
-    -- equal (f "4s ~") [Right (4, 0)]
-
     equal (f "4s r g") [Right "4s", Right "4r", Right "4g"]
     equal (f "4n s") [Right "4n", Right "5s"]
     equal (f "4s n") [Right "4s", Right "3n"]
@@ -48,14 +44,40 @@ test_resolve_pitch = do
     equal (f "5s c/ r") [Right "5s", Right "", Right "5r"]
     equal (f "5s 4 r") [Right "5s", Right "", Right "5r"]
 
+test_resolve_repeats = do
+    let f = map (fmap extract) . check Check.default_config . parse
+        extract = strip_note . snd
+    let sa = Right . mk_pnote "4s"
+    equal (f "4r4 . .") $ replicate 3 (Right $ mk_pnote "4r" (1/4))
+    equal (f "3s1 | .") $ replicate 2 (Right $ mk_pnote "3s" 1)
+
+    equal (f "4s4 ~") [sa (2/4)]
+    equal (f "4s4 ~ .") [sa (2/4), sa (1/4)]
+    equal (f "4s4 . ~") [sa (1/4), sa (2/4)]
+    equal (f "4s4 ~ ~") [sa (3/4)]
+    equal (f "4s4 . .") [sa (1/4), sa (1/4), sa (1/4)]
+    equal (f "4s4~ . .") [sa (2/4), sa (1/4)]
+
 test_resolve_pitch_twelve = do
-    let f = map extract . process config . parse
+    let f = map extract . check config . parse
         config = Check.default_config
             { Check.config_scale = Check.scale_twelve }
         extract = fmap $ fromMaybe "" . T.note_pitch . snd
     equal (f "4c e") [Right "4c", Right "4e"]
     equal (f "4g c") [Right "4g", Right "5c"]
     equal (f "4f c") [Right "4f", Right "4c"]
+
+mk_pnote :: pitch -> dur -> T.Note Text (Maybe pitch) dur
+mk_pnote pitch = mk_note "" (Just pitch)
+
+mk_note :: call -> pitch -> dur -> T.Note call pitch dur
+mk_note call pitch dur = T.Note
+    { note_call = call
+    , note_pitch = pitch
+    , note_zero_duration = False
+    , note_duration = dur
+    , note_pos = T.Pos 0
+    }
 
 test_resolve_time = do
     let f = map extract . Check.resolve_time . Check.multiplicative . parse_cdur
@@ -141,6 +163,6 @@ parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
     where
     p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
 
-process :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+check :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
     -> Check.Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
-process = Check.process (const $ (Left "get_dur not supported", []))
+check = Check.check $ const (Left "get_dur not supported", [])

@@ -14,6 +14,40 @@ import           Global
 import           Util.Test
 
 
+everything_score :: Text
+everything_score =
+    "-- Line comments use double-dash.\n\
+    \-- Toplevel directives apply to everything below them.\n\
+    \-- The supported directives are in 'Check.parse_directive'.\n\
+    \%meter=adi\n\
+    \-- Optional per-block directives, and quoted block title.\n\
+    \block1 = %scale=sargam \"block1 title\" [\n\
+    \    -- Tracks start with an optional track title, which should start\n\
+    \    -- with >. It doesn't need quotes if there are no spaces.\n\
+    \    -- Ties (~) and dots (.) go at the end of the note.\n\
+    \    >inst1 4s4 r g m~ | m d n. s8 |\n\
+    \    // -- // to separate tracks\n\
+    \    -- Bare tie ~ to sustain previous note, bare dot . to repeat,\n\
+    \    -- so this is like \"2s~ 2s | 2s 2s |\"\n\
+    \    \">inst2 | +pizz\" 2s ~ | . . |\n\
+    \]\n\
+    \\n\
+    \-- Simple block with only one track, and one note.  kebab-case is ok.\n\
+    \simple-block = [c]\n\
+    \\n\
+    \calls = [\n\
+    \    -- Call is separated from <pitch><dur> with a /.  Pitch and dur are\n\
+    \    -- optional:\n\
+    \    simple-block/r2 simple-block/\n\
+    \]\n\
+    \\n\
+    \sub-blocks = [\n\
+    \    -- Any place a call can appear can also have a sub-block:\n\
+    \    [ 4s1 r // 4g2 ]/1 |\n\
+    \    -- The sub-block can get a transformer.  Quotes needed for spaces:\n\
+    \    +pizz[s]/1 | \"+pizz | harm\"[g]/\n\
+    \]\n"
+
 test_score = do
     let f = second unparse . parse @T.Score
     let score =
@@ -21,7 +55,7 @@ test_score = do
             \block1 = %block1=directive \"block1 title\" [\n\
             \    \">inst1\" a -- comment\n\
             \    // -- comment\n\
-            \    \">inst2\" b\n\
+            \    >inst2 b\n\
             \]\n\
             \block2 = [c]\n"
     right_equal (f score) $
@@ -29,6 +63,11 @@ test_score = do
         \block1 = %block1=directive \"block1 title\"\
         \ [ >inst1 a // >inst2 b ]\n\
         \block2 = [ c ]\n"
+
+    -- Parse -> unparse -> parse -> unparse reaches a fixpoint.
+    let normalized = f everything_score
+    equal normalized (f =<< normalized)
+    putStrLn $ either id untxt normalized
 
 test_default_call = do
     let f = fmap (\(T.Score defs) -> defs) . parse
@@ -65,9 +104,6 @@ e_score_tokens defs = concat
     ]
     where
     e_tracks (T.Tracks tracks) = tracks
-
--- e_notes :: [T.Token T.Call pitch ndur rdur] -> [T.Note T.Call pitch ndur]
--- e_notes tokens = [note | T.TNote _ note <- map strip_pos tokens]
 
 test_p_whitespace = do
     let f = Parse.parse_text Parse.p_whitespace
@@ -124,7 +160,6 @@ test_track = do
     right_equal (title ">inst a") ">inst"
     right_equal (title "\">inst | trans\" a") ">inst | trans"
     right_equal (title "\"> | trans\" a") "> | trans"
-    -- right_equal (title "\"> | dur=1\" \"8n\"/0") "> | trans"
 
     right_equal (tokens "| ||") [bar 1, bar 2]
     right_equal (tokens "a") [tnote "" no_oct "a" no_dur]
@@ -173,6 +208,10 @@ test_token = do
         tnote (sub "a" [[pitch "b" no_dur]]) no_oct "" no_dur
     right_equal (f "\"x y\"[b]/") $
         tnote (sub "x y" [[pitch "b" no_dur]]) no_oct "" no_dur
+    -- These are treated specially by Check, but are normal notes according to
+    -- the  parser.
+    right_equal (f ".") $ tnote "" no_oct "" (dur Nothing Nothing 1 False)
+    right_equal (f "~") $ tnote "" no_oct "" (dur Nothing Nothing 0 True)
 
 test_token_roundtrip = do
     -- Lots of things can roundtrip but still not parse correctly, so this is
@@ -213,7 +252,7 @@ no_oct :: T.Octave
 no_oct = T.Relative 0
 
 no_dur :: T.NDuration
-no_dur = Parse.empty_duration
+no_dur = Parse.empty_nduration
 
 dur :: Maybe Int -> Maybe Int -> Int -> Bool -> T.NDuration
 dur int1 int2 dots tie = T.NDuration (T.Duration int1 int2 dots tie)

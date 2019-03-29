@@ -213,7 +213,7 @@ call_of :: T.Token T.CallT pitch ndur rdur -> Maybe T.CallT
 call_of (T.TNote _ note) = Just $ T.note_call note
 call_of _ = Nothing
 
--- | Check and resolve pitches and durations with 'Check.process'.
+-- | Check and resolve pitches and durations with 'Check.check'.
 --
 -- This has to be interleaved across blocks because 'T.CallDuration' means the
 -- duration of a note can depend on the duration of other blocks, and so forth.
@@ -233,7 +233,7 @@ make_tracks get_ext_dur source blocks = Map.elems memo
         }
     resolve block_id block_title (ParsedTrack config title tokens) = do
         tokens <- first (T.show_error source) $ sequence $
-            Check.process (get_dur (to_transformers block_title title) block_id)
+            Check.check (get_dur (to_transformers block_title title) block_id)
                 config tokens
         let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
         return $ NTrack
