@@ -33,7 +33,7 @@ STATUS
 UNSORTED
   * get rid of DeriveTest.e_nns_old
     . except Gamakam and Gamakm2
-  - get rid of Signal.to_pairs_unique
+  * get rid of Signal.to_pairs_unique
   * do a smooth trill, 'trs'
     . It winds up being 'tr-transition=1 | tr-curve = (cf-sigmoid .5 .5)
       | include-end=t.

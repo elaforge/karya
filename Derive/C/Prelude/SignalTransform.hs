@@ -127,9 +127,11 @@ slew_limiter max_slope =
         slope = (y1 - y0) / dx
         dx = RealTime.to_seconds (x1 - x0)
 
+-- TODO maybe a bit broken since signals are now usually continuous?
+-- Fix it when necessary.
 c_smooth :: Derive.Transformer Derive.Control
 c_smooth = Derive.transformer Module.prelude "smooth" mempty
-    "Smooth a signal by interpolating between each sample."
+    "Smooth a signal by interpolating between discontinuities."
     $ Sig.callt ((,)
     <$> Sig.required "time" "Amount of time to reach to the next sample.\
         \ If negative, it will end on the destination sample rather than\
@@ -141,7 +143,7 @@ c_smooth = Derive.transformer Module.prelude "smooth" mempty
         srate <- Call.get_srate
         time <- Call.real_duration (Args.start args) time
         Post.signal (ControlUtil.smooth_absolute curve srate time
-            . Signal.to_pairs_unique) deriver
+            . Seq.drop_initial_dups fst . Signal.to_pairs) deriver
 
 c_redirect :: Derive.Merge -> Derive.Transformer Derive.Control
 c_redirect merger =
