@@ -46,7 +46,6 @@ UNSORTED
     . can I replace the trill hold arg with a 'd' call for control calls?
       That won't work for the note trill though.
   - try unsafeDupableIO in Crc32Instances
-  revise how MIDI channel state works with keyswitches and controls
   - should I use Cmd.get_lookup_instrument_memoized for derive?
     . probably, but try profiling first?
   - do I ever get negative Score.Events?
