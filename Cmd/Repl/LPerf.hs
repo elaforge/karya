@@ -411,8 +411,8 @@ stack_in_score_range block_ids track_ids start end = any match . Stack.to_ui
 
 convert :: Cmd.M m => [Score.Event] -> m [LEvent.LEvent Types.Event]
 convert events = do
-    lookup <- PlayUtil.get_convert_lookup
     lookup_inst <- Cmd.get_lookup_instrument
+    let lookup = PlayUtil.make_midi_lookup lookup_inst
     return $ Midi.Convert.convert Midi.Convert.default_srate lookup lookup_inst
         events
 

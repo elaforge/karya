@@ -13,7 +13,7 @@ module Cmd.PlayUtil (
     -- * perform
     , perform_from, shift_messages, first_time
     , events_from, overlapping_events
-    , perform_events, get_convert_lookup
+    , perform_events, make_midi_lookup
     , midi_configs
     -- * mute and solo
     , get_muted_tracks, muted_instruments
@@ -121,8 +121,8 @@ get_constant :: Cmd.M m => Ui.State -> Derive.Cache -> Derive.ScoreDamage
     -> m (Derive.Constant, Derive.InstrumentAliases)
 get_constant ui_state cache damage = do
     cmd_state <- Cmd.get
-    let lookup_inst = Cmd.state_resolve_instrument ui_state cmd_state
-    config_builtins <- Cmd.gets (Cmd.config_builtins . Cmd.state_config)
+    let lookup_inst = Cmd.state_lookup_instrument ui_state cmd_state
+    let config_builtins = Cmd.config_builtins (Cmd.state_config cmd_state)
     (defs_builtins, aliases) <- get_builtins
     return $ (,aliases) $ Derive.initial_constant ui_state
         (defs_builtins <> config_builtins) Cmd.lookup_scale
@@ -235,12 +235,12 @@ perform_events = perform_events_list . Vector.toList
 perform_events_list :: Cmd.M m => [Score.Event] -> m Perform.MidiEvents
 perform_events_list events = do
     allocs <- Ui.gets $ Ui.config_allocations . Ui.state_config
-    lookup <- get_convert_lookup
     lookup_inst <- Cmd.get_lookup_instrument
+    let midi_lookup = make_midi_lookup lookup_inst
     muted <- get_muted_tracks
-    let alloc = Perform.config <$> midi_configs allocs
-    return $ fst $ Perform.perform Perform.initial_state alloc $
-        Convert.convert Convert.default_srate lookup lookup_inst $
+    let configs = Perform.config <$> midi_configs allocs
+    return $ fst $ Perform.perform Perform.initial_state configs $
+        Convert.convert Convert.default_srate midi_lookup lookup_inst $
         filter_track_muted muted $ filter_instrument_muted allocs events
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be
@@ -342,16 +342,15 @@ midi_config :: UiConfig.Backend -> Maybe Patch.Config
 midi_config (UiConfig.Midi a) = Just a
 midi_config _ = Nothing
 
-get_convert_lookup :: Cmd.M m => m Convert.Lookup
-get_convert_lookup = do
-    lookup_inst <- Cmd.get_lookup_instrument_memoized
-    return $ Convert.Lookup
-        { lookup_scale = Cmd.lookup_scale
-        , lookup_control_defaults = \inst -> fromMaybe mempty $ do
-            inst <- lookup_inst inst
-            defaults <- case Cmd.inst_backend inst of
-                Just (Cmd.Midi _ config) -> Patch.config_control_defaults $
-                    Patch.config_settings config
-                _ -> Nothing
-            return defaults
-        }
+make_midi_lookup :: (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
+    -> Convert.MidiLookup
+make_midi_lookup lookup_inst = Convert.MidiLookup
+    { lookup_scale = Cmd.lookup_scale
+    , lookup_control_defaults = \inst -> fromMaybe mempty $ do
+        inst <- lookup_inst inst
+        defaults <- case Cmd.inst_backend inst of
+            Just (Cmd.Midi _ config) -> Patch.config_control_defaults $
+                Patch.config_settings config
+            _ -> Nothing
+        return defaults
+    }

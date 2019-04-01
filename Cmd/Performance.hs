@@ -214,7 +214,7 @@ generate_performance ui_state wait send_status block_id = do
         let allocs = Ui.config#Ui.allocations #$ ui_state
             im_config = Cmd.config_im (Cmd.state_config cmd_state)
         let lookup_inst = either (const Nothing) Just
-                . Cmd.state_resolve_instrument ui_state cmd_state
+                . Cmd.state_lookup_instrument ui_state cmd_state
         evaluate_performance
             (if im_allocated allocs then Just im_config else Nothing)
             lookup_inst wait send_status (Cmd.score_path cmd_state)
@@ -353,7 +353,6 @@ watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
         send_status status
         return False
     emit_status (Right Nothing) = return False
-        where
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
@@ -428,13 +427,13 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
             _ -> Nothing
         Nothing -> Nothing
 
+    output_dir = Config.outputDirectory (Config.imDir config) score_path
+        block_id
     write_notes (Just synth_name, events) = do
         case Map.lookup synth_name (Config.synths config) of
             Just synth -> do
                 let notes_file = Config.notesFilename (Config.imDir config)
                         score_path block_id synth
-                    output_dir = Config.outputDirectory (Config.imDir config)
-                        score_path block_id
                 -- I used to get the changed flag out of Im.Convert.write and
                 -- skip the subprocess if it hadn't changed.  But that gets in
                 -- the way of getting waveforms on the first run (assuming the

@@ -45,9 +45,12 @@ UNSORTED
   - make tr hold flat?
     . can I replace the trill hold arg with a 'd' call for control calls?
       That won't work for the note trill though.
-  - try unsafeDupableIO in Crc32Instances
-  - should I use Cmd.get_lookup_instrument_memoized for derive?
+  * try unsafeDupablePerformIO in Crc32Instances
+    . Doesn't seem to make a difference in the profile, but why not.
+  * should I use Cmd.get_lookup_instrument_memoized for derive?
     . probably, but try profiling first?
+  * use Data.Map.Strict in Perform?  Or even HashMap?
+    . No improvement.
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
     . Score.event_min implies I do, but only Derive.Note uses it so maybe no?
@@ -58,9 +61,6 @@ UNSORTED
     . I guess I rely on postproc to flip them around, but which one?
     . Postproc.make_cancel seems like it should do it, but I don't see
       anything about negative duration, just weak and strong cancellation.
-  / Also a negative selection should get a negative event, but it doesn't.
-    . But it does!
-  - use Data.Map.Strict in Perform?  Or even HashMap?
   - rhythmic interpolation
     . Match notes in two derivers, then interpolate rhythms:
       '%pos=.5 | r-interpolate b1 b2'
@@ -325,18 +325,6 @@ UNSORTED
     Pitch.c_set could make curves by default?
 
   - pnovla @pno1 32.25t mordent broken, probably too much note overlap
-  - It seems there's no way to explicitly pass Nothing if the default is Just,
-    because _ turns into set the default.
-    . Ultimately I think because VNotGiven is special-cased in Derive.Sig.  I
-      would need some way to distinguish between "give me the default" and
-      "pass Nothing".
-    . I could change the default to "pass Nothing" by having Sig check the
-      type against VNotGiven and only default if it fails.  But of course
-      now there is no way to indicate "use the default" for a Maybe argument.
-      This might be more likely to be what I want, but it's inconsistent in
-      that the type of the arg influences the process and nothing else does
-      that.
-    . Meanwhile, there's never a point to defaulting to (Just x) instead of x.
   - generic deriving Monoid?
     . Probably not hard with generics-sop, but what about stories of
       GHC.Generics hurting compile and runtime?
@@ -1494,6 +1482,24 @@ synth: im:
         now.
       . Should I serialize to different files, or split them up in the
         sampler?  How about split by patch?
+      . I guess there isn't any big reason to split into separate files, but
+        I have to split anyway to separate im from non-im, and since there
+        will be only one synth, I might as well split by instrument.  Then the
+        synth doesn't have to split, it just evaluates everything in the
+        directory in parallel.  I have to delete the existing contents
+        though... at least with a single file I can replace it atomically.
+        But I already have this problem with synth-per-file, I just haven't
+        noticed it because I don't really use faust.  And deleting seems like
+        not a huge problem.
+    / switch to instrument per file
+      . Get rid of the concept of separate synths.
+      . Well, maybe I don't want to get rid of that yet, because I used it for
+        ness, and might use it again for a synth I didn't create myself.
+      . How about just add faust to sampler, and I can change the synth name
+        later.
+    . Why am I doing this in the first place?  The idea is use faust signal
+      processor on samples... but I don't have any of those and if I just want
+      reverb, there are plenty of VSTs.  So shelve this for now.
   progress:
     waveform display:
       - percussion is too thin, tends to become invisible when quiet
@@ -4157,7 +4163,7 @@ Cmd:
 
 Derive:
   - A block with logical range called at time 0 gets messed up.
-  - signal-offset: Add time offset to TimeVector
+  * signal-offset: Add time offset to TimeVector
     . event_transformed_controls etc. are really annoying.  I can get rid of
       them by building the translation into Perform.Signal.
     . The downside is that every signal gets an offset, even though it's
@@ -4208,6 +4214,18 @@ Derive:
       on in a slightly random spot, but stays on after that.
       . Is there a simpler way to get this effect?
   tracklang: TrackLang:
+    - It seems there's no way to explicitly pass Nothing if the default is
+      Just, because _ turns into set the default.
+      . Ultimately I think because VNotGiven is special-cased in Derive.Sig.  I
+        would need some way to distinguish between "give me the default" and
+        "pass Nothing".
+      . I could change the default to "pass Nothing" by having Sig check the
+        type against VNotGiven and only default if it fails.  But of course
+        now there is no way to indicate "use the default" for a Maybe argument.
+        This might be more likely to be what I want, but it's inconsistent in
+        that the type of the arg influences the process and nothing else does
+        that.
+      . Meanwhile, there's never a point to defaulting to (Just x) instead of x.
     - Keyword args.
       . A problem with environ defaulted args is that if I do e.g.
         'merge=add | a=b | block', then all of 'block' will have merge=add.

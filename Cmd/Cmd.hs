@@ -43,7 +43,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import qualified Data.Tuple as Tuple
 import qualified Data.Word as Word
 
 import qualified Sound.OSC as OSC
@@ -1279,33 +1278,22 @@ get_instrument inst = require ("instrument not found: " <> pretty inst)
 
 get_lookup_instrument :: M m
     => m (ScoreT.Instrument -> Maybe ResolvedInstrument)
-get_lookup_instrument = do
-    ui_state <- Ui.get
-    cmd_state <- get
-    return $ either (const Nothing) Just
-        . state_resolve_instrument ui_state cmd_state
+get_lookup_instrument = fmap (either (const Nothing) Just .) $
+    state_lookup_instrument <$> Ui.get <*> get
+    -- This throws away the Left error just because that's what its callers all
+    -- happen to want.
 
--- | Like 'get_lookup_instrument', but memoize instrument resolution in case
--- you're going to do it a lot.  'instrument_resolve' has to merge some things
--- so it's not exactly free.
-get_lookup_instrument_memoized :: M m
-    => m (ScoreT.Instrument -> Maybe ResolvedInstrument)
-get_lookup_instrument_memoized = do
-    ui_state <- Ui.get
-    cmd_state <- get
-    let insts = Map.keys $ Ui.config#Ui.allocations_map #$ ui_state
-    let memo = Map.fromList $ map Tuple.swap $ Seq.key_on_just resolve insts
-        resolve = either (const Nothing) Just
-            . state_resolve_instrument ui_state cmd_state
-    return $ \inst -> Map.lookup inst memo
-
-state_resolve_instrument :: Ui.State -> State -> ScoreT.Instrument
+-- | This memoizes instrument resolution in case you're going to do it a lot.
+-- 'resolve_instrument' has to merge some things so it's not exactly free.
+state_lookup_instrument :: Ui.State -> State -> ScoreT.Instrument
     -> Either Text ResolvedInstrument
-state_resolve_instrument ui_state cmd_state = \inst -> do
-    alloc <- justErr ("no alloc for " <> pretty inst) $
-        Ui.allocation inst #$ ui_state
-    let db = config_instrument_db (state_config cmd_state)
-    resolve_instrument db alloc
+state_lookup_instrument ui_state cmd_state =
+    \inst -> fromMaybe (Left $ "no alloc for " <> pretty inst) $
+        Map.lookup inst memo
+    where
+    memo = resolve <$> (Ui.config#Ui.allocations_map #$ ui_state)
+    resolve alloc = resolve_instrument db alloc
+        where db = config_instrument_db (state_config cmd_state)
 
 resolve_instrument :: InstrumentDb -> UiConfig.Allocation
     -> Either Text ResolvedInstrument

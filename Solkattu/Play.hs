@@ -131,7 +131,7 @@ derive_to_disk score_path ui_state = do
     mapM_ Log.write logs
     let im_config = Cmd.config_im (Cmd.state_config cmd_state)
         lookup_inst = either (const Nothing) Just
-            . Cmd.state_resolve_instrument ui_state cmd_state
+            . Cmd.state_lookup_instrument ui_state cmd_state
     (procs, non_im) <- Performance.evaluate_im im_config lookup_inst score_path
         0 1 block_id events
     unless (null non_im) $

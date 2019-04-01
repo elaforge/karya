@@ -562,7 +562,7 @@ synths_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
     where (db, warns) = Inst.db synths
 
 type Lookup =
-    (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument, Convert.Lookup)
+    (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument, Convert.MidiLookup)
 
 -- | Make a Lookp for a single patch.
 make_convert_lookup_for :: ScoreT.Instrument -> Patch.Config -> Patch.Patch
@@ -576,8 +576,9 @@ make_convert_lookup_for inst patch_config patch =
 
 make_convert_lookup :: UiConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =
-    run_cmd (setup_ui setup Ui.empty) (setup_cmd setup default_cmd_state) $
-        (,) <$> Cmd.get_lookup_instrument <*> PlayUtil.get_convert_lookup
+    run_cmd (setup_ui setup Ui.empty) (setup_cmd setup default_cmd_state) $ do
+        lookup_inst <- Cmd.get_lookup_instrument
+        return (lookup_inst, PlayUtil.make_midi_lookup lookup_inst)
     where setup = with_instrument_db allocs db
 
 -- ** extract

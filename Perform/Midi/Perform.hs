@@ -24,7 +24,7 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
-import qualified Util.Map as Map
+import qualified Util.Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -41,6 +41,11 @@ import           Perform.RealTime (RealTime)
 
 import           Global
 
+
+-- I tried using HashMap in here, but aside from one score with somewhat
+-- better performance, the result seemed to be the same or slightly worse.
+-- In any case, performance in here is not that important, since it happens
+-- lazily on demand and is already way faster than realtime.
 
 -- * constants
 
@@ -288,14 +293,15 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     worry about that only if it ever becomes a problem.
 -}
 controls_equal :: RealTime -> RealTime
-    -> Map ScoreT.Control MSignal.Signal -> Map ScoreT.Control MSignal.Signal
+    -> Map ScoreT.Control MSignal.Signal
+    -> Map ScoreT.Control MSignal.Signal
     -> Bool
 controls_equal start end cs1 cs2 = start >= end || all eq pairs
     where
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controls require their own channel.
     relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
-    pairs = Map.pairs (relevant cs1) (relevant cs2)
+    pairs = Util.Map.pairs (relevant cs1) (relevant cs2)
     eq (_, Seq.Both sig1 sig2) =
         MSignal.within start end sig1 == MSignal.within start end sig2
     eq _ = False

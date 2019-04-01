@@ -33,7 +33,7 @@ import           Global
 import           Types
 
 
--- | Serialize the events to the given patch.  This is done atomically because
+-- | Serialize the events to the given path.  This is done atomically because
 -- this is run from the derive thread, which can be killed at any time.
 write :: RealTime -> RealTime -> BlockId
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument) -> FilePath

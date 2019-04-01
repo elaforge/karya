@@ -52,7 +52,7 @@ import           Types
 default_srate :: RealTime
 default_srate = 1 / 0.015 -- TODO set to PlayUtil.initial_environ[srate]
 
-data Lookup = Lookup {
+data MidiLookup = MidiLookup {
     lookup_scale :: Derive.LookupScale
     , lookup_control_defaults
         :: ScoreT.Instrument -> Map ScoreT.Control Signal.Y
@@ -60,7 +60,7 @@ data Lookup = Lookup {
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: RealTime -> Lookup
+convert :: RealTime -> MidiLookup
     -> (ScoreT.Instrument -> Maybe Cmd.ResolvedInstrument)
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert srate lookup = ConvertUtil.convert $ \event resolved ->
@@ -69,7 +69,7 @@ convert srate lookup = ConvertUtil.convert $ \event resolved ->
             convert_event srate lookup event patch config
         _ -> []
 
-convert_event :: RealTime -> Lookup -> Score.Event -> Patch.Patch
+convert_event :: RealTime -> MidiLookup -> Score.Event -> Patch.Patch
     -> Patch.Config -> [LEvent.LEvent Types.Event]
 convert_event srate lookup event patch config = run $ do
     let inst = Score.event_instrument event

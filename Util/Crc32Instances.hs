@@ -58,12 +58,12 @@ instance CRC32 Float where crc32Update = storable
 instance CRC32 Text.Text where crc32Update = Text.foldl' crc32Update
 
 storable :: forall a. Foreign.Storable a => Word.Word32 -> a -> Word.Word32
-storable n d = Unsafe.unsafePerformIO $ Foreign.alloca $ \ptr -> do
+storable n d = Unsafe.unsafeDupablePerformIO $ Foreign.alloca $ \ptr -> do
     Foreign.poke ptr d
     ptrIO n ptr 1
-    -- unsafeDupableIO is faster than unsafePerformIO, but can't be used with
-    -- bracket.  Fortunately, alloca is really low level and doesn't even use
-    -- bracket.
+    -- unsafeDupablePerformIO is faster than unsafePerformIO, but can't be used
+    -- with bracket.  Fortunately, alloca is really low level and doesn't even
+    -- use bracket.
 
 ptrIO :: forall a. Foreign.Storable a => Word.Word32 -> Foreign.Ptr a -> Int
     -> IO Word.Word32
