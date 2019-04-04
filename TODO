@@ -59,7 +59,7 @@ UNSORTED
     . I guess I rely on postproc to flip them around, but which one?
     . Postproc.make_cancel seems like it should do it, but I don't see
       anything about negative duration, just weak and strong cancellation.
-  - rhythmic interpolation
+  * rhythmic interpolation
     . Match notes in two derivers, then interpolate rhythms:
       '%pos=.5 | r-interpolate b1 b2'
     . What to do if the notes don't match?  If it's pitches I could also
@@ -95,7 +95,7 @@ UNSORTED
         e-interpolate/6 // loop[k t k n o]/6 // loop[k t _ k n o]/6
       ]
     . Can I provide (loop | b1) as an arg?
-        e-interpolate (loop | b1) (loop | b2)
+        e-interpolate "(loop | b1) "(loop | b2)
     . Then tscore could be:
       top = [
         "e-interpolate loop[k t k n o] loop[k t _ k n o]"/6
@@ -107,6 +107,12 @@ UNSORTED
     . The problem I am solving is that it's redundant to make a whole track
       and have to set the event duration to be the same, so subtracks are too
       flexible.
+    . "(loop | b) works because with "() deriver does in fact become first
+      class?  Well, only sort of... Sig.eval_quoted returns a Val, so it can't
+      be a deriver, but e-interpolate uses Eval.eval_quoted, which is only
+      derivers.
+    . It seems I could still put Deriver in Typecheck, since it doesn't have
+      to go through Val.
 
   - unify deriver parents:
     . Wasn't I going to unify block arg and child track somehow?

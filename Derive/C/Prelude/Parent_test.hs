@@ -247,12 +247,18 @@ test_event_interpolate = do
     equal (run [(4, "1")]) ([4, 6], [])
 
     let run = DeriveTest.extract Score.event_start . DeriveTest.derive_blocks
-    equal (run
-        [ ("top -- %at=.5", [(">", [(4, 4, "e-interpolate b1 b2")])])
-        , ("b1=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
-        , ("b2=ruler", [(">", [(0, 1, ""), (1.5, 0.5, "")])])
-        ])
+    let blocks at call =
+            [ ("top", [("at", UiTest.control_track at), (">", [call])])
+            , ("b1=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
+            , ("b2=ruler", [(">", [(0, 1, ""), (1.5, 0.5, "")])])
+            ]
+    equal (run $ blocks [(0, ".5")] (4, 4, "e-interpolate b1 b2"))
         ([4, 6.5], [])
+    let loop = (0, 6, "e-interpolate \"(loop | b1) \"(loop | b2)")
+    equal (run $ blocks [(0, "0")] loop) ([0, 1, 2, 3, 4, 5], [])
+    equal (run $ blocks [(0, "1")] loop) ([0, 1.5, 2, 3.5, 4, 5.5], [])
+    equal (run $ blocks [(0, "0"), (2, ".5"), (4, "1")] loop)
+        ([0, 1, 2, 3.25, 4, 5.5], [])
 
 test_cycle = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""

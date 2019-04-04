@@ -256,10 +256,10 @@ c_event_interpolate :: Derive.Generator Derive.Note
 c_event_interpolate = Derive.generator Module.prelude "e-interpolate" Tags.subs
     "Interpolate rhythms of the transformed sequence."
     $ Sig.call ((,,)
-    <$> Sig.defaulted "model" Nothing "rhythm model"
-    <*> Sig.defaulted "notes" Nothing "source deriver"
+    <$> Sig.defaulted "notes" Nothing "source deriver"
+    <*> Sig.defaulted "model" Nothing "rhythm model"
     <*> Sig.defaulted "at" (Sig.control "at" 0) "interpolate position"
-    ) $ \(mb_model, mb_notes, at) args -> do
+    ) $ \(mb_notes, mb_model, at) args -> do
         at <- Call.to_function at
         (model, notes) <- resolve_derivers2 args
             ("model", mb_model) ("notes", mb_notes)

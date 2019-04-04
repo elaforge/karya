@@ -281,7 +281,6 @@ eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
 eval_default _ _ _ state (Left a) = return (state, a)
 eval_default arg_doc place name state (Right quoted) =
     case eval_quoted state quoted of
-        -- Left err -> Left $ Derive.EvalError place quoted name err
         Left err -> Left $ Derive.TypeError place (Derive.Quoted quoted) name
             expected_type Nothing (Just err)
         Right val -> (,) state <$> check_arg state arg_doc place name val
