@@ -124,6 +124,7 @@ invertible_vals =
     , ("'quinn''s hat'", str "quinn's hat")
     , ("s!$_", str "s!$_")
     , ("'bad string", Nothing)
+    , ("a'b", Nothing)
 
     , ("%", Just $ VControlRef $ LiteralControl "")
     , ("%sig", Just $ VControlRef $ LiteralControl "sig")

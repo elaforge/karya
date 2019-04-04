@@ -339,9 +339,14 @@ p_quoted = ParseText.between "\"(" ")" (DeriveT.Quoted <$> p_expr False)
 -- quotes.
 p_unquoted_str :: A.Parser Expr.Str
 p_unquoted_str = do
-    c <- A.satisfy ShowVal.is_unquoted_head
-    rest <- p_null_word
-    return $ Expr.Str $ Text.cons c rest
+    sym <- Text.cons
+        <$> A.satisfy ShowVal.is_unquoted_head
+        <*> A.takeWhile is_word_char
+    -- If I have an unbalanced quote, it may parse as an unquoted string with
+    -- a quote in it, which is confusing.  So let's outlaw that.
+    when ("'" `Text.isInfixOf` sym) $
+        fail $ "quote in unquoted string: " <> show sym
+    return $ Expr.Str sym
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be
@@ -371,9 +376,6 @@ p_identifier null_ok until = do
 p_word :: Bool -> A.Parser Text
 p_word toplevel =
     A.takeWhile1 (if toplevel then is_toplevel_word_char else is_word_char)
-
-p_null_word :: A.Parser Text
-p_null_word = A.takeWhile is_word_char
 
 -- | A word is as permissive as possible, and is terminated by whitespace.
 -- That's because this determines how calls are allowed to be named, and for

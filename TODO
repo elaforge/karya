@@ -9,12 +9,10 @@ STATUS
       Just tempo changes is left, unless bugs come up.
   . infer gender damping:
   . text score: tscore:
-    . Take a break on this until I actually use it.
+    . Thinking about how to do negative durations.
   - make kendang sampler instrument
     . Make thru work for it, and refactor thru in general.
     . refactor thru:
-  - use ghc package:
-  - ghc --make now supports -j, use that instead of each file
   + I should set up organized profiling, especially so I can profile before
     and after warp as function, and linear segments.
     . Mostly done, but I think I want to use criterion on some smaller
@@ -81,6 +79,35 @@ UNSORTED
       . This is a way to make a local warp map, then apply that to a child
         deriver.
       . Derive the model in linear time, then how to infer its time step?
+    . Can I do this as a interpolation between two derivers?  Then use 'tile'
+      or 'loop'.
+    . In fact, can I use the existing interpolate for this?
+    . Here's how it could look in tscore:
+      top = [
+        e-interpolate/6
+        // "loop | b1"/6
+        // "loop | b2"/6
+      ]
+      b1 = [ k t k n o ]
+      b2 = [ k t _ k n o ]
+        =>
+      top = [
+        e-interpolate/6 // loop[k t k n o]/6 // loop[k t _ k n o]/6
+      ]
+    . Can I provide (loop | b1) as an arg?
+        e-interpolate (loop | b1) (loop | b2)
+    . Then tscore could be:
+      top = [
+        "e-interpolate loop[k t k n o] loop[k t _ k n o]"/6
+      ]
+      but it would need to look inside ""s for [] interpolation.
+    . The problem is that deriver is not first class, so calls with multiple
+      deriver arguments actually take strings.  This gets back to the very
+      old idea of unifying 'a | b | c' with 'a (b (c))'.
+    . The problem I am solving is that it's redundant to make a whole track
+      and have to set the event duration to be the same, so subtracks are too
+      flexible.
+
   - unify deriver parents:
     . Wasn't I going to unify block arg and child track somehow?
     . See Parent.c_event_interpolate for the awkwardness.
@@ -133,8 +160,13 @@ UNSORTED
                       unsigned nthreads, unsigned threadno)
             { ... }
         . upgrade clang fixed it
-  - being able to put 's in bare symbols can lead to confusing errors, e.g.
+      ? The official build scripts want to compile with gcc.  Try without, to
+        see what exactly is gcc-specific in there.
+  * being able to put 's in bare symbols can lead to confusing errors, e.g.
     call 'arg 1' arg2' is valid.
+    . The parser is very permissive about what it allows in bare symbols,
+      basically everything except ), that doesn't happen to parse as something
+      else.
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
       a playable instrument.
