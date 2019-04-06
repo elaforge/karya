@@ -6,12 +6,12 @@ work.  It should compile fine, but the REPL won't work.  Details at
 
 - Install [non-haskell dependencies](#non-haskell-dependencies).
 
+- Run `tools/setup-empty`.  Read it if you want, it's short.
+
 - Update `Local/ShakeConfig.hs` to point to where those dependencies are
 installed.
 
 - Install [haskell dependencies](#haskell-dependencies).
-
-- Run `tools/setup-empty`.  Read it if you want, it's short.
 
 - Build shakefile: `bin/mkmk`
 
@@ -44,14 +44,18 @@ not iphone-ly.  Or don't do that.  This is just reminder to myself.
         cabal install --extra-include-dirs=$HOME/homebrew/include \
             --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
 
-- lilypond for the lilypond backend.  This is optional.
+- lilypond for the lilypond backend.  This is optional.  If you never try to
+compile a score via lilypond it will never notice you're missing this
+dependency.
 
 - The bravura font for music symbols:
 <https://github.com/steinbergmedia/bravura/tree/master/releases> (the main page
 is <http://www.smufl.org/fonts/>), and Noto for any other kind of symbol:
 <https://www.google.com/get/noto/>.  I don't use fancy symbols very much, so
 they're not essential.  You'll probably get some complaints at startup if
-they're missing, you can ignore that.
+they're missing, it's harmless to ignore them.  You might see some boxes
+instead of symbols if you use one of the few calls or scales that use non-ASCII
+symbols.
 
     OS X: `cp *.otf ~/Library/Fonts` or use FontBook to install them.
 
@@ -134,13 +138,14 @@ https://github.com/elaforge/libsamplerate/tree/local and clone to
 `/usr/local/src/libsamplerate`, unless you want mess with config.  Build with
 the usual `./autogen.sh && ./configure && make`.  Don't install, the shakefile
 will link directly to it.  The reason is that it's common to have standard
-libsamplerate installed, and I don't want to mess up your system.
+libsamplerate installed in /usr/lib or /usr/local/lib, and I don't want to mess
+up your system.
 
     If you cloned someplace other than `/usr/local/src/libsamplerate`, you'll
 need to update Local/ShakeConfig.hs update the `libsamplerate` field with
 the link and compile flags.
 
-- libsndfile - Standard install, use your package manager or whatever.
+- libsndfile, liblo - Standard installs, use your package manager.
 
 Turn on `enableIm` in `Local.ShakeConfig`, and add a bunch more haskell deps:
 
@@ -150,8 +155,6 @@ Or, if you're doing it the stack way:
 
     cp doc/cabal/all-deps.cabal karya.cabal
     vi stack.yaml # uncomment the stuff in there that says to
-
-- liblo - for OSC
 
 ## Misc
 

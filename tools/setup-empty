@@ -1,5 +1,7 @@
 #!/bin/zsh
-# Initialize a new install with an empty default config.
+# Initialize a new install with an empty default config.  This copies
+# template config from User/Empty/ to Local/, where you can edit it and
+# keep your changes out of source control.
 #
 # I keep data files in a separate directory, to keep it out of source
 # control, and so I can share the data across multiple clones and branches.

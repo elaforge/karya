@@ -21,8 +21,7 @@ data Config = Config {
     -- performance, so it's off by default.
     , enableEventLog :: Bool
     -- | If True, compile the im offline synthesizers and PlayCache VST from
-    -- the Synth hierarchy.  This requires a number of hackage dependencies,
-    -- including the VST SDK, which has to be downloaded separately.
+    -- the Synth hierarchy.  This requires a bunch of extra dependencies.
     , enableIm :: Bool
     -- | Extra flags passed to both C++ and Haskell compiles.  I use them
     -- to enable some purely local hacks, e.g. hacked version of libfltk.
