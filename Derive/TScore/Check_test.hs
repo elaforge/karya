@@ -5,10 +5,11 @@
 module Derive.TScore.Check_test where
 import qualified Control.Monad.Combinators as P
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Either as Either
 
+import qualified Util.EList as EList
 import           Util.Test hiding (check)
 import qualified Util.Test.Testing as Testing
+
 import qualified Derive.TScore.Check as Check
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
@@ -81,7 +82,7 @@ mk_note call pitch dur = T.Note
 
 test_resolve_time = do
     let f = map extract . Check.resolve_time . Check.multiplicative . parse_cdur
-        extract = bimap error_msg (second T.note_duration)
+        extract = bimap error_msg (second T.note_duration) . EList.toEither
     equal (f "a b c") [Right (0, 1), Right (1, 1), Right (2, 1)]
     equal (f "a~ a b") [Right (0, 2), Right (2, 1)]
     equal (f "a~ b c")
@@ -95,7 +96,7 @@ test_resolve_time = do
     equal (f "a~") [Left "final note has a tie"]
 
 test_check_barlines = do
-    let f = map error_msg . Either.lefts
+    let f = map error_msg . EList.metas
             . Check.check_barlines Check.meter_44
             . Check.multiplicative . parse_cdur
     equal (f "| a4 b c e |") []
@@ -105,7 +106,7 @@ test_check_barlines = do
 
 test_multiplicative = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.multiplicative . parse_cdur
-        rjs = map (Right . Just)
+        rjs = map (EList.Elt . Just)
     equal (f "a b c") (rjs [1, 1, 1])
     equal (f "a2 b.") (rjs [1/2, 3/4])
     equal (f "a1..") (rjs [1 + 3/4])
@@ -118,7 +119,7 @@ test_multiplicative = do
 
 test_additive = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.additive . parse_cdur
-        rjs = map (Right . Just)
+        rjs = map (EList.Elt . Just)
     equal (f "a b") (rjs [1/4, 1/4])
     equal (f "a2:3 b") (rjs [2/3, 2/3])
     equal (f "a:6 b") (rjs [1/6, 1/6])
@@ -146,7 +147,7 @@ parse_cdur = resolve_call_duration . parse
 resolve_call_duration :: [T.Token T.CallT T.Pitch T.NDuration rdur]
     -> Check.Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
 resolve_call_duration =
-    map (Right . Identity.runIdentity . T.map_note_duration resolve)
+    map (EList.Elt . Identity.runIdentity . T.map_note_duration resolve)
     where
     resolve (T.NDuration dur) = pure $ Right dur
     resolve T.CallDuration = pure $ Left 0
@@ -164,5 +165,5 @@ parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
     p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
 
 check :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> Check.Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
+    -> [Either T.Error (T.Time, T.Note T.CallT (Maybe Text) T.Time)]
 check = Check.check $ const (Left "get_dur not supported", [])

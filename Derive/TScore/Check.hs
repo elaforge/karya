@@ -14,9 +14,7 @@ module Derive.TScore.Check (
     , module Derive.TScore.Check
 #endif
 ) where
-import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
-import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -27,6 +25,7 @@ import qualified Data.Void as Void
 import qualified Text.Megaparsec as P
 import qualified Text.Megaparsec.Char as P
 
+import qualified Util.EList as EList
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -82,32 +81,34 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 
 -- * check
 
-type Stream a = [Either T.Error a]
+type Stream a = [EList.Elt T.Error a]
 type Token call pitch dur = T.Token call pitch dur dur
 
 type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 
+mkerror :: T.Pos -> Text -> EList.Elt T.Error a
+mkerror pos msg = EList.Meta $ T.Error pos msg
+
 check :: GetCallDuration -> Config
     -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> Stream (T.Time, T.Note T.CallT (Maybe Text) T.Time)
+    -> [Either T.Error (T.Time, T.Note T.CallT (Maybe Text) T.Time)]
 check get_dur (Config meter scale duration) =
-    resolve_pitch scale
+    map EList.toEither
+    . resolve_pitch scale
     . resolve_time
     . check_barlines meter
     . duration_mode duration
     . resolve_call_duration get_dur
     . carry_call_duration
     . resolve_repeats
-    . map Right
-    -- TODO resolve pitch before time, so the pitches are right, so ties work.
-    -- But then I still have TBarline and the like.
+    . map EList.Elt
 
 -- * time
 
 -- | Carry CallDuration if the next note has no duration, but does have a call.
 carry_call_duration :: Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
     -> Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
-carry_call_duration = flip State.evalState False . rmap (T.map_note carry)
+carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
     where
     carry note = do
         dur <- case T.note_duration note of
@@ -126,33 +127,31 @@ carry_call_duration = flip State.evalState False . rmap (T.map_note carry)
 resolve_call_duration :: GetCallDuration
     -> Stream (T.Token T.CallT T.Pitch T.NDuration rdur)
     -> Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
-resolve_call_duration get_dur = concat_rmap_e_id $ \case
-    T.TBarline pos a -> [Right $ T.TBarline pos a]
-    T.TRest pos a -> [Right $ T.TRest pos a]
+resolve_call_duration get_dur = EList.concatMapE $ \case
+    T.TBarline pos a -> [EList.Elt $ T.TBarline pos a]
+    T.TRest pos a -> [EList.Elt $ T.TRest pos a]
     T.TNote pos note ->
-        map (second set) (resolve pos (T.note_call note) (T.note_duration note))
+        map (fmap set) (resolve pos (T.note_call note) (T.note_duration note))
         where set dur = T.TNote pos $ note { T.note_duration = dur }
     where
-    resolve _ _ (T.NDuration dur) = [Right $ Right dur]
+    resolve _ _ (T.NDuration dur) = [EList.Elt $ Right dur]
     resolve pos call T.CallDuration
         | Text.null call =
-            [Left $ T.Error pos "can't get call duration of empty call"]
+            [mkerror pos "can't get call duration of empty call"]
         | otherwise = case get_dur call of
-            (Left err, logs) -> Left (T.Error pos err) : map to_error logs
-            (Right time, logs) -> Right (Left time) : map to_error logs
-        where to_error = Left . T.Error pos . Log.format_msg
+            (Left err, logs) -> mkerror pos err : map to_error logs
+            (Right time, logs) -> EList.Elt (Left time) : map to_error logs
+        where to_error = mkerror pos . Log.format_msg
 
 call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
 call_block_id parent =
     Eval.call_to_block_id Parse.default_namespace (Just parent) . Expr.Symbol
 
--- TODO resolve_dot happens backwards, why?
--- I think something in the check pipeline does a foldr?
-
 resolve_repeats :: Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
     -> Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
 resolve_repeats =
-    rmap_state resolve_dot Nothing . map (fmap resolve_tie) . zip_next_note
+    snd . EList.mapAccumLE resolve_dot Nothing . map (fmap resolve_tie)
+        . zip_next_note
     where
     resolve_tie (T.TNote pos note, Just next)
         | strip next == Parse.tie_note = T.TNote pos $ set_tie True note
@@ -173,13 +172,17 @@ resolve_repeats =
     resolve_dot mb_prev token@(T.TNote pos note)
         | strip note `elem` repeat_notes = case mb_prev of
             Just prev ->
-                (mb_prev, Right $ T.TNote pos (set_tie tied (set_dots 0 prev)))
+                ( mb_prev
+                , EList.Elt $ T.TNote pos (set_tie tied (set_dots 0 prev))
+                )
                 where tied = strip note `elem` [tie_dot_note, Parse.tie_note]
             Nothing ->
-                (mb_prev, Left $ T.Error pos "repeat with no previous note")
+                ( mb_prev
+                , mkerror pos "repeat with no previous note"
+                )
 
-        | otherwise = (Just note, Right token)
-    resolve_dot mb_prev token = (mb_prev, Right token)
+        | otherwise = (Just note, EList.Elt token)
+    resolve_dot mb_prev token = (mb_prev, EList.Elt token)
 
     strip note = note { T.note_pos = T.Pos 0 }
     repeat_notes = [Parse.dot_note, Parse.tie_note, tie_dot_note]
@@ -189,7 +192,7 @@ resolve_repeats =
 
 zip_next_note :: Stream (T.Token call pitch ndur rdur)
     -> Stream (T.Token call pitch ndur rdur, Maybe (T.Note call pitch ndur))
-zip_next_note = map (second (second (msum . map note_of))) . rzip_nexts
+zip_next_note = EList.map (second (msum . map note_of)) . EList.zipNexts
     where
     note_of (T.TNote _ n) = Just n
     note_of _ = Nothing
@@ -257,33 +260,33 @@ make_labeled dur =
 resolve_time :: (Eq pitch, Pretty pitch)
     => Stream (Token call pitch (T.Time, Bool))
     -> Stream (T.Time, T.Note call pitch T.Time)
-resolve_time tokens = go . zip starts $ tokens
+resolve_time tokens = go (EList.zip starts tokens)
     where
-    starts = scanl (\n -> (n+) . either (const 0) duration_of) 0 tokens
-    go ((start, Right t) : ts) = case t of
+    starts = scanl (\n -> (n+)) 0 (map duration_of (EList.elts tokens))
+    go (EList.Elt (start, t) : ts) = case t of
         T.TNote _ note
-            | is_tied t -> case tied_notes note (sndRights pre) of
-                Left err -> Left err : go post
-                Right end -> Right (start, set_dur (end-start) note) : go post
+            | is_tied t -> case tied_notes note (EList.elts pre) of
+                Left err -> EList.Meta err : go post
+                Right end ->
+                    EList.Elt (start, set_dur (end-start) note) : go post
             | otherwise ->
-                Right (start, set_dur (fst (T.note_duration note)) note)
+                EList.Elt (start, set_dur (fst (T.note_duration note)) note)
                 : go ts
         T.TBarline {} -> go ts
         T.TRest {}
-            | is_tied t -> case tied_rests (sndRights pre) of
-                Just err -> Left err : go post
+            | is_tied t -> case tied_rests (EList.elts pre) of
+                Just err -> EList.Meta err : go post
                 Nothing -> go post
             | otherwise -> go ts
         where
         (pre, post) = Then.span any_tied (splitAt 1) ts
-        any_tied (_, Left {}) = True
-        any_tied (_, Right n) = is_barline n || is_tied n
-    go ((_, Left e) : ts) = Left e : go ts
+        any_tied (EList.Meta _) = True
+        any_tied (EList.Elt (_, n)) = is_barline n || is_tied n
+    go (EList.Meta e : ts) = EList.Meta e : go ts
     go [] = []
     set_dur dur note = note { T.note_duration = dur }
     is_barline (T.TBarline {}) = True
     is_barline _ = False
-    sndRights abs = [(a, b) | (a, Right b) <- abs]
 
 tied_notes :: (Eq pitch, Pretty pitch)
     => T.Note call pitch dur -> [(T.Time, Token call pitch (T.Time, Bool))]
@@ -326,16 +329,18 @@ is_tied _ = False
 check_barlines :: Meter -> Stream (Token call pitch (T.Time, tie))
     -> Stream (Token call pitch (T.Time, tie))
 check_barlines meter =
-    fst . flip State.runState 0 . concat_rmap_e check_token . zip_right [0..]
+    fst . flip State.runState 0 . EList.concatMapEM check_token
+        . EList.zip [0..]
     where
     check_token (i, token) = do
         now <- State.get
         State.put (now + dur)
-        return $ Right token : warning now
+        return $ EList.Elt token : warning now
         where
         dur = duration_of token
         warning now = case token of
-            T.TBarline pos bar -> maybe [] ((:[]) . Left) (check pos now i bar)
+            T.TBarline pos bar ->
+                maybe [] ((:[]) . EList.Meta) (check pos now i bar)
             _ -> []
     check pos now i (T.Barline rank) = case Map.lookup beat expected_rank of
         Just r
@@ -387,7 +392,7 @@ multiplicative
     :: Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token call pitch (T.Time, Bool))
 multiplicative =
-    flip State.evalState (1, Nothing) . rmap_e (map_duration carry time_of)
+    flip State.evalState (1, Nothing) . EList.mapEM (map_duration carry time_of)
     where
     time_of int1 mb_int2 dots = dur + dot_dur
         where
@@ -404,7 +409,8 @@ multiplicative =
 -- E.g. akshara:matra.
 additive :: Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
     -> Stream (Token call pitch (T.Time, Bool))
-additive = flip State.evalState (1, 4) . rmap_e (map_duration carry time_of)
+additive =
+    flip State.evalState (1, 4) . EList.mapEM (map_duration carry time_of)
     where
     time_of int1 int2 dots = dur + dot_dur
         where
@@ -418,9 +424,9 @@ map_duration :: State.MonadState (int1, int2) m
     => (Maybe Int -> Maybe Int -> m (int1, int2))
     -> (int1 -> int2 -> Int -> time)
     -> T.Token call pitch (Either time T.Duration) T.Duration
-    -> m (Either T.Error (T.Token call pitch (time, Bool) (time, Bool)))
+    -> m (EList.Elt T.Error (T.Token call pitch (time, Bool) (time, Bool)))
 map_duration carry time_of = \case
-    T.TBarline pos a -> return $ Right $ T.TBarline pos a
+    T.TBarline pos a -> return $ EList.Elt $ T.TBarline pos a
     T.TNote pos note -> do
         result <- case T.note_duration note of
             Left time -> return $ Right (time, False)
@@ -429,13 +435,13 @@ map_duration carry time_of = \case
                 State.put (int1, int2)
                 return $ Right (time_of int1 int2 dots, tie)
         return $ case result of
-            Left err -> Left $ T.Error pos err
-            Right (time, tie) -> Right $ T.TNote pos $
+            Left err -> mkerror pos err
+            Right (time, tie) -> EList.Elt $ T.TNote pos $
                 note { T.note_duration = (time, tie) }
     T.TRest pos (T.Rest (T.Duration mb_int1 mb_int2 dots tie)) -> do
         (int1, int2) <- carry mb_int1 mb_int2
         State.put (int1, int2)
-        return $ Right $ T.TRest pos $ T.Rest (time_of int1 int2 dots, tie)
+        return $ EList.Elt $ T.TRest pos $ T.Rest (time_of int1 int2 dots, tie)
 
 -- * pitch
 
@@ -463,26 +469,26 @@ resolve_pitch scale =
 parse_pitches :: (Text -> Maybe pitch)
     -> Stream (time, T.Note call T.Pitch dur)
     -> Stream (time, T.Note call (Maybe (T.Octave, pitch)) dur)
-parse_pitches parse = fst . flip State.runState Nothing . rmap_e token
+parse_pitches parse = fst . flip State.runState Nothing . EList.mapEM token
     where
     token (start, note)
         | Text.null call =
             -- If there's a previous pitch, the pitch track will carry it.
-            return $ Right (start, note { T.note_pitch = Nothing })
+            return $ EList.Elt (start, note { T.note_pitch = Nothing })
         | otherwise = case parse call of
-            Nothing -> return $ Left $ T.Error (T.note_pos note) $
+            Nothing -> return $ mkerror (T.note_pos note) $
                 "can't parse pitch: " <> call
             Just p -> State.put (Just p) >> with_pitch (Just p)
         where
         T.Pitch oct call = T.note_pitch note
         with_pitch p =
-            return $ Right (start, note { T.note_pitch = (oct,) <$> p })
+            return $ EList.Elt (start, note { T.note_pitch = (oct,) <$> p })
 
 infer_octaves :: Pitch.PitchClass -> Pitch.Octave
-    -> [Either e (time, T.Note call (Maybe (T.Octave, Pitch.Degree)) dur)]
-    -> [Either e (time, T.Note call (Maybe Pitch.Pitch) dur)]
+    -> Stream (time, T.Note call (Maybe (T.Octave, Pitch.Degree)) dur)
+    -> Stream (time, T.Note call (Maybe Pitch.Pitch) dur)
 infer_octaves per_octave initial_oct =
-    fst . flip State.runState (initial_oct, Nothing) . rmap infer
+    fst . flip State.runState (initial_oct, Nothing) . EList.mapM infer
     where
     infer (start, note) = case T.note_pitch note of
         Nothing -> return (start, note { T.note_pitch = Nothing })
@@ -506,10 +512,9 @@ infer_octaves per_octave initial_oct =
 pitch_to_symbolic :: Scale
     -> Stream (T.Time, T.Note call (Maybe Pitch.Pitch) dur)
     -> Stream (T.Time, T.Note call (Maybe Text) dur)
-pitch_to_symbolic scale = map to_sym
+pitch_to_symbolic scale = EList.mapE to_sym
     where
-    to_sym (Left e) = Left e
-    to_sym (Right (t, note)) = do
+    to_sym (t, note) = EList.fromEither $ do
         sym <- case T.note_pitch note of
             Nothing -> Right Nothing
             Just pitch -> Just <$> tryJust
@@ -576,52 +581,6 @@ type Parser a = P.Parsec Void.Void Text a
 
 
 -- * util
-
--- | Like mapM, but pass through Lefts.
-rmap :: Monad m => (a -> m b) -> [Either e a] -> m [Either e b]
-rmap = traverse . traverse
-
--- | Like 'rmap', except the function can also return Lefts.
-rmap_e :: Monad m => (a -> m (Either e b)) -> [Either e a] -> m [Either e b]
-rmap_e f = concat_rmap_e (fmap (:[]) . f)
-
--- | Like List.mapAccumL, but for Rights.
-rmap_state :: (state -> a -> (state, Either e b)) -> state -> [Either e a]
-    -> [Either e b]
-rmap_state f state as = State.evalState (rmap_e go as) state
-    where
-    go a = do
-        st <- State.get
-        let (st2, b) = f st a
-        State.put $! st2
-        return b
-
-concat_rmap_e_id :: (a -> [Either e b]) -> [Either e a] -> [Either e b]
-concat_rmap_e_id f = Identity.runIdentity . concat_rmap_e (return . f)
-
--- | Like 'rmap_e', except the function can return a list.
-concat_rmap_e :: Monad m => (a -> m [Either e b])
-    -> [Either e a] -> m [Either e b]
-concat_rmap_e f = go
-    where
-    go [] = return []
-    go (ea : eas) = case ea of
-        Left e -> (Left e :) <$> go eas
-        Right a -> do
-            eb <- f a
-            (eb++) <$> go eas
-
-rzip_nexts :: [Either e a] -> [Either e (a, [a])]
-rzip_nexts (Left e : eas) = Left e : rzip_nexts eas
-rzip_nexts (Right a : eas) = Right (a, Either.rights eas) : rzip_nexts eas
-rzip_nexts [] = []
-
--- | This is the Either equivalent of 'Derive.LEvent.zip'.
-zip_right :: [b] -> [Either a c] -> [Either a (b, c)]
-zip_right (b:bs) (Right c : acs) = Right (b, c) : zip_right bs acs
-zip_right bs (Left a : acs) = Left a : zip_right bs acs
-zip_right [] _ = []
-zip_right _ [] = []
 
 min_on3 :: Ord k => (a -> k) -> a -> a -> a -> a
 min_on3 key a b c = Seq.min_on key a (Seq.min_on key b c)
