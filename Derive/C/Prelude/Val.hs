@@ -341,9 +341,14 @@ num_or_pitch start argnum (val :| vals) = case val of
 type_error :: Int -> Derive.ArgName -> ValType.Type -> DeriveT.Val
     -> Derive.Deriver a
 type_error argnum name expected received =
-    Derive.throw_error $ Derive.CallError $
-        Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name
-            expected (Just received) Nothing
+    Derive.throw_error $ Derive.CallError $ Derive.TypeError $ Derive.TypeErrorT
+        { error_place = Derive.TypeErrorArg argnum
+        , error_source = Derive.Literal
+        , error_arg_name = name
+        , error_expected = expected
+        , error_received = Just received
+        , error_derive = Nothing
+        }
 
 
 -- * util

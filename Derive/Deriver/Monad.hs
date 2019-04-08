@@ -36,7 +36,8 @@ module Derive.Deriver.Monad (
     , initialize_log_msg
 
     -- * error
-    , Error(..), ErrorVal(..), CallError(..), ErrorPlace(..), EvalSource(..)
+    , Error(..), ErrorVal(..), CallError(..), TypeErrorT(..), ErrorPlace(..)
+    , EvalSource(..)
     , throw, throw_arg_error, throw_error
 
     -- * derived types
@@ -219,19 +220,24 @@ instance Pretty ErrorVal where
     pretty (CallError err) = pretty err
 
 data CallError =
-    -- | ErrorPlace, EvalSource, arg name, expected type, received val, derive
-    -- error.  If the derive error is present, the type check required running
-    -- a Deriver and the Deriver crashed.
-    TypeError !ErrorPlace !EvalSource
-        !ArgName
-        !ValType.Type -- expected type
-        !(Maybe DeriveT.Val) -- received val
-        !(Maybe Error) -- derive error
+    -- | Error typechecking an argument.
+    TypeError !TypeErrorT
     -- | Couldn't even call the thing because the name was not found.
     | CallNotFound !Expr.Symbol
     -- | Calling error that doesn't fit into the above categories.
     | ArgError !Text
     deriving (Show)
+
+data TypeErrorT = TypeErrorT {
+    error_place :: !ErrorPlace
+    , error_source :: !EvalSource
+    , error_arg_name :: !ArgName
+    , error_expected :: !ValType.Type
+    , error_received :: !(Maybe DeriveT.Val)
+    -- | 'Typecheck.Eval' or evaluating 'DeriveT.Quoted' may produce a derive
+    -- error.
+    , error_derive :: !(Maybe Error)
+    } deriving (Show)
 
 -- | Where a type error came from.  The arg number starts at 0.
 data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !EnvKey.Key
@@ -245,21 +251,23 @@ data EvalSource =
     deriving (Show)
 
 instance Pretty CallError where
-    pretty err = case err of
-        TypeError place source (ArgName arg_name) expected received
-                derive_error ->
-            "TypeError: arg " <> pretty place <> "/" <> arg_name
-            <> source_desc <> ": expected " <> pretty expected
-            <> " but got " <> pretty (ValType.type_of <$> received)
-            <> ": " <> pretty received
-            <> maybe "" show_derive_error derive_error
-            where
-            source_desc = case source of
-                Literal -> ""
-                Quoted call -> " from " <> ShowVal.show_val call
+    pretty = \case
+        TypeError err -> "TypeError: " <> pretty err
         ArgError err -> "ArgError: " <> err
         CallNotFound sym -> "CallNotFound: " <> pretty sym
+
+instance Pretty TypeErrorT where
+    pretty (TypeErrorT place source (ArgName arg_name) expected received
+            derive_error) =
+        "arg " <> pretty place <> "/" <> arg_name
+        <> source_desc <> ": expected " <> pretty expected
+        <> " but got " <> pretty (ValType.type_of <$> received)
+        <> ": " <> pretty received
+        <> maybe "" show_derive_error derive_error
         where
+        source_desc = case source of
+            Literal -> ""
+            Quoted call -> " from " <> ShowVal.show_val call
         -- The srcpos and stack of the derive error is probably not
         -- interesting, so I strip those out.
         show_derive_error (Error _ _ error_val) =
@@ -377,7 +385,7 @@ type Note = Score.Event
 type NoteDeriver = Deriver (Stream.Stream Score.Event)
 type NoteArgs = PassedArgs Score.Event
 
-instance Taggable Score.Event where
+instance Taggable Note where
     to_tagged = TagEvent
     from_tagged (TagEvent a) = Just a
     from_tagged _ = Nothing

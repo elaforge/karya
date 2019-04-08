@@ -124,8 +124,9 @@ type_error_msg expected val = "expected " <> pretty (to_type expected)
 
 data Checked a = Val (Maybe a)
     -- | This val needs to be evaluated to know if it will typecheck.  The
-    -- argument is the call start time, used when coercing a function to
-    -- a scalar.
+    -- argument is the call start time.  This is needed when coercing a
+    -- function to a scalar, because I only know the value to check after
+    -- calling the function.
     | Eval (RealTime -> Derive.Deriver (Maybe a))
     deriving (Functor)
 
@@ -234,7 +235,6 @@ instance Typecheck a => Typecheck [a] where
     from_val (VList xs) = check xs
         where
         check [] = Val (Just [])
-        -- TODO surely I can further reduce this with fmap
         check (x:xs) = case from_val x of
             Val Nothing -> Val Nothing
             Val (Just a) -> (a:) <$> check xs
@@ -268,8 +268,7 @@ instance (ToVal a, ToVal b) => ToVal (Either a b) where
 num_to_scalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
 num_to_scalar check val = case val of
     VNum a -> Val $ check a
-    VControlRef cref -> Eval $ \p ->
-        check . ($p) <$> to_typed_function cref
+    VControlRef cref -> Eval $ \p -> check . ($p) <$> to_typed_function cref
     VControlFunction cf -> Eval $ \p -> check . ($p) <$> control_function cf
     _ -> Val Nothing
 
@@ -650,7 +649,7 @@ instance Typecheck DeriveT.Quoted where
         _ -> to_quoted $ ShowVal.show_val val
         where
         to_quoted sym = Val $ Just $
-            DeriveT.Quoted (Expr.Call (Expr.Symbol sym) [] :| [])
+            DeriveT.Quoted $ Expr.Call (Expr.Symbol sym) [] :| []
     to_type _ = ValType.TQuoted
 instance ToVal DeriveT.Quoted where to_val = VQuoted
 

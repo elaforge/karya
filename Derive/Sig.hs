@@ -281,8 +281,14 @@ eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
 eval_default _ _ _ state (Left a) = return (state, a)
 eval_default arg_doc place name state (Right quoted) =
     case eval_quoted state quoted of
-        Left err -> Left $ Derive.TypeError place (Derive.Quoted quoted) name
-            expected_type Nothing (Just err)
+        Left err -> Left $ Derive.TypeError $ Derive.TypeErrorT
+            { error_place = place
+            , error_source = Derive.Quoted quoted
+            , error_arg_name = name
+            , error_expected = expected_type
+            , error_received = Nothing
+            , error_derive = Just err
+            }
         Right val -> (,) state <$> check_arg state arg_doc place name val
     where
     expected_type = Typecheck.to_type (Proxy :: Proxy a)
@@ -337,8 +343,14 @@ required_environ :: forall a. Typecheck.Typecheck a =>
     ArgName -> Derive.EnvironDefault -> Doc.Doc -> Parser a
 required_environ name env_default doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
-        Nothing -> Left $ Derive.TypeError (environ_error state name)
-            Derive.Literal name expected Nothing Nothing
+        Nothing -> Left $ Derive.TypeError $ Derive.TypeErrorT
+            { error_place = environ_error state name
+            , error_source = Derive.Literal
+            , error_arg_name = name
+            , error_expected = expected
+            , error_received = Nothing
+            , error_derive = Nothing
+            }
         Just val -> (,) state <$>
             check_arg state arg_doc (environ_error state name) name val
     where
@@ -533,8 +545,14 @@ check_arg state arg_doc place name val =
                 Just a -> Right a
         _ -> Left $ type_error Derive.Literal val Nothing
     promote_error source val = first (type_error source val . Just)
-    type_error source val = Derive.TypeError place source name
-        (Derive.arg_type arg_doc) (Just val)
+    type_error source val derive = Derive.TypeError $ Derive.TypeErrorT
+        { error_place = place
+        , error_source = source
+        , error_arg_name = name
+        , error_expected = Derive.arg_type arg_doc
+        , error_received = Just val
+        , error_derive = derive
+        }
 
 -- | Typecheck a Val, evaluating if necessary.
 from_val :: Typecheck.Typecheck a => State -> DeriveT.Val
