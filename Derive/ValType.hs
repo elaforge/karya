@@ -34,6 +34,7 @@ data Type =
     | TQuoted
     | TControlFunction
     | TList !Type
+    | TDeriver !Text
     -- | Typecheck instances that don't correspond directly to a Val type
     -- get this, as a plain description.
     | TOther !Text
@@ -115,6 +116,7 @@ instance Pretty Type where
     pretty (TList typ) = "list of " <> pretty typ
     pretty (TOther text) = text
     pretty TNotGiven = "_"
+    pretty (TDeriver name) = name <> " deriver"
     pretty typ = Text.drop 1 (showt typ)
 
 append_parens :: Text -> Text -> Text

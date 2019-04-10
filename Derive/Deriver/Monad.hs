@@ -90,7 +90,7 @@ module Derive.Deriver.Monad (
 
     -- * calls
     , Context(..), ctx_track_range, coerce_context
-    , dummy_context, tag_context
+    , dummy_context, tag_context, untag_context
     , Call(..), make_call
     , CallName(..), ArgName(..)
     , sym_to_call_name, str_to_call_name, str_to_arg_name
@@ -379,7 +379,7 @@ instance Taggable Tagged where
     to_tagged = id
     from_tagged = Just
 
--- ** event
+-- ** note
 
 type Note = Score.Event
 type NoteDeriver = Deriver (Stream.Stream Score.Event)
@@ -396,6 +396,13 @@ instance Monoid NoteDeriver where
     mempty = return mempty
     mappend = (<>)
     mconcat = d_merge
+
+-- | This is an invalid instance, because a deriver has no literal syntax.
+-- But this lets me put a deriver in a defaulted argument, and get
+-- documentation for it.
+instance ShowVal.ShowVal NoteDeriver where show_val _ = "<note-deriver>"
+instance ShowVal.ShowVal PitchDeriver where show_val _ = "<pitch-deriver>"
+instance ShowVal.ShowVal ControlDeriver where show_val _ = "<control-deriver>"
 
 -- ** control
 
@@ -1399,6 +1406,9 @@ dummy_context start dur text = Context
 -- which means it would hard to write generic ones.
 tag_context :: Taggable a => Context a -> Context Tagged
 tag_context ctx = ctx { ctx_prev_val = to_tagged <$> ctx_prev_val ctx }
+
+untag_context :: Taggable a => Context Tagged -> Context a
+untag_context ctx = ctx { ctx_prev_val = from_tagged =<< ctx_prev_val ctx }
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as

@@ -114,19 +114,6 @@ UNSORTED
     . It seems I could still put Deriver in Typecheck, since it doesn't have
       to go through Val.
 
-  - unify deriver parents:
-    . Wasn't I going to unify block arg and child track somehow?
-    . See Parent.c_event_interpolate for the awkwardness.
-    . I could do it by having a "deriver" arg that has a special typecheck
-      rule: if present, then take it as a symbol, if not present, then require
-      a child track at that position and return it as a deriver.
-    . I could almost do as a Maybe Symbol, then
-        resolve_deriver :: Args -> Maybe Symbol -> NoteDeriver
-      but how would it know which sub track to look at?
-    . I would have to either keep an index, or modify.
-    . I also want to unify with transformer, so I can say 'call a b' is the
-      same as 'call a |'.
-
   swam: strings
     - simulate hand position and shifts
       . This won't work well because swam also wants to do that, and even with
@@ -1090,7 +1077,7 @@ TASKS:
     - Increased scroll sensitivity for the scroll wheel.  Or is that an
       X config?
 
-things to unify:
+UNIFY:
   - default args and controls:
     . Instead of defaulting to a ControlRef with a different name, use
       a control with the same rules as argument defaulting.
@@ -1108,6 +1095,76 @@ things to unify:
       then coerce from Sym, QuotedExpr, or a sub-track.  If the arg is
       the last one, I should also be able to get a corresponding
       transformer.
+
+  - unify deriver parents:
+    . Wasn't I going to unify block arg and child track somehow?
+    . See Parent.c_event_interpolate for the awkwardness.
+    . I could do it by having a "deriver" arg that has a special typecheck
+      rule: if present, then take it as a symbol, if not present, then require
+      a child track at that position and return it as a deriver.
+    . I could almost do as a Maybe Symbol, then
+        resolve_deriver :: Args -> Maybe Symbol -> NoteDeriver
+      but how would it know which sub track to look at?
+    . I would have to either keep an index, or modify.
+    . I also want to unify with transformer, so I can say 'call a b' is the
+      same as 'call a |'.
+    . I can represent a Deriver as Quoted, but it's untyped, so I don't know
+      if it's a ValCall or Deriver.  I could extend Val, which is effectively
+      like putting Deriver in Val, except I can avoid the circular dep by
+      putting it in Derive, at which point it's only used in a restricted
+      context.
+    plan:
+      * Implement the typecheck rule for deriver arg.
+        . I can't, because it works by converting from a Val.
+        . But I could take it from Quoted.
+        . But I need a Derive.Context.  Make Typecheck.Eval take Context?
+        . Context is polymorphic, but it's just for cxt_prev_val, so I can
+          just set that to Nothing.
+        . Why not typecheck to a ctx -> deriver function?  Is that equivalent
+          Eval?  I think not, Eval is when I need an extra arg to typecheck,
+          this is when I can typecheck, but need an extra arg to get the
+          value.
+        . But making instance Typecheck (Context -> Deriver) is nice because
+          then I can keep the right type on Context.  I think I just have to
+          have Derive.Sig try this specially, which is ok because it already
+          does that for Quoted, and besides it needs special support anyway
+          to keep track of the child track.
+      * Derive.Sig support for Quoted or Str.
+        . If I ask for type 'a':
+          . See if I can typecheck an 'a' directly (Val (Just a))
+          . If it can coerce to Quoted (Quoted or Str), then try to typecheck
+            as (Context d -> a) or as 'Deriver a'
+        . The Typecheck (Context -> Deriver) thing doesn't work, because if
+          I'm to use it for type inferring, I really need it to be the
+          expected type, which is e.g. NoteDeriver.  If I do it as special
+          Quoted evaluation in Sig, then it will be documented as Quoted... or
+          actually, it won't work at all because I need to expect some type
+          to trigger the evaluation as deriver.
+        . So what I need is Typecheck NoteDeriver, which means from_val has to
+          return a Deriver.  But can I just return a singleton?  E.g.:
+          . call expects NoteDeriver
+          . so Typecheck returns Checked Deriver.  Because it loses the type
+            variable, it becomes dynamically typed.
+          . Now Sig has to create a NoteDeriver, which it does by evaluating
+            the quoted.
+        . This doesn't work because Eval.eval_quoted doesn't return any old
+          'a', but a specific one.  I need to prove that a Typecheck.Derive
+          is only produced for the things eval_quoted can return.  Normally
+          I do that by just calling eval_quoted, but of course I don't have
+          the args yet.  Existential?
+        . No, but I can just return a function that takes the Context, which
+          was actually the original plan.
+        . It seems to work, but to set a default arg I need ShowVal
+          NoteGenerator.  I guess that's not a big deal, though it's an
+          invalid instance.  If I can coerce for default values then I could
+          fix this by coercing from some "manual doc" newtype.
+      - Derive.Sig support for child tracks.
+        . Use this to clean up Parent.c_event_interpolate.
+      - See if this can replace the special child track support in Make.
+      - Implement transformers as a call with deriver as final argument.
+        . I still want them to be in their own namespace, effectively as
+          a limited form of overloading.
+      - Translate the pipeline syntax into that call.
 
 ----------------------------------------------------------------------
 

@@ -12,6 +12,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Ui.Ui as Ui
+import qualified Ui.UiTest as UiTest
 
 import           Global
 import           Util.Test
@@ -50,6 +51,26 @@ test_eval_quoted = do
         (Right (DeriveT.Quoted (Expr.generator0 "x")))
     equal (run (0 :: Int) quot [quoted "v"])
         (Right (DeriveT.Quoted (Expr.generator0 "v")))
+
+test_deriver = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks_setup
+                (CallTest.with_note_generator "ngen" generator) ""
+            . UiTest.note_track
+    equal (run [(0, 1, "ngen NOTE -- 4c")]) ([(0, 1, "4c")], [])
+    equal (run [(0, 1, "ngen \"(%t-dia=1 | NOTE) -- 4c")]) ([(0, 1, "4d")], [])
+    -- The derive is evaluated in 'ngen', so that's whene the error comes from.
+    equal (run [(0, 1, "ngen \"(NOTE 1 2 3) -- 4c")])
+        ([], ["Error: ArgError: too many arguments: 1, 2, 3"])
+    equal (run [(0, 1, "ngen \"(NOTE) \"(%t-dia=1 | NOTE) -- 4c")])
+        ([(0, 1, "4c"), (0, 1, "4d")], [])
+
+generator :: Derive.Generator Derive.Note
+generator = Derive.generator "test" "test" mempty "doc" $
+    Sig.call ((,)
+        <$> Sig.required "deriver" "doc"
+        <*> Sig.defaulted "deriver" (return mempty) "doc"
+    ) $ \(deriver1, deriver2) _args -> deriver1 <> deriver2
 
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)

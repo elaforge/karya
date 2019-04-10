@@ -112,6 +112,8 @@ typecheck msg pos val = from_val_eval pos val >>= \case
         TextUtil.joinWith ": " msg $ type_error_msg (Proxy :: Proxy a) val
     -- TODO throw a TypeError directly?
 
+-- | Typecheck a simple value, with no evaluation.  This means you can't
+-- get a deriver or coerce signal to a number.
 typecheck_simple :: forall a. Typecheck a => DeriveT.Val -> Either Text a
 typecheck_simple val =
     justErr (type_error_msg (Proxy :: Proxy a) val) (from_val_simple val)
@@ -122,7 +124,8 @@ type_error_msg expected val = "expected " <> pretty (to_type expected)
 
 -- * Typecheck class
 
-data Checked a = Val (Maybe a)
+data Checked a =
+    Val (Result a)
     -- | This val needs to be evaluated to know if it will typecheck.  The
     -- argument is the call start time.  This is needed when coercing a
     -- function to a scalar, because I only know the value to check after
@@ -130,10 +133,28 @@ data Checked a = Val (Maybe a)
     | Eval (RealTime -> Derive.Deriver (Maybe a))
     deriving (Functor)
 
+data Result a = Failure | Success !a
+    -- | This is a {Note,Control,Pitch}Deriver, which needs a Context to
+    -- evaluate.  'DeriveT.Quoted' can be coerced to this, at which point
+    -- 'Derive.Eval.eval_quoted' needs a Context.  As with Quoted evaluation in
+    -- general, this is only supported by Derive.Sig, not by the general
+    -- 'typecehck' mechanism.
+    | Derive !(Derive.Context Derive.Tagged -> a)
+    deriving (Functor)
+
+success :: a -> Checked a
+success = Val . Success
+
+failure :: Checked a
+failure = Val Failure
+
 -- | Further check a Checked.  I feel like this should correspond to some kind
 -- of monad transformer lift.
 check :: (a -> Maybe b) -> Checked a -> Checked b
-check f (Val a) = Val (f =<< a)
+check f (Val a) = Val $ case a of
+    Success a -> maybe Failure Success $ f a
+    Failure -> Failure
+    Derive {} -> Failure -- can't really check one of these
 check f (Eval fa) = Eval (\t -> (f =<<) <$> fa t)
 
 -- | This is the class of values which can be converted to from
@@ -141,8 +162,8 @@ check f (Eval fa) = Eval (\t -> (f =<<) <$> fa t)
 class Typecheck a where
     from_val :: Val -> Checked a
     default from_val :: TypecheckSymbol a => Val -> Checked a
-    from_val (VStr str) = Val $ parse_symbol str
-    from_val _ = Val Nothing
+    from_val (VStr str) = Val $ maybe Failure Success $ parse_symbol str
+    from_val _ = failure
 
     to_type :: Proxy a -> ValType.Type
     default to_type :: TypecheckSymbol a => Proxy a -> ValType.Type
@@ -151,12 +172,15 @@ class Typecheck a where
 -- | 'from_val', but evaluate if it's an Eval.
 from_val_eval :: Typecheck a => ScoreTime -> Val -> Derive.Deriver (Maybe a)
 from_val_eval pos val = case from_val val of
-    Val a -> return a
+    Val (Success a) -> return $ Just a
+    Val Failure -> return Nothing
+    -- This is a deriver, which needs a Derive.Context.
+    Val (Derive _) -> return Nothing
     Eval deriver -> deriver =<< Derive.score_to_real pos
 
 from_val_simple :: Typecheck a => Val -> Maybe a
 from_val_simple val = case from_val val of
-    Val (Just a) -> Just a
+    Val (Success a) -> Just a
     _ -> Nothing
 
 -- | Return a simple Eval check which doesn't depend on RealTime.
@@ -173,15 +197,16 @@ class ToVal a where
     default to_val :: TypecheckSymbol a => a -> Val
     to_val = VStr . Expr.Str . ShowVal.show_val
 
--- | This is for text strings which are parsed to call-specific types.  You
--- can declare an instance and the default Typecheck instance will allow you
--- to incorporate the type directly into the signature of the call.
---
--- If your type is a Bounded Enum, you get a default parser, and the enum
--- values go in the 'ValType.TStr' so the docs can mention them.
---
--- So the type needs to be in (Bounded, Enum, ShowVal, TypecheckSymbol,
--- Typecheck), though all of these can use default implementations.
+{- | This is for text strings which are parsed to call-specific types.  You
+    can declare an instance and the default Typecheck instance will allow you
+    to incorporate the type directly into the signature of the call.
+
+    If your type is a Bounded Enum, you get a default parser, and the enum
+    values go in the 'ValType.TStr' so the docs can mention them.
+
+    So the type needs to be in (Bounded, Enum, ShowVal, TypecheckSymbol,
+    Typecheck), though all of these can use default implementations.
+-}
 class ShowVal.ShowVal a => TypecheckSymbol a where
     parse_symbol :: Expr.Str -> Maybe a
     default parse_symbol :: (Bounded a, Enum a) => Expr.Str -> Maybe a
@@ -218,29 +243,34 @@ instance TypecheckSymbol Meter.RankName
 
 instance ToVal Val where to_val = id
 instance Typecheck Val where
-    from_val = Val . Just
+    from_val = success
     to_type _ = ValType.TVal
 
 -- | Putting Maybe in Typecheck means I can have optional arguments with no
 -- defaults.  Further docs in 'Derive.Sig.defaulted'.
 instance Typecheck a => Typecheck (Maybe a) where
-    from_val VNotGiven = Val (Just Nothing)
+    from_val VNotGiven = success Nothing
     from_val a = Just <$> from_val a
     to_type _ = ValType.TMaybe $ to_type (Proxy :: Proxy a)
 instance ToVal a => ToVal (Maybe a) where
     to_val = maybe VNotGiven to_val
 
--- | Non-lists are coerced into singleton lists.
+-- | A non-list is coerced into a singleton list.
 instance Typecheck a => Typecheck [a] where
     from_val (VList xs) = check xs
         where
-        check [] = Val (Just [])
+        check [] = success []
         check (x:xs) = case from_val x of
-            Val Nothing -> Val Nothing
-            Val (Just a) -> (a:) <$> check xs
+            Val Failure -> Val Failure
+            Val (Success a) -> (a:) <$> check xs
+            Val (Derive deriver) -> case check xs of
+                Val (Derive rest) -> Val $ Derive $ \ctx ->
+                    deriver ctx : rest ctx
+                _ -> Val Failure
             Eval a -> case check xs of
-                Val Nothing -> Val Nothing
-                Val (Just as) -> (:as) <$> Eval a
+                Val Failure -> Val Failure
+                Val (Derive {}) -> Val Failure
+                Val (Success as) -> (:as) <$> Eval a
                 Eval as -> Eval $ \p -> cons <$> a p <*> as p
         cons a as = (:) <$> a <*> as
     from_val v = (:[]) <$> from_val v
@@ -253,7 +283,7 @@ instance Typecheck a => Typecheck (NonEmpty a) where
 
 instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
     from_val a = case from_val a of
-        Val Nothing -> Right <$> from_val a
+        Val Failure -> Right <$> from_val a
         a -> Left <$> a
     to_type _ = ValType.TEither (to_type (Proxy :: Proxy a))
         (to_type (Proxy :: Proxy b))
@@ -267,19 +297,19 @@ instance (ToVal a, ToVal b) => ToVal (Either a b) where
 -- the given function.
 num_to_scalar :: (ScoreT.Typed Signal.Y -> Maybe a) -> Val -> Checked a
 num_to_scalar check val = case val of
-    VNum a -> Val $ check a
+    VNum a -> Val $ maybe Failure Success $ check a
     VControlRef cref -> Eval $ \p -> check . ($p) <$> to_typed_function cref
     VControlFunction cf -> Eval $ \p -> check . ($p) <$> control_function cf
-    _ -> Val Nothing
+    _ -> failure
 
 -- | Coerce any numeric value to a function, and check it against the given
 -- function.
 num_to_function :: (TypedFunction -> Maybe a) -> Val -> Checked a
 num_to_function check val = case val of
-    VNum a -> Val $ check $ const a
+    VNum a -> Val $ maybe Failure Success $ check $ const a
     VControlRef cref -> Eval $ const $ check <$> to_typed_function cref
     VControlFunction cf -> Eval $ const $ check <$> control_function cf
-    _ -> Val Nothing
+    _ -> failure
 
 -- | Like 'num_to_function', but take a constructor with a type argument,
 -- and a separate function to verify the type.
@@ -514,8 +544,8 @@ instance TypecheckNum DefaultScore where num_type _ = ValType.TDefaultScore
 instance TypecheckNum a => Typecheck (Positive a) where
     from_val v@(VNum val)
         | ScoreT.typed_val val > 0 = Positive <$> from_val v
-        | otherwise = Val Nothing
-    from_val _ = Val Nothing
+        | otherwise = failure
+    from_val _ = failure
     to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TPositive
 instance ToVal a => ToVal (Positive a) where
     to_val (Positive val) = to_val val
@@ -523,8 +553,8 @@ instance ToVal a => ToVal (Positive a) where
 instance TypecheckNum a => Typecheck (NonNegative a) where
     from_val v@(VNum val)
         | ScoreT.typed_val val >= 0 = NonNegative <$> from_val v
-        | otherwise = Val Nothing
-    from_val _ = Val Nothing
+        | otherwise = failure
+    from_val _ = failure
     to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TNonNegative
 instance ToVal a => ToVal (NonNegative a) where
     to_val (NonNegative val) = to_val val
@@ -551,27 +581,27 @@ instance ToVal NormalizedBipolar where
 -- ** text\/symbol
 
 instance Typecheck Expr.Symbol where
-    from_val (VStr (Expr.Str sym)) = Val $ Just $ Expr.Symbol sym
-    from_val _ = Val Nothing
+    from_val (VStr (Expr.Str sym)) = success $ Expr.Symbol sym
+    from_val _ = failure
     to_type _ = ValType.TStr Nothing
 instance ToVal Expr.Symbol where to_val = VStr . Expr.Str . Expr.unsym
 
 instance Typecheck Expr.Str where
-    from_val (VStr a) = Val $ Just a
-    from_val _ = Val Nothing
+    from_val (VStr a) = success a
+    from_val _ = failure
     to_type _ = ValType.TStr Nothing
 instance ToVal Expr.Str where to_val = VStr
 
 instance Typecheck Text where
-    from_val (VStr (Expr.Str s)) = Val $ Just s
-    from_val _ = Val Nothing
+    from_val (VStr (Expr.Str s)) = success s
+    from_val _ = failure
     to_type _ = ValType.TStr Nothing
 instance ToVal Text where to_val = VStr . Expr.Str
 
 instance Typecheck ScoreT.Control where
     from_val (VStr (Expr.Str s)) =
-        Val $ either (const Nothing) Just (ScoreT.control s)
-    from_val _ = Val Nothing
+        Val $ either (const Failure) Success (ScoreT.control s)
+    from_val _ = failure
     to_type _ = ValType.TControl
 instance ToVal ScoreT.Control where
     to_val c = VStr (Expr.Str (ScoreT.control_name c))
@@ -579,8 +609,8 @@ instance ToVal ScoreT.Control where
 instance Typecheck ScoreT.PControl where
     from_val (VStr (Expr.Str s))
         | Just name <- Text.stripPrefix "#" s =
-            Val $ either (const Nothing) Just (ScoreT.pcontrol name)
-    from_val _ = Val Nothing
+            Val $ either (const Failure) Success (ScoreT.pcontrol name)
+    from_val _ = failure
     to_type _ = ValType.TPControl
 instance ToVal ScoreT.PControl where
     to_val c = VStr (Expr.Str (ScoreT.pcontrol_name c))
@@ -588,52 +618,52 @@ instance ToVal ScoreT.PControl where
 -- ** other types
 
 instance Typecheck Attrs.Attributes where
-    from_val (VAttributes a) = Val $ Just a
-    from_val _ = Val Nothing
+    from_val (VAttributes a) = success a
+    from_val _ = failure
     to_type _ = ValType.TAttributes
 instance ToVal Attrs.Attributes where to_val = VAttributes
 
 -- | Use a 'TypedFunction' or 'Function' instead of this.
 instance Typecheck DeriveT.ControlRef where
-    from_val (VControlRef a) = Val $ Just a
-    from_val (VNum a) = Val $ Just $ DeriveT.ControlSignal $
+    from_val (VControlRef a) = success a
+    from_val (VNum a) = success $ DeriveT.ControlSignal $
         Signal.constant <$> a
-    from_val _ = Val Nothing
+    from_val _ = failure
     to_type _ = ValType.TControlRef
 instance ToVal DeriveT.ControlRef where to_val = VControlRef
 
 instance Typecheck DeriveT.PControlRef where
-    from_val (VPControlRef a) = Val $ Just a
-    from_val (VPitch a) = Val $ Just $ DeriveT.ControlSignal $
+    from_val (VPControlRef a) = success a
+    from_val (VPitch a) = success $ DeriveT.ControlSignal $
         PSignal.constant a
-    from_val _ = Val Nothing
+    from_val _ = failure
     to_type _ = ValType.TPControlRef
 instance ToVal DeriveT.PControlRef where to_val = VPControlRef
 
 instance Typecheck PSignal.Pitch where
-    from_val (VPitch a) = Val $ Just a
+    from_val (VPitch a) = success a
     from_val (VNum (ScoreT.Typed ScoreT.Nn nn)) =
-        Val $ Just $ PSignal.nn_pitch (Pitch.nn nn)
-    from_val _ = Val Nothing
+        success $ PSignal.nn_pitch (Pitch.nn nn)
+    from_val _ = failure
     to_type _ = ValType.TPitch
 instance ToVal PSignal.Pitch where to_val = VPitch
 
 instance Typecheck Pitch.Pitch where
-    from_val (VNotePitch a) = Val $ Just a
-    from_val _ = Val Nothing
+    from_val (VNotePitch a) = success a
+    from_val _ = failure
     to_type _ = ValType.TNotePitch
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 
 instance Typecheck ScoreT.Instrument where
-    from_val (VStr (Expr.Str a)) = Val $ Just (ScoreT.Instrument a)
-    from_val _ = Val Nothing
+    from_val (VStr (Expr.Str a)) = success (ScoreT.Instrument a)
+    from_val _ = failure
     to_type _ = ValType.TStr Nothing
 instance ToVal ScoreT.Instrument where
     to_val (ScoreT.Instrument a) = VStr (Expr.Str a)
 
 instance Typecheck DeriveT.ControlFunction where
-    from_val (VControlFunction a) = Val $ Just a
-    from_val _ = Val Nothing
+    from_val (VControlFunction a) = success a
+    from_val _ = failure
     to_type _ = ValType.TControlFunction
 instance ToVal DeriveT.ControlFunction where to_val = VControlFunction
 
@@ -643,12 +673,12 @@ instance ToVal DeriveT.ControlFunction where to_val = VControlFunction
 -- Pitches have to be quoted because they explicitly have an invalid ShowVal.
 instance Typecheck DeriveT.Quoted where
     from_val val = case val of
-        VQuoted a -> Val $ Just a
-        VPitch {} -> Val Nothing
+        VQuoted a -> success a
+        VPitch {} -> failure
         VStr (Expr.Str sym) -> to_quoted sym
         _ -> to_quoted $ ShowVal.show_val val
         where
-        to_quoted sym = Val $ Just $
+        to_quoted sym = success $
             DeriveT.Quoted $ Expr.Call (Expr.Symbol sym) [] :| []
     to_type _ = ValType.TQuoted
 instance ToVal DeriveT.Quoted where to_val = VQuoted
@@ -659,8 +689,8 @@ instance ShowVal.ShowVal NotGiven where
     show_val NotGiven = "_"
 
 instance Typecheck NotGiven where
-    from_val VNotGiven = Val $ Just NotGiven
-    from_val _ = Val Nothing
+    from_val VNotGiven = success NotGiven
+    from_val _ = failure
     to_type _ = ValType.TNotGiven
 
 instance ToVal NotGiven where

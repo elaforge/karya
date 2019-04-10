@@ -107,6 +107,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.Expr as Expr
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
@@ -557,13 +558,44 @@ check_arg state arg_doc place name val =
 -- | Typecheck a Val, evaluating if necessary.
 from_val :: Typecheck.Typecheck a => State -> DeriveT.Val
     -> Either Derive.Error (Maybe a)
-from_val state val = run state $ Typecheck.from_val_eval start val
+from_val state val = run state $ case Typecheck.from_val val of
+    Typecheck.Val result -> return $ case result of
+        Typecheck.Failure -> Nothing
+        Typecheck.Success a -> Just a
+        Typecheck.Derive deriver -> Just $ deriver (state_context state)
+    Typecheck.Eval deriver -> deriver =<< Derive.score_to_real start
     where start = Event.start $ Derive.ctx_event $ state_context state
+
+-- This can't be defined in Derive.Typecheck, because it uses Eval, and Eval
+-- imports Typecheck.  It could be in Eval, but it's closer to 'from_val',
+-- which uses its result.
+instance Typecheck.Typecheck Derive.NoteDeriver where
+    from_val = quoted_to_deriver
+    to_type _ = ValType.TDeriver "note"
+instance Typecheck.Typecheck Derive.ControlDeriver where
+    from_val = quoted_to_deriver
+    to_type _ = ValType.TDeriver "control"
+instance Typecheck.Typecheck Derive.PitchDeriver where
+    from_val = quoted_to_deriver
+    to_type _ = ValType.TDeriver "pitch"
+
+quoted_to_deriver :: Derive.CallableExpr d => DeriveT.Val
+    -> Typecheck.Checked (Derive.Deriver (Stream.Stream d))
+quoted_to_deriver val = case as_quoted val of
+    Just quoted -> Typecheck.Val $ Typecheck.Derive $
+        \ctx -> Eval.eval_quoted (Derive.untag_context ctx) quoted
+    Nothing -> Typecheck.failure
+
+as_quoted :: DeriveT.Val -> Maybe DeriveT.Quoted
+as_quoted = \case
+    DeriveT.VQuoted a -> Just a
+    DeriveT.VStr (Expr.Str sym) ->
+        Just $ DeriveT.Quoted $ Expr.Call (Expr.Symbol sym) [] :| []
+    _ -> Nothing
 
 run :: State -> Derive.Deriver a -> Either Derive.Error a
 run state deriver = result
-    where
-    (result, _state, _logs) = Derive.run (state_derive state) deriver
+    where (result, _state, _logs) = Derive.run (state_derive state) deriver
 
 eval_quoted :: State -> DeriveT.Quoted -> Either Derive.Error DeriveT.Val
 eval_quoted state (DeriveT.Quoted expr) = result
@@ -598,7 +630,7 @@ prefixed_environ (Derive.CallName call_name) (Derive.ArgName arg_name) =
 -- * call
 
 -- | Similar to 'Derive.GeneratorF', but leaves the PassedArgs prev val
--- type free.  This is important for val calls, which used Tagged.
+-- type free.  This is important for val calls, which use Tagged.
 type Generator y d = Derive.PassedArgs y -> Derive.Deriver d
 type Transformer y d =
     Derive.PassedArgs y -> Derive.Deriver d -> Derive.Deriver d
