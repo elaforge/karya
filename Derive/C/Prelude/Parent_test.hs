@@ -6,15 +6,16 @@ module Derive.C.Prelude.Parent_test where
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.C.Prelude.Parent as Parent
-import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
-import Global
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Util.Test
 
 
 test_tuplet = do
@@ -220,8 +221,8 @@ test_interpolate = do
 
 test_interpolate_subs = do
     let f at = fmap unevent . Parent.interpolate_subs at . map mkevent
-        mkevent (s, d, n) = Sub.Event s d n
-        unevent (Sub.Event s d n) = (s, d, n)
+        mkevent (s, d, n) = SubT.EventT s d n
+        unevent (SubT.EventT s d n) = (s, d, n)
         events = [(0, 1, 'a'), (1, 2, 'b'), (2, 3, 'c'), (3, 4, 'd')]
     equal (f 0 (take 1 events)) $ Just (0, 1, 'a')
     equal (f 1 (take 1 events)) $ Just (0, 1, 'a')

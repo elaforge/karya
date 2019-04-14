@@ -7,18 +7,18 @@
 -- call definitions, and non-test code can't link test modules.
 module Derive.DDebug where
 import qualified Util.Seq as Seq
-import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
-apply_sub :: Functor f => (a -> f b) -> Sub.GenericEvent a
-    -> f (Sub.GenericEvent b)
-apply_sub f (Sub.Event s d n) = Sub.Event s d <$> f n
+apply_sub :: Functor f => (a -> f b) -> SubT.EventT a -> f (SubT.EventT b)
+apply_sub f (SubT.EventT s d n) = SubT.EventT s d <$> f n
 
 showr :: Maybe Derive.NoteDeriver -> Derive.Deriver Text
 showr = maybe (return "-") showd

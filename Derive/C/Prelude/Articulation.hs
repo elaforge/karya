@@ -27,6 +27,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.StringUtil as StringUtil
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -262,7 +263,7 @@ c_slur direction = Derive.generator Module.prelude "legato"
         overlap <- Call.real_time_at overlap =<< Args.real_start args
         note_slur overlap maybe_detach dyn =<< Sub.sub_events args
 
-note_slur :: RealTime -> Maybe RealTime -> Signal.Y -> [[Sub.Event]]
+note_slur :: RealTime -> Maybe RealTime -> Signal.Y -> [[SubT.Event]]
     -> Derive.NoteDeriver
 note_slur overlap maybe_detach dyn = Sub.derive . concatMap apply
     where
@@ -312,10 +313,10 @@ c_attr_slur first_attr rest_attr = Derive.generator Module.instrument "legato"
             . map (Seq.map_tail (fmap (Call.add_attributes rest_attr)))
                 =<< Sub.sub_events args
 
-apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
+apply_detach :: RealTime -> [SubT.Event] -> [SubT.Event]
 apply_detach detach = Seq.map_last (fmap (set_sustain (-detach)))
 
-apply_dyn :: Signal.Y -> [Sub.Event] -> [Sub.Event]
+apply_dyn :: Signal.Y -> [SubT.Event] -> [SubT.Event]
 apply_dyn dyn = Seq.map_tail (fmap (Call.multiply_dynamic dyn))
 
 set_sustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a

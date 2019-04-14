@@ -18,6 +18,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Flags as Flags
@@ -111,16 +112,16 @@ data DivNote a = DivNote !a | DivRest | DivContinue
 sekar_even :: Bool -> (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
 sekar_even arrive (start, end) pattern events =
-    Sub.derive $ (if arrive then nudge else id) $ map (Sub.at start) $
+    Sub.derive $ (if arrive then nudge else id) $ map (SubT.at start) $
         div_realize dur notes pattern
     where
     notes = div_extract events samples
     samples = (if arrive then drop 1 else id) $ Seq.range start end ndur
     ndur = (end - start) / fromIntegral (pattern_length pattern)
     dur = (end - start) / fromIntegral (length pattern)
-    nudge = Seq.map_last (fmap add_last_note_flags) . map (Sub.at dur)
+    nudge = Seq.map_last (fmap add_last_note_flags) . map (SubT.at dur)
 
-div_realize :: ScoreTime -> [DivNote a] -> Pattern -> [Sub.GenericEvent a]
+div_realize :: ScoreTime -> [DivNote a] -> Pattern -> [SubT.EventT a]
 div_realize dur notes = combine . zip (Seq.range_ 0 dur) . map resolve
     where
     resolve (i, element) = case element of
@@ -129,26 +130,26 @@ div_realize dur notes = combine . zip (Seq.range_ 0 dur) . map resolve
     combine ((start, note) : notes) = case note of
         DivRest -> continue
         DivContinue -> continue
-        DivNote d -> Sub.Event start (dur * fromIntegral cs) d : continue
+        DivNote d -> SubT.EventT start (dur * fromIntegral cs) d : continue
             where cs = length (takeWhile is_continue notes) + 1
         where continue = combine notes
     combine [] = []
     is_continue (_, DivContinue) = True
     is_continue _ = False
 
--- | Convert Sub.Events to DivNotes at the given times.
-div_extract :: [Sub.GenericEvent (Maybe a)] -> [ScoreTime] -> [DivNote a]
+-- | Convert 'SubT.EventT's to DivNotes at the given times.
+div_extract :: [SubT.EventT (Maybe a)] -> [ScoreTime] -> [DivNote a]
 div_extract events = snd . List.mapAccumL go events
     where
     go events t = case drop_until_next (past t) events of
-        events@(event : _) -> (,) events $ case Sub.event_note event of
+        events@(event : _) -> (events,) $ case SubT._note event of
             Nothing -> DivRest
             Just d
-                | t ScoreTime.== Sub.event_start event -> DivNote d
-                | t ScoreTime.> Sub.event_end event -> DivRest
+                | t ScoreTime.== SubT._start event -> DivNote d
+                | t ScoreTime.> SubT.end event -> DivRest
                 | otherwise -> DivContinue
         [] -> ([], DivRest)
-    past t = (ScoreTime.> t) . Sub.event_start
+    past t = (ScoreTime.> t) . SubT._start
 
 -- | Drop until the predicate is true for the next event.  This is like
 -- @dropWhile (not . f)@, but you get the element before the predicate becomes
@@ -167,7 +168,7 @@ drop_until_next f xs = case xs of
 sekar_direct_arrive :: (ScoreTime, ScoreTime) -> NonEmpty Pattern
     -> [Sub.RestEvent] -> Derive.NoteDeriver
 sekar_direct_arrive range patterns events_ =
-    Sub.derive $ add_flags $ align $ map (Sub.stretch factor) $
+    Sub.derive $ add_flags $ align $ map (SubT.stretch factor) $
         Sub.strip_rests realized
     where
     -- The first event should be a rest, since I passed end_bias=True to
@@ -179,31 +180,31 @@ sekar_direct_arrive range patterns events_ =
         rest : events -> case Seq.viewr events of
             Nothing -> events
             Just (initial, final)
-                | Sub.event_start final >= snd range ->
-                    initial ++ [final { Sub.event_duration = dur }]
-                | otherwise -> events ++ [Sub.Event (snd range) dur Nothing]
-                where dur = Sub.event_duration rest
+                | SubT._start final >= snd range ->
+                    initial ++ [final { SubT._duration = dur }]
+                | otherwise -> events ++ [SubT.EventT (snd range) dur Nothing]
+                where dur = SubT._duration rest
 
     realized = realize_groups patterns events
     factor = sum_duration events / sum_duration realized
     -- Align notes to the end of the range.
     align es = case Seq.last es of
         Nothing -> []
-        Just e -> map (Sub.at (snd range - Sub.event_start e)) es
+        Just e -> map (SubT.at (snd range - SubT._start e)) es
     add_flags = Seq.map_last $ fmap add_last_note_flags
 
 add_last_note_flags :: Derive.NoteDeriver -> Derive.NoteDeriver
 add_last_note_flags = fmap $ Post.emap1_ $ Score.add_flags $
     Flags.infer_duration <> Flags.strong
 
-sum_duration :: [Sub.GenericEvent a] -> ScoreTime
-sum_duration = Num.sum . map Sub.event_duration
+sum_duration :: [SubT.EventT a] -> ScoreTime
+sum_duration = Num.sum . map SubT._duration
 
 -- | Sekaran derivation via direct substitution of the sub-events.
 sekar_direct :: (ScoreTime, ScoreTime) -> NonEmpty Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
 sekar_direct range patterns events =
-    Sub.derive $ map (Sub.place (fst range) factor) $ Sub.strip_rests realized
+    Sub.derive $ map (SubT.place (fst range) factor) $ Sub.strip_rests realized
     where
     realized = realize_groups patterns events
     factor = sum_duration events / sum_duration realized
@@ -211,8 +212,7 @@ sekar_direct range patterns events =
 realize_groups :: NonEmpty Pattern -> [Sub.RestEvent] -> [Sub.RestEvent]
 realize_groups _ [] = []
 realize_groups patterns events@(event:rest) =
-    go (Sub.event_start event) $
-        split_groups (pattern_length pattern) events
+    go (SubT._start event) $ split_groups (pattern_length pattern) events
     where
     pattern = index_with (event :| rest) patterns
     go _ [] = []
@@ -256,10 +256,10 @@ realize start events = map place . add_starts . mapMaybe resolve
     where
     resolve (i, element) = resolve1 element <$> Seq.at events i
     -- Rests have a duration, but no deriver.
-    resolve1 element (Sub.Event _ dur d) = case d of
+    resolve1 element (SubT.EventT _ dur d) = case d of
         Nothing -> (dur, Nothing)
         Just deriver -> (,) dur $ case element of
             Note -> Just deriver
             Rest -> Nothing
     add_starts events = zip (scanl (+) start (map fst events)) events
-    place (start, (dur, maybe_deriver)) = Sub.Event start dur maybe_deriver
+    place (start, (dur, maybe_deriver)) = SubT.EventT start dur maybe_deriver

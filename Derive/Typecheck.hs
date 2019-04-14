@@ -13,6 +13,7 @@ import qualified Data.Text as Text
 import qualified Util.TextUtil as TextUtil
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveT as DeriveT
 import           Derive.DeriveT (Val(..))
@@ -168,6 +169,9 @@ class Typecheck a where
     to_type :: Proxy a -> ValType.Type
     default to_type :: TypecheckSymbol a => Proxy a -> ValType.Type
     to_type proxy = ValType.TStr (symbol_values proxy)
+
+    from_subtrack :: SubT.Track -> Maybe a
+    from_subtrack = const Nothing
 
 -- | 'from_val', but evaluate if it's an Eval.
 from_val_eval :: Typecheck a => ScoreTime -> Val -> Derive.Deriver (Maybe a)
@@ -795,3 +799,10 @@ to_signal_or_function control = case control of
         val { ScoreT.type_of = ScoreT.type_of val <> default_type }
     get_control_signal control = Map.lookup control <$>
         Internal.get_dynamic Derive.state_controls
+
+-- * sub tracks
+
+instance Typecheck SubT.Track where
+    from_val _ = failure
+    to_type _ = ValType.TDeriver "note"
+    from_subtrack = Just

@@ -3,16 +3,17 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.C.Bali.Sekar_test where
-import Util.Test
-import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.UiTest as UiTest
 import qualified Derive.C.Bali.Sekar as Sekar
-import Derive.C.Bali.Sekar (DivNote(..))
-import qualified Derive.Call.Sub as Sub
+import           Derive.C.Bali.Sekar (DivNote(..))
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.DeriveTest as DeriveTest
 
-import Global
-import Types
+import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_sekar = do
@@ -181,7 +182,7 @@ test_drop_until_next = do
 
 test_div_extract = do
     let f events = Sekar.div_extract (map mkevent events)
-        mkevent (s, d, n) = Sub.Event s d n
+        mkevent (s, d, n) = SubT.EventT s d n
     -- 0   2   4   6   8   10  12
     -- a----b--_---c---d--
     --     x     x   x x       x

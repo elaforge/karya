@@ -16,14 +16,15 @@ import qualified Util.TextUtil as TextUtil
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Library as Library
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 library :: Library.Library
@@ -44,17 +45,17 @@ c_bols = Derive.generator ("india" <> "pakhawaj") "bols"
         events <- Sub.sub_events args
         mconcatMap Sub.derive events
 
-realize_events :: ScoreTime -> ScoreTime -> [Sub.GenericEvent Text]
-    -> Either Text [Sub.GenericEvent Text]
+realize_events :: ScoreTime -> ScoreTime -> [SubT.EventT Text]
+    -> Either Text [SubT.EventT Text]
 realize_events end flam_dur =
     fmap (map to . bols_to_attribute flam_dur) . realize_bols end . map from
     where
-    from e = (Sub.event_start e, Sub.event_note e)
+    from e = (SubT._start e, SubT._note e)
     -- TODO this is a bit sketchy since I'm relying on the +attr lookup call.
     -- But to directly add the call I would have to be able to return
     -- a NoteDeriver, not just text.  Of course, if I wind up using a score
     -- integrate, then of course I'd need text again.
-    to (t, attrs) = Sub.Event t 0 (ShowVal.show_val attrs)
+    to (t, attrs) = SubT.EventT t 0 (ShowVal.show_val attrs)
 
 bols_to_attribute :: ScoreTime -> [(ScoreTime, Bol)]
     -> [(ScoreTime, Attrs.Attributes)]

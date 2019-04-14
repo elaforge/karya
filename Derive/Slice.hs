@@ -28,7 +28,7 @@
     to do it though!
 -}
 module Derive.Slice (
-    InsertEvent(..), slice
+    InsertEvent(..), Track(..), slice
     , checked_slice_notes
     , slice_orphans
 #ifdef TESTING
@@ -180,11 +180,11 @@ extract_control_events start end events = (pre, Events.from_list within, post2)
 -}
 slice_notes :: Bool -- ^ include a note at the end
     -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
-    -> [[Note]] -- ^ One [Note] per sub note track, in right to left order.
+    -> [Track] -- ^ One Track per non-empty sub note track, in TrackNum order.
 slice_notes include_end start end tracks
     | null tracks || start > end = []
-    | otherwise = filter (not . null) $
-        map (mapMaybe strip_note . slice_track) $
+    | otherwise = map (uncurry Track) $ filter (not . null . snd) $
+        map (second (mapMaybe strip_note) . slice_track) $
         concatMap note_tracks tracks
     where
     note_tracks :: TrackTree.EventsNode -> [Sliced]
@@ -196,12 +196,14 @@ slice_notes include_end start end tracks
             | (parents, ntrack, slices, nsubs) <- concatMap note_tracks subs
             ]
     -- For each note track, slice out each event.
-    slice_track :: Sliced -> [Note]
-    slice_track (parents, track, slices, subs) =
-        map (slice1 (make_tree parents)) (Seq.zip_prev slices)
+    slice_track :: Sliced -> (Maybe TrackId, [Note])
+    slice_track (parents, note_track, slices, subs) =
+        ( TrackTree.track_id note_track
+        , map (slice1 (make_tree parents)) (Seq.zip_prev slices)
+        )
         where
-        make_tree [] = [Tree.Node track subs]
         make_tree (p:ps) = [Tree.Node p (make_tree ps)]
+        make_tree [] = [Tree.Node note_track subs]
     slice1 tree (prev, (n_start, n_end, n_next)) =
         ( n_start
         , n_end - n_start
@@ -227,12 +229,21 @@ slice_notes include_end start end tracks
         }
         where move = Event.start_ %= subtract shift
 
--- | (parents, track, 'event_ranges', subs)
-type Sliced = ([TrackTree.Track], TrackTree.Track,
-    [(ScoreTime, ScoreTime, ScoreTime)], TrackTree.EventsTree)
+-- | (parents, note_track, 'event_ranges', subs)
+type Sliced =
+    ( [TrackTree.Track]
+    , TrackTree.Track
+    , [(ScoreTime, ScoreTime, ScoreTime)]
+    , TrackTree.EventsTree
+    )
 
 -- | (start, dur, tracks)
 type Note = (ScoreTime, ScoreTime, [TrackTree.EventsNode])
+
+data Track = Track {
+    _track_id :: Maybe TrackId
+    , _notes :: [Note]
+    } deriving (Show)
 
 -- | Get slice ranges for a track.  This gets the non-overlapping ranges of all
 -- the note tracks events below.
@@ -269,6 +280,8 @@ events_in_range include_end start end events
     range = if start == end then Events.Point start Types.Positive
         else Events.Range start end
 
+-- | Remove empty tracks from the Note tree, and the entire Note if it was all
+-- empty tracks.
 strip_note :: Note -> Maybe Note
 strip_note (start, dur, tree)
     | null stripped = Nothing
@@ -293,20 +306,21 @@ strip_empty_tracks (Tree.Node track subs)
 -- currently I do.  Actually I think overlap checking needs an overhaul in
 -- general.
 checked_slice_notes :: Bool -- ^ TODO change this to Event.Orientation?
-    -> ScoreTime -> ScoreTime -> TrackTree.EventsTree -> Either Text [[Note]]
-checked_slice_notes include_end start end tracks = case maybe_err of
-    Nothing -> Right $ filter (not . null) notes
+    -> ScoreTime -> ScoreTime -> TrackTree.EventsTree -> Either Text [Track]
+checked_slice_notes include_end start end tree = case maybe_err of
+    Nothing -> Right tracks
     Just err -> Left err
     where
     maybe_err = if start == end
         then check_greater_than 0 check_tracks
         else check_overlapping include_end 0 check_tracks
-    notes = slice_notes include_end start end tracks
+    tracks = slice_notes include_end start end tree
     -- Only check the first note of each slice.  Since the notes are
     -- increasing, this is the one which might start before the slice.  Since
     -- the events have been shifted back by the slice start, an event that
     -- extends over 0 means it overlaps the beginning of the slice.
-    check_tracks = map (\(_, _, subs) -> subs) $ mapMaybe Seq.head notes
+    check_tracks = map (\(_, _, subs) -> subs) $
+        mapMaybe (Seq.head . _notes) tracks
 
 check_greater_than :: ScoreTime -> [[TrackTree.EventsNode]] -> Maybe Text
 check_greater_than start tracks

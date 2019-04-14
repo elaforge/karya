@@ -72,9 +72,9 @@ test_slice_notes = do
 
     -- simple sub tracks
     equal (f 0 2 [notes "ab" []])
-        [[ (0, 1, [Node (">", [(0, 1, "a")]) []])
-        , (1, 1, [Node (">", [(0, 1, "b")]) []])
-        ]]
+        [ [ (0, 1, [Node (">", [(0, 1, "a")]) []])
+          , (1, 1, [Node (">", [(0, 1, "b")]) []])
+        ] ]
     equal (f 0 1 [notes "ab" []])
         [[(0, 1, [Node (">", [(0, 1, "a")]) []])]]
 
@@ -88,19 +88,27 @@ test_slice_notes = do
     equal (f 0 1 [control [0..6] []]) []
 
     -- make sure parent track order doesn't get messed up
-    equal (f 0 1 [Node (make_controls "c1" [0..6])
+    equal (f 0 1
+        [Node (make_controls "c1" [0..6])
             [Node (make_controls "c2" [0..6])
                 [Node (make_notes 0 "a") []]]])
-        [[ (0, 1, [Node (make_controls "c1" [0, 1])
-            [Node (make_controls "c2" [0, 1])
-                [Node (">", [(0, 1, "a")]) []]]])
+        [[ (0, 1,
+            [Node (make_controls "c1" [0, 1])
+                [Node (make_controls "c2" [0, 1])
+                    [Node (">", [(0, 1, "a")]) []]]])
         ]]
 
     -- simple child control slicing
     -- also note events have been moved to 0
     equal (f 1 2 [notes "abc" [control [0..6] []]])
-        [[(1, 1, [Node (">", [(0, 1, "b")])
-            [control2 [(0, "1"), (1, "2")] []]])]]
+        [[ (1, 1,
+            [Node (">", [(0, 1, "b")])
+                [control2 [(0, "1"), (1, "2")] []]])
+        ]]
+
+    -- control tracks above and below
+    equal (f 0 1 [control [0, 1] [notes "ab" [control [2, 3] []]]])
+        [[(0, 1, [control [0, 1] [notes "a" [control [2] []]]])]]
 
     -- multiple note tracks
     equal (f 0 0 [notes "abc" [], notes "def" []])
@@ -108,7 +116,8 @@ test_slice_notes = do
         , [(0, 1, [notes "d" []])]
         ]
     -- with different controls
-    equal (f 0 0 [notes "ab" [control [0, 1] []],
+    equal (f 0 0
+        [notes "ab" [control [0, 1] []],
             notes "cd" [control2 [(0, "2"), (1, "3")] []]])
         [ [(0, 1, [notes "a" [control [0, 1] []]])]
         , [(0, 1, [notes "c" [control2 [(0, "2"), (1, "3")] []]])]
@@ -121,6 +130,21 @@ test_slice_notes = do
     --     , [(1, 3, [notes "" [Node (">", [(0, 2, "x")]) []]])]
     --     , [(2, 4, [notes "" [Node (">", [(0, 2, "y")]) []]])]
     --     ]
+
+test_slice_notes_track_id = do
+    let f = slice_notes_track_id False
+    let notes inst ns = Node (make_notes_inst inst 0 ns)
+        control cs = Node (make_controls "c" cs)
+    equal (f 0 1 [notes "i1" "ab" [], notes "i2" "cd" []])
+        [ (Just (UiTest.tid "i1"), [(0, 1, [notes "i1" "a" []])])
+        , (Just (UiTest.tid "i2"), [(0, 1, [notes "i2" "c" []])])
+        ]
+    -- control tracks above and below
+    equal (f 0 1 [control [0, 1] [notes "i1" "ab" [control [2, 3] []]]])
+        [ (Just (UiTest.tid "i1"),
+            [ (0, 1, [control [0, 1] [notes "i1" "a" [control [2] []]]])
+            ])
+        ]
 
 test_slice_notes_zero_dur = do
     let f = slice_notes False
@@ -136,7 +160,7 @@ test_slice_notes_zero_dur = do
 test_slice_notes_shift = do
     -- Verify that shifting and slicing modify track_start, track_end and
     -- track_shifted properly.
-    let f s e = extract_notes extract . Slice.slice_notes False s e
+    let f s e = map snd . extract_notes extract . Slice.slice_notes False s e
         extract t = ((TrackTree.track_start t, TrackTree.track_end t),
             TrackTree.track_shifted t)
     let tree start track_end = Node (track start track_end) []
@@ -221,13 +245,18 @@ test_slice_notes_sparse = do
 
 slice_notes :: Bool -> ScoreTime -> ScoreTime -> [EventsTree]
     -> [[(ScoreTime, ScoreTime, [EventsTree])]]
-slice_notes include_end s e = extract_notes extract_tree
+slice_notes include_end s e = map snd . slice_notes_track_id include_end s e
+
+slice_notes_track_id :: Bool -> ScoreTime -> ScoreTime -> [EventsTree]
+    -> [(Maybe TrackId, [(ScoreTime, ScoreTime, [EventsTree])])]
+slice_notes_track_id include_end s e = extract_notes extract_tree
     . Slice.slice_notes include_end s e . map make_tree
 
 extract_notes :: (TrackTree.Track -> a)
-    -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]
-    -> [[(ScoreTime, ScoreTime, [Tree.Tree a])]]
-extract_notes f = map $ map $ \(s, e, t) -> (s, e, map (fmap f) t)
+    -> [Slice.Track]
+    -> [(Maybe TrackId, [(ScoreTime, ScoreTime, [Tree a])])]
+extract_notes f = map $ \(Slice.Track track_id notes) ->
+    (track_id, map (\(s, e, t) -> (s, e, map (fmap f) t)) notes)
 
 test_slur = do
     let run = DeriveTest.extract extract
@@ -422,9 +451,14 @@ to_score :: Int -> ScoreTime
 to_score = ScoreTime.from_double . fromIntegral
 
 make_notes :: ScoreTime -> [Char] -> (Text, [Event])
-make_notes offset notes = (">",
-    zipWith (\start note -> (start, 1, Text.singleton note))
-        (Seq.range_ offset 1) notes)
+make_notes = make_notes_inst ""
+
+make_notes_inst :: Text -> ScoreTime -> [Char] -> (Text, [Event])
+make_notes_inst inst offset notes =
+    ( ">" <> inst
+    , zipWith (\start note -> (start, 1, Text.singleton note))
+        (Seq.range_ offset 1) notes
+    )
 
 make_notes_dur :: [(ScoreTime, ScoreTime, Char)] -> (Text, [Event])
 make_notes_dur notes =

@@ -248,6 +248,9 @@ data EvalSource =
     Literal
     -- | The value in error came from a 'DeriveT.VQuoted' bit of code.
     | Quoted !DeriveT.Quoted
+    -- | The error came from a SubT.Track.  The value is either a track index
+    -- into 'ctx_sub_events' or a TrackId from 'ctx_sub_tracks'.
+    | SubTrack !(Either Text TrackId)
     deriving (Show)
 
 instance Pretty CallError where
@@ -257,17 +260,21 @@ instance Pretty CallError where
         CallNotFound sym -> "CallNotFound: " <> pretty sym
 
 instance Pretty TypeErrorT where
-    pretty (TypeErrorT place source (ArgName arg_name) expected received
-            derive_error) =
-        "arg " <> pretty place <> "/" <> arg_name
-        <> source_desc <> ": expected " <> pretty expected
-        <> " but got " <> pretty (ValType.type_of <$> received)
-        <> ": " <> pretty received
-        <> maybe "" show_derive_error derive_error
+    pretty (TypeErrorT place source (ArgName arg_name) expected mb_received
+            derive_error) = mconcat
+        [ "arg ", pretty place, "/", arg_name
+        , source_desc, ": expected ", pretty expected
+        , case mb_received of
+            Just received -> " but got " <> pretty (ValType.type_of received)
+                <> ": " <> pretty received
+            Nothing -> ""
+        , maybe "" show_derive_error derive_error
+        ]
         where
         source_desc = case source of
             Literal -> ""
             Quoted call -> " from " <> ShowVal.show_val call
+            SubTrack source -> " from subtrack:" <> either id showt source
         -- The srcpos and stack of the derive error is probably not
         -- interesting, so I strip those out.
         show_derive_error (Error _ _ error_val) =
@@ -1354,7 +1361,7 @@ data Context val = Context {
     -- | If present, 'Derive.Sub.sub_events' will directly return these sub
     -- events instead of slicing sub-tracks.  Track evaluation will never set
     -- this, but calls can set this to reapply a note parent.  It should
-    -- be 'Derive.Sub.Event's, but isn't to avoid circular imports.
+    -- be 'Derive.SubT.Event's, but isn't to avoid circular imports.
     , ctx_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]])
     -- | This is needed by val calls that want to evaluate events around them.
     -- Since val calls are the same on all track types, they need to know

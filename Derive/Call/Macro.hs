@@ -65,9 +65,10 @@ extract_vars (Parse.Expr calls) = concatMap extract_call (NonEmpty.toList calls)
         Parse.Literal _ -> []
         Parse.ValCall call -> extract_call call
 
-generator_macro :: Derive.CallableExpr d => Parse.Expr -> [DeriveT.Val]
+generator_macro :: Derive.CallableExpr d => Parse.Expr -> [Sig.Arg]
     -> Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d)
 generator_macro expr vals args = do
+    vals <- mapM require_val vals
     expr <- Derive.require_right id $ substitute_vars vals expr
     let (trans, gen) = split_expr expr
     let ctx = Derive.passed_ctx args
@@ -79,9 +80,10 @@ generator_macro expr vals args = do
         Eval.apply_generator ctx gen_call gen_args
 
 transformer_macro :: Derive.CallableExpr d => Parse.Expr
-    -> [DeriveT.Val] -> Derive.PassedArgs d
+    -> [Sig.Arg] -> Derive.PassedArgs d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro expr vals args deriver = do
+    vals <- mapM require_val vals
     calls <- Derive.require_right id $ substitute_vars vals expr
     let ctx = Derive.passed_ctx args
     (trans_calls, trans_args) <-
@@ -89,9 +91,10 @@ transformer_macro expr vals args deriver = do
     trans_calls <- mapM Eval.get_transformer trans_calls
     Eval.apply_transformers ctx (zip trans_calls trans_args) deriver
 
-val_macro :: Parse.Call -> [DeriveT.Val] -> Derive.PassedArgs Derive.Tagged
+val_macro :: Parse.Call -> [Sig.Arg] -> Derive.PassedArgs Derive.Tagged
     -> Derive.Deriver DeriveT.Val
 val_macro call_expr vals args = do
+    vals <- mapM require_val vals
     call_expr :| _ <- Derive.require_right id $
         substitute_vars vals (Parse.Expr (call_expr :| []))
     Eval.eval (Derive.passed_ctx args) (Expr.ValCall call_expr)
@@ -129,7 +132,7 @@ substitute_vars vals (Parse.Expr calls) = run vals (mapM sub_call calls)
 -- TODO these are all required, but should I support optional args?  But isn't
 -- the whole point of doing this in haskell that I don't get tied up in more
 -- and more hacky language features?
-make_signature :: [(Parse.Var, Expr.Symbol, Int)] -> Sig.Parser [DeriveT.Val]
+make_signature :: [(Parse.Var, Expr.Symbol, Int)] -> Sig.Parser [Sig.Arg]
 make_signature vars = Sig.required_vals (map doc vars)
     where
     doc (Parse.Var var, call, argnum) = Derive.ArgDoc
@@ -140,6 +143,12 @@ make_signature vars = Sig.required_vals (map doc vars)
         , arg_doc = "Passed to " <> ShowVal.doc call <> "'s "
             <> ordinal (argnum+1) <> " argument."
         }
+
+-- TODO implement it
+require_val :: Sig.Arg -> Derive.Deriver DeriveT.Val
+require_val (Sig.SubTrack {}) =
+    Derive.throw "child tracks don't work for macros yet"
+require_val (Sig.LiteralArg arg) = return arg
 
 ordinal :: Int -> Doc.Doc
 ordinal n = Doc.Doc $ showt n <> case n of

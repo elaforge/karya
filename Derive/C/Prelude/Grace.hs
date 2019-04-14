@@ -12,6 +12,7 @@ import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -64,9 +65,8 @@ c_grace_hold = GraceUtil.make_grace Module.prelude
     id $ \_args -> Sub.derive . hold
     where
     hold events = maybe events (\e -> map (set_end e) events) end
-        where end = Seq.maximum $ map Sub.event_end events
-    set_end end event =
-        event { Sub.event_duration = end - Sub.event_start event }
+        where end = Seq.maximum $ map SubT.end events
+    set_end end event = event { SubT._duration = end - SubT._start event }
 
 c_grace_pitch :: Derive.Generator Derive.Note
 c_grace_pitch = GraceUtil.make_grace_pitch Module.prelude
@@ -74,11 +74,11 @@ c_grace_pitch = GraceUtil.make_grace_pitch Module.prelude
     \ separate notes." $
     \_args events -> if null events then mempty else do
         pitch <- Derive.get_pitch
-        let start = Sub.event_start (head events)
-        rstarts <- mapM (Derive.real . Sub.event_start) events
-        Derive.place start (Sub.event_end (last events) - start) $
+        let start = SubT._start (head events)
+        rstarts <- mapM (Derive.real . SubT._start) events
+        Derive.place start (SubT.end (last events) - start) $
             Derive.with_pitch
-                (mksig rstarts (map Sub.event_note events) <> pitch)
+                (mksig rstarts (map SubT._note events) <> pitch)
                 Call.note
     where
     mksig starts pitches = PSignal.from_pairs $ concat

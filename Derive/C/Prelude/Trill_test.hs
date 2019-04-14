@@ -7,7 +7,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
 import qualified Derive.C.Prelude.Trill as Trill
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
@@ -200,8 +200,8 @@ test_chord_tremolo = do
 test_chord_tremolo_function = do
     let f dur = map ex_event . Trill.chord_tremolo (Seq.range 0 dur 1)
             . map (map mkevent)
-        mkevent (s, d, n) = Sub.Event s d (n :: Char)
-        ex_event (Sub.Event s d n) = (s, d, n)
+        mkevent (s, d, n) = SubT.EventT s d (n :: Char)
+        ex_event (SubT.EventT s d n) = (s, d, n)
     equal (f 3 []) []
     equal (f 6 [[(0, 4, 'a')], [(0, 4, 'b')]])
         [(0, 1, 'a'), (1, 1, 'b'), (2, 1, 'a'), (3, 1, 'b')]

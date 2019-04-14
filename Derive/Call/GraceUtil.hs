@@ -18,6 +18,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -80,7 +81,7 @@ grace_pitches_doc = "Grace note pitches. If they are numbers,\
 -- | Make a grace call with the standard arguments.
 make_grace :: Module.Module -> Doc.Doc
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> (Derive.PassedArgs Score.Event -> [Sub.Event] -> Derive.NoteDeriver)
+    -> (Derive.PassedArgs Score.Event -> [SubT.Event] -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 make_grace module_ doc transform derive =
     Derive.generator module_ "grace" (Tags.ornament <> Tags.ly) doc
@@ -98,7 +99,7 @@ make_grace module_ doc transform derive =
 -- | This is like 'make_grace', but gives you pitches instead of realized
 -- events, in case you want to merge them or something.
 make_grace_pitch :: Module.Module -> Doc.Doc
-    -> (Derive.PassedArgs Score.Event -> [Sub.GenericEvent PSignal.Pitch]
+    -> (Derive.PassedArgs Score.Event -> [SubT.EventT PSignal.Pitch]
         -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 make_grace_pitch module_ doc derive =
@@ -116,7 +117,7 @@ make_grace_pitch module_ doc derive =
 
 repeat_notes :: Derive.NoteDeriver -> Int -> DeriveT.Duration
     -> Signal.Y -- ^ placement, 'grace_place_doc'
-    -> Derive.PassedArgs a -> Derive.Deriver [Sub.Event]
+    -> Derive.PassedArgs a -> Derive.Deriver [SubT.Event]
 repeat_notes note times time place args =
     make_grace_notes (Args.prev_start args)
         (Args.range_or_next args) (replicate times note) time
@@ -126,7 +127,7 @@ make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime) -- ^ (start, end)
     -> [note] -- ^ the last note is the destination
     -> DeriveT.Duration
     -> DeriveT.ControlRef -- ^ placement, see 'grace_place_doc'
-    -> Derive.Deriver [Sub.GenericEvent note]
+    -> Derive.Deriver [SubT.EventT note]
 make_grace_notes prev (start, end) notes grace_dur place = do
     real_start <- Derive.real start
     place <- Num.clamp 0 1 <$> Call.control_at place real_start
@@ -134,7 +135,7 @@ make_grace_notes prev (start, end) notes grace_dur place = do
         DeriveT.ScoreDuration grace_dur -> do
             let extents = fit_grace_durs (ScoreTime.from_double place)
                     prev start end (length notes) grace_dur
-            return [Sub.Event s d n | ((s, d), n) <- zip extents notes]
+            return [SubT.EventT s d n | ((s, d), n) <- zip extents notes]
         DeriveT.RealDuration grace_dur -> do
             real_end <- Derive.real end
             real_prev <- maybe (return Nothing) ((Just <$>) . Derive.real) prev
@@ -145,7 +146,7 @@ make_grace_notes prev (start, end) notes grace_dur place = do
     note_real (start, dur) note = do
         score_start <- Derive.score start
         score_end <- Derive.score (start + dur)
-        return $ Sub.Event score_start (score_end - score_start) note
+        return $ SubT.EventT score_start (score_end - score_start) note
 
 lily_grace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
     -> Derive.NoteDeriver
@@ -232,13 +233,13 @@ basic_grace_dyn dyn_scale args pitches grace_dur place = do
 
 basic_grace_transform :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> DeriveT.Duration -> DeriveT.ControlRef -> Derive.Deriver [Sub.Event]
+    -> DeriveT.Duration -> DeriveT.ControlRef -> Derive.Deriver [SubT.Event]
 basic_grace_transform args pitches transform = basic_grace args notes
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
 
 basic_grace :: Derive.PassedArgs a -> [note]
     -> DeriveT.Duration -> DeriveT.ControlRef
-    -> Derive.Deriver [Sub.GenericEvent note]
+    -> Derive.Deriver [SubT.EventT note]
 basic_grace args pitches =
     make_grace_notes (Args.prev_start args) (Args.range_or_next args) pitches
 

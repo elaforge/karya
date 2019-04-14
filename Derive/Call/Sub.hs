@@ -10,9 +10,8 @@ module Derive.Call.Sub (
     under_invert
     , inverting, inverting_args
     -- ** events
-    , Event, GenericEvent(..), event_end, event_overlaps
-    , place, stretch, at
     , sub_events, sub_events_negative
+    , sub_tracks
     , assert_no_subs
     , modify_notes
     , derive_subs, derive, derive_tracks, derive_pitch, fit
@@ -28,6 +27,7 @@ import qualified Data.Tree as Tree
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.BlockUtil as BlockUtil
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
@@ -186,53 +186,21 @@ non_bottom_note_track tree = Seq.head (concatMap go tree)
             && not (null subs) = [track]
         | otherwise = concatMap go subs
 
--- ** note slice
-
--- | Sliced sub-events are represented as a start, duration, and opaque
--- deriver.  This is a compromise between a plain NoteDeriver, which is fully
--- abstract but also fully opaque, and some kind of note data structure, which
--- is fully concrete (and thus inflexible), but also transparent to
--- modification.
-type Event = GenericEvent Derive.NoteDeriver
-
-data GenericEvent a = Event {
-    event_start :: !ScoreTime
-    , event_duration :: !ScoreTime
-    , event_note :: !a
-    } deriving (Show, Functor)
-
-event_end :: GenericEvent a -> ScoreTime
-event_end event = event_start event + event_duration event
-
-event_overlaps :: ScoreTime -> GenericEvent a -> Bool
-event_overlaps pos (Event start dur _)
-    | dur == 0 = pos == start
-    | otherwise = start <= pos && pos < start + dur
-
-place :: ScoreTime -> ScoreTime -> GenericEvent a -> GenericEvent a
-place shift factor (Event start dur note) =
-    Event ((start - shift) * factor + shift) (dur * factor) note
-
-stretch :: ScoreTime -> GenericEvent a -> GenericEvent a
-stretch factor = place 0 factor
-
-at :: ScoreTime -> GenericEvent a -> GenericEvent a
-at shift (Event start dur note) = Event (start + shift) dur note
-
-instance Pretty a => Pretty (GenericEvent a) where
-    pretty (Event start dur note) =
-        "Event " <> showt start <> " " <> showt dur
-            <> " (" <> pretty note <> ")"
+-- * sub tracks
 
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other
 -- note calls as arguments.
-sub_events :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
+sub_events :: Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
 sub_events = sub_events_ False
+
+-- | TODO maybe this should replace 'sub_events'
+sub_tracks :: Derive.PassedArgs d -> Derive.Deriver [SubT.Track]
+sub_tracks = sub_tracks_ False
 
 -- | Like 'sub_events', but exclude events at the start time, and include
 -- events at the end time.  Presumably suitable for 'Event.Negative' calls.
-sub_events_negative :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
+sub_events_negative :: Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
 sub_events_negative = sub_events_ True
 
 -- | Throw an exception if there are sub-events.
@@ -249,37 +217,53 @@ assert_no_subs args = do
     ctx = Derive.passed_ctx args
     extract_track t = (TrackTree.track_title t, TrackTree.track_id t)
 
-sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
-sub_events_ include_end args =
+sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[SubT.Event]]
+sub_events_ include_end args = map SubT._events <$> sub_tracks_ include_end args
+
+sub_tracks_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [SubT.Track]
+sub_tracks_ include_end args =
     case Derive.ctx_sub_events (Derive.passed_ctx args) of
-        Nothing -> either Derive.throw (return . map (map mkevent)) $
-            Slice.checked_slice_notes include_end start end
-                (Derive.ctx_sub_tracks (Derive.passed_ctx args))
-        Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
+        Nothing -> either Derive.throw (return . mapMaybe mktrack) $
+            Slice.checked_slice_notes include_end start end $
+                Derive.ctx_sub_tracks (Derive.passed_ctx args)
+        Just tracks -> return
+            [ SubT.Track (Left $ "subevent:" <> showt i) $
+                map (\(s, d, n) -> SubT.EventT s d n) track
+            | (i, track) <- zip [0..] tracks
+            ]
     where
+    mktrack (Slice.Track track_id notes) = Just $
+        -- 'TrackTree.track_id' can be Nothing.  Presumably this happens for
+        -- a constructed block.
+        SubT.Track (maybe (Left "no-track-id") Right track_id)
+            (map mkevent notes)
     (start, end) = Args.range args
     -- The events have been shifted back to 0 by 'Slice.checked_slice_notes',
     -- but are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
-    mkevent (shift, stretch, tree) = Event
-        { event_start = shift
-        , event_duration = stretch
-        , event_note = Derive.stretch
+    mkevent (shift, stretch, tree) = SubT.EventT
+        { _start = shift
+        , _duration = stretch
+        , _note = Derive.stretch
             (if stretch == 0 then 1 else recip stretch)
             (BlockUtil.derive_tracks tree)
         }
 
 -- | Modify the text of sub note tracks before deriving them.  This can be
 -- used to implement an ad-hoc new language.
-modify_notes :: ([GenericEvent Text] -> Either Text [GenericEvent Text])
+modify_notes :: ([SubT.EventT Text] -> Either Text [SubT.EventT Text])
     -> Derive.PassedArgs a -> Either Text (Derive.PassedArgs a)
 modify_notes modify =
     modify_sub_tracks $ modify_sub_notes (fmap to . modify . from)
     where
-    from = map (\e -> Event (Event.start e) (Event.duration e) (Event.text e))
-        . Events.ascending
+    from = map make . Events.ascending
+    make e = SubT.EventT
+        { _start = Event.start e
+        , _duration = Event.duration e
+        , _note = Event.text e
+        }
     to = Events.from_list
-        . map (\(Event start dur text) -> Event.event start dur text)
+        . map (\(SubT.EventT start dur text) -> Event.event start dur text)
 
 modify_sub_notes :: (Events.Events -> Either Text Events.Events)
     -> TrackTree.EventsTree -> Either Text TrackTree.EventsTree
@@ -303,26 +287,26 @@ derive_subs :: Derive.PassedArgs d -> Derive.NoteDeriver
 derive_subs = derive_tracks <=< sub_events
 
 -- | Derive and merge Events.
-derive :: [Event] -> Derive.NoteDeriver
-derive = mconcatMap (\(Event s d n) -> Derive.place s d n)
+derive :: [SubT.Event] -> Derive.NoteDeriver
+derive = mconcatMap (\(SubT.EventT s d n) -> Derive.place s d n)
 
-derive_tracks :: [[Event]] -> Derive.NoteDeriver
-derive_tracks = derive . Seq.merge_lists event_start
+derive_tracks :: [[SubT.Event]] -> Derive.NoteDeriver
+derive_tracks = derive . Seq.merge_lists SubT._start
 
 -- | Get the pitch of an Event.  Useful for debugging.
-derive_pitch :: Event -> Derive.Deriver (GenericEvent (Maybe Pitch.Note))
+derive_pitch :: SubT.Event -> Derive.Deriver (SubT.EventT (Maybe Pitch.Note))
 derive_pitch event = do
-    stream <- event_note event
+    stream <- SubT._note event
     let note = Score.initial_note =<< Seq.head (Stream.events_of stream)
-    return $ event { event_note = note }
+    return $ event { SubT._note = note }
 
 -- | Re-fit the events from one range to another.
 fit :: (ScoreTime, ScoreTime) -- ^ fit this range
     -> (ScoreTime, ScoreTime) -- ^ into this range
-    -> [Event] -> Derive.NoteDeriver
+    -> [SubT.Event] -> Derive.NoteDeriver
 fit (from_start, from_end) (to_start, to_end) events =
     Derive.place to_start factor $ derive
-        [e { event_start = event_start e - from_start } | e <- events]
+        [e { SubT._start = SubT._start e - from_start } | e <- events]
     -- Subtract from_start because Derive.place is going to add the start back
     -- on again in the form of to_start.
     where factor = (to_end - to_start) / (from_end - from_start)
@@ -330,7 +314,7 @@ fit (from_start, from_end) (to_start, to_end) events =
 -- ** RestEvent
 
 -- | A Nothing represents a rest.
-type RestEvent = GenericEvent (Maybe Derive.NoteDeriver)
+type RestEvent = SubT.EventT (Maybe Derive.NoteDeriver)
 
 -- | This is like 'sub_events', but gaps between the events are returned as
 -- explicit rests.
@@ -341,17 +325,17 @@ sub_rest_events include_end want_final_rest args =
     map (uncurry (find_gaps want_final_rest) (Args.range args)) <$>
         sub_events_ include_end args
 
-find_gaps :: Bool -> ScoreTime -> ScoreTime -> [GenericEvent a]
-    -> [GenericEvent (Maybe a)]
+find_gaps :: Bool -> ScoreTime -> ScoreTime -> [SubT.EventT a]
+    -> [SubT.EventT (Maybe a)]
 find_gaps want_final_rest start end (event : events)
-    | gap > 0 = Event start gap Nothing : rest
+    | gap > 0 = SubT.EventT start gap Nothing : rest
     | otherwise = rest
     where
-    gap = event_start event - start
+    gap = SubT._start event - start
     rest = (Just <$> event)
-        : find_gaps want_final_rest (event_end event) end events
+        : find_gaps want_final_rest (SubT.end event) end events
 find_gaps want_final_rest start end []
-    | want_final_rest && start < end = [Event start (end-start) Nothing]
+    | want_final_rest && start < end = [SubT.EventT start (end-start) Nothing]
     | otherwise = []
 
 -- | 'fit' for 'RestEvent's.
@@ -359,12 +343,12 @@ fit_rests :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
     -> [RestEvent] -> Derive.NoteDeriver
 fit_rests (from_start, from_end) (to_start, to_end) events =
     Derive.place to_start factor $
-        derive [e { event_start = event_start e - from_start } |
+        derive [e { SubT._start = SubT._start e - from_start } |
             e <- strip_rests events]
     where factor = (to_end - to_start) / (from_end - from_start)
 
-strip_rests :: [RestEvent] -> [Event]
-strip_rests events = [Event s d n | Event s d (Just n) <- events]
+strip_rests :: [RestEvent] -> [SubT.Event]
+strip_rests events = [SubT.EventT s d n | SubT.EventT s d (Just n) <- events]
 
 -- * reapply
 
@@ -373,17 +357,17 @@ strip_rests events = [Event s d n | Event s d (Just n) <- events]
 -- because they expect a track structure in 'Derive.ctx_sub_tracks'.  This
 -- bypasses that and directly passes 'Event's to the note parent, courtesy
 -- of 'Derive.ctx_sub_events'.
-reapply :: Derive.Context Score.Event -> DeriveT.Expr -> [[Event]]
+reapply :: Derive.Context Score.Event -> DeriveT.Expr -> [[SubT.Event]]
     -> Derive.NoteDeriver
 reapply ctx expr notes = Eval.reapply subs expr
     where
     subs = ctx
         { Derive.ctx_sub_events =
-            Just $ map (map (\(Event s d n) -> (s, d, n))) notes
+            Just $ map (map (\(SubT.EventT s d n) -> (s, d, n))) notes
         }
 
 reapply_call :: Derive.Context Score.Event -> Expr.Symbol
-    -> [DeriveT.Term] -> [[Event]] -> Derive.NoteDeriver
+    -> [DeriveT.Term] -> [[SubT.Event]] -> Derive.NoteDeriver
 reapply_call ctx sym call_args =
     reapply ctx $ Expr.generator $ Expr.Call sym call_args
 

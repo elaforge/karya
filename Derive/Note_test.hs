@@ -8,6 +8,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ScoreT as ScoreT
 
 import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
@@ -56,7 +57,9 @@ test_sub_tracks = do
         ]
 
 test_derive_track_signals = do
-    let run tracknum source = DeriveTest.e_tsigs
+    let run tracknum source =
+            map (second (map (second Pitch.nn)))
+            . DeriveTest.e_tsigs
             . DeriveTest.derive_tracks_setup (setup tracknum source) ""
         setup tracknum source =
             DeriveTest.with_tsig_sources [(UiTest.mk_tid tracknum, source)]
@@ -69,11 +72,15 @@ test_derive_track_signals = do
     --    0  1  2  3
     -- t1    (- --
     -- t2 "" "" "" ""
-    -- t3 48 50 52 53
+    -- t3 c3 d3 e3 f3
     -- Make sure track signals from orphans are incorporated.
     equal (run 2 pitch $ (">", [(1, 2, "(")]) : UiTest.regular_notes 4)
-        [((UiTest.default_block_id, UiTest.mk_tid 2),
-            [(0, 48), (1, 48), (1, 50), (2, 50), (2, 52), (3, 52), (3, 53)])]
+        [ ( (UiTest.default_block_id, UiTest.mk_tid 2)
+          , [ (0, NN.c3), (1, NN.c3), (1, NN.d3), (2, NN.d3), (2, NN.e3)
+            , (3, NN.e3), (3, NN.f3)
+            ]
+          )
+        ]
 
     -- This isn't a note track signal, but let's make sure normal track signals
     -- work with orphans as well.
@@ -134,6 +141,8 @@ test_c_note = do
     equal (run "> | +a" [(0, 1, "+b")]) ([(0, 1, "", "", ["a", "b"])], [])
     -- alternate syntax
     equal (run ">i" [(0, 1, ""), (1, 1, "inst=i2 |")])
-        ([ (0, 1, "", inst, [])
-        , (1, 1, "inst=i2 |", "i2", [])
-        ], [])
+        ( [ (0, 1, "", inst, [])
+          , (1, 1, "inst=i2 |", "i2", [])
+          ]
+        , []
+        )

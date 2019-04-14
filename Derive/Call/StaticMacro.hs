@@ -57,6 +57,12 @@ check :: CallStack.Stack => Text -> Either Text a -> a
 check call_name (Left err) = errorStack $ call_name <> ": " <> err
 check _ (Right val) = val
 
+-- TODO implement it
+require_val :: Sig.Arg -> Derive.Deriver DeriveT.Val
+require_val (Sig.SubTrack {}) =
+    Derive.throw "child tracks don't work for macros yet"
+require_val (Sig.LiteralArg arg) = return arg
+
 -- | Create a generator macro from a list of transformers and a generator.
 generator :: Derive.CallableExpr d => Module.Module -> Derive.CallName
     -> Tags.Tags -> Doc.Doc -> [Call (Derive.Transformer d)]
@@ -66,7 +72,8 @@ generator module_ name tags doc trans gen = do
     gen_args <- extract_args gen
     let args = trans_args ++ gen_args
     return $ Derive.generator module_ name tags (make_doc doc call_docs) $
-        Sig.call (Sig.required_vals args) $ \vals args ->
+        Sig.call (Sig.required_vals args) $ \vals args -> do
+            vals <- mapM require_val vals
             generator_macro trans gen vals (Derive.passed_ctx args)
     where call_docs = map call_doc trans ++ [call_doc gen]
 
@@ -94,8 +101,9 @@ transformer :: Derive.CallableExpr d => Module.Module -> Derive.CallName
 transformer module_ name tags doc trans = do
     args <- concatMapM extract_args trans
     return $ Derive.transformer module_ name tags (make_doc doc call_docs) $
-        Sig.callt (Sig.required_vals args) $ \vals args ->
-            transformer_macro trans vals (Derive.passed_ctx args)
+        Sig.callt (Sig.required_vals args) $ \vals args deriver -> do
+            vals <- mapM require_val vals
+            transformer_macro trans vals (Derive.passed_ctx args) deriver
     where call_docs = map call_doc trans
 
 transformer_macro :: Derive.CallableExpr d => [Call (Derive.Transformer d)]

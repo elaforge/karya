@@ -54,8 +54,7 @@ test_eval_quoted = do
 
 test_deriver = do
     let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks_setup
-                (CallTest.with_note_generator "ngen" generator) ""
+            . DeriveTest.derive_tracks_setup with_ngen ""
             . UiTest.note_track
     equal (run [(0, 1, "ngen NOTE -- 4c")]) ([(0, 1, "4c")], [])
     equal (run [(0, 1, "ngen \"(%t-dia=1 | NOTE) -- 4c")]) ([(0, 1, "4d")], [])
@@ -65,9 +64,29 @@ test_deriver = do
     equal (run [(0, 1, "ngen \"(NOTE) \"(%t-dia=1 | NOTE) -- 4c")])
         ([(0, 1, "4c"), (0, 1, "4d")], [])
 
+test_deriver_children = do
+    let run children skel = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_tracks_setup
+                    (with_ngen <> DeriveTest.with_skel skel) "" $
+                (">", [(4, 1, "ngen")]) : concatMap UiTest.note_track children
+    strings_like (snd $ run [] [])
+        ["expected another argument at argument \"deriver\""]
+    -- it's awkward that I have to give the skeleton explicitly
+    equal (run [[(4, 1, "4c")]] [(1, 2), (2, 3)])
+        ([(4, 1, "4c")], [])
+    equal (run [[(4, 1, "4c")], [(4, 1, "4d")]]
+            [(1, 2), (2, 3), (1, 4), (4, 5)])
+        ([(4, 1, "4c"), (4, 1, "4d")], [])
+    strings_like (snd $ run [[(4, 1, "4c")], [(4, 1, "4d")], [(4, 1, "4e")]]
+            [(1, 2), (2, 3), (1, 4), (4, 5), (1, 6), (6, 7)])
+        ["too many arguments: subtrack:"]
+
+with_ngen :: DeriveTest.SetupA a
+with_ngen = CallTest.with_note_generator "ngen" generator
+
 generator :: Derive.Generator Derive.Note
-generator = Derive.generator "test" "test" mempty "doc" $
-    Sig.call ((,)
+generator = Derive.generator "test" "ngen" mempty "doc" $
+    Sig.call_sub ((,)
         <$> Sig.required "deriver" "doc"
         <*> Sig.defaulted "deriver" (return mempty) "doc"
     ) $ \(deriver1, deriver2) _args -> deriver1 <> deriver2

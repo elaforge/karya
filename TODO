@@ -585,7 +585,7 @@ UNSORTED
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
       perfect.
-  - Legong scale umbang and isep is too close.
+  * Legong scale umbang and isep is too close.
     . Maybe something wrong with how I retuned the sc gamelan samples.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
     . This would get back the documentation I lost when I got rid of
@@ -679,7 +679,7 @@ UNSORTED
     demonstrated in Sub_test.test_overlapping_parent_control_scope
   - Better solution for the "sample at end of block" problem, as demonstrated
     by Block_test.test_trim_controls_problem
-  wayang
+  wayang:
     - Infer late damping.  E.g., if there is a jump wider than 2 notes, then
       wait until the hand is free for long enough to damp it.
     - Automatically fill in weak notes?
@@ -695,7 +695,7 @@ UNSORTED
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
-  - network midi doesn't seem to handle abort?
+  / network midi doesn't seem to handle abort?
     playing the second time doesn't happen
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
@@ -1084,19 +1084,25 @@ UNIFY:
   - controls and env:
     . something=4 should be the same as %something=4.  I can remove the
       % and # syntax.
+    . Unless I want to remove the VNum, I'll need to ensure that VNums never
+      go into Environ.
+    . That seems like it could be awkward.  What about putting Val into
+      a signal, so I can get rid of Environ entirely?
+    . I would need to expose TimeVector a, since Segment and interpolation
+      doesn't apply to arbitrary Vals.  If I still have VNum though, I'll
+      still have the ambiguity.
   - signal arguments:
     . They should all coerce to SignalFunction, with no need for
       Call.to_function.
   - controls and ControlFunctions:
     . See NOTE [fix-control-functions]
-  - deriver arguments, transformers, and parent calls:
+  + deriver arguments, transformers, and parent calls:
     . unify deriver parents:
     . I should be able to take {Note,Control,Pitch}Deriver args, which
-      then coerce from Sym, QuotedExpr, or a sub-track.  If the arg is
+      then coerce from Str, Quoted, or a sub-track.  If the arg is
       the last one, I should also be able to get a corresponding
       transformer.
-
-  - unify deriver parents:
+  + unify deriver parents:
     . Wasn't I going to unify block arg and child track somehow?
     . See Parent.c_event_interpolate for the awkwardness.
     . I could do it by having a "deriver" arg that has a special typecheck
@@ -1158,13 +1164,41 @@ UNIFY:
           NoteGenerator.  I guess that's not a big deal, though it's an
           invalid instance.  If I can coerce for default values then I could
           fix this by coercing from some "manual doc" newtype.
-      - Derive.Sig support for child tracks.
+      * Derive.Sig support for child tracks.
         . Use this to clean up Parent.c_event_interpolate.
+        . Child tracks go as implicit arguments on the end of Sig.state_vals,
+          where it's ok if they're unused.
+        . No wait, I want to *only* look at children if I have a deriver.
+      . I'm no longer sure this is actually a simplification, and not just
+        yet another special case.  What is gained if transformer <-> child?
+        . Things like 'loop' don't work because the child is always the same
+          length as the parent.  Well, it's not actually... if I make the
+          child have a CallDuration, I could have it end at the last event.
+          Then I could write loops inline.
+        . Could I make it so the call doesn't have access to children at all,
+          and it all has to come through deriver args?  Then e.g. tuplet takes
+          Sig.many deriver.
+        . Then maybe I could restrict the presence of children to EvalTrack,
+          and take it out of Context.  That would be a simplification I think.
+        . But NoteDeriver is lacking details, I also need [Sub.Track].
+          I would have to have a Typecheck instance for Sub.Track too.
+        . How to define Typecheck Sub.Track?  It's a different kind of
+          Typecheck because it's from Sub.Track, not Val.
+      * Now I get an error: "inst" arg is Maybe Str, but got subtrack.
+        * Why doesn't it say what the call was?
+          . I would have to catch and rethrow the TypeError in eval.
+          . Wait, isn't it in the Error Stack?  Maybe just the pretty function
+            needs changing.
+          . It's note-track.  I don't want transformers to get sub-track args.
+          . This is because they already get a single deriver arg.
+        . Is it enough?  Likely no:
+      - Convert parent calls to use Sig.call_sub.
+      - Support subtrack args in Macro and StaticMacro.
       - See if this can replace the special child track support in Make.
       - Implement transformers as a call with deriver as final argument.
         . I still want them to be in their own namespace, effectively as
           a limited form of overloading.
-      - Translate the pipeline syntax into that call.
+        . Translate the pipeline syntax into that call.
 
 ----------------------------------------------------------------------
 
@@ -3028,7 +3062,6 @@ performance:
   . https://github.com/nh2/haskell-cpu-instruction-counter
     . But only works on linux.
   . perf stat ...
-
   signal:
     - clip_before and clip_after usually require changing the signal
       . I could eliminate this with _start and _extent fields.
@@ -4921,9 +4954,10 @@ text score: tscore:
     mark durations ala gongche:
       . This replaces barline check with setting the durations.
   pitch check:
-    - put resolve_pitch before resolve_time
+    / put resolve_pitch before resolve_time
       . This way ties work with inferred pitches.
       . Then I have to plumb through TBarline etc. which is annoying.
+      . I think it's not necessary now that I have repeats.
   Time problems:
     . I want to say "repeat n times".
     . I want sections with their own tempo, and then the caller just sequences

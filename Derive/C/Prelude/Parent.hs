@@ -20,6 +20,7 @@ import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -63,7 +64,7 @@ c_ap = Derive.generator Module.prelude "ap" Tags.subs
 -- * tuplet
 
 c_tuplet :: Derive.Generator Derive.Note
-c_tuplet = Derive.generator Module.prelude "tuplet" Tags.subs
+c_tuplet = Derive.generator Module.prelude "tuplet" mempty
     "A generalized tuplet. The notes within its scope are stretched so that\
     \ their collective duration is the same as the tuplet's duration.\
     \\nThis doesn't work so well for zero duration notes. The last note\
@@ -74,18 +75,18 @@ c_tuplet = Derive.generator Module.prelude "tuplet" Tags.subs
     \\nIf there are multiple note tracks, they get the stretch of the longest\
     \ one. This is so the timing will come out right if some of the notes are\
     \ chords."
-    $ Sig.call0 $ \args -> Ly.when_lilypond
-        (lily_tuplet (Args.range args) =<< Sub.sub_events args)
-        (tuplet (Args.range args) =<< Sub.sub_events args)
+    $ Sig.call_sub (Sig.many "subtrack" "Subtrack to stretch.") $
+        \subtracks args -> Ly.when_lilypond
+            (lily_tuplet (Args.range args) (map SubT._events subtracks))
+            (tuplet (Args.range args) (map SubT._events subtracks))
 
-tuplet :: (ScoreTime, ScoreTime) -> [[Sub.Event]] -> Derive.NoteDeriver
+tuplet :: (ScoreTime, ScoreTime) -> [[SubT.Event]] -> Derive.NoteDeriver
 tuplet (start, end) tracks =
     case tuplet_note_end (map (map to_start_dur) tracks) of
         Nothing -> return mempty
         Just note_end ->
             mconcat $ map (Sub.fit (start, note_end) (start, end)) tracks
-    where
-    to_start_dur e = (Sub.event_start e, Sub.event_duration e)
+    where to_start_dur e = (SubT._start e, SubT._duration e)
 
 -- | Get the end of the notes inside the tuplet.  If it has >1 note, and they
 -- are all zero dur, and notes are equidistant, assume the last one has the
@@ -105,7 +106,7 @@ tuplet_note_end = Seq.maximum . mapMaybe last_end
 
 -- | Emit a special 'tuplet_event' and derive the sub events with no time
 -- changes.
-lily_tuplet :: (ScoreTime, ScoreTime) -> [[Sub.Event]] -> Derive.NoteDeriver
+lily_tuplet :: (ScoreTime, ScoreTime) -> [[SubT.Event]] -> Derive.NoteDeriver
 lily_tuplet (start, end) track_notes = do
     track_notes <- case filter (not . null) track_notes of
         [] -> Derive.throw "no sub events"
@@ -136,7 +137,7 @@ tuplet_event score_dur real_dur =
 -- | Direction in which to arpeggiate.  This is a general arpeggiation that
 -- just makes each track slightly delayed with regard to its neighbor.
 --
--- Since I can't know the pitch of things (and a 'Sub.Event' may not have
+-- Since I can't know the pitch of things (and a 'SubT.Event' may not have
 -- a single pitch), the arpeggiation is by track position, not pitch.
 data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
@@ -164,14 +165,14 @@ c_real_arpeggio arp = Derive.generator Module.prelude "arp" Tags.subs
     suffix = "\\arpeggio"
 
 -- | Shift each track of notes by a successive amount.
-arpeggio :: Arpeggio -> RealTime -> Double -> [[Sub.Event]]
+arpeggio :: Arpeggio -> RealTime -> Double -> [[SubT.Event]]
     -> Derive.NoteDeriver
 arpeggio arp time random tracks = do
     delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
-        forM track $ \(Sub.Event start dur d) -> do
+        forM track $ \(SubT.EventT start dur d) -> do
             delay <- Call.score_duration start delay
-            return $ Sub.Event (start+delay) (dur-delay) d
+            return $ SubT.EventT (start+delay) (dur-delay) d
     Sub.derive events
     where
     jitter tracks
@@ -223,24 +224,21 @@ c_interpolate = Derive.generator Module.prelude "interpolate" Tags.subs
         to_real <- Derive.real_function
         Sub.derive $ interpolate_tracks (at . to_real) (Seq.rotate tracks)
 
-interpolate_tracks :: (ScoreTime -> Signal.Y) -> [[Sub.Event]] -> [Sub.Event]
+interpolate_tracks :: (ScoreTime -> Signal.Y) -> [[SubT.Event]] -> [SubT.Event]
 interpolate_tracks at = mapMaybe interpolate1
     where
     interpolate1 events = interpolate_subs (at start) events
         where
-        start = Num.sum (map Sub.event_start events)
-            / fromIntegral (length events)
+        start = Num.sum (map SubT._start events) / fromIntegral (length events)
 
-interpolate_subs :: Double -> [Sub.GenericEvent a] -> Maybe (Sub.GenericEvent a)
+interpolate_subs :: Double -> [SubT.EventT a] -> Maybe (SubT.EventT a)
 interpolate_subs at events = case drop i events of
     [] -> Seq.last events
     [event] -> Just event
-    e1 : e2 : _ -> Just $ Sub.Event
-        { Sub.event_start =
-            interpolate (Sub.event_start e1) (Sub.event_start e2)
-        , Sub.event_duration =
-            interpolate (Sub.event_duration e1) (Sub.event_duration e2)
-        , Sub.event_note = Sub.event_note e1
+    e1 : e2 : _ -> Just $ SubT.EventT
+        { _start = interpolate (SubT._start e1) (SubT._start e2)
+        , _duration = interpolate (SubT._duration e1) (SubT._duration e2)
+        , _note = SubT._note e1
         }
     where
     (i, frac) = properFraction (at * fromIntegral (length events - 1))
@@ -322,7 +320,7 @@ c_cycle = Derive.generator Module.prelude "cycle" Tags.subs
             tracks
 
 cycle_call :: Derive.Context Score.Event -> NonEmpty DeriveT.Quoted
-    -> [Sub.Event] -> [Sub.Event]
+    -> [SubT.Event] -> [SubT.Event]
 cycle_call ctx transformers =
     zipWith apply (cycle (NonEmpty.toList transformers))
     where apply quoted = fmap $ Eval.eval_quoted_transformers ctx quoted
@@ -342,14 +340,14 @@ c_cycle_t = Derive.generator Module.prelude "cycle-t" Tags.subs
             tracks
 
 cycle_t :: Derive.Context Score.Event -> ScoreTime
-    -> NonEmpty (DeriveT.Quoted, Double) -> [Sub.Event] -> [Sub.Event]
+    -> NonEmpty (DeriveT.Quoted, Double) -> [SubT.Event] -> [SubT.Event]
 cycle_t ctx start transformers =
     go (zip (cycle ts) (tail (scanl (+) start (cycle durs))))
     where
     go [] _ = []
     go _ [] = []
     go ts@((quoted, until) : rest_ts) (event : events)
-        | Sub.event_start event >= until = go rest_ts (event : events)
+        | SubT._start event >= until = go rest_ts (event : events)
         | otherwise = fmap (Eval.eval_quoted_transformers ctx quoted) event
             : go ts events
     (ts, durs) = second (map ScoreTime.from_double)

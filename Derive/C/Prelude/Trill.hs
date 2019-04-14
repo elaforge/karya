@@ -69,6 +69,7 @@ import qualified Derive.Call.Ly as Ly
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -176,7 +177,7 @@ note_trill use_attributes neighbor config args
         start <- Derive.score x
         let end = snd $ Args.range args
         next <- maybe (return end) (Derive.score . fst) next
-        return $ Sub.Event start (next-start) $
+        return $ SubT.EventT start (next-start) $
             Call.add_constant control transpose Call.note
 
     -- trill_notes = do
@@ -189,7 +190,7 @@ note_trill use_attributes neighbor config args
     --     let notes = do
     --             (x, maybe_next) <- Seq.zip_next xs
     --             let next = fromMaybe end maybe_next
-    --             return $ Sub.Event x (next-x) Call.note
+    --             return $ SubT.EventT x (next-x) Call.note
     --     Call.add_control control (ScoreT.untyped transpose)
     --         (Sub.derive notes)
 
@@ -213,7 +214,7 @@ note_trill use_attributes neighbor config args
         --     (pitch, (x, maybe_next)) <-
         --         zip pitches (Seq.zip_next transitions)
         --     let next = fromMaybe (snd (Args.range args)) maybe_next
-        --     return $ Sub.Event x (next-x) (Call.pitched_note pitch)
+        --     return $ SubT.EventT x (next-x) (Call.pitched_note pitch)
 
 neighbor_to_signal :: ScoreTime -> Neighbor
     -> Derive.Deriver DeriveT.ControlRef
@@ -420,8 +421,7 @@ add_hold (start, end) hold starts
 --
 -- This doesn't restart the tremolo when a new note enters, if you want that
 -- you can have multiple tremolo events.
-chord_tremolo :: forall a. [ScoreTime] -> [[Sub.GenericEvent a]]
-    -> [Sub.GenericEvent a]
+chord_tremolo :: forall a. [ScoreTime] -> [[SubT.EventT a]] -> [SubT.EventT a]
 chord_tremolo starts note_tracks =
     Maybe.catMaybes $ snd $
         List.mapAccumL emit (-1, by_track) $ zip starts (drop 1 starts)
@@ -429,15 +429,15 @@ chord_tremolo starts note_tracks =
     emit (last_tracknum, notes_) (pos, next_pos) = case chosen of
         Nothing -> ((last_tracknum, notes), Nothing)
         Just (tracknum, note) -> ((tracknum, notes),
-            Just $ Sub.Event pos (next_pos-pos) (Sub.event_note note))
+            Just $ SubT.EventT pos (next_pos-pos) (SubT._note note))
         where
         chosen =
             Seq.minimum_on fst (filter ((>last_tracknum) . fst) overlapping)
                 <|> Seq.minimum_on fst overlapping
-        overlapping = filter (Sub.event_overlaps pos . snd) notes
-        notes = dropWhile ((<=pos) . Sub.event_end . snd) notes_
-    by_track :: [(TrackNum, Sub.GenericEvent a)]
-    by_track = Seq.sort_on (Sub.event_end . snd)
+        overlapping = filter (SubT.overlaps pos . snd) notes
+        notes = dropWhile ((<=pos) . SubT.end . snd) notes_
+    by_track :: [(TrackNum, SubT.EventT a)]
+    by_track = Seq.sort_on (SubT.end . snd)
         [ (tracknum, event)
         | (tracknum, track) <- zip [0..] note_tracks, event <- track
         ]
@@ -445,7 +445,7 @@ chord_tremolo starts note_tracks =
 -- | Just cycle the given notes.
 simple_tremolo :: [ScoreTime] -> [Derive.NoteDeriver] -> Derive.NoteDeriver
 simple_tremolo starts notes = Sub.derive
-    [ Sub.Event start (end - start) note
+    [ SubT.EventT start (end - start) note
     | (start, end, note) <- zip3 starts (drop 1 starts) $
         if null notes then [] else cycle notes
     ]

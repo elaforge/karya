@@ -16,6 +16,7 @@ import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.SubT as SubT
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveT as DeriveT
@@ -174,7 +175,7 @@ nruk (start_speed, end_speed, end_dyn, hold) args deriver = do
 realize_nruk :: Derive.NoteDeriver -> [(ScoreTime, Signal.Y)]
     -> Derive.NoteDeriver
 realize_nruk deriver notes = Sub.derive
-    [ Sub.Event start 0 (Call.multiply_dynamic dyn deriver)
+    [ SubT.EventT start 0 (Call.multiply_dynamic dyn deriver)
     | (start, dyn) <- notes
     ]
 
