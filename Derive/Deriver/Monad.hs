@@ -39,6 +39,7 @@ module Derive.Deriver.Monad (
     , Error(..), ErrorVal(..), CallError(..), TypeErrorT(..), ErrorPlace(..)
     , EvalSource(..)
     , throw, throw_arg_error, throw_error
+    , annotate
 
     -- * derived types
     , Callable, callable_name, Tagged(..), Taggable(..)
@@ -295,6 +296,11 @@ throw_error :: CallStack.Stack => ErrorVal -> Deriver a
 throw_error err = do
     stack <- gets (state_stack . state_dynamic)
     DeriveM.throw (Error CallStack.callStack stack err)
+
+-- | Catch and rethrow an error, presumably to annotate it with more
+-- information.
+annotate :: (Error -> Error) -> Deriver a -> Deriver a
+annotate f = DeriveM.annotate f
 
 
 -- * derived types

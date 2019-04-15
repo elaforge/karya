@@ -9,6 +9,7 @@
 module Derive.Deriver.DeriveM (
     Deriver, RunResult, run, write
     , throw, modify, get, gets, put
+    , annotate
 ) where
 import qualified Control.Monad.Except as Except
 
@@ -93,3 +94,8 @@ gets :: (st -> a) -> Deriver st err a
 gets f = do
     st <- get
     return $! f st
+
+-- | Catch and rethrow an error, presumably to annotate it with more
+-- information.
+annotate :: (err -> err) -> Deriver st err a -> Deriver st err a
+annotate f m = Except.catchError m (throw . f)
