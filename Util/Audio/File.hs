@@ -23,13 +23,13 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Vector.Storable as V
 import qualified GHC.Stack as Stack
 import qualified GHC.TypeLits as TypeLits
-import qualified Sound.File.Sndfile as Sndfile
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
 import qualified Streaming.Prelude as S
 import qualified System.Directory as Directory
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
+import qualified Util.Audio.Sndfile as Sndfile
 import qualified Util.Num as Num
 
 import           Global

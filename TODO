@@ -2028,6 +2028,11 @@ synth: im:
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
     bug:
+      * "System error : No such file or directory" with no info
+        . Appears to come from a concurrent call, maybe libsamplerate is not
+          thread-safe with it's perror thing.
+        . No wait, it's libsndfile.  It has a errno which is unsafe.  Wrap
+          sndfile functions in a lock?
     non-constant pitch:
       - predicted lengths tend to be off, sometimes by 2000+ frames.
         . I fixed a bunch of bugs with ratio placement, and they're still off,
