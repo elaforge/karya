@@ -333,10 +333,7 @@ watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
                 make_status inv_tempo wants_waveform (Config.imDir config)
                     score_path adjust0 msg
 
-    emit_status (Left err) = do
-        Log.warn err
-        return True
-    emit_status (Right (Just status)) = do
+    emit_status (ImStatus status) = do
         status <- case status of
             -- The PeakCache uses the filename as a key, so I can get false
             -- hits if I use the symlinks, which all look like 000.wav.
@@ -352,27 +349,38 @@ watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
             _ -> return status
         send_status status
         return False
-    emit_status (Right Nothing) = return False
+    emit_status (ImWarn msg) = Log.write msg >> return False
+    emit_status (ImFail msg) = Log.write msg >> return True
+    emit_status ImNothing = return False
     -- These get called concurrently, so avoid jumbled output.
     put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
+data ImStatus =
+    ImStatus Msg.DeriveStatus | ImWarn Log.Msg | ImFail Log.Msg | ImNothing
+    deriving (Show)
+
 make_status :: Transport.InverseTempoFunction -> (TrackId -> Bool) -> FilePath
     -> FilePath -> RealTime -> Config.Message
-    -> Either Text (Maybe Msg.DeriveStatus)
+    -> ImStatus
 make_status inv_tempo wants_waveform im_dir score_path adjust0
         (Config.Message block_id track_ids instrument payload) =
-    fmap (Msg.ImStatus block_id wanted_track_ids) <$> case payload of
+    case payload of
         Config.RenderingRange start end ->
-            Right $ Just $ Msg.ImRenderingRange start end
+            status $ Msg.ImRenderingRange start end
         Config.WaveformsCompleted chunknums
-            | Set.null wanted_track_ids -> Right Nothing
-            | otherwise -> do
-                waveforms <- mapM make_waveform chunknums
-                Right $ Just $ Msg.ImWaveformsCompleted waveforms
-        Config.Failure err -> Left $
-            "im failure: " <> pretty block_id <> ": "
-                <> pretty track_ids <> ": " <> err
+            | Set.null wanted_track_ids -> ImNothing
+            | otherwise -> case mapM make_waveform chunknums of
+                Right waveforms -> status $ Msg.ImWaveformsCompleted waveforms
+                Left err -> ImWarn $ Log.msg Log.Warn Nothing $
+                    "to_score for " <> pretty chunknums <> ": " <> err
+        Config.Warn stack err -> ImWarn $ Log.msg Log.Warn (Just stack) $
+            "im instrument " <> instrument <> ": " <> err
+        Config.Failure err -> ImFail $ Log.msg Log.Warn Nothing $
+            "im failure: " <> pretty block_id <> ": " <> pretty track_ids
+            <> ": " <> err
     where
+    status = ImStatus . Msg.ImStatus block_id wanted_track_ids
+
     wanted_track_ids = Set.filter wants_waveform track_ids
     make_waveform chunknum = do
         start <- to_score $ time_at chunknum

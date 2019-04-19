@@ -96,6 +96,7 @@ convert_event block_id event patch patch_name = run $ do
         , attributes = maybe mempty fst $
             Common.lookup_attributes (Score.event_attributes event)
                 (Patch.patch_attribute_map patch)
+        , stack = Score.event_stack event
         }
 
 -- | The event TrackId is later used to display render progress.  Progress is

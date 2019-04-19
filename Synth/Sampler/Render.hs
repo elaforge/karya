@@ -116,7 +116,7 @@ writeConfig config outputDir trackIds notes = catch $ do
 toSpan :: Sample.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
     { _start = AUtil.toSeconds $ Sample.start note
-    , _duration = maybe 0 AUtil.toSeconds $ Sample.duration note
+    , _duration = AUtil.toSeconds $ Sample.duration note
     , _hash = Sample.hash note
     }
 
@@ -257,13 +257,12 @@ resumeSamples config now states notes = do
         (zip states (Seq.sort_on Sample.hash notes))
 
 -- | Extract from Note for pretty-printing.
-eNote :: Sample.Note
-    -> (Text, Text, Signal.Signal, Either Text FilePath)
+eNote :: Sample.Note -> (Text, Text, Signal.Signal, FilePath)
 eNote n =
     ( prettyF $ Sample.start n
-    , maybe "Nothing" prettyF $ Sample.duration n
-    , either mempty Sample.ratios $ Sample.sample n
-    , FilePath.takeFileName . Sample.filename <$> Sample.sample n
+    , prettyF $ Sample.duration n
+    , Sample.ratios $ Sample.sample n
+    , Sample.filename $ Sample.sample n
     )
 
 -- | Convert 'Sample.Note' to a 'Playing'.
@@ -273,71 +272,60 @@ startSample :: Config -> Audio.Frame -> Maybe (Maybe State)
     -- this is a resuming sample, but it wasn't resampled, so there's no
     -- resampler state.
     -> Sample.Note -> IO Playing
-startSample config now mbMbState note = case Sample.sample note of
-    -- Just crash on a failed sample.  I used to keep rendering, but then
-    -- I need to mark where it failed, and it gets complicated.
-    Left err -> Audio.throwIO $
-        "note at " <> pretty start
-        <> ", dur: " <> pretty (Sample.duration note)
-        <> ": " <> err
-    Right sample -> do
-        -- NOTE [audio-state]
-        sampleStateRef <- IORef.newIORef Nothing
-        let mkConfig mbState = Resample.Config
-                { _quality = _quality config
-                , _state = _resampleState <$> mbState
-                , _notifyState = IORef.writeIORef sampleStateRef . fmap mkState
-                , _blockSize = _blockSize config
-                , _now = now
-                , _name = txt $ FilePath.takeFileName $ Sample.filename sample
-                }
-            mkState (used, rState) = State
-                { _filename = Sample.filename sample
-                , _offset = used
-                , _resampleState = rState
-                }
-        case mbMbState of
-            Nothing -> Audio.assert
-                (start >= now && now-start < _blockSize config) $
-                "note should have started between " <> showt now <> "--"
-                <> showt (now + _blockSize config) <> " but started at "
-                <> showt start
-            Just mbState -> do
-                Audio.assert (start < now) $
-                    "resume sample should start before " <> showt now
-                    <> " but started at " <> showt start
-                case mbState of
-                    Just state -> Audio.assert
-                        (Sample.filename sample == _filename state) $
-                        "starting " <> pretty sample <> " but state was for "
-                        <> pretty state
-                    Nothing -> Audio.assert
-                        (Signal.constant_val_from (AUtil.toSeconds start)
-                            (Sample.ratios sample) == Just 1) $
-                        "no resample state, but ratios is not 1: "
-                        <> pretty (Sample.ratios sample)
-        let offset = case mbMbState of
-                Just (Just state) -> _offset state
-                -- If start < now, then this is a resume.  I don't have
-                -- the offset because I'm not resampling and that Resample
-                -- produces that with State, but I don't need it.  I'm not
-                -- resampling so frames are 1:1.
-                _ -> max 0 $ now - start
-        duration <- maybe
-            (Audio.throwIO $ "tried to start sample with no duration: "
-                <> pretty note) return $
-            Sample.duration note
-        return $ Playing
-            { _noteHash = Sample.hash note
-            , _getState = IORef.readIORef sampleStateRef
-            , _audio = RenderSample.render
-                (mkConfig (Monad.join mbMbState))
-                (AUtil.toSeconds start)
-                (sample { Sample.offset = offset + Sample.offset sample })
-            , _noteRange = (start, start + duration)
+startSample config now mbMbState note = do
+    let start = Sample.start note
+    let sample = Sample.sample note
+    -- NOTE [audio-state]
+    sampleStateRef <- IORef.newIORef Nothing
+    let mkConfig mbState = Resample.Config
+            { _quality = _quality config
+            , _state = _resampleState <$> mbState
+            , _notifyState = IORef.writeIORef sampleStateRef . fmap mkState
+            , _blockSize = _blockSize config
+            , _now = now
+            , _name = txt $ FilePath.takeFileName $ Sample.filename sample
             }
-    where
-    start = Sample.start note
+        mkState (used, rState) = State
+            { _filename = Sample.filename sample
+            , _offset = used
+            , _resampleState = rState
+            }
+    case mbMbState of
+        Nothing -> Audio.assert
+            (start >= now && now-start < _blockSize config) $
+            "note should have started between " <> showt now <> "--"
+            <> showt (now + _blockSize config) <> " but started at "
+            <> showt start
+        Just mbState -> do
+            Audio.assert (start < now) $
+                "resume sample should start before " <> showt now
+                <> " but started at " <> showt start
+            case mbState of
+                Just state -> Audio.assert
+                    (Sample.filename sample == _filename state) $
+                    "starting " <> pretty sample <> " but state was for "
+                    <> pretty state
+                Nothing -> Audio.assert
+                    (Signal.constant_val_from (AUtil.toSeconds start)
+                        (Sample.ratios sample) == Just 1) $
+                    "no resample state, but ratios is not 1: "
+                    <> pretty (Sample.ratios sample)
+    let offset = case mbMbState of
+            Just (Just state) -> _offset state
+            -- If start < now, then this is a resume.  I don't have
+            -- the offset because I'm not resampling and that Resample
+            -- produces that with State, but I don't need it.  I'm not
+            -- resampling so frames are 1:1.
+            _ -> max 0 $ now - start
+    return $ Playing
+        { _noteHash = Sample.hash note
+        , _getState = IORef.readIORef sampleStateRef
+        , _audio = RenderSample.render
+            (mkConfig (Monad.join mbMbState))
+            (AUtil.toSeconds start)
+            (sample { Sample.offset = offset + Sample.offset sample })
+        , _noteRange = (start, start + Sample.duration note)
+        }
 
 -- | This is similar to 'Note.splitOverlapping', but it differentiates notes
 -- that overlap the starting time.

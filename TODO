@@ -1997,6 +1997,12 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    * put a stack in the error, so I can get it back to an event
+      . And in that case, why not go back to non-fatal errors?
+      . Something like a missing file is an internal error, and can be fatal.
+        Missing pitch is non-fatal since it's a score level thing.
+      . In that case can I just log in conversion, and omit it?
+      . Now I can omit Left sample, and the zero dur check in Render.
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
       . Use the same srate as DbSignal.from_signal.
@@ -3720,6 +3726,7 @@ ghc-bugs:
       compile, sync to 99dfbbd4d45d0f593f2349f52e6643ae4f029a90, reload
   - -fdefer-type-errors is broken in 8.4:
     https://ghc.haskell.org/trac/ghc/ticket/14963
+    . Maybe fixed in 8.6?
 
 test: testing:
   - on failure, instead of

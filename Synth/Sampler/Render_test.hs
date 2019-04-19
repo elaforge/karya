@@ -154,7 +154,7 @@ test_overlappingNotes = do
             where
             e n =
                 ( AUtil.toSeconds (Sample.start n)
-                , AUtil.toSeconds (fromMaybe 0 (Sample.duration n))
+                , AUtil.toSeconds (Sample.duration n)
                 )
     equal (f 0 1 []) ([], [], [])
     equal (f 0 1 [(0, 0)]) ([], [(0, 0)], [])
@@ -229,13 +229,10 @@ mkNoteRatios :: FilePath -> Audio.Frame -> Audio.Frame
     -> [(Audio.Frame, Double)] -> Sample.Note
 mkNoteRatios dbDir start dur ratios_ = Sample.Note
     { start = start
-    , duration = Just $
+    , duration =
         RenderSample.predictDuration (Signal.shift (-startS) ratios) dur
     , hash = Note.hash note
-    , sample = if null dbDir
-        then Left "no patch"
-        else Right $ (Sample.make (triFilename dbDir))
-            { Sample.ratios = ratios }
+    , sample = (Sample.make (triFilename dbDir)) { Sample.ratios = ratios }
     }
     where
     startS = AUtil.toSeconds start

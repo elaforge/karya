@@ -29,21 +29,20 @@ type SamplePath = FilePath
 data Note = Note {
     start :: !Audio.Frame
     -- | This is the actual duration of the sample at the given 'ratios', not
-    -- the requested 'Note.duration'.  This could be Nothing if the sample is
-    -- a Left, or if Sample.filename doesn't exist.  TODO maybe move 'duration'
-    -- to Sample then.
-    , duration :: !(Maybe Audio.Frame)
-    -- | This is Left Error if the converter failed to find a sample.
-    , sample :: Either Text Sample
-    -- | Hash of the other fields.  Putting it here means I can memoize its
-    -- creation but also that changing Note will make it out of sync.
+    -- the requested 'Note.duration'.
+    -- TODO maybe move 'duration' to Sample then.
+    , duration :: !Audio.Frame
+    , sample :: Sample
+    -- | Hash of (start, duration, sample).  Putting it here means I can
+    -- memoize its creation but also that changing Note will make it out of
+    -- sync.
     , hash :: Note.Hash
     } deriving (Show)
 
 end :: Note -> Audio.Frame
-end note = start note + fromMaybe 0 (duration note)
+end note = start note + duration note
 
-makeHash :: Audio.Frame -> Maybe Audio.Frame -> Either Text Sample -> Note.Hash
+makeHash :: Audio.Frame -> Maybe Audio.Frame -> Sample -> Note.Hash
 makeHash start dur sample = Note.hash (start, dur, sample)
     -- TODO ensure envelope and ratios are clipped to (start, duration)?
 

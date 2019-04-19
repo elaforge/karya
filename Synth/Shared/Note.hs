@@ -16,6 +16,7 @@ import qualified Util.Serialize as Serialize
 import           Util.Serialize (get, put)
 
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Stack as Stack
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Signal as Signal
@@ -46,6 +47,8 @@ data Note = Note {
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map Control.Control Signal.Signal)
     , attributes :: !Attrs.Attributes
+    -- | The stack of the score event that generated this Note.  For errors.
+    , stack :: Stack.Stack
     } deriving (Show)
 
 -- | Unique identifier for a patch.
@@ -59,12 +62,14 @@ end :: Note -> RealTime
 end n = start n + duration n
 
 instance Serialize.Serialize Note where
-    put (Note a b c d e f g h) =
+    put (Note a b c d e f g h i) =
         put a *> put b *> put c *> put d *> put e *> put f *> put g *> put h
+        *> put i
     get = Note <$> get <*> get <*> get <*> get <*> get <*> get <*> get <*> get
+        <*> get
 
 instance Pretty Note where
-    format (Note patch inst trackId element start dur controls attrs) =
+    format (Note patch inst trackId element start dur controls attrs stack) =
         Pretty.record "Note"
             [ ("patch", Pretty.format patch)
             , ("instrument", Pretty.format inst)
@@ -74,6 +79,7 @@ instance Pretty Note where
             , ("duration", Pretty.format dur)
             , ("controls", Pretty.format controls)
             , ("attributes", Pretty.format attrs)
+            , ("stack", Pretty.format stack)
             ]
 
 -- | Make a Note for testing.
@@ -87,6 +93,7 @@ note patch instrument start duration = Note
     , duration = duration
     , controls = mempty
     , attributes = mempty
+    , stack = Stack.empty
     }
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber

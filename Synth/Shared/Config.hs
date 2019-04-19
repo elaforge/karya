@@ -27,6 +27,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified App.Config as Config
 import qualified App.Path as Path
+import qualified Derive.Stack as Stack
 import qualified Ui.Id as Id
 
 import           Global
@@ -227,8 +228,9 @@ data Payload =
     RenderingRange !RealTime !RealTime
     -- | Completed waveforms.
     | WaveformsCompleted ![ChunkNum]
+    | Warn !Stack.Stack !Text
     -- | A failure will cause karya to log the msg and mark the track as
-    -- incomplete.  It should be fatal, so don't emit any 'emitProgress'
+    -- incomplete.  It should be fatal, so don't do any 'emitMessage'
     -- afterwards.
     | Failure !Text
     deriving (Show, Generics.Generic)
@@ -242,6 +244,7 @@ emitMessage extra msg = do
     let prio = case _payload msg of
             RenderingRange {} -> Log.Debug
             WaveformsCompleted {} -> Log.Debug
+            Warn {} -> Log.Warn
             Failure {} -> Log.Warn
     Log.log prio $ Text.unwords $
         [ Id.ident_text (_blockId msg)
@@ -249,6 +252,7 @@ emitMessage extra msg = do
         , case _payload msg of
             RenderingRange start end -> pretty start <> "--" <> pretty end
             WaveformsCompleted chunknums -> "completed: " <> pretty chunknums
+            Warn stack err -> pretty stack <> ": " <> err
             Failure err -> err
         ] ++ if Text.null extra then [] else [extra]
     Log.with_stdio_lock $ do

@@ -116,12 +116,13 @@ dump useShow db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
     whenJustM (getPatch db patchName) $ \patch ->
         forM_ notes $ \(inst, notes) -> do
             Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
-            notes <- mapM makeSampleNote (convert db patch notes)
+            notes <- mapMaybeM (makeSampleNote emit) (convert db patch notes)
             let hashes = dumpHashes notes
             when False $ -- maybe I'll want this again someday
                 mapM_ putHash hashes
             mapM_ putNote notes
     where
+    emit payload = putStrLn (show payload)
     putNote n
         | useShow = PPrint.pprint n
         | otherwise = Text.IO.putStrLn $ Text.unlines $
@@ -131,7 +132,7 @@ dump useShow db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
         Text.unwords [line, pretty s, "+", pretty dur, "=>", pretty (s+dur)]
         where
         s = AUtil.toSeconds $ Sample.start n
-        dur = AUtil.toSeconds $ fromMaybe 0 $ Sample.duration n
+        dur = AUtil.toSeconds $ Sample.duration n
     putHash (start, end, (hash, hashes)) = Text.IO.putStrLn $
         pretty start <> "--" <> pretty end <> ": " <> pretty hash <> " "
         <> pretty hashes
@@ -153,15 +154,21 @@ process db quality notes outputDir
         Async.forConcurrently_ grouped $ \(patchName, notes) ->
             whenJustM (getPatch db patchName) $ \patch ->
                 Async.forConcurrently_ notes $ \(inst, notes) ->
-                    -- Omit samples with 0 duration.  This can happen naturally
-                    -- if they have 0 volume.  Include ones with Nothing
-                    -- duration, since that's an error that Render will report
-                    -- later.
-                    realize (trackIds notes) quality outputDir inst
-                        . filter (maybe True (>0) . Sample.duration)
-                        =<< mapM makeSampleNote (convert db patch notes)
+                    let trackIds = trackIdsOf notes
+                        emit = emitMessage trackIds inst
+                    in realize emit trackIds quality outputDir inst
+                        =<< mapMaybeM (makeSampleNote emit)
+                            (convert db patch notes)
     where
-    trackIds notes = Set.fromList $ mapMaybe Note.trackId notes
+    emitMessage trackIds instrument payload =
+        Config.emitMessage "" $ Config.Message
+            { _blockId = Config.pathToBlockId (outputDir </> "dummy")
+            , _trackIds = trackIds
+            , _instrument = instrument
+            , _payload = payload
+            }
+
+    trackIdsOf notes = Set.fromList $ mapMaybe Note.trackId notes
     grouped = byPatchInst notes
     instruments = Set.fromList $ concatMap (map fst . snd) grouped
 
@@ -210,46 +217,56 @@ convert db patch =
     patchDir = Patch._rootDir db </> Patch._dir patch
 
 -- TODO do this incrementally?  A stream?
-makeSampleNote :: (Either Error Sample.Sample, [Log.Msg], Note.Note)
-    -> IO Sample.Note
-makeSampleNote (errSample, logs, note) = do
+makeSampleNote :: (Config.Payload -> IO ())
+    -> (Either Error Sample.Sample, [Log.Msg], Note.Note)
+    -> IO (Maybe Sample.Note)
+makeSampleNote emitMessage (Left err, logs, note) = do
     mapM_ Log.write logs
-    errDur <- case errSample of
-        Left err -> return $ Left err
-        Right sample -> first Audio.exceptionText <$>
-            actualDuration (Note.start note) sample
-    -- Round the frame up.  Otherwise, since frames are integral, I might round
-    -- a note to start before its signal, at which point I get an extraneous 0.
-    let start = Audio.secondsToFrameCeil Config.samplingRate
-            (RealTime.to_seconds (Note.start note))
-    let mbDur = either (const Nothing) Just errDur
-    return $ Sample.Note
-        { start = start
-        , duration = mbDur
-        , sample = either Left (const errSample) errDur
-        , hash = Sample.makeHash start mbDur errSample
-        }
+    emitMessage $ Config.Warn (Note.stack note) err
+    return Nothing
+makeSampleNote emitMessage (Right sample, logs, note) = do
+    mapM_ Log.write logs
+    Exception.try (actualDuration (Note.start note) sample) >>= \case
+        Left exc -> do
+            emitMessage $
+                Config.Warn (Note.stack note) (Audio.exceptionText exc)
+            return Nothing
+        Right dur | dur <= 0 -> do
+            -- Omit samples with 0 duration.  This can happen naturally if they
+            -- have 0 volume.  Include ones with Nothing duration, since that's
+            -- an error that Render will report later.
+            emitMessage $
+                Config.Warn (Note.stack note) "sample with <=0 duration"
+            return Nothing
+        Right dur -> do
+            -- Round the frame up.  Otherwise, since frames are integral, I
+            -- might round a note to start before its signal, at which point I
+            -- get an extraneous 0.
+            let start = Audio.secondsToFrameCeil Config.samplingRate
+                    (RealTime.to_seconds (Note.start note))
+            return $ Just $ Sample.Note
+                { start = start
+                , duration = dur
+                , sample = sample
+                , hash = Sample.makeHash start (Just dur) sample
+                }
 
 -- | It's important to get an accurate duration if I can, because that
 -- determines overlap, which affects caching.
-actualDuration :: RealTime -> Sample.Sample
-    -> IO (Either Audio.Exception Audio.Frame)
+actualDuration :: RealTime -> Sample.Sample -> IO Audio.Frame
 actualDuration start sample = do
-    excFileDur <- Exception.try $
-        RenderSample.predictFileDuration
-            (Signal.shift (-start) (Sample.ratios sample))
-            (Sample.filename sample)
+    fileDur <- RenderSample.predictFileDuration
+        (Signal.shift (-start) (Sample.ratios sample))
+        (Sample.filename sample)
     let envDur = AUtil.toFrame <$>
             RenderSample.envelopeDuration start (Sample.envelope sample)
-    return $ case excFileDur of
-        Left exc -> Left exc
-        Right fileDur -> case envDur of
-            Just dur -> Right $ min fileDur dur
-            Nothing -> Right fileDur
+    return $ case envDur of
+        Just dur -> min fileDur dur
+        Nothing -> fileDur
 
-realize :: Set Id.TrackId -> Resample.Quality -> FilePath
-    -> Note.InstrumentName -> [Sample.Note] -> IO ()
-realize trackIds quality outputDir instrument notes = do
+realize :: (Config.Payload -> IO ()) -> Set Id.TrackId -> Resample.Quality
+    -> FilePath -> Note.InstrumentName -> [Sample.Note] -> IO ()
+realize emitMessage trackIds quality outputDir instrument notes = do
     let instDir = outputDir </> untxt instrument
     Directory.createDirectoryIfMissing True instDir
     (result, elapsed) <- Thread.timeActionText $
@@ -258,16 +275,12 @@ realize trackIds quality outputDir instrument notes = do
         Left err -> do
             Log.error $ instrument <> ": writing " <> txt instDir
                 <> ": " <> err
-            Config.emitMessage "" $ Config.Message
-                { _blockId = Config.pathToBlockId instDir
-                , _trackIds = trackIds
-                , _instrument = instrument
-                , _payload = Config.Failure err
-                }
+            emitMessage $ Config.Failure err
         Right (rendered, total) ->
             Log.notice $ instrument <> " " <> showt rendered <> "/"
                 <> showt total <> " chunks: " <> txt instDir
                 <> " (" <> elapsed <> ")"
+
 
 -- * one off testing
 
