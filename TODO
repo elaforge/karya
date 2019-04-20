@@ -1192,7 +1192,12 @@ UNIFY:
           . It's note-track.  I don't want transformers to get sub-track args.
           . This is because they already get a single deriver arg.
         . Is it enough?  Likely no:
+      - I'm not happy with the idea of these being positional arguments,
+        because what about previous optional arguments?
+        . Maybe I should make it an explicit category, like environ.
+          Sig.subtrack or Sig.subtracks.
       - Convert parent calls to use Sig.call_sub.
+        . And e-interpolate, that was the whole reason to start all this.
       - Support subtrack args in Macro and StaticMacro.
       - See if this can replace the special child track support in Make.
       - Implement transformers as a call with deriver as final argument.

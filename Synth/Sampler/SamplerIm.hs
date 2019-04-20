@@ -233,8 +233,7 @@ makeSampleNote emitMessage (Right sample, logs, note) = do
             return Nothing
         Right dur | dur <= 0 -> do
             -- Omit samples with 0 duration.  This can happen naturally if they
-            -- have 0 volume.  Include ones with Nothing duration, since that's
-            -- an error that Render will report later.
+            -- have 0 volume.
             emitMessage $
                 Config.Warn (Note.stack note) "sample with <=0 duration"
             return Nothing
@@ -251,8 +250,8 @@ makeSampleNote emitMessage (Right sample, logs, note) = do
                 , hash = Sample.makeHash start (Just dur) sample
                 }
 
--- | It's important to get an accurate duration if I can, because that
--- determines overlap, which affects caching.
+-- | It's important to get an accurate duration, because that determines
+-- overlap, which affects caching.
 actualDuration :: RealTime -> Sample.Sample -> IO Audio.Frame
 actualDuration start sample = do
     fileDur <- RenderSample.predictFileDuration

@@ -299,7 +299,7 @@ unparseFilename pitch art dyn var =
         [ prettys pitch, articulationFilename art, Util.showLower dyn
         , 'v' : show var
         ]
-        ++ ".wav"
+        ++ ".flac"
 
 articulationFilename :: Articulation -> String
 articulationFilename = \case
