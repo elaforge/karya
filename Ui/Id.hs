@@ -18,7 +18,8 @@ module Ui.Id (
     -- * Ident
     , Ident(..)
     , show_ident, read_ident
-    , ident_text, ident_name, ident_namespace
+    , ident_text, text_ident
+    , ident_name, ident_namespace
 
     -- * constants
     , global, global_namespace
@@ -216,6 +217,10 @@ read_ident = do
 -- | SomethingId -> "ns/name"
 ident_text :: Ident a => a -> Text
 ident_text = show_id . unpack_id
+
+-- | "ns/name" -> SomethingId
+text_ident :: Ident a => Text -> Maybe a
+text_ident = make . read_id
 
 -- | SomethingId -> "name"
 ident_name :: Ident a => a -> Text

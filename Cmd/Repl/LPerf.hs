@@ -19,6 +19,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified App.Config as Config
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.CmdUtil as CmdUtil
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
@@ -49,7 +50,9 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
 
+import qualified Synth.Shared.Config as Shared.Config
 import qualified Synth.Shared.Note as Note
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Ui as Ui
 
@@ -232,6 +235,22 @@ sel_im_events = do
     block_id <- Cmd.get_focused_block
     im_convert block_id =<< get_sel_events False block_events_unnormalized
 
+-- | Show the low level events as seen by the sampler backend.
+sel_sampler_events :: Cmd.CmdT IO Text
+sel_sampler_events = do
+    (block_id, track_ids, start, end) <- get_sel_ranges True
+    im_dir <- Cmd.gets $ Shared.Config.imDir . Cmd.config_im . Cmd.state_config
+    score_path <- Cmd.gets Cmd.score_path
+    let notes_file = Shared.Config.notesFilename im_dir score_path block_id
+            Shared.Config.sampler
+    out <- CmdUtil.read_process "build/opt/sampler-im"
+        [ "dump"
+        , "--range", show start <> "," <> show end
+        , "--tracks", untxt $ Text.intercalate "," (map Id.ident_text track_ids)
+        , notes_file
+        ]
+    return out
+
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.M m => m [Score.Event]
 root_sel_events = get_sel_events True block_events
@@ -359,12 +378,17 @@ get_sel :: Cmd.M m => (d -> RealTime) -> (d -> Stack.Stack)
     -> Bool -- ^ from root
     -> (BlockId -> m [LEvent.LEvent d]) -> m [LEvent.LEvent d]
 get_sel event_start event_stack from_root derive_events = do
-    (block_id, start, end) <-
-        if from_root then Selection.realtime else Selection.local_realtime
-    track_ids <- Selection.track_ids
+    (block_id, track_ids, start, end) <- get_sel_ranges from_root
     events <- derive_events block_id
     return $ in_tracks event_stack track_ids $
         in_range event_start start end events
+
+get_sel_ranges :: Cmd.M m => Bool -> m (BlockId, [TrackId], RealTime, RealTime)
+get_sel_ranges from_root = do
+    (block_id, start, end) <-
+        if from_root then Selection.realtime else Selection.local_realtime
+    track_ids <- Selection.track_ids
+    return (block_id, track_ids, start, end)
 
 score_in_selection :: [TrackId] -> RealTime -> RealTime
     -> [LEvent.LEvent Score.Event] -> [LEvent.LEvent Score.Event]

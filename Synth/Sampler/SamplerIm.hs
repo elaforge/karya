@@ -21,6 +21,8 @@ import qualified System.Exit
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 
+import qualified Text.Read as Read
+
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
@@ -59,12 +61,16 @@ main = do
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
     let quality = fromMaybe defaultQuality $
             Seq.last [quality | Quality quality <- flags]
+        dumpRange = Seq.head [(start, end) | DumpRange start end <- flags]
+        dumpTracks = Seq.head [tracks | DumpTracks tracks <- flags]
     case args of
         ["check"] -> do
             let (reference, samples) = Wayang.checkStarts
             mapM_ (renderStarts . (++[reference])) samples
-        ["dump", notesFilename] -> dumpNotes False notesFilename
-        ["dumps", notesFilename] -> dumpNotes True notesFilename
+        ["dump", notesFilename] ->
+            dumpNotes False dumpRange dumpTracks notesFilename
+        ["dumps", notesFilename] ->
+            dumpNotes True dumpRange dumpTracks notesFilename
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
                 ["sampler-im", txt notesFilename, txt outputDir]
@@ -73,8 +79,9 @@ main = do
             process PatchDb.db quality notes outputDir
         _ -> usage ""
     where
-    dumpNotes useShow notesFilename =
-        dump useShow PatchDb.db =<< either (errorIO . pretty) return
+    dumpNotes useShow range tracks notesFilename =
+        dump useShow range tracks PatchDb.db
+            =<< either (errorIO . pretty) return
             =<< Note.unserialize notesFilename
     usage msg = do
         unless (null msg) $
@@ -87,7 +94,10 @@ main = do
             options
         System.Exit.exitFailure
 
-data Flags = Quality Resample.Quality
+data Flag =
+    Quality Resample.Quality
+    | DumpRange !RealTime !RealTime
+    | DumpTracks !(Set Id.TrackId)
     deriving (Eq, Show)
 
 readEnum :: (Show a, Enum a, Bounded a) => String -> a
@@ -100,42 +110,79 @@ readEnum str =
 defaultQuality :: Resample.Quality
 defaultQuality = Resample.SincMediumQuality
 
-options :: [GetOpt.OptDescr Flags]
+options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["quality"]
         (GetOpt.ReqArg (Quality . readEnum) (show defaultQuality))
         ("resample quality: "
             <> show [minBound .. maxBound :: Resample.Quality])
+    , GetOpt.Option [] ["range"] (GetOpt.ReqArg readDumpRange "start,end")
+        "dump events in this time range"
+    , GetOpt.Option [] ["tracks"]
+        (GetOpt.ReqArg readTracks "track-id,track-id,...")
+        "dump events in from these tracks, by stack"
     ]
+
+readDumpRange :: String -> Flag
+readDumpRange s = case Seq.split "," s of
+    [start, end]
+        | Just start <- Read.readMaybe start, Just end <- Read.readMaybe end ->
+            DumpRange start end
+    _ -> error $ "can't parse: " <> show s
+
+readTracks :: String -> Flag
+readTracks s =
+    DumpTracks $ Set.fromList $ map readId . Text.splitOn "," $ Text.pack s
+    where
+    readId w = fromMaybe (error $ "can't parse TrackId: " <> show w) $
+        Id.text_ident w
 
 type Error = Text
 
 -- | Show the final Sample.Notes, which would have been rendered.
-dump :: Bool -> Patch.Db -> [Note.Note] -> IO ()
-dump useShow db notes = forM_ (byPatchInst notes) $ \(patchName, notes) ->
-    whenJustM (getPatch db patchName) $ \patch ->
-        forM_ notes $ \(inst, notes) -> do
-            Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
-            notes <- mapMaybeM (makeSampleNote emit) (convert db patch notes)
-            let hashes = dumpHashes notes
-            when False $ -- maybe I'll want this again someday
-                mapM_ putHash hashes
-            mapM_ putNote notes
+dump :: Bool -> Maybe (RealTime, RealTime) -> Maybe (Set Id.TrackId)
+    -> Patch.Db -> [Note.Note] -> IO ()
+dump useShow range tracks db notes =
+    forM_ (byPatchInst notes) $ \(patchName, notes) ->
+        whenJustM (getPatch db patchName) $ \patch ->
+            forM_ notes $ \(inst, notes) -> do
+                Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
+                sampleNotes <- mapM (makeSampleNote emit)
+                    (convert db patch notes)
+                when False $ -- maybe I'll want this again someday
+                    mapM_ putHash $ dumpHashes (Maybe.catMaybes sampleNotes)
+                mapM_ putNote $
+                    maybe id inTracks tracks $ maybe id inRange range $
+                    Seq.map_maybe_snd id $ zip notes sampleNotes
     where
     emit payload = putStrLn (show payload)
-    putNote n
-        | useShow = PPrint.pprint n
+    putNote (note, sample)
+        | useShow = PPrint.pprint sample
         | otherwise = Text.IO.putStrLn $ Text.unlines $
             Seq.map_tail (Text.drop 4) $ -- dedent
-            Seq.map_head (annotate n) $ Text.lines $ Pretty.formatted n
-    annotate n line =
-        Text.unwords [line, pretty s, "+", pretty dur, "=>", pretty (s+dur)]
+            Seq.map_head (annotate note sample) $ Text.lines $
+            Pretty.formatted sample
+    annotate note sample line = Text.unwords
+        [ line, pretty s, "+", pretty dur, "=>", pretty (s+dur)
+        , "[original: ", pretty (Note.start note, Note.duration note)
+        , maybe "<no-track>" Id.ident_text (Note.trackId note) <> "]"
+        ]
         where
-        s = AUtil.toSeconds $ Sample.start n
-        dur = AUtil.toSeconds $ Sample.duration n
+        s = AUtil.toSeconds $ Sample.start sample
+        dur = AUtil.toSeconds $ Sample.duration sample
     putHash (start, end, (hash, hashes)) = Text.IO.putStrLn $
         pretty start <> "--" <> pretty end <> ": " <> pretty hash <> " "
         <> pretty hashes
+
+inRange :: (RealTime, RealTime) -> [(Note.Note, a)] -> [(Note.Note, a)]
+inRange (start, end) = filter $ \(n, _) ->
+    not $ Note.start n <= start || Note.start n > end
+    -- This checks if the note start is in the range, not the note extent,
+    -- because that's how LPerf works.
+
+inTracks :: Set Id.TrackId -> [(Note.Note, a)] -> [(Note.Note, a)]
+inTracks tracks = filter $ \(n, _) ->
+    maybe False (`Set.member` tracks) (Note.trackId n)
 
 dumpHashes :: [Sample.Note] -> [(RealTime, RealTime, (Note.Hash, [Note.Hash]))]
 dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes

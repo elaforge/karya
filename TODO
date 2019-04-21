@@ -1565,7 +1565,7 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
-  - can I get a LPerf.sel_sampler_events?
+  * can I get a LPerf.sel_sampler_events?
     . Since it's a separate process, I'd have to serialize the events, then
       run 'sampler-im dump fname'.
   synth status:
