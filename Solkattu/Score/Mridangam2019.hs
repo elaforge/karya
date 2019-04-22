@@ -30,7 +30,6 @@ e_19_03_20 = ganesh $ date 2019 3 20 $ sarvalaghu $ korvaiS adi $
         repeat times (n.d.__.k) . o.od.__.k
         . on.od.__.k . repeat (times-1) (n.d.__.k) . o.od.__.k
 
-
 e_19_04_01 :: Korvai
 e_19_04_01 = sarvalaghu $ ganesh $ date 2019 4 1 $ korvai adi $ map section
     [ sd (on.od.od).on.ookook . sd (od.od.on)
@@ -65,3 +64,17 @@ e_19_04_01 = sarvalaghu $ ganesh $ date 2019 4 1 $ korvai adi $ map section
     -- Factor into low and high.  The low factor is the number of pairs,
     -- (floor (high/2), ceiling (high/2)) is the mid pair, and expand from
     -- there.
+
+e_19_04_15 :: Korvai
+e_19_04_15 = date 2019 4 15 $ ganesh $ exercise $
+    comment "practice left hand independance" $
+    korvaiS adi
+    [ rh
+    , rh & repeat 4 (o.__4)
+    , rh & repeat 7 (o.__)
+    , rh & (o.o.__3.repeat 5 (o.__))
+    , rh & (o.o.__3.o.o.__3.repeat 3 (o.__))
+    , rh & strM "o_oo_oo_oo_oo"
+    ]
+    where
+    rh = repeat 8 $ n.k.t.k

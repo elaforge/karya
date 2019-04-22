@@ -80,6 +80,41 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
     -- ktnoktknokt kno -- 2013 11 5, progression different
     -- su: o t k n ktok
 
+dinna_dinnakitataka :: Korvai
+dinna_dinnakitataka = korvaiS1 adi $ make_dinna
+    (group (repeat 2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)))
+    (group (o.k.o.n.su (kt.p.k)))
+    (group (p.k.p.n.su (kt.o.k)))
+
+-- TODO Generalize so it works with all of them.
+make_dinna :: Sequence -> Sequence -> Sequence -> Sequence
+make_dinna theme theme' ptheme' = su $ mconcat $ map (sam.)
+    [ sarvaA_ 16 theme
+    , sarvaA_ 8 theme . sarvaA_ 8 theme
+    -- close one before: 6 < _ < 11
+    -- splitM 3, splitM 1
+    -- 1   2   3   4   X   O   X   O   |
+    -- o o o o o p p p p p p o o o o o |
+    -- +-----+-----+---+-----+-----+---
+
+    -- 1   .   2   .   3   .   4   .   |
+    -- o_k_o_n_ktoko_k_o_n_ktpkp_n_ktpk
+    -- 5   .   6   .   7   .   8   .   |
+    -- p_k_p_n_ktoko_k_o_n_ktpkp_n_ktpk
+    , theme . closed theme . theme . closed theme
+    , tri_ (o.__8) theme
+    , theme.o.__8 . theme.o.__4 . eme.o.__4 . eme
+    , theme.o.__8 . theme.o.__4 . eme.o.__2 . me.o.__2 . me
+    , tri_ (o.__) (theme.me)
+    , trin (o.__) theme (theme.me) (theme.me.me)
+    , repeat 2 (theme.o.__4 . eme.o.__4 . eme.o.__4)
+        . theme.o.__4 . eme.o.__ . me.o.__.me
+    , tri_ (o.__4) $ theme . theme' . ptheme' . theme' . ptheme'
+    ]
+    where
+    eme = dropM 8 theme
+    me = dropM 12 theme
+
 -- * sarvalaghu
 
 t_17_02_13 :: Korvai

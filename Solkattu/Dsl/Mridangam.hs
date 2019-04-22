@@ -28,6 +28,7 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
+import Global
 import Solkattu.Dsl.Generic
 
 
@@ -83,6 +84,13 @@ mapMStroke = fmap • fmap • fmap • fmap
 mapNote :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
     -> Sequence -> Sequence
 mapNote = fmap • fmap
+
+-- | Parse a string to mridangam strokes.
+strM :: CallStack.Stack => String -> Sequence
+strM str = mconcatMap toSeq $ Solkattu.check $ Mridangam.fromString str
+    where
+    toSeq Nothing = __
+    toSeq (Just stroke) = Realize.strokeToSequence stroke
 
 -- * fragments
 
