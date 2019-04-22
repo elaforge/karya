@@ -4034,7 +4034,7 @@ solkattu:
         . Acutally this is due to differing normalization.  The next section
           is actually at a different speed.
         . Shouldn't there be an intermediate ruler though?
-      - I should also be able to mark sam, to make avartanams more clear
+      * I should also be able to mark sam, to make avartanams more clear
         when they wrap across two lines.
         . Say by colorizing the stroke on sam.
   What would a web UI look like?

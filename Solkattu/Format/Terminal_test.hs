@@ -149,18 +149,18 @@ test_format_eddupu = do
     let tas n = G.repeat n G.ta
     let s = G.section
     equal_fmt id (run [s $ tas 32, s $ tas 32])
-        "1:  X:4     O       X       O       |\n\
-        \    k k k k k k k k k k k k k k k k\n\
-        \    k k k k k k k k k k k k k k k k\n\
+        "    X:4     O       X       O       |\n\
+        \1:  k k k k k k k k k k k k k k k k\n\
+        \  > k k k k k k k k k k k k k k k k\n\
         \2:  k k k k k k k k k k k k k k k k\n\
-        \    k k k k k k k k k k k k k k k k"
+        \  > k k k k k k k k k k k k k k k k"
     -- The ruler remains unchanged, even though there aren't enough sollus.
     equal_fmt id (run [G.endOn 2 $ s $ tas 24, G.startOn 2 $ s $ tas 24])
-        "1:  X:4     O       X       O       |\n\
-        \    k k k k k k k k k k k k k k k k\n\
-        \    k k k k k k k k\n\
+        "    X:4     O       X       O       |\n\
+        \1:  k k k k k k k k k k k k k k k k\n\
+        \  > k k k k k k k k\n\
         \2:                  k k k k k k k k\n\
-        \    k k k k k k k k k k k k k k k k"
+        \  > k k k k k k k k k k k k k k k k"
 
 test_spellRests = do
     let run width = fmap (eFormat . format width tala4 . fst)
@@ -335,8 +335,8 @@ format = formatAbstraction Format.defaultAbstraction
 formatAbstraction :: Solkattu.Notation stroke => Format.Abstraction -> Int
     -> Tala.Tala -> [S.Flat Solkattu.Meta (Realize.Note stroke)] -> Text
 formatAbstraction abstraction width tala notes =
-    Text.intercalate "\n" . map Text.strip . Text.lines
-    . Styled.toText . snd
+    Text.intercalate "\n" . map Text.strip
+    . map (Styled.toText . snd) . snd
     . Terminal.format config (Nothing, 0) tala
     $ notes
     where

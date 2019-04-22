@@ -116,15 +116,14 @@ formatResults config korvai results =
     , any (Either.isLeft . snd) results
     )
     where
-    show1 _ (section, (_, Left err)) =
-        ((Nothing, 0), sectionFmt section mempty $ "ERROR:\n" <> err)
+    show1 _ (_section, (_, Left err)) =
+        ((Nothing, 0), Text.replicate leader " " <> "ERROR:\n" <> err)
     show1 prevRuler (section, (tags, Right (notes, warning))) =
         ( nextRuler
-        , TextUtil.joinWith "\n" (sectionFmt section tags (Styled.toText out))
-            warning
+        , TextUtil.joinWith "\n" (sectionFmt section tags lines) warning
         )
         where
-        (nextRuler, out) =
+        (nextRuler, lines) =
             format config prevRuler (Korvai.korvaiTala korvai) notes
     -- If I want to normalize speed across all sections, then this is the place
     -- to get it.  I originally tried this, but from looking at the results I
@@ -135,12 +134,17 @@ formatResults config korvai results =
     sectionFmt section tags = Text.intercalate "\n"
         . (if Text.null tagsText then id
             else Seq.map_last (<> "   " <> tagsText))
-        . Seq.map_head_tail
-            (sectionNumber section <>) (Text.replicate leader " " <>)
-        . map Text.strip
-        . Text.lines
+        . snd . List.mapAccumL (addHeader section) False
+        . map (second (Text.strip . Styled.toText))
         where
         tagsText = Format.showTags tags
+    addHeader section showedNumber (AvartanamStart, line) =
+        ( True
+        , (if not showedNumber then sectionNumber section
+            else Text.justifyRight leader ' ' "> ") <> line
+        )
+    addHeader _ showedNumber (_, line) =
+        (showedNumber, Text.replicate leader " " <> line)
     sectionNumber section = Styled.toText $
         Styled.bg (Styled.bright Styled.yellow) $
         Text.justifyLeft leader ' ' (showt section <> ":")
@@ -155,23 +159,30 @@ type PrevRuler = (Maybe Format.Ruler, Int)
 
 type Line = [(S.State, Symbol)]
 
+data LineType = Ruler | AvartanamStart | AvartanamContinue
+    deriving (Eq, Show)
+
 -- | Format the notes according to the tala.
 --
 -- The line breaking for rulers is a bit weird in that if the line is broken,
 -- I only emit the first part of the ruler.  Otherwise I'd have to have
 -- a multiple line ruler too, which might be too much clutter.  I'll have to
 -- see how it works out in practice.
-format :: Solkattu.Notation stroke => Config -> PrevRuler
-    -> Tala.Tala -> [Format.Flat stroke] -> (PrevRuler, Styled.Styled)
+format :: Solkattu.Notation stroke => Config -> PrevRuler -> Tala.Tala
+    -> [Format.Flat stroke] -> (PrevRuler, [(LineType, Styled.Styled)])
 format config prevRuler tala notes =
-    second (Styled.join "\n" . map formatAvartanam) $
+    second (concatMap formatAvartanam) $
         Format.pairWithRuler (_rulerEach config) prevRuler tala strokeWidth
             avartanamLines
     where
-    formatAvartanam = Styled.join "\n" . map formatRulerLine
-    formatRulerLine (ruler, line) = Styled.join "\n" $
-        maybe [] ((:[]) . formatRuler strokeWidth) ruler
-        ++ [formatLine (map snd line)]
+    formatAvartanam = concatMap formatRulerLine . zip (True : repeat False)
+    formatRulerLine (isFirst, (mbRuler, line)) = concat
+        [ case mbRuler of
+            Nothing -> []
+            Just ruler -> [(Ruler, formatRuler strokeWidth ruler)]
+        , [(if isFirst then AvartanamStart else AvartanamContinue,
+            formatLine (map snd line))]
+        ]
 
     avartanamLines :: [[Line]] -- [avartanam] [[line]] [[[sym]]]
     (avartanamLines, strokeWidth) = case _overrideStrokeWidth config of
