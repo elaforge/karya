@@ -176,7 +176,7 @@ realize_infer_pitch maybe_prev event maybe_next
     | Score.has_flags infer_pitch_flag event = do
         prev <- require "no previous event" maybe_prev
         next <- require "no next event" maybe_next
-        pitch <- require "can't infer pitch" $ infer_pitch prev next
+        pitch <- first ("can't infer pitch: "<>) $ infer_pitch prev next
         -- Also make sure the grace note doesn't go past the end of the next
         -- note.
         let dur = min (Score.event_duration event)
@@ -199,15 +199,19 @@ realize_damped event maybe_next =
         | otherwise = id
         where start = Score.event_start event
 
-infer_pitch :: Score.Event -> Score.Event -> Maybe PSignal.Pitch
+infer_pitch :: Score.Event -> Score.Event -> Either Text PSignal.Pitch
 infer_pitch prev next = do
-    prev_nn <- Score.initial_nn prev
-    next_nn <- Score.initial_nn next
+    prev_nn <- tryJust ("no prev nn: " <> Score.short_event prev) $
+        Score.initial_nn prev
+    next_nn <- tryJust ("no next nn: " <> Score.short_event next) $
+        Score.initial_nn next
     let steps
             | prev_nn == next_nn = 0
             | prev_nn < next_nn = -1
             | otherwise = 1
-    Pitches.transpose_d steps <$> Score.pitch_at (Score.event_start next) next
+    Pitches.transpose_d steps <$>
+        tryJust ("no pitch at " <> pretty (Score.event_start next))
+            (Score.pitch_at (Score.event_start next) next)
 
 -- | Mark events whose should have their pitch inferred from the previous and
 -- next events.
