@@ -32,10 +32,10 @@ module Solkattu.Dsl.Generic (
     , module Solkattu.Dsl.Metadata
     , module Solkattu.Dsl.Notation
     , module Solkattu.Dsl.Section
-    , module Solkattu.Part
-    , module Solkattu.S
-    , module Solkattu.Solkattu
-    , module Solkattu.Tala
+    , Duration, Matra, Nadai
+    , Part(..), Index(..), realizeParts, index
+    , check, durationOf, throw
+    , Akshara
     -- * misc
     , pprint
     -- * talam
@@ -46,28 +46,28 @@ module Solkattu.Dsl.Generic (
     , Pretty -- signatures wind up being Pretty sollu => ...
 ) where
 import qualified Prelude
-import Prelude hiding ((.), (^), repeat)
+import           Prelude hiding ((.), (^), repeat)
 import qualified Data.Monoid as Monoid
 
 import qualified Util.CallStack as CallStack
-import Util.Pretty (pprint)
+import           Util.Pretty (pprint)
 import qualified Solkattu.Format.Format as Format
-import Solkattu.Format.Format (Abstraction)
+import           Solkattu.Format.Format (Abstraction)
 import qualified Solkattu.Format.Html as Html
-import Solkattu.Korvai (Korvai)
-import Solkattu.Part (Part(..), Index(..), realizeParts)
+import           Solkattu.Korvai (Korvai)
+import           Solkattu.Part (realizeParts, Part(..), Index(..), index)
 import qualified Solkattu.Realize as Realize
 import qualified Solkattu.S as S
-import Solkattu.S (Duration, Matra, Nadai, defaultTempo)
+import           Solkattu.S (Duration, Matra, Nadai)
 import qualified Solkattu.Solkattu as Solkattu
-import Solkattu.Solkattu (check, durationOf, throw)
+import           Solkattu.Solkattu (check, durationOf, throw)
 import qualified Solkattu.Tala as Tala
-import Solkattu.Tala (Akshara)
+import           Solkattu.Tala (Akshara)
 
-import Global
-import Solkattu.Dsl.Metadata
-import Solkattu.Dsl.Notation
-import Solkattu.Dsl.Section
+import           Global
+import           Solkattu.Dsl.Metadata
+import           Solkattu.Dsl.Notation
+import           Solkattu.Dsl.Section
 
 
 -- | Combine 'Sequence's.  This is just another name for (<>).

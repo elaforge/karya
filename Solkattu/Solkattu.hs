@@ -162,6 +162,7 @@ instance Pretty Reduction where
 instance Pretty Meta where
     -- Shorthand that makes tests look nicer.
     pretty (Meta (Just matras) Nothing GSarva) = "==" <> showt matras
+    pretty (Meta Nothing Nothing gtype) = pretty gtype
     pretty (Meta matras name gtype) = pretty (matras, name, gtype)
 
 -- | A note that can take up a variable amount of space.  Since it doesn't have

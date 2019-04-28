@@ -307,13 +307,6 @@ _instrumentDefaultStrokes = Map.fromList
 
 -- * realize
 
-index :: Int -> Korvai -> Korvai
-index i korvai = case Korvai.korvaiSections korvai of
-    Korvai.Mridangam sections ->
-        korvai { Korvai.korvaiSections = Korvai.Mridangam [sections !! i] }
-    Korvai.Sollu sections ->
-        korvai { Korvai.korvaiSections = Korvai.Sollu [sections !! i] }
-
 realize, realizep :: Korvai.Korvai -> IO ()
 realize = realizeM mempty
 realizep = realizeM Format.defaultAbstraction

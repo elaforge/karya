@@ -12,8 +12,8 @@ import Solkattu.Dsl.Mridangam
 
 
 -- TODO use this as a template to fill in various themes
-dinnagina_sequence :: Korvai
-dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
+dinnagina_sequence_old :: Korvai
+dinnagina_sequence_old = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
     su $ mconcat $ map (sam.)
     [ sarvaA_ 16 ptheme
     , sarvaA_ 8 ptheme . sarvaA_ 8 ptheme
@@ -52,8 +52,8 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
     eme = rtakeM 8 theme
     me = rtakeM 4 theme
 
-    eme3a = o.k.t.k.o.k
-    pme3a = p.k.t.k.p.k
+    -- eme3a = o.k.t.k.o.k
+    -- pme3a = p.k.t.k.p.k
 
     eme3b = o.u.__.k.k.o
     pme3b = p.u.__.k.k.o
@@ -80,40 +80,75 @@ dinnagina_sequence = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
     -- ktnoktknokt kno -- 2013 11 5, progression different
     -- su: o t k n ktok
 
-dinna_dinnakitataka :: Korvai
-dinna_dinnakitataka = korvaiS1 adi $ make_dinna
-    (group (repeat 2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)))
-    (group (o.k.o.n.su (kt.p.k)))
-    (group (p.k.p.n.su (kt.o.k)))
+-- TODO non-sam: o -> p or 't' if preceded by k
+-- or __ for takataka dinnatat
+dinnagina_sequences :: Korvai
+dinnagina_sequences = date 2013 9 11 $ korvai adi
+    [ section $ make_dinna
+        (o.__.k.__.o.k.t.k.o.k.t.k.o.k.t.k) t o
+        (o.k.t.k.o.k)
+        (p.k.t.k.p.k)
+    , section $ make_dinna
+        (o.__.k.__.o.k.t.k.o.k.t.k.o.k.o.k) t o
+        (t.k.o.k.o.k) -- maybe? TODO verify
+        (t.k.p.k.p.k)
+    , dateS 2013 9 18 $ section $ make_dinna
+        (o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k) t o
+        (k.o.o.u.__.k)
+        (k.o.p.u.__.k)
+    -- TODO drop following dhom, but only if it was preceded by a theme,
+    -- not sarva.
+    , dateS 2013 10 9 $ section $ make_dinna
+        (o.__.k.__.o.k.t.k.o.k.t.k.o.k.k.__) t __
+        (o.k.k.__.__.__)
+        (p.k.k.__.__.__)
+    , dateS 2013 10 24 $ section $ make_dinna
+        (o.__.k.__.o.k.t.k.o.k.o.k.o.k.k.o) t o
+        (o.k.o.k.k.o)
+        (p.k.p.k.k.o)
+    , dateS 2013 10 29 $ section $ make_dinna
+        (o.__.k.__.o.o.k.n.o.o.k.n.o.o.k.n) p o
+        (o.o.k.n.o.k)
+        (p.p.k.n.p.k)
+    , dateS 2013 10 29 $ section $ make_dinna
+        (o.__.k.n.o.o.k.n.o.__.k.n.o.o.k.n) p o
+        (o.o.k.n.o.k)
+        (p.p.k.n.p.k)
+    , dateS 2019 4 8 $ section $ make_dinna
+        (repeat 2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)) o o
+        (o.k.o.n.su (kt.p.k))
+        (p.k.p.n.su (kt.o.k))
+    ]
 
--- TODO Generalize so it works with all of them.
-make_dinna :: Sequence -> Sequence -> Sequence -> Sequence
-make_dinna theme theme' ptheme' = su $ mconcat $ map (sam.)
-    [ sarvaA_ 16 theme
-    , sarvaA_ 8 theme . sarvaA_ 8 theme
-    -- close one before: 6 < _ < 11
-    -- splitM 3, splitM 1
+make_dinna :: Sequence -> Sequence -> Sequence -> Sequence -> Sequence
+    -> Sequence
+make_dinna theme_ repl sep theme'_ ptheme'_ = su $ mconcat $ map (sam.)
+    [ sarvaA_ 16 ptheme
+    , sarvaA_ 8 ptheme . sarvaA_ 8 ptheme
     -- 1   2   3   4   X   O   X   O   |
     -- o o o o o p p p p p p o o o o o |
     -- +-----+-----+---+-----+-----+---
-
-    -- 1   .   2   .   3   .   4   .   |
-    -- o_k_o_n_ktoko_k_o_n_ktpkp_n_ktpk
-    -- 5   .   6   .   7   .   8   .   |
-    -- p_k_p_n_ktoko_k_o_n_ktpkp_n_ktpk
-    , theme . closed theme . theme . closed theme
-    , tri_ (o.__8) theme
-    , theme.o.__8 . theme.o.__4 . eme.o.__4 . eme
-    , theme.o.__8 . theme.o.__4 . eme.o.__2 . me.o.__2 . me
-    , tri_ (o.__) (theme.me)
-    , trin (o.__) theme (theme.me) (theme.me.me)
-    , repeat 2 (theme.o.__4 . eme.o.__4 . eme.o.__4)
-        . theme.o.__4 . eme.o.__ . me.o.__.me
-    , tri_ (o.__4) $ theme . theme' . ptheme' . theme' . ptheme'
+    , repeat 2 $ split 10 id closed theme . split 4 closed id theme
+    , trip (sep.__8) id
+    , theme.sep.__8 . ptheme.sep.__4 . eme.sep.__4 . eme
+    , theme.sep.__8 . ptheme.sep.__4 . eme.sep.__2 . me.sep.__2 . me
+    , trip (sep.__) $ \theme -> theme.me
+    , trin (sep.__) theme (ptheme.me) (ptheme.me.me)
+    ,      theme.sep.__4 . eme.sep.__4 . eme.sep.__4
+        . ptheme.sep.__4 . eme.sep.__4 . eme.sep.__4
+        . ptheme.sep.__4 . eme.sep.__ . me.sep.__.me
+    , trip (sep.__4) $ \theme -> theme . theme' . ptheme' . theme' . ptheme'
     ]
     where
-    eme = dropM 8 theme
-    me = dropM 12 theme
+    trip sep make = trin sep (make theme) (make ptheme) (make ptheme)
+    theme = group theme_
+    ptheme = group (repl `replaceStart` theme_)
+    theme' = group theme'_
+    ptheme' = group ptheme'_
+    eme = rtakeM 8 theme -- dropM 8 theme
+    me = rtakeM 4 theme -- dropM 12 theme
+    split m a b seq = a pre . b post
+        where (pre, post) = splitM_ m seq
 
 -- * sarvalaghu
 

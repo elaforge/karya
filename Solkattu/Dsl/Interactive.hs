@@ -84,6 +84,5 @@ callCwd cwd cmd args = do
         Exit.ExitSuccess -> return ()
         Exit.ExitFailure r -> errorIO $ "subprocess: " <> showt r
 
-
 gitRepo :: FilePath
 gitRepo = "../data/solkattu-korvai"

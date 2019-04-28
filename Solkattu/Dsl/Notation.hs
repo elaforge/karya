@@ -125,9 +125,9 @@ splitM_either matras =
         | noteMatras <= matras =
             second (first (n:)) <$> go tempo (matras - noteMatras) ns
         | otherwise = case n of
-            S.TempoChange change subs ->
+            S.TempoChange change children ->
                 group (S.TempoChange change) (S.changeTempo change tempo)
-                    matras subs ns
+                    matras children ns
             S.Group (Solkattu.GReduction r) children -> do
                 -- The group is destroyed if it gets split.
                 (pre, post) <- splitM_either (Solkattu._split r) children
@@ -146,6 +146,12 @@ splitM_either matras =
                     make m = S.Group
                         (Solkattu.GMeta (meta { Solkattu._matras = Just m }))
                         children
+            S.Group (Solkattu.GMeta (Solkattu.Meta Nothing Nothing gtype))
+                    children ->
+                group makeGroup tempo matras children ns
+                where
+                makeGroup = S.Group $ Solkattu.GMeta $
+                    Solkattu.Meta Nothing Nothing gtype
             S.Note (Solkattu.Space space) -> do
                 pre <- spaces tempo space matras
                 post <- spaces tempo space (noteMatras - matras)
@@ -154,11 +160,11 @@ splitM_either matras =
                 <> " of " <> pretty noteMatras <> ": " <> pretty n
         where
         noteMatras = Solkattu.matrasOf tempo [n]
-    group makeGroup tempo matras subs remaining = do
-        (left, (pre, post)) <- go tempo matras subs
+    group makeGroup tempo matras children remaining = do
+        (left, (pre, post)) <- go tempo matras children
         if left <= 0
             then Right (0, (make pre, make post ++ remaining))
-            else second (first (make subs ++)) <$> go tempo left remaining
+            else second (first (make children ++)) <$> go tempo left remaining
         where
         make [] = []
         make ns = [makeGroup ns]
@@ -432,8 +438,6 @@ named = namedT Solkattu.GTheme
 namedT :: Solkattu.GroupType -> Text -> SequenceT sollu -> SequenceT sollu
 namedT gtype name = (:[]) . S.Group (Solkattu.GMeta group)
     where group = (Solkattu.meta gtype) { Solkattu._name = Just name }
-
--- groupType gtype = (:[]) . S.Group (Solkattu.meta gtype)
 
 -- ** tags
 

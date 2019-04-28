@@ -15,6 +15,14 @@ data Part = K !Korvai.Korvai !Index | Comment !Text
 data Index = All | Index !Int | Range !Int !Int
     deriving (Eq, Show)
 
+instance Num Index where
+    fromInteger = Index . fromInteger
+    (+) = error "Index has no +"
+    (-) = error "Index has no -"
+    (*) = error "Index has no *"
+    abs = error "Index has no abs"
+    signum = error "Index has no signum"
+
 realizeParts :: (Korvai.Korvai -> IO ()) -> [Part] -> IO ()
 realizeParts realize = mapM_ part
     where
@@ -32,5 +40,8 @@ index idx korvai = case Korvai.korvaiSections korvai of
     where
     get xs = case idx of
         All -> xs
-        Index i -> [xs !! (i-1)]
+        Index i
+            | 1 <= i && i <= length xs -> [xs !! (i-1)]
+            | otherwise -> error $ "index " <> show i
+                <> " not in 1-based range [1, " <> show (length xs) <> "]"
         Range i j -> take (max 0 (j-1)) $ drop i xs
