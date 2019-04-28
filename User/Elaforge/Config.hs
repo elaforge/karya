@@ -76,7 +76,16 @@ get_midi_config db = do
         "hobbes" -> return $ Hobbes.midi_config db
         host -> do
           Log.warn $ "no midi configuration for host: " <> showt host
-          return StaticConfig.empty_midi
+          return default_midi
+
+default_midi :: StaticConfig.Midi
+default_midi = StaticConfig.Midi
+    { rdev_map = mempty
+    , wdev_map = StaticConfig.make_wdev_map $
+        [("loop" <> showt n, iac n) | n <- [1..4]]
+    , read_devices = mempty
+    }
+    where iac n = "IAC Driver " <> showt n
 
 -- * med
 
