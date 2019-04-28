@@ -16,6 +16,7 @@ import qualified Derive.ScoreT as ScoreT
 
 import qualified Instrument.Common as Common
 import qualified Midi.Midi as Midi
+import qualified Perform.Midi.Patch as Patch
 import qualified Synth.Sampler.Patch.KendangBali as Sampler.Patch.KendangBali
 import qualified Ui.UiConfig as UiConfig
 import qualified User.Elaforge.Instrument.Kontakt.KendangBali as KendangBali
@@ -107,3 +108,11 @@ kendang_kontakt = KendangBali.allocations "k"
 
 kendang_im :: UiConfig.Allocations
 kendang_im = Sampler.Patch.KendangBali.allocations "k"
+
+legong_umbang :: Patch.Scale
+legong_umbang = Legong.complete_instrument_scale Legong.laras_rambat
+    BaliScales.Umbang
+
+legong_isep :: Patch.Scale
+legong_isep = Legong.complete_instrument_scale Legong.laras_rambat
+    BaliScales.Isep

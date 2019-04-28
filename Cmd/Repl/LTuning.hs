@@ -139,6 +139,11 @@ all_inputs :: [(Midi.Key, Pitch.Input)]
 all_inputs =
     [(key, InputNote.nn_to_input (Midi.from_key key)) | key <- [0..127]]
 
+set_scale :: Cmd.M m => Util.Instrument -> m ()
+set_scale inst = do
+    scale <- selection True
+    LInst.set_scale scale inst
+
 -- * retune
 
 -- | All instruments with initialization get the new scale.
