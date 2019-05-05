@@ -6,9 +6,11 @@
 -- | This is analogous to the solkattu scores, except for mridangam specific
 -- scores.
 module Solkattu.Score.Mridangam2013 where
-import Prelude hiding ((.), repeat)
+import           Prelude hiding ((.), repeat)
 
-import Solkattu.Dsl.Mridangam
+import qualified Solkattu.Dsl.Misc as Misc
+
+import           Solkattu.Dsl.Mridangam
 
 
 -- TODO use this as a template to fill in various themes
@@ -84,51 +86,66 @@ dinnagina_sequence_old = date 2013 9 11 $ ganesh $ sequenceT $ korvaiS1 adi $
 -- or __ for takataka dinnatat
 dinnagina_sequences :: Korvai
 dinnagina_sequences = date 2013 9 11 $ korvai adi
-    [ section $ make_dinna
+    [ section $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.t.k.o.k.t.k) t o
         (o.k.t.k.o.k)
         (p.k.t.k.p.k)
-    , section $ make_dinna
+    , section $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.t.k.o.k.o.k) t o
         (t.k.o.k.o.k) -- maybe? TODO verify
         (t.k.p.k.p.k)
-    , dateS 2013 9 18 $ section $ make_dinna
+    , dateS 2013 9 18 $ section $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.o.k.o.u.__.k) t o
         (k.o.o.u.__.k)
         (k.o.p.u.__.k)
     -- TODO drop following dhom, but only if it was preceded by a theme,
     -- not sarva.
-    , dateS 2013 10 9 $ section $ make_dinna
+    , dateS 2013 10 9 $ section $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.t.k.o.k.k.__) t __
         (o.k.k.__.__.__)
         (p.k.k.__.__.__)
-    , dateS 2013 10 24 $ section $ make_dinna
+    , dateS 2013 10 24 $ section $ mconcat $ make_dinna
         (o.__.k.__.o.k.t.k.o.k.o.k.o.k.k.o) t o
         (o.k.o.k.k.o)
         (p.k.p.k.k.o)
-    , dateS 2013 10 29 $ section $ make_dinna
+    , dateS 2013 10 29 $ section $ mconcat $ make_dinna
         (o.__.k.__.o.o.k.n.o.o.k.n.o.o.k.n) p o
         (o.o.k.n.o.k)
         (p.p.k.n.p.k)
-    , dateS 2013 10 29 $ section $ make_dinna
+    , dateS 2013 10 29 $ section $ mconcat $ make_dinna
         (o.__.k.n.o.o.k.n.o.__.k.n.o.o.k.n) p o
         (o.o.k.n.o.k)
         (p.p.k.n.p.k)
-    , dateS 2019 4 8 $ section $ make_dinna
+    , dateS 2019 4 8 $ section $ mconcat $ make_dinna
         (repeat 2 (o.k.o.n.su (kt.o.k)) . o.n.su (kt.o.k)) o o
         (o.k.o.n.su (kt.p.k))
         (p.k.p.n.su (kt.o.k))
+    , dateS 2019 4 29 $ section $ mconcat $
+        -- TODO this is an awkward way to do exceptions, but I can't think of
+        -- anything more clever.  Ideally I'd want to have 'make_dinna's where
+        -- clause in scope, but that would require a macro.
+        let theme_ = (o.t.k.n.p.k. repeat 2 (o&t.k.n.p.k))
+            theme = group theme_
+            ptheme = group $ p `replaceStart` theme_
+            me = o.n.p.k
+        in
+        Misc.replaceAt 2 (su $ theme . ptheme . theme . ptheme) $
+        Misc.replaceAt 6 (su $ tri_ (od.__) (theme.me)) $
+        Misc.replaceAt 7 (su $ trin (od.__) theme (theme.me) (theme.me.me)) $
+        make_dinna theme o od
+            (__.o&t.k.n.p.k)
+            (__.p&t.k.n.p.k)
     ]
 
 make_dinna :: Sequence -> Sequence -> Sequence -> Sequence -> Sequence
-    -> Sequence
-make_dinna theme_ repl sep theme'_ ptheme'_ = su $ mconcat $ map (sam.)
+    -> [Sequence]
+make_dinna theme_ repl sep theme'_ ptheme'_ = map (su • (sam.))
     [ sarvaA_ 16 ptheme
     , sarvaA_ 8 ptheme . sarvaA_ 8 ptheme
     -- 1   2   3   4   X   O   X   O   |
     -- o o o o o p p p p p p o o o o o |
     -- +-----+-----+---+-----+-----+---
-    , repeat 2 $ split 10 id closed theme . split 4 closed id theme
+    , repeat 2 $ split 12 id closed theme . split 4 closed id theme
     , trip (sep.__8) id
     , theme.sep.__8 . ptheme.sep.__4 . eme.sep.__4 . eme
     , theme.sep.__8 . ptheme.sep.__4 . eme.sep.__2 . me.sep.__2 . me
