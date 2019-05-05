@@ -6,9 +6,7 @@
 -- | Render 'Sample.Note's down to audio.
 module Synth.Sampler.Render where
 import qualified Control.Exception as Exception
-import qualified Control.Monad as Monad
 import qualified Control.Monad.Trans.Resource as Resource
-
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
@@ -123,9 +121,8 @@ toSpan note = Checkpoint.Span
 -- | A currently playing sample.
 data Playing = Playing {
     _noteHash :: !Note.Hash
-    -- | Get the current state of the resample, or Nothing if this isn't
-    -- resampling.  NOTE [audio-state]
-    , _getState :: IO (Maybe State)
+    -- | Get the current state of the resample.  NOTE [audio-state]
+    , _getState :: IO State
     , _audio :: !AUtil.Audio
     , _noteRange :: !(Audio.Frame, Audio.Frame)
     }
@@ -139,7 +136,7 @@ instance Pretty Playing where
 failedPlaying :: Sample.Note -> Playing
 failedPlaying note = Playing
     { _noteHash = Sample.hash note
-    , _getState = return Nothing
+    , _getState = return NoResample
     , _audio = mempty
     , _noteRange = (0, 0)
     }
@@ -147,7 +144,7 @@ failedPlaying note = Playing
 prettyF :: Audio.Frame -> Text
 prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
 
-render :: Config -> FilePath -> [Maybe State] -> (Checkpoint.State -> IO ())
+render :: Config -> FilePath -> [State] -> (Checkpoint.State -> IO ())
     -> Set Id.TrackId -> [Sample.Note] -> Audio.Frame -> AUtil.Audio
 render config outputDir initialStates notifyState trackIds notes start =
         Audio.Audio $ do
@@ -246,7 +243,7 @@ pull blockSize now = fmap (trim . unzip) . mapM get
             , if done then Nothing else Just (playing { _audio = audio })
             )
 
-resumeSamples :: Config -> Audio.Frame -> [Maybe State] -> [Sample.Note]
+resumeSamples :: Config -> Audio.Frame -> [State] -> [Sample.Note]
     -> IO [Playing]
 resumeSamples config now states notes = do
     Audio.assert (length states == length notes) $
@@ -262,66 +259,71 @@ eNote n =
     ( prettyF $ Sample.start n
     , prettyF $ Sample.duration n
     , Sample.ratios $ Sample.sample n
-    , Sample.filename $ Sample.sample n
+    , FilePath.joinPath $ Seq.rtake 3 $ FilePath.splitPath $
+        Sample.filename $ Sample.sample n
     )
 
 -- | Convert 'Sample.Note' to a 'Playing'.
-startSample :: Config -> Audio.Frame -> Maybe (Maybe State)
+startSample :: Config -> Audio.Frame -> Maybe State
     -- ^ If Just Just, resume a playing sample which should have started <=now,
-    -- otherwise start a new one which should start >= now.  If Just Nothing,
+    -- otherwise start a new one which should start >= now.  If Just NoResample,
     -- this is a resuming sample, but it wasn't resampled, so there's no
     -- resampler state.
     -> Sample.Note -> IO Playing
-startSample config now mbMbState note = do
+startSample config now mbState note = do
     let start = Sample.start note
     let sample = Sample.sample note
     -- NOTE [audio-state]
-    sampleStateRef <- IORef.newIORef Nothing
+    sampleStateRef <- IORef.newIORef NoResample
     let mkConfig mbState = Resample.Config
             { _quality = _quality config
             , _state = _resampleState <$> mbState
-            , _notifyState = IORef.writeIORef sampleStateRef . fmap mkState
+            , _notifyState = IORef.writeIORef sampleStateRef . mkState
             , _blockSize = _blockSize config
             , _now = now
             , _name = txt $ FilePath.takeFileName $ Sample.filename sample
             }
-        mkState (used, rState) = State
+        mkState Nothing = NoResample
+        mkState (Just (used, rState)) = Resample $ ResampleState
             { _filename = Sample.filename sample
             , _offset = used
             , _resampleState = rState
             }
-    case mbMbState of
+    case mbState of
         Nothing -> Audio.assert
             (start >= now && now-start < _blockSize config) $
             "note should have started between " <> showt now <> "--"
             <> showt (now + _blockSize config) <> " but started at "
             <> showt start
-        Just mbState -> do
+        Just state -> do
             Audio.assert (start < now) $
                 "resume sample should start before " <> showt now
                 <> " but started at " <> showt start
-            case mbState of
-                Just state -> Audio.assert
-                    (Sample.filename sample == _filename state) $
+            case state of
+                Resample rstate -> Audio.assert
+                    (Sample.filename sample == _filename rstate) $
                     "starting " <> pretty sample <> " but state was for "
-                    <> pretty state
-                Nothing -> Audio.assert
+                    <> pretty rstate
+                NoResample -> Audio.assert
                     (Signal.constant_val_from (AUtil.toSeconds start)
                         (Sample.ratios sample) == Just 1) $
                     "no resample state, but ratios is not 1: "
                     <> pretty (Sample.ratios sample)
-    let offset = case mbMbState of
-            Just (Just state) -> _offset state
+    let offset = case mbState of
+            Just (Resample state) -> _offset state
             -- If start < now, then this is a resume.  I don't have
             -- the offset because I'm not resampling and that Resample
-            -- produces that with State, but I don't need it.  I'm not
+            -- produces that with ResampleState, but I don't need it.  I'm not
             -- resampling so frames are 1:1.
             _ -> max 0 $ now - start
     return $ Playing
         { _noteHash = Sample.hash note
         , _getState = IORef.readIORef sampleStateRef
         , _audio = RenderSample.render
-            (mkConfig (Monad.join mbMbState))
+            (mkConfig $ case mbState of
+                Nothing -> Nothing
+                Just NoResample -> Nothing
+                Just (Resample state) -> Just state)
             (AUtil.toSeconds start)
             (sample { Sample.offset = offset + Sample.offset sample })
         , _noteRange = (start, start + Sample.duration note)
@@ -340,7 +342,23 @@ overlappingNotes start blockSize notes =
     passed n = Sample.end n <= start && Sample.start n < start
     end = start + blockSize
 
-data State = State {
+data State = NoResample | Resample !ResampleState
+    deriving (Eq, Show)
+
+instance Pretty State where
+    pretty NoResample = "NoResample"
+    pretty (Resample state) = pretty state
+
+instance Serialize.Serialize State where
+    put NoResample = Serialize.put_tag 0
+    put (Resample state) = Serialize.put_tag 1 >> Serialize.put state
+    get = Serialize.get_tag >>= \case
+        0 -> return NoResample
+        1 -> Resample <$> Serialize.get
+        n -> Serialize.bad_tag "Render.State" n
+
+-- | The saved state of a note that had to resample.
+data ResampleState = ResampleState {
     -- | I don't actually need this, but it makes the Pretty instance easier to
     -- read.
     _filename :: !Sample.SamplePath
@@ -349,21 +367,22 @@ data State = State {
     , _resampleState :: !Resample.SavedState
     } deriving (Eq, Show)
 
-instance Pretty State where
-    pretty (State fname offset _) = pretty fname <> ":" <> pretty offset
+instance Pretty ResampleState where
+    pretty (ResampleState fname offset _) = pretty fname <> ":" <> pretty offset
 
-instance Serialize.Serialize State where
-    put (State a b c) = Serialize.put a >> Serialize.put b >> Serialize.put c
-    get = State <$> Serialize.get <*> Serialize.get <*> Serialize.get
+instance Serialize.Serialize ResampleState where
+    put (ResampleState a b c) =
+        Serialize.put a >> Serialize.put b >> Serialize.put c
+    get = ResampleState <$> Serialize.get <*> Serialize.get <*> Serialize.get
 
 -- | These will be sorted in order of Note hash.
-unserializeStates :: Checkpoint.State -> Either Error [Maybe State]
+unserializeStates :: Checkpoint.State -> Either Error [State]
 unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 
 -- | If there is no resampling, the state will be Nothing.  It's necessary
 -- to remember that, so I can still line up notes with states in
 -- 'resumeSamples'.
-serializeStates :: [Maybe State] -> Checkpoint.State
+serializeStates :: [State] -> Checkpoint.State
 serializeStates = Checkpoint.State . Serialize.encode
 
 {- NOTE [audio-state]
