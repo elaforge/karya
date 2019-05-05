@@ -18,7 +18,9 @@ data Index = All | Index !Int | Range !Int !Int
 instance Num Index where
     fromInteger = Index . fromInteger
     (+) = error "Index has no +"
-    (-) = error "Index has no -"
+    -- So -1 works.
+    Index a - Index b = Index (a-b)
+    a - b = error $ "no (-) for " <> show (a, b)
     (*) = error "Index has no *"
     abs = error "Index has no abs"
     signum = error "Index has no signum"
@@ -41,7 +43,10 @@ index idx korvai = case Korvai.korvaiSections korvai of
     get xs = case idx of
         All -> xs
         Index i
-            | 1 <= i && i <= length xs -> [xs !! (i-1)]
+            | i < 0 && inRange (length xs + i) -> [xs !! (length xs + i)]
+            | inRange i -> [xs !! (i-1)]
             | otherwise -> error $ "index " <> show i
                 <> " not in 1-based range [1, " <> show (length xs) <> "]"
+            where
+            inRange x = 1 <= x && x <= length xs
         Range i j -> take (max 0 (j-1)) $ drop i xs
