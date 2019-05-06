@@ -50,7 +50,7 @@ module Util.Audio.Audio (
     , dbToLinear, linearToDb
     -- * util
     , takeFramesGE, splitAt
-    , next
+    , next, isEmpty
     , natVal
 #ifdef TESTING
     , module Util.Audio.Audio
@@ -651,3 +651,10 @@ next :: Monad m => Audio m rate chan
 next (Audio audio) = S.next audio >>= \case
     Left () -> return Nothing
     Right (block, audio) -> return $ Just (block, Audio audio)
+
+-- | Nothing if the Audio stream is completed.  Otherwise, it puts the next
+-- chunk back on the stream, to avoid duplicating effects.
+isEmpty :: Monad m => Audio m rate chan -> m (Maybe (Audio m rate chan))
+isEmpty (Audio audio) = S.next audio >>= \case
+    Left () -> return Nothing
+    Right (block, audio) -> return $ Just $ Audio $ S.cons block audio

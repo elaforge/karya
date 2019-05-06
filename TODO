@@ -820,7 +820,7 @@ IN PROGRESS / branch: branches:
       . Maybe the first step is to implement the move later events part,
         triggered by a keystroke (like cmd-z for events), and worry about
         doing it automatically later.
-  Integrate from dsl.
+  solkattu integrate:
     . Status: I think it just barely works, via LSol.edit_new, and
       reintegrate, but not tested and not hooked up to the editor.
     - validate Block.ManualDestinations from Ui.set_integrated_manual
@@ -1565,6 +1565,29 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  bug:
+    * in wayang, when shortening a note:
+      assertion: at 176400f: len states 4 /= len notes 2:
+        [Nothing, Nothing, Nothing, Nothing] /=
+        [ ("154350f(3.5s)", "37485f(.85s)", Signal.constant 1,
+            "wayang/pemade/umbang/normal/71-65-108-open2.flac")
+        , ("154350f(3.5s)", "37485f(.85s)", Signal.constant 1,
+            "wayang/pemade/umbang/normal/83-65-108-open3.flac")
+        ]
+      . At 4s.
+      . I expect:
+        . 3.5s + .85s "71-65-108-open2.flac"
+        . 3.5s + .85s "83-65-108-open3.flac"
+      . What were the 4 states written for?
+        Since they are Nothing it's hard to tell... could I save some info
+        just for debugging?  How about just log first.
+      . I get Playing at 4s, so 4 notes.
+        Because overlapping is <start, but serializeStates uses notes just
+        starting.
+      . Why doesn't this show up in the test?  Or at any time before now?
+      . Or maybe it's the other way, I don't stop the Playing at <end.
+      . Because it's exactly a chunkSize.  I need to say done when there is
+        no future sample.
   * can I get a LPerf.sel_sampler_events?
     . Since it's a separate process, I'd have to serialize the events, then
       run 'sampler-im dump fname'.
@@ -2534,7 +2557,7 @@ shakefile: build:
   - once upon a time, the shakefile took .2s to discover the build is up to
     date.  Now it's up to .7s.  Where is the time going?
 
-incremental save / git:
+incremental save: git:
   text save:
     . consider switching to a text format so delta compression and diff works
     . I just don't want to fuss with a lot of quoting.
@@ -2564,10 +2587,11 @@ incremental save / git:
     diff will catch it.
   . Git docs: http://progit.org/book/ch9-2.html
 
-integrate / integration:
+integrate: integration:
   score integrate
     - cascading score integrates
-      Is there really a use for this, other than consistency?
+      . Is there really a use for this, other than consistency?
+      . Yes, I want to do this for generated parts.
   derive integrate
     - attrs that the instrument understands can turn into +attr calls, if
       they're not in the CallMap, e.g. save/test/wayang

@@ -223,16 +223,17 @@ inferChunkNum chunkSize now = fromIntegral $ now `div` chunkSize
 pull :: Audio.Frame -> Audio.Frame -> [Playing]
     -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
 pull blockSize now = fmap (trim . unzip) . mapM get
-    -- TODO this mapM could be concurrent
+    -- TODO This mapM could be concurrent, which would make concurrent notes
+    -- evaluate concurrently.
     where
     trim (chunks, playing) =
         (filter (not . V.null) chunks, Maybe.catMaybes playing)
     get playing = do
         (chunk, audio) <- first mconcat <$>
             Audio.takeFramesGE blockSize (_audio playing)
-        let done = AUtil.blockFrames2 chunk < blockSize
-            end = now + AUtil.blockFrames2 chunk
-        when done $ liftIO $ Log.debug $
+        mbNext <- Audio.isEmpty audio
+        let end = now + AUtil.blockFrames2 chunk
+        when (Maybe.isNothing mbNext) $ liftIO $ Log.debug $
             let diff = snd (_noteRange playing) - end in
             pretty (_noteHash playing) <> ": expected "
             <> pretty (_noteRange playing)
@@ -240,7 +241,9 @@ pull blockSize now = fmap (trim . unzip) . mapM get
             <> " " <> pretty (AUtil.toSeconds diff)
         return
             ( chunk
-            , if done then Nothing else Just (playing { _audio = audio })
+            , case mbNext of
+                Nothing -> Nothing
+                Just audio -> Just $ playing { _audio = audio }
             )
 
 resumeSamples :: Config -> Audio.Frame -> [State] -> [Sample.Note]

@@ -35,8 +35,7 @@ test_write_noop = do
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
-    -- Failed note produces aborts the render.
-    result <- write [mkNote1 "" 0 16]
+    result <- write [mkNote1 "" 0]
     left_like result "No such file"
     io_equal (listWavs dir) []
 
@@ -44,19 +43,19 @@ test_write_simple = do
     (write, dir) <- tmpDb
     -- A single note that spans two checkpoints.  Dur is determined by the
     -- sample length.
-    io_equal (write [mkNote1 dir 0 8]) (Right (2, 2))
+    io_equal (write [mkNote1 dir 0]) (Right (2, 2))
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) triangle
 
 test_write_simple_offset = do
     (write, dir) <- tmpDb
-    io_equal (write [mkNote1 dir 8 8]) (Right (4, 4))
+    io_equal (write [mkNote1 dir 8]) (Right (4, 4))
     io_equal (readSamples dir) (replicate 8 0 ++ triangle)
 
 test_write_freq = do
     (write, dir) <- tmpDb
     -- Freq*2 is half as many samples.
-    io_equal (write [mkNote dir 0 8 0.5]) (Right (1, 1))
+    io_equal (write [mkNote dir 0 0.5]) (Right (1, 1))
     io_equal (length <$> listWavs dir) 1
     io_equal (readSamples dir) [1, 2, 4, 2]
 
@@ -70,7 +69,7 @@ test_write_freq = do
 test_write_ratios = do
     (write, dir) <- tmpDb
 
-    let notes = [mkNoteRatios dir 0 8 [(0, 2), (4, 2), (4, 4), (8, 4), (8, 2)]]
+    let notes = [mkNoteRatios dir 0 [(0, 2), (4, 2), (4, 4), (8, 4), (8, 2)]]
     -- libsamplerate writes an extra sample at the start.  I don't really know
     -- why, but it's "documented" as "Calculate samples before first sample in
     -- input array."
@@ -79,9 +78,9 @@ test_write_ratios = do
     io_equal (readSamples dir) expected
     -- No work, all chunks reused.
     io_equal (write notes) (Right (0, 5))
-    rmPrefixes (dir </> "checkpoint") ["002", "003", "004"]
-    io_equal (write notes) (Right (3, 5))
-    io_equal (readSamples dir) expected
+    -- rmPrefixes (dir </> "checkpoint") ["002", "003", "004"]
+    -- io_equal (write notes) (Right (3, 5))
+    -- io_equal (readSamples dir) expected
 
     -- frame   0   .   4   .   8   .  12   .  16   .  20
     -- input   1 2 3 4 3 2 1 0
@@ -113,8 +112,8 @@ test_write_incremental = do
     -- 12343210
     --     12343210
     let oldNotes =
-            [ mkNote1 dir 0 8
-            , mkNote1 dir 4 8
+            [ mkNote1 dir 0
+            , mkNote1 dir 4
             ]
     -- 0   4   8   12   16
     -- 12343210
@@ -122,8 +121,8 @@ test_write_incremental = do
     -- ====3210
     --     0012
     let newNotes =
-            [ mkNote1 dir 0 8
-            , mkNote1 dir 6 8
+            [ mkNote1 dir 0
+            , mkNote1 dir 6
             ]
 
     io_equal (write oldNotes) (Right (3, 3))
@@ -140,6 +139,14 @@ test_write_incremental = do
     nonIncremental <- renderSamples newNotes
     equal nonIncremental expected
 
+test_resume_at_boundary = do
+    (write, dir) <- tmpDb
+    let note = mkNoteDur dir
+    io_equal (write [note 0 4, note 4 4]) (Right (2, 2))
+    io_equal (readSamples dir) [1, 2, 3, 4, 1, 2, 3, 4]
+    io_equal (write [note 0 4, note 4 2]) (Right (1, 2))
+    io_equal (readSamples dir) [1, 2, 3, 4, 1, 2, 0, 0]
+
 renderSamples :: [Sample.Note] -> IO [Float]
 renderSamples notes = do
     dir <- Testing.tmp_dir "renderSamples"
@@ -149,7 +156,9 @@ renderSamples notes = do
 test_overlappingNotes = do
     let f start size = extract
             . Render.overlappingNotes (AUtil.toFrame start) (AUtil.toFrame size)
-            . map (\(s, d) -> mkNoteSec "" s d 1)
+            . map noteS
+        noteS (start, dur) =
+            mkNoteDur "" (AUtil.toFrame start) (AUtil.toFrame dur)
         extract (a, b, c) = (map e a, map e b, map e c)
             where
             e n =
@@ -213,33 +222,50 @@ triFilename dbDir = dbDir </> patchDir </> "tri.wav"
 triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]
 
-mkNoteSec :: FilePath -> RealTime -> RealTime -> Double -> Sample.Note
-mkNoteSec dbDir start dur =
-    mkNote dbDir (AUtil.toFrame start) (AUtil.toFrame dur)
+mkNoteSec :: FilePath -> RealTime -> Double -> Sample.Note
+mkNoteSec dbDir start = mkNote dbDir (AUtil.toFrame start)
 
 -- | mkNote where ratio=1.
-mkNote1 :: FilePath -> Audio.Frame -> Audio.Frame -> Sample.Note
-mkNote1 dbDir start dur = mkNote dbDir start dur 1
+mkNote1 :: FilePath -> Audio.Frame -> Sample.Note
+mkNote1 dbDir start = mkNote dbDir start 1
 
 -- | Make a note with a constant ratio.
-mkNote :: FilePath -> Audio.Frame -> Audio.Frame -> Double -> Sample.Note
-mkNote dbDir start dur ratio = mkNoteRatios dbDir start dur [(start, ratio)]
+mkNote :: FilePath -> Audio.Frame -> Double -> Sample.Note
+mkNote dbDir start ratio = mkNoteRatios dbDir start [(start, ratio)]
 
-mkNoteRatios :: FilePath -> Audio.Frame -> Audio.Frame
-    -> [(Audio.Frame, Double)] -> Sample.Note
-mkNoteRatios dbDir start dur ratios_ = Sample.Note
+mkNoteRatios :: FilePath -> Audio.Frame -> [(Audio.Frame, Double)]
+    -> Sample.Note
+mkNoteRatios dbDir start ratios_ = Sample.Note
     { start = start
     , duration =
-        RenderSample.predictDuration (Signal.shift (-startS) ratios) dur
+        RenderSample.predictDuration (Signal.shift (- sec start) ratios) dur
     , hash = Note.hash note
     , sample = (Sample.make (triFilename dbDir)) { Sample.ratios = ratios }
     }
     where
-    startS = AUtil.toSeconds start
+    dur = Audio.Frame $ length triangle
+    sec = AUtil.toSeconds
     -- I don't put the pitch on, but it just affects hash, which is unlikely to
     -- be relevant in a test.
-    note = Note.note "patch" "inst" startS (AUtil.toSeconds dur)
-    ratios = Signal.from_pairs $ map (first AUtil.toSeconds) ratios_
+    note = Note.note "patch" "inst" (sec start) (sec dur)
+    ratios = Signal.from_pairs $ map (first sec) ratios_
+
+-- | Like 'mkNoteRatios', except set a shorter duration than the sample.
+-- Otherwise since there's no envelope, the duration is always as long as the
+-- sample, modulo ratios.
+mkNoteDur :: FilePath -> Audio.Frame -> Audio.Frame -> Sample.Note
+mkNoteDur dbDir start dur = Sample.Note
+    { start = start
+    , duration = dur
+    , hash = Note.hash note
+    , sample = (Sample.make (triFilename dbDir))
+        { Sample.envelope = Signal.from_pairs
+            [(sec start, 1), (sec (start + dur), 1), (sec (start + dur), 0)]
+        }
+    }
+    where
+    sec = AUtil.toSeconds
+    note = Note.note "patch" "inst" (sec start) (sec dur)
 
 -- * TODO copy paste with Faust.Render_test
 
