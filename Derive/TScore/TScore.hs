@@ -14,7 +14,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
@@ -49,6 +48,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
+import qualified Ui.UiConfig as UiConfig
 
 import           Global
 import           Types
@@ -100,7 +100,8 @@ cmd_integrate source = do
 integrate :: Ui.M m => GetExternalCallDuration -> Text
     -> m [BlockId] -- ^ newly created blocks
 integrate get_ext_dur source = do
-    blocks <- Ui.require_right id $ track_blocks get_ext_dur source
+    ns <- Ui.get_namespace
+    blocks <- Ui.require_right id $ track_blocks ns get_ext_dur source
     let (subs, parents) = List.partition _is_sub blocks
     -- Unlike normal blocks, sub-blocks aren't integrated, but deleted and
     -- created from scratch each time.  This is so I don't have to worry about
@@ -118,15 +119,32 @@ destroy_subs = do
     mapM_ (Ui.destroy_block . fst) blocks
     mapM_ Ui.destroy_track $ concatMap (Block.block_track_ids . snd) blocks
 
-track_blocks :: GetExternalCallDuration -> Text -> Either Text [Block NTrack]
-track_blocks get_ext_dur source = do
-    blocks <- first (T.show_error source) (parsed_blocks source)
+track_blocks :: Id.Namespace -> GetExternalCallDuration -> Text
+    -> Either Text [Block NTrack]
+track_blocks namespace get_ext_dur source = do
+    blocks <- first (T.show_error source) (parse_blocks source)
     whenJust (check_recursion $ map (track_tokens <$>) blocks) Left
     (errs, blocks) <- return $
         partition_errors $ make_tracks get_ext_dur source blocks
     unless (null errs) $
         Left $ Text.intercalate "; " errs
-    return blocks
+    return $ map (set_namespace namespace) blocks
+
+-- | Replace the namespace.
+--
+-- I used to put tscore-generated things in 'Parse.default_namespace', so
+-- they wouldn't clash with non-tscore blocks.  But then it turns out that
+-- means tscore blocks can't call other tscore blocks without qualification!
+-- Since I want more seemless integration, I no longer want a separate tscore
+-- namespace.
+set_namespace :: Id.Namespace -> Block track -> Block track
+set_namespace ns block =
+    block { _block_id = Id.modify update (_block_id block) }
+    where
+    update block_id
+        | Id.ident_namespace block_id == Parse.default_namespace =
+            Id.set_namespace ns block_id
+        | otherwise = block_id
 
 partition_errors :: [Block (Either err track)] -> ([err], [Block track])
 partition_errors = first concat . unzip . map partition_block
@@ -169,7 +187,7 @@ lookup_call_duration transformers call = do
     -- TODO it would be better to get a Performance for tests.
 
     transform = map (Eval.eval_transform_expr "lookup_call_duration") $
-        filter (not . Text.null) (Debug.trace "trans" transformers)
+        filter (not . Text.null) transformers
     -- Eval.eval_transform_expr
     deriver = Derive.with_default_imported $
         foldr (.) id transform $
@@ -281,13 +299,16 @@ integrate_block :: Ui.M m => Block NTrack -> m (Maybe BlockId)
 integrate_block block = do
     let block_id = _block_id block
     ruler_id <- ui_ruler block
-    exists <- Maybe.isJust <$> Ui.lookup_block block_id
-    if exists
-        then Ui.set_block_title block_id (_block_title block)
-        else void $ Ui.create_block (Id.unpack_id block_id) (_block_title block)
-            [Block.track (Block.RId ruler_id) Config.ruler_width]
-    dests <- Map.findWithDefault [] source_key . Block.block_integrated_manual
-        <$> Ui.get_block (_block_id block)
+    (dests, created) <- Ui.lookup_block block_id >>= \case
+        Nothing -> do
+            Ui.create_block (Id.unpack_id block_id) (_block_title block)
+                [Block.track (Block.RId ruler_id) Config.ruler_width]
+            return ([], True)
+        Just exist ->
+            case Map.lookup source_key (Block.block_integrated_manual exist) of
+                Nothing -> Ui.throw $
+                    "block from tscore already exists: " <> pretty block_id
+                Just dests -> return (dests, False)
     new_dests <- Merge.merge_tracks block_id
         [ (convert note, map convert controls)
         | NTrack note controls <- _tracks block
@@ -295,9 +316,9 @@ integrate_block block = do
         dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
 
-    unless exists $
+    when created $
         BlockConfig.toggle_merge_all block_id
-    return $ if exists then Nothing else Just block_id
+    return $ if created then Just block_id else Nothing
     where
     convert track = Convert.Track
         { track_title = _title track
@@ -311,10 +332,9 @@ source_key = "tscore"
 
 ui_state :: GetExternalCallDuration -> Text -> Either Text Ui.State
 ui_state get_ext_dur source = do
-    blocks <- track_blocks get_ext_dur source
-    first pretty $ Ui.exec Ui.empty $ do
-        Ui.set_namespace Parse.default_namespace
-        mapM_ ui_block blocks
+    blocks <- track_blocks (UiConfig.config_namespace UiConfig.empty_config)
+        get_ext_dur source
+    first pretty $ Ui.exec Ui.empty $ mapM_ ui_block blocks
 
 ui_block :: Ui.M m => Block NTrack -> m BlockId
 ui_block block = do
@@ -357,9 +377,10 @@ generate_ruler meter end = Ruler.Modify.meter (const generate)
 
 -- * make_blocks
 
-parsed_blocks :: Text -> Either T.Error [Block ParsedTrack]
-parsed_blocks source = do
-    T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score source
+parse_blocks :: Text -> Either T.Error [Block ParsedTrack]
+parse_blocks source = do
+    T.Score defs <- first (T.Error (T.Pos 0) . txt) $
+        Parse.parse_score source
     fst <$> foldM collect ([], Check.default_config) defs
     where
     collect (accum, config) def = do

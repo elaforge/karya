@@ -60,8 +60,7 @@ map_namespace modify = map_ids set
 map_view_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
     views <- Ui.gets Ui.state_views
-    let view_f = Id.ViewId . f . Id.unpack_id
-    new_views <- safe_map_keys "state_views" view_f views
+    new_views <- safe_map_keys "state_views" (Id.modify f) views
     Ui.modify $ \st -> st { Ui.state_views = new_views }
 
 -- | Rename a BlockId.  Views are updated to point to the new block.
@@ -71,12 +70,11 @@ map_block_ids f = do
     let new_root = fmap (Id.BlockId . f . Id.unpack_id) maybe_root
 
     blocks <- Ui.gets Ui.state_blocks
-    let block_f = Id.BlockId . f . Id.unpack_id
-    new_blocks <- safe_map_keys "state_blocks" block_f blocks
+    new_blocks <- safe_map_keys "state_blocks" (Id.modify f) blocks
 
     views <- Ui.gets Ui.state_views
     let new_views = Map.map
-            (\v -> v { Block.view_block = block_f (Block.view_block v) })
+            (\v -> v { Block.view_block = Id.modify f (Block.view_block v) })
             views
     Ui.modify $ \st -> st
         { Ui.state_blocks = new_blocks, Ui.state_views = new_views }
@@ -85,13 +83,12 @@ map_block_ids f = do
 map_track_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
     tracks <- Ui.gets Ui.state_tracks
-    let track_f = Id.TrackId . f . Id.unpack_id
-    new_tracks <- safe_map_keys "state_tracks" track_f tracks
+    new_tracks <- safe_map_keys "state_tracks" (Id.modify f) tracks
 
     blocks <- Ui.gets Ui.state_blocks
     let new_blocks = Map.map
             (\b -> b { Block.block_tracks =
-                map (map_track track_f) (Block.block_tracks b) })
+                map (map_track (Id.modify f)) (Block.block_tracks b) })
             blocks
     Ui.modify $ \st -> st
         { Ui.state_tracks = new_tracks, Ui.state_blocks = new_blocks }
@@ -107,13 +104,12 @@ map_track_ids f = do
 map_ruler_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
     rulers <- Ui.gets Ui.state_rulers
-    let ruler_f = Id.RulerId . f . Id.unpack_id
-    new_rulers <- safe_map_keys "state_rulers" ruler_f rulers
+    new_rulers <- safe_map_keys "state_rulers" (Id.modify f) rulers
 
     blocks <- Ui.gets Ui.state_blocks
     let new_blocks = Map.map
             (\b -> b { Block.block_tracks =
-                map (map_track ruler_f) (Block.block_tracks b) })
+                map (map_track (Id.modify f)) (Block.block_tracks b) })
             blocks
     Ui.modify $ \st ->
         st { Ui.state_rulers = new_rulers, Ui.state_blocks = new_blocks }

@@ -299,7 +299,7 @@ c_18_03_28 = date 2018 3 27 $ ganesh $ korvaiS Tala.misra_chapu mridangam
 
 c_18_04_25 :: Korvai
 c_18_04_25 = date 2018 4 25 $ ganesh $
-    similarTo "Mridangam2013" "dinnagina_sequence" $
+    similarTo "Mridangam2013" "dinnagina_sequences" $
     korvaiS Tala.misra_chapu mridangam
     [ (4*7) ==> theme
     , (2*7) ==> theme . (2*7) ==> theme

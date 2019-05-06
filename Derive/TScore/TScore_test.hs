@@ -86,32 +86,36 @@ test_call_duration = do
 test_ext_call_duration = do
     let f blocks source = extract $
             CmdTest.run_blocks blocks (TScore.cmd_integrate source)
-        extract = CmdTest.trace_logs
+        extract = fmap (Seq.sort_on fst) . CmdTest.trace_logs
             . CmdTest.extract_ui_state UiTest.extract_blocks
     let blocks = [("top=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])]
         top = ("top", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+    -- name collision
+    left_like (f blocks "top = [s1]") "block from tscore already exists"
+
     -- It uses the root block's namespace, not tscore.
     right_equal (f blocks "a = [top/0 s1]")
-        [ top
-        , ("a", UiTest.note_track [(0, 2, "top --"), (2, 1, "4s")])
+        [ ("a", UiTest.note_track [(0, 2, "top --"), (2, 1, "4s")])
+        , top
         ]
+
     -- Use block title for context.
     right_equal
         (f blocks "a = \"import india.mridangam | dur=1\" [> \"8n\"/0 s1]")
-        [ top
-        , ("a -- import india.mridangam | dur=1",
+        [ ("a -- import india.mridangam | dur=1",
             [ (">", [(0, 8, "8n"), (8, 1, "")])
             , ("*", [(8, 0, "4s")])
             ])
+        , top
         ]
     -- Use the track title too.
     right_equal
         (f blocks "a = \"import india.mridangam\" [\"> | dur=1\" \"8n\"/0 s1]")
-        [ top
-        , ("a -- import india.mridangam",
+        [ ("a -- import india.mridangam",
             [ ("> | dur=1", [(0, 8, "8n"), (8, 1, "")])
             , ("*", [(8, 0, "4s")])
             ])
+        , top
         ]
 
 e_events :: Ui.State -> [[Event.Event]]
@@ -136,7 +140,7 @@ test_integrate = do
     equal (filter (is_integral . fst) (e_marks marks))
         [(0, "1"), (1, "2"), (2, "3"), (3, "4")]
 
-    let tid = GenId.track_id_at (UiTest.bid "tscore/top") 2
+    let tid = GenId.track_id_at (UiTest.bid "untitled/top") 2
     state <- return $ expect_right $ Ui.exec state $ do
         Ui.insert_event tid (Event.event 1 0 "5p")
         TScore.integrate get_ext_dur "top = \"block title\" [s r s]"
@@ -203,10 +207,10 @@ test_check_recursion = do
     equal (f "b1 = [b2/]\nb2 = [b1/]") $ Just "recursive loop: b2, b1, b2"
 
 get_ext_dur :: TScore.GetExternalCallDuration
-get_ext_dur = \_ _ -> (Left "not supported", [])
+get_ext_dur = \_ _ -> (Left "external call dur not supported", [])
 
 parsed_blocks :: Text -> [TScore.Block TScore.ParsedTrack]
-parsed_blocks = expect_right . TScore.parsed_blocks
+parsed_blocks = expect_right . TScore.parse_blocks
 
 is_integral :: RealFrac a => a -> Bool
 is_integral = (==0) . snd . properFraction

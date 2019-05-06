@@ -20,6 +20,7 @@ module Ui.Id (
     , show_ident, read_ident
     , ident_text, text_ident
     , ident_name, ident_namespace
+    , modify
 
     -- * constants
     , global, global_namespace
@@ -193,11 +194,13 @@ class Ident a where
     unpack_id :: a -> Id
     constructor_name :: Proxy a -> String
     make :: Id -> Maybe a
+    make_unchecked :: Id -> a
 
 instance Ident Id where
     unpack_id = Prelude.id
     constructor_name _ = "id"
     make = Just
+    make_unchecked a = a
 
 show_ident :: forall a. Ident a => a -> String
 show_ident ident = "(" ++ con ++ " " ++ show (show_id id) ++ ")"
@@ -228,6 +231,9 @@ ident_name = id_name . unpack_id
 
 ident_namespace :: Ident a => a -> Namespace
 ident_namespace = id_namespace . unpack_id
+
+modify :: Ident a => (Id -> Id) -> a -> a
+modify f = make_unchecked . f . unpack_id
 
 -- * constants
 
@@ -286,19 +292,23 @@ require = (maybe Read.pfail return =<<)
 instance Ident BlockId where
     unpack_id (BlockId a) = a
     constructor_name _ = "bid"
-    make = fmap BlockId . valid_block_id
+    make = fmap make_unchecked . valid_block_id
+    make_unchecked = BlockId
 instance Ident ViewId where
     unpack_id (ViewId a) = a
     constructor_name _ = "vid"
     make = fmap ViewId . valid_id
+    make_unchecked = ViewId
 instance Ident TrackId where
     unpack_id (TrackId a) = a
     constructor_name _ = "tid"
     make = fmap TrackId . valid_id
+    make_unchecked = TrackId
 instance Ident RulerId where
     unpack_id (RulerId a) = a
     constructor_name _ = "rid"
     make = fmap RulerId . valid_id
+    make_unchecked = RulerId
 
 instance Aeson.ToJSON BlockId where toJSON = Aeson.toJSON . unpack_id
 instance Aeson.FromJSON BlockId where parseJSON = fmap BlockId . Aeson.parseJSON

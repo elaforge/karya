@@ -127,7 +127,7 @@ data TrackDestinations =
     (source_track_id, (destination_track_id, index))
 
     For 'block_integrated', the source_track_id should point to a track in the
-    source block, for 'block_integrated_tracks' it should point to a track
+    source block.  For 'block_integrated_tracks' it should point to a track
     within its own block.  The destination_track_id should always point to
     a track in the same block.
 -}
