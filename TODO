@@ -4893,6 +4893,15 @@ Derive:
 
 text score: tscore:
   . doc/dev_notes/text-score.md
+  - I have a lot of things with alternate endings.
+  - I want to have an edit open along with a repl.
+    . If edit fails to write to the socket, leave the tmp file and warn about
+      it.
+    . Better, do the same if I write for a different score than I opened it.
+      I guess the safest way is to send an "invalidate" event when quitting
+      or switching scores.  Or a unique score id?
+  bug:
+    * %default-call parses the \n after a note
   negative durations:
     . So I can put beats at the end:
        e o u e | i o a i | ~ o ~ e |

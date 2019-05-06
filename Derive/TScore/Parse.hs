@@ -160,11 +160,8 @@ instance Element T.Directive where
     parse _ = do
         P.char '%'
         T.Directive
-            <$> not_in "= \n"
-            <*> P.optional (P.char '=' *> not_in " \n")
-        where
-        not_in :: [Char] -> Parser Text
-        not_in cs = P.takeWhile1 (`notElem` cs)
+            <$> P.takeWhile1 (not_in "=")
+            <*> P.optional (P.char '=' *> P.takeWhile1 (not_in ""))
     unparse _ (T.Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
 instance Element (T.Token T.Call T.Pitch T.NDuration T.Duration) where
@@ -346,23 +343,20 @@ instance Pretty (T.Rest T.Duration) where
     pretty = unparse default_config
 
 call_char :: Char -> Bool
-call_char = (`notElem` exclude)
-    where
-    exclude =
-        [ ' ', '/'
-        , '['
-        , ']' -- so a Note inside a SubBlock doesn't eat the ]
-        ]
+call_char = not_in
+    [ '/'
+    , '['
+    , ']' -- so a Note inside a SubBlock doesn't eat the ]
+    ]
 
 pitch_char :: Char -> Bool
-pitch_char c = c `notElem` exclude && not (Char.isDigit c)
+pitch_char c = not_in exclude c && not (Char.isDigit c)
     where
     -- This breaks modularity because I have to just know all the syntax that
     -- could come after, which is Duration, end of Tracks, Rest.  But the more
     -- I can get into Pitch, the more I can get into Call without needing ""s.
     exclude =
-        [ ' ', '\n', '\t'
-        , '~', '.' -- pitch is followed by T.NDuration
+        [ '~', '.' -- pitch is followed by T.NDuration
         , ':' -- T.Duration
         , '/' -- Don't mistake the T.Tracks separator for a note.
         , ']' -- end of T.Tracks
@@ -422,11 +416,11 @@ p_whitespace = void $ P.many $ P.space1 <|> p_comment
         P.takeWhile (/='\n')
         P.option () (void $ P.char '\n')
 
-p_space :: Parser ()
-p_space = void $ P.takeWhile1 (==' ')
-
 lexeme :: Parser a -> Parser a
 lexeme = (<* p_whitespace)
 
 keyword :: Text -> Parser ()
 keyword str = void $ lexeme (P.string str)
+
+not_in :: [Char] -> Char -> Bool
+not_in cs = \c -> not (Char.isSpace c) && c `notElem` cs
