@@ -4894,13 +4894,11 @@ Derive:
 text score: tscore:
   . doc/dev_notes/text-score.md
   - I have a lot of things with alternate endings.
-  - I want to have an edit open along with a repl.
-    . If edit fails to write to the socket, leave the tmp file and warn about
-      it.
-    . Better, do the same if I write for a different score than I opened it.
-      I guess the safest way is to send an "invalidate" event when quitting
-      or switching scores.  Or a unique score id?
+  - how to do alt call?  "alt [d] [d g]"/
+    I should be able to have multiple blocks:
+      alt[d][d g]/
   bug:
+    * sub-block lacks skeleton
     * %default-call parses the \n after a note
   negative durations:
     . So I can put beats at the end:

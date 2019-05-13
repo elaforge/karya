@@ -45,6 +45,7 @@ import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Ui as Ui
@@ -336,6 +337,8 @@ ui_state get_ext_dur source = do
         get_ext_dur source
     first pretty $ Ui.exec Ui.empty $ mapM_ ui_block blocks
 
+-- | Turn a Block NTrack into a UI block directly.  'integrate_block' does same
+-- thing, but does so via the integrate machinery.
 ui_block :: Ui.M m => Block NTrack -> m BlockId
 ui_block block = do
     track_ids <- fmap concat $ forM (_tracks block) $ \(NTrack note controls) ->
@@ -347,8 +350,19 @@ ui_block block = do
             [ Block.track (Block.TId tid ruler_id) Config.track_width
             | tid <- track_ids
             ]
-    Ui.create_block (Id.unpack_id (_block_id block)) (_block_title block) $
-        Block.track (Block.RId ruler_id) Config.ruler_width : tracks
+    block_id <- Ui.create_block (Id.unpack_id (_block_id block))
+        (_block_title block)
+        (Block.track (Block.RId ruler_id) Config.ruler_width : tracks)
+    Ui.set_skeleton block_id $ ui_skeleton (_tracks block)
+    return block_id
+
+ui_skeleton :: [NTrack] -> Skeleton.Skeleton
+ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
+    where
+    make tracknum (NTrack _ controls) = (tracknum+len, zip ns (drop 1 ns))
+        where
+        len = length controls + 1
+        ns = [tracknum .. tracknum+len - 1]
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
 ui_ruler block = make_ruler (_block_id block) (_meter block) end

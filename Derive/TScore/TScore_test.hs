@@ -12,6 +12,7 @@ import qualified Derive.TScore.TScore as TScore
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.GenId as GenId
+import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Style as Style
 import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
@@ -48,6 +49,14 @@ test_ui_state = do
         [ ("top", UiTest.note_track1 ["4s", "+pizz | -1c1 --"])
         , ("top-1c1", UiTest.note_track [(0, 1, "4r"), (1, 1, "4g")])
         ]
+
+test_ui_skeleton = do
+    let f = Skeleton.flatten . TScore.ui_skeleton
+        nt n = TScore.NTrack t (replicate (n-1) t)
+            where t = TScore.Track "" mempty
+    equal (f [nt 2]) [(1, 2)]
+    equal (f [nt 2, nt 2]) [(1, 2), (3, 4)]
+    equal (f [nt 2, nt 1, nt 2]) [(1, 2), (4, 5)]
 
 test_call_duration = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
