@@ -195,9 +195,9 @@ instance Pretty T.Barline where pretty = unparse default_config
 
 -- | Parse a note with a letter pitch.
 --
--- > <call><oct><pitch><dur><dots><tie>
--- > call/  4    s      4    .     ~
--- >        ,    s      :1
+-- > <call><oct><pitch><zero-dur><dur><dots><tie>
+-- > call/  4    s      *         4    .     ~
+-- >        ,    s                :1
 --
 -- oct is optional, but oct without pitch is not so useful, so pitch >=1 char.
 --
@@ -211,24 +211,28 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
         -- when it fails, to parse //.
         | _default_call config = P.try $ do
             call <- P.optional $ parse config
-            (pitch, dur) <- P.option (empty_pitch, empty_nduration) $ do
-                P.char '/'
-                (,) <$> P.option empty_pitch (P.try (parse config))
-                    <*> parse config
-            make_note call pitch dur
+            (pitch, zero_dur, dur) <-
+                P.option (empty_pitch, False, empty_nduration) $ do
+                    P.char '/'
+                    (,,) <$> P.option empty_pitch (P.try (parse config))
+                         <*> p_zero_dur
+                         <*> parse config
+            make_note call pitch zero_dur dur
         | otherwise = do
             call <- P.optional $ P.try $ parse config <* P.char '/'
             -- I need a try, because if it starts with a number it could be
             -- an octave, or a duration.
             pitch <- P.option empty_pitch $ P.try (parse config)
+            zero_dur <- p_zero_dur
             dur <- parse config
-            make_note call pitch dur
+            make_note call pitch zero_dur dur
         where
-        make_note call pitch dur = do
+        p_zero_dur = P.option False (P.char '*' *> pure True)
+        make_note call pitch zero_dur dur = do
             let note = T.Note
                     { note_call = fromMaybe (T.Call "") call
                     , note_pitch = pitch
-                    , note_zero_duration = False -- TODO
+                    , note_zero_duration = zero_dur
                     , note_duration = dur
                     , note_pos = T.Pos 0
                     }
@@ -236,16 +240,23 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
             guard (note /= empty_note)
             pos <- get_pos
             return $ note { T.note_pos = pos }
-    unparse config (T.Note call pitch _zero_dur dur _pos)
+    unparse config (T.Note call pitch zero_dur dur _pos)
         | _default_call config =
             unparse config call
-            <> if pitch == empty_pitch && dur == empty_nduration then ""
-                else "/" <> unparse config pitch <> unparse config dur
+            <> if (pitch, zero_dur, dur) == empty then "" else mconcat
+                [ "/"
+                , unparse config pitch
+                , if zero_dur then "*" else ""
+                , unparse config dur
+                ]
         | otherwise = mconcat
             [ if call == T.Call "" then "" else unparse config call <> "/"
             , unparse config pitch
+            , if zero_dur then "*" else ""
             , unparse config dur
             ]
+        where
+        empty = (empty_pitch, False, empty_nduration)
 
 -- | This is the output from Check.check.
 instance Pretty (T.Note T.CallT (Maybe Text) T.Time) where
@@ -360,6 +371,7 @@ pitch_char c = not_in exclude c && not (Char.isDigit c)
         , ':' -- T.Duration
         , '/' -- Don't mistake the T.Tracks separator for a note.
         , ']' -- end of T.Tracks
+        , '*' -- zero duration marker
         ]
 
 -- ** Pitch

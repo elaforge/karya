@@ -4957,7 +4957,7 @@ text score: tscore:
       . I can get this by doubling the nadai, e.g. :8 or whatever, but it
         still seems like I'd want an easy 'su' type annotation.
       . Maybe . could be su, and I carry it?  Then I need an undot for sd.
-    - support 0 dur notes
+    * support 0 dur notes
       . Use :0?  Or just 0 dur?  No that's taken by CallDuration. :0 should be
         unambiguous, but it still looks like it's stealing syntax from
         duration.

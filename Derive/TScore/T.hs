@@ -109,8 +109,7 @@ newtype Barline = Barline Rank
 data Note call pitch dur = Note {
     note_call :: !call
     , note_pitch :: !pitch
-    -- | The generated event should have 0 duration.  TODO there's no syntax
-    -- for this yet.
+    -- | The generated event should have 0 duration.
     , note_zero_duration :: !Bool
     , note_duration :: !dur
     , note_pos :: !Pos

@@ -224,6 +224,7 @@ test_token_roundtrip = do
     roundtrip p "+pizz/"
     roundtrip p "\"a b\"/"
     roundtrip p "a/'b1.~"
+    roundtrip p "a*4:2"
 
 -- * implementation
 
@@ -276,6 +277,11 @@ tnote call oct pitch dur = T.TNote no_pos $ T.Note
     , note_duration = dur
     , note_pos = no_pos
     }
+
+set_zero_dur :: T.Token call pitch ndur rdur -> T.Token call pitch ndur rdur
+set_zero_dur = \case
+    T.TNote pos note -> T.TNote pos $ note { T.note_zero_duration = True }
+    tnote -> tnote
 
 parse :: Parse.Element a => Text -> Either String a
 parse = Parse.parse_text (Parse.parse Parse.default_config)
