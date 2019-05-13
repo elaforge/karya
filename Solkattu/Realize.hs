@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE NamedFieldPuns #-}
 -- | Realize abstract solkattu 'S.Note's to concrete instrument-dependent
 -- 'Note's.
@@ -67,7 +67,7 @@ instance DeepSeq.NFData (Note stroke) where
 data Stroke stroke = Stroke {
     _emphasis :: !Emphasis
     , _stroke :: !stroke
-    } deriving (Eq, Ord, Show, Functor)
+    } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 toExpr :: Expr.ToExpr a => Stroke a -> Expr.Expr Expr.MiniVal
 toExpr (Stroke emphasis stroke) = case emphasis of

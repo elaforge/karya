@@ -62,10 +62,16 @@ on = o&n
 
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
-closed = mapMStroke $ \s -> case s of
-    Mridangam.Thoppi Mridangam.Thom -> Mridangam.Thoppi Mridangam.Tha
-    Mridangam.Both Mridangam.Thom a -> Mridangam.Both Mridangam.Tha a
-    _ -> s
+closed = mapMStroke $ \case
+    Mridangam.Thoppi Mridangam.Thom -> Just $ Mridangam.Thoppi Mridangam.Tha
+    Mridangam.Both Mridangam.Thom a -> Just $ Mridangam.Both Mridangam.Tha a
+    s -> Just s
+
+noThom :: Sequence -> Sequence
+noThom = mapMStroke $ \case
+    Mridangam.Thoppi Mridangam.Thom -> Nothing
+    Mridangam.Both Mridangam.Thom a -> Just $ Mridangam.Valantalai a
+    s -> Just s
 
 thomLH :: Sequence -> Sequence
 thomLH = mapNote $ \note -> if note `elem` [n, d] then o else __
@@ -78,8 +84,13 @@ o1 :: Sequence -> Sequence
 o1 = Seq.map_head $ S.map1 $ fmap $ fmap $
     Mridangam.addThoppi Mridangam.Thom
 
-mapMStroke :: (Mridangam.Stroke -> Mridangam.Stroke) -> Sequence -> Sequence
-mapMStroke = fmap • fmap • fmap • fmap
+mapMStroke :: (Mridangam.Stroke -> Maybe Mridangam.Stroke) -> Sequence
+    -> Sequence
+mapMStroke f = mapNote $ \case
+    Solkattu.Note n -> case traverse f (Solkattu._sollu n) of
+        Nothing -> Solkattu.Space Solkattu.Rest
+        Just s -> Solkattu.Note $ n { Solkattu._sollu = s }
+    note -> note
 
 mapNote :: (Solkattu.Note Stroke -> Solkattu.Note Stroke)
     -> Sequence -> Sequence

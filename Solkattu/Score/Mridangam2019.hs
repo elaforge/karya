@@ -78,3 +78,46 @@ e_19_04_15 = date 2019 4 15 $ ganesh $ exercise $
     ]
     where
     rh = repeat 8 $ n.k.t.k
+
+e_19_05_06_a :: Korvai
+e_19_05_06_a = date 2019 5 6 $ ganesh $ comment "leads to e_19_05_06" $
+    korvaiS adi $ map (nadai 6)
+    [ group t1 . alt t1 . tri (p.n.y.d)
+    , group t1 . repeat 3 (alt t1)
+        . repeat 3 (alt (o.n.y.od.__.k.od.__))
+        . repeat 3 (alt (o.n.y.od.__.k))
+        . repeat 3 (alt (o.n.y.d))
+    ]
+    where
+    t1 = o.n.y.od.__.k.od.__.on.y.d.__
+    alt seq = group seq . group (replaceStart p (noThom seq))
+
+e_19_05_06 :: Korvai
+e_19_05_06 = date 2019 5 6 $ ganesh $ comment "tisram, built on 7s and 5s" $
+    korvaiS adi $ map (nadai 6)
+    [ p1 . p2 . p3 . p4
+    , repeat 3 p1 . a7.a5
+      . p1 . a7.a5 . p3 . a7.a5
+      . p1 . tri a7 . tri a5
+    , repeat 3 p1 . b7.b5
+      . p1' . b7.b5 . p1' . b7.b5
+      . p1' . tri b7 . tri b5
+    , t7.t5e.od.__3 . p3_.t5e.od.__3
+        . t7.t5e . p3_.t5e.od.__3
+        . tri_ (i.__3) (p5.__.p5)
+    ]
+    where
+    p1 = t7.t5
+    p1' = o.__.t.__.k.n.__ . t5
+    p2 = __.__.t.__.k.n.__.t5
+    p3 = p3_.t5
+    p3_ = k.p.t.__.k.n.__
+    p4 = su (k.t.p.k) . k.__.k.n.__.t5
+
+    a7 = group $ kp.p5
+    a5 = group $ p5
+    b7 = group $ o.k.o.k.o.o.k
+    b5 = group $ o.k.o.o.k
+    t7 = k.__.t.__.k.n.__
+    t5 = k.__.k.n.__
+    t5e = k.__.k.n.o
