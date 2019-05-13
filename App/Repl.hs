@@ -243,7 +243,8 @@ send_file fname cmd = do
 -- | Run the action with a temp file, and delete it afterwards.
 with_temp :: FilePath -> Text -> (FilePath -> IO a) -> IO a
 with_temp prefix contents action = do
-    (path, hdl) <- Posix.Temp.mkstemp prefix
+    -- .ky prefix so the vim autocmds will fire.
+    (path, hdl) <- Posix.Temp.mkstemps prefix ".ky"
     Text.IO.hPutStr hdl contents
     Text.IO.hPutStr hdl "\n" -- otherwise vim doesn't like no final newline
     IO.hClose hdl
