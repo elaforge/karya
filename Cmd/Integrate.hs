@@ -107,8 +107,11 @@ integrate derived_block_id integrated = do
 integrate_tracks :: Cmd.M m => BlockId -> TrackId -> Convert.Tracks -> m ()
 integrate_tracks block_id track_id tracks = do
     itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
-    let dests = [dests | (source_id, Block.DeriveDestinations dests) <- itracks,
-            source_id == track_id]
+    let dests =
+            [ dests
+            | (source_id, Block.DeriveDestinations dests) <- itracks
+            , source_id == track_id
+            ]
     new_dests <- if null dests
         then (:[]) <$> Merge.merge_tracks block_id tracks []
         else mapM (Merge.merge_tracks block_id tracks) dests
@@ -140,8 +143,8 @@ integrate_block source_id tracks = do
     where
     integrated_from blocks =
         [ (block_id, dests)
-        | (block_id, Just (source_block, Block.DeriveDestinations dests)) <-
-            map (second Block.block_integrated) (Map.toList blocks)
+        | (block_id, Just (source_block, Block.DeriveDestinations dests))
+            <- map (second Block.block_integrated) (Map.toList blocks)
         , source_block == source_id
         ]
 
@@ -176,16 +179,19 @@ score_integrate_block source_id = do
     where
     integrated_from blocks =
         [ (block_id, dests)
-        | (block_id, Just (source_block, Block.ScoreDestinations dests)) <-
-            map (second Block.block_integrated) (Map.toList blocks)
+        | (block_id, Just (source_block, Block.ScoreDestinations dests))
+            <- map (second Block.block_integrated) (Map.toList blocks)
         , source_block == source_id
         ]
 
 score_integrate_tracks :: Ui.M m => (BlockId, TrackId) -> m [Text]
 score_integrate_tracks (block_id, track_id) = do
     itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
-    let dests = [dests | (tid, Block.ScoreDestinations dests) <- itracks,
-            tid == track_id]
+    let dests =
+            [ dests
+            | (source_id, Block.ScoreDestinations dests) <- itracks
+            , source_id == track_id
+            ]
     new_dests <- mapM (Merge.score_merge_tracks block_id track_id) dests
     Ui.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.ScoreDestinations dests) | dests <- new_dests]
@@ -233,9 +239,9 @@ needs_track_score_integrate updates state = Seq.unique $
     has_track track_id block = track_id `elem` Block.block_track_ids block
     has_integrated block track_id = not $ null
         [ ()
-        | (dest_track_id, Block.ScoreDestinations {}) <-
-            Block.block_integrated_tracks block
-        , track_id == dest_track_id
+        | (source_track_id, Block.ScoreDestinations {})
+            <- Block.block_integrated_tracks block
+        , track_id == source_track_id
         ]
 
 -- * manual integrate
