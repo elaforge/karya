@@ -12,10 +12,14 @@
     3o  3e  3u  3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i
     pemade -------------------------------
                         kantilan -----------------------------
+    3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i  6o  6e  6u
+    36  41  42  43  45  46  51
+    3d  4s  4r  4g  4p  4d  5s
     @
 -}
 module Derive.Scale.Wayang where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified Util.Seq as Seq
@@ -25,6 +29,7 @@ import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.McPhee as McPhee
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Midi.Key2 as Key2
@@ -32,7 +37,7 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 
-import Global
+import           Global
 
 
 scales :: [Scale.Definition]
@@ -40,6 +45,12 @@ scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
     [ BaliScales.make_scale scale_id $
         BaliScales.scale_map (config laras_sawan)
             BaliScales.ioeua_absolute Nothing
+    , BaliScales.make_scale "wayang-a" $
+        BaliScales.scale_map (rebase (Pitch.pitch 1 U) (config laras_sawan))
+            BaliScales.ioeua_absolute Nothing
+    , BaliScales.make_scale "wayang-srg" $
+        BaliScales.scale_map (rebase (Pitch.pitch 1 U) (config laras_sawan))
+            sargam_absolute Nothing
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
@@ -53,6 +64,10 @@ scales = map (Scale.Simple . Scales.add_doc "Saih gender wayang.")
     ]
     where
     inst_scale_map laras = BaliScales.instrument_scale_map (config laras)
+
+sargam_absolute :: TheoryFormat.Format
+sargam_absolute = TheoryFormat.make_absolute_format "[1-9][srgpd]" $
+    TheoryFormat.make_degrees $ map Text.singleton "srgpd"
 
 pemade :: BaliScales.Instrument
 pemade = instrument 4 (Pitch.pitch 3 O) (Pitch.pitch 5 I)
@@ -76,6 +91,15 @@ config default_laras = BaliScales.Config
     layout = Theory.diatonic_layout 5
     default_key = Theory.key (Pitch.Degree 0 0) "default" (replicate 5 1) layout
 
+rebase :: Pitch.Pitch -> BaliScales.Config -> BaliScales.Config
+rebase base config = config
+    { BaliScales.config_laras = set <$> BaliScales.config_laras config
+    , BaliScales.config_default_laras =
+        set $ BaliScales.config_default_laras config
+    }
+    where
+    set laras = laras { BaliScales.laras_base = base }
+
 -- | Start octave for the extended scale.
 base_oct :: Pitch.Octave
 base_oct = 1
@@ -87,9 +111,6 @@ scale_id = "wayang"
 
 data Pitch = I | O | E | U | A deriving (Eq, Enum, Show)
 
--- default_laras :: Text
--- default_laras = laras_sawan
-
 laras :: Map Text BaliScales.Laras
 laras = Map.fromList $ Seq.key_on BaliScales.laras_name $
     laras_sawan
@@ -98,7 +119,7 @@ laras = Map.fromList $ Seq.key_on BaliScales.laras_name $
     : mcphee
 
 laras_sawan :: BaliScales.Laras
-laras_sawan = BaliScales.laras "sawan" (Pitch.pitch 1 0)
+laras_sawan = BaliScales.laras "sawan" (Pitch.pitch 1 I)
     (extend (BaliScales.inst_low pemade))
     "Tuning from my gender wayang, made in Sawan, Singaraja." $
     -- Of course the overlapping parts of the scales are a bit different, and
