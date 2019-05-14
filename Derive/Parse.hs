@@ -204,7 +204,7 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser (Expr.Call DeriveT.Val)
 p_equal = do
-    (lhs, sym, rhs) <- p_equal_generic p_term
+    (lhs, sym, rhs) <- p_equal_generic (lexeme p_term)
     return $ Expr.Call Symbols.equal $
         literal lhs : rhs ++ maybe [] (:[]) (literal <$> sym)
     where literal = Expr.Literal . DeriveT.VStr
@@ -221,7 +221,9 @@ p_equal_generic rhs_term = do
     return (Expr.Str lhs, Expr.Str <$> sym, rhs)
 
 p_call :: Bool -> A.Parser (Expr.Call DeriveT.Val)
-p_call toplevel = Expr.Call <$> lexeme (p_symbol toplevel) <*> A.many p_term
+p_call toplevel = Expr.Call
+    <$> lexeme (p_symbol toplevel)
+    <*> lexeme (A.sepBy p_term spaces1)
 
 p_null_call :: A.Parser (Expr.Call a)
 p_null_call = return (Expr.Call "" []) <?> "null call"
@@ -234,7 +236,8 @@ p_symbol :: Bool -- ^ A call at the top level can allow a ).
 p_symbol toplevel = Expr.Symbol <$> p_word toplevel
 
 p_term :: A.Parser (Expr.Term DeriveT.Val)
-p_term = lexeme $ Expr.Literal <$> p_val <|> Expr.ValCall <$> p_sub_call
+p_term = Expr.Literal <$> p_val <|> Expr.ValCall <$> p_sub_call
+    <?> "term"
 
 p_sub_call :: A.Parser (Expr.Call DeriveT.Val)
 p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
@@ -400,7 +403,7 @@ is_word_char :: Char -> Bool
 is_word_char c = is_toplevel_word_char c && c /= ')'
 
 lexeme :: A.Parser a -> A.Parser a
-lexeme p = p <* spaces
+lexeme = (<* spaces)
 
 -- | Skip spaces, including a newline as long as the next line, skipping empty
 -- lines, is indented.
@@ -413,6 +416,10 @@ spaces = do
         -- The next non-empty line has to be indented.
         A.skip is_whitespace
         A.skipWhile is_whitespace
+
+-- | Like 'spaces', but require a space at the beginning.
+spaces1 :: A.Parser ()
+spaces1 = A.char ' ' *> spaces
 
 empty_line :: A.Parser ()
 empty_line = spaces_to_eol >> A.skip (=='\n')

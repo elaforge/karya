@@ -20,12 +20,12 @@ test_sequence = do
     -- Can't be bothered at the moment though, because I probably won't keep
     -- this module.
     let run = run_note_track ""
-    strings_like (snd (run [(0, 8, "@; no-call; -- 4c")]))
+    strings_like (snd (run [(0, 8, "@ ; no-call ; -- 4c")]))
         ["generator not found"]
 
     -- Implicit hold.
     equal (run [(0, 8, "@ -- 4c")]) ([[(0, 60)]], [])
-    equal (run [(0, 8, "@;; -- 4c")]) ([[(0, 60)]], [])
+    equal (run [(0, 8, "@ ; ; -- 4c")]) ([[(0, 60)]], [])
 
     -- Implicit set pitch if you don't supply a begin call.
     equal (run [(0, 1, "4c"), (1, 1, "@ -- 4d")])
@@ -38,43 +38,43 @@ test_sequence = do
         ([[(0, 61), (1, 60)]], [])
 
     -- To call.
-    equal (run [(0, 4, "@; - ; to 2 2 -- 4c")])
+    equal (run [(0, 4, "@ ; - ; to 2 2 -- 4c")])
         ([[(0, 60), (4, 62)]], [])
-    equal (run [(0, 4, "@;; to 2 2 -- 4c")])
+    equal (run [(0, 4, "@ ; ; to 2 2 -- 4c")])
         ([[(0, 60), (4, 62)]], [])
 
     -- Enough room.
-    equal (run [(0, 8, "@;; to 2 2 -- 4c")])
+    equal (run [(0, 8, "@ ; ; to 2 2 -- 4c")])
         ([[(0, 60), (8, 62)]], [])
-    equal (run [(0, 2, "@;; to 2 2 -- 4c")])
+    equal (run [(0, 2, "@ ; ; to 2 2 -- 4c")])
         ([[(0, 60), (2, 62)]], [])
     -- Not enough room.
-    equal (run [(0, 1, "@;; to 2 2 -- 4c")])
+    equal (run [(0, 1, "@ ; ; to 2 2 -- 4c")])
         ([[(0, 60), (1, 62)]], [])
 
     -- Middle is divided evenly.
-    equal (run [(0, 8, "@; - 1; - 0; -- 4c")])
+    equal (run [(0, 8, "@ ; - 1 ; - 0 ; -- 4c")])
         ([[(0, 61), (4, 60)]], [])
 
     -- Begin, middle, end.
-    equal (run [(0, 8, "@ cur 1 1;; to 1 1 -- 4c")])
+    equal (run [(0, 8, "@ cur 1 1 ; ; to 1 1 -- 4c")])
         ([[(0, 61), (1, 60), (8, 61)]], [])
     -- Middle divided equally between 59 and 60.
-    equal (run [(0, 8, "@ cur 1 1; - -1; - 0; to 1 1 -- 4c")])
+    equal (run [(0, 8, "@ cur 1 1 ; - -1 ; - 0 ; to 1 1 -- 4c")])
         ([[(0, 61), (1, 59), (4, 60), (8, 61)]], [])
 
 test_flat_start_end = do
     let run = run_note_track ""
-    equal (run [(0, 4, "@ - 0 1; - 1; - -1 1 -- 4c")])
+    equal (run [(0, 4, "@ - 0 1 ; - 1 ; - -1 1 -- 4c")])
         ([[(0, 60), (1, 61), (3, 60)]], [])
 
 test_fade = do
     let run = run_note_track_dyn ""
-    equal (run [(0, 4, "@;; -> 2 -- 4c")])
+    equal (run [(0, 4, "@ ; ; -> 2 -- 4c")])
         ([( [(0, 60), (4, 60)]
           , [(-RealTime.larger, 1), (2, 1), (4, 0), (4, 1)]
           )], [])
-    equal (run [(0, 4, "@ -< 2;; -- 4c")])
+    equal (run [(0, 4, "@ -< 2 ; ; -- 4c")])
         ([([(0, 60), (4, 60)], [(0, 1), (2, 0), (2, 1)])], [])
 
 test_jaru = do
@@ -88,34 +88,34 @@ test_jaru = do
 
 test_kampita = do
     let run = run_note_track "| kam-transition=0 | kam-speed=1"
-    equal (run [(0, 2.5, "@; k 1; -- 4c")])
+    equal (run [(0, 2.5, "@ ; k 1 ; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
-    equal (run [(0, 2.5, "@; k^ 1; -- 4c")])
+    equal (run [(0, 2.5, "@ ; k^ 1 ; -- 4c")])
         ([[(0, 60), (1, 61)]], [])
-    equal (run [(0, 2.5, "@; k_ 1; -- 4c")])
+    equal (run [(0, 2.5, "@ ; k_ 1 ; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
     -- Starts from the previous pitch.
-    equal (run [(0, 4, "@; flat -1; k 1; -- 4c")])
+    equal (run [(0, 4, "@ ; flat -1 ; k 1 ; -- 4c")])
         ([[(0, 59), (3, 60), (4, 59)]], [])
     -- Adjust.
-    equal (run [(0, 2.5, "kam-adjust=stretch | @; k^ 1; -- 4c")])
+    equal (run [(0, 2.5, "kam-adjust=stretch | @ ; k^ 1 ; -- 4c")])
         ([[(0, 60), (2.5, 61)]], [])
 
 test_nkampita = do
     let run = run_note_track "| nkam-transition=0"
-    strings_like (snd (run [(0, 2, "@ ; nk 0; -- 4c")]))
+    strings_like (snd (run [(0, 2, "@  ; nk 0 ; -- 4c")]))
         ["cycles: expected Num (>0)"]
-    equal (run [(0, 2, "@; nk 1; -- 4c")])
+    equal (run [(0, 2, "@ ; nk 1 ; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
-    equal (run [(0, 2, "@; nk_ 1; -- 4c")])
+    equal (run [(0, 2, "@ ; nk_ 1 ; -- 4c")])
         ([[(0, 60), (1, 61), (2, 60)]], [])
-    equal (run [(0, 2, "@; nk 2; -- 4c")])
+    equal (run [(0, 2, "@ ; nk 2 ; -- 4c")])
         ([[(0, 60), (0.5, 61), (1, 60), (1.5, 61), (2, 60)]], [])
-    equal (run [(0, 2, "@; nk^ 1; -- 4c")])
+    equal (run [(0, 2, "@ ; nk^ 1 ; -- 4c")])
         ([[(0, 60), (2, 61)]], [])
-    equal (run [(0, 2, "@; nk_ 1 -1; -- 4c")])
+    equal (run [(0, 2, "@ ; nk_ 1 -1 ; -- 4c")])
         ([[(0, 60), (2, 59)]], [])
-    equal (run [(0, 4, "nkam-transition=2 | @; nk^ 1; -- 4c")])
+    equal (run [(0, 4, "nkam-transition=2 | @ ; nk^ 1 ; -- 4c")])
         ([[(0, 60), (4, 61)]], [])
 
 run_note_track_dyn :: Text -> [UiTest.EventSpec]

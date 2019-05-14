@@ -70,8 +70,16 @@ test_parse_expr = do
     equal (f "  a -- comment") $ Right [Call "a" []]
     equal (f "a 'b -- c'--d") $ Right [Call "a" [Literal (VStr "b -- c")]]
 
-    equal (f "a;b") $ Right
+    equal (f "a ; b") $ Right
         [Call "a" [Literal VSeparator, Literal (VStr "b")]]
+
+test_parse_expr_val_tokenization = do
+    let f = fmap NonEmpty.toList . Parse.parse_expr
+    -- This is because of the spaces1 in p_call.  I want to force call
+    -- arguments to be separated by spaces because otherwise "-1.1a" parses
+    -- as two valid vals, which is confusing.
+    -- TODO I wish for a better error than "expected eof" then
+    left_like (f "a -1.1a") "parse error"
 
 test_show_val = do
     roundtrip "a b"
