@@ -857,6 +857,14 @@ check_focus(int evt)
     Fl_Widget *focus = Fl::focus();
     while (focus && focus->window())
         focus = focus->window();
+    if (!focus)
+        return;
+    // I don't know why, but sometimes when deleting or adding windows I get a
+    // focus that crashes on dynamic_cast.
+    return;
+
+    printf("focus was: %p\n", focus);
+    DEBUG("label: " << (focus->label() ? focus->label() : "NULL"));
     BlockWindow *fl = dynamic_cast<BlockWindow *>(focus);
     BlockWindow *os = dynamic_cast<BlockWindow *>(fl_mac_get_key_window());
     BlockWindow *key =

@@ -196,14 +196,24 @@ UNSORTED
     + Try compiling with -debug.
       . With -DS it becomes a segfault.
       . With -Di -Dw it doesn't crash.
-    - Try using gdb.  Compile with -g, though it could be in c++.
+    / Try using gdb.  Compile with -g, though it could be in c++.
       . Need to install gdb.
       . Need to do a giant runaround to sign the binary:
         https://ghc.haskell.org/trac/ghc/wiki/Debugging/CompiledCode
-    - Could it be due to out of date callback foreign ptrs?
+    / Could it be due to out of date callback foreign ptrs?
       . I could debug that by not calling them.
-    - Maybe it's due to library versions?  Try to reproduce with the same
+    / Maybe it's due to library versions?  Try to reproduce with the same
       versions.
+    . I'm getting this again with LBlock.destroy when there are im
+      instruments.
+      139 exit code is what?  139 - 128.  It's 11, which is SIGSEGV.
+      . So it's definitely memory access out of bounds.
+      . OS X keeps crashes in Console.  It's dynamic_cast<> from
+        BlockWindow::handle.
+      . Looks like check_focus() was it?
+      . It was 0x7fb3e103a000... which is a real address.  Maybe it's some
+        object compiled without RTTI?
+      . It has a valid label(): fltk/Block.cc:863 label: intro - .v1
   - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
     I can put another monad on top.
     . I think I only switched to Ui.M because it was awkward pre-AMP.
