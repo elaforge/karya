@@ -29,14 +29,14 @@ import           Global
 
 rambat_im :: UiConfig.Allocations
 rambat_im =
-    pasang_im "ra" Legong.rambat_range BaliScales.Umbang
+    pasang_im Short "ra" Legong.rambat_range BaliScales.Umbang
         "sampler/rambat-umbang" "sampler/rambat-isep"
 
 wayang_im :: Text -> Text -> UiConfig.Allocations
 wayang_im pemade kantilan =
-    pasang_im pemade (range Wayang.pemade) BaliScales.Umbang
+    pasang_im Short pemade (range Wayang.pemade) BaliScales.Umbang
         "sampler/wayang-pemade-umbang" "sampler/wayang-pemade-isep"
-    <> pasang_im kantilan (range Wayang.kantilan) BaliScales.Umbang
+    <> pasang_im Short kantilan (range Wayang.kantilan) BaliScales.Umbang
         "sampler/wayang-kantilan-umbang" "sampler/wayang-kantilan-isep"
     where
     range = BaliScales.instrument_range
@@ -47,41 +47,51 @@ wayang_im pemade kantilan =
 -- split into inst-polos and inst-sangsih.  Polos has umbang.
 wayang_midi :: Text -> UiConfig.Allocations
 wayang_midi dev_ =
-    pasang_midi dev 0 "p" (range Wayang.pemade) BaliScales.Umbang
+    pasang_midi Short dev 0 "p" (range Wayang.pemade) BaliScales.Umbang
         "kontakt/wayang-umbang" "kontakt/wayang-isep"
-    <> pasang_midi dev 2 "k" (range Wayang.kantilan) BaliScales.Umbang
+    <> pasang_midi Short dev 2 "k" (range Wayang.kantilan) BaliScales.Umbang
         "kontakt/wayang-umbang" "kontakt/wayang-isep"
     where
     dev = Midi.write_device dev_
     range = BaliScales.instrument_range
 
+data Verbosity = Long | Short deriving (Eq, Show)
+
 -- | Set up a umbang isep pair.
-pasang_im :: Text -> Scale.Range -> BaliScales.Tuning -> Text -> Text
-    -> UiConfig.Allocations
-pasang_im base range polos_tuning umbang_qual isep_qual =
+pasang_im :: Verbosity -> Text -> Scale.Range -> BaliScales.Tuning -> Text
+    -> Text -> UiConfig.Allocations
+pasang_im verbosity base range polos_tuning umbang_qual isep_qual =
     ImInst.allocations
         [ (inst base, "", pasang, UiConfig.Dummy)
         , (umbang, umbang_qual, id, UiConfig.Im)
         , (isep, isep_qual, id, UiConfig.Im)
         ]
     where
-    umbang = inst $ base <> "-umbang"
-    isep = inst $ base <> "-isep"
+    umbang = inst $ base <> case verbosity of
+        Long -> "-umbang"
+        Short -> "u"
+    isep = inst $ base <> case verbosity of
+        Long -> "-isep"
+        Short -> "i"
     pasang = make_pasang range polos_tuning umbang isep
     inst = ScoreT.Instrument
 
-pasang_midi :: Midi.WriteDevice -> Midi.Channel -> Text
+pasang_midi :: Verbosity -> Midi.WriteDevice -> Midi.Channel -> Text
     -> Scale.Range -> BaliScales.Tuning
     -> Text -> Text -> UiConfig.Allocations
-pasang_midi dev chan base range polos_tuning umbang_qual isep_qual =
+pasang_midi verbosity dev chan base range polos_tuning umbang_qual isep_qual =
     MidiInst.allocations
         [ (inst base, "", pasang, UiConfig.Dummy)
         , (umbang, umbang_qual, id, midi_channel 0)
         , (isep, isep_qual, id, midi_channel 1)
         ]
     where
-    umbang = inst $ base <> "-u"
-    isep = inst $ base <> "-i"
+    umbang = inst $ base <> case verbosity of
+        Long -> "-umbang"
+        Short -> "u"
+    isep = inst $ base <> case verbosity of
+        Long -> "-isep"
+        Short -> "i"
     pasang = make_pasang range polos_tuning umbang isep
     midi_channel relative_chan =
         UiConfig.Midi (MidiInst.config1 dev (chan + relative_chan))
