@@ -4903,10 +4903,25 @@ Derive:
 
 text score: tscore:
   . doc/dev_notes/text-score.md
+  - is there a way to revert integrated events?
+  - LIntegrate.edits only works for Block.block_integrated
   - I have a lot of things with alternate endings.
-  - how to do alt call?  "alt [d] [d g]"/
+  * how to do alt call?  "alt [d] [d g]"/
     I should be able to have multiple blocks:
       alt[d][d g]/
+    * I need to emit that as "alt -d -dg" rather than "alt | -d -dg".
+      . But I want +pizz[x] to be "+pizz | -subblock", and "+pizz |"[x]
+        would be annoying.  But maybe +pizz|[x] is not so bad?
+    * Why does 'alt' say 'note generatod not found: a'?
+      . because -1.1a parses as "(-1.1) "(a)
+      . I could either make that into a symbol, or fail.  Symbol means I need
+        a bunch of lookahead, and appending a non-digit will cause it to turn
+        into a symbol.
+      . I think I want to fail on that.
+      . It seems the best way is to to do a lexing step, and then parse tokens
+        separately.  But that's a big change.
+      . Can I mandate a space in between terms?  Has to be sepBy though, not
+        just many.
   bug:
     * sub-block lacks skeleton
     * %default-call parses the \n after a note

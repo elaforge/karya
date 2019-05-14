@@ -120,7 +120,8 @@ test_multiplicative = do
 test_additive = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.additive . parse_cdur
         rjs = map (EList.Elt . Just)
-    equal (f "a b") (rjs [1/4, 1/4])
+    equal (f "a1 b") (rjs [1/4, 1/4])
+    equal (f "a1:8 b") (rjs [1/8, 1/8])
     equal (f "a2:3 b") (rjs [2/3, 2/3])
     equal (f "a:6 b") (rjs [1/6, 1/6])
     equal (f "a:6 b2") (rjs [1/6, 2/6])

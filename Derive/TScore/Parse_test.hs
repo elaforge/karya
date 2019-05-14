@@ -61,8 +61,8 @@ test_score = do
     right_equal (f score) $
         "%meter=adi\n\
         \block1 = %block1=directive \"block1 title\"\
-        \ [ >inst1 a // >inst2 b ]\n\
-        \block2 = [ c ]\n"
+        \ [>inst1 a // >inst2 b]\n\
+        \block2 = [c]\n"
 
     -- Parse -> unparse -> parse -> unparse reaches a fixpoint.
     let normalized = f everything_score
@@ -72,7 +72,7 @@ test_score = do
 test_default_call = do
     let f = fmap (\(T.Score defs) -> defs) . parse
 
-    let score = "%default-call\nb = [ b1/0 b2 b3 ]\n"
+    let score = "%default-call\nb = [b1/0 b2 b3]\n"
     right_equal (unparse . T.Score <$> f score) score
     right_equal (e_score_tokens <$> f score)
         [ tnote "b1" no_oct "" T.CallDuration
@@ -80,14 +80,14 @@ test_default_call = do
         , tnote "b3" no_oct "" no_dur
         ]
 
-    let score = "b = %default-call [ a // b ]\n"
+    let score = "b = %default-call [a // b]\n"
     right_equal (unparse . T.Score <$> f score) score
     right_equal (e_score_tokens <$> f score)
         [ tnote "a" no_oct "" no_dur
         , tnote "b" no_oct "" no_dur
         ]
 
-    let score = "b = [ b1/0 b2 b3 ]\n"
+    let score = "b = [b1/0 b2 b3]\n"
     right_equal (unparse . T.Score <$> f score) score
     right_equal (e_score_tokens <$> f score)
         [ tnote "b1" no_oct "" T.CallDuration
@@ -144,10 +144,10 @@ test_roundtrip = do
     roundtrip (Proxy @Id.BlockId) "x/a"
     roundtrip (Proxy @T.Directive) "%a=b"
     let p = Proxy @T.Score
-    roundtrip p "b = [ a ]"
-    roundtrip p "b = [ [ x y ]/ ]"
-    roundtrip p "b = [ >hi a[ x y ]/4 ]"
-    roundtrip p "b = [ >hi \"a b\"[ x y ]/ ]"
+    roundtrip p "b = [a]"
+    roundtrip p "b = [[x y]/]"
+    roundtrip p "b = [>hi a[x y]/4]"
+    roundtrip p "b = [>hi \"a b\"[x y]/]"
 
 test_track = do
     let parse_track = fmap extract . parse
@@ -193,21 +193,29 @@ test_token = do
     right_equal (f "a/1") $ tnote "a" no_oct "" (idur 1)
     right_equal (f "a1:2") $ pitch "a" (dur (Just 1) (Just 2) 0 False)
     right_equal (f "a:2") $ pitch "a" (dur Nothing (Just 2) 0 False)
+    right_equal (f "a*") $
+        set_zero_dur $ pitch "a" (dur Nothing Nothing 0 False)
 
-    let sub prefix = T.SubBlock prefix . tracks . zip (repeat "")
+    -- sub-blocks
+    let sub prefix ts =
+            T.SubBlock prefix (map (tracks . zip (repeat "")) ts)
     right_equal (f "[a]/2") $ tnote
-        (sub "" [[pitch "a" no_dur]])
+        (sub "" [[[pitch "a" no_dur]]])
         no_oct "" (idur 2)
     right_equal (f "[a // b2]/") $ tnote
-        (sub "" [[pitch "a" no_dur], [pitch "b" (idur 2)]])
+        (sub "" [[[pitch "a" no_dur], [pitch "b" (idur 2)]]])
         no_oct "" no_dur
     right_equal (f "[[x]/]/") $ tnote
-        (sub "" [[tnote (sub "" [[pitch "x" no_dur]]) no_oct "" no_dur]])
+        (sub "" [[[tnote (sub "" [[[pitch "x" no_dur]]]) no_oct "" no_dur]]])
         no_oct "" no_dur
     right_equal (f "a[b]/") $
-        tnote (sub "a" [[pitch "b" no_dur]]) no_oct "" no_dur
+        tnote (sub "a" [[[pitch "b" no_dur]]]) no_oct "" no_dur
     right_equal (f "\"x y\"[b]/") $
-        tnote (sub "x y" [[pitch "b" no_dur]]) no_oct "" no_dur
+        tnote (sub "x y" [[[pitch "b" no_dur]]]) no_oct "" no_dur
+    right_equal (f "a[b][c]/") $ tnote
+        (sub "a" [[[pitch "b" no_dur]], [[pitch "c" no_dur]]])
+        no_oct "" no_dur
+
     -- These are treated specially by Check, but are normal notes according to
     -- the  parser.
     right_equal (f ".") $ tnote "" no_oct "" (dur Nothing Nothing 1 False)
@@ -225,6 +233,8 @@ test_token_roundtrip = do
     roundtrip p "\"a b\"/"
     roundtrip p "a/'b1.~"
     roundtrip p "a*4:2"
+    roundtrip p "a[b]/"
+    roundtrip p "a[b][c]/"
 
 -- * implementation
 
@@ -241,11 +251,11 @@ strip_pos = \case
     where
     strip_note note = note
         { T.note_call = case T.note_call note of
-            T.SubBlock prefix (T.Tracks tracks) ->
-                T.SubBlock prefix $ T.Tracks $ map strip_track tracks
+            T.SubBlock prefix subs -> T.SubBlock prefix (map strip_tracks subs)
             call -> call
         , T.note_pos = no_pos
         }
+    strip_tracks (T.Tracks tracks) = T.Tracks $ map strip_track tracks
     strip_track track =
         track { T.track_tokens = map strip_pos (T.track_tokens track) }
 

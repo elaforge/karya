@@ -449,41 +449,58 @@ resolve_sub_tracks block_id (T.Tracks tracks) =
         tokens <- resolve_sub_tokens block_id tracknum (T.track_tokens track)
         return $ track { T.track_tokens = tokens }
 
-resolve_sub_tokens :: BlockId -> TrackNum
-    -> [T.Token T.Call pitch ndur rdur]
+resolve_sub_tokens :: BlockId -> TrackNum -> [T.Token T.Call pitch ndur rdur]
     -> ResolveM [T.Token T.CallT pitch ndur rdur]
 resolve_sub_tokens block_id tracknum = fmap snd . Seq.mapAccumLM resolve [1..]
     where
     resolve (n:ns) (T.TNote pos note) = case T.note_call note of
-        T.SubBlock prefix tracks -> do
-            call <- TextUtil.joinWith " | " prefix <$>
-                resolve_sub_tracks_to_call block_id tracknum n tracks
+        T.SubBlock prefix subs -> do
+            sub_calls <- resolve_sub_tracks_to_calls block_id tracknum n subs
+            let call = TextUtil.join2 (pipe_tweak prefix)
+                    (Text.unwords sub_calls)
             return (ns, T.TNote pos (note { T.note_call = call }))
         T.Call call -> return (n:ns, T.TNote pos (note { T.note_call = call }))
     resolve [] (T.TNote {}) = error "unreached, infinite list"
     resolve ns (T.TBarline pos bar) = return (ns, T.TBarline pos bar)
     resolve ns (T.TRest pos rest) = return (ns, T.TRest pos rest)
 
-resolve_sub_tracks_to_call :: BlockId -> TrackNum -> Int -> T.Tracks T.Call
-    -> ResolveM T.CallT
-resolve_sub_tracks_to_call parent_block_id tracknum callnum tracks = do
-    tracks <- resolve_sub_tracks block_id tracks
-    Logger.log $ T.Block
-        { block_id = block_id
-        , block_directives = []
-        , block_title = ""
-        , block_tracks = tracks
-        }
-    return $ Eval.block_id_to_call True parent_block_id block_id
-    where
-    block_id = make_relative parent_block_id tracknum callnum
+-- | Add a space so "foo|" -> "foo |", because of the xyz|[a] syntax.  But
+-- don't add a space if it looks like it's not coming from that syntax, e.g.
+-- "x |"[a].
+pipe_tweak :: Text -> Text
+pipe_tweak prefix
+    | Just rest <- Text.stripSuffix "|" prefix,
+        Just (_, c) <- Text.unsnoc rest, c `notElem` ['|', ' '] = rest <> " |"
+    | otherwise = prefix
 
-make_relative :: BlockId -> TrackNum -> Int -> BlockId
-make_relative parent tracknum callnum =
+resolve_sub_tracks_to_calls :: BlockId -> TrackNum -> Int -> [T.Tracks T.Call]
+    -> ResolveM [T.CallT]
+resolve_sub_tracks_to_calls parent_block_id tracknum callnum subs =
+    forM (zip subs sub_callnums) $ \(tracks, sub_callnum) -> do
+        let block_id = make_relative parent_block_id tracknum callnum
+                sub_callnum
+        tracks <- resolve_sub_tracks block_id tracks
+        Logger.log $ T.Block
+            { block_id = block_id
+            , block_directives = []
+            , block_title = ""
+            , block_tracks = tracks
+            }
+        return $ Eval.block_id_to_call True parent_block_id block_id
+    where
+    sub_callnums
+        | len == 1 = [Nothing]
+        | len <= 26 = map (Just . Text.singleton) ['a'..'z']
+        | otherwise = map (Just . ("-"<>) . showt) [1..]
+        where len = length subs
+
+make_relative :: BlockId -> TrackNum -> Int -> Maybe Text -> BlockId
+make_relative parent tracknum callnum sub_callnum =
     Id.BlockId $ Id.set_name relative (Id.unpack_id parent)
     where
-    relative = Eval.make_relative parent
-        (showt tracknum <> "c" <> showt callnum)
+    relative = Eval.make_relative parent $
+        "t" <> showt tracknum <> "c" <> showt callnum
+            <> fromMaybe "" sub_callnum
 
 is_sub_block :: Block.Block -> Bool
 is_sub_block = Map.member sub_meta . Block.block_meta

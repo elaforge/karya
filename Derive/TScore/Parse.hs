@@ -135,8 +135,8 @@ instance Element (T.Tracks T.Call) where
     parse config = fmap T.Tracks $
         keyword "[" *> P.sepBy1 (lexeme (parse config)) (keyword "//")
         <* keyword "]"
-    unparse config (T.Tracks tracks) = Text.unwords $
-        "[" : List.intersperse "//" (map (unparse config) tracks) ++ ["]"]
+    unparse config (T.Tracks tracks) =
+        "[" <> Text.intercalate " // " (map (unparse config) tracks) <> "]"
 
 instance Element (T.Track T.Call) where
     parse config = T.Track
@@ -327,16 +327,16 @@ instance Element T.Call where
     unparse _ (T.Call call)
         | Text.any (`elem` [' ', '/']) call = "\"" <> call <> "\""
         | otherwise = call
-    unparse config (T.SubBlock prefix tracks) =
+    unparse config (T.SubBlock prefix tracks) = mconcat $
         (if Text.null prefix then "" else unparse config (T.Call prefix))
-        <> unparse config tracks
+        : map (unparse config) tracks
 
 instance Pretty T.Call where pretty = unparse default_config
 
-p_subblock :: Config -> Parser (Text, T.Tracks T.Call)
+p_subblock :: Config -> Parser (Text, [T.Tracks T.Call])
 p_subblock config = (,)
     <$> (p_string <|> P.takeWhile1 call_char <|> pure "")
-    <*> parse config
+    <*> P.some (parse config)
 
 p_string :: Parser Text
 p_string = fmap mconcat $ P.between (P.char '"') (P.char '"') $
