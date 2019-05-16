@@ -315,6 +315,7 @@ test_parse_ky = do
     let aliases = Parse.def_aliases . snd
     equal (f aliases "alias:\na = b\n")
         (Right [(ScoreT.Instrument "a", ScoreT.Instrument "b")])
+    left_like (f aliases "alias:\n>a = >b\n") "lhs not a valid id"
 
 test_split_sections = do
     let f = second Map.toList . Parse.split_sections . Text.lines

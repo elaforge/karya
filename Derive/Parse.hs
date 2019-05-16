@@ -514,7 +514,7 @@ type LineNumber = Int
     > x = y
     >
     > alias:
-    > >new-inst = >source-inst
+    > new-inst = source-inst
 
     Valid headers are @val:@, @(note|control|pitch) (generator|transformer):@,
     or @alias:@.  A line is continued if it is indented, and @--@ comments
@@ -575,10 +575,16 @@ parse_ky filename text = do
 -- | The alias section allows only @alias = inst@ definitions.
 parse_alias :: (Expr.Symbol, Expr)
     -> Either Text (ScoreT.Instrument, ScoreT.Instrument)
-parse_alias (lhs, Expr (Call rhs [] :| [])) = Right (convert lhs, convert rhs)
-    where convert (Expr.Symbol a) = ScoreT.Instrument a
-parse_alias (_, expr) = Left $ "rhs of alias should be an instrument: "
-    <> ShowVal.show_val expr
+parse_alias (lhs, rhs) = first (msg<>) $ case rhs of
+    Expr (Call rhs [] :| [])
+        | not (Id.valid_symbol (Expr.unsym lhs)) -> Left "lhs not a valid id"
+        | not (Id.valid_symbol (Expr.unsym rhs)) -> Left "rhs not a valid id"
+        | otherwise -> Right (convert lhs, convert rhs)
+        where convert (Expr.Symbol a) = ScoreT.Instrument a
+    _ -> Left "rhs not a symbol"
+    where
+    msg = "alias " <> ShowVal.show_val lhs <> " = " <> ShowVal.show_val rhs
+        <> ": "
 
 split_sections :: [Text] -> (Text, Map Text [(LineNumber, Text)])
 split_sections =
