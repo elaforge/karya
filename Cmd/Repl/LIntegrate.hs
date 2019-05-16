@@ -7,18 +7,21 @@ module Cmd.Repl.LIntegrate where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.Edit as Edit
+import qualified Cmd.Integrate.Merge as Merge
+import qualified Cmd.Selection as Selection
+
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ui as Ui
 
-import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Create as Create
-import qualified Cmd.Integrate.Merge as Merge
-import qualified Cmd.Selection as Selection
+import           Types
 
-import Types
 
+-- * create
 
 -- | Create an integrated block from the focused block.  The block integrate
 -- call will automatically create one block, but you have to use this if you
@@ -67,6 +70,25 @@ score_track = do
         ((track_id, Block.ScoreDestinations []) :)
     Cmd.inflict_track_damage block_id track_id
 
+
+-- * revert
+
+-- | Revert the selected range back to the integrated state.
+sel_revert :: Cmd.M m => m ()
+sel_revert = do
+    (block_id, _, track_ids, range) <- Selection.tracks
+    Edit.clear_range track_ids range
+    by_dest <- Block.destination_to_source <$> Ui.get_block block_id
+    sequence_
+        [ Ui.insert_block_events block_id track_id
+            (map Event.unmodified (Map.elems index))
+        | (track_id, (_, index)) <- by_dest
+        , track_id `elem` track_ids
+        ]
+
+
+-- * inspect
+
 sel_edits :: Cmd.CmdL ([Event.IndexKey], [Merge.Edit])
 sel_edits = do
     (block_id, _, track_id, _) <- Selection.get_insert
@@ -81,6 +103,9 @@ edits block_id track_id = do
     events <- Ui.get_events track_id
     let (deleted, edits) = Merge.diff_events index (Events.ascending events)
     return (Set.toList deleted, filter Merge.is_modified edits)
+
+indices :: Cmd.M m => m [(TrackId, (Block.Source, Block.EventIndex))]
+indices = fmap Block.destination_to_source . Ui.get_block =<< Selection.block
 
 indices_of :: Maybe (BlockId, Block.TrackDestinations)
     -> [(TrackId, Block.TrackDestinations)] -> [(TrackId, Block.EventIndex)]

@@ -2598,6 +2598,13 @@ incremental save: git:
   . Git docs: http://progit.org/book/ch9-2.html
 
 integrate: integration:
+  * is there a way to revert integrated events?
+    . This means copying the index to the track for that range.
+    . The whole track winds up edited... how does it tell if it's clean?
+      It is clean, just not bolded as it should be.
+    . Probably because it has style set to modified.  I need to do something
+      special to set unmodified.
+  - LIntegrate.edits only works for Block.block_integrated
   score integrate
     - cascading score integrates
       . Is there really a use for this, other than consistency?

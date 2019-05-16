@@ -660,6 +660,12 @@ sel_track block_id sel = Ui.event_track_at block_id (sel_point_track sel)
 get :: Cmd.M m => m Sel.Selection
 get = snd <$> get_view
 
+view :: Cmd.M m => m ViewId
+view = Cmd.get_focused_view
+
+block :: Cmd.M m => m BlockId
+block = Cmd.get_focused_block
+
 -- | Get the insertion selection in the focused view.
 get_view :: Cmd.M m => m (ViewId, Sel.Selection)
 get_view = get_selnum Config.insert_selnum

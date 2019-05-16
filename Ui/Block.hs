@@ -7,6 +7,7 @@ module Ui.Block (
     Block(..)
     , Meta, TrackDestinations(..), ScoreDestinations, NoteDestination(..)
     , empty_destination
+    , Source(..), destination_to_source
     , ManualDestinations, SourceKey
     , EventIndex
     , integrate_skeleton
@@ -104,12 +105,53 @@ instance DeepSeq.NFData Block where
     rnf = DeepSeq.rnf . block_title
 
 {- | Block metadata is extra data that doesn't affect normal derivation, but
-    may be of interest to cmds.  For instance, it can mark if this block should
-    be rendered to lilypond and provide arguments for it.  TODO But lilypond is
-    always kicked off manually now, so this has no use at the moment.  Maybe
-    you could put notes in there.
+    may be of interest to cmds.
+
+    Previously this was used to mark blocks for automatic lilypond derivation,
+    currently tscore uses it to mark sub-blocks.
 -}
 type Meta = Map Text Text
+
+data Source =
+    -- | Integrated from a manually-invoked integration.  A single SourceKey
+    -- can have destinations on multiple tracks within the block.
+    ManualSource !SourceKey
+    | TrackSource !TrackId
+    | BlockSource !BlockId
+    deriving (Eq, Ord, Show)
+
+instance Pretty Source where
+    pretty (ManualSource key) = key
+    pretty (TrackSource tid) = pretty tid
+    pretty (BlockSource bid) = pretty bid
+
+destination_to_source :: Block -> [(TrackId, (Source, EventIndex))]
+destination_to_source block = concat
+    [ case block_integrated block of
+        Nothing -> []
+        Just (source_block, tdests) ->
+            track_dests (BlockSource source_block) tdests
+    , integrated_tracks (block_integrated_tracks block)
+    , integrated_manual (block_integrated_manual block)
+    ]
+    where
+    integrated_tracks itracks = concat
+        [ track_dests (TrackSource source_track) tdests
+        | (source_track, tdests) <- itracks
+        ]
+    integrated_manual manual = concat
+        [ concatMap (note_dest (ManualSource source_key)) ndests
+        | (source_key, ndests) <- Map.toList manual
+        ]
+    track_dests source (DeriveDestinations ndests) =
+        concatMap (note_dest source) ndests
+    track_dests _source (ScoreDestinations sdests) =
+        [ (dest_track, (TrackSource source_track, index))
+        | (source_track, (dest_track, index)) <- sdests
+        ]
+    note_dest source (NoteDestination note controls) =
+        (fst note, (source, snd note))
+            : [(tid, (source, index)) | (tid, index) <- Map.elems controls]
 
 data TrackDestinations =
     -- | A derive integrate can produce multiple note tracks, and each one gets
