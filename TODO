@@ -4910,8 +4910,64 @@ Derive:
 
 text score: tscore:
   . doc/dev_notes/text-score.md
-  - is there a way to revert integrated events?
-  - LIntegrate.edits only works for Block.block_integrated
+  . observations about tscore:
+    . I really have to be able to read and hear the notation in my head, which
+      means I really have to internalize the the solfege, whether it be sa ri
+      ga or nding ndong ndeng.  It's probably a good way to force me to get
+      stronger at reading.
+    . Making time go horizontal seems awkward because it forces line wraps.
+      Actually, I could just make long lines... screens are wider than tall,
+      so maybe it's ok.  I'm not used to reading such long lines though, at
+      least staff notation horizontal lines as guidelines, but maybe it's just
+    . The main problem with horizontal time is that with text, each note can
+      be a completely different width, so one note with an ornament causes
+      everything else to get pushed back, and messes up the rough spatial
+      relationships.  Staff notation gets around this because it has 2D to
+      squeeze things in, and tends to use symbols instead of text.
+      . Maybe I should do syntax highlighting that puts underlines on all
+        lines with notation?  Probably not, because all lines have notation,
+        I don't really have parallel non-note parts (e.g. so I can put
+        ornaments above).  Maybe if I do control tracks, I could put the
+        underline on the note track only.
+    . For irregularly metered music like gender wayang, barlines are not much
+      help.  Perhaps what I really want is "same time" assertions, so e.g. a
+      | can appear anywhere, but if it appears in a spot in one part, it must
+      appear in the same spot in all concurrent parts.
+    . But in general I spend too much time trying to see the temporal
+      relationships between parts and lining things up vertically.
+      Even with sync-to-tracklang on save, it's still an extra step.
+    . The automatic block length stuff is really nice.  I want this for
+      tracklang.
+
+    . I want to integrate ky and tscore so I can edit them together.  Maybe
+      make tscore into a section of the ky file?  This will make syntax
+      highlighting more complicated if tscore further diverges from ky.
+  * With right-to-left, the sub-block 't' numbers are now backwards.
+  - it doesn't update track titles.
+    . But I'd have to merge them, since I might want a local change.
+    . I should be able to merge, by replacing the common prefix.
+  - instrument aliases:
+    . >pl = >pemade-umbang | hand=l, >pr = >pemade-umbang | hand=r
+    . >sl = >pemade-isep | hand=l, >sr = >pemade-isep | hand=r
+  - make ; be a "same time" assertion
+    . For this I remember the locations on the first track, and then require
+      all of them have the same ones.
+  - [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
+    from another track?
+    . At tracklang, this is what I wanted to use score integration for, but
+      I'd need special support to do it from tscore.  E.g. %integrate-from,
+      and then some kind of "unchanged" note.
+    . If I did support directly in tscore I'd need the same thing, e.g.
+      ^ means "copy from integrate source".
+    . The difference is that integrate would show the connection, and it would
+      reflect changes over.  But I think this means the track is integrated
+      from two places, which is awkward.
+  - using blocks to express repeats means the barlines get off, since they're
+    always relative to the start of the block.
+  * I'm used to left/right on horizontal tracks, but right/left on top to
+    bottom.
+    . Maybe I can just invert the track creation order?  Then it's top/bottom
+      right/left, which seems consistent at least.
   - I have a lot of things with alternate endings.
   * how to do alt call?  "alt [d] [d g]"/
     I should be able to have multiple blocks:
@@ -4951,6 +5007,10 @@ text score: tscore:
     . Right after the downbeat note, regardless of its duration.  So can I do
       it just as a barcheck rule?
     . Probably not, because what about sequencing blocks?
+    . How about just a rule that says the barline goes after the note with the
+      beat, rather than before it?
+      . That's probably not enough because I still want to say the block ends
+        with a note, not starts with one.
   * Syntax to repeat the last note.
     . Maybe a plain '~'?  This would mean I can't make a carry note plus tie,
       but maybe I could do without?

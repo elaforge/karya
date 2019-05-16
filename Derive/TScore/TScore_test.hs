@@ -25,6 +25,7 @@ import           Util.Test
 
 test_ui_state = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+
     right_equal (f "top = \"block title\" [s r g]")
         [ ( "top -- block title"
           , [ (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -34,8 +35,8 @@ test_ui_state = do
         ]
     right_equal (f "top = %default-call [\"> | rh\" na din // >lh _ thom]")
         [ ( "top"
-          , [ ("> | rh", [(0, 1, "na"), (1, 1, "din")])
-            , (">lh", [(1, 1, "thom")])
+          , [ (">lh", [(1, 1, "thom")])
+            , ("> | rh", [(0, 1, "na"), (1, 1, "din")])
             ]
           )
         ]
@@ -54,6 +55,12 @@ test_ui_state = do
         [ ("top", [(">", [(0, 1, "x -t1c1a -t1c1b")])])
         , ("top-t1c1a", UiTest.note_track1 ["4s"])
         , ("top-t1c1b", UiTest.note_track1 ["4r"])
+        ]
+
+    right_equal (f "top = [ [s r]/ // [g m]/ ]")
+        [ ("top", [(">", [(0, 1, "-t1c1")]), (">", [(0, 1, "-t2c1")])])
+        , ("top-t1c1", UiTest.note_track1 ["4g", "4m"])
+        , ("top-t2c1", UiTest.note_track1 ["4s", "4r"])
         ]
 
 test_ui_skeleton = do
@@ -178,9 +185,9 @@ test_integrate_2_tracks = do
     equal (extract state)
         [ ( "top"
           , [ (">", [(0, 1, ""), (1, 1, "")])
-            , ("*", [(0, 0, "4s"), (1, 0, "4r")])
-            , (">", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4g"), (1, 0, "4m")])
+            , (">", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4s"), (1, 0, "4r")])
             ]
           )
         ]
@@ -189,9 +196,9 @@ test_integrate_2_tracks = do
     equal (extract state)
         [ ( "top"
           , [ (">", [(0, 1, ""), (1, 1, "")])
-            , ("*", [(0, 0, "4g"), (1, 0, "4r")])
-            , (">", [(0, 1, ""), (1, 1, "")])
             , ("*", [(0, 0, "4g"), (1, 0, "4m")])
+            , (">", [(0, 1, ""), (1, 1, "")])
+            , ("*", [(0, 0, "4g"), (1, 0, "4r")])
             ]
           )
         ]

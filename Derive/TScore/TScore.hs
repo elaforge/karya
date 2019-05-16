@@ -243,9 +243,7 @@ make_tracks :: GetExternalCallDuration -> Text -> [Block ParsedTrack]
 make_tracks get_ext_dur source blocks = Map.elems memo
     where
     memo = Map.fromList
-        [ (_block_id block, resolve_block block)
-        | block <- blocks
-        ]
+        [(_block_id block, resolve_block block) | block <- blocks]
     resolve_block block = block
         { _tracks = map (resolve (_block_id block) (_block_title block))
             (_tracks block)
@@ -393,8 +391,7 @@ generate_ruler meter end = Ruler.Modify.meter (const generate)
 
 parse_blocks :: Text -> Either T.Error [Block ParsedTrack]
 parse_blocks source = do
-    T.Score defs <- first (T.Error (T.Pos 0) . txt) $
-        Parse.parse_score source
+    T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score source
     fst <$> foldM collect ([], Check.default_config) defs
     where
     collect (accum, config) def = do
@@ -421,7 +418,12 @@ interpret_block config is_sub
         , _block_title = title
         , _is_sub = is_sub
         , _meter = Check.meter_labeled $ Check.config_meter config
-        , _tracks =
+        -- Tracks are written in reverse order.  This is because when notation
+        -- is horizontal, it's natural to write higher parts above above lower
+        -- parts, as with staff notation.  But when notation is vertical, it's
+        -- natural to put higher parts on the right, by analogy to instruments
+        -- that are layed out that way.
+        , _tracks = reverse
             [ ParsedTrack
                 { track_config = config
                 , track_title = title
@@ -443,7 +445,9 @@ type ResolveM a = Logger.Logger (T.Block T.CallT) a
 
 resolve_sub_tracks :: BlockId -> T.Tracks T.Call -> ResolveM (T.Tracks T.CallT)
 resolve_sub_tracks block_id (T.Tracks tracks) =
-    T.Tracks <$> mapM resolve (zip [1..] tracks)
+    -- Since tracks are reversed, start from the end, so the tracknums match
+    -- up.
+    T.Tracks <$> mapM resolve (zip (Seq.range_ (length tracks) (-1)) tracks)
     where
     resolve (tracknum, track) = do
         tokens <- resolve_sub_tokens block_id tracknum (T.track_tokens track)
@@ -512,8 +516,8 @@ sub_meta = "is_sub"
 -- * local util
 
 note_event :: T.Time -> T.Note T.CallT (Maybe Text) T.Time -> Event.Event
-note_event start note = add_stack $
-    Event.event (track_time start)
+note_event start note =
+    add_stack $ Event.event (track_time start)
         (if T.note_zero_duration note then 0
             else track_time (T.note_duration note))
         (T.note_call note)
