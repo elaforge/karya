@@ -56,16 +56,20 @@ test_ui_state = do
         , ("top-t1c1a", UiTest.note_track1 ["4s"])
         , ("top-t1c1b", UiTest.note_track1 ["4r"])
         ]
-
     right_equal (f "top = [ [s r]/ // [g m]/ ]")
         [ ("top", [(">", [(0, 1, "-t1c1")]), (">", [(0, 1, "-t2c1")])])
         , ("top-t1c1", UiTest.note_track1 ["4g", "4m"])
         , ("top-t2c1", UiTest.note_track1 ["4s", "4r"])
         ]
+    -- Trailing rests are treated properly.
+    right_equal (f "top = [ [s _]/0 ]")
+        [ ("top", [(">", [(0, 2, "-t1c1")])])
+        , ("top-t1c1", UiTest.note_track1 ["4s"])
+        ]
 
 test_ui_skeleton = do
     let f = Skeleton.flatten . TScore.ui_skeleton
-        nt n = TScore.NTrack t (replicate (n-1) t)
+        nt n = TScore.NTrack t (replicate (n-1) t) 0
             where t = TScore.Track "" mempty
     equal (f [nt 2]) [(1, 2)]
     equal (f [nt 2, nt 2]) [(1, 2), (3, 4)]

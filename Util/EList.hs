@@ -91,6 +91,12 @@ zip as (Meta b : bs) = Meta b : zip as bs
 zip (a:as) (Elt b : bs) = Elt (a, b) : zip as bs
 zip _ _ = []
 
+zipPaddedSnd :: [a] -> [Elt e b] -> [Elt e (a, Maybe b)]
+zipPaddedSnd as (Meta b : bs) = Meta b : zipPaddedSnd as bs
+zipPaddedSnd (a:as) (Elt b : bs) = Elt (a, Just b) : zipPaddedSnd as bs
+zipPaddedSnd (a:as) [] = Elt (a, Nothing) : zipPaddedSnd as []
+zipPaddedSnd [] _ = []
+
 zip3 :: [a] -> [b] -> [Elt e c] -> [Elt e (a, b, c)]
 zip3 as bs (Meta c : cs) = Meta c : zip3 as bs cs
 zip3 (a:as) (b:bs) (Elt c : cs) = Elt (a, b, c) : zip3 as bs cs

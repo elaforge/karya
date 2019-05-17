@@ -71,6 +71,10 @@ data Block track = Block {
 data NTrack = NTrack {
     _note :: !Track
     , _controls :: ![Track]
+    -- | End of the track.  This could be past the end of the last event if
+    -- there was a rest on the end.  This is intentionally not strict, because
+    -- you should iterate over the tracks and events before looking at it.
+    , _end :: T.Time
     } deriving (Eq, Show)
 
 -- | This track has been parsed, and directives propagated to Check.Config,
@@ -249,9 +253,10 @@ make_tracks get_ext_dur source blocks = Map.elems memo
             (_tracks block)
         }
     resolve block_id block_title (ParsedTrack config title tokens) = do
-        tokens <- first (T.show_error source) $ sequence $
-            Check.check (get_dur (to_transformers block_title title) block_id)
+        let (errTokens, end) = Check.check
+                (get_dur (to_transformers block_title title) block_id)
                 config tokens
+        tokens <- first (T.show_error source) $ sequence errTokens
         let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
         return $ NTrack
             { _note = Track
@@ -262,6 +267,7 @@ make_tracks get_ext_dur source blocks = Map.elems memo
                 { _title = "*"
                 , _events = Events.from_list pitches
                 }
+            , _end = end
             }
     -- I could memoize external calls in the same way as internal ones, but
     -- a tracklang call duration is set manually, so it can't affect another
@@ -280,17 +286,13 @@ make_tracks get_ext_dur source blocks = Map.elems memo
                 where (result, logs) = get_ext_dur transformers call
             Just block ->
                 ( bimap (("in block " <> pretty block_id <> ": ")<>)
-                    (maximum . (0:) . map track_end) (sequence (_tracks block))
+                    (maximum . (0:) . map _end) (sequence (_tracks block))
                 , []
                 )
     to_transformers block_title track_title = block_title
         : if track_title == "" then [] else [note_to_transform track_title]
     note_to_transform = either (const "") ShowVal.show_val
         . ParseTitle.parse_note
-
-track_end :: NTrack -> T.Time
-track_end (NTrack note controls) = from_track_time $
-    maximum $ map (Events.time_end . _events) (note : controls)
 
 -- * integrate
 
@@ -310,7 +312,7 @@ integrate_block block = do
                 Just dests -> return (dests, False)
     new_dests <- Merge.merge_tracks block_id
         [ (convert note, map convert controls)
-        | NTrack note controls <- _tracks block
+        | NTrack note controls _ <- _tracks block
         ]
         dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
@@ -339,10 +341,11 @@ ui_state get_ext_dur source = do
 -- thing, but does so via the integrate machinery.
 ui_block :: Ui.M m => Block NTrack -> m BlockId
 ui_block block = do
-    track_ids <- fmap concat $ forM (_tracks block) $ \(NTrack note controls) ->
-        forM (note : controls) $ \(Track title events) -> do
-            track_id <- GenId.track_id (_block_id block)
-            Ui.create_track track_id (Track.track title events)
+    track_ids <- fmap concat $
+        forM (_tracks block) $ \(NTrack note controls _) ->
+            forM (note : controls) $ \(Track title events) -> do
+                track_id <- GenId.track_id (_block_id block)
+                Ui.create_track track_id (Track.track title events)
     ruler_id <- ui_ruler block
     let tracks =
             [ Block.track (Block.TId tid ruler_id) Config.track_width
@@ -357,18 +360,15 @@ ui_block block = do
 ui_skeleton :: [NTrack] -> Skeleton.Skeleton
 ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
     where
-    make tracknum (NTrack _ controls) = (tracknum+len, zip ns (drop 1 ns))
+    make tracknum (NTrack _ controls _) = (tracknum+len, zip ns (drop 1 ns))
         where
         len = length controls + 1
         ns = [tracknum .. tracknum+len - 1]
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
-ui_ruler block = make_ruler (_block_id block) (_meter block) end
-    where
-    end = maximum $ 0 :
-        [ Events.time_end (_events t1)
-        | NTrack note controls <- _tracks block, t1 <- note : controls
-        ]
+ui_ruler block =
+    make_ruler (_block_id block) (_meter block)
+        (track_time $ maximum $ 0 : map _end (_tracks block))
 
 make_ruler :: Ui.M m => BlockId -> [Meter.LabeledMark] -> TrackTime -> m RulerId
 make_ruler block_id meter end = do

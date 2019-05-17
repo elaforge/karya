@@ -19,6 +19,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
+import qualified Data.Tuple as Tuple
 import qualified Data.Vector as Vector
 import qualified Data.Void as Void
 
@@ -91,10 +92,11 @@ mkerror pos msg = EList.Meta $ T.Error pos msg
 
 check :: GetCallDuration -> Config
     -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> [Either T.Error (T.Time, T.Note T.CallT (Maybe Text) T.Time)]
+    -> ([Either T.Error (T.Time, T.Note T.CallT (Maybe Text) T.Time)], T.Time)
 check get_dur (Config meter scale duration) =
-    map EList.toEither
-    . resolve_pitch scale
+    Tuple.swap
+    . fmap (map EList.toEither)
+    . fmap (resolve_pitch scale)
     . resolve_time
     . check_barlines meter
     . duration_mode duration
@@ -259,31 +261,38 @@ make_labeled dur =
 -- | Remove TBarline and TRest, add start times, and resolve ties.
 resolve_time :: (Eq pitch, Pretty pitch)
     => Stream (Token call pitch (T.Time, Bool))
-    -> Stream (T.Time, T.Note call pitch T.Time)
-resolve_time tokens = go (EList.zip starts tokens)
+    -> (T.Time, Stream (T.Time, T.Note call pitch T.Time))
+resolve_time tokens = go (EList.zipPaddedSnd starts tokens)
     where
     starts = scanl (\n -> (n+)) 0 (map duration_of (EList.elts tokens))
-    go (EList.Elt (start, t) : ts) = case t of
+    -- go [EList.Elt (start, T.TRest _ (T.Rest (dur, _)))] = (start + dur, [])
+    go (EList.Elt (start, Nothing) : ts)
+        | null ts = (start, [])
+        | otherwise = go ts
+    go (EList.Elt (start, Just t) : ts) = case t of
         T.TNote _ note
-            | is_tied t -> case tied_notes note (EList.elts pre) of
-                Left err -> EList.Meta err : go post
-                Right end ->
-                    EList.Elt (start, set_dur (end-start) note) : go post
+            | is_tied t ->
+                case tied_notes note (Seq.map_maybe_snd id (EList.elts pre)) of
+                    Left err -> (EList.Meta err :) <$> go post
+                    Right end ->
+                        (EList.Elt (start, set_dur (end-start) note) :) <$>
+                            go post
             | otherwise ->
-                EList.Elt (start, set_dur (fst (T.note_duration note)) note)
-                : go ts
+                (EList.Elt (start, set_dur (fst (T.note_duration note)) note) :)
+                    <$> go ts
         T.TBarline {} -> go ts
         T.TRest {}
-            | is_tied t -> case tied_rests (EList.elts pre) of
-                Just err -> EList.Meta err : go post
+            | is_tied t -> case tied_rests (mapMaybe snd (EList.elts pre)) of
+                Just err -> (EList.Meta err :) <$> go post
                 Nothing -> go post
             | otherwise -> go ts
         where
         (pre, post) = Then.span any_tied (splitAt 1) ts
         any_tied (EList.Meta _) = True
-        any_tied (EList.Elt (_, n)) = is_barline n || is_tied n
-    go (EList.Meta e : ts) = EList.Meta e : go ts
-    go [] = []
+        any_tied (EList.Elt (_, Just n)) = is_barline n || is_tied n
+        any_tied (EList.Elt (_, Nothing)) = False
+    go (EList.Meta e : ts) = (EList.Meta e :) <$> go ts
+    go [] = (0, [])
     set_dur dur note = note { T.note_duration = dur }
     is_barline (T.TBarline {}) = True
     is_barline _ = False
@@ -310,10 +319,10 @@ tied_notes note tied = case others of
     match (_, T.TBarline {}) = Just []
     match _ = Nothing
 
-tied_rests :: [(time, Token call pitch (T.Time, Bool))] -> Maybe T.Error
-tied_rests = fmap format . List.find (not . matches . snd)
+tied_rests :: [Token call pitch (T.Time, Bool)] -> Maybe T.Error
+tied_rests = fmap format . List.find (not . matches)
     where
-    format (_, token) =
+    format token =
         T.Error (T.token_pos token) $ "rest tied to " <> T.token_name token
     matches (T.TRest {}) = True
     matches (T.TBarline {}) = True

@@ -4943,7 +4943,7 @@ text score: tscore:
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
   - barline check should say what beat it thought it was on
-  - sub-blocks are stripping trailing rests
+  * sub-blocks are stripping trailing rests
   - Also alternate starts, but maybe:
     on-repeat[r g _ g _ r g _ | r g _ g _ r g _]
              [g _ g _ g _ g r | g _ r g _ r g _]

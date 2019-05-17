@@ -81,19 +81,21 @@ mk_note call pitch dur = T.Note
     }
 
 test_resolve_time = do
-    let f = map extract . Check.resolve_time . Check.multiplicative . parse_cdur
+    let f = second (map extract) . Check.resolve_time . Check.multiplicative
+            . parse_cdur
         extract = bimap error_msg (second T.note_duration) . EList.toEither
-    equal (f "a b c") [Right (0, 1), Right (1, 1), Right (2, 1)]
-    equal (f "a~ a b") [Right (0, 2), Right (2, 1)]
-    equal (f "a~ b c")
+    equal (f "a b c") (3, [Right (0, 1), Right (1, 1), Right (2, 1)])
+    equal (f "a b _") (3, [Right (0, 1), Right (1, 1)])
+    equal (f "a~ a b") (3, [Right (0, 2), Right (2, 1)])
+    equal (f "a~ b c") $ (3,)
         [ Left "note tied to different pitch: a ~ b"
         , Right (2, 1)
         ]
-    equal (f "a~ a~ _") [Left "note tied to rest"]
-    equal (f "_~ a") [Left "rest tied to note"]
-    equal (f "a~ | a") [Right (0, 2)]
-    equal (f "_~ | _ a") [Right (2, 1)]
-    equal (f "a~") [Left "final note has a tie"]
+    equal (f "a~ a~ _") (3, [Left "note tied to rest"])
+    equal (f "_~ a") (2, [Left "rest tied to note"])
+    equal (f "a~ | a") (2, [Right (0, 2)])
+    equal (f "_~ | _ a") (3, [Right (2, 1)])
+    equal (f "a~") (0, [Left "final note has a tie"])
 
 test_check_barlines = do
     let f = map error_msg . EList.metas
@@ -167,4 +169,5 @@ parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
 
 check :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
     -> [Either T.Error (T.Time, T.Note T.CallT (Maybe Text) T.Time)]
-check = Check.check $ const (Left "get_dur not supported", [])
+check config =
+    fst . Check.check (const (Left "get_dur not supported", [])) config
