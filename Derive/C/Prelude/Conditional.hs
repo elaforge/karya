@@ -35,6 +35,7 @@ library = mconcat
         [ ("if-e", c_if_e)
         , ("if-c<", c_if_c (<))
         , ("if-c>", c_if_c (>))
+        , ("on-repeat", c_on_repeat)
         ]
     , Library.poly_transformers
         [ ("when-c", c_when_c False)
@@ -89,6 +90,20 @@ typecheck_tests start = go
         return (checked : rest, final)
     typecheck :: Typecheck.Typecheck a => DeriveT.Val -> Derive.Deriver a
     typecheck = Typecheck.typecheck "" start
+
+c_on_repeat :: Derive.CallableExpr d => Derive.Generator d
+c_on_repeat = Derive.generator Module.prelude "on-repeat" mempty
+    "Derive the argument indexed by the `repeat` variable, where an out of\
+    \ range index is clamped to be in range."
+    $ Sig.call (Sig.many1 "repeat" "Eval on nth repeat.") $ \repeats args -> do
+        repeat <- Derive.lookup_val "repeat"
+        Eval.eval_quoted (Args.context args) (at repeats (fromMaybe 0 repeat))
+
+at :: NonEmpty a -> Int -> a
+at (x0 :| x1: xs) i
+    | i <= 0 = x0
+    | otherwise = at (x1 :| xs) (i-1)
+at (x0 :| []) _ = x0
 
 -- * transformer
 
