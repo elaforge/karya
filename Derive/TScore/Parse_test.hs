@@ -72,28 +72,30 @@ test_score = do
 test_default_call = do
     let f = fmap (\(T.Score defs) -> defs) . parse
 
-    let score = "%default-call\nb = [b1/0 b2 b3]\n"
-    right_equal (unparse . T.Score <$> f score) score
-    right_equal (e_score_tokens <$> f score)
-        [ tnote "b1" no_oct "" T.CallDuration
-        , tnote "b2" no_oct "" no_dur
-        , tnote "b3" no_oct "" no_dur
-        ]
+    -- let score = "%default-call\nb = [b1/0 b2 b3]\n"
+    -- right_equal (unparse . T.Score <$> f score) score
+    -- right_equal (e_score_tokens <$> f score)
+    --     [ tnote "b1" no_oct "" T.CallDuration
+    --     , tnote "b2" no_oct "" no_dur
+    --     , tnote "b3" no_oct "" no_dur
+    --     ]
+    --
+    -- let score = "b = %default-call [a // b]\n"
+    -- right_equal (unparse . T.Score <$> f score) score
+    -- right_equal (e_score_tokens <$> f score)
+    --     [ tnote "a" no_oct "" no_dur
+    --     , tnote "b" no_oct "" no_dur
+    --     ]
+    --
+    -- let score = "b = [b1/0 b2 b3]\n"
+    -- right_equal (unparse . T.Score <$> f score) score
+    -- right_equal (e_score_tokens <$> f score)
+    --     [ tnote "b1" no_oct "" T.CallDuration
+    --     , tnote "" no_oct "b" (idur 2)
+    --     , tnote "" no_oct "b" (idur 3)
+    --     ]
 
-    let score = "b = %default-call [a // b]\n"
-    right_equal (unparse . T.Score <$> f score) score
-    right_equal (e_score_tokens <$> f score)
-        [ tnote "a" no_oct "" no_dur
-        , tnote "b" no_oct "" no_dur
-        ]
-
-    let score = "b = [b1/0 b2 b3]\n"
-    right_equal (unparse . T.Score <$> f score) score
-    right_equal (e_score_tokens <$> f score)
-        [ tnote "b1" no_oct "" T.CallDuration
-        , tnote "" no_oct "b" (idur 2)
-        , tnote "" no_oct "b" (idur 3)
-        ]
+    pprint (f "b = [a [b]/]")
 
 e_score_tokens :: [(pos, T.Toplevel)]
     -> [T.Token T.Call T.Pitch T.NDuration T.Duration]
@@ -176,6 +178,14 @@ test_track = do
     right_equal (tokens "> \"a b\"/") [tnote "a b" no_oct "" no_dur]
     right_equal (tokens "> \"a \"() b\"/") [tnote "a \"() b" no_oct "" no_dur]
 
+    right_equal (tokens "a [b]/")
+        [ tnote "" no_oct "a" no_dur
+        , tnote (sub "" [[[tnote "" no_oct "b" no_dur]]]) no_oct "" no_dur
+        ]
+    right_equal (tokens "a\\ [b]/")
+        [ tnote (sub "a" [[[tnote "" no_oct "b" no_dur]]]) no_oct "" no_dur
+        ]
+
 test_token = do
     let f = fmap strip_pos . parse
         pitch p dur = tnote "" no_oct p dur
@@ -196,9 +206,15 @@ test_token = do
     right_equal (f "a*") $
         set_zero_dur $ pitch "a" (dur Nothing Nothing 0 False)
 
-    -- sub-blocks
-    let sub prefix ts =
-            T.SubBlock prefix (map (tracks . zip (repeat "")) ts)
+    -- These are treated specially by Check, but are normal notes according to
+    -- the  parser.
+    right_equal (f ".") $ tnote "" no_oct "" (dur Nothing Nothing 1 False)
+    right_equal (f "~") $ tnote "" no_oct "" (dur Nothing Nothing 0 True)
+
+test_token_sub_block = do
+    let f = fmap strip_pos . parse
+        pitch p dur = tnote "" no_oct p dur
+
     right_equal (f "[a]/2") $ tnote
         (sub "" [[[pitch "a" no_dur]]])
         no_oct "" (idur 2)
@@ -216,10 +232,12 @@ test_token = do
         (sub "a" [[[pitch "b" no_dur]], [[pitch "c" no_dur]]])
         no_oct "" no_dur
 
-    -- These are treated specially by Check, but are normal notes according to
-    -- the  parser.
-    right_equal (f ".") $ tnote "" no_oct "" (dur Nothing Nothing 1 False)
-    right_equal (f "~") $ tnote "" no_oct "" (dur Nothing Nothing 0 True)
+    right_equal (f "a[b]\\ -- hi\n  [c]/") $ tnote
+        (sub "a" [[[pitch "b" no_dur]], [[pitch "c" no_dur]]])
+        no_oct "" no_dur
+    right_equal (f "a\\ [b]\\ [c]/") $ tnote
+        (sub "a" [[[pitch "b" no_dur]], [[pitch "c" no_dur]]])
+        no_oct "" no_dur
 
 test_token_roundtrip = do
     -- Lots of things can roundtrip but still not parse correctly, so this is
@@ -287,6 +305,10 @@ tnote call oct pitch dur = T.TNote no_pos $ T.Note
     , note_duration = dur
     , note_pos = no_pos
     }
+
+sub :: T.CallT -> [[[T.Token T.Call T.Pitch T.NDuration T.Duration]]]
+    -> T.Call
+sub prefix ts = T.SubBlock prefix (map (tracks . zip (repeat "")) ts)
 
 set_zero_dur :: T.Token call pitch ndur rdur -> T.Token call pitch ndur rdur
 set_zero_dur = \case

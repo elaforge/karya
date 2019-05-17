@@ -4944,14 +4944,16 @@ text score: tscore:
       highlighting more complicated if tscore further diverges from ky.
   - barline check should say what beat it thought it was on
   * sub-blocks are stripping trailing rests
-  - Also alternate starts, but maybe:
+  * Also alternate starts, but maybe:
     on-repeat[r g _ g _ r g _ | r g _ g _ r g _]
              [g _ g _ g _ g r | g _ r g _ r g _]
     Where if-time is like `if-e` but hardcoded to time=1, time=2, etc.
     . For this to work, I have to allow whitespace in between []s.
-  - if I allowed whitespace between sub-blocks I could format x[a][b] nicely.
+  * if I allowed whitespace between sub-blocks I could format x[a][b] nicely.
     . But this would break the rule that whitespace separates each note.
     . But I think 'x [a] [ b ]/' is non-ambiguous because the / is required?
+    . No, it's ambiguous because "a [b]/", 'a' could be a pitch.
+    . Maybe skip whitespace with a \?
   * With right-to-left, the sub-block 't' numbers are now backwards.
   - it doesn't update track titles.
     . But I'd have to merge them, since I might want a local change.

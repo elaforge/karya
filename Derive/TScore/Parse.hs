@@ -335,8 +335,8 @@ instance Pretty T.Call where pretty = unparse default_config
 
 p_subblock :: Config -> Parser (Text, [T.Tracks T.Call])
 p_subblock config = (,)
-    <$> (p_string <|> P.takeWhile1 call_char <|> pure "")
-    <*> P.some (parse config)
+    <$> lexeme_b (p_string <|> P.takeWhile1 call_char <|> pure "")
+    <*> P.some (lexeme_b (parse config))
 
 p_string :: Parser Text
 p_string = fmap mconcat $ P.between (P.char '"') (P.char '"') $
@@ -356,6 +356,7 @@ instance Pretty (T.Rest T.Duration) where
 call_char :: Char -> Bool
 call_char = not_in
     [ '/'
+    , '\\'
     , '['
     , ']' -- so a Note inside a SubBlock doesn't eat the ]
     ]
@@ -372,6 +373,7 @@ pitch_char c = not_in exclude c && not (Char.isDigit c)
         , '/' -- Don't mistake the T.Tracks separator for a note.
         , ']' -- end of T.Tracks
         , '*' -- zero duration marker
+        , '\\' -- skip whitespace
         ]
 
 -- ** Pitch
@@ -430,6 +432,12 @@ p_whitespace = void $ P.many $ P.space1 <|> p_comment
 
 lexeme :: Parser a -> Parser a
 lexeme = (<* p_whitespace)
+
+-- | Use a backslash to allow whitespace.  If I had a separate tokenizer, maybe
+-- I could implement this as a general-purpose glue together tokens thing, but
+-- at least for the moment I only want to do this in a specific spot.
+lexeme_b :: Parser a -> Parser a
+lexeme_b = (<* P.option () (P.char '\\' *> p_whitespace))
 
 keyword :: Text -> Parser ()
 keyword str = void $ lexeme (P.string str)
