@@ -8,6 +8,8 @@ import qualified GHC.Stack as Stack
 
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
+import qualified Derive.TScore.TScore as TScore
+
 import qualified Ui.Id as Id
 
 import           Global
@@ -34,6 +36,13 @@ everything_score =
     \\n\
     \-- Simple block with only one track, and one note.  kebab-case is ok.\n\
     \simple-block = [c]\n\
+    \\n\
+    \-- Wrapped tracks.\n\
+    \wrapped = [\n\
+    \    >i1 s r // >i2 g m\n\
+    \    ///\n\
+    \    >i1 p d // >i2 n s\n\
+    \]\n\
     \\n\
     \calls = [\n\
     \    -- Call is separated from <pitch><dur> with a /.  Pitch and dur are\n\
@@ -86,26 +95,21 @@ test_default_call = do
     --     [ tnote "a" no_oct "" no_dur
     --     , tnote "b" no_oct "" no_dur
     --     ]
-    --
-    -- let score = "b = [b1/0 b2 b3]\n"
-    -- right_equal (unparse . T.Score <$> f score) score
-    -- right_equal (e_score_tokens <$> f score)
-    --     [ tnote "b1" no_oct "" T.CallDuration
-    --     , tnote "" no_oct "b" (idur 2)
-    --     , tnote "" no_oct "b" (idur 3)
-    --     ]
 
-    pprint (f "b = [a [b]/]")
+    let score = "b = [b1/0 b2 b3]\n"
+    right_equal (unparse . T.Score <$> f score) score
+    right_equal (e_score_tokens <$> f score)
+        [ tnote "b1" no_oct "" T.CallDuration
+        , tnote "" no_oct "b" (idur 2)
+        , tnote "" no_oct "b" (idur 3)
+        ]
 
 e_score_tokens :: [(pos, T.Toplevel)]
     -> [T.Token T.Call T.Pitch T.NDuration T.Duration]
 e_score_tokens defs = concat
-    [ concatMap (map strip_pos . T.track_tokens) $ e_tracks $
-        T.block_tracks block
+    [ concatMap (map strip_pos . T.track_tokens) (e_tracks block)
     | T.BlockDefinition block <- map snd defs
     ]
-    where
-    e_tracks (T.Tracks tracks) = tracks
 
 test_p_whitespace = do
     let f = Parse.parse_text Parse.p_whitespace
@@ -131,9 +135,8 @@ test_pos = do
     show_pos 0
     show_pos 11
     equal (map fst defs) $ map T.Pos [0, 11]
-    let untracks (T.Tracks a) = a
     let tokens = concatMap T.track_tokens $ concat
-            [ untracks $ T.block_tracks block
+            [ e_tracks block
             | (_, T.BlockDefinition block) <- defs
             ]
     show_pos 68
@@ -150,6 +153,15 @@ test_roundtrip = do
     roundtrip p "b = [[x y]/]"
     roundtrip p "b = [>hi a[x y]/4]"
     roundtrip p "b = [>hi \"a b\"[x y]/]"
+
+test_tracks_wrapped = do
+    let f = fmap extract . parse
+        extract (T.WrappedTracks _ wrapped) =
+            map (map strip_track . T.untracks) wrapped
+    right_equal (f "[ a // b /// c // d ]")
+        [ [T.Track "" [pnote0 "a"], T.Track "" [pnote0 "b"]]
+        , [T.Track "" [pnote0 "c"], T.Track "" [pnote0 "d"]]
+        ]
 
 test_track = do
     let parse_track = fmap extract . parse
@@ -188,23 +200,22 @@ test_track = do
 
 test_token = do
     let f = fmap strip_pos . parse
-        pitch p dur = tnote "" no_oct p dur
     left_like (f "") "unexpected end of input"
-    right_equal (f "a") $ pitch "a" no_dur
+    right_equal (f "a") $ pnote "a" no_dur
     right_equal (f "a/") $ tnote "a" no_oct "" no_dur
-    right_equal (f "a.") $ pitch "a" (dur Nothing Nothing 1 False)
+    right_equal (f "a.") $ pnote "a" (dur Nothing Nothing 1 False)
     right_equal (f "+pizz/") $ tnote "+pizz" no_oct "" no_dur
     right_equal (f "a/'b1.~") $
         tnote "a" (T.Relative 1) "b" (dur (Just 1) Nothing 1 True)
     right_equal (f "a'/a#4") $
         tnote "a'" no_oct "a#" (dur (Just 4) Nothing 0 False)
-    right_equal (f "a0") $ pitch "a" T.CallDuration
+    right_equal (f "a0") $ pnote "a" T.CallDuration
     right_equal (f "a/a0") $ tnote "a" no_oct "a" T.CallDuration
     right_equal (f "a/1") $ tnote "a" no_oct "" (idur 1)
-    right_equal (f "a1:2") $ pitch "a" (dur (Just 1) (Just 2) 0 False)
-    right_equal (f "a:2") $ pitch "a" (dur Nothing (Just 2) 0 False)
+    right_equal (f "a1:2") $ pnote "a" (dur (Just 1) (Just 2) 0 False)
+    right_equal (f "a:2") $ pnote "a" (dur Nothing (Just 2) 0 False)
     right_equal (f "a*") $
-        set_zero_dur $ pitch "a" (dur Nothing Nothing 0 False)
+        set_zero_dur $ pnote "a" (dur Nothing Nothing 0 False)
 
     -- These are treated specially by Check, but are normal notes according to
     -- the  parser.
@@ -274,8 +285,13 @@ strip_pos = \case
         , T.note_pos = no_pos
         }
     strip_tracks (T.Tracks tracks) = T.Tracks $ map strip_track tracks
-    strip_track track =
-        track { T.track_tokens = map strip_pos (T.track_tokens track) }
+
+e_tracks :: T.Block T.WrappedTracks -> [T.Track T.Call]
+e_tracks = T.untracks . expect_right . TScore.unwrap_tracks . T.block_tracks
+
+strip_track :: T.Track T.Call -> T.Track T.Call
+strip_track track =
+    track { T.track_tokens = map strip_pos (T.track_tokens track) }
 
 no_oct :: T.Octave
 no_oct = T.Relative 0
@@ -305,6 +321,12 @@ tnote call oct pitch dur = T.TNote no_pos $ T.Note
     , note_duration = dur
     , note_pos = no_pos
     }
+
+pnote :: Text -> T.NDuration -> T.Token T.Call T.Pitch T.NDuration T.Duration
+pnote p dur = tnote "" no_oct p dur
+
+pnote0 :: Text -> T.Token T.Call T.Pitch T.NDuration T.Duration
+pnote0 p = tnote "" no_oct p no_dur
 
 sub :: T.CallT -> [[[T.Token T.Call T.Pitch T.NDuration T.Duration]]]
     -> T.Call

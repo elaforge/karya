@@ -14,6 +14,7 @@
 -}
 module Derive.TScore.Parse where
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Void as Void
@@ -102,7 +103,7 @@ instance Element T.Toplevel where
     unparse config (T.BlockDefinition a) = unparse config a
 
 -- > ns/block = %directive "block title" [ ... ]
-instance Element (T.Block T.Call) where
+instance Element (T.Block T.WrappedTracks) where
     parse config = do
         bid <- lexeme (parse config)
         keyword "="
@@ -131,10 +132,50 @@ instance Element Id.BlockId where
 default_namespace :: Id.Namespace
 default_namespace = Id.namespace "tscore"
 
+instance Element T.WrappedTracks where
+    parse config =
+        T.WrappedTracks <$> get_pos
+            <*> (lexeme "[" *> (unwrap <$> wrapped) <* lexeme "]")
+        where
+        -- I can't do this the straightforward nested way because // is a
+        -- prefix of ///.  Even if I match // not followed by /, it still
+        -- doesn't work because it just matches the // prefix and tries to
+        -- match the trailing / as a note.  I'm sure there's a way to do it
+        -- with enough backtracking, but it seemed simpler to parse a flat list
+        -- with different separators.
+        unwrap = map (T.Tracks . Either.rights)
+            -- The head should be safe because this comes from a SepList, so
+            -- the elements are alternating, and there are only two Left vals.
+            -- I could keep it typesafe by staying in SepList, but it seems
+            -- really annoying to write the split.
+            . map (map head_e . Seq.split1 (Left "//"))
+            . Seq.split1 (Left "///")
+            . to_list
+        wrapped = sepBy2 (parse config) (lexeme ("///" <|> "//"))
+        head_e [] = error "alternating list wasn't alternating"
+        head_e (x:_) = x
+    unparse config (T.WrappedTracks _ wrapped) =
+        -- This winds up looking pretty ugly, but I can't really fix it without
+        -- a fancy formatting or exact print.
+        "[" <> Text.intercalate "\n    ///\n" (map tracks wrapped) <> "]"
+        where
+        tracks (T.Tracks ts) = Text.intercalate " // " (map (unparse config) ts)
+
+data SepList sep a = Nil | Sep a [(sep, a)]
+    deriving (Show)
+
+to_list :: SepList sep a -> [Either sep a]
+to_list Nil = []
+to_list (Sep a xs) = Right a : concat [[Left sep, Right a] | (sep, a) <- xs]
+
+-- | Like 'P.sepBy', but return the separators.
+sepBy2 :: Parser a -> Parser sep -> Parser (SepList sep a)
+sepBy2 p sep = Sep <$> p <*> P.many ((,) <$> sep <*> p) <|> pure Nil
+
 instance Element (T.Tracks T.Call) where
-    parse config = fmap T.Tracks $
-        keyword "[" *> P.sepBy1 (lexeme (parse config)) (keyword "//")
-        <* keyword "]"
+    parse config = fmap T.Tracks $ keyword "[" *> tracks <* keyword "]"
+        where
+        tracks = P.sepBy1 (lexeme (parse config)) (keyword "//")
     unparse config (T.Tracks tracks) =
         "[" <> Text.intercalate " // " (map (unparse config) tracks) <> "]"
 

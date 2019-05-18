@@ -403,12 +403,43 @@ interpret_toplevel :: Check.Config -> (T.Pos, T.Toplevel)
 interpret_toplevel config (pos, T.ToplevelDirective dir) = ([],) <$>
     first (T.Error pos) (Check.parse_directive dir config)
 interpret_toplevel config (pos, T.BlockDefinition block) = do
+    block <- unwrap_block_tracks block
     (block, subs) <- return $ resolve_sub_block block
     block <- first (T.Error pos) $ interpret_block config False block
     subs <- first (T.Error pos) $ mapM (interpret_block config True) subs
     return (block : subs, config)
 
-interpret_block :: Check.Config -> Bool -> T.Block T.CallT
+unwrap_block_tracks :: T.Block T.WrappedTracks
+    -> Either T.Error (T.Block (T.Tracks T.Call))
+unwrap_block_tracks block = do
+    tracks <- unwrap_tracks $ T.block_tracks block
+    return $ block { T.block_tracks = tracks }
+
+-- | The number of tracks must match, and their titles must match.
+-- TODO I should also assert that they all end at the same time
+-- maybe insert a same-time assertion, once I have them?
+unwrap_tracks :: T.WrappedTracks -> Either T.Error (T.Tracks T.Call)
+unwrap_tracks (T.WrappedTracks _ []) = Right $ T.Tracks []
+unwrap_tracks (T.WrappedTracks _ [tracks]) = Right tracks
+unwrap_tracks (T.WrappedTracks pos (T.Tracks tracks1 : wrapped))
+    | Just different <- List.find (/= titles1) titles =
+        Left $ T.Error pos $ "wrapped track titles must match: "
+            <> showt titles1 <> " /= " <> showt different
+    | otherwise = Right $ T.Tracks $ zipWith merge tracks1 $ Seq.rotate $
+        map T.untracks wrapped
+    where
+    -- [Tracks, Tracks] -> map untracks
+    -- [[Track "a" a1, Track "b" b1], [Track "a" a2, Track "b" b2]] -> rotate
+    -- [[Track "a" a1, Track "a" a2], [Track "b" b1, Track "b" b2]] -> merge
+    -- [Track "a" (a1 ++ a2), Track "b" (b1 ++ b2)]
+    merge track1 tracks = track1
+        { T.track_tokens = concat $
+            T.track_tokens track1 : map T.track_tokens tracks
+        }
+    titles1 = map T.track_title tracks1
+    titles = map (map T.track_title . T.untracks) wrapped
+
+interpret_block :: Check.Config -> Bool -> T.Block (T.Tracks T.CallT)
     -> Either Text (Block ParsedTrack)
 interpret_block config is_sub
         (T.Block block_id directives title (T.Tracks tracks)) = do
@@ -436,12 +467,13 @@ interpret_block config is_sub
 -- * sub-blocks
 
 -- | Replace T.SubBlock with T.CallT, and return the generated blocks.
-resolve_sub_block :: T.Block T.Call -> (T.Block T.CallT, [T.Block T.CallT])
+resolve_sub_block :: T.Block (T.Tracks T.Call)
+    -> (T.Block (T.Tracks T.CallT), [T.Block (T.Tracks T.CallT)])
 resolve_sub_block block = Logger.runId $ do
     tracks <- resolve_sub_tracks (T.block_id block) (T.block_tracks block)
     return $ block { T.block_tracks = tracks }
 
-type ResolveM a = Logger.Logger (T.Block T.CallT) a
+type ResolveM a = Logger.Logger (T.Block (T.Tracks T.CallT)) a
 
 resolve_sub_tracks :: BlockId -> T.Tracks T.Call -> ResolveM (T.Tracks T.CallT)
 resolve_sub_tracks block_id (T.Tracks tracks) =

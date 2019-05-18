@@ -28,19 +28,27 @@ instance Show Time where
 
 newtype Score = Score [(Pos, Toplevel)] deriving (Eq, Show)
 
-data Toplevel = ToplevelDirective !Directive | BlockDefinition !(Block Call)
+data Toplevel =
+    ToplevelDirective !Directive
+    | BlockDefinition !(Block WrappedTracks)
     deriving (Eq, Show)
 
 -- | call is a parameter, because 'SubBlock' will later be resolved to 'CallT'.
-data Block call = Block {
+data Block tracks = Block {
     block_id :: !Id.BlockId
     , block_directives :: ![Directive]
     , block_title :: !Text
-    , block_tracks :: !(Tracks call)
+    , block_tracks :: !tracks
     } deriving (Eq, Show)
+
+data WrappedTracks = WrappedTracks !Pos ![Tracks Call]
+    deriving (Eq, Show)
 
 newtype Tracks call = Tracks [Track call]
     deriving (Eq, Show)
+
+untracks :: Tracks call -> [Track call]
+untracks (Tracks tracks) = tracks
 
 data Track call = Track {
     track_title :: !Text

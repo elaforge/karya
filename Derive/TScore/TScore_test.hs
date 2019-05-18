@@ -67,6 +67,25 @@ test_ui_state = do
         , ("top-t1c1", UiTest.note_track1 ["4s"])
         ]
 
+test_wrapped_tracks = do
+    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+    right_equal (f "top = [s r // g m /// p d // n s]")
+        [ ("top", concat
+            [ UiTest.note_track1 ["4g", "4m", "4n", "5s"]
+            , UiTest.note_track1 ["4s", "4r", "4p", "4d"]
+            ])
+        ]
+    right_equal (f "top = [>i1 s // >i2 r /// >i1 g // >i2 m]")
+        [ ("top", concat
+            [ UiTest.inst_note_track1 "i2" ["4r", "4m"]
+            , UiTest.inst_note_track1 "i1" ["4s", "4g"]
+            ])
+        ]
+    left_like (f "top = [>i1 s // >i2 r /// >i1 g // >i1 m]")
+        "wrapped track titles must match"
+    left_like (f "top = [>i1 s // >i2 r /// >i1 g]")
+        "wrapped track titles must match"
+
 test_ui_skeleton = do
     let f = Skeleton.flatten . TScore.ui_skeleton
         nt n = TScore.NTrack t (replicate (n-1) t) 0

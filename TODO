@@ -4942,6 +4942,19 @@ text score: tscore:
     . I want to integrate ky and tscore so I can edit them together.  Maybe
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
+  * I'd like to wrap both parts together, but not have to make a new block for
+    them.  Maybe if I had a wrap operator like //, but for systems?
+    . It's way more annoying than I thought, but done.
+    . But I have to merge the tracks, and it may fail.  I could do it in the
+      parser, but then I get a parse error, which seems weird.
+    . If I want to preserve formatting though, I have to keep it in T.Block,
+      and then merge them in Check, then I can do error checking there.
+  - wrapped tracks should assert they wrap at the same time
+    . maybe insert ; as a same-time assertion, if I implement that
+  - if I rename a block that is called with /0, I get
+    . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
+      note generator not found: p3
+    . It looks like it's thinking it's an external call.
   - barline check should say what beat it thought it was on
   * sub-blocks are stripping trailing rests
   * Also alternate starts, but maybe:

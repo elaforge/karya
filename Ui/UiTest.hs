@@ -404,12 +404,16 @@ note_spec (inst, pitches, controls) =
 note_track :: [EventSpec] -> [TrackSpec]
 note_track pitches = note_spec ("", pitches, [])
 
-inst_note_track :: (Text, [EventSpec]) -> [TrackSpec]
-inst_note_track (inst, pitches) = note_spec (inst, pitches, [])
-
 -- | Like 'note_track', but all notes have a duration of 1.
 note_track1 :: [Text] -> [TrackSpec]
 note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
+
+inst_note_track :: (Text, [EventSpec]) -> [TrackSpec]
+inst_note_track (inst, pitches) = note_spec (inst, pitches, [])
+
+inst_note_track1 :: Text -> [Text] -> [TrackSpec]
+inst_note_track1 title pitches = note_spec (title, notes, [])
+    where notes = [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) pitches]
 
 control_track :: [(ScoreTime, Text)] -> [EventSpec]
 control_track ns = [(t, 0, s) | (t, s) <- ns]

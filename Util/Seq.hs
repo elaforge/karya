@@ -763,11 +763,14 @@ split_null :: Eq a => NonNull a -> [a] -> [[a]]
 split_null _ [] = []
 split_null sep xs = split sep xs
 
--- | Like 'split', but only split once.
-split1 :: Eq a => NonNull a -> [a] -> ([a], [a])
-split1 [] _ = error "Util.Seq.split1: empty seperator"
-split1 sep xs = (pre, drop (length sep) post)
-    where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
+-- | Like 'split', but split on a single element.
+split1 :: Eq a => a -> [a] -> [[a]]
+split1 sep = go
+    where
+    go xs
+        | null post = [pre]
+        | otherwise = pre : go (drop 1 post)
+        where (pre, post) = break (==sep) xs
 
 -- | Interspense a separator and concat.
 join :: Monoid a => a -> [a] -> a
