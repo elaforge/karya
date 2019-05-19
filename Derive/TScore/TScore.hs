@@ -85,7 +85,7 @@ data ParsedTrack = ParsedTrack {
     , track_tokens :: ![Token]
     } deriving (Show)
 
-type Token = T.Token T.CallT T.Pitch T.NDuration T.Duration
+type Token = T.Token T.CallText T.Pitch T.NDuration T.Duration
 
 -- | A complete track, ready to be integrated or directly put in a block.
 data Track = Track {
@@ -232,7 +232,7 @@ check_recursion blocks =
                 check_block stack
     show_id = Id.show_short Parse.default_namespace . Id.unpack_id
 
-call_of :: T.Token T.CallT pitch ndur rdur -> Maybe T.CallT
+call_of :: T.Token T.CallText pitch ndur rdur -> Maybe T.CallText
 call_of (T.TNote _ note) = Just $ T.note_call note
 call_of _ = Nothing
 
@@ -439,7 +439,7 @@ unwrap_tracks (T.WrappedTracks pos (T.Tracks tracks1 : wrapped))
     titles1 = map T.track_title tracks1
     titles = map (map T.track_title . T.untracks) wrapped
 
-interpret_block :: Check.Config -> Bool -> T.Block (T.Tracks T.CallT)
+interpret_block :: Check.Config -> Bool -> T.Block (T.Tracks T.CallText)
     -> Either Text (Block ParsedTrack)
 interpret_block config is_sub
         (T.Block block_id directives title (T.Tracks tracks)) = do
@@ -466,16 +466,17 @@ interpret_block config is_sub
 
 -- * sub-blocks
 
--- | Replace T.SubBlock with T.CallT, and return the generated blocks.
+-- | Replace T.SubBlock with T.CallText, and return the generated blocks.
 resolve_sub_block :: T.Block (T.Tracks T.Call)
-    -> (T.Block (T.Tracks T.CallT), [T.Block (T.Tracks T.CallT)])
+    -> (T.Block (T.Tracks T.CallText), [T.Block (T.Tracks T.CallText)])
 resolve_sub_block block = Logger.runId $ do
     tracks <- resolve_sub_tracks (T.block_id block) (T.block_tracks block)
     return $ block { T.block_tracks = tracks }
 
-type ResolveM a = Logger.Logger (T.Block (T.Tracks T.CallT)) a
+type ResolveM a = Logger.Logger (T.Block (T.Tracks T.CallText)) a
 
-resolve_sub_tracks :: BlockId -> T.Tracks T.Call -> ResolveM (T.Tracks T.CallT)
+resolve_sub_tracks :: BlockId -> T.Tracks T.Call
+    -> ResolveM (T.Tracks T.CallText)
 resolve_sub_tracks block_id (T.Tracks tracks) =
     -- Since tracks are reversed, start from the end, so the tracknums match
     -- up.
@@ -486,7 +487,7 @@ resolve_sub_tracks block_id (T.Tracks tracks) =
         return $ track { T.track_tokens = tokens }
 
 resolve_sub_tokens :: BlockId -> TrackNum -> [T.Token T.Call pitch ndur rdur]
-    -> ResolveM [T.Token T.CallT pitch ndur rdur]
+    -> ResolveM [T.Token T.CallText pitch ndur rdur]
 resolve_sub_tokens block_id tracknum = fmap snd . Seq.mapAccumLM resolve [1..]
     where
     resolve (n:ns) (T.TNote pos note) = case T.note_call note of
@@ -510,7 +511,7 @@ pipe_tweak prefix
     | otherwise = prefix
 
 resolve_sub_tracks_to_calls :: BlockId -> TrackNum -> Int -> [T.Tracks T.Call]
-    -> ResolveM [T.CallT]
+    -> ResolveM [T.CallText]
 resolve_sub_tracks_to_calls parent_block_id tracknum callnum subs =
     forM (zip subs sub_callnums) $ \(tracks, sub_callnum) -> do
         let block_id = make_relative parent_block_id tracknum callnum
@@ -547,7 +548,7 @@ sub_meta = "is_sub"
 
 -- * local util
 
-note_event :: T.Time -> T.Note T.CallT (Maybe Text) T.Time -> Event.Event
+note_event :: T.Time -> T.Note T.CallText (Maybe Text) T.Time -> Event.Event
 note_event start note =
     add_stack $ Event.event (track_time start)
         (if T.note_zero_duration note then 0

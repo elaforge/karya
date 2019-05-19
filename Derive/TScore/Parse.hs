@@ -216,7 +216,7 @@ instance Element (T.Token T.Call T.Pitch T.NDuration T.Duration) where
 instance Pretty (T.Token T.Call T.Pitch T.NDuration T.Duration) where
     pretty = unparse default_config
 
-instance Pretty (T.Token T.CallT T.Pitch T.NDuration T.Duration) where
+instance Pretty (T.Token T.CallText T.Pitch T.NDuration T.Duration) where
     pretty = \case
         T.TNote _ note -> pretty note
         T.TBarline _ bar -> pretty bar
@@ -300,13 +300,13 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
         empty = (empty_pitch, False, empty_nduration)
 
 -- | This is the output from Check.check.
-instance Pretty (T.Note T.CallT (Maybe Text) T.Time) where
+instance Pretty (T.Note T.CallText (Maybe Text) T.Time) where
     pretty (T.Note call pitch _zero_dur dur _pos) = mconcat
         [ if call == "" then "" else call <> "/"
         , fromMaybe "" pitch, pretty dur
         ]
 
-instance Pretty (T.Note T.CallT T.Pitch T.NDuration) where
+instance Pretty (T.Note T.CallText T.Pitch T.NDuration) where
     pretty (T.Note call pitch _zero_dur dur _pos) = mconcat
         [ if call == "" then "" else call <> "/"
         , unparse default_config pitch, unparse default_config dur
@@ -337,7 +337,7 @@ empty_pitch = T.Pitch (T.Relative 0) ""
 
 -- | This note is treated specially by the Check layer, to repeat of the
 -- previous note.
-dot_note :: T.Note T.CallT T.Pitch T.NDuration
+dot_note :: T.Note T.CallText T.Pitch T.NDuration
 dot_note = empty_note
     { T.note_call = ""
     , T.note_duration = T.NDuration $ empty_duration { T.dur_dots = 1 }
@@ -345,7 +345,7 @@ dot_note = empty_note
 
 -- | This note is treated specially by the Check layer, to repeat of the
 -- previous note, plus put a tie on the previous note.
-tie_note :: T.Note T.CallT T.Pitch T.NDuration
+tie_note :: T.Note T.CallText T.Pitch T.NDuration
 tie_note = empty_note
     { T.note_call = ""
     , T.note_duration = T.NDuration $ empty_duration { T.dur_tie = True }

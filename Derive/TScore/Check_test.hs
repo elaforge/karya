@@ -143,12 +143,12 @@ e_ndur = \case
     _ -> Nothing
 
 parse_cdur :: Text
-    -> Check.Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration)
+    -> Check.Stream (T.Token T.CallText T.Pitch (Either T.Time T.Duration)
         T.Duration)
 parse_cdur = resolve_call_duration . parse
 
-resolve_call_duration :: [T.Token T.CallT T.Pitch T.NDuration rdur]
-    -> Check.Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
+resolve_call_duration :: [T.Token T.CallText T.Pitch T.NDuration rdur]
+    -> Check.Stream (T.Token T.CallText T.Pitch (Either T.Time T.Duration) rdur)
 resolve_call_duration =
     map (EList.Elt . Identity.runIdentity . T.map_note_duration resolve)
     where
@@ -157,17 +157,17 @@ resolve_call_duration =
 
 -- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
 convert_call :: T.Token T.Call pitch ndur rdur
-    -> T.Token T.CallT pitch ndur rdur
+    -> T.Token T.CallText pitch ndur rdur
 convert_call = T.map_call $ \case
     T.Call call -> call
     sub@(T.SubBlock {}) -> "((" <> pretty sub <> "))"
 
-parse :: Text -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
+parse :: Text -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
 parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
     where
     p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
 
-check :: Check.Config -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> [Either T.Error (T.Time, T.Note T.CallT (Maybe Text) T.Time)]
+check :: Check.Config -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
+    -> [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
 check config =
     fst . Check.check (const (Left "get_dur not supported", [])) config

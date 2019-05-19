@@ -33,7 +33,8 @@ data Toplevel =
     | BlockDefinition !(Block WrappedTracks)
     deriving (Eq, Show)
 
--- | call is a parameter, because 'SubBlock' will later be resolved to 'CallT'.
+-- | call is a parameter, because 'SubBlock' will later be resolved to
+-- 'CallText'.
 data Block tracks = Block {
     block_id :: !Id.BlockId
     , block_directives :: ![Directive]
@@ -123,14 +124,14 @@ data Note call pitch dur = Note {
     , note_pos :: !Pos
     } deriving (Eq, Show)
 
-data Call = Call !CallT | SubBlock !CallT ![Tracks Call]
+data Call = Call !CallText | SubBlock !CallText ![Tracks Call]
     deriving (Eq, Show)
 
 instance String.IsString Call where
     fromString = Call . txt
 
 -- | Tracklang expression.  This goes into the event text.
-type CallT = Text
+type CallText = Text
 
 newtype Rest dur = Rest dur
     deriving (Eq, Show)

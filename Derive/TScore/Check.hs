@@ -91,8 +91,10 @@ mkerror :: T.Pos -> Text -> EList.Elt T.Error a
 mkerror pos msg = EList.Meta $ T.Error pos msg
 
 check :: GetCallDuration -> Config
-    -> [T.Token T.CallT T.Pitch T.NDuration T.Duration]
-    -> ([Either T.Error (T.Time, T.Note T.CallT (Maybe Text) T.Time)], T.Time)
+    -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
+    -> ( [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
+       , T.Time
+       )
 check get_dur (Config meter scale duration) =
     Tuple.swap
     . fmap (map EList.toEither)
@@ -108,8 +110,9 @@ check get_dur (Config meter scale duration) =
 -- * time
 
 -- | Carry CallDuration if the next note has no duration, but does have a call.
-carry_call_duration :: Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
-    -> Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
+carry_call_duration
+    :: Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
+    -> Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
 carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
     where
     carry note = do
@@ -127,8 +130,8 @@ carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
         && all Maybe.isNothing [T.dur_int1 dur, T.dur_int2 dur]
 
 resolve_call_duration :: GetCallDuration
-    -> Stream (T.Token T.CallT T.Pitch T.NDuration rdur)
-    -> Stream (T.Token T.CallT T.Pitch (Either T.Time T.Duration) rdur)
+    -> Stream (T.Token T.CallText T.Pitch T.NDuration rdur)
+    -> Stream (T.Token T.CallText T.Pitch (Either T.Time T.Duration) rdur)
 resolve_call_duration get_dur = EList.concatMapE $ \case
     T.TBarline pos a -> [EList.Elt $ T.TBarline pos a]
     T.TRest pos a -> [EList.Elt $ T.TRest pos a]
@@ -149,8 +152,8 @@ call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
 call_block_id parent =
     Eval.call_to_block_id Parse.default_namespace (Just parent) . Expr.Symbol
 
-resolve_repeats :: Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
-    -> Stream (T.Token T.CallT T.Pitch T.NDuration T.Duration)
+resolve_repeats :: Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
+    -> Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
 resolve_repeats =
     snd . EList.mapAccumLE resolve_dot Nothing . map (fmap resolve_tie)
         . zip_next_note

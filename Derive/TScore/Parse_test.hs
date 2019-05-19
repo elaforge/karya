@@ -328,7 +328,7 @@ pnote p dur = tnote "" no_oct p dur
 pnote0 :: Text -> T.Token T.Call T.Pitch T.NDuration T.Duration
 pnote0 p = tnote "" no_oct p no_dur
 
-sub :: T.CallT -> [[[T.Token T.Call T.Pitch T.NDuration T.Duration]]]
+sub :: T.CallText -> [[[T.Token T.Call T.Pitch T.NDuration T.Duration]]]
     -> T.Call
 sub prefix ts = T.SubBlock prefix (map (tracks . zip (repeat "")) ts)
 
