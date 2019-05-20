@@ -77,7 +77,7 @@ create_block source_id tracks = do
 
 merge_block :: Ui.M m => BlockId -> Convert.Tracks
     -> [Block.NoteDestination] -> m [Block.NoteDestination]
-merge_block = merge_tracks
+merge_block = merge_tracks False
 
 score_merge_block :: Ui.M m => BlockId -> BlockId -> Block.ScoreDestinations
     -> m Block.ScoreDestinations
@@ -92,11 +92,11 @@ score_merge_block source_id dest_id dests = do
 -- A single integrating source track can create multiple Convert.Tracks, and
 -- an integrating track can have >=1 destinations, so this is called once per
 -- (source, destination) pair.
-merge_tracks :: Ui.M m => BlockId -> Convert.Tracks
+merge_tracks :: Ui.M m => Bool -> BlockId -> Convert.Tracks
     -> [Block.NoteDestination] -> m [Block.NoteDestination]
-merge_tracks block_id tracks dests = do
+merge_tracks replace_titles block_id tracks dests = do
     track_ids <- all_block_tracks block_id
-    new_dests <- mapMaybeM (merge_pairs block_id) $
+    new_dests <- mapMaybeM (merge_pairs replace_titles block_id) $
         pair_tracks track_ids tracks dests
     -- TODO doesn't this combine with the old skeleton?  Why isn't that
     -- a problem?
@@ -200,17 +200,24 @@ add_skeleton block_id tree = do
 --
 -- Control and pitch tracks are matched or created by title, but the note track
 -- title is ignored.
-merge_pairs :: Ui.M m => BlockId -> [TrackPair]
+merge_pairs :: Ui.M m => Bool -> BlockId -> [TrackPair]
     -> m (Maybe Block.NoteDestination)
-merge_pairs block_id pairs = do
+merge_pairs replace_titles block_id pairs = do
     triples <- mapMaybeM (merge_pair block_id) pairs
-    return $ case triples of
-        [] -> Nothing
-        (_title, note_id, note_index) : controls ->
-            Just $ Block.NoteDestination (note_id, note_index) $ Map.fromList
-                [ (title, (track_id, index))
-                | (title, track_id, index) <- controls
-                ]
+    case triples of
+        [] -> return Nothing
+        (source_title, note_id, note_index) : controls -> do
+            -- TODO I could merge them, but I need the previous integrated
+            -- title
+            -- What about the control track titles?  I use those as keys, so I
+            -- can't change them without breaking the link.
+            when replace_titles $ do
+                Ui.set_track_title note_id source_title
+            return $ Just $ Block.NoteDestination (note_id, note_index) $
+                Map.fromList
+                    [ (title, (track_id, index))
+                    | (title, track_id, index) <- controls
+                    ]
 
 merge_pair :: Ui.M m => BlockId -> TrackPair
     -> m (Maybe (Text, TrackId, Block.EventIndex))
@@ -289,7 +296,7 @@ add_event_stacks block_id track_id = map add_stack . Events.ascending
 
 {- | If the Convert.Track is present, then that is the track being integrated
     in from the source.  If it's not present, then this track is no longer
-    present in the integrated source.  If there is a TrackNum, then this track
+    present in the integration source.  If there is a TrackNum, then this track
     isn't present in the destination, and should be created.  Otherwise, it
     should be merged with the given Dest.
 

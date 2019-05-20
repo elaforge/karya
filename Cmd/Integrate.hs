@@ -113,14 +113,16 @@ integrate_tracks block_id track_id tracks = do
             , source_id == track_id
             ]
     new_dests <- if null dests
-        then (:[]) <$> Merge.merge_tracks block_id tracks []
-        else mapM (Merge.merge_tracks block_id tracks) dests
+        then (:[]) <$> Merge.merge_tracks replace_titles block_id tracks []
+        else mapM (Merge.merge_tracks replace_titles block_id tracks) dests
     unless (null new_dests) $
         Log.notice $ "derive integrated " <> showt track_id <> " to "
             <> pretty (map (map (fst . Block.dest_note)) new_dests)
     Ui.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]
     Cmd.derive_immediately [block_id]
+    where
+    replace_titles = False
 
 -- | Look for blocks derived from this one and replace their contents, or
 -- create a new block if there are no blocks derived from this one.
@@ -258,8 +260,10 @@ manual_integrate key note controls = do
         Ui.gets Ui.state_blocks
     forM_ block_dests $ \(block_id, dests) -> do
         new_dests <- forM dests $ \dest ->
-            Merge.merge_tracks block_id [(note, controls)] [dest]
+            Merge.merge_tracks replace_titles block_id [(note, controls)] [dest]
         Ui.set_integrated_manual block_id key (Just (concat new_dests))
+    where
+    replace_titles = False
 
 -- | Find all manual derive destinations with the given key.
 manual_destinations :: Block.SourceKey -> [(a, Block.Block)]

@@ -310,7 +310,7 @@ integrate_block block = do
                 Nothing -> Ui.throw $
                     "block from tscore already exists: " <> pretty block_id
                 Just dests -> return (dests, False)
-    new_dests <- Merge.merge_tracks block_id
+    new_dests <- Merge.merge_tracks True block_id
         [ (convert note, map convert controls)
         | NTrack note controls _ <- _tracks block
         ]

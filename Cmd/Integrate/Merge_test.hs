@@ -141,7 +141,7 @@ derive_integrate state integrated = UiTest.exec state $ do
     itracks <- Block.block_integrated_tracks <$> Ui.get_block block_id
     let derive_itracks =
             [dests | (_, Block.DeriveDestinations dests) <- itracks]
-    dests <- Merge.merge_tracks block_id (make_convert_tracks integrated)
+    dests <- Merge.merge_tracks False block_id (make_convert_tracks integrated)
         (fromMaybe [] $ Seq.head derive_itracks)
     Ui.modify_integrated_tracks block_id $
         const [(UiTest.mk_tid 1, Block.DeriveDestinations dests)]

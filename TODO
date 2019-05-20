@@ -4942,6 +4942,13 @@ text score: tscore:
     . I want to integrate ky and tscore so I can edit them together.  Maybe
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
+  - How to notate dead notes?  I'd like to make it concise.
+    . Maybe I could have a set of symbols that are then macros:
+      !, @, #, $, %, &, =, -, +
+      . Then I can write %macro-=/* [ r g - r g - ] -> [ r g /* r g /* ]
+      . Wait could I just write [ r g * r g * ] then?
+      . Yeah it works.  But I still might want to e.g. replace _ with that,
+        and make * be the real rest?
   * I'd like to wrap both parts together, but not have to make a new block for
     them.  Maybe if I had a wrap operator like //, but for systems?
     . It's way more annoying than I thought, but done.
@@ -4949,6 +4956,18 @@ text score: tscore:
       parser, but then I get a parse error, which seems weird.
     . If I want to preserve formatting though, I have to keep it in T.Block,
       and then merge them in Check, then I can do error checking there.
+  - carry pitch and dur into sub-blocks.  It should go lexically,
+    left-to-right.
+    . This means I'd have to do Check.check before resolve_sub_block.
+    . Currently it goes: parse, unwrap_block_tracks, resolve_sub_block,
+      put in ParsedTrack, then make_tracks, Check.check.
+    . Could I leave ParsedTrack unresolved, and make blocks later?  It seems
+      awkward because then I would have to create more blocks after check,
+      which would then require check, etc. recursively.
+    . Or, I could have Check.check emit the final state, and initialize the
+      sub-block with that.  I would have to know what was the parent block.
+      And since sub-blocks can occur anywhere, I would need to interleave
+      one way or the other.
   - wrapped tracks should assert they wrap at the same time
     . maybe insert ; as a same-time assertion, if I implement that
   - if I rename a block that is called with /0, I get
@@ -4968,7 +4987,7 @@ text score: tscore:
     . No, it's ambiguous because "a [b]/", 'a' could be a pitch.
     . Maybe skip whitespace with a \?
   * With right-to-left, the sub-block 't' numbers are now backwards.
-  - it doesn't update track titles.
+  * it doesn't update track titles.
     . But I'd have to merge them, since I might want a local change.
     . I should be able to merge, by replacing the common prefix.
   - make ; be a "same time" assertion
@@ -4986,11 +5005,15 @@ text score: tscore:
       from two places, which is awkward.
   - using blocks to express repeats means the barlines get off, since they're
     always relative to the start of the block.
+    . But sometimes I do want them to be relative, and it's certainly easier
+      to read if they are.  Maybe what I need is a way to set the barline
+      offset, like a barline that asserts that it's correct.
   * I'm used to left/right on horizontal tracks, but right/left on top to
     bottom.
     . Maybe I can just invert the track creation order?  Then it's top/bottom
       right/left, which seems consistent at least.
   - I have a lot of things with alternate endings.
+    . This is part of the general problem of variations.
   * how to do alt call?  "alt [d] [d g]"/
     I should be able to have multiple blocks:
       alt[d][d g]/
