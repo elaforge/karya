@@ -225,10 +225,12 @@ instance Pretty (T.Token T.CallText T.Pitch T.NDuration T.Duration) where
 -- ** barline
 
 instance Element T.Barline where
-    parse _ = T.Barline <$>
-        (Text.length <$> P.takeWhile1 (=='|') <|> (P.char ';' *> pure 0))
-    unparse _ (T.Barline 0) = ";"
-    unparse _ (T.Barline n) = Text.replicate n "|"
+    parse _ = T.Barline <$> (Text.length <$> P.takeWhile1 (=='|'))
+        <|> (P.char ';' *> pure T.AssertCoincident)
+    unparse _ (T.Barline n)
+        | n >= 1 = Text.replicate n "|"
+        | otherwise = error $ "Barline <= 0: " <> show n
+    unparse _ T.AssertCoincident = ";"
 
 instance Pretty T.Barline where pretty = unparse default_config
 

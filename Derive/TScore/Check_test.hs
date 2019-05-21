@@ -5,6 +5,7 @@
 module Derive.TScore.Check_test where
 import qualified Control.Monad.Combinators as P
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Either as Either
 
 import qualified Util.EList as EList
 import           Util.Test hiding (check)
@@ -13,11 +14,14 @@ import qualified Util.Test.Testing as Testing
 import qualified Derive.TScore.Check as Check
 import qualified Derive.TScore.Parse as Parse
 import qualified Derive.TScore.T as T
+import qualified Derive.TScore.TScore as TScore
+
+import qualified Ui.UiTest as UiTest
 
 import           Global
 
 
-test_process = do
+test_check = do
     let f = map extract . check config . parse
         config = Check.default_config
         extract = fmap $ second
@@ -44,6 +48,21 @@ test_resolve_pitch = do
     -- track will carry it, but is still carried for octave inference.
     equal (f "5s c/ r") [Right "5s", Right "", Right "5r"]
     equal (f "5s 4 r") [Right "5s", Right "", Right "5r"]
+
+-- TODO implement this
+_test_carry_sub_block = do
+    let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
+    -- duration and pitch get carried into sub-blocks
+    right_equal (f "b = [1s2 [r]/]")
+        [ ("b", UiTest.note_track [(0, 0.5, "1s"), (0.5, 0.5, "-t1c1 --")])
+        , ("b-t1c1", UiTest.note_track [(0, 0.5, "1r")])
+        ]
+    right_equal (f "b = [1s2 alt[r][g]/]")
+        [ ("b", UiTest.note_track
+            [(0, 0.5, "1s"), (0.5, 0.5, "alt -t1c1a -t1c1b")])
+        , ("b-t1c1a", UiTest.note_track [(0, 0.5, "1r")])
+        , ("b-t1c1b", UiTest.note_track [(0, 0.5, "1g")])
+        ]
 
 test_resolve_repeats = do
     let f = map (bimap pretty extract) . check Check.default_config . parse
@@ -81,9 +100,10 @@ mk_note call pitch dur = T.Note
     }
 
 test_resolve_time = do
-    let f = second (map extract) . Check.resolve_time . Check.multiplicative
+    let f = second extract . Check.resolve_time . Check.multiplicative
             . parse_cdur
-        extract = bimap error_msg (second T.note_duration) . EList.toEither
+        extract = map (bimap error_msg (second T.note_duration))
+            . just_errors . map EList.toEither
     equal (f "a b c") (3, [Right (0, 1), Right (1, 1), Right (2, 1)])
     equal (f "a b _") (3, [Right (0, 1), Right (1, 1)])
     equal (f "a~ a b") (3, [Right (0, 2), Right (2, 1)])
@@ -98,12 +118,12 @@ test_resolve_time = do
     equal (f "a~") (0, [Left "final note has a tie"])
 
 test_check_barlines = do
-    let f = map error_msg . EList.metas
+    let f = map error_msg . Either.lefts . EList.metas
             . Check.check_barlines Check.meter_44
             . Check.multiplicative . parse_cdur
     equal (f "| a4 b c e |") []
     equal (f "| a4 ; b ; c ; e |") []
-    equal (f "| a4 b | c e |") ["barline check: token 3: saw |, expected ;"]
+    equal (f "| a4 b | c e |") ["barline check: token 3: saw |, expected none"]
     equal (f "a8 | b") ["barline check: token 1: saw |, expected none"]
 
 test_multiplicative = do
@@ -133,6 +153,12 @@ test_additive = do
 
 error_msg :: T.Error -> Text
 error_msg (T.Error _ msg) = msg
+
+just_errors :: [Either (Either a b) c] -> [Either a c]
+just_errors = mapMaybe $ \case
+    Left (Left a) -> Just $ Left a
+    Left (Right _) -> Nothing
+    Right c -> Just $ Right c
 
 strip_note :: T.Note call pitch dur -> T.Note call pitch dur
 strip_note note = note { T.note_pos = T.Pos 0 }
@@ -169,5 +195,8 @@ parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
 
 check :: Check.Config -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
     -> [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
-check config =
-    fst . Check.check (const (Left "get_dur not supported", [])) config
+check config = just_errors . fst
+    . Check.check (const (Left "get_dur not supported", [])) config
+
+get_ext_dur :: TScore.GetExternalCallDuration
+get_ext_dur = \_ _ -> (Left "external call dur not supported", [])

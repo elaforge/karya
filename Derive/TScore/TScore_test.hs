@@ -67,6 +67,14 @@ test_ui_state = do
         , ("top-t1c1", UiTest.note_track1 ["4s"])
         ]
 
+test_assert_coincident = do
+    let f = fmap (const ()) . TScore.ui_state get_ext_dur
+    left_like (f "top = [s r // g ; m]") "got unexpected assert"
+    left_like (f "top = [s ; r // g m]") "expected assert around here"
+    right_equal (f "top = [s ; r // g ; m]") ()
+    left_like (f "top = [s ; r ; // g ; m]") "expected assert"
+    right_equal (f "top = [s ; r ; // g ; m ;]") ()
+
 test_wrapped_tracks = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
     right_equal (f "top = [s r // g m /// p d // n s]")

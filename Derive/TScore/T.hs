@@ -81,16 +81,16 @@ token_name = \case
 map_call :: (call1 -> call2)
     -> Token call1 pitch ndur rdur -> Token call2 pitch ndur rdur
 map_call f = \case
-    TNote pos note -> TNote pos (note { note_call = f (note_call note) })
     TBarline pos a -> TBarline pos a
+    TNote pos note -> TNote pos (note { note_call = f (note_call note) })
     TRest pos a -> TRest pos a
 
 map_pitch :: Applicative m => (pitch1 -> m pitch2)
     -> Token call pitch1 ndur rdur -> m (Token call pitch2 ndur rdur)
 map_pitch f = \case
+    TBarline pos a -> pure $ TBarline pos a
     TNote pos note ->
         TNote pos . (\a -> note { note_pitch = a}) <$> f (note_pitch note)
-    TBarline pos a -> pure $ TBarline pos a
     TRest pos a -> pure $ TRest pos a
 
 map_note_duration :: Applicative m => (dur1 -> m dur2)
@@ -105,14 +105,15 @@ map_note :: Applicative m
     => (Note call1 pitch1 ndur -> m (Note call2 pitch2 ndur))
     -> Token call1 pitch1 ndur rdur -> m (Token call2 pitch2 ndur rdur)
 map_note f = \case
-    TNote pos note -> TNote pos <$> f note
     TBarline pos a -> pure $ TBarline pos a
+    TNote pos note -> TNote pos <$> f note
     TRest pos a -> pure $ TRest pos a
 
 -- | Opposide from Ruler.Rank, higher numbers mean larger divisions.
 type Rank = Int
 
-newtype Barline = Barline Rank
+data Barline = Barline Rank
+    | AssertCoincident
     deriving (Eq, Show)
 
 data Note call pitch dur = Note {

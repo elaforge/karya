@@ -6,6 +6,7 @@
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
     Config(..), default_config
+    , AssertCoincident(..)
     , parse_directive, parse_directives
     , check
     , call_block_id
@@ -82,17 +83,21 @@ parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
 
 -- * check
 
-type Stream a = [EList.Elt T.Error a]
+type Stream a = [EList.Elt Meta a]
 type Token call pitch dur = T.Token call pitch dur dur
+type Meta = Either T.Error AssertCoincident
 
 type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 
-mkerror :: T.Pos -> Text -> EList.Elt T.Error a
-mkerror pos msg = EList.Meta $ T.Error pos msg
+mkerror :: T.Pos -> Text -> EList.Elt Meta a
+mkerror pos msg = EList.Meta $ Left $ T.Error pos msg
+
+data AssertCoincident = AssertCoincident !T.Time !T.Pos
+    deriving (Eq, Show)
 
 check :: GetCallDuration -> Config
     -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
-    -> ( [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
+    -> ( [Either Meta (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
        , T.Time
        )
 check get_dur (Config meter scale duration) =
@@ -216,9 +221,9 @@ data Meter = Meter {
     -- | Rank pattern.
     --
     -- Adi: [2, 0, 0, 0, 1, 0, 0, 1, 0, 0]
-    -- > || ssss ; rrrr ; gggg ; mmmm | pppp ; dddd | nnnn ; sssss ||
+    -- > || ssss rrrr gggg mmmm | pppp dddd | nnnn sssss ||
     -- 4/4: [1, 0, 0, 0]
-    -- > | ssss ; rrrr ; gggg ; mmmm |
+    -- > | ssss rrrr gggg mmmm |
     meter_pattern :: [T.Rank]
     -- | This is the duration one one element of 'meter_pattern'.
     , meter_step :: !T.Time
@@ -268,7 +273,6 @@ resolve_time :: (Eq pitch, Pretty pitch)
 resolve_time tokens = go (EList.zipPaddedSnd starts tokens)
     where
     starts = scanl (\n -> (n+)) 0 (map duration_of (EList.elts tokens))
-    -- go [EList.Elt (start, T.TRest _ (T.Rest (dur, _)))] = (start + dur, [])
     go (EList.Elt (start, Nothing) : ts)
         | null ts = (start, [])
         | otherwise = go ts
@@ -276,17 +280,19 @@ resolve_time tokens = go (EList.zipPaddedSnd starts tokens)
         T.TNote _ note
             | is_tied t ->
                 case tied_notes note (Seq.map_maybe_snd id (EList.elts pre)) of
-                    Left err -> (EList.Meta err :) <$> go post
+                    Left err -> (EList.Meta (Left err) :) <$> go post
                     Right end ->
                         (EList.Elt (start, set_dur (end-start) note) :) <$>
                             go post
             | otherwise ->
                 (EList.Elt (start, set_dur (fst (T.note_duration note)) note) :)
                     <$> go ts
-        T.TBarline {} -> go ts
+        T.TBarline _ (T.Barline {}) -> go ts
+        T.TBarline pos T.AssertCoincident ->
+            (EList.Meta (Right (AssertCoincident start pos)) :) <$> go ts
         T.TRest {}
             | is_tied t -> case tied_rests (mapMaybe snd (EList.elts pre)) of
-                Just err -> (EList.Meta err :) <$> go post
+                Just err -> (EList.Meta (Left err) :) <$> go post
                 Nothing -> go post
             | otherwise -> go ts
         where
@@ -346,27 +352,28 @@ check_barlines meter =
     where
     check_token (i, token) = do
         now <- State.get
-        State.put (now + dur)
+        State.put $! now + dur
         return $ EList.Elt token : warning now
         where
         dur = duration_of token
         warning now = case token of
-            T.TBarline pos bar ->
-                maybe [] ((:[]) . EList.Meta) (check pos now i bar)
+            T.TBarline pos bar -> maybe [] (:[]) (check pos now i bar)
             _ -> []
     check pos now i (T.Barline rank) = case Map.lookup beat expected_rank of
         Just r
             | r == rank -> Nothing
-            | otherwise -> Just $ T.Error pos $ warn i $
+            | otherwise -> Just $ mkerror pos $ warn i $
                 "saw " <> pretty (T.Barline rank)
                 <> ", expected " <> pretty (T.Barline r)
-        Nothing -> Just $ T.Error pos $ warn i $
+        Nothing -> Just $ mkerror pos $ warn i $
             "saw " <> pretty (T.Barline rank) <> ", expected none"
         where
         beat = now `Num.fmod` cycle_dur
+    -- resolve_time will turn this into 'AssertCoincident'.
+    check _ _ _ T.AssertCoincident = Nothing
     cycle_dur = meter_duration meter
-    expected_rank = Map.fromList $ zip (Seq.range_ 0 (meter_step meter))
-        (meter_pattern meter)
+    expected_rank = Map.fromList $ filter ((>0) . snd) $
+        zip (Seq.range_ 0 (meter_step meter)) (meter_pattern meter)
     warn i msg = "barline check: token " <> showt i <> ": " <> msg
 
 show_time :: T.Time -> T.Time -> Text
@@ -436,7 +443,7 @@ map_duration :: State.MonadState (int1, int2) m
     => (Maybe Int -> Maybe Int -> m (int1, int2))
     -> (int1 -> int2 -> Int -> time)
     -> T.Token call pitch (Either time T.Duration) T.Duration
-    -> m (EList.Elt T.Error (T.Token call pitch (time, Bool) (time, Bool)))
+    -> m (EList.Elt Meta (T.Token call pitch (time, Bool) (time, Bool)))
 map_duration carry time_of = \case
     T.TBarline pos a -> return $ EList.Elt $ T.TBarline pos a
     T.TNote pos note -> do
@@ -526,7 +533,7 @@ pitch_to_symbolic :: Scale
     -> Stream (T.Time, T.Note call (Maybe Text) dur)
 pitch_to_symbolic scale = EList.mapE to_sym
     where
-    to_sym (t, note) = EList.fromEither $ do
+    to_sym (t, note) = EList.fromEither $ first Left $ do
         sym <- case T.note_pitch note of
             Nothing -> Right Nothing
             Just pitch -> Just <$> tryJust

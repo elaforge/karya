@@ -249,26 +249,38 @@ make_tracks get_ext_dur source blocks = Map.elems memo
     memo = Map.fromList
         [(_block_id block, resolve_block block) | block <- blocks]
     resolve_block block = block
-        { _tracks = map (resolve (_block_id block) (_block_title block))
+        { _tracks = resolve_tracks (_block_id block) (_block_title block)
             (_tracks block)
         }
-    resolve block_id block_title (ParsedTrack config title tokens) = do
-        let (errTokens, end) = Check.check
-                (get_dur (to_transformers block_title title) block_id)
+    resolve_tracks block_id block_title =
+        reverse . snd . List.mapAccumL (resolve block_id block_title) Nothing
+            . reverse
+    resolve block_id block_title mb_asserts (ParsedTrack config title tokens) =
+        (Just $ fromMaybe asserts mb_asserts,) $ do
+            case errs of
+                err : _ -> Left $ T.show_error source err
+                [] -> Right ()
+            whenJust mb_asserts $ \prev ->
+                whenJust (match_asserts prev asserts notes) $ \err ->
+                    Left $ T.show_error source err
+            Right $ NTrack
+                { _note = Track
+                    { _title = if Text.null title then ">" else title
+                    , _events =
+                        Events.from_list $ map (uncurry note_event) notes
+                    }
+                , _controls = if null pitches then [] else (:[]) $ Track
+                    { _title = "*"
+                    , _events = Events.from_list pitches
+                    }
+                , _end = end
+                }
+        where
+        ((metas, notes), end) = first Either.partitionEithers $
+            Check.check (get_dur (to_transformers block_title title) block_id)
                 config tokens
-        tokens <- first (T.show_error source) $ sequence errTokens
-        let pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch tokens
-        return $ NTrack
-            { _note = Track
-                { _title = if Text.null title then ">" else title
-                , _events = Events.from_list $ map (uncurry note_event) tokens
-                }
-            , _controls = if null pitches then [] else (:[]) $ Track
-                { _title = "*"
-                , _events = Events.from_list pitches
-                }
-            , _end = end
-            }
+        (errs, asserts) = Either.partitionEithers metas
+        pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch notes
     -- I could memoize external calls in the same way as internal ones, but
     -- a tracklang call duration is set manually, so it can't affect another
     -- call duration, so the recursive thing doesn't happen.  Which is good,
@@ -293,6 +305,26 @@ make_tracks get_ext_dur source blocks = Map.elems memo
         : if track_title == "" then [] else [note_to_transform track_title]
     note_to_transform = either (const "") ShowVal.show_val
         . ParseTitle.parse_note
+
+-- | If an expected assert isn't found, or if I got one that wasn't expected,
+-- emit an error with the location.
+match_asserts :: [Check.AssertCoincident] -> [Check.AssertCoincident]
+    -> [(T.Time, T.Note call pitch dur)] -> Maybe T.Error
+match_asserts [] (Check.AssertCoincident _ pos : _) _ =
+    Just $ T.Error pos "got unexpected assert"
+match_asserts (Check.AssertCoincident t1 _ : expected) asserts time_notes =
+    case asserts of
+        Check.AssertCoincident t2 _ : asserts
+            | t1 == t2 -> match_asserts expected asserts time_notes
+        _ -> Just $
+            T.Error (find_pos t1 time_notes) "expected assert around here"
+match_asserts [] [] _ = Nothing
+
+find_pos :: T.Time -> [(T.Time, T.Note call pitch dur)] -> T.Pos
+find_pos t time_notes = case Seq.drop_before fst t time_notes of
+    (_, note) : _ -> T.note_pos note
+    -- If this happens I had asserts but no notes.
+    [] -> T.Pos 0
 
 -- * integrate
 
