@@ -4942,7 +4942,7 @@ text score: tscore:
     . I want to integrate ky and tscore so I can edit them together.  Maybe
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
-  - How to notate dead notes?  I'd like to make it concise.
+  - How to notate weak notes?  I'd like to make it concise.
     . Maybe I could have a set of symbols that are then macros:
       !, @, #, $, %, &, =, -, +
       . Then I can write %macro-=/* [ r g - r g - ] -> [ r g /* r g /* ]
@@ -4995,7 +4995,7 @@ text score: tscore:
       all of them have the same ones.
     . Check.check could return the marks with Times, then TScore has to assert
       those are equal for all tracks in a block.
-  - pos seems to be off in AssertCoincident errors
+  * pos seems to be off in AssertCoincident errors
   - [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
     from another track?
     . At tracklang, this is what I wanted to use score integration for, but

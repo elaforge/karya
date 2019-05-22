@@ -143,6 +143,11 @@ test_pos = do
     show_pos 70
     equal (map (\t -> (T.token_pos t, unparse t)) tokens)
         [(T.Pos 68, "a"), (T.Pos 70, "b")]
+    let note_of (T.TNote _ note) = Just note
+        note_of _ = Nothing
+    show_pos 68
+    show_pos 70
+    equal (map T.note_pos $ mapMaybe note_of tokens) [T.Pos 68, T.Pos 70]
 
 test_roundtrip = do
     roundtrip (Proxy @Id.BlockId) "block1"

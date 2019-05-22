@@ -253,6 +253,7 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
         -- I need this P.try because / is an empty note and I need to backtrack
         -- when it fails, to parse //.
         | _default_call config = P.try $ do
+            pos <- get_pos
             call <- P.optional $ parse config
             (pitch, zero_dur, dur) <-
                 P.option (empty_pitch, False, empty_nduration) $ do
@@ -260,29 +261,29 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
                     (,,) <$> P.option empty_pitch (P.try (parse config))
                          <*> p_zero_dur
                          <*> parse config
-            make_note call pitch zero_dur dur
+            make_note pos call pitch zero_dur dur
         | otherwise = do
+            pos <- get_pos
             call <- P.optional $ P.try $ parse config <* P.char '/'
             -- I need a try, because if it starts with a number it could be
             -- an octave, or a duration.
             pitch <- P.option empty_pitch $ P.try (parse config)
             zero_dur <- p_zero_dur
             dur <- parse config
-            make_note call pitch zero_dur dur
+            make_note pos call pitch zero_dur dur
         where
         p_zero_dur = P.option False (P.char '*' *> pure True)
-        make_note call pitch zero_dur dur = do
+        make_note pos call pitch zero_dur dur = do
             let note = T.Note
                     { note_call = fromMaybe (T.Call "") call
                     , note_pitch = pitch
                     , note_zero_duration = zero_dur
                     , note_duration = dur
-                    , note_pos = T.Pos 0
+                    , note_pos = pos
                     }
             -- If I allow "" as a note, I can't get P.many of them.
-            guard (note /= empty_note)
-            pos <- get_pos
-            return $ note { T.note_pos = pos }
+            guard (note { T.note_pos = T.Pos 0 } /= empty_note)
+            return note
     unparse config (T.Note call pitch zero_dur dur _pos)
         | _default_call config =
             unparse config call

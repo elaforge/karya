@@ -96,9 +96,9 @@ map_pitch f = \case
 map_note_duration :: Applicative m => (dur1 -> m dur2)
     -> Token call pitch dur1 rdur -> m (Token call pitch dur2 rdur)
 map_note_duration f = \case
+    TBarline pos a -> pure $ TBarline pos a
     TNote pos note -> TNote pos . (\a -> note { note_duration = a }) <$>
         f (note_duration note)
-    TBarline pos a -> pure $ TBarline pos a
     TRest pos (Rest dur) -> pure $ TRest pos (Rest dur)
 
 map_note :: Applicative m
@@ -122,6 +122,8 @@ data Note call pitch dur = Note {
     -- | The generated event should have 0 duration.
     , note_zero_duration :: !Bool
     , note_duration :: !dur
+    -- | This is redundant with 'TNote's Pos, but convenient, since Check will
+    -- later strip away 'Token's.
     , note_pos :: !Pos
     } deriving (Eq, Show)
 
