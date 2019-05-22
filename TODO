@@ -43,12 +43,6 @@ UNSORTED
   - make tr hold flat?
     . can I replace the trill hold arg with a 'd' call for control calls?
       That won't work for the note trill though.
-  * try unsafeDupablePerformIO in Crc32Instances
-    . Doesn't seem to make a difference in the profile, but why not.
-  * should I use Cmd.get_lookup_instrument_memoized for derive?
-    . probably, but try profiling first?
-  * use Data.Map.Strict in Perform?  Or even HashMap?
-    . No improvement.
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
     . Score.event_min implies I do, but only Derive.Note uses it so maybe no?
@@ -59,7 +53,7 @@ UNSORTED
     . I guess I rely on postproc to flip them around, but which one?
     . Postproc.make_cancel seems like it should do it, but I don't see
       anything about negative duration, just weak and strong cancellation.
-  * rhythmic interpolation
+  + rhythmic interpolation
     . Match notes in two derivers, then interpolate rhythms:
       '%pos=.5 | r-interpolate b1 b2'
     . What to do if the notes don't match?  If it's pitches I could also
@@ -155,11 +149,6 @@ UNSORTED
         . upgrade clang fixed it
       ? The official build scripts want to compile with gcc.  Try without, to
         see what exactly is gcc-specific in there.
-  * being able to put 's in bare symbols can lead to confusing errors, e.g.
-    call 'arg 1' arg2' is valid.
-    . The parser is very permissive about what it allows in bare symbols,
-      basically everything except ), that doesn't happen to parse as something
-      else.
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
       a playable instrument.
@@ -364,12 +353,6 @@ UNSORTED
     . Probably not hard with generics-sop, but what about stories of
       GHC.Generics hurting compile and runtime?
     . How about monoid is_empty that doesn't use Eq?
-  * Attributes are not necessarily suited to fundamentally exclusive
-    articulations, like striking technique.  For NESS strings I use the
-    'element' field, maybe I should be using environ for that at the score
-    level.
-    . Note.element addresses this, but there's only one.  If I want >1 then
-      I need environ at the im level.
   - Switching to Symbols.default_note means any event created via Call.note
     winds up with event_text="NOTE", which is not as informative as the
     original text.
@@ -595,8 +578,6 @@ UNSORTED
   - BaliScales should have a default ombak, depending on laras.
     - Also there should be a way to randomize per instrument, so it's not too
       perfect.
-  * Legong scale umbang and isep is too close.
-    . Maybe something wrong with how I retuned the sc gamelan samples.
   - TSymbol could have a descriptive arg with e.g. instrument, scale, etc.
     . This would get back the documentation I lost when I got rid of
       VInstrument.
@@ -1576,31 +1557,8 @@ vector: performance:
 
 synth: im:
   bug:
-    * in wayang, when shortening a note:
-      assertion: at 176400f: len states 4 /= len notes 2:
-        [Nothing, Nothing, Nothing, Nothing] /=
-        [ ("154350f(3.5s)", "37485f(.85s)", Signal.constant 1,
-            "wayang/pemade/umbang/normal/71-65-108-open2.flac")
-        , ("154350f(3.5s)", "37485f(.85s)", Signal.constant 1,
-            "wayang/pemade/umbang/normal/83-65-108-open3.flac")
-        ]
-      . At 4s.
-      . I expect:
-        . 3.5s + .85s "71-65-108-open2.flac"
-        . 3.5s + .85s "83-65-108-open3.flac"
-      . What were the 4 states written for?
-        Since they are Nothing it's hard to tell... could I save some info
-        just for debugging?  How about just log first.
-      . I get Playing at 4s, so 4 notes.
-        Because overlapping is <start, but serializeStates uses notes just
-        starting.
-      . Why doesn't this show up in the test?  Or at any time before now?
-      . Or maybe it's the other way, I don't stop the Playing at <end.
-      . Because it's exactly a chunkSize.  I need to say done when there is
-        no future sample.
-  * can I get a LPerf.sel_sampler_events?
-    . Since it's a separate process, I'd have to serialize the events, then
-      run 'sampler-im dump fname'.
+    - starts are getting cut off again
+      . Give more lead time to load the samples?
   synth status:
     . non-constant pitch:
     . merge faust-im and sampler-im:
@@ -1878,8 +1836,9 @@ synth: im:
             I need this?
         - Once this stuff works, add misses to CacheStats, and replace the
           log msg parsing hackery.
-
-        - But first: make render incremental.  I need to do the whole save
+        . It turns out writing the whole score each time is pretty fast, so
+          I haven't been motivated to complete the above.
+        * But first: make render incremental.  I need to do the whole save
           states thing for this.
     - come up with some means to expire old chunks
       . I want to keep the last one because then I can toggle two things
@@ -1888,6 +1847,8 @@ synth: im:
       . Or I can delete everything with mtime >1hr ago and no symlinks.
     - Restart skipping chunks if the state converges again.
       . How likely is this to happen?
+      . Probably it will never happen if there are any IIR effects, though
+        for the moment I don't have any of those.
   preview: midi thru:
     - why two "streamLoop wait" after samples run out?
     overview:
@@ -2035,12 +1996,6 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
-    * put a stack in the error, so I can get it back to an event
-      . And in that case, why not go back to non-fatal errors?
-      . Something like a missing file is an internal error, and can be fatal.
-        Missing pitch is non-fatal since it's a score level thing.
-      . In that case can I just log in conversion, and omit it?
-      . Now I can omit Left sample, and the zero dur check in Render.
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
       . Use the same srate as DbSignal.from_signal.
@@ -2071,12 +2026,6 @@ synth: im:
       but 0.5*0.5 is 0.25.
       . Does this mean all my uses of multiplying dyn are inaccurate?  And in
         what way?
-    bug:
-      * "System error : No such file or directory" with no info
-        . Appears to come from a concurrent call, maybe libsamplerate is not
-          thread-safe with it's perror thing.
-        . No wait, it's libsndfile.  It has a errno which is unsafe.  Wrap
-          sndfile functions in a lock?
     non-constant pitch:
       - predicted lengths tend to be off, sometimes by 2000+ frames.
         . I fixed a bunch of bugs with ratio placement, and they're still off,
@@ -2299,7 +2248,6 @@ synth: im:
         . So only do the pitch curve merge if Note.element is set, and look
           for equal Note.elements.
     mridangam:
-      * implement variations as a probability range over neighboring velocities
       render from solkattu:
         . Convert to a score first, so I can apply ky transforms.
         . Then perform via im, and invoke sampler-im.
@@ -2598,12 +2546,6 @@ incremental save: git:
   . Git docs: http://progit.org/book/ch9-2.html
 
 integrate: integration:
-  * is there a way to revert integrated events?
-    . This means copying the index to the track for that range.
-    . The whole track winds up edited... how does it tell if it's clean?
-      It is clean, just not bolded as it should be.
-    . Probably because it has style set to modified.  I need to do something
-      special to set unmodified.
   - LIntegrate.edits only works for Block.block_integrated
   score integrate
     - cascading score integrates
@@ -3554,9 +3496,6 @@ performance:
       can I make this more efficient?
 
 fltk:
-  * remove the vertical box line between tracks to reduce visual clutter.
-    . I would make it white there.
-    . I think those lines are part of the track widgets.
   - Floating input in the wrong place for negative events with multiple lines.
     . Because it assumes the text goes downwards.
     . Since haskell doesn't know how the text is wrapped, it can't know where
@@ -4075,9 +4014,6 @@ solkattu:
         . Acutally this is due to differing normalization.  The next section
           is actually at a different speed.
         . Shouldn't there be an intermediate ruler though?
-      * I should also be able to mark sam, to make avartanams more clear
-        when they wrap across two lines.
-        . Say by colorizing the stroke on sam.
   What would a web UI look like?
     . Have a field for the where block, a field for mridangam (or other)
       strokes, and korvai fields.  Separate entry for name and tags.
@@ -4349,32 +4285,6 @@ Cmd:
 
 Derive:
   - A block with logical range called at time 0 gets messed up.
-  * signal-offset: Add time offset to TimeVector
-    . event_transformed_controls etc. are really annoying.  I can get rid of
-      them by building the translation into Perform.Signal.
-    . The downside is that every signal gets an offset, even though it's
-      just for Score.Event ones, and their offset is all the same.  But still,
-      what's another Double in signal full of them?
-    . However, Warps also have it, so I could take that field out of the Warp.
-    . I'd want to add an X offset to TimeVector.Boxed and Unboxed, but those
-      are type aliases so they work with the Vector.Generic functions.
-      So how can I resue Vector.Generic?
-    . Presumably I could put my new types in the Generic.Vector class too, but
-      that might actually be wrong since then they would ignore the offset.
-      So maybe I just stop directly using the generic functions.
-    . I also want to consider that I may want to have a TimeVector Val to
-      replace the Environ.  So it would be nice to eliminate the duplication
-      between PSignal and Signal.  Presumably I could do that by putting them
-      in a 'class ToVector a where to_vector :: a -> TimeVector.Offset ?',
-      then I can either re-export the shared ones directly, or specialize the
-      type.
-    . I could make an Offset wrapper and have all the TimeVector functions
-      apply the offset.  But it seems like a lot of work for what is really
-      just a way to fuse multiple translations for just Score.Events.  It's
-      only worth it if I do multiple translations before unpacking.
-    . I could put just the event controls into Offset, and require a translate
-      to get the control out.  This would be like event_untransformed_controls
-      except put it in the type.
   idiom
     - In string-idiom, the end of the attack curve always coincides with the
       start of the next note.  There also could be an attack prepare time,
@@ -4949,13 +4859,6 @@ text score: tscore:
       . Wait could I just write [ r g * r g * ] then?
       . Yeah it works.  But I still might want to e.g. replace _ with that,
         and make * be the real rest?
-  * I'd like to wrap both parts together, but not have to make a new block for
-    them.  Maybe if I had a wrap operator like //, but for systems?
-    . It's way more annoying than I thought, but done.
-    . But I have to merge the tracks, and it may fail.  I could do it in the
-      parser, but then I get a parse error, which seems weird.
-    . If I want to preserve formatting though, I have to keep it in T.Block,
-      and then merge them in Check, then I can do error checking there.
   - carry pitch and dur into sub-blocks.  It should go lexically,
     left-to-right.
     . This means I'd have to do Check.check before resolve_sub_block.
@@ -4968,34 +4871,11 @@ text score: tscore:
       sub-block with that.  I would have to know what was the parent block.
       And since sub-blocks can occur anywhere, I would need to interleave
       one way or the other.
-  * wrapped tracks should assert they wrap at the same time
-    . maybe insert ; as a same-time assertion, if I implement that
   - if I rename a block that is called with /0, I get
     . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
       note generator not found: p3
     . It looks like it's thinking it's an external call.
   - barline check should say what beat it thought it was on
-  * sub-blocks are stripping trailing rests
-  * Also alternate starts, but maybe:
-    on-repeat[r g _ g _ r g _ | r g _ g _ r g _]
-             [g _ g _ g _ g r | g _ r g _ r g _]
-    Where if-time is like `if-e` but hardcoded to time=1, time=2, etc.
-    . For this to work, I have to allow whitespace in between []s.
-  * if I allowed whitespace between sub-blocks I could format x[a][b] nicely.
-    . But this would break the rule that whitespace separates each note.
-    . But I think 'x [a] [ b ]/' is non-ambiguous because the / is required?
-    . No, it's ambiguous because "a [b]/", 'a' could be a pitch.
-    . Maybe skip whitespace with a \?
-  * With right-to-left, the sub-block 't' numbers are now backwards.
-  * it doesn't update track titles.
-    . But I'd have to merge them, since I might want a local change.
-    . I should be able to merge, by replacing the common prefix.
-  * make ; be a "same time" assertion
-    . For this I remember the locations on the first track, and then require
-      all of them have the same ones.
-    . Check.check could return the marks with Times, then TScore has to assert
-      those are equal for all tracks in a block.
-  * pos seems to be off in AssertCoincident errors
   - [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
     from another track?
     . At tracklang, this is what I wanted to use score integration for, but
@@ -5011,31 +4891,8 @@ text score: tscore:
     . But sometimes I do want them to be relative, and it's certainly easier
       to read if they are.  Maybe what I need is a way to set the barline
       offset, like a barline that asserts that it's correct.
-  * I'm used to left/right on horizontal tracks, but right/left on top to
-    bottom.
-    . Maybe I can just invert the track creation order?  Then it's top/bottom
-      right/left, which seems consistent at least.
   - I have a lot of things with alternate endings.
     . This is part of the general problem of variations.
-  * how to do alt call?  "alt [d] [d g]"/
-    I should be able to have multiple blocks:
-      alt[d][d g]/
-    * I need to emit that as "alt -d -dg" rather than "alt | -d -dg".
-      . But I want +pizz[x] to be "+pizz | -subblock", and "+pizz |"[x]
-        would be annoying.  But maybe +pizz|[x] is not so bad?
-    * Why does 'alt' say 'note generatod not found: a'?
-      . because -1.1a parses as "(-1.1) "(a)
-      . I could either make that into a symbol, or fail.  Symbol means I need
-        a bunch of lookahead, and appending a non-digit will cause it to turn
-        into a symbol.
-      . I think I want to fail on that.
-      . It seems the best way is to to do a lexing step, and then parse tokens
-        separately.  But that's a big change.
-      . Can I mandate a space in between terms?  Has to be sepBy though, not
-        just many.
-  bug:
-    * sub-block lacks skeleton
-    * %default-call parses the \n after a note
   negative durations:
     . So I can put beats at the end:
        e o u e | i o a i | ~ o ~ e |
@@ -5059,16 +4916,6 @@ text score: tscore:
       beat, rather than before it?
       . That's probably not enough because I still want to say the block ends
         with a note, not starts with one.
-  * Syntax to repeat the last note.
-    . Maybe a plain '~'?  This would mean I can't make a carry note plus tie,
-      but maybe I could do without?
-    . Actually if I'm using it like proprtional notation, I'd want ~ to be
-      a tie from the previous note, e.g. '4s ~' -> '4s~ <>'.
-    . I could also use a plain ., since carry + dot doesn't seem useful.
-      Then if I have it repeat exactly instead of carry, I can do
-      '4s~ . .'... except the final one shouldn't be tied.
-    . Maybe . is repeat previous, and ~ is repeat previous, and add tie to
-      previous.
   - How to do numbered repeats?
     . If I have a repeat last note thing above, then just attach a number to
       it: '4s .4' or '4s ~4'
@@ -5097,7 +4944,7 @@ text score: tscore:
       . I can get this by doubling the nadai, e.g. :8 or whatever, but it
         still seems like I'd want an easy 'su' type annotation.
       . Maybe . could be su, and I carry it?  Then I need an undot for sd.
-    * support 0 dur notes
+    + support 0 dur notes
       . Use :0?  Or just 0 dur?  No that's taken by CallDuration. :0 should be
         unambiguous, but it still looks like it's stealing syntax from
         duration.
