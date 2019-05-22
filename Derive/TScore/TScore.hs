@@ -317,7 +317,7 @@ match_asserts (Check.AssertCoincident t1 _ : expected) asserts time_notes =
         Check.AssertCoincident t2 _ : asserts
             | t1 == t2 -> match_asserts expected asserts time_notes
         _ -> Just $
-            T.Error (find_pos t1 time_notes) "expected assert around here"
+            T.Error (find_pos t1 time_notes) "expected assert here"
 match_asserts [] [] _ = Nothing
 
 find_pos :: T.Time -> [(T.Time, T.Note call pitch dur)] -> T.Pos
@@ -465,11 +465,14 @@ unwrap_tracks (T.WrappedTracks pos (T.Tracks tracks1 : wrapped))
     -- [[Track "a" a1, Track "a" a2], [Track "b" b1, Track "b" b2]] -> merge
     -- [Track "a" (a1 ++ a2), Track "b" (b1 ++ b2)]
     merge track1 tracks = track1
-        { T.track_tokens = concat $
-            T.track_tokens track1 : map T.track_tokens tracks
+        { T.track_tokens = concat $ T.track_tokens track1 : map tokens tracks
         }
+    tokens track = case T.track_tokens track of
+        ts@(t : _) -> coincident (T.token_pos t) : ts
+        [] -> []
     titles1 = map T.track_title tracks1
     titles = map (map T.track_title . T.untracks) wrapped
+    coincident pos = T.TBarline pos T.AssertCoincident
 
 interpret_block :: Check.Config -> Bool -> T.Block (T.Tracks T.CallText)
     -> Either Text (Block ParsedTrack)

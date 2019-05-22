@@ -70,7 +70,7 @@ test_ui_state = do
 test_assert_coincident = do
     let f = fmap (const ()) . TScore.ui_state get_ext_dur
     left_like (f "top = [s r // g ; m]") "got unexpected assert"
-    left_like (f "top = [s ; r // g m]") "expected assert around here"
+    left_like (f "top = [s ; r // g m]") "expected assert here"
     right_equal (f "top = [s ; r // g ; m]") ()
     left_like (f "top = [s ; r ; // g ; m]") "expected assert"
     right_equal (f "top = [s ; r ; // g ; m ;]") ()
@@ -93,6 +93,8 @@ test_wrapped_tracks = do
         "wrapped track titles must match"
     left_like (f "top = [>i1 s // >i2 r /// >i1 g]")
         "wrapped track titles must match"
+
+    left_like (f "top = [ s r // g /// m p // d n]") "expected assert here"
 
 test_ui_skeleton = do
     let f = Skeleton.flatten . TScore.ui_skeleton

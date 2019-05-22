@@ -4968,7 +4968,7 @@ text score: tscore:
       sub-block with that.  I would have to know what was the parent block.
       And since sub-blocks can occur anywhere, I would need to interleave
       one way or the other.
-  - wrapped tracks should assert they wrap at the same time
+  * wrapped tracks should assert they wrap at the same time
     . maybe insert ; as a same-time assertion, if I implement that
   - if I rename a block that is called with /0, I get
     . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
