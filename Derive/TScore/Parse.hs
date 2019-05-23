@@ -14,7 +14,6 @@
 -}
 module Derive.TScore.Parse where
 import qualified Data.Char as Char
-import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Void as Void
@@ -133,69 +132,29 @@ default_namespace :: Id.Namespace
 default_namespace = Id.namespace "tscore"
 
 instance Element T.WrappedTracks where
-    parse config =
-        T.WrappedTracks <$> get_pos
-            <*> (lexeme "[" *> (unwrap <$> wrapped) <* lexeme "]")
-        where
-        -- I can't do this the straightforward nested way because // is a
-        -- prefix of ///.  Even if I match // not followed by /, it still
-        -- doesn't work because it just matches the // prefix and tries to
-        -- match the trailing / as a note.  I'm sure there's a way to do it
-        -- with enough backtracking, but it seemed simpler to parse a flat list
-        -- with different separators.
-        unwrap = map (T.Tracks . Either.rights)
-            -- The head should be safe because this comes from a SepList, so
-            -- the elements are alternating, and there are only two Left vals.
-            -- I could keep it typesafe by staying in SepList, but it seems
-            -- really annoying to write the split.
-            . map (map head_e . Seq.split1 (Left "//"))
-            . Seq.split1 (Left "///")
-            . to_list
-        wrapped = sepBy2 (parse config) (lexeme ("///" <|> "//"))
-        head_e [] = error "alternating list wasn't alternating"
-        head_e (x:_) = x
+    parse config = T.WrappedTracks <$> get_pos
+        <*> P.some (lexeme (parse config))
     unparse config (T.WrappedTracks _ wrapped) =
-        -- This winds up looking pretty ugly, but I can't really fix it without
-        -- a fancy formatting or exact print.
-        "[" <> Text.intercalate "\n    ///\n" (map tracks wrapped) <> "]"
-        where
-        tracks (T.Tracks ts) = Text.intercalate " // " (map (unparse config) ts)
-
-data SepList sep a = Nil | Sep a [(sep, a)]
-    deriving (Show)
-
-to_list :: SepList sep a -> [Either sep a]
-to_list Nil = []
-to_list (Sep a xs) = Right a : concat [[Left sep, Right a] | (sep, a) <- xs]
-
--- | Like 'P.sepBy', but return the separators.
-sepBy2 :: Parser a -> Parser sep -> Parser (SepList sep a)
-sepBy2 p sep = Sep <$> p <*> P.many ((,) <$> sep <*> p) <|> pure Nil
+        Text.unwords $ map (unparse config) wrapped
 
 instance Element (T.Tracks T.Call) where
-    parse config = fmap T.Tracks $ keyword "[" *> tracks <* keyword "]"
+    parse config = fmap T.Tracks $ lexeme "[" *> tracks <* lexeme "]"
         where
-        tracks = P.sepBy1 (lexeme (parse config)) (keyword "//")
+        tracks = P.sepBy1 (lexeme (parse config))
+            (P.lookAhead (lexeme (P.char '>' *> pure () <|> "\">" *> pure ())))
     unparse config (T.Tracks tracks) =
-        "[" <> Text.intercalate " // " (map (unparse config) tracks) <> "]"
+        "[" <> Text.unwords (map (unparse config) tracks) <> "]"
 
 instance Element (T.Track T.Call) where
     parse config = T.Track
         <$> P.option "" (lexeme p_title) <*> P.some (lexeme (parse config))
         where
-        p_title = P.char '>' *> ((">"<>) <$> P.takeWhile Id.is_id_char)
-            <|> p_space_title
-        p_space_title = do
-            t <- p_string
-            unless (">" `Text.isPrefixOf` t) $
-                fail $ "note track should start with >: " <> untxt t
-            return t
-    unparse config (T.Track title tokens) =
-        TextUtil.join2 un_title (Text.unwords (map (unparse config) tokens))
-        where
-        un_title
-            | " " `Text.isInfixOf` title = un_string title
-            | otherwise = title
+        p_title = fmap (">"<>) $ P.char '>'
+            *> (p_string <|> P.takeWhile Id.is_id_char)
+    unparse config (T.Track title tokens) = TextUtil.join2
+        (if " " `Text.isInfixOf` title
+            then ">" <> un_string (Text.drop 1 title) else title)
+        (Text.unwords (map (unparse config) tokens))
 
 instance Element T.Directive where
     parse _ = do
@@ -403,6 +362,7 @@ call_char = not_in
     , '\\'
     , '['
     , ']' -- so a Note inside a SubBlock doesn't eat the ]
+    , '>' -- so I can use > to separate tracks when default-call is on
     ]
 
 pitch_char :: Char -> Bool
@@ -414,10 +374,10 @@ pitch_char c = not_in exclude c && not (Char.isDigit c)
     exclude =
         [ '~', '.' -- pitch is followed by T.NDuration
         , ':' -- T.Duration
-        , '/' -- Don't mistake the T.Tracks separator for a note.
         , ']' -- end of T.Tracks
         , '*' -- zero duration marker
         , '\\' -- skip whitespace
+        , '>' -- this separates tracks
         ]
 
 -- ** Pitch

@@ -24,14 +24,14 @@ everything_score =
     \%meter=adi\n\
     \-- Optional per-block directives, and quoted block title.\n\
     \block1 = %scale=sargam \"block1 title\" [\n\
-    \    -- Tracks start with an optional track title, which should start\n\
-    \    -- with >. It doesn't need quotes if there are no spaces.\n\
-    \    -- Ties (~) and dots (.) go at the end of the note.\n\
+    \    -- Tracks start with a track title, which should start with >. It\n\
+    \    -- doesn't need quotes if there are no spaces, but if there are, the\n\
+    \    -- quotes go after the >.  Ties (~) and dots (.) go at the end of\n\
+    \    -- the note.\n\
     \    >inst1 4s4 r g m~ | m d n. s8 |\n\
-    \    // -- // to separate tracks\n\
     \    -- Bare tie ~ to sustain previous note, bare dot . to repeat,\n\
     \    -- so this is like \"2s~ 2s | 2s 2s |\"\n\
-    \    \">inst2 | +pizz\" 2s ~ | . . |\n\
+    \    >\"inst2 | +pizz\" 2s ~ | . . |\n\
     \]\n\
     \\n\
     \-- Simple block with only one track, and one note.  kebab-case is ok.\n\
@@ -39,9 +39,9 @@ everything_score =
     \\n\
     \-- Wrapped tracks.\n\
     \wrapped = [\n\
-    \    >i1 s r // >i2 g m\n\
-    \    ///\n\
-    \    >i1 p d // >i2 n s\n\
+    \    >i1 s r >i2 g m\n\
+    \] [\n\
+    \    >i1 p d >i2 n s\n\
     \]\n\
     \\n\
     \calls = [\n\
@@ -52,7 +52,7 @@ everything_score =
     \\n\
     \sub-blocks = [\n\
     \    -- Any place a call can appear can also have a sub-block:\n\
-    \    [ 4s1 r // 4g2 ]/1 |\n\
+    \    [ 4s1 r > 4g2 ]/1 |\n\
     \    -- The sub-block can get a transformer.  Quotes needed for spaces:\n\
     \    +pizz[s]/1 | \"+pizz | harm\"[g]/\n\
     \]\n"
@@ -62,15 +62,17 @@ test_score = do
     let score =
             "%meter=adi\n\
             \block1 = %block1=directive \"block1 title\" [\n\
-            \    \">inst1\" a -- comment\n\
-            \    // -- comment\n\
+            \    >\"inst1\" a -- comment\n\
+            \    -- comment\n\
             \    >inst2 b\n\
+            \] [\n\
+            \    >inst1 c >inst2 d\n\
             \]\n\
             \block2 = [c]\n"
     right_equal (f score) $
         "%meter=adi\n\
         \block1 = %block1=directive \"block1 title\"\
-        \ [>inst1 a // >inst2 b]\n\
+        \ [>inst1 a >inst2 b] [>inst1 c >inst2 d]\n\
         \block2 = [c]\n"
 
     -- Parse -> unparse -> parse -> unparse reaches a fixpoint.
@@ -81,20 +83,20 @@ test_score = do
 test_default_call = do
     let f = fmap (\(T.Score defs) -> defs) . parse
 
-    -- let score = "%default-call\nb = [b1/0 b2 b3]\n"
-    -- right_equal (unparse . T.Score <$> f score) score
-    -- right_equal (e_score_tokens <$> f score)
-    --     [ tnote "b1" no_oct "" T.CallDuration
-    --     , tnote "b2" no_oct "" no_dur
-    --     , tnote "b3" no_oct "" no_dur
-    --     ]
-    --
-    -- let score = "b = %default-call [a // b]\n"
-    -- right_equal (unparse . T.Score <$> f score) score
-    -- right_equal (e_score_tokens <$> f score)
-    --     [ tnote "a" no_oct "" no_dur
-    --     , tnote "b" no_oct "" no_dur
-    --     ]
+    let score = "%default-call\nb = [b1/0 b2 b3]\n"
+    right_equal (unparse . T.Score <$> f score) score
+    right_equal (e_score_tokens <$> f score)
+        [ tnote "b1" no_oct "" T.CallDuration
+        , tnote "b2" no_oct "" no_dur
+        , tnote "b3" no_oct "" no_dur
+        ]
+
+    let score = "b = %default-call [a > b]\n"
+    right_equal (unparse . T.Score <$> f score) score
+    right_equal (e_score_tokens <$> f score)
+        [ tnote "a" no_oct "" no_dur
+        , tnote "b" no_oct "" no_dur
+        ]
 
     let score = "b = [b1/0 b2 b3]\n"
     right_equal (unparse . T.Score <$> f score) score
@@ -126,7 +128,7 @@ test_pos = do
     let score =
             "%meter=adi\n\
             \block1 = %block1=directive \"block1 title\" [\n\
-            \    \">inst1\" a b\n\
+            \    >inst1 a b\n\
             \]\n"
     let show_pos pos = putStr $ untxt $
             T.show_error score (T.Error (T.Pos pos) "some error")
@@ -139,15 +141,15 @@ test_pos = do
             [ e_tracks block
             | (_, T.BlockDefinition block) <- defs
             ]
+    show_pos 66
     show_pos 68
-    show_pos 70
     equal (map (\t -> (T.token_pos t, unparse t)) tokens)
-        [(T.Pos 68, "a"), (T.Pos 70, "b")]
+        [(T.Pos 66, "a"), (T.Pos 68, "b")]
     let note_of (T.TNote _ note) = Just note
         note_of _ = Nothing
+    show_pos 66
     show_pos 68
-    show_pos 70
-    equal (map T.note_pos $ mapMaybe note_of tokens) [T.Pos 68, T.Pos 70]
+    equal (map T.note_pos $ mapMaybe note_of tokens) [T.Pos 66, T.Pos 68]
 
 test_roundtrip = do
     roundtrip (Proxy @Id.BlockId) "block1"
@@ -163,9 +165,21 @@ test_tracks_wrapped = do
     let f = fmap extract . parse
         extract (T.WrappedTracks _ wrapped) =
             map (map strip_track . T.untracks) wrapped
-    right_equal (f "[ a // b /// c // d ]")
-        [ [T.Track "" [pnote0 "a"], T.Track "" [pnote0 "b"]]
-        , [T.Track "" [pnote0 "c"], T.Track "" [pnote0 "d"]]
+    right_equal (f "[a > b] [c > d]")
+        [ [T.Track "" [pnote0 "a"], T.Track ">" [pnote0 "b"]]
+        , [T.Track "" [pnote0 "c"], T.Track ">" [pnote0 "d"]]
+        ]
+
+test_tracks = do
+    let f = fmap (map strip_track . T.untracks) . parse @(T.Tracks T.Call)
+    right_equal (f "[s]") [T.Track "" [pnote0 "s"]]
+    right_equal (f "[s > r]")
+        [ T.Track "" [pnote0 "s"]
+        , T.Track ">" [pnote0 "r"]
+        ]
+    right_equal (f "[>\" | u\" s >\" | t\" r]")
+        [ T.Track "> | u" [pnote0 "s"]
+        , T.Track "> | t" [pnote0 "r"]
         ]
 
 test_track = do
@@ -177,8 +191,8 @@ test_track = do
         tokens = fmap snd . parse_track
     right_equal (title "> a") ">"
     right_equal (title ">inst a") ">inst"
-    right_equal (title "\">inst | trans\" a") ">inst | trans"
-    right_equal (title "\"> | trans\" a") "> | trans"
+    right_equal (title ">\"inst | trans\" a") ">inst | trans"
+    right_equal (title ">\" | trans\" a") "> | trans"
 
     right_equal (tokens "| ||") [bar 1, bar 2]
     right_equal (tokens "a") [tnote "" no_oct "a" no_dur]
@@ -197,10 +211,10 @@ test_track = do
 
     right_equal (tokens "a [b]/")
         [ tnote "" no_oct "a" no_dur
-        , tnote (sub "" [[[tnote "" no_oct "b" no_dur]]]) no_oct "" no_dur
+        , tnote (sub "" [tnote "" no_oct "b" no_dur]) no_oct "" no_dur
         ]
     right_equal (tokens "a\\ [b]/")
-        [ tnote (sub "a" [[[tnote "" no_oct "b" no_dur]]]) no_oct "" no_dur
+        [ tnote (sub "a" [tnote "" no_oct "b" no_dur]) no_oct "" no_dur
         ]
 
 test_token = do
@@ -232,27 +246,27 @@ test_token_sub_block = do
         pitch p dur = tnote "" no_oct p dur
 
     right_equal (f "[a]/2") $ tnote
-        (sub "" [[[pitch "a" no_dur]]])
+        (sub "" [pitch "a" no_dur])
         no_oct "" (idur 2)
-    right_equal (f "[a // b2]/") $ tnote
-        (sub "" [[[pitch "a" no_dur], [pitch "b" (idur 2)]]])
+    right_equal (f "[a > b2]/") $ tnote
+        (subs "" [[("", [pitch "a" no_dur]), (">", [pitch "b" (idur 2)])]])
         no_oct "" no_dur
     right_equal (f "[[x]/]/") $ tnote
-        (sub "" [[[tnote (sub "" [[[pitch "x" no_dur]]]) no_oct "" no_dur]]])
+        (sub "" [tnote (sub "" [pitch "x" no_dur]) no_oct "" no_dur])
         no_oct "" no_dur
     right_equal (f "a[b]/") $
-        tnote (sub "a" [[[pitch "b" no_dur]]]) no_oct "" no_dur
+        tnote (sub "a" [pitch "b" no_dur]) no_oct "" no_dur
     right_equal (f "\"x y\"[b]/") $
-        tnote (sub "x y" [[[pitch "b" no_dur]]]) no_oct "" no_dur
+        tnote (sub "x y" [pitch "b" no_dur]) no_oct "" no_dur
     right_equal (f "a[b][c]/") $ tnote
-        (sub "a" [[[pitch "b" no_dur]], [[pitch "c" no_dur]]])
+        (subs "a" [[("", [pitch "b" no_dur])], [("", [pitch "c" no_dur])]])
         no_oct "" no_dur
 
     right_equal (f "a[b]\\ -- hi\n  [c]/") $ tnote
-        (sub "a" [[[pitch "b" no_dur]], [[pitch "c" no_dur]]])
+        (subs "a" [[("", [pitch "b" no_dur])], [("", [pitch "c" no_dur])]])
         no_oct "" no_dur
     right_equal (f "a\\ [b]\\ [c]/") $ tnote
-        (sub "a" [[[pitch "b" no_dur]], [[pitch "c" no_dur]]])
+        (subs "a" [[("", [pitch "b" no_dur])], [("", [pitch "c" no_dur])]])
         no_oct "" no_dur
 
 test_token_roundtrip = do
@@ -333,9 +347,13 @@ pnote p dur = tnote "" no_oct p dur
 pnote0 :: Text -> T.Token T.Call T.Pitch T.NDuration T.Duration
 pnote0 p = tnote "" no_oct p no_dur
 
-sub :: T.CallText -> [[[T.Token T.Call T.Pitch T.NDuration T.Duration]]]
+sub :: T.CallText -> [T.Token T.Call T.Pitch T.NDuration T.Duration]
     -> T.Call
-sub prefix ts = T.SubBlock prefix (map (tracks . zip (repeat "")) ts)
+sub prefix t = subs prefix [[("", t)]]
+
+subs :: T.CallText
+    -> [[(Text, [T.Token T.Call T.Pitch T.NDuration T.Duration])]] -> T.Call
+subs prefix ts = T.SubBlock prefix (map tracks ts)
 
 set_zero_dur :: T.Token call pitch ndur rdur -> T.Token call pitch ndur rdur
 set_zero_dur = \case

@@ -33,7 +33,7 @@ test_ui_state = do
             ]
           )
         ]
-    right_equal (f "top = %default-call [\"> | rh\" na din // >lh _ thom]")
+    right_equal (f "top = %default-call [>\" | rh\" na din >lh _ thom]")
         [ ( "top"
           , [ (">lh", [(1, 1, "thom")])
             , ("> | rh", [(0, 1, "na"), (1, 1, "din")])
@@ -56,7 +56,7 @@ test_ui_state = do
         , ("top-t1c1a", UiTest.note_track1 ["4s"])
         , ("top-t1c1b", UiTest.note_track1 ["4r"])
         ]
-    right_equal (f "top = [ [s r]/ // [g m]/ ]")
+    right_equal (f "top = [ [s r]/ > [g m]/ ]")
         [ ("top", [(">", [(0, 1, "-t1c1")]), (">", [(0, 1, "-t2c1")])])
         , ("top-t1c1", UiTest.note_track1 ["4g", "4m"])
         , ("top-t2c1", UiTest.note_track1 ["4s", "4r"])
@@ -69,32 +69,32 @@ test_ui_state = do
 
 test_assert_coincident = do
     let f = fmap (const ()) . TScore.ui_state get_ext_dur
-    left_like (f "top = [s r // g ; m]") "got unexpected assert"
-    left_like (f "top = [s ; r // g m]") "expected assert here"
-    right_equal (f "top = [s ; r // g ; m]") ()
-    left_like (f "top = [s ; r ; // g ; m]") "expected assert"
-    right_equal (f "top = [s ; r ; // g ; m ;]") ()
+    left_like (f "top = [s r > g ; m]") "got unexpected assert"
+    left_like (f "top = [s ; r > g m]") "expected assert here"
+    right_equal (f "top = [s ; r > g ; m]") ()
+    left_like (f "top = [s ; r ; > g ; m]") "expected assert"
+    right_equal (f "top = [s ; r ; > g ; m ;]") ()
 
 test_wrapped_tracks = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
-    right_equal (f "top = [s r // g m /// p d // n s]")
+    right_equal (f "top = [s r > g m] [p d > n s]")
         [ ("top", concat
             [ UiTest.note_track1 ["4g", "4m", "4n", "5s"]
             , UiTest.note_track1 ["4s", "4r", "4p", "4d"]
             ])
         ]
-    right_equal (f "top = [>i1 s // >i2 r /// >i1 g // >i2 m]")
+    right_equal (f "top = [>i1 s >i2 r] [>i1 g >i2 m]")
         [ ("top", concat
             [ UiTest.inst_note_track1 "i2" ["4r", "4m"]
             , UiTest.inst_note_track1 "i1" ["4s", "4g"]
             ])
         ]
-    left_like (f "top = [>i1 s // >i2 r /// >i1 g // >i1 m]")
+    left_like (f "top = [>i1 s >i2 r] [>i1 g >i1 m]")
         "wrapped track titles must match"
-    left_like (f "top = [>i1 s // >i2 r /// >i1 g]")
+    left_like (f "top = [>i1 s >i2 r] [>i1 g]")
         "wrapped track titles must match"
 
-    left_like (f "top = [ s r // g /// m p // d n]") "expected assert here"
+    left_like (f "top = [ s r > g] [m p > d n]") "expected assert here"
 
 test_ui_skeleton = do
     let f = Skeleton.flatten . TScore.ui_skeleton
@@ -165,7 +165,7 @@ test_ext_call_duration = do
         ]
     -- Use the track title too.
     right_equal
-        (f blocks "a = \"import india.mridangam\" [\"> | dur=1\" \"8n\"/0 s1]")
+        (f blocks "a = \"import india.mridangam\" [>\" | dur=1\" \"8n\"/0 s1]")
         [ ("a -- import india.mridangam",
             [ ("> | dur=1", [(0, 8, "8n"), (8, 1, "")])
             , ("*", [(8, 0, "4s")])
@@ -214,7 +214,7 @@ test_integrate = do
 test_integrate_2_tracks = do
     let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks
-    let state = expect_right $ run Ui.empty "top = [s r // g m]"
+    let state = expect_right $ run Ui.empty "top = [s r > g m]"
     equal (extract state)
         [ ( "top"
           , [ (">", [(0, 1, ""), (1, 1, "")])
@@ -225,7 +225,7 @@ test_integrate_2_tracks = do
           )
         ]
     state <- return $ expect_right $ Ui.exec state $
-        TScore.integrate get_ext_dur "top = [g r // g m]"
+        TScore.integrate get_ext_dur "top = [g r > g m]"
     equal (extract state)
         [ ( "top"
           , [ (">", [(0, 1, ""), (1, 1, "")])

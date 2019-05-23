@@ -4852,6 +4852,25 @@ text score: tscore:
     . I want to integrate ky and tscore so I can edit them together.  Maybe
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
+  - I get 'expected assert here' in random places:
+    . > State error: Derive/TScore/TScore.hs:109 expected assert here
+      >   1 | %scale=sargam
+      >       ^
+    . Also it does "expected here" when it really means "expected much after".
+      Maybe I can igonre asserts that occur after the end of notes.
+  * The // divider leads to awkward asymmetry.
+    . Could I have the leading >something be a track divider?
+    . Then // could be system wrap.
+    . But that makes > mandatory, I can't say [ s r // g m ].  It has to be
+      at least [ s r > g m ]
+    . I think I can do a lookAhead match on >
+    . Tracks loops if I remove the []s, probably because Call has a Tracks in
+      it.  That implies Tracks should keep the []s, but then what about
+      WrappedTracks?
+    . I could either have it do the Track parsing like it used to, or I could
+      have it just repeat tracks:
+        b = [ a > b ] [ c > d ]
+    . This means the > can't be a valid pitch.
   - How to notate weak notes?  I'd like to make it concise.
     . Maybe I could have a set of symbols that are then macros:
       !, @, #, $, %, &, =, -, +
@@ -4893,6 +4912,7 @@ text score: tscore:
       offset, like a barline that asserts that it's correct.
   - I have a lot of things with alternate endings.
     . This is part of the general problem of variations.
+    . Also endings change depending on where they are going.
   negative durations:
     . So I can put beats at the end:
        e o u e | i o a i | ~ o ~ e |
