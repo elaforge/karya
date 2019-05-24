@@ -427,19 +427,19 @@ parse_blocks source = do
     T.Score defs <- first (T.Error (T.Pos 0) . txt) $ Parse.parse_score source
     fst <$> foldM collect ([], Check.default_config) defs
     where
-    collect (accum, config) def = do
+    collect (accum, config) (_pos, def) = do
         (blocks, config) <- interpret_toplevel config def
         return (blocks ++ accum, config)
 
-interpret_toplevel :: Check.Config -> (T.Pos, T.Toplevel)
+interpret_toplevel :: Check.Config -> T.Toplevel
     -> Either T.Error ([Block ParsedTrack], Check.Config)
-interpret_toplevel config (pos, T.ToplevelDirective dir) = ([],) <$>
-    first (T.Error pos) (Check.parse_directive dir config)
-interpret_toplevel config (pos, T.BlockDefinition block) = do
+interpret_toplevel config (T.ToplevelDirective dir) =
+    ([],) <$> Check.parse_directive dir config
+interpret_toplevel config (T.BlockDefinition block) = do
     block <- unwrap_block_tracks block
     (block, subs) <- return $ resolve_sub_block block
-    block <- first (T.Error pos) $ interpret_block config False block
-    subs <- first (T.Error pos) $ mapM (interpret_block config True) subs
+    block <- interpret_block config False block
+    subs <- mapM (interpret_block config True) subs
     return (block : subs, config)
 
 unwrap_block_tracks :: T.Block T.WrappedTracks
@@ -476,7 +476,7 @@ unwrap_tracks (T.WrappedTracks pos (T.Tracks tracks1 : wrapped))
     coincident pos = T.TBarline pos T.AssertCoincident
 
 interpret_block :: Check.Config -> Bool -> T.Block (T.Tracks T.CallText)
-    -> Either Text (Block ParsedTrack)
+    -> Either T.Error (Block ParsedTrack)
 interpret_block config is_sub
         (T.Block block_id directives title (T.Tracks tracks)) = do
     config <- Check.parse_directives config directives

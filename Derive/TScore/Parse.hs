@@ -86,7 +86,7 @@ update_config directives config
 default_call_set :: [T.Directive] -> Bool
 default_call_set directives =
     maybe False (maybe True (/="f")) $
-    Seq.last [val | T.Directive name val <- directives, name == default_call]
+    Seq.last [val | T.Directive _ name val <- directives, name == default_call]
 
 default_call :: Text
 default_call = "default-call"
@@ -158,11 +158,12 @@ instance Element (T.Track T.Call) where
 
 instance Element T.Directive where
     parse _ = do
+        pos <- get_pos
         P.char '%'
-        T.Directive
+        T.Directive pos
             <$> P.takeWhile1 (not_in "=")
             <*> P.optional (P.char '=' *> P.takeWhile1 (not_in ""))
-    unparse _ (T.Directive lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
+    unparse _ (T.Directive _ lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
 instance Element (T.Token T.Call T.Pitch T.NDuration T.Duration) where
     parse config = T.TBarline <$> get_pos <*> parse config

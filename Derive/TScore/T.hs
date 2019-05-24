@@ -56,7 +56,7 @@ data Track call = Track {
     , track_tokens :: ![Token call Pitch NDuration Duration]
     } deriving (Eq, Show)
 
-data Directive = Directive !Text !(Maybe Text)
+data Directive = Directive !Pos !Text !(Maybe Text)
     deriving (Eq, Show)
 
 data Token call pitch ndur rdur =

@@ -64,23 +64,25 @@ default_config = Config
     , config_duration = Multiplicative
     }
 
-parse_directives :: Config -> [T.Directive] -> Either Text Config
+parse_directives :: Config -> [T.Directive] -> Either T.Error Config
 parse_directives = foldM (flip parse_directive)
 
-parse_directive :: T.Directive -> Config -> Either Text Config
-parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
-    ("meter", Just val) ->
-        set_config (\c a -> c { config_meter = a }) parse_meter val
-    ("scale", Just val) ->
-        set_config (\c a -> c { config_scale = a }) (`Map.lookup` scale_map) val
-    ("dur", Just val) ->
-        set_config (\c a -> c { config_duration = a })
-            (`Map.lookup` duration_map) val
-    _   | name == Parse.default_call -> Right config
-        | otherwise -> Left $ "unknown directive name: " <> name
+parse_directive :: T.Directive -> Config -> Either T.Error Config
+parse_directive (T.Directive pos name maybe_val) config =
+    first (T.Error pos) $ case (name, maybe_val) of
+        ("meter", Just val) ->
+            set_config (\c a -> c { config_meter = a }) parse_meter val
+        ("scale", Just val) ->
+            set_config (\c a -> c { config_scale = a })
+                (`Map.lookup` scale_map) val
+        ("dur", Just val) ->
+            set_config (\c a -> c { config_duration = a })
+                (`Map.lookup` duration_map) val
+        _   | name == Parse.default_call -> Right config
+            | otherwise -> Left $ "unknown directive name: " <> name
     where
     set_config setter parse val = fmap (setter config) (lookup parse val)
-    lookup parse val = tryJust ("unknown directive val: " <> val) (parse val)
+    lookup parse val = tryJust ("unknown " <> name <> ": " <> val) (parse val)
 
 
 -- * check

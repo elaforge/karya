@@ -119,8 +119,7 @@ test_resolve_time = do
 
 test_check_barlines = do
     let f = bimap id (const ()) . TScore.ui_state get_ext_dur
-    left_like (f "b = %meter=bargle [s r g]")
-        "unknown directive val: bargle"
+    left_like (f "b = %meter=bargle [s r g]") "unknown meter: bargle"
     left_like (f "b = [s4 r g | m]")
         "beat 3/4: saw |, next beat of that rank is 1"
     right_equal (f "b = [s4 r g m |]") ()
