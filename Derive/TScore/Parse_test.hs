@@ -169,6 +169,11 @@ test_tracks_wrapped = do
         [ [T.Track "" [pnote0 "a"], T.Track ">" [pnote0 "b"]]
         , [T.Track "" [pnote0 "c"], T.Track ">" [pnote0 "d"]]
         ]
+    -- Empty tracks are ok.
+    right_equal (f "[>i1 a >i2 b] [>i1 >i2]")
+        [ [T.Track ">i1" [pnote0 "a"], T.Track ">i2" [pnote0 "b"]]
+        , [T.Track ">i1" [], T.Track ">i2" []]
+        ]
 
 test_tracks = do
     let f = fmap (map strip_track . T.untracks) . parse @(T.Tracks T.Call)

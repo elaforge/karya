@@ -147,7 +147,7 @@ instance Element (T.Tracks T.Call) where
 
 instance Element (T.Track T.Call) where
     parse config = T.Track
-        <$> P.option "" (lexeme p_title) <*> P.some (lexeme (parse config))
+        <$> P.option "" (lexeme p_title) <*> P.many (lexeme (parse config))
         where
         p_title = fmap (">"<>) $ P.char '>'
             *> (p_string <|> P.takeWhile Id.is_id_char)
