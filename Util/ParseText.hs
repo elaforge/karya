@@ -99,6 +99,9 @@ float = maybe_parse p_float
 int :: Text -> Maybe Int
 int = maybe_parse p_int
 
+nat :: Text -> Maybe Int
+nat = maybe_parse p_nat
+
 -- * combinators
 
 between :: Parser _a -> Parser _b -> Parser a -> Parser a

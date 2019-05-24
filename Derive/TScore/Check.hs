@@ -30,6 +30,7 @@ import qualified Text.Megaparsec.Char as P
 import qualified Util.EList as EList
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
 
@@ -69,16 +70,17 @@ parse_directives = foldM (flip parse_directive)
 parse_directive :: T.Directive -> Config -> Either Text Config
 parse_directive (T.Directive name maybe_val) config = case (name, maybe_val) of
     ("meter", Just val) ->
-        set_config (\c a -> c { config_meter = a }) meter_map val
+        set_config (\c a -> c { config_meter = a }) parse_meter val
     ("scale", Just val) ->
-        set_config (\c a -> c { config_scale = a }) scale_map val
+        set_config (\c a -> c { config_scale = a }) (`Map.lookup` scale_map) val
     ("dur", Just val) ->
-        set_config (\c a -> c { config_duration = a }) duration_map val
+        set_config (\c a -> c { config_duration = a })
+            (`Map.lookup` duration_map) val
     _   | name == Parse.default_call -> Right config
         | otherwise -> Left $ "unknown directive name: " <> name
     where
-    set_config setter m k = fmap (setter config) (lookup k m)
-    lookup k m = tryJust ("unknown directive val: " <> k) (Map.lookup k m)
+    set_config setter parse val = fmap (setter config) (lookup parse val)
+    lookup parse val = tryJust ("unknown directive val: " <> val) (parse val)
 
 
 -- * check
@@ -235,30 +237,41 @@ data Meter = Meter {
 meter_duration :: Meter -> T.Time
 meter_duration m = meter_step m * fromIntegral (length (meter_pattern m))
 
-meter_map :: Map Text Meter
-meter_map = Map.fromList
-    [ ("adi", meter_adi)
-    , ("44", meter_44)
-    ]
+parse_meter :: Text -> Maybe Meter
+parse_meter name = case untxt name of
+    [n1, n2] | Just n1 <- Num.readDigit n1, Just n2 <- Num.readDigit n2 ->
+        simple_meter n1 n2
+    'a':'d':'i' : n
+        | Just n <- ParseText.nat (txt n) -> meter_adi n
+        | null n -> meter_adi 4
+    _ -> Nothing
 
 -- If I do akshara as 1, then kanda is 1/5th notes.  I'd want to reduce the
 -- pulse to 1/5, or write .1--.5?
-meter_adi :: Meter
-meter_adi = Meter
-    { meter_pattern = [2, 0, 0, 0, 1, 0, 1, 0]
-    , meter_step = 1
-    , meter_negative = False
-    , meter_labeled = Tala.simple_meter Tala.adi_tala nadai 1 1
-    }
-    where nadai = 4 -- TODO don't hardcode this
+meter_adi :: Int -> Maybe Meter
+meter_adi nadai
+    | 2 <= nadai && nadai <= 9 = Just $ Meter
+        { meter_pattern = [2, 0, 0, 0, 1, 0, 1, 0]
+        , meter_step = 1
+        , meter_negative = False
+        , meter_labeled = Tala.simple_meter Tala.adi_tala nadai 1 1
+        }
+    | otherwise = Nothing
 
 meter_44 :: Meter
-meter_44 = Meter
-    { meter_pattern = [1, 0, 0, 0]
-    , meter_step = 1/4
-    , meter_negative = False
-    , meter_labeled = make_labeled (1/16) Meters.m44
-    }
+Just meter_44 = simple_meter 4 4
+
+simple_meter :: Int -> Int -> Maybe Meter
+simple_meter n1 n2 = do
+    labeled <- Meters.simple n1 n2
+    return $ Meter
+        { meter_pattern = 1 : replicate (n1-1) 0
+        , meter_step = 1 / fromIntegral n2
+        , meter_negative = False
+        -- TODO I picked 1/16 just because it works out.  But it's probably
+        -- wrong for everything other than 4/4.
+        , meter_labeled = make_labeled (1/16) labeled
+        }
 
 make_labeled :: TrackTime -> Meter.AbstractMeter -> [Meter.LabeledMark]
 make_labeled dur =
@@ -359,22 +372,35 @@ check_barlines meter =
         warning now = case token of
             T.TBarline pos bar -> maybe [] (:[]) (check pos now i bar)
             _ -> []
-    check pos now i (T.Barline rank) = case Map.lookup beat expected_rank of
-        Just r
-            | r == rank -> Nothing
-            | otherwise -> Just $ mkerror pos $ warn i $
-                "saw " <> pretty (T.Barline rank)
-                <> ", expected " <> pretty (T.Barline r)
-        Nothing -> Just $ mkerror pos $ warn i $
-            "saw " <> pretty (T.Barline rank) <> ", expected none"
-        where
-        beat = now `Num.fmod` cycle_dur
+    check pos now i (T.Barline rank) = case check_beat beat_rank beat rank of
+        Nothing -> Nothing
+        Just err -> Just $ mkerror pos $ warn i $
+            "beat " <> pretty beat <> ": " <> err
+        where beat = now `Num.fmod` cycle_dur
     -- resolve_time will turn this into 'AssertCoincident'.
     check _ _ _ T.AssertCoincident = Nothing
     cycle_dur = meter_duration meter
-    expected_rank = Map.fromList $ filter ((>0) . snd) $
-        zip (Seq.range_ 0 (meter_step meter)) (meter_pattern meter)
+    beat_rank = Map.fromList $ filter ((>0) . snd) $
+        zip (Seq.range_ 0 (meter_step meter))
+            -- Two bars, to ensure 'check_beat' can always find the next beat.
+            (meter_pattern meter ++ meter_pattern meter)
     warn i msg = "barline check: token " <> showt i <> ": " <> msg
+
+-- | Nothing if the expected rank falls on the given beat, or an error msg.
+check_beat :: Map T.Time T.Rank -> T.Time -> T.Rank -> Maybe Text
+check_beat beat_rank beat rank = (prefix<>) <$> case at of
+    Nothing -> Just next_beat
+    Just r
+        | r == rank -> Nothing
+        | otherwise -> Just $ "expected " <> pretty (T.Barline r)
+            <> ", " <> next_beat
+    where
+    prefix = "saw " <> pretty (T.Barline rank) <> ", "
+    next_beat = case List.find ((==rank) . snd) (Map.toList post) of
+        Nothing -> "no following beat with that rank"
+        Just (t, _) -> "next beat of that rank is " <> pretty t
+            <> " (short " <> pretty (t-beat) <> ")"
+    (_, at, post) = Map.splitLookup beat beat_rank
 
 show_time :: T.Time -> T.Time -> Text
 show_time cycle_dur t = pretty (cycle :: Int) <> ":" <> pretty beat

@@ -118,13 +118,27 @@ test_resolve_time = do
     equal (f "a~") (0, [Left "final note has a tie"])
 
 test_check_barlines = do
-    let f = map error_msg . Either.lefts . EList.metas
-            . Check.check_barlines Check.meter_44
-            . Check.multiplicative . parse_cdur
-    equal (f "| a4 b c e |") []
-    equal (f "| a4 ; b ; c ; e |") []
-    equal (f "| a4 b | c e |") ["barline check: token 3: saw |, expected none"]
-    equal (f "a8 | b") ["barline check: token 1: saw |, expected none"]
+    let f = bimap id (const ()) . TScore.ui_state get_ext_dur
+    left_like (f "b = %meter=bargle [s r g]")
+        "unknown directive val: bargle"
+    left_like (f "b = [s4 r g | m]")
+        "beat 3/4: saw |, next beat of that rank is 1"
+    right_equal (f "b = [s4 r g m |]") ()
+    -- 8/8 is the same as 4/4.
+    left_like (f "b = %meter=88 [s4 r g | m]")
+        "beat 3/4: saw |, next beat of that rank is 1"
+    right_equal (f "b = %meter=88 [s4 r g m |]") ()
+    -- 8/4
+    left_like (f "b = %meter=84 [s4 r g m |]")
+        "beat 1: saw |, next beat of that rank is 2"
+    right_equal (f "b = %meter=84 [s2 r g m |]") ()
+
+    -- adi talam
+    right_equal (f "b = %meter=adi [s1 r g m | p d | n s ||]") ()
+    left_like (f "b = %meter=adi [s1 r g m || p d | n s ||]")
+        "saw ||, expected |, next beat of that rank is 8"
+    left_like (f "b = %meter=adi [s1 r g || m | p d | n s ||]")
+        "saw ||, next beat of that rank is 8"
 
 test_multiplicative = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.multiplicative . parse_cdur
@@ -190,8 +204,7 @@ convert_call = T.map_call $ \case
 
 parse :: Text -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
 parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
-    where
-    p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
+    where p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
 
 check :: Check.Config -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
     -> [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
