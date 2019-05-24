@@ -316,15 +316,16 @@ match_asserts (Check.AssertCoincident t1 _ : expected) asserts time_notes =
     case asserts of
         Check.AssertCoincident t2 _ : asserts
             | t1 == t2 -> match_asserts expected asserts time_notes
-        _ -> Just $
-            T.Error (find_pos t1 time_notes) "expected assert here"
+        _ -> case find_pos t1 time_notes of
+            Nothing -> Nothing
+            Just pos -> Just $ T.Error pos "expected assert here"
 match_asserts [] [] _ = Nothing
 
-find_pos :: T.Time -> [(T.Time, T.Note call pitch dur)] -> T.Pos
-find_pos t time_notes = case Seq.drop_before fst t time_notes of
-    (_, note) : _ -> T.note_pos note
-    -- If this happens I had asserts but no notes.
-    [] -> T.Pos 0
+find_pos :: T.Time -> [(T.Time, T.Note call pitch dur)] -> Maybe T.Pos
+find_pos t time_notes = case dropWhile ((<t) . fst) time_notes of
+    (_, note) : _ -> Just $ T.note_pos note
+    -- Don't enforce asserts past the end of the notes.
+    [] -> Nothing
 
 -- * integrate
 

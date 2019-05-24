@@ -72,8 +72,12 @@ test_assert_coincident = do
     left_like (f "top = [s r > g ; m]") "got unexpected assert"
     left_like (f "top = [s ; r > g m]") "expected assert here"
     right_equal (f "top = [s ; r > g ; m]") ()
-    left_like (f "top = [s ; r ; > g ; m]") "expected assert"
+    left_like (f "top = [s ; r ; > g ; m p]") "expected assert"
     right_equal (f "top = [s ; r ; > g ; m ;]") ()
+
+    -- Don't enforce for an empty track, or if it's past the end of the notes.
+    right_equal (f "top = [> s r ; g >]") ()
+    right_equal (f "top = [> s r ; g > s]") ()
 
 test_wrapped_tracks = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur

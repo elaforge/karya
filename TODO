@@ -4848,7 +4848,6 @@ text score: tscore:
       Even with sync-to-tracklang on save, it's still an extra step.
     . The automatic block length stuff is really nice.  I want this for
       tracklang.
-
     . I want to integrate ky and tscore so I can edit them together.  Maybe
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
@@ -4857,11 +4856,11 @@ text score: tscore:
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
   * empty tracks don't parse (?)
-  - I get 'expected assert here' in useless places:
+  * I get 'expected assert here' in useless places:
     . > State error: Derive/TScore/TScore.hs:109 expected assert here
       >   1 | %scale=sargam
       >       ^
-  - Also it does "expected here" when it really means "expected much after".
+  * Also it does "expected here" when it really means "expected much after".
     . Maybe I can igonre asserts that occur after the end of notes.  They
       prevent me from adding an empty track.
   * The // divider leads to awkward asymmetry.
