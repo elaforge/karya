@@ -6,6 +6,7 @@
 module App.ReplProtocol (
     -- * types
     Query(..), Response(..), CmdResult(..), Result(..), Editor(..), File(..)
+    , FileType(..), file_type_extension
     , empty_result, error_result, raw
     -- * protocol
     , initialize
@@ -72,8 +73,17 @@ data Editor = Editor {
     } deriving (Eq, Show)
 
 data File = FileName !FilePath -- ^ open this file
-    | Text !Text -- ^ open this text in a temp file
+    | Text !FileType !Text -- ^ open this text in a temp file
     deriving (Eq, Show)
+
+data FileType = NoType | Ky | TScore
+    deriving (Eq, Show, Bounded, Enum)
+
+file_type_extension :: FileType -> String
+file_type_extension = \case
+    NoType -> ""
+    Ky -> ".ky"
+    TScore -> ".tscore"
 
 empty_result :: Result
 empty_result = Raw ""
@@ -233,11 +243,15 @@ instance Serialize.Serialize Editor where
 
 instance Serialize.Serialize File where
     put (FileName a) = put_tag 0 >> put a
-    put (Text a) = put_tag 1 >> put a
+    put (Text a b) = put_tag 1 >> put a >> put b
     get = get_tag >>= \tag -> case tag of
         0 -> FileName <$> get
-        1 -> Text <$> get
+        1 -> Text <$> get <*> get
         _ -> Serialize.bad_tag "File" tag
+
+instance Serialize.Serialize FileType where
+    put = Serialize.put_enum
+    get = Serialize.get_enum
 
 instance DeepSeq.NFData CmdResult where
     rnf (CmdResult a b) = a `seq` b `seq` ()

@@ -201,7 +201,7 @@ plain_bg = "\ESC[39;49m"
 -- | Open an editor as requested by 'ReplProtocol.Editor'.
 edit :: ReplProtocol.Editor -> IO ()
 edit (ReplProtocol.Editor file line mb_on_save mb_on_send) = case file of
-    ReplProtocol.Text content -> with_temp "repl-" content edit_file
+    ReplProtocol.Text ftype content -> with_temp "repl-" ftype content edit_file
     ReplProtocol.FileName fname -> edit_file fname
     where
     editor = "vi"
@@ -212,11 +212,9 @@ edit (ReplProtocol.Editor file line mb_on_save mb_on_send) = case file of
             send_file fname on_save
     commands = concatMap (\x -> ["-c", x]) $ concat
         [ ["source vim-functions.vim"]
-        , case file of
-            -- I don't know that it's ky syntax, but so far ReplProtocol.Text
-            -- always is.
-            ReplProtocol.Text {} -> ["source ky-syntax.vim"]
-            _ -> []
+        -- , case file of
+        --     ReplProtocol.Text {} -> ["source ky-syntax.vim"]
+        --     _ -> []
         , save_cmd
         , send_cmd
         ]
@@ -241,10 +239,12 @@ send_file fname cmd = do
         putStrLn $ "send: " <> stdout
 
 -- | Run the action with a temp file, and delete it afterwards.
-with_temp :: FilePath -> Text -> (FilePath -> IO a) -> IO a
-with_temp prefix contents action = do
+with_temp :: FilePath -> ReplProtocol.FileType -> Text -> (FilePath -> IO a)
+    -> IO a
+with_temp prefix ftype contents action = do
     -- .ky prefix so the vim autocmds will fire.
-    (path, hdl) <- Posix.Temp.mkstemps prefix ".ky"
+    (path, hdl) <- Posix.Temp.mkstemps prefix
+        (ReplProtocol.file_type_extension ftype)
     Text.IO.hPutStr hdl contents
     Text.IO.hPutStr hdl "\n" -- otherwise vim doesn't like no final newline
     IO.hClose hdl
@@ -253,16 +253,17 @@ with_temp prefix contents action = do
 
 -- | Open the given file, and return the selected line.
 edit_line :: FilePath -> IO (Maybe Text)
-edit_line fname = with_temp "repl-edit-history-" "" $ \tmp -> do
-    let cmdline =
-            [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
-            , "-c", "set nowrite"
-            , fname
-            ]
-    ok <- wait_for_command "vi" cmdline
-    if ok
-        then Just . Text.strip <$> Text.IO.readFile tmp
-        else return Nothing
+edit_line fname = with_temp "repl-edit-history-" ReplProtocol.NoType "" $
+    \tmp -> do
+        let cmdline =
+                [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
+                , "-c", "set nowrite"
+                , fname
+                ]
+        ok <- wait_for_command "vi" cmdline
+        if ok
+            then Just . Text.strip <$> Text.IO.readFile tmp
+            else return Nothing
 
 wait_for_command :: FilePath -> [String] -> IO Bool
 wait_for_command cmd args = do

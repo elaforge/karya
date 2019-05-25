@@ -18,7 +18,7 @@ edit :: Ui.M m => m ReplProtocol.Result
 edit = do
     tscore <- get
     return $ ReplProtocol.Edit $ ReplProtocol.Editor
-        { _file = ReplProtocol.Text tscore
+        { _file = ReplProtocol.Text ReplProtocol.TScore tscore
         , _line_number = 0
         , _on_save = on_set
         , _on_send = on_set

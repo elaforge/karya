@@ -15,6 +15,3 @@ hi kySymbol ctermfg=DarkBlue
 " This goes last, so 'kyDefinition' doesn't override it.
 syn match kyComment "--.*$"
 hi kyComment cterm=bold
-
-" Turn off >80 column highlight.
-match none

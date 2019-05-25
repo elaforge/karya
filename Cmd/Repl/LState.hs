@@ -91,7 +91,7 @@ ky :: Cmd.CmdL ReplProtocol.Result
 ky = do
     ky <- get_ky
     return $ ReplProtocol.Edit $ ReplProtocol.Editor
-        { _file = ReplProtocol.Text ky
+        { _file = ReplProtocol.Text ReplProtocol.Ky ky
         , _line_number = 0
         , _on_save = Just "LState.set_ky %s"
         , _on_send = Nothing
