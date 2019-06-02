@@ -4862,7 +4862,7 @@ text score: tscore:
       . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
         note generator not found: p3
       . It looks like it's thinking it's an external call.
-  - in TScore, save the tracks reverse until the UI step
+  * in TScore, save the tracks reverse until the UI step
   * empty tracks don't parse (?)
   * I get 'expected assert here' in useless places:
     . > State error: Derive/TScore/TScore.hs:109 expected assert here

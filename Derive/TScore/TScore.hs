@@ -278,8 +278,7 @@ resolve_blocks get_ext_dur source blocks =
             (_tracks block)
         }
     resolve_tracks block_id block_title =
-        reverse . snd . List.mapAccumL (resolve block_id block_title) Nothing
-            . zip [1..] . reverse
+        snd . List.mapAccumL (resolve block_id block_title) Nothing . zip [1..]
     resolve block_id block_title mb_asserts
             (tracknum, ParsedTrack config title tokens) =
         (Just $ fromMaybe asserts mb_asserts,) $ first (T.show_error source)$ do
@@ -318,10 +317,10 @@ resolve_blocks get_ext_dur source blocks =
     note_to_transform = either (const "") ShowVal.show_val
         . ParseTitle.parse_note
     block_duration block_id block = do
-        tracks <- forM (zip [1..] (reverse (_tracks block))) $
+        tracks <- forM (zip [1..] (_tracks block)) $
             \(tracknum, track) -> first
                 (("can't get duration of broken track: "
-                    <> pretty (block_id, tracknum :: Int) <> ": ")<>)
+                    <> pretty (block_id, tracknum :: TrackNum) <> ": ")<>)
                 track
         return $ maximum $ 0 : map snd tracks
 
@@ -341,7 +340,7 @@ resolve_from blocks current_block current_tracknum
             <> Parse.show_block block_id <> ":" <> pretty tracknum
     track <- tryJust (mkerror $ Parse.show_block block_id
             <> " doesn't have track " <> pretty tracknum) $
-        Seq.at (reverse tracks) (tracknum - 1)
+        Seq.at tracks (tracknum - 1)
     first (mkerror . ("can't copy from a broken track: "<>)) track
     where
     mkerror = T.Error pos
@@ -394,6 +393,14 @@ find_pos t time_notes = case dropWhile ((<t) . fst) time_notes of
 
 -- * integrate
 
+-- | Tracks are written in reverse order.  This is because when notation is
+-- horizontal, it's natural to write higher parts above above lower parts, as
+-- with staff notation.  But when notation is vertical, it's natural to put
+-- higher parts on the right, by analogy to instruments that are layed out that
+-- way.
+reverse_tracks :: Block track -> [track]
+reverse_tracks = reverse . _tracks
+
 integrate_block :: Ui.M m => Block NTrack -> m (Maybe BlockId)
 integrate_block block = do
     let block_id = _block_id block
@@ -410,7 +417,7 @@ integrate_block block = do
                 Just dests -> return (dests, False)
     new_dests <- Merge.merge_tracks True block_id
         [ (convert note, map convert controls)
-        | NTrack note controls _ <- _tracks block
+        | NTrack note controls _ <- reverse_tracks block
         ]
         dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
@@ -439,20 +446,21 @@ ui_state get_ext_dur source = do
 -- thing, but does so via the integrate machinery.
 ui_block :: Ui.M m => Block NTrack -> m BlockId
 ui_block block = do
+    let tracks = reverse_tracks block
     track_ids <- fmap concat $
-        forM (_tracks block) $ \(NTrack note controls _) ->
+        forM tracks $ \(NTrack note controls _) ->
             forM (note : controls) $ \(Track title events) -> do
                 track_id <- GenId.track_id (_block_id block)
                 Ui.create_track track_id (Track.track title events)
     ruler_id <- ui_ruler block
-    let tracks =
+    let btracks =
             [ Block.track (Block.TId tid ruler_id) Config.track_width
             | tid <- track_ids
             ]
     block_id <- Ui.create_block (Id.unpack_id (_block_id block))
         (_block_title block)
-        (Block.track (Block.RId ruler_id) Config.ruler_width : tracks)
-    Ui.set_skeleton block_id $ ui_skeleton (_tracks block)
+        (Block.track (Block.RId ruler_id) Config.ruler_width : btracks)
+    Ui.set_skeleton block_id $ ui_skeleton tracks
     return block_id
 
 ui_skeleton :: [NTrack] -> Skeleton.Skeleton
@@ -553,15 +561,7 @@ interpret_block config is_sub
         , _block_title = title
         , _is_sub = is_sub
         , _meter = Check.meter_labeled $ Check.config_meter block_config
-        -- Tracks are written in reverse order.  This is because when notation
-        -- is horizontal, it's natural to write higher parts above above lower
-        -- parts, as with staff notation.  But when notation is vertical, it's
-        -- natural to put higher parts on the right, by analogy to instruments
-        -- that are layed out that way.
-        -- TODO it's annoying to reverse it here because every other place
-        -- wants to count tracknums left to right.  I should reverse right
-        -- before creating the UI tracks.
-        , _tracks = reverse
+        , _tracks =
             [ ParsedTrack
                 { track_config = track_config
                 , track_title = title
@@ -585,8 +585,8 @@ type ResolveM a = Logger.Logger (T.Block (T.Tracks T.CallText)) a
 resolve_sub_tracks :: BlockId -> T.Tracks T.Call
     -> ResolveM (T.Tracks T.CallText)
 resolve_sub_tracks block_id (T.Tracks tracks) =
-    -- Since tracks are reversed, start from the end, so the tracknums match
-    -- up.
+    -- Since tracks will be reversed, start from the end, so the tracknums
+    -- in the generated block names match up.
     T.Tracks <$> mapM resolve (zip (Seq.range_ (length tracks) (-1)) tracks)
     where
     resolve (tracknum, track) = do
@@ -617,8 +617,8 @@ pipe_tweak prefix
         Just (_, c) <- Text.unsnoc rest, c `notElem` ['|', ' '] = rest <> " |"
     | otherwise = prefix
 
-resolve_sub_tracks_to_calls :: BlockId -> TrackNum -> Int -> [T.Tracks T.Call]
-    -> ResolveM [T.CallText]
+resolve_sub_tracks_to_calls :: BlockId -> TrackNum -> TrackNum
+    -> [T.Tracks T.Call] -> ResolveM [T.CallText]
 resolve_sub_tracks_to_calls parent_block_id tracknum callnum subs =
     forM (zip subs sub_callnums) $ \(tracks, sub_callnum) -> do
         let block_id = make_relative parent_block_id tracknum callnum
@@ -638,7 +638,7 @@ resolve_sub_tracks_to_calls parent_block_id tracknum callnum subs =
         | otherwise = map (Just . ("-"<>) . showt) [1..]
         where len = length subs
 
-make_relative :: BlockId -> TrackNum -> Int -> Maybe Text -> BlockId
+make_relative :: BlockId -> TrackNum -> TrackNum -> Maybe Text -> BlockId
 make_relative parent tracknum callnum sub_callnum =
     Id.BlockId $ Id.set_name relative (Id.unpack_id parent)
     where
