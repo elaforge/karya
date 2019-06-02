@@ -1,7 +1,7 @@
 " Syntax highlighting for .tscore files.
 
 syn match tsDirective "%default-call\>"
-syn match tsDirective "%\(dur\|meter\|scale\|from\)\>"
+syn match tsDirective "%\(dur\|meter\|scale\|f\)\>"
 hi tsDirective cterm=underline
 
 syn match tsTrackTitle ">[a-z0-9.-]*"

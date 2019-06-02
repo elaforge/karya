@@ -364,7 +364,7 @@ resolve_copy_from (Just from_track) = concatMapM resolve
         T.CopyFrom -> copy_from (T.note_pos note) t (t + T.note_duration note)
     copy_from pos start end
         | null copied = Left $ T.Error pos $
-            "no notes to copy in range " <> pretty (start, end)
+            "no notes to copy in range " <> pretty start <> "--" <> pretty end
         | otherwise = Right copied
         where
         copied = takeWhile ((<end) . fst) $

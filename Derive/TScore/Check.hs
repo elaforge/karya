@@ -92,7 +92,8 @@ parse_directive scope (T.Directive pos name maybe_val) config =
             (`Map.lookup` scale_map) =<< with_arg
         "dur" -> set_config (\c a -> c { config_duration = a })
             (`Map.lookup` duration_map) =<< with_arg
-        "from" -> do
+        -- f for from.  This is abbreviated because it shows up per-track.
+        "f" -> do
             from <- parse_from scope pos =<< with_arg
             return $ config { config_from = Just from }
         _ | name == Parse.default_call -> without_arg >> Right config

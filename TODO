@@ -4948,7 +4948,22 @@ text score: tscore:
       0 CallDuration to get it to stretch until the next barline or coincident
       assertion?
     - I usually want to copy according to a certain pattern, e.g. sangsih from
-      polos, and the %froms get cluttery.  Maybe I can use a tracks template?
+      polos, and the %froms get cluttery.
+      . A simple and explicit way is rename %from to %f.
+      . An implicit way is declare default directives by track title, e.g.
+        >sl=%from=4
+      . This is not only implicit, but dependent on the exact track structure.
+        Of course it's often the case that I don't want to allow deviating
+        from the structure, but I'd rather it be explicit and enforced with
+        a check, than implicitly relying on it, and doing the wrong thing if
+        not followed.
+      . Maybe I can use a tracks template?
+      . I guess it would be a set of default track names, and then I can just
+        use ">".  It's pretty implicit though, and just copy-pasting the
+        standard set is not so bad.
+      . Or, I could make %from inherited across tracks, to each track with the
+        same name.  That would be like the >sl=%from=4 only even more
+        implicit, but with no special syntax.
   - using blocks to express repeats means the barlines get off, since they're
     always relative to the start of the block.
     . But sometimes I do want them to be relative, and it's certainly easier
