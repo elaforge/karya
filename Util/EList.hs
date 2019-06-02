@@ -56,6 +56,11 @@ map = fmap . fmap
 mapM :: Applicative m => (a -> m b) -> [Elt e a] -> m [Elt e b]
 mapM = traverse . traverse
 
+-- | Like 'traverse', but the function can return Meta.
+apply :: Applicative m => (a -> m (Elt e b)) -> Elt e a -> m (Elt e b)
+apply _ (Meta e) = pure $ Meta e
+apply f (Elt a) = f a
+
 -- | Like 'map', except the function can also return Meta.
 mapE :: (a -> Elt e b) -> [Elt e a] -> [Elt e b]
 mapE f = Identity.runIdentity . mapEM (pure . f)

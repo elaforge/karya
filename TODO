@@ -3168,11 +3168,6 @@ performance:
         . It's documented but doesn't exist.
         . It only exists when -debug, but this isn't documented.
         - Send doc fix to ghc.
-  . Libraries for 2d rendering: Skia, WebRender
-    . Or use OpenGL.
-    . Skia is a 2d library, like cairo, and it has a OpenGL backend.  I guess
-      it provides fancier features on top.  But if I don't need those
-      features, then I should just use OpenGL directly.
   + Bring back profiling, and do it regularly.
     . Look into that graphing stuff, I have the links around here somewhere.
     . I can get historical data with a script to step through darcs history.
@@ -3511,6 +3506,14 @@ fltk:
       c++, like I do with the signals.  I think I need to do that anyway for
       OpenGL, and that way I don't have to play with getting event ranges,
       I can just scan the whole range on every draw.
+    . Other libraries for 2d rendering:
+      . cairo, skia, webrender, https://blend2d.com/
+      . fltk already has cairo support, try Fl_Cairo demo
+      . Skia is a 2d library, like cairo, and it has a OpenGL backend.
+        I guess it provides fancier features on top.  But if I don't need
+        those features, then I should just use OpenGL directly.
+      . On the other hand, if OS X wants to deprecate OpenGL... but then if my
+        needs are simple, can I just write a Metal backend?
   - Maybe I could ship over a chunk of playback data in advance, and let the
     UI interpolate playback cursors.
     . If I could keep the warp as linear segments then I just need to ship the
@@ -4855,6 +4858,11 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
+    - if I rename a block that is called with /0, I get
+      . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
+        note generator not found: p3
+      . It looks like it's thinking it's an external call.
+  - in TScore, save the tracks reverse until the UI step
   * empty tracks don't parse (?)
   * I get 'expected assert here' in useless places:
     . > State error: Derive/TScore/TScore.hs:109 expected assert here
@@ -4895,13 +4903,10 @@ text score: tscore:
       sub-block with that.  I would have to know what was the parent block.
       And since sub-blocks can occur anywhere, I would need to interleave
       one way or the other.
-  - if I rename a block that is called with /0, I get
-    . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
-      note generator not found: p3
-    . It looks like it's thinking it's an external call.
   * barline check should say what beat it thought it was on
-  - [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
-    from another track?
+  + copy from:
+    . [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
+      from another track?
     . At tracklang, this is what I wanted to use score integration for, but
       I'd need special support to do it from tscore.  E.g. %integrate-from,
       and then some kind of "unchanged" note.
@@ -4910,11 +4915,50 @@ text score: tscore:
     . The difference is that integrate would show the connection, and it would
       reflect changes over.  But I think this means the track is integrated
       from two places, which is awkward.
+    . A "copy from source" would be pretty straightforward, but limited to 1:1
+      copy.  It would be more powerful to put in a score integrate, and then
+      ^ is a "don't replace", and the rest of the notes become modifications
+      to the integrate destination.
+    . Do the simple copy first.
+    . ^ has a duration, which is the extent of the copied range.  It should
+      carry like notes.
+    . If I make it a TNote then it happens automatically but I get things like
+      call/^, which could be interpreted as "replace call".  It means
+      pitch becomes an Either or something, but it's already a variable, so
+      I can factor it out in a separate pass.  Actually it's probably nicer
+      than being at the Token level for that reason.
+    . The tricky thing is that I need a resolved source before I can resolve
+      the dest.  This is a similar situation to CallDuration.
+    . Can I do it together?  I think not, because a CallDuration dependency is
+      orthogonal.  But it's the same memo table technique, complete with
+      cycle detection.
+    . How to name source?  For intertrack, a %from=tracknum.  If block has
+      %from=blockname, it's like having a %from= on each track, with the
+      corresponding tracknum.
+    * This means I need track directives!
+    * To get the copy ranges I need times.  But I only get times after
+      resolution.  But I need to resolve after the copy.
+      . So maybe I have to do the memoize thing, to copy over resolved notes.
+      . I can do it after resolution, since I don't want to carry durations
+        and pitches.
+      . So I have to plumb the CopyFrom through as a pitch.
+    * add support for block and track level %from
+    - add a check_recursion for CopyFrom
+    - Figuring out the proper durations can be annoying, can I use
+      0 CallDuration to get it to stretch until the next barline or coincident
+      assertion?
+    - I usually want to copy according to a certain pattern, e.g. sangsih from
+      polos, and the %froms get cluttery.  Maybe I can use a tracks template?
   - using blocks to express repeats means the barlines get off, since they're
     always relative to the start of the block.
     . But sometimes I do want them to be relative, and it's certainly easier
-      to read if they are.  Maybe what I need is a way to set the barline
-      offset, like a barline that asserts that it's correct.
+      to read if they are.  Maybe what I need is a way to set the starting
+      beat, either via directive or a barline that asserts that it's correct.
+    . If I had a "assert" barline, say |*, I could use it with stretchy
+      duration *, so e.g. [s r g* ||* ...] will make g last as long as is
+      necessary to get to ||.
+    . If I have "copy from", it would do the same: [^* |* ...]
+      But why do I need the stretch on both?  I could use a regular barline.
   - I have a lot of things with alternate endings.
     . This is part of the general problem of variations.
     . Also endings change depending on where they are going.

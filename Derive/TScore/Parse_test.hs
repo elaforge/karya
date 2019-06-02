@@ -106,8 +106,7 @@ test_default_call = do
         , tnote "" no_oct "b" (idur 3)
         ]
 
-e_score_tokens :: [(pos, T.Toplevel)]
-    -> [T.Token T.Call T.Pitch T.NDuration T.Duration]
+e_score_tokens :: [(pos, T.Toplevel)] -> [Parse.Token]
 e_score_tokens defs = concat
     [ concatMap (map strip_pos . T.track_tokens) (e_tracks block)
     | T.BlockDefinition block <- map snd defs
@@ -166,30 +165,30 @@ test_tracks_wrapped = do
         extract (T.WrappedTracks _ wrapped) =
             map (map strip_track . T.untracks) wrapped
     right_equal (f "[a > b] [c > d]")
-        [ [T.Track "" [pnote0 "a"], T.Track ">" [pnote0 "b"]]
-        , [T.Track "" [pnote0 "c"], T.Track ">" [pnote0 "d"]]
+        [ [T.Track "" [] [pnote0 "a"], T.Track ">" [] [pnote0 "b"]]
+        , [T.Track "" [] [pnote0 "c"], T.Track ">" [] [pnote0 "d"]]
         ]
     -- Empty tracks are ok.
     right_equal (f "[>i1 a >i2 b] [>i1 >i2]")
-        [ [T.Track ">i1" [pnote0 "a"], T.Track ">i2" [pnote0 "b"]]
-        , [T.Track ">i1" [], T.Track ">i2" []]
+        [ [T.Track ">i1" [] [pnote0 "a"], T.Track ">i2" [] [pnote0 "b"]]
+        , [T.Track ">i1" [] [], T.Track ">i2" [] []]
         ]
 
 test_tracks = do
     let f = fmap (map strip_track . T.untracks) . parse @(T.Tracks T.Call)
-    right_equal (f "[s]") [T.Track "" [pnote0 "s"]]
+    right_equal (f "[s]") [T.Track "" [] [pnote0 "s"]]
     right_equal (f "[s > r]")
-        [ T.Track "" [pnote0 "s"]
-        , T.Track ">" [pnote0 "r"]
+        [ T.Track "" [] [pnote0 "s"]
+        , T.Track ">" [] [pnote0 "r"]
         ]
     right_equal (f "[>\" | u\" s >\" | t\" r]")
-        [ T.Track "> | u" [pnote0 "s"]
-        , T.Track "> | t" [pnote0 "r"]
+        [ T.Track "> | u" [] [pnote0 "s"]
+        , T.Track "> | t" [] [pnote0 "r"]
         ]
 
 test_track = do
     let parse_track = fmap extract . parse
-        extract (T.Track title tokens) = (title, map strip_pos tokens)
+        extract (T.Track title _ tokens) = (title, map strip_pos tokens)
     let bar = T.TBarline no_pos . T.Barline
     let rest = T.TRest no_pos . T.Rest
     let title = fmap fst . parse_track
@@ -222,6 +221,14 @@ test_track = do
         [ tnote (sub "a" [tnote "" no_oct "b" no_dur]) no_oct "" no_dur
         ]
 
+test_track_directives = do
+    let f = fmap extract . parse @(T.Track T.Call)
+        extract (T.Track title dirs tokens) =
+            (title, map e_directive dirs, map strip_pos tokens)
+    right_equal (f "> %a=b c") (">", [("a", Just "b")], [pnote0 "c"])
+    right_equal (f "> %a %b=c d")
+        (">", [("a", Nothing), ("b", Just "c")], [pnote0 "d"])
+
 test_token = do
     let f = fmap strip_pos . parse
     left_like (f "") "unexpected end of input"
@@ -240,11 +247,12 @@ test_token = do
     right_equal (f "a:2") $ pnote "a" (dur Nothing (Just 2) 0 False)
     right_equal (f "a*") $
         set_zero_dur $ pnote "a" (dur Nothing Nothing 0 False)
-
     -- These are treated specially by Check, but are normal notes according to
     -- the  parser.
     right_equal (f ".") $ tnote "" no_oct "" (dur Nothing Nothing 1 False)
     right_equal (f "~") $ tnote "" no_oct "" (dur Nothing Nothing 0 True)
+    right_equal (f "^") $ T.TNote no_pos $
+        Parse.empty_note { T.note_pitch = T.CopyFrom }
 
 test_token_sub_block = do
     let f = fmap strip_pos . parse
@@ -277,7 +285,7 @@ test_token_sub_block = do
 test_token_roundtrip = do
     -- Lots of things can roundtrip but still not parse correctly, so this is
     -- not as good as 'test_token'.
-    let p = Proxy @(T.Token T.Call T.Pitch T.NDuration T.Duration)
+    let p = Proxy @Parse.Token
     roundtrip p "4a"
     roundtrip p "a."
     roundtrip p "a~"
@@ -288,6 +296,8 @@ test_token_roundtrip = do
     roundtrip p "a*4:2"
     roundtrip p "a[b]/"
     roundtrip p "a[b][c]/"
+    roundtrip p "^"
+    roundtrip p "^8"
 
 -- * implementation
 
@@ -317,6 +327,9 @@ strip_track :: T.Track T.Call -> T.Track T.Call
 strip_track track =
     track { T.track_tokens = map strip_pos (T.track_tokens track) }
 
+e_directive :: T.Directive -> (Text, Maybe Text)
+e_directive (T.Directive _ k v) = (k, v)
+
 no_oct :: T.Octave
 no_oct = T.Relative 0
 
@@ -332,32 +345,28 @@ idur int1 = dur (Just int1) Nothing 0 False
 no_pos :: T.Pos
 no_pos = T.Pos 0
 
-tracks :: [(Text, [T.Token call T.Pitch T.NDuration T.Duration])]
-    -> T.Tracks call
-tracks = T.Tracks . map (uncurry T.Track)
+tracks :: [(Text, [Parse.Token])] -> T.Tracks T.Call
+tracks ts = T.Tracks [T.Track title [] tokens | (title, tokens) <- ts]
 
-tnote :: call -> T.Octave -> Text -> T.NDuration
-    -> T.Token call T.Pitch T.NDuration T.Duration
+tnote :: T.Call -> T.Octave -> Text -> T.NDuration -> Parse.Token
 tnote call oct pitch dur = T.TNote no_pos $ T.Note
     { note_call = call
-    , note_pitch = T.Pitch oct pitch
+    , note_pitch = T.NPitch $ T.Pitch oct pitch
     , note_zero_duration = False
     , note_duration = dur
     , note_pos = no_pos
     }
 
-pnote :: Text -> T.NDuration -> T.Token T.Call T.Pitch T.NDuration T.Duration
+pnote :: Text -> T.NDuration -> Parse.Token
 pnote p dur = tnote "" no_oct p dur
 
-pnote0 :: Text -> T.Token T.Call T.Pitch T.NDuration T.Duration
+pnote0 :: Text -> Parse.Token
 pnote0 p = tnote "" no_oct p no_dur
 
-sub :: T.CallText -> [T.Token T.Call T.Pitch T.NDuration T.Duration]
-    -> T.Call
+sub :: T.CallText -> [Parse.Token] -> T.Call
 sub prefix t = subs prefix [[("", t)]]
 
-subs :: T.CallText
-    -> [[(Text, [T.Token T.Call T.Pitch T.NDuration T.Duration])]] -> T.Call
+subs :: T.CallText -> [[(Text, [Parse.Token])]] -> T.Call
 subs prefix ts = T.SubBlock prefix (map tracks ts)
 
 set_zero_dur :: T.Token call pitch ndur rdur -> T.Token call pitch ndur rdur

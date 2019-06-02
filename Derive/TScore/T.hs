@@ -53,7 +53,8 @@ untracks (Tracks tracks) = tracks
 
 data Track call = Track {
     track_title :: !Text
-    , track_tokens :: ![Token call Pitch NDuration Duration]
+    , track_directives :: ![Directive]
+    , track_tokens :: ![Token call (NPitch Pitch) NDuration Duration]
     } deriving (Eq, Show)
 
 data Directive = Directive !Pos !Text !(Maybe Text)
@@ -139,10 +140,19 @@ type CallText = Text
 newtype Rest dur = Rest dur
     deriving (Eq, Show)
 
+data NPitch pitch = CopyFrom | NPitch !pitch
+    deriving (Eq, Show)
+
+instance Pretty pitch => Pretty (NPitch pitch) where
+    pretty (NPitch pitch) = pretty pitch
+    pretty CopyFrom = "CopyFrom"
+
 data Pitch = Pitch {
     pitch_octave :: !Octave
     , pitch_call :: !Text
     } deriving (Eq, Show)
+
+type PitchText = Text
 
 data Octave = Absolute !Int | Relative !Int
     deriving (Eq, Show)
@@ -158,7 +168,6 @@ data Duration = Duration {
     , dur_dots :: !Int
     , dur_tie :: !Bool
     } deriving (Eq, Show)
-
 
 -- * error
 

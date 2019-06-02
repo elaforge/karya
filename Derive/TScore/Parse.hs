@@ -23,7 +23,6 @@ import qualified Util.P as P
 import           Util.P ((<?>))
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
 
 import qualified Derive.TScore.T as T
 import qualified Ui.Id as Id
@@ -126,7 +125,10 @@ instance Element Id.BlockId where
                 (\b -> Id.id (Id.namespace a) b) mb
         maybe (fail $ "invalid BlockId: " <> prettys bid) return (Id.make bid)
         <?> "BlockId"
-    unparse _ = Id.show_short default_namespace . Id.unpack_id
+    unparse _ = show_block
+
+show_block :: Id.BlockId -> Text
+show_block = Id.show_short default_namespace . Id.unpack_id
 
 default_namespace :: Id.Namespace
 default_namespace = Id.namespace "tscore"
@@ -147,14 +149,19 @@ instance Element (T.Tracks T.Call) where
 
 instance Element (T.Track T.Call) where
     parse config = T.Track
-        <$> P.option "" (lexeme p_title) <*> P.many (lexeme (parse config))
+        <$> P.option "" (lexeme p_title)
+        <*> P.many (lexeme (parse config))
+        <*> P.many (lexeme (parse config))
         where
         p_title = fmap (">"<>) $ P.char '>'
             *> (p_string <|> P.takeWhile Id.is_id_char)
-    unparse config (T.Track title tokens) = TextUtil.join2
-        (if " " `Text.isInfixOf` title
-            then ">" <> un_string (Text.drop 1 title) else title)
-        (Text.unwords (map (unparse config) tokens))
+    unparse config (T.Track title directives tokens) =
+        Text.unwords $ filter (not . Text.null) $ concat
+            [ [if " " `Text.isInfixOf` title
+                then ">" <> un_string (Text.drop 1 title) else title]
+            , map (unparse config) directives
+            , map (unparse config) tokens
+            ]
 
 instance Element T.Directive where
     parse _ = do
@@ -165,15 +172,18 @@ instance Element T.Directive where
             <*> P.optional (P.char '=' *> P.takeWhile1 (not_in ""))
     unparse _ (T.Directive _ lhs rhs) = "%" <> lhs <> maybe "" ("="<>) rhs
 
-instance Element (T.Token T.Call T.Pitch T.NDuration T.Duration) where
-    parse config = T.TBarline <$> get_pos <*> parse config
+type Token = T.Token T.Call (T.NPitch T.Pitch) T.NDuration T.Duration
+
+instance Element Token where
+    parse config =
+        T.TBarline <$> get_pos <*> parse config
         <|> T.TRest <$> get_pos <*> parse config
         <|> T.TNote <$> get_pos <*> parse config
     unparse config (T.TBarline _ bar) = unparse config bar
     unparse config (T.TNote _ note) = unparse config note
     unparse config (T.TRest _ rest) = unparse config rest
 
-instance Pretty (T.Token T.Call T.Pitch T.NDuration T.Duration) where
+instance Pretty Token where
     pretty = unparse default_config
 
 instance Pretty (T.Token T.CallText T.Pitch T.NDuration T.Duration) where
@@ -208,7 +218,7 @@ instance Pretty T.Barline where pretty = unparse default_config
 -- > a2.
 -- > a~ a2~
 -- > "call with spaces"/
-instance Element (T.Note T.Call T.Pitch T.NDuration) where
+instance Element (T.Note T.Call (T.NPitch T.Pitch) T.NDuration) where
     parse config
         -- I need this P.try because / is an empty note and I need to backtrack
         -- when it fails, to parse //.
@@ -216,9 +226,9 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
             pos <- get_pos
             call <- P.optional $ parse config
             (pitch, zero_dur, dur) <-
-                P.option (empty_pitch, False, empty_nduration) $ do
+                P.option (empty_npitch, False, empty_nduration) $ do
                     P.char '/'
-                    (,,) <$> P.option empty_pitch (P.try (parse config))
+                    (,,) <$> P.option empty_npitch (P.try (parse config))
                          <*> p_zero_dur
                          <*> parse config
             make_note pos call pitch zero_dur dur
@@ -227,7 +237,7 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
             call <- P.optional $ P.try $ parse config <* P.char '/'
             -- I need a try, because if it starts with a number it could be
             -- an octave, or a duration.
-            pitch <- P.option empty_pitch $ P.try (parse config)
+            pitch <- P.option empty_npitch $ P.try (parse config)
             zero_dur <- p_zero_dur
             dur <- parse config
             make_note pos call pitch zero_dur dur
@@ -260,7 +270,7 @@ instance Element (T.Note T.Call T.Pitch T.NDuration) where
             , unparse config dur
             ]
         where
-        empty = (empty_pitch, False, empty_nduration)
+        empty = (empty_npitch, False, empty_nduration)
 
 -- | This is the output from Check.check.
 instance Pretty (T.Note T.CallText (Maybe Text) T.Time) where
@@ -275,10 +285,17 @@ instance Pretty (T.Note T.CallText T.Pitch T.NDuration) where
         , unparse default_config pitch, unparse default_config dur
         ]
 
-empty_note :: T.Note T.Call T.Pitch T.NDuration
+instance Element (T.NPitch T.Pitch) where
+    parse config =
+        P.char '^' *> pure T.CopyFrom <|> T.NPitch <$> parse config
+    unparse config = \case
+        T.CopyFrom -> "^"
+        T.NPitch pitch -> unparse config pitch
+
+empty_note :: T.Note T.Call (T.NPitch T.Pitch) T.NDuration
 empty_note = T.Note
     { note_call = T.Call ""
-    , note_pitch = empty_pitch
+    , note_pitch = empty_npitch
     , note_zero_duration = False
     , note_duration = empty_nduration
     , note_pos = T.Pos 0
@@ -295,12 +312,15 @@ empty_duration = T.Duration
     , dur_tie = False
     }
 
+empty_npitch :: T.NPitch T.Pitch
+empty_npitch = T.NPitch empty_pitch
+
 empty_pitch :: T.Pitch
 empty_pitch = T.Pitch (T.Relative 0) ""
 
 -- | This note is treated specially by the Check layer, to repeat of the
 -- previous note.
-dot_note :: T.Note T.CallText T.Pitch T.NDuration
+dot_note :: T.Note T.CallText (T.NPitch T.Pitch) T.NDuration
 dot_note = empty_note
     { T.note_call = ""
     , T.note_duration = T.NDuration $ empty_duration { T.dur_dots = 1 }
@@ -308,7 +328,7 @@ dot_note = empty_note
 
 -- | This note is treated specially by the Check layer, to repeat of the
 -- previous note, plus put a tie on the previous note.
-tie_note :: T.Note T.CallText T.Pitch T.NDuration
+tie_note :: T.Note T.CallText (T.NPitch T.Pitch) T.NDuration
 tie_note = empty_note
     { T.note_call = ""
     , T.note_duration = T.NDuration $ empty_duration { T.dur_tie = True }

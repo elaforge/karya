@@ -6,8 +6,11 @@
 -- | Post-process 'T.Token's.  Check barlines, resolve ties, etc.
 module Derive.TScore.Check (
     Config(..), default_config
+    , Scope(..)
+    , From(..)
     , AssertCoincident(..)
     , parse_directive, parse_directives
+    , apply_block_from
     , check
     , call_block_id
     , Meter(..)
@@ -55,6 +58,14 @@ data Config = Config {
     config_meter :: !Meter
     , config_scale :: !Scale
     , config_duration :: !DurationMode
+    , config_from :: !(Maybe From)
+    } deriving (Show)
+
+-- | The target of a 'T.CopyFrom'.
+data From = From {
+    from_block :: !(Maybe Id.BlockId)
+    , from_tracknum :: !TrackNum
+    , from_pos :: !T.Pos
     } deriving (Show)
 
 default_config :: Config
@@ -62,34 +73,80 @@ default_config = Config
     { config_meter = meter_44
     , config_scale = scale_sargam
     , config_duration = Multiplicative
+    , config_from = Nothing
     }
 
-parse_directives :: Config -> [T.Directive] -> Either T.Error Config
-parse_directives = foldM (flip parse_directive)
+parse_directives :: Scope -> Config -> [T.Directive] -> Either T.Error Config
+parse_directives scope = foldM (flip (parse_directive scope))
 
-parse_directive :: T.Directive -> Config -> Either T.Error Config
-parse_directive (T.Directive pos name maybe_val) config =
-    first (T.Error pos) $ case (name, maybe_val) of
-        ("meter", Just val) ->
-            set_config (\c a -> c { config_meter = a }) parse_meter val
-        ("scale", Just val) ->
-            set_config (\c a -> c { config_scale = a })
-                (`Map.lookup` scale_map) val
-        ("dur", Just val) ->
-            set_config (\c a -> c { config_duration = a })
-                (`Map.lookup` duration_map) val
-        _   | name == Parse.default_call -> Right config
-            | otherwise -> Left $ "unknown directive name: " <> name
+-- | Directives can appear in various places, which affects their scope.
+data Scope = Global | Block | Track
+    deriving (Eq, Show)
+
+parse_directive :: Scope -> T.Directive -> Config -> Either T.Error Config
+parse_directive scope (T.Directive pos name maybe_val) config =
+    first (T.Error pos . ((name<>": ")<>)) $ case name of
+        "meter" -> set_config (\c a -> c { config_meter = a }) parse_meter
+            =<< with_arg
+        "scale" -> set_config (\c a -> c { config_scale = a })
+            (`Map.lookup` scale_map) =<< with_arg
+        "dur" -> set_config (\c a -> c { config_duration = a })
+            (`Map.lookup` duration_map) =<< with_arg
+        "from" -> do
+            from <- parse_from scope pos =<< with_arg
+            return $ config { config_from = Just from }
+        _ | name == Parse.default_call -> without_arg >> Right config
+        _ -> Left $ "unknown directive: " <> name
     where
+    with_arg = tryJust "expected arg" maybe_val
+    without_arg = maybe (Right ()) (Left . ("unexpected arg: "<>)) maybe_val
     set_config setter parse val = fmap (setter config) (lookup parse val)
     lookup parse val = tryJust ("unknown " <> name <> ": " <> val) (parse val)
 
+parse_from :: Scope -> T.Pos -> Text -> Either Text From
+parse_from scope pos arg = case scope of
+    Global -> Left "can't use at global scope"
+    Block -> do
+        block_id <- tryJust ("not a valid block_id: " <> arg) $
+            Id.make $ Id.read_short Parse.default_namespace arg
+        return $ From
+            { from_block = Just block_id
+            , from_tracknum = 0
+            , from_pos = pos
+            }
+    Track -> do
+        tracknum <- tryJust ("not a tracknum: " <> arg) $ ParseText.int arg
+        when (tracknum <= 0) $ Left "tracknums start at 1"
+        return $ From
+            { from_block = Nothing
+            , from_tracknum = tracknum
+            , from_pos = pos
+            }
+
+-- | Convert a block-level From into a track-level From for each tracknum.
+-- Due to 'parse_from', the block From should have a 'from_block'.  It's ok
+-- to have both block and track From, in this case the track From gives the
+-- tracknum from a different block.
+apply_block_from :: Config -> TrackNum -> Config -> Config
+apply_block_from block_config tracknum track_config =
+    set $ case (config_from block_config, config_from track_config) of
+        (Nothing, mb_track) -> mb_track
+        (Just block, Nothing) -> Just $ block { from_tracknum = tracknum }
+        -- If the block had a From, the track will have inherited it.
+        (Just block, Just track) -> Just $ track
+            { from_block = from_block block
+            , from_tracknum = if from_tracknum track /= 0
+                then from_tracknum track else tracknum
+            }
+    where set from = track_config { config_from = from }
 
 -- * check
 
 type Stream a = [EList.Elt Meta a]
 type Token call pitch dur = T.Token call pitch dur dur
 type Meta = Either T.Error AssertCoincident
+
+type NPitch = T.NPitch T.Pitch
 
 type GetCallDuration = Text -> (Either Text T.Time, [Log.Msg])
 
@@ -100,11 +157,12 @@ data AssertCoincident = AssertCoincident !T.Time !T.Pos
     deriving (Eq, Show)
 
 check :: GetCallDuration -> Config
-    -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
-    -> ( [Either Meta (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
+    -> [T.Token T.CallText NPitch T.NDuration T.Duration]
+    -> ( [Either Meta
+            (T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
        , T.Time
        )
-check get_dur (Config meter scale duration) =
+check get_dur (Config meter scale duration _) =
     Tuple.swap
     . fmap (map EList.toEither)
     . fmap (resolve_pitch scale)
@@ -120,8 +178,8 @@ check get_dur (Config meter scale duration) =
 
 -- | Carry CallDuration if the next note has no duration, but does have a call.
 carry_call_duration
-    :: Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
-    -> Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
+    :: Stream (T.Token T.CallText pitch T.NDuration T.Duration)
+    -> Stream (T.Token T.CallText pitch T.NDuration T.Duration)
 carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
     where
     carry note = do
@@ -139,8 +197,8 @@ carry_call_duration = flip State.evalState False . EList.mapM (T.map_note carry)
         && all Maybe.isNothing [T.dur_int1 dur, T.dur_int2 dur]
 
 resolve_call_duration :: GetCallDuration
-    -> Stream (T.Token T.CallText T.Pitch T.NDuration rdur)
-    -> Stream (T.Token T.CallText T.Pitch (Either T.Time T.Duration) rdur)
+    -> Stream (T.Token T.CallText pitch T.NDuration rdur)
+    -> Stream (T.Token T.CallText pitch (Either T.Time T.Duration) rdur)
 resolve_call_duration get_dur = EList.concatMapE $ \case
     T.TBarline pos a -> [EList.Elt $ T.TBarline pos a]
     T.TRest pos a -> [EList.Elt $ T.TRest pos a]
@@ -161,11 +219,11 @@ call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
 call_block_id parent =
     Eval.call_to_block_id Parse.default_namespace (Just parent) . Expr.Symbol
 
-resolve_repeats :: Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
-    -> Stream (T.Token T.CallText T.Pitch T.NDuration T.Duration)
+resolve_repeats :: Stream (T.Token T.CallText NPitch T.NDuration T.Duration)
+    -> Stream (T.Token T.CallText NPitch T.NDuration T.Duration)
 resolve_repeats =
-    snd . EList.mapAccumLE resolve_dot Nothing . map (fmap resolve_tie)
-        . zip_next_note
+    snd . EList.mapAccumLE resolve_dot Nothing
+        . map (fmap resolve_tie) . zip_next_note
     where
     resolve_tie (T.TNote pos note, Just next)
         | strip next == Parse.tie_note = T.TNote pos $ set_tie True note
@@ -504,71 +562,57 @@ instance Show Scale where
     show scale = "((" <> untxt (scale_name scale) <> "))"
 
 resolve_pitch :: Scale
-    -> Stream (T.Time, T.Note call T.Pitch dur)
-    -> Stream (T.Time, T.Note call (Maybe Text) dur)
+    -> Stream (T.Time, T.Note call NPitch dur)
+    -> Stream (T.Time, T.Note call (T.NPitch (Maybe Text)) dur)
 resolve_pitch scale =
-    pitch_to_symbolic scale
-    . infer_octaves per_octave (scale_initial_octave scale)
-    . parse_pitches (scale_parse scale)
+    fst . flip State.runState (scale_initial_octave scale, Nothing)
+        . EList.mapEM token
     where
+    token (start, note) = fmap set <$> case T.note_pitch note of
+        T.CopyFrom -> return $ EList.Elt T.CopyFrom
+        T.NPitch pitch -> fmap T.NPitch <$> resolve (T.note_pos note) pitch
+        where set pitch = (start, note { T.note_pitch = pitch })
+    resolve pos pitch = case parse_pitch pos (scale_parse scale) pitch of
+        EList.Meta m -> return $ EList.Meta m
+        EList.Elt Nothing -> return $ EList.Elt Nothing
+        EList.Elt (Just pitch) -> do
+            prev <- State.get
+            pitch@(Pitch.Pitch oct degree) <- return $
+                infer_octave per_octave prev pitch
+            State.put (oct, Just degree)
+            return $ Just <$> pitch_to_symbolic pos scale pitch
     per_octave = Theory.layout_pc_per_octave (scale_layout scale)
 
-parse_pitches :: (Text -> Maybe pitch)
-    -> Stream (time, T.Note call T.Pitch dur)
-    -> Stream (time, T.Note call (Maybe (T.Octave, pitch)) dur)
-parse_pitches parse = fst . flip State.runState Nothing . EList.mapEM token
-    where
-    token (start, note)
-        | Text.null call =
-            -- If there's a previous pitch, the pitch track will carry it.
-            return $ EList.Elt (start, note { T.note_pitch = Nothing })
-        | otherwise = case parse call of
-            Nothing -> return $ mkerror (T.note_pos note) $
-                "can't parse pitch: " <> call
-            Just p -> State.put (Just p) >> with_pitch (Just p)
-        where
-        T.Pitch oct call = T.note_pitch note
-        with_pitch p =
-            return $ EList.Elt (start, note { T.note_pitch = (oct,) <$> p })
+parse_pitch :: T.Pos -> (T.PitchText -> Maybe pitch) -> T.Pitch
+    -> EList.Elt Meta (Maybe (T.Octave, pitch))
+parse_pitch pos parse (T.Pitch oct call)
+    -- If there's a previous pitch, the pitch track will carry it.
+    | Text.null call = EList.Elt Nothing
+    | otherwise = case parse call of
+        Nothing -> mkerror pos $ "can't parse pitch: " <> call
+        Just p -> EList.Elt (Just (oct, p))
 
-infer_octaves :: Pitch.PitchClass -> Pitch.Octave
-    -> Stream (time, T.Note call (Maybe (T.Octave, Pitch.Degree)) dur)
-    -> Stream (time, T.Note call (Maybe Pitch.Pitch) dur)
-infer_octaves per_octave initial_oct =
-    fst . flip State.runState (initial_oct, Nothing) . EList.mapM infer
+infer_octave :: Pitch.PitchClass -> (Pitch.Octave, Maybe Pitch.Degree)
+    -> (T.Octave, Pitch.Degree) -> Pitch.Pitch
+infer_octave per_octave (prev_oct, prev_degree) (oct, degree) =
+    Pitch.Pitch inferred_oct degree
     where
-    infer (start, note) = case T.note_pitch note of
-        Nothing -> return (start, note { T.note_pitch = Nothing })
-        Just (oct, degree) -> do
-            (prev_oct, prev_degree) <- State.get
-            oct <- return $ case oct of
-                T.Relative n -> n + case prev_degree of
-                    Just prev -> min_on3 (distance prev_oct prev degree)
-                        (prev_oct-1) prev_oct (prev_oct+1)
-                    Nothing -> prev_oct
-                T.Absolute oct -> oct
-            State.put (oct, Just degree)
-            return
-                (start, note { T.note_pitch = Just (Pitch.Pitch oct degree) })
-        where
-        distance prev_oct prev degree oct = abs $
-            Pitch.diff_pc per_octave (Pitch.Pitch prev_oct prev)
-                (Pitch.Pitch oct degree)
+    inferred_oct = case oct of
+        T.Relative n -> n + case prev_degree of
+            Just prev -> min_on3 (distance prev_oct prev degree)
+                (prev_oct-1) prev_oct (prev_oct+1)
+            Nothing -> prev_oct
+        T.Absolute oct -> oct
+    distance prev_oct prev degree oct = abs $
+        Pitch.diff_pc per_octave (Pitch.Pitch prev_oct prev)
+            (Pitch.Pitch oct degree)
 
 -- | Convert 'Pitch'es back to symbolic form.
-pitch_to_symbolic :: Scale
-    -> Stream (T.Time, T.Note call (Maybe Pitch.Pitch) dur)
-    -> Stream (T.Time, T.Note call (Maybe Text) dur)
-pitch_to_symbolic scale = EList.mapE to_sym
+pitch_to_symbolic :: T.Pos -> Scale -> Pitch.Pitch -> EList.Elt Meta T.PitchText
+pitch_to_symbolic pos scale pitch = case unparse pitch of
+    Nothing -> mkerror pos $ "bad pitch: " <> pretty pitch
+    Just sym -> EList.Elt sym
     where
-    to_sym (t, note) = EList.fromEither $ first Left $ do
-        sym <- case T.note_pitch note of
-            Nothing -> Right Nothing
-            Just pitch -> Just <$> tryJust
-                (T.Error (T.note_pos note)
-                    ("bad pitch: " <> pretty (T.note_pitch note)))
-                (unparse pitch)
-        return (t, note { T.note_pitch = sym })
     unparse (Pitch.Pitch oct degree) =
         (showt oct <>) <$> scale_unparse scale degree
 

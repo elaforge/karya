@@ -5,7 +5,6 @@
 module Derive.TScore.Check_test where
 import qualified Control.Monad.Combinators as P
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Either as Either
 
 import qualified Util.EList as EList
 import           Util.Test hiding (check)
@@ -182,17 +181,10 @@ e_ndur = \case
     _ -> Nothing
 
 parse_cdur :: Text
-    -> Check.Stream (T.Token T.CallText T.Pitch (Either T.Time T.Duration)
-        T.Duration)
+    -> Check.Stream (T.Token T.CallText (T.NPitch T.Pitch)
+        (Either T.Time T.Duration) T.Duration)
 parse_cdur = resolve_call_duration . parse
 
-resolve_call_duration :: [T.Token T.CallText T.Pitch T.NDuration rdur]
-    -> Check.Stream (T.Token T.CallText T.Pitch (Either T.Time T.Duration) rdur)
-resolve_call_duration =
-    map (EList.Elt . Identity.runIdentity . T.map_note_duration resolve)
-    where
-    resolve (T.NDuration dur) = pure $ Right dur
-    resolve T.CallDuration = pure $ Left 0
 
 -- | Rather than actually doing a TScore.resolve_sub_block, I'll just fake it.
 convert_call :: T.Token T.Call pitch ndur rdur
@@ -201,14 +193,33 @@ convert_call = T.map_call $ \case
     T.Call call -> call
     sub@(T.SubBlock {}) -> "((" <> pretty sub <> "))"
 
-parse :: Text -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
+parse :: Text -> [T.Token T.CallText (T.NPitch T.Pitch) T.NDuration T.Duration]
 parse = map convert_call . Testing.expect_right . Parse.parse_text p_tokens
     where p_tokens = P.some (Parse.lexeme (Parse.parse Parse.default_config))
 
-check :: Check.Config -> [T.Token T.CallText T.Pitch T.NDuration T.Duration]
+check :: Check.Config
+    -> [T.Token T.CallText (T.NPitch T.Pitch) T.NDuration T.Duration]
     -> [Either T.Error (T.Time, T.Note T.CallText (Maybe Text) T.Time)]
-check config = just_errors . fst
+check config = map (fmap (fmap strip_npitch)) . just_errors . fst
     . Check.check (const (Left "get_dur not supported", [])) config
 
 get_ext_dur :: TScore.GetExternalCallDuration
 get_ext_dur = \_ _ -> (Left "external call dur not supported", [])
+
+-- Strip out some complications that I don't want to deal with at the Check
+-- level.  Since they interact with the TScore level, they get tested there.
+
+resolve_call_duration :: [T.Token T.CallText pitch T.NDuration rdur]
+    -> Check.Stream (T.Token T.CallText pitch (Either T.Time T.Duration) rdur)
+resolve_call_duration =
+    map (EList.Elt . Identity.runIdentity . T.map_note_duration resolve)
+    where
+    resolve (T.NDuration dur) = pure $ Right dur
+    resolve T.CallDuration = pure $ Left 0
+
+strip_npitch :: T.Note call (T.NPitch pitch) dur -> T.Note call pitch dur
+strip_npitch note = note
+    { T.note_pitch = case T.note_pitch note of
+        T.NPitch pitch -> pitch
+        T.CopyFrom -> error "didn't expect CopyForm in Check tests"
+    }

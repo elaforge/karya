@@ -67,6 +67,36 @@ test_ui_state = do
         , ("top-t1c1", UiTest.note_track1 ["4s"])
         ]
 
+test_copy_from = do
+    let f = fmap (lookup "b1" . UiTest.extract_blocks)
+            . TScore.ui_state get_ext_dur
+    let track = Just . UiTest.note_track1
+        tracks = Just . concatMap UiTest.note_track1
+    left_like (f "%from=x\nb1 = [s]") "can't use at global scope"
+    left_like (f "b1 = %from=b2 [s r]") "block not found"
+    left_like (f "b1 = [> %from=b1 s r]") "not a tracknum"
+    left_like (f "b1 = [> %from=1 s r]") "can't copy from the same track"
+    left_like (f "b1 = [> %from=3 s r > g m]") "doesn't have track 3"
+    left_like (f "b1 = %from=b2 [> %from=2 s r]\nb2 = [g m]")
+        "doesn't have track 2"
+
+    -- from other block
+    right_equal (f "b1 = %from=b2 [s r]\nb2 = [g m]") (track ["4s", "4r"])
+    right_equal (f "b1 = %from=b2 [s ^]\nb2 = [g m]") (track ["4s", "4m"])
+    right_equal (f "b1 = %from=b2 [^ r]\nb2 = [g m]") (track ["4g", "4r"])
+    right_equal (f "b1 = %from=b2 [^2:1]\nb2 = [g m]") (track ["4g", "4m"])
+    right_equal (f "b1 = %from=b2 [> %from=2 s ^]\nb2 = [g m > p d]")
+        (track ["4s", "4d"])
+
+    -- from same block
+    right_equal (f "b1 = [> %from=2 s r > g m]")
+        (tracks [["4g", "4m"], ["4s", "4r"]])
+    right_equal (f "b1 = [> %from=2 ^ r > g m]")
+        (tracks [["4g", "4m"], ["4g", "4r"]])
+
+    -- TODO check for this, instead of looping forever
+    -- left_like (f "b1 = [> %from=2 ^ r > %from=1 ^ m]") "circular reference"
+
 test_assert_coincident = do
     let f = fmap (const ()) . TScore.ui_state get_ext_dur
     left_like (f "top = [s r > g ; m]") "got unexpected assert"
