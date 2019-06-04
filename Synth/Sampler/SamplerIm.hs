@@ -347,11 +347,12 @@ renderStarts samples = do
     replace a b = map (\c -> if c == a then b else c)
 
 renderDirect :: FilePath -> Audio.Seconds -> [Sample.Sample] -> IO ()
-renderDirect filename dur samples =
+renderDirect filename dur samples = do
+    audios <- mapM (RenderSample.render config 0) samples
     Resource.runResourceT $
-    Audio.File.write AUtil.outputFormat filename $
+        Audio.File.write AUtil.outputFormat filename $
         Audio.take (Audio.Seconds dur) $ Audio.mix $
-        map ((Audio.Frames 0,) . RenderSample.render config 0) samples
+        map (Audio.Frames 0,) audios
     where
     config = Resample.Config
         { _quality = Resample.SincFastest

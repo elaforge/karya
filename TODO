@@ -1996,6 +1996,29 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    * System error : Too many open files.
+      . The limit is 4864 though, which implies that it's not closing them.
+      . Log open and close and FDs?
+      . im-rambat-simple has 6 notes
+      . I see 6 closes, but all at the end.  And many more opens than closes.
+        I wonder if extra opens are getting file length?  Yes, but they get
+        closed.  The real problem is that they don't get closed until the end.
+      . I never get to the close.  Probably because I stop pulling from the
+        stream, but I don't tell it to close!  It's the iterator problem.
+      . I want the the that runs out of samples to close the stream.
+      . That will be Audio.take, via applyEnvelope
+      ? I can't tell if conduit has a solution for this.
+        . I think conduit doesn't close either.  'take' would have to give
+          a signal that it closed the conduit.  I wind up at
+          Data.Conduit.List.isolate, which is just await -> yield.
+        . Maybe you're not supposed to do the structure with multiple
+          long-running streams?
+      . What if I stream opened resources too, and then the consumer collects
+        them, to close when complete?  The problem is that it's intermediate
+        consumers, like 'take' that are completing.
+      . The hack to close on time seems to work, but then I get a quit with
+        -11, that's SIGSEGV.
+      . Doesn't sndfile get mad if I close a handle multiple times?  Yes.
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
       . Use the same srate as DbSignal.from_signal.

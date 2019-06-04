@@ -31,17 +31,17 @@ import qualified Synth.Shared.Signal as Signal
 import           Global
 import           Synth.Types
 
-
-render :: Resample.Config -> RealTime -> Sample.Sample -> AUtil.Audio
-render config start (Sample.Sample filename offset envelope pan ratios) =
-    -- The sample stream thinks it's starting at a relative frame 0, so
-    -- I need to shift all the signals back so they also line up to frame 0.
-    applyPan nowS pan $
-    applyEnvelope nowS envelope $
-    resample config ratios start $
-    File.readFrom (Audio.Frames offset) filename
+render :: Resample.Config -> RealTime -> Sample.Sample -> IO AUtil.Audio
+render config start (Sample.Sample filename offset envelope pan ratios) = do
+    (close, audio) <- File.readFromClose (Audio.Frames offset) filename
+    return $
+        applyPan nowS pan $
+        applyEnvelope close nowS envelope $
+        resample config ratios start audio
     where
     nowS = AUtil.toSeconds now
+    -- The sample stream thinks it's starting at a relative frame 0, so I need
+    -- to shift all the signals back so they also line up to frame 0.
     now = Resample._now config
 
 -- | This is polymorphic in chan, though it's only used with 2.  I experimented
@@ -82,14 +82,16 @@ resample config ratiosUnshifted start audio
 addNow :: Audio.Frame -> Resample.Config -> Resample.Config
 addNow frames config = config { Resample._now = frames + Resample._now config }
 
-applyEnvelope :: RealTime -> Signal.Signal -> AUtil.Audio -> AUtil.Audio
-applyEnvelope start sig
+applyEnvelope :: IO () -> RealTime -> Signal.Signal -> AUtil.Audio
+    -> AUtil.Audio
+applyEnvelope close start sig
     | Just val <- Signal.constant_val_from start sig =
         if ApproxEq.eq 0.01 val 1 then id
             else Audio.gain (AUtil.dbToLinear (Num.d2f val))
     | otherwise = AUtil.volume $ clipEnd $ realizeSignal start sig
     where
-    clipEnd = maybe id (Audio.take . Audio.Seconds . RealTime.to_seconds)
+    clipEnd = maybe id
+        (Audio.takeClose (liftIO close) . Audio.Seconds . RealTime.to_seconds)
         (envelopeDuration start sig)
 
 applyPan :: RealTime -> Signal.Signal -> AUtil.Audio -> AUtil.Audio

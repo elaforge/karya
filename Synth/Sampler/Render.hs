@@ -319,16 +319,17 @@ startSample config now mbState note = do
             -- produces that with ResampleState, but I don't need it.  I'm not
             -- resampling so frames are 1:1.
             _ -> max 0 $ now - start
+    audio <- RenderSample.render
+        (mkConfig $ case mbState of
+            Nothing -> Nothing
+            Just NoResample -> Nothing
+            Just (Resample state) -> Just state)
+        (AUtil.toSeconds start)
+        (sample { Sample.offset = offset + Sample.offset sample })
     return $ Playing
         { _noteHash = Sample.hash note
         , _getState = IORef.readIORef sampleStateRef
-        , _audio = RenderSample.render
-            (mkConfig $ case mbState of
-                Nothing -> Nothing
-                Just NoResample -> Nothing
-                Just (Resample state) -> Just state)
-            (AUtil.toSeconds start)
-            (sample { Sample.offset = offset + Sample.offset sample })
+        , _audio = audio
         , _noteRange = (start, start + Sample.duration note)
         }
 

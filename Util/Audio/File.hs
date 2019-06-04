@@ -9,7 +9,8 @@
 module Util.Audio.File (
     -- * read
     check, checkA, getInfo, duration
-    , read, readFrom, read44k, readUnknown
+    , read, read44k, readUnknown
+    , readFrom, readFromClose
     , concat
     -- * write
     , write, writeCheckpoints
@@ -18,8 +19,10 @@ module Util.Audio.File (
 import           Prelude hiding (concat, read)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Fix as Fix
+import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Trans.Resource as Resource
 
+import qualified Data.IORef as IORef
 import qualified Data.Vector.Storable as V
 import qualified GHC.Stack as Stack
 import qualified GHC.TypeLits as TypeLits
@@ -48,8 +51,8 @@ checkA :: forall m rate channels.
 checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy channels)
 
 getInfo :: FilePath -> IO Sndfile.Info
-getInfo fname = Exception.bracket (openRead fname) Sndfile.hClose
-    (return . Sndfile.hInfo)
+getInfo fname = Exception.bracket (openRead fname) close
+    (return . Sndfile.hInfo . _handle)
 
 duration :: FilePath -> IO Audio.Frame
 duration = fmap (Audio.Frame . Sndfile.frames) . getInfo
@@ -64,15 +67,42 @@ read :: forall rate channels.
     FilePath -> Audio.AudioIO rate channels
 read = readFrom (Audio.Frames 0)
 
+readFromClose :: forall rate channels.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
+    Audio.Duration -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
+readFromClose (Audio.Seconds secs) fname =
+    readFromClose (Audio.Frames (Audio.secondsToFrame rate secs)) fname
+    where rate = Audio.natVal (Proxy :: Proxy rate)
+readFromClose (Audio.Frames frame) fname = do
+    handle <- openRead fname
+    return $ (close handle,) $ Audio.Audio $ do
+        lift $ Resource.register (close handle)
+        readHandle rate chan frame fname handle
+    where
+    rate = Audio.natVal (Proxy :: Proxy rate)
+    channels = Proxy :: Proxy channels
+    chan = Audio.natVal channels
+
 readFrom :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     Audio.Duration -> FilePath -> Audio.AudioIO rate channels
 readFrom (Audio.Seconds secs) fname =
     readFrom (Audio.Frames (Audio.secondsToFrame rate secs)) fname
     where rate = Audio.natVal (Proxy :: Proxy rate)
-readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
-    (key, handle) <- lift $ Resource.allocate (openRead fname) Sndfile.hClose
-    let info = Sndfile.hInfo handle
+readFrom (Audio.Frames frame) fname = Audio.Audio $ do
+    (_, handle) <- lift $ Resource.allocate (openRead fname) close
+    readHandle rate chan frame fname handle
+    where
+    rate = Audio.natVal (Proxy :: Proxy rate)
+    channels = Proxy :: Proxy channels
+    chan = Audio.natVal channels
+
+
+readHandle :: Trans.MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frame
+    -> FilePath -> Handle
+    -> S.Stream (S.Of (V.Vector Audio.Sample)) m ()
+readHandle rate chan (Audio.Frame frame) fname hdl = do
+    let info = Sndfile.hInfo $ _handle hdl
         fileChan = Sndfile.channels info
     when (Sndfile.samplerate info /= rate || fileChan `notElem` [1, chan]) $
         throw $ formatError rate chan info
@@ -80,16 +110,16 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
         liftIO $ do
             -- Otherwise libsndfile will throw a much more confusing error:
             -- "Internal psf_fseek() failed."
-            -- It's ok to seek to the end of the file though, and that happens
-            -- when the resample consumed all samples, but they're in its
-            -- internal buffer.
+            -- It's ok to seek to the end of the file though, and that
+            -- happens when the resample consumed all samples, but they're
+            -- in its internal buffer.
             Audio.assert (0 <= frame && frame <= Sndfile.frames info) $
                 "tried to seek to " <> pretty frame <> " in " <> showt fname
                 <> ", but it only has " <> pretty (Sndfile.frames info)
-            void $ Sndfile.hSeek handle Sndfile.AbsoluteSeek frame
+            void $ Sndfile.hSeek (_handle hdl) Sndfile.AbsoluteSeek frame
     let size = fromIntegral Audio.blockSize
-    Fix.fix $ \loop -> liftIO (Sndfile.hGetBuffer handle size) >>= \case
-        Nothing -> lift (Resource.release key) >> return ()
+    Fix.fix $ \loop -> liftIO (Sndfile.hGetBuffer (_handle hdl) size) >>= \case
+        Nothing -> liftIO $ close hdl
         Just buf -> do
             let block = Sndfile.Buffer.Vector.fromBuffer buf
             -- Sndfile should enforce this, but let's be sure.
@@ -101,9 +131,6 @@ readFrom (Audio.Frames (Audio.Frame frame)) fname = Audio.Audio $ do
                 else Audio.expandV chan block
             loop
     where
-    rate = Audio.natVal (Proxy :: Proxy rate)
-    channels = Proxy :: Proxy channels
-    chan = Audio.natVal channels
     throw msg = liftIO $
         Exception.throwIO $ IO.Error.mkIOError IO.Error.userErrorType
             ("reading file: " <> msg) Nothing (Just fname)
@@ -112,12 +139,14 @@ read44k :: FilePath -> Audio.AudioIO 44100 2
 read44k = read
 
 readUnknown :: FilePath -> IO (Sndfile.Format, Audio.UnknownAudioIO)
-readUnknown input = do
-    info <- getInfo input
+readUnknown fname = do
+    info <- getInfo fname
     case (someNat (Sndfile.samplerate info), someNat (Sndfile.channels info)) of
         (TypeLits.SomeNat (_::Proxy rate), TypeLits.SomeNat (_::Proxy chan)) ->
-            return (Sndfile.format info,
-                Audio.UnknownAudio $ read @rate @chan input)
+            return
+                ( Sndfile.format info
+                , Audio.UnknownAudio $ read @rate @chan fname
+                )
 
 someNat :: Int -> TypeLits.SomeNat
 someNat int = case TypeLits.someNatVal (fromIntegral int) of
@@ -145,12 +174,8 @@ checkInfo rate_ channels_ info
 
 formatError :: Audio.Rate -> Audio.Channels -> Sndfile.Info -> String
 formatError rate channels info =
-    "requested (rate, channels) " ++ show (rate, channels)
-    ++ " but file had " ++ show (Sndfile.samplerate info, Sndfile.channels info)
-
-openRead :: FilePath -> IO Sndfile.Handle
-openRead fname = annotate fname $
-    Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
+    "requested (rate, channels) " <> show (rate, channels)
+    <> " but file had " <> show (Sndfile.samplerate info, Sndfile.channels info)
 
 -- Sndfile's errors don't include the filename.
 annotate :: Stack.HasCallStack => FilePath -> IO a -> IO a
@@ -165,15 +190,14 @@ write :: forall rate channels.
     => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
     -> Resource.ResourceT IO ()
 write format fname audio = do
-    (key, handle) <- Resource.allocate (openWrite format tmp audio)
-        Sndfile.hClose
-    S.mapM_ (liftIO . Sndfile.hPutBuffer handle
+    (key, handle) <- Resource.allocate (openWrite format tmp audio) close
+    S.mapM_ (liftIO . Sndfile.hPutBuffer (_handle handle)
             . Sndfile.Buffer.Vector.toBuffer)
         (Audio._stream audio)
     Resource.release key
     liftIO $ Directory.renameFile tmp fname
     where
-    tmp = fname ++ ".write.tmp"
+    tmp = fname <> ".write.tmp"
 
 -- | Write files in chunks to the given directory.  Run actions before
 -- and after writing each chunk.
@@ -210,8 +234,8 @@ writeCheckpoints size getFilename chunkComplete format = go 0
                     <> ", but got " <> pretty (map V.length blocks)
                 let tmp = fname ++ ".write.tmp"
                 liftIO $ do
-                    Exception.bracket (openWrite format tmp audio)
-                        Sndfile.hClose (\handle -> mapM_ (write handle) blocks)
+                    Exception.bracket (openWrite format tmp audio) close
+                        (\handle -> mapM_ (write (_handle handle)) blocks)
                     Directory.renameFile tmp fname
                     chunkComplete fname
                 go (written + size) states audio
@@ -222,12 +246,34 @@ writeCheckpoints size getFilename chunkComplete format = go 0
     sizeCount = Audio.framesCount chan size
     chan = Proxy @chan
 
+
+-- * Handle
+
+-- | libsndfile has no protection against multiple closes on the same handle
+-- and happily double frees memory, and hsndfile provides no protection either.
+data Handle = Handle !(IORef.IORef Bool) !Sndfile.Handle
+
+_handle :: Handle -> Sndfile.Handle
+_handle (Handle _ hdl) = hdl
+
+openRead :: FilePath -> IO Handle
+openRead fname = annotate fname $ do
+    hdl <- Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
+    open <- IORef.newIORef True
+    return $ Handle open hdl
+
+close :: Handle -> IO ()
+close (Handle open hdl) = whenM (IORef.readIORef open)
+    (IORef.atomicWriteIORef open False >> Sndfile.hClose hdl)
+
 openWrite :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
     => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
-    -> IO Sndfile.Handle
-openWrite format fname _audio =
-    annotate fname $ Sndfile.openFile fname Sndfile.WriteMode info
+    -> IO Handle
+openWrite format fname _audio = do
+    open <- IORef.newIORef True
+    annotate fname $
+        Handle open <$> Sndfile.openFile fname Sndfile.WriteMode info
     where
     info = Sndfile.defaultInfo
         { Sndfile.samplerate = Audio.natVal (Proxy :: Proxy rate)

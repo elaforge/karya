@@ -27,6 +27,7 @@ module Util.Audio.Audio (
     , fromSamples, fromSampleLists, toSamples
     -- * transform
     , take, mapSamples, gain, multiply
+    , takeClose
     , pan, panConstant
     -- * mix
     , mix
@@ -202,6 +203,32 @@ take (Frames frames) (Audio audio)
                     V.take (framesCount chan (min frames end - now)) block
                 where end = now + blockFrames chan block
         where chan = Proxy :: Proxy chan
+
+-- | This is like 'take', but it takes a close action to run when the audio
+-- stream is terminated.  This is because streaming can't otherwise close
+-- the input file in a timely way, because the take can't tell upstream that
+-- it will never demand another chunk.  This appears to be a problem with all
+-- pull-based streaming libraries, including pipes and conduit.
+takeClose :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
+    => m () -> Duration -> Audio m rate chan -> Audio m rate chan
+takeClose close (Seconds seconds) audio
+    | seconds <= 0 = mempty
+    | otherwise = takeClose close
+        (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
+takeClose close (Frames frames) (Audio audio)
+    | frames <= 0 = Audio $ lift close
+    | otherwise = Audio $ Control.loop1 (0, audio) $
+        \loop (now, audio) -> lift (S.uncons audio) >>= \case
+            Nothing -> lift close
+            Just (block, audio)
+                | end <= frames -> S.yield block >> loop (end, audio)
+                | now >= frames -> lift close
+                | otherwise -> do
+                    lift close
+                    S.yield $
+                        V.take (framesCount chan (min frames end - now)) block
+                where end = now + blockFrames chan block
+    where chan = Proxy :: Proxy chan
 
 mapSamples :: Monad m => (Float -> Float) -> Audio m rate chan
     -> Audio m rate chan
