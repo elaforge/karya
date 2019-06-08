@@ -539,7 +539,7 @@ to_mohra_farans = date 2018 7 2 $ sudhindra $ faran $
     where
     dinnakitataka = group $ din.na.kttk
     takadinnakitataka = group $ taka.din.na.kttk
-    sarva dur = sarvaD sarvaS dur
+    sarva = sarvaD sarvaS
     sarvaS = repeat 4 $ sd $ taka.ta.ta.din.__.taka.din.na.ta.ta.din.__
     sarvaM = let rh = strM "nknnd_nkdknnd_" in
           rh & strM "o_ooo_o_o_ooo_"
