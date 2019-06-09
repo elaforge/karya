@@ -68,6 +68,10 @@ data From = From {
     , from_pos :: !T.Pos
     } deriving (Show)
 
+instance Pretty From where
+    pretty (From block tracknum _) =
+        maybe "" ((<>":") . Parse.show_block) block <> showt tracknum
+
 default_config :: Config
 default_config = Config
     { config_meter = meter_44

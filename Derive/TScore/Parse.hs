@@ -28,6 +28,7 @@ import qualified Derive.TScore.T as T
 import qualified Ui.Id as Id
 
 import           Global
+import           Types
 
 
 -- | Parsing config.  Parsed 'T.Directive's can affect further parsing, which
@@ -129,6 +130,10 @@ instance Element Id.BlockId where
 
 show_block :: Id.BlockId -> Text
 show_block = Id.show_short default_namespace . Id.unpack_id
+
+show_block_track :: Id.BlockId -> TrackNum -> Text
+show_block_track block_id tracknum =
+    show_block block_id <> ":" <> showt tracknum
 
 default_namespace :: Id.Namespace
 default_namespace = Id.namespace "tscore"

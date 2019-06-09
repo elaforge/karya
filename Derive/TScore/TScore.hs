@@ -131,6 +131,10 @@ track_blocks :: Id.Namespace -> GetExternalCallDuration -> Text
 track_blocks namespace get_ext_dur source = do
     blocks <- first (T.show_error source) $ parse_blocks source
     whenJust (check_recursion $ map (track_tokens <$>) blocks) Left
+    case check_recursive_copy_from blocks of
+        [] -> return ()
+        errs -> Left $ "recursive %f: "
+            <> mconcat (map (T.show_error source) errs)
     (errs, blocks) <- return $
         partition_errors $ resolve_blocks get_ext_dur source blocks
     unless (null errs) $
@@ -210,7 +214,7 @@ root_block = do
     return (block_id, track_id)
 
 
--- * memo
+-- * resolve blocks
 
 -- | Look for recursive block calls.  If there are none, it's safe to
 -- 'resolve_blocks'.
@@ -222,7 +226,7 @@ check_recursion blocks =
     check_block stack_ block
         | _block_id block `elem` stack_ =
             Left $ "recursive loop: "
-                <> Text.intercalate ", " (map show_id (reverse stack))
+                <> Text.intercalate ", " (map Parse.show_block (reverse stack))
         | otherwise =
             mapM_ (check_track stack (_block_id block)) (_tracks block)
         where stack = _block_id block : stack_
@@ -232,7 +236,6 @@ check_recursion blocks =
         whenJust (Check.call_block_id parent call) $ \block_id ->
             whenJust (Map.lookup block_id by_block_id) $
                 check_block stack
-    show_id = Id.show_short Parse.default_namespace . Id.unpack_id
 
 call_of :: T.Token T.CallText pitch ndur rdur -> Maybe T.CallText
 call_of (T.TNote _ note) = Just $ T.note_call note
@@ -284,10 +287,14 @@ resolve_blocks get_ext_dur source blocks =
         (Just $ fromMaybe asserts mb_asserts,) $ first (T.show_error source)$ do
             whenJust (Seq.head errs) Left
             let to_tracks = map (fmap (fst . fst)) . _tracks
-            from_track <- traverse
-                (resolve_from (to_tracks <$> resolved_notes) block_id tracknum)
-                (Check.config_from config)
-            notes <- resolve_copy_from from_track uncopied
+            mb_from_track <- case Check.config_from config of
+                Just from -> Just <$> do
+                    from_track <- resolve_from (to_tracks <$> resolved_notes)
+                        block_id tracknum from
+                    first (T.Error (Check.from_pos from)
+                        . ("can't copy from a broken track: "<>)) from_track
+                Nothing -> return Nothing
+            notes <- resolve_copy_from mb_from_track uncopied
             whenJust mb_asserts $ \prev ->
                 whenJust (match_asserts prev asserts notes) Left
             return ((notes, title), end)
@@ -324,52 +331,6 @@ resolve_blocks get_ext_dur source blocks =
                 track
         return $ maximum $ 0 : map snd tracks
 
--- | Resolve 'Check.From' to the track it names.  On a track %from=n copies
--- from the track number.  On a block, %from=name is like a %from on each track
--- with its corresponding track on the given block.
-resolve_from :: Map Id.BlockId [Either Error [ResolvedNote]]
-    -> Id.BlockId -> TrackNum -> Check.From -> Either T.Error [ResolvedNote]
-resolve_from blocks current_block current_tracknum
-        (Check.From mb_block_id tracknum pos) = do
-    let block_id = fromMaybe current_block mb_block_id
-    tracks <- tryJust (mkerror
-            ("block not found: " <> Parse.show_block block_id)) $
-        Map.lookup block_id blocks
-    when (block_id == current_block && tracknum == current_tracknum) $
-        Left $ mkerror $ "can't copy from the same track: "
-            <> Parse.show_block block_id <> ":" <> pretty tracknum
-    track <- tryJust (mkerror $ Parse.show_block block_id
-            <> " doesn't have track " <> pretty tracknum) $
-        Seq.at tracks (tracknum - 1)
-    first (mkerror . ("can't copy from a broken track: "<>)) track
-    where
-    mkerror = T.Error pos
-
--- | Resolve T.CopyFrom.
---
--- Since I use the 'resolve_blocks' memo table, they will chain, even though
--- I'd sort of rather they didn't.
-resolve_copy_from :: Maybe [ResolvedNote]
-    -> [(T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
-    -> Either T.Error [ResolvedNote]
-resolve_copy_from Nothing = mapM (traverse no_from)
-    where
-    no_from note = case T.note_pitch note of
-        T.NPitch pitch -> Right $ note { T.note_pitch = pitch }
-        T.CopyFrom -> Left $ T.Error (T.note_pos note) "no %from for track"
-resolve_copy_from (Just from_track) = concatMapM resolve
-    where
-    resolve (t, note) = case T.note_pitch note of
-        T.NPitch pitch -> Right [(t, note { T.note_pitch = pitch })]
-        T.CopyFrom -> copy_from (T.note_pos note) t (t + T.note_duration note)
-    copy_from pos start end
-        | null copied = Left $ T.Error pos $
-            "no notes to copy in range " <> pretty start <> "--" <> pretty end
-        | otherwise = Right copied
-        where
-        copied = takeWhile ((<end) . fst) $
-            dropWhile ((<start) . fst) from_track
-
 -- | If an expected assert isn't found, or if I got one that wasn't expected,
 -- emit an error with the location.
 match_asserts :: [Check.AssertCoincident] -> [Check.AssertCoincident]
@@ -390,6 +351,77 @@ find_pos t time_notes = case dropWhile ((<t) . fst) time_notes of
     (_, note) : _ -> Just $ T.note_pos note
     -- Don't enforce asserts past the end of the notes.
     [] -> Nothing
+
+-- ** copy from
+
+-- | Each %f must refer to a track without %f.  This also forbids non-recursive
+-- multiple levels of %f, which 'resolve_copy_from' would handle fine, but I
+-- don't mind forbidding those too.
+--
+-- This does a redundant 'resolve_from' since 'resolve_blocks' will do it in
+-- again, but it seems like a hassle to try to stash the resolved froms in a
+-- Block.
+check_recursive_copy_from :: [Block ParsedTrack] -> [T.Error]
+check_recursive_copy_from blocks = concatMap check_block blocks
+    where
+    check_block block =
+        mapMaybe (check (_block_id block)) (zip [1..] (_tracks block))
+    check block_id (tracknum, track) = do
+        from <- Check.config_from (track_config track)
+        track2 <- either (const Nothing) Just $
+            resolve_from block_tracks block_id tracknum from
+        from2 <- Check.config_from (track_config track2)
+        return $ T.Error (Check.from_pos from) $
+            Parse.show_block_track block_id tracknum
+            <> " has %f=" <> pretty from <> ", which has %f="
+            <> pretty from2
+    block_tracks =
+        Map.fromList [(_block_id block, _tracks block) | block <- blocks]
+
+-- | Resolve 'Check.From' to the track it names.  On a track %f=n copies
+-- from the track number.  On a block, %f=name is like a %f on each track
+-- with its corresponding track on the given block.
+resolve_from :: Map Id.BlockId [track]
+    -> Id.BlockId -> TrackNum -> Check.From -> Either T.Error track
+resolve_from blocks current_block current_tracknum
+        (Check.From mb_block_id tracknum pos) = do
+    let block_id = fromMaybe current_block mb_block_id
+    tracks <- tryJust (mkerror
+            ("block not found: " <> Parse.show_block block_id)) $
+        Map.lookup block_id blocks
+    when (block_id == current_block && tracknum == current_tracknum) $
+        Left $ mkerror $ "can't copy from the same track: "
+            <> Parse.show_block block_id <> ":" <> pretty tracknum
+    tryJust (mkerror $ Parse.show_block block_id
+            <> " doesn't have track " <> pretty tracknum) $
+        Seq.at tracks (tracknum - 1)
+    where
+    mkerror = T.Error pos
+
+-- | Resolve T.CopyFrom.
+--
+-- Since I use the 'resolve_blocks' memo table, they will chain, even though
+-- I'd sort of rather they didn't.
+resolve_copy_from :: Maybe [ResolvedNote]
+    -> [(T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
+    -> Either T.Error [ResolvedNote]
+resolve_copy_from Nothing = mapM (traverse no_from)
+    where
+    no_from note = case T.note_pitch note of
+        T.NPitch pitch -> Right $ note { T.note_pitch = pitch }
+        T.CopyFrom -> Left $ T.Error (T.note_pos note) "no %f for track"
+resolve_copy_from (Just from_track) = concatMapM resolve
+    where
+    resolve (t, note) = case T.note_pitch note of
+        T.NPitch pitch -> Right [(t, note { T.note_pitch = pitch })]
+        T.CopyFrom -> copy_from (T.note_pos note) t (t + T.note_duration note)
+    copy_from pos start end
+        | null copied = Left $ T.Error pos $
+            "no notes to copy in range " <> pretty start <> "--" <> pretty end
+        | otherwise = Right copied
+        where
+        copied = takeWhile ((<end) . fst) $
+            dropWhile ((<start) . fst) from_track
 
 -- * integrate
 

@@ -4979,7 +4979,11 @@ text score: tscore:
         and pitches.
       . So I have to plumb the CopyFrom through as a pitch.
     * add support for block and track level %from
-    - add a check_recursion for CopyFrom
+    * add a check_recursion for CopyFrom
+      . I could conceivably support recursive from refs, as long as copy-froms
+        don't occur at the same time.
+      . That would mean I could do a global "polos copy from sangsih, sangsih
+        from polos" thing.
     - Figuring out the proper durations can be annoying, can I use
       0 CallDuration to get it to stretch until the next barline or coincident
       assertion?
@@ -5013,6 +5017,8 @@ text score: tscore:
   - I have a lot of things with alternate endings.
     . This is part of the general problem of variations.
     . Also endings change depending on where they are going.
+    . Copy from block should be able to do this.  But since it's time-locked,
+      it wouldn't work for an alternate beginning.
   negative durations:
     . So I can put beats at the end:
        e o u e | i o a i | ~ o ~ e |
@@ -5036,7 +5042,7 @@ text score: tscore:
       beat, rather than before it?
       . That's probably not enough because I still want to say the block ends
         with a note, not starts with one.
-  - How to do numbered repeats?
+  / How to do numbered repeats?
     . If I have a repeat last note thing above, then just attach a number to
       it: '4s .4' or '4s ~4'
     . I'd need to make this a special token and parse, rather than reusing
@@ -5073,6 +5079,7 @@ text score: tscore:
         .... cmds
         :buffer 1
     - communicate parse errors back to vim to highlight
+      . use quickfix mode?
   parsing:
     - directive for basic pulse/matra?
     - Just akshara:matra isn't necessarily good enough because what about
@@ -5083,7 +5090,7 @@ text score: tscore:
       . I can get this by doubling the nadai, e.g. :8 or whatever, but it
         still seems like I'd want an easy 'su' type annotation.
       . Maybe . could be su, and I carry it?  Then I need an undot for sd.
-    + support 0 dur notes
+    * support 0 dur notes
       . Use :0?  Or just 0 dur?  No that's taken by CallDuration. :0 should be
         unambiguous, but it still looks like it's stealing syntax from
         duration.

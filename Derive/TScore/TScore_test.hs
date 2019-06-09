@@ -94,8 +94,9 @@ test_copy_from = do
     right_equal (f "b1 = [> %f=2 ^ r > g m]")
         (tracks [["4g", "4m"], ["4g", "4r"]])
 
-    -- TODO check for this, instead of looping forever
-    -- left_like (f "b1 = [> %f=2 ^ r > %f=1 ^ m]") "circular reference"
+    -- Two steps of indirection.
+    left_like (f "b1 = [> %f=2 ^ > %f=3 ^ > s]") "recursive %f"
+    left_like (f "b1 = [> %f=2 ^ r > %f=1 ^ m]") "recursive %f"
 
 test_assert_coincident = do
     let f = fmap (const ()) . TScore.ui_state get_ext_dur
