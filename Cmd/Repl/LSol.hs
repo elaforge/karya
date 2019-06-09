@@ -165,7 +165,7 @@ edit key = do
         get_by_key key
     let (module_, line_number, _) = Metadata.getLocation korvai
         fname = module_to_fname module_
-    return $ ReplProtocol.Edit $ ReplProtocol.Editor
+    return $ ReplProtocol.Edit $ (:| []) $ ReplProtocol.Editor
         { _file = ReplProtocol.FileName fname
         , _line_number = line_number
         , _on_save = Nothing

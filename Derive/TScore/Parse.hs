@@ -448,7 +448,7 @@ instance Element T.Duration where
 -- ** util
 
 p_whitespace :: Parser ()
-p_whitespace = void $ P.many $ P.space1 <|> p_comment
+p_whitespace = void $ P.skipMany $ P.space1 <|> p_comment
     where
     p_comment = do
         P.string "--"

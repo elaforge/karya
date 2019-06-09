@@ -4082,6 +4082,19 @@ solkattu:
         clip and Clip.
     - LSol.insert_* doesn't clear and replace existing notes
   sarvalaghu:
+    - sarva cycle should be absolute from sam
+      . sarva is realized in Realize.realize, so it needs S.State for each
+        note.
+      . The duration for sarva groups is wrong, because S.noteDuration gets it
+        from the sollus, but the actual duration is inside Meta _matras.
+      . Can I get the HasMatras instance to look at Meta?
+      . I think no, because it only depends on the note field, not group.
+        Pattern is the only non 0 or 1 matras.  Also it's integral matras.
+      . Rests work because I drop in however many I need at whatever speeds
+        they need to be.
+      . I could do something like a Pattern, but I'd need to stick sollus in
+        it.  So maybe make sarva not a group at all, but something like
+        a Pattern.
     - automatic sarvalaghu variation
       . In Mridangam2018.e_323s, all of the 3 and 2 groups are mix and match,
         and the order is also mix and match.  There should be some way to
@@ -5040,6 +5053,25 @@ text score: tscore:
     - fltk: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
   repl:
+    * edit ky and tscore together
+      . I could add a edit multiple files feature, and run vim with separate
+        buffers or windows.
+      . I can't just have a list of filenames, I have to duplicate the whole
+        ReplProtocol.Editor, so they have have their own on_save and on_send.
+      . I send commands with -c, but can I send them per-file?
+      . Not with -c, but I can probably make tmp files with commands.
+      . Still I need to differentiate files.
+      . I could address filenames individually by sending autocommands.
+      . Or I could use -t, how does that work?
+        I think make a tags file, then pass -t t1 -t t2.
+        . No, I can only pass one -t.
+      . Or use -s script, and write a script that loads each file in turn, and
+        executes cmds?
+        :edit file1
+        ... cmds
+        :edit file2
+        .... cmds
+        :buffer 1
     - communicate parse errors back to vim to highlight
   parsing:
     - directive for basic pulse/matra?

@@ -25,8 +25,10 @@
 module App.Repl where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+
 import qualified System.Console.Haskeline as Haskeline
 import qualified System.Directory as Directory
 import qualified System.Environment
@@ -46,7 +48,7 @@ import qualified Util.Seq as Seq
 import qualified App.Config as Config
 import qualified App.ReplProtocol as ReplProtocol
 
-import Global
+import           Global
 
 
 type Input a = Haskeline.InputT IO a
@@ -150,7 +152,9 @@ handle_result (ReplProtocol.Format text) = do
     unless (Text.null (Text.strip text)) $
         putStr $ PPrint.format_str $ untxt text
     return Continue
-handle_result (ReplProtocol.Edit editor) = edit editor >> return Continue
+handle_result (ReplProtocol.Edit editors) = do
+    edit_multiple editors
+    return Continue
 
 print_logs :: ReplProtocol.CmdResult -> IO ReplProtocol.Result
 print_logs (ReplProtocol.CmdResult val logs_) = do
@@ -198,33 +202,44 @@ plain_bg = "\ESC[39;49m"
 
 -- * editor
 
--- | Open an editor as requested by 'ReplProtocol.Editor'.
-edit :: ReplProtocol.Editor -> IO ()
-edit (ReplProtocol.Editor file line mb_on_save mb_on_send) = case file of
-    ReplProtocol.Text ftype content -> with_temp "repl-" ftype content edit_file
-    ReplProtocol.FileName fname -> edit_file fname
+-- | Edit multiple files, each with their own vim config.
+--
+-- The technique is to make a file of vim commands that edits each file and
+-- runs commands in turn.
+edit_multiple :: NonEmpty ReplProtocol.Editor -> IO ()
+edit_multiple edits_ = with_files (map ReplProtocol._file edits) $ \fnames ->
+    with_temp "repl-cmds-" ".vim" (make_cmds fnames) $ \cmd_fname -> do
+        ok <- wait_for_command "vim"
+            [ "-s", cmd_fname
+            , "-c", "source vim-functions.vim"
+            ]
+        when ok $ forM_ (zip fnames (map ReplProtocol._on_save edits)) $ \case
+            (fname, Just on_save) -> send_file fname on_save
+            _ -> return ()
+        return ()
     where
-    editor = "vi"
-    edit_file fname = do
-        let args = commands ++ ["+" <> show line, fname]
-        ok <- wait_for_command editor args
-        when ok $ whenJust mb_on_save $ \on_save ->
-            send_file fname on_save
-    commands = concatMap (\x -> ["-c", x]) $ concat
-        [ ["source vim-functions.vim"]
-        -- , case file of
-        --     ReplProtocol.Text {} -> ["source ky-syntax.vim"]
-        --     _ -> []
-        , save_cmd
-        , send_cmd
+    edits = NonEmpty.toList edits_
+    make_cmds fnames = Text.unlines $
+        concatMap edit_cmds (zip fnames edits) ++ [":buffer 1"]
+    edit_cmds (fname, ReplProtocol.Editor _ linenum on_save on_send) = concat
+        [ [ ":edit " <> txt fname]
+        , [":" <> showt linenum]
+        , [ ":nmap <buffer> gz :call Send('" <> c <> "')<cr>"
+          | Just c <- [on_save]
+          ]
+        , [ ":nmap <buffer> gs :call Send('" <> c <> "')<cr>"
+          | Just c <- [on_send]
+          ]
         ]
 
-    save_cmd = case mb_on_save of
-        Just on_save -> ["nmap gz :call Send('" <> untxt on_save <> "')<cr>"]
-        Nothing -> []
-    send_cmd = case mb_on_send of
-        Just on_send -> ["nmap gs :call Send('" <> untxt on_send <> "')<cr>"]
-        Nothing -> []
+with_files :: [ReplProtocol.File] -> ([FilePath] -> IO a) -> IO a
+with_files files action = go [] files
+    where
+    go accum [] = action (reverse accum)
+    go accum (ReplProtocol.FileName fname : files) = go (fname:accum) files
+    go accum (ReplProtocol.Text ftype content : files) = do
+        let ext = ReplProtocol.file_type_extension ftype
+        with_temp "repl-" ext content $ \fname -> go (fname:accum) files
 
 send_file :: FilePath -> Text -> IO ()
 send_file fname cmd = do
@@ -239,28 +254,26 @@ send_file fname cmd = do
         putStrLn $ "send: " <> stdout
 
 -- | Run the action with a temp file, and delete it afterwards.
-with_temp :: FilePath -> ReplProtocol.FileType -> Text -> (FilePath -> IO a)
+with_temp :: FilePath -> String -> Text -> (FilePath -> IO a)
     -> IO a
-with_temp prefix ftype contents action = do
+with_temp prefix suffix contents action = do
     -- .ky prefix so the vim autocmds will fire.
-    (path, hdl) <- Posix.Temp.mkstemps prefix
-        (ReplProtocol.file_type_extension ftype)
+    (path, hdl) <- Posix.Temp.mkstemps prefix suffix
     Text.IO.hPutStr hdl contents
-    Text.IO.hPutStr hdl "\n" -- otherwise vim doesn't like no final newline
     IO.hClose hdl
     action path
         `Exception.finally` File.ignoreEnoent (Directory.removeFile path)
 
 -- | Open the given file, and return the selected line.
 edit_line :: FilePath -> IO (Maybe Text)
-edit_line fname = with_temp "repl-edit-history-" ReplProtocol.NoType "" $
+edit_line fname = with_temp "repl-edit-history-" "" "" $
     \tmp -> do
         let cmdline =
                 [ "-c", "nmap ZZ :set write \\| .w! " <> tmp <> " \\| q!<cr>"
                 , "-c", "set nowrite"
                 , fname
                 ]
-        ok <- wait_for_command "vi" cmdline
+        ok <- wait_for_command "vim" cmdline
         if ok
             then Just . Text.strip <$> Text.IO.readFile tmp
             else return Nothing

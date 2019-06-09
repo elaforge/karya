@@ -57,7 +57,7 @@ data CmdResult = CmdResult !Result ![Log.Msg]
 data Result =
     Raw !Text -- ^ Print this text directly, without formatting it.
     | Format !Text -- ^ Format and print.
-    | Edit !Editor
+    | Edit !(NonEmpty Editor) -- ^ Edit one or more files.
     deriving (Eq, Show)
 
 -- | Open an editor locally.
@@ -72,7 +72,8 @@ data Editor = Editor {
     , _on_send :: !(Maybe Text)
     } deriving (Eq, Show)
 
-data File = FileName !FilePath -- ^ open this file
+data File =
+    FileName !FilePath -- ^ open this file
     | Text !FileType !Text -- ^ open this text in a temp file
     deriving (Eq, Show)
 
@@ -186,7 +187,7 @@ format_result (CmdResult response logs_) =
 format :: Result -> Text
 format (Raw val) = val
 format (Format val) = txt $ PPrint.format_str $ untxt val
-format (Edit editor) = "Edit: " <> showt (_file editor)
+format (Edit editors) = "Edit: " <> showt (fmap _file editors)
 
 abbreviate_package_loads :: [Log.Msg] -> [Log.Msg]
 abbreviate_package_loads logs = loaded ++ filter (not . package_log) logs
