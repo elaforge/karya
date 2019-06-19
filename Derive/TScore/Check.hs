@@ -167,13 +167,13 @@ check :: GetCallDuration -> Config
             (T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
        , T.Time
        )
-check get_dur (Config meter scale duration _) =
+check get_dur (Config meter scale dur_mode _) =
     Tuple.swap
     . fmap (map EList.toEither)
     . fmap (resolve_pitch scale)
     . resolve_time
     . check_barlines meter
-    . duration_mode duration
+    . resolve_duration dur_mode
     . resolve_call_duration get_dur
     . carry_call_duration
     . resolve_repeats
@@ -224,7 +224,8 @@ call_block_id :: Id.BlockId -> Text -> Maybe Id.BlockId
 call_block_id parent =
     Eval.call_to_block_id Parse.default_namespace (Just parent) . Expr.Symbol
 
-resolve_repeats :: Stream (T.Token T.CallText NPitch T.NDuration T.Duration)
+resolve_repeats
+    :: Stream (T.Token T.CallText NPitch T.NDuration T.Duration)
     -> Stream (T.Token T.CallText NPitch T.NDuration T.Duration)
 resolve_repeats =
     snd . EList.mapAccumLE resolve_dot Nothing
@@ -422,7 +423,8 @@ is_tied _ = False
 
 -- ** check_barlines
 
-check_barlines :: Meter -> Stream (Token call pitch (T.Time, tie))
+check_barlines :: Meter
+    -> Stream (Token call pitch (T.Time, tie))
     -> Stream (Token call pitch (T.Time, tie))
 check_barlines meter =
     fst . flip State.runState 0 . EList.concatMapEM check_token
@@ -488,10 +490,10 @@ duration_map = Map.fromList
 data DurationMode = Multiplicative | Additive
     deriving (Eq, Show)
 
-duration_mode :: DurationMode
+resolve_duration :: DurationMode
     -> Stream (T.Token call pitch (Either T.Time T.Duration) T.Duration)
-    -> Stream (Token call pitch (T.Time, Bool))
-duration_mode = \case
+    -> Stream (T.Token call pitch (T.Time, Bool) (T.Time, Bool))
+resolve_duration = \case
     Multiplicative -> multiplicative
     Additive -> additive
 
@@ -567,8 +569,8 @@ instance Show Scale where
     show scale = "((" <> untxt (scale_name scale) <> "))"
 
 resolve_pitch :: Scale
-    -> Stream (T.Time, T.Note call NPitch dur)
-    -> Stream (T.Time, T.Note call (T.NPitch (Maybe Text)) dur)
+    -> Stream (time, T.Note call NPitch dur)
+    -> Stream (time, T.Note call (T.NPitch (Maybe Text)) dur)
 resolve_pitch scale =
     fst . flip State.runState (scale_initial_octave scale, Nothing)
         . EList.mapEM token

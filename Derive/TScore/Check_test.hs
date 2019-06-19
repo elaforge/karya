@@ -158,6 +158,7 @@ test_additive = do
     equal (f "a1:8 b") (rjs [1/8, 1/8])
     equal (f "a2:3 b") (rjs [2/3, 2/3])
     equal (f "a:6 b") (rjs [1/6, 1/6])
+    -- denominator is carried independently
     equal (f "a:6 b2") (rjs [1/6, 2/6])
 
 

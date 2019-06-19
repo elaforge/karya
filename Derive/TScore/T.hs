@@ -128,7 +128,10 @@ data Note call pitch dur = Note {
     , note_pos :: !Pos
     } deriving (Eq, Show)
 
-data Call = Call !CallText | SubBlock !CallText ![Tracks Call]
+data Call = Call !CallText
+    -- | A call can take multiple 'Tracks' arguments, each one of which is a
+    -- sub-block.
+    | SubBlock !CallText ![Tracks Call]
     deriving (Eq, Show)
 
 instance String.IsString Call where

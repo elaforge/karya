@@ -29,17 +29,57 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  * get rid of DeriveTest.e_nns_old
-    . except Gamakam and Gamakm2
-  * get rid of Signal.to_pairs_unique
-  * do a smooth trill, 'trs'
-    . It winds up being 'tr-transition=1 | tr-curve = (cf-sigmoid .5 .5)
-      | include-end=t.
-    . tr: note:
-      . note:        neighbor, speed, trill_env
-      . pitch: base, neighbor, speed, transition_env, curve_env, trill_env
-      . control:     neighbor, speed, transition_env, curve_env, trill_env
-    * why does new trill confuse zheng gliss?
+  generated parts:
+    . The idea is that I write a part, e.g. for rambat.  Then a score
+      integration creates several tracks in a separate block.  I can still see
+      the original high level events, but if I double click then I get to the
+      integrated block.
+    . Currently the closest I can get to this is to make a new block, put
+      a track and then do a score integrate to other tracks, and mute the
+      original track.
+    . The difference is that I would have to create the block and not see it at
+      all, and resize it etc.
+    . Maybe I could build it by having a mode to show the leftmost track in the
+      caller.
+    . Or, do a score derive, but collapse the created tracks.  This way I get
+      editing and I don't have to worry about the sub-block length.
+    . If I still want to edit it as a block, I could have a command to make a
+      block with the same tracks from another.
+    . First remind myself how to do score integration (and document?)
+      . LIntegrate.score_track, which does
+        Ui.modify_integrated_tracks block_id
+            ((track_id, Block.ScoreDestinations []) :)
+    - Write score integrate transformers like octaves, and multiple
+      instruments.
+      . How can I do this in a compositional way?
+      . I'd like to write them like transformers, but they're not really the
+        same, since they transform UI events:
+          >ra | t< "('> | hand=l' (oct -1)) "('> | hand=r' id)
+          >ra | t< "(hands (oct -1) id)
+          >ra | t< "(oct-hands)
+          >ra | t< "(tracks ('>ra-u | t< (oct-hands)' id)
+            ('>ra-i' | t< (oct-hands)' id))
+          >ra | rambat-pasang
+      . 't<' signals a score derivation, and mutes its track.  It stashes its
+        Quoted args in a special return that triggers the score integration.
+        Either add a Monad.collect_score_integrated or add another case to
+        Monad.Integrated.
+      . It evaluates the args in a special interpreter.  The final output is
+        [(TrackTitle, Map Event.IndexKey Event.Event)]
+        where IndexKey = TrackTime
+      . So I need a score integration with transformation.  I guess this is
+        manual integration, right?
+      . So this is like tscore, except I put the code in a track title, and
+        it gets the track events as input.
+      . Isn't this what derive integrate is for?  I can already do these
+        transformations and compose them with that.  It can also effectively
+        mute the track by not emitting the transformed events.
+    - Implement collapsing score-integrated sub-tracks.
+  - convert save/bali/legong/semara-dana to im
+    . sampler-im versions of gong, jegog, calung
+    . notation and damping inference for gender rambat
+    . It would be nice to have the high level part, then double click to open
+      the derived parts, and possibly edit.
   - make tr hold flat?
     . can I replace the trill hold arg with a 'd' call for control calls?
       That won't work for the note trill though.
@@ -154,7 +194,7 @@ UNSORTED
       a playable instrument.
     . Actually, it is, it's the version without the scale, so it would work
       for any tuning.
-  + crash: sudden quit when renaming block in save/kendang/sinom-ladrang:
+  * crash: sudden quit when renaming block in save/kendang/sinom-ladrang:
     LBlock.rename @awak
     . What can cause a quit with no error?
     . Renaming might confuse im caching?
@@ -850,11 +890,6 @@ IN PROGRESS / branch: branches:
         if it's too awkward.
       . The common building block is a manual score integrate like
         integrate :: Symbol -> Track [Ui.Event] | Block Ruler [Ui.Event]
-      ? Remind myself about how score integrate works.
-        . Manually call LIntegrate.score_block
-        . Which sets (source_block, ScoreDestinations []) on the dest block.
-        . score_track adds (source_track, ScoreDestinations []) to dest
-          block_integrated_tracks.
       . Dsl integration won't have a source track or block.  Instead it needs
         another ID which can link it with the source.  So for code it would be
         defining file or expression.  I also need identifying stacks for the
@@ -2588,6 +2623,99 @@ integrate: integration:
     - If integrate is committing changes to a track, can that bite me if
       a "canceled" derivation comes through?  Think about this later.
     - quantization
+  cleanup integration:
+    . Document all of the variations.
+    . Can I refactor to be less error-prone and easier to understand?
+      E.g. index by TrackId.  This would also eliminate part of
+      Ui.fix_integrated_tracks.
+    score integrate:
+      block:
+        . Call LIntegrate.score_block
+        . It creates a new block and does
+          Ui.set_integrated_block bid (source_block, ScoreDestinations [])
+        . Set Block.block_integrated
+        . validate: source_block exists
+        . Special hook in ResponderSync.sync calls Integrate.score_integrate
+        . Integrate.score_integrate
+        . score_integrate_block damaged_source_block_id
+        . Merge.merge_score_block source_id dest_id [], and set the new
+          TrackDestinations.
+      track:
+        . Call LIntegrate.score_track
+        . Ui.modify_integrated_tracks bid ((track_id, ScoreDestinations []) :)
+        . Add to Block.block_integrated_tracks
+        . validate:
+          . source TrackId and TrackDestinations are in the block
+          . each track is only the destination of one source
+        . Special hook in ResponderSync.sync calls Integrate.score_integrate
+        . Integrate.score_integrate
+        . score_integrate_tracks (source_block, source_track)
+        . Get ScoreDestinations dests from source_block with the damaged
+          source track.
+        . Merge.score_merge_tracks block_id track_id dests for each.
+          Since dests is [] the first time, it will not find any destination
+          tracks, and create a new one.  Otherwise, it merges to all
+          destinations, and update block_integrated_tracks.
+        . I replace everything with that source track, since I just updated
+          all of its destinations.
+    manual integrate:
+      tscore:
+        . Call TScore.cmd_integrate
+        . Looks up Block.block_integrated_manual by SourceKey "tscore" and
+          calls Merge.merge_tracks block_id.
+        . Ui.set_integrated_manual block_id source_key (Just new_dests)
+        . Inserts (Block.SourceKey, dests) into Block.block_integrated_manual
+        . Since this is manual, there's no responder hook.
+    derive integrate:
+      . Integrate.cmd_integrate
+        . block_integrated = [(source_block, ScoreDestinations [])]
+      . Derive.Integrated comes out of derivation:
+        { integrated_source :: !(Either BlockId TrackId)
+        , integrated_events :: !(Stream.Stream Score.Event)
+        }
+      . Convert.convert integrated_events -> Convert.Tracks [(Note, [Control])]
+      track:
+        . Get Block.block_integrated_tracks
+        . Get DeriveDestinations whose source_id == integrated_source_id
+        . Either create a new dest (merge with []) if dests == [], or merge
+          to each of the dests.
+        . Convert.Tracks -> Merge.merge_tracks [Block.NoteDestination]
+      block:
+        . Get blocks with Block.block_integrated source_id == derived_block
+        . Either create a new block if [], or merge to each block.
+        . Convert.Tracks -> Merge.merge_block dest_id tracks track_dests
+    generated parts:
+      . This is score integrate, but with a transformation.  So I think I
+        augment score integrate with a transform step.
+      . I need a place to stick that transform, and since a source can go to
+        multiple destinations, I think it has to be on the source.
+      . The other difference is that the transformation can make multiple
+        tracks.  So it emits [[Event]] and tracks are matched by zipping, like
+        with tscore.
+      . I also want to trigger it from a derive call, which I think is
+        orthogonal.
+    how to simplify Block?
+      kinds of integration:
+        . derive: after each cmd, I get Derive.Integrated, convert to [Event].
+          Keyed by source BlockId or TrackId.
+        . score: after each cmd, I get damaged tracks, transform to [Event].
+          Keyed by source BlockId or TrackId.
+        . manual: on command, I get [Event]
+          Keyed by arbitrary SourceKey.
+      . Each one has a source: BlockId, TrackId, or manual, which is where the
+        events come from.
+      . Each has a key: BlockId, TrackId, SourceKey, which identifies the set
+        of destinations that receive the integrate.
+      . Each track can only be the destination of one source:
+          block_destination_to_source :: Map TrackId Source
+          data Source = Manual SourceKey
+      . Or maybe it's more natural to go the other way.  Because if a source
+        has multiple destinations, I lose the sharing of the sources.
+          block_source_to_destination :: Map Source [Destination]
+          data Source = Manual SourceKey | Track TrackId | Block BlockId
+          data Destination =
+      . A block can only be the destination of one source, and a track can
+        only be the destination of one track, in the same block.
 
 lilypond:
   - Lilypond complains about simultaneous tempo marks due to the ly-global
@@ -3583,11 +3711,6 @@ fltk:
     Apparently not?  iTerms is defined in English.lproj/MainMenu.xib
     https://developer.apple.com/library/mac/#documentation/Cocoa/Conceptual/WinPanel/Tasks/UsingWindowsMenu.html
     But it doesn't say how to add the Window menu.
-  drawing artifacts on retina:
-    . Some of this may be fltk bugs.
-    / tops of tracks and the tops of track text boxes still get gunk, visible
-      when scrolling horizontally
-      . I don't see it now, probably just fltk problems.
   + bug: There's a focus bug, but I'm not sure how to reproduce it.
     . The focus bug is still here.  Even clicking on the "unfocused" block
       doesn't fix it.  Don't all msgs contain focus?  What can I log after the
@@ -4898,6 +5021,7 @@ text score: tscore:
       . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
         note generator not found: p3
       . It looks like it's thinking it's an external call.
+      . Maybe because it is, because they're all in the same namesapce now?
   * in TScore, save the tracks reverse until the UI step
   * empty tracks don't parse (?)
   * I get 'expected assert here' in useless places:
@@ -4927,7 +5051,7 @@ text score: tscore:
       . Wait could I just write [ r g * r g * ] then?
       . Yeah it works.  But I still might want to e.g. replace _ with that,
         and make * be the real rest?
-  - carry pitch and dur into sub-blocks.  It should go lexically,
+  - carry octave and dur into sub-blocks.  It should go lexically,
     left-to-right.
     . This means I'd have to do Check.check before resolve_sub_block.
     . Currently it goes: parse, unwrap_block_tracks, resolve_sub_block,
@@ -4939,6 +5063,30 @@ text score: tscore:
       sub-block with that.  I would have to know what was the parent block.
       And since sub-blocks can occur anywhere, I would need to interleave
       one way or the other.
+    . Why can't I carry octave and dur in a separate pass before
+      resolve_sub_block?
+    . Octave requires parsing the pitch, so it pretty much requires
+      Check.resolve_pitch... though I could carry it as an "carried octave",
+      which would be enough for lexical carrying.
+    . Mult and add durations carry differently:
+      add carries int1 and int2 separately
+      mult carries int2 to int1, or if int1 is set doesn't carry int2.
+      Whut?
+    . mult: 1:2 -> 1/2, 2 -> 1/2, 2: -> 2/1
+      add:  1:2 -> 1/2, 2 -> 2/1, 2: -> 2/4
+    . I want to carry both always.  :x -> 1:x, and x: -> x:1
+    . But for additive I want to carry the denominator independently so I can
+      set it: 1:4 2 3 2 1:5 2 3 2 1
+    . So I actually need to resolve pitch and dur, I can't carry
+      independently.
+    . Octave can be done separately:
+      resolve_pitch :: Scale
+          -> Stream (time, T.Note call NPitch dur)
+          -> Stream (time, T.Note call (T.NPitch (Maybe Text)) dur)
+    . resolve_duration: (Either T.Time T.Duration) T.Duration -> (T.Time, Bool)
+    . So I could do it, but I'd have to pull out resolve_pitch and do that
+      first, and change dur and rdur to (Maybe T.NDuration, T.NDuration).
+      This means T.Tracks would have to get some more type variables.
   * barline check should say what beat it thought it was on
   + copy from:
     . [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
@@ -4984,9 +5132,24 @@ text score: tscore:
         don't occur at the same time.
       . That would mean I could do a global "polos copy from sangsih, sangsih
         from polos" thing.
-    - Figuring out the proper durations can be annoying, can I use
+    + Figuring out the proper durations can be annoying, can I use
       0 CallDuration to get it to stretch until the next barline or coincident
       assertion?
+      . branch tscore-stretchy-copy
+      . Do in Check.resolve_call_duration.
+      . Adding the durations doesn't work because I need to know when it
+        *should be*.  That's what check barline does.
+      . To get AssertCoincident time, I need to look at another track with
+        AssertCoincident and no CallDuration.  If I do barline, it risks being
+        confusing because it's the next valid barline, not the one that
+        appears in other tracks.  And in that case, I might as well just put
+        in the explicit duration, because I know how long a bar is.
+      . So either I have to have barlines stick around, or just do
+        AssertCoincidents, but in either case, I need to get the duration at
+        the same level as TScore.match_asserts.  But it's more complicated, in
+        that I can't go top to bottom, I have to find at least one track with
+        no stretchy dur, and pass its AssertCoincident times to the others.
+      . It seems doable but non-trivial.
     - I usually want to copy according to a certain pattern, e.g. sangsih from
       polos, and the %froms get cluttery.
       . A simple and explicit way is rename %from to %f.
