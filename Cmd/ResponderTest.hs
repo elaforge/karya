@@ -322,7 +322,7 @@ make_midi_interface :: IO (Interface.Interface, TVar.TVar [Interface.Message])
 make_midi_interface = do
     midi_chan <- new_chan
     int <- StubMidi.interface
-    let write msg = put_val midi_chan msg >> return True
+    let write msg = put_val midi_chan msg >> return Nothing
     return (int { Interface.write_message = write }, midi_chan)
 
 -- Use a TVar as a kind of non-blocking channel.

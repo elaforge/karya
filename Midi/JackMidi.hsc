@@ -28,11 +28,13 @@ import Global
 #include "Midi/jack.h"
 
 
+type Error = Text
+
 -- * initialize
 
 initialize :: String -- ^ register this name with JACK
     -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
-    -> (Either String (Interface.RawInterface Midi.WriteMessage) -> IO a)
+    -> (Either Error (Interface.RawInterface Midi.WriteMessage) -> IO a)
     -> IO a
 initialize app_name want_message app = do
     chan <- TChan.newTChanIO
@@ -45,7 +47,7 @@ initialize app_name want_message app = do
         if clientp == nullPtr then Left <$> peekCString statusp
             else return $ Right $ Client clientp reads writes
     case result of
-        Left err -> app (Left err)
+        Left err -> app (Left (txt err))
         Right client -> do
             Thread.start $ forever $ do
                 msg <- read_event client
@@ -169,11 +171,11 @@ foreign import ccall "create_write_port"
 
 -- * write
 
-write_message :: Client -> Midi.WriteMessage -> IO Bool
+write_message :: Client -> Midi.WriteMessage -> IO (Maybe Error)
 write_message client (Midi.WriteMessage dev time msg) =
     Midi.with_wdev dev $ \devp ->
     ByteString.useAsCStringLen (Encode.encode msg) $ \(bytesp, len) ->
-    check ("write_message " <> showt (dev, time, msg))
+    error_str ("write_message " <> showt (dev, time, msg))
         =<< c_write_message (client_ptr client) devp
             (fromIntegral (RealTime.to_microseconds time))
             bytesp (fromIntegral len)
@@ -246,10 +248,15 @@ foreign import ccall "get_port_aliases"
 
 -- | Log any error and return False if there was one.
 check :: Text -> CString -> IO Bool
-check msg err
-    | err == nullPtr = return True
+check msg errp = error_str msg errp >>= \case
+    Nothing -> return True
+    Just msg -> do
+        Log.error msg
+        return False
+
+error_str :: Text -> CString -> IO (Maybe Error)
+error_str msg errp
+    | err == nullPtr = return Nothing
     | otherwise = do
         error_msg <- peekCString err
-        unless (null error_msg) $
-            Log.error $ "JACK error: " <> msg <> ": " <> txt error_msg
-        return False
+        return $ Just $ "JACK error: " <> msg <> ": " <> txt error_msg

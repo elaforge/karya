@@ -11,35 +11,36 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
-import Control.Monad
 
 import qualified Data.ByteString as ByteString
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
-import Data.Monoid ((<>))
 import qualified Data.Set as Set
-import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 
-import Foreign hiding (void)
-import Foreign.C
+import           Foreign hiding (void)
 
 import qualified Util.CUtil as CUtil
 import qualified Util.Log as Log
-
 import qualified Midi.Encode as Encode
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 
 import qualified Perform.RealTime as RealTime
-import Perform.RealTime (RealTime)
+import           Perform.RealTime (RealTime)
 
+import           Control.Monad
+import           Foreign.C
+import           Global
+
+
+type Error = Text
 
 -- * initialize
 
 initialize :: String -- ^ register this name with CoreMIDI
     -> (Midi.Message -> Bool) -- ^ read msgs that return false are filtered
-    -> (Either String (Interface.RawInterface Midi.WriteMessage) -> IO a)
+    -> (Either Error (Interface.RawInterface Midi.WriteMessage) -> IO a)
     -> IO a
 initialize app_name want_message app = do
     chan <- STM.newTChanIO
@@ -176,8 +177,8 @@ connect_read_device client dev = do
             ok <- check =<< c_connect_read_device dev_id
                 (castStablePtrToPtr sourcep)
             if not ok then return False else do
-            IORef.modifyIORef (client_reads client) (Set.insert dev)
-            return True
+                IORef.modifyIORef (client_reads client) (Set.insert dev)
+                return True
 
 foreign import ccall "core_midi_connect_read_device"
     c_connect_read_device :: CInt -> Ptr () -> IO CError
@@ -236,7 +237,7 @@ foreign import ccall "get_devices"
 -- * write
 
 -- | RealTime will be ignored for sysex msgs.
-write_message :: Client -> Midi.WriteMessage -> IO Bool
+write_message :: Client -> Midi.WriteMessage -> IO (Maybe Error)
 write_message client (Midi.WriteMessage dev ts msg) = do
     -- I could probably avoid this copy by using unsafe unpack and then a
     -- ForeignPtr or something to keep the gc off it, but any sizable sysex
@@ -244,9 +245,10 @@ write_message client (Midi.WriteMessage dev ts msg) = do
     writes <- IORef.readIORef (client_writes client)
     case Map.lookup dev writes of
         Just (Just dev_id) -> ByteString.useAsCStringLen (Encode.encode msg) $
-            \(bytesp, len) -> check =<< c_write_message dev_id
+            \(bytesp, len) -> error_str <$> c_write_message dev_id
                 (encode_time ts) (fromIntegral len) (castPtr bytesp)
-        _ -> return False
+        _ -> return $ Just $
+            "device not in " <> pretty (Map.keys writes) <> ": " <> pretty dev
 
 foreign import ccall "core_midi_write_message"
     c_write_message :: CInt -> CTimestamp -> CInt -> Ptr Word8 -> IO CError
@@ -281,13 +283,13 @@ check :: CError -> IO Bool
 check err = case error_str err of
     Nothing -> return True
     Just msg -> do
-        Log.error $ "CoreMIDI error: " <> Text.pack msg
+        Log.error msg
         return False
 
 type CError = CULong
 
 -- TODO look up actual error msgs
-error_str :: CError -> Maybe String
+error_str :: CError -> Maybe Error
 error_str err
     | err == 0 = Nothing
-    | otherwise = Just (show err)
+    | otherwise = Just $ "CoreMIDI error: " <> showt err

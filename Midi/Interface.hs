@@ -23,6 +23,8 @@ import Perform.RealTime (RealTime)
 import Global
 
 
+type Error = Text
+
 type ReadChan = TChan.TChan Midi.ReadMessage
 
 -- | Produced by an @initialize@ function.
@@ -55,7 +57,7 @@ data RawInterface write_message = Interface {
     --
     -- Messages should be written in increasing time order, with a special
     -- case that timestamp 0 messages will be written immediately.
-    , write_message :: write_message -> IO Bool
+    , write_message :: write_message -> IO (Maybe Error)
     -- | Deschedule all pending write messages.
     , abort :: IO ()
     -- | Current time according to the MIDI driver.
@@ -110,7 +112,7 @@ all_channels msg = [Midi.ChannelMessage chan msg | chan <- [0..15]]
 type TrackerM a = State.StateT State IO a
 type State = Map Midi.WriteDevice (Vector.Vector (Mutable.IOVector Int))
 
-run :: State -> TrackerM Bool -> IO (State, Bool)
+run :: State -> TrackerM a -> IO (State, a)
 run state = fmap Tuple.swap . flip State.runStateT state
 
 -- | Wrap a 'write_message' and keep track of which notes are on.  It can
@@ -119,7 +121,8 @@ run state = fmap Tuple.swap . flip State.runStateT state
 -- This is necessary because some synthesizers do not support AllNotesOff,
 -- but also relieves callers of having to track which devices and channels
 -- have active notes.
-note_tracker :: (Midi.WriteMessage -> IO Bool) -> IO (Message -> IO Bool)
+note_tracker :: (Midi.WriteMessage -> IO (Maybe err))
+    -> IO (Message -> IO (Maybe err))
 note_tracker write = do
     mstate <- MVar.newMVar Map.empty
     return $ \msg -> MVar.modifyMVar mstate $ \state -> run state $ do
@@ -128,7 +131,7 @@ note_tracker write = do
             mapM_ write new_msgs
             case msg of
                 Midi wmsg -> write wmsg
-                _ -> return True
+                _ -> return Nothing
     where
     handle_msg (Midi wmsg) = do
         case Midi.wmsg_msg wmsg of

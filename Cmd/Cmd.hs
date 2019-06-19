@@ -554,9 +554,10 @@ state_midi_writer state imsg = do
     let out = case imsg of
             Midi.Interface.Midi wmsg -> Midi.Interface.Midi $ map_wdev wmsg
             _ -> imsg
-    ok <- Midi.Interface.write_message
+    mb_err <- Midi.Interface.write_message
         (config_midi_interface (state_config state)) out
-    unless ok $ Log.warn $ "error writing " <> pretty out
+    whenJust mb_err $ \err ->
+        Log.warn $ "error writing " <> pretty out <> ": " <> err
     where
     map_wdev (Midi.WriteMessage wdev time msg) =
         Midi.WriteMessage (lookup_wdev wdev) time msg

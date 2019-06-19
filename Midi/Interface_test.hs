@@ -5,9 +5,11 @@
 module Midi.Interface_test where
 import qualified Data.IORef as IORef
 
-import Util.Test
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
+
+import           Global
+import           Util.Test
 
 
 test_note_tracker = do
@@ -69,7 +71,7 @@ track msgs = do
     mapM_ tracked msgs
     reverse <$> IORef.readIORef out
 
-make_writer :: IO (IORef.IORef [a], a -> IO Bool)
+make_writer :: IO (IORef.IORef [a], a -> IO (Maybe Text))
 make_writer = do
     msgs <- IORef.newIORef []
-    return (msgs, \msg -> IORef.modifyIORef msgs (msg:) >> return True)
+    return (msgs, \msg -> IORef.modifyIORef msgs (msg:) >> return Nothing)

@@ -83,7 +83,7 @@ initialize app = do
         , state_priority = Log.Timer
         }
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
-        Left err -> errorStack $ "initializing midi: " <> txt err
+        Left err -> errorStack $ "initializing midi: " <> err
         Right midi_interface -> Socket.withSocketsDo $ do
             midi_interface <- Interface.track_interface midi_interface
             Git.initialize $ Repl.with_socket $ app midi_interface
