@@ -42,6 +42,7 @@ import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
 import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Word as Word
+import qualified Foreign.C as C
 
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
@@ -104,6 +105,10 @@ instance Pretty Word.Word32 where pretty = showt
 instance Pretty Word.Word64 where pretty = showt
 instance Pretty Double where pretty = Num.showFloatP False 3
 instance Pretty Float where pretty = Num.showFloatP False 3
+
+instance Pretty C.CChar where pretty = showt
+instance Pretty C.CInt where pretty = showt
+instance Pretty C.CFloat where pretty (C.CFloat a) = pretty a
 
 instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
     pretty r
