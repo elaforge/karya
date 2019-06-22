@@ -184,7 +184,7 @@ e_5x4_4x3 = date 2019 6 3 $ exercise $ ganesh $ korvaiS adi
     , make1  (on.l.d.od.l.d.od.l) (on.l.d.od.l.d)
     , let nd_kpd = on.d . su kp . d in
         make (on.__ . su (on.y.j.y) . nd_kpd)
-             (su (od.y.j.y.oj.y.j.y). nd_kpd)
+             (su (on.y.j.y.oj.y.j.y). nd_kpd)
                       (su (on.y.j.y). nd_kpd)
     , make1 (su $ d.__.p.y.j.y.d.__.p.k.d.__.j.y.j.y)
         (su $ repeat 2 $ d.__.p.y.j.y)
@@ -200,3 +200,49 @@ e_5x4_4x3 = date 2019 6 3 $ exercise $ ganesh $ korvaiS adi
 
 -- ktkto_
 -- repeat 3 ktkto_ . repeat 3 ktpkpktkno
+
+e_19_06_10a :: Korvai
+e_19_06_10a = date 2019 6 10 $ ganesh $ exercise $ korvaiS adi
+    [ repeat 8 t1
+    , repeat 4 t1 . t1 . repeat 4 t2
+    , repeat 4 t1 . t1 . repeat 3 t2 . repeat 2 t3
+    , t1 . repeat 4 t2 . t1 . repeat 3 t2 . repeat 2 t3
+    , repeat 2 $ repeat 5 t4 . repeat 4 t3
+    , repeat 5 t4 . tri_ (od.__4) (repeat 4 t3)
+    ]
+    where
+    t1_ = su $ on.__.o.k.od.__.pk.n.o.o.k.od.__.o.k
+    t1 = group t1_
+    t2 = takeM 6 $ t1
+    t3 = su $ group $ p.k.n.o.o.k
+    t4 = su $ group $ on.__.pk.n.o.o.k
+
+e_19_06_10b :: Korvai
+e_19_06_10b = date 2019 6 10 $ ganesh $ exercise $ korvaiS adi $ map su
+    [ (rh.rh') & lh . rh' . rh' . repeat 4 rh'
+    , (rh.rh') & lh . repeat 4 (group (on.__.l.d.__.l.n.p.l.d.__.l))
+    , x5x4 (n.p.l.d.__.l.d.__) (n.p.l.d.__.l)
+    , x5x4 (n.__.d.__.p.l.d.__) (n.__.d.__.p.l)
+    , x5x4 (n.__.d.__.p.y.j.y) (n.__.d.__.p.l)
+    , x5x4 (n.y.d.__.p.y.j.y) (n.y.d.__.p.y)
+    ]
+    where
+    x5x4 t1 t2 = repeat 5 t1 . repeat 4 (group t2)
+    rh = n.__.l.d.__.l.d.__
+    rh' = n.__.l.d.p.l.d.__
+    lh = strM "o__o__o_o"
+
+e_19_06_17 :: Korvai
+e_19_06_17 = date 2019 6 17 $ ganesh $ exercise $ korvaiS adi
+    [ t1 (p.n.y.d.__) (on.y.d.__)
+    , t1 (p.k.n.y.d) (p.k.n.y)
+    , nadai 6 $
+        let rh = __.n.y.d.__.l.d.__.n.y.d.__
+            lh = strM "o__o__o_o__"
+        in lh & rh . lh & rh . p & rh . p & rh
+            . lh & rh . lh & rh . p & rh . tri (group (o.n.y.d))
+    ]
+    where
+    t1 end1 end2 = su $
+        repeat 5 (group (o.n.y.od.__.l.od.__.on.y.d.end1))
+        . repeat 4 (group (o.n.y.od.__.l.od.__.end2))
