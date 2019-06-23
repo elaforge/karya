@@ -28,6 +28,7 @@ module Cmd.Integrate.Merge (
     -- * create
     create_block
     -- * merge
+    , MergeTitles(..)
     , merge_block, score_merge_block, merge_tracks
     , score_merge_tracks
     , Edit(..), Modify(..), is_modified
@@ -77,7 +78,7 @@ create_block source_id tracks = do
 
 merge_block :: Ui.M m => BlockId -> Convert.Tracks
     -> [Block.NoteDestination] -> m [Block.NoteDestination]
-merge_block = merge_tracks False
+merge_block = merge_tracks KeepTitles
 
 score_merge_block :: Ui.M m => BlockId -> BlockId -> Block.ScoreDestinations
     -> m Block.ScoreDestinations
@@ -87,16 +88,21 @@ score_merge_block source_id dest_id dests = do
 
 -- * tracks
 
+data MergeTitles =
+    KeepTitles -- ^ leave the titles of merged tracks alone
+    | ReplaceTitles -- ^ replace titles with the merge source
+    deriving (Eq, Show)
+
 -- | Given a set of source 'Convert.Tracks' and a set of previously integrated
 -- destination tracks, merge them together and give new destination tracks.
 -- A single integrating source track can create multiple Convert.Tracks, and
 -- an integrating track can have >=1 destinations, so this is called once per
 -- (source, destination) pair.
-merge_tracks :: Ui.M m => Bool -> BlockId -> Convert.Tracks
+merge_tracks :: Ui.M m => MergeTitles -> BlockId -> Convert.Tracks
     -> [Block.NoteDestination] -> m [Block.NoteDestination]
-merge_tracks replace_titles block_id tracks dests = do
+merge_tracks merge_titles block_id tracks dests = do
     track_ids <- all_block_tracks block_id
-    new_dests <- mapMaybeM (merge_pairs replace_titles block_id) $
+    new_dests <- mapMaybeM (merge_pairs merge_titles block_id) $
         pair_tracks track_ids tracks dests
     -- TODO doesn't this combine with the old skeleton?  Why isn't that
     -- a problem?
@@ -200,9 +206,9 @@ add_skeleton block_id tree = do
 --
 -- Control and pitch tracks are matched or created by title, but the note track
 -- title is ignored.
-merge_pairs :: Ui.M m => Bool -> BlockId -> [TrackPair]
+merge_pairs :: Ui.M m => MergeTitles -> BlockId -> [TrackPair]
     -> m (Maybe Block.NoteDestination)
-merge_pairs replace_titles block_id pairs = do
+merge_pairs merge_titles block_id pairs = do
     triples <- mapMaybeM (merge_pair block_id) pairs
     case triples of
         [] -> return Nothing
@@ -211,7 +217,7 @@ merge_pairs replace_titles block_id pairs = do
             -- title
             -- What about the control track titles?  I use those as keys, so I
             -- can't change them without breaking the link.
-            when replace_titles $ do
+            when (merge_titles == ReplaceTitles) $ do
                 Ui.set_track_title note_id source_title
             return $ Just $ Block.NoteDestination (note_id, note_index) $
                 Map.fromList

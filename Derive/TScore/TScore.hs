@@ -104,8 +104,8 @@ cmd_integrate source = do
     let get_ext_dur = get_external_duration ui_state cmd_state
     integrate get_ext_dur source
 
-integrate :: Ui.M m => GetExternalCallDuration -> Text
-    -> m [BlockId] -- ^ newly created blocks
+integrate :: Ui.M m => GetExternalCallDuration -> Text -> m [BlockId]
+    -- ^ newly created blocks
 integrate get_ext_dur source = do
     ns <- Ui.get_namespace
     blocks <- Ui.require_right id $ track_blocks ns get_ext_dur source
@@ -447,7 +447,7 @@ integrate_block block = do
                 Nothing -> Ui.throw $
                     "block from tscore already exists: " <> pretty block_id
                 Just dests -> return (dests, False)
-    new_dests <- Merge.merge_tracks True block_id
+    new_dests <- Merge.merge_tracks Merge.ReplaceTitles block_id
         [ (convert note, map convert controls)
         | NTrack note controls _ <- reverse_tracks block
         ]
