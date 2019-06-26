@@ -271,6 +271,26 @@ test_integrate_2_tracks = do
           )
         ]
 
+test_integrate_rename = do
+    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let extract = UiTest.extract_blocks
+
+    -- The rename is detected, even if you changed the track title.
+    let state = expect_right $ run Ui.empty "b1 = [>i1 s]"
+    equal (extract state) [("b1", UiTest.inst_note_track1 "i1" ["4s"])]
+    state <- return $ expect_right $ Ui.exec state $
+        TScore.integrate get_ext_dur "b2 = [>i2 s]"
+    equal (extract state) [("b2", UiTest.inst_note_track1 "i2" ["4s"])]
+
+    -- But if you changed notes at the same time, it can't find the rename.
+    let state = expect_right $ run Ui.empty "b1 = [>i1 s]"
+    state <- return $ expect_right $ Ui.exec state $
+        TScore.integrate get_ext_dur "b2 = [>i2 r]"
+    equal (extract state)
+        [ ("b1", UiTest.inst_note_track1 "i1" ["4s"])
+        , ("b2", UiTest.inst_note_track1 "i2" ["4r"])
+        ]
+
 test_integrate_sub_block = do
     let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks

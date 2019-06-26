@@ -16,6 +16,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 import qualified Util.Then as Then
@@ -48,6 +49,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
+import qualified Ui.Transform as Transform
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
@@ -95,6 +97,26 @@ data Track = Track {
 
 type Error = Text
 
+instance Pretty track => Pretty (Block track) where
+    format (Block block_id block_title meter is_sub tracks) =
+        Pretty.record "Block"
+            [ ("block_id", Pretty.format block_id)
+            , ("block_title", Pretty.format block_title)
+            , ("meter", Pretty.format (length meter) <> " marks")
+            , ("is_sub", Pretty.format is_sub)
+            , ("tracks", Pretty.format tracks)
+            ]
+
+instance Pretty NTrack where
+    format (NTrack note controls end) = Pretty.record "NTrack"
+        [ ("note", Pretty.format note)
+        , ("controls", Pretty.format controls)
+        , ("end", Pretty.format end)
+        ]
+
+instance Pretty Track where
+    format (Track title events) = Pretty.format title <> Pretty.format events
+
 -- * toplevel
 
 cmd_integrate :: Cmd.M m => Text -> m [BlockId]
@@ -117,7 +139,61 @@ integrate get_ext_dur source = do
     sub_ids <- mapM ui_block subs
     -- Mark them as sub blocks so I can delete them on the next integrate.
     mapM_ (flip Ui.modify_block_meta (Map.insert sub_meta "")) sub_ids
+    old <- Ui.gets Ui.state_blocks
+    let renames = find_renames old parents
+    unless (null renames) $ Transform.map_block_ids $ \id ->
+        maybe id Id.unpack_id (lookup (Id.BlockId id) renames)
     mapMaybeM integrate_block parents
+
+{- | Use a heuristic to see if any blocks have been renamed.
+
+    I can't know for sure because tscore is just text, and there's no identetiy
+    for the chunk of test that represents a block.  But I do rename blocks
+    often, so I'd like something smarter than making an unrelated copy.  I could
+    exit and issue a rename command, but I'd have to also modify the text, and
+    besides the UI seems awkward.  So I detect the rename, but you have to
+    just rename the block, not modify any events.
+
+    A block is a rename of another one if:
+    - I am its source: An existing one has integrated_manual = "tscore"
+    - With NoteDestinations equal to the ones I would produce.
+    - It was deleted: BlockId is not in current blocks.
+
+    I don't care if its actual events differ, because I want to retain local
+    edits across the rename.
+-}
+find_renames :: Map BlockId Block.Block -> [Block NTrack]
+    -> [(BlockId, BlockId)]
+find_renames old_blocks new_blocks = mapMaybe renamed new_blocks
+    where
+    renamed new_block = case List.find ((==converted) . snd) candidates of
+        Nothing -> Nothing
+        Just (old_block_id, _) -> Just (old_block_id, _block_id new_block)
+        where converted = map strip_title $ convert_tracks new_block
+    -- See convert_destination below.
+    strip_title (note, controls) = (note { Convert.track_title = "" }, controls)
+    candidates :: [(BlockId, [(Convert.Track, [Convert.Track])])]
+    candidates = map (second (map convert_destination)) $
+        mapMaybe (traverse
+            (Map.lookup source_key . Block.block_integrated_manual))
+        deleted
+    deleted = filter ((`notElem` block_ids) . fst) $ Map.toList old_blocks
+    block_ids = map _block_id new_blocks
+
+convert_destination :: Block.NoteDestination -> (Convert.Track, [Convert.Track])
+convert_destination (Block.NoteDestination note controls) =
+    -- NoteDestinations don't record the track title.  I guess it could, but
+    -- I'm just going to replace it anyway.  So strip it out of the new blocks
+    -- too before comparing.  But this means I should do a merge after the
+    -- rename, or I'll miss a possible simultaneous track title change.
+    ( convert "" (snd note)
+    , map (uncurry convert) $ Map.toAscList (snd <$> controls)
+    )
+    where
+    convert title index = Convert.Track
+        { track_title = title
+        , track_events = Map.elems index
+        }
 
 destroy_subs :: Ui.M m => m ()
 destroy_subs = do
@@ -448,15 +524,18 @@ integrate_block block = do
                     "block from tscore already exists: " <> pretty block_id
                 Just dests -> return (dests, False)
     new_dests <- Merge.merge_tracks Merge.ReplaceTitles block_id
-        [ (convert note, map convert controls)
-        | NTrack note controls _ <- reverse_tracks block
-        ]
-        dests
+        (convert_tracks block) dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
 
     when created $
         BlockConfig.toggle_merge_all block_id
     return $ if created then Just block_id else Nothing
+
+convert_tracks :: Block NTrack -> [(Convert.Track, [Convert.Track])]
+convert_tracks block =
+    [ (convert note, map convert controls)
+    | NTrack note controls _ <- reverse_tracks block
+    ]
     where
     convert track = Convert.Track
         { track_title = _title track

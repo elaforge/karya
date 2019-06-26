@@ -5017,11 +5017,24 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
-    - if I rename a block that is called with /0, I get
+    * if I rename a block that is called with /0, I get
       . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
         note generator not found: p3
       . It looks like it's thinking it's an external call.
       . Maybe because it is, because they're all in the same namesapce now?
+    * If I rename a block, it makes a copy.
+      . I think I have to detect renames with a heuristic.
+      . It would be nicer to have a general solution... though I'm not sure
+        how I could say that, aside from run a separate command, which would
+        then have to modify the tscore source.
+      . Can I detect the move at the integrate level?
+      . No, because each block is merged separately.
+      . I need to have a record of the previous tscore, which I can get if
+        I put it in LTScore.  Then I would need to do the whole parse on that
+        again to compare it for moves.
+      . Could I store the parsed form?
+      . I could, but why not compare with the event indices myself?
+        Look for a deleted block with the same contents.
   * in TScore, save the tracks reverse until the UI step
   * empty tracks don't parse (?)
   * I get 'expected assert here' in useless places:
