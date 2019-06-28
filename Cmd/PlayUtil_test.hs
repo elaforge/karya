@@ -55,7 +55,7 @@ test_events_from = do
 
 test_control_defaults = do
     let make = (Ui.allocation UiTest.i1 #= Just alloc)
-            . CmdTest.make_tracks . UiTest.inst_note_track
+            . CmdTest.make_tracks . uncurry UiTest.inst_note_track
         alloc = UiTest.midi_allocation "s/1" $
             Patch.settings#Patch.control_defaults
                 #= Just (Map.fromList [("cc17", 0.5)]) $

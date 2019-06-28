@@ -168,7 +168,7 @@ test_ly_slur_beam = do
 
 test_subdivision = do
     let run = LilypondTest.staves [] . LilypondTest.derive_tracks
-            . concatMap UiTest.inst_note_track
+            . concatMap (uncurry UiTest.inst_note_track)
     equal (run [("i1", [(0, 4, "4c")]), ("i2", [(0, 4, "4d")]) ])
         (Right [("i1", ["c'1"]), ("i2", ["d'1"])], [])
 
@@ -205,7 +205,7 @@ test_subdivision = do
     -- if it has a duration, cancel at the end
     let run skel = LilypondTest.staves []
             . LilypondTest.derive_tracks_setup (DeriveTest.with_skel skel)
-            . concatMap UiTest.inst_note_track
+            . concatMap (uncurry UiTest.inst_note_track)
     equal (run [(3, 4)]
             [ meter34
             , ("i1", [(0, 3, "subdivision '6/8' --")])

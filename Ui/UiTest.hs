@@ -408,8 +408,8 @@ note_track pitches = note_spec ("", pitches, [])
 note_track1 :: [Text] -> [TrackSpec]
 note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
 
-inst_note_track :: (Text, [EventSpec]) -> [TrackSpec]
-inst_note_track (inst, pitches) = note_spec (inst, pitches, [])
+inst_note_track :: Text -> [EventSpec] -> [TrackSpec]
+inst_note_track inst pitches = note_spec (inst, pitches, [])
 
 inst_note_track1 :: Text -> [Text] -> [TrackSpec]
 inst_note_track1 title pitches = note_spec (title, notes, [])
