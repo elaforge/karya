@@ -437,13 +437,15 @@ equal_pairs eq (a:as) (b:bs)
     | otherwise = First a : equal_pairs eq as (b:bs)
 
 -- | This is like 'equal_pairs', except that the index of each pair in the
--- /right/ list is included.  In other words, given @(i, Second y)@,
--- @i@ is the position of @y@ in the @b@ list.  Given @(i, First x)@,
--- @i@ is where @x@ was deleted from the @b@ list.
+-- /right/ list is included.  In other words:
+--
+-- * @(i, Second b)@, @i@ is the position of @b@ in @bs@.
+--
+-- * @(i, First a)@, @i@ is where @a@ was deleted from @bs@.
 indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Paired a b)]
-indexed_pairs eq xs ys = zip (indexed pairs) pairs
+indexed_pairs eq as bs = zip (indexed pairs) pairs
     where
-    pairs = equal_pairs eq xs ys
+    pairs = equal_pairs eq as bs
     indexed = scanl f 0
         where
         f i (First _) = i

@@ -51,6 +51,18 @@ test_equal_pairs = do
         [First 'a', Both 'b' 'b', Both 'c' 'c']
     equal (f "abc" "xyz")
         [First 'a', First 'b', First 'c', Second 'x', Second 'y', Second 'z']
+    equal (f "abc" "bac")
+        [Second 'b', Both 'a' 'a', First 'b', Both 'c' 'c']
+
+test_indexed_pairs = do
+    let f = Seq.indexed_pairs (==)
+    equal (f "ab" "ab") [(0, Both 'a' 'a'), (1, Both 'b' 'b')]
+    -- 'b' is missing from "ac" at index 1.
+    equal (f "abc" "ac")
+        [(0, Both 'a' 'a'), (1, First 'b'), (1, Both 'c' 'c')]
+    -- 'b' is in "abc" at index 1.
+    equal (f "ac" "abc")
+        [(0, Both 'a' 'a'), (1, Second 'b'), (2, Both 'c' 'c')]
 
 test_drop_dups = do
     let f = Seq.drop_dups id

@@ -29,6 +29,9 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - can I tweak individual scale degrees?
+    . E.g. ma + 0.25nn, ri + 0.2nn.
+    . Maybe just an env var for scale degree would do it.
   generated parts:
     . The idea is that I write a part, e.g. for rambat.  Then a score
       integration creates several tracks in a separate block.  I can still see
@@ -149,6 +152,10 @@ UNSORTED
       to go through Val.
 
   swam: strings
+    - notes get stuck on
+      . Midi.AllNotesOff kills it, but space doesn't emit that.  Why not?
+      . If I always emit AllNotesOff, then im stops as soon as it starts, why?
+      . AllNotesOff shows up as Control 1 123.
     - simulate hand position and shifts
       . This won't work well because swam also wants to do that, and even with
         the hand position setting I think I can't get it to use the string
@@ -1444,6 +1451,12 @@ Util.Segment: linear: linear piecewise signal: signal-discontinuity:
       was that randomize moves every event.
 
 gamakam:
+  - can I bring back dynamics by having a dyn suffix to go to a certain dyn,
+    maybe just at the end or beginning?  E.g.
+    . !0=1>5 -- move to 1 and .5 dyn
+    . !0<0== -- move to 1 from 0 dyn
+    . ># is move to the dyn
+    . <# is move from the dyn to 1.
   . Arvind Krishnaswamy did pitch tracking studies:
     https://ccrma.stanford.edu/~arvindh/cmt/
   Pich tracking with
@@ -2532,6 +2545,19 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
+  nix:
+    - get haskell pkg lists from shakefile
+    - figure out how to pin hackage package versions.  Maybe that fixes Diff?
+      . https://github.com/sol/tinc/tree/nixpkgs
+      . https://github.com/Gabriel439/haskell-nix
+      . https://github.com/adetokunbo/haskell-overridez
+      . They probably all boil down to cabal2nix nonsense.  Would it be
+        simpler to just make sure I can work with a nixpkgs snapshot?
+    - faust2 won't compile on OS X, does it work on linux?
+    - libsamplerate won't compile from github version, write my own drv?
+    - linux, need jack1 or jack2
+    - find the fonts
+    - find c2hs
   . It's a pain to propagate all the bits of config around.
     . blaze gets around by using string deps and putting in a lookup step.
     . I could use Reader Config, but then it all becomes monadic.
@@ -5035,6 +5061,31 @@ text score: tscore:
       . Could I store the parsed form?
       . I could, but why not compare with the event indices myself?
         Look for a deleted block with the same contents.
+  - Similar to renames, is it possible to detect track moves?
+    . This also happens when I add a track in the middle.
+    . If there are no edits, this works out because it looks like a complete
+      change.  But if I have local edits it would destroy them.
+    . This is harder than block renames, because tracks just have indices.
+      Diff should be able to do it.
+    . I can do the diff, then for each Second, look for a matching First.
+      If it exists, rename the tracks, and the NoteDestinations.
+    * Transform.map_track_ids doesn't map NoteDestinations, which is a bug!
+    * Transform.map_block_ids should map Block.block_integrated too.
+    . In fact I have to rename even Boths, since a move will shift everyone
+      else.
+    . Could I do this in Merge.pair_tracks?  Then it will work for derive
+      integrate too.
+    . Maybe, but I do want to actually move the tracks, rather than just
+      matching to the right track, but leaving them out of order.
+      This only happens for a move though, not a delete.
+    . I think I can detect deletes in Merge, but not moves?  Or rather that it
+      has to be above the Merge.merge_tracks level.  In any case, do it for
+      tscore and see if I need it for other kinds of integration.
+    . The awkwardness with renaming TrackIds is that they are all generated in
+      Merge.  That's why I wanted to move this to merge in the first place.
+    . In fact, maybe since merge_tracks is just via zip, can I just rearrange
+      them before sending to merge_tracks?
+    . Just try it.
   * in TScore, save the tracks reverse until the UI step
   * empty tracks don't parse (?)
   * I get 'expected assert here' in useless places:

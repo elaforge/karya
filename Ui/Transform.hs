@@ -68,31 +68,46 @@ map_block_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
     maybe_root <- Ui.lookup_root_id
     let new_root = fmap (Id.BlockId . f . Id.unpack_id) maybe_root
-
     blocks <- Ui.gets Ui.state_blocks
-    new_blocks <- safe_map_keys "state_blocks" (Id.modify f) blocks
-
+    new_blocks <- safe_map_keys "state_blocks" modify blocks
     views <- Ui.gets Ui.state_views
     let new_views = Map.map
-            (\v -> v { Block.view_block = Id.modify f (Block.view_block v) })
+            (\v -> v { Block.view_block = modify $ Block.view_block v })
             views
     Ui.modify $ \st -> st
-        { Ui.state_blocks = new_blocks, Ui.state_views = new_views }
+        { Ui.state_blocks = map_block <$> new_blocks
+        , Ui.state_views = new_views
+        }
     Ui.modify_config $ \config -> config { Ui.config_root = new_root }
+    where
+    map_block b = b
+        { Block.block_integrated =
+            fmap (first modify) (Block.block_integrated b)
+        }
+    modify = Id.modify f
 
 map_track_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
     tracks <- Ui.gets Ui.state_tracks
-    new_tracks <- safe_map_keys "state_tracks" (Id.modify f) tracks
-
+    new_tracks <- safe_map_keys "state_tracks" modify tracks
     blocks <- Ui.gets Ui.state_blocks
-    let new_blocks = Map.map
-            (\b -> b { Block.block_tracks =
-                map (map_track (Id.modify f)) (Block.block_tracks b) })
-            blocks
+    let new_blocks = Map.map map_block blocks
     Ui.modify $ \st -> st
         { Ui.state_tracks = new_tracks, Ui.state_blocks = new_blocks }
     where
+    map_block b = b
+        { Block.block_tracks =
+            map (map_track modify) (Block.block_tracks b)
+        , Block.block_integrated =
+            fmap (fmap map_track_dests) (Block.block_integrated b)
+        , Block.block_integrated_tracks =
+            map (\(tid, dests) -> (modify tid, map_track_dests dests))
+                (Block.block_integrated_tracks b)
+        , Block.block_integrated_manual =
+            fmap (fmap map_note_dest) (Block.block_integrated_manual b)
+        }
+    -- This is getting complicated with integrate.  A generic map like uniplate
+    -- would be able to do this automatically.
     map_track f = map_merged f . map_track_id f
     map_track_id f track = case Block.tracklike_id track of
         Block.TId tid rid ->
@@ -100,6 +115,16 @@ map_track_ids f = do
         _ -> track
     map_merged f track = track
         { Block.track_merged = Set.map f (Block.track_merged track) }
+    map_track_dests = \case
+        Block.DeriveDestinations dests ->
+            Block.DeriveDestinations $ map map_note_dest dests
+        Block.ScoreDestinations dests ->
+            Block.ScoreDestinations $ map (bimap modify (first modify)) dests
+    map_note_dest (Block.NoteDestination note controls) = Block.NoteDestination
+        { dest_note = first modify note
+        , dest_controls = fmap (first modify) controls
+        }
+    modify = Id.modify f
 
 map_ruler_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
