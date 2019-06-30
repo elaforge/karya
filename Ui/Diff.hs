@@ -236,7 +236,7 @@ diff_block block_id block1 block2 = do
 
     let btracks1 = Block.block_tracks block1
         btracks2 = Block.block_tracks block2
-    let bpairs = Seq.indexed_pairs_on Block.tracklike_id btracks1 btracks2
+    let bpairs = Seq.diff_index_on Block.tracklike_id btracks1 btracks2
     forM_ bpairs $ \(i2, paired) -> case paired of
         Seq.First _ -> emit $ Update.RemoveTrack i2
         Seq.Second track -> emit $ Update.InsertTrack i2 track
@@ -244,7 +244,7 @@ diff_block block_id block1 block2 = do
             emit $ Update.BlockTrack i2 track2
         _ -> return ()
 
-    let dpairs = Seq.indexed_pairs_on Block.dtracklike_id dtracks1 dtracks2
+    let dpairs = Seq.diff_index_on Block.dtracklike_id dtracks1 dtracks2
     forM_ dpairs $ \(i2, paired) -> case paired of
         -- Insert and remove are emitted for cmd updates above, but
         -- the Update.to_display conversion filters them out.
@@ -373,7 +373,7 @@ derive_diff_block block_id pair = case pair of
                 || unequal Block.block_skeleton)
             block_damage
         let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
-        let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
+        let tpairs = Seq.diff_index_on Block.tracklike_id ts1 ts2
         forM_ tpairs $ \(_, pair) -> case pair of
             Seq.Both track1 track2
                 | flags_differ track1 track2 -> block_damage

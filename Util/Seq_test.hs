@@ -39,23 +39,8 @@ test_merge_asc_lists = do
     equal (take 30 (f infinite))
         (take 30 (Seq.merge_lists fst (take 30 infinite)))
 
-test_equal_pairs = do
-    let f = Seq.equal_pairs (==)
-    equal (f "abc" "abc")
-        [Both 'a' 'a', Both 'b' 'b', Both 'c' 'c']
-    equal (f "abc" "axbc")
-        [Both 'a' 'a', Second 'x', Both 'b' 'b', Both 'c' 'c']
-    equal (f "abc" "axxbc")
-        [Both 'a' 'a', Second 'x', Second 'x', Both 'b' 'b', Both 'c' 'c']
-    equal (f "abc" "bc")
-        [First 'a', Both 'b' 'b', Both 'c' 'c']
-    equal (f "abc" "xyz")
-        [First 'a', First 'b', First 'c', Second 'x', Second 'y', Second 'z']
-    equal (f "abc" "bac")
-        [Second 'b', Both 'a' 'a', First 'b', Both 'c' 'c']
-
-test_indexed_pairs = do
-    let f = Seq.indexed_pairs (==)
+test_diff_index = do
+    let f = Seq.diff_index (==)
     equal (f "ab" "ab") [(0, Both 'a' 'a'), (1, Both 'b' 'b')]
     -- 'b' is missing from "ac" at index 1.
     equal (f "abc" "ac")

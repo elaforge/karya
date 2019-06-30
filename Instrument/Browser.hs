@@ -325,7 +325,7 @@ process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [InstTypes.Qualified]
     -> Text -> IO [InstTypes.Qualified]
 process_query chan win db displayed query = do
     let matches = Search.search (db_index db) (Search.parse query)
-        diff = Seq.indexed_pairs (==) displayed matches
+        diff = Seq.diff_index (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
         Seq.Second inst -> Fltk.send_action chan $
             BrowserC.insert_line win (i+1) (InstTypes.show_qualified inst)

@@ -3,20 +3,21 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Seq where
-import Prelude hiding (head, last, tail)
-import           Data.Bifunctor (first, second)
+import           Prelude hiding (head, last, tail)
+import           Data.Bifunctor (Bifunctor(bimap), first, second)
 import qualified Data.Char as Char
 import qualified Data.Either as Either
-import Data.Function
+import           Data.Function (on)
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
+import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import Data.Monoid ((<>))
+import           Data.Monoid ((<>))
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 
+import qualified Util.PolyDiff as PolyDiff
 import qualified Util.Then as Then
 
 
@@ -379,6 +380,12 @@ zip_remainder xs [] = ([], Left xs)
 data Paired a b = First !a | Second !b | Both !a !b
     deriving (Show, Eq)
 
+instance Bifunctor Paired where
+    bimap f g = \case
+        First a -> First (f a)
+        Second b -> Second (g b)
+        Both a b -> Both (f a) (g b)
+
 paired_second :: Paired a b -> Maybe b
 paired_second (First _) = Nothing
 paired_second (Second b) = Just b
@@ -423,36 +430,42 @@ zipper :: [a] -> [a] -> [([a], [a])]
 zipper prev [] = [(prev, [])]
 zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 
--- | Pair @a@ elements up with @b@ elements.  If they are equal according to
--- the function, they'll both be Both in the result.  If an @a@ is deleted
--- going from @a@ to @b@, it will be First, and Second for @b@.
---
--- Kind of like an edit distance, or a diff.
-equal_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [Paired a b]
-equal_pairs _ [] bs = map Second bs
-equal_pairs _ as [] = map First as
-equal_pairs eq (a:as) (b:bs)
-    | a `eq` b = Both a b : equal_pairs eq as bs
-    | any (eq a) bs = Second b : equal_pairs eq (a:as) bs
-    | otherwise = First a : equal_pairs eq as (b:bs)
+-- | Perform a Meyes diff.
+diff :: (a -> b -> Bool) -> [a] -> [b] -> [Paired a b]
+diff eq as bs = map convert $ PolyDiff.getDiffBy eq as bs
+    where
+    convert = \case
+        PolyDiff.First a -> First a
+        PolyDiff.Second b -> Second b
+        PolyDiff.Both a b -> Both a b
 
--- | This is like 'equal_pairs', except that the index of each pair in the
--- /right/ list is included.  In other words:
+-- | Left if the val was in the left list but not the right, Right for the
+-- converse.
+diff_either :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
+diff_either eq as bs = Maybe.mapMaybe to_either $ diff eq as bs
+    where
+    to_either (First a) = Just (Left a)
+    to_either (Second a) = Just (Right a)
+    to_either _ = Nothing
+
+-- | This is like 'diff', except that the index of each pair in the
+-- /right/ list is included.  So the index is where you should delete or
+-- add the element to turn as into bs:
 --
 -- * @(i, Second b)@, @i@ is the position of @b@ in @bs@.
 --
 -- * @(i, First a)@, @i@ is where @a@ was deleted from @bs@.
-indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Paired a b)]
-indexed_pairs eq as bs = zip (indexed pairs) pairs
+diff_index :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Paired a b)]
+diff_index eq as bs = zip (indexed pairs) pairs
     where
-    pairs = equal_pairs eq as bs
+    pairs = diff eq as bs
     indexed = scanl f 0
         where
         f i (First _) = i
         f i _ = i+1
 
-indexed_pairs_on :: Eq k => (a -> k) -> [a] -> [a] -> [(Int, Paired a a)]
-indexed_pairs_on key = indexed_pairs (\a b -> key a == key b)
+diff_index_on :: Eq k => (a -> k) -> [a] -> [a] -> [(Int, Paired a a)]
+diff_index_on key = diff_index (\a b -> key a == key b)
 
 -- | Pair up two lists of sorted pairs by their first element.
 pair_sorted :: Ord k => [(k, a)] -> [(k, b)] -> [(k, Paired a b)]
@@ -476,15 +489,6 @@ pair_on k1 k2 xs ys = map snd $
 -- | Like 'pair_on', but when the lists have the same type.
 pair_on1 :: Ord k => (a -> k) -> [a] -> [a] -> [Paired a a]
 pair_on1 k = pair_on k k
-
--- | Left if the val was in the left list but not the right, Right for the
--- converse.
-diff :: (a -> b -> Bool) -> [a] -> [b] -> [Either a b]
-diff eq xs ys = Maybe.mapMaybe f (equal_pairs eq xs ys)
-    where
-    f (First a) = Just (Left a)
-    f (Second a) = Just (Right a)
-    f _ = Nothing
 
 -- * partition
 

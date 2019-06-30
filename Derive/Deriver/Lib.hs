@@ -559,7 +559,7 @@ state_controls_at :: RealTime -> Ruler.Marklists
     -> ScoreT.ControlValMap
 state_controls_at pos ruler dyn serial = Map.fromList $
     map (resolve (Internal.convert_dynamic ruler dyn serial) pos) $
-    Seq.equal_pairs (\a b -> fst a == fst b)
+    Seq.diff (\a b -> fst a == fst b)
         (Map.toAscList (state_control_functions dyn))
         (Map.toAscList (state_controls dyn))
     where

@@ -941,7 +941,7 @@ diff_events r1 r2
     -- null" line on every test.  In practice, I don't expect any test to
     -- produce zero events.
     | null x1 && null x2 = expect_no_events
-    | otherwise = Seq.diff (==) x1 x2
+    | otherwise = Seq.diff_either (==) x1 x2
     where
     x1 = extract r1
     x2 = extract r2

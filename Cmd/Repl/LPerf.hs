@@ -169,7 +169,7 @@ compare_cached_events block_id = do
     return $ diff (Stream.events_of (Derive.r_events cached))
         (Stream.events_of (Derive.r_events uncached))
     where
-    diff e1 e2 = Seq.diff (==)
+    diff e1 e2 = Seq.diff_either (==)
         (map Simple.score_event e1) (map Simple.score_event e2)
 
 derive :: Cmd.M m => BlockId -> m Derive.Result
