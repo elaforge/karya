@@ -110,8 +110,8 @@ kp, kpnp :: Sequence
 kp = k.p
 kpnp = k.p.n.p
 
-tdgnt :: Sequence
-tdgnt = k.t.k.n.o
+ktkno :: Sequence
+ktkno = k.t.k.n.o
 
 kt, tk, ktkt :: Sequence
 kt = k.t
