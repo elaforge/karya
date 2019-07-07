@@ -4,7 +4,7 @@ syn match tsDirective "%default-call\>"
 syn match tsDirective "%\(dur\|meter\|scale\|f\)\>"
 hi tsDirective cterm=underline
 
-syn match tsTrackTitle ">[a-z0-9.-]*"
+syn match tsTrackTitle ">[!@#$%^&*]*[a-z0-9.-]*"
 hi tsTrackTitle ctermfg=DarkBlue
 
 syn region tsString start='"' skip='"(' end='"' oneline

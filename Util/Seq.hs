@@ -586,7 +586,8 @@ drop_with f (x:y:xs)
     | f x y = drop_with f (x:xs)
     | otherwise = x : drop_with f (y:xs)
 
--- | Like 'drop_dups', but return the dropped values.
+-- | Sort the input by the key, extract unique values, and also return the
+-- duplicates.
 partition_dups :: Ord k => (a -> k) -> [a] -> ([a], [(a, NonNull a)])
     -- ^ ([unique], [(used_for_unique, [dups])])
 partition_dups key xs =
@@ -595,6 +596,14 @@ partition_dups key xs =
     extract [] = []
     extract [x] = [Left x]
     extract (x:xs) = [Left x, Right (x, xs)]
+
+-- | Find duplicate values.  There are always at least 2 of each output.
+find_dups :: Ord k => (a -> k) -> [a] -> [(a, NonEmpty a)]
+find_dups key = Maybe.mapMaybe extract . group_sort key
+    where
+    extract [] = Nothing
+    extract [_] = Nothing
+    extract (x1:x2:xs) = Just (x1, x2 :| xs)
 
 -- | Like 'drop_dups', but keep the last adjacent equal elt instead of the
 -- first.

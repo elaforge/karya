@@ -10,6 +10,7 @@ module Derive.TScore.TScore where
 import qualified Control.Monad.Identity as Identity
 import qualified Data.Either as Either
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -72,6 +73,7 @@ data Block track = Block {
 -- both rhythm and pitch.
 data NTrack = NTrack {
     _note :: !Track
+    , _key :: !Text
     , _controls :: ![Track]
     -- | End of the track.  This could be past the end of the last event if
     -- there was a rest on the end.  This is intentionally not strict, because
@@ -83,8 +85,10 @@ data NTrack = NTrack {
 -- but not yet converted to a Track.
 data ParsedTrack = ParsedTrack {
     track_config :: !Check.Config
+    , track_key :: !Text
     , track_title :: !Text
     , track_tokens :: ![Token (T.NPitch T.Pitch)]
+    , track_pos :: !T.Pos
     } deriving (Show)
 
 type Token pitch = T.Token T.CallText pitch T.NDuration T.Duration
@@ -108,8 +112,9 @@ instance Pretty track => Pretty (Block track) where
             ]
 
 instance Pretty NTrack where
-    format (NTrack note controls end) = Pretty.record "NTrack"
+    format (NTrack note key controls end) = Pretty.record "NTrack"
         [ ("note", Pretty.format note)
+        , ("key", Pretty.format key)
         , ("controls", Pretty.format controls)
         , ("end", Pretty.format end)
         ]
@@ -140,60 +145,10 @@ integrate get_ext_dur source = do
     -- Mark them as sub blocks so I can delete them on the next integrate.
     mapM_ (flip Ui.modify_block_meta (Map.insert sub_meta "")) sub_ids
     old <- Ui.gets Ui.state_blocks
-    let renames = find_renames old parents
+    let renames = find_block_renames old parents
     unless (null renames) $ Transform.map_block_ids $ \id ->
         maybe id Id.unpack_id (lookup (Id.BlockId id) renames)
     mapMaybeM integrate_block parents
-
-{- | Use a heuristic to see if any blocks have been renamed.
-
-    I can't know for sure because tscore is just text, and there's no identetiy
-    for the chunk of test that represents a block.  But I do rename blocks
-    often, so I'd like something smarter than making an unrelated copy.  I could
-    exit and issue a rename command, but I'd have to also modify the text, and
-    besides the UI seems awkward.  So I detect the rename, but you have to
-    just rename the block, not modify any events.
-
-    A block is a rename of another one if:
-    - I am its source: An existing one has integrated_manual = "tscore"
-    - With NoteDestinations equal to the ones I would produce.
-    - It was deleted: BlockId is not in current blocks.
-
-    I don't care if its actual events differ, because I want to retain local
-    edits across the rename.
--}
-find_renames :: Map BlockId Block.Block -> [Block NTrack]
-    -> [(BlockId, BlockId)]
-find_renames old_blocks new_blocks = mapMaybe renamed new_blocks
-    where
-    renamed new_block = case List.find ((==converted) . snd) candidates of
-        Nothing -> Nothing
-        Just (old_block_id, _) -> Just (old_block_id, _block_id new_block)
-        where converted = map strip_title $ convert_tracks new_block
-    -- See convert_destination below.
-    strip_title (note, controls) = (note { Convert.track_title = "" }, controls)
-    candidates :: [(BlockId, [(Convert.Track, [Convert.Track])])]
-    candidates = map (second (map convert_destination)) $
-        mapMaybe (traverse
-            (Map.lookup source_key . Block.block_integrated_manual))
-        deleted
-    deleted = filter ((`notElem` block_ids) . fst) $ Map.toList old_blocks
-    block_ids = map _block_id new_blocks
-
-convert_destination :: Block.NoteDestination -> (Convert.Track, [Convert.Track])
-convert_destination (Block.NoteDestination note controls) =
-    -- NoteDestinations don't record the track title.  I guess it could, but
-    -- I'm just going to replace it anyway.  So strip it out of the new blocks
-    -- too before comparing.  But this means I should do a merge after the
-    -- rename, or I'll miss a possible simultaneous track title change.
-    ( convert "" (snd note)
-    , map (uncurry convert) $ Map.toAscList (snd <$> controls)
-    )
-    where
-    convert title index = Convert.Track
-        { track_title = title
-        , track_events = Map.elems index
-        }
 
 destroy_subs :: Ui.M m => m ()
 destroy_subs = do
@@ -211,11 +166,24 @@ track_blocks namespace get_ext_dur source = do
         [] -> return ()
         errs -> Left $ "recursive %f: "
             <> mconcat (map (T.show_error source) errs)
+    case concatMap check_unique_keys blocks of
+        [] -> return ()
+        errs -> Left $ mconcat (map (T.show_error source) errs)
     (errs, blocks) <- return $
         partition_errors $ resolve_blocks get_ext_dur source blocks
     unless (null errs) $
         Left $ Text.intercalate "; " errs
     return $ map (set_namespace namespace) blocks
+
+check_unique_keys :: Block ParsedTrack -> [T.Error]
+check_unique_keys block =
+    concatMap mkerror $ Seq.find_dups key_of (_tracks block)
+    where
+    mkerror (track, tracks) =
+        T.Error (track_pos track)
+            ("non-unique track key " <> pretty (key_of track))
+        : [T.Error (track_pos t) "" | t <- NonEmpty.toList tracks]
+    key_of t = (track_key t, track_title t)
 
 -- | Replace the namespace.
 --
@@ -289,6 +257,57 @@ root_block = do
         =<< Ui.track_ids_of block_id
     return (block_id, track_id)
 
+-- * detect moves
+
+{- | Use a heuristic to see if any blocks have been renamed.
+
+    I can't know for sure because tscore is just text, and there's no identetiy
+    for the chunk of test that represents a block.  But I do rename blocks
+    often, so I'd like something smarter than making an unrelated copy.  I could
+    exit and issue a rename command, but I'd have to also modify the text, and
+    besides the UI seems awkward.  So I detect the rename, but you have to
+    just rename the block, not modify any events.
+
+    A block is a rename of another one if:
+    - I am its source: An existing one has integrated_manual = "tscore"
+    - With NoteDestinations equal to the ones I would produce.
+    - It was deleted: BlockId is not in current blocks.
+
+    I don't care if its actual events differ, because I want to retain local
+    edits across the rename.
+-}
+find_block_renames :: Map BlockId Block.Block -> [Block NTrack]
+    -> [(BlockId, BlockId)]
+find_block_renames old_blocks new_blocks = mapMaybe renamed new_blocks
+    where
+    renamed new_block = case List.find ((==converted) . snd) candidates of
+        Nothing -> Nothing
+        Just (old_block_id, _) -> Just (old_block_id, _block_id new_block)
+        where converted = map strip_title $ convert_tracks new_block
+    -- See convert_destination below.
+    strip_title (note, controls) = (note { Convert.track_title = "" }, controls)
+    candidates :: [(BlockId, [(Convert.Track, [Convert.Track])])]
+    candidates = map (second (map convert_destination)) $
+        mapMaybe (traverse
+            (Map.lookup source_key . Block.block_integrated_manual))
+        deleted
+    deleted = filter ((`notElem` block_ids) . fst) $ Map.toList old_blocks
+    block_ids = map _block_id new_blocks
+
+convert_destination :: Block.NoteDestination -> (Convert.Track, [Convert.Track])
+convert_destination (Block.NoteDestination _key note controls) =
+    -- NoteDestinations don't record the track title.  I guess it could, but
+    -- I'm just going to replace it anyway.  So strip it out of the new blocks
+    -- too before comparing.  But this means I should do a merge after the
+    -- rename, or I'll miss a possible simultaneous track title change.
+    ( convert "" (snd note)
+    , map (uncurry convert) $ Map.toAscList (snd <$> controls)
+    )
+    where
+    convert title index = Convert.Track
+        { track_title = title
+        , track_events = Map.elems index
+        }
 
 -- * resolve blocks
 
@@ -331,7 +350,7 @@ resolve_blocks get_ext_dur source blocks =
     map (fmap (fmap make_track)) $ Map.elems resolved_notes
     where
     resolved_notes :: Map Id.BlockId
-        (Block (Either Error (([ResolvedNote], Text), T.Time)))
+        (Block (Either Error (([ResolvedNote], Text, Text), T.Time)))
     resolved_notes = Map.fromList
         [(_block_id block, resolve_block block) | block <- blocks]
     -- Memoized duration of blocks.
@@ -339,11 +358,12 @@ resolve_blocks get_ext_dur source blocks =
     block_durations = Map.mapWithKey block_duration resolved_notes
 
     -- Convert [ResolvedNote] to NTrack.
-    make_track ((notes, title), end) = NTrack
+    make_track ((notes, key, title), end) = NTrack
         { _note = Track
-            { _title = if Text.null title then ">" else title
+            { _title = if title == "" then ">" else title
             , _events = Events.from_list $ map (uncurry note_event) notes
             }
+        , _key = key
         , _controls = if null pitches then [] else (:[]) $ Track
             { _title = "*"
             , _events = Events.from_list pitches
@@ -359,10 +379,11 @@ resolve_blocks get_ext_dur source blocks =
     resolve_tracks block_id block_title =
         snd . List.mapAccumL (resolve block_id block_title) Nothing . zip [1..]
     resolve block_id block_title mb_asserts
-            (tracknum, ParsedTrack config title tokens) =
+            (tracknum, ParsedTrack config key title tokens _pos) =
         (Just $ fromMaybe asserts mb_asserts,) $ first (T.show_error source)$ do
             whenJust (Seq.head errs) Left
-            let to_tracks = map (fmap (fst . fst)) . _tracks
+            let to_tracks = map (fmap ((\(notes, _, _) -> notes) . fst))
+                    . _tracks
             mb_from_track <- case Check.config_from config of
                 Just from -> Just <$> do
                     from_track <- resolve_from (to_tracks <$> resolved_notes)
@@ -373,7 +394,7 @@ resolve_blocks get_ext_dur source blocks =
             notes <- resolve_copy_from mb_from_track uncopied
             whenJust mb_asserts $ \prev ->
                 whenJust (match_asserts prev asserts notes) Left
-            return ((notes, title), end)
+            return ((notes, key, title), end)
         where
         ((metas, uncopied), end) = first Either.partitionEithers $
             Check.check (get_dur (to_transformers block_title title) block_id)
@@ -397,8 +418,8 @@ resolve_blocks get_ext_dur source blocks =
             Just err_dur -> (err_dur, [])
     to_transformers block_title track_title = block_title
         : if track_title == "" then [] else [note_to_transform track_title]
-    note_to_transform = either (const "") ShowVal.show_val
-        . ParseTitle.parse_note
+    note_to_transform =
+        either (const "") ShowVal.show_val . ParseTitle.parse_note
     block_duration block_id block = do
         tracks <- forM (zip [1..] (_tracks block)) $
             \(tracknum, track) -> first
@@ -533,8 +554,8 @@ integrate_block block = do
 
 convert_tracks :: Block NTrack -> [(Convert.Track, [Convert.Track])]
 convert_tracks block =
-    [ (convert note, map convert controls)
-    | NTrack note controls _ <- reverse_tracks block
+    [ (convert (_note track), map convert (_controls track))
+    | track <- reverse_tracks block
     ]
     where
     convert track = Convert.Track
@@ -559,7 +580,7 @@ ui_block :: Ui.M m => Block NTrack -> m BlockId
 ui_block block = do
     let tracks = reverse_tracks block
     track_ids <- fmap concat $
-        forM tracks $ \(NTrack note controls _) ->
+        forM tracks $ \(NTrack note _ controls _) ->
             forM (note : controls) $ \(Track title events) -> do
                 track_id <- GenId.track_id (_block_id block)
                 Ui.create_track track_id (Track.track title events)
@@ -577,9 +598,9 @@ ui_block block = do
 ui_skeleton :: [NTrack] -> Skeleton.Skeleton
 ui_skeleton = Skeleton.make . concat . snd . List.mapAccumL make 1
     where
-    make tracknum (NTrack _ controls _) = (tracknum+len, zip ns (drop 1 ns))
+    make tracknum track = (tracknum+len, zip ns (drop 1 ns))
         where
-        len = length controls + 1
+        len = length (_controls track) + 1
         ns = [tracknum .. tracknum+len - 1]
 
 ui_ruler :: Ui.M m => Block NTrack -> m RulerId
@@ -675,10 +696,13 @@ interpret_block config is_sub
         , _tracks =
             [ ParsedTrack
                 { track_config = track_config
+                , track_key = key
                 , track_title = title
                 , track_tokens = tokens
+                , track_pos = pos
                 }
-            | (track_config, T.Track title _ tokens) <- zip track_configs tracks
+            | (track_config, T.Track key title _ tokens pos)
+                <- zip track_configs tracks
             ]
         }
 

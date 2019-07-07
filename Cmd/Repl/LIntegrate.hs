@@ -116,5 +116,5 @@ indices_of integrated integrated_tracks =
     dest_indices (_, Block.DeriveDestinations dests) =
         concatMap derive_indices dests
     dest_indices (_, Block.ScoreDestinations dests) = map snd dests
-    derive_indices (Block.NoteDestination note controls) =
+    derive_indices (Block.NoteDestination _ note controls) =
         note : Map.elems controls

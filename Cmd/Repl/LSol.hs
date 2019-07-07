@@ -229,7 +229,7 @@ integrate_track korvai index instrument = do
     Ui.set_track_title track_id (">" <> instrument)
     block_id <- Ui.block_id_of view_id
     Ui.set_integrated_manual block_id key $
-        Just [Block.empty_destination track_id []]
+        Just [Block.empty_destination key track_id []]
     reintegrate key
     return key
 

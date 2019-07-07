@@ -311,8 +311,8 @@ test_manual_integrate = do
             (block_id, [tid1, tid2]) <- UiTest.mkblock
                 (UiTest.default_block_name, [(">", []), (">", [])])
             Ui.set_integrated_manual block_id key $ Just
-                [ Block.empty_destination tid1 []
-                , Block.empty_destination tid2 []
+                [ Block.empty_destination "k1" tid1 []
+                , Block.empty_destination "k2" tid2 []
                 ]
     equal (extract initial) ([(">", []), (">", [])], [])
     let state = f initial (">i", [(0, 1, "hi")]) []

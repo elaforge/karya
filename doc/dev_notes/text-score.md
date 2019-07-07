@@ -12,7 +12,7 @@ file.  This would be basically just 'seq' without any open windows.
 - Scores in this notation should be fully compatible with tracklang, and
 it should be possible to integrate into a block.
 
-- However, it can represent things that are awkward in the gui score,
+- However, it can represent things that are awkward in the tracklang,
 such as truly per-note controls and lots of use of parent tracks.
 
 - Syntax examples: lilypond, <https://github.com/alda-lang/alda>
@@ -36,7 +36,7 @@ a compile and relink.  Well, I could probably dynamically load, but it's
 complicated.
 
 - EDSL: Plain haskell, with a special prelude with specialized operators and
-the like.  `Derive.Solkattu.Score` does this.  The advantages are the full
+the like.  `Solkattu.Score` does this.  The advantages are the full
 power of haskell and ghci.  Disadvantages are the same as TH, only less awkward
 than TH, but it can be hard to get a succinct syntax in haskell.
 
@@ -264,7 +264,7 @@ type Octave = Int
 ```
 
 Alternately, what about doing this all as a haskell DSL?  It seems to work
-ok for Derive.Solkattu.Score.  To avoid having "s everywhere, I would have to
+ok for Solkattu.Score.  To avoid having "s everywhere, I would have to
 add a variable for each call, e.g. for each scale degree and ornament, and
 then have some operators to combine them.  I'd still need an operator to join
 each note, so at minimum it would look like:

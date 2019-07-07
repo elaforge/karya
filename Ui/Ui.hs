@@ -1738,7 +1738,9 @@ fix_track_destinations :: Text -> [TrackId] -> [TrackId]
     -> Block.TrackDestinations -> (Block.TrackDestinations, [Text])
 fix_track_destinations err_msg source_track_ids track_ids d = case d of
     Block.DeriveDestinations dests ->
-        (Block.DeriveDestinations valid, errs (map derive_track_ids invalid))
+        ( Block.DeriveDestinations valid
+        , errs (map Block.dest_track_ids invalid)
+        )
         where (valid, invalid) = List.partition derive_valid dests
     Block.ScoreDestinations dests ->
         (Block.ScoreDestinations valid, errs (map score_track_ids invalid))
@@ -1747,11 +1749,8 @@ fix_track_destinations err_msg source_track_ids track_ids d = case d of
     errs invalid = ["integrated " <> err_msg
         <> ": track destination has track ids not in the right block: "
         <> pretty dest | dest <- invalid]
-    derive_track_ids (Block.NoteDestination note controls) =
-        fst note : map fst (Map.elems controls)
     score_track_ids (source_id, (dest_id, _)) = (source_id, dest_id)
-    derive_valid (Block.NoteDestination note controls) =
-        all (`elem` track_ids) (fst note : map fst (Map.elems controls))
+    derive_valid = all (`elem` track_ids) . Block.dest_track_ids
     score_valid (source_id, (dest_id, _index)) =
         source_id `elem` source_track_ids && dest_id `elem` track_ids
 

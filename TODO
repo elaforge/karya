@@ -5086,6 +5086,100 @@ text score: tscore:
     . In fact, maybe since merge_tracks is just via zip, can I just rearrange
       them before sending to merge_tracks?
     . Just try it.
+    . The diff gives deletes and adds, I still need to use tha move detection
+      on that.
+    . But I still have to merge non-matching tracks!  I only delete if there's
+      an extra that has no match, but I don't know which one it corresponded
+      to.  I could match equal ones, and then zip the insides.
+    . Or, could I attach some identity to NoteDestination?
+      For tscore, I would have to infer it somehow... unless I could embed
+      some code in the track?  Make a vim command that inserts a magic key?
+      Or the first time it sees a new track, stash an ID code and then have
+      vim reload?  I could pick a 漢字, if I can get a list of the most
+      common.  Actually I don't need anything that big, I don't have that many
+      tracks, so could be 一二三. Or even !@#$%^&*()—+, or any symbol?
+    . In the case of gender, the title is already unique.  I could have a rule
+      that says track names have to be unique, and you can stick symbols after
+      the > to make it unique, which won't go into the title.
+    . Match tracks by key, and emit tracks that have been deleted, and the
+      new track order.
+    . But I want to make sure merge matches them, so I need to leave space for
+      inserted ones so they go in the right spot.
+    . Can I have Merge match on the keys?
+    . It reorders the dests based on matching keys.  If multiple ones match,
+      they get zipped as before.
+    . Then reorder the block tracks to match the dests, and
+      create/delete/merge as before.
+
+    . src: x y
+      dst: 1x  2   3y  4y  5   6
+      out: 1xx 2   3yy 5   6
+    . src: y x
+      dst: 1x  2   3y  4y  5   6
+      out: 1yy 2   3xx 5   6
+    . If they're in the same order I can keep the positions, but if the order
+      changed, I don't see how I know where to put xx, unless I keep the
+      positions of dest tracks.  I think that would match the intuition that
+      those are slots managed by integration, and extra tracks inserted in there
+      keep their relative places.  But do I need to be that complicated?
+    . I would do it by getting tracknums of dest groups, then zipping those up
+      with the new dest group order.
+    . The simpler way would be to shunt all non-dest tracks to the end.
+      Simpler still would be to assume exactly 1 key per track, or at least
+      handle keyed and non-keyed separately.  In fact maybe it has to be that
+      way.
+    . Ok, so: if there are any keyed srcs, assert they all are, and there's
+      1 of each key.  Match them 1:1 with dests, and do move detection and
+      deletes, and use the src order.  All non-dest tracks go to the end.
+    . If there are unkeyed srcs, assert they all are, and then use the old
+      algorithm.
+    . The problem is that the merge-with-keys is more natural as generate
+      a new block, then modify, because it imposes track order.  The
+      merge-without-keys is based on mutation, presumably because it's
+      preserving track order.  The non-mutation version seems nicer, but maybe
+      that's just a knee-jerk reaction, since it needs to turn into mutation
+      at the end anyway, unless I want to replace the block every time.  Which
+      I don't want to do, because I want to retain TrackIds.  I guess once you
+      opt into pointers you're opted in to mutation.
+    . So should I go back to trying to reconcile the two approaches?  The
+      reason it doesn't appeal is that it's work for features I never wanted,
+      which is mixing keyed and non-keyed.  And it seems like I should be able
+      to key deriver integration, and that I'd want to so it can delete
+      tracks.  So keyed is the future, and I'd like it to rearrange tracks,
+      but also coexist with non-integrated tracks.
+    . But Derive.Integrated is just a stream of Score.Events, I don't know if
+      I can key them, or enforce unique keys.  Convert.integrate separates
+      them onto tracks automatically, because Score.Events don't have tracks,
+      and can overlap.  This is because derive integration is coming from
+      a lower-level source, which is also why I wound up with score
+      integration.
+    . Ok, bottom line:
+      . Derive integration is not important, since I'm not using it much, so
+        I don't know in what form I will want it.  If I can use it for e.g.
+        rambat integration then I'll have a use for it, but in that case
+        I think I will want to have control over tracks, e.g. left and right
+        hands.  But it does seem like it's right, in the way that coming up
+        with a whole other language for fancy score integration is not.
+        I should instead augment the Score.Event output so it can be both
+        played directly, and converted back to high level score.  That
+        potentially means track keys, because I'd want it to be able to
+        generate one more or less tracks without destroying all my
+        modifications.  So maybe this means derive integration will likely
+        stay, but maybe not in its current form.
+      . Meanwhile, tscore integration will always have unique track keys, and
+        I do want non-integrated tracks in the same block, but I don't mind if
+        they're segregated to the end of the block.  In other words, it's ok
+        to force the tscore integrated tracks to be a contiguous range of
+        tracks.  I definitely want to enforce track order, and hence detect
+        moves, because tscore has an order.  Of course, maybe derive
+        integration will want to as well, after all if I'm going to generate
+        score, I should generate nice score!
+      . If I'm going to insist on track keys, I could fake them up in
+        Convert.  The result should be the same as with zip, but at the merge
+        functions can have a uniform interface.
+    * Check for unique track keys.
+    - Add key to Convert.Track, rename to NoteSource while I'm at it.
+    - update Merge.pair_tracks to take [NoteSource]
   * in TScore, save the tracks reverse until the UI step
   * empty tracks don't parse (?)
   * I get 'expected assert here' in useless places:

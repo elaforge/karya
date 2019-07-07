@@ -52,9 +52,18 @@ untracks :: Tracks call -> [Track call]
 untracks (Tracks tracks) = tracks
 
 data Track call = Track {
-    track_title :: !Text
+    -- | Some arbitrary symbols.  This has no meaning except to make the track
+    -- with its title unique on this block.  This is so that tracks have an
+    -- identity, and I can detect track moves, adds, and deletes.
+    track_key :: !Text
+    -- | The track title will include a > if the original syntax did, or be ""
+    -- if the track has no title at all, which is only possible for the first
+    -- one, e.g. [a] or [a > b].  This way unparse can emit the same
+    -- abbreviated syntax.
+    , track_title :: !Text
     , track_directives :: ![Directive]
     , track_tokens :: ![Token call (NPitch Pitch) NDuration Duration]
+    , track_pos :: !Pos
     } deriving (Eq, Show)
 
 data Directive = Directive !Pos !Text !(Maybe Text)

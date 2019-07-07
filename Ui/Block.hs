@@ -6,7 +6,7 @@ module Ui.Block (
     -- * Block
     Block(..)
     , Meta, TrackDestinations(..), ScoreDestinations, NoteDestination(..)
-    , empty_destination
+    , dest_track_ids, empty_destination
     , Source(..), destination_to_source
     , ManualDestinations, SourceKey
     , EventIndex
@@ -125,6 +125,9 @@ instance Pretty Source where
     pretty (TrackSource tid) = pretty tid
     pretty (BlockSource bid) = pretty bid
 
+-- | TODO I intended to unify all the integration muddle into one dest to
+-- source map, and maybe I stil can, but meanwhile, here's what it could look
+-- like.
 destination_to_source :: Block -> [(TrackId, (Source, EventIndex))]
 destination_to_source block = concat
     [ case block_integrated block of
@@ -149,7 +152,7 @@ destination_to_source block = concat
         [ (dest_track, (TrackSource source_track, index))
         | (source_track, (dest_track, index)) <- sdests
         ]
-    note_dest source (NoteDestination note controls) =
+    note_dest source (NoteDestination _key note controls) =
         (fst note, (source, snd note))
             : [(tid, (source, index)) | (tid, index) <- Map.elems controls]
 
@@ -194,16 +197,26 @@ instance Pretty TrackDestinations where
 -- | This holds the 'EventIndex' for one note track, along with its dependent
 -- control tracks.
 data NoteDestination = NoteDestination {
+    -- | The key should uniquely identify this particular destination.  The next
+    -- time there is a merge, the source tracks can match by key.  Otherwise,
+    -- they just have to blindly zip sources and dests, and can't detect
+    -- deletions or moves.
+    dest_key :: !Text
     -- | (dest_track, index)
-    dest_note :: !(TrackId, EventIndex)
+    , dest_note :: !(TrackId, EventIndex)
     -- | Map from control name to the track which was created for it.
     , dest_controls :: !(Map Text (TrackId, EventIndex))
     } deriving (Eq, Show, Read)
 
+dest_track_ids :: NoteDestination -> [TrackId]
+dest_track_ids (NoteDestination _ note controls) =
+    fst note : map fst (Map.elems controls)
+
 -- | Create an empty destination for the first integration.
-empty_destination :: TrackId -> [(Text, TrackId)] -> NoteDestination
-empty_destination note controls = NoteDestination
-    { dest_note = (note, mempty)
+empty_destination :: Text -> TrackId -> [(Text, TrackId)] -> NoteDestination
+empty_destination key note controls = NoteDestination
+    { dest_key = key
+    , dest_note = (note, mempty)
     , dest_controls = Map.fromList $ map (second (,mempty)) controls
     }
 
@@ -213,8 +226,9 @@ empty_destination note controls = NoteDestination
 type EventIndex = Map Event.IndexKey Event.Event
 
 instance Pretty NoteDestination where
-    format (NoteDestination note controls) = Pretty.record "NoteDestination"
-        [ ("note", Pretty.format note)
+    format (NoteDestination key note controls) = Pretty.record "NoteDestination"
+        [ ("key", Pretty.format key)
+        , ("note", Pretty.format note)
         , ("controls", Pretty.format controls)
         ]
 

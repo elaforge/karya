@@ -153,20 +153,34 @@ instance Element (T.Tracks T.Call) where
         "[" <> Text.unwords (map (unparse config) tracks) <> "]"
 
 instance Element (T.Track T.Call) where
-    parse config = T.Track
-        <$> P.option "" (lexeme p_title)
-        <*> P.many (lexeme (parse config))
-        <*> P.many (lexeme (parse config))
-        where
-        p_title = fmap (">"<>) $ P.char '>'
-            *> (p_string <|> P.takeWhile Id.is_id_char)
-    unparse config (T.Track title directives tokens) =
+    parse config = do
+        pos <- get_pos
+        (key, title) <- P.option ("", "") $ lexeme $ (,)
+            <$> (P.char '>' *> P.takeWhile is_key_char)
+            <*> fmap (">"<>) (p_string <|> P.takeWhile Id.is_id_char)
+        directives <- P.many $ lexeme $ parse config
+        tokens <- P.many $ lexeme $ parse config
+        return $ T.Track
+            { track_key = key
+            , track_title = title
+            , track_directives = directives
+            , track_tokens = tokens
+            , track_pos = pos
+            }
+    unparse config (T.Track key title directives tokens _pos) =
         Text.unwords $ filter (not . Text.null) $ concat
-            [ [if " " `Text.isInfixOf` title
-                then ">" <> un_string (Text.drop 1 title) else title]
+            -- See 'T.track_title' for why this is so complicated.
+            [ (:[]) $ if key == "" && title == "" then ""
+                else ">" <> key <> if " " `Text.isInfixOf` title
+                    then un_string (Text.drop 1 title) else (Text.drop 1 title)
             , map (unparse config) directives
             , map (unparse config) tokens
             ]
+
+is_key_char :: Char -> Bool
+is_key_char c = c `elem` ("!@#$%^&*" :: [Char])
+    -- Technically this could be `c /='"' && not (Id.is_id_char c)`, but I'll be
+    -- more restrictive for now.
 
 instance Element T.Directive where
     parse _ = do

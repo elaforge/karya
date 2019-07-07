@@ -121,7 +121,7 @@ track_edges :: [Maybe TrackId] -> [Block.NoteDestination]
     -> [(TrackNum, TrackNum)]
 track_edges track_ids = concatMap edges
     where
-    edges (Block.NoteDestination (track_id, _) controls) =
+    edges (Block.NoteDestination _ (track_id, _) controls) =
         case tracknum_of track_id of
             Nothing -> []
             Just tracknum ->
@@ -219,11 +219,14 @@ merge_pairs merge_titles block_id pairs = do
             -- can't change them without breaking the link.
             when (merge_titles == ReplaceTitles) $ do
                 Ui.set_track_title note_id source_title
-            return $ Just $ Block.NoteDestination (note_id, note_index) $
+            return $ Just $ Block.NoteDestination key (note_id, note_index) $
                 Map.fromList
                     [ (title, (track_id, index))
                     | (title, track_id, index) <- controls
                     ]
+    where
+    -- TODO once I use track keys I have to propagate this from the pairing.
+    key = ""
 
 merge_pair :: Ui.M m => BlockId -> TrackPair
     -> m (Maybe (Text, TrackId, Block.EventIndex))
@@ -342,7 +345,7 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
     where
     -- Pair up the tracks.
     pairs_of (Seq.First (note, controls)) = map Seq.First (note : controls)
-    pairs_of (Seq.Second (Block.NoteDestination note controls)) =
+    pairs_of (Seq.Second (Block.NoteDestination key note controls)) =
         map Seq.Second (note : Map.elems controls)
     pairs_of (Seq.Both track dest) = pair_destination track dest
 
@@ -367,7 +370,7 @@ pair_tracks track_ids tracks dests = map (filter is_valid) $
 pair_destination :: (Convert.Track, [Convert.Track]) -> Block.NoteDestination
     -> [Seq.Paired Convert.Track (TrackId, Block.EventIndex)]
 pair_destination (note, controls)
-        (Block.NoteDestination note_dest control_dests) =
+        (Block.NoteDestination key note_dest control_dests) =
     Seq.Both note note_dest : pair_controls controls control_dests
     where
     pair_controls tracks dests =

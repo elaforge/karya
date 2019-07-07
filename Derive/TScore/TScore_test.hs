@@ -76,9 +76,9 @@ test_copy_from = do
     left_like (f "b1 = %f=b2 [s r]") "block not found"
     left_like (f "b1 = [> %f=b1 s r]") "not a tracknum"
     left_like (f "b1 = [> %f=1 s r]") "can't copy from the same track"
-    left_like (f "b1 = [> %f=3 s r > g m]") "doesn't have track 3"
+    left_like (f "b1 = [>! %f=3 s r > g m]") "doesn't have track 3"
     left_like (f "b1 = %f=b2 [> %f=2 s r]\nb2 = [g m]") "doesn't have track 2"
-    left_like (f "b1 = [> %f=2 ^ ^ > s ]") "no notes to copy in range"
+    left_like (f "b1 = [>! %f=2 ^ ^ > s ]") "no notes to copy in range"
 
     -- from other block
     right_equal (f "b1 = %f=b2 [s r]\nb2 = [g m]") (track ["4s", "4r"])
@@ -89,9 +89,9 @@ test_copy_from = do
         (track ["4s", "4d"])
 
     -- from same block
-    right_equal (f "b1 = [> %f=2 s r > g m]")
+    right_equal (f "b1 = [>! %f=2 s r > g m]")
         (tracks [["4g", "4m"], ["4s", "4r"]])
-    right_equal (f "b1 = [> %f=2 ^ r > g m]")
+    right_equal (f "b1 = [>! %f=2 ^ r > g m]")
         (tracks [["4g", "4m"], ["4g", "4r"]])
 
     -- Two steps of indirection.
@@ -107,8 +107,8 @@ test_assert_coincident = do
     right_equal (f "top = [s ; r ; > g ; m ;]") ()
 
     -- Don't enforce for an empty track, or if it's past the end of the notes.
-    right_equal (f "top = [> s r ; g >]") ()
-    right_equal (f "top = [> s r ; g > s]") ()
+    right_equal (f "top = [>! s r ; g >]") ()
+    right_equal (f "top = [>! s r ; g > s]") ()
 
 test_wrapped_tracks = do
     let f = fmap UiTest.extract_blocks . TScore.ui_state get_ext_dur
@@ -133,7 +133,7 @@ test_wrapped_tracks = do
 
 test_ui_skeleton = do
     let f = Skeleton.flatten . TScore.ui_skeleton
-        nt n = TScore.NTrack t (replicate (n-1) t) 0
+        nt n = TScore.NTrack t "" (replicate (n-1) t) 0
             where t = TScore.Track "" mempty
     equal (f [nt 2]) [(1, 2)]
     equal (f [nt 2, nt 2]) [(1, 2), (3, 4)]
@@ -216,11 +216,11 @@ test_integrate = do
     let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks
     let state = expect_right $ run Ui.empty "top = \"block title\" [s r g]"
+
     equal (extract state)
         [ ("top -- block title",
             UiTest.note_track [(0, 1, "4s"), (1, 1, "4r"), (2, 1, "4g")])
         ]
-
     -- Make sure style and ruler are as expected.
     equal (map (map Event.style) (e_events state)) $ map (map Style.StyleId)
         [ [1, 1, 1]
@@ -230,9 +230,8 @@ test_integrate = do
     equal (filter (is_integral . fst) (e_marks marks))
         [(0, "1"), (1, "2"), (2, "3"), (3, "4")]
 
-    let tid = GenId.track_id_at (UiTest.bid "untitled/top") 2
     state <- return $ expect_right $ Ui.exec state $ do
-        Ui.insert_event tid (Event.event 1 0 "5p")
+        Ui.insert_event (tid "top" 2) (Event.event 1 0 "5p")
         TScore.integrate get_ext_dur "top = \"block title\" [s r s]"
     equal (extract state)
         [ ( "top -- block title"
@@ -291,6 +290,29 @@ test_integrate_rename = do
         , ("b2", UiTest.inst_note_track1 "i2" ["4r"])
         ]
 
+test_integrate_move_track = do
+    let extract = UiTest.extract_blocks
+    state <- either (errorIO . pretty) return $ Ui.exec Ui.empty $ do
+        TScore.integrate get_ext_dur "b1 = [>i1 s >i2 r]"
+        forM_ [1, 2] $ \i ->
+            Ui.modify_events (tid "b1" i) (Events.move 2)
+        forM_ [3, 4] $ \i ->
+            Ui.modify_events (tid "b1" i) (Events.move 1)
+    let run = extract . expect_right . Ui.exec state
+            . TScore.integrate get_ext_dur
+    let i1 = UiTest.inst_note_track "i1" [(1, 1, "4s")]
+        i2 = UiTest.inst_note_track "i2" [(2, 1, "4r")]
+    equal (extract state) [("b1", i2 ++ i1)]
+
+    -- -- >i1 was deleted, >i2 keeps its edits.
+    -- equal (run "b1 = [>i2 r]") [("b1", i2)]
+    --
+    -- -- >i2 was deleted, >i1 keeps its edits.
+    -- equal (run "b1 = [>i1 s]") [("b1", i1)]
+    --
+    -- -- They traded places, both should keep edits.
+    -- equal (run "b1 = [>i2 r >i1 s]") [("b1", i1 ++ i2)]
+
 test_integrate_sub_block = do
     let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks
@@ -307,6 +329,13 @@ test_integrate_sub_block = do
         , ("top-t1c1", UiTest.note_track [(0, 1, "4g")])
         , ("top-t1c2", UiTest.note_track [(0, 1, "4r")])
         ]
+
+test_check_unique_track_keys = do
+    let f = fmap (const ()) . TScore.ui_state get_ext_dur
+    right_equal (f "b1 = [>!i1 s >@i1 r]") ()
+    right_equal (f "b1 = [>i1 s >i2 r]") ()
+    left_like (f "b1 = [>i1 s >i1 r]") "non-unique track key"
+    left_like (f "b1 = [>!i1 s >!i1 r]") "non-unique track key"
 
 test_check_recursion = do
     let f = TScore.check_recursion . map (TScore.track_tokens <$>)
@@ -327,3 +356,6 @@ is_integral = (==0) . snd . properFraction
 
 e_marks :: [Meter.LabeledMark] -> [(TrackTime, Meter.Label)]
 e_marks = map (second Meter.m_label) . Seq.scanl_on (+) Meter.m_duration 0
+
+tid :: Text -> TrackNum -> TrackId
+tid block = GenId.track_id_at (UiTest.bid ("untitled/" <> block))

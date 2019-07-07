@@ -18,7 +18,7 @@ import           Util.Test
 
 everything_score :: Text
 everything_score =
-    "-- Line comments use double-dash.\n\
+    "-- Comments use double-dash.\n\
     \-- Toplevel directives apply to everything below them.\n\
     \-- The supported directives are in 'Check.parse_directive'.\n\
     \%meter=adi\n\
@@ -29,6 +29,10 @@ everything_score =
     \    -- quotes go after the >.  Ties (~) and dots (.) go at the end of\n\
     \    -- the note.\n\
     \    >inst1 4s4 r g m~ | m d n. s8 |\n\
+    \    -- Tracks must be unique so deletes and moves can be detected.\n\
+    \    -- You can put symbols after >, which will be used to make tracks\n\
+    \    -- unique, but otherwise ignored.\n\
+    \    >!inst1 s\n\
     \    -- Bare tie ~ to sustain previous note, bare dot . to repeat,\n\
     \    -- so this is like \"2s~ 2s | 2s 2s |\"\n\
     \    >\"inst2 | +pizz\" 2s ~ | . . |\n\
@@ -159,36 +163,46 @@ test_roundtrip = do
     roundtrip p "b = [[x y]/]"
     roundtrip p "b = [>hi a[x y]/4]"
     roundtrip p "b = [>hi \"a b\"[x y]/]"
+    let p = Proxy @(T.Track T.Call)
+    roundtrip p ">a b"
+    roundtrip p ">!a b"
+    roundtrip p ">!\"a b\" q"
 
 test_tracks_wrapped = do
     let f = fmap extract . parse
         extract (T.WrappedTracks _ wrapped) =
             map (map strip_track . T.untracks) wrapped
     right_equal (f "[a > b] [c > d]")
-        [ [T.Track "" [] [pnote0 "a"], T.Track ">" [] [pnote0 "b"]]
-        , [T.Track "" [] [pnote0 "c"], T.Track ">" [] [pnote0 "d"]]
+        [ [ T.Track "" "" [] [pnote0 "a"] no_pos
+          , T.Track "" ">" [] [pnote0 "b"] no_pos
+          ]
+        , [ T.Track "" "" [] [pnote0 "c"] no_pos
+          , T.Track "" ">" [] [pnote0 "d"] no_pos
+          ]
         ]
     -- Empty tracks are ok.
     right_equal (f "[>i1 a >i2 b] [>i1 >i2]")
-        [ [T.Track ">i1" [] [pnote0 "a"], T.Track ">i2" [] [pnote0 "b"]]
-        , [T.Track ">i1" [] [], T.Track ">i2" [] []]
+        [ [ T.Track "" ">i1" [] [pnote0 "a"] no_pos
+          , T.Track "" ">i2" [] [pnote0 "b"] no_pos
+          ]
+        , [T.Track "" ">i1" [] [] no_pos, T.Track "" ">i2" [] [] no_pos]
         ]
 
 test_tracks = do
     let f = fmap (map strip_track . T.untracks) . parse @(T.Tracks T.Call)
-    right_equal (f "[s]") [T.Track "" [] [pnote0 "s"]]
+    right_equal (f "[s]") [T.Track "" "" [] [pnote0 "s"] no_pos]
     right_equal (f "[s > r]")
-        [ T.Track "" [] [pnote0 "s"]
-        , T.Track ">" [] [pnote0 "r"]
+        [ T.Track "" "" [] [pnote0 "s"] no_pos
+        , T.Track "" ">" [] [pnote0 "r"] no_pos
         ]
     right_equal (f "[>\" | u\" s >\" | t\" r]")
-        [ T.Track "> | u" [] [pnote0 "s"]
-        , T.Track "> | t" [] [pnote0 "r"]
+        [ T.Track "" "> | u" [] [pnote0 "s"] no_pos
+        , T.Track "" "> | t" [] [pnote0 "r"] no_pos
         ]
 
 test_track = do
     let parse_track = fmap extract . parse
-        extract (T.Track title _ tokens) = (title, map strip_pos tokens)
+        extract (T.Track _ title _ tokens _) = (title, map strip_pos tokens)
     let bar = T.TBarline no_pos . T.Barline
     let rest = T.TRest no_pos . T.Rest
     let title = fmap fst . parse_track
@@ -221,9 +235,15 @@ test_track = do
         [ tnote (sub "a" [tnote "" no_oct "b" no_dur]) no_oct "" no_dur
         ]
 
+test_track_key = do
+    let f = fmap extract . parse @(T.Track T.Call)
+        extract t = (T.track_key t, T.track_title t)
+    right_equal (f ">a b") ("", ">a")
+    right_equal (f ">!@#a b") ("!@#", ">a")
+
 test_track_directives = do
     let f = fmap extract . parse @(T.Track T.Call)
-        extract (T.Track title dirs tokens) =
+        extract (T.Track _ title dirs tokens _) =
             (title, map e_directive dirs, map strip_pos tokens)
     right_equal (f "> %a=b c") (">", [("a", Just "b")], [pnote0 "c"])
     right_equal (f "> %a %b=c d")
@@ -324,8 +344,10 @@ e_tracks :: T.Block T.WrappedTracks -> [T.Track T.Call]
 e_tracks = T.untracks . expect_right . TScore.unwrap_tracks . T.block_tracks
 
 strip_track :: T.Track T.Call -> T.Track T.Call
-strip_track track =
-    track { T.track_tokens = map strip_pos (T.track_tokens track) }
+strip_track track = track
+    { T.track_tokens = map strip_pos (T.track_tokens track)
+    , T.track_pos = no_pos
+    }
 
 e_directive :: T.Directive -> (Text, Maybe Text)
 e_directive (T.Directive _ k v) = (k, v)
@@ -346,7 +368,7 @@ no_pos :: T.Pos
 no_pos = T.Pos 0
 
 tracks :: [(Text, [Parse.Token])] -> T.Tracks T.Call
-tracks ts = T.Tracks [T.Track title [] tokens | (title, tokens) <- ts]
+tracks ts = T.Tracks [T.Track "" title [] tokens no_pos | (title, tokens) <- ts]
 
 tnote :: T.Call -> T.Octave -> Text -> T.NDuration -> Parse.Token
 tnote call oct pitch dur = T.TNote no_pos $ T.Note

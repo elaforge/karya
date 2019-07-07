@@ -120,10 +120,12 @@ map_track_ids f = do
             Block.DeriveDestinations $ map map_note_dest dests
         Block.ScoreDestinations dests ->
             Block.ScoreDestinations $ map (bimap modify (first modify)) dests
-    map_note_dest (Block.NoteDestination note controls) = Block.NoteDestination
-        { dest_note = first modify note
-        , dest_controls = fmap (first modify) controls
-        }
+    map_note_dest (Block.NoteDestination key note controls) =
+        Block.NoteDestination
+            { dest_key = key
+            , dest_note = first modify note
+            , dest_controls = fmap (first modify) controls
+            }
     modify = Id.modify f
 
 map_ruler_ids :: Ui.M m => (Id.Id -> Id.Id) -> m ()

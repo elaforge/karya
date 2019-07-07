@@ -227,62 +227,84 @@ instance Serialize Ui.Default where
 instance Serialize Block.Block where
     -- Config is not serialized because everything in the block config is
     -- either derived from the Cmd.State or is hardcoded.
-    put (Block.Block a _config b c d e f g) = Serialize.put_version 12
+    put (Block.Block a _config b c d e f g) = Serialize.put_version 13
         >> put a >> put b >> put c >> put d >> put e >> put f >> put g
-    get = do
-        v <- Serialize.get_version
-        case v of
-            11 -> do
-                title :: Text <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
-                itracks :: [(TrackId, Block.TrackDestinations)] <- get
-                meta :: Map Text Text <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    iblock itracks mempty meta
-            12 -> do
-                title :: Text <- get
-                tracks :: [Block.Track] <- get
-                skel :: Skeleton.Skeleton <- get
-                iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
-                itracks :: [(TrackId, Block.TrackDestinations)] <- get
-                dtracks :: Block.ManualDestinations <- get
-                meta :: Map Text Text <- get
-                return $ Block.Block title Block.default_config tracks skel
-                    iblock itracks dtracks meta
-            _ -> Serialize.bad_version "Block.Block" v
+    get = Serialize.get_version >>= \case
+        11 -> do
+            title :: Text <- get
+            tracks :: [Block.Track] <- get
+            skel :: Skeleton.Skeleton <- get
+            iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
+            itracks :: [(TrackId, Block.TrackDestinations)] <- get
+            meta :: Map Text Text <- get
+            return $ Block.Block title Block.default_config tracks skel
+                iblock itracks mempty meta
+        12 -> do
+            title :: Text <- get
+            tracks :: [Block.Track] <- get
+            skel :: Skeleton.Skeleton <- get
+            iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
+            itracks :: [(TrackId, Block.TrackDestinations)] <- get
+            manual :: Map Block.SourceKey [OldNoteDestination] <- get
+            meta :: Map Text Text <- get
+            return $ Block.Block title Block.default_config tracks skel
+                iblock itracks (map upgrade_note_destination <$> manual) meta
+        13 -> do
+            title :: Text <- get
+            tracks :: [Block.Track] <- get
+            skel :: Skeleton.Skeleton <- get
+            iblock :: Maybe (BlockId, Block.TrackDestinations) <- get
+            itracks :: [(TrackId, Block.TrackDestinations)] <- get
+            dtracks :: Block.ManualDestinations <- get
+            meta :: Map Text Text <- get
+            return $ Block.Block title Block.default_config tracks skel
+                iblock itracks dtracks meta
+        v -> Serialize.bad_version "Block.Block" v
 
 instance Serialize Block.TrackDestinations where
-    put (Block.DeriveDestinations a) = put_tag 0 >> put a
+    put (Block.DeriveDestinations a) = put_tag 2 >> put a
     put (Block.ScoreDestinations a) = put_tag 1 >> put a
-    get = do
-        tag <- get_tag
-        case tag of
-            0 -> Block.DeriveDestinations <$> get
-            1 -> Block.ScoreDestinations <$> get
-            _ -> bad_tag "Block.TrackDestinations" tag
+    get = get_tag >>= \case
+        0 -> Block.DeriveDestinations . map upgrade_note_destination <$> get
+        1 -> Block.ScoreDestinations <$> get
+        2 -> Block.DeriveDestinations <$> get
+        tag -> bad_tag "Block.TrackDestinations" tag
+
+-- | Oops, I forgot to put a version on NoteDestination so of course this
+-- happens...
+data OldNoteDestination = OldNoteDestination
+    (TrackId, Block.EventIndex)
+    (Map Text (TrackId, Block.EventIndex))
+
+upgrade_note_destination :: OldNoteDestination -> Block.NoteDestination
+upgrade_note_destination (OldNoteDestination a b) = Block.NoteDestination "" a b
+
+instance Serialize OldNoteDestination where
+    put (OldNoteDestination a b) = put a >> put b
+    get = OldNoteDestination <$> get <*> get
 
 instance Serialize Block.NoteDestination where
-    put (Block.NoteDestination a b) = put a >> put b
-    get = do
-        note :: (TrackId, Block.EventIndex) <- get
-        controls :: (Map Text (TrackId, Block.EventIndex)) <- get
-        return $ Block.NoteDestination note controls
+    put (Block.NoteDestination a b c) =
+        Serialize.put_version 0 >> put a >> put b >> put c
+    get = Serialize.get_version >>= \case
+        0 -> do
+            key :: Text <- get
+            note :: (TrackId, Block.EventIndex) <- get
+            controls :: (Map Text (TrackId, Block.EventIndex)) <- get
+            return $ Block.NoteDestination key note controls
+        v -> Serialize.bad_version "Block.Block" v
 
 instance Serialize Block.Track where
     put (Block.Track a b c d) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d
-    get = do
-        v <- Serialize.get_version
-        case v of
-            3 -> do
-                id :: Block.TracklikeId <- get
-                width :: Types.Width <- get
-                flags :: Set Block.TrackFlag <- get
-                merged :: Set Types.TrackId <- get
-                return $ Block.Track id width flags merged
-            _ -> Serialize.bad_version "Block.Track" v
+    get = Serialize.get_version >>= \case
+        3 -> do
+            id :: Block.TracklikeId <- get
+            width :: Types.Width <- get
+            flags :: Set Block.TrackFlag <- get
+            merged :: Set Types.TrackId <- get
+            return $ Block.Track id width flags merged
+        v -> Serialize.bad_version "Block.Track" v
 
 instance Serialize Block.TrackFlag where
     put Block.Collapse = put_tag 0
