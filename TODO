@@ -2554,7 +2554,7 @@ shakefile: build:
       . They probably all boil down to cabal2nix nonsense.  Would it be
         simpler to just make sure I can work with a nixpkgs snapshot?
     - faust2 won't compile on OS X, does it work on linux?
-    - libsamplerate won't compile from github version, write my own drv?
+    * libsamplerate won't compile from github version, write my own drv?
     - linux, need jack1 or jack2
     - find the fonts
     - find c2hs
