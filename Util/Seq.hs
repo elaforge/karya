@@ -840,13 +840,13 @@ count f = List.foldl' (\n c -> if f c then n + 1 else n) 0
 
 -- * monadic
 
--- | Like 'List.mapAccumL', but monadic.
+-- | Like 'List.mapAccumL', but monadic.  Strict in the accumulator.
 mapAccumLM :: Monad m => (state -> x -> m (state, y)) -> state -> [x]
     -> m (state, [y])
 mapAccumLM f = go
     where
-    go state [] = return (state, [])
-    go state (x:xs) = do
+    go !state [] = return (state, [])
+    go !state (x:xs) = do
         (state, y) <- f state x
         (state, ys) <- go state xs
         return (state, y : ys)
