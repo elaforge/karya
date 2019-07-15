@@ -2546,18 +2546,29 @@ synth: im:
 
 shakefile: build:
   nix:
-    - get haskell pkg lists from shakefile
-    - figure out how to pin hackage package versions.  Maybe that fixes Diff?
+    * get haskell pkg lists from shakefile
+    - figure out how to pin hackage package versions.
+      . I need this for writer-cps-mtl at least.
       . https://github.com/sol/tinc/tree/nixpkgs
       . https://github.com/Gabriel439/haskell-nix
       . https://github.com/adetokunbo/haskell-overridez
       . They probably all boil down to cabal2nix nonsense.  Would it be
         simpler to just make sure I can work with a nixpkgs snapshot?
-    - faust2 won't compile on OS X, does it work on linux?
+    * faust2 won't compile on OS X, does it work on linux?
     * libsamplerate won't compile from github version, write my own drv?
     - linux, need jack1 or jack2
-    - find the fonts
-    - find c2hs
+    * find the fonts
+    * find c2hs
+    ? Can I can run ghci with the pkgs?  I guess nix-shell should set that up,
+      but why is there '--disable-library-for-ghci' in the configureFlags?
+    - propagate lib locations to the shakefile, e.g. libsamplerate
+    - can I use nix for just non-haskell deps, and leave haskell as a local
+      install?
+    - make a build expression, which does mkmk, mk.
+      . I would have to get all the source into nix, and move the build to
+        $out instead of 'build'.
+      . But it's maybe useless for karya, since I rely on having the source
+        and .o files around at runtime.
   . It's a pain to propagate all the bits of config around.
     . blaze gets around by using string deps and putting in a lookup step.
     . I could use Reader Config, but then it all becomes monadic.
@@ -5153,7 +5164,7 @@ text score: tscore:
       and can overlap.  This is because derive integration is coming from
       a lower-level source, which is also why I wound up with score
       integration.
-    . Ok, bottom line:
+    Bottom line:
       . Derive integration is not important, since I'm not using it much, so
         I don't know in what form I will want it.  If I can use it for e.g.
         rambat integration then I'll have a use for it, but in that case
@@ -5177,6 +5188,39 @@ text score: tscore:
       . If I'm going to insist on track keys, I could fake them up in
         Convert.  The result should be the same as with zip, but at the merge
         functions can have a uniform interface.
+    Let's do this:
+      . Pair tracks by key.  Emit a Seq.Paired for tracks, in order.
+      . Collect non-dest tracks before and after dest tracks, and replace the
+        dest tracks in the middle.
+      . If the tracknums then don't line up with the current state, delete and
+        add as appropriate, and apply mutations to merged tracks.
+    . If I have multiple destinations for one source, this is going to force
+      them all together.
+    . It seems like there are separate cases: tscore manages the track order,
+      because I have the order in the source, and if I want multiple dests,
+      I can come up with some way to say that in tscore, rather than putting
+      the state in the tracks.  But integration as a general building-block
+      may not want to do that.
+    . Can I have an explicitly different kind of merge?  Just call a different
+      merge function.
+    . This takes me right back to doing it first, before the merge.  Do a step
+      to line up the tracks based on key, and then do the zip based merge.
+      What stopped me from pursuing that?
+    . I think it was that I need to have the keys in the NoteDestinations
+      to do the reorder.  Suppose I do:
+      . In tscore: convert to NoteSources, pair (NoteDestination, NoteSource).
+        Use the pairing to map a TrackId to a NoteSource via NoteDestination.
+      . For each track_id in the block:
+        . If not in NoteSources, continue.
+        . If the NoteSource is the current one, then recurse on the control
+          tracks.
+        . If I can find the current NoteSource as a TrackId, move it to here.
+          Recurse on its control tracks.
+        . Otherwise it's obsolete, delete it.
+      . To recurse on control tracks, I do the same find and move thing.
+      . The not so appealing thing about this is that it seems like I'll want
+        this same thing for other kinds of keyed integration, e.g. rambat
+        produces two hands.  I'll cross that bridge when I get to it.
     * Check for unique track keys.
     - Add key to Convert.Track, rename to NoteSource while I'm at it.
     - update Merge.pair_tracks to take [NoteSource]

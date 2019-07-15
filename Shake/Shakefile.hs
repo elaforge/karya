@@ -119,8 +119,8 @@ basicPackages = concat
     where w = map (\p -> (p, "")) . words
 
 -- | Packages needed only for targets in Synth.
-synthPackages :: [(Package, String)]
-synthPackages = concat
+imPackages :: [(Package, String)]
+imPackages = concat
     [ w "hsndfile hsndfile-vector"
     , w "cryptohash-md5" -- Synth.Shared.Note.hash
     , w "resourcet"
@@ -146,7 +146,7 @@ nessPackages = concat
 enabledPackages :: [(Package, String)]
 enabledPackages = concat
     [ basicPackages
-    , if Config.enableIm localConfig then synthPackages else []
+    , if Config.enableIm localConfig then imPackages else []
     , if Config.enableEkg localConfig then ekgPackages else []
     ]
 
@@ -154,7 +154,7 @@ enabledPackages = concat
 reallyAllPackages :: [(Package, String)]
 reallyAllPackages = concat
     [ basicPackages
-    , synthPackages
+    , imPackages
     , ekgPackages
     , nessPackages
     ]
@@ -823,6 +823,7 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
     modeConfig <- configure
     writeGhciFlags modeConfig
     makeDataLinks
+    writeDeps cabalDir [("basic", basicPackages), ("im", imPackages)]
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (cabalDir </> "all-deps.cabal")
@@ -1504,6 +1505,9 @@ linkHs config rtsFlags output packages objs =
     where
     flags = configFlags config
 
+-- TODO: add a writeIfChanged for these.  Not that it matters for builds, but
+-- it seems silly to keep overwriting the file with the same contents.
+
 -- | ghci has to be called with the same flags that the .o files were compiled
 -- with or it won't load them.
 writeGhciFlags :: (Mode -> Config) -> IO ()
@@ -1512,6 +1516,12 @@ writeGhciFlags modeConfig =
         Directory.createDirectoryIfMissing True (buildDir config)
         writeFile (buildDir config </> "ghci-flags") $
             unlines (ghciFlags config)
+
+-- | Write the deps files, which are like cabal files but easier to parse.
+-- Used by the nix build.
+writeDeps :: FilePath -> [(String, [(Package, String)])] -> IO ()
+writeDeps dir namePackages = forM_ namePackages $ \(name, pkgs) ->
+    writeFile (dir </> name) $ unlines $ List.sort $ map fst pkgs
 
 -- | Make links to large binary files I don't want to put into source control.
 makeDataLinks :: IO ()
