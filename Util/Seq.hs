@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE BangPatterns #-}
 module Util.Seq where
 import           Prelude hiding (head, last, tail)
 import           Data.Bifunctor (Bifunctor(bimap), first, second)
@@ -381,7 +382,7 @@ data Paired a b = First !a | Second !b | Both !a !b
     deriving (Show, Eq)
 
 instance Bifunctor Paired where
-    bimap f g = \case
+    bimap f g paired = case paired of
         First a -> First (f a)
         Second b -> Second (g b)
         Both a b -> Both (f a) (g b)
@@ -434,7 +435,7 @@ zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Paired a b]
 diff eq as bs = map convert $ PolyDiff.getDiffBy eq as bs
     where
-    convert = \case
+    convert a = case a of
         PolyDiff.First a -> First a
         PolyDiff.Second b -> Second b
         PolyDiff.Both a b -> Both a b
