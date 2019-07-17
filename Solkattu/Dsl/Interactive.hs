@@ -10,22 +10,20 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import qualified System.Exit as Exit
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.Process as Process
 
-import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Solkattu as Solkattu
 
-import Global
+import           Global
 
 
 printInstrument :: Solkattu.Notation stroke => Bool -> Bool
-    -> Korvai.Instrument stroke -> [Korvai.Sequence] -> Format.Abstraction
+    -> Korvai.Instrument stroke -> [Korvai.Sequence] -> Terminal.Config
     -> Korvai.Korvai -> IO ()
-printInstrument lint writeDiff inst defaultStrokes abstraction korvai = do
-    let config = Terminal.defaultConfig { Terminal._abstraction = abstraction }
+printInstrument lint writeDiff inst defaultStrokes config korvai = do
     let (out, hasError) = Terminal.formatInstrument config inst korvai
     mapM_ Text.IO.putStrLn out
     when (not hasError && lint) $

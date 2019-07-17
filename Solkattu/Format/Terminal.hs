@@ -88,14 +88,9 @@ printInstrument instrument abstraction =
     mapM_ Text.IO.putStrLn . fst
     . formatInstrument (defaultConfig { _abstraction = abstraction }) instrument
 
-printKonnakol :: Int -> Format.Abstraction -> Korvai.Korvai -> IO ()
-printKonnakol width abstraction =
+printKonnakol :: Config -> Korvai.Korvai -> IO ()
+printKonnakol config =
     mapM_ Text.IO.putStrLn . fst . formatInstrument config Korvai.konnakol
-    where
-    config = konnakolConfig
-        { _terminalWidth = width
-        , _abstraction = abstraction
-        }
 
 formatInstrument :: Solkattu.Notation stroke => Config
     -> Korvai.Instrument stroke -> Korvai.Korvai -> ([Text], Bool)

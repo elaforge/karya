@@ -9,7 +9,7 @@ module Solkattu.Dsl.Solkattu (
     , module Solkattu.Dsl.Generic
     , module Solkattu.Dsl.Interactive
 ) where
-import Prelude hiding ((.), (^))
+import           Prelude hiding ((.), (^))
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -17,9 +17,8 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified Util.CallStack as CallStack
 import qualified Solkattu.Dsl.Interactive as Interactive
-import Solkattu.Dsl.Interactive (diff, diffw)
+import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
-import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.KendangTunggal as KendangTunggal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
@@ -32,8 +31,8 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Solkattu.Dsl.Generic
+import           Global
+import           Solkattu.Dsl.Generic
 
 
 type Sequence = SequenceT Solkattu.Sollu
@@ -307,39 +306,47 @@ _instrumentDefaultStrokes = Map.fromList
 
 -- * realize
 
-realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM mempty
-realizep = realizeM Format.defaultAbstraction
+wide :: Terminal.Config -> Terminal.Config
+wide config =
+    config { Terminal._terminalWidth = Terminal._terminalWidth config + 40 }
 
-realizeM :: Abstraction -> Korvai.Korvai -> IO ()
+concrete :: Terminal.Config -> Terminal.Config
+concrete config = config { Terminal._abstraction = mempty }
+
+realize, realizep :: Korvai.Korvai -> IO ()
+realize = realizeM concrete
+realizep = realizeM id
+
+realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeM = _printInstrument Korvai.mridangam
 
 realizek, realizekp :: Korvai.Korvai -> IO ()
-realizek = _printInstrument Korvai.kendangTunggal mempty
-realizekp = _printInstrument Korvai.kendangTunggal Format.defaultAbstraction
+realizek = _printInstrument Korvai.kendangTunggal concrete
+realizekp = _printInstrument Korvai.kendangTunggal id
 
-realizeR :: Abstraction -> Korvai.Korvai -> IO ()
+realizeR :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeR = _printInstrument Korvai.reyong
 
-realizeSargam :: Abstraction -> Korvai.Korvai -> IO ()
+realizeSargam :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeSargam = _printInstrument Korvai.sargam
 
-realizeKon :: Int -> Korvai -> IO ()
-realizeKon width = Terminal.printKonnakol width Format.defaultAbstraction
+realizeKon :: Korvai -> IO ()
+realizeKon = Terminal.printKonnakol (wide Terminal.defaultConfig)
 
 -- | 'realizeParts' specialized to mridangam, and disbale the usual
 -- 'Interactive.printInstrument' lint and write diff stuff.
-realizePartsM :: Abstraction -> [Part] -> IO ()
-realizePartsM abstraction = Part.realizeParts realize
+realizePartsM :: Terminal.Config -> [Part] -> IO ()
+realizePartsM config = Part.realizeParts realize
     where
     inst = Korvai.mridangam
     realize = Interactive.printInstrument False False inst
-        (_defaultStrokes inst) abstraction
+        (_defaultStrokes inst) config
 
 _printInstrument :: Solkattu.Notation stroke => Korvai.Instrument stroke
-    -> Abstraction -> Korvai -> IO ()
-_printInstrument inst =
+    -> (Terminal.Config -> Terminal.Config) -> Korvai -> IO ()
+_printInstrument inst setConfig =
     Interactive.printInstrument True True inst (_defaultStrokes inst)
+        (setConfig Terminal.defaultConfig)
 
 -- * korvai
 

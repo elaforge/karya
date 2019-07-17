@@ -13,14 +13,14 @@ module Solkattu.Dsl.Mridangam (
     , module Solkattu.Dsl.Generic
     , module Solkattu.Dsl.Interactive
 ) where
-import Prelude hiding ((.))
+import           Prelude hiding ((.))
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Seq as Seq
-import Solkattu.Dsl.Interactive (diff, diffw)
+import           Solkattu.Dsl.Interactive (diff, diffw)
 import qualified Solkattu.Dsl.MridangamNotation as MridangamNotation
 import qualified Solkattu.Dsl.Solkattu as Dsl.Solkattu
-import qualified Solkattu.Format.Format as Format
+import qualified Solkattu.Format.Terminal as Terminal
 import qualified Solkattu.Instrument.Mridangam as Mridangam
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
@@ -28,8 +28,8 @@ import qualified Solkattu.S as S
 import qualified Solkattu.Solkattu as Solkattu
 import qualified Solkattu.Tala as Tala
 
-import Global
-import Solkattu.Dsl.Generic
+import           Global
+import           Solkattu.Dsl.Generic
 
 
 type Sequence = SequenceT Stroke
@@ -134,9 +134,12 @@ nakatiku = namedT Solkattu.GPattern "8n" (n.p.u.p.k.t.p.k)
 
 -- * interactive utilities
 
-realize, realizep :: Korvai.Korvai -> IO ()
-realize = realizeM mempty
-realizep = realizeM Format.defaultAbstraction
+concrete :: Terminal.Config -> Terminal.Config
+concrete config = config { Terminal._abstraction = mempty }
 
-realizeM :: Abstraction -> Korvai.Korvai -> IO ()
+realize, realizep :: Korvai.Korvai -> IO ()
+realize = realizeM id
+realizep = realizeM concrete
+
+realizeM :: (Terminal.Config -> Terminal.Config) -> Korvai.Korvai -> IO ()
 realizeM = Dsl.Solkattu._printInstrument Korvai.mridangam
