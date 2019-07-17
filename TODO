@@ -2561,14 +2561,21 @@ shakefile: build:
     * find c2hs
     ? Can I can run ghci with the pkgs?  I guess nix-shell should set that up,
       but why is there '--disable-library-for-ghci' in the configureFlags?
-    - propagate lib locations to the shakefile, e.g. libsamplerate
+    - propagate deps to the shakefile:
+      . libsamplerate
+      . package paths for haddock
+      . withIm, withEkg
+    - Is there a way to configure lilypond to not drag in a whole tex?
     - can I use nix for just non-haskell deps, and leave haskell as a local
       install?
+      . That means use cabal to install, but get fonts, libs, faust via
+        nix-env or nix-env -i.
     - make a build expression, which does mkmk, mk.
       . I would have to get all the source into nix, and move the build to
         $out instead of 'build'.
       . But it's maybe useless for karya, since I rely on having the source
         and .o files around at runtime.
+      . It would be useful for CI though.
   . It's a pain to propagate all the bits of config around.
     . blaze gets around by using string deps and putting in a lookup step.
     . I could use Reader Config, but then it all becomes monadic.

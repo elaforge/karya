@@ -8,11 +8,11 @@ github=git@github.com:elaforge/karya.git
 # gitlab is private and may be rebased
 git push --all --force $gitlab
 git fetch # update origin branch refs
-# git push --tags $gitlab
+git push --tags $gitlab
 
 # github is public and I shouldn't rebase it
 git push $github master
 git push $github work
 
 (cd save && git push)
-(cd prof/timing && git push)
+(cd data/prof/timing && git push)
