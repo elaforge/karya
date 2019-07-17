@@ -54,3 +54,51 @@ c_19_06_17 = date 2019 6 17 $ ganesh $ korvaiS adi mridangam
         , (taka, p.k)
         , (dheem, od)
         ]
+
+c_19_07_15 :: Korvai
+c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
+    let var th = section $ sarva 8 . sarva 4 . din.__4 . th in
+    [ var th0a
+    , var th0b
+    , var th0c
+    , x2 $ section $ sarva 4 . din.__4 . th0a
+    , section $ sarva 8
+    , ending $ su $
+        th1 . ta.dinga
+        . dropM 2 (rdropM 2 th1) . ta.dinga
+        . dropM 4 (rdropM 4 th1)
+        . tri (group (tri_ dinga (ta.dinga.tat.__)))
+    ]
+    where
+    th0a = su $ tanga.tat.__.dit.__.th0
+    th0b = su $ tanga.taka.tang.__.th0
+    th0c = su $ tang.__.__.kttk.tat.__.th0
+    th0 = taka.ta.takadinna.taka.dinga.tat.__.tat.__.tat
+
+    th1 = tat.__.dit.__.kita.ki.na.gu.gu.takita.dinga.tat.__.dit.__
+    -- Reduce from both ends:
+    -- tat.__.dit.__.kita.ki.na.gu.gu.takita.dinga.tat.__.dit.__.ta.dinga
+    --        dit.__.kita.ki.na.gu.gu.takita.dinga.tat.__       .ta.dinga
+    --               kita.ki.na.gu.gu.taktakita.dinga
+
+    sarva = sarvaD sarvaS
+    sarvaS = repeat 2 $ na.dimi.nami.na.dimi.nami.na.dimi.nam.kttk
+        where dimi = di.mi; nami = na.mi
+    -- TODO din.__8 as usual when coming back into sarva
+    -- TODO sarva going into ending does na.dimi instead of nam.kttk.
+    mridangam = makeMridangam
+        [ (sarvaS, let rh = n.d.l.n.l.n.d.l.n.l.n.d.l.n.k.t.o.k
+            in rh & strM "oo_o_oo_o_oo_o" . rh & (o.o))
+
+        , (tanga.tat.__.dit, v.__.p.k.__.t)
+        , (tanga.taka.tang, v.__.p.k.p.v)
+        , (tang.__.__.kttk.tat, v.__.__. o.k.t.p.k)
+        , (th1,   k.__.t.__.k.t.k.n.o.o.k.p.k.od.__.p.k.__.t.__)
+        , (th0, k.p.k.k.o.o.k.p.k.od.__.p.k.__.k.__.k)
+
+
+        , (dinga, od.__.p)
+        , (din, od)
+        , (ta, k)
+        , (tat, k)
+        ]

@@ -257,19 +257,19 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
     , section $ repeat 2 $ d.__4.su t1 . n6 (d.__4.t1)
     , section $ n6 $ d.__4.t1.d.__4 . t1 . tri t1
     , ending $
-        p&k.__.u . su (pk.nakatiku).od.__.k.__
+        p&k.__.u . su (pk.nakatiku).o.__.k.__
         . n6 (od.__8.o&n.__.pk.nakatiku.od.__4.k.__4.od.__)
-        . __5 . su nakatiku.od.__.k.__.od.__4
-        . n6 (__.__.od.__4.k.__4.od.__8
-            . sd (group (k.__.k.t.__.t.k.__.k.n.__.n.o.__.o))
-            . group (k.__.k.t.__.t.k.__.k.n.__.n.o.__.o)
-            . group (k.__.t.__.k.__.n.__.o.__)
-            . tri_ __ (tri ktkno)
-            )
+        . __5 . su nakatiku.o.__.k.__.od.__4
+        . n6 (__.__.o.__4.k.__4.od.__8)
+
+        . group (concatMap (\s -> s.__3.s) ktkno)
+        . n6 (group (concatMap (\s -> s.__.s) ktkno))
+        . n6 (group (concatMap (.__) ktkno))
+        . n6 (tri_ __ (tri (group (mconcat ktkno))))
     ]
     where
     n6 = nadai 6
-    ktkno = group $ k.t.k.n.o
+    ktkno = [k, t, k, n, o]
     t12 = t1 . nakatiku
     t1 = group $ o.__.kt.kt.pk
         -- o is gumiki o^
@@ -284,16 +284,18 @@ c_19_06_24_b = date 2019 6 24 $ ganesh $
     , section $ n3 $ od.__.t2.od.__.t2 . tri t2
     , ending $
         t12.o.__.k.__ . n3 (od.__4.t.k.k.o.o.k.o.__.k.__.od)
-            . n4 (__5.t2.o.__.k.__) . n3 (od.__4.o.__.k.__.od.__4)
-            . n3 (group (k.__.k.t.__.t.k.__.k.n.__.n.o.__.o))
-            . nadai 6 (group (k.__.k.t.__.t.k.__.k.n.__.n.o.__.o))
-            . nadai 6 (group (k.__.t.__.k.__.n.__.o.__))
-            . nadai 6 (tri_ __ (tri ktkno))
+        . n4 (__5.t2.o.__.k.__) . n3 (od.__4.o.__.k.__.od.__4)
+
+        . group (concatMap (\s -> s.__3.s) ktkno)
+        . n6 (group (concatMap (\s -> s.__.s) ktkno))
+        . n6 (group (concatMap (.__) ktkno))
+        . n6 (tri_ __ (tri (group (mconcat ktkno))))
     ]
     where
     n3 = nadai 3
     n4 = nadai 4
-    ktkno = group $ k.t.k.n.o
+    n6 = nadai 6
+    ktkno = [k, t, k, n, o]
     t12 = group $ k.k.t.k.k.o.o.k
     t2 = group $ k.o.o.k
 
