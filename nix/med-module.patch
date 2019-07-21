@@ -1,0 +1,15 @@
+diff --git a/src/Sound/MED/Raw/HybridInstr.hs b/src/Sound/MED/Raw/HybridInstr.hs
+index 2c90b9c..c353bcc 100644
+--- a/src/Sound/MED/Raw/HybridInstr.hs
++++ b/src/Sound/MED/Raw/HybridInstr.hs
+@@ -38,7 +38,9 @@ peek p = do
+   wforms'       <- peekUWORD (p+20)
+   voltbl'       <- mapM peekUBYTE $ pointerRange (p+22) 1 128
+   wftbl'        <- mapM peekUBYTE $ pointerRange (p+150) 150 128
+-  wf0':wf''     <- mapM peekPTR   $ pointerRange (p+278) 4 64
++  wfs           <- mapM peekPTR   $ pointerRange (p+278) 4 64
++  let (wf0', wf'') = case wfs of
++        x:xs -> (x, xs)
+   wf'           <- mapM (SynthWF.peek . (p+) $?) wf''
+   return $ HybridInstr
+     defaultdecay' reserved' rep' replen' voltbllen' wftbllen'

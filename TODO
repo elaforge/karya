@@ -2546,6 +2546,16 @@ synth: im:
 
 shakefile: build:
   nix:
+    - nix-shell: /run/current-system/sw/bin winds up in path before the
+      buildInputs
+      . Because I run zsh after bash setup and it changes the path around.
+    propagate deps to the shakefile:
+      * libsamplerate
+      - package paths for haddock
+      * withIm, withEkg
+      . Env vars would be easier from nix, while Local/ShakeConfig.hs is
+        easier without.  Nix could create a Local/ShakeConfig.hs though.
+      . Create from $setup, and tools/nix-enter will have the shell run it.
     * get haskell pkg lists from shakefile
     - figure out how to pin hackage package versions.
       . I need this for writer-cps-mtl at least.
@@ -2554,6 +2564,7 @@ shakefile: build:
       . https://github.com/adetokunbo/haskell-overridez
       . They probably all boil down to cabal2nix nonsense.  Would it be
         simpler to just make sure I can work with a nixpkgs snapshot?
+      . Or just use the latest ghc and the problem should go away.
     * faust2 won't compile on OS X, does it work on linux?
     * libsamplerate won't compile from github version, write my own drv?
     - linux, need jack1 or jack2
@@ -2561,10 +2572,6 @@ shakefile: build:
     * find c2hs
     ? Can I can run ghci with the pkgs?  I guess nix-shell should set that up,
       but why is there '--disable-library-for-ghci' in the configureFlags?
-    - propagate deps to the shakefile:
-      . libsamplerate
-      . package paths for haddock
-      . withIm, withEkg
     - Is there a way to configure lilypond to not drag in a whole tex?
     - can I use nix for just non-haskell deps, and leave haskell as a local
       install?
