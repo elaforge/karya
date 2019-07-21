@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # I keep data files in a separate directory, to keep it out of source
 # control, and so I can share the data across multiple clones and branches.
 

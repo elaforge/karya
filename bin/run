@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Build and run a binary.
 
 if bin/mk $1; then

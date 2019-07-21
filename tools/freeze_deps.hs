@@ -1,4 +1,4 @@
-#!/usr/local/bin/runghc
+#!/usr/bin/env runghc
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Run this to freeze cabal deps and write to .config files.

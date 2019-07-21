@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # Convert eventlog to json in its own directory.
 
 eventlog=$1

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # Called by tools/setup-* to initialize a new install.
 #
 # All the file operations in here should be skipped for files that already

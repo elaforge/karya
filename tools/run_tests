@@ -1,4 +1,4 @@
-#!/bin/zsh -e
+#!/usr/bin/env zsh
 # Copyright 2013 Evan Laforge
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
@@ -9,6 +9,8 @@
 # Grep for failures.
 
 # TODO: display warn and error log msgs
+
+set -eu
 
 # If set, then exclude the test modules from the hpc results.
 hpc_exclude_test=${hpc_exclude_test-} # Add 't' to default true.

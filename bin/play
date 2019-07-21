@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # Play im output files.
 
 # sox -m music.mp3 voice.wav mixed.flac

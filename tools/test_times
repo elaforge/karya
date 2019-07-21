@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Extract test times.
 
 grep -h '^===> timing' build/test/output/*.stdout | sort -n -k4

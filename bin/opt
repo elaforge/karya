@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Run an opt seq.
 
 mode=opt exec bin/run-seq "$@"

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Run a debug seq.
 
 mode=debug exec bin/run-seq "$@"

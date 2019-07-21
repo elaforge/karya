@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """Delete audio checkpoints with no symlinks.  This means they correspond to
     some older score state, so I can delete them and loading a new score will
     still likely hit the cache.

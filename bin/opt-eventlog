@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # Run an opt seq and emit an .eventlog.  This can be analyzed with
 # App.ConvertEventLog.
 

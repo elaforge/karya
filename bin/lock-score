@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Protect a score against further changes.
 
 chmod -R a-w "$@"

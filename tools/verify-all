@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Verify all scores.  This should be run as part of the usual testing sequence.
 
 bin/run build/opt/verify_performance --out=build/verify save/complete/*

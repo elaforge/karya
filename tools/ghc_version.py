@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Get the GHC version.  This imitates 'Shake.Shakefile.parseGhcVersion'.
 
 from __future__ import print_function

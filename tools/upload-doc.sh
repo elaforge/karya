@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # Upload the documentation to the website.
 
 rsync --verbose -r --exclude=.DS_Store \

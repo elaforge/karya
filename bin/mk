@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Wrapper around build/opt/shakefile.  Use this instead of directly running the
 # shakefile.
 

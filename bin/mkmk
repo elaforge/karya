@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Rebuild the shakefile.
 
 # TODO I should get the -X flags from Shakefile.ghcLanguageFlags, otherwise

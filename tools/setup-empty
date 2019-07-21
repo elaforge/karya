@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 # Initialize a new install with an empty default config.  This copies
 # template config from User/Empty/ to Local/, where you can edit it and
 # keep your changes out of source control.

@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 
 objs=(
     build/test/debug/Util/vectorc.cc.o

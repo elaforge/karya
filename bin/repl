@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env zsh
 # Build repl and its requirements, then run repl.
 
 if bin/mk build/opt/send build/opt/repl; then
