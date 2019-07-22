@@ -20,6 +20,7 @@ extern "C" {
 int
 faust_patches(const Patch ***patches)
 {
+    // These variables come from the faust_all.cc include above.
     *patches = all_patches;
     return all_patches_count;
 }

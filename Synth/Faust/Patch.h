@@ -27,22 +27,18 @@
 // number of inputs and outputs and metadata.
 class Patch {
 public:
-    // This is only ever used as a pointer to the internal state.  I could use
-    // a template to pass it to the faust-generated functions in a typesafe
-    // way, but since I have to put all the Patches in an array, I have to
-    // cast away the safety at some point, so it might as well be here.
-    //
-    // I don't know if there are alignment restrictions on the state pointer,
-    // but faust just has ints and floats, so a double should definitely be
-    // aligned enough for that.  Actually I think this doesn't matter, since
-    // calloc() below is establishing the alignment, and it's explicitly
-    // universal.
-    struct State { double x; };
+    // An opaque pointer to the internal state.  The actual struct type varies
+    // per patch, but all I do here is treat it like a sized block of memory.
+    // I allocate it with calloc(), which should satisfy any alignment
+    // requirement.
+    struct State;
     typedef void (*Initialize)(State *, int);
     typedef void (*Metadata)(MetaGlue *);
     typedef void (*UiMetadata)(UIGlue *);
-    // TODO input is treated as const, I should fix faust's generated c++.
-    typedef void (*Compute)(State *state, int, const float **, float **);
+    // This correspands to the faust C backend generated compute__faust_$name
+    // function.
+    typedef void (*Compute)(
+        State *state, int, const float **inputs, float **outputs);
 
     Patch(const char *name, size_t size, int inputs, int outputs,
             Initialize initialize, Metadata metadata, UiMetadata uiMetadata,
@@ -53,7 +49,8 @@ public:
         compute_(compute_)
     {}
     ~Patch() {
-        delete state;
+        if (state)
+            free(state);
     }
 
     Patch *allocate(int srate) const {

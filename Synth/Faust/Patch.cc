@@ -23,7 +23,7 @@ Patch::getMetadata() const
     MetaGlue glue;
     glue.metaInterface = static_cast<void *>(&pairs);
     glue.declare = addPair;
-    metadata(&glue);
+    this->metadata(&glue);
     return pairs;
 }
 
