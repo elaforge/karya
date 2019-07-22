@@ -10,10 +10,7 @@
 
 static void
 addPair(void *list, const char *key, const char *value) {
-    // For now I only want controls and description.
-    if (strncmp(key, "control", 7) == 0 || strcmp(key, "description") == 0)
-        static_cast<Patch::Pairs *>(list)->push_back(
-            std::make_pair(key, value));
+    static_cast<Patch::Pairs *>(list)->push_back(std::make_pair(key, value));
 }
 
 Patch::Pairs

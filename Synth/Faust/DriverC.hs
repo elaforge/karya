@@ -98,7 +98,13 @@ getParsedMetadata patch = do
 parseMetadata :: Map Text Text
     -> Either Text (Text, [(Control.Control, ControlConfig)])
 parseMetadata meta =
-    (Map.findWithDefault "" "description" meta ,) <$> metadataControls meta
+    (parseDescription meta,) <$> metadataControls meta
+
+parseDescription :: Map Text Text -> Text
+parseDescription meta = Text.intercalate "\n" $ filter (/="") $
+    Map.findWithDefault "" "description" meta
+    : map (\k -> maybe "" ((k <> ": ")<>) $ Map.lookup k meta)
+        ["author", "copyright", "version", "license"]
 
 -- | Get control names from the faust metadata.
 --
@@ -123,11 +129,13 @@ metadataControls = check <=< mapMaybeM parse . Map.toAscList
             <> Text.intercalate ", " (map (pretty . fst) dups)
         where (_, dups) = Seq.partition_dups fst controls
     parse (c, desc)
-        | c == "description" = Right Nothing
-        | Id.valid_symbol stripped =
-            Right $ Just (Control.Control stripped, parseControlText desc)
-        | otherwise = Left $ "invalid control name: " <> c
-        where stripped = Text.drop 1 $ Text.dropWhile (/='_') c
+        | Just rest <- Text.stripPrefix "control" c =
+            let stripped = Text.drop 1 $ Text.dropWhile (/='_') rest
+            in if Id.valid_symbol stripped
+                then Right $
+                    Just (Control.Control stripped, parseControlText desc)
+                else Left $ "invalid control name: " <> c
+        | otherwise = Right Nothing
 
 parseControlText :: Text -> ControlConfig
 parseControlText desc

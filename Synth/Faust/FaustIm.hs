@@ -56,7 +56,7 @@ main = do
         (Signals.CatchOnce (Concurrent.killThread thread)) Nothing
     case args of
         ["print-patches"] -> forM_ (Map.toList patches) $ \(name, patch) -> do
-            Text.IO.putStrLn $ name <> ":"
+            Text.IO.putStrLn $ "=== " <> name <> " ==="
             result <- DriverC.getParsedMetadata patch
             case result of
                 Left err -> Text.IO.putStrLn $ "ERROR: " <> err
