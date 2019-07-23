@@ -32,6 +32,8 @@ NStrings = 4;
 
 sm = si.smooth(ba.tau2pole(0.05)); // 50 ms smoothing
 
+// *** per-string
+
 // ratios(i) = hslider("/h:main/ratio%1i [style:knob]", 1., 0.1, 2., 0.001);
 pluck(i) = button("/h:trigger/pluck%1i"); // buttons for manual plucking
 
@@ -56,11 +58,6 @@ fd = hslider(
     0.001, 0., 1, 0.0001
 ) : *(0.2) : sm;
 
-// level of sympathetic coupling between strings
-coupling = hslider(
-    "/h:main/[5]sympathetic_coupling [style:knob]", 0.1, 0., 1., 0.0001
-) : sm;
-
 // creates the buzzing / jawari effect
 jw = hslider(
     "/h:main/[6]jawari [style:knob]", 0, 0, 1, 0.001)
@@ -69,6 +66,13 @@ jw = hslider(
 // stereo spread of strings
 spread = hslider(
     "/h:main/[7]string_spread [style:knob]", 1., 0., 1., 0.01
+) : sm;
+
+// *** global
+
+// level of sympathetic coupling between strings
+coupling = hslider(
+    "/h:main/[5]sympathetic_coupling [style:knob]", 0.1, 0., 1., 0.0001
 ) : sm;
 
 tscale = hslider("/h:main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
@@ -120,7 +124,7 @@ with {
         // unsel makes sure the feedback is disconnected
         <: par(s, NStrings, unsel(NStrings, s) :> _ )
     with {
-        unsel(NStrings,s) = par(j, NStrings, U(s, j))
+        unsel(NStrings, s) = par(j, NStrings, U(s, j))
         with {
             U(s, s) = !;
             U(s, j) = _;

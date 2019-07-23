@@ -25,8 +25,11 @@ import qualified Foreign
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.CUtil as CUtil
+import qualified Util.Map
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
+import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
@@ -229,10 +232,12 @@ foreign import ccall "faust_num_outputs" c_faust_num_outputs :: PatchP -> CInt
 -- | Render chunk of time and return samples.  The block size is determined by
 -- the inputs, or 'Audio.blockSize' if there are none.
 render :: Instrument
+    -> Audio.Frame
+    -> Map Control.Control Signal.Signal
     -> [V.Vector Float] -- ^ Input signals.  The length must be equal to the
     -- the patchInputs, and each vector must have the same length.
     -> IO [V.Vector Float] -- ^ one block of samples for each output channel
-render inst inputs = do
+render inst start controls inputs = do
     unless (length inputs == _inputs inst) $
         errorIO $ "instrument expects " <> showt (_inputs inst)
             <> " inputs, but was given " <> showt (length inputs)
@@ -243,6 +248,7 @@ render inst inputs = do
             (Seq.head inputs)
     outputFptrs <- mapM Foreign.mallocForeignPtrArray
         (replicate (_outputs inst) frames)
+    setControls start controls (_controls inst)
     -- Holy manual memory management, Batman.
     CUtil.withForeignPtrs outputFptrs $ \outputPtrs ->
         withPtrs inputs $ \inputPs _lens ->
@@ -265,6 +271,13 @@ withPtrs vs f = go [] vs
     go accum (v:vs) = Foreign.withForeignPtr fptr $ \ptr ->
         go ((ptr, len) : accum) vs
         where (fptr, len) = V.unsafeToForeignPtr0 v
+
+setControls :: Audio.Frame -> Map Control.Control Signal.Signal
+    -> Map Control.Control (Ptr CFloat, a) -> IO ()
+setControls start signals controls =
+    forM_ (Util.Map.zip_intersection signals controls) $
+        \(_, signal, (ptr, _)) -> poke ptr (get signal)
+    where get = CUtil.c_float . Num.d2f . Signal.at (AUtil.toSeconds start)
 
 -- ** state
 

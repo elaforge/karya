@@ -2386,14 +2386,33 @@ synth: im:
       something?
     tambura.dsp:
       . https://github.com/olilarkin/Tambura
-      - configure attacks
-        . Also I want level.
+      - This is the first faust instrument with multiple elements, and the
+        automatic gate signal isn't set up for that.
+        . Just pick one string at first, but I'll need to have some
+          understanding of parameter indexing, so I can divide controls by
+          element.  I could unconditionally prepend element to the control
+          names, but I think I want to support per-instrument controls too.
+        . I think faust only really suports numbers from 0, due to the par
+          function, so either elements have to have the same name, or I need
+          to map element names through a list index.
+        . Actually, the hierarchical box stuff is suited for this, so I should
+          use that.  I could flatten levels [0:-1] to the element, and [-1] is
+          the control name.
+      per-string controls:
+        - gate / dyn
+        - pitch
+        - pan
+        . I guess everything except coupling.
+        . But let's leave the pick stuff global for efficiency.
+
+      - dynamic level
       - per-string pitch
         . Use element to select string.
         . I want them to be normal signals, which means an addressing scheme
           for each string.  But in general if I have individually addressable
           elements, I have n*m controls and I need an index for controls.
       - How to do damping?
+        . I guess I turn up the string damping.
       / I won't need the autoplucker.
         But it's convenient for testing.
       * I want to experiment in realtime, so I should get one of the faust
@@ -2404,6 +2423,21 @@ synth: im:
       - configure number of strings
         . This is static, so I think I need a way to configure instruments.
         . I'll presumably need that for models in general.
+        . Assuming I want to be able to store instrument configuration
+          per-score, I'll need a separate initialization step, similar to
+          MIDI initialization.  But for faust, it will actually need a build
+          and relink.  I'd probably need to do it with dynamic loading to make
+          it workable, and maybe have a nix-style cache of compiled
+          instruments.
+        . That's pretty complicated though, so I'll just make a bunch and
+          stick them in the instrument db.
+        . For faust in I still need a templating step though, probably
+          a mustache-style template.  I suppose that would be most easily done
+          in shake, though it means the shakefile would have to import
+          something from Local.Instrument, which is a first.  It should be
+          fine as long as that module doesn't import anything.
+        . Or if I want to do dynamic compiles, faust has a llvm backend that
+          can compile in memory.
       / It uses random for pluck pos and amp, I want deterministic.
         . How does no.noise work?  If not deterministic, I probably have to make
           it so.
@@ -2459,7 +2493,7 @@ synth: im:
         I still have to keep Widgets in the Instrument so I can extract the
         right controls, but I only have to look them up once per Note, rather
         than once per audio chunk.
-      . Let's do #1 since it seems simpler in the beginning.  I need the same
+      * Let's do #1 since it seems simpler in the beginning.  I need the same
         stuff for #2 so I can switch to that later if I want.
 
       - I have to make audio chunks small to have controls be responsive.

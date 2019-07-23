@@ -103,8 +103,9 @@ renderPatch :: DriverC.Patch -> Config -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -> [Note.Note] -> RealTime -> AUtil.Audio
 renderPatch patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
-        render patch mbState notifyState inputs
-            (AUtil.toFrame start) (AUtil.toFrame final) config
+        render patch mbState notifyState
+            [(Note.start n, Note.controls n) | n <- notes]
+            inputs (AUtil.toFrame start) (AUtil.toFrame final) config
     where
     inputs = renderInputs (_chunkSize config)
         (filter (/=Control.volume) controls) notes start
@@ -127,34 +128,43 @@ interleave naudio = case Audio.interleaved naudio of
 -- if they end before the given time.
 render :: DriverC.Patch -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
+    -> [(RealTime, Map Control.Control Signal.Signal)]
     -> AUtil.NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
     -> Config -> AUtil.NAudio
-render patch mbState notifyState inputs start end config =
+render patch mbState notifyState startControls inputs start end config =
     Audio.NAudio (DriverC._outputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.initialize patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
         let nstream = Audio._nstream (Audio.zeroPadN (_chunkSize config) inputs)
-        Util.Control.loop1 (start, nstream) $ \loop (start, inputs) -> do
-            -- Audio.zeroPadN should have made this infinite.
-            (controls, nextInputs) <-
-                maybe (CallStack.errorIO "end of endless stream") return
-                    =<< lift (S.uncons inputs)
-            result <- render1 inst controls start
-            case result of
-                Nothing -> Resource.release key
-                Just nextStart -> loop (nextStart, nextInputs)
+        Util.Control.loop1 (start, startControls, nstream) $
+            \loop (start, startControls_, inputs) -> do
+                -- Audio.zeroPadN should have made this infinite.
+                (inputs, nextInputs) <-
+                    maybe (CallStack.errorIO "end of endless stream") return
+                        =<< lift (S.uncons inputs)
+                let startControls = dropUntil
+                        (\_ (next, _) -> AUtil.toSeconds start >= next)
+                        startControls_
+                result <- render1 inst
+                    (maybe mempty snd (Seq.head startControls_)) inputs start
+                case result of
+                    Nothing -> Resource.release key
+                    Just nextStart ->
+                        loop (nextStart, startControls, nextInputs)
         where
-        render1 inst inputs start
+        render1 inst controls inputs start
             | start >= end + maxDecay = return Nothing
             | otherwise = do
-                outputs <- liftIO $ DriverC.render inst inputs
+                outputs <- liftIO $ DriverC.render inst start controls inputs
                 -- XXX Since this uses unsafeGetState, readers of notifyState
                 -- have to entirely use the state before returning.  See
                 -- Checkpoint.getFilename and Checkpoint.writeBs.
                 liftIO $ notifyState =<< DriverC.unsafeGetState inst
                 S.yield outputs
                 case outputs of
+                    -- This should have already been checked by
+                    -- DriverC.getPatches.
                     [] -> CallStack.errorIO "dsp with 0 outputs"
                     output : _
                         | frames == 0 || chunkEnd >= end + maxDecay

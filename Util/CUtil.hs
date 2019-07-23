@@ -43,6 +43,9 @@ c_rune = fromIntegral . fromEnum
 c_double :: Double -> CDouble
 c_double = CDouble
 
+c_float :: Float -> CFloat
+c_float = CFloat
+
 hs_double :: CDouble -> Double
 hs_double (CDouble d) = d
 
