@@ -73,9 +73,10 @@ faust_initialize(const Patch *patch, int srate)
 }
 
 void
-faust_render(Patch *patch, int frames, const float **controls, float **outputs)
+faust_render(Patch *patch, int frames,
+    const float **inputs, float **outputs)
 {
-    patch->compute(frames, controls, outputs);
+    patch->compute(frames, inputs, outputs);
 }
 
 }

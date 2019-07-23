@@ -37,7 +37,7 @@ pluck(i) = button("/h:trigger/pluck%1i"); // buttons for manual plucking
 
 // the base pitch of the drone
 f0 = hslider(
-    "/h:main/[1]sa [style:knob]", 36, 24, 72, 1
+    "/h:main/[1]pitch [style:knob]", 36, 1, 127, 1
 ) : sm : ba.midikey2hz;
 
 // how long the strings decay
@@ -84,7 +84,7 @@ pattack = hslider(
 );
 
 // decay time (1 to 10 times f0 wavelength)
-ptime = hslider("/h:pick/[3]decay_time [style:knob]", 1., 1, 100., 0.01);
+ptime = hslider("/h:pick/[3]pick_decay_time [style:knob]", 1., 1, 100., 0.01);
 
 // pick position (ratio of f0 wavelength)
 ppos = hslider("/h:pick/[4]position [style:knob]", 0.25, 0.01, 0.5, 0.01);
@@ -104,6 +104,8 @@ vol = hslider("volume [unit:dB]", 0, -36, +4, 0.1) : ba.db2linear : sm;
 
 // s = string index
 // c = comb filter index (of 9 comb filters in risset string)
+//
+// Input: gate per string.
 tambura(NStrings) = (
     couplingmatrix(NStrings), par(s, NStrings, excitation(s))
     : ro.interleave(NStrings, 2)

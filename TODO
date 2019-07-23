@@ -2381,9 +2381,21 @@ synth: im:
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
   faust:
+    - the fact that Vector is strict means I have to make each input signal
+      all at once, instead of streaming it.  Could I use a list of chunks or
+      something?
     tambura.dsp:
       . https://github.com/olilarkin/Tambura
-      * I won't need the autoplucker.
+      - configure attacks
+        . Also I want level.
+      - per-string pitch
+        . Use element to select string.
+        . I want them to be normal signals, which means an addressing scheme
+          for each string.  But in general if I have individually addressable
+          elements, I have n*m controls and I need an index for controls.
+      - How to do damping?
+      / I won't need the autoplucker.
+        But it's convenient for testing.
       * I want to experiment in realtime, so I should get one of the faust
         mechanisms for that working.  They all work with controls, so that
         implies I have to support controls.
@@ -2392,10 +2404,6 @@ synth: im:
       - configure number of strings
         . This is static, so I think I need a way to configure instruments.
         . I'll presumably need that for models in general.
-      - configure string pitches
-        . Use element to select string.
-      - It has hardcoded nstrings and string pitches, I want to configure
-        them.
       / It uses random for pluck pos and amp, I want deterministic.
         . How does no.noise work?  If not deterministic, I probably have to make
           it so.
@@ -2440,6 +2448,29 @@ synth: im:
         for communicating with the thru-VST, so I could just address patches
         by name and I don't to fuss with MIDI channels.
     support faust ui controls:
+      . I have to sample the controls at each time, and set the appropriate
+        control.
+      . #1: keep Map Control Widget in Instrument, where Widget has a
+        Ptr FaustFloat.  Then DriverC.render takes Map Control Signal and
+        pokes the appropriate ones before calling faust render.
+      . #2: c++ Patch keeps a sorted Widget list, and hands out
+        the controls in the same order.  DriverC takes float *controls in the
+        right order, and sets all the controls.  It can use NaN to not set.
+        I still have to keep Widgets in the Instrument so I can extract the
+        right controls, but I only have to look them up once per Note, rather
+        than once per audio chunk.
+      . Let's do #1 since it seems simpler in the beginning.  I need the same
+        stuff for #2 so I can switch to that later if I want.
+
+      - I have to make audio chunks small to have controls be responsive.
+        . I also maybe have to make notes line up with them, so I don't get
+          artifacts.
+        . But I think since controls have to be interpolated, I will always
+          get artifacts anyway, so those kinds of controls are just not
+          appropriate, they have to go in inputs.  Also, if they correspond to
+          physical parameters such as string length, you have to set those
+          a little before the note anyway.
+
       - Store persistent buffers in Instrument.
       - convert to standard control names:
         . Convert pitch NoteNumber to freq Hz
@@ -2459,7 +2490,7 @@ synth: im:
       . Controls are likely more efficient for values which don't change, or
         change rarely.  Lots of instrument config controls are like this.
         Still, maybe not, because faust has to smooth them to audio rate
-        anyway.
+        anyway.  But unsmoothed calculations can happen at control rate.
     plan:
       . Faust has a bunch of *.dsp files.
       . shakefile runs faust to generate .cc from the result, and then collect

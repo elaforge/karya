@@ -62,8 +62,7 @@ write_ config outputDir trackIds patch notes = catch $ do
             hashes getState $
         renderPatch patch config mbState notifyState notes start
     case result of
-        Right (_, total) ->
-            Checkpoint.clearRemainingOutput outputDir total
+        Right (_, total) -> Checkpoint.clearRemainingOutput outputDir total
         _ -> return ()
     return result
     where
@@ -107,10 +106,10 @@ renderPatch patch config mbState notifyState notes_ start =
         render patch mbState notifyState inputs
             (AUtil.toFrame start) (AUtil.toFrame final) config
     where
-    inputs = renderControls (_chunkSize config)
+    inputs = renderInputs (_chunkSize config)
         (filter (/=Control.volume) controls) notes start
-    controls = DriverC.getControls patch
-    vol = renderControl (_chunkSize config) notes start Control.volume
+    controls = map fst $ DriverC._inputControls patch
+    vol = renderInput (_chunkSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
     notes = dropUntil (\_ n -> Note.end n > start) notes_
 
@@ -131,7 +130,7 @@ render :: DriverC.Patch -> Maybe Checkpoint.State
     -> AUtil.NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
     -> Config -> AUtil.NAudio
 render patch mbState notifyState inputs start end config =
-    Audio.NAudio (DriverC.patchOutputs patch) $ do
+    Audio.NAudio (DriverC._outputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.initialize patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
@@ -146,10 +145,10 @@ render patch mbState notifyState inputs start end config =
                 Nothing -> Resource.release key
                 Just nextStart -> loop (nextStart, nextInputs)
         where
-        render1 inst controls start
+        render1 inst inputs start
             | start >= end + maxDecay = return Nothing
             | otherwise = do
-                outputs <- liftIO $ DriverC.render inst controls
+                outputs <- liftIO $ DriverC.render inst inputs
                 -- XXX Since this uses unsafeGetState, readers of notifyState
                 -- have to entirely use the state before returning.  See
                 -- Checkpoint.getFilename and Checkpoint.writeBs.
@@ -174,19 +173,19 @@ isBasicallySilent _samples = False -- TODO RMS < -n dB
 -- | Render the supported controls down to audio rate signals.  This causes the
 -- stream to be synchronized by 'Config.chunkSize', which should determine
 -- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
-renderControls :: Audio.Frame -> [Control.Control]
+renderInputs :: Audio.Frame -> [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
     -> [Note.Note] -> RealTime -> AUtil.NAudio
-renderControls chunkSize controls notes start =
+renderInputs chunkSize controls notes start =
     Audio.nonInterleaved now chunkSize $
-        map (fromMaybe Audio.silence . renderControl chunkSize notes start)
+        map (fromMaybe Audio.silence . renderInput chunkSize notes start)
             controls
     where now = 0 -- for the moment, faust always starts at 0
 
-renderControl :: (Monad m, TypeLits.KnownNat rate)
+renderInput :: (Monad m, TypeLits.KnownNat rate)
     => Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
     -> Maybe (Audio.Audio m rate 1)
-renderControl chunkSize notes start control
+renderInput chunkSize notes start control
     | control == Control.gate =
         Just $ sync $ Audio.linear $ shiftBack $ gateBreakpoints notes
     | null bps = Nothing

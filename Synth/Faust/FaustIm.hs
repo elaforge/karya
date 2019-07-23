@@ -27,7 +27,6 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as Audio.File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
 import qualified Util.Thread as Thread
 
 import qualified Perform.RealTime as RealTime
@@ -55,18 +54,11 @@ main = do
     Signals.installHandler Signals.sigTERM
         (Signals.CatchOnce (Concurrent.killThread thread)) Nothing
     case args of
-        ["print-patches"] -> forM_ (Map.toList patches) $ \(name, patch) -> do
+        ["print-patches"] -> forM_ (Map.toList patches) $ \(name, epatch) -> do
             Text.IO.putStrLn $ "=== " <> name <> " ==="
-            result <- DriverC.getParsedMetadata patch
-            case result of
+            case epatch of
                 Left err -> Text.IO.putStrLn $ "ERROR: " <> err
-                Right (doc, controls) -> do
-                    Text.IO.putStrLn $ TextUtil.toText doc
-                    forM_ controls $ \(c, cdoc) ->
-                        Text.IO.putStrLn $ pretty c <> ": " <> pretty cdoc
-                    uiControls <- DriverC.getUiControls patch
-                    forM_ uiControls $ \(c, _, cdoc) ->
-                        Text.IO.putStrLn $ "UI: " <> pretty c <> ": " <> cdoc
+                Right patch -> printPatch patch
             putStrLn ""
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
@@ -75,8 +67,16 @@ main = do
                 =<< Note.unserialize notesFilename
             pid <- Posix.Process.getProcessID
             let prefix = showt pid <> ": " <> txt notesFilename
+            patches <- traverse (either errorIO pure) patches
             process prefix patches notes outputDir
         _ -> errorIO $ "usage: faust-im [print-patches | notes outputDir]"
+    where
+    printPatch patch = do
+        Text.IO.putStrLn $ DriverC._doc patch
+        forM_ (DriverC._inputControls patch) $ \(c, config) ->
+            Text.IO.putStrLn $ "input: " <> pretty c <> ": " <> pretty config
+        forM_ (Map.toList (DriverC._controls patch)) $ \(c, (_, config)) ->
+            Text.IO.putStrLn $ "control: " <> pretty c <> ": " <> pretty config
 
 process :: Text -> Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath
     -> IO ()
@@ -131,13 +131,13 @@ writeControls output patch notes =
         Audio.File.write AUtil.outputFormat (fname control) $
         Audio.take (Audio.Seconds final) $
         fromMaybe Audio.silence
-        (Render.renderControl chunkSize notes 0 control :: Maybe AUtil.Audio1)
+        (Render.renderInput chunkSize notes 0 control :: Maybe AUtil.Audio1)
     where
     chunkSize = Render._chunkSize Render.defaultConfig
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
     -- play_cache is special-cased to ignore *.debug.wav.
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
-    controls = DriverC.getControls patch
+    controls = map fst (DriverC._inputControls patch)
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])
