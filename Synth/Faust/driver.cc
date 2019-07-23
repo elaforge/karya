@@ -7,8 +7,6 @@
 #include <utility>
 
 #include "driver.h"
-#include <faust/gui/CInterface.h>
-#include <faust/dsp/dsp.h>
 
 #include "build/faust_all.cc"
 
@@ -47,14 +45,14 @@ int
 faust_controls(const Patch *patch, const char ***out_controls, char ***out_docs,
     FAUSTFLOAT ***out_vals)
 {
-    std::vector<Patch::Widget> widgets(patch->getUiMetadata());
+    std::vector<UIGlue::Widget> widgets(patch->getUiMetadata());
     int size = widgets.size();
     const char **controls = (const char **) calloc(size, sizeof(char *));
     char **docs = (char **) calloc(size, sizeof(char *));
     FAUSTFLOAT **vals = (FAUSTFLOAT **) calloc(size, sizeof(FAUSTFLOAT *));
 
     for (int i = 0; i < size; i++) {
-        const Patch::Widget &w = widgets[i];
+        const UIGlue::Widget &w = widgets[i];
         if (w.boolean)
             asprintf(docs + i, "%s", "boolean");
         else

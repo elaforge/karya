@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <faust/gui/UI.h>
-#include <faust/gui/meta.h>
-#include <faust/dsp/dsp.h>
+#include <faust/dsp/dsp.h> // for FAUSTFLOAT
 
 #include "Patch.h"
 #include "fltk/TimeVector.h" // for ControlSample

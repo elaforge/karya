@@ -422,8 +422,7 @@ hsToCc = Map.fromList $
     , ("LogView/LogViewC.hsc", ["LogView/interface.cc"])
     , ("Instrument/BrowserC.hsc", ["Instrument/interface.cc"])
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
-    , ("Synth/Faust/DriverC.hs",
-        map ("Synth/Faust"</>) ["driver.cc", "Patch.cc"])
+    , ("Synth/Faust/DriverC.hs", map ("Synth/Faust"</>) ["driver.cc"])
     , ("Util/VectorC.hs", ["Util/vectorc.cc"])
     ] ++
     [ (hsc, ["Ui/c_interface.cc"])
@@ -1355,7 +1354,6 @@ faustAll dsps extraIncludes = unlines
     , unlines (map ("#include "<>) includes)
     , "static const int all_patches_count = " <> show (length names) <> ";"
     , ""
-    -- , unlines $ map constructor names
     , "static const Patch *all_patches[] ="
     , "    { " <> Seq.join "\n    , "
         [ "new Patch(" <> Seq.join ",\n        "
@@ -1363,8 +1361,10 @@ faustAll dsps extraIncludes = unlines
             , "sizeof(" <> struct name <> ")"
             , "getNumInputs" <> struct name <> "(nullptr)"
             , "getNumOutputs" <> struct name <> "(nullptr)"
+            -- The casts make it unsafe, but the function takes some dsp
+            -- struct, while Patch.h declares it as State *.
             , "(Patch::Initialize) init" <> struct name
-            , "(Patch::Metadata) metadata" <> struct name
+            , "metadata" <> struct name
             , "(Patch::UiMetadata) buildUserInterface" <> struct name
             , "(Patch::Compute) compute" <> struct name
             ]
@@ -1377,10 +1377,7 @@ faustAll dsps extraIncludes = unlines
     where
     struct = ("__faust_"<>)
     names = map dspToName dsps
-    includes =
-        "<faust/gui/UI.h>" : "<faust/gui/meta.h>" : "<faust/dsp/dsp.h>"
-        : map (show . dspToSrc) dsps
-        ++ map show extraIncludes
+    includes = map (show . dspToSrc) dsps ++ map show extraIncludes
 
 dspToName :: FilePath -> String
 dspToName = FilePath.dropExtension . FilePath.takeFileName
