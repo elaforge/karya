@@ -166,10 +166,11 @@ runOutput :: FilePath -> Int -> [Test] -> Bool -> IO Bool
 runOutput outputDir jobs tests check = do
     Directory.createDirectoryIfMissing True outputDir
     let outputs = [outputDir </> "out" <> show n <> ".stdout" | n <- [1..jobs]]
-    runParallel outputs tests
+    failures <- runParallel outputs tests
+    mapM_ (putStrLn . ("*** "<>)) failures
     if check
-        then checkOutputs outputs
-        else return True
+        then (&&) <$> checkOutputs outputs <*> pure (null failures)
+        else return $ null failures
     -- TODO run hpc?
 
 -- | Isolate the test by running it in a subprocess.  I'm not sure if this is
@@ -190,16 +191,17 @@ runInSubprocess test = do
 -- * parallel jobs
 
 -- | Run tests in parallel, redirecting stdout and stderr to each output.
-runParallel :: [FilePath] -> [Test] -> IO ()
-runParallel _ [] = return ()
+runParallel :: [FilePath] -> [Test] -> IO [String]
+runParallel _ [] = return []
 runParallel outputs tests = do
     let byModule = Seq.keyed_group_adjacent testFilename tests
     queue <- newQueue [(txt name, tests) | (name, tests) <- byModule]
-    Async.forConcurrently_ (map fst (zip outputs byModule)) $
+    failures <- Async.forConcurrently (map fst (zip outputs byModule)) $
         \output -> jobThread output queue
+    return $ Maybe.catMaybes failures
 
 -- | Pull tests off the queue and feed them to a single subprocess.
-jobThread :: FilePath -> Queue (Text, [Test]) -> IO ()
+jobThread :: FilePath -> Queue (Text, [Test]) -> IO (Maybe String)
 jobThread output queue =
     Exception.bracket (IO.openFile output IO.AppendMode) IO.hClose $ \hdl -> do
         to <- Chan.newChan
@@ -209,28 +211,39 @@ jobThread output queue =
         -- and crash.
         Util.Process.conversation argv0 ["--subprocess"]
                 (Just (("HPCTIXFILE", output <> ".tix") : env)) to $ \from -> do
-            whileJust (takeQueue queue) $ \(name, tests) -> do
-                put $ untxt name
-                Chan.writeChan to $ Util.Process.Text $
-                    Text.unwords (map testName tests) <> "\n"
-                Fix.fix $ \loop -> Chan.readChan from >>= \case
-                    Util.Process.Stdout line
-                        | line == testsCompleteLine -> return ()
-                        | otherwise -> Text.IO.hPutStrLn hdl line >> loop
-                    Util.Process.Stderr line ->
-                        Text.IO.hPutStrLn hdl line >> loop
-                    Util.Process.Exit n -> put $ "completed early: " <> show n
-            Chan.writeChan to Util.Process.EOF
-            final <- Chan.readChan from
-            case final of
-                Util.Process.Exit (Util.Process.ExitCode n)
-                    | n == 0 -> return ()
-                    | otherwise -> put $ "completed " <> show n
-                Util.Process.Exit Util.Process.BinaryNotFound ->
-                    put $ "binary not found: " <> argv0
-                _ -> put $ "expected Exit, but got " <> show final
+            earlyExit <- Fix.fix $ \loop -> takeQueue queue >>= \case
+                Nothing -> return Nothing
+                Just (name, tests) -> do
+                    put $ untxt name
+                    Chan.writeChan to $ Util.Process.Text $
+                        Text.unwords (map testName tests) <> "\n"
+                    earlyExit <- Fix.fix $ \loop -> Chan.readChan from >>= \case
+                        Util.Process.Stdout line
+                            | line == testsCompleteLine -> return Nothing
+                            | otherwise -> Text.IO.hPutStrLn hdl line >> loop
+                        Util.Process.Stderr line ->
+                            Text.IO.hPutStrLn hdl line >> loop
+                        Util.Process.Exit n -> do
+                            put $ "completed early: " <> show n
+                            return $ Just n
+                    maybe loop (return . Just) earlyExit
+            final <- case earlyExit of
+                Nothing -> do
+                    Chan.writeChan to Util.Process.EOF
+                    Chan.readChan from
+                Just n -> return $ Util.Process.Exit n
+            let failure = case final of
+                    Util.Process.Exit (Util.Process.ExitCode n)
+                        | n == 0 -> Nothing
+                        | otherwise -> Just $ "subprocess crashed: " <> show n
+                    Util.Process.Exit Util.Process.BinaryNotFound ->
+                        Just $ "binary not found: " <> argv0
+                    _ -> Just $ "expected Exit, but got " <> show final
+            whenJust failure put
+            return $ (prefix<>) <$> failure
     where
-    put = putStr . ((output <> ": ")<>) . (<>"\n")
+    prefix = output <> ": "
+    put = putStrLn . (prefix<>)
 
 subprocess :: [Test] -> IO ()
 subprocess allTests = void $ File.ignoreEOF $ forever $ do
