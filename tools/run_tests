@@ -16,7 +16,7 @@ set -eu
 hpc_exclude_test=${hpc_exclude_test-} # Add 't' to default true.
 
 while [[ $1 = */* ]]; do
-    binaries=($binaries $1)
+    binaries+=($1)
     shift
 done
 
@@ -30,9 +30,6 @@ prefixes=("$@")
 if [[ -z $prefixes ]]; then
     prefixes=('^normal-')
 fi
-
-# Default to parallel, but you can turn it off with parallel=
-parallel=${parallel-t}
 
 # Write test stdout to here.
 out_dir=build/test/output
@@ -49,28 +46,21 @@ function run {
     "$@"
 }
 
-if [[ -n $parallel ]]; then
-    # The subprocesses will set HPCTIXFILE appropriately.
-    # Apparently there's no way to turn off hpc, and it doesn't like /dev/null.
-    for bin in $binaries; do
-        HPCTIXFILE=build/test/tmp/tix.tix run $bin --jobs=auto \
-            --output=$out_dir $prefixes
-    done
-    rm -f build/test/tmp/tix.tix
-else
-    for bin in $binaries; do
-        echo "HPCTIXFILE=$all_tix $bin $prefixes >>$out_dir/out.stdout"
-        time (
-            HPCTIXFILE=$all_tix $bin $prefixes >>$out_dir/out.stdout
-        )
-    done
-fi
+# The subprocesses will set HPCTIXFILE appropriately.
+# Apparently there's no way to turn off hpc, and it doesn't like /dev/null.
+for bin in $binaries; do
+    HPCTIXFILE=build/test/tmp/tix.tix run $bin --jobs=auto \
+        --output=$out_dir $prefixes
+done
+rm -f build/test/tmp/tix.tix
 
-$binaries[1] --jobs=auto --output=$out_dir --check-output
-rm *.tix # these things are really annoying
+# Do one test run to check all the outputs.
+run $binaries[1] --jobs=auto --output=$out_dir --check-output
+failures=$?
+rm -f *.tix(N) # these things are really annoying
 
 # Optionally disable HPC.
-if [[ -z $skip_hpc ]]; then
+if [[ -z ${skip_hpc:+t} ]]; then
     # hpc is super slow
     echo 'Generating hpc markup in the background...'
     (
@@ -90,6 +80,7 @@ if [[ -z $skip_hpc ]]; then
         # I'm more used to typing index.html
         (cd build/hpc && ln -fs hpc_index.html index.html)
         echo Done generating hpc.
+        rm -rf .hpc
     ) &
 fi
 
