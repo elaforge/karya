@@ -333,8 +333,8 @@ startSample config now mbState note = do
         , _noteRange = (start, start + Sample.duration note)
         }
 
--- | This is similar to 'Note.splitOverlapping', but it differentiates notes
--- that overlap the starting time.
+-- | This is similar to 'Checkpoint.splitOverlapping', but it differentiates
+-- notes that overlap the starting time.
 overlappingNotes :: Audio.Frame -> Audio.Frame -> [Sample.Note]
     -> ([Sample.Note], [Sample.Note], [Sample.Note])
 overlappingNotes start blockSize notes =

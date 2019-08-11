@@ -101,7 +101,7 @@ applyPan start sig
     | otherwise = Audio.pan (realizeSignal start sig)
 
 realizeSignal :: RealTime -> Signal.Signal -> AUtil.Audio1
-realizeSignal start sig = Audio.linear $
+realizeSignal start sig = Audio.linear True $
     map (first (RealTime.to_seconds . subtract start)) $
     Signal.clip_before_pairs start sig
 

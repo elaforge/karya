@@ -42,14 +42,14 @@ faust_metadata(const Patch *patch, const char ***keys, const char ***values)
 }
 
 int
-faust_controls(const Patch *patch, const char ***out_controls, char ***out_docs,
-    FAUSTFLOAT ***out_vals)
+faust_controls(const Patch *patch, const char ****out_paths,
+    const char ***out_controls, char ***out_docs)
 {
     std::vector<UIGlue::Widget> widgets(patch->getUiMetadata());
     int size = widgets.size();
+    const char ***paths = (const char ***) calloc(size, sizeof(char *));
     const char **controls = (const char **) calloc(size, sizeof(char *));
     char **docs = (char **) calloc(size, sizeof(char *));
-    FAUSTFLOAT **vals = (FAUSTFLOAT **) calloc(size, sizeof(FAUSTFLOAT *));
 
     for (int i = 0; i < size; i++) {
         const UIGlue::Widget &w = widgets[i];
@@ -57,11 +57,26 @@ faust_controls(const Patch *patch, const char ***out_controls, char ***out_docs,
             asprintf(docs + i, "%s", "boolean");
         else
             asprintf(docs + i, "init:%.3g, %.3g -- %.3g", w.init, w.min, w.max);
+        paths[i] = (const char **) calloc(w.path.size() + 1, sizeof(char *));
+        for (int j = 0; j < w.path.size(); j++)
+            paths[i][j] = w.path[j];
         controls[i] = w.label;
-        vals[i] = w.value;
     }
+    *out_paths = paths;
     *out_controls = controls;
     *out_docs = docs;
+    return size;
+}
+
+int
+faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals)
+{
+    std::vector<UIGlue::Widget> widgets(inst->getUiMetadata());
+    int size = widgets.size();
+    FAUSTFLOAT **vals = (FAUSTFLOAT **) calloc(size, sizeof(FAUSTFLOAT *));
+    for (int i = 0; i < size; i++) {
+        vals[i] = widgets[i].value;
+    }
     *out_vals = vals;
     return size;
 }
@@ -73,10 +88,22 @@ faust_initialize(const Patch *patch, int srate)
 }
 
 void
-faust_render(Patch *patch, int frames,
+faust_render(
+    Patch *inst,
+    int control_size, int controls_per_block,
+    int control_count, float **controlps, const float **controls,
     const float **inputs, float **outputs)
 {
-    patch->compute(frames, inputs, outputs);
+    for (int block = 0; block < controls_per_block; block++) {
+        for (int i = 0; i < control_count; i++) {
+            *controlps[i] = controls[i][block];
+        }
+        inst->compute(control_size, inputs, outputs);
+        for (int i = 0; i < inst->inputs; i++)
+            inputs[i] += control_size;
+        for (int i = 0; i < inst->outputs; i++)
+            outputs[i] += control_size;
+    }
 }
 
 }

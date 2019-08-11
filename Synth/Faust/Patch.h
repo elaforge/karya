@@ -30,27 +30,38 @@ struct MetaGlue {
 
 struct UIGlue {
     struct Widget {
-        Widget(const char *label, FAUSTFLOAT *value, bool boolean,
+        Widget(const std::vector<const char *> path, const char *label,
+                FAUSTFLOAT *value, bool boolean,
                 FAUSTFLOAT init = 0, FAUSTFLOAT min = 0, FAUSTFLOAT max = 0,
                 FAUSTFLOAT step = 0)
-            : label(label), value(value), boolean(boolean), init(init),
-                min(min), max(max), step(step)
+            : path(path), label(label), value(value), boolean(boolean),
+                init(init), min(min), max(max), step(step)
             {}
+        const std::vector<const char *> path;
         const char *label;
         FAUSTFLOAT *value;
-        bool boolean;
-        FAUSTFLOAT init, min, max, step;
+        const bool boolean;
+        const FAUSTFLOAT init, min, max, step;
     };
+    std::vector<const char *> path;
     std::vector<Widget> widgets;
     void *uiInterface = nullptr;
     typedef void Soundfile;
 
     void declare(void *, FAUSTFLOAT *zone, const char *key, const char *value)
     {}
-    void openTabBox(void *, const char *label) {}
-    void openHorizontalBox(void *, const char *label) {}
-    void openVerticalBox(void *, const char *label) {}
-    void closeBox(void *) {}
+    void openTabBox(void *, const char *label) {
+        path.push_back(label);
+    }
+    void openHorizontalBox(void *, const char *label) {
+        path.push_back(label);
+    }
+    void openVerticalBox(void *, const char *label) {
+        path.push_back(label);
+    }
+    void closeBox(void *) {
+        path.pop_back();
+    }
     void addSoundfile(
         void *, const char *label, const char *filename, Soundfile **sf_zone)
     {}
@@ -58,27 +69,30 @@ struct UIGlue {
     // -- active widgets
 
     void addButton(void *, const char *label, FAUSTFLOAT *zone) {
-        widgets.push_back(Widget(label, zone, true));
+        widgets.push_back(Widget(path, label, zone, true));
     }
     void addCheckButton(void *, const char *label, FAUSTFLOAT *zone) {
-        widgets.push_back(Widget(label, zone, true));
+        widgets.push_back(Widget(path, label, zone, true));
     }
     void addVerticalSlider(void *, const char *label, FAUSTFLOAT *zone,
         FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
     {
-        widgets.push_back(Widget(label, zone, false, init, min, max, step));
+        widgets.push_back(
+            Widget(path, label, zone, false, init, min, max, step));
     }
     void addHorizontalSlider(
         void *, const char *label, FAUSTFLOAT *zone,
         FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
     {
-        widgets.push_back(Widget(label, zone, false, init, min, max, step));
+        widgets.push_back(
+            Widget(path, label, zone, false, init, min, max, step));
     }
     void addNumEntry(
         void *, const char *label, FAUSTFLOAT *zone,
         FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step)
     {
-        widgets.push_back(Widget(label, zone, false, init, min, max, step));
+        widgets.push_back(
+            Widget(path, label, zone, false, init, min, max, step));
     }
 
     // -- passive widgets
@@ -143,6 +157,11 @@ public:
         return glue.pairs;
     };
 
+    // Before allocate is called, state == nullptr, which means uiMetadata
+    // will give control value pointers as offsets from 0, which of course are
+    // invalid.  I could prevent this by removing the const, but I want control
+    // names from unallocated Patches and I can't be bothered to have two
+    // methods.
     std::vector<UIGlue::Widget> getUiMetadata() const {
         UIGlue ui;
         this->uiMetadata(state, &ui);

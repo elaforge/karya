@@ -31,6 +31,7 @@ import           Synth.Types
 data Note = Note {
     -- | Map this note to one of the synthesizer's patches.
     patch :: !PatchName
+    -- | Unique name for this particular instantiation of the patch.
     , instrument :: !InstrumentName
     -- | Display render progress on this track.
     --
@@ -41,7 +42,7 @@ data Note = Note {
     -- is depends on the instrument.  For instance, it might the a particular
     -- string on a pipa.  The difference from 'attributes' is that each element
     -- is mutually exclusive.
-    , element :: !Text
+    , element :: !Element
     , start :: !RealTime
     , duration :: !RealTime
     -- | E.g. envelope, pitch, lpf.
@@ -50,6 +51,8 @@ data Note = Note {
     -- | The stack of the score event that generated this Note.  For errors.
     , stack :: Stack.Stack
     } deriving (Show)
+
+type Element = Text
 
 -- | Unique identifier for a patch.
 type PatchName = Text

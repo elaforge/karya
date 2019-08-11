@@ -26,6 +26,7 @@ module Util.Audio.Audio (
     -- * construct
     , fromSamples, fromSampleLists, toSamples
     -- * transform
+    , castRate
     , take, mapSamples, gain, multiply
     , takeClose
     , pan, panConstant
@@ -52,7 +53,7 @@ module Util.Audio.Audio (
     -- * util
     , takeFramesGE, splitAt
     , next, isEmpty
-    , natVal
+    , natVal, someNat
 #ifdef TESTING
     , module Util.Audio.Audio
 #endif
@@ -184,6 +185,9 @@ toSamples :: Monad m => Audio m rate channels -> m [V.Vector Sample]
 toSamples = S.toList_ . _stream
 
 -- * transform
+
+castRate :: Audio m rate1 chan -> Audio m rate2 chan
+castRate (Audio stream) = Audio stream
 
 take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
     => Duration -> Audio m rate chan -> Audio m rate chan
@@ -544,9 +548,12 @@ sine frequency =
 
 -- | Generate a piecewise linear signal from breakpoints.  The signal will
 -- continue forever with the last value.
+--
+-- TODO take blockSize and start args so a subsequent synchronization doesn't
+-- have to reallocate.
 linear :: forall m rate. (Monad m, KnownNat rate)
-    => [(Seconds, Double)] -> Audio m rate 1
-linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
+    => Bool -> [(Seconds, Double)] -> Audio m rate 1
+linear forever breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
     where
     loop (start, prevX, prevY, breakpoints) = case breakpoints of
         (x, y) : xys
@@ -555,16 +562,8 @@ linear breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
                 S.yield $ segment prevX prevY x y start (toCount generate)
                 loop (start + generate, prevX, prevY, breakpoints)
             where generate = min blockSize (toFrame x - start)
-        -- Line the output up to blockSize boundaries so subsequent
-        -- synchronization doesn't have to reallocate.
-        -- TODO I could avoid all reallocation by always using blockSize, but
-        -- then the interpolate stuff gets a bit more complicated.  Not sure
-        -- if worth it.
-        []  | leftover == 0 -> _stream $ constant @_ @_ @1 (Num.d2f prevY)
-            | otherwise -> do
-                S.yield $ V.replicate (toCount leftover) (Num.d2f prevY)
-                loop (start + leftover, prevX, prevY, [])
-                where leftover = start `mod` blockSize
+        []  | forever -> _stream $ constant @_ @_ @1 (Num.d2f prevY)
+            | otherwise -> S.yield $ V.singleton (Num.d2f prevY)
     -- Go through some hassle to create constant segments efficiently, since
     -- they should be pretty common.
     segment x1 y1 x2 y2 start count
@@ -628,6 +627,11 @@ dbToLinear x = 10**(x / 20)
 
 natVal :: KnownNat n => Proxy n -> Int
 natVal = fromIntegral . TypeLits.natVal
+
+someNat :: Int -> TypeLits.SomeNat
+someNat int = case TypeLits.someNatVal (fromIntegral int) of
+    Nothing -> error $ "not a natural: " <> show int
+    Just n -> n
 
 -- | This is like 'S.breakWhen', except it breaks after the place where the
 -- predicate becomes true, not before it.

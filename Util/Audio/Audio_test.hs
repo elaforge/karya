@@ -133,7 +133,7 @@ test_synchronize = do
 
 test_linear = do
     let f wanted = concat . toSamples @1 @1 . Audio.take (Audio.Frames wanted)
-            . Audio.linear
+            . Audio.linear True
     equal (f 2 []) [0, 0]
     equal (f 7 [(0, 4), (4, 0)]) [4, 3, 2, 1, 0, 0, 0]
     -- Implicit leading 0.
@@ -143,20 +143,18 @@ test_linear = do
     -- Infinite final sample.
     equal (f 7 [(0, 0), (4, 4)]) [0, 1, 2, 3, 4, 4, 4]
 
-test_linear_block_size = do
-    let f wanted = map V.length . toBlocks
-            . Audio.take (Audio.Frames (Audio.Frame wanted)) . Audio.linear
-    let size = Audio.framesCount (Proxy @1) Audio.blockSize
-    equal (f (2*size+1) []) [size, size, 1]
-    -- The breakpoint splits the block, but it lines up on size again when it
-    -- becomes continuous.
-    equal (f (3*size) [(0, 1), (fromIntegral size / 2, 0)])
-        [size `div` 2, size `div` 2, size, size]
+test_linear_not_forever = do
+    let f wanted = concat . toSamples @1 @1 . Audio.take (Audio.Frames wanted)
+            . Audio.linear False
+    equal (f 2 []) [0]
+    equal (f 2 [(0, 1)]) [1]
+    equal (f 2 [(0, 1), (1, 1)]) [1, 1]
+    equal (f 6 [(0, 0), (0, 1), (2, 0)]) [1, 0.5, 0]
 
 _test_linear_big = do
     let f wanted = toSamples @44100 @1 . Audio.take (Audio.Seconds wanted)
             . Audio.synchronizeToSize 0 Audio.blockSize
-            . Audio.linear
+            . Audio.linear True
     let blocks = f 0.55
             [ (0, 0), (0, 1), (0.25, 1), (0.25, 0), (0.5, 0)
             , (0.5, 1), (0.75, 1), (0.75, 0)

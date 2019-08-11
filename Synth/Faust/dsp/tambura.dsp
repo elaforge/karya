@@ -34,73 +34,75 @@ sm = si.smooth(ba.tau2pole(0.05)); // 50 ms smoothing
 
 // *** per-string
 
-// ratios(i) = hslider("/h:main/ratio%1i [style:knob]", 1., 0.1, 2., 0.001);
-pluck(i) = button("/h:trigger/pluck%1i"); // buttons for manual plucking
+// ratios(i) = hslider("/h:_main/ratio%1i [style:knob]", 1., 0.1, 2., 0.001);
+// pluck(i) = button("/h:_trigger/pluck%1i"); // buttons for manual plucking
+
+pluck(i) = button("/h:%i/trigger");
 
 // the base pitch of the drone
 f0 = hslider(
-    "/h:main/[1]pitch [style:knob]", 36, 1, 127, 1
+    "/h:_main/[1]pitch [style:knob]", 36, 1, 127, 1
 ) : sm : ba.midikey2hz;
 
 // how long the strings decay
 t60 = hslider(
-    "/h:main/[2]decay_time [style:knob][unit:s]", 10, 0, 100, 0.1
+    "/h:_main/[2]decay_time [style:knob][unit:s]", 10, 0, 100, 0.1
 ) : sm;
 
 // string brightness
-damp = 1. - hslider("/h:main/[3]high_freq_loss [style:knob]", 0, 0, 1., 0.01)
+damp = 1. - hslider("/h:_main/[3]high_freq_loss [style:knob]", 0, 0, 1., 0.01)
     : sm;
 
 // controls the detuning of parallel waveguides that mimics harmonic motion of
 // the tambura
 fd = hslider(
-    "/h:main/[4]harmonic_motion [style:knob][scale:exp]",
+    "/h:_main/[4]harmonic_motion [style:knob][scale:exp]",
     0.001, 0., 1, 0.0001
 ) : *(0.2) : sm;
 
 // creates the buzzing / jawari effect
 jw = hslider(
-    "/h:main/[6]jawari [style:knob]", 0, 0, 1, 0.001)
+    "/h:_main/[6]jawari [style:knob]", 0, 0, 1, 0.001)
 : *(0.1) : sm;
 
 // stereo spread of strings
 spread = hslider(
-    "/h:main/[7]string_spread [style:knob]", 1., 0., 1., 0.01
+    "/h:_main/[7]string_spread [style:knob]", 1., 0., 1., 0.01
 ) : sm;
 
 // *** global
 
 // level of sympathetic coupling between strings
 coupling = hslider(
-    "/h:main/[5]sympathetic_coupling [style:knob]", 0.1, 0., 1., 0.0001
+    "/h:_main/[5]sympathetic_coupling [style:knob]", 0.1, 0., 1., 0.0001
 ) : sm;
 
-tscale = hslider("/h:main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
-descale = hslider("/h:main/[9]decay_scale [style:knob]", 1, 0.1, 1., 0.001);
-// dascale = hslider("/h:main/[10]damp_scale [style:knob]", 1, 0.5, 2, 0.01);
+tscale = hslider("/h:_main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
+descale = hslider("/h:_main/[9]decay_scale [style:knob]", 1, 0.1, 1., 0.001);
+// dascale = hslider("/h:_main/[10]damp_scale [style:knob]", 1, 0.5, 2, 0.01);
 
 // crossfades between pink noise and DC excitation
-ptype = hslider("/h:pick/[1]material [style:knob]", 0.13, 0.0, 1., 0.01) : sm;
+ptype = hslider("/h:_pick/[1]material [style:knob]", 0.13, 0.0, 1., 0.01) : sm;
 
 // attack time of pluck envelope, 0 to 0.5 times f0 wavelength
 pattack = hslider(
-    "/h:pick/[2]attack_time [style:knob][scale:exp]", 0.07, 0, 0.5, 0.01
+    "/h:_pick/[2]attack_time [style:knob][scale:exp]", 0.07, 0, 0.5, 0.01
 );
 
 // decay time (1 to 10 times f0 wavelength)
-ptime = hslider("/h:pick/[3]pick_decay_time [style:knob]", 1., 1, 100., 0.01);
+ptime = hslider("/h:_pick/[3]pick_decay_time [style:knob]", 1., 1, 100., 0.01);
 
 // pick position (ratio of f0 wavelength)
-ppos = hslider("/h:pick/[4]position [style:knob]", 0.25, 0.01, 0.5, 0.01);
+ppos = hslider("/h:_pick/[4]position [style:knob]", 0.25, 0.01, 0.5, 0.01);
 
 // pick bend depth in semitones
 pbend = hslider(
-    "/h:pick/[5]bend_depth [style:knob][unit:st]", 3, 0., 12., 0.01
+    "/h:_pick/[5]bend_depth [style:knob][unit:st]", 3, 0., 12., 0.01
 );
 
 // pick bend time (1 to 200 ms)
 pbendtime = hslider(
-    "/h:pick/[6]bend_time [style:knob][unit:ms]", 10., 1, 200., 1
+    "/h:_pick/[6]bend_time [style:knob][unit:ms]", 10., 1, 200., 1
 );
 
 // master volume
@@ -197,10 +199,10 @@ with {
 
 // automatic plucking rate (Hz)
 pluckrate = hslider(
-    "/h:trigger/auto pluck rate [style:knob][unit:hz]", 0.1, 0.0, 0.5, 0.001
+    "/h:_trigger/auto pluck rate [style:knob][unit:hz]", 0.1, 0.0, 0.5, 0.001
 );
 // enable automatic plucking
-enableautoplucker = checkbox("/h:trigger/enable auto pluck");
+enableautoplucker = checkbox("/h:_trigger/enable auto pluck");
 
 autoplucker = phasor(pluckrate)
     <: <(0.25), >(0.25) & <(0.5), >(0.5) & <(0.75), >(0.75) & <(1)

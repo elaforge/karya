@@ -4,23 +4,24 @@
 
 -- | Export a 'synth' with all the supported patches.
 module Synth.Faust.PatchDb (synth, warnings) where
-import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Doc as Doc
+import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
-import qualified Perform.Im.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
+import qualified Perform.Im.Patch as Patch
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
 
-import Global
+import           Global
 
 
 synth :: ImInst.Synth
@@ -31,30 +32,38 @@ warnings :: [Text]
 (warnings, patches) = Unsafe.unsafePerformIO $ do
     -- These are in IO, but should be safe, because they are just reading
     -- static data.  In fact the FFI functions could probably omit the IO.
-    patches <- DriverC.getPatches
-    Either.partitionEithers <$> mapM make (Map.toList patches)
-    where
-    make (name, patch) = do
-        result <- DriverC.getParsedMetadata patch
-        return $ first (("faust/" <> name <> ": ") <>) $ do
-            (doc, controls) <- result
-            patch <- makePatch doc controls
-            return (name, patch)
+    pmap <- DriverC.getPatches
+    let errors =
+            [ "faust/" <> name <> ": " <> err
+            | (name, Left err) <- Map.toList pmap
+            ]
+        patches = [(name, patch) | (name, Right patch) <- Map.toList pmap]
+    return (errors, map (second makePatch) patches)
 
-makePatch :: Doc.Doc -> [(Control.Control, DriverC.ControlConfig)]
-    -> Either Text ImInst.Patch
-makePatch doc controls = do
-    let constantControls = map fst $ filter (DriverC._constant . snd) $
-            filter ((/=Control.pitch) . fst) controls
-    let constantPitch = maybe False DriverC._constant $
-            lookup Control.pitch controls
-    return $ ImInst.doc #= doc $ code constantPitch constantControls $
-        ImInst.make_patch $
-        Patch.patch
-            { Patch.patch_controls =
-                DriverC._description <$> Map.fromList controls
-            }
+makePatch :: DriverC.Patch -> ImInst.Patch
+makePatch patch =
+    ImInst.doc #= Doc.Doc (DriverC._doc patch) $
+    code constantPitch constantControls $
+    ImInst.make_patch $
+    Patch.patch { Patch.patch_controls = pretty <$> controls }
     where
+    constantControls = map fst $ filter (DriverC._constant . snd) $
+        filter ((/=Control.pitch) . fst) $ Map.toList controls
+    constantPitch = maybe False DriverC._constant $
+        Map.lookup Control.pitch controls
+    controls = DriverC._inputControls patch <> ui_controls
+    ui_controls = Map.fromList $ do
+        (control, controls@((_, ((), config)) : _)) <- by_control
+        let elts = filter (/="") $ map (fst . fst) controls
+        return $ (control,) $ config
+            { DriverC._description =
+                (if null elts then ""
+                    else "elements: [" <> Text.intercalate ", " elts <> "], ")
+                <> DriverC._description config
+            }
+    by_control = Seq.keyed_group_sort (snd . fst) $
+        Map.toList $ DriverC._controls patch
+
     code False [] = id
     code constantPitch constantControls = (ImInst.code #=) $ ImInst.null_call $
         DUtil.constant_controls constantPitch

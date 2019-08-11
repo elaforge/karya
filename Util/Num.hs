@@ -4,10 +4,13 @@
 
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE OverloadedStrings #-}
+-- HasCallStack is redundant only if -O is passed.
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
 -- | Miscellaneous functions on numbers.  Things that could have gone in
 -- Numeric.
 module Util.Num where
 import           Prelude hiding (sum)
+import qualified Control.Exception as Exception
 import           Data.Bifunctor (second)
 import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
@@ -22,6 +25,8 @@ import qualified Data.Text.Lazy.Builder.RealFloat as Lazy.Builder.RealFloat
 import qualified GHC.Prim as Prim
 import qualified GHC.Types as Types
 import qualified Numeric
+
+import qualified GHC.Stack as Stack
 
 
 -- * show
@@ -99,6 +104,16 @@ showFloat0 precision =
         | maybe True (>0) precision =
             Text.dropWhileEnd (=='.') . Text.dropWhileEnd (=='0')
         | otherwise = id
+
+-- * assert
+
+-- | Like @div@, but assert that it divides evenly.
+assertDiv :: Stack.HasCallStack => Integral a => a -> a -> a
+assertDiv a b = Exception.assert (a `mod` b == 0) $ a `div` b
+
+assertIntegral :: (Stack.HasCallStack, RealFrac f, Integral i) => f -> i
+assertIntegral frac = Exception.assert (f == 0) i
+    where (i, f) = properFraction frac
 
 -- * read
 

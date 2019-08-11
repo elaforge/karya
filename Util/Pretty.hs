@@ -27,11 +27,11 @@ import qualified Data.Dynamic as Dynamic
 import qualified Data.IntMap as IntMap
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import Data.Monoid ((<>))
+import           Data.Monoid ((<>))
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
-import Data.Text (Text)
+import           Data.Text (Text)
 import qualified Data.Text.Encoding as Encoding
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
@@ -42,15 +42,16 @@ import qualified Data.Vector as Vector
 import qualified Data.Vector.Storable as Storable
 import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Word as Word
-import qualified Foreign.C as C
 
+import qualified Foreign
+import qualified Foreign.C as C
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.Format as Format
-import Util.Format
-       (Doc, (</>), (<//>), (<+/>), (<+>), text, string, render, withIndent,
-        indent_, indent, indentLine, wrapWords)
+import           Util.Format
+       (indent, indentLine, indent_, render, string, text, withIndent,
+        wrapWords, (<+/>), (<+>), (<//>), (</>), Doc)
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -182,12 +183,6 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f) =>
     format (a, b, c, d, e, f) = formattedList '(' ')'
         [format a, format b, format c, format d, format e, format f]
 
-instance Pretty Time.UTCTime where pretty = showt
-instance Pretty Time.NominalDiffTime where
-    pretty s = pretty (realToFrac s :: Double) <> "s"
-instance Pretty Dynamic.Dynamic where pretty = showt
-instance Pretty Calendar.Day where pretty = showt
-
 -- ** containers
 
 instance Pretty a => Pretty (Set.Set a) where
@@ -203,6 +198,17 @@ instance Pretty v => Pretty (IntMap.IntMap v) where
 instance Pretty a => Pretty (Tree.Tree a) where
     format (Tree.Node val children) =
         "Node" <> indent_ ("(" <> format val <> ")" <+/> format children)
+
+-- ** other base types
+
+instance Pretty Time.UTCTime where pretty = showt
+instance Pretty Time.NominalDiffTime where
+    pretty s = pretty (realToFrac s :: Double) <> "s"
+instance Pretty Dynamic.Dynamic where pretty = showt
+instance Pretty Calendar.Day where pretty = showt
+
+instance Pretty (Foreign.Ptr a) where pretty = showt
+instance Pretty (Foreign.ForeignPtr a) where pretty = showt
 
 -- ** text
 

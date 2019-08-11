@@ -7,7 +7,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- | Shared config to coordinate between the sequencer and im subsystems.
 module Synth.Shared.Config where
-import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy.Char8 as ByteString.Lazy.Char8
 import qualified Data.Map as Map
@@ -150,8 +149,7 @@ chunkSize = AudioT.Frame $ samplingRate * chunkSeconds
 -- To make sure checkpoint states line up with the file boundaries, this must
 -- divide into 'chunkSize'.
 blockSize :: AudioT.Frame
-blockSize = Exception.assert (chunkSize `mod` by == 0) $ chunkSize `div` by
-    where by = 16
+blockSize = chunkSize `Num.assertDiv` 16
 
 chunkSeconds :: Int
 chunkSeconds = CHUNK_SECONDS

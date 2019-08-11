@@ -3,12 +3,16 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 -- | Render FAUST instruments.
 module Synth.Faust.Render where
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
+import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
 
 import qualified GHC.TypeLits as TypeLits
@@ -19,6 +23,8 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.CallStack as CallStack
 import qualified Util.Control
 import qualified Util.Log as Log
+import qualified Util.Map
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Perform.RealTime as RealTime
@@ -83,18 +89,51 @@ toSpan note = Checkpoint.Span
 -- * render
 
 data Config = Config {
-    _chunkSize :: Audio.Frame
+    _chunkSize :: !Audio.Frame
+    , _controlSize :: !Audio.Frame
+    -- | This is _chunkSize / _controlSize.
+    , _controlsPerBlock :: !Audio.Frame
     -- | Force an end if the signal hasn't gone to zero before this.
-    , _maxDecay :: RealTime
+    , _maxDecay :: !RealTime
     } deriving (Show)
 
+{-
+    Here are the various constants and derived values:
+
+    SamplingRate = 44100
+    chunkSeconds = 4
+    blocksPerChunk = 16
+    controlsPerBlock = 25
+
+    chunkSize = chunkSeconds * SamplingRate
+    blockSize = chunkSize / blocksPerChunk -- 11025
+    controlSize = blockSize / controlsPerBlock -- 441
+
+    blocksPerSecond = blocksPerChunk / chunkSeconds -- 4
+    controlRate = controlsPerBlock * blocksPerSecond -- 100
+-}
 defaultConfig :: Config
 defaultConfig = Config
-    { _chunkSize = Config.chunkSize
+    { _chunkSize = Config.chunkSize -- TODO should be block size
+    , _controlSize = Config.chunkSize `Num.assertDiv` controlsPerBlock
+    , _controlsPerBlock = controlsPerBlock
     -- TODO it should be longer, but since 'isBasicallySilent' is
     -- unimplemented every decay lasts this long.
     , _maxDecay = 2
     }
+    where controlsPerBlock = 400
+
+-- | Control signals run at this rate.
+--
+-- This should divide into Config.blockSize, which in turn divides into
+-- Config.SamplingRate.
+_controlRate :: Config -> Int
+_controlRate config =
+    Num.assertIntegral $ fromIntegral (_controlsPerBlock config)
+        * blocksPerSecond
+    where
+    blocksPerSecond =
+        fromIntegral Config.samplingRate / fromIntegral (_chunkSize config)
 
 -- | Render notes belonging to a single FAUST patch.  Since they render on
 -- a single element, they should either not overlap, or be ok if overlaps
@@ -104,12 +143,13 @@ renderPatch :: DriverC.Patch -> Config -> Maybe Checkpoint.State
 renderPatch patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
         render patch mbState notifyState
-            [(Note.start n, Note.controls n) | n <- notes]
-            inputs (AUtil.toFrame start) (AUtil.toFrame final) config
+            controls inputs (AUtil.toFrame start) (AUtil.toFrame final) config
     where
+    controls = renderControls (_controlRate config)
+        (Map.keysSet (DriverC._controls patch)) notes start
     inputs = renderInputs (_chunkSize config)
-        (filter (/=Control.volume) controls) notes start
-    controls = map fst $ DriverC._inputControls patch
+        (filter (/=Control.volume) inputControls) notes start
+    inputControls = Map.keys $ DriverC._inputControls patch
     vol = renderInput (_chunkSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
     notes = dropUntil (\_ n -> Note.end n > start) notes_
@@ -118,7 +158,7 @@ interleave :: AUtil.NAudio -> AUtil.Audio
 interleave naudio = case Audio.interleaved naudio of
     Right audio -> audio
     -- All faust instruments are required to have 1 or 2 outputs.  This should
-    -- have been verified by DriverC.getParsedMetadata.
+    -- have been verified by DriverC.getPatch.
     Left err -> Audio.throw $ "expected 1 or 2 outputs: " <> err
 
 -- | Render a FAUST instrument incrementally.
@@ -128,61 +168,123 @@ interleave naudio = case Audio.interleaved naudio of
 -- if they end before the given time.
 render :: DriverC.Patch -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
-    -> [(RealTime, Map Control.Control Signal.Signal)]
+    -> Map DriverC.Control AUtil.Audio1
     -> AUtil.NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
     -> Config -> AUtil.NAudio
-render patch mbState notifyState startControls inputs start end config =
+render patch mbState notifyState controls inputs start end config =
     Audio.NAudio (DriverC._outputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.initialize patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
         let nstream = Audio._nstream (Audio.zeroPadN (_chunkSize config) inputs)
-        Util.Control.loop1 (start, startControls, nstream) $
-            \loop (start, startControls_, inputs) -> do
+        Util.Control.loop1 (start, controls, nstream) $
+            \loop (start, controls, inputs) -> do
                 -- Audio.zeroPadN should have made this infinite.
                 (inputs, nextInputs) <-
                     maybe (CallStack.errorIO "end of endless stream") return
                         =<< lift (S.uncons inputs)
-                let startControls = dropUntil
-                        (\_ (next, _) -> AUtil.toSeconds start >= next)
-                        startControls_
-                result <- render1 inst
-                    (maybe mempty snd (Seq.head startControls_)) inputs start
+                (controls, nextControls) <- lift $
+                    unconsControls (_controlsPerBlock config) controls
+                result <- render1 inst controls inputs start
                 case result of
                     Nothing -> Resource.release key
-                    Just nextStart ->
-                        loop (nextStart, startControls, nextInputs)
-        where
-        render1 inst controls inputs start
-            | start >= end + maxDecay = return Nothing
-            | otherwise = do
-                outputs <- liftIO $ DriverC.render inst start controls inputs
-                -- XXX Since this uses unsafeGetState, readers of notifyState
-                -- have to entirely use the state before returning.  See
-                -- Checkpoint.getFilename and Checkpoint.writeBs.
-                liftIO $ notifyState =<< DriverC.unsafeGetState inst
-                S.yield outputs
-                case outputs of
-                    -- This should have already been checked by
-                    -- DriverC.getPatches.
-                    [] -> CallStack.errorIO "dsp with 0 outputs"
-                    output : _
-                        | frames == 0 || chunkEnd >= end + maxDecay
-                                || chunkEnd >= end
-                                    && isBasicallySilent output ->
-                            return Nothing
-                        | otherwise -> return $ Just chunkEnd
-                        where
-                        chunkEnd = start + frames
-                        frames = Audio.Frame $ V.length output
-        maxDecay = AUtil.toFrame $ _maxDecay config
+                    Just nextStart -> loop (nextStart, nextControls, nextInputs)
+    where
+    render1 inst controls inputs start
+        | start >= end + maxDecay = return Nothing
+        | otherwise = do
+            outputs <- liftIO $ DriverC.render
+                (_controlSize config) (_controlsPerBlock config)
+                inst (findControls (DriverC._controls inst) controls) inputs
+            -- XXX Since this uses unsafeGetState, readers of notifyState
+            -- have to entirely use the state before returning.  See
+            -- Checkpoint.getFilename and Checkpoint.writeBs.
+            liftIO $ notifyState =<< DriverC.unsafeGetState inst
+            S.yield outputs
+            case outputs of
+                -- This should have already been checked by
+                -- DriverC.getPatches.
+                [] -> CallStack.errorIO "patch with 0 outputs"
+                output : _
+                    | frames == 0 || chunkEnd >= end + maxDecay
+                            || chunkEnd >= end && isBasicallySilent output ->
+                        return Nothing
+                    | otherwise -> return $ Just chunkEnd
+                    where
+                    chunkEnd = start + frames
+                    frames = Audio.Frame $ V.length output
+    maxDecay = AUtil.toFrame $ _maxDecay config
+
+findControls :: Map DriverC.Control (ptr, config)
+    -> Map DriverC.Control (V.Vector Float) -> [(ptr, V.Vector Float)]
+findControls controls vals = map get $ Util.Map.zip_intersection controls vals
+    where get (_, (ptr, _), val) = (ptr, val)
+
+-- | Pull a chunk from each of the controls.  Omit the control if its signal
+-- has run out.  This is ok because controls naturally retain their last value.
+unconsControls :: Audio.Frame -> Map DriverC.Control AUtil.Audio1
+    -> Resource.ResourceT IO
+        ( Map DriverC.Control (V.Vector Audio.Sample)
+        , Map DriverC.Control AUtil.Audio1
+        )
+unconsControls frames controlStreams = do
+    nexts <- mapM (takeExtend frames) streams
+    return
+        ( Map.fromList
+            [(c, block) | (c, Just (block, _)) <- zip controls nexts]
+        , Map.fromList
+            [(c, stream) | (c, Just (_, stream)) <- zip controls nexts]
+        )
+    where
+    (controls, streams) = unzip $ Map.toList controlStreams
+
+-- | 'Audio.splitAt', but extend the final sample.  I need this because
+-- DriverC.render relies on all control blocks being the same length, for
+-- simplicity.
+takeExtend :: Monad m => Audio.Frame -> Audio.Audio m rate 1
+    -> m (Maybe (V.Vector Audio.Sample, Audio.Audio m rate 1))
+takeExtend frames audio = do
+    (blocks_, audio) <- Audio.splitAt frames audio
+    let blocks = filter (not . V.null) blocks_
+    let missing = Audio.framesCount (Proxy @1) $
+            frames - Num.sum (map (Audio.blockFrames (Proxy @1)) blocks)
+    return $ if null blocks then Nothing
+        else if missing == 0 then Just (mconcat blocks, audio)
+        else let final = V.last (last blocks)
+            in Just (mconcat (blocks ++ [V.replicate missing final]), audio)
 
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent _samples = False -- TODO RMS < -n dB
 
+renderControls :: Int -> Set DriverC.Control
+    -> [Note.Note] -> RealTime -> Map DriverC.Control AUtil.Audio1
+renderControls controlRate controls notes start =
+    render <$> extractControls controls notes
+    where
+    -- Audio.linear gets its breakpoints in seconds, so I have to do this
+    -- little dance.  Maybe it could use frames?
+    render = case Audio.someNat controlRate of
+        TypeLits.SomeNat (_ :: Proxy crate) ->
+            Audio.castRate . Audio.linear @_ @crate False . shiftBack
+    shiftBack = map $ first (subtract (RealTime.to_seconds start))
+
+extractControls :: Set DriverC.Control -> [Note.Note]
+    -> Map DriverC.Control [(Double, Double)]
+extractControls controls allNotes = Map.fromList $
+    map (get "" allNotes) withoutElement ++ mapMaybe getE withElement
+    where
+    (withoutElement, withElement) = first (map snd) $
+        List.partition (Text.null . fst) $ Set.toList controls
+    get element notes control =
+        ((element, control), controlBreakpoints control notes)
+    byElement = Seq.keyed_group_stable Note.element allNotes
+    getE (element, control) =
+        flip (get element) control <$> lookup element byElement
+
 -- | Render the supported controls down to audio rate signals.  This causes the
 -- stream to be synchronized by 'Config.chunkSize', which should determine
 -- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
+-- TODO checkpointSize -> chunkSize, chunkSize -> blockSize
 renderInputs :: Audio.Frame -> [Control.Control]
     -- ^ controls expected by the instrument, in the expected order
     -> [Note.Note] -> RealTime -> AUtil.NAudio
@@ -190,21 +292,40 @@ renderInputs chunkSize controls notes start =
     Audio.nonInterleaved now chunkSize $
         map (fromMaybe Audio.silence . renderInput chunkSize notes start)
             controls
-    where now = 0 -- for the moment, faust always starts at 0
+    where
+    -- This is used for chunk alignment, and rendering starts on a chunk
+    -- boundary, so it can be 0.
+    now = 0
 
 renderInput :: (Monad m, TypeLits.KnownNat rate)
     => Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
     -> Maybe (Audio.Audio m rate 1)
 renderInput chunkSize notes start control
-    | control == Control.gate =
-        Just $ sync $ Audio.linear $ shiftBack $ gateBreakpoints notes
     | null bps = Nothing
-    | otherwise = Just $ sync $ Audio.linear $ shiftBack bps
+    | otherwise = Just $ Audio.synchronizeToSize now chunkSize $
+        Audio.linear True $ shiftBack bps
     where
     shiftBack = map $ first (subtract (RealTime.to_seconds start))
     bps = controlBreakpoints control notes
-    sync = Audio.synchronizeToSize now chunkSize
-    now = 0 -- for the moment, faust always starts at 0
+    -- This is used for chunk alignment, and rendering starts on a chunk
+    -- boundary, so it can be 0.
+    now = 0
+
+controlBreakpoints :: Control.Control -> [Note.Note] -> [(Double, Double)]
+controlBreakpoints control
+    | control == Control.gate = gateBreakpoints
+    | otherwise = concat . mapMaybe get . Seq.zip_next
+    where
+    get (note, next) = do
+        signal <- Map.lookup control (Note.controls note)
+        let bps = Signal.to_pairs $
+                maybe id (Signal.clip_after_keep_last . Note.start) next $
+                Signal.clip_before (Note.start note) signal
+        -- Add an explicit 0 if there's no signal.  This is consistent with
+        -- the usual signal treatment, which is that if it is present but
+        -- empty, then it's 0.
+        return $ map (first RealTime.to_seconds) $
+            if null bps then [(Note.start note, 0)] else bps
 
 -- | Make a signal which goes to 1 for the duration of the note.
 --
@@ -230,20 +351,6 @@ gateBreakpoints = map (first RealTime.to_seconds) . go
     --     where
     --     (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
     --         (n:ns)
-
-controlBreakpoints :: Control.Control -> [Note.Note] -> [(Double, Double)]
-controlBreakpoints control = concat . mapMaybe get . Seq.zip_next
-    where
-    get (note, next) = do
-        signal <- Map.lookup control (Note.controls note)
-        let bps = Signal.to_pairs $
-                maybe id (Signal.clip_after_keep_last . Note.start) next $
-                Signal.clip_before (Note.start note) signal
-        -- Add an explicit 0 if there's no signal.  This is consistent with
-        -- the usual signal treatment, which is that if it is present but
-        -- empty, then it's 0.
-        return $ map (first RealTime.to_seconds) $
-            if null bps then [(Note.start note, 0)] else bps
 
 -- | Drop until this element and the next one matches.
 dropUntil :: (a -> a -> Bool) -> [a] -> [a]

@@ -73,10 +73,15 @@ main = do
     where
     printPatch patch = do
         Text.IO.putStrLn $ DriverC._doc patch
-        forM_ (DriverC._inputControls patch) $ \(c, config) ->
+        forM_ (Map.toList (DriverC._inputControls patch)) $ \(c, config) ->
             Text.IO.putStrLn $ "input: " <> pretty c <> ": " <> pretty config
         forM_ (Map.toList (DriverC._controls patch)) $ \(c, (_, config)) ->
-            Text.IO.putStrLn $ "control: " <> pretty c <> ": " <> pretty config
+            Text.IO.putStrLn $ "control: " <> showControl c <> ": "
+                <> pretty config
+
+showControl :: DriverC.Control -> Text
+showControl ("", c) = pretty c
+showControl (elt, c) = elt <> ":" <> pretty c
 
 process :: Text -> Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath
     -> IO ()
@@ -137,7 +142,7 @@ writeControls output patch notes =
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
     -- play_cache is special-cased to ignore *.debug.wav.
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
-    controls = map fst (DriverC._inputControls patch)
+    controls = Map.keys (DriverC._inputControls patch)
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])

@@ -2,9 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 -- | Low level binding to driver.cc.
 module Synth.Faust.DriverC (
     PatchT(..), Patch, Instrument
+    , Control
     , getPatches
     , ControlConfig(..)
     -- * Instrument
@@ -25,15 +28,11 @@ import qualified Foreign
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.CUtil as CUtil
-import qualified Util.Map
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
-import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
-import qualified Synth.Shared.Signal as Signal
 
 import qualified Ui.Id as Id
 
@@ -41,23 +40,28 @@ import           ForeignC
 import           Global
 
 
-data PatchT ptr = Patch {
+data PatchT ptr cptr = Patch {
     _name :: !Text
     , _doc :: !Text
-    , _controls :: !(Map Control.Control (Ptr CFloat, ControlConfig))
-    , _inputControls :: ![(Control.Control, ControlConfig)]
+    -- | An allocated Instrument has pointers to set control values, but a
+    -- Patch doesn't.
+    , _controls :: !(Map Control (cptr, ControlConfig))
+    , _inputControls :: !(Map Control.Control ControlConfig)
     , _inputs :: !Int
     , _outputs :: !Int
     , _ptr :: !ptr
     } deriving (Show)
 
+type Control = (Element, Control.Control)
+type Element = Text
+
 -- | A patch can be used to create 'Instrument's.
-type Patch = PatchT PatchP
+type Patch = PatchT PatchP ()
 type PatchP = Ptr CConstPatchP
 data CConstPatchP
 
 -- | An allocated patch.
-type Instrument = PatchT InstrumentP
+type Instrument = PatchT InstrumentP (Ptr Float)
 type InstrumentP = Ptr CPatchP
 data CPatchP
 
@@ -78,7 +82,7 @@ getPatches = alloca $ \patchpp -> do
 foreign import ccall "faust_patches"
     c_faust_patches :: Ptr (Ptr PatchP) -> IO CInt
 
-makePatch :: Text -> Map Text Text -> [(Control.Control, (Ptr CFloat, Text))]
+makePatch :: Text -> Map Text Text -> [(Control, Text)]
     -> Int -> Int -> PatchP -> Either Text Patch
 makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
     (doc, inputControls) <- parseMetadata meta
@@ -88,23 +92,23 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
             <> pretty (map fst inputControls)
     unless (outputs `elem` [1, 2]) $
         Left $ "expected 1 or 2 outputs, got " <> showt outputs
-    let dups = Seq.find_dups id $ map fst inputControls ++ map fst uis
-    unless (null dups) $
-        Left $ "duplicate control names: " <> pretty (map fst dups)
-            <> " in " <> pretty inputControls <> " and " <> pretty (map fst uis)
-    let controls = Map.fromList
-            -- I don't support constant for ui controls but I could.  Would it
-            -- be useful?
-            [ (control, (cptr, ControlConfig False cdoc))
-            | (control, (cptr, cdoc)) <- uis
-            ]
+    let dups = Seq.find_dups id (map fst inputControls) in unless (null dups) $
+        Left $ "duplicate input names: " <> pretty (map fst dups)
+    whenJust (verifyControls (map fst uis)) $ \err ->
+        Left $ "controls " <> pretty (map fst uis) <> ": " <> err
     return $ Patch
         { _name = name
         , _doc = doc
-        , _controls = controls
+
+        , _controls = Map.fromList
+            [ ((elt, control), ((), ControlConfig False cdoc))
+            | ((elt, control), cdoc) <- uis
+            , control /= Control.gate
+            ]
         -- Control.gate is used internally, so don't expose that.
         -- And everyone gets amp, since faust-im handles it.
-        , _inputControls = amp : filter ((/=Control.gate) . fst) inputControls
+        , _inputControls =
+            Map.fromList $ amp : filter ((/=Control.gate) . fst) inputControls
         , _inputs = inputs
         , _outputs = outputs
         , _ptr = ptr
@@ -114,6 +118,17 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
         ( Control.volume
         , ControlConfig False "Instrument volume, handled by faust-im."
         )
+
+verifyControls :: [Control] -> Maybe Text
+verifyControls controls
+    | not (null dups) = Just $ "duplicate (element, control): " <> pretty dups
+    | otherwise = case Seq.group_fst $ filter ((/="") . fst) controls of
+        [] -> Nothing
+        (_, cs1) : rest -> case List.find ((/=cs1) . snd) rest of
+            Nothing -> Nothing
+            Just (elt2, cs2) -> Just $ "every element should have "
+                <> pretty cs1 <> " but " <> elt2 <> " has " <> pretty cs2
+    where dups = Seq.find_dups id controls
 
 data ControlConfig = ControlConfig {
     _constant :: !Bool
@@ -185,27 +200,41 @@ foreign import ccall "faust_metadata"
     c_faust_metadata :: PatchP -> Ptr (Ptr CString) -> Ptr (Ptr CString)
         -> IO CInt
 
-getUiControls :: PatchP -> IO [(Control.Control, (Ptr CFloat, Text))]
+getUiControls :: PatchP -> IO [(Control, Text)]
 getUiControls patch = do
-    (count, controlsp, docsp, valsp) <-
-        alloca $ \controlspp -> alloca $ \docspp -> alloca $ \valspp -> do
-            count <- c_faust_controls patch controlspp docspp valspp
-            (,,,) (fromIntegral count) <$>
-                peek controlspp <*> peek docspp <*> peek valspp
+    (count, pathspp, controlsp, docsp) <-
+        alloca $ \pathsppp -> alloca $ \controlspp -> alloca $ \docspp -> do
+            count <- c_faust_controls patch pathsppp controlspp docspp
+            (,,,) (fromIntegral count)
+                <$> peek pathsppp <*> peek controlspp <*> peek docspp
+    -- pathsp is a null-terminated list of char*
+    pathsp <- peekArray count pathspp
+    paths <- mapM peekTexts0 pathsp
+    mapM_ free pathsp
+    free pathspp
+
     controls <- map Control.Control <$> peekTexts count controlsp
     free controlsp
     docs <- peekTexts count docsp
     mapM_ free =<< peekArray count docsp
     free docsp
-    vals <- peekArray count valsp
-    free valsp
-    return $ zip controls (zip vals docs)
 
--- int faust_controls(Patch patch, const char ***out_controls, char ***out_docs,
---     FAUSTFLOAT ***out_vals)
+    -- The first path component is always the patch name, so I don't need it.
+    -- underscore prefixed controls are used for UI organization, and are not
+    -- the element.
+    let element = Text.intercalate "." . filter (not . ("_" `Text.isPrefixOf`))
+            . drop 1
+    return $ zip (zip (map element paths) controls) docs
+
+-- int faust_controls(Patch patch, const char ****out_paths,
+--     const char ***out_controls, char ***out_docs)
 foreign import ccall "faust_controls"
-    c_faust_controls :: PatchP -> Ptr (Ptr CString) -> Ptr (Ptr CString)
-        -> Ptr (Ptr (Ptr CFloat)) -> IO CInt
+    c_faust_controls :: PatchP -> Ptr (Ptr (Ptr CString)) -> Ptr (Ptr CString)
+        -> Ptr (Ptr CString) -> IO CInt
+
+-- int faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals)
+foreign import ccall "faust_control_ptrs"
+    c_faust_control_ptrs :: InstrumentP -> Ptr (Ptr (Ptr Float)) -> IO CInt
 
 withInstrument :: Patch -> (Instrument -> IO a) -> IO a
 withInstrument patch = Exception.bracket (initialize patch) destroy
@@ -213,7 +242,24 @@ withInstrument patch = Exception.bracket (initialize patch) destroy
 initialize :: Patch -> IO Instrument
 initialize patch = do
     ptr <- c_faust_initialize (_ptr patch) (CUtil.c_int Config.samplingRate)
-    return $ patch { _ptr = ptr }
+    cptrs <- alloca $ \cptrspp -> do
+        count <- c_faust_control_ptrs ptr cptrspp
+        cptrsp <- peek cptrspp
+        cptrs <- peekArray (fromIntegral count) cptrsp
+        free cptrsp
+        return cptrs
+    -- I need an allocated instrument to get valid control pointers.  But since
+    -- I already changed their order to put them in a Map, I have to get the
+    -- control names again, which is inefficient but easy to do.
+    uis <- getUiControls (_ptr patch)
+    return $ patch
+        { _ptr = ptr
+        , _controls = Map.fromList
+            [ ((elt, control), (cptr, ControlConfig False cdoc))
+            | (cptr, ((elt, control), cdoc)) <- zip cptrs uis
+            , control /= Control.gate
+            ]
+        }
 
 -- Patch *faust_initialize(const Patch *patch, int srate);
 foreign import ccall "faust_initialize"
@@ -229,55 +275,61 @@ foreign import ccall "faust_name" c_faust_name :: PatchP -> CString
 foreign import ccall "faust_num_inputs" c_faust_num_inputs :: PatchP -> CInt
 foreign import ccall "faust_num_outputs" c_faust_num_outputs :: PatchP -> CInt
 
--- | Render chunk of time and return samples.  The block size is determined by
--- the inputs, or 'Audio.blockSize' if there are none.
-render :: Instrument
-    -> Audio.Frame
-    -> Map Control.Control Signal.Signal
+-- | Render chunk of time and return samples.
+render :: Audio.Frame -> Audio.Frame -> Instrument
+    -> [(Ptr Float, V.Vector Float)]
     -> [V.Vector Float] -- ^ Input signals.  The length must be equal to the
     -- the patchInputs, and each vector must have the same length.
     -> IO [V.Vector Float] -- ^ one block of samples for each output channel
-render inst start controls inputs = do
+render controlSize controlsPerBlock inst controls inputs = do
     unless (length inputs == _inputs inst) $
         errorIO $ "instrument expects " <> showt (_inputs inst)
             <> " inputs, but was given " <> showt (length inputs)
     unless (all ((== V.length (head inputs)) . V.length) inputs) $
         errorIO $ "all inputs don't have the same length: "
             <> pretty (map V.length inputs)
-    let Audio.Frame frames = maybe Audio.blockSize (Audio.Frame . V.length)
-            (Seq.head inputs)
+    unless (all ((==controlsPerBlock) . Audio.Frame . V.length . snd) controls)$
+        errorIO $ "all controls must have length " <> pretty controlsPerBlock
+            <> ": " <> pretty (map (V.length . snd) controls)
+
+    -- Debug.tracepM "controls" controls
+    -- Debug.tracepM "inputs" inputs
+    -- Debug.tracepM "blockSize" blockSize
+    -- Use ForeignPtr to keep the output arrays alive until I can stuff them
+    -- into a V.Vector.
     outputFptrs <- mapM Foreign.mallocForeignPtrArray
-        (replicate (_outputs inst) frames)
-    setControls start controls (_controls inst)
+        (replicate (_outputs inst) (unframe blockSize))
     -- Holy manual memory management, Batman.
     CUtil.withForeignPtrs outputFptrs $ \outputPtrs ->
-        withPtrs inputs $ \inputPs _lens ->
+        withVectors inputs $ \inputsP ->
         withArray outputPtrs $ \outputsP ->
-        withArray inputPs $ \inputP ->
-            c_faust_render (_ptr inst) (CUtil.c_int frames) inputP outputsP
-    return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr frames) outputFptrs
+        withArray (map fst controls) $ \controlps ->
+        withVectors (map snd controls) $ \controlValsP ->
+            c_faust_render (_ptr inst)
+                (c_frames controlSize) (c_frames controlsPerBlock)
+                (CUtil.c_int (length controls)) controlps controlValsP
+                inputsP outputsP
+    return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr (unframe blockSize))
+        outputFptrs
+    where
+    blockSize = controlSize * controlsPerBlock
+    c_frames = CUtil.c_int . unframe
+    unframe (Audio.Frame f) = f
 
 -- void faust_render(
---     Patch *patch, int frames, const float **inputs, float **outputs);
+--     Patch *patch,
+--     int control_size, int controls_per_block,
+--     int control_count, float **controlps, const float **controls,
+--     const float **inputs, float **outputs);
 foreign import ccall "faust_render"
-    c_faust_render :: InstrumentP -> CInt -> Ptr (Ptr Float) -> Ptr (Ptr Float)
+    c_faust_render :: InstrumentP
+        -- control_size -> controls_per_block
+        -> CInt -> CInt
+        -- control_count -> controlps -> controls
+        -> CInt -> Ptr (Ptr Float) -> Ptr (Ptr Float)
+        -- inputs -> outputs
+        -> Ptr (Ptr Float) -> Ptr (Ptr Float)
         -> IO ()
-
-withPtrs :: [V.Vector Float] -> ([Ptr Float] -> [Int] -> IO a) -> IO a
-withPtrs vs f = go [] vs
-    where
-    go accum [] = f ptrs lens
-        where (ptrs, lens) = unzip (reverse accum)
-    go accum (v:vs) = Foreign.withForeignPtr fptr $ \ptr ->
-        go ((ptr, len) : accum) vs
-        where (fptr, len) = V.unsafeToForeignPtr0 v
-
-setControls :: Audio.Frame -> Map Control.Control Signal.Signal
-    -> Map Control.Control (Ptr CFloat, a) -> IO ()
-setControls start signals controls =
-    forM_ (Util.Map.zip_intersection signals controls) $
-        \(_, signal, (ptr, _)) -> poke ptr (get signal)
-    where get = CUtil.c_float . Num.d2f . Signal.at (AUtil.toSeconds start)
 
 -- ** state
 
@@ -324,3 +376,21 @@ peekTexts :: Int -> Ptr CString -> IO [Text]
 peekTexts count textp = do
     texts <- peekArray count textp
     mapM CUtil.peekCString texts
+
+peekTexts0 :: Ptr CString -> IO [Text]
+peekTexts0 textp = do
+    texts <- Foreign.peekArray0 nullPtr textp
+    mapM CUtil.peekCString texts
+
+-- | Allocate a list of vectors as **float.
+withVectors :: [V.Vector Float] -> (Ptr (Ptr Float) -> IO a) -> IO a
+withVectors vs f = withPtrs vs $ \ps -> withArray ps f
+
+-- | Convert a list of vectors to a list of pointers, with no copying.
+withPtrs :: [V.Vector Float] -> ([Ptr Float] -> IO a) -> IO a
+withPtrs vs f = go [] vs
+    where
+    go accum [] = f (reverse accum)
+    go accum (v:vs) = Foreign.withForeignPtr fptr $ \ptr ->
+        go (ptr : accum) vs
+        where (fptr, _len) = V.unsafeToForeignPtr0 v

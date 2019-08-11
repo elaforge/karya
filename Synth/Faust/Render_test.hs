@@ -2,19 +2,23 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeApplications #-}
 module Synth.Faust.Render_test where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Vector.Storable as Vector
 
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.Test.Testing as Testing
 
 import qualified Perform.NN as NN
@@ -27,23 +31,23 @@ import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
 import qualified Synth.Shared.Signal as Signal
 
-import Global
-import Types
+import           Global
+import           Types
+import           Util.Test
 
 
 -- * write
 
 test_write_incremental = do
     dir <- Testing.tmp_dir "write"
-    patch <- getPatch
+    patch <- getPatch "sine"
     let write = Render.write_ config dir mempty patch
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
 
-    let dur = AUtil.toSeconds (Render._chunkSize config)
-    let oldNotes = mkNotes (dur/2) [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
-    let newNotes = mkNotes (dur/2) [NN.c4, NN.d4, NN.e4, NN.f4, NN.c4]
+    let oldNotes = mkNotes "sine" 0.5 [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
+    let newNotes = mkNotes "sine" 0.5 [NN.c4, NN.d4, NN.e4, NN.f4, NN.c4]
 
     -- Should be be 2.5 checkpoints.
     io_equal (write oldNotes) (Right (3, 3))
@@ -58,8 +62,7 @@ test_write_incremental = do
         [40, 40, 40]
 
     let skipCheckpoints = Checkpoint.skipCheckpoints dir
-            . Checkpoint.noteHashes (Render._chunkSize config)
-            . map Render.toSpan
+            . Checkpoint.noteHashes chunkSize . map Render.toSpan
     -- Test skipCheckpoints directly.
     (_, remainingHashes, state) <- skipCheckpoints newNotes
     equal_on (fmap fst . Seq.head) remainingHashes (Just 2)
@@ -96,10 +99,10 @@ test_write_incremental_offset = do
     -- So this works trivially.  But later I'll want to skip empty time, so
     -- I want to keep the test.
     dir <- Testing.tmp_dir "write"
-    patch <- getPatch
+    patch <- getPatch "sine"
     let write = Render.write_ config dir mempty patch
-    let dur = AUtil.toSeconds (Render._chunkSize config)
-    let notes = drop 1 $ mkNotes (dur/2) [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
+    let notes = drop 1 $ mkNotes "sine" 0.5
+            [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
 
     -- Should be be 2.5 checkpoints.
     io_equal (write notes) (Right (3, 3))
@@ -110,6 +113,33 @@ test_write_incremental_offset = do
     pprint samples
     equal (take 4 samples) (replicate 4 0)
     -- TODO also test checkpoints are lined up right
+
+test_write_controls = do
+    dir <- Testing.tmp_dir "write"
+    patch <- getPatch "test"
+    let write = Render.write_ config dir mempty patch
+    let chunks n = replicate (Num.assertIntegral (fromIntegral chunkCount * n))
+
+    let withPitch = Note.withControl Control.pitch . Signal.from_pairs
+            . map (first chunkToTime)
+    let note2 pitches = [withPitch pitches $ mkNote "test" 0 2 0]
+
+    io_equal (write $ mkNotes "test" 1 [60, 62]) (Right (2, 2))
+    io_equal (readSamples dir) $ chunks 1 60 ++ chunks 1 62
+
+    io_equal (write $ mkNotes "test" 1 [60, 64]) (Right (1, 2))
+    io_equal (readSamples dir) $ chunks 1 60 ++ chunks 1 64
+
+    -- The value changes but only at control blocks, so at 0.5.
+    io_equal (write $ note2 [(0, 40), (0.35, 42)]) (Right (2, 2))
+    io_equal (readSamples dir) $ chunks 0.5 40 ++ chunks 1.5 42
+
+    -- Value interpolates.
+    io_equal (write $ note2 [(0, 40), (1, 42)]) (Right (2, 2))
+    io_equal (readSamples dir) $ chunks 0.5 40 ++ chunks 0.5 41 ++ chunks 1 42
+
+    -- 0 1 2 3 4 5 6 7 |
+    -- c       c       |
 
 -- TODO test volume and dyn
 
@@ -129,25 +159,39 @@ listWavs = fmap (List.sort . filter (".wav" `List.isSuffixOf`))
 config :: Render.Config
 config = Render.Config
     { _chunkSize = 8
+    , _controlSize = 4
+    , _controlsPerBlock = 8 `div` 4
     , _maxDecay = 0
     }
 
-getPatch :: IO DriverC.Patch
-getPatch = do
-    patches <- DriverC.getPatches
-    return $ fromMaybe (error "no sine patch") $ Map.lookup "sine" patches
+chunkSize :: Audio.Frame
+chunkSize = Render._chunkSize config
 
-mkNotes :: RealTime -> [Pitch.NoteNumber] -> [Note.Note]
-mkNotes dur nns =
-    [ mkNote start dur nn
-    | (start, nn) <- zip (iterate (+dur) 0) nns
+chunkCount :: Int
+chunkCount = Audio.framesCount (Proxy @2) chunkSize
+
+getPatch :: Text -> IO DriverC.Patch
+getPatch name = do
+    patches <- mapM (either errorIO return) =<< DriverC.getPatches
+    return $ fromMaybe (error $ "no patch: " <> show name) $
+        Map.lookup name patches
+
+mkNotes :: Note.PatchName -> RealTime -> [Pitch.NoteNumber] -> [Note.Note]
+mkNotes patch durInChunks nns =
+    [ mkNote patch start durInChunks nn
+    | (start, nn) <- zip (iterate (+durInChunks) 0) nns
     ]
 
-mkNote :: RealTime -> RealTime -> Pitch.NoteNumber -> Note.Note
-mkNote start dur nn =
+mkNote :: Note.PatchName -> RealTime -> RealTime -> Pitch.NoteNumber
+    -> Note.Note
+mkNote patch start dur nn =
     Note.withControl Control.volume (Signal.constant 1) $
     Note.withControl Control.dynamic (Signal.constant 1) $
-    Note.withPitch nn $ Note.note "sine" "sine" start dur
+    Note.withPitch nn $
+    Note.note patch patch (chunkToTime start) (chunkToTime dur)
+
+chunkToTime :: RealTime -> RealTime
+chunkToTime = (* AUtil.toSeconds chunkSize)
 
 toSamples :: AUtil.Audio -> IO [Audio.Sample]
 toSamples = fmap (concatMap Vector.toList) . Resource.runResourceT
@@ -155,6 +199,43 @@ toSamples = fmap (concatMap Vector.toList) . Resource.runResourceT
 
 
 -- * render
+
+test_renderControls = do
+    let f notes start = filter (not . null . snd) $ Map.toList $
+            fmap toSamples1 $
+            Render.renderControls 1 controls (map make notes) start
+        controls = Set.fromList
+            [ ("1", Control.gate), ("2", Control.gate)
+            , ("1", Control.pitch), ("2", Control.pitch)
+            , ("", Control.pan)
+            ]
+        make (s, e, elem, cs) = (Note.note "" "" s e)
+            { Note.element = elem
+            , Note.controls = Signal.from_pairs <$> Map.fromList cs
+            }
+    -- ensure that controls end, per-element and global controls are correct,
+    -- controls have the right block size
+    equal (f [] 0) [(("", Control.pan), [0])]
+    equal (f [(0, 5, "1", [(Control.pan, [(0, 0.5)])])] 0)
+        [ (("", Control.pan), [0.5])
+        , (("1", Control.gate), [1, 0.8, 0.6, 0.4, 0.2, 0])
+        , (("1", Control.pitch), [0])
+        ]
+    equal (f [(0, 2, "1", [(Control.pitch, [(0, 42)])])] 0)
+        [ (("", Control.pan), [0])
+        , (("1", Control.gate), [1, 0.5, 0])
+        , (("1", Control.pitch), [42])
+        ]
+    let pitch nn = [(Control.pitch, [(0, nn)])]
+    equal (f [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
+        [ (("", Control.pan), [0])
+        , (("1", Control.gate), [1, 0.5, 1, 0.75, 0.5, 0.25, 0])
+        , (("1", Control.pitch), [42, 42, 44])
+        ]
+
+toSamples1 :: AUtil.Audio1 -> [Audio.Sample]
+toSamples1 = Vector.toList . mconcat
+    . Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toSamples
 
 test_gateBreakpoints = do
     let f = Render.gateBreakpoints . map (uncurry (Note.note "" ""))

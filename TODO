@@ -1604,12 +1604,19 @@ vector: performance:
     that fusion happens.  Surely there are more sophisticated ways though.
 
 synth: im:
+  synth status:
+    . faust: support ui controls
+    . merge faust-im and sampler-im:
+  - I don't actually need to worry about block alignment for anything except
+    things with state: faust render and resample.  So I should be able to
+    remove the synchronizes on everything except the inputs to those
+    functions.
+    . If I could have them return Stream (Of (Block, State)), then the
+      sketchy IORef stuff could go away, and the alignment would be in the
+      type instead of implicit.
   bug:
     - starts are getting cut off again
       . Give more lead time to load the samples?
-  synth status:
-    . non-constant pitch:
-    . merge faust-im and sampler-im:
   merge faust-im and sampler-im:
     - First extend faust-im to be an Audio processor, so it can take inputs.
       . I wind up with separate generator and transformers.
@@ -2381,9 +2388,9 @@ synth: im:
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
   faust:
-    - the fact that Vector is strict means I have to make each input signal
-      all at once, instead of streaming it.  Could I use a list of chunks or
-      something?
+    - faust is still using Config.chunkSize instead of Config.blockSize.
+      I have to use blockSize and make sure it's small so that controls are
+      high resolution.
     tambura.dsp:
       . https://github.com/olilarkin/Tambura
       - This is the first faust instrument with multiple elements, and the
@@ -2398,6 +2405,46 @@ synth: im:
         . Actually, the hierarchical box stuff is suited for this, so I should
           use that.  I could flatten levels [0:-1] to the element, and [-1] is
           the control name.
+        . This would mean an implicit requirement on control name structure.
+          I guess I already have that since I map them directly to karya
+          controls though.
+        . Controls become (Maybe Element, Control).  Then I have to look for
+          (Just (Note.element note), control) first, and (Nothing, control) if
+          that doesn't match.
+        . This also means I can now have overlapping notes, which means I need
+          to route the controls properly.
+        . I already have the overlapping chunks to make the hashes, but
+          they're at chunk level, not block.  And they're just for hashes.
+        . The input controls work by extracting breakpoints, then creating
+          a lazy signal of audio rate chunks.  This is nice because I did all
+          the work of extracting from notes in advance.  I could do the same
+          by extracting breakpoints per-Element.
+        . I should extract to [[Breakpoint]] so I don't wind up with nested
+          appends.
+        . Oh, and I need to interpolate, because I have breakpoints.  This is
+          why audio rate input is simpler!
+        . Maybe I can implement them the same, except lower sampling rate, and
+          symbolic name, then do the interpolation and block loop in C.
+        So:
+          . Split notes up by Element.
+          . Merge breakpoints for controls without element, and breakpoints
+            for those with element for each element.
+          . Use Audio.linear to generate controlRate streams by
+            (Control, Element), which is then passed to Render.render.
+          . c_faust_render loops for each controlSize and sets the next set of
+            control values.
+          . If a control is or becomes constant, I should be able to drop it
+            out of the 'Map (Control, Element) ControlAudio'.
+        . I want to make sure to stream multiple controls, so I iterate over
+          Notes once and can throw them out once I'm past them.
+          Seq.keyed_group_stable is multiple iterations, but they are
+          streaming.
+      - Will the optimization of dropping the control when it goes constant
+        be a problem with state?  I.e. control value is part of the state, so
+        it gets restored, but now the control is unset.  It should get the
+        default value, but instead it gets the last value.
+        . I can fix it by insisting on always at least one value for each
+          control.
       per-string controls:
         - gate / dyn
         - pitch
@@ -2643,6 +2690,11 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
+  - shakefile does nothing with no arg, it should complain
+  - shakefile -v should print version, it doesn't
+  - shakefile -V verbose gets messed up by concurrent-output
+  - run with --lint-fsatrace:
+    . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
   nix:
     - nix-shell: /run/current-system/sw/bin winds up in path before the
       buildInputs
@@ -4012,6 +4064,18 @@ ghc-bugs:
     . Maybe fixed in 8.6?
 
 test: testing:
+  - run individual tests from shake
+    . Have a rule to create a build/test-output/$test from RunTests $test.
+      Get the list of all tests from RunTests --list.
+    . This means test parallelism moves from RunTests to shake.  I should
+      probably do this per test file rather than per test, since the process
+      startup overhead is high.
+    . This also means I only run tests when needed, since their dependents
+      changed.  But for this to work, I have to preserve dependencies of each
+      Something_test.hs, rather than lump everything into one RunTests.  But
+      if I really made separate binaries, the per-binary overhead would be too
+      high.  So maybe I can get shake to retain the dependencies, but
+      implement as a single binary.
   - on failure, instead of
       __-> Util/Format_test.hs:80 [test_render_full_width] ...
     print

@@ -36,14 +36,9 @@ resampleFile outDir srate input = do
     resample srate input (outDir </> input)
 
 resample :: Int -> FilePath -> FilePath -> IO ()
-resample srate input output = case someNat srate of
+resample srate input output = case Audio.someNat srate of
     TypeLits.SomeNat (_ :: Proxy outRate) -> File.readUnknown input >>= \case
         (format, Audio.UnknownAudio (audio :: Audio.AudioIO inRate inChan)) ->
             Resource.runResourceT $
             File.write @outRate @inChan format output $
             Resample.resampleRate Resample.SincBestQuality audio
-
-someNat :: Int -> TypeLits.SomeNat
-someNat int = case TypeLits.someNatVal (fromIntegral int) of
-    Nothing -> error $ "not a natural: " <> show int
-    Just n -> n

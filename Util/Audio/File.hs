@@ -141,17 +141,13 @@ read44k = read
 readUnknown :: FilePath -> IO (Sndfile.Format, Audio.UnknownAudioIO)
 readUnknown fname = do
     info <- getInfo fname
-    case (someNat (Sndfile.samplerate info), someNat (Sndfile.channels info)) of
+    case (Audio.someNat (Sndfile.samplerate info),
+            Audio.someNat (Sndfile.channels info)) of
         (TypeLits.SomeNat (_::Proxy rate), TypeLits.SomeNat (_::Proxy chan)) ->
             return
                 ( Sndfile.format info
                 , Audio.UnknownAudio $ read @rate @chan fname
                 )
-
-someNat :: Int -> TypeLits.SomeNat
-someNat int = case TypeLits.someNatVal (fromIntegral int) of
-    Nothing -> error $ "not a natural: " <> show int
-    Just n -> n
 
 -- | Concatenate multiple files.
 concat :: forall rate channels.

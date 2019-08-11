@@ -37,25 +37,32 @@ int faust_metadata(
 //
 // The arrays are allocated.  Control strings are static, but docs are also
 // allocated.
-int faust_controls(const Patch *patch, const char ***out_controls,
-    char ***out_docs, FAUSTFLOAT ***out_vals);
+int faust_controls(const Patch *patch, const char ****out_paths,
+    const char ***out_controls, char ***out_docs);
+int faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals);
 
 // allocated Patch
 
 // Initilaize a new instrument.
 Patch *faust_initialize(const Patch *patch, int srate);
-void faust_destroy(Patch *patch) { delete patch; }
+void faust_destroy(Patch *inst) { delete inst; }
 
+// Render control_size * controls_per_block frames.  'controlps' and 'controls'
+// should be 'control_count' long, and each array in controls should be
+// controls_per_block long.
 void faust_render(
-    Patch *patch, int frames, const float **controls, float **outputs);
+    Patch *inst,
+    int control_size, int controls_per_block,
+    int control_count, float **controlps, const float **controls,
+    const float **inputs, float **outputs);
 
 size_t faust_get_state(const Patch *patch, const char **state) {
     return patch->getState((const Patch::State **) state);
 }
 
 // Caller should assert the state size matches patch->size.
-void faust_put_state(Patch *patch, const char *state) {
-    patch->putState((const Patch::State *) state);
+void faust_put_state(Patch *inst, const char *state) {
+    inst->putState((const Patch::State *) state);
 }
 
 }

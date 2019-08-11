@@ -21,8 +21,8 @@ t_sine = write "sine.wav" $ Audio.take (Audio.Seconds 1) $ Audio.sine 440
 
 t_multiply = write "multiply.wav" $ Audio.multiply
     (Audio.mergeChannels
-        (Audio.linear [(0, 0), (1, 1), (3, 0)])
-        (Audio.linear [(0, 0), (1, 1), (2, 0)]))
+        (Audio.linear True [(0, 0), (1, 1), (3, 0)])
+        (Audio.linear True [(0, 0), (1, 1), (2, 0)]))
     (File.read44k "test.wav")
 
 copy :: FilePath -> FilePath -> IO ()
