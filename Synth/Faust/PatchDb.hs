@@ -6,12 +6,9 @@
 module Synth.Faust.PatchDb (synth, warnings) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Text as Text
-
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Doc as Doc
-import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
@@ -51,19 +48,7 @@ makePatch patch =
         filter ((/=Control.pitch) . fst) $ Map.toList controls
     constantPitch = maybe False DriverC._constant $
         Map.lookup Control.pitch controls
-    controls = DriverC._inputControls patch <> ui_controls
-    ui_controls = Map.fromList $ do
-        (control, controls@((_, ((), config)) : _)) <- by_control
-        let elts = filter (/="") $ map (fst . fst) controls
-        return $ (control,) $ config
-            { DriverC._description =
-                (if null elts then ""
-                    else "elements: [" <> Text.intercalate ", " elts <> "], ")
-                <> DriverC._description config
-            }
-    by_control = Seq.keyed_group_sort (snd . fst) $
-        Map.toList $ DriverC._controls patch
-
+    controls = DriverC.imControls patch
     code False [] = id
     code constantPitch constantControls = (ImInst.code #=) $ ImInst.null_call $
         DUtil.constant_controls constantPitch

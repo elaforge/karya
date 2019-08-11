@@ -147,9 +147,8 @@ renderPatch patch config mbState notifyState notes_ start =
     where
     controls = renderControls (_controlRate config)
         (Map.keysSet (DriverC._controls patch)) notes start
-    inputs = renderInputs (_chunkSize config)
-        (filter (/=Control.volume) inputControls) notes start
-    inputControls = Map.keys $ DriverC._inputControls patch
+    inputs = renderInputs (_chunkSize config) inputControls notes start
+    inputControls = map fst $ DriverC._inputControls patch
     vol = renderInput (_chunkSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
     notes = dropUntil (\_ n -> Note.end n > start) notes_

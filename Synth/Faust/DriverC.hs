@@ -9,6 +9,7 @@ module Synth.Faust.DriverC (
     PatchT(..), Patch, Instrument
     , Control
     , getPatches
+    , imControls
     , ControlConfig(..)
     -- * Instrument
     , withInstrument, initialize, destroy
@@ -46,14 +47,12 @@ data PatchT ptr cptr = Patch {
     -- | An allocated Instrument has pointers to set control values, but a
     -- Patch doesn't.
     , _controls :: !(Map Control (cptr, ControlConfig))
-    , _inputControls :: !(Map Control.Control ControlConfig)
+    -- | Inputs are positional, so it's important to preserve their order.
+    , _inputControls :: ![(Control.Control, ControlConfig)]
     , _inputs :: !Int
     , _outputs :: !Int
     , _ptr :: !ptr
     } deriving (Show)
-
-type Control = (Element, Control.Control)
-type Element = Text
 
 -- | A patch can be used to create 'Instrument's.
 type Patch = PatchT PatchP ()
@@ -64,6 +63,9 @@ data CConstPatchP
 type Instrument = PatchT InstrumentP (Ptr Float)
 type InstrumentP = Ptr CPatchP
 data CPatchP
+
+type Control = (Element, Control.Control)
+type Element = Text
 
 -- | Get all patches and their names.
 getPatches :: IO (Map Text (Either Text Patch))
@@ -105,19 +107,31 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
             | ((elt, control), cdoc) <- uis
             , control /= Control.gate
             ]
-        -- Control.gate is used internally, so don't expose that.
-        -- And everyone gets amp, since faust-im handles it.
-        , _inputControls =
-            Map.fromList $ amp : filter ((/=Control.gate) . fst) inputControls
+        , _inputControls = inputControls
         , _inputs = inputs
         , _outputs = outputs
         , _ptr = ptr
         }
+
+-- | Map supported controls to ControlConfig.  This is for the Im.Patch.
+imControls :: PatchT ptr cptr -> Map Control.Control ControlConfig
+imControls patch =
+    -- Control.gate is generated internally, and everyone gets Control.vol.
+    Map.delete Control.gate $ Map.insert Control.volume vol $
+        Map.fromList (_inputControls patch) <> ui_controls
     where
-    amp =
-        ( Control.volume
-        , ControlConfig False "Instrument volume, handled by faust-im."
-        )
+    ui_controls = Map.fromList $ do
+        (control, controls@((_, (_, config)) : _)) <- by_control
+        let elts = filter (/="") $ map (fst . fst) controls
+        return $ (control,) $ config
+            { _description =
+                (if null elts then ""
+                    else "elements: [" <> Text.intercalate ", " elts <> "], ")
+                <> _description config
+            }
+    by_control = Seq.keyed_group_sort (snd . fst) $
+        Map.toList $ _controls patch
+    vol = ControlConfig False "Instrument volume, handled by faust-im."
 
 verifyControls :: [Control] -> Maybe Text
 verifyControls controls
