@@ -6,7 +6,6 @@
 module Synth.Faust.FaustIm (main) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Async as Async
-import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans.Resource as Resource
 
@@ -20,7 +19,6 @@ import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
-import qualified System.Posix.Process as Posix.Process
 import qualified System.Posix.Signals as Signals
 
 import qualified Util.Audio.Audio as Audio
@@ -47,6 +45,7 @@ useCheckpoints = True
 
 main :: IO ()
 main = do
+    Log.configure $ \st -> st { Log.state_priority = Log.Notice }
     args <- Environment.getArgs
     patches <- DriverC.getPatches
     thread <- Concurrent.myThreadId
@@ -65,10 +64,8 @@ main = do
                 ["faust-im", txt notesFilename, txt outputDir]
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
-            pid <- Posix.Process.getProcessID
-            let prefix = showt pid <> ": " <> txt notesFilename
             patches <- traverse (either errorIO pure) patches
-            process prefix patches notes outputDir
+            process patches notes outputDir
         _ -> errorIO $ "usage: faust-im [print-patches | notes outputDir]"
     where
     printPatch patch = do
@@ -83,25 +80,21 @@ showControl :: DriverC.Control -> Text
 showControl ("", c) = pretty c
 showControl (elt, c) = elt <> ":" <> pretty c
 
-process :: Text -> Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath
-    -> IO ()
-process prefix patches notes outputDir = do
-    putLock <- MVar.newMVar ()
-    let put msg = MVar.withMVar putLock $ const $
-            Text.IO.putStrLn $ prefix <> ": " <> msg
-    put $ "processing " <> showt (length notes) <> " notes"
+process :: Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath -> IO ()
+process patches notes outputDir = do
+    Log.notice $ "processing " <> showt (length notes) <> " notes"
     let (notFound, patchInstNotes) = lookupPatches patches notes
     unless (null notFound) $
-        put $ "patches not found: " <> Text.unwords notFound
+        Log.warn $ "patches not found: " <> Text.unwords notFound
     -- Signals.installHandler above will make SIGINT throw.
     let async :: Exception.AsyncException -> IO ()
-        async exc = put $ "exception: " <> showt exc
+        async exc = Log.error $ "exception: " <> showt exc
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
             let output = if useCheckpoints
                     then outputDir </> untxt inst
                     else outputDir </> untxt inst <> ".wav"
-            put $ inst <> " notes: " <> showt (length notes) <> " -> "
+            Log.notice $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
             Directory.createDirectoryIfMissing True $
                 if useCheckpoints then output else FilePath.takeDirectory output
@@ -116,13 +109,12 @@ process prefix patches notes outputDir = do
             when debugControls $
                 writeControls output patch notes
             case result of
-                Left err -> put $ inst <> " writing " <> txt output
+                Left err -> Log.notice $ inst <> " writing " <> txt output
                     <> ": " <> err
                 Right (rendered, total) ->
-                    put $ inst <> " " <> showt rendered <> "/"
+                    Log.notice $ inst <> " " <> showt rendered <> "/"
                         <> showt total <> " chunks: " <> txt output
                         <> " (" <> elapsed <> ")"
-    put "done"
     where
     flatten patchInstNotes =
         [ (patch, inst, notes)
