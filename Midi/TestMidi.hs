@@ -49,8 +49,8 @@ main = MidiDriver.initialize "test_midi" want_message test_midi
 type ReadMsg = IO (Maybe Midi.ReadMessage)
 type WriteMsg = (RealTime.RealTime, Midi.Message) -> IO ()
 
-test_midi :: Either String Interface -> IO ()
-test_midi (Left err) = error $ "initializing midi: " ++ err
+test_midi :: Either Text Interface -> IO ()
+test_midi (Left err) = errorIO $ "initializing midi: " <> err
 test_midi (Right interface) = do
     rdevs <- Interface.read_devices interface
     putStrLn "read devs:"
