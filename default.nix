@@ -1,4 +1,5 @@
 # Incomplete nix to gather all the dependencies.
+# See TODO nix: for current status.
 
 # Examples:
 # nix-shell --attr buildEnv --arg withIm true --arg withDocs true

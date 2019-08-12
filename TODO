@@ -2456,14 +2456,13 @@ synth: im:
       - Automate a way to select strings, and also to play patterns.
         . Perhaps randomized ones.
       per-string controls:
-        - gate / dyn
-        - pitch
-        - pan
+        * gate
+        - dyn
+        * pitch
+        * pan
         . I guess everything except coupling.
         . But let's leave the pick stuff global for efficiency.
-
-      - dynamic level
-      - per-string pitch
+      * per-string pitch
         . Use element to select string.
         . I want them to be normal signals, which means an addressing scheme
           for each string.  But in general if I have individually addressable
@@ -2755,7 +2754,7 @@ shakefile: build:
     . I also won't be able to build individual .hs.o files anymore
     . Use --make with a phony rule, or try to parse ghc output to find out
       what it compiled?
-  - use Text, not ByteString, files can be unicode
+  - In HsDeps and CcDeps, use Text, not ByteString, files can be unicode
   + get rid of cppFlags and follow #includes in all hs
     . branch shake-includes
     . previously I would run CPP, which gets accurate imports, but I think

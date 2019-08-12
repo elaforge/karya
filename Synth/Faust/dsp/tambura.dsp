@@ -22,27 +22,12 @@ with {
 
 dtmax = 4096;
 
-// tunings of the four strings, ratios of f0
-ratios(0) = 1.5;
-ratios(1) = 2.;
-ratios(2) = 2.01;
-ratios(3) = 1.;
-
-NStrings = 4;
-
-sm = si.smooth(ba.tau2pole(0.05)); // 50 ms smoothing
-
 // *** per-string
 
-// ratios(i) = hslider("/h:_main/ratio%1i [style:knob]", 1., 0.1, 2., 0.001);
-// pluck(i) = button("/h:_trigger/pluck%1i"); // buttons for manual plucking
-
-pluck(i) = button("/h:%i/trigger");
-
-// the base pitch of the drone
-f0 = hslider(
-    "/h:_main/[1]pitch [style:knob]", 36, 1, 127, 1
-) : sm : ba.midikey2hz;
+NStrings = 4;
+pluck(i) = button("/h:%i/gate");
+pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1) : sm : ba.midikey2hz;
+pan(i) = hslider("/h:%i/pan", 0.5, 0, 1, 0.01) : sm;
 
 // how long the strings decay
 t60 = hslider(
@@ -50,63 +35,59 @@ t60 = hslider(
 ) : sm;
 
 // string brightness
-damp = 1. - hslider("/h:_main/[3]high_freq_loss [style:knob]", 0, 0, 1., 0.01)
+damp = 1 - hslider("/h:_main/[3]high_freq_loss [style:knob]", 0, 0, 1, 0.01)
     : sm;
 
 // controls the detuning of parallel waveguides that mimics harmonic motion of
 // the tambura
-fd = hslider(
+hmotion = hslider(
     "/h:_main/[4]harmonic_motion [style:knob][scale:exp]",
-    0.001, 0., 1, 0.0001
+    0.001, 0, 1, 0.0001
 ) : *(0.2) : sm;
 
 // creates the buzzing / jawari effect
-jw = hslider(
+jawari = hslider(
     "/h:_main/[6]jawari [style:knob]", 0, 0, 1, 0.001)
 : *(0.1) : sm;
-
-// stereo spread of strings
-spread = hslider(
-    "/h:_main/[7]string_spread [style:knob]", 1., 0., 1., 0.01
-) : sm;
 
 // *** global
 
 // level of sympathetic coupling between strings
 coupling = hslider(
-    "/h:_main/[5]sympathetic_coupling [style:knob]", 0.1, 0., 1., 0.0001
+    "/h:_main/[5]sympathetic_coupling [style:knob]", 0.1, 0, 1, 0.0001
 ) : sm;
 
 tscale = hslider("/h:_main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
-descale = hslider("/h:_main/[9]decay_scale [style:knob]", 1, 0.1, 1., 0.001);
+descale = hslider("/h:_main/[9]decay_scale [style:knob]", 1, 0.1, 1, 0.001);
 // dascale = hslider("/h:_main/[10]damp_scale [style:knob]", 1, 0.5, 2, 0.01);
 
 // crossfades between pink noise and DC excitation
-ptype = hslider("/h:_pick/[1]material [style:knob]", 0.13, 0.0, 1., 0.01) : sm;
+ptype = hslider("/h:_pick/[1]material [style:knob]", 0.13, 0.0, 1, 0.01) : sm;
 
-// attack time of pluck envelope, 0 to 0.5 times f0 wavelength
+// attack time of pluck envelope, 0 to 0.5 times pitch wavelength
 pattack = hslider(
     "/h:_pick/[2]attack_time [style:knob][scale:exp]", 0.07, 0, 0.5, 0.01
 );
 
-// decay time (1 to 10 times f0 wavelength)
-ptime = hslider("/h:_pick/[3]pick_decay_time [style:knob]", 1., 1, 100., 0.01);
+// decay time (1 to 10 times pitch wavelength)
+ptime = hslider("/h:_pick/[3]pick_decay_time [style:knob]", 1, 1, 100, 0.01);
 
-// pick position (ratio of f0 wavelength)
+// pick position (ratio of pitch wavelength)
 ppos = hslider("/h:_pick/[4]position [style:knob]", 0.25, 0.01, 0.5, 0.01);
 
 // pick bend depth in semitones
 pbend = hslider(
-    "/h:_pick/[5]bend_depth [style:knob][unit:st]", 3, 0., 12., 0.01
+    "/h:_pick/[5]bend_depth [style:knob][unit:st]", 3, 0, 12, 0.01
 );
 
 // pick bend time (1 to 200 ms)
 pbendtime = hslider(
-    "/h:_pick/[6]bend_time [style:knob][unit:ms]", 10., 1, 200., 1
+    "/h:_pick/[6]bend_time [style:knob][unit:ms]", 10, 1, 200, 1
 );
 
-// master volume
-vol = hslider("volume [unit:dB]", 0, -36, +4, 0.1) : ba.db2linear : sm;
+sm = si.smooth(ba.tau2pole(0.05)); // 50 ms smoothing
+
+// *** implementation
 
 // s = string index
 // c = comb filter index (of 9 comb filters in risset string)
@@ -118,7 +99,7 @@ tambura(NStrings) = (
     : par(s, NStrings, string(s, pluck(s)))
 ) // string itself with excitation + fbk as input
     ~ par(s, NStrings, !, _) // feedback only the right waveguide
-    : par(s, NStrings, + : pan(s) // add left/right waveguides and pan
+    : par(s, NStrings, + : setPan(s) // add left/right waveguides and pan
     ) :> _,_ // stereo output
 with {
     couplingmatrix(NStrings) =
@@ -139,32 +120,28 @@ with {
             : fi.peak_eq(20, 7500, 650);
     };
 
-    // pan(s) = _ <: *(1-v), *(v)
-    pan(s) = _ <: *((1-v) : sqrt), *((v) : sqrt)
-    with {
-      spreadScale = (1 / (NStrings-1));
-      v = 0.5 + ((spreadScale * s) - 0.5) * spread;
-    };
+    setPan(s) = _ <: *((1 - pan(s)) : sqrt), *(pan(s) : sqrt);
 
     // excitation(s) = _;
     excitation(s, trig) = input * ampenv : pickposfilter
     with {
-        wl = (ma.SR/(f0 * ratios(s))); // wavelength of f0 in samples
-        dur = (ptime * wl) / (ma.SR/1000.); // duration of the pluck in ms
-        ampenv = trig * line(1. - trig, dur)
+        wl = ma.SR / pitch(s); // wavelength of pitch(s) in samples
+
+        dur = (ptime * wl) / (ma.SR / 1000); // duration of the pluck in ms
+        ampenv = trig * line(1 - trig, dur)
             : si.lag_ud(wl * pattack * (1/ma.SR), 0.005);
-        amprand = abs(no.noise) : ba.latch(trig) *(0.25) + (0.75);
+        amprand = abs(no.noise) : ba.latch(trig) *(0.25) + 0.75;
         posrand = abs(no.noise) : ba.latch(trig) *(0.2);
         // crossfade between DC and pink noise excitation source
-        input = 1., no.pink_noise : si.interpolate(ptype);
+        input = 1, no.pink_noise : si.interpolate(ptype);
         // simulation of different pluck positions
         pickposfilter = fi.ffcombfilter(dtmax, (ppos + posrand) * wl, -1);
     };
 
     // dual risset strings for decoupled feedback
     string(s, trig) = _, _ <: +, !,_
-        : rissetstring(_, s, 1., 1., 1.),
-            rissetstring(_, s, tscale, descale, 1.)
+        : rissetstring(_, s, 1, 1, 1),
+            rissetstring(_, s, tscale, descale, 1)
     with {
         // 9 detuned delay line resonators in parallel
         rissetstring(x, s, ts, des, das) =
@@ -180,19 +157,19 @@ with {
 
             // lagrange interpolation glitches less with pitch envelope
             delay = de.fdelaylti(2, dtmax, dtsamples, x);
-            pitchenv = trig * line(1. - trig, pbendtime) <: * : *(pbend);
-            thisf0 = ba.pianokey2hz(
-                    ba.hz2pianokey((f0 * ratios(s)) + ((c-4) * fd) + pitchenv))
+            pitchenv = trig * line(1 - trig, pbendtime) <: * : *(pbend);
+            this_pitch = ba.pianokey2hz(
+                    ba.hz2pianokey(pitch(s) + (c-4) * hmotion + pitchenv))
                 * ts;
-            dtsamples = (ma.SR/thisf0) - 2;
-            fbk = pow(0.001, 1.0 / (thisf0 * (t60 * descale)));
+            dtsamples = (ma.SR / this_pitch) - 2;
+            fbk = pow(0.001, 1 / (this_pitch * (t60 * descale)));
             dampingfilter(x) = h0 * x' + h1*(x+x'')
             with {
                 d = das * damp;
-                h0 = (1. + d)/2;
-                h1 = (1. - d)/4;
+                h0 = (1 + d)/2;
+                h1 = (1 - d)/4;
             };
-            nlfm(x) = x <: fi.allpassnn(1, par(i, 1, jw * ma.PI * x));
+            nlfm(x) = x <: fi.allpassnn(1, par(i, 1, jawari * ma.PI * x));
         };
     };
 };
@@ -211,8 +188,8 @@ with {
     phasor(freq) = (freq/float(ma.SR) : (+ : ma.decimal) ~ _);
 };
 
-// process = par(s, NStrings, pluck(s)) : tambura(NStrings) : *(vol), *(vol);
+// process = par(s, NStrings, pluck(s)) : tambura(NStrings);
 
 process =
     (par(s, NStrings, pluck(s)), autoplucker) :>
-    tambura(NStrings) : *(vol), *(vol);
+    tambura(NStrings);
