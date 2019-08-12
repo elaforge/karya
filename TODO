@@ -2391,9 +2391,22 @@ synth: im:
     - faust is still using Config.chunkSize instead of Config.blockSize.
       I have to use blockSize and make sure it's small so that controls are
       high resolution.
+    - faust-im doesn't do progress reports
+    - use element instead of patch-element, and allow VNum, so I can do
+      element=0.
+    ui controls:
+      - Controls are not sample accurate, so they have sproing.  Maybe things
+        like pitch and dynamic should be input controls.
+      - Will the optimization of dropping the control when it goes constant
+        be a problem with state?  I.e. control value is part of the state, so
+        it gets restored, but now the control is unset.  It should get the
+        default value, but instead it gets the last value.
+        . I can fix it by insisting on always at least one value for each
+          control.
+        . But does that then break default control vals?
     tambura.dsp:
       . https://github.com/olilarkin/Tambura
-      - This is the first faust instrument with multiple elements, and the
+      * This is the first faust instrument with multiple elements, and the
         automatic gate signal isn't set up for that.
         . Just pick one string at first, but I'll need to have some
           understanding of parameter indexing, so I can divide controls by
@@ -2439,12 +2452,9 @@ synth: im:
           Notes once and can throw them out once I'm past them.
           Seq.keyed_group_stable is multiple iterations, but they are
           streaming.
-      - Will the optimization of dropping the control when it goes constant
-        be a problem with state?  I.e. control value is part of the state, so
-        it gets restored, but now the control is unset.  It should get the
-        default value, but instead it gets the last value.
-        . I can fix it by insisting on always at least one value for each
-          control.
+      - The first note is missing attack, what's going on?
+      - Automate a way to select strings, and also to play patterns.
+        . Perhaps randomized ones.
       per-string controls:
         - gate / dyn
         - pitch
@@ -2489,7 +2499,8 @@ synth: im:
         . How does no.noise work?  If not deterministic, I probably have to make
           it so.
         . It is deterministic.  I guess it has to be if it can't do any IO.
-      - It uses controls for all the parameters, I should either convert to
+        . But I can also take out the random and use exact values.
+      * It uses controls for all the parameters, I should either convert to
         audio signals or support controls.
       - Include the bridge IR?  It's in the original source but commented out
         for some reason.  Also the the github page references the

@@ -199,7 +199,7 @@ render :: DriverC.Patch -> Maybe Checkpoint.State
 render patch mbState notifyState controls inputs start end config =
     Audio.NAudio (DriverC._outputs patch) $ do
         (key, inst) <- lift $
-            Resource.allocate (DriverC.initialize patch) DriverC.destroy
+            Resource.allocate (DriverC.allocate patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
         let nstream = Audio._nstream (Audio.zeroPadN (_chunkSize config) inputs)
         Util.Control.loop1 (start, controls, nstream) $
@@ -218,9 +218,10 @@ render patch mbState notifyState controls inputs start end config =
     render1 inst controls inputs start
         | start >= end + maxDecay = return Nothing
         | otherwise = do
+            let controlVals = findControls (DriverC._controls inst) controls
             outputs <- liftIO $ DriverC.render
-                (_controlSize config) (_controlsPerBlock config)
-                inst (findControls (DriverC._controls inst) controls) inputs
+                (_controlSize config) (_controlsPerBlock config) inst
+                controlVals inputs
             -- XXX Since this uses unsafeGetState, readers of notifyState
             -- have to entirely use the state before returning.  See
             -- Checkpoint.getFilename and Checkpoint.writeBs.
@@ -295,8 +296,9 @@ renderControls controlRate controls notes start =
 
 extractControls :: Set DriverC.Control -> [Note.Note]
     -> Map DriverC.Control [(Double, Double)]
-extractControls controls allNotes = Map.fromList $
-    map (get "" allNotes) withoutElement ++ mapMaybe getE withElement
+extractControls controls allNotes =
+    Map.fromList $ filter (not . null . snd) $
+        map (get "" allNotes) withoutElement ++ mapMaybe getE withElement
     where
     (withoutElement, withElement) = first (map snd) $
         List.partition (Text.null . fst) $ Set.toList controls

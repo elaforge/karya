@@ -215,21 +215,18 @@ test_renderControls = do
             }
     -- ensure that controls end, per-element and global controls are correct,
     -- controls have the right block size
-    equal (f [] 0) [(("", Control.pan), [0])]
+    equal (f [] 0) []
     equal (f [(0, 5, "1", [(Control.pan, [(0, 0.5)])])] 0)
         [ (("", Control.pan), [0.5])
         , (("1", Control.gate), [1, 0.8, 0.6, 0.4, 0.2, 0])
-        , (("1", Control.pitch), [0])
         ]
     equal (f [(0, 2, "1", [(Control.pitch, [(0, 42)])])] 0)
-        [ (("", Control.pan), [0])
-        , (("1", Control.gate), [1, 0.5, 0])
+        [ (("1", Control.gate), [1, 0.5, 0])
         , (("1", Control.pitch), [42])
         ]
     let pitch nn = [(Control.pitch, [(0, nn)])]
     equal (f [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
-        [ (("", Control.pan), [0])
-        , (("1", Control.gate), [1, 0.5, 1, 0.75, 0.5, 0.25, 0])
+        [ (("1", Control.gate), [1, 0.5, 1, 0.75, 0.5, 0.25, 0])
         , (("1", Control.pitch), [42, 42, 44])
         ]
 

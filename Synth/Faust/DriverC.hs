@@ -12,7 +12,7 @@ module Synth.Faust.DriverC (
     , imControls
     , ControlConfig(..)
     -- * Instrument
-    , withInstrument, initialize, destroy
+    , withInstrument, allocate, destroy
     , render
     -- ** state
     , getState, unsafeGetState, putState
@@ -48,6 +48,7 @@ data PatchT ptr cptr = Patch {
     -- Patch doesn't.
     , _controls :: !(Map Control (cptr, ControlConfig))
     -- | Inputs are positional, so it's important to preserve their order.
+    -- TODO: Inputs should also have an Element.
     , _inputControls :: ![(Control.Control, ControlConfig)]
     , _inputs :: !Int
     , _outputs :: !Int
@@ -101,11 +102,9 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
     return $ Patch
         { _name = name
         , _doc = doc
-
         , _controls = Map.fromList
             [ ((elt, control), ((), ControlConfig False cdoc))
             | ((elt, control), cdoc) <- uis
-            , control /= Control.gate
             ]
         , _inputControls = inputControls
         , _inputs = inputs
@@ -251,10 +250,10 @@ foreign import ccall "faust_control_ptrs"
     c_faust_control_ptrs :: InstrumentP -> Ptr (Ptr (Ptr Float)) -> IO CInt
 
 withInstrument :: Patch -> (Instrument -> IO a) -> IO a
-withInstrument patch = Exception.bracket (initialize patch) destroy
+withInstrument patch = Exception.bracket (allocate patch) destroy
 
-initialize :: Patch -> IO Instrument
-initialize patch = do
+allocate :: Patch -> IO Instrument
+allocate patch = do
     ptr <- c_faust_initialize (_ptr patch) (CUtil.c_int Config.samplingRate)
     cptrs <- alloca $ \cptrspp -> do
         count <- c_faust_control_ptrs ptr cptrspp
@@ -271,7 +270,6 @@ initialize patch = do
         , _controls = Map.fromList
             [ ((elt, control), (cptr, ControlConfig False cdoc))
             | (cptr, ((elt, control), cdoc)) <- zip cptrs uis
-            , control /= Control.gate
             ]
         }
 
