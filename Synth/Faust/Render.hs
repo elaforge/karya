@@ -17,6 +17,7 @@ import qualified Data.Vector.Storable as V
 
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
+import qualified System.FilePath as FilePath
 import qualified System.IO.Error as IO.Error
 
 import qualified Util.Audio.Audio as Audio
@@ -64,6 +65,7 @@ write_ config outputDir trackIds patch notes = catch $ do
     mapM_ (Checkpoint.linkOutput outputDir) skipped
     let notifyState = IORef.writeIORef stateRef
         getState = IORef.readIORef stateRef
+    checkElements emitMessage patch notes
     result <- Checkpoint.write outputDir trackIds (length skipped) chunkSize
             hashes getState $
         renderPatch patch config mbState notifyState notes start
@@ -78,6 +80,30 @@ write_ config outputDir trackIds patch notes = catch $ do
         , Exception.Handler $ \(exc :: IO.Error.IOError) ->
             return $ Left $ txt $ Exception.displayException exc
         ]
+    emitMessage payload = Config.emitMessage "" $ Config.Message
+        { _blockId = Config.pathToBlockId outputDir
+        , _trackIds = trackIds
+        , _instrument = txt $ FilePath.takeFileName outputDir
+        , _payload = payload
+        }
+
+-- | Emit a warning if the patch expects element-address controls and a note
+-- doesn't have an element, or vice versa.
+checkElements :: (Config.Payload -> IO ()) -> DriverC.Patch -> [Note.Note]
+    -> IO ()
+checkElements emitMessage patch = mapM_ check
+    where
+    check note
+        | Set.null elements = when (elt /= "") $
+            warn $ "expected no element but got: " <> elt
+        | elt == "" = warn "expected element but didn't have one"
+        | elt `Set.notMember` elements = warn $ "element " <> elt <> " not in "
+            <> pretty elements
+        | otherwise = return ()
+        where
+        elt = Note.element note
+        warn msg = emitMessage $ Config.Warn (Note.stack note) msg
+    elements = Set.fromList $ map fst $ Map.keys $ DriverC._controls patch
 
 toSpan :: Note.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span

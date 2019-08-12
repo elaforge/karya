@@ -339,7 +339,7 @@ watch_subprocesses root_block_id config inv_tempo wants_waveform score_path
             -- hits if I use the symlinks, which all look like 000.wav.
             Msg.ImStatus block_id track_ids
                     (Msg.ImWaveformsCompleted waveforms) -> do
-                fns <- mapM (resolveLink . Track._filename)
+                fns <- mapM (resolve_link . Track._filename)
                     waveforms
                 return $ Msg.ImStatus block_id track_ids $
                     Msg.ImWaveformsCompleted
@@ -407,8 +407,8 @@ make_status inv_tempo wants_waveform im_dir score_path adjust0
     to_score t = tryJust ("no ScoreTime for " <> pretty t) $
         real_to_score inv_tempo block_id track_ids t
 
-resolveLink :: FilePath -> IO FilePath
-resolveLink fname = (FilePath.takeDirectory fname </>) <$>
+resolve_link :: FilePath -> IO FilePath
+resolve_link fname = (FilePath.takeDirectory fname </>) <$>
     Directory.getSymbolicLinkTarget fname
 
 real_to_score :: Transport.InverseTempoFunction -> BlockId -> Set TrackId
