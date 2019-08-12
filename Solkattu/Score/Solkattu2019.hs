@@ -80,6 +80,9 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
     -- tat.__.dit.__.kita.ki.na.gu.gu.takita.dinga.tat.__.dit.__.ta.dinga
     --        dit.__.kita.ki.na.gu.gu.takita.dinga.tat.__       .ta.dinga
     --               kita.ki.na.gu.gu.taktakita.dinga
+    -- ta.dinga.tat.__.dinga
+    -- ta.dinga.tat.__.dinga
+    -- ta.dinga.tat.__
 
     sarva = sarvaD sarvaS
     sarvaS = repeat 2 $ na.dimi.nami.na.dimi.nami.na.dimi.nam.kttk

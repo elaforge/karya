@@ -247,7 +247,6 @@ e_19_06_17 = date 2019 6 17 $ ganesh $ exercise $ korvaiS adi
         repeat 5 (group (o.n.y.od.__.l.od.__.on.y.d.end1))
         . repeat 4 (group (o.n.y.od.__.l.od.__.end2))
 
-
 c_19_06_24_a :: Korvai
 c_19_06_24_a = date 2019 6 24 $ ganesh $
     similarTo "Mridangam2019" "c_19_06_24_b"  $ korvai adi
@@ -314,3 +313,20 @@ e_19_06_24 = date 2019 6 24 $ ganesh $ korvaiS adi $ map su
 
 -- chatusram / tisram exercise:
 -- nadai 4 (repeat 2 (k.od.__.ktkno)) . nadai 6 (repeat 3 (k.od.__.ktkno))
+
+e_19_08_05_gumiki :: Korvai
+e_19_08_05_gumiki = date 2019 8 5 $ ganesh $ exercise $ korvaiS adi
+    [ su $ repeat 2 $
+          o.__.kt.kt.p.k.n.n.o.__.d.__4
+        .__.__.kt.kt.p.k.n.n.o.__.d.__4
+    , su $ repeat 2 $
+          o.__.kt.kt.p.k . repeat 3 (n.n.o.__.d.__4)
+    , su $ repeat 2 $
+          o.__.kt.kt.p.k . repeat 5 (n.n.o.__).d.__4
+    ]
+
+-- search youtube:
+-- bhajan govindam - ms
+-- d_nd_dn_ for verse with nd_nd_nd for end
+--
+-- hanuman charisa - ms
