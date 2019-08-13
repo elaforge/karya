@@ -297,12 +297,14 @@ render controlSize controlsPerBlock inst controls inputs = do
     unless (length inputs == _inputs inst) $
         errorIO $ "instrument expects " <> showt (_inputs inst)
             <> " inputs, but was given " <> showt (length inputs)
-    unless (all ((== V.length (head inputs)) . V.length) inputs) $
-        errorIO $ "all inputs don't have the same length: "
-            <> pretty (map V.length inputs)
-    unless (all ((==controlsPerBlock) . Audio.Frame . V.length . snd) controls)$
-        errorIO $ "all controls must have length " <> pretty controlsPerBlock
-            <> ": " <> pretty (map (V.length . snd) controls)
+    let inputSizes = map (Audio.blockFrames (Proxy @1)) inputs
+    unless (all (==blockSize) inputSizes) $
+        errorIO $ "all inputs should be block size " <> pretty blockSize
+            <> ": " <> pretty inputSizes
+    let controlSizes = map (Audio.blockFrames (Proxy @1) . snd) controls
+    unless (all (==controlsPerBlock) controlSizes) $
+        errorIO $ "all controls should have size " <> pretty controlsPerBlock
+            <> ": " <> pretty controlSizes
 
     -- Debug.tracepM "controls" controls
     -- Debug.tracepM "inputs" inputs

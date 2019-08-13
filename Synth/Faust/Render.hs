@@ -201,35 +201,41 @@ render patch mbState notifyState controls inputs start end config =
         (key, inst) <- lift $
             Resource.allocate (DriverC.allocate patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
-        let nstream = Audio._nstream (Audio.zeroPadN (_chunkSize config) inputs)
-        Util.Control.loop1 (start, controls, nstream) $
+        inputs <- return $ Audio._nstream $
+            Audio.zeroPadN (_chunkSize config) inputs
+        Util.Control.loop1 (start, controls, inputs) $
             \loop (start, controls, inputs) -> do
                 -- Audio.zeroPadN should have made this infinite.
-                (inputs, nextInputs) <-
+                (inputSamples, nextInputs) <-
                     maybe (CallStack.errorIO "end of endless stream") return
                         =<< lift (S.uncons inputs)
+                -- For inputs I try to create the right block size, and then
+                -- DriverC.render will assert that they are the expected block
+                -- size.  This is more finicky but should be more efficient.
+                -- For controls, I take the correct number of frames so
+                -- upstream doesn't have to synchronize.  Maybe controls should
+                -- do the efficient thing too.
                 (controls, nextControls) <- lift $
-                    unconsControls (_controlsPerBlock config) controls
-                result <- render1 inst controls inputs start
+                    takeControls (_controlsPerBlock config) controls
+                result <- render1 inst controls inputSamples start
                 case result of
                     Nothing -> Resource.release key
                     Just nextStart -> loop (nextStart, nextControls, nextInputs)
     where
-    render1 inst controls inputs start
+    render1 inst controls inputSamples start
         | start >= end + maxDecay = return Nothing
         | otherwise = do
             let controlVals = findControls (DriverC._controls inst) controls
             outputs <- liftIO $ DriverC.render
                 (_controlSize config) (_controlsPerBlock config) inst
-                controlVals inputs
+                controlVals inputSamples
             -- XXX Since this uses unsafeGetState, readers of notifyState
             -- have to entirely use the state before returning.  See
             -- Checkpoint.getFilename and Checkpoint.writeBs.
             liftIO $ notifyState =<< DriverC.unsafeGetState inst
             S.yield outputs
             case outputs of
-                -- This should have already been checked by
-                -- DriverC.getPatches.
+                -- This should have already been checked by DriverC.getPatches.
                 [] -> CallStack.errorIO "patch with 0 outputs"
                 output : _
                     | frames == 0 || chunkEnd >= end + maxDecay
@@ -248,12 +254,12 @@ findControls controls vals = map get $ Util.Map.zip_intersection controls vals
 
 -- | Pull a chunk from each of the controls.  Omit the control if its signal
 -- has run out.  This is ok because controls naturally retain their last value.
-unconsControls :: Audio.Frame -> Map DriverC.Control AUtil.Audio1
+takeControls :: Audio.Frame -> Map DriverC.Control AUtil.Audio1
     -> Resource.ResourceT IO
         ( Map DriverC.Control (V.Vector Audio.Sample)
         , Map DriverC.Control AUtil.Audio1
         )
-unconsControls frames controlStreams = do
+takeControls frames controlStreams = do
     nexts <- mapM (takeExtend frames) streams
     return
         ( Map.fromList
@@ -313,7 +319,7 @@ extractControls controls allNotes =
 -- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
 -- TODO checkpointSize -> chunkSize, chunkSize -> blockSize
 renderInputs :: Audio.Frame -> [Control.Control]
-    -- ^ controls expected by the instrument, in the expected order
+    -- ^ inputs expected by the instrument, in the expected order
     -> [Note.Note] -> RealTime -> AUtil.NAudio
 renderInputs chunkSize controls notes start =
     Audio.nonInterleaved now chunkSize $

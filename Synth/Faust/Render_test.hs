@@ -9,7 +9,7 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Data.Vector.Storable as Vector
+import qualified Data.Vector.Storable as V
 
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
@@ -194,7 +194,7 @@ chunkToTime :: RealTime -> RealTime
 chunkToTime = (* AUtil.toSeconds chunkSize)
 
 toSamples :: AUtil.Audio -> IO [Audio.Sample]
-toSamples = fmap (concatMap Vector.toList) . Resource.runResourceT
+toSamples = fmap (concatMap V.toList) . Resource.runResourceT
     . Audio.toSamples
 
 
@@ -231,7 +231,7 @@ test_renderControls = do
         ]
 
 toSamples1 :: AUtil.Audio1 -> [Audio.Sample]
-toSamples1 = Vector.toList . mconcat
+toSamples1 = V.toList . mconcat
     . Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toSamples
 
 test_gateBreakpoints = do

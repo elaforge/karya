@@ -24,7 +24,7 @@ module Util.Audio.Audio (
     , Count, Channels, Rate, Seconds
     , framesCount, countFrames, blockFrames
     -- * construct
-    , fromSamples, fromSampleLists, toSamples
+    , fromSamples, fromSampleLists, toSamples, toSamplesN
     -- * transform
     , castRate
     , take, mapSamples, gain, multiply
@@ -183,6 +183,9 @@ fromSampleLists = fromSamples . map V.fromList
 
 toSamples :: Monad m => Audio m rate channels -> m [V.Vector Sample]
 toSamples = S.toList_ . _stream
+
+toSamplesN :: Monad m => NAudio m rate -> m [[V.Vector Sample]]
+toSamplesN = S.toList_ . _nstream
 
 -- * transform
 

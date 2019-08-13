@@ -6,7 +6,7 @@ sort-unqualified-last: t
 prio-module-high: Perform.Pitch Util.Serialize
     Data.Map Data.Set Data.Vector Data.String Data.Ratio
     Control.Monad.Trans.Resource
-    System.IO
+    System.IO System.IO.Unsafe
 prio-module-low: GHC.Environment GHC.Read GHC.MVar
     LogView.Process
     App.PPrint

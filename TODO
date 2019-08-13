@@ -2394,6 +2394,17 @@ synth: im:
     - faust-im doesn't do progress reports
     - use element instead of patch-element, and allow VNum, so I can do
       element=0.
+    . Even though I can enforce the block size only at the final step of the
+      pipeline, it's still more efficient to generate the right sized blocks
+      in the first place.  This seems easy to get wrong though.
+      . The runtime way would be to uncons in the render loop and assert the
+        length.  I do this now.
+      . The type-level way would be to put the block size into the type too.
+        Then I can say synchronize or certain generators can create a known
+        block size, but resample makes the block size unknown, so I have to do
+        a synchronize afterwards.
+      . An extra parameter for every single Audio sounds like a hassle though.
+      . And the size is actually not that simple, because if the note starts
     ui controls:
       - Controls are not sample accurate, so they have sproing.  Maybe things
         like pitch and dynamic should be input controls.
