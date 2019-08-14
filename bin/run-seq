@@ -7,7 +7,13 @@ if [[ -z $mode ]]; then
     echo $0: no mode
     exit 1
 fi
-if ! repl=t bin/mk build/$mode/logview build/$mode/seq; then
+
+# Keep this binaries up to date.  This isn't appropriate if you don't have
+# im, so in that case maybe I'll need some way of getting the config.
+binaries=(
+    logview faust-im sampler-im seq
+)
+if ! bin/mk build/$mode/${^binaries}; then
     echo $0: build failed
     exit 1
 fi
