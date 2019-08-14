@@ -40,9 +40,6 @@ import           Global
 debugControls :: Bool
 debugControls = False
 
-useCheckpoints :: Bool
-useCheckpoints = True
-
 main :: IO ()
 main = do
     Log.configure $ \st -> st { Log.state_priority = Log.Notice }
@@ -91,21 +88,13 @@ process patches notes outputDir = do
         async exc = Log.error $ "exception: " <> showt exc
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
-            let output = if useCheckpoints
-                    then outputDir </> untxt inst
-                    else outputDir </> untxt inst <> ".wav"
+            let output = outputDir </> untxt inst
             Log.notice $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
-            Directory.createDirectoryIfMissing True $
-                if useCheckpoints then output else FilePath.takeDirectory output
-            (result, elapsed) <- Thread.timeActionText $ if useCheckpoints
-                then Render.write output
+            Directory.createDirectoryIfMissing True output
+            (result, elapsed) <- Thread.timeActionText $
+                Render.write output
                     (Set.fromList $ mapMaybe Note.trackId notes) patch notes
-                else fmap (second (\() -> (0, 0))) $ AUtil.catchSndfile $
-                    Resource.runResourceT $
-                    Audio.File.write AUtil.outputFormat output $
-                    Render.renderPatch patch Render.defaultConfig
-                        Nothing (\_ -> return ()) notes 0
             when debugControls $
                 writeControls output patch notes
             case result of
