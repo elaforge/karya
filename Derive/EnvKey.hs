@@ -192,8 +192,8 @@ hold = "hold"
 -- * im-specific
 
 -- | VStr: Used by the im backend to put into 'Synth.Shared.Note.element'.
-patch_element :: Key
-patch_element = "patch-element"
+element :: Key
+element = "element"
 
 -- * values
 

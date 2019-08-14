@@ -30,4 +30,4 @@ withVariationNormal stddev deriver =
 addSymbolicPitch :: Derive.PassedArgs x -> Derive.Deriver a -> Derive.Deriver a
 addSymbolicPitch args deriver = do
     note <- Call.get_symbolic_pitch =<< Args.real_start args
-    Derive.with_val EnvKey.patch_element (Pitch.note_text note) deriver
+    Derive.with_val EnvKey.element (Pitch.note_text note) deriver

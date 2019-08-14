@@ -17,6 +17,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 
 import qualified Instrument.Common as Common
@@ -85,8 +86,15 @@ convert_event block_id event patch patch_name = run $ do
         { patch = patch_name
         , instrument = ScoreT.instrument_name (Score.event_instrument event)
         , trackId = event_track_id block_id event
-        , element = fromMaybe "" $ Env.maybe_val EnvKey.patch_element $
-            Score.event_environ event
+        -- To make it easier to set element by hand, I support some types which
+        -- are likely to be used for element names.
+        , element =
+            case Env.lookup EnvKey.element (Score.event_environ event) of
+                Just (DeriveT.VStr a) -> ShowVal.show_val a
+                Just (DeriveT.VNum a) -> ShowVal.show_val a
+                _ -> ""
+        -- , element = fromMaybe "" $ Env.maybe_val EnvKey.element $
+        --     Score.event_environ event
         , start = Score.event_start event
         , duration = Score.event_duration event
         , controls = maybe id (Map.insert Control.pitch) pitch $

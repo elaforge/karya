@@ -330,7 +330,7 @@ add_symbolic_pitch event = Log.run_id $ case Score.initial_note event of
         Log.warn $ "no symbolic pitch for " <> Score.short_event event
         return event
     Just note ->
-        return $ set_environ EnvKey.patch_element (Pitch.note_text note) event
+        return $ set_environ EnvKey.element (Pitch.note_text note) event
 
 set_environ :: Typecheck.ToVal key => EnvKey.Key -> key -> Score.Event
     -> Score.Event

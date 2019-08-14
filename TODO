@@ -2392,7 +2392,7 @@ synth: im:
       I have to use blockSize and make sure it's small so that controls are
       high resolution.
     * faust-im doesn't do progress reports
-    - use element instead of patch-element, and allow VNum, so I can do
+    * use element instead of patch-element, and allow VNum, so I can do
       element=0.
     . Even though I can enforce the block size only at the final step of the
       pipeline, it's still more efficient to generate the right sized blocks

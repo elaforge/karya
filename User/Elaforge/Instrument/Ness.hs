@@ -62,7 +62,7 @@ guitar inst = ImInst.code #= code $ ImInst.environ EnvKey.open_strings strings $
     strings = map make_string $ Guitar.iStrings inst
     code = note <> postproc
     postproc = ImInst.postproc $
-        DUtil.move_val EnvKey.string EnvKey.patch_element show_string
+        DUtil.move_val EnvKey.string EnvKey.element show_string
     note = ImInst.null_call $ DUtil.constant_controls False $
         Set.fromList $ map control [Guitar.Patch.c_location, Control.dynamic]
 
@@ -88,7 +88,7 @@ multiplate inst = ImInst.code #= code $ ImInst.make_patch patch
         ]
     generator object = Library.generator $ Make.environ_note Module.instrument
         (Derive.CallName object) mempty "Strike the named object."
-        EnvKey.patch_element object
+        EnvKey.element object
     patch = Patch.patch
         { Patch.patch_controls = Map.fromList
             [ (Control.dynamic, "")
