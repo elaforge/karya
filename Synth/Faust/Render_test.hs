@@ -159,6 +159,7 @@ listWavs = fmap (List.sort . filter (".wav" `List.isSuffixOf`))
 config :: Render.Config
 config = Render.Config
     { _chunkSize = 8
+    , _blockSize = 8
     , _controlSize = 4
     , _controlsPerBlock = 8 `div` 4
     , _maxDecay = 0

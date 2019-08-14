@@ -2388,10 +2388,10 @@ synth: im:
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
   faust:
-    - faust is still using Config.chunkSize instead of Config.blockSize.
+    * faust is still using Config.chunkSize instead of Config.blockSize.
       I have to use blockSize and make sure it's small so that controls are
       high resolution.
-    - faust-im doesn't do progress reports
+    * faust-im doesn't do progress reports
     - use element instead of patch-element, and allow VNum, so I can do
       element=0.
     . Even though I can enforce the block size only at the final step of the
@@ -2405,6 +2405,11 @@ synth: im:
         a synchronize afterwards.
       . An extra parameter for every single Audio sounds like a hassle though.
       . And the size is actually not that simple, because if the note starts
+        at an offset, the first block may be smaller.
+      . The true constraint is that blocks have to line up to multiples of
+        chunkSize.  And if I want to avoid reallocation, they have to line up
+        with each other.  That seems quite a bit more complicated to express
+        though.
     ui controls:
       - Controls are not sample accurate, so they have sproing.  Maybe things
         like pitch and dynamic should be input controls.

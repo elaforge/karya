@@ -65,7 +65,7 @@ writeConfig :: Config -> FilePath -> Set Id.TrackId -> [Sample.Note]
 writeConfig config outputDir trackIds notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes (_chunkSize config) (map toSpan notes)
-    let startFrame = fromIntegral (length skipped) * (_chunkSize config)
+    let startFrame = fromIntegral (length skipped) * _chunkSize config
         start = AUtil.toSeconds startFrame
     mapM_ (Checkpoint.linkOutput outputDir) skipped
     unless (null skipped) $ Config.emitMessage "" $ Config.Message

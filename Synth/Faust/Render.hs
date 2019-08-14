@@ -57,18 +57,21 @@ write_ config outputDir trackIds patch notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
-    let start = AUtil.toSeconds $ fromIntegral (length skipped) * chunkSize
+    let startFrame = fromIntegral (length skipped) * _chunkSize config
+        start = AUtil.toSeconds startFrame
     Log.debug $ "skipped " <> pretty skipped
         <> ", resume at " <> pretty (take 1 hashes)
         <> " state: " <> pretty mbState
         <> " start: " <> pretty start
     mapM_ (Checkpoint.linkOutput outputDir) skipped
+    unless (null skipped) $ emitMessage $
+        Config.WaveformsCompleted [0 .. length skipped - 1]
     let notifyState = IORef.writeIORef stateRef
         getState = IORef.readIORef stateRef
     checkElements emitMessage patch notes
     result <- Checkpoint.write outputDir trackIds (length skipped) chunkSize
             hashes getState $
-        renderPatch patch config mbState notifyState notes start
+        renderPatch emitMessage patch config mbState notifyState notes start
     case result of
         Right (_, total) -> Checkpoint.clearRemainingOutput outputDir total
         _ -> return ()
@@ -116,6 +119,7 @@ toSpan note = Checkpoint.Span
 
 data Config = Config {
     _chunkSize :: !Audio.Frame
+    , _blockSize :: !Audio.Frame
     , _controlSize :: !Audio.Frame
     -- | This is _chunkSize / _controlSize.
     , _controlsPerBlock :: !Audio.Frame
@@ -140,14 +144,15 @@ data Config = Config {
 -}
 defaultConfig :: Config
 defaultConfig = Config
-    { _chunkSize = Config.chunkSize -- TODO should be block size
-    , _controlSize = Config.chunkSize `Num.assertDiv` controlsPerBlock
+    { _chunkSize = Config.chunkSize
+    , _blockSize = Config.blockSize
+    , _controlSize = Config.blockSize `Num.assertDiv` controlsPerBlock -- 441
     , _controlsPerBlock = controlsPerBlock
     -- TODO it should be longer, but since 'isBasicallySilent' is
     -- unimplemented every decay lasts this long.
     , _maxDecay = 2
     }
-    where controlsPerBlock = 400
+    where controlsPerBlock = 25
 
 -- | Control signals run at this rate.
 --
@@ -159,23 +164,24 @@ _controlRate config =
         * blocksPerSecond
     where
     blocksPerSecond =
-        fromIntegral Config.samplingRate / fromIntegral (_chunkSize config)
+        fromIntegral Config.samplingRate / fromIntegral (_blockSize config)
 
 -- | Render notes belonging to a single FAUST patch.  Since they render on
 -- a single element, they should either not overlap, or be ok if overlaps
 -- cut each other off.
-renderPatch :: DriverC.Patch -> Config -> Maybe Checkpoint.State
-    -> (Checkpoint.State -> IO ()) -> [Note.Note] -> RealTime -> AUtil.Audio
-renderPatch patch config mbState notifyState notes_ start =
+renderPatch :: (Config.Payload -> IO ()) -> DriverC.Patch -> Config
+    -> Maybe Checkpoint.State -> (Checkpoint.State -> IO ()) -> [Note.Note]
+    -> RealTime -> AUtil.Audio
+renderPatch emitMessage patch config mbState notifyState notes_ start =
     maybe id AUtil.volume vol $ interleave $
-        render patch mbState notifyState
+        render emitMessage patch mbState notifyState
             controls inputs (AUtil.toFrame start) (AUtil.toFrame final) config
     where
     controls = renderControls (_controlRate config)
         (Map.keysSet (DriverC._controls patch)) notes start
-    inputs = renderInputs (_chunkSize config) inputControls notes start
+    inputs = renderInputs (_blockSize config) inputControls notes start
     inputControls = map fst $ DriverC._inputControls patch
-    vol = renderInput (_chunkSize config) notes start Control.volume
+    vol = renderInput (_blockSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
     notes = dropUntil (\_ n -> Note.end n > start) notes_
 
@@ -191,18 +197,18 @@ interleave naudio = case Audio.interleaved naudio of
 -- Chunk size is determined by the size of the @inputs@ chunks, or
 -- Audio.blockSize if they're empty or run out.  The inputs will go to zero
 -- if they end before the given time.
-render :: DriverC.Patch -> Maybe Checkpoint.State
+render :: (Config.Payload -> IO ()) -> DriverC.Patch -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
     -> Map DriverC.Control AUtil.Audio1
     -> AUtil.NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
     -> Config -> AUtil.NAudio
-render patch mbState notifyState controls inputs start end config =
+render emitMessage patch mbState notifyState controls inputs start end config =
     Audio.NAudio (DriverC._outputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.allocate patch) DriverC.destroy
         liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
         inputs <- return $ Audio._nstream $
-            Audio.zeroPadN (_chunkSize config) inputs
+            Audio.zeroPadN (_blockSize config) inputs
         Util.Control.loop1 (start, controls, inputs) $
             \loop (start, controls, inputs) -> do
                 -- Audio.zeroPadN should have made this infinite.
@@ -217,14 +223,17 @@ render patch mbState notifyState controls inputs start end config =
                 -- do the efficient thing too.
                 (controls, nextControls) <- lift $
                     takeControls (_controlsPerBlock config) controls
-                result <- render1 inst controls inputSamples start
+                result <- renderBlock inst controls inputSamples start
                 case result of
                     Nothing -> Resource.release key
                     Just nextStart -> loop (nextStart, nextControls, nextInputs)
     where
-    render1 inst controls inputSamples start
+    renderBlock inst controls inputSamples start
         | start >= end + maxDecay = return Nothing
         | otherwise = do
+            liftIO $ emitMessage $ Config.RenderingRange
+                (AUtil.toSeconds start)
+                (AUtil.toSeconds (start + _blockSize config))
             let controlVals = findControls (DriverC._controls inst) controls
             outputs <- liftIO $ DriverC.render
                 (_controlSize config) (_controlsPerBlock config) inst
