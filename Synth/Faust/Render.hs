@@ -146,13 +146,16 @@ defaultConfig :: Config
 defaultConfig = Config
     { _chunkSize = Config.chunkSize
     , _blockSize = Config.blockSize
-    , _controlSize = Config.blockSize `Num.assertDiv` controlsPerBlock -- 441
+    -- 441 or 147
+    , _controlSize = Config.blockSize `Num.assertDiv` controlsPerBlock
     , _controlsPerBlock = controlsPerBlock
     -- TODO it should be longer, but since 'isBasicallySilent' is
     -- unimplemented every decay lasts this long.
     , _maxDecay = 2
     }
-    where controlsPerBlock = 25
+    where controlsPerBlock = 75
+    -- if c-rate is 100, then 10ms
+    -- if c-rate is 300, then 3ms
 
 -- | Control signals run at this rate.
 --

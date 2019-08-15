@@ -26,43 +26,44 @@ dtmax = 4096;
 
 NStrings = 4;
 pluck(i) = button("/h:%i/gate");
-pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1) : sm : ba.midikey2hz;
-pan(i) = hslider("/h:%i/pan", 0.5, 0, 1, 0.01) : sm;
+pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1) : smooth : ba.midikey2hz;
+pan(i) = hslider("/h:%i/pan", 0.5, 0, 1, 0.01) : smooth;
 
 // how long the strings decay
 t60 = hslider(
     "/h:_main/[2]decay_time [style:knob][unit:s]", 10, 0, 100, 0.1
-) : sm;
+) : smooth;
 
 // string brightness
 damp = 1 - hslider("/h:_main/[3]high_freq_loss [style:knob]", 0, 0, 1, 0.01)
-    : sm;
+    : smooth;
 
 // controls the detuning of parallel waveguides that mimics harmonic motion of
 // the tambura
 hmotion = hslider(
     "/h:_main/[4]harmonic_motion [style:knob][scale:exp]",
     0.001, 0, 1, 0.0001
-) : *(0.2) : sm;
+) : *(0.2) : smooth;
 
 // creates the buzzing / jawari effect
 jawari = hslider(
     "/h:_main/[6]jawari [style:knob]", 0, 0, 1, 0.001)
-: *(0.1) : sm;
+: *(0.1) : smooth;
 
 // *** global
 
 // level of sympathetic coupling between strings
 coupling = hslider(
     "/h:_main/[5]sympathetic_coupling [style:knob]", 0.1, 0, 1, 0.0001
-) : sm;
+) : smooth;
 
 tscale = hslider("/h:_main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
 descale = hslider("/h:_main/[9]decay_scale [style:knob]", 1, 0.1, 1, 0.001);
 // dascale = hslider("/h:_main/[10]damp_scale [style:knob]", 1, 0.5, 2, 0.01);
 
 // crossfades between pink noise and DC excitation
-ptype = hslider("/h:_pick/[1]material [style:knob]", 0.13, 0.0, 1, 0.01) : sm;
+ptype = hslider("/h:_pick/[1]material [style:knob]", 0.13, 0.0, 1, 0.01)
+    : smooth;
 
 // attack time of pluck envelope, 0 to 0.5 times pitch wavelength
 pattack = hslider(
@@ -85,7 +86,8 @@ pbendtime = hslider(
     "/h:_pick/[6]bend_time [style:knob][unit:ms]", 10, 1, 200, 1
 );
 
-sm = si.smooth(ba.tau2pole(0.05)); // 50 ms smoothing
+smooth = si.smooth(ba.tau2pole(smooth_ms * 0.001));
+smooth_ms = 3; // previously 50
 
 // *** implementation
 

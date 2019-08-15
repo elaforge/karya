@@ -2411,8 +2411,24 @@ synth: im:
         with each other.  That seems quite a bit more complicated to express
         though.
     ui controls:
-      - Controls are not sample accurate, so they have sproing.  Maybe things
+      * Controls are not sample accurate, so they have sproing.  Maybe things
         like pitch and dynamic should be input controls.
+        . Alternately I could try to make it so attacks have controls set
+          exactly, but really I have to set slightly before the note and it
+          sounds really fussy.
+        . It would be better to make proper inputs easier to use, which means
+          per-element.
+        . The problem is that all the attack controls could have this
+          property, so it winds up being a lot.
+        . An ideal system would be all per-sample, but with the ability to
+          cache previous values.  Faust doesn't do this, probably because like
+          everything else it's focused on realtime.
+        . I should be able to turn up control speed, tune the smoothing time
+          to that, and then subtract one cycle from all controls, so they're
+          guaranteed to arrive in time.
+      - Subtract one control block size from samples.
+        . Test to make sure they actually do reach the desired value by note
+          on.
       - Will the optimization of dropping the control when it goes constant
         be a problem with state?  I.e. control value is part of the state, so
         it gets restored, but now the control is unset.  It should get the
@@ -2420,6 +2436,49 @@ synth: im:
         . I can fix it by insisting on always at least one value for each
           control.
         . But does that then break default control vals?
+      . I have to sample the controls at each time, and set the appropriate
+        control.
+      . #1: keep Map Control Widget in Instrument, where Widget has a
+        Ptr FaustFloat.  Then DriverC.render takes Map Control Signal and
+        pokes the appropriate ones before calling faust render.
+      . #2: c++ Patch keeps a sorted Widget list, and hands out
+        the controls in the same order.  DriverC takes float *controls in the
+        right order, and sets all the controls.  It can use NaN to not set.
+        I still have to keep Widgets in the Instrument so I can extract the
+        right controls, but I only have to look them up once per Note, rather
+        than once per audio chunk.
+      * Let's do #1 since it seems simpler in the beginning.  I need the same
+        stuff for #2 so I can switch to that later if I want.
+
+      - I have to make audio chunks small to have controls be responsive.
+        . I also maybe have to make notes line up with them, so I don't get
+          artifacts.
+        . But I think since controls have to be interpolated, I will always
+          get artifacts anyway, so those kinds of controls are just not
+          appropriate, they have to go in inputs.  Also, if they correspond to
+          physical parameters such as string length, you have to set those
+          a little before the note anyway.
+
+      - Store persistent buffers in Instrument.
+      - convert to standard control names:
+        . Convert pitch NoteNumber to freq Hz
+        . vol -> a special control that always multiples output volume
+        . amp -> gain
+        . note-on + duration -> gate
+      . If I use GUI elements for controls then they update at "control rate",
+        which is probably enough actually.  It also means I can reuse the GUI
+        controls.
+        . But faust has to resample those to a-rate anyway, so if I use controls
+          I do that twice in a complicated way and add some latency, for no
+          other benefit.
+        . Wait and see if interactive GUI experimentation plus compatibility is
+          worth it.  Also MIDI is "GUI."  Probably yes.
+        . UI metadata like [key1: val][key2: val] winds up as calls to
+          ui->metadata("key1", "val")
+      . Controls are likely more efficient for values which don't change, or
+        change rarely.  Lots of instrument config controls are like this.
+        Still, maybe not, because faust has to smooth them to audio rate
+        anyway.  But unsmoothed calculations can happen at control rate.
     tambura.dsp:
       . https://github.com/olilarkin/Tambura
       * This is the first faust instrument with multiple elements, and the
@@ -2554,50 +2613,6 @@ synth: im:
         convenient for reusing existing thru, but OSC could be more convenient
         for communicating with the thru-VST, so I could just address patches
         by name and I don't to fuss with MIDI channels.
-    support faust ui controls:
-      . I have to sample the controls at each time, and set the appropriate
-        control.
-      . #1: keep Map Control Widget in Instrument, where Widget has a
-        Ptr FaustFloat.  Then DriverC.render takes Map Control Signal and
-        pokes the appropriate ones before calling faust render.
-      . #2: c++ Patch keeps a sorted Widget list, and hands out
-        the controls in the same order.  DriverC takes float *controls in the
-        right order, and sets all the controls.  It can use NaN to not set.
-        I still have to keep Widgets in the Instrument so I can extract the
-        right controls, but I only have to look them up once per Note, rather
-        than once per audio chunk.
-      * Let's do #1 since it seems simpler in the beginning.  I need the same
-        stuff for #2 so I can switch to that later if I want.
-
-      - I have to make audio chunks small to have controls be responsive.
-        . I also maybe have to make notes line up with them, so I don't get
-          artifacts.
-        . But I think since controls have to be interpolated, I will always
-          get artifacts anyway, so those kinds of controls are just not
-          appropriate, they have to go in inputs.  Also, if they correspond to
-          physical parameters such as string length, you have to set those
-          a little before the note anyway.
-
-      - Store persistent buffers in Instrument.
-      - convert to standard control names:
-        . Convert pitch NoteNumber to freq Hz
-        . vol -> a special control that always multiples output volume
-        . amp -> gain
-        . note-on + duration -> gate
-      . If I use GUI elements for controls then they update at "control rate",
-        which is probably enough actually.  It also means I can reuse the GUI
-        controls.
-        . But faust has to resample those to a-rate anyway, so if I use controls
-          I do that twice in a complicated way and add some latency, for no
-          other benefit.
-        . Wait and see if interactive GUI experimentation plus compatibility is
-          worth it.  Also MIDI is "GUI."  Probably yes.
-        . UI metadata like [key1: val][key2: val] winds up as calls to
-          ui->metadata("key1", "val")
-      . Controls are likely more efficient for values which don't change, or
-        change rarely.  Lots of instrument config controls are like this.
-        Still, maybe not, because faust has to smooth them to audio rate
-        anyway.  But unsmoothed calculations can happen at control rate.
     plan:
       . Faust has a bunch of *.dsp files.
       . shakefile runs faust to generate .cc from the result, and then collect
