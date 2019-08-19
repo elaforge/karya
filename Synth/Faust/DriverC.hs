@@ -44,6 +44,8 @@ import           Global
 data PatchT ptr cptr = Patch {
     _name :: !Text
     , _doc :: !Text
+    -- | Corresponds to 'Instrument.Common.Triggered' flag.
+    , _triggered :: !Bool
     -- | An allocated Instrument has pointers to set control values, but a
     -- Patch doesn't.
     , _controls :: !(Map Control (cptr, ControlConfig))
@@ -99,9 +101,14 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
         Left $ "duplicate input names: " <> pretty (map fst dups)
     whenJust (verifyControls (map fst uis)) $ \err ->
         Left $ "controls " <> pretty (map fst uis) <> ": " <> err
+    triggered <- case Map.findWithDefault "" "flags" meta of
+        "" -> Right False
+        "triggered" -> Right True
+        val -> Left $ "unknown flags, only 'triggered' is supported: " <> val
     return $ Patch
         { _name = name
         , _doc = doc
+        , _triggered = triggered
         , _controls = Map.fromList
             [ ((elt, control), ((), ControlConfig False cdoc))
             | ((elt, control), cdoc) <- uis

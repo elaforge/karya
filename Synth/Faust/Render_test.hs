@@ -23,6 +23,8 @@ import qualified Util.Test.Testing as Testing
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
+
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
@@ -168,6 +170,9 @@ config = Render.Config
 chunkSize :: Audio.Frame
 chunkSize = Render._chunkSize config
 
+controlSize :: Audio.Frame
+controlSize = Render._controlSize config
+
 chunkCount :: Int
 chunkCount = Audio.framesCount (Proxy @2) chunkSize
 
@@ -202,9 +207,11 @@ toSamples = fmap (concatMap V.toList) . Resource.runResourceT
 -- * render
 
 test_renderControls = do
-    let f notes start = filter (not . null . snd) $ Map.toList $
+    let f triggered notes start = filter (not . null . snd) $ Map.toList $
             fmap toSamples1 $
-            Render.renderControls 1 controls (map make notes) start
+            -- For convenience let's have controlSize=1s and controlRate=1.
+            Render.renderControls (AUtil.toFrame 1) triggered 1 controls
+                (map make notes) start
         controls = Set.fromList
             [ ("1", Control.gate), ("2", Control.gate)
             , ("1", Control.pitch), ("2", Control.pitch)
@@ -212,22 +219,30 @@ test_renderControls = do
             ]
         make (s, e, elem, cs) = (Note.note "" "" s e)
             { Note.element = elem
-            , Note.controls = Signal.from_pairs <$> Map.fromList cs
+            , Note.controls = Signal.from_pairs <$>
+                Map.fromList ((Control.dynamic, [(0, 1)]) : cs)
             }
     -- ensure that controls end, per-element and global controls are correct,
     -- controls have the right block size
-    equal (f [] 0) []
-    equal (f [(0, 5, "1", [(Control.pan, [(0, 0.5)])])] 0)
+    equal (f False [] 0) []
+    equal (f False [(0, 5, "1", [(Control.pan, [(0, 0.5)])])] 0)
         [ (("", Control.pan), [0.5])
-        , (("1", Control.gate), [1, 0.8, 0.6, 0.4, 0.2, 0])
+        , (("1", Control.gate), [1, 1, 1, 1, 1, 0])
         ]
-    equal (f [(0, 2, "1", [(Control.pitch, [(0, 42)])])] 0)
-        [ (("1", Control.gate), [1, 0.5, 0])
+    equal (f True [(0, 5, "1", [])] 0)
+        [ (("1", Control.gate), [1, 0])
+        ]
+    equal (f False [(0, 2, "1", [(Control.pitch, [(0, 42)])])] 0)
+        [ (("1", Control.gate), [1, 1, 0])
         , (("1", Control.pitch), [42])
         ]
     let pitch nn = [(Control.pitch, [(0, nn)])]
-    equal (f [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
-        [ (("1", Control.gate), [1, 0.5, 1, 0.75, 0.5, 0.25, 0])
+    equal (f False [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
+        [ (("1", Control.gate), [1, 1, 1, 1, 1, 1, 0])
+        , (("1", Control.pitch), [42, 42, 44])
+        ]
+    equal (f True [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
+        [ (("1", Control.gate), [1, 0, 1, 0])
         , (("1", Control.pitch), [42, 42, 44])
         ]
 
@@ -236,10 +251,16 @@ toSamples1 = V.toList . mconcat
     . Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toSamples
 
 test_gateBreakpoints = do
-    let f = Render.gateBreakpoints . map (uncurry (Note.note "" ""))
+    let f ns = map (first (AUtil.toFrame . RealTime.seconds)) $
+            Render.gateBreakpoints controlSize True
+                [mkNote "patch" s d 42 | (s, d) <- ns]
     equal (f []) []
-    equal (f [(0, 1)]) [(0, 0), (0, 1), (1, 0)]
-    equal (f [(0, 1), (1, 1)]) [(0, 0), (0, 1), (1, 0), (1, 0), (1, 1), (2, 0)]
+
+    equal (f [(0, 1)]) [(0, 0), (0, 1), (4, 1), (4, 0)]
+    equal (f [(0, 1), (1, 1)])
+        [ (0, 0), (0, 1), (4, 1), (4, 0)
+        , (8, 0), (8, 1), (12, 1), (12, 0)
+        ]
 
     -- -- TODO if I enable gate combining
     -- equal (f [(0, 1)]) [(0, 0), (0, 1), (1, 1), (1, 0)]
@@ -250,7 +271,7 @@ test_gateBreakpoints = do
     --     [(1, 0), (1, 1), (2, 1), (2, 0), (3, 0), (3, 1), (4, 1), (4, 0)]
 
 test_controlBreakpoints = do
-    let f = Render.controlBreakpoints "c" . map make
+    let f = Render.controlBreakpoints controlSize False "c" . map make
         make (s, e, cs) = (Note.note "" "" s e)
             { Note.controls = Map.singleton "c" (Signal.from_pairs cs) }
     equal (f []) []

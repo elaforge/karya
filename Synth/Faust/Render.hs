@@ -180,11 +180,14 @@ renderPatch emitMessage patch config mbState notifyState notes_ start =
         render emitMessage patch mbState notifyState
             controls inputs (AUtil.toFrame start) (AUtil.toFrame final) config
     where
-    controls = renderControls (_controlRate config)
-        (Map.keysSet (DriverC._controls patch)) notes start
-    inputs = renderInputs (_blockSize config) inputControls notes start
+    controls = renderControls (_controlSize config) (DriverC._triggered patch)
+        (_controlRate config) (Map.keysSet (DriverC._controls patch))
+        notes start
+    inputs = renderInputs (_controlSize config) (DriverC._triggered patch)
+        (_blockSize config) inputControls notes start
     inputControls = map fst $ DriverC._inputControls patch
-    vol = renderInput (_blockSize config) notes start Control.volume
+    vol = renderInput (_controlSize config) False (_blockSize config)
+        notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
     notes = dropUntil (\_ n -> Note.end n > start) notes_
 
@@ -300,10 +303,10 @@ takeExtend frames audio = do
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent _samples = False -- TODO RMS < -n dB
 
-renderControls :: Int -> Set DriverC.Control
+renderControls :: Audio.Frame -> Bool -> Int -> Set DriverC.Control
     -> [Note.Note] -> RealTime -> Map DriverC.Control AUtil.Audio1
-renderControls controlRate controls notes start =
-    render <$> extractControls controls notes
+renderControls controlSize triggered controlRate controls notes start =
+    render <$> extractControls controlSize triggered controls notes
     where
     -- Audio.linear gets its breakpoints in seconds, so I have to do this
     -- little dance.  Maybe it could use frames?
@@ -312,16 +315,18 @@ renderControls controlRate controls notes start =
             Audio.castRate . Audio.linear @_ @crate False . shiftBack
     shiftBack = map $ first (subtract (RealTime.to_seconds start))
 
-extractControls :: Set DriverC.Control -> [Note.Note]
+extractControls :: Audio.Frame -> Bool -> Set DriverC.Control -> [Note.Note]
     -> Map DriverC.Control [(Double, Double)]
-extractControls controls allNotes =
+extractControls controlSize triggered controls allNotes =
     Map.fromList $ filter (not . null . snd) $
         map (get "" allNotes) withoutElement ++ mapMaybe getE withElement
     where
     (withoutElement, withElement) = first (map snd) $
         List.partition (Text.null . fst) $ Set.toList controls
     get element notes control =
-        ((element, control), controlBreakpoints control notes)
+        ( (element, control)
+        , controlBreakpoints controlSize triggered control notes
+        )
     byElement = Seq.keyed_group_stable Note.element allNotes
     getE (element, control) =
         flip (get element) control <$> lookup element byElement
@@ -330,35 +335,37 @@ extractControls controls allNotes =
 -- stream to be synchronized by 'Config.chunkSize', which should determine
 -- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
 -- TODO checkpointSize -> chunkSize, chunkSize -> blockSize
-renderInputs :: Audio.Frame -> [Control.Control]
+renderInputs :: Audio.Frame -> Bool -> Audio.Frame -> [Control.Control]
     -- ^ inputs expected by the instrument, in the expected order
     -> [Note.Note] -> RealTime -> AUtil.NAudio
-renderInputs chunkSize controls notes start =
+renderInputs controlSize triggered chunkSize controls notes start =
     Audio.nonInterleaved now chunkSize $
-        map (fromMaybe Audio.silence . renderInput chunkSize notes start)
+        map (fromMaybe Audio.silence
+                . renderInput controlSize triggered chunkSize notes start)
             controls
     where
     -- This is used for chunk alignment, and rendering starts on a chunk
     -- boundary, so it can be 0.
     now = 0
 
-renderInput :: (Monad m, TypeLits.KnownNat rate)
-    => Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
+renderInput :: (Monad m, TypeLits.KnownNat rate) => Audio.Frame -> Bool
+    -> Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
     -> Maybe (Audio.Audio m rate 1)
-renderInput chunkSize notes start control
+renderInput controlSize triggered chunkSize notes start control
     | null bps = Nothing
     | otherwise = Just $ Audio.synchronizeToSize now chunkSize $
         Audio.linear True $ shiftBack bps
     where
     shiftBack = map $ first (subtract (RealTime.to_seconds start))
-    bps = controlBreakpoints control notes
+    bps = controlBreakpoints controlSize triggered control notes
     -- This is used for chunk alignment, and rendering starts on a chunk
     -- boundary, so it can be 0.
     now = 0
 
-controlBreakpoints :: Control.Control -> [Note.Note] -> [(Double, Double)]
-controlBreakpoints control
-    | control == Control.gate = gateBreakpoints
+controlBreakpoints :: Audio.Frame -> Bool -> Control.Control -> [Note.Note]
+    -> [(Double, Double)]
+controlBreakpoints controlSize triggered control
+    | control == Control.gate = gateBreakpoints controlSize triggered
     | otherwise = concat . mapMaybe get . Seq.zip_next
     where
     get (note, next) = do
@@ -372,30 +379,33 @@ controlBreakpoints control
         return $ map (first RealTime.to_seconds) $
             if null bps then [(Note.start note, 0)] else bps
 
--- | Make a signal which goes to 1 for the duration of the note.
+-- | Make a signal with a rising edge on the note attack.  The value is from
+-- Control.dynamic, which means a note with dyn=0 won't get an attack at all.
 --
--- Disabled for now: It won't go to 0 for touching or overlapping notes.  If
--- a gate transition is required to trigger an attack, presumably the notes
--- should be shorter duration, such as 0 if it's percussion-like.
-gateBreakpoints :: [Note.Note] -> [(Double, Double)]
-gateBreakpoints = map (first RealTime.to_seconds) . go
+-- If triggered=True, it will be a controlSize length impulse.  Otherwise, it
+-- will stay positive for the duration of the note.  If the note is adjacent
+-- to another with the same element, the dip to zero likely won't be
+-- registered, so presumably the instrument will need some other signal if it
+-- cares about attacks of notes that touch.
+gateBreakpoints :: Audio.Frame -> Bool -> [Note.Note] -> [(Double, Double)]
+gateBreakpoints controlSize trigger =
+    map (first RealTime.to_seconds) . if trigger then impulse else hold
     where
-    go [] = []
-    go (n : ns) =
-        (Note.start n, 0) : (Note.start n, 1) : (Note.end end, 0) : go rest
-        where (end, rest) = (n, ns)
-
-    -- TODO this combines touching notes as documented above, but it turns out
-    -- I rely on not doing that.  Either I should make gate always do that and
-    -- be explicitly percussive, or have karya set percussive events to
-    -- dur = 0.
-    -- go (n : ns) =
-    --     (Note.start n, 0) : (Note.start n, 1)
-    --     : (Note.end end, 1) : (Note.end end, 0)
-    --     : go rest
-    --     where
-    --     (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
-    --         (n:ns)
+    -- An "impulse" must still be at least one control size or it might get
+    -- skipped.
+    impulse = concatMap $ \n ->
+        let (s, e) = (Note.start n, Note.start n + AUtil.toSeconds controlSize)
+            dyn = fromMaybe 0 $ Note.initial Control.dynamic n
+        in [(s, 0), (s, dyn), (e, dyn), (e, 0)]
+    hold [] = []
+    hold (n : ns) =
+        (Note.start n, 0) : (Note.start n, dyn)
+        : (Note.end end, dyn) : (Note.end end, 0)
+        : hold rest
+        where
+        dyn = fromMaybe 0 $ Note.initial Control.dynamic n
+        (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
+            (n:ns)
 
 -- | Drop until this element and the next one matches.
 dropUntil :: (a -> a -> Bool) -> [a] -> [a]

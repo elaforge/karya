@@ -66,12 +66,15 @@ main = do
         _ -> errorIO $ "usage: faust-im [print-patches | notes outputDir]"
     where
     printPatch patch = do
-        Text.IO.putStrLn $ DriverC._doc patch
+        put $ DriverC._doc patch
+        when (DriverC._triggered patch) $
+            put "flags: triggered"
         forM_ (DriverC._inputControls patch) $ \(c, config) ->
-            Text.IO.putStrLn $ "input: " <> pretty c <> ": " <> pretty config
+            put $ "input: " <> pretty c <> ": " <> pretty config
         forM_ (Map.toList (DriverC._controls patch)) $ \(c, (_, config)) ->
-            Text.IO.putStrLn $ "control: " <> showControl c <> ": "
-                <> pretty config
+            put $ "control: " <> showControl c <> ": " <> pretty config
+        where
+        put = Text.IO.putStrLn
 
 showControl :: DriverC.Control -> Text
 showControl ("", c) = pretty c
@@ -117,9 +120,11 @@ writeControls output patch notes =
         Audio.File.write AUtil.outputFormat (fname control) $
         Audio.take (Audio.Seconds final) $
         fromMaybe Audio.silence
-        (Render.renderInput chunkSize notes 0 control :: Maybe AUtil.Audio1)
+        (Render.renderInput controlSize False chunkSize notes 0 control
+            :: Maybe AUtil.Audio1)
     where
     chunkSize = Render._chunkSize Render.defaultConfig
+    controlSize = Render._controlSize Render.defaultConfig
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
     -- play_cache is special-cased to ignore *.debug.wav.
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"

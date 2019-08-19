@@ -5,9 +5,7 @@ declare copyright "Oliver Larkin";
 declare version "1.0";
 declare licence "GPL";
 
-// TODO
-// - pitch env doesn't get triggered by autoplucker
-// - autoplucker fixed to 4 strings
+declare flags "triggered";
 
 import("stdfaust.lib");
 

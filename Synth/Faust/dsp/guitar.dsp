@@ -6,6 +6,8 @@ declare control1_pitch "Pitch signal.";
 declare control2_dyn "constant:Dynamic signal.";
 declare control3_pos "constant:Pluck position.";
 
+declare flags "triggered";
+
 process(gate, pitch, dyn, pluckPosition) =
     nylonGuitar(stringLength, pluckPosition, gain, gate) * outGain
 with {

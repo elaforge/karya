@@ -110,7 +110,6 @@ applyStandardControls note =
     where
     apply c set = maybe id set (Map.lookup c (Note.controls note))
 
-
 standardControls :: Map Control.Control Text
 standardControls = Map.fromList
     [ (Control.volume, "Low level volume, in dB.")

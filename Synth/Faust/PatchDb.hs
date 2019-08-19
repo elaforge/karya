@@ -12,6 +12,7 @@ import qualified Util.Doc as Doc
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
+import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Im.Patch as Patch
 import qualified Synth.Faust.DriverC as DriverC
@@ -40,9 +41,12 @@ warnings :: [Text]
 makePatch :: DriverC.Patch -> ImInst.Patch
 makePatch patch =
     ImInst.doc #= Doc.Doc (DriverC._doc patch) $
+    ImInst.common#Common.flags #= (if DriverC._triggered patch
+        then Set.singleton Common.Triggered else mempty) $
     code constantPitch constantControls $
-    ImInst.make_patch $
-    Patch.patch { Patch.patch_controls = pretty <$> controls }
+    ImInst.make_patch $ Patch.patch
+        { Patch.patch_controls = (pretty <$> controls) <> standardControls
+        }
     where
     constantControls = map fst $ filter (DriverC._constant . snd) $
         filter ((/=Control.pitch) . fst) $ Map.toList controls
@@ -56,3 +60,11 @@ makePatch patch =
 
 control :: Control.Control -> ScoreT.Control
 control (Control.Control c) = ScoreT.Control c
+
+standardControls :: Map Control.Control Text
+standardControls = Map.fromList
+    [ (Control.volume, "Low level volume, in dB.")
+    -- , (Control.pan, "Pan, where -1 is left, and 1 is right.")
+    ]
+    -- All instruments put dyn in the gate signal.
+    <> Control.supportDyn
