@@ -9,14 +9,6 @@ declare flags "triggered";
 
 import("stdfaust.lib");
 
-line (value, time) = state~(_,_) : !,_
-with {
-    state (t, c) = nt, ba.if (nt <= 0, value, c+(value - c) / nt)
-    with {
-        nt = ba.if(value != value', samples, t-1);
-        samples = time * ma.SR / 1000.0;
-    };
-};
 
 dtmax = 4096;
 
@@ -115,20 +107,19 @@ with {
 
         // couplingfilter = component("bridgeIR.dsp");
         // EQ to simulate bridge response
-        couplingfilter = fi.highshelf(1,-100,5000)
+        couplingfilter = fi.highshelf(1, -100, 5000)
             : fi.peak_eq(14, 2500, 400)
             : fi.peak_eq(20, 7500, 650);
     };
 
     setPan(s) = _ <: *((1 - pan(s)) : sqrt), *(pan(s) : sqrt);
 
-    // excitation(s) = _;
     excitation(s, trig) = input * ampenv : pickposfilter
     with {
         wl = ma.SR / pitch(s); // wavelength of pitch(s) in samples
 
         dur = (ptime * wl) / (ma.SR / 1000); // duration of the pluck in ms
-        ampenv = trig * line(1 - trig, dur)
+        ampenv = trigger(trig, dur)
             : si.lag_ud(wl * pattack * (1/ma.SR), 0.005);
         amprand = abs(no.noise) : ba.latch(trig) *(0.25) + 0.75;
         posrand = abs(no.noise) : ba.latch(trig) *(0.2);
@@ -141,7 +132,7 @@ with {
     // dual risset strings for decoupled feedback
     string(s, trig) = _, _ <: +, !,_
         : rissetstring(_, s, 1, 1, 1),
-            rissetstring(_, s, tscale, descale, 1)
+          rissetstring(_, s, tscale, descale, 1)
     with {
         // 9 detuned delay line resonators in parallel
         rissetstring(x, s, ts, des, das) =
@@ -154,25 +145,46 @@ with {
         with {
             // allpass interpolation has better HF response
             // delay = de.fdelay1a(dtmax, dtsamples, x);
-
             // lagrange interpolation glitches less with pitch envelope
             delay = de.fdelaylti(2, dtmax, dtsamples, x);
-            pitchenv = trig * line(1 - trig, pbendtime) <: * : *(pbend);
+
+            pitchenv = trigger(trig, pbendtime) <: * : *(pbend);
             this_pitch = ba.pianokey2hz(
                     ba.hz2pianokey(pitch(s) + (c-4) * hmotion + pitchenv))
                 * ts;
-            dtsamples = (ma.SR / this_pitch) - 2;
+            dtsamples = ma.SR / this_pitch - 2;
             fbk = pow(0.001, 1 / (this_pitch * (t60 * descale)));
             dampingfilter(x) = h0 * x' + h1*(x+x'')
             with {
                 d = das * damp;
-                h0 = (1 + d)/2;
-                h1 = (1 - d)/4;
+                h0 = (1 + d) / 2;
+                h1 = (1 - d) / 4;
             };
             nlfm(x) = x <: fi.allpassnn(1, par(i, 1, jawari * ma.PI * x));
         };
     };
 };
+
+// On gate's rising edge, make a linear slope from the gate value to 0 over the
+// given time in seconds.
+trigger(gate, time) = state ~ (_, _, _) : !, !, _
+with {
+    // count down so t/samples -> 0/samples
+    state(t, val, _out) = nt, nval, val * (nt / samples)
+    with {
+        nt = ba.if(gate > gate', samples, max(0, t-1));
+        nval = ba.if(gate > gate', gate, val);
+    };
+    samples = time * ma.SR / 1000.0;
+};
+/*
+trigger time = scanl state (0, (0, 0, 0))
+    where
+    state (gate', (t, val, _out)) gate = (gate, (nt, nval, nval * (nt / time)))
+        where
+        nt = if gate > gate' then time else max 0 (t-1)
+        nval = if gate > gate' then gate else val
+*/
 
 // automatic plucking rate (Hz)
 pluckrate = hslider(
@@ -188,8 +200,4 @@ with {
     phasor(freq) = (freq/float(ma.SR) : (+ : ma.decimal) ~ _);
 };
 
-// process = par(s, NStrings, pluck(s)) : tambura(NStrings);
-
-process =
-    (par(s, NStrings, pluck(s)), autoplucker) :>
-    tambura(NStrings);
+process = (par(s, NStrings, pluck(s)), autoplucker) :> tambura(NStrings);

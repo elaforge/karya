@@ -2533,7 +2533,7 @@ synth: im:
           Notes once and can throw them out once I'm past them.
           Seq.keyed_group_stable is multiple iterations, but they are
           streaming.
-      - dynamic support:
+      * dynamic support:
         . Put it in the gate signal.
         . But it doesn't trigger on an impulse, probably because line()
           interpolates both up and down, so it doesn't just catch a rising
@@ -2546,6 +2546,8 @@ synth: im:
           happening.
         . I don't think it's control initialization, because they should be
           set by the time the note starts.
+        . The only thing coming from 0 could be pitch, and it does indeed do
+          that.
       - The first note is missing attack, what's going on?
         . Support zheng-idiom first.
         . This seems to have been due to control initialization.
