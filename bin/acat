@@ -1,0 +1,23 @@
+#!/bin/zsh
+# Use iterm's imgcat script and ffmpeg to show waveforms.
+
+# Width of the output image.
+width=900
+
+inputs=("$@")
+
+args=(
+    -v 1
+    -y
+    # Supposedly this should concatenate, but it just takes the first file,
+    # with no warnings.  So I have to use sox.
+    # -i "concat:${(j:|:)inputs}"
+    -i pipe:
+)
+args+=(
+    -filter_complex compand,showwavespic=s=${width}x120
+    -frames:v 1
+    -f apng
+)
+
+sox -V1 $inputs -t wav - | ffmpeg $args pipe: | imgcat

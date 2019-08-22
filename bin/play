@@ -14,4 +14,4 @@ if [[ $# -eq 0 ]]; then
     exit 0
 fi
 
-sox --no-show-progress "$@" --default-device
+sox -V1 --no-show-progress "$@" --default-device
