@@ -136,6 +136,13 @@ roundDigits digits = (/ (10^digits)) . fromIntegral . round . (* (10^digits))
 roundUp :: (Integral factor, Real a) => factor -> a -> factor
 roundUp factor n =
     ceiling (realToFrac n / fromIntegral (abs factor)) * abs factor
+{-# INLINEABLE roundUp #-}
+
+roundDownD :: Double -> Double -> Double
+roundDownD factor n = floorD (n / abs factor) * abs factor
+
+roundToD :: Double -> Double -> Double
+roundToD factor n = roundD (n / abs factor) * abs factor
 
 -- | Clamp a value to be between @low@ and @high@.
 clamp :: Ord a => a -> a -> a -> a
@@ -212,3 +219,9 @@ d2i d = floor (clamp minInt maxInt d)
     where
     maxInt = fromIntegral (maxBound :: Int)
     minInt = fromIntegral (minBound :: Int)
+
+-- Versions of floor and round that don't go through an int conversion.
+foreign import ccall unsafe "floor" floorD :: Double -> Double
+foreign import ccall unsafe "floorf" floorF :: Float -> Float
+foreign import ccall unsafe "round" roundD :: Double -> Double
+foreign import ccall unsafe "roundf" roundF :: Float -> Float

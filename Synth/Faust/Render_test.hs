@@ -17,7 +17,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
 
@@ -120,25 +119,22 @@ test_write_controls = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "test"
     let write = Render.write_ config dir mempty patch
-    let chunks n = replicate (Num.assertIntegral (fromIntegral chunkCount * n))
+    let cblocks n = replicate $ fromIntegral (Render._controlSize config) * n
 
     let withPitch = Note.withControl Control.pitch . Signal.from_pairs
             . map (first chunkToTime)
-    let note2 pitches = [withPitch pitches $ mkNote "test" 0 2 0]
+    let note dur pitches = [withPitch pitches $ mkNote "test" 0 dur 0]
 
+    -- Each block is 2 cblocks, and controls change 1 cblock early.
     io_equal (write $ mkNotes "test" 1 [60, 62]) (Right (2, 2))
-    io_equal (readSamples dir) $ chunks 1 60 ++ chunks 1 62
+    io_equal (readSamples1 dir) $ cblocks 1 60 ++ cblocks 3 62
 
     io_equal (write $ mkNotes "test" 1 [60, 64]) (Right (1, 2))
-    io_equal (readSamples dir) $ chunks 1 60 ++ chunks 1 64
-
-    -- The value changes but only at control blocks, so at 0.5.
-    io_equal (write $ note2 [(0, 40), (0.35, 42)]) (Right (2, 2))
-    io_equal (readSamples dir) $ chunks 0.5 40 ++ chunks 1.5 42
+    io_equal (readSamples1 dir) $ cblocks 1 60 ++ cblocks 1 62 ++ cblocks 2 64
 
     -- Value interpolates.
-    io_equal (write $ note2 [(0, 40), (1, 42)]) (Right (2, 2))
-    io_equal (readSamples dir) $ chunks 0.5 40 ++ chunks 0.5 41 ++ chunks 1 42
+    io_equal (write $ note 3 [(0, 40), (1, 40), (2, 42)]) (Right (3, 3))
+    io_equal (readSamples1 dir) $ cblocks 2 40 ++ cblocks 1 41 ++ cblocks 3 42
 
     -- 0 1 2 3 4 5 6 7 |
     -- c       c       |
@@ -153,6 +149,10 @@ renderSamples patch notes = do
 
 readSamples :: FilePath -> IO [Float]
 readSamples dir = toSamples . File.concat . map (dir</>) =<< listWavs dir
+
+readSamples1 :: FilePath -> IO [Float]
+readSamples1 dir = map (/2) . toSamples1 . Audio.mixChannels @_ @_ @2
+    . File.concat . map (dir</>) <$> listWavs dir
 
 listWavs :: FilePath -> IO [FilePath]
 listWavs = fmap (List.sort . filter (".wav" `List.isSuffixOf`))
@@ -200,8 +200,11 @@ chunkToTime :: RealTime -> RealTime
 chunkToTime = (* AUtil.toSeconds chunkSize)
 
 toSamples :: AUtil.Audio -> IO [Audio.Sample]
-toSamples = fmap (concatMap V.toList) . Resource.runResourceT
-    . Audio.toSamples
+toSamples = fmap (concatMap V.toList) . Resource.runResourceT . Audio.toSamples
+
+toSamples1 :: AUtil.Audio1 -> [Audio.Sample]
+toSamples1 = V.toList . mconcat
+    . Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toSamples
 
 
 -- * render
@@ -227,28 +230,25 @@ test_renderControls = do
     equal (f False [] 0) []
     equal (f False [(0, 5, "1", [(Control.pan, [(0, 0.5)])])] 0)
         [ (("", Control.pan), [0.5])
-        , (("1", Control.gate), [1, 1, 1, 1, 1, 0])
+        -- Note at 0 starts at +1 control, thanks to tweakNotes.
+        , (("1", Control.gate), [0, 1, 1, 1, 1, 1, 0])
         ]
     equal (f True [(0, 5, "1", [])] 0)
-        [ (("1", Control.gate), [1, 0])
+        [ (("1", Control.gate), [0, 1, 0])
         ]
     equal (f False [(0, 2, "1", [(Control.pitch, [(0, 42)])])] 0)
-        [ (("1", Control.gate), [1, 1, 0])
+        [ (("1", Control.gate), [0, 1, 1, 0])
         , (("1", Control.pitch), [42])
         ]
     let pitch nn = [(Control.pitch, [(0, nn)])]
     equal (f False [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
-        [ (("1", Control.gate), [1, 1, 1, 1, 1, 1, 0])
+        [ (("1", Control.gate), [0, 1, 1, 1, 1, 1, 0])
+        , (("1", Control.pitch), [42, 44])
+        ]
+    equal (f True [(1, 2, "1", pitch 42), (3, 4, "1", pitch 44)] 0)
+        [ (("1", Control.gate), [0, 1, 0, 1, 0])
         , (("1", Control.pitch), [42, 42, 44])
         ]
-    equal (f True [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
-        [ (("1", Control.gate), [1, 0, 1, 0])
-        , (("1", Control.pitch), [42, 42, 44])
-        ]
-
-toSamples1 :: AUtil.Audio1 -> [Audio.Sample]
-toSamples1 = V.toList . mconcat
-    . Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toSamples
 
 test_gateBreakpoints = do
     let f ns = map (first (AUtil.toFrame . RealTime.seconds)) $
@@ -271,11 +271,12 @@ test_gateBreakpoints = do
     --     [(1, 0), (1, 1), (2, 1), (2, 0), (3, 0), (3, 1), (4, 1), (4, 0)]
 
 test_controlBreakpoints = do
-    let f = Render.controlBreakpoints controlSize False "c" . map make
+    let f = Render.controlBreakpoints 1 False "c" . map make
         make (s, e, cs) = (Note.note "" "" s e)
             { Note.controls = Map.singleton "c" (Signal.from_pairs cs) }
+    -- No controls means don't set anything, which will keep the defaults.
     equal (f []) []
-    equal (f [(0, 1, []), (1, 1, [])]) [(0, 0), (1, 0)]
+    equal (f [(0, 1, []), (1, 1, [])]) []
     -- Audio.linear should optimize away duplicate and flat breakpoints.
     equal (f [(0, 1, [(0, 1)]), (1, 1, [(0, 1)])]) [(0, 1), (1, 1), (1, 1)]
 

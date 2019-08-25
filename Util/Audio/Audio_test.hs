@@ -139,6 +139,7 @@ test_linear = do
     -- Implicit leading 0.
     equal (f 7 [(2, 4), (4, 0)]) [0, 0, 4, 2, 0, 0, 0]
     -- Discontinuity.
+    equal (f 6 [(0, 0), (2, 0), (2, 1), (3, 1), (3, 0)]) [0, 0, 1, 0, 0, 0]
     equal (f 6 [(0, 2), (2, 0), (2, 3), (5, 0)]) [2, 1, 3, 2, 1, 0]
     -- Infinite final sample.
     equal (f 7 [(0, 0), (4, 4)]) [0, 1, 2, 3, 4, 4, 4]

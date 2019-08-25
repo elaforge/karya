@@ -183,11 +183,10 @@ renderPatch emitMessage patch config mbState notifyState notes_ start =
     controls = renderControls (_controlSize config) (DriverC._triggered patch)
         (_controlRate config) (Map.keysSet (DriverC._controls patch))
         notes start
-    inputs = renderInputs (_controlSize config) (DriverC._triggered patch)
+    inputs = renderInputs (DriverC._triggered patch)
         (_blockSize config) inputControls notes start
     inputControls = map fst $ DriverC._inputControls patch
-    vol = renderInput (_controlSize config) False (_blockSize config)
-        notes start Control.volume
+    vol = renderInput False (_blockSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
     notes = dropUntil (\_ n -> Note.end n > start) notes_
 
@@ -306,14 +305,15 @@ isBasicallySilent _samples = False -- TODO RMS < -n dB
 renderControls :: Audio.Frame -> Bool -> Int -> Set DriverC.Control
     -> [Note.Note] -> RealTime -> Map DriverC.Control AUtil.Audio1
 renderControls controlSize triggered controlRate controls notes start =
-    render <$> extractControls controlSize triggered controls notes
+    render <$> extractControls controlSize triggered controls
+        (tweakNotes controlSize notes)
     where
     -- Audio.linear gets its breakpoints in seconds, so I have to do this
     -- little dance.  Maybe it could use frames?
     render = case Audio.someNat controlRate of
         TypeLits.SomeNat (_ :: Proxy crate) ->
             Audio.castRate . Audio.linear @_ @crate False . shiftBack
-    shiftBack = map $ first (subtract (RealTime.to_seconds start))
+    shiftBack = map $ first $ subtract $ RealTime.to_seconds start
 
 extractControls :: Audio.Frame -> Bool -> Set DriverC.Control -> [Note.Note]
     -> Map DriverC.Control [(Double, Double)]
@@ -331,33 +331,43 @@ extractControls controlSize triggered controls allNotes =
     getE (element, control) =
         flip (get element) control <$> lookup element byElement
 
+-- | Offset notes <= 0 to controlSize.  Otherwise, since rendering starts at 0,
+-- the tweak in controlBreakpoints can't move the breakpoints and the first
+-- note gets initialization artifacts.
+tweakNotes :: Audio.Frame -> [Note.Note] -> [Note.Note]
+tweakNotes controlSize notes = map (\n -> n { Note.start = dt }) at0 ++ rest
+    where
+    dt = AUtil.toSeconds controlSize
+    (at0, rest) = span ((<=0) . Note.start) notes
+
 -- | Render the supported controls down to audio rate signals.  This causes the
 -- stream to be synchronized by 'Config.chunkSize', which should determine
 -- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
 -- TODO checkpointSize -> chunkSize, chunkSize -> blockSize
-renderInputs :: Audio.Frame -> Bool -> Audio.Frame -> [Control.Control]
+renderInputs :: Bool -> Audio.Frame -> [Control.Control]
     -- ^ inputs expected by the instrument, in the expected order
     -> [Note.Note] -> RealTime -> AUtil.NAudio
-renderInputs controlSize triggered chunkSize controls notes start =
+renderInputs triggered chunkSize controls notes start =
     Audio.nonInterleaved now chunkSize $
         map (fromMaybe Audio.silence
-                . renderInput controlSize triggered chunkSize notes start)
+                . renderInput triggered chunkSize notes start)
             controls
     where
     -- This is used for chunk alignment, and rendering starts on a chunk
     -- boundary, so it can be 0.
     now = 0
 
-renderInput :: (Monad m, TypeLits.KnownNat rate) => Audio.Frame -> Bool
+renderInput :: (Monad m, TypeLits.KnownNat rate) => Bool
     -> Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
     -> Maybe (Audio.Audio m rate 1)
-renderInput controlSize triggered chunkSize notes start control
+renderInput triggered chunkSize notes start control
     | null bps = Nothing
     | otherwise = Just $ Audio.synchronizeToSize now chunkSize $
         Audio.linear True $ shiftBack bps
     where
     shiftBack = map $ first (subtract (RealTime.to_seconds start))
-    bps = controlBreakpoints controlSize triggered control notes
+    -- controlSize=1 because input is per-sample.
+    bps = controlBreakpoints 1 triggered control notes
     -- This is used for chunk alignment, and rendering starts on a chunk
     -- boundary, so it can be 0.
     now = 0
@@ -368,16 +378,15 @@ controlBreakpoints controlSize triggered control
     | control == Control.gate = gateBreakpoints controlSize triggered
     | otherwise = concat . mapMaybe get . Seq.zip_next
     where
+    -- See NOTE [faust-controls].
+    tweak = map $ first $ subtract controlSizeS
     get (note, next) = do
         signal <- Map.lookup control (Note.controls note)
-        let bps = Signal.to_pairs $
-                maybe id (Signal.clip_after_keep_last . Note.start) next $
-                Signal.clip_before (Note.start note) signal
-        -- Add an explicit 0 if there's no signal.  This is consistent with
-        -- the usual signal treatment, which is that if it is present but
-        -- empty, then it's 0.
-        return $ map (first RealTime.to_seconds) $
-            if null bps then [(Note.start note, 0)] else bps
+        return $ (if controlSize == 1 then id else tweak) $
+            roundBreakpoints controlSize $ Signal.to_pairs $
+            maybe id (Signal.clip_after_keep_last . Note.start) next $
+            Signal.clip_before (Note.start note) signal
+    controlSizeS = RealTime.to_seconds $ AUtil.toSeconds controlSize
 
 -- | Make a signal with a rising edge on the note attack.  The value is from
 -- Control.dynamic, which means a note with dyn=0 won't get an attack at all.
@@ -388,15 +397,17 @@ controlBreakpoints controlSize triggered control
 -- registered, so presumably the instrument will need some other signal if it
 -- cares about attacks of notes that touch.
 gateBreakpoints :: Audio.Frame -> Bool -> [Note.Note] -> [(Double, Double)]
-gateBreakpoints controlSize trigger =
-    map (first RealTime.to_seconds) . if trigger then impulse else hold
+gateBreakpoints controlSize triggered =
+    roundBreakpoints controlSize . if triggered then impulse else hold
     where
     -- An "impulse" must still be at least one control size or it might get
     -- skipped.
     impulse = concatMap $ \n ->
-        let (s, e) = (Note.start n, Note.start n + AUtil.toSeconds controlSize)
+        let s = roundTo controlSizeS (Note.start n)
+            e = s + controlSizeS
             dyn = fromMaybe 0 $ Note.initial Control.dynamic n
         in [(s, 0), (s, dyn), (e, dyn), (e, 0)]
+    controlSizeS = AUtil.toSeconds controlSize
     hold [] = []
     hold (n : ns) =
         (Note.start n, 0) : (Note.start n, dyn)
@@ -407,6 +418,18 @@ gateBreakpoints controlSize trigger =
         (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)
             (n:ns)
 
+-- | Round controls to controlSize boundaries.  See NOTE [faust-controls].
+roundBreakpoints :: Audio.Frame -> [(RealTime, Signal.Y)] -> [(Double, Double)]
+roundBreakpoints controlSize
+    | controlSize == 1 = map (first RealTime.to_seconds)
+    | otherwise = map (first (RealTime.to_seconds . roundTo size))
+    where
+    size = AUtil.toSeconds controlSize
+
+roundTo :: RealTime -> RealTime -> RealTime
+roundTo factor = RealTime.seconds
+    . Num.roundToD (RealTime.to_seconds factor) . RealTime.to_seconds
+
 -- | Drop until this element and the next one matches.
 dropUntil :: (a -> a -> Bool) -> [a] -> [a]
 dropUntil match = go
@@ -416,3 +439,25 @@ dropUntil match = go
     go (x1 : xs@(x2 : _))
         | match x1 x2 = x1 : xs
         | otherwise = go xs
+
+
+{- NOTE [faust-controls]
+
+    Since control signals run at a slower rate than audio, they have to be
+    internally smoothed up to audio rate, which means they have a bit of
+    latency.  Normally it's inaudible, but if it coincides with a note attack,
+    as it frequently will, it leads to dramatic artifacts.  So I move them all
+    back by one controlSize so it's settled by the time the note attacks.  This
+    assumes that the faust instrument uses a smooth time equal to controlSize.
+
+    Also, to make sure the intended values are reached in the first place, I
+    round all control breakpoints to controlSize boundaries.
+
+    TODO: This is a problem with faust's implementation of controls.  Inputs
+    are naturally audio rate and don't have this problem.  But faust doesn't
+    allow metadata on inputs, and (as far as I know) doesn't optimize
+    constant input values.  If both those were fixed, they could probably
+    get rid of controls as separate from inputs.  It's pretty unlikely to ever
+    happen, though, because of backwards compatibility.  They might be ok with
+    last-value memoization though.
+-}

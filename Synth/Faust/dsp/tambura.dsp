@@ -17,7 +17,7 @@ dtmax = 4096;
 NStrings = 4;
 pluck(i) = button("/h:%i/gate");
 pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1) : smooth : ba.midikey2hz;
-pan(i) = hslider("/h:%i/pan", 0, -1, 1, 0.01) : smooth;
+pan(i) = hslider("/h:%i/pan [style:knob]", 0, -1, 1, 0.01) : smooth;
 
 // how long the strings decay
 t60 = hslider(
@@ -79,7 +79,7 @@ pbendtime = hslider(
 smooth = si.smooth(ba.tau2pole(sec))
 with {
     // Smooth time is equal to controlSize.  This should be synced with
-    // fault-im.
+    // faust-im.
     sec = 147 / 44100;
 };
 
@@ -96,12 +96,12 @@ tambura(NStrings) = (
 ) // string itself with excitation + fbk as input
     ~ par(s, NStrings, !, _) // feedback only the right waveguide
     : par(s, NStrings, + : setPan(s) // add left/right waveguides and pan
-    ) :> _,_ // stereo output
+    ) :> _, _ // stereo output
 with {
     couplingmatrix(NStrings) =
         par(s, NStrings, *(coupling) : couplingfilter) // coupling filters
         // unsel makes sure the feedback is disconnected
-        <: par(s, NStrings, unsel(NStrings, s) :> _ )
+        <: par(s, NStrings, unsel(NStrings, s) :> _)
     with {
         unsel(NStrings, s) = par(j, NStrings, U(s, j))
         with {
