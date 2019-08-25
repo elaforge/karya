@@ -1615,9 +1615,11 @@ synth: im:
       sketchy IORef stuff could go away, and the alignment would be in the
       type instead of implicit.
   bug:
-    - track disable not working... maybe it doesn't invalidate the cache if
+    * track disable not working... maybe it doesn't invalidate the cache if
       there are no notes?
       . also in test/faust-tambura, mute on >guit mutes >tmb too.
+      . karya is sending "tmb" when I mute "guit".
+      . Because I'm doing solo, not mute!
     - starts are getting cut off again
       . Give more lead time to load the samples?
   merge faust-im and sampler-im:

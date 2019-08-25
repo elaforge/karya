@@ -197,7 +197,7 @@ process db quality notes outputDir
     | n : _ <- notes, Note.start n < 0 =
         errorIO $ "notes start <0: " <> pretty n
     | otherwise = do
-        clearUnusedInstruments outputDir instruments
+        Checkpoint.clearUnusedInstruments outputDir instruments
         Async.forConcurrently_ grouped $ \(patchName, notes) ->
             whenJustM (getPatch db patchName) $ \patch ->
                 Async.forConcurrently_ notes $ \(inst, notes) ->
@@ -234,21 +234,6 @@ byPatchInst :: [Note.Note]
     -> [(Note.PatchName, [(Note.InstrumentName, [Note.Note])])]
 byPatchInst = map (second (Seq.keyed_group_sort Note.instrument))
     . Seq.keyed_group_sort Note.patch
-
--- | Delete output links for instruments that have disappeared entirely.
--- This often happens when I disable a track.
-clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
-clearUnusedInstruments instDir instruments = do
-    dirs <- filterM (Directory.doesDirectoryExist . (instDir</>))
-        =<< listDir instDir
-    let unused = filter ((`Set.notMember` instruments) . txt) dirs
-    forM_ unused $ \dir -> do
-        links <- filter (Maybe.isJust . Checkpoint.isOutputLink) <$>
-            listDir (instDir </> dir)
-        mapM_ (Directory.removeFile . ((instDir </> dir) </>)) links
-
-listDir :: FilePath -> IO [FilePath]
-listDir = fmap (fromMaybe []) . File.ignoreEnoent . Directory.listDirectory
 
 convert :: Patch.Db -> Patch.Patch -> [Note.Note]
     -> [(Either Error Sample.Sample, [Log.Msg], Note.Note)]

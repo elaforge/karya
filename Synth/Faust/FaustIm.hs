@@ -31,6 +31,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 
 import           Global
@@ -89,6 +90,8 @@ process patches notes outputDir = do
     -- Signals.installHandler above will make SIGINT throw.
     let async :: Exception.AsyncException -> IO ()
         async exc = Log.error $ "exception: " <> showt exc
+    let instruments = Set.fromList $ map fst $ concatMap snd patchInstNotes
+    Checkpoint.clearUnusedInstruments outputDir instruments
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
             let output = outputDir </> untxt inst

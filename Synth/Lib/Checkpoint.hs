@@ -11,6 +11,7 @@ import qualified Crypto.Hash.MD5 as MD5
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified System.Directory as Directory
@@ -223,6 +224,23 @@ zeroPad :: Show a => Int -> a -> ByteString.ByteString
 zeroPad digits n =
     ByteString.Char8.replicate (digits - ByteString.length s) '0' <> s
     where s = ByteString.Char8.pack (show n)
+
+-- * initialize
+
+-- | Delete output links for instruments that have disappeared entirely.
+-- This often happens when I disable a track.
+clearUnusedInstruments :: FilePath -> Set Note.InstrumentName -> IO ()
+clearUnusedInstruments instDir instruments = do
+    dirs <- filterM (Directory.doesDirectoryExist . (instDir</>))
+        =<< listDir instDir
+    let unused = filter ((`Set.notMember` instruments) . txt) dirs
+    forM_ unused $ \dir -> do
+        links <- filter (Maybe.isJust . isOutputLink) <$>
+            listDir (instDir </> dir)
+        mapM_ (Directory.removeFile . ((instDir </> dir) </>)) links
+
+listDir :: FilePath -> IO [FilePath]
+listDir = fmap (fromMaybe []) . File.ignoreEnoent . Directory.listDirectory
 
 
 -- * hash

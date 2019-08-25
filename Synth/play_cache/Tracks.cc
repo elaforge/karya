@@ -40,21 +40,27 @@ dir_samples(
         return dirs;
     }
     struct dirent *ent;
+    bool skipped = false;
     while ((ent = readdir(d)) != nullptr) {
         if (ent->d_type != DT_DIR)
            continue;
         string subdir(ent->d_name);
         if (subdir.empty() || subdir[0] == '.')
             continue;
-        if (suffix_match(mutes, subdir.c_str()))
+        if (suffix_match(mutes, subdir.c_str())) {
+            skipped = true;
             continue;
+        }
         subdir = dir + "/" + subdir;
         LOG("play sample dir: " << subdir);
         dirs.push_back(subdir);
     }
     closedir(d);
     if (dirs.empty()) {
-        LOG("no sample dirs in " << dir);
+        if (skipped)
+            LOG("all instruments muted in " << dir);
+        else
+            LOG("no sample dirs in " << dir);
     }
     return dirs;
 }
