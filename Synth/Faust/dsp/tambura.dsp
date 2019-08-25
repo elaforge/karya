@@ -17,7 +17,7 @@ dtmax = 4096;
 NStrings = 4;
 pluck(i) = button("/h:%i/gate");
 pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1) : smooth : ba.midikey2hz;
-pan(i) = hslider("/h:%i/pan", 0.5, 0, 1, 0.01) : smooth;
+pan(i) = hslider("/h:%i/pan", 0, -1, 1, 0.01) : smooth;
 
 // how long the strings decay
 t60 = hslider(
@@ -76,8 +76,12 @@ pbendtime = hslider(
     "/h:_pick/[6]bend_time [style:knob][unit:s]", 0.01, 0.001, 0.2, 0.001
 );
 
-smooth = si.smooth(ba.tau2pole(smooth_ms * 0.001));
-smooth_ms = 3; // previously 50
+smooth = si.smooth(ba.tau2pole(sec))
+with {
+    // Smooth time is equal to controlSize.  This should be synced with
+    // fault-im.
+    sec = 147 / 44100;
+};
 
 // *** implementation
 
@@ -112,7 +116,8 @@ with {
             : fi.peak_eq(20, 7500, 650);
     };
 
-    setPan(s) = _ <: *((1 - pan(s)) : sqrt), *(pan(s) : sqrt);
+    setPan(s) = _ <: *((1 - p) : sqrt), *(p : sqrt)
+        with { p = (min(1, max(-1, pan(s))) + 1) / 2; };
 
     excitation(s, trig) = input * ampenv : pickposfilter
     with {
@@ -192,10 +197,10 @@ trigger time = scanl state (0, (0, 0, 0))
 
 // automatic plucking rate (Hz)
 pluckrate = hslider(
-    "/h:_trigger/auto pluck rate [style:knob][unit:hz]", 0.1, 0.0, 0.5, 0.001
+    "/h:_trigger/_auto pluck rate [style:knob][unit:hz]", 0.1, 0.0, 0.5, 0.001
 );
 // enable automatic plucking
-enableautoplucker = checkbox("/h:_trigger/enable auto pluck");
+enableautoplucker = checkbox("/h:_trigger/_enable auto pluck");
 
 autoplucker = phasor(pluckrate)
     <: <(0.25), >(0.25) & <(0.5), >(0.5) & <(0.75), >(0.75) & <(1)
