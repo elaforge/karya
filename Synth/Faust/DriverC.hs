@@ -233,7 +233,9 @@ getUiControls patch = do
     mapM_ free pathsp
     free pathspp
 
-    controls <- map Control.Control <$> peekTexts count controlsp
+    -- Faust likes underscores, but I use hyphens for control names.
+    controls <- map (Control.Control . Text.replace "_" "-") <$>
+        peekTexts count controlsp
     free controlsp
     docs <- peekTexts count docsp
     mapM_ free =<< peekArray count docsp
@@ -244,7 +246,9 @@ getUiControls patch = do
     -- the element.
     let element = Text.intercalate "." . filter (not . ("_" `Text.isPrefixOf`))
             . drop 1
-    return $ zip (zip (map element paths) controls) docs
+    -- Lead with "_" to suppress the whole control.  But "_" was turned to "-".
+    return $ filter (not . ("-" `Text.isPrefixOf`) . pretty . snd . fst) $
+        zip (zip (map element paths) controls) docs
 
 -- int faust_controls(Patch patch, const char ****out_paths,
 --     const char ***out_controls, char ***out_docs)
