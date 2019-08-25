@@ -73,7 +73,7 @@ pbend = hslider(
 
 // pick bend time (1 to 200 ms)
 pbendtime = hslider(
-    "/h:_pick/[6]bend_time [style:knob][unit:ms]", 10, 1, 200, 1
+    "/h:_pick/[6]bend_time [style:knob][unit:s]", 0.01, 0.001, 0.2, 0.001
 );
 
 smooth = si.smooth(ba.tau2pole(smooth_ms * 0.001));
@@ -135,23 +135,26 @@ with {
           rissetstring(_, s, tscale, descale, 1)
     with {
         // 9 detuned delay line resonators in parallel
-        rissetstring(x, s, ts, des, das) =
-            _ <: par(c, 9, stringloop(x, s, c, ts, das)) :> _
+        rissetstring(x, s, tscale1, des, das) =
+            _ <: par(c, 9, stringloop(x, s, c, tscale1, das)) :> _
             : fi.dcblocker *(0.01);
         // waveguide string with damping filter and non linear apf for jawari
         // effect
-        stringloop(x, s, c, ts, des, das) =
+        stringloop(x, s, c, tscale1, des, das) =
             (+ : delay) ~ ((dampingfilter : nlfm) * fbk)
         with {
             // allpass interpolation has better HF response
             // delay = de.fdelay1a(dtmax, dtsamples, x);
             // lagrange interpolation glitches less with pitch envelope
             delay = de.fdelaylti(2, dtmax, dtsamples, x);
-
-            pitchenv = trigger(trig, pbendtime) <: * : *(pbend);
-            this_pitch = ba.pianokey2hz(
-                    ba.hz2pianokey(pitch(s) + (c-4) * hmotion + pitchenv))
-                * ts;
+            // trig is scaled by dynamic, so this will also scale the pitch
+            // bend depth, but that seems desirable.
+            pitchenv = trigger(trig, pbendtime * 1000) <: * : *(pbend);
+            this_pitch =
+                ba.pianokey2hz(
+                    ba.hz2pianokey(pitch(s) + (c-4) * hmotion)
+                    + pitchenv
+                ) * tscale1;
             dtsamples = ma.SR / this_pitch - 2;
             fbk = pow(0.001, 1 / (this_pitch * (t60 * descale)));
             dampingfilter(x) = h0 * x' + h1*(x+x'')
@@ -175,7 +178,8 @@ with {
         nt = ba.if(gate > gate', samples, max(0, t-1));
         nval = ba.if(gate > gate', gate, val);
     };
-    samples = time * ma.SR / 1000.0;
+    // Avoid a time of 0, which will cause NaNs.
+    samples = max(1, time * ma.SR / 1000.0);
 };
 /*
 trigger time = scanl state (0, (0, 0, 0))
