@@ -146,12 +146,9 @@ defaultConfig :: Config
 defaultConfig = Config
     { _chunkSize = Config.chunkSize
     , _blockSize = Config.blockSize
-    -- 441 or 147
-    , _controlSize = Config.blockSize `Num.assertDiv` controlsPerBlock
+    , _controlSize = Config.blockSize `Num.assertDiv` controlsPerBlock -- 147
     , _controlsPerBlock = controlsPerBlock
-    -- TODO it should be longer, but since 'isBasicallySilent' is
-    -- unimplemented every decay lasts this long.
-    , _maxDecay = 2
+    , _maxDecay = 32
     }
     where controlsPerBlock = 75
     -- if c-rate is 100, then 10ms
@@ -300,7 +297,12 @@ takeExtend frames audio = do
             in Just (mconcat (blocks ++ [V.replicate missing final]), audio)
 
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
-isBasicallySilent _samples = False -- TODO RMS < -n dB
+isBasicallySilent samples = rms samples < Audio.dbToLinear (-82)
+    -- I arrived at the dB by just trying it and seeing how it sounds.
+
+rms :: V.Vector Float -> Float
+rms block =
+    sqrt $ V.sum (V.map (\n -> n*n) block) / fromIntegral (V.length block)
 
 renderControls :: Audio.Frame -> Bool -> Int -> Set DriverC.Control
     -> [Note.Note] -> RealTime -> Map DriverC.Control AUtil.Audio1
