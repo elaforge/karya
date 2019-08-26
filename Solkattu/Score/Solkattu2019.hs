@@ -62,7 +62,7 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
     , var th0b
     , var th0c
     , x2 $ section $ sarva 4 . din.__4 . th0a
-    , section $ sarva 8
+    , section $ sarvaD sarvaPlainS 8
     , ending $ su $
         th1 . ta.dinga
         . dropM 2 (rdropM 2 th1) . ta.dinga
@@ -86,12 +86,15 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
 
     sarva = sarvaD sarvaS
     sarvaS = repeat 2 $ na.dimi.nami.na.dimi.nami.na.dimi.nam.kttk
-        where dimi = di.mi; nami = na.mi
+    sarvaPlainS = repeat 2 $ na.dimi.nami.na.dimi.nami.na.dimi.na.dimi
+    dimi = di.mi; nami = na.mi
     -- TODO din.__8 as usual when coming back into sarva
     -- TODO sarva going into ending does na.dimi instead of nam.kttk.
     mridangam = makeMridangam
         [ (sarvaS, let rh = n.d.l.n.l.n.d.l.n.l.n.d.l.n.k.t.o.k
             in rh & strM "oo_o_oo_o_oo_o" . rh & (o.o))
+        , (sarvaPlainS, let rh = n.d.l.n.l.n.d.l.n.l.n.d.l.n.d.l
+            in rh & strM "oo_o_oo_o_oo_oo_" . rh & (o.o))
 
         , (tanga.tat.__.dit, v.__.p.k.__.t)
         , (tanga.taka.tang, v.__.p.k.p.v)

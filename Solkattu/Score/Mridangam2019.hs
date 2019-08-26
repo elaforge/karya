@@ -309,7 +309,7 @@ e_19_06_24 = date 2019 6 24 $ ganesh $ korvaiS adi $ map su
     where
     t12 = t1.t2
     t1 = group $ k.od.__
-    t2 = group $ ktkno
+    t2 = group ktkno
 
 -- chatusram / tisram exercise:
 -- nadai 4 (repeat 2 (k.od.__.ktkno)) . nadai 6 (repeat 3 (k.od.__.ktkno))
@@ -317,12 +317,12 @@ e_19_06_24 = date 2019 6 24 $ ganesh $ korvaiS adi $ map su
 e_19_08_05_gumiki :: Korvai
 e_19_08_05_gumiki = date 2019 8 5 $ ganesh $ exercise $ korvaiS adi
     [ su $ repeat 2 $
-          o.__.kt.kt.p.k.n.n.o.__.d.__4
-        .__.__.kt.kt.p.k.n.n.o.__.d.__4
+          o'.__.kt.kt.p.k.n.n.o'.__.d.__4
+         .__.__.kt.kt.p.k.n.n.o'.__.d.__4
     , su $ repeat 2 $
-          o.__.kt.kt.p.k . repeat 3 (n.n.o.__.d.__4)
+          o'.__.kt.kt.p.k . repeat 3 (n.n.o'.__.d.__4)
     , su $ repeat 2 $
-          o.__.kt.kt.p.k . repeat 5 (n.n.o.__).d.__4
+          o'.__.kt.kt.p.k . repeat 5 (n.n.o'.__).d.__4
     ]
 
 -- search youtube:
@@ -330,3 +330,15 @@ e_19_08_05_gumiki = date 2019 8 5 $ ganesh $ exercise $ korvaiS adi
 -- d_nd_dn_ for verse with nd_nd_nd for end
 --
 -- hanuman charisa - ms
+
+-- gumiki exercise: nd_n_nd_n_nd_n ktok, but with o' on long o
+
+-- sarva:
+-- n-dd-dd-n-dd-dd-
+-- d_nd-dn-d-nd-dn-
+-- nd-n-nd-n-nd-nd-
+-- nd-dnd-dnd-dnd-d
+e_19_08_25 :: Korvai
+e_19_08_25 = date 2019 8 25 $ ganesh $ exercise $ korvaiS1 adi $
+    concatMap cycle [p, k, o, n]
+    where cycle x = su (x.__.kt.kt.p.k.nakatiku) . sarvaD_ 2

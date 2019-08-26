@@ -63,14 +63,14 @@ on = o&n
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
 closed = mapMStroke $ \case
-    Mridangam.Thoppi Mridangam.Thom -> Just $ Mridangam.Thoppi Mridangam.Tha
-    Mridangam.Both Mridangam.Thom a -> Just $ Mridangam.Both Mridangam.Tha a
+    Mridangam.Thoppi (Mridangam.Thom _) -> Just $ Mridangam.Thoppi Mridangam.Tha
+    Mridangam.Both (Mridangam.Thom _) a -> Just $ Mridangam.Both Mridangam.Tha a
     s -> Just s
 
 noThom :: Sequence -> Sequence
 noThom = mapMStroke $ \case
-    Mridangam.Thoppi Mridangam.Thom -> Nothing
-    Mridangam.Both Mridangam.Thom a -> Just $ Mridangam.Valantalai a
+    Mridangam.Thoppi (Mridangam.Thom _) -> Nothing
+    Mridangam.Both (Mridangam.Thom _) a -> Just $ Mridangam.Valantalai a
     s -> Just s
 
 thomLH :: Sequence -> Sequence
@@ -82,7 +82,7 @@ thomLH = mapNote $ \note -> if note `elem` [n, d] then o else __
 -- | Add a 'o' to the first stroke.
 o1 :: Sequence -> Sequence
 o1 = Seq.map_head $ S.map1 $ fmap $ fmap $
-    Mridangam.addThoppi Mridangam.Thom
+    Mridangam.addThoppi (Mridangam.Thom Mridangam.Low)
 
 mapMStroke :: (Mridangam.Stroke -> Maybe Mridangam.Stroke) -> Sequence
     -> Sequence
