@@ -29,6 +29,7 @@ import qualified Util.Thread as Thread
 
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
+import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Faust.Render as Render
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
@@ -57,6 +58,13 @@ main = do
                 Left err -> Text.IO.putStrLn $ "ERROR: " <> err
                 Right patch -> printPatch patch
             putStrLn ""
+        ["render-preview", patch] -> case Map.lookup (txt patch) patches of
+            Nothing -> errorIO $ "no such patch: " <> txt patch
+            Just (Left err) -> errorIO $ "loading patch " <> txt patch <> ": "
+                <> err
+            Just (Right patch) -> Preview.render patch
+        ["render-preview"] -> mapM_ Preview.render $
+            Either.rights (Map.elems patches)
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
                 ["faust-im", txt notesFilename, txt outputDir]

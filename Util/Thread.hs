@@ -12,9 +12,14 @@ module Util.Thread (
     , force, timeAction, timeActionText
     , printTimer, printTimer_, printTimerVal
     , currentCpu
+    -- * map concurrent
+    , forCpu_
+    -- * Metric
     , Metric(..), metric, diffMetric, showMetric
 ) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Concurrent.Async as Async
+import qualified Control.Concurrent.QSem as QSem
 import qualified Control.Concurrent.STM as STM
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -145,6 +150,14 @@ currentCpu = cpuToSec <$> CPUTime.getCPUTime
 
 toSecs :: Seconds -> Double
 toSecs = realToFrac
+
+-- * concurrent map
+
+forCpu_ :: [a] -> (a -> IO b) -> IO ()
+forCpu_ xs f = do
+    sem <- QSem.newQSem =<< Concurrent.getNumCapabilities
+    Async.forConcurrently_ xs $ \x ->
+        Exception.bracket_ (QSem.waitQSem sem) (QSem.signalQSem sem) (f x)
 
 -- * Metric
 

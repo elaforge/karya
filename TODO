@@ -2397,12 +2397,22 @@ synth: im:
     - get windows of values, e.g. control values right at note attacks
     - detect anomalies, like NaN or numbers in unexpected ranges.
   faust:
-    - How can I get preview for faust instruments?
+    * How can I get preview for faust instruments?
       . One way is pre-render all pitches, and the play samples.
+      . Add a faust-im command, and a shake rule that builds them from
+        build/faust/*.cc.
+      . But I kind of want to do it lazily for instruments that I actually
+        use.  Also I definitely want to use hash, not mtime, and I have to use
+        mtime for shake due to ghci.
+      . Or, have shake delete the cache dirs when rebuilding .dsp, and just
+        check for existence of the directory.
     - I need some way to initialize elements before they sound.
       . Perhaps emit a dummy note at t0?  Notes are the only thing that carry
         controls, so I think it has to be, unless I make some special purpose
         value.
+      . The preview samples have initialization artifacts.
+      . Maybe I can support it at the Render level, where initialize patch
+        will take controls, and then run one block like that.
     * use Common.Flag Triggered to simplify gate to just an impulse.
       . Also put dyn in it, so I don't a separate dyn signal.
     * support Control.volume
@@ -2593,9 +2603,10 @@ synth: im:
           any notes at 0.
       * The first note is missing attack, what's going on?
         . This seems to have been due to control initialization.
-      - Automate a way to select strings, and also to play patterns.
-        . Support zheng-idiom first.
-        . Perhaps randomized ones.
+      - try out string-idiom
+      - implement a tambura call that cycles strings, perhaps semi-randomly
+      - It seems out of tune, and different strings have different tuning?
+      - Perhaps bring back pitch from 0 as a buzzy attack effect.
       per-string controls:
         * gate
         * dyn
@@ -2637,6 +2648,11 @@ synth: im:
           fine as long as that module doesn't import anything.
         . Or if I want to do dynamic compiles, faust has a llvm backend that
           can compile in memory.
+        . A whole library would be overkill, I can use
+          Util.TextUtil.interpolate.
+        . I could make separate patches, e.g. >tmb4 >tmb16 etc. or try to
+          parameterize the patch, so I don't get cluttter in the patch browser.
+        . Let's do separate patches for now.
       / It uses random for pluck pos and amp, I want deterministic.
         . How does no.noise work?  If not deterministic, I probably have to make
           it so.
@@ -2648,6 +2664,7 @@ synth: im:
         for some reason.  Also the the github page references the
         unimplemented body IR, which might be different.
     - faust-stk/bowed.dsp?
+    - adapt blow_bottle.dsp
     - Compare timing with pre-input signals.
       . In general I should set up performance tracking for faust-im and
         sampler-im.

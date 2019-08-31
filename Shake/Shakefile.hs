@@ -1308,6 +1308,13 @@ faustDspDir, faustSrcDir :: FilePath
 faustDspDir = "Synth/Faust/dsp"
 faustSrcDir = build </> "faust"
 
+-- | Directory that faust-im render-preview writes to.  This should come
+-- from Synth.Faust.Preview.cacheDir, but I don't want to import that here.
+-- Perhaps there should be a simpler App.Config that can be imported by the
+-- shakefile.
+faustPreviewDir :: FilePath
+faustPreviewDir = "data/im/preview"
+
 faustRules :: Shake.Rules ()
 faustRules = faustRule *> faustAllRule
 
@@ -1315,6 +1322,12 @@ faustRule :: Shake.Rules ()
 faustRule = faustSrcDir </> "*.cc" %> \output -> do
     need [srcToDsp output]
     Util.cmdline $ faustCmdline output (srcToDsp output)
+    -- Clear the cache.
+    Util.system "rm"
+        [ "-rf"
+        , faustPreviewDir
+            </> FilePath.dropExtension (FilePath.takeFileName output)
+        ]
 
 faustCmdline :: FilePath -> FilePath -> Util.Cmdline
 faustCmdline output input =

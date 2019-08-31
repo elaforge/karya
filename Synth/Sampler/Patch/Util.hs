@@ -130,12 +130,14 @@ thruFunction sampleDir convert attrs pitch velocity = do
 
 -- * misc
 
--- | Generate 'articulationSamples'.  This could have been TH but it seems not
--- worth it.
+-- | Generate haskell code for an Articulation -> [FilePath] function.
 --
 -- This expects a subdirectory for each articulation, whose name is the same
 -- as the Articulation constructor, and sorts by the 4th field e.g.
 -- {Thom,Nam,...}/x-x-x-$vel-...
+--
+-- This could be done with TH but it's constant so it's simpler to copy paste
+-- into the source.
 makeFileList :: FilePath -> [FilePath] -> String -> IO ()
 makeFileList dir articulations variableName = do
     putStrLn $ variableName <> " :: Articulation -> [FilePath]"

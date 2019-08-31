@@ -3,11 +3,6 @@
 
 set -eu
 
-if [[ -z $mode ]]; then
-    echo $0: no mode
-    exit 1
-fi
-
 # Keep this binaries up to date.  This isn't appropriate if you don't have
 # im, so in that case maybe I'll need some way of getting the config.
 binaries=(
@@ -16,6 +11,12 @@ binaries=(
 if ! bin/mk build/$mode/${^binaries}; then
     echo $0: build failed
     exit 1
+fi
+
+# Keep the faust preview cache up to date.  auto_preview= to turn it off.
+if [[ -n ${auto_preview-t} ]]; then
+    echo build/opt/faust-im render-preview
+    build/opt/faust-im render-preview
 fi
 
 # Keep the cache dir from getting too big.

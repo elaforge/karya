@@ -64,7 +64,7 @@ type Cmdline = (String, String, [String])
 -- off the screen.
 cmdline :: Cmdline -> Shake.Action ()
 cmdline cmd@(abbr, _, _) =
-    Shake.traced ("cmdline:"<>abbr) . liftIO $ doCmdline False cmd
+    Shake.traced ("cmdline:" <> abbr) . liftIO $ doCmdline False cmd
 
 data Metric = Metric {
     metricCpu :: !Double
