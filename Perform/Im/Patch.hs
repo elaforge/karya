@@ -8,8 +8,9 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
 import qualified Synth.Shared.Control as Control
+import qualified Synth.Shared.Note as Note
 
-import Global
+import           Global
 
 
 data Patch = Patch {
@@ -17,18 +18,21 @@ data Patch = Patch {
     -- TODO maybe I need a separate one for pitch controls.
     patch_controls :: !(Map Control.Control Text)
     , patch_attribute_map :: !AttributeMap
+    , patch_elements :: !(Set Note.Element)
     } deriving (Show)
 
 patch :: Patch
 patch = Patch
     { patch_controls = mempty
     , patch_attribute_map = Common.AttributeMap []
+    , patch_elements = mempty
     }
 
 instance Pretty Patch where
-    format (Patch controls attr_map) = Pretty.record "Patch"
+    format (Patch controls attr_map elements) = Pretty.record "Patch"
         [ ("controls", Pretty.format controls)
         , ("attribute_map", Pretty.format attr_map)
+        , ("elements", Pretty.format elements)
         ]
 
 -- | Since the synth understands Attributes directly, this is just a list of

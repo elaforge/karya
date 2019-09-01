@@ -29,6 +29,8 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - it would be nice if I could coerce VPitch to NoteNumber
+    . Then I can simplify Synth.Faust.Code.c_initialize.
   - can I tweak individual scale degrees?
     . E.g. ma + 0.25nn, ri + 0.2nn.
     . Maybe just an env var for scale degree would do it.
@@ -2406,13 +2408,49 @@ synth: im:
         mtime for shake due to ghci.
       . Or, have shake delete the cache dirs when rebuilding .dsp, and just
         check for existence of the directory.
-    - I need some way to initialize elements before they sound.
+    * I need some way to initialize elements before they sound.
       . Perhaps emit a dummy note at t0?  Notes are the only thing that carry
         controls, so I think it has to be, unless I make some special purpose
         value.
       . The preview samples have initialization artifacts.
       . Maybe I can support it at the Render level, where initialize patch
         will take controls, and then run one block like that.
+      . I can use si.polySmooth to avoid attack artifacts, but I still need
+        explicit initialization, because of e.g. setting string tuning for
+        sympathetic strings.
+      . How to declare it?  I want to be able to say:
+        tambura:
+          0:pitch = (4s)
+          0:pan = .25
+          1:pitch = (5s)
+          1:pan = .5
+          2:pitch = (5s)
+          2:pan = .5
+          3:pitch = (4p)
+          3:pan = .75
+          harmonic-motion = .15
+          etc.
+        . Or go per-element:
+          pitch = (list (4s) (5s) (5s) (4p))
+          pan = (list ...)
+      . I can have an 'initialize' call that puts 0 dyn notes at the
+        beginning, then put it in the global transform.
+      . initialize tambura pitch (list ...) pan (list ...) harmonic-motion .15
+      . Why not use the Derive.inst_controls ControlValMap?  That's what it's
+        for.  I could have Im.Convert emit 0 dyn notes for it.  Then I need
+        a special syntax for element:control, and write LInst functions to
+        split up values by element.
+      . But the deriver approach lets me use pitch calls, and put it Ky.state,
+        which seems nicer to look at, even though instrument config really is
+        for that.  Maybe I just need to reflect the inst config into Ky.state.
+        But since a derive call occurs in the derive stack, it has scale etc.
+        in scope, and can vary based on that.
+      . If I put it in derive though, I need to get the inst allocation,
+        assert that it's an ImInst, and get its elements, which is not
+        generally exposed.  I could put it in Im.Patch though.  Is the
+        precedent for getting Cmd.ResolvedInstrument from derive?  I don't
+        think it has access?
+      . It emits the dummy notes, but not sure if they're having the effect.
     * use Common.Flag Triggered to simplify gate to just an impulse.
       . Also put dyn in it, so I don't a separate dyn signal.
     * support Control.volume

@@ -14,6 +14,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Expr as Expr
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
@@ -90,7 +91,7 @@ convert_event block_id event patch patch_name = run $ do
         -- are likely to be used for element names.
         , element =
             case Env.lookup EnvKey.element (Score.event_environ event) of
-                Just (DeriveT.VStr a) -> ShowVal.show_val a
+                Just (DeriveT.VStr (Expr.Str a)) -> a
                 Just (DeriveT.VNum a) -> ShowVal.show_val a
                 _ -> ""
         -- , element = fromMaybe "" $ Env.maybe_val EnvKey.element $

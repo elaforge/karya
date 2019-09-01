@@ -43,8 +43,9 @@ int faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals);
 
 // allocated Patch
 
-// Initilaize a new instrument.
-Patch *faust_initialize(const Patch *patch, int srate);
+// This is the way to convert a const Patch to a non-const Patch with internal
+// state.
+Patch *faust_allocate(const Patch *patch, int srate);
 void faust_destroy(Patch *inst) { delete inst; }
 
 // Render control_size * controls_per_block frames.  'controlps' and 'controls'

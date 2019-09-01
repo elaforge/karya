@@ -52,6 +52,8 @@ makePatch imDir patch =
     code constantPitch constantControls $
     ImInst.make_patch $ Patch.patch
         { Patch.patch_controls = (pretty <$> controls) <> standardControls
+        , Patch.patch_elements = Set.fromList $ filter (/="") $ map fst $
+            Map.keys $ DriverC._controls patch
         }
     where
     constantControls = map fst $ filter (DriverC._constant . snd) $

@@ -78,28 +78,9 @@ pitchToSample imDir patchName =
 standardNotes :: Note.Element -> [(Pitch.NoteNumber, Note.Note)]
 standardNotes element = zip nns (map (makeNote element) nns)
     where nns = Seq.range NN.c1 NN.c8 2
-    -- where nns = Seq.range NN.c3 NN.c4 2
 
 makeNote :: Note.Element -> Pitch.NoteNumber -> Note.Note
 makeNote element nn =
     Note.withControl Control.dynamic (Signal.constant 0.75) $
     (Note.withPitch nn $ Note.note "patch" "inst" 0 1)
     { Note.element = element }
-
-{-
--- | Convert the directory output of 'render' back to NoteNumber and FilePaths.
-parseNotes :: FilePath -> Text -> IO (Map Pitch.NoteNumber FilePath)
-parseNotes imDir patchName = do
-    let dir = cacheDir imDir patchName
-    samples <- Directory.listDirectory dir
-    return $ Map.fromList
-        [ (nn, dir </> sample)
-        | (nn, sample) <- Seq.key_on_just parseNote samples
-        ]
-
-parseNote :: FilePath -> Maybe Pitch.NoteNumber
-parseNote fname
-    | not $ ".wav" `List.isSuffixOf` fname = Nothing
-    | otherwise = fmap Pitch.nn $ Read.readMaybe $
-        takeWhile Char.isDigit fname
--}

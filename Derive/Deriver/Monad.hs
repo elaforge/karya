@@ -179,6 +179,7 @@ import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Synth.Shared.Note as Shared.Note
 import qualified Ui.Event as Event
 import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
@@ -1018,8 +1019,9 @@ data Instrument = Instrument {
     -- | Like 'inst_environ', merge these controls.
     , inst_controls :: !ScoreT.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
-    -- order of priority.  It corresponds to 'Perform.Midi.Patch.AttributeMap'.
+    -- order of priority.  It corresponds to 'Instrument.Common.AttributeMap'.
     , inst_attributes :: ![Attrs.Attributes]
+    , inst_elements :: !(Set Shared.Note.Element)
     } deriving (Show)
 
 -- | Some ornaments only apply to a particular instrument, so each instrument

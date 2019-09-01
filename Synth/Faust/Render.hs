@@ -15,6 +15,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as V
 
+import qualified GHC.Stack
 import qualified GHC.TypeLits as TypeLits
 import qualified Streaming.Prelude as S
 import qualified System.FilePath as FilePath
@@ -83,6 +84,7 @@ write_ config outputDir trackIds patch notes = catch $ do
         , Exception.Handler $ \(exc :: IO.Error.IOError) ->
             return $ Left $ txt $ Exception.displayException exc
         ]
+    emitMessage :: GHC.Stack.HasCallStack => Config.Payload -> IO ()
     emitMessage payload = Config.emitMessage "" $ Config.Message
         { _blockId = Config.pathToBlockId outputDir
         , _trackIds = trackIds
@@ -185,7 +187,9 @@ renderPatch emitMessage patch config mbState notifyState notes_ start =
     inputControls = map fst $ DriverC._inputControls patch
     vol = renderInput False (_blockSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
-    notes = dropUntil (\_ n -> Note.end n > start) notes_
+    -- Drop notes that already ended, unless they also start right here
+    -- (zero-dur).
+    notes = dropWhile (\n -> Note.start n < start && Note.end n < start) notes_
 
 interleave :: AUtil.NAudio -> AUtil.Audio
 interleave naudio = case Audio.interleaved naudio of
@@ -193,6 +197,27 @@ interleave naudio = case Audio.interleaved naudio of
     -- All faust instruments are required to have 1 or 2 outputs.  This should
     -- have been verified by DriverC.getPatch.
     Left err -> Audio.throw $ "expected 1 or 2 outputs: " <> err
+
+-- | Faust has internal state, and it all starts at 0, and because controls are
+-- designed for realtime, they interpolate after the value changed instead of
+-- before, I have to initialize then render for long enough to avoid attack
+-- artifacts.
+initialize :: Audio.Frame -> DriverC.Instrument
+    -> Map DriverC.Control Float -> IO ()
+initialize size inst controls = do
+    _ <- DriverC.render size 1 inst controlVals inputSamples
+    return ()
+    where
+    controlVals = findControls (DriverC._controls inst)
+        (V.singleton <$> controls)
+    -- I don't pass any inputs, but they might not need initialization anyway,
+    -- since they don't need interpolation.
+    inputSamples = replicate (length (DriverC._inputControls inst)) $
+        V.replicate (fromIntegral size) 0
+    -- inputSamples = map (get . fst) (DriverC._inputControls inst)
+    -- get control = V.replicate (fromIntegral size) val
+    --     where val = Map.findWithDefault 0 ("", control) controls
+    --     -- TODO: inputs don't support Elements yet.
 
 -- | Render a FAUST instrument incrementally.
 --
@@ -208,7 +233,22 @@ render emitMessage patch mbState notifyState controls inputs start end config =
     Audio.NAudio (DriverC._outputs patch) $ do
         (key, inst) <- lift $
             Resource.allocate (DriverC.allocate patch) DriverC.destroy
-        liftIO $ whenJust mbState $ \state -> DriverC.putState state inst
+        case mbState of
+            Just state -> liftIO $ DriverC.putState state inst
+            Nothing -> return ()
+
+            -- -- TODO this doesn't seem to be necessary since I can use
+            -- -- si.polySmooth.  But leave it here in case I need it after all.
+            -- -- I'll probably need it for explicit initilaization, e.g. string
+            -- -- tuning.
+            -- Nothing -> do
+            --     (vals, _) <- lift $ takeControls 1 controls
+            --     -- Just one control period should be enough, because that's
+            --     -- what the faust-level interpolation should be tuned to, but
+            --     -- from listening *1 still seems to have some artifact.
+            --     -- Perhaps the faust interpolation is IIR.
+            --     liftIO $ initialize (_controlSize config * 2) inst
+            --         ((V.! 0) <$> vals)
         inputs <- return $ Audio._nstream $
             Audio.zeroPadN (_blockSize config) inputs
         Util.Control.loop1 (start, controls, inputs) $
@@ -259,7 +299,7 @@ render emitMessage patch mbState notifyState controls inputs start end config =
     maxDecay = AUtil.toFrame $ _maxDecay config
 
 findControls :: Map DriverC.Control (ptr, config)
-    -> Map DriverC.Control (V.Vector Float) -> [(ptr, V.Vector Float)]
+    -> Map DriverC.Control val -> [(ptr, val)]
 findControls controls vals = map get $ Util.Map.zip_intersection controls vals
     where get (_, (ptr, _), val) = (ptr, val)
 
@@ -408,7 +448,9 @@ gateBreakpoints controlSize triggered =
         let s = roundTo controlSizeS (Note.start n)
             e = s + controlSizeS
             dyn = fromMaybe 0 $ Note.initial Control.dynamic n
-        in [(s, 0), (s, dyn), (e, dyn), (e, 0)]
+        in if dyn <= 0 then [] else [(s, 0), (s, dyn), (e, dyn), (e, 0)]
+        -- Omit dyn==0 to avoid cancelling a coincident note.  dyn==0 notes are
+        -- used to initialized elements.
     controlSizeS = AUtil.toSeconds controlSize
     hold [] = []
     hold (n : ns) =

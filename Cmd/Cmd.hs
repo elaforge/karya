@@ -911,6 +911,9 @@ make_derive_instrument resolved = Derive.Instrument
         Common.config_environ $ inst_common_config resolved
     , inst_controls = Common.config_controls (inst_common_config resolved)
     , inst_attributes = Inst.inst_attributes (inst_instrument resolved)
+    , inst_elements = case Inst.inst_backend (inst_instrument resolved) of
+        Inst.Im patch -> Im.Patch.patch_elements patch
+        _ -> mempty
     }
 
 empty_code :: InstrumentCode

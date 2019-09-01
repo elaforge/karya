@@ -224,13 +224,14 @@ instrument_fields name patch =
     Patch.Settings flags scale decay pb_range control_defaults = settings
 
 patch_fields :: Im.Patch.Patch -> [(Text, Text)]
-patch_fields (Im.Patch.Patch controls attr_map) =
+patch_fields (Im.Patch.Patch controls attr_map elements) =
     [ ("Attributes", Text.intercalate ", " $ map pretty $
         Common.mapped_attributes attr_map)
     , ("Controls", Text.unlines
         [ pretty control <> "\t" <> doc
         | (control, doc) <- Map.toAscList controls
         ])
+    , ("Elements", Text.unwords (Set.toList elements))
     ]
 
 format_fields :: [(Text, Text)] -> Text

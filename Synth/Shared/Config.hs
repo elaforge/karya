@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified GHC.Generics as Generics
+import qualified GHC.Stack
 import           System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -237,7 +238,7 @@ instance Aeson.ToJSON Payload where
     toEncoding = Aeson.genericToEncoding Aeson.defaultOptions
 instance Aeson.FromJSON Payload
 
-emitMessage :: Text -> Message -> IO ()
+emitMessage :: GHC.Stack.HasCallStack => Text -> Message -> IO ()
 emitMessage extra msg = do
     let prio = case _payload msg of
             RenderingRange {} -> Log.Debug

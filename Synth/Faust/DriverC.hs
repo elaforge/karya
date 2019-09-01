@@ -265,7 +265,7 @@ withInstrument patch = Exception.bracket (allocate patch) destroy
 
 allocate :: Patch -> IO Instrument
 allocate patch = do
-    ptr <- c_faust_initialize (_ptr patch) (CUtil.c_int Config.samplingRate)
+    ptr <- c_faust_allocate (_ptr patch) (CUtil.c_int Config.samplingRate)
     cptrs <- alloca $ \cptrspp -> do
         count <- c_faust_control_ptrs ptr cptrspp
         cptrsp <- peek cptrspp
@@ -284,9 +284,9 @@ allocate patch = do
             ]
         }
 
--- Patch *faust_initialize(const Patch *patch, int srate);
-foreign import ccall "faust_initialize"
-    c_faust_initialize :: PatchP -> CInt -> IO InstrumentP
+-- Patch *faust_allocate(const Patch *patch, int srate);
+foreign import ccall "faust_allocate"
+    c_faust_allocate :: PatchP -> CInt -> IO InstrumentP
 
 destroy :: Instrument -> IO ()
 destroy = c_faust_destroy . _ptr

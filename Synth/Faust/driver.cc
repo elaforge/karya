@@ -82,7 +82,7 @@ faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals)
 }
 
 Patch *
-faust_initialize(const Patch *patch, int srate)
+faust_allocate(const Patch *patch, int srate)
 {
     return patch->allocate(srate);
 }
