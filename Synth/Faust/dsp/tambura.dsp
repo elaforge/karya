@@ -9,14 +9,16 @@ declare flags "triggered";
 
 import("stdfaust.lib");
 
-
+// Smooth time is equal to controlSize.  This should be synced with faust-im.
+controlSize = 147;
 dtmax = 4096;
 
 // *** per-string
 
 NStrings = 4;
-pluck(i) = button("/h:%i/gate");
-pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1) : smooth : ba.midikey2hz;
+gate(i) = button("/h:%i/gate");
+pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1)
+    : polySmooth(i) : ba.midikey2hz;
 pan(i) = hslider("/h:%i/pan [style:knob]", 0, -1, 1, 0.01) : smooth;
 
 // how long the strings decay
@@ -76,12 +78,8 @@ pbendtime = hslider(
     "/h:_pick/[6]bend_time [style:knob][unit:s]", 0.01, 0.001, 0.2, 0.001
 );
 
-smooth = si.smooth(ba.tau2pole(sec))
-with {
-    // Smooth time is equal to controlSize.  This should be synced with
-    // faust-im.
-    sec = 147 / 44100;
-};
+smooth = si.smooth(ba.tau2pole(controlSize / ma.SR));
+polySmooth(i) = si.polySmooth(gate(i), ba.tau2pole(controlSize / ma.SR), 147);
 
 // *** implementation
 
@@ -92,7 +90,7 @@ with {
 tambura(NStrings) = (
     couplingmatrix(NStrings), par(s, NStrings, excitation(s))
     : ro.interleave(NStrings, 2)
-    : par(s, NStrings, string(s, pluck(s)))
+    : par(s, NStrings, string(s, gate(s)))
 ) // string itself with excitation + fbk as input
     ~ par(s, NStrings, !, _) // feedback only the right waveguide
     : par(s, NStrings, + : setPan(s) // add left/right waveguides and pan
@@ -209,4 +207,4 @@ with {
     phasor(freq) = (freq/float(ma.SR) : (+ : ma.decimal) ~ _);
 };
 
-process = (par(s, NStrings, pluck(s)), autoplucker) :> tambura(NStrings);
+process = (par(s, NStrings, gate(s)), autoplucker) :> tambura(NStrings);
