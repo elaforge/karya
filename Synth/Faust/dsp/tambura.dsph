@@ -51,8 +51,8 @@ coupling = hslider(
     "/h:_main/[5]sympathetic_coupling [style:knob]", 0.1, 0, 1, 0.0001
 ) : smooth;
 
-tscale = hslider("/h:_main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
-descale = hslider("/h:_main/[9]decay_scale [style:knob]", 1, 0.1, 1, 0.001);
+tuneScale = hslider("/h:_main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
+decayScale = hslider("/h:_main/[9]decay_scale [style:knob]", 1, 0.1, 1, 0.001);
 // dascale = hslider("/h:_main/[10]damp_scale [style:knob]", 1, 0.5, 2, 0.01);
 
 // crossfades between pink noise and DC excitation
@@ -135,25 +135,25 @@ with {
 
     // dual risset strings for decoupled feedback
     string(s, trig) = _, _ <: +, !,_
-        : rissetString(_, s, 1),
-          rissetString(_, s, tscale)
+        : rissetString(s, 1),
+          rissetString(s, tuneScale)
     with {
         // 9 detuned delay line resonators in parallel
-        rissetString(x, s, tscale1) =
-            _ <: par(c, 9, stringLoop(x, s, c, tscale1)) :> _
+        rissetString(s, tuneScale1) =
+            _ <: par(c, 9, stringLoop(s, c, tuneScale1)) :> _
             : fi.dcblocker * 0.01;
 
         // Waveguide string with damping filter and non linear apf for jawari
         // effect.
-        // XXX x2 is implicitly split from 'x', and winds up affecting damping,
-        // which is probably a bug.
-        stringLoop(x, s, c, tscale1, x2) =
+        // XXX x2 is implicitly split from the unnamed input, and winds up
+        // affecting damping, which is probably a bug.
+        stringLoop(s, c, tuneScale1, x2) =
             (+ : delay) ~ ((dampingFilter : nlfm) * fbk)
         with {
             // allpass interpolation has better HF response
-            // delay = de.fdelay1a(maxDelay, dtSamples, x);
+            // delay = de.fdelay1a(maxDelay, dtSamples);
             // lagrange interpolation glitches less with pitch envelope
-            delay = de.fdelaylti(2, maxDelay, dtSamples, x);
+            delay = de.fdelaylti(2, maxDelay, dtSamples);
             // trig is scaled by dynamic, so this will also scale the pitch
             // bend depth, but that seems desirable.
             pitchEnv = trigger(trig, pbendtime * 1000) <: * : *(pbend);
@@ -161,9 +161,9 @@ with {
                 ba.pianokey2hz(
                     ba.hz2pianokey(pitch(s) + (c-4) * hmotion)
                     + pitchEnv
-                ) * tscale1;
+                ) * tuneScale1;
             dtSamples = ma.SR / thisPitch - 2;
-            fbk = pow(0.001, 1 / (thisPitch * (t60 * descale)));
+            fbk = pow(0.001, 1 / (thisPitch * (t60 * decayScale)));
             dampingFilter(x) = h0 * x' + h1*(x + x'')
             with {
                 d = x2 * damp;
