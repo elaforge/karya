@@ -24,7 +24,7 @@ pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1)
 pan(i) = hslider("/h:%i/pan [style:knob]", 0, -1, 1, 0.01) : smooth;
 
 // how long the strings decay
-t60 = hslider(
+decayTime = hslider(
     "/h:_main/[2]decay_time [style:knob][unit:s]", 10, 0, 100, 0.1
 ) : smooth;
 
@@ -52,11 +52,9 @@ coupling = hslider(
 ) : smooth;
 
 tuneScale = hslider("/h:_main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
-decayScale = hslider("/h:_main/[9]decay_scale [style:knob]", 1, 0.1, 1, 0.001);
-// dascale = hslider("/h:_main/[10]damp_scale [style:knob]", 1, 0.5, 2, 0.01);
 
 // crossfades between pink noise and DC excitation
-ptype = hslider("/h:_pick/[1]material [style:knob]", 0.13, 0.0, 1, 0.01)
+material = hslider("/h:_pick/[1]material [style:knob]", 0.13, 0.0, 1, 0.01)
     : smooth;
 
 // attack time of pluck envelope, 0 to 0.5 times pitch wavelength
@@ -128,15 +126,14 @@ with {
             : si.lag_ud(wl * pattack * (1/ma.SR), 0.005);
         posRand = abs(no.noise) : ba.latch(trig) *(0.2);
         // crossfade between DC and pink noise excitation source
-        input = 1, no.pink_noise : si.interpolate(ptype);
+        input = 1, no.pink_noise : si.interpolate(material);
         // simulation of different pluck positions
         pickPosFilter = fi.ffcombfilter(maxDelay, (ppos + posRand) * wl, -1);
     };
 
     // dual risset strings for decoupled feedback
     string(s, trig) = _, _ <: +, !,_
-        : rissetString(s, 1),
-          rissetString(s, tuneScale)
+        : rissetString(s, 1), rissetString(s, tuneScale)
     with {
         // 9 detuned delay line resonators in parallel
         rissetString(s, tuneScale1) =
@@ -145,10 +142,8 @@ with {
 
         // Waveguide string with damping filter and non linear apf for jawari
         // effect.
-        // XXX x2 is implicitly split from the unnamed input, and winds up
-        // affecting damping, which is probably a bug.
-        stringLoop(s, c, tuneScale1, x2) =
-            (+ : delay) ~ ((dampingFilter : nlfm) * fbk)
+        stringLoop(s, c, tuneScale1, input) =
+            input : ((+ : delay) ~ ((dampingFilter : nlfm) * fbk))
         with {
             // allpass interpolation has better HF response
             // delay = de.fdelay1a(maxDelay, dtSamples);
@@ -163,10 +158,13 @@ with {
                     + pitchEnv
                 ) * tuneScale1;
             dtSamples = ma.SR / thisPitch - 2;
-            fbk = pow(0.001, 1 / (thisPitch * (t60 * decayScale)));
+            fbk = pow(0.001, 1 / (thisPitch * decayTime));
             dampingFilter(x) = h0 * x' + h1*(x + x'')
             with {
-                d = x2 * damp;
+                // XXX Using the input for damp was originally due to
+                // confusing faustian implicit <: and probably meant to be
+                // dampScale instead of the input.  But this sounds ok?
+                d = input * damp;
                 h0 = (1 + d) / 2;
                 h1 = (1 - d) / 4;
             };
