@@ -119,50 +119,49 @@ with {
     setPan(s) = _ <: *((1 - p) : sqrt), *(p : sqrt)
         with { p = (min(1, max(-1, pan(s))) + 1) / 2; };
 
-    excitation(s, trig) = input * ampenv : pickposfilter
+    excitation(s, trig) = input * ampEnv : pickPosFilter
     with {
         wl = ma.SR / pitch(s); // wavelength of pitch(s) in samples
 
         dur = (ptime * wl) / (ma.SR / 1000); // duration of the pluck in ms
-        ampenv = trigger(trig, dur)
+        ampEnv = trigger(trig, dur)
             : si.lag_ud(wl * pattack * (1/ma.SR), 0.005);
-        amprand = abs(no.noise) : ba.latch(trig) *(0.25) + 0.75;
-        posrand = abs(no.noise) : ba.latch(trig) *(0.2);
+        posRand = abs(no.noise) : ba.latch(trig) *(0.2);
         // crossfade between DC and pink noise excitation source
         input = 1, no.pink_noise : si.interpolate(ptype);
         // simulation of different pluck positions
-        pickposfilter = fi.ffcombfilter(maxDelay, (ppos + posrand) * wl, -1);
+        pickPosFilter = fi.ffcombfilter(maxDelay, (ppos + posRand) * wl, -1);
     };
 
     // dual risset strings for decoupled feedback
     string(s, trig) = _, _ <: +, !,_
-        : rissetstring(_, s, 1, 1, 1),
-          rissetstring(_, s, tscale, descale, 1)
+        : rissetString(_, s, 1, 1, 1),
+          rissetString(_, s, tscale, descale, 1)
     with {
         // 9 detuned delay line resonators in parallel
-        rissetstring(x, s, tscale1, des, das) =
-            _ <: par(c, 9, stringloop(x, s, c, tscale1, das)) :> _
-            : fi.dcblocker *(0.01);
+        rissetString(x, s, tscale1, des, das) =
+            _ <: par(c, 9, stringLoop(x, s, c, tscale1, das)) :> _
+            : fi.dcblocker * 0.01;
         // waveguide string with damping filter and non linear apf for jawari
         // effect
-        stringloop(x, s, c, tscale1, des, das) =
-            (+ : delay) ~ ((dampingfilter : nlfm) * fbk)
+        stringLoop(x, s, c, tscale1, des, das) =
+            (+ : delay) ~ ((dampingFilter : nlfm) * fbk)
         with {
             // allpass interpolation has better HF response
-            // delay = de.fdelay1a(maxDelay, dtsamples, x);
+            // delay = de.fdelay1a(maxDelay, dtSamples, x);
             // lagrange interpolation glitches less with pitch envelope
-            delay = de.fdelaylti(2, maxDelay, dtsamples, x);
+            delay = de.fdelaylti(2, maxDelay, dtSamples, x);
             // trig is scaled by dynamic, so this will also scale the pitch
             // bend depth, but that seems desirable.
-            pitchenv = trigger(trig, pbendtime * 1000) <: * : *(pbend);
-            this_pitch =
+            pitchEnv = trigger(trig, pbendtime * 1000) <: * : *(pbend);
+            thisPitch =
                 ba.pianokey2hz(
                     ba.hz2pianokey(pitch(s) + (c-4) * hmotion)
-                    + pitchenv
+                    + pitchEnv
                 ) * tscale1;
-            dtsamples = ma.SR / this_pitch - 2;
-            fbk = pow(0.001, 1 / (this_pitch * (t60 * descale)));
-            dampingfilter(x) = h0 * x' + h1*(x+x'')
+            dtSamples = ma.SR / thisPitch - 2;
+            fbk = pow(0.001, 1 / (thisPitch * (t60 * descale)));
+            dampingFilter(x) = h0 * x' + h1*(x + x'')
             with {
                 d = das * damp;
                 h0 = (1 + d) / 2;
