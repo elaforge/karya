@@ -11,11 +11,13 @@ import("stdfaust.lib");
 
 // Smooth time is equal to controlSize.  This should be synced with faust-im.
 controlSize = 147;
-dtmax = 4096;
+// Max size of delay lines.  Determines the lowest pitch.
+maxDelay = 4096;
+// Number of strings to simulate.
+stringCount = STRING_COUNT;
 
 // *** per-string
 
-NStrings = 4;
 gate(i) = button("/h:%i/gate");
 pitch(i) = hslider("/h:%i/pitch", 36, 1, 127, 1)
     : polySmooth(i) : ba.midikey2hz;
@@ -87,29 +89,29 @@ polySmooth(i) = si.polySmooth(gate(i), ba.tau2pole(controlSize / ma.SR), 147);
 // c = comb filter index (of 9 comb filters in risset string)
 //
 // Input: gate per string.
-tambura(NStrings) = (
-    couplingmatrix(NStrings), par(s, NStrings, excitation(s))
-    : ro.interleave(NStrings, 2)
-    : par(s, NStrings, string(s, gate(s)))
+tambura(stringCount) = (
+    coupling_matrix(stringCount), par(s, stringCount, excitation(s))
+    : ro.interleave(stringCount, 2)
+    : par(s, stringCount, string(s, gate(s)))
 ) // string itself with excitation + fbk as input
-    ~ par(s, NStrings, !, _) // feedback only the right waveguide
-    : par(s, NStrings, + : setPan(s) // add left/right waveguides and pan
+    ~ par(s, stringCount, !, _) // feedback only the right waveguide
+    : par(s, stringCount, + : setPan(s) // add left/right waveguides and pan
     ) :> _, _ // stereo output
 with {
-    couplingmatrix(NStrings) =
-        par(s, NStrings, *(coupling) : couplingfilter) // coupling filters
+    coupling_matrix(stringCount) =
+        par(s, stringCount, *(coupling) : coupling_filter) // coupling filters
         // unsel makes sure the feedback is disconnected
-        <: par(s, NStrings, unsel(NStrings, s) :> _)
+        <: par(s, stringCount, unsel(stringCount, s) :> _)
     with {
-        unsel(NStrings, s) = par(j, NStrings, U(s, j))
+        unsel(stringCount, s) = par(j, stringCount, broadcast(s, j))
         with {
-            U(s, s) = !;
-            U(s, j) = _;
+            broadcast(s, s) = !;
+            broadcast(s, j) = _;
         };
 
-        // couplingfilter = component("bridgeIR.dsp");
+        // coupling_filter = component("bridgeIR.dsp");
         // EQ to simulate bridge response
-        couplingfilter = fi.highshelf(1, -100, 5000)
+        coupling_filter = fi.highshelf(1, -100, 5000)
             : fi.peak_eq(14, 2500, 400)
             : fi.peak_eq(20, 7500, 650);
     };
@@ -129,7 +131,7 @@ with {
         // crossfade between DC and pink noise excitation source
         input = 1, no.pink_noise : si.interpolate(ptype);
         // simulation of different pluck positions
-        pickposfilter = fi.ffcombfilter(dtmax, (ppos + posrand) * wl, -1);
+        pickposfilter = fi.ffcombfilter(maxDelay, (ppos + posrand) * wl, -1);
     };
 
     // dual risset strings for decoupled feedback
@@ -147,9 +149,9 @@ with {
             (+ : delay) ~ ((dampingfilter : nlfm) * fbk)
         with {
             // allpass interpolation has better HF response
-            // delay = de.fdelay1a(dtmax, dtsamples, x);
+            // delay = de.fdelay1a(maxDelay, dtsamples, x);
             // lagrange interpolation glitches less with pitch envelope
-            delay = de.fdelaylti(2, dtmax, dtsamples, x);
+            delay = de.fdelaylti(2, maxDelay, dtsamples, x);
             // trig is scaled by dynamic, so this will also scale the pitch
             // bend depth, but that seems desirable.
             pitchenv = trigger(trig, pbendtime * 1000) <: * : *(pbend);
@@ -193,18 +195,25 @@ trigger time = scanl state (0, (0, 0, 0))
         nval = if gate > gate' then gate else val
 */
 
-// automatic plucking rate (Hz)
-pluckrate = hslider(
-    "/h:_trigger/_auto pluck rate [style:knob][unit:hz]", 0.1, 0.0, 0.5, 0.001
-);
-// enable automatic plucking
-enableautoplucker = checkbox("/h:_trigger/_enable auto pluck");
+#if STRING_COUNT == 4
 
 autoplucker = phasor(pluckrate)
     <: <(0.25), >(0.25) & <(0.5), >(0.5) & <(0.75), >(0.75) & <(1)
-    : par(s, NStrings, *(enableautoplucker))
+    : par(s, stringCount, *(enableautoplucker))
 with {
     phasor(freq) = (freq/float(ma.SR) : (+ : ma.decimal) ~ _);
+    // automatic plucking rate (Hz)
+    pluckrate = hslider(
+        "/h:_trigger/_auto pluck rate [style:knob][unit:hz]",
+        0.1, 0.0, 0.5, 0.001
+    );
+    // enable automatic plucking
+    enableautoplucker = checkbox("/h:_trigger/_enable auto pluck");
 };
 
-process = (par(s, NStrings, gate(s)), autoplucker) :> tambura(NStrings);
+#else
+// It's hard-coded to 4 strings.
+autoplucker = par(s, stringCount, 0);
+#endif
+
+process = (par(s, stringCount, gate(s)), autoplucker) :> tambura(stringCount);

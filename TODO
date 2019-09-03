@@ -2396,6 +2396,7 @@ synth: im:
       . Per-patch signal network so I can incorporate faust effects.
   audio debugging ideas:
     - attach an oscilliscope to any internal signal
+      . Or export it as audio to listen or look at.
     - get windows of values, e.g. control values right at note attacks
     - detect anomalies, like NaN or numbers in unexpected ranges.
   faust:
@@ -2505,6 +2506,9 @@ synth: im:
         . I can fix it by insisting on always at least one value for each
           control.
         . But does that then break default control vals?
+        . Something is wrong with state and probably control values, because
+          I now get artifacts on resume.  Maybe it's the initialize?  Try
+          turning it off.
       . I have to sample the controls at each time, and set the appropriate
         control.
       . #1: keep Map Control Widget in Instrument, where Widget has a
@@ -2644,6 +2648,7 @@ synth: im:
       - try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
+        . Tune against sine.
       - Perhaps bring back pitch from 0 as a buzzy attack effect.
       per-string controls:
         * gate
@@ -2658,7 +2663,7 @@ synth: im:
           for each string.  But in general if I have individually addressable
           elements, I have n*m controls and I need an index for controls.
       - Can I get signals from other parts of the string?  It would be nice
-        for stereo.
+        for stereo or multichannel.
       - How to do damping?
         . I guess I turn up the string damping.
       / I won't need the autoplucker.
@@ -2691,6 +2696,20 @@ synth: im:
         . I could make separate patches, e.g. >tmb4 >tmb16 etc. or try to
           parameterize the patch, so I don't get cluttter in the patch browser.
         . Let's do separate patches for now.
+        . Where do I declare it?  Eventually the shakefile needs it.  So
+          either some faust instrument config module, or use pragma hacks to
+          embed it in the instrument.  Currently the only user is tambura, so
+          let's just hardcode in the shakefile.
+        . But even how to do that seems non-trivial.  I could make
+          a transformation *.tmpl.dsp -> *.dsp, but then I need to put the
+          output in some other build dir.  Or maybe bake it into the faust
+          compile, if it has *.tmpl.dsp, then run faust multiple times and
+          concatenate the results into one *.cc?
+        . Or, I could pass all faust through CPP, and write tmb4 etc. as
+          #define STRING_COUNT 4; #include "tambura.dsp"
+        . System cpp puts lots of # line pragmas, but cpphs can take --noline
+          to omit them.
+        . But then I need to chase includes to get the deps.
       / It uses random for pluck pos and amp, I want deterministic.
         . How does no.noise work?  If not deterministic, I probably have to make
           it so.

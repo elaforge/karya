@@ -857,7 +857,7 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
                 HasIcon -> makeBundle True fn
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
-            let iconset = "doc/icon" </> replaceExt fn "iconset"
+            let iconset = "doc/icon" </> nameExt fn "iconset"
             icons <- Shake.getDirectoryFiles "" [iconset </> "*"]
             need icons
             Util.system "iconutil" ["-c", "icns", "-o", fn, iconset]
@@ -1209,7 +1209,7 @@ buildHs config rtsFlags libs extraPackages hs fn = do
 makeBundle :: Bool -> FilePath -> Shake.Action ()
 makeBundle hasIcon binary = case Util.platform of
     Util.Mac -> do
-        let icon = build </> replaceExt binary "icns"
+        let icon = build </> nameExt binary "icns"
         when hasIcon $ need [icon]
         Util.system "tools/make_bundle" [binary, if hasIcon then icon else ""]
     _ -> return ()
@@ -1304,9 +1304,14 @@ generatedKorvais = "Solkattu/All.hs"
 
 -- * faust
 
-faustDspDir, faustSrcDir :: FilePath
+faustDspDir :: FilePath
 faustDspDir = "Synth/Faust/dsp"
+
+faustSrcDir :: FilePath
 faustSrcDir = build </> "faust"
+
+faustCppDir :: FilePath
+faustCppDir = build </> "faust-cpp"
 
 -- | Directory that faust-im render-preview writes to.  This should come
 -- from Synth.Faust.Preview.cacheDir, but I don't want to import that here.
@@ -1316,21 +1321,36 @@ faustPreviewDir :: FilePath
 faustPreviewDir = "data/im/preview"
 
 faustRules :: Shake.Rules ()
-faustRules = faustRule *> faustAllRule
+faustRules = faustRule *> faustCppRule *> faustAllRule
+
+faustCppRule :: Shake.Rules ()
+faustCppRule = faustCppDir </> "*.dsp" %> \output -> do
+    -- build/faust-cpp/x.dsp -> Synth/Faust/dsp/x.dsp
+    let input = faustDspDir </> FilePath.takeFileName output
+    (includes, notFound) <- CcDeps.transitiveIncludesOf mempty [] input
+    unless (null notFound) $
+        Util.errorIO $ ".dsp includes not found: " <> unwords notFound
+    need $ input : includes
+    Util.cmdline
+        ( "CPP"
+        , output
+        , ["cpphs", "--noline", "-O" <> output, input]
+        )
 
 faustRule :: Shake.Rules ()
 faustRule = faustSrcDir </> "*.cc" %> \output -> do
-    need [srcToDsp output]
-    Util.cmdline $ faustCmdline output (srcToDsp output)
+    -- build/faust/x.cc -> build/faust-cpp/x.dsp
+    let input = faustCppDir </> nameExt output ".dsp"
+    need [input]
+    Util.cmdline $ faustCmdline input output
     -- Clear the cache.
     Util.system "rm"
         [ "-rf"
-        , faustPreviewDir
-            </> FilePath.dropExtension (FilePath.takeFileName output)
+        , faustPreviewDir </> dspToName input
         ]
 
 faustCmdline :: FilePath -> FilePath -> Util.Cmdline
-faustCmdline output input =
+faustCmdline input output =
     ( "FAUST"
     , output
     , ["faust", input
@@ -1339,6 +1359,13 @@ faustCmdline output input =
       , "-o", output
       ]
     )
+
+dspToName :: FilePath -> String
+dspToName = FilePath.dropExtension . FilePath.takeFileName
+
+-- | Synth/Faust/dsp/x.dsp -> build/faust/x.cc
+dspToSrc :: FilePath -> FilePath
+dspToSrc dsp = faustSrcDir </> nameExt dsp ".cc"
 
 faustAllRule :: Shake.Rules ()
 faustAllRule = generatedFaustAll %> \output -> do
@@ -1391,19 +1418,6 @@ faustAll dsps extraIncludes = unlines
     struct = ("__faust_"<>)
     names = map dspToName dsps
     includes = map (show . dspToSrc) dsps ++ map show extraIncludes
-
-dspToName :: FilePath -> String
-dspToName = FilePath.dropExtension . FilePath.takeFileName
-
--- | build/faust/x.cc -> Synth/Faust/dsp/x.dsp
-srcToDsp :: FilePath -> FilePath
-srcToDsp src = faustDspDir
-    </> FilePath.replaceExtension (FilePath.takeFileName src) ".dsp"
-
--- | Synth/Faust/dsp/x.dsp -> build/faust/x.cc
-dspToSrc :: FilePath -> FilePath
-dspToSrc dsp = faustSrcDir
-    </> FilePath.replaceExtension (FilePath.takeFileName dsp) ".cc"
 
 -- * markdown
 
@@ -1807,8 +1821,8 @@ dropSuffix str suf
         Just $ reverse $ drop (length suf) (reverse str)
     | otherwise = Nothing
 
-replaceExt :: FilePath -> String -> FilePath
-replaceExt fn = FilePath.replaceExtension (FilePath.takeFileName fn)
+nameExt :: FilePath -> String -> FilePath
+nameExt fn = FilePath.replaceExtension (FilePath.takeFileName fn)
 
 -- NOTE [no-package] I don't have a way to declare packages and their
 -- dependencies.  I just sort of ad-hoc it by giving most dependencies to
