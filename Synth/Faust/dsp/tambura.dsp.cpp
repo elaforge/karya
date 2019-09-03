@@ -135,16 +135,19 @@ with {
 
     // dual risset strings for decoupled feedback
     string(s, trig) = _, _ <: +, !,_
-        : rissetString(_, s, 1, 1, 1),
-          rissetString(_, s, tscale, descale, 1)
+        : rissetString(_, s, 1),
+          rissetString(_, s, tscale)
     with {
         // 9 detuned delay line resonators in parallel
-        rissetString(x, s, tscale1, des, das) =
-            _ <: par(c, 9, stringLoop(x, s, c, tscale1, das)) :> _
+        rissetString(x, s, tscale1) =
+            _ <: par(c, 9, stringLoop(x, s, c, tscale1)) :> _
             : fi.dcblocker * 0.01;
-        // waveguide string with damping filter and non linear apf for jawari
-        // effect
-        stringLoop(x, s, c, tscale1, des, das) =
+
+        // Waveguide string with damping filter and non linear apf for jawari
+        // effect.
+        // XXX x2 is implicitly split from 'x', and winds up affecting damping,
+        // which is probably a bug.
+        stringLoop(x, s, c, tscale1, x2) =
             (+ : delay) ~ ((dampingFilter : nlfm) * fbk)
         with {
             // allpass interpolation has better HF response
@@ -163,7 +166,7 @@ with {
             fbk = pow(0.001, 1 / (thisPitch * (t60 * descale)));
             dampingFilter(x) = h0 * x' + h1*(x + x'')
             with {
-                d = das * damp;
+                d = x2 * damp;
                 h0 = (1 + d) / 2;
                 h1 = (1 - d) / 4;
             };
