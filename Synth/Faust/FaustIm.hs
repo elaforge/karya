@@ -58,6 +58,10 @@ main = do
                 Left err -> Text.IO.putStrLn $ "ERROR: " <> err
                 Right patch -> printPatch patch
             putStrLn ""
+        ["print-patches", patch] -> case Map.lookup (txt patch) patches of
+            Nothing -> Text.IO.putStrLn $ "no patch: " <> txt patch
+            Just (Left err) -> Text.IO.putStrLn $ "ERROR: " <> err
+            Just (Right patch) -> printPatch patch
         ["render-preview", patch] -> case Map.lookup (txt patch) patches of
             Nothing -> errorIO $ "no such patch: " <> txt patch
             Just (Left err) -> errorIO $ "loading patch " <> txt patch <> ": "
