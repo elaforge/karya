@@ -13,24 +13,24 @@ inst = library("instruments.lib");
 //==================== GUI SPECIFICATION ================
 
 freq = nentry(
-    "h:Basic/freq [1][unit:Hz] [tooltip:Tone frequency]",
+    "h:_Basic/freq [1][unit:Hz] [tooltip:Tone frequency]",
     440, 20, 20000,1);
 gain = nentry(
-    "h:Basic/gain [1][tooltip:Gain (value between 0 and 1)]",
+    "h:_Basic/gain [1][tooltip:Gain (value between 0 and 1)]",
     1, 0, 1, 0.01);
-gate = button("h:Basic/gate [1][tooltip:noteOn = 1, noteOff = 0]");
+gate = button("h:_Basic/gate [1][tooltip:noteOn = 1, noteOff = 0]");
 
 noiseGain = hslider(
-    "h:Physical_and_Nonlinearity/v:Physical/Noise_Gain
+    "h:_Physical_and_Nonlinearity/v:_Physical/noise_gain
         [2][tooltip:Breath noise gain (value between 0 and 1)]",
     0.5, 0, 1, 0.01)*2;
 
 pressure = hslider(
-    "h:Physical_and_Nonlinearity/v:Physical/Pressure
+    "h:_Physical_and_Nonlinearity/v:_Physical/pressure
         [2][tooltip:Breath pressure (value bewteen 0 and 1)]", 1, 0, 1, 0.01);
 
 typeModulation = nentry(
-    "h:Physical_and_Nonlinearity/v:Nonlinear_Filter/Modulation_Type
+    "h:_Physical_and_Nonlinearity/v:_Nonlinear_Filter/modulation_type
         [3][tooltip: 0=theta is modulated by the incoming signal;
         1=theta is modulated by the averaged incoming signal;
         2=theta is modulated by the squared incoming signal;
@@ -38,48 +38,29 @@ typeModulation = nentry(
         4=theta is modulated by a sine wave of frequency freq;]",
     0, 0, 4, 1);
 nonLinearity = hslider(
-    "h:Physical_and_Nonlinearity/v:Nonlinear_Filter/Nonlinearity
+    "h:_Physical_and_Nonlinearity/v:_Nonlinear_Filter/nonlinearity
         [3][tooltip:Nonlinearity factor (value between 0 and 1)]",
     0, 0, 1, 0.01);
 
 frequencyMod = hslider(
-    "h:Physical_and_Nonlinearity/v:Nonlinear_Filter/Modulation_Frequency
+    "h:_Physical_and_Nonlinearity/v:_Nonlinear_Filter/modulation_frequency
     [3][unit:Hz][tooltip:Frequency of the sine wave for the modulation of
     theta (works if Modulation Type=3)]", 220, 20, 1000, 0.1);
 nonLinAttack = hslider(
-    "h:Physical_and_Nonlinearity/v:Nonlinear_Filter/Nonlinearity_Attack
+    "h:_Physical_and_Nonlinearity/v:_Nonlinear_Filter/nonlinearity_attack
         [3][unit:s][Attack duration of the nonlinearity]",
     0.1, 0, 2, 0.01);
 
-vibratoFreq = hslider(
-    "h:Envelopes_and_Vibrato/v:Vibrato/Vibrato_Freq [4][unit:Hz]",
-    5, 1, 15, 0.1);
-vibratoGain = hslider(
-    "h:Envelopes_and_Vibrato/v:Vibrato/Vibrato_Gain
-        [4][tooltip:A value between 0 and 1]", 0.1, 0, 1, 0.01);
-vibratoBegin = hslider(
-    "h:Envelopes_and_Vibrato/v:Vibrato/Vibrato_Begin
-        [4][unit:s][tooltip:Vibrato silence duration before attack]",
-    0.05, 0, 2, 0.01);
-vibratoAttack = hslider(
-    "h:Envelopes_and_Vibrato/v:Vibrato/Vibrato_Attack
-        [4][unit:s][tooltip:Vibrato attack duration]",
-    0.5, 0, 2, 0.01);
-vibratoRelease = hslider(
-    "h:Envelopes_and_Vibrato/v:Vibrato/Vibrato_Release
-        [4][unit:s][tooltip:Vibrato release duration]",
-    0.01, 0, 2, 0.01);
-
 envelopeAttack = hslider(
-    "h:Envelopes_and_Vibrato/v:Envelope/Envelope_Attack
+    "h:_Envelopes_and_Vibrato/v:_Envelope/envelope_attack
         [5][unit:s][tooltip:Envelope attack duration]",
     0.01, 0, 2, 0.01);
 envelopeDecay = hslider(
-    "h:Envelopes_and_Vibrato/v:Envelope/Envelope_Decay
+    "h:_Envelopes_and_Vibrato/v:_Envelope/envelope_decay
         [5][unit:s][tooltip:Envelope decay duration]",
     0.01, 0, 2, 0.01);
 envelopeRelease = hslider(
-    "h:Envelopes_and_Vibrato/v:Envelope/Envelope_Release
+    "h:_Envelopes_and_Vibrato/v:_Envelope/envelope_release
         [5][unit:s][tooltip:Envelope release duration]",
     0.5, 0, 2, 0.01);
 
@@ -107,9 +88,7 @@ nlfm =  inst.nonLinearModulator((nonLinearity : si.smoo), envelopeMod, freq,
 //botlle radius
 bottleRadius = 0.999;
 
-//stereoizer is declared in instruments.lib and implement a stereo
-//spacialisation in function of the frequency period in number of samples
-stereo = inst.stereoizer(ma.SR / freq);
+stereo = stereoizer(ma.SR / freq);
 
 bandPassFilter = inst.bandPass(freq, bottleRadius);
 
@@ -122,14 +101,8 @@ envelopeG =  gain * inst.en.adsr(
 //pressure envelope is also ADSR
 envelope = pressure * inst.en.adsr(gain*0.02, 0.01, 1, gain * 0.2, gate);
 
-//vibrato
-vibrato = inst.os.osc(vibratoFreq)
-    * vibratoGain
-    * inst.envVibrato(vibratoBegin, vibratoAttack, 1, vibratoRelease, gate)
-    * inst.os.osc(vibratoFreq);
-
-//breat pressure
-breathPressure = envelope + vibrato;
+// breath pressure
+breathPressure = envelope;
 
 //breath noise
 randPressure = noiseGain * no.noise * breathPressure;
@@ -140,4 +113,14 @@ process =
         <: ((+(1)) * randPressure : +(breathPressure)) - *(inst.jetTable), _
         : bandPassFilter,_) ~ nlfm : !, _
     //signal scaling
-    : fi.dcblocker * envelopeG * 0.5 : stereo : inst.instrReverb;
+    : fi.dcblocker * envelopeG * 0.5 : stereo; //  : inst.instrReverb;
+
+// stereoizer is declared in instruments.lib and implement a stereo
+// spatialisation in function of the frequency period in number of samples
+stereoizer(periodDuration) = _ <: _,widthdelay : stereopanner
+with {
+    W = hslider("v:_Spat/spatial-width", 0.5, 0, 1, 0.01);
+    A = hslider("v:_Spat/pan-angle", 0.6, 0, 1, 0.01);
+    widthdelay = de.delay(4096,W*periodDuration/2);
+    stereopanner = _,_ : *(1.0-A), *(A);
+};
