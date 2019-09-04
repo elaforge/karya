@@ -72,7 +72,8 @@ main = do
                 =<< Note.unserialize notesFilename
             patches <- traverse (either errorIO pure) patches
             process patches notes outputDir
-        _ -> errorIO $ "usage: faust-im [print-patches | notes outputDir]"
+        _ -> errorIO $
+            "usage: faust-im [print-patches | render-preview | notes outputDir]"
     where
     printPatch patch = do
         put $ DriverC._doc patch

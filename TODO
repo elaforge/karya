@@ -2399,6 +2399,11 @@ synth: im:
       . Or export it as audio to listen or look at.
     - get windows of values, e.g. control values right at note attacks
     - detect anomalies, like NaN or numbers in unexpected ranges.
+    faust problems:
+      . The way point-free style interacts with pointed style combined with
+        how <: implicitly duplicates the signal as many times as in necessary
+        is error-prone.  E.g. an extra argument is not caught if a <: precedes
+        it.
   faust:
     * How can I get preview for faust instruments?
       . One way is pre-render all pitches, and the play samples.
@@ -2649,6 +2654,9 @@ synth: im:
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
         . Tune against sine.
+        . It gets out of tune the higher it goes, e.g. 6s is pretty out.
+        . Maybe it's the c-4 pitch spread, since it's by hz and not
+          logarithmic...
       - Perhaps bring back pitch from 0 as a buzzy attack effect.
       per-string controls:
         * gate
@@ -2673,7 +2681,7 @@ synth: im:
         implies I have to support controls.
         . Web targets: can I make an html page to open directly?
         . faustlive works, and even reloads when I change the file
-      - configure number of strings
+      * configure number of strings
         . This is static, so I think I need a way to configure instruments.
         . I'll presumably need that for models in general.
         . Assuming I want to be able to store instrument configuration
@@ -2710,6 +2718,8 @@ synth: im:
         . System cpp puts lots of # line pragmas, but cpphs can take --noline
           to omit them.
         . But then I need to chase includes to get the deps.
+      - tambura variations should be able to share preview sounds.
+        . It's pretty ad-hoc though.
       / It uses random for pluck pos and amp, I want deterministic.
         . How does no.noise work?  If not deterministic, I probably have to make
           it so.
