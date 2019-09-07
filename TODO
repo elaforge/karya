@@ -86,7 +86,7 @@ UNSORTED
     . It would be nice to have the high level part, then double click to open
       the derived parts, and possibly edit.
   - make tr hold flat?
-    . can I replace the trill hold arg with a 'd' call for control calls?
+    . can I replace the trill hold arg with a 'd' transform for control calls?
       That won't work for the note trill though.
   - do I ever get negative Score.Events?
     . It would simplify to rule that out.  E.g. Score.events_overlap
@@ -203,55 +203,6 @@ UNSORTED
       a playable instrument.
     . Actually, it is, it's the version without the scale, so it would work
       for any tuning.
-  * crash: sudden quit when renaming block in save/kendang/sinom-ladrang:
-    LBlock.rename @awak
-    . What can cause a quit with no error?
-    . Renaming might confuse im caching?
-    . It only happens with the name sinom-ladrang, and goes away when I
-      print the length of the actions.
-    . Maybe there's an exception from pure code that length forces?
-    . No, printing anything there makes it not happen.
-    . In fact, just adding a commented out line there makes it not happen.
-      This really seems like memory corruption.
-    . But I don't get a core dump?
-    . And what does it have to do with im?  How about if I remove the im
-      instruments?  Yes, also happens.
-    . Delete sm/*?  That fixes it.
-    . What about in debug mode?  Still happens.
-    . With sm/* I get a bunch of TrackAllEvents which shouldn't have any
-      effect.  They should all be filtered out due to no ViewId.
-    . They do, but I still get a bunch of dups for visible ones, I should
-      be able to unique those at least.  That shouldn't cause this problem
-      though.
-    . I think it wants to do a coredump, if I do
-      'limit coredumpsize unlimited' then I get max cpu usage, run out of
-      memory, and run out of disk space.
-    . It actually renders, then when I click it crashes, and creates an
-      infinite sized core dump, just hidden in /cores (? the other one was
-      1tb).  The huge size is likely due to ghc's allocation strategy.
-    ? Does it happen on linux?  nope.
-    ? Does it happen on the other mac? nope
-    + Try compiling with -debug.
-      . With -DS it becomes a segfault.
-      . With -Di -Dw it doesn't crash.
-    / Try using gdb.  Compile with -g, though it could be in c++.
-      . Need to install gdb.
-      . Need to do a giant runaround to sign the binary:
-        https://ghc.haskell.org/trac/ghc/wiki/Debugging/CompiledCode
-    / Could it be due to out of date callback foreign ptrs?
-      . I could debug that by not calling them.
-    / Maybe it's due to library versions?  Try to reproduce with the same
-      versions.
-    . I'm getting this again with LBlock.destroy when there are im
-      instruments.
-      139 exit code is what?  139 - 128.  It's 11, which is SIGSEGV.
-      . So it's definitely memory access out of bounds.
-      . OS X keeps crashes in Console.  It's dynamic_cast<> from
-        BlockWindow::handle.
-      . Looks like check_focus() was it?
-      . It was 0x7fb3e103a000... which is a real address.  Maybe it's some
-        object compiled without RTTI?
-      . It has a valid label(): fltk/Block.cc:863 label: intro - .v1
   - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
     I can put another monad on top.
     . I think I only switched to Ui.M because it was awkward pre-AMP.
@@ -1617,11 +1568,6 @@ synth: im:
       sketchy IORef stuff could go away, and the alignment would be in the
       type instead of implicit.
   bug:
-    * track disable not working... maybe it doesn't invalidate the cache if
-      there are no notes?
-      . also in test/faust-tambura, mute on >guit mutes >tmb too.
-      . karya is sending "tmb" when I mute "guit".
-      . Because I'm doing solo, not mute!
     - starts are getting cut off again
       . Give more lead time to load the samples?
   merge faust-im and sampler-im:
@@ -2065,29 +2011,6 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
-    * System error : Too many open files.
-      . The limit is 4864 though, which implies that it's not closing them.
-      . Log open and close and FDs?
-      . im-rambat-simple has 6 notes
-      . I see 6 closes, but all at the end.  And many more opens than closes.
-        I wonder if extra opens are getting file length?  Yes, but they get
-        closed.  The real problem is that they don't get closed until the end.
-      . I never get to the close.  Probably because I stop pulling from the
-        stream, but I don't tell it to close!  It's the iterator problem.
-      . I want the the that runs out of samples to close the stream.
-      . That will be Audio.take, via applyEnvelope
-      ? I can't tell if conduit has a solution for this.
-        . I think conduit doesn't close either.  'take' would have to give
-          a signal that it closed the conduit.  I wind up at
-          Data.Conduit.List.isolate, which is just await -> yield.
-        . Maybe you're not supposed to do the structure with multiple
-          long-running streams?
-      . What if I stream opened resources too, and then the consumer collects
-        them, to close when complete?  The problem is that it's intermediate
-        consumers, like 'take' that are completing.
-      . The hack to close on time seems to work, but then I get a quit with
-        -11, that's SIGSEGV.
-      . Doesn't sndfile get mad if I close a handle multiple times?  Yes.
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
       . Use the same srate as DbSignal.from_signal.
@@ -2405,70 +2328,9 @@ synth: im:
         is error-prone.  E.g. an extra argument is not caught if a <: precedes
         it.
   faust:
-    * How can I get preview for faust instruments?
-      . One way is pre-render all pitches, and the play samples.
-      . Add a faust-im command, and a shake rule that builds them from
-        build/faust/*.cc.
-      . But I kind of want to do it lazily for instruments that I actually
-        use.  Also I definitely want to use hash, not mtime, and I have to use
-        mtime for shake due to ghci.
-      . Or, have shake delete the cache dirs when rebuilding .dsp, and just
-        check for existence of the directory.
-    * I need some way to initialize elements before they sound.
-      . Perhaps emit a dummy note at t0?  Notes are the only thing that carry
-        controls, so I think it has to be, unless I make some special purpose
-        value.
-      . The preview samples have initialization artifacts.
-      . Maybe I can support it at the Render level, where initialize patch
-        will take controls, and then run one block like that.
-      . I can use si.polySmooth to avoid attack artifacts, but I still need
-        explicit initialization, because of e.g. setting string tuning for
-        sympathetic strings.
-      . How to declare it?  I want to be able to say:
-        tambura:
-          0:pitch = (4s)
-          0:pan = .25
-          1:pitch = (5s)
-          1:pan = .5
-          2:pitch = (5s)
-          2:pan = .5
-          3:pitch = (4p)
-          3:pan = .75
-          harmonic-motion = .15
-          etc.
-        . Or go per-element:
-          pitch = (list (4s) (5s) (5s) (4p))
-          pan = (list ...)
-      . I can have an 'initialize' call that puts 0 dyn notes at the
-        beginning, then put it in the global transform.
-      . initialize tambura pitch (list ...) pan (list ...) harmonic-motion .15
-      . Why not use the Derive.inst_controls ControlValMap?  That's what it's
-        for.  I could have Im.Convert emit 0 dyn notes for it.  Then I need
-        a special syntax for element:control, and write LInst functions to
-        split up values by element.
-      . But the deriver approach lets me use pitch calls, and put it Ky.state,
-        which seems nicer to look at, even though instrument config really is
-        for that.  Maybe I just need to reflect the inst config into Ky.state.
-        But since a derive call occurs in the derive stack, it has scale etc.
-        in scope, and can vary based on that.
-      . If I put it in derive though, I need to get the inst allocation,
-        assert that it's an ImInst, and get its elements, which is not
-        generally exposed.  I could put it in Im.Patch though.  Is the
-        precedent for getting Cmd.ResolvedInstrument from derive?  I don't
-        think it has access?
-      . It emits the dummy notes, but not sure if they're having the effect.
-    * use Common.Flag Triggered to simplify gate to just an impulse.
-      . Also put dyn in it, so I don't a separate dyn signal.
-    * support Control.volume
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
       . Test volume, support pan.
-    * faust is still using Config.chunkSize instead of Config.blockSize.
-      I have to use blockSize and make sure it's small so that controls are
-      high resolution.
-    * faust-im doesn't do progress reports
-    * use element instead of patch-element, and allow VNum, so I can do
-      element=0.
     . Even though I can enforce the block size only at the final step of the
       pipeline, it's still more efficient to generate the right sized blocks
       in the first place.  This seems easy to get wrong though.
@@ -2556,100 +2418,6 @@ synth: im:
         anyway.  But unsmoothed calculations can happen at control rate.
     tambura.dsp:
       . https://github.com/olilarkin/Tambura
-      * This is the first faust instrument with multiple elements, and the
-        automatic gate signal isn't set up for that.
-        . Just pick one string at first, but I'll need to have some
-          understanding of parameter indexing, so I can divide controls by
-          element.  I could unconditionally prepend element to the control
-          names, but I think I want to support per-instrument controls too.
-        . I think faust only really suports numbers from 0, due to the par
-          function, so either elements have to have the same name, or I need
-          to map element names through a list index.
-        . Actually, the hierarchical box stuff is suited for this, so I should
-          use that.  I could flatten levels [0:-1] to the element, and [-1] is
-          the control name.
-        . This would mean an implicit requirement on control name structure.
-          I guess I already have that since I map them directly to karya
-          controls though.
-        . Controls become (Maybe Element, Control).  Then I have to look for
-          (Just (Note.element note), control) first, and (Nothing, control) if
-          that doesn't match.
-        . This also means I can now have overlapping notes, which means I need
-          to route the controls properly.
-        . I already have the overlapping chunks to make the hashes, but
-          they're at chunk level, not block.  And they're just for hashes.
-        . The input controls work by extracting breakpoints, then creating
-          a lazy signal of audio rate chunks.  This is nice because I did all
-          the work of extracting from notes in advance.  I could do the same
-          by extracting breakpoints per-Element.
-        . I should extract to [[Breakpoint]] so I don't wind up with nested
-          appends.
-        . Oh, and I need to interpolate, because I have breakpoints.  This is
-          why audio rate input is simpler!
-        . Maybe I can implement them the same, except lower sampling rate, and
-          symbolic name, then do the interpolation and block loop in C.
-        So:
-          . Split notes up by Element.
-          . Merge breakpoints for controls without element, and breakpoints
-            for those with element for each element.
-          . Use Audio.linear to generate controlRate streams by
-            (Control, Element), which is then passed to Render.render.
-          . c_faust_render loops for each controlSize and sets the next set of
-            control values.
-          . If a control is or becomes constant, I should be able to drop it
-            out of the 'Map (Control, Element) ControlAudio'.
-        . I want to make sure to stream multiple controls, so I iterate over
-          Notes once and can throw them out once I'm past them.
-          Seq.keyed_group_stable is multiple iterations, but they are
-          streaming.
-      * dynamic support:
-        . Put it in the gate signal.
-        . But it doesn't trigger on an impulse, probably because line()
-          interpolates both up and down, so it doesn't just catch a rising
-          edge.
-      * It seems only the first note has jawari, probably because the value
-        sproings from 0.
-        . Sounds like maybe attack_time=.15
-        . It's also a lot louder, what's going on?
-        . Make the pitch bend really obvious to make sure attack effects are
-          happening.
-        . I don't think it's control initialization, because they should be
-          set by the time the note starts.
-        . The only thing coming from 0 could be pitch, and it does indeed do
-          that.
-        . This behaviour is built into faust with controls because it has to
-          use an interpolating filter, and those start with state=0.  I can
-          avoid it by moving controls back by 1 controlSize, which is actually
-          the solution to all the sproings.
-        . It doesn't help the first note though.  And it seems I shouldn't get
-          that anyway, because the strings are already running, just with gate
-          at 0.
-        . { ("", attack-time): [(.125, .07), (1.5, .07), (1.5, .07)]
-          , ("", bend-depth): [(.125, 12), (1.5, 12), (1.5, 12)]
-          , ("", bend-time): [(.125, 200), (1.5, 200), (1.5, 200)]
-          , ("0", gate)
-              : [ (.125, 0), (.125, 1), (.131, 1), (.131, 0), (1.5, 0), (1.5, 1)
-              , (1.506, 1), (1.506, 0)
-              ]
-          , ("0", pitch): [(.125, 48), (1.5, 48), (1.5, 48)]
-          }
-        . With everything, no note.
-        . With just gate and pitch, I get note and buzz.
-        . With just gate and const pitch, I get note and no buzz.
-        . But I need impulse to be controlSize*2, so no pitch is due to
-          gate too short, and buzz due to pitch too late.
-        . Verify the value at attack for each control.
-        . I think for this to work, I have to round all breakpoints and notes
-          to control boundaries, and then subtract one control cycle from all
-          controls.  Or just forget about this whole thing and go back to
-          proper input controls that have none of these problems.
-        . On the other hand, I could think about it as reflecting physical
-          restrictions.  E.g. if I have per-sample pitch I might want to move
-          it into place before anyway to avoid a discontinuity.
-        . I still need a offset at time 0... I can add a controlSize delay to
-          any notes at 0.
-      * The first note is missing attack, what's going on?
-        . This seems to have been due to control initialization.
       - try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
@@ -2658,66 +2426,12 @@ synth: im:
         . Maybe it's the c-4 pitch spread, since it's by hz and not
           logarithmic...
       - Perhaps bring back pitch from 0 as a buzzy attack effect.
-      per-string controls:
-        * gate
-        * dyn
-        * pitch
-        * pan
-        . I guess everything except coupling.
-        . But let's leave the pick stuff global for efficiency.
-      * per-string pitch
-        . Use element to select string.
-        . I want them to be normal signals, which means an addressing scheme
-          for each string.  But in general if I have individually addressable
-          elements, I have n*m controls and I need an index for controls.
       - Can I get signals from other parts of the string?  It would be nice
         for stereo or multichannel.
       - How to do damping?
         . I guess I turn up the string damping.
       / I won't need the autoplucker.
         But it's convenient for testing.
-      * I want to experiment in realtime, so I should get one of the faust
-        mechanisms for that working.  They all work with controls, so that
-        implies I have to support controls.
-        . Web targets: can I make an html page to open directly?
-        . faustlive works, and even reloads when I change the file
-      * configure number of strings
-        . This is static, so I think I need a way to configure instruments.
-        . I'll presumably need that for models in general.
-        . Assuming I want to be able to store instrument configuration
-          per-score, I'll need a separate initialization step, similar to
-          MIDI initialization.  But for faust, it will actually need a build
-          and relink.  I'd probably need to do it with dynamic loading to make
-          it workable, and maybe have a nix-style cache of compiled
-          instruments.
-        . That's pretty complicated though, so I'll just make a bunch and
-          stick them in the instrument db.
-        . For faust in I still need a templating step though, probably
-          a mustache-style template.  I suppose that would be most easily done
-          in shake, though it means the shakefile would have to import
-          something from Local.Instrument, which is a first.  It should be
-          fine as long as that module doesn't import anything.
-        . Or if I want to do dynamic compiles, faust has a llvm backend that
-          can compile in memory.
-        . A whole library would be overkill, I can use
-          Util.TextUtil.interpolate.
-        . I could make separate patches, e.g. >tmb4 >tmb16 etc. or try to
-          parameterize the patch, so I don't get cluttter in the patch browser.
-        . Let's do separate patches for now.
-        . Where do I declare it?  Eventually the shakefile needs it.  So
-          either some faust instrument config module, or use pragma hacks to
-          embed it in the instrument.  Currently the only user is tambura, so
-          let's just hardcode in the shakefile.
-        . But even how to do that seems non-trivial.  I could make
-          a transformation *.tmpl.dsp -> *.dsp, but then I need to put the
-          output in some other build dir.  Or maybe bake it into the faust
-          compile, if it has *.tmpl.dsp, then run faust multiple times and
-          concatenate the results into one *.cc?
-        . Or, I could pass all faust through CPP, and write tmb4 etc. as
-          #define STRING_COUNT 4; #include "tambura.dsp"
-        . System cpp puts lots of # line pragmas, but cpphs can take --noline
-          to omit them.
-        . But then I need to chase includes to get the deps.
       - tambura variations should be able to share preview sounds.
         . It's pretty ad-hoc though.
       / It uses random for pluck pos and amp, I want deterministic.
@@ -2725,8 +2439,6 @@ synth: im:
           it so.
         . It is deterministic.  I guess it has to be if it can't do any IO.
         . But I can also take out the random and use exact values.
-      * It uses controls for all the parameters, I should either convert to
-        audio signals or support controls.
       - Include the bridge IR?  It's in the original source but commented out
         for some reason.  Also the the github page references the
         unimplemented body IR, which might be different.
@@ -2893,13 +2605,10 @@ shakefile: build:
       buildInputs
       . Because I run zsh after bash setup and it changes the path around.
     propagate deps to the shakefile:
-      * libsamplerate
       - package paths for haddock
-      * withIm, withEkg
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
         easier without.  Nix could create a Local/ShakeConfig.hs though.
       . Create from $setup, and tools/nix-enter will have the shell run it.
-    * get haskell pkg lists from shakefile
     - figure out how to pin hackage package versions.
       . I need this for writer-cps-mtl at least.
       . https://github.com/sol/tinc/tree/nixpkgs
@@ -2908,11 +2617,7 @@ shakefile: build:
       . They probably all boil down to cabal2nix nonsense.  Would it be
         simpler to just make sure I can work with a nixpkgs snapshot?
       . Or just use the latest ghc and the problem should go away.
-    * faust2 won't compile on OS X, does it work on linux?
-    * libsamplerate won't compile from github version, write my own drv?
     - linux, need jack1 or jack2
-    * find the fonts
-    * find c2hs
     ? Can I can run ghci with the pkgs?  I guess nix-shell should set that up,
       but why is there '--disable-library-for-ghci' in the configureFlags?
     - Is there a way to configure lilypond to not drag in a whole tex?
@@ -5423,24 +5128,6 @@ text score: tscore:
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
-    * if I rename a block that is called with /0, I get
-      . State error: Derive/TScore/TScore.hs:109 call "repeat=2 | p3":
-        note generator not found: p3
-      . It looks like it's thinking it's an external call.
-      . Maybe because it is, because they're all in the same namesapce now?
-    * If I rename a block, it makes a copy.
-      . I think I have to detect renames with a heuristic.
-      . It would be nicer to have a general solution... though I'm not sure
-        how I could say that, aside from run a separate command, which would
-        then have to modify the tscore source.
-      . Can I detect the move at the integrate level?
-      . No, because each block is merged separately.
-      . I need to have a record of the previous tscore, which I can get if
-        I put it in LTScore.  Then I would need to do the whole parse on that
-        again to compare it for moves.
-      . Could I store the parsed form?
-      . I could, but why not compare with the event indices myself?
-        Look for a deleted block with the same contents.
   - Similar to renames, is it possible to detect track moves?
     . This also happens when I add a track in the middle.
     . If there are no edits, this works out because it looks like a complete
@@ -5593,28 +5280,6 @@ text score: tscore:
     * Check for unique track keys.
     - Add key to Convert.Track, rename to NoteSource while I'm at it.
     - update Merge.pair_tracks to take [NoteSource]
-  * in TScore, save the tracks reverse until the UI step
-  * empty tracks don't parse (?)
-  * I get 'expected assert here' in useless places:
-    . > State error: Derive/TScore/TScore.hs:109 expected assert here
-      >   1 | %scale=sargam
-      >       ^
-  * Also it does "expected here" when it really means "expected much after".
-    . Maybe I can igonre asserts that occur after the end of notes.  They
-      prevent me from adding an empty track.
-  * The // divider leads to awkward asymmetry.
-    . Could I have the leading >something be a track divider?
-    . Then // could be system wrap.
-    . But that makes > mandatory, I can't say [ s r // g m ].  It has to be
-      at least [ s r > g m ]
-    . I think I can do a lookAhead match on >
-    . Tracks loops if I remove the []s, probably because Call has a Tracks in
-      it.  That implies Tracks should keep the []s, but then what about
-      WrappedTracks?
-    . I could either have it do the Track parsing like it used to, or I could
-      have it just repeat tracks:
-        b = [ a > b ] [ c > d ]
-    . This means the > can't be a valid pitch.
   - How to notate weak notes?  I'd like to make it concise.
     . Maybe I could have a set of symbols that are then macros:
       !, @, #, $, %, &, =, -, +
@@ -5658,7 +5323,6 @@ text score: tscore:
     . So I could do it, but I'd have to pull out resolve_pitch and do that
       first, and change dur and rdur to (Maybe T.NDuration, T.NDuration).
       This means T.Tracks would have to get some more type variables.
-  * barline check should say what beat it thought it was on
   + copy from:
     . [s r g]/0 ~ ~ works nicely for repeats, but what if I want to duplicate
       from another track?
@@ -5793,25 +5457,6 @@ text score: tscore:
     - fltk: the final pitch event is misaligned
       . It only happens when no ruler, and it's a visual drawing artifact.
   repl:
-    * edit ky and tscore together
-      . I could add a edit multiple files feature, and run vim with separate
-        buffers or windows.
-      . I can't just have a list of filenames, I have to duplicate the whole
-        ReplProtocol.Editor, so they have have their own on_save and on_send.
-      . I send commands with -c, but can I send them per-file?
-      . Not with -c, but I can probably make tmp files with commands.
-      . Still I need to differentiate files.
-      . I could address filenames individually by sending autocommands.
-      . Or I could use -t, how does that work?
-        I think make a tags file, then pass -t t1 -t t2.
-        . No, I can only pass one -t.
-      . Or use -s script, and write a script that loads each file in turn, and
-        executes cmds?
-        :edit file1
-        ... cmds
-        :edit file2
-        .... cmds
-        :buffer 1
     - communicate parse errors back to vim to highlight
       . use quickfix mode?
   parsing:
@@ -5824,44 +5469,6 @@ text score: tscore:
       . I can get this by doubling the nadai, e.g. :8 or whatever, but it
         still seems like I'd want an easy 'su' type annotation.
       . Maybe . could be su, and I carry it?  Then I need an undot for sd.
-    * support 0 dur notes
-      . Use :0?  Or just 0 dur?  No that's taken by CallDuration. :0 should be
-        unambiguous, but it still looks like it's stealing syntax from
-        duration.
-      . It would be carried separately, but then how do I turn it off?  Maybe
-        I just need inline directives.
-      . For percussion, I could do it for the whole block, but e.g. zero dur
-        for damp should be per-note.  So maybe a whole-block directive, and
-        then a per-note annotation that doesn't carry?
-      . Maybe bare ':': 4s:.  Then I don't need to add another non-pitch char.
-        No, then it's ambiguous with duration.  Maybe _?  4s_.
-      . On the other hand, if I want mute, can't I just do a mute/4s kind of
-        thing?  I treat zero-dur as notation in tracklang because it looks
-        nice, but maybe that's not so relevant in tscore.  On the other hand,
-        it generates tracklang, so it should generate normal looking tracklang.
-      . Also there is notation where non-zero dur is the exception, e.g.
-        mridangam.  I want to write "n d p6/6".  Or maybe I want strokes to
-        give a CallDuration of 0?  Then I can do "n0 d p6" and it just works.
-      . No, it doesn't, because n and d are not 0 increment, just 0 dur.  And
-        I don't carry CallDuration anymore anyway.  What I'd want for the
-        above is to automatically make calls default to CallDuration.  I could
-        do a directive:
-          %default-call-dur [ n1 d p6/ ]
-        I still need the trailing / because otherwise the 6 looks like
-        a duration.  Besides it's likely [ n1 d "p 6"/ ]
-      . In this case, I can do a %default-0dur and %default-call-dur will
-        override for calls.
-      . Another way to look at it is that duration is orthogonal to increment.
-        I can configure notes to be increment dur *n, or +n, so I can have 0,
-        to staccato, to legato.  But for staccato and legato I already have
-        transformers.  But still maybe there's a place for the lower level
-        directly setting note duration.
-      . I could have a *n or +n suffix, which is carried too:
-        4s*.5 r g, n1*0 d d n n.
-      . >1 can't go on a single track, which means I'd have to integrate to
-        possibly multiple tracks, and it would look like a mess.  So it's best
-        to use tracklang mechanisms, e.g. %sustain or staccato.  I could still
-        use the *0 syntax though.
   rhythm check:
     proportional durations:
       . I think this is like add, but everything has the same duration, and ~
