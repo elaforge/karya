@@ -80,6 +80,8 @@ getPatches = alloca $ \patchpp -> do
     uis <- mapM getUiControls patches
     let inputs = map (fromIntegral . c_faust_num_inputs) patches
         outputs = map (fromIntegral . c_faust_num_outputs) patches
+    -- I use hyphens, but C doesn't allow them in names.
+    names <- return $ map (Text.replace "_" "-") names
     return $ Map.fromList $ zip names $
         List.zipWith6 makePatch names metas uis inputs outputs patches
 

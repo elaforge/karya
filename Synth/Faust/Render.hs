@@ -101,14 +101,16 @@ checkElements emitMessage patch = mapM_ check
     check note
         | Set.null elements = when (elt /= "") $
             warn $ "expected no element but got: " <> elt
-        | elt == "" = warn "expected element but didn't have one"
+        | elt == "" = warn $ "expected element from " <> pretty elements
+            <> ", but didn't have one"
         | elt `Set.notMember` elements = warn $ "element " <> elt <> " not in "
             <> pretty elements
         | otherwise = return ()
         where
         elt = Note.element note
         warn msg = emitMessage $ Config.Warn (Note.stack note) msg
-    elements = Set.fromList $ map fst $ Map.keys $ DriverC._controls patch
+    elements = Set.fromList $ filter (/="") $ map fst $ Map.keys $
+        DriverC._controls patch
 
 toSpan :: Note.Note -> Checkpoint.Span
 toSpan note = Checkpoint.Span
