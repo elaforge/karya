@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Shake.Util (
     -- * shake specific
-    Cmdline, cmdline, system, staunchSystem, shell, putQuietNormal
+    Cmdline, cmdline, system, staunchSystem, shell
     , findFiles, findHs, runIO
 
     -- * ghc
@@ -63,8 +63,9 @@ type Cmdline = (String, String, [String])
 -- a progress indication, while the keys just make any compiler errors scroll
 -- off the screen.
 cmdline :: Cmdline -> Shake.Action ()
-cmdline cmd@(abbr, _, _) =
-    Shake.traced ("cmdline:" <> abbr) . liftIO $ doCmdline False cmd
+cmdline cmd@(abbr, _, _) = do
+    fancy <- fancyOutput
+    Shake.traced ("cmdline:" <> abbr) . liftIO $ doCmdline fancy False cmd
 
 data Metric = Metric {
     metricCpu :: !Double
@@ -83,30 +84,38 @@ diffMetric (Metric _cpu1 time1) (Metric _cpu2 time2) =
     toSecs :: Time.NominalDiffTime -> Double
     toSecs = realToFrac
 
-doCmdline :: Bool -> Cmdline -> IO ()
-doCmdline _ (abbr, output, []) =
+-- | If true, use concurrent output, otherwise use shake's default output.
+fancyOutput :: Shake.Action Bool
+fancyOutput = (==Shake.Quiet) <$> Shake.getVerbosity
+
+doCmdline :: Bool -> Bool -> Cmdline -> IO ()
+doCmdline _ _ (abbr, output, []) =
     errorIO $ "0 args for cmdline: " ++ show (abbr, output)
-doCmdline staunch (abbr, output, cmd_:args) = do
-    let cmd = FilePath.toNative cmd_
-    let desc = ellipsis 127 abbr <> if null output then "" else ": " <> output
+doCmdline fancyOutput staunch (abbr, output, cmd_:args) = do
     start <- metric
-    notRequired <- Regions.withConsoleRegion Regions.Linear $ \region -> (do
-        Regions.setConsoleRegion region desc
+    notRequired <- withRegion (do
         (exit, ghcNotRequired) <- createProcessConcurrent "nice" (cmd:args)
         when (not staunch && exit /= Exit.ExitSuccess) $
             errorIO $ "Failed:\n" ++ unwords (cmd : args)
         return ghcNotRequired
         ) `Exception.onException` do
             timing <- showMetric start
-            Concurrent.outputConcurrent $ unwords [desc, timing, "(aborted)"]
-                <> "\n"
+            put $ unwords [desc, timing, "(aborted)"]
     timing <- showMetric start
-    Concurrent.outputConcurrent $ unwords [desc, timing]
-        <> (if notRequired then " (skipped)" else "") <> "\n"
+    put $ unwords [desc, timing] <> (if notRequired then " (skipped)" else "")
     where
     showMetric start = do
         end <- metric
         return $ unwords ["-", diffMetric end start]
+    cmd = FilePath.toNative cmd_
+    desc = ellipsis 127 abbr <> if null output then "" else ": " <> output
+    put | fancyOutput = Concurrent.outputConcurrent . (<>"\n")
+        | otherwise = putStrLn
+    withRegion action
+        | fancyOutput = Regions.withConsoleRegion Regions.Linear $ \region -> do
+            Regions.setConsoleRegion region desc
+            action
+        | otherwise = action
 
 -- | Some command lines are really long.
 ellipsis :: Int -> String -> String
@@ -158,24 +167,17 @@ system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
 
 -- | Like 'system', but don't ignore the exit code.
 staunchSystem :: FilePath -> [String] -> Shake.Action ()
-staunchSystem cmd args =
-    liftIO $ doCmdline True (unwords (cmd:args), "", cmd:args)
+staunchSystem cmd args = do
+    fancy <- fancyOutput
+    liftIO $ doCmdline fancy True (unwords (cmd:args), "", cmd:args)
 
 -- | Run a shell command, and crash if it fails.
 shell :: String -> Shake.Action ()
 shell cmd = do
-    Shake.putQuiet cmd
+    -- Shake.putNormal cmd
     res <- Shake.traced ("shell: " ++ cmd) $ Process.system cmd
     when (res /= Exit.ExitSuccess) $
         errorIO $ "Failed:\n" ++ cmd
-
--- | Log one thing at quiet, and another at normal or above.
-putQuietNormal :: String -> String -> Shake.Action ()
-putQuietNormal quiet normal = do
-    verbosity <- Shake.getVerbosity
-    if verbosity == Shake.Quiet then Shake.putQuiet quiet
-        else if verbosity > Shake.Quiet then Shake.putNormal normal
-        else return ()
 
 -- | Recursively find files below a directory.
 findFiles :: (FilePath -> Bool) -> Shake.FilePattern -> FilePath

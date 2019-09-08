@@ -2595,9 +2595,13 @@ synth: im:
       waveguides" paper.
 
 shakefile: build:
-  - shakefile does nothing with no arg, it should complain
-  - shakefile -v should print version, it doesn't
-  - shakefile -V verbose gets messed up by concurrent-output
+  / shakefile does nothing with no arg, it should complain
+  / shakefile -v should print version, it doesn't
+    . because it prints at Normal, and I'm at Quiet.
+    . To avoid shake's internal output, '# ...' lines
+    . Who is printing those?  It's Shake.traced.
+    . It's easier to use Quiet, otherwise shake wants to print too much stuff.
+  * shakefile -V verbose gets messed up by concurrent-output
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
   nix:

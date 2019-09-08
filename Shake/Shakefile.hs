@@ -180,10 +180,14 @@ build = "build"
 defaultOptions :: Shake.ShakeOptions
 defaultOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
+    -- I have my own concurrent output, which shake will mess up if it prints
+    -- its own output.  Unfortunately this also suppresses the --version flag,
+    -- and some other less useful ones.
     , Shake.shakeVerbosity = Shake.Quiet
     , Shake.shakeReport = [build </> "report.html"]
     , Shake.shakeProgress = Progress.report
     -- Git branch checkouts change file timestamps, but not contents.
+    -- But ghci only understands timestamp changes, not contents.
     , Shake.shakeChange = Shake.ChangeModtime
     }
 

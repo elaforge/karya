@@ -13,6 +13,9 @@ import           Control.Monad
 
 report :: IO Shake.Progress -> IO ()
 report getProgress =
+    -- TODO I should turn of regions if not Util.fancyOutput.  But shake only
+    -- lets me set options before parsing flags, and I only know the verbosity
+    -- after parsing flags.
     void $ Concurrent.forkIO $ Regions.withConsoleRegion Regions.Linear loop
     where
     loop region = do
