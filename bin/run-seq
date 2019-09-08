@@ -19,9 +19,6 @@ if [[ -n ${auto_preview-t} ]]; then
     build/opt/faust-im render-preview
 fi
 
-# Keep the cache dir from getting too big.
-tools/im-gc.py
-
 # TODO This is hardcoded for my system, but should be in some local config.
 if [[ $OSTYPE = linux-gnu ]]; then
     geometry='--geometry=628x300+1290+900'

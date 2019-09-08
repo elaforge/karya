@@ -13,6 +13,7 @@ import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Time as Time
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
@@ -188,8 +189,12 @@ linkOutput outputDir fname = do
 
 -- | Remove any remaining output symlinks past the final chunk.
 clearRemainingOutput :: FilePath -> Config.ChunkNum -> IO ()
-clearRemainingOutput outputDir start =
+clearRemainingOutput outputDir start = do
     mapM_ (Directory.removeFile . (outputDir</>)) . outputPast start
+        =<< Directory.listDirectory outputDir
+    -- Uptime timestamps for tools/im-gc.py.
+    now <- Time.getCurrentTime
+    mapM_ (flip Directory.setModificationTime now . (outputDir</>))
         =<< Directory.listDirectory outputDir
 
 outputPast :: Config.ChunkNum -> [FilePath] -> [FilePath]

@@ -1855,7 +1855,7 @@ synth: im:
           I haven't been motivated to complete the above.
         * But first: make render incremental.  I need to do the whole save
           states thing for this.
-    - come up with some means to expire old chunks
+    * come up with some means to expire old chunks
       . I want to keep the last one because then I can toggle two things
         quickly, but after that it's increasingly unlikely to need them.
       . It's valid to remove the whole directory occasionally.
@@ -2575,7 +2575,7 @@ synth: im:
       . DspState = ByteString -- raw serialization of dsp class.
       . Or I could do a memoize thing where I memoize
         (startTime, Instrument, Controls, DspState) -> Samples.
-    - PlayCache can sequence multiple .wav files.  The filenames need to have
+    * PlayCache can sequence multiple .wav files.  The filenames need to have
       a timestamp so it can know how to seek.
   . If there is only one cache mutated by the synth, then a play in progress
     will be spoiled by a new render.  I can fix this by making a new cache

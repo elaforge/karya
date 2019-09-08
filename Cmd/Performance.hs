@@ -28,6 +28,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.IO as IO
+import qualified System.Process as Process
 
 import qualified Util.Control as Control
 import qualified Util.Log as Log
@@ -283,7 +284,13 @@ evaluate_performance im_config lookup_inst wait send_status score_path
             (send_status block_id)
             (Set.fromList procs)
         Nothing -> return False
-    unless (null procs) $
+    unless (null procs) $ do
+        unless failed $ whenJust im_config $ \config -> do
+            -- GC only the output_dir for this instrument.  Otherwise they do
+            -- redundant work.
+            let output_dir = Config.outputDirectory (Config.imDir config)
+                    score_path block_id
+            Process.callProcess "tools/im-gc.py" [output_dir]
         send_status block_id $ Msg.ImStatus block_id Set.empty $
             Msg.ImComplete failed
 
