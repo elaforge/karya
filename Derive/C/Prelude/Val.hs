@@ -49,7 +49,7 @@ library :: Library.Library
 library = Library.vals
     [ (">", c_next_val)
     , ("<", c_prev_val)
-    , ("e", c_env)
+    , ("env", c_env)
     , ("ts", c_timestep)
     , ("ts/", c_timestep_reciprocal)
     , ("1/", c_reciprocal)

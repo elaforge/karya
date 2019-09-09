@@ -12,16 +12,16 @@ import qualified Derive.Score as Score
 import qualified Perform.NN as NN
 import qualified Ui.UiTest as UiTest
 
-import           Global
 import           Util.Test
 
 
 test_env = do
     let run = CallTest.run_val
-    equal (run Nothing "e x") (Nothing, ["Error: environ val not found: \"x\""])
-    equal (run Nothing "e x 42") (Just (DeriveT.num 42), [])
-    equal (run (Just "x = 42") "e x") (Just (DeriveT.num 42), [])
-    equal (run (Just "x = 42") "e x str")
+    equal (run Nothing "env x")
+        (Nothing, ["Error: environ val not found: \"x\""])
+    equal (run Nothing "env x 42") (Just (DeriveT.num 42), [])
+    equal (run (Just "x = 42") "env x") (Just (DeriveT.num 42), [])
+    equal (run (Just "x = 42") "env x str")
         (Nothing, ["Error: env \"x\" expected Str but got Num"])
 
 test_prev_next_val = do
