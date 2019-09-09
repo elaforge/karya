@@ -6,6 +6,7 @@ declare version "1.0";
 declare licence "GPL";
 
 declare flags "triggered";
+declare element_from "string";
 
 import("stdfaust.lib");
 
@@ -47,8 +48,8 @@ jawari = hslider(
 // *** global
 
 // level of sympathetic coupling between strings
-coupling = hslider(
-    "/h:_main/[5]sympathetic_coupling [style:knob]", 0.1, 0, 1, 0.0001
+sympathy = hslider(
+    "/h:_main/[5]sympathy [style:knob]", 0.1, 0, 1, 0.0001
 ) : smooth;
 
 tuneScale = hslider("/h:_main/[8]tune_scale [style:knob]", 1, 0.9, 1.1, 0.001);
@@ -97,7 +98,7 @@ tambura(stringCount) = (
     ) :> _, _ // stereo output
 with {
     coupling_matrix(stringCount) =
-        par(s, stringCount, *(coupling) : coupling_filter) // coupling filters
+        par(s, stringCount, *(sympathy) : coupling_filter) // coupling filters
         // unsel makes sure the feedback is disconnected
         <: par(s, stringCount, unsel(stringCount, s) :> _)
     with {

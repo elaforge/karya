@@ -89,7 +89,10 @@ c_bent_string = Derive.transformer module_ "bent-string"
         attack <- Typecheck.to_typed_function attack
         release <- Typecheck.to_typed_function release
         release_delay <- Typecheck.to_typed_function release_delay
-        open_strings <- mapM StringUtil.string open_strings
+        -- TODO I used to use just the pitch, but the index is more useful when
+        -- the pitch can change.  But I have to use pitch for harmonics below
+        -- because they don't always require open_strings.
+        open_strings <- StringUtil.indexed_strings open_strings
         config <- make_config attack release_delay release open_strings
         string_idiom config =<< deriver
 
@@ -105,7 +108,7 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
     ) $ \(release_delay, open_strings, string) _args deriver -> case string of
         Just _ -> deriver -- presumably they will all get a constant string
         Nothing -> do
-            open_strings <- mapM StringUtil.string open_strings
+            open_strings <- StringUtil.indexed_strings open_strings
             release_delay <- Typecheck.to_typed_function release_delay
             config <- make_config
                 (const (ScoreT.untyped 0)) release_delay
@@ -165,9 +168,7 @@ string_idiom config = do
         string <- Derive.require ("below lowest string: " <> pretty lowest) $
             snd <$> Map.lookupLE lowest (_open_strings config)
         return
-            ( Score.modify_environ
-                (Env.insert_val EnvKey.string (StringUtil.str_pitch string))
-                event
+            ( Score.modify_environ (StringUtil.insert_string string) event
             , string
             )
     event1 ((event, string), next) = process config event string (fst <$> next)

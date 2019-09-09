@@ -73,7 +73,7 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch "zheng")
         <> ImInst.null_call Highlight.c_highlight_strings_note
         <> Util.thru dir convert
         <> ImInst.postproc
-            (DUtil.move_val EnvKey.string EnvKey.element show_string)
+            (DUtil.element_from EnvKey.string show_string)
     -- copy paste from User.Elaforge.Instrument.Kontakt
     -- TODO put it in a shared module?
     -- This can't go in the automatic env because it uses DeriveT.Pitch, which

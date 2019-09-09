@@ -2418,7 +2418,7 @@ synth: im:
         anyway.  But unsmoothed calculations can happen at control rate.
     tambura.dsp:
       . https://github.com/olilarkin/Tambura
-      - try out string-idiom
+      * try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
         . Tune against sine.

@@ -68,6 +68,10 @@ makePatch imDir patch =
                     (Set.fromList (map control constantControls))
             else mempty
         , thruCode pitchToSample
+        , case DriverC._elementFrom patch of
+            Nothing -> mempty
+            Just elementFrom -> ImInst.postproc $
+                DUtil.element_from_id elementFrom
         ]
     pitchToSample = Preview.pitchToSample imDir (DriverC._name patch)
 

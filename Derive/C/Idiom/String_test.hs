@@ -4,17 +4,20 @@
 
 module Derive.C.Idiom.String_test where
 import qualified Util.Num as Num
-import Util.Test
-import qualified Ui.UiTest as UiTest
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-import Global
-import Types
+import qualified Ui.UiTest as UiTest
+
+import           Global
+import           Types
+import           Util.Test
 
 
 test_attack_release = do
@@ -49,12 +52,12 @@ test_string_select = do
     let run = run_string extract "bent-string 0 0 1"
         extract e = (e_string e, e_nns e)
     equal (run $ UiTest.note_track [(0, 1, "4c")])
-        ([("4c", (0, [(0, NN.c4), (2, NN.c4)]))], [])
+        ([("0", (0, [(0, NN.c4), (2, NN.c4)]))], [])
     equal (run $ UiTest.note_track [(0, 1, "4d")])
-        ([("4d", (0, [(0, NN.d4), (2, NN.d4)]))], [])
+        ([("1", (0, [(0, NN.d4), (2, NN.d4)]))], [])
     -- The string is assigned based on the lowest pitch.
     equal (run [(">", [(0, 2, "")]), ("*", [(0, 0, "4d"), (1, 0, "4c")])])
-        ([("4c", (0, [(0, NN.d4), (1, NN.d4), (1, NN.c4), (3, NN.c4)]))], [])
+        ([("0", (0, [(0, NN.d4), (1, NN.d4), (1, NN.c4), (3, NN.c4)]))], [])
 
 
 -- TODO I have to test this ad-hoc per call until I figure out a better
@@ -139,7 +142,11 @@ harmonic :: Int -> Pitch.NoteNumber -> Pitch.NoteNumber
 harmonic n = Num.roundDigits 2 . Pitch.modify_hz (* fromIntegral n)
 
 e_string :: Score.Event -> Text
-e_string = maybe "" show_pitch . DeriveTest.e_environ_val EnvKey.string
+e_string = maybe "" show_val . DeriveTest.e_environ_val EnvKey.string
+
+show_val :: DeriveT.Val -> Text
+show_val (DeriveT.VPitch pitch) = show_pitch pitch
+show_val val = ShowVal.show_val val
 
 show_pitch :: PSignal.Pitch -> Text
 show_pitch = either pretty Pitch.note_text . PSignal.pitch_note . PSignal.coerce

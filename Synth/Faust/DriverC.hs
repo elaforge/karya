@@ -46,6 +46,7 @@ data PatchT ptr cptr = Patch {
     , _doc :: !Text
     -- | Corresponds to 'Instrument.Common.Triggered' flag.
     , _triggered :: !Bool
+    , _elementFrom :: !(Maybe Text)
     -- | An allocated Instrument has pointers to set control values, but a
     -- Patch doesn't.
     , _controls :: !(Map Control (cptr, ControlConfig))
@@ -111,6 +112,7 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
         { _name = name
         , _doc = doc
         , _triggered = triggered
+        , _elementFrom = Map.lookup "element_from" meta
         , _controls = Map.fromList
             [ ((elt, control), ((), ControlConfig False cdoc))
             | ((elt, control), cdoc) <- uis

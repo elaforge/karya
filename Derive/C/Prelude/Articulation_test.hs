@@ -31,7 +31,7 @@ test_harmonic_ly = do
         (Right "<d a\\harmonic>1", [])
 
     strings_like (snd $ run "string=(3c) | o -- 3c")
-        ["can't find 48nn as a natural harmonic of 48nn"]
+        ["can't find 48nn as a natural harmonic of *48nn*"]
     equal (run "harmonic-force-diamond=t | o nat -- 4c")
         (Right "<c c'\\harmonic>1", [])
     equal (run "string=(3c) | o nat -- 4g") (Right "<c g\\harmonic>1", [])

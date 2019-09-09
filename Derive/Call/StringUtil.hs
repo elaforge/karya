@@ -4,20 +4,24 @@
 
 -- | Utilities for stringed instruments.
 module Derive.Call.StringUtil where
-import Prelude hiding (String)
+import           Prelude hiding (String)
 import qualified Data.List as List
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
+import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Sig as Sig
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
-import Global
+
+import           Global
 
 
 -- TODO if Sig.Parser supported Deriver eval, I could make these return String.
@@ -33,19 +37,38 @@ string_env =
     Sig.environ_key EnvKey.string Nothing "Play on this string."
 
 with_string :: String -> Derive.Deriver a -> Derive.Deriver a
-with_string = Derive.with_val EnvKey.string . str_pitch
+with_string = Derive.with_val EnvKey.string . str_val
+
+insert_string :: String -> Env.Environ -> Env.Environ
+insert_string = Env.insert_val EnvKey.string . str_val
 
 data String = String {
     str_pitch :: !PSignal.Pitch
     , str_nn :: !Pitch.NoteNumber
+    -- | Assign this value to EnvKey.string for this string.
+    , str_val :: !DeriveT.Val
     } deriving (Show)
 
-instance Pretty String where format = Pretty.format . str_pitch
+instance Pretty String where
+    pretty str = pretty (str_val str) <> "(" <> pretty (str_pitch str) <> ")"
+
+indexed_strings :: [PSignal.Pitch] -> Derive.Deriver [String]
+indexed_strings pitches =
+    sequence $ zipWith string_val pitches (map Typecheck.to_val [0 :: Int  ..])
 
 string :: PSignal.Pitch -> Derive.Deriver String
-string pitch = String pitch <$> Pitches.pitch_nn (PSignal.coerce pitch)
+string pitch = string_val pitch (Typecheck.to_val pitch)
+
+string_val :: PSignal.Pitch -> DeriveT.Val -> Derive.Deriver String
+string_val pitch val = do
     -- Coerce is ok because I don't want open strings in the environ to
     -- transpose.
+    nn <- Pitches.pitch_nn (PSignal.coerce pitch)
+    return $ String
+        { str_pitch = pitch
+        , str_nn = nn
+        , str_val = val
+        }
 
 type Harmonic = Int
 

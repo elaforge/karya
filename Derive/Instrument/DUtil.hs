@@ -22,6 +22,7 @@ import qualified Derive.Call.GraceUtil as GraceUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
@@ -301,6 +302,14 @@ set_constant_pitch args deriver = do
             transposers = PSignal.pscale_transposers (PSignal.pitch_scale pitch)
 
 -- * postproc
+
+element_from :: (Typecheck.Typecheck old, Typecheck.ToVal new) => EnvKey.Key
+    -> (old -> Either Log.Msg new) -> Cmd.InstrumentPostproc
+element_from key = move_val key EnvKey.element
+
+element_from_id :: EnvKey.Key -> Cmd.InstrumentPostproc
+element_from_id key =
+    move_val key EnvKey.element (\v -> Right (v :: DeriveT.Val))
 
 -- | Move an environ val from one key to another.  This is meant to be put in
 -- 'Cmd.Cmd.inst_postproc', because doing it in the note call may be too early.
