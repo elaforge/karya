@@ -95,7 +95,9 @@ public:
             return peaks1.get() ? *peaks1 : peaks_n;
         };
         float _max_peak;
+        // If there is just one thing to mix, then reuse its pointer.
         std::shared_ptr<const std::vector<float>> peaks1;
+        // Otherwise I have to allocate a buffer.
         std::vector<float> peaks_n;
         // If this hasn't changed, 'at_zoom' can reuse 'zoom_cache'.
         double cached_zoom;

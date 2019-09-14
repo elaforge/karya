@@ -29,6 +29,13 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * Crash when setting tempo:
+    assertion: assertion failed at fltk/PeakCache.cc:69 add():
+      'this->peaks_n.size() == entry->peaks->size()'
+    . fltk/PeakCache.cc:70 24 != 18
+    . This means I wanted to mix in a chunk with a different size.
+    . They're at the end, so probably just one ran out of samples.
+  - wayang/merak-ngelo has non 1 ratios samples, why?
   - it would be nice if I could coerce VPitch to NoteNumber
     . Then I can simplify Synth.Faust.Code.c_initialize.
   - can I tweak individual scale degrees?
@@ -1568,6 +1575,8 @@ synth: im:
       sketchy IORef stuff could go away, and the alignment would be in the
       type instead of implicit.
   bug:
+    - A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
+      . Controls in general are causing previous notes to rerender.
     - starts are getting cut off again
       . Give more lead time to load the samples?
   merge faust-im and sampler-im:
