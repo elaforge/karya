@@ -103,6 +103,8 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime
 
+import qualified Synth.Shared.Note as Note
+
 import Cmd.Repl.Global
 
 import qualified App.Config as Config

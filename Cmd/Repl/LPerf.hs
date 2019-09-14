@@ -60,6 +60,10 @@ import           Global
 import           Types
 
 
+-- | Whether the events come from the selected block as toplevel, or from the
+-- root block's derivation, assuming the local block is called from the root.
+data Source = Local | Root deriving (Show)
+
 get_root :: Cmd.M m => m Cmd.Performance
 get_root = Perf.get_root
 
@@ -77,42 +81,42 @@ environ :: Cmd.M m => m (Maybe Env.Environ)
 environ = Perf.lookup_environ =<< Selection.track
 
 -- | Controls in scope at the insert point.
-controls :: Cmd.M m => Bool -> m DeriveT.ControlMap
-controls from_root = Derive.state_controls <$> dynamic from_root
+controls :: Cmd.M m => Source -> m DeriveT.ControlMap
+controls source = Derive.state_controls <$> dynamic source
 
 -- | The control vals at the insertion point, taking the control functions into
 -- account.
-control_vals :: Cmd.M m => Bool -> m ScoreT.ControlValMap
-control_vals from_root = do
+control_vals :: Cmd.M m => Source -> m ScoreT.ControlValMap
+control_vals source = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     ruler_id <- fromMaybe Ui.no_ruler <$>
         Ui.ruler_track_at block_id tracknum
     mlists <- Ruler.ruler_marklists <$> Ui.get_ruler ruler_id
-    dyn <- dynamic from_root
-    pos <- get_realtime from_root
+    dyn <- dynamic source
+    pos <- get_realtime source
     -- I can't get 'Derive.state_event_serial' back, so the randomization will
     -- likely be different.
     return $ Derive.state_controls_at pos mlists dyn 0
 
 -- | Like 'control_vals', but without control functions.
-raw_control_vals :: Cmd.M m => Bool -> m ScoreT.TypedControlValMap
-raw_control_vals from_root = do
-    dyn <- dynamic from_root
-    pos <- get_realtime from_root
+raw_control_vals :: Cmd.M m => Source -> m ScoreT.TypedControlValMap
+raw_control_vals source = do
+    dyn <- dynamic source
+    pos <- get_realtime source
     return $ fmap (fmap (Signal.at pos)) (Derive.state_controls dyn)
 
 aliases :: Cmd.M m => m (Map ScoreT.Instrument ScoreT.Instrument)
-aliases = Derive.state_instrument_aliases <$> dynamic True
+aliases = Derive.state_instrument_aliases <$> dynamic Root
 
-warp :: Cmd.M m => Bool -> m Warp.Warp
-warp from_root = Derive.state_warp <$> dynamic from_root
+warp :: Cmd.M m => Source -> m Warp.Warp
+warp source = Derive.state_warp <$> dynamic source
 
-dynamic :: Cmd.M m => Bool -> m Derive.Dynamic
-dynamic from_root = do
+dynamic :: Cmd.M m => Source -> m Derive.Dynamic
+dynamic source = do
     track <- Selection.track
-    Cmd.require ("no dynamic for track " <> pretty track) =<< if from_root
-        then Perf.lookup_root_dynamic track
-        else Perf.lookup_dynamic (fst track) track
+    Cmd.require ("no dynamic for track " <> pretty track) =<< case source of
+        Root -> Perf.lookup_root_dynamic track
+        Local -> Perf.lookup_dynamic (fst track) track
 
 sel_to_real :: Cmd.M m => m [RealTime]
 sel_to_real = do
@@ -120,10 +124,12 @@ sel_to_real = do
     tempo <- Cmd.perf_tempo <$> get block_id
     return $ tempo block_id track_id pos
 
-get_realtime :: Cmd.M m => Bool -> m RealTime
-get_realtime from_root = do
+get_realtime :: Cmd.M m => Source -> m RealTime
+get_realtime source = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    perf <- if from_root then get_root else get block_id
+    perf <- case source of
+        Root -> get_root
+        Local -> get block_id
     Perf.get_realtime perf block_id (Just track_id) pos
 
 -- * analysis
@@ -225,43 +231,46 @@ block_midi block_id = do
 -- | Derive the current block from the cache and return events that fall within
 -- the current selection.
 sel_events :: Cmd.M m => m [Score.Event]
-sel_events = get_sel_events False block_events
+sel_events = get_sel_events Local block_events
 
 sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
-sel_midi_events = convert =<< get_sel_events False block_events_unnormalized
+sel_midi_events = convert =<< get_sel_events Local block_events_unnormalized
 
 sel_im_events :: Cmd.M m => m [LEvent.LEvent Note.Note]
 sel_im_events = do
     block_id <- Cmd.get_focused_block
-    im_convert block_id =<< get_sel_events False block_events_unnormalized
+    im_convert block_id =<< get_sel_events Local block_events_unnormalized
 
 -- | Show the low level events as seen by the sampler backend.
-sel_sampler_events :: Cmd.CmdT IO Text
-sel_sampler_events = do
-    (block_id, track_ids, start, end) <- get_sel_ranges True
+sel_sampler_events :: Source -> Cmd.CmdT IO Text
+sel_sampler_events source = do
+    (block_id, track_ids, start, end) <- get_sel_ranges source
     im_dir <- Cmd.gets $ Shared.Config.imDir . Cmd.config_im . Cmd.state_config
     score_path <- Cmd.gets Cmd.score_path
     let notes_file = Shared.Config.notesFilename im_dir score_path block_id
             Shared.Config.sampler
-    out <- CmdUtil.read_process "build/opt/sampler-im"
-        [ "dump"
-        , "--range", show start <> "," <> show end
-        , "--tracks", untxt $ Text.intercalate "," (map Id.ident_text track_ids)
-        , notes_file
-        ]
-    return out
+    let args =
+            [ "dump"
+            , "--range", show start <> "," <> show end
+            , "--tracks", untxt $
+                Text.intercalate "," (map Id.ident_text track_ids)
+            , notes_file
+            ]
+    out <- CmdUtil.read_process "build/opt/sampler-im" args
+    return $ Text.unwords ("%" : "buld/opt/sampler-im" : map txt args) <> "\n"
+        <> out
 
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.M m => m [Score.Event]
-root_sel_events = get_sel_events True block_events
+root_sel_events = get_sel_events Root block_events
 
 root_sel_midi_events :: Cmd.M m => m [LEvent.LEvent Types.Event]
-root_sel_midi_events = convert =<< get_sel_events True block_events_unnormalized
+root_sel_midi_events = convert =<< get_sel_events Root block_events_unnormalized
 
 root_sel_im_events :: Cmd.M m => m [LEvent.LEvent Note.Note]
 root_sel_im_events = do
     block_id <- Ui.get_root_id
-    im_convert block_id =<< get_sel_events True block_events_unnormalized
+    im_convert block_id =<< get_sel_events Root block_events_unnormalized
 
 -- ** extract
 
@@ -361,32 +370,33 @@ perform_from = do
 -- ** implementation
 
 -- | Like 'get_sel_events_logs', but filter out the LEvent.Logs.
-get_sel_events :: Cmd.M m => Bool -- ^ from root
+get_sel_events :: Cmd.M m => Source
     -> (BlockId -> m [LEvent.LEvent Score.Event]) -> m [Score.Event]
-get_sel_events from_root =
-    LEvent.write_logs <=< get_sel Score.event_start Score.event_stack from_root
+get_sel_events source =
+    LEvent.write_logs <=< get_sel Score.event_start Score.event_stack source
 
 
 -- | Get events derived in the selected range.
-get_sel_events_logs :: Cmd.M m => Bool -- ^ from root
+get_sel_events_logs :: Cmd.M m => Source
     -> (BlockId -> m [LEvent.LEvent Score.Event]) -- ^ derive events in the
     -- given block, e.g. via 'block_events' or 'block_events_unnormalized'
     -> m [LEvent.LEvent Score.Event]
 get_sel_events_logs = get_sel Score.event_start Score.event_stack
 
 get_sel :: Cmd.M m => (d -> RealTime) -> (d -> Stack.Stack)
-    -> Bool -- ^ from root
-    -> (BlockId -> m [LEvent.LEvent d]) -> m [LEvent.LEvent d]
-get_sel event_start event_stack from_root derive_events = do
-    (block_id, track_ids, start, end) <- get_sel_ranges from_root
+    -> Source -> (BlockId -> m [LEvent.LEvent d]) -> m [LEvent.LEvent d]
+get_sel event_start event_stack source derive_events = do
+    (block_id, track_ids, start, end) <- get_sel_ranges source
     events <- derive_events block_id
     return $ in_tracks event_stack track_ids $
         in_range event_start start end events
 
-get_sel_ranges :: Cmd.M m => Bool -> m (BlockId, [TrackId], RealTime, RealTime)
-get_sel_ranges from_root = do
-    (block_id, start, end) <-
-        if from_root then Selection.realtime else Selection.local_realtime
+get_sel_ranges :: Cmd.M m => Source
+    -> m (BlockId, [TrackId], RealTime, RealTime)
+get_sel_ranges source = do
+    (block_id, start, end) <- case source of
+        Root -> Selection.realtime
+        Local -> Selection.local_realtime
     track_ids <- Selection.track_ids
     return (block_id, track_ids, start, end)
 
@@ -466,15 +476,16 @@ perform_midi_events events = do
 -- what would actually be played.  I can't filter by selected track because
 -- MIDI events don't retain the stack.
 sel_midi :: Cmd.M m => m Perform.MidiEvents
-sel_midi = get_sel_midi False
+sel_midi = get_sel_midi Local
 
 root_sel_midi :: Cmd.M m => m Perform.MidiEvents
-root_sel_midi = get_sel_midi True
+root_sel_midi = get_sel_midi Root
 
-get_sel_midi :: Cmd.M m => Bool -> m Perform.MidiEvents
-get_sel_midi from_root = do
-    (block_id, start, end) <-
-        if from_root then Selection.realtime else Selection.local_realtime
+get_sel_midi :: Cmd.M m => Source -> m Perform.MidiEvents
+get_sel_midi source = do
+    (block_id, start, end) <- case source of
+        Root -> Selection.realtime
+        Local -> Selection.local_realtime
     events <- block_midi block_id
     return $ in_range Midi.wmsg_ts start end events
 
@@ -635,10 +646,11 @@ nn_ratios unity nns = case (unity, nns) of
     ratios unity = map (flip Ratio.approxRational 0.01 . (/ hz unity) . hz)
     hz = Pitch.nn_to_hz
 
-overlapping_events :: Cmd.M m => Bool -> m (RealTime, [Score.Event])
-overlapping_events from_root = do
-    (block_id, start, _) <-
-        if from_root then Selection.realtime else Selection.local_realtime
+overlapping_events :: Cmd.M m => Source -> m (RealTime, [Score.Event])
+overlapping_events source = do
+    (block_id, start, _) <- case source of
+        Root -> Selection.realtime
+        Local -> Selection.local_realtime
     events <- PlayUtil.overlapping_events start . Cmd.perf_events <$>
         get block_id
     return (start, events)
