@@ -191,7 +191,7 @@ to control [ScoreTime to RealTime mapping](#scoretime-and-realtime).
 
 Control signals may carry types also, for instance to document whether a
 transposition signal is in chromatic or diatonic steps, or whether a delay
-signal is in ScoreTime or RealTime, as in 'Derive.ScoreTypes.Typed'.
+signal is in ScoreTime or RealTime, as in 'Derive.ScoreT.Typed'.
 
 ### environ
 
@@ -321,7 +321,7 @@ separated by `|`.  As described in [calls](#calls), the last one is called the
 is not true in track titles though!  They just have the transformer part of the
 pipeline, since the track itself is the generator.
 
-Details on the syntax are in in 'Derive.Parse' and 'Derive.BaseTypes.Val'.
+Details on the syntax are in in 'Derive.Parse' and 'Derive.DeriveT.Val'.
 
 There are a couple of hacks in the syntax to make scores look nicer:
 
@@ -349,12 +349,12 @@ types of values.  See the call documentation.
 
 ### Vals
 
-These are your basic types.  They are defined in 'Derive.BaseTypes.Val'.  Most
+These are your basic types.  They are defined in 'Derive.DeriveT.Val'.  Most
 of them have a literal syntax so they can written as call arguments.
 
 #### number types
 
-The types and their codes are enumerated in 'Derive.ScoreTypes.Type', but
+The types and their codes are enumerated in 'Derive.ScoreT.Type', but
 hopefully this is up to date:
 Chromatic: `c`, diatonic: `d`, NoteNumber: `nn`, ScoreTime: `t`, RealTime: `s`.
 These break down into transposition and duration.
@@ -386,7 +386,7 @@ arguments is also documented in 'Derive.Sig'.
 
 #### quoted
 
-'Derive.BaseTypes.VQuoted' is somewhat special.  This corresponds to a quoted
+'Derive.DeriveT.VQuoted' is somewhat special.  This corresponds to a quoted
 val call, e.g. `"(f x y)`.  When this is passed as a call argument, it will be
 evaluated in the context of the call.  This is useful for default arguments.
 For example, you could globally set `delay-time = "(ts s)` and the `delay`
@@ -414,7 +414,7 @@ generator namespace, while `val` of course comes from the singular val call
 namespace.
 
 A call may have zero or more arguments, which are parsed as
-'Derive.BaseTypes.Val's.  Argument parsing and the defaulting scheme (which
+'Derive.DeriveT.Val's.  Argument parsing and the defaulting scheme (which
 uses the dynamic environ) is documented in 'Derive.Sig'.
 
 ### modules
@@ -580,7 +580,7 @@ The implementation is documented in 'Derive.Deriver.Monad.CallDuration'.
 
 ## Instruments
 
-A 'Derive.BaseTypes.Instrument' at the derive level is just an arbitrary string.
+A 'Derive.DeriveT.Instrument' at the derive level is just an arbitrary string.
 Well, not totally arbitrary, since it should conform to 'Ui.Id.valid'.  But the
 deriver doesn't do much special with instruments.  Instruments bring their
 calls into scope, and the default note deriver will inherit
@@ -594,7 +594,7 @@ separately](instrument.md.html).
 A 'Derive.Scale.Scale' is somewhat complicated.  Much of the complication is
 [Cmd layer support](cmd.md.html#scales).  From the deriver's point of view,
 the important part of a scale is the set of [ValCalls](#valcall) it brings
-into scope.  Those in turn are expected to return a 'Derive.BaseTypes.VPitch'
+into scope.  Those in turn are expected to return a 'Derive.DeriveT.VPitch'
 val, which is assembled into a 'Derive.PSignal.Signal', analogous to a
 'Perform.Signal.Control'.
 

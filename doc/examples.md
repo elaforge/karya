@@ -95,6 +95,16 @@ They use samples from my own instruments.
 <img width=400 src="data/img/screen/seq-cerucuk-punyah.png" border=2>
 </a>
 
+### text score
+
+There's a text-only score language, which is similar in concept to lilypond,
+though of course which much different capabilities.
+
+This uses the built-in incremental sampler:
+
+- [merak ngelo](data/music/merak-ngelo.mp3) -
+    [score](data/score/merak-ngelo.tscore)
+
 ### old things
 
 Old pieces, here for sentimental reasons.  Done with ST3 and ImpulseTracker.

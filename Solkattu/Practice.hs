@@ -44,8 +44,7 @@ realizeM :: Format.Abstraction -> Korvai.Korvai -> IO ()
 realizeM = Terminal.printInstrument Korvai.mridangam
 
 realizeKon :: Int -> IO ()
-realizeKon i =
-    Terminal.printKonnakol 100 Format.defaultAbstraction (Db.korvais !! i)
+realizeKon i = Terminal.printKonnakol Terminal.konnakolConfig (Db.korvais !! i)
 
 -- | Mark these korvais as practiced.
 practiced :: [Int] -> IO ()

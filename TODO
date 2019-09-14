@@ -41,7 +41,6 @@ UNSORTED
     . That's correct for laras_sawan_kantilan, pengisep, high ding.
     . But shouldn't I be using symbolic pitch anyway?
       No, I haven't set it up I guess.
-
     . For some reason this pitchen note 81, not 100.
     . Probably looking at the wrong one.  Pitch is 67.6
       This is because it's using the generic wayang scale, kantilan is
@@ -1579,7 +1578,6 @@ vector: performance:
 
 synth: im:
   synth status:
-    . faust: support ui controls
     . merge faust-im and sampler-im:
   - I don't actually need to worry about block alignment for anything except
     things with state: faust render and resample.  So I should be able to
@@ -2346,12 +2344,6 @@ synth: im:
         to pick the closest speed and use rubberband to fit.
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
-  audio debugging ideas:
-    - attach an oscilliscope to any internal signal
-      . Or export it as audio to listen or look at.
-      . If I attach this to a waveguide, do I get a picture of the string?
-    - get windows of values, e.g. control values right at note attacks
-    - detect anomalies, like NaN or numbers in unexpected ranges.
   faust:
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
@@ -2551,6 +2543,12 @@ synth: im:
     . http://faust.grame.fr/faustplayground/
 
   ideas for faust:
+    audio debugging ideas:
+      - attach an oscilliscope to any internal signal
+        . Or export it as audio to listen or look at.
+        . If I attach this to a waveguide, do I get a picture of the string?
+      - get windows of values, e.g. control values right at note attacks
+      - detect anomalies, like NaN or numbers in unexpected ranges.
     - Check function arity.  Also have explicit arity versions of <: and :>,
       e.g.
         point-free: process:2:1 = _, _ 2<:4 _ + _ + _ + _;

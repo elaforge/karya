@@ -3,6 +3,8 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+set -eu
+
 if [[ $# -ne 2 ]]; then
     echo usage: $0 input output.html
     exit 1
@@ -14,4 +16,4 @@ out=$2
 
 build/opt/linkify $haddock_dir $in \
     | pandoc --standalone --from=markdown --to=html \
-        --title-prefix "karya - $(basename $in)"  >$out
+        --metadata pagetitle="karya - $(basename $in)" >$out
