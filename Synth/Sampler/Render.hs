@@ -10,7 +10,6 @@ import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
-import qualified Data.Vector.Storable as V
 
 import qualified Sound.File.Sndfile as Sndfile
 import qualified Streaming.Prelude as S
@@ -194,7 +193,12 @@ render config outputDir initialStates notifyState trackIds notes start =
             -- I have to set it for Audio.silence2.
             then Audio._stream @_ @Config.SamplingRate $
                 Audio.take (Audio.Frames blockSize) (Audio.silence @_ @2)
-            else S.yield $ Audio.mixV (AUtil.framesCount2 blockSize) blocks
+            else S.yield $ Audio.Block $
+                Audio.mixV (AUtil.framesCount2 blockSize)
+                    (map Audio.blockVector blocks)
+                    -- I could use an Audio.mixB in case there are Constants in
+                    -- there, but resample will never produce Constants so
+                    -- don't bother.
         return (playing, metric)
 
     progress prevMetric now playing starting = liftIO $ do
@@ -221,13 +225,15 @@ inferChunkNum chunkSize now = fromIntegral $ now `div` chunkSize
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
 pull :: Audio.Frame -> Audio.Frame -> [Playing]
-    -> Resource.ResourceT IO ([V.Vector Audio.Sample], [Playing])
+    -> Resource.ResourceT IO ([Audio.Block], [Playing])
 pull blockSize now = fmap (trim . unzip) . mapM get
     -- TODO This mapM could be concurrent, which would make concurrent notes
     -- evaluate concurrently.
     where
     trim (chunks, playing) =
-        (filter (not . V.null) chunks, Maybe.catMaybes playing)
+        ( filter (not . Audio.isEmptyBlock) chunks
+        , Maybe.catMaybes playing
+        )
     get playing = do
         (chunk, audio) <- first mconcat <$>
             Audio.takeFramesGE blockSize (_audio playing)

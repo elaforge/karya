@@ -58,17 +58,14 @@ data Source = Sine Double | File FilePath
 
 resampleBy :: Source -> FilePath -> Resample.Quality
     -> [(Signal.X, Signal.Y)] -> IO ()
-resampleBy source out quality curve = write out $ Audio.gain 0.5 $ Audio.mix $
-    -- (Audio.Frames 0, takes 2 $ Audio.sine 440) :
-    (Audio.Frames 0, Resample.resampleBy (Resample.defaultConfig quality)
+resampleBy source out quality curve = write out $ Audio.gain 0.5 $ Audio.mix
+    [ Audio.expandChannels $ takes 2 $ Audio.sine 440
+    , Resample.resampleBy (Resample.defaultConfig quality)
             (Signal.from_pairs curve) $
         case source of
             Sine secs -> Audio.expandChannels $ takes secs $ Audio.sine 440
-            -- Sine secs -> Audio.mergeChannels
-            --     (takes secs $ Audio.sine 440)
-            --     (takes secs $ Audio.sine 440)
-            File fname -> File.read fname)
-    : []
+            File fname -> File.read fname
+    ]
     where
     takes = Audio.take . Audio.Seconds
 

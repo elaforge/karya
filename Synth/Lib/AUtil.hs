@@ -8,7 +8,6 @@
 -- Audio to avoid clashing with Util.Audio.Audio.
 module Synth.Lib.AUtil where
 import qualified Control.Exception as Exception
-import qualified Data.Vector.Storable as Storable
 import qualified Sound.File.Sndfile as Sndfile
 
 import qualified Util.Audio.Audio as Audio
@@ -16,7 +15,8 @@ import qualified Util.Num as Num
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
-import Global
+
+import           Global
 
 
 type Audio = Audio.AudioIO Config.SamplingRate Channels
@@ -33,7 +33,7 @@ toFrame = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds
 toSeconds :: Audio.Frame -> RealTime.RealTime
 toSeconds = RealTime.seconds . Audio.frameToSeconds Config.samplingRate
 
-blockFrames2 :: Storable.Vector Audio.Sample -> Audio.Frame
+blockFrames2 :: Audio.Block -> Audio.Frame
 blockFrames2 = Audio.blockFrames (Proxy @2)
 
 framesCount2 :: Audio.Frame -> Audio.Count
@@ -49,9 +49,6 @@ outputFormat = Sndfile.Format
 catchSndfile :: IO a -> IO (Either Text a)
 catchSndfile = fmap try . Exception.try
     where try = either (Left . txt . Sndfile.errorString) Right
-
-mix :: [(RealTime.RealTime, Audio)] -> Audio
-mix = Audio.mix . map (first (Audio.Seconds . RealTime.to_seconds))
 
 -- | Convert a volume in dB to linear.
 dbToLinear :: Float -> Float

@@ -21,8 +21,7 @@ import Global
 
 
 test_mix = do
-    let f = concat . toSamples . Audio.mix
-            . map (bimap Audio.Frames fromSamples)
+    let f = concat . toSamples . mixOffset . map (second fromSamples)
     equal (f []) []
     equal (f [(0, [])]) []
     equal (f [(0, [[1]])]) [1]
@@ -36,12 +35,16 @@ test_mix = do
     equal (f [(0, [[1], [], [3]]), (0, [[], [2], []])]) [3, 3]
 
 test_mix2 = do
-    let f = concat . toSamples . Audio.mix
-            . map (bimap Audio.Frames fromSamples2)
+    let f = concat . toSamples . mixOffset . map (second fromSamples2)
     equal (f [(0, [[0, 1], [2, 3]]), (1, [[4, 5]])])
         [0, 1, 2+4, 3+5]
     equal (f [(0, [[0, 1, 2, 3]]), (1, [[4, 5]])])
         [0, 1, 2+4, 3+5]
+
+mixOffset :: (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => [(Audio.Frame, Audio.AudioId rate chan)] -> Audio.AudioId rate chan
+mixOffset = Audio.mix
+    . map (\(f, audio) -> Audio.take (Audio.Frames f) Audio.silence <> audio)
 
 test_monoid = do
     equal (toSamples mempty) []
@@ -52,8 +55,7 @@ test_monoid = do
         [[1], [2], [3, 4]]
 
 test_nonInterleaved = do
-    let f = map (map V.toList) . Identity.runIdentity . S.toList_
-            . Audio._nstream
+    let f = map (map (V.toList . Audio.blockVector)) . unstream . Audio._nstream
             . Audio.nonInterleaved 0 2 . map fromSamples
     equal (f []) []
     equal (f [[[1, 2, 3, 4]], [[5], [6], [7, 8]]])
@@ -120,8 +122,9 @@ test_mixChannels = do
     equal (f $ fromSamples2 [[1, 2], [3, 4]]) [[3], [7]]
 
 test_synchronize = do
-    let f a1 a2 = map (bimap (fmap V.toList) (fmap V.toList)) $ unstream $
+    let f a1 a2 = map (bimap (fmap unblock) (fmap unblock)) $ unstream $
             Audio.synchronize a1 a2
+        unblock = V.toList . Audio.blockVector
     equal (f (fromSamples []) (fromSamples [])) []
     equal (f (fromSamples [[1]]) (fromSamples [])) [(Just [1], Nothing)]
     equal (f (fromSamples [[1]]) (fromSamples [[2, 3]]))
@@ -196,9 +199,6 @@ fromSamplesN = Audio.fromSamples . map V.fromList
 
 toSamples :: Audio.AudioId rate channels -> [[Audio.Sample]]
 toSamples = map V.toList . Identity.runIdentity . Audio.toSamples
-
-toBlocks :: Audio.AudioId 1 1 -> [V.Vector Audio.Sample]
-toBlocks = Identity.runIdentity . S.toList_ . Audio._stream
 
 
 -- * util

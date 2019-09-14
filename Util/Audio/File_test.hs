@@ -12,9 +12,10 @@ import qualified Util.Audio.File as File
 import Global
 
 
-t_mix out = write out $ Audio.mix $ map (first Audio.Seconds)
-    [ (0, File.read44k "g1.wav")
-    , (0.5, File.read44k "g1.wav")
+t_mix out = write out $ Audio.mix
+    [ File.read44k "g1.wav"
+    , Audio.take (Audio.Seconds 0.5) Audio.silence
+        <> File.read44k "g1.wav"
     ]
 
 t_sine = write "sine.wav" $ Audio.take (Audio.Seconds 1) $ Audio.sine 440

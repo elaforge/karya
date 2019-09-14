@@ -84,7 +84,7 @@ verify quality ratios dur =
 actualDuration :: Resample.Config -> Signal.Signal -> Audio.Frame
     -> Audio.Frame
 actualDuration config ratios dur =
-    Num.sum . map (Audio.blockFrames (Proxy @1))
+    Num.sum . map (Audio.vectorFrames (Proxy @1))
     . Unsafe.unsafePerformIO
     . resample config ratios
     . Audio.take (Audio.Frames dur) $ Audio.silence

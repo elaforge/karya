@@ -281,12 +281,12 @@ render emitMessage patch mbState notifyState controls inputs start end config =
             let controlVals = findControls (DriverC._controls inst) controls
             outputs <- liftIO $ DriverC.render
                 (_controlSize config) (_controlsPerBlock config) inst
-                controlVals inputSamples
+                controlVals (map Audio.blockVector inputSamples)
             -- XXX Since this uses unsafeGetState, readers of notifyState
             -- have to entirely use the state before returning.  See
             -- Checkpoint.getFilename and Checkpoint.writeBs.
             liftIO $ notifyState =<< DriverC.unsafeGetState inst
-            S.yield outputs
+            S.yield $ map Audio.Block outputs
             case outputs of
                 -- This should have already been checked by DriverC.getPatches.
                 [] -> CallStack.errorIO "patch with 0 outputs"
@@ -330,9 +330,11 @@ takeExtend :: Monad m => Audio.Frame -> Audio.Audio m rate 1
     -> m (Maybe (V.Vector Audio.Sample, Audio.Audio m rate 1))
 takeExtend frames audio = do
     (blocks_, audio) <- Audio.splitAt frames audio
-    let blocks = filter (not . V.null) blocks_
+    -- TODO I should propagate Constant to the render call so I can pass as
+    -- a value, not a pointer.
+    let blocks = filter (not . V.null) $ concatMap Audio.blockSamples blocks_
     let missing = Audio.framesCount (Proxy @1) $
-            frames - Num.sum (map (Audio.blockFrames (Proxy @1)) blocks)
+            frames - Num.sum (map (Audio.vectorFrames (Proxy @1)) blocks)
     return $ if null blocks then Nothing
         else if missing == 0 then Just (mconcat blocks, audio)
         else let final = V.last (last blocks)
@@ -355,8 +357,8 @@ renderControls controlSize triggered controlRate controls notes start =
     -- Audio.linear gets its breakpoints in seconds, so I have to do this
     -- little dance.  Maybe it could use frames?
     render = case Audio.someNat controlRate of
-        TypeLits.SomeNat (_ :: Proxy crate) ->
-            Audio.castRate . Audio.linear @_ @crate False . shiftBack
+        TypeLits.SomeNat (_ :: Proxy cRate) ->
+            Audio.castRate . Audio.linear @_ @cRate False . shiftBack
     shiftBack = map $ first $ subtract $ RealTime.to_seconds start
 
 extractControls :: Audio.Frame -> Bool -> Set DriverC.Control -> [Note.Note]

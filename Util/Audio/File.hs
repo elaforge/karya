@@ -67,6 +67,9 @@ read :: forall rate channels.
     FilePath -> Audio.AudioIO rate channels
 read = readFrom (Audio.Frames 0)
 
+-- | Like 'readFrom', but return an action that closes the handle.  This is
+-- for Audio.takeClose, so it can close the file early if it terminates the
+-- stream early.
 readFromClose :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     Audio.Duration -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
@@ -77,7 +80,7 @@ readFromClose (Audio.Frames frame) fname = do
     handle <- openRead fname
     return $ (close handle,) $ Audio.Audio $ do
         lift $ Resource.register (close handle)
-        readHandle rate chan frame fname handle
+        S.map Audio.Block $ readHandle rate chan frame fname handle
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
     channels = Proxy :: Proxy channels
@@ -91,7 +94,7 @@ readFrom (Audio.Seconds secs) fname =
     where rate = Audio.natVal (Proxy :: Proxy rate)
 readFrom (Audio.Frames frame) fname = Audio.Audio $ do
     (_, handle) <- lift $ Resource.allocate (openRead fname) close
-    readHandle rate chan frame fname handle
+    S.map Audio.Block $ readHandle rate chan frame fname handle
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
     channels = Proxy :: Proxy channels
@@ -187,12 +190,14 @@ write :: forall rate channels.
     -> Resource.ResourceT IO ()
 write format fname audio = do
     (key, handle) <- Resource.allocate (openWrite format tmp audio) close
-    S.mapM_ (liftIO . Sndfile.hPutBuffer (_handle handle)
-            . Sndfile.Buffer.Vector.toBuffer)
-        (Audio._stream audio)
+    S.mapM_ (write handle) (Audio._stream audio)
     Resource.release key
     liftIO $ Directory.renameFile tmp fname
     where
+    write handle = liftIO
+        . mapM_ (Sndfile.hPutBuffer (_handle handle)
+            . Sndfile.Buffer.Vector.toBuffer)
+        . Audio.blockSamples
     tmp = fname <> ".write.tmp"
 
 -- | Write files in chunks to the given directory.  Run actions before
@@ -212,6 +217,8 @@ writeCheckpoints size getFilename chunkComplete format = go 0
     go !written (state : states) audio = do
         fname <- liftIO $ getFilename state
         (blocks, audio) <- Audio.takeFramesGE size audio
+        -- TODO I should be able to have a special file format for constant 0
+        blocks <- return $ concatMap Audio.blockSamples blocks
         if null blocks
             then return chunknum
             else do

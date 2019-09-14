@@ -1640,6 +1640,12 @@ synth: im:
         Ultimately I want to merge to one patch, and faust and the sampler
         become signal generators.
       . They should both use the same Render.write loop.
+    Differences:
+      . Faust has only one audio generator per instrument, and voices are
+        implemented as Note.element.  The audio generator runs constantly, so
+        all notes are merged into a set of signals.  There is only one state.
+      . Meanwhile, the sampler has a separate audio generator for each note.
+        Each one has its own state and independent set of controls.
   progress:
     waveform display:
       - percussion is too thin, tends to become invisible when quiet
@@ -2320,13 +2326,9 @@ synth: im:
   audio debugging ideas:
     - attach an oscilliscope to any internal signal
       . Or export it as audio to listen or look at.
+      . If I attach this to a waveguide, do I get a picture of the string?
     - get windows of values, e.g. control values right at note attacks
     - detect anomalies, like NaN or numbers in unexpected ranges.
-    faust problems:
-      . The way point-free style interacts with pointed style combined with
-        how <: implicitly duplicates the signal as many times as in necessary
-        is error-prone.  E.g. an extra argument is not caught if a <: precedes
-        it.
   faust:
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
@@ -2376,6 +2378,8 @@ synth: im:
         . Something is wrong with state and probably control values, because
           I now get artifacts on resume.  Maybe it's the initialize?  Try
           turning it off.
+        . How to capture a repro?  I would get delete the chunk with the
+          artifact and rerender, then I can mess with the initialization.
       . I have to sample the controls at each time, and set the appropriate
         control.
       . #1: keep Map Control Widget in Instrument, where Widget has a
@@ -2417,7 +2421,6 @@ synth: im:
         Still, maybe not, because faust has to smooth them to audio rate
         anyway.  But unsmoothed calculations can happen at control rate.
     tambura.dsp:
-      . https://github.com/olilarkin/Tambura
       * try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
@@ -2447,30 +2450,51 @@ synth: im:
     - Compare timing with pre-input signals.
       . In general I should set up performance tracking for faust-im and
         sampler-im.
-    - Suspend instrument rendering if gate and signal goes to 0.
+      . I also want to check pre and post Audio.Block.
+    + Don't render before the first note.
+      . If I do the skip after the cache skip, I can get the effect of turning
+        off rendering for silent sections... well, except I can't because
+        I need to wait until isBasicallySilent.
+      . I could also have a convention for a "all silent" chunk, say a
+        broken symlink to "silence", which play_cache knows about.  When it
+        sees one, it just does memset 0.
+      . It has to actually be in the checkpoint directory though, so it could
+        be just any broken symlink.
+      . Other players like sox won't understand it though, which is a bit
+        annoying.
+      . Should I put Block back in Audio so I can keep track of 0s?
+      . I could use constants for faust controls too.
+      . Audio.Constant is implemented, now I need to prepend Audio.silence,
+        and then make File.checkpoint write special const 0 files.
+        . I could write these as normal files except with zero length, and
+          since all chunks are the same size, play_cache can treat it
+          specially, and bin/play won't trip over them.
+    + Do explicit leading silence for sampler too.
+      . I think it's already there due to using Audio.silence when Playing is
+        [], I just need to have Audio.File write them.
+    + Suspend instrument rendering if gate and signal goes to 0.
       . Maybe I need to bring back Audio.Chunk for this.  Or V.empty in the
         output NAudio?
+      . If I have a quickly recognizable chunk, then I can turn that directly
+        into the "silence" symlink above, and avoid writing entirely.
 
-    - follow up with Yann about extending inputs with metadata
-      - Add defaults: default=x:Doc doc doc.
-        . Use this when no signal is present.
-    - Maybe constant controls could use UI controls, then I don't need to fill
+    * Maybe constant controls could use UI controls, then I don't need to fill
       up the buffer.
       . But then I have to deal with two kinds of controls.
       . And I can just set constant buffers and leave them.
-    - Extend the guitar single string model into a multi-string instrument.
-    - Figure out decay time instead of hardcoding it.
+    / Extend the guitar single string model into a multi-string instrument.
+    * Figure out decay time instead of hardcoding it.
       . How to know when to drop notes?  I think I have to use a heuristic
         like >1s of audio under a threshold after note off.
       . I think this has to go in the driver.  Implement a gate signal, and
         the driver renders until the output gets low enough and gate is 0.
       . For instruments that play multiple notes, I can use this to suspend
         processing.
-    - Instruments with explicit voice assignments (e.g. strings) use Attribues
+    * Instruments with explicit voice assignments (e.g. strings) use Attribues
       to assign the string, and create a set number of Instruments which are
       reused.
       . Actually I should use Note.element, since it's exclusive.
-    - MIDI thru for im instruments.  Tie to a MIDI instrument for thru.
+    * MIDI thru for im instruments.  Tie to a MIDI instrument for thru.
       . If I support faust controls, I can reuse existing OSC or MIDI bindings
         for an accurate thru.  But I'd have to build the faust library as a
         VST and then have some way to address it.  MIDI would be more
@@ -2503,24 +2527,44 @@ synth: im:
     . https://ccrma.stanford.edu/~rmichon/faustDay2017/
     . http://faust.grame.fr/faustplayground/
 
-  things to change with faust:
-    - Use const on const methods:
-        getNumInputs(), getNumOutputs(), clone(), ...
-      . I have a patch for this but it will likely be rejected because it will
-        break subclasses that don't declare const.
-    - const on inputs:
-      compute(int count, const FAUSTFLOAT** input, FAUSTFLOAT** output)
-      . Same deal, might break subclasses.
-    - Have a way to save and restore state.  E.g. stick instance variables in
-      a bytestring.
-      . I think the way to do this is put state variables in a struct inside
-        the class.  Then update all variable references to state.x.
-      . It's too annoying to edit C++, especially heavily OO-pattern faust
-        C++.  I just used the C backend and wrapped it in my own C++ class.
+  ideas for faust:
+    - Check function arity.  Also have explicit arity versions of <: and :>,
+      e.g.
+        point-free: process:2:1 = _, _ 2<:4 _ + _ + _ + _;
+        point-full: process:2:1(a, b) = a + b;
+      . The way point-free style interacts with pointed style combined with
+        how <: implicitly duplicates the signal as many times as in necessary
+        is error-prone.  E.g. an extra argument is not caught if a <: precedes
+        it.
+    - Access to memory, e.g. the values in a delay line, for visualization.
+      . Actually hbargraph does this, but just for a single value.  I'd have
+        to get a handle on the (@) call.
+    - If faust cached a single previous input up to the point where it depends
+      on another input, it seems like we then effectively get variable sample
+      rate, just by holding one input constant.  It's probably not as good as
+      a real variable rate, because it still has to check with the previous
+      value on every sample.  But if we know the inputs that are likely to
+      remain constant, we can memoize them all together.  Has this idea been
+      implemented anywhere?
     - Provide access to input signal names so I can get rid of the awkward
       declare thing.
       . Talked with Yann about this, seemed receptive.  Probably have to
         remind him, or implement myself.
+      . I should be able to use this to get rid of controls entirely.
+    generated code:
+      - Use const on const methods:
+          getNumInputs(), getNumOutputs(), clone(), ...
+        . I have a patch for this but it will likely be rejected because it will
+          break subclasses that don't declare const.
+      - const on inputs:
+        compute(int count, const FAUSTFLOAT** input, FAUSTFLOAT** output)
+        . Same deal, might break subclasses.
+      - Have a way to save and restore state.  E.g. stick instance variables in
+        a bytestring.
+        . I think the way to do this is put state variables in a struct inside
+          the class.  Then update all variable references to state.x.
+        . It's too annoying to edit C++, especially heavily OO-pattern faust
+          C++.  I just used the C backend and wrapped it in my own C++ class.
   csound:
     . Use csound-expression?
     . writeSnd "A.aiff" $ setDur 10 $ osc 440

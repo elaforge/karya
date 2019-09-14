@@ -19,10 +19,12 @@ module Util.Audio.Audio (
     Audio(..), AudioIO, AudioId
     , NAudio(..), NAudioIO, NAudioId
     , UnknownAudio(..), UnknownAudioIO
+    , Block(..)
     , Sample, Frame(..), secondsToFrame, secondsToFrameCeil, frameToSeconds
     , Duration(..)
     , Count, Channels, Rate, Seconds
-    , framesCount, countFrames, blockFrames
+    , framesCount, countFrames, blockFrames, vectorFrames
+    , blockCount, isEmptyBlock, blockSamples, blockVector
     -- * construct
     , fromSamples, fromSampleLists, toSamples, toSamplesN
     -- * transform
@@ -80,6 +82,8 @@ import qualified Util.Seq as Seq
 import qualified Util.Test.ApproxEq as ApproxEq
 import qualified Util.VectorC as VectorC
 
+import qualified Util.Pretty as Pretty
+
 import Global
 
 
@@ -94,7 +98,7 @@ import Global
     when synchronizing streams.
 -}
 newtype Audio m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
-    Audio { _stream :: S.Stream (S.Of (V.Vector Sample)) m () }
+    Audio { _stream :: S.Stream (S.Of Block) m () }
     deriving (Semigroup, Monoid)
 
 type AudioIO rate channels = Audio (Resource.ResourceT IO) rate channels
@@ -120,11 +124,21 @@ type AudioId rate channels = Audio Identity.Identity rate channels
 -}
 data NAudio m (rate :: TypeLits.Nat) = NAudio
     { _nchannels :: !Channels
-    , _nstream :: S.Stream (S.Of [(V.Vector Sample)]) m ()
+    , _nstream :: S.Stream (S.Of [Block]) m ()
     }
 
 type NAudioIO rate = NAudio (Resource.ResourceT IO) rate
 type NAudioId rate = NAudio Identity.Identity rate
+
+-- | There is a special representation for a constant block.  0 blocks are
+-- common when aligning sounds, and constant ones are common for control
+-- signals.
+data Block = Block !(V.Vector Sample) | Constant !Count !Sample
+    deriving (Eq, Show)
+
+instance Pretty Block where
+    format (Block v) = Pretty.format v
+    format (Constant count val) = Pretty.text $ "const:" <> pretty (count, val)
 
 -- | This is an Audio with dynamic rate and channels.
 data UnknownAudio m = forall rate chan. (KnownNat rate, KnownNat chan) =>
@@ -160,8 +174,42 @@ framesCount channels (Frame frames) = frames * natVal channels
 countFrames :: KnownNat channels => Proxy channels -> Count -> Frame
 countFrames channels count = Frame $ count `div` natVal channels
 
-blockFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frame
-blockFrames channels = countFrames channels . V.length
+blockFrames :: KnownNat channels => Proxy channels -> Block -> Frame
+blockFrames channels = countFrames channels . blockCount
+
+vectorFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frame
+vectorFrames channels = countFrames channels . V.length
+
+blockCount :: Block -> Count
+blockCount (Block v) = V.length v
+blockCount (Constant c _) = c
+
+isEmptyBlock :: Block -> Bool
+isEmptyBlock = (==0) . blockCount
+
+blockSamples :: Block -> [V.Vector Sample]
+blockSamples (Block v) = [v]
+blockSamples (Constant count _) | count <= 0 = []
+blockSamples (Constant count 0)
+    | count > V.length silentBlock =
+        silentBlock : blockSamples (Constant (count - V.length silentBlock) 0)
+    | otherwise = [V.take count silentBlock]
+blockSamples (Constant count val) = [V.replicate count val]
+
+blockVector :: Block -> V.Vector Sample
+blockVector = mconcat . blockSamples
+
+blockSplit :: Count -> Block -> (Block, Block)
+blockSplit n (Block v) = (Block pre, Block post)
+    where (pre, post) = V.splitAt n v
+blockSplit n (Constant count val) =
+    (Constant (min count n) val, Constant (max 0 (count - n)) val)
+
+instance Semigroup Block where
+    Constant c1 v1 <> Constant c2 v2 | v1 == v2 = Constant (c1+c2) v1
+    b1 <> b2 = Block $ mconcat $ blockSamples b1 ++ blockSamples b2
+instance Monoid Block where
+    mempty = Constant 0 0
 
 -- * construct
 
@@ -169,11 +217,15 @@ blockFrames channels = countFrames channels . V.length
 -- a multiple of the channels, or this will crash.
 fromSamples :: forall m rate chan. (Monad m, KnownNat chan)
     => [V.Vector Sample] -> Audio m rate chan
-fromSamples = Audio . S.each . map check
+fromSamples = fromBlocks . map Block
+
+fromBlocks :: forall m rate chan. (Monad m, KnownNat chan)
+    => [Block] -> Audio m rate chan
+fromBlocks = Audio . S.each . map check
     where
     check block
-        | V.length block `mod` chan == 0 = block
-        | otherwise = error $ "block length " <> show (V.length block)
+        | blockCount block `mod` chan == 0 = block
+        | otherwise = error $ "block count " <> show (blockCount block)
             <> " not a multiple of channels " <> show chan
     chan = natVal (Proxy @chan)
 
@@ -181,11 +233,17 @@ fromSampleLists :: forall m rate chan. (Monad m, KnownNat chan)
     => [[Sample]] -> Audio m rate chan
 fromSampleLists = fromSamples . map V.fromList
 
+toBlocks :: Monad m => Audio m rate channels -> m [Block]
+toBlocks = S.toList_ . _stream
+
 toSamples :: Monad m => Audio m rate channels -> m [V.Vector Sample]
-toSamples = S.toList_ . _stream
+toSamples = fmap (concatMap blockSamples) . toBlocks
+
+toBlocksN :: Monad m => NAudio m rate -> m [[Block]]
+toBlocksN = S.toList_ . _nstream
 
 toSamplesN :: Monad m => NAudio m rate -> m [[V.Vector Sample]]
-toSamplesN = S.toList_ . _nstream
+toSamplesN = fmap (map (map blockVector)) . toBlocksN
 
 -- * transform
 
@@ -194,22 +252,7 @@ castRate (Audio stream) = Audio stream
 
 take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
     => Duration -> Audio m rate chan -> Audio m rate chan
-take (Seconds seconds) audio
-    | seconds <= 0 = mempty
-    | otherwise = take
-        (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
-take (Frames frames) (Audio audio)
-    | frames <= 0 = mempty
-    | otherwise = Audio $ Control.loop1 (0, audio) $
-        \loop (now, audio) -> lift (S.uncons audio) >>= \case
-            Nothing -> return ()
-            Just (block, audio)
-                | end <= frames -> S.yield block >> loop (end, audio)
-                | now >= frames -> return ()
-                | otherwise -> S.yield $
-                    V.take (framesCount chan (min frames end - now)) block
-                where end = now + blockFrames chan block
-        where chan = Proxy :: Proxy chan
+take = takeClose (return ())
 
 -- | This is like 'take', but it takes a close action to run when the audio
 -- stream is terminated.  This is because streaming can't otherwise close
@@ -232,14 +275,20 @@ takeClose close (Frames frames) (Audio audio)
                 | now >= frames -> lift close
                 | otherwise -> do
                     lift close
-                    S.yield $
-                        V.take (framesCount chan (min frames end - now)) block
-                where end = now + blockFrames chan block
-    where chan = Proxy :: Proxy chan
+                    S.yield $ case block of
+                        Block samples -> Block $ V.take left samples
+                        Constant _ val -> Constant left val
+                where
+                end = now + blockFrames chan block
+                left = framesCount chan (min frames end - now)
+        where chan = Proxy :: Proxy chan
 
 mapSamples :: Monad m => (Float -> Float) -> Audio m rate chan
     -> Audio m rate chan
-mapSamples f (Audio audio) = Audio (S.map (V.map f) audio)
+mapSamples f (Audio audio) = Audio (S.map block audio)
+    where
+    block (Block v) = Block (V.map f v)
+    block (Constant count val) = Constant count (f val)
 
 -- | Set linear gain.  Use 'dbToLinear' to scale by dB.
 gain :: Monad m => Float -> Audio m rate channels -> Audio m rate channels
@@ -258,7 +307,22 @@ multiply audio1 audio2 =
         Right ((Nothing, _), _) -> Left ()
         Right ((_, Nothing), _) -> Left ()
         -- Since they have the same channels, there's no need to deinterleave.
-        Right ((Just a1, Just a2), audio) -> Right (V.zipWith (*) a1 a2, audio)
+        Right ((Just b1, Just b2), audio) -> Right (blockMultiply b1 b2, audio)
+
+blockMultiply :: Block -> Block -> Block
+blockMultiply (Constant c1 v1) (Constant c2 v2) = Constant (min c1 c2) (v1*v2)
+blockMultiply b1@(Block {}) b2@(Constant {}) = blockMultiply b2 b1
+blockMultiply (Constant c1 v1) (Block b2)
+    | v1 == 0 = Constant (min c1 (V.length b2)) 0
+    | v1 == 1 = Block b2
+    | otherwise = Block $ V.map (*v1) $ V.take c1 b2
+blockMultiply (Block b1) (Block b2) = Block $ V.zipWith (*) b1 b2
+
+-- blockZipWith :: (Sample -> Sample -> Sample) -> Block -> Block -> Block
+-- blockZipWith f (Constant c1 v1) (Constant c2 v2) =
+--     Constant (min c1 c2) (f v1 v2)
+-- blockZipWith f b1 b2 = Block $
+--     V.zipWith f (mconcat (blockSamples b1)) (mconcat (blockSamples b2))
 
 -- | Pan a stereo signal with a mono one.  The pan signal goes from -1 to 1.
 --
@@ -271,14 +335,20 @@ pan pos audio = Audio $ S.unfoldr (fmap merge . S.next) $ synchronize pos audio
         Left () -> Left ()
         Right ((Nothing, _), _) -> Left ()
         Right ((_, Nothing), _) -> Left ()
-        Right ((Just pos, Just stereo), audio) -> Right
-            ( interleaveV
+        Right ((Just _, Just (Constant c 0)), audio) ->
+            Right (Constant c 0, audio)
+        Right ((Just (Constant _ 0), Just stereo), audio) ->
+            Right (stereo, audio)
+        Right ((Just pos_, Just stereo), audio) -> Right
+            ( Block $ interleaveV
                 [ V.zipWith (*) (V.map ((2-) . (+1)) pos) left
                 , V.zipWith (*) (V.map (+1) pos) right
                 ]
             , audio
             )
-            where [left, right] = deinterleaveV 2 stereo
+            where
+            pos = blockVector pos_
+            [left, right] = deinterleaveV 2 $ blockVector stereo
 
 -- | Like 'pan', but more efficient.  TODO also linear pan, as in 'pan'.
 panConstant :: Monad m => Sample -> Audio m rate 2 -> Audio m rate 2
@@ -286,72 +356,38 @@ panConstant pos
     | ApproxEq.eq 0.01 pos 0 = id
     | otherwise = Audio . S.map pan . _stream
     where
-    pan stereo = interleaveV
+    pan (Constant count val) | val == 0 = Constant count 0
+    pan stereo = Block $ interleaveV
         [ V.map (* (2 - (pos+1))) left
         , V.map (* (pos+1)) right
         ]
-        where [left, right] = deinterleaveV 2 stereo
+        where [left, right] = deinterleaveV 2 $ blockVector stereo
 
 -- * mix
 
 -- | Mix together the audio streams at the given start times.
 --
 -- TODO the input could also be a stream, in case it somehow comes from IO.
-mix :: forall m rate chan. (Monad m, KnownNat chan, KnownNat rate)
-    => [(Duration, Audio m rate chan)] -> Audio m rate chan
-mix = Audio . S.map merge . synchronizeBlocks . map pad
+mix :: Monad m => [Audio m rate chan] -> Audio m rate chan
+mix = Audio . S.map merge . synchronizeList
     where
-    pad (Seconds secs, a) = pad (Frames (secondsToFrame rate secs), a)
-    pad (Frames frame, Audio a)
-        | frame > 0 = S.cons (Silence (framesCount chan frame)) (S.map Block a)
-        | otherwise = S.map Block a
-    merge blocks
-        | null vs = case [c | Silence c <- blocks] of
-            -- All Silences should be the same, thanks to 'synchronizeBlocks'.
-            count : _ -> V.replicate count 0
-            -- 'synchronizeBlocks' shouldn't emit empty blocks.
-            [] -> V.empty
-        | otherwise = mixV 0 vs
-        where vs = [v | Block v <- blocks]
-    chan = Proxy :: Proxy chan
-    rate = natVal (Proxy :: Proxy rate)
-
--- | The strategy is to pad the beginning of each audio stream with silence,
--- but make mixing silence cheap with a special Silence constructor.
---
--- I used to have Block in 'Audio' so I could process Silence more
--- efficiently.  But it turns out it's annoying to do that and I only need it
--- for 'mix' anyway.
-data Block = Block (V.Vector Sample) | Silence !Count
-    deriving (Show)
-
-blockCount :: Block -> Count
-blockCount (Block v) = V.length v
-blockCount (Silence c) = c
+    merge [] = Block V.empty
+    merge blocks@(block:_)
+        | null vectors = Constant (blockCount block) constant
+        | otherwise = Block $
+            (if constant == 0 then id else V.map (+constant)) $ mixV 0 vectors
+        where
+        constant = Num.sum [val | Constant _ val <- blocks]
+        vectors = [v | Block v <- blocks]
 
 -- | Add vectors of samples.  The output will be the max of the longest vector
 -- and the provided minimum length.
-mixV :: Int -> [V.Vector Sample] -> V.Vector Sample
-mixV = VectorC.mixFloats
-
--- | Synchronize block size for all streams: pull from each one, then split
--- each to the shortest one.
-synchronizeBlocks :: Monad m => [S.Stream (S.Of Block) m ()]
-    -> S.Stream (S.Of [Block]) m ()
-synchronizeBlocks = S.unfoldr unfold
-    where
-    unfold audios = do
-        pairs <- Maybe.catMaybes <$> mapM S.uncons audios
-        return $ case Seq.minimum $ map (blockCount . fst) pairs of
-            Nothing -> Left ()
-            Just shortest -> Right $ unzip $ map (recons shortest) pairs
-    recons size (block, tail)
-        | blockCount block <= size = (block, tail)
-        | otherwise = case block of
-            Block v -> (Block pre, S.cons (Block post) tail)
-                where (pre, post) = V.splitAt size v
-            Silence count ->
-                (Silence size, S.cons (Silence (count - size)) tail)
+mixV :: Count -> [V.Vector Sample] -> V.Vector Sample
+mixV len [] = V.replicate len 0
+mixV len [v]
+    | V.length v >= len = v
+    | otherwise = v <> V.replicate (len - V.length v) 0
+mixV len vectors = VectorC.mixFloats len vectors
 
 
 -- * channels
@@ -367,15 +403,19 @@ mergeChannels audio1 audio2 =
     Audio $ S.map (merge . to0) $ synchronize audio1 audio2
     where
     to0 (a1, a2) =
-        ( fromMaybe (V.replicate count1 0) a1
-        , fromMaybe (V.replicate count2 0) a2
+        ( fromMaybe (Constant count1 0) a1
+        , fromMaybe (Constant count2 0) a2
         )
         where
         count1 = framesCount chan1 $ maybe 0 (blockFrames chan2) a2
         count2 = framesCount chan2 $ maybe 0 (blockFrames chan1) a1
     -- These should now have the same number of frames.
-    merge (a1, a2) = interleaveV $
-        deinterleaveV (natVal chan1) a1 ++ deinterleaveV (natVal chan2) a2
+    merge = \case
+        -- Due to synchronize, c1 == c2
+        (Constant c1 v1, Constant c2 v2) | v1 == v2 -> Constant (c1+c2) v1
+        (b1, b2) -> Block $ interleaveV $
+            deinterleaveV (natVal chan1) (blockVector b1)
+            ++ deinterleaveV (natVal chan2) (blockVector b2)
     chan1 = Proxy @chan1
     chan2 = Proxy @chan2
 
@@ -384,14 +424,21 @@ mergeChannels audio1 audio2 =
 -- See 'splitChannels' to get them all.
 extractChannel :: forall m rate chan. (Monad m, KnownNat chan)
     => Channels -> Audio m rate chan -> Audio m rate 1
-extractChannel idx = Audio . S.map ((!!idx) . deinterleaveV chan) . _stream
-    where chan = natVal (Proxy @chan)
+extractChannel idx = Audio . S.map extract . _stream
+    where
+    extract (Constant count val) = Constant (count `div` chan) val
+    extract (Block v) = Block $ deinterleaveV chan v !! idx
+    chan = natVal (Proxy @chan)
 
 -- | De-interleave the audio.
 splitChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate chan -> NAudio m rate
-splitChannels = NAudio chan . S.map (deinterleaveV chan) . _stream
-    where chan = natVal (Proxy @chan)
+splitChannels = NAudio chan . S.map split . _stream
+    where
+    split (Constant count val) =
+        replicate chan $ Constant (count `div` chan) val
+    split (Block v) = map Block $ deinterleaveV chan v
+    chan = natVal (Proxy @chan)
 
 -- | Take a single channel signal to multiple channels by copying samples.
 --
@@ -399,8 +446,12 @@ splitChannels = NAudio chan . S.map (deinterleaveV chan) . _stream
 -- that's more complicated and I don't need it.
 expandChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate 1 -> Audio m rate chan
-expandChannels (Audio audio) = Audio $ S.map (expandV chan) audio
+expandChannels (Audio audio) = Audio $ S.map (expandB chan) audio
     where chan = natVal (Proxy :: Proxy chan)
+
+expandB :: Channels -> Block -> Block
+expandB chan (Constant count val) = Constant (count * chan) val
+expandB chan (Block v) = Block $ expandV chan v
 
 expandV :: Channels -> V.Vector Sample -> V.Vector Sample
 expandV chan block =
@@ -411,7 +462,8 @@ mixChannels :: forall m rate chan. (Monad m, KnownNat chan)
     => Audio m rate chan -> Audio m rate 1
 mixChannels (Audio audio) = Audio $ S.map mix audio
     where
-    mix = mixV 0 . deinterleaveV chan
+    mix (Constant count val) = Constant (count `div` chan) val
+    mix (Block v) = Block $ mixV 0 $ deinterleaveV chan v
     chan = natVal (Proxy @chan)
 
 deinterleaveV :: V.Storable a => Channels -> V.Vector a -> [V.Vector a]
@@ -421,6 +473,11 @@ deinterleaveV channels v
     where
     gen chan = V.generate frames (\i -> v V.! (channels * i + chan))
     frames = V.length v `div` channels
+
+interleaveB :: [Block] -> Block
+interleaveB (b@(Constant count val) : bs) | all (==b) bs =
+    Constant (count * (length bs + 1)) val
+interleaveB bs = Block $ interleaveV $ map blockVector bs
 
 interleaveV :: V.Storable a => [V.Vector a] -> V.Vector a
 interleaveV vs = V.create $ do
@@ -436,27 +493,46 @@ interleaveV vs = V.create $ do
 synchronize :: forall m rate chan1 chan2.
     (Monad m, KnownNat chan1, KnownNat chan2)
     => Audio m rate chan1 -> Audio m rate chan2
-    -> S.Stream (S.Of (Maybe (V.Vector Sample), Maybe (V.Vector Sample))) m ()
+    -> S.Stream (S.Of (Maybe Block, Maybe Block)) m ()
 synchronize audio1 audio2 = S.unfoldr unfold (_stream audio1, _stream audio2)
     where
     unfold (a1, a2) = recons a1 a2 <$> ((,) <$> S.uncons a1 <*> S.uncons a2)
     recons a1 a2 = \case
         (Nothing, Nothing) -> Left ()
-        (Just (c1, as1), Nothing) -> Right ((Just c1, Nothing), (as1, a2))
-        (Nothing, Just (c2, as2)) -> Right ((Nothing, Just c2), (a1, as2))
-        (Just (c1, as1), Just (c2, as2)) -> Right $
+        (Just (b1, as1), Nothing) -> Right ((Just b1, Nothing), (as1, a2))
+        (Nothing, Just (b2, as2)) -> Right ((Nothing, Just b2), (a1, as2))
+        (Just (b1, as1), Just (b2, as2)) -> Right $
             case compare frames1 frames2 of
-                LT -> ((Just c1, Just pre2), (as1, S.cons post2 as2))
-                GT -> ((Just pre1, Just c2), (S.cons post1 as1, as2))
-                EQ -> ((Just c1, Just c2), (as1, as2))
+                LT -> ((Just b1, Just pre2), (as1, S.cons post2 as2))
+                GT -> ((Just pre1, Just b2), (S.cons post1 as1, as2))
+                EQ -> ((Just b1, Just b2), (as1, as2))
             where
-            frames1 = blockFrames chan1 c1
-            frames2 = blockFrames chan2 c2
-            (pre1, post1) = V.splitAt (framesCount chan1 shortest) c1
-            (pre2, post2) = V.splitAt (framesCount chan2 shortest) c2
+            frames1 = blockFrames chan1 b1
+            frames2 = blockFrames chan2 b2
+            (pre1, post1) = blockSplit (framesCount chan1 shortest) b1
+            (pre2, post2) = blockSplit (framesCount chan2 shortest) b2
             shortest = min frames1 frames2
     chan1 = Proxy :: Proxy chan1
     chan2 = Proxy :: Proxy chan2
+
+-- | Synchronize block size for all streams: pull from each one, then split
+-- each to the shortest one.
+synchronizeList :: Monad m => [Audio m rate chan]
+    -> S.Stream (S.Of [Block]) m ()
+synchronizeList = S.unfoldr unfold . map _stream
+    where
+    unfold audios = do
+        pairs <- Maybe.catMaybes <$> mapM S.uncons audios
+        return $ case Seq.minimum $ map (blockCount . fst) pairs of
+            Nothing -> Left ()
+            Just shortest -> Right $ unzip $ map (recons shortest) pairs
+    recons size (block, tail)
+        | blockCount block <= size = (block, tail)
+        | otherwise = case block of
+            Block v -> (Block pre, S.cons (Block post) tail)
+                where (pre, post) = V.splitAt size v
+            Constant count val ->
+                (Constant size val, S.cons (Constant (count - size) val) tail)
 
 -- ** non-interleaved
 
@@ -471,7 +547,7 @@ nonInterleaved now size audios = NAudio (length audios) $
         let heads = map (fmap fst) pairs
             tails = [tail | Just (_, tail) <- pairs]
         return $ if null tails then Left ()
-            else Right (map (fromMaybe V.empty) heads, tails)
+            else Right (map (fromMaybe mempty) heads, tails)
 
 -- | Convert a non-interleaved NAudio with an unknown number of channels
 -- to an interleaved one with a known number.  This is the inverse of
@@ -484,9 +560,9 @@ interleaved :: forall m rate chan. (Monad m, KnownNat chan)
     => NAudio m rate -> Either Text (Audio m rate chan)
 interleaved naudio
     | _nchannels naudio == 1 =
-        Right $ Audio $ S.map (expandV chan . head) $ _nstream naudio
+        Right $ Audio $ S.map (expandB chan . head) $ _nstream naudio
     | _nchannels naudio == chan =
-        Right $ Audio $ S.map interleaveV $ _nstream naudio
+        Right $ Audio $ S.map interleaveB $ _nstream naudio
     | otherwise = Left $ "can't convert " <> showt (_nchannels naudio)
         <> " channels to " <> showt chan
     where
@@ -509,17 +585,17 @@ synchronizeToSize now size = Audio . S.unfoldr unfold . (True,)
 zeroPadN :: Monad m => Frame -> NAudio m rate -> NAudio m rate
 zeroPadN size_ naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
     where
-    unfold audio = do
-        result <- S.uncons audio
-        return $ case result of
-            Nothing -> Right (replicate (_nchannels naudio) silentBlock, audio)
-            Just (blocks, audio) -> Right (map pad blocks, audio)
+    unfold audio = S.uncons audio >>= return . \case
+        Nothing ->
+            Right (replicate (_nchannels naudio) (Constant size 0), audio)
+        Just (blocks, audio) -> Right (map pad blocks, audio)
+    pad (Constant count val) | val == 0 = Constant (max size count) 0
     pad block
-        | V.length block >= size = block
-        | V.null block = silentBlock
-        | otherwise = block V.++ (V.replicate (size - V.length block) 0)
+        | blockCount block >= size = block
+        | V.null v = Constant size 0
+        | otherwise = Block $ v <> V.replicate (size - V.length v) 0
+        where v = blockVector block
     size = framesCount (Proxy @1) size_
-
 
 -- * generate
 
@@ -530,19 +606,15 @@ silence = constant 0
 -- | An infinite constant stream, which reuses the same buffer.
 constant :: forall m rate chan. (Monad m, KnownNat chan)
     => Sample -> Audio m rate chan
-constant val = Audio $ S.repeat block
-    where
-    block
-        | val == 0 = V.take (framesCount (Proxy @chan) frames) silentBlock
-        | otherwise = V.replicate (framesCount (Proxy @chan) blockSize) val
-        where frames = blockFrames (Proxy @chan) silentBlock
+constant val = Audio $ S.repeat $ Constant size val
+    where size = framesCount (Proxy @chan) blockSize
 
 -- | Generate a test tone at the given frequency, forever.  This is not
 -- efficient, but it's just for testing.
 sine :: forall m rate. (Monad m, KnownNat rate) => Float -> Audio m rate 1
 sine frequency =
     Audio $ Control.loop1 0 $ \loop frame ->
-        S.yield (gen frame) >> loop (frame + blockSize)
+        S.yield (Block $ gen frame) >> loop (frame + blockSize)
     where
     gen start = V.generate (fromIntegral (end - start)) (val . (+start) . Frame)
         where end = start + blockSize
@@ -566,14 +638,12 @@ linear forever breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
                 loop (start + generate, prevX, prevY, breakpoints)
             where generate = min blockSize (toFrame x - start)
         []  | forever -> _stream $ constant @_ @_ @1 (Num.d2f prevY)
-            | otherwise -> S.yield $ V.singleton (Num.d2f prevY)
+            | otherwise -> S.yield $ Constant 1 (Num.d2f prevY)
     -- Go through some hassle to create constant segments efficiently, since
     -- they should be pretty common.
     segment x1 y1 x2 y2 start count
-        | y1 == y2 && y1 == 0 && count <= V.length silentBlock =
-            V.take count silentBlock
-        | y1 == y2 = V.replicate count (Num.d2f y1)
-        | otherwise = V.generate count
+        | y1 == y2 = Constant count (Num.d2f y1)
+        | otherwise = Block $ V.generate count
             (interpolate x1 y1 x2 y2 . toSec . (+start) . Frame)
     interpolate x1 y1 x2 y2 x = Num.d2f $
         (y2 - y1) / (x2 - x1) * (x - x1) + y1
@@ -626,6 +696,51 @@ linearToDb, dbToLinear :: Float -> Float
 linearToDb x = logBase 10 x * 20
 dbToLinear x = 10**(x / 20)
 
+-- * audio util
+
+-- | Take >= the given number of frames.  It may take more if the size doesn't
+-- line up on a block boundary.
+--
+-- TODO rename to splitAtGE
+takeFramesGE :: forall m rate chan. (Monad m, KnownNat chan)
+    => Frame -> Audio m rate chan -> m ([Block], Audio m rate chan)
+takeFramesGE frames (Audio audio) = do
+    blocks S.:> rest <- S.toList $
+        breakAfter (\n -> (+n) . blockFrames chan) 0 (>=frames) audio
+    return (blocks, Audio rest)
+    where
+    chan = Proxy :: Proxy chan
+
+-- | Take exactly the given number of frames.
+splitAt :: forall m rate chan. (Monad m, KnownNat chan)
+    => Frame -> Audio m rate chan -> m ([Block], Audio m rate chan)
+splitAt frames (Audio audio)
+    | frames <= 0 = return ([], Audio audio)
+    | otherwise = S.next audio >>= \case
+        Left () -> return ([], mempty)
+        Right (block, audio)
+            | produced < frames ->
+                first (block:) <$> splitAt (frames - produced) (Audio audio)
+            | produced == frames -> return ([block], Audio audio)
+            | otherwise -> return ([pre], Audio $ S.cons post audio)
+            where
+            produced = blockFrames chan block
+            (pre, post) = blockSplit (framesCount chan frames) block
+    where
+    chan = Proxy :: Proxy chan
+
+next :: Monad m => Audio m rate chan -> m (Maybe (Block, Audio m rate chan))
+next (Audio audio) = S.next audio >>= \case
+    Left () -> return Nothing
+    Right (block, audio) -> return $ Just (block, Audio audio)
+
+-- | Nothing if the Audio stream is completed.  Otherwise, it puts the next
+-- chunk back on the stream, to avoid duplicating effects.
+isEmpty :: Monad m => Audio m rate chan -> m (Maybe (Audio m rate chan))
+isEmpty (Audio audio) = S.next audio >>= \case
+    Left () -> return Nothing
+    Right (block, audio) -> return $ Just $ Audio $ S.cons block audio
+
 -- * util
 
 natVal :: KnownNat n => Proxy n -> Int
@@ -648,47 +763,3 @@ breakAfter combine accum check = loop accum
             | check next -> S.yield a >> return as
             | otherwise -> S.yield a >> loop next as
             where next = combine accum a
-
--- | Take >= the given number of frames.  It may take more if the size doesn't
--- line up on a block boundary.
---
--- TODO rename to splitAtGE
-takeFramesGE :: forall m rate chan. (Monad m, KnownNat chan)
-    => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
-takeFramesGE frames (Audio audio) = do
-    blocks S.:> rest <- S.toList $
-        breakAfter (\n -> (+n) . blockFrames chan) 0 (>=frames) audio
-    return (blocks, Audio rest)
-    where
-    chan = Proxy :: Proxy chan
-
--- | Take exactly the given number of frames.
-splitAt :: forall m rate chan. (Monad m, KnownNat chan)
-    => Frame -> Audio m rate chan -> m ([V.Vector Sample], Audio m rate chan)
-splitAt frames (Audio audio)
-    | frames <= 0 = return ([], Audio audio)
-    | otherwise = S.next audio >>= \case
-        Left () -> return ([], mempty)
-        Right (block, audio)
-            | produced < frames ->
-                first (block:) <$> splitAt (frames - produced) (Audio audio)
-            | produced == frames -> return ([block], Audio audio)
-            | otherwise -> return ([pre], Audio $ S.cons post audio)
-            where
-            produced = blockFrames chan block
-            (pre, post) = V.splitAt (framesCount chan frames) block
-    where
-    chan = Proxy :: Proxy chan
-
-next :: Monad m => Audio m rate chan
-    -> m (Maybe (V.Vector Sample, Audio m rate chan))
-next (Audio audio) = S.next audio >>= \case
-    Left () -> return Nothing
-    Right (block, audio) -> return $ Just (block, Audio audio)
-
--- | Nothing if the Audio stream is completed.  Otherwise, it puts the next
--- chunk back on the stream, to avoid duplicating effects.
-isEmpty :: Monad m => Audio m rate chan -> m (Maybe (Audio m rate chan))
-isEmpty (Audio audio) = S.next audio >>= \case
-    Left () -> return Nothing
-    Right (block, audio) -> return $ Just $ Audio $ S.cons block audio

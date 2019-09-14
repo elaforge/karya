@@ -312,11 +312,11 @@ render controlSize controlsPerBlock inst controls inputs = do
     unless (length inputs == _inputs inst) $
         errorIO $ "instrument expects " <> showt (_inputs inst)
             <> " inputs, but was given " <> showt (length inputs)
-    let inputSizes = map (Audio.blockFrames (Proxy @1)) inputs
+    let inputSizes = map (Audio.vectorFrames (Proxy @1)) inputs
     unless (all (==blockSize) inputSizes) $
         errorIO $ "all inputs should be block size " <> pretty blockSize
             <> ": " <> pretty inputSizes
-    let controlSizes = map (Audio.blockFrames (Proxy @1) . snd) controls
+    let controlSizes = map (Audio.vectorFrames (Proxy @1) . snd) controls
     unless (all (==controlsPerBlock) controlSizes) $
         errorIO $ "all controls should have size " <> pretty controlsPerBlock
             <> ": " <> pretty controlSizes

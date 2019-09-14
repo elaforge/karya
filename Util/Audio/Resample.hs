@@ -127,7 +127,7 @@ resampleBy config ratios audio = Audio.Audio $ do
     done key collect = do
         liftIO $ _notifyState config Nothing
         unless (null collect) $
-            S.yield $ mconcat (reverse collect)
+            S.yield $ Audio.Block $ mconcat (reverse collect)
         lift $ Resource.release key
     yield state now used collect blockLeft block audio
         | blockLeft - generated > 0 = return
@@ -137,7 +137,7 @@ resampleBy config ratios audio = Audio.Audio $ do
             , blockLeft - generated
             )
         | blockLeft - generated == 0 = do
-            let sizes = map (Audio.blockFrames chan) (block:collect)
+            let sizes = map (Audio.vectorFrames chan) (block:collect)
             Audio.assert (Num.sum sizes <= _blockSize config) $ Text.unwords
                 [ "sum", pretty (Num.sum sizes), "> blockSize"
                 , pretty (_blockSize config) <> ":", pretty sizes
@@ -145,7 +145,7 @@ resampleBy config ratios audio = Audio.Audio $ do
             liftIO $ do
                 rState <- SampleRateC.getState state
                 _notifyState config $ Just (used, rState)
-            S.yield $ mconcat (reverse (block : collect))
+            S.yield $ Audio.Block $ mconcat (reverse (block : collect))
             return
                 ( now + generated
                 , audio
@@ -154,7 +154,7 @@ resampleBy config ratios audio = Audio.Audio $ do
                 )
         | otherwise = Audio.throwIO $ "resampleBlock generated too much: "
             <> pretty (blockLeft, generated)
-        where generated = Audio.blockFrames chan block
+        where generated = Audio.vectorFrames chan block
 
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
@@ -178,8 +178,7 @@ segmentAt rate x0 ratios = case Signal.segment_at x0 ratios of
     where
     eta = 1 / fromIntegral rate
 
-type Stream a =
-    S.Stream (S.Of (V.Vector Audio.Sample)) (Resource.ResourceT IO) a
+type Stream a = S.Stream (S.Of Audio.Block) (Resource.ResourceT IO) a
 
 -- | Generate no more than the given number of frames.
 resampleBlock :: KnownNat chan => Proxy chan -> Audio.Rate
@@ -191,7 +190,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
     -- RealTime.
     (inputBlock, audio) <- next audio
     (atEnd, audio) <- lift $ checkEnd audio
-    let inputFrames = maybe 0 (Audio.blockFrames chan) inputBlock
+    let inputFrames = maybe 0 (Audio.vectorFrames chan) inputBlock
     -- Never go past the next breakpoint.
     let outputFrames = min maxFrames (toFrames (Segment._x2 segment) - start)
 
@@ -231,7 +230,7 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
 
     -- Stick unconsumed input back on the stream.
     let left = maybe V.empty (V.drop (Audio.framesCount chan used)) inputBlock
-        recons = if V.null left then id else S.cons left
+        recons = if V.null left then id else S.cons (Audio.Block left)
     let outputBlock = V.unsafeFromForeignPtr0 outFP $
             Audio.framesCount chan generated
 
@@ -246,7 +245,13 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
         then Nothing
         else Just (framesRead, outputBlock, recons audio)
     where
-    next audio = either (const (Nothing, audio)) (first Just) <$>
+    -- TODO I convert Audio.Constant to vectors.  I could possibly resample
+    -- Constant efficiently by just changing the length, but the resampler has
+    -- lots of state inside so it would only work if preceding audio was all
+    -- 0, and in that case I probably will be prepend the silence before
+    -- resampling.
+    next audio =
+        either (const (Nothing, audio)) (first (Just . Audio.blockVector)) <$>
         lift (S.next audio)
     toFrames = Audio.secondsToFrame rate . RealTime.to_seconds
     toSeconds = RealTime.seconds . Audio.frameToSeconds rate
