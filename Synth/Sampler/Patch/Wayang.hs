@@ -9,6 +9,7 @@ module Synth.Sampler.Patch.Wayang (
     , checkFilenames, checkStarts
     , showPitchTable
 ) where
+import qualified Data.Char as Char
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -17,6 +18,7 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
+import qualified Data.Text.Read as Text.Read
 
 import qualified Util.Log as Log
 import qualified Util.Map
@@ -26,8 +28,10 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
+import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Wayang as Wayang
 
@@ -84,8 +88,39 @@ patches =
     tuningVal Isep = "isep"
     code inst tuning = WayangCode.code
         <> Util.thru dir (convert inst tuning)
-        <> ImInst.postproc DUtil.with_symbolic_pitch
+        <> ImInst.postproc with_symbolic_pitch
+    with_symbolic_pitch = DUtil.when_env "symbolic-pitch" (Just True) $
+        DUtil.add_symbolic_pitch_convert wayang_convert
     dir = "wayang"
+
+wayang_convert :: PSignal.Transposed -> Either Text Pitch.Note
+wayang_convert pitch = do
+    note <- first pretty $ PSignal.pitch_note pitch
+    if scale_id == "wayang-srg"
+        then Pitch.Note <$> convert_srgpd (Pitch.note_text note)
+        else return note
+    where
+    scale_id = DeriveT.pscale_scale_id $ DeriveT.pitch_scale pitch
+
+-- | This is a hack to convert wayang-srg to ioeua notation so symbolic pitch
+-- recognizes it.  It would be better to go through Pitch.Pitch parsing to do
+-- the conversion, but better than that is if I make up my mind about what kind
+-- of notation I want.
+convert_srgpd :: Text -> Either Text Text
+convert_srgpd pitch = case Map.lookup pc to_ioe of
+    Nothing -> Left $ "not in srgpd: " <> pitch
+    Just (offset, pc) -> do
+        let Right (octi, _) = Text.Read.signed Text.Read.decimal oct
+        return $ showt (octi + offset) <> pc
+    where
+    (oct, pc) = Text.span (\c -> c == '-' || Char.isDigit c) pitch
+    to_ioe = Map.fromList
+        [ ("s", (-1, "e"))
+        , ("r", (-1, "u"))
+        , ("g", (-1, "a"))
+        , ("p", (0, "i"))
+        , ("d", (0, "o"))
+        ]
 
 attributeMap :: Common.AttributeMap Articulation
 attributeMap = Common.attribute_map

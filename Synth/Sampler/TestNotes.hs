@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Stack as Stack
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Shared.Control as Control
@@ -56,4 +57,5 @@ make (start, pitch, dyn, attrs) = Note.Note
         (Control.dynamic, dyn)
         : maybe [] ((:[]) . (Control.pitch,)) pitch
     , attributes = Attrs.attrs attrs
+    , stack = Stack.empty
     }

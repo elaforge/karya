@@ -35,7 +35,21 @@ UNSORTED
     . fltk/PeakCache.cc:70 24 != 18
     . This means I wanted to mix in a chunk with a different size.
     . They're at the end, so probably just one ran out of samples.
-  - wayang/merak-ngelo has non 1 ratios samples, why?
+  * wayang/merak-ngelo has non 1 ratios samples, why?
+    . It's only kantilans:
+      Signal 0s <.006s:86.9nn,6p(wayang-srg), .2s:86.9nn,6p(wayang-srg)>
+    . That's correct for laras_sawan_kantilan, pengisep, high ding.
+    . But shouldn't I be using symbolic pitch anyway?
+      No, I haven't set it up I guess.
+
+    . For some reason this pitchen note 81, not 100.
+    . Probably looking at the wrong one.  Pitch is 67.6
+      This is because it's using the generic wayang scale, kantilan is
+      different in that octave.
+    . So use symbolic pitch.  And now it doesn't like srg.
+      I could use Pitch.Pitch.  Or translate srg to ioe.  Or teach wayang to
+      understand srg directly, though then I need a scale env var.
+      Or I could do it in tscore, but then I have to read ioe on the track.
   - it would be nice if I could coerce VPitch to NoteNumber
     . Then I can simplify Synth.Faust.Code.c_initialize.
   - can I tweak individual scale degrees?

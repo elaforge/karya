@@ -334,12 +334,23 @@ with_symbolic_pitch :: Cmd.InstrumentPostproc
 with_symbolic_pitch = when_env "symbolic-pitch" (Just True) add_symbolic_pitch
 
 add_symbolic_pitch :: Cmd.InstrumentPostproc
-add_symbolic_pitch event = Log.run_id $ case Score.initial_note event of
-    Nothing -> do
-        Log.warn $ "no symbolic pitch for " <> Score.short_event event
-        return event
-    Just note ->
-        return $ set_environ EnvKey.element (Pitch.note_text note) event
+add_symbolic_pitch =
+    add_symbolic_pitch_convert (first pretty . PSignal.pitch_note)
+
+add_symbolic_pitch_convert :: (PSignal.Transposed -> Either Text Pitch.Note)
+    -> Cmd.InstrumentPostproc
+add_symbolic_pitch_convert convert event = Log.run_id $
+    case Score.transposed_at (Score.event_start event) event of
+        Nothing -> do
+            Log.warn $ "no symbolic pitch for " <> Score.short_event event
+            return event
+        Just pitch -> case convert pitch of
+            Left err -> do
+                Log.warn $ "converting symbolic pitch for "
+                    <> Score.short_event event <> ": " <> err
+                return event
+            Right note ->
+                return $ set_environ EnvKey.element (Pitch.note_text note) event
 
 set_environ :: Typecheck.ToVal key => EnvKey.Key -> key -> Score.Event
     -> Score.Event
