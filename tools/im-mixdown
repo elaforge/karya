@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+# Sohpisticated mixdown technology using sox.
+
+set -eux
+base_dir=$1
+out=im/mix
+
+rm -rf $out
+mkdir $out
+
+for inst in $base_dir/*; do
+    sox -V1 $inst/*.wav $out/$(basename $inst).wav
+done
+sox --combine mix $out/*.wav $out/mixed.wav
+lame -h -b160 $out/mixed.wav
