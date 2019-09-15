@@ -304,7 +304,7 @@ foreign import ccall "faust_num_outputs" c_faust_num_outputs :: PatchP -> CInt
 
 -- | Render chunk of time and return samples.
 render :: Audio.Frame -> Audio.Frame -> Instrument
-    -> [(Ptr Float, V.Vector Float)]
+    -> [(Ptr Float, Audio.Block)]
     -> [V.Vector Float] -- ^ Input signals.  The length must be equal to the
     -- the patchInputs, and each vector must have the same length.
     -> IO [V.Vector Float] -- ^ one block of samples for each output channel
@@ -316,7 +316,7 @@ render controlSize controlsPerBlock inst controls inputs = do
     unless (all (==blockSize) inputSizes) $
         errorIO $ "all inputs should be block size " <> pretty blockSize
             <> ": " <> pretty inputSizes
-    let controlSizes = map (Audio.vectorFrames (Proxy @1) . snd) controls
+    let controlSizes = map (Audio.blockFrames (Proxy @1) . snd) controls
     unless (all (==controlsPerBlock) controlSizes) $
         errorIO $ "all controls should have size " <> pretty controlsPerBlock
             <> ": " <> pretty controlSizes
@@ -332,11 +332,10 @@ render controlSize controlsPerBlock inst controls inputs = do
     CUtil.withForeignPtrs outputFptrs $ \outputPtrs ->
         withVectors inputs $ \inputsP ->
         withArray outputPtrs $ \outputsP ->
-        withArray (map fst controls) $ \controlps ->
-        withVectors (map snd controls) $ \controlValsP ->
+        withControls controls $ \controlCount controlPtrs controlValsP ->
             c_faust_render (_ptr inst)
                 (c_frames controlSize) (c_frames controlsPerBlock)
-                (CUtil.c_int (length controls)) controlps controlValsP
+                controlCount controlPtrs controlValsP
                 inputsP outputsP
     return $ map (\fptr -> V.unsafeFromForeignPtr0 fptr (unframe blockSize))
         outputFptrs
@@ -345,16 +344,26 @@ render controlSize controlsPerBlock inst controls inputs = do
     c_frames = CUtil.c_int . unframe
     unframe (Audio.Frame f) = f
 
+withControls :: [(Ptr Float, Audio.Block)]
+    -> (CInt -> Ptr (Ptr Float) -> Ptr (Ptr Float) -> IO a) -> IO a
+withControls controls action = do
+    -- Avoid allocating an array if it's constant.
+    sequence_ [Foreign.poke ptr val | (ptr, Audio.Constant _ val) <- controls]
+    withArray ptrs $ \controlPtrs ->
+        withVectors vecs $ \controlValsP ->
+        action (CUtil.c_int (length ptrs)) controlPtrs controlValsP
+    where (ptrs, vecs) = unzip [(ptr, vec) | (ptr, Audio.Block vec) <- controls]
+
 -- void faust_render(
 --     Patch *patch,
 --     int control_size, int controls_per_block,
---     int control_count, float **controlps, const float **controls,
+--     int control_count, float **control_ptrs, const float **controls,
 --     const float **inputs, float **outputs);
 foreign import ccall "faust_render"
     c_faust_render :: InstrumentP
         -- control_size -> controls_per_block
         -> CInt -> CInt
-        -- control_count -> controlps -> controls
+        -- control_count -> control_ptrs -> controls
         -> CInt -> Ptr (Ptr Float) -> Ptr (Ptr Float)
         -- inputs -> outputs
         -> Ptr (Ptr Float) -> Ptr (Ptr Float)
@@ -411,8 +420,10 @@ peekTexts0 textp = do
     texts <- Foreign.peekArray0 nullPtr textp
     mapM CUtil.peekCString texts
 
--- | Allocate a list of vectors as **float.
+-- | Allocate a list of vectors as **float.  Pass nullptr for [], to avoid
+-- allocation.
 withVectors :: [V.Vector Float] -> (Ptr (Ptr Float) -> IO a) -> IO a
+withVectors [] f = f nullPtr
 withVectors vs f = withPtrs vs $ \ps -> withArray ps f
 
 -- | Convert a list of vectors to a list of pointers, with no copying.

@@ -91,12 +91,12 @@ void
 faust_render(
     Patch *inst,
     int control_size, int controls_per_block,
-    int control_count, float **controlps, const float **controls,
+    int control_count, float **control_ptrs, const float **controls,
     const float **inputs, float **outputs)
 {
     for (int block = 0; block < controls_per_block; block++) {
         for (int i = 0; i < control_count; i++) {
-            *controlps[i] = controls[i][block];
+            *control_ptrs[i] = controls[i][block];
         }
         inst->compute(control_size, inputs, outputs);
         for (int i = 0; i < inst->inputs; i++)

@@ -48,13 +48,13 @@ int faust_control_ptrs(Patch *inst, FAUSTFLOAT ***out_vals);
 Patch *faust_allocate(const Patch *patch, int srate);
 void faust_destroy(Patch *inst) { delete inst; }
 
-// Render control_size * controls_per_block frames.  'controlps' and 'controls'
-// should be 'control_count' long, and each array in controls should be
-// controls_per_block long.
+// Render control_size * controls_per_block frames.  'control_ptrs' and
+// 'controls' should be 'control_count' long, and each array in controls should
+// be controls_per_block long.
 void faust_render(
     Patch *inst,
     int control_size, int controls_per_block,
-    int control_count, float **controlps, const float **controls,
+    int control_count, float **control_ptrs, const float **controls,
     const float **inputs, float **outputs);
 
 size_t faust_get_state(const Patch *patch, const char **state) {

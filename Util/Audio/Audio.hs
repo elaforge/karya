@@ -208,8 +208,18 @@ blockSplit n (Constant count val) =
 instance Semigroup Block where
     Constant c1 v1 <> Constant c2 v2 | v1 == v2 = Constant (c1+c2) v1
     b1 <> b2 = Block $ mconcat $ blockSamples b1 ++ blockSamples b2
+
 instance Monoid Block where
     mempty = Constant 0 0
+    -- This reduces allocation if there are multiple vectors, though that's
+    -- pretty unlikely.
+    mconcat (Constant c1 v1 : bs)
+        | null vs && all ((==v1) . snd) cs =
+            Constant (c1 + Num.sum (map fst cs)) v1
+        where
+        cs = [(c, v) | Constant c v <- bs]
+        vs = [v | Block v <- bs]
+    mconcat bs = Block $ mconcat $ concatMap blockSamples bs
 
 -- * construct
 

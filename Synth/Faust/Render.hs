@@ -208,7 +208,7 @@ initialize size inst controls = do
     return ()
     where
     controlVals = findControls (DriverC._controls inst)
-        (V.singleton <$> controls)
+        (Audio.Constant 1 <$> controls)
     -- I don't pass any inputs, but they might not need initialization anyway,
     -- since they don't need interpolation.
     inputSamples = replicate (length (DriverC._inputControls inst)) $
@@ -276,6 +276,12 @@ render emitMessage patch mbState notifyState controls inputs start end config =
                 (AUtil.toSeconds start)
                 (AUtil.toSeconds (start + _blockSize config))
             let controlVals = findControls (DriverC._controls inst) controls
+            -- Debug.tracepM "controls"
+            --     ( DriverC._name inst
+            --     , start
+            --     , map (\(c, _, val) -> (c, val)) $
+            --       Util.Map.zip_intersection (DriverC._controls inst) controls
+            --     )
             outputs <- liftIO $ DriverC.render
                 (_controlSize config) (_controlsPerBlock config) inst
                 controlVals (map Audio.blockVector inputSamples)
@@ -298,15 +304,15 @@ render emitMessage patch mbState notifyState controls inputs start end config =
     maxDecay = AUtil.toFrame $ _maxDecay config
 
 findControls :: Map DriverC.Control (ptr, config)
-    -> Map DriverC.Control val -> [(ptr, val)]
+    -> Map DriverC.Control block -> [(ptr, block)]
 findControls controls vals = map get $ Util.Map.zip_intersection controls vals
-    where get (_, (ptr, _), val) = (ptr, val)
+    where get (_, (ptr, _), block) = (ptr, block)
 
 -- | Pull a chunk from each of the controls.  Omit the control if its signal
 -- has run out.  This is ok because controls naturally retain their last value.
 takeControls :: Audio.Frame -> Map DriverC.Control AUtil.Audio1
     -> Resource.ResourceT IO
-        ( Map DriverC.Control (V.Vector Audio.Sample)
+        ( Map DriverC.Control Audio.Block
         , Map DriverC.Control AUtil.Audio1
         )
 takeControls frames controlStreams = do
@@ -324,18 +330,18 @@ takeControls frames controlStreams = do
 -- DriverC.render relies on all control blocks being the same length, for
 -- simplicity.
 takeExtend :: Monad m => Audio.Frame -> Audio.Audio m rate 1
-    -> m (Maybe (V.Vector Audio.Sample, Audio.Audio m rate 1))
+    -> m (Maybe (Audio.Block, Audio.Audio m rate 1))
 takeExtend frames audio = do
     (blocks_, audio) <- Audio.splitAt frames audio
-    -- TODO I should propagate Constant to the render call so I can pass as
-    -- a value, not a pointer.
-    let blocks = filter (not . V.null) $ concatMap Audio.blockSamples blocks_
+    let blocks = filter (not . Audio.isEmptyBlock) blocks_
     let missing = Audio.framesCount (Proxy @1) $
-            frames - Num.sum (map (Audio.vectorFrames (Proxy @1)) blocks)
+            frames - Num.sum (map (Audio.blockFrames (Proxy @1)) blocks)
+    let final = case last blocks of
+            Audio.Constant _ val -> val
+            Audio.Block v -> V.last v
     return $ if null blocks then Nothing
         else if missing == 0 then Just (mconcat blocks, audio)
-        else let final = V.last (last blocks)
-            in Just (mconcat (blocks ++ [V.replicate missing final]), audio)
+        else Just (mconcat (blocks ++ [Audio.Constant missing final]), audio)
 
 isBasicallySilent :: V.Vector Audio.Sample -> Bool
 isBasicallySilent samples = rms samples < Audio.dbToLinear (-82)
