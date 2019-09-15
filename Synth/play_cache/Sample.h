@@ -30,7 +30,12 @@ private:
 
     std::string fname;
     SNDFILE *sndfile;
+    // If >0, then sndfile is a silent chunk, and this is how many frames
+    // of silence are left in it.
+    sf_count_t silence_left;
     std::vector<float> buffer;
+
+    void open(int channels, sf_count_t offset);
 };
 
 

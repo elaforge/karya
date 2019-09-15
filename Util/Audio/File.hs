@@ -218,7 +218,7 @@ writeCheckpoints size getFilename chunkComplete format = go 0
         fname <- liftIO $ getFilename state
         (blocks, audio) <- Audio.takeFramesGE size audio
         -- TODO I should be able to have a special file format for constant 0
-        blocks <- return $ concatMap Audio.blockSamples blocks
+        -- blocks <- return $ concatMap Audio.blockSamples blocks
         if null blocks
             then return chunknum
             else do
@@ -229,25 +229,38 @@ writeCheckpoints size getFilename chunkComplete format = go 0
                 Audio.assert (written `mod` size == 0) $
                     "non-final chunk was too short, expected " <> pretty size
                     <> ", but last chunk was " <> pretty (written `mod` size)
-                let blockSize = Num.sum $ map V.length blocks
+                let blockCount = Num.sum $ map Audio.blockCount blocks
                 -- Show the error with count, not frames, in case I somehow get
                 -- an odd count.
-                Audio.assert (blockSize <= sizeCount) $
+                Audio.assert (blockCount <= sizeCount) $
                     "chunk too long, expected " <> pretty sizeCount
-                    <> ", but got " <> pretty (map V.length blocks)
+                    <> ", but got " <> pretty (map Audio.blockCount blocks)
                 let tmp = fname ++ ".write.tmp"
+                -- Debug.tracepM "write" (fname, blocks)
                 liftIO $ do
                     Exception.bracket (openWrite format tmp audio) close
-                        (\handle -> mapM_ (write (_handle handle)) blocks)
+                        (\hdl -> writeBlock (_handle hdl) blocks)
                     Directory.renameFile tmp fname
                     chunkComplete fname
                 go (written + size) states audio
         where
         chunknum = fromIntegral $ written `div` size
     go _ [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
-    write handle = Sndfile.hPutBuffer handle . Sndfile.Buffer.Vector.toBuffer
     sizeCount = Audio.framesCount chan size
     chan = Proxy @chan
+
+-- | Because writeCheckpoints writes equal sized chunks, except the last one,
+-- I can abbreviate a constant 0 chunk as an empty file.  play_cache has
+-- special logic to detect that, and other programs will just consider it
+-- empty.
+writeBlock :: Sndfile.Handle -> [Audio.Block] -> IO ()
+writeBlock hdl blocks
+    | all isZero blocks = return ()
+    | otherwise = mapM_ write $ concatMap Audio.blockSamples blocks
+    where
+    isZero (Audio.Constant _ 0) = True
+    isZero _ = False
+    write = Sndfile.hPutBuffer hdl . Sndfile.Buffer.Vector.toBuffer
 
 
 -- * Handle

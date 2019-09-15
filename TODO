@@ -1994,7 +1994,7 @@ synth: im:
         incremental audio.
   audio:
     make Audio.linear more efficient
-      - reuse buffers for flat signals
+      * reuse buffers for flat signals
       . E.g. [(0, 0), (1, 0), ...] should just be Signal.constant 0.
       . Various functions like Audio.linear go through some hassle to create
         constant chunks efficiently.  But it still doesn't reuse buffers for
@@ -2482,7 +2482,7 @@ synth: im:
         . I could write these as normal files except with zero length, and
           since all chunks are the same size, play_cache can treat it
           specially, and bin/play won't trip over them.
-    + Do explicit leading silence for sampler too.
+    * Do explicit leading silence for sampler too.
       . I think it's already there due to using Audio.silence when Playing is
         [], I just need to have Audio.File write them.
     + Suspend instrument rendering if gate and signal goes to 0.

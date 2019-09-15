@@ -12,6 +12,7 @@ import           System.FilePath ((</>))
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
+import qualified Util.Audio.Sndfile as Sndfile
 import qualified Util.Test.Testing as Testing
 
 import qualified Perform.NN as NN
@@ -49,8 +50,18 @@ test_write_simple = do
 
 test_write_simple_offset = do
     (write, dir) <- tmpDb
-    io_equal (write [mkNote1 dir 8]) (Right (4, 4))
-    io_equal (readSamples dir) (replicate 8 0 ++ triangle)
+    io_equal (write [mkNote1 dir 3]) (Right (3, 3))
+    io_equal (readSamples dir) (replicate 3 0 ++ triangle ++ [0])
+
+test_write_silent_chunk = do
+    (write, dir) <- tmpDb
+    io_equal (write [mkNote1 dir 5]) (Right (4, 4))
+    sizes <- fmap (map Sndfile.frames) . mapM File.getInfo =<< listWavs dir
+    equal sizes [0, 4, 4, 4]
+    -- If there are no notes in the middle, they go to silent chunks too.
+    io_equal (write [mkNote1 dir 0, mkNote1 dir 16]) (Right (6, 6))
+    sizes <- fmap (map Sndfile.frames) . mapM File.getInfo =<< listWavs dir
+    equal sizes [4, 4, 0, 0, 4, 4]
 
 test_write_freq = do
     (write, dir) <- tmpDb
@@ -270,11 +281,12 @@ mkNoteDur dbDir start dur = Sample.Note
 -- * TODO copy paste with Faust.Render_test
 
 listWavs :: FilePath -> IO [FilePath]
-listWavs = fmap (List.sort . filter (".wav" `List.isSuffixOf`))
-    . Directory.listDirectory
+listWavs dir =
+    fmap (map (dir</>) . List.sort . filter (".wav" `List.isSuffixOf`)) $
+    Directory.listDirectory dir
 
 readSamples :: FilePath -> IO [Float]
-readSamples dir = toSamples . File.concat . map (dir</>) =<< listWavs dir
+readSamples dir = toSamples . File.concat =<< listWavs dir
 
 toSamples :: AUtil.Audio -> IO [Audio.Sample]
 toSamples = fmap (concatMap Vector.toList) . Resource.runResourceT
