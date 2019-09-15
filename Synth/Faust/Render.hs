@@ -176,7 +176,7 @@ _controlRate config =
 renderPatch :: (Config.Payload -> IO ()) -> DriverC.Patch -> Config
     -> Maybe Checkpoint.State -> (Checkpoint.State -> IO ()) -> [Note.Note]
     -> RealTime -> AUtil.Audio
-renderPatch emitMessage patch config mbState notifyState notes_ start =
+renderPatch emitMessage patch config mbState notifyState notes start =
     maybe id AUtil.volume vol $ interleave $
         render emitMessage patch mbState notifyState
             controls inputs (AUtil.toFrame start) (AUtil.toFrame final) config
@@ -189,9 +189,6 @@ renderPatch emitMessage patch config mbState notifyState notes_ start =
     inputControls = map fst $ DriverC._inputControls patch
     vol = renderInput False (_blockSize config) notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
-    -- Drop notes that already ended, unless they also start right here
-    -- (zero-dur).
-    notes = dropWhile (\n -> Note.start n < start && Note.end n < start) notes_
 
 interleave :: AUtil.NAudio -> AUtil.Audio
 interleave naudio = case Audio.interleaved naudio of
@@ -379,7 +376,8 @@ extractControls controlSize triggered controls allNotes =
 
 -- | Offset notes <= 0 to controlSize.  Otherwise, since rendering starts at 0,
 -- the tweak in controlBreakpoints can't move the breakpoints and the first
--- note gets initialization artifacts.
+-- note gets initialization artifacts.  TODO implement proper <0 rendering,
+-- SamplerIm does it.
 tweakNotes :: Audio.Frame -> [Note.Note] -> [Note.Note]
 tweakNotes controlSize notes = map (\n -> n { Note.start = dt }) at0 ++ rest
     where

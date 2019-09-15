@@ -2383,18 +2383,11 @@ synth: im:
       * Subtract one control block size from samples.
         . Test to make sure they actually do reach the desired value by note
           on.
-      - Will the optimization of dropping the control when it goes constant
+      * Will the optimization of dropping the control when it goes constant
         be a problem with state?  I.e. control value is part of the state, so
         it gets restored, but now the control is unset.  It should get the
         default value, but instead it gets the last value.
-        . I can fix it by insisting on always at least one value for each
-          control.
-        . But does that then break default control vals?
-        . Something is wrong with state and probably control values, because
-          I now get artifacts on resume.  Maybe it's the initialize?  Try
-          turning it off.
-        . How to capture a repro?  I would get delete the chunk with the
-          artifact and rerender, then I can mess with the initialization.
+        . I don't think so, because the value will be in the state.
       . I have to sample the controls at each time, and set the appropriate
         control.
       . #1: keep Map Control Widget in Instrument, where Widget has a
@@ -2416,25 +2409,24 @@ synth: im:
           appropriate, they have to go in inputs.  Also, if they correspond to
           physical parameters such as string length, you have to set those
           a little before the note anyway.
-      / convert to standard control names:
-        . Convert pitch NoteNumber to freq Hz
-        . vol -> a special control that always multiples output volume
-        . amp -> gain
-        . note-on + duration -> gate
-      . If I use GUI elements for controls then they update at "control rate",
-        which is probably enough actually.  It also means I can reuse the GUI
-        controls.
-        . But faust has to resample those to a-rate anyway, so if I use controls
-          I do that twice in a complicated way and add some latency, for no
-          other benefit.
-        . Wait and see if interactive GUI experimentation plus compatibility is
-          worth it.  Also MIDI is "GUI."  Probably yes.
-        . UI metadata like [key1: val][key2: val] winds up as calls to
-          ui->metadata("key1", "val")
-      . Controls are likely more efficient for values which don't change, or
-        change rarely.  Lots of instrument config controls are like this.
-        Still, maybe not, because faust has to smooth them to audio rate
-        anyway.  But unsmoothed calculations can happen at control rate.
+    - create control signals more efficiently on a render resume
+      . I used to drop notes until the one before start, but that's not safe,
+        because they might have non-overlapping control sets, and an element
+        can ring for arbitrarily long.  What I want to do is skip coming up
+        with breakpoints that are before 'start', but without some sort of
+        index into what notes have what controls, I have to look at all notes.
+      . But I'd like to entirely avoid the concept of notes that don't set all
+        controls and inherit from the past.  I inherited this from faust's
+        control notion, which is the same thing in MIDI that's such an
+        enormous hassle.
+      . To get there, I'd have to have all controls in all notes, and all
+        controls not set are explicitly 0.  With Audio.Constant optimization
+        I could make it more efficient.
+      . At that point I can simply drop notes until the last one with
+        start <= now.  I'll need this if I want to avoid serializing all notes
+        all the time, as was the original plan.
+      . This also means I don't use faust's built-in default values, but have
+        to export them out to karya so it can set them explicitly.
     tambura.dsp:
       * try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
@@ -2448,6 +2440,12 @@ synth: im:
         for stereo or multichannel.
       - How to do damping?
         . I guess I turn up the string damping.
+        . But I'll need to have a notation.
+          . Explicit durations: where notes are damped after their duration.
+          . Explicit damping: explicit notation for damping.  Maybe have one
+            for per-string, and one for everything.
+          . Infer: A note whose end touches the start of another isn't damped,
+            otherwise damp at note end.
       / I won't need the autoplucker.
         But it's convenient for testing.
       - tambura variations should be able to share preview sounds.
@@ -2546,7 +2544,8 @@ synth: im:
     audio debugging ideas:
       - attach an oscilliscope to any internal signal
         . Or export it as audio to listen or look at.
-        . If I attach this to a waveguide, do I get a picture of the string?
+        . If I attach this to a waveguide delay line, do I get a picture of
+          the string?  I'd want to sum all the lines.
       - get windows of values, e.g. control values right at note attacks
       - detect anomalies, like NaN or numbers in unexpected ranges.
     - Check function arity.  Also have explicit arity versions of <: and :>,
