@@ -245,6 +245,16 @@ test_integrate = do
         , [1, 0, 1]
         ]
 
+test_integrate_misc = do
+    let run state = Ui.exec state . TScore.integrate get_ext_dur
+    let extract = UiTest.extract_blocks
+    let state = expect_right $ run Ui.empty "top = [s]"
+    equal (extract state) [("top", UiTest.note_track [(0, 1, "4s")])]
+    state <- return $ expect_right $ Ui.exec state $
+        TScore.integrate get_ext_dur "top = \"block title\" [s]"
+    equal (extract state)
+        [("top -- block title", UiTest.note_track [(0, 1, "4s")])]
+
 test_integrate_2_tracks = do
     let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks

@@ -543,7 +543,9 @@ integrate_block block = do
             case Map.lookup source_key (Block.block_integrated_manual exist) of
                 Nothing -> Ui.throw $
                     "block from tscore already exists: " <> pretty block_id
-                Just dests -> return (dests, False)
+                Just dests -> do
+                    Ui.set_block_title block_id (_block_title block)
+                    return (dests, False)
     new_dests <- Merge.merge_tracks Merge.ReplaceTitles block_id
         (convert_tracks block) dests
     Ui.set_integrated_manual block_id source_key (Just new_dests)
