@@ -26,7 +26,8 @@ module Util.Audio.Audio (
     , framesCount, countFrames, blockFrames, vectorFrames
     , blockCount, isEmptyBlock, blockSamples, blockVector
     -- * construct
-    , fromSamples, fromSampleLists, toSamples, toSamplesN
+    , fromSamples, fromSampleLists
+    , toBlocks, toSamples, toBlocksN, toSamplesN
     -- * transform
     , castRate
     , take, mapSamples, gain, multiply
@@ -42,6 +43,7 @@ module Util.Audio.Audio (
     -- ** non-interleaved
     , nonInterleaved, interleaved
     , synchronizeToSize
+    ,takeN
     , zeroPadN
     -- * generate
     , silence, sine
@@ -171,11 +173,20 @@ frameToSeconds rate (Frame frames) = fromIntegral frames / fromIntegral rate
 framesCount :: KnownNat channels => Proxy channels -> Frame -> Count
 framesCount channels (Frame frames) = frames * natVal channels
 
+framesCount_ :: Channels -> Frame -> Count
+framesCount_ channels (Frame frames) = frames * channels
+
 countFrames :: KnownNat channels => Proxy channels -> Count -> Frame
-countFrames channels count = Frame $ count `div` natVal channels
+countFrames channels = countFrames_ (natVal channels)
+
+countFrames_ :: Channels -> Count -> Frame
+countFrames_ channels count = Frame $ count `div` channels
 
 blockFrames :: KnownNat channels => Proxy channels -> Block -> Frame
 blockFrames channels = countFrames channels . blockCount
+
+blockFrames_ :: Channels -> Block -> Frame
+blockFrames_ channels = countFrames_ channels . blockCount
 
 vectorFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frame
 vectorFrames channels = countFrames channels . V.length
@@ -285,9 +296,7 @@ takeClose close (Frames frames) (Audio audio)
                 | now >= frames -> lift close
                 | otherwise -> do
                     lift close
-                    S.yield $ case block of
-                        Block samples -> Block $ V.take left samples
-                        Constant _ val -> Constant left val
+                    S.yield $ fst $ blockSplit left block
                 where
                 end = now + blockFrames chan block
                 left = framesCount chan (min frames end - now)
@@ -587,7 +596,26 @@ synchronizeToSize now size = Audio . S.unfoldr unfold . (True,)
         return $ if null blocks
             then Left ()
             else Right (mconcat blocks, (False, audio))
-    align = if now `mod` size == 0 then size else now `mod` size
+    align = if now `mod` size == 0 then size else size - now `mod` size
+
+takeN :: Monad m => Frame -> NAudio m rate -> NAudio m rate
+takeN frames naudio
+    | frames <= 0 = naudio
+    | otherwise = NAudio (_nchannels naudio) $
+        Control.loop1 (0, _nstream naudio) $ \loop (now, audio) ->
+            lift (S.uncons audio) >>= \case
+                Nothing -> return ()
+                Just ([], audio) -> loop (now, audio)
+                Just (blocks@(block:_), audio)
+                    | end <= frames -> S.yield blocks >> loop (end, audio)
+                    | now >= frames -> return ()
+                    | otherwise -> S.yield $ map (fst . blockSplit left) blocks
+                    where
+                    end = now + blockFrames_ chan block
+                    left = framesCount_ chan (min frames end - now)
+        where chan = _nchannels naudio
+
+    -- , _nstream :: S.Stream (S.Of [Block]) m ()
 
 -- | Extend blocks shorter than the given size with zeros, and pad the end with
 -- zeros forever.  Composed with 'nonInterleaved', which may leave a short

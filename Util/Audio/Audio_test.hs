@@ -76,13 +76,12 @@ interleaved Proxy = fmap (concat . toSamples @10 @outChan)
     . map fromSamples . map (:[])
 
 test_synchronizeToSize = do
-    let f now = toSamples . Audio.synchronizeToSize now 2 . fromSamples
+    let f now = toSamples . Audio.synchronizeToSize now 3 . fromSamples
     equal (f 1 []) []
     equal (f 1 [[1]]) [[1]]
-    equal (f 1 [[1, 2, 3]]) [[1], [2, 3]]
-    equal (f 1 [[1], [], [2], [3]]) [[1], [2, 3]]
-    equal (f 1 [[1, 2], [3], [4, 5, 6]]) [[1], [2, 3], [4, 5], [6]]
-    equal (f 0 [[1, 2], [3], [4, 5, 6]]) [[1, 2], [3, 4], [5, 6]]
+    equal (f 1 [[1, 2, 3]]) [[1, 2], [3]]
+    equal (f 2 [[1, 2, 3]]) [[1], [2, 3]]
+    equal (f 3 [[1, 2, 3, 4]]) [[1, 2, 3], [4]]
 
 test_gain = do
     let f n = concat . toSamples . Audio.gain n . fromSamples
