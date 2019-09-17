@@ -2464,7 +2464,7 @@ synth: im:
       . In general I should set up performance tracking for faust-im and
         sampler-im.
       . I also want to check pre and post Audio.Block.
-    + Don't render before the first note.
+    - Don't render before the first note.
       . If I do the skip after the cache skip, I can get the effect of turning
         off rendering for silent sections... well, except I can't because
         I need to wait until isBasicallySilent.
@@ -2482,6 +2482,28 @@ synth: im:
         . I could write these as normal files except with zero length, and
           since all chunks are the same size, play_cache can treat it
           specially, and bin/play won't trip over them.
+      . I can only do this when state == Nothing, which is only going to be
+        true for now=0.  Then I need to move the control breakpoints back by
+        the amount of silence I prepended.  Or just increment 'now'.
+      . Unfortunately the initialize notes defeat this!  I could just ignore
+        dyn=0 notes, but will it affect initialization?
+      . No more than the usual latency problem with controls, because the
+        breakpoints extract starts from the beginning.
+      . That works, but this still gets defeated when resuming, because the
+        state is no longer Nothing!
+      . I could ignore the state, and assume it will be not interesting before
+        the first note.  But I want to make sure to not do this when I am
+        resuming in the middle.
+      . Even when taking that into account, I still get a crash due to:
+        expects state size 2497792 but got 0.  Even if I could work around
+        this, I still think I might get non-determinism because then things
+        like noise will be initialized differently.
+      . I guess unless I always suspend computation for silence, and don't
+        emit any state either, then it's deterministic again.  But that's what
+        I already do, it's just that I need to know to not load state if I'm
+        starting after a silence, even if there is one available.
+      . In any case, this got a lot harder than I thought.  I still want to do
+        silence efficiently, but maybe I should wait for a full suspend.
     * Do explicit leading silence for sampler too.
       . I think it's already there due to using Audio.silence when Playing is
         [], I just need to have Audio.File write them.
@@ -2490,6 +2512,9 @@ synth: im:
         output NAudio?
       . If I have a quickly recognizable chunk, then I can turn that directly
         into the "silence" symlink above, and avoid writing entirely.
+      . If I want to deactivate the dsp in the middle, I'd need to wait for
+        silence, and then clear the state, which means I need to implement the
+        stateless notes thing first.
 
     * Maybe constant controls could use UI controls, then I don't need to fill
       up the buffer.

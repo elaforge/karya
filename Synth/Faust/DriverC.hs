@@ -392,7 +392,7 @@ putState (Checkpoint.State state) inst =
     ByteString.Unsafe.unsafeUseAsCStringLen state $ \(statep, size) -> do
         let psize = c_faust_get_state_size (_ptr inst)
         unless (fromIntegral size == psize) $
-            errorIO $ "inst " <> showt inst <> " expects state size "
+            errorIO $ "inst " <> showt (_name inst) <> " expects state size "
                 <> showt psize <> " but got " <> showt size
         c_faust_put_state (_ptr inst) statep
 

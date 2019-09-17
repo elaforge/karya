@@ -136,10 +136,8 @@ writeControls output patch notes =
         Audio.File.write AUtil.outputFormat (fname control) $
         Audio.take (Audio.Seconds final) $
         fromMaybe Audio.silence
-        (Render.renderInput False chunkSize notes 0 control
-            :: Maybe AUtil.Audio1)
+        (Render.renderInput False notes 0 control :: Maybe AUtil.Audio1)
     where
-    chunkSize = Render._chunkSize Render.defaultConfig
     final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
     -- play_cache is special-cased to ignore *.debug.wav.
     fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"

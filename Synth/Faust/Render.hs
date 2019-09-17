@@ -163,9 +163,8 @@ defaultConfig = Config
 -- This should divide into Config.blockSize, which in turn divides into
 -- Config.SamplingRate.
 _controlRate :: Config -> Int
-_controlRate config =
-    Num.assertIntegral $ fromIntegral (_controlsPerBlock config)
-        * blocksPerSecond
+_controlRate config = Num.assertIntegral $
+    fromIntegral (_controlsPerBlock config) * blocksPerSecond
     where
     blocksPerSecond =
         fromIntegral Config.samplingRate / fromIntegral (_blockSize config)
@@ -176,18 +175,49 @@ _controlRate config =
 renderPatch :: (Config.Payload -> IO ()) -> DriverC.Patch -> Config
     -> Maybe Checkpoint.State -> (Checkpoint.State -> IO ()) -> [Note.Note]
     -> RealTime -> AUtil.Audio
-renderPatch emitMessage patch config mbState notifyState notes start =
-    maybe id AUtil.volume vol $ interleave $
+renderPatch emitMessage patch config mbState notifyState notes start_ =
+    (silence<>) $ maybe id AUtil.volume vol $ interleave $
         render emitMessage patch mbState notifyState
             controls inputs (AUtil.toFrame start) (AUtil.toFrame final) config
     where
+    -- TODO it's actually broken because it needs to avoid loading state after
+    -- a silence.
+    useLeadingSilence = False
+    (silence, silenceS)
+        | not useLeadingSilence = (mempty, 0)
+        | otherwise = (silence, silenceS)
+        where
+        -- I write silent chunks efficiently, so this not only avoids running
+        -- the dsp, it also saves disk writes.  I'd like to revert back to
+        -- silence after notes stop and isBasicallySilent, but I'd have to put
+        -- in some special logic to detect that and reset the state, which
+        -- means notes have to be stateless.
+        silence = Audio.synchronizeToSize 0 (_blockSize config) $
+            Audio.take (Audio.Seconds (RealTime.to_seconds silenceS))
+                Audio.silence
+        firstNote = maybe 0 Note.start $ Seq.head $
+            dropWhile ((==0) . Note.initial0 Control.dynamic) notes
+        -- Emit silence from the start time until the first note, if there is
+        -- any such time.
+        silenceF = max 0 $
+            Num.roundDown (_chunkSize config) (AUtil.toFrame firstNote)
+                - AUtil.toFrame start_
+        silenceS = AUtil.toSeconds silenceF
+    -- Now adjust the start to account for the inserted silence.
+    start = start_ + silenceS
+
+    -- I emit leading silence, but because I round down to a chunk boundary,
+    -- I'm still aligned to chunk boundaries.  This way the render loop is
+    -- simpler, since it always has the same chunk size.
+    align = 0
     controls = renderControls (_controlSize config) (DriverC._triggered patch)
         (_controlRate config) (Map.keysSet (DriverC._controls patch))
         notes start
-    inputs = renderInputs (DriverC._triggered patch)
-        (_blockSize config) inputControls notes start
+    inputs = Audio.nonInterleaved align (_blockSize config) $
+        renderInputs (DriverC._triggered patch) inputControls notes start
     inputControls = map fst $ DriverC._inputControls patch
-    vol = renderInput False (_blockSize config) notes start Control.volume
+    vol = Audio.synchronizeToSize align (_blockSize config) <$>
+        renderInput False notes start Control.volume
     final = maybe 0 Note.end (Seq.last notes)
 
 interleave :: AUtil.NAudio -> AUtil.Audio
@@ -391,36 +421,24 @@ tweakNotes controlSize notes = map (\n -> n { Note.start = dt }) at0 ++ rest
     (at0, rest) = span ((<=0) . Note.start) notes
 
 -- | Render the supported controls down to audio rate signals.  This causes the
--- stream to be synchronized by 'Config.chunkSize', which should determine
--- 'render' chunk sizes, which should be a factor of Config.checkpointSize.
--- TODO checkpointSize -> chunkSize, chunkSize -> blockSize
-renderInputs :: Bool -> Audio.Frame -> [Control.Control]
+-- stream to be synchronized by '_blockSize', which should determine
+-- 'render' chunk sizes, which should be a factor of '_chunkSize'.
+renderInputs :: Bool -> [Control.Control]
     -- ^ inputs expected by the instrument, in the expected order
-    -> [Note.Note] -> RealTime -> AUtil.NAudio
-renderInputs triggered chunkSize controls notes start =
-    Audio.nonInterleaved now chunkSize $
-        map (fromMaybe Audio.silence
-                . renderInput triggered chunkSize notes start)
-            controls
-    where
-    -- This is used for chunk alignment, and rendering starts on a chunk
-    -- boundary, so it can be 0.
-    now = 0
+    -> [Note.Note] -> RealTime -> [AUtil.Audio1]
+renderInputs triggered controls notes start =
+    map (fromMaybe Audio.silence . renderInput triggered notes start) controls
 
 renderInput :: (Monad m, TypeLits.KnownNat rate) => Bool
-    -> Audio.Frame -> [Note.Note] -> RealTime -> Control.Control
+    -> [Note.Note] -> RealTime -> Control.Control
     -> Maybe (Audio.Audio m rate 1)
-renderInput triggered chunkSize notes start control
+renderInput triggered notes start control
     | null bps = Nothing
-    | otherwise = Just $ Audio.synchronizeToSize now chunkSize $
-        Audio.linear True $ shiftBack bps
+    | otherwise = Just $ Audio.linear True $ shiftBack bps
     where
     shiftBack = map $ first (subtract (RealTime.to_seconds start))
     -- controlSize=1 because input is per-sample.
     bps = controlBreakpoints 1 triggered control notes
-    -- This is used for chunk alignment, and rendering starts on a chunk
-    -- boundary, so it can be 0.
-    now = 0
 
 controlBreakpoints :: Audio.Frame -> Bool -> Control.Control -> [Note.Note]
     -> [(Double, Double)]

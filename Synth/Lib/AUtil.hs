@@ -8,7 +8,9 @@
 -- Audio to avoid clashing with Util.Audio.Audio.
 module Synth.Lib.AUtil where
 import qualified Control.Exception as Exception
+import qualified Control.Monad.Trans.Resource as Resource
 import qualified Sound.File.Sndfile as Sndfile
+import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Num as Num
@@ -56,3 +58,11 @@ dbToLinear = Audio.dbToLinear . Num.scale (Num.d2f Control.minimumDb) 0
 
 volume :: Audio1 -> Audio -> Audio
 volume = Audio.multiply . Audio.expandChannels . Audio.mapSamples dbToLinear
+
+-- * debug utils
+
+debugAudio :: Audio.Audio (Resource.ResourceT IO) rate chan -> [Audio.Block]
+debugAudio = Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toBlocks
+
+debugAudioN :: Audio.NAudio (Resource.ResourceT IO) rate -> [[Audio.Block]]
+debugAudioN = Unsafe.unsafePerformIO . Resource.runResourceT . Audio.toBlocksN

@@ -39,6 +39,23 @@ import           Util.Test
 
 -- * write
 
+test_write_silent_chunk = do
+    dir <- Testing.tmp_dir "write"
+    patch <- getPatch "test"
+    let write = Render.write_ config dir mempty patch
+    -- not quite 1 chunk
+    io_equal (write [mkNote "test" 0.25 2 42]) (Right (3, 3))
+    io_equal (readSamples1 dir) ([0, 0] ++ replicate 16 42 ++ replicate (8-2) 0)
+
+    -- TODO disabled, see useLeadingSilence = False.
+    -- -- skip 2 chunks
+    -- io_equal (write [mkNote "test" 2.5 2 42]) (Right (5, 5))
+    -- sizes <- fmap (map Sndfile.frames) . mapM File.getInfo =<< listWavs dir
+    -- equal sizes [0, 0, 8, 8, 8]
+    -- -- The first two chunks are empty, so they get skipped.
+    -- io_equal (readSamples1 dir)
+    --     (replicate 4 0 ++ replicate 16 42 ++ replicate 4 0)
+
 test_write_incremental = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "sine"
@@ -148,15 +165,16 @@ renderSamples patch notes = do
     readSamples dir
 
 readSamples :: FilePath -> IO [Float]
-readSamples dir = toSamples . File.concat . map (dir</>) =<< listWavs dir
+readSamples dir = toSamples . File.concat =<< listWavs dir
 
 readSamples1 :: FilePath -> IO [Float]
 readSamples1 dir = map (/2) . toSamples1 . Audio.mixChannels @_ @_ @2
-    . File.concat . map (dir</>) <$> listWavs dir
+    . File.concat <$> listWavs dir
 
 listWavs :: FilePath -> IO [FilePath]
-listWavs = fmap (List.sort . filter (".wav" `List.isSuffixOf`))
-    . Directory.listDirectory
+listWavs dir =
+    fmap (map (dir</>) . List.sort . filter (".wav" `List.isSuffixOf`)) $
+    Directory.listDirectory dir
 
 config :: Render.Config
 config = Render.Config

@@ -138,6 +138,11 @@ roundUp factor n =
     ceiling (realToFrac n / fromIntegral (abs factor)) * abs factor
 {-# INLINEABLE roundUp #-}
 
+roundDown :: (Integral factor, Real a) => factor -> a -> factor
+roundDown factor n =
+    floor (realToFrac n / fromIntegral (abs factor)) * abs factor
+{-# INLINEABLE roundDown #-}
+
 roundDownD :: Double -> Double -> Double
 roundDownD factor n = floorD (n / abs factor) * abs factor
 
