@@ -146,8 +146,11 @@ newtype Hash = Hash ByteString.ByteString
 
 instance Pretty Hash where pretty = txt . encodeHash
 
-hash :: Serialize.Serialize a => a -> Hash
-hash = Hash . MD5.hash . Serialize.encode
+hash :: Note -> Hash
+hash note = hashBytes . Serialize.encode $ note { stack = Stack.empty }
+
+hashBytes :: ByteString.Char8.ByteString -> Hash
+hashBytes = Hash . MD5.hash
 
 -- | Encode to a short string which I can stick in a filename.
 encodeHash :: Hash -> String

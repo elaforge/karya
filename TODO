@@ -1587,7 +1587,7 @@ synth: im:
       sketchy IORef stuff could go away, and the alignment would be in the
       type instead of implicit.
   bug:
-    - A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
+    + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
     - starts are getting cut off again
       . Give more lead time to load the samples?

@@ -6,6 +6,7 @@ module Synth.Lib.Checkpoint_test where
 import qualified Data.Set as Set
 import qualified System.FilePath as FilePath
 
+import qualified Util.Serialize as Serialize
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 
@@ -85,7 +86,7 @@ mkSpan :: (RealTime, RealTime) -> Checkpoint.Span
 mkSpan (s, d) = Checkpoint.Span
     { _start = s
     , _duration = d
-    , _hash = Note.hash (s, d)
+    , _hash = Note.hashBytes $ Serialize.encode (s, d)
     }
 
 eSpan :: Checkpoint.Span -> (RealTime, RealTime)

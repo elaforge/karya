@@ -43,7 +43,8 @@ end :: Note -> Audio.Frames
 end note = start note + duration note
 
 makeHash :: Audio.Frames -> Maybe Audio.Frames -> Sample -> Note.Hash
-makeHash start dur sample = Note.hash (start, dur, sample)
+makeHash start dur sample =
+    Note.hashBytes $ Serialize.encode (start, dur, sample)
     -- TODO ensure envelope and ratios are clipped to (start, duration)?
 
 -- | The actual sample played by a 'Note'.
