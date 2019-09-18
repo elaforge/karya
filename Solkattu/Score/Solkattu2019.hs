@@ -55,6 +55,13 @@ c_19_06_17 = date 2019 6 17 $ ganesh $ korvaiS adi mridangam
         , (dheem, od)
         ]
 
+-- n d d n -- 1
+-- _ kd nnd d n -- ktokou kokokou k
+-- okd d n knn d d n -- 2
+-- _ kd nnd d n _ nd d n _ kD D N -- 3 (v ook kpkkook...)
+--
+-- n d d n nnd d n n
+--
 c_19_07_15 :: Korvai
 c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
     let var th = section $ sarva 8 . sarva 4 . din.__4 . th in

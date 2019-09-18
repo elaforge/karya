@@ -270,8 +270,7 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
     n6 = nadai 6
     ktkno = [k, t, k, n, o]
     t12 = t1 . nakatiku
-    t1 = group $ o.__.kt.kt.pk
-        -- o is gumiki o^
+    t1 = group $ o'.__.kt.kt.pk
 
 c_19_06_24_b :: Korvai
 c_19_06_24_b = date 2019 6 24 $ ganesh $
@@ -338,7 +337,35 @@ e_19_08_05_gumiki = date 2019 8 5 $ ganesh $ exercise $ korvaiS adi
 -- d_nd-dn-d-nd-dn-
 -- nd-n-nd-n-nd-nd-
 -- nd-dnd-dnd-dnd-d
-e_19_08_25 :: Korvai
-e_19_08_25 = date 2019 8 25 $ ganesh $ exercise $ korvaiS1 adi $
+e_19_08_19 :: Korvai
+e_19_08_19 = date 2019 8 25 $ ganesh $ exercise $ korvaiS1 adi $
     concatMap cycle [p, k, o, n]
     where cycle x = su (x.__.kt.kt.p.k.nakatiku) . sarvaD_ 2
+
+-- tisram: c_19_06_24_a
+-- ending 3x
+
+c_19_08_26 :: Korvai
+c_19_08_26 = date 2019 8 26 $ ganesh $ korvaiS adi $ map (nadai 6)
+    [ restD 6 . tri (k.od.__.ktkno)
+    , rh o & lh . rh p & lh . rh p . rh o
+    , rh o & lh . rh p & lh . t7 p . t7 p . t5 p . t5 o
+    -- TODO fix lh
+    , rh o & lh . t7 __ & strM "o_o_oo" . t7 __ & strM "o_o_oo"
+        . t7 p . t5 p . t5 p . t5 o
+    , rh o & lh . rh p & lh . rh p . t75
+    , rh o & lh . rh p & lh . rh p . t75'
+    , rh o & lh . t75 . rh p . t75'
+
+    , t75.od.__3 . t75'.od.__3
+        . t75 . t75' . od.__3
+        . tri_ (i.__3) (p5.__.p5)
+    ]
+    where
+    t7 e = n.__.d.__.n.d.e
+    t5 e = n.__.d.__.e
+    t75 = group $ (k.__.t.__.k.n.__) . (k.__.k.n.__)
+    t75' = group $ (k.p.t.__.k.n.__) . (k.__.k.n.__)
+
+    rh e = t7 __ . t5 e
+    lh   = o.__.o.__.o.o.__.o.__.o.__.__
