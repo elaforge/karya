@@ -117,7 +117,7 @@ findLastState files = go "" initialState
 -- ** write
 
 -- | Write the audio with checkpoints.
-write :: FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frame
+write :: FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frames
     -> [(Config.ChunkNum, Note.Hash)] -> IO State
     -> AUtil.Audio -- ^ get current audio state, see NOTE [audio-state]
     -> IO (Either Text (Config.ChunkNum, Config.ChunkNum))
@@ -266,7 +266,7 @@ extendHashes = go
     go [(i, h)] = (i, h) : zip [i+1 ..] (repeat mempty)
     go (h : hs) = h : go hs
 
-noteHashes :: Audio.Frame -> [Span] -> [(Int, Note.Hash)]
+noteHashes :: Audio.Frames -> [Span] -> [(Int, Note.Hash)]
 noteHashes chunkSize = zip [0..] . hashOverlapping 0 (AUtil.toSeconds chunkSize)
 
 data Span = Span {

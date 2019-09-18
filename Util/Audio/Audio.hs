@@ -20,7 +20,7 @@ module Util.Audio.Audio (
     , NAudio(..), NAudioIO, NAudioId
     , UnknownAudio(..), UnknownAudioIO
     , Block(..)
-    , Sample, Frame(..), secondsToFrame, secondsToFrameCeil, frameToSeconds
+    , Sample, Frames(..), secondsToFrames, secondsToFramesCeil, framesToSeconds
     , Count, Channels, Rate, Seconds
     , framesCount, countFrames, blockFrames, vectorFrames
     , blockCount, isEmptyBlock, blockSamples, blockVector
@@ -75,7 +75,7 @@ import qualified GHC.Stack as Stack
 import qualified Streaming as S
 import qualified Streaming.Prelude as S
 
-import           Util.Audio.AudioT (Frame(..))
+import           Util.Audio.AudioT (Frames(..))
 import qualified Util.CallStack as CallStack
 import qualified Util.Control as Control
 import qualified Util.Num as Num
@@ -150,41 +150,42 @@ type UnknownAudioIO = UnknownAudio (Resource.ResourceT IO)
 -- work with any other format.
 type Sample = Float
 
--- | Sample count.  This is Frame * channels.
+-- | Sample count.  This is Frames * channels.
 type Count = Int
 type Channels = Int
 type Rate = Int
 
 type Seconds = Double
 
-secondsToFrame :: Rate -> Seconds -> Frame
-secondsToFrame rate seconds = Frame $ round $ fromIntegral rate * seconds
+secondsToFrames :: Rate -> Seconds -> Frames
+secondsToFrames rate seconds = Frames $ round $ fromIntegral rate * seconds
 
-secondsToFrameCeil :: Rate -> Seconds -> Frame
-secondsToFrameCeil rate seconds = Frame $ ceiling $ fromIntegral rate * seconds
+secondsToFramesCeil :: Rate -> Seconds -> Frames
+secondsToFramesCeil rate seconds =
+    Frames $ ceiling $ fromIntegral rate * seconds
 
-frameToSeconds :: Rate -> Frame -> Seconds
-frameToSeconds rate (Frame frames) = fromIntegral frames / fromIntegral rate
+framesToSeconds :: Rate -> Frames -> Seconds
+framesToSeconds rate (Frames frames) = fromIntegral frames / fromIntegral rate
 
-framesCount :: KnownNat channels => Proxy channels -> Frame -> Count
-framesCount channels (Frame frames) = frames * natVal channels
+framesCount :: KnownNat channels => Proxy channels -> Frames -> Count
+framesCount channels (Frames frames) = frames * natVal channels
 
-framesCount_ :: Channels -> Frame -> Count
-framesCount_ channels (Frame frames) = frames * channels
+framesCount_ :: Channels -> Frames -> Count
+framesCount_ channels (Frames frames) = frames * channels
 
-countFrames :: KnownNat channels => Proxy channels -> Count -> Frame
+countFrames :: KnownNat channels => Proxy channels -> Count -> Frames
 countFrames channels = countFrames_ (natVal channels)
 
-countFrames_ :: Channels -> Count -> Frame
-countFrames_ channels count = Frame $ count `div` channels
+countFrames_ :: Channels -> Count -> Frames
+countFrames_ channels count = Frames $ count `div` channels
 
-blockFrames :: KnownNat channels => Proxy channels -> Block -> Frame
+blockFrames :: KnownNat channels => Proxy channels -> Block -> Frames
 blockFrames channels = countFrames channels . blockCount
 
-blockFrames_ :: Channels -> Block -> Frame
+blockFrames_ :: Channels -> Block -> Frames
 blockFrames_ channels = countFrames_ channels . blockCount
 
-vectorFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frame
+vectorFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frames
 vectorFrames channels = countFrames channels . V.length
 
 blockCount :: Block -> Count
@@ -268,7 +269,7 @@ castRate :: Audio m rate1 chan -> Audio m rate2 chan
 castRate (Audio stream) = Audio stream
 
 take :: forall m rate chan. (Monad m, KnownNat chan)
-    => Frame -> Audio m rate chan -> Audio m rate chan
+    => Frames -> Audio m rate chan -> Audio m rate chan
 take = takeClose (return ())
 
 takeS :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
@@ -286,10 +287,10 @@ takeCloseS :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
 takeCloseS close seconds audio
     | seconds <= 0 = mempty
     | otherwise = takeClose close
-        (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds) audio
+        (secondsToFrames (natVal (Proxy :: Proxy rate)) seconds) audio
 
 takeClose :: forall m rate chan. (Monad m, KnownNat chan)
-    => m () -> Frame -> Audio m rate chan -> Audio m rate chan
+    => m () -> Frames -> Audio m rate chan -> Audio m rate chan
 takeClose close frames (Audio audio)
     | frames <= 0 = Audio $ lift close
     | otherwise = Audio $ Control.loop1 (0, audio) $
@@ -561,7 +562,8 @@ synchronizeList = S.unfoldr unfold . map _stream
 
 -- | Merge 'Audio's into a single 'NAudio' stream, synchronized with the given
 -- block size.
-nonInterleaved :: Monad m => Frame -> Frame -> [Audio m rate 1] -> NAudio m rate
+nonInterleaved :: Monad m => Frames -> Frames -> [Audio m rate 1]
+    -> NAudio m rate
 nonInterleaved now size audios = NAudio (length audios) $
     S.unfoldr unfold (map (_stream . synchronizeToSize now size) audios)
     where
@@ -592,7 +594,7 @@ interleaved naudio
     chan = natVal (Proxy @chan)
 
 synchronizeToSize :: forall m rate chan. (Monad m, KnownNat chan)
-    => Frame -> Frame -> Audio m rate chan -> Audio m rate chan
+    => Frames -> Frames -> Audio m rate chan -> Audio m rate chan
 synchronizeToSize now size = Audio . S.unfoldr unfold . (True,)
     where
     unfold (initial, audio) = do
@@ -602,7 +604,7 @@ synchronizeToSize now size = Audio . S.unfoldr unfold . (True,)
             else Right (mconcat blocks, (False, audio))
     align = if now `mod` size == 0 then size else size - now `mod` size
 
-takeN :: Monad m => Frame -> NAudio m rate -> NAudio m rate
+takeN :: Monad m => Frames -> NAudio m rate -> NAudio m rate
 takeN frames naudio
     | frames <= 0 = naudio
     | otherwise = NAudio (_nchannels naudio) $
@@ -624,7 +626,7 @@ takeN frames naudio
 -- | Extend blocks shorter than the given size with zeros, and pad the end with
 -- zeros forever.  Composed with 'nonInterleaved', which may leave a short
 -- final block, the output should be infinite and have uniform block size.
-zeroPadN :: Monad m => Frame -> NAudio m rate -> NAudio m rate
+zeroPadN :: Monad m => Frames -> NAudio m rate -> NAudio m rate
 zeroPadN size_ naudio = naudio { _nstream = S.unfoldr unfold (_nstream naudio) }
     where
     unfold audio = S.uncons audio >>= return . \case
@@ -658,7 +660,8 @@ sine frequency =
     Audio $ Control.loop1 0 $ \loop frame ->
         S.yield (Block $ gen frame) >> loop (frame + blockSize)
     where
-    gen start = V.generate (fromIntegral (end - start)) (val . (+start) . Frame)
+    gen start =
+        V.generate (fromIntegral (end - start)) (val . (+start) . Frames)
         where end = start + blockSize
     val frame = sin $ 2 * pi * frequency * (fromIntegral frame / rate)
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
@@ -686,11 +689,11 @@ linear forever breakpoints = Audio $ loop (0, 0, 0, from0 breakpoints)
     segment x1 y1 x2 y2 start count
         | y1 == y2 = Constant count (Num.d2f y1)
         | otherwise = Block $ V.generate count
-            (interpolate x1 y1 x2 y2 . toSec . (+start) . Frame)
+            (interpolate x1 y1 x2 y2 . toSec . (+start) . Frames)
     interpolate x1 y1 x2 y2 x = Num.d2f $
         (y2 - y1) / (x2 - x1) * (x - x1) + y1
-    toFrame = secondsToFrame rate
-    toSec = frameToSeconds rate
+    toFrame = secondsToFrames rate
+    toSec = framesToSeconds rate
     toCount = framesCount (Proxy @1)
     rate = natVal (Proxy :: Proxy rate)
     -- The signal is implicitly constant 0 before the first sample.
@@ -726,7 +729,7 @@ assertIn check msg (Audio audio) = Audio (assert check msg *> audio)
 
 -- * constants
 
-blockSize :: Frame
+blockSize :: Frames
 blockSize = 5000
 
 silentBlock :: V.Vector Sample
@@ -745,7 +748,7 @@ dbToLinear x = 10**(x / 20)
 --
 -- TODO rename to splitAtGE
 takeFramesGE :: forall m rate chan. (Monad m, KnownNat chan)
-    => Frame -> Audio m rate chan -> m ([Block], Audio m rate chan)
+    => Frames -> Audio m rate chan -> m ([Block], Audio m rate chan)
 takeFramesGE frames (Audio audio) = do
     blocks S.:> rest <- S.toList $
         breakAfter (\n -> (+n) . blockFrames chan) 0 (>=frames) audio
@@ -755,7 +758,7 @@ takeFramesGE frames (Audio audio) = do
 
 -- | Take exactly the given number of frames.
 splitAt :: forall m rate chan. (Monad m, KnownNat chan)
-    => Frame -> Audio m rate chan -> m ([Block], Audio m rate chan)
+    => Frames -> Audio m rate chan -> m ([Block], Audio m rate chan)
 splitAt frames (Audio audio)
     | frames <= 0 = return ([], Audio audio)
     | otherwise = S.next audio >>= \case

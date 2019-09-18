@@ -39,8 +39,8 @@ import           Global
 
 data Config = Config {
     _quality :: !Resample.Quality
-    , _chunkSize :: !Audio.Frame
-    , _blockSize :: !Audio.Frame
+    , _chunkSize :: !Audio.Frames
+    , _blockSize :: !Audio.Frames
     }
 
 type Error = Text
@@ -123,7 +123,7 @@ data Playing = Playing {
     -- | Get the current state of the resample.  NOTE [audio-state]
     , _getState :: IO State
     , _audio :: !AUtil.Audio
-    , _noteRange :: !(Audio.Frame, Audio.Frame)
+    , _noteRange :: !(Audio.Frames, Audio.Frames)
     }
 
 instance Pretty Playing where
@@ -140,11 +140,11 @@ failedPlaying note = Playing
     , _noteRange = (0, 0)
     }
 
-prettyF :: Audio.Frame -> Text
+prettyF :: Audio.Frames -> Text
 prettyF frame = pretty frame <> "(" <> pretty (AUtil.toSeconds frame) <> ")"
 
 render :: Config -> FilePath -> [State] -> (Checkpoint.State -> IO ())
-    -> Set Id.TrackId -> [Sample.Note] -> Audio.Frame -> AUtil.Audio
+    -> Set Id.TrackId -> [Sample.Note] -> Audio.Frames -> AUtil.Audio
 render config outputDir initialStates notifyState trackIds notes start =
         Audio.Audio $ do
     -- The first chunk is different because I have to resume already playing
@@ -220,11 +220,11 @@ render config outputDir initialStates notifyState trackIds notes start =
             }
         return metric
 
-inferChunkNum :: Audio.Frame -> Audio.Frame -> Config.ChunkNum
+inferChunkNum :: Audio.Frames -> Audio.Frames -> Config.ChunkNum
 inferChunkNum chunkSize now = fromIntegral $ now `div` chunkSize
 
 -- | Get chunkSize from each Playing, and remove Playings which no longer are.
-pull :: Audio.Frame -> Audio.Frame -> [Playing]
+pull :: Audio.Frames -> Audio.Frames -> [Playing]
     -> Resource.ResourceT IO ([Audio.Block], [Playing])
 pull blockSize now = fmap (trim . unzip) . mapM get
     -- TODO This mapM could be concurrent, which would make concurrent notes
@@ -252,7 +252,7 @@ pull blockSize now = fmap (trim . unzip) . mapM get
                 Just audio -> Just $ playing { _audio = audio }
             )
 
-resumeSamples :: Config -> Audio.Frame -> [State] -> [Sample.Note]
+resumeSamples :: Config -> Audio.Frames -> [State] -> [Sample.Note]
     -> IO [Playing]
 resumeSamples config now states notes = do
     Audio.assert (length states == length notes) $
@@ -273,7 +273,7 @@ eNote n =
     )
 
 -- | Convert 'Sample.Note' to a 'Playing'.
-startSample :: Config -> Audio.Frame -> Maybe State
+startSample :: Config -> Audio.Frames -> Maybe State
     -- ^ If Just Just, resume a playing sample which should have started <=now,
     -- otherwise start a new one which should start >= now.  If Just NoResample,
     -- this is a resuming sample, but it wasn't resampled, so there's no
@@ -341,7 +341,7 @@ startSample config now mbState note = do
 
 -- | This is similar to 'Checkpoint.splitOverlapping', but it differentiates
 -- notes that overlap the starting time.
-overlappingNotes :: Audio.Frame -> Audio.Frame -> [Sample.Note]
+overlappingNotes :: Audio.Frames -> Audio.Frames -> [Sample.Note]
     -> ([Sample.Note], [Sample.Note], [Sample.Note])
 overlappingNotes start blockSize notes =
     (overlappingStart, overlappingChunk, rest)
@@ -373,7 +373,7 @@ data ResampleState = ResampleState {
     -- read.
     _filename :: !Sample.SamplePath
     -- | This is the position in the sample where the state was saved.
-    , _offset :: !Audio.Frame
+    , _offset :: !Audio.Frames
     , _resampleState :: !Resample.SavedState
     } deriving (Eq, Show)
 

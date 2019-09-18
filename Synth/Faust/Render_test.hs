@@ -185,10 +185,10 @@ config = Render.Config
     , _maxDecay = 0
     }
 
-chunkSize :: Audio.Frame
+chunkSize :: Audio.Frames
 chunkSize = Render._chunkSize config
 
-controlSize :: Audio.Frame
+controlSize :: Audio.Frames
 controlSize = Render._controlSize config
 
 chunkCount :: Int
@@ -231,7 +231,7 @@ test_renderControls = do
     let f triggered notes start = filter (not . null . snd) $ Map.toList $
             fmap toSamples1 $
             -- For convenience let's have controlSize=1s and controlRate=1.
-            Render.renderControls (AUtil.toFrame 1) triggered 1 controls
+            Render.renderControls (AUtil.toFrames 1) triggered 1 controls
                 (map make notes) start
         controls = Set.fromList
             [ ("1", Control.gate), ("2", Control.gate)
@@ -269,7 +269,7 @@ test_renderControls = do
         ]
 
 test_gateBreakpoints = do
-    let f ns = map (first (AUtil.toFrame . RealTime.seconds)) $
+    let f ns = map (first (AUtil.toFrames . RealTime.seconds)) $
             Render.gateBreakpoints controlSize True
                 [mkNote "patch" s d 42 | (s, d) <- ns]
     equal (f []) []

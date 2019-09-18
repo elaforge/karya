@@ -54,8 +54,8 @@ getInfo :: FilePath -> IO Sndfile.Info
 getInfo fname = Exception.bracket (openRead fname) close
     (return . Sndfile.hInfo . _handle)
 
-duration :: FilePath -> IO Audio.Frame
-duration = fmap (Audio.Frame . Sndfile.frames) . getInfo
+duration :: FilePath -> IO Audio.Frames
+duration = fmap (Audio.Frames . Sndfile.frames) . getInfo
 
 -- | Since the file is opened only when samples are demanded, a sample rate or
 -- channels mismatch will turn into an exception then, not when this is called.
@@ -72,7 +72,7 @@ read = readFrom 0
 -- stream early.
 readFromClose :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Audio.Frame -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
+    Audio.Frames -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
 readFromClose frame fname = do
     handle <- openRead fname
     return $ (close handle,) $ Audio.Audio $ do
@@ -85,7 +85,7 @@ readFromClose frame fname = do
 
 readFrom :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Audio.Frame -> FilePath -> Audio.AudioIO rate channels
+    Audio.Frames -> FilePath -> Audio.AudioIO rate channels
 readFrom frame fname = Audio.Audio $ do
     (_, handle) <- lift $ Resource.allocate (openRead fname) close
     S.map Audio.Block $ readHandle rate chan frame fname handle
@@ -95,10 +95,10 @@ readFrom frame fname = Audio.Audio $ do
     chan = Audio.natVal channels
 
 
-readHandle :: Trans.MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frame
+readHandle :: Trans.MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frames
     -> FilePath -> Handle
     -> S.Stream (S.Of (V.Vector Audio.Sample)) m ()
-readHandle rate chan (Audio.Frame frame) fname hdl = do
+readHandle rate chan (Audio.Frames frame) fname hdl = do
     let info = Sndfile.hInfo $ _handle hdl
         fileChan = Sndfile.channels info
     when (Sndfile.samplerate info /= rate || fileChan `notElem` [1, chan]) $
@@ -198,7 +198,7 @@ write format fname audio = do
 -- and after writing each chunk.
 writeCheckpoints :: forall rate chan state.
     (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
-    => Audio.Frame
+    => Audio.Frames
     -> (state -> IO FilePath) -- ^ get filename for this state
     -> (FilePath -> IO ()) -- ^ write state after the computation
     -> Sndfile.Format -> [state]

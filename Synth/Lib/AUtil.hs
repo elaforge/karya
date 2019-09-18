@@ -29,16 +29,16 @@ type NAudio = Audio.NAudioIO Config.SamplingRate
 -- document the things that depend on that.
 type Channels = 2
 
-toFrame :: RealTime.RealTime -> Audio.Frame
-toFrame = Audio.secondsToFrame Config.samplingRate . RealTime.to_seconds
+toFrames :: RealTime.RealTime -> Audio.Frames
+toFrames = Audio.secondsToFrames Config.samplingRate . RealTime.to_seconds
 
-toSeconds :: Audio.Frame -> RealTime.RealTime
-toSeconds = RealTime.seconds . Audio.frameToSeconds Config.samplingRate
+toSeconds :: Audio.Frames -> RealTime.RealTime
+toSeconds = RealTime.seconds . Audio.framesToSeconds Config.samplingRate
 
-blockFrames2 :: Audio.Block -> Audio.Frame
+blockFrames2 :: Audio.Block -> Audio.Frames
 blockFrames2 = Audio.blockFrames (Proxy @2)
 
-framesCount2 :: Audio.Frame -> Audio.Count
+framesCount2 :: Audio.Frames -> Audio.Count
 framesCount2 = Audio.framesCount (Proxy @2)
 
 outputFormat :: Sndfile.Format

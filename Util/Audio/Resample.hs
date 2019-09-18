@@ -66,11 +66,11 @@ data Config = Config {
     -- | Called before yielding a block.  The final call is with Nothing,
     -- before yielding the final block.  At that point the state should be
     -- used up.
-    , _notifyState :: Maybe (Audio.Frame, SavedState) -> IO ()
-    , _blockSize :: Audio.Frame
+    , _notifyState :: Maybe (Audio.Frames, SavedState) -> IO ()
+    , _blockSize :: Audio.Frames
     -- | This affects the first block size.  This is so that block boundaries
     -- fall on multiples of blockSize.
-    , _now :: Audio.Frame
+    , _now :: Audio.Frames
     -- | This is unused, but useful for debugging.
     , _name :: Text
     }
@@ -159,7 +159,7 @@ resampleBy config ratios audio = Audio.Audio $ do
     chan = Proxy :: Proxy chan
     rate :: Audio.Rate
     rate = fromIntegral $ TypeLits.natVal (Proxy :: Proxy rate)
-    toSeconds = RealTime.seconds . Audio.frameToSeconds rate
+    toSeconds = RealTime.seconds . Audio.framesToSeconds rate
 
 type Segment = Segment.Segment Signal.Y
 
@@ -182,9 +182,9 @@ type Stream a = S.Stream (S.Of Audio.Block) (Resource.ResourceT IO) a
 
 -- | Generate no more than the given number of frames.
 resampleBlock :: KnownNat chan => Proxy chan -> Audio.Rate
-    -> SampleRateC.State -> Audio.Frame -> Audio.Frame
+    -> SampleRateC.State -> Audio.Frames -> Audio.Frames
     -> Segment -> Segment -> Stream ()
-    -> Stream (Maybe (Audio.Frame, V.Vector Audio.Sample, Stream ()))
+    -> Stream (Maybe (Audio.Frames, V.Vector Audio.Sample, Stream ()))
 resampleBlock chan rate state start maxFrames prevSegment segment audio = do
     -- 'start' is the *output* frame.  It indexes ratios, because that's
     -- RealTime.
@@ -221,9 +221,9 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
             }
         outFP <- Foreign.newForeignPtr Foreign.finalizerFree outp
         return
-            ( Audio.Frame $ fromIntegral $
+            ( Audio.Frames $ fromIntegral $
                 SampleRateC.input_frames_used result
-            , Audio.Frame $ fromIntegral $
+            , Audio.Frames $ fromIntegral $
                 SampleRateC.output_frames_generated result
             , outFP
             )
@@ -253,8 +253,8 @@ resampleBlock chan rate state start maxFrames prevSegment segment audio = do
     next audio =
         either (const (Nothing, audio)) (first (Just . Audio.blockVector)) <$>
         lift (S.next audio)
-    toFrames = Audio.secondsToFrame rate . RealTime.to_seconds
-    toSeconds = RealTime.seconds . Audio.frameToSeconds rate
+    toFrames = Audio.secondsToFrames rate . RealTime.to_seconds
+    toSeconds = RealTime.seconds . Audio.framesToSeconds rate
 
     -- showSeg (Segment.Segment x1 y1 x2 y2) =
     --     pretty (toFrames x1, y1) <> "--" <> pretty (toFrames x2, y2)

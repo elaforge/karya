@@ -303,7 +303,7 @@ foreign import ccall "faust_num_inputs" c_faust_num_inputs :: PatchP -> CInt
 foreign import ccall "faust_num_outputs" c_faust_num_outputs :: PatchP -> CInt
 
 -- | Render chunk of time and return samples.
-render :: Audio.Frame -> Audio.Frame -> Instrument
+render :: Audio.Frames -> Audio.Frames -> Instrument
     -> [(Ptr Float, Audio.Block)]
     -> [V.Vector Float] -- ^ Input signals.  The length must be equal to the
     -- the patchInputs, and each vector must have the same length.
@@ -342,7 +342,7 @@ render controlSize controlsPerBlock inst controls inputs = do
     where
     blockSize = controlSize * controlsPerBlock
     c_frames = CUtil.c_int . unframe
-    unframe (Audio.Frame f) = f
+    unframe (Audio.Frames f) = f
 
 withControls :: [(Ptr Float, Audio.Block)]
     -> (CInt -> Ptr (Ptr Float) -> Ptr (Ptr Float) -> IO a) -> IO a

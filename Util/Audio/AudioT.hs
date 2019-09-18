@@ -10,8 +10,8 @@ import           Global
 
 
 -- | Should be >=0.
-newtype Frame = Frame Int
+newtype Frames = Frames Int
     deriving (Show, Eq, Ord, Num, Real, Enum, Integral, Serialize.Serialize)
 
-instance Pretty Frame where
-    pretty (Frame n) = pretty n <> "f"
+instance Pretty Frames where
+    pretty (Frames n) = pretty n <> "f"

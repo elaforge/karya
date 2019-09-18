@@ -69,20 +69,20 @@ checkDuration = do
     -- predict = 568802.0
     -- actual =  568327.0
 
--- | Signal.from_pairs but on Frame instead of RealTime.
-signal :: [(Audio.Frame, Signal.Y)] -> Signal.Signal
+-- | Signal.from_pairs but on Frames instead of RealTime.
+signal :: [(Audio.Frames, Signal.Y)] -> Signal.Signal
 signal = Signal.from_pairs . map (first AUtil.toSeconds)
 
 verify :: Resample.Quality -> Signal.Signal
-    -> Audio.Frame -- ^ sample duration
+    -> Audio.Frames -- ^ sample duration
     -> (Double, Double) -- ^ (predicted, actual)
 verify quality ratios dur =
     ( realToFrac $ RenderSample.predictDuration ratios dur
     , realToFrac $ actualDuration (mkConfig quality) ratios dur
     )
 
-actualDuration :: Resample.Config -> Signal.Signal -> Audio.Frame
-    -> Audio.Frame
+actualDuration :: Resample.Config -> Signal.Signal -> Audio.Frames
+    -> Audio.Frames
 actualDuration config ratios dur =
     Num.sum . map (Audio.vectorFrames (Proxy @1))
     . Unsafe.unsafePerformIO

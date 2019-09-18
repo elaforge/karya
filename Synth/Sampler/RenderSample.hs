@@ -73,13 +73,13 @@ resample config ratiosUnshifted start audio
     -- account for when the sample starts.
     ratios = Signal.shift (-sampleStart) ratiosUnshifted
     silence = Audio.take silenceF Audio.silence
-    silenceF = max 0 (AUtil.toFrame start - Resample._now config)
+    silenceF = max 0 (AUtil.toFrames start - Resample._now config)
     state = Resample._state config
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this
     -- probably isn't perceptible.
     closeEnough = 1.05 / 1000
 
-addNow :: Audio.Frame -> Resample.Config -> Resample.Config
+addNow :: Audio.Frames -> Resample.Config -> Resample.Config
 addNow frames config = config { Resample._now = frames + Resample._now config }
 
 applyEnvelope :: IO () -> RealTime -> Signal.Signal -> AUtil.Audio
@@ -123,24 +123,24 @@ envelopeDuration start = go . Signal.to_pairs_desc
 
 -- | Predict how long a sample will be if resampled with the given ratio
 -- signal.
-predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frame
+predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frames
 predictFileDuration ratios = fmap (predictDuration ratios) . File.duration
 
-type FrameF = Double
+type FramesF = Double
 
-toFrameF :: Audio.Frame -> FrameF
-toFrameF = fromIntegral
+toFramesF :: Audio.Frames -> FramesF
+toFramesF = fromIntegral
 
-predictDuration :: Signal.Signal -> Audio.Frame -> Audio.Frame
+predictDuration :: Signal.Signal -> Audio.Frames -> Audio.Frames
 predictDuration ratios sampleDur = case Signal.constant_val_from 0 ratios of
     -- I can also do this optimization if it's constant over the duration of
     -- the sample.  But to know if that's the case I have to do an integral
     -- intersection and I think that's the same as the non-optimized case.
-    Just y -> toFrame $ toFrameF sampleDur * y
-    Nothing -> toFrame $
-        go (toFrameF sampleDur) 0 (Signal.clip_before_segments 0 ratios)
+    Just y -> toFrames $ toFramesF sampleDur * y
+    Nothing -> toFrames $
+        go (toFramesF sampleDur) 0 (Signal.clip_before_segments 0 ratios)
     where
-    toFrame = Audio.Frame . ceiling
+    toFrames = Audio.Frames . ceiling
     go !input !output segments@(Segment.Segment x1 y1 x2 y2 : rest)
         | input <= 0 = output
         | y1 <= 0 || y2 <= 0 =
@@ -176,12 +176,12 @@ predictDuration ratios sampleDur = case Signal.constant_val_from 0 ratios of
         -- input at 1/2 rate, which leads to output*2.
         n = (1/y2 - 1/y1) / delta
         k = 1 / y1
-        delta = toFrameF $ AUtil.toFrame (x2 - x1)
+        delta = toFramesF $ AUtil.toFrames (x2 - x1)
 
     -- Unreached, because the last segment extends to RealTime.large.
     go _ _ [] = error "ran out of segments"
 
-frameToSeconds :: FrameF -> RealTime
+frameToSeconds :: FramesF -> RealTime
 frameToSeconds frames =
     RealTime.seconds $ frames / fromIntegral Config.samplingRate
 

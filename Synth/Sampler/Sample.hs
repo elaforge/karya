@@ -27,11 +27,11 @@ type SamplePath = FilePath
 -- | Low level representation of a note.  This corresponds to a single sample
 -- played.
 data Note = Note {
-    start :: !Audio.Frame
+    start :: !Audio.Frames
     -- | This is the actual duration of the sample at the given 'ratios', not
     -- the requested 'Note.duration'.
     -- TODO maybe move 'duration' to Sample then.
-    , duration :: !Audio.Frame
+    , duration :: !Audio.Frames
     , sample :: Sample
     -- | Hash of (start, duration, sample).  Putting it here means I can
     -- memoize its creation but also that changing Note will make it out of
@@ -39,10 +39,10 @@ data Note = Note {
     , hash :: Note.Hash
     } deriving (Show)
 
-end :: Note -> Audio.Frame
+end :: Note -> Audio.Frames
 end note = start note + duration note
 
-makeHash :: Audio.Frame -> Maybe Audio.Frame -> Sample -> Note.Hash
+makeHash :: Audio.Frames -> Maybe Audio.Frames -> Sample -> Note.Hash
 makeHash start dur sample = Note.hash (start, dur, sample)
     -- TODO ensure envelope and ratios are clipped to (start, duration)?
 
@@ -52,7 +52,7 @@ data Sample = Sample {
     -- dir prepended before rendering.
     filename :: !SamplePath
     -- | Sample start offset.
-    , offset :: !Audio.Frame
+    , offset :: !Audio.Frames
     -- | The sample ends when it runs out of samples, or when envelope ends
     -- on 0.
     , envelope :: !Signal.Signal

@@ -166,10 +166,11 @@ renderSamples notes = do
 
 test_overlappingNotes = do
     let f start size = extract
-            . Render.overlappingNotes (AUtil.toFrame start) (AUtil.toFrame size)
+            . Render.overlappingNotes
+                (AUtil.toFrames start) (AUtil.toFrames size)
             . map noteS
         noteS (start, dur) =
-            mkNoteDur "" (AUtil.toFrame start) (AUtil.toFrame dur)
+            mkNoteDur "" (AUtil.toFrames start) (AUtil.toFrames dur)
         extract (a, b, c) = (map e a, map e b, map e c)
             where
             e n =
@@ -210,7 +211,7 @@ write_ outDir = Render.writeConfig config outDir mempty
 patchDir :: FilePath
 patchDir = "patch"
 
-chunkSize :: Audio.Frame
+chunkSize :: Audio.Frames
 chunkSize = 4
 
 mkDb :: FilePath -> Patch.Db
@@ -234,17 +235,17 @@ triangle :: [Audio.Sample]
 triangle = [1, 2, 3, 4, 3, 2, 1, 0]
 
 mkNoteSec :: FilePath -> RealTime -> Double -> Sample.Note
-mkNoteSec dbDir start = mkNote dbDir (AUtil.toFrame start)
+mkNoteSec dbDir start = mkNote dbDir (AUtil.toFrames start)
 
 -- | mkNote where ratio=1.
-mkNote1 :: FilePath -> Audio.Frame -> Sample.Note
+mkNote1 :: FilePath -> Audio.Frames -> Sample.Note
 mkNote1 dbDir start = mkNote dbDir start 1
 
 -- | Make a note with a constant ratio.
-mkNote :: FilePath -> Audio.Frame -> Double -> Sample.Note
+mkNote :: FilePath -> Audio.Frames -> Double -> Sample.Note
 mkNote dbDir start ratio = mkNoteRatios dbDir start [(start, ratio)]
 
-mkNoteRatios :: FilePath -> Audio.Frame -> [(Audio.Frame, Double)]
+mkNoteRatios :: FilePath -> Audio.Frames -> [(Audio.Frames, Double)]
     -> Sample.Note
 mkNoteRatios dbDir start ratios_ = Sample.Note
     { start = start
@@ -254,7 +255,7 @@ mkNoteRatios dbDir start ratios_ = Sample.Note
     , sample = (Sample.make (triFilename dbDir)) { Sample.ratios = ratios }
     }
     where
-    dur = Audio.Frame $ length triangle
+    dur = Audio.Frames $ length triangle
     sec = AUtil.toSeconds
     -- I don't put the pitch on, but it just affects hash, which is unlikely to
     -- be relevant in a test.
@@ -264,7 +265,7 @@ mkNoteRatios dbDir start ratios_ = Sample.Note
 -- | Like 'mkNoteRatios', except set a shorter duration than the sample.
 -- Otherwise since there's no envelope, the duration is always as long as the
 -- sample, modulo ratios.
-mkNoteDur :: FilePath -> Audio.Frame -> Audio.Frame -> Sample.Note
+mkNoteDur :: FilePath -> Audio.Frames -> Audio.Frames -> Sample.Note
 mkNoteDur dbDir start dur = Sample.Note
     { start = start
     , duration = dur

@@ -42,7 +42,7 @@ test_mix2 = do
         [0, 1, 2+4, 3+5]
 
 mixOffset :: TypeLits.KnownNat chan
-    => [(Audio.Frame, Audio.AudioId rate chan)] -> Audio.AudioId rate chan
+    => [(Audio.Frames, Audio.AudioId rate chan)] -> Audio.AudioId rate chan
 mixOffset = Audio.mix . map (\(f, audio) -> Audio.take f Audio.silence <> audio)
 
 test_monoid = do

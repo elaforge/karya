@@ -122,11 +122,11 @@ toSpan note = Checkpoint.Span
 -- * render
 
 data Config = Config {
-    _chunkSize :: !Audio.Frame
-    , _blockSize :: !Audio.Frame
-    , _controlSize :: !Audio.Frame
+    _chunkSize :: !Audio.Frames
+    , _blockSize :: !Audio.Frames
+    , _controlSize :: !Audio.Frames
     -- | This is _chunkSize / _controlSize.
-    , _controlsPerBlock :: !Audio.Frame
+    , _controlsPerBlock :: !Audio.Frames
     -- | Force an end if the signal hasn't gone to zero before this.
     , _maxDecay :: !RealTime
     } deriving (Show)
@@ -178,7 +178,7 @@ renderPatch :: (Config.Payload -> IO ()) -> DriverC.Patch -> Config
 renderPatch emitMessage patch config mbState notifyState notes start_ =
     (silence<>) $ maybe id AUtil.volume vol $ interleave $
         render emitMessage patch mbState notifyState
-            controls inputs (AUtil.toFrame start) (AUtil.toFrame final) config
+            controls inputs (AUtil.toFrames start) (AUtil.toFrames final) config
     where
     -- TODO it's actually broken because it needs to avoid loading state after
     -- a silence.
@@ -199,8 +199,8 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
         -- Emit silence from the start time until the first note, if there is
         -- any such time.
         silenceF = max 0 $
-            Num.roundDown (_chunkSize config) (AUtil.toFrame firstNote)
-                - AUtil.toFrame start_
+            Num.roundDown (_chunkSize config) (AUtil.toFrames firstNote)
+                - AUtil.toFrames start_
         silenceS = AUtil.toSeconds silenceF
     -- Now adjust the start to account for the inserted silence.
     start = start_ + silenceS
@@ -230,7 +230,7 @@ interleave naudio = case Audio.interleaved naudio of
 -- designed for realtime, they interpolate after the value changed instead of
 -- before, I have to initialize then render for long enough to avoid attack
 -- artifacts.
-initialize :: Audio.Frame -> DriverC.Instrument
+initialize :: Audio.Frames -> DriverC.Instrument
     -> Map DriverC.Control Float -> IO ()
 initialize size inst controls = do
     _ <- DriverC.render size 1 inst controlVals inputSamples
@@ -255,7 +255,7 @@ initialize size inst controls = do
 render :: (Config.Payload -> IO ()) -> DriverC.Patch -> Maybe Checkpoint.State
     -> (Checkpoint.State -> IO ()) -- ^ notify new state after each audio chunk
     -> Map DriverC.Control AUtil.Audio1
-    -> AUtil.NAudio -> Audio.Frame -> Audio.Frame -- ^ logical end time
+    -> AUtil.NAudio -> Audio.Frames -> Audio.Frames -- ^ logical end time
     -> Config -> AUtil.NAudio
 render emitMessage patch mbState notifyState controls inputs start end config =
     Audio.NAudio (DriverC._outputs patch) $ do
@@ -329,8 +329,8 @@ render emitMessage patch mbState notifyState controls inputs start end config =
                     | otherwise -> return $ Just chunkEnd
                     where
                     chunkEnd = start + frames
-                    frames = Audio.Frame $ V.length output
-    maxDecay = AUtil.toFrame $ _maxDecay config
+                    frames = Audio.Frames $ V.length output
+    maxDecay = AUtil.toFrames $ _maxDecay config
 
 findControls :: Map DriverC.Control (ptr, config)
     -> Map DriverC.Control block -> [(ptr, block)]
@@ -339,7 +339,7 @@ findControls controls vals = map get $ Util.Map.zip_intersection controls vals
 
 -- | Pull a chunk from each of the controls.  Omit the control if its signal
 -- has run out.  This is ok because controls naturally retain their last value.
-takeControls :: Audio.Frame -> Map DriverC.Control AUtil.Audio1
+takeControls :: Audio.Frames -> Map DriverC.Control AUtil.Audio1
     -> Resource.ResourceT IO
         ( Map DriverC.Control Audio.Block
         , Map DriverC.Control AUtil.Audio1
@@ -358,7 +358,7 @@ takeControls frames controlStreams = do
 -- | 'Audio.splitAt', but extend the final sample.  I need this because
 -- DriverC.render relies on all control blocks being the same length, for
 -- simplicity.
-takeExtend :: Monad m => Audio.Frame -> Audio.Audio m rate 1
+takeExtend :: Monad m => Audio.Frames -> Audio.Audio m rate 1
     -> m (Maybe (Audio.Block, Audio.Audio m rate 1))
 takeExtend frames audio = do
     (blocks_, audio) <- Audio.splitAt frames audio
@@ -380,7 +380,7 @@ rms :: V.Vector Float -> Float
 rms block =
     sqrt $ V.sum (V.map (\n -> n*n) block) / fromIntegral (V.length block)
 
-renderControls :: Audio.Frame -> Bool -> Int -> Set DriverC.Control
+renderControls :: Audio.Frames -> Bool -> Int -> Set DriverC.Control
     -> [Note.Note] -> RealTime -> Map DriverC.Control AUtil.Audio1
 renderControls controlSize triggered controlRate controls notes start =
     render <$> extractControls controlSize triggered controls
@@ -393,7 +393,7 @@ renderControls controlSize triggered controlRate controls notes start =
             Audio.castRate . Audio.linear @_ @cRate False . shiftBack
     shiftBack = map $ first $ subtract $ RealTime.to_seconds start
 
-extractControls :: Audio.Frame -> Bool -> Set DriverC.Control -> [Note.Note]
+extractControls :: Audio.Frames -> Bool -> Set DriverC.Control -> [Note.Note]
     -> Map DriverC.Control [(Double, Double)]
 extractControls controlSize triggered controls allNotes =
     Map.fromList $ filter (not . null . snd) $
@@ -413,7 +413,7 @@ extractControls controlSize triggered controls allNotes =
 -- the tweak in controlBreakpoints can't move the breakpoints and the first
 -- note gets initialization artifacts.  TODO implement proper <0 rendering,
 -- SamplerIm does it.
-tweakNotes :: Audio.Frame -> [Note.Note] -> [Note.Note]
+tweakNotes :: Audio.Frames -> [Note.Note] -> [Note.Note]
 tweakNotes controlSize notes = map (\n -> n { Note.start = dt }) at0 ++ rest
     where
     dt = AUtil.toSeconds controlSize
@@ -439,7 +439,7 @@ renderInput triggered notes start control
     -- controlSize=1 because input is per-sample.
     bps = controlBreakpoints 1 triggered control notes
 
-controlBreakpoints :: Audio.Frame -> Bool -> Control.Control -> [Note.Note]
+controlBreakpoints :: Audio.Frames -> Bool -> Control.Control -> [Note.Note]
     -> [(Double, Double)]
 controlBreakpoints controlSize triggered control
     | control == Control.gate = gateBreakpoints controlSize triggered
@@ -463,7 +463,7 @@ controlBreakpoints controlSize triggered control
 -- to another with the same element, the dip to zero likely won't be
 -- registered, so presumably the instrument will need some other signal if it
 -- cares about attacks of notes that touch.
-gateBreakpoints :: Audio.Frame -> Bool -> [Note.Note] -> [(Double, Double)]
+gateBreakpoints :: Audio.Frames -> Bool -> [Note.Note] -> [(Double, Double)]
 gateBreakpoints controlSize triggered =
     roundBreakpoints controlSize . if triggered then impulse else hold
     where
@@ -488,7 +488,7 @@ gateBreakpoints controlSize triggered =
             (n:ns)
 
 -- | Round controls to controlSize boundaries.  See NOTE [faust-controls].
-roundBreakpoints :: Audio.Frame -> [(RealTime, Signal.Y)] -> [(Double, Double)]
+roundBreakpoints :: Audio.Frames -> [(RealTime, Signal.Y)] -> [(Double, Double)]
 roundBreakpoints controlSize
     | controlSize == 1 = map (first RealTime.to_seconds)
     | otherwise = map (first (RealTime.to_seconds . roundTo size))

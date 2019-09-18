@@ -272,7 +272,7 @@ makeSampleNote emitMessage (Right sample, logs, note) = do
             -- Round the frame up.  Otherwise, since frames are integral, I
             -- might round a note to start before its signal, at which point I
             -- get an extraneous 0.
-            let start = Audio.secondsToFrameCeil Config.samplingRate
+            let start = Audio.secondsToFramesCeil Config.samplingRate
                     (RealTime.to_seconds (Note.start note))
             return $ Just $ Sample.Note
                 { start = start
@@ -283,12 +283,12 @@ makeSampleNote emitMessage (Right sample, logs, note) = do
 
 -- | It's important to get an accurate duration, because that determines
 -- overlap, which affects caching.
-actualDuration :: RealTime -> Sample.Sample -> IO Audio.Frame
+actualDuration :: RealTime -> Sample.Sample -> IO Audio.Frames
 actualDuration start sample = do
     fileDur <- RenderSample.predictFileDuration
         (Signal.shift (-start) (Sample.ratios sample))
         (Sample.filename sample)
-    let envDur = AUtil.toFrame <$>
+    let envDur = AUtil.toFrames <$>
             RenderSample.envelopeDuration start (Sample.envelope sample)
     return $ case envDur of
         Just dur -> min fileDur dur
