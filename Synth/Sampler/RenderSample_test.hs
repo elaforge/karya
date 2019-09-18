@@ -87,7 +87,7 @@ actualDuration config ratios dur =
     Num.sum . map (Audio.vectorFrames (Proxy @1))
     . Unsafe.unsafePerformIO
     . resample config ratios
-    . Audio.take (Audio.Frames dur) $ Audio.silence
+    . Audio.take dur $ Audio.silence
 
 resample :: Resample.Config -> Signal.Signal -> AUtil.Audio
     -> IO [Storable.Vector Audio.Sample]

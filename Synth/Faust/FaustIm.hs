@@ -134,7 +134,7 @@ writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
 writeControls output patch notes =
     forM_ controls $ \control -> Resource.runResourceT $
         Audio.File.write AUtil.outputFormat (fname control) $
-        Audio.take (Audio.Seconds final) $
+        Audio.takeS final $
         fromMaybe Audio.silence
         (Render.renderInput False notes 0 control :: Maybe AUtil.Audio1)
     where

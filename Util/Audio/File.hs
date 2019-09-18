@@ -65,18 +65,15 @@ duration = fmap (Audio.Frame . Sndfile.frames) . getInfo
 read :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     FilePath -> Audio.AudioIO rate channels
-read = readFrom (Audio.Frames 0)
+read = readFrom 0
 
 -- | Like 'readFrom', but return an action that closes the handle.  This is
 -- for Audio.takeClose, so it can close the file early if it terminates the
 -- stream early.
 readFromClose :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Audio.Duration -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
-readFromClose (Audio.Seconds secs) fname =
-    readFromClose (Audio.Frames (Audio.secondsToFrame rate secs)) fname
-    where rate = Audio.natVal (Proxy :: Proxy rate)
-readFromClose (Audio.Frames frame) fname = do
+    Audio.Frame -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
+readFromClose frame fname = do
     handle <- openRead fname
     return $ (close handle,) $ Audio.Audio $ do
         lift $ Resource.register (close handle)
@@ -88,11 +85,8 @@ readFromClose (Audio.Frames frame) fname = do
 
 readFrom :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Audio.Duration -> FilePath -> Audio.AudioIO rate channels
-readFrom (Audio.Seconds secs) fname =
-    readFrom (Audio.Frames (Audio.secondsToFrame rate secs)) fname
-    where rate = Audio.natVal (Proxy :: Proxy rate)
-readFrom (Audio.Frames frame) fname = Audio.Audio $ do
+    Audio.Frame -> FilePath -> Audio.AudioIO rate channels
+readFrom frame fname = Audio.Audio $ do
     (_, handle) <- lift $ Resource.allocate (openRead fname) close
     S.map Audio.Block $ readHandle rate chan frame fname handle
     where

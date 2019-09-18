@@ -41,10 +41,9 @@ test_mix2 = do
     equal (f [(0, [[0, 1, 2, 3]]), (1, [[4, 5]])])
         [0, 1, 2+4, 3+5]
 
-mixOffset :: (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+mixOffset :: TypeLits.KnownNat chan
     => [(Audio.Frame, Audio.AudioId rate chan)] -> Audio.AudioId rate chan
-mixOffset = Audio.mix
-    . map (\(f, audio) -> Audio.take (Audio.Frames f) Audio.silence <> audio)
+mixOffset = Audio.mix . map (\(f, audio) -> Audio.take f Audio.silence <> audio)
 
 test_monoid = do
     equal (toSamples mempty) []
@@ -134,7 +133,7 @@ test_synchronize = do
         [(Just [1], Just [2, 3])]
 
 test_linear = do
-    let f wanted = concat . toSamples @1 @1 . Audio.take (Audio.Frames wanted)
+    let f wanted = concat . toSamples @1 @1 . Audio.take wanted
             . Audio.linear True
     equal (f 2 []) [0, 0]
     equal (f 7 [(0, 4), (4, 0)]) [4, 3, 2, 1, 0, 0, 0]
@@ -147,7 +146,7 @@ test_linear = do
     equal (f 7 [(0, 0), (4, 4)]) [0, 1, 2, 3, 4, 4, 4]
 
 test_linear_not_forever = do
-    let f wanted = concat . toSamples @1 @1 . Audio.take (Audio.Frames wanted)
+    let f wanted = concat . toSamples @1 @1 . Audio.take wanted
             . Audio.linear False
     equal (f 2 []) [0]
     equal (f 2 [(0, 1)]) [1]
@@ -155,7 +154,7 @@ test_linear_not_forever = do
     equal (f 6 [(0, 0), (0, 1), (2, 0)]) [1, 0.5, 0]
 
 _test_linear_big = do
-    let f wanted = toSamples @44100 @1 . Audio.take (Audio.Seconds wanted)
+    let f wanted = toSamples @44100 @1 . Audio.takeS wanted
             . Audio.synchronizeToSize 0 Audio.blockSize
             . Audio.linear True
     let blocks = f 0.55

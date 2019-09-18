@@ -192,7 +192,7 @@ render config outputDir initialStates notifyState trackIds notes start =
             -- Since I'm inside Audio.Audio, I don't have srate available, so
             -- I have to set it for Audio.silence2.
             then Audio._stream @_ @Config.SamplingRate $
-                Audio.take (Audio.Frames blockSize) (Audio.silence @_ @2)
+                Audio.take blockSize (Audio.silence @_ @2)
             else S.yield $ Audio.Block $
                 Audio.mixV (AUtil.framesCount2 blockSize)
                     (map Audio.blockVector blocks)

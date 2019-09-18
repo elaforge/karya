@@ -335,7 +335,7 @@ renderDirect filename dur samples = do
     audios <- mapM (RenderSample.render config 0) samples
     Resource.runResourceT $
         Audio.File.write AUtil.outputFormat filename $
-        Audio.take (Audio.Seconds dur) $ Audio.mix audios
+        Audio.takeS dur $ Audio.mix audios
     where
     config = Resample.Config
         { _quality = Resample.SincFastest

@@ -33,7 +33,7 @@ import           Synth.Types
 
 render :: Resample.Config -> RealTime -> Sample.Sample -> IO AUtil.Audio
 render config start (Sample.Sample filename offset envelope pan ratios) = do
-    (close, audio) <- File.readFromClose (Audio.Frames offset) filename
+    (close, audio) <- File.readFromClose offset filename
     return $
         applyPan nowS pan $
         applyEnvelope close nowS envelope $
@@ -72,7 +72,7 @@ resample config ratiosUnshifted start audio
     -- The resample always starts at 0 in the ratios, so shift it back to
     -- account for when the sample starts.
     ratios = Signal.shift (-sampleStart) ratiosUnshifted
-    silence = Audio.take (Audio.Frames silenceF) Audio.silence
+    silence = Audio.take silenceF Audio.silence
     silenceF = max 0 (AUtil.toFrame start - Resample._now config)
     state = Resample._state config
     -- More or less a semitone / 100 cents / 10.  Anything narrower than this
@@ -91,7 +91,7 @@ applyEnvelope close start sig
     | otherwise = AUtil.volume $ clipEnd $ realizeSignal start sig
     where
     clipEnd = maybe id
-        (Audio.takeClose (liftIO close) . Audio.Seconds . RealTime.to_seconds)
+        (Audio.takeCloseS (liftIO close) . RealTime.to_seconds)
         (envelopeDuration start sig)
 
 applyPan :: RealTime -> Signal.Signal -> AUtil.Audio -> AUtil.Audio

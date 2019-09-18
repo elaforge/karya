@@ -14,11 +14,10 @@ import Global
 
 t_mix out = write out $ Audio.mix
     [ File.read44k "g1.wav"
-    , Audio.take (Audio.Seconds 0.5) Audio.silence
-        <> File.read44k "g1.wav"
+    , Audio.takeS 0.5 Audio.silence <> File.read44k "g1.wav"
     ]
 
-t_sine = write "sine.wav" $ Audio.take (Audio.Seconds 1) $ Audio.sine 440
+t_sine = write "sine.wav" $ Audio.takeS 1 $ Audio.sine 440
 
 t_multiply = write "multiply.wav" $ Audio.multiply
     (Audio.mergeChannels

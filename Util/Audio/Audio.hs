@@ -21,7 +21,6 @@ module Util.Audio.Audio (
     , UnknownAudio(..), UnknownAudioIO
     , Block(..)
     , Sample, Frame(..), secondsToFrame, secondsToFrameCeil, frameToSeconds
-    , Duration(..)
     , Count, Channels, Rate, Seconds
     , framesCount, countFrames, blockFrames, vectorFrames
     , blockCount, isEmptyBlock, blockSamples, blockVector
@@ -30,8 +29,8 @@ module Util.Audio.Audio (
     , toBlocks, toSamples, toBlocksN, toSamplesN
     -- * transform
     , castRate
-    , take, mapSamples, gain, multiply
-    , takeClose
+    , take, takeS, mapSamples, gain, multiply
+    , takeClose, takeCloseS
     , pan, panConstant
     -- * mix
     , mix
@@ -151,9 +150,6 @@ type UnknownAudioIO = UnknownAudio (Resource.ResourceT IO)
 -- work with any other format.
 type Sample = Float
 
-data Duration = Frames !Frame | Seconds !Seconds
-    deriving (Eq, Show)
-
 -- | Sample count.  This is Frame * channels.
 type Count = Int
 type Channels = Int
@@ -271,22 +267,30 @@ toSamplesN = fmap (map (map blockVector)) . toBlocksN
 castRate :: Audio m rate1 chan -> Audio m rate2 chan
 castRate (Audio stream) = Audio stream
 
-take :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
-    => Duration -> Audio m rate chan -> Audio m rate chan
+take :: forall m rate chan. (Monad m, KnownNat chan)
+    => Frame -> Audio m rate chan -> Audio m rate chan
 take = takeClose (return ())
+
+takeS :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
+    => Seconds -> Audio m rate chan -> Audio m rate chan
+takeS = takeCloseS (return ())
 
 -- | This is like 'take', but it takes a close action to run when the audio
 -- stream is terminated.  This is because streaming can't otherwise close
 -- the input file in a timely way, because the take can't tell upstream that
 -- it will never demand another chunk.  This appears to be a problem with all
 -- pull-based streaming libraries, including pipes and conduit.
-takeClose :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
-    => m () -> Duration -> Audio m rate chan -> Audio m rate chan
-takeClose close (Seconds seconds) audio
+
+takeCloseS :: forall m rate chan. (Monad m, KnownNat rate, KnownNat chan)
+    => m () -> Seconds -> Audio m rate chan -> Audio m rate chan
+takeCloseS close seconds audio
     | seconds <= 0 = mempty
     | otherwise = takeClose close
-        (Frames (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds)) audio
-takeClose close (Frames frames) (Audio audio)
+        (secondsToFrame (natVal (Proxy :: Proxy rate)) seconds) audio
+
+takeClose :: forall m rate chan. (Monad m, KnownNat chan)
+    => m () -> Frame -> Audio m rate chan -> Audio m rate chan
+takeClose close frames (Audio audio)
     | frames <= 0 = Audio $ lift close
     | otherwise = Audio $ Control.loop1 (0, audio) $
         \loop (now, audio) -> lift (S.uncons audio) >>= \case
@@ -300,7 +304,7 @@ takeClose close (Frames frames) (Audio audio)
                 where
                 end = now + blockFrames chan block
                 left = framesCount chan (min frames end - now)
-        where chan = Proxy :: Proxy chan
+    where chan = Proxy :: Proxy chan
 
 mapSamples :: Monad m => (Float -> Float) -> Audio m rate chan
     -> Audio m rate chan

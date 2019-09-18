@@ -193,8 +193,7 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
         -- in some special logic to detect that and reset the state, which
         -- means notes have to be stateless.
         silence = Audio.synchronizeToSize 0 (_blockSize config) $
-            Audio.take (Audio.Seconds (RealTime.to_seconds silenceS))
-                Audio.silence
+            Audio.takeS (RealTime.to_seconds silenceS) Audio.silence
         firstNote = maybe 0 Note.start $ Seq.head $
             dropWhile ((==0) . Note.initial0 Control.dynamic) notes
         -- Emit silence from the start time until the first note, if there is
