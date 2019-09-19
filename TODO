@@ -1589,6 +1589,11 @@ synth: im:
   bug:
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
+      . It's because I don't trim the signals before doing the hash.
+      . For faust, I can trim signals to the start of the next note, if I
+        can assume they are not relying on previous state.  Well, next note
+        with the same element... but this means notes rely on previous state.
+      . For samples, I can trim signals past the end of the envelope.
     - starts are getting cut off again
       . Give more lead time to load the samples?
   merge faust-im and sampler-im:
@@ -1680,17 +1685,6 @@ synth: im:
           0.25t, it will be too low if a note is shorter than that.  RealTime
           determines where I'm likely to have zoom set.
         . Can I detect constant tempo and only emit one point?
-      . More fancy, I could render the wave in the background as it renders.
-        I'd need to research "peaks" file and generate one of those along with
-        the audio.
-      . Actually I can probably just keep an in-memory cache.
-      . Audacity does that, but are there any smaller simpler audio displays
-        I can use for reference?
-        . https://github.com/rncbc/qtractor/blob/master/src/qtractorAudioPeak.h
-        . https://stackoverflow.com/questions/41814166/plot-an-audio-waveform-in-c-qt?rq=1
-        . https://stackoverflow.com/questions/37554058/fast-display-of-waveform-in-c-c#
-        . https://github.com/nzaillian/WaveformWidget
-      notes:
   cleanup:
     - put state callback into the audio stream: NOTE [audio-state]
     - put ScoreTypes.Instrument and ScoreTypes.Control in a Shared.Types so
@@ -1993,27 +1987,6 @@ synth: im:
         want that.  But I can probably do without in the beginning, if I get
         incremental audio.
   audio:
-    make Audio.linear more efficient
-      * reuse buffers for flat signals
-      . E.g. [(0, 0), (1, 0), ...] should just be Signal.constant 0.
-      . Various functions like Audio.linear go through some hassle to create
-        constant chunks efficiently.  But it still doesn't reuse buffers for
-        constant segments in the middle of a sequence, which may be pretty
-        common for a sparse instrument.
-        . Of course for the sparse instrument I want to detect the gap and
-          deactivate then anyway.
-        . Maybe I should switch back to Chunk Vector | Constant Frame Float
-        . This would subsume Chunk | Silent.
-        . I stopped doing that because it was annoying to handle in Resample,
-          but why can't I just map through a Chunk -> Vector if I don't want to
-          deal with them?
-        . And even if I deactivate the instrument during gaps, I need to
-          represent them, so I still need some kind of efficient Silent for
-          NAudio.
-        . Ultimately I want to be able to have a faust instrument with a control
-          which is constant, and not really pay for it.  So faust should be
-          seeing the same buffer too.  Since I reuse Vector buffers directly
-          I think this should already happen.
     - integrate freeverb for reverb and filters
       . Or why not just use faust integration?  I think it has the same
         algorithm?
@@ -5218,6 +5191,9 @@ text score: tscore:
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
   bug:
+    - ruler duration doesn't seem to change
+    - if I delete a block, I get
+      keys collided in "state_blocks": [(bid "faust/test")]
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".
@@ -5510,7 +5486,7 @@ text score: tscore:
     . Also endings change depending on where they are going.
     . Copy from block should be able to do this.  But since it's time-locked,
       it wouldn't work for an alternate beginning.
-  negative durations:
+  * negative durations:
     . So I can put beats at the end:
        e o u e | i o a i | ~ o ~ e |
          o-2 e |   o   i |   ~   e |
@@ -5533,6 +5509,12 @@ text score: tscore:
       beat, rather than before it?
       . That's probably not enough because I still want to say the block ends
         with a note, not starts with one.
+    . Maybe they should be only for zero duration notes, where I notate the
+      duration via explicit damping.
+    . Durations are 0, and the note starts go to the end of the duration.
+    . But I might be able to resolve barlines as normal before that.
+    . It works, but it just pushed the problem to the tracklang, where it's
+      the same as it always has been...
   / How to do numbered repeats?
     . If I have a repeat last note thing above, then just attach a number to
       it: '4s .4' or '4s ~4'

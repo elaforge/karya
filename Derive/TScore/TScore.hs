@@ -350,7 +350,7 @@ resolve_blocks get_ext_dur source blocks =
     map (fmap (fmap make_track)) $ Map.elems resolved_notes
     where
     resolved_notes :: Map Id.BlockId
-        (Block (Either Error (([ResolvedNote], Text, Text), T.Time)))
+        (Block (Either Error ((Bool, [ResolvedNote], Text, Text), T.Time)))
     resolved_notes = Map.fromList
         [(_block_id block, resolve_block block) | block <- blocks]
     -- Memoized duration of blocks.
@@ -358,7 +358,7 @@ resolve_blocks get_ext_dur source blocks =
     block_durations = Map.mapWithKey block_duration resolved_notes
 
     -- Convert [ResolvedNote] to NTrack.
-    make_track ((notes, key, title), end) = NTrack
+    make_track ((negative, notes, key, title), end) = NTrack
         { _note = Track
             { _title = if title == "" then ">" else title
             , _events = Events.from_list $ map (uncurry note_event) notes
@@ -370,7 +370,9 @@ resolve_blocks get_ext_dur source blocks =
             }
         , _end = end
         }
-        where pitches = map pitch_event $ Seq.map_maybe_snd T.note_pitch notes
+        where
+        pitches = map (pitch_event negative) $
+            Seq.map_maybe_snd T.note_pitch notes
 
     resolve_block block = block
         { _tracks = resolve_tracks (_block_id block) (_block_title block)
@@ -382,7 +384,7 @@ resolve_blocks get_ext_dur source blocks =
             (tracknum, ParsedTrack config key title tokens _pos) =
         (Just $ fromMaybe asserts mb_asserts,) $ first (T.show_error source)$ do
             whenJust (Seq.head errs) Left
-            let to_tracks = map (fmap ((\(notes, _, _) -> notes) . fst))
+            let to_tracks = map (fmap ((\(_, notes, _, _) -> notes) . fst))
                     . _tracks
             mb_from_track <- case Check.config_from config of
                 Just from -> Just <$> do
@@ -394,7 +396,7 @@ resolve_blocks get_ext_dur source blocks =
             notes <- resolve_copy_from mb_from_track uncopied
             whenJust mb_asserts $ \prev ->
                 whenJust (match_asserts prev asserts notes) Left
-            return ((notes, key, title), end)
+            return ((Check.config_negative config, notes, key, title), end)
         where
         ((metas, uncopied), end) = first Either.partitionEithers $
             Check.check (get_dur (to_transformers block_title title) block_id)
@@ -799,8 +801,9 @@ note_event start note =
             else track_time (T.note_duration note))
         (T.note_call note)
 
-pitch_event :: (T.Time, T.PitchText) -> Event.Event
-pitch_event (start, pitch) = add_stack $ Event.event (track_time start) 0 pitch
+pitch_event :: Bool -> (T.Time, T.PitchText) -> Event.Event
+pitch_event negative (start, pitch) = add_stack $
+    Event.event (track_time start) (if negative then -0 else 0) pitch
 
 track_time :: T.Time -> TrackTime
 track_time = realToFrac

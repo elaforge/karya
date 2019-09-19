@@ -59,6 +59,9 @@ data Config = Config {
     , config_scale :: !Scale
     , config_duration :: !DurationMode
     , config_from :: !(Maybe From)
+    -- | Use negative durations.  Notes arrive at beats instead of departing
+    -- from them.
+    , config_negative :: !Bool
     } deriving (Show)
 
 -- | The target of a 'T.CopyFrom'.
@@ -78,6 +81,7 @@ default_config = Config
     , config_scale = scale_sargam
     , config_duration = Multiplicative
     , config_from = Nothing
+    , config_negative = False
     }
 
 parse_directives :: Scope -> Config -> [T.Directive] -> Either T.Error Config
@@ -90,16 +94,19 @@ data Scope = Global | Block | Track
 parse_directive :: Scope -> T.Directive -> Config -> Either T.Error Config
 parse_directive scope (T.Directive pos name maybe_val) config =
     first (T.Error pos . ((name<>": ")<>)) $ case name of
-        "meter" -> set_config (\c a -> c { config_meter = a }) parse_meter
-            =<< with_arg
-        "scale" -> set_config (\c a -> c { config_scale = a })
-            (`Map.lookup` scale_map) =<< with_arg
         "dur" -> set_config (\c a -> c { config_duration = a })
             (`Map.lookup` duration_map) =<< with_arg
         -- f for from.  This is abbreviated because it shows up per-track.
         "f" -> do
             from <- parse_from scope pos =<< with_arg
             return $ config { config_from = Just from }
+        "meter" -> set_config (\c a -> c { config_meter = a }) parse_meter
+            =<< with_arg
+        "negative" -> without_arg >> return (config { config_negative = True })
+        "scale" -> set_config (\c a -> c { config_scale = a })
+            (`Map.lookup` scale_map) =<< with_arg
+        -- default_call affects parsing, so I don't handle it here, but
+        -- I can make sure it doesn't have an argument.
         _ | name == Parse.default_call -> without_arg >> Right config
         _ -> Left $ "unknown directive: " <> name
     where
@@ -167,10 +174,11 @@ check :: GetCallDuration -> Config
             (T.Time, T.Note T.CallText (T.NPitch (Maybe T.PitchText)) T.Time)]
        , T.Time
        )
-check get_dur (Config meter scale dur_mode _) =
+check get_dur (Config meter scale dur_mode _ negative) =
     Tuple.swap
     . fmap (map EList.toEither)
     . fmap (resolve_pitch scale)
+    . (if negative then time_to_negative else id)
     . resolve_time
     . check_barlines meter
     . resolve_duration dur_mode
@@ -344,6 +352,14 @@ make_labeled dur =
     Meter.label_meter Meter.default_config . Meter.make_meter dur . (:[])
 
 -- ** resolve_time
+
+time_to_negative ::
+    (T.Time, Stream (T.Time, T.Note call pitch T.Time))
+    -> (T.Time, Stream (T.Time, T.Note call pitch T.Time))
+time_to_negative (end, stream) = (end, EList.map invert stream)
+    where
+    invert (start, note) = (start + dur, note { T.note_duration = -dur })
+        where dur = T.note_duration note
 
 -- | Remove TBarline and TRest, add start times, and resolve ties.
 resolve_time :: (Eq pitch, Pretty pitch)

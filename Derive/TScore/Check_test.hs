@@ -138,6 +138,18 @@ test_check_barlines = do
     left_like (f "b = %meter=adi [s1 r g || m | p d | n s ||]")
         "saw ||, next beat of that rank is 8"
 
+test_check_barlines_negative = do
+    let f negative = map extract . check config . parse
+            where
+            config = Check.default_config
+                { Check.config_negative = negative }
+        extract = bimap pretty $ fmap (fromMaybe "" . T.note_pitch)
+    equal (f False "4s2 r | g m") $ map Right
+        [(0, "4s"), (1/2, "4r"), (1, "4g"), (3/2, "4m")]
+    -- --s --r | --g --m |
+    equal (f True "4s2 r | g m") $ map Right
+        [(1/2, "4s"), (1, "4r"), (3/2, "4g"), (2, "4m")]
+
 test_multiplicative = do
     let f = map (fmap (fmap fst . e_ndur)) . Check.multiplicative . parse_cdur
         rjs = map (EList.Elt . Just)

@@ -84,9 +84,8 @@ update_config directives config
     | otherwise = config
 
 default_call_set :: [T.Directive] -> Bool
-default_call_set directives =
-    maybe False (maybe True (/="f")) $
-    Seq.last [val | T.Directive _ name val <- directives, name == default_call]
+default_call_set directives = not $ null
+    [() | T.Directive _ name _ <- directives, name == default_call]
 
 default_call :: Text
 default_call = "default-call"
