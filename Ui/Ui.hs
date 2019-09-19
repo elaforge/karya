@@ -95,7 +95,7 @@ module Ui.Ui (
     , set_track_ruler
     , merge_track, unmerge_track, set_merged_tracks
     , track_merged
-    , set_ruler_ids, replace_ruler_id
+    , set_ruler_ids, replace_ruler_id, set_ruler_id
     , get_tracklike
 
     -- * track
@@ -1084,20 +1084,26 @@ set_ruler_ids block_id ruler_ids = modify_block block_id $ \block -> block
         }
     set track Nothing = track
 
+set_ruler_id :: M m => BlockId -> RulerId -> m ()
+set_ruler_id block_id ruler_id = modify_ruler_id block_id (const ruler_id)
+
 -- | Replace one RulerId with another on the given block.
 --
 -- It's more convenient to do here than removing and inserting tracks, and easy
 -- since there's no "one per block" invariant to maintain with ruler ids.
 replace_ruler_id :: M m => BlockId -> RulerId -> RulerId -> m ()
-replace_ruler_id block_id from to = modify_block block_id $ \block ->
+replace_ruler_id block_id from to =
+    modify_ruler_id block_id $ \rid -> if rid == from then to else from
+
+modify_ruler_id :: M m => BlockId -> (RulerId -> RulerId) -> m ()
+modify_ruler_id block_id modify = modify_block block_id $ \block ->
     block { Block.block_tracks = map replace_track (Block.block_tracks block) }
     where
     replace_track track = track
         { Block.tracklike_id = replace (Block.tracklike_id track) }
-    replace tlike_id
-        | Block.ruler_id_of tlike_id == Just from =
-            Block.set_ruler_id to tlike_id
-        | otherwise = tlike_id
+    replace tlike_id = case Block.ruler_id_of tlike_id of
+        Just rid -> Block.set_ruler_id (modify rid) tlike_id
+        Nothing -> tlike_id
 
 -- | Resolve a TracklikeId to a Tracklike.
 get_tracklike :: M m => Block.TracklikeId -> m Block.Tracklike

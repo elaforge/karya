@@ -5191,7 +5191,7 @@ text score: tscore:
       make tscore into a section of the ky file?  This will make syntax
       highlighting more complicated if tscore further diverges from ky.
   bug:
-    - ruler duration doesn't seem to change
+    * ruler duration doesn't seem to change
     - if I delete a block, I get
       keys collided in "state_blocks": [(bid "faust/test")]
     - adding pitches to a track that didn't have one can insert a pitch track

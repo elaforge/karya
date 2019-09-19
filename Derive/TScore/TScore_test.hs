@@ -245,6 +245,19 @@ test_integrate = do
         , [1, 0, 1]
         ]
 
+test_integrate_block_duration = do
+    let run state = Ui.exec state . TScore.integrate get_ext_dur
+        extract ui = Ui.eval ui $ mapM Ui.block_end $ Map.keys $
+            Ui.state_blocks ui
+    let state = expect_right $ run Ui.empty "b = [s r g]"
+    right_equal (extract state) [3]
+    state <- return $ expect_right $ Ui.exec state $
+        TScore.integrate get_ext_dur "b = [s r g m]"
+    right_equal (extract state) [4]
+    state <- return $ expect_right $ Ui.exec state $
+        TScore.integrate get_ext_dur "b = [s r]"
+    right_equal (extract state) [2]
+
 test_integrate_misc = do
     let run state = Ui.exec state . TScore.integrate get_ext_dur
     let extract = UiTest.extract_blocks

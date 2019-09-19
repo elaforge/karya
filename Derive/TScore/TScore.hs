@@ -541,7 +541,8 @@ integrate_block block = do
             Ui.create_block (Id.unpack_id block_id) (_block_title block)
                 [Block.track (Block.RId ruler_id) Config.ruler_width]
             return ([], True)
-        Just exist ->
+        Just exist -> do
+            Ui.set_ruler_id block_id ruler_id
             case Map.lookup source_key (Block.block_integrated_manual exist) of
                 Nothing -> Ui.throw $
                     "block from tscore already exists: " <> pretty block_id
