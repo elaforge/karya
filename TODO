@@ -465,7 +465,10 @@ UNSORTED
           I'd have to do something about exceptions, maybe put it in as
           a Metadata too.  If I can make the whole derivation fully streaming
           then this might be a big win.
-  - Adding a new track puts a bit of extra padding on the right side.
+  * Adding a new track puts a bit of extra padding on the right side.
+    . Create.widen gets it too high, but Views.resize_to_fit gets it right.
+      w = Num.sum $ map Block.display_track_width (Block.block_tracks block)
+    . But Create also uses Views.contents_rect!
   tabuh gari:
     - octaves notation for trompong
     - octaves for gender rambat
@@ -1586,6 +1589,10 @@ synth: im:
     . If I could have them return Stream (Of (Block, State)), then the
       sketchy IORef stuff could go away, and the alignment would be in the
       type instead of implicit.
+    . But I actually want the freedom to have differing block sizes, as
+      convenient, and then slice them, and the State only comes at the end.
+      And besides, if I want to be zero-copy then I still have that unsafe
+      pointer problem.
   bug:
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
@@ -2400,7 +2407,7 @@ synth: im:
         all the time, as was the original plan.
       . This also means I don't use faust's built-in default values, but have
         to export them out to karya so it can set them explicitly.
-    tambura.dsp:
+    tambura:
       * try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
@@ -2419,6 +2426,13 @@ synth: im:
             for per-string, and one for everything.
           . Infer: A note whose end touches the start of another isn't damped,
             otherwise damp at note end.
+        . I could turn down decay, which turns down feedback.  But feedback is
+          just a flat multiply, and it seems like a should have a frequency
+          dependent damping.  'damp' under high-freq-loss affects this,
+          experiment with it.
+        . high-freq-loss has no audible effect.
+        - Write to Oli Larkin about the damping bug.
+          . Also bend_depth bug.
       / I won't need the autoplucker.
         But it's convenient for testing.
       - tambura variations should be able to share preview sounds.
@@ -5194,6 +5208,9 @@ text score: tscore:
     * ruler duration doesn't seem to change
     - if I delete a block, I get
       keys collided in "state_blocks": [(bid "faust/test")]
+      . I can't reproduce this now, deleting the block just disconnects from
+        integration.
+      . It would be nice to change the text style to non-integrated though.
     - adding pitches to a track that didn't have one can insert a pitch track
       on the left side of the note track.
       . E.g. "[s r]/0" then append "g m".

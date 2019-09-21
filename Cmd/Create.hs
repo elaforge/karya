@@ -45,8 +45,8 @@ import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * global modifications
@@ -436,9 +436,9 @@ widen :: Ui.M m => ViewId -> m ()
 widen view_id = do
     view <- Ui.get_view view_id
     embiggened <- Views.contents_rect view
-    let rect = Block.track_rect view
+    let rect = Block.view_rect view
     when (Rect.rw embiggened > Rect.rw rect) $
-        Ui.set_view_rect view_id $ Block.set_track_rect view $
+        Ui.set_view_rect view_id $
             Rect.resize (Rect.rw embiggened) (Rect.rh rect) rect
 
 empty_track :: Ui.M m => BlockId -> TrackNum -> m TrackId

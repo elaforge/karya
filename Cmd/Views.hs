@@ -61,6 +61,7 @@ modify_zoom view_id modify = do
 
 -- * size
 
+-- | Resize a window to fit its tracks.
 resize_to_fit :: Cmd.M m => Bool -- ^ maximize the window vertically
     -> ViewId -> m ()
 resize_to_fit maximize view_id = do
