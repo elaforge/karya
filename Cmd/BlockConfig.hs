@@ -124,10 +124,10 @@ cmd_open_block align_new_view = do
 align_view_to :: Cmd.M m => Block.View -> TrackTime -> TrackTime -> ViewId
     -> m ()
 align_view_to parent start end view_id = do
-    let x = Rect.rr $ Block.view_rect parent
+    let x = Rect.r $ Block.view_rect parent
         top = Block.screen_pixels parent start
         bottom = Block.screen_pixels parent end
-    width <- Rect.rw . Block.track_rect <$> Ui.get_view view_id
+    width <- Rect.w . Block.track_rect <$> Ui.get_view view_id
     Views.set_track_rect view_id $ Rect.xywh x top width (bottom - top)
     Views.zoom_to_ruler view_id
 

@@ -399,8 +399,7 @@ instance Serialize Block.Padding where
             _ -> Serialize.bad_version "Block.Padding" v
 
 instance Serialize Rect.Rect where
-    put r = put (Rect.rx r) >> put (Rect.ry r) >> put (Rect.rw r)
-        >> put (Rect.rh r)
+    put r = put (Rect.x r) >> put (Rect.y r) >> put (Rect.w r) >> put (Rect.h r)
     get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
         return (Rect.xywh a b c d)
 

@@ -127,8 +127,7 @@ resize_all = mapM_ (Views.resize_to_fit False) =<< Ui.all_view_ids
 -- again with any rectangles that wind up totally outside the screen.
 fit_rects :: Rect.Rect -> [(ViewId, Rect.Rect)] -> [(ViewId, Rect.Rect)]
 fit_rects screen =
-    redo_outside . foldl' fit []
-        . Seq.sort_on (\(_, r) -> (Rect.rx r, Rect.ry r))
+    redo_outside . foldl' fit [] . Seq.sort_on (\(_, r) -> (Rect.x r, Rect.y r))
     where
     fit windows (view_id, rect) = case Seq.head (sort rect corners) of
         Just (x, y) -> (view_id, Rect.place x y rect) : windows
@@ -176,7 +175,7 @@ horizontal_tile = mapM_ (uncurry tile_screen) =<< windows_by_screen
     tile_screen screen view_rects =
         zipWithM_ Ui.set_view_rect view_ids $
             horizontal_tile_rects screen rects
-        where (view_ids, rects) = unzip (Seq.sort_on (Rect.rx . snd) view_rects)
+        where (view_ids, rects) = unzip (Seq.sort_on (Rect.x . snd) view_rects)
 
 windows_by_screen :: Cmd.M m => m [(Rect.Rect, [(ViewId, Rect.Rect)])]
 windows_by_screen = do
@@ -191,11 +190,11 @@ windows_by_screen = do
 horizontal_tile_rects :: Rect.Rect -> [Rect.Rect] -> [Rect.Rect]
 horizontal_tile_rects screen rects = zipWith place rects xs
     where
-    place rect x = Rect.place x (Rect.ry screen) rect
-    xs = scanl (+) (Rect.rx screen) (map (subtract overlap . Rect.rw) rects)
+    place rect x = Rect.place x (Rect.y screen) rect
+    xs = scanl (+) (Rect.x screen) (map (subtract overlap . Rect.w) rects)
     overlap = case rects of
         _ : _ : _ -> max 0 $
-            (Num.sum (map Rect.rw rects) - Rect.rw screen)
+            (Num.sum (map Rect.w rects) - Rect.w screen)
                 `div` (length rects - 1)
         -- 0 or 1 rects are not going to have any overlap.
         _ -> 0
@@ -227,10 +226,10 @@ move_focus dir = do
     let get_rects cmp f = Seq.sort_on snd $ filter ((`cmp` f focused) . snd) $
             map (second f) rects
     let next = case dir of
-            East -> Seq.head $ get_rects (>) Rect.rx
-            West -> Seq.last $ get_rects (<) Rect.rx
-            South -> Seq.head $ get_rects (>) Rect.ry
-            North -> Seq.last $ get_rects (<) Rect.ry
+            East -> Seq.head $ get_rects (>) Rect.x
+            West -> Seq.last $ get_rects (<) Rect.x
+            South -> Seq.head $ get_rects (>) Rect.y
+            North -> Seq.last $ get_rects (<) Rect.y
     whenJust next $ Cmd.focus . fst
 
 -- * create views

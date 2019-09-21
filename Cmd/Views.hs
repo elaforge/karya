@@ -73,12 +73,12 @@ resize_to_fit maximize view_id = do
     where
     -- Move the rect over so it fits on the screen.
     scootch screen r = Rect.place
-        (Num.clamp (Rect.rx screen) (Rect.rr screen - Rect.rw r) (Rect.rx r))
-        (Num.clamp (Rect.ry screen) (Rect.rb screen - Rect.rh r) (Rect.ry r))
+        (Num.clamp (Rect.x screen) (Rect.r screen - Rect.w r) (Rect.x r))
+        (Num.clamp (Rect.y screen) (Rect.b screen - Rect.h r) (Rect.y r))
         r
     max_height screen r = Rect.xywh
-        (Rect.rx r) (Rect.ry screen)
-        (Rect.rw r) (Rect.rh screen - Config.window_decoration_h)
+        (Rect.x r) (Rect.y screen)
+        (Rect.w r) (Rect.h screen - Config.window_decoration_h)
 
 -- | Get the View's Rect, resized to fit its contents at its current zoom.  Its
 -- position is unchanged.

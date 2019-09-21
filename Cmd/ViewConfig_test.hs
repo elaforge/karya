@@ -16,7 +16,7 @@ test_horizontal_tile_rects = do
     let f screen rs = map extract $
             ViewConfig.horizontal_tile_rects (mkrect screen) (map mkrect rs)
         mkrect (x, y, w, h) = Rect.xywh x y w h
-        extract r = (Rect.rx r, Rect.ry r, Rect.rw r, Rect.rh r)
+        extract r = (Rect.x r, Rect.y r, Rect.w r, Rect.h r)
     equal (f (8, 8, 8, 8) []) []
     equal (f (8, 8, 8, 8) [(1, 1, 2, 1)]) [(8, 8, 2, 1)]
     equal (f (8, 8, 8, 8) [(1, 1, 16, 16)]) [(8, 8, 16, 16)]
@@ -50,4 +50,4 @@ rect :: (Int, Int, Int, Int) -> Rect.Rect
 rect (x, y, w, h) = Rect.xywh x y w h
 
 unrect :: Rect.Rect -> (Int, Int, Int, Int)
-unrect r = (Rect.rx r, Rect.ry r, Rect.rw r, Rect.rh r)
+unrect r = (Rect.x r, Rect.y r, Rect.w r, Rect.h r)

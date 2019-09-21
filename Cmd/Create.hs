@@ -248,7 +248,7 @@ view block_id = do
     rect <- Block.view_rect <$> Ui.get_view view_id
     others <- Ui.gets $ filter (\r -> r /= rect && Rect.overlaps r screen)
         . map Block.view_rect . Map.elems . Ui.state_views
-    let (x, y) = find_rect (Just screen) (Rect.rw rect, Rect.rh rect) others
+    let (x, y) = find_rect (Just screen) (Rect.w rect, Rect.h rect) others
     Ui.set_view_rect view_id (Rect.place x y rect)
     return view_id
 
@@ -437,9 +437,9 @@ widen view_id = do
     view <- Ui.get_view view_id
     embiggened <- Views.contents_rect view
     let rect = Block.view_rect view
-    when (Rect.rw embiggened > Rect.rw rect) $
+    when (Rect.w embiggened > Rect.w rect) $
         Ui.set_view_rect view_id $
-            Rect.resize (Rect.rw embiggened) (Rect.rh rect) rect
+            Rect.resize (Rect.w embiggened) (Rect.h rect) rect
 
 empty_track :: Ui.M m => BlockId -> TrackNum -> m TrackId
 empty_track block_id tracknum = track block_id tracknum "" Events.empty
@@ -569,17 +569,17 @@ find_rect maybe_screen (w, _h) rects =
     -- First pick holes that fit, by increasing size, then pick the ones
     -- that don't fit, by decreasing size.
     delta rect = (if diff == 0 then -1 else negate (signum diff), abs diff)
-        where diff = Rect.rw rect - w
+        where diff = Rect.w rect - w
     holes = case maybe_screen of
         Nothing -> [Rect.xywh right 0 1 1]
         Just screen -> find_holes rects screen
-    right = maximum $ 0 : map Rect.rr rects
+    right = maximum $ 0 : map Rect.r rects
 
 find_holes :: [Rect.Rect] -> Rect.Rect -> [Rect.Rect]
 find_holes rects screen = case Ranges.extract ranges of
     Nothing -> [screen]
-    Just rs -> [Rect.xywh x1 (Rect.ry screen) (x2-x1) (Rect.rh screen)
+    Just rs -> [Rect.xywh x1 (Rect.y screen) (x2-x1) (Rect.h screen)
         | (x1, x2) <- rs]
     where
-    extent r = (Rect.rx r, Rect.rr r)
+    extent r = (Rect.x r, Rect.r r)
     ranges = Ranges.invert (extent screen) $ Ranges.ranges $ map extent rects

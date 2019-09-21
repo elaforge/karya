@@ -128,7 +128,7 @@ create_view view_id window_title rect block_config =
                 c_create (i x) (i y) (i w) (i h) titlep configp
         return $ Map.insert view_id viewp ptr_map
     where
-    (x, y, w, h) = (Rect.rx rect, Rect.ry rect, Rect.rw rect, Rect.rh rect)
+    (x, y, w, h) = (Rect.x rect, Rect.y rect, Rect.w rect, Rect.h rect)
     i = CUtil.c_int
 
 foreign import ccall "create"
@@ -169,7 +169,7 @@ set_size view_id rect = fltk "set_size" (view_id, rect) $ do
     c_set_size viewp (i x) (i y) (i w) (i h)
     where
     i = CUtil.c_int
-    (x, y, w, h) = (Rect.rx rect, Rect.ry rect, Rect.rw rect, Rect.rh rect)
+    (x, y, w, h) = (Rect.x rect, Rect.y rect, Rect.w rect, Rect.h rect)
 foreign import ccall "set_size"
     c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 

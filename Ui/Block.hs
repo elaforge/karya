@@ -627,29 +627,29 @@ visible_track = view_visible_track
 -- extra GUI bits around it.
 track_rect :: View -> Rect.Rect
 track_rect (View { view_rect = rect, view_padding = padding }) = Rect.Rect
-    { rx = Rect.rx rect + left padding
-    , ry = Rect.ry rect + top padding
-    , rw = Rect.rw rect - left padding
-    , rh = Rect.rh rect - top padding - bottom padding
+    { x = Rect.x rect + left padding
+    , y = Rect.y rect + top padding
+    , w = Rect.w rect - left padding
+    , h = Rect.h rect - top padding - bottom padding
     }
 
 -- | The inverse of 'track_rect'  Use this to set the track area area to
 -- a certain size.
 set_track_rect :: View -> Rect.Rect -> Rect.Rect
 set_track_rect (View { view_padding = padding }) rect = Rect.Rect
-    { rx = Rect.rx rect - left padding
-    , ry = Rect.ry rect - top padding
-    , rw = Rect.rw rect + left padding
-    , rh = Rect.rh rect + top padding + bottom padding
+    { x = Rect.x rect - left padding
+    , y = Rect.y rect - top padding
+    , w = Rect.w rect + left padding
+    , h = Rect.h rect + top padding + bottom padding
     }
 
 view_visible_track, view_visible_time :: View -> Int
-view_visible_track view = Rect.rw (view_rect view) - left (view_padding view)
-view_visible_time view = Rect.rh (view_rect view) - top padding - bottom padding
+view_visible_track view = Rect.w (view_rect view) - left (view_padding view)
+view_visible_time view = Rect.h (view_rect view) - top padding - bottom padding
     where padding = view_padding view
 
 -- | Y coordinate of the given TrackTime.
 screen_pixels :: View -> TrackTime -> Int
 screen_pixels view t =
     Zoom.to_pixels (view_zoom view) (t - Zoom.offset (view_zoom view))
-    + top (view_padding view) + Rect.ry (view_rect view)
+    + top (view_padding view) + Rect.y (view_rect view)

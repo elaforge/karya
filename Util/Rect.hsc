@@ -6,7 +6,7 @@
 module Util.Rect (
     Rect(Rect)
     -- * access
-    , rx, ry, rw, rh, rr, rb
+    , x, y, w, h, r, b
     , upper_left, lower_left, upper_right, lower_right
 
     -- * constructor
@@ -23,7 +23,7 @@ import ForeignC
 import qualified Util.Pretty as Pretty
 
 
-data Rect = Rect { rx :: Int, ry :: Int, rw :: Int, rh :: Int }
+data Rect = Rect { x :: Int, y :: Int, w :: Int, h :: Int }
     deriving (Eq, Ord, Show, Read)
 
 type Point = (Int, Int)
@@ -34,15 +34,15 @@ instance Pretty.Pretty Rect where
 
 -- * access
 
-rr, rb :: Rect -> Int
-rr r = rx r + rw r
-rb r = ry r + rh r
+r, b :: Rect -> Int
+r rect = x rect + w rect
+b rect = y rect + h rect
 
 upper_left, lower_left, upper_right, lower_right :: Rect -> Point
-upper_left r = (rx r, ry r)
-lower_left r = (rx r, rb r)
-upper_right r = (rr r, ry r)
-lower_right r = (rr r, rb r)
+upper_left rect = (x rect, y rect)
+lower_left rect = (x rect, b rect)
+upper_right rect = (r rect, y rect)
+lower_right rect = (r rect, b rect)
 
 
 -- * constructor
@@ -56,10 +56,10 @@ empty = Rect 0 0 0 0
 -- * transform
 
 place :: Int -> Int -> Rect -> Rect
-place x y rect = xywh x y (rw rect) (rh rect)
+place x y rect = xywh x y (w rect) (h rect)
 
 resize :: Int -> Int -> Rect -> Rect
-resize w h rect = xywh (rx rect) (ry rect) w h
+resize w h rect = xywh (x rect) (y rect) w h
 
 -- * functions
 
@@ -80,34 +80,36 @@ distance (px, py) (Rect x y w h)
 
 -- | Find the intersection of two rectangles.
 intersection :: Rect -> Rect -> Rect
-intersection r1 r2 = Rect x y (max 0 (r-x)) (max 0 (b-y))
+intersection r1 r2 = Rect x_ y_ (max 0 (r_-x_)) (max 0 (b_-y_))
     where
-    x = max (rx r1) (rx r2)
-    y = max (ry r1) (ry r2)
-    r = min (rr r1) (rr r2)
-    b = min (rb r1) (rb r2)
+    x_ = max (x r1) (x r2)
+    y_ = max (y r1) (y r2)
+    r_ = min (r r1) (r r2)
+    b_ = min (b r1) (b r2)
 
 overlaps :: Rect -> Rect -> Bool
 overlaps r1 r2 = not $
-    rx r1 >= rr r2 || rr r1 <= rx r2 || ry r1 >= rb r2 || rb r1 <= ry r2
+    x r1 >= r r2 || r r1 <= x r2 || y r1 >= b r2 || b r1 <= y r2
 
 -- | This is like 'overlaps', but is also true if the the rectangle touch each
 -- other.
 touches :: Rect -> Rect -> Bool
 touches r1 r2 = not $
-    rx r1 > rr r2 || rr r1 < rx r2 || ry r1 > rb r2 || rb r1 < ry r2
+    x r1 > r r2 || r r1 < x r2 || y r1 > b r2 || b r1 < y r2
 
 point_distance :: Point -> Point -> Double
 point_distance (x1, y1) (x2, y2) =
     sqrt $ fromIntegral (x2-x1) ** 2 + fromIntegral (y2-y1) ** 2
 
 contains_point :: Rect -> Point -> Bool
-contains_point r (x, y) = rx r <= x && x < rr r && ry r <= y && y < rb r
+contains_point rect (x_, y_) =
+    x rect <= x_ && x_ < r rect && y rect <= y_ && y_ < b rect
 
 -- | This is like 'contains_point', but is also true if the the point is on the
 -- right or bottom edge of the rectangle.
 touches_point :: Rect -> Point -> Bool
-touches_point r (x, y) = rx r <= x && x <= rr r && ry r <= y && y <= rb r
+touches_point rect (x_, y_) =
+    x rect <= x_ && x_ <= r rect && y rect <= y_ && y_ <= b rect
 
 #include "Ui/c_interface.h"
 

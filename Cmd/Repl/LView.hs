@@ -43,7 +43,7 @@ cover = ViewConfig.views_covering
 arrange :: Cmd.CmdL ()
 arrange = do
     screens <- Cmd.gets Cmd.state_screens
-    mapM_ arrange_screen [(Rect.rx r, Rect.ry r) | r <- screens]
+    mapM_ arrange_screen [(Rect.x r, Rect.y r) | r <- screens]
 
 arrange_screen :: (Int, Int) -> Cmd.CmdL ()
 arrange_screen point = do
@@ -56,14 +56,14 @@ arrange_screen point = do
 
 compact :: Rect.Rect -> [(a, Rect.Rect)] -> [(a, Rect.Rect)]
 compact screen =
-    snd . List.mapAccumL go (Rect.rx screen, Rect.ry screen, Rect.rh screen)
+    snd . List.mapAccumL go (Rect.x screen, Rect.y screen, Rect.h screen)
     where
     go (x, y, min_h) (view_id, rect) = (next, (view_id, Rect.place x y rect))
         where
         next
-            | x + Rect.rw rect < Rect.rr screen =
-                (x + Rect.rw rect, y, min min_h (Rect.rh rect))
-            | otherwise = (Rect.rx screen, y + min_h, Rect.rh screen)
+            | x + Rect.w rect < Rect.r screen =
+                (x + Rect.w rect, y, min min_h (Rect.h rect))
+            | otherwise = (Rect.x screen, y + min_h, Rect.h screen)
 
 -- * save and load
 
