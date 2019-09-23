@@ -28,7 +28,7 @@ library
     -- binaries:
     -- build-tool-depends: cpphs, c2hs
     build-depends:
-        Diff >=0.2,
+        Diff >=0.4,
         QuickCheck,
         aeson >=1.1.0.0,
         ansi-terminal,

@@ -5,7 +5,8 @@
 {-# LANGUAGE BangPatterns #-}
 module Util.Seq where
 import           Prelude hiding (head, last, tail)
-import           Data.Bifunctor (Bifunctor(bimap), first, second)
+import qualified Data.Algorithm.Diff as Diff
+import           Data.Bifunctor (first, second, Bifunctor(bimap))
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import           Data.Function (on)
@@ -18,7 +19,6 @@ import           Data.Monoid ((<>))
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 
-import qualified Util.PolyDiff as PolyDiff
 import qualified Util.Then as Then
 
 
@@ -432,12 +432,12 @@ zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 
 -- | Perform a Meyes diff.
 diff :: (a -> b -> Bool) -> [a] -> [b] -> [Paired a b]
-diff eq as bs = map convert $ PolyDiff.getDiffBy eq as bs
+diff eq as bs = map convert $ Diff.getDiffBy eq as bs
     where
     convert a = case a of
-        PolyDiff.First a -> First a
-        PolyDiff.Second b -> Second b
-        PolyDiff.Both a b -> Both a b
+        Diff.First a -> First a
+        Diff.Second b -> Second b
+        Diff.Both a b -> Both a b
 
 -- | Left if the val was in the left list but not the right, Right for the
 -- converse.

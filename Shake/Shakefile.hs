@@ -87,7 +87,7 @@ basicPackages = concat
     , w "binary hashable concurrent-output"
     -- Util
     , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
-    , [("Diff", ">=0.2")] -- Util.Test
+    , [("Diff", ">=0.4")] -- Util.Test
     , w "QuickCheck" -- Util.Test
     , w "ansi-terminal colour" -- Util.StyledText
     , w "async" -- Util.Process

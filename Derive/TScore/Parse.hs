@@ -22,7 +22,6 @@ import qualified Util.Control as Control
 import qualified Util.P as P
 import           Util.P ((<?>))
 import qualified Util.Parse as Parse
-import qualified Util.Seq as Seq
 
 import qualified Derive.TScore.T as T
 import qualified Ui.Id as Id
