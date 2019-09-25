@@ -34,7 +34,7 @@ module Global (
     , module Control.Monad
     , module Data.Traversable
     , module Data.Foldable
-    , lift, liftIO
+    , MonadIO, lift, liftIO
     -- * nonempty
     , module Data.List.NonEmpty
     -- * text
@@ -46,7 +46,7 @@ import Control.Monad
        ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,
         liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
         zipWithM, zipWithM_)
-import Control.Monad.Trans (lift, liftIO)
+import Control.Monad.Trans (MonadIO, lift, liftIO)
 import Data.Proxy (Proxy(..))
 
 import Data.List (foldl')

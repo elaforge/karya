@@ -165,12 +165,12 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.UiConfig as UiConfig
-import Ui.UiConfig hiding (allocation, modify_allocation)
+import           Ui.UiConfig hiding (allocation, modify_allocation)
 import qualified Ui.Update as Update
 import qualified Ui.Zoom as Zoom
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 -- * types
@@ -297,7 +297,7 @@ type StateStack m = State.StateT State
     (Logger.LoggerT Update.CmdUpdate
         (Except.ExceptT Error m))
 newtype StateT m a = StateT (StateStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Error,
+    deriving (Functor, Monad, MonadIO, Except.MonadError Error,
         Applicative)
 
 -- | Just a convenient abbreviation.

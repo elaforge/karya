@@ -65,7 +65,6 @@ import Prelude hiding (splitAt, take)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans.Resource as Resource
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Maybe as Maybe
 import qualified Data.Vector.Storable as V
 import qualified Data.Vector.Storable.Mutable as VM
@@ -714,16 +713,16 @@ instance Exception.Exception Exception where
 throw :: Stack.HasCallStack => Text -> AudioIO rate chan
 throw = Audio . throwIO
 
-throwIO :: (Stack.HasCallStack, Trans.MonadIO m) => Text -> m a
+throwIO :: (Stack.HasCallStack, MonadIO m) => Text -> m a
 throwIO = liftIO . Exception.throwIO . Exception
     . ((CallStack.getStack <> ": ") <>)
 
-assert :: (Stack.HasCallStack, Trans.MonadIO m) => Bool -> Text -> m ()
+assert :: (Stack.HasCallStack, MonadIO m) => Bool -> Text -> m ()
 assert True _ = return ()
 assert False msg = throwIO $ "assertion: " <> msg
 
 -- | Insert an assertion into the audio stream.
-assertIn :: (Stack.HasCallStack, Trans.MonadIO m) => Bool -> Text
+assertIn :: (Stack.HasCallStack, MonadIO m) => Bool -> Text
     -> Audio m rate chan -> Audio m rate chan
 assertIn check msg (Audio audio) = Audio (assert check msg *> audio)
 

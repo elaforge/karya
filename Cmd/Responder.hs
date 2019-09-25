@@ -28,7 +28,6 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Except as Except
 import qualified Control.Monad.State.Strict as Monad.State
-import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
 import qualified Data.Text.IO as Text.IO
@@ -526,5 +525,5 @@ not_continue _ = True
 
 -- | Write a trace entry.  This goes in the eventlog, and can be read by
 -- threadscope or chrome, after App.ConvertEventLog
-trace :: Trans.MonadIO m => String -> m ()
+trace :: MonadIO m => String -> m ()
 trace = liftIO . Trace.traceEventIO

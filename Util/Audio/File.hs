@@ -19,7 +19,6 @@ module Util.Audio.File (
 import           Prelude hiding (concat, read)
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Fix as Fix
-import qualified Control.Monad.Trans as Trans
 import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified Data.IORef as IORef
@@ -95,7 +94,7 @@ readFrom frame fname = Audio.Audio $ do
     chan = Audio.natVal channels
 
 
-readHandle :: Trans.MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frames
+readHandle :: MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frames
     -> FilePath -> Handle
     -> S.Stream (S.Of (V.Vector Audio.Sample)) m ()
 readHandle rate chan (Audio.Frames frame) fname hdl = do

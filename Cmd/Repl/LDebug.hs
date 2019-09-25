@@ -4,7 +4,6 @@
 
 -- | Debugging utilities.
 module Cmd.Repl.LDebug where
-import qualified Control.Monad.Trans as Trans
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -42,11 +41,11 @@ import           Types
 
 
 -- | GHC's opinion on allocated memory.
-rtsAllocated :: Trans.MonadIO m => m Memory.Size
+rtsAllocated :: MonadIO m => m Memory.Size
 rtsAllocated = liftIO Memory.rtsAllocated
 
 -- | OS opinion on RSS and VSIZE.
-rssVsize :: Trans.MonadIO m => m (Memory.Size, Memory.Size)
+rssVsize :: MonadIO m => m (Memory.Size, Memory.Size)
 rssVsize = liftIO Memory.rssVsize
 
 -- Also see 'LPerf.extract_debug' and similar functions.

@@ -7,13 +7,9 @@
 module Ui.Fltk (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
 ) where
-#ifdef STUB_OUT_FLTK
-import Ui.FltkStub
-#else
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Trans as Trans
 
 import qualified Foreign
 
@@ -22,7 +18,7 @@ import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiMsgC as UiMsgC
 
-import Global
+import           Global
 
 
 -- | You should only talk to FLTK from the main thread, which is also the FLTK
@@ -32,7 +28,7 @@ import Global
 -- layer.  Since FLTK operations are wrapped in Fltk, and only this module can
 -- unwrap a Fltk, this should enforce that you can't cell them willy-nilly.
 newtype Fltk a = Fltk (IO a)
-    deriving (Applicative, Functor, Monad, Trans.MonadIO)
+    deriving (Applicative, Functor, Monad, MonadIO)
 
 fltk :: IO a -> Fltk a
 fltk = Fltk

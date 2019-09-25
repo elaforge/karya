@@ -9,15 +9,14 @@ module Ui.FltkStub (
 ) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
-import qualified Control.Monad.Trans as Trans
 
 import qualified Ui.UiMsg as UiMsg
 
-import Global
+import           Global
 
 
 newtype Fltk a = Fltk (IO a)
-    deriving (Applicative, Functor, Monad, Trans.MonadIO)
+    deriving (Applicative, Functor, Monad, MonadIO)
 
 fltk :: IO a -> Fltk a
 fltk = Fltk

@@ -264,8 +264,7 @@ type CmdStack m = Ui.StateT
             (Log.LogT m)))
 
 newtype CmdT m a = CmdT (CmdStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Ui.Error,
-        Applicative)
+    deriving (Functor, Monad, MonadIO, Except.MonadError Ui.Error, Applicative)
 
 class (Log.LogMonad m, Ui.M m) => M m where
     -- Not in MonadState for the same reasons as 'Ui.Ui.M'.
