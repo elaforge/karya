@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# I don't know what changed after a merge, so I need to regenerate tags.
-# I should probably do this after a branch checkout too, but let's assume
-# branches are mostly the same for now.
-rm -f tags
+# This happens after merges and pulls.
+# The hook doesn't give any way to see what the previous commit was, but
+# HEAD@{1} (previous reflog entry) *seems* to get that effect.
+exec .git/hooks/post-checkout 'HEAD@{1}' HEAD
