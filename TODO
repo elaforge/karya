@@ -2276,9 +2276,12 @@ synth: im:
         . This way I can make use of the cache.
         . This non-interactive pipeline would be the same basis for all text
           score.
-        - Cmdline program that can stream and mix ###.wav, and start it as
+        * Cmdline program that can stream and mix ###.wav, and start it as
           soon as I see the first progress msg.
         . Maybe adjust chunk size smaller for lower latency?
+        - tha is too loud, use a medium version by default.
+        - Convenient way to play from Solkattu.Dsl.
+        - Add a metronome.
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.

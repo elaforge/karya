@@ -12,7 +12,6 @@ import           System.FilePath ((</>))
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.Audio.Resample as Resample
-import qualified Util.Audio.Sndfile as Sndfile
 import qualified Util.Test.Testing as Testing
 
 import qualified Perform.NN as NN
@@ -56,12 +55,16 @@ test_write_simple_offset = do
 test_write_silent_chunk = do
     (write, dir) <- tmpDb
     io_equal (write [mkNote1 dir 5]) (Right (4, 4))
-    sizes <- fmap (map Sndfile.frames) . mapM File.getInfo =<< listWavs dir
+    sizes <- durations dir
     equal sizes [0, 4, 4, 4]
     -- If there are no notes in the middle, they go to silent chunks too.
     io_equal (write [mkNote1 dir 0, mkNote1 dir 16]) (Right (6, 6))
-    sizes <- fmap (map Sndfile.frames) . mapM File.getInfo =<< listWavs dir
+    sizes <- durations dir
     equal sizes [4, 4, 0, 0, 4, 4]
+
+durations :: FilePath -> IO [Audio.Frames]
+durations dir = mapM (\fname -> File.throwEnoent fname =<< File.duration fname)
+    =<< listWavs dir
 
 test_write_freq = do
     (write, dir) <- tmpDb

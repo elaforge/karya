@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Convert solkattu to audio via karya score.
+-- | Convert solkattu to audio via karya score, and play it.
 module Solkattu.Play where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Concurrent.Chan as Chan
@@ -14,7 +14,7 @@ import qualified Data.Set as Set
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
-import System.FilePath ((</>))
+import           System.FilePath ((</>))
 import qualified System.IO as IO
 
 import qualified Util.Control as Control
@@ -55,12 +55,12 @@ import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 import qualified Ui.UiConfig as UiConfig
 
-import Global
-import Types
+import           Global
+import           Types
 
 
 test :: IO ()
-test = play_m "#=(natural)" 1 (Db.korvais!!30)
+test = play_m "#=(natural) | %dyn=.75" 1 (Db.korvais!!56)
 
 play_m :: Text -> RealTime -> Korvai.Korvai -> IO ()
 play_m = play_instrument Korvai.mridangam
@@ -75,18 +75,17 @@ play_instrument instrument im_instrument transform akshara_dur korvai = do
     play_procs procs output_dir
 
 play_procs :: [Performance.Process] -> FilePath -> IO ()
-play_procs [] output_dir = do
-    outputs <- File.list output_dir
-    Process.call "bin/play" (filter (".wav" `List.isSuffixOf`) outputs)
+play_procs [] _ = return () -- I think this shouldn't happen?
 play_procs procs output_dir = do
     ready <- MVar.newEmptyMVar
-    putStrLn $ "start render: " <> prettys procs
+    put $ "start render: " <> pretty procs
     rendering <- Async.async $ watch_subprocesses ready (Set.fromList procs)
-    putStrLn "wait for ready"
+    put "wait for ready"
     MVar.takeMVar ready
-    outputs <- File.list output_dir
-    Process.call "bin/play" (filter (".wav" `List.isSuffixOf`) outputs)
+    Process.call "build/opt/stream_audio" [output_dir]
     Async.wait rendering
+    where
+    put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- | This is analogous to 'Performance.watch_subprocesses', but notifies as
 -- soon as all processes have rendered output.
@@ -103,8 +102,8 @@ watch_subprocesses ready all_procs =
         Util.Process.Stderr line -> put line >> return (procs, started)
         Util.Process.Stdout line -> case Config.parseMessage line of
             Just (Config.Message
-                    { Config._payload = Config.RenderingRange start _ })
-                | start > 0 -> do
+                    { Config._payload = Config.WaveformsCompleted chunks })
+                | 0 `elem` chunks -> do
                     -- I can start playing when I see the first progress for
                     -- each process, and for each instrument.  Since I only
                     -- have one instrument the first suffices.
@@ -112,6 +111,8 @@ watch_subprocesses ready all_procs =
                     when (started2 == all_procs) $
                         void $ MVar.tryPutMVar ready ()
                     return (procs, started2)
+            Just (Config.Message { Config._payload = Config.RenderingRange {} })
+                -> return (procs, started)
             _ -> put ("?: " <> line) >> return (procs, started)
         Util.Process.Exit code -> do
             when (code /= Util.Process.ExitCode 0) $

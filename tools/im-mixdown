@@ -6,10 +6,15 @@ base_dir=$1
 out=im/mix
 
 rm -rf $out
-mkdir $out
+mkdir -p $out
 
 for inst in $base_dir/*; do
     sox -V1 $inst/*.wav $out/$(basename $inst).wav
 done
-sox --combine mix $out/*.wav $out/mixed.wav
+outs=($out/*.wav)
+if [[ ${#outs} -gt 1 ]]; then
+    sox --combine mix $out/*.wav $out/mixed.wav
+else
+    mv $outs[1] $out/mixed.wav
+fi
 lame -h -b160 $out/mixed.wav

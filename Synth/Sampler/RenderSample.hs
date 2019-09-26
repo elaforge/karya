@@ -124,7 +124,9 @@ envelopeDuration start = go . Signal.to_pairs_desc
 -- | Predict how long a sample will be if resampled with the given ratio
 -- signal.
 predictFileDuration :: Signal.Signal -> FilePath -> IO Audio.Frames
-predictFileDuration ratios = fmap (predictDuration ratios) . File.duration
+predictFileDuration ratios fname =
+    fmap (predictDuration ratios) $ File.throwEnoent fname
+        =<< File.duration fname
 
 type FramesF = Double
 

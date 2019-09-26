@@ -778,8 +778,9 @@ next (Audio audio) = S.next audio >>= \case
     Left () -> return Nothing
     Right (block, audio) -> return $ Just (block, Audio audio)
 
--- | Nothing if the Audio stream is completed.  Otherwise, it puts the next
--- chunk back on the stream, to avoid duplicating effects.
+-- | Nothing if the Audio stream is completed.  Otherwise, it returns
+-- the same stream but with the first chunk evaluated, to avoid duplicating
+-- effects.
 isEmpty :: Monad m => Audio m rate chan -> m (Maybe (Audio m rate chan))
 isEmpty (Audio audio) = S.next audio >>= \case
     Left () -> return Nothing

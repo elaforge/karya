@@ -11,10 +11,12 @@ module Util.Audio.File (
     check, checkA, getInfo, duration
     , read, read44k, readUnknown
     , readFrom, readFromClose
-    , concat
+    , concat, readCheckpoints
     -- * write
     , write, writeCheckpoints
     , wavFormat
+    -- * misc
+    , throwEnoent
 ) where
 import           Prelude hiding (concat, read)
 import qualified Control.Exception as Exception
@@ -22,7 +24,9 @@ import qualified Control.Monad.Fix as Fix
 import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified Data.IORef as IORef
+import qualified Data.List as List
 import qualified Data.Vector.Storable as V
+
 import qualified GHC.Stack as Stack
 import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
@@ -41,7 +45,9 @@ import           Global
 check :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     Proxy rate -> Proxy channels -> FilePath -> IO (Maybe String)
-check rate channels fname = checkInfo rate channels <$> getInfo fname
+check rate channels fname =
+    maybe (Just $ "file not found: " <> fname) (checkInfo rate channels) <$>
+        getInfo fname
 
 -- | Like 'check', but take 'Audio.Audio' instead of Proxy.
 checkA :: forall m rate channels.
@@ -49,12 +55,12 @@ checkA :: forall m rate channels.
     Proxy (Audio.Audio m rate channels) -> FilePath -> IO (Maybe String)
 checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy channels)
 
-getInfo :: FilePath -> IO Sndfile.Info
-getInfo fname = Exception.bracket (openRead fname) close
-    (return . Sndfile.hInfo . _handle)
+getInfo :: FilePath -> IO (Maybe Sndfile.Info)
+getInfo fname = Exception.bracket (openRead fname) (maybe (return ()) close)
+    (return . fmap (Sndfile.hInfo . _handle))
 
-duration :: FilePath -> IO Audio.Frames
-duration = fmap (Audio.Frames . Sndfile.frames) . getInfo
+duration :: FilePath -> IO (Maybe Audio.Frames)
+duration = fmap (fmap (Audio.Frames . Sndfile.frames)) . getInfo
 
 -- | Since the file is opened only when samples are demanded, a sample rate or
 -- channels mismatch will turn into an exception then, not when this is called.
@@ -73,7 +79,7 @@ readFromClose :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     Audio.Frames -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
 readFromClose frame fname = do
-    handle <- openRead fname
+    handle <- openReadThrow fname
     return $ (close handle,) $ Audio.Audio $ do
         lift $ Resource.register (close handle)
         S.map Audio.Block $ readHandle rate chan frame fname handle
@@ -86,13 +92,12 @@ readFrom :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     Audio.Frames -> FilePath -> Audio.AudioIO rate channels
 readFrom frame fname = Audio.Audio $ do
-    (_, handle) <- lift $ Resource.allocate (openRead fname) close
+    (_, handle) <- lift $ Resource.allocate (openReadThrow fname) close
     S.map Audio.Block $ readHandle rate chan frame fname handle
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
     channels = Proxy :: Proxy channels
     chan = Audio.natVal channels
-
 
 readHandle :: MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frames
     -> FilePath -> Handle
@@ -136,7 +141,7 @@ read44k = read
 
 readUnknown :: FilePath -> IO (Sndfile.Format, Audio.UnknownAudioIO)
 readUnknown fname = do
-    info <- getInfo fname
+    info <- throwEnoent fname =<< getInfo fname
     case (Audio.someNat (Sndfile.samplerate info),
             Audio.someNat (Sndfile.channels info)) of
         (TypeLits.SomeNat (_::Proxy rate), TypeLits.SomeNat (_::Proxy chan)) ->
@@ -146,10 +151,24 @@ readUnknown fname = do
                 )
 
 -- | Concatenate multiple files.
-concat :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    [FilePath] -> Audio.AudioIO rate channels
-concat = Audio.Audio . mconcat . map (Audio._stream . read @rate @channels)
+concat :: forall rate chan. (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => [FilePath] -> Audio.AudioIO rate chan
+concat = Audio.Audio . mconcat . map (Audio._stream . read @rate @chan)
+
+-- | This is like 'concat', but it understands the 0-duration files written
+-- by 'writeCheckpoints', and turns them back into silence.
+readCheckpoints :: forall rate chan.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Audio.Frames -> [FilePath] -> Audio.AudioIO rate chan
+readCheckpoints chunkSize = Audio.Audio . go
+    where
+    go :: [FilePath] -> S.Stream (S.Of Audio.Block) (Resource.ResourceT IO) ()
+    go [] = mempty
+    go (fname : fnames) = liftIO (duration fname) >>= \case
+        Nothing -> mempty
+        Just dur -> (<> go fnames) $ Audio._stream $
+            if dur == 0 then Audio.take chunkSize Audio.silence
+            else read @rate @chan fname
 
 -- ** util
 
@@ -168,12 +187,6 @@ formatError :: Audio.Rate -> Audio.Channels -> Sndfile.Info -> String
 formatError rate channels info =
     "requested (rate, channels) " <> show (rate, channels)
     <> " but file had " <> show (Sndfile.samplerate info, Sndfile.channels info)
-
--- Sndfile's errors don't include the filename.
-annotate :: Stack.HasCallStack => FilePath -> IO a -> IO a
-annotate fname = Exception.handle $ \exc ->
-    Audio.throwIO $ txt $ "opening " <> show fname
-        <> ": " <> Sndfile.errorString exc
 
 -- * write
 
@@ -205,23 +218,22 @@ writeCheckpoints :: forall rate chan state.
     -- before the audio runs out.
     -> Audio.AudioIO rate chan -> Resource.ResourceT IO Int
     -- ^ number of checkpoints written
-writeCheckpoints size getFilename chunkComplete format = go 0
+writeCheckpoints chunkSize getFilename chunkComplete format = go 0
     where
     go !written (state : states) audio = do
         fname <- liftIO $ getFilename state
-        (blocks, audio) <- Audio.takeFramesGE size audio
-        -- TODO I should be able to have a special file format for constant 0
-        -- blocks <- return $ concatMap Audio.blockSamples blocks
+        (blocks, audio) <- Audio.takeFramesGE chunkSize audio
         if null blocks
             then return chunknum
             else do
-                -- The blocks should sum to 'size', except the last one, which
-                -- could be smaller.  But I can't pull from 'audio' without
-                -- changing the state, so I have to wait until the next loop to
-                -- see if this one was short.
-                Audio.assert (written `mod` size == 0) $
-                    "non-final chunk was too short, expected " <> pretty size
-                    <> ", but last chunk was " <> pretty (written `mod` size)
+                -- The blocks should sum to 'chunkSize', except the last one,
+                -- which could be smaller.  But I can't pull from 'audio'
+                -- without changing the state, so I have to wait until the next
+                -- loop to see if this one was short.
+                Audio.assert (written `mod` chunkSize == 0) $
+                    "non-final chunk was too short, expected "
+                    <> pretty chunkSize <> ", but last chunk was "
+                    <> pretty (written `mod` chunkSize)
                 let blockCount = Num.sum $ map Audio.blockCount blocks
                 -- Show the error with count, not frames, in case I somehow get
                 -- an odd count.
@@ -229,17 +241,16 @@ writeCheckpoints size getFilename chunkComplete format = go 0
                     "chunk too long, expected " <> pretty sizeCount
                     <> ", but got " <> pretty (map Audio.blockCount blocks)
                 let tmp = fname ++ ".write.tmp"
-                -- Debug.tracepM "write" (fname, blocks)
                 liftIO $ do
                     Exception.bracket (openWrite format tmp audio) close
                         (\hdl -> writeBlock (_handle hdl) blocks)
                     Directory.renameFile tmp fname
                     chunkComplete fname
-                go (written + size) states audio
+                go (written + chunkSize) states audio
         where
-        chunknum = fromIntegral $ written `div` size
-    go _ [] _ = liftIO $ Exception.throwIO $ Audio.Exception "out of states"
-    sizeCount = Audio.framesCount chan size
+        chunknum = fromIntegral $ written `div` chunkSize
+    go _ [] _ = Audio.throwIO "out of states"
+    sizeCount = Audio.framesCount chan chunkSize
     chan = Proxy @chan
 
 -- | Because writeCheckpoints writes equal sized chunks, except the last one,
@@ -260,20 +271,32 @@ writeBlock hdl blocks
 
 -- | libsndfile has no protection against multiple closes on the same handle
 -- and happily double frees memory, and hsndfile provides no protection either.
-data Handle = Handle !(IORef.IORef Bool) !Sndfile.Handle
+data Handle = Handle !FilePath !(IORef.IORef Bool) !Sndfile.Handle
 
 _handle :: Handle -> Sndfile.Handle
-_handle (Handle _ hdl) = hdl
+_handle (Handle _ _ hdl) = hdl
 
-openRead :: FilePath -> IO Handle
+throwEnoent :: FilePath -> Maybe a -> IO a
+throwEnoent fname =
+    maybe (Audio.throwIO $ "file not found: " <> showt fname) return
+
+openReadThrow :: FilePath -> IO Handle
+openReadThrow fname = throwEnoent fname =<< openRead fname
+
+openRead :: FilePath -> IO (Maybe Handle)
 openRead fname = annotate fname $ do
-    hdl <- Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
-    open <- IORef.newIORef True
-    return $ Handle open hdl
+    mbHdl <- ignoreEnoent $
+        Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
+    case mbHdl of
+        Nothing -> return Nothing
+        Just hdl -> do
+            open <- IORef.newIORef True
+            return $ Just $ Handle fname open hdl
 
 close :: Handle -> IO ()
-close (Handle open hdl) = whenM (IORef.readIORef open)
-    (IORef.atomicWriteIORef open False >> Sndfile.hClose hdl)
+close (Handle _fname open hdl) = whenM (IORef.readIORef open) $ do
+    IORef.atomicWriteIORef open False
+    Sndfile.hClose hdl
 
 openWrite :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
@@ -282,7 +305,7 @@ openWrite :: forall rate channels.
 openWrite format fname _audio = do
     open <- IORef.newIORef True
     annotate fname $
-        Handle open <$> Sndfile.openFile fname Sndfile.WriteMode info
+        Handle fname open <$> Sndfile.openFile fname Sndfile.WriteMode info
     where
     info = Sndfile.defaultInfo
         { Sndfile.samplerate = Audio.natVal (Proxy :: Proxy rate)
@@ -290,9 +313,24 @@ openWrite format fname _audio = do
         , Sndfile.format = format
         }
 
+-- Sndfile's errors don't include the filename.
+annotate :: Stack.HasCallStack => FilePath -> IO a -> IO a
+annotate fname = Exception.handle $ \exc ->
+    Audio.throwIO $ txt $ "opening " <> show fname
+        <> ": " <> Sndfile.errorString exc
+
 wavFormat :: Sndfile.Format
 wavFormat = Sndfile.Format
     { headerFormat = Sndfile.HeaderFormatWav
     , sampleFormat = Sndfile.SampleFormatFloat
     , endianFormat = Sndfile.EndianFile
     }
+
+ignoreEnoent :: IO a -> IO (Maybe a)
+ignoreEnoent = ignoreError $ \case
+    Sndfile.SystemError msg -> "No such file or directory" `List.isInfixOf` msg
+    _ -> False
+
+ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
+ignoreError ignore action = Exception.handleJust (guard . ignore)
+    (const (return Nothing)) (fmap Just action)

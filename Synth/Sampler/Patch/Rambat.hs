@@ -325,7 +325,8 @@ getDurations = fmap group $ (++)
     group = map (second minimum) . Seq.group_fst
     get tuning fname = case parseFilename (FilePath.takeFileName fname) of
         Just (pitch, OpenShort, dyn, _var) -> do
-            frames <- Audio.Frames . Sndfile.frames <$> File.getInfo fname
+            frames <- Audio.Frames . Sndfile.frames <$>
+                (File.throwEnoent fname =<< File.getInfo fname)
             return $ Just ((tuning, pitch, dyn), frames)
         _ -> pure Nothing
 

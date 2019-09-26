@@ -342,6 +342,7 @@ e_19_08_19 = date 2019 8 25 $ ganesh $ exercise $ korvaiS1 adi $
     concatMap cycle [p, k, o, n]
     where cycle x = su (x.__.kt.kt.p.k.nakatiku) . sarvaD_ 2
 
+-- tirmanam: td--t-d-- (4+5) * 3
 -- tisram: c_19_06_24_a
 -- ending 3x
 
@@ -350,7 +351,6 @@ c_19_08_26 = date 2019 8 26 $ ganesh $ korvaiS adi $ map (nadai 6)
     [ restD 6 . tri (k.od.__.ktkno)
     , rh o & lh . rh p & lh . rh p . rh o
     , rh o & lh . rh p & lh . t7 p . t7 p . t5 p . t5 o
-    -- TODO fix lh
     , rh o & lh . t7 __ & strM "o_o_oo" . t7 __ & strM "o_o_oo"
         . t7 p . t5 p . t5 p . t5 o
     , rh o & lh . rh p & lh . rh p . t75

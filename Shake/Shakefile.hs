@@ -339,6 +339,7 @@ hsBinaries =
         -- Turn off idle gc, and parallel gc, as recommended by the shake docs.
         { hsRtsFlags = ["-N", "-I0", "-qg", "-qb"] }
     , plain "show_timers" "LogView/ShowTimers.hs"
+    , plain "stream_audio" "Synth/StreamAudio.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
     , (plain "verify_performance" "App/VerifyPerformance.hs")
