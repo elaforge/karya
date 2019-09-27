@@ -28,12 +28,12 @@ import           Global
 
 main :: IO ()
 main = do
-    dir <- Environment.getArgs >>= \case
-        [dir] -> return dir
-        _ -> error $ "usage: stream-audio dir"
+    dirs <- Environment.getArgs
+    unlessM (allM Directory.doesDirectoryExist dirs) $
+        error $ "usage: stream_audio [ dir1 dir2 ... ]"
     (Just stdin, Nothing, Nothing, pid) <- Process.createProcess $
         (Process.proc "sox" soxArgs) { Process.std_in = Process.CreatePipe }
-    streamDir dir stdin
+    streamDirs dirs stdin
     IO.hClose stdin
     Process.waitForProcess pid
     return ()
@@ -46,12 +46,15 @@ soxArgs =
     , "-", "--default-device"
     ]
 
-streamDir :: FilePath -> IO.Handle -> IO ()
-streamDir dir outHdl = do
-    while_ (not <$> Directory.doesFileExist (dir </> head chunks)) $
+streamDirs :: [FilePath] -> IO.Handle -> IO ()
+streamDirs dirs outHdl = do
+    while_ (not <$> allM (\d -> Directory.doesFileExist (d </> head chunks))
+            dirs) $
         Thread.delay 0.25
-    streamInTime outHdl $ Audio.File.readCheckpoints Config.chunkSize $
-        map (dir</>) chunks
+    streamInTime outHdl $ Audio.mix
+        [ Audio.File.readCheckpoints Config.chunkSize (map (dir</>) chunks)
+        | dir <- dirs
+        ]
     where
     chunks = map (untxt . (<>".wav") . Num.zeroPad 3) [0..]
 

@@ -4,8 +4,8 @@
 set -eu
 if [[ $# -eq 0 ]]; then
     exit 0
-elif [[ $# -eq 1 && -d $1 ]]; then
-    bin/run build/opt/stream_audio $1
+elif [[ -d $1 ]]; then
+    bin/run build/opt/stream_audio "$@"
 else
     sox -V1 --no-show-progress "$@" --default-device
 fi
