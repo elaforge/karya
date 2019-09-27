@@ -12,8 +12,10 @@ import qualified Data.Text as Text
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
+import qualified Util.Map
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
@@ -42,6 +44,8 @@ nexts xs = zip xs (drop 1 (List.tails xs))
 
 -- * convert
 
+-- ** pitch
+
 symbolicPitch :: Except.MonadError Text m => Note.Note
     -> m (Either Pitch.Note Pitch.NoteNumber)
 symbolicPitch note
@@ -50,6 +54,16 @@ symbolicPitch note
 
 initialPitch :: Except.MonadError Text m => Note.Note -> m Pitch.NoteNumber
 initialPitch = tryJust "no pitch" . Note.initialPitch
+
+-- | Find a value (presumably a FileName) and pitch ratio for a simple patch
+-- with a static NoteNumber mapping.
+findPitchRatio :: Map Pitch.NoteNumber a -> Pitch.NoteNumber -> (a, Signal.Y)
+findPitchRatio nnToSample nn = (fname, Sample.pitchToRatio sampleNn nn)
+    where
+    (sampleNn, fname) = fromMaybe (error "findPitch: empty nnToSample") $
+        Util.Map.lookup_closest nn nnToSample
+
+-- ** articulation
 
 articulation :: Except.MonadError Text m => Common.AttributeMap a
     -> Attrs.Attributes -> m a
@@ -60,6 +74,8 @@ articulation attributeMap  =
 articulationDefault :: a -> Common.AttributeMap a -> Attrs.Attributes -> a
 articulationDefault deflt attributeMap  =
     maybe deflt snd . (`Common.lookup_attributes` attributeMap)
+
+-- ** dynamic
 
 -- | Get patch-specific dyn category, and note dynamic.
 dynamic :: (Bounded dyn, Enum dyn) => (dyn -> (Int, Int)) -> Signal.Y

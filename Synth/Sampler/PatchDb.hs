@@ -12,6 +12,7 @@ import qualified Instrument.Inst as Inst
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.KendangBali as KendangBali
+import qualified Synth.Sampler.Patch.Metronome as Metronome
 import qualified Synth.Sampler.Patch.Mridangam as Mridangam
 import qualified Synth.Sampler.Patch.Rambat as Rambat
 import qualified Synth.Sampler.Patch.Reyong as Reyong
@@ -25,6 +26,7 @@ import           Global
 db :: Patch.Db
 db = Patch.db Config.unsafeSamplerRoot $ concat
     [ KendangBali.patches
+    , Metronome.patches
     , Mridangam.patches
     , Rambat.patches
     , Reyong.patches

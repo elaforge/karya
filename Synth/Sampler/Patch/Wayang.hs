@@ -90,14 +90,14 @@ patches =
         <> Util.thru dir (convert inst tuning)
         <> ImInst.postproc with_symbolic_pitch
     with_symbolic_pitch = DUtil.when_env "symbolic-pitch" (Just True) $
-        DUtil.add_symbolic_pitch_convert wayang_convert
+        DUtil.add_symbolic_pitch_convert pitchConvert
     dir = "wayang"
 
-wayang_convert :: PSignal.Transposed -> Either Text Pitch.Note
-wayang_convert pitch = do
+pitchConvert :: PSignal.Transposed -> Either Text Pitch.Note
+pitchConvert pitch = do
     note <- first pretty $ PSignal.pitch_note pitch
     if scale_id == "wayang-srg"
-        then Pitch.Note <$> convert_srgpd (Pitch.note_text note)
+        then Pitch.Note <$> pitchSrgpd (Pitch.note_text note)
         else return note
     where
     scale_id = DeriveT.pscale_scale_id $ DeriveT.pitch_scale pitch
@@ -106,8 +106,8 @@ wayang_convert pitch = do
 -- recognizes it.  It would be better to go through Pitch.Pitch parsing to do
 -- the conversion, but better than that is if I make up my mind about what kind
 -- of notation I want.
-convert_srgpd :: Text -> Either Text Text
-convert_srgpd pitch = case Map.lookup pc to_ioe of
+pitchSrgpd :: Text -> Either Text Text
+pitchSrgpd pitch = case Map.lookup pc to_ioe of
     Nothing -> Left $ "not in srgpd: " <> pitch
     Just (offset, pc) -> do
         let Right (octi, _) = Text.Read.signed Text.Read.decimal oct
