@@ -174,7 +174,7 @@ c_hz :: Derive.ValCall
 c_hz = val_call "hz" mempty
     "Convert a pitch, twelve-tone pitch name, or NoteNumber to hz.\
     \ A pitch name looks like `[a-g]s?[-1-9]`. If the octave isn't given, it\
-    \ defaults to 0.  This is useful for `%just-control`, which ignores the\
+    \ defaults to 0.  This is useful for `%just-base`, which ignores the\
     \ octave."
     $ Sig.call (Sig.required "val" "") $ \val _ -> case val of
         Left pitch -> Pitch.nn_to_hz <$>

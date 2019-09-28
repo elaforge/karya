@@ -47,7 +47,7 @@ patches = (:[]) $ Patch.DbPatch $ (Patch.patch patchName)
             }
     }
     where
-    code = Mridangam.code (Util.imThruFunction dir convert) sampleNn
+    code = Mridangam.code (Util.imThruFunction dir convert) naturalNn
         (Just $ \_ -> Code.withVariationNormal 1)
     dir = untxt patchName
 
@@ -108,7 +108,7 @@ convert note = do
             [ (Note.start note, noteDyn), (Note.end note, noteDyn)
             , (Note.end note + muteTime, 0)
             ]
-        , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
+        , Sample.ratios = Signal.constant $ Sample.pitchToRatio naturalNn noteNn
         }
 
 -- | A note may pick a sample of this much dyn difference on either side.
@@ -121,8 +121,8 @@ minDyn = 0.4
 maxDyn :: Signal.Y
 maxDyn = 1.15
 
-sampleNn :: Pitch.NoteNumber
-sampleNn = 62.1
+naturalNn :: Pitch.NoteNumber
+naturalNn = 62.1
 
 -- | Time to mute at the end of a note.
 muteTime :: RealTime

@@ -477,6 +477,10 @@ extract_skeleton :: Ui.State -> [(TrackNum, TrackNum)]
 extract_skeleton = maybe [] (Skeleton.flatten . Block.block_skeleton)
     . Map.lookup default_block_id . Ui.state_blocks
 
+extract_skeletons :: Ui.State -> Map BlockId [(TrackNum, TrackNum)]
+extract_skeletons =
+    fmap (Skeleton.flatten . Block.block_skeleton) . Ui.state_blocks
+
 extract_track_ids :: Ui.State -> [(BlockId, [TrackId])]
 extract_track_ids state =
     [(block_id, tracks_of block) | (block_id, block)

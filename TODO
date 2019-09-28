@@ -29,6 +29,10 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - Do I not get the call name in ArgErrors for val calls?
+    . E.g. in Play: Error: ArgError: expected another argument at argument
+      "name"
+  - Can I coerce PControlRef to Pitch, and ControlRef to Num?
   * Crash when setting tempo:
     assertion: assertion failed at fltk/PeakCache.cc:69 add():
       'this->peaks_n.size() == entry->peaks->size()'
@@ -2281,7 +2285,7 @@ synth: im:
         . Maybe adjust chunk size smaller for lower latency?
         - tha is too loud, use a medium version by default.
         - Convenient way to play from Solkattu.Dsl.
-        + Add a metronome.
+        * Add a metronome.
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.
