@@ -117,9 +117,12 @@ readHandle rate chan (Audio.Frames frame) fname hdl = do
             Audio.assert (0 <= frame && frame <= Sndfile.frames info) $
                 "tried to seek to " <> pretty frame <> " in " <> showt fname
                 <> ", but it only has " <> pretty (Sndfile.frames info)
-            void $ Sndfile.hSeek (_handle hdl) Sndfile.AbsoluteSeek frame
+            void $ annotate "seek" (_filename hdl) $
+                Sndfile.hSeek (_handle hdl) Sndfile.AbsoluteSeek frame
     let size = fromIntegral Audio.blockSize
-    Fix.fix $ \loop -> liftIO (Sndfile.hGetBuffer (_handle hdl) size) >>= \case
+    let readH = annotate "hGetBuffer" (_filename hdl) $
+            Sndfile.hGetBuffer (_handle hdl) size
+    Fix.fix $ \loop -> liftIO readH >>= \case
         Nothing -> liftIO $ close hdl
         Just buf -> do
             let block = Sndfile.Buffer.Vector.fromBuffer buf
@@ -269,12 +272,14 @@ writeBlock hdl blocks
 
 -- * Handle
 
--- | libsndfile has no protection against multiple closes on the same handle
--- and happily double frees memory, and hsndfile provides no protection either.
-data Handle = Handle !FilePath !(IORef.IORef Bool) !Sndfile.Handle
-
-_handle :: Handle -> Sndfile.Handle
-_handle (Handle _ _ hdl) = hdl
+data Handle = Handle {
+    _filename :: !FilePath
+    -- | libsndfile has no protection against multiple closes on the same
+    -- handle and happily double frees memory, and hsndfile provides no
+    -- protection either.
+    , _isOpen :: !(IORef.IORef Bool)
+    , _handle :: !Sndfile.Handle
+    }
 
 throwEnoent :: FilePath -> Maybe a -> IO a
 throwEnoent fname =
@@ -284,7 +289,7 @@ openReadThrow :: FilePath -> IO Handle
 openReadThrow fname = throwEnoent fname =<< openRead fname
 
 openRead :: FilePath -> IO (Maybe Handle)
-openRead fname = annotate fname $ do
+openRead fname = annotate "openRead" fname $ do
     mbHdl <- ignoreEnoent $
         Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
     case mbHdl of
@@ -294,9 +299,12 @@ openRead fname = annotate fname $ do
             return $ Just $ Handle fname open hdl
 
 close :: Handle -> IO ()
-close (Handle _fname open hdl) = whenM (IORef.readIORef open) $ do
-    IORef.atomicWriteIORef open False
-    Sndfile.hClose hdl
+close hdl = whenM (IORef.readIORef (_isOpen hdl)) $ do
+    IORef.atomicWriteIORef (_isOpen hdl) False
+    -- hsndfile is buggy and calls sf_error(nullptr) after closing the handle,
+    -- which gets any previous error that might still be in a static variable.
+    Sndfile.hClose (_handle hdl) `Exception.catch`
+        \(_exc :: Sndfile.Exception) -> return ()
 
 openWrite :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
@@ -304,7 +312,7 @@ openWrite :: forall rate channels.
     -> IO Handle
 openWrite format fname _audio = do
     open <- IORef.newIORef True
-    annotate fname $
+    annotate "openWrite" fname $
         Handle fname open <$> Sndfile.openFile fname Sndfile.WriteMode info
     where
     info = Sndfile.defaultInfo
@@ -313,10 +321,10 @@ openWrite format fname _audio = do
         , Sndfile.format = format
         }
 
--- Sndfile's errors don't include the filename.
-annotate :: Stack.HasCallStack => FilePath -> IO a -> IO a
-annotate fname = Exception.handle $ \exc ->
-    Audio.throwIO $ txt $ "opening " <> show fname
+-- | Sndfile's errors don't include the filename.
+annotate :: Stack.HasCallStack => String -> FilePath -> IO a -> IO a
+annotate operation fname = Exception.handle $ \exc ->
+    Audio.throwIO $ txt $ operation <> " " <> show fname
         <> ": " <> Sndfile.errorString exc
 
 wavFormat :: Sndfile.Format
@@ -328,6 +336,7 @@ wavFormat = Sndfile.Format
 
 ignoreEnoent :: IO a -> IO (Maybe a)
 ignoreEnoent = ignoreError $ \case
+    -- hsndfile doesn't preserve the underlying error code
     Sndfile.SystemError msg -> "No such file or directory" `List.isInfixOf` msg
     _ -> False
 
