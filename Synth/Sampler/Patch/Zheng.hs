@@ -9,7 +9,7 @@ import           System.FilePath ((</>))
 import qualified Text.Read as Read
 
 import qualified Util.Log as Log
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
@@ -123,7 +123,7 @@ defaultDampTime = 0.75
 toFilename :: Pitch.NoteNumber -> Articulation -> Signal.Y -> Signal.Y
     -> Maybe (Midi.Key, Signal.Y, FilePath)
 toFilename nn art dyn var = do
-    (key, velToFiles) <- Util.Map.lookup_closest (Midi.to_key (round nn))
+    (key, velToFiles) <- Maps.lookup_closest (Midi.to_key (round nn))
         (samples art)
     -- TODO pick some from neighbors, since I lost variations due to combining
     -- them

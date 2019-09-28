@@ -93,7 +93,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 import qualified Util.Log as Log
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq

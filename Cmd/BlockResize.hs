@@ -12,7 +12,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -107,7 +107,7 @@ move_events pos delta events = pre <> Events.move delta post
 merge_updates :: TrackTime -> [Update]
     -> Map BlockId (Map TrackId [(Event.Event, TrackTime)])
 merge_updates delta =
-    fmap (fmap merge . Util.Map.multimap) . Util.Map.multimap
+    fmap (fmap merge . Maps.multimap) . Maps.multimap
     where
     merge offset_events = Seq.sort_on (Event.start . fst)
         [ (event, delta * fromIntegral (length offsets))
@@ -193,7 +193,7 @@ push_down_ruler block_id = do
     Extract.push_down_recursive False block_id track_id
 
 insert_points :: [Update] -> Maybe (Map BlockId [TrackTime])
-insert_points = traverse check . Util.Map.multimap
+insert_points = traverse check . Maps.multimap
     where
     check [(_, (offsets, events))] =
         Just [offset + Event.start e | offset <- offsets, e <- events]

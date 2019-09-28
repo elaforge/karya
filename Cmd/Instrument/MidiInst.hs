@@ -45,7 +45,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -397,7 +397,7 @@ db_path app_dir name =
 -- | Like 'generate_names', but don't drop or rename duplicates, just report
 -- them as errors.
 check_names :: [Patch] -> (Map InstTypes.Name Patch, [InstTypes.Name])
-check_names = second (map fst) . Util.Map.unique
+check_names = second (map fst) . Maps.unique
     . Seq.key_on (Patch.patch_name . patch_patch)
 
 -- | 'Patch.inst_name' is the name as it appears on the synth, so it's not

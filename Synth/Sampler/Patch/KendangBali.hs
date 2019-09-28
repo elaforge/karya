@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 
 import           System.FilePath ((</>))
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -172,7 +172,7 @@ inferEnd note nexts = case List.find ((`elem` stops) . noteGroup) nexts of
     noteGroup = groupOf . Note.attributes
 
 stoppedBy :: Map Drums.Group [Drums.Group]
-stoppedBy = Util.Map.multimap $
+stoppedBy = Maps.multimap $
     concatMap (\(group, stops) -> map (, group) stops) K.stops
 
 groupOf :: Attrs.Attributes -> Drums.Group

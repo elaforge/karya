@@ -7,7 +7,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import           System.FilePath ((</>))
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -70,7 +70,7 @@ inferEnd note nexts = case List.find ((`elem` stops) . noteGroup) nexts of
     noteGroup = groupOf . Note.attributes
 
 stoppedBy :: Map Drums.Group [Drums.Group]
-stoppedBy = Util.Map.multimap $
+stoppedBy = Maps.multimap $
     concatMap (\(group, stops) -> map (, group) stops) Mridangam.stops
 
 groupOf :: Attrs.Attributes -> Drums.Group

@@ -19,7 +19,7 @@ import qualified Data.Map.Strict as Map
 
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 
 import qualified Derive.Call.Module as Module
@@ -164,7 +164,7 @@ compile (Derive.Scopes lgen ltrans ltrack lval) = Logger.runId $ Derive.Scopes
         entry_doc (Pattern pattern) = Derive.pat_call_doc pattern
     compile1 kind (module_, entries) = do
         let (singles, patterns) = partition entries
-        let (cmap, dups) = Util.Map.unique singles
+        let (cmap, dups) = Maps.unique singles
         unless (null dups) $
             Logger.log ((kind, module_), map fst dups)
         return $ (module_,) $ Derive.CallMap

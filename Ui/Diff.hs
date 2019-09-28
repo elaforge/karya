@@ -22,7 +22,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Logger as Logger
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
 
@@ -62,9 +62,9 @@ diff :: [Update.CmdUpdate] -> Ui.State -> Ui.State
 diff cmd_updates st1 st2 = postproc cmd_updates st2 $ run $ do
     diff_views st1 st2 (Ui.state_views st1) (Ui.state_views st2)
     mapM_ (uncurry3 diff_block) $
-        Map.zip_intersection (Ui.state_blocks st1) (Ui.state_blocks st2)
+        Maps.zip_intersection (Ui.state_blocks st1) (Ui.state_blocks st2)
     mapM_ (uncurry3 (diff_track st2)) $
-        Map.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
+        Maps.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
     -- I don't diff rulers, since they have lots of things in them and rarely
     -- change.  But that means I need the CmdUpdate hack, and modifications
     -- must be done through Ui.modify_ruler.
@@ -144,7 +144,7 @@ merge_updates state updates = updates ++ concatMap propagate updates
         | is_event_update update =
             map (\tid -> Update.Track tid update) merges_this
         | otherwise = []
-        where merges_this = Map.get [] track_id merged_to_track
+        where merges_this = Map.findWithDefault [] track_id merged_to_track
     propagate _ = []
     -- For each track update, find tracks that have it in merged
     track_to_merged = mapMaybe merged_ids_of
@@ -153,7 +153,7 @@ merge_updates state updates = updates ++ concatMap propagate updates
         Block.TId track_id _ -> Just (track_id, Block.track_merged track)
         _ -> Nothing
     -- Map from a track to all tracks that merge it.
-    merged_to_track = Map.multimap
+    merged_to_track = Maps.multimap
         [ (merged_id, track_id)
         | (track_id, merged_ids) <- track_to_merged
         , merged_id <- Set.toList merged_ids
@@ -167,7 +167,7 @@ merge_updates state updates = updates ++ concatMap propagate updates
 diff_views :: Ui.State -> Ui.State -> Map ViewId Block.View
     -> Map ViewId Block.View -> DiffM ()
 diff_views st1 st2 views1 views2 =
-    forM_ (Map.pairs views1 views2) $ \(view_id, paired) -> case paired of
+    forM_ (Maps.pairs views1 views2) $ \(view_id, paired) -> case paired of
         Seq.Second _ -> change $ Update.View view_id Update.CreateView
         Seq.First _ -> change $ Update.View view_id Update.DestroyView
         Seq.Both view1 view2
@@ -193,7 +193,7 @@ diff_view st1 st2 view_id view1 view2 = do
 
     -- If the view doesn't have a block I should have failed long before here.
     mapM_ (uncurry (diff_selection emit))
-        (Map.pairs (Block.view_selections view1) (Block.view_selections view2))
+        (Maps.pairs (Block.view_selections view1) (Block.view_selections view2))
 
 status_color :: Ui.State -> Block.View -> Color.Color
 status_color state view =
@@ -286,7 +286,7 @@ sibling_tracks state track_id = either (const []) id $ Ui.eval state $ do
 diff_state :: Ui.State -> Ui.State -> DiffM ()
 diff_state st1 st2 = do
     let emit = change . Update.State
-    let pairs f = Map.pairs (f st1) (f st2)
+    let pairs f = Maps.pairs (f st1) (f st2)
     when (Ui.state_config st1 /= Ui.state_config st2) $
         emit $ Update.Config (Ui.state_config st2)
     forM_ (pairs Ui.state_blocks) $ \(block_id, paired) -> case paired of
@@ -325,15 +325,15 @@ derive_diff st1 st2 updates = postproc $ run_derive_diff $
         }
     else do
         mapM_ (uncurry derive_diff_block) $
-            Map.pairs (Ui.state_blocks st1) (Ui.state_blocks st2)
+            Maps.pairs (Ui.state_blocks st1) (Ui.state_blocks st2)
         -- This doesn't check for added or removed tracks, because for them to
         -- have any effect they must be added to or removed from a block, which
         -- 'derive_diff_block' will catch.
         mapM_ (uncurry3 derive_diff_track) $
-            Map.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
+            Maps.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
     where
     postproc = postproc_damage st2 . (updates_damage block_rulers updates <>)
-    block_rulers = Map.multimap
+    block_rulers = Maps.multimap
         [ (ruler_id, block_id)
         | (block_id, block) <- Map.toList (Ui.state_blocks st2)
         , ruler_id <- Block.block_ruler_ids block
@@ -426,9 +426,9 @@ score_changed st1 st2 updates = or
     , unequal_on (Map.keys . Ui.state_blocks) st1 st2
     , unequal_on (Map.keys . Ui.state_tracks) st1 st2
     , any (\(_, b1, b2) -> strip b1 /= strip b2) $
-        Map.zip_intersection (Ui.state_blocks st1) (Ui.state_blocks st2)
+        Maps.zip_intersection (Ui.state_blocks st1) (Ui.state_blocks st2)
     , any (\(_, t1, t2) -> t1 /= t2) $
-        Map.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
+        Maps.zip_intersection (Ui.state_tracks st1) (Ui.state_tracks st2)
     , Ui.state_config st1 /= Ui.state_config st2
     ]
     where strip b = b { Block.block_config = Block.default_config }

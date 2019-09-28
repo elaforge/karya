@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Extra utils for "Data.Map".
-module Util.Map where
+module Util.Maps where
 import Prelude hiding (min, max)
 import Control.Arrow (first)
 import qualified Data.Either as Either

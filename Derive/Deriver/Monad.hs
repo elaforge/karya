@@ -150,8 +150,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
-import qualified Util.Map
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 
@@ -817,7 +816,7 @@ newtype ScopePriority call = ScopePriority (Map CallPriority (CallMap call))
     deriving (Pretty)
 
 instance Semigroup (ScopePriority call) where
-    ScopePriority a <> ScopePriority b = ScopePriority (Util.Map.mappend a b)
+    ScopePriority a <> ScopePriority b = ScopePriority (Maps.mappend a b)
 instance Monoid (ScopePriority call) where
     mempty = ScopePriority mempty
     mappend = (<>)
@@ -1723,7 +1722,7 @@ data ScoreDamage = ScoreDamage {
 instance Semigroup ScoreDamage where
     (<>)    (ScoreDamage tracks1 tblocks1 blocks1)
             (ScoreDamage tracks2 tblocks2 blocks2) =
-        ScoreDamage (Map.mappend tracks1 tracks2)
+        ScoreDamage (Maps.mappend tracks1 tracks2)
             (tblocks1 <> tblocks2) (blocks1 <> blocks2)
 instance Monoid ScoreDamage where
     mempty = ScoreDamage Map.empty Set.empty Set.empty

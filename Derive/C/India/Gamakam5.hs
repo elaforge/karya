@@ -21,7 +21,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
@@ -250,7 +250,7 @@ pitch_call_doc (name, pcalls) =
             then " (dur " <> pretty (pcall_duration pcall) <> ")" else ""
 
 pitch_call_map :: Map Char [PitchCall]
-pitch_call_map = resolve $ Map.unique $ concat
+pitch_call_map = resolve $ Maps.unique $ concat
     [ [pcall '=' "Hold flat pitch." pc_flat]
     -- relative motion
     , [parse_name $ pcall c "Relative motion." pc_relative | c <- "0123456789"]

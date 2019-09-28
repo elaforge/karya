@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
@@ -88,7 +88,7 @@ merge_indices (Index keys0 inv0) (Index keys1 inv1) =
 
 make_index :: Inst.Db code -> Index
 make_index db = Index
-    { idx_by_key = Map.map Map.multimap (Map.multimap idx)
+    { idx_by_key = Map.map Maps.multimap (Maps.multimap idx)
     , idx_instrument_tags = Map.fromList inst_tags
     }
     where

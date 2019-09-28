@@ -20,7 +20,7 @@ import qualified Data.Word as Word
 import qualified ZMidi.Core as Z
 
 import qualified Util.Log as Log
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
@@ -131,7 +131,7 @@ instance Semigroup NoteTrack where
     (<>)    (NoteTrack notes1 pitches1 controls1)
             (NoteTrack notes2 pitches2 controls2) =
         NoteTrack (notes1 <> notes2) (pitches1 <> pitches2)
-            (Map.mappend controls1 controls2)
+            (Maps.mappend controls1 controls2)
 instance Monoid NoteTrack where
     mempty = NoteTrack mempty mempty mempty
     mappend = (<>)
@@ -266,7 +266,7 @@ cc_to_control cc =
     fromMaybe (ScoreT.unchecked_control ("cc" <> showt cc))
         (Map.lookup cc cc_control)
     where
-    cc_control = Map.invert Control.universal_control_map
+    cc_control = Maps.invert Control.universal_control_map
 
 show_val :: Word.Word8 -> Text -- the Midi types are aliases for Word8
 show_val val = ShowVal.show_hex_val $ d / 0x7f

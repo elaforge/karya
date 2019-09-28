@@ -19,7 +19,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -355,8 +355,7 @@ solluMap :: Pretty stroke =>
     [([S.Note g (Solkattu.Note Solkattu.Sollu)], [SNote stroke])]
     -> Either Error (SolluMap stroke,
         [(SolluMapKey Solkattu.Sollu, [Maybe (Stroke stroke)])])
-solluMap =
-    fmap (first SolluMap . Util.Map.unique . reverse) . mapM verifySolluMap
+solluMap = fmap (first SolluMap . Maps.unique . reverse) . mapM verifySolluMap
 
 -- | A sollu can map to a rest stroke: tang.ga, where ga is silent Or
 -- taka.tarikita played N_ktpk.  But I don't think a rest sollu can map to

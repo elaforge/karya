@@ -10,7 +10,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -376,7 +376,7 @@ harmonic_map strings = HarmonicMap
     , hmap_key_to_gliss_destination = make gliss_natural_harmonics
     }
     where
-    make key_to_interval = Map.multimap $ do
+    make key_to_interval = Maps.multimap $ do
         (oct, (str, base)) <- zip [0..] strings
         (key, interval) <- key_to_interval
         return (add base interval, (str, add key (oct * 12)))

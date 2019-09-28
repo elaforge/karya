@@ -48,7 +48,7 @@ import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
 import qualified Util.Lens as Lens
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree
@@ -330,7 +330,7 @@ data NoteTrack = NoteTrack Events.Events Controls
 
 instance Semigroup NoteTrack where
     NoteTrack events1 controls1 <> NoteTrack events2 controls2 =
-        NoteTrack (events1 <> events2) (Map.mappend controls1 controls2)
+        NoteTrack (events1 <> events2) (Maps.mappend controls1 controls2)
 instance Monoid NoteTrack where
     mempty = NoteTrack mempty mempty
     mappend = (<>)

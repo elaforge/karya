@@ -12,7 +12,7 @@ import qualified Data.Text as Text
 
 import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -87,7 +87,7 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
                 <> showt (Map.keys mods)
         return $ Map.delete key mods
     set_key_mods mods = case msg_to_key_mods msg of
-        Just kmods -> Map.insert_list
+        Just kmods -> Maps.insert_list
             [(Cmd.KeyMod c, Cmd.KeyMod c) | c <- kmods]
             (Map.filter not_key_mod mods)
         Nothing -> mods

@@ -16,7 +16,7 @@ import qualified Text.Read as Read
 import qualified Util.Audio.Audio as Audio
 import qualified Util.Audio.File as File
 import qualified Util.File
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -216,7 +216,7 @@ findSymPitch tuning (Pitch.Note pitch) = do
 findNnPitch :: Tuning -> Pitch.NoteNumber
     -> Either Text (Pitch, (Pitch.NoteNumber, Pitch.NoteNumber))
 findNnPitch tuning nn = do
-    (sampleNn, pitch) <- tryJust "no pitches" $ Util.Map.lookup_closest nn $
+    (sampleNn, pitch) <- tryJust "no pitches" $ Maps.lookup_closest nn $
         case tuning of
             Umbang -> umbangs
             Isep -> iseps

@@ -7,7 +7,7 @@ module Cmd.Repl.LNote where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyNotes as ModifyNotes
@@ -130,7 +130,7 @@ insert_ordered place_before note state = case Map.lookup index state of
 bump_index :: Int -> Map Int a -> Map Int a
 bump_index index m =
     pre <> Map.fromAscList (map (first (+1)) (Map.toAscList post))
-    where (pre, post) = Util.Map.split2 index m
+    where (pre, post) = Maps.split2 index m
 
 extract :: State a -> [ModifyNotes.Note]
 extract state = concat $

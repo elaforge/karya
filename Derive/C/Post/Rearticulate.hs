@@ -4,7 +4,7 @@
 
 -- | Post-proc calls that impose a new kind of articulation.
 module Derive.C.Post.Rearticulate (library) where
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -69,7 +69,7 @@ merge_pitch sig sigs =
     mconcat $ sig : [PSignal.clip_before start sig | (start, sig) <- sigs]
 
 merge_controls :: Score.Event -> [Score.Event] -> DeriveT.ControlMap
-merge_controls event events = Util.Map.mconcat $ clip event : map clip events
+merge_controls event events = Maps.mconcat $ clip event : map clip events
     where
     clip event = fmap (Signal.clip_before (Score.event_start event)) <$>
         Score.event_controls event

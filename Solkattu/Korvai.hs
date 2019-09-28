@@ -13,7 +13,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time.Calendar as Calendar
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -422,7 +422,7 @@ inferKorvaiMetadata korvai =
     withKorvaiMetadata (mempty { _tags = inferKorvaiTags korvai }) korvai
 
 inferKorvaiTags :: Korvai -> Tags.Tags
-inferKorvaiTags korvai = Tags.Tags $ Util.Map.multimap $ concat
+inferKorvaiTags korvai = Tags.Tags $ Maps.multimap $ concat
     [ [ ("tala", Tala._name tala)
       , ("sections", showt sections)
       ]

@@ -28,7 +28,7 @@ import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 import qualified System.Process as Process
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Shake.Util as Util
 
 
@@ -102,7 +102,7 @@ getModuleToPackage :: [Package]
     -- ^ also return any modules found under multiple packages
 getModuleToPackage packages = do
     packageMods <- zip packages <$> mapM getExposedModules packages
-    return $ Util.Map.unique2
+    return $ Maps.unique2
         [(mod, package) | (package, mods) <- packageMods, mod <- mods]
 
 getExposedModules :: Package -> IO [ModuleName]

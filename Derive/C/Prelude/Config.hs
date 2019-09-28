@@ -8,7 +8,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Make as Make
@@ -108,7 +108,7 @@ parse_pairs :: [Note.Element]
     -> [(ScoreT.Control, [Either Double PSignal.Transposed])]
     -> Either Text (Map Note.Element (Map ScoreT.Control Double))
 parse_pairs elements =
-    fmap (fmap Map.fromList . Util.Map.multimap) . concatMapM parse
+    fmap (fmap Map.fromList . Maps.multimap) . concatMapM parse
     where
     parse (_, []) = return []
     parse (control, [val]) = do

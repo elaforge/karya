@@ -16,7 +16,7 @@ import qualified Data.Set as Set
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
 import qualified Util.Log as Log
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 
 import qualified Derive.Call.Module as Module
@@ -106,7 +106,7 @@ extract_result (result, state, logs) = Result
 -- See 'Collect' and 'TrackDynamic' for why.
 extract_track_dynamic :: Collect -> TrackDynamic
 extract_track_dynamic collect =
-    Map.fromList $ map (second strip_dynamic . extract) $ Util.Map.pairs
+    Map.fromList $ map (second strip_dynamic . extract) $ Maps.pairs
         (collect_track_dynamic collect) (collect_track_dynamic_inverted collect)
     where
     extract (k, Seq.First dyn) = (k, dyn)
@@ -238,7 +238,7 @@ extract_symbols wanted (Scopes gen trans track val) = Scopes
         , scope_pitch = extract pitch
         }
     extract = map_cmap $ \cmap -> mempty
-        { call_map = Util.Map.filter_key wanted (call_map cmap) }
+        { call_map = Maps.filter_key wanted (call_map cmap) }
     map_cmap f (ScopePriority m) = ScopePriority $ f <$> m
 
 scope_symbols :: Scopes -> [Expr.Symbol]
@@ -586,7 +586,7 @@ with_controls :: [(ScoreT.Control, ScoreT.Typed Signal.Control)]
 with_controls controls
     | null controls = id
     | otherwise = Internal.local $ \state -> state
-        { state_controls = Util.Map.insert_list controls (state_controls state)
+        { state_controls = Maps.insert_list controls (state_controls state)
         }
 
 -- | Remove both controls and control functions.  Use this when a control has
@@ -595,9 +595,9 @@ remove_controls :: [ScoreT.Control] -> Deriver a -> Deriver a
 remove_controls controls
     | null controls = id
     | otherwise = Internal.local $ \state-> state
-        { state_controls = Util.Map.delete_keys controls (state_controls state)
+        { state_controls = Maps.delete_keys controls (state_controls state)
         , state_control_functions =
-            Util.Map.delete_keys controls (state_control_functions state)
+            Maps.delete_keys controls (state_control_functions state)
         }
 
 with_control_function :: ScoreT.Control -> DeriveT.ControlFunction

@@ -16,7 +16,7 @@ module Midi.State (
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -111,7 +111,7 @@ diff_chan (dev, chan) (Channel notes1 pb1 controls1)
     map (\m -> (dev, Midi.ChannelMessage chan m)) $
     (if pb1 == pb2 then [] else [Midi.PitchBend pb2])
     ++ diff_map controls1 controls2 0 diff_control
-    ++ concatMap (uncurry diff_note) (Map.pairs notes1 notes2)
+    ++ concatMap (uncurry diff_note) (Maps.pairs notes1 notes2)
 
 diff_control :: Control -> Midi.ControlValue -> Midi.ControlValue
     -> [Midi.ChannelMessage]
@@ -128,7 +128,7 @@ diff_note key (Seq.Both v1 v2)
     | otherwise = [Midi.NoteOff key 0, Midi.NoteOn key v2]
 
 diff_map :: Ord k => Map k a -> Map k a -> a -> (k -> a -> a -> [b]) -> [b]
-diff_map m1 m2 deflt f = concatMap go (Map.pairs m1 m2)
+diff_map m1 m2 deflt f = concatMap go (Maps.pairs m1 m2)
     where
     go (k, Seq.Both v1 v2) = f k v1 v2
     go (k, Seq.First v1) = f k v1 deflt

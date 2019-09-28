@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
@@ -207,7 +207,7 @@ findPitch = \case
         return (sampleNn, sampleNn, key)
     Right noteNn -> return (sampleNn, noteNn, key)
         where
-        Just (sampleNn, (key, _)) = Util.Map.lookup_closest noteNn nnKeys
+        Just (sampleNn, (key, _)) = Maps.lookup_closest noteNn nnKeys
 
 --             trompong---------------------
 --                      reyong-----------------------------

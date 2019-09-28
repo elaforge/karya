@@ -24,7 +24,7 @@ import qualified Data.Text as Text
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -301,7 +301,7 @@ controls_equal start end cs1 cs2 = start >= end || all eq pairs
     -- Velocity and aftertouch are per-note addressable in midi, but the rest
     -- of the controls require their own channel.
     relevant = Map.filterWithKey (\k _ -> Control.is_channel_control k)
-    pairs = Util.Map.pairs (relevant cs1) (relevant cs2)
+    pairs = Maps.pairs (relevant cs1) (relevant cs2)
     eq (_, Seq.Both sig1 sig2) =
         MSignal.within start end sig1 == MSignal.within start end sig2
     eq _ = False

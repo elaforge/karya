@@ -5,7 +5,7 @@
 -- | Tags type and conventional tag values.
 module Solkattu.Tags where
 import qualified Data.Map as Map
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import Global
 
 
@@ -13,7 +13,7 @@ newtype Tags = Tags (Map Text [Text])
     deriving (Eq, Show, Pretty)
 
 instance Semigroup Tags where
-    Tags t1 <> Tags t2 = Tags (Util.Map.mappend t1 t2)
+    Tags t1 <> Tags t2 = Tags (Maps.mappend t1 t2)
 instance Monoid Tags where
     mempty = Tags mempty
     mappend = (<>)

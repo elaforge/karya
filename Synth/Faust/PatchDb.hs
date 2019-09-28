@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Doc as Doc
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
@@ -98,7 +98,7 @@ thruCode = ImInst.thru . thruFunction
 
 thruFunction :: Map Pitch.NoteNumber FilePath -> Osc.ThruFunction
 thruFunction pitchToSample = \_attrs pitch _velocity ->
-    case Util.Map.lookup_closest pitch pitchToSample of
+    case Maps.lookup_closest pitch pitchToSample of
         Nothing -> Left "no samples"
         Just (sampleNn, sample) -> Right $ (:[]) $ Osc.Play
             { _sample = sample

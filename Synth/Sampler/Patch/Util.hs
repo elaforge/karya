@@ -12,7 +12,7 @@ import qualified Data.Text as Text
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -61,7 +61,7 @@ findPitchRatio :: Map Pitch.NoteNumber a -> Pitch.NoteNumber -> (a, Signal.Y)
 findPitchRatio nnToSample nn = (fname, Sample.pitchToRatio sampleNn nn)
     where
     (sampleNn, fname) = fromMaybe (error "findPitch: empty nnToSample") $
-        Util.Map.lookup_closest nn nnToSample
+        Maps.lookup_closest nn nnToSample
 
 -- ** articulation
 

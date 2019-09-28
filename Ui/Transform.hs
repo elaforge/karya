@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Memory as Memory
 import qualified Util.Num as Num
 
@@ -204,7 +204,7 @@ safe_union name fm0 fm1
     | Map.null overlapping = return fm
     | otherwise = Ui.throw $ "keys collided in " <> showt name <> ": "
         <> showt (Map.keys overlapping)
-    where (fm, overlapping) = Map.unique_union fm0 fm1
+    where (fm, overlapping) = Maps.unique_union fm0 fm1
 
 
 -- * intern

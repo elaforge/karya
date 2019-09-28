@@ -41,7 +41,7 @@ import           Prelude hiding (lookup)
 import qualified Data.Map as Map
 
 import qualified Util.Lens as Lens
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
@@ -150,13 +150,13 @@ db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
     where
     (inst_maps, inst_errors) = second concat $ unzip $ do
         SynthDecl synth synth_doc insts <- synth_decls
-        let (inst_map, dups) = Util.Map.unique insts
+        let (inst_map, dups) = Maps.unique insts
         let errors =
                 [ "duplicate inst: " <> pretty (InstTypes.Qualified synth name)
                 | name <- map fst dups
                 ]
         return ((synth, Synth synth_doc inst_map), errors)
-    (db, dups) = Util.Map.unique inst_maps
+    (db, dups) = Maps.unique inst_maps
     synth_errors = ["duplicate synth: " <> showt synth | synth <- map fst dups]
     validate_errors = concat
         [ map ((pretty (InstTypes.Qualified synth name) <> ": ") <>)
@@ -176,7 +176,7 @@ validate inst = case inst_backend inst of
 -- | Merge the Dbs, and return any duplicate synths.
 merge :: Db code -> Db code -> (Db code, [InstTypes.SynthName])
 merge (Db db1) (Db db2) = (Db db, Map.keys dups)
-    where (db, dups) = Util.Map.unique_union db1 db2
+    where (db, dups) = Maps.unique_union db1 db2
 
 annotate :: Map InstTypes.Qualified [Tag.Tag] -> Db code
     -> (Db code, [InstTypes.Qualified])

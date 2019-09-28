@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Vector
 
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -99,7 +99,7 @@ drum_mute_values notes =
     -- at least one keyswitch so pitch_to_group isn't empty, and pretending
     -- there's one at 0 is fine since it never changes.  This is fine, assuming
     -- that overlapping groups all belong to the same stop gorup.
-    keyswitch_to_notes = Util.Map.multimap
+    keyswitch_to_notes = Maps.multimap
         [ (ks_of keyswitch, (Drums._group note, (low, high)))
         | (note, (keyswitch, low, high, _)) <- notes
         ]

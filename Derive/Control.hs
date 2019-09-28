@@ -33,7 +33,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
@@ -385,7 +385,7 @@ stash_signal_fragment block_id track_id slice_end sig =
     -- of identical signal fragments.  Rather than waiting for merge to
     -- eliminate them, it seems a bit more efficient to not collect them in the
     -- first place.
-    insert (Just old) = Just $ case Util.Map.max old of
+    insert (Just old) = Just $ case Maps.max old of
         Just (_, prev) | sig == prev -> old
         _ -> Map.insert slice_end sig old
     insert _ = Just $ Map.singleton slice_end sig

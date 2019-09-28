@@ -21,7 +21,7 @@ import           System.FilePath ((</>))
 import qualified Data.Text.Read as Text.Read
 
 import qualified Util.Log as Log
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -329,7 +329,7 @@ findPitch instrument tuning articulation symPitch = case symPitch of
     Right noteNn -> return (sampleNn, noteNn, key)
         where
         -- Only Nothing if keys was empty.
-        Just (sampleNn, (key, _)) = Util.Map.lookup_closest noteNn keys
+        Just (sampleNn, (key, _)) = Maps.lookup_closest noteNn keys
     where
     keys = keyMap instrument tuning articulation
 

@@ -32,7 +32,7 @@ import qualified System.Process as Process
 
 import qualified Util.Control as Control
 import qualified Util.Log as Log
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Process
 import qualified Util.Thread as Thread
 import qualified Util.Vector
@@ -180,7 +180,7 @@ kill_threads = do
         kill = filter ((`elem` with_damage) . fst) $ Map.toList threads
     liftIO $ mapM_ (Cmd.kill_thread . snd) kill
     Monad.State.modify $ modify_play_state $ const $ play_state
-        { Cmd.state_performance_threads = Map.delete_keys (map fst kill)
+        { Cmd.state_performance_threads = Maps.delete_keys (map fst kill)
             (Cmd.state_performance_threads play_state)
         }
 

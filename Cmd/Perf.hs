@@ -15,7 +15,7 @@ import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
 import qualified Util.Tree
 
@@ -321,7 +321,7 @@ infer_muted_instrument_tracks :: Cmd.M m => m (Map ScoreT.Instrument [TrackId])
 infer_muted_instrument_tracks = do
     muted <- Set.toList <$> PlayUtil.get_muted_tracks
     instruments <- mapM infer_instrument muted
-    return $ Util.Map.multimap $ Seq.map_maybe_fst id $ zip instruments muted
+    return $ Maps.multimap $ Seq.map_maybe_fst id $ zip instruments muted
 
 infer_instrument :: Cmd.M m => TrackId -> m (Maybe ScoreT.Instrument)
 infer_instrument track_id =

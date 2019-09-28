@@ -83,7 +83,7 @@ import qualified Test.QuickCheck as QuickCheck
 
 import qualified Util.CallStack as CallStack
 import Util.CallStack (Stack)
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -252,7 +252,7 @@ diff_ranges :: Text -> Text
     -> (IntMap.IntMap [CharRange], IntMap.IntMap [CharRange])
 diff_ranges first second =
     to_map $ Seq.partition_paired $ map diff_line $
-        Util.Map.pairs first_by_line second_by_line
+        Maps.pairs first_by_line second_by_line
     where
     to_map (as, bs) = (IntMap.fromList as, IntMap.fromList bs)
     diff_line (num, d) = case d of

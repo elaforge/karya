@@ -50,7 +50,7 @@ import           Prelude hiding (head, last, length, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -209,11 +209,11 @@ overlapping pos events
     where (pre, post) = bimap descending ascending $ split pos events
 
 head :: Events -> Maybe Event.Event
-head (Events events) = snd <$> Map.min events
+head (Events events) = snd <$> Maps.min events
 
 -- | Final event, if there is one.
 last :: Events -> Maybe Event.Event
-last (Events events) = snd <$> Map.max events
+last (Events events) = snd <$> Maps.max events
 
 -- ** split
 
@@ -227,13 +227,13 @@ split_range (Range start end) (Events events) =
     (Events pre, Events within, Events post)
     where
     (pre, within, post) =
-        Map.split3 (Key start Types.Positive) (Key end Types.Positive) events
+        Maps.split3 (Key start Types.Positive) (Key end Types.Positive) events
 
 -- | Split at the given time.  A positive event that starts at the given time
 -- will appear in the after events, a negative event in the previous events.
 split :: ScoreTime -> Events -> (Events, Events)
 split pos (Events events) = (Events pre, Events post)
-    where (pre, post) = Map.split2 (Key pos Types.Positive) events
+    where (pre, post) = Maps.split2 (Key pos Types.Positive) events
 
 -- | Like 'split', but a positive event that matches exactly is excluded from
 -- the result.
@@ -256,9 +256,9 @@ around start end events = Events $ above $ below within
     (Events pre, Events within, Events post) =
         split_range (Range start end) events
     below m
-        | Just (Key lowest _, _) <- Map.min within, lowest == start = m
-        | otherwise = maybe m (\(k, e) -> Map.insert k e m) (Map.max pre)
-    above m = maybe m (\(k, e) -> Map.insert k e m) (Map.min post)
+        | Just (Key lowest _, _) <- Maps.min within, lowest == start = m
+        | otherwise = maybe m (\(k, e) -> Map.insert k e m) (Maps.max pre)
+    above m = maybe m (\(k, e) -> Map.insert k e m) (Maps.min post)
 
 -- *** List [Event]
 
@@ -352,11 +352,11 @@ _split_overlapping start end events = (pre2, within3, post2)
     where
     (Events pre, Events within, Events post) =
         split_range (Range start end) (Events events)
-    (pre2, within2) = case Map.max pre of
+    (pre2, within2) = case Maps.max pre of
         Just (k, e) | Event.overlaps start e ->
             (Map.delete k pre, Map.insert k e within)
         _ -> (pre, within)
-    (post2, within3) = case Map.min post of
+    (post2, within3) = case Maps.min post of
         Just (k, e) | Event.overlaps end e ->
             (Map.delete k post, Map.insert k e within2)
         _ -> (post, within2)

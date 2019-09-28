@@ -35,7 +35,7 @@ module Cmd.InputNote where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Map as Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified App.Config as Config
 import qualified Derive.Controls as Controls
@@ -167,7 +167,7 @@ from_midi (ReadDeviceState state) rdev (Midi.ChannelMessage chan chan_msg) =
     cstate = Map.findWithDefault
         (empty_control_state Config.read_device_pb_range) rdev state
     addr = (rdev, chan)
-    last_pb = Map.get 0 addr (state_pb cstate)
+    last_pb = Map.findWithDefault 0 addr (state_pb cstate)
     with_last_id f = fmap f (Map.lookup addr (state_note_id cstate))
     maybe_input = case chan_msg of
         Midi.NoteOn key vel -> Just $
@@ -230,7 +230,7 @@ control_to_cc :: ScoreT.Control -> Maybe Midi.Control
 control_to_cc = flip Map.lookup control_cc
 
 cc_control :: Map Midi.Control ScoreT.Control
-cc_control = Map.invert control_cc
+cc_control = Maps.invert control_cc
 
 control_cc :: Map ScoreT.Control Midi.Control
 control_cc = Control.universal_control_map

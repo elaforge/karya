@@ -25,7 +25,7 @@ import qualified Util.Audio.Audio as Audio
 import qualified Util.CallStack as CallStack
 import qualified Util.Control
 import qualified Util.Log as Log
-import qualified Util.Map
+import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
@@ -309,7 +309,7 @@ render emitMessage patch mbState notifyState controls inputs start end config =
             --     ( DriverC._name inst
             --     , start
             --     , map (\(c, _, val) -> (c, val)) $
-            --       Util.Map.zip_intersection (DriverC._controls inst) controls
+            --       Maps.zip_intersection (DriverC._controls inst) controls
             --     )
             outputs <- liftIO $ DriverC.render
                 (_controlSize config) (_controlsPerBlock config) inst
@@ -334,7 +334,7 @@ render emitMessage patch mbState notifyState controls inputs start end config =
 
 findControls :: Map DriverC.Control (ptr, config)
     -> Map DriverC.Control block -> [(ptr, block)]
-findControls controls vals = map get $ Util.Map.zip_intersection controls vals
+findControls controls vals = map get $ Maps.zip_intersection controls vals
     where get (_, (ptr, _), block) = (ptr, block)
 
 -- | Pull a chunk from each of the controls.  Omit the control if its signal
