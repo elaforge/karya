@@ -2,17 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Util.Graph_test where
+module Util.Graphs_test where
 import qualified Data.Array.IArray as IArray
 import qualified Data.List as List
-import qualified Util.Graph
-import Util.Graph (build)
+import qualified Util.Graphs as Graphs
+import Util.Graphs (build)
 import Util.Test
 import Global
 
 
 test_toggle_edge = do
-    let f = Util.Graph.toggle_edge
+    let f = Graphs.toggle_edge
         eq mg1 mg2 = case (mg1, mg2) of
             (Just g1, Just g2) -> graph_equal g1 g2
             (_, _) -> equal mg1 mg2
@@ -22,7 +22,7 @@ test_toggle_edge = do
     eq (f (1, 1) (build [])) Nothing
 
 test_splice_above = do
-    let f = Util.Graph.splice_above
+    let f = Graphs.splice_above
 
     graph_equal (f 0 1 (build [(1, 2), (1, 3)]))
         (build [(0, 1), (1, 2), (1, 3)])
@@ -40,23 +40,23 @@ test_splice_above = do
     idempotent 3 2 (build [(0, 1), (1, 3), (0, 2), (2, 4)])
 
 test_splice_below = do
-    let f = Util.Graph.splice_below
+    let f = Graphs.splice_below
     graph_equal (f 1 0 (build [])) (build [(0, 1)])
     graph_equal (f 2 1 (build [(0, 1), (1, 3), (1, 4)]))
         (build [(0, 1), (1, 2), (2, 3), (2, 4)])
     graph_equal (f 1 2 (build [(2, 0), (2, 3)]))
         (build [(2, 1), (1, 0), (1, 3)])
-    graph_equal (Util.Graph.splice_above 1 2 (build [(2, 0), (2, 3)]))
+    graph_equal (Graphs.splice_above 1 2 (build [(2, 0), (2, 3)]))
         (build [(1, 2), (2, 0), (2, 3)])
 
 test_add_edges = do
-    let f = Util.Graph.add_edges
+    let f = Graphs.add_edges
     graph_equal (f [(0, 1)] (build [])) (build [(0, 1)])
     graph_equal (f [(1, 0)] (build [(0, 1)])) (build [(0, 1), (1, 0)])
     graph_equal (f [(0, 1), (1, 0)] (build [])) (build [(0, 1), (1, 0)])
 
 test_remove_edges = do
-    let f = Util.Graph.remove_edges
+    let f = Graphs.remove_edges
     graph_equal (f [(0, 1)] (build [])) (build [])
     graph_equal (f [(0, 1)] (build [(0, 2)])) (build [(0, 2)])
     graph_equal (f [(0, 1)] (build [(0, 1)])) (build [])
@@ -64,7 +64,7 @@ test_remove_edges = do
     graph_equal (f [(0, 1), (0, 2)] (build [(0, 1), (0, 2)])) (build [])
 
 test_map_vertices = do
-    let f = Util.Graph.map_vertices
+    let f = Graphs.map_vertices
     equal (f (\v -> max 0 (v-1)) (build [(0, 1), (1, 2), (2, 3)]))
         (build [(0, 1), (1, 2)])
     equal (f (+1) (build [(0, 1), (1, 2), (2, 3)]))
@@ -78,7 +78,7 @@ test_map_vertices = do
         (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
 test_insert_vertex = do
-    let f = Util.Graph.insert_vertex
+    let f = Graphs.insert_vertex
         g = build [(0, 1), (1, 2)]
     graph_equal (f 0 g) (build [(1, 2), (2, 3)])
     graph_equal (f 1 g) (build [(0, 2), (2, 3)])
@@ -90,14 +90,14 @@ test_insert_vertex = do
 xgraph = build [(0, 2), (4, 2), (2, 1), (2, 3)]
 
 test_unlink_vertex = do
-    let f = Util.Graph.unlink_vertex
+    let f = Graphs.unlink_vertex
     graph_equal (f 0 xgraph) (build [(4, 2), (2, 1), (2, 3)])
     graph_equal (f 1 xgraph) (build [(0, 2), (4, 2), (2, 3)])
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 3), (4, 1), (4, 3)])
     throws (f (-1) xgraph) "out of range"
 
 test_remove_vertex = do
-    let f = Util.Graph.remove_vertex
+    let f = Graphs.remove_vertex
     -- x 3
     --  1
     -- 0 2
@@ -108,7 +108,7 @@ test_remove_vertex = do
     graph_equal (f 2 xgraph) (build [(0, 1), (0, 2), (3, 1), (3, 2)])
 
 test_move = do
-    let f = Util.Graph.move
+    let f = Graphs.move
         g = build [(0, 1), (1, 2)]
 
     equal (f 5 0 g) Nothing
@@ -124,8 +124,8 @@ test_move = do
 graph_equal graph1 graph2
     | norm graph1 == norm graph2 = success $ "graph == " <> showt graph1
     | otherwise = failure $ "graph " <> showt graph1 <> ":\n"
-        <> txt (Util.Graph.draw graph1)
-        <> "*** /= " <> showt graph2 <> " ***\n" <> txt (Util.Graph.draw graph2)
+        <> txt (Graphs.draw graph1)
+        <> "*** /= " <> showt graph2 <> " ***\n" <> txt (Graphs.draw graph2)
     where
     norm = map (\(p, cs) -> (p, List.sort cs)) . filter (not . null . snd)
         . IArray.assocs

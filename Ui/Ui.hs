@@ -821,7 +821,7 @@ splice_skeleton_below = _splice_skeleton False
 
 -- | Splice the given tracknum into the skeleton, either above or below
 -- the @to@ tracknum.  What this means exactly is documented in
--- 'Util.Graph.splice_above' and 'Util.Graph.slice_below'.
+-- 'Graphs.splice_above' and 'Graphs.slice_below'.
 _splice_skeleton :: M m => Bool -> BlockId -> TrackNum -> TrackNum -> m ()
 _splice_skeleton above block_id new to = do
     block <- get_block block_id

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.ParseSkeleton_test where
-import qualified Util.Graph_test as Graph_test
+import qualified Util.Graphs_test as Graphs_test
 import qualified Util.Seq as Seq
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Ui as Ui
@@ -41,7 +41,7 @@ test_parse = do
         (mkskel [(0, 1), (0, 2)])
     where
     skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
-        Graph_test.graph_equal g1 g2
+        Graphs_test.graph_equal g1 g2
 
 mk_track_info :: Text -> TrackNum -> Ui.TrackInfo
 mk_track_info title tracknum = Ui.TrackInfo

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Some functions missing from "Data.Graph".
-module Util.Graph where
+module Util.Graphs where
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Array.IArray as IArray

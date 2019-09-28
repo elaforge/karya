@@ -29,7 +29,7 @@ import qualified Data.Graph as Graph
 import qualified Data.List as List
 import qualified Data.Tree as Tree
 
-import qualified Util.Graph as Graph
+import qualified Util.Graphs as Graphs
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
@@ -61,22 +61,22 @@ empty :: Skeleton
 empty = Skeleton (Graph.buildG (0, -1) [])
 
 make :: [Edge] -> Skeleton
-make edges = Skeleton (Graph.build edges)
+make edges = Skeleton (Graphs.build edges)
 
 draw :: Skeleton -> String
-draw (Skeleton graph) = Graph.draw graph
+draw (Skeleton graph) = Graphs.draw graph
 
 has_edge :: Skeleton -> Edge -> Bool
-has_edge (Skeleton skel) edge = Graph.has_edge skel edge
+has_edge (Skeleton skel) edge = Graphs.has_edge skel edge
 
 add_edges :: [Edge] -> Skeleton -> Maybe Skeleton
-add_edges edges = acyclic . map_skel (Graph.add_edges edges)
+add_edges edges = acyclic . map_skel (Graphs.add_edges edges)
 
 remove_edges :: [Edge] -> Skeleton -> Skeleton
-remove_edges edges = map_skel (Graph.remove_edges edges)
+remove_edges edges = map_skel (Graphs.remove_edges edges)
 
 lonely_vertex :: Skeleton -> TrackNum -> Bool
-lonely_vertex (Skeleton graph) = Graph.lonely_vertex graph
+lonely_vertex (Skeleton graph) = Graphs.lonely_vertex graph
 
 flatten :: Skeleton -> [Edge]
 flatten (Skeleton graph) = List.sort (Graph.edges graph)
@@ -89,7 +89,7 @@ to_forest :: TrackNum -- ^ Total number of tracks.  This is needed because the
      -> [Tree.Tree TrackNum] -- ^ Each list of Nodes is sorted so the tree
      -- appears in the same order as the tracks.  This is essential for calls
      -- that want to deal with tracks left-to-right.
-to_forest ntracks (Skeleton graph) = sort_tree $ Graph.to_forest graph ++ rest
+to_forest ntracks (Skeleton graph) = sort_tree $ Graphs.to_forest graph ++ rest
     where -- from 1 past array end to last track index (ntracks-1)
     rest = [Graph.Node n [] | n <- [snd (IArray.bounds graph) + 1 .. ntracks-1]]
     sort_tree = Seq.sort_on Tree.rootLabel
@@ -97,29 +97,29 @@ to_forest ntracks (Skeleton graph) = sort_tree $ Graph.to_forest graph ++ rest
 
 -- | Get the parents of a TrackNum.
 parents :: Skeleton -> TrackNum -> [TrackNum]
-parents (Skeleton graph) tracknum = Graph.parents graph tracknum
+parents (Skeleton graph) tracknum = Graphs.parents graph tracknum
 
 -- | Increment all vertices at and above, insert new empty vertex.
 insert :: TrackNum -> Skeleton -> Skeleton
-insert tracknum = map_skel (Graph.insert_vertex tracknum)
+insert tracknum = map_skel (Graphs.insert_vertex tracknum)
 
 -- | All vertices pointing to the removed vertex instead point to what it
 -- pointed to.  All vertices above the removed one get (-1).
 remove :: TrackNum -> Skeleton -> Skeleton
-remove tracknum = map_skel (Graph.remove_vertex tracknum)
+remove tracknum = map_skel (Graphs.remove_vertex tracknum)
 
 toggle_edge :: Edge -> Skeleton -> Maybe Skeleton
-toggle_edge edge (Skeleton graph) = Skeleton <$> Graph.toggle_edge edge graph
+toggle_edge edge (Skeleton graph) = Skeleton <$> Graphs.toggle_edge edge graph
 
 splice_above :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
-splice_above new to = acyclic . map_skel (Graph.splice_above new to)
+splice_above new to = acyclic . map_skel (Graphs.splice_above new to)
 
 splice_below :: TrackNum -> TrackNum -> Skeleton -> Maybe Skeleton
-splice_below new to = acyclic . map_skel (Graph.splice_below new to)
+splice_below new to = acyclic . map_skel (Graphs.splice_below new to)
 
 acyclic :: Skeleton -> Maybe Skeleton
 acyclic skel@(Skeleton graph)
-    | Graph.has_cycle graph = Nothing
+    | Graphs.has_cycle graph = Nothing
     | otherwise = Just skel
 
 -- | If from<to, then @from@ is inserted after @to@.
