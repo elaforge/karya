@@ -36,7 +36,7 @@ test_write_noop = do
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
     result <- write [mkNote1 "" 0]
-    left_like result "No such file"
+    left_like result "file not found"
     io_equal (listWavs dir) []
 
 test_write_simple = do

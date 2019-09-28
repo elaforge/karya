@@ -22,8 +22,13 @@ import Util.Test
 
 
 test_to_state = do
-    equal (extract <$> to_state (M.k <> M.t <> M.__ <> M.d)) $
-        Right [(">", [(0, 0, "k"), (0.25, 0, "t"), (0.75, 0, "d")])]
+    equal (extract <$> to_state (M.k <> M.t <> M.__ <> M.d)) $ Right
+        [ (">", [(0, 0, "k"), (0.25, 0, "t"), (0.75, 0, "d")])
+        , (">metronome", [(0, 0, "")])
+        , ("*", [(0, 0, "3p")])
+        , ("dyn", [(0, 0, "1")])
+        ]
+
 
 test_derive_to_disk = do
     let ui_state = expect_right $ to_state (M.k <> M.t)
@@ -31,6 +36,8 @@ test_derive_to_disk = do
     (events, logs) <- derive ui_state
     prettyp (map Log.msg_text logs)
     let extract e = (DeriveTest.e_start_dur e, DeriveTest.e_attributes e)
+    events <- return $ filter ((==Play.inst_name) . Score.event_instrument)
+        events
     equal (map extract events) [((0, 0), "+ki"), ((0.25, 0), "+ta")]
 
 derive :: Ui.State -> IO ([Score.Event], [Log.Msg])

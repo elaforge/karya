@@ -8,6 +8,9 @@ module Solkattu.Dsl.Solkattu (
     module Solkattu.Dsl.Solkattu
     , module Solkattu.Dsl.Generic
     , module Solkattu.Dsl.Interactive
+    -- This makes imported modules go from 66 to 375, because it pulls in
+    -- Derive.
+    , play_m
 ) where
 import           Prelude hiding ((.), (^))
 import qualified Data.List as List
@@ -33,6 +36,7 @@ import qualified Solkattu.Tala as Tala
 
 import           Global
 import           Solkattu.Dsl.Generic
+import           Solkattu.Play (play_m)
 
 
 type Sequence = SequenceT Solkattu.Sollu

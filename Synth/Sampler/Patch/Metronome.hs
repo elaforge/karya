@@ -1,10 +1,12 @@
--- Copyright 2018 Evan Laforge
+-- Copyright 2019 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Synth.Sampler.Patch.Metronome where
 import qualified Data.Map as Map
 
+import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.NN as NN
@@ -38,10 +40,11 @@ convert note = do
     let (fname, ratio) = Util.findPitchRatio nnToSample pitch
     let dynVal = Note.initial0 Control.dynamic note
     return $ (Sample.make fname)
-        { Sample.envelope = Signal.constant dynVal
+        { Sample.envelope = Signal.constant (dynVal + 0.35)
         , Sample.ratios = Signal.constant ratio
         }
 
 nnToSample :: Map Pitch.NoteNumber FilePath
-nnToSample = Map.fromList $ map make [NN.a3, NN.a4, NN.d4, NN.g4, NN.d5]
-    where make nn = (nn, untxt $ NN.karya_name nn <> "-80.wav")
+nnToSample = Map.fromList $
+    zip (take 13 $ Seq.range_ NN.c3 3)
+        (map (\i -> "s-" <> untxt (Num.zeroPad 3 i) <> ".flac") [1..])

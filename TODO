@@ -2284,7 +2284,13 @@ synth: im:
           soon as I see the first progress msg.
         . Maybe adjust chunk size smaller for lower latency?
         - tha is too loud, use a medium version by default.
-        - Convenient way to play from Solkattu.Dsl.
+        * Convenient way to play from Solkattu.Dsl.
+          . It's easy, but makes imports go from 66 to 375.  I can't see an
+            easy way around it, because it's Derive.
+          . Why is Derive so big though?  I guess I have all of the calls.
+            I can't think of any easy way to not load those, short of dynamic
+            loading when looking up the symbol.  And still much of the weight
+            is probably Typecheck, Sig, etc.  Derive/C is 87/246.
         * Add a metronome.
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape

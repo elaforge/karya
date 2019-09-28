@@ -257,7 +257,7 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
     , section $ n6 $ d.__4.t1.d.__4 . t1 . tri t1
     , ending $
         p&k.__.u . su (pk.nakatiku).o.__.k.__
-        . n6 (od.__8.o&n.__.pk.nakatiku.od.__4.k.__4.od.__)
+        . n6 (od.__8.o&n.__.pk.nakatiku.o.__4.k.__4.od.__)
         . __5 . su nakatiku.o.__.k.__.od.__4
         . n6 (__.__.o.__4.k.__4.od.__8)
 
@@ -272,6 +272,7 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
     t12 = t1 . nakatiku
     t1 = group $ o'.__.kt.kt.pk
 
+-- TODO reduce copy-paste with c_19_06_24_a
 c_19_06_24_b :: Korvai
 c_19_06_24_b = date 2019 6 24 $ ganesh $
     similarTo "Mridangam2019" "c_19_06_24_a" $ korvai adi

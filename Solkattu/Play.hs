@@ -39,7 +39,6 @@ import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
-import qualified Solkattu.Db as Db
 import qualified Solkattu.Instrument.ToScore as ToScore
 import qualified Solkattu.Korvai as Korvai
 import qualified Solkattu.Realize as Realize
@@ -61,9 +60,6 @@ import qualified Ui.UiConfig as UiConfig
 import           Global
 import           Types
 
-
-test :: IO ()
-test = play_m 1 (Db.korvais!!56)
 
 play_m :: RealTime -> Korvai.Korvai -> IO ()
 play_m = play_instrument Korvai.mridangam
@@ -94,6 +90,10 @@ play_procs procs output_dirs = do
 
 -- | This is analogous to 'Performance.watch_subprocesses', but notifies as
 -- soon as all processes have rendered output.
+--
+-- It seems like overkill to watch multiple processes when there is always just
+-- one (and can only be one, since I only load Sampler.PatchDb.synth below),
+-- but that's what derive gives me.
 watch_subprocesses :: MVar.MVar () -> Set Performance.Process -> IO ()
 watch_subprocesses ready all_procs =
     Util.Process.multipleOutput (Set.toList all_procs) $ \chan ->
@@ -116,6 +116,7 @@ watch_subprocesses ready all_procs =
                     when (started2 == all_procs) $
                         void $ MVar.tryPutMVar ready ()
                     return (procs, started2)
+                | otherwise -> return (procs, started)
             Just (Config.Message { Config._payload = Config.RenderingRange {} })
                 -> return (procs, started)
             _ -> put ("?: " <> line) >> return (procs, started)
@@ -134,7 +135,7 @@ derive_to_disk score_path ui_state = do
     block_id <- either (errorIO . pretty) return $
         Ui.eval ui_state Ui.get_root_id
     let (events, logs) = derive cmd_state ui_state block_id
-    mapM_ Log.write logs
+    mapM_ Log.write $ filter ((>Log.Debug) . Log.msg_priority) logs
     let im_config = Cmd.config_im (Cmd.state_config cmd_state)
         lookup_inst = either (const Nothing) Just
             . Cmd.state_lookup_instrument ui_state cmd_state
@@ -169,7 +170,8 @@ to_state :: Solkattu.Notation stroke => Korvai.Instrument stroke
     -> Either Text Ui.State
 to_state instrument im_instrument transform akshara_dur_ korvai = do
     results <- sequence $ Korvai.realize instrument korvai
-    let (strokes, warnings) = first concat $ unzip results
+    let (strokes, _warnings) = first concat $ unzip results
+    -- Leave the warnings for the realize call.
     let notes = to_note_track (Korvai.instToScore instrument) akshara_dur
             strokes
     let end = case notes of
@@ -191,7 +193,10 @@ make_state instrument transform track_groups = Ui.exec Ui.empty $ do
             , transform
             , "scale = just-r"
             , "key = d-maj"
-            , "%just-base = (hz (<-#))"
+            -- , "%just-base = (hz (<-#))"
+            -- Mridangam claims (natural) is 62.1, but it sounds more like 62.5
+            -- TODO fix this
+            , "%just-base = (hz 62.5)"
             ]
     bid <- Ui.create_block bid title []
     Ui.set_root_id bid
@@ -268,7 +273,8 @@ to_note_track to_score akshara_dur strokes =
         ]
     mk_events = Events.from_list . map mk_event
     mk_event (start, dur, text) =
-        Event.event (realToFrac start) (realToFrac dur * akshara_dur) text
+        Event.event (realToFrac start * akshara_dur)
+            (realToFrac dur * akshara_dur) text
 
 -- | This needs tala, akshara_dur, base pitch
 --
