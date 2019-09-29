@@ -384,6 +384,13 @@ c_17_06_19_koraippu = date 2017 6 19 $ ganesh $ koraippu $
         , (din, od)
         ]
 
+-- variations:
+-- purvangam . any dintaka
+-- utarangam . any dintaka
+--
+-- purvangam [k_kt, v___]
+-- utarangam
+
 c_17_07_13 :: Korvai
 c_17_07_13 = date 2017 7 13 $ ganesh $ trikalam $
     korvaiS adi (mridangam<>kendang) $ concat

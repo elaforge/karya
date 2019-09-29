@@ -62,6 +62,10 @@ Mridangam.Strokes {..} = Mridangam.notes
 on :: Sequence
 on = o&n
 
+p_, pp :: Sequence
+p_ = lt p
+pp = hv p
+
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
 closed = mapMStroke $ \case
@@ -122,6 +126,9 @@ ktkt = k.t.k.t
 
 ktpk :: Sequence
 ktpk = k.t.p.k
+
+ktok :: Sequence
+ktok = k.t.o.k
 
 pk :: Sequence
 pk = p.k

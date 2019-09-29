@@ -2284,6 +2284,8 @@ synth: im:
           soon as I see the first progress msg.
         . Maybe adjust chunk size smaller for lower latency?
         - tha is too loud, use a medium version by default.
+          . Or maybe it's a problem with my samples, I'd like to do new
+            samples anyway.
         * Convenient way to play from Solkattu.Dsl.
           . It's easy, but makes imports go from 66 to 375.  I can't see an
             easy way around it, because it's Derive.
@@ -4242,6 +4244,10 @@ REPL: repl:
     could also get rid of the need for Cmd.Lang.Environ to import everything.
 
 solkattu:
+  - replace is useful to express variations
+    . e.g. Mridangam2019.c_19_06_24_a
+    . This can perhaps solve "reduction with irregular bits" and
+      "replacements" below.
   solkattu search feature:
     . create an event with a duration and solkattu
     . e.g. tat_taka takadinna nakadit_talang_ga
@@ -4438,8 +4444,6 @@ solkattu:
       take duration from the previous note, e.g.
         d.d.n.n . su (n.d) .d.n.n
       should be ' d d n nnd d n n'
-  / rename tri to tir, for tirmanam?
-    . Nah, a bunch of changes for no big gain.
 
   unify patterns and groups:
     notes:

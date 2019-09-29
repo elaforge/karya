@@ -26,6 +26,7 @@ data Thoppi = Tha | Thom Gumiki
     deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta
     | Mi -- ^ light Ki, played with middle finger
+    | Min -- ^ like Mi, but closer to the edge, to allow din to ring
     | Nam | Din
     | AraiChapu -- ^ "half chapu", played covering half the valantalai
     | MuruChapu -- ^ "full chapu", played with just the pinky touching saddam
@@ -42,6 +43,8 @@ data Gumiki = Low | Up
 instance Solkattu.Notation Stroke where
     notation (Thoppi t) = Solkattu.notation t
     notation (Valantalai v) = Solkattu.notation v
+    -- There's no uppercase for ', and it's light anyway, so don't show Min.
+    notation (Both t Min) = Solkattu.notation t
     notation (Both t v) = case t of
         Tha -> case v of
             Ki -> "P"
@@ -76,6 +79,7 @@ instance Solkattu.Notation Valantalai where
         Ki -> "k"
         Ta -> "t"
         Mi -> "l"
+        Min -> "'"
         Nam -> "n"
         Din -> "d"
         AraiChapu -> "u"
@@ -111,7 +115,9 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
         (Realize.Heavy, _) -> Expr.with Symbols.accent stroke
 
 data Strokes a = Strokes {
-    k :: a, t :: a, l :: a, n :: a, d :: a, u :: a, v :: a, i :: a
+    k :: a, t :: a
+    , l :: a, l' :: a
+    , n :: a, d :: a, u :: a, v :: a, i :: a
     -- | Mnemonic: y = kin = , uses 3 fingers, j = tan = ^ uses 1.
     , y :: a, j :: a
     , p :: a, o :: a, o' :: a -- ^ gumiki up
@@ -128,6 +134,7 @@ strokes = Strokes
     { k = Valantalai Ki
     , t = Valantalai Ta
     , l = Valantalai Mi
+    , l' = Valantalai Min
     , n = Valantalai Nam
     , d = Valantalai Din
     , u = Valantalai AraiChapu
@@ -202,7 +209,8 @@ notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     Seq.key_on Solkattu.notation $ concat
         [ map Thoppi lhs
         , map Valantalai rhs
-        , [Both lh rh | lh <- lhs, rh <- rhs]
+        -- Omit Min, because it gets omitted on a Both.
+        , [Both lh rh | lh <- lhs, rh <- rhs, rh /= Min]
         ]
     where
     extras =
@@ -275,6 +283,17 @@ fives :: [SequenceR]
 fives =
     [ k.__.su (k.t.k.t).o
     , k.__.k.su (k.t).o
+    ]
+    where
+    Strokes {..} = rnotes
+    (.) = (<>)
+
+-- | Intense variations of sequences, usually on the 3rd time.  I don't have a
+-- way to use these yet.
+intense :: [SequenceR]
+intense =
+    [ i.__.__.__.k.n.o
+    , i.__.i.__.su (k.t.k.t).o
     ]
     where
     Strokes {..} = rnotes

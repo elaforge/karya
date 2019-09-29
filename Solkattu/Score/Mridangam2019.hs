@@ -256,17 +256,28 @@ c_19_06_24_a = date 2019 6 24 $ ganesh $
     , section $ repeat 2 $ d.__4.su t1 . n6 (d.__4.t1)
     , section $ n6 $ d.__4.t1.d.__4 . t1 . tri t1
     , ending $
-        p&k.__.u . su (pk.nakatiku).o.__.k.__
-        . n6 (od.__8.o&n.__.pk.nakatiku.o.__4.k.__4.od.__)
-        . __5 . su nakatiku.o.__.k.__.od.__4
-        . n6 (__.__.o.__4.k.__4.od.__8)
+        -- TODO I should be able to do this variation automatically with a
+        -- replace, see below.
+        -- p&k.__.u . su (pk.nakatiku).o.__.k.__
+        p&k.__.u . su (pk.nakatiku).su (o.__3.o.k.__.o.k)
+        -- . n6 (od.__8.o&n.__.pk.nakatiku.o.__4.k.__4.od.__)
+        . n6 (od.__8.o&n.__.pk.nakatiku.o.__3.o.k.__.o.k.od.__)
+        -- . __5 . su nakatiku.o.__.k.__.od.__4
+        . __5 . su nakatiku.su (o.__3.o.k.__.o.k).od.__4
+        -- . n6 (__.__.o.__4.k.__4.od.__8)
+        . n6 (__.__.o.__3.o.k.__.o.k.od.__8)
 
         . group (concatMap (\s -> s.__3.s) ktkno)
         . n6 (group (concatMap (\s -> s.__.s) ktkno))
         . n6 (group (concatMap (.__) ktkno))
-        . n6 (tri_ __ (tri (group (mconcat ktkno))))
+        -- . n6 (tri_ __ (tri (group (mconcat ktkno))))
+        -- . n6 (tri_ __ (trin ø (k.n.o) (k.t.k.n.o) (i.__4.k.n.o)))
+        . n6 (trin __ (tri (k.n.o)) (tri (k.t.k.n.o)) (tri (i.__4.k.n.o)))
     ]
     where
+    -- TODO replace (o.__.k.__) with (su (o.__3.o.k.__.o.k))
+    -- I might have to tag the sequence, because (k.__.o.__) isn't unique and
+    -- I'm not using sollus.
     n6 = nadai 6
     ktkno = [k, t, k, n, o]
     t12 = t1 . nakatiku
@@ -370,3 +381,23 @@ c_19_08_26 = date 2019 8 26 $ ganesh $ korvaiS adi $ map (nadai 6)
 
     rh e = t7 __ . t5 e
     lh   = o.__.o.__.o.o.__.o.__.o.__.__
+
+e_19_09_23 :: Korvai
+e_19_09_23 = date 2019 9 23 $ ganesh $ exercise $ korvaiS1 adi $
+    repeat 2 $ repeat 4 rh & (o'.__.o.o'.__.__.p_.__.o'.__.o.o'.__.__.o.__)
+    where
+    rh = d.l'.__.l'
+    -- rh2 = d.l'.lt d.l'
+
+-- in kandam, in tisram
+c_19_09_23 :: Korvai
+c_19_09_23 = date 2019 9 23 $ ganesh $ trikalam $
+    similarTo "Solkattu2017" "c_17_07_13" $ korvaiS adi
+    [ repeat 2 purvangam, repeat 1 utarangam
+    , nadai 5 $ repeat 1 purvangam . repeat 2 utarangam
+    , nadai 6 $ repeat 2 purvangam . repeat 2 utarangam
+    ]
+    where
+    purvangam = v.__4.k.o.od.__.on.__.on.__.od.__
+        . su ktok . o.k.o.o.k.o.od.__.on.__.on.__.od.__4
+    utarangam = tri_ (o.__) (group (v.__3.k.k.o.o.k.o.k.o.k.k.o.o.k.o.__.k.__))
