@@ -16,7 +16,7 @@ import           Data.Vector ((!?))
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -419,7 +419,7 @@ annotate_call_doc transposers doc fields = prepend_doc extra_doc
     transposers_field =
         [("transposers", Doc.Doc $ pretty transposers) |
             not (Set.null transposers)]
-    join = TextUtil.enumeration
+    join = Texts.enumeration
         . map (\(k, v) -> k <> ": " <> v) . filter ((/="") . snd)
 
 add_doc :: Doc.Doc -> Scale.Scale -> Scale.Scale

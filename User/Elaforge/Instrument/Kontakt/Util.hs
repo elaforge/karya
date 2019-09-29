@@ -12,7 +12,7 @@ import qualified Data.Vector.Unboxed as Vector
 
 import qualified Util.Maps as Maps
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.CUtil as CUtil
@@ -223,7 +223,7 @@ drum_mute_template =
 
 interpolate :: Map Text Text -> Text -> Either Text Text
 interpolate values =
-    TextUtil.mapDelimitedM False '*' $ \v ->
+    Texts.mapDelimitedM False '*' $ \v ->
         justErr ("no value for " <> showt v) $ Map.lookup v values
 
 ksp_array :: Int -> [Int] -> Text

@@ -13,7 +13,7 @@ import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
@@ -109,7 +109,7 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     }
     where
     all_doc = mconcat [doc, "\n", defaults_doc, "\n", just_doc]
-    defaults_doc = TextUtil.join ", " $
+    defaults_doc = Texts.join ", " $
         [ "Defaults: " <> ShowVal.doc just_base_control <> ": "
             <> Doc.pretty (smap_default_base_hz smap)
         -- TODO This should be the symbolic key name, but I don't have it here.
@@ -139,7 +139,7 @@ group_relative_keys = mapMaybe fmt . Seq.group_stable snd
 
 show_ratios :: Map Tuning Ratios -> Text
 show_ratios tunings = Text.intercalate "; "
-    [ TextUtil.joinWith ": " tuning (ratios r)
+    [ Texts.joinWith ": " tuning (ratios r)
     | (tuning, r) <- Map.toList tunings
     ]
     where

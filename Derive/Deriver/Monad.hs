@@ -1475,7 +1475,7 @@ str_to_arg_name (Expr.Str str) = ArgName str
 -- | Documentation for a call.  The documentation is in markdown format, except
 -- that a single newline will be replaced with two, so a single \n is enough
 -- to start a new paragraph.  Also, single quotes are turned into links as per
--- "Util.TextUtil".haddockUrl.
+-- "Util.Texts".haddockUrl.
 data CallDoc = CallDoc {
     cdoc_module :: !Module.Module
     , cdoc_tags :: !Tags.Tags

@@ -14,7 +14,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Controls as Controls
@@ -203,7 +203,7 @@ convert_pitch env controls note_end psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls trimmed $
             PSignal.apply_environ env psig
     unless (null nn_errs) $ Log.warn $ "convert pitch: "
-        <> Text.intercalate ", " (TextUtil.ellipsisList 4
+        <> Text.intercalate ", " (Texts.ellipsisList 4
             [pretty x <> ": " <> pretty err | (x, err) <- nn_errs])
     return sig
     where
@@ -217,7 +217,7 @@ apply_patch_scale scale sig = do
     unless (null scale_errs) $ do
         Log.warn $ "out of range for patch scale: "
             <> Text.intercalate ", "
-                (TextUtil.ellipsisList 10 (map pretty scale_errs))
+                (Texts.ellipsisList 10 (map pretty scale_errs))
     return nn_sig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are

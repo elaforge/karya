@@ -18,7 +18,7 @@ import qualified System.Process as Process
 
 import qualified Util.ParseText as ParseText
 import qualified Util.Regex as Regex
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 
 data SCM = Darcs | Git deriving (Show, Eq)
@@ -79,7 +79,7 @@ parseDate = Time.parseTimeM False Time.defaultTimeLocale "%Y%m%d%H%M%S"
     . Text.unpack
 
 unquote :: Text -> Text
-unquote = TextUtil.replaceMany $ map (\(k, v) -> ("&" <> k <> ";", v))
+unquote = Texts.replaceMany $ map (\(k, v) -> ("&" <> k <> ";", v))
     [ ("apos", "'")
     , ("lt", "<")
     , ("gt", ">")

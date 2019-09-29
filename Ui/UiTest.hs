@@ -14,7 +14,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.Test.Testing as Testing
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Util.Then as Then
 
 import qualified Midi.Midi as Midi
@@ -191,7 +191,7 @@ type EventSpec = (ScoreTime, ScoreTime, Text)
 parse_block_spec :: Text -> (BlockId, Text, Bool)
 parse_block_spec spec = (bid block_id, Text.strip title, has_ruler)
     where
-    (name, title) = TextUtil.split1 "--" spec
+    (name, title) = Texts.split1 "--" spec
     (block_id, has_ruler) = maybe (Text.strip name, False) (, True) $
         Text.stripSuffix "=ruler" (Text.strip name)
 
@@ -398,7 +398,7 @@ note_spec (inst, pitches, controls) =
         | "--" `Text.isInfixOf` s = (note, pitch)
         | otherwise = ("", s)
         where
-        (note, pitch) = bimap Text.strip Text.strip $ TextUtil.split1 "--" s
+        (note, pitch) = bimap Text.strip Text.strip $ Texts.split1 "--" s
 
 -- | Abbreviation for 'note_spec' where the inst and controls are empty.
 note_track :: [EventSpec] -> [TrackSpec]
@@ -459,7 +459,7 @@ extract_tracks = extract_tracks_of default_block_id
 
 extract_blocks :: Ui.State -> [BlockSpec]
 extract_blocks state =
-    [ (TextUtil.joinWith " -- " (Id.ident_name bid) title, tracks)
+    [ (Texts.joinWith " -- " (Id.ident_name bid) title, tracks)
     | (bid, title, tracks) <- extract_block_ids state
     ]
 

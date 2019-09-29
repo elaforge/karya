@@ -24,7 +24,7 @@ import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
@@ -404,7 +404,7 @@ wayangKeys baseOct = take 10 $ drop 1
         ]
 
 showPitchTable :: IO ()
-showPitchTable = Text.IO.putStr $ Text.unlines $ TextUtil.formatColumns 3 $
+showPitchTable = Text.IO.putStr $ Text.unlines $ Texts.formatColumns 3 $
     Seq.rotate
     [ pemadeUmbang ++ repeat ""
     , replicate 5 "" ++ kantilanUmbang

@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Cmd.Ruler.Meter as Meter
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.SubT as SubT
@@ -110,7 +110,7 @@ typecheck :: forall a. Typecheck a => Text -> ScoreTime -> DeriveT.Val
 typecheck msg pos val = from_val_eval pos val >>= \case
     Just a -> return a
     Nothing -> Derive.throw $
-        TextUtil.joinWith ": " msg $ type_error_msg (Proxy :: Proxy a) val
+        Texts.joinWith ": " msg $ type_error_msg (Proxy :: Proxy a) val
     -- TODO throw a TypeError directly?
 
 -- | Typecheck a simple value, with no evaluation.  This means you can't

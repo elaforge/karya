@@ -11,7 +11,7 @@ import qualified Data.Traversable as Traversable
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -36,7 +36,7 @@ c_bols :: Derive.Generator Derive.Note
 c_bols = Derive.generator ("india" <> "pakhawaj") "bols"
     (Tags.inst <> Tags.subs)
     ("Interpret pakhawaj bols in sub events.  Bols: "
-        <> TextUtil.join " / " (map (Doc.Doc . Text.unwords . fst) all_bols))
+        <> Texts.join " / " (map (Doc.Doc . Text.unwords . fst) all_bols))
     $ Sig.call (
         Sig.defaulted "flam" 0.15 "Time between flam type bols like `kre`."
     ) $ \flam_dur  args -> do

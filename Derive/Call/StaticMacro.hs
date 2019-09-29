@@ -19,7 +19,7 @@ import qualified Data.Tuple as Tuple
 
 import qualified Util.CallStack as CallStack
 import qualified Util.Doc as Doc
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -169,8 +169,8 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
 -- ** doc
 
 make_doc :: Doc.Doc -> [Doc.Doc] -> Doc.Doc
-make_doc doc calls = TextUtil.joinWith "\n" doc $
-    "A static macro for: `" <> TextUtil.join " | " calls <> "`.\
+make_doc doc calls = Texts.joinWith "\n" doc $
+    "A static macro for: `" <> Texts.join " | " calls <> "`.\
     \\nEach `$` is lifted to be an argument of this macro.\
     \\nThis directly calls the underlying sub-calls, so it's not dependent on\
     \ the names they are bound to, which also means the macro text may not be a\

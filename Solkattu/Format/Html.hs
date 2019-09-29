@@ -20,7 +20,7 @@ import qualified Data.Time.Calendar as Calendar
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
@@ -38,7 +38,7 @@ import Global
 
 -- | Make a summary page with all the korvais.
 indexHtml :: (Korvai.Korvai -> FilePath) -> [Korvai.Korvai] -> Doc.Html
-indexHtml korvaiFname korvais = TextUtil.join "\n" $
+indexHtml korvaiFname korvais = Texts.join "\n" $
     [ "<html> <head>"
     , "<meta charset=utf-8>"
     , "<title>solkattu db</title>"
@@ -129,7 +129,7 @@ render abstractions korvai =
         Korvai.korvaiInstruments korvai
     order name = (fromMaybe 999 $ List.elemIndex name prio, name)
         where prio = ["konnakol", "mridangam"]
-    htmlInstrument (instName, Korvai.GInstrument inst) = TextUtil.unlines $
+    htmlInstrument (instName, Korvai.GInstrument inst) = Texts.unlines $
         "<h3>" <> Doc.html instName <> "</h3>"
         : chooseAbstraction abstractions instName
         : map (renderAbstraction instName inst korvai) abstractions
@@ -139,7 +139,7 @@ renderAbstraction :: Solkattu.Notation stroke => Text
     -> (Text, Format.Abstraction) -> Doc.Html
 renderAbstraction instName inst korvai (aname, abstraction) =
     Doc.tag_attrs "div" attrs $ Just $
-        TextUtil.join "\n" $ concat
+        Texts.join "\n" $ concat
         [ ["\n<p><table style=\"" <> fontStyle
             <> "\" class=konnakol cellpadding=0 cellspacing=0>"]
         , sectionHtmls inst (config abstraction) korvai
@@ -194,7 +194,7 @@ htmlPage title meta body = mconcat
     ]
 
 htmlHeader :: Text -> Doc.Html
-htmlHeader title = TextUtil.join "\n"
+htmlHeader title = Texts.join "\n"
     [ "<html><head>"
     , "<meta charset=utf-8>"
     , "<title>" <> Doc.html title <> "</title></head>"
@@ -240,7 +240,7 @@ htmlFooter :: Doc.Html
 htmlFooter = "</body></html>\n"
 
 allCss :: Doc.Html
-allCss = TextUtil.join "\n" [tableCss, Doc.Html typeCss]
+allCss = Texts.join "\n" [tableCss, Doc.Html typeCss]
 
 tableCss :: Doc.Html
 tableCss =
@@ -325,15 +325,15 @@ typeColors = \case
 -- | TODO unused, later I should filter out only the interesting ones and
 -- cram them in per-section inline
 _sectionMetadata :: Korvai.Section sollu -> Doc.Html
-_sectionMetadata section = TextUtil.join "; " $ map showTag (Map.toAscList tags)
+_sectionMetadata section = Texts.join "; " $ map showTag (Map.toAscList tags)
     where
     tags = Tags.untags $ Korvai.sectionTags section
     showTag (k, []) = Doc.html k
     showTag (k, vs) = Doc.html k <> ": "
-        <> TextUtil.join ", " (map (htmlTag k) vs)
+        <> Texts.join ", " (map (htmlTag k) vs)
 
 korvaiMetadata :: Korvai.Korvai -> Doc.Html
-korvaiMetadata korvai = (<>"\n\n") $ TextUtil.join "<br>\n" $ concat $
+korvaiMetadata korvai = (<>"\n\n") $ Texts.join "<br>\n" $ concat $
     [ ["Tala: " <> Doc.html (Tala.tala_name (Korvai.korvaiTala korvai))]
     , ["Date: " <> Doc.html (showDate date) | Just date <- [Korvai._date meta]]
     , [showTag ("Eddupu", map pretty eddupu) | not (null eddupu)]
@@ -347,7 +347,7 @@ korvaiMetadata korvai = (<>"\n\n") $ TextUtil.join "<br>\n" $ concat $
     tags = Tags.untags $ Korvai._tags meta
     showTag (k, []) = Doc.html k
     showTag (k, vs) = Doc.html k <> ": "
-        <> TextUtil.join ", " (map (htmlTag k) vs)
+        <> Texts.join ", " (map (htmlTag k) vs)
     showDate = txt . Calendar.showGregorian
 
 formatAvartanams :: Solkattu.Notation stroke => Config -> S.Speed
@@ -421,11 +421,11 @@ formatTable tala _sectionIndex section rows =
     mconcatMap ((<>"\n") . row) . zipFirstFinal $ rows
     where
     td (tags, body) = Doc.tag_attrs "td" tags (Just body)
-    row (isFirst, (mbRuler, cells), isFinal) = TextUtil.join "\n" $
+    row (isFirst, (mbRuler, cells), isFinal) = Texts.join "\n" $
         maybe [] ((:[]) . formatRuler isFirst) mbRuler ++
         [ "<tr>"
         , if not isFirst then "" else sectionHeader
-        , TextUtil.join "\n" . map td . Format.mapSnd spellRests
+        , Texts.join "\n" . map td . Format.mapSnd spellRests
             . map (mkCell isFinal) . List.groupBy merge . zip [0..] $ cells
             -- Carry the index through the merge so spellRests can tell what
             -- column things are in.

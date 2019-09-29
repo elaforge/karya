@@ -17,7 +17,7 @@ import qualified System.Exit as Exit
 import qualified System.Process as Process
 
 import qualified Util.ParseText as ParseText
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
 import Global
@@ -151,13 +151,13 @@ formatError dir text html = untxt $ Text.unlines
     [ "=== dir: " <> dir
     , clean text
     , "=== html"
-    , clean $ TextUtil.replaceMany
+    , clean $ Texts.replaceMany
         [ ("<b>", ""), ("</b>", ""), ("<p>", ""), ("</p>", "")
         ]
         html
     ]
     where
-    clean = TextUtil.replaceMany
+    clean = Texts.replaceMany
         [ ("/localdisk/home/pgraham/PaulJGraham/NUI/BackEnd/", "")
         , ("\\/", "/")
         , ("\\\"", "\"")

@@ -23,7 +23,7 @@ import qualified Util.Audio.AudioT as AudioT
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified App.Config as Config
 import qualified App.Path as Path
@@ -259,7 +259,7 @@ emitMessage extra msg = do
         IO.hFlush IO.stdout
 
 parseMessage :: Text -> Maybe Message
-parseMessage = Aeson.decode . TextUtil.toLazyByteString
+parseMessage = Aeson.decode . Texts.toLazyByteString
 
 -- | Infer namespace/block from
 -- .../im/cache/$scorePath/$scoreFname/$namespace/$block/$instrument

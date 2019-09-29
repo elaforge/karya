@@ -9,7 +9,7 @@
 module Derive.ValType where
 import qualified Data.Text as Text
 
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import           Derive.DeriveT (Val(..))
 import qualified Derive.ScoreT as ScoreT
 import qualified Ui.Id as Id
@@ -107,7 +107,7 @@ instance Pretty Type where
     pretty (TEither a b) = pretty a <> " or " <> pretty b
     pretty (TPair a b) = "(" <> pretty a <> ", " <> pretty b <> ")"
     pretty (TNum typ val) = append_parens "Num" $
-        TextUtil.joinWith ", " (pretty typ) (pretty val)
+        Texts.joinWith ", " (pretty typ) (pretty val)
     pretty (TStr enums) = append_parens "Str" $ maybe "" Text.unwords enums
     -- There is no corresponding Val type for these, so I might as well be
     -- clear about what they mean.

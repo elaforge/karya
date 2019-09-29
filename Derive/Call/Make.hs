@@ -7,7 +7,7 @@
 -- creating calls.
 module Derive.Call.Make where
 import qualified Util.Doc as Doc
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -99,7 +99,7 @@ environ_val :: (ShowVal.ShowVal a, Typecheck.ToVal a, Derive.Taggable d) =>
     Module.Module -> Derive.CallName -> Env.Key -> a -> Doc.Doc
     -> Derive.Transformer d
 environ_val module_ name key val extra_doc =
-    Derive.transformer module_ name mempty (TextUtil.join2 doc extra_doc) $
+    Derive.transformer module_ name mempty (Texts.join2 doc extra_doc) $
         Sig.call0t $ \_args -> Derive.with_val key val
     where
     doc = Doc.literal (ShowVal.show_val key <> " = " <> ShowVal.show_val val)
@@ -127,7 +127,7 @@ modify_generator_ :: Doc.Doc
     -> Derive.TransformerF a -> Derive.Generator a -> Derive.Generator a
 modify_generator_ doc_prefix transform call =
     modify_generator (Derive.cdoc_module cdoc) (Derive.call_name call)
-        (TextUtil.joinWith "\n" doc_prefix (Derive.cdoc_doc cdoc))
+        (Texts.joinWith "\n" doc_prefix (Derive.cdoc_doc cdoc))
         transform call
     where cdoc = Derive.call_doc call
 
@@ -141,7 +141,7 @@ modify_transformer_ :: Doc.Doc
     -> Derive.TransformerF a -> Derive.Transformer a -> Derive.Transformer a
 modify_transformer_ doc_prefix transform call =
     modify_transformer (Derive.cdoc_module cdoc) (Derive.call_name call)
-        (TextUtil.joinWith "\n" doc_prefix (Derive.cdoc_doc cdoc))
+        (Texts.joinWith "\n" doc_prefix (Derive.cdoc_doc cdoc))
         transform call
     where cdoc = Derive.call_doc call
 
@@ -172,7 +172,7 @@ modify_call module_ name doc modify call = Derive.Call
 constant_val :: (Typecheck.ToVal a, ShowVal.ShowVal a) =>
     Module.Module -> Derive.CallName -> Doc.Doc -> a -> Derive.ValCall
 constant_val module_ name doc val = Derive.val_call module_  name mempty
-    (TextUtil.joinWith "\n" doc ("Constant: " <> ShowVal.doc val)) $
+    (Texts.joinWith "\n" doc ("Constant: " <> ShowVal.doc val)) $
     Sig.call0 $ \_args -> return val
 
 -- | Make a new ValCall from an existing one, by mapping over its output.

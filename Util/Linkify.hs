@@ -22,7 +22,7 @@ import qualified System.IO as IO
 import qualified Util.File as File
 import qualified Util.Logger as Logger
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import Global
 
@@ -39,21 +39,21 @@ main = do
 linkify :: FilePath -> FilePath -> Text -> IO Text
 linkify haddock_dir input_file text = do
     files <- get_files "."
-    let (out, logs) = Logger.runId $ TextUtil.mapDelimitedM False '\''
+    let (out, logs) = Logger.runId $ Texts.mapDelimitedM False '\''
             (link_quoted files haddock_dir) text
     unless (null logs) $
         Text.IO.hPutStrLn IO.stderr $ "** " <> txt input_file
             <> ": broken link: " <> Text.intercalate ", " logs
     return out
 
-get_files :: FilePath -> IO TextUtil.Files
+get_files :: FilePath -> IO Texts.Files
 get_files dir = do
     files <- File.listRecursive (maybe False Char.isUpper . Seq.head) dir
     return $ Set.fromList files
 
-link_quoted :: TextUtil.Files -> FilePath -> Text -> Logger.Logger Text Text
+link_quoted :: Texts.Files -> FilePath -> Text -> Logger.Logger Text Text
 link_quoted files haddock_dir text
-    | looks_like_link text = case TextUtil.haddockUrl files haddock_dir text of
+    | looks_like_link text = case Texts.haddockUrl files haddock_dir text of
         Nothing -> do
             Logger.log text
             return $ "'" <> text <> "'"

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
-module Util.TextUtil where
+module Util.Texts where
 import           Prelude hiding (lines)
 import           Control.Arrow (first)
 import           Control.Monad (liftM)

@@ -14,7 +14,7 @@ import Util.Doc (html, tag)
 import qualified Util.Format as Format
 import Util.Format ((<+>), (</>), (<//>), (<+/>))
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Ui.Ui as Ui
 import qualified Cmd.Cmd as Cmd
@@ -119,7 +119,7 @@ bindings_text =
             : map binding bindings
     binding (scope_source,
             ((symbol_name, Derive.CallName call_name), call_doc)) =
-        doc <> " " <> TextUtil.ellipsis (width - Text.length doc - 1)
+        doc <> " " <> Texts.ellipsis (width - Text.length doc - 1)
             (undoc (Derive.cdoc_doc call_doc))
         where
         undoc (Doc.Doc d) = d

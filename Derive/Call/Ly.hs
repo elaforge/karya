@@ -7,7 +7,7 @@ module Derive.Call.Ly where
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Post as Post
@@ -155,7 +155,7 @@ code_position_names =
 instance Typecheck.ToVal (Position Constants.CodePosition)
 
 instance ShowVal.ShowVal (Position Constants.CodePosition) where
-    show_val = TextUtil.dropPrefix "ly-" . key_of
+    show_val = Texts.dropPrefix "ly-" . key_of
         where
         key_of (SetEnviron k) = k
         key_of (Position pos) = Constants.position_key pos

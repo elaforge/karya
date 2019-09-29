@@ -31,7 +31,7 @@ import qualified Data.Vector.Unboxed as Unboxed
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
@@ -63,7 +63,7 @@ import Types
 -- | Format a Patch.Scale as a table.
 table :: Patch.Scale -> Text
 table scale =
-    Text.unlines $ TextUtil.formatColumns 1 $
+    Text.unlines $ Texts.formatColumns 1 $
         ["", "c", "", "d", "", "e", "f", "", "g", "", "a", "", "b"]
         : [oct : map (Num.showFloat 2) nns | (oct, nns) <- zip octaves groups]
     where

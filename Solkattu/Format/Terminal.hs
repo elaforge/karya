@@ -21,7 +21,7 @@ import qualified Util.File as File
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Styled as Styled
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Solkattu.Format.Format as Format
 import qualified Solkattu.Korvai as Korvai
@@ -115,7 +115,7 @@ formatResults config korvai results =
         ((Nothing, 0), Text.replicate leader " " <> "ERROR:\n" <> err)
     show1 prevRuler (section, (tags, Right (notes, warning))) =
         ( nextRuler
-        , TextUtil.joinWith "\n" (sectionFmt section tags lines) warning
+        , Texts.joinWith "\n" (sectionFmt section tags lines) warning
         )
         where
         (nextRuler, lines) =

@@ -19,7 +19,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -156,5 +156,5 @@ ordinal n = Doc.Doc $ showt n <> case n of
 
 make_doc :: Doc.Doc -> Parse.Expr -> Doc.Doc
 make_doc (Doc.Doc doc) expr = Doc.Doc $
-    TextUtil.joinWith "\n" ("A macro for: " <> expr_doc <> ".") doc
+    Texts.joinWith "\n" ("A macro for: " <> expr_doc <> ".") doc
     where (Doc.Doc expr_doc) = ShowVal.doc expr

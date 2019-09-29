@@ -12,7 +12,7 @@ import qualified Data.Text as Text
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
@@ -86,7 +86,7 @@ list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
     let (names, allocs) = unzip $ Map.toAscList alloc_map
-    return $ Text.unlines $ TextUtil.formatColumns 1
+    return $ Text.unlines $ Texts.formatColumns 1
         [ pretty_alloc name alloc
         | (name, alloc) <- zip names allocs
         , matches name

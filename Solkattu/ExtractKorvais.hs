@@ -9,7 +9,7 @@ import qualified Data.Text as Text
 import qualified System.Environment
 
 import qualified Util.ExtractHs as ExtractHs
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import Global
 
 
@@ -27,7 +27,7 @@ extract = mapMaybe $ \(lineno, (variable, type_)) -> if type_ == "Korvai"
 generate :: FilePath -> Map FilePath [(Int, Text)]
     -> Either ExtractHs.Error ([ExtractHs.Warning], Text)
 generate outFname extracted = fmap (warnings,) $
-    TextUtil.interpolate template $ Map.fromList
+    Texts.interpolate template $ Map.fromList
         [ ("module", ExtractHs.moduleDeclaration outFname)
         , ("imports", Text.unlines $
             map ExtractHs.makeImport (Map.keys fnameDefs))

@@ -18,7 +18,7 @@ import           Data.Vector ((!?))
 import qualified Util.Doc as Doc
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
@@ -55,7 +55,7 @@ make_scale scale_id smap =
         \ different tunings.  It defaults to "
         <> ShowVal.doc (laras_name (smap_default_laras smap))
         <> ". Laras:\n"
-        <> TextUtil.enumeration
+        <> Texts.enumeration
             [ ShowVal.doc name <> " - " <> laras_doc laras
             | (name, laras) <- Map.toList (smap_laras smap)
             ]

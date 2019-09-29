@@ -23,7 +23,7 @@ import qualified Util.File as File
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified App.Path as Path
 
@@ -35,7 +35,7 @@ newtype Doc = Doc Text
     deriving (Eq, Ord, Show, Pretty.Pretty, Semigroup, Monoid, String.IsString,
         Serialize.Serialize)
 
-instance TextUtil.Textlike Doc where
+instance Texts.Textlike Doc where
     toText (Doc t) = t
     fromText = Doc
 
@@ -48,7 +48,7 @@ literal :: Text -> Doc
 literal text = Doc $ "`" <> text <> "`"
 
 commas :: [Doc] -> Doc
-commas = TextUtil.join ", "
+commas = Texts.join ", "
 
 -- * HTML
 
@@ -57,7 +57,7 @@ newtype Html = Html Text
     -- TODO doesn't IsString defeat the purpose of using Html in the first
     -- place?
 
-instance TextUtil.Textlike Html where
+instance Texts.Textlike Html where
     toText (Html t) = t
     fromText = Html
 
@@ -108,10 +108,10 @@ html_doc (haddock_dir, files) (Doc doc) = Html . postproc . un_html . html $ doc
     -- Text.replace.  It's doable, but would be more trouble than it's worth.
     postproc = para . backticks . single_quotes
     para = Text.replace "\n" "\n<br>"
-    backticks = TextUtil.mapDelimited True '`'
+    backticks = Texts.mapDelimited True '`'
         (\t -> "<code>" <> t <> "</code>")
-    single_quotes = TextUtil.mapDelimited False '\'' $ \text ->
-        case TextUtil.haddockUrl files haddock_dir text of
+    single_quotes = Texts.mapDelimited False '\'' $ \text ->
+        case Texts.haddockUrl files haddock_dir text of
             Nothing -> "'" <> text <> "'"
             Just url -> un_html $ link text (Text.pack url)
 

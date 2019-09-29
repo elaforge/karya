@@ -23,7 +23,7 @@ import qualified Util.Maps as Maps
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Util.UF as UF
 
 import qualified Derive.Expr as Expr
@@ -535,7 +535,7 @@ formatError = format . UF.toList
     where
     format (result, Nothing) = Right result
     format (pre, Just err) = Left $
-        TextUtil.joinWith "\n" (errorNotation (S.flattenedNotes pre)) err
+        Texts.joinWith "\n" (errorNotation (S.flattenedNotes pre)) err
     errorNotation = Text.unwords . map (justifyLeft 2 ' ' . Solkattu.notation)
 
 {- | Given a group like

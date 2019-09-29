@@ -19,7 +19,7 @@ import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Util.Then as Then
 
 import qualified App.Config as Config
@@ -740,8 +740,7 @@ resolve_sub_tokens block_id tracknum = fmap snd . Seq.mapAccumLM resolve [1..]
     resolve (n:ns) (T.TNote pos note) = case T.note_call note of
         T.SubBlock prefix subs -> do
             sub_calls <- resolve_sub_tracks_to_calls block_id tracknum n subs
-            let call = TextUtil.join2 (pipe_tweak prefix)
-                    (Text.unwords sub_calls)
+            let call = Texts.join2 (pipe_tweak prefix) (Text.unwords sub_calls)
             return (ns, T.TNote pos (note { T.note_call = call }))
         T.Call call -> return (n:ns, T.TNote pos (note { T.note_call = call }))
     resolve [] (T.TNote {}) = error "unreached, infinite list"

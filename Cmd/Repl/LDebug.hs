@@ -15,7 +15,7 @@ import qualified Util.Memory as Memory
 import qualified Util.Num as Num
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
@@ -129,7 +129,7 @@ cache_logs block_id = do
     perf <- Cmd.get_performance block_id
     let logs = filter wanted $ Cmd.perf_logs perf
     return $ Text.unlines
-        [ TextUtil.joinWith ": " (format_stack msg) (Log.msg_text msg)
+        [ Texts.joinWith ": " (format_stack msg) (Log.msg_text msg)
         | msg <- logs
         ]
     where

@@ -9,7 +9,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -91,7 +91,7 @@ replace_exact from to = ModifyEvents.text $ \t -> if t == from then to else t
 -- | Multiple replacements.  This is simultaneous replacement, so
 -- [(a, b), (b, a)] will swap @a@ and @b@ as expected.
 replace_many :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
-replace_many = ModifyEvents.text . TextUtil.replaceMany
+replace_many = ModifyEvents.text . Texts.replaceMany
 
 -- | Modify event text with 'ModifyEvents.substitute'.
 --

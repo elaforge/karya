@@ -44,7 +44,7 @@ import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
@@ -142,7 +142,7 @@ cond ((condition, result) : rest) consequent =
 
 -- | Expand `-delimited macros to make a filepath.
 expand_filename :: FilePath -> Cmd.CmdT IO FilePath
-expand_filename = fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
+expand_filename = fmap untxt . Texts.mapDelimitedM False '`' expand . txt
     where
     expand text = case lookup text filename_macros of
         Just get -> get

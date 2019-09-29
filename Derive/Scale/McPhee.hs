@@ -11,7 +11,7 @@ module Derive.Scale.McPhee where
 import qualified Data.Text as Text
 
 import qualified Util.Doc as Doc
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Derive.Scale.Bali as Bali
 import qualified Perform.Pitch as Pitch
 import Global
@@ -39,7 +39,7 @@ extract low high laras = (dashes sname, (hz_to_nn low high laras, doc))
             <> Doc.Doc (Text.toTitle (origin laras)) <> "."
     sname
         | Text.null (name laras) =
-            TextUtil.joinWith "-" (genre laras) (origin laras)
+            Texts.joinWith "-" (genre laras) (origin laras)
         | otherwise = name laras
     dashes = Text.map (\c -> if c == ' ' then '-' else c)
 

@@ -28,7 +28,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.Doc as Doc
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Bali as Bali
@@ -73,7 +73,7 @@ make_scale_set config (Pitch.ScaleId prefix) doc =
         (inst_scale_map (balinese_notation kantilan))
     ]
     where
-    id_with suffix = Pitch.ScaleId $ TextUtil.joinWith "-" prefix suffix
+    id_with suffix = Pitch.ScaleId $ Texts.joinWith "-" prefix suffix
     inst_doc name = Scales.add_doc $
         "This is centered around the " <> name <> " range."
     scale_map fmt = BaliScales.scale_map config fmt Nothing

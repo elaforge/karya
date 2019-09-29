@@ -11,7 +11,7 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
-import qualified Util.TextUtil as TextUtil
+import qualified Util.Texts as Texts
 import qualified Ui.Id as Id
 
 import           Global
@@ -194,7 +194,7 @@ instance Pretty Error where
 
 show_error :: Text -> Error -> Text
 show_error source (Error pos msg) =
-    TextUtil.joinWith "\n" msg $ fromMaybe "" $ do
+    Texts.joinWith "\n" msg $ fromMaybe "" $ do
         (line_num, char_num, line) <- find_pos source pos
         return $ Text.unlines
             [ Text.justifyRight 3 ' ' (showt line_num) <> " | " <> line
