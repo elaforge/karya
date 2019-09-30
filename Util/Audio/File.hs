@@ -23,11 +23,7 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Fix as Fix
 import qualified Control.Monad.Trans.Resource as Resource
 
-import qualified Data.IORef as IORef
-import qualified Data.List as List
 import qualified Data.Vector.Storable as V
-
-import qualified GHC.Stack as Stack
 import qualified GHC.TypeLits as TypeLits
 import qualified Sound.File.Sndfile.Buffer.Vector as Sndfile.Buffer.Vector
 import qualified Streaming.Prelude as S
@@ -56,8 +52,9 @@ checkA :: forall m rate channels.
 checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy channels)
 
 getInfo :: FilePath -> IO (Maybe Sndfile.Info)
-getInfo fname = Exception.bracket (openRead fname) (maybe (return ()) close)
-    (return . fmap (Sndfile.hInfo . _handle))
+getInfo fname =
+    Exception.bracket (openRead fname) (maybe (return ()) Sndfile.hClose)
+        (return . fmap Sndfile.hInfo)
 
 duration :: FilePath -> IO (Maybe Audio.Frames)
 duration = fmap (fmap (Audio.Frames . Sndfile.frames)) . getInfo
@@ -80,8 +77,8 @@ readFromClose :: forall rate channels.
     Audio.Frames -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
 readFromClose frame fname = do
     handle <- openReadThrow fname
-    return $ (close handle,) $ Audio.Audio $ do
-        lift $ Resource.register (close handle)
+    return $ (Sndfile.hClose handle,) $ Audio.Audio $ do
+        lift $ Resource.register (Sndfile.hClose handle)
         S.map Audio.Block $ readHandle rate chan frame fname handle
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
@@ -92,7 +89,7 @@ readFrom :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
     Audio.Frames -> FilePath -> Audio.AudioIO rate channels
 readFrom frame fname = Audio.Audio $ do
-    (_, handle) <- lift $ Resource.allocate (openReadThrow fname) close
+    (_, handle) <- lift $ Resource.allocate (openReadThrow fname) Sndfile.hClose
     S.map Audio.Block $ readHandle rate chan frame fname handle
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
@@ -100,30 +97,18 @@ readFrom frame fname = Audio.Audio $ do
     chan = Audio.natVal channels
 
 readHandle :: MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frames
-    -> FilePath -> Handle
+    -> FilePath -> Sndfile.Handle
     -> S.Stream (S.Of (V.Vector Audio.Sample)) m ()
 readHandle rate chan (Audio.Frames frame) fname hdl = do
-    let info = Sndfile.hInfo $ _handle hdl
+    let info = Sndfile.hInfo hdl
         fileChan = Sndfile.channels info
     when (Sndfile.samplerate info /= rate || fileChan `notElem` [1, chan]) $
         throw $ formatError rate chan info
     when (frame > 0) $
-        liftIO $ do
-            -- Otherwise libsndfile will throw a much more confusing error:
-            -- "Internal psf_fseek() failed."
-            -- It's ok to seek to the end of the file though, and that
-            -- happens when the resample consumed all samples, but they're
-            -- in its internal buffer.
-            Audio.assert (0 <= frame && frame <= Sndfile.frames info) $
-                "tried to seek to " <> pretty frame <> " in " <> showt fname
-                <> ", but it only has " <> pretty (Sndfile.frames info)
-            void $ annotate "seek" (_filename hdl) $
-                Sndfile.hSeek (_handle hdl) Sndfile.AbsoluteSeek frame
+        liftIO $ void $ Sndfile.hSeek hdl frame
     let size = fromIntegral Audio.blockSize
-    let readH = annotate "hGetBuffer" (_filename hdl) $
-            Sndfile.hGetBuffer (_handle hdl) size
-    Fix.fix $ \loop -> liftIO readH >>= \case
-        Nothing -> liftIO $ close hdl
+    Fix.fix $ \loop -> liftIO (Sndfile.hGetBuffer hdl size) >>= \case
+        Nothing -> liftIO $ Sndfile.hClose hdl
         Just buf -> do
             let block = Sndfile.Buffer.Vector.fromBuffer buf
             -- Sndfile should enforce this, but let's be sure.
@@ -198,14 +183,13 @@ write :: forall rate channels.
     => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
     -> Resource.ResourceT IO ()
 write format fname audio = do
-    (key, handle) <- Resource.allocate (openWrite format tmp audio) close
-    S.mapM_ (write handle) (Audio._stream audio)
+    (key, hdl) <- Resource.allocate (openWrite format tmp audio) Sndfile.hClose
+    S.mapM_ (write hdl) (Audio._stream audio)
     Resource.release key
     liftIO $ Directory.renameFile tmp fname
     where
-    write handle = liftIO
-        . mapM_ (Sndfile.hPutBuffer (_handle handle)
-            . Sndfile.Buffer.Vector.toBuffer)
+    write hdl = liftIO
+        . mapM_ (Sndfile.hPutBuffer hdl . Sndfile.Buffer.Vector.toBuffer)
         . Audio.blockSamples
     tmp = fname <> ".write.tmp"
 
@@ -245,8 +229,8 @@ writeCheckpoints chunkSize getFilename chunkComplete format = go 0
                     <> ", but got " <> pretty (map Audio.blockCount blocks)
                 let tmp = fname ++ ".write.tmp"
                 liftIO $ do
-                    Exception.bracket (openWrite format tmp audio) close
-                        (\hdl -> writeBlock (_handle hdl) blocks)
+                    Exception.bracket (openWrite format tmp audio)
+                        Sndfile.hClose (\hdl -> writeBlock hdl blocks)
                     Directory.renameFile tmp fname
                     chunkComplete fname
                 go (written + chunkSize) states audio
@@ -272,48 +256,22 @@ writeBlock hdl blocks
 
 -- * Handle
 
-data Handle = Handle {
-    _filename :: !FilePath
-    -- | libsndfile has no protection against multiple closes on the same
-    -- handle and happily double frees memory, and hsndfile provides no
-    -- protection either.
-    , _isOpen :: !(IORef.IORef Bool)
-    , _handle :: !Sndfile.Handle
-    }
-
 throwEnoent :: FilePath -> Maybe a -> IO a
 throwEnoent fname =
     maybe (Audio.throwIO $ "file not found: " <> showt fname) return
 
-openReadThrow :: FilePath -> IO Handle
+openReadThrow :: FilePath -> IO Sndfile.Handle
 openReadThrow fname = throwEnoent fname =<< openRead fname
 
-openRead :: FilePath -> IO (Maybe Handle)
-openRead fname = annotate "openRead" fname $ do
-    mbHdl <- ignoreEnoent $
-        Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
-    case mbHdl of
-        Nothing -> return Nothing
-        Just hdl -> do
-            open <- IORef.newIORef True
-            return $ Just $ Handle fname open hdl
-
-close :: Handle -> IO ()
-close hdl = whenM (IORef.readIORef (_isOpen hdl)) $ do
-    IORef.atomicWriteIORef (_isOpen hdl) False
-    -- hsndfile is buggy and calls sf_error(nullptr) after closing the handle,
-    -- which gets any previous error that might still be in a static variable.
-    Sndfile.hClose (_handle hdl) `Exception.catch`
-        \(_exc :: Sndfile.Exception) -> return ()
+openRead :: FilePath -> IO (Maybe Sndfile.Handle)
+openRead fname = Sndfile.ignoreEnoent $
+    Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
 
 openWrite :: forall rate channels.
     (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
     => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
-    -> IO Handle
-openWrite format fname _audio = do
-    open <- IORef.newIORef True
-    annotate "openWrite" fname $
-        Handle fname open <$> Sndfile.openFile fname Sndfile.WriteMode info
+    -> IO Sndfile.Handle
+openWrite format fname _audio = Sndfile.openFile fname Sndfile.WriteMode info
     where
     info = Sndfile.defaultInfo
         { Sndfile.samplerate = Audio.natVal (Proxy :: Proxy rate)
@@ -321,25 +279,9 @@ openWrite format fname _audio = do
         , Sndfile.format = format
         }
 
--- | Sndfile's errors don't include the filename.
-annotate :: Stack.HasCallStack => String -> FilePath -> IO a -> IO a
-annotate operation fname = Exception.handle $ \exc ->
-    Audio.throwIO $ txt $ operation <> " " <> show fname
-        <> ": " <> Sndfile.errorString exc
-
 wavFormat :: Sndfile.Format
 wavFormat = Sndfile.Format
     { headerFormat = Sndfile.HeaderFormatWav
     , sampleFormat = Sndfile.SampleFormatFloat
     , endianFormat = Sndfile.EndianFile
     }
-
-ignoreEnoent :: IO a -> IO (Maybe a)
-ignoreEnoent = ignoreError $ \case
-    -- hsndfile doesn't preserve the underlying error code
-    Sndfile.SystemError msg -> "No such file or directory" `List.isInfixOf` msg
-    _ -> False
-
-ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
-ignoreError ignore action = Exception.handleJust (guard . ignore)
-    (const (return Nothing)) (fmap Just action)
