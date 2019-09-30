@@ -94,7 +94,7 @@ show_matrix (name, _, attrs) =
     where
     matrices = Seq.chunked cols $ concatMap (Seq.chunked cols)
         (map_shape strip attrs)
-    format = Text.unlines . Texts.formatColumns 1
+    format = Text.unlines . Texts.columns 1
         . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
     header = take cols $ map showt [1..]
     col_header = take (cols+1) $ map Text.singleton $ '-' : ['a'..]

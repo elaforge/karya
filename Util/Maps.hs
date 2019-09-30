@@ -18,14 +18,6 @@ import qualified Data.Set as Set
 import qualified Util.Seq as Seq
 
 
--- | This is just 'findWithDefault' by a shorter name.
-get :: Ord k => a -> k -> Map k a -> a
-get def k fm = Maybe.fromMaybe def (Map.lookup k fm)
-
--- | This is like 'Map.insert', but do nothing if the key is already present.
-soft_insert :: Ord k => k -> v -> Map k v -> Map k v
-soft_insert = Map.insertWith (flip const)
-
 filter_key :: (k -> Bool) -> Map k a -> Map k a
 filter_key f = Map.filterWithKey (\k _ -> f k)
 

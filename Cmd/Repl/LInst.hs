@@ -86,7 +86,7 @@ list_like :: Cmd.M m => Text -> m Text
 list_like pattern = do
     alloc_map <- Ui.config#Ui.allocations_map <#> Ui.get
     let (names, allocs) = unzip $ Map.toAscList alloc_map
-    return $ Text.unlines $ Texts.formatColumns 1
+    return $ Text.unlines $ Texts.columns 1
         [ pretty_alloc name alloc
         | (name, alloc) <- zip names allocs
         , matches name

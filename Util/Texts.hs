@@ -117,15 +117,13 @@ enumeration :: (Textlike a, Monoid a, String.IsString a) => [a] -> a
 enumeration = join "\n" . map ("- "<>)
 
 -- | Format the given rows into columns, aligned vertically.
-formatColumns :: Int -> [[Text]] -> [Text]
-formatColumns padding rows = map format_row rows
+columns :: Int -> [[Text]] -> [Text]
+columns padding rows = map formatRow rows
     where
-    format_row = Text.concat . zipWith pad widths
-    pad w cell = cell
-        <> Text.replicate (w - Text.length cell + padding) (Text.pack " ")
-    by_col = map (map (Maybe.fromMaybe Text.empty)) (Seq.rotate2 rows)
-    widths = replace $ map (List.maximum . (0:) . map Text.length) by_col
-    replace = reverse . (0:) . drop 1 . reverse
+    formatRow = Text.stripEnd . mconcat . zipWith pad widths
+    pad w = Text.justifyLeft (w + padding) ' '
+    byCol = map (map (Maybe.fromMaybe Text.empty)) (Seq.rotate2 rows)
+    widths = map (List.maximum . (0:) . map Text.length) byCol
 
 -- | Apply a function to the contents delimited by the given Char.  You can
 -- quote a delimiter with a backslash.
@@ -193,7 +191,7 @@ type Url = String
 -- | This doesn't really belong here, but it can't go in 'Util.Linkify' since
 -- that's a main module.
 haddockUrl :: Files -> FilePath -> Text -> Maybe Url
-haddockUrl files haddock_dir text
+haddockUrl files haddockDir text
     | moduleExists components = Just $ moduleLink components
     | moduleExists (Seq.rdrop 1 components) = symbolLink
     | otherwise = Nothing
@@ -203,7 +201,7 @@ haddockUrl files haddock_dir text
         || exists (FilePath.joinPath path ++ ".hsc")
     exists = (`Set.member` files)
 
-    moduleLink path = strip $ haddock_dir </> Seq.join "-" path ++ ".html"
+    moduleLink path = strip $ haddockDir </> Seq.join "-" path ++ ".html"
     strip ('.' : '/' : path) = path
     strip path = path
     symbolLink = case Seq.viewr components of

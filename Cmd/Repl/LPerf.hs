@@ -328,7 +328,7 @@ strip_controls = map $ \event -> event { Score.event_controls = mempty }
 --
 -- > LPerf.sel_events $> LPerf.e [LPerf.e_sp, LPerf.e_attr]
 e :: [Fmt] -> [Score.Event] -> Text
-e extract = Text.unlines . Texts.formatColumns 1
+e extract = Text.unlines . Texts.columns 1
     . map (\event -> map ($event) (concat extract))
 
 type Fmt = [Score.Event -> Text]

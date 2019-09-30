@@ -404,7 +404,7 @@ wayangKeys baseOct = take 10 $ drop 1
         ]
 
 showPitchTable :: IO ()
-showPitchTable = Text.IO.putStr $ Text.unlines $ Texts.formatColumns 3 $
+showPitchTable = Text.IO.putStr $ Text.unlines $ Texts.columns 3 $
     Seq.rotate
     [ pemadeUmbang ++ repeat ""
     , replicate 5 "" ++ kantilanUmbang

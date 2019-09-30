@@ -29,3 +29,27 @@ test_interpolate = do
     equal (f [("var1", "a"), ("var2", "b")]) (Right "hi a there b: a")
     left_like (f [("var1", "a"), ("var2", "b"), ("var3", "c")])
         "not in template: var3"
+
+test_columns = do
+    let f = Texts.columns
+    equal (f 1 [["a1", "a"], ["b", "c"]])
+        [ "a1 a"
+        , "b  c"
+        ]
+    equal (f 2 [["a1", "a"], ["b", "c"]])
+        [ "a1  a"
+        , "b   c"
+        ]
+    equal (f 1 [["a1", "a"], ["b"]])
+        [ "a1 a"
+        , "b"
+        ]
+    equal (f 1 [["a1", "a"], ["b"], ["c", "d", "e"]])
+        [ "a1 a"
+        , "b"
+        , "c  d e"
+        ]
+    equal (f 1 [["a", "bcd"], ["1", "2"]])
+        [ "a bcd"
+        , "1 2"
+        ]

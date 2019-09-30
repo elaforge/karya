@@ -63,7 +63,7 @@ import Types
 -- | Format a Patch.Scale as a table.
 table :: Patch.Scale -> Text
 table scale =
-    Text.unlines $ Texts.formatColumns 1 $
+    Text.unlines $ Texts.columns 1 $
         ["", "c", "", "d", "", "e", "f", "", "g", "", "a", "", "b"]
         : [oct : map (Num.showFloat 2) nns | (oct, nns) <- zip octaves groups]
     where
