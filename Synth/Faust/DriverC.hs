@@ -53,7 +53,6 @@ data PatchT ptr cptr = Patch {
     -- | Inputs are positional, so it's important to preserve their order.
     -- TODO: Inputs should also have an Element.
     , _inputControls :: ![(Control.Control, ControlConfig)]
-    , _inputs :: !Int
     , _outputs :: !Int
     , _ptr :: !ptr
     } deriving (Show)
@@ -118,7 +117,6 @@ makePatch name meta uis inputs outputs ptr = first ((name <> ": ")<>) $ do
             | ((elt, control), cdoc) <- uis
             ]
         , _inputControls = inputControls
-        , _inputs = inputs
         , _outputs = outputs
         , _ptr = ptr
         }
@@ -309,8 +307,8 @@ render :: Audio.Frames -> Audio.Frames -> Instrument
     -- the patchInputs, and each vector must have the same length.
     -> IO [V.Vector Float] -- ^ one block of samples for each output channel
 render controlSize controlsPerBlock inst controls inputs = do
-    unless (length inputs == _inputs inst) $
-        errorIO $ "instrument expects " <> showt (_inputs inst)
+    unless (length inputs == length (_inputControls inst)) $
+        errorIO $ "instrument expects " <> showt (length (_inputControls inst))
             <> " inputs, but was given " <> showt (length inputs)
     let inputSizes = map (Audio.vectorFrames (Proxy @1)) inputs
     unless (all (==blockSize) inputSizes) $
