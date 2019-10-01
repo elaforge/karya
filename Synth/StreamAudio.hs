@@ -41,6 +41,7 @@ main = do
 soxArgs :: [String]
 soxArgs =
     [ "--no-show-progress"
+    , "-V1" -- turn down verbosity, to avoid clipped sample warnings
     , "--type=raw", "--channels=2", "--bits=32", "--encoding=floating-point"
     , "--rate=44100"
     , "-", "--default-device"

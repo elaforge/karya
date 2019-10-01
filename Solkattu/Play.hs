@@ -78,15 +78,14 @@ play_procs :: [Performance.Process] -> [FilePath] -> IO ()
 play_procs [] _ = return () -- I think this shouldn't happen?
 play_procs procs output_dirs = do
     ready <- MVar.newEmptyMVar
-    put $ "start render: " <> pretty procs
+    Log.debug $ "start render: " <> pretty procs
     rendering <- Async.async $ watch_subprocesses ready (Set.fromList procs)
-    put "wait for ready"
+    Log.debug "wait for ready"
     MVar.takeMVar ready
-    put $ Text.unwords $ "%" : "build/opt/stream_audio" : map txt output_dirs
+    Log.debug $ Text.unwords $
+        "%" : "build/opt/stream_audio" : map txt output_dirs
     Process.call "build/opt/stream_audio" output_dirs
     Async.wait rendering
-    where
-    put line = Log.with_stdio_lock $ Text.IO.hPutStrLn IO.stdout line
 
 -- | This is analogous to 'Performance.watch_subprocesses', but notifies as
 -- soon as all processes have rendered output.
@@ -104,7 +103,12 @@ watch_subprocesses ready all_procs =
                 loop =<< process procs started (cmd, args) out
     where
     process procs started (cmd, args) = \case
-        Util.Process.Stderr line -> put line >> return (procs, started)
+        Util.Process.Stderr line -> do
+            -- Only show Log.Warn and above.
+            -- TODO pass LOG_CONFIG?
+            when ("---" `Text.isPrefixOf` line) $
+                put line
+            return (procs, started)
         Util.Process.Stdout line -> case Config.parseMessage line of
             Just (Config.Message
                     { Config._payload = Config.WaveformsCompleted chunks })
