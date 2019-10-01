@@ -27,6 +27,7 @@ import qualified Util.Control
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
 import qualified Util.Num as Num
+import qualified Util.Segment as Segment
 import qualified Util.Seq as Seq
 
 import qualified Perform.RealTime as RealTime
@@ -209,14 +210,10 @@ renderPatch emitMessage patch config mbState notifyState notes start_ =
     -- I'm still aligned to chunk boundaries.  This way the render loop is
     -- simpler, since it always has the same chunk size.
     align = 0
-    controls = renderControls (_controlSize config) (DriverC._triggered patch)
-        (_controlRate config) (Map.keysSet (DriverC._controls patch))
-        notes start
-    inputs = Audio.nonInterleaved align (_blockSize config) $
-        renderInputs (DriverC._triggered patch) inputControls notes start
-    inputControls = map fst $ DriverC._inputControls patch
+    inputs = renderInputs config align patch notes start
+    controls = renderControls config patch notes start
     vol = Audio.synchronizeToSize align (_blockSize config) <$>
-        renderInput False notes start Control.volume
+        renderInput start (controlBreakpoints 1 False Control.volume notes)
     final = maybe 0 Note.end (Seq.last notes)
 
 interleave :: AUtil.NAudio -> AUtil.Audio
@@ -380,18 +377,59 @@ rms :: V.Vector Float -> Float
 rms block =
     sqrt $ V.sum (V.map (\n -> n*n) block) / fromIntegral (V.length block)
 
-renderControls :: Audio.Frames -> Bool -> Int -> Set DriverC.Control
-    -> [Note.Note] -> RealTime -> Map DriverC.Control AUtil.Audio1
-renderControls controlSize triggered controlRate controls notes start =
-    render <$> extractControls controlSize triggered controls
-        (tweakNotes controlSize notes)
+-- ** render breakpoints
+
+renderControls :: Monad m => Config -> DriverC.PatchT ptr cptr -> [Note.Note]
+    -> RealTime -> Map DriverC.Control (Audio.Audio m rate 1)
+renderControls config patch notes start =
+    renderControl (_controlRate config) start <$>
+    controlsBreakpoints (_controlSize config) patch notes
+
+renderControl :: Monad m => Int -> RealTime -> [(Double, Double)]
+    -> Audio.Audio m rate 1
+renderControl controlRate start = case Audio.someNat controlRate of
+    TypeLits.SomeNat (_ :: Proxy cRate) ->
+        -- Audio.linear gets its breakpoints in seconds, so I have to do this
+        -- little dance.  Maybe it could use frames?
+        Audio.castRate . Audio.linear @_ @cRate False . shiftBack
+    where shiftBack = map $ first $ subtract $ RealTime.to_seconds start
+
+-- | Render the supported controls down to audio rate signals.  This causes the
+-- stream to be synchronized by '_blockSize', which should determine 'render'
+-- chunk sizes, which should be a factor of '_chunkSize'.
+renderInputs :: (Monad m, TypeLits.KnownNat rate) => Config -> Audio.Frames
+    -> DriverC.PatchT ptr cptr -> [Note.Note] -> RealTime
+    -> Audio.NAudio m rate
+renderInputs config align patch notes start =
+    Audio.nonInterleaved align (_blockSize config) $
+    map (fromMaybe Audio.silence . renderInput start) $
+    inputsBreakpoints patch notes
+
+renderInput :: (Monad m, TypeLits.KnownNat rate)
+    => RealTime -> [(Double, Double)] -> Maybe (Audio.Audio m rate 1)
+renderInput start bps
+    | null bps = Nothing
+    | otherwise = Just $ Audio.linear True $ shiftBack bps
+    where shiftBack = map $ first (subtract (RealTime.to_seconds start))
+
+-- ** extract breakpoints
+
+inputsBreakpoints :: DriverC.PatchT ptr cptr -> [Note.Note]
+    -> [[(Double, Double)]]
+inputsBreakpoints patch notes =
+    [ controlBreakpoints 1 triggered control notes
+    | control <- map fst $ DriverC._inputControls patch
+    ]
     where
-    -- Audio.linear gets its breakpoints in seconds, so I have to do this
-    -- little dance.  Maybe it could use frames?
-    render = case Audio.someNat controlRate of
-        TypeLits.SomeNat (_ :: Proxy cRate) ->
-            Audio.castRate . Audio.linear @_ @cRate False . shiftBack
-    shiftBack = map $ first $ subtract $ RealTime.to_seconds start
+    triggered = DriverC._triggered patch
+
+controlsBreakpoints :: Audio.Frames -> DriverC.PatchT ptr cptr -> [Note.Note]
+    -> Map DriverC.Control [(Double, Double)]
+controlsBreakpoints controlSize patch notes =
+    extractControls controlSize triggered
+        (Map.keysSet (DriverC._controls patch)) (tweakNotes controlSize notes)
+    where
+    triggered = DriverC._triggered patch
 
 extractControls :: Audio.Frames -> Bool -> Set DriverC.Control -> [Note.Note]
     -> Map DriverC.Control [(Double, Double)]
@@ -419,31 +457,12 @@ tweakNotes controlSize notes = map (\n -> n { Note.start = dt }) at0 ++ rest
     dt = AUtil.toSeconds controlSize
     (at0, rest) = span ((<=0) . Note.start) notes
 
--- | Render the supported controls down to audio rate signals.  This causes the
--- stream to be synchronized by '_blockSize', which should determine
--- 'render' chunk sizes, which should be a factor of '_chunkSize'.
-renderInputs :: Bool -> [Control.Control]
-    -- ^ inputs expected by the instrument, in the expected order
-    -> [Note.Note] -> RealTime -> [AUtil.Audio1]
-renderInputs triggered controls notes start =
-    map (fromMaybe Audio.silence . renderInput triggered notes start) controls
-
-renderInput :: (Monad m, TypeLits.KnownNat rate) => Bool
-    -> [Note.Note] -> RealTime -> Control.Control
-    -> Maybe (Audio.Audio m rate 1)
-renderInput triggered notes start control
-    | null bps = Nothing
-    | otherwise = Just $ Audio.linear True $ shiftBack bps
-    where
-    shiftBack = map $ first (subtract (RealTime.to_seconds start))
-    -- controlSize=1 because input is per-sample.
-    bps = controlBreakpoints 1 triggered control notes
-
 controlBreakpoints :: Audio.Frames -> Bool -> Control.Control -> [Note.Note]
     -> [(Double, Double)]
 controlBreakpoints controlSize triggered control
-    | control == Control.gate = gateBreakpoints controlSize triggered
-    | otherwise = concat . mapMaybe get . Seq.zip_next
+    | control == Control.gate =
+        Segment.simplify . gateBreakpoints controlSize triggered
+    | otherwise = Segment.simplify . concat . mapMaybe get . Seq.zip_next
     where
     -- See NOTE [faust-controls].
     tweak = map $ first $ subtract controlSizeS
@@ -478,10 +497,12 @@ gateBreakpoints controlSize triggered =
         -- used to initialized elements.
     controlSizeS = AUtil.toSeconds controlSize
     hold [] = []
-    hold (n : ns) =
-        (Note.start n, 0) : (Note.start n, dyn)
-        : (Note.end end, dyn) : (Note.end end, 0)
-        : hold rest
+    hold (n : ns)
+        | dyn <= 0 = hold ns
+        | otherwise =
+            (Note.start n, 0) : (Note.start n, dyn)
+            : (Note.end end, dyn) : (Note.end end, 0)
+            : hold rest
         where
         dyn = fromMaybe 0 $ Note.initial Control.dynamic n
         (end : rest) = dropUntil (\n1 n2 -> Note.end n1 < Note.start n2)

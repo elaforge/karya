@@ -2340,6 +2340,18 @@ synth: im:
       . I could also use rubberband pitch shifting instead of resampling.
       . Per-patch signal network so I can incorporate faust effects.
   faust:
+    * dump mode for debugging, like with sampler
+      . It's not as easy though, since there's no intermediate note stream.
+      . Instead, I can render to control breakpoints, and print them out
+        over time in some way.
+      . That's what debugControls is, but if it were breakpoints they could go
+        to the terminal.
+    - Put some sort of version on saved states, so I can ignore them when the
+      dsp changes.
+    - I compile faust C by including build/faust_all.cc, which gets slower as
+      I get more of them.  Instead I should compile the .c files individually
+      and then link as usually.
+    - per-instrument note range for render-preview
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
       . Test volume, support pan.
@@ -2431,9 +2443,10 @@ synth: im:
         . Maybe it's the c-4 pitch spread, since it's by hz and not
           logarithmic...
       - Perhaps bring back pitch from 0 as a buzzy attack effect.
+        . Though using the pink noise attack is maybe about the same?
       - Can I get signals from other parts of the string?  It would be nice
         for stereo or multichannel.
-      - How to do damping?
+      How to do damping?
         . I guess I turn up the string damping.
         . But I'll need to have a notation.
           . Explicit durations: where notes are damped after their duration.

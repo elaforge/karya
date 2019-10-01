@@ -8,7 +8,6 @@ module Synth.Faust.Render_test where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Vector.Storable as V
 
 import qualified System.Directory as Directory
@@ -228,45 +227,61 @@ toSamples1 = V.toList . mconcat
 -- * render
 
 test_renderControls = do
-    let f triggered notes start = filter (not . null . snd) $ Map.toList $
-            fmap toSamples1 $
-            -- For convenience let's have controlSize=1s and controlRate=1.
-            Render.renderControls (AUtil.toFrames 1) triggered 1 controls
-                (map make notes) start
-        controls = Set.fromList
-            [ ("1", Control.gate), ("2", Control.gate)
-            , ("1", Control.pitch), ("2", Control.pitch)
-            , ("", Control.pan)
-            ]
-        make (s, e, elem, cs) = (Note.note "" "" s e)
+    let f triggered start notes =
+            filter (not . null . snd) $ Map.toList $ fmap toSamples1 $
+                renderControls triggered (map mknote notes) start
+        mknote (s, e, elem, cs) = (Note.note "" "" (s / cr) (e / cr))
             { Note.element = elem
             , Note.controls = Signal.from_pairs <$>
                 Map.fromList ((Control.dynamic, [(0, 1)]) : cs)
             }
-    -- ensure that controls end, per-element and global controls are correct,
-    -- controls have the right block size
-    equal (f False [] 0) []
-    equal (f False [(0, 5, "1", [(Control.pan, [(0, 0.5)])])] 0)
+            where cr = fromIntegral $ Render._controlRate Render.defaultConfig
+    equal (f False 0 []) []
+    equal (f False 0 [(0, 5, "1", [(Control.pan, [(0, 0.5)])])])
         [ (("", Control.pan), [0.5])
         -- Note at 0 starts at +1 control, thanks to tweakNotes.
         , (("1", Control.gate), [0, 1, 1, 1, 1, 1, 0])
         ]
-    equal (f True [(0, 5, "1", [])] 0)
+    equal (f True 0 [(0, 5, "1", [])])
         [ (("1", Control.gate), [0, 1, 0])
         ]
-    equal (f False [(0, 2, "1", [(Control.pitch, [(0, 42)])])] 0)
+    equal (f False 0 [(0, 2, "1", [(Control.pitch, [(0, 42)])])])
         [ (("1", Control.gate), [0, 1, 1, 0])
         , (("1", Control.pitch), [42])
         ]
     let pitch nn = [(Control.pitch, [(0, nn)])]
-    equal (f False [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)] 0)
+    equal (f False 0 [(0, 2, "1", pitch 42), (2, 4, "1", pitch 44)])
         [ (("1", Control.gate), [0, 1, 1, 1, 1, 1, 0])
         , (("1", Control.pitch), [42, 44])
         ]
-    equal (f True [(1, 2, "1", pitch 42), (3, 4, "1", pitch 44)] 0)
+    equal (f True 0 [(1, 2, "1", pitch 42), (3, 4, "1", pitch 44)])
         [ (("1", Control.gate), [0, 1, 0, 1, 0])
         , (("1", Control.pitch), [42, 42, 44])
         ]
+
+renderControls :: Bool -> [Note.Note] -> RealTime
+    -> Map DriverC.Control AUtil.Audio1
+renderControls triggered notes start =
+    Render.renderControls Render.defaultConfig patch notes start
+    where
+    patch = DriverC.Patch
+        { _name = "test"
+        , _doc = "doc"
+        , _triggered = triggered
+        , _elementFrom = Nothing
+        , _controls = Map.fromList $ map (, ((), cconfig))
+            [ ("1", Control.gate), ("2", Control.gate)
+            , ("1", Control.pitch), ("2", Control.pitch)
+            , ("", Control.pan)
+            ]
+        , _inputControls = []
+        , _outputs = 2
+        , _ptr = ()
+        }
+    cconfig = DriverC.ControlConfig
+        { _constant = False
+        , _description = ""
+        }
 
 test_gateBreakpoints = do
     let f ns = map (first (AUtil.toFrames . RealTime.seconds)) $
@@ -295,8 +310,7 @@ test_controlBreakpoints = do
     -- No controls means don't set anything, which will keep the defaults.
     equal (f []) []
     equal (f [(0, 1, []), (1, 1, [])]) []
-    -- Audio.linear should optimize away duplicate and flat breakpoints.
-    equal (f [(0, 1, [(0, 1)]), (1, 1, [(0, 1)])]) [(0, 1), (1, 1), (1, 1)]
+    equal (f [(0, 1, [(0, 1)]), (1, 1, [(0, 1)])]) [(0, 1), (1, 1)]
 
     equal (f [(0, 1, [(0, 1)])]) [(0, 1)]
     -- Signals stay constant.

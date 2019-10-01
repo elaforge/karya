@@ -11,10 +11,12 @@ module Util.Segment (
     -- * construct / destruct
     , empty
     , constant, constant_val, constant_val_num
+    , beginning
     , from_vector, to_vector
     , from_samples, to_samples, to_samples_desc
     , from_pairs, to_pairs, to_pairs_desc
     , from_segments, to_segments, samples_to_segments
+    , simplify
     , unfoldr
     , with_ptr
 
@@ -149,7 +151,7 @@ empty :: V.Vector v a => Signal (v a)
 empty = Signal 0 V.empty
 
 constant :: V.Vector v (Sample y) => y -> SignalS v y
-constant a = from_vector $ V.fromList [Sample (-RealTime.larger) a]
+constant a = from_vector $ V.fromList [Sample beginning a]
 
 constant_val :: V.Vector v (Sample a) => SignalS v a -> Maybe a
 constant_val sig = case TimeVector.uncons (_vector sig) of
@@ -170,6 +172,10 @@ constant_val_num from sig = case TimeVector.uncons (_vector sig) of
         | V.all ((==0) . sy) (_vector sig) -> Just 0
         | otherwise -> Nothing
     Nothing -> Just 0
+
+-- | Use this as the stand-in for "since the beginning of time."
+beginning :: RealTime.RealTime
+beginning = -RealTime.larger
 
 from_vector :: v -> Signal v
 from_vector = Signal 0
@@ -252,6 +258,22 @@ samples_to_segments = go
     go (Sample x1 y1 : xs@(Sample x2 y2 : _))
         | x1 == x2 = go xs
         | otherwise = Segment x1 y1 x2 y2 : go xs
+
+-- | Simplify away redundant samples.
+simplify :: (Eq x, Eq y) => [(x, y)] -> [(x, y)]
+simplify ((x1, _) : xys@((x2, _) : _)) | x1 == x2 = simplify xys
+simplify xys = go xys
+    where
+    -- Drop samples in the middle of horizontal and vertical lines.
+    go ((x1, y1) : (x2, y2) : xys@((x3, y3) : _))
+        | y1 == y2 && y2 == y3 = go ((x1, y1) : xys)
+        | x1 == x2 && x2 == x3 = go ((x1, y1) : xys)
+    -- Identical samples are always redundant.
+    go ((x1, y1) : xys@((x2, y2) : _))
+        | x1 == x2 && y1 == y2 = go xys
+    go xys = xys
+{-# INLINEABLE simplify #-}
+{-# SPECIALIZE simplify :: [(X, Y)] -> [(X, Y)] #-}
 
 unfoldr :: V.Vector v (Sample y) => (state -> Maybe ((X, y), state)) -> state
     -> SignalS v y

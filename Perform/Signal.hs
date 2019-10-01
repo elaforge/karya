@@ -21,6 +21,7 @@ module Perform.Signal (
     , to_samples, to_pairs, to_pairs_desc
     , to_segments, to_vector
     , constant, constant_val, constant_val_from
+    , beginning
     , prepend
     , unfoldr
     , coerce
@@ -190,6 +191,9 @@ constant_val = Segment.constant_val_num (-RealTime.large) . _signal
 
 constant_val_from :: X -> Signal kind -> Maybe Y
 constant_val_from x = Segment.constant_val_num x . _signal
+
+beginning :: RealTime
+beginning = Segment.beginning
 
 prepend :: Signal kind -> Signal kind -> Signal kind
 prepend sig1 sig2 = Signal $

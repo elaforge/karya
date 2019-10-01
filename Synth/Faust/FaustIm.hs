@@ -7,7 +7,6 @@ module Synth.Faust.FaustIm (main) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Trans.Resource as Resource
 
 import qualified Data.Either as Either
 import qualified Data.Map as Map
@@ -17,30 +16,22 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
-import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.Posix.Signals as Signals
 
-import qualified Util.Audio.Audio as Audio
-import qualified Util.Audio.File as Audio.File
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
-import qualified Perform.RealTime as RealTime
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Faust.Render as Render
-import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
 import qualified Synth.Shared.Note as Note
 
 import           Global
 
-
--- | If True, write control signals to separate files for visualization.
-debugControls :: Bool
-debugControls = False
 
 main :: IO ()
 main = do
@@ -69,6 +60,11 @@ main = do
             Just (Right patch) -> Preview.render patch
         ["render-preview"] -> mapM_ Preview.render $
             Either.rights (Map.elems patches)
+        ["dump", notesFilename] -> do
+            notes <- either (errorIO . pretty) return
+                =<< Note.unserialize notesFilename
+            patches <- traverse (either errorIO pure) patches
+            dump patches notes
         [notesFilename, outputDir] -> do
             Log.notice $ Text.unwords
                 ["faust-im", txt notesFilename, txt outputDir]
@@ -94,6 +90,50 @@ showControl :: DriverC.Control -> Text
 showControl ("", c) = pretty c
 showControl (elt, c) = elt <> ":" <> pretty c
 
+dump :: Map Note.PatchName DriverC.Patch -> [Note.Note] -> IO ()
+dump patches notes = do
+    let (notFound, patchInstNotes) = lookupPatches patches notes
+    unless (null notFound) $
+        Log.warn $ "patches not found: " <> Text.unwords notFound
+    forM_ (extractBreakpoints $ flatten patchInstNotes) $ \(inst, cbps) -> do
+        Text.IO.putStrLn $ "=== " <> inst <> ":"
+        -- TODO implement Texts.wrappedColumns to make it readable?  Or just
+        -- use a wide window.
+        -- mapM_ Text.IO.putStrLn $ Texts.columns 2 $
+        --     map (map (fromMaybe "")) $ Seq.rotate2
+        --         [ name : map showBp bps
+        --         | (name, bps) <- cbps
+        --         ]
+
+        let maxlen = maximum $ 1 : map (Text.length . fst) cbps
+        forM_ cbps $ \(control, bps) -> do
+            Text.IO.putStrLn $
+                Text.justifyLeft (maxlen+2) ' ' (control <> ":")
+                <> Text.unwords (map showBp bps)
+    where
+    showBp (x, y) = "(" <> showNum x <> "," <> showNum y <> ")"
+    showNum = Num.showFloat 2
+    flatten patchInstNotes =
+        [ (patch, inst, notes)
+        | (patch, instNotes) <- patchInstNotes
+        , (inst, notes) <- instNotes
+        ]
+
+extractBreakpoints
+    :: [(DriverC.Patch, Note.InstrumentName, [Note.Note])]
+    -> [(Note.InstrumentName, [(Text, [(Double, Double)])])]
+extractBreakpoints patchInstNotes = filter (not . null . snd)
+    [(inst, extract patch notes) | (patch, inst, notes) <- patchInstNotes]
+    where
+    extract patch notes =
+        zip (map pretty inputNames) inputs
+            ++ map (first showControl) (Map.toList controls)
+        where
+        inputs = Render.inputsBreakpoints patch notes
+        controls = Render.controlsBreakpoints
+            (Render._controlSize Render.defaultConfig) patch notes
+        inputNames = map fst $ DriverC._inputControls patch
+
 process :: Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath -> IO ()
 process patches notes outputDir = do
     Log.notice $ "processing " <> showt (length notes) <> " notes"
@@ -114,8 +154,6 @@ process patches notes outputDir = do
             (result, elapsed) <- Thread.timeActionText $
                 Render.write output
                     (Set.fromList $ mapMaybe Note.trackId notes) patch notes
-            when debugControls $
-                writeControls output patch notes
             case result of
                 Left err -> Log.notice $ inst <> " writing " <> txt output
                     <> ": " <> err
@@ -129,19 +167,6 @@ process patches notes outputDir = do
         | (patch, instNotes) <- patchInstNotes
         , (inst, notes) <- instNotes
         ]
-
-writeControls :: FilePath -> DriverC.Patch -> [Note.Note] -> IO ()
-writeControls output patch notes =
-    forM_ controls $ \control -> Resource.runResourceT $
-        Audio.File.write AUtil.outputFormat (fname control) $
-        Audio.takeS final $
-        fromMaybe Audio.silence
-        (Render.renderInput False notes 0 control :: Maybe AUtil.Audio1)
-    where
-    final = RealTime.to_seconds $ maybe 0 Note.end (Seq.last notes)
-    -- play_cache is special-cased to ignore *.debug.wav.
-    fname c = FilePath.dropExtension output <> "-" <> prettys c <> ".debug.wav"
-    controls = map fst $ DriverC._inputControls patch
 
 lookupPatches :: Map Note.PatchName patch -> [Note.Note]
     -> ([Note.PatchName], [(patch, [(Note.InstrumentName, [Note.Note])])])
