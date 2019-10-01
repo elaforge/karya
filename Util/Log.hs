@@ -197,7 +197,7 @@ write_formatted hdl = Text.IO.hPutStrLn hdl . format_msg
 initial_state :: State
 initial_state = State
     { state_write_msg = write_formatted IO.stderr
-    , state_priority = Debug
+    , state_priority = Notice
     }
 
 {-# NOINLINE global_state #-}
