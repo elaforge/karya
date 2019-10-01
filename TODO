@@ -2459,6 +2459,18 @@ synth: im:
           dependent damping.  'damp' under high-freq-loss affects this,
           experiment with it.
         . high-freq-loss has no audible effect.
+        * Use decay for now.  If I put a decay down signal at the end of the
+          note, then the faust signal merging will clip them off when the same
+          string is reused.
+        - Turning off triggered messed up attacks, probably the gate signal.
+          . I'll probably want a separate gate-only triggered for instruments
+            with a separate damp action.
+          . But figure out why the notes seem to be merged
+            non-deterministically, shouldn't they be consistent?
+        - Can I append a soft note with fuzzy material to simulate finger
+          buzz?
+        . So I want a postproc that will append a decay-down multiply.  So
+          I'll want per-instrument code for faust, which I don't have yet.
         - Write to Oli Larkin about the damping bug.
           . Also bend_depth bug.
       / I won't need the autoplucker.

@@ -5,7 +5,6 @@ declare copyright "Oliver Larkin";
 declare version "1.0";
 declare licence "GPL";
 
-declare flags "triggered";
 declare element_from "string";
 
 import("stdfaust.lib");

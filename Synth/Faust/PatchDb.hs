@@ -10,6 +10,8 @@ import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Doc as Doc
 import qualified Util.Maps as Maps
+import qualified Util.Seq as Seq
+
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
@@ -17,6 +19,7 @@ import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
+import qualified Synth.Faust.Code as Code
 import qualified Synth.Faust.DriverC as DriverC
 import qualified Synth.Faust.Preview as Preview
 import qualified Synth.Shared.Config as Config
@@ -40,9 +43,23 @@ warnings :: [Text]
     let errors =
             [ "faust/" <> name <> ": " <> err
             | (name, Left err) <- Map.toList pmap
+            ] ++
+            [ "faust: patch code with no patch: " <> name
+            | (name, Seq.Second _) <- Maps.pairs pmap patchCode
             ]
-        patches = [(name, patch) | (name, Right patch) <- Map.toList pmap]
-    return (errors, map (second (makePatch imDir)) patches)
+    return $ (errors,)
+        [ (name, makePatch imDir patch)
+        | (name, Right patch) <- Map.toList pmap
+        ]
+
+patchCode :: Map Text ImInst.Code
+patchCode = Map.fromList
+    [ ("tambura8", tambura), ("tambura4", tambura)
+    ]
+    where
+    tambura = ImInst.note_calls
+        [ ImInst.transformer "terminate" (Code.note_terminate "decay" 0.01)
+        ]
 
 makePatch :: FilePath -> DriverC.Patch -> ImInst.Patch
 makePatch imDir patch =
@@ -72,6 +89,7 @@ makePatch imDir patch =
             Nothing -> mempty
             Just elementFrom -> ImInst.postproc $
                 DUtil.element_from_id elementFrom
+        , Map.findWithDefault mempty (DriverC._name patch) patchCode
         ]
     pitchToSample = Preview.pitchToSample imDir (DriverC._name patch)
 
