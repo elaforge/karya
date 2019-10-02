@@ -417,23 +417,23 @@ renderInput start bps
 inputsBreakpoints :: DriverC.PatchT ptr cptr -> [Note.Note]
     -> [[(Double, Double)]]
 inputsBreakpoints patch notes =
-    [ controlBreakpoints 1 triggered control notes
+    [ controlBreakpoints 1 impulseGate control notes
     | control <- map fst $ DriverC._inputControls patch
     ]
     where
-    triggered = DriverC._triggered patch
+    impulseGate = DriverC._impulseGate patch
 
 controlsBreakpoints :: Audio.Frames -> DriverC.PatchT ptr cptr -> [Note.Note]
     -> Map DriverC.Control [(Double, Double)]
 controlsBreakpoints controlSize patch notes =
-    extractControls controlSize triggered
+    extractControls controlSize impulseGate
         (Map.keysSet (DriverC._controls patch)) (tweakNotes controlSize notes)
     where
-    triggered = DriverC._triggered patch
+    impulseGate = DriverC._impulseGate patch
 
 extractControls :: Audio.Frames -> Bool -> Set DriverC.Control -> [Note.Note]
     -> Map DriverC.Control [(Double, Double)]
-extractControls controlSize triggered controls allNotes =
+extractControls controlSize impulseGate controls allNotes =
     Map.fromList $ filter (not . null . snd) $
         map (get "" allNotes) withoutElement ++ mapMaybe getE withElement
     where
@@ -441,7 +441,7 @@ extractControls controlSize triggered controls allNotes =
         List.partition (Text.null . fst) $ Set.toList controls
     get element notes control =
         ( (element, control)
-        , controlBreakpoints controlSize triggered control notes
+        , controlBreakpoints controlSize impulseGate control notes
         )
     byElement = Seq.keyed_group_stable Note.element allNotes
     getE (element, control) =
@@ -459,9 +459,9 @@ tweakNotes controlSize notes = map (\n -> n { Note.start = dt }) at0 ++ rest
 
 controlBreakpoints :: Audio.Frames -> Bool -> Control.Control -> [Note.Note]
     -> [(Double, Double)]
-controlBreakpoints controlSize triggered control
+controlBreakpoints controlSize impulseGate control
     | control == Control.gate =
-        Segment.simplify . gateBreakpoints controlSize triggered
+        Segment.simplify . gateBreakpoints controlSize impulseGate
     | otherwise = Segment.simplify . concat . mapMaybe get . Seq.zip_next
     where
     -- See NOTE [faust-controls].
@@ -477,14 +477,14 @@ controlBreakpoints controlSize triggered control
 -- | Make a signal with a rising edge on the note attack.  The value is from
 -- Control.dynamic, which means a note with dyn=0 won't get an attack at all.
 --
--- If triggered=True, it will be a controlSize length impulse.  Otherwise, it
+-- If impulseGate=True, it will be a controlSize length impulse.  Otherwise, it
 -- will stay positive for the duration of the note.  If the note is adjacent
 -- to another with the same element, the dip to zero likely won't be
 -- registered, so presumably the instrument will need some other signal if it
 -- cares about attacks of notes that touch.
 gateBreakpoints :: Audio.Frames -> Bool -> [Note.Note] -> [(Double, Double)]
-gateBreakpoints controlSize triggered =
-    roundBreakpoints controlSize . if triggered then impulse else hold
+gateBreakpoints controlSize impulseGate =
+    roundBreakpoints controlSize . if impulseGate then impulse else hold
     where
     -- An "impulse" must still be at least one control size or it might get
     -- skipped.

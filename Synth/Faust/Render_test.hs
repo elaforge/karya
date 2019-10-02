@@ -227,9 +227,9 @@ toSamples1 = V.toList . mconcat
 -- * render
 
 test_renderControls = do
-    let f triggered start notes =
+    let f impulseGate start notes =
             filter (not . null . snd) $ Map.toList $ fmap toSamples1 $
-                renderControls triggered (map mknote notes) start
+                renderControls impulseGate (map mknote notes) start
         mknote (s, e, elem, cs) = (Note.note "" "" (s / cr) (e / cr))
             { Note.element = elem
             , Note.controls = Signal.from_pairs <$>
@@ -261,13 +261,13 @@ test_renderControls = do
 
 renderControls :: Bool -> [Note.Note] -> RealTime
     -> Map DriverC.Control AUtil.Audio1
-renderControls triggered notes start =
+renderControls impulseGate notes start =
     Render.renderControls Render.defaultConfig patch notes start
     where
     patch = DriverC.Patch
         { _name = "test"
         , _doc = "doc"
-        , _triggered = triggered
+        , _impulseGate = impulseGate
         , _elementFrom = Nothing
         , _controls = Map.fromList $ map (, ((), cconfig))
             [ ("1", Control.gate), ("2", Control.gate)

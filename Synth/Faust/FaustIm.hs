@@ -77,8 +77,8 @@ main = do
     where
     printPatch patch = do
         put $ DriverC._doc patch
-        when (DriverC._triggered patch) $
-            put "flags: triggered"
+        when (DriverC._impulseGate patch) $
+            put "flags: impulse-gate"
         forM_ (DriverC._inputControls patch) $ \(c, config) ->
             put $ "input: " <> pretty c <> ": " <> pretty config
         forM_ (Map.toList (DriverC._controls patch)) $ \(c, (_, config)) ->

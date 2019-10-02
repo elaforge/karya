@@ -2348,6 +2348,9 @@ synth: im:
         to the terminal.
     - Put some sort of version on saved states, so I can ignore them when the
       dsp changes.
+      . I could have shake put a fingerprint in the Patch constructor.
+      . Or I could put the patch name in the filename or directory name, and
+        delete all cache files when the dsp changes, along with the previews.
     - I compile faust C by including build/faust_all.cc, which gets slower as
       I get more of them.  Instead I should compile the .c files individually
       and then link as usually.
@@ -2462,11 +2465,12 @@ synth: im:
         * Use decay for now.  If I put a decay down signal at the end of the
           note, then the faust signal merging will clip them off when the same
           string is reused.
-        - Turning off triggered messed up attacks, probably the gate signal.
+        * Turning off triggered messed up attacks, probably the gate signal.
           . I'll probably want a separate gate-only triggered for instruments
             with a separate damp action.
           . But figure out why the notes seem to be merged
             non-deterministically, shouldn't they be consistent?
+          . No, they are consistent.
         - Can I append a soft note with fuzzy material to simulate finger
           buzz?
         . So I want a postproc that will append a decay-down multiply.  So

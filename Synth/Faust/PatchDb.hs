@@ -15,7 +15,6 @@ import qualified Util.Seq as Seq
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.ScoreT as ScoreT
-import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
@@ -64,8 +63,6 @@ patchCode = Map.fromList
 makePatch :: FilePath -> DriverC.Patch -> ImInst.Patch
 makePatch imDir patch =
     ImInst.doc #= Doc.Doc (DriverC._doc patch) $
-    ImInst.common#Common.flags #= (if DriverC._triggered patch
-        then Set.singleton Common.Triggered else mempty) $
     code constantPitch constantControls $
     ImInst.make_patch $ Patch.patch
         { Patch.patch_controls = (pretty <$> controls) <> standardControls
