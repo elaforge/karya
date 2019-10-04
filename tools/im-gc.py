@@ -35,12 +35,15 @@ def main():
                 for fn in garbage:
                     os.remove(fn)
     if file_count > 0:
-        print('%s: %d insts, deleted %d files, total %.2fmb, remaining: %s'
+        # Only show total for a complete GC, since a partial is run
+        # automatically.
+        if roots == [default_root]:
+            remaining = ', remaining: ' + str(dir_size(default_root))
+        else:
+            remaining = ''
+        print('%s: %d insts, deleted %d files, total %.2fmb%s'
             % (sys.argv[0], dir_count, file_count,
-                float(total_size) / 1024 / 1024,
-                dir_size(default_root) if roots == [default_root] else ""))
-                # Only show total for a complete GC, since a partial is run
-                # automatically.
+                float(total_size) / 1024 / 1024, remaining))
 
 def dir_size(dir):
     size = subprocess.check_output(['du', '-hsc', dir])
