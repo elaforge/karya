@@ -17,9 +17,12 @@ using std::string;
 
 // See if the fname matches any of the muted instruments.
 static bool
-suffix_match(const std::vector<string> &mutes, const char *fname)
+instrument_match(const std::vector<string> &mutes, const char *fname)
 {
-    const char *endp = strrchr(fname, '.');
+    // Instruments never have '_', so I can use that to put extra info on the
+    // end.  For faust, I put the patch name, so I can clear obsolete
+    // checkpoints when the patch changes.
+    const char *endp = strrchr(fname, '_');
     int end = endp ? endp - fname : strlen(fname);
     for (const string &mute : mutes) {
         if (mute.length() == end && strncmp(mute.c_str(), fname, end) == 0)
@@ -47,7 +50,7 @@ dir_samples(
         string subdir(ent->d_name);
         if (subdir.empty() || subdir[0] == '.')
             continue;
-        if (suffix_match(mutes, subdir.c_str())) {
+        if (instrument_match(mutes, subdir.c_str())) {
             skipped = true;
             continue;
         }

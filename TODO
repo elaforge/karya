@@ -2346,15 +2346,38 @@ synth: im:
         over time in some way.
       . That's what debugControls is, but if it were breakpoints they could go
         to the terminal.
-    - Put some sort of version on saved states, so I can ignore them when the
+    * Put some sort of version on saved states, so I can ignore them when the
       dsp changes.
       . I could have shake put a fingerprint in the Patch constructor.
       . Or I could put the patch name in the filename or directory name, and
         delete all cache files when the dsp changes, along with the previews.
+      . Since I turn '_' into '-' in patch names, I could look for
+        **/*_$patch/checkpoint, and delete the whole directory.
     - I compile faust C by including build/faust_all.cc, which gets slower as
       I get more of them.  Instead I should compile the .c files individually
       and then link as usually.
+      . I can't have a faust_all.cc with 'new Patch' calls, because faust
+        doesn't generate a separate header.  It doesn't seem to have the
+        feature at all.
+      . In that case I have to generate a faust_all.cc for each one, and leave
+        faust output as .h files.  Then I have to merge them.
+        % cat build/faust/blow_bottle.cc
+          #include "build/faust/blow_bottle.h"
+          const Patch *blow_bottle = new Patch("blow_bottle", ...);
+
+        % cat build/faust_all.cc
+          extern Patch *blow_bottle;
+          ...
+          static const Patch *all_patches[] = { blow_bottle, ... };
+
+        Then I have to keep the .o files for the link line.  Since I'm not
+        just including the cc file anymore, I have to link separately.
+        I guess I can add a faust.a, and then put faust.a in hsToCc along with
+        driver.cc.
+        . need ["build/opt/obj/build/faust/blow_bottle.cc.o", ...]
+          Util.system "ar" $ ["-rs", "build/faust.a"] ++ objs
     - per-instrument note range for render-preview
+      . Or I could only render when loading a score with one as an instrument.
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
       . Test volume, support pan.

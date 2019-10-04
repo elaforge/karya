@@ -1318,13 +1318,6 @@ faustSrcDir = build </> "faust"
 faustCppDir :: FilePath
 faustCppDir = build </> "faust-cpp"
 
--- | Directory that faust-im render-preview writes to.  This should come
--- from Synth.Faust.Preview.cacheDir, but I don't want to import that here.
--- Perhaps there should be a simpler App.Config that can be imported by the
--- shakefile.
-faustPreviewDir :: FilePath
-faustPreviewDir = "data/im/preview"
-
 faustRules :: Shake.Rules ()
 faustRules = faustRule *> faustCppRule *> faustAllRule
 
@@ -1348,11 +1341,7 @@ faustRule = faustSrcDir </> "*.cc" %> \output -> do
     let input = faustCppDir </> nameExt output ".dsp"
     need [input]
     Util.cmdline $ faustCmdline input output
-    -- Clear the cache.
-    Util.system "rm"
-        [ "-rf"
-        , faustPreviewDir </> dspToName input
-        ]
+    Util.system "tools/clear_faust" [dspToName input]
 
 faustCmdline :: FilePath -> FilePath -> Util.Cmdline
 faustCmdline input output =
@@ -1723,7 +1712,7 @@ srcToObj config fn = addDir $ if
         | build `List.isPrefixOf` fn = id
         | otherwise = (oDir config </>)
 
--- | build/debug/obj/A/B.hs.o -> A/B.hs
+-- | build/debug/obj/A/B.$ext.o -> A/B.$ext
 objToSrc :: Config -> FilePath -> FilePath
 objToSrc config = FilePath.dropExtension . dropDir (oDir config)
 

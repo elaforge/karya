@@ -147,7 +147,11 @@ process patches notes outputDir = do
     Checkpoint.clearUnusedInstruments outputDir instruments
     Exception.handle async $ Async.forConcurrently_ (flatten patchInstNotes) $
         \(patch, inst, notes) -> do
-            let output = outputDir </> untxt inst
+            -- Put the patch name after _.  Instruments never have '_', so this
+            -- is safe.  tools/clear_faust will use this to clear obsolete
+            -- checkpoints.
+            let output = outputDir
+                    </> untxt (inst <> "_" <> DriverC._name patch)
             Log.notice $ inst <> " notes: " <> showt (length notes) <> " -> "
                 <> txt output
             Directory.createDirectoryIfMissing True output

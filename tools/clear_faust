@@ -1,0 +1,20 @@
+#!/usr/bin/env zsh
+# Clear out all cached data for the given faust patches.  The shakefile calls
+# this when a .dsp file has changed.
+
+# Directory that faust-im render-preview writes to.  This should come
+# from Synth.Faust.Preview.cacheDir.
+faustPreviewDir=data/im/preview
+cacheDir=data/im/cache
+
+setopt extendedglob
+
+# Clear the cache.
+for patch in "$@"; do
+    rm -rf $faustPreviewDir/$patch
+    # The checkpoints have saved state which could be invalid if the .dsp
+    # changed.
+    for dir in $cacheDir/**/*_$patch/checkpoint(N); do
+        rm -rf $(dirname $dir)
+    done
+done
