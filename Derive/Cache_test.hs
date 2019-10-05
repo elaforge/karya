@@ -229,7 +229,7 @@ test_logs = do
         , "top top.t1 \\*: rederived"
         , "top top.t1 0-1: sub1 \\* \\*: rederived"
         , "top top.t1 0-1: sub1 sub1.t1 \\*: rederived"
-        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note * not found"
+        , "top top.t1 0-1: sub1 sub1.t1 0-1: note generator not found"
         , "top top.t1 2-3: sub2 \\* \\*: rederived"
         , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]
@@ -237,7 +237,7 @@ test_logs = do
         [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
         , "top top.t1 0-1: sub1 \\* \\*: using cache"
-        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note * not found"
+        , "top top.t1 0-1: sub1 sub1.t1 0-1: note generator not found"
         , "top top.t1 2-3: sub2 \\* \\*: rederived"
         , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]

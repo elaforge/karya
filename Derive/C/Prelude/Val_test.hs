@@ -18,11 +18,11 @@ import           Util.Test
 test_env = do
     let run = CallTest.run_val
     equal (run Nothing "env x")
-        (Nothing, ["Error: environ val not found: \"x\""])
+        (Nothing, ["environ val not found: \"x\""])
     equal (run Nothing "env x 42") (Just (DeriveT.num 42), [])
     equal (run (Just "x = 42") "env x") (Just (DeriveT.num 42), [])
     equal (run (Just "x = 42") "env x str")
-        (Nothing, ["Error: env \"x\" expected Str but got Num"])
+        (Nothing, ["env \"x\" expected Str but got Num"])
 
 test_prev_next_val = do
     let runc control = DeriveTest.extract (DeriveTest.e_control "c") $

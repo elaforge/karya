@@ -200,7 +200,7 @@ test_c_byong = do
             . UiTest.note_track
     equal (run 1 [(1, 2, "o --")]) ([(1, 2, "4e"), (1, 2, "4a")], [])
     equal (run 2 [(1, 2, "o --")]) ([(1, 2, "5i"), (1, 2, "5e")], [])
-    equal (run 0 [(0, 2, "o --")]) ([], ["Error: unknown position: 0"])
+    equal (run 0 [(0, 2, "o --")]) ([], ["unknown position: 0"])
     equal (run 1 [(1, 2, ": --")]) ([(1, 2, "4e"), (1, 2, "5i")], [])
 
 -- * damp

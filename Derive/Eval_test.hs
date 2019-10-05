@@ -23,7 +23,7 @@ test_recursive_call = do
     let result = extract $ DeriveTest.derive_tracks_setup with_recur ""
             [(">", [(0, 1, "recur")])]
         with_recur = CallTest.with_note_generator "recur" recursive
-    equal result ([], ["Error: call stack too deep: recursive"])
+    equal result ([], ["call stack too deep: recursive"])
     where
     recursive :: Derive.Generator Derive.Note
     recursive = Derive.generator "test-module" "recursive" mempty "doc" $

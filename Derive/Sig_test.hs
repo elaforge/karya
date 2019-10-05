@@ -60,7 +60,7 @@ test_deriver = do
     equal (run [(0, 1, "ngen \"(%t-dia=1 | NOTE) -- 4c")]) ([(0, 1, "4d")], [])
     -- The derive is evaluated in 'ngen', so that's whene the error comes from.
     equal (run [(0, 1, "ngen \"(NOTE 1 2 3) -- 4c")])
-        ([], ["Error: ArgError: too many arguments: 1, 2, 3"])
+        ([], ["too many arguments: 1, 2, 3"])
     equal (run [(0, 1, "ngen \"(NOTE) \"(%t-dia=1 | NOTE) -- 4c")])
         ([(0, 1, "4c"), (0, 1, "4d")], [])
 
@@ -69,8 +69,7 @@ test_deriver_children = do
             DeriveTest.derive_tracks_setup
                     (with_ngen <> DeriveTest.with_skel skel) "" $
                 (">", [(4, 1, "ngen")]) : concatMap UiTest.note_track children
-    strings_like (snd $ run [] [])
-        ["expected another argument at argument \"deriver\""]
+    strings_like (snd $ run [] []) ["expected an argument at \"deriver\""]
     -- it's awkward that I have to give the skeleton explicitly
     equal (run [[(4, 1, "4c")]] [(1, 2), (2, 3)])
         ([(4, 1, "4c")], [])

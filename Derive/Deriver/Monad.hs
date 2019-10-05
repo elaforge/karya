@@ -257,7 +257,7 @@ data EvalSource =
 instance Pretty CallError where
     pretty = \case
         TypeError err -> "TypeError: " <> pretty err
-        ArgError err -> "ArgError: " <> err
+        ArgError err -> err
         CallNotFound sym -> "CallNotFound: " <> pretty sym
 
 instance Pretty TypeErrorT where
@@ -1903,9 +1903,8 @@ merge_logs result logs = case result of
     Left err -> Stream.from_logs $ error_to_warn err : logs
 
 error_to_warn :: Error -> Log.Msg
-error_to_warn (Error call_stack stack val) =
-    Log.msg_call_stack call_stack Log.Warn (Just stack)
-        ("Error: " <> pretty val)
+error_to_warn (Error call_stack stack error_val) =
+    Log.msg_call_stack call_stack Log.Warn (Just stack) (pretty error_val)
 
 {- NOTE [control-modification]
     . Control tracks return a single control, and how that merges into the

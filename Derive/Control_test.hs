@@ -93,10 +93,9 @@ test_derive_control = do
 
     -- evaluation continues after an error
     equal (run [(0, 0, "1"), (1, 0, "def")])
-        (Right ([(0, 1)],
-            ["Error: control generator not found: def"]))
+        (Right ([(0, 1)], ["control generator not found: def"]))
     equal (run [(0, 0, "1"), (1, 0, "def"), (2, 0, "i 2")])
-        (Right ([(0, 1), (2, 2)], ["Error: control generator not found: def"]))
+        (Right ([(0, 1), (2, 2)], ["control generator not found: def"]))
 
 mktrack :: ScoreTime -> [UiTest.EventSpec] -> TrackTree.Track
 mktrack events_end events = TrackTree.make_track ">" evts events_end

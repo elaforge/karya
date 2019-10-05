@@ -16,4 +16,4 @@ test_with_scale = do
             . DeriveTest.derive_tracks title . UiTest.note_track1
     -- Setting the scale replaces the calls.
     equal (run "scale=twelve | scale=twelve-r" ["4c", "4s"])
-        ([Nothing, Just 60], ["Error: pitch generator not found: 4c"])
+        ([Nothing, Just 60], ["pitch generator not found: 4c"])

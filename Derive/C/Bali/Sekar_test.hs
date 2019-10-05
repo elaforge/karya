@@ -24,7 +24,7 @@ test_sekar = do
     let cd = [(2, 2, "4c"), (4, 2, "4d")]
 
     equal (run (2, 4, "sekar 'a b'") [])
-        ([], ["Error: pattern chars must be a-z: \"a b\""])
+        ([], ["pattern chars must be a-z: \"a b\""])
     -- 0   2   4   6   8   10
     --     |------>
     --     c---d-->

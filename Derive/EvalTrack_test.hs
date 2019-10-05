@@ -199,7 +199,7 @@ test_call_errors = do
     left_like (run_evt "no-such-call") "note generator not found: no-such-call"
     let tr_result = extract $ DeriveTest.derive_tracks ""
             [(">", [(0, 4, "")]), ("*twelve", [(0, 0, "tr")])]
-    left_like tr_result "ArgError: expected another argument"
+    left_like tr_result "expected an argument"
     equal (run_evt "test-t 2 | test-t 1 |")
         (Right [(0, 1, "test-t 2 | test-t 1 |")])
     where
@@ -232,7 +232,7 @@ test_inst_call = do
         with_inst = DeriveTest.with_synths_simple
             [("i1", "s/1"), ("with-call", "s/with-call")]
             [synth]
-    equal (run ">i1") ([], ["Error: note generator not found: sn"])
+    equal (run ">i1") ([], ["note generator not found: sn"])
     equal (run ">with-call") (["+snare"], [])
     where
     synth = UiTest.make_synth "s" patches
@@ -493,4 +493,4 @@ test_exception_reverts_state = do
     let run = DeriveTest.extract (DeriveTest.e_environ "a")
             . DeriveTest.derive_tracks ""
     equal (run [(">", [(0, 1, "a=b | err"), (1, 1, "")])])
-        ([Nothing], ["Error: note generator not found: err"])
+        ([Nothing], ["note generator not found: err"])
