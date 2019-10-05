@@ -822,13 +822,12 @@ insert_event tid pos dur text =
 -- I use strings instead of parsing it into structured data because strings
 -- make more informative errors when they don't match.
 r_cache_logs :: Derive.Result -> [Text]
-r_cache_logs =
-    map DeriveTest.show_log_stack . filter Cache.is_cache_log . r_logs
+r_cache_logs = map show_log . filter Cache.is_cache_log . r_logs
 
 -- | Sometimes the cache msgs for the track cache are just clutter.
 r_block_logs :: Derive.Result -> [Text]
 r_block_logs =
-    map DeriveTest.show_log_stack . filter (not . track_stack)
+    map show_log . filter (not . track_stack)
         . filter Cache.is_cache_log . r_logs
     where
     track_stack msg = case Log.msg_stack msg of
@@ -838,17 +837,21 @@ r_block_logs =
         _ -> False
 
 r_pretty_logs :: Derive.Result -> [Text]
-r_pretty_logs = map DeriveTest.show_log_stack . r_logs
+r_pretty_logs = map show_log . r_logs
 
 -- | The logs are sorted for tests, since log order isn't really defined.
 r_logs :: Derive.Result -> [Log.Msg]
-r_logs = Seq.sort_on DeriveTest.show_log_stack . Stream.logs_of
-    . Derive.r_events
+r_logs = Seq.sort_on show_log . Stream.logs_of . Derive.r_events
+
+show_log :: Log.Msg -> Text
+show_log msg =
+    DeriveTest.show_stack_ False (Log.msg_stack msg) <> ": " <> Log.msg_text msg
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(Text, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst
-    [ (DeriveTest.show_stack (Just (Derive.key_stack key)), collect ctype)
+    [ (DeriveTest.show_stack_ False (Just (Derive.key_stack key)),
+        collect ctype)
     | (key, ctype) <- Map.toList cmap
     ]
     where

@@ -764,13 +764,25 @@ e_tsig_logs = filter ("Track signal: " `Text.isPrefixOf`) . map show_log
 show_log_stack :: Log.Msg -> Text
 show_log_stack msg = show_stack (Log.msg_stack msg) <> ": " <> show_log msg
 
+-- | Show an abbreviated stack from the log.  This is meant to be similar to
+-- how LogView does it, so that in tests I get an accurate idea of the actual
+-- error.
 show_stack :: Maybe Stack.Stack -> Text
-show_stack Nothing = "<nothing>"
-show_stack (Just stack)
+show_stack =  show_stack_ True
+
+show_stack_ :: Bool -> Maybe Stack.Stack -> Text
+show_stack_ _ Nothing = ""
+show_stack_ with_call (Just stack)
     | null ui = "<no stack>"
     -- This uses ': ' so 'x: *' works regardless of where in the stack x is.
-    | otherwise = Text.intercalate ": " $ map Stack.unparse_ui_frame_ ui
-    where ui = Stack.to_ui stack
+    | otherwise = Text.intercalate ": " (map Stack.unparse_ui_frame_ ui)
+        <> maybe "" (": "<>) (last_call stack)
+    where
+    ui = Stack.to_ui stack
+    last_call
+        | with_call = fmap (\c -> if Text.null c then "''" else c) . Seq.head
+            . mapMaybe Stack.call_of . Stack.innermost
+        | otherwise = const Nothing
 
 show_log :: Log.Msg -> Text
 show_log = Log.msg_text
