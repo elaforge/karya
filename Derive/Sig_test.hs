@@ -9,6 +9,7 @@ import qualified Derive.DeriveT as DeriveT
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Expr as Expr
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Ui.Ui as Ui
@@ -17,6 +18,18 @@ import qualified Ui.UiTest as UiTest
 import           Global
 import           Util.Test
 
+
+test_errors = do
+    let run call = extract_logs $ DeriveTest.derive_tracks ""
+                [ (">", [(0, 1, "")])
+                , ("c", [(0, 0, call)])
+                ]
+    strings_like (run "set") ["set: expected an argument at \"to\""]
+    strings_like (run "set (env)") ["env: expected an argument at \"name\""]
+
+extract_logs :: Derive.Result -> [Text]
+extract_logs = map DeriveTest.show_log_stack . snd . DeriveTest.extract_logs
+    . Stream.to_list . Derive.r_events
 
 test_type_error = do
     let ints :: Sig.Parser [Int]

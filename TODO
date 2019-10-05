@@ -29,7 +29,7 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - Do I not get the call name in ArgErrors for val calls?
+  * Do I not get the call name in ArgErrors for val calls?
     . E.g. in Play: Error: ArgError: expected another argument at argument
       "name"
   - Can I coerce PControlRef to Pitch, and ControlRef to Num?
@@ -2001,6 +2001,10 @@ synth: im:
     - integrate freeverb for reverb and filters
       . Or why not just use faust integration?  I think it has the same
         algorithm?
+      . Yes it does, but for that matter, why not just use VSTs in realtime?
+        I guess it would be easier if I wanted to make reverb part of an
+        instrument.
+      . I'd want to merge sampler and faust for this though.
   play_cache: PlayCache:
     - What about writing play_cache in rust?  Just for fun I guess, though if
       it gains semi-sampler features then I'll wind up with more logic.  But

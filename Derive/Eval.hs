@@ -215,7 +215,8 @@ apply ctx call args = do
             , passed_call_name = Derive.vcall_name call
             , passed_ctx = ctx
             }
-    Derive.vcall_call call passed
+    Internal.with_stack_call (Derive.vcall_name call) $
+        Derive.vcall_call call passed
 
 -- * lookup call
 
