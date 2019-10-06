@@ -22,7 +22,7 @@ import Global
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
-data Thoppi = Tha | Thom Gumiki
+data Thoppi = Tha !Tha | Thom !Gumiki
     deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta
     | Mi -- ^ light Ki, played with middle finger
@@ -35,7 +35,14 @@ data Valantalai = Ki | Ta
     | Tan -- ^ ta on meetu
     deriving (Eq, Ord, Show, Enum, Bounded)
 
-data Gumiki = Low | Up
+data Tha = Palm -- ^ standard tha
+    | Fingertips -- ^ touch with fingertips
+    | Fingers -- ^ flat of the fingers
+    deriving (Eq, Ord, Show)
+
+data Gumiki =
+    Low -- ^ This could be either normal open stroke, or gumiki low stroke.
+    | Up
     deriving (Eq, Ord, Show)
 
 -- * strokes
@@ -46,7 +53,7 @@ instance Solkattu.Notation Stroke where
     -- There's no uppercase for ', and it's light anyway, so don't show Min.
     notation (Both t Min) = Solkattu.notation t
     notation (Both t v) = case t of
-        Tha -> case v of
+        Tha _ -> case v of
             Ki -> "P"
             Ta -> "X"
             -- Hopefully this is big enough to not look like screen gunk, but
@@ -72,7 +79,7 @@ instance Solkattu.Notation Thoppi where
     notation n = case n of
         Thom Low -> "o"
         Thom Up -> "ó"
-        Tha -> "p"
+        Tha _ -> "p"
 
 instance Solkattu.Notation Valantalai where
     notation n = case n of
@@ -104,13 +111,13 @@ instance Expr.ToExpr Stroke where
         thoppi t = case t of
             Thom Low -> "o"
             Thom Up -> "o/"
-            Tha -> "+"
+            Tha _ -> "+"
 
 instance Expr.ToExpr (Realize.Stroke Stroke) where
     to_expr (Realize.Stroke emphasis stroke) = case (emphasis, stroke) of
         (Realize.Normal, _) -> Expr.to_expr stroke
         (Realize.Light, Thoppi (Thom Low)) -> "."
-        (Realize.Light, Thoppi Tha) -> "-"
+        (Realize.Light, Thoppi (Tha _)) -> "-"
         (Realize.Light, _) -> Expr.with Symbols.weak stroke
         (Realize.Heavy, _) -> Expr.with Symbols.accent stroke
 
@@ -120,7 +127,7 @@ data Strokes a = Strokes {
     , n :: a, d :: a, u :: a, v :: a, i :: a
     -- | Mnemonic: y = kin = , uses 3 fingers, j = tan = ^ uses 1.
     , y :: a, j :: a
-    , p :: a, o :: a, o' :: a -- ^ gumiki up
+    , p :: a, p' :: a, o :: a, o' :: a -- ^ gumiki up
     -- | @do@ would match score notation, but @do@ is a keyword.  Ultimately
     -- that's because score uses + for tha, and +o is an attr, while o+ is
     -- a bareword.  But perhaps I should change + to p in the score, and then
@@ -142,7 +149,8 @@ strokes = Strokes
     , i = Valantalai Dheem
     , y = Valantalai Kin
     , j = Valantalai Tan
-    , p = Thoppi Tha
+    , p = Thoppi (Tha Palm)
+    , p' = Thoppi (Tha Fingertips)
     , o = Thoppi (Thom Low)
     , o' = Thoppi (Thom Up)
     , od = Both (Thom Low) Din
@@ -220,7 +228,7 @@ notations = Map.fromList $ (extras++) $ Seq.map_maybe_fst isChar $
     isChar t = case untxt t of
         [c] -> Just c
         _ -> Nothing
-    lhs = [Tha, Thom Low]
+    lhs = [Tha Palm, Thom Low]
     rhs = [minBound .. maxBound]
 
 -- * postprocess

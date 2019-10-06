@@ -69,8 +69,10 @@ pp = hv p
 -- | Thom -> tha.
 closed :: Sequence -> Sequence
 closed = mapMStroke $ \case
-    Mridangam.Thoppi (Mridangam.Thom _) -> Just $ Mridangam.Thoppi Mridangam.Tha
-    Mridangam.Both (Mridangam.Thom _) a -> Just $ Mridangam.Both Mridangam.Tha a
+    Mridangam.Thoppi (Mridangam.Thom _) ->
+        Just $ Mridangam.Thoppi (Mridangam.Tha Mridangam.Palm)
+    Mridangam.Both (Mridangam.Thom _) a ->
+        Just $ Mridangam.Both (Mridangam.Tha Mridangam.Palm) a
     s -> Just s
 
 noThom :: Sequence -> Sequence

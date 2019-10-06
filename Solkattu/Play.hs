@@ -298,7 +298,7 @@ tala_metronome tala akshara_dur end = takeWhile (\(s, _, _, _) -> s < end)
         Tala.Clap n -> Just (clap, 1) : replicate (n-1) Nothing
         Tala.Wave n -> Just (wave, 0.75) : replicate (n-1) Nothing
         Tala.I -> map Just $
-            (beat, 1) : replicate (Tala._jati tala - 1) (beat, 0.75)
+            (beat, 1) : replicate (Tala._jati tala - 1) (beat, 0.85)
         Tala.O -> map Just [(clap, 1), (wave, 1)]
         Tala.U -> map Just [(clap, 1)]
     clap = "3p"

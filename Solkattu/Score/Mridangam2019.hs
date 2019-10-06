@@ -393,11 +393,20 @@ e_19_09_23 = date 2019 9 23 $ ganesh $ exercise $ korvaiS1 adi $
 c_19_09_23 :: Korvai
 c_19_09_23 = date 2019 9 23 $ ganesh $ trikalam $
     similarTo "Solkattu2017" "c_17_07_13" $ korvaiS adi
-    [ repeat 2 purvangam, repeat 1 utarangam
-    , nadai 5 $ repeat 1 purvangam . repeat 2 utarangam
-    , nadai 6 $ repeat 2 purvangam . repeat 2 utarangam
+    [ repeat 2 purvangam, utarangam
+    , nadai 5 $ repeat 3 purvangam . utarangam
+    , nadai 6 $ repeat 4 purvangam . utarangam
     ]
     where
     purvangam = v.__4.k.o.od.__.on.__.on.__.od.__
         . su ktok . o.k.o.o.k.o.od.__.on.__.on.__.od.__4
     utarangam = tri_ (o.__) (group (v.__3.k.k.o.o.k.o.k.o.k.k.o.o.k.o.__.k.__))
+
+e_19_09_30_gumiki :: Korvai
+e_19_09_30_gumiki = date 2019 9 30 $ ganesh $ exercise $ korvaiS adi
+    [ repeat 2 (o'.__.kt.kt.pk.nakatiku)
+        . repeat 3 (o'.__.kt.kt.pk) . nakatiku
+        . repeat 2 (o'.__.kt.kt) . o'.__.kt . (o'.__.kt.kt.pk.nakatiku)
+        . repeat 3 (o'.__.kt.kt) . o'.__.kt.pk.nakatiku
+    , sd (on.od.on.p'&d.n.od.on.d).o'.__.kt.kt.pk.nakatiku
+    ]
