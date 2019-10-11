@@ -29,6 +29,9 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  - The KbdEntry behaviour where it puts in .79 for control tracks is really
+    useless.  Change that to do nothing, or to put a note in the owning note
+    track.
   * Do I not get the call name in ArgErrors for val calls?
     . E.g. in Play: Error: ArgError: expected another argument at argument
       "name"
@@ -4895,11 +4898,15 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     mridangam:
-      - why doesn't binding to 'Z' work?
+      * why doesn't binding to 'Z' work?
+        . Because I use Msg.char, which is unshifted.  Msg.text is shifted, but
+          then I don't get it for KeyUp.
       - reconcile tracklang and solkattu notation:
         . od instead of do
         . in generally thoppi goes on the left
         . use p in addition to or instead of +?
+        . Also new strokes like Min and Thoppi Touch, Tha Fingertips,
+          Tha Fingers.
       - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
         dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
         emphasis.

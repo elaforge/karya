@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ViewPatterns #-}
 module Cmd.Msg where
 import           Control.DeepSeq (deepseq)
 import qualified Data.Map as Map
@@ -14,10 +15,12 @@ import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified App.ReplProtocol as ReplProtocol
 import qualified Cmd.InputNote as InputNote
+import qualified Cmd.KeyLayouts as KeyLayouts
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Local.KeyLayout
 import qualified Midi.Midi as Midi
 import qualified Perform.Transport as Transport
 import qualified Ui.Id as Id
@@ -201,38 +204,50 @@ mouse_down msg = case mouse msg of
     Just (UiMsg.MouseEvent { UiMsg.mouse_state = UiMsg.MouseDown _ }) -> True
     _ -> False
 
+kbd :: Msg -> Maybe (UiMsg.KbdState, [Key.Modifier], Key.Key, Maybe Char)
+kbd (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state mods key text)))) =
+    Just (state, mods, key, text)
+kbd _ = Nothing
+
 key :: Msg -> Maybe (UiMsg.KbdState, Key.Key)
-key (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd state _ key _)))) =
-    Just (state, key)
+key (kbd -> Just (state, _, key, _)) = Just (state, key)
 key _ = Nothing
 
 key_down :: Msg -> Maybe Key.Key
-key_down msg = case key msg of
-    Just (UiMsg.KeyDown, k) -> Just k
-    _ -> Nothing
+key_down (key -> Just (UiMsg.KeyDown, k)) = Just k
+key_down _ = Nothing
 
 -- | The text that this keydown wants to enter, if any.
 text :: Msg -> Maybe (Key.Key, Maybe Char)
-text (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd UiMsg.KeyDown _ key text))))
-    = Just (key, text)
+text (kbd -> Just (UiMsg.KeyDown, _, key, text)) = Just (key, text)
 text _ = Nothing
 
 key_mods :: Msg -> Maybe [Key.Modifier]
-key_mods (Ui (UiMsg.UiMsg _ (UiMsg.MsgEvent (UiMsg.Kbd _ mods _ _)))) =
-    Just mods
+key_mods (kbd -> Just (_, mods, _, _)) = Just mods
 key_mods _ = Nothing
 
--- | Printable keycap down.  This is different from 'text' because it should be
--- just the keycap, not taking shift or alt or anything into account.
-char :: Msg -> Maybe (UiMsg.KbdState, Char)
-char msg = case key msg of
+-- | A key action by keycap.  This is different from 'text' because it should
+-- be just the keycap, not taking shift or alt or anything into account.
+keycap :: Msg -> Maybe (UiMsg.KbdState, Char)
+keycap msg = case key msg of
     Just (state, Key.Char c) -> Just (state, c)
     _ -> Nothing
 
+-- | This is like 'keycap', but it takes shift into account.  This is because
+-- it's convenient to bind to a single Char including shifted, and not have to
+-- pass around a ([Key.Modifier], Char) or (Bool, Char).
+char :: Msg -> Maybe (UiMsg.KbdState, Char)
+char (kbd -> Just (state, mods, Key.Char c, _))
+    | Key.Shift `elem` mods =
+        (state,) <$> KeyLayouts.to_shifted Local.KeyLayout.layout c
+        -- I have to use the keylayout instead of 'text' because fltk doesn't
+        -- give me text for KeyUps.
+    | otherwise= Just (state, c)
+char _ = Nothing
+
 char_down :: Msg -> Maybe Char
-char_down msg = case char msg of
-    Just (UiMsg.KeyDown, c) -> Just c
-    _ -> Nothing
+char_down (char -> Just (UiMsg.KeyDown, c)) = Just c
+char_down _ = Nothing
 
 midi :: Msg -> Maybe Midi.Message
 midi (Midi (Midi.ReadMessage { Midi.rmsg_msg = msg })) = Just msg

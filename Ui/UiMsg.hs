@@ -108,6 +108,9 @@ data MouseState = MouseMove | MouseDrag Types.MouseButton
     deriving (Eq, Ord, Show)
 data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
 
+instance Pretty MouseState where pretty = showt
+instance Pretty KbdState where pretty = showt
+
 -- | Like 'pretty', but more compact.  Only show the most important bits.
 show_short :: UiMsg -> Text
 show_short = \case

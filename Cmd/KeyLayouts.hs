@@ -9,7 +9,7 @@
 -- Ultimately this is necessary because some keys are mapped based on their
 -- physical location.
 module Cmd.KeyLayouts (
-    Layout, layout, to_unshifted, from_qwerty
+    Layout, layout, to_unshifted, to_shifted, from_qwerty
     , qwerty, dvorak
     , qwerty_unshifted, qwerty_shifted
 ) where
@@ -22,12 +22,16 @@ import Global
 data Layout = Layout {
     -- | Map from the shifted key to the unshifted one.
     map_to_unshifted :: Map Char Char
+    , map_to_shifted :: Map Char Char
     -- | Map from the layout to qwerty.
     , map_from_qwerty :: Map Char Char
     } deriving (Show)
 
 to_unshifted :: Layout -> Char -> Maybe Char
 to_unshifted layout c = Map.lookup c (map_to_unshifted layout)
+
+to_shifted :: Layout -> Char -> Maybe Char
+to_shifted layout c = Map.lookup c (map_to_shifted layout)
 
 from_qwerty :: Layout -> Char -> Maybe Char
 from_qwerty layout c = Map.lookup c (map_from_qwerty layout)
@@ -43,6 +47,7 @@ layout name unshifted shifted
             <> showt (length unshifted)
     | otherwise = Layout
         { map_to_unshifted = Map.fromList $ zip shifted unshifted
+        , map_to_shifted = Map.fromList $ zip unshifted shifted
         , map_from_qwerty = Map.fromList $
             zip (qwerty_unshifted ++ qwerty_shifted) (unshifted ++ shifted)
         }
