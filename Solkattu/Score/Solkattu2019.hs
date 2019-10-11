@@ -109,9 +109,17 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
         , (th1,   k.__.t.__.k.t.k.n.o.o.k.p.k.od.__.p.k.__.t.__)
         , (th0, k.p.k.k.o.o.k.p.k.od.__.p.k.__.k.__.k)
 
-
         , (dinga, od.__.p)
         , (din, od)
         , (ta, k)
         , (tat, k)
         ]
+
+c_19_09_23_exercise :: Korvai
+c_19_09_23_exercise = date 2019 9 23 $ ganesh $ trikalam $
+    similarTo "Solkattu2017" "c_17_07_13" $ korvaiS adi mempty
+    [ nadai 5 $ sd $ repeat 3 purvangam . utarangam
+    ]
+    where
+    purvangam = group takadinna.group takadinna.group takita.group tdgnt
+    utarangam = tri_ (ta.__4) $ group $ takita.tdgnt

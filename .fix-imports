@@ -11,7 +11,7 @@ prio-module-low: GHC.Environment GHC.Read GHC.MVar
     LogView.Process
     App.PPrint
 prio-package-high:
-prio-package-low: haskell98 ghc ghc-prim darcs comonad basement
+prio-package-low: haskell98 ghc ghc-prim comonad basement
 
 qualify-as: Data.HashMap.Strict as HashMap
 unqualified: System.FilePath ((</>))
