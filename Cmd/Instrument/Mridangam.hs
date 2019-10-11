@@ -70,9 +70,8 @@ stops :: [(Drums.Group, [Drums.Group])]
     left_notes = concat
         [ group t_closed
             [ n 'a' "-" tha 0.5
-            , n 'z' "+" tha 1
-            -- TODO default + could be 0.75
-            -- , n 'Z' "++" tha 1
+            , n 'z' "+" tha 0.75
+            , n 'Z' "++" tha 1
             ]
         , group t_open
             [ n 's' "." thom 0.5

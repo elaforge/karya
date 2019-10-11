@@ -2287,7 +2287,7 @@ synth: im:
         * Cmdline program that can stream and mix ###.wav, and start it as
           soon as I see the first progress msg.
         . Maybe adjust chunk size smaller for lower latency?
-        - tha is too loud, use a medium version by default.
+        * tha is too loud, use a medium version by default.
           . Or maybe it's a problem with my samples, I'd like to do new
             samples anyway.
         * Convenient way to play from Solkattu.Dsl.
@@ -2382,6 +2382,11 @@ synth: im:
           Util.system "ar" $ ["-rs", "build/faust.a"] ++ objs
     - per-instrument note range for render-preview
       . Or I could only render when loading a score with one as an instrument.
+      . Or really lazy means I would only make when I did a MIDI thru, and
+        then only for the note needed.
+      . I guess I know the filename from the OSC message, so I could just
+        check for its existence, and if it doesn't exist yet, ask faust-im to
+        generate it.
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
       . Test volume, support pan.
@@ -4890,6 +4895,11 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     mridangam:
+      - why doesn't binding to 'Z' work?
+      - reconcile tracklang and solkattu notation:
+        . od instead of do
+        . in generally thoppi goes on the left
+        . use p in addition to or instead of +?
       - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
         dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
         emphasis.
@@ -4910,7 +4920,7 @@ Derive:
       - Perhaps mridangam should automatically transpose the octave to be within
         its range.
         . I can use something like Cmd.Instrument.Bali.wrap
-      - tha is too loud... I can compensate by using -, but maybe the scale is
+      * tha is too loud... I can compensate by using -, but maybe the scale is
         off.  Velocity should be logical, so if you play all at the same
         velocity it's like the same dynamic for all strokes.
         . Or I could make + be 0.5, and * be full volume.
