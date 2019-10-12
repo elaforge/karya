@@ -7,6 +7,10 @@
 module Ui.Fltk (
     Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
 ) where
+#ifdef STUB_OUT_FLTK
+import Ui.FltkStub
+#else
+
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
