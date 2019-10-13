@@ -5,7 +5,7 @@
 -- | Instrument definitions for mridangam.  These are shared between multiple
 -- mridangam definitions.
 module Cmd.Instrument.Mridangam where
-import           Prelude hiding (tan)
+import           Prelude hiding (min, tan)
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -72,6 +72,9 @@ stops :: [(Drums.Group, [Drums.Group])]
             [ n 'a' "-" tha 0.5
             , n 'z' "+" tha 0.75
             , n 'Z' "*" tha 1
+            , n 'A' "*_" (tha <> fingers) 1
+            -- This often alternates with o_.
+            , n 'C' "+_" (tha <> fingertips) 1
             ]
         , group t_open
             [ n 's' "." thom 0.5
@@ -87,14 +90,15 @@ stops :: [(Drums.Group, [Drums.Group])]
         ]
     right_notes = concat
         [ group v_closed
-            -- TODO this could actually be a separate stroke, played with
-            -- middle finger
+            -- TODO this should be mi, played with middle finger, but I have no
+            -- sample for it
             [ n '1' "l" ki 0.5
             , n 'q' "k" ki 1
             , n 'w' "t" ta 1
             ]
         , group v_sadam
-            [ n 'e' "n" nam 1
+            [ n '2' "'" min 1
+            , n 'e' "n" nam 1
             , n 'r' "d" din 1
             , n '7' "," kin 1
             , n 'u' "^" tan 1
@@ -126,6 +130,7 @@ tha = Attrs.attr "tha"
 thom = Attrs.attr "thom"
 ki = Attrs.attr "ki"
 ta = Attrs.attr "ta"
+min = Attrs.attr "min" -- like ta or mi, but on meetu so din rings
 nam = Attrs.attr "nam"
 din = Attrs.attr "din"
 dheem = Attrs.attr "dheem"
@@ -136,6 +141,11 @@ kin = Attrs.attr "kin"
 tan = Attrs.attr "tan"
 
 gumki = Attrs.attr "gumki"
+
+-- tha variations
+fingers = Attrs.attr "fingers" -- played with flat fingers, not palm
+fingertips = Attrs.attr "fingertips"
+-- TODO roll is roll with fingertips?
 
 
 -- * two-handed pitched drums

@@ -4919,7 +4919,7 @@ Derive:
             simple strokes, but full unicode is fine for output.
         * This is going to break all existing mridangam scores, so maybe
           I should have an upgrade function to fix them easily?
-        - Also new strokes like Min and Thoppi Touch, Tha Fingertips,
+        * Also new strokes like Min and Thoppi Touch, Tha Fingertips,
           Tha Fingers.
       - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
         dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
