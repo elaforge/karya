@@ -4901,11 +4901,25 @@ Derive:
       * why doesn't binding to 'Z' work?
         . Because I use Msg.char, which is unshifted.  Msg.text is shifted, but
           then I don't get it for KeyUp.
-      - reconcile tracklang and solkattu notation:
-        . od instead of do
-        . in generally thoppi goes on the left
-        . use p in addition to or instead of +?
-        . Also new strokes like Min and Thoppi Touch, Tha Fingertips,
+      reconcile tracklang and solkattu notation:
+        * od instead of do
+          . thoppi goes on the left
+        use p in addition to or instead of +?
+          . Then I don't have the nice - notation for soft tha.  I guess I could
+            keep using '-', but it no longer has the visual correspondence.
+          . Except I already use 'p' for the pattern call.  This isn't
+            ambiguous in solkattu because patterns are p5, not "p 5".  I could
+            do the same in tracklang, but it seems silly to bypass the
+            perfectly good argument syntax.
+          . Maybe call it pt then?  Or pn?  No, that's p+n.  Ok, pa then.
+          . But '-+*' is really nice looking for soft, medium, loud.
+            I don't mind taking * from dry thoppi because I never use it.
+            Is the tracklang and solkattu discrepancy really so bad?  They
+            have different constraints, e.g. for solkattu haskell ident for
+            simple strokes, but full unicode is fine for output.
+        * This is going to break all existing mridangam scores, so maybe
+          I should have an upgrade function to fix them easily?
+        - Also new strokes like Min and Thoppi Touch, Tha Fingertips,
           Tha Fingers.
       - Automatic inference for Ki vs. Mi, e.g. in sarvalaghu.  E.g.
         dxd -> dld, but dxpx -> dkpk.  Also it can change based on speed and
@@ -4917,8 +4931,6 @@ Derive:
         in solkattu dsl and give it a name, or have a mini solkattu dsl, e.g.
         with syllable breaking:
         . tri-mk 'kitakitataka nakadit_ talang_ talang_ ta' lang_
-      . I'd have to have a standard stroke map, but I'm not sure how well that
-        would work in practice.
       . reyong: takadinna -> cccc, nakadit -> i12, talang -> +O
         . c = cek, k = kempyung, 0123 -> relative scale degree, .+ -> byut,
           oO -> byong

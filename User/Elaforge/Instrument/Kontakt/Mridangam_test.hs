@@ -33,8 +33,8 @@ test_mridangam = do
 
     -- Ensure multiple calls works.  This is already tested in
     -- "Derive.Call_test", but here's another test.
-    equal (DeriveTest.extract DeriveTest.e_attributes $ run "3b" [["do"]])
-        (["+din", "+thom"], [])
+    equal (DeriveTest.extract DeriveTest.e_attributes $ run "3b" [["od"]])
+        (["+thom", "+din"], [])
 
     -- I get ControlChange.
     let ((_events, midi), logs) = perform $ run "3g#" [["n", "d"], ["o/"]]

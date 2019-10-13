@@ -47,9 +47,7 @@ library = Library.generators
     , ("tir", c_tirmanam)
 
     -- standard sequences
-    -- There are various other ways to play this.
-    , ("tari", c_sequence (p "n+u+kt+k")) -- naka tiku tari kita
-    -- This is the name I use in Solkattu.
+    -- dikutarikitataka - There are various other ways to play this.
     , ("8n", c_sequence (p "n+u+kt+k"))
     , ("tk", c_sequence (p "k+"))
     , ("tknk", c_sequence (p "k+n+"))

@@ -5,7 +5,7 @@
 -- | Instrument definitions for mridangam.  These are shared between multiple
 -- mridangam definitions.
 module Cmd.Instrument.Mridangam where
-import Prelude hiding (tan)
+import           Prelude hiding (tan)
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -24,7 +24,7 @@ import qualified Derive.PSignal as PSignal
 
 import qualified Perform.Pitch as Pitch
 
-import Global
+import           Global
 
 
 -- * mridangam
@@ -44,7 +44,7 @@ both_calls = make_both left_notes right_notes special_names
     , ("P", 'j'), ("X", 'm')
     ]
     where
-    special_names = [("P", ["+", "k"]), ("X", ["+", "t"])]
+    special_names = [("P", ["*", "k"]), ("X", ["*", "t"])]
         ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDUVI"]
     sym = Expr.Symbol . Text.singleton
 
@@ -71,7 +71,7 @@ stops :: [(Drums.Group, [Drums.Group])]
         [ group t_closed
             [ n 'a' "-" tha 0.5
             , n 'z' "+" tha 0.75
-            , n 'Z' "++" tha 1
+            , n 'Z' "*" tha 1
             ]
         , group t_open
             [ n 's' "." thom 0.5
@@ -81,11 +81,8 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n 'f' "o-" (gumki <> Attrs.medium) 1
             , n 'g' "o^" (gumki <> Attrs.high) 1
             , n 'v' "o/" (gumki <> Attrs.up) 1
-            -- TODO when I can play it, have 'o 0' to 'o 1' for pitch.  Then
-            -- o- is the same as 'o 0'.  Maybe it should be called o0 then?
-            -- But it might also be more useful to have generic low, medium,
-            -- high.  Or o_ o- o^
-            , n 'b' "*" (thom <> Attrs.dry) 1 -- without ravai
+            -- TODO when I have samples, have 'o 0' to 'o 1' for arbitrary
+            -- pitches.
             ]
         ]
     right_notes = concat
@@ -179,7 +176,7 @@ make_both left right special_names keys =
     ]
     where
     pairs =
-        [ (Expr.Symbol $ u rcall <> u lcall, [rcall, lcall])
+        [ (Expr.Symbol $ u lcall <> u rcall, [lcall, rcall])
         | lcall <- map Drums._name left
         , rcall <- map Drums._name right
         , Text.length (u lcall) == 1 && Text.length (u rcall) == 1

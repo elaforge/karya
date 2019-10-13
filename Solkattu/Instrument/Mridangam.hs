@@ -22,12 +22,13 @@ import Global
 
 data Stroke = Thoppi !Thoppi | Valantalai !Valantalai | Both !Thoppi !Valantalai
     deriving (Eq, Ord, Show)
-data Thoppi = Tha !Tha | Thom !Gumiki
+data Thoppi = Tha !Tha | Thom !Thom
     deriving (Eq, Ord, Show)
 data Valantalai = Ki | Ta
     | Mi -- ^ light Ki, played with middle finger
     | Min -- ^ like Mi, but closer to the edge, to allow din to ring
-    | Nam | Din
+    | Nam
+    | Din
     | AraiChapu -- ^ "half chapu", played covering half the valantalai
     | MuruChapu -- ^ "full chapu", played with just the pinky touching saddam
     | Dheem
@@ -40,9 +41,9 @@ data Tha = Palm -- ^ standard tha
     | Fingers -- ^ flat of the fingers
     deriving (Eq, Ord, Show)
 
-data Gumiki =
+data Thom =
     Low -- ^ This could be either normal open stroke, or gumiki low stroke.
-    | Up
+    | Up -- ^ gumiki up
     deriving (Eq, Ord, Show)
 
 -- * strokes
@@ -106,7 +107,7 @@ instance Expr.ToExpr Stroke where
     to_expr s = Expr.generator0 $ Expr.Symbol $ case s of
         Thoppi t -> thoppi t
         Valantalai v -> Solkattu.notation v
-        Both t v -> Solkattu.notation v <> thoppi t
+        Both t v -> thoppi t <> Solkattu.notation v
         where
         thoppi t = case t of
             Thom Low -> "o"
@@ -118,6 +119,7 @@ instance Expr.ToExpr (Realize.Stroke Stroke) where
         (Realize.Normal, _) -> Expr.to_expr stroke
         (Realize.Light, Thoppi (Thom Low)) -> "."
         (Realize.Light, Thoppi (Tha _)) -> "-"
+        (Realize.Heavy, Thoppi (Tha _)) -> "*"
         (Realize.Light, _) -> Expr.with Symbols.weak stroke
         (Realize.Heavy, _) -> Expr.with Symbols.accent stroke
 

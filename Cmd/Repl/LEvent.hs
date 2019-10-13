@@ -13,10 +13,12 @@ import qualified Util.Texts as Texts
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
+import qualified Cmd.Instrument.Mridangam as Mridangam
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Expr as Expr
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Sel as Sel
@@ -92,6 +94,19 @@ replace_exact from to = ModifyEvents.text $ \t -> if t == from then to else t
 -- [(a, b), (b, a)] will swap @a@ and @b@ as expected.
 replace_many :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
 replace_many = ModifyEvents.text . Texts.replaceMany
+
+replace_many_exact :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
+replace_many_exact repl = ModifyEvents.text $ \t -> fromMaybe t (lookup t repl)
+
+-- | Upgrade thoppi on the right to thoppi on the left.  Delete when I don't
+-- have any more scores like that.
+upgrade_mridangam :: Cmd.M m => m ()
+upgrade_mridangam = ModifyEvents.note_tracks $ replace_many_exact $
+    Seq.key_on (txt . List.reverse . untxt) $
+        map call_of $
+        Mridangam.make_both Mridangam.left_notes Mridangam.right_notes [] []
+    where
+    call_of (c, _, _) = Expr.unsym c
 
 -- | Modify event text with 'ModifyEvents.substitute'.
 --
