@@ -120,20 +120,21 @@ type CmdId = CmdT Identity.Identity
 type CmdL a = CmdT IO a
 
 data Status =
-    -- | Stop further cmd processing, \"consuming\" the Msg.
-    Done
     -- | Continue processing, so another Cmd will have an opportunity to see
     -- the Msg.
-    | Continue
-    -- | Pack it up and go home.
-    | Quit
+    Continue
+    -- | Stop further cmd processing, \"consuming\" the Msg.
+    | Done
     -- | Hack to control import dependencies, see "Cmd.PlayC".
     | PlayMidi !PlayMidiArgs
     -- | Open a FloatingInput box.
     | FloatingInput !FloatingInput
+    -- | Pack it up and go home.
+    | Quit
     deriving (Show)
 
 -- | Combine two Statuses by keeping the one with higher priority.
+-- Yes, Status could be a Monoid but merge should be a rare operation.
 merge_status :: Status -> Status -> Status
 merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
     where

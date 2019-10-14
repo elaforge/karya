@@ -18,6 +18,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -88,7 +89,9 @@ edit_normalized :: Cmd.M m => Msg.Msg -> m ()
 edit_normalized msg = case msg of
     (EditUtil.hex_key -> Just key) -> modify_event (modify_hex key)
     (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
-    Msg.InputNote (InputNote.NoteOn _ _ vel) -> insert_val False vel
+    -- AsciiKbd won't have an interesting velocity.
+    Msg.InputNote (InputNote.NoteOn _ (Pitch.Input Pitch.PianoKbd _ _) vel) ->
+        insert_val False vel
     Msg.InputNote (InputNote.Control _ _ val) -> insert_val True val
     _ -> Cmd.abort
     where

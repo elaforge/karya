@@ -12,9 +12,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
-import qualified Midi.Midi as Midi
-import qualified Ui.Key as Key
-import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -22,9 +19,13 @@ import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Controls as Controls
+import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
-import Global
+import qualified Ui.Key as Key
+import qualified Ui.UiMsg as UiMsg
+
+import           Global
 
 
 -- * with_note
@@ -45,7 +46,7 @@ import Global
     the responder, to transform keystrokes and MIDI keys into InputNotes.  That
     way, other Cmds don't have to worry about state_kbd_entry.  However, it
     would either require a privileged position for the transformer, or an
-    additional Cmd feature to re-emits a new Msg.  In addition, it would
+    additional Cmd feature to re-emit a new Msg.  In addition, it would
     preclude the ability to shadow it and catch MIDI msgs for other purposes.
 -}
 cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Config
@@ -53,15 +54,15 @@ cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Config
 cmds_with_input kbd_entry maybe_config cmds msg =
     msg_to_inputs kbd_entry maybe_config msg >>= \case
         Nothing -> Cmd.sequence_cmds cmds msg
-        Just msgs -> foldr Cmd.merge_status Cmd.Done <$> mapM send msgs
+        Just inputs -> foldr Cmd.merge_status Cmd.Done <$> mapM send inputs
     where
-    send msg = do
-        case msg of
-            Msg.InputNote (InputNote.NoteOn note_id _ _) ->
+    send input = do
+        case input of
+            InputNote.NoteOn note_id _ _ ->
                 Cmd.modify_wdev_state $ \wdev -> wdev
                     { Cmd.wdev_last_note_id = Just note_id }
             _ -> return ()
-        Cmd.sequence_cmds cmds msg
+        Cmd.sequence_cmds cmds (Msg.InputNote input)
 
 -- | Like 'cmds_with_input', but figure out kbd_entry and patch on my own.
 run_cmds_with_input :: Cmd.M m => [Msg.Msg -> m Cmd.Status]
@@ -78,7 +79,7 @@ run_cmds_with_input cmds msg = do
 -- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
 -- this other cmds shouldn't get it).
 msg_to_inputs :: Cmd.M m => Bool -> Maybe Patch.Config -> Msg.Msg
-    -> m (Maybe [Msg.Msg])
+    -> m (Maybe [InputNote.Input])
 msg_to_inputs kbd_entry maybe_config msg = do
     has_mods <- are_modifiers_down
     new_msgs <- if kbd_entry && not has_mods
@@ -104,16 +105,16 @@ kbd_input :: Bool -- ^ Whether this is a Pressure instrument or not.
     -- emit an extra breath control.  This is convenient in practice because
     -- kbd entry is for quick and easy input and breath control gets in the way
     -- of that.
-    -> Pitch.Octave -> Msg.Msg -> Maybe [Msg.Msg]
+    -> Pitch.Octave -> Msg.Msg -> Maybe [InputNote.Input]
 kbd_input is_pressure octave (Msg.key -> Just (down, key)) = case down of
     UiMsg.KeyRepeat
         -- Just [] makes the repeats get eaten here, but make sure to only
         -- suppress them if this key would have generated a note.
-        | Maybe.isJust msg -> Just []
+        | Maybe.isJust mb_inputs -> Just []
         | otherwise -> Nothing
-    _ -> msg
+    _ -> mb_inputs
     where
-    msg = (fmap . fmap) Msg.InputNote $
+    mb_inputs = -- (fmap . fmap) Msg.InputNote $
         key_to_input is_pressure octave (down == UiMsg.KeyDown) key
 kbd_input _ _ _ = Nothing
 
@@ -152,14 +153,14 @@ kbd_map = Map.fromList $ concat
 
 -- ** midi
 
--- | Convert a 'Msg.Midi' msg into a 'Msg.InputNote'.
-midi_input :: Cmd.M m => Msg.Msg -> m (Maybe [Msg.Msg])
+-- | Convert a 'Msg.Midi' msg.
+midi_input :: Cmd.M m => Msg.Msg -> m (Maybe [InputNote.Input])
 midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
     rstate <- Cmd.gets Cmd.state_rdev_state
     case InputNote.from_midi rstate rdev midi_msg of
         Just (input, rstate2) -> do
             Cmd.modify $ \st -> st { Cmd.state_rdev_state = rstate2 }
-            return $ Just [Msg.InputNote input]
+            return $ Just [input]
         Nothing -> return (Just [])
 midi_input _ = return Nothing
 

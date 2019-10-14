@@ -29,9 +29,20 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
-  - The KbdEntry behaviour where it puts in .79 for control tracks is really
+  * The KbdEntry behaviour where it puts in .79 for control tracks is really
     useless.  Change that to do nothing, or to put a note in the owning note
     track.
+    - Could I get it to not do a note at all, so numbers work?
+      . I do a fallthrough, does it get stopped?
+      . NoteEntry.cmds_with_input catches the keydown msg, and replaces it
+        with an Input.
+      . I would have to say if it ended with Continue, then try again with
+        the original key.  Would that have confusing side-effects?  I would
+        prefer if I could have ControlTrack.edit_normalized explicitly signal
+        to retry with the Msg.
+      . I think commands would fall through in addition to playing a note,
+        e.g. jk will do a thru and still move the cursor, which I don't want.
+      . I don't want this that much, so leave it be for now.
   * Do I not get the call name in ArgErrors for val calls?
     . E.g. in Play: Error: ArgError: expected another argument at argument
       "name"
