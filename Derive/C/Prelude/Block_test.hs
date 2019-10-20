@@ -26,11 +26,13 @@ import           Util.Test
 
 test_block = do
     -- This also tests Derive.Call.Prelude.Block.lookup_note_call
-    let run evts = DeriveTest.extract DeriveTest.e_everything $
+    let run evts = DeriveTest.extract extract $
             DeriveTest.derive_blocks
                 [ ("b1", [(">", evts)])
                 , ("sub=ruler", [(">", [(0, 22, "")])])
                 ]
+        extract e = (DeriveTest.e_event e, DeriveTest.e_instrument e,
+            DeriveTest.e_attributes e)
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts []
     strings_like logs ["note generator not found: nosuch"]
@@ -40,8 +42,8 @@ test_block = do
     let (evts, logs) = run [(0, 1, "sub"), (1, 2, "attr i +a | sub")]
     equal logs []
     equal evts
-        [ (0, 1, "", "", [])
-        , (1, 2, "", "i", ["a"])
+        [ ((0, 1, ""), "", "+")
+        , ((1, 2, ""), "i", "+a")
         ]
 
 test_subblock_placement = do

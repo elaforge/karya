@@ -111,11 +111,13 @@ test_stash_signal = do
 test_c_note = do
     -- Test basic Derive.d_note_track plumbing and the note (null) deriver
     -- along with it.
-    let run title evts = DeriveTest.extract DeriveTest.e_everything $
+    let run title evts = DeriveTest.extract extract $
             DeriveTest.derive_tracks "" [(title, evts)]
+        extract e = (DeriveTest.e_event e, DeriveTest.e_instrument e,
+            DeriveTest.e_attributes e)
     let inst = "i"
 
-    let evt s d = (s, d, "", inst, [])
+    let evt s d = ((s, d, ""), inst, "+")
     equal (run ">i" [(0, 1, ""), (1, 2, ""), (3, 3, "")])
         ([evt 0 1, evt 1 2, evt 3 3], [])
 
@@ -134,15 +136,15 @@ test_c_note = do
 
     -- A plain comment counts as a null call, but a comment-bar event is
     -- entirely ignored.
-    equal (run ">i" [(0, 1, "--")]) ([(0, 1, "--", "i", [])], [])
+    equal (run ">i" [(0, 1, "--")]) ([((0, 1, "--"), "i", "+")], [])
     equal (run ">i" [(0, 1, "--|")]) ([], [])
 
     -- event overrides attrs
-    equal (run "> | +a" [(0, 1, "+b")]) ([(0, 1, "", "", ["a", "b"])], [])
+    equal (run "> | +a" [(0, 1, "+b")]) ([((0, 1, ""), "", "+a+b")], [])
     -- alternate syntax
     equal (run ">i" [(0, 1, ""), (1, 1, "inst=i2 |")])
-        ( [ (0, 1, "", inst, [])
-          , (1, 1, "inst=i2 |", "i2", [])
+        ( [ ((0, 1, ""), inst, "+")
+          , ((1, 1, "inst=i2 |"), "i2", "+")
           ]
         , []
         )

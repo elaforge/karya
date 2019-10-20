@@ -28,7 +28,6 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.Simple as Simple
 
-import qualified Derive.Attrs as Attrs
 import qualified Derive.C.All as C.All
 import qualified Derive.C.Prelude.Block as Prelude.Block
 import qualified Derive.Controls as Controls
@@ -647,20 +646,10 @@ r_log_strings :: Derive.Result -> [Text]
 r_log_strings = snd . extract id
 
 e_event :: Score.Event -> (RealTime, RealTime, Text)
-e_event e =
-    (Score.event_start e, Score.event_duration e, Score.event_text e)
+e_event e = (Score.event_start e, Score.event_duration e, Score.event_text e)
 
 e_start_dur :: Score.Event -> (RealTime, RealTime)
 e_start_dur e = (Score.event_start e, Score.event_duration e)
-
-e_everything :: Score.Event -> (RealTime, RealTime, Text, Text, [Text])
-e_everything e =
-    ( Score.event_start e
-    , Score.event_duration e
-    , Score.event_text e
-    , e_instrument e
-    , Attrs.to_list (Score.event_attributes e)
-    )
 
 e_instrument :: Score.Event -> Text
 e_instrument = ScoreT.instrument_name . Score.event_instrument
