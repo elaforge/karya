@@ -11,11 +11,17 @@ declare element_from "string";
 import("stdfaust.lib");
 
 // Smooth time is equal to controlSize.  This should be synced with faust-im.
-controlSize = 147;
+// Or smooth time could be as low as possible to get
+controlSize = 10;
+
 // Max size of delay lines.  Determines the lowest pitch.
 maxDelay = 4096;
+
 // Number of strings to simulate.
 stringCount = STRING_COUNT;
+
+// Number of detuned strings to get the risset arpeggio effect.
+harmonicCount = HARMONIC_COUNT;
 
 // *** per-string
 
@@ -85,7 +91,7 @@ polySmooth(i) = si.polySmooth(gate(i), ba.tau2pole(controlSize / ma.SR), 147);
 // *** implementation
 
 // s = string index
-// c = comb filter index (of 9 comb filters in risset string)
+// c = comb filter index (of harmonicCount comb filters in risset string)
 //
 // Input: gate per string.
 tambura(stringCount) = (
@@ -136,9 +142,12 @@ with {
     string(s, trig) = _, _ <: +, !,_
         : rissetString(s, 1), rissetString(s, tuneScale)
     with {
-        // 9 detuned delay line resonators in parallel
+        // harmonicCount detuned delay line resonators in parallel
         rissetString(s, tuneScale1) =
-            _ <: par(c, 9, stringLoop(s, c, tuneScale1)) :> _
+            _ <: par(c, harmonicCount, stringLoop(s, c, tuneScale1)) :> _
+            // The harmonicCount strings increase levels, so scale it to make
+            // up for the difference with the default 9.
+            : *(9/harmonicCount)
             : fi.dcblocker * 0.01;
 
         // Waveguide string with damping filter and non linear apf for jawari
@@ -155,7 +164,8 @@ with {
             pitchEnv = trigger(trig, pbendtime * 1000) <: * : *(pbend);
             thisPitch =
                 ba.pianokey2hz(
-                    ba.hz2pianokey(pitch(s) + (c-4) * hmotion)
+                    ba.hz2pianokey(
+                        pitch(s) + (c - floor(harmonicCount/2)) * hmotion)
                     + pitchEnv
                 ) * tuneScale1;
             dtSamples = ma.SR / thisPitch - 2;

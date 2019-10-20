@@ -2351,6 +2351,7 @@ synth: im:
       . I guess I know the filename from the OSC message, so I could just
         check for its existence, and if it doesn't exist yet, ask faust-im to
         generate it.
+    - generate render-preview only when requsting that note
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
       . Test volume, support pan.
@@ -2434,6 +2435,11 @@ synth: im:
       . This also means I don't use faust's built-in default values, but have
         to export them out to karya so it can set them explicitly.
     tambura:
+      * Make a variant without the risset string effect, since I don't always
+        want it.
+        . It's a lot faster without it, but the sympathy seems to be much
+          reduced.  Maybe it's just a volume thing, since there are 1/9 as
+          many waveguides?
       * try out string-idiom
       - implement a tambura call that cycles strings, perhaps semi-randomly
       - It seems out of tune, and different strings have different tuning?
