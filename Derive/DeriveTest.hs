@@ -670,6 +670,10 @@ e_control control event = Seq.drop_dups id $
     maybe [] (Signal.to_pairs . ScoreT.typed_val) $
     Map.lookup control (Score.event_controls event)
 
+e_controls :: Score.Event -> [(ScoreT.Control, [(Signal.X, Signal.Y)])]
+e_controls = map (second (Signal.to_pairs . ScoreT.typed_val)) . Map.toList
+    . Score.event_controls
+
 e_control_vals :: ScoreT.Control -> Score.Event -> [Signal.Y]
 e_control_vals control = map snd . Seq.drop_initial_dups fst . e_control control
 

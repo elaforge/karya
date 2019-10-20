@@ -17,17 +17,21 @@ import Types
 
 test_integrate_track = do
     let res = DeriveTest.derive_tracks_setup (with_damage [2]) ""
-            [ ("> | <", [(0, 1, "")])
+            [ ("c1", [(0, 0, ".5")])
+            , ("c2", [(0, 0, ".75")])
+            , (">i2 | < (list dyn c1)", [(0, 1, "")])
             , ("*", [(0, 0, "4c")])
-            , ("dyn", [(0, 0, "1")])
-            , (">", [(0, 2, "")]) -- appears in normal output, not in integrated
+            , (">i2", [(0, 2, "")]) -- appears in non-integrated output
             ]
         extract i = (Derive.integrated_source i, Derive.integrated_events i)
-    let [(source, events)] = map extract (Derive.r_integrated res)
-    equal source (Right (UiTest.mk_tid 1))
-    equal (DeriveTest.extract_levents DeriveTest.e_note (Stream.to_list events))
-        ([(0, 1, "4c")], [])
-    equal (DeriveTest.extract DeriveTest.e_note res) ([(0, 2, "?")], [])
+    let [(source, integrated)] = map extract (Derive.r_integrated res)
+    equal source (Right (UiTest.mk_tid 3))
+    let e_note e = (DeriveTest.e_note e, DeriveTest.e_controls e)
+    equal (DeriveTest.extract_levents e_note (Stream.to_list integrated))
+        ([((0, 1, "4c"), [("c2", [(0, 0.75)])])], [])
+    equal (DeriveTest.extract
+            (\e -> (DeriveTest.e_note e, DeriveTest.e_instrument e)) res)
+        ([((0, 2, "?"), "i2")], [])
 
 with_damage :: [TrackNum] -> DeriveTest.Setup
 with_damage tracknums = DeriveTest.modify_constant $ \st ->

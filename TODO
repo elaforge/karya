@@ -72,52 +72,6 @@ UNSORTED
   - can I tweak individual scale degrees?
     . E.g. ma + 0.25nn, ri + 0.2nn.
     . Maybe just an env var for scale degree would do it.
-  generated parts:
-    . The idea is that I write a part, e.g. for rambat.  Then a score
-      integration creates several tracks in a separate block.  I can still see
-      the original high level events, but if I double click then I get to the
-      integrated block.
-    . Currently the closest I can get to this is to make a new block, put
-      a track and then do a score integrate to other tracks, and mute the
-      original track.
-    . The difference is that I would have to create the block and not see it at
-      all, and resize it etc.
-    . Maybe I could build it by having a mode to show the leftmost track in the
-      caller.
-    . Or, do a score derive, but collapse the created tracks.  This way I get
-      editing and I don't have to worry about the sub-block length.
-    . If I still want to edit it as a block, I could have a command to make a
-      block with the same tracks from another.
-    . First remind myself how to do score integration (and document?)
-      . LIntegrate.score_track, which does
-        Ui.modify_integrated_tracks block_id
-            ((track_id, Block.ScoreDestinations []) :)
-    - Write score integrate transformers like octaves, and multiple
-      instruments.
-      . How can I do this in a compositional way?
-      . I'd like to write them like transformers, but they're not really the
-        same, since they transform UI events:
-          >ra | t< "('> | hand=l' (oct -1)) "('> | hand=r' id)
-          >ra | t< "(hands (oct -1) id)
-          >ra | t< "(oct-hands)
-          >ra | t< "(tracks ('>ra-u | t< (oct-hands)' id)
-            ('>ra-i' | t< (oct-hands)' id))
-          >ra | rambat-pasang
-      . 't<' signals a score derivation, and mutes its track.  It stashes its
-        Quoted args in a special return that triggers the score integration.
-        Either add a Monad.collect_score_integrated or add another case to
-        Monad.Integrated.
-      . It evaluates the args in a special interpreter.  The final output is
-        [(TrackTitle, Map Event.IndexKey Event.Event)]
-        where IndexKey = TrackTime
-      . So I need a score integration with transformation.  I guess this is
-        manual integration, right?
-      . So this is like tscore, except I put the code in a track title, and
-        it gets the track events as input.
-      . Isn't this what derive integrate is for?  I can already do these
-        transformations and compose them with that.  It can also effectively
-        mute the track by not emitting the transformed events.
-    - Implement collapsing score-integrated sub-tracks.
   - convert save/bali/legong/semara-dana to im
     . sampler-im versions of gong, jegog, calung
     . notation and damping inference for gender rambat
@@ -379,8 +333,6 @@ UNSORTED
       . I'm kind of reluctant because RealTime.seconds reads nicely and
         there are a lot of places to change and they all get longer.
     - Deriver.Lib.with_control_mods
-    - GConvert.fingerMovement
-    - Signal.integrate
   - Look for TODO(polymorphic-signals) for places where a signal typeclass
     would help.
   - what if I added a 'default-interpolator' argument so Control.c_set and
@@ -397,8 +349,6 @@ UNSORTED
     . Was in always "" before?  If so it's not really a regression.
     . I'm back to Call.note using "" again, but I should still check this out.
   - string_idiom should ignore notes that already have a string.
-  - It's easy to forget to place the note when I use Call.pitched_note, should
-    it take args and do a placed_note?
   - Let synth defs log warnings
     . So e.g. MidiInst.compile_library can report shadows.
     . I should be able to incorporate Faust.PatchDb.warnings too.
@@ -2879,6 +2829,18 @@ integrate: integration:
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
   derive integrate
+    * Can I omit or invert controls that correspond to the defaults?  I don't
+      want to get the extra dyn track.  Maybe clear the controls before
+      evaluating the track?
+      . This is analogous to how I have to clear the tempo track.
+      . Probably can't clear them all, because they affect derivation, so
+        maybe I have to take a list.
+    . From generated parts: below, it seems like derive integrate might be too
+      low level.  E.g. what if I also want to retain '?
+      . Maybe I could have a mode where note calls are not evaluated, but just
+        go into the Score.event_text, which then goes into the integrated
+        event text.
+
     - attrs that the instrument understands can turn into +attr calls, if
       they're not in the CallMap, e.g. save/test/wayang
     - adding a +soft stroke means it gets both less dyn and +soft again, so
@@ -2892,6 +2854,52 @@ integrate: integration:
     - If integrate is committing changes to a track, can that bite me if
       a "canceled" derivation comes through?  Think about this later.
     - quantization
+  generated parts:
+    . The idea is that I write a part, e.g. for rambat.  Then a score
+      integration creates several tracks in a separate block.  I can still see
+      the original high level events, but if I double click then I get to the
+      integrated block.
+    . Currently the closest I can get to this is to make a new block, put
+      a track and then do a score integrate to other tracks, and mute the
+      original track.
+    . The difference is that I would have to create the block and not see it at
+      all, and resize it etc.
+    . Maybe I could build it by having a mode to show the leftmost track in the
+      caller.
+    . Or, do a score derive, but collapse the created tracks.  This way I get
+      editing and I don't have to worry about the sub-block length.
+    . If I still want to edit it as a block, I could have a command to make a
+      block with the same tracks from another.
+    . First remind myself how to do score integration (and document?)
+      . LIntegrate.score_track, which does
+        Ui.modify_integrated_tracks block_id
+            ((track_id, Block.ScoreDestinations []) :)
+    - Write score integrate transformers like octaves, and multiple
+      instruments.
+      . How can I do this in a compositional way?
+      . I'd like to write them like transformers, but they're not really the
+        same, since they transform UI events:
+          >ra | t< "('> | hand=l' (oct -1)) "('> | hand=r' id)
+          >ra | t< "(hands (oct -1) id)
+          >ra | t< "(oct-hands)
+          >ra | t< "(tracks ('>ra-u | t< (oct-hands)' id)
+            ('>ra-i' | t< (oct-hands)' id))
+          >ra | rambat-pasang
+      . 't<' signals a score derivation, and mutes its track.  It stashes its
+        Quoted args in a special return that triggers the score integration.
+        Either add a Monad.collect_score_integrated or add another case to
+        Monad.Integrated.
+      . It evaluates the args in a special interpreter.  The final output is
+        [(TrackTitle, Map Event.IndexKey Event.Event)]
+        where IndexKey = TrackTime
+      . So I need a score integration with transformation.  I guess this is
+        manual integration, right?
+      . So this is like tscore, except I put the code in a track title, and
+        it gets the track events as input.
+      . Isn't this what derive integrate is for?  I can already do these
+        transformations and compose them with that.  It can also effectively
+        mute the track by not emitting the transformed events.
+    - Implement collapsing score-integrated sub-tracks.
   cleanup integration:
     . Document all of the variations.
     . Can I refactor to be less error-prone and easier to understand?
