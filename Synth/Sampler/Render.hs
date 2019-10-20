@@ -299,25 +299,27 @@ startSample config now mbState note = do
             , _resampleState = rState
             }
     case mbState of
-        Nothing -> Audio.assert
+        Nothing -> assert
             (start >= now && now-start < _blockSize config) $
             "note should have started between " <> showt now <> "--"
             <> showt (now + _blockSize config) <> " but started at "
             <> showt start
         Just state -> do
-            Audio.assert (start < now) $
+            assert (start < now) $
                 "resume sample should start before " <> showt now
                 <> " but started at " <> showt start
             case state of
-                Resample rstate -> Audio.assert
-                    (Sample.filename sample == _filename rstate) $
-                    "starting " <> pretty sample <> " but state was for "
-                    <> pretty rstate
-                NoResample -> Audio.assert
-                    (Signal.constant_val_from (AUtil.toSeconds start)
-                        (Sample.ratios sample) == Just 1) $
-                    "no resample state, but ratios is not 1: "
-                    <> pretty (Sample.ratios sample)
+                Resample rstate ->
+                    assert (Sample.filename sample == _filename rstate) $
+                        "starting " <> pretty sample <> " but state was for "
+                        <> pretty rstate
+                NoResample ->
+                    assert (maybe False RenderSample.ratioCloseEnough ratio) $
+                        "no resample state, but ratios is not 1-ish: "
+                        <> pretty (Sample.ratios sample)
+                    where
+                    ratio = Signal.constant_val_from
+                        (AUtil.toSeconds start) (Sample.ratios sample)
     let offset = case mbState of
             Just (Resample state) -> _offset state
             -- If start < now, then this is a resume.  I don't have
@@ -338,6 +340,8 @@ startSample config now mbState note = do
         , _audio = audio
         , _noteRange = (start, start + Sample.duration note)
         }
+    where
+    assert check msg = Audio.assert check $ msg <> ": " <> pretty note
 
 -- | This is similar to 'Checkpoint.splitOverlapping', but it differentiates
 -- notes that overlap the starting time.

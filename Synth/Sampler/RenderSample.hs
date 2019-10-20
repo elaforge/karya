@@ -7,6 +7,7 @@
 -- | Low level rendering of 'Sample.Sample's.
 module Synth.Sampler.RenderSample (
     render
+    , ratioCloseEnough
     , envelopeDuration
     , predictFileDuration
 #ifdef TESTING
@@ -54,8 +55,7 @@ resample :: (KnownNat rate, KnownNat chan)
 resample config ratiosUnshifted start audio
     -- Don't do any work if it's close enough to 1.  This is likely to be
     -- common, so worth optimizing.
-    | Just val <- Signal.constant_val_from 0 ratios,
-            ApproxEq.eq closeEnough val 1 =
+    | Just val <- Signal.constant_val_from 0 ratios, ratioCloseEnough val =
         Audio.assertIn (state == Nothing)
             ("expected no state for un-resampled, got " <> pretty state) $
         -- resampleBy synchronizes, but File.readFrom doesn't.
@@ -75,9 +75,13 @@ resample config ratiosUnshifted start audio
     silence = Audio.take silenceF Audio.silence
     silenceF = max 0 (AUtil.toFrames start - Resample._now config)
     state = Resample._state config
-    -- More or less a semitone / 100 cents / 10.  Anything narrower than this
-    -- probably isn't perceptible.
-    closeEnough = 1.05 / 1000
+
+-- | More or less a semitone / 100 cents / 10.  Anything narrower than this
+-- probably isn't perceptible.
+ratioCloseEnough :: Signal.Y -> Bool
+ratioCloseEnough val = ApproxEq.eq close val 1
+    where
+    close = 1.05 / 1000
 
 addNow :: Audio.Frames -> Resample.Config -> Resample.Config
 addNow frames config = config { Resample._now = frames + Resample._now config }

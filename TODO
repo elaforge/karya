@@ -1970,6 +1970,12 @@ synth: im:
         instrument.
       . I'd want to merge sampler and faust for this though.
   play_cache: PlayCache:
+    - reaper is crashing a lot:
+      . reports in ../crash
+      . EXC_CRASH (SIGABRT), Thread 0 Crashed, weak_entry_insert()
+      . EXC_BAD_ACCESS (SIGSEGV), Thread 4 Crashed, FxChain::GetLatency()
+      . It seems to happen when rerendering while playing, maybe due to files
+        being replaced during a read?
     - What about writing play_cache in rust?  Just for fun I guess, though if
       it gains semi-sampler features then I'll wind up with more logic.  But
       I do need to bind to libsamplerate and libsndfile.
@@ -1990,6 +1996,10 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    * assertion: no resample state, but ratios is not 1: Signal.constant .999
+      . round off, it's close enough!
+      . I guess the problem is that RenderSample does round, but
+        Render.startSample doesn't know that.
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
       . Use the same srate as DbSignal.from_signal.
@@ -2108,6 +2118,10 @@ synth: im:
       their native scales.  That way other instruments could use them too.
       . Another alternative is that the scale could take instrument into
         account.
+    rambat:
+      - 3a +calung is much louder
+      - No thru for >ra.  I guess this is the same problem that caused me to
+        want to refactor how thru is handled.  refactor thru:
     kendang-legong:
       - Thru doesn't work with pasang. refactor thru:
         . MidiThru does an eval, I should do the same for im thru.
@@ -2348,10 +2362,15 @@ synth: im:
       . Or I could only render when loading a score with one as an instrument.
       . Or really lazy means I would only make when I did a MIDI thru, and
         then only for the note needed.
-      . I guess I know the filename from the OSC message, so I could just
-        check for its existence, and if it doesn't exist yet, ask faust-im to
-        generate it.
-    - generate render-preview only when requsting that note
+    - generate render-preview only when requesting that note
+      . I know the filename from the OSC message, so I could just check for
+        its existence, and if it doesn't exist yet, ask faust-im to generate
+        it.
+      . This would be high latency at the cost of maximum laziness.
+      . Another compromise would be to wait for the OSC, and the render them
+        all in parallel in the background.
+      . Yet another would be to start the background render based on the
+        instruments in a score on load.
     - support Control.pan
       . Or unify sampler and faust and get things like this along with.
       . Test volume, support pan.
