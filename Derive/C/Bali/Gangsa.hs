@@ -1189,30 +1189,32 @@ c_realize_gangsa = StaticMacro.check "c_realize_gangsa" $
         ]
     where doc = "Combine the gangsa realize calls in the right order."
 
--- | (noltol-time, kotekan-dur)
-type NoltolArg = (RealTime, RealTime)
+-- | (noltol-time, kotekan-dur, damp-dyn)
+type NoltolArg = (RealTime, RealTime, Signal.Y)
 
 noltol_arg :: Text
 noltol_arg = "noltol"
 
 c_noltol :: Derive.Transformer Derive.Note
 c_noltol = Derive.transformer module_ "noltol" Tags.delayed
-    "Play the transformed notes in noltol style. If the space between \
+    "Play the transformed notes in noltol style. If the space between\
     \ notes of the same (instrument, hand) is above a threshold,\
     \ end the note with a `+mute`d copy of itself. This only happens if\
     \ the duration of the note is at or below the `kotekan-dur`."
-    $ Sig.callt ((,)
+    $ Sig.callt ((,,)
     <$> Sig.defaulted "time" (Sig.control "noltol" 0.1)
         "Play noltol if the time available exceeds this threshold."
+    <*> Sig.defaulted "damp-dyn" 0.65 "Damped notes are multiplied by this dyn."
     <*> dur_env
-    ) $ \(threshold, max_dur) args deriver -> do
+    ) $ \(threshold, damp_dyn, max_dur) args deriver -> do
         max_dur <- Call.real_duration (Args.start args) max_dur
         events <- deriver
         times <- Post.time_control threshold events
-        return $ Post.emap1_ (put max_dur) $ Stream.zip times events
+        return $ Post.emap1_ (put damp_dyn max_dur) $ Stream.zip times events
         where
-        put max_dur (threshold, event) =
-            Score.put_arg noltol_arg ((threshold, max_dur) :: NoltolArg) event
+        put damp_dyn max_dur (threshold, event) =
+            Score.put_arg noltol_arg
+                ((threshold, max_dur, damp_dyn) :: NoltolArg) event
 
 c_realize_noltol :: Derive.Transformer Score.Event
 c_realize_noltol = Derive.transformer module_ "realize-noltol"
@@ -1233,14 +1235,13 @@ realize_noltol_call =
 -- | If the next note of the same instrument is below a threshold, the note's
 -- off time is replaced with a +mute.
 realize_noltol :: NoltolArg -> Score.Event -> Maybe Score.Event -> [Score.Event]
-realize_noltol (threshold, max_dur) event next
+realize_noltol (threshold, max_dur, damp_dyn) event next
     | should_noltol threshold max_dur next = [event, muted]
     | otherwise = [event]
     where
     -- TODO reapply a note with dur 0 to create the mute
     muted = Score.add_attributes Attrs.mute $
-        -- TODO dynamic should probably be configurable
-        Score.modify_dynamic (*0.65) $ Score.duration (const 0) $
+        Score.modify_dynamic (*damp_dyn) $ Score.duration (const 0) $
         Score.move (+ Score.event_duration event) $ Score.copy event
     should_noltol threshold max_dur maybe_next =
         Score.event_duration event RealTime.<= max_dur

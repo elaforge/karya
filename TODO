@@ -2102,7 +2102,7 @@ synth: im:
       - Sample should stream the envelope.
       - RenderSample.applyEnvelope should be able to check for constant within
         the sample's duration.
-      - Efficiently skip long silent gaps.
+      * Efficiently skip long silent gaps.
         . To avoid writing empty checkpoints, I could link to a canonical
           empty sample.
         . Or it might be better to make a broken link, and have play_cache
@@ -2114,7 +2114,7 @@ synth: im:
         have to resample in Convert.makeSample, and it could be per-sample.
         . hz -> nn is nonlinear, and then hz -> ratio is nonlinear, so I have to
           have it take nn to nn breakpoints, and do that calculation internally.
-    / An alternative to use-symbolic-pitch=t is that patches could export
+    / An alternative to symbolic-pitch=t is that patches could export
       their native scales.  That way other instruments could use them too.
       . Another alternative is that the scale could take instrument into
         account.
@@ -2122,6 +2122,8 @@ synth: im:
       - 3a +calung is much louder
       - No thru for >ra.  I guess this is the same problem that caused me to
         want to refactor how thru is handled.  refactor thru:
+        . Alternately as a short term fix, I could make a sampler/rambat dummy
+          with the env vars and a thru that dispatches to one or both.
     kendang-legong:
       - Thru doesn't work with pasang. refactor thru:
         . MidiThru does an eval, I should do the same for im thru.
@@ -2849,11 +2851,11 @@ incremental save: git:
 
 integrate: integration:
   - LIntegrate.edits only works for Block.block_integrated
-  score integrate
+  score integrate:
     - cascading score integrates
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
-  derive integrate
+  derive integrate:
     * Can I omit or invert controls that correspond to the defaults?  I don't
       want to get the extra dyn track.  Maybe clear the controls before
       evaluating the track?
