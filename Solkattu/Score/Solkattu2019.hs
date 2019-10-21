@@ -115,11 +115,35 @@ c_19_07_15 = date 2019 7 15 $ ganesh $ korvai adi mridangam $
         , (tat, k)
         ]
 
-c_19_09_23_exercise :: Korvai
-c_19_09_23_exercise = date 2019 9 23 $ ganesh $ trikalam $
+e_19_09_23_kandam :: Korvai
+e_19_09_23_kandam = date 2019 9 23 $ ganesh $
+    comment "practice for kandam part of trikalam" $
     similarTo "Solkattu2017" "c_17_07_13" $ korvaiS adi mempty
     [ nadai 5 $ sd $ repeat 3 purvangam . utarangam
     ]
     where
     purvangam = group takadinna.group takadinna.group takita.group tdgnt
     utarangam = tri_ (ta.__4) $ group $ takita.tdgnt
+
+e_19_10_14_kandam :: Korvai
+e_19_10_14_kandam = date 2019 10 14 $ ganesh $ korvaiS adi mempty $
+    map (nadai 5)
+    -- 6 purvangam 10 utarangam
+    [ t1.kp.t1.kpnp.t1
+        . spread 4 tdgnt . spread 3 tdgnt . spread 2 tdgnt . tdgnt
+    -- 9 purvangam 7 utarangam
+    , tri (spread 3 (ta.din.din.na) . takita)
+        . spread 4 tdgnt . spread 2 tdgnt . tdgnt
+    , prefixes reduction (dinga.dinga)
+        . prefixes reduction (dim.__5)
+        . prefixes reduction (dim.__4)
+        . prefixes reduction dinga
+        . prefixes reduction (din.__)
+        . __.tri takita
+
+    ]
+    where
+    t1 = group $ ta.takadinna.dinga
+    reduction = map group [takadinna, takita, taka, ta, ø]
+    -- 8 7 6 5 4 = 6*5 = 30
+    -- because you start at 6, then +2 on each side is 2*6
