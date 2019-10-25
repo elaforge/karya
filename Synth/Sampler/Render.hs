@@ -41,38 +41,38 @@ data Config = Config {
     _quality :: !Resample.Quality
     , _chunkSize :: !Audio.Frames
     , _blockSize :: !Audio.Frames
+    , _emitProgress :: !Bool
     }
 
 type Error = Text
 
-write :: Resample.Quality -> FilePath -> Set Id.TrackId -> [Sample.Note]
-    -> IO (Either Error (Config.ChunkNum, Config.ChunkNum))
-    -- ^ (writtenChunks, totalChunks)
-write quality = writeConfig config
-    where
-    config = Config
-        { _quality = quality
-        , _chunkSize = Config.chunkSize
-        , _blockSize = Config.blockSize
-        }
+defaultConfig :: Resample.Quality -> Config
+defaultConfig quality = Config
+    { _quality = quality
+    , _chunkSize = Config.chunkSize
+    , _blockSize = Config.blockSize
+    -- | Optionally suppress structured progress messages, used by karya.
+    , _emitProgress = True
+    }
 
 -- TODO lots of this is duplicated with Faust.Render.write, factor out the
 -- repeated parts.
-writeConfig :: Config -> FilePath -> Set Id.TrackId -> [Sample.Note]
+write :: Config -> FilePath -> Set Id.TrackId -> [Sample.Note]
     -> IO (Either Error (Config.ChunkNum, Config.ChunkNum))
     -- ^ (writtenChunks, totalChunks)
-writeConfig config outputDir trackIds notes = catch $ do
+write config outputDir trackIds notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes (_chunkSize config) (map toSpan notes)
     let startFrame = fromIntegral (length skipped) * _chunkSize config
         start = AUtil.toSeconds startFrame
     mapM_ (Checkpoint.linkOutput outputDir) skipped
-    unless (null skipped) $ Config.emitMessage "" $ Config.Message
-        { _blockId = Config.pathToBlockId outputDir
-        , _trackIds = trackIds
-        , _instrument = txt $ FilePath.takeFileName outputDir
-        , _payload = Config.WaveformsCompleted [0 .. length skipped - 1]
-        }
+    when (_emitProgress config && not (null skipped)) $
+        Config.emitMessage "" $ Config.Message
+            { _blockId = Config.pathToBlockId outputDir
+            , _trackIds = trackIds
+            , _instrument = txt $ FilePath.takeFileName outputDir
+            , _payload = Config.WaveformsCompleted [0 .. length skipped - 1]
+            }
 
     case maybe (Right []) unserializeStates mbState of
         Left err -> return $ Left $
@@ -87,8 +87,9 @@ writeConfig config outputDir trackIds notes = catch $ do
                 fromMaybe (Checkpoint.State mempty) mbState
             let notifyState = IORef.writeIORef stateRef
                 getState = IORef.readIORef stateRef
-            result <- Checkpoint.write outputDir trackIds (length skipped)
-                    (_chunkSize config) hashes getState $
+            result <- Checkpoint.write (_emitProgress config) outputDir
+                    trackIds (length skipped) (_chunkSize config) hashes
+                    getState $
                 render config outputDir initialStates notifyState trackIds
                     notes startFrame
             case result of
@@ -211,7 +212,7 @@ render config outputDir initialStates notifyState trackIds notes start =
                 (Thread.diffMetric prev metric)
         let msg = "voices:" <> showt (length playing) <> "+"
                 <> showt (length starting)
-        Config.emitMessage msg $ Config.Message
+        when (_emitProgress config) $ Config.emitMessage msg $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir

@@ -71,8 +71,8 @@ write_ config outputDir trackIds patch notes = catch $ do
     let notifyState = IORef.writeIORef stateRef
         getState = IORef.readIORef stateRef
     checkElements emitMessage patch notes
-    result <- Checkpoint.write outputDir trackIds (length skipped) chunkSize
-            hashes getState $
+    result <- Checkpoint.write True outputDir trackIds (length skipped)
+            chunkSize hashes getState $
         renderPatch emitMessage patch config mbState notifyState notes start
     case result of
         Right (_, total) -> Checkpoint.clearRemainingOutput outputDir total

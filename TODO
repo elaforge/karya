@@ -1970,8 +1970,8 @@ synth: im:
         instrument.
       . I'd want to merge sampler and faust for this though.
   play_cache: PlayCache:
-    - reaper is crashing a lot:
-      . reports in ../crash
+    - reaper crash:
+      . reports in ~/Library/Logs/DiagnosticReports/REAPER*, to ../crash
       . EXC_CRASH (SIGABRT), Thread 0 Crashed, weak_entry_insert()
       . EXC_BAD_ACCESS (SIGSEGV), Thread 4 Crashed, FxChain::GetLatency()
       . It seems to happen when rerendering while playing, maybe due to files
@@ -2119,11 +2119,28 @@ synth: im:
       . Another alternative is that the scale could take instrument into
         account.
     rambat:
-      - 3a +calung is much louder
+      * 3a +calung is much louder than neighbor pitches
+        . data/sampler/rambat/isep/3a-calung-mf-v1.flac
+        . data/sampler/rambat/umbang/3a-calung-mf-v1.flac
+        . I want to do the dynamics checking thing: cycle through the starts
+          of each sample in a systematic way:
+            (pitch, tuning, articulation, dyn, var)
+        . Maybe I can make a generic thing to render all samples, in the order
+          of my choosing, and then just look at the audio file as I see fit.
+        . And output an index of time to sample name.
+        . I think it just happens to sound louder... these seem to have been
+          normalized, maybe it just normalizes louder?
+        . I have to do it in context or it's not audible, so I need to make
+          Notes.
       - No thru for >ra.  I guess this is the same problem that caused me to
         want to refactor how thru is handled.  refactor thru:
         . Alternately as a short term fix, I could make a sampler/rambat dummy
           with the env vars and a thru that dispatches to one or both.
+        . What about add a Common.Config thru that dispatches to some other
+          instrument?
+        . I guess that's what the MidiThru with evaluation does, but in a more
+          general way, so I still want that, because it'll make kendang-legong
+          work too.
     kendang-legong:
       - Thru doesn't work with pasang. refactor thru:
         . MidiThru does an eval, I should do the same for im thru.
@@ -2856,6 +2873,14 @@ integrate: integration:
       . Is there really a use for this, other than consistency?
       . Yes, I want to do this for generated parts.
   derive integrate:
+    - I get redundant pitches on noltol mute notes.
+      . Can I omit repeated pitches?
+      . Or maybe omit the pitches in the noltol itself so they inherit the
+        previous?
+      . But shouldn't that not work?  I want notes to be self-contained, and
+        not carry over state from other notes.
+      . But I think I don't really want to omit all redundant pitches, because
+        I like to see them for notes which just happen to have the same pitch.
     * Can I omit or invert controls that correspond to the defaults?  I don't
       want to get the extra dyn track.  Maybe clear the controls before
       evaluating the track?

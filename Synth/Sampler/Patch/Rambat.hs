@@ -4,6 +4,7 @@
 
 module Synth.Sampler.Patch.Rambat where
 import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -35,6 +36,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
 import qualified Synth.Lib.AUtil as AUtil
+import qualified Synth.Sampler.Calibrate as Calibrate
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Patch.Code as Code
 import qualified Synth.Sampler.Patch.Util as Util
@@ -109,8 +111,9 @@ convert tuning note = do
     let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
-    (filenames, noteNn, sampleNn) <- tryRight $
-        toFilename tuning art symPitch dyn (Note.duration note)
+    (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
+    filenames <- tryRight $ toFilename tuning art pitch dyn (Note.duration note)
+    dynVal <- return $ dynVal * dynTweak tuning art pitch dyn
     return $ (Sample.make (Util.chooseVariation filenames note))
         -- TODO duplicate from Wayang
         { Sample.envelope = if
@@ -127,17 +130,19 @@ convert tuning note = do
         , Sample.ratios = Signal.constant $ Sample.pitchToRatio sampleNn noteNn
         }
 
-toFilename :: Tuning -> Articulation -> Either Pitch.Note Pitch.NoteNumber
-    -> Dynamic -> RealTime
-    -> Either Text ([Sample.SamplePath], Pitch.NoteNumber, Pitch.NoteNumber)
-toFilename tuning art symPitch dyn dur = do
-    (pitch, (noteNn, sampleNn)) <- findPitch tuning symPitch
+toFilename :: Tuning -> Articulation -> Pitch -> Dynamic -> RealTime
+    -> Either Text [Sample.SamplePath]
+toFilename tuning art pitch dyn dur = do
     let arts = possibleArticulations tuning pitch dyn dur art
-    return
-        ( concatMap (filenamesOf tuning pitch dyn) arts
-        , noteNn
-        , sampleNn
-        )
+    return $ concatMap (filenamesOf tuning pitch dyn) arts
+
+-- | Reign in some samples that stick out.
+dynTweak :: Tuning -> Articulation -> Pitch -> Dynamic -> Signal.Y
+dynTweak Umbang Calung (Pitch 3 A) dyn
+    | dyn <= MP = 0.75
+    | dyn <= MF = 0.85
+    | otherwise = 0.9
+dynTweak _ _ _ _ = 1
 
 -- If the dur is under the min dur, then I can choose OpenShort in addition to
 -- Open.
@@ -266,7 +271,7 @@ data PitchClass = I | O | E | U | A
 data Articulation =
     Open | OpenShort | MuteGenderLoose | MuteGenderTight | MuteGangsa
     | Calung | MuteCalung
-    deriving (Eq, Show, Enum, Bounded)
+    deriving (Eq, Ord, Show, Enum, Bounded)
 
 isMute :: Articulation -> Bool
 isMute = \case
@@ -315,6 +320,29 @@ parsePitch :: String -> Maybe Pitch
 parsePitch [oct, pc] = Pitch <$> Num.readDigit oct
     <*> Read.readMaybe (Char.toUpper pc : "")
 parsePitch _ = Nothing
+
+-- * util
+
+getVariations :: IO [(FilePath, Map Calibrate.Axis Text)]
+getVariations = do
+    samples <- (++)
+        <$> (mapMaybe (get Umbang) <$> Util.File.list (dir </> "umbang"))
+        <*> (mapMaybe (get Isep) <$> Util.File.list (dir </> "isep"))
+    return
+        [ ( dir </> tuningDir tuning </> unparseFilename pitch art dyn var
+          , Map.fromList
+            [ (Calibrate.tuning, showt tuning), (Calibrate.pitch, pretty pitch)
+            , (Calibrate.art, showt art), (Calibrate.dyn, showt dyn)
+            , (Calibrate.var, showt var)
+            ]
+          )
+        | (tuning, (pitch, art, dyn, var)) <- List.sort samples
+        ]
+    where
+    tuningDir Umbang = "umbang"
+    tuningDir Isep = "isep"
+    dir = Config.unsafeSamplerRoot </> "rambat"
+    get tuning fname = (tuning,) <$> parseFilename (FilePath.takeFileName fname)
 
 getDurations :: IO [((Tuning, Pitch, Dynamic), Audio.Frames)]
 getDurations = fmap group $ (++)

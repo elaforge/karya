@@ -6,8 +6,6 @@
 module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Trans.Resource as Resource
-
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -20,22 +18,26 @@ import qualified System.Environment as Environment
 import qualified System.Exit
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
+import qualified System.Process as Process
 
 import qualified Text.Read as Read
 
 import qualified Util.Audio.Audio as Audio
-import qualified Util.Audio.File as Audio.File
 import qualified Util.Audio.Resample as Resample
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Texts as Texts
 import qualified Util.Thread as Thread
 
+import qualified Derive.Attrs as Attrs
 import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Lib.Checkpoint as Checkpoint
+import qualified Synth.Sampler.Calibrate as Calibrate
 import qualified Synth.Sampler.Patch as Patch
+import qualified Synth.Sampler.Patch.Rambat as Rambat
 import qualified Synth.Sampler.Patch.Wayang as Wayang
 import qualified Synth.Sampler.PatchDb as PatchDb
 import qualified Synth.Sampler.Render as Render
@@ -62,10 +64,34 @@ main = do
             Seq.last [quality | Quality quality <- flags]
         dumpRange = Seq.head [(start, end) | DumpRange start end <- flags]
         dumpTracks = Seq.head [tracks | DumpTracks tracks <- flags]
+    imDir <- Config.imDir <$> Config.getConfig
+    let calibrateDir = imDir </> "calibrate"
     case args of
-        ["check"] -> do
+        -- Listen for samples that have silence at the beginning.
+        ["calibrate-starts"] -> do
             let (reference, samples) = Wayang.checkStarts
-            mapM_ (renderStarts . (++[reference])) samples
+            mapM_ (Calibrate.renderStarts calibrateDir . (++[reference]))
+                samples
+        -- Play notes in a dynamic range to calibrate relative dynamics.
+        "calibrate-by" : by : patch : attrs : pitches -> do
+            let dur = 1
+            let vars = 4
+            let dyns = 16
+            let notes = Calibrate.sequence (parseBy by) (txt patch) dur
+                    (parseAttrs (txt attrs)) (map txt pitches) vars dyns
+            dumpSamples PatchDb.db notes
+            process False PatchDb.db quality notes calibrateDir
+            Process.callCommand $ unwords
+                [ "sox", "-V1", calibrateDir </> "inst/*.wav"
+                , calibrateDir </> "out.wav"
+                ]
+        ["calibrate-dyn-raw"] -> do
+            -- Directly play the underlying samples.
+            fnames <- map fst <$> calibrateFnames
+            let dur = 1
+            putStr $ unlines $ map (\(t, fn) -> prettys t <> " - " <> fn) $
+                zip (Seq.range_ 0 dur) (map sampleName fnames)
+            Calibrate.renderSequence calibrateDir dur fnames
         ["dump", notesFilename] ->
             dumpNotes False dumpRange dumpTracks notesFilename
         ["dumps", notesFilename] ->
@@ -75,7 +101,7 @@ main = do
                 ["sampler-im", txt notesFilename, txt outputDir]
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
-            process PatchDb.db quality notes outputDir
+            process True PatchDb.db quality notes outputDir
         _ -> usage ""
     where
     dumpNotes useShow range tracks notesFilename =
@@ -92,6 +118,18 @@ main = do
                 ])
             options
         System.Exit.exitFailure
+
+parseAttrs :: Text -> Attrs.Attributes
+parseAttrs = Attrs.attrs . filter (/="") . Text.splitOn "+"
+
+parseBy :: String -> Calibrate.By
+parseBy str = fromMaybe (error ("not a By: " <> str)) (Read.readMaybe str)
+
+calibrateFnames :: IO [(FilePath, Map Calibrate.Axis Text)]
+calibrateFnames =
+    -- Calibrate.select [("pitch", "3a"), ("art", "Calung"), ("dyn", "PP")] <$>
+    Calibrate.select [("pitch", "3a"), ("art", "Calung")] <$>
+    Rambat.getVariations
 
 data Flag =
     Quality Resample.Quality
@@ -141,20 +179,16 @@ type Error = Text
 -- | Show the final Sample.Notes, which would have been rendered.
 dump :: Bool -> Maybe (RealTime, RealTime) -> Maybe (Set Id.TrackId)
     -> Patch.Db -> [Note.Note] -> IO ()
-dump useShow range tracks db notes =
-    forM_ (byPatchInst notes) $ \(patchName, notes) ->
-        whenJustM (getPatch db patchName) $ \patch ->
-            forM_ notes $ \(inst, notes) -> do
-                Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
-                sampleNotes <- mapM (makeSampleNote emit)
-                    (convert db patch notes)
-                when False $ -- maybe I'll want this again someday
-                    mapM_ putHash $ dumpHashes (Maybe.catMaybes sampleNotes)
-                mapM_ putNote $
-                    maybe id inTracks tracks $ maybe id inRange range $
-                    Seq.map_maybe_snd id $ zip notes sampleNotes
+dump useShow range tracks db notes = do
+    samples <- convertNotes db notes
+    forM_ samples $ \(patch, (inst, sampleNotes)) -> do
+        Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
+        when False $ -- maybe I'll want this again someday
+            mapM_ putHash $ dumpHashes sampleNotes
+        mapM_ putNote $
+            maybe id inTracks tracks $ maybe id inRange range $
+            zip notes sampleNotes
     where
-    emit payload = putStrLn (show payload)
     putNote (note, sample)
         | useShow = PPrint.pprint sample
         | otherwise = Text.IO.putStrLn $ Text.unlines $
@@ -172,6 +206,40 @@ dump useShow range tracks db notes =
     putHash (start, end, (hash, hashes)) = Text.IO.putStrLn $
         pretty start <> "--" <> pretty end <> ": " <> pretty hash <> " "
         <> pretty hashes
+
+-- | Version of 'dump' with just start and sample filename.
+dumpSamples :: Patch.Db -> [Note.Note] -> IO ()
+dumpSamples db notes = do
+    samples <- convertNotes db notes
+    forM_ samples $ \(_, (_, sampleNotes)) ->
+        Text.IO.putStr $ Text.unlines $ Texts.columns 2 $
+            ["sec", "sample", "env"] : map fmt sampleNotes
+    where
+    fmt note =
+        [ pretty (AUtil.toSeconds (Sample.start note))
+        , txt (sampleName (Sample.filename sample))
+        , pretty (Signal.at start (Sample.envelope sample))
+        ]
+        where
+        start = AUtil.toSeconds (Sample.start note)
+        sample = Sample.sample note
+
+sampleName :: FilePath -> FilePath
+sampleName = FilePath.joinPath . Seq.rtake 2 . FilePath.splitPath
+
+convertNotes :: Patch.Db -> [Note.Note]
+    -> IO [(Patch.Patch, (Note.InstrumentName, [Sample.Note]))]
+convertNotes db notes =
+    fmap concat $ forM (byPatchInst notes) $ \(patchName, notes) ->
+    getPatch db patchName >>= \case
+        Nothing -> return []
+        Just patch -> fmap (map (patch,)) $ forM notes $ \(inst, notes) -> do
+            sampleNotes <- mapM (makeSampleNote emit) (convert db patch notes)
+            return (inst, Maybe.catMaybes sampleNotes)
+    where
+    -- Print out progress msgs, but I could probably ignore them.
+    emit _payload = return ()
+    -- emit payload = putStrLn (show payload)
 
 inRange :: (RealTime, RealTime) -> [(Note.Note, a)] -> [(Note.Note, a)]
 inRange (start, end) = filter $ \(n, _) ->
@@ -191,8 +259,9 @@ dumpHashes notes = zip3 (Seq.range_ 0 size) (drop 1 (Seq.range_ 0 size)) hashes
         Checkpoint.overlappingHashes 0 size $
         map Render.toSpan notes
 
-process :: Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath -> IO ()
-process db quality notes outputDir
+process :: Bool -> Patch.Db -> Resample.Quality -> [Note.Note] -> FilePath
+    -> IO ()
+process emitProgress db quality notes outputDir
     | n : _ <- notes, Note.start n < 0 =
         errorIO $ "notes start <0: " <> pretty n
     | otherwise = do
@@ -202,17 +271,20 @@ process db quality notes outputDir
                 Async.forConcurrently_ notes $ \(inst, notes) ->
                     let trackIds = trackIdsOf notes
                         emit = emitMessage trackIds inst
-                    in realize emit trackIds quality outputDir inst
+                    in realize emit trackIds config outputDir inst
                         =<< mapMaybeM (makeSampleNote emit)
                             (convert db patch notes)
     where
-    emitMessage trackIds instrument payload =
-        Config.emitMessage "" $ Config.Message
+    config = (Render.defaultConfig quality)
+        { Render._emitProgress = emitProgress }
+    emitMessage trackIds instrument payload
+        | emitProgress = Config.emitMessage "" $ Config.Message
             { _blockId = Config.pathToBlockId (outputDir </> "dummy")
             , _trackIds = trackIds
             , _instrument = instrument
             , _payload = payload
             }
+        | otherwise = return ()
 
     trackIdsOf notes = Set.fromList $ mapMaybe Note.trackId notes
     grouped = byPatchInst notes
@@ -294,13 +366,13 @@ actualDuration start sample = do
         Just dur -> min fileDur dur
         Nothing -> fileDur
 
-realize :: (Config.Payload -> IO ()) -> Set Id.TrackId -> Resample.Quality
+realize :: (Config.Payload -> IO ()) -> Set Id.TrackId -> Render.Config
     -> FilePath -> Note.InstrumentName -> [Sample.Note] -> IO ()
-realize emitMessage trackIds quality outputDir instrument notes = do
+realize emitMessage trackIds config outputDir instrument notes = do
     let instDir = outputDir </> untxt instrument
     Directory.createDirectoryIfMissing True instDir
     (result, elapsed) <- Thread.timeActionText $
-        Render.write quality instDir trackIds notes
+        Render.write config instDir trackIds notes
     case result of
         Left err -> do
             Log.error $ instrument <> ": writing " <> txt instDir
@@ -310,38 +382,3 @@ realize emitMessage trackIds quality outputDir instrument notes = do
             Log.notice $ instrument <> " " <> showt rendered <> "/"
                 <> showt total <> " chunks: " <> txt instDir
                 <> " (" <> elapsed <> ")"
-
-
--- * one off testing
-
-renderStarts :: [Sample.Sample] -> IO ()
-renderStarts samples = do
-    putStrLn $ "==> " <> filename
-    exist <- mapM (Directory.doesFileExist . (patchDir</>) . Sample.filename)
-        samples
-    if all id exist
-        then renderDirect filename 1 $
-            map (Sample.modifyFilename (patchDir</>)) samples
-        else putStrLn "*** missing"
-    where
-    filename = "check" </> replace '/' '-'
-            (FilePath.dropExtension (Sample.filename (head samples)))
-            ++ ".wav"
-    patchDir = "../data/sampler/wayang"
-    replace a b = map (\c -> if c == a then b else c)
-
-renderDirect :: FilePath -> Audio.Seconds -> [Sample.Sample] -> IO ()
-renderDirect filename dur samples = do
-    audios <- mapM (RenderSample.render config 0) samples
-    Resource.runResourceT $
-        Audio.File.write AUtil.outputFormat filename $
-        Audio.takeS dur $ Audio.mix audios
-    where
-    config = Resample.Config
-        { _quality = Resample.SincFastest
-        , _state = Nothing
-        , _notifyState = const $ return ()
-        , _blockSize = Config.chunkSize
-        , _now = 0
-        , _name = txt filename
-        }

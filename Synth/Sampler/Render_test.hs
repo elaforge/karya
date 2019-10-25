@@ -203,12 +203,13 @@ rmPrefixes dir prefixes =
         =<< Directory.listDirectory dir
 
 write_ :: FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
-write_ outDir = Render.writeConfig config outDir mempty
+write_ outDir = Render.write config outDir mempty
     where
     config = Render.Config
         { _quality = Resample.ZeroOrderHold
         , _chunkSize = chunkSize
         , _blockSize = chunkSize
+        , _emitProgress = False
         }
 
 patchDir :: FilePath

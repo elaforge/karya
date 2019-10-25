@@ -117,12 +117,13 @@ findLastState files = go "" initialState
 -- ** write
 
 -- | Write the audio with checkpoints.
-write :: FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frames
+write :: Bool -> FilePath -> Set Id.TrackId -> Config.ChunkNum -> Audio.Frames
     -> [(Config.ChunkNum, Note.Hash)] -> IO State
     -> AUtil.Audio -- ^ get current audio state, see NOTE [audio-state]
     -> IO (Either Text (Config.ChunkNum, Config.ChunkNum))
     -- ^ Either Error (writtenChunks, total)
-write outputDir trackIds skippedCount chunkSize hashes getState audio
+write emitProgress outputDir trackIds skippedCount chunkSize hashes getState
+        audio
     | null hashes = return $ Right (0, skippedCount)
     | otherwise = do
         result <- AUtil.catchSndfile $ Resource.runResourceT $
@@ -136,7 +137,7 @@ write outputDir trackIds skippedCount chunkSize hashes getState audio
     chunkComplete fname = do
         writeState getState fname
         chunknum <- linkOutput outputDir fname
-        Config.emitMessage "" $ Config.Message
+        when emitProgress $ Config.emitMessage "" $ Config.Message
             { _blockId = Config.pathToBlockId outputDir
             , _trackIds = trackIds
             , _instrument = txt $ FilePath.takeFileName outputDir
