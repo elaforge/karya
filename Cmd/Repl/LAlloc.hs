@@ -101,8 +101,8 @@ make_pasang :: Scale.Range -> BaliScales.Tuning -> ScoreT.Instrument
     -> ScoreT.Instrument -> Common.Config -> Common.Config
 make_pasang range polos_tuning umbang isep =
     MidiInst.inst_range range
-    . Common.add_environ Gangsa.inst_polos polos
-    . Common.add_environ Gangsa.inst_sangsih sangsih
+    . Common.add_cenviron Gangsa.inst_polos polos
+    . Common.add_cenviron Gangsa.inst_sangsih sangsih
     where
     (polos, sangsih) = case polos_tuning of
         BaliScales.Umbang -> (umbang, isep)

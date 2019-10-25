@@ -299,7 +299,7 @@ test_unison_tuning = do
         config_inst = set UiTest.i1 BaliScales.Umbang
             . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_config inst $
-            Common.add_environ EnvKey.tuning tuning
+            Common.add_cenviron EnvKey.tuning tuning
     equal (run [(0, 1, "4i")]) ([("i1", Just 62.5), ("i2", Just 63)], [])
 
 modify_config :: ScoreT.Instrument -> (Common.Config -> Common.Config)

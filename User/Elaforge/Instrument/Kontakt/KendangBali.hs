@@ -106,8 +106,8 @@ allocations name dev_ = MidiInst.allocations
     [ (inst $ name <> "w", "kontakt/kendang-bali", id, midi_channel 0)
     , (inst $ name <> "l", "kontakt/kendang-bali", id, midi_channel 1)
     , ( inst name, "kontakt/kendang-bali-pasang"
-      , Common.add_environ "wadon" (inst $ name <> "w")
-        . Common.add_environ "lanang" (inst $ name <> "l")
+      , Common.add_cenviron "wadon" (inst $ name <> "w")
+        . Common.add_cenviron "lanang" (inst $ name <> "l")
       , UiConfig.Dummy
       )
     ]

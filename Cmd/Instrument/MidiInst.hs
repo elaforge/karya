@@ -298,8 +298,7 @@ control_defaults controls =
 
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: RestrictedEnviron.ToVal a => Env.Key -> a -> Patch -> Patch
-environ name val = common#Common.environ
-    %= (RestrictedEnviron.from_list [(name, RestrictedEnviron.to_val val)] <>)
+environ name val = common %= Common.add_environ name val
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Patch -> Patch
@@ -319,8 +318,8 @@ nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
 -- | Like 'range', but set it in the allocation, not the patch.
 inst_range :: Scale.Range -> Common.Config -> Common.Config
 inst_range range =
-    Common.add_environ EnvKey.instrument_bottom (Scale.range_bottom range)
-    . Common.add_environ EnvKey.instrument_top (Scale.range_top range)
+    Common.add_cenviron EnvKey.instrument_bottom (Scale.range_bottom range)
+    . Common.add_cenviron EnvKey.instrument_top (Scale.range_top range)
 
 -- * Allocations
 

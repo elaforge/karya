@@ -75,8 +75,8 @@ allocations name =
         ]
     <> ImInst.dummy_allocations
         [ ( inst name, "sampler/kendang-bali-pasang"
-          , Common.add_environ "wadon" (inst $ name <> "-w")
-            . Common.add_environ "lanang" (inst $ name <> "-l")
+          , Common.add_cenviron "wadon" (inst $ name <> "-w")
+            . Common.add_cenviron "lanang" (inst $ name <> "-l")
           )
         ]
     where

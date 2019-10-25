@@ -78,8 +78,13 @@ make_inst (Patch patch common) = Inst.Inst
 
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a -> Patch -> Patch
-environ name val = common#Common.environ
-    %= (RestrictedEnviron.from_list [(name, RestrictedEnviron.to_val val)] <>)
+environ name val = common %= common_environ name val
+
+common_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
+    -> Common.Common code -> Common.Common code
+common_environ name val =
+    Common.environ %= (RestrictedEnviron.from_list
+        [(name, RestrictedEnviron.to_val val)] <>)
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Patch -> Patch

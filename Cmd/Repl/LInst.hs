@@ -290,7 +290,7 @@ solo = modify_common_config $ \config ->
 -- | Add an environ val to the instrument config.
 add_environ :: (RestrictedEnviron.ToVal a, Ui.M m) =>
     Env.Key -> a -> Instrument -> m ()
-add_environ name val = modify_common_config_ $ Common.add_environ name val
+add_environ name val = modify_common_config_ $ Common.add_cenviron name val
 
 -- | Clear the instrument config's environ.  The instrument's built-in environ
 -- from 'Patch.patch_environ' is still present.

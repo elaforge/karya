@@ -97,6 +97,12 @@ data Flag =
 
 instance Pretty Flag where pretty = showt
 
+add_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
+    -> Common code -> Common code
+add_environ key val =
+    environ %= (RestrictedEnviron.from_list
+        [(key, RestrictedEnviron.to_val val)] <>)
+
 -- * AttributeMap
 
 {- | This determines what Attributes the instrument can respond to.  Each
@@ -208,8 +214,8 @@ instance Pretty Config where
         , ("solo", Pretty.format solo)
         ]
 
-add_environ :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
+add_cenviron :: RestrictedEnviron.ToVal a => EnvKey.Key -> a
     -> Config -> Config
-add_environ key val = cenviron
+add_cenviron key val = cenviron
     %= (Just . (RestrictedEnviron.from_list [(key, v)] <>) . fromMaybe mempty)
     where v = RestrictedEnviron.to_val val
