@@ -243,7 +243,7 @@ convertNotes db notes =
 
 inRange :: (RealTime, RealTime) -> [(Note.Note, a)] -> [(Note.Note, a)]
 inRange (start, end) = filter $ \(n, _) ->
-    not $ Note.start n <= start || Note.start n > end
+    not $ Note.start n < start || Note.start n >= end
     -- This checks if the note start is in the range, not the note extent,
     -- because that's how LPerf works.
 
