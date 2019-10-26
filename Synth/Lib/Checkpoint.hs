@@ -181,6 +181,8 @@ writeState getState fname = do
 linkOutput :: FilePath -> FilePath -> IO Config.ChunkNum
 linkOutput outputDir fname = do
     let current = outputDir </> filenameToOutput (FilePath.takeFileName fname)
+    -- If a previous process got killed, there might be stale .tmp files.
+    File.ignoreEnoent $ Directory.removeFile (current <> ".tmp")
     -- Atomically replace the old link, if any.
     Directory.createFileLink (checkpointDir </> FilePath.takeFileName fname)
         (current <> ".tmp")
