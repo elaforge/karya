@@ -28,6 +28,7 @@ import qualified Derive.C.Prelude.Note as Prelude.Note
 import qualified Derive.Call as Call
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
+import           Derive.Scale.BaliScales (Tuning(..))
 import qualified Derive.Scale.Legong as Legong
 
 import qualified Instrument.Common as Common
@@ -252,8 +253,6 @@ rambatTuning = Map.fromList $ zip [Pitch 3 E ..]
     ]
 
 -- * implementation
-
-data Tuning = Umbang | Isep deriving (Eq, Ord, Show, Enum, Bounded)
 
 data Pitch = Pitch !Int !PitchClass
     deriving (Eq, Ord, Show)

@@ -2202,6 +2202,12 @@ synth: im:
             instrument, the others continue to use the same Cmd.Track
             mechanism.
     reyong:
+      * thru pitch is off from played pitch
+        . 4i: thru: 59.91nn -> 48-65-108-open+v1.flac, 1.054
+        . That's the difference between symbolic-pitch!  Is that expected?
+        . scale: (59.91, 60.40), recorded: 60.83, because it's pengisep.
+        . Shouldn't thru obey the tuning?  It does, but I don't set tuning for
+          reyong.  I guess I should!
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
           sound the same.  Record the negated number as the offset.  Reaktor

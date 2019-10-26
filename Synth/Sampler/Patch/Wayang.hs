@@ -15,10 +15,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Text.Read as Text.Read
 
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
-import qualified Data.Text.Read as Text.Read
 
 import qualified Util.Log as Log
 import qualified Util.Maps as Maps
@@ -33,7 +33,9 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.BaliScales as BaliScales
+import           Derive.Scale.BaliScales (Tuning(..))
 import qualified Derive.Scale.Wayang as Wayang
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Common as Common
 import qualified Midi.Key as Key
@@ -83,9 +85,7 @@ patches =
         Pemade -> Wayang.pemade
         Kantilan -> Wayang.kantilan
     setTuning tuning = -- ImInst.default_scale Wayang.scale_id
-        ImInst.environ EnvKey.tuning (tuningVal tuning :: Text)
-    tuningVal Umbang = "umbang"
-    tuningVal Isep = "isep"
+        ImInst.environ EnvKey.tuning (ShowVal.show_val tuning)
     code inst tuning = WayangCode.code
         <> Util.thru dir (convert inst tuning)
         <> ImInst.postproc with_symbolic_pitch
@@ -310,7 +310,6 @@ variationsOf = \case
 -- * implementation
 
 data Instrument = Pemade | Kantilan deriving (Eq, Ord, Show, Enum, Bounded)
-data Tuning = Umbang | Isep deriving (Eq, Ord, Show, Enum, Bounded)
 
 data Dynamic = PP | MP | MF | FF deriving (Eq, Ord, Show, Enum, Bounded)
 instance Pretty Dynamic where pretty = showt

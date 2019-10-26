@@ -18,9 +18,12 @@ import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Prelude.Note
 import qualified Derive.Call as Call
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Instrument.Common as Common
 import qualified Midi.Key as Key
@@ -41,19 +44,21 @@ import           Synth.Types
 
 patches :: [Patch.DbPatch]
 patches = map Patch.DbPatch
-    [ makePatch "reyong-trompong" $ Scale.Range
+    [ makePatch "reyong-trompong" Nothing $ Scale.Range
         (Scale.range_bottom Legong.trompong_range)
         (Scale.range_top Legong.reyong_range)
-    , makePatch "reyong" Legong.reyong_range
-    , makePatch "trompong" Legong.trompong_range
+    , makePatch "reyong" (Just BaliScales.Isep) Legong.reyong_range
+    , makePatch "trompong" (Just BaliScales.Umbang) Legong.trompong_range
     ]
 
-makePatch :: Note.PatchName -> Scale.Range -> Patch.Patch
-makePatch name range = (Patch.patch name)
+makePatch :: Note.PatchName -> Maybe BaliScales.Tuning -> Scale.Range
+    -> Patch.Patch
+makePatch name tuning range = (Patch.patch name)
     { Patch._dir = dir
     , Patch._convert = convert
     , Patch._preprocess = inferDuration
     , Patch._karyaPatch = ImInst.code #= code $ ImInst.range range $
+        maybe id (ImInst.environ EnvKey.tuning . ShowVal.show_val) tuning $
         ImInst.make_patch $ Im.Patch.patch
             { Im.Patch.patch_controls = mconcat
                 [ Control.supportPitch
