@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Deriver code common to sampler patches.
-module Synth.Sampler.Patch.Code where
+module Synth.Sampler.Patch.Lib.Code where
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls

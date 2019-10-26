@@ -23,7 +23,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Instrument.Common as Common
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Patch.Util as Util
+import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note

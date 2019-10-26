@@ -39,8 +39,10 @@ import qualified Perform.RealTime as RealTime
 import qualified Synth.Lib.AUtil as AUtil
 import qualified Synth.Sampler.Calibrate as Calibrate
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Patch.Code as Code
-import qualified Synth.Sampler.Patch.Util as Util
+import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
+import           Synth.Sampler.Patch.Lib.Bali (Pitch(..), PitchClass(..))
+import qualified Synth.Sampler.Patch.Lib.Code as Code
+import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config
 import qualified Synth.Shared.Control as Control
@@ -114,7 +116,7 @@ convert tuning note = do
     let variableMute = RealTime.seconds $ Note.initial0 Control.mute note
     (pitch, (noteNn, sampleNn)) <- tryRight $ findPitch tuning symPitch
     filenames <- tryRight $ toFilename tuning art pitch dyn (Note.duration note)
-    dynVal <- return $ dynVal * dynTweak tuning art pitch dyn
+    dynVal <- return $ dynVal * tweakDynamic tuning art pitch dyn
     return $ (Sample.make (Util.chooseVariation filenames note))
         -- TODO duplicate from Wayang
         { Sample.envelope = if
@@ -138,12 +140,12 @@ toFilename tuning art pitch dyn dur = do
     return $ concatMap (filenamesOf tuning pitch dyn) arts
 
 -- | Reign in some samples that stick out.
-dynTweak :: Tuning -> Articulation -> Pitch -> Dynamic -> Signal.Y
-dynTweak Umbang Calung (Pitch 3 A) dyn
+tweakDynamic :: Tuning -> Articulation -> Pitch -> Dynamic -> Signal.Y
+tweakDynamic Umbang Calung (Pitch 3 A) dyn
     | dyn <= MP = 0.75
     | dyn <= MF = 0.85
     | otherwise = 0.9
-dynTweak _ _ _ _ = 1
+tweakDynamic _ _ _ _ = 1
 
 -- If the dur is under the min dur, then I can choose OpenShort in addition to
 -- Open.
@@ -212,7 +214,7 @@ findSymPitch :: Tuning -> Pitch.Note
     -> Either Text (Pitch, (Pitch.NoteNumber, Pitch.NoteNumber))
 findSymPitch tuning (Pitch.Note pitch) = do
     pitch <- tryJust ("can't parse symbolic pitch: " <> pitch) $
-        parsePitch (untxt pitch)
+        Lib.Bali.parsePitch (untxt pitch)
     (umbang, isep) <- tryJust ("pitch out of range: " <> pretty pitch) $
         Map.lookup pitch rambatTuning
     return $ case tuning of
@@ -254,19 +256,6 @@ rambatTuning = Map.fromList $ zip [Pitch 3 E ..]
 
 -- * implementation
 
-data Pitch = Pitch !Int !PitchClass
-    deriving (Eq, Ord, Show)
-
-instance Pretty Pitch where
-    pretty (Pitch oct pc) = showt oct <> Util.showtLower pc
-
-instance Enum Pitch where
-    toEnum n = let (oct, pc) = n `divMod` 5 in Pitch oct (toEnum pc)
-    fromEnum (Pitch oct pc) = oct * 5 + fromEnum pc
-
-data PitchClass = I | O | E | U | A
-    deriving (Eq, Ord, Show, Enum, Read)
-
 data Articulation =
     Open | OpenShort | MuteGenderLoose | MuteGenderTight | MuteGangsa
     | Calung | MuteCalung
@@ -288,7 +277,7 @@ parseFilename :: FilePath
     -> Maybe (Pitch, Articulation, Dynamic, Util.Variation)
 parseFilename fname = case Seq.split "-" (FilePath.dropExtension fname) of
     [pitch, art, dyn, 'v':var] ->
-        (,,,) <$> parsePitch pitch <*> pArt art <*> pDyn dyn
+        (,,,) <$> Lib.Bali.parsePitch pitch <*> pArt art <*> pDyn dyn
             <*> Read.readMaybe var
     _ -> Nothing
     where
@@ -314,11 +303,6 @@ articulationFilename = \case
     MuteGangsa -> "mute+gangsa"
     Calung -> "calung"
     MuteCalung -> "calung+mute"
-
-parsePitch :: String -> Maybe Pitch
-parsePitch [oct, pc] = Pitch <$> Num.readDigit oct
-    <*> Read.readMaybe (Char.toUpper pc : "")
-parsePitch _ = Nothing
 
 -- * util
 

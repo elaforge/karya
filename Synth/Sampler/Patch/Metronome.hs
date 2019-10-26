@@ -13,7 +13,7 @@ import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Patch.Util as Util
+import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note

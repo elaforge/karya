@@ -1,5 +1,9 @@
+-- Copyright 2019 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
 -- | Utilities shared between drum patches.
-module Synth.Sampler.Patch.Drum where
+module Synth.Sampler.Patch.Lib.Drum where
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 

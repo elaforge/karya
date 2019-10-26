@@ -14,9 +14,9 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Sig as Sig
 
-import qualified Synth.Sampler.Patch.Code as Code
+import qualified Synth.Sampler.Patch.Lib.Code as Code
 
-import Global
+import           Global
 
 
 code :: ImInst.Code

@@ -282,7 +282,7 @@ dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
 
 -- * tuning
 
-data Tuning = Umbang | Isep deriving (Enum, Bounded, Show)
+data Tuning = Umbang | Isep deriving (Eq, Ord, Enum, Bounded, Show)
 
 instance Pretty Tuning where pretty = showt
 instance Typecheck.Typecheck Tuning

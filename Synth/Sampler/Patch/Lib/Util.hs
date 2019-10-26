@@ -2,7 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Synth.Sampler.Patch.Util where
+-- | General utilities for sampler patches.
+module Synth.Sampler.Patch.Lib.Util where
 import qualified Control.Monad.Except as Except
 import qualified Data.Char as Char
 import qualified Data.List as List

@@ -34,7 +34,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Patch.Util as Util
+import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Patch.ZhengSamples as ZhengSamples
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Config as Config

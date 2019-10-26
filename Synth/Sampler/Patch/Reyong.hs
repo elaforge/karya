@@ -4,10 +4,8 @@
 
 -- | Definitions for reyong and trompong.
 module Synth.Sampler.Patch.Reyong (patches, checkFilenames) where
-import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
-
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
@@ -17,7 +15,6 @@ import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Prelude.Note
-import qualified Derive.Call as Call
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
@@ -31,8 +28,10 @@ import qualified Midi.Midi as Midi
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Pitch as Pitch
 import qualified Synth.Sampler.Patch as Patch
-import qualified Synth.Sampler.Patch.Code as Code
-import qualified Synth.Sampler.Patch.Util as Util
+import qualified Synth.Sampler.Patch.Lib.Bali as Lib.Bali
+import           Synth.Sampler.Patch.Lib.Bali (Pitch(..), PitchClass(..))
+import qualified Synth.Sampler.Patch.Lib.Code as Code
+import qualified Synth.Sampler.Patch.Lib.Util as Util
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Shared.Control as Control
 import qualified Synth.Shared.Note as Note
@@ -72,8 +71,7 @@ makePatch name tuning range = (Patch.patch name)
     code = note
         <> Util.thru dir convert
         <> ImInst.postproc DUtil.with_symbolic_pitch
-    note = Bali.zero_dur_mute_with ""
-        (\_args -> transform . Call.multiply_dynamic 0.65)
+    note = Bali.zero_dur_mute_with "" (const transform)
         (\args -> transform $
             Prelude.Note.default_note Prelude.Note.use_attributes args)
         where transform = Code.withVariation
@@ -130,14 +128,13 @@ checkFilenames = filterM (fmap not . exists) allFilenames
     where exists = Directory.doesFileExist . ("../data/sampler/reyong" </>)
 
 allFilenames :: [FilePath]
-allFilenames = map fst3 $ Either.rights
-    [ toFilename articulation (Left pitch) dyn variation
+allFilenames =
+    [ toFilename articulation pitch dyn variation
     | articulation <- Util.enumAll
-    , pitch <- map snd (Map.elems nnKeys)
+    , pitch <- Map.elems nnToPitch
     , dyn <- Util.enumAll
     , variation <- [0 .. variationsOf articulation - 1]
     ]
-    where fst3 (a, _, _) = a
 
 -- * convert
 
@@ -148,8 +145,8 @@ convert note = do
     let (dyn, dynVal) = Util.dynamic dynamicRange minDyn note
     symPitch <- Util.symbolicPitch note
     let var = Util.variation (variationsOf articulation) note
-    (filename, noteNn, sampleNn) <-
-        tryRight $ toFilename articulation symPitch dyn var
+    (pitch, (sampleNn, noteNn)) <- tryRight $ findPitch symPitch
+    let filename = toFilename articulation pitch dyn var
     -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
     --     <> pretty ((dyn, scale), (symPitch, sampleNn), var)
     --     <> ": " <> txt filename
@@ -183,15 +180,14 @@ minDyn = 0.5
 
     keys: 45 48 50 52 55 57 60 62 64 67 69 72 74 76 79
 -}
-toFilename :: Articulation -> Either Pitch.Note Pitch.NoteNumber -> Dynamic
-    -> Util.Variation
-    -> Either Text (FilePath, Pitch.NoteNumber, Pitch.NoteNumber)
-toFilename articulation symPitch dyn variation = do
-    (sampleNn, noteNn, Midi.Key sampleKey) <- findPitch symPitch
-    return (sampleName sampleKey ++ ".flac", noteNn, sampleNn)
+toFilename :: Articulation -> Pitch -> Dynamic -> Util.Variation -> FilePath
+toFilename articulation pitch dyn variation = Seq.join "-"
+    [ show (Midi.from_key (pitchToKey pitch) :: Int)
+    , show lowVel
+    , show highVel
+    , group
+    ] ++ ".flac"
     where
-    sampleName sampleKey = Seq.join "-"
-        [show sampleKey, show lowVel, show highVel, group]
     (lowVel, highVel) = dynamicRange dyn
     group = articulationFile articulation <> "+v" <> show (variation + 1)
 
@@ -204,32 +200,35 @@ articulationFile = \case
     Open -> "open"
 
 findPitch :: Either Pitch.Note Pitch.NoteNumber
-    -> Either Text (Pitch.NoteNumber, Pitch.NoteNumber, Midi.Key)
+    -> Either Text (Pitch, (Pitch.NoteNumber, Pitch.NoteNumber))
 findPitch = \case
-    Left sym -> do
-        (sampleNn, (key, _)) <- tryJust ("invalid pitch: " <> pretty sym) $
-            List.find ((==sym) . snd . snd) (Map.toList nnKeys)
-        return (sampleNn, sampleNn, key)
-    Right noteNn -> return (sampleNn, noteNn, key)
-        where
-        Just (sampleNn, (key, _)) = Maps.lookup_closest noteNn nnKeys
+    Left (Pitch.Note sym) -> do
+        pitch <- tryJust ("can't parse symbolic pitch: " <> sym) $
+            Lib.Bali.parsePitch (untxt sym)
+        sampleNn <- tryJust ("pitch out of range: " <> pretty pitch) $
+            Map.lookup pitch pitchToNn
+        return (pitch, (sampleNn, sampleNn))
+    Right noteNn -> return (pitch, (sampleNn, noteNn))
+        where Just (sampleNn, pitch) = Maps.lookup_closest noteNn nnToPitch
+    where
+    pitchToNn = Maps.invert nnToPitch
 
 --             trompong---------------------
 --                      reyong-----------------------------
 -- 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
-nnKeys :: Map Pitch.NoteNumber (Midi.Key, Pitch.Note)
-nnKeys = Map.fromList $ zip reyongTuning $ take 15 $ drop 4
-    [ (key+oct*12, Pitch.Note (showt (Midi.from_key oct) <> sym))
-    | oct <- [3..], (key, sym) <- baseKeys
-    ]
+nnToPitch :: Map Pitch.NoteNumber Pitch
+nnToPitch = Map.fromList $ zip reyongTuning $
+    take 15 $ drop 4 [Pitch oct pc | oct <- [3..], pc <- Util.enumAll]
+
+pitchToKey :: Pitch -> Midi.Key
+pitchToKey (Pitch oct pc) = Midi.to_key (oct*12) + baseKey pc
     where
-    baseKeys =
-        [ (Key.c_1, "i")
-        , (Key.d_1, "o")
-        , (Key.e_1, "e")
-        , (Key.g_1, "u")
-        , (Key.a_1, "a")
-        ]
+    baseKey = \case
+        I -> Key.c_1
+        O -> Key.d_1
+        E -> Key.e_1
+        U -> Key.g_1
+        A -> Key.a_1
 
 reyongTuning :: [Pitch.NoteNumber]
 reyongTuning =
@@ -249,7 +248,6 @@ reyongTuning =
     , 87.82
     , 91.82
     ]
-
 
 data Articulation = CekClosed | CekOpen | MuteClosed | MuteOpen | Open
     deriving (Eq, Ord, Show, Enum, Bounded)
