@@ -257,7 +257,7 @@ sel_sampler_events source = do
             , notes_file
             ]
     out <- CmdUtil.read_process "build/opt/sampler-im" args
-    return $ Text.unwords ("%" : "buld/opt/sampler-im" : map txt args) <> "\n"
+    return $ Text.unwords ("%" : "build/opt/sampler-im" : map txt args) <> "\n"
         <> out
 
 -- | Like 'sel_events' but take the root derivation.

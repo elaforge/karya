@@ -18,6 +18,8 @@ module Util.Pretty (
     , textList, formattedList, delimitedList, record, recordTitle
     , formatMap
     , constructor
+    -- * standalone
+    , duration
     -- * misc
     , readWord
 ) where
@@ -293,6 +295,19 @@ delimitedList spacedDelimiter leftc rightc xs = case xs of
     right = text $ Text.singleton rightc
 
 
+-- * standalone
+
+duration :: Time.NominalDiffTime -> Text
+duration secs0 = Text.unwords $ concat
+    [ [showt days <> "d" | days > 0]
+    , [showt hours <> "h" | hours > 0]
+    , [showt mins <> "m" | mins > 0]
+    , [pretty secs3]
+    ]
+    where
+    (days, secs1) = Num.fDivMod secs0 (60*60*24)
+    (hours, secs2) = Num.fDivMod secs1 (60*60)
+    (mins, secs3) = Num.fDivMod secs2 60
 
 -- * Read
 

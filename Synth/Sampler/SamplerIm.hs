@@ -115,6 +115,7 @@ main = do
             (unlines
                 [ "sampler-im [ flags ] path/to/notes path/to/output/dir"
                 , "sampler-im [ flags ] dump[s] path/to/notes"
+                , "sampler-im calibrate-by (Pitch|Dyn) reyong +open 4e 4u 4a 5i"
                 ])
             options
         System.Exit.exitFailure
@@ -213,10 +214,10 @@ dumpSamples db notes = do
     samples <- convertNotes db notes
     forM_ samples $ \(_, (_, sampleNotes)) ->
         Text.IO.putStr $ Text.unlines $ Texts.columns 2 $
-            ["sec", "sample", "env"] : map fmt sampleNotes
+            ["time", "sample", "env"] : map fmt sampleNotes
     where
     fmt note =
-        [ pretty (AUtil.toSeconds (Sample.start note))
+        [ RealTime.show_units (AUtil.toSeconds (Sample.start note))
         , txt (sampleName (Sample.filename sample))
         , pretty (Signal.at start (Sample.envelope sample))
         ]

@@ -147,6 +147,7 @@ convert note = do
     let var = Util.variation (variationsOf articulation) note
     (pitch, (sampleNn, noteNn)) <- tryRight $ findPitch symPitch
     let filename = toFilename articulation pitch dyn var
+    dynVal <- return $ dynVal * tweakDynamic articulation pitch dyn
     -- Log.debug $ "note at " <> pretty (Note.start note) <> ": "
     --     <> pretty ((dyn, scale), (symPitch, sampleNn), var)
     --     <> ": " <> txt filename
@@ -172,6 +173,11 @@ muteTime = 0.085
 
 minDyn :: Signal.Y
 minDyn = 0.5
+
+tweakDynamic :: Articulation -> Pitch -> Dynamic -> Signal.Y
+tweakDynamic Open (Pitch 5 I) PP = 0.9
+tweakDynamic Open (Pitch 6 U) _ = 0.9
+tweakDynamic _ _ _ = 1
 
 {- |
     > 45-1-31-cek+{closed,open}+v{1..6}.wav

@@ -51,7 +51,7 @@ module Perform.RealTime (
     , eta, (==), (>), (<=)
 ) where
 import qualified Prelude
-import Prelude hiding ((==), (>), (<=), div)
+import           Prelude hiding ((==), (>), (<=), div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as Text
@@ -63,14 +63,16 @@ import qualified ForeignC as C
 import qualified Text.Read as Read
 
 import qualified Util.CUtil as CUtil
-import Util.Crc32Instances ()
+import           Util.Crc32Instances ()
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import qualified Util.Test.ApproxEq as ApproxEq
 
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.ShowVal as ShowVal
-import Global
+import qualified Ui.ScoreTime as ScoreTime
+
+import           Global
 
 
 -- | A concrete unit of time.
@@ -140,13 +142,7 @@ suffix = 's'
 
 -- | Show RealTime as hours, minutes, seconds.
 show_units :: RealTime -> Text
-show_units t = units <> pretty (seconds (fromIntegral secs + frac))
-    where
-    units = mconcatMap (\(a, b) -> showt a <> b) $
-        filter ((Prelude.>0) . fst) [(hours, "h"), (mins, "m")]
-    (t1, frac) = properFraction (to_seconds t)
-    (hours, t2) = t1 `divMod` (60 * 60)
-    (mins, secs) = t2 `divMod` 60
+show_units = Pretty.duration . to_diff
 
 -- * convert from
 
