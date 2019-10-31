@@ -147,3 +147,23 @@ e_19_10_14_kandam = date 2019 10 14 $ ganesh $ korvaiS adi mempty $
     reduction = map group [takadinna, takita, taka, ta, ø]
     -- 8 7 6 5 4 = 6*5 = 30
     -- because you start at 6, then +2 on each side is 2*6
+
+c_19_10_28_kandam :: Korvai
+c_19_10_28_kandam = date 2019 10 28 $ source "Patri Satish Kumar" $
+    recording "https://youtu.be/XpIMZwz-YbI?t=373" Nothing $
+    korvaiS adi mridangam $
+    map (nadai 5)
+    [ suffixes (takadinna.din.__.takita.din.__.taka.din.__)
+        [ta.din.__4, repeat 2 (ta.din.__4), repeat 3 (ta.din.__4)]
+        . sd p5 . p5
+        . kp . sd p5 . kp.p5 . __ . kp.p5
+        . kpnp . sd p5 . tri_ __ (kpnp.p5)
+    ]
+    where
+    mridangam = makeMridangam
+        [ (din, od)
+        , (takadinna, k.o.on.k)
+        , (takita, on.on.k)
+        , (taka, on.k)
+        , (ta, k)
+        ]

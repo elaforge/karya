@@ -122,7 +122,6 @@ e_19_05_06_b = date 2019 5 6 $ ganesh $ comment "tisram, built on 7s and 5s" $
     t5 = k.__.k.n.__
     t5e = k.__.k.n.o
 
-
 -- TODO I already did this one, find it
 e_19_05_20a :: Korvai
 e_19_05_20a = make_nakadit_talang_ga (od.su (pk.n.o))
@@ -400,7 +399,7 @@ c_19_09_23 = date 2019 9 23 $ ganesh $ trikalam $
     ]
     where
     purvangam = v.__4.k.o.od.__.on.__.on.__.od.__
-        . su ktok . o.k.o.o.k.o.od.__.on.__.on.__.od.__4
+        . su ktok . o.k.o.k.k.o.od.__.on.__.on.__.od.__4
     utarangam = tri_ (o.__) (group (v.__3.k.k.o.o.k.o.k.o.k.k.o.o.k.o.__.k.__))
 
 e_19_09_30_gumiki :: Korvai
