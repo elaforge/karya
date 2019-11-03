@@ -72,7 +72,7 @@ data Config = Config {
     -- fall on multiples of blockSize.
     , _now :: Audio.Frames
     -- | This is unused, but useful for debugging.
-    , _name :: Text
+    , _name :: String
     }
 
 defaultConfig :: Quality -> Config

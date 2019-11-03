@@ -128,5 +128,5 @@ renderDirect filename dur samples = do
         , _notifyState = const $ return ()
         , _blockSize = Config.chunkSize
         , _now = 0
-        , _name = txt filename
+        , _name = filename
         }

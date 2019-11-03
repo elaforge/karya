@@ -348,7 +348,7 @@ keyed_group_stable key = map (\(g :| gs) -> (key g, g:gs)) . group_stable key
 -- * zipping
 
 -- | Pair each element with the following element.  The last element is paired
--- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but only traverses
+-- with Nothing.  Like @zip xs (drop 1 xs ++ [Nothing])@ but only traverses
 -- @xs@ once.
 zip_next :: [a] -> [(a, Maybe a)]
 zip_next [] = []

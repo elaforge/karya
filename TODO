@@ -2000,6 +2000,63 @@ synth: im:
       . round off, it's close enough!
       . I guess the problem is that RenderSample does round, but
         Render.startSample doesn't know that.
+    * and again:
+      . no resample state, but ratios is not 1-ish: Signal.constant 1.013:
+        Note (2.69s -- 4.20)
+          { start = 118731f, duration = 66598f
+          , sample = Sample
+            { filename = "data/sampler/reyong/55-65-108-mute+closed+v3.flac"
+            , offset = 0f, envelope = Signal.constant .75
+            , pan = Signal.constant -.25, ratios = Signal.constant 1.013
+            }
+          , hash = hmylP20PJkpslxJv5IW18w
+          }
+        Note
+          { patch = "reyong", instrument = "reyong"
+          , trackId = (tid "untitled/awak.t13"), element = "", start = 2.69s
+          , duration = 0s
+          , controls =
+              { dyn: Signal.constant .5, pan: Signal.constant -.25
+              , pitch: Signal.constant 67.48, variation: Signal.constant .798
+              }
+          , attributes = +mute
+          , ...
+          }
+      . Why no state?  It was previously and is currently symbolic-pitch=f.
+      . To debug these, I need to know what the state was written in response
+        to.
+      . One possibility is I saved the wrong state.  I can verify by saving
+        hash with the NoResample, so I can check for that hash in the previous
+        notes.
+      . Previous seemed the same, and with a ratio of 1.1013, so it should
+        have had a state.  This was just a change in envelope at 4.03+
+      . I should be able to replay by rendering against old notes.
+      . The first time it does emit NoResample <mempty>.
+      . It happens twice, the second time is mempty.
+        154350f (3.5): "55-65-108-mute+closed+v3.flac":58347f
+        165375f (3.75): NoResample ""
+      . Neither are checkpoints though!?  Because the checkpoint is at 4, at
+        it saves the last value.
+      . This happens when it's done, should it be done?
+      . Resample runs out of samples, emits empty state.  But shouldn't the
+        Playing have then been filtered out?
+        _noteRange goes to 4.2s, but I already ran out at 3.75s.
+        Which is correct?
+      . That Audio.isEmpty in Render.pull seems unsafe... and indeed the
+        problem goes away when I remove it.
+      . Why can't I put the state in the audio stream?  I guess it's less
+        efficient in that I'm only using it on chunk boundaries, but it's just
+        an extra unused pointer in a pair.  The main thing is that I wind up
+        with another Audio type, or I have to generalize Audio to include an
+        arbitrary payload.
+    - ensure it's ok if samples end a bit before predicted
+      . Previously I checked if the stream was complete with AUtil.next.
+        But since I'm using IORefs for the state, this is unsafe, since it
+        advances the resampler state too far.
+      . But now this approach can be wrong if the sample happens to end
+        exactly on a chunk boundary.  Or the _noteRange is slightly wrong,
+        which happens too.  I should make sure it's harmless.
+
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
       . Use the same srate as DbSignal.from_signal.
@@ -2208,6 +2265,11 @@ synth: im:
         . scale: (59.91, 60.40), recorded: 60.83, because it's pengisep.
         . Shouldn't thru obey the tuning?  It does, but I don't set tuning for
           reyong.  I guess I should!
+      kilitan:
+        . I need to adjust +mute so they don't sound louder than open.
+        . often damping comes a bit before the next note
+        . mute notes need volume adjustment
+        . there are natural light accents, e.g. on beats
       Dynamic calibration:
         . Alternate reference sample with the testee, adjust testee until they
           sound the same.  Record the negated number as the offset.  Reaktor

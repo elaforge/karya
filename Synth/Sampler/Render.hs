@@ -136,7 +136,7 @@ instance Pretty Playing where
 failedPlaying :: Sample.Note -> Playing
 failedPlaying note = Playing
     { _noteHash = Sample.hash note
-    , _getState = return NoResample
+    , _getState = return Complete
     , _audio = mempty
     , _noteRange = (0, 0)
     }
@@ -181,8 +181,7 @@ render config outputDir initialStates notifyState trackIds notes start =
         Audio.assert (null playingTooLong) $
             "notes still playing at " <> prettyF now <> ": "
             <> pretty playingTooLong
-        liftIO $ notifyState . serializeStates
-            =<< mapM _getState (Seq.sort_on _noteHash playing)
+        liftIO $ notifyState =<< serializeStates playing
         Audio.assert (all ((<=blockSize) . AUtil.blockFrames2) blocks) $
             "chunk was >" <> pretty blockSize <> ": "
             <> pretty (map AUtil.blockFrames2 blocks)
@@ -238,9 +237,14 @@ pull blockSize now = fmap (trim . unzip) . mapM get
     get playing = do
         (chunk, audio) <- first mconcat <$>
             Audio.takeFramesGE blockSize (_audio playing)
-        mbNext <- Audio.isEmpty audio
+        -- Previously I checked if the stream was complete with AUtil.next.
+        -- But since I'm using IORefs for the state, this is unsafe, since it
+        -- advances the resampler state too far.
+        -- TODO But now this approach can be wrong if the sample happens to end
+        -- exactly on a chunk boundary.  Or the _noteRange is slightly wrong,
+        -- which happens too.  I should make sure it's harmless.
         let end = now + AUtil.blockFrames2 chunk
-        when (Maybe.isNothing mbNext) $ liftIO $ Log.debug $
+        when (AUtil.blockFrames2 chunk < blockSize) $ liftIO $ Log.debug $
             let diff = snd (_noteRange playing) - end in
             pretty (_noteHash playing) <> ": expected "
             <> pretty (_noteRange playing)
@@ -248,9 +252,9 @@ pull blockSize now = fmap (trim . unzip) . mapM get
             <> " " <> pretty (AUtil.toSeconds diff)
         return
             ( chunk
-            , case mbNext of
-                Nothing -> Nothing
-                Just audio -> Just $ playing { _audio = audio }
+            , if AUtil.blockFrames2 chunk < blockSize
+                then Nothing
+                else Just $ playing { _audio = audio }
             )
 
 resumeSamples :: Config -> Audio.Frames -> [State] -> [Sample.Note]
@@ -291,17 +295,16 @@ startSample config now mbState note = do
             , _notifyState = IORef.writeIORef sampleStateRef . mkState
             , _blockSize = _blockSize config
             , _now = now
-            , _name = txt $ FilePath.takeFileName $ Sample.filename sample
+            , _name = FilePath.takeFileName $ Sample.filename sample
             }
-        mkState Nothing = NoResample
+        mkState Nothing = Complete
         mkState (Just (used, rState)) = Resample $ ResampleState
             { _filename = Sample.filename sample
             , _offset = used
             , _resampleState = rState
             }
     case mbState of
-        Nothing -> assert
-            (start >= now && now-start < _blockSize config) $
+        Nothing -> assert (start >= now && now-start < _blockSize config) $
             "note should have started between " <> showt now <> "--"
             <> showt (now + _blockSize config) <> " but started at "
             <> showt start
@@ -314,6 +317,8 @@ startSample config now mbState note = do
                     assert (Sample.filename sample == _filename rstate) $
                         "starting " <> pretty sample <> " but state was for "
                         <> pretty rstate
+                -- 'pull' should have filtered out this Playing.
+                Complete -> assert False "Complete sample still Playing"
                 NoResample ->
                     assert (maybe False RenderSample.ratioCloseEnough ratio) $
                         "no resample state, but ratios is not 1-ish: "
@@ -332,6 +337,7 @@ startSample config now mbState note = do
         (mkConfig $ case mbState of
             Nothing -> Nothing
             Just NoResample -> Nothing
+            Just Complete -> Nothing
             Just (Resample state) -> Just state)
         (AUtil.toSeconds start)
         (sample { Sample.offset = offset + Sample.offset sample })
@@ -357,19 +363,28 @@ overlappingNotes start blockSize notes =
     passed n = Sample.end n <= start && Sample.start n < start
     end = start + blockSize
 
-data State = NoResample | Resample !ResampleState
+data State =
+    NoResample
+    | Resample !ResampleState
+    -- | There was a resample, but it's complete.  If this shows up, something
+    -- is wrong, because 'pull' should have filtered out the Playing when
+    -- it turned up short samples.
+    | Complete
     deriving (Eq, Show)
 
 instance Pretty State where
     pretty NoResample = "NoResample"
+    pretty Complete = "Complete"
     pretty (Resample state) = pretty state
 
 instance Serialize.Serialize State where
     put NoResample = Serialize.put_tag 0
     put (Resample state) = Serialize.put_tag 1 >> Serialize.put state
+    put Complete = Serialize.put_tag 2
     get = Serialize.get_tag >>= \case
         0 -> return NoResample
         1 -> Resample <$> Serialize.get
+        2 -> return Complete
         n -> Serialize.bad_tag "Render.State" n
 
 -- | The saved state of a note that had to resample.
@@ -394,11 +409,16 @@ instance Serialize.Serialize ResampleState where
 unserializeStates :: Checkpoint.State -> Either Error [State]
 unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 
--- | If there is no resampling, the state will be Nothing.  It's necessary
+-- | If there is no resampling, the state will be NoResample.  It's necessary
 -- to remember that, so I can still line up notes with states in
 -- 'resumeSamples'.
-serializeStates :: [State] -> Checkpoint.State
-serializeStates = Checkpoint.State . Serialize.encode
+serializeStates :: [Playing] -> IO Checkpoint.State
+serializeStates playing = Checkpoint.State . Serialize.encode <$>
+    mapM _getState (Seq.sort_on _noteHash playing)
+    -- Sort the notes by hash before saving their states, since the resume will
+    -- then sort again by Sample.hash to match them back up.  This is because I
+    -- don't enforce invariants on the order of simultaneous notes, so they may
+    -- vary across renders.
 
 {- NOTE [audio-state]
 
