@@ -45,6 +45,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -112,9 +113,11 @@ library = mconcat
     , Library.generators $ Gender.ngoret_variations c_ngoret
     , Library.transformers
         [ ("infer-damp", c_infer_damp)
+        , ("hand-damp", c_hand_damp)
         , ("cancel-kotekan", c_cancel_kotekan)
         , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
         , ("realize-reyong", c_realize_reyong)
+        , ("realize-trompong", c_realize_trompong)
         , ("vv", c_lower_octave_note)
         ]
     , Library.both
@@ -590,7 +593,7 @@ parse_relative = map parse1 . filter (/=' ')
 -- mini-notation for each position.
 type NoteTable = Map Char Chord
 
--- | Pentatonic pitch degree.
+-- | Saih lima pitch degree.
 data Degree = I | O | E | U | A deriving (Eq, Ord, Enum, Show)
 instance Pretty Degree where pretty = showt
 
@@ -691,6 +694,32 @@ make_position table cek byong = Position
 
 -- * damping
 
+c_hand_damp :: Derive.Transformer Derive.Note
+c_hand_damp = Derive.transformer module_ "hand-damp" Tags.postproc
+    "Damping when the parts are already divided by hand."
+    $ Sig.callt ((,)
+        <$> Sig.required "insts" "Apply damping to these instruments."
+        <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
+            "There must be at least this much time between the end of a note\
+            \ and the start of the next to damp."
+    ) $ \(insts, dur) _args deriver -> do
+        dur <- Call.to_function dur
+        hand_damp (Set.fromList insts) (RealTime.seconds . dur) <$> deriver
+
+hand_damp :: Set ScoreT.Instrument -> (RealTime -> RealTime)
+    -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+hand_damp damped_insts dur_at =
+    Post.emap_asc_ infer_damp . Post.next_by Post.hand_key
+    where
+    infer_damp (event, _)
+        | Score.event_instrument event `Set.notMember` damped_insts = [event]
+    infer_damp (event, Just next) | too_close event next = [event]
+    infer_damp (event, _) = damp event
+    damp event = event : maybe [] (:[]) (set_damp 1 event)
+    too_close event next =
+        (Score.event_start next - Score.event_end event)
+            <= dur_at (Score.event_end event)
+
 c_infer_damp :: Derive.Transformer Derive.Note
 c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     ("Add damping for reyong parts based on a simulation of the hand technique.\
@@ -709,8 +738,8 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
             \ for its next note afterwards."
     ) $ \(insts, dur) _args deriver -> do
         dur <- Call.to_function dur
-        -- infer_damp only adds a %damp control, so it preserves order, so
-        -- Post.apply is safe.  TODO Is there a way to express this statically?
+        -- infer_damp preserves order, so Post.apply is safe.  TODO Is there a
+        -- way to express this statically?
         Post.apply_m (Derive.run_logs
             . infer_damp_voices (Set.fromList insts) (RealTime.seconds . dur))
                 =<< deriver
@@ -734,8 +763,7 @@ infer_damp_voices damped_insts dur_at events = do
     return damped
     where
     (damped, skipped) = bimap (Seq.merge_lists Score.event_start) concat
-        . unzip . map infer1
-        . Seq.keyed_group_sort Post.voice_key $ events
+        . unzip . map infer1 . Seq.keyed_group_sort Post.voice_key $ events
     infer1 ((inst, _voice), events)
         | inst `Set.notMember` damped_insts = (events, [])
         | otherwise = (,skipped) $ Seq.merge_on Score.event_start events
@@ -746,9 +774,10 @@ infer_damp_voices damped_insts dur_at events = do
 set_damp :: Signal.Y -> Score.Event -> Maybe Score.Event
 set_damp damp_dyn event
     | damp > 0 = Just $
-        Score.add_attributes Attrs.mute $ Score.set_dynamic damp $
-        event { Score.event_start = Score.event_end event,
-                Score.event_duration = 0 }
+        Score.add_attributes Attrs.mute $ Score.set_dynamic damp $ event
+            { Score.event_start = Score.event_end event
+            , Score.event_duration = 0
+            }
     | otherwise = Nothing
     where
     damp = damp_dyn * maybe 1 ScoreT.typed_val
@@ -843,6 +872,16 @@ c_realize_reyong = StaticMacro.check "c_realize_reyong" $
         -- by uncalled notes, so it has to go after those.
         [ StaticMacro.Call c_infer_damp [StaticMacro.Var, StaticMacro.Var]
         , StaticMacro.Call c_cancel_kotekan [StaticMacro.Var]
+        , StaticMacro.Call Gender.c_realize_ngoret []
+        ]
+    where doc = "Combine the reyong realize calls in the right order."
+
+c_realize_trompong :: Derive.Transformer Derive.Note
+c_realize_trompong = StaticMacro.check "c_realize_trompong" $
+    StaticMacro.transformer module_ "realize-trompong" Tags.postproc doc
+        -- infer-damp relies on having the ngoret pitches and will get confused
+        -- by uncalled notes, so it has to go after those.
+        [ StaticMacro.Call c_hand_damp [StaticMacro.Var, StaticMacro.Var]
         , StaticMacro.Call Gender.c_realize_ngoret []
         ]
     where doc = "Combine the reyong realize calls in the right order."

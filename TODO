@@ -5253,7 +5253,7 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong:
-        - octaves shouldn't be able to infer damping
+        * octaves shouldn't be able to infer damping
           . E.g. (6e 6o 6o, 5e - 5o)
         - I need a better way to notate a section as lower octave.
           . vv doesn't work is a note parent.
@@ -5266,9 +5266,12 @@ Derive:
             . slow:
               561   53561
                21      21
-        - double note, like oo in kajar
+        * double note, like oo in kajar
           . tabuh-gari, @b4 2.5t
       reyong:
+        - divide infer-damp into infer-hands, and then use hand-damp.
+          That way I can put an integrate after infer-hands, as
+          a visualization if nothing else.
         - Damp level is way too high, I have to put %damp=.2 everywhere.
         - remove kilit, isn't it just norot now?
         - for infer-damp, also infer damp level
