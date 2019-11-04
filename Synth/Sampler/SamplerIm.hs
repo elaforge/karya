@@ -120,8 +120,9 @@ main = do
             options
         System.Exit.exitFailure
 
-parseAttrs :: Text -> Attrs.Attributes
-parseAttrs = Attrs.attrs . filter (/="") . Text.splitOn "+"
+parseAttrs :: Text -> [Attrs.Attributes]
+parseAttrs =
+    map (Attrs.attrs . filter (/="") . Text.splitOn "+") . Text.splitOn ","
 
 parseBy :: String -> Calibrate.By
 parseBy str = fromMaybe (error ("not a By: " <> str)) (Read.readMaybe str)

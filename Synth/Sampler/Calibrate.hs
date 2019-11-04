@@ -54,29 +54,41 @@ var = "var"
 
 -- create notes with an even dyn spread
 
-data By = Pitch | Dyn deriving (Show, Read)
+data By = Attr | Pitch | Dyn
+    deriving (Show, Read)
 
-sequence :: By -> Note.PatchName -> RealTime -> Attrs.Attributes
+sequence :: By -> Note.PatchName -> RealTime -> [Attrs.Attributes]
     -> [Note.Element] -> Signal.Y -> Signal.Y -> [Note.Note]
-sequence by patch dur attrs pitches variations dyns =
+sequence by patch dur attrs pitches variations dynamics =
     zipWith setStart (Seq.range_ 0 dur) $ case by of
-        Dyn ->
-            [ make pitch dyn var
+        Attr ->
+            [ make pitch dyn var attr
             | pitch <- pitches
-            , var <- Seq.range 0 1 (1 / (variations-1))
-            , dyn <- Seq.range 0 1 (1 / (dyns-1))
+            , var <- vars
+            , dyn <- dyns
+            , attr <- attrs
+            ]
+        Dyn ->
+            [ make pitch dyn var attr
+            | attr <- attrs
+            , pitch <- pitches
+            , var <- vars
+            , dyn <- dyns
             ]
         Pitch ->
-            [ make pitch dyn var
-            | var <- Seq.range 0 1 (1 / (variations-1))
-            , dyn <- Seq.range 0 1 (1 / (dyns-1))
+            [ make pitch dyn var attr
+            | attr <- attrs
+            , var <- vars
+            , dyn <- dyns
             , pitch <- pitches
             ]
     where
+    vars = Seq.range 0 1 (1 / (variations-1))
+    dyns = Seq.range 0 1 (1 / (dynamics-1))
     setStart start note = note { Note.start = start }
-    make element dyn var = (Note.note patch "inst" 0 dur)
+    make element dyn var attr = (Note.note patch "inst" 0 dur)
         { Note.element = element
-        , Note.attributes = attrs
+        , Note.attributes = attr
         , Note.duration = dur
         , Note.controls = Map.fromList
             [ (Control.dynamic, Signal.constant dyn)
