@@ -49,13 +49,9 @@ type Error = Text
 
 -- * write
 
-write :: FilePath -> Set Id.TrackId -> DriverC.Patch -> [Note.Note]
-    -> IO (Either Error (Int, Int))
-write = write_ defaultConfig
-
-write_ :: Config -> FilePath -> Set Id.TrackId -> DriverC.Patch -> [Note.Note]
+write :: Config -> FilePath -> Set Id.TrackId -> DriverC.Patch -> [Note.Note]
     -> IO (Either Error (Int, Int)) -- ^ (renderedChunks, totalChunks)
-write_ config outputDir trackIds patch notes = catch $ do
+write config outputDir trackIds patch notes = catch $ do
     (skipped, hashes, mbState) <- Checkpoint.skipCheckpoints outputDir $
         Checkpoint.noteHashes chunkSize (map toSpan notes)
     stateRef <- IORef.newIORef $ fromMaybe (Checkpoint.State mempty) mbState
@@ -86,12 +82,14 @@ write_ config outputDir trackIds patch notes = catch $ do
             return $ Left $ txt $ Exception.displayException exc
         ]
     emitMessage :: GHC.Stack.HasCallStack => Config.Payload -> IO ()
-    emitMessage payload = Config.emitMessage "" $ Config.Message
-        { _blockId = Config.pathToBlockId outputDir
-        , _trackIds = trackIds
-        , _instrument = txt $ FilePath.takeFileName outputDir
-        , _payload = payload
-        }
+    emitMessage payload
+        | _emitProgress config = Config.emitMessage "" $ Config.Message
+            { _blockId = Config.pathToBlockId outputDir
+            , _trackIds = trackIds
+            , _instrument = txt $ FilePath.takeFileName outputDir
+            , _payload = payload
+            }
+        | otherwise = return ()
 
 -- | Emit a warning if the patch expects element-address controls and a note
 -- doesn't have an element, or vice versa.
@@ -130,6 +128,7 @@ data Config = Config {
     , _controlsPerBlock :: !Audio.Frames
     -- | Force an end if the signal hasn't gone to zero before this.
     , _maxDecay :: !RealTime
+    , _emitProgress :: !Bool
     } deriving (Show)
 
 {-
@@ -154,6 +153,7 @@ defaultConfig = Config
     , _controlSize = Config.blockSize `Num.assertDiv` controlsPerBlock -- 147
     , _controlsPerBlock = controlsPerBlock
     , _maxDecay = 32
+    , _emitProgress = False
     }
     where controlsPerBlock = 75
     -- if c-rate is 100, then 10ms

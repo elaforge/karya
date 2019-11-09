@@ -15,7 +15,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
-import qualified System.Exit
+import qualified System.Exit as Exit
 import qualified System.FilePath as FilePath
 import           System.FilePath ((</>))
 import qualified System.Process as Process
@@ -64,6 +64,7 @@ main = do
             Seq.last [quality | Quality quality <- flags]
         dumpRange = Seq.head [(start, end) | DumpRange start end <- flags]
         dumpTracks = Seq.head [tracks | DumpTracks tracks <- flags]
+        emitProgress = Progress `elem` flags
     imDir <- Config.imDir <$> Config.getConfig
     let calibrateDir = imDir </> "calibrate"
     case args of
@@ -80,7 +81,7 @@ main = do
             let notes = Calibrate.sequence (parseBy by) (txt patch) dur
                     (parseAttrs (txt attrs)) (map txt pitches) vars dyns
             dumpSamples PatchDb.db notes
-            process False PatchDb.db quality notes calibrateDir
+            process emitProgress PatchDb.db quality notes calibrateDir
             Process.callCommand $ unwords
                 [ "sox", "-V1", calibrateDir </> "inst/*.wav"
                 , calibrateDir </> "out.wav"
@@ -101,7 +102,7 @@ main = do
                 ["sampler-im", txt notesFilename, txt outputDir]
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
-            process True PatchDb.db quality notes outputDir
+            process emitProgress PatchDb.db quality notes outputDir
         _ -> usage ""
     where
     dumpNotes useShow range tracks notesFilename =
@@ -118,7 +119,7 @@ main = do
                 , "sampler-im calibrate-by (Pitch|Dyn) reyong +open 4e 4u 4a 5i"
                 ])
             options
-        System.Exit.exitFailure
+        Exit.exitFailure
 
 parseAttrs :: Text -> [Attrs.Attributes]
 parseAttrs =
@@ -137,6 +138,7 @@ data Flag =
     Quality Resample.Quality
     | DumpRange !RealTime !RealTime
     | DumpTracks !(Set Id.TrackId)
+    | Progress
     deriving (Eq, Show)
 
 readEnum :: (Show a, Enum a, Bounded a) => String -> a
@@ -160,6 +162,7 @@ options =
     , GetOpt.Option [] ["tracks"]
         (GetOpt.ReqArg readTracks "track-id,track-id,...")
         "dump events in from these tracks, by stack"
+    , GetOpt.Option [] ["progress"] (GetOpt.NoArg Progress) "emit json progress"
     ]
 
 readDumpRange :: String -> Flag

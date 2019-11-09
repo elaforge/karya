@@ -461,7 +461,7 @@ evaluate_im config lookup_inst score_path adjust0 play_multiplier block_id
                 let binary = Config.binary synth
                 return $ if null binary
                     then Nothing
-                    else Just (binary, [notes_file, output_dir])
+                    else Just (binary, ["--progress", notes_file, output_dir])
             Nothing -> do
                 Log.warn $ "unknown im synth " <> showt synth_name <> " with "
                     <> showt (Vector.length events) <> " events"

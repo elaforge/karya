@@ -41,7 +41,7 @@ import           Util.Test
 test_write_silent_chunk = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "test"
-    let write = Render.write_ config dir mempty patch
+    let write = Render.write config dir mempty patch
     -- not quite 1 chunk
     io_equal (write [mkNote "test" 0.25 2 42]) (Right (3, 3))
     io_equal (readSamples1 dir) ([0, 0] ++ replicate 16 42 ++ replicate (8-2) 0)
@@ -58,7 +58,7 @@ test_write_silent_chunk = do
 test_write_incremental = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "sine"
-    let write = Render.write_ config dir mempty patch
+    let write = Render.write config dir mempty patch
     -- no notes produces no output
     io_equal (write []) (Right (0, 0))
     io_equal (Directory.listDirectory (dir </> Checkpoint.checkpointDir)) []
@@ -117,7 +117,7 @@ test_write_incremental_offset = do
     -- I want to keep the test.
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "sine"
-    let write = Render.write_ config dir mempty patch
+    let write = Render.write config dir mempty patch
     let notes = drop 1 $ mkNotes "sine" 0.5
             [NN.c4, NN.d4, NN.e4, NN.f4, NN.g4]
 
@@ -134,7 +134,7 @@ test_write_incremental_offset = do
 test_write_controls = do
     dir <- Testing.tmp_dir "write"
     patch <- getPatch "test"
-    let write = Render.write_ config dir mempty patch
+    let write = Render.write config dir mempty patch
     let cblocks n = replicate $ fromIntegral (Render._controlSize config) * n
 
     let withPitch = Note.withControl Control.pitch . Signal.from_pairs
@@ -160,7 +160,7 @@ test_write_controls = do
 renderSamples :: DriverC.Patch -> [Note.Note] -> IO [Float]
 renderSamples patch notes = do
     dir <- Testing.tmp_dir "renderSamples"
-    io_equal (Render.write_ config dir mempty patch notes) (Right (3, 3))
+    io_equal (Render.write config dir mempty patch notes) (Right (3, 3))
     readSamples dir
 
 readSamples :: FilePath -> IO [Float]
@@ -182,6 +182,7 @@ config = Render.Config
     , _controlSize = 4
     , _controlsPerBlock = 8 `div` 4
     , _maxDecay = 0
+    , _emitProgress = False
     }
 
 chunkSize :: Audio.Frames

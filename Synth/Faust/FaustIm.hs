@@ -14,8 +14,10 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified System.Console.GetOpt as GetOpt
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
+import qualified System.Exit as Exit
 import           System.FilePath ((</>))
 import qualified System.Posix.Signals as Signals
 
@@ -37,6 +39,9 @@ main :: IO ()
 main = do
     Log.configure $ \st -> st { Log.state_priority = Log.Notice }
     args <- Environment.getArgs
+    (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
+        (flags, args, []) -> return (flags, args)
+        (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
     patches <- DriverC.getPatches
     thread <- Concurrent.myThreadId
     -- Make sure I get some output if the process is killed.
@@ -71,9 +76,8 @@ main = do
             notes <- either (errorIO . pretty) return
                 =<< Note.unserialize notesFilename
             patches <- traverse (either errorIO pure) patches
-            process patches notes outputDir
-        _ -> errorIO $
-            "usage: faust-im [print-patches | render-preview | notes outputDir]"
+            process (Progress `elem` flags) patches notes outputDir
+        _ -> usage ""
     where
     printPatch patch = do
         put $ DriverC._doc patch
@@ -85,6 +89,25 @@ main = do
             put $ "control: " <> showControl c <> ": " <> pretty config
         where
         put = Text.IO.putStrLn
+
+usage :: String -> IO a
+usage msg = do
+    unless (null msg) $
+        putStrLn $ "ERROR: " ++ msg
+    putStr $ GetOpt.usageInfo
+        (unlines
+            [ "faust-im [print-patches | render-preview | notes outputDir]"
+            ])
+        options
+    Exit.exitFailure
+
+data Flag = Progress
+    deriving (Eq, Show)
+
+options :: [GetOpt.OptDescr Flag]
+options =
+    [ GetOpt.Option [] ["progress"] (GetOpt.NoArg Progress) "emit json progress"
+    ]
 
 showControl :: DriverC.Control -> Text
 showControl ("", c) = pretty c
@@ -134,8 +157,9 @@ extractBreakpoints patchInstNotes = filter (not . null . snd)
             (Render._controlSize Render.defaultConfig) patch notes
         inputNames = map fst $ DriverC._inputControls patch
 
-process :: Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath -> IO ()
-process patches notes outputDir = do
+process :: Bool -> Map Note.PatchName DriverC.Patch -> [Note.Note] -> FilePath
+    -> IO ()
+process emitProgress patches notes outputDir = do
     Log.notice $ "processing " <> showt (length notes) <> " notes"
     let (notFound, patchInstNotes) = lookupPatches patches notes
     unless (null notFound) $
@@ -156,7 +180,7 @@ process patches notes outputDir = do
                 <> txt output
             Directory.createDirectoryIfMissing True output
             (result, elapsed) <- Thread.timeActionText $
-                Render.write output
+                Render.write config output
                     (Set.fromList $ mapMaybe Note.trackId notes) patch notes
             case result of
                 Left err -> Log.notice $ inst <> " writing " <> txt output
@@ -166,6 +190,8 @@ process patches notes outputDir = do
                         <> showt total <> " chunks: " <> txt output
                         <> " (" <> elapsed <> ")"
     where
+    config = Render.defaultConfig
+        { Render._emitProgress = emitProgress }
     flatten patchInstNotes =
         [ (patch, inst, notes)
         | (patch, instNotes) <- patchInstNotes
