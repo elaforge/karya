@@ -7,7 +7,6 @@ module Synth.Sampler.SamplerIm (main) where
 import qualified Control.Concurrent.Async as Async
 import qualified Control.Exception as Exception
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -187,12 +186,12 @@ dump :: Bool -> Maybe (RealTime, RealTime) -> Maybe (Set Id.TrackId)
 dump useShow range tracks db notes = do
     samples <- convertNotes db notes
     forM_ samples $ \(patch, (inst, sampleNotes)) -> do
-        Text.IO.putStrLn $ Patch._name patch <> ", " <> inst <> ":"
+        Text.IO.putStrLn $ "patch: " <> Patch._name patch
+            <> ", inst: " <> inst <> ":"
         when False $ -- maybe I'll want this again someday
-            mapM_ putHash $ dumpHashes sampleNotes
+            mapM_ putHash $ dumpHashes $ map snd sampleNotes
         mapM_ putNote $
-            maybe id inTracks tracks $ maybe id inRange range $
-            zip notes sampleNotes
+            maybe id inTracks tracks $ maybe id inRange range sampleNotes
     where
     putNote (note, sample)
         | useShow = PPrint.pprint sample
@@ -202,8 +201,9 @@ dump useShow range tracks db notes = do
             Pretty.formatted sample
     annotate note sample line = Text.unwords
         [ line, pretty s, "+", pretty dur, "=>", pretty (s+dur)
-        , "[original: ", pretty (Note.start note, Note.duration note)
-        , maybe "<no-track>" Id.ident_text (Note.trackId note) <> "]"
+        , "[orig:", pretty (Note.start note, Note.duration note)
+        , maybe "<no-track>" Id.ident_text (Note.trackId note)
+        , Note.instrument note <> "]"
         ]
         where
         s = AUtil.toSeconds $ Sample.start sample
@@ -218,7 +218,7 @@ dumpSamples db notes = do
     samples <- convertNotes db notes
     forM_ samples $ \(_, (_, sampleNotes)) ->
         Text.IO.putStr $ Text.unlines $ Texts.columns 2 $
-            ["time", "sample", "env"] : map fmt sampleNotes
+            ["time", "sample", "env"] : map (fmt . snd) sampleNotes
     where
     fmt note =
         [ RealTime.show_units (AUtil.toSeconds (Sample.start note))
@@ -233,18 +233,23 @@ sampleName :: FilePath -> FilePath
 sampleName = FilePath.joinPath . Seq.rtake 2 . FilePath.splitPath
 
 convertNotes :: Patch.Db -> [Note.Note]
-    -> IO [(Patch.Patch, (Note.InstrumentName, [Sample.Note]))]
+    -> IO [(Patch.Patch, (Note.InstrumentName, [(Note.Note, Sample.Note)]))]
 convertNotes db notes =
     fmap concat $ forM (byPatchInst notes) $ \(patchName, notes) ->
     getPatch db patchName >>= \case
         Nothing -> return []
         Just patch -> fmap (map (patch,)) $ forM notes $ \(inst, notes) -> do
-            sampleNotes <- mapM (makeSampleNote emit) (convert db patch notes)
-            return (inst, Maybe.catMaybes sampleNotes)
+            let converted = convert db patch notes
+            sampleNotes <- mapM (makeSampleNote emit) converted
+            return
+                ( inst
+                , [ (note, snote)
+                  | ((_, _, note), Just snote) <- zip converted sampleNotes
+                  ]
+                )
     where
     -- Print out progress msgs, but I could probably ignore them.
     emit _payload = return ()
-    -- emit payload = putStrLn (show payload)
 
 inRange :: (RealTime, RealTime) -> [(Note.Note, a)] -> [(Note.Note, a)]
 inRange (start, end) = filter $ \(n, _) ->
