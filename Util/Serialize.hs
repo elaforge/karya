@@ -77,9 +77,12 @@ magicLength = 4
 
 serialize :: Serialize a => Magic a -> FilePath -> a -> IO Bool
     -- ^ result of 'File.writeGz'.
-serialize magic fname state = do
+serialize = serialize_rotate 1
+
+serialize_rotate :: Serialize a => Int -> Magic a -> FilePath -> a -> IO Bool
+serialize_rotate rotations magic fname state = do
     Directory.createDirectoryIfMissing True $ FilePath.takeDirectory fname
-    File.writeGz (Just ".last") fname $ magicBytes magic <> encode state
+    File.writeGz rotations fname $ magicBytes magic <> encode state
 
 data UnserializeError = BadMagic ByteString ByteString
     | IOError IO.Error.IOError | UnserializeError String

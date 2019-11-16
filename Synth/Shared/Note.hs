@@ -125,7 +125,9 @@ withPitch = withControl Control.pitch . Signal.constant . Pitch.nn_to_double
 -- * serialize
 
 serialize :: FilePath -> [Note] -> IO Bool
-serialize = Serialize.serialize notesMagic
+serialize = Serialize.serialize_rotate 4 notesMagic
+    -- Save more rotations, sometimes I need to debug im errors by replaying
+    -- multiple changes.
 
 unserialize :: FilePath -> IO (Either Serialize.UnserializeError [Note])
 unserialize  = Serialize.unserialize notesMagic
