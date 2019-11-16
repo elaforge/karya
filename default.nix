@@ -121,8 +121,8 @@ in rec {
     name = "libsamplerate-elaforge";
     src = builtins.fetchGit {
       url = "https://github.com/elaforge/libsamplerate.git";
-      rev = "fb2e4db83202943219e520f3e85013dccf907e15";
-      ref = "local";
+      rev = "cb783007e114531911ec4f2f081a27733c84b45c";
+      ref = "save-state";
     };
 
     # Without pkgconfig, I get "error: macro PKG_INSTALLDIR is not

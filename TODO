@@ -1549,18 +1549,29 @@ vector: performance:
 
 synth: im:
   synth status:
-    . merge faust-im and sampler-im:
-  - I don't actually need to worry about block alignment for anything except
-    things with state: faust render and resample.  So I should be able to
-    remove the synchronizes on everything except the inputs to those
-    functions.
-    . If I could have them return Stream (Of (Block, State)), then the
-      sketchy IORef stuff could go away, and the alignment would be in the
-      type instead of implicit.
-    . But I actually want the freedom to have differing block sizes, as
-      convenient, and then slice them, and the State only comes at the end.
-      And besides, if I want to be zero-copy then I still have that unsafe
-      pointer problem.
+  - Make some profiles for memory use and time.
+  fix ugly and unsafe non-copying state:
+    . The problem is that state can be large.  For sampler and
+      SincMediumQuality, around 230kb, which gets up to 2mb for 10 concurrent
+      sounds.
+    . This is exacerbated by the fact that I get state for every block, while
+      I only use it for every chunk.
+    . Also the IORef shennanigans are unclear and unsafe.
+    solution:
+      . Change Audio to 'Stream (Of (Block, State))', then IORef goes away.
+        It has to be present always, so the audio functions are interoperable,
+        but should be polymorphic, since most won't affect it.
+      . But I actually need [State], and Audio.mix will have to merge them.
+      . But I actually need [(Key, State)], where I can use Key to
+        initialize a restart.
+      . This is still unsafe if I'm using mutable memory.  I could at least
+        reflect that in the type with a Ptr State or IORef State.
+      . Ideally I could have ownership, to enforce that downstream is done
+        with it before upstream uses it again.  I could do that manually by
+        making them MVars.
+      . Or I could just do the copy.  Even 10mb of memory copies really quick.
+        Once I have memory and time profiles, see if there's a significant
+        difference between unsafe and safe.
   bug:
     + A no-op change to tempo rerenders everything, e.g. insert a ' somewhere.
       . Controls in general are causing previous notes to rerender.
@@ -1996,6 +2007,29 @@ synth: im:
         out of sync.
       . What's so bad about global though?
   sampler: sampler-im:
+    - libresample is hard to use.  Alternatives?
+      requirements:
+        . required: Variable ratios, where it's interpolated per-sample.
+        . required: Save and restore state.  Smaller state is better!
+        . wanted: Smaller state.
+        . wanted: Do the SampleNn -> Nn -> Ratio calculation per-sample, so
+          I don't have to a resample in Sample.pitchToRatioSignal.
+      . https://github.com/jniemann66/ReSampler
+        No library, not clear if it supports variable sample rate.
+      . https://kokkinizita.linuxaudio.org/linuxaudio/zita-resampler/resampler.html
+        Supports variable, but only down by 0.95.  Also I don't think the
+        ratio change interpolates.
+      . http://audio-smarc.sourceforge.net/
+        fixed rate converter
+      . https://github.com/minorninth/libresample
+        Can do variable ratio, but have to interpolate myself.
+      . So actually libresample still looks pretty good, it supports multiple
+        qualities and variable ratio, with per-sample interpolation.
+        Mostly what it lacks are:
+          . save and restore state - implemented, but hacky
+          . readable source - matter of taste
+          . configure per-sample ratio calculation
+
     * assertion: no resample state, but ratios is not 1: Signal.constant .999
       . round off, it's close enough!
       . I guess the problem is that RenderSample does round, but

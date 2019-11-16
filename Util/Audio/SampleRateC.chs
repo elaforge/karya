@@ -123,16 +123,24 @@ data SavedState = SavedState !ByteString.ByteString !ByteString.ByteString
 -- | The second ByteString in SavedState is done without copying, so use it
 -- before doing anything with State!
 --
--- TODO this is only in my fork of libsamplerate:
--- https://github.com/elaforge/libsamplerate/tree/local
+-- This is only in my fork of libsamplerate, referenced in default.nix.
 getState :: State -> IO SavedState
 getState state = do
     let size1 = {#sizeof SRC_STATE_FLAT #}
     ptr <- Foreign.mallocBytes size1
     (size2, state2p) <- src_get_state state (StateFlat ptr)
+
+    -- This is safe because I allocated the memory.
     state1 <- Unsafe.unsafePackMallocCStringLen (Foreign.castPtr ptr, size1)
+    -- This is unsafe, because I'm reusing libsamplerate's memory, and
+    -- libsamplerate will definitely mutate it on the next 'process' call.
+    -- See TODO non-copying state:.
     state2 <- Unsafe.unsafePackCStringLen
         (Foreign.castPtr state2p, fromIntegral size2)
+    -- Safe version:
+    -- state2 <- ByteString.packCStringLen
+    --     (Foreign.castPtr state2p, fromIntegral size2)
+
     return $ SavedState state1 state2
 
 -- void src_get_state(SRC_STATE *state, SRC_STATE_FLAT *saved1,
