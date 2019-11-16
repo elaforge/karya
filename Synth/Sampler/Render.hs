@@ -85,7 +85,10 @@ write config outputDir trackIds notes = catch $ do
             -- See NOTE [audio-state].
             stateRef <- IORef.newIORef $
                 fromMaybe (Checkpoint.State mempty) mbState
-            let notifyState = IORef.writeIORef stateRef
+            -- The streaming should be single threaded so I shouldn't need
+            -- atomicWriteIORef, but since I'm relying on write->read ordering,
+            -- this makes me feel a bit better anyway.
+            let notifyState = IORef.atomicWriteIORef stateRef
                 getState = IORef.readIORef stateRef
             result <- Checkpoint.write (_emitProgress config) outputDir
                     trackIds (length skipped) (_chunkSize config) hashes
@@ -175,13 +178,13 @@ render config outputDir initialStates notifyState trackIds notes start =
             mapM (startSample config now Nothing) overlappingChunk
         metric <- progress prevMetric now playing starting
         (blocks, playing) <- lift $ pull blockSize now (playing ++ starting)
+        liftIO $ notifyState =<< serializeStates playing
         -- Record playing states for the start of the next chunk.
-        let playingTooLong = filter ((<=now) . snd . _noteRange) playing
+        let playingTooLong = filter ((<now) . snd . _noteRange) playing
         -- This means RenderSample.predictFileDuration was wrong.
         Audio.assert (null playingTooLong) $
             "notes still playing at " <> prettyF now <> ": "
             <> pretty playingTooLong
-        liftIO $ notifyState =<< serializeStates playing
         Audio.assert (all ((<=blockSize) . AUtil.blockFrames2) blocks) $
             "chunk was >" <> pretty blockSize <> ": "
             <> pretty (map AUtil.blockFrames2 blocks)
@@ -292,19 +295,29 @@ startSample config now mbState note = do
     let mkConfig mbState = Resample.Config
             { _quality = _quality config
             , _state = _resampleState <$> mbState
-            , _notifyState = IORef.writeIORef sampleStateRef . mkState
+            -- The streaming should be single threaded so I shouldn't need
+            -- atomicWriteIORef, but since I'm relying on write->read ordering,
+            -- this makes me feel a bit better anyway.
+            , _notifyState = IORef.atomicWriteIORef sampleStateRef . mkState
             , _blockSize = _blockSize config
             , _now = now
             , _name = FilePath.takeFileName $ Sample.filename sample
             }
+        -- This is the offset the state had when I saved it.  Since I'm
+        -- resuming at that point, add it to resample's further used samples.
+        -- Resample doesn't have a notion of its absolute position in the input
+        -- file and always starts at 0.
+        initialOffset = case mbState of
+            Just (Resample state) -> _offset state
+            _ -> 0
         mkState Nothing = Complete
         mkState (Just (used, rState)) = Resample $ ResampleState
             { _filename = Sample.filename sample
-            , _offset = used
+            , _offset = initialOffset + used
             , _resampleState = rState
             }
     case mbState of
-        Nothing -> assert (start >= now && now-start < _blockSize config) $
+        Nothing -> assert (start >= now && now - start < _blockSize config) $
             "note should have started between " <> showt now <> "--"
             <> showt (now + _blockSize config) <> " but started at "
             <> showt start
@@ -360,7 +373,15 @@ overlappingNotes start blockSize notes =
     (overlappingStart, overlappingChunk) =
         List.partition ((<start) . Sample.start) $ filter (not . passed) here
     (here, rest) = span ((<end) . Sample.start) $ dropWhile passed notes
-    passed n = Sample.end n <= start && Sample.start n < start
+    -- end < start means that overlappingStart includes notes that end exactly
+    -- at the start time, which is inconsistent with the usual half-open rule.
+    -- The reason is that I can't tell if an audio stream has completed until
+    -- I pull samples and there are none, but if I do that, I've already
+    -- advanced the resample state too far.  So I save the state anyway for
+    -- samples which are exactly used up, which in turn means I have to
+    -- consider those notes "still playing" on resume, which in turn means
+    -- that overlappingStart has to be inclusive.
+    passed n = Sample.end n < start && Sample.start n < start
     end = start + blockSize
 
 data State =
@@ -398,7 +419,9 @@ data ResampleState = ResampleState {
     } deriving (Eq, Show)
 
 instance Pretty ResampleState where
-    pretty (ResampleState fname offset _) = pretty fname <> ":" <> pretty offset
+    pretty (ResampleState fname offset state) =
+        pretty (FilePath.takeFileName fname) <> ":" <> pretty offset
+            <> "(" <> pretty state <> ")"
 
 instance Serialize.Serialize ResampleState where
     put (ResampleState a b c) =
@@ -410,11 +433,12 @@ unserializeStates :: Checkpoint.State -> Either Error [State]
 unserializeStates (Checkpoint.State bytes) = first txt $ Serialize.decode bytes
 
 -- | If there is no resampling, the state will be NoResample.  It's necessary
--- to remember that, so I can still line up notes with states in
+-- to save that explicitly, so I can still line up notes with states in
 -- 'resumeSamples'.
 serializeStates :: [Playing] -> IO Checkpoint.State
-serializeStates playing = Checkpoint.State . Serialize.encode <$>
-    mapM _getState (Seq.sort_on _noteHash playing)
+serializeStates playing =
+    Checkpoint.State . Serialize.encode <$>
+        mapM _getState (Seq.sort_on _noteHash playing)
     -- Sort the notes by hash before saving their states, since the resume will
     -- then sort again by Sample.hash to match them back up.  This is because I
     -- don't enforce invariants on the order of simultaneous notes, so they may
@@ -453,5 +477,5 @@ serializeStates playing = Checkpoint.State . Serialize.encode <$>
     fact, maybe it's safer, because it's accurately representing that if you
     split the block, you have to put the state on the first one, but not the
     second, or if you drop that part of the block, you no longer have its
-    state.  TODO think about making this change
+    state.  See TODO non-copying state:.
 -}

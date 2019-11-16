@@ -1551,6 +1551,7 @@ synth: im:
   synth status:
   - Make some profiles for memory use and time.
   fix ugly and unsafe non-copying state:
+    . NOTE [audio-state]
     . The problem is that state can be large.  For sampler and
       SincMediumQuality, around 230kb, which gets up to 2mb for 10 concurrent
       sounds.
@@ -2083,13 +2084,60 @@ synth: im:
         an extra unused pointer in a pair.  The main thing is that I wind up
         with another Audio type, or I have to generalize Audio to include an
         arbitrary payload.
-    - ensure it's ok if samples end a bit before predicted
+    * ensure it's ok if samples end a bit before predicted
       . Previously I checked if the stream was complete with AUtil.next.
         But since I'm using IORefs for the state, this is unsafe, since it
         advances the resampler state too far.
       . But now this approach can be wrong if the sample happens to end
         exactly on a chunk boundary.  Or the _noteRange is slightly wrong,
         which happens too.  I should make sure it's harmless.
+    * notes still playing
+      . notes still playing at 1455300f(33s):
+        [Playing:k3KoeULPIDEFDt9_8ulvGQ(1221231f(27.69s)--1452958f(32.94s))]
+
+        Note 27.69s + 5.25s => 32.94s
+          [orig: (27.69s, 972.3s) untitled/awak.t23 trompong]
+        { start = 1221231f, duration = 231727f
+        , sample =
+            Sample
+                { filename = "data/sampler/reyong/57-65-108-open+v2.flac"
+                , offset = 0f
+                , envelope =
+                    Signal 0s < -100000000000s:0, 27.69s:0, 27.69s:.962
+                    , 1000s:.962, 1000.08s:0
+                    >
+                , pan = Signal.constant 0
+                , ratios = Signal.constant 1.0168921424934574
+                }
+        , hash = k3KoeULPIDEFDt9_8ulvGQ
+        }
+
+      . minimal:
+        rr im/bug; for n in 2 1 0; do
+          build/opt/sampler-im im/bug-notes/sampler.$n im/bug
+        done
+        build/opt/sampler-im im/bug-notes/sampler im/bug
+
+      . The problem is that it saves with a certain offset, then loads with
+        that offset, and then resample produces too many samples.
+      . The offset is the used samples, which is however much resample chose
+        to consume.
+      . What is "too many"?  Could it be the right number?
+        . If it's the right number, then my duration guess is wrong.
+        . Otherwise, I saved state in the wrong spot, and there should be
+          a jump in the sample.
+        . Duration guess is easy though, since it's constant.  Verify anyway:
+          base dur: 227877, predictFileDuration: 231727, actual dur: 231727
+      . Restore is already wrong.  I saved 25000f and loaded 15000f, then
+        saved 10000f.
+      . Shouldn't it have incremented?  Maybe it doesn't add the restore
+        offset?
+      . sampler.2
+        restore state: Nothing
+        write serialize: (1223775f, "15000f")
+        state: "ozXprWyEwlGd4ppazi4SEA"
+      . sampler.1:
+        restore state: "57-65-108-open+v2.flac":15000f
 
     -  AUtil.volume does dbToLinear per-sample, which is inefficient.
       . Do it to the Signal, before realizeSignal.
@@ -3632,6 +3680,9 @@ cleanup:
     Note tracks can't get a GetLastSample at all.
 
 performance:
+  . Speedscope for flamegraphs from ghc-events:
+    https://mpickering.github.io/posts/2019-11-07-hs-speedscope.html
+    . Requires ghc 8.10.
   . use weak pointers to detect space leaks more precisely:
     https://github.com/ghc/ghc/commit/5fe6aaa3756cda654374ebfd883fa8f064ff64a4
   . Criterion-like with fewer deps: https://github.com/vincenthz/hs-gauge

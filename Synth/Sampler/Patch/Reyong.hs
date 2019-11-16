@@ -15,6 +15,7 @@ import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.ImInst as ImInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.C.Prelude.Note as Prelude.Note
+import qualified Derive.Call as Call
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale as Scale
@@ -71,7 +72,8 @@ makePatch name tuning range = (Patch.patch name)
     code = note
         <> Util.thru dir convert
         <> ImInst.postproc DUtil.with_symbolic_pitch
-    note = Bali.zero_dur_mute_with "" (const transform)
+    note = Bali.zero_dur_mute_with ""
+        (const $ transform . Call.multiply_dynamic 0.8)
         (\args -> transform $
             Prelude.Note.default_note Prelude.Note.use_attributes args)
         where transform = Code.withVariation

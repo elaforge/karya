@@ -4,8 +4,10 @@
 
 module Synth.Sampler.Render_test where
 import qualified Control.Monad.Trans.Resource as Resource
+import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Vector.Storable as Vector
+
 import qualified System.Directory as Directory
 import           System.FilePath ((</>))
 
@@ -46,6 +48,28 @@ test_write_simple = do
     io_equal (write [mkNote1 dir 0]) (Right (2, 2))
     io_equal (length <$> listWavs dir) 2
     io_equal (readSamples dir) triangle
+
+_test_state_deterministic = do
+    -- Ensure successive runs with the same inputs have the same state from
+    -- libsamplerate.  Disabled because I have to run it in separate processes
+    -- by hand to be sure.
+    st1 <- getStates
+    st2 <- getStates
+    prettyp $ zip st1 st2
+
+getStates :: IO [Either Render.Error [Render.State]]
+getStates = do
+    (_, dir) <- tmpDb
+    let write = writeQuality Resample.SincMediumQuality dir
+    io_equal (write [mkNote dir 0 2]) (Right (4, 4))
+    let checkpoint = dir </> Checkpoint.checkpointDir
+    fns <- List.sort . filter (".state." `List.isInfixOf`) <$>
+        Directory.listDirectory checkpoint
+    mapM (loadState . (checkpoint</>)) fns
+
+loadState :: FilePath -> IO (Either Render.Error [Render.State])
+loadState fname = Render.unserializeStates . Checkpoint.State <$>
+    ByteString.readFile fname
 
 test_write_simple_offset = do
     (write, dir) <- tmpDb
@@ -183,7 +207,7 @@ test_overlappingNotes = do
     equal (f 0 1 []) ([], [], [])
     equal (f 0 1 [(0, 0)]) ([], [(0, 0)], [])
     equal (f 0 1 [(-4, 4), (-2, 4), (0, 4), (4, 4)])
-        ([(-2, 4)], [(0, 4)], [(4, 4)])
+        ([(-4, 4), (-2, 4)], [(0, 4)], [(4, 4)])
     equal (f 4 4 [(0, 5), (1, 1), (3, 2)])
         ([(0, 5), (3, 2)], [], [])
 
@@ -203,10 +227,14 @@ rmPrefixes dir prefixes =
         =<< Directory.listDirectory dir
 
 write_ :: FilePath -> [Sample.Note] -> IO (Either Text (Int, Int))
-write_ outDir = Render.write config outDir mempty
+write_ = writeQuality Resample.ZeroOrderHold
+
+writeQuality :: Resample.Quality -> FilePath -> [Sample.Note]
+    -> IO (Either Text (Int, Int))
+writeQuality quality outDir = Render.write config outDir mempty
     where
     config = Render.Config
-        { _quality = Resample.ZeroOrderHold
+        { _quality = quality
         , _chunkSize = chunkSize
         , _blockSize = chunkSize
         , _emitProgress = False
