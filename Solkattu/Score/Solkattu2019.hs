@@ -156,8 +156,8 @@ c_19_10_28_kandam = date 2019 10 28 $ source "Patri Satish Kumar" $
     [ suffixes (takadinna.din.__.takita.din.__.taka.din.__)
         [ta.din.__4, repeat 2 (ta.din.__4), repeat 3 (ta.din.__4)]
         . sd p5 . p5
-        . kp . sd p5 . kp.p5 . __ . kp.p5
-        . kpnp . sd p5 . tri_ __ (kpnp.p5)
+        . kp.sd p5 . kp.p5 . __ . kp.p5
+        . kpnp.sd p5 . tri_ __ (kpnp.p5)
     ]
     where
     mridangam = makeMridangam
@@ -167,3 +167,26 @@ c_19_10_28_kandam = date 2019 10 28 $ source "Patri Satish Kumar" $
         , (taka, on.k)
         , (ta, k)
         ]
+
+e_19_11_11_kandam :: Korvai
+e_19_11_11_kandam =
+    date 2019 11 11 $ ganesh $ exercise $ korvaiS1 adi mridangam $
+    nadai 5 $ prefixes
+        [ ta.takadinna, __.takadinna, __.__.takita
+        , __M 3.taka, __M 4.ta, __M 5
+        ] p5
+        . tri_ __ p5 . tri_ __ (ta.p5) . tri_ __ (taka.p5)
+    where
+    p5 = group $ nang . su (kita.tari.kita).thom
+    mridangam = makeMridangam
+        [ (ta, k)
+        , (taka, k.p)
+        , (takita, k.p.k)
+        , (p5, n.k.t.p.k.p.t.o)
+        ]
+
+-- Kandam exercises:
+-- join __ (replicate 6 p5)
+-- repeat 5 (taka.__.din.na.__)
+-- repeat 5 (ta.__.ka.din.__.na.__)
+-- repeat 5 [tadin.__.tat.__.din.__, takadinna.takita, ...]

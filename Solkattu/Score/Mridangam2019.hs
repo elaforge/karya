@@ -399,7 +399,7 @@ c_19_09_23 = date 2019 9 23 $ ganesh $ trikalam $
     ]
     where
     purvangam = v.__4.k.o.od.__.on.__.on.__.od.__
-        . su ktok . o.k.o.k.k.o.od.__.on.__.on.__.od.__4
+        . su ktok . o.k.o.k.k.o.od.__.on.__.on.__.v.__4
     utarangam = tri_ (o.__) (group (v.__3.k.k.o.o.k.o.k.o.k.k.o.o.k.o.__.k.__))
 
 e_19_09_30_gumiki :: Korvai
@@ -410,3 +410,27 @@ e_19_09_30_gumiki = date 2019 9 30 $ ganesh $ exercise $ korvaiS adi
         . repeat 3 (o'.__.kt.kt) . o'.__.kt.pk.nakatiku
     , sd (on.od.on.p'&d.n.od.on.d).o'.__.kt.kt.pk.nakatiku
     ]
+
+-- Start from 70mm, aim for 90mm.
+e_19_11_11_namita_dimita :: Korvai
+e_19_11_11_namita_dimita = date 2019 11 11 $ ganesh $ exercise $
+    similarTo "Mridangam2013" "namita_dimita_seq" $ korvaiS adi
+    [ rh&lh . rh&lh . rh&o . end o
+    , rh&lh . end o . rh&o . end o
+    , o & end p . end o . o & end p . end o
+    , invert . invert
+    , tri_ (od.__.k.p.k) (o & end o . dropM 3 (end o) . dropM 3 (end o))
+    ]
+    where
+    end s = su $ n.__.kt.o.k.o.t.o.k.on.__.kt.s.k
+    invert = su $
+         o.t.o.k.on.__.kt.o.k.on.__.kt.o.k
+        .p.t.p.k.n .__.kt.p.k.n .__.kt.o.k
+    rh = n.l.d.d.l.d.d.l
+    lh = o.__3.o.__3.o.__
+
+e_19_11_11_sarva :: Korvai
+e_19_11_11_sarva = date 2019 11 11 $ ganesh $ sarvalaghu $ korvaiS1 adi $
+    repeat 2 $ o.k.o.o&t.k.on.su ktpk . p.k.o.o&t.k.on.su ktok
+
+-- revise kandom exercises from way back
