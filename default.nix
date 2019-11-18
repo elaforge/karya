@@ -3,7 +3,7 @@
 
 # Examples:
 # nix-shell --attr buildEnv --arg withIm true --arg withDocs true
-# nix-store -r $(nix-instantiate --attr libsamplerate_)
+# nix-store -r $(nix-instantiate --attr libsamplerate)
 # nix build -f default.nix --arg withIm true --arg withDocs true buildEnv
 
 { withLilypond ? false # This drags in all of texlive!
@@ -24,6 +24,8 @@ let
       });
     };
   in {
+    # For nixpkgs.mkl.
+    allowUnfree = true;
     # allowBroken = true;
     packageOverrides = pkgs: {
       haskell = pkgs.haskell // {
@@ -113,7 +115,7 @@ in rec {
     nixpkgs.pandoc
   ];
 
-  libsamplerate_ = nixpkgs.stdenv.mkDerivation {
+  libsamplerate = nixpkgs.stdenv.mkDerivation {
     # libsamplerate with my patches to save and resume. The official one is
     # nixpkgs.libsamplerate.
     # I compile without libsndfile and none of the utils, so no deps on
@@ -132,13 +134,13 @@ in rec {
   };
   # Output will be include/samplerate.h lib/libsamplerate.a
 
-  faust-elaforge = import nix/faust.nix { inherit nixpkgs; };
+  faust = import nix/faust.nix { inherit nixpkgs; };
 
-  imDeps = with nixpkgs; [
-    faust-elaforge
-    libsamplerate_
-    libsndfile
-    liblo
+  imDeps = [
+    faust.faust
+    libsamplerate
+    nixpkgs.libsndfile
+    nixpkgs.liblo
     # This is a build dep, not a library dep.
     ghc.c2hs
   ];
@@ -179,8 +181,8 @@ in rec {
         { enableEkg = ${hsBool withEkg}
         , enableIm = ${hsBool withIm}
         , libsamplerate = C.ExternalLibrary
-            { C.libLink = ["${libsamplerate_}/lib/libsamplerate.a"]
-            , C.libCompile = ["-I${libsamplerate_}/include"]
+            { C.libLink = ["${libsamplerate}/lib/libsamplerate.a"]
+            , C.libCompile = ["-I${libsamplerate}/include"]
             }
         }
   '';

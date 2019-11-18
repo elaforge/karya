@@ -1,8 +1,19 @@
-# nix-store -r $(nix-instantiate faust.nix)
+# nix-store -r $(nix-instantiate faust.nix -A faust)
+# nix build -f nix/faust.nix faust
 { nixpkgs ? import <nixpkgs> {} }:
-let llvm = nixpkgs.llvm_5;
-in nixpkgs.stdenv.mkDerivation {
-    name = "faust-elaforge";
+let
+  llvm = nixpkgs.llvm_5;
+  faustSrc = nixpkgs.fetchFromGitHub {
+      owner = "grame-cncm";
+      repo = "faust";
+      rev = "094b9c08b5708c908b3396293c3512bf925966f1";
+      sha256 = "1pci8ac6sqrm3mb3yikmmr3iy35g3nj4iihazif1amqkbdz719rc";
+      fetchSubmodules = true;
+  };
+in {
+  faust = nixpkgs.stdenv.mkDerivation {
+    name = "faust";
+    src = faustSrc;
 
     # New version of faust.
 
@@ -39,20 +50,13 @@ in nixpkgs.stdenv.mkDerivation {
     # This is a simplified copy of the nixpkgs faust derivation.  Omitting the
     # extra deps means it compiles on OS X.
 
-    src = nixpkgs.fetchFromGitHub {
-        owner = "grame-cncm";
-        repo = "faust";
-        rev = "094b9c08b5708c908b3396293c3512bf925966f1";
-        sha256 = "1pci8ac6sqrm3mb3yikmmr3iy35g3nj4iihazif1amqkbdz719rc";
-        fetchSubmodules = true;
-    };
-
     nativeBuildInputs = [ nixpkgs.pkgconfig ];
     buildInputs = [ llvm ];
 
     # Differences from the nixpkgs: -j6, target 'light' instead of 'world',
     # which is probably why I don't need so many deps.
     # Surely there's some way to get build cores en an env var?
+    # ${NIX_BUILD_CORES}
     preConfigure = ''
       makeFlags="$makeFlags -j6 prefix=$out LLVM_CONFIG='${llvm}/bin/llvm-config' light"
       unset system
@@ -65,4 +69,35 @@ in nixpkgs.stdenv.mkDerivation {
       substituteInPlace compiler/Makefile.unix \
         --replace "5.0.0 5.0.1" "5.0.0 5.0.1 5.0.2"
     '';
+  };
+
+  mesh2faust = nixpkgs.stdenv.mkDerivation {
+    name = "mesh2faust";
+    src = faustSrc;
+    # TODO I can use stdenv.isDarwin for linux/darwin choices.
+    preBuild = ''
+      cd tools/physicalModeling/mesh2faust
+      header=vega/Makefile-headers/Makefile-header
+      rm -f $header
+      cp ${./vega-makefile-header.osx} $header
+    '';
+    # Disable 'make install', since it copies to /usr/local/bin.
+    dontInstall = true;
+    postBuild = ''
+      mkdir -p $out/bin
+      cp src/mesh2faust $out/bin
+    '';
+    arpack = nixpkgs.arpack;
+    mkl = nixpkgs.mkl;
+    buildInputs = with nixpkgs; [
+      zlib
+    ] ++ (with nixpkgs.darwin.apple_sdk.frameworks; [
+      Accelerate
+      CoreGraphics
+      CoreVideo
+      Foundation
+      GLUT
+      OpenGL
+    ]);
+  };
 }
