@@ -190,15 +190,18 @@ UNSORTED
         . upgrade clang fixed it
       ? The official build scripts want to compile with gcc.  Try without, to
         see what exactly is gcc-specific in there.
+      . It's not.  I should do the compile with nix though.
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
       a playable instrument.
     . Actually, it is, it's the version without the scale, so it would work
       for any tuning.
-  - Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
+  / Monad m => Ui.StateT m a instead of Ui.M m => m a is more flexible, since
     I can put another monad on top.
-    . I think I only switched to Ui.M because it was awkward pre-AMP.
+    . I think I only switched to Ui.M because it was awkward pre-AMP, due to
+      needing to add (Functor m, Monad m).
     . Rename to make it shorter: Monad m => Ui.T m a
+    . Well no I don't think I can do this, because Ui.M has methods.
   - integrated events are italic, but they look very similar
     . Use text color?
   - track integration should possibly be indexed by TrackId, so I don't have
@@ -677,8 +680,6 @@ UNSORTED
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
-  / network midi doesn't seem to handle abort?
-    playing the second time doesn't happen
   - I have a feeling like FM8 doesn't obey ResetAllControls
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
@@ -1546,6 +1547,81 @@ vector: performance:
     Except of course when compiling without optimization.
   . A Storable that throws an exception would be an interesting way to assert
     that fusion happens.  Surely there are more sophisticated ways though.
+
+im instruments:
+  mesh2faust:
+    . try it for reyong, gangsa
+    build mesh2faust
+      . /nix/store/3mz7af1vnpr0z3r8ssfiqvlchjll60s3-mesh2faust/bin/mesh2faust \
+        --infile marimbaBar.obj --nsynthmodes 50 --nfemmodes 200 \
+        --maxmode 15000 --expos 2831 3208 3624 3975 4403 --debug \
+        --freqcontrol --material 1.3E9 0.33 720 \
+        --name marimbaBarModel
+
+      . Seems to link but then segfaults after:
+        Starting the eigen solver
+        200 modes will be computed for the FEM analysis
+      . Try with non-nix build.
+        Still segfaults.
+      . Then do the usual segfault debugging.
+      . It's in libarpack, I could try compiling my own for that too.
+      . And now it's crashing with SIGSTOP, but it's still -11, which is
+        SIGSEGV.
+        * frame #0: 0x0000000113580d52 libopenblasp-r0.3.5.dylib`dlarnv_ + 338
+          frame #1: 0x0000000106681722 libarpack.2.dylib`dgetv0_ + 1650
+          frame #2: 0x000000010667c4a2 libarpack.2.dylib`dsaitr_ + 3602
+          frame #3: 0x000000010667dde6 libarpack.2.dylib`dsaup2_ + 1622
+          frame #4: 0x000000010667eaf6 libarpack.2.dylib`dsaupd_ + 358
+          frame #5: 0x00000001065baada mesh2faust`ARPACKSolver::SolveGenEigShInv(SparseMatrix*, SparseMatrix*, int, double*, double*, double, int, int) + 1146
+      . Or find the docs for that function and look for obvious mistakes.
+      . Last flag is verbose, set to 1:
+        Linear solver: PARDISO (1 threads).
+        Converting matrix to Pardiso format...
+        Reordering and symbolically factorizing the matrix...
+        Factoring the 13548 x 13548 matrix (1 threads)...
+        Factorization completed.
+        Dimension of the system            : 13548
+        Number of 'requested' eigenvalues  : 200
+        Entering the ARPACK eigenvalue routine...
+        <SEGFAULT>
+      . That's the call to dsaupd_()
+
+      also segfaults on linux:
+        Intel MKL ERROR: Parameter 3 was incorrect on entry to DGEMV .
+        #0  0x00007f261d541dd8 in dgetv0_ ()
+         from /nix/store/0n2bwlvsyilsnf4k7nssvh2jmjpmzr9b-arpack-3.7.0/lib/libarpack.so.2
+
+
+    . won't compile on newer mac:
+      error:
+        In file included from vega/libraries/matrix/matrixProjection.cpp:31:
+        In file included from vega/libraries/include/lapack-headers.h:7:
+        In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Headers/Accelerate.h:24:
+        In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/Headers/vImage.h:291:
+        In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/Headers/vImage_CVUtilities.h:63:
+        In file included from /nix/store/jwjfnk9vrvsqxnwrc1g6932fxhf03wc2-apple-framework-CoreVideo/Library/Frameworks/CoreVideo.framework/Headers/CVPixelBuffer.h:23:
+        In file included from /nix/store/jwjfnk9vrvsqxnwrc1g6932fxhf03wc2-apple-framework-CoreVideo/Library/Frameworks/CoreVideo.framework/Headers/CVImageBuffer.h:27:
+        In file included from /nix/store/llbk4v2v1qqj462qlkb4nf3lvm5lyxdd-apple-framework-ApplicationServices/Library/Frameworks/ApplicationServices.framework/Headers/ApplicationServices.h:23:
+        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Headers/CoreServices.h:39:
+        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Headers/LaunchServices.h:22:
+        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Headers/IconsCore.h:23:
+        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/OSServices.framework/Headers/OSServices.h:27:
+        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/OSServices.framework/Headers/CSIdentity.h:43:
+        In file included from /nix/store/8c262vkjk333nvlwbxj3d6j7r0hj49kw-apple-framework-Security/Library/Frameworks/Security.framework/Headers/Security.h:28:
+        /nix/store/8c262vkjk333nvlwbxj3d6j7r0hj49kw-apple-framework-Security/Library/Frameworks/Security.framework/Headers/SecCertificate.h:135:54: error: unknown type name 'SecCertificateRef'; did you mean 'SecCertificate'?
+        CFDataRef SecCertificateCopyNormalizedIssuerSequence(SecCertificateRef certificate)
+                                                             ^~~~~~~~~~~~~~~~~
+                                                             SecCertificate
+      . How does the header differ from the official Accelerate header?
+      . But it works to include on its omn.  But that's the official one.
+      . Accelerate.h is the same.  vImage.h is different.
+        Except nix is older:
+        < Copyright:  Copyright (c) 2000-2017 by Apple Inc. All rights reserved.
+        > Copyright:  Copyright (c) 2000-2018 by Apple Inc. All rights reserved.
+      . nix has links to /System/Libraries, why aren't the headers links?
+      . This is clearly on purpose, see if I have old nixpkgs, or if there's
+        reference to Accelerate not working on darwin.
+      . Could I pass -F/System/Library/Frameworks to link impurely?
 
 synth: im:
   synth status:
@@ -2445,6 +2521,7 @@ synth: im:
             loading when looking up the symbol.  And still much of the weight
             is probably Typecheck, Sig, etc.  Derive/C is 87/246.
         * Add a metronome.
+        - p is now too soft!  Where did I adjust that?
     - record mridangam sequences like kita and dikutarikitataka and use
       rubberband to fit them into shape
       . Compare with rendering via samples and see what's different.

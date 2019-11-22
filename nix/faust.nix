@@ -2,6 +2,7 @@
 # nix build -f nix/faust.nix faust
 { nixpkgs ? import <nixpkgs> {} }:
 let
+  stdenv = nixpkgs.stdenv;
   llvm = nixpkgs.llvm_5;
 
   faustSrc = builtins.fetchGit {
@@ -16,7 +17,9 @@ let
     ref = "master";
   };
 in {
-  faust = nixpkgs.stdenv.mkDerivation {
+  # nix-instantiate nix/faust.nix -A faustLib --eval
+  faustLib = faustLib.outPath;
+  faust = stdenv.mkDerivation {
     name = "faust";
     src = faustSrc;
 
@@ -35,15 +38,15 @@ in {
     '';
   };
 
-  mesh2faust = nixpkgs.stdenv.mkDerivation {
+  mesh2faust = stdenv.mkDerivation {
     name = "mesh2faust";
     src = faustSrc;
-    # TODO I can use stdenv.isDarwin for linux/darwin choices.
     preBuild = ''
       cd tools/physicalModeling/mesh2faust
       header=vega/Makefile-headers/Makefile-header
       rm -f $header
-      cp ${./vega-makefile-header.osx} $header
+      cp ${if stdenv.isDarwin then ./vega-makefile-header.osx
+        else ./vega-makefile-header.linux} $header
     '';
     # 'make install' copies to /usr/local/bin.
     installPhase = ''
@@ -54,13 +57,17 @@ in {
     mkl = nixpkgs.mkl;
     buildInputs = with nixpkgs; [
       zlib
-    ] ++ (with nixpkgs.darwin.apple_sdk.frameworks; [
+    ] ++ (if stdenv.isDarwin then with nixpkgs.darwin.apple_sdk.frameworks; [
       Accelerate
       CoreGraphics
       CoreVideo
       Foundation
       GLUT
       OpenGL
+    ] else with nixpkgs; [
+      freeglut
+      libGLU
+      mesa
     ]);
   };
 }
