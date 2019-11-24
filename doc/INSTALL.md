@@ -119,8 +119,12 @@ stack-flavored ghc and packages.
 
 ### nix way
 
-If you like nix, write me a nix expression.  You could probably get this whole
-mess down to one command.
+`default.nix` describes the dependencies.  It's not totally plumbed into the
+shake config yet though.  See nix: in TODO for what remains to be done.
+
+Eventually this way should replace the other ways for at least the non-haskell
+deps, because it's more convenient to install patched libraries, and more
+reliable when it comes to exact versions.
 
 ## 音, Im, Synth
 
