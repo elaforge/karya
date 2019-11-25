@@ -38,18 +38,17 @@ import           Global
 
 
 -- | Check if rate and channels match the file.
-check :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Proxy rate -> Proxy channels -> FilePath -> IO (Maybe String)
-check rate channels fname =
-    maybe (Just $ "file not found: " <> fname) (checkInfo rate channels) <$>
+check :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Proxy rate -> Proxy chan -> FilePath -> IO (Maybe String)
+check rate chan fname =
+    maybe (Just $ "file not found: " <> fname) (checkInfo rate chan) <$>
         getInfo fname
 
 -- | Like 'check', but take 'Audio.Audio' instead of Proxy.
-checkA :: forall m rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Proxy (Audio.Audio m rate channels) -> FilePath -> IO (Maybe String)
-checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy channels)
+checkA :: forall m rate chan.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat chan) =>
+    Proxy (Audio.Audio m rate chan) -> FilePath -> IO (Maybe String)
+checkA _ = check (Proxy :: Proxy rate) (Proxy :: Proxy chan)
 
 getInfo :: FilePath -> IO (Maybe Sndfile.Info)
 getInfo fname =
@@ -64,17 +63,16 @@ duration = fmap (fmap (Audio.Frames . Sndfile.frames)) . getInfo
 --
 -- As a special case, if the file channels is 1, it will be expanded to
 -- fit whatever channel count was requested.
-read :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    FilePath -> Audio.AudioIO rate channels
+read :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => FilePath -> Audio.AudioIO rate chan
 read = readFrom 0
 
 -- | Like 'readFrom', but return an action that closes the handle.  This is
 -- for Audio.takeClose, so it can close the file early if it terminates the
 -- stream early.
-readFromClose :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Audio.Frames -> FilePath -> IO (IO (), Audio.AudioIO rate channels)
+readFromClose :: forall rate chan.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat chan) =>
+    Audio.Frames -> FilePath -> IO (IO (), Audio.AudioIO rate chan)
 readFromClose frame fname = do
     handle <- openReadThrow fname
     return $ (Sndfile.hClose handle,) $ Audio.Audio $ do
@@ -82,19 +80,18 @@ readFromClose frame fname = do
         S.map Audio.Block $ readHandle rate chan frame fname handle
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
-    channels = Proxy :: Proxy channels
-    chan = Audio.natVal channels
+    chanP = Proxy :: Proxy chan
+    chan = Audio.natVal chanP
 
-readFrom :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels) =>
-    Audio.Frames -> FilePath -> Audio.AudioIO rate channels
+readFrom :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Audio.Frames -> FilePath -> Audio.AudioIO rate chan
 readFrom frame fname = Audio.Audio $ do
     (_, handle) <- lift $ Resource.allocate (openReadThrow fname) Sndfile.hClose
     S.map Audio.Block $ readHandle rate chan frame fname handle
     where
     rate = Audio.natVal (Proxy :: Proxy rate)
-    channels = Proxy :: Proxy channels
-    chan = Audio.natVal channels
+    chanP = Proxy :: Proxy chan
+    chan = Audio.natVal chanP
 
 readHandle :: MonadIO m => Audio.Rate -> Audio.Channels -> Audio.Frames
     -> FilePath -> Sndfile.Handle
@@ -160,27 +157,25 @@ readCheckpoints chunkSize = Audio.Audio . go
 
 -- ** util
 
-checkInfo :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
-    => Proxy rate -> Proxy channels -> Sndfile.Info -> Maybe String
-checkInfo rate_ channels_ info
-    | Sndfile.samplerate info == rate && Sndfile.channels info == channels =
-        Nothing
-    | otherwise = Just $ formatError rate channels info
+checkInfo :: forall rate chan.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Proxy rate -> Proxy chan -> Sndfile.Info -> Maybe String
+checkInfo rate_ chan_ info
+    | Sndfile.samplerate info == rate && Sndfile.channels info == chan = Nothing
+    | otherwise = Just $ formatError rate chan info
     where
     rate = Audio.natVal rate_
-    channels = Audio.natVal channels_
+    chan = Audio.natVal chan_
 
 formatError :: Audio.Rate -> Audio.Channels -> Sndfile.Info -> String
-formatError rate channels info =
-    "requested (rate, channels) " <> show (rate, channels)
+formatError rate chan info =
+    "requested (rate, channels) " <> show (rate, chan)
     <> " but file had " <> show (Sndfile.samplerate info, Sndfile.channels info)
 
 -- * write
 
-write :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
-    => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
+write :: forall rate chan.  (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Sndfile.Format -> FilePath -> Audio.AudioIO rate chan
     -> Resource.ResourceT IO ()
 write format fname audio = do
     (key, hdl) <- Resource.allocate (openWrite format tmp audio) Sndfile.hClose
@@ -267,15 +262,15 @@ openRead :: FilePath -> IO (Maybe Sndfile.Handle)
 openRead fname = Sndfile.ignoreEnoent $
     Sndfile.openFile fname Sndfile.ReadMode Sndfile.defaultInfo
 
-openWrite :: forall rate channels.
-    (TypeLits.KnownNat rate, TypeLits.KnownNat channels)
-    => Sndfile.Format -> FilePath -> Audio.AudioIO rate channels
+openWrite :: forall rate chan.
+    (TypeLits.KnownNat rate, TypeLits.KnownNat chan)
+    => Sndfile.Format -> FilePath -> Audio.AudioIO rate chan
     -> IO Sndfile.Handle
 openWrite format fname _audio = Sndfile.openFile fname Sndfile.WriteMode info
     where
     info = Sndfile.defaultInfo
         { Sndfile.samplerate = Audio.natVal (Proxy :: Proxy rate)
-        , Sndfile.channels = Audio.natVal (Proxy :: Proxy channels)
+        , Sndfile.channels = Audio.natVal (Proxy :: Proxy chan)
         , Sndfile.format = format
         }
 

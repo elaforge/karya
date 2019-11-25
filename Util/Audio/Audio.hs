@@ -97,12 +97,12 @@ import Global
     'blockSize', and align to multiples of blockSize, to minimize re-chunking
     when synchronizing streams.
 -}
-newtype Audio m (rate :: TypeLits.Nat) (channels :: TypeLits.Nat) =
+newtype Audio m (rate :: TypeLits.Nat) (chan :: TypeLits.Nat) =
     Audio { _stream :: S.Stream (S.Of Block) m () }
     deriving (Semigroup, Monoid)
 
-type AudioIO rate channels = Audio (Resource.ResourceT IO) rate channels
-type AudioId rate channels = Audio Identity.Identity rate channels
+type AudioIO rate chan = Audio (Resource.ResourceT IO) rate chan
+type AudioId rate chan = Audio Identity.Identity rate chan
 
 {- | Non-interleaved audio stream.  Ok so it's still interleaved, just per
     block instead of per sample.
@@ -166,26 +166,26 @@ secondsToFramesCeil rate seconds =
 framesToSeconds :: Rate -> Frames -> Seconds
 framesToSeconds rate (Frames frames) = fromIntegral frames / fromIntegral rate
 
-framesCount :: KnownNat channels => Proxy channels -> Frames -> Count
-framesCount channels (Frames frames) = frames * natVal channels
+framesCount :: KnownNat chan => Proxy chan -> Frames -> Count
+framesCount chan (Frames frames) = frames * natVal chan
 
 framesCount_ :: Channels -> Frames -> Count
-framesCount_ channels (Frames frames) = frames * channels
+framesCount_ chan (Frames frames) = frames * chan
 
-countFrames :: KnownNat channels => Proxy channels -> Count -> Frames
-countFrames channels = countFrames_ (natVal channels)
+countFrames :: KnownNat chan => Proxy chan -> Count -> Frames
+countFrames chan = countFrames_ (natVal chan)
 
 countFrames_ :: Channels -> Count -> Frames
-countFrames_ channels count = Frames $ count `div` channels
+countFrames_ chan count = Frames $ count `div` chan
 
-blockFrames :: KnownNat channels => Proxy channels -> Block -> Frames
-blockFrames channels = countFrames channels . blockCount
+blockFrames :: KnownNat chan => Proxy chan -> Block -> Frames
+blockFrames chan = countFrames chan . blockCount
 
 blockFrames_ :: Channels -> Block -> Frames
-blockFrames_ channels = countFrames_ channels . blockCount
+blockFrames_ chan = countFrames_ chan . blockCount
 
-vectorFrames :: KnownNat channels => Proxy channels -> V.Vector Sample -> Frames
-vectorFrames channels = countFrames channels . V.length
+vectorFrames :: KnownNat chan => Proxy chan -> V.Vector Sample -> Frames
+vectorFrames chan = countFrames chan . V.length
 
 blockCount :: Block -> Count
 blockCount (Block v) = V.length v
@@ -250,10 +250,10 @@ fromSampleLists :: forall m rate chan. (Monad m, KnownNat chan)
     => [[Sample]] -> Audio m rate chan
 fromSampleLists = fromSamples . map V.fromList
 
-toBlocks :: Monad m => Audio m rate channels -> m [Block]
+toBlocks :: Monad m => Audio m rate chan -> m [Block]
 toBlocks = S.toList_ . _stream
 
-toSamples :: Monad m => Audio m rate channels -> m [V.Vector Sample]
+toSamples :: Monad m => Audio m rate chan -> m [V.Vector Sample]
 toSamples = fmap (concatMap blockSamples) . toBlocks
 
 toBlocksN :: Monad m => NAudio m rate -> m [[Block]]
@@ -314,7 +314,7 @@ mapSamples f (Audio audio) = Audio (S.map block audio)
     block (Constant count val) = Constant count (f val)
 
 -- | Set linear gain.  Use 'dbToLinear' to scale by dB.
-gain :: Monad m => Float -> Audio m rate channels -> Audio m rate channels
+gain :: Monad m => Float -> Audio m rate chan -> Audio m rate chan
 gain n audio
     | n == 1 = audio
     | otherwise = mapSamples (*n) audio

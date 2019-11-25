@@ -32,8 +32,8 @@ import qualified Util.CallStack as CallStack
 type Channels = Int
 
 new :: Quality -> Channels -> IO State
-new quality channels = Foreign.alloca $ \errp -> do
-    State state <- src_new quality channels errp
+new quality chan = Foreign.alloca $ \errp -> do
+    State state <- src_new quality chan errp
     when (state == Foreign.nullPtr) $
         throw "new" =<< Foreign.peek errp
     return $ State state
