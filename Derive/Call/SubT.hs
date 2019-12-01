@@ -4,6 +4,7 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 module Derive.Call.SubT where
+import qualified Util.Pretty as Pretty
 import qualified Derive.Deriver.Monad as Derive
 import qualified Ui.Id as Id
 
@@ -17,6 +18,12 @@ data Track = Track {
     _source :: !(Either Text TrackId)
     , _events :: ![Event]
     }
+
+instance Pretty Track where
+    format (Track source events) = Pretty.record "Track"
+        [ ("source", Pretty.format source)
+        , ("events", Pretty.format (const () <$> events))
+        ]
 
 show_track :: Track -> Text
 show_track (Track source _) = "subtrack:" <> either id Id.ident_text source

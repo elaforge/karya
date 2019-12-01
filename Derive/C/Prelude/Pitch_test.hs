@@ -36,6 +36,10 @@ test_set = do
     equal (run [(0, "4c"), (2, "set (4c) | i (4d)")])
         [(0, NN.c4), (2, NN.d4), (2, NN.c4)]
 
+test_set_or_move = do
+    equal (run [(0, "set-or-move (4c) 2"), (2, "set-or-move (4d) 2")])
+        [(0, NN.c4), (2, NN.c4), (4, NN.d4)]
+
 test_multiply = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""
             . UiTest.note_track

@@ -32,6 +32,7 @@ import qualified Derive.ScoreT as ScoreT
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
+import qualified Derive.Symbols as Symbols
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.Warp as Warp
@@ -383,9 +384,9 @@ insert_env key val state = state
 -- actually a useful feature?  In any case, I don't need it at the moment, so
 -- it seems more likely to be confusing than useful.
 with_scale :: Scale -> Deriver d -> Deriver d
-with_scale scale =
-    with_val_raw EnvKey.scale (Expr.scale_id_to_str (scale_id scale))
-        . with_scopes (val . pitch)
+with_scale scale deriver =
+    with_val_raw EnvKey.scale (Expr.scale_id_to_str (scale_id scale)) $
+        with_scopes (val . pitch) deriver
     where
     pitch = s_generator#s_pitch %= replace (scale_to_call scale val_to_pitch)
     val = s_val %= replace (scale_to_call scale id)
@@ -409,19 +410,29 @@ val_to_pitch :: ValCall -> Generator Pitch
 val_to_pitch (ValCall name doc vcall) = Call
     { call_name = name
     , call_doc = doc
-    , call_func = generator_func $ pitch_call . convert_args
+    , call_func = generator_func pitch_call
     }
     where
     convert_args args = args { passed_ctx = tag_context (passed_ctx args) }
-    pitch_call args = vcall args >>= \val -> case val of
-        DeriveT.VPitch pitch -> do
-            -- Previously I dispatched to '', which is normally
-            -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
-            -- you can then override '', but is also less efficient.
-            pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
-            return $ Stream.from_event $ PSignal.from_sample pos pitch
+    pitch_call args = vcall (convert_args args) >>= \val -> case val of
+        DeriveT.VPitch pitch -> lookup_call Symbols.default_pitch >>= \case
+            Nothing -> default_pitch_call args pitch
+            Just pcall -> gfunc_f (call_func pcall) $ PassedArgs
+                { passed_vals = [DeriveT.VPitch pitch]
+                , passed_call_name = call_name pcall
+                , passed_ctx = passed_ctx args
+                }
         _ -> throw $ "scale call " <> pretty name
             <> " returned non-pitch: " <> ShowVal.show_val val
+
+-- | This is the default pitch call for bare scale degrees if
+-- 'Symbols.default_pitch' isn't set.
+default_pitch_call :: PassedArgs val -> PSignal.Pitch
+    -> Deriver (Stream.Stream PSignal.PSignal)
+default_pitch_call args pitch = do
+    -- This is Args.real, but I can't import it here.
+    pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
+    return $ Stream.from_event $ PSignal.from_sample pos pitch
 
 -- | Run the a deriver with the given instrument in scope.  In addition to
 -- assigning the instrument to the 'EnvKey.instrument' field where note calls

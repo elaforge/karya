@@ -10,6 +10,8 @@ module Derive.C.Prelude.Pitch (
     library
     , approach
 ) where
+import qualified Data.Maybe as Maybe
+
 import qualified Util.Doc as Doc
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -32,6 +34,8 @@ import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Ui.Events as Events
+import qualified Ui.Types as Types
 
 import           Global
 import           Types
@@ -41,6 +45,7 @@ library :: Library.Library
 library = mconcat
     [ Library.generators $
         [ ("set", c_set)
+        , ("set-or-move", c_set_or_move)
         , ("'", c_set_prev)
         , ("*", c_multiply)
 
@@ -65,6 +70,29 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
         let pitch = either PSignal.nn_pitch id pitch_
         pos <- Args.real_start args
         return $ PSignal.from_sample pos pitch
+
+c_set_or_move :: Derive.Generator Derive.Pitch
+c_set_or_move = generator1 "set-or-move" mempty
+    "Emit a pitch with no interpolation if it coincides with a note attack,\
+    \ and interpolate otherwise." $
+    Sig.call ((,)
+        <$> required "pitch" "Set this pitch."
+        <*> defaulted "time" (Typecheck.real 0.15) "Time to move to the pitch."
+    ) $ \(pitch_, Typecheck.DefaultReal time) args -> do
+        let pitch = either PSignal.nn_pitch id pitch_
+        (event_at (Args.start args) <$> Args.get_note_events) >>= \case
+            False -> do
+                (start, end) <- Call.duration_from_start args time
+                let maybe_from = snd <$> Args.prev_pitch args
+                PitchUtil.make_segment_from ControlUtil.Linear start maybe_from
+                    end (Left pitch)
+            True -> do
+                pos <- Args.real_start args
+                return $ PSignal.from_sample pos pitch
+
+event_at :: TrackTime -> Events.Events -> Bool
+event_at pos events = Maybe.isJust (Events.at pos Types.Positive events)
+    || Maybe.isJust (Events.at pos Types.Negative events)
 
 c_set_transformer :: Derive.Transformer Derive.Pitch
 c_set_transformer = Derive.transformer Module.prelude "set" mempty

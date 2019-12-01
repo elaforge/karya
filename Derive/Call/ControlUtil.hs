@@ -201,6 +201,7 @@ place_range (Typecheck.Normalized place) start dur = do
     let offset = dur * RealTime.seconds (1 - place)
     return (start - offset, start + dur - offset)
 
+-- | Make a curve segment from the previous value, if there was one.
 make_segment_from :: Curve -> RealTime -> Maybe Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 make_segment_from curve start maybe_from end to = case maybe_from of

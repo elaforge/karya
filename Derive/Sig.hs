@@ -98,7 +98,9 @@ module Derive.Sig (
     , call, call_sub, call0, callt, call0t
 ) where
 import qualified Data.Text as Text
+
 import qualified Util.Doc as Doc
+import qualified Util.Pretty as Pretty
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.SubT as SubT
 import qualified Derive.Derive as Derive
@@ -143,6 +145,10 @@ data State = State {
     }
 
 data Arg = LiteralArg !DeriveT.Val | SubTrack !SubT.Track
+
+instance Pretty Arg where
+    format (LiteralArg val) = Pretty.format val
+    format (SubTrack track) = Pretty.format track
 
 show_arg :: Arg -> Text
 show_arg (LiteralArg val) = ShowVal.show_val val

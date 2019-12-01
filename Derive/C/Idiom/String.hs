@@ -127,7 +127,7 @@ make_config :: Typecheck.TypedFunction -> Typecheck.TypedFunction
     -> Typecheck.TypedFunction -> [StringUtil.String] -> Derive.Deriver Config
 make_config attack_dur release_delay release_dur open_strings = do
     srate <- Call.get_srate
-    let linear = PitchUtil.interpolate_segment srate ControlUtil.Linear
+    let linear = PitchUtil.segment srate ControlUtil.Linear
     return $ Config
         { _open_strings =
             Map.fromList $ Seq.key_on StringUtil.str_nn open_strings

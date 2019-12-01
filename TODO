@@ -29,6 +29,17 @@ STATUS
   - Find out why MemoryLeak latency: went up.
 
 UNSORTED
+  * Can I have a default movement for pitch set?
+    . I could add a parameter, but I want it to only apply when it doesn't
+      start a note.
+    . Those calls come from Derive.Call.ScaleDegree.scale_degree
+    . But that's a ValCall.
+    . Deriver.Lib.with_scale, to make a PatternCall.
+    . But also there's a set pitch namespace directly, so they're separate.
+    . Then it's val_to_pitch, which directly does a set.
+    . It could look up the call on the spot
+    . How can I tell if it's an attack?  I can look for event in args.
+      The prev note event is actually the previous note, it's not this one.
   * The KbdEntry behaviour where it puts in .79 for control tracks is really
     useless.  Change that to do nothing, or to put a note in the owning note
     track.
@@ -166,31 +177,6 @@ UNSORTED
       . I'll need at least mono, double, and double-hold, and to set the
         strings.  It should be possible to infer from the score, but try it
         manually first and see how it goes.
-  - support zynsubaddfx
-    . The old binaries don't have VST.  The new ones do, but the UI seems
-      buggy, most UI elements don't respond to the mouse.
-    + First have to compile zynsubaddfx
-      . It doesn't like fltk 1.4: have to add include <FL/platform.H>
-      . It requires libmxml 2.12, not 3
-      . It requires fftw3, brew wants gcc, so compile myself.
-      . For some reason, I get HAS_X11, which is wrong.  This apparently is
-        from fluid, and uses Pixmap, which is presumably X11-only.
-        Who is setting that?
-        . It's because some macs have /usr/X11.  Don't know how to get cmake
-          to not latch on to that.
-      . clang segfaults:
-        . whut?  How to get cmake to show me what it's running?
-        . make VERBOSE=1, or cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .
-        . on the lambda at src/Params/PADnoteParameters.cpp:904:
-            auto thread_cb = [basefreq, bwadjust, &cb, do_abort,
-                      samplesize, samplemax, spectrumsize,
-                      &adj, &profile, this_c](
-                      unsigned nthreads, unsigned threadno)
-            { ... }
-        . upgrade clang fixed it
-      ? The official build scripts want to compile with gcc.  Try without, to
-        see what exactly is gcc-specific in there.
-      . It's not.  I should do the compile with nix though.
   - What to do with dummy-only instruments like kontakt/wayang-pemade?
     . They're confusing because kontakt/wayang-pemade is not actually
       a playable instrument.
@@ -346,7 +332,7 @@ UNSORTED
     . Probably not hard with generics-sop, but what about stories of
       GHC.Generics hurting compile and runtime?
     . How about monoid is_empty that doesn't use Eq?
-  - Switching to Symbols.default_note means any event created via Call.note
+  / Switching to Symbols.default_note means any event created via Call.note
     winds up with event_text="NOTE", which is not as informative as the
     original text.
     . Was in always "" before?  If so it's not really a regression.
@@ -1548,16 +1534,39 @@ vector: performance:
   . A Storable that throws an exception would be an interesting way to assert
     that fusion happens.  Surely there are more sophisticated ways though.
 
-im instruments:
+instruments:
+  ? Follow references in tambura dafx paper.
+    Wasn't there something about pluck modelling?
   mesh2faust:
     . try it for reyong, gangsa
+    . The bells sound ok, but the marimba model is terrible.  Turning up t60,
+      the spectrum sounds nothing like the right pitch.
+    . Strike position changes the already-ringing instrument.  I guess I'll
+      need a separate model for each position.  It's maybe ok since the model
+      is linear.
+    make models:
+      . There are 3D scanning services, google "3d scanning services bay area"
+      . Prices maybe $150 and up.
+      . But maybe stanford has this ability?  Ask JOS if CCRMA has done this
+        for instruments before.
+      . But I should be able to measure with calipers, then hand-draw
+        a profile.
+    - Try with reyong profile.
+    ? How can I get spectrogram of a real recording, to compare against
+      computed modes?
+      . Lots of software can do spectrograms, what's a good one?
+    . Then ask Romain:
+      . Any plans to add decay times?  Each mode should have a different decay
+        time, so isn't setting one for them all really inaccurate?
+      . How about how the strike position affects the ringing sound, is that
+        fundamentally part of it?
+      . Any examples of use other than the bells?
     build mesh2faust
       . /nix/store/3mz7af1vnpr0z3r8ssfiqvlchjll60s3-mesh2faust/bin/mesh2faust \
         --infile marimbaBar.obj --nsynthmodes 50 --nfemmodes 200 \
         --maxmode 15000 --expos 2831 3208 3624 3975 4403 --debug \
         --freqcontrol --material 1.3E9 0.33 720 \
         --name marimbaBarModel
-
       . Seems to link but then segfaults after:
         Starting the eigen solver
         200 modes will be computed for the FEM analysis
@@ -1585,46 +1594,71 @@ im instruments:
         Entering the ARPACK eigenvalue routine...
         <SEGFAULT>
       . That's the call to dsaupd_()
-
+      won't compile on newer mac:
+        error:
+          In file included from vega/libraries/matrix/matrixProjection.cpp:31:
+          In file included from vega/libraries/include/lapack-headers.h:7:
+          In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Headers/Accelerate.h:24:
+          In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/Headers/vImage.h:291:
+          In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/Headers/vImage_CVUtilities.h:63:
+          In file included from /nix/store/jwjfnk9vrvsqxnwrc1g6932fxhf03wc2-apple-framework-CoreVideo/Library/Frameworks/CoreVideo.framework/Headers/CVPixelBuffer.h:23:
+          In file included from /nix/store/jwjfnk9vrvsqxnwrc1g6932fxhf03wc2-apple-framework-CoreVideo/Library/Frameworks/CoreVideo.framework/Headers/CVImageBuffer.h:27:
+          In file included from /nix/store/llbk4v2v1qqj462qlkb4nf3lvm5lyxdd-apple-framework-ApplicationServices/Library/Frameworks/ApplicationServices.framework/Headers/ApplicationServices.h:23:
+          In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Headers/CoreServices.h:39:
+          In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Headers/LaunchServices.h:22:
+          In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Headers/IconsCore.h:23:
+          In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/OSServices.framework/Headers/OSServices.h:27:
+          In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/OSServices.framework/Headers/CSIdentity.h:43:
+          In file included from /nix/store/8c262vkjk333nvlwbxj3d6j7r0hj49kw-apple-framework-Security/Library/Frameworks/Security.framework/Headers/Security.h:28:
+          /nix/store/8c262vkjk333nvlwbxj3d6j7r0hj49kw-apple-framework-Security/Library/Frameworks/Security.framework/Headers/SecCertificate.h:135:54: error: unknown type name 'SecCertificateRef'; did you mean 'SecCertificate'?
+          CFDataRef SecCertificateCopyNormalizedIssuerSequence(SecCertificateRef certificate)
+                                                               ^~~~~~~~~~~~~~~~~
+                                                               SecCertificate
+        . How does the header differ from the official Accelerate header?
+        . But it works to include on its omn.  But that's the official one.
+        . Accelerate.h is the same.  vImage.h is different.
+          Except nix is older:
+          < Copyright:  Copyright (c) 2000-2017 by Apple Inc. All rights reserved.
+          > Copyright:  Copyright (c) 2000-2018 by Apple Inc. All rights reserved.
+        . nix has links to /System/Libraries, why aren't the headers links?
+        . This is clearly on purpose, see if I have old nixpkgs, or if there's
+          reference to Accelerate not working on darwin.
+        . Could I pass -F/System/Library/Frameworks to link impurely?
       also segfaults on linux:
         Intel MKL ERROR: Parameter 3 was incorrect on entry to DGEMV .
         #0  0x00007f261d541dd8 in dgetv0_ ()
          from /nix/store/0n2bwlvsyilsnf4k7nssvh2jmjpmzr9b-arpack-3.7.0/lib/libarpack.so.2
-
-
-    . won't compile on newer mac:
-      error:
-        In file included from vega/libraries/matrix/matrixProjection.cpp:31:
-        In file included from vega/libraries/include/lapack-headers.h:7:
-        In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Headers/Accelerate.h:24:
-        In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/Headers/vImage.h:291:
-        In file included from /nix/store/s0kpwbrdhl0lhdi2prnxn670sgl3n097-apple-framework-Accelerate/Library/Frameworks/Accelerate.framework/Frameworks/vImage.framework/Headers/vImage_CVUtilities.h:63:
-        In file included from /nix/store/jwjfnk9vrvsqxnwrc1g6932fxhf03wc2-apple-framework-CoreVideo/Library/Frameworks/CoreVideo.framework/Headers/CVPixelBuffer.h:23:
-        In file included from /nix/store/jwjfnk9vrvsqxnwrc1g6932fxhf03wc2-apple-framework-CoreVideo/Library/Frameworks/CoreVideo.framework/Headers/CVImageBuffer.h:27:
-        In file included from /nix/store/llbk4v2v1qqj462qlkb4nf3lvm5lyxdd-apple-framework-ApplicationServices/Library/Frameworks/ApplicationServices.framework/Headers/ApplicationServices.h:23:
-        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Headers/CoreServices.h:39:
-        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Headers/LaunchServices.h:22:
-        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Headers/IconsCore.h:23:
-        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/OSServices.framework/Headers/OSServices.h:27:
-        In file included from /nix/store/apf2lhavmgsdh5lkk9shx1fkf6pkj0x3-apple-framework-CoreServices/Library/Frameworks/CoreServices.framework/Frameworks/OSServices.framework/Headers/CSIdentity.h:43:
-        In file included from /nix/store/8c262vkjk333nvlwbxj3d6j7r0hj49kw-apple-framework-Security/Library/Frameworks/Security.framework/Headers/Security.h:28:
-        /nix/store/8c262vkjk333nvlwbxj3d6j7r0hj49kw-apple-framework-Security/Library/Frameworks/Security.framework/Headers/SecCertificate.h:135:54: error: unknown type name 'SecCertificateRef'; did you mean 'SecCertificate'?
-        CFDataRef SecCertificateCopyNormalizedIssuerSequence(SecCertificateRef certificate)
-                                                             ^~~~~~~~~~~~~~~~~
-                                                             SecCertificate
-      . How does the header differ from the official Accelerate header?
-      . But it works to include on its omn.  But that's the official one.
-      . Accelerate.h is the same.  vImage.h is different.
-        Except nix is older:
-        < Copyright:  Copyright (c) 2000-2017 by Apple Inc. All rights reserved.
-        > Copyright:  Copyright (c) 2000-2018 by Apple Inc. All rights reserved.
-      . nix has links to /System/Libraries, why aren't the headers links?
-      . This is clearly on purpose, see if I have old nixpkgs, or if there's
-        reference to Accelerate not working on darwin.
-      . Could I pass -F/System/Library/Frameworks to link impurely?
+      . Try a totally non-nix build, with manually installed arpack and mkl.
+        . mkl is just the same as downloaded from intel.
+        . ==> Installing dependencies for arpack: eigen, isl, mpfr, gcc, hwloc,
+          openssl@1.1, libevent, open-mpi and openblas
+        . It works against brew arpack, so something is wrong with the nix one.
+          . Is the brew one from arpack-ng?
+          . Yes: https://github.com/opencollab/arpack-ng/archive/3.7.0.tar.gz
+          . Nix is:
+            version = "3.6.3"
+            https://github.com/opencollab/arpack-ng/archive/${version}.tar.gz
+          . Try making a derivation with the same version as in brew.
+          . What other differences are there?  gcc vs clang maybe...  but no,
+            I crash as long as I link to nix arpack.  Of course nix arpack might
+            have been compiled with gcc?
+  zynsubaddfx:
+    . The old binaries don't have VST.  The new ones do, but the UI seems
+      buggy, most UI elements don't respond to the mouse.
+    + First have to compile zynsubaddfx
+      . It doesn't like fltk 1.4: have to add include <FL/platform.H>
+      . It requires libmxml 2.12, not 3
+      . It requires fftw3, brew wants gcc, so compile myself.
+      . For some reason, I get HAS_X11, which is wrong.  This apparently is
+        from fluid, and uses Pixmap, which is presumably X11-only.
+        Who is setting that?
+        . It's because some macs have /usr/X11.  Don't know how to get cmake
+          to not latch on to that.
+      ? The official build scripts want to compile with gcc.  Try without, to
+        see what exactly is gcc-specific in there.
+      . It doesn't need gcc.  I should do the compile with nix though.
 
 synth: im:
-  synth status:
   - Make some profiles for memory use and time.
   fix ugly and unsafe non-copying state:
     . NOTE [audio-state]
@@ -1635,14 +1669,26 @@ synth: im:
       I only use it for every chunk.
     . Also the IORef shennanigans are unclear and unsafe.
     solution:
-      . Change Audio to 'Stream (Of (Block, State))', then IORef goes away.
+      . Change Audio to 'Stream (Of (State, Block))', then IORef goes away.
         It has to be present always, so the audio functions are interoperable,
         but should be polymorphic, since most won't affect it.
       . But I actually need [State], and Audio.mix will have to merge them.
       . But I actually need [(Key, State)], where I can use Key to
         initialize a restart.
+      . The state has to be a monoid at least, because I need to make empty
+        ones when I split blocks.
+      . Now I can have File.writeCheckpoints save the states.  Specify that
+        they represent the state at the beginning of the chunk, not the end.
+      . But not all state can just by ByteString, e.g. resample is actually
+        two of them, or rather (ByteString, Ptr).
+      . And I think I still need explicit [state], because I need the note
+        hashes.
+    unsafe bytestrings:
       . This is still unsafe if I'm using mutable memory.  I could at least
         reflect that in the type with a Ptr State or IORef State.
+      . It sort of galls that I'm doing lots of work in Audio to preserve
+        state across splits and things, but if I want to use shared memory
+        I can't use any of that anyway.
       . Ideally I could have ownership, to enforce that downstream is done
         with it before upstream uses it again.  I could do that manually by
         making them MVars.
@@ -2992,9 +3038,10 @@ shakefile: build:
   - run with --lint-fsatrace:
     . https://well-typed.com/blog/2019/08/exploring-cloud-builds-in-hadrian/
   nix:
-    - nix-shell: /run/current-system/sw/bin winds up in path before the
-      buildInputs
-      . Because I run zsh after bash setup and it changes the path around.
+    nixos:
+      - nix-shell: /run/current-system/sw/bin winds up in path before the
+        buildInputs
+        . Because I run zsh after bash setup and it changes the path around.
     propagate deps to the shakefile:
       - package paths for haddock
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is

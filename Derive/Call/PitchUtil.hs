@@ -84,6 +84,7 @@ interpolator_variations = concat
 
 -- * interpolate
 
+-- | Make a curve segment from the previous value, if there was one.
 make_segment_from :: Curve -> RealTime -> Maybe PSignal.Pitch -> RealTime
     -> PitchOrTranspose -> Derive.Deriver PSignal.PSignal
 make_segment_from curve start maybe_from end to = case maybe_from of
@@ -95,18 +96,13 @@ make_segment_from curve start maybe_from end to = case maybe_from of
 
 make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
     -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
-make_segment f x1 y1 x2 y2 = do
+make_segment curve x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate f x1 y1 x2 y2
+    return $ segment srate curve x1 y1 x2 y2
 
 type Interpolate = RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -- ^ start -> starty -> end -> endy
     -> PSignal.PSignal
-
--- | This defaults some arguments to 'segment' so its more convenient to pass
--- around as a standalone creator of segments.
-interpolate_segment :: SRate -> Curve -> Interpolate
-interpolate_segment srate f = segment srate f
 
 -- | Interpolate between the given points.
 -- TODO(polymorphic-signals) same as ControlUtil.segment, well except Eq use

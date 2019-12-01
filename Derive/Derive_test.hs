@@ -30,6 +30,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as Midi.Types
+import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
@@ -100,6 +101,17 @@ test_round_pitch = do
             DeriveTest.derive_tracks ""
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
     equal (DeriveTest.note_on_vel mmsgs) [(0, Key.c4, 127)]
+
+test_override_default_pitch = do
+    let f title pitch = DeriveTest.extract DeriveTest.e_nns $
+            DeriveTest.derive_tracks title [(">", [(4, 4, "")]), ("*", pitch)]
+    equal (f "" [(4, 0, "4c"), (6, 0, "4d")])
+        ([[(4, NN.c4), (6, NN.c4), (6, NN.d4)]], [])
+    -- Both overriding PITCH works, and it picks up defaults properly.
+    equal (f "*PITCH = set-or-move | set-or-move-time=2"
+            [(4, 0, "4c"), (6, 0, "4d")])
+        ([[(4, NN.c4), (6, NN.c4), (8, NN.d4)]], [])
+
 
 test_attributes = do
     -- Test that attributes work, through derivation and performance.

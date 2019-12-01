@@ -25,6 +25,14 @@ note_track = "note-track"
 default_note :: Expr.Symbol
 default_note = "NOTE"
 
+-- | If this is bound, scale degree pitch calls will be passed to this as a
+-- single pitch argument.  Otherwise, they set the pitch, like the @set@ call.
+-- So unlike 'default_note', where you rebind the "" call and 'default_note' is
+-- the escape hatch, you rebind 'default_pitch' itself to hook the pitch
+-- evaluation.
+default_pitch :: Expr.Symbol
+default_pitch = "PITCH"
+
 null_note :: Expr.Symbol
 null_note = ""
 

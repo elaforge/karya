@@ -196,7 +196,7 @@ derive_note_track_ derive_tracks state tinfo =
 -- I used to use the same function to derive note and control tracks.  However,
 -- over time control and note tracks gradually gained separate features, and
 -- the function became more complicated to accommodate the differences.
--- Eventually I just split them all into separate functions.  The result is
+-- Eventually I just split them into separate functions.  The result is
 -- simpler, but there is a certain amount of duplicated code between them.
 -- So if you modify one, make sure you also modify the other if applicable.
 

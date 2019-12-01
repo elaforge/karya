@@ -1528,8 +1528,8 @@ data GeneratorFunc d = GeneratorFunc {
 type GeneratorF d = PassedArgs d -> Deriver (Stream.Stream d)
 
 generator_func :: (PassedArgs d -> Deriver (Stream.Stream d)) -> GeneratorFunc d
-generator_func f = GeneratorFunc {
-    gfunc_f = f
+generator_func f = GeneratorFunc
+    { gfunc_f = f
     , gfunc_score_duration = default_score_duration
     , gfunc_real_duration = default_real_duration
     }
