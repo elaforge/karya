@@ -19,12 +19,12 @@ let
     overrideCabal = nixpkgs.haskell.lib.overrideCabal;
     override = old: {
       med-module = overrideCabal old.med-module (drv: {
-        patches = [nix/med-module.patch];
+        # patches = [nix/med-module.patch];
         broken = false;
       });
     };
   in {
-    # For nixpkgs.mkl.
+    # For nixpkgs.mkl, for mesh2faust.
     allowUnfree = true;
     # allowBroken = true;
     packageOverrides = pkgs: {
@@ -38,7 +38,8 @@ let
     };
   };
 
-  nixpkgs = import <nixpkgs> { inherit config; };
+  nixpkgs = import nix/nixpkgs.nix { inherit config; };
+
   ghc = nixpkgs.haskell.packages."${ghcVersion}";
 
   # This doesn't work because haskell.packages has things that complain
@@ -117,22 +118,17 @@ in rec {
 
   libsamplerate = nixpkgs.stdenv.mkDerivation {
     # libsamplerate with my patches to save and resume. The official one is
-    # nixpkgs.libsamplerate.
-    # I compile without libsndfile and none of the utils, so no deps on
-    # e.g.  CoreServices are needed.
+    # nixpkgs.libsamplerate.  I compile without libsndfile and none of the
+    # utils, so deps on e.g. CoreServices are not needed.
     name = "libsamplerate-elaforge";
     src = builtins.fetchGit {
       url = "https://github.com/elaforge/libsamplerate.git";
       rev = "cb783007e114531911ec4f2f081a27733c84b45c";
       ref = "save-state";
     };
-
-    # Without pkgconfig, I get "error: macro PKG_INSTALLDIR is not
-    # defined".
     nativeBuildInputs = with nixpkgs; [autoreconfHook pkgconfig];
     configureFlags = ["--enable-shared=no" "--enable-static=yes"];
   };
-  # Output will be include/samplerate.h lib/libsamplerate.a
 
   faust = import nix/faust.nix { inherit nixpkgs; };
 
