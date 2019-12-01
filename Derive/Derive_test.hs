@@ -406,7 +406,7 @@ test_real_to_score_round_trip = do
     equal (f (Internal.warp slow . Derive.stretch 5 . Derive.at 5)) (Right 1)
     equal (f (Derive.stretch 5 . Derive.at 5 . Internal.warp slow)) (Right 1)
 
-test_shift_control = do
+test_shift_controls = do
     let controls = Map.fromList
             [("cont", ScoreT.untyped $
                 Signal.from_pairs [(0, 1), (2, 2), (4, 0)])]
@@ -427,7 +427,7 @@ test_shift_control = do
             unsignal =
                 Signal.to_pairs . ScoreT.typed_val . snd . head . Map.toList
     equal (run id) $ Right ([(0, 1), (2, 2), (4, 0)], ([(0, 60)], []))
-    equal (run $ Derive.shift_control 2) $
+    equal (run $ Derive.shift_controls 2) $
         Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))
 
 test_tempo_funcs1 = do

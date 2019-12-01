@@ -6,7 +6,92 @@
     functions where are considered basic but can be defined outside of
     "Derive.Deriver.Monad".
 -}
-module Derive.Deriver.Lib where
+module Derive.Deriver.Lib (
+    Result(..)
+    , derive
+    , extract_result
+    , with_default_imported
+    -- * errors
+    , require, require_right
+    , catch
+
+    -- * state access
+    , get_stack
+    , real_function, score_function
+    -- ** import
+    , with_imported, with_imported_symbols
+    , with_scopes
+    -- ** scale
+    , get_scale, lookup_scale
+
+    -- ** environment
+    , lookup_val, is_val_set, get_val
+    , with_val, with_vals
+    , with_environ
+    , with_val_raw
+    , delete_val
+    , with_merged_numeric_val
+    , modify_val
+    , with_scale, with_instrument
+    , with_instrument_alias, with_instrument_aliases
+    , instrument_exists
+    , get_instrument, lookup_instrument
+
+    -- ** control
+    , lookup_control
+    , is_control_set
+    , signal_function
+    , lookup_control_signal
+    , get_controls
+    , get_control_functions
+    , control_at, untyped_control_at, controls_at
+    , state_controls_at
+
+    -- *** control signal
+    , with_control, with_constant_control, with_controls
+    , remove_controls
+    , with_control_function
+    , with_control_maps
+    , with_merged_control, with_merged_controls
+    , resolve_merge
+    , get_control_merge
+    , get_default_merger
+
+    -- *** ControlMod
+    , modify_control
+    , eval_control_mods
+    , with_control_mods
+
+    -- ** pitch
+    , pitch_at, named_pitch_at
+    , resolve_pitch
+    , nn_at
+    , get_pitch, get_named_pitch
+    , named_nn_at
+    , logged_pitch_nn
+
+    -- *** with signal
+    , with_pitch, with_named_pitch, with_constant_pitch
+    , remove_pitch
+
+    -- * run monad
+    , run_logs
+
+    -- * Mode
+    , get_mode
+    , is_lilypond_mode
+    , lookup_lilypond_config
+    , get_score_duration, get_real_duration
+
+    -- * postproc
+    , with_event
+    , with_event_stack
+    , shift_controls
+
+    -- * call
+    , val_call
+    , set_module
+) where
 import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -146,6 +231,26 @@ require msg = maybe (throw msg) return
 
 require_right :: CallStack.Stack => (err -> Text) -> Either err a -> Deriver a
 require_right fmt_err = either (throw . fmt_err) return
+
+-- | If the deriver throws, log the error and return Nothing.
+catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
+    -- This is False for eval which is disconnected from track evaluation, and
+    -- shouldn't be accumulating things like 'ControlMod's.
+    -> Deriver a -> Deriver (Maybe a)
+catch collect deriver = do
+    state <- get
+    -- It's critical to clear the collect, because if I merge it again later
+    -- I can't go duplicating the whole thing.
+    let (result, state2, logs) = run (state { state_collect = mempty }) deriver
+    mapM_ Log.write logs
+    case result of
+        Left err -> do
+            Log.write $ error_to_warn err
+            return Nothing
+        Right val -> do
+            when collect $ Internal.merge_collect (state_collect state2)
+            Internal.set_threaded (state_threaded state2)
+            return $ Just val
 
 
 -- * state access
@@ -690,14 +795,6 @@ merge (Merger _ merger ident) maybe_old new =
     -- Using ident is *not* the same as just emitting the 'new' signal for
     -- subtraction!
 
-merge_vals :: Merger -> Signal.Y -> Signal.Y -> Signal.Y
-merge_vals merger old new = case merger of
-    Set -> new
-    Unset -> old
-    Merger _ merge _ -> maybe new snd $ Signal.head $
-        merge (Signal.constant old) (Signal.constant new)
-        -- This is awkward.  Maybe the merge function should be on scalars?
-
 -- *** ControlMod
 
 -- | Emit a 'ControlMod'.
@@ -809,26 +906,6 @@ modify_pitch pcontrol f
 
 -- * run monad
 
--- | If the deriver throws, log the error and return Nothing.
-catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
-    -- This is False for eval which is disconnected from track evaluation, and
-    -- shouldn't be accumulating things like 'ControlMod's.
-    -> Deriver a -> Deriver (Maybe a)
-catch collect deriver = do
-    state <- get
-    -- It's critical to clear the collect, because if I merge it again later
-    -- I can't go duplicating the whole thing.
-    let (result, state2, logs) = run (state { state_collect = mempty }) deriver
-    mapM_ Log.write logs
-    case result of
-        Left err -> do
-            Log.write $ error_to_warn err
-            return Nothing
-        Right val -> do
-            when collect $ Internal.merge_collect (state_collect state2)
-            Internal.set_threaded (state_threaded state2)
-            return $ Just val
-
 -- | Embed a LogId into Deriver.  This is for computations that need logging
 -- but not a full Deriver.
 run_logs :: Log.LogId a -> Deriver a
@@ -904,8 +981,8 @@ with_event event = catch False . with_event_stack event
 -- | Shift the controls of a deriver.  You're supposed to apply the warp
 -- before deriving the controls, but I don't have a good solution for how to
 -- do this yet, so I can leave these here for the moment.
-shift_control :: ScoreTime -> Deriver a -> Deriver a
-shift_control shift deriver = do
+shift_controls :: ScoreTime -> Deriver a -> Deriver a
+shift_controls shift deriver = do
     real <- Internal.real shift
     Internal.local
         (\state -> state

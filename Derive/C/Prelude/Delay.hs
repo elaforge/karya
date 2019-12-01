@@ -74,7 +74,7 @@ c_echo = Derive.transformer Module.prelude "echo" mempty
 echo :: ScoreTime -> Double -> Int -> Derive.NoteDeriver -> Derive.NoteDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
-    | otherwise = deriver <> Derive.shift_control delay (Derive.at delay
+    | otherwise = deriver <> Derive.shift_controls delay (Derive.at delay
         (Call.multiply_dynamic feedback $ echo delay feedback (times - 1)
             deriver))
 
