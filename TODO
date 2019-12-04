@@ -3047,7 +3047,7 @@ shakefile: build:
       . Env vars would be easier from nix, while Local/ShakeConfig.hs is
         easier without.  Nix could create a Local/ShakeConfig.hs though.
       . Create from $setup, and tools/nix-enter will have the shell run it.
-    - figure out how to pin hackage package versions.
+    / figure out how to pin hackage package versions.
       . I need this for writer-cps-mtl at least.
       . https://github.com/sol/tinc/tree/nixpkgs
       . https://github.com/Gabriel439/haskell-nix
@@ -3055,10 +3055,14 @@ shakefile: build:
       . They probably all boil down to cabal2nix nonsense.  Would it be
         simpler to just make sure I can work with a nixpkgs snapshot?
       . Or just use the latest ghc and the problem should go away.
+      . The path of least resistance seems to be to make sure it works with
+        the pinned nixpkgs.
     - linux, need jack1 or jack2
     ? Can I can run ghci with the pkgs?  I guess nix-shell should set that up,
       but why is there '--disable-library-for-ghci' in the configureFlags?
-    - Is there a way to configure lilypond to not drag in a whole tex?
+    / Is there a way to configure lilypond to not drag in a whole tex?
+      . It should be only necessary to build lilypond, I should be able to
+        download it if I use a supported nixpkgs.
     - can I use nix for just non-haskell deps, and leave haskell as a local
       install?
       . That means use cabal to install, but get fonts, libs, faust via
@@ -3100,7 +3104,7 @@ shakefile: build:
   - determine Shakefile.cppFiles automatically.
   . To get a path between two rules:
     ancestorOf('Synth/Sampler/Main') && descendantOf('Cmd/Cmd')
-  - use new system calls and logging levels
+  / use new system calls and logging levels
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not
       that hard to update them.

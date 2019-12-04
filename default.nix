@@ -6,7 +6,9 @@
 # nix-store -r $(nix-instantiate --attr libsamplerate)
 # nix build -f default.nix --arg withIm true --arg withDocs true buildEnv
 
-{ withLilypond ? false # This drags in all of texlive!
+# Building lilypond drags in all of texlive.  It's also marked broken on
+# darwin for 19.09.
+{ withLilypond ? false
 , withIm ? false # TODO sync this with Shake.Config.enableIm
 , withEkg ? false # ekg is really heavy
 , withDocs ? false

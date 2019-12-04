@@ -177,19 +177,24 @@ ghcBinary = "ghc"
 build :: FilePath
 build = "build"
 
-defaultOptions :: Shake.ShakeOptions
-defaultOptions = Shake.shakeOptions
+options :: [String] -> Shake.ShakeOptions
+options args = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
     -- I have my own concurrent output, which shake will mess up if it prints
     -- its own output.  Unfortunately this also suppresses the --version flag,
     -- and some other less useful ones.
     , Shake.shakeVerbosity = Shake.Quiet
     , Shake.shakeReport = [build </> "report.html"]
-    , Shake.shakeProgress = Progress.report
+    , Shake.shakeProgress =
+        if verbose then const (return ()) else Progress.report
     -- Git branch checkouts change file timestamps, but not contents.
     -- But ghci only understands timestamp changes, not contents.
     , Shake.shakeChange = Shake.ChangeModtime
     }
+    where
+    -- This is stupid, but shake only lets me set options before parsing flags,
+    -- and I only know the verbosity after parsing flags.
+    verbose = "-V" `elem` args || "--verbose" `elem` args
 
 data Config = Config {
     buildMode :: Mode
@@ -828,7 +833,8 @@ main = Concurrent.withConcurrentOutput $ Regions.displayConsoleRegions $ do
     writeGhciFlags modeConfig
     makeDataLinks
     writeDeps cabalDir [("basic", basicPackages), ("im", imPackages)]
-    Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
+    args <- Environment.getArgs
+    Shake.shakeArgsWith (options args) [] $ \[] targets -> return $ Just $ do
         cabalRule basicPackages "karya.cabal"
         cabalRule reallyAllPackages (cabalDir </> "all-deps.cabal")
         when (Config.enableIm localConfig) faustRules
@@ -984,7 +990,7 @@ dispatch modeConfig targets = do
     where
     allBinaries = map hsName hsBinaries ++ map C.binName ccBinaries
     hardcoded target = case target of
-        -- I should probably run this in staunch mode, -k.
+        -- I should probably run this in keepGoing mode, -k.
         "validate" -> action $ do
             -- Unfortunately, verify_performance is the only binary in
             -- opt, which causes most of the opt tree to build.  I could build
@@ -1063,7 +1069,7 @@ hlint :: Config -> Shake.Action ()
 hlint config = do
     hs <- getAllHs config
     need hs
-    Util.staunchSystem "hlint" $
+    Util.systemKeepGoing "hlint" $
         [ "--report=" <> build </> "hlint.html"
         , "--cpp-define=TESTING"
         , "--cpp-include=" <> buildDir config

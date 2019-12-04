@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Shake.Util (
     -- * shake specific
-    Cmdline, cmdline, system, staunchSystem, shell
+    Cmdline, cmdline, system, systemKeepGoing, shell
     , findFiles, findHs, runIO
 
     -- * ghc
@@ -63,8 +63,9 @@ type Cmdline = (String, String, [String])
 -- a progress indication, while the keys just make any compiler errors scroll
 -- off the screen.
 cmdline :: Cmdline -> Shake.Action ()
-cmdline cmd@(abbr, _, _) = do
+cmdline cmd@(abbr, _, cmdline) = do
     fancy <- fancyOutput
+    Shake.putNormal $ unwords $ "%" : cmdline
     Shake.traced ("cmdline:" <> abbr) . liftIO $ doCmdline fancy False cmd
 
 data Metric = Metric {
@@ -91,11 +92,11 @@ fancyOutput = (==Shake.Quiet) <$> Shake.getVerbosity
 doCmdline :: Bool -> Bool -> Cmdline -> IO ()
 doCmdline _ _ (abbr, output, []) =
     errorIO $ "0 args for cmdline: " ++ show (abbr, output)
-doCmdline fancyOutput staunch (abbr, output, cmd_:args) = do
+doCmdline fancyOutput keepGoing (abbr, output, cmd_:args) = do
     start <- metric
     notRequired <- withRegion (do
         (exit, ghcNotRequired) <- createProcessConcurrent "nice" (cmd:args)
-        when (not staunch && exit /= Exit.ExitSuccess) $
+        when (not keepGoing && exit /= Exit.ExitSuccess) $
             errorIO $ "Failed:\n" ++ unwords (cmd : args)
         return ghcNotRequired
         ) `Exception.onException` do
@@ -166,15 +167,15 @@ system :: FilePath -> [String] -> Shake.Action ()
 system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
 
 -- | Like 'system', but don't ignore the exit code.
-staunchSystem :: FilePath -> [String] -> Shake.Action ()
-staunchSystem cmd args = do
+systemKeepGoing :: FilePath -> [String] -> Shake.Action ()
+systemKeepGoing cmd args = do
     fancy <- fancyOutput
     liftIO $ doCmdline fancy True (unwords (cmd:args), "", cmd:args)
 
 -- | Run a shell command, and crash if it fails.
 shell :: String -> Shake.Action ()
 shell cmd = do
-    -- Shake.putNormal cmd
+    Shake.putNormal cmd
     res <- Shake.traced ("shell: " ++ cmd) $ Process.system cmd
     when (res /= Exit.ExitSuccess) $
         errorIO $ "Failed:\n" ++ cmd
