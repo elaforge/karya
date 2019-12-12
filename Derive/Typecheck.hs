@@ -611,9 +611,8 @@ instance ToVal ScoreT.Control where
     to_val c = VStr (Expr.Str (ScoreT.control_name c))
 
 instance Typecheck ScoreT.PControl where
-    from_val (VStr (Expr.Str s))
-        | Just name <- Text.stripPrefix "#" s =
-            Val $ either (const Failure) Success (ScoreT.pcontrol name)
+    from_val (VStr (Expr.Str s)) =
+        Val $ either (const Failure) Success (ScoreT.pcontrol s)
     from_val _ = failure
     to_type _ = ValType.TPControl
 instance ToVal ScoreT.PControl where
@@ -646,6 +645,7 @@ instance ToVal DeriveT.PControlRef where to_val = VPControlRef
 
 instance Typecheck PSignal.Pitch where
     from_val (VPitch a) = success a
+    from_val (VPControlRef pref) = Eval $ \pos -> Just <$> pitch_at pos pref
     from_val (VNum (ScoreT.Typed ScoreT.Nn nn)) =
         success $ PSignal.nn_pitch (Pitch.nn nn)
     from_val _ = failure
@@ -763,8 +763,7 @@ to_function = fmap (ScoreT.typed_val .) . to_typed_function
 convert_to_function :: DeriveT.ControlRef
     -> Either (ScoreT.Typed Signal.Control) DeriveT.ControlFunction
     -> Derive.Deriver TypedFunction
-convert_to_function control =
-    either (return . signal_function) from_function
+convert_to_function control = either (return . signal_function) from_function
     where
     signal_function sig t = Signal.at t <$> sig
     from_function f = DeriveT.call_control_function f score_control <$>
@@ -799,6 +798,31 @@ to_signal_or_function control = case control of
         val { ScoreT.type_of = ScoreT.type_of val <> default_type }
     get_control_signal control = Map.lookup control <$>
         Internal.get_dynamic Derive.state_controls
+
+-- | This is the pitch signal version of 'to_signal_or_function', except
+-- simpler because there's no pitch equivalent of ControlFunction.
+--
+-- I could actually have a pitch version of 'Function', which I guess would be
+-- called PitchFunction, except be unlike ControlFunction, in that it actually
+-- is a function, where ControlFunction isn't.   What a mess, I wish I could
+-- get rid of ControlFunction...
+pitch_at :: RealTime -> DeriveT.PControlRef -> Derive.Deriver PSignal.Pitch
+pitch_at pos control = case control of
+    DeriveT.ControlSignal sig -> require sig
+    DeriveT.DefaultedControl control deflt ->
+        maybe (require deflt) return =<< named_pitch_at control
+    DeriveT.LiteralControl control -> do
+        Derive.require
+            ("pitch not found and no default given: " <> showt control)
+            =<< named_pitch_at control
+    where
+    -- There is a Derive.named_pitch_at, but it's in Derive.Deriver.Lib, which
+    -- imports this.
+    named_pitch_at control = do
+        maybe_sig <- Internal.get_named_pitch control
+        return $ PSignal.at pos =<< maybe_sig
+    require = Derive.require ("ControlSignal pitch at " <> pretty pos)
+        . PSignal.at pos
 
 -- * sub tracks
 

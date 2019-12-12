@@ -226,12 +226,6 @@ with_default_imported deriver =
 
 -- * errors
 
-require :: CallStack.Stack => Text -> Maybe a -> Deriver a
-require msg = maybe (throw msg) return
-
-require_right :: CallStack.Stack => (err -> Text) -> Either err a -> Deriver a
-require_right fmt_err = either (throw . fmt_err) return
-
 -- | If the deriver throws, log the error and return Nothing.
 catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
     -- This is False for eval which is disconnected from track evaluation, and
@@ -843,7 +837,7 @@ pitch_at pos = PSignal.at pos <$> get_pitch
 named_pitch_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
 named_pitch_at name pos = do
     psig <- get_named_pitch name
-    return $ maybe Nothing (PSignal.at pos) psig
+    return $ PSignal.at pos =<< psig
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
 -- pitch.
@@ -862,9 +856,7 @@ get_pitch :: Deriver PSignal.PSignal
 get_pitch = Internal.get_dynamic state_pitch
 
 get_named_pitch :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
-get_named_pitch name
-    | name == ScoreT.default_pitch = Just <$> Internal.get_dynamic state_pitch
-    | otherwise = Map.lookup name <$> Internal.get_dynamic state_pitches
+get_named_pitch = Internal.get_named_pitch
 
 named_nn_at :: ScoreT.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do

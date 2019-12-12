@@ -114,7 +114,8 @@ lookup_map calls = Derive.CallMap
 
 -- | Run a val call, and return what it returned.
 run_val :: Maybe Text -> Text -> (Maybe DeriveT.Val, [Text])
-run_val transform call = extract $ DeriveTest.derive_tracks_setup
+run_val transform call =
+    extract $ DeriveTest.derive_tracks_setup
         (with_note_generator "capture" c_capture) ""
         [(">", [(0, 1, maybe "" (<> " | ") transform
             <> "capture (" <> call <> ")")])]

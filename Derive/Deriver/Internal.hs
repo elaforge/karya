@@ -16,6 +16,7 @@ import qualified Util.CallStack as CallStack
 import qualified Util.Log as Log
 import qualified Derive.DeriveT as DeriveT
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreT as ScoreT
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
@@ -72,6 +73,11 @@ detached_local modify_dynamic deriver = do
 
 set_threaded :: Threaded -> Deriver ()
 set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
+
+get_named_pitch :: ScoreT.PControl -> Deriver (Maybe PSignal.PSignal)
+get_named_pitch name
+    | name == ScoreT.default_pitch = Just <$> get_dynamic state_pitch
+    | otherwise = Map.lookup name <$> get_dynamic state_pitches
 
 -- * Collect
 

@@ -154,18 +154,7 @@ to_time_function default_type control = do
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
 pitch_at :: RealTime -> DeriveT.PControlRef -> Derive.Deriver PSignal.Pitch
-pitch_at pos control = case control of
-    DeriveT.ControlSignal sig -> require sig
-    DeriveT.DefaultedControl cont deflt -> do
-        maybe_pitch <- Derive.named_pitch_at cont pos
-        maybe (require deflt) return maybe_pitch
-    DeriveT.LiteralControl cont -> do
-        maybe_pitch <- Derive.named_pitch_at cont pos
-        Derive.require ("pitch not found and no default given: " <> showt cont)
-            maybe_pitch
-    where
-    require = Derive.require ("ControlSignal pitch at " <> pretty pos)
-        . PSignal.at pos
+pitch_at = Typecheck.pitch_at
 
 to_psignal :: DeriveT.PControlRef -> Derive.Deriver PSignal.PSignal
 to_psignal control = case control of

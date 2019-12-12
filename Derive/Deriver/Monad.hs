@@ -40,6 +40,7 @@ module Derive.Deriver.Monad (
     , EvalSource(..)
     , throw, throw_arg_error, throw_error
     , annotate
+    , require, require_right
 
     -- * derived types
     , Callable, callable_name, Tagged(..), Taggable(..)
@@ -301,6 +302,12 @@ throw_error err = do
 -- information.
 annotate :: (Error -> Error) -> Deriver a -> Deriver a
 annotate f = DeriveM.annotate f
+
+require :: CallStack.Stack => Text -> Maybe a -> Deriver a
+require msg = maybe (throw msg) return
+
+require_right :: CallStack.Stack => (err -> Text) -> Either err a -> Deriver a
+require_right fmt_err = either (throw . fmt_err) return
 
 
 -- * derived types
