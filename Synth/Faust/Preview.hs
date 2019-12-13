@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | See 'render'.
 module Synth.Faust.Preview where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Map as Map

@@ -1,0 +1,274 @@
+### Notes from long ago, sometime around 2002.
+### In some ways, things turned out surprisingly similar!
+
+2 halves: interface - to write and visualize the placement and timing
+of sounds and effects. Also includes several auxilary programs for eg
+tuning samples, looping, drawing envelopes, etc.
+
+language - In which the actual notes and sounds are represented and
+rendered. Notation from the interface are converted to code to render.
+In a sense, the interface is kind of like a fancy IDE for the language.
+
+Interface
+
+A bunch of windows. Each window represents an "instrument"
+(signal-returning function). Windows are divided into vertical tracks,
+and you write instruments from top to bottom. Note data is then passed
+to a special function, the Mangler, which converts note data into code
+for the language, and is thus the main interface between the interface
+and the language.
+
+There is also a REPL which is used to directly communicate with the
+interface (rearrange windows, open new instruments, reconfigure windows,
+etc.), write functions to do any of these things (which can be saved
+seperately or with the song), create new interface elements (displays,
+controls, etc.), manipulate song data (search/replace, etc.), directly
+write new blocks or note data, load/save files/songs, directly send
+code to the language, etc. An easy way save song data would dump the
+marshalled note data along with code to open and place relevant windows
+and settings. To this end, the interface should be written in the same
+language as the REPL, or at least have a lot of hooks. I imagine the
+interface written in a high-level language with a C core, preferable the
+same language as The Language, to make direct communication easier.
+
+-- writing note date (input)
+
+All keystrokes are configurable to execute any code by modifying the
+appropriate tables from the REPL. The code to modify or overlay the
+table can, as with any other code, be saved with or seperately from song
+data.
+
+The default behaviour is that the editor maintains an insertion point,
+and most keys write their characters at that point, just like any editor,
+but may also move the point around or do other random things. Just like
+most editors. The mouse's action, moving the point and selecting regions
+of data, does not need to be configurable (though of course with direct
+REPL access you could theoretically mess with that too), but button
+clicks are sent, with info about the selected region, to a relevant
+function. By default these do things like copy and paste, play selected
+signal, etc., depending on buttons and kbd keys chorded.
+
+The "input table" supports any kind of input, not just kbd, so one could
+write a MIDI parsing routine that maps MIDI input to whatever. You just
+need to write a function that accepts some data and register it along
+with a file, or socket, or pipe, or whatever, to be included in the
+input event loop.
+
+Since it's a notation program, the interface also supports input and
+display of arbitrary symbols. This implies that the data is internally
+stored as unicode or something, and includes a facility to load fonts
+as ranges in the unicode space Plan9 style, and a function to convert
+these symbols to and from ASCII since I don't want to count on the
+underlying language supporting arbitrary unicode in its symbols. I
+guess this would be the job of the Mangler. The idea is that it should
+be easy to open a paint program, scribble a few symbols, and load them
+into the interface and attach auxiliary data to them (placement info,
+ASCII names, etc.), hook them into the input table, and type 'em. Might
+as well allow anti-aliased glyphs, or even color. This ability would be
+nice for custom notation but lower priority.
+
+-- Visualizing note data
+
+The basic layout is a window holding a "block," which consists of a
+number of vertical tracks. Text (well, symbols) is placed at arbitrary
+vertical points, and marks the beginning of a "range" that extends to
+the next bit of text. Secondary bits of text can be written at arbitrary
+vertical points within a given range. A cut off range (that doesn't
+extend all the way to the next text) can be represented by a special
+stop character, appearing as a horizontal line. Text which is too close
+and overlaps turns into gray lines, so it doesn't make everything
+unreadable. Each track may contain heading text (track-heading) and the
+whole block may optionally have heading text too (block-heading).
+
+The leftmost track is reserved as a ruler. Its starting and ending
+values, as well as internal divisions, are configurable data attached
+to the block. The block may be zoomed vertically or horizontally an
+arbitrary amount, and scrollbars appear if needed. The function that
+generates the ruler divisions is overridable so division placement is
+arbitrarily customizable. Divisions may be fractions, decimals, or text.
+They may subdivide automatically when zoomed. They may have lines of
+arbitrary color and width across the tracks to the right, and multiple
+rulers may be overlaid simultaneously. For instance, one may represent
+measures (of varying division and length if the meter varies), another
+may represent absolute minutes and seconds, and a third may contain
+notes and cues at various absolute positions. Each ruler has a name and
+each division a "class" (major, minor, sub, etc.) number, which, along
+with its possible horizontal line, can vary depending on the zoom. The
+intent with "class" is to give a handle to cursor-movement functions,
+so you can say "jump to the next secondary (class 2) division of the
+'meter' ruler".
+
+A block window can be cloned to get two views of the same block. New
+tracks can be added, and existing ones rearranged. Tracks can also be
+resized---textual contents are cut off and finally turn into a black
+vertical line. It should be easy to collapse and expand tracks to free
+up space. Two or more blocks can be connected so they share a window
+and scroll together---a coordinating ruler in common must be given. A
+thicker vertical line seperates them. The intent is to edit together
+blocks that will be played together---independent voices, for instance.
+Window placement, reshaping, and iconification is the job of the window
+manager, but should be controllable from within the program, so, for
+instance, you can save the window layout with the song, programmatically
+switch layouts, etc. If it turns out to be useful to have hundreds of
+blocks per song and the window manager can't handle the clutter, there
+is also a way to hide and display loaded blocks.
+
+Since the score is interpreted by a user-written function, the Mangler,
+it's easy enough to have "derived" voices generated from the score in
+some simple or complex way, I would like to have the ability to load a
+derived score back into a block to be re-edited. Such edits would have
+to be saved as differences from the derived track so changes in the
+original are reflected. I'll need the ability to save and play back
+edits anyway for undo/redo.
+
+Since tracks usually represent signals, it would be useful for the
+rendered signal to be displayed inline in the track. This would be
+configurable per-track and per-range so some are displayed as waveforms
+(sounds), some as simple gradients (control signals), and some not
+displayed at all (ones you don't want to see, or which don't represent
+a signal). This requires some kind of closer relationship between L and
+I since it has to know which bits of score generate which signal, and
+have access to that signal as it is generated. One way would be that the
+Mangler attaches a special arg to signal generating functions that tag
+their signal with a range-id, and I has hooks into L to get its hands on
+signal buffers by tag.
+
+Caching---it could speed things a great deal to cache the output of
+signal functions and only rerender the signals which are invalidated by
+score editing. This way you could have a lot of complicated instruments
+mixed together and still get quick feedback since you're only editing
+one at a time. If signals are represented as immutable objects returned
+by functions, then this is kind of like a memoizing layer wrapped around
+said functions. The avoid sucking up massive amounts of memory and
+thrashing disk and hurting more than helping, it would have to get
+hints about what to cache. For instance, it would be a waste to cache
+low-level easy generators like piecewise-linear and simple oscillators
+and samples read from disk, which are almost as easy to generate anew
+as retrieve from cache. The most important to chache would be those
+"one level above" the editing point---for instance, if you're editing
+a block the output of the functions that generate signals used in the
+vlock should be cached, but if those functions each involve a lot of
+other functions and signals, those other functions don't need to be
+cached since chances are the user isn't going to edit them. Obviously,
+caching defeats the lazy evaluation and gc that keep the memory use of
+an immutable-signal scheme under control---but memory and disk space
+is cheap and quick feedback is important. Cached signal could also
+be stored in a lower frequency narrower format since one second of
+double-fp stereo at 44K eats 704K.
+
+The caching mechanism could also make use of the waveform display
+mechanism---Mangler gets range and block info and passes caching
+priority along with the range-id for waveform display. Then the actual
+caching is at the language level---maybe instrument functions have a
+wrapper which looks at the inputs and searches the cache for signal
+which is returned directly if found (functions using random numbers
+have to have a seed as an argument, but I need that anyway so "random"
+generators can be repeatable). Functions which are "non-functional,"
+that is, can't be specified by their inputs alone, can request to not be
+cached, or be cached anyway and the cache manually cleared by the user
+if that's a problem.
+
+
+
+-- Interface between I and L --
+
+    I -> L, Interface to Language interface
+
+The main part of this is Mangler, which goes in the I -> L direction. It
+takes the as-yet meaningless score data and turns it into L code which,
+when executed, returns a signal which is the value of the block. Since
+I has direct read access to the output of marked instrument functions
+(for waveform display), it should have access to the cache through the
+same mechanism. Then the block sound is given a high cache priority and
+I pulls signal from the cache to play or display it.
+
+Since score interpreting is possibly a complicated task, I imagine
+Mangler will be a somewhat complex function, with a lot of parts.
+Since coming up with a customized notation, or modifying an existing
+one, is part of the compositional process, those parts should be
+amenable to augmentation and replacement. Processing may dispatch on
+the block-heading, track-heading, or range text. Or blocks, tracks, and
+ranges may declare themselves as based on and existing kind of notation
+and modify the processing thereof. A CLOS sort of scheme, with pre,
+post, and around methods could work nicely.
+
+The Mangler should also be fairly quick (which shouldn't be too hard
+since it's just pushing symbols around) since it has to run over
+the score every time the user wants to hear changes. If it winds up
+being useful to have huge blocks, say one for a whole song, with many
+many notes, and the Mangler is too slow run over the whole thing for
+just a small localized change, I suppose it would be possible to
+pass caching hints like for signals, so Mangler only reprosesses the
+currently-being-edited part, or maybe only a section of the long block.
+Or maybe some kind of coroutine thingy so Mangler state can be frozen
+and resumed again at a certain point. Of course, this is if the kind of
+notation is relatively "state-free" and amenable to such games. However,
+Mangler is only a kind of macro mechanism to turn score into code.
+Instrument "intelligence" should be in the instrument. For example,
+if you want an instrument that depends on its previous occurrance,
+for example to slide to the destination pitch, Mangler should provide
+the instrument call with the relevant info and let the instrument do
+the slide, rather than directly applying a slide effect itself. Or,
+if you have a scale where note names are mapped to frequencies, the
+mapping should be in L, not Mangler. For one thing, if Mangler makes
+frequencies, it also has to handle scale-wise transposition effects, and
+that's a slippery slope.
+
+Besides Mangler, there should be a way to directly send code from I to
+L.
+
+    L -> I, Language to Interface interface
+
+In its simplest form, none is needed, but if I want waveform display
+and to be able to play signals directly, I needs access to the
+output of signal-generators in L. They could be made available
+by the signal-caching mechanism. It could be done with a pipe or
+socket---signal data is written block-by-block (with a header indicating
+format and I-given info like range-id) to a port. Or maybe some kind of
+shared memory thing so that only pointers are passed and large amounts
+of audio doesn't have to be copied around all the time.
+
+Error reporting: If Mangler has an error interpreting score data,
+or Mangler has an error itself, of if Mangler-generated code has an
+error, the message along with info like traceback (and range-id of
+the offending bit of score, in the case of Mangler not liking score)
+is sent back to I. In the case of receiving range-id, I can indicate
+the erroneous range and block directly. In the case of code errors, a
+debugger can be communicated with from the I REPL -> L connection.
+
+
+
+        The Language ("L")
+
+L should be pleasant to work in by itself, independant of I, and
+powerful to express the usual programming concepts. This is so as much
+logic as possible is in the language, so you can still use that logic
+when you write directly in L (the I score format is not designed to
+express arbitrary programming concepts, only to facilitate writing
+time/sequence oriented code/data, of which primary non-algorithmic
+music has a lot). Mangler should be in L, and therefore callable from
+hand-written code. I just dumps out raw marshalled score data and block
+data.
+
+A question: does L run persistently, receiving code at a REPL on some
+socket, or is it invoked anew each time I wants some sound rendered? The
+problem with the first is that I don't want random interpreter state
+like Mangler generated bindings or hand-written code which is then
+forgotten about making a song work in one way when written and another
+way (or not at all) when loaded again. Also, restarting the language
+compiler each time is simpler and easier. The problem with the second is
+start-up time, if there is a lot of initialization and libraries to load
+before we get going and signal. Another problem is that the cache must
+be persistent.
+
+The first's problem is solved (or ameliorated) by having Mangler put its
+defns in its own namespace, which should be done anyway for cleanliness
+and so you can load more than one song at a time, and tosses the
+namespace on each invokation.
+
+The second's problems could be ameliorated by having the libraries
+compiled so they can be loaded quickly (but then L has to have
+compilation) and only loaded if they need to be. Caching would have to
+be handled with a "cache manager" process that runs persistently.
+
+The first solution seems easier, so persistent it is.

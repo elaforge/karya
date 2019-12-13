@@ -44,54 +44,6 @@ let
 
   ghc = nixpkgs.haskell.packages."${ghcVersion}";
 
-  # This doesn't work because haskell.packages has things that complain
-  # with "called with unexpected argument 'mkDerivation'".
-  # config =
-  #   let disableCarefully = pkgs: drv:
-  #     if drv.type or "" == "derivation" then disableTest pkgs drv
-  #     else drv;
-  #   in {
-  #   packageOverrides = pkgs: {
-  #     haskell = pkgs.haskell // {
-  #       packages = pkgs.haskell.packages // {
-  #         "${ghcVersion}" = pkgs.haskell.packages."${ghcVersion}".override {
-  #           # This works.
-  #           # overrides = new: old: {
-  #           #     med-module = disableTest pkgs old.med-module;
-  #           # };
-  #           # But this doesn't.
-  #           overrides = new: old:
-  #             builtins.mapAttrs (_: drv: disableCarefully pkgs drv) old;
-  #         };
-  #       };
-  #     };
-  #   };
-  # };
-
-  # Turn off all tests.
-  # The test for Diff is broken and since I'm going to have to compile
-  # everything anyway, I don't need tests.
-  # TODO: I should probably override all of the haskellPackages with this,
-  # or else dependencies will still compile with tests and profiling.
-  # How do I do that for the instance of haskellPackages that comes out of
-  # ghc###?  Or are they all from the same place?
-  disableTest = drv: drv;
-
-  # disableTest = drv:
-  #   # ghc bootlibs show up in pkgs as nulls.
-  #   if drv == null then drv
-  #   else nixpkgs.haskell.lib.overrideCabal drv (drv: {
-  #     doCheck = false;
-  #     doBenchmark = false;
-  #     enableExecutableProfiling = false;
-  #     enableLibraryProfiling = profiling;
-  #     # I do want haddock, to link docs.
-  #     # doHaddock = false;
-  #
-  #     # med-module is marked broken, but it's not.
-  #     broken = false;
-  #   });
-
   # util
   guard = bool: list: if bool then list else [];
   split = sep: str:
@@ -153,7 +105,7 @@ in rec {
     # && pkg != "writer-cps-mtl";
     ;
 
-  hackage = ghc.ghcWithPackages (pkgs: map (pkg: disableTest pkgs."${pkg}") (
+  hackage = ghc.ghcWithPackages (pkgs: map (pkg: pkgs."${pkg}") (
     builtins.filter wantPkg (builtins.concatLists [
       (readLines doc/cabal/basic)
       (guard withIm (readLines doc/cabal/im))
